@@ -1,5 +1,5 @@
 name: Mobile App Store Release
-
+run-name: iOS ${{ inputs.version }} (${{ inputs.dry_run && 'dry run' || 'release' }})
 on:
   workflow_dispatch:
     inputs:
@@ -12,17 +12,14 @@ on:
         required: true
         default: true
         type: boolean
-
 concurrency:
   # App Store build numbers are allocated from app-wide ASC history, so keep
   # allocation through upload atomic even when different patch versions queue.
   group: mobile-app-store-ios-${{ github.repository }}
   cancel-in-progress: false
-
 permissions:
   contents: read
   issues: write
-
 env:
   ASC_APP_ID: "6756574989"
   ASC_BYPASS_KEYCHAIN: "1"
@@ -36,28 +33,31 @@ env:
   PLATFORM: IOS
   RELEASE_NOTES: "Small fixes and polish to keep saving and organizing your ideas smooth and reliable."
   VERSION: ${{ inputs.version }}
-
 jobs:
-  release:
-    runs-on: macos-latest
-    timeout-minutes: 150
-
+  build:
+    runs-on: macos-26
+    timeout-minutes: 90
+    outputs:
+      build_id: ${{ steps.build_state.outputs.build_id }}
+      build_number: ${{ steps.build_state.outputs.build_number }}
+      mutate: ${{ steps.release_state.outputs.mutate }}
+      reuse: ${{ steps.build_state.outputs.reuse }}
+      source_version: ${{ steps.release_state.outputs.source_version }}
+      target_id: ${{ steps.release_state.outputs.target_id }}
+      target_state: ${{ steps.release_state.outputs.target_state }}
     steps:
       - name: Checkout release ref
-        uses: actions/checkout@v4
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           fetch-depth: 0
-
       - name: Set up Bun
-        uses: oven-sh/setup-bun@v2
+        uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
         with:
           bun-version: 1.3.5
-
       - name: Set up asc
         uses: rudrankriyam/setup-asc@5358c70a27a3f0d1517604b0f1fdc43e70c1cc4d # v1.0.1
         with:
           version: ${{ env.ASC_VERSION }}
-
       - name: Install dependencies
         run: bun install --frozen-lockfile
 
@@ -94,13 +94,26 @@ jobs:
               echo "A real release requires the existing $release_tag tag." >&2
               exit 1
             fi
-            if ! git merge-base --is-ancestor "$tag_commit" "$GITHUB_SHA"; then
-              echo "A real release must run from $release_tag or one of its descendant recovery commits." >&2
-              exit 1
-            fi
-            if [ "$tag_commit" != "$GITHUB_SHA" ]; then
-              echo "- Recovery source: $GITHUB_SHA (descends from $release_tag at $tag_commit)" >> "$GITHUB_STEP_SUMMARY"
-            fi
+            case "$GITHUB_REF" in
+              "refs/tags/$release_tag")
+                if [ "$tag_commit" != "$GITHUB_SHA" ]; then
+                  echo "$release_tag resolved to an unexpected commit." >&2
+                  exit 1
+                fi
+                ;;
+              refs/heads/main)
+                git fetch origin main
+                if [ "$GITHUB_SHA" != "$(git rev-parse origin/main)" ] || ! git merge-base --is-ancestor "$tag_commit" "$GITHUB_SHA"; then
+                  echo "A recovery release must run at the current origin/main commit descending from $release_tag." >&2
+                  exit 1
+                fi
+                echo "- Recovery source: current main $GITHUB_SHA (descends from $release_tag at $tag_commit)" >> "$GITHUB_STEP_SUMMARY"
+                ;;
+              *)
+                echo "A real release may run only from $release_tag or current main, not $GITHUB_REF." >&2
+                exit 1
+                ;;
+            esac
           fi
 
           expo_version="$(cd apps/mobile && bunx expo config --type public --json | jq -r '.version')"
@@ -108,7 +121,12 @@ jobs:
             echo "Expo resolved $expo_version, expected root package version $VERSION." >&2
             exit 1
           fi
-          xcodebuild -version
+          xcode_version="$(xcodebuild -version)"
+          if [[ "$xcode_version" != Xcode\ 26.* ]]; then
+            echo "The pinned macos-26 release image must provide Xcode 26.x." >&2
+            exit 1
+          fi
+          echo "$xcode_version"
           pod --version
 
           asc auth status --validate --output table
@@ -125,7 +143,7 @@ jobs:
         run: |
           versions_json="$RUNNER_TEMP/ios-versions.json"
           for attempt in 1 2 3; do
-            if asc versions list --app "$ASC_APP_ID" --platform "$PLATFORM" --paginate > "$versions_json"; then
+            if asc versions list --app "$ASC_APP_ID" --platform "$PLATFORM" --paginate --output json > "$versions_json"; then
               break
             fi
             if [ "$attempt" -eq 3 ]; then exit 1; fi
@@ -191,7 +209,8 @@ jobs:
             --processing-state VALID \
             --exclude-expired \
             --sort=-uploadedDate \
-            --limit 1 > "$exact_builds"
+            --limit 1 \
+            --output json > "$exact_builds"
           build_id="$(jq -r '.data[0].id // empty' "$exact_builds")"
           build_number="$(jq -r '.data[0].attributes.version // empty' "$exact_builds")"
 
@@ -201,8 +220,14 @@ jobs:
           else
             reuse=false
             all_builds="$RUNNER_TEMP/apple-ios-all-builds.json"
-            asc builds list --app "$ASC_APP_ID" --platform "$PLATFORM" --paginate > "$all_builds"
+            asc builds list --app "$ASC_APP_ID" --platform "$PLATFORM" --paginate --output json > "$all_builds"
             build_number="$(node scripts/apple-build-number.mjs "$all_builds")"
+            asc builds next-build-number --app "$ASC_APP_ID" --platform "$PLATFORM" --output json > "$RUNNER_TEMP/ios-asc-next-build.json"
+            asc_build_number="$(jq -r '.nextBuildNumber // .buildNumber // .data.nextBuildNumber // empty' "$RUNNER_TEMP/ios-asc-next-build.json")"
+            if [ -z "$asc_build_number" ] || [ "$asc_build_number" != "$build_number" ]; then
+              echo "asc next-build-number returned ${asc_build_number:-nothing}; deterministic allocation expected $build_number." >&2
+              exit 1
+            fi
             if ! [[ "$build_number" =~ ^[1-9][0-9]*$ ]]; then
               echo "Could not allocate a positive integer iOS build number from App Store Connect." >&2
               exit 1
@@ -450,25 +475,122 @@ jobs:
           done
           echo "- Local IPA: verified $VERSION/$BUILD_NUMBER for app and share extension" >> "$GITHUB_STEP_SUMMARY"
 
-      - name: Upload local IPA to Sentry Size Analysis
+      - name: Prepare verified signed IPA handoff
+        id: handoff
         if: steps.release_state.outputs.mutate == 'true' && steps.build_state.outputs.reuse != 'true'
         env:
+          BUILD_NUMBER: ${{ steps.build_state.outputs.build_number }}
+          IPA_PATH: ${{ steps.ipa.outputs.path }}
+        run: |
+          sha256="$(shasum -a 256 "$IPA_PATH" | awk '{print $1}')"
+          descriptor="$RUNNER_TEMP/ios-handoff.json"
+          jq -n \
+            --arg version "$VERSION" \
+            --arg buildNumber "$BUILD_NUMBER" \
+            --arg sha256 "$sha256" \
+            --arg fileName "$(basename "$IPA_PATH")" \
+            '{version: $version, buildNumber: $buildNumber, sha256: $sha256, fileName: $fileName}' > "$descriptor"
+          echo "descriptor=$descriptor" >> "$GITHUB_OUTPUT"
+          echo "sha256=$sha256" >> "$GITHUB_OUTPUT"
+
+      - name: Upload verified signed IPA handoff
+        if: steps.release_state.outputs.mutate == 'true' && steps.build_state.outputs.reuse != 'true'
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: teak-ios-${{ env.VERSION }}-signed
+          path: |
+            ${{ steps.ipa.outputs.path }}
+            ${{ steps.handoff.outputs.descriptor }}
+          if-no-files-found: error
+          retention-days: 1
+
+  submit:
+    if: inputs.dry_run == false
+    needs: build
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout release ref
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Bun
+        if: needs.build.outputs.mutate == 'true' && needs.build.outputs.reuse != 'true'
+        uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
+        with:
+          bun-version: 1.3.5
+
+      - name: Set up asc
+        uses: rudrankriyam/setup-asc@5358c70a27a3f0d1517604b0f1fdc43e70c1cc4d # v1.0.1
+        with:
+          version: ${{ env.ASC_VERSION }}
+
+      - name: Prepare App Store Connect key
+        env:
+          APPLE_API_KEY_P8: ${{ secrets.APPLE_API_KEY_P8 }}
+        run: |
+          if [ -z "$ASC_KEY_ID" ] || [ -z "$ASC_ISSUER_ID" ] || [ -z "$APPLE_API_KEY_P8" ]; then
+            echo "Missing App Store Connect credentials." >&2
+            exit 1
+          fi
+          key_path="$RUNNER_TEMP/AuthKey_${ASC_KEY_ID}.p8"
+          printf '%s' "$APPLE_API_KEY_P8" > "$key_path"
+          chmod 600 "$key_path"
+          echo "ASC_PRIVATE_KEY_PATH=$key_path" >> "$GITHUB_ENV"
+          asc auth status --validate --output table
+
+      - name: Install dependencies for mandatory Sentry analysis
+        if: needs.build.outputs.mutate == 'true' && needs.build.outputs.reuse != 'true'
+        run: bun install --frozen-lockfile
+
+      - name: Download verified signed IPA handoff
+        if: needs.build.outputs.mutate == 'true' && needs.build.outputs.reuse != 'true'
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: teak-ios-${{ env.VERSION }}-signed
+          path: ${{ runner.temp }}/ios-handoff
+
+      - name: Verify handoff and upload IPA to Sentry Size Analysis
+        id: handoff
+        if: needs.build.outputs.mutate == 'true' && needs.build.outputs.reuse != 'true'
+        env:
+          BUILD_NUMBER: ${{ needs.build.outputs.build_number }}
           SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
         run: |
           if [ -z "$SENTRY_AUTH_TOKEN" ]; then
             echo "Sentry Size Analysis is mandatory and SENTRY_AUTH_TOKEN is missing." >&2
             exit 1
           fi
-          bun run --cwd apps/mobile build:sentry -- "${{ steps.ipa.outputs.path }}"
+          descriptor="$(find "$RUNNER_TEMP/ios-handoff" -maxdepth 1 -type f -name 'ios-handoff.json')"
+          ipa_path="$(find "$RUNNER_TEMP/ios-handoff" -maxdepth 1 -type f -name '*.ipa')"
+          if [ "$(find "$RUNNER_TEMP/ios-handoff" -maxdepth 1 -type f -name '*.ipa' | wc -l | tr -d ' ')" -ne 1 ] || [ ! -s "$descriptor" ]; then
+            echo "Expected one signed IPA and its handoff descriptor." >&2
+            exit 1
+          fi
+          jq -e --arg version "$VERSION" --arg build "$BUILD_NUMBER" \
+            '.version == $version and .buildNumber == $build' "$descriptor" > /dev/null
+          expected_sha="$(jq -r '.sha256' "$descriptor")"
+          actual_sha="$(sha256sum "$ipa_path" | awk '{print $1}')"
+          if [ "$actual_sha" != "$expected_sha" ]; then
+            echo "Signed IPA handoff digest mismatch." >&2
+            exit 1
+          fi
+          bun run --cwd apps/mobile build:sentry -- "$ipa_path"
+          echo "path=$ipa_path" >> "$GITHUB_OUTPUT"
+          echo "sha256=$actual_sha" >> "$GITHUB_OUTPUT"
 
       - name: Upload local IPA with asc or reuse the exact valid Apple build
         id: apple_build
-        if: steps.release_state.outputs.mutate == 'true'
+        if: needs.build.outputs.mutate == 'true'
         env:
-          BUILD_NUMBER: ${{ steps.build_state.outputs.build_number }}
-          EXISTING_BUILD_ID: ${{ steps.build_state.outputs.build_id }}
-          IPA_PATH: ${{ steps.ipa.outputs.path }}
-          REUSE: ${{ steps.build_state.outputs.reuse }}
+          BUILD_NUMBER: ${{ needs.build.outputs.build_number }}
+          EXISTING_BUILD_ID: ${{ needs.build.outputs.build_id }}
+          IPA_PATH: ${{ steps.handoff.outputs.path }}
+          REUSE: ${{ needs.build.outputs.reuse }}
         run: |
           build_id="$EXISTING_BUILD_ID"
           builds_path="$RUNNER_TEMP/apple-ios-builds.json"
@@ -479,7 +601,8 @@ jobs:
               --version "$VERSION" \
               --build-number "$BUILD_NUMBER" \
               --checksum \
-              --wait > "$RUNNER_TEMP/ios-upload.json"
+              --wait \
+              --output json > "$RUNNER_TEMP/ios-upload.json"
           fi
           asc builds list \
             --app "$ASC_APP_ID" \
@@ -487,7 +610,8 @@ jobs:
             --version "$VERSION" \
             --build-number "$BUILD_NUMBER" \
             --processing-state VALID \
-            --exclude-expired > "$builds_path"
+            --exclude-expired \
+            --output json > "$builds_path"
           resolved_build_id="$(jq -r '.data[0].id // empty' "$builds_path")"
           if [ -z "$resolved_build_id" ] || [ "$(jq '.data | length' "$builds_path")" -ne 1 ]; then
             echo "Expected exactly one VALID iOS build for $VERSION/$BUILD_NUMBER." >&2
@@ -500,12 +624,51 @@ jobs:
           echo "id=$resolved_build_id" >> "$GITHUB_OUTPUT"
           echo "- App Store build: $resolved_build_id ($VERSION/$BUILD_NUMBER, VALID)" >> "$GITHUB_STEP_SUMMARY"
 
+      - name: Evaluate asc high-level release commands without mutation
+        id: asc_parity
+        if: needs.build.outputs.mutate == 'true'
+        env:
+          BUILD_ID: ${{ steps.apple_build.outputs.id }}
+          IPA_PATH: ${{ steps.handoff.outputs.path }}
+          REUSE: ${{ needs.build.outputs.reuse }}
+          SOURCE_VERSION: ${{ needs.build.outputs.source_version }}
+        run: |
+          stage_exit=0
+          asc release stage \
+            --app "$ASC_APP_ID" \
+            --version "$VERSION" \
+            --build "$BUILD_ID" \
+            --platform "$PLATFORM" \
+            --copy-metadata-from "$SOURCE_VERSION" \
+            --exclude-fields whatsNew \
+            --strict-validate \
+            --dry-run \
+            --output json > "$RUNNER_TEMP/ios-release-stage-dry-run.json" || stage_exit=$?
+          publish_exit="not_evaluated_on_reuse"
+          if [ "$REUSE" != "true" ]; then
+            publish_exit=0
+            asc publish appstore \
+              --app "$ASC_APP_ID" \
+              --ipa "$IPA_PATH" \
+              --version "$VERSION" \
+              --platform "$PLATFORM" \
+              --submit \
+              --dry-run \
+              --output json > "$RUNNER_TEMP/ios-publish-dry-run.json" || publish_exit=$?
+          fi
+          echo "stage_exit=$stage_exit" >> "$GITHUB_OUTPUT"
+          echo "publish_exit=$publish_exit" >> "$GITHUB_OUTPUT"
+          {
+            echo "- asc release stage dry-run exit: $stage_exit"
+            echo "- asc publish appstore dry-run exit: $publish_exit"
+          } >> "$GITHUB_STEP_SUMMARY"
+
       - name: Find or create the iOS version and preserve release metadata
         id: apple_version
-        if: steps.release_state.outputs.mutate == 'true'
+        if: needs.build.outputs.mutate == 'true'
         env:
-          SOURCE_VERSION: ${{ steps.release_state.outputs.source_version }}
-          TARGET_ID: ${{ steps.release_state.outputs.target_id }}
+          SOURCE_VERSION: ${{ needs.build.outputs.source_version }}
+          TARGET_ID: ${{ needs.build.outputs.target_id }}
         run: |
           version_id="$TARGET_ID"
           if [ -z "$version_id" ]; then
@@ -519,19 +682,20 @@ jobs:
               --platform "$PLATFORM" \
               --release-type AFTER_APPROVAL \
               --copy-metadata-from "$SOURCE_VERSION" \
-              --exclude-fields whatsNew > "$RUNNER_TEMP/ios-version-create.json"
+              --exclude-fields whatsNew \
+              --output json > "$RUNNER_TEMP/ios-version-create.json"
             version_id="$(jq -r '.id // empty' "$RUNNER_TEMP/ios-version-create.json")"
           fi
           if [ -z "$version_id" ]; then
-            version_id="$(asc versions list --app "$ASC_APP_ID" --platform "$PLATFORM" --version "$VERSION" --limit 1 | jq -r '.data[0].id // empty')"
+            version_id="$(asc versions list --app "$ASC_APP_ID" --platform "$PLATFORM" --version "$VERSION" --limit 1 --output json | jq -r '.data[0].id // empty')"
           fi
           if [ -z "$version_id" ]; then
             echo "Could not resolve iOS App Store version $VERSION." >&2
             exit 1
           fi
-          asc versions update --version-id "$version_id" --release-type AFTER_APPROVAL > "$RUNNER_TEMP/ios-version-update.json"
+          asc versions update --version-id "$version_id" --release-type AFTER_APPROVAL --output json > "$RUNNER_TEMP/ios-version-update.json"
           localizations="$RUNNER_TEMP/ios-localizations.json"
-          asc localizations list --version "$version_id" --paginate > "$localizations"
+          asc localizations list --version "$version_id" --paginate --output json > "$localizations"
           if [ "$(jq '.data | length' "$localizations")" -eq 0 ]; then
             echo "Metadata carry-forward produced no version localizations." >&2
             exit 1
@@ -542,9 +706,9 @@ jobs:
               --locale "$locale" \
               --whats-new "$RELEASE_NOTES" > /dev/null
           done < <(jq -r '.data[].attributes.locale' "$localizations")
-          source_id="$(asc versions list --app "$ASC_APP_ID" --platform "$PLATFORM" --version "$SOURCE_VERSION" --limit 1 | jq -r '.data[0].id // empty')"
-          if ! asc review details-for-version --version-id "$version_id" > "$RUNNER_TEMP/ios-review-target.json" 2>/dev/null; then
-            asc review details-for-version --version-id "$source_id" > "$RUNNER_TEMP/ios-review-source.json"
+          source_id="$(asc versions list --app "$ASC_APP_ID" --platform "$PLATFORM" --version "$SOURCE_VERSION" --limit 1 --output json | jq -r '.data[0].id // empty')"
+          if ! asc review details-for-version --version-id "$version_id" --output json > "$RUNNER_TEMP/ios-review-target.json" 2>/dev/null; then
+            asc review details-for-version --version-id "$source_id" --output json > "$RUNNER_TEMP/ios-review-source.json"
             review="$RUNNER_TEMP/ios-review-source.json"
             args=(review details-create --version-id "$version_id")
             for field in contactFirstName contactLastName contactEmail contactPhone notes; do
@@ -569,7 +733,7 @@ jobs:
           echo "id=$version_id" >> "$GITHUB_OUTPUT"
           echo "- App Store version: $version_id (AFTER_APPROVAL)" >> "$GITHUB_STEP_SUMMARY"
       - name: Complete new Apple age-rating fields without changing the existing declaration
-        if: steps.release_state.outputs.mutate == 'true'
+        if: needs.build.outputs.mutate == 'true'
         env:
           VERSION_ID: ${{ steps.apple_version.outputs.id }}
         run: |
@@ -586,16 +750,16 @@ jobs:
           fi
       - name: Attach exact build, validate, run doctor, and submit
         id: submit
-        if: steps.release_state.outputs.mutate == 'true'
+        if: needs.build.outputs.mutate == 'true'
         env:
           BUILD_ID: ${{ steps.apple_build.outputs.id }}
-          CURRENT_STATE: ${{ steps.release_state.outputs.target_state }}
+          CURRENT_STATE: ${{ needs.build.outputs.target_state }}
           VERSION_ID: ${{ steps.apple_version.outputs.id }}
         run: |
           attach_exit=0
-          asc versions attach-build --version-id "$VERSION_ID" --build-id "$BUILD_ID" > "$RUNNER_TEMP/ios-attach.json" || attach_exit=$?
+          asc versions attach-build --version-id "$VERSION_ID" --build-id "$BUILD_ID" --output json > "$RUNNER_TEMP/ios-attach.json" || attach_exit=$?
           if [ "$attach_exit" -ne 0 ]; then
-            asc versions view --version-id "$VERSION_ID" --include-build > "$RUNNER_TEMP/ios-attached-version.json"
+            asc versions view --version-id "$VERSION_ID" --include-build --output json > "$RUNNER_TEMP/ios-attached-version.json"
             if [ "$CURRENT_STATE" != "READY_FOR_REVIEW" ] || ! jq -e --arg version "$VERSION_ID" --arg build "$BUILD_ID" '.id == $version and .state == "READY_FOR_REVIEW" and .buildId == $build' "$RUNNER_TEMP/ios-attached-version.json" > /dev/null; then
               echo "Could not attach the exact iOS build to the target version." >&2
               exit "$attach_exit"
@@ -603,7 +767,7 @@ jobs:
             echo "- Exact iOS build was already attached to the existing READY_FOR_REVIEW draft." >> "$GITHUB_STEP_SUMMARY"
           fi
           validate_exit=0
-          asc validate --app "$ASC_APP_ID" --version-id "$VERSION_ID" --platform "$PLATFORM" --strict > "$RUNNER_TEMP/ios-validate.json" || validate_exit=$?
+          asc validate --app "$ASC_APP_ID" --version-id "$VERSION_ID" --platform "$PLATFORM" --strict --output json > "$RUNNER_TEMP/ios-validate.json" || validate_exit=$?
           if [ "$validate_exit" -ne 0 ]; then
             if [ "$CURRENT_STATE" != "READY_FOR_REVIEW" ] || ! jq -e '
               .summary.errors == 1
@@ -616,7 +780,7 @@ jobs:
             echo "asc validate confirmed the only blocker is the expected existing READY_FOR_REVIEW draft." >> "$GITHUB_STEP_SUMMARY"
           fi
           doctor_exit=0
-          asc review doctor --app "$ASC_APP_ID" --version-id "$VERSION_ID" --platform "$PLATFORM" > "$RUNNER_TEMP/ios-doctor.json" || doctor_exit=$?
+          asc review doctor --app "$ASC_APP_ID" --version-id "$VERSION_ID" --platform "$PLATFORM" --output json > "$RUNNER_TEMP/ios-doctor.json" || doctor_exit=$?
           if [ "$doctor_exit" -ne 0 ]; then
             if [ "$CURRENT_STATE" != "READY_FOR_REVIEW" ] || ! jq -e '
               .summary.errors == 1
@@ -633,7 +797,8 @@ jobs:
             --app "$ASC_APP_ID" \
             --platform "$PLATFORM" \
             --state READY_FOR_REVIEW \
-            --paginate > "$ready_submissions"
+            --paginate \
+            --output json > "$ready_submissions"
           matching_submission=""
           empty_submission=""
           while IFS= read -r candidate_id; do
@@ -642,7 +807,8 @@ jobs:
               --submission "$candidate_id" \
               --fields appStoreVersion \
               --include appStoreVersion \
-              --paginate > "$candidate_items"
+              --paginate \
+              --output json > "$candidate_items"
             item_count="$(jq '.data | length' "$candidate_items")"
             target_count="$(jq --arg target "$VERSION_ID" '[.data[]? | select(.relationships.appStoreVersion.data.id == $target)] | length' "$candidate_items")"
             if [ "$target_count" -eq 1 ] && [ "$item_count" -eq 1 ]; then
@@ -659,7 +825,7 @@ jobs:
           if [ -z "$submission_id" ]; then
             submission_id="$empty_submission"
             if [ -z "$submission_id" ]; then
-              asc review submissions-create --app "$ASC_APP_ID" --platform "$PLATFORM" > "$RUNNER_TEMP/ios-submission-create.json"
+              asc review submissions-create --app "$ASC_APP_ID" --platform "$PLATFORM" --output json > "$RUNNER_TEMP/ios-submission-create.json"
               submission_id="$(jq -r '.data.id // .id // empty' "$RUNNER_TEMP/ios-submission-create.json")"
             fi
             if [ -z "$submission_id" ]; then
@@ -675,31 +841,55 @@ jobs:
             --submission "$submission_id" \
             --fields appStoreVersion \
             --include appStoreVersion \
-            --paginate > "$RUNNER_TEMP/ios-review-items-final.json"
+            --paginate \
+            --output json > "$RUNNER_TEMP/ios-review-items-final.json"
           if ! jq -e --arg target "$VERSION_ID" '.data | length == 1 and .[0].relationships.appStoreVersion.data.id == $target' "$RUNNER_TEMP/ios-review-items-final.json" > /dev/null; then
             echo "Refusing to submit an iOS review draft that is empty or contains unrelated items." >&2
             exit 1
           fi
-          asc review submissions-submit --id "$submission_id" --confirm > "$RUNNER_TEMP/ios-submit.json"
+          asc review submissions-submit --id "$submission_id" --confirm --output json > "$RUNNER_TEMP/ios-submit.json"
           echo "submission_id=$submission_id" >> "$GITHUB_OUTPUT"
-      - name: Prove iOS reached App Review
-        if: steps.release_state.outputs.mutate == 'true'
+
+      - name: Prove exact iOS release and publish manifest
+        id: proof
         env:
+          BUILD_ID: ${{ steps.apple_build.outputs.id }}
+          BUILD_NUMBER: ${{ needs.build.outputs.build_number }}
+          MANIFEST_NAME: teak-ios-${{ env.VERSION }}-app-store.json
+          MUTATE: ${{ needs.build.outputs.mutate }}
+          PUBLISH_EXIT: ${{ steps.asc_parity.outputs.publish_exit || 'not_run' }}
+          STAGE_EXIT: ${{ steps.asc_parity.outputs.stage_exit || 'not_run' }}
+          TARGET_ID: ${{ needs.build.outputs.target_id }}
           VERSION_ID: ${{ steps.apple_version.outputs.id }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
+          version_id="$VERSION_ID"
+          build_id="$BUILD_ID"
+          build_number="$BUILD_NUMBER"
+          submission_id="${{ steps.submit.outputs.submission_id }}"
+          prior_manifest="$RUNNER_TEMP/prior-ios-manifest.json"
+          if [ "$MUTATE" != "true" ]; then
+            version_id="$TARGET_ID"
+            if ! gh release download "v$VERSION" --pattern "$MANIFEST_NAME" --output "$prior_manifest"; then
+              echo "A read-only rerun requires the existing release manifest $MANIFEST_NAME." >&2
+              exit 1
+            fi
+            build_id="$(jq -r '.build.id' "$prior_manifest")"
+            build_number="$(jq -r '.build.number' "$prior_manifest")"
+            submission_id="$(jq -r '.submission.id' "$prior_manifest")"
+          elif [ "${{ needs.build.outputs.reuse }}" = "true" ]; then
+            if ! gh release download "v$VERSION" --pattern "$MANIFEST_NAME" --output "$prior_manifest"; then
+              echo "Reusing an existing Apple build requires its canonical release manifest." >&2
+              exit 1
+            fi
+          fi
           deadline=$((SECONDS + 1200))
           while [ "$SECONDS" -lt "$deadline" ]; do
-            asc versions list --app "$ASC_APP_ID" --platform "$PLATFORM" --version "$VERSION" --limit 1 > "$RUNNER_TEMP/ios-final-version.json"
+            asc versions list --app "$ASC_APP_ID" --platform "$PLATFORM" --version "$VERSION" --limit 1 --output json > "$RUNNER_TEMP/ios-final-version.json"
             final_state="$(jq -r '.data[0].attributes.appVersionState // .data[0].attributes.appStoreState // empty' "$RUNNER_TEMP/ios-final-version.json")"
             case "$final_state" in
               WAITING_FOR_REVIEW|IN_REVIEW|PENDING_APPLE_RELEASE|PROCESSING_FOR_DISTRIBUTION|READY_FOR_DISTRIBUTION|READY_FOR_SALE)
-                asc review status --app "$ASC_APP_ID" --version-id "$VERSION_ID" --platform "$PLATFORM" > "$RUNNER_TEMP/ios-final-review.json"
-                {
-                  echo "- Review submission: ${{ steps.submit.outputs.submission_id }}"
-                  echo "- Final iOS state: $final_state"
-                  echo "- Release: automatic after approval"
-                } >> "$GITHUB_STEP_SUMMARY"
-                exit 0
+                break
                 ;;
               DEVELOPER_REJECTED|REJECTED|METADATA_REJECTED|INVALID_BINARY)
                 echo "iOS $VERSION entered terminal state $final_state." >&2
@@ -708,18 +898,79 @@ jobs:
             esac
             sleep 30
           done
-          echo "Timed out waiting for iOS $VERSION to reach WAITING_FOR_REVIEW." >&2
-          exit 1
+          if ! [[ "$final_state" =~ ^(WAITING_FOR_REVIEW|IN_REVIEW|PENDING_APPLE_RELEASE|PROCESSING_FOR_DISTRIBUTION|READY_FOR_DISTRIBUTION|READY_FOR_SALE)$ ]]; then
+            echo "Timed out waiting for iOS $VERSION to reach WAITING_FOR_REVIEW." >&2
+            exit 1
+          fi
+
+          asc versions view --version-id "$version_id" --include-build --include-submission --output json > "$RUNNER_TEMP/ios-final-view.json"
+          asc status --app "$ASC_APP_ID" --platform "$PLATFORM" --output json > "$RUNNER_TEMP/ios-final-status.json"
+          jq -n \
+            --arg version "$VERSION" \
+            --arg platform "$PLATFORM" \
+            --arg versionId "$version_id" \
+            --arg buildId "$build_id" \
+            --arg buildNumber "$build_number" \
+            --arg submissionId "$submission_id" \
+            '{version: $version, platform: $platform, versionId: $versionId, buildId: $buildId, buildNumber: $buildNumber, submissionId: $submissionId}' \
+            > "$RUNNER_TEMP/ios-expected.json"
+          node scripts/apple-release-proof.mjs verify \
+            --version-list "$RUNNER_TEMP/ios-final-version.json" \
+            --version-view "$RUNNER_TEMP/ios-final-view.json" \
+            --status "$RUNNER_TEMP/ios-final-status.json" \
+            --expected "$RUNNER_TEMP/ios-expected.json" \
+            --output "$RUNNER_TEMP/ios-proof.json"
+
+          artifact_sha="${{ steps.handoff.outputs.sha256 }}"
+          sentry="success"
+          prior_args=()
+          if [ "$MUTATE" != "true" ] || [ "${{ needs.build.outputs.reuse }}" = "true" ]; then
+            artifact_sha=""
+            sentry=""
+            prior_args=(--prior "$prior_manifest")
+          fi
+          node scripts/apple-release-manifest.mjs create \
+            --proof "$RUNNER_TEMP/ios-proof.json" \
+            --output "$RUNNER_TEMP/$MANIFEST_NAME" \
+            --tag "v$VERSION" \
+            --source-sha "$GITHUB_SHA" \
+            --app-id "$ASC_APP_ID" \
+            --artifact-name "Teak-$VERSION.ipa" \
+            --artifact-sha "$artifact_sha" \
+            --sentry "$sentry" \
+            --asc-version "$ASC_VERSION" \
+            --stage-exit "$STAGE_EXIT" \
+            --publish-exit "$PUBLISH_EXIT" \
+            --workflow "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID" \
+            --generated-at "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+            "${prior_args[@]}"
+
+          for attempt in 1 2 3 4 5 6; do
+            if gh release view "v$VERSION" > /dev/null 2>&1; then break; fi
+            gh release create "v$VERSION" --verify-tag --title "v$VERSION" --generate-notes > /dev/null 2>&1 || true
+            if [ "$attempt" -eq 6 ]; then
+              echo "Could not resolve GitHub Release v$VERSION." >&2
+              exit 1
+            fi
+            sleep 10
+          done
+          gh release upload "v$VERSION" "$RUNNER_TEMP/$MANIFEST_NAME" --clobber
+          {
+            echo "- Review submission: $submission_id"
+            echo "- Final iOS state: $final_state"
+            echo "- Release: automatic after approval"
+            echo "- Manifest: $MANIFEST_NAME"
+          } >> "$GITHUB_STEP_SUMMARY"
 
   report-failure:
-    if: ${{ failure() && inputs.dry_run == false }}
-    needs: release
-    runs-on: ubuntu-latest
+    if: ${{ always() && inputs.dry_run == false && (needs.build.result == 'failure' || needs.submit.result == 'failure') }}
+    needs: [build, submit]
+    runs-on: ubuntu-24.04
     concurrency:
       group: apple-release-issue-${{ inputs.version }}
       cancel-in-progress: false
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
       - name: Set up asc
         uses: rudrankriyam/setup-asc@5358c70a27a3f0d1517604b0f1fdc43e70c1cc4d # v1.0.1
         with:

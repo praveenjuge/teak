@@ -4,11 +4,10 @@ import process from "node:process";
 import { fileURLToPath } from "node:url";
 import { parseVersion } from "./release-version.mjs";
 
-const liveStates = new Set([
-  "READY_FOR_DISTRIBUTION",
-  "READY_FOR_SALE",
-  "PROCESSING_FOR_DISTRIBUTION",
-]);
+const liveStates = new Set(["READY_FOR_DISTRIBUTION", "READY_FOR_SALE"]);
+
+const dashboardStart = "<!-- apple-release-dashboard:start -->";
+const dashboardEnd = "<!-- apple-release-dashboard:end -->";
 
 export function issueTitle(version) {
   parseVersion(version);
@@ -22,6 +21,59 @@ export function exactIssue(issues, version) {
 
 export function isLiveState(state) {
   return liveStates.has(String(state).trim().toUpperCase());
+}
+
+export function isStorefrontLive(state, storefrontVersion, targetVersion) {
+  return (
+    isLiveState(state) &&
+    String(storefrontVersion).trim() === String(targetVersion).trim()
+  );
+}
+
+export function openReleaseVersions(issues) {
+  return issues
+    .filter((issue) => issue.state === "OPEN")
+    .map((issue) => /^Apple release v(\d+\.\d+\.\d+)$/.exec(issue.title)?.[1])
+    .filter(Boolean)
+    .sort((left, right) =>
+      left.localeCompare(right, undefined, { numeric: true })
+    );
+}
+
+export function releaseDashboard(body, values) {
+  const stateKey = [
+    values["ios-state"],
+    values["ios-store-version"],
+    values["safari-state"],
+    values["safari-store-version"],
+  ]
+    .map((value) =>
+      String(value || "UNKNOWN")
+        .trim()
+        .toUpperCase()
+    )
+    .join("|");
+  const block = `${dashboardStart}
+<!-- apple-release-state:${stateKey} -->
+## Current release status
+
+| Platform | App Store Connect | Public storefront |
+| --- | --- | --- |
+| iOS | ${values["ios-state"]} | ${values["ios-store-version"] || "not live"} |
+| Safari macOS | ${values["safari-state"]} | ${values["safari-store-version"] || "not live"} |
+
+Last check: [GitHub Actions](${values["workflow-url"]})
+${dashboardEnd}`;
+  const current = String(body || "").match(
+    /<!-- apple-release-state:([^>]+) -->/
+  )?.[1];
+  const expression = new RegExp(
+    `${dashboardStart.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}[\\s\\S]*?${dashboardEnd.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}`
+  );
+  const nextBody = expression.test(String(body || ""))
+    ? String(body).replace(expression, block)
+    : `${String(body || "").trim()}${body ? "\n\n" : ""}${block}`;
+  return { body: nextBody, changed: current !== stateKey, stateKey };
 }
 
 export function sanitizeAscOutput(value) {
@@ -81,7 +133,7 @@ function listIssues(version) {
     "--limit",
     "100",
     "--json",
-    "number,title,state,url",
+    "number,title,state,url,body",
   ]);
   return JSON.parse(result.stdout || "[]");
 }
@@ -163,10 +215,26 @@ function reportStatus(values) {
 
   const iosState = values["ios-state"].trim().toUpperCase();
   const safariState = values["safari-state"].trim().toUpperCase();
-  const bothLive = isLiveState(iosState) && isLiveState(safariState);
-  const body = `Apple release status check: iOS ${iosState}; Safari macOS ${safariState}. [Workflow](${workflowUrl})`;
+  const iosStoreVersion = values["ios-store-version"]?.trim() || "NOT_LIVE";
+  const safariStoreVersion =
+    values["safari-store-version"]?.trim() || "NOT_LIVE";
+  const bothLive =
+    isStorefrontLive(iosState, iosStoreVersion, values.version) &&
+    isStorefrontLive(safariState, safariStoreVersion, values.version);
+  const dashboard = releaseDashboard(issue.body, {
+    ...values,
+    "ios-state": iosState,
+    "safari-state": safariState,
+    "ios-store-version": iosStoreVersion,
+    "safari-store-version": safariStoreVersion,
+    "workflow-url": workflowUrl,
+  });
+  const transition = `Apple release status changed: iOS ${iosState} (storefront ${iosStoreVersion}); Safari macOS ${safariState} (storefront ${safariStoreVersion}). [Workflow](${workflowUrl})`;
   if (issue.state === "OPEN") {
-    gh(["issue", "comment", String(issue.number), "--body", body]);
+    gh(["issue", "edit", String(issue.number), "--body", dashboard.body]);
+    if (dashboard.changed) {
+      gh(["issue", "comment", String(issue.number), "--body", transition]);
+    }
     if (bothLive) {
       gh([
         "issue",
@@ -180,6 +248,24 @@ function reportStatus(values) {
   console.log(issue.url);
 }
 
+function listOpenVersions() {
+  const result = gh([
+    "issue",
+    "list",
+    "--state",
+    "open",
+    "--search",
+    '"Apple release v" in:title',
+    "--limit",
+    "100",
+    "--json",
+    "title,state",
+  ]);
+  process.stdout.write(
+    `${JSON.stringify(openReleaseVersions(JSON.parse(result.stdout || "[]")))}\n`
+  );
+}
+
 function main() {
   const [command, ...args] = process.argv.slice(2);
   const values = parseArguments(args);
@@ -191,7 +277,11 @@ function main() {
     reportStatus(values);
     return;
   }
-  throw new Error("Expected failure or status command.");
+  if (command === "versions") {
+    listOpenVersions();
+    return;
+  }
+  throw new Error("Expected failure, status, or versions command.");
 }
 
 if (process.argv[1] === fileURLToPath(import.meta.url)) {

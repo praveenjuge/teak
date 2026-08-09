@@ -34,14 +34,14 @@ env:
 
 jobs:
   check:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 15
     concurrency:
       group: apple-release-issue-${{ inputs.version || 'current' }}
       cancel-in-progress: false
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
 
       - name: Set up asc
         uses: rudrankriyam/setup-asc@5358c70a27a3f0d1517604b0f1fdc43e70c1cc4d # v1.0.1
@@ -61,46 +61,60 @@ jobs:
           chmod 600 "$key_path"
           echo "ASC_PRIVATE_KEY_PATH=$key_path" >> "$GITHUB_ENV"
 
-      - name: Resolve target version
-        id: version
-        env:
-          REQUESTED_VERSION: ${{ inputs.version }}
-        run: |
-          version="$REQUESTED_VERSION"
-          if [ -z "$version" ]; then
-            version="$(node -p "require('./package.json').version")"
-          fi
-          node scripts/release-version.mjs version "$version"
-          echo "value=$version" >> "$GITHUB_OUTPUT"
-
-      - name: Read iOS and Safari macOS status with asc
-        id: states
-        env:
-          VERSION: ${{ steps.version.outputs.value }}
-        run: |
-          asc auth status --validate --output table
-          asc versions list --app "$IOS_APP_ID" --platform IOS --version "$VERSION" --limit 1 > "$RUNNER_TEMP/ios-version.json"
-          asc versions list --app "$SAFARI_APP_ID" --platform MAC_OS --version "$VERSION" --limit 1 > "$RUNNER_TEMP/safari-version.json"
-          ios_state="$(jq -r '.data[0].attributes.appVersionState // .data[0].attributes.appStoreState // "NOT_CREATED"' "$RUNNER_TEMP/ios-version.json")"
-          safari_state="$(jq -r '.data[0].attributes.appVersionState // .data[0].attributes.appStoreState // "NOT_CREATED"' "$RUNNER_TEMP/safari-version.json")"
-          ios_id="$(jq -r '.data[0].id // "n/a"' "$RUNNER_TEMP/ios-version.json")"
-          safari_id="$(jq -r '.data[0].id // "n/a"' "$RUNNER_TEMP/safari-version.json")"
-          echo "ios=$ios_state" >> "$GITHUB_OUTPUT"
-          echo "safari=$safari_state" >> "$GITHUB_OUTPUT"
-          {
-            echo "### Apple release v$VERSION"
-            echo "- iOS: $ios_state ($ios_id)"
-            echo "- Safari macOS: $safari_state ($safari_id)"
-          } >> "$GITHUB_STEP_SUMMARY"
-
-      - name: Update or close the deduplicated release issue
-        if: ${{ github.event_name == 'schedule' || inputs.dry_run == false }}
+      - name: Check every pending Apple release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          VERSION: ${{ steps.version.outputs.value }}
+          REQUESTED_VERSION: ${{ inputs.version }}
+          UPDATE_ISSUES: ${{ github.event_name == 'schedule' || inputs.dry_run == false }}
         run: |
-          node scripts/apple-release-issue.mjs status \
-            --version "$VERSION" \
-            --ios-state "${{ steps.states.outputs.ios }}" \
-            --safari-state "${{ steps.states.outputs.safari }}" \
-            --workflow-url "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
+          if [ -n "$REQUESTED_VERSION" ]; then
+            node scripts/release-version.mjs version "$REQUESTED_VERSION"
+            versions="$(jq -cn --arg version "$REQUESTED_VERSION" '[$version]')"
+          elif [ "$GITHUB_EVENT_NAME" = "schedule" ]; then
+            versions="$(node scripts/apple-release-issue.mjs versions)"
+            if [ "$versions" = "[]" ]; then
+              root_version="$(node -p "require('./package.json').version")"
+              versions="$(jq -cn --arg version "$root_version" '[$version]')"
+            fi
+          else
+            root_version="$(node -p "require('./package.json').version")"
+            versions="$(jq -cn --arg version "$root_version" '[$version]')"
+          fi
+          asc auth status --validate --output table
+          while IFS= read -r version; do
+            node scripts/release-version.mjs version "$version"
+            ios_path="$RUNNER_TEMP/ios-version-$version.json"
+            safari_path="$RUNNER_TEMP/safari-version-$version.json"
+            for attempt in 1 2 3; do
+              if asc versions list --app "$IOS_APP_ID" --platform IOS --version "$version" --limit 1 --output json > "$ios_path" && \
+                asc versions list --app "$SAFARI_APP_ID" --platform MAC_OS --version "$version" --limit 1 --output json > "$safari_path"; then
+                break
+              fi
+              if [ "$attempt" -eq 3 ]; then exit 1; fi
+              sleep $((attempt * 10))
+            done
+            ios_state="$(jq -r '.data[0].attributes.appVersionState // .data[0].attributes.appStoreState // "NOT_CREATED"' "$ios_path")"
+            safari_state="$(jq -r '.data[0].attributes.appVersionState // .data[0].attributes.appStoreState // "NOT_CREATED"' "$safari_path")"
+            ios_id="$(jq -r '.data[0].id // "n/a"' "$ios_path")"
+            safari_id="$(jq -r '.data[0].id // "n/a"' "$safari_path")"
+
+            ios_store="$(curl --fail --silent --show-error --retry 3 --retry-all-errors --connect-timeout 10 --max-time 30 \
+              "https://itunes.apple.com/lookup?id=$IOS_APP_ID&country=us" | jq -r '.results[0].version // "NOT_LIVE"')"
+            safari_store="$(curl --fail --silent --show-error --retry 3 --retry-all-errors --connect-timeout 10 --max-time 30 \
+              "https://itunes.apple.com/lookup?id=$SAFARI_APP_ID&country=us" | jq -r '.results[0].version // "NOT_LIVE"')"
+            {
+              echo "### Apple release v$version"
+              echo "- iOS: $ios_state ($ios_id); storefront $ios_store"
+              echo "- Safari macOS: $safari_state ($safari_id); storefront $safari_store"
+            } >> "$GITHUB_STEP_SUMMARY"
+
+            if [ "$UPDATE_ISSUES" = "true" ]; then
+              node scripts/apple-release-issue.mjs status \
+                --version "$version" \
+                --ios-state "$ios_state" \
+                --ios-store-version "$ios_store" \
+                --safari-state "$safari_state" \
+                --safari-store-version "$safari_store" \
+                --workflow-url "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
+            fi
+          done < <(jq -r '.[]' <<< "$versions")

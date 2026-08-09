@@ -138,7 +138,7 @@ These rules govern everything that lands in `apps/docs/content/changelog/*.mdx`.
 
 ## Mobile Release Process
 
-When asked to release the mobile app (cut a new App Store version, publish to iOS, submit to TestFlight/App Store, or similar), follow `apps/mobile/release.md`. The canonical release trigger is one next-patch lockstep `package.json` bump merged to `main`. The Version Tag workflow creates the tag and dispatches the hosted EAS build, mandatory Sentry Size Analysis upload, asc upload/validation, and direct App Review submission. Do not use EAS Submit or manually edit Expo/App Store marketing versions.
+When asked to release the mobile app (cut a new App Store version, publish to iOS, submit to TestFlight/App Store, or similar), follow `apps/mobile/release.md`. The canonical release trigger is one next-patch lockstep `package.json` bump merged to `main`. The Version Tag workflow creates the tag and dispatches the GitHub Actions macOS build, mandatory Sentry Size Analysis upload, asc upload/validation, and direct App Review submission. Do not use hosted EAS Build, EAS Submit, or manually edit Expo/App Store marketing versions.
 
 Do not invent a release flow. Read `apps/mobile/release.md` and run the commands listed there in order.
 

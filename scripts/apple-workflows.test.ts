@@ -5,6 +5,7 @@ import path from "node:path";
 const repoRoot = path.resolve(import.meta.dir, "..");
 const read = (relative: string) =>
   fs.readFileSync(path.join(repoRoot, relative), "utf8");
+const expression = (value: string) => `\${{ ${value} }}`;
 
 describe("Apple release workflows", () => {
   const mobile = read(".github/workflows/mobile-release.yml");
@@ -12,6 +13,11 @@ describe("Apple release workflows", () => {
   const status = read(".github/workflows/apple-release-status.yml");
   const issueHelper = read("scripts/apple-release-issue.mjs");
   const versionTag = read(".github/workflows/version-tag.yml");
+  const productReleases = [
+    read(".github/workflows/cli-release.yml"),
+    read(".github/workflows/desktop-release.yml"),
+    read(".github/workflows/extension-release.yml"),
+  ];
   const setupAscPin =
     "rudrankriyam/setup-asc@5358c70a27a3f0d1517604b0f1fdc43e70c1cc4d";
 
@@ -23,13 +29,21 @@ describe("Apple release workflows", () => {
     }
   });
 
-  test("keeps iOS on a runner-local Xcode build plus asc upload and review", () => {
+  test("hands a runner-local iOS build to an isolated Ubuntu submission job", () => {
+    expect(mobile).toContain("build:\n    runs-on: macos-26");
+    expect(mobile).toContain("submit:\n    if: inputs.dry_run == false");
+    expect(mobile).toContain("runs-on: ubuntu-24.04");
     expect(mobile).toContain("bunx expo prebuild --platform ios");
     expect(mobile).toContain("xcodebuild");
     expect(mobile).toContain("IOS_APP_STORE");
     expect(mobile).toContain("--certificate-type IOS_DISTRIBUTION");
     expect(mobile).not.toContain("--certificate-type DISTRIBUTION");
-    expect(mobile).toContain("Upload local IPA to Sentry Size Analysis");
+    expect(mobile).toContain("Upload verified signed IPA handoff");
+    expect(mobile).toContain("Download verified signed IPA handoff");
+    expect(mobile).toContain(
+      "Verify handoff and upload IPA to Sentry Size Analysis"
+    );
+    expect(mobile).toContain("Signed IPA handoff digest mismatch");
     expect(mobile).toContain("asc builds upload");
     expect(mobile).toContain("asc validate");
     expect(mobile).toContain("asc review doctor");
@@ -45,17 +59,25 @@ describe("Apple release workflows", () => {
     expect(mobile).toContain("secrets.SENTRY_MOBILE_DSN");
     expect(mobile).toContain("asc age-rating edit");
     expect(mobile).toContain("--social-media-age-restricted false");
+    expect(mobile.indexOf("build:sentry")).toBeLessThan(
+      mobile.indexOf("asc builds upload")
+    );
   });
 
   test("serializes app-wide iOS build-number allocation through upload", () => {
     expect(mobile).toContain(
-      "group: mobile-app-store-ios-${{ github.repository }}"
+      `group: mobile-app-store-ios-${expression("github.repository")}`
     );
-    expect(mobile).not.toContain("group: mobile-app-store-${{ inputs.version }}");
+    expect(mobile).not.toContain(
+      `group: mobile-app-store-${expression("inputs.version")}`
+    );
     expect(mobile).toContain("cancel-in-progress: false");
   });
 
-  test("keeps Safari PKG artifacts while using asc for every Apple operation", () => {
+  test("hands a signed Safari PKG to an isolated Ubuntu submission job", () => {
+    expect(safari).toContain("build:\n    runs-on: macos-26");
+    expect(safari).toContain("submit:\n    if: inputs.dry_run == false");
+    expect(safari).toContain("runs-on: ubuntu-24.04");
     expect(safari).toContain("xcodebuild archive");
     expect(safari).toContain("asc certificates");
     expect(safari).toContain("asc profiles");
@@ -70,15 +92,22 @@ describe("Apple release workflows", () => {
     expect(safari).not.toContain("EXPECTED_SIGNING_IDENTITY");
     expect(safari).toContain("asc age-rating edit");
     expect(safari).toContain("--social-media-age-restricted false");
+    expect(safari).toContain("Upload verified signed PKG handoff");
+    expect(safari).toContain("Download verified signed PKG handoff");
+    expect(safari).toContain("Signed PKG handoff digest mismatch");
   });
 
-  test("permits real recovery only from a tagged release descendant", () => {
+  test("permits mutation only from the exact tag or current main", () => {
     for (const workflow of [mobile, safari]) {
       expect(workflow).toContain('release_tag="v$VERSION"');
+      expect(workflow).toContain('"refs/tags/$release_tag")');
+      expect(workflow).toContain("refs/heads/main)");
       expect(workflow).toContain(
-        'git merge-base --is-ancestor "$tag_commit" "$GITHUB_SHA"'
+        'if [ "$GITHUB_SHA" != "$(git rev-parse origin/main)" ] || ! git merge-base --is-ancestor "$tag_commit" "$GITHUB_SHA"; then'
       );
-      expect(workflow).toContain("descendant recovery commits");
+      expect(workflow).toContain(
+        "A real release may run only from $release_tag or current main, not $GITHUB_REF."
+      );
     }
   });
 
@@ -90,11 +119,11 @@ describe("Apple release workflows", () => {
     expect(safari).toContain('asset_label="App Store build $build_number"');
     expect(safari).toContain('[ "$existing_label" = "$asset_label" ]');
     expect(safari).toContain(
-      'labeled_package="$PACKAGE_PATH#App Store build $BUILD_NUMBER"'
+      'gh release upload "v$VERSION" "$PACKAGE_PATH#App Store build $build_number" --clobber'
     );
   });
 
-  test("dispatches every release from the one version tag", () => {
+  test("replays or dispatches every release from the one version tag", () => {
     for (const workflow of [
       "cli-release.yml",
       "desktop-release.yml",
@@ -102,8 +131,21 @@ describe("Apple release workflows", () => {
       "mobile-release.yml",
       "safari-extension-release.yml",
     ]) {
-      expect(versionTag).toContain(`gh workflow run ${workflow}`);
+      expect(versionTag).toContain(`workflow: ${workflow}`);
     }
+    expect(versionTag).toContain('gh workflow run "$WORKFLOW"');
+    expect(versionTag).toContain(".display_title == $title");
+    expect(versionTag).toContain('.event == "workflow_dispatch"');
+    expect(versionTag).toContain("Reusing successful $WORKFLOW run");
+    expect(versionTag).toContain("Waiting for existing $WORKFLOW run");
+    expect(versionTag).toContain(
+      "Waiting briefly for the tag-triggered $WORKFLOW run"
+    );
+    expect(versionTag).toContain("fail-fast: false");
+    expect(mobile).toContain(`run-name: iOS ${expression("inputs.version")}`);
+    expect(safari).toContain(
+      `run-name: Safari macOS ${expression("inputs.version")}`
+    );
     expect(versionTag).toContain("release-version.mjs patch");
     expect(versionTag).toContain(
       'if [ "$previous_version" = "$VERSION" ]; then'
@@ -118,6 +160,38 @@ describe("Apple release workflows", () => {
     expect(status).toContain("--platform IOS");
     expect(status).toContain("--platform MAC_OS");
     expect(status).toContain("apple-release-issue.mjs status");
+    expect(status).toContain("apple-release-issue.mjs versions");
+    expect(status).toContain("itunes.apple.com/lookup?id=$IOS_APP_ID");
+    expect(status).toContain("itunes.apple.com/lookup?id=$SAFARI_APP_ID");
+    expect(status).toContain('--ios-store-version "$ios_store"');
+    expect(status).toContain('--safari-store-version "$safari_store"');
+  });
+
+  test("publishes replayable proof manifests after exact read-only verification", () => {
+    for (const workflow of [mobile, safari]) {
+      expect(workflow).toContain("apple-release-proof.mjs verify");
+      expect(workflow).toContain("apple-release-manifest.mjs create");
+      expect(workflow).toContain("app-store.json");
+      expect(workflow).toContain("gh release upload");
+      expect(workflow).toContain("asc release stage");
+    }
+    expect(mobile).toContain("asc publish appstore");
+    expect(safari).toContain(
+      "asc publish appstore: not used because 3.6.1 has no PKG input"
+    );
+  });
+
+  test("pins every third-party action in the Apple release workflows", () => {
+    const mutableAction = /^\s*uses:\s*[^./\s][^\s]*@(v\d+|main|master)\s*$/m;
+    for (const workflow of [
+      mobile,
+      safari,
+      status,
+      versionTag,
+      ...productReleases,
+    ]) {
+      expect(workflow).not.toMatch(mutableAction);
+    }
   });
 
   test("continues an exact version already attached to a review draft", () => {
@@ -137,9 +211,7 @@ describe("Apple release workflows", () => {
             '`;
 
     for (const workflow of [mobile, safari]) {
-      expect(workflow).toContain(
-        '""|PREPARE_FOR_SUBMISSION|READY_FOR_REVIEW)'
-      );
+      expect(workflow).toContain('""|PREPARE_FOR_SUBMISSION|READY_FOR_REVIEW)');
       expect(workflow).not.toContain(
         "WAITING_FOR_REVIEW|READY_FOR_REVIEW|IN_REVIEW"
       );

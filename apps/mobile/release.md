@@ -12,7 +12,8 @@ iOS build history.
 1. Patch-bump every tracked `package.json` to the same next version.
 2. Merge that scoped bump to `main`.
 3. `Version Tag` verifies that the change is exactly one patch, creates
-   `v<version>`, and dispatches `Mobile App Store Release` at that tag.
+   `v<version>`, and dispatches every product release at that tag. A rerun
+   reuses successful or active child runs and dispatches only missing work.
 4. The workflow verifies the tag, lockstep packages, dynamic Expo version, asc
    version, and credentials.
 5. It reuses an exact valid App Store Connect build for the target marketing
@@ -23,17 +24,23 @@ iOS build history.
    provisioning profiles for the Teak app and share extension. The workflow
    archives, exports, and verifies the signed IPA locally, including bundle IDs,
    marketing version, build number, embedded profiles, and signatures.
-7. The locally exported IPA is uploaded to Sentry Size Analysis. A failed or
+7. The macOS job publishes the signed IPA and a SHA-256 handoff descriptor as a
+   one-day private Actions artifact. An Ubuntu job verifies the digest before
+   any external upload.
+8. The Ubuntu job uploads the exact IPA to Sentry Size Analysis. A failed or
    missing Sentry upload stops the release before App Store Connect upload.
-8. asc uploads the exact IPA directly to App Store Connect and waits for a
+9. asc uploads the exact IPA directly to App Store Connect and waits for a
    `VALID` build.
-9. asc finds or creates the iOS App Store version, copies localization metadata
+10. asc finds or creates the iOS App Store version, copies localization metadata
    from the prior live iOS version without copying What's New, applies the
    generic release note, preserves review details, sets `AFTER_APPROVAL`,
    sparsely completes Apple's social-media age-rating fields without changing
    the existing declaration, attaches the exact build, validates readiness,
    runs review doctor, and submits directly to App Review.
-10. The workflow succeeds only after iOS reaches `WAITING_FOR_REVIEW` or a later
+11. A separate read-only proof pass verifies the exact version, platform,
+   attached `VALID` build, submission, `AFTER_APPROVAL`, and review state. It
+   writes `teak-ios-<version>-app-store.json` to the GitHub Release.
+12. The workflow succeeds only after iOS reaches `WAITING_FOR_REVIEW` or a later
    valid state.
 
 The release note is:
@@ -52,16 +59,20 @@ gh workflow run mobile-release.yml --ref main -f "version=$version" -f dry_run=t
 
 ## Reliability and recovery
 
-- Concurrency is scoped by iOS version. Reruns reuse the exact valid Apple build
-  after its locally exported IPA has already passed mandatory Sentry Size
-  Analysis and App Store upload in the canonical workflow.
+- App-wide concurrency keeps build-number allocation through upload atomic.
+  Reruns reuse an exact valid Apple build only when its release manifest proves
+  the artifact, Sentry analysis, build, submission, and prior workflow.
 - In-review or already-live versions are read-only and return success.
 - Rejected versions are never resubmitted or modified automatically.
 - A terminal workflow failure opens or updates the single
   `Apple release v<version>` GitHub issue with the workflow link, redacted asc
   status, doctor remediation, and the exact rerun command.
-- `.github/workflows/apple-release-status.yml` checks iOS and Safari every six
-  hours and closes that issue only after both versions are live.
+- `.github/workflows/apple-release-status.yml` checks every open Apple release
+  issue every six hours. It closes an issue only when both ASC states are live
+  and both public storefronts report that exact version.
+- `asc release stage --dry-run` and `asc publish appstore --dry-run` are recorded
+  in the manifest for parity evaluation. The explicit lower-level asc sequence
+  remains canonical until a real patch proves the higher-level path equivalent.
 
 App Store Connect app: `6756574989`
 
