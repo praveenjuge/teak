@@ -125,7 +125,7 @@ ${doctor}
 Rerun after remediation:
 
 \`\`\`bash
-gh workflow run ${workflowFile} --ref v${values.version} -f version=${values.version} -f dry_run=false
+gh workflow run ${workflowFile} --ref main -f version=${values.version} -f dry_run=false
 \`\`\``;
 }
 

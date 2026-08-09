@@ -1,7 +1,6 @@
 {
   "cli": {
-    "version": ">= 16.18.0",
-    "appVersionSource": "remote"
+    "version": ">= 16.18.0"
   },
   "build": {
     "development": {
@@ -15,7 +14,6 @@
       "distribution": "internal"
     },
     "production": {
-      "autoIncrement": true,
       "environment": "production",
       "env": {
         "EXPO_PUBLIC_SENTRY_ENVIRONMENT": "production",
