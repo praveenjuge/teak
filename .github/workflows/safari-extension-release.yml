@@ -177,12 +177,20 @@ jobs:
           build_id="$(jq -r '.data[0].id // empty' "$RUNNER_TEMP/safari-existing-build.json")"
           build_number="$(jq -r '.data[0].attributes.version // empty' "$RUNNER_TEMP/safari-existing-build.json")"
           asset_label="App Store build $build_number"
+          manifest="$RUNNER_TEMP/safari-reuse-manifest.json"
+          manifest_name="teak-safari-$VERSION-app-store.json"
           existing_label="$(gh release view "v$VERSION" --json assets --jq ".assets[] | select(.name == \"$asset\") | .label" 2>/dev/null || true)"
-          if [ -n "$build_id" ] && [ "$existing_label" = "$asset_label" ]; then
+          if [ -n "$build_id" ] && [ "$existing_label" = "$asset_label" ] && gh release download "v$VERSION" --pattern "$manifest_name" --output "$manifest" 2>/dev/null; then
+            if ! jq -e --arg id "$build_id" --arg number "$build_number" \
+              '.build.id == $id and .build.number == $number and .artifact.sha256 != ""' "$manifest" > /dev/null; then
+              echo "The canonical Safari manifest does not prove the exact reusable build." >&2
+              exit 1
+            fi
             reuse=true
-            echo "Reusing VALID Safari build $build_id and its exact GitHub PKG asset."
+            echo "Reusing manifest-proven VALID Safari build $build_id and its exact GitHub PKG asset."
           else
             reuse=false
+            build_id=""
             asc builds next-build-number --app "$ASC_APP_ID" --platform "$PLATFORM" --output json > "$RUNNER_TEMP/safari-next-build.json"
             build_number="$(jq -r '.nextBuildNumber // empty' "$RUNNER_TEMP/safari-next-build.json")"
             if [ -z "$build_number" ]; then
