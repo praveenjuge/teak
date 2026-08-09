@@ -72,7 +72,7 @@ test("uploads runner-local production builds to Sentry before App Store Connect"
   expect(workflow).toContain("secrets.SENTRY_MOBILE_DSN");
 });
 
-test("pins the Expo 56 macro-compatible native build set", () => {
+test("pins the Expo 57 macro-compatible native build set", () => {
   const packageJson = JSON.parse(
     readFileSync(resolve(mobileRoot, "package.json"), "utf8")
   );
@@ -81,11 +81,15 @@ test("pins the Expo 56 macro-compatible native build set", () => {
   );
   const lockfile = readFileSync(resolve(repositoryRoot, "bun.lock"), "utf8");
 
-  expect(packageJson.dependencies.expo).toBe("~56.0.15");
-  expect(packageJson.dependencies["expo-build-properties"]).toBe("~56.0.22");
-  expect(repositoryPackage.overrides["expo-constants"]).toBe("56.0.20");
-  expect(repositoryPackage.overrides["expo-font"]).toBe("56.0.7");
-  expect(repositoryPackage.overrides["expo-linking"]).toBe("56.0.15");
-  expect(lockfile).toContain('"@expo/expo-modules-macros-plugin@0.2.2"');
-  expect(lockfile).not.toContain('"@expo/expo-modules-macros-plugin@0.0.9"');
+  expect(packageJson.dependencies.expo).toBe("^57.0.0");
+  expect(packageJson.dependencies["expo-build-properties"]).toBe("~57.0.9");
+  expect(packageJson.dependencies["react-native"]).toBe("0.86.2");
+  expect(packageJson.dependencies["react-native-reanimated"]).toBe("4.5.1");
+  expect(packageJson.dependencies["react-native-worklets"]).toBe("0.10.1");
+  expect(repositoryPackage.overrides["expo-constants"]).toBeUndefined();
+  expect(repositoryPackage.overrides["expo-font"]).toBeUndefined();
+  expect(repositoryPackage.overrides["expo-linking"]).toBeUndefined();
+  expect(repositoryPackage.overrides["expo-web-browser"]).toBeUndefined();
+  expect(lockfile).toContain('"@expo/expo-modules-macros-plugin@0.6.1"');
+  expect(lockfile).not.toContain('"@expo/expo-modules-macros-plugin@0.2.2"');
 });
