@@ -15,8 +15,9 @@ patch bump merged to `main` is the only normal manual release action. Root
    Connect credentials.
 4. asc finds or creates the `MAC_OS` App Store version, copies localization
    metadata from the prior live macOS version without copying What's New,
-   applies the generic note, preserves review details, and sets
-   `AFTER_APPROVAL`.
+   applies the generic note, preserves review details and the existing age
+   rating declaration, sparsely completes Apple's new social-media age-rating
+   fields, and sets `AFTER_APPROVAL`.
 5. For a new build, asc resolves or creates the Mac App Distribution and Mac
    Installer Distribution certificates that match the repository's private key,
    then resolves, creates, and downloads the two Mac App Store provisioning

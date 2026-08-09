@@ -21,6 +21,7 @@ test("production mobile builds require Sentry uploads", () => {
   expect(store.apple.version).toBeUndefined();
   expect(appConfig).toContain('require("../../package.json")');
   expect(appConfig).toContain("version: rootPackage.version");
+  expect(appConfig).toContain("TEAK_IOS_BUILD_NUMBER");
   expect(app.expo.plugins).toContainEqual([
     "@sentry/react-native/expo",
     expect.objectContaining({
@@ -31,6 +32,8 @@ test("production mobile builds require Sentry uploads", () => {
   ]);
   expect(eas.build.production.env.SENTRY_DISABLE_AUTO_UPLOAD).toBeUndefined();
   expect(eas.build.production.env.SENTRY_ALLOW_FAILURE).toBe("false");
+  expect(eas.cli.appVersionSource).toBeUndefined();
+  expect(eas.build.production.autoIncrement).toBeUndefined();
   expect(metro).toContain("getSentryExpoConfig");
   expect(packageJson.scripts["build:sentry"]).toContain(
     "sentry-cli build upload"
@@ -38,7 +41,7 @@ test("production mobile builds require Sentry uploads", () => {
   expect(packageJson.scripts["build:sentry"]).toContain("teak-mobile-prod");
 });
 
-test("uploads hosted production builds to Sentry before App Store Connect", () => {
+test("uploads runner-local production builds to Sentry before App Store Connect", () => {
   const packageJson = JSON.parse(
     readFileSync(resolve(mobileRoot, "package.json"), "utf8")
   );
@@ -52,14 +55,21 @@ test("uploads hosted production builds to Sentry before App Store Connect", () =
   );
 
   expect(existsSync(legacyWorkflowPath)).toBe(false);
-  expect(packageJson.scripts["build:local"]).toBeUndefined();
   expect(packageJson.scripts["build:submit"]).toBeUndefined();
   expect(packageJson.scripts["build:sentry"]).toContain(
     "sentry-cli build upload"
   );
-  expect(workflow.indexOf("Upload IPA to Sentry Size Analysis")).toBeLessThan(
-    workflow.indexOf("Upload IPA with asc")
-  );
+  expect(
+    workflow.indexOf("Upload local IPA to Sentry Size Analysis")
+  ).toBeLessThan(workflow.indexOf("Upload local IPA with asc"));
+  expect(workflow).toContain("bunx expo prebuild --platform ios");
+  expect(workflow).toContain("xcodebuild");
+  expect(workflow).not.toContain("eas-cli");
+  expect(workflow).not.toContain("EXPO_TOKEN");
+  expect(workflow).not.toContain("EAS_CLI_VERSION");
+  expect(workflow).toContain("EXPO_PUBLIC_CONVEX_URL");
+  expect(workflow).toContain("EXPO_PUBLIC_CONVEX_SITE_URL");
+  expect(workflow).toContain("secrets.SENTRY_MOBILE_DSN");
 });
 
 test("pins the Expo 56 macro-compatible native build set", () => {

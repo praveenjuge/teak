@@ -10,6 +10,7 @@ describe("Apple release workflows", () => {
   const mobile = read(".github/workflows/mobile-release.yml");
   const safari = read(".github/workflows/safari-extension-release.yml");
   const status = read(".github/workflows/apple-release-status.yml");
+  const issueHelper = read("scripts/apple-release-issue.mjs");
   const versionTag = read(".github/workflows/version-tag.yml");
   const setupAscPin =
     "rudrankriyam/setup-asc@5358c70a27a3f0d1517604b0f1fdc43e70c1cc4d";
@@ -22,18 +23,35 @@ describe("Apple release workflows", () => {
     }
   });
 
-  test("keeps iOS on hosted EAS build plus asc upload and review", () => {
-    expect(mobile).toContain("--profile production");
-    expect(mobile).toContain("--non-interactive");
-    expect(mobile).toContain("Upload IPA to Sentry Size Analysis");
+  test("keeps iOS on a runner-local Xcode build plus asc upload and review", () => {
+    expect(mobile).toContain("bunx expo prebuild --platform ios");
+    expect(mobile).toContain("xcodebuild");
+    expect(mobile).toContain("IOS_APP_STORE");
+    expect(mobile).toContain("--certificate-type IOS_DISTRIBUTION");
+    expect(mobile).not.toContain("--certificate-type DISTRIBUTION");
+    expect(mobile).toContain("Upload local IPA to Sentry Size Analysis");
     expect(mobile).toContain("asc builds upload");
     expect(mobile).toContain("asc validate");
     expect(mobile).toContain("asc review doctor");
     expect(mobile).toContain("asc review submit");
     expect(mobile).not.toContain("eas submit");
+    expect(mobile).not.toContain("eas-cli");
+    expect(mobile).not.toContain("EXPO_TOKEN");
     expect(mobile).not.toContain("submit-app-review.mjs");
-    expect(mobile).toContain("--limit 50");
-    expect(mobile).not.toContain("--limit 100");
+    expect(mobile).toContain("manageAppVersionAndBuildNumber bool false");
+    expect(mobile).toContain("apple-build-number.mjs");
+    expect(mobile).toContain("EXPO_PUBLIC_CONVEX_URL");
+    expect(mobile).toContain("secrets.SENTRY_MOBILE_DSN");
+    expect(mobile).toContain("asc age-rating edit");
+    expect(mobile).toContain("--social-media-age-restricted false");
+  });
+
+  test("serializes app-wide iOS build-number allocation through upload", () => {
+    expect(mobile).toContain(
+      "group: mobile-app-store-ios-${{ github.repository }}"
+    );
+    expect(mobile).not.toContain("group: mobile-app-store-${{ inputs.version }}");
+    expect(mobile).toContain("cancel-in-progress: false");
   });
 
   test("keeps Safari PKG artifacts while using asc for every Apple operation", () => {
@@ -48,6 +66,8 @@ describe("Apple release workflows", () => {
     expect(safari).not.toContain("xcrun altool");
     expect(safari).toContain('[ "$candidate_hash" = "$private_hash" ]');
     expect(safari).not.toContain("EXPECTED_SIGNING_IDENTITY");
+    expect(safari).toContain("asc age-rating edit");
+    expect(safari).toContain("--social-media-age-restricted false");
   });
 
   test("permits real recovery only from a tagged release descendant", () => {
@@ -104,5 +124,7 @@ describe("Apple release workflows", () => {
     }
     expect(mobile).toContain("apple-release-issue.mjs failure");
     expect(safari).toContain("apple-release-issue.mjs failure");
+    expect(issueHelper).toContain("--ref main");
+    expect(issueHelper).not.toContain(" --ref v");
   });
 });

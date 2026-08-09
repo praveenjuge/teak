@@ -229,6 +229,23 @@ jobs:
           echo "id=$version_id" >> "$GITHUB_OUTPUT"
           echo "- App Store version: $version_id (AFTER_APPROVAL)" >> "$GITHUB_STEP_SUMMARY"
 
+      - name: Complete new Apple age-rating fields without changing the existing declaration
+        if: steps.release_state.outputs.mutate == 'true'
+        env:
+          VERSION_ID: ${{ steps.apple_version.outputs.id }}
+        run: |
+          asc age-rating edit \
+            --version-id "$VERSION_ID" \
+            --social-media false \
+            --social-media-age-restricted false > "$RUNNER_TEMP/safari-age-rating-edit.json"
+          asc age-rating view \
+            --version-id "$VERSION_ID" \
+            --fields socialMedia,socialMediaAgeRestricted > "$RUNNER_TEMP/safari-age-rating-view.json"
+          if ! jq -e '.data.attributes.socialMedia == false and .data.attributes.socialMediaAgeRestricted == false' "$RUNNER_TEMP/safari-age-rating-view.json" > /dev/null; then
+            echo "App Store Connect did not retain the required Safari social-media age-rating declarations." >&2
+            exit 1
+          fi
+
       - name: Reuse an exact uploaded Safari build and PKG when available
         id: reuse
         if: steps.release_state.outputs.mutate == 'true'
