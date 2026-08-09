@@ -46,6 +46,13 @@ export function packageFiles(repoRoot) {
   return files.sort();
 }
 
+export function npmLockFiles(repoRoot) {
+  return packageFiles(repoRoot)
+    .map((relative) => path.join(path.dirname(relative), "package-lock.json"))
+    .filter((relative) => fs.existsSync(path.join(repoRoot, relative)))
+    .sort();
+}
+
 export function assertLockstep(repoRoot, expectedVersion) {
   parseVersion(expectedVersion);
   const mismatches = [];
@@ -57,9 +64,23 @@ export function assertLockstep(repoRoot, expectedVersion) {
       mismatches.push(`${relative}: ${manifest.version ?? "missing"}`);
     }
   }
+  for (const relative of npmLockFiles(repoRoot)) {
+    const lockfile = JSON.parse(
+      fs.readFileSync(path.join(repoRoot, relative), "utf8")
+    );
+    const versions = [
+      ["version", lockfile.version],
+      ['packages[""].version', lockfile.packages?.[""]?.version],
+    ];
+    for (const [field, version] of versions) {
+      if (version !== expectedVersion) {
+        mismatches.push(`${relative} ${field}: ${version ?? "missing"}`);
+      }
+    }
+  }
   if (mismatches.length > 0) {
     throw new Error(
-      `Every package.json must use ${expectedVersion}:\n${mismatches.join("\n")}`
+      `Every package manifest and npm lockfile must use ${expectedVersion}:\n${mismatches.join("\n")}`
     );
   }
 }
@@ -83,7 +104,9 @@ function main() {
   }
   if (command === "lockstep" && first && !second) {
     assertLockstep(repoRoot, first);
-    console.log(`All package.json files are lockstep at ${first}.`);
+    console.log(
+      `All package manifests and npm lockfiles are lockstep at ${first}.`
+    );
     return;
   }
   if (command === "patch" && first && second) {
