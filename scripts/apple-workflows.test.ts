@@ -120,6 +120,17 @@ describe("Apple release workflows", () => {
     expect(status).toContain("apple-release-issue.mjs status");
   });
 
+  test("continues an exact version already attached to a review draft", () => {
+    for (const workflow of [mobile, safari]) {
+      expect(workflow).toContain(
+        '""|PREPARE_FOR_SUBMISSION|READY_FOR_REVIEW)'
+      );
+      expect(workflow).not.toContain(
+        "WAITING_FOR_REVIEW|READY_FOR_REVIEW|IN_REVIEW"
+      );
+    }
+  });
+
   test("serializes failure deduplication by version", () => {
     for (const workflow of [mobile, safari, status]) {
       expect(workflow).toContain("apple-release-issue-");

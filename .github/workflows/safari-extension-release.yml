@@ -133,7 +133,7 @@ jobs:
             } >> "$GITHUB_STEP_SUMMARY"
           else
             case "$target_state" in
-              ""|PREPARE_FOR_SUBMISSION)
+              ""|PREPARE_FOR_SUBMISSION|READY_FOR_REVIEW)
                 mutate=true
                 ;;
               WAITING_FOR_REVIEW|IN_REVIEW|PENDING_APPLE_RELEASE|PROCESSING_FOR_DISTRIBUTION|READY_FOR_DISTRIBUTION|READY_FOR_SALE)
