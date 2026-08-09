@@ -33,7 +33,8 @@ describe("Apple release workflows", () => {
     expect(mobile).toContain("asc builds upload");
     expect(mobile).toContain("asc validate");
     expect(mobile).toContain("asc review doctor");
-    expect(mobile).toContain("asc review submit");
+    expect(mobile).toContain("asc review submissions-submit");
+    expect(mobile).toContain("--include appStoreVersion");
     expect(mobile).not.toContain("eas submit");
     expect(mobile).not.toContain("eas-cli");
     expect(mobile).not.toContain("EXPO_TOKEN");
@@ -61,7 +62,8 @@ describe("Apple release workflows", () => {
     expect(safari).toContain("asc builds upload");
     expect(safari).toContain("--pkg");
     expect(safari).toContain("teak-safari-$VERSION-mac-app-store.pkg");
-    expect(safari).toContain("asc review submit");
+    expect(safari).toContain("asc review submissions-submit");
+    expect(safari).toContain("--include appStoreVersion");
     expect(safari).not.toContain("apps/safari-extension/scripts/");
     expect(safari).not.toContain("xcrun altool");
     expect(safari).toContain('[ "$candidate_hash" = "$private_hash" ]');

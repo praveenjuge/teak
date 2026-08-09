@@ -599,14 +599,62 @@ jobs:
           asc versions attach-build --version-id "$VERSION_ID" --build-id "$BUILD_ID" > "$RUNNER_TEMP/ios-attach.json"
           asc validate --app "$ASC_APP_ID" --version-id "$VERSION_ID" --platform "$PLATFORM" --strict > "$RUNNER_TEMP/ios-validate.json"
           asc review doctor --app "$ASC_APP_ID" --version-id "$VERSION_ID" --platform "$PLATFORM" > "$RUNNER_TEMP/ios-doctor.json"
-          asc review submit \
-            --app "$ASC_APP_ID" \
-            --version-id "$VERSION_ID" \
-            --build "$BUILD_ID" \
-            --platform "$PLATFORM" \
-            --confirm > "$RUNNER_TEMP/ios-submit.json"
 
-          submission_id="$(jq -r '.submissionId // .id // empty' "$RUNNER_TEMP/ios-submit.json")"
+          ready_submissions="$RUNNER_TEMP/ios-ready-submissions.json"
+          asc review submissions-list \
+            --app "$ASC_APP_ID" \
+            --platform "$PLATFORM" \
+            --state READY_FOR_REVIEW \
+            --paginate > "$ready_submissions"
+          matching_submission=""
+          empty_submission=""
+          while IFS= read -r candidate_id; do
+            candidate_items="$RUNNER_TEMP/ios-review-items-$candidate_id.json"
+            asc review items-list \
+              --submission "$candidate_id" \
+              --fields appStoreVersion \
+              --include appStoreVersion \
+              --paginate > "$candidate_items"
+            item_count="$(jq '.data | length' "$candidate_items")"
+            target_count="$(jq --arg target "$VERSION_ID" '[.data[]? | select(.relationships.appStoreVersion.data.id == $target)] | length' "$candidate_items")"
+            if [ "$target_count" -eq 1 ] && [ "$item_count" -eq 1 ]; then
+              if [ -n "$matching_submission" ] && [ "$matching_submission" != "$candidate_id" ]; then
+                echo "Multiple READY_FOR_REVIEW submissions contain iOS version $VERSION_ID." >&2
+                exit 1
+              fi
+              matching_submission="$candidate_id"
+            elif [ "$item_count" -eq 0 ] && [ -z "$empty_submission" ]; then
+              empty_submission="$candidate_id"
+            fi
+          done < <(jq -r '.data[]?.id' "$ready_submissions")
+
+          submission_id="$matching_submission"
+          if [ -z "$submission_id" ]; then
+            submission_id="$empty_submission"
+            if [ -z "$submission_id" ]; then
+              asc review submissions-create --app "$ASC_APP_ID" --platform "$PLATFORM" > "$RUNNER_TEMP/ios-submission-create.json"
+              submission_id="$(jq -r '.data.id // .id // empty' "$RUNNER_TEMP/ios-submission-create.json")"
+            fi
+            if [ -z "$submission_id" ]; then
+              echo "Could not resolve an iOS review submission." >&2
+              exit 1
+            fi
+            asc review items-add \
+              --submission "$submission_id" \
+              --item-type appStoreVersions \
+              --item-id "$VERSION_ID" > "$RUNNER_TEMP/ios-review-item-add.json"
+          fi
+
+          asc review items-list \
+            --submission "$submission_id" \
+            --fields appStoreVersion \
+            --include appStoreVersion \
+            --paginate > "$RUNNER_TEMP/ios-review-items-final.json"
+          if ! jq -e --arg target "$VERSION_ID" '.data | length == 1 and .[0].relationships.appStoreVersion.data.id == $target' "$RUNNER_TEMP/ios-review-items-final.json" > /dev/null; then
+            echo "Refusing to submit an iOS review draft that is empty or contains unrelated items." >&2
+            exit 1
+          fi
+          asc review submissions-submit --id "$submission_id" --confirm > "$RUNNER_TEMP/ios-submit.json"
           echo "submission_id=$submission_id" >> "$GITHUB_OUTPUT"
 
       - name: Prove iOS reached App Review
