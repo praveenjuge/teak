@@ -121,6 +121,13 @@ describe("Apple release workflows", () => {
   });
 
   test("continues an exact version already attached to a review draft", () => {
+    const exactDoctorException = `if [ "$doctor_exit" -ne 0 ]; then
+            if [ "$CURRENT_STATE" != "READY_FOR_REVIEW" ] || ! jq -e '
+              .summary.errors == 1
+              and .summary.blocking == 1
+              and ([.blockingChecks[]?.id] == ["version.state.editable"])
+            '`;
+
     for (const workflow of [mobile, safari]) {
       expect(workflow).toContain(
         '""|PREPARE_FOR_SUBMISSION|READY_FOR_REVIEW)'
@@ -128,9 +135,7 @@ describe("Apple release workflows", () => {
       expect(workflow).not.toContain(
         "WAITING_FOR_REVIEW|READY_FOR_REVIEW|IN_REVIEW"
       );
-      expect(workflow).toContain(
-        "and ([.blockingChecks[]?.id] == [\"version.state.editable\"])"
-      );
+      expect(workflow.split(exactDoctorException)).toHaveLength(2);
       expect(workflow).toContain(
         "the only blocker is the expected existing READY_FOR_REVIEW draft"
       );
