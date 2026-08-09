@@ -197,6 +197,10 @@ export async function applyLatestReviewVersion({
     return { ...plan, mutate: false };
   }
 
+  if (plan.targetId) {
+    mutationForState(plan.targetState, false);
+  }
+
   if (plan.cancelSuperseded) {
     runCommand([
       "submit",

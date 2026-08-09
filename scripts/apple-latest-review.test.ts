@@ -74,21 +74,28 @@ describe("latest Apple review planning", () => {
   });
 
   test("refuses to resubmit an exact developer-rejected target", async () => {
+    let called = false;
     await expect(
       applyLatestReviewVersion({
         appId: "app-id",
         dryRun: false,
         platform: "IOS",
         response: response([
+          { id: "old", state: "IN_REVIEW", version: "1.0.60" },
           {
             id: "rejected",
             state: "DEVELOPER_REJECTED",
             version: "1.0.61",
           },
         ]),
+        runCommand: () => {
+          called = true;
+          return {};
+        },
         targetVersion: "1.0.61",
       })
     ).rejects.toThrow("Refusing to mutate App Store version");
+    expect(called).toBe(false);
   });
 
   test("leaves the requested version alone when it is already in review", () => {
