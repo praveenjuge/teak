@@ -63,7 +63,11 @@ describe("Apple release workflows", () => {
     );
     const verifyHandoff = workflowStep(
       mobile,
-      "Verify handoff and upload IPA to Sentry Size Analysis"
+      "Verify signed IPA handoff"
+    );
+    const sentryAnalysis = workflowStep(
+      mobile,
+      "Upload IPA to mandatory Sentry Size Analysis on Apple Silicon"
     );
     expect(prepareHandoff).toContain(
       'handoff_directory="$RUNNER_TEMP/ios-handoff"'
@@ -85,6 +89,19 @@ describe("Apple release workflows", () => {
     );
     expect(verifyHandoff).toContain(
       'if [ "$descriptor_count" -ne 1 ] || [ "$ipa_count" -ne 1 ]'
+    );
+    expect(sentryAnalysis).toContain(
+      `IPA_PATH: ${expression("steps.ipa.outputs.path")}`
+    );
+    expect(sentryAnalysis).toContain(
+      'bun run --cwd apps/mobile build:sentry -- "$IPA_PATH"'
+    );
+    expect(mobile.indexOf(sentryAnalysis)).toBeLessThan(
+      mobile.indexOf("  submit:")
+    );
+    expect(verifyHandoff).not.toContain("build:sentry");
+    expect(mobile).not.toContain(
+      "Install dependencies for mandatory Sentry analysis"
     );
     expect(mobile).toContain("Signed IPA handoff digest mismatch");
     expect(mobile).toContain("asc builds upload");
