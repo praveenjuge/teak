@@ -6,6 +6,15 @@ const repoRoot = path.resolve(import.meta.dir, "..");
 const read = (relative: string) =>
   fs.readFileSync(path.join(repoRoot, relative), "utf8");
 const expression = (value: string) => `\${{ ${value} }}`;
+const workflowStep = (workflow: string, name: string) => {
+  const marker = `      - name: ${name}\n`;
+  const start = workflow.indexOf(marker);
+  if (start === -1) {
+    throw new Error(`Missing workflow step: ${name}`);
+  }
+  const end = workflow.indexOf("\n      - name:", start + marker.length);
+  return workflow.slice(start, end === -1 ? undefined : end);
+};
 
 describe("Apple release workflows", () => {
   const mobile = read(".github/workflows/mobile-release.yml");
@@ -40,8 +49,42 @@ describe("Apple release workflows", () => {
     expect(mobile).not.toContain("--certificate-type DISTRIBUTION");
     expect(mobile).toContain("Upload verified signed IPA handoff");
     expect(mobile).toContain("Download verified signed IPA handoff");
-    expect(mobile).toContain(
+    const prepareHandoff = workflowStep(
+      mobile,
+      "Prepare verified signed IPA handoff"
+    );
+    const uploadHandoff = workflowStep(
+      mobile,
+      "Upload verified signed IPA handoff"
+    );
+    const downloadHandoff = workflowStep(
+      mobile,
+      "Download verified signed IPA handoff"
+    );
+    const verifyHandoff = workflowStep(
+      mobile,
       "Verify handoff and upload IPA to Sentry Size Analysis"
+    );
+    expect(prepareHandoff).toContain(
+      'handoff_directory="$RUNNER_TEMP/ios-handoff"'
+    );
+    expect(prepareHandoff).toContain(
+      'echo "directory=$handoff_directory" >> "$GITHUB_OUTPUT"'
+    );
+    expect(uploadHandoff).toContain(
+      `path: ${expression("steps.handoff.outputs.directory")}`
+    );
+    expect(downloadHandoff).toContain(
+      `path: ${expression("runner.temp")}/ios-handoff`
+    );
+    expect(verifyHandoff).toContain(
+      'descriptor_count="$(find "$RUNNER_TEMP/ios-handoff" -maxdepth 1'
+    );
+    expect(verifyHandoff).toContain(
+      'ipa_count="$(find "$RUNNER_TEMP/ios-handoff" -maxdepth 1'
+    );
+    expect(verifyHandoff).toContain(
+      'if [ "$descriptor_count" -ne 1 ] || [ "$ipa_count" -ne 1 ]'
     );
     expect(mobile).toContain("Signed IPA handoff digest mismatch");
     expect(mobile).toContain("asc builds upload");
