@@ -29,6 +29,7 @@ import type * as card_getCards from "../card/getCards.js";
 import type * as card_getFileUrl from "../card/getFileUrl.js";
 import type * as card_markdown from "../card/markdown.js";
 import type * as card_migrations from "../card/migrations.js";
+import type * as card_mobileCardSummaries from "../card/mobileCardSummaries.js";
 import type * as card_processingStatus from "../card/processingStatus.js";
 import type * as card_queryUtils from "../card/queryUtils.js";
 import type * as card_quoteFormatting from "../card/quoteFormatting.js";
@@ -185,6 +186,7 @@ declare const fullApi: ApiFromModules<{
   "card/getFileUrl": typeof card_getFileUrl;
   "card/markdown": typeof card_markdown;
   "card/migrations": typeof card_migrations;
+  "card/mobileCardSummaries": typeof card_mobileCardSummaries;
   "card/processingStatus": typeof card_processingStatus;
   "card/queryUtils": typeof card_queryUtils;
   "card/quoteFormatting": typeof card_quoteFormatting;

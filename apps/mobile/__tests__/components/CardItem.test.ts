@@ -5,33 +5,33 @@ import { join } from "node:path";
 const GET_FILE_URL_REGEX = /getFileUrl/;
 const FILE_URL_REGEX = /card\.fileUrl/;
 
-test("CardItem uses pre-resolved fileUrl from cards query", () => {
+test("CardItem loads full card data only for file actions", () => {
   const filePath = join(
     (import.meta as any).dir,
     "../../../mobile/components/CardItem.tsx"
   );
   const source = readFileSync(filePath, "utf8");
 
-  // Ensure we no longer call getFileUrl in CardItem.
   const usesGetFileUrl = GET_FILE_URL_REGEX.test(source);
   expect(usesGetFileUrl).toBe(false);
-
-  // Ensure we read the pre-resolved fileUrl field instead.
-  const usesFileUrl = FILE_URL_REGEX.test(source);
-  expect(usesFileUrl).toBe(true);
+  expect(FILE_URL_REGEX.test(source)).toBe(false);
+  expect(source).toContain("api.cards.getCard");
+  expect(source).toContain("handleDownloadCard");
+  expect(source).toContain("handleShareCardFile");
 });
 
-test("CardItem defers favicon loading and caches failed hosts", () => {
+test("CardItem caches thumbnails and favicons without per-row timers", () => {
   const filePath = join(
     (import.meta as any).dir,
     "../../../mobile/components/CardItem.tsx"
   );
   const source = readFileSync(filePath, "utf8");
 
-  expect(source).toContain("const FAVICON_RENDER_DELAY_MS = 250");
   expect(source).toContain("const failedFaviconHosts = new Set<string>()");
-  expect(source).toContain("setTimeout(() =>");
+  expect(source).not.toContain("setTimeout(() =>");
   expect(source).toContain("failedFaviconHosts.add(hostname)");
+  expect(source).toContain('cachePolicy="memory-disk"');
+  expect(source).toContain("enforceEarlyResizing");
 });
 
 test("CardItem exposes download and share actions for file-card types", () => {
@@ -44,7 +44,7 @@ test("CardItem exposes download and share actions for file-card types", () => {
   for (const cardType of ["document", "audio", "image", "video"]) {
     expect(source).toContain(`case "${cardType}"`);
   }
-  expect(source).toContain("downloadItem(");
+  expect(source).toContain("handleDownloadCard(");
   expect(source).toContain("handleShareFromUrl(");
   expect(source).toContain("getNativeShareOptions(");
 });

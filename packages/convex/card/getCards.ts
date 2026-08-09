@@ -1,7 +1,7 @@
 import { paginationOptsValidator } from "convex/server";
-import { v } from "convex/values";
+import { type Infer, v } from "convex/values";
 import type { Doc } from "../_generated/dataModel";
-import { query } from "../_generated/server";
+import { type QueryCtx, query } from "../_generated/server";
 import { cardTypeValidator, cardValidator } from "../schema";
 import {
   clampPageSize,
@@ -9,6 +9,7 @@ import {
   clampSearchOffset,
 } from "../shared/search/constants";
 import {
+  attachCardSummaryUrls,
   attachFileUrls,
   ensureValidRange,
   isCreatedAtInRange,
@@ -447,228 +448,232 @@ export const searchCards = query({
   },
 });
 
-export const searchCardsPaginated = query({
-  args: {
-    paginationOpts: paginationOptsValidator,
-    searchQuery: v.optional(v.string()),
-    types: v.optional(v.array(cardTypeValidator)),
-    favoritesOnly: v.optional(v.boolean()),
-    showTrashOnly: v.optional(v.boolean()),
-    styleFilters: v.optional(v.array(v.string())),
-    hueFilters: v.optional(v.array(v.string())),
-    hexFilters: v.optional(v.array(v.string())),
-    createdAtRange: v.optional(createdAtRangeValidator),
-  },
-  returns: paginationResultValidator,
-  handler: async (ctx, args) => {
-    const user = await ctx.auth.getUserIdentity();
-    if (!user) {
-      return { page: [], isDone: true, continueCursor: null };
+export const searchCardsPaginatedArgsValidator = v.object({
+  paginationOpts: paginationOptsValidator,
+  searchQuery: v.optional(v.string()),
+  types: v.optional(v.array(cardTypeValidator)),
+  favoritesOnly: v.optional(v.boolean()),
+  showTrashOnly: v.optional(v.boolean()),
+  styleFilters: v.optional(v.array(v.string())),
+  hueFilters: v.optional(v.array(v.string())),
+  hexFilters: v.optional(v.array(v.string())),
+  createdAtRange: v.optional(createdAtRangeValidator),
+});
+
+type SearchCardsPaginatedArgs = Infer<typeof searchCardsPaginatedArgsValidator>;
+
+export const searchCardsPaginatedHandler = async (
+  ctx: QueryCtx,
+  args: SearchCardsPaginatedArgs,
+  options: { summariesOnly?: boolean } = {}
+) => {
+  const attachListUrls = options.summariesOnly
+    ? attachCardSummaryUrls
+    : attachFileUrls;
+  const user = await ctx.auth.getUserIdentity();
+  if (!user) {
+    return { page: [], isDone: true, continueCursor: null };
+  }
+
+  const {
+    paginationOpts: rawPaginationOpts,
+    searchQuery,
+    types,
+    favoritesOnly,
+    showTrashOnly,
+    styleFilters,
+    hueFilters,
+    hexFilters,
+    createdAtRange,
+  } = args;
+  // Clamp the caller-provided page size so a single request cannot force an
+  // arbitrarily large index read / in-memory sort. The cursor is validated
+  // separately where it is parsed into an offset.
+  const paginationOpts = {
+    ...rawPaginationOpts,
+    numItems: clampPageSize(rawPaginationOpts.numItems),
+  };
+  ensureValidRange(createdAtRange);
+  const visualFilters = normalizeVisualFilterArgs({
+    styleFilters,
+    hueFilters,
+    hexFilters,
+  });
+
+  if (searchQuery?.trim()) {
+    const query = searchQuery.toLowerCase().trim();
+
+    if (
+      ["fav", "favs", "favorites", "favourite", "favourites"].includes(query)
+    ) {
+      const favorites = await ctx.db
+        .query("cards")
+        .withIndex("by_user_favorites_deleted", (q) =>
+          q
+            .eq("userId", user.subject)
+            .eq("isFavorited", true)
+            .eq("isDeleted", undefined)
+        )
+        .order("desc")
+        .paginate(paginationOpts);
+      const filteredFavorites = applyCardLevelFilters(favorites.page, {
+        types,
+        favoritesOnly: true,
+        createdAtRange,
+        visualFilters,
+      });
+      const favoritesWithUrls = await attachListUrls(ctx, filteredFavorites);
+      return {
+        ...favorites,
+        page: applyQuoteFormattingToList(favoritesWithUrls),
+      };
     }
 
-    const {
-      paginationOpts: rawPaginationOpts,
-      searchQuery,
-      types,
-      favoritesOnly,
-      showTrashOnly,
-      styleFilters,
-      hueFilters,
-      hexFilters,
-      createdAtRange,
-    } = args;
-    // Clamp the caller-provided page size so a single request cannot force an
-    // arbitrarily large index read / in-memory sort. The cursor is validated
-    // separately where it is parsed into an offset.
-    const paginationOpts = {
-      ...rawPaginationOpts,
-      numItems: clampPageSize(rawPaginationOpts.numItems),
-    };
-    ensureValidRange(createdAtRange);
-    const visualFilters = normalizeVisualFilterArgs({
-      styleFilters,
-      hueFilters,
-      hexFilters,
-    });
-
-    if (searchQuery?.trim()) {
-      const query = searchQuery.toLowerCase().trim();
-
-      if (
-        ["fav", "favs", "favorites", "favourite", "favourites"].includes(query)
-      ) {
-        const favorites = await ctx.db
-          .query("cards")
-          .withIndex("by_user_favorites_deleted", (q) =>
-            q
-              .eq("userId", user.subject)
-              .eq("isFavorited", true)
-              .eq("isDeleted", undefined)
-          )
-          .order("desc")
-          .paginate(paginationOpts);
-        const filteredFavorites = applyCardLevelFilters(favorites.page, {
-          types,
-          favoritesOnly: true,
-          createdAtRange,
-          visualFilters,
-        });
-        const favoritesWithUrls = await attachFileUrls(ctx, filteredFavorites);
-        return {
-          ...favorites,
-          page: applyQuoteFormattingToList(favoritesWithUrls),
-        };
-      }
-
-      if (["trash", "deleted", "bin", "recycle", "trashed"].includes(query)) {
-        const trashed = await ctx.db
-          .query("cards")
-          .withIndex("by_user_deleted", (q) =>
-            q.eq("userId", user.subject).eq("isDeleted", true)
-          )
-          .order("desc")
-          .paginate(paginationOpts);
-        const filteredTrashed = applyCardLevelFilters(trashed.page, {
-          types,
-          favoritesOnly,
-          createdAtRange,
-          visualFilters,
-        });
-        const trashedWithUrls = await attachFileUrls(ctx, filteredTrashed);
-        return {
-          ...trashed,
-          page: applyQuoteFormattingToList(trashedWithUrls),
-        };
-      }
-
-      const rawCursor = paginationOpts.cursor ?? "0";
-      const parsedCursor = Number(rawCursor);
-      const offset = clampSearchOffset(
-        Number.isFinite(parsedCursor) && parsedCursor > 0 ? parsedCursor : 0
-      );
-      const pageSize = clampPageSize(paginationOpts.numItems);
-      const desiredLimit = offset + pageSize + 1;
-
-      // Helper to apply optional filters to search queries
-      const applySearchFilters = (q: any) => {
-        let query = q
-          .eq("userId", user.subject)
-          .eq("isDeleted", showTrashOnly ? true : undefined);
-        if (types && types.length === 1) {
-          query = query.eq("type", types[0]);
-        }
-        if (favoritesOnly) {
-          query = query.eq("isFavorited", true);
-        }
-        return query;
+    if (["trash", "deleted", "bin", "recycle", "trashed"].includes(query)) {
+      const trashed = await ctx.db
+        .query("cards")
+        .withIndex("by_user_deleted", (q) =>
+          q.eq("userId", user.subject).eq("isDeleted", true)
+        )
+        .order("desc")
+        .paginate(paginationOpts);
+      const filteredTrashed = applyCardLevelFilters(trashed.page, {
+        types,
+        favoritesOnly,
+        createdAtRange,
+        visualFilters,
+      });
+      const trashedWithUrls = await attachListUrls(ctx, filteredTrashed);
+      return {
+        ...trashed,
+        page: applyQuoteFormattingToList(trashedWithUrls),
       };
+    }
 
-      // Determine which search indexes to include based on type filter
-      // This avoids searching fields that don't exist for certain card types
-      const typesSet = new Set(types || []);
-      const noTypeFilter = typesSet.size === 0;
-      const hasMultiTypeFilter = typesSet.size > 1;
-      const includeAiTranscript = noTypeFilter || typesSet.has("audio");
-      const includeAiSummary =
-        noTypeFilter ||
-        (["audio", "video", "document", "image", "link"] as const).some((t) =>
-          typesSet.has(t)
-        );
+    const rawCursor = paginationOpts.cursor ?? "0";
+    const parsedCursor = Number(rawCursor);
+    const offset = clampSearchOffset(
+      Number.isFinite(parsedCursor) && parsedCursor > 0 ? parsedCursor : 0
+    );
+    const pageSize = clampPageSize(paginationOpts.numItems);
+    const desiredLimit = offset + pageSize + 1;
 
-      // Build search query array, ordered by selectivity (most selective first)
-      // 1. content - most unique user content
-      // 2. metadataTitle - usually selective
-      // 3. notes - user-written
-      // 4. metadataDescription - less selective
-      // 5. aiSummary - less selective, only for certain types
-      // 6. aiTranscript - only for audio type
-      // 7. tags - small value set, less selective
-      // 8. aiTags - small value set, less selective
-      const buildSearchQuery =
-        (indexName: SearchIndexName, fieldName: SearchFieldName) =>
-        (limit: number) =>
-          ctx.db
-            .query("cards")
-            .withSearchIndex(indexName, (q) =>
-              applySearchFilters(q).search(fieldName, searchQuery)
-            )
-            .take(limit);
+    // Helper to apply optional filters to search queries
+    const applySearchFilters = (q: any) => {
+      let query = q
+        .eq("userId", user.subject)
+        .eq("isDeleted", showTrashOnly ? true : undefined);
+      if (types && types.length === 1) {
+        query = query.eq("type", types[0]);
+      }
+      if (favoritesOnly) {
+        query = query.eq("isFavorited", true);
+      }
+      return query;
+    };
 
-      const buildPrimaryBatch = (limit: number) => [
-        buildSearchQuery("search_content", "content")(limit),
-        buildSearchQuery("search_metadata_title", "metadataTitle")(limit),
-        buildSearchQuery("search_notes", "notes")(limit),
-      ];
+    // Determine which search indexes to include based on type filter
+    // This avoids searching fields that don't exist for certain card types
+    const typesSet = new Set(types || []);
+    const noTypeFilter = typesSet.size === 0;
+    const hasMultiTypeFilter = typesSet.size > 1;
+    const includeAiTranscript = noTypeFilter || typesSet.has("audio");
+    const includeAiSummary =
+      noTypeFilter ||
+      (["audio", "video", "document", "image", "link"] as const).some((t) =>
+        typesSet.has(t)
+      );
 
-      const buildSecondaryBatch = (limit: number) => [
-        buildSearchQuery(
-          "search_metadata_description",
-          "metadataDescription"
-        )(limit),
-        ...(includeAiSummary
-          ? [buildSearchQuery("search_ai_summary", "aiSummary")(limit)]
-          : []),
-        ...(includeAiTranscript
-          ? [buildSearchQuery("search_ai_transcript", "aiTranscript")(limit)]
-          : []),
-      ];
+    // Build search query array, ordered by selectivity (most selective first)
+    // 1. content - most unique user content
+    // 2. metadataTitle - usually selective
+    // 3. notes - user-written
+    // 4. metadataDescription - less selective
+    // 5. aiSummary - less selective, only for certain types
+    // 6. aiTranscript - only for audio type
+    // 7. tags - small value set, less selective
+    // 8. aiTags - small value set, less selective
+    const buildSearchQuery =
+      (indexName: SearchIndexName, fieldName: SearchFieldName) =>
+      (limit: number) =>
+        ctx.db
+          .query("cards")
+          .withSearchIndex(indexName, (q) =>
+            applySearchFilters(q).search(fieldName, searchQuery)
+          )
+          .take(limit);
 
-      const buildTagBatch = (limit: number) => [
-        buildSearchQuery("search_tags", "tags")(limit),
-        buildSearchQuery("search_ai_tags", "aiTags")(limit),
-      ];
+    const buildPrimaryBatch = (limit: number) => [
+      buildSearchQuery("search_content", "content")(limit),
+      buildSearchQuery("search_metadata_title", "metadataTitle")(limit),
+      buildSearchQuery("search_notes", "notes")(limit),
+    ];
 
-      const queryBatches: (() => Promise<Doc<"cards">[]>[])[] = [
-        () =>
-          buildPrimaryBatch(
-            getSearchBatchLimit(
-              desiredLimit - uniqueResults.length,
-              PRIMARY_SEARCH_BUFFER
-            )
-          ),
-        () =>
-          buildSecondaryBatch(
-            getSearchBatchLimit(
-              desiredLimit - uniqueResults.length,
-              SECONDARY_SEARCH_BUFFER
-            )
-          ),
-        () =>
-          buildTagBatch(
-            getSearchBatchLimit(
-              desiredLimit - uniqueResults.length,
-              TAG_SEARCH_BUFFER
-            )
-          ),
-      ];
+    const buildSecondaryBatch = (limit: number) => [
+      buildSearchQuery(
+        "search_metadata_description",
+        "metadataDescription"
+      )(limit),
+      ...(includeAiSummary
+        ? [buildSearchQuery("search_ai_summary", "aiSummary")(limit)]
+        : []),
+      ...(includeAiTranscript
+        ? [buildSearchQuery("search_ai_transcript", "aiTranscript")(limit)]
+        : []),
+    ];
 
-      // Incrementally deduplicate with early termination
-      // This avoids running less-selective queries when enough results are found.
-      const seenIds = new Set<string>();
-      const uniqueResults: Doc<"cards">[] = [];
+    const buildTagBatch = (limit: number) => [
+      buildSearchQuery("search_tags", "tags")(limit),
+      buildSearchQuery("search_ai_tags", "aiTags")(limit),
+    ];
 
-      for (const getBatch of queryBatches) {
-        const batchResults = await Promise.all(getBatch());
-        for (const results of batchResults) {
-          for (const card of results) {
-            if (seenIds.has(card._id)) {
-              continue;
-            }
-            seenIds.add(card._id);
-            if (!isCreatedAtInRange(card.createdAt, createdAtRange)) {
-              continue;
-            }
-            if (hasMultiTypeFilter && !typesSet.has(card.type)) {
-              continue;
-            }
-            if (!doesCardMatchVisualFilters(card, visualFilters)) {
-              continue;
-            }
-            uniqueResults.push(card);
-            if (uniqueResults.length >= desiredLimit) {
-              break;
-            }
+    const queryBatches: (() => Promise<Doc<"cards">[]>[])[] = [
+      () =>
+        buildPrimaryBatch(
+          getSearchBatchLimit(
+            desiredLimit - uniqueResults.length,
+            PRIMARY_SEARCH_BUFFER
+          )
+        ),
+      () =>
+        buildSecondaryBatch(
+          getSearchBatchLimit(
+            desiredLimit - uniqueResults.length,
+            SECONDARY_SEARCH_BUFFER
+          )
+        ),
+      () =>
+        buildTagBatch(
+          getSearchBatchLimit(
+            desiredLimit - uniqueResults.length,
+            TAG_SEARCH_BUFFER
+          )
+        ),
+    ];
+
+    // Incrementally deduplicate with early termination
+    // This avoids running less-selective queries when enough results are found.
+    const seenIds = new Set<string>();
+    const uniqueResults: Doc<"cards">[] = [];
+
+    for (const getBatch of queryBatches) {
+      const batchResults = await Promise.all(getBatch());
+      for (const results of batchResults) {
+        for (const card of results) {
+          if (seenIds.has(card._id)) {
+            continue;
           }
+          seenIds.add(card._id);
+          if (!isCreatedAtInRange(card.createdAt, createdAtRange)) {
+            continue;
+          }
+          if (hasMultiTypeFilter && !typesSet.has(card.type)) {
+            continue;
+          }
+          if (!doesCardMatchVisualFilters(card, visualFilters)) {
+            continue;
+          }
+          uniqueResults.push(card);
           if (uniqueResults.length >= desiredLimit) {
             break;
           }
@@ -677,109 +682,83 @@ export const searchCardsPaginated = query({
           break;
         }
       }
-
-      // Multi-type filtering happens during dedupe; single-type/favorites are filtered at index level.
-      const filteredResults = uniqueResults;
-
-      const sortedResults = filteredResults.sort(
-        (a, b) => b.createdAt - a.createdAt
-      );
-      const page = sortedResults.slice(offset, offset + pageSize);
-      const isDone = sortedResults.length <= offset + pageSize;
-      const continueCursor = isDone ? null : String(offset + pageSize);
-
-      const pageWithUrls = await attachFileUrls(ctx, page);
-      return {
-        page: applyQuoteFormattingToList(pageWithUrls),
-        isDone,
-        continueCursor,
-      };
+      if (uniqueResults.length >= desiredLimit) {
+        break;
+      }
     }
 
-    if (visualFilters.hasVisualFilters) {
-      const rawCursor = paginationOpts.cursor ?? "0";
-      const parsedCursor = Number(rawCursor);
-      const offset = clampSearchOffset(
-        Number.isFinite(parsedCursor) && parsedCursor > 0 ? parsedCursor : 0
-      );
-      const pageSize = clampPageSize(paginationOpts.numItems);
-      const desiredLimit = offset + pageSize + 1;
+    // Multi-type filtering happens during dedupe; single-type/favorites are filtered at index level.
+    const filteredResults = uniqueResults;
 
-      const visualResults = await runVisualFacetQueries(ctx, {
-        userId: user.subject,
-        showTrashOnly,
-        types,
-        favoritesOnly,
-        createdAtRange,
-        visualFilters,
-        limit: getSearchBatchLimit(desiredLimit, VISUAL_SEARCH_BUFFER),
-      });
+    const sortedResults = filteredResults.sort(
+      (a, b) => b.createdAt - a.createdAt
+    );
+    const page = sortedResults.slice(offset, offset + pageSize);
+    const isDone = sortedResults.length <= offset + pageSize;
+    const continueCursor = isDone ? null : String(offset + pageSize);
 
-      const page = visualResults.slice(offset, offset + pageSize);
-      const isDone = visualResults.length <= offset + pageSize;
-      const continueCursor = isDone ? null : String(offset + pageSize);
-      const pageWithUrls = await attachFileUrls(ctx, page);
+    const pageWithUrls = await attachListUrls(ctx, page);
+    return {
+      page: applyQuoteFormattingToList(pageWithUrls),
+      isDone,
+      continueCursor,
+    };
+  }
 
-      return {
-        page: applyQuoteFormattingToList(pageWithUrls),
-        isDone,
-        continueCursor,
-      };
-    }
+  if (visualFilters.hasVisualFilters) {
+    const rawCursor = paginationOpts.cursor ?? "0";
+    const parsedCursor = Number(rawCursor);
+    const offset = clampSearchOffset(
+      Number.isFinite(parsedCursor) && parsedCursor > 0 ? parsedCursor : 0
+    );
+    const pageSize = clampPageSize(paginationOpts.numItems);
+    const desiredLimit = offset + pageSize + 1;
 
-    let query = ctx.db
+    const visualResults = await runVisualFacetQueries(ctx, {
+      userId: user.subject,
+      showTrashOnly,
+      types,
+      favoritesOnly,
+      createdAtRange,
+      visualFilters,
+      limit: getSearchBatchLimit(desiredLimit, VISUAL_SEARCH_BUFFER),
+    });
+
+    const page = visualResults.slice(offset, offset + pageSize);
+    const isDone = visualResults.length <= offset + pageSize;
+    const continueCursor = isDone ? null : String(offset + pageSize);
+    const pageWithUrls = await attachListUrls(ctx, page);
+
+    return {
+      page: applyQuoteFormattingToList(pageWithUrls),
+      isDone,
+      continueCursor,
+    };
+  }
+
+  let query = ctx.db
+    .query("cards")
+    .withIndex("by_user_deleted", (q) =>
+      q
+        .eq("userId", user.subject)
+        .eq("isDeleted", showTrashOnly ? true : undefined)
+    );
+
+  if (createdAtRange) {
+    query = ctx.db
       .query("cards")
-      .withIndex("by_user_deleted", (q) =>
+      .withIndex("by_created", (q) =>
         q
           .eq("userId", user.subject)
-          .eq("isDeleted", showTrashOnly ? true : undefined)
+          .gte("createdAt", createdAtRange.start)
+          .lt("createdAt", createdAtRange.end)
       );
 
-    if (createdAtRange) {
-      query = ctx.db
-        .query("cards")
-        .withIndex("by_created", (q) =>
-          q
-            .eq("userId", user.subject)
-            .gte("createdAt", createdAtRange.start)
-            .lt("createdAt", createdAtRange.end)
-        );
+    query = query.filter((q) =>
+      q.eq(q.field("isDeleted"), showTrashOnly ? true : undefined)
+    );
 
-      query = query.filter((q) =>
-        q.eq(q.field("isDeleted"), showTrashOnly ? true : undefined)
-      );
-
-      if (types && types.length > 0) {
-        query = query.filter((q) => {
-          const typeConditions = types.map((type) =>
-            q.eq(q.field("type"), type)
-          );
-          return typeConditions.reduce((acc, condition) =>
-            q.or(acc, condition)
-          );
-        });
-      }
-
-      if (favoritesOnly) {
-        query = query.filter((q) => q.eq(q.field("isFavorited"), true));
-      }
-
-      const cards = await query.order("desc").paginate(paginationOpts);
-      const cardsWithUrls = await attachFileUrls(ctx, cards.page);
-      return {
-        ...cards,
-        page: applyQuoteFormattingToList(cardsWithUrls),
-      };
-    }
-
-    if (types && types.length === 1) {
-      query = ctx.db.query("cards").withIndex("by_user_type_deleted", (q) =>
-        q
-          .eq("userId", user.subject)
-          .eq("type", types[0])
-          .eq("isDeleted", showTrashOnly ? true : undefined)
-      );
-    } else if (types && types.length > 1) {
+    if (types && types.length > 0) {
       query = query.filter((q) => {
         const typeConditions = types.map((type) => q.eq(q.field("type"), type));
         return typeConditions.reduce((acc, condition) => q.or(acc, condition));
@@ -791,10 +770,41 @@ export const searchCardsPaginated = query({
     }
 
     const cards = await query.order("desc").paginate(paginationOpts);
-    const cardsWithUrls = await attachFileUrls(ctx, cards.page);
+    const cardsWithUrls = await attachListUrls(ctx, cards.page);
     return {
       ...cards,
       page: applyQuoteFormattingToList(cardsWithUrls),
     };
-  },
+  }
+
+  if (types && types.length === 1) {
+    query = ctx.db.query("cards").withIndex("by_user_type_deleted", (q) =>
+      q
+        .eq("userId", user.subject)
+        .eq("type", types[0])
+        .eq("isDeleted", showTrashOnly ? true : undefined)
+    );
+  } else if (types && types.length > 1) {
+    query = query.filter((q) => {
+      const typeConditions = types.map((type) => q.eq(q.field("type"), type));
+      return typeConditions.reduce((acc, condition) => q.or(acc, condition));
+    });
+  }
+
+  if (favoritesOnly) {
+    query = query.filter((q) => q.eq(q.field("isFavorited"), true));
+  }
+
+  const cards = await query.order("desc").paginate(paginationOpts);
+  const cardsWithUrls = await attachListUrls(ctx, cards.page);
+  return {
+    ...cards,
+    page: applyQuoteFormattingToList(cardsWithUrls),
+  };
+};
+
+export const searchCardsPaginated = query({
+  args: searchCardsPaginatedArgsValidator.fields,
+  returns: paginationResultValidator,
+  handler: (ctx, args) => searchCardsPaginatedHandler(ctx, args),
 });

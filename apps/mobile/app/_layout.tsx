@@ -43,7 +43,13 @@ const customDarkTheme = {
 function RootLayout() {
   return (
     <ThemePreferenceProvider>
-      <RootLayoutContent />
+      <ErrorBoundary>
+        <ConvexClientProvider>
+          <ConvexQueryCacheProvider>
+            <RootLayoutContent />
+          </ConvexQueryCacheProvider>
+        </ConvexClientProvider>
+      </ErrorBoundary>
     </ThemePreferenceProvider>
   );
 }
@@ -77,21 +83,11 @@ function RootLayoutContent() {
     return () => cancelAnimationFrame(frame);
   }, [isLoaded]);
 
-  if (!isLoaded) {
-    return null;
-  }
-
   return (
-    <ErrorBoundary>
-      <ConvexClientProvider>
-        <ConvexQueryCacheProvider>
-          <ThemeProvider value={isDark ? customDarkTheme : customDefaultTheme}>
-            <RootNavigator />
-            <StatusBar style={isDark ? "light" : "dark"} />
-          </ThemeProvider>
-        </ConvexQueryCacheProvider>
-      </ConvexClientProvider>
-    </ErrorBoundary>
+    <ThemeProvider value={isDark ? customDarkTheme : customDefaultTheme}>
+      <RootNavigator />
+      <StatusBar style={isDark ? "light" : "dark"} />
+    </ThemeProvider>
   );
 }
 

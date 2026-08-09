@@ -19,27 +19,23 @@ import {
   onTapGesture,
   shapes,
 } from "@expo/ui/swift-ui/modifiers";
-import type { Doc } from "@teak/convex/_generated/dataModel";
+import { api } from "@teak/convex";
+import { useConvex } from "convex/react";
 import * as Clipboard from "expo-clipboard";
 import * as FileSystem from "expo-file-system/legacy";
+import { Image as ExpoImage } from "expo-image";
 import * as Sharing from "expo-sharing";
-import { memo, type ReactNode, useEffect, useMemo, useState } from "react";
-import { Alert, Platform, Image as RNImage } from "react-native";
+import { memo, type ReactNode, useMemo, useState } from "react";
+import { Alert, Platform } from "react-native";
 import { colors } from "@/constants/colors";
 import { getNativeShareOptions } from "@/lib/files";
+import type { MobileCardSummary } from "@/lib/mobile-card-summary-cache";
 
 const WWW_PREFIX_REGEX = /^www\./;
-const FAVICON_RENDER_DELAY_MS = 250;
 const failedFaviconHosts = new Set<string>();
 
-type Card = Doc<"cards"> & {
-  fileUrl?: string;
-  screenshotUrl?: string;
-  thumbnailUrl?: string;
-};
-
 interface CardItemProps {
-  card: Card;
+  card: MobileCardSummary;
   onDeleteRequest?: () => void;
   onPress?: () => void;
 }
@@ -97,29 +93,9 @@ const Row = ({
 
 const Favicon = ({ hostname, url }: { hostname?: string; url?: string }) => {
   const [hasError, setHasError] = useState(false);
-  const [isReadyToRenderRemote, setIsReadyToRenderRemote] = useState(false);
-
-  useEffect(() => {
-    setHasError(false);
-    setIsReadyToRenderRemote(false);
-
-    if (!(url && hostname) || failedFaviconHosts.has(hostname)) {
-      return;
-    }
-
-    const delay = setTimeout(() => {
-      setIsReadyToRenderRemote(true);
-    }, FAVICON_RENDER_DELAY_MS);
-
-    return () => clearTimeout(delay);
-  }, [hostname, url]);
 
   const shouldShowRemoteImage = Boolean(
-    url &&
-      hostname &&
-      !hasError &&
-      isReadyToRenderRemote &&
-      !failedFaviconHosts.has(hostname)
+    url && hostname && !hasError && !failedFaviconHosts.has(hostname)
   );
   const showFallback = !shouldShowRemoteImage;
 
@@ -134,15 +110,19 @@ const Favicon = ({ hostname, url }: { hostname?: string; url?: string }) => {
         />
       ) : (
         <RNHostView matchContents>
-          <RNImage
+          <ExpoImage
+            cachePolicy="memory-disk"
+            contentFit="cover"
+            enforceEarlyResizing
             onError={() => {
               setHasError(true);
               if (hostname) {
                 failedFaviconHosts.add(hostname);
               }
             }}
-            resizeMode="cover"
-            source={{ uri: url }}
+            priority="low"
+            recyclingKey={hostname}
+            source={url}
             style={{
               height: 20,
               width: 20,
@@ -190,7 +170,13 @@ const CardItem = memo(function CardItem({
   onPress,
   onDeleteRequest,
 }: CardItemProps) {
-  const mediaUrl = card.thumbnailUrl ?? card.fileUrl ?? null;
+  const mediaUrl = card.thumbnailUrl ?? card.screenshotUrl ?? null;
+  const convex = useConvex();
+
+  const loadFullCard = () =>
+    convex.query(api.cards.getCard, {
+      id: card._id,
+    });
 
   const handleCopy = async (value?: string | null) => {
     if (!value) {
@@ -289,6 +275,38 @@ const CardItem = memo(function CardItem({
     }
   };
 
+  const handleDownloadCard = async (name?: string) => {
+    const fullCard = await loadFullCard();
+    await handleDownload(
+      fullCard?.fileUrl ??
+        fullCard?.thumbnailUrl ??
+        fullCard?.screenshotUrl ??
+        fullCard?.url,
+      name ?? fullCard?.fileMetadata?.fileName
+    );
+  };
+
+  const handleShareCardFile = async (name?: string) => {
+    const fullCard = await loadFullCard();
+    await handleShareFromUrl(
+      fullCard?.fileUrl ??
+        fullCard?.thumbnailUrl ??
+        fullCard?.screenshotUrl ??
+        fullCard?.url,
+      name ?? fullCard?.fileMetadata?.fileName
+    );
+  };
+
+  const handleCopyCardText = async (fallback: string) => {
+    const fullCard = await loadFullCard();
+    await handleCopy(fullCard?.content ?? fallback);
+  };
+
+  const handleShareCardText = async (fallback: string, name: string) => {
+    const fullCard = await loadFullCard();
+    await handleShareText(fullCard?.content ?? fallback, name);
+  };
+
   const handleDelete = () => {
     Alert.alert("Delete Card", "Are you sure you want to delete this card?", [
       { text: "Cancel", style: "cancel" },
@@ -340,32 +358,13 @@ const CardItem = memo(function CardItem({
   );
 
   const renderContent = () => {
-    const downloadItem = (
-      url?: string | null,
-      key = "download",
-      name?: string
-    ) =>
-      url
-        ? [
-            <Button
-              key={key}
-              label="Download"
-              onPress={() => void handleDownload(url, name)}
-              systemImage="arrow.down.circle"
-            />,
-          ]
-        : [];
-
     switch (card.type) {
       case "link": {
         if (!card.url) {
           return null;
         }
 
-        const linkTitle =
-          card.metadata?.linkPreview?.status === "success"
-            ? card.metadata.linkPreview.title || card.url
-            : card.metadataTitle || card.url;
+        const linkTitle = card.title || card.url;
 
         return renderRow(
           <Text modifiers={[font({ design: "rounded" }), lineLimit(1)]}>
@@ -393,9 +392,7 @@ const CardItem = memo(function CardItem({
       }
 
       case "document": {
-        const title =
-          card.metadataTitle || card.fileMetadata?.fileName || "Attachment";
-        const documentUrl = card.fileUrl ?? card.url ?? null;
+        const title = card.title || card.fileName || "Attachment";
 
         return renderRow(
           <Text modifiers={[font({ design: "rounded" }), lineLimit(1)]}>
@@ -404,11 +401,16 @@ const CardItem = memo(function CardItem({
           leadingIcon("paperclip"),
           undefined,
           [
-            ...downloadItem(documentUrl, "download-document", title),
+            <Button
+              key="download-document"
+              label="Download"
+              onPress={() => void handleDownloadCard(title)}
+              systemImage="arrow.down.circle"
+            />,
             <Button
               key="share-document"
               label="Share"
-              onPress={() => void handleShareFromUrl(documentUrl, title)}
+              onPress={() => void handleShareCardFile(title)}
               systemImage="square.and.arrow.up"
             />,
           ]
@@ -418,27 +420,23 @@ const CardItem = memo(function CardItem({
       case "audio": {
         return renderRow(
           <Text modifiers={[font({ design: "rounded" }), lineLimit(1)]}>
-            {card.aiTranscript && card.aiTranscript.length > 10
-              ? card.aiTranscript
+            {card.previewText && card.previewText.length > 10
+              ? card.previewText
               : "Audio"}
           </Text>,
           leadingIcon("music.note"),
           undefined,
           [
-            ...downloadItem(
-              card.fileUrl,
-              "download-audio",
-              card.fileMetadata?.fileName ?? "audio"
-            ),
+            <Button
+              key="download-audio"
+              label="Download"
+              onPress={() => void handleDownloadCard(card.fileName ?? "audio")}
+              systemImage="arrow.down.circle"
+            />,
             <Button
               key="share-audio"
               label="Share"
-              onPress={() =>
-                void handleShareFromUrl(
-                  card.fileUrl,
-                  card.fileMetadata?.fileName ?? "audio"
-                )
-              }
+              onPress={() => void handleShareCardFile(card.fileName ?? "audio")}
               systemImage="square.and.arrow.up"
             />,
           ]
@@ -446,10 +444,7 @@ const CardItem = memo(function CardItem({
       }
 
       case "image": {
-        const imageTitle =
-          card.fileMetadata?.fileName || card.metadataTitle || "Image";
-        const imageDownloadUrl =
-          card.fileUrl ?? card.thumbnailUrl ?? card.screenshotUrl ?? null;
+        const imageTitle = card.title || card.fileName || "Image";
 
         return renderRow(
           <Text modifiers={[font({ design: "rounded" }), lineLimit(1)]}>
@@ -458,9 +453,12 @@ const CardItem = memo(function CardItem({
           <PreviewBox>
             {mediaUrl ? (
               <RNHostView matchContents>
-                <RNImage
-                  resizeMode="cover"
-                  source={{ uri: mediaUrl }}
+                <ExpoImage
+                  cachePolicy="memory-disk"
+                  contentFit="cover"
+                  enforceEarlyResizing
+                  recyclingKey={card._id}
+                  source={mediaUrl}
                   style={{ height: 28, width: 28 }}
                 />
               </RNHostView>
@@ -470,13 +468,16 @@ const CardItem = memo(function CardItem({
           </PreviewBox>,
           undefined,
           [
-            ...downloadItem(imageDownloadUrl, "download-image", imageTitle),
+            <Button
+              key="download-image"
+              label="Download"
+              onPress={() => void handleDownloadCard(imageTitle)}
+              systemImage="arrow.down.circle"
+            />,
             <Button
               key="share-image"
               label="Share"
-              onPress={() =>
-                void handleShareFromUrl(imageDownloadUrl, imageTitle)
-              }
+              onPress={() => void handleShareCardFile(imageTitle)}
               systemImage="square.and.arrow.up"
             />,
           ]
@@ -484,10 +485,7 @@ const CardItem = memo(function CardItem({
       }
 
       case "video": {
-        const videoTitle =
-          card.fileMetadata?.fileName || card.metadataTitle || "Video";
-        const videoDownloadUrl =
-          card.fileUrl ?? card.thumbnailUrl ?? card.screenshotUrl ?? null;
+        const videoTitle = card.title || card.fileName || "Video";
 
         return renderRow(
           <Text modifiers={[font({ design: "rounded" }), lineLimit(1)]}>
@@ -496,13 +494,16 @@ const CardItem = memo(function CardItem({
           leadingIcon("play.circle"),
           undefined,
           [
-            ...downloadItem(videoDownloadUrl, "download-video", videoTitle),
+            <Button
+              key="download-video"
+              label="Download"
+              onPress={() => void handleDownloadCard(videoTitle)}
+              systemImage="arrow.down.circle"
+            />,
             <Button
               key="share-video"
               label="Share"
-              onPress={() =>
-                void handleShareFromUrl(videoDownloadUrl, videoTitle)
-              }
+              onPress={() => void handleShareCardFile(videoTitle)}
               systemImage="square.and.arrow.up"
             />,
           ]
@@ -515,8 +516,8 @@ const CardItem = memo(function CardItem({
             ?.slice(0, 10)
             .map((color) => (
               <RoundedRectangle
-                key={color.hex}
-                modifiers={[foregroundStyle(color.hex as any), cornerRadius(6)]}
+                key={color}
+                modifiers={[foregroundStyle(color as any), cornerRadius(6)]}
               />
             )),
           leadingIcon("paintpalette"),
@@ -525,21 +526,14 @@ const CardItem = memo(function CardItem({
             <Button
               key="copy-palette"
               label="Copy Palette"
-              onPress={() =>
-                void handleCopy(
-                  card.colors?.map((color) => color.hex).join(", ") ?? ""
-                )
-              }
+              onPress={() => void handleCopy(card.colors?.join(", ") ?? "")}
               systemImage="doc.on.doc"
             />,
             <Button
               key="share-palette"
               label="Share"
               onPress={() =>
-                void handleShareText(
-                  card.colors?.map((color) => color.hex).join(", ") ?? "",
-                  "palette"
-                )
+                void handleShareText(card.colors?.join(", ") ?? "", "palette")
               }
               systemImage="square.and.arrow.up"
             />,
@@ -548,7 +542,7 @@ const CardItem = memo(function CardItem({
       }
 
       case "quote": {
-        const textContent = card.content || "Quote";
+        const textContent = card.previewText || "Quote";
 
         return renderRow(
           <Text
@@ -560,13 +554,13 @@ const CardItem = memo(function CardItem({
             <Button
               key="copy-quote"
               label="Copy Quote"
-              onPress={() => void handleCopy(textContent)}
+              onPress={() => void handleCopyCardText(textContent)}
               systemImage="doc.on.doc"
             />,
             <Button
               key="share-quote"
               label="Share"
-              onPress={() => void handleShareText(textContent, "quote")}
+              onPress={() => void handleShareCardText(textContent, "quote")}
               systemImage="square.and.arrow.up"
             />,
           ]
@@ -574,7 +568,7 @@ const CardItem = memo(function CardItem({
       }
 
       case "text": {
-        const textContent = card.content || "Note";
+        const textContent = card.previewText || "Note";
 
         return renderRow(
           <Text modifiers={[font({ design: "rounded" }), lineLimit(1)]}>
@@ -586,13 +580,13 @@ const CardItem = memo(function CardItem({
             <Button
               key="copy-text"
               label="Copy Text"
-              onPress={() => void handleCopy(textContent)}
+              onPress={() => void handleCopyCardText(textContent)}
               systemImage="doc.on.doc"
             />,
             <Button
               key="share-text"
               label="Share"
-              onPress={() => void handleShareText(textContent, "note")}
+              onPress={() => void handleShareCardText(textContent, "note")}
               systemImage="square.and.arrow.up"
             />,
           ]
@@ -607,7 +601,7 @@ const CardItem = memo(function CardItem({
               foregroundStyle(colors.secondaryLabel as any),
             ]}
           >
-            {card.content}
+            {card.previewText}
           </Text>,
           leadingIcon("questionmark"),
           undefined,

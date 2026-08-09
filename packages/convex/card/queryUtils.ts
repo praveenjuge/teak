@@ -158,3 +158,37 @@ export const attachFileUrls = async (
     };
   });
 };
+
+export const attachCardSummaryUrls = async (
+  _ctx: unknown,
+  cards: Doc<"cards">[]
+): Promise<CardWithUrls[]> => {
+  const storageKeys = new Set<string>();
+
+  for (const card of cards) {
+    if (card.thumbnailKey) {
+      storageKeys.add(card.thumbnailKey);
+    }
+    if (card.metadata?.linkPreview?.screenshotStorageKey) {
+      storageKeys.add(card.metadata.linkPreview.screenshotStorageKey);
+    }
+  }
+
+  const resolvedUrls = await Promise.all(
+    Array.from(storageKeys).map(
+      async (key) => [key, await resolveObjectUrl(key)] as const
+    )
+  );
+  const urlMap = new Map(resolvedUrls);
+
+  return cards.map((card) => ({
+    ...card,
+    thumbnailUrl: card.thumbnailKey
+      ? (urlMap.get(card.thumbnailKey) ?? undefined)
+      : undefined,
+    screenshotUrl: card.metadata?.linkPreview?.screenshotStorageKey
+      ? (urlMap.get(card.metadata.linkPreview.screenshotStorageKey) ??
+        undefined)
+      : undefined,
+  }));
+};

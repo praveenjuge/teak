@@ -1,6 +1,9 @@
 import { Stack } from "expo-router";
 import { useCallback, useState } from "react";
 import { CardsGrid } from "@/components/CardsGrid";
+import { useDebouncedValue } from "@/lib/hooks/useDebouncedValue";
+
+const SEARCH_DEBOUNCE_MS = 250;
 
 interface SearchBarEvent {
   nativeEvent: {
@@ -10,6 +13,10 @@ interface SearchBarEvent {
 
 export default function HomeScreen() {
   const [searchQuery, setSearchQuery] = useState("");
+  const debouncedSearchQuery = useDebouncedValue(
+    searchQuery,
+    SEARCH_DEBOUNCE_MS
+  );
 
   const handleSearchChange = useCallback((event: SearchBarEvent) => {
     setSearchQuery(event.nativeEvent.text);
@@ -30,7 +37,7 @@ export default function HomeScreen() {
         onChangeText={handleSearchChange as any}
         placeholder="Search"
       />
-      <CardsGrid searchQuery={searchQuery} />
+      <CardsGrid searchQuery={debouncedSearchQuery} />
     </>
   );
 }

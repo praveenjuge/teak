@@ -14,6 +14,10 @@ const rootLayoutPath = join(
   (import.meta as any).dir,
   "../../../mobile/app/_layout.tsx"
 );
+const homePath = join(
+  (import.meta as any).dir,
+  "../../../mobile/app/(tabs)/(home)/index.tsx"
+);
 const addTextPath = join(
   (import.meta as any).dir,
   "../../../mobile/app/(tabs)/add/text.tsx"
@@ -42,13 +46,23 @@ test("home cards list uses paginated query with near-bottom auto load", () => {
   const source = readFileSync(cardsGridPath, "utf8");
 
   expect(source).toContain("usePaginatedQuery(");
-  expect(source).toContain("api.cards.searchCardsPaginated");
+  expect(source).toContain("api.cards.searchMobileCardSummariesPaginated");
   expect(source).toContain("const PAGE_SIZE = 20");
   expect(source).toContain("initialNumItems: PAGE_SIZE");
   expect(source).toContain("AUTO_LOAD_THRESHOLD_FROM_END = 5");
   expect(source).toContain("onAppear(handleAutoLoadMore)");
   expect(source).toContain("loadMore(PAGE_SIZE)");
   expect(source.includes(">Load more<")).toBe(false);
+  expect(source).not.toContain("refreshVersion");
+  expect(source).not.toContain("key={queryKey}");
+});
+
+test("home search waits briefly before changing the feed query", () => {
+  const source = readFileSync(homePath, "utf8");
+
+  expect(source).toContain("const SEARCH_DEBOUNCE_MS = 250");
+  expect(source).toContain("useDebouncedValue(");
+  expect(source).toContain("searchQuery={debouncedSearchQuery}");
 });
 
 test("settings keeps native labeled rows and segmented appearance picker", () => {
@@ -69,7 +83,8 @@ test("root layout wires save feedback as form sheet route", () => {
   expect(source).toContain(
     "const { isLoaded, resolvedScheme } = useThemePreference()"
   );
-  expect(source).toContain("if (!isLoaded)");
+  expect(source).not.toContain("if (!isLoaded)");
+  expect(source).toContain("<ConvexClientProvider>");
   expect(source).toContain("requestAnimationFrame(() =>");
   expect(source).not.toContain("if (!isLoading) {\n      hideSplashScreen();");
 });

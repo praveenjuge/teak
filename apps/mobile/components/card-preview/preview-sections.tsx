@@ -19,9 +19,9 @@ import {
   padding,
 } from "@expo/ui/swift-ui/modifiers";
 import { useEvent } from "expo";
+import { Image as ExpoImage } from "expo-image";
 import { useVideoPlayer, VideoView } from "expo-video";
 import { useEffect, useState } from "react";
-import { Image as RNImage } from "react-native";
 
 export const FullHeightPlaceholder = ({
   icon,
@@ -100,13 +100,15 @@ export const FullHeightMedia = ({
   return (
     <ZStack modifiers={[frame({ height })]}>
       <RNHostView>
-        <RNImage
-          key={activeUri}
+        <ExpoImage
+          cachePolicy="memory-disk"
+          contentFit="contain"
+          enforceEarlyResizing
           onError={handleError}
           onLoadEnd={() => setIsLoading(false)}
           onLoadStart={() => setIsLoading(true)}
-          resizeMode="contain"
-          source={{ uri: activeUri, cache: "force-cache" }}
+          recyclingKey={activeUri}
+          source={activeUri}
           style={{
             height: "100%",
             width: "100%",
@@ -310,9 +312,12 @@ export const VideoPreview = ({
     <ZStack modifiers={[frame({ height })]}>
       {posterUri && !hasStartedPlaying ? (
         <RNHostView>
-          <RNImage
-            resizeMode="contain"
-            source={{ uri: posterUri, cache: "force-cache" }}
+          <ExpoImage
+            cachePolicy="memory-disk"
+            contentFit="contain"
+            enforceEarlyResizing
+            recyclingKey={posterUri}
+            source={posterUri}
             style={{ height: "100%", width: "100%" }}
           />
         </RNHostView>

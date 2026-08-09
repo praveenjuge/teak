@@ -9,6 +9,7 @@ export * from "./card/getCard";
 export * from "./card/getCards";
 export * from "./card/getFileUrl";
 export * from "./card/migrations";
+export * from "./card/mobileCardSummaries";
 export * from "./card/processingStatus";
 export * from "./card/quoteFormatting";
 export * from "./card/updateCard";

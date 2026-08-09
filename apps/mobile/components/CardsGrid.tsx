@@ -9,20 +9,17 @@ import {
 } from "@expo/ui/swift-ui";
 import { listStyle, onAppear, refreshable } from "@expo/ui/swift-ui/modifiers";
 import { api } from "@teak/convex";
-import type { Doc } from "@teak/convex/_generated/dataModel";
 import { parseTimeSearchQuery } from "@teak/convex/shared";
 import { useConvex, usePaginatedQuery } from "convex/react";
 import { Link } from "expo-router";
-import { memo, useCallback, useMemo, useRef, useState } from "react";
+import { memo, useCallback, useMemo, useRef } from "react";
 import { triggerCardTapHaptic } from "@/lib/haptics";
 import { useCardActions } from "@/lib/hooks/useCardActionsMobile";
+import {
+  type MobileCardSummary,
+  rememberMobileCardSummary,
+} from "@/lib/mobile-card-summary-cache";
 import { CardItem } from "./CardItem";
-
-type Card = Doc<"cards"> & {
-  fileUrl?: string;
-  screenshotUrl?: string;
-  thumbnailUrl?: string;
-};
 
 interface CardsGridProps {
   searchQuery?: string;
@@ -58,12 +55,13 @@ function PaginatedCardsList({
 }: PaginatedCardsListProps) {
   const cardActions = useCardActions();
   const { loadMore, results, status } = usePaginatedQuery(
-    api.cards.searchCardsPaginated,
+    api.cards.searchMobileCardSummariesPaginated,
     queryArgs,
     { initialNumItems: PAGE_SIZE }
   );
 
-  const handleCardTap = useCallback(() => {
+  const handleCardTap = useCallback((card: MobileCardSummary) => {
+    rememberMobileCardSummary(card);
     void triggerCardTapHaptic();
   }, []);
 
@@ -112,7 +110,7 @@ function PaginatedCardsList({
   return (
     <List modifiers={[listStyle("plain"), refreshable(onRefresh)]}>
       <List.ForEach>
-        {results.map((card: Card, index) => {
+        {results.map((card: MobileCardSummary, index) => {
           const isNearBottom =
             index >= Math.max(0, results.length - AUTO_LOAD_THRESHOLD_FROM_END);
 
@@ -133,7 +131,7 @@ function PaginatedCardsList({
                   onDeleteRequest={() =>
                     void cardActions.handleDeleteCard(card._id)
                   }
-                  onPress={handleCardTap}
+                  onPress={() => handleCardTap(card)}
                 />
               </Link>
             </VStack>
@@ -157,7 +155,6 @@ const CardsGrid = memo(function CardsGrid({
   selectedType,
 }: CardsGridProps) {
   const convex = useConvex();
-  const [refreshVersion, setRefreshVersion] = useState(0);
 
   const timeFilter = useMemo(() => {
     if (!searchQuery?.trim()) {
@@ -179,17 +176,11 @@ const CardsGrid = memo(function CardsGrid({
     [effectiveSearchQuery, selectedType, timeFilter?.range]
   );
 
-  const queryKey = useMemo(
-    () => JSON.stringify({ queryArgs, refreshVersion }),
-    [queryArgs, refreshVersion]
-  );
-
   const handleRefresh = useCallback(async () => {
-    await convex.query(api.cards.searchCardsPaginated, {
+    await convex.query(api.cards.searchMobileCardSummariesPaginated, {
       ...queryArgs,
       paginationOpts: { cursor: null, numItems: PAGE_SIZE },
     });
-    setRefreshVersion((value) => value + 1);
   }, [convex, queryArgs]);
 
   const emptyTitle = searchQuery ? "No cards found" : "No cards yet";
@@ -208,7 +199,6 @@ const CardsGrid = memo(function CardsGrid({
         description={description}
         emptyIcon={emptyIcon}
         emptyTitle={emptyTitle}
-        key={queryKey}
         onRefresh={handleRefresh}
         queryArgs={queryArgs}
       />
