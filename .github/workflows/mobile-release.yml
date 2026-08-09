@@ -529,7 +529,6 @@ jobs:
             echo "Could not resolve iOS App Store version $VERSION." >&2
             exit 1
           fi
-
           asc versions update --version-id "$version_id" --release-type AFTER_APPROVAL > "$RUNNER_TEMP/ios-version-update.json"
           localizations="$RUNNER_TEMP/ios-localizations.json"
           asc localizations list --version "$version_id" --paginate > "$localizations"
@@ -543,7 +542,6 @@ jobs:
               --locale "$locale" \
               --whats-new "$RELEASE_NOTES" > /dev/null
           done < <(jq -r '.data[].attributes.locale' "$localizations")
-
           source_id="$(asc versions list --app "$ASC_APP_ID" --platform "$PLATFORM" --version "$SOURCE_VERSION" --limit 1 | jq -r '.data[0].id // empty')"
           if ! asc review details-for-version --version-id "$version_id" > "$RUNNER_TEMP/ios-review-target.json" 2>/dev/null; then
             asc review details-for-version --version-id "$source_id" > "$RUNNER_TEMP/ios-review-source.json"
@@ -568,10 +566,8 @@ jobs:
             args+=(--demo-account-required=false)
             asc "${args[@]}" > "$RUNNER_TEMP/ios-review-create.json"
           fi
-
           echo "id=$version_id" >> "$GITHUB_OUTPUT"
           echo "- App Store version: $version_id (AFTER_APPROVAL)" >> "$GITHUB_STEP_SUMMARY"
-
       - name: Complete new Apple age-rating fields without changing the existing declaration
         if: steps.release_state.outputs.mutate == 'true'
         env:
@@ -588,7 +584,6 @@ jobs:
             echo "App Store Connect did not retain the required iOS social-media age-rating declarations." >&2
             exit 1
           fi
-
       - name: Attach exact build, validate, run doctor, and submit
         id: submit
         if: steps.release_state.outputs.mutate == 'true'
@@ -597,7 +592,16 @@ jobs:
           CURRENT_STATE: ${{ steps.release_state.outputs.target_state }}
           VERSION_ID: ${{ steps.apple_version.outputs.id }}
         run: |
-          asc versions attach-build --version-id "$VERSION_ID" --build-id "$BUILD_ID" > "$RUNNER_TEMP/ios-attach.json"
+          attach_exit=0
+          asc versions attach-build --version-id "$VERSION_ID" --build-id "$BUILD_ID" > "$RUNNER_TEMP/ios-attach.json" || attach_exit=$?
+          if [ "$attach_exit" -ne 0 ]; then
+            asc versions view --version-id "$VERSION_ID" --include-build > "$RUNNER_TEMP/ios-attached-version.json"
+            if [ "$CURRENT_STATE" != "READY_FOR_REVIEW" ] || ! jq -e --arg version "$VERSION_ID" --arg build "$BUILD_ID" '.id == $version and .state == "READY_FOR_REVIEW" and .buildId == $build' "$RUNNER_TEMP/ios-attached-version.json" > /dev/null; then
+              echo "Could not attach the exact iOS build to the target version." >&2
+              exit "$attach_exit"
+            fi
+            echo "- Exact iOS build was already attached to the existing READY_FOR_REVIEW draft." >> "$GITHUB_STEP_SUMMARY"
+          fi
           validate_exit=0
           asc validate --app "$ASC_APP_ID" --version-id "$VERSION_ID" --platform "$PLATFORM" --strict > "$RUNNER_TEMP/ios-validate.json" || validate_exit=$?
           if [ "$validate_exit" -ne 0 ]; then
@@ -624,7 +628,6 @@ jobs:
             fi
             echo "asc review doctor confirmed the only blocker is the expected existing READY_FOR_REVIEW draft." >> "$GITHUB_STEP_SUMMARY"
           fi
-
           ready_submissions="$RUNNER_TEMP/ios-ready-submissions.json"
           asc review submissions-list \
             --app "$ASC_APP_ID" \
@@ -652,7 +655,6 @@ jobs:
               empty_submission="$candidate_id"
             fi
           done < <(jq -r '.data[]?.id' "$ready_submissions")
-
           submission_id="$matching_submission"
           if [ -z "$submission_id" ]; then
             submission_id="$empty_submission"
@@ -669,7 +671,6 @@ jobs:
               --item-type appStoreVersions \
               --item-id "$VERSION_ID" > "$RUNNER_TEMP/ios-review-item-add.json"
           fi
-
           asc review items-list \
             --submission "$submission_id" \
             --fields appStoreVersion \
@@ -681,7 +682,6 @@ jobs:
           fi
           asc review submissions-submit --id "$submission_id" --confirm > "$RUNNER_TEMP/ios-submit.json"
           echo "submission_id=$submission_id" >> "$GITHUB_OUTPUT"
-
       - name: Prove iOS reached App Review
         if: steps.release_state.outputs.mutate == 'true'
         env:

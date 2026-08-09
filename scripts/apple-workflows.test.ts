@@ -121,6 +121,8 @@ describe("Apple release workflows", () => {
   });
 
   test("continues an exact version already attached to a review draft", () => {
+    const exactAttachRecovery = `attach_exit=0
+          asc versions attach-build`;
     const exactValidateException = `if [ "$validate_exit" -ne 0 ]; then
             if [ "$CURRENT_STATE" != "READY_FOR_REVIEW" ] || ! jq -e '
               .summary.errors == 1
@@ -140,6 +142,13 @@ describe("Apple release workflows", () => {
       );
       expect(workflow).not.toContain(
         "WAITING_FOR_REVIEW|READY_FOR_REVIEW|IN_REVIEW"
+      );
+      expect(workflow.split(exactAttachRecovery)).toHaveLength(2);
+      expect(workflow).toContain(
+        'asc versions view --version-id "$VERSION_ID" --include-build'
+      );
+      expect(workflow).toContain(
+        '.id == $version and .state == "READY_FOR_REVIEW" and .buildId == $build'
       );
       expect(workflow.split(exactValidateException)).toHaveLength(2);
       expect(workflow.split(exactDoctorException)).toHaveLength(2);

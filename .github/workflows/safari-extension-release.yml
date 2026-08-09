@@ -536,7 +536,16 @@ jobs:
             echo "No exact VALID Safari build was resolved." >&2
             exit 1
           fi
-          asc versions attach-build --version-id "$VERSION_ID" --build-id "$build_id" > "$RUNNER_TEMP/safari-attach.json"
+          attach_exit=0
+          asc versions attach-build --version-id "$VERSION_ID" --build-id "$build_id" > "$RUNNER_TEMP/safari-attach.json" || attach_exit=$?
+          if [ "$attach_exit" -ne 0 ]; then
+            asc versions view --version-id "$VERSION_ID" --include-build > "$RUNNER_TEMP/safari-attached-version.json"
+            if [ "$CURRENT_STATE" != "READY_FOR_REVIEW" ] || ! jq -e --arg version "$VERSION_ID" --arg build "$build_id" '.id == $version and .state == "READY_FOR_REVIEW" and .buildId == $build' "$RUNNER_TEMP/safari-attached-version.json" > /dev/null; then
+              echo "Could not attach the exact Safari build to the target version." >&2
+              exit "$attach_exit"
+            fi
+            echo "- Exact Safari build was already attached to the existing READY_FOR_REVIEW draft." >> "$GITHUB_STEP_SUMMARY"
+          fi
           validate_exit=0
           asc validate --app "$ASC_APP_ID" --version-id "$VERSION_ID" --platform "$PLATFORM" --strict > "$RUNNER_TEMP/safari-validate.json" || validate_exit=$?
           if [ "$validate_exit" -ne 0 ]; then
