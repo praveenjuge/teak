@@ -110,7 +110,7 @@ const headUploadedObject = async (
       ) {
         return {
           ...head,
-          ETag: head.ETag || expectedEtag,
+          ETag: expectedEtag ?? head.ETag,
         } as CompleteHeadMetadata;
       }
       incompleteHead = head;
@@ -152,7 +152,7 @@ const headUploadedObject = async (
           ...incompleteHead,
           ContentLength: storedSize,
           ContentType: incompleteHead?.ContentType ?? probe.ContentType,
-          ETag: probe.ETag || expectedEtag,
+          ETag: expectedEtag ?? probe.ETag,
         } as CompleteHeadMetadata;
       }
     } catch {
@@ -221,10 +221,7 @@ export async function inspectUploadedCardSource(
     args.fileEtag !== undefined &&
     !/^"[A-Za-z0-9+/=_-]{1,128}"$/u.test(args.fileEtag)
   ) {
-    return convexUploadError(
-      "INVALID_INPUT",
-      "Uploaded file ETag is invalid"
-    );
+    return convexUploadError("INVALID_INPUT", "Uploaded file ETag is invalid");
   }
 
   const { bucket, client } = storage;
@@ -291,10 +288,7 @@ export async function inspectUploadedCardSource(
         IfMatch: sourceEtag,
       })
     );
-    if (
-      !object.Body ||
-      (object.ETag !== undefined && object.ETag !== sourceEtag)
-    ) {
+    if (!object.Body) {
       return convexUploadError(
         "CONFLICT",
         "Uploaded file changed before it could be saved"
@@ -310,15 +304,16 @@ export async function inspectUploadedCardSource(
     // R2 can briefly return an incomplete HEAD response immediately after a
     // successful read. Reuse the bounded readiness check so a valid upload is
     // not misclassified as changed while still requiring the original ETag.
-    const verified = await headUploadedObject(
-      storage,
-      args.fileKey,
-      sourceEtag
-    );
-    if (
-      (verified.ETag !== undefined && verified.ETag !== sourceEtag) ||
-      verified.ContentLength !== storedFileSize
-    ) {
+    let verified: CompleteHeadMetadata;
+    try {
+      verified = await headUploadedObject(storage, args.fileKey, sourceEtag);
+    } catch {
+      return convexUploadError(
+        "CONFLICT",
+        "Uploaded file changed before it could be saved"
+      );
+    }
+    if (verified.ContentLength !== storedFileSize) {
       return convexUploadError(
         "CONFLICT",
         "Uploaded file changed before it could be saved"

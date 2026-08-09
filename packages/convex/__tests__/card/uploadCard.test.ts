@@ -346,7 +346,7 @@ describe("card uploads", () => {
   test("verifies an upload-response ETag when storage responses omit it", async () => {
     const bytes = new TextEncoder().encode("# exact");
     const commands: Array<{ input?: { IfMatch?: string } }> = [];
-    const send = mock(async (command) => {
+    const send = mock((command) => {
       commands.push(command);
       if (command.constructor.name === "GetObjectCommand") {
         return { Body: { transformToByteArray: async () => bytes } };
@@ -376,8 +376,49 @@ describe("card uploads", () => {
     });
     expect(commands).toHaveLength(3);
     expect(
+      commands.every((command) => command.input?.IfMatch === '"upload-etag"')
+    ).toBe(true);
+  });
+
+  test("uses successful conditional reads instead of response ETag formatting", async () => {
+    const bytes = new TextEncoder().encode("# exact");
+    const commands: Array<{ input?: { IfMatch?: string } }> = [];
+    const send = mock((command) => {
+      commands.push(command);
+      if (command.constructor.name === "GetObjectCommand") {
+        return {
+          Body: { transformToByteArray: async () => bytes },
+          ETag: '"storage-formatted-etag"',
+        };
+      }
+      return {
+        ContentLength: bytes.byteLength,
+        ContentType: "text/markdown",
+        ETag: '"storage-formatted-etag"',
+      };
+    });
+
+    await expect(
+      inspectUploadedCardSource(
+        "u1",
+        {
+          fileEtag: '"upload-response-etag"',
+          fileKey: VALID_FILE_KEY,
+          fileName: "README.md",
+          fileSize: bytes.byteLength,
+          fileType: "text/markdown",
+        },
+        { bucket: "test", client: { send } }
+      )
+    ).resolves.toMatchObject({
+      cardType: "text",
+      content: "# exact",
+      storedFileSize: bytes.byteLength,
+    });
+    expect(commands).toHaveLength(3);
+    expect(
       commands.every(
-        (command) => command.input?.IfMatch === '"upload-etag"'
+        (command) => command.input?.IfMatch === '"upload-response-etag"'
       )
     ).toBe(true);
   });
@@ -385,7 +426,7 @@ describe("card uploads", () => {
   test("derives verified size from a bounded range response", async () => {
     const commands: Array<{ input?: { IfMatch?: string; Range?: string } }> =
       [];
-    const send = mock(async (command) => {
+    const send = mock((command) => {
       commands.push(command);
       if (command.constructor.name === "GetObjectCommand") {
         return {
@@ -475,6 +516,7 @@ describe("card uploads", () => {
   test("rejects Markdown objects that change after decoding", async () => {
     const bytes = new TextEncoder().encode("# stable");
     let call = 0;
+    const wait = mock().mockResolvedValue(undefined);
     const send = mock(() => {
       call += 1;
       if (call === 2) {
@@ -483,9 +525,12 @@ describe("card uploads", () => {
           ETag: '"etag-1"',
         };
       }
+      if (call > 2) {
+        throw new Error("PreconditionFailed");
+      }
       return {
         ContentLength: bytes.byteLength,
-        ETag: call === 1 ? '"etag-1"' : '"etag-2"',
+        ETag: '"etag-1"',
       };
     });
 
@@ -498,9 +543,10 @@ describe("card uploads", () => {
           fileSize: bytes.byteLength,
           fileType: "text/markdown",
         },
-        { bucket: "test", client: { send } }
+        { bucket: "test", client: { send }, wait }
       )
     ).rejects.toMatchObject({ data: { code: "CONFLICT" } });
+    expect(wait).toHaveBeenCalledTimes(4);
   });
 
   test("retries incomplete verification metadata after reading Markdown", async () => {
