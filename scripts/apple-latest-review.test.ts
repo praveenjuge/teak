@@ -110,6 +110,33 @@ describe("latest Apple review planning", () => {
     expect(plan.targetState).toBe("WAITING_FOR_REVIEW");
   });
 
+  test("does not cancel another review when the exact target is active", async () => {
+    for (const state of ["WAITING_FOR_REVIEW", "IN_REVIEW"]) {
+      let called = false;
+      const result = await applyLatestReviewVersion({
+        appId: "app-id",
+        dryRun: false,
+        platform: "IOS",
+        response: response([
+          { id: "old", state: "IN_REVIEW", version: "1.0.60" },
+          { id: "target", state, version: "1.0.61" },
+        ]),
+        runCommand: () => {
+          called = true;
+          return {};
+        },
+        targetVersion: "1.0.61",
+      });
+      expect(called).toBe(false);
+      expect(result).toMatchObject({
+        cancelSuperseded: false,
+        mutate: false,
+        supersededId: "",
+        targetState: state,
+      });
+    }
+  });
+
   test("fails closed for ambiguous or non-latest requests", () => {
     expect(() =>
       planLatestReviewVersion(

@@ -113,8 +113,9 @@ export function planLatestReviewVersion(response, targetVersion) {
     (candidate) =>
       candidate.version !== targetVersion && reusableStates.has(candidate.state)
   );
-  const superseded =
-    activeOlder[0] ?? (target ? undefined : newest(reusableOlder));
+  const superseded = completedStates.has(target?.state)
+    ? undefined
+    : (activeOlder[0] ?? (target ? undefined : newest(reusableOlder)));
   const source = newest(
     versions.filter(
       (candidate) =>
