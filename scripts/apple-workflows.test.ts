@@ -128,6 +128,12 @@ describe("Apple release workflows", () => {
       expect(workflow).not.toContain(
         "WAITING_FOR_REVIEW|READY_FOR_REVIEW|IN_REVIEW"
       );
+      expect(workflow).toContain(
+        "and ([.blockingChecks[]?.id] == [\"version.state.editable\"])"
+      );
+      expect(workflow).toContain(
+        "the only blocker is the expected existing READY_FOR_REVIEW draft"
+      );
     }
   });
 
