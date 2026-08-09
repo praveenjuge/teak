@@ -38,6 +38,7 @@
   },
   "overrides": {
     "@codemirror/view": "6.43.8",
+    "brace-expansion": "5.0.9",
     "convex": "1.43.0",
     "convex-helpers": "0.1.122",
     "esbuild": "0.28.2",
