@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test";
 import { cleanupE2EAccounts } from "../helpers/e2e-cleanup";
-import { clickVisibleControl, clientFor, createAccount } from "../helpers/prod";
+import { clientFor, createAccount } from "../helpers/prod";
 
 test.setTimeout(180_000);
 
@@ -28,9 +28,7 @@ test("signup, create, and search", async ({ page }) => {
     });
     await note.fill(marker);
     await expect(note).toHaveText(marker);
-    await clickVisibleControl(
-      creationForm.getByRole("button", { exact: true, name: "Save" })
-    );
+    await note.press("ControlOrMeta+Enter");
     const api = clientFor(account.apiKey);
     await expect
       .poll(

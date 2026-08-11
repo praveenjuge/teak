@@ -4,7 +4,7 @@ import { expect, type Page, test } from "@playwright/test";
 import { MAX_FILE_SIZE } from "@teak/convex/shared";
 import { strFromU8, strToU8, unzipSync, zipSync } from "fflate";
 import { apiFetch } from "../helpers/api";
-import { clickVisibleControl, clientFor } from "../helpers/prod";
+import { clientFor } from "../helpers/prod";
 import { readState, updateState } from "../helpers/run-state";
 
 const png = Buffer.from(
@@ -23,10 +23,9 @@ const pdf = Buffer.from(
 
 const saveTextCard = async (page: Page, content: string) => {
   await page.goto("/");
-  await page.getByRole("textbox", { name: "Markdown content" }).fill(content);
-  await clickVisibleControl(
-    page.getByRole("button", { exact: true, name: "Save" })
-  );
+  const editor = page.getByRole("textbox", { name: "Markdown content" });
+  await editor.fill(content);
+  await editor.press("ControlOrMeta+Enter");
   await expect(page.getByRole("main").getByText(content).first()).toBeVisible();
 };
 
