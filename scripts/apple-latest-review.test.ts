@@ -186,16 +186,7 @@ describe("latest Apple review planning", () => {
       runCommand: (command: string[]) => {
         commands.push(command);
         if (command[1] === "submissions-list") {
-          return {
-            data: [
-              {
-                id: "submission",
-                relationships: {
-                  appStoreVersionForReview: { data: { id: "rejected" } },
-                },
-              },
-            ],
-          };
+          return { data: [{ id: "submission" }] };
         }
         if (command[1] === "items" && command[2] === "list") {
           return { data: [] };
@@ -227,6 +218,30 @@ describe("latest Apple review planning", () => {
       targetId: "rejected",
       targetState: "PREPARE_FOR_SUBMISSION",
     });
+  });
+
+  test("fails closed when an already-removed review item is ambiguous", async () => {
+    await expect(
+      applyLatestReviewVersion({
+        appId: "app-id",
+        dryRun: false,
+        platform: "IOS",
+        response: response([
+          { id: "rejected", state: "REJECTED", version: "1.0.61" },
+        ]),
+        runCommand: (command: string[]) => {
+          if (command[1] === "submissions-list") {
+            return { data: [{ id: "one" }, { id: "two" }] };
+          }
+          if (command[1] === "items" && command[2] === "list") {
+            return { data: [] };
+          }
+          return {};
+        },
+        targetVersion: "1.0.61",
+        waitCommand: () => Promise.resolve(),
+      })
+    ).rejects.toThrow("Expected exactly one rejected App Review item");
   });
 
   test("removes and promotes the rejected predecessor before a patch release", async () => {

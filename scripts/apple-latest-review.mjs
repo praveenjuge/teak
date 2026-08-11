@@ -277,10 +277,13 @@ async function removeRejectedVersionFromReview({
       }
     }
   }
-  if (matches.length === 0 && matchingSubmissions.length === 1) {
+  if (
+    matches.length === 0 &&
+    (matchingSubmissions.length === 1 || submissions.length === 1)
+  ) {
     await waitForReviewSubmissionCompletion({
       runCommand,
-      submissionId: matchingSubmissions[0],
+      submissionId: matchingSubmissions[0] ?? submissions[0].id,
       waitCommand,
     });
     return;
