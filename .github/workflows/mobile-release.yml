@@ -28,6 +28,9 @@ env:
   ASC_NO_UPDATE: "1"
   ASC_VERSION: "3.6.1"
   APPLE_TEAM_ID: LW385M78LW
+  EXPO_PUBLIC_CONVEX_SITE_URL: https://uncommon-ladybug-882.convex.site
+  EXPO_PUBLIC_CONVEX_URL: https://uncommon-ladybug-882.convex.cloud
+  EXPO_PUBLIC_SENTRY_ENVIRONMENT: production
   IOS_APP_BUNDLE_ID: com.praveenjuge.teak
   IOS_EXTENSION_BUNDLE_ID: com.praveenjuge.teak.share-extension
   PLATFORM: IOS
@@ -340,10 +343,6 @@ jobs:
         working-directory: apps/mobile
         env:
           APPLE_DISTRIBUTION_IDENTITY: ${{ steps.signing.outputs.identity }}
-          EXPO_PUBLIC_CONVEX_SITE_URL: https://uncommon-ladybug-882.convex.site
-          EXPO_PUBLIC_CONVEX_URL: https://uncommon-ladybug-882.convex.cloud
-          EXPO_PUBLIC_SENTRY_ENVIRONMENT: production
-          EXPO_PUBLIC_SENTRY_MOBILE_DSN: ${{ secrets.SENTRY_MOBILE_DSN }}
           IOS_APP_PROFILE_NAME: ${{ steps.profiles.outputs.app_name }}
           IOS_EXTENSION_PROFILE_NAME: ${{ steps.profiles.outputs.extension_name }}
           TEAK_IOS_BUILD_NUMBER: ${{ steps.build_state.outputs.build_number }}
@@ -362,6 +361,7 @@ jobs:
         working-directory: apps/mobile
         env:
           APPLE_DISTRIBUTION_IDENTITY: ${{ steps.signing.outputs.identity }}
+          EXPO_PUBLIC_SENTRY_MOBILE_DSN: ${{ secrets.SENTRY_MOBILE_DSN }}
           IOS_APP_PROFILE_NAME: ${{ steps.profiles.outputs.app_name }}
           IOS_EXTENSION_PROFILE_NAME: ${{ steps.profiles.outputs.extension_name }}
           SENTRY_ALLOW_FAILURE: "false"
@@ -439,6 +439,17 @@ jobs:
           unzip -q "$IPA_PATH" -d "$expanded"
           app_path="$(find "$expanded/Payload" -maxdepth 1 -type d -name '*.app' | head -1)"
           extension_path="$(find "$app_path/PlugIns" -maxdepth 1 -type d -name '*.appex' | head -1)"
+          main_bundle="$app_path/main.jsbundle"
+          if [ ! -s "$main_bundle" ]; then
+            echo "The signed app is missing its JavaScript bundle." >&2
+            exit 1
+          fi
+          for expected_runtime_value in "$EXPO_PUBLIC_CONVEX_URL" "$EXPO_PUBLIC_CONVEX_SITE_URL"; do
+            if ! grep -aFq "$expected_runtime_value" "$main_bundle"; then
+              echo "The signed app is missing required production runtime configuration." >&2
+              exit 1
+            fi
+          done
           codesign --verify --deep --strict "$app_path"
           codesign --verify --strict "$extension_path"
           app_entitlements="$RUNNER_TEMP/app-entitlements.plist"

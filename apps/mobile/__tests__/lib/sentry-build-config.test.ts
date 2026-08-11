@@ -56,6 +56,14 @@ test("uploads runner-local production builds to Sentry before App Store Connect"
     resolve(repositoryRoot, ".github/workflows/mobile-release.yml"),
     "utf8"
   );
+  const archiveStep = workflow.slice(
+    workflow.indexOf("- name: Archive and export the production IPA"),
+    workflow.indexOf("- name: Verify the exact local IPA identity")
+  );
+  const ipaVerificationStep = workflow.slice(
+    workflow.indexOf("- name: Verify the exact local IPA identity"),
+    workflow.indexOf("- name: Upload IPA to mandatory Sentry Size Analysis")
+  );
 
   expect(existsSync(legacyWorkflowPath)).toBe(false);
   expect(packageJson.scripts["build:submit"]).toBeUndefined();
@@ -73,6 +81,14 @@ test("uploads runner-local production builds to Sentry before App Store Connect"
   expect(workflow).toContain("EXPO_PUBLIC_CONVEX_URL");
   expect(workflow).toContain("EXPO_PUBLIC_CONVEX_SITE_URL");
   expect(workflow).toContain("secrets.SENTRY_MOBILE_DSN");
+  expect(archiveStep).toContain("EXPO_PUBLIC_SENTRY_MOBILE_DSN");
+  expect(archiveStep).toContain("xcodebuild");
+  expect(ipaVerificationStep).toContain(
+    'main_bundle="$app_path/main.jsbundle"'
+  );
+  expect(ipaVerificationStep).toContain(
+    'grep -aFq "$expected_runtime_value" "$main_bundle"'
+  );
   expect(workflow).toContain("codesign -d --entitlements :-");
   expect(workflow).toContain(
     'keychain_access_group" != "$APPLE_TEAM_ID.$IOS_APP_BUNDLE_ID"'
