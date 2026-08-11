@@ -10,6 +10,7 @@ import { Resend } from "@convex-dev/resend";
 import { type BetterAuthOptions, betterAuth } from "better-auth/minimal";
 import { mcp } from "better-auth/plugins";
 import { ConvexError, v } from "convex/values";
+import { importPKCS8, SignJWT } from "jose";
 import { components, internal } from "./_generated/api";
 import type { DataModel } from "./_generated/dataModel";
 import {
@@ -67,6 +68,56 @@ try {
 }
 const desktopDevOrigins = ["http://localhost:1420", "http://127.0.0.1:1420"];
 const appDevUrl = resolveTeakDevAppUrl(process.env);
+const APPLE_CLIENT_SECRET_TTL_SECONDS = 180 * 24 * 60 * 60;
+
+type AppleClientSecretConfig = {
+  clientId: string;
+  keyId: string;
+  privateKey: string;
+  teamId: string;
+};
+
+const requireAppleEnvironmentValue = (name: string): string => {
+  const value = process.env[name]?.trim();
+  if (!value) {
+    throw new Error(`${name} environment variable is required for Apple sign-in`);
+  }
+  return value;
+};
+
+export const generateAppleClientSecret = async (
+  config: AppleClientSecretConfig,
+  now = Date.now()
+): Promise<string> => {
+  const issuedAt = Math.floor(now / 1000);
+  const privateKey = config.privateKey.replace(/\\n/g, "\n").trim();
+  const signingKey = await importPKCS8(`${privateKey}\n`, "ES256");
+
+  return new SignJWT({})
+    .setProtectedHeader({ alg: "ES256", kid: config.keyId })
+    .setIssuer(config.teamId)
+    .setSubject(config.clientId)
+    .setAudience("https://appleid.apple.com")
+    .setIssuedAt(issuedAt)
+    .setExpirationTime(issuedAt + APPLE_CLIENT_SECRET_TTL_SECONDS)
+    .sign(signingKey);
+};
+
+const createAppleProvider = async () => {
+  const clientId = requireAppleEnvironmentValue("APPLE_CLIENT_ID");
+  const appBundleIdentifier = process.env.APPLE_APP_BUNDLE_IDENTIFIER?.trim();
+
+  return {
+    clientId,
+    clientSecret: await generateAppleClientSecret({
+      clientId,
+      keyId: requireAppleEnvironmentValue("APPLE_KEY_ID"),
+      privateKey: requireAppleEnvironmentValue("APPLE_PRIVATE_KEY"),
+      teamId: requireAppleEnvironmentValue("APPLE_TEAM_ID"),
+    }),
+    ...(appBundleIdentifier ? { appBundleIdentifier } : {}),
+  };
+};
 
 export const trustedOrigins = [
   siteUrl,
@@ -237,12 +288,7 @@ export const createAuth = (ctx: GenericCtx<DataModel>) => {
         clientSecret: googleClientSecret,
         prompt: "select_account",
       },
-      apple: {
-        clientId: process.env.APPLE_CLIENT_ID as string,
-        clientSecret: process.env.APPLE_CLIENT_SECRET as string,
-        // Optional
-        appBundleIdentifier: process.env.APPLE_APP_BUNDLE_IDENTIFIER as string,
-      },
+      apple: createAppleProvider,
     },
     emailAndPassword: {
       enabled: true,

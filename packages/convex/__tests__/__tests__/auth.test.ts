@@ -5,15 +5,20 @@ const _originalSiteUrl = process.env.SITE_URL;
 const _originalGoogleClientId = process.env.GOOGLE_CLIENT_ID;
 const _originalGoogleClientSecret = process.env.GOOGLE_CLIENT_SECRET;
 const _originalAppleClientId = process.env.APPLE_CLIENT_ID;
-const _originalAppleClientSecret = process.env.APPLE_CLIENT_SECRET;
+const _originalAppleKeyId = process.env.APPLE_KEY_ID;
+const _originalApplePrivateKey = process.env.APPLE_PRIVATE_KEY;
+const _originalAppleTeamId = process.env.APPLE_TEAM_ID;
 
 process.env.SITE_URL = "https://teakvault.com";
 process.env.GOOGLE_CLIENT_ID = "test-google-client-id";
 process.env.GOOGLE_CLIENT_SECRET = "test-google-client-secret";
 process.env.APPLE_CLIENT_ID = "test-apple-client-id";
-process.env.APPLE_CLIENT_SECRET = "test-apple-client-secret";
+process.env.APPLE_KEY_ID = "test-apple-key-id";
+process.env.APPLE_PRIVATE_KEY = TEST_APPLE_PRIVATE_KEY;
+process.env.APPLE_TEAM_ID = "test-apple-team-id";
 
 import { beforeAll, beforeEach, describe, expect, it, mock } from "bun:test";
+import { TEST_APPLE_PRIVATE_KEY } from "../helpers/appleAuth.test-utils";
 import { r2MockModuleFactory, r2Mocks } from "../helpers/r2Mock.test-utils";
 
 const mockSendEmail = mock().mockResolvedValue({ id: "m1" });
@@ -510,7 +515,9 @@ describe("auth", () => {
       const originalGoogleClientId = process.env.GOOGLE_CLIENT_ID;
       const originalGoogleClientSecret = process.env.GOOGLE_CLIENT_SECRET;
       const originalAppleClientId = process.env.APPLE_CLIENT_ID;
-      const originalAppleClientSecret = process.env.APPLE_CLIENT_SECRET;
+      const originalAppleKeyId = process.env.APPLE_KEY_ID;
+      const originalApplePrivateKey = process.env.APPLE_PRIVATE_KEY;
+      const originalAppleTeamId = process.env.APPLE_TEAM_ID;
 
       try {
         const ctx = {
@@ -592,7 +599,9 @@ describe("auth", () => {
         process.env.GOOGLE_CLIENT_ID = originalGoogleClientId;
         process.env.GOOGLE_CLIENT_SECRET = originalGoogleClientSecret;
         process.env.APPLE_CLIENT_ID = originalAppleClientId;
-        process.env.APPLE_CLIENT_SECRET = originalAppleClientSecret;
+        process.env.APPLE_KEY_ID = originalAppleKeyId;
+        process.env.APPLE_PRIVATE_KEY = originalApplePrivateKey;
+        process.env.APPLE_TEAM_ID = originalAppleTeamId;
       }
     });
   });

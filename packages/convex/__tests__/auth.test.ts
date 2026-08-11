@@ -1,12 +1,15 @@
 // @ts-nocheck
 import { describe, expect, mock, test } from "bun:test";
+import { TEST_APPLE_PRIVATE_KEY } from "./helpers/appleAuth.test-utils";
 
 // Set environment variables BEFORE any imports that might load auth.ts
 process.env.SITE_URL = "https://teakvault.com";
 process.env.GOOGLE_CLIENT_ID = "test-google-client-id";
 process.env.GOOGLE_CLIENT_SECRET = "test-google-client-secret";
 process.env.APPLE_CLIENT_ID = "test-apple-client-id";
-process.env.APPLE_CLIENT_SECRET = "test-apple-client-secret";
+process.env.APPLE_KEY_ID = "test-apple-key-id";
+process.env.APPLE_PRIVATE_KEY = TEST_APPLE_PRIVATE_KEY;
+process.env.APPLE_TEAM_ID = "test-apple-team-id";
 
 mock.module("@convex-dev/resend", () => ({
   Resend: class {
@@ -115,6 +118,39 @@ describe("auth.ts", () => {
 
   test("uses Apple OAuth provider", () => {
     expect(process.env.APPLE_CLIENT_ID).toBeDefined();
-    expect(process.env.APPLE_CLIENT_SECRET).toBeDefined();
+    expect(process.env.APPLE_KEY_ID).toBeDefined();
+    expect(process.env.APPLE_PRIVATE_KEY).toBeDefined();
+    expect(process.env.APPLE_TEAM_ID).toBeDefined();
+  });
+
+  test("generates a fresh Apple client secret", async () => {
+    const { decodeJwt, decodeProtectedHeader, exportPKCS8, generateKeyPair } =
+      await import("jose");
+    const { privateKey } = await generateKeyPair("ES256", {
+      extractable: true,
+    });
+    const { generateAppleClientSecret } = await import("../auth");
+    const now = Date.UTC(2026, 7, 11, 5, 0, 0);
+    const token = await generateAppleClientSecret(
+      {
+        clientId: "com.example.teak.apple.si",
+        keyId: "TESTKEY123",
+        privateKey: await exportPKCS8(privateKey),
+        teamId: "TESTTEAM123",
+      },
+      now
+    );
+
+    expect(decodeProtectedHeader(token)).toEqual({
+      alg: "ES256",
+      kid: "TESTKEY123",
+    });
+    expect(decodeJwt(token)).toMatchObject({
+      aud: "https://appleid.apple.com",
+      exp: Math.floor(now / 1000) + 180 * 24 * 60 * 60,
+      iat: Math.floor(now / 1000),
+      iss: "TESTTEAM123",
+      sub: "com.example.teak.apple.si",
+    });
   });
 });

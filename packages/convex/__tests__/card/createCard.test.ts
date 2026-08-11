@@ -5,9 +5,12 @@ process.env.SITE_URL = "https://teakvault.com";
 process.env.GOOGLE_CLIENT_ID = "test-google-client-id";
 process.env.GOOGLE_CLIENT_SECRET = "test-google-client-secret";
 process.env.APPLE_CLIENT_ID = "test-apple-client-id";
-process.env.APPLE_CLIENT_SECRET = "test-apple-client-secret";
+process.env.APPLE_KEY_ID = "test-apple-key-id";
+process.env.APPLE_PRIVATE_KEY = TEST_APPLE_PRIVATE_KEY;
+process.env.APPLE_TEAM_ID = "test-apple-team-id";
 
 import { afterEach, beforeEach, describe, expect, mock, test } from "bun:test";
+import { TEST_APPLE_PRIVATE_KEY } from "../helpers/appleAuth.test-utils";
 
 describe("card/createCard.ts", () => {
   let createCard: any;
