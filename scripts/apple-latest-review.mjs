@@ -256,7 +256,16 @@ async function removeRejectedVersionFromReview({
   }
 
   const match = matches[0];
-  runCommand(["review", "items", "remove", "--id", match.itemId, "--confirm"]);
+  runCommand([
+    "review",
+    "items",
+    "update",
+    "--id",
+    match.itemId,
+    "--removed",
+    "true",
+    "--confirm",
+  ]);
 
   const deadline = Date.now() + 10 * 60 * 1000;
   while (Date.now() < deadline) {

@@ -132,9 +132,11 @@ describe("latest Apple review planning", () => {
     expect(commands).toContainEqual([
       "review",
       "items",
-      "remove",
+      "update",
       "--id",
       "item",
+      "--removed",
+      "true",
       "--confirm",
     ]);
     expect(result).toMatchObject({
