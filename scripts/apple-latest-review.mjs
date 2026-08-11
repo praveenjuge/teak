@@ -232,6 +232,8 @@ async function removeRejectedVersionFromReview({
       submission.id,
       "--fields",
       "state,appStoreVersion",
+      "--include",
+      "appStoreVersion",
       "--paginate",
     ]).data;
     if (!Array.isArray(items)) {

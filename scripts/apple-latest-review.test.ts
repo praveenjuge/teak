@@ -120,6 +120,18 @@ describe("latest Apple review planning", () => {
     expect(commands).toContainEqual([
       "review",
       "items",
+      "list",
+      "--submission",
+      "submission",
+      "--fields",
+      "state,appStoreVersion",
+      "--include",
+      "appStoreVersion",
+      "--paginate",
+    ]);
+    expect(commands).toContainEqual([
+      "review",
+      "items",
       "remove",
       "--id",
       "item",
