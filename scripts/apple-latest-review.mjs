@@ -195,6 +195,29 @@ function reviewSubmissionState(response) {
   return response?.data?.attributes?.state ?? response?.state ?? "";
 }
 
+async function waitForReviewSubmissionCompletion({
+  runCommand,
+  submissionId,
+  waitCommand,
+}) {
+  const deadline = Date.now() + 10 * 60 * 1000;
+  while (Date.now() < deadline) {
+    const submission = runCommand([
+      "review",
+      "submissions-get",
+      "--id",
+      submissionId,
+    ]);
+    if (reviewSubmissionState(submission) === "COMPLETE") {
+      return;
+    }
+    await waitCommand(15_000);
+  }
+  throw new Error(
+    `Timed out waiting for App Review submission ${submissionId} to complete.`
+  );
+}
+
 async function removeRejectedVersionFromReview({
   appId,
   platform,
@@ -211,6 +234,8 @@ async function removeRejectedVersionFromReview({
     platform,
     "--state",
     "UNRESOLVED_ISSUES",
+    "--include",
+    "appStoreVersionForReview",
     "--paginate",
   ]).data;
   if (!Array.isArray(submissions)) {
@@ -218,11 +243,18 @@ async function removeRejectedVersionFromReview({
   }
 
   const matches = [];
+  const matchingSubmissions = [];
   for (const submission of submissions) {
     if (typeof submission?.id !== "string") {
       throw new Error(
         "Every unresolved App Review submission must have an id."
       );
+    }
+    if (
+      submission?.relationships?.appStoreVersionForReview?.data?.id ===
+      versionId
+    ) {
+      matchingSubmissions.push(submission.id);
     }
     const items = runCommand([
       "review",
@@ -244,6 +276,14 @@ async function removeRejectedVersionFromReview({
         matches.push({ itemId: item.id, submissionId: submission.id });
       }
     }
+  }
+  if (matches.length === 0 && matchingSubmissions.length === 1) {
+    await waitForReviewSubmissionCompletion({
+      runCommand,
+      submissionId: matchingSubmissions[0],
+      waitCommand,
+    });
+    return;
   }
   if (
     matches.length !== 1 ||
@@ -267,22 +307,11 @@ async function removeRejectedVersionFromReview({
     "--confirm",
   ]);
 
-  const deadline = Date.now() + 10 * 60 * 1000;
-  while (Date.now() < deadline) {
-    const submission = runCommand([
-      "review",
-      "submissions-get",
-      "--id",
-      match.submissionId,
-    ]);
-    if (reviewSubmissionState(submission) === "COMPLETE") {
-      return;
-    }
-    await waitCommand(15_000);
-  }
-  throw new Error(
-    `Timed out waiting for App Review submission ${match.submissionId} to complete.`
-  );
+  await waitForReviewSubmissionCompletion({
+    runCommand,
+    submissionId: match.submissionId,
+    waitCommand,
+  });
 }
 
 function mutationForState(state, allowCancelledDeveloperRejection) {
