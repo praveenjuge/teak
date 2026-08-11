@@ -11,6 +11,9 @@
       "bundleIdentifier": "com.praveenjuge.teak",
       "deploymentTarget": "16.4",
       "usesAppleSignIn": true,
+      "entitlements": {
+        "keychain-access-groups": ["$(AppIdentifierPrefix)com.praveenjuge.teak"]
+      },
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false
       }

@@ -30,6 +30,9 @@ test("production mobile builds require Sentry uploads", () => {
       project: "teak-mobile-prod",
     }),
   ]);
+  expect(app.expo.ios.entitlements["keychain-access-groups"]).toEqual([
+    "$(AppIdentifierPrefix)com.praveenjuge.teak",
+  ]);
   expect(eas.build.production.env.SENTRY_DISABLE_AUTO_UPLOAD).toBeUndefined();
   expect(eas.build.production.env.SENTRY_ALLOW_FAILURE).toBe("false");
   expect(eas.cli.appVersionSource).toBeUndefined();
@@ -70,6 +73,10 @@ test("uploads runner-local production builds to Sentry before App Store Connect"
   expect(workflow).toContain("EXPO_PUBLIC_CONVEX_URL");
   expect(workflow).toContain("EXPO_PUBLIC_CONVEX_SITE_URL");
   expect(workflow).toContain("secrets.SENTRY_MOBILE_DSN");
+  expect(workflow).toContain("codesign -d --entitlements :-");
+  expect(workflow).toContain(
+    'keychain_access_group" != "$APPLE_TEAM_ID.$IOS_APP_BUNDLE_ID"'
+  );
 });
 
 test("pins the Expo 57 macro-compatible native build set", () => {

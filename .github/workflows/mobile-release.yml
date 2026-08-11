@@ -441,6 +441,13 @@ jobs:
           extension_path="$(find "$app_path/PlugIns" -maxdepth 1 -type d -name '*.appex' | head -1)"
           codesign --verify --deep --strict "$app_path"
           codesign --verify --strict "$extension_path"
+          app_entitlements="$RUNNER_TEMP/app-entitlements.plist"
+          codesign -d --entitlements :- "$app_path" > "$app_entitlements"
+          keychain_access_group="$(/usr/libexec/PlistBuddy -c 'Print :keychain-access-groups:0' "$app_entitlements")"
+          if [ "$keychain_access_group" != "$APPLE_TEAM_ID.$IOS_APP_BUNDLE_ID" ]; then
+            echo "Signed app keychain access group mismatch: $keychain_access_group." >&2
+            exit 1
+          fi
           for item in "$app_path:$IOS_APP_BUNDLE_ID" "$extension_path:$IOS_EXTENSION_BUNDLE_ID"; do
             path="${item%%:*}"
             bundle_id="${item#*:}"
