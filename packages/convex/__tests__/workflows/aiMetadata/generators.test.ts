@@ -183,6 +183,19 @@ describe("aiMetadata generators", () => {
     );
   });
 
+  test("retries empty AI provider output with a corrective prompt", async () => {
+    mockGenerateText
+      .mockRejectedValueOnce(new Error("No output generated."))
+      .mockResolvedValueOnce(mockResponse);
+
+    await generateImageMetadata("https://img.com/example.jpeg");
+
+    expect(mockGenerateText).toHaveBeenCalledTimes(2);
+    expect(
+      mockGenerateText.mock.calls[1]?.[0].messages[0].content[0].text
+    ).toStartWith("JSON validation retry 1:");
+  });
+
   test("detects provider capacity errors without treating validation as capacity", () => {
     expect(
       isAiProviderCapacityError(

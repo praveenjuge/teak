@@ -46,9 +46,10 @@ export const aiMetadataWorkflow = workflow.define({
   },
   returns: v.object({
     aiTags: v.array(v.string()),
-    aiSummary: v.string(),
+    aiSummary: v.optional(v.string()),
     aiTranscript: v.optional(v.string()),
     confidence: v.number(),
+    mode: v.union(v.literal("completed"), v.literal("skipped")),
   }),
   handler: async (step, args): Promise<AiMetadataResult> => {
     const cardType = await resolveCardType(step, args);

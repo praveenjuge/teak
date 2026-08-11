@@ -173,17 +173,32 @@ export async function generateHandler(
     };
   }
 
-  const completeWithoutAi = async () => {
+  const completeWithoutAi = async (retryable = false) => {
     const now = Date.now();
     const processingStatus = card.processingStatus || {};
-    await ctx.runMutation((internal as any).ai.mutations.updateCardProcessing, {
-      cardId,
-      metadataStatus: "completed",
-      processingStatus: {
-        ...processingStatus,
-        metadata: stageCompleted(now, 0),
-      },
-    });
+    const completedProcessingStatus = {
+      ...processingStatus,
+      metadata: stageCompleted(now, 0),
+    };
+    if (retryable) {
+      await ctx.runMutation(
+        (internal as any).ai.mutations.updateCardProcessing,
+        {
+          cardId,
+          metadataStatus: "completed",
+          processingStatus: completedProcessingStatus,
+        }
+      );
+    } else {
+      await ctx.runMutation(
+        internal.workflows.aiMetadata.mutations.updateCardAI,
+        {
+          cardId,
+          aiTags: [],
+          processingStatus: completedProcessingStatus,
+        }
+      );
+    }
     return {
       aiTags: [],
       aiSummary: undefined,
@@ -371,7 +386,7 @@ export async function generateHandler(
       cardId,
       cardType,
     });
-    return await completeWithoutAi();
+    return await completeWithoutAi(true);
   }
 
   if (aiTags.length === 0 && !aiSummary && !aiTranscript) {

@@ -19,14 +19,17 @@ test("signup, create, and search", async ({ page }) => {
         { exact: true }
       )
     ).toBeVisible();
-    await expect(
-      page.locator('form[data-card-creation-status="ready"]')
-    ).toBeVisible();
-    const note = page.getByRole("textbox", { name: "Markdown content" });
+    const creationForm = page.locator(
+      'form[data-card-creation-status="ready"]'
+    );
+    await expect(creationForm).toBeVisible();
+    const note = creationForm.getByRole("textbox", {
+      name: "Markdown content",
+    });
     await note.fill(marker);
     await expect(note).toHaveText(marker);
     await clickVisibleControl(
-      page.getByRole("button", { exact: true, name: "Save" })
+      creationForm.getByRole("button", { exact: true, name: "Save" })
     );
     const api = clientFor(account.apiKey);
     await expect

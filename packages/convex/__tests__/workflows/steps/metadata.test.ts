@@ -212,7 +212,10 @@ describe("metadata handler", () => {
 
         expect(result.mode).toBe("skipped");
         expect(aiMocks.generateText).not.toHaveBeenCalled();
-        expect(mockRunMutation).toHaveBeenCalled();
+        expect(mockRunMutation).toHaveBeenCalledWith(
+          expect.anything(),
+          expect.objectContaining({ aiTags: [] })
+        );
       } finally {
         if (originalDomain === undefined) {
           delete process.env.E2E_EMAIL_DOMAIN;
@@ -260,7 +263,10 @@ describe("metadata handler", () => {
       });
 
       expect(result.mode).toBe("skipped");
-      expect(mockRunMutation).toHaveBeenCalled();
+      expect(mockRunMutation).toHaveBeenCalledWith(
+        expect.anything(),
+        expect.not.objectContaining({ aiTags: [] })
+      );
     });
   });
 

@@ -33,22 +33,21 @@ export const clickVisibleControl = async (
   options: { timeout?: number } = {}
 ) => {
   const timeout = options.timeout ?? 15_000;
-  const target = locator.first();
-  await expect(target).toBeVisible({ timeout });
-  await expect(target).toBeEnabled({ timeout });
+  const maxAttempts = 3;
 
-  try {
-    await target.click({ timeout: Math.min(timeout, 5000) });
-  } catch (error) {
-    if (!isRetryableActionabilityError(error)) {
-      throw error;
-    }
-    if (!(await target.isVisible())) {
-      return;
-    }
+  for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+    const target = locator.filter({ visible: true }).first();
     await expect(target).toBeVisible({ timeout });
     await expect(target).toBeEnabled({ timeout });
-    await target.click({ force: true, timeout: Math.min(timeout, 5000) });
+
+    try {
+      await target.click({ timeout: Math.min(timeout, 5000) });
+      return;
+    } catch (error) {
+      if (attempt === maxAttempts || !isRetryableActionabilityError(error)) {
+        throw error;
+      }
+    }
   }
 };
 

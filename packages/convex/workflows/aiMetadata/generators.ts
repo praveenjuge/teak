@@ -44,7 +44,7 @@ export const MAX_AI_METADATA_RETRIES = 0;
 export const MAX_AI_METADATA_VALIDATION_RETRIES = 2;
 
 const JSON_VALIDATION_ERROR =
-  /failed to validate json|failed_generation|no object generated|response did not match schema|type validation failed/iu;
+  /failed to validate json|failed_generation|no (?:object|output) generated|response did not match schema|type validation failed/iu;
 const PROVIDER_CAPACITY_ERROR =
   /\b(?:rate limit(?:ed| reached)?|too many requests|tokens per (?:day|minute)|tpd|tpm|status(?: code)? 429|429)\b/iu;
 
