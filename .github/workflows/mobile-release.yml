@@ -161,7 +161,7 @@ jobs:
           {
             echo "### iOS $([ "$DRY_RUN" = "true" ] && echo 'dry run' || echo 'latest-review release')"
             echo "- Target: $VERSION (${target_state:-not created})"
-            echo "- Superseded: $(jq -r 'if .supersededId == "" then "none" else "\(.supersededVersion) (\(.supersededState)); cancel=\(.cancelSuperseded), promote=\(.promoteSuperseded)" end' <<< "$result")"
+            echo "- Superseded: $(jq -r 'if .supersededId == "" then "none" else "\(.supersededVersion) (\(.supersededState)); cancel=\(.cancelSuperseded), remove=\(.removeSuperseded), promote=\(.promoteSuperseded)" end' <<< "$result")"
             echo "- Metadata source: ${source_version:-not found}"
           } >> "$GITHUB_STEP_SUMMARY"
 

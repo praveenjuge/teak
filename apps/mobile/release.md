@@ -16,11 +16,11 @@ iOS build history.
    reuses successful or active child runs and dispatches only missing work.
 4. The workflow verifies the tag, lockstep packages, dynamic Expo version, asc
    version, and credentials.
-5. The package version is authoritative. If an older version is waiting for or
-   currently in App Review, asc cancels that superseded submission, waits for
-   Apple to make the version editable, updates the same version record to the
-   new package version, and preserves its metadata. Dry runs report this plan
-   without changing App Store Connect.
+5. The package version is authoritative. If an older version is waiting for,
+   currently in, or rejected by App Review, asc clears the superseded review
+   item, waits for Apple to make the version editable, updates the same version
+   record to the new package version, and preserves its metadata. Dry runs
+   report this plan without changing App Store Connect.
 6. It reuses an exact valid App Store Connect build for the target marketing
    version when one exists. Otherwise it allocates the next build number from
    App Store Connect, generates the native iOS project with Expo Prebuild, and
@@ -71,7 +71,8 @@ gh workflow run mobile-release.yml --ref main -f "version=$version" -f dry_run=t
   workflow fails closed if multiple active reviews or a newer App Store version
   make that choice ambiguous.
 - An exact target version already in review or live remains read-only and
-  returns success. Terminal Apple rejections remain manual recovery states.
+  returns success. Rejected versions are removed from their unresolved
+  submission and returned to the canonical submission flow automatically.
 - A terminal workflow failure opens or updates the single
   `Apple release v<version>` GitHub issue with the workflow link, redacted asc
   status, doctor remediation, and the exact rerun command.

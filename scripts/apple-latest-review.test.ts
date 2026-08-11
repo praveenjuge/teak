@@ -27,6 +27,7 @@ describe("latest Apple review planning", () => {
     ).toEqual({
       cancelSuperseded: true,
       promoteSuperseded: true,
+      removeSuperseded: false,
       sourceVersion: "1.0.58",
       supersededId: "old",
       supersededState: "WAITING_FOR_REVIEW",
@@ -62,59 +63,168 @@ describe("latest Apple review planning", () => {
     expect(plan.supersededId).toBe("newer");
   });
 
-  test("does not promote a pre-existing developer-rejected version", () => {
+  test("removes and promotes a pre-existing rejected version", () => {
     const plan = planLatestReviewVersion(
       response([
         { id: "rejected", state: "DEVELOPER_REJECTED", version: "1.0.60" },
       ]),
       "1.0.61"
     );
-    expect(plan.promoteSuperseded).toBe(false);
-    expect(plan.supersededId).toBe("");
+    expect(plan.promoteSuperseded).toBe(true);
+    expect(plan.removeSuperseded).toBe(true);
+    expect(plan.supersededId).toBe("rejected");
   });
 
-  test("refuses to resubmit an exact developer-rejected target", async () => {
-    let called = false;
-    await expect(
-      applyLatestReviewVersion({
-        appId: "app-id",
-        dryRun: false,
-        platform: "IOS",
-        response: response([
-          { id: "old", state: "IN_REVIEW", version: "1.0.60" },
-          {
-            id: "rejected",
-            state: "DEVELOPER_REJECTED",
-            version: "1.0.61",
-          },
-        ]),
-        runCommand: () => {
-          called = true;
-          return {};
+  test("removes an exact rejected target and returns it to mutation", async () => {
+    const commands: string[][] = [];
+    const result = await applyLatestReviewVersion({
+      appId: "app-id",
+      dryRun: false,
+      platform: "IOS",
+      response: response([
+        {
+          id: "rejected",
+          state: "REJECTED",
+          version: "1.0.61",
         },
-        targetVersion: "1.0.61",
-      })
-    ).rejects.toThrow("Refusing to mutate App Store version");
-    expect(called).toBe(false);
+      ]),
+      runCommand: (command: string[]) => {
+        commands.push(command);
+        if (command[1] === "submissions-list") {
+          return { data: [{ id: "submission" }] };
+        }
+        if (command[1] === "items" && command[2] === "list") {
+          return {
+            data: [
+              {
+                id: "item",
+                relationships: {
+                  appStoreVersion: { data: { id: "rejected" } },
+                },
+              },
+            ],
+          };
+        }
+        if (command[1] === "submissions-get") {
+          return { data: { attributes: { state: "COMPLETE" } } };
+        }
+        if (command[0] === "versions" && command[1] === "view") {
+          return { id: "rejected", state: "PREPARE_FOR_SUBMISSION" };
+        }
+        return {};
+      },
+      targetVersion: "1.0.61",
+      waitCommand: () => Promise.resolve(),
+    });
+
+    expect(commands).toContainEqual([
+      "review",
+      "items",
+      "remove",
+      "--id",
+      "item",
+      "--confirm",
+    ]);
+    expect(result).toMatchObject({
+      mutate: true,
+      removeSuperseded: true,
+      targetId: "rejected",
+      targetState: "PREPARE_FOR_SUBMISSION",
+    });
   });
 
-  test("does not report a rejected target as a valid dry run", async () => {
-    await expect(
-      applyLatestReviewVersion({
-        appId: "app-id",
-        dryRun: true,
-        platform: "IOS",
-        response: response([
-          { id: "old", state: "IN_REVIEW", version: "1.0.60" },
-          {
-            id: "rejected",
-            state: "DEVELOPER_REJECTED",
-            version: "1.0.61",
-          },
-        ]),
-        targetVersion: "1.0.61",
-      })
-    ).rejects.toThrow("Refusing to mutate App Store version");
+  test("reports rejected-target recovery without mutating during dry runs", async () => {
+    let called = false;
+    const result = await applyLatestReviewVersion({
+      appId: "app-id",
+      dryRun: true,
+      platform: "IOS",
+      response: response([
+        {
+          id: "rejected",
+          state: "DEVELOPER_REJECTED",
+          version: "1.0.61",
+        },
+      ]),
+      runCommand: () => {
+        called = true;
+        return {};
+      },
+      targetVersion: "1.0.61",
+    });
+    expect(called).toBe(false);
+    expect(result).toMatchObject({
+      mutate: false,
+      removeSuperseded: true,
+      targetId: "rejected",
+    });
+  });
+
+  test("removes and promotes the rejected predecessor before a patch release", async () => {
+    const commands: string[][] = [];
+    const result = await applyLatestReviewVersion({
+      appId: "app-id",
+      dryRun: false,
+      platform: "IOS",
+      response: response([
+        { id: "live", state: "READY_FOR_SALE", version: "1.0.58" },
+        { id: "rejected", state: "REJECTED", version: "1.0.60" },
+      ]),
+      runCommand: (command: string[]) => {
+        commands.push(command);
+        if (command[1] === "submissions-list") {
+          return { data: [{ id: "submission" }] };
+        }
+        if (command[1] === "items" && command[2] === "list") {
+          return {
+            data: [
+              {
+                id: "item",
+                relationships: {
+                  appStoreVersion: { data: { id: "rejected" } },
+                },
+              },
+            ],
+          };
+        }
+        if (command[1] === "submissions-get") {
+          return { data: { attributes: { state: "COMPLETE" } } };
+        }
+        if (command[0] === "versions" && command[1] === "update") {
+          return { id: "rejected", state: "PREPARE_FOR_SUBMISSION" };
+        }
+        if (command[0] === "versions" && command[1] === "list") {
+          return response([
+            {
+              id: "rejected",
+              state: "PREPARE_FOR_SUBMISSION",
+              version: "1.0.61",
+            },
+          ]);
+        }
+        return {};
+      },
+      targetVersion: "1.0.61",
+      waitCommand: () => Promise.resolve(),
+    });
+
+    expect(commands).toContainEqual([
+      "versions",
+      "update",
+      "--version-id",
+      "rejected",
+      "--version",
+      "1.0.61",
+      "--release-type",
+      "AFTER_APPROVAL",
+    ]);
+    expect(result).toMatchObject({
+      mutate: true,
+      promoteSuperseded: true,
+      removeSuperseded: true,
+      targetId: "rejected",
+      targetState: "PREPARE_FOR_SUBMISSION",
+    });
   });
 
   test("leaves the requested version alone when it is already in review", () => {

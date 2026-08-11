@@ -18,6 +18,12 @@ const cancellationReadyStates = new Set([
   "READY_FOR_REVIEW",
 ]);
 const reusableStates = new Set(["PREPARE_FOR_SUBMISSION", "READY_FOR_REVIEW"]);
+const rejectedStates = new Set([
+  "DEVELOPER_REJECTED",
+  "INVALID_BINARY",
+  "METADATA_REJECTED",
+  "REJECTED",
+]);
 const releasedStates = new Set([
   "PROCESSING_FOR_DISTRIBUTION",
   "READY_FOR_DISTRIBUTION",
@@ -113,10 +119,20 @@ export function planLatestReviewVersion(response, targetVersion) {
     (candidate) =>
       candidate.version !== targetVersion && reusableStates.has(candidate.state)
   );
+  const rejectedOlder = versions.filter(
+    (candidate) =>
+      candidate.version !== targetVersion && rejectedStates.has(candidate.state)
+  );
+  const rejectedTarget =
+    target && rejectedStates.has(target.state) ? target : undefined;
   const superseded =
-    target && !mutableStates.has(target.state)
+    rejectedTarget ??
+    (target && !mutableStates.has(target.state)
       ? undefined
-      : (activeOlder[0] ?? (target ? undefined : newest(reusableOlder)));
+      : (activeOlder[0] ??
+        (target
+          ? undefined
+          : (newest(reusableOlder) ?? newest(rejectedOlder)))));
   const source = newest(
     versions.filter(
       (candidate) =>
@@ -128,6 +144,9 @@ export function planLatestReviewVersion(response, targetVersion) {
   return {
     cancelSuperseded: Boolean(
       superseded && cancellableStates.has(superseded.state)
+    ),
+    removeSuperseded: Boolean(
+      superseded && rejectedStates.has(superseded.state)
     ),
     promoteSuperseded: Boolean(superseded && !target),
     sourceVersion: source?.version ?? "",
@@ -172,11 +191,94 @@ async function waitForCancellation(versionId, runCommand, waitCommand) {
   );
 }
 
+function reviewSubmissionState(response) {
+  return response?.data?.attributes?.state ?? response?.state ?? "";
+}
+
+async function removeRejectedVersionFromReview({
+  appId,
+  platform,
+  runCommand,
+  versionId,
+  waitCommand,
+}) {
+  const submissions = runCommand([
+    "review",
+    "submissions-list",
+    "--app",
+    appId,
+    "--platform",
+    platform,
+    "--state",
+    "UNRESOLVED_ISSUES",
+    "--paginate",
+  ]).data;
+  if (!Array.isArray(submissions)) {
+    throw new Error("Expected unresolved App Review submissions data.");
+  }
+
+  const matches = [];
+  for (const submission of submissions) {
+    if (typeof submission?.id !== "string") {
+      throw new Error(
+        "Every unresolved App Review submission must have an id."
+      );
+    }
+    const items = runCommand([
+      "review",
+      "items",
+      "list",
+      "--submission",
+      submission.id,
+      "--fields",
+      "state,appStoreVersion",
+      "--paginate",
+    ]).data;
+    if (!Array.isArray(items)) {
+      throw new Error("Expected App Review submission items data.");
+    }
+    for (const item of items) {
+      if (item?.relationships?.appStoreVersion?.data?.id === versionId) {
+        matches.push({ itemId: item.id, submissionId: submission.id });
+      }
+    }
+  }
+  if (
+    matches.length !== 1 ||
+    typeof matches[0].itemId !== "string" ||
+    matches[0].itemId === ""
+  ) {
+    throw new Error(
+      `Expected exactly one rejected App Review item for version ${versionId}.`
+    );
+  }
+
+  const match = matches[0];
+  runCommand(["review", "items", "remove", "--id", match.itemId, "--confirm"]);
+
+  const deadline = Date.now() + 10 * 60 * 1000;
+  while (Date.now() < deadline) {
+    const submission = runCommand([
+      "review",
+      "submissions-get",
+      "--id",
+      match.submissionId,
+    ]);
+    if (reviewSubmissionState(submission) === "COMPLETE") {
+      return;
+    }
+    await waitCommand(15_000);
+  }
+  throw new Error(
+    `Timed out waiting for App Review submission ${match.submissionId} to complete.`
+  );
+}
+
 function mutationForState(state, allowCancelledDeveloperRejection) {
   if (mutableStates.has(state)) {
     return true;
   }
-  if (state === "DEVELOPER_REJECTED" && allowCancelledDeveloperRejection) {
+  if (rejectedStates.has(state) && allowCancelledDeveloperRejection) {
     return true;
   }
   if (completedStates.has(state)) {
@@ -196,7 +298,7 @@ export async function applyLatestReviewVersion({
 }) {
   const plan = planLatestReviewVersion(response, targetVersion);
   if (plan.targetId) {
-    mutationForState(plan.targetState, false);
+    mutationForState(plan.targetState, plan.removeSuperseded);
   }
   if (dryRun) {
     return { ...plan, mutate: false };
@@ -214,9 +316,23 @@ export async function applyLatestReviewVersion({
     ]);
     await waitForCancellation(plan.supersededId, runCommand, waitCommand);
   }
+  if (plan.removeSuperseded) {
+    await removeRejectedVersionFromReview({
+      appId,
+      platform,
+      runCommand,
+      versionId: plan.supersededId,
+      waitCommand,
+    });
+  }
 
   let targetId = plan.targetId;
   let targetState = plan.targetState;
+  if (targetId && plan.removeSuperseded) {
+    const target = runCommand(["versions", "view", "--version-id", targetId]);
+    targetState =
+      target.state ?? target?.data?.attributes?.appVersionState ?? targetState;
+  }
   if (plan.promoteSuperseded) {
     runCommand([
       "versions",
@@ -256,7 +372,7 @@ export async function applyLatestReviewVersion({
     ...plan,
     mutate: mutationForState(
       targetState,
-      plan.cancelSuperseded && plan.promoteSuperseded
+      plan.removeSuperseded || (plan.cancelSuperseded && plan.promoteSuperseded)
     ),
     targetId,
     targetState,
