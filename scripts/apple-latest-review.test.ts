@@ -220,6 +220,37 @@ describe("latest Apple review planning", () => {
     });
   });
 
+  test("continues when the rejected review submission is already complete", async () => {
+    const commands: string[][] = [];
+    const result = await applyLatestReviewVersion({
+      appId: "app-id",
+      dryRun: false,
+      platform: "IOS",
+      response: response([
+        { id: "rejected", state: "REJECTED", version: "1.0.61" },
+      ]),
+      runCommand: (command: string[]) => {
+        commands.push(command);
+        if (command[1] === "submissions-list") {
+          return { data: [] };
+        }
+        if (command[0] === "versions" && command[1] === "view") {
+          return { id: "rejected", state: "PREPARE_FOR_SUBMISSION" };
+        }
+        return {};
+      },
+      targetVersion: "1.0.61",
+      waitCommand: () => Promise.resolve(),
+    });
+
+    expect(commands.some((command) => command[1] === "items")).toBe(false);
+    expect(result).toMatchObject({
+      mutate: true,
+      targetId: "rejected",
+      targetState: "PREPARE_FOR_SUBMISSION",
+    });
+  });
+
   test("fails closed when an already-removed review item is ambiguous", async () => {
     await expect(
       applyLatestReviewVersion({

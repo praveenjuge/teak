@@ -241,6 +241,9 @@ async function removeRejectedVersionFromReview({
   if (!Array.isArray(submissions)) {
     throw new Error("Expected unresolved App Review submissions data.");
   }
+  if (submissions.length === 0) {
+    return;
+  }
 
   const matches = [];
   const matchingSubmissions = [];
