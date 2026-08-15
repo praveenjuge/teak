@@ -132,6 +132,20 @@ describe("generatePdfThumbnail", () => {
     expect(capturedPlaywrightCode.toLowerCase()).toContain("pdfjslib");
   });
 
+  test("loads pdf.js in-page instead of relying on addScriptTag", async () => {
+    // Regression: page.addScriptTag does not execute in the Kernel headless
+    // runtime, so pdfjsLib stayed undefined and no thumbnail was produced.
+    // The library and worker are now fetched through the request context and
+    // evaluated inside the page.
+    const { ctx } = createCtx(pdfCard);
+    await generatePdfThumbnail(ctx, { cardId: "card-pdf" });
+
+    expect(capturedPlaywrightCode).not.toContain("addScriptTag({ url:");
+    expect(capturedPlaywrightCode).toContain("libSource");
+    expect(capturedPlaywrightCode).toContain("(0, eval)(libSource)");
+    expect(capturedPlaywrightCode).toContain("GlobalWorkerOptions.workerSrc");
+  });
+
   test("skips non-PDF documents without generating a thumbnail", async () => {
     const { ctx, mutationCalls } = createCtx({
       ...pdfCard,

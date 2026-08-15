@@ -158,6 +158,12 @@
   background: var(--primary-foreground);
 }
 
+/* Keep toast icons next to the centered title instead of pinned to the left
+   edge of the full-width bar. */
+[data-sonner-toaster] [data-sonner-toast] [data-content] {
+  flex: 0 1 auto;
+}
+
 .teak-markdown-editor {
   --teak-editor-font-size: 1rem;
 }
