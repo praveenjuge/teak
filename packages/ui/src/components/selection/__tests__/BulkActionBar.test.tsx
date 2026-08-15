@@ -10,7 +10,7 @@ const source = readFileSync(
 describe("BulkActionBar", () => {
   test("shows singular and plural selection copy", () => {
     expect(source).toContain(
-      '{selectedCount} card{selectedCount !== 1 ? "s" : ""} selected'
+      '{selectedCount} card{selectedCount === 1 ? "" : "s"} selected'
     );
   });
 

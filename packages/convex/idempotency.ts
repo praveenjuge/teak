@@ -39,14 +39,13 @@ const ttlArg = {
 const getTtlMs = (ttlMs?: number): number =>
   typeof ttlMs === "number" && ttlMs > 0 ? ttlMs : 24 * 60 * 60 * 1000;
 
-const getRecordForUser = (ctx: MutationCtx, args: IdempotencyReference) => {
-  return ctx.db
+const getRecordForUser = (ctx: MutationCtx, args: IdempotencyReference) =>
+  ctx.db
     .query("apiIdempotencyKeys")
     .withIndex("by_user_key_hash", (query) =>
       query.eq("userId", args.userId).eq("keyHash", args.keyHash)
     )
     .first();
-};
 
 export const beginIdempotencyRequestForUser = internalMutation({
   args: {

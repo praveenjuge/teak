@@ -227,7 +227,10 @@ const PLATFORM_BINDINGS: PlatformBinding[] = [
     hostMatches: (host) => isPlatformInlineSaveHost("heydesigner", host),
     findPosts: findHeyDesignerPosts,
     extractPost: extractHeyDesignerPost,
-    mountButton: (postElement, button) => (postElement.append(button), true),
+    mountButton: (postElement, button) => {
+      postElement.append(button);
+      return true;
+    },
   },
 ];
 
@@ -605,9 +608,11 @@ const scanAndInjectButtons = ({
       void handleButtonClick(button, savedPostKeys);
     });
 
-    const didMount =
-      platformBinding.mountButton?.(postElement, button) ??
-      (postElement.append(button), true);
+    let didMount = platformBinding.mountButton?.(postElement, button);
+    if (didMount === undefined || didMount === null) {
+      postElement.append(button);
+      didMount = true;
+    }
     if (!didMount) {
       continue;
     }

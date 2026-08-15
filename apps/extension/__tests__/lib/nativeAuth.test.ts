@@ -65,7 +65,7 @@ describe("nativeAuth PKCE", () => {
     const expected = btoa(String.fromCharCode(...new Uint8Array(digest)))
       .replace(/\+/g, "-")
       .replace(/\//g, "_")
-      .replace(/=+$/g, "");
+      .replace(/[=]+$/g, "");
 
     expect(challenge).toBe(expected);
     // Server's PKCE_CHALLENGE_PATTERN.
@@ -127,7 +127,9 @@ describe("nativeAuth pollPendingNativeAuth", () => {
 
   test("posts codeVerifier/deviceId/state to the poll endpoint", async () => {
     await beginSignIn();
-    const fetchMock = mock(() => Promise.resolve(new Response(null, { status: 204 })));
+    const fetchMock = mock(() =>
+      Promise.resolve(new Response(null, { status: 204 }))
+    );
     globalThis.fetch = fetchMock as unknown as typeof fetch;
 
     await pollPendingNativeAuth();
@@ -233,7 +235,9 @@ describe("nativeAuth session lifecycle", () => {
     const [calledUrl, init] = fetchMock.mock.calls[0];
     // Sign-out hits the Convex site URL directly (avoids the http->https
     // redirect that would strip the bearer header).
-    expect(calledUrl).toBe("https://test-deployment.convex.site/api/auth/sign-out");
+    expect(calledUrl).toBe(
+      "https://test-deployment.convex.site/api/auth/sign-out"
+    );
     expect(init.headers.Authorization).toBe("Bearer sess_abc");
     expect(await getSessionToken()).toBeNull();
   });

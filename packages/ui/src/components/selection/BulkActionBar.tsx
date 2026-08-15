@@ -16,7 +16,7 @@ export function BulkActionBar({
     <div className="fixed bottom-4 left-1/2 z-50 -translate-x-1/2 transform">
       <div className="flex items-center gap-4 rounded-lg border bg-background px-4 py-3 shadow-lg">
         <span className="font-medium text-sm">
-          {selectedCount} card{selectedCount !== 1 ? "s" : ""} selected
+          {selectedCount} card{selectedCount === 1 ? "" : "s"} selected
         </span>
         <div className="flex gap-2">
           <Button

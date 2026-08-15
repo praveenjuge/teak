@@ -215,7 +215,8 @@ function rgbToHsl(
   const l = (max + min) / 2;
 
   if (max === min) {
-    h = s = 0; // achromatic
+    h = 0;
+    s = 0; // achromatic
   } else {
     const d = max - min;
     s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
@@ -277,7 +278,9 @@ function hslToRgb(
   let red: number, green: number, blue: number;
 
   if (sNorm === 0) {
-    red = green = blue = lNorm; // achromatic
+    red = lNorm;
+    green = lNorm;
+    blue = lNorm; // achromatic
   } else {
     const q = lNorm < 0.5 ? lNorm * (1 + sNorm) : lNorm + sNorm - lNorm * sNorm;
     const p = 2 * lNorm - q;

@@ -1,9 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import { renderToStaticMarkup } from "react-dom/server";
-import {
-  AUDIO_WAVE_BARS,
-  AudioWavePreview,
-} from "../AudioWavePreview";
+import { AUDIO_WAVE_BARS, AudioWavePreview } from "../AudioWavePreview";
 
 describe("AudioWavePreview", () => {
   test("renders a stable bar count keyed by card id", () => {
@@ -11,9 +8,9 @@ describe("AudioWavePreview", () => {
       <AudioWavePreview cardId="card_audio_1" />
     );
 
-    expect((markup.match(/rounded-full bg-muted-foreground/g) ?? []).length).toBe(
-      AUDIO_WAVE_BARS
-    );
+    expect(
+      (markup.match(/rounded-full bg-muted-foreground/g) ?? []).length
+    ).toBe(AUDIO_WAVE_BARS);
     expect(markup).toContain("rounded-xl border bg-card");
   });
 

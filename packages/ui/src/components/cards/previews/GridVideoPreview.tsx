@@ -37,7 +37,7 @@ function HoverVideoPreview({
 
   useEffect(() => {
     const video = videoRef.current;
-    if (!video || !shouldLoadVideo) {
+    if (!(video && shouldLoadVideo)) {
       return;
     }
 
@@ -58,6 +58,8 @@ function HoverVideoPreview({
   }, [isHovering, shouldLoadVideo]);
 
   return (
+    // biome-ignore lint/a11y/noStaticElementInteractions: hover-only autoplay preview; native video controls stay keyboard-accessible
+    // biome-ignore lint/a11y/noNoninteractiveElementInteractions: hover-only autoplay preview; native video controls stay keyboard-accessible
     <div
       className="relative h-full w-full overflow-hidden rounded-xl border bg-card"
       onMouseEnter={() => {

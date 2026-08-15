@@ -210,8 +210,8 @@ describe("public API card-list pagination", () => {
     expect(result.items.map((item: { id: string }) => item.id)).toEqual([
       "card_active",
     ]);
-    expect(result.items.some((item: { id: string }) => item.id.includes("trash"))).toBe(
-      false
-    );
+    expect(
+      result.items.some((item: { id: string }) => item.id.includes("trash"))
+    ).toBe(false);
   });
 });

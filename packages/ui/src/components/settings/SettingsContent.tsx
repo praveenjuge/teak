@@ -120,9 +120,7 @@ export function SettingsContent({
         </Button>
       </SettingRow>
 
-      <SettingRow title="Plan">
-        {planRowContent}
-      </SettingRow>
+      <SettingRow title="Plan">{planRowContent}</SettingRow>
 
       {/* Show the API Keys section once keys have loaded, even for keyless
           users, so they can create their first key. API keys remain a

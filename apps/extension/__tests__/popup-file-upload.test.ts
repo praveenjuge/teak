@@ -33,7 +33,5 @@ test("popup stays open until the selected file upload settles", () => {
   expect(popupSource).toContain('setFileUploadState("error")');
   expect(popupSource).toContain('setFileUploadState("idle")');
   expect(popupSource).toContain("shouldAutoClosePopup({");
-  expect(popupSource).toMatch(
-    /shouldAutoClosePopup\(\{\s*fileUploadState,/
-  );
+  expect(popupSource).toMatch(/shouldAutoClosePopup\(\{\s*fileUploadState,/);
 });

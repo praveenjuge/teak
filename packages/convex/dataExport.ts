@@ -95,25 +95,25 @@ async function requireUserId(ctx: QueryCtx | MutationCtx): Promise<string> {
   return user.subject;
 }
 
-type ExportJobDoc = {
+interface ExportJobDoc {
   _id: Id<"exportJobs">;
-  status: string;
-  cardCount?: number;
-  filesIncluded?: number;
-  filesOmitted?: number;
   artifactBytes?: number;
   artifactKey?: string;
-  processedCount?: number;
-  stage?: "snapshotting" | "archiving";
-  failureClass?: string;
-  createdAt: number;
-  updatedAt: number;
-  completedAt?: number;
-  expiresAt?: number;
-  quotaCountedAt?: number;
   cancelRequested?: boolean;
+  cardCount?: number;
+  completedAt?: number;
+  createdAt: number;
+  expiresAt?: number;
+  failureClass?: string;
+  filesIncluded?: number;
+  filesOmitted?: number;
+  processedCount?: number;
+  quotaCountedAt?: number;
+  stage?: "snapshotting" | "archiving";
+  status: string;
+  updatedAt: number;
   userId: string;
-};
+}
 
 function summarizeJob(job: ExportJobDoc, nowMs: number) {
   return {

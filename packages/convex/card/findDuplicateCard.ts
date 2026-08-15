@@ -1,7 +1,7 @@
 import { v } from "convex/values";
 import { internalQuery, query } from "../_generated/server";
-import { attachFileUrls } from "./queryUtils";
 import { cardReturnValidator } from "./getCards";
+import { attachFileUrls } from "./queryUtils";
 
 export const findDuplicateCardForUserHandler = async (
   ctx: any,
@@ -46,7 +46,6 @@ export const findDuplicateCardForUser = internalQuery({
     url: v.string(),
   },
   returns: v.union(cardReturnValidator, v.null()),
-  handler: (ctx, args) => {
-    return findDuplicateCardForUserHandler(ctx, args.userId, args.url);
-  },
+  handler: (ctx, args) =>
+    findDuplicateCardForUserHandler(ctx, args.userId, args.url),
 });

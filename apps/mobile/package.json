@@ -3,16 +3,16 @@
   "version": "1.0.64",
   "main": "expo-router/entry",
   "scripts": {
-    "build": "expo export --platform web --clear",
-    "dev": "expo start",
     "android": "expo run:android",
+    "build": "expo export --platform web --clear",
+    "build:sentry": "sentry-cli build upload --org teakvault --project teak-mobile-prod --build-configuration production",
+    "dev": "expo start",
+    "eas-build-pre-install": "node scripts/verify-sentry-build-env.mjs",
     "ios": "expo run:ios",
-    "web": "expo start --web",
     "lint": "biome check .",
     "test": "bun test __tests__ --coverage --dots",
     "typecheck": "tsc --noEmit",
-    "build:sentry": "sentry-cli build upload --org teakvault --project teak-mobile-prod --build-configuration production",
-    "eas-build-pre-install": "node scripts/verify-sentry-build-env.mjs"
+    "web": "expo start --web"
   },
   "dependencies": {
     "@better-auth/expo": "1.6.23",
@@ -63,6 +63,11 @@
     "react-native-worklets": "0.10.1",
     "sf-symbols-typescript": "^2.2.0"
   },
+  "devDependencies": {
+    "@sentry/cli": "3.6.2",
+    "@types/react": "~19.2.18",
+    "typescript": "~6.0.3"
+  },
   "expo": {
     "install": {
       "exclude": [
@@ -71,10 +76,5 @@
         "react-dom"
       ]
     }
-  },
-  "devDependencies": {
-    "@sentry/cli": "3.6.2",
-    "@types/react": "~19.2.18",
-    "typescript": "~6.0.3"
   }
 }

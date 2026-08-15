@@ -45,9 +45,9 @@ export const screenshotWorkflow = workflow.define({
 
     for (;;) {
       const schedulerOptions =
-        nextDelayMs !== undefined
-          ? ({ runAfter: nextDelayMs } as const)
-          : undefined;
+        nextDelayMs === undefined
+          ? undefined
+          : ({ runAfter: nextDelayMs } as const);
       nextDelayMs = undefined;
 
       try {

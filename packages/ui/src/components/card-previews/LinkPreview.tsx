@@ -168,7 +168,7 @@ export function LinkPreview({
       </div>
 
       {categoryMetadata?.facts?.length ? (
-        <dl className="grid grid-cols-2 gap-2 sm:grid-cols-4 pt-4">
+        <dl className="grid grid-cols-2 gap-2 pt-4 sm:grid-cols-4">
           {categoryMetadata.facts.map((fact) => (
             <div
               className="flex flex-col gap-0.5 rounded-lg border bg-card px-3 py-2"
@@ -210,7 +210,7 @@ export function LinkPreview({
                   aria-label={`Attached video ${index + 1}`}
                   className="w-full rounded-xl border bg-black"
                   controls
-                  key={`${media.type}-${media.url}-${index}`}
+                  key={`${media.type}-${media.url}`}
                   playsInline
                   poster={media.posterUrl}
                   preload="metadata"
@@ -223,7 +223,7 @@ export function LinkPreview({
                   alt={`Attached post media ${index + 1}`}
                   className="w-full rounded-xl border object-contain"
                   height={media.height}
-                  key={`${media.type}-${media.url}-${index}`}
+                  key={`${media.type}-${media.url}`}
                   src={media.url}
                   width={media.width}
                 />
@@ -257,7 +257,7 @@ export function LinkPreview({
                 aria-label={`Attached video ${index + 1}`}
                 className="w-full rounded-xl border bg-black"
                 controls
-                key={`${media.type}-${media.url}-${index}`}
+                key={`${media.type}-${media.url}`}
                 playsInline
                 poster={media.posterUrl}
                 preload="metadata"
@@ -270,7 +270,7 @@ export function LinkPreview({
                 alt={`Attached post media ${index + 1}`}
                 className="w-full rounded-xl border object-contain"
                 height={media.height}
-                key={`${media.type}-${media.url}-${index}`}
+                key={`${media.type}-${media.url}`}
                 src={media.url}
                 width={media.width}
               />

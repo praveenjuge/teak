@@ -6,8 +6,8 @@ import { useCardModal } from "../../hooks/useCardModal";
 import { MoreInformationModal } from "../modals/MoreInformationModal";
 import { NotesEditModal } from "../modals/NotesEditModal";
 import { TagManagementModal } from "../modals/TagManagementModal";
-import { shouldReportInvalidHydratedCard } from "./cardHydrationState";
 import { CardModal } from "./CardModal";
+import { shouldReportInvalidHydratedCard } from "./cardHydrationState";
 import type { CardModalCard } from "./types";
 
 interface ConnectedCardModalProps {

@@ -7,7 +7,6 @@ import {
 import { exchangeNativeAuthOptions, pollNativeAuthCode } from "./authNative";
 import { polar } from "./billing";
 import { mcpV1, oauthProtectedResourceV1 } from "./mcp/httpServer";
-import { healthzV1, discoveryV1, v1CorsPreflight } from "./publicApiMeta";
 import {
   bulkCardsV1,
   cardByIdV1,
@@ -19,6 +18,7 @@ import {
   searchCardsV1,
   tagsV1,
 } from "./publicApiHttp";
+import { discoveryV1, healthzV1, v1CorsPreflight } from "./publicApiMeta";
 import { openApiV1 } from "./publicApiOpenApi";
 
 const http = httpRouter();

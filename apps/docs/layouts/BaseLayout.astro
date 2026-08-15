@@ -1,20 +1,20 @@
 ---
-import BackgroundPattern from "../components/BackgroundPattern.astro";
 import "../theme.css";
 import "../styles/marketing.css";
+import BackgroundPattern from "../components/BackgroundPattern.astro";
 
 interface Props {
-  title?: string;
-  description?: string;
   canonical?: string;
-  ogTitle?: string;
-  ogDescription?: string;
-  ogType?: string;
-  ogImage?: string;
-  twitterCard?: string;
-  keywords?: string;
+  description?: string;
   jsonLd?: object | object[];
+  keywords?: string;
   noIndex?: boolean;
+  ogDescription?: string;
+  ogImage?: string;
+  ogTitle?: string;
+  ogType?: string;
+  title?: string;
+  twitterCard?: string;
 }
 
 const {

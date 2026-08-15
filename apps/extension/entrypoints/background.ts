@@ -431,7 +431,6 @@ export default defineBackground(() => {
             await openSignInTab();
           }
           sendResponse(result);
-          return;
         }
       } catch (error) {
         const messageText =

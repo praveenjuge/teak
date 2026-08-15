@@ -1,6 +1,6 @@
 // @ts-nocheck
 import { describe, expect, test } from "bun:test";
-import { unzipSync, strFromU8 } from "fflate";
+import { strFromU8, unzipSync } from "fflate";
 import { buildExportArchive } from "../../export/archiveBuilder";
 
 const enc = new TextEncoder();
@@ -26,7 +26,11 @@ describe("buildExportArchive", () => {
     const inputs = [
       {
         card: makeCard("c1", {
-          fileMetadata: { fileName: "a.png", fileSize: 3, mimeType: "image/png" },
+          fileMetadata: {
+            fileName: "a.png",
+            fileSize: 3,
+            mimeType: "image/png",
+          },
         }),
         fileKey: "key-c1",
       },
@@ -35,8 +39,7 @@ describe("buildExportArchive", () => {
       },
     ];
 
-    const reader = async (key) =>
-      key === "key-c1" ? enc.encode("PNG") : null;
+    const reader = async (key) => (key === "key-c1" ? enc.encode("PNG") : null);
 
     const result = await buildExportArchive({
       inputs,
@@ -51,11 +54,7 @@ describe("buildExportArchive", () => {
 
     const entries = unzip(result.buffer);
     const names = Object.keys(entries).sort();
-    expect(names).toEqual([
-      "cards.json",
-      "files/c1-a.png",
-      "manifest.json",
-    ]);
+    expect(names).toEqual(["cards.json", "files/c1-a.png", "manifest.json"]);
 
     const manifest = JSON.parse(strFromU8(entries["manifest.json"]));
     expect(manifest.exportVersion).toBe(1);
@@ -79,7 +78,7 @@ describe("buildExportArchive", () => {
 
   test("retries once then omits missing files; card stays without file path", async () => {
     let attempts = 0;
-    const reader = async () => {
+    const reader = () => {
       attempts += 1;
       return null; // always missing
     };
@@ -105,7 +104,10 @@ describe("buildExportArchive", () => {
     expect(result.omittedCardIds).toEqual(["c1"]);
 
     const entries = unzip(result.buffer);
-    expect(Object.keys(entries).sort()).toEqual(["cards.json", "manifest.json"]);
+    expect(Object.keys(entries).sort()).toEqual([
+      "cards.json",
+      "manifest.json",
+    ]);
 
     const cardsDoc = JSON.parse(strFromU8(entries["cards.json"]));
     expect(cardsDoc.cards[0].id).toBe("c1");
@@ -118,7 +120,7 @@ describe("buildExportArchive", () => {
 
   test("recovers on retry when the second read succeeds", async () => {
     let attempts = 0;
-    const reader = async () => {
+    const reader = () => {
       attempts += 1;
       return attempts >= 2 ? enc.encode("ok") : null;
     };
@@ -151,7 +153,10 @@ describe("buildExportArchive", () => {
 
     expect(result.cardCount).toBe(0);
     const entries = unzip(result.buffer);
-    expect(Object.keys(entries).sort()).toEqual(["cards.json", "manifest.json"]);
+    expect(Object.keys(entries).sort()).toEqual([
+      "cards.json",
+      "manifest.json",
+    ]);
     const cardsDoc = JSON.parse(strFromU8(entries["cards.json"]));
     expect(cardsDoc.cards).toEqual([]);
     const manifest = JSON.parse(strFromU8(entries["manifest.json"]));

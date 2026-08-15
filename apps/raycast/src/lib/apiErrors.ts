@@ -21,11 +21,8 @@ export type RaycastApiErrorCode = (typeof KNOWN_ERROR_CODES)[number];
 
 const isKnownErrorCode = (
   value: string | undefined,
-): value is RaycastApiErrorCode => {
-  return (
-    Boolean(value) && KNOWN_ERROR_CODES.includes(value as RaycastApiErrorCode)
-  );
-};
+): value is RaycastApiErrorCode =>
+  Boolean(value) && KNOWN_ERROR_CODES.includes(value as RaycastApiErrorCode);
 
 const getErrorMessage = (code: RaycastApiErrorCode): string => {
   switch (code) {
@@ -114,9 +111,8 @@ export const buildCardsSearchParams = (input: {
 export const toErrorCode = (
   payloadCode: string | undefined,
   fallback: RaycastApiErrorCode,
-): RaycastApiErrorCode => {
-  return isKnownErrorCode(payloadCode) ? payloadCode : fallback;
-};
+): RaycastApiErrorCode =>
+  isKnownErrorCode(payloadCode) ? payloadCode : fallback;
 
 export class RaycastApiError extends Error {
   code: RaycastApiErrorCode;

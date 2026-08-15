@@ -139,9 +139,7 @@ describe("useCardsSearchController helpers", () => {
       timeFilter: null,
     });
     expect(buildCardsSearchQueryArgs(cleared).searchQuery).toBeUndefined();
-    expect(buildCardsSearchResetKey(cleared)).toBe(
-      "::::::::::false::false::-"
-    );
+    expect(buildCardsSearchResetKey(cleared)).toBe("::::::::::false::false::-");
   });
 
   it("keeps type filter chips in query args for image link palette and quote", () => {

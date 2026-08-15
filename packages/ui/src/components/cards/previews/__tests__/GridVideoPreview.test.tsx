@@ -16,7 +16,9 @@ describe("GridVideoPreview", () => {
   });
 
   test("defers video mount until hover when a thumbnail can cover idle", () => {
-    expect(source).toContain("const [shouldLoadVideo, setShouldLoadVideo] = useState(!thumbnailUrl)");
+    expect(source).toContain(
+      "const [shouldLoadVideo, setShouldLoadVideo] = useState(!thumbnailUrl)"
+    );
     expect(source).toContain("setShouldLoadVideo(true)");
     expect(source).toContain("setIsHovering(true)");
     expect(source).toContain("muted");

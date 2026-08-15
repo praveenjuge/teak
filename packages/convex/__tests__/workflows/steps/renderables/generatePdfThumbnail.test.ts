@@ -94,7 +94,9 @@ describe("generatePdfThumbnail", () => {
     // context (the fix for R2 signed-URL CORS) instead of a cross-origin
     // browser fetch, so only the URL — never the document bytes — is embedded.
     expect(capturedPlaywrightCode).toContain("context.request");
-    expect(capturedPlaywrightCode).toContain("https://signed.r2.example/the-pdf");
+    expect(capturedPlaywrightCode).toContain(
+      "https://signed.r2.example/the-pdf"
+    );
 
     // A PNG thumbnail is persisted and written back to the card.
     expect(storedThumbnail?.type).toBe("image/png");
@@ -113,7 +115,9 @@ describe("generatePdfThumbnail", () => {
 
     // The base64 payload is a runtime variable, not a quoted literal.
     expect(capturedPlaywrightCode).not.toContain("pdfBase64: '");
-    expect(capturedPlaywrightCode).toContain("const pdfBase64 = pdfBuffer.toString('base64')");
+    expect(capturedPlaywrightCode).toContain(
+      "const pdfBase64 = pdfBuffer.toString('base64')"
+    );
   });
 
   test("renders via injected pdf.js, never the external Mozilla viewer", async () => {

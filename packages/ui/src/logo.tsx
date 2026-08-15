@@ -30,7 +30,6 @@ function Wordmark({
     svgProps["aria-labelledby"] === undefined;
 
   return (
-    // biome-ignore lint/a11y/noSvgWithoutTitle: <>
     <svg
       {...svgProps}
       aria-hidden={isDecorative ? true : svgProps["aria-hidden"]}

@@ -162,11 +162,10 @@ const compareCards = (
   left: Pick<Doc<"cards">, "createdAt">,
   right: Pick<Doc<"cards">, "createdAt">,
   sort: RaycastSort
-): number => {
-  return sort === "oldest"
+): number =>
+  sort === "oldest"
     ? left.createdAt - right.createdAt
     : right.createdAt - left.createdAt;
-};
 
 const matchesCreatedAt = (
   createdAt: number,
@@ -477,8 +476,8 @@ const applyPatchField = (
     field: "content" | "url" | "notes" | "tags";
     value?: unknown;
   }
-) => {
-  return updateCardFieldForUserHandler(
+) =>
+  updateCardFieldForUserHandler(
     ctx,
     {
       userId: args.userId,
@@ -488,7 +487,6 @@ const applyPatchField = (
     },
     { deferPipelineSchedule: true }
   );
-};
 
 export const quickSaveForUser = internalMutation({
   args: createCardForUserArgs,
@@ -545,8 +543,8 @@ export const quickSaveForUser = internalMutation({
 export const searchCardsForUser = internalQuery({
   args: searchArgs,
   returns: v.array(cardReturnValidator),
-  handler: (ctx, args) => {
-    return getCardsForUser(ctx, args.userId, {
+  handler: (ctx, args) =>
+    getCardsForUser(ctx, args.userId, {
       createdAfter: args.createdAfter,
       createdBefore: args.createdBefore,
       favoritesOnly: Boolean(args.favoritesOnly),
@@ -555,15 +553,14 @@ export const searchCardsForUser = internalQuery({
       sort: args.sort,
       tag: args.tag,
       type: args.type,
-    });
-  },
+    }),
 });
 
 export const favoriteCardsForUser = internalQuery({
   args: searchArgs,
   returns: v.array(cardReturnValidator),
-  handler: (ctx, args) => {
-    return getCardsForUser(ctx, args.userId, {
+  handler: (ctx, args) =>
+    getCardsForUser(ctx, args.userId, {
       createdAfter: args.createdAfter,
       createdBefore: args.createdBefore,
       favoritesOnly: true,
@@ -572,8 +569,7 @@ export const favoriteCardsForUser = internalQuery({
       sort: args.sort,
       tag: args.tag,
       type: args.type,
-    });
-  },
+    }),
 });
 
 export const resolveCardIdForUserRequest = internalQuery({
@@ -581,17 +577,13 @@ export const resolveCardIdForUserRequest = internalQuery({
     cardId: v.string(),
   },
   returns: v.union(v.id("cards"), v.null()),
-  handler: (ctx, args) => {
-    return ctx.db.normalizeId("cards", args.cardId);
-  },
+  handler: (ctx, args) => ctx.db.normalizeId("cards", args.cardId),
 });
 
 export const getCardForUser = internalQuery({
   args: cardReferenceArgs,
   returns: v.union(v.null(), cardReturnValidator),
-  handler: (ctx, args) => {
-    return getCardForUserHandler(ctx, args.userId, args.cardId);
-  },
+  handler: (ctx, args) => getCardForUserHandler(ctx, args.userId, args.cardId),
 });
 
 export const patchCardForUser = internalMutation({

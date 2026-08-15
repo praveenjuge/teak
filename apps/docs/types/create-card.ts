@@ -4,16 +4,6 @@
  */
 export interface CreateCardBody {
   /**
-   * Markdown or plain text body for the card. Prefer this for notes; use `url`
-   * when saving a link.
-   */
-  content?: string;
-  /**
-   * URL to save as a link card. Teak may classify the type automatically when
-   * `cardType` is omitted.
-   */
-  url?: string;
-  /**
    * Optional card type. Set to `text` to store raw Markdown exactly; omit it to
    * keep automatic URL, quote, and palette detection.
    * @default inferred
@@ -27,10 +17,20 @@ export interface CreateCardBody {
     | "document"
     | "palette"
     | "quote";
+  /**
+   * Markdown or plain text body for the card. Prefer this for notes; use `url`
+   * when saving a link.
+   */
+  content?: string;
   /** Free-form notes attached to the card. */
   notes?: string;
-  /** Tags to apply on create. */
-  tags?: string[];
   /** Where the card was saved from (extension, CLI, API, and so on). */
   source?: string;
+  /** Tags to apply on create. */
+  tags?: string[];
+  /**
+   * URL to save as a link card. Teak may classify the type automatically when
+   * `cardType` is omitted.
+   */
+  url?: string;
 }

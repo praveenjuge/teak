@@ -34,7 +34,7 @@ export function ImportExportDialog({
 }: ImportExportDialogProps) {
   return (
     <Dialog onOpenChange={onOpenChange} open={open}>
-      <DialogContent className="max-h-[85vh] min-w-0 gap-4 overflow-x-hidden overflow-y-auto p-4 sm:max-w-lg">
+      <DialogContent className="max-h-[85vh] min-w-0 gap-4 overflow-y-auto overflow-x-hidden p-4 sm:max-w-lg">
         <DialogHeader className="gap-1">
           <DialogTitle>Manage Data</DialogTitle>
           <DialogDescription>

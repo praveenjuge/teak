@@ -365,10 +365,10 @@ export const Card = memo(function Card({
       if (card.colors?.length) {
         return (
           <div className="flex overflow-hidden rounded-xl border bg-card">
-            {card.colors.slice(0, 12).map((color, index) => (
+            {card.colors.slice(0, 12).map((color) => (
               <div
                 className="h-14 min-w-0 flex-1"
-                key={`${color.hex}-${index}`}
+                key={color.hex}
                 style={{ backgroundColor: color.hex }}
                 title={color.hex}
               />

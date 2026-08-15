@@ -20,9 +20,8 @@ export * from "./linkMetadata/selectors";
 export * from "./linkMetadata/types";
 export { normalizeUrl } from "./linkMetadata/url";
 
-export const getCardForMetadataHandler = async (ctx: any, { cardId }: any) => {
-  return await ctx.db.get("cards", cardId);
-};
+export const getCardForMetadataHandler = async (ctx: any, { cardId }: any) =>
+  await ctx.db.get("cards", cardId);
 
 export const getCardForMetadata = internalQuery({
   args: { cardId: v.id("cards") },
@@ -155,9 +154,9 @@ export const updateCardMetadataHandler = async (
   } else {
     updatedMetadata = {
       ...existingCard.metadata,
-      ...(nextLinkPreview !== undefined
-        ? { linkPreview: nextLinkPreview }
-        : {}),
+      ...(nextLinkPreview === undefined
+        ? {}
+        : { linkPreview: nextLinkPreview }),
       ...(existingCategory ? { linkCategory: existingCategory } : {}),
     };
   }

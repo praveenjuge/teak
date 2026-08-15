@@ -70,17 +70,19 @@ const desktopDevOrigins = ["http://localhost:1420", "http://127.0.0.1:1420"];
 const appDevUrl = resolveTeakDevAppUrl(process.env);
 const APPLE_CLIENT_SECRET_TTL_SECONDS = 180 * 24 * 60 * 60;
 
-type AppleClientSecretConfig = {
+interface AppleClientSecretConfig {
   clientId: string;
   keyId: string;
   privateKey: string;
   teamId: string;
-};
+}
 
 const requireAppleEnvironmentValue = (name: string): string => {
   const value = process.env[name]?.trim();
   if (!value) {
-    throw new Error(`${name} environment variable is required for Apple sign-in`);
+    throw new Error(
+      `${name} environment variable is required for Apple sign-in`
+    );
   }
   return value;
 };

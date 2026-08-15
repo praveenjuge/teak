@@ -37,7 +37,7 @@ const uploadResultValidator = v.object({
 });
 
 async function requireUserId(ctx: {
-  auth: { getUserIdentity(): Promise<any> };
+  auth: { getUserIdentity: () => Promise<any> };
 }) {
   const identity = await ctx.auth.getUserIdentity();
   if (!identity) {

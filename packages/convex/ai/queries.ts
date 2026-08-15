@@ -4,9 +4,7 @@ import { internalQuery } from "../_generated/server";
 // Internal query to get card data for AI processing
 export const getCardForAI = internalQuery({
   args: { cardId: v.id("cards") },
-  handler: async (ctx, { cardId }) => {
-    return await ctx.db.get("cards", cardId);
-  },
+  handler: async (ctx, { cardId }) => await ctx.db.get("cards", cardId),
 });
 
 // Internal query to find cards missing AI metadata

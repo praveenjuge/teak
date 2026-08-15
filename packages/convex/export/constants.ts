@@ -68,8 +68,7 @@ export const EXPORT_STATUS = {
   EXPIRED: "expired",
 } as const;
 
-export type ExportStatus =
-  (typeof EXPORT_STATUS)[keyof typeof EXPORT_STATUS];
+export type ExportStatus = (typeof EXPORT_STATUS)[keyof typeof EXPORT_STATUS];
 
 /** Statuses that represent an in-flight job (occupies the single active slot). */
 export const ACTIVE_EXPORT_STATUSES: ExportStatus[] = [

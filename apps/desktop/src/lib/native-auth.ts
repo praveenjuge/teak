@@ -95,7 +95,7 @@ function toBase64Url(bytes: Uint8Array): string {
   return btoa(String.fromCharCode(...bytes))
     .replace(/\+/g, "-")
     .replace(/\//g, "_")
-    .replace(/=+$/g, "");
+    .replace(/[=]+$/g, "");
 }
 
 function fromBase64Url(input: string): string {

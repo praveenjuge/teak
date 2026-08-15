@@ -222,19 +222,12 @@ const extractKeywords = (rawMap: RawSelectorMap): string[] | undefined => {
   return unique;
 };
 
-const extractImage = (rawMap: RawSelectorMap): string | undefined => {
-  return (
-    getRawAttribute(
-      rawMap,
-      "meta[property='og:image:secure_url']",
-      "content"
-    ) ||
-    getRawAttribute(rawMap, "meta[property='og:image']", "content") ||
-    getRawAttribute(rawMap, "meta[name='og:image']", "content") ||
-    getRawAttribute(rawMap, "meta[name='twitter:image']", "content") ||
-    getRawAttribute(rawMap, "meta[property='twitter:image']", "content")
-  );
-};
+const extractImage = (rawMap: RawSelectorMap): string | undefined =>
+  getRawAttribute(rawMap, "meta[property='og:image:secure_url']", "content") ||
+  getRawAttribute(rawMap, "meta[property='og:image']", "content") ||
+  getRawAttribute(rawMap, "meta[name='og:image']", "content") ||
+  getRawAttribute(rawMap, "meta[name='twitter:image']", "content") ||
+  getRawAttribute(rawMap, "meta[property='twitter:image']", "content");
 
 const buildRawPayload = (
   data: Record<string, unknown>

@@ -1,15 +1,15 @@
 import { httpAction } from "../_generated/server";
 import {
+  executePublicApiOperation,
+  type PublicApiOperation,
+  validatePublicApiBearer,
+} from "../publicApiHttp";
+import {
   buildProtectedResourceMetadata,
   getProtectedResourceUrl,
   json,
   withPublicApiGatewayHeaders,
 } from "../publicApiMeta";
-import {
-  executePublicApiOperation,
-  type PublicApiOperation,
-  validatePublicApiBearer,
-} from "../publicApiHttp";
 import { callTeakV1Tool, TEAK_V1_TOOLS } from "./tools";
 
 type JsonObject = Record<string, unknown>;
@@ -81,7 +81,10 @@ const withMcpCors = (response: Response): Response => {
   });
 };
 
-const withAuthChallenge = (response: Response, requestUrl: string): Response => {
+const withAuthChallenge = (
+  response: Response,
+  requestUrl: string
+): Response => {
   const challenged = withMcpCors(response);
   const headers = new Headers(challenged.headers);
   headers.set(
@@ -101,9 +104,9 @@ const corsPreflight = (): Response =>
 const metadataResponse = (request: Request): Response =>
   withMcpCors(json(200, buildProtectedResourceMetadata(request.url)));
 
-export const handleOauthProtectedResourceV1Request = async (
+export const handleOauthProtectedResourceV1Request = (
   request: Request
-): Promise<Response> => {
+): Response => {
   if (request.method === "OPTIONS") {
     return corsPreflight();
   }
@@ -211,9 +214,11 @@ const handleJsonRpcMessage = async (
 const handleMcpPost = async (ctx: any, request: Request): Promise<Response> => {
   const accept = request.headers.get("accept") ?? "*/*";
   if (
-    !(accept.includes("application/json") ||
+    !(
+      accept.includes("application/json") ||
       accept.includes("text/event-stream") ||
-      accept.includes("*/*"))
+      accept.includes("*/*")
+    )
   ) {
     return json(406, jsonRpcError(null, -32_000, "Not Acceptable"));
   }

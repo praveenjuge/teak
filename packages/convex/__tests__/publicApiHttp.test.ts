@@ -495,8 +495,7 @@ describe("publicApiHttp", () => {
     expect(response.status).toBe(400);
     expect(await response.json()).toMatchObject({
       code: "CONTENT_TOO_LARGE",
-      error:
-        "Text card content must not exceed 512 KiB when encoded as UTF-8.",
+      error: "Text card content must not exceed 512 KiB when encoded as UTF-8.",
     });
   });
 

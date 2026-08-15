@@ -1,28 +1,39 @@
-<!DOCTYPE html>
-<html>
-<head>
-    <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
-    <meta http-equiv="Content-Security-Policy" content="default-src 'self'">
-    <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
-    <link rel="stylesheet" href="../Style.css">
-    <script src="../Script.js" defer></script>
-</head>
-<body>
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta content="text/html; charset=utf-8" http-equiv="Content-Type">
+    <meta content="default-src 'self'" http-equiv="Content-Security-Policy">
+    <meta
+      content="width=device-width, initial-scale=1, user-scalable=no"
+      name="viewport"
+    >
+    <link href="../Style.css" rel="stylesheet">
+    <script defer src="../Script.js"></script>
+  </head>
+  <body>
     <main class="shell">
-        <img class="app-icon" src="../Icon.png" width="64" height="64" alt="Teak">
+      <img alt="Teak" class="app-icon" height="64" src="../Icon.png" width="64">
 
-        <section class="intro">
-            <h1>Teak for Safari</h1>
-        </section>
+      <section class="intro">
+        <h1>Teak for Safari</h1>
+      </section>
 
-        <section class="account" aria-live="polite">
-            <p class="account-status" id="account-status">Checking account...</p>
-            <div class="actions">
-                <button class="primary" id="sign-in" type="button">Sign in</button>
-                <button class="secondary" id="sign-out" type="button">Sign out</button>
-                <button class="secondary platform-mac" id="open-preferences" type="button">Open Safari Settings</button>
-            </div>
-        </section>
+      <section aria-live="polite" class="account">
+        <p class="account-status" id="account-status">Checking account...</p>
+        <div class="actions">
+          <button class="primary" id="sign-in" type="button">Sign in</button>
+          <button class="secondary" id="sign-out" type="button">
+            Sign out
+          </button>
+          <button
+            class="secondary platform-mac"
+            id="open-preferences"
+            type="button"
+          >
+            Open Safari Settings
+          </button>
+        </div>
+      </section>
     </main>
-</body>
+  </body>
 </html>

@@ -38,7 +38,7 @@ export const trackIdempotencyOutcome = internalMutation({
       const field = outcomeToField(args.outcome);
       await ctx.db.patch(existing._id, {
         totalRequests: existing.totalRequests + 1,
-        withKey: existing.withKey + (args.outcome !== "skipped" ? 1 : 0),
+        withKey: existing.withKey + (args.outcome === "skipped" ? 0 : 1),
         [field]: existing[field] + 1,
       });
     } else {
@@ -46,7 +46,7 @@ export const trackIdempotencyOutcome = internalMutation({
         date,
         endpoint: args.endpoint,
         totalRequests: 1,
-        withKey: args.outcome !== "skipped" ? 1 : 0,
+        withKey: args.outcome === "skipped" ? 0 : 1,
         skipped: 0,
         started: 0,
         replayed: 0,
@@ -129,5 +129,7 @@ function outcomeToField(outcome: IdempotencyOutcome): AnalyticsCounterField {
       return "inProgress";
     case "error":
       return "errors";
+    default:
+      throw new Error(`Unexpected idempotency outcome: ${outcome}`);
   }
 }

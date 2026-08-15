@@ -26,13 +26,14 @@ import {
 /** Minimal shape of a stored card needed for serialization. */
 export interface ExportableCard {
   _id: string;
-  type: string;
+  colors?: Array<{
+    hex: string;
+    name?: string;
+    rgb?: { r: number; g: number; b: number };
+    hsl?: { h: number; s: number; l: number };
+  }>;
   content?: string;
-  url?: string;
-  notes?: string;
-  tags?: string[];
-  isFavorited?: boolean;
-  isDeleted?: boolean;
+  createdAt: number;
   deletedAt?: number;
   fileKey?: string;
   fileMetadata?: {
@@ -44,51 +45,48 @@ export interface ExportableCard {
     height?: number;
     recordingTimestamp?: number;
   };
-  colors?: Array<{
-    hex: string;
-    name?: string;
-    rgb?: { r: number; g: number; b: number };
-    hsl?: { h: number; s: number; l: number };
-  }>;
-  createdAt: number;
+  isDeleted?: boolean;
+  isFavorited?: boolean;
+  notes?: string;
+  tags?: string[];
+  type: string;
   updatedAt: number;
+  url?: string;
 }
 
 /** A timestamp expressed as both ISO 8601 and epoch milliseconds. */
 export interface DualTimestamp {
-  iso: string;
   epochMs: number;
+  iso: string;
 }
 
 export interface SerializedCardFile {
+  duration?: number;
+  fileName: string;
+  fileSize?: number;
+  height?: number;
+  mimeType?: string;
   /** Archive-relative path, e.g. files/<cardId>-<name>. Present only when included. */
   path: string;
-  fileName: string;
-  mimeType?: string;
-  fileSize?: number;
   width?: number;
-  height?: number;
-  duration?: number;
 }
 
 export interface SerializedCard {
-  id: string;
-  type: string;
+  colors?: Array<{ hex: string; name?: string }>;
   content: string;
-  url?: string;
+  createdAt: DualTimestamp;
+  file?: SerializedCardFile;
+  id: string;
+  isFavorited: boolean;
   notes?: string;
   tags: string[];
-  isFavorited: boolean;
-  colors?: Array<{ hex: string; name?: string }>;
-  file?: SerializedCardFile;
-  createdAt: DualTimestamp;
+  type: string;
   updatedAt: DualTimestamp;
+  url?: string;
 }
 
 /** A card is exportable when it has not been soft-deleted. */
-export function isActiveCard(card: {
-  isDeleted?: boolean;
-}): boolean {
+export function isActiveCard(card: { isDeleted?: boolean }): boolean {
   return card.isDeleted !== true;
 }
 
@@ -126,7 +124,10 @@ export function sanitizeFilename(rawName: string | undefined): string {
  * Compute the archive-relative path for a card's original file.
  * Format: files/<cardId>-<sanitized-original-filename>
  */
-export function buildFilePath(cardId: string, rawName: string | undefined): string {
+export function buildFilePath(
+  cardId: string,
+  rawName: string | undefined
+): string {
   return `${FILES_DIR}/${cardId}-${sanitizeFilename(rawName)}`;
 }
 
@@ -194,17 +195,17 @@ export function serializeCard(
 }
 
 export interface ExportManifest {
-  exportVersion: number;
-  schemaVersion: number;
   appName: string;
-  createdAt: DualTimestamp;
-  expiresAt: DualTimestamp;
-  retentionMs: number;
   counts: {
     cards: number;
     filesIncluded: number;
     filesOmitted: number;
   };
+  createdAt: DualTimestamp;
+  expiresAt: DualTimestamp;
+  exportVersion: number;
+  retentionMs: number;
+  schemaVersion: number;
 }
 
 /** Build the manifest object embedded as manifest.json. */
@@ -231,10 +232,10 @@ export function buildManifest(args: {
 }
 
 export interface CapCheckResult {
-  ok: boolean;
-  reason?: "too_many_cards" | "too_large";
   cardCount: number;
   estimatedBytes: number;
+  ok: boolean;
+  reason?: "too_many_cards" | "too_large";
 }
 
 /**
@@ -303,7 +304,10 @@ export function computeExpiry(completedAtMs: number): number {
 }
 
 /** Whether a completed artifact has passed its expiry. */
-export function isExpired(expiresAtMs: number | undefined, nowMs: number): boolean {
+export function isExpired(
+  expiresAtMs: number | undefined,
+  nowMs: number
+): boolean {
   if (expiresAtMs === undefined) {
     return false;
   }

@@ -58,6 +58,7 @@ export default function QuickSaveCommand() {
     refresh: refreshAuth,
   } = useTeakAuth();
 
+  // biome-ignore lint/correctness/useExhaustiveDependencies: prefill clipboard only once on mount; re-running would clobber user input
   useEffect(() => {
     let isMounted = true;
 
