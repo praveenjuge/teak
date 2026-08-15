@@ -477,6 +477,7 @@ export const resetCardProcessingState = internalMutation({
   },
   returns: v.object({
     clearedThumbnail: v.boolean(),
+    clearedPreview: v.boolean(),
   }),
   handler: async (ctx, { cardId }) => {
     const card = await ctx.db.get("cards", cardId);
@@ -497,6 +498,19 @@ export const resetCardProcessingState = internalMutation({
       }
       clearedThumbnail = true;
     }
+    let clearedPreview = false;
+    if (card.previewKey) {
+      try {
+        await deleteObject(ctx, card.previewKey);
+      } catch (error) {
+        console.error("[admin] Failed to delete preview during refresh", {
+          cardId,
+          previewKey: card.previewKey,
+          error,
+        });
+      }
+      clearedPreview = true;
+    }
 
     const processingStatus = card.processingStatus ?? {};
     const updatedProcessing = {
@@ -506,6 +520,7 @@ export const resetCardProcessingState = internalMutation({
 
     await ctx.db.patch("cards", cardId, {
       thumbnailKey: undefined,
+      previewKey: undefined,
       aiTags: undefined,
       aiSummary: undefined,
       aiTranscript: undefined,
@@ -515,6 +530,7 @@ export const resetCardProcessingState = internalMutation({
 
     return {
       clearedThumbnail,
+      clearedPreview,
     };
   },
 });

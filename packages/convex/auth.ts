@@ -605,6 +605,10 @@ export const deleteAccountDataHandler = async (
       await deleteObject(ctx, card.thumbnailKey);
       deletedStorageObjectCount += 1;
     }
+    if (card.previewKey) {
+      await deleteObject(ctx, card.previewKey);
+      deletedStorageObjectCount += 1;
+    }
 
     await ctx.db.delete("cards", card._id);
   }

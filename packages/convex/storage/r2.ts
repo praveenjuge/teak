@@ -9,9 +9,10 @@ import { internalMutation, mutation, query } from "../_generated/server";
 // Signed URLs live long enough for browsers and the CDN to cache media for the
 // full URL lifetime. Object keys are immutable UUIDs, so reuse is safe.
 const SIGNED_URL_EXPIRES_IN_SECONDS = 7 * 24 * 60 * 60;
-// `stale-while-revalidate` lets browsers and the CDN serve stale media while
-// refreshing in the background, which is safe because keys are immutable.
-const MEDIA_CACHE_CONTROL = `public, max-age=${SIGNED_URL_EXPIRES_IN_SECONDS}, stale-while-revalidate=86400, immutable`;
+// Media URLs are signed, so they must not be stored in shared caches after the
+// signature expires or the object is revoked. `private` limits caching to the
+// authorized user's browser, which still makes repeat visits instant.
+const MEDIA_CACHE_CONTROL = `private, max-age=${SIGNED_URL_EXPIRES_IN_SECONDS}, immutable`;
 
 // Re-sign a URL before it expires so concurrent readers (grid, modal, preview)
 // all share one stable URL while it is still valid.
@@ -214,6 +215,7 @@ export const getFileUrl = query({
     const matchesKey =
       card.fileKey === args.key ||
       card.thumbnailKey === args.key ||
+      card.previewKey === args.key ||
       linkPreview?.screenshotStorageKey === args.key ||
       linkPreview?.imageStorageKey === args.key ||
       linkPreview?.media?.some(

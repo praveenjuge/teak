@@ -27,6 +27,7 @@ const cardReturnValidator = v.object({
   _id: v.id("cards"),
   _creationTime: v.number(),
   fileUrl: v.optional(v.string()),
+  previewUrl: v.optional(v.string()),
   thumbnailUrl: v.optional(v.string()),
   screenshotUrl: v.optional(v.string()),
   linkPreviewMedia: v.optional(

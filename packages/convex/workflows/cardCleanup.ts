@@ -83,6 +83,17 @@ export const cleanupDeletedCard = internalMutation({
         });
       }
     }
+    if (card.previewKey) {
+      try {
+        await deleteObject(ctx, card.previewKey);
+      } catch (error) {
+        console.error(`${WORKFLOW_LOG_PREFIX} Failed to delete preview`, {
+          cardId,
+          previewKey: card.previewKey,
+          error,
+        });
+      }
+    }
 
     let deleted = false;
     try {
