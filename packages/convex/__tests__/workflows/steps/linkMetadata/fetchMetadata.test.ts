@@ -66,22 +66,20 @@ mock.module("../../../../../convex/linkMetadata/ssrf", () => ({
     globalThis.fetch(url, init),
 }));
 
-mock.module("@onkernel/sdk", () => {
-  return {
-    default: class MockKernel {
-      secrets = { create: mockCreateSecret };
-      browsers = {
-        create: mockKernelCreateBrowser,
-        deleteByID: mockDeleteByID,
-        playwright: { execute: mockKernelExecute },
-      };
-    },
-  };
-});
+mock.module("@onkernel/sdk", () => ({
+  default: class MockKernel {
+    secrets = { create: mockCreateSecret };
+    browsers = {
+      create: mockKernelCreateBrowser,
+      deleteByID: mockDeleteByID,
+      playwright: { execute: mockKernelExecute },
+    };
+  },
+}));
 
 import {
-  r2Mocks,
   r2MockModuleFactory,
+  r2Mocks,
 } from "../../../helpers/r2Mock.test-utils";
 
 mock.module("../../../../../convex/storage/r2", r2MockModuleFactory);

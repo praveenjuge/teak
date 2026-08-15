@@ -1,24 +1,37 @@
 ---
-import Icon from "blume/components/Icon.astro";
 import Badge from "blume/components/content/Badge.astro";
+import Icon from "blume/components/Icon.astro";
 
 interface Props {
-  name: string;
+  ctaHref: string;
+  ctaPrimary?: boolean;
+  ctaText: string;
   description: string;
   emojiAlt: string;
   emojiSrc: string;
   features: readonly string[];
-  price: string | {
-    monthly: { amount: string; period: string };
-    yearly: { amount: string; period: string };
-  };
-  ctaText: string;
-  ctaHref: string;
-  ctaPrimary?: boolean;
+  name: string;
   popular?: boolean;
+  price:
+    | string
+    | {
+        monthly: { amount: string; period: string };
+        yearly: { amount: string; period: string };
+      };
 }
 
-const { name: _name, description, emojiAlt, emojiSrc, features, price, ctaText, ctaHref, ctaPrimary = false, popular = false } = Astro.props;
+const {
+  name: _name,
+  description,
+  emojiAlt,
+  emojiSrc,
+  features,
+  price,
+  ctaText,
+  ctaHref,
+  ctaPrimary = false,
+  popular = false,
+} = Astro.props;
 const isFixedPrice = typeof price === "string";
 ---
 

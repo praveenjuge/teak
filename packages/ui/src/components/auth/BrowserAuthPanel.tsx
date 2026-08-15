@@ -18,7 +18,7 @@ export function BrowserAuthPanel({
 }: BrowserAuthPanelProps) {
   if (!isOnline) {
     return (
-      <p className="text-center text-sm text-muted-foreground">
+      <p className="text-center text-muted-foreground text-sm">
         You are offline. Please reconnect to sign in.
       </p>
     );
@@ -28,7 +28,7 @@ export function BrowserAuthPanel({
     return (
       <div className="flex flex-col items-center gap-4">
         <Spinner />
-        <p className="text-center text-sm text-muted-foreground">
+        <p className="text-center text-muted-foreground text-sm">
           Waiting for login in your browser...
         </p>
       </div>
@@ -38,7 +38,7 @@ export function BrowserAuthPanel({
   if (error) {
     return (
       <div className="flex flex-col items-center gap-4">
-        <p className="text-center text-sm text-muted-foreground">{error}</p>
+        <p className="text-center text-muted-foreground text-sm">{error}</p>
         <Button className="w-full" onClick={onStartAuth} type="button">
           Try Again
         </Button>

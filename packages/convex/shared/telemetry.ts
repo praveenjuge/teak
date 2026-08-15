@@ -294,7 +294,6 @@ const normalizeAttributeValue = (
   if (typeof value === "boolean" || value === null) {
     return value;
   }
-  return;
 };
 
 export const normalizeTelemetryAttributes = (

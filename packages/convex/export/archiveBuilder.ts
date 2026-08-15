@@ -17,8 +17,8 @@
 
 "use node";
 
-import { ZipArchive } from "archiver";
 import { PassThrough } from "node:stream";
+import { ZipArchive } from "archiver";
 import {
   CARDS_ENTRY_NAME,
   MANIFEST_ENTRY_NAME,
@@ -27,8 +27,8 @@ import {
 import {
   buildFilePath,
   buildManifest,
-  serializeCard,
   type ExportableCard,
+  serializeCard,
 } from "./serialize";
 
 /** A card paired with its original file key (if any). */
@@ -41,9 +41,7 @@ export interface ArchiveCardInput {
  * Reader for an original file's bytes. Resolves to the file contents, or `null`
  * when the object is missing/unreadable (which triggers retry then omission).
  */
-export type FileReader = (
-  fileKey: string
-) => Promise<Uint8Array | null>;
+export type FileReader = (fileKey: string) => Promise<Uint8Array | null>;
 
 export interface BuildArchiveResult {
   buffer: Buffer;
@@ -148,18 +146,26 @@ export async function buildExportArchive(args: {
           included = true;
           filesIncluded += 1;
           archive.append(toNodeBuffer(bytes), {
-            name: buildFilePath(input.card._id, input.card.fileMetadata?.fileName),
+            name: buildFilePath(
+              input.card._id,
+              input.card.fileMetadata?.fileName
+            ),
           });
         } else {
           filesOmitted += 1;
           omittedCardIds.push(input.card._id);
         }
       }
-      serializedCards[index] = serializeCard(input.card, { includeFile: included });
+      serializedCards[index] = serializeCard(input.card, {
+        includeFile: included,
+      });
     }
   };
 
-  const workerCount = Math.min(MAX_CONCURRENT_READS, Math.max(inputs.length, 1));
+  const workerCount = Math.min(
+    MAX_CONCURRENT_READS,
+    Math.max(inputs.length, 1)
+  );
   await Promise.all(Array.from({ length: workerCount }, () => worker()));
 
   const manifest = buildManifest({

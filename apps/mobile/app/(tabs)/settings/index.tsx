@@ -108,20 +108,14 @@ export default function SettingsScreen() {
     setIsDeleting(true);
 
     try {
-      let deleteUserFailed = false;
       await authClient.deleteUser(undefined, {
         onError: (ctx) => {
           setDeleteError(ctx.error?.message ?? "Failed to delete account.");
-          deleteUserFailed = true;
         },
         onSuccess: () => {
           router.replace("/(auth)/welcome");
         },
       });
-
-      if (deleteUserFailed) {
-        return;
-      }
     } catch (error) {
       setDeleteError("Something went wrong while deleting your account.");
       console.error(

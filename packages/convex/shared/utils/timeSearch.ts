@@ -307,13 +307,10 @@ const parseSingleExpression = (
   query: string,
   now: Date,
   weekStart: 0 | 1
-): DateRange | null => {
-  return (
-    parseRelative(query, now, weekStart) ||
-    parseWeekday(query, now) ||
-    parseExplicitDate(query)
-  );
-};
+): DateRange | null =>
+  parseRelative(query, now, weekStart) ||
+  parseWeekday(query, now) ||
+  parseExplicitDate(query);
 
 export function parseTimeSearchQuery(
   query: string,

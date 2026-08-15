@@ -53,7 +53,7 @@ const toBase64Url = (bytes: Uint8Array): string =>
   btoa(String.fromCharCode(...bytes))
     .replace(/\+/g, "-")
     .replace(/\//g, "_")
-    .replace(/=+$/g, "");
+    .replace(/[=]+$/g, "");
 
 const randomBase64Url = (size: number): string => {
   const bytes = new Uint8Array(size);

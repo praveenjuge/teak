@@ -5,7 +5,6 @@ const PINTEREST_POST_SELECTORS = [
   '[data-test-id="pinWrapper"]',
   '[data-grid-item="true"]',
 ] as const;
-const PINTEREST_POST_SELECTOR = PINTEREST_POST_SELECTORS.join(", ");
 const PINTEREST_PATH = /^\/pin\/(\d+)/i;
 
 const isPinterestHost = (hostname: string): boolean => {

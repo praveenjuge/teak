@@ -1,21 +1,18 @@
 {
   "name": "@teak/docs",
   "version": "1.0.64",
-  "engines": {
-    "node": ">=22.12.0"
-  },
   "scripts": {
-    "generate:openapi": "bun run scripts/generate-openapi.ts",
+    "audit": "bun run build:site && blume audit --fail-on error",
     "build": "bun run build:site && blume audit --fail-on error",
     "build:site": "bun run generate:openapi && blume build",
     "dev": "bun run generate:openapi && PORTLESS_PORT=1355 portless docs.teak blume dev",
+    "generate:openapi": "bun run scripts/generate-openapi.ts",
     "lint": "biome check blume.config.ts lib scripts styles vercel.json package.json turbo.json tsconfig.json tsconfig.typecheck.json",
     "preview": "blume preview",
     "start": "blume preview",
     "test": "bun test lib --coverage --dots",
     "typecheck": "bun run generate:openapi && blume check --strict",
-    "validate": "bun run generate:openapi && blume validate --strict",
-    "audit": "bun run build:site && blume audit --fail-on error"
+    "validate": "bun run generate:openapi && blume validate --strict"
   },
   "dependencies": {
     "@teak/convex": "workspace:*",
@@ -25,5 +22,8 @@
     "@types/bun": "^1.3.14",
     "open-cli": "9.0.0",
     "typescript": "^6.0.3"
+  },
+  "engines": {
+    "node": ">=22.12.0"
   }
 }

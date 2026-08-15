@@ -804,8 +804,6 @@ const parseBooleanQuery = (value: string | null): boolean | undefined => {
   if (value === "false") {
     return false;
   }
-
-  return;
 };
 
 const parseTimestampQuery = (value: string | null): number | undefined => {

@@ -81,7 +81,6 @@ const getErrorCode = (message: string): string | undefined => {
   if (message.includes(CARD_LIMIT_REACHED_CODE)) {
     return CARD_LIMIT_REACHED_CODE;
   }
-  return;
 };
 
 const parseContentAsUrl = (content: string): URL | null => {

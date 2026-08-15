@@ -20,7 +20,7 @@ export function createStore(): void {
 }
 
 export function readStoreValue<T>(key: string): T | null {
-  if (!store || !isAllowedKey(key)) {
+  if (!(store && isAllowedKey(key))) {
     return null;
   }
   const value = store.get(key) as T | undefined;
@@ -28,7 +28,7 @@ export function readStoreValue<T>(key: string): T | null {
 }
 
 export function writeStoreValue(key: string, value: unknown): void {
-  if (!store || !isAllowedKey(key)) {
+  if (!(store && isAllowedKey(key))) {
     return;
   }
   if (value === null || value === undefined) {

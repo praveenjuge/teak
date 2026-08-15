@@ -28,7 +28,7 @@ const source = resolve(workspaceRoot, "node_modules", "electron");
 if (!existsSync(source)) {
   console.error(
     `[ensure-electron] Root electron not found at ${source}. ` +
-      `Run \`bun install\` from the repo root first.`
+      "Run `bun install` from the repo root first."
   );
   process.exit(1);
 }
@@ -44,9 +44,5 @@ try {
 }
 
 mkdirSync(dirname(target), { recursive: true });
-symlinkSync(
-  source,
-  target,
-  process.platform === "win32" ? "junction" : "dir"
-);
+symlinkSync(source, target, process.platform === "win32" ? "junction" : "dir");
 console.log(`[ensure-electron] linked ${target} → ${source}`);

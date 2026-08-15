@@ -54,7 +54,10 @@ const rateLimitResultValidator = v.object({
   retryAt: v.optional(v.number()),
 });
 
-type RateLimitResult = { ok: boolean; retryAt?: number };
+interface RateLimitResult {
+  ok: boolean;
+  retryAt?: number;
+}
 
 const BASE64_URL_ALPHABET =
   "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_";

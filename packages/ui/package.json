@@ -72,16 +72,16 @@
     "sonner": "^2.0.8",
     "tailwind-merge": "^3.6.0"
   },
+  "devDependencies": {
+    "@types/react": "^19.2.18",
+    "@types/react-dom": "^19.2.4",
+    "typescript": "^6.0.3"
+  },
   "peerDependencies": {
     "@teak/convex": "workspace:*",
     "convex": "^1.43.0",
     "convex-helpers": "^0.1.122",
     "react": "^19.2.8",
     "react-dom": "^19.2.8"
-  },
-  "devDependencies": {
-    "@types/react": "^19.2.18",
-    "@types/react-dom": "^19.2.4",
-    "typescript": "^6.0.3"
   }
 }

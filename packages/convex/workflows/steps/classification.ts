@@ -167,7 +167,7 @@ const fileNameFromUrl = (url?: string): string | undefined => {
     const pathname = new URL(url).pathname;
     return pathname.split("/").filter(Boolean).pop();
   } catch {
-    return;
+    // Malformed URLs are treated as missing rather than failing classification.
   }
 };
 

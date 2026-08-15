@@ -6,7 +6,15 @@
     "ultracite/biome/next"
   ],
   "javascript": {
-    "globals": ["chrome", "defineBackground", "defineContentScript", "__DEV__"]
+    "globals": [
+      "chrome",
+      "defineBackground",
+      "defineContentScript",
+      "__DEV__",
+      // Safari app + WebExtension runtime globals (committed Safari bundles).
+      "browser",
+      "webkit"
+    ]
   },
   "overrides": [
     {
@@ -88,13 +96,54 @@
           }
         }
       }
+    },
+    {
+      // Biome does not analyze Astro template expressions, so it reports every
+      // frontmatter variable and import as unused even when the template uses
+      // them (e.g. `class:list`, `{navLinks.map(...)}`). Astro still
+      // typechecks these files during `astro build`.
+      "includes": ["**/*.astro"],
+      "linter": {
+        "rules": {
+          "correctness": {
+            "noUnusedVariables": "off",
+            "noUnusedImports": "off"
+          }
+        }
+      }
+    },
+    {
+      // Raycast's `ray lint` gate enforces Prettier formatting; Biome and
+      // Prettier disagree on line breaks, so formatting here belongs to
+      // Prettier. Biome lint rules still apply.
+      "includes": ["apps/raycast/**"],
+      "formatter": {
+        "enabled": false
+      }
     }
   ],
   "linter": {
     "rules": {
+      "a11y": {
+        // Static brand SVG assets (logos, badges, icons) are referenced via
+        // `<img>`/links where the accessible name comes from `alt`.
+        "noSvgWithoutTitle": "off",
+        // Safari's `-apple-system-body` font shorthand is the sanctioned
+        // dynamic-type value for Apple-only stylesheets.
+        "useGenericFontNames": "off"
+      },
       "style": {
         // Would require renaming ~286 files; not worth the churn/blame noise.
-        "useFilenamingConvention": "off"
+        "useFilenamingConvention": "off",
+        // ~165 sites of property access; mechanical churn with marginal gain.
+        "useDestructuring": "off",
+        // `x++`/`x--` is idiomatic loop/iterator code across the repo.
+        "noIncrementDecrement": "off",
+        // Requires ES2022 lib (`Array.at`) in the Convex tsconfig for 2 sites.
+        "useAtIndex": "off",
+        // Requires threading the caught error through 26 throw sites; tracked
+        // as a separate error-handling pass.
+        "useErrorCause": "off"
       },
       "complexity": {
         // ~44 functions over the threshold; refactors tracked separately.
@@ -103,6 +152,12 @@
         "noVoid": "off"
       },
       "performance": {
+        // Inline arrow handlers in JSX props; extracting to useCallback is a
+        // per-component refactor, not a mechanical fix.
+        "noJsxPropsBind": "off",
+        // Sequential awaits in loops are often intentional (ordered port
+        // binding, bounded retries); parallelizing is a per-site decision.
+        "noAwaitInLoops": "off",
         // Namespace imports are the documented idiom for Expo modules and
         // Radix primitives.
         "noNamespaceImport": "off",
@@ -121,7 +176,32 @@
       },
       "suspicious": {
         // ~1,250 occurrences; burn down gradually before enabling.
-        "noExplicitAny": "off"
+        "noExplicitAny": "off",
+        // Standard `{condition && <jsx/>}` render pattern; the falsy-leak
+        // concern is handled by our shared UI primitives.
+        "noLeakedRender": "off",
+        // Optional chaining and redundant-condition checks are defensive
+        // against future shape changes, especially in tests.
+        "noUnnecessaryConditions": "off",
+        // Shadowed loop/parameter names; renaming risks churn across 14 files
+        // for a readability-only win.
+        "noShadow": "off",
+        // Biome flags any Astro file without script-y frontmatter (and
+        // comment-only generated bundles) as an empty source.
+        "noEmptySource": "off",
+        // Intentional error-swallowing `catch` blocks: comment-only bodies are
+        // still flagged, and a trailing `return;` trips noUselessReturn.
+        "noEmptyBlockStatements": "off"
+      }
+    }
+  },
+  "assist": {
+    "actions": {
+      "source": {
+        // Ultracite 7.9+ enables useSortedKeys; it would reorder object keys
+        // across ~393 files. Key order is often semantic (configs, route
+        // definitions) and the churn/blame noise isn't worth it.
+        "useSortedKeys": "off"
       }
     }
   }

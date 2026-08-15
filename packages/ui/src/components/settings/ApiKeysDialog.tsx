@@ -287,7 +287,6 @@ export function ApiKeysDialog({
                                     key.id,
                                     async () => {
                                       await onRevokeKey(key.id);
-                                      return;
                                     },
                                     "API key revoked."
                                   )

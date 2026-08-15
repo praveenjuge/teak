@@ -3,8 +3,8 @@ import {
   clearLocalSession,
   getConvexSiteUrl,
   getSessionToken,
-  hasPendingFlow as readHasPendingFlow,
   PENDING_AUTH_KEY,
+  hasPendingFlow as readHasPendingFlow,
   SESSION_TOKEN_KEY,
 } from "../lib/nativeAuth";
 

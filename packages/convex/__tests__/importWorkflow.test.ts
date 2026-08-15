@@ -9,7 +9,7 @@ describe("import workflow", () => {
       "utf8"
     );
     const limitBranch = source.match(
-      /if \(result\.limitReached\) \{[\s\S]*?\n      \}/
+      /if \(result\.limitReached\) \{[\s\S]*?\n {6}\}/
     )?.[0];
 
     expect(source).toContain("result.limitReached");

@@ -39,15 +39,18 @@ const rateLimitResultValidator = v.object({
 });
 
 type ExchangeResult = { expiresAt: number; sessionToken: string } | null;
-type RateLimitResult = { ok: boolean; retryAt?: number };
+interface RateLimitResult {
+  ok: boolean;
+  retryAt?: number;
+}
 
 // The Convex adapter stores dates as numbers, so the raw component document
 // exposes `accessTokenExpiresAt` as a number.
-type OAuthAccessTokenRecord = {
+interface OAuthAccessTokenRecord {
   accessTokenExpiresAt?: number | null;
   clientId?: string | null;
   userId?: string | null;
-};
+}
 
 const parseExchangePayload = (
   body: unknown

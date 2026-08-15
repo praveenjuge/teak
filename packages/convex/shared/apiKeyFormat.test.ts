@@ -39,10 +39,14 @@ describe("apiKeyFormat", () => {
 
   test("rejects malformed component tokens", () => {
     expect(
-      isWellFormedApiKey(`${API_KEY_TOKEN_PREFIX}_write_live_a1b2c3d4_${"f".repeat(64)}`)
+      isWellFormedApiKey(
+        `${API_KEY_TOKEN_PREFIX}_write_live_a1b2c3d4_${"f".repeat(64)}`
+      )
     ).toBe(false);
     expect(
-      isWellFormedApiKey(`${API_KEY_TOKEN_PREFIX}_secret_live_short_${"f".repeat(64)}`)
+      isWellFormedApiKey(
+        `${API_KEY_TOKEN_PREFIX}_secret_live_short_${"f".repeat(64)}`
+      )
     ).toBe(false);
     expect(
       isWellFormedApiKey(`${API_KEY_TOKEN_PREFIX}_secret_live_a1b2c3d4_short`)

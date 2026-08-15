@@ -60,15 +60,11 @@ export const withStageStatus = (
   [stage]: status,
 });
 
-export const shouldRunRenderablesStage = (cardType: CardType): boolean => {
-  return (
-    cardType === "image" || cardType === "video" || cardType === "document"
-  );
-};
+export const shouldRunRenderablesStage = (cardType: CardType): boolean =>
+  cardType === "image" || cardType === "video" || cardType === "document";
 
-export const shouldRunCategorizeStage = (cardType: CardType): boolean => {
-  return cardType === "link";
-};
+export const shouldRunCategorizeStage = (cardType: CardType): boolean =>
+  cardType === "link";
 
 export const buildInitialProcessingStatus = (params: {
   now: number;

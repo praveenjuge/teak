@@ -1,6 +1,6 @@
 ---
-import { getCollection, render } from "astro:content";
 import type { CollectionEntry } from "astro:content";
+import { getCollection, render } from "astro:content";
 import Update from "blume/components/content/Update.astro";
 import MarketingLayout from "../layouts/MarketingLayout.astro";
 
@@ -19,7 +19,10 @@ const entries = (await getCollection("docs"))
 const renderedEntries = await Promise.all(
   entries.map(async (entry: DocsEntry) => {
     const { Content } = await render(entry);
-    const slug = entry.id.split("/").at(-1)?.replace(/\.mdx$/u, "");
+    const slug = entry.id
+      .split("/")
+      .at(-1)
+      ?.replace(/\.mdx$/u, "");
     return { entry, Content, slug };
   })
 );

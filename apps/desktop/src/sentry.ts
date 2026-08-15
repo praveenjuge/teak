@@ -145,7 +145,6 @@ export const syncDesktopSentryUser = async (
       });
     } catch {
       // Telemetry failures must not create renderer rejections.
-      return;
     }
   }
 };

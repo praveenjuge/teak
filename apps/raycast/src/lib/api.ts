@@ -32,9 +32,7 @@ export {
   RaycastApiError,
   type RaycastApiErrorCode,
 } from "./apiErrors";
-
-export type { RaycastCard } from "./apiParsers";
-export type { TagSummary, TagsResponse } from "./apiParsers";
+export type { RaycastCard, TagSummary, TagsResponse } from "./apiParsers";
 
 export interface CardSearchInput {
   createdAfter?: number;
@@ -116,9 +114,8 @@ const withLoopbackFallback = (url: string): string => {
   return parsedUrl.toString();
 };
 
-const parseJson = (response: Response): Promise<unknown> => {
-  return response.json().catch(() => null);
-};
+const parseJson = (response: Response): Promise<unknown> =>
+  response.json().catch(() => null);
 
 const buildHeaders = (apiKey: string, initHeaders?: HeadersInit): Headers => {
   const headers = new Headers(initHeaders);
@@ -294,8 +291,8 @@ export const request = async <T>(
 export const createCard = (
   input: CreateCardInput,
   options?: RequestAuthOptions,
-): Promise<QuickSaveResponse> => {
-  return request<QuickSaveResponse>(
+): Promise<QuickSaveResponse> =>
+  request<QuickSaveResponse>(
     "/cards",
     parseQuickSaveResponse,
     {
@@ -304,25 +301,23 @@ export const createCard = (
     },
     options,
   );
-};
 
 export const quickSaveCard = (
   input: string | CreateCardInput,
-): Promise<QuickSaveResponse> => {
-  return createCard(
+): Promise<QuickSaveResponse> =>
+  createCard(
     typeof input === "string"
       ? {
           content: input,
         }
       : input,
   );
-};
 
 export const searchCards = (
   input: CardSearchInput = {},
   options?: RequestAuthOptions,
-): Promise<CardsResponse> => {
-  return request<CardsResponse>(
+): Promise<CardsResponse> =>
+  request<CardsResponse>(
     `/cards/search?${buildCardsSearchParams({
       ...input,
       limit: input.limit ?? DEFAULT_LIMIT,
@@ -333,12 +328,11 @@ export const searchCards = (
     },
     options,
   );
-};
 
 export const getFavoriteCards = (
   input: CardSearchInput = {},
-): Promise<CardsResponse> => {
-  return request<CardsResponse>(
+): Promise<CardsResponse> =>
+  request<CardsResponse>(
     `/cards/favorites?${buildCardsSearchParams({
       ...input,
       limit: input.limit ?? DEFAULT_LIMIT,
@@ -348,7 +342,6 @@ export const getFavoriteCards = (
       method: "GET",
     },
   );
-};
 
 export const getCardById = (
   cardId: string,
@@ -424,10 +417,8 @@ export const softDeleteCard = async (cardId: string): Promise<void> => {
   );
 };
 
-export const listTags = (
-  options?: RequestAuthOptions,
-): Promise<TagsResponse> => {
-  return request<TagsResponse>(
+export const listTags = (options?: RequestAuthOptions): Promise<TagsResponse> =>
+  request<TagsResponse>(
     "/tags",
     parseTagsResponse,
     {
@@ -435,4 +426,3 @@ export const listTags = (
     },
     options,
   );
-};

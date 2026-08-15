@@ -11,9 +11,7 @@ const createMap = (
     string,
     { text?: string; attributes?: Array<{ name?: string; value?: string }> },
   ][]
-): RawSelectorMap => {
-  return new Map(entries);
-};
+): RawSelectorMap => new Map(entries);
 
 describe("enrichAmazon", () => {
   it("should return null when no data found", () => {

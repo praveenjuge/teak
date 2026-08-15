@@ -1,6 +1,6 @@
 // @ts-nocheck
 import { beforeEach, describe, expect, mock, test } from "bun:test";
-import { r2Mocks, r2MockModuleFactory } from "../helpers/r2Mock.test-utils";
+import { r2MockModuleFactory, r2Mocks } from "../helpers/r2Mock.test-utils";
 
 mock.module("../../storage/r2", r2MockModuleFactory);
 

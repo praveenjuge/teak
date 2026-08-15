@@ -154,6 +154,5 @@ const getResponseText = (result: unknown): string | undefined => {
     return JSON.stringify(result.output);
   } catch {
     // Content telemetry must never alter the generation result.
-    return;
   }
 };

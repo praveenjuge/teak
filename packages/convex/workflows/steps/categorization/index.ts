@@ -315,7 +315,6 @@ const valueToText = (value: any): string | undefined => {
   if (typeof value === "object" && value.name) {
     return value.name;
   }
-  return;
 };
 
 const normalizeImage = (value: any): string | undefined => {
@@ -337,7 +336,6 @@ const normalizeImage = (value: any): string | undefined => {
   if (value?.url) {
     return value.url;
   }
-  return;
 };
 
 const hostnameMatchesDomain = (hostname: string, domain: string): boolean =>
@@ -404,7 +402,7 @@ const detectProvider = (url?: string, hint?: string): string | undefined => {
     }
     return hostname;
   } catch {
-    return;
+    // Invalid URLs fall through to the caller's default handling.
   }
 };
 

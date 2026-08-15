@@ -29,8 +29,8 @@ export type CardSort = (typeof CARD_SORTS)[number];
 export type TeakApiErrorCode = (typeof ERROR_CODES)[number];
 export type FetchLike = typeof fetch;
 export interface TokenProvider {
-  getAccessToken(): Promise<string | null> | string | null;
-  onUnauthorized?(): Promise<string | null> | string | null;
+  getAccessToken: () => Promise<string | null> | string | null;
+  onUnauthorized?: () => Promise<string | null> | string | null;
 }
 
 export interface Card {

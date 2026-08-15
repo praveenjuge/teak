@@ -40,4 +40,4 @@ export function AudioWavePreview({ cardId }: AudioWavePreviewProps) {
   );
 }
 
-export { AUDIO_WAVE_BARS, AUDIO_WAVE_BAR_WIDTH_PX };
+export { AUDIO_WAVE_BAR_WIDTH_PX, AUDIO_WAVE_BARS };

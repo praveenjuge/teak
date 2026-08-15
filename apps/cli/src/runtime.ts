@@ -77,7 +77,7 @@ const b64url = (bytes: Buffer | Uint8Array) =>
     .toString("base64")
     .replace(/\+/g, "-")
     .replace(/\//g, "_")
-    .replace(/=+$/g, "");
+    .replace(/[=]+$/g, "");
 const sha256 = (value: string) =>
   b64url(createHash("sha256").update(value).digest());
 

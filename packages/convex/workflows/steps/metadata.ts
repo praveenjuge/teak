@@ -77,7 +77,6 @@ export const resolveImageAnalysisKey = (
   ) {
     return card.fileKey;
   }
-  return;
 };
 
 export const buildLinkContentParts = (

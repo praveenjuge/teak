@@ -24,9 +24,7 @@ export const normalizeWhitespace = (value?: string): string | undefined => {
 export const getRawText = (
   map: RawSelectorMap,
   selector: string
-): string | undefined => {
-  return normalizeWhitespace(map.get(selector)?.text);
-};
+): string | undefined => normalizeWhitespace(map.get(selector)?.text);
 
 export const getRawAttribute = (
   map: RawSelectorMap,
