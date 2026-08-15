@@ -323,12 +323,13 @@ export function MasonryGrid({
 
   const renderItem = useCallback(
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    (item: any, index?: number) => {
-      if (item.data === "add-form" && AddCardFormComponent) {
+    (itemInfo: any) => {
+      const { data, index } = itemInfo;
+      if (data === "add-form" && AddCardFormComponent) {
         return <AddCardFormComponent />;
       }
 
-      const card = item.data as Doc<"cards">;
+      const card = data as Doc<"cards">;
       const firstRowCount = typeof columns === "number" ? columns : 4;
       return (
         <Card
