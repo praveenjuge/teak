@@ -6,8 +6,24 @@ import { components } from "../_generated/api";
 import type { ActionCtx, MutationCtx } from "../_generated/server";
 import { internalMutation, mutation, query } from "../_generated/server";
 
-const SIGNED_URL_EXPIRES_IN_SECONDS = 15 * 60;
-const PRIVATE_FILE_CACHE_CONTROL = `private, max-age=${SIGNED_URL_EXPIRES_IN_SECONDS}, immutable`;
+// Signed URLs live long enough for browsers and the CDN to cache media for the
+// full URL lifetime. Object keys are immutable UUIDs, so reuse is safe.
+const SIGNED_URL_EXPIRES_IN_SECONDS = 7 * 24 * 60 * 60;
+// `stale-while-revalidate` lets browsers and the CDN serve stale media while
+// refreshing in the background, which is safe because keys are immutable.
+const MEDIA_CACHE_CONTROL = `public, max-age=${SIGNED_URL_EXPIRES_IN_SECONDS}, stale-while-revalidate=86400, immutable`;
+
+// Re-sign a URL before it expires so concurrent readers (grid, modal, preview)
+// all share one stable URL while it is still valid.
+const URL_REFRESH_BEFORE_MS = 5 * 60 * 1000;
+const MAX_CACHED_URLS = 2000;
+
+interface CachedUrl {
+  url: string;
+  expiresAt: number;
+}
+
+const resolvedUrlCache = new Map<string, CachedUrl>();
 
 export const r2 = new R2(components.r2);
 
@@ -66,13 +82,43 @@ export const buildR2DownloadCommand = (
   new GetObjectCommand({
     Bucket: bucket,
     Key: key,
-    ResponseCacheControl: PRIVATE_FILE_CACHE_CONTROL,
+    ResponseCacheControl: MEDIA_CACHE_CONTROL,
   });
 
-export const getR2Url = async (key: string) =>
+const signR2Url = async (key: string) =>
   getSignedUrl(getDownloadClient(), buildR2DownloadCommand(key), {
     expiresIn: SIGNED_URL_EXPIRES_IN_SECONDS,
   });
+
+/**
+ * Resolve a signed URL for an R2 object, reusing an unexpired signature.
+ *
+ * Signing is expensive (one S3 request per key on busy grids), and stable URLs
+ * let browser and CDN caches actually hit across queries and modals. The cache
+ * is keyed by object key and bounded to avoid unbounded growth.
+ */
+export const getR2Url = async (key: string): Promise<string> => {
+  const cached = resolvedUrlCache.get(key);
+  if (cached && Date.now() < cached.expiresAt - URL_REFRESH_BEFORE_MS) {
+    return cached.url;
+  }
+
+  const url = await signR2Url(key);
+  resolvedUrlCache.set(key, {
+    url,
+    expiresAt: Date.now() + SIGNED_URL_EXPIRES_IN_SECONDS * 1000,
+  });
+  if (resolvedUrlCache.size > MAX_CACHED_URLS) {
+    const oldestKey = resolvedUrlCache.keys().next().value;
+    if (oldestKey !== undefined) {
+      resolvedUrlCache.delete(oldestKey);
+    }
+  }
+  return url;
+};
+
+/** Test-only reset for the signed URL cache. */
+export const clearResolvedUrlCache = () => resolvedUrlCache.clear();
 
 export const r2ComponentConfig = () => {
   const { R2_BUCKET, R2_ENDPOINT, R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY } =

@@ -33,6 +33,7 @@
     "./search": "./src/components/search/index.ts",
     "./patterns": "./src/components/patterns/index.ts",
     "./hooks": "./src/hooks/index.ts",
+    "./hooks/useUploadPreview": "./src/hooks/useUploadPreview.ts",
     "./hooks/GlobalFileDropProvider": "./src/hooks/GlobalFileDropProvider.tsx",
     "./settings": "./src/components/settings/index.ts",
     "./screens": "./src/screens/index.ts",

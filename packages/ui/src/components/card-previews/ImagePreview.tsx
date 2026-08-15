@@ -4,6 +4,7 @@ import { cn } from "@teak/ui/lib/utils";
 
 type CardWithUrls = Doc<"cards"> & {
   fileUrl?: string;
+  previewUrl?: string;
   thumbnailUrl?: string;
 };
 
@@ -21,10 +22,9 @@ export function ImagePreview({ card }: ImagePreviewProps) {
       })
     : null;
   const prefersDerivative = format?.id === "svg" || format?.id === "heic";
-  const fileUrl =
-    (prefersDerivative ? card.thumbnailUrl : card.fileUrl) ??
-    card.thumbnailUrl ??
-    card.fileUrl;
+  const fileUrl = prefersDerivative
+    ? (card.thumbnailUrl ?? card.fileUrl)
+    : (card.previewUrl ?? card.fileUrl ?? card.thumbnailUrl);
   const imageWidth = card.fileMetadata?.width;
   const imageHeight = card.fileMetadata?.height;
   const isTallImage =

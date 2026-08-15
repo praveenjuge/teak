@@ -21,6 +21,10 @@ import {
 // Maximum thumbnail dimensions
 const THUMBNAIL_MAX_WIDTH = 500;
 const THUMBNAIL_MAX_HEIGHT = 500;
+// Mid-size preview derivative used by the modal/image viewer so large originals
+// are never downloaded in full just to be viewed.
+const PREVIEW_MAX_WIDTH = 1600;
+const PREVIEW_MAX_HEIGHT = 1600;
 
 /**
  * Copy bytes into a standard ArrayBuffer when needed so they can be passed to
@@ -290,12 +294,54 @@ export const generateThumbnail = internalAction({
         type: useJpeg ? "image/jpeg" : "image/webp",
       });
 
+      // Generate a mid-size preview for large originals so the modal viewer
+      // never downloads the full-resolution file.
+      const needsPreview =
+        originalWidth > PREVIEW_MAX_WIDTH ||
+        originalHeight > PREVIEW_MAX_HEIGHT;
+      let previewKey: string | undefined;
+      if (needsPreview) {
+        const previewAspectRatio = originalWidth / originalHeight;
+        let previewWidth: number;
+        let previewHeight: number;
+        if (previewAspectRatio > 1) {
+          previewWidth = Math.min(originalWidth, PREVIEW_MAX_WIDTH);
+          previewHeight = Math.round(previewWidth / previewAspectRatio);
+        } else {
+          previewHeight = Math.min(originalHeight, PREVIEW_MAX_HEIGHT);
+          previewWidth = Math.round(previewHeight * previewAspectRatio);
+        }
+
+        const previewImage = resize(
+          orientedImage,
+          previewWidth,
+          previewHeight,
+          SamplingFilter.Triangle
+        );
+        // Photon's WebP encoder has no quality argument; quality is set via the
+        // compressor on the wasm module. Default quality is acceptable here.
+        const previewBytes = previewImage.get_bytes_webp();
+        const previewBlob = new Blob(
+          [toStandardArrayBuffer(previewBytes)],
+          { type: "image/webp" }
+        );
+        previewKey = await storeObject(ctx, previewBlob, {
+          key: buildR2ObjectKey({
+            userId: card.userId,
+            cardId: args.cardId,
+            role: "preview",
+          }),
+          type: "image/webp",
+        });
+      }
+
       // Update the card with the thumbnail and original dimensions via internal mutation
       await ctx.runMutation(
         internal.workflows.steps.renderables.mutations.updateCardThumbnail,
         {
           cardId: args.cardId,
           thumbnailKey,
+          previewKey,
           originalWidth,
           originalHeight,
         }

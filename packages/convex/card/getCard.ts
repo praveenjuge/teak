@@ -64,6 +64,9 @@ export const getCardForUserHandler = async (
   if (card.thumbnailKey) {
     storageKeys.add(card.thumbnailKey);
   }
+  if (card.previewKey) {
+    storageKeys.add(card.previewKey);
+  }
   if (card.metadata?.linkPreview?.screenshotStorageKey) {
     storageKeys.add(card.metadata.linkPreview.screenshotStorageKey);
   }
@@ -137,6 +140,9 @@ export const getCardForUserHandler = async (
     fileUrl: card.fileKey ? (urlMap.get(card.fileKey) ?? undefined) : undefined,
     thumbnailUrl: card.thumbnailKey
       ? (urlMap.get(card.thumbnailKey) ?? undefined)
+      : undefined,
+    previewUrl: card.previewKey
+      ? (urlMap.get(card.previewKey) ?? undefined)
       : undefined,
     screenshotUrl: card.metadata?.linkPreview?.screenshotStorageKey
       ? (urlMap.get(card.metadata.linkPreview.screenshotStorageKey) ??

@@ -4,12 +4,15 @@ interface GridImagePreviewProps {
   altText?: string;
   height?: number;
   imageUrl?: string;
+  /** Load the image eagerly for the first viewport row. */
+  priority?: boolean;
   width?: number;
 }
 
 export function GridImagePreview({
   imageUrl,
   altText,
+  priority = false,
   width,
   height,
 }: GridImagePreviewProps) {
@@ -22,7 +25,11 @@ export function GridImagePreview({
         <Image
           alt={altText ?? "Image"}
           className="h-full w-full object-cover"
+          decoding="async"
+          fetchPriority={priority ? "high" : "auto"}
           loading="lazy"
+          height={height}
+          width={width}
           preview={false}
           rootClassName="h-full w-full"
           src={imageUrl}

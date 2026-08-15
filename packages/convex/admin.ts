@@ -106,11 +106,14 @@ const attachCardUrls = async (
 ): Promise<CardWithUrls[]> =>
   Promise.all(
     cards.map(async (card) => {
-      const [fileUrl, thumbnailUrl, screenshotUrl, linkPreviewImageUrl] =
+      const [fileUrl, thumbnailUrl, previewUrl, screenshotUrl, linkPreviewImageUrl] =
         await Promise.all([
           card.fileKey ? resolveObjectUrl(card.fileKey) : Promise.resolve(null),
           card.thumbnailKey
             ? resolveObjectUrl(card.thumbnailKey)
+            : Promise.resolve(null),
+          card.previewKey
+            ? resolveObjectUrl(card.previewKey)
             : Promise.resolve(null),
           card.metadata?.linkPreview?.screenshotStorageKey
             ? resolveObjectUrl(card.metadata.linkPreview.screenshotStorageKey)
@@ -124,6 +127,7 @@ const attachCardUrls = async (
         ...card,
         fileUrl: fileUrl || undefined,
         thumbnailUrl: thumbnailUrl || undefined,
+        previewUrl: previewUrl || undefined,
         screenshotUrl: screenshotUrl || undefined,
         linkPreviewImageUrl: linkPreviewImageUrl || undefined,
       };

@@ -41,6 +41,7 @@ export function VideoPreview({ card }: VideoPreviewProps) {
       autoPlay
       className="h-full w-full rounded-lg bg-black object-contain"
       controls
+      poster={card.thumbnailUrl}
       preload="metadata"
     >
       <source src={fileUrl} type={card.fileMetadata?.mimeType} />
