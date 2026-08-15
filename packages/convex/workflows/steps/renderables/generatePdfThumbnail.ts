@@ -132,17 +132,33 @@ export const generatePdfThumbnail = internalAction({
               const pdfBuffer = await pdfResponse.body();
               const pdfBase64 = pdfBuffer.toString('base64');
 
-              // Load a blank page and inject the pdf.js library.
-              await page.goto('about:blank');
-              await page.addScriptTag({ url: ${JSON.stringify(PDFJS_LIB_URL)} });
+              // Fetch the pdf.js library through the Node-side request context
+              // (which ignores browser CORS) and evaluate it in-page. External
+              // script injection via page.addScriptTag does not execute in this
+              // headless runtime, so pdfjsLib would remain undefined.
+              const libResponse = await context.request.get(${JSON.stringify(PDFJS_LIB_URL)});
+              const libSource = libResponse.ok() ? await libResponse.text() : '';
+              const workerResponse = await context.request.get(${JSON.stringify(PDFJS_WORKER_URL)});
+              const workerSource = workerResponse.ok() ? await workerResponse.text() : '';
 
-              const result = await page.evaluate(async ({ pdfBase64, workerSrc, maxWidth }) => {
+              await page.goto('about:blank');
+
+              const result = await page.evaluate(async ({ pdfBase64, libSource, workerSource, maxWidth }) => {
                 try {
+                  if (!libSource) {
+                    return { success: false, error: 'pdf.js failed to load' };
+                  }
+                  (0, eval)(libSource);
                   const pdfjsLib = window['pdfjsLib'];
                   if (!pdfjsLib) {
                     return { success: false, error: 'pdf.js failed to load' };
                   }
-                  pdfjsLib.GlobalWorkerOptions.workerSrc = workerSrc;
+                  if (workerSource) {
+                    const workerBlob = new Blob([workerSource], { type: 'text/javascript' });
+                    pdfjsLib.GlobalWorkerOptions.workerSrc = URL.createObjectURL(workerBlob);
+                  } else {
+                    pdfjsLib.GlobalWorkerOptions.workerSrc = 'data:application/javascript,';
+                  }
 
                   // Decode base64 into a byte array.
                   const binary = atob(pdfBase64);
@@ -185,7 +201,8 @@ export const generatePdfThumbnail = internalAction({
                 }
               }, {
                 pdfBase64,
-                workerSrc: ${JSON.stringify(PDFJS_WORKER_URL)},
+                libSource,
+                workerSource,
                 maxWidth: ${THUMBNAIL_MAX_WIDTH}
               });
 
