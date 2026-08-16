@@ -24,6 +24,7 @@ import {
 import type { SyntheticEvent } from "react";
 import { memo, useState } from "react";
 import { markdownToPlainText } from "../../lib/markdownToPlainText";
+import { useUploadPreview } from "../../hooks/useUploadPreview";
 import { prefetchFileTextPreview } from "../card-previews/fileTextPreviewCache";
 import { AudioWavePreview } from "./previews/AudioWavePreview";
 import { GridDocumentPreview } from "./previews/GridDocumentPreview";
@@ -43,12 +44,14 @@ export const Card = memo(function Card({
   onToggleFavorite,
   onAddTags,
   onCopyImage,
+  priority = false,
   isSelectionMode,
   isSelected,
   onEnterSelectionMode,
   onToggleSelection,
 }: CardProps) {
   const isOptimistic = isOptimisticCard(card._id);
+  const uploadPreview = useUploadPreview(card._id);
   const fileName = card.fileMetadata?.fileName;
   const fileFormat =
     card.type === "document" && fileName
@@ -298,10 +301,10 @@ export const Card = memo(function Card({
       if (legacyDisplayImage) {
         return (
           <div className="divide-y overflow-hidden rounded-xl border bg-card">
-            <div className="h-28 min-h-28 overflow-hidden">
+            <div className="aspect-[16/10] w-full overflow-hidden">
               <Image
                 alt={linkCardTitle}
-                className="h-full w-full object-cover"
+                className="h-full w-full object-contain"
                 onError={handleLinkImageError}
                 preview={false}
                 rootClassName="h-full w-full"
@@ -323,11 +326,13 @@ export const Card = memo(function Card({
     }
 
     if (card.type === "image") {
+      const imageUrl = card.thumbnailUrl ?? uploadPreview ?? card.fileUrl;
       return (
         <GridImagePreview
           altText={card.content}
           height={card.fileMetadata?.height}
-          imageUrl={card.thumbnailUrl ?? card.fileUrl ?? undefined}
+          imageUrl={imageUrl ?? undefined}
+          priority={priority}
           width={card.fileMetadata?.width}
         />
       );
@@ -341,7 +346,7 @@ export const Card = memo(function Card({
         <GridVideoPreview
           height={card.fileMetadata?.height}
           isGif={isGif}
-          thumbnailUrl={card.thumbnailUrl ?? undefined}
+          thumbnailUrl={card.thumbnailUrl ?? uploadPreview ?? undefined}
           videoUrl={card.fileUrl ?? undefined}
           width={card.fileMetadata?.width}
         />

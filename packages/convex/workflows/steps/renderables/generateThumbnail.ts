@@ -18,9 +18,14 @@ import {
   storeObject,
 } from "../../../storage/r2";
 
-// Maximum thumbnail dimensions
-const THUMBNAIL_MAX_WIDTH = 500;
-const THUMBNAIL_MAX_HEIGHT = 500;
+// Maximum thumbnail dimensions. 1000px keeps grid tiles sharp on high-DPI
+// displays while staying small enough to cache and decode quickly.
+const THUMBNAIL_MAX_WIDTH = 1000;
+const THUMBNAIL_MAX_HEIGHT = 1000;
+// Mid-size preview derivative used by the modal/image viewer so large originals
+// are never downloaded in full just to be viewed.
+const PREVIEW_MAX_WIDTH = 1600;
+const PREVIEW_MAX_HEIGHT = 1600;
 
 /**
  * Copy bytes into a standard ArrayBuffer when needed so they can be passed to
@@ -54,27 +59,27 @@ function getOutputSettings(fileSizeBytes: number): {
   }
 
   if (fileSizeBytes < 1_000_000) {
-    // < 1MB - good WebP compression
-    return { quality: 80, useJpeg: false, skipThumbnail: false };
+    // < 1MB - light WebP compression
+    return { quality: 85, useJpeg: false, skipThumbnail: false };
   }
   if (fileSizeBytes < 2_000_000) {
-    // < 2MB - more WebP compression
-    return { quality: 70, useJpeg: false, skipThumbnail: false };
+    // < 2MB - mild WebP compression
+    return { quality: 80, useJpeg: false, skipThumbnail: false };
   }
   if (fileSizeBytes < 5_000_000) {
-    // < 5MB - higher WebP compression
-    return { quality: 65, useJpeg: false, skipThumbnail: false };
+    // < 5MB - moderate WebP compression
+    return { quality: 78, useJpeg: false, skipThumbnail: false };
   }
   if (fileSizeBytes < 10_000_000) {
-    // < 10MB - strong WebP compression
-    return { quality: 60, useJpeg: false, skipThumbnail: false };
+    // < 10MB - stronger WebP compression
+    return { quality: 75, useJpeg: false, skipThumbnail: false };
   }
   if (fileSizeBytes < 20_000_000) {
-    // < 20MB - very strong WebP compression
-    return { quality: 60, useJpeg: false, skipThumbnail: false };
+    // < 20MB - strong WebP compression
+    return { quality: 72, useJpeg: false, skipThumbnail: false };
   }
-  // >= 20MB - maximum WebP compression
-  return { quality: 50, useJpeg: false, skipThumbnail: false };
+  // >= 20MB - strong WebP compression
+  return { quality: 70, useJpeg: false, skipThumbnail: false };
 }
 
 export const shouldSkipThumbnail = (
@@ -290,12 +295,54 @@ export const generateThumbnail = internalAction({
         type: useJpeg ? "image/jpeg" : "image/webp",
       });
 
+      // Generate a mid-size preview for large originals so the modal viewer
+      // never downloads the full-resolution file.
+      const needsPreview =
+        originalWidth > PREVIEW_MAX_WIDTH ||
+        originalHeight > PREVIEW_MAX_HEIGHT;
+      let previewKey: string | undefined;
+      if (needsPreview) {
+        const previewAspectRatio = originalWidth / originalHeight;
+        let previewWidth: number;
+        let previewHeight: number;
+        if (previewAspectRatio > 1) {
+          previewWidth = Math.min(originalWidth, PREVIEW_MAX_WIDTH);
+          previewHeight = Math.round(previewWidth / previewAspectRatio);
+        } else {
+          previewHeight = Math.min(originalHeight, PREVIEW_MAX_HEIGHT);
+          previewWidth = Math.round(previewHeight * previewAspectRatio);
+        }
+
+        const previewImage = resize(
+          orientedImage,
+          previewWidth,
+          previewHeight,
+          SamplingFilter.Triangle
+        );
+        // Photon's WebP encoder has no quality argument; quality is set via the
+        // compressor on the wasm module. Default quality is acceptable here.
+        const previewBytes = previewImage.get_bytes_webp();
+        const previewBlob = new Blob(
+          [toStandardArrayBuffer(previewBytes)],
+          { type: "image/webp" }
+        );
+        previewKey = await storeObject(ctx, previewBlob, {
+          key: buildR2ObjectKey({
+            userId: card.userId,
+            cardId: args.cardId,
+            role: "preview",
+          }),
+          type: "image/webp",
+        });
+      }
+
       // Update the card with the thumbnail and original dimensions via internal mutation
       await ctx.runMutation(
         internal.workflows.steps.renderables.mutations.updateCardThumbnail,
         {
           cardId: args.cardId,
           thumbnailKey,
+          previewKey,
           originalWidth,
           originalHeight,
         }

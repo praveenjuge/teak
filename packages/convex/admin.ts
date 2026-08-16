@@ -106,11 +106,14 @@ const attachCardUrls = async (
 ): Promise<CardWithUrls[]> =>
   Promise.all(
     cards.map(async (card) => {
-      const [fileUrl, thumbnailUrl, screenshotUrl, linkPreviewImageUrl] =
+      const [fileUrl, thumbnailUrl, previewUrl, screenshotUrl, linkPreviewImageUrl] =
         await Promise.all([
           card.fileKey ? resolveObjectUrl(card.fileKey) : Promise.resolve(null),
           card.thumbnailKey
             ? resolveObjectUrl(card.thumbnailKey)
+            : Promise.resolve(null),
+          card.previewKey
+            ? resolveObjectUrl(card.previewKey)
             : Promise.resolve(null),
           card.metadata?.linkPreview?.screenshotStorageKey
             ? resolveObjectUrl(card.metadata.linkPreview.screenshotStorageKey)
@@ -124,6 +127,7 @@ const attachCardUrls = async (
         ...card,
         fileUrl: fileUrl || undefined,
         thumbnailUrl: thumbnailUrl || undefined,
+        previewUrl: previewUrl || undefined,
         screenshotUrl: screenshotUrl || undefined,
         linkPreviewImageUrl: linkPreviewImageUrl || undefined,
       };
@@ -473,6 +477,7 @@ export const resetCardProcessingState = internalMutation({
   },
   returns: v.object({
     clearedThumbnail: v.boolean(),
+    clearedPreview: v.boolean(),
   }),
   handler: async (ctx, { cardId }) => {
     const card = await ctx.db.get("cards", cardId);
@@ -493,6 +498,19 @@ export const resetCardProcessingState = internalMutation({
       }
       clearedThumbnail = true;
     }
+    let clearedPreview = false;
+    if (card.previewKey) {
+      try {
+        await deleteObject(ctx, card.previewKey);
+      } catch (error) {
+        console.error("[admin] Failed to delete preview during refresh", {
+          cardId,
+          previewKey: card.previewKey,
+          error,
+        });
+      }
+      clearedPreview = true;
+    }
 
     const processingStatus = card.processingStatus ?? {};
     const updatedProcessing = {
@@ -502,6 +520,7 @@ export const resetCardProcessingState = internalMutation({
 
     await ctx.db.patch("cards", cardId, {
       thumbnailKey: undefined,
+      previewKey: undefined,
       aiTags: undefined,
       aiSummary: undefined,
       aiTranscript: undefined,
@@ -511,6 +530,7 @@ export const resetCardProcessingState = internalMutation({
 
     return {
       clearedThumbnail,
+      clearedPreview,
     };
   },
 });

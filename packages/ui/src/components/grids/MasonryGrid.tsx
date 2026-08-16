@@ -323,12 +323,14 @@ export function MasonryGrid({
 
   const renderItem = useCallback(
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    (item: any) => {
-      if (item.data === "add-form" && AddCardFormComponent) {
+    (itemInfo: any) => {
+      const { data, index } = itemInfo;
+      if (data === "add-form" && AddCardFormComponent) {
         return <AddCardFormComponent />;
       }
 
-      const card = item.data as Doc<"cards">;
+      const card = data as Doc<"cards">;
+      const firstRowCount = typeof columns === "number" ? columns : 4;
       return (
         <Card
           card={card}
@@ -344,6 +346,7 @@ export function MasonryGrid({
           onRestore={onRestoreCard}
           onToggleFavorite={onToggleFavorite}
           onToggleSelection={() => toggleCardSelection(card._id)}
+          priority={typeof index === "number" && index < firstRowCount}
         />
       );
     },
@@ -357,6 +360,7 @@ export function MasonryGrid({
       onAddTags,
       onCopyImage,
       showTrashOnly,
+      columns,
       isSelectionMode,
       selectedCardIds,
       enterSelectionMode,

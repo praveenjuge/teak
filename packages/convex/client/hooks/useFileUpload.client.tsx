@@ -16,6 +16,7 @@ import type {
   UploadFileResult,
   UploadMultipleFilesResultItem,
 } from "../../shared/types";
+import { setUploadPreview } from "@teak/ui/hooks/useUploadPreview";
 
 // Best-effort image dimension extraction (browser-only).
 // Returns undefined when dimensions cannot be determined or we're in a non-DOM environment.
@@ -510,6 +511,15 @@ export function useFileUploadCore(
         config.onProgress?.(100);
         setProgress(100);
         config.onSuccess?.(finalizeResult.cardId);
+        const canCreateObjectUrl =
+          typeof URL !== "undefined" &&
+          typeof URL.createObjectURL === "function";
+        if (
+          canCreateObjectUrl &&
+          (file.type.startsWith("image/") || file.type.startsWith("video/"))
+        ) {
+          setUploadPreview(finalizeResult.cardId, URL.createObjectURL(file));
+        }
         trackUpload({
           bytes: file.size,
           durationMs: Date.now() - startedAt,

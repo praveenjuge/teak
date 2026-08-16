@@ -21,10 +21,19 @@ export const metadata: Metadata = {
   },
 };
 
+const R2_PRECONNECT_ORIGIN =
+  process.env.NEXT_PUBLIC_R2_PRECONNECT_ORIGIN ??
+  "https://teak-files-prod.dd19e45b8f2f3cc0393cc2deb51fa27d.r2.cloudflarestorage.com";
+
 export default function RootLayout({ children }: PropsWithChildren) {
   return (
     <html lang="en" suppressHydrationWarning>
       <head>
+        <link
+          crossOrigin="anonymous"
+          href={R2_PRECONNECT_ORIGIN}
+          rel="preconnect"
+        />
         <JsonLd
           schema={[
             organizationSchema,

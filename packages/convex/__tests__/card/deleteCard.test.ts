@@ -35,6 +35,7 @@ describe("card/deleteCard.ts", () => {
           type: "image",
           fileKey: "f1",
           thumbnailKey: "t1",
+          previewKey: "p1",
         }),
         delete: mock().mockResolvedValue(null),
       },
@@ -44,6 +45,7 @@ describe("card/deleteCard.ts", () => {
     await handler(ctx, { id: "c1" });
     expect(deleteObjectMock).toHaveBeenCalledWith(ctx, "f1");
     expect(deleteObjectMock).toHaveBeenCalledWith(ctx, "t1");
+    expect(deleteObjectMock).toHaveBeenCalledWith(ctx, "p1");
     expect(ctx.db.delete).toHaveBeenCalledWith("cards", "c1");
   });
 });

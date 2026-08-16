@@ -26,6 +26,7 @@ export const getFileUrl = query({
     const matchesFile =
       card.fileKey === args.key ||
       card.thumbnailKey === args.key ||
+      card.previewKey === args.key ||
       card.metadata?.linkPreview?.screenshotStorageKey === args.key ||
       card.metadata?.linkPreview?.imageStorageKey === args.key ||
       card.metadata?.linkPreview?.media?.some(

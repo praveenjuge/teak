@@ -93,6 +93,11 @@ const response = await fetch("https://teakvault.com/api/v1/cards", {
 
 A create response includes the new `cardId` and its Teak app URL. See **Create Card** in the [API Reference](/reference) for the complete request and response schemas.
 
+File cards include a `previewUrl` in responses. For large images this points
+to a downscaled WebP derivative so clients can show a fast modal/image view
+without downloading the full original; `thumbnailUrl` remains the small grid
+thumbnail and `fileUrl` the original.
+
 ## Upload files
 
 File cards use a direct upload flow, so large bytes never pass through the REST API.

@@ -282,6 +282,7 @@ describe("admin.ts", () => {
       const card = {
         _id: "c1",
         thumbnailKey: "t1",
+        previewKey: "p1",
         processingStatus: { classify: { status: "completed" } },
       };
       const ctx = {
@@ -295,17 +296,20 @@ describe("admin.ts", () => {
       const result = await handler(ctx, { cardId: "c1" });
 
       expect(r2Mocks.deleteObject).toHaveBeenCalledWith(ctx, "t1");
+      expect(r2Mocks.deleteObject).toHaveBeenCalledWith(ctx, "p1");
       expect(ctx.db.patch).toHaveBeenCalledWith(
         "cards",
         "c1",
         expect.objectContaining({
           thumbnailKey: undefined,
+          previewKey: undefined,
           aiTags: undefined,
           aiSummary: undefined,
           aiTranscript: undefined,
         })
       );
       expect(result.clearedThumbnail).toBe(true);
+      expect(result.clearedPreview).toBe(true);
     });
 
     test("handles missing thumbnail", async () => {

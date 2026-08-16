@@ -398,6 +398,9 @@ export const cardValidator = v.object({
   url: v.optional(v.string()),
   fileKey: v.optional(r2KeyValidator),
   thumbnailKey: v.optional(r2KeyValidator),
+  // Mid-size derivative for fast modal/image views without downloading the
+  // full original. Generated for large images alongside the thumbnail.
+  previewKey: v.optional(r2KeyValidator),
   tags: v.optional(v.array(v.string())),
   notes: v.optional(v.string()),
   isFavorited: v.optional(v.boolean()),

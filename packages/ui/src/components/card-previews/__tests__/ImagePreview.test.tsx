@@ -46,6 +46,23 @@ describe("ImagePreview", () => {
     expect(markup).toContain("max-h-[75vh]");
   });
 
+  test("prefers the mid-size preview derivative over the original", () => {
+    const markup = renderToStaticMarkup(
+      <ImagePreview
+        card={
+          createImageCard({
+            fileUrl: "https://cdn.example.com/original.jpg",
+            previewUrl: "https://cdn.example.com/preview.webp",
+            fileMetadata: { width: 4000, height: 3000, fileName: "big.jpg" },
+          }) as any
+        }
+      />
+    );
+
+    expect(markup).toContain("preview.webp");
+    expect(markup).not.toContain("original.jpg");
+  });
+
   test("uses thumbnail derivatives for HEIC and tall-image layout", () => {
     const markup = renderToStaticMarkup(
       <ImagePreview

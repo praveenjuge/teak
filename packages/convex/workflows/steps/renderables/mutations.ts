@@ -62,6 +62,8 @@ export const updateCardThumbnail = internalMutation({
   args: {
     cardId: v.id("cards"),
     thumbnailKey: v.string(),
+    // Optional mid-size derivative key for large images.
+    previewKey: v.optional(v.string()),
     // Original image dimensions to store for aspect ratio calculations
     // even when thumbnail generation is skipped (small files)
     originalWidth: v.optional(v.number()),
@@ -77,11 +79,16 @@ export const updateCardThumbnail = internalMutation({
     const updates: {
       thumbnailKey: string;
       updatedAt: number;
+      previewKey?: string;
       fileMetadata?: { width?: number; height?: number };
     } = {
       thumbnailKey: args.thumbnailKey,
       updatedAt: Date.now(),
     };
+
+    if (args.previewKey) {
+      updates.previewKey = args.previewKey;
+    }
 
     // Also store original dimensions in fileMetadata for aspect ratio
     // This ensures dimensions are available even when thumbnail isn't generated

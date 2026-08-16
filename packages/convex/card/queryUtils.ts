@@ -5,6 +5,7 @@ import { resolveObjectUrl } from "../storage/r2";
 
 export type CardWithUrls = Doc<"cards"> & {
   fileUrl?: string;
+  previewUrl?: string;
   thumbnailUrl?: string;
   screenshotUrl?: string;
   linkPreviewMedia?: Array<{
@@ -56,6 +57,7 @@ export const attachFileUrls = async (
     }>;
     screenshotKey?: string;
     thumbnailKey?: string;
+    previewKey?: string;
   }
   const cardToIds = new Map<string, CardStorageIds>();
 
@@ -68,6 +70,10 @@ export const attachFileUrls = async (
     if (card.thumbnailKey) {
       storageKeys.add(card.thumbnailKey);
       ids.thumbnailKey = card.thumbnailKey;
+    }
+    if (card.previewKey) {
+      storageKeys.add(card.previewKey);
+      ids.previewKey = card.previewKey;
     }
     if (card.metadata?.linkPreview?.imageStorageKey) {
       storageKeys.add(card.metadata.linkPreview.imageStorageKey);
@@ -148,6 +154,9 @@ export const attachFileUrls = async (
       thumbnailUrl: ids.thumbnailKey
         ? (urlMap.get(ids.thumbnailKey) ?? undefined)
         : undefined,
+      previewUrl: ids.previewKey
+        ? (urlMap.get(ids.previewKey) ?? undefined)
+        : undefined,
       screenshotUrl: ids.screenshotKey
         ? (urlMap.get(ids.screenshotKey) ?? undefined)
         : undefined,
@@ -169,6 +178,9 @@ export const attachCardSummaryUrls = async (
     if (card.thumbnailKey) {
       storageKeys.add(card.thumbnailKey);
     }
+    if (card.previewKey) {
+      storageKeys.add(card.previewKey);
+    }
     if (card.metadata?.linkPreview?.screenshotStorageKey) {
       storageKeys.add(card.metadata.linkPreview.screenshotStorageKey);
     }
@@ -185,6 +197,9 @@ export const attachCardSummaryUrls = async (
     ...card,
     thumbnailUrl: card.thumbnailKey
       ? (urlMap.get(card.thumbnailKey) ?? undefined)
+      : undefined,
+    previewUrl: card.previewKey
+      ? (urlMap.get(card.previewKey) ?? undefined)
       : undefined,
     screenshotUrl: card.metadata?.linkPreview?.screenshotStorageKey
       ? (urlMap.get(card.metadata.linkPreview.screenshotStorageKey) ??

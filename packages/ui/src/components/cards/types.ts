@@ -38,6 +38,7 @@ export interface CardWithUrls {
   isFavorited?: boolean;
   linkPreviewImageUrl?: string;
   linkPreviewMedia?: LinkPreviewMedia[];
+  previewUrl?: string;
   metadata?: {
     linkPreview?: LinkPreviewMetadata & Record<string, unknown>;
     linkCategory?: {
@@ -57,6 +58,8 @@ export interface CardProps {
   isSelected?: boolean;
   isSelectionMode?: boolean;
   isTrashMode?: boolean;
+  /** Hint that the card is in the first viewport row; prioritizes its image. */
+  priority?: boolean;
   onAddTags?: (cardId: string) => void;
   onClick?: (card: CardWithUrls & Record<string, unknown>) => void;
   onCopyImage?: (content: string, isImage: boolean) => void;
