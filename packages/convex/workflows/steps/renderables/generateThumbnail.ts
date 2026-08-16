@@ -18,9 +18,10 @@ import {
   storeObject,
 } from "../../../storage/r2";
 
-// Maximum thumbnail dimensions
-const THUMBNAIL_MAX_WIDTH = 500;
-const THUMBNAIL_MAX_HEIGHT = 500;
+// Maximum thumbnail dimensions. 1000px keeps grid tiles sharp on high-DPI
+// displays while staying small enough to cache and decode quickly.
+const THUMBNAIL_MAX_WIDTH = 1000;
+const THUMBNAIL_MAX_HEIGHT = 1000;
 // Mid-size preview derivative used by the modal/image viewer so large originals
 // are never downloaded in full just to be viewed.
 const PREVIEW_MAX_WIDTH = 1600;
@@ -58,27 +59,27 @@ function getOutputSettings(fileSizeBytes: number): {
   }
 
   if (fileSizeBytes < 1_000_000) {
-    // < 1MB - good WebP compression
-    return { quality: 80, useJpeg: false, skipThumbnail: false };
+    // < 1MB - light WebP compression
+    return { quality: 85, useJpeg: false, skipThumbnail: false };
   }
   if (fileSizeBytes < 2_000_000) {
-    // < 2MB - more WebP compression
-    return { quality: 70, useJpeg: false, skipThumbnail: false };
+    // < 2MB - mild WebP compression
+    return { quality: 80, useJpeg: false, skipThumbnail: false };
   }
   if (fileSizeBytes < 5_000_000) {
-    // < 5MB - higher WebP compression
-    return { quality: 65, useJpeg: false, skipThumbnail: false };
+    // < 5MB - moderate WebP compression
+    return { quality: 78, useJpeg: false, skipThumbnail: false };
   }
   if (fileSizeBytes < 10_000_000) {
-    // < 10MB - strong WebP compression
-    return { quality: 60, useJpeg: false, skipThumbnail: false };
+    // < 10MB - stronger WebP compression
+    return { quality: 75, useJpeg: false, skipThumbnail: false };
   }
   if (fileSizeBytes < 20_000_000) {
-    // < 20MB - very strong WebP compression
-    return { quality: 60, useJpeg: false, skipThumbnail: false };
+    // < 20MB - strong WebP compression
+    return { quality: 72, useJpeg: false, skipThumbnail: false };
   }
-  // >= 20MB - maximum WebP compression
-  return { quality: 50, useJpeg: false, skipThumbnail: false };
+  // >= 20MB - strong WebP compression
+  return { quality: 70, useJpeg: false, skipThumbnail: false };
 }
 
 export const shouldSkipThumbnail = (

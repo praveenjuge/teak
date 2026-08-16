@@ -301,10 +301,10 @@ export const Card = memo(function Card({
       if (legacyDisplayImage) {
         return (
           <div className="divide-y overflow-hidden rounded-xl border bg-card">
-            <div className="h-28 min-h-28 overflow-hidden">
+            <div className="aspect-[16/10] w-full overflow-hidden">
               <Image
                 alt={linkCardTitle}
-                className="h-full w-full object-cover"
+                className="h-full w-full object-contain"
                 onError={handleLinkImageError}
                 preview={false}
                 rootClassName="h-full w-full"
