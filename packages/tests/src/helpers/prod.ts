@@ -100,11 +100,14 @@ export const generateApiKey = async (page: Page) => {
   await settingsRow(page, "API Keys")
     .getByRole("button", { name: "Manage" })
     .click();
-  await expect(
-    page.getByRole("dialog", { name: "Manage API Keys" })
-  ).toBeVisible();
-  await page.getByRole("button", { name: "Generate Key" }).click();
-  const input = page.locator('input[readonly][value^="teakapi_"]').first();
+  const dialog = page.getByRole("dialog", { name: "Manage API Keys" });
+  await expect(dialog).toBeVisible();
+  await clickVisibleControl(
+    dialog.getByRole("button", { name: "Generate Key" })
+  );
+  // React updates the input's live value property, not necessarily its HTML
+  // value attribute, so do not use an attribute-prefix CSS selector here.
+  const input = dialog.locator("input[readonly]").first();
   await expect(input).toHaveValue(/^teakapi_/);
   return input.inputValue();
 };

@@ -339,7 +339,14 @@ export const listOAuthConnections = query({
   args: {},
   returns: v.array(oauthConnectionValidator),
   handler: async (ctx) => {
-    const userId = await requireAuthenticatedUserId(ctx);
+    // Settings can subscribe before the session token finishes hydrating.
+    // Return no connections during that transient state; the reactive query
+    // reruns as soon as authentication becomes available.
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity?.subject) {
+      return [];
+    }
+    const userId = identity.subject;
     const tokens: OAuthAccessTokenRecord[] = [];
     let cursor: string | null = null;
     let isDone = false;

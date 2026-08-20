@@ -315,6 +315,19 @@ describe("OAuth connection management", () => {
     ]);
   });
 
+  test("returns no connections while settings authentication hydrates", async () => {
+    const runQuery = mock();
+    const ctx = {
+      auth: {
+        getUserIdentity: mock().mockResolvedValue(null),
+      },
+      runQuery,
+    };
+
+    expect(await runHandler(listOAuthConnections, ctx, {})).toEqual([]);
+    expect(runQuery).not.toHaveBeenCalled();
+  });
+
   test("revokes only the selected client for the authenticated user", async () => {
     const runQuery = mock()
       .mockResolvedValueOnce({ page: [{ _id: "token_1" }] })
