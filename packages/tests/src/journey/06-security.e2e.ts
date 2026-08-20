@@ -8,12 +8,16 @@ import { readState } from "../helpers/run-state";
 
 test("external OAuth requires explicit full-vault consent and can be revoked", async ({
   page,
+  request,
 }) => {
   const verifier = randomBytes(48).toString("base64url");
   const challenge = createHash("sha256").update(verifier).digest("base64url");
   const redirectUri = "https://oauth-e2e.invalid/callback";
   const clientName = `OAuth security e2e ${Date.now()}`;
-  const registration = await page.request.post("/api/auth/mcp/register", {
+  // Dynamic client registration is anonymous. Use the isolated request
+  // fixture so the request cannot accidentally combine session cookies with
+  // a missing browser Origin and trip the CSRF guard before registration.
+  const registration = await request.post("/api/auth/mcp/register", {
     data: {
       client_name: clientName,
       grant_types: ["authorization_code", "refresh_token"],
