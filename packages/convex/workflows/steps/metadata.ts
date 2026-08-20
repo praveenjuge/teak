@@ -172,32 +172,21 @@ export async function generateHandler(
     };
   }
 
-  const completeWithoutAi = async (retryable = false) => {
+  const completeWithoutAi = async () => {
     const now = Date.now();
     const processingStatus = card.processingStatus || {};
     const completedProcessingStatus = {
       ...processingStatus,
       metadata: stageCompleted(now, 0),
     };
-    if (retryable) {
-      await ctx.runMutation(
-        (internal as any).ai.mutations.updateCardProcessing,
-        {
-          cardId,
-          metadataStatus: "completed",
-          processingStatus: completedProcessingStatus,
-        }
-      );
-    } else {
-      await ctx.runMutation(
-        internal.workflows.aiMetadata.mutations.updateCardAI,
-        {
-          cardId,
-          aiTags: [],
-          processingStatus: completedProcessingStatus,
-        }
-      );
-    }
+    await ctx.runMutation(
+      internal.workflows.aiMetadata.mutations.updateCardAI,
+      {
+        cardId,
+        aiTags: [],
+        processingStatus: completedProcessingStatus,
+      }
+    );
     return {
       aiTags: [],
       aiSummary: undefined,
@@ -385,7 +374,16 @@ export async function generateHandler(
       cardId,
       cardType,
     });
-    return await completeWithoutAi(true);
+    // Capacity failures are temporary. Leave metadata incomplete so the
+    // bounded periodic backfill can recover the card after provider capacity
+    // returns without multiplying a daily-quota failure into immediate calls.
+    return {
+      aiTags: [],
+      aiSummary: undefined,
+      aiTranscript: undefined,
+      confidence: 0,
+      mode: "skipped" as const,
+    };
   }
 
   if (aiTags.length === 0 && !aiSummary && !aiTranscript) {

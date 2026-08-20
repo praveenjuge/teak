@@ -253,9 +253,10 @@ describe("metadata handler", () => {
 
     test("defers metadata when provider capacity is exhausted", async () => {
       mockRunQuery.mockResolvedValue({ _id: "c1", content: "content" });
-      aiMocks.generateText.mockRejectedValue(
-        new Error("Rate limit reached on tokens per day (TPD): status 429")
+      const capacityError = new Error(
+        "Rate limit reached on tokens per day (TPD): status 429"
       );
+      aiMocks.generateText.mockRejectedValue(capacityError);
 
       const result = await generateHandler(ctx, {
         cardId: "c1",
@@ -263,10 +264,29 @@ describe("metadata handler", () => {
       });
 
       expect(result.mode).toBe("skipped");
-      expect(mockRunMutation).toHaveBeenCalledWith(
-        expect.anything(),
-        expect.not.objectContaining({ aiTags: [] })
+      expect(mockRunMutation).not.toHaveBeenCalled();
+    });
+
+    test("keeps image metadata retryable when vision capacity is exhausted", async () => {
+      mockRunQuery.mockResolvedValue({
+        _id: "c1",
+        fileKey: "f1",
+        thumbnailKey: "t1",
+        fileMetadata: { height: 1722, width: 3006 },
+      });
+      r2Mocks.resolveObjectUrl.mockResolvedValue("https://image.png");
+      const capacityError = new Error(
+        "Rate limit reached on tokens per day (TPD): status 429"
       );
+      aiMocks.generateText.mockRejectedValue(capacityError);
+
+      const result = await generateHandler(ctx, {
+        cardId: "c1",
+        cardType: "image",
+      });
+
+      expect(result.mode).toBe("skipped");
+      expect(mockRunMutation).not.toHaveBeenCalled();
     });
   });
 
