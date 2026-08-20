@@ -67,17 +67,31 @@ test("external OAuth requires explicit full-vault consent and can be revoked", a
 
   const code = new URL(callbackUrl).searchParams.get("code");
   expect(code).toBeTruthy();
-  const tokenResponse = await page.request.post("/api/auth/mcp/token", {
-    form: {
-      client_id: clientId,
-      code: code!,
-      code_verifier: verifier,
-      grant_type: "authorization_code",
-      redirect_uri: redirectUri,
-    },
+  const tokenRequest = await playwrightRequest.newContext({
+    baseURL: env.appUrl,
+    storageState: { cookies: [], origins: [] },
   });
-  expect(tokenResponse.ok()).toBe(true);
-  const tokens = (await tokenResponse.json()) as { access_token: string };
+  let tokens: { access_token: string };
+  try {
+    const tokenResponse = await tokenRequest.post("/api/auth/mcp/token", {
+      form: {
+        client_id: clientId,
+        code: code!,
+        code_verifier: verifier,
+        grant_type: "authorization_code",
+        redirect_uri: redirectUri,
+      },
+    });
+    const tokenBody = (await tokenResponse.json()) as {
+      access_token?: string;
+      error_description?: string;
+    };
+    expect(tokenResponse.ok(), tokenBody.error_description).toBe(true);
+    expect(tokenBody.access_token).toBeTruthy();
+    tokens = { access_token: tokenBody.access_token! };
+  } finally {
+    await tokenRequest.dispose();
+  }
   expect((await apiFetch("/v1/tags", tokens.access_token)).status).toBe(200);
 
   await page.goto("/settings");
