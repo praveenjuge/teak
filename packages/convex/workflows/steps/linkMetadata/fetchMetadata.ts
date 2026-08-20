@@ -539,6 +539,10 @@ const scrapeWithFetch = async (
   }
 };
 
+const hasSelectorResults = (payload: ScrapeResponse) =>
+  payload.success &&
+  payload.result?.selectors?.some((selector) => selector.results.length);
+
 const scrapeWithKernel = async (
   url: string,
   selectors: { selector: string }[]
@@ -750,19 +754,27 @@ export const fetchMetadataHandler = async (ctx: any, { cardId }: any) => {
       }
     }
 
-    let payload = await scrapeWithKernel(normalizedUrl, SCRAPE_ELEMENTS);
+    const staticPayload = await scrapeWithFetch(normalizedUrl, SCRAPE_ELEMENTS);
+    let payload = staticPayload;
 
-    if (!payload.success) {
-      const errorMessage =
-        payload.errors
-          ?.map((error) => error?.message)
-          .filter(Boolean)
-          .join("; ") || "Unknown scrape error";
-
-      const fallback = await scrapeWithFetch(normalizedUrl, SCRAPE_ELEMENTS);
-      if (fallback.success) {
-        payload = fallback;
-      } else {
+    // Most pages expose their preview metadata in static HTML. Prefer that
+    // bounded, DNS-pinned path so ordinary links do not depend on browser
+    // capacity. Instagram still needs the offline browser parser for embedded
+    // media data, and pages without useful static metadata get the same richer
+    // fallback.
+    if (isInstagramPostUrl(normalizedUrl) || !hasSelectorResults(payload)) {
+      const browserPayload = await scrapeWithKernel(
+        normalizedUrl,
+        SCRAPE_ELEMENTS
+      );
+      if (browserPayload.success) {
+        payload = browserPayload;
+      } else if (!staticPayload.success) {
+        const errorMessage =
+          browserPayload.errors
+            ?.map((error) => error?.message)
+            .filter(Boolean)
+            .join("; ") || "Unknown scrape error";
         const isRateLimit =
           errorMessage.toLowerCase().includes("rate") ||
           errorMessage.toLowerCase().includes("limit");
@@ -770,7 +782,10 @@ export const fetchMetadataHandler = async (ctx: any, { cardId }: any) => {
           type: isRateLimit ? "rate_limit" : "scrape_error",
           normalizedUrl,
           message: errorMessage,
-          details: { browser: payload.errors, fallback: fallback.errors },
+          details: {
+            browser: browserPayload.errors,
+            fallback: staticPayload.errors,
+          },
         });
       }
     }

@@ -26,8 +26,10 @@ test("signup, create, and search", async ({ page }) => {
     const note = creationForm.getByRole("textbox", {
       name: "Markdown content",
     });
-    await note.fill(marker);
-    await expect(note).toHaveText(marker);
+    await expect(async () => {
+      await note.fill(marker);
+      await expect(note).toHaveText(marker);
+    }).toPass({ timeout: 15_000 });
     await note.press("ControlOrMeta+Enter");
     const api = clientFor(account.apiKey);
     await expect

@@ -33,6 +33,7 @@ const mockParseLinkPreview = mock();
 const mockBuildSuccessPreview = mock();
 const mockBuildErrorPreview = mock();
 const mockNormalizeInstagramExtractedMedia = mock();
+const mockScrapeElements: { selector: string }[] = [];
 
 mock.module("../../../../../convex/linkMetadata", () => ({
   buildInstagramPrimaryImageSnippet: () => "",
@@ -43,7 +44,7 @@ mock.module("../../../../../convex/linkMetadata", () => ({
   isInstagramPostUrl: (url) => /instagram\.com\/(p|reel)\//.test(url),
   isInstagramUrl: (url) => /instagram\.com/.test(url),
   normalizeInstagramExtractedMedia: mockNormalizeInstagramExtractedMedia,
-  SCRAPE_ELEMENTS: [],
+  SCRAPE_ELEMENTS: mockScrapeElements,
 }));
 
 // Keep SSRF validation out of this unit test: delegate safeFetch to the mocked
@@ -132,6 +133,7 @@ describe("fetchMetadata", () => {
     mockBuildSuccessPreview.mockReset();
     mockBuildErrorPreview.mockReset();
     mockNormalizeInstagramExtractedMedia.mockReset();
+    mockScrapeElements.splice(0);
     r2Mocks.storeObject.mockReset();
 
     // Standard mock resolutions
@@ -142,11 +144,12 @@ describe("fetchMetadata", () => {
     mockNormalizeInstagramExtractedMedia.mockReturnValue(undefined);
     r2Mocks.storeObject.mockImplementation(async () => "stored-asset");
 
-    mockFetch.mockResolvedValue(
-      new Response("<html><head><title>Example</title></head></html>", {
-        headers: { "content-type": "text/html" },
-        status: 200,
-      })
+    mockFetch.mockImplementation(
+      () =>
+        new Response("<html><head><title>Example</title></head></html>", {
+          headers: { "content-type": "text/html" },
+          status: 200,
+        })
     );
   });
 
@@ -207,11 +210,13 @@ describe("fetchMetadata", () => {
     });
     mockKernelExecute.mockResolvedValue({
       success: true,
-      result: [{ selector: "title", results: [{ text: "Title" }] }],
+      result: {
+        selectors: [{ selector: "title", results: [{ text: "Title" }] }],
+      },
     });
 
     const result = await fetchMetadataHandler(ctx, { cardId: "c1" });
-    expect(result.status).toBe("success");
+    expect(result).toMatchObject({ status: "success" });
     expect(mockRunMutation).toHaveBeenCalledWith(
       internal.linkMetadata.updateCardMetadata,
       expect.objectContaining({
@@ -219,6 +224,28 @@ describe("fetchMetadata", () => {
         status: "completed",
       })
     );
+  });
+
+  test("uses static metadata without allocating a browser", async () => {
+    mockScrapeElements.push({ selector: "head > title" });
+    mockRunQuery.mockResolvedValue({
+      _id: "c1",
+      type: "link",
+      url: "https://example.com",
+      metadata: { linkCategory: { status: "completed" } },
+    });
+
+    const result = await fetchMetadataHandler(ctx, { cardId: "c1" });
+
+    expect(result.status).toBe("success");
+    expect(mockParseLinkPreview).toHaveBeenCalledWith("https://example.com", [
+      {
+        selector: "head > title",
+        results: [{ text: "Example" }],
+      },
+    ]);
+    expect(mockKernelCreateBrowser).not.toHaveBeenCalled();
+    expect(mockKernelExecute).not.toHaveBeenCalled();
   });
 
   test("stores instagram post media in link preview metadata", async () => {
@@ -485,17 +512,17 @@ describe("fetchMetadata", () => {
       error: "Timeout error",
     });
     mockFetch
-      .mockResolvedValueOnce(
+      .mockResolvedValueOnce({
+        ok: false,
+        status: 500,
+        headers: { get: () => "text/html" },
+      })
+      .mockResolvedValue(
         new Response("<html></html>", {
           headers: { "content-type": "text/html" },
           status: 200,
         })
-      )
-      .mockResolvedValue({
-        ok: false,
-        status: 500,
-        headers: { get: () => "text/html" },
-      });
+      );
 
     expect(fetchMetadataHandler(ctx, { cardId: "c1" })).rejects.toThrow(
       /retryable/
@@ -514,17 +541,17 @@ describe("fetchMetadata", () => {
       error: "Rate limit exceeded",
     });
     mockFetch
-      .mockResolvedValueOnce(
+      .mockResolvedValueOnce({
+        ok: false,
+        status: 500,
+        headers: { get: () => "text/html" },
+      })
+      .mockResolvedValue(
         new Response("<html></html>", {
           headers: { "content-type": "text/html" },
           status: 200,
         })
-      )
-      .mockResolvedValue({
-        ok: false,
-        status: 500,
-        headers: { get: () => "text/html" },
-      });
+      );
 
     expect(fetchMetadataHandler(ctx, { cardId: "c1" })).rejects.toThrow(
       /rate_limit/
@@ -565,7 +592,10 @@ describe("fetchMetadata", () => {
       url: "https://example.com",
       processingStatus: { classify: { status: "completed" } },
     });
-    mockKernelExecute.mockResolvedValue({ success: true, result: [] });
+    mockKernelExecute.mockResolvedValue({
+      success: true,
+      result: { selectors: [] },
+    });
     mockDeleteByID.mockRejectedValue(new Error("Cleanup failed"));
 
     const result = await fetchMetadataHandler(ctx, { cardId: "c1" });
@@ -594,7 +624,10 @@ describe("fetchMetadata", () => {
       processingStatus: { classify: { status: "completed" } },
     });
     mockKernelCreateBrowser.mockResolvedValue({ session_id: "s1" });
-    mockKernelExecute.mockResolvedValue({ success: true, result: [] });
+    mockKernelExecute.mockResolvedValue({
+      success: true,
+      result: { selectors: [] },
+    });
 
     // Make parsing throw AbortError
     const abortError = new Error("Abort");
@@ -616,7 +649,10 @@ describe("fetchMetadata", () => {
       processingStatus: { classify: { status: "completed" } },
     });
     mockKernelCreateBrowser.mockResolvedValue({ session_id: "s1" });
-    mockKernelExecute.mockResolvedValue({ success: true, result: [] });
+    mockKernelExecute.mockResolvedValue({
+      success: true,
+      result: { selectors: [] },
+    });
 
     // Make parsing throw TypeError with fetch
     const typeError = new TypeError("Failed to fetch");
@@ -637,7 +673,10 @@ describe("fetchMetadata", () => {
       processingStatus: { classify: { status: "completed" } },
     });
     mockKernelCreateBrowser.mockResolvedValue({ session_id: "s1" });
-    mockKernelExecute.mockResolvedValue({ success: true, result: [] });
+    mockKernelExecute.mockResolvedValue({
+      success: true,
+      result: { selectors: [] },
+    });
 
     mockParseLinkPreview.mockImplementation(() => {
       throw new Error("Fatal error");
@@ -665,6 +704,18 @@ describe("fetchMetadata", () => {
     mockKernelCreateBrowser.mockRejectedValue(
       new Error("Failed to create browser")
     );
+    mockFetch
+      .mockResolvedValueOnce({
+        ok: false,
+        status: 500,
+        headers: { get: () => "text/html" },
+      })
+      .mockResolvedValue(
+        new Response("<html></html>", {
+          headers: { "content-type": "text/html" },
+          status: 200,
+        })
+      );
 
     // Should be treated as a scrape error (retryable) because scrapeWithKernel catches it and returns success: false
     expect(fetchMetadataHandler(ctx, { cardId: "c1" })).rejects.toThrow(
