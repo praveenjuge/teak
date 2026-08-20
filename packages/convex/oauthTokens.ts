@@ -267,7 +267,14 @@ export const getOAuthConsentRequest = query({
   args: { consentCode: v.string() },
   returns: oauthConsentRequestValidator,
   handler: async (ctx, args) => {
-    const userId = await requireAuthenticatedUserId(ctx);
+    // The client can subscribe before its session token finishes hydrating.
+    // Treat that transient state as no visible request instead of surfacing a
+    // production query error; the subscription reruns when auth becomes ready.
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity?.subject) {
+      return null;
+    }
+    const userId = identity.subject;
     const consentCode = args.consentCode.trim();
     if (!consentCode) {
       return null;

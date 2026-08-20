@@ -209,6 +209,20 @@ describe("getOAuthUserInfo", () => {
 });
 
 describe("OAuth connection management", () => {
+  test("hides consent details while authentication is hydrating", async () => {
+    const ctx = {
+      auth: { getUserIdentity: mock().mockResolvedValue(null) },
+      runQuery: mock(),
+    };
+
+    expect(
+      await runHandler(getOAuthConsentRequest, ctx, {
+        consentCode: "consent-code",
+      })
+    ).toBeNull();
+    expect(ctx.runQuery).not.toHaveBeenCalled();
+  });
+
   test("loads consent display data from the authenticated server request", async () => {
     const runQuery = mock()
       .mockResolvedValueOnce({
