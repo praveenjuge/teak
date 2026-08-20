@@ -26,7 +26,7 @@ interface OAuthTokenRecord {
 }
 
 interface OAuthConsentVerification {
-  expiresAt?: Date;
+  expiresAt?: Date | number;
   value?: string;
 }
 
@@ -276,10 +276,11 @@ export const teakOAuthSecurity = (): BetterAuthPlugin => ({
               message: "Invalid authorization request",
             });
           }
-          if (
-            verification.expiresAt.getTime() <= Date.now() ||
-            userId !== session.user.id
-          ) {
+          const expiresAt =
+            verification.expiresAt instanceof Date
+              ? verification.expiresAt.getTime()
+              : verification.expiresAt;
+          if (expiresAt <= Date.now() || userId !== session.user.id) {
             throw new APIError("UNAUTHORIZED", {
               message: "Invalid authorization request",
             });

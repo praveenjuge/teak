@@ -189,7 +189,8 @@ describe("teakOAuthSecurity", () => {
     );
     const adapter = {
       findOne: mock().mockResolvedValue({
-        expiresAt: new Date(Date.now() + 60_000),
+        // Convex persists Better Auth date fields as numeric timestamps.
+        expiresAt: Date.now() + 60_000,
         value: JSON.stringify({ userId: "user_1" }),
       }),
     };
