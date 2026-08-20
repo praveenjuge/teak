@@ -17,7 +17,7 @@ Teak's MCP server supports two authentication methods.
 
 <Tabs param="auth">
   <Tab title="Browser sign-in">
-    Spec-compliant MCP clients discover Teak's authorization server, open your browser to sign in, and store the resulting access token automatically. Access tokens are short-lived and refresh automatically.
+    Spec-compliant MCP clients discover Teak's authorization server, open your browser to sign in, and store the resulting access token automatically. External clients show an approval screen with the requested access before Teak connects them. Access tokens are short-lived and refresh automatically.
 
     For example, with Claude:
 
@@ -26,6 +26,8 @@ Teak's MCP server supports two authentication methods.
     ```
 
     Start the MCP connection, then complete the browser sign-in when prompted.
+
+    You can revoke a connection at any time from Teak Settings → **Connected apps**. Revocation immediately invalidates that app's access and refresh credentials.
 
     <Prompt
       description="Connect Claude Code to Teak MCP with browser sign-in."

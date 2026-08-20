@@ -62,6 +62,13 @@ mock.module("../../../../../convex/linkMetadata/ssrf", () => ({
   detectIpVersion: () => 0,
   assertUrlStructureSafe: (url: string) => new URL(url),
   assertUrlIsSafe: async (url: string) => new URL(url),
+  readBodyWithLimit: async (response: Response, maxBytes: number) => {
+    const bytes = new Uint8Array(await response.arrayBuffer());
+    if (bytes.byteLength > maxBytes) {
+      throw new Error("body_too_large");
+    }
+    return bytes;
+  },
   safeFetch: (url: string, _resolveDns: unknown, init?: RequestInit) =>
     globalThis.fetch(url, init),
 }));
@@ -135,12 +142,12 @@ describe("fetchMetadata", () => {
     mockNormalizeInstagramExtractedMedia.mockReturnValue(undefined);
     r2Mocks.storeObject.mockImplementation(async () => "stored-asset");
 
-    mockFetch.mockResolvedValue({
-      ok: false,
-      status: 500,
-      headers: { get: () => "text/html" },
-      text: async () => "",
-    });
+    mockFetch.mockResolvedValue(
+      new Response("<html><head><title>Example</title></head></html>", {
+        headers: { "content-type": "text/html" },
+        status: 200,
+      })
+    );
   });
 
   test("handles missing card", async () => {
@@ -258,6 +265,12 @@ describe("fetchMetadata", () => {
 
       if (typeof url === "string") {
         const hostname = new URL(url).hostname;
+        if (hostname === "www.instagram.com") {
+          return new Response("<html></html>", {
+            headers: { "content-type": "text/html" },
+            status: 200,
+          });
+        }
         if (hostname === "cdninstagram.com") {
           const contentType = url.endsWith(".mp4") ? "video/mp4" : "image/jpeg";
           return {
@@ -267,7 +280,10 @@ describe("fetchMetadata", () => {
               get: (header: string) =>
                 header === "content-type" ? contentType : null,
             },
-            arrayBuffer: async () => new Uint8Array([1, 2, 3, 4]).buffer,
+            arrayBuffer: async () =>
+              contentType === "video/mp4"
+                ? new Uint8Array([1, 2, 3, 4]).buffer
+                : VALID_PNG_BYTES.buffer,
           };
         }
       }
@@ -319,15 +335,22 @@ describe("fetchMetadata", () => {
       title: "Instagram reel",
       imageUrl: "https://cdninstagram.com/media/poster.jpg",
     });
-    mockFetch.mockResolvedValue({
-      ok: true,
-      status: 200,
-      headers: {
-        get: (header: string) =>
-          header === "content-type" ? "image/jpeg" : null,
-      },
-      arrayBuffer: async () => new Uint8Array([1, 2, 3]).buffer,
-    });
+    mockFetch
+      .mockResolvedValueOnce(
+        new Response("<html></html>", {
+          headers: { "content-type": "text/html" },
+          status: 200,
+        })
+      )
+      .mockResolvedValue({
+        ok: true,
+        status: 200,
+        headers: {
+          get: (header: string) =>
+            header === "content-type" ? "image/jpeg" : null,
+        },
+        arrayBuffer: async () => new Uint8Array([1, 2, 3]).buffer,
+      });
 
     const result = await fetchMetadataHandler(ctx, { cardId: "c1" });
 
@@ -375,6 +398,13 @@ describe("fetchMetadata", () => {
     ]);
     mockFetch.mockImplementation((input: string | URL | Request) => {
       const url = toUrlString(input);
+
+      if (url === "https://www.instagram.com/reel/Cr9Lx2xJ0Ab/") {
+        return new Response("<html></html>", {
+          headers: { "content-type": "text/html" },
+          status: 200,
+        });
+      }
 
       if (url === "https://cdninstagram.com/media/reel.mp4") {
         return {
@@ -454,6 +484,18 @@ describe("fetchMetadata", () => {
       success: false,
       error: "Timeout error",
     });
+    mockFetch
+      .mockResolvedValueOnce(
+        new Response("<html></html>", {
+          headers: { "content-type": "text/html" },
+          status: 200,
+        })
+      )
+      .mockResolvedValue({
+        ok: false,
+        status: 500,
+        headers: { get: () => "text/html" },
+      });
 
     expect(fetchMetadataHandler(ctx, { cardId: "c1" })).rejects.toThrow(
       /retryable/
@@ -471,6 +513,18 @@ describe("fetchMetadata", () => {
       success: false,
       error: "Rate limit exceeded",
     });
+    mockFetch
+      .mockResolvedValueOnce(
+        new Response("<html></html>", {
+          headers: { "content-type": "text/html" },
+          status: 200,
+        })
+      )
+      .mockResolvedValue({
+        ok: false,
+        status: 500,
+        headers: { get: () => "text/html" },
+      });
 
     expect(fetchMetadataHandler(ctx, { cardId: "c1" })).rejects.toThrow(
       /rate_limit/
@@ -488,13 +542,13 @@ describe("fetchMetadata", () => {
       success: false,
       error: "Timeout error",
     });
-    mockFetch.mockResolvedValue({
-      ok: true,
-      status: 200,
-      headers: { get: () => "text/html" },
-      text: async () =>
-        '<html><head><title>Shader Lines</title><meta property="og:title" content="Shader Lines" /></head></html>',
-    });
+    mockFetch.mockImplementation(
+      () =>
+        new Response(
+          '<html><head><title>Shader Lines</title><meta property="og:title" content="Shader Lines" /></head></html>',
+          { headers: { "content-type": "text/html" }, status: 200 }
+        )
+    );
 
     const result = await fetchMetadataHandler(ctx, { cardId: "c1" });
     expect(result.status).toBe("success");

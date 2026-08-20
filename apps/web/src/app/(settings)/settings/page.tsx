@@ -169,6 +169,7 @@ export default function ProfileSettingsPage() {
       hasPremium={settings.hasPremium}
       isLoading={settings.isLoading}
       keys={settings.keys}
+      oauthConnections={settings.oauthConnections}
       onCancelExport={settings.handleCancelExport}
       onCreateApiKey={settings.handleCreateApiKey}
       onCreateCustomerPortal={settings.handleCreateCustomerPortal}
@@ -176,6 +177,7 @@ export default function ProfileSettingsPage() {
       onDeleteDialogOpenChange={settings.setDeleteDialogOpen}
       onDownloadExport={settings.handleDownloadExport}
       onRevokeApiKey={settings.handleRevokeApiKey}
+      onRevokeOAuthConnection={settings.handleRevokeOAuthConnection}
       onRotateApiKey={settings.handleRotateApiKey}
       onSignOut={settings.handleSignOut}
       onStartExport={settings.handleStartExport}

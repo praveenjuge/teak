@@ -105,9 +105,16 @@ export const attachFileUrls = async (
     cardToIds.set(card._id, ids);
   }
 
+  const fileNamesByKey = new Map(
+    cards.flatMap((card) =>
+      card.fileKey
+        ? [[card.fileKey, card.fileMetadata?.fileName ?? null] as const]
+        : []
+    )
+  );
   const urlPromises = Array.from(storageKeys).map(async (key) => ({
     key,
-    url: await resolveObjectUrl(key),
+    url: await resolveObjectUrl(key, fileNamesByKey.get(key)),
   }));
   const urlResults = await Promise.all(urlPromises);
   const urlMap = new Map(urlResults.map((result) => [result.key, result.url]));

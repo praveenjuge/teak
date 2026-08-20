@@ -11,6 +11,7 @@ describe("admin.ts", () => {
   let refreshCardProcessing: any;
 
   beforeEach(async () => {
+    process.env.TEAK_ADMIN_EMAIL = "admin@example.com";
     const module = await import("../admin");
     getAccess = module.getAccess;
     getOverview = module.getOverview;
@@ -28,7 +29,7 @@ describe("admin.ts", () => {
       expect(result).toEqual({ allowed: false });
     });
 
-    test("returns not allowed when no users exist", async () => {
+    test("returns not allowed when no configured admin exists", async () => {
       const ctx = {
         auth: { getUserIdentity: mock().mockResolvedValue({ subject: "u1" }) },
         runQuery: mock().mockResolvedValue({ page: [] }),
@@ -38,7 +39,7 @@ describe("admin.ts", () => {
       expect(result).toEqual({ allowed: false });
     });
 
-    test("returns allowed when user is first user", async () => {
+    test("returns allowed when user matches the configured admin", async () => {
       const ctx = {
         auth: { getUserIdentity: mock().mockResolvedValue({ subject: "u1" }) },
         runQuery: mock().mockResolvedValue({ page: [{ _id: "u1" }] }),
@@ -46,9 +47,22 @@ describe("admin.ts", () => {
       const handler = (getAccess as any).handler ?? getAccess;
       const result = await handler(ctx, {});
       expect(result).toEqual({ allowed: true });
+      expect(ctx.runQuery).toHaveBeenCalledWith(
+        expect.anything(),
+        expect.objectContaining({
+          model: "user",
+          where: [
+            {
+              field: "email",
+              operator: "eq",
+              value: "admin@example.com",
+            },
+          ],
+        })
+      );
     });
 
-    test("returns not allowed when user is not first user", async () => {
+    test("returns not allowed when user is not the configured admin", async () => {
       const ctx = {
         auth: { getUserIdentity: mock().mockResolvedValue({ subject: "u2" }) },
         runQuery: mock().mockResolvedValue({ page: [{ _id: "u1" }] }),
@@ -56,6 +70,18 @@ describe("admin.ts", () => {
       const handler = (getAccess as any).handler ?? getAccess;
       const result = await handler(ctx, {});
       expect(result).toEqual({ allowed: false });
+    });
+
+    test("fails closed when the admin email is not configured", async () => {
+      process.env.TEAK_ADMIN_EMAIL = undefined;
+      const ctx = {
+        auth: { getUserIdentity: mock().mockResolvedValue({ subject: "u1" }) },
+        runQuery: mock(),
+      } as any;
+      const handler = (getAccess as any).handler ?? getAccess;
+      const result = await handler(ctx, {});
+      expect(result).toEqual({ allowed: false });
+      expect(ctx.runQuery).not.toHaveBeenCalled();
     });
   });
 

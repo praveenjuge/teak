@@ -17,7 +17,12 @@ import {
   MarkdownContentError,
   validateMarkdownByteLength,
 } from "../shared/markdown";
-import { buildR2ObjectKey, buildR2UserPrefix, r2 } from "../storage/r2";
+import {
+  buildR2ObjectKey,
+  buildR2UserPrefix,
+  PENDING_UPLOAD_CARD_ID,
+  r2,
+} from "../storage/r2";
 import { scheduleCardOutcome } from "../telemetry/schedule";
 import {
   buildInitialProcessingStatus,
@@ -99,6 +104,7 @@ export const uploadAndCreateCard = mutation({
       const upload = await r2.generateUploadUrl(
         buildR2ObjectKey({
           userId: user.subject,
+          cardId: PENDING_UPLOAD_CARD_ID,
           role: "file",
           fileName: _args.fileName,
         })

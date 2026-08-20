@@ -1,6 +1,8 @@
 "use node";
 
 import {
+  CopyObjectCommand,
+  DeleteObjectCommand,
   GetObjectCommand,
   HeadObjectCommand,
   type HeadObjectCommandOutput,
@@ -25,7 +27,11 @@ import {
   MARKDOWN_CONTENT_TOO_LARGE_MESSAGE,
   MarkdownContentError,
 } from "../shared/markdown";
-import { buildR2UserPrefix, r2ComponentConfig } from "../storage/r2";
+import {
+  buildR2ObjectKey,
+  buildR2UserPrefix,
+  r2ComponentConfig,
+} from "../storage/r2";
 
 const finalizeArgs = {
   additionalMetadata: v.optional(v.any()),
@@ -197,6 +203,7 @@ export async function inspectUploadedCardSource(
 ): Promise<{
   cardType: FinalizeArgs["cardType"];
   content?: string;
+  sourceEtag: string;
   storedFileSize: number;
   storedMimeType?: string;
 }> {
@@ -239,6 +246,16 @@ export async function inspectUploadedCardSource(
   const markdown = isMarkdownFileName(fileName);
   const sizeLimit = markdown ? MARKDOWN_CONTENT_MAX_BYTES : MAX_FILE_SIZE;
   if (storedFileSize > sizeLimit) {
+    try {
+      await client.send(
+        new DeleteObjectCommand({ Bucket: bucket, Key: args.fileKey })
+      );
+    } catch (error) {
+      console.error("[upload] Failed to delete rejected oversized object", {
+        error,
+        fileKey: args.fileKey,
+      });
+    }
     return convexUploadError(
       markdown ? "CONTENT_TOO_LARGE" : "FILE_TOO_LARGE",
       markdown
@@ -275,6 +292,7 @@ export async function inspectUploadedCardSource(
     return {
       cardType: args.cardType,
       content: args.content,
+      sourceEtag,
       storedFileSize,
       storedMimeType,
     };
@@ -322,6 +340,7 @@ export async function inspectUploadedCardSource(
     return {
       cardType: "text",
       content: decodeMarkdownUtf8(bytes),
+      sourceEtag,
       storedFileSize,
       storedMimeType,
     };
@@ -339,20 +358,52 @@ export async function inspectUploadedCardSource(
   }
 }
 
+export const promoteUploadedCardSource = async (
+  userId: string,
+  args: Pick<FinalizeArgs, "fileKey" | "fileName">,
+  sourceEtag: string,
+  storage: UploadStorage = createClient()
+): Promise<string> => {
+  const finalFileKey = buildR2ObjectKey({
+    userId,
+    cardId: "stored",
+    role: "file",
+    fileName: args.fileName,
+  });
+  await storage.client.send(
+    new CopyObjectCommand({
+      Bucket: storage.bucket,
+      CopySource: `${storage.bucket}/${args.fileKey}`,
+      CopySourceIfMatch: sourceEtag,
+      Key: finalFileKey,
+      MetadataDirective: "COPY",
+    })
+  );
+  return finalFileKey;
+};
+
 async function finalizeForUser(
   ctx: ActionCtx,
   userId: string,
   args: FinalizeArgs
 ): Promise<{ success: true; cardId: Id<"cards"> }> {
-  const verified = await inspectUploadedCardSource(userId, args);
-  const result: { cardId: Id<"cards">; status: "created" } =
-    await ctx.runMutation(
+  const storage = createClient();
+  const verified = await inspectUploadedCardSource(userId, args, storage);
+  const finalFileKey = await promoteUploadedCardSource(
+    userId,
+    args,
+    verified.sourceEtag,
+    storage
+  );
+  let result: { cardId: Id<"cards">; status: "created" };
+  try {
+    result = await ctx.runMutation(
       (internal as any).publicApiUploads.finalizeUploadedCardForUser,
       {
         cardType: verified.cardType,
         additionalMetadata: args.additionalMetadata,
         content: verified.content,
-        fileKey: args.fileKey,
+        fileKey: finalFileKey,
         fileName: args.fileName,
         fileSize: args.fileSize,
         mimeType: args.fileType,
@@ -363,6 +414,30 @@ async function finalizeForUser(
         userId,
       }
     );
+  } catch (error) {
+    await storage.client
+      .send(
+        new DeleteObjectCommand({
+          Bucket: storage.bucket,
+          Key: finalFileKey,
+        })
+      )
+      .catch(() => undefined);
+    throw error;
+  }
+  await storage.client
+    .send(
+      new DeleteObjectCommand({
+        Bucket: storage.bucket,
+        Key: args.fileKey,
+      })
+    )
+    .catch((error) => {
+      console.error("[upload] Failed to delete promoted source object", {
+        error,
+        fileKey: args.fileKey,
+      });
+    });
   return { success: true, cardId: result.cardId };
 }
 

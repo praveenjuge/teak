@@ -52,6 +52,13 @@ export const FIRST_PARTY_OAUTH_CLIENTS: OAuthClientSeed[] = [
   },
 ];
 
+const FIRST_PARTY_OAUTH_CLIENT_IDS = new Set(
+  FIRST_PARTY_OAUTH_CLIENTS.map((client) => client.clientId)
+);
+
+export const isFirstPartyOAuthClientId = (clientId: string): boolean =>
+  FIRST_PARTY_OAUTH_CLIENT_IDS.has(clientId);
+
 const findOAuthApplication = (ctx: MutationCtx, clientId: string) =>
   ctx.runQuery(components.betterAuth.adapter.findOne, {
     model: "oauthApplication",

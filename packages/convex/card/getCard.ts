@@ -82,7 +82,16 @@ export const getCardForUserHandler = async (
 
   const resolvedUrls = await Promise.all(
     Array.from(storageKeys).map(
-      async (key) => [key, await resolveObjectUrl(key)] as const
+      async (key) =>
+        [
+          key,
+          await resolveObjectUrl(
+            key,
+            key === card.fileKey
+              ? (card.fileMetadata?.fileName ?? null)
+              : undefined
+          ),
+        ] as const
     )
   );
   const urlMap = new Map(resolvedUrls);

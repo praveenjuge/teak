@@ -60,16 +60,20 @@ const SINGLE_RESULT_PAGE = {
   numItems: 1,
 } as const;
 
-const getFirstUserId = async (ctx: AdminCtx) => {
+const getAdminUserId = async (ctx: AdminCtx) => {
+  const adminEmail = process.env.TEAK_ADMIN_EMAIL?.trim().toLowerCase();
+  if (!adminEmail) {
+    return null;
+  }
+
   const result = (await ctx.runQuery(components.betterAuth.adapter.findMany, {
     model: "user",
-    sortBy: { field: "createdAt", direction: "asc" },
+    where: [{ field: "email", operator: "eq", value: adminEmail }],
     limit: 1,
     paginationOpts: SINGLE_RESULT_PAGE,
   })) as { page?: Array<{ _id: string }> };
 
-  const firstUser = result?.page?.[0];
-  return firstUser?._id ?? null;
+  return result?.page?.[0]?._id ?? null;
 };
 
 const ensureAdmin = async (ctx: AdminCtx) => {
@@ -78,9 +82,9 @@ const ensureAdmin = async (ctx: AdminCtx) => {
     throw new Error("Unauthorized");
   }
 
-  const firstUserId = await getFirstUserId(ctx);
+  const adminUserId = await getAdminUserId(ctx);
 
-  if (!firstUserId || identity.subject !== firstUserId) {
+  if (!adminUserId || identity.subject !== adminUserId) {
     throw new Error("Unauthorized");
   }
 };
@@ -108,7 +112,12 @@ const attachCardUrls = async (
     cards.map(async (card) => {
       const [fileUrl, thumbnailUrl, screenshotUrl, linkPreviewImageUrl] =
         await Promise.all([
-          card.fileKey ? resolveObjectUrl(card.fileKey) : Promise.resolve(null),
+          card.fileKey
+            ? resolveObjectUrl(
+                card.fileKey,
+                card.fileMetadata?.fileName ?? null
+              )
+            : Promise.resolve(null),
           card.thumbnailKey
             ? resolveObjectUrl(card.thumbnailKey)
             : Promise.resolve(null),
@@ -152,8 +161,8 @@ export const getAccess = query({
       return { allowed: false } as const;
     }
 
-    const firstUserId = await getFirstUserId(ctx);
-    const allowed = Boolean(firstUserId && identity.subject === firstUserId);
+    const adminUserId = await getAdminUserId(ctx);
+    const allowed = Boolean(adminUserId && identity.subject === adminUserId);
 
     return {
       allowed,

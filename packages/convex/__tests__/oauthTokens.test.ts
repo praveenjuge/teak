@@ -1,8 +1,11 @@
 // @ts-nocheck
 import { describe, expect, mock, test } from "bun:test";
 import {
+  getOAuthConsentRequest,
   getOAuthUserInfo,
   isWellFormedOAuthToken,
+  listOAuthConnections,
+  revokeOAuthConnection,
   validateOAuthAccessToken,
 } from "../oauthTokens";
 
@@ -114,6 +117,43 @@ describe("validateOAuthAccessToken", () => {
     expect(result).toBeNull();
     expect(runQuery).not.toHaveBeenCalled();
   });
+
+  test("rejects external-client tokens without recorded user consent", async () => {
+    const runQuery = mock()
+      .mockResolvedValueOnce({
+        _id: "t1",
+        accessTokenExpiresAt: Date.now() + 60_000,
+        clientId: "external-client",
+        scopes: "openid offline_access",
+        userId: "user_1",
+      })
+      .mockResolvedValueOnce({ _id: "user_1" })
+      .mockResolvedValueOnce(null);
+
+    expect(
+      await runHandler(validateOAuthAccessToken, { runQuery }, { token })
+    ).toBeNull();
+  });
+
+  test("accepts external-client tokens only within consented scopes", async () => {
+    const runQuery = mock()
+      .mockResolvedValueOnce({
+        _id: "t1",
+        accessTokenExpiresAt: Date.now() + 60_000,
+        clientId: "external-client",
+        scopes: "openid offline_access",
+        userId: "user_1",
+      })
+      .mockResolvedValueOnce({ _id: "user_1" })
+      .mockResolvedValueOnce({ scopes: "openid offline_access profile" });
+
+    const result = await runHandler(
+      validateOAuthAccessToken,
+      { runQuery },
+      { token }
+    );
+    expect(result?.userId).toBe("user_1");
+  });
 });
 
 describe("getOAuthUserInfo", () => {
@@ -165,5 +205,124 @@ describe("getOAuthUserInfo", () => {
       )
     ).toBeNull();
     expect(malformedQuery).not.toHaveBeenCalled();
+  });
+});
+
+describe("OAuth connection management", () => {
+  test("loads consent display data from the authenticated server request", async () => {
+    const runQuery = mock()
+      .mockResolvedValueOnce({
+        expiresAt: Date.now() + 60_000,
+        value: JSON.stringify({
+          clientId: "external-client",
+          requireConsent: true,
+          scope: ["openid", "offline_access"],
+          userId: "user_1",
+        }),
+      })
+      .mockResolvedValueOnce({ name: "Trusted Notes" });
+    const ctx = {
+      auth: {
+        getUserIdentity: mock().mockResolvedValue({ subject: "user_1" }),
+      },
+      runQuery,
+    };
+
+    expect(
+      await runHandler(getOAuthConsentRequest, ctx, {
+        consentCode: "consent-code",
+      })
+    ).toEqual({
+      clientId: "external-client",
+      name: "Trusted Notes",
+      scopes: ["openid", "offline_access"],
+    });
+  });
+
+  test("does not expose a consent request to a different user", async () => {
+    const runQuery = mock().mockResolvedValueOnce({
+      expiresAt: Date.now() + 60_000,
+      value: JSON.stringify({
+        clientId: "external-client",
+        requireConsent: true,
+        scope: ["openid"],
+        userId: "user_2",
+      }),
+    });
+    const ctx = {
+      auth: {
+        getUserIdentity: mock().mockResolvedValue({ subject: "user_1" }),
+      },
+      runQuery,
+    };
+
+    expect(
+      await runHandler(getOAuthConsentRequest, ctx, {
+        consentCode: "consent-code",
+      })
+    ).toBeNull();
+    expect(runQuery).toHaveBeenCalledTimes(1);
+  });
+
+  test("lists distinct clients for only the authenticated user", async () => {
+    const runQuery = mock()
+      .mockResolvedValueOnce({
+        page: [
+          {
+            clientId: "teak-cli",
+            createdAt: 20,
+            refreshTokenExpiresAt: 200,
+          },
+          {
+            clientId: "teak-cli",
+            createdAt: 10,
+            refreshTokenExpiresAt: 300,
+          },
+        ],
+      })
+      .mockResolvedValueOnce({ name: "Teak CLI" });
+    const ctx = {
+      auth: {
+        getUserIdentity: mock().mockResolvedValue({ subject: "user_1" }),
+      },
+      runQuery,
+    };
+
+    expect(await runHandler(listOAuthConnections, ctx, {})).toEqual([
+      {
+        clientId: "teak-cli",
+        connectedAt: 10,
+        expiresAt: 300,
+        name: "Teak CLI",
+      },
+    ]);
+    expect(runQuery.mock.calls[0][1].where).toEqual([
+      { field: "userId", operator: "eq", value: "user_1" },
+    ]);
+  });
+
+  test("revokes only the selected client for the authenticated user", async () => {
+    const runQuery = mock()
+      .mockResolvedValueOnce({ page: [{ _id: "token_1" }] })
+      .mockResolvedValueOnce({ page: [{ _id: "consent_1" }] });
+    const runMutation = mock().mockResolvedValue(undefined);
+    const ctx = {
+      auth: {
+        getUserIdentity: mock().mockResolvedValue({ subject: "user_1" }),
+      },
+      runMutation,
+      runQuery,
+    };
+
+    expect(
+      await runHandler(revokeOAuthConnection, ctx, {
+        clientId: "external-client",
+      })
+    ).toBeNull();
+    expect(runQuery.mock.calls[0][1].where).toEqual([
+      { field: "clientId", operator: "eq", value: "external-client" },
+      { field: "userId", operator: "eq", value: "user_1" },
+    ]);
+    expect(runMutation).toHaveBeenCalledTimes(2);
   });
 });

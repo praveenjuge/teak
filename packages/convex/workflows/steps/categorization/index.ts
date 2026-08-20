@@ -11,10 +11,15 @@ import {
 import { v } from "convex/values";
 import { internal } from "../../../_generated/api";
 import { internalAction } from "../../../_generated/server";
-import { type DnsResolver, safeFetch } from "../../../linkMetadata/ssrf";
+import {
+  type DnsResolver,
+  readBodyWithLimit,
+  safeFetch,
+} from "../../../linkMetadata/ssrf";
 import { TELEMETRY_OPERATIONS } from "../../../shared/telemetry";
 import type { Id } from "../../../shared/types";
 import { withBackendSpan } from "../../../telemetry/sentry";
+import { pinnedFetch } from "../pinnedFetch";
 import { enrichProvider } from "./providers";
 import {
   formatDate,
@@ -224,13 +229,18 @@ const fetchStructuredData = async (
   url: string
 ): Promise<StructuredDataResult | null> => {
   try {
-    const response = await safeFetch(url, resolveDns, {
-      headers: {
-        "User-Agent": "TeakBot/1.0 (+https://teak)",
-        Accept:
-          "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+    const response = await safeFetch(
+      url,
+      resolveDns,
+      {
+        headers: {
+          "User-Agent": "TeakBot/1.0 (+https://teak)",
+          Accept:
+            "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+        },
       },
-    });
+      pinnedFetch
+    );
 
     if (!response.ok) {
       return null;
@@ -249,7 +259,9 @@ const fetchStructuredData = async (
       return null;
     }
 
-    const text = await response.text();
+    const text = new TextDecoder().decode(
+      await readBodyWithLimit(response, MAX_FETCH_BODY_SIZE * 2)
+    );
     if (!text) {
       return null;
     }

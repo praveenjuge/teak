@@ -1,7 +1,6 @@
 "use node";
 
 import { lookup } from "node:dns/promises";
-import { PhotonImage } from "@cf-wasm/photon";
 import Kernel from "@onkernel/sdk";
 import { v } from "convex/values";
 import { internal } from "../../../_generated/api";
@@ -28,6 +27,7 @@ import type { InstagramPostMedia } from "../../../linkMetadata/instagram";
 import {
   assertUrlIsSafe,
   type DnsResolver,
+  readBodyWithLimit,
   SsrfError,
   safeFetch,
 } from "../../../linkMetadata/ssrf";
@@ -39,6 +39,8 @@ import {
 import { TELEMETRY_OPERATIONS } from "../../../shared/telemetry";
 import { buildR2ObjectKey, storeObject } from "../../../storage/r2";
 import { withBackendSpan } from "../../../telemetry/sentry";
+import { pinnedFetch } from "../pinnedFetch";
+import { readRemoteImageDimensions } from "./remoteImageDimensions";
 import {
   LINK_METADATA_RETRYABLE_PREFIX,
   type LinkMetadataRetryableError,
@@ -60,6 +62,7 @@ const META_SELECTOR_REGEX = /^meta\[(property|name)=['"]([^'"]+)['"]\]$/i;
 const LINK_SELECTOR_REGEX = /^link\[rel=['"]([^'"]+)['"]\]$/i;
 const MAX_REMOTE_IMAGE_BYTES = 20 * 1024 * 1024;
 const MAX_REMOTE_VIDEO_BYTES = 50 * 1024 * 1024;
+const MAX_REMOTE_HTML_BYTES = 2 * 1024 * 1024;
 
 type PersistableLinkMedia = XStatusMedia | InstagramPostMedia;
 
@@ -94,20 +97,6 @@ interface StoredRemoteAsset {
   storageKey: string;
   updatedAt: number;
 }
-
-const readImageDimensions = (
-  bytes: Uint8Array
-): { width: number; height: number } | null => {
-  try {
-    const image = PhotonImage.new_from_byteslice(bytes);
-    const width = image.get_width();
-    const height = image.get_height();
-    return width && height ? { width, height } : null;
-  } catch (error) {
-    console.warn("[linkMetadata] Failed to read OG image dimensions", error);
-    return null;
-  }
-};
 
 const guessImageContentType = (imageUrl: string): string | null => {
   const match = imageUrl.toLowerCase().match(IMAGE_EXTENSION_REGEX);
@@ -199,15 +188,17 @@ const storeRemoteAsset = async (
     fallbackContentType,
     key,
     maxBytes,
+    validateBytes,
   }: {
     allowedContentTypePrefixes: readonly string[];
     fallbackContentType?: string;
     key: string;
     maxBytes: number;
+    validateBytes?: (bytes: Uint8Array) => boolean;
   }
 ): Promise<StoredRemoteAsset | null> => {
   try {
-    const response = await safeFetch(assetUrl, resolveDns);
+    const response = await safeFetch(assetUrl, resolveDns, {}, pinnedFetch);
     if (!response.ok) {
       console.warn(
         `[linkMetadata] Remote asset fetch failed (${response.status}) for ${assetUrl}`
@@ -243,19 +234,29 @@ const storeRemoteAsset = async (
       return null;
     }
 
-    const arrayBuffer = await response.arrayBuffer();
-    if (!arrayBuffer.byteLength || arrayBuffer.byteLength > maxBytes) {
+    const bytes = await readBodyWithLimit(response, maxBytes);
+    if (!bytes.byteLength) {
       console.warn(
-        `[linkMetadata] Remote asset skipped due to downloaded size (${arrayBuffer.byteLength}) for ${assetUrl}`
+        `[linkMetadata] Remote asset skipped because it is empty for ${assetUrl}`
       );
       return null;
     }
 
-    const bytes = new Uint8Array(arrayBuffer);
-    const storageKey = await storeObject(ctx, new Blob([arrayBuffer]), {
-      key,
-      type: contentType,
-    });
+    if (validateBytes && !validateBytes(bytes)) {
+      console.warn(
+        `[linkMetadata] Remote asset skipped because validation failed for ${assetUrl}`
+      );
+      return null;
+    }
+
+    const storageKey = await storeObject(
+      ctx,
+      new Blob([Uint8Array.from(bytes)]),
+      {
+        key,
+        type: contentType,
+      }
+    );
 
     return {
       bytes,
@@ -279,13 +280,14 @@ const storeLinkPreviewImage = async (
     fallbackContentType: resolveImageContentType(null, imageUrl) ?? undefined,
     key: buildR2ObjectKey({ ...keyBase, role: "link-preview-image" }),
     maxBytes: MAX_REMOTE_IMAGE_BYTES,
+    validateBytes: (bytes) => readRemoteImageDimensions(bytes) !== null,
   });
 
   if (!storedAsset) {
     return null;
   }
 
-  const dimensions = readImageDimensions(storedAsset.bytes);
+  const dimensions = readRemoteImageDimensions(storedAsset.bytes);
   if (!dimensions) {
     return null;
   }
@@ -310,6 +312,10 @@ const storeLinkPreviewMediaItem = async (
     key: buildR2ObjectKey({ ...keyBase, role: `link-media-${media.type}` }),
     maxBytes:
       media.type === "image" ? MAX_REMOTE_IMAGE_BYTES : MAX_REMOTE_VIDEO_BYTES,
+    validateBytes:
+      media.type === "image"
+        ? (bytes) => readRemoteImageDimensions(bytes) !== null
+        : undefined,
   });
 
   if (!storedMedia) {
@@ -328,10 +334,11 @@ const storeLinkPreviewMediaItem = async (
       fallbackContentType: media.posterContentType,
       key: buildR2ObjectKey({ ...keyBase, role: "link-media-poster" }),
       maxBytes: MAX_REMOTE_IMAGE_BYTES,
+      validateBytes: (bytes) => readRemoteImageDimensions(bytes) !== null,
     });
 
     if (storedPoster) {
-      const posterDimensions = readImageDimensions(storedPoster.bytes);
+      const posterDimensions = readRemoteImageDimensions(storedPoster.bytes);
       posterStorageKey = storedPoster.storageKey;
       posterUpdatedAt = storedPoster.updatedAt;
       posterContentType = storedPoster.contentType;
@@ -487,13 +494,18 @@ const scrapeWithFetch = async (
   selectors: { selector: string }[]
 ): Promise<ScrapeResponse> => {
   try {
-    const response = await safeFetch(url, resolveDns, {
-      headers: {
-        "user-agent":
-          "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-        accept: "text/html,application/xhtml+xml",
+    const response = await safeFetch(
+      url,
+      resolveDns,
+      {
+        headers: {
+          "user-agent":
+            "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+          accept: "text/html,application/xhtml+xml",
+        },
       },
-    });
+      pinnedFetch
+    );
 
     if (!response.ok) {
       return {
@@ -510,7 +522,9 @@ const scrapeWithFetch = async (
       };
     }
 
-    const html = await response.text();
+    const html = new TextDecoder().decode(
+      await readBodyWithLimit(response, MAX_REMOTE_HTML_BYTES)
+    );
     const selectorResults = buildSelectorResultsFromHtml(html, selectors);
 
     return {
@@ -529,100 +543,85 @@ const scrapeWithKernel = async (
   url: string,
   selectors: { selector: string }[]
 ): Promise<ScrapeResponse> => {
+  const response = await safeFetch(
+    url,
+    resolveDns,
+    { headers: { accept: "text/html,application/xhtml+xml" } },
+    pinnedFetch
+  );
+  if (!response.ok) {
+    return {
+      success: false,
+      errors: [{ message: `HTTP ${response.status}` }],
+    };
+  }
+  const contentType = response.headers.get("content-type") ?? "";
+  if (!contentType.toLowerCase().includes("text/html")) {
+    return {
+      success: false,
+      errors: [{ message: `Unsupported content-type: ${contentType}` }],
+    };
+  }
+  const html = new TextDecoder().decode(
+    await readBodyWithLimit(response, MAX_REMOTE_HTML_BYTES)
+  );
   const kernel = new Kernel();
   let kernelBrowser: { session_id: string } | undefined;
-
   try {
-    kernelBrowser = await kernel.browsers.create({
-      stealth: true,
-    });
-
-    const selectorStrings = selectors.map((s) => s.selector);
+    kernelBrowser = await kernel.browsers.create({ stealth: true });
+    const selectorStrings = selectors.map((selector) => selector.selector);
     const instagramPrimaryImageSnippet = buildInstagramPrimaryImageSnippet();
     const code = `
-      // Keep navigation fast; many Framer/WebGL pages never reach "networkidle".
-      await page.route('**/*', route => {
-        const type = route.request().resourceType();
-        if (['image', 'media', 'font'].includes(type)) {
-          return route.abort();
-        }
-        return route.continue();
+      await page.route('**/*', route => route.abort());
+      await page.addInitScript(() => {
+        const blocked = () => { throw new Error('Network access is disabled'); };
+        Object.defineProperty(globalThis, 'WebSocket', { value: blocked });
+        Object.defineProperty(globalThis, 'EventSource', { value: blocked });
       });
-
-      await page.setDefaultNavigationTimeout(20000);
-      await page.setDefaultTimeout(20000);
-
-      await page.goto('${url.replace(/\\/g, "\\\\").replace(/'/g, "\\'")}', { waitUntil: 'domcontentloaded', timeout: 20000 });
-      await page.waitForTimeout(1000);
-
+      await page.setContent(${JSON.stringify(html)}, { waitUntil: 'domcontentloaded', timeout: 20000 });
       const selectors = ${JSON.stringify(selectorStrings)};
       const results = [];
-
       for (const selector of selectors) {
-        try {
-          const elements = await page.$$(selector);
-          const selectorResults = [];
-
-          for (const element of elements) {
-            const text = await element.textContent().catch(() => null);
-            const html = await element.innerHTML().catch(() => null);
-
-            const attributes = await element.evaluate(el => {
-              return Array.from(el.attributes).map(attr => ({
-                name: attr.name,
-                value: attr.value
-              }));
-            }).catch(() => []);
-
-            selectorResults.push({
-              text: text?.trim() || undefined,
-              html: html?.trim() || undefined,
-              attributes: attributes.length > 0 ? attributes : undefined
-            });
-          }
-
-          results.push({
-            selector,
-            results: selectorResults
-          });
-        } catch (e) {
-          results.push({
-            selector,
-            results: []
+        const elements = await page.$$(selector).catch(() => []);
+        const selectorResults = [];
+        for (const element of elements) {
+          const text = await element.textContent().catch(() => null);
+          const innerHtml = await element.innerHTML().catch(() => null);
+          const attributes = await element.evaluate(el =>
+            Array.from(el.attributes).map(attr => ({ name: attr.name, value: attr.value }))
+          ).catch(() => []);
+          selectorResults.push({
+            text: text?.trim() || undefined,
+            html: innerHtml?.trim() || undefined,
+            attributes: attributes.length ? attributes : undefined
           });
         }
+        results.push({ selector, results: selectorResults });
       }
-
       let primaryImage = null;
       let instagramMedia = undefined;
 ${instagramPrimaryImageSnippet}
-
       return {
         selectors: results,
         instagramMedia: Array.isArray(instagramMedia) ? instagramMedia : undefined,
         primaryImage: primaryImage || undefined
       };
     `;
-
-    const response = await kernel.browsers.playwright.execute(
+    const execution = await kernel.browsers.playwright.execute(
       kernelBrowser.session_id,
-      {
-        code,
-        timeout_sec: 35,
-      }
+      { code, timeout_sec: 35 }
     );
-
-    if (!response.success) {
-      return {
-        success: false,
-        errors: [{ message: response.error || "Playwright execution failed" }],
-      };
-    }
-
-    return {
-      success: true,
-      result: response.result as ScrapeResponse["result"],
-    };
+    return execution.success
+      ? {
+          success: true,
+          result: execution.result as ScrapeResponse["result"],
+        }
+      : {
+          success: false,
+          errors: [
+            { message: execution.error || "Playwright execution failed" },
+          ],
+        };
   } catch (error) {
     return {
       success: false,
@@ -665,19 +664,20 @@ export const fetchMetadataHandler = async (ctx: any, { cardId }: any) => {
 
   const classificationStatus = card.processingStatus?.classify?.status;
   const classificationPending =
-    !classificationStatus ||
     classificationStatus === "pending" ||
-    classificationStatus === "in_progress";
+    classificationStatus === "in_progress" ||
+    (!classificationStatus &&
+      card.metadata?.linkCategory?.status === "pending");
+
+  if (classificationPending) {
+    throwRetryable({
+      type: "awaiting_classification",
+      normalizedUrl: card.url,
+      message: "Waiting for classification to finish",
+    });
+  }
 
   if (card.type !== "link") {
-    if (classificationPending) {
-      throwRetryable({
-        type: "awaiting_classification",
-        normalizedUrl: card.url,
-        message: "Waiting for classification to finish",
-      });
-    }
-
     await ctx.runMutation(linkMetadataInternal.updateCardMetadata, {
       cardId,
       linkPreview: buildErrorPreview(card.url ?? "", {
@@ -759,43 +759,18 @@ export const fetchMetadataHandler = async (ctx: any, { cardId }: any) => {
           .filter(Boolean)
           .join("; ") || "Unknown scrape error";
 
-      console.warn(
-        `[linkMetadata] Kernel scrape failed for ${normalizedUrl}`,
-        payload.errors
-      );
-
       const fallback = await scrapeWithFetch(normalizedUrl, SCRAPE_ELEMENTS);
       if (fallback.success) {
-        console.info(
-          `[linkMetadata] Kernel failed; using HTML fetch fallback for ${normalizedUrl}`
-        );
         payload = fallback;
       } else {
-        const fallbackMessage = fallback.errors
-          ?.map((error) => error?.message)
-          .filter(Boolean)
-          .join("; ");
-        const combinedMessage = [errorMessage, fallbackMessage]
-          .filter(Boolean)
-          .join(" | ");
         const isRateLimit =
           errorMessage.toLowerCase().includes("rate") ||
           errorMessage.toLowerCase().includes("limit");
-
-        if (isRateLimit) {
-          throwRetryable({
-            type: "rate_limit",
-            normalizedUrl,
-            message: combinedMessage || errorMessage,
-            details: { kernel: payload.errors, fallback: fallback.errors },
-          });
-        }
-
         throwRetryable({
-          type: "scrape_error",
+          type: isRateLimit ? "rate_limit" : "scrape_error",
           normalizedUrl,
-          message: combinedMessage || errorMessage,
-          details: { kernel: payload.errors, fallback: fallback.errors },
+          message: errorMessage,
+          details: { browser: payload.errors, fallback: fallback.errors },
         });
       }
     }

@@ -5,6 +5,7 @@ import { v } from "convex/values";
 import { components } from "../_generated/api";
 import type { ActionCtx, MutationCtx } from "../_generated/server";
 import { internalMutation, mutation, query } from "../_generated/server";
+import { inferFileFormat } from "../shared/fileFormats";
 
 const SIGNED_URL_EXPIRES_IN_SECONDS = 15 * 60;
 const PRIVATE_FILE_CACHE_CONTROL = `private, max-age=${SIGNED_URL_EXPIRES_IN_SECONDS}, immutable`;
@@ -30,6 +31,34 @@ const getDownloadClient = (): S3Client => {
 };
 
 export type R2ObjectKey = string;
+export const PENDING_UPLOAD_CARD_ID = "upload-pending-v2";
+
+interface DownloadResponsePolicy {
+  contentDisposition?: "attachment" | "inline";
+  contentType?: string;
+}
+
+export const fileDownloadResponsePolicy = (
+  fileName: string | null
+): Required<DownloadResponsePolicy> => {
+  const format = fileName ? inferFileFormat({ fileName }) : null;
+  if (!format) {
+    return {
+      contentDisposition: "attachment",
+      contentType: "application/octet-stream",
+    };
+  }
+
+  const canRenderInline =
+    format.id !== "svg" &&
+    (format.id === "pdf" ||
+      ["audio", "image", "video"].includes(format.cardType));
+
+  return {
+    contentDisposition: canRenderInline ? "inline" : "attachment",
+    contentType: format.mimeType,
+  };
+};
 
 const hashUserId = (userId: string) =>
   Array.from(new TextEncoder().encode(userId))
@@ -61,18 +90,28 @@ export const buildR2ObjectKey = ({
 
 export const buildR2DownloadCommand = (
   key: string,
-  bucket = r2.config.bucket
+  bucket = r2.config.bucket,
+  response: DownloadResponsePolicy = {}
 ) =>
   new GetObjectCommand({
     Bucket: bucket,
     Key: key,
     ResponseCacheControl: PRIVATE_FILE_CACHE_CONTROL,
+    ResponseContentDisposition: response.contentDisposition,
+    ResponseContentType: response.contentType,
   });
 
-export const getR2Url = async (key: string) =>
-  getSignedUrl(getDownloadClient(), buildR2DownloadCommand(key), {
-    expiresIn: SIGNED_URL_EXPIRES_IN_SECONDS,
-  });
+export const getR2Url = async (
+  key: string,
+  response: DownloadResponsePolicy = {}
+) =>
+  getSignedUrl(
+    getDownloadClient(),
+    buildR2DownloadCommand(key, undefined, response),
+    {
+      expiresIn: SIGNED_URL_EXPIRES_IN_SECONDS,
+    }
+  );
 
 export const r2ComponentConfig = () => {
   const { R2_BUCKET, R2_ENDPOINT, R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY } =
@@ -88,8 +127,16 @@ export const r2ComponentConfig = () => {
   };
 };
 
-export const resolveObjectUrl = async (key?: string) =>
-  key ? getR2Url(key) : null;
+export const resolveObjectUrl = async (
+  key?: string,
+  fileName?: string | null
+) =>
+  key
+    ? getR2Url(
+        key,
+        fileName === undefined ? {} : fileDownloadResponsePolicy(fileName)
+      )
+    : null;
 
 export const deleteObject = async (ctx: MutationCtx, key?: string) => {
   if (key) {
@@ -179,6 +226,11 @@ export const getFileUrl = query({
       throw new Error("File does not belong to the specified card");
     }
 
-    return resolveObjectUrl(args.key);
+    return resolveObjectUrl(
+      args.key,
+      args.key === card.fileKey
+        ? (card.fileMetadata?.fileName ?? null)
+        : undefined
+    );
   },
 });

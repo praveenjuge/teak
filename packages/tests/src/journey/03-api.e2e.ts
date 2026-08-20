@@ -256,12 +256,24 @@ test("REST API uploads and infers the expanded file-format matrix", async () => 
     expect(fetchedCard.fileName).toBe(fixture.fileName);
     expect(fetchedCard.fileKind).toBeTruthy();
     expect(fetchedCard.mimeType).toBe(fixture.mimeType);
+    expect(fetchedCard.fileUrl).toMatch(/^https?:\/\//);
+    const storedPath = decodeURIComponent(
+      new URL(fetchedCard.fileUrl).pathname
+    );
+    expect(storedPath).toContain("/cards/stored/file/");
+    expect(storedPath).not.toContain("/cards/upload-pending-v2/");
+    if (fixture.fileName.toLowerCase().endsWith(".svg")) {
+      const downloaded = await fetch(fetchedCard.fileUrl);
+      expect(downloaded.headers.get("content-disposition")).toContain(
+        "attachment"
+      );
+      expect(downloaded.headers.get("content-type")).toContain("image/svg+xml");
+    }
     if (fixture.fileName.toLowerCase().endsWith(".md")) {
       expect(fetchedCard).toMatchObject({
         content: Buffer.from(fixture.bytes).toString("utf8"),
         type: "text",
       });
-      expect(fetchedCard.fileUrl).toMatch(/^https?:\/\//);
     }
     if (fixture.fileName.endsWith(".gif")) {
       expect(fetchedCard.type).toBe("video");

@@ -3,6 +3,7 @@
 import { v } from "convex/values";
 import { internal } from "../_generated/api";
 import { type ActionCtx, internalAction } from "../_generated/server";
+import { sweepStalePendingUploadsHandler } from "../storage/pendingUploadCleanup";
 import { type CronCheckInConfig, withCronCheckIn } from "./sentry";
 
 const internalAny = internal as Record<string, any>;
@@ -31,6 +32,12 @@ export const CRON_MONITORS = {
     maxRuntimeMinutes: 30,
     schedule: "0 2 * * *",
     slug: "cleanup-old-deleted-cards",
+  },
+  cleanupStalePendingCardUploads: {
+    checkinMarginMinutes: 10,
+    maxRuntimeMinutes: 20,
+    schedule: "30 * * * *",
+    slug: "cleanup-stale-pending-card-uploads",
   },
   ensureOauthClients: {
     checkinMarginMinutes: 15,
@@ -75,6 +82,16 @@ export const cleanupAbandonedImportUploads = internalAction({
   handler: (ctx: ActionCtx) =>
     monitored(CRON_MONITORS.cleanupAbandonedImportUploads, () =>
       ctx.runAction(internalAny["import/runImport"].cleanupExpiredUploads, {})
+    ),
+});
+
+export const cleanupStalePendingCardUploads = internalAction({
+  args: {},
+  returns: v.null(),
+  handler: (_ctx: ActionCtx) =>
+    monitored(
+      CRON_MONITORS.cleanupStalePendingCardUploads,
+      sweepStalePendingUploadsHandler
     ),
 });
 

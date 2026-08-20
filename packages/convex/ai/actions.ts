@@ -22,6 +22,14 @@ export const manuallyGenerateAI = action({
       throw new Error("Card not found or access denied");
     }
 
+    const allowed = await ctx.runMutation(
+      internal.card.updateCard.consumeCardReprocessLimitForUser,
+      { cardId, userId: user.subject }
+    );
+    if (!allowed) {
+      throw new Error("Too many reprocessing requests; try again later");
+    }
+
     await ctx.scheduler.runAfter(
       0,
       (internal as any)["workflows/manager"].startCardProcessingWorkflow,

@@ -27,6 +27,12 @@
  */
 export type DnsResolver = (hostname: string) => Promise<string[]>;
 
+export type PinnedFetch = (
+  url: string,
+  validatedAddresses: string[],
+  init: RequestInit
+) => Promise<Response>;
+
 export class SsrfError extends Error {
   readonly reason: string;
 
@@ -41,6 +47,7 @@ const ALLOWED_PROTOCOLS = new Set(["http:", "https:"]);
 // Standard web ports only. An empty port means the protocol default (80/443).
 const ALLOWED_PORTS = new Set(["", "80", "443"]);
 const MAX_REDIRECTS = 5;
+export const SAFE_FETCH_TIMEOUT_MS = 30_000;
 
 type Bytes = number[];
 interface Cidr {
@@ -299,16 +306,16 @@ export const assertUrlStructureSafe = (rawUrl: string): URL => {
  * public destination. Throws {@link SsrfError} otherwise. The caller supplies a
  * {@link DnsResolver} so this module stays free of Node.js built-ins.
  */
-export const assertUrlIsSafe = async (
+export const resolveSafeUrl = async (
   rawUrl: string,
   resolveDns: DnsResolver
-): Promise<URL> => {
+): Promise<{ addresses: string[]; url: URL }> => {
   const parsed = assertUrlStructureSafe(rawUrl);
   const hostname = parsed.hostname.replace(/^\[|\]$/g, "");
 
   // Literal IPs were already validated in assertUrlStructureSafe.
   if (detectIpVersion(hostname) !== 0) {
-    return parsed;
+    return { addresses: [hostname], url: parsed };
   }
 
   let addresses: string[];
@@ -337,8 +344,13 @@ export const assertUrlIsSafe = async (
     }
   }
 
-  return parsed;
+  return { addresses, url: parsed };
 };
+
+export const assertUrlIsSafe = async (
+  rawUrl: string,
+  resolveDns: DnsResolver
+): Promise<URL> => (await resolveSafeUrl(rawUrl, resolveDns)).url;
 
 /**
  * SSRF-hardened replacement for `fetch`. Validates the target URL (and every
@@ -349,16 +361,24 @@ export const assertUrlIsSafe = async (
 export const safeFetch = async (
   rawUrl: string,
   resolveDns: DnsResolver,
-  init: RequestInit = {}
+  init: RequestInit = {},
+  pinnedFetch?: PinnedFetch
 ): Promise<Response> => {
+  const request: PinnedFetch =
+    pinnedFetch ?? ((url, _addresses, requestInit) => fetch(url, requestInit));
   let currentUrl = rawUrl;
 
   for (let hop = 0; hop <= MAX_REDIRECTS; hop++) {
-    await assertUrlIsSafe(currentUrl, resolveDns);
+    const { addresses } = await resolveSafeUrl(currentUrl, resolveDns);
+    const timeoutSignal = AbortSignal.timeout(SAFE_FETCH_TIMEOUT_MS);
+    const signal = init.signal
+      ? AbortSignal.any([init.signal, timeoutSignal])
+      : timeoutSignal;
 
-    const response = await fetch(currentUrl, {
+    const response = await request(currentUrl, addresses, {
       ...init,
       redirect: "manual",
+      signal,
     });
 
     const isRedirect =
@@ -396,4 +416,44 @@ export const safeFetch = async (
 
   // Unreachable, but keeps the type checker satisfied.
   throw new SsrfError("too_many_redirects", "Exceeded redirect limit");
+};
+
+export const readBodyWithLimit = async (
+  response: Response,
+  maxBytes: number
+): Promise<Uint8Array> => {
+  if (!(Number.isSafeInteger(maxBytes) && maxBytes >= 0)) {
+    throw new Error("maxBytes must be a non-negative safe integer");
+  }
+  if (!response.body) {
+    const bytes = new Uint8Array(await response.arrayBuffer());
+    if (bytes.byteLength > maxBytes) {
+      throw new Error(`body_too_large: ${bytes.byteLength}`);
+    }
+    return bytes;
+  }
+
+  const reader = response.body.getReader();
+  const chunks: Uint8Array[] = [];
+  let total = 0;
+  for (;;) {
+    const { done, value } = await reader.read();
+    if (done) {
+      break;
+    }
+    total += value.byteLength;
+    if (total > maxBytes) {
+      await reader.cancel().catch(() => undefined);
+      throw new Error(`body_too_large: ${total}`);
+    }
+    chunks.push(value);
+  }
+
+  const bytes = new Uint8Array(total);
+  let offset = 0;
+  for (const chunk of chunks) {
+    bytes.set(chunk, offset);
+    offset += chunk.byteLength;
+  }
+  return bytes;
 };

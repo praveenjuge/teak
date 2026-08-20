@@ -50,6 +50,10 @@ export function useSettingsController({
   const createKey = useMutation(api.apiKeys.createUserApiKey);
   const revokeKey = useMutation(api.apiKeys.revokeUserApiKey);
   const rotateKey = useMutation(api.apiKeys.rotateUserApiKey);
+  const oauthConnections = useQuery(api.oauthTokens.listOAuthConnections, {});
+  const revokeOAuthConnection = useAction(
+    api.oauthTokens.revokeOAuthConnection
+  );
 
   const exportState = useQuery(api.dataExport.getLatestExport, {}) as
     | {
@@ -153,6 +157,10 @@ export function useSettingsController({
   const handleRotateApiKey = async (keyId: string) =>
     (await rotateKey({ keyId })) as { key: string };
 
+  const handleRevokeOAuthConnection = async (clientId: string) => {
+    await revokeOAuthConnection({ clientId });
+  };
+
   const handleCreateCustomerPortal = async () => {
     const toastId = toast.loading("Opening customer portal...", {
       id: TOAST_IDS.customerPortal,
@@ -230,13 +238,18 @@ export function useSettingsController({
     handleDeleteAccount,
     handleDownloadExport,
     handleRevokeApiKey,
+    handleRevokeOAuthConnection,
     handleRotateApiKey,
     handleSignOut,
     handleStartExport,
     hasPremium: user?.hasPremium,
     isLoading:
-      user === undefined || keys === undefined || exportState === undefined,
+      user === undefined ||
+      keys === undefined ||
+      exportState === undefined ||
+      oauthConnections === undefined,
     keys,
+    oauthConnections,
     setDeleteDialogOpen,
     setDeleteError,
     signOutLoading,

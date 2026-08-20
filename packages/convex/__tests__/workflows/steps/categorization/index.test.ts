@@ -36,6 +36,16 @@ mock.module("../../../../../convex/linkMetadata/ssrf", () => ({
   assertUrlIsSafe: async (url: string) => new URL(url),
   safeFetch: (url: string, _resolveDns: unknown, init?: RequestInit) =>
     global.fetch(url, init),
+  readBodyWithLimit: async (
+    response: { text: () => Promise<string> },
+    maxBytes: number
+  ) => {
+    const body = new TextEncoder().encode(await response.text());
+    if (body.byteLength > maxBytes) {
+      throw new Error("Response body exceeds the allowed size");
+    }
+    return body;
+  },
 }));
 
 // Setup fetch mock that can be restored

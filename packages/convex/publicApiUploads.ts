@@ -16,7 +16,7 @@ import {
   MarkdownContentError,
   validateMarkdownByteLength,
 } from "./shared/markdown";
-import { buildR2ObjectKey, r2 } from "./storage/r2";
+import { buildR2ObjectKey, PENDING_UPLOAD_CARD_ID, r2 } from "./storage/r2";
 
 const UPLOAD_URL_EXPIRES_IN_SECONDS = 60 * 10;
 
@@ -77,7 +77,12 @@ export const generateUploadUrlForUser = internalMutation({
     const { fileName } = validateUploadRequest(args);
     await ensureCardCreationAllowed(ctx, args.userId);
     const upload = await r2.generateUploadUrl(
-      buildR2ObjectKey({ userId: args.userId, role: "file", fileName })
+      buildR2ObjectKey({
+        userId: args.userId,
+        cardId: PENDING_UPLOAD_CARD_ID,
+        role: "file",
+        fileName,
+      })
     );
     return {
       expiresIn: UPLOAD_URL_EXPIRES_IN_SECONDS,

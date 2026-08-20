@@ -5,6 +5,7 @@ import {
   type DnsResolver,
   detectIpVersion,
   isBlockedIp,
+  readBodyWithLimit,
   SsrfError,
   safeFetch,
 } from "../../../convex/linkMetadata/ssrf";
@@ -252,5 +253,46 @@ describe("safeFetch", () => {
     const response = await safeFetch("https://8.8.8.8/data", resolveUnused);
     expect(response.status).toBe(200);
     expect(await response.text()).toBe("ok");
+  });
+
+  test("passes only validated DNS addresses to the connection", async () => {
+    const pinned = (url: string, addresses: string[], init: RequestInit) => {
+      expect(url).toBe("https://example.com/");
+      expect(addresses).toEqual(["93.184.216.34"]);
+      expect(init.redirect).toBe("manual");
+      expect(init.signal).toBeInstanceOf(AbortSignal);
+      return Promise.resolve(new Response("ok"));
+    };
+
+    await expect(
+      safeFetch("https://example.com/", resolveTo("93.184.216.34"), {}, pinned)
+    ).resolves.toBeInstanceOf(Response);
+  });
+});
+
+describe("readBodyWithLimit", () => {
+  test("reads a response at the byte limit", async () => {
+    const bytes = await readBodyWithLimit(new Response("abcd"), 4);
+    expect(new TextDecoder().decode(bytes)).toBe("abcd");
+  });
+
+  test("cancels and rejects a streamed response over the byte limit", async () => {
+    let cancelled = false;
+    const response = new Response(
+      new ReadableStream({
+        cancel() {
+          cancelled = true;
+        },
+        start(controller) {
+          controller.enqueue(new TextEncoder().encode("abc"));
+          controller.enqueue(new TextEncoder().encode("def"));
+        },
+      })
+    );
+
+    await expect(readBodyWithLimit(response, 4)).rejects.toThrow(
+      "body_too_large"
+    );
+    expect(cancelled).toBe(true);
   });
 });

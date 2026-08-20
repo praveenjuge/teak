@@ -11,6 +11,7 @@ import { v } from "convex/values";
 import type yauzl from "yauzl";
 import { internal } from "../_generated/api";
 import { type ActionCtx, internalAction } from "../_generated/server";
+import { inferFileFormat } from "../shared/fileFormats";
 import {
   isMarkdownFileName,
   MARKDOWN_CONTENT_MAX_BYTES,
@@ -344,6 +345,24 @@ function deterministicFileKey(
   return `${buildR2UserPrefix(userId)}/import-${jobId}/${itemId}/file/${safe}`;
 }
 
+const ACTIVE_IMPORT_FORMATS = new Set(["html", "svg"]);
+
+export const importStoredContentType = (item: {
+  fileName?: string | null;
+  mimeType?: string | null;
+}): string => {
+  const format = inferFileFormat({
+    fileName: item.fileName ?? "file",
+    mimeType: item.mimeType,
+  });
+  if (!format) {
+    return "application/octet-stream";
+  }
+  return ACTIVE_IMPORT_FORMATS.has(format.id)
+    ? "text/plain; charset=utf-8"
+    : format.mimeType;
+};
+
 export const extractImportFiles = internalAction({
   args: { jobId: v.id("importJobs"), itemIds: v.array(v.id("importJobItems")) },
   returns: v.object({ ok: v.boolean(), failureClass: v.optional(v.string()) }),
@@ -401,7 +420,7 @@ export const extractImportFiles = internalAction({
                     Key: key,
                     Body: stream,
                     ContentLength: entry.uncompressedSize,
-                    ContentType: item.mimeType,
+                    ContentType: importStoredContentType(item),
                   })
                 );
                 await ctx.runMutation(internalAny.dataImport.setExtractedFile, {

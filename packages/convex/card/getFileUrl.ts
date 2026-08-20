@@ -37,6 +37,11 @@ export const getFileUrl = query({
       throw new Error("File does not belong to the specified card");
     }
 
-    return resolveObjectUrl(args.key);
+    return resolveObjectUrl(
+      args.key,
+      args.key === card.fileKey
+        ? (card.fileMetadata?.fileName ?? null)
+        : undefined
+    );
   },
 });

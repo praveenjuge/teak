@@ -7,6 +7,7 @@ export * from "./ExportPanel";
 export * from "./ImportExportDialog";
 export * from "./ImportExportSection";
 export * from "./ImportPanel";
+export * from "./OAuthConnectionsSection";
 export * from "./PlanOption";
 export * from "./SettingRow";
 export * from "./SettingsContent";

@@ -42,6 +42,7 @@ export function SettingsPage({ onNavigateBack }: SettingsPageProps) {
         hasPremium={settings.hasPremium}
         isLoading={settings.isLoading}
         keys={settings.keys}
+        oauthConnections={settings.oauthConnections}
         onCancelExport={settings.handleCancelExport}
         onCreateApiKey={settings.handleCreateApiKey}
         onCreateCustomerPortal={settings.handleCreateCustomerPortal}
@@ -49,6 +50,7 @@ export function SettingsPage({ onNavigateBack }: SettingsPageProps) {
         onDeleteDialogOpenChange={settings.setDeleteDialogOpen}
         onDownloadExport={settings.handleDownloadExport}
         onRevokeApiKey={settings.handleRevokeApiKey}
+        onRevokeOAuthConnection={settings.handleRevokeOAuthConnection}
         onRotateApiKey={settings.handleRotateApiKey}
         onSignOut={settings.handleSignOut}
         onStartExport={settings.handleStartExport}

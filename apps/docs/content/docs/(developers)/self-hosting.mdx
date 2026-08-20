@@ -40,6 +40,7 @@ public domain at it.
     # Security & Auth
     npx convex env set BETTER_AUTH_SECRET $(openssl rand -base64 32)
     npx convex env set SITE_URL http://app.teak.localhost:1355
+    npx convex env set TEAK_ADMIN_EMAIL you@example.com
 
     # Optional: AI (if you want card processing)
     npx convex env set GROQ_API_KEY gsk_...
@@ -66,6 +67,9 @@ public domain at it.
 ## Production basics
 
 <Steps>
+  <Step title="Designate the administrator">
+    Set `TEAK_ADMIN_EMAIL` on the production Convex deployment to the normalized email address of the account that should receive administrative access. Teak fails closed when this value is absent or does not match a registered user; account creation order never grants administrative access.
+  </Step>
   <Step title="Update SITE_URL">
     Update `SITE_URL` in Convex to your public domain (e.g., `https://app.yourdomain.com`).
   </Step>
@@ -95,6 +99,7 @@ Add these to your env files before running locally or deploying.
 ```bash
 SITE_URL=http://app.teak.localhost:1355
 BETTER_AUTH_SECRET=your-secret               # Better Auth security
+TEAK_ADMIN_EMAIL=you@example.com             # Explicit administrator account
 R2_ACCESS_KEY_ID=access-key                  # R2 S3 access key
 R2_SECRET_ACCESS_KEY=secret-key              # R2 S3 secret key
 R2_ENDPOINT=https://account.r2.cloudflarestorage.com
@@ -156,6 +161,7 @@ Convex serves the REST API at `/api/v1`, the MCP endpoint at `/mcp`, plus `/heal
 - **Better Auth**:
   - `BETTER_AUTH_SECRET`: Generate a random string (e.g., via `openssl rand -base64 32`).
   - `SITE_URL`: This is the URL where your Next.js app is running. Locally, it's `http://app.teak.localhost:1355`.
+  - `TEAK_ADMIN_EMAIL`: The normalized email address of the one account allowed to use administrative functions. Configure this independently for development and production.
 - **Optional Features**:
   - `R2_*`: Create a private Cloudflare R2 bucket and an API token/S3 credentials with object read, write, and delete access.
   - `GROQ_API_KEY`: Get from [Groq Console](https://console.groq.com/) for AI-powered card processing.

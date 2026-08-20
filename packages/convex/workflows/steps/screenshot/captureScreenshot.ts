@@ -8,12 +8,13 @@ import { internal } from "../../../_generated/api";
 import { internalAction } from "../../../_generated/server";
 import { normalizeUrl } from "../../../linkMetadata";
 import {
-  assertUrlIsSafe,
   type DnsResolver,
+  readBodyWithLimit,
   SsrfError,
+  safeFetch,
 } from "../../../linkMetadata/ssrf";
-import { isXStatusUrl } from "../../../linkMetadata/x";
 import { buildR2ObjectKey, storeObject } from "../../../storage/r2";
+import { pinnedFetch } from "../pinnedFetch";
 import {
   SCREENSHOT_RETRYABLE_PREFIX,
   type ScreenshotRetryableError,
@@ -31,6 +32,7 @@ const linkMetadataInternal = internalFunctions.linkMetadata as Record<
   string,
   any
 >;
+const MAX_SCREENSHOT_HTML_BYTES = 2 * 1024 * 1024;
 
 // Re-exported for backwards compatibility; the source of truth lives in
 // ./retryable so default-runtime workflow files can import it without dragging
@@ -45,34 +47,23 @@ const throwRetryable = (info: ScreenshotRetryableError): never => {
 };
 
 export const buildGenericScreenshotCode = (
-  url: string,
+  html: string,
   screenshotCss: string
 ): string => `
-  const isXStatus = ${JSON.stringify(isXStatusUrl(url))};
-  await page.setViewportSize({ width: 1280, height: 720 });
-  await page.goto(${JSON.stringify(url)}, {
-    waitUntil: isXStatus ? 'domcontentloaded' : 'networkidle',
-    timeout: isXStatus ? 45000 : 30000
+  await page.route('**/*', route => route.abort());
+  await page.addInitScript(() => {
+    const blocked = () => { throw new Error('Network access is disabled'); };
+    Object.defineProperty(globalThis, 'WebSocket', { value: blocked });
+    Object.defineProperty(globalThis, 'EventSource', { value: blocked });
+    if (globalThis.navigator) {
+      Object.defineProperty(globalThis.navigator, 'sendBeacon', { value: () => false });
+    }
   });
-  if (isXStatus) {
-    await page.waitForTimeout(8000);
-    await page.waitForFunction(() => {
-      const tweet = document.querySelector('article[data-testid="tweet"]');
-      const tweetText = document.querySelector('[data-testid="tweetText"]');
-      const spinner =
-        document.querySelector('[role="progressbar"]') ||
-        document.querySelector('[aria-label="Loading…"]') ||
-        document.querySelector('#placeholder');
-      return Boolean(tweet || tweetText) && !spinner;
-    }, { timeout: 45000 }).catch(() => null);
-    await page.evaluate(() => {
-      const tweet = document.querySelector('article[data-testid="tweet"]');
-      if (tweet instanceof HTMLElement) {
-        tweet.scrollIntoView({ block: 'start', inline: 'nearest' });
-      }
-    }).catch(() => null);
-    await page.waitForTimeout(2500);
-  }
+  await page.setViewportSize({ width: 1280, height: 720 });
+  await page.setContent(${JSON.stringify(html)}, {
+    waitUntil: 'domcontentloaded',
+    timeout: 30000
+  });
   await page.addStyleTag({ content: ${JSON.stringify(screenshotCss)} });
   const screenshot = await page.screenshot({ type: 'jpeg', quality: 80 });
   return screenshot.toString('base64');
@@ -80,7 +71,17 @@ export const buildGenericScreenshotCode = (
 
 const captureScreenshotWithKernel = async (
   ctx: any,
-  { cardId, url, userId }: { cardId: string; url: string; userId: string }
+  {
+    cardId,
+    html,
+    url,
+    userId,
+  }: {
+    cardId: string;
+    html: string;
+    url: string;
+    userId: string;
+  }
 ): Promise<{
   screenshotKey?: string;
   screenshotUpdatedAt?: number;
@@ -109,7 +110,7 @@ const captureScreenshotWithKernel = async (
     const response = await kernel.browsers.playwright.execute(
       kernelBrowser.session_id,
       {
-        code: buildGenericScreenshotCode(url, screenshotCss),
+        code: buildGenericScreenshotCode(html, screenshotCss),
         timeout_sec: 60,
       }
     );
@@ -242,9 +243,27 @@ export const captureScreenshot = internalAction({
 
     const normalizedUrl = normalizeUrl(card.url);
 
-    // SSRF guard: never send a non-public URL to the headless browser.
+    let html: string;
     try {
-      await assertUrlIsSafe(normalizedUrl, resolveDns);
+      const response = await safeFetch(
+        normalizedUrl,
+        resolveDns,
+        {
+          headers: {
+            accept: "text/html,application/xhtml+xml",
+            "user-agent":
+              "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+          },
+        },
+        pinnedFetch
+      );
+      const contentType = response.headers.get("content-type") ?? "";
+      if (!(response.ok && contentType.toLowerCase().includes("text/html"))) {
+        return;
+      }
+      html = new TextDecoder().decode(
+        await readBodyWithLimit(response, MAX_SCREENSHOT_HTML_BYTES)
+      );
     } catch (error) {
       if (error instanceof SsrfError) {
         console.warn(
@@ -257,6 +276,7 @@ export const captureScreenshot = internalAction({
 
     const screenshotResult = await captureScreenshotWithKernel(ctx, {
       cardId,
+      html,
       url: normalizedUrl,
       userId: card.userId,
     });

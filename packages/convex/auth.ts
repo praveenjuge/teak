@@ -23,6 +23,7 @@ import authConfig from "./auth.config";
 import { polar } from "./billing";
 import { isLocalDevelopmentUrl, resolveTeakDevAppUrl } from "./devUrls";
 import { e2eCleanupPlugin } from "./e2eCleanup";
+import { teakOAuthSecurity } from "./oauthSecurity";
 import {
   CARD_ERROR_CODES,
   CARD_ERROR_MESSAGES,
@@ -227,10 +228,10 @@ export const createAuth = (ctx: GenericCtx<DataModel>) => {
         "/sign-up/email": { window: 60, max: 5 },
         "/request-password-reset": { window: 300, max: 5 },
         "/reset-password": { window: 300, max: 5 },
-        // Dynamic client registration is unauthenticated; throttle spam into
-        // the oauthApplication table. Token exchange is hit on every refresh.
+        // Dynamic registration remains available for MCP discovery, but is
+        // tightly throttled and all external clients require explicit consent.
         "/mcp/token": { window: 60, max: 30 },
-        "/mcp/register": { window: 60, max: 5 },
+        "/mcp/register": { window: 3600, max: 10 },
       },
     },
     session: {
@@ -338,6 +339,7 @@ export const createAuth = (ctx: GenericCtx<DataModel>) => {
         jwksRotateOnTokenGenerationError: true,
         jwks: process.env.JWKS,
       }),
+      teakOAuthSecurity(),
       // OAuth 2.1 authorization server for browser-login clients (Raycast,
       // desktop, MCP). Access/refresh tokens are opaque strings stored in the
       // component's oauthAccessToken table; PKCE S256 is enforced.
@@ -351,6 +353,8 @@ export const createAuth = (ctx: GenericCtx<DataModel>) => {
         loginPage: "/login",
         oidcConfig: {
           loginPage: "/login",
+          consentPage: "/oauth/consent",
+          requirePKCE: true,
           accessTokenExpiresIn: 3600, // 1h
           // 30d refresh so Raycast / desktop are not re-prompted weekly.
           refreshTokenExpiresIn: 60 * 60 * 24 * 30,

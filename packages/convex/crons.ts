@@ -35,6 +35,13 @@ crons.cron(
   {}
 );
 
+crons.cron(
+  "cleanup-stale-pending-card-uploads",
+  "30 * * * *",
+  (internal as any).telemetry.crons.cleanupStalePendingCardUploads,
+  {}
+);
+
 // Generate AI metadata for cards that don't have it yet
 // Runs every 6 hours to catch any cards that failed generation
 crons.cron(

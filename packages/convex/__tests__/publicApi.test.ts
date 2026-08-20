@@ -334,13 +334,10 @@ describe("publicApi", () => {
   });
 
   test("executeBulkCardsForUser preserves explicit text and enforces its byte limit", async () => {
-    const rateLimitsModule = await import("../shared/rateLimits");
     const billingModule = await import("../billing");
     const managerModule = await import("../workflows/manager");
-    const originalLimit = rateLimitsModule.rateLimiter.limit;
     const originalGetSubscription = billingModule.polar.getCurrentSubscription;
     const originalWorkflowStart = managerModule.workflow.start;
-    rateLimitsModule.rateLimiter.limit = mock().mockResolvedValue({ ok: true });
     billingModule.polar.getCurrentSubscription = mock().mockResolvedValue(null);
     managerModule.workflow.start = mock().mockResolvedValue(undefined);
 
@@ -353,6 +350,7 @@ describe("publicApi", () => {
 
       const result = await handler(
         {
+          runMutation: mock().mockResolvedValue({ ok: true }),
           db: {
             insert,
             query: () => ({
@@ -385,7 +383,6 @@ describe("publicApi", () => {
         status: "error",
       });
     } finally {
-      rateLimitsModule.rateLimiter.limit = originalLimit;
       billingModule.polar.getCurrentSubscription = originalGetSubscription;
       managerModule.workflow.start = originalWorkflowStart;
     }
@@ -442,6 +439,7 @@ describe("publicApi", () => {
           normalizeId: mock().mockReturnValue("card_1"),
           patch: mock().mockResolvedValue(null),
         },
+        runMutation: mock().mockResolvedValue({ ok: true }),
         scheduler,
       },
       {

@@ -35,6 +35,7 @@ describe("card/getFileUrl.ts", () => {
           _id: "c1",
           userId: "u1",
           fileKey: "f1",
+          fileMetadata: { fileName: "payload.html" },
         }),
       },
     } as any;
@@ -42,5 +43,6 @@ describe("card/getFileUrl.ts", () => {
     const handler = (getFileUrl as any).handler ?? getFileUrl;
     const result = await handler(ctx, { key: "f1", cardId: "c1" });
     expect(result).toBe("https://file");
+    expect(resolveObjectUrlMock).toHaveBeenCalledWith("f1", "payload.html");
   });
 });

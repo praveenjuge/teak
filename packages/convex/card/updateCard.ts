@@ -6,6 +6,7 @@ import {
   type MutationCtx,
   mutation,
 } from "../_generated/server";
+import { rateLimiter } from "../shared/rateLimits";
 import { assertSafeExternalUrl } from "../shared/utils/safeUrl";
 import { validateTextCardContent } from "./markdown";
 import {
@@ -53,6 +54,27 @@ interface UpdateCardFieldForUserResult {
   shouldSchedulePipeline: boolean;
 }
 
+const consumeCardReprocessLimit = async (
+  ctx: MutationCtx,
+  userId: string,
+  cardId: Id<"cards">
+): Promise<void> => {
+  const perCardResult = await rateLimiter.limit(ctx, "cardReprocessPerCard", {
+    key: String(cardId),
+    throws: false,
+  });
+  if (!perCardResult.ok) {
+    throw new Error("This card is already queued for reprocessing");
+  }
+  const result = await rateLimiter.limit(ctx, "cardReprocess", {
+    key: userId,
+    throws: false,
+  });
+  if (!result.ok) {
+    throw new Error("Too many reprocessing requests; try again later");
+  }
+};
+
 export const updateCard = mutation({
   args: {
     id: v.id("cards"),
@@ -94,6 +116,10 @@ export const updateCard = mutation({
       } else if (card.type === "text") {
         updates.content = validateTextCardContent(updates.content);
       }
+    }
+    const contentChanged =
+      updates.content !== undefined && updates.content !== card.content;
+    if (contentChanged) {
       processingStatus = processingStatus
         ? withStageStatus(processingStatus, "metadata", stagePending())
         : buildInitialProcessingStatus({
@@ -111,6 +137,10 @@ export const updateCard = mutation({
       }
     }
 
+    if (contentChanged) {
+      await consumeCardReprocessLimit(ctx, user.subject, id);
+    }
+
     await ctx.db.patch("cards", id, {
       ...updates,
       ...(processingStatus ? { processingStatus } : {}),
@@ -118,7 +148,7 @@ export const updateCard = mutation({
     });
 
     // If content was updated, regenerate AI metadata
-    if (updates.content !== undefined) {
+    if (contentChanged) {
       await ctx.scheduler.runAfter(
         0,
         (internal as any)["workflows/manager"].startCardProcessingWorkflow,
@@ -274,6 +304,10 @@ export const updateCardFieldForUserHandler = async (
     updateData.processingStatus = processingStatus;
   }
 
+  if (shouldSchedulePipeline) {
+    await consumeCardReprocessLimit(ctx, userId, cardId);
+  }
+
   await ctx.db.patch("cards", cardId, updateData);
 
   if (shouldSchedulePipeline && !options.deferPipelineSchedule) {
@@ -328,5 +362,24 @@ export const updateCardFieldForUser = internalMutation({
   handler: async (ctx, args) => {
     await updateCardFieldForUserHandler(ctx, args);
     return null;
+  },
+});
+
+export const consumeCardReprocessLimitForUser = internalMutation({
+  args: { cardId: v.id("cards"), userId: v.string() },
+  returns: v.boolean(),
+  handler: async (ctx, { cardId, userId }) => {
+    const perCardResult = await rateLimiter.limit(ctx, "cardReprocessPerCard", {
+      key: String(cardId),
+      throws: false,
+    });
+    if (!perCardResult.ok) {
+      return false;
+    }
+    const result = await rateLimiter.limit(ctx, "cardReprocess", {
+      key: userId,
+      throws: false,
+    });
+    return result.ok;
   },
 });

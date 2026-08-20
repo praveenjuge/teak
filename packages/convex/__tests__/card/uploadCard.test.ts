@@ -16,20 +16,17 @@ describe("card uploads", () => {
   let uploadAndCreateCard: any;
   let createUploadedCardForUser: any;
   let inspectUploadedCardSource: any;
+  let promoteUploadedCardSource: any;
   let validateDirectUploadRequest: any;
-  let originalLimit: any;
   let originalGetSubscription: any;
   let r2Module: any;
   let originalGenerateUploadUrl: any;
 
   beforeEach(async () => {
-    const rateLimitsModule = await import("../../shared/rateLimits");
     const billingModule = await import("../../billing");
     r2Module = await import("../../storage/r2");
-    originalLimit = rateLimitsModule.rateLimiter.limit;
     originalGetSubscription = billingModule.polar.getCurrentSubscription;
     originalGenerateUploadUrl = r2Module.r2.generateUploadUrl;
-    rateLimitsModule.rateLimiter.limit = mock().mockResolvedValue({ ok: true });
     billingModule.polar.getCurrentSubscription = mock().mockResolvedValue(null);
     r2Module.r2.generateUploadUrl = mock().mockResolvedValue({
       key: VALID_FILE_KEY,
@@ -39,20 +36,20 @@ describe("card uploads", () => {
     uploadAndCreateCard = module.uploadAndCreateCard;
     createUploadedCardForUser = module.createUploadedCardForUser;
     validateDirectUploadRequest = module.validateDirectUploadRequest;
-    inspectUploadedCardSource = (await import("../../card/uploadCardAction"))
-      .inspectUploadedCardSource;
+    const uploadActionModule = await import("../../card/uploadCardAction");
+    inspectUploadedCardSource = uploadActionModule.inspectUploadedCardSource;
+    promoteUploadedCardSource = uploadActionModule.promoteUploadedCardSource;
   });
 
   afterEach(async () => {
-    const rateLimitsModule = await import("../../shared/rateLimits");
     const billingModule = await import("../../billing");
-    rateLimitsModule.rateLimiter.limit = originalLimit;
     billingModule.polar.getCurrentSubscription = originalGetSubscription;
     r2Module.r2.generateUploadUrl = originalGenerateUploadUrl;
   });
 
   test("prepares an owned upload URL for authenticated users", async () => {
     const ctx = {
+      runMutation: mock().mockResolvedValue({ ok: true }),
       auth: {
         getUserIdentity: mock().mockResolvedValue({ subject: "u1" }),
       },
@@ -73,6 +70,31 @@ describe("card uploads", () => {
       success: true,
       uploadKey: VALID_FILE_KEY,
       uploadUrl: "https://upload",
+    });
+    expect(r2Module.r2.generateUploadUrl.mock.calls[0][0]).toContain(
+      "/cards/upload-pending-v2/file/"
+    );
+  });
+
+  test("promotes verified uploads out of the cleanup namespace", async () => {
+    const send = mock().mockResolvedValue({});
+    const finalKey = await promoteUploadedCardSource(
+      "u1",
+      {
+        fileKey: "users/2u4/cards/upload-pending-v2/file/source.png",
+        fileName: "source.png",
+      },
+      '"etag"',
+      { bucket: "test", client: { send } }
+    );
+
+    expect(finalKey).toContain("/cards/stored/file/");
+    expect(send.mock.calls[0][0].input).toMatchObject({
+      Bucket: "test",
+      CopySource: "test/users/2u4/cards/upload-pending-v2/file/source.png",
+      CopySourceIfMatch: '"etag"',
+      Key: finalKey,
+      MetadataDirective: "COPY",
     });
   });
 
@@ -103,6 +125,7 @@ describe("card uploads", () => {
     const handler = uploadAndCreateCard.handler ?? uploadAndCreateCard;
     const result = await handler(
       {
+        runMutation: mock().mockResolvedValue({ ok: true }),
         auth: {
           getUserIdentity: mock().mockResolvedValue({ subject: "u1" }),
         },
@@ -145,6 +168,7 @@ describe("card uploads", () => {
 
   test("creates ordinary uploaded cards with compact file metadata", async () => {
     const ctx = {
+      runMutation: mock().mockResolvedValue({ ok: true }),
       db: {
         insert: mock().mockResolvedValue("card-1"),
         query: () => ({
@@ -184,6 +208,7 @@ describe("card uploads", () => {
   test("creates Markdown uploads as text with exact content and provenance", async () => {
     const source = "\uFEFF  # Heading\r\n\rBody  ";
     const ctx = {
+      runMutation: mock().mockResolvedValue({ ok: true }),
       db: {
         insert: mock().mockResolvedValue("card-1"),
         query: () => ({
@@ -487,7 +512,7 @@ describe("card uploads", () => {
         { bucket: "test", client: { send: oversizedSend } }
       )
     ).rejects.toMatchObject({ data: { code: "CONTENT_TOO_LARGE" } });
-    expect(oversizedSend).toHaveBeenCalledTimes(1);
+    expect(oversizedSend).toHaveBeenCalledTimes(2);
 
     const invalid = new Uint8Array([0xc3, 0x28]);
     const invalidSend = mock(async (command) =>
@@ -514,6 +539,34 @@ describe("card uploads", () => {
         { bucket: "test", client: { send: invalidSend } }
       )
     ).rejects.toMatchObject({ data: { code: "INVALID_UTF8" } });
+  });
+
+  test("deletes an oversized stored object when finalize rejects it", async () => {
+    const commands: string[] = [];
+    const send = mock((command) => {
+      commands.push(command.constructor.name);
+      if (command.constructor.name === "HeadObjectCommand") {
+        return {
+          ContentLength: 100 * 1024 * 1024 + 1,
+          ContentType: "image/png",
+          ETag: '"etag"',
+        };
+      }
+      return {};
+    });
+
+    await expect(
+      inspectUploadedCardSource(
+        "u1",
+        {
+          fileKey: VALID_FILE_KEY,
+          fileName: "image.png",
+          fileType: "image/png",
+        },
+        { bucket: "test", client: { send } }
+      )
+    ).rejects.toMatchObject({ data: { code: "FILE_TOO_LARGE" } });
+    expect(commands).toEqual(["HeadObjectCommand", "DeleteObjectCommand"]);
   });
 
   test("rejects Markdown objects that change after decoding", async () => {
@@ -596,6 +649,7 @@ describe("card uploads", () => {
 
   test("rejects ownership and stored metadata mismatches", async () => {
     const ctx = {
+      runMutation: mock().mockResolvedValue({ ok: true }),
       db: {
         query: () => ({
           withIndex: () => ({ take: mock().mockResolvedValue([]) }),

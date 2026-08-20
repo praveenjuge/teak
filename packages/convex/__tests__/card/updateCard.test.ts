@@ -1,11 +1,15 @@
 // @ts-nocheck
 import { beforeEach, describe, expect, mock, test } from "bun:test";
 
+const mockReprocessLimit = mock().mockResolvedValue({ ok: true });
+
 describe("card/updateCard.ts", () => {
   let updateCard: any;
   let updateCardField: any;
 
   beforeEach(async () => {
+    mockReprocessLimit.mockReset();
+    mockReprocessLimit.mockResolvedValue({ ok: true });
     const module = await import("../../card/updateCard");
     updateCard = module.updateCard;
     updateCardField = module.updateCardField;
@@ -25,6 +29,7 @@ describe("card/updateCard.ts", () => {
 
   test("updateCard normalizes quote content and schedules pipeline", async () => {
     const ctx = {
+      runMutation: mockReprocessLimit,
       auth: { getUserIdentity: mock().mockResolvedValue({ subject: "u1" }) },
       db: {
         get: mock().mockResolvedValue({
@@ -48,6 +53,38 @@ describe("card/updateCard.ts", () => {
       expect.objectContaining({ content: "New quote" })
     );
     expect(ctx.scheduler.runAfter).toHaveBeenCalled();
+    expect(mockReprocessLimit).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({
+        key: "u1",
+        name: "cardReprocess",
+      })
+    );
+  });
+
+  test("updateCard rejects rapid reprocessing before changing the card", async () => {
+    mockReprocessLimit.mockResolvedValueOnce({ ok: false });
+    const ctx = {
+      runMutation: mockReprocessLimit,
+      auth: { getUserIdentity: mock().mockResolvedValue({ subject: "u1" }) },
+      db: {
+        get: mock().mockResolvedValue({
+          _id: "c1",
+          userId: "u1",
+          type: "text",
+          content: "Old",
+        }),
+        patch: mock(),
+      },
+      scheduler: { runAfter: mock() },
+    } as any;
+
+    const handler = (updateCard as any).handler ?? updateCard;
+    await expect(handler(ctx, { id: "c1", content: "New" })).rejects.toThrow(
+      "already queued for reprocessing"
+    );
+    expect(ctx.db.patch).not.toHaveBeenCalled();
+    expect(ctx.scheduler.runAfter).not.toHaveBeenCalled();
   });
 
   test("updateCard throws when card not found", async () => {
@@ -89,6 +126,7 @@ describe("card/updateCard.ts", () => {
 
   test("updateCard does not normalize content for non-quote types", async () => {
     const ctx = {
+      runMutation: mockReprocessLimit,
       auth: { getUserIdentity: mock().mockResolvedValue({ subject: "u1" }) },
       db: {
         get: mock().mockResolvedValue({
@@ -121,6 +159,7 @@ describe("card/updateCard.ts", () => {
       processingStatus: { classify: { status: "completed" } },
     };
     const ctx = {
+      runMutation: mockReprocessLimit,
       auth: { getUserIdentity: mock().mockResolvedValue({ subject: "u1" }) },
       db: {
         get: mock().mockResolvedValue(card),
@@ -142,13 +181,14 @@ describe("card/updateCard.ts", () => {
 
   test("updateCard updates link type with categorize stage", async () => {
     const ctx = {
+      runMutation: mockReprocessLimit,
       auth: { getUserIdentity: mock().mockResolvedValue({ subject: "u1" }) },
       db: {
         get: mock().mockResolvedValue({
           _id: "c1",
           userId: "u1",
           type: "link",
-          content: "New content",
+          content: "Old content",
         }),
         patch: mock().mockResolvedValue(null),
       },
@@ -201,6 +241,7 @@ describe("card/updateCard.ts", () => {
 
   test("updateCardField updates url and clears link preview", async () => {
     const ctx = {
+      runMutation: mockReprocessLimit,
       auth: { getUserIdentity: mock().mockResolvedValue({ subject: "u1" }) },
       db: {
         get: mock().mockResolvedValue({

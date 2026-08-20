@@ -12,6 +12,10 @@ import { CustomerPortalButton } from "./CustomerPortalButton";
 import { DeleteAccountDialog } from "./DeleteAccountDialog";
 import type { ExportState } from "./ExportPanel";
 import { ImportExportSection } from "./ImportExportSection";
+import {
+  type OAuthConnection,
+  OAuthConnectionsSection,
+} from "./OAuthConnectionsSection";
 import { SettingRow } from "./SettingRow";
 import { SettingsFooter } from "./SettingsFooter";
 import { ThemeToggle } from "./ThemeToggle";
@@ -27,6 +31,7 @@ interface SettingsContentProps {
   hasPremium?: boolean;
   isLoading: boolean;
   keys: ApiKeyListItem[] | undefined;
+  oauthConnections: OAuthConnection[] | undefined;
   onCancelExport: (jobId: string) => Promise<void>;
   onCreateApiKey: () => Promise<{ key: string }>;
   onCreateCustomerPortal: () => Promise<void>;
@@ -34,6 +39,7 @@ interface SettingsContentProps {
   onDeleteDialogOpenChange: (open: boolean) => void;
   onDownloadExport: (jobId: string) => Promise<void>;
   onRevokeApiKey: (keyId: string) => Promise<void>;
+  onRevokeOAuthConnection: (clientId: string) => Promise<void>;
   onRotateApiKey: (keyId: string) => Promise<{ key: string }>;
   onSignOut: () => Promise<void> | void;
   onStartExport: () => Promise<void>;
@@ -54,6 +60,7 @@ export function SettingsContent({
   hasPremium,
   isLoading,
   keys,
+  oauthConnections,
   onCancelExport,
   onCreateApiKey,
   onCreateCustomerPortal,
@@ -61,6 +68,7 @@ export function SettingsContent({
   onDeleteDialogOpenChange,
   onDownloadExport,
   onRevokeApiKey,
+  onRevokeOAuthConnection,
   onRotateApiKey,
   onSignOut,
   onStartExport,
@@ -134,6 +142,11 @@ export function SettingsContent({
           onRotateKey={onRotateApiKey}
         />
       ) : null}
+
+      <OAuthConnectionsSection
+        connections={oauthConnections}
+        onRevoke={onRevokeOAuthConnection}
+      />
 
       {/* Import is always available; the Export tab uses these handlers, which
           both web and desktop supply, so the section is not gated on them. */}

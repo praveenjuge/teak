@@ -15,7 +15,6 @@ import { TEST_APPLE_PRIVATE_KEY } from "../helpers/appleAuth.test-utils";
 describe("card/createCard.ts", () => {
   let createCard: any;
   let workflow: any;
-  let originalLimit: any;
   let originalGetSubscription: any;
 
   beforeEach(async () => {
@@ -24,27 +23,23 @@ describe("card/createCard.ts", () => {
     workflow.start = mock().mockResolvedValue(undefined);
 
     const _authModule = await import("../../auth");
-    const rateLimitsModule = await import("../../shared/rateLimits");
     const billingModule = await import("../../billing");
 
-    originalLimit = rateLimitsModule.rateLimiter.limit;
     originalGetSubscription = billingModule.polar.getCurrentSubscription;
 
-    rateLimitsModule.rateLimiter.limit = mock().mockResolvedValue({ ok: true });
     billingModule.polar.getCurrentSubscription = mock().mockResolvedValue(null);
 
     createCard = (await import("../../card/createCard")).createCard;
   });
 
   afterEach(async () => {
-    const rateLimitsModule = await import("../../shared/rateLimits");
     const billingModule = await import("../../billing");
-    rateLimitsModule.rateLimiter.limit = originalLimit;
     billingModule.polar.getCurrentSubscription = originalGetSubscription;
   });
 
   test("throws when unauthenticated", async () => {
     const ctx = {
+      runMutation: mock().mockResolvedValue({ ok: true }),
       auth: { getUserIdentity: mock().mockResolvedValue(null) },
     } as any;
 
@@ -55,6 +50,7 @@ describe("card/createCard.ts", () => {
 
   test("creates quote card when content is quoted", async () => {
     const ctx = {
+      runMutation: mock().mockResolvedValue({ ok: true }),
       auth: { getUserIdentity: mock().mockResolvedValue({ subject: "u1" }) },
       db: {
         system: { get: mock().mockResolvedValue(null) },
@@ -99,6 +95,7 @@ describe("card/createCard.ts", () => {
 
   test("sets metadataStatus pending for link cards", async () => {
     const ctx = {
+      runMutation: mock().mockResolvedValue({ ok: true }),
       auth: { getUserIdentity: mock().mockResolvedValue({ subject: "u1" }) },
       db: {
         system: { get: mock().mockResolvedValue(null) },
@@ -136,6 +133,7 @@ describe("card/createCard.ts", () => {
     // backend only auto-upgrades URL content to a link when no type is
     // provided, so an explicit type is always honored.
     const ctx = {
+      runMutation: mock().mockResolvedValue({ ok: true }),
       auth: { getUserIdentity: mock().mockResolvedValue({ subject: "u1" }) },
       db: {
         system: { get: mock().mockResolvedValue(null) },
@@ -167,6 +165,7 @@ describe("card/createCard.ts", () => {
   test("keeps explicit text stable for URLs, quotes, colors, and Markdown", async () => {
     const insert = mock(async () => "c_explicit");
     const ctx = {
+      runMutation: mock().mockResolvedValue({ ok: true }),
       auth: { getUserIdentity: mock().mockResolvedValue({ subject: "u1" }) },
       db: {
         query: mock().mockReturnValue({
@@ -200,6 +199,7 @@ describe("card/createCard.ts", () => {
 
   test("preserves explicit Markdown text source exactly and enforces UTF-8 bytes", async () => {
     const ctx = {
+      runMutation: mock().mockResolvedValue({ ok: true }),
       auth: { getUserIdentity: mock().mockResolvedValue({ subject: "u1" }) },
       db: {
         query: mock().mockReturnValue({
@@ -231,6 +231,7 @@ describe("card/createCard.ts", () => {
 
   test("lets the backend upgrade a URL to a link card when type is omitted", async () => {
     const ctx = {
+      runMutation: mock().mockResolvedValue({ ok: true }),
       auth: { getUserIdentity: mock().mockResolvedValue({ subject: "u1" }) },
       db: {
         system: { get: mock().mockResolvedValue(null) },
@@ -262,6 +263,7 @@ describe("card/createCard.ts", () => {
 
   test("keeps implicit text source exact when content has no URL", async () => {
     const ctx = {
+      runMutation: mock().mockResolvedValue({ ok: true }),
       auth: { getUserIdentity: mock().mockResolvedValue({ subject: "u1" }) },
       db: {
         system: { get: mock().mockResolvedValue(null) },
@@ -293,6 +295,7 @@ describe("card/createCard.ts", () => {
 
   test("rejects unsafe url schemes", async () => {
     const ctx = {
+      runMutation: mock().mockResolvedValue({ ok: true }),
       auth: { getUserIdentity: mock().mockResolvedValue({ subject: "u1" }) },
       db: {
         system: { get: mock().mockResolvedValue(null) },
@@ -321,6 +324,7 @@ describe("card/createCard.ts", () => {
 
   test("normalizes failure classes before scheduling telemetry", async () => {
     const ctx = {
+      runMutation: mock().mockResolvedValue({ ok: true }),
       auth: { getUserIdentity: mock().mockResolvedValue({ subject: "u1" }) },
       db: {
         system: { get: mock().mockResolvedValue(null) },
@@ -351,6 +355,7 @@ describe("card/createCard.ts", () => {
 
   test("builds fileMetadata when fileKey provided", async () => {
     const ctx = {
+      runMutation: mock().mockResolvedValue({ ok: true }),
       auth: { getUserIdentity: mock().mockResolvedValue({ subject: "u1" }) },
       db: {
         query: mock().mockReturnValue({
@@ -389,6 +394,7 @@ describe("card/createCard.ts", () => {
 
   test("preserves metadata source when provided", async () => {
     const ctx = {
+      runMutation: mock().mockResolvedValue({ ok: true }),
       auth: { getUserIdentity: mock().mockResolvedValue({ subject: "u1" }) },
       db: {
         system: { get: mock().mockResolvedValue(null) },
