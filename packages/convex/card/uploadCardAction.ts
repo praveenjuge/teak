@@ -1,11 +1,11 @@
 "use node";
 
 import {
-  CopyObjectCommand,
   DeleteObjectCommand,
   GetObjectCommand,
   HeadObjectCommand,
   type HeadObjectCommandOutput,
+  PutObjectCommand,
   S3Client,
 } from "@aws-sdk/client-s3";
 import { ConvexError, v } from "convex/values";
@@ -370,13 +370,37 @@ export const promoteUploadedCardSource = async (
     role: "file",
     fileName: args.fileName,
   });
-  await storage.client.send(
-    new CopyObjectCommand({
+  // Avoid S3 CopyObject here. The Convex Node bundle resolves the AWS XML
+  // parser's browser entrypoint, which requires DOMParser and crashes while
+  // deserializing R2's successful CopyObject XML response. A conditional GET
+  // followed by a PUT preserves the same immutable promotion guarantee and is
+  // bounded by the upload limits enforced immediately before this call.
+  const source = await storage.client.send(
+    new GetObjectCommand({
       Bucket: storage.bucket,
-      CopySource: `${storage.bucket}/${args.fileKey}`,
-      CopySourceIfMatch: sourceEtag,
+      IfMatch: sourceEtag,
+      Key: args.fileKey,
+    })
+  );
+  if (!source.Body) {
+    return convexUploadError(
+      "CONFLICT",
+      "Uploaded file changed before it could be saved"
+    );
+  }
+  const bytes = await source.Body.transformToByteArray();
+  await storage.client.send(
+    new PutObjectCommand({
+      Body: bytes,
+      Bucket: storage.bucket,
+      CacheControl: source.CacheControl,
+      ContentDisposition: source.ContentDisposition,
+      ContentEncoding: source.ContentEncoding,
+      ContentLanguage: source.ContentLanguage,
+      ContentLength: bytes.byteLength,
+      ContentType: source.ContentType,
       Key: finalFileKey,
-      MetadataDirective: "COPY",
+      Metadata: source.Metadata,
     })
   );
   return finalFileKey;

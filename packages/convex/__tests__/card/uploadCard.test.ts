@@ -77,7 +77,17 @@ describe("card uploads", () => {
   });
 
   test("promotes verified uploads out of the cleanup namespace", async () => {
-    const send = mock().mockResolvedValue({});
+    const bytes = new Uint8Array([1, 2, 3]);
+    const send = mock((command) =>
+      command.constructor.name === "GetObjectCommand"
+        ? {
+            Body: { transformToByteArray: async () => bytes },
+            CacheControl: "private, max-age=60",
+            ContentType: "image/png",
+            Metadata: { source: "upload" },
+          }
+        : {}
+    );
     const finalKey = await promoteUploadedCardSource(
       "u1",
       {
@@ -89,12 +99,21 @@ describe("card uploads", () => {
     );
 
     expect(finalKey).toContain("/cards/stored/file/");
+    expect(send.mock.calls[0][0].constructor.name).toBe("GetObjectCommand");
     expect(send.mock.calls[0][0].input).toMatchObject({
       Bucket: "test",
-      CopySource: "test/users/2u4/cards/upload-pending-v2/file/source.png",
-      CopySourceIfMatch: '"etag"',
+      IfMatch: '"etag"',
+      Key: "users/2u4/cards/upload-pending-v2/file/source.png",
+    });
+    expect(send.mock.calls[1][0].constructor.name).toBe("PutObjectCommand");
+    expect(send.mock.calls[1][0].input).toMatchObject({
+      Body: bytes,
+      Bucket: "test",
+      CacheControl: "private, max-age=60",
+      ContentLength: 3,
+      ContentType: "image/png",
       Key: finalKey,
-      MetadataDirective: "COPY",
+      Metadata: { source: "upload" },
     });
   });
 
