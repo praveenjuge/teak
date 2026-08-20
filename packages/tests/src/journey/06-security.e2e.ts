@@ -1,5 +1,5 @@
 import { createHash, randomBytes } from "node:crypto";
-import { expect, test } from "@playwright/test";
+import { expect, request as playwrightRequest, test } from "@playwright/test";
 import { apiFetch } from "../helpers/api";
 import { cleanupE2EAccounts } from "../helpers/e2e-cleanup";
 import { env } from "../helpers/env";
@@ -8,28 +8,39 @@ import { readState } from "../helpers/run-state";
 
 test("external OAuth requires explicit full-vault consent and can be revoked", async ({
   page,
-  request,
 }) => {
   const verifier = randomBytes(48).toString("base64url");
   const challenge = createHash("sha256").update(verifier).digest("base64url");
   const redirectUri = "https://oauth-e2e.invalid/callback";
   const clientName = `OAuth security e2e ${Date.now()}`;
-  // Dynamic client registration is anonymous. Use the isolated request
-  // fixture so the request cannot accidentally combine session cookies with
-  // a missing browser Origin and trip the CSRF guard before registration.
-  const registration = await request.post("/api/auth/mcp/register", {
-    data: {
-      client_name: clientName,
-      grant_types: ["authorization_code", "refresh_token"],
-      redirect_uris: [redirectUri],
-      response_types: ["code"],
-      token_endpoint_auth_method: "none",
-    },
+  // This project uses an authenticated storage state for the whole journey.
+  // Dynamic client registration is anonymous, so create a truly empty request
+  // context instead of inheriting those cookies and triggering the CSRF guard.
+  const anonymousRequest = await playwrightRequest.newContext({
+    baseURL: env.appUrl,
+    storageState: { cookies: [], origins: [] },
   });
-  expect(registration.status()).toBe(201);
-  const { client_id: clientId } = (await registration.json()) as {
-    client_id: string;
-  };
+  let clientId = "";
+  try {
+    const registration = await anonymousRequest.post("/api/auth/mcp/register", {
+      data: {
+        client_name: clientName,
+        grant_types: ["authorization_code", "refresh_token"],
+        redirect_uris: [redirectUri],
+        response_types: ["code"],
+        token_endpoint_auth_method: "none",
+      },
+    });
+    const registrationBody = (await registration.json()) as {
+      client_id?: string;
+      message?: string;
+    };
+    expect(registration.status(), registrationBody.message).toBe(201);
+    clientId = registrationBody.client_id ?? "";
+    expect(clientId).toBeTruthy();
+  } finally {
+    await anonymousRequest.dispose();
+  }
 
   let callbackUrl = "";
   await page.route("https://oauth-e2e.invalid/**", async (route) => {
