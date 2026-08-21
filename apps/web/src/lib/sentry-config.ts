@@ -24,12 +24,15 @@ export const buildPseudonymousSentryUser = async (
   return email?.startsWith("e2e-") ? { id, segment: "production_e2e" } : { id };
 };
 
-const EXTENSION_FRAME_PREFIXES = [
+const INJECTED_FRAME_PREFIXES = [
   "app:///scripts/",
+  "app:///userscript",
   "chrome-extension://",
   "moz-extension://",
   "safari-web-extension://",
 ];
+
+export const SENTRY_USER_SEGMENT_TAG = "teak.user_segment";
 
 export const resolveSentryEnvironment = (): TelemetryEnvironment =>
   resolveTelemetryEnvironment({
@@ -84,20 +87,31 @@ export const scrubSentryPayload = <T>(payload: T): T =>
 const isExtensionFrame = (filename?: string) =>
   Boolean(
     filename &&
-      EXTENSION_FRAME_PREFIXES.some((prefix) => filename.startsWith(prefix))
+      INJECTED_FRAME_PREFIXES.some((prefix) => filename.startsWith(prefix))
   );
 
-const isExtensionFetchFailure = (event: ErrorEvent) =>
-  event.exception?.values?.some((exception) => {
-    const isFetchFailure =
-      exception.type === "TypeError" &&
-      exception.value?.startsWith("Failed to fetch");
+const isInjectedError = (event: ErrorEvent) =>
+  event.exception?.values?.some((exception) =>
+    exception.stacktrace?.frames?.some((frame) =>
+      isExtensionFrame(frame.filename)
+    )
+  ) ?? false;
 
+const isReactInternalFrame = (filename?: string) =>
+  Boolean(
+    filename &&
+      (filename.includes("/react-dom/") || filename.includes("/scheduler/"))
+  );
+
+const isExternalDomMutation = (event: ErrorEvent) =>
+  event.exception?.values?.some((exception) => {
+    const frames = exception.stacktrace?.frames ?? [];
     return (
-      isFetchFailure &&
-      exception.stacktrace?.frames?.some((frame) =>
-        isExtensionFrame(frame.filename)
-      )
+      exception.type === "NotFoundError" &&
+      exception.value ===
+        "Failed to execute 'removeChild' on 'Node': The node to be removed is not a child of this node." &&
+      frames.length > 0 &&
+      frames.every((frame) => isReactInternalFrame(frame.filename))
     );
   }) ?? false;
 
@@ -123,7 +137,8 @@ const isSafariBetterAuthLoadFailure = (event: ErrorEvent) =>
       isBetterAuthSessionFrame(frame.filename)
     );
     const isKnownE2eBundleAbort =
-      event.user?.segment === "production_e2e" &&
+      (event.tags?.[SENTRY_USER_SEGMENT_TAG] === "production_e2e" ||
+        event.user?.segment === "production_e2e") &&
       frames.some((frame) => isBundledNextFrame(frame.filename));
 
     return (
@@ -133,7 +148,11 @@ const isSafariBetterAuthLoadFailure = (event: ErrorEvent) =>
   }) ?? false;
 
 export function filterClientSentryEvent(event: ErrorEvent, _hint?: EventHint) {
-  if (isExtensionFetchFailure(event) || isSafariBetterAuthLoadFailure(event)) {
+  if (
+    isInjectedError(event) ||
+    isExternalDomMutation(event) ||
+    isSafariBetterAuthLoadFailure(event)
+  ) {
     return null;
   }
 

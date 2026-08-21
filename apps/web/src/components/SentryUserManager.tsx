@@ -3,7 +3,10 @@
 import * as Sentry from "@sentry/nextjs";
 import { useEffect } from "react";
 import { authClient } from "@/lib/auth-client";
-import { buildPseudonymousSentryUser } from "@/lib/sentry-config";
+import {
+  buildPseudonymousSentryUser,
+  SENTRY_USER_SEGMENT_TAG,
+} from "@/lib/sentry-config";
 
 /**
  * Component that syncs a pseudonymous authenticated user id to Sentry.
@@ -18,11 +21,13 @@ export function SentryUserManager() {
     void buildPseudonymousSentryUser(session?.user.id, session?.user.email)
       .then((user) => {
         if (!cancelled) {
+          Sentry.setTag(SENTRY_USER_SEGMENT_TAG, user?.segment);
           Sentry.setUser(user);
         }
       })
       .catch(() => {
         if (!cancelled) {
+          Sentry.setTag(SENTRY_USER_SEGMENT_TAG, undefined);
           Sentry.setUser(null);
         }
       });
