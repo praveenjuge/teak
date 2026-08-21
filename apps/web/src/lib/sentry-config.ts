@@ -124,7 +124,11 @@ const isBetterAuthSessionFrame = (filename?: string) =>
   );
 
 const isBundledNextFrame = (filename?: string) =>
-  filename?.includes("/_next/static/chunks/") ?? false;
+  Boolean(
+    filename &&
+      (filename.includes("/_next/static/chunks/") ||
+        filename.includes("/_next/static/immutable/chunks/"))
+  );
 
 const isSafariBetterAuthLoadFailure = (event: ErrorEvent) =>
   event.exception?.values?.some((exception) => {
