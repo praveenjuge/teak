@@ -58,6 +58,8 @@ describe("resolveSentryEnvironment", () => {
     );
 
     expect(source).toContain(".catch(() => {");
+    expect(source).toContain("Sentry.setTag");
+    expect(source).toContain("SENTRY_USER_SEGMENT_TAG");
     expect(source).toContain("Sentry.setUser(null)");
   });
 
@@ -145,6 +147,69 @@ describe("filterClientSentryEvent", () => {
     expect(filterClientSentryEvent(event)).toBeNull();
   });
 
+  test("drops injected userscript execution failures", () => {
+    const event = {
+      exception: {
+        values: [
+          {
+            stacktrace: {
+              frames: [{ filename: "app:///userscript.html" }],
+            },
+            type: "EvalError",
+            value:
+              "Evaluating a string as JavaScript violates Content Security Policy",
+          },
+        ],
+      },
+    } satisfies ErrorEvent;
+
+    expect(filterClientSentryEvent(event)).toBeNull();
+  });
+
+  test("drops external DOM mutation errors raised only from React internals", () => {
+    const event = {
+      exception: {
+        values: [
+          {
+            stacktrace: {
+              frames: [
+                {
+                  filename:
+                    "node_modules/next/dist/compiled/react-dom/cjs/react-dom-client.production.js",
+                  function: "commitDeletionEffectsOnFiber",
+                },
+              ],
+            },
+            type: "NotFoundError",
+            value:
+              "Failed to execute 'removeChild' on 'Node': The node to be removed is not a child of this node.",
+          },
+        ],
+      },
+    } satisfies ErrorEvent;
+
+    expect(filterClientSentryEvent(event)).toBeNull();
+  });
+
+  test("keeps DOM removal errors with an app frame", () => {
+    const event = {
+      exception: {
+        values: [
+          {
+            stacktrace: {
+              frames: [{ filename: "app:///src/app/HomePageClient.tsx" }],
+            },
+            type: "NotFoundError",
+            value:
+              "Failed to execute 'removeChild' on 'Node': The node to be removed is not a child of this node.",
+          },
+        ],
+      },
+    } satisfies ErrorEvent;
+
+    expect(filterClientSentryEvent(event)).toEqual(event);
+  });
+
   test("drops Safari Better Auth session fetch aborts for pseudonymous users", () => {
     const event = {
       exception: {
@@ -186,10 +251,10 @@ describe("filterClientSentryEvent", () => {
           },
         ],
       },
-      user: {
-        id: "pseudonymous-user-id",
-        segment: "production_e2e",
+      tags: {
+        "teak.user_segment": "production_e2e",
       },
+      user: { id: "pseudonymous-user-id" },
     } satisfies ErrorEvent;
 
     expect(filterClientSentryEvent(event)).toBeNull();
