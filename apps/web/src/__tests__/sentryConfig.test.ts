@@ -260,6 +260,33 @@ describe("filterClientSentryEvent", () => {
     expect(filterClientSentryEvent(event)).toBeNull();
   });
 
+  test("drops Safari e2e aborts from immutable Next.js chunks", () => {
+    const event = {
+      exception: {
+        values: [
+          {
+            type: "TypeError",
+            value: "Load failed (app.teakvault.com)",
+            stacktrace: {
+              frames: [
+                {
+                  filename:
+                    "app:///_next/static/immutable/chunks/0k5wuabdzwsx5.js",
+                },
+              ],
+            },
+          },
+        ],
+      },
+      tags: {
+        "teak.user_segment": "production_e2e",
+      },
+      user: { id: "pseudonymous-user-id" },
+    } satisfies ErrorEvent;
+
+    expect(filterClientSentryEvent(event)).toBeNull();
+  });
+
   test("keeps bare bundled load failures for real users", () => {
     const event = {
       exception: {
