@@ -1,6 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import { createHmac } from "node:crypto";
 import {
+  bucketedSignatureExpiry,
   buildSignedFilePayload,
   buildSignedWorkerFileUrl,
 } from "../../storage/r2";
@@ -37,8 +38,9 @@ describe("signed worker file urls", () => {
 
     expect(url.origin + url.pathname).toBe(`${BASE}/${KEY}`);
     const exp = Number.parseInt(url.searchParams.get("exp") ?? "", 10);
-    expect(exp).toBeGreaterThanOrEqual(before + 900);
-    expect(exp).toBeLessThanOrEqual(after + 900);
+    // Default validity is the full 7-day signature lifetime.
+    expect(exp).toBeGreaterThanOrEqual(before + 604_800);
+    expect(exp).toBeLessThanOrEqual(after + 604_800);
 
     // No overrides -> no ct/cd params -> worker falls back to stored metadata.
     expect(url.searchParams.get("ct")).toBeNull();
@@ -46,6 +48,35 @@ describe("signed worker file urls", () => {
     expect(url.searchParams.get("sig")).toBe(
       hmacHex(buildSignedFilePayload({ key: KEY, exp: `${exp}` }))
     );
+  });
+
+  test("mints identical urls for repeated signing within one window", async () => {
+    const first = await buildSignedWorkerFileUrl(BASE, SECRET, KEY);
+    const second = await buildSignedWorkerFileUrl(BASE, SECRET, KEY);
+    expect(second).toBe(first);
+  });
+
+  test("bucketed expiry stays constant per window with ample remaining ttl", () => {
+    const windowSeconds = 6 * 60 * 60;
+    const windowStart =
+      Math.floor(Math.floor(Date.now() / 60_000) * 60 / windowSeconds) *
+      windowSeconds;
+    const inWindow = [
+      windowStart,
+      windowStart + 1,
+      windowStart + windowSeconds - 1,
+    ];
+    const expiries = inWindow.map((now) => bucketedSignatureExpiry(now));
+    expect(new Set(expiries).size).toBe(1);
+
+    // Every minted URL stays valid for at least the full 7-day TTL.
+    expect(expiries[0]).toBeGreaterThanOrEqual(
+      windowStart + windowSeconds - 1 + 604_800
+    );
+
+    // Crossing into the next window mints a new (still valid) expiry.
+    const nextWindow = bucketedSignatureExpiry(windowStart + windowSeconds);
+    expect(nextWindow).toBe(expiries[0]! + windowSeconds);
   });
 
   test("signs content-type and disposition overrides into the token", async () => {

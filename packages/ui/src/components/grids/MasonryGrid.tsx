@@ -12,6 +12,7 @@ type CardItem = Doc<"cards"> | "add-form";
 
 interface MasonryItemData {
   data: CardItem;
+  isPriority?: boolean;
   key: string | number;
 }
 
@@ -28,6 +29,9 @@ type MasonryColumns =
 
 const DEFAULT_BATCH_SIZE = 24;
 const DEFAULT_ROOT_MARGIN = "200px 0px";
+// Cards near the top of the grid are above the fold on every screen size, so
+// their media loads eagerly with high fetch priority instead of lazily.
+const PRIORITY_CARD_COUNT = 10;
 
 export interface MasonryGridProps {
   AddCardFormComponent?: React.ComponentType;
@@ -305,10 +309,13 @@ export function MasonryGrid({
       });
     }
 
-    for (const card of filteredCards.slice(0, visibleCount)) {
+    for (const [index, card] of filteredCards
+      .slice(0, visibleCount)
+      .entries()) {
       items.push({
-        key: card._id,
         data: card,
+        isPriority: index < PRIORITY_CARD_COUNT,
+        key: card._id,
       });
     }
 
@@ -334,6 +341,7 @@ export function MasonryGrid({
           card={card}
           isSelected={selectedCardIds.has(card._id)}
           isSelectionMode={isSelectionMode}
+          isPriority={item.isPriority === true}
           isTrashMode={showTrashOnly}
           onAddTags={onAddTags}
           onClick={handleCardClick}

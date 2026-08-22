@@ -24,6 +24,7 @@ import {
 import type { SyntheticEvent } from "react";
 import { memo, useState } from "react";
 import { markdownToPlainText } from "../../lib/markdownToPlainText";
+import { prefetchCardModalMedia } from "../../lib/prefetchCardMedia";
 import { prefetchFileTextPreview } from "../card-previews/fileTextPreviewCache";
 import { AudioWavePreview } from "./previews/AudioWavePreview";
 import { GridDocumentPreview } from "./previews/GridDocumentPreview";
@@ -45,6 +46,7 @@ export const Card = memo(function Card({
   onCopyImage,
   isSelectionMode,
   isSelected,
+  isPriority = false,
   onEnterSelectionMode,
   onToggleSelection,
 }: CardProps) {
@@ -72,6 +74,14 @@ export const Card = memo(function Card({
     }).catch(() => {
       // The modal retries and keeps file facts visible if intent prefetch fails.
     });
+  };
+
+  const handlePrefetch = () => {
+    if (isOptimistic) {
+      return;
+    }
+    prefetchDocumentPreview();
+    prefetchCardModalMedia(card);
   };
 
   const handleClick = () => {
@@ -328,6 +338,7 @@ export const Card = memo(function Card({
           altText={card.content}
           height={card.fileMetadata?.height}
           imageUrl={card.thumbnailUrl ?? card.fileUrl ?? undefined}
+          isPriority={isPriority}
           width={card.fileMetadata?.width}
         />
       );
@@ -341,6 +352,7 @@ export const Card = memo(function Card({
         <GridVideoPreview
           height={card.fileMetadata?.height}
           isGif={isGif}
+          isPriority={isPriority}
           thumbnailUrl={card.thumbnailUrl ?? undefined}
           videoUrl={card.fileUrl ?? undefined}
           width={card.fileMetadata?.width}
@@ -357,6 +369,7 @@ export const Card = memo(function Card({
         <GridDocumentPreview
           fileName={card.fileMetadata?.fileName || card.content}
           height={card.fileMetadata?.height}
+          isPriority={isPriority}
           thumbnailUrl={card.thumbnailUrl ?? undefined}
           width={card.fileMetadata?.width}
         />
@@ -410,9 +423,9 @@ export const Card = memo(function Card({
             isOptimistic ? "cursor-default opacity-70" : "cursor-pointer"
           } ${card.isDeleted ? "opacity-60" : ""} ${isSelected ? "rounded-xl ring-2 ring-primary" : ""}`}
           onClick={handleClick}
-          onFocus={prefetchDocumentPreview}
-          onPointerDown={prefetchDocumentPreview}
-          onPointerEnter={prefetchDocumentPreview}
+          onFocus={handlePrefetch}
+          onPointerDown={handlePrefetch}
+          onPointerEnter={handlePrefetch}
         >
           {isOptimistic && (
             <div className="absolute inset-0 z-10 flex items-center justify-center">

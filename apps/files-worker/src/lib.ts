@@ -3,7 +3,61 @@
 // exact same payload format; the fixed test vector in lib.test.ts locks both
 // runtimes to identical HMAC output.
 
-export const FILES_CACHE_CONTROL = "private, max-age=900, immutable";
+// Must stay in lockstep with PRIVATE_FILE_CACHE_CONTROL in
+// packages/convex/storage/r2.ts, and below the signed-URL minimum remaining
+// validity (7 days) so browsers never replay an expired signature.
+export const FILES_CACHE_CONTROL = "private, max-age=518400, immutable"; // 6 days.
+
+export interface R2GetRange {
+  offset?: number;
+  length?: number;
+  suffix?: number;
+}
+
+export type ParsedRange =
+  | { kind: "offset"; offset: number; length?: number }
+  | { kind: "suffix"; suffix: number };
+
+/**
+ * Parse a single-range `Range` header into an R2 get() range option.
+ * Multi-range, non-bytes, and malformed headers are ignored (the caller serves
+ * the full object), which RFC 9110 permits. Returns null when the header is
+ * absent.
+ */
+export const parseSingleByteRange = (
+  rangeHeader: string | null | undefined
+): ParsedRange | null => {
+  if (!rangeHeader) {
+    return null;
+  }
+  const match = /^bytes=(\d*)-(\d*)$/.exec(rangeHeader.trim());
+  if (!match) {
+    return null;
+  }
+  const [, rawStart, rawEnd] = match;
+  if (rawStart === "" && rawEnd === "") {
+    return null;
+  }
+  if (rawStart === "") {
+    const suffix = Number.parseInt(rawEnd ?? "", 10);
+    if (!Number.isSafeInteger(suffix) || suffix <= 0) {
+      return null;
+    }
+    return { kind: "suffix", suffix };
+  }
+  const start = Number.parseInt(rawStart ?? "", 10);
+  if (!Number.isSafeInteger(start) || start < 0 || start > Number.MAX_SAFE_INTEGER - 1) {
+    return null;
+  }
+  if (rawEnd === "") {
+    return { kind: "offset", offset: start };
+  }
+  const end = Number.parseInt(rawEnd ?? "", 10);
+  if (!Number.isSafeInteger(end) || end < start) {
+    return null;
+  }
+  return { kind: "offset", offset: start, length: end - start + 1 };
+};
 
 export interface FileSigningFields {
   contentDisposition?: string | null;

@@ -5,6 +5,7 @@ import { useEffect, useRef, useState } from "react";
 interface GridVideoPreviewProps {
   height?: number;
   isGif?: boolean;
+  isPriority?: boolean;
   thumbnailUrl?: string;
   videoUrl?: string;
   width?: number;
@@ -22,10 +23,12 @@ function PlayOverlay() {
 
 function HoverVideoPreview({
   aspectRatio,
+  isPriority,
   thumbnailUrl,
   videoUrl,
 }: {
   aspectRatio: number;
+  isPriority?: boolean;
   thumbnailUrl?: string;
   videoUrl: string;
 }) {
@@ -76,7 +79,9 @@ function HoverVideoPreview({
           <Image
             alt="Video thumbnail"
             className="h-full w-full object-cover"
-            loading="lazy"
+            decoding="async"
+            fetchPriority={isPriority ? "high" : undefined}
+            loading={isPriority ? "eager" : "lazy"}
             preview={false}
             rootClassName="h-full w-full"
             src={thumbnailUrl}
@@ -111,6 +116,7 @@ function HoverVideoPreview({
 export function GridVideoPreview({
   height,
   isGif,
+  isPriority,
   thumbnailUrl,
   videoUrl,
   width,
@@ -126,8 +132,10 @@ export function GridVideoPreview({
         <img
           alt="GIF preview"
           className="h-full w-full object-cover"
+          decoding="async"
+          fetchPriority={isPriority ? "high" : undefined}
           height={height ?? 480}
-          loading="lazy"
+          loading={isPriority ? "eager" : "lazy"}
           src={videoUrl}
           width={width ?? 640}
         />
@@ -139,6 +147,7 @@ export function GridVideoPreview({
     return (
       <HoverVideoPreview
         aspectRatio={aspectRatio}
+        isPriority={isPriority}
         thumbnailUrl={thumbnailUrl}
         videoUrl={videoUrl}
       />
@@ -154,7 +163,9 @@ export function GridVideoPreview({
         <Image
           alt="Video thumbnail"
           className="h-full w-full object-cover"
-          loading="lazy"
+          decoding="async"
+          fetchPriority={isPriority ? "high" : undefined}
+          loading={isPriority ? "eager" : "lazy"}
           preview={false}
           rootClassName="h-full w-full"
           src={thumbnailUrl}

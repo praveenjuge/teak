@@ -7,8 +7,38 @@ import type { ActionCtx, MutationCtx } from "../_generated/server";
 import { internalMutation, mutation, query } from "../_generated/server";
 import { inferFileFormat } from "../shared/fileFormats";
 
-const SIGNED_URL_EXPIRES_IN_SECONDS = 15 * 60;
-const PRIVATE_FILE_CACHE_CONTROL = `private, max-age=${SIGNED_URL_EXPIRES_IN_SECONDS}, immutable`;
+// Object keys are content-immutable (every upload writes a fresh UUID key), so
+// signed URLs can live far longer than a single session. Long-lived,
+// time-bucketed URLs keep the URL string identical across reactive query
+// re-runs and page loads, which is what lets the browser HTTP cache actually
+// serve repeat views instead of refetching every card image.
+const SIGNED_URL_EXPIRES_IN_SECONDS = 7 * 24 * 60 * 60; // SigV4 presign cap: 7 days.
+// All signatures produced within one bucket window share the same exp (and
+// therefore the exact same URL). Buckets also guarantee a minimum remaining
+// validity of SIGNED_URL_EXPIRES_IN_SECONDS at generation time.
+const SIGNED_URL_BUCKET_SECONDS = 6 * 60 * 60;
+
+// Must stay below the minimum remaining validity above (7 days); keep in
+// lockstep with FILES_CACHE_CONTROL in apps/files-worker/src/lib.ts.
+const PRIVATE_FILE_CACHE_CONTROL = "private, max-age=518400, immutable"; // 6 days.
+
+/**
+ * Deterministic expiry for the current bucket window: every call made within
+ * the same window returns an identical exp string.
+ */
+export const bucketedSignatureExpiry = (
+  nowSeconds = Math.floor(Date.now() / 1000)
+): number =>
+  (Math.floor(nowSeconds / SIGNED_URL_BUCKET_SECONDS) + 1) *
+    SIGNED_URL_BUCKET_SECONDS +
+  SIGNED_URL_EXPIRES_IN_SECONDS;
+
+// Best-effort memo for the presigned-S3 fallback path (no worker proxy
+// configured): re-signing on every query execution churns the URL string and
+// defeats the browser cache even within a single isolate lifetime. Keyed by
+// object key + response policy, evicted shortly before expiry.
+const presignedUrlMemo = new Map<string, { url: string; refreshAt: number }>();
+const PRESIGN_REFRESH_MARGIN_SECONDS = 15 * 60;
 
 export const r2 = new R2(components.r2);
 
@@ -112,16 +142,32 @@ export const getR2Url = async (
       filesBase,
       signingSecret,
       key,
-      response
+      response,
+      bucketedSignatureExpiry()
     );
   }
-  return getSignedUrl(
+  const memoKey = [
+    key,
+    response.contentType ?? "",
+    response.contentDisposition ?? "",
+  ].join("\n");
+  const nowSeconds = Math.floor(Date.now() / 1000);
+  const memoized = presignedUrlMemo.get(memoKey);
+  if (memoized && memoized.refreshAt > nowSeconds) {
+    return memoized.url;
+  }
+  const url = await getSignedUrl(
     getDownloadClient(),
     buildR2DownloadCommand(key, undefined, response),
     {
       expiresIn: SIGNED_URL_EXPIRES_IN_SECONDS,
     }
   );
+  presignedUrlMemo.set(memoKey, {
+    url,
+    refreshAt: nowSeconds + SIGNED_URL_EXPIRES_IN_SECONDS - PRESIGN_REFRESH_MARGIN_SECONDS,
+  });
+  return url;
 };
 
 const hexEncode = (buffer: ArrayBuffer): string =>
@@ -147,7 +193,8 @@ export const buildSignedWorkerFileUrl = async (
   base: string,
   secret: string,
   key: string,
-  response: DownloadResponsePolicy = {}
+  response: DownloadResponsePolicy = {},
+  expSeconds = Math.floor(Date.now() / 1000) + SIGNED_URL_EXPIRES_IN_SECONDS
 ): Promise<string> => {
   const encoder = new TextEncoder();
   const cryptoKey = await crypto.subtle.importKey(
@@ -157,9 +204,7 @@ export const buildSignedWorkerFileUrl = async (
     false,
     ["sign"]
   );
-  const exp = String(
-    Math.floor(Date.now() / 1000) + SIGNED_URL_EXPIRES_IN_SECONDS
-  );
+  const exp = String(expSeconds);
   const signature = hexEncode(
     await crypto.subtle.sign(
       "HMAC",

@@ -2,6 +2,7 @@ import { describe, expect, test } from "bun:test";
 import {
   buildSigningPayload,
   hmacSha256Hex,
+  parseSingleByteRange,
   verifySignedFileRequest,
 } from "./lib";
 
@@ -110,5 +111,49 @@ describe("files proxy verification", () => {
         sig: "zz",
       })
     ).toEqual({ ok: false, status: 403 });
+  });
+});
+
+describe("range header parsing", () => {
+  test("returns null for absent or ignored headers", () => {
+    expect(parseSingleByteRange(null)).toBeNull();
+    expect(parseSingleByteRange(undefined)).toBeNull();
+    // Multi-range and non-byte units are ignored, not rejected.
+    expect(parseSingleByteRange("bytes=0-1,5-9")).toBeNull();
+    expect(parseSingleByteRange("items=0-5")).toBeNull();
+    expect(parseSingleByteRange("bytes=")).toBeNull();
+    expect(parseSingleByteRange("bytes=-")).toBeNull();
+    expect(parseSingleByteRange("bytes=9-5")).toBeNull();
+    expect(parseSingleByteRange("bytes=abc-def")).toBeNull();
+    expect(parseSingleByteRange("bytes=-0")).toBeNull();
+  });
+
+  test("parses start-end ranges into offset+length", () => {
+    expect(parseSingleByteRange("bytes=0-0")).toEqual({
+      kind: "offset",
+      offset: 0,
+      length: 1,
+    });
+    expect(parseSingleByteRange("bytes=10-19")).toEqual({
+      kind: "offset",
+      offset: 10,
+      length: 10,
+    });
+    expect(parseSingleByteRange(" bytes=100-200 ")).toEqual({
+      kind: "offset",
+      offset: 100,
+      length: 101,
+    });
+  });
+
+  test("parses open-ended and suffix ranges", () => {
+    expect(parseSingleByteRange("bytes=500-")).toEqual({
+      kind: "offset",
+      offset: 500,
+    });
+    expect(parseSingleByteRange("bytes=-256")).toEqual({
+      kind: "suffix",
+      suffix: 256,
+    });
   });
 });
