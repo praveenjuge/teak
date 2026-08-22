@@ -356,7 +356,9 @@ export const Card = memo(function Card({
       return (
         <GridDocumentPreview
           fileName={card.fileMetadata?.fileName || card.content}
+          height={card.fileMetadata?.height}
           thumbnailUrl={card.thumbnailUrl ?? undefined}
+          width={card.fileMetadata?.width}
         />
       );
     }
