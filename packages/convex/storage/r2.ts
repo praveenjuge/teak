@@ -18,8 +18,9 @@ const SIGNED_URL_EXPIRES_IN_SECONDS = 7 * 24 * 60 * 60; // SigV4 presign cap: 7 
 // validity of SIGNED_URL_EXPIRES_IN_SECONDS at generation time.
 const SIGNED_URL_BUCKET_SECONDS = 6 * 60 * 60;
 
-// Must stay below the minimum remaining validity above (7 days); keep in
-// lockstep with FILES_CACHE_CONTROL in apps/files-worker/src/lib.ts.
+// Must stay below the signed-URL minimum remaining validity above; keep in
+// lockstep between PRIVATE_FILE_CACHE_CONTROL here (browser-facing) and
+// FILES_CACHE_CONTROL / FILES_EDGE_CACHE_CONTROL in apps/files-worker/src/lib.ts.
 const PRIVATE_FILE_CACHE_CONTROL = "private, max-age=518400, immutable"; // 6 days.
 
 /**

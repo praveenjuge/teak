@@ -8,6 +8,12 @@
 // validity (7 days) so browsers never replay an expired signature.
 export const FILES_CACHE_CONTROL = "private, max-age=518400, immutable"; // 6 days.
 
+// The Workers Cache API refuses to store responses marked `private`, so the
+// copy handed to cache.put() is rewritten to public. Entries are keyed by the
+// user-scoped object path, so nothing is shared across users; client-facing
+// responses always carry the private directive above.
+export const FILES_EDGE_CACHE_CONTROL = "public, max-age=518400, immutable";
+
 export interface R2GetRange {
   offset?: number;
   length?: number;

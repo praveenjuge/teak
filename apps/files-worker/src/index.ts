@@ -1,5 +1,6 @@
 import {
   FILES_CACHE_CONTROL,
+  FILES_EDGE_CACHE_CONTROL,
   parseSingleByteRange,
   verifySignedFileRequest,
 } from "./lib";
@@ -97,7 +98,16 @@ export default {
       const cacheKey = buildCacheKey(request);
       const cached = await caches.default.match(cacheKey);
       if (cached) {
-        return cached;
+        // The edge copy is stored with a public directive (the Cache API
+        // refuses to store private responses); browsers must still receive
+        // the private variant.
+        const headers = new Headers(cached.headers);
+        headers.set("Cache-Control", FILES_CACHE_CONTROL);
+        return new Response(cached.body, {
+          status: cached.status,
+          statusText: cached.statusText,
+          headers,
+        });
       }
 
       const object = await env.BUCKET.get(key);
@@ -107,9 +117,18 @@ export default {
 
       const headers = new Headers();
       applyObjectHeaders(headers, request, object.httpMetadata, object.httpEtag);
-      const response = new Response(object.body, { headers });
 
-      ctx.waitUntil(caches.default.put(cacheKey, response.clone()));
+      const [clientBody, edgeBody] = object.body.tee();
+      const response = new Response(clientBody, { headers });
+
+      const edgeHeaders = new Headers(headers);
+      edgeHeaders.set("Cache-Control", FILES_EDGE_CACHE_CONTROL);
+      ctx.waitUntil(
+        caches.default.put(
+          cacheKey,
+          new Response(edgeBody, { status: 200, headers: edgeHeaders })
+        )
+      );
       return response;
     }
 
