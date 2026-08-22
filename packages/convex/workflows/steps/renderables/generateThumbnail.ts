@@ -261,12 +261,13 @@ export const generateThumbnail = internalAction({
         targetWidth = Math.round(targetHeight * aspectRatio);
       }
 
-      // Always resize to thumbnail dimensions (let compression do the heavy lifting for size reduction)
+      // Triangle (bilinear) avoids the aliasing/shimmer artifacts that
+      // Nearest introduces on downscales, at a similar encode size.
       const outputImage = resize(
         orientedImage,
         targetWidth,
         targetHeight,
-        SamplingFilter.Nearest
+        SamplingFilter.Triangle
       );
 
       // Generate output bytes with appropriate format and quality

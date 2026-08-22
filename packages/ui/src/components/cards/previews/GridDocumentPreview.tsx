@@ -4,6 +4,7 @@ import { File } from "lucide-react";
 interface GridDocumentPreviewProps {
   fileName?: string;
   height?: number;
+  isPriority?: boolean;
   thumbnailUrl?: string;
   width?: number;
 }
@@ -17,6 +18,7 @@ export function GridDocumentPreview({
   fileName,
   width,
   height,
+  isPriority = false,
 }: GridDocumentPreviewProps) {
   if (thumbnailUrl) {
     return (
@@ -31,7 +33,9 @@ export function GridDocumentPreview({
           <Image
             alt={`Preview of ${fileName || "document"}`}
             className="h-full w-full bg-muted object-contain"
-            loading="lazy"
+            decoding="async"
+            fetchPriority={isPriority ? "high" : undefined}
+            loading={isPriority ? "eager" : "lazy"}
             preview={false}
             rootClassName="h-full w-full"
             src={thumbnailUrl}

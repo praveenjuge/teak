@@ -2,11 +2,14 @@
 
 Serves private card files from `files.teakvault.com`.
 
-The Convex backend mints short-lived HMAC-signed URLs
+The Convex backend mints long-lived HMAC-signed URLs
 (`packages/convex/storage/r2.ts` → `buildSignedWorkerFileUrl`). This worker
 verifies the token, reads the object through an R2 binding, and streams it
-with `Cache-Control: private, max-age=900, immutable`. The bucket is never
-public.
+with `Cache-Control: private, max-age=518400, immutable` (6 days; keep in
+lockstep with `PRIVATE_FILE_CACHE_CONTROL` in r2.ts). It also handles single
+HTTP `Range` requests (206 responses) so video/audio seeking works, and serves
+full-object responses from the Cloudflare edge cache keyed by object path +
+content-disposition policy. The bucket is never public.
 
 ## Commands
 

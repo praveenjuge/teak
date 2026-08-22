@@ -15,8 +15,13 @@ describe("GridDocumentPreview", () => {
     expect(source).toContain("aspectRatio:");
   });
 
-  test("contains the lazy-loaded thumbnail inside the reserved box", () => {
-    expect(source).toContain('loading="lazy"');
+  test("lazy-loads the thumbnail inside the reserved box by default", () => {
+    expect(source).toContain('loading={isPriority ? "eager" : "lazy"}');
     expect(source).toContain('className="relative w-full overflow-hidden"');
+  });
+
+  test("prioritizes above-the-fold thumbnails", () => {
+    expect(source).toContain('fetchPriority={isPriority ? "high" : undefined}');
+    expect(source).toContain('decoding="async"');
   });
 });
