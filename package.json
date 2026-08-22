@@ -60,6 +60,11 @@
     "@sentry/cli",
     "@swc/core",
     "@teak/extension",
-    "spawn-sync"
+    "electron-winstaller",
+    "esbuild",
+    "sharp",
+    "simple-git-hooks",
+    "spawn-sync",
+    "workerd"
   ]
 }

@@ -66,10 +66,22 @@ describe("web security headers", () => {
     expect(directiveTokens("connect-src")).not.toContain("wss:");
   });
 
+  test("allows the worker-gated files origin for media, frames and fetches", () => {
+    expect(directiveTokens("media-src")).toContain(
+      "https://files.teakvault.com"
+    );
+    expect(directiveTokens("frame-src")).toContain(
+      "https://files.teakvault.com"
+    );
+    expect(directiveTokens("connect-src")).toContain(
+      "https://files.teakvault.com"
+    );
+  });
+
   test("allows configured custom R2 origins only for document frames", () => {
     const previous = process.env.NEXT_PUBLIC_R2_PUBLIC_ORIGIN;
     process.env.NEXT_PUBLIC_R2_PUBLIC_ORIGIN =
-      "https://files.teakvault.com/path, http://unsafe.example, not-a-url";
+      "https://cdn.example.com/path, http://unsafe.example, not-a-url";
     try {
       const policy = buildContentSecurityPolicy("production");
       const tokens = (name: string) =>
@@ -79,13 +91,11 @@ describe("web security headers", () => {
           ?.split(" ")
           .slice(1) ?? [];
 
-      expect(tokens("frame-src")).toContain("https://files.teakvault.com");
+      expect(tokens("frame-src")).toContain("https://cdn.example.com");
       expect(tokens("frame-src")).not.toContain("http://unsafe.example");
-      expect(tokens("img-src")).not.toContain("https://files.teakvault.com");
-      expect(tokens("connect-src")).not.toContain(
-        "https://files.teakvault.com"
-      );
-      expect(tokens("media-src")).not.toContain("https://files.teakvault.com");
+      expect(tokens("img-src")).not.toContain("https://cdn.example.com");
+      expect(tokens("connect-src")).not.toContain("https://cdn.example.com");
+      expect(tokens("media-src")).not.toContain("https://cdn.example.com");
     } finally {
       if (previous === undefined) {
         delete process.env.NEXT_PUBLIC_R2_PUBLIC_ORIGIN;

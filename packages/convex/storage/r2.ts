@@ -104,14 +104,78 @@ export const buildR2DownloadCommand = (
 export const getR2Url = async (
   key: string,
   response: DownloadResponsePolicy = {}
-) =>
-  getSignedUrl(
+) => {
+  const filesBase = process.env.FILES_BASE;
+  const signingSecret = process.env.FILES_SIGNING_SECRET;
+  if (filesBase && signingSecret) {
+    return await buildSignedWorkerFileUrl(
+      filesBase,
+      signingSecret,
+      key,
+      response
+    );
+  }
+  return getSignedUrl(
     getDownloadClient(),
     buildR2DownloadCommand(key, undefined, response),
     {
       expiresIn: SIGNED_URL_EXPIRES_IN_SECONDS,
     }
   );
+};
+
+const hexEncode = (buffer: ArrayBuffer): string =>
+  Array.from(new Uint8Array(buffer), (byte) =>
+    byte.toString(16).padStart(2, "0")
+  ).join("");
+
+// Must stay in lockstep with apps/files-worker/src/lib.ts — the shared test
+// vector proves both runtimes produce identical HMAC output.
+export const buildSignedFilePayload = ({
+  key,
+  exp,
+  contentType = "",
+  contentDisposition = "",
+}: {
+  key: string;
+  exp: string;
+  contentType?: string | null;
+  contentDisposition?: string | null;
+}): string => [key, exp, contentType, contentDisposition].join("\n");
+
+export const buildSignedWorkerFileUrl = async (
+  base: string,
+  secret: string,
+  key: string,
+  response: DownloadResponsePolicy = {}
+): Promise<string> => {
+  const encoder = new TextEncoder();
+  const cryptoKey = await crypto.subtle.importKey(
+    "raw",
+    encoder.encode(secret),
+    { name: "HMAC", hash: "SHA-256" },
+    false,
+    ["sign"]
+  );
+  const exp = String(
+    Math.floor(Date.now() / 1000) + SIGNED_URL_EXPIRES_IN_SECONDS
+  );
+  const signature = hexEncode(
+    await crypto.subtle.sign(
+      "HMAC",
+      cryptoKey,
+      encoder.encode(buildSignedFilePayload({ key, exp, ...response }))
+    )
+  );
+  const params = new URLSearchParams({ exp, sig: signature });
+  if (response.contentType) {
+    params.set("ct", response.contentType);
+  }
+  if (response.contentDisposition) {
+    params.set("cd", response.contentDisposition);
+  }
+  return `${base.replace(/\/+$/, "")}/${key}?${params.toString()}`;
+};
 
 export const r2ComponentConfig = () => {
   const { R2_BUCKET, R2_ENDPOINT, R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY } =

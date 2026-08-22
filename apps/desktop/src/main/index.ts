@@ -266,13 +266,14 @@ function createMainWindow(): BrowserWindowInstance {
           [
             "default-src 'self'",
             // `https://*.r2.cloudflarestorage.com` is required for the direct
-            // file-upload PUT and signed-download GET against R2.
-            "connect-src 'self' https://*.convex.cloud https://*.convex.site wss://*.convex.cloud wss://*.convex.site https://app.teakvault.com https://teakvault.com https://*.r2.cloudflarestorage.com",
+            // file-upload PUT against R2. `https://files.teakvault.com` serves
+            // worker-gated signed downloads.
+            "connect-src 'self' https://*.convex.cloud https://*.convex.site wss://*.convex.cloud wss://*.convex.site https://app.teakvault.com https://teakvault.com https://files.teakvault.com https://*.r2.cloudflarestorage.com",
             "img-src 'self' data: blob: https:",
             "media-src 'self' data: blob: https:",
             // `frame-src` covers the PDF preview iframe, which points at a
-            // signed cross-origin R2 URL.
-            "frame-src 'self' blob: https://*.r2.cloudflarestorage.com",
+            // signed cross-origin URL.
+            "frame-src 'self' blob: https://files.teakvault.com https://*.r2.cloudflarestorage.com",
             "style-src 'self' 'unsafe-inline'",
             "font-src 'self' data:",
             "script-src 'self'",

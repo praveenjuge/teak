@@ -2,6 +2,9 @@ const TEAK_R2_STORAGE_ORIGIN =
   "https://teak-files-prod.dd19e45b8f2f3cc0393cc2deb51fa27d.r2.cloudflarestorage.com";
 const TEAK_R2_UPLOAD_ORIGIN =
   "https://dd19e45b8f2f3cc0393cc2deb51fa27d.r2.cloudflarestorage.com";
+// Worker-gated private file origin (see apps/files-worker). URLs minted by the
+// Convex backend carry short-lived HMAC tokens; the worker streams from R2.
+const TEAK_FILES_ORIGIN = "https://files.teakvault.com";
 const R2_FRAME_SOURCES = [
   "https://*.r2.cloudflarestorage.com",
   "https://*.r2.dev",
@@ -121,17 +124,20 @@ export const buildContentSecurityPolicy = (
       "https://polar.sh",
       "https://*.polar.sh",
       TEAK_R2_STORAGE_ORIGIN,
+      TEAK_FILES_ORIGIN,
       ...configuredR2StorageSources(),
       ...configuredR2UploadSources(),
     ].join(" "),
     [
       "media-src 'self' blob: data:",
       TEAK_R2_STORAGE_ORIGIN,
+      TEAK_FILES_ORIGIN,
       ...configuredR2StorageSources(),
     ].join(" "),
     [
       "frame-src https://*.polar.sh https://polar.sh",
       TEAK_R2_STORAGE_ORIGIN,
+      TEAK_FILES_ORIGIN,
       ...configuredR2StorageSources(),
       ...R2_FRAME_SOURCES,
       ...configuredR2FrameSources(),
