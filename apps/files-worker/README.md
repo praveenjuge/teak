@@ -28,3 +28,5 @@ bun run deploy      # wrangler deploy (creates files.teakvault.com custom domain
 Convex only emits worker URLs when both `FILES_BASE` and
 `FILES_SIGNING_SECRET` are set on its deployment. Clearing either env var
 falls back to the legacy presigned S3 URLs immediately.
+
+Deploys automatically via Cloudflare Workers Builds (main branch).
