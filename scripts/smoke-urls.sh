@@ -91,9 +91,30 @@ check_matches \
   "https://teakvault.com/.well-known/mcp.json" \
   '"endpoint"[[:space:]]*:[[:space:]]*"https://teakvault\.com/mcp"'
 
-check_status 200 "https://api.teakvault.com/healthz"
-check_contains "https://api.teakvault.com/v1" '"endpoint":"https://teakvault.com/mcp"'
-check_contains "https://api.teakvault.com/openapi.json" '"openapi":"3.1.0"'
-check_mcp_unauthorized \
-  "https://api.teakvault.com/mcp" \
+check_redirect() {
+  local url="$1"
+  local expected_location="$2"
+  local result status location
+  result="$(curl "${curl_common[@]}" -sS -o "$tmp_body" -w '%{http_code} %{redirect_url}' "$url")"
+  status="${result%% *}"
+  location="${result#* }"
+  if [[ "$status" != "308" ]]; then
+    echo "Expected 308 for $url, got $status" >&2
+    cat "$tmp_body" >&2
+    exit 1
+  fi
+  if [[ "$location" != "$expected_location" ]]; then
+    echo "Expected Location $expected_location for $url, got $location" >&2
+    exit 1
+  fi
+}
+
+# The API lives at teakvault.com/api*; the legacy subdomain permanently redirects (308 keeps methods intact).
+check_redirect "https://api.teakvault.com/" "https://teakvault.com/api/v1"
+check_redirect "https://api.teakvault.com/v1" "https://teakvault.com/api/v1"
+check_redirect "https://api.teakvault.com/healthz" "https://teakvault.com/api/healthz"
+check_redirect "https://api.teakvault.com/openapi.json" "https://teakvault.com/api/openapi.json"
+check_redirect "https://api.teakvault.com/mcp" "https://teakvault.com/mcp"
+check_redirect \
+  "https://api.teakvault.com/.well-known/oauth-protected-resource/mcp" \
   "https://teakvault.com/.well-known/oauth-protected-resource/mcp"
