@@ -37,6 +37,31 @@ function formatTime(seconds: number) {
   return `${mins}:${secs.toString().padStart(2, "0")}`;
 }
 
+interface AudioRecordingFormat {
+  extension: string;
+  mimeType: string;
+}
+
+// Chrome and Safari expose different MediaRecorder containers: Chromium
+// records WebM/Opus while Safari only records MP4/AAC. Pick the first
+// supported type so recordings save as audio cards on every browser.
+const AUDIO_RECORDING_CANDIDATES: readonly AudioRecordingFormat[] = [
+  { extension: "webm", mimeType: "audio/webm;codecs=opus" },
+  { extension: "m4a", mimeType: "audio/mp4" },
+];
+
+const selectAudioRecordingFormat = (): AudioRecordingFormat => {
+  if (typeof MediaRecorder !== "undefined") {
+    const supported = AUDIO_RECORDING_CANDIDATES.find((candidate) =>
+      MediaRecorder.isTypeSupported(candidate.mimeType)
+    );
+    if (supported) {
+      return supported;
+    }
+  }
+  return AUDIO_RECORDING_CANDIDATES[0];
+};
+
 export function AddCardActions({
   onSuccess,
   onUpgrade,
@@ -114,13 +139,13 @@ export function AddCardActions({
   useEffect(() => clearRecordingResources, [clearRecordingResources]);
 
   const autoSaveAudio = useCallback(
-    async (blob: Blob) => {
+    async (blob: Blob, extension: string) => {
       const toastId = toast.loading("Saving audio recording...");
 
       try {
         setIsSubmitting(true);
 
-        const file = new File([blob], `recording_${Date.now()}.webm`, {
+        const file = new File([blob], `recording_${Date.now()}.${extension}`, {
           type: blob.type,
         });
 
@@ -188,8 +213,9 @@ export function AddCardActions({
 
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       streamRef.current = stream;
+      const recordingFormat = selectAudioRecordingFormat();
       const mediaRecorder = new MediaRecorder(stream, {
-        mimeType: "audio/webm;codecs=opus",
+        mimeType: recordingFormat.mimeType,
       });
       const chunks: Blob[] = [];
 
@@ -200,9 +226,11 @@ export function AddCardActions({
         }
       };
       mediaRecorder.onstop = () => {
-        const blob = new Blob(chunks, { type: "audio/webm;codecs=opus" });
+        const blob = new Blob(chunks, {
+          type: mediaRecorder.mimeType || recordingFormat.mimeType,
+        });
         clearRecordingResources();
-        void autoSaveAudio(blob);
+        void autoSaveAudio(blob, recordingFormat.extension);
       };
 
       mediaRecorder.start();
