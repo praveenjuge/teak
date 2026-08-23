@@ -100,7 +100,7 @@
     },
     "apps/files-worker": {
       "name": "@teak/files-worker",
-      "version": "0.1.0",
+      "version": "1.0.64",
       "dependencies": {
         "@cf-wasm/photon": "^0.4.0",
         "client-zip": "^2.4.5",
