@@ -96,6 +96,53 @@ describe("file format registry", () => {
     ).toMatchObject({ cardType: "video", kind: "motion" });
   });
 
+  test("classifies WebM audio recordings as audio cards", () => {
+    expect(
+      validateFileFormat({
+        fileName: "recording_1730000000.webm",
+        mimeType: "audio/webm",
+      })
+    ).toMatchObject({ cardType: "audio", id: "webm-audio", kind: "audio" });
+    expect(
+      inferFileFormat({
+        fileName: "recording_1730000000.webm",
+        mimeType: "audio/webm;codecs=opus",
+      })
+    ).toMatchObject({ cardType: "audio", id: "webm-audio" });
+    expect(
+      inferFileFormat({ fileName: "voice-memo", mimeType: "audio/webm" })
+    ).toMatchObject({ cardType: "audio" });
+  });
+
+  test("keeps WebM video files as motion cards", () => {
+    expect(
+      validateFileFormat({ fileName: "clip.webm", mimeType: "video/webm" })
+    ).toMatchObject({ cardType: "video", id: "webm", kind: "motion" });
+    expect(inferFileFormat({ fileName: "clip.webm" })).toMatchObject({
+      cardType: "video",
+      id: "webm",
+    });
+    expect(() =>
+      validateFileFormat({ fileName: "clip.webm", mimeType: "image/png" })
+    ).toThrow("does not match");
+  });
+
+  test("classifies MP4 audio files as audio cards", () => {
+    expect(
+      validateFileFormat({ fileName: "voice.mp4", mimeType: "audio/mp4" })
+    ).toMatchObject({ cardType: "audio", id: "mp4-audio" });
+    expect(
+      validateFileFormat({
+        fileName: "voice.m4a",
+        mimeType: "audio/x-m4a",
+      }).cardType
+    ).toBe("audio");
+    expect(inferFileFormat({ fileName: "movie.mp4" })).toMatchObject({
+      cardType: "video",
+      id: "mp4",
+    });
+  });
+
   test("accepts common MIME variants", () => {
     expect(
       validateFileFormat({

@@ -73,6 +73,11 @@ export const expandedFileFixtures = (marker: string): FileFixture[] => [
     fileName: `${marker}.fig`,
     mimeType: "application/octet-stream",
   },
+  {
+    bytes: strToU8(`audio-recording-${marker}`),
+    fileName: `${marker}-recording.webm`,
+    mimeType: "audio/webm",
+  },
 ];
 
 export const cliFileFixtures = (marker: string): FileFixture[] => {

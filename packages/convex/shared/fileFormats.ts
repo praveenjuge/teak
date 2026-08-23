@@ -382,8 +382,17 @@ export const FILE_FORMATS = [
     cardType: "video",
     extension: "webm",
     kind: "motion",
-    mimeTypes: ["video/webm", "audio/webm"],
+    mimeTypes: ["video/webm"],
     preview: "motion",
+  }),
+  defineFormat({
+    id: "webm-audio",
+    suffixes: ["webm"],
+    cardType: "audio",
+    extension: "webm",
+    kind: "audio",
+    mimeTypes: ["audio/webm"],
+    preview: "audio",
   }),
   defineFormat({
     id: "mp4",
@@ -501,7 +510,7 @@ export const FILE_FORMATS = [
   }),
   defineFormat({
     id: "mp4-audio",
-    suffixes: ["m4a"],
+    suffixes: ["m4a", "mp4"],
     cardType: "audio",
     extension: "m4a",
     kind: "audio",
@@ -599,11 +608,30 @@ const matchesFileName = (
 };
 
 const findFormatByFileName = (
-  fileName: string
+  fileName: string,
+  mimeType: string
 ): FileFormatDefinition | undefined => {
   const lowerFileName = fileName.toLowerCase();
-  return FILE_FORMATS.find((definition) =>
+  const matches = FILE_FORMATS.filter((definition) =>
     matchesFileName(definition, lowerFileName)
+  );
+  if (matches.length === 0) {
+    return undefined;
+  }
+  // Extensions such as `.webm` and `.mp4` exist in both audio and video
+  // flavors. Keep the first match as the default, but prefer a definition
+  // whose MIME types accept the provided MIME when the default rejects it.
+  const primary = matches[0];
+  if (
+    !mimeType ||
+    GENERIC_MIME_TYPES.has(mimeType) ||
+    primary.mimeTypes.includes(mimeType)
+  ) {
+    return primary;
+  }
+  return (
+    matches.find((definition) => definition.mimeTypes.includes(mimeType)) ??
+    primary
   );
 };
 
@@ -640,7 +668,7 @@ export const inferFileFormat = (input: {
   }
 
   const mimeType = normalizeMimeType(input.mimeType);
-  const byFileName = findFormatByFileName(fileName);
+  const byFileName = findFormatByFileName(fileName, mimeType);
 
   if (byFileName) {
     if (
@@ -674,7 +702,7 @@ export const validateFileFormat = (input: {
     );
   }
 
-  const byFileName = findFormatByFileName(fileName);
+  const byFileName = findFormatByFileName(fileName, mimeType);
   if (!byFileName) {
     const byMime =
       GENERIC_MIME_TYPES.has(mimeType) || !mimeType

@@ -279,6 +279,9 @@ test("REST API uploads and infers the expanded file-format matrix", async () => 
       expect(fetchedCard.type).toBe("video");
       expect(fetchedCard.filePreview?.animated).toBe(true);
     }
+    if (fixture.mimeType === "audio/webm") {
+      expect(fetchedCard.type).toBe("audio");
+    }
   }
 
   const unsupported = await apiFetch("/v1/uploads", apiKey, {
