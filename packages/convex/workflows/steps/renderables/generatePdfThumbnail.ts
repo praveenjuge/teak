@@ -9,6 +9,7 @@ import {
   resolveObjectUrl,
   storeObject,
 } from "../../../storage/r2";
+import { generatePdfViaFilesWorker } from "./workerPipeline";
 
 // Maximum thumbnail width - height will scale proportionally to maintain document aspect ratio
 const THUMBNAIL_MAX_WIDTH = 400;
@@ -87,6 +88,30 @@ export const generatePdfThumbnail = internalAction({
           generated: false,
           thumbnailKey: card.thumbnailKey,
         };
+      }
+
+      // Preferred path: render on the files worker over its R2 binding
+      // (pdfium at the edge — no browser VM round-trip).
+      try {
+        const workerResult = await generatePdfViaFilesWorker(ctx, args.cardId, {
+          userId: card.userId,
+          fileKey: card.fileKey,
+        });
+        if (workerResult) {
+          console.log(
+            `[renderables/pdf] Generated PDF thumbnail on files worker for card ${args.cardId}`
+          );
+          return {
+            success: true,
+            generated: workerResult.generated,
+            thumbnailKey: workerResult.thumbnailKey,
+          };
+        }
+      } catch (workerError) {
+        console.error(
+          `[renderables/pdf] Files worker path failed for card ${args.cardId}:`,
+          workerError
+        );
       }
 
       const pdfUrl = await resolveObjectUrl(card.fileKey);

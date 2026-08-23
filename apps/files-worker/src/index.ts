@@ -12,6 +12,7 @@ import {
   verifySignedFileRequest,
   verifySignedOpRequest,
 } from "./lib";
+import { PdfSourceMissing, PdfTooLarge, processPdf } from "./pdf";
 
 export interface Env {
   BUCKET: R2Bucket;
@@ -36,9 +37,31 @@ const json = (data: unknown, status = 200): Response =>
   });
 
 /**
- * Internal signed ops: image processing, export building, file inspection.
- * Payload shapes are defined in lib.ts; Convex mirrors them in
- * packages/convex/storage/filesWorkerClient.ts.
+ * Signed URLs act as bearer credentials, so permissive CORS cannot leak
+ * anything that isn't already in the URL; it lets the web app fetch files
+ * with progress/streaming instead of navigating.
+ */
+const withCorsHeaders = (headers: Headers): void => {
+  headers.set("Access-Control-Allow-Origin", "*");
+  headers.set("Access-Control-Allow-Methods", "GET, HEAD, OPTIONS");
+  headers.set("Access-Control-Allow-Headers", "Range, If-None-Match");
+  headers.set(
+    "Access-Control-Expose-Headers",
+    "Content-Length, Content-Range, Content-Disposition, ETag, Accept-Ranges"
+  );
+  headers.set("Access-Control-Max-Age", "86400");
+};
+
+const corsPreflight = (): Response => {
+  const headers = new Headers();
+  withCorsHeaders(headers);
+  return new Response(null, { status: 204, headers });
+};
+
+/**
+ * Internal signed ops: image processing, PDF rendering, export building, file
+ * inspection. Payload shapes are defined in lib.ts / wasm.ts consumers; Convex
+ * mirrors them in packages/convex/storage/filesWorkerClient.ts.
  */
 const handleOp = async (
   env: Env,
@@ -47,8 +70,11 @@ const handleOp = async (
   op: string
 ): Promise<Response> => {
   const query = url.searchParams;
+  // Signed extra-field order per op; empty-string slots are allowed. Must
+  // stay in lockstep with OP_PARAM_ORDER in filesWorkerClient.ts.
   const fieldNamesByOp: Record<string, string[]> = {
-    "process-image": ["dest"],
+    "process-image": ["dest", "preview"],
+    "process-pdf": ["dest"],
     "build-export": ["artifact", "name"],
     inspect: ["mode", "mb", "rtf", "fmt"],
   };
@@ -74,7 +100,13 @@ const handleOp = async (
   try {
     switch (op) {
       case "process-image": {
-        const result = await processImage(env.BUCKET, key, fields[0] || null);
+        const result = await processImage(env.BUCKET, key, fields[0] || null, {
+          previewDestKey: fields[1] || null,
+        });
+        return json(result);
+      }
+      case "process-pdf": {
+        const result = await processPdf(env.BUCKET, key, fields[0] || null);
         return json(result);
       }
       case "build-export": {
@@ -92,7 +124,12 @@ const handleOp = async (
       }
       case "inspect": {
         const [mode, mb, rtf] = fields;
-        if (mode !== "zip" && mode !== "css" && mode !== "text") {
+        if (
+          mode !== "zip" &&
+          mode !== "css" &&
+          mode !== "text" &&
+          mode !== "pdf"
+        ) {
           return json({ error: "invalid_mode" }, 400);
         }
         const maxBytes = Number.parseInt(mb ?? "", 10);
@@ -119,11 +156,12 @@ const handleOp = async (
   } catch (error) {
     if (
       error instanceof ImageSourceMissing ||
-      error instanceof InspectSourceMissing
+      error instanceof InspectSourceMissing ||
+      error instanceof PdfSourceMissing
     ) {
       return json({ error: error.message }, 404);
     }
-    if (error instanceof ImageTooLarge) {
+    if (error instanceof ImageTooLarge || error instanceof PdfTooLarge) {
       // Callers treat this as "fall back to the legacy action path".
       return json({ error: error.message }, 413);
     }
@@ -134,7 +172,11 @@ const handleOp = async (
       return json({ error: error.message }, 413);
     }
     const message = error instanceof Error ? error.message : "unknown_error";
-    if (message === "decode_failed" || message === "archive_parse_failed") {
+    if (
+      message === "decode_failed" ||
+      message === "archive_parse_failed" ||
+      message === "pdf_parse_failed"
+    ) {
       return json({ error: message }, 422);
     }
     console.error(`[files-worker] op ${op} failed`, error);
@@ -172,16 +214,38 @@ const buildCacheKey = (request: Request): Request => {
   });
 };
 
+/** ETag comparison tolerant of weak validators and quoting styles. */
+const etagMatches = (ifNoneMatch: string | null, httpEtag: string): boolean => {
+  if (!ifNoneMatch) {
+    return false;
+  }
+  if (ifNoneMatch.trim() === "*") {
+    return true;
+  }
+  const normalize = (tag: string): string =>
+    tag.trim().replace(/^W\//, "").replace(/^"|"$/g, "");
+  return ifNoneMatch
+    .split(",")
+    .some((candidate) => normalize(candidate) === normalize(httpEtag));
+};
+
 const applyObjectHeaders = (
   headers: Headers,
   request: Request,
   objectHttpMetadata: R2HTTPMetadata | undefined,
-  httpEtag: string
+  httpEtag: string,
+  objectSize?: number
 ): void => {
   const url = new URL(request.url);
   headers.set("Cache-Control", FILES_CACHE_CONTROL);
   headers.set("ETag", httpEtag);
   headers.set("Accept-Ranges", "bytes");
+  headers.set("X-Content-Type-Options", "nosniff");
+  if (objectSize !== undefined && request.method !== "HEAD") {
+    // Explicit length enables client-side progress; for HEAD responses the
+    // length is set by the caller alongside the emulated status.
+    headers.set("Content-Length", String(objectSize));
+  }
   headers.set(
     "Content-Type",
     url.searchParams.get("ct") ||
@@ -193,15 +257,31 @@ const applyObjectHeaders = (
   if (contentDisposition) {
     headers.set("Content-Disposition", contentDisposition);
   }
+  withCorsHeaders(headers);
 };
+
+/** Edge Cache API; absent in unit-test runtimes, always present on Workers. */
+const edgeCache: Cache | null =
+  typeof caches === "undefined" ? null : caches.default;
 
 export default {
   async fetch(request, env, ctx): Promise<Response> {
-    if (request.method !== "GET") {
+    const requestMethod = request.method.toUpperCase();
+
+    if (requestMethod === "OPTIONS") {
+      return corsPreflight();
+    }
+    if (requestMethod !== "GET" && requestMethod !== "HEAD") {
       return new Response(null, { status: 405 });
     }
 
     const url = new URL(request.url);
+
+    // Unauthenticated liveness probe for uptime monitors.
+    if (url.pathname === "/__health") {
+      return json({ ok: true });
+    }
+
     const key = decodeObjectKey(url.pathname);
     if (!key || key.includes("..")) {
       return new Response(null, { status: 404 });
@@ -220,7 +300,8 @@ export default {
         sig: url.searchParams.get("sig"),
         ct: url.searchParams.get("ct"),
         cd: url.searchParams.get("cd"),
-      }
+      },
+      Math.floor(Date.now() / 1000)
     );
     if (!verification.ok) {
       return new Response(null, { status: verification.status });
@@ -229,21 +310,40 @@ export default {
     // Only full-object responses are served from (and written to) the edge
     // cache; ranged video/audio requests always go to R2 so seeking stays
     // accurate.
-    const parsedRange = parseSingleByteRange(request.headers.get("range"));
+    const parsedRange =
+      requestMethod === "GET"
+        ? parseSingleByteRange(request.headers.get("range"))
+        : null;
     if (!parsedRange) {
+      const isHead = requestMethod === "HEAD";
       const cacheKey = buildCacheKey(request);
-      const cached = await caches.default.match(cacheKey);
-      if (cached) {
-        // The edge copy is stored with a public directive (the Cache API
-        // refuses to store private responses); browsers must still receive
-        // the private variant.
-        const headers = new Headers(cached.headers);
-        headers.set("Cache-Control", FILES_CACHE_CONTROL);
-        return new Response(cached.body, {
-          status: cached.status,
-          statusText: cached.statusText,
-          headers,
-        });
+
+      if (!isHead) {
+        const cached = edgeCache ? await edgeCache.match(cacheKey) : null;
+        if (cached) {
+          const cachedEtag = cached.headers.get("ETag");
+          if (
+            etagMatches(request.headers.get("if-none-match"), cachedEtag ?? "")
+          ) {
+            const notModifiedHeaders = new Headers(cached.headers);
+            notModifiedHeaders.set("Cache-Control", FILES_CACHE_CONTROL);
+            withCorsHeaders(notModifiedHeaders);
+            return new Response(null, {
+              status: 304,
+              headers: notModifiedHeaders,
+            });
+          }
+          // The edge copy is stored with a public directive (the Cache API
+          // refuses to store private responses); browsers must still receive
+          // the private variant.
+          const headers = new Headers(cached.headers);
+          headers.set("Cache-Control", FILES_CACHE_CONTROL);
+          return new Response(cached.body, {
+            status: cached.status,
+            statusText: cached.statusText,
+            headers,
+          });
+        }
       }
 
       const object = await env.BUCKET.get(key);
@@ -251,25 +351,48 @@ export default {
         return new Response(null, { status: 404 });
       }
 
+      if (etagMatches(request.headers.get("if-none-match"), object.httpEtag)) {
+        await object.body.cancel();
+        const notModifiedHeaders = new Headers();
+        applyObjectHeaders(
+          notModifiedHeaders,
+          request,
+          object.httpMetadata,
+          object.httpEtag,
+          object.size
+        );
+        notModifiedHeaders.delete("Content-Length");
+        return new Response(null, { status: 304, headers: notModifiedHeaders });
+      }
+
       const headers = new Headers();
       applyObjectHeaders(
         headers,
         request,
         object.httpMetadata,
-        object.httpEtag
+        object.httpEtag,
+        object.size
       );
+
+      if (isHead) {
+        await object.body.cancel();
+        headers.set("Content-Length", String(object.size));
+        return new Response(null, { status: 200, headers });
+      }
 
       const [clientBody, edgeBody] = object.body.tee();
       const response = new Response(clientBody, { headers });
 
       const edgeHeaders = new Headers(headers);
       edgeHeaders.set("Cache-Control", FILES_EDGE_CACHE_CONTROL);
-      ctx.waitUntil(
-        caches.default.put(
-          cacheKey,
-          new Response(edgeBody, { status: 200, headers: edgeHeaders })
-        )
-      );
+      if (edgeCache) {
+        ctx.waitUntil(
+          edgeCache.put(
+            cacheKey,
+            new Response(edgeBody, { status: 200, headers: edgeHeaders })
+          )
+        );
+      }
       return response;
     }
 
@@ -317,6 +440,7 @@ export default {
 
     const headers = new Headers();
     applyObjectHeaders(headers, request, object.httpMetadata, object.httpEtag);
+    headers.set("Content-Length", String(length));
     headers.set(
       "Content-Range",
       `bytes ${start}-${start + length - 1}/${size}`

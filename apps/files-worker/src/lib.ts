@@ -116,22 +116,34 @@ const timingSafeEqualHex = (left: string, right: string): boolean => {
   return !mismatch;
 };
 
-export const hmacSha256Hex = async (
-  secret: string,
-  message: string
-): Promise<string> => {
-  const encoder = new TextEncoder();
-  const cryptoKey = await crypto.subtle.importKey(
+// CryptoKey derivation is memoized per secret: importKey on every request is
+// pure overhead for a secret that never changes within an isolate.
+const cryptoKeyCache = new Map<string, Promise<CryptoKey>>();
+
+const getHmacCryptoKey = (secret: string): Promise<CryptoKey> => {
+  const cached = cryptoKeyCache.get(secret);
+  if (cached) {
+    return cached;
+  }
+  const key = crypto.subtle.importKey(
     "raw",
-    encoder.encode(secret),
+    new TextEncoder().encode(secret),
     { name: "HMAC", hash: "SHA-256" },
     false,
     ["sign"]
   );
+  cryptoKeyCache.set(secret, key);
+  return key;
+};
+
+export const hmacSha256Hex = async (
+  secret: string,
+  message: string
+): Promise<string> => {
   const signature = await crypto.subtle.sign(
     "HMAC",
-    cryptoKey,
-    encoder.encode(message)
+    await getHmacCryptoKey(secret),
+    new TextEncoder().encode(message)
   );
   return Array.from(new Uint8Array(signature), (byte) =>
     byte.toString(16).padStart(2, "0")

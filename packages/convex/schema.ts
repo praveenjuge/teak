@@ -77,7 +77,20 @@ export const filePreviewFactsValidator = v.object({
   archiveFileCount: v.optional(v.number()),
   colorVariableCount: v.optional(v.number()),
   inspectedEntryCount: v.optional(v.number()),
+  pageCount: v.optional(v.number()),
   slideCount: v.optional(v.number()),
+});
+
+export const imageExifValidator = v.object({
+  exposureTime: v.optional(v.number()),
+  fNumber: v.optional(v.number()),
+  focalLength: v.optional(v.number()),
+  iso: v.optional(v.number()),
+  latitude: v.optional(v.number()),
+  longitude: v.optional(v.number()),
+  make: v.optional(v.string()),
+  model: v.optional(v.string()),
+  takenAt: v.optional(v.number()),
 });
 
 export const fileMetadataValidator = v.optional(
@@ -93,6 +106,7 @@ export const fileMetadataValidator = v.optional(
     width: v.optional(v.number()),
     height: v.optional(v.number()),
     preview: v.optional(filePreviewFactsValidator),
+    exif: v.optional(imageExifValidator),
     // Recording-specific metadata
     recordingTimestamp: v.optional(v.number()),
   })
@@ -398,6 +412,10 @@ export const cardValidator = v.object({
   url: v.optional(v.string()),
   fileKey: v.optional(r2KeyValidator),
   thumbnailKey: v.optional(r2KeyValidator),
+  /** Bounded ~1600px preview derivative for large originals. */
+  previewKey: v.optional(r2KeyValidator),
+  /** Thumbhash placeholder bytes (base64) decoded into a blurry stand-in. */
+  placeholderHash: v.optional(v.string()),
   tags: v.optional(v.array(v.string())),
   notes: v.optional(v.string()),
   isFavorited: v.optional(v.boolean()),

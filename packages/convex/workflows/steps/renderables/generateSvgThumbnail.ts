@@ -9,6 +9,7 @@ import {
   resolveObjectUrl,
   storeObject,
 } from "../../../storage/r2";
+import { generateImageViaFilesWorker } from "./workerPipeline";
 
 // Maximum thumbnail dimensions - matches image thumbnail settings
 const THUMBNAIL_MAX_WIDTH = 500;
@@ -130,6 +131,31 @@ export const generateSvgThumbnail = internalAction({
           generated: false,
           thumbnailKey: card.thumbnailKey,
         };
+      }
+
+      // Preferred path: rasterize on the files worker over its R2 binding.
+      try {
+        const workerResult = await generateImageViaFilesWorker(
+          ctx,
+          args.cardId,
+          {
+            userId: card.userId,
+            fileKey: card.fileKey,
+          }
+        );
+        if (workerResult) {
+          console.log(
+            `[renderables/svg] Generated SVG thumbnail on files worker for card ${args.cardId}`
+          );
+          return {
+            success: true,
+            generated: workerResult.generated,
+            thumbnailKey: workerResult.thumbnailKey,
+          };
+        }
+      } catch {
+        // Transient worker failure → Kernel fallback below keeps this
+        // best-effort instead of failing the workflow step.
       }
 
       const svgUrl = await resolveObjectUrl(card.fileKey);
