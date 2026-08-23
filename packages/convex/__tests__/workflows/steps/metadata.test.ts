@@ -152,6 +152,12 @@ describe("metadata handler", () => {
     aiMocks.generateText.mockResolvedValue({
       output: { tags: ["tag1"], summary: "summary" },
     });
+    // Image metadata downloads bytes inline before analysis.
+    mockFetch.mockResolvedValue({
+      ok: true,
+      headers: { get: () => "image/jpeg" },
+      arrayBuffer: async () => new ArrayBuffer(8),
+    });
   });
 
   describe("error handling", () => {
@@ -492,14 +498,19 @@ describe("metadata handler", () => {
         fileMetadata: { mimeType: "audio/mp3" },
       });
       r2Mocks.resolveObjectUrl.mockResolvedValue("https://audio.mp3");
-      mockFetch.mockResolvedValue({
-        ok: true,
-        headers: { get: () => "audio/mp3" },
-        arrayBuffer: async () => new ArrayBuffer(8),
-      });
-      aiMocks.experimental_transcribe.mockResolvedValue({
-        text: "spoken text in audio",
-      });
+      mockFetch
+        .mockResolvedValueOnce({
+          ok: true,
+          headers: { get: () => "audio/mp3" },
+          arrayBuffer: async () => new ArrayBuffer(8),
+        })
+        .mockResolvedValueOnce({
+          ok: true,
+          json: async () => ({
+            result: { text: "spoken text in audio" },
+            success: true,
+          }),
+        });
       aiMocks.generateText.mockResolvedValue({
         output: { tags: ["speech"], summary: "Audio content" },
       });

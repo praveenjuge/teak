@@ -335,7 +335,7 @@ export const normalizeErrorClass = (error: unknown): TelemetryErrorClass => {
   if (/storage|upload|r2|s3/u.test(normalized)) {
     return "StorageError";
   }
-  if (/provider|groq|model|generation/u.test(normalized)) {
+  if (/provider|cloudflare|workers.?ai|model|generation/u.test(normalized)) {
     return "ProviderError";
   }
   if (/network|fetch|connection|socket/u.test(normalized)) {

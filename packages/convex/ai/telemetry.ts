@@ -10,13 +10,15 @@ import { recordBackendAiContent, withBackendSpan } from "../telemetry/sentry";
 
 const ONE_MILLION = 1_000_000;
 
-const GROQ_PRICING_USD_PER_MILLION = {
-  "openai/gpt-oss-120b": { input: 0.15, output: 0.6 },
-  "openai/gpt-oss-20b": { input: 0.075, output: 0.3 },
-  "qwen/qwen3.6-27b": { input: 0.6, output: 3 },
+export const WORKERS_AI_PROVIDER = "cloudflare";
+
+const WORKERS_AI_PRICING_USD_PER_MILLION = {
+  "@cf/google/gemma-4-26b-a4b-it": { input: 0.1, output: 0.3 },
+  "@cf/qwen/qwen3-30b-a3b-fp8": { input: 0.051, output: 0.335 },
 } as const;
 
-export type PricedGroqModel = keyof typeof GROQ_PRICING_USD_PER_MILLION;
+export type PricedWorkersAiModel =
+  keyof typeof WORKERS_AI_PRICING_USD_PER_MILLION;
 
 export const createAiTelemetrySettings = (input: {
   functionId: string;
@@ -27,7 +29,7 @@ export const createAiTelemetrySettings = (input: {
   isEnabled: true,
   metadata: {
     "teak.model": input.model,
-    "teak.provider": "groq",
+    "teak.provider": WORKERS_AI_PROVIDER,
     "teak.stage": input.stage,
   },
   // Content is recorded explicitly through Teak's scrubbed/truncated span path.
@@ -35,32 +37,22 @@ export const createAiTelemetrySettings = (input: {
   recordOutputs: false,
 });
 
-export const estimateGroqCostUsd = (input: {
-  cachedInputTokens?: number;
+export const estimateWorkersAiCostUsd = (input: {
   inputTokens?: number;
   model: string;
   outputTokens?: number;
 }): number | undefined => {
-  const prices = GROQ_PRICING_USD_PER_MILLION[input.model as PricedGroqModel];
+  const prices =
+    WORKERS_AI_PRICING_USD_PER_MILLION[input.model as PricedWorkersAiModel];
   if (!prices) {
     return;
   }
-  const inputTokens = input.inputTokens ?? 0;
-  const cachedInputTokens = Math.min(
-    inputTokens,
-    Math.max(0, input.cachedInputTokens ?? 0)
-  );
-  const uncachedInputTokens = inputTokens - cachedInputTokens;
-  const inputCost =
-    (uncachedInputTokens * prices.input +
-      cachedInputTokens * prices.input * 0.5) /
-    ONE_MILLION;
+  const inputCost = ((input.inputTokens ?? 0) * prices.input) / ONE_MILLION;
   const outputCost = ((input.outputTokens ?? 0) * prices.output) / ONE_MILLION;
   return inputCost + outputCost;
 };
 
 interface AiUsage {
-  inputTokenDetails?: { cacheReadTokens?: number };
   inputTokens?: number;
   outputTokens?: number;
 }
@@ -88,8 +80,7 @@ export const observeAiGeneration = async <T>(
     try {
       const result = await generate();
       const usage = getUsage(result);
-      const costUsd = estimateGroqCostUsd({
-        cachedInputTokens: usage?.inputTokenDetails?.cacheReadTokens,
+      const costUsd = estimateWorkersAiCostUsd({
         inputTokens: usage?.inputTokens,
         model: input.model,
         outputTokens: usage?.outputTokens,
@@ -101,13 +92,17 @@ export const observeAiGeneration = async <T>(
         model: input.model,
         outcome: "success",
         outputTokens: usage?.outputTokens,
-        provider: "groq",
+        provider: WORKERS_AI_PROVIDER,
       });
       if (costUsd !== undefined) {
         distribution(
           TELEMETRY_METRICS.aiCostUsd,
           costUsd,
-          { function: input.functionId, model: input.model, provider: "groq" },
+          {
+            function: input.functionId,
+            model: input.model,
+            provider: WORKERS_AI_PROVIDER,
+          },
           "none"
         );
       }
@@ -117,7 +112,7 @@ export const observeAiGeneration = async <T>(
         durationMs: Date.now() - startedAt,
         model: input.model,
         outcome: "failure",
-        provider: "groq",
+        provider: WORKERS_AI_PROVIDER,
         validationFailure: normalizeErrorClass(error) === "ValidationError",
       });
       throw error;
@@ -130,7 +125,7 @@ export const observeAiGeneration = async <T>(
 
   return await withBackendSpan(
     {
-      attributes: { model: input.model, provider: "groq" },
+      attributes: { model: input.model, provider: WORKERS_AI_PROVIDER },
       name: input.functionId,
       operation: "gen_ai.generate",
       stage: input.stage ?? "ai_metadata",

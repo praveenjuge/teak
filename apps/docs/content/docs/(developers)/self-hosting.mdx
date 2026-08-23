@@ -8,7 +8,7 @@ sidebar:
 ## What you'll need
 
 - Convex CLI (`npm i -g convex`)
-- Access to secrets for the features you want: Groq (AI), Kernel (screenshots), Resend (email), Polar (billing)
+- Access to secrets for the features you want: Cloudflare Workers AI (AI), Kernel (screenshots), Resend (email), Polar (billing)
 
 :::warning[Beta]
 Self-hosting matches the hosted product, but you own uptime, secrets, and
@@ -43,7 +43,8 @@ public domain at it.
     npx convex env set TEAK_ADMIN_EMAIL you@example.com
 
     # Optional: AI (if you want card processing)
-    npx convex env set GROQ_API_KEY gsk_...
+    npx convex env set CLOUDFLARE_ACCOUNT_ID your-account-id
+    npx convex env set CLOUDFLARE_API_TOKEN your-api-token
     ```
   </Step>
   <Step title="Create local env files">
@@ -105,7 +106,8 @@ R2_SECRET_ACCESS_KEY=secret-key              # R2 S3 secret key
 R2_ENDPOINT=https://account.r2.cloudflarestorage.com
 R2_BUCKET=teak-files                         # R2 bucket for private assets
 KERNEL_API_KEY=token                         # Kernel Browser
-GROQ_API_KEY=gsk_...                         # AI processing
+CLOUDFLARE_ACCOUNT_ID=your-account-id        # AI processing (Workers AI)
+CLOUDFLARE_API_TOKEN=your-api-token          # AI processing (Workers AI)
 POLAR_ACCESS_TOKEN=token                     # Billing
 POLAR_ORGANIZATION_TOKEN=token               # Polar organization
 POLAR_SERVER=sandbox                         # sandbox|production
@@ -164,7 +166,7 @@ Convex serves the REST API at `/api/v1`, the MCP endpoint at `/mcp`, plus `/heal
   - `TEAK_ADMIN_EMAIL`: The normalized email address of the one account allowed to use administrative functions. Configure this independently for development and production.
 - **Optional Features**:
   - `R2_*`: Create a private Cloudflare R2 bucket and an API token/S3 credentials with object read, write, and delete access.
-  - `GROQ_API_KEY`: Get from [Groq Console](https://console.groq.com/) for AI-powered card processing.
+  - `CLOUDFLARE_ACCOUNT_ID` + `CLOUDFLARE_API_TOKEN`: Get from the [Cloudflare dashboard](https://dash.cloudflare.com/) — create an API token with Workers AI run permission for AI-powered card processing.
   - `KERNEL_API_KEY`: Get from [Kernel](https://onkernel.com/) for automated link screenshots.
   - `RESEND_API_KEY`: Get from [Resend](https://resend.com/) for email verification and password resets.
   - `POLAR_*`: Get from [Polar](https://polar.sh/) if you want to use the built-in billing system.

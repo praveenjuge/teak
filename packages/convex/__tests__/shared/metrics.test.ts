@@ -128,8 +128,8 @@ describe("trackAiRetry", () => {
     });
 
     trackAiRetry({
-      model: "qwen/qwen3.6-27b",
-      provider: "groq",
+      model: "@cf/qwen/qwen3-30b-a3b-fp8",
+      provider: "cloudflare",
       reason: "validation",
     });
 
@@ -137,8 +137,8 @@ describe("trackAiRetry", () => {
       {
         attributes: {
           environment: "production",
-          model: "qwen/qwen3.6-27b",
-          provider: "groq",
+          model: "@cf/qwen/qwen3-30b-a3b-fp8",
+          provider: "cloudflare",
           reason: "validation",
           surface: "backend",
         },

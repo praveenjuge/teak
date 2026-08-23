@@ -210,7 +210,7 @@ describe("backend Sentry OpenTelemetry", () => {
   });
 
   test("captures application failures without changing the thrown error", async () => {
-    const applicationError = new Error("Groq generation failed");
+    const applicationError = new Error("Workers AI generation failed");
 
     await expect(
       telemetry.withBackendSpan(
