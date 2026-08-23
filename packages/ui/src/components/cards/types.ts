@@ -54,10 +54,10 @@ export interface CardWithUrls {
 
 export interface CardProps {
   card: CardWithUrls & Record<string, unknown>;
-  isSelected?: boolean;
-  isSelectionMode?: boolean;
   /** Above-the-fold card: its media loads eagerly with high priority. */
   isPriority?: boolean;
+  isSelected?: boolean;
+  isSelectionMode?: boolean;
   isTrashMode?: boolean;
   onAddTags?: (cardId: string) => void;
   onClick?: (card: CardWithUrls & Record<string, unknown>) => void;

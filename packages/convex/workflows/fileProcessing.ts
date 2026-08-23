@@ -2,6 +2,13 @@
 
 import yauzl from "yauzl";
 import type { FileFormat, FilePreviewFacts } from "../shared/fileFormats";
+import {
+  buildSignedWorkerOpUrl,
+  callFilesWorkerJson,
+  type FilesWorkerInspectResult,
+  isFilesWorkerConfigured,
+} from "../storage/filesWorkerClient";
+import { resolveObjectUrl } from "../storage/r2";
 
 const MAX_AI_TEXT_BYTES = 512 * 1024;
 const MAX_ARCHIVE_ENTRIES = 2000;
@@ -258,4 +265,95 @@ export const extractFileTextForAi = async (
   return card.fileMetadata?.kind === "text" && format.id === "rtf"
     ? extractRtfText(decoded)
     : decoded.trim();
+};
+
+/* ------------------------------------------------------------------ *
+ * Files-worker backed variants.
+ *
+ * The worker reads the object over its R2 binding and returns facts/text
+ * as JSON, so bounded inspection no longer pulls up to 25 MB through an
+ * action's memory. Both wrappers fall back to the URL-based legacy
+ * implementations above when the worker is unconfigured or rejects the
+ * request permanently (missing source, malformed archive).
+ * ------------------------------------------------------------------ */
+
+export const buildFilePreviewFactsForKey = async (
+  key: string,
+  format: FileFormat
+): Promise<FilePreviewFacts | null> => {
+  if (isFilesWorkerConfigured()) {
+    let mode: "zip" | "css" | null = null;
+    if (["zip", "word", "powerpoint"].includes(format.id)) {
+      mode = "zip";
+    } else if (format.kind === "tokens" && format.language === "css") {
+      mode = "css";
+    }
+    if (mode) {
+      const maxBytes =
+        mode === "zip" ? MAX_ARCHIVE_DOWNLOAD_BYTES : MAX_SOURCE_DOWNLOAD_BYTES;
+      try {
+        const url = await buildSignedWorkerOpUrl({
+          op: "inspect",
+          key,
+          params: { mode, mb: String(maxBytes), rtf: "", fmt: format.id },
+        });
+        const outcome =
+          await callFilesWorkerJson<FilesWorkerInspectResult>(url);
+        if (outcome.kind === "ok") {
+          return (outcome.data.facts as FilePreviewFacts | undefined) ?? null;
+        }
+      } catch {
+        // Transient worker failure → legacy path below keeps this best-effort.
+      }
+    } else {
+      return null;
+    }
+  }
+  const url = await resolveObjectUrl(key);
+  return url ? buildFilePreviewFacts(url, format) : null;
+};
+
+export const extractFileTextForAiForKey = async (
+  key: string,
+  format: FileFormat,
+  card: FileCardInput
+): Promise<string> => {
+  if (isFilesWorkerConfigured()) {
+    const isArchive = ["word", "powerpoint"].includes(format.id);
+    const isTextKind = ["markdown", "source", "text", "tokens"].includes(
+      format.kind
+    );
+    if (isArchive || isTextKind) {
+      try {
+        const url = await buildSignedWorkerOpUrl({
+          op: "inspect",
+          key,
+          params: {
+            mode: isArchive ? "zip" : "text",
+            mb: String(
+              isArchive ? MAX_ARCHIVE_DOWNLOAD_BYTES : MAX_SOURCE_DOWNLOAD_BYTES
+            ),
+            rtf:
+              !isArchive &&
+              card.fileMetadata?.kind === "text" &&
+              format.id === "rtf"
+                ? "1"
+                : "",
+            fmt: format.id,
+          },
+        });
+        const outcome =
+          await callFilesWorkerJson<FilesWorkerInspectResult>(url);
+        if (outcome.kind === "ok") {
+          return outcome.data.text ?? "";
+        }
+      } catch {
+        // Transient worker failure → legacy path below.
+      }
+    } else {
+      return "";
+    }
+  }
+  const url = await resolveObjectUrl(key);
+  return url ? extractFileTextForAi(url, format, card) : "";
 };

@@ -5,6 +5,12 @@ import { v } from "convex/values";
 import { internal } from "../../_generated/api";
 import { internalAction } from "../../_generated/server";
 import { TELEMETRY_OPERATIONS } from "../../shared/telemetry";
+import {
+  buildSignedWorkerOpUrl,
+  callFilesWorkerJson,
+  type FilesWorkerProcessImageResult,
+  isFilesWorkerConfigured,
+} from "../../storage/filesWorkerClient";
 import { resolveObjectUrl } from "../../storage/r2";
 import { withBackendSpan } from "../../telemetry/sentry";
 import { hasKnownTinyImageDimensions } from "../imageAnalysis";
@@ -119,6 +125,39 @@ export const extractPaletteFromImage = internalAction({
 
         if (!fileKeyForPalette) {
           return;
+        }
+
+        // Fast path: the worker decodes over its R2 binding and returns
+        // colors without the bytes ever transiting this action.
+        if (isFilesWorkerConfigured()) {
+          try {
+            const url = await buildSignedWorkerOpUrl({
+              op: "process-image",
+              key: fileKeyForPalette,
+            });
+            const outcome =
+              await callFilesWorkerJson<FilesWorkerProcessImageResult>(url);
+            if (outcome.kind === "ok") {
+              const { width: w, height: h, palette } = outcome.data;
+              if (
+                Array.isArray(palette) &&
+                palette.length > 0 &&
+                !hasKnownTinyImageDimensions({ width: w, height: h })
+              ) {
+                const colors = palette.map((hex) => ({ hex }));
+                await ctx.runMutation(
+                  internal.workflows.aiMetadata.mutations.updateCardColors,
+                  { cardId, colors }
+                );
+                return colors as any;
+              }
+              return;
+            }
+            // fallback → run the legacy in-action path below.
+          } catch {
+            // Network/server errors → legacy path keeps palette extraction
+            // best-effort instead of failing the workflow step.
+          }
         }
 
         const fileUrl = await resolveObjectUrl(fileKeyForPalette);

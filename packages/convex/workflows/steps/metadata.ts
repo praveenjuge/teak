@@ -26,7 +26,7 @@ import {
   isAiProviderCapacityError,
 } from "../aiMetadata/generators";
 import { generateTranscript } from "../aiMetadata/transcript";
-import { extractFileTextForAi } from "../fileProcessing";
+import { extractFileTextForAiForKey } from "../fileProcessing";
 import {
   hasKnownTinyImageDimensions,
   hasMinimumImageAnalysisDimensions,
@@ -311,10 +311,9 @@ export async function generateHandler(
             fileName: card.fileMetadata.fileName,
             mimeType: card.fileMetadata.mimeType,
           });
-          const fileUrl = await resolveObjectUrl(card.fileKey);
-          if (format && fileUrl) {
-            const extractedText = await extractFileTextForAi(
-              fileUrl,
+          if (format) {
+            const extractedText = await extractFileTextForAiForKey(
+              card.fileKey,
               format,
               card
             );

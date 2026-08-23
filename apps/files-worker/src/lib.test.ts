@@ -1,9 +1,11 @@
 import { describe, expect, test } from "bun:test";
 import {
+  buildOpSigningPayload,
   buildSigningPayload,
   hmacSha256Hex,
   parseSingleByteRange,
   verifySignedFileRequest,
+  verifySignedOpRequest,
 } from "./lib";
 
 const SECRET = "test-signing-secret";
@@ -155,5 +157,143 @@ describe("range header parsing", () => {
       kind: "suffix",
       suffix: 256,
     });
+  });
+});
+
+describe("op signing", () => {
+  const OP_KEY = "users/abc/cards/file/x.png";
+  const OP_DEST = "users/abc/cards/thumbnail/t.webp";
+
+  // Fixed vector shared with packages/convex/__tests__/storage/r2.test.ts —
+  // proves Node/Bun (Convex) and workerd (worker) agree on op payloads.
+  const OP_VECTOR_DIGEST =
+    "08bf451235a9af51ddc744b0b7be67622a06dc36696f87675fda746fc8efae47";
+
+  test("op payload format matches the shared cross-runtime vector", async () => {
+    const digest = await hmacSha256Hex(
+      SECRET,
+      buildOpSigningPayload({
+        op: "process-image",
+        key: OP_KEY,
+        fields: [OP_DEST],
+        exp: EXP,
+      })
+    );
+    expect(digest).toBe(OP_VECTOR_DIGEST);
+  });
+
+  test("accepts a valid unexpired op token", async () => {
+    const sig = await hmacSha256Hex(
+      SECRET,
+      buildOpSigningPayload({
+        op: "inspect",
+        key: OP_KEY,
+        fields: ["zip", String(25 * 1024 * 1024), ""],
+        exp: EXP,
+      })
+    );
+    expect(
+      await verifySignedOpRequest(
+        SECRET,
+        "inspect",
+        OP_KEY,
+        { fields: ["zip", String(25 * 1024 * 1024), ""], exp: EXP, sig },
+        1_699_999_999
+      )
+    ).toEqual({ ok: true });
+  });
+
+  test("rejects expired, tampered, over-long-ttl, and malformed tokens", async () => {
+    const sig = await hmacSha256Hex(
+      SECRET,
+      buildOpSigningPayload({
+        op: "process-image",
+        key: OP_KEY,
+        fields: [OP_DEST],
+        exp: EXP,
+      })
+    );
+    const params = { fields: [OP_DEST], exp: EXP, sig };
+
+    expect(
+      await verifySignedOpRequest(
+        SECRET,
+        "process-image",
+        OP_KEY,
+        params,
+        1_700_000_001
+      )
+    ).toEqual({ ok: false, status: 410 });
+    // Wrong op name is a signature mismatch (checked before expiry).
+    expect(
+      await verifySignedOpRequest(
+        SECRET,
+        "build-export",
+        OP_KEY,
+        params,
+        1_699_999_999
+      )
+    ).toEqual({ ok: false, status: 403 });
+    expect(
+      await verifySignedOpRequest(
+        SECRET,
+        "process-image",
+        "other/key.png",
+        params,
+        1_699_999_999
+      )
+    ).toEqual({ ok: false, status: 403 });
+    expect(
+      await verifySignedOpRequest(
+        SECRET,
+        "process-image",
+        OP_KEY,
+        {
+          ...params,
+          fields: ["users/other/t.webp"],
+        },
+        1_699_999_999
+      )
+    ).toEqual({ ok: false, status: 403 });
+
+    // Op URLs must be short-lived: mint-time TTL is bounded.
+    const farFuture = String(1_699_999_990 + 60 * 60 * 24);
+    const farSig = await hmacSha256Hex(
+      SECRET,
+      buildOpSigningPayload({
+        op: "process-image",
+        key: OP_KEY,
+        fields: [OP_DEST],
+        exp: farFuture,
+      })
+    );
+    expect(
+      await verifySignedOpRequest(
+        SECRET,
+        "process-image",
+        OP_KEY,
+        {
+          fields: [OP_DEST],
+          exp: farFuture,
+          sig: farSig,
+        },
+        1_699_999_990 + 60
+      )
+    ).toEqual({ ok: false, status: 403 });
+
+    expect(
+      await verifySignedOpRequest(SECRET, "process-image", OP_KEY, {
+        fields: [OP_DEST],
+        exp: null,
+        sig,
+      })
+    ).toEqual({ ok: false, status: 401 });
+    expect(
+      await verifySignedOpRequest(SECRET, "process-image", OP_KEY, {
+        fields: [OP_DEST],
+        exp: "12",
+        sig: null,
+      })
+    ).toEqual({ ok: false, status: 401 });
   });
 });

@@ -1,8 +1,16 @@
 import {
+  buildExportIntoBucket,
+  ExportManifestInvalid,
+  ExportTooLarge,
+} from "./export";
+import { ImageSourceMissing, ImageTooLarge, processImage } from "./image";
+import { InspectSourceMissing, runInspect } from "./inspect";
+import {
   FILES_CACHE_CONTROL,
   FILES_EDGE_CACHE_CONTROL,
   parseSingleByteRange,
   verifySignedFileRequest,
+  verifySignedOpRequest,
 } from "./lib";
 
 export interface Env {
@@ -17,6 +25,129 @@ const decodeObjectKey = (pathname: string): string => {
     return "";
   }
 };
+
+const json = (data: unknown, status = 200): Response =>
+  new Response(JSON.stringify(data), {
+    status,
+    headers: {
+      "content-type": "application/json",
+      "cache-control": "no-store",
+    },
+  });
+
+/**
+ * Internal signed ops: image processing, export building, file inspection.
+ * Payload shapes are defined in lib.ts; Convex mirrors them in
+ * packages/convex/storage/filesWorkerClient.ts.
+ */
+const handleOp = async (
+  env: Env,
+  url: URL,
+  key: string,
+  op: string
+): Promise<Response> => {
+  const query = url.searchParams;
+  const fieldNamesByOp: Record<string, string[]> = {
+    "process-image": ["dest"],
+    "build-export": ["artifact", "name"],
+    inspect: ["mode", "mb", "rtf", "fmt"],
+  };
+  const fieldNames = fieldNamesByOp[op];
+  if (!fieldNames) {
+    return json({ error: "unknown_op" }, 400);
+  }
+  const fields = fieldNames.map((name) => query.get(name) ?? "");
+  const verification = await verifySignedOpRequest(
+    env.FILES_SIGNING_SECRET,
+    op,
+    key,
+    {
+      fields,
+      exp: query.get("exp"),
+      sig: query.get("sig"),
+    }
+  );
+  if (!verification.ok) {
+    return new Response(null, { status: verification.status });
+  }
+
+  try {
+    switch (op) {
+      case "process-image": {
+        const result = await processImage(env.BUCKET, key, fields[0] || null);
+        return json(result);
+      }
+      case "build-export": {
+        const [artifactKey, fileName] = fields;
+        if (!(artifactKey && isValidArtifactName(fileName ?? ""))) {
+          return json({ error: "invalid_params" }, 400);
+        }
+        const result = await buildExportIntoBucket(
+          env.BUCKET,
+          key,
+          artifactKey,
+          fileName as string
+        );
+        return json(result);
+      }
+      case "inspect": {
+        const [mode, mb, rtf] = fields;
+        if (mode !== "zip" && mode !== "css" && mode !== "text") {
+          return json({ error: "invalid_mode" }, 400);
+        }
+        const maxBytes = Number.parseInt(mb ?? "", 10);
+        if (
+          !Number.isSafeInteger(maxBytes) ||
+          maxBytes <= 0 ||
+          maxBytes > 64 * 1024 * 1024
+        ) {
+          return json({ error: "invalid_max_bytes" }, 400);
+        }
+        const result = await runInspect(
+          env.BUCKET,
+          key,
+          mode,
+          query.get("fmt") ?? "",
+          maxBytes,
+          rtf === "1"
+        );
+        return json(result);
+      }
+      default:
+        return json({ error: "unknown_op" }, 400);
+    }
+  } catch (error) {
+    if (
+      error instanceof ImageSourceMissing ||
+      error instanceof InspectSourceMissing
+    ) {
+      return json({ error: error.message }, 404);
+    }
+    if (error instanceof ImageTooLarge) {
+      // Callers treat this as "fall back to the legacy action path".
+      return json({ error: error.message }, 413);
+    }
+    if (error instanceof ExportManifestInvalid) {
+      return json({ error: error.message }, 400);
+    }
+    if (error instanceof ExportTooLarge) {
+      return json({ error: error.message }, 413);
+    }
+    const message = error instanceof Error ? error.message : "unknown_error";
+    if (message === "decode_failed" || message === "archive_parse_failed") {
+      return json({ error: message }, 422);
+    }
+    console.error(`[files-worker] op ${op} failed`, error);
+    return json({ error: "internal_error" }, 500);
+  }
+};
+
+const isValidArtifactName = (name: string): boolean =>
+  name.length > 0 &&
+  name.length <= 200 &&
+  !name.includes('"') &&
+  !name.includes("\\") &&
+  !name.includes("\0");
 
 /**
  * Edge-cache key for a full-object response. The object key already embeds the
@@ -76,6 +207,11 @@ export default {
       return new Response(null, { status: 404 });
     }
 
+    const op = url.searchParams.get("op");
+    if (op) {
+      return await handleOp(env, url, key, op);
+    }
+
     const verification = await verifySignedFileRequest(
       env.FILES_SIGNING_SECRET,
       {
@@ -116,7 +252,12 @@ export default {
       }
 
       const headers = new Headers();
-      applyObjectHeaders(headers, request, object.httpMetadata, object.httpEtag);
+      applyObjectHeaders(
+        headers,
+        request,
+        object.httpMetadata,
+        object.httpEtag
+      );
 
       const [clientBody, edgeBody] = object.body.tee();
       const response = new Response(clientBody, { headers });
@@ -176,7 +317,10 @@ export default {
 
     const headers = new Headers();
     applyObjectHeaders(headers, request, object.httpMetadata, object.httpEtag);
-    headers.set("Content-Range", `bytes ${start}-${start + length - 1}/${size}`);
+    headers.set(
+      "Content-Range",
+      `bytes ${start}-${start + length - 1}/${size}`
+    );
 
     return new Response(object.body, { status: 206, headers });
   },

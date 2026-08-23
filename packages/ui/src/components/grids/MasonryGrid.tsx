@@ -339,9 +339,9 @@ export function MasonryGrid({
       return (
         <Card
           card={card}
+          isPriority={item.isPriority === true}
           isSelected={selectedCardIds.has(card._id)}
           isSelectionMode={isSelectionMode}
-          isPriority={item.isPriority === true}
           isTrashMode={showTrashOnly}
           onAddTags={onAddTags}
           onClick={handleCardClick}

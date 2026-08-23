@@ -11,12 +11,19 @@ import {
 import { v } from "convex/values";
 import { orientation } from "exifr";
 import { internal } from "../../../_generated/api";
-import { internalAction } from "../../../_generated/server";
+import { type ActionCtx, internalAction } from "../../../_generated/server";
+import {
+  buildSignedWorkerOpUrl,
+  callFilesWorkerJson,
+  type FilesWorkerProcessImageResult,
+  isFilesWorkerConfigured,
+} from "../../../storage/filesWorkerClient";
 import {
   buildR2ObjectKey,
   resolveObjectUrl,
   storeObject,
 } from "../../../storage/r2";
+import { hasKnownTinyImageDimensions } from "../../imageAnalysis";
 
 // Maximum thumbnail dimensions
 const THUMBNAIL_MAX_WIDTH = 500;
@@ -138,6 +145,80 @@ function applyExifOrientation(
 }
 
 /**
+ * Fast path: delegate decode/resize/encode to the files worker, which reads
+ * and writes the bucket directly over the R2 binding. Returns null when the
+ * worker signalled a permanent fallback condition (missing source, oversized
+ * input) or could not be reached for minting — callers then run the legacy
+ * action path below.
+ */
+export const generateViaFilesWorker = async (
+  ctx: ActionCtx,
+  cardId: string,
+  card: { userId: string; fileKey: string }
+): Promise<{
+  success: boolean;
+  generated: boolean;
+  thumbnailKey?: string;
+} | null> => {
+  if (!isFilesWorkerConfigured()) {
+    return null;
+  }
+  const destKey = buildR2ObjectKey({
+    userId: card.userId,
+    cardId,
+    role: "thumbnail",
+  });
+  let url: string;
+  try {
+    url = await buildSignedWorkerOpUrl({
+      op: "process-image",
+      key: card.fileKey,
+      params: { dest: destKey },
+    });
+  } catch {
+    return null;
+  }
+  const outcome = await callFilesWorkerJson<FilesWorkerProcessImageResult>(url);
+  if (outcome.kind === "fallback") {
+    return null;
+  }
+  const { width, height, thumbnailGenerated, thumbnailKey, palette } =
+    outcome.data;
+
+  if (thumbnailGenerated && thumbnailKey) {
+    await ctx.runMutation(
+      internal.workflows.steps.renderables.mutations.updateCardThumbnail,
+      {
+        cardId,
+        thumbnailKey,
+        originalWidth: width,
+        originalHeight: height,
+      }
+    );
+  } else {
+    await ctx.runMutation(
+      internal.workflows.steps.renderables.mutations.updateCardFileMetadata,
+      { cardId, width, height }
+    );
+  }
+
+  // The worker decodes once and returns both renderable and palette; store
+  // colors here so the palette step's early-return kicks in downstream.
+  if (palette.length > 0 && !hasKnownTinyImageDimensions({ width, height })) {
+    await ctx.runMutation(
+      internal.workflows.aiMetadata.mutations.updateCardColors,
+      { cardId, colors: palette.map((hex) => ({ hex })) }
+    );
+  }
+
+  return {
+    success: true,
+    generated: thumbnailGenerated,
+    thumbnailKey: thumbnailKey ?? undefined,
+  };
+};
+
+/**
  * Workflow-native thumbnail generation action.
  * Mirrors the previous tasks-based implementation so the renderables step owns its orchestration.
  */
@@ -181,6 +262,15 @@ export const generateThumbnail = internalAction({
           generated: false,
           thumbnailKey: card.thumbnailKey,
         };
+      }
+
+      // Preferred path: process on the files worker over the R2 binding.
+      const workerResult = await generateViaFilesWorker(ctx, args.cardId, {
+        userId: card.userId,
+        fileKey: card.fileKey,
+      });
+      if (workerResult) {
+        return workerResult;
       }
 
       const originalImageUrl = await resolveObjectUrl(card.fileKey);
