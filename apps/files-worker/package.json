@@ -1,6 +1,6 @@
 {
   "name": "@teak/files-worker",
-  "version": "0.1.0",
+  "version": "1.0.64",
   "private": true,
   "scripts": {
     "deploy": "wrangler deploy",
