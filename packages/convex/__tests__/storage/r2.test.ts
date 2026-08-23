@@ -1,6 +1,10 @@
 import { describe, expect, test } from "bun:test";
 import { createHmac } from "node:crypto";
 import {
+  buildSignedWorkerOpPayload,
+  buildSignedWorkerOpUrl,
+} from "../../storage/filesWorkerClient";
+import {
   bucketedSignatureExpiry,
   buildSignedFilePayload,
   buildSignedWorkerFileUrl,
@@ -59,7 +63,7 @@ describe("signed worker file urls", () => {
   test("bucketed expiry stays constant per window with ample remaining ttl", () => {
     const windowSeconds = 6 * 60 * 60;
     const windowStart =
-      Math.floor(Math.floor(Date.now() / 60_000) * 60 / windowSeconds) *
+      Math.floor((Math.floor(Date.now() / 60_000) * 60) / windowSeconds) *
       windowSeconds;
     const inWindow = [
       windowStart,
@@ -99,5 +103,72 @@ describe("signed worker file urls", () => {
         })
       )
     );
+  });
+});
+
+describe("signed worker op urls", () => {
+  const OP_KEY = "users/abc/cards/file/x.png";
+  const OP_DEST = "users/abc/cards/thumbnail/t.webp";
+
+  // Fixed vector shared with apps/files-worker/src/lib.test.ts — proves the
+  // Node/Bun (Convex) and workerd (worker) HMAC implementations agree on the
+  // op payload shape too.
+  const OP_VECTOR_DIGEST =
+    "08bf451235a9af51ddc744b0b7be67622a06dc36696f87675fda746fc8efae47";
+
+  test("op payload format matches the shared cross-runtime vector", () => {
+    const payload = buildSignedWorkerOpPayload({
+      op: "process-image",
+      key: OP_KEY,
+      fields: [OP_DEST],
+      exp: EXP,
+    });
+    expect(payload).toBe(`op\nprocess-image\n${OP_KEY}\n${OP_DEST}\n${EXP}`);
+    expect(hmacHex(payload)).toBe(OP_VECTOR_DIGEST);
+  });
+
+  test("mints short-lived signed op urls with all params", async () => {
+    process.env.FILES_BASE = BASE;
+    process.env.FILES_SIGNING_SECRET = SECRET;
+    try {
+      const before = Math.floor(Date.now() / 1000);
+      const rawUrl = await buildSignedWorkerOpUrl({
+        op: "inspect",
+        key: OP_KEY,
+        params: {
+          mode: "zip",
+          mb: String(25 * 1024 * 1024),
+          rtf: "",
+          fmt: "word",
+        },
+      });
+      const after = Math.floor(Date.now() / 1000);
+      const url = new URL(rawUrl);
+
+      expect(url.origin + url.pathname).toBe(`${BASE}/${OP_KEY}`);
+      expect(url.searchParams.get("op")).toBe("inspect");
+      expect(url.searchParams.get("mode")).toBe("zip");
+      expect(url.searchParams.get("fmt")).toBe("word");
+      // Empty-string slots may be omitted from the URL but stay signed.
+      expect(url.searchParams.get("rtf")).toBeNull();
+
+      const exp = Number.parseInt(url.searchParams.get("exp") ?? "", 10);
+      expect(exp).toBeGreaterThan(before);
+      expect(exp).toBeLessThanOrEqual(after + 10 * 60);
+
+      expect(url.searchParams.get("sig")).toBe(
+        hmacHex(
+          buildSignedWorkerOpPayload({
+            op: "inspect",
+            key: OP_KEY,
+            fields: ["zip", String(25 * 1024 * 1024), "", "word"],
+            exp: `${exp}`,
+          })
+        )
+      );
+    } finally {
+      delete process.env.FILES_BASE;
+      delete process.env.FILES_SIGNING_SECRET;
+    }
   });
 });

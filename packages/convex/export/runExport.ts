@@ -21,13 +21,31 @@ import { v } from "convex/values";
 import { internal } from "../_generated/api";
 import { type ActionCtx, internalAction } from "../_generated/server";
 import { TELEMETRY_OPERATIONS } from "../shared/telemetry";
+import {
+  buildSignedWorkerOpUrl,
+  callFilesWorkerJson,
+  type FilesWorkerBuildExportResult,
+  isFilesWorkerConfigured,
+} from "../storage/filesWorkerClient";
+import { buildR2ObjectKey, storeObject } from "../storage/r2";
 import { withBackendSpan } from "../telemetry/sentry";
 import {
   type ArchiveCardInput,
   buildExportArchive,
   type FileReader,
 } from "./archiveBuilder";
-import { computeExpiry } from "./serialize";
+import {
+  CARDS_ENTRY_NAME,
+  EXPORT_FAILURE_CLASS,
+  MANIFEST_ENTRY_NAME,
+  MAX_EXPORT_BYTES,
+} from "./constants";
+import {
+  buildFilePath,
+  buildManifest,
+  computeExpiry,
+  serializeCard,
+} from "./serialize";
 
 const internalAny = internal as Record<string, any>;
 
@@ -114,6 +132,193 @@ function buildArtifactKey(userId: string, jobId: string): string {
   return ["users", hashUserId, "exports", `${jobId}-${stamp}.zip`].join("/");
 }
 
+const EXPORT_MANIFEST_VERSION = 1;
+
+/**
+ * Worker-backed export fast path.
+ *
+ * Serializes cards and entry paths exactly like the legacy Node builder, but
+ * hands the worker a small manifest (inline JSON entries + storage keys); the
+ * worker streams object bytes straight through client-zip into a multipart
+ * R2 upload without the bytes ever transiting this action.
+ *
+ * When files turn out to be missing, the worker reports their archive paths
+ * and cards.json is rebuilt with those cards' `file` entries dropped, then
+ * the op runs once more — matching legacy omission semantics.
+ *
+ * Returns null whenever the caller should fall back to the legacy path
+ * (worker unconfigured, permanent rejection, or any unexpected error).
+ */
+async function runExportArchiveViaFilesWorker(
+  ctx: ActionCtx,
+  args: {
+    userId: string;
+    jobId: string;
+    inputs: ArchiveCardInput[];
+    createdAtMs: number;
+    expiresAtMs: number;
+    s3Client: S3Client;
+    bucket: string;
+  }
+): Promise<{
+  ok: boolean;
+  artifactKey: string;
+  artifactBytes: number;
+  cardCount: number;
+  filesIncluded: number;
+  filesOmitted: number;
+} | null> {
+  try {
+    if (!isFilesWorkerConfigured()) {
+      return null;
+    }
+
+    const { userId, jobId, inputs, createdAtMs, expiresAtMs } = args;
+    const artifactKey = buildArtifactKey(userId, jobId);
+    const downloadName = `teak-export-${new Date().toISOString().slice(0, 10)}.zip`;
+
+    // Path of each file entry → card id, so omissions can be attributed.
+    const cardIdByPath = new Map<string, string>();
+    const omittedCardIds = new Set<string>();
+    for (const input of inputs) {
+      if (!input.fileKey) {
+        continue;
+      }
+      cardIdByPath.set(
+        buildFilePath(input.card._id, input.card.fileMetadata?.fileName),
+        input.card._id
+      );
+    }
+
+    const buildManifestObject = async (): Promise<string> => {
+      const fileEntries = inputs
+        .filter((input) => input.fileKey)
+        .map((input) => ({
+          path: buildFilePath(
+            input.card._id,
+            input.card.fileMetadata?.fileName
+          ),
+          storageKey: input.fileKey as string,
+        }));
+      const serializedCards = inputs.map((input) => {
+        const included =
+          Boolean(input.fileKey) && !omittedCardIds.has(input.card._id);
+        return serializeCard(input.card, { includeFile: included });
+      });
+      const filesIncluded = serializedCards.filter(
+        (card) => card.file !== undefined
+      ).length;
+      const manifestJson = JSON.stringify({
+        v: EXPORT_MANIFEST_VERSION,
+        maxBytes: MAX_EXPORT_BYTES,
+        entries: [
+          {
+            path: MANIFEST_ENTRY_NAME,
+            contentBase64: Buffer.from(
+              JSON.stringify(
+                buildManifest({
+                  createdAtMs,
+                  expiresAtMs,
+                  cardCount: serializedCards.length,
+                  filesIncluded,
+                  filesOmitted:
+                    inputs.filter((input) => input.fileKey).length -
+                    filesIncluded,
+                }),
+                null,
+                2
+              ),
+              "utf8"
+            ).toString("base64"),
+          },
+          {
+            path: CARDS_ENTRY_NAME,
+            contentBase64: Buffer.from(
+              JSON.stringify({ cards: serializedCards }, null, 2),
+              "utf8"
+            ).toString("base64"),
+          },
+          ...fileEntries,
+        ],
+      });
+
+      const manifestKey = buildR2ObjectKey({
+        userId,
+        role: "export-manifest",
+      });
+      await storeObject(ctx, new Blob([manifestJson]), {
+        key: manifestKey,
+        type: "application/json",
+      });
+      return manifestKey;
+    };
+
+    const deleteManifest = async (key: string): Promise<void> => {
+      try {
+        await args.s3Client.send(
+          new DeleteObjectCommand({ Bucket: args.bucket, Key: key })
+        );
+      } catch {
+        // Manifest cleanup is best-effort; the object is tiny and harmless.
+      }
+    };
+
+    let artifactBytes = 0;
+    let filesIncluded = 0;
+    let filesOmitted = 0;
+
+    // Two attempts maximum: the second only when files were omitted and
+    // cards.json must be corrected.
+    for (let attempt = 0; attempt < 2; attempt += 1) {
+      const manifestKey = await buildManifestObject();
+      let url: string;
+      try {
+        url = await buildSignedWorkerOpUrl({
+          op: "build-export",
+          key: manifestKey,
+          params: { artifact: artifactKey, name: downloadName },
+        });
+      } catch {
+        await deleteManifest(manifestKey);
+        return null;
+      }
+      const outcome =
+        await callFilesWorkerJson<FilesWorkerBuildExportResult>(url);
+      await deleteManifest(manifestKey);
+
+      if (outcome.kind === "fallback") {
+        return null;
+      }
+
+      artifactBytes = outcome.data.artifactBytes;
+      filesIncluded = outcome.data.filesIncluded;
+      filesOmitted = outcome.data.filesOmitted;
+
+      if (outcome.data.omittedPaths.length === 0 || attempt === 1) {
+        break;
+      }
+      for (const path of outcome.data.omittedPaths) {
+        const cardId = cardIdByPath.get(path);
+        if (cardId) {
+          omittedCardIds.add(cardId);
+        }
+      }
+    }
+
+    return {
+      ok: true,
+      artifactKey,
+      artifactBytes,
+      cardCount: inputs.length,
+      filesIncluded,
+      filesOmitted,
+    };
+  } catch {
+    // Any unexpected failure falls back to the proven Node path.
+    return null;
+  }
+}
+
 export const runExportArchive = internalAction({
   args: { jobId: v.id("exportJobs"), userId: v.string() },
   returns: v.object({
@@ -169,6 +374,31 @@ export const runExportArchive = internalAction({
 
       const createdAtMs = Date.now();
       const expiresAtMs = computeExpiry(createdAtMs);
+
+      // Preferred path: build the archive on the files worker over the R2
+      // binding. Falls back to the legacy Node builder below whenever the
+      // worker is unconfigured or reports a permanent condition.
+      if (isFilesWorkerConfigured()) {
+        const workerResult = await runExportArchiveViaFilesWorker(ctx, {
+          jobId,
+          inputs,
+          userId,
+          createdAtMs,
+          expiresAtMs,
+          s3Client: client,
+          bucket: config.bucket,
+        });
+        if (workerResult) {
+          const canceledAfterWorker = await ctx.runQuery(
+            internalAny.dataExport.isCancelRequested,
+            { jobId }
+          );
+          if (canceledAfterWorker) {
+            return { ok: false, failureClass: EXPORT_FAILURE_CLASS.CANCELED };
+          }
+          return workerResult;
+        }
+      }
 
       let result: Awaited<ReturnType<typeof buildExportArchive>>;
       try {

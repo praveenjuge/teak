@@ -4,8 +4,7 @@ import { v } from "convex/values";
 import { internal } from "../../../_generated/api";
 import { internalAction } from "../../../_generated/server";
 import { inferFileFormat } from "../../../shared/fileFormats";
-import { resolveObjectUrl } from "../../../storage/r2";
-import { buildFilePreviewFacts } from "../../fileProcessing";
+import { buildFilePreviewFactsForKey } from "../../fileProcessing";
 
 export const generateFilePreview = internalAction({
   args: { cardId: v.id("cards") },
@@ -29,13 +28,8 @@ export const generateFilePreview = internalAction({
       return { generated: false, success: true };
     }
 
-    const fileUrl = await resolveObjectUrl(card.fileKey);
-    if (!fileUrl) {
-      return { generated: false, success: true };
-    }
-
     try {
-      const preview = await buildFilePreviewFacts(fileUrl, format);
+      const preview = await buildFilePreviewFactsForKey(card.fileKey, format);
       if (!preview) {
         return { generated: false, success: true };
       }

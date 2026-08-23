@@ -15,8 +15,8 @@ export const FILES_CACHE_CONTROL = "private, max-age=518400, immutable"; // 6 da
 export const FILES_EDGE_CACHE_CONTROL = "public, max-age=518400, immutable";
 
 export interface R2GetRange {
-  offset?: number;
   length?: number;
+  offset?: number;
   suffix?: number;
 }
 
@@ -52,7 +52,11 @@ export const parseSingleByteRange = (
     return { kind: "suffix", suffix };
   }
   const start = Number.parseInt(rawStart ?? "", 10);
-  if (!Number.isSafeInteger(start) || start < 0 || start > Number.MAX_SAFE_INTEGER - 1) {
+  if (
+    !Number.isSafeInteger(start) ||
+    start < 0 ||
+    start > Number.MAX_SAFE_INTEGER - 1
+  ) {
     return null;
   }
   if (rawEnd === "") {
@@ -134,6 +138,29 @@ export const hmacSha256Hex = async (
   ).join("");
 };
 
+// Ops (process-image / build-export / inspect) are internal, short-lived
+// requests signed with the same secret as downloads but a distinct payload
+// shape so download URLs can never be replayed against an op and vice versa:
+//
+//   ["op", <op>, <key>, ...extra fields..., <exp>].join("\n")
+//
+// Extra field values are joined in a fixed per-op order agreed on both sides
+// (packages/convex/storage/filesWorkerClient.ts mirrors this module). Empty
+// strings are allowed slots.
+export const FILES_OP_MAX_TTL_SECONDS = 15 * 60;
+
+export const buildOpSigningPayload = ({
+  exp,
+  fields,
+  key,
+  op,
+}: {
+  op: string;
+  key: string;
+  fields: string[];
+  exp: string;
+}): string => ["op", op, key, ...fields, exp].join("\n");
+
 export type FileRequestVerification =
   | { ok: true }
   | { ok: false; status: 401 | 403 | 410 };
@@ -169,6 +196,47 @@ export const verifySignedFileRequest = async (
       contentType: ct ?? "",
       contentDisposition: cd ?? "",
     })
+  );
+  return timingSafeEqualHex(sig, expected)
+    ? { ok: true }
+    : { ok: false, status: 403 };
+};
+
+export interface SignedOpRequestParams {
+  exp: string | null | undefined;
+  fields?: string[];
+  sig: string | null | undefined;
+}
+
+/**
+ * Verify an internal op request. Identical rules to download verification
+ * plus an upper bound on remaining validity: op URLs are minted per action
+ * invocation and should never live longer than FILES_OP_MAX_TTL_SECONDS, so a
+ * leaked URL has a tightly bounded replay window.
+ */
+export const verifySignedOpRequest = async (
+  secret: string,
+  op: string,
+  key: string,
+  { fields = [], exp, sig }: SignedOpRequestParams,
+  nowSeconds = Math.floor(Date.now() / 1000)
+): Promise<FileRequestVerification> => {
+  if (!(exp && sig)) {
+    return { ok: false, status: 401 };
+  }
+  const expiresAt = Number.parseInt(exp, 10);
+  if (!Number.isSafeInteger(expiresAt) || `${expiresAt}` !== exp) {
+    return { ok: false, status: 403 };
+  }
+  if (expiresAt < nowSeconds) {
+    return { ok: false, status: 410 };
+  }
+  if (expiresAt - nowSeconds > FILES_OP_MAX_TTL_SECONDS) {
+    return { ok: false, status: 403 };
+  }
+  const expected = await hmacSha256Hex(
+    secret,
+    buildOpSigningPayload({ op, key, fields, exp })
   );
   return timingSafeEqualHex(sig, expected)
     ? { ok: true }

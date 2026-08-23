@@ -166,7 +166,10 @@ export const getR2Url = async (
   );
   presignedUrlMemo.set(memoKey, {
     url,
-    refreshAt: nowSeconds + SIGNED_URL_EXPIRES_IN_SECONDS - PRESIGN_REFRESH_MARGIN_SECONDS,
+    refreshAt:
+      nowSeconds +
+      SIGNED_URL_EXPIRES_IN_SECONDS -
+      PRESIGN_REFRESH_MARGIN_SECONDS,
   });
   return url;
 };
@@ -175,6 +178,25 @@ const hexEncode = (buffer: ArrayBuffer): string =>
   Array.from(new Uint8Array(buffer), (byte) =>
     byte.toString(16).padStart(2, "0")
   ).join("");
+
+// Must stay in lockstep with apps/files-worker/src/lib.ts — the shared test
+// vectors prove both runtimes produce identical HMAC output.
+export const hmacSha256Hex = async (
+  secret: string,
+  message: string
+): Promise<string> => {
+  const encoder = new TextEncoder();
+  const cryptoKey = await crypto.subtle.importKey(
+    "raw",
+    encoder.encode(secret),
+    { name: "HMAC", hash: "SHA-256" },
+    false,
+    ["sign"]
+  );
+  return hexEncode(
+    await crypto.subtle.sign("HMAC", cryptoKey, encoder.encode(message))
+  );
+};
 
 // Must stay in lockstep with apps/files-worker/src/lib.ts — the shared test
 // vector proves both runtimes produce identical HMAC output.
@@ -197,21 +219,10 @@ export const buildSignedWorkerFileUrl = async (
   response: DownloadResponsePolicy = {},
   expSeconds = Math.floor(Date.now() / 1000) + SIGNED_URL_EXPIRES_IN_SECONDS
 ): Promise<string> => {
-  const encoder = new TextEncoder();
-  const cryptoKey = await crypto.subtle.importKey(
-    "raw",
-    encoder.encode(secret),
-    { name: "HMAC", hash: "SHA-256" },
-    false,
-    ["sign"]
-  );
   const exp = String(expSeconds);
-  const signature = hexEncode(
-    await crypto.subtle.sign(
-      "HMAC",
-      cryptoKey,
-      encoder.encode(buildSignedFilePayload({ key, exp, ...response }))
-    )
+  const signature = await hmacSha256Hex(
+    secret,
+    buildSignedFilePayload({ key, exp, ...response })
   );
   const params = new URLSearchParams({ exp, sig: signature });
   if (response.contentType) {
