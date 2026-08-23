@@ -1,52 +1,57 @@
-import { groq } from "@ai-sdk/groq";
+import { createOpenAICompatible } from "@ai-sdk/openai-compatible";
+
+/**
+ * Cloudflare Workers AI accessed through its OpenAI-compatible REST endpoint
+ * (`/ai/v1/chat/completions`). Credentials come from the Convex environment:
+ * CLOUDFLARE_ACCOUNT_ID + CLOUDFLARE_API_TOKEN (token needs Workers AI run
+ * permission).
+ */
+export const workersAi = createOpenAICompatible({
+  apiKey: process.env.CLOUDFLARE_API_TOKEN ?? "",
+  baseURL: `https://api.cloudflare.com/client/v4/accounts/${
+    process.env.CLOUDFLARE_ACCOUNT_ID ?? ""
+  }/ai/v1`,
+  name: "cloudflare-workers-ai",
+});
 
 /**
  * Model for text metadata generation (tags, summaries)
- * Supports prompt caching for 50% cost savings on cached tokens
+ * Qwen 3 MoE (3B active) — cheapest capable option on Workers AI.
+ * The "/no_think" suffix appended to prompts suppresses reasoning tokens.
  */
-export const TEXT_METADATA_MODEL = groq("openai/gpt-oss-20b");
-export const TEXT_METADATA_MODEL_ID = "openai/gpt-oss-20b" as const;
+export const TEXT_METADATA_MODEL = workersAi("@cf/qwen/qwen3-30b-a3b-fp8");
+export const TEXT_METADATA_MODEL_ID = "@cf/qwen/qwen3-30b-a3b-fp8" as const;
 
 /**
  * Model for link content analysis
- * Supports prompt caching for 50% cost savings on cached tokens
  */
-export const LINK_METADATA_MODEL = groq("openai/gpt-oss-20b");
-export const LINK_METADATA_MODEL_ID = "openai/gpt-oss-20b" as const;
+export const LINK_METADATA_MODEL = workersAi("@cf/qwen/qwen3-30b-a3b-fp8");
+export const LINK_METADATA_MODEL_ID = "@cf/qwen/qwen3-30b-a3b-fp8" as const;
 
 /**
  * Model for image/vision analysis
- * Note: Currently does NOT support prompt caching
- * Uses Qwen 3.6 27B for multimodal vision after Llama 4 Scout deprecation
+ * Gemma 4 26B A4B — multimodal with strong OCR/UI understanding at a low
+ * price point. Reasoning is kept on but nudged off via the system prompt.
  */
-export const IMAGE_METADATA_MODEL_ID = "qwen/qwen3.6-27b" as const;
-export const IMAGE_METADATA_MODEL = groq(IMAGE_METADATA_MODEL_ID);
-
-/**
- * Model for changelog generation (docs)
- * Supports prompt caching for 50% cost savings on cached tokens
- * Using larger model for better quality summaries
- */
-export const CHANGELOG_MODEL = groq("openai/gpt-oss-120b");
-export const CHANGELOG_MODEL_ID = "openai/gpt-oss-120b" as const;
+export const IMAGE_METADATA_MODEL_ID = "@cf/google/gemma-4-26b-a4b-it" as const;
+export const IMAGE_METADATA_MODEL = workersAi(IMAGE_METADATA_MODEL_ID);
 
 /**
  * Transcription model for audio content
- * Uses Whisper for fast, accurate speech-to-text
+ * Whisper large v3 turbo — billed per audio minute via the REST `/ai/run`
+ * endpoint (see workflows/aiMetadata/transcript.ts).
  */
-export const TRANSCRIPTION_MODEL = groq.transcription("whisper-large-v3-turbo");
-export const TRANSCRIPTION_MODEL_ID = "whisper-large-v3-turbo" as const;
+export const TRANSCRIPTION_MODEL_ID =
+  "@cf/openai/whisper-large-v3-turbo" as const;
 
 /**
- * System prompts optimized for prompt caching
- * These are placed at the beginning of requests to maximize cache hits
+ * System prompts optimized for reuse across requests.
  */
 export const SYSTEM_PROMPTS = {
   /**
    * System prompt for text content analysis
-   * Static content - will be cached across requests
    */
-  textAnalysis: `You are an expert content analyzer. Generate relevant tags and a concise summary for the given content.
+  textAnalysis: `You are an expert content analyzer. Generate relevant tags and a concise summary for the given content. /no_think
 
 Guidelines:
 - Tags should be 5-6 specific, relevant single words only (no spaces, no hyphens)
@@ -59,9 +64,8 @@ Respond with a single JSON object using exactly this shape and no other keys:
 
   /**
    * System prompt for image analysis
-   * Static content - helps with potential future caching support
    */
-  imageAnalysis: `You are an expert image analyzer. Generate relevant tags and a concise summary for the given image.
+  imageAnalysis: `You are an expert image analyzer. Generate relevant tags and a concise summary for the given image. Answer directly without thinking step by step.
 
 Guidelines:
 - Tags should be 5-6 single words describing objects, scenes, concepts, emotions (no spaces, no hyphens)
@@ -74,9 +78,8 @@ Respond with a single JSON object using exactly this shape and no other keys:
 
   /**
    * System prompt for web content analysis
-   * Static content - will be cached across requests
    */
-  linkAnalysis: `You are an expert web content analyzer. Generate relevant tags and a concise summary for the given web page content.
+  linkAnalysis: `You are an expert web content analyzer. Generate relevant tags and a concise summary for the given web page content. /no_think
 
 Guidelines:
 - Tags should be 5-6 single words capturing main topics, categories, and key concepts (no spaces, no hyphens)
@@ -88,34 +91,4 @@ Guidelines:
 
 Respond with a single JSON object using exactly this shape and no other keys:
 {"tags": ["word", "word"], "summary": "..."}`,
-
-  /**
-   * System prompt for changelog generation
-   * Static content - will be cached across requests
-   */
-  changelog: `You are writing a public changelog entry for Teak, a personal knowledge hub app. Readers are end users, not engineers.
-
-Editorial rules (non-negotiable):
-- Describe user impact only. If a user would not notice the change, do not mention it.
-- Do not mention package names, frameworks, libraries, build tooling, bundlers, loaders, ESM/CJS, schemas, data migrations, internal endpoints, refactors, tests, CI, signing/notarization, dependency bumps, or any implementation mechanics. This includes (non-exhaustive): Electron, Vite, Webpack, Forge, Next.js, Astro, Starlight, Blume, Expo, Wxt, Hono, Convex (as backend), Better Auth, Groq, Polar, electron-updater, electron-builder, oEmbed, package.json, tsconfig, node_modules.
-- Product-facing terms are allowed when users recognize them: desktop, mobile, web, browser extension, Raycast, API, MCP, sync, settings, import/export, updates, sign-in, macOS, Dock, notifications, keychain.
-- If the change is only internal tooling, dependency work, refactor, tests, CI, or cleanup, respond with the single token SKIP and nothing else.
-- Do not use inline code (backticks) or fenced code blocks. Do not use headers inside the entry.
-- Output format: a short title followed by 1 to 3 bullets, each one user-observable outcome in plain English. Trim aggressively.
-- If user action is required, state only the clear action the user needs to take.`,
-
-  /**
-   * Stricter retry prompt for changelog generation when the first pass
-   * violates the editorial rules. Use this in a single regeneration attempt
-   * before failing loudly.
-   */
-  changelogStrictRetry: `You previously produced a changelog entry that violated the editorial rules.
-
-Rewrite it now with ZERO implementation language. Treat the reader as a non-technical end user.
-
-Hard constraints:
-- Remove every mention of packages, frameworks, libraries, build tools, bundlers, loaders, ESM/CJS, schemas, migrations, internal endpoints, refactors, tests, CI, signing/notarization, dependency bumps. No exceptions.
-- Never use inline code (backticks) or fenced code blocks.
-- Output one short title, then 1 to 3 bullets. Each bullet is one user-observable outcome in plain English.
-- If the underlying change has no user impact, respond with the single token SKIP and nothing else.`,
 } as const;

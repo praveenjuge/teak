@@ -9,20 +9,21 @@ import {
   test,
 } from "bun:test";
 
-const aiMocks = (global as any).__AI_MOCKS__ ?? {};
-aiMocks.generateText ??= mock();
-aiMocks.generateObject ??= mock();
-aiMocks.experimental_transcribe ??= mock();
-aiMocks.Output ??= { object: mock() };
-(global as any).__AI_MOCKS__ = aiMocks;
-const mockTranscribe = aiMocks.experimental_transcribe;
-
-mock.module("ai", () => aiMocks);
-
 const originalFetch = global.fetch;
 const mockFetch = mock();
 
 let generateTranscript: any;
+
+const audioResponse = (mimeType = "audio/mp3") => ({
+  ok: true,
+  headers: { get: () => mimeType },
+  arrayBuffer: async () => new ArrayBuffer(8),
+});
+
+const workersAiResponse = (text: string) => ({
+  ok: true,
+  json: async () => ({ result: { text }, success: true }),
+});
 
 describe("generateTranscript", () => {
   beforeAll(async () => {
@@ -37,20 +38,23 @@ describe("generateTranscript", () => {
   });
 
   beforeEach(() => {
-    mockTranscribe.mockReset();
     mockFetch.mockReset();
   });
 
   test("generates transcript successfully", async () => {
-    mockFetch.mockResolvedValue({
-      ok: true,
-      headers: { get: () => "audio/mp3" },
-      arrayBuffer: async () => new ArrayBuffer(8),
-    });
-    mockTranscribe.mockResolvedValue({ text: "Transcript text" });
+    mockFetch
+      .mockResolvedValueOnce(audioResponse())
+      .mockResolvedValueOnce(workersAiResponse("Transcript text"));
 
     const result = await generateTranscript("https://audio.com/file.mp3");
     expect(result).toBe("Transcript text");
+
+    const request = mockFetch.mock.calls[1]?.[0];
+    expect(request).toContain("/ai/run/@cf/openai/whisper-large-v3-turbo");
+    expect(mockFetch.mock.calls[1]?.[1]?.method).toBe("POST");
+    expect(mockFetch.mock.calls[1]?.[1]?.headers["Content-Type"]).toBe(
+      "audio/mp3"
+    );
   });
 
   test("handles fetch error", async () => {
@@ -63,36 +67,45 @@ describe("generateTranscript", () => {
     expect(result).toBeNull();
   });
 
-  test("handles transcription error", async () => {
-    mockFetch.mockResolvedValue({
-      ok: true,
-      headers: { get: () => "audio/mp3" },
-      arrayBuffer: async () => new ArrayBuffer(8),
+  test("handles transcription error response", async () => {
+    mockFetch.mockResolvedValueOnce(audioResponse()).mockResolvedValueOnce({
+      ok: false,
+      status: 400,
+      statusText: "Bad Request",
+      json: async () => ({
+        errors: [{ message: "Invalid input" }],
+        success: false,
+      }),
     });
-    mockTranscribe.mockRejectedValue(new Error("AI error"));
+    const result = await generateTranscript("url");
+    expect(result).toBeNull();
+  });
+
+  test("handles network error during transcription", async () => {
+    mockFetch
+      .mockResolvedValueOnce(audioResponse())
+      .mockRejectedValueOnce(new Error("AI error"));
     const result = await generateTranscript("url");
     expect(result).toBeNull();
   });
 
   test("mime type extension logic > covers all branches", async () => {
-    mockFetch.mockResolvedValue({
-      ok: true,
-      headers: { get: () => "audio/wav" },
-      arrayBuffer: async () => new ArrayBuffer(8),
-    });
-    mockTranscribe.mockResolvedValue({ text: "Wav" });
+    mockFetch
+      .mockResolvedValueOnce(audioResponse("audio/wav"))
+      .mockResolvedValueOnce(workersAiResponse("Wav"));
     await generateTranscript("u");
-    expect(mockTranscribe).toHaveBeenCalled();
+    expect(mockFetch.mock.calls[1]?.[1]?.headers["Content-Type"]).toBe(
+      "audio/wav"
+    );
   });
 
   test("mime type extension logic > uses mimeHint", async () => {
-    mockFetch.mockResolvedValue({
-      ok: true,
-      headers: { get: () => "audio/unknown" },
-      arrayBuffer: async () => new ArrayBuffer(8),
-    });
-    mockTranscribe.mockResolvedValue({ text: "Mime" });
+    mockFetch
+      .mockResolvedValueOnce(audioResponse("audio/unknown"))
+      .mockResolvedValueOnce(workersAiResponse("Mime"));
     await generateTranscript("u", "audio/mp4");
-    expect(mockTranscribe).toHaveBeenCalled();
+    expect(mockFetch.mock.calls[1]?.[1]?.headers["Content-Type"]).toBe(
+      "audio/mp4"
+    );
   });
 });

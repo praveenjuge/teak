@@ -1,5 +1,13 @@
 // @ts-nocheck
-import { beforeAll, beforeEach, describe, expect, mock, test } from "bun:test";
+import {
+  afterAll,
+  beforeAll,
+  beforeEach,
+  describe,
+  expect,
+  mock,
+  test,
+} from "bun:test";
 
 const aiMocks = (global as any).__AI_MOCKS__ ?? {};
 aiMocks.generateText ??= mock();
@@ -30,7 +38,17 @@ const mockResponse = {
 };
 
 describe("aiMetadata generators", () => {
+  const originalFetch = global.fetch;
+  const mockImageDownload = mock();
+
   beforeAll(async () => {
+    // Image generation downloads bytes inline for Workers AI.
+    mockImageDownload.mockResolvedValue({
+      ok: true,
+      headers: { get: () => "image/png" },
+      arrayBuffer: async () => new ArrayBuffer(8),
+    });
+    global.fetch = mockImageDownload;
     const mod = await import("../../../workflows/aiMetadata/generators");
     generateTextMetadata = mod.generateTextMetadata;
     generateImageMetadata = mod.generateImageMetadata;
@@ -41,6 +59,10 @@ describe("aiMetadata generators", () => {
     maxRetries = mod.MAX_AI_METADATA_RETRIES;
     maxValidationRetries = mod.MAX_AI_METADATA_VALIDATION_RETRIES;
     isAiProviderCapacityError = mod.isAiProviderCapacityError;
+  });
+
+  afterAll(() => {
+    global.fetch = originalFetch;
   });
 
   beforeEach(() => {
@@ -63,9 +85,6 @@ describe("aiMetadata generators", () => {
         prompt: expect.stringContaining("some content"),
         maxRetries,
         maxOutputTokens,
-        providerOptions: {
-          groq: { reasoningEffort: "low", structuredOutputs: false },
-        },
       })
     );
   });
@@ -82,7 +101,6 @@ describe("aiMetadata generators", () => {
         messages: expect.arrayContaining([expect.any(Object)]),
         maxRetries,
         maxOutputTokens,
-        providerOptions: { groq: { structuredOutputs: false } },
       })
     );
   });
@@ -99,9 +117,6 @@ describe("aiMetadata generators", () => {
         prompt: expect.stringContaining("page content"),
         maxRetries,
         maxOutputTokens,
-        providerOptions: {
-          groq: { reasoningEffort: "low", structuredOutputs: false },
-        },
       })
     );
   });

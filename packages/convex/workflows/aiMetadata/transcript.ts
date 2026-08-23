@@ -1,7 +1,6 @@
 "use node";
 
-import { experimental_transcribe as transcribe } from "ai";
-import { TRANSCRIPTION_MODEL, TRANSCRIPTION_MODEL_ID } from "../../ai/models";
+import { TRANSCRIPTION_MODEL_ID } from "../../ai/models";
 import { observeAiGeneration } from "../../ai/telemetry";
 import {
   recordBackendAiContent,
@@ -9,6 +8,43 @@ import {
   recordBackendLog,
   withBackendSpan,
 } from "../../telemetry/sentry";
+
+const workersAiRunUrl = () =>
+  `https://api.cloudflare.com/client/v4/accounts/${
+    process.env.CLOUDFLARE_ACCOUNT_ID ?? ""
+  }/ai/run/${TRANSCRIPTION_MODEL_ID}`;
+
+// Transcribe audio bytes via Cloudflare Workers AI. The REST `/ai/run`
+// endpoint accepts the raw audio as the request body and returns a
+// `{ result: { text } }` envelope.
+export const transcribeWorkersAi = async (
+  audio: ArrayBuffer,
+  mimeType: string
+): Promise<string> => {
+  const response = await fetch(workersAiRunUrl(), {
+    body: new Blob([audio], { type: mimeType }),
+    headers: {
+      Authorization: `Bearer ${process.env.CLOUDFLARE_API_TOKEN ?? ""}`,
+      "Content-Type": mimeType,
+    },
+    method: "POST",
+  });
+
+  const payload = (await response.json().catch(() => null)) as {
+    errors?: { message?: string }[];
+    result?: { text?: string };
+    success?: boolean;
+  } | null;
+
+  if (!(response.ok && payload?.success && payload.result)) {
+    const detail =
+      payload?.errors?.map((error) => error.message).join("; ") ??
+      `${response.status} ${response.statusText}`;
+    throw new Error(`Workers AI transcription failed: ${detail}`);
+  }
+
+  return payload.result.text ?? "";
+};
 
 // Generate transcript for audio content
 export const generateTranscript = async (
@@ -34,13 +70,14 @@ export const generateTranscript = async (
 
     const arrayBuffer = await response.arrayBuffer();
 
-    // Use Groq's whisper-large-v3-turbo for fast, cost-effective transcription
+    // Use Whisper large v3 turbo on Cloudflare Workers AI for fast,
+    // cost-effective transcription (billed per audio minute)
     return await withBackendSpan(
       {
         attributes: {
           "audio.byte_length": arrayBuffer.byteLength,
           model: TRANSCRIPTION_MODEL_ID,
-          provider: "groq",
+          provider: "cloudflare",
         },
         name: "teak.ai.transcript",
         operation: "gen_ai.generate",
@@ -54,10 +91,9 @@ export const generateTranscript = async (
             model: TRANSCRIPTION_MODEL_ID,
           },
           () =>
-            transcribe({
-              audio: new Uint8Array(arrayBuffer),
-              model: TRANSCRIPTION_MODEL,
-            })
+            transcribeWorkersAi(arrayBuffer, mimeType).then((text) => ({
+              text,
+            }))
         );
         recordBackendAiContent({ response: text });
         return text;

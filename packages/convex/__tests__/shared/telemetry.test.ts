@@ -72,7 +72,7 @@ describe("telemetry privacy and bounds", () => {
     const value = [
       "Authorization: Bearer secret.token.value",
       '"session":"session-secret"',
-      "GROQ_API_KEY=groq-secret",
+      "CLOUDFLARE_API_TOKEN=cf-secret",
       "owner@example.com",
       "https://bucket.example/file?X-Amz-Signature=secret&X-Amz-Expires=60",
       "data:image/png;base64,AAAAAA==",
@@ -81,7 +81,7 @@ describe("telemetry privacy and bounds", () => {
 
     expect(scrubbed).not.toContain("secret.token.value");
     expect(scrubbed).not.toContain("session-secret");
-    expect(scrubbed).not.toContain("groq-secret");
+    expect(scrubbed).not.toContain("cf-secret");
     expect(scrubbed).not.toContain("owner@example.com");
     expect(scrubbed).not.toContain("X-Amz-Signature");
     expect(scrubbed).not.toContain("AAAAAA");
@@ -215,9 +215,9 @@ describe("telemetry naming and sampling", () => {
   });
 
   test("normalizes error classes without emitting messages", () => {
-    expect(normalizeErrorClass(new Error("Groq generation rejected"))).toBe(
-      "ProviderError"
-    );
+    expect(
+      normalizeErrorClass(new Error("Workers AI generation rejected"))
+    ).toBe("ProviderError");
     expect(normalizeErrorClass(new Error("Request timed out"))).toBe(
       "TimeoutError"
     );

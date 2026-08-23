@@ -13,31 +13,24 @@ import {
 import {
   createAiTelemetrySettings,
   observeAiGeneration,
+  WORKERS_AI_PROVIDER,
 } from "../../ai/telemetry";
 import { trackAiRetry } from "../../shared/metrics";
 import { recordBackendLog } from "../../telemetry/sentry";
 import { aiMetadataSchema } from "./schemas";
 
 /**
- * Force Groq into JSON object mode instead of strict json_schema mode.
+ * Cloudflare Workers AI notes:
  *
- * With `structuredOutputs: true` (the provider default) the JSON schema is
- * enforced server-side. The gpt-oss models occasionally emit the schema
- * definition itself (`$schema`, `properties`, `additionalProperties`, ...)
- * which fails that strict validation with an HTTP 400 (`json_validate_failed`).
+ * The provider targets the OpenAI-compatible `/ai/v1` endpoint, which maps
+ * `Output.object` requests to server-side `response_format: { type:
+ * "json_object" }`. The schema itself is enforced client-side against the Zod
+ * schema (unknown keys stripped), so leaked or malformed fields fail softly
+ * and are handled by the bounded validation retries below.
  *
- * Disabling it switches the request to `response_format: { type: "json_object" }`.
- * The model still returns JSON, but validation happens client-side against the
- * Zod schema, which strips unknown keys instead of throwing.
+ * Reasoning models (qwen3) are switched to non-thinking mode via the
+ * "/no_think" suffix baked into the system prompts in ai/models.ts.
  */
-const GROQ_JSON_OBJECT_OPTIONS = {
-  groq: { structuredOutputs: false },
-} as const;
-
-const GROQ_LOW_REASONING_JSON_OBJECT_OPTIONS = {
-  groq: { reasoningEffort: "low", structuredOutputs: false },
-} as const;
-
 export const MAX_AI_METADATA_INPUT_CHARS = 6000;
 export const MAX_AI_METADATA_OUTPUT_TOKENS = 768;
 export const MAX_AI_METADATA_RETRIES = 0;
@@ -77,11 +70,15 @@ const generateWithValidationRetries = async <T>(
       ) {
         throw error;
       }
-      trackAiRetry({ model, provider: "groq", reason: "validation" });
+      trackAiRetry({
+        model,
+        provider: WORKERS_AI_PROVIDER,
+        reason: "validation",
+      });
       recordBackendLog("warn", "ai.generation.validation_retry", {
         attempt: attempt + 1,
         model,
-        provider: "groq",
+        provider: WORKERS_AI_PROVIDER,
         reason: "validation",
       });
     }
@@ -103,10 +100,8 @@ export const boundAiMetadataInput = (content: string): string => {
 
 /**
  * Generate AI metadata for text content
- * Uses prompt caching-enabled model (openai/gpt-oss-20b)
  */
 export const generateTextMetadata = async (content: string, title?: string) => {
-  // Dynamic content placed last for optimal caching
   const fullContent = title
     ? `Title: ${title}\n\nContent: ${content}`
     : content;
@@ -136,19 +131,13 @@ export const generateTextMetadata = async (content: string, title?: string) => {
           // without the SDK waiting through provider-supplied reset windows.
           maxRetries: MAX_AI_METADATA_RETRIES,
           maxOutputTokens: MAX_AI_METADATA_OUTPUT_TOKENS,
-          // Static system prompt - will be cached across requests
+          // Static system prompt
           system: SYSTEM_PROMPTS.textAnalysis,
-          // Dynamic content last for cache optimization
+          // Dynamic content last
           prompt: validationRetryPrompt(prompt, attempt),
           output: Output.object({
             schema: aiMetadataSchema,
           }),
-          // Use Groq JSON object mode instead of strict json_schema. gpt-oss
-          // models intermittently echo the schema definition back, which the
-          // strict server-side validator rejects with a 400. In json_object mode
-          // the SDK validates client-side against the Zod schema (unknown keys are
-          // stripped), so leaked schema fields no longer fail the request.
-          providerOptions: GROQ_LOW_REASONING_JSON_OBJECT_OPTIONS,
         })
       )
   );
@@ -161,12 +150,39 @@ export const generateTextMetadata = async (content: string, title?: string) => {
 
 /**
  * Generate AI metadata for image content (using vision)
- * Note: Qwen 3.6 vision does NOT currently support prompt caching
+ *
+ * Cloudflare Workers AI only accepts inline base64 image data on its
+ * OpenAI-compatible endpoint (no remote URL fetching), so the image is
+ * downloaded here and sent as bytes.
  */
+export const resolveImageAnalysisInput = async (
+  imageUrl: string
+): Promise<{ data: Uint8Array; mediaType?: string }> => {
+  const response = await fetch(imageUrl);
+  if (!response.ok) {
+    throw new Error(
+      `Failed to fetch image: ${response.status} ${response.statusText}`
+    );
+  }
+  const buffer = await response.arrayBuffer();
+  const contentType = response.headers
+    .get("content-type")
+    ?.split(";")[0]
+    ?.trim();
+  return {
+    data: new Uint8Array(buffer),
+    // Omit the media type unless it is actually an image so the SDK falls
+    // back to its default instead of sending something invalid.
+    mediaType:
+      contentType && /^image\//u.test(contentType) ? contentType : undefined,
+  };
+};
+
 export const generateImageMetadata = async (
   imageUrl: string,
   title?: string
 ) => {
+  const image = await resolveImageAnalysisInput(imageUrl);
   const prompt = boundAiMetadataInput(
     title
       ? `Image title: ${title}\n\nAnalyze this image and generate tags and summary:`
@@ -191,7 +207,7 @@ export const generateImageMetadata = async (
           model: IMAGE_METADATA_MODEL,
           maxRetries: MAX_AI_METADATA_RETRIES,
           maxOutputTokens: MAX_AI_METADATA_OUTPUT_TOKENS,
-          // Static system prompt - structured for potential future caching support
+          // Static system prompt
           system: SYSTEM_PROMPTS.imageAnalysis,
           messages: [
             {
@@ -204,8 +220,9 @@ export const generateImageMetadata = async (
                 },
                 {
                   type: "image",
-                  // Dynamic image content
-                  image: imageUrl,
+                  // Inline bytes — Workers AI rejects remote image URLs
+                  image: image.data,
+                  ...(image.mediaType ? { mediaType: image.mediaType } : {}),
                 },
               ],
             },
@@ -213,7 +230,6 @@ export const generateImageMetadata = async (
           output: Output.object({
             schema: aiMetadataSchema,
           }),
-          providerOptions: GROQ_JSON_OBJECT_OPTIONS,
         })
       )
   );
@@ -226,7 +242,6 @@ export const generateImageMetadata = async (
 
 /**
  * Generate AI metadata for link content
- * Uses prompt caching-enabled model (openai/gpt-oss-20b)
  */
 export const generateLinkMetadata = async (content: string, url?: string) => {
   const prompt = boundAiMetadataInput(
@@ -257,14 +272,13 @@ Generate tags and summary that will help the user rediscover and understand the 
           model: LINK_METADATA_MODEL,
           maxRetries: MAX_AI_METADATA_RETRIES,
           maxOutputTokens: MAX_AI_METADATA_OUTPUT_TOKENS,
-          // Static system prompt - will be cached across requests
+          // Static system prompt
           system: SYSTEM_PROMPTS.linkAnalysis,
-          // Dynamic content last for cache optimization
+          // Dynamic content last
           prompt: validationRetryPrompt(prompt, attempt),
           output: Output.object({
             schema: aiMetadataSchema,
           }),
-          providerOptions: GROQ_LOW_REASONING_JSON_OBJECT_OPTIONS,
         })
       )
   );
