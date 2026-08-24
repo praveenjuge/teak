@@ -163,11 +163,15 @@ const handleMultipartPart = async (
     request.headers.get("content-length") ?? "",
     10
   );
-  if (
-    !request.body ||
-    (Number.isSafeInteger(contentLength) &&
-      (contentLength <= 0 || contentLength > MULTIPART_MAX_PART_BYTES))
-  ) {
+  if (!(request.body && Number.isSafeInteger(contentLength))) {
+    return multipartError(
+      requestId,
+      "INVALID_INPUT",
+      "Multipart part Content-Length is required",
+      411
+    );
+  }
+  if (contentLength <= 0 || contentLength > MULTIPART_MAX_PART_BYTES) {
     return multipartError(
       requestId,
       "PAYLOAD_TOO_LARGE",
@@ -176,29 +180,19 @@ const handleMultipartPart = async (
     );
   }
   try {
-    let bytesRead = 0;
-    const limitedBody = request.body.pipeThrough(
-      new TransformStream<Uint8Array, Uint8Array>({
-        transform(chunk, controller) {
-          bytesRead += chunk.byteLength;
-          if (bytesRead > MULTIPART_MAX_PART_BYTES) {
-            controller.error(new Error("multipart_part_too_large"));
-            return;
-          }
-          controller.enqueue(chunk);
-        },
-      })
-    );
+    // Pass the original fixed-length request stream to R2. Wrapping it in a
+    // TransformStream discards the runtime's known-length metadata and makes
+    // R2 reject otherwise-valid multipart parts in production.
     const uploaded = await env.BUCKET.resumeMultipartUpload(
       key,
       uploadId
-    ).uploadPart(partNumber, limitedBody);
+    ).uploadPart(partNumber, request.body);
     const headers = new Headers({ ETag: uploaded.etag });
     withCorsHeaders(headers);
     return new Response(null, { status: 204, headers });
   } catch (error) {
     console.error("[files-worker] multipart part upload failed", {
-      error,
+      error: error instanceof Error ? error.message : String(error),
       partNumber,
     });
     return multipartError(
