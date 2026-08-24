@@ -185,16 +185,29 @@ export const generateThumbnail = internalAction({
       }
 
       // Preferred path: process on the files worker over the R2 binding.
-      const workerResult = await generateImageViaFilesWorker(ctx, args.cardId, {
-        userId: card.userId,
-        fileKey: card.fileKey,
-      });
-      if (workerResult) {
-        return {
-          success: true,
-          generated: workerResult.generated,
-          thumbnailKey: workerResult.thumbnailKey,
-        };
+      // Worker network/5xx errors fall through to the legacy in-action path
+      // below so an edge outage degrades instead of failing the card.
+      try {
+        const workerResult = await generateImageViaFilesWorker(
+          ctx,
+          args.cardId,
+          {
+            userId: card.userId,
+            fileKey: card.fileKey,
+          }
+        );
+        if (workerResult) {
+          return {
+            success: true,
+            generated: workerResult.generated,
+            thumbnailKey: workerResult.thumbnailKey,
+          };
+        }
+      } catch (workerError) {
+        console.error(
+          `[renderables] files worker path failed for card ${args.cardId}, falling back to in-action processing:`,
+          workerError
+        );
       }
 
       const originalImageUrl = await resolveObjectUrl(card.fileKey);

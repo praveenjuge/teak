@@ -1,10 +1,11 @@
 // Edge codec loaders for the formats photon cannot handle natively (HEIC,
 // SVG) and the lossy WebP encoder used for all derived images.
 //
-// Every codec's WASM module is imported statically so Wrangler bundles it via
-// the Data rule in wrangler.jsonc; initialization happens lazily on first use
-// and is memoized per isolate. See wasm-modules.d.ts for how .wasm imports
-// resolve in each runtime.
+// Every codec's WASM module is imported statically. Wrangler precompiles
+// .wasm imports into WebAssembly.Modules at build time (workerd forbids
+// runtime code generation), while Bun resolves them to file paths for tests.
+// Initialization happens lazily on first use and is memoized per isolate.
+// See wasm-modules.d.ts for how .wasm imports resolve in each runtime.
 
 import heicDecWasm from "@discourse/heic/codec/dec/heic_dec.wasm";
 import webpEncWasm from "@jsquash/webp/codec/enc/webp_enc_simd.wasm";
@@ -17,18 +18,23 @@ const wasmCompile = (
   }
 ).compile;
 
-type WasmImport = ArrayBuffer | string;
+type WasmImport = WebAssembly.Module | string;
 
-const wasmBytesCache = new Map<WasmImport, Promise<ArrayBuffer>>();
+const wasmModuleCache = new Map<WasmImport, Promise<WebAssembly.Module>>();
 
-const resolveWasmBytes = (mod: WasmImport): Promise<ArrayBuffer> => {
-  const cached = wasmBytesCache.get(mod);
+/**
+ * Wrangler hands statically imported .wasm through as ready-to-use
+ * WebAssembly.Modules; Bun (tests) resolves them to file paths, which are
+ * read and compiled there — runtime codegen is fine under Bun, just not on
+ * the Workers runtime.
+ */
+const resolveWasmModule = (mod: WasmImport): Promise<WebAssembly.Module> => {
+  const cached = wasmModuleCache.get(mod);
   if (cached) {
     return cached;
   }
   const promise = (async () => {
     if (typeof mod === "string") {
-      // Bun resolves .wasm imports to a file path; read it from disk.
       const bunFile = (
         globalThis as {
           Bun?: {
@@ -41,11 +47,11 @@ const resolveWasmBytes = (mod: WasmImport): Promise<ArrayBuffer> => {
       if (!bunFile) {
         throw new Error("wasm_module_unresolvable");
       }
-      return await bunFile.file(mod).arrayBuffer();
+      return await wasmCompile(await bunFile.file(mod).arrayBuffer());
     }
     return mod;
   })();
-  wasmBytesCache.set(mod, promise);
+  wasmModuleCache.set(mod, promise);
   return promise;
 };
 
@@ -74,7 +80,7 @@ type JsquashEncoderFn = (
 
 const loadWebpEncoder = memoize(async (): Promise<JsquashEncoderFn> => {
   const encoder = await import("@jsquash/webp/encode.js");
-  await encoder.init(await wasmCompile(await resolveWasmBytes(webpEncWasm)));
+  await encoder.init(await resolveWasmModule(webpEncWasm));
   return encoder.default as unknown as JsquashEncoderFn;
 });
 
@@ -108,7 +114,7 @@ type JsquashDecoderFn = (
 
 const loadHeicDecoder = memoize(async (): Promise<JsquashDecoderFn> => {
   const decoder = await import("@discourse/heic/decode.js");
-  await decoder.init(await wasmCompile(await resolveWasmBytes(heicDecWasm)));
+  await decoder.init(await resolveWasmModule(heicDecWasm));
   return decoder.default as unknown as JsquashDecoderFn;
 });
 
@@ -133,7 +139,7 @@ const MAX_SVG_RENDER_EDGE = 2048;
 
 const ensureResvg = memoize(async () => {
   const resvg = await import("@resvg/resvg-wasm");
-  await resvg.initWasm(await resolveWasmBytes(resvgWasm));
+  await resvg.initWasm(await resolveWasmModule(resvgWasm));
 });
 
 export const renderSvgToPng = async (
