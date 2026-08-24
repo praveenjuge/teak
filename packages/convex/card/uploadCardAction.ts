@@ -1,13 +1,5 @@
 "use node";
 
-import {
-  DeleteObjectCommand,
-  GetObjectCommand,
-  HeadObjectCommand,
-  type HeadObjectCommandOutput,
-  PutObjectCommand,
-  S3Client,
-} from "@aws-sdk/client-s3";
 import { ConvexError, v } from "convex/values";
 import { internal } from "../_generated/api";
 import type { Id } from "../_generated/dataModel";
@@ -21,17 +13,14 @@ import {
   validateFileName,
 } from "../shared/fileFormats";
 import {
-  decodeMarkdownUtf8,
   isMarkdownFileName,
   MARKDOWN_CONTENT_MAX_BYTES,
-  MARKDOWN_CONTENT_TOO_LARGE_MESSAGE,
-  MarkdownContentError,
 } from "../shared/markdown";
 import {
-  buildR2ObjectKey,
-  buildR2UserPrefix,
-  r2ComponentConfig,
-} from "../storage/r2";
+  callFilesWorkerJson,
+  isFilesWorkerConfigured,
+} from "../storage/filesWorkerClient";
+import { buildR2ObjectKey, buildR2UserPrefix } from "../storage/r2";
 
 const finalizeArgs = {
   additionalMetadata: v.optional(v.any()),
@@ -74,104 +63,17 @@ interface FinalizeArgs {
   tags?: string[];
 }
 
-interface UploadStorage {
-  bucket: string;
-  client: Pick<S3Client, "send">;
-  wait?: (delayMs: number) => Promise<void>;
+interface FinalizedUpload {
+  content?: string;
+  destinationKey: string;
+  sourceEtag: string;
+  storedEtag: string;
+  storedFileSize: number;
+  storedMimeType?: string;
 }
 
-type CompleteHeadMetadata = HeadObjectCommandOutput & {
-  ContentLength: number;
-  ETag: string;
-};
-
-const HEAD_RETRY_DELAYS_MS = [100, 300, 900, 2700] as const;
-
-const convexUploadError = (code: string, message: string): never => {
+const throwUploadError = (code: string, message: string): never => {
   throw new ConvexError({ code, message });
-};
-
-const waitFor = (delayMs: number): Promise<void> =>
-  new Promise((resolve) => setTimeout(resolve, delayMs));
-
-const headUploadedObject = async (
-  storage: UploadStorage,
-  key: string,
-  expectedEtag?: string
-): Promise<CompleteHeadMetadata> => {
-  let incompleteHead: HeadObjectCommandOutput | undefined;
-  for (let attempt = 0; attempt <= HEAD_RETRY_DELAYS_MS.length; attempt += 1) {
-    try {
-      const head = await storage.client.send(
-        new HeadObjectCommand({
-          Bucket: storage.bucket,
-          Key: key,
-          IfMatch: expectedEtag,
-        })
-      );
-      if (
-        typeof head.ContentLength === "number" &&
-        Number.isFinite(head.ContentLength) &&
-        (head.ETag || expectedEtag)
-      ) {
-        return {
-          ...head,
-          ETag: expectedEtag ?? head.ETag,
-        } as CompleteHeadMetadata;
-      }
-      incompleteHead = head;
-    } catch {
-      // A just-uploaded object may not be readable on the first HEAD attempt.
-    }
-
-    const delayMs = HEAD_RETRY_DELAYS_MS[attempt];
-    if (delayMs !== undefined) {
-      await (storage.wait ?? waitFor)(delayMs);
-    }
-  }
-
-  if (incompleteHead || expectedEtag) {
-    try {
-      const probe = await storage.client.send(
-        new GetObjectCommand({
-          Bucket: storage.bucket,
-          IfMatch: expectedEtag,
-          Key: key,
-          Range: "bytes=0-0",
-        })
-      );
-      if (probe.Body) {
-        await probe.Body.transformToByteArray();
-      }
-      const contentRangeSize = /^bytes \d+-\d+\/(\d+)$/u.exec(
-        probe.ContentRange ?? ""
-      )?.[1];
-      const storedSize = contentRangeSize
-        ? Number(contentRangeSize)
-        : incompleteHead?.ContentLength;
-      if (
-        typeof storedSize === "number" &&
-        Number.isFinite(storedSize) &&
-        (probe.ETag || expectedEtag)
-      ) {
-        return {
-          ...incompleteHead,
-          ContentLength: storedSize,
-          ContentType: incompleteHead?.ContentType ?? probe.ContentType,
-          ETag: expectedEtag ?? probe.ETag,
-        } as CompleteHeadMetadata;
-      }
-    } catch {
-      // Preserve the stable metadata error below when the bounded probe fails.
-    }
-  }
-
-  return convexUploadError(
-    "INVALID_INPUT",
-    incompleteHead
-      ? "Uploaded file metadata is unavailable"
-      : "Uploaded file was not found"
-  );
 };
 
 const normalizeMimeType = (value?: string): string | undefined => {
@@ -179,314 +81,168 @@ const normalizeMimeType = (value?: string): string | undefined => {
   return normalized || undefined;
 };
 
-const createClient = () => {
-  const config = r2ComponentConfig();
-  return {
-    bucket: config.bucket,
-    client: new S3Client({
-      credentials: {
-        accessKeyId: config.accessKeyId,
-        secretAccessKey: config.secretAccessKey,
-      },
-      endpoint: config.endpoint,
-      forcePathStyle: true,
-      region: "auto",
-      requestChecksumCalculation: "WHEN_REQUIRED",
-    }),
-  };
-};
-
-export async function inspectUploadedCardSource(
+export const validateFinalizeUpload = (
   userId: string,
-  args: FinalizeArgs,
-  storage: UploadStorage = createClient()
-): Promise<{
-  cardType: FinalizeArgs["cardType"];
-  content?: string;
-  sourceEtag: string;
-  storedFileSize: number;
-  storedMimeType?: string;
-}> {
+  args: FinalizeArgs
+): {
+  fileName: string;
+  markdown: boolean;
+  requestedMimeType?: string;
+} => {
   let fileName: string;
   try {
     fileName = validateFileName(args.fileName);
   } catch (error) {
     if (error instanceof FileFormatValidationError) {
-      return convexUploadError(fileUploadErrorCode(error), error.message);
+      return throwUploadError(fileUploadErrorCode(error), error.message);
     }
     throw error;
   }
-
   if (!args.fileKey.startsWith(`${buildR2UserPrefix(userId)}/`)) {
-    return convexUploadError(
+    return throwUploadError(
       "INVALID_STORAGE_KEY",
       "Uploaded file key does not belong to the current user"
     );
   }
-
   if (
     args.fileEtag !== undefined &&
-    !/^"[A-Za-z0-9+/=_-]{1,128}"$/u.test(args.fileEtag)
+    !/^"?[A-Za-z0-9+/=_-]{1,128}"?$/u.test(args.fileEtag)
   ) {
-    return convexUploadError("INVALID_INPUT", "Uploaded file ETag is invalid");
+    return throwUploadError("INVALID_INPUT", "Uploaded file ETag is invalid");
   }
-
-  const { bucket, client } = storage;
-  const head = await headUploadedObject(storage, args.fileKey, args.fileEtag);
-
-  const storedFileSize = head.ContentLength;
-  const sourceEtag = head.ETag;
-  if (args.fileSize !== undefined && args.fileSize !== storedFileSize) {
-    return convexUploadError(
-      "INVALID_INPUT",
-      "Uploaded file size does not match the stored object"
-    );
-  }
-
   const markdown = isMarkdownFileName(fileName);
-  const sizeLimit = markdown ? MARKDOWN_CONTENT_MAX_BYTES : MAX_FILE_SIZE;
-  if (storedFileSize > sizeLimit) {
-    try {
-      await client.send(
-        new DeleteObjectCommand({ Bucket: bucket, Key: args.fileKey })
-      );
-    } catch (error) {
-      console.error("[upload] Failed to delete rejected oversized object", {
-        error,
-        fileKey: args.fileKey,
-      });
-    }
-    return convexUploadError(
+  const maxBytes = markdown ? MARKDOWN_CONTENT_MAX_BYTES : MAX_FILE_SIZE;
+  if (
+    args.fileSize === undefined ||
+    !Number.isSafeInteger(args.fileSize) ||
+    args.fileSize < 0 ||
+    args.fileSize > maxBytes
+  ) {
+    return throwUploadError(
       markdown ? "CONTENT_TOO_LARGE" : "FILE_TOO_LARGE",
-      markdown
-        ? MARKDOWN_CONTENT_TOO_LARGE_MESSAGE
-        : `Uploaded file must not exceed ${MAX_FILE_SIZE} bytes`
+      `Uploaded file must not exceed ${maxBytes} bytes`
     );
   }
-
   const requestedMimeType = normalizeMimeType(args.fileType);
-  const storedMimeType = normalizeMimeType(head.ContentType);
+  try {
+    validateFileFormat({ fileName, mimeType: requestedMimeType });
+  } catch (error) {
+    if (error instanceof FileFormatValidationError) {
+      return throwUploadError(fileUploadErrorCode(error), error.message);
+    }
+    throw error;
+  }
+  return { fileName, markdown, requestedMimeType };
+};
+
+const finalizeForUser = async (
+  ctx: ActionCtx,
+  userId: string,
+  args: FinalizeArgs
+): Promise<{ success: true; cardId: Id<"cards"> }> => {
+  if (!isFilesWorkerConfigured()) {
+    throw new Error("files_worker_not_configured");
+  }
+  const validated = validateFinalizeUpload(userId, args);
+  const destinationKey = buildR2ObjectKey({
+    userId,
+    cardId: "stored",
+    role: "file",
+    fileName: validated.fileName,
+  });
+  const outcome = await callFilesWorkerJson<FinalizedUpload>({
+    op: "finalize-upload",
+    params: {
+      destinationKey,
+      expectedEtag: args.fileEtag,
+      expectedSize: args.fileSize,
+      readText: validated.markdown,
+      sourceKey: args.fileKey,
+    },
+  });
+  if (outcome.kind !== "ok") {
+    return throwUploadError("INVALID_INPUT", "Uploaded file was not found");
+  }
+  const storedMimeType = normalizeMimeType(outcome.data.storedMimeType);
   try {
     const requested = validateFileFormat({
-      fileName,
-      mimeType: requestedMimeType,
+      fileName: validated.fileName,
+      mimeType: validated.requestedMimeType,
     });
     const stored = validateFileFormat({
-      fileName,
+      fileName: validated.fileName,
       mimeType: storedMimeType,
     });
     if (requested.id !== stored.id) {
-      return convexUploadError(
+      return throwUploadError(
         "INVALID_INPUT",
         "Uploaded file type does not match the stored object"
       );
     }
   } catch (error) {
+    await callFilesWorkerJson({
+      op: "delete-object",
+      params: { key: destinationKey },
+    }).catch(() => undefined);
+    if (error instanceof ConvexError) {
+      throw error;
+    }
     if (error instanceof FileFormatValidationError) {
-      return convexUploadError(fileUploadErrorCode(error), error.message);
+      return throwUploadError(fileUploadErrorCode(error), error.message);
     }
     throw error;
   }
 
-  if (!markdown) {
-    return {
-      cardType: args.cardType,
-      content: args.content,
-      sourceEtag,
-      storedFileSize,
-      storedMimeType,
-    };
-  }
-
   try {
-    const object = await client.send(
-      new GetObjectCommand({
-        Bucket: bucket,
-        Key: args.fileKey,
-        IfMatch: sourceEtag,
-      })
-    );
-    if (!object.Body) {
-      return convexUploadError(
-        "CONFLICT",
-        "Uploaded file changed before it could be saved"
-      );
-    }
-    const bytes = await object.Body.transformToByteArray();
-    if (bytes.byteLength !== storedFileSize) {
-      return convexUploadError(
-        "CONFLICT",
-        "Uploaded file changed before it could be saved"
-      );
-    }
-    // R2 can briefly return an incomplete HEAD response immediately after a
-    // successful read. Reuse the bounded readiness check so a valid upload is
-    // not misclassified as changed while still requiring the original ETag.
-    let verified: CompleteHeadMetadata;
-    try {
-      verified = await headUploadedObject(storage, args.fileKey, sourceEtag);
-    } catch {
-      return convexUploadError(
-        "CONFLICT",
-        "Uploaded file changed before it could be saved"
-      );
-    }
-    if (verified.ContentLength !== storedFileSize) {
-      return convexUploadError(
-        "CONFLICT",
-        "Uploaded file changed before it could be saved"
-      );
-    }
-    return {
-      cardType: "text",
-      content: decodeMarkdownUtf8(bytes),
-      sourceEtag,
-      storedFileSize,
-      storedMimeType,
-    };
-  } catch (error) {
-    if (error instanceof ConvexError) {
-      throw error;
-    }
-    if (error instanceof MarkdownContentError) {
-      return convexUploadError(error.code, error.message);
-    }
-    return convexUploadError(
-      "INVALID_INPUT",
-      "Uploaded Markdown file could not be read"
-    );
-  }
-}
-
-export const promoteUploadedCardSource = async (
-  userId: string,
-  args: Pick<FinalizeArgs, "fileKey" | "fileName">,
-  sourceEtag: string,
-  storage: UploadStorage = createClient()
-): Promise<string> => {
-  const finalFileKey = buildR2ObjectKey({
-    userId,
-    cardId: "stored",
-    role: "file",
-    fileName: args.fileName,
-  });
-  // Avoid S3 CopyObject here. The Convex Node bundle resolves the AWS XML
-  // parser's browser entrypoint, which requires DOMParser and crashes while
-  // deserializing R2's successful CopyObject XML response. A conditional GET
-  // followed by a PUT preserves the same immutable promotion guarantee and is
-  // bounded by the upload limits enforced immediately before this call.
-  const source = await storage.client.send(
-    new GetObjectCommand({
-      Bucket: storage.bucket,
-      IfMatch: sourceEtag,
-      Key: args.fileKey,
-    })
-  );
-  if (!source.Body) {
-    return convexUploadError(
-      "CONFLICT",
-      "Uploaded file changed before it could be saved"
-    );
-  }
-  const bytes = await source.Body.transformToByteArray();
-  await storage.client.send(
-    new PutObjectCommand({
-      Body: bytes,
-      Bucket: storage.bucket,
-      CacheControl: source.CacheControl,
-      ContentDisposition: source.ContentDisposition,
-      ContentEncoding: source.ContentEncoding,
-      ContentLanguage: source.ContentLanguage,
-      ContentLength: bytes.byteLength,
-      ContentType: source.ContentType,
-      Key: finalFileKey,
-      Metadata: source.Metadata,
-    })
-  );
-  return finalFileKey;
-};
-
-async function finalizeForUser(
-  ctx: ActionCtx,
-  userId: string,
-  args: FinalizeArgs
-): Promise<{ success: true; cardId: Id<"cards"> }> {
-  const storage = createClient();
-  const verified = await inspectUploadedCardSource(userId, args, storage);
-  const finalFileKey = await promoteUploadedCardSource(
-    userId,
-    args,
-    verified.sourceEtag,
-    storage
-  );
-  let result: { cardId: Id<"cards">; status: "created" };
-  try {
-    result = await ctx.runMutation(
+    const result = await ctx.runMutation(
       (internal as any).publicApiUploads.finalizeUploadedCardForUser,
       {
-        cardType: verified.cardType,
         additionalMetadata: args.additionalMetadata,
-        content: verified.content,
-        fileKey: finalFileKey,
-        fileName: args.fileName,
+        cardType: validated.markdown ? "text" : args.cardType,
+        content: validated.markdown ? outcome.data.content : args.content,
+        fileKey: destinationKey,
+        fileName: validated.fileName,
         fileSize: args.fileSize,
         mimeType: args.fileType,
         notes: args.notes ?? undefined,
-        storedFileSize: verified.storedFileSize,
-        storedMimeType: verified.storedMimeType,
+        storedFileSize: outcome.data.storedFileSize,
+        storedMimeType,
         tags: args.tags,
         userId,
       }
     );
+    const sessionConsumed = await ctx
+      .runMutation(internal.fileUploads.consumeSessionBySourceKey, {
+        sourceKey: args.fileKey,
+      })
+      .then(() => true)
+      .catch(() => false);
+    if (sessionConsumed) {
+      await callFilesWorkerJson({
+        op: "delete-object",
+        params: { key: args.fileKey },
+      }).catch(() => undefined);
+    }
+    return { success: true, cardId: result.cardId };
   } catch (error) {
-    await storage.client
-      .send(
-        new DeleteObjectCommand({
-          Bucket: storage.bucket,
-          Key: finalFileKey,
-        })
-      )
-      .catch(() => undefined);
+    await callFilesWorkerJson({
+      op: "delete-object",
+      params: { key: destinationKey },
+    }).catch(() => undefined);
     throw error;
   }
-  await storage.client
-    .send(
-      new DeleteObjectCommand({
-        Bucket: storage.bucket,
-        Key: args.fileKey,
-      })
-    )
-    .catch((error) => {
-      console.error("[upload] Failed to delete promoted source object", {
-        error,
-        fileKey: args.fileKey,
-      });
-    });
-  return { success: true, cardId: result.cardId };
-}
+};
 
 export const finalizeUploadedCardForUser = internalAction({
   args: { ...finalizeArgs, userId: v.string() },
   returns: finalizeResult,
-  handler: (
-    ctx,
-    { userId, ...args }
-  ): Promise<{ success: true; cardId: Id<"cards"> }> =>
-    finalizeForUser(ctx, userId, args),
+  handler: (ctx, { userId, ...args }) => finalizeForUser(ctx, userId, args),
 });
 
 export const finalizeUploadedCard = action({
   args: finalizeArgs,
   returns: finalizeResult,
-  handler: async (
-    ctx,
-    args
-  ): Promise<{
-    success: boolean;
-    cardId?: Id<"cards">;
-    error?: string;
-    errorCode?: string;
-  }> => {
+  handler: async (ctx, args) => {
     const user = await ctx.auth.getUserIdentity();
     if (!user) {
       return { success: false, error: "User must be authenticated" };
@@ -496,11 +252,7 @@ export const finalizeUploadedCard = action({
     } catch (error) {
       if (error instanceof ConvexError && error.data) {
         const data = error.data as { code?: string; message?: string };
-        return {
-          success: false,
-          errorCode: data.code,
-          error: data.message,
-        };
+        return { success: false, errorCode: data.code, error: data.message };
       }
       return {
         success: false,

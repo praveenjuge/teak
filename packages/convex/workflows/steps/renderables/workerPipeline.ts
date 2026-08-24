@@ -3,13 +3,12 @@
 // Each helper mints short-lived signed op URLs, lets the worker do the heavy
 // lifting over its R2 binding (decode/render/derive without bytes transiting
 // Convex), persists the returned artifacts, and reports whether the caller
-// should fall back to its legacy action path.
+// reports whether the operation was handled.
 "use node";
 
 import { internal } from "../../../_generated/api";
 import type { ActionCtx } from "../../../_generated/server";
 import {
-  buildSignedWorkerOpUrl,
   callFilesWorkerJson,
   type FilesWorkerProcessImageResult,
   isFilesWorkerConfigured,
@@ -19,7 +18,7 @@ import { hasKnownTinyImageDimensions } from "../../imageAnalysis";
 
 export interface WorkerPipelineResult {
   generated: boolean;
-  /** False → the worker could not handle it; run the legacy fallback. */
+  /** False means the worker could not handle the source. */
   handled: boolean;
   thumbnailKey?: string;
 }
@@ -30,6 +29,12 @@ const persistImageResult = async (
   data: FilesWorkerProcessImageResult
 ): Promise<void> => {
   const { width, height } = data;
+
+  await ctx.runMutation(
+    internal.workflows.steps.renderables.mutations
+      .updateCardProcessingProvenance,
+    { cardId, provenance: data.provenance }
+  );
 
   if (data.thumbnailGenerated && data.thumbnailKey) {
     await ctx.runMutation(
@@ -86,7 +91,7 @@ const persistImageResult = async (
 /**
  * Fast path for raster/HEIC/SVG images: one signed process-image call yields
  * the thumbnail (+ preview derivative, palette, thumbhash, EXIF). Returns null
- * when the worker is unconfigured or signalled a permanent fallback condition.
+ * when the worker is unconfigured or declines the source.
  */
 export const generateImageViaFilesWorker = async (
   ctx: ActionCtx,
@@ -108,26 +113,25 @@ export const generateImageViaFilesWorker = async (
     role: "preview",
   });
 
-  let url: string;
   try {
-    url = await buildSignedWorkerOpUrl({
+    const outcome = await callFilesWorkerJson<FilesWorkerProcessImageResult>({
       op: "process-image",
-      key: card.fileKey,
-      params: { dest: destKey, preview: previewKey },
+      params: {
+        destinationKey: destKey,
+        previewDestinationKey: previewKey,
+        sourceKey: card.fileKey,
+      },
     });
+    if (outcome.kind === "fallback") {
+      return null;
+    }
+    await persistImageResult(ctx, cardId, outcome.data);
+    return {
+      handled: true,
+      generated: outcome.data.thumbnailGenerated,
+      thumbnailKey: outcome.data.thumbnailKey ?? undefined,
+    };
   } catch {
     return null;
   }
-
-  const outcome = await callFilesWorkerJson<FilesWorkerProcessImageResult>(url);
-  if (outcome.kind === "fallback") {
-    return null;
-  }
-
-  await persistImageResult(ctx, cardId, outcome.data);
-  return {
-    handled: true,
-    generated: outcome.data.thumbnailGenerated,
-    thumbnailKey: outcome.data.thumbnailKey ?? undefined,
-  };
 };

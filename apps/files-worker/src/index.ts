@@ -1,19 +1,18 @@
 import { withSentry } from "@sentry/cloudflare";
 import {
-  buildExportIntoBucket,
-  ExportManifestInvalid,
-  ExportTooLarge,
-} from "./export";
-import { ImageSourceMissing, ImageTooLarge, processImage } from "./image";
-import { InspectSourceMissing, runInspect } from "./inspect";
+  buildMultipartPartSigningPayload,
+  FILES_PROTOCOL_VERSION,
+  type FilesErrorCode,
+} from "@teak/files-protocol";
 import {
   FILES_CACHE_CONTROL,
   FILES_EDGE_CACHE_CONTROL,
   parseSingleByteRange,
+  verifyHmacPayload,
   verifySignedFileRequest,
-  verifySignedOpRequest,
 } from "./lib";
-import { reportFilesOpFailure, resolveSentryOptions } from "./sentry";
+import { handleInternalOp } from "./ops";
+import { resolveSentryOptions } from "./sentry";
 
 export interface Env {
   BUCKET: R2Bucket;
@@ -42,6 +41,39 @@ const json = (data: unknown, status = 200): Response =>
     },
   });
 
+const multipartError = (
+  requestId: string,
+  code: FilesErrorCode,
+  message: string,
+  status: number,
+  retryable = false
+): Response => {
+  const response = json(
+    {
+      error: { code, message, requestId, retryable },
+      ok: false,
+      version: FILES_PROTOCOL_VERSION,
+    },
+    status
+  );
+  withCorsHeaders(response.headers);
+  return response;
+};
+
+const methodNotAllowed = (
+  request: Request,
+  allow: "POST" | "PUT"
+): Response => {
+  const response = multipartError(
+    request.headers.get("x-teak-request-id") ?? crypto.randomUUID(),
+    "INVALID_INPUT",
+    `Method must be ${allow}`,
+    405
+  );
+  response.headers.set("Allow", allow);
+  return response;
+};
+
 /**
  * Signed URLs act as bearer credentials, so permissive CORS cannot leak
  * anything that isn't already in the URL; it lets the web app fetch files
@@ -49,8 +81,11 @@ const json = (data: unknown, status = 200): Response =>
  */
 const withCorsHeaders = (headers: Headers): void => {
   headers.set("Access-Control-Allow-Origin", "*");
-  headers.set("Access-Control-Allow-Methods", "GET, HEAD, OPTIONS");
-  headers.set("Access-Control-Allow-Headers", "Range, If-None-Match");
+  headers.set("Access-Control-Allow-Methods", "GET, HEAD, PUT, OPTIONS");
+  headers.set(
+    "Access-Control-Allow-Headers",
+    "Content-Type, Range, If-None-Match"
+  );
   headers.set(
     "Access-Control-Expose-Headers",
     "Content-Length, Content-Range, Content-Disposition, ETag, Accept-Ranges"
@@ -64,130 +99,117 @@ const corsPreflight = (): Response => {
   return new Response(null, { status: 204, headers });
 };
 
-/**
- * Internal signed ops: image processing, export building, file inspection. Payload shapes are defined in lib.ts / wasm.ts consumers; Convex
- * mirrors them in packages/convex/storage/filesWorkerClient.ts.
- */
-const handleOp = async (
-  env: Env,
-  url: URL,
-  httpMethod: string,
-  key: string,
-  op: string
-): Promise<Response> => {
-  const query = url.searchParams;
-  // Signed extra-field order per op; empty-string slots are allowed. Must
-  // stay in lockstep with OP_PARAM_ORDER in filesWorkerClient.ts.
-  const fieldNamesByOp: Record<string, string[]> = {
-    "process-image": ["dest", "preview"],
-    "build-export": ["artifact", "name"],
-    inspect: ["mode", "mb", "rtf", "fmt"],
-  };
-  const fieldNames = fieldNamesByOp[op];
-  if (!fieldNames) {
-    return json({ error: "unknown_op" }, 400);
-  }
-  const fields = fieldNames.map((name) => query.get(name) ?? "");
-  const verification = await verifySignedOpRequest(
-    env.FILES_SIGNING_SECRET,
-    op,
-    key,
-    {
-      fields,
-      exp: query.get("exp"),
-      sig: query.get("sig"),
-    }
-  );
-  if (!verification.ok) {
-    return new Response(null, { status: verification.status });
-  }
+const MULTIPART_URL_MAX_TTL_SECONDS = 60 * 60;
+const MULTIPART_MAX_PART_BYTES = 16 * 1024 * 1024;
 
+const handleMultipartPart = async (
+  request: Request,
+  env: Env,
+  url: URL
+): Promise<Response> => {
+  const requestId =
+    request.headers.get("x-teak-request-id") ?? crypto.randomUUID();
+  const match = /^\/__uploads\/v1\/([^/]+)\/(\d+)$/u.exec(url.pathname);
+  const key = url.searchParams.get("key");
+  const expiresAt = url.searchParams.get("exp");
+  const signature = url.searchParams.get("sig");
+  if (!(match && key && expiresAt && signature)) {
+    return multipartError(
+      requestId,
+      "AUTH_INVALID",
+      "Request authentication failed",
+      401
+    );
+  }
+  const uploadId = decodeURIComponent(match[1] ?? "");
+  const partNumber = Number.parseInt(match[2] ?? "", 10);
+  const expiry = Number.parseInt(expiresAt, 10);
+  const now = Math.floor(Date.now() / 1000);
+  if (
+    !(uploadId && Number.isSafeInteger(partNumber)) ||
+    partNumber < 1 ||
+    partNumber > 100 ||
+    !Number.isSafeInteger(expiry) ||
+    String(expiry) !== expiresAt ||
+    expiry < now ||
+    expiry > now + MULTIPART_URL_MAX_TTL_SECONDS
+  ) {
+    return multipartError(
+      requestId,
+      expiry < now ? "AUTH_EXPIRED" : "AUTH_INVALID",
+      "Request authentication failed",
+      expiry < now ? 410 : 403
+    );
+  }
+  const valid = await verifyHmacPayload(
+    env.FILES_SIGNING_SECRET,
+    buildMultipartPartSigningPayload({
+      expiresAt,
+      key,
+      partNumber,
+      uploadId,
+    }),
+    signature
+  );
+  if (!valid) {
+    return multipartError(
+      requestId,
+      "AUTH_INVALID",
+      "Request authentication failed",
+      403
+    );
+  }
+  const contentLength = Number.parseInt(
+    request.headers.get("content-length") ?? "",
+    10
+  );
+  if (
+    !request.body ||
+    (Number.isSafeInteger(contentLength) &&
+      (contentLength <= 0 || contentLength > MULTIPART_MAX_PART_BYTES))
+  ) {
+    return multipartError(
+      requestId,
+      "PAYLOAD_TOO_LARGE",
+      "Multipart part size is invalid",
+      413
+    );
+  }
   try {
-    switch (op) {
-      case "process-image": {
-        const result = await processImage(env.BUCKET, key, fields[0] || null, {
-          previewDestKey: fields[1] || null,
-        });
-        return json(result);
-      }
-      case "build-export": {
-        const [artifactKey, fileName] = fields;
-        if (!(artifactKey && isValidArtifactName(fileName ?? ""))) {
-          return json({ error: "invalid_params" }, 400);
-        }
-        const result = await buildExportIntoBucket(
-          env.BUCKET,
-          key,
-          artifactKey,
-          fileName as string
-        );
-        return json(result);
-      }
-      case "inspect": {
-        const [mode, mb, rtf] = fields;
-        if (mode !== "zip" && mode !== "css" && mode !== "text") {
-          return json({ error: "invalid_mode" }, 400);
-        }
-        const maxBytes = Number.parseInt(mb ?? "", 10);
-        if (
-          !Number.isSafeInteger(maxBytes) ||
-          maxBytes <= 0 ||
-          maxBytes > 64 * 1024 * 1024
-        ) {
-          return json({ error: "invalid_max_bytes" }, 400);
-        }
-        const result = await runInspect(
-          env.BUCKET,
-          key,
-          mode,
-          query.get("fmt") ?? "",
-          maxBytes,
-          rtf === "1"
-        );
-        return json(result);
-      }
-      default:
-        return json({ error: "unknown_op" }, 400);
-    }
+    let bytesRead = 0;
+    const limitedBody = request.body.pipeThrough(
+      new TransformStream<Uint8Array, Uint8Array>({
+        transform(chunk, controller) {
+          bytesRead += chunk.byteLength;
+          if (bytesRead > MULTIPART_MAX_PART_BYTES) {
+            controller.error(new Error("multipart_part_too_large"));
+            return;
+          }
+          controller.enqueue(chunk);
+        },
+      })
+    );
+    const uploaded = await env.BUCKET.resumeMultipartUpload(
+      key,
+      uploadId
+    ).uploadPart(partNumber, limitedBody);
+    const headers = new Headers({ ETag: uploaded.etag });
+    withCorsHeaders(headers);
+    return new Response(null, { status: 204, headers });
   } catch (error) {
-    if (
-      error instanceof ImageSourceMissing ||
-      error instanceof InspectSourceMissing
-    ) {
-      return json({ error: error.message }, 404);
-    }
-    if (error instanceof ImageTooLarge) {
-      // Callers treat this as "fall back to the legacy action path".
-      return json({ error: error.message }, 413);
-    }
-    if (error instanceof ExportManifestInvalid) {
-      return json({ error: error.message }, 400);
-    }
-    if (error instanceof ExportTooLarge) {
-      return json({ error: error.message }, 413);
-    }
-    const message = error instanceof Error ? error.message : "unknown_error";
-    if (message === "decode_failed" || message === "archive_parse_failed") {
-      return json({ error: message }, 422);
-    }
-    console.error(`[files-worker] op ${op} failed`, error);
-    // Handled 500s never reach withSentry's automatic capture, so report them
-    // here; without this an op outage is invisible outside wrangler tail.
-    reportFilesOpFailure(op, error, {
-      httpMethod,
-      httpPath: url.pathname,
-      objectKey: key,
+    console.error("[files-worker] multipart part upload failed", {
+      error,
+      partNumber,
     });
-    return json({ error: "internal_error" }, 500);
+    return multipartError(
+      requestId,
+      "INTERNAL",
+      "Multipart upload failed",
+      500,
+      true
+    );
   }
 };
-
-const isValidArtifactName = (name: string): boolean =>
-  name.length > 0 &&
-  name.length <= 200 &&
-  !name.includes('"') &&
-  !name.includes("\\") &&
-  !name.includes("\0");
 
 /**
  * Edge-cache key for a full-object response. The object key already embeds the
@@ -265,29 +287,47 @@ const edgeCache: Cache | null =
 const handler = {
   async fetch(request, env, ctx): Promise<Response> {
     const requestMethod = request.method.toUpperCase();
+    const url = new URL(request.url);
 
     if (requestMethod === "OPTIONS") {
       return corsPreflight();
     }
+
+    // Unauthenticated liveness probe for uptime monitors.
+    if (url.pathname === "/__health") {
+      if (requestMethod !== "GET" && requestMethod !== "HEAD") {
+        return new Response(null, { status: 405 });
+      }
+      return json({ ok: true });
+    }
+
+    if (url.pathname === "/__ops/v1") {
+      if (requestMethod !== "POST") {
+        return methodNotAllowed(request, "POST");
+      }
+      return await handleInternalOp(request, env);
+    }
+
+    if (url.pathname.startsWith("/__uploads/v1/")) {
+      if (requestMethod !== "PUT") {
+        return methodNotAllowed(request, "PUT");
+      }
+      return await handleMultipartPart(request, env, url);
+    }
+
     if (requestMethod !== "GET" && requestMethod !== "HEAD") {
       return new Response(null, { status: 405 });
     }
 
-    const url = new URL(request.url);
-
-    // Unauthenticated liveness probe for uptime monitors.
-    if (url.pathname === "/__health") {
-      return json({ ok: true });
-    }
-
     const key = decodeObjectKey(url.pathname);
-    if (!key || key.includes("..")) {
+    if (!key || key.includes("\0")) {
       return new Response(null, { status: 404 });
     }
 
-    const op = url.searchParams.get("op");
-    if (op) {
-      return await handleOp(env, url, requestMethod, key, op);
+    // Mutating operations were historically GET query parameters. Refuse the
+    // legacy shape explicitly so HEAD/GET can never trigger storage writes.
+    if (url.searchParams.has("op")) {
+      return json({ error: "legacy_op_removed" }, 410);
     }
 
     const verification = await verifySignedFileRequest(

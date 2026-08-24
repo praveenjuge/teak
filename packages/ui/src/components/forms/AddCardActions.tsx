@@ -83,6 +83,15 @@ export function AddCardActions({
     api.cards.uploadAndCreateCard
   );
   const finalizeUploadedCardAction = useAction(api.cards.finalizeUploadedCard);
+  const prepareMultipartUpload = useAction(
+    (api as any).fileUploads.prepareMultipartUpload
+  );
+  const completeMultipartUpload = useAction(
+    (api as any).fileUploads.completeMultipartUpload
+  );
+  const recordMultipartPart = useMutation(
+    (api as any).fileUploads.recordMultipartPart
+  );
 
   const uploadAndCreateCard = (args: UploadAndCreateCardArgs) =>
     uploadAndCreateCardMutation(args);
@@ -91,8 +100,11 @@ export function AddCardActions({
     finalizeUploadedCardAction(args);
 
   const { uploadFile } = useFileUploadCore({
+    completeMultipartUpload,
     uploadAndCreateCard,
     finalizeUploadedCard,
+    prepareMultipartUpload,
+    recordMultipartPart,
   });
 
   const handleUpgrade = useCallback(() => {

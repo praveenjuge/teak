@@ -4,9 +4,8 @@
 // lossy-WebP thumbnail + preview derivatives back to R2, returning dimensions,
 // dominant-color palette, EXIF facts, and a thumbhash placeholder.
 //
-// Logic mirrors packages/convex/workflows/steps/renderables/generateThumbnail.ts
-// (the legacy Convex action fallback path), including the quality-tier table
-// and the small-image skip rule.
+// This is the canonical image-byte processing path, including the quality-tier
+// table and the small-image skip rule.
 
 import {
   fliph,
@@ -16,6 +15,7 @@ import {
   rotate,
   SamplingFilter,
 } from "@cf-wasm/photon";
+import { FILES_PROCESSOR_VERSION } from "@teak/files-protocol";
 import { orientation as exifOrientationOf, parse as exifParse } from "exifr";
 import { rgbaToThumbHash } from "thumbhash";
 import {
@@ -31,9 +31,8 @@ export const THUMBNAIL_MAX_HEIGHT = 500;
 export const PREVIEW_MAX_EDGE = 1600;
 export const MAX_SVG_SOURCE_BYTES = 10 * 1024 * 1024;
 
-// Workers have a hard memory ceiling well below Convex actions; refuse very
-// large originals so callers can fall back to the legacy action path instead
-// of risking an OOM kill mid-decode.
+// Workers have a hard memory ceiling; refuse very large originals instead of
+// risking an OOM kill mid-decode.
 export const MAX_INPUT_BYTES = 30 * 1024 * 1024;
 
 const MAX_COLORS = 5;
@@ -75,6 +74,12 @@ export interface ProcessImageResult {
   /** Set only when a larger preview derivative was written. */
   previewGenerated: boolean;
   previewKey: string | null;
+  provenance: {
+    generatedAt: number;
+    processorVersion: string;
+    sourceEtag: string;
+    transformVersion: string;
+  };
   thumbhash: string | null;
   thumbnailGenerated: boolean;
   /** Set only when a thumbnail was written; echoes the destination key. */
@@ -85,7 +90,7 @@ export interface ProcessImageResult {
 /**
  * Determine output quality based on file size. Aggressive compression keeps
  * thumbnails smaller than originals. Must stay in lockstep with
- * getOutputSettings in generateThumbnail.ts in the Convex package.
+ * Keep this stable so provenance can identify transform changes.
  *
  * Quality is now honored end-to-end: thumbnails are encoded with libwebp's
  * lossy encoder (photon's WebP output was lossless and ignored this table).
@@ -215,10 +220,10 @@ export const computePalette = (
     .map(([hex]) => hex);
 };
 
-const readSourceBytes = async (
+const readSource = async (
   bucket: R2Bucket,
   key: string
-): Promise<Uint8Array> => {
+): Promise<{ bytes: Uint8Array; etag: string }> => {
   const object = await bucket.get(key);
   if (!object) {
     throw new ImageSourceMissing();
@@ -227,7 +232,52 @@ const readSourceBytes = async (
     await object.body.cancel();
     throw new ImageTooLarge();
   }
-  return new Uint8Array(await object.arrayBuffer());
+  return {
+    bytes: new Uint8Array(await object.arrayBuffer()),
+    etag: object.httpEtag,
+  };
+};
+
+const TRANSFORM_VERSION = "image-v2";
+
+const resultKeyFor = (srcKey: string): string => `${srcKey}.processing.json`;
+
+const readCurrentResult = async (
+  bucket: R2Bucket,
+  srcKey: string,
+  sourceEtag: string,
+  destKey: string | null,
+  previewDestKey: string | null
+): Promise<ProcessImageResult | null> => {
+  const stored = await bucket.get(resultKeyFor(srcKey));
+  if (!stored) {
+    return null;
+  }
+  try {
+    const result = (await stored.json()) as ProcessImageResult;
+    if (
+      result.provenance?.processorVersion !== FILES_PROCESSOR_VERSION ||
+      result.provenance.sourceEtag !== sourceEtag ||
+      result.provenance.transformVersion !== TRANSFORM_VERSION
+    ) {
+      return null;
+    }
+    if (
+      result.thumbnailGenerated &&
+      !(destKey && (await bucket.head(destKey)))
+    ) {
+      return null;
+    }
+    if (
+      result.previewGenerated &&
+      !(previewDestKey && (await bucket.head(previewDestKey)))
+    ) {
+      return null;
+    }
+    return result;
+  } catch {
+    return null;
+  }
 };
 
 /* ------------------------------------------------------------------ *
@@ -431,7 +481,19 @@ export const processImage = async (
   destKey: string | null,
   opts?: { previewDestKey?: string | null }
 ): Promise<ProcessImageResult> => {
-  const sourceBytes = await readSourceBytes(bucket, srcKey);
+  const source = await readSource(bucket, srcKey);
+  const sourceBytes = source.bytes;
+  const previewDestKey = opts?.previewDestKey ?? null;
+  const current = await readCurrentResult(
+    bucket,
+    srcKey,
+    source.etag,
+    destKey,
+    previewDestKey
+  );
+  if (current) {
+    return current;
+  }
   const format = detectImageFormat(sourceBytes);
   const { decoded, sourceForExif } = await decodeSource(format, sourceBytes);
 
@@ -489,7 +551,6 @@ export const processImage = async (
 
     // Preview derivative for originals beyond the preview bounds.
     let previewGenerated = false;
-    const previewDestKey = opts?.previewDestKey ?? null;
     if (
       previewDestKey &&
       (width > PREVIEW_MAX_EDGE || height > PREVIEW_MAX_EDGE)
@@ -567,7 +628,7 @@ export const processImage = async (
         ? await extractExifFacts(sourceForExif)
         : null;
 
-    return {
+    const result: ProcessImageResult = {
       exif,
       height,
       palette: palette ?? [],
@@ -576,8 +637,22 @@ export const processImage = async (
       thumbhash,
       thumbnailGenerated,
       thumbnailKey: thumbnailGenerated && destKey ? destKey : null,
+      provenance: {
+        generatedAt: Date.now(),
+        processorVersion: FILES_PROCESSOR_VERSION,
+        sourceEtag: source.etag,
+        transformVersion: TRANSFORM_VERSION,
+      },
       width,
     };
+    await bucket.put(
+      resultKeyFor(srcKey),
+      new Blob([JSON.stringify(result)], { type: "application/json" }),
+      {
+        httpMetadata: { contentType: "application/json" },
+      }
+    );
+    return result;
   } finally {
     // Release WASM-owned pixel buffers promptly; workers have a tight memory
     // ceiling and these can be tens of megabytes for large originals.

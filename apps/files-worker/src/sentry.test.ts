@@ -1,6 +1,10 @@
 import { describe, expect, test } from "bun:test";
+import {
+  buildFilesOpSigningPayload,
+  FILES_PROTOCOL_VERSION,
+} from "@teak/files-protocol";
 import worker, { type Env } from "./index";
-import { buildOpSigningPayload, hmacSha256Hex } from "./lib";
+import { hmacSha256Hex, sha256Hex } from "./lib";
 import {
   parseFileKeyIdentifiers,
   reportFilesOpFailure,
@@ -9,34 +13,30 @@ import {
 
 const SECRET = "test-secret";
 
-// Mirrors OP_PARAM_ORDER in packages/convex/storage/filesWorkerClient.ts.
-const OP_FIELD_NAMES: Record<string, string[]> = {
-  "process-image": ["dest", "preview"],
-  "build-export": ["artifact", "name"],
-  inspect: ["mode", "mb", "rtf", "fmt"],
-};
-
-const signedOpUrl = async (
-  key: string,
-  op: string,
-  params: Record<string, string> = {}
-): Promise<string> => {
-  const exp = String(Math.floor(Date.now() / 1000) + 600);
-  const fields = (OP_FIELD_NAMES[op] ?? []).map((name) => params[name] ?? "");
-  const sig = await hmacSha256Hex(
-    SECRET,
-    buildOpSigningPayload({ op, key, fields, exp })
-  );
-  const url = new URL(`https://files.teakvault.com/${key}`);
-  url.searchParams.set("op", op);
-  url.searchParams.set("exp", exp);
-  url.searchParams.set("sig", sig);
-  for (const [name, value] of Object.entries(params)) {
-    if (value) {
-      url.searchParams.set(name, value);
-    }
-  }
-  return url.toString();
+const signedOpRequest = async (sourceKey: string): Promise<Request> => {
+  const body = JSON.stringify({
+    op: "process-image",
+    params: { sourceKey },
+    version: FILES_PROTOCOL_VERSION,
+  });
+  const expiresAt = String(Math.floor(Date.now() / 1000) + 600);
+  const requestId = crypto.randomUUID();
+  return new Request("https://files.teakvault.com/__ops/v1", {
+    body,
+    method: "POST",
+    headers: {
+      "x-teak-expires-at": expiresAt,
+      "x-teak-request-id": requestId,
+      "x-teak-signature": await hmacSha256Hex(
+        SECRET,
+        buildFilesOpSigningPayload({
+          bodySha256: await sha256Hex(body),
+          expiresAt,
+          requestId,
+        })
+      ),
+    },
+  });
 };
 
 describe("resolveSentryOptions", () => {
@@ -133,17 +133,15 @@ describe("files worker error reporting", () => {
       FILES_SIGNING_SECRET: SECRET,
     } as unknown as Env;
     const response = await worker.fetch(
-      new Request(
-        await signedOpUrl(
-          "users/9f8a/cards/c123/file/photo.png",
-          "process-image"
-        )
-      ),
+      await signedOpRequest("users/9f8a/cards/c123/file/photo.png"),
       env_,
       { waitUntil: () => undefined } as never
     );
     expect(response.status).toBe(500);
-    expect(await response.json()).toEqual({ error: "internal_error" });
+    expect(await response.json()).toMatchObject({
+      error: { code: "INTERNAL", retryable: true },
+      ok: false,
+    });
   });
 
   test("expected op rejections stay unreported client-style statuses", async () => {
@@ -152,16 +150,14 @@ describe("files worker error reporting", () => {
       FILES_SIGNING_SECRET: SECRET,
     } as unknown as Env;
     const response = await worker.fetch(
-      new Request(
-        await signedOpUrl(
-          "users/9f8a/cards/c123/file/gone.png",
-          "process-image"
-        )
-      ),
+      await signedOpRequest("users/9f8a/cards/c123/file/gone.png"),
       env_,
       { waitUntil: () => undefined } as never
     );
     expect(response.status).toBe(404);
-    expect(await response.json()).toEqual({ error: "source_not_found" });
+    expect(await response.json()).toMatchObject({
+      error: { code: "NOT_FOUND", retryable: false },
+      ok: false,
+    });
   });
 });

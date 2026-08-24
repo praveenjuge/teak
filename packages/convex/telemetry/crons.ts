@@ -39,6 +39,12 @@ export const CRON_MONITORS = {
     schedule: "30 * * * *",
     slug: "cleanup-stale-pending-card-uploads",
   },
+  repairImageDerivatives: {
+    checkinMarginMinutes: 10,
+    maxRuntimeMinutes: 20,
+    schedule: "15 * * * *",
+    slug: "repair-image-derivatives",
+  },
   ensureOauthClients: {
     checkinMarginMinutes: 15,
     maxRuntimeMinutes: 5,
@@ -88,11 +94,14 @@ export const cleanupAbandonedImportUploads = internalAction({
 export const cleanupStalePendingCardUploads = internalAction({
   args: {},
   returns: v.null(),
-  handler: (_ctx: ActionCtx) =>
-    monitored(
-      CRON_MONITORS.cleanupStalePendingCardUploads,
-      sweepStalePendingUploadsHandler
-    ),
+  handler: (ctx: ActionCtx) =>
+    monitored(CRON_MONITORS.cleanupStalePendingCardUploads, async () => {
+      await sweepStalePendingUploadsHandler();
+      await ctx.runAction(
+        internalAny.fileUploads.cleanupExpiredMultipartUploads,
+        {}
+      );
+    }),
 });
 
 export const aiMetadataBackfill = internalAction({
@@ -114,6 +123,18 @@ export const cleanupExpiredExports = internalAction({
     monitored(CRON_MONITORS.cleanupExpiredExports, () =>
       ctx.runMutation(
         internalAny.workflows.exportCleanup.startExportCleanupWorkflow,
+        {}
+      )
+    ),
+});
+
+export const repairImageDerivatives = internalAction({
+  args: {},
+  returns: v.null(),
+  handler: (ctx: ActionCtx) =>
+    monitored(CRON_MONITORS.repairImageDerivatives, () =>
+      ctx.runAction(
+        internalAny.workflows.derivativeRepair.repairImageDerivatives,
         {}
       )
     ),

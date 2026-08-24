@@ -318,6 +318,11 @@ test("web uploads and paste-created files complete", async ({
   const marker = markerFor("uploads");
   await waitForHomeUploadSurface(page);
   await uploadFiles(page, [
+    {
+      buffer: Buffer.concat([pdf, Buffer.alloc(9 * 1024 * 1024 - pdf.length)]),
+      mimeType: "application/pdf",
+      name: `${marker}-multipart.pdf`,
+    },
     { buffer: pdf, mimeType: "application/pdf", name: `${marker}.pdf` },
     {
       buffer: Buffer.from("teak audio"),
@@ -330,7 +335,7 @@ test("web uploads and paste-created files complete", async ({
       name: `${marker}.mp4`,
     },
   ]);
-  await expect(page.getByText(/Uploaded 3 files|File uploaded/)).toBeVisible({
+  await expect(page.getByText(/Uploaded 4 files|File uploaded/)).toBeVisible({
     timeout: 90_000,
   });
 

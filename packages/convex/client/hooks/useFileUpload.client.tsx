@@ -9,6 +9,7 @@ import {
   CARD_ERROR_MESSAGES,
   MAX_FILE_SIZE,
   MAX_FILES_PER_UPLOAD,
+  MULTIPART_UPLOAD_THRESHOLD,
 } from "../../shared/constants";
 import { inferFileFormat, isGenericMimeType } from "../../shared/fileFormats";
 import { trackUpload } from "../../shared/metrics";
@@ -16,101 +17,18 @@ import type {
   UploadFileResult,
   UploadMultipleFilesResultItem,
 } from "../../shared/types";
-
-// Best-effort image dimension extraction (browser-only).
-// Returns undefined when dimensions cannot be determined or we're in a non-DOM environment.
-function getImageDimensions(
-  file: File
-): Promise<{ width: number; height: number } | undefined> {
-  if (
-    typeof window === "undefined" ||
-    typeof document === "undefined" ||
-    typeof Image === "undefined" ||
-    !file.type?.startsWith("image/")
-  ) {
-    return Promise.resolve(undefined);
-  }
-
-  const objectUrl = URL.createObjectURL(file);
-
-  return new Promise((resolve) => {
-    const img = new Image();
-
-    img.onload = () => {
-      const width = img.naturalWidth || img.width;
-      const height = img.naturalHeight || img.height;
-      URL.revokeObjectURL(objectUrl);
-      resolve(width && height ? { width, height } : undefined);
-    };
-
-    img.onerror = () => {
-      URL.revokeObjectURL(objectUrl);
-      resolve(undefined);
-    };
-
-    img.src = objectUrl;
-  });
-}
-
-// Best-effort video dimension extraction (browser-only).
-// Returns undefined when dimensions cannot be determined or we're in a non-DOM environment.
-function getVideoDimensions(
-  file: File
-): Promise<{ width: number; height: number } | undefined> {
-  if (
-    typeof window === "undefined" ||
-    typeof document === "undefined" ||
-    typeof document.createElement !== "function" ||
-    !file.type?.startsWith("video/")
-  ) {
-    return Promise.resolve(undefined);
-  }
-
-  const objectUrl = URL.createObjectURL(file);
-
-  return new Promise((resolve) => {
-    const video = document.createElement("video");
-    video.preload = "metadata";
-    video.muted = true;
-    video.playsInline = true;
-
-    const cleanup = () => {
-      URL.revokeObjectURL(objectUrl);
-    };
-
-    video.onloadedmetadata = () => {
-      const width = video.videoWidth;
-      const height = video.videoHeight;
-      cleanup();
-      resolve(width && height ? { width, height } : undefined);
-    };
-
-    video.onerror = () => {
-      cleanup();
-      resolve(undefined);
-    };
-
-    video.src = objectUrl;
-  });
-}
-
-async function buildAdditionalMetadata(
-  file: File,
-  metadata?: any
-): Promise<any | undefined> {
-  // If caller already provided both dimensions, keep them.
-  if (metadata?.width && metadata?.height) {
-    return metadata;
-  }
-
-  const dimensions =
-    (await getImageDimensions(file)) ?? (await getVideoDimensions(file));
-  if (dimensions) {
-    return { ...dimensions, ...metadata };
-  }
-
-  return metadata;
-}
+import { buildAdditionalFileMetadata } from "./fileMediaMetadata.client";
+import {
+  type CodedUploadError,
+  getUploadEtag,
+  isAbortError,
+  throwIfAborted,
+  uploadWithTransientRetry,
+} from "./fileUploadTransport.client";
+import {
+  type MultipartUploadDependencies,
+  uploadMultipartFile,
+} from "./multipartUpload.client";
 
 export interface UnifiedFileUploadConfig {
   onError?: (error: FileUploadError) => void;
@@ -165,7 +83,8 @@ export interface FinalizeUploadedCardResult {
   success: boolean;
 }
 
-export interface FileUploadDependencies {
+export interface FileUploadDependencies
+  extends Partial<MultipartUploadDependencies> {
   finalizeUploadedCard: (
     args: FinalizeUploadedCardArgs
   ) => Promise<FinalizeUploadedCardResult>;
@@ -193,45 +112,6 @@ export interface UploadFileFromUriArgs {
   uri: string;
 }
 
-type CodedError = Error & { code?: CardErrorCode };
-interface UploadResponse {
-  headers?: Headers | Record<string, string>;
-  ok: boolean;
-  status: number;
-}
-
-export const getUploadEtag = (
-  headers?: Headers | Record<string, string>
-): string | undefined => {
-  if (!headers) {
-    return;
-  }
-  if (headers instanceof Headers) {
-    return headers.get("etag") ?? undefined;
-  }
-  const entry = Object.entries(headers).find(
-    ([key]) => key.toLowerCase() === "etag"
-  );
-  return entry?.[1];
-};
-
-const UPLOAD_RETRY_DELAYS_MS = [300, 900] as const;
-
-const isRetriableUploadStatus = (status: number) =>
-  status === 408 || status === 429 || status >= 500;
-
-const createAbortError = () => {
-  const error = new Error("Upload cancelled");
-  error.name = "AbortError";
-  return error;
-};
-
-const isAbortError = (error: unknown) =>
-  typeof error === "object" &&
-  error !== null &&
-  "name" in error &&
-  error.name === "AbortError";
-
 const shouldCaptureUploadError = (errorCode?: CardErrorCode) =>
   errorCode !== CARD_ERROR_CODES.FILE_TOO_LARGE;
 
@@ -242,74 +122,13 @@ const fileBucket = (mimeType?: string): string => {
     : "document";
 };
 
-const throwIfAborted = (signal: AbortSignal) => {
-  if (signal.aborted) {
-    throw createAbortError();
-  }
-};
-
-const sleep = (delayMs: number, signal: AbortSignal) =>
-  new Promise<void>((resolve, reject) => {
-    if (signal.aborted) {
-      reject(createAbortError());
-      return;
-    }
-
-    const timeout = setTimeout(resolve, delayMs);
-    signal.addEventListener(
-      "abort",
-      () => {
-        clearTimeout(timeout);
-        reject(createAbortError());
-      },
-      { once: true }
-    );
-  });
-
-async function uploadWithTransientRetry(
-  upload: () => Promise<UploadResponse>,
-  signal: AbortSignal
-): Promise<UploadResponse> {
-  let lastError: unknown;
-
-  for (
-    let attempt = 0;
-    attempt <= UPLOAD_RETRY_DELAYS_MS.length;
-    attempt += 1
-  ) {
-    throwIfAborted(signal);
-
-    try {
-      const response = await upload();
-      throwIfAborted(signal);
-      if (
-        response.ok ||
-        !isRetriableUploadStatus(response.status) ||
-        attempt === UPLOAD_RETRY_DELAYS_MS.length
-      ) {
-        return response;
-      }
-      lastError = new Error(`Upload failed with status ${response.status}`);
-    } catch (error) {
-      if (isAbortError(error)) {
-        throw error;
-      }
-      lastError = error;
-      if (attempt === UPLOAD_RETRY_DELAYS_MS.length) {
-        throw error;
-      }
-    }
-
-    await sleep(UPLOAD_RETRY_DELAYS_MS[attempt], signal);
-  }
-
-  throw lastError instanceof Error ? lastError : new Error("Upload failed");
-}
-
 export function useFileUploadCore(
   {
+    completeMultipartUpload,
     uploadAndCreateCard,
     finalizeUploadedCard,
+    prepareMultipartUpload,
+    recordMultipartPart,
     uploadBinaryFromUri,
   }: FileUploadDependencies,
   config: UnifiedFileUploadConfig = {}
@@ -392,13 +211,13 @@ export function useFileUploadCore(
             message: CARD_ERROR_MESSAGES.FILE_TOO_LARGE,
             code: CARD_ERROR_CODES.FILE_TOO_LARGE,
           };
-          const codedError = new Error(errorInfo.message) as CodedError;
+          const codedError = new Error(errorInfo.message) as CodedUploadError;
           codedError.code = errorInfo.code;
           throw codedError;
         }
 
         // Attach image/video dimensions when possible to avoid layout shifts in grids
-        const mergedAdditionalMetadata = await buildAdditionalMetadata(
+        const mergedAdditionalMetadata = await buildAdditionalFileMetadata(
           file,
           options.additionalMetadata
         );
@@ -414,7 +233,7 @@ export function useFileUploadCore(
             message: "Unsupported file type",
             code: CARD_ERROR_CODES.UNSUPPORTED_TYPE,
           };
-          const codedError = new Error(errorInfo.message) as CodedError;
+          const codedError = new Error(errorInfo.message) as CodedUploadError;
           codedError.code = errorInfo.code;
           throw codedError;
         }
@@ -424,60 +243,83 @@ export function useFileUploadCore(
           ? fileFormat.mimeType
           : file.type;
 
-        const uploadResult = await uploadAndCreateCard({
-          fileName: file.name,
-          fileType,
-          fileSize: file.size,
-          cardType,
-          content: options.content,
-          additionalMetadata: mergedAdditionalMetadata,
-        });
+        let uploadKey: string;
+        let fileEtag: string | undefined;
+        const canUseMultipart =
+          file.size >= MULTIPART_UPLOAD_THRESHOLD &&
+          prepareMultipartUpload &&
+          recordMultipartPart &&
+          completeMultipartUpload;
 
-        if (
-          !(
-            uploadResult.success &&
-            uploadResult.uploadKey &&
-            uploadResult.uploadUrl
-          )
-        ) {
-          const errorInfo: FileUploadError = {
-            message: uploadResult.error || "Failed to prepare upload",
-            code: uploadResult.errorCode as CardErrorCode | undefined,
-          };
-          const codedError = new Error(errorInfo.message) as CodedError;
-          codedError.code = errorInfo.code;
-          throw codedError;
-        }
-        const { uploadKey, uploadUrl } = uploadResult;
-
-        // Step 2: Upload file to R2
-        config.onProgress?.(25);
-        setProgress(25);
-
-        const uploadResponse = await runClientSpan(
-          {
-            attributes: { bytes: file.size, "file.bucket": bucket },
-            name: "card.upload",
-            operation: "storage.upload",
-            stage: "upload",
-          },
-          () =>
-            uploadWithTransientRetry(
-              () =>
-                fetch(uploadUrl, {
-                  method: "PUT",
-                  headers: {
-                    "Content-Type": fileType,
-                  },
-                  body: file,
-                  signal,
-                }),
-              signal
+        if (canUseMultipart) {
+          const completed = await uploadMultipartFile({
+            dependencies: {
+              completeMultipartUpload,
+              prepareMultipartUpload,
+              recordMultipartPart,
+            },
+            file,
+            fileType,
+            onProgress: (nextProgress) => {
+              config.onProgress?.(nextProgress);
+              setProgress(nextProgress);
+            },
+            signal,
+          });
+          uploadKey = completed.uploadKey;
+          fileEtag = completed.etag;
+        } else {
+          const uploadResult = await uploadAndCreateCard({
+            fileName: file.name,
+            fileType,
+            fileSize: file.size,
+            cardType,
+            content: options.content,
+            additionalMetadata: mergedAdditionalMetadata,
+          });
+          if (
+            !(
+              uploadResult.success &&
+              uploadResult.uploadKey &&
+              uploadResult.uploadUrl
             )
-        );
-
-        if (!uploadResponse.ok) {
-          throw new Error(`Upload failed with status ${uploadResponse.status}`);
+          ) {
+            const errorInfo: FileUploadError = {
+              message: uploadResult.error || "Failed to prepare upload",
+              code: uploadResult.errorCode as CardErrorCode | undefined,
+            };
+            const codedError = new Error(errorInfo.message) as CodedUploadError;
+            codedError.code = errorInfo.code;
+            throw codedError;
+          }
+          uploadKey = uploadResult.uploadKey;
+          config.onProgress?.(25);
+          setProgress(25);
+          const uploadResponse = await runClientSpan(
+            {
+              attributes: { bytes: file.size, "file.bucket": bucket },
+              name: "card.upload",
+              operation: "storage.upload",
+              stage: "upload",
+            },
+            () =>
+              uploadWithTransientRetry(
+                () =>
+                  fetch(uploadResult.uploadUrl as string, {
+                    method: "PUT",
+                    headers: { "Content-Type": fileType },
+                    body: file,
+                    signal,
+                  }),
+                signal
+              )
+          );
+          if (!uploadResponse.ok) {
+            throw new Error(
+              `Upload failed with status ${uploadResponse.status}`
+            );
+          }
+          fileEtag = getUploadEtag(uploadResponse.headers);
         }
 
         throwIfAborted(signal);
@@ -490,7 +332,7 @@ export function useFileUploadCore(
           fileName: file.name,
           fileSize: file.size,
           fileType,
-          fileEtag: getUploadEtag(uploadResponse.headers),
+          fileEtag,
           cardType,
           content: options.content,
           additionalMetadata: mergedAdditionalMetadata,
@@ -502,7 +344,7 @@ export function useFileUploadCore(
             message: finalizeResult.error || "Failed to create card",
             code: finalizeResult.errorCode as CardErrorCode | undefined,
           };
-          const codedError = new Error(errorInfo.message) as CodedError;
+          const codedError = new Error(errorInfo.message) as CodedUploadError;
           codedError.code = errorInfo.code;
           throw codedError;
         }
@@ -542,9 +384,9 @@ export function useFileUploadCore(
         if (
           error instanceof Error &&
           "code" in error &&
-          typeof (error as CodedError).code !== "undefined"
+          typeof (error as CodedUploadError).code !== "undefined"
         ) {
-          fileError.code = (error as CodedError).code;
+          fileError.code = (error as CodedUploadError).code;
         }
 
         if (shouldCaptureUploadError(fileError.code)) {
@@ -568,7 +410,10 @@ export function useFileUploadCore(
     },
     [
       uploadAndCreateCard,
+      completeMultipartUpload,
       finalizeUploadedCard,
+      prepareMultipartUpload,
+      recordMultipartPart,
       config,
       beginUpload,
       finishUpload,
@@ -604,7 +449,7 @@ export function useFileUploadCore(
             message: "URI uploads are not supported on this platform",
             code: CARD_ERROR_CODES.UNSUPPORTED_TYPE,
           };
-          const codedError = new Error(errorInfo.message) as CodedError;
+          const codedError = new Error(errorInfo.message) as CodedUploadError;
           codedError.code = errorInfo.code;
           throw codedError;
         }
@@ -614,7 +459,7 @@ export function useFileUploadCore(
             message: CARD_ERROR_MESSAGES.FILE_TOO_LARGE,
             code: CARD_ERROR_CODES.FILE_TOO_LARGE,
           };
-          const codedError = new Error(errorInfo.message) as CodedError;
+          const codedError = new Error(errorInfo.message) as CodedUploadError;
           codedError.code = errorInfo.code;
           throw codedError;
         }
@@ -625,7 +470,7 @@ export function useFileUploadCore(
             message: "Unsupported file type",
             code: CARD_ERROR_CODES.UNSUPPORTED_TYPE,
           };
-          const codedError = new Error(errorInfo.message) as CodedError;
+          const codedError = new Error(errorInfo.message) as CodedUploadError;
           codedError.code = errorInfo.code;
           throw codedError;
         }
@@ -653,7 +498,7 @@ export function useFileUploadCore(
             message: uploadResult.error || "Failed to prepare upload",
             code: uploadResult.errorCode as CardErrorCode | undefined,
           };
-          const codedError = new Error(errorInfo.message) as CodedError;
+          const codedError = new Error(errorInfo.message) as CodedUploadError;
           codedError.code = errorInfo.code;
           throw codedError;
         }
@@ -707,7 +552,7 @@ export function useFileUploadCore(
             message: finalizeResult.error || "Failed to create card",
             code: finalizeResult.errorCode as CardErrorCode | undefined,
           };
-          const codedError = new Error(errorInfo.message) as CodedError;
+          const codedError = new Error(errorInfo.message) as CodedUploadError;
           codedError.code = errorInfo.code;
           throw codedError;
         }
@@ -747,9 +592,9 @@ export function useFileUploadCore(
         if (
           error instanceof Error &&
           "code" in error &&
-          typeof (error as CodedError).code !== "undefined"
+          typeof (error as CodedUploadError).code !== "undefined"
         ) {
-          fileError.code = (error as CodedError).code;
+          fileError.code = (error as CodedUploadError).code;
         }
 
         if (shouldCaptureUploadError(fileError.code)) {

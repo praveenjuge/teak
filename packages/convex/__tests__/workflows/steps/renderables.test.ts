@@ -2,7 +2,6 @@
 import { beforeAll, describe, expect, mock, test } from "bun:test";
 
 let generateHandler: any;
-let shouldSkipThumbnail: any;
 
 beforeAll(async () => {
   const photonMock = () => ({
@@ -34,9 +33,6 @@ beforeAll(async () => {
 
   generateHandler = (await import("../../../workflows/steps/renderables"))
     .generateHandler;
-  shouldSkipThumbnail = (
-    await import("../../../workflows/steps/renderables/generateThumbnail")
-  ).shouldSkipThumbnail;
 });
 
 describe("renderables step", () => {
@@ -51,11 +47,6 @@ describe("renderables step", () => {
     fn.calls = calls;
     return fn;
   };
-
-  test("does not skip a large-pixel image just because its file is small", () => {
-    expect(shouldSkipThumbnail(100_000, 400, 400)).toBe(true);
-    expect(shouldSkipThumbnail(100_000, 6000, 6000)).toBe(false);
-  });
 
   describe("error handling", () => {
     test("skips when the card was deleted before rendering", async () => {

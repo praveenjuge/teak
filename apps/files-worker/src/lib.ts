@@ -116,6 +116,13 @@ const timingSafeEqualHex = (left: string, right: string): boolean => {
   return !mismatch;
 };
 
+export const verifyHmacPayload = async (
+  secret: string,
+  payload: string,
+  signature: string
+): Promise<boolean> =>
+  timingSafeEqualHex(signature, await hmacSha256Hex(secret, payload));
+
 // CryptoKey derivation is memoized per secret: importKey on every request is
 // pure overhead for a secret that never changes within an isolate.
 const cryptoKeyCache = new Map<string, Promise<CryptoKey>>();
@@ -150,28 +157,56 @@ export const hmacSha256Hex = async (
   ).join("");
 };
 
-// Ops (process-image / build-export / inspect) are internal, short-lived
-// requests signed with the same secret as downloads but a distinct payload
-// shape so download URLs can never be replayed against an op and vice versa:
-//
-//   ["op", <op>, <key>, ...extra fields..., <exp>].join("\n")
-//
-// Extra field values are joined in a fixed per-op order agreed on both sides
-// (packages/convex/storage/filesWorkerClient.ts mirrors this module). Empty
-// strings are allowed slots.
-export const FILES_OP_MAX_TTL_SECONDS = 15 * 60;
+export const sha256Hex = async (
+  value: string | ArrayBuffer
+): Promise<string> => {
+  const bytes =
+    typeof value === "string" ? new TextEncoder().encode(value) : value;
+  const digest = await crypto.subtle.digest("SHA-256", bytes);
+  return Array.from(new Uint8Array(digest), (byte) =>
+    byte.toString(16).padStart(2, "0")
+  ).join("");
+};
 
-export const buildOpSigningPayload = ({
-  exp,
-  fields,
-  key,
-  op,
-}: {
-  op: string;
-  key: string;
-  fields: string[];
-  exp: string;
-}): string => ["op", op, key, ...fields, exp].join("\n");
+export const verifyBodySignature = async (
+  secret: string,
+  args: {
+    bodySha256: string | null;
+    expiresAt: string | null;
+    requestId: string | null;
+    signature: string | null;
+  },
+  payload: (fields: {
+    bodySha256: string;
+    expiresAt: string;
+    requestId: string;
+  }) => string,
+  nowSeconds = Math.floor(Date.now() / 1000)
+): Promise<FileRequestVerification> => {
+  const { bodySha256, expiresAt, requestId, signature } = args;
+  if (!(bodySha256 && expiresAt && requestId && signature)) {
+    return { ok: false, status: 401 };
+  }
+  const expiry = Number.parseInt(expiresAt, 10);
+  if (!Number.isSafeInteger(expiry) || String(expiry) !== expiresAt) {
+    return { ok: false, status: 403 };
+  }
+  if (expiry < nowSeconds) {
+    return { ok: false, status: 410 };
+  }
+  if (expiry > nowSeconds + FILES_OP_MAX_TTL_SECONDS) {
+    return { ok: false, status: 403 };
+  }
+  const expected = await hmacSha256Hex(
+    secret,
+    payload({ bodySha256, expiresAt, requestId })
+  );
+  return timingSafeEqualHex(signature, expected)
+    ? { ok: true }
+    : { ok: false, status: 403 };
+};
+
+export const FILES_OP_MAX_TTL_SECONDS = 15 * 60;
 
 export type FileRequestVerification =
   | { ok: true }
@@ -208,47 +243,6 @@ export const verifySignedFileRequest = async (
       contentType: ct ?? "",
       contentDisposition: cd ?? "",
     })
-  );
-  return timingSafeEqualHex(sig, expected)
-    ? { ok: true }
-    : { ok: false, status: 403 };
-};
-
-export interface SignedOpRequestParams {
-  exp: string | null | undefined;
-  fields?: string[];
-  sig: string | null | undefined;
-}
-
-/**
- * Verify an internal op request. Identical rules to download verification
- * plus an upper bound on remaining validity: op URLs are minted per action
- * invocation and should never live longer than FILES_OP_MAX_TTL_SECONDS, so a
- * leaked URL has a tightly bounded replay window.
- */
-export const verifySignedOpRequest = async (
-  secret: string,
-  op: string,
-  key: string,
-  { fields = [], exp, sig }: SignedOpRequestParams,
-  nowSeconds = Math.floor(Date.now() / 1000)
-): Promise<FileRequestVerification> => {
-  if (!(exp && sig)) {
-    return { ok: false, status: 401 };
-  }
-  const expiresAt = Number.parseInt(exp, 10);
-  if (!Number.isSafeInteger(expiresAt) || `${expiresAt}` !== exp) {
-    return { ok: false, status: 403 };
-  }
-  if (expiresAt < nowSeconds) {
-    return { ok: false, status: 410 };
-  }
-  if (expiresAt - nowSeconds > FILES_OP_MAX_TTL_SECONDS) {
-    return { ok: false, status: 403 };
-  }
-  const expected = await hmacSha256Hex(
-    secret,
-    buildOpSigningPayload({ op, key, fields, exp })
   );
   return timingSafeEqualHex(sig, expected)
     ? { ok: true }
