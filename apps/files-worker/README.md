@@ -37,8 +37,8 @@ sides in lockstep):
 Convex keeps orchestration; every op has a legacy in-action fallback for
 local dev (no `FILES_BASE`/`FILES_SIGNING_SECRET`) and permanent rejections.
 
-WASM modules are bundled through the Data rule in `wrangler.jsonc`; loaders
-live in `src/wasm.ts`.
+WASM modules are statically imported and arrive as build-time compiled
+`WebAssembly.Module`s under wrangler (see `src/wasm.ts`).
 
 ## Commands
 
@@ -55,6 +55,14 @@ bun run deploy      # wrangler deploy (creates files.teakvault.com custom domain
 - `FILES_SIGNING_SECRET` — must match the `FILES_SIGNING_SECRET` env var on the
   Convex production deployment. Set with:
   `bunx wrangler secret put FILES_SIGNING_SECRET`
+- `SENTRY_DSN` — DSN for error reporting (`@sentry/cloudflare`, errors only).
+  Reporting stays disabled until this is set. Set with:
+  `bunx wrangler secret put SENTRY_DSN`
+
+Handled op failures (the 500 path) are reported explicitly with op/route,
+HTTP method + path, and card/role identifiers parsed from the object key
+(`src/sentry.ts`); anything that escapes the handler uncaught is captured
+automatically. `SENTRY_ENVIRONMENT` / `SENTRY_RELEASE` are optional vars.
 
 ## Rollback
 
