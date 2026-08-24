@@ -3,6 +3,8 @@
   "name": "teak-files-proxy",
   "main": "src/index.ts",
   "compatibility_date": "2026-08-01",
+  // Required by @sentry/cloudflare (AsyncLocalStorage-based request context).
+  "compatibility_flags": ["nodejs_compat"],
   "routes": [
     {
       "pattern": "files.teakvault.com",

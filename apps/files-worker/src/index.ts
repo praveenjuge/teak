@@ -1,3 +1,4 @@
+import { withSentry } from "@sentry/cloudflare";
 import {
   buildExportIntoBucket,
   ExportManifestInvalid,
@@ -12,10 +13,16 @@ import {
   verifySignedFileRequest,
   verifySignedOpRequest,
 } from "./lib";
+import { reportFilesOpFailure, resolveSentryOptions } from "./sentry";
 
 export interface Env {
   BUCKET: R2Bucket;
   FILES_SIGNING_SECRET: string;
+  /** Wrangler secret; error reporting stays disabled until it is set. */
+  SENTRY_DSN?: string;
+  /** Optional overrides, normally left unset. */
+  SENTRY_ENVIRONMENT?: string;
+  SENTRY_RELEASE?: string;
 }
 
 const decodeObjectKey = (pathname: string): string => {
@@ -64,6 +71,7 @@ const corsPreflight = (): Response => {
 const handleOp = async (
   env: Env,
   url: URL,
+  httpMethod: string,
   key: string,
   op: string
 ): Promise<Response> => {
@@ -163,6 +171,13 @@ const handleOp = async (
       return json({ error: message }, 422);
     }
     console.error(`[files-worker] op ${op} failed`, error);
+    // Handled 500s never reach withSentry's automatic capture, so report them
+    // here; without this an op outage is invisible outside wrangler tail.
+    reportFilesOpFailure(op, error, {
+      httpMethod,
+      httpPath: url.pathname,
+      objectKey: key,
+    });
     return json({ error: "internal_error" }, 500);
   }
 };
@@ -247,7 +262,7 @@ const applyObjectHeaders = (
 const edgeCache: Cache | null =
   typeof caches === "undefined" ? null : caches.default;
 
-export default {
+const handler = {
   async fetch(request, env, ctx): Promise<Response> {
     const requestMethod = request.method.toUpperCase();
 
@@ -272,7 +287,7 @@ export default {
 
     const op = url.searchParams.get("op");
     if (op) {
-      return await handleOp(env, url, key, op);
+      return await handleOp(env, url, requestMethod, key, op);
     }
 
     const verification = await verifySignedFileRequest(
@@ -432,3 +447,11 @@ export default {
     return new Response(object.body, { status: 206, headers });
   },
 } satisfies ExportedHandler<Env>;
+
+export default withSentry<Env>(
+  // Secrets exist only on env at request time, so the SDK initializes per
+  // request; without SENTRY_DSN this resolves to undefined and Sentry stays
+  // disabled. See src/sentry.ts.
+  (env) => resolveSentryOptions(env),
+  handler
+);
