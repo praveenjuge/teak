@@ -1,11 +1,12 @@
-// Edge image processing for the process-image op: decodes a card's original
-// raster image straight from the R2 binding, applies EXIF orientation,
-// optionally writes a bounded WebP thumbnail back to R2, and returns original
-// dimensions plus a dominant-color palette — all in one pass.
+// Edge image processing for the process-image op: decodes a card image
+// straight from the R2 binding (raster via photon, HEIC via libheif, SVG via
+// resvg), applies EXIF orientation, and in a single pass writes bounded
+// lossy-WebP thumbnail + preview derivatives back to R2, returning dimensions,
+// dominant-color palette, EXIF facts, and a thumbhash placeholder.
 //
 // Logic mirrors packages/convex/workflows/steps/renderables/generateThumbnail.ts
-// and steps/palette.ts (the legacy Convex action fallback paths), including
-// the quality-tier table and the small-image skip rule.
+// (the legacy Convex action fallback path), including the quality-tier table
+// and the small-image skip rule.
 
 import {
   fliph,
@@ -15,10 +16,20 @@ import {
   rotate,
   SamplingFilter,
 } from "@cf-wasm/photon";
-import { orientation } from "exifr";
+import { orientation as exifOrientationOf, parse as exifParse } from "exifr";
+import { rgbaToThumbHash } from "thumbhash";
+import {
+  decodeHeicToRgba,
+  encodeImageAsLossyWebp,
+  renderSvgToPng,
+} from "./wasm";
 
 export const THUMBNAIL_MAX_WIDTH = 500;
 export const THUMBNAIL_MAX_HEIGHT = 500;
+
+/** Largest edge allowed for the preview derivative. */
+export const PREVIEW_MAX_EDGE = 1600;
+export const MAX_SVG_SOURCE_BYTES = 10 * 1024 * 1024;
 
 // Workers have a hard memory ceiling well below Convex actions; refuse very
 // large originals so callers can fall back to the legacy action path instead
@@ -28,6 +39,9 @@ export const MAX_INPUT_BYTES = 30 * 1024 * 1024;
 const MAX_COLORS = 5;
 const SAMPLE_TARGET = 4000;
 const CHANNEL_PRECISION = 16;
+
+/** Longest edge of the image handed to the thumbhash encoder (must be ≤100). */
+const THUMBHASH_MAX_EDGE = 64;
 
 export class ImageSourceMissing extends Error {
   constructor() {
@@ -41,58 +55,68 @@ export class ImageTooLarge extends Error {
   }
 }
 
+export interface ImageExifFacts {
+  exposureTime?: number;
+  fNumber?: number;
+  focalLength?: number;
+  iso?: number;
+  latitude?: number;
+  longitude?: number;
+  make?: string;
+  model?: string;
+  /** Capture time, epoch milliseconds (when present in the file). */
+  takenAt?: number;
+}
+
 export interface ProcessImageResult {
+  exif: ImageExifFacts | null;
   height: number;
   palette: string[];
+  /** Set only when a larger preview derivative was written. */
+  previewGenerated: boolean;
+  previewKey: string | null;
+  thumbhash: string | null;
   thumbnailGenerated: boolean;
   /** Set only when a thumbnail was written; echoes the destination key. */
   thumbnailKey: string | null;
   width: number;
 }
 
-interface OutputSettings {
-  quality: number;
-  skipThumbnail: boolean;
-  useJpeg: boolean;
-}
-
 /**
- * Determine output quality and format based on file size. Aggressive
- * compression keeps thumbnails smaller than originals. Must stay in lockstep
- * with generateThumbnail.ts in the Convex package.
+ * Determine output quality based on file size. Aggressive compression keeps
+ * thumbnails smaller than originals. Must stay in lockstep with
+ * getOutputSettings in generateThumbnail.ts in the Convex package.
+ *
+ * Quality is now honored end-to-end: thumbnails are encoded with libwebp's
+ * lossy encoder (photon's WebP output was lossless and ignored this table).
  */
-export const getOutputSettings = (fileSizeBytes: number): OutputSettings => {
-  // Skip thumbnail generation for very small files (< 500KB) - they're already optimized
-  if (fileSizeBytes < 500_000) {
-    return { quality: 100, useJpeg: false, skipThumbnail: true };
-  }
-
+export const getOutputQuality = (fileSizeBytes: number): number => {
   if (fileSizeBytes < 1_000_000) {
-    // < 1MB - good WebP compression
-    return { quality: 80, useJpeg: false, skipThumbnail: false };
+    return 80;
   }
   if (fileSizeBytes < 2_000_000) {
-    return { quality: 70, useJpeg: false, skipThumbnail: false };
+    return 70;
   }
   if (fileSizeBytes < 5_000_000) {
-    return { quality: 65, useJpeg: false, skipThumbnail: false };
-  }
-  if (fileSizeBytes < 10_000_000) {
-    return { quality: 60, useJpeg: false, skipThumbnail: false };
+    return 65;
   }
   if (fileSizeBytes < 20_000_000) {
-    return { quality: 60, useJpeg: false, skipThumbnail: false };
+    return 60;
   }
-  // >= 20MB - maximum WebP compression
-  return { quality: 50, useJpeg: false, skipThumbnail: false };
+  // >= 20MB - maximum compression
+  return 50;
 };
 
+/**
+ * Files under 500KB that already fit inside the thumbnail box are considered
+ * optimized; skip generating a duplicate.
+ */
 export const shouldSkipThumbnail = (
   fileSizeBytes: number,
   width: number,
   height: number
 ): boolean =>
-  getOutputSettings(fileSizeBytes).skipThumbnail &&
+  fileSizeBytes < 500_000 &&
   width <= THUMBNAIL_MAX_WIDTH &&
   height <= THUMBNAIL_MAX_HEIGHT;
 
@@ -194,7 +218,7 @@ export const computePalette = (
 const readSourceBytes = async (
   bucket: R2Bucket,
   key: string
-): Promise<{ bytes: Uint8Array; httpMetadata?: R2HTTPMetadata }> => {
+): Promise<Uint8Array> => {
   const object = await bucket.get(key);
   if (!object) {
     throw new ImageSourceMissing();
@@ -203,110 +227,366 @@ const readSourceBytes = async (
     await object.body.cancel();
     throw new ImageTooLarge();
   }
-  const bytes = new Uint8Array(await object.arrayBuffer());
-  return { bytes, httpMetadata: object.httpMetadata };
+  return new Uint8Array(await object.arrayBuffer());
+};
+
+/* ------------------------------------------------------------------ *
+ * Input sniffing — the worker accepts rasters, HEIC, and SVG on the same
+ * op so Convex does not need per-format signing variations.
+ * ------------------------------------------------------------------ */
+
+const HEIC_BRANDS = [
+  "heic",
+  "heix",
+  "heim",
+  "hevc",
+  "hevx",
+  "mif1",
+  "msf1",
+  "heif",
+];
+
+export type DetectedImageFormat = "heic" | "raster" | "svg";
+
+export const detectImageFormat = (
+  bytes: Uint8Array,
+  maxSvgBytes = MAX_SVG_SOURCE_BYTES
+): DetectedImageFormat => {
+  // ISOBMFF: fourcc size bytes then "ftyp" then a major brand.
+  if (
+    bytes.length >= 12 &&
+    bytes[4] === 0x66 && // f
+    bytes[5] === 0x74 && // t
+    bytes[6] === 0x79 && // y
+    bytes[7] === 0x70 && // p
+    HEIC_BRANDS.includes(
+      String.fromCharCode(bytes[8], bytes[9], bytes[10], bytes[11])
+    )
+  ) {
+    return "heic";
+  }
+
+  // SVG: text prolog within the first kilobyte. Binary formats never begin
+  // with a NUL-free run matching the XML/SVG pattern.
+  const probe = bytes.subarray(0, 1024);
+  if (
+    probe.length > 0 &&
+    probe.length <= maxSvgBytes &&
+    !probe.slice(0, Math.min(probe.length, 16)).includes(0)
+  ) {
+    const text = new TextDecoder().decode(probe).replace(/^\uFEFF/, "");
+    if (/<\?xml|<svg[\s>]/i.test(text)) {
+      return "svg";
+    }
+  }
+
+  return "raster";
+};
+
+const decodeSource = async (
+  format: DetectedImageFormat,
+  bytes: Uint8Array
+): Promise<{ decoded: PhotonImage; sourceForExif: Uint8Array }> => {
+  if (format === "svg") {
+    const png = await renderSvgToPng(new TextDecoder().decode(bytes));
+    try {
+      return {
+        decoded: PhotonImage.new_from_byteslice(png.bytes),
+        sourceForExif: bytes,
+      };
+    } catch {
+      throw new Error("decode_failed");
+    }
+  }
+
+  if (format === "heic") {
+    let rgba: { pixels: Uint8Array; width: number; height: number };
+    try {
+      rgba = await decodeHeicToRgba(bytes);
+    } catch {
+      throw new Error("decode_failed");
+    }
+    return {
+      decoded: new PhotonImage(rgba.pixels, rgba.width, rgba.height),
+      sourceForExif: bytes,
+    };
+  }
+
+  try {
+    return {
+      decoded: PhotonImage.new_from_byteslice(bytes),
+      sourceForExif: bytes,
+    };
+  } catch {
+    throw new Error("decode_failed");
+  }
+};
+
+const extractExifFacts = async (
+  bytes: Uint8Array
+): Promise<ImageExifFacts | null> => {
+  try {
+    const parsed = (await exifParse(
+      bytes.buffer instanceof ArrayBuffer ? bytes.buffer : bytes.slice().buffer,
+      {
+        pick: [
+          "DateTimeOriginal",
+          "ExposureTime",
+          "FNumber",
+          "FocalLength",
+          "ISO",
+          "Latitude",
+          "Longitude",
+          "Make",
+          "Model",
+        ],
+      }
+    )) as Record<string, unknown> | undefined;
+    if (!parsed) {
+      return null;
+    }
+
+    const facts: ImageExifFacts = {};
+    if (typeof parsed.Make === "string" && parsed.Make.trim()) {
+      facts.make = parsed.Make.trim();
+    }
+    if (typeof parsed.Model === "string" && parsed.Model.trim()) {
+      facts.model = parsed.Model.trim();
+    }
+    if (parsed.DateTimeOriginal instanceof Date) {
+      const time = parsed.DateTimeOriginal.getTime();
+      if (Number.isFinite(time)) {
+        facts.takenAt = time;
+      }
+    }
+    if (typeof parsed.ExposureTime === "number" && parsed.ExposureTime > 0) {
+      facts.exposureTime = parsed.ExposureTime;
+    }
+    if (typeof parsed.FNumber === "number" && parsed.FNumber > 0) {
+      facts.fNumber = parsed.FNumber;
+    }
+    if (typeof parsed.ISO === "number" && parsed.ISO > 0) {
+      facts.iso = parsed.ISO;
+    }
+    if (typeof parsed.FocalLength === "number" && parsed.FocalLength > 0) {
+      facts.focalLength = parsed.FocalLength;
+    }
+    if (
+      typeof parsed.Latitude === "number" &&
+      typeof parsed.Longitude === "number" &&
+      Number.isFinite(parsed.Latitude) &&
+      Number.isFinite(parsed.Longitude)
+    ) {
+      facts.latitude = parsed.Latitude;
+      facts.longitude = parsed.Longitude;
+    }
+    return Object.keys(facts).length > 0 ? facts : null;
+  } catch {
+    return null;
+  }
+};
+
+interface DerivedTarget {
+  maxHeight: number;
+  maxWidth: number;
+}
+
+/** Largest width/height preserving the aspect ratio within the bounds. */
+const computeFit = (
+  aspectRatio: number,
+  { maxHeight, maxWidth }: DerivedTarget
+): { height: number; width: number } => {
+  let targetWidth: number;
+  let targetHeight: number;
+
+  if (aspectRatio > 1) {
+    targetWidth = maxWidth;
+    targetHeight = Math.max(1, Math.round(targetWidth / aspectRatio));
+  } else {
+    targetHeight = maxHeight;
+    targetWidth = Math.max(1, Math.round(targetHeight * aspectRatio));
+  }
+  if (targetWidth > maxWidth) {
+    targetWidth = maxWidth;
+    targetHeight = Math.max(1, Math.round(targetWidth / aspectRatio));
+  }
+  if (targetHeight > maxHeight) {
+    targetHeight = maxHeight;
+    targetWidth = Math.max(1, Math.round(targetHeight * aspectRatio));
+  }
+  return { height: Math.max(1, targetHeight), width: Math.max(1, targetWidth) };
 };
 
 /**
- * Run the combined decode → orient → resize → encode pipeline.
+ * Run the combined decode → orient → derive pipeline.
  *
  * @param destKey when non-null and generation is not skipped, the thumbnail
- *   WebP is written here with its content type stored as httpMetadata so the
- *   download path serves it correctly even without ct overrides.
+ *   lossy WebP is written here with its content type stored as httpMetadata.
+ * @param opts.previewDestKey when non-null and the original exceeds the
+ *   preview bounds, an additional bounded preview is written there.
  */
 export const processImage = async (
   bucket: R2Bucket,
   srcKey: string,
-  destKey: string | null
+  destKey: string | null,
+  opts?: { previewDestKey?: string | null }
 ): Promise<ProcessImageResult> => {
-  const source = await readSourceBytes(bucket, srcKey);
+  const sourceBytes = await readSourceBytes(bucket, srcKey);
+  const format = detectImageFormat(sourceBytes);
+  const { decoded, sourceForExif } = await decodeSource(format, sourceBytes);
 
-  let decoded: PhotonImage;
-  try {
-    decoded = PhotonImage.new_from_byteslice(source.bytes);
-  } catch {
-    throw new Error("decode_failed");
-  }
-
-  const exifOrientationValue = await orientation(
-    source.bytes.buffer instanceof ArrayBuffer
-      ? source.bytes.buffer
-      : source.bytes.slice().buffer
+  const exifOrientationValue = await exifOrientationOf(
+    sourceForExif.buffer instanceof ArrayBuffer
+      ? sourceForExif.buffer
+      : sourceForExif.slice().buffer
   ).catch(() => undefined);
 
   const oriented = applyExifOrientation(decoded, exifOrientationValue ?? 1);
   const width = oriented.get_width();
   const height = oriented.get_height();
-  const fileSizeBytes = source.bytes.byteLength;
+  const fileSizeBytes = sourceBytes.byteLength;
 
-  const settings = getOutputSettings(fileSizeBytes);
+  const quality = getOutputQuality(fileSizeBytes);
   const skipThumbnail =
     destKey === null || shouldSkipThumbnail(fileSizeBytes, width, height);
 
+  const aspectRatio = width / height;
   let thumbnailGenerated = false;
   let paletteSource: PhotonImage = oriented;
+  let palette: string[] | null = null;
 
-  if (!skipThumbnail && destKey) {
-    // Triangle (bilinear) avoids the aliasing/shimmer artifacts that Nearest
-    // introduces on downscales, at a similar encode size.
-    const aspectRatio = width / height;
-    let targetWidth: number;
-    let targetHeight: number;
-
-    if (aspectRatio > 1) {
-      targetWidth = Math.min(width, THUMBNAIL_MAX_WIDTH);
-      targetHeight = Math.max(1, Math.round(targetWidth / aspectRatio));
-    } else {
-      targetHeight = Math.min(height, THUMBNAIL_MAX_HEIGHT);
-      targetWidth = Math.max(1, Math.round(targetHeight * aspectRatio));
-    }
-    if (targetWidth > THUMBNAIL_MAX_WIDTH) {
-      targetWidth = THUMBNAIL_MAX_WIDTH;
-      targetHeight = Math.max(1, Math.round(targetWidth / aspectRatio));
-    }
-    if (targetHeight > THUMBNAIL_MAX_HEIGHT) {
-      targetHeight = THUMBNAIL_MAX_HEIGHT;
-      targetWidth = Math.max(1, Math.round(targetHeight * aspectRatio));
-    }
-
-    const outputImage = resize(
-      oriented,
-      targetWidth,
-      targetHeight,
-      SamplingFilter.Triangle
-    );
-    paletteSource = outputImage;
-
-    const outputBytes = settings.useJpeg
-      ? outputImage.get_bytes_jpeg(settings.quality)
-      : outputImage.get_bytes_webp();
-    const contentType = settings.useJpeg ? "image/jpeg" : "image/webp";
-    const blob = new Blob([outputBytes], { type: contentType });
-
-    await bucket.put(destKey, blob, {
-      httpMetadata: { contentType },
-    });
-    thumbnailGenerated = true;
-  }
-
-  const rawPixels = paletteSource.get_raw_pixels();
-  const palette = computePalette(rawPixels, MAX_COLORS);
-
-  // Release WASM-owned pixel buffers promptly; workers have a tight memory
-  // ceiling and these can be tens of megabytes for large originals.
   try {
-    if (paletteSource !== oriented) {
-      paletteSource.free();
-    }
-  } finally {
-    oriented.free();
-  }
+    if (!skipThumbnail && destKey) {
+      const fit = computeFit(aspectRatio, {
+        maxHeight: THUMBNAIL_MAX_HEIGHT,
+        maxWidth: THUMBNAIL_MAX_WIDTH,
+      });
 
-  return {
-    width,
-    height,
-    thumbnailGenerated,
-    thumbnailKey: thumbnailGenerated && destKey ? destKey : null,
-    palette,
-  };
+      // Triangle (bilinear) avoids the aliasing/shimmer artifacts that Nearest
+      // introduces on downscales, at a similar encode size.
+      const outputImage = resize(
+        oriented,
+        fit.width,
+        fit.height,
+        SamplingFilter.Triangle
+      );
+      paletteSource = outputImage;
+
+      const rawPixels = outputImage.get_raw_pixels();
+      const outputBytes = await encodeImageAsLossyWebp(
+        rawPixels,
+        fit.width,
+        fit.height,
+        quality
+      );
+      const blob = new Blob([outputBytes], { type: "image/webp" });
+      await bucket.put(destKey, blob, {
+        httpMetadata: { contentType: "image/webp" },
+      });
+      thumbnailGenerated = true;
+      palette = computePalette(rawPixels, MAX_COLORS);
+    }
+
+    // Preview derivative for originals beyond the preview bounds.
+    let previewGenerated = false;
+    const previewDestKey = opts?.previewDestKey ?? null;
+    if (
+      previewDestKey &&
+      (width > PREVIEW_MAX_EDGE || height > PREVIEW_MAX_EDGE)
+    ) {
+      const previewFit = computeFit(aspectRatio, {
+        maxHeight: PREVIEW_MAX_EDGE,
+        maxWidth: PREVIEW_MAX_EDGE,
+      });
+      const previewImage = resize(
+        oriented,
+        previewFit.width,
+        previewFit.height,
+        SamplingFilter.Triangle
+      );
+      try {
+        const previewRaw = previewImage.get_raw_pixels();
+        const previewBytes = await encodeImageAsLossyWebp(
+          previewRaw,
+          previewFit.width,
+          previewFit.height,
+          Math.max(quality, 75)
+        );
+        const blob = new Blob([previewBytes], { type: "image/webp" });
+        await bucket.put(previewDestKey, blob, {
+          httpMetadata: { contentType: "image/webp" },
+        });
+        previewGenerated = true;
+        palette ??= computePalette(previewRaw, MAX_COLORS);
+      } finally {
+        previewImage.free();
+      }
+    }
+
+    // Palette fallback for skipped thumbnails (already-small images).
+    palette ??= computePalette(paletteSource.get_raw_pixels(), MAX_COLORS);
+
+    // Thumbhash placeholder from a tiny re-render of whichever image we have.
+    let thumbhash: string | null = null;
+    try {
+      const hashFit = computeFit(aspectRatio, {
+        maxHeight: THUMBHASH_MAX_EDGE,
+        maxWidth: THUMBHASH_MAX_EDGE,
+      });
+      const hashImage =
+        hashFit.width === paletteSource.get_width() &&
+        hashFit.height === paletteSource.get_height()
+          ? paletteSource
+          : resize(
+              oriented,
+              hashFit.width,
+              hashFit.height,
+              SamplingFilter.Triangle
+            );
+      try {
+        const hashBytes = rgbaToThumbHash(
+          hashImage.get_width(),
+          hashImage.get_height(),
+          hashImage.get_raw_pixels()
+        );
+        thumbhash = btoa(
+          Array.from(hashBytes, (byte) => String.fromCharCode(byte)).join("")
+        );
+      } finally {
+        if (hashImage !== paletteSource) {
+          hashImage.free();
+        }
+      }
+    } catch {
+      // Placeholder generation is best-effort.
+      thumbhash = null;
+    }
+
+    const exif =
+      format === "raster" || format === "heic"
+        ? await extractExifFacts(sourceForExif)
+        : null;
+
+    return {
+      exif,
+      height,
+      palette: palette ?? [],
+      previewGenerated,
+      previewKey: previewGenerated && previewDestKey ? previewDestKey : null,
+      thumbhash,
+      thumbnailGenerated,
+      thumbnailKey: thumbnailGenerated && destKey ? destKey : null,
+      width,
+    };
+  } finally {
+    // Release WASM-owned pixel buffers promptly; workers have a tight memory
+    // ceiling and these can be tens of megabytes for large originals.
+    try {
+      if (paletteSource !== oriented) {
+        paletteSource.free();
+      }
+    } finally {
+      oriented.free();
+    }
+  }
 };

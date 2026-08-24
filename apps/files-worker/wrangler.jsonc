@@ -3,6 +3,13 @@
   "name": "teak-files-proxy",
   "main": "src/index.ts",
   "compatibility_date": "2026-08-01",
+  "rules": [
+    {
+      "type": "Data",
+      "globs": ["**/*.wasm"],
+      "fallthrough": true
+    }
+  ],
   "routes": [
     {
       "pattern": "files.teakvault.com",

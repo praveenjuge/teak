@@ -331,7 +331,9 @@ export const extractFileTextForAiForKey = async (
           params: {
             mode: isArchive ? "zip" : "text",
             mb: String(
-              isArchive ? MAX_ARCHIVE_DOWNLOAD_BYTES : MAX_SOURCE_DOWNLOAD_BYTES
+              isTextKind
+                ? MAX_SOURCE_DOWNLOAD_BYTES
+                : MAX_ARCHIVE_DOWNLOAD_BYTES
             ),
             rtf:
               !isArchive &&

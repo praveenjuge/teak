@@ -8,34 +8,45 @@ The Convex backend mints long-lived HMAC-signed URLs
 verifies the token, reads the object through an R2 binding, and streams it
 with `Cache-Control: private, max-age=518400, immutable` (6 days; keep in
 lockstep with `PRIVATE_FILE_CACHE_CONTROL` in r2.ts). It also handles single
-HTTP `Range` requests (206 responses) so video/audio seeking works, and serves
+HTTP `Range` requests (206 responses) so video/audio seeking works, serves
 full-object responses from the Cloudflare edge cache keyed by object path +
-content-disposition policy. The bucket is never public.
+content-disposition policy, answers conditional GETs with 304s, and supports
+`HEAD`. The bucket is never public. `/__health` is an unauthenticated
+liveness probe for uptime monitors.
 
 ## Internal ops
 
 Besides downloads, the worker executes short-lived signed ops minted per
-action invocation (`packages/convex/storage/filesWorkerClient.ts`; payload
-shape in `src/lib.ts`, param order in `src/index.ts` — keep both sides in
-lockstep):
+action invocation (`packages/convex/storage/filesWorkerClient.ts`;
+payload shape in `src/lib.ts`, param order in `src/index.ts` — keep both
+sides in lockstep):
 
-- `op=process-image` — decodes a card image over the R2 binding, applies EXIF
-  orientation, optionally writes a bounded WebP thumbnail back to R2, and
-  returns dimensions plus a dominant-color palette (`src/image.ts`).
+- `op=process-image` — decodes a card image over the R2 binding (raster via
+  photon, HEIC via libheif, SVG via resvg — auto-detected from the bytes),
+  applies EXIF orientation, optionally writes bounded lossy-WebP thumbnail +
+  preview derivatives back to R2, and returns dimensions, dominant-color
+  palette, EXIF facts, and a thumbhash placeholder (`src/image.ts`).
 - `op=build-export` — streams a manifest-described set of objects through
   client-zip into a multipart-uploaded ZIP artifact (`src/export.ts`).
-- `op=inspect` — bounded zip/CSS/text inspection returning facts or AI text
-  without the object transiting Convex (`src/inspect.ts`).
+- `op=inspect` — bounded inspection returning facts or AI text without the
+  object transiting Convex (`src/inspect.ts`): zip archives are walked via R2
+  ranged reads (EOCD → central directory → selected entries) so memory stays
+  flat regardless of archive size; `pdf` mode extracts page count + text via
+  pdfium; `css`/`text` modes are byte-bounded as before.
 
 Convex keeps orchestration; every op has a legacy in-action fallback for
 local dev (no `FILES_BASE`/`FILES_SIGNING_SECRET`) and permanent rejections.
+
+WASM modules are bundled through the Data rule in `wrangler.jsonc`; loaders
+live in `src/wasm.ts`.
 
 ## Commands
 
 ```bash
 bun install
-bun test            # signing/verification unit tests
+bun test            # unit + handler tests (fixtures in src/fixtures)
 bun run typecheck   # tsc --noEmit (needs wrangler + workers-types deps)
+bunx wrangler deploy --dry-run --outdir /tmp/out   # bundle size check
 bun run deploy      # wrangler deploy (creates files.teakvault.com custom domain)
 ```
 

@@ -15,7 +15,7 @@ export type FilesWorkerOp = "process-image" | "build-export" | "inspect";
 
 /** Signed extra-field order per op; empty-string slots are allowed. */
 const OP_PARAM_ORDER: Record<FilesWorkerOp, string[]> = {
-  "process-image": ["dest"],
+  "process-image": ["dest", "preview"],
   "build-export": ["artifact", "name"],
   inspect: ["mode", "mb", "rtf", "fmt"],
 };
@@ -108,9 +108,26 @@ export const callFilesWorkerJson = async <T>(
   return { kind: "ok", data: (await response.json()) as T };
 };
 
+export interface FilesWorkerImageExif {
+  exposureTime?: number;
+  fNumber?: number;
+  focalLength?: number;
+  iso?: number;
+  latitude?: number;
+  longitude?: number;
+  make?: string;
+  model?: string;
+  /** Capture time, epoch milliseconds (when present in the file). */
+  takenAt?: number;
+}
+
 export interface FilesWorkerProcessImageResult {
+  exif: FilesWorkerImageExif | null;
   height: number;
   palette: string[];
+  previewGenerated: boolean;
+  previewKey: string | null;
+  thumbhash: string | null;
   thumbnailGenerated: boolean;
   thumbnailKey: string | null;
   width: number;

@@ -11,6 +11,7 @@ import {
   storeObject,
 } from "../../../storage/r2";
 import { fetchBoundedBytes } from "../../fileProcessing";
+import { generateImageViaFilesWorker } from "./workerPipeline";
 
 const MAX_HEIC_PREVIEW_BYTES = 25 * 1024 * 1024;
 
@@ -32,6 +33,21 @@ export const generateHeicThumbnail = internalAction({
     });
     if (!card?.fileKey) {
       return { generated: false, success: true };
+    }
+
+    // Preferred path: decode on the files worker over its R2 binding (also
+    // yields palette/thumbhash/EXIF in the same pass).
+    try {
+      const workerResult = await generateImageViaFilesWorker(ctx, cardId, {
+        userId: card.userId,
+        fileKey: card.fileKey,
+      });
+      if (workerResult) {
+        return { generated: workerResult.generated, success: true };
+      }
+    } catch {
+      // Transient worker failure → legacy conversion below keeps this
+      // best-effort instead of failing the workflow step.
     }
 
     try {

@@ -99,13 +99,31 @@ const asBody = (bytes: Uint8Array) => {
   };
 };
 
+/** Stable fake validator mirroring R2's httpEtag behavior. */
+export const fakeHttpEtag = (bytes: Uint8Array): string => {
+  let hash = 0x81_1c_9d_c5;
+  for (const byte of bytes) {
+    // biome-ignore lint/suspicious/noBitwiseOperators: FNV-1a hashing is bitwise by nature.
+    hash ^= byte;
+    // biome-ignore lint/suspicious/noBitwiseOperators: force unsigned comparison via shift.
+    hash = Math.imul(hash, 0x01_00_01_93) >>> 0;
+  }
+  return `"${hash.toString(16)}-${bytes.length.toString(16)}"`;
+};
+
+/** Deterministic fixture loader for tests (never shipped in the worker). */
+export const readFixture = async (path: string): Promise<Uint8Array> => {
+  const { readFile } = await import("node:fs/promises");
+  return new Uint8Array(await readFile(path));
+};
+
 export class FakeBucket {
   objects = new Map<string, FakeStoredObject>();
   puts: PutRecord[] = [];
   multipartCompletions: Array<{ key: string; bytes: Uint8Array }> = [];
   failKeys = new Set<string>();
 
-  get(key: string, range?: { offset?: number; length?: number }) {
+  get(key: string, options?: { range?: { offset?: number; length?: number } }) {
     if (this.failKeys.has(key)) {
       return null;
     }
@@ -113,7 +131,9 @@ export class FakeBucket {
     if (!stored?.bytes) {
       return null;
     }
-    let slice = stored.bytes;
+    const bytes = stored.bytes;
+    let slice = bytes;
+    const range = options?.range;
     if (range?.offset !== undefined || range?.length !== undefined) {
       const start = range?.offset ?? 0;
       const end =
@@ -122,7 +142,9 @@ export class FakeBucket {
     }
     return {
       ...asBody(slice),
-      size: slice.length,
+      // R2 reports the full object size even on ranged gets.
+      size: bytes.length,
+      httpEtag: fakeHttpEtag(bytes),
       httpMetadata: stored.httpMetadata,
     };
   }
@@ -134,6 +156,7 @@ export class FakeBucket {
     }
     return {
       size: stored.bytes?.length ?? 0,
+      httpEtag: stored.bytes ? fakeHttpEtag(stored.bytes) : "",
       httpMetadata: stored.httpMetadata,
     };
   }
