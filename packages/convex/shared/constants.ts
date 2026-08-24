@@ -247,6 +247,7 @@ export { MAX_FILE_SIZE } from "./fileFormats";
  * Maximum number of files that can be uploaded at once
  */
 export const MAX_FILES_PER_UPLOAD = 5;
+export const MULTIPART_UPLOAD_THRESHOLD = 8 * 1024 * 1024;
 
 // === Error Codes & Messages ===
 

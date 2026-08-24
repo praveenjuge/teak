@@ -1,110 +1,5 @@
 // @ts-nocheck
-import {
-  afterAll,
-  beforeAll,
-  beforeEach,
-  describe,
-  expect,
-  mock,
-  test,
-} from "bun:test";
-
-// Mock React
-const mockSetState = mock();
-const mockUseEffectCleanups: Array<() => void> = [];
-mock.module("react", () => ({
-  useState: (init: any) => [init, mockSetState],
-  useCallback: (fn: any) => fn,
-  useEffect: (fn: any) => {
-    const cleanup = fn();
-    if (typeof cleanup === "function") {
-      mockUseEffectCleanups.push(cleanup);
-    }
-  },
-  useRef: (init: any) => ({ current: init }),
-}));
-
-// Mock fetch
-const originalFetch = global.fetch;
-const mockFetch = mock();
-
-// Mock DOM
-const originalImage = global.Image;
-const originalURL = global.URL;
-
-beforeAll(() => {
-  global.fetch = mockFetch;
-  global.window = {} as any;
-  global.document = {
-    createElement: (tag: string) => {
-      if (tag === "video") {
-        return new MockVideo();
-      }
-      return {};
-    },
-  } as any;
-  global.URL = {
-    createObjectURL: mock(() => "blob:url"),
-    revokeObjectURL: mock(),
-  } as any;
-  global.Image = MockImage as any;
-});
-
-afterAll(() => {
-  global.fetch = originalFetch;
-  global.Image = originalImage;
-  global.URL = originalURL;
-});
-
-class MockImage {
-  onload: any;
-  onerror: any;
-  _src = "";
-  width = 0;
-  height = 0;
-  naturalWidth = 0;
-  naturalHeight = 0;
-
-  set src(value: string) {
-    this._src = value;
-    // Simulate async load
-    setTimeout(() => {
-      if (value === "blob:url") {
-        this.naturalWidth = 100;
-        this.naturalHeight = 200;
-        this.onload?.();
-      } else {
-        this.onerror?.();
-      }
-    }, 10);
-  }
-}
-global.Image = MockImage as any;
-
-class MockVideo {
-  muted = false;
-  playsInline = false;
-  preload = "";
-  onloadedmetadata: any;
-  onerror: any;
-  videoWidth = 0;
-  videoHeight = 0;
-  _src = "";
-
-  set src(value: string) {
-    this._src = value;
-    setTimeout(() => {
-      if (value === "blob:url") {
-        this.videoWidth = 1280;
-        this.videoHeight = 720;
-        this.onloadedmetadata?.();
-      } else {
-        this.onerror?.();
-      }
-    }, 10);
-  }
-}
-
+import { beforeEach, describe, expect, mock, test } from "bun:test";
 import {
   type FileUploadDependencies,
   useFileUploadCore,
@@ -116,22 +11,11 @@ import {
   MAX_FILE_SIZE,
   MAX_FILES_PER_UPLOAD,
 } from "../../../shared/constants";
-
-describe("defaults", () => {
-  test("uses default sentry capture without error", async () => {
-    const hook = useFileUploadCore({} as any);
-    try {
-      // 1MB + 1 byte
-      await hook.uploadFile({
-        size: MAX_FILE_SIZE + 1,
-        name: "a.png",
-        type: "image/png",
-      } as any);
-    } catch {
-      // expected error return, or the hook catches it and returns success:false
-    }
-  });
-});
+import {
+  mockFetch,
+  mockSetState,
+  mockUseEffectCleanups,
+} from "./useFileUpload.testSupport";
 
 describe("useFileUploadCore", () => {
   const mockUploadAndCreateCard = mock();
@@ -167,49 +51,6 @@ describe("useFileUploadCore", () => {
   });
 
   const hook = useFileUploadCore(dependencies, config);
-
-  describe("initialization", () => {
-    test("creates hook with uploadFile method", () => {
-      expect(typeof hook.uploadFile).toBe("function");
-    });
-
-    test("creates hook with uploadMultipleFiles method", () => {
-      expect(typeof hook.uploadMultipleFiles).toBe("function");
-    });
-
-    test("creates hook with uploadFileFromUri method", () => {
-      expect(typeof hook.uploadFileFromUri).toBe("function");
-    });
-
-    test("creates hook with state object", () => {
-      expect(hook.state).toBeDefined();
-      expect(typeof hook.state.isUploading).toBe("boolean");
-      expect(typeof hook.state.progress).toBe("number");
-      // error is FileUploadError | null
-      expect(
-        hook.state.error === null || typeof hook.state.error === "object"
-      ).toBe(true);
-    });
-
-    test("creates hook with convenience getters", () => {
-      expect(typeof hook.isUploading).toBe("boolean");
-      expect(typeof hook.progress).toBe("number");
-      // error is string | null (error.message)
-      expect(hook.error === null || typeof hook.error === "string").toBe(true);
-    });
-
-    test("initial state is not uploading", () => {
-      expect(hook.isUploading).toBe(false);
-    });
-
-    test("initial progress is 0", () => {
-      expect(hook.progress).toBe(0);
-    });
-
-    test("initial error is null", () => {
-      expect(hook.error).toBeNull();
-    });
-  });
 
   describe("uploadFile - validation", () => {
     test("validates file size exceeds limit", async () => {

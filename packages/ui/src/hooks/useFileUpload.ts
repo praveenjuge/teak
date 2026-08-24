@@ -12,6 +12,15 @@ export function useFileUpload(config: UnifiedFileUploadConfig = {}) {
     api.cards.uploadAndCreateCard
   );
   const finalizeUploadedCardAction = useAction(api.cards.finalizeUploadedCard);
+  const prepareMultipartUpload = useAction(
+    (api as any).fileUploads.prepareMultipartUpload
+  );
+  const completeMultipartUpload = useAction(
+    (api as any).fileUploads.completeMultipartUpload
+  );
+  const recordMultipartPart = useMutation(
+    (api as any).fileUploads.recordMultipartPart
+  );
 
   const uploadAndCreateCard = (args: UploadAndCreateCardArgs) =>
     uploadAndCreateCardMutation(args);
@@ -20,7 +29,13 @@ export function useFileUpload(config: UnifiedFileUploadConfig = {}) {
     finalizeUploadedCardAction(args);
 
   return useFileUploadCore(
-    { uploadAndCreateCard, finalizeUploadedCard },
+    {
+      completeMultipartUpload,
+      finalizeUploadedCard,
+      prepareMultipartUpload,
+      recordMultipartPart,
+      uploadAndCreateCard,
+    },
     config
   );
 }

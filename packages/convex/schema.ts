@@ -75,9 +75,22 @@ export const filePreviewFactsValidator = v.object({
   animated: v.optional(v.boolean()),
   archiveDirectoryCount: v.optional(v.number()),
   archiveFileCount: v.optional(v.number()),
+  characterCount: v.optional(v.number()),
   colorVariableCount: v.optional(v.number()),
+  compressedBytes: v.optional(v.number()),
+  headingCount: v.optional(v.number()),
   inspectedEntryCount: v.optional(v.number()),
+  lineCount: v.optional(v.number()),
   slideCount: v.optional(v.number()),
+  uncompressedBytes: v.optional(v.number()),
+  wordCount: v.optional(v.number()),
+});
+
+export const fileProcessingProvenanceValidator = v.object({
+  generatedAt: v.number(),
+  processorVersion: v.string(),
+  sourceEtag: v.string(),
+  transformVersion: v.string(),
 });
 
 export const imageExifValidator = v.object({
@@ -106,6 +119,7 @@ export const fileMetadataValidator = v.optional(
     height: v.optional(v.number()),
     preview: v.optional(filePreviewFactsValidator),
     exif: v.optional(imageExifValidator),
+    processing: v.optional(fileProcessingProvenanceValidator),
     // Recording-specific metadata
     recordingTimestamp: v.optional(v.number()),
   })
@@ -305,6 +319,35 @@ export const markdownConversionAuditValidator = v.object({
   completedAt: v.optional(v.number()),
 });
 
+export const fileUploadSessionValidator = v.object({
+  userId: v.string(),
+  identityKey: v.string(),
+  sourceKey: r2KeyValidator,
+  uploadId: v.string(),
+  fileName: v.string(),
+  fileSize: v.number(),
+  fileType: v.string(),
+  fileLastModified: v.number(),
+  partSize: v.number(),
+  parts: v.array(
+    v.object({
+      etag: v.string(),
+      partNumber: v.number(),
+      size: v.number(),
+    })
+  ),
+  completedEtag: v.optional(v.string()),
+  completedSize: v.optional(v.number()),
+  status: v.union(
+    v.literal("uploading"),
+    v.literal("completed"),
+    v.literal("aborted")
+  ),
+  expiresAt: v.number(),
+  createdAt: v.number(),
+  updatedAt: v.number(),
+});
+
 // Canonical export job record. No backfill: rows are created on demand.
 export const exportJobValidator = v.object({
   userId: v.string(),
@@ -415,6 +458,8 @@ export const cardValidator = v.object({
   previewKey: v.optional(r2KeyValidator),
   /** Thumbhash placeholder bytes (base64) decoded into a blurry stand-in. */
   placeholderHash: v.optional(v.string()),
+  derivativeVersion: v.optional(v.string()),
+  derivativeCheckedAt: v.optional(v.number()),
   tags: v.optional(v.array(v.string())),
   notes: v.optional(v.string()),
   isFavorited: v.optional(v.boolean()),
@@ -449,6 +494,8 @@ export default defineSchema({
     // with partial index matching (just userId) per Convex best practices
     .index("by_user_type", ["userId", "type"])
     .index("by_type", ["type"])
+    .index("by_type_derivative_version", ["type", "derivativeVersion"])
+    .index("by_type_derivative_checked", ["type", "derivativeCheckedAt"])
     // Compound index for type filtering with isDeleted to avoid post-index .filter()
     .index("by_user_type_deleted", ["userId", "type", "isDeleted"])
     .index("by_user_favorites", ["userId", "isFavorited"])
@@ -535,6 +582,16 @@ export default defineSchema({
     .index("by_job_source", ["jobId", "sourceIndex"])
     .index("by_job_status_source", ["jobId", "status", "sourceIndex"])
     .index("by_user", ["userId"]),
+  fileUploadSessions: defineTable(fileUploadSessionValidator)
+    .index("by_identity_file", [
+      "identityKey",
+      "fileName",
+      "fileSize",
+      "fileLastModified",
+    ])
+    .index("by_identity_status", ["identityKey", "status"])
+    .index("by_source_key", ["sourceKey"])
+    .index("by_expires_at", ["expiresAt"]),
   markdownConversionAudits: defineTable(markdownConversionAuditValidator)
     .index("by_card_id", ["cardId"])
     .index("by_status_and_next_retry_at", ["status", "nextRetryAt"])

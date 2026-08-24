@@ -86,15 +86,6 @@ export async function generateHandler(
     }
   };
 
-  const handleOptionalResult = (result: {
-    generated: boolean;
-    success: boolean;
-  }) => {
-    if (result.generated) {
-      thumbnailGenerated = true;
-    }
-  };
-
   const fileName = card.fileMetadata?.fileName;
   const format = fileName
     ? (inferFileFormat({
@@ -103,35 +94,12 @@ export async function generateHandler(
       }) ?? inferFileFormat({ fileName }))
     : null;
 
-  // Generate thumbnail for image cards (raster images like PNG, JPG, WebP)
-  // SVG files are handled separately below
-  const isSvgFile = format?.id === "svg";
-  const isHeicFile = format?.id === "heic";
   const isGifFile = format?.id === "gif";
 
-  if (cardType === "image" && card.fileKey && !(isSvgFile || isHeicFile)) {
+  if (cardType === "image" && card.fileKey) {
     const result = await ctx.runAction(
-      (internal as any).workflows.steps.renderables.generateThumbnail
-        .generateThumbnail,
-      { cardId }
-    );
-    handleResult(result);
-  }
-
-  if (cardType === "image" && card.fileKey && isHeicFile) {
-    const result = await ctx.runAction(
-      (internal as any).workflows.steps.renderables.generateHeicThumbnail
-        .generateHeicThumbnail,
-      { cardId }
-    );
-    handleOptionalResult(result);
-  }
-
-  // Generate thumbnail for SVG images (rasterize to PNG using Playwright)
-  if (cardType === "image" && card.fileKey && isSvgFile) {
-    const result = await ctx.runAction(
-      (internal as any).workflows.steps.renderables.generateSvgThumbnail
-        .generateSvgThumbnail,
+      (internal as any).workflows.steps.renderables.generateImageThumbnail
+        .generateImageThumbnail,
       { cardId }
     );
     handleResult(result);

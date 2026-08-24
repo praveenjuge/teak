@@ -2,6 +2,7 @@ import { describe, expect, test } from "bun:test";
 import { zipSync } from "fflate";
 import {
   extractRtfText,
+  extractZipEntries,
   findEocd,
   inspectZipRanged,
   parseCentralDirectory,
@@ -113,6 +114,55 @@ describe("central directory parsing primitives", () => {
   test("returns null when no EOCD exists in the tail", () => {
     expect(findEocd(new TextEncoder().encode("not a zip at all"))).toBeNull();
     expect(findEocd(new Uint8Array([0, 1, 2]))).toBeNull();
+  });
+});
+
+describe("import archive extraction", () => {
+  test("extracts requested files after 10,000 card entries", async () => {
+    const files: Record<string, Uint8Array> = {};
+    for (let index = 0; index < 10_002; index += 1) {
+      files[`files/${index}.txt`] = new Uint8Array([index % 255]);
+    }
+    const bucket = new FakeBucket();
+    bucket.objects.set("large-import.zip", { bytes: zipSync(files) });
+    const result = await extractZipEntries(bucket, "large-import.zip", [
+      {
+        destinationKey: "users/u/imports/10001.txt",
+        path: "files/10001.txt",
+      },
+    ]);
+    expect(result).toHaveLength(1);
+    expect(bucket.storedBytes("users/u/imports/10001.txt")).toEqual(
+      new Uint8Array([10_001 % 255])
+    );
+  });
+
+  test("extracts only requested entries directly into destination keys", async () => {
+    const bucket = new FakeBucket();
+    bucket.objects.set("import.zip", {
+      bytes: zipSync({
+        "files/a.txt": new TextEncoder().encode("Alpha"),
+        "files/b.txt": new TextEncoder().encode("Beta"),
+      }),
+    });
+    const result = await extractZipEntries(bucket, "import.zip", [
+      {
+        contentType: "text/plain",
+        destinationKey: "users/u/imports/a.txt",
+        path: "files/a.txt",
+      },
+    ]);
+    expect(result).toEqual([
+      {
+        bytes: 5,
+        destinationKey: "users/u/imports/a.txt",
+        path: "files/a.txt",
+      },
+    ]);
+    expect(
+      new TextDecoder().decode(bucket.storedBytes("users/u/imports/a.txt")!)
+    ).toBe("Alpha");
+    expect(bucket.storedBytes("files/b.txt")).toBeNull();
   });
 });
 

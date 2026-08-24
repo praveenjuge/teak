@@ -1,6 +1,11 @@
 import { describe, expect, test } from "bun:test";
+import {
+  buildFilesOpSigningPayload,
+  buildMultipartPartSigningPayload,
+  FILES_PROTOCOL_VERSION,
+} from "@teak/files-protocol";
 import worker, { type Env } from "./index";
-import { buildSigningPayload, hmacSha256Hex } from "./lib";
+import { buildSigningPayload, hmacSha256Hex, sha256Hex } from "./lib";
 import { FakeBucket, fakeHttpEtag, makePng } from "./testsupport";
 
 const SECRET = "test-secret";
@@ -37,6 +42,34 @@ const signedUrl = async (
     url.searchParams.set("cd", params.cd);
   }
   return url.toString();
+};
+
+const signedOpRequest = async (
+  op:
+    | "complete-multipart"
+    | "create-multipart"
+    | "finalize-upload"
+    | "process-image",
+  params: Record<string, unknown>,
+  method = "POST"
+): Promise<Request> => {
+  const body = JSON.stringify({ op, params, version: FILES_PROTOCOL_VERSION });
+  const requestId = crypto.randomUUID();
+  const expiresAt = String(Math.floor(Date.now() / 1000) + 600);
+  const bodySha256 = await sha256Hex(body);
+  return new Request("https://files.teakvault.com/__ops/v1", {
+    body,
+    method,
+    headers: {
+      "content-type": "application/json",
+      "x-teak-expires-at": expiresAt,
+      "x-teak-request-id": requestId,
+      "x-teak-signature": await hmacSha256Hex(
+        SECRET,
+        buildFilesOpSigningPayload({ bodySha256, expiresAt, requestId })
+      ),
+    },
+  });
 };
 
 describe("files worker handler", () => {
@@ -86,6 +119,204 @@ describe("files worker handler", () => {
       { waitUntil: () => undefined } as never
     );
     expect(response.status).toBe(401);
+  });
+
+  test("serves a correctly signed key containing consecutive dots", async () => {
+    const env_ = env();
+    const key = "users/u1/cards/f/design..final.png";
+    (env_.BUCKET as unknown as FakeBucket).objects.set(key, {
+      bytes: makePng(8, 8),
+    });
+    const response = await worker.fetch(
+      new Request(await signedUrl(`/${key}`)),
+      env_,
+      { waitUntil: () => undefined } as never
+    );
+    expect(response.status).toBe(200);
+  });
+
+  test("allows mutating operations only through signed POST bodies", async () => {
+    const env_ = env();
+    const legacyHead = await worker.fetch(
+      new Request(
+        "https://files.teakvault.com/users/u/file.png?op=process-image",
+        {
+          method: "HEAD",
+        }
+      ),
+      env_,
+      { waitUntil: () => undefined } as never
+    );
+    expect(legacyHead.status).toBe(410);
+    const post = await worker.fetch(
+      await signedOpRequest("create-multipart", {
+        contentType: "image/png",
+        key: "users/u1/cards/upload/file.png",
+      }),
+      env_,
+      { waitUntil: () => undefined } as never
+    );
+    expect(post.status).toBe(200);
+    expect(await post.json()).toMatchObject({
+      ok: true,
+      data: { uploadId: expect.any(String) },
+    });
+  });
+
+  test("returns typed errors for wrong internal API methods", async () => {
+    for (const [path, allow] of [
+      ["/__ops/v1", "POST"],
+      ["/__uploads/v1/id/1", "PUT"],
+    ] as const) {
+      const response = await worker.fetch(
+        new Request(`https://files.teakvault.com${path}`),
+        env(),
+        { waitUntil: () => undefined } as never
+      );
+      expect(response.status).toBe(405);
+      expect(response.headers.get("allow")).toBe(allow);
+      expect(response.headers.get("access-control-allow-origin")).toBe("*");
+      expect(await response.json()).toMatchObject({
+        error: {
+          code: "INVALID_INPUT",
+          requestId: expect.any(String),
+          retryable: false,
+        },
+        ok: false,
+        version: FILES_PROTOCOL_VERSION,
+      });
+    }
+  });
+
+  test("rejects a signed operation when its body is modified", async () => {
+    const request = await signedOpRequest("create-multipart", {
+      key: "users/u1/cards/upload/file.png",
+    });
+    const tampered = new Request(request, {
+      body: JSON.stringify({
+        op: "create-multipart",
+        params: { key: "users/other/cards/upload/file.png" },
+        version: FILES_PROTOCOL_VERSION,
+      }),
+    });
+    const response = await worker.fetch(tampered, env(), {
+      waitUntil: () => undefined,
+    } as never);
+    expect(response.status).toBe(403);
+  });
+
+  test("streams a validated pending upload into its permanent key", async () => {
+    const env_ = env();
+    const bucket = env_.BUCKET as unknown as FakeBucket;
+    const sourceKey = "users/u1/cards/upload-pending-v2/file/design..final.txt";
+    const destinationKey = "users/u1/cards/stored/file/design..final.txt";
+    bucket.objects.set(sourceKey, {
+      bytes: new TextEncoder().encode("Hello worker"),
+      httpMetadata: { contentType: "text/plain" },
+    });
+    const response = await worker.fetch(
+      await signedOpRequest("finalize-upload", {
+        destinationKey,
+        expectedSize: 12,
+        readText: true,
+        sourceKey,
+      }),
+      env_,
+      { waitUntil: () => undefined } as never
+    );
+    expect(response.status).toBe(200);
+    expect(await response.json()).toMatchObject({
+      data: { content: "Hello worker", destinationKey, storedFileSize: 12 },
+      ok: true,
+    });
+    // Convex deletes the pending object only after its card mutation succeeds,
+    // so a failed database write can safely retry finalization.
+    expect(bucket.objects.has(sourceKey)).toBe(true);
+    expect(new TextDecoder().decode(bucket.storedBytes(destinationKey)!)).toBe(
+      "Hello worker"
+    );
+  });
+
+  test("uploads and idempotently completes a signed multipart upload", async () => {
+    const env_ = env();
+    const bucket = env_.BUCKET as unknown as FakeBucket;
+    const key = "users/u1/cards/upload/large.bin";
+    const multipart = bucket.createMultipartUpload(key);
+    const partNumber = 1;
+    const expiresAt = String(Math.floor(Date.now() / 1000) + 600);
+    const url = new URL(
+      `https://files.teakvault.com/__uploads/v1/${multipart.uploadId}/${partNumber}`
+    );
+    url.searchParams.set("key", key);
+    url.searchParams.set("exp", expiresAt);
+    url.searchParams.set(
+      "sig",
+      await hmacSha256Hex(
+        SECRET,
+        buildMultipartPartSigningPayload({
+          expiresAt,
+          key,
+          partNumber,
+          uploadId: multipart.uploadId,
+        })
+      )
+    );
+    const response = await worker.fetch(
+      new Request(url, { body: new Blob(["hello"]), method: "PUT" }),
+      env_,
+      { waitUntil: () => undefined } as never
+    );
+    expect(response.status).toBe(204);
+    expect(response.headers.get("etag")).toBe("etag-1");
+
+    const completionParams = {
+      expectedSize: 5,
+      key,
+      parts: [{ etag: "etag-1", partNumber }],
+      uploadId: multipart.uploadId,
+    };
+    const completed = await worker.fetch(
+      await signedOpRequest("complete-multipart", completionParams),
+      env_,
+      { waitUntil: () => undefined } as never
+    );
+    expect(completed.status).toBe(200);
+    expect(await completed.json()).toMatchObject({
+      data: { key, size: 5 },
+      ok: true,
+    });
+
+    const retried = await worker.fetch(
+      await signedOpRequest("complete-multipart", completionParams),
+      env_,
+      { waitUntil: () => undefined } as never
+    );
+    expect(retried.status).toBe(200);
+    expect(await retried.json()).toMatchObject({
+      data: { key, size: 5 },
+      ok: true,
+    });
+  });
+
+  test("returns a versioned error envelope for multipart failures", async () => {
+    const response = await worker.fetch(
+      new Request("https://files.teakvault.com/__uploads/v1/missing/1", {
+        body: "part",
+        method: "PUT",
+      }),
+      env(),
+      { waitUntil: () => undefined } as never
+    );
+    expect(response.status).toBe(401);
+    expect(await response.json()).toMatchObject({
+      error: {
+        code: "AUTH_INVALID",
+        requestId: expect.any(String),
+        retryable: false,
+      },
+      ok: false,
+      version: FILES_PROTOCOL_VERSION,
+    });
   });
 
   test("serves signed downloads with nosniff, length, etag, and CORS", async () => {

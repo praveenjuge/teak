@@ -7,13 +7,16 @@ import {
 } from "./image";
 import { FakeBucket, makePng, readFixture } from "./testsupport";
 
+const derivativePuts = (bucket: FakeBucket) =>
+  bucket.puts.filter((put) => !put.key.endsWith(".processing.json"));
+
 describe("process-image op", () => {
   test("skips thumbnails for small images but still returns dimensions and palette", async () => {
     const bucket = new FakeBucket();
     bucket.objects.set("src.png", { bytes: makePng(100, 80) });
 
     const result = await processImage(bucket, "src.png", "dest/t.webp");
-    expect(result).toEqual({
+    expect(result).toMatchObject({
       exif: null,
       height: 80,
       palette: ["#FF0000"],
@@ -24,7 +27,11 @@ describe("process-image op", () => {
       thumbnailKey: null,
       width: 100,
     });
-    expect(bucket.puts).toHaveLength(0);
+    expect(result.provenance).toMatchObject({
+      processorVersion: "2026-08-24.1",
+      transformVersion: "image-v2",
+    });
+    expect(derivativePuts(bucket)).toHaveLength(0);
   });
 
   test("resizes large images to bounded lossy webp thumbnails and writes them back", async () => {
@@ -39,8 +46,8 @@ describe("process-image op", () => {
     expect(result.palette.length).toBeGreaterThan(0);
     expect(typeof result.thumbhash).toBe("string");
 
-    expect(bucket.puts).toHaveLength(1);
-    const put = bucket.puts[0];
+    expect(derivativePuts(bucket)).toHaveLength(1);
+    const put = derivativePuts(bucket)[0];
     expect((put as any).key).toBe("dest/t.webp");
     expect((put as any).httpMetadata?.contentType).toBe("image/webp");
     // WebP container magic.
@@ -66,11 +73,12 @@ describe("process-image op", () => {
     expect(result.previewGenerated).toBe(true);
     expect(result.previewKey).toBe("dest/preview.webp");
 
-    expect(bucket.puts.map((p) => (p as any).key).sort()).toEqual([
-      "dest/preview.webp",
-      "dest/t.webp",
-    ]);
-    for (const put of bucket.puts) {
+    expect(
+      derivativePuts(bucket)
+        .map((p) => (p as any).key)
+        .sort()
+    ).toEqual(["dest/preview.webp", "dest/t.webp"]);
+    for (const put of derivativePuts(bucket)) {
       expect(new TextDecoder().decode((put as any).bytes.slice(12, 16))).toBe(
         "VP8 "
       );
@@ -86,7 +94,7 @@ describe("process-image op", () => {
     });
     expect(result.previewGenerated).toBe(false);
     expect(result.previewKey).toBeNull();
-    expect(bucket.puts).toHaveLength(1);
+    expect(derivativePuts(bucket)).toHaveLength(1);
   });
 
   test("supports palette-only invocations without a destination", async () => {
@@ -97,7 +105,23 @@ describe("process-image op", () => {
     expect(result.thumbnailGenerated).toBe(false);
     expect(result.palette).toEqual(["#FF0000"]);
     expect(result.thumbhash).toBeTypeOf("string");
-    expect(bucket.puts).toHaveLength(0);
+    expect(derivativePuts(bucket)).toHaveLength(0);
+  });
+
+  test("reuses current derivatives and regenerates a missing derivative", async () => {
+    const bucket = new FakeBucket();
+    bucket.objects.set("src.png", { bytes: makePng(600, 400) });
+    const first = await processImage(bucket, "src.png", "dest/t.webp");
+    const putsAfterFirst = derivativePuts(bucket).length;
+
+    const cached = await processImage(bucket, "src.png", "dest/t.webp");
+    expect(cached.provenance.generatedAt).toBe(first.provenance.generatedAt);
+    expect(derivativePuts(bucket)).toHaveLength(putsAfterFirst);
+
+    bucket.objects.delete("dest/t.webp");
+    const repaired = await processImage(bucket, "src.png", "dest/t.webp");
+    expect(repaired.thumbnailGenerated).toBe(true);
+    expect(derivativePuts(bucket).length).toBe(putsAfterFirst + 1);
   });
 
   test("rasterizes SVG sources through resvg", async () => {
@@ -111,21 +135,23 @@ describe("process-image op", () => {
     expect(result.width).toBe(800);
     expect(result.height).toBe(600);
     expect(result.palette[0]).toBe("#00FF00");
-    expect(bucket.puts).toHaveLength(1);
+    expect(derivativePuts(bucket)).toHaveLength(1);
     // SVGs carry no EXIF.
     expect(result.exif).toBeNull();
   });
 
   test("decodes HEIC sources via libheif", async () => {
     const bucket = new FakeBucket();
-    const heicBytes = await readFixture("src/fixtures/fixture.heic");
+    const heicBytes = await readFixture(
+      new URL("./fixtures/fixture.heic", import.meta.url).pathname
+    );
     bucket.objects.set("src.heic", { bytes: heicBytes });
 
     const result = await processImage(bucket, "src.heic", "dest/t.webp");
     expect(result.width).toBe(800);
     expect(result.height).toBe(600);
     expect(result.thumbnailGenerated).toBe(true);
-    expect(bucket.puts).toHaveLength(1);
+    expect(derivativePuts(bucket)).toHaveLength(1);
     expect(
       new TextDecoder().decode((bucket.puts[0] as any).bytes.slice(12, 16))
     ).toBe("VP8 ");

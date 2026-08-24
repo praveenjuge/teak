@@ -90,6 +90,9 @@ export const getMobileFilePreview = (
     typeof input.preview?.slideCount === "number"
       ? `${input.preview.slideCount} slides`
       : null,
+    typeof input.preview?.wordCount === "number"
+      ? `${input.preview.wordCount.toLocaleString()} words`
+      : null,
     typeof input.preview?.archiveFileCount === "number"
       ? `${input.preview.archiveFileCount} files`
       : null,

@@ -96,6 +96,7 @@ const asBody = (bytes: Uint8Array) => {
         copy.byteOffset + copy.byteLength
       ) as ArrayBuffer,
     text: async () => new TextDecoder().decode(copy),
+    json: async () => JSON.parse(new TextDecoder().decode(copy)),
   };
 };
 
@@ -122,6 +123,15 @@ export class FakeBucket {
   puts: PutRecord[] = [];
   multipartCompletions: Array<{ key: string; bytes: Uint8Array }> = [];
   failKeys = new Set<string>();
+  failMultipartPartOnce = new Set<number>();
+  multipartUploads = new Map<
+    string,
+    {
+      key: string;
+      options?: { httpMetadata?: Record<string, string> };
+      parts: Map<number, Uint8Array>;
+    }
+  >();
 
   get(key: string, options?: { range?: { offset?: number; length?: number } }) {
     if (this.failKeys.has(key)) {
@@ -155,6 +165,7 @@ export class FakeBucket {
       return null;
     }
     return {
+      key,
       size: stored.bytes?.length ?? 0,
       httpEtag: stored.bytes ? fakeHttpEtag(stored.bytes) : "",
       httpMetadata: stored.httpMetadata,
@@ -163,26 +174,68 @@ export class FakeBucket {
 
   async put(
     key: string,
-    value: Blob,
+    value: Blob | Uint8Array | ReadableStream | string,
     options?: { httpMetadata?: Record<string, string> }
   ) {
-    const bytes = new Uint8Array(await value.arrayBuffer());
+    let bytes: Uint8Array;
+    if (typeof value === "string") {
+      bytes = new TextEncoder().encode(value);
+    } else if (value instanceof Uint8Array) {
+      bytes = value.slice();
+    } else {
+      bytes = new Uint8Array(await new Response(value).arrayBuffer());
+    }
     this.puts.push({ key, bytes, httpMetadata: options?.httpMetadata });
     this.objects.set(key, { bytes, httpMetadata: options?.httpMetadata });
-    return {};
+    return { httpEtag: fakeHttpEtag(bytes) };
+  }
+
+  delete(key: string) {
+    this.objects.delete(key);
   }
 
   createMultipartUpload(
     key: string,
     options?: { httpMetadata?: Record<string, string> }
   ) {
-    const parts: Uint8Array[] = [];
+    const uploadId = `upload-${this.multipartUploads.size + 1}`;
+    this.multipartUploads.set(uploadId, {
+      key,
+      options,
+      parts: new Map(),
+    });
+    return this.resumeMultipartUpload(key, uploadId);
+  }
+
+  resumeMultipartUpload(key: string, uploadId: string) {
+    const upload = this.multipartUploads.get(uploadId);
+    if (!upload || upload.key !== key) {
+      throw new Error("multipart_not_found");
+    }
     return {
-      uploadPart: (partNumber: number, value: Uint8Array) => {
-        parts.push(value);
+      key,
+      uploadId,
+      uploadPart: async (
+        partNumber: number,
+        value: Uint8Array | ReadableStream
+      ) => {
+        if (this.failMultipartPartOnce.delete(partNumber)) {
+          throw new Error(`multipart_part_${partNumber}_failed`);
+        }
+        const bytes =
+          value instanceof Uint8Array
+            ? value.slice()
+            : new Uint8Array(await new Response(value).arrayBuffer());
+        upload.parts.set(partNumber, bytes);
         return { partNumber, etag: `etag-${partNumber}` };
       },
-      complete: () => {
+      complete: (completed?: Array<{ partNumber: number }>) => {
+        const parts = (
+          completed ??
+          [...upload.parts.keys()].map((partNumber) => ({ partNumber }))
+        )
+          .map(({ partNumber }) => upload.parts.get(partNumber))
+          .filter((part): part is Uint8Array => Boolean(part));
         const total = parts.reduce((sum, part) => sum + part.length, 0);
         const bytes = new Uint8Array(total);
         let offset = 0;
@@ -191,10 +244,17 @@ export class FakeBucket {
           offset += part.length;
         }
         this.multipartCompletions.push({ key, bytes });
-        this.objects.set(key, { bytes, httpMetadata: options?.httpMetadata });
-        return {};
+        this.objects.set(key, {
+          bytes,
+          httpMetadata: upload.options?.httpMetadata,
+        });
+        this.multipartUploads.delete(uploadId);
+        return { key, size: bytes.length, httpEtag: fakeHttpEtag(bytes) };
       },
-      abort: () => Promise.resolve(),
+      abort: () => {
+        this.multipartUploads.delete(uploadId);
+        return Promise.resolve();
+      },
     };
   }
 

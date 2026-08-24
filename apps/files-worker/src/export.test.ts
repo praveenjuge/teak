@@ -144,6 +144,43 @@ describe("build-export op", () => {
     // Nothing was persisted.
     expect(bucket.multipartCompletions).toHaveLength(0);
   });
+
+  test("resumes from checkpointed parts after a transient upload failure", async () => {
+    const bucket = new FakeBucket();
+    bucket.objects.set("large.bin", {
+      bytes: new Uint8Array(33 * 1024 * 1024),
+    });
+    bucket.objects.set("resume-manifest.json", {
+      bytes: new TextEncoder().encode(
+        JSON.stringify({
+          v: EXPORT_MANIFEST_VERSION,
+          maxBytes: 64 * 1024 * 1024,
+          entries: [{ path: "large.bin", storageKey: "large.bin" }],
+        })
+      ),
+    });
+    bucket.failMultipartPartOnce.add(2);
+    await expect(
+      buildExportIntoBucket(
+        bucket,
+        "resume-manifest.json",
+        "resume.zip",
+        "resume.zip"
+      )
+    ).rejects.toThrow("multipart_part_2_failed");
+    expect(bucket.objects.has("resume.zip.checkpoint.json")).toBe(true);
+
+    const result = await buildExportIntoBucket(
+      bucket,
+      "resume-manifest.json",
+      "resume.zip",
+      "resume.zip"
+    );
+    expect(result.filesIncluded).toBe(1);
+    expect(bucket.objects.has("resume.zip.checkpoint.json")).toBe(false);
+    expect(bucket.objects.has("resume.zip.result.json")).toBe(true);
+    expect(bucket.multipartCompletions).toHaveLength(1);
+  });
 });
 
 /** Tiny valid PNG so the zip contains real bytes. */

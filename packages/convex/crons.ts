@@ -19,6 +19,13 @@ crons.cron(
   {}
 );
 
+crons.cron(
+  "repair-image-derivatives",
+  "15 * * * *",
+  (internal as any).telemetry.crons.repairImageDerivatives,
+  {}
+);
+
 // Clean up cards that have been soft-deleted for more than 30 days
 // Runs daily at 2:00 AM UTC (off-peak hours)
 crons.cron(

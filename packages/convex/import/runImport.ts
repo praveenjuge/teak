@@ -1,6 +1,5 @@
 "use node";
 
-import type { Readable } from "node:stream";
 import {
   AbortMultipartUploadCommand,
   DeleteObjectCommand,
@@ -17,6 +16,10 @@ import {
   MARKDOWN_CONTENT_MAX_BYTES,
 } from "../shared/markdown";
 import { TELEMETRY_OPERATIONS } from "../shared/telemetry";
+import {
+  callFilesWorkerJson,
+  isFilesWorkerConfigured,
+} from "../storage/filesWorkerClient";
 import { buildR2UserPrefix } from "../storage/r2";
 import {
   recordBackendHandledFailure,
@@ -385,59 +388,43 @@ export const extractImportFiles = internalAction({
       if (!needed.size) {
         return { ok: true };
       }
-      const config = getImportR2Config();
-      const client = createImportS3Client(config);
-      const zip = await openZip(
-        client,
-        config.bucket,
-        job.sourceKey,
-        job.fileSize
-      );
       try {
-        await new Promise<void>((resolve, reject) => {
-          zip.on("error", reject);
-          zip.on("end", resolve);
-          zip.on("entry", (entry) => {
-            void (async () => {
-              const item = needed.get(entry.fileName);
-              if (item) {
-                const key = deterministicFileKey(
-                  job.userId,
-                  jobId,
-                  item._id,
-                  item.fileName ?? "file"
-                );
-                const stream = await new Promise<Readable>((res, rej) =>
-                  zip.openReadStream(entry, (error, value) =>
-                    error || !value
-                      ? rej(error ?? new Error("Unreadable file entry"))
-                      : res(value)
-                  )
-                );
-                await client.send(
-                  new PutObjectCommand({
-                    Bucket: config.bucket,
-                    Key: key,
-                    Body: stream,
-                    ContentLength: entry.uncompressedSize,
-                    ContentType: importStoredContentType(item),
-                  })
-                );
-                await ctx.runMutation(internalAny.dataImport.setExtractedFile, {
-                  itemId: item._id,
-                  key,
-                });
-                needed.delete(entry.fileName);
-              }
-              zip.readEntry();
-            })().catch(reject);
-          });
-          zip.readEntry();
-        });
-        if (needed.size) {
-          return { ok: false, failureClass: "missing_file_entry" };
+        if (!isFilesWorkerConfigured()) {
+          throw new Error("files_worker_not_configured");
         }
-        return { ok: true };
+        const entries = [...needed.values()].map((item) => ({
+          contentType: importStoredContentType(item),
+          destinationKey: deterministicFileKey(
+            job.userId,
+            jobId,
+            item._id,
+            item.fileName ?? "file"
+          ),
+          path: item.filePath,
+        }));
+        const outcome = await callFilesWorkerJson<
+          Array<{ destinationKey: string; path: string }>
+        >({
+          op: "extract-import-files",
+          params: { archiveKey: job.sourceKey, entries },
+        });
+        if (outcome.kind !== "ok") {
+          throw new Error("file_extract_rejected");
+        }
+        for (const extracted of outcome.data) {
+          const item = needed.get(extracted.path);
+          if (!item) {
+            throw new Error("unexpected_extracted_file");
+          }
+          await ctx.runMutation(internalAny.dataImport.setExtractedFile, {
+            itemId: item._id,
+            key: extracted.destinationKey,
+          });
+          needed.delete(extracted.path);
+        }
+        return needed.size
+          ? { ok: false, failureClass: "missing_file_entry" }
+          : { ok: true };
       } catch (error) {
         return {
           ok: false,
@@ -446,8 +433,6 @@ export const extractImportFiles = internalAction({
               ? error.message.slice(0, 160)
               : "file_extract_failed",
         };
-      } finally {
-        zip.close();
       }
     }
   ),

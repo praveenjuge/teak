@@ -25,6 +25,15 @@ const previewFactLabels = (card: CardWithUrls): string[] => {
   if (typeof preview.slideCount === "number") {
     facts.push(`${preview.slideCount} slides`);
   }
+  if (typeof preview.wordCount === "number") {
+    facts.push(`${preview.wordCount.toLocaleString()} words`);
+  }
+  if (typeof preview.headingCount === "number" && preview.headingCount > 0) {
+    facts.push(`${preview.headingCount.toLocaleString()} headings`);
+  }
+  if (typeof preview.lineCount === "number") {
+    facts.push(`${preview.lineCount.toLocaleString()} lines`);
+  }
   if (typeof preview.archiveFileCount === "number") {
     facts.push(`${preview.archiveFileCount} files`);
   }

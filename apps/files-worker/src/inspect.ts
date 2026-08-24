@@ -12,7 +12,7 @@
 import { inflateSync } from "fflate";
 
 const MAX_AI_TEXT_BYTES = 512 * 1024;
-export const MAX_ARCHIVE_ENTRIES = 2000;
+export const MAX_ARCHIVE_ENTRIES = 10_000;
 const MAX_ARCHIVE_ENTRY_BYTES = 512 * 1024;
 const MAX_COMPRESSION_RATIO = 100;
 
@@ -44,6 +44,14 @@ export interface InspectResult {
   text?: string;
 }
 
+const textFacts = (text: string): Record<string, number> => ({
+  characterCount: text.length,
+  headingCount: Array.from(text.matchAll(/^\s{0,3}#{1,6}\s+/gmu)).length,
+  lineCount: text.length === 0 ? 0 : text.split(/\r?\n/u).length,
+  wordCount: Array.from(text.matchAll(/[\p{L}\p{N}]+(?:['’-][\p{L}\p{N}]+)*/gu))
+    .length,
+});
+
 export class InspectSourceMissing extends Error {
   constructor() {
     super("source_not_found");
@@ -68,7 +76,7 @@ export const extractRtfText = (value: string): string =>
 /**
  * Read exactly [offset, offset+length) from an object via ranged get().
  */
-const rangeRead = async (
+export const rangeRead = async (
   bucket: R2Bucket,
   key: string,
   offset: number,
@@ -176,11 +184,7 @@ export const parseCentralDirectory = (
   const entries: ZipCentralEntry[] = [];
   let offset = 0;
   const decoder = new TextDecoder();
-  for (
-    let index = 0;
-    index < Math.min(entryCount, MAX_ARCHIVE_ENTRIES);
-    index += 1
-  ) {
+  for (let index = 0; index < entryCount; index += 1) {
     if (
       offset + 46 > cdBytes.length ||
       u32(cdBytes, offset) !== CD_ENTRY_SIGNATURE
@@ -232,12 +236,99 @@ const canReadArchiveEntry = (entry: ZipCentralEntry): boolean => {
   return entry.uncompressedSize / entry.compressedSize <= MAX_COMPRESSION_RATIO;
 };
 
+export interface ExtractZipEntryRequest {
+  contentType?: string;
+  destinationKey: string;
+  path: string;
+}
+
+export const extractZipEntries = async (
+  bucket: R2Bucket,
+  archiveKey: string,
+  requested: ExtractZipEntryRequest[]
+): Promise<Array<{ bytes: number; destinationKey: string; path: string }>> => {
+  if (requested.length === 0 || requested.length > 50) {
+    throw new Error("invalid_extract_batch");
+  }
+  const meta = await bucket.head(archiveKey);
+  if (!meta || meta.size < 22) {
+    throw new InspectSourceMissing();
+  }
+  const tailLength = Math.min(meta.size, EOCD_SEARCH_WINDOW);
+  const tail = await rangeRead(
+    bucket,
+    archiveKey,
+    meta.size - tailLength,
+    tailLength
+  );
+  const eocd = findEocd(tail);
+  if (!eocd || eocd.cdSize > MAX_CENTRAL_DIRECTORY_BYTES) {
+    throw new Error("archive_parse_failed");
+  }
+  const entries = parseCentralDirectory(
+    await rangeRead(bucket, archiveKey, eocd.cdOffset, eocd.cdSize),
+    eocd.entryCount
+  );
+  const byName = new Map(entries.map((entry) => [entry.name, entry]));
+  const results: Array<{
+    bytes: number;
+    destinationKey: string;
+    path: string;
+  }> = [];
+  for (const item of requested) {
+    const entry = byName.get(item.path);
+    if (
+      !entry ||
+      entry.uncompressedSize > 20 * 1024 * 1024 ||
+      (entry.compressedSize > 0 &&
+        entry.uncompressedSize / entry.compressedSize > MAX_COMPRESSION_RATIO)
+    ) {
+      throw new Error("archive_entry_invalid");
+    }
+    const header = await rangeRead(
+      bucket,
+      archiveKey,
+      entry.localHeaderOffset,
+      LOCAL_HEADER_FIXED_BYTES
+    );
+    if (u32(header, 0) !== LOCAL_HEADER_SIGNATURE) {
+      throw new Error("archive_parse_failed");
+    }
+    const dataStart =
+      entry.localHeaderOffset +
+      LOCAL_HEADER_FIXED_BYTES +
+      u16(header, 26) +
+      u16(header, 28);
+    const bytes = inflateEntryData(
+      await rangeRead(bucket, archiveKey, dataStart, entry.compressedSize),
+      entry.compressionMethod
+    );
+    if (!bytes || bytes.byteLength !== entry.uncompressedSize) {
+      throw new Error("archive_entry_invalid");
+    }
+    await bucket.put(item.destinationKey, bytes, {
+      httpMetadata: {
+        contentType: item.contentType ?? "application/octet-stream",
+      },
+    });
+    results.push({
+      bytes: bytes.byteLength,
+      destinationKey: item.destinationKey,
+      path: item.path,
+    });
+  }
+  return results;
+};
+
 export interface ZipInspection {
   facts: {
     archiveDirectoryCount: number;
     archiveFileCount: number;
+    compressedBytes: number;
     inspectedEntryCount: number;
     slideCount?: number;
+    uncompressedBytes: number;
+    wordCount?: number;
   };
   text: string;
 }
@@ -278,11 +369,15 @@ export const inspectZipRanged = async (
   let archiveDirectoryCount = 0;
   let archiveFileCount = 0;
   let slideCount = 0;
+  let compressedBytes = 0;
+  let uncompressedBytes = 0;
   let textBytes = 0;
   const textParts: string[] = [];
   const decoder = new TextDecoder();
 
   for (const entry of entries.slice(0, MAX_ARCHIVE_ENTRIES)) {
+    compressedBytes += entry.compressedSize;
+    uncompressedBytes += entry.uncompressedSize;
     if (entry.name.endsWith("/")) {
       archiveDirectoryCount += 1;
     } else {
@@ -342,14 +437,18 @@ export const inspectZipRanged = async (
     }
   }
 
+  const text = textParts.join("\n").trim();
   return {
     facts: {
       archiveDirectoryCount,
       archiveFileCount,
+      compressedBytes,
       inspectedEntryCount: entries.length,
       ...(formatId === "powerpoint" ? { slideCount } : {}),
+      ...(text ? { wordCount: textFacts(text).wordCount } : {}),
+      uncompressedBytes,
     },
-    text: textParts.join("\n").trim(),
+    text,
   };
 };
 
@@ -383,6 +482,7 @@ export const runInspect = async (
       facts: {
         colorVariableCount: Array.from(text.matchAll(CSS_COLOR_VARIABLE_REGEX))
           .length,
+        ...textFacts(text),
       },
     };
   }
@@ -393,9 +493,8 @@ export const runInspect = async (
       throw new InspectSourceMissing();
     }
     const decoded = new TextDecoder().decode(bytes.slice(0, MAX_AI_TEXT_BYTES));
-    return {
-      text: rtf ? extractRtfText(decoded).trim() : decoded.trim(),
-    };
+    const text = rtf ? extractRtfText(decoded).trim() : decoded.trim();
+    return { facts: textFacts(text), text };
   }
 
   throw new Error(`invalid_mode:${mode}`);

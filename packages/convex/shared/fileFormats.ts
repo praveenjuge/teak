@@ -53,9 +53,15 @@ export interface FilePreviewFacts {
   animated?: boolean;
   archiveDirectoryCount?: number;
   archiveFileCount?: number;
+  characterCount?: number;
   colorVariableCount?: number;
+  compressedBytes?: number;
+  headingCount?: number;
   inspectedEntryCount?: number;
+  lineCount?: number;
   slideCount?: number;
+  uncompressedBytes?: number;
+  wordCount?: number;
 }
 
 export const MAX_FILE_NAME_LENGTH = 240;

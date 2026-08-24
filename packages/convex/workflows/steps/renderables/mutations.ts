@@ -1,6 +1,31 @@
 import { v } from "convex/values";
 import { internalMutation } from "../../../_generated/server";
-import { filePreviewFactsValidator, imageExifValidator } from "../../../schema";
+import {
+  filePreviewFactsValidator,
+  fileProcessingProvenanceValidator,
+  imageExifValidator,
+} from "../../../schema";
+
+export const updateCardProcessingProvenance = internalMutation({
+  args: {
+    cardId: v.id("cards"),
+    provenance: fileProcessingProvenanceValidator,
+  },
+  returns: v.null(),
+  handler: async (ctx, { cardId, provenance }) => {
+    const card = await ctx.db.get("cards", cardId);
+    if (!card) {
+      return null;
+    }
+    await ctx.db.patch("cards", cardId, {
+      derivativeCheckedAt: Date.now(),
+      derivativeVersion: provenance.transformVersion,
+      fileMetadata: { ...(card.fileMetadata || {}), processing: provenance },
+      updatedAt: Date.now(),
+    });
+    return null;
+  },
+});
 
 /**
  * Update only the fileMetadata dimensions (width/height) for a card.
