@@ -282,14 +282,11 @@ export const buildFilePreviewFactsForKey = async (
   format: FileFormat
 ): Promise<FilePreviewFacts | null> => {
   if (isFilesWorkerConfigured()) {
-    let mode: "zip" | "css" | "pdf" | null = null;
+    let mode: "zip" | "css" | null = null;
     if (["zip", "word", "powerpoint"].includes(format.id)) {
       mode = "zip";
     } else if (format.kind === "tokens" && format.language === "css") {
       mode = "css";
-    } else if (format.id === "pdf") {
-      // Page-count facts come back from the same worker-side pdfium pass.
-      mode = "pdf";
     }
     if (mode) {
       const maxBytes =
