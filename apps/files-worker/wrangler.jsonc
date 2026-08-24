@@ -6,7 +6,11 @@
   "rules": [
     {
       "type": "Data",
-      "globs": ["**/*.wasm"],
+      "globs": [
+        "**/heic_dec.wasm",
+        "**/resvg-wasm/index_bg.wasm",
+        "**/webp_enc_simd.wasm"
+      ],
       "fallthrough": true
     }
   ],
