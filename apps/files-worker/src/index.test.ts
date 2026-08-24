@@ -262,7 +262,11 @@ describe("files worker handler", () => {
       )
     );
     const response = await worker.fetch(
-      new Request(url, { body: new Blob(["hello"]), method: "PUT" }),
+      new Request(url, {
+        body: new Blob(["hello"]),
+        headers: { "content-length": "5" },
+        method: "PUT",
+      }),
       env_,
       { waitUntil: () => undefined } as never
     );
@@ -314,6 +318,51 @@ describe("files worker handler", () => {
         requestId: expect.any(String),
         retryable: false,
       },
+      ok: false,
+      version: FILES_PROTOCOL_VERSION,
+    });
+  });
+
+  test("requires a fixed-length multipart request body", async () => {
+    const env_ = env();
+    const bucket = env_.BUCKET as unknown as FakeBucket;
+    const key = "users/u1/cards/upload/stream.bin";
+    const multipart = bucket.createMultipartUpload(key);
+    const partNumber = 1;
+    const expiresAt = String(Math.floor(Date.now() / 1000) + 600);
+    const url = new URL(
+      `https://files.teakvault.com/__uploads/v1/${multipart.uploadId}/${partNumber}`
+    );
+    url.searchParams.set("key", key);
+    url.searchParams.set("exp", expiresAt);
+    url.searchParams.set(
+      "sig",
+      await hmacSha256Hex(
+        SECRET,
+        buildMultipartPartSigningPayload({
+          expiresAt,
+          key,
+          partNumber,
+          uploadId: multipart.uploadId,
+        })
+      )
+    );
+    const response = await worker.fetch(
+      new Request(url, {
+        body: new ReadableStream({
+          start(controller) {
+            controller.enqueue(new TextEncoder().encode("hello"));
+            controller.close();
+          },
+        }),
+        method: "PUT",
+      }),
+      env_,
+      { waitUntil: () => undefined } as never
+    );
+    expect(response.status).toBe(411);
+    expect(await response.json()).toMatchObject({
+      error: { code: "INVALID_INPUT", retryable: false },
       ok: false,
       version: FILES_PROTOCOL_VERSION,
     });
