@@ -6,12 +6,10 @@
 //   - mode "zip"  → archive stats (+ DOCX/PPTX body text). Uses R2 ranged
 //     reads (EOCD → central directory → selected local entries) so even
 //     multi-GB archives cost kilobytes of memory instead of being buffered.
-//   - mode "pdf"  → page count + bounded first-pages text via pdfium
 //   - mode "css"  → count of color variable declarations
 //   - mode "text" → decoded (optionally RTF-stripped) text for AI analysis
 
 import { inflateSync } from "fflate";
-import { MAX_PDF_BYTES, openPdf } from "./wasm";
 
 const MAX_AI_TEXT_BYTES = 512 * 1024;
 export const MAX_ARCHIVE_ENTRIES = 2000;
@@ -24,8 +22,6 @@ const MAX_CENTRAL_DIRECTORY_BYTES = 32 * 1024 * 1024;
 const EOCD_SEARCH_WINDOW = 22 + 65_536;
 /** Local file header: fixed part only. */
 const LOCAL_HEADER_FIXED_BYTES = 30;
-
-const PDF_MAX_TEXT_PAGES = 30;
 
 const PPTX_SLIDE_REGEX = /^ppt\/slides\/slide\d+\.xml$/iu;
 const DOCX_TEXT_PATH = "word/document.xml";
@@ -41,7 +37,7 @@ const XML_ENTITIES: Record<string, string> = {
 const CSS_COLOR_VARIABLE_REGEX =
   /--[a-z0-9_-]+\s*:\s*(?:#[0-9a-f]{3,8}\b|(?:rgb|hsl|oklab|oklch|lab|lch|color)\([^;]+\))/giu;
 
-export type InspectMode = "css" | "pdf" | "text" | "zip";
+export type InspectMode = "css" | "text" | "zip";
 
 export interface InspectResult {
   facts?: Record<string, number>;
@@ -360,7 +356,7 @@ export const inspectZipRanged = async (
 /**
  * Dispatch one inspect request.
  *
- * @param formatId file-format id (zip/word/powerpoint/css/pdf tokens/etc.) so
+ * @param formatId file-format id (zip/word/powerpoint/css tokens/etc.) so
  *   structured modes know what they are looking at
  * @param rtf when true, text mode applies the RTF control-word stripper
  */
@@ -402,50 +398,5 @@ export const runInspect = async (
     };
   }
 
-  // pdf mode: render-free text extraction + page count via pdfium.
-  const bytes = await boundedRead(
-    bucket,
-    key,
-    Math.min(maxBytes, MAX_PDF_BYTES)
-  );
-  if (!bytes) {
-    throw new InspectSourceMissing();
-  }
-  let doc: Awaited<ReturnType<typeof openPdf>>;
-  try {
-    doc = await openPdf(bytes);
-  } catch {
-    throw new Error("pdf_parse_failed");
-  }
-  try {
-    const pageCount = doc.getPageCount();
-    const parts: string[] = [];
-    let totalChars = 0;
-    for (
-      let pageIndex = 0;
-      pageIndex < Math.min(pageCount, PDF_MAX_TEXT_PAGES) &&
-      totalChars < MAX_AI_TEXT_BYTES;
-      pageIndex += 1
-    ) {
-      const pageText = doc.getPage(pageIndex).getText();
-      if (!pageText) {
-        continue;
-      }
-      totalChars += pageText.length;
-      parts.push(
-        pageText.length > MAX_AI_TEXT_BYTES
-          ? pageText.slice(0, MAX_AI_TEXT_BYTES)
-          : pageText
-      );
-      if (totalChars >= MAX_AI_TEXT_BYTES) {
-        break;
-      }
-    }
-    return {
-      facts: { pageCount },
-      text: parts.join("\n").trim().slice(0, MAX_AI_TEXT_BYTES),
-    };
-  } finally {
-    doc.destroy();
-  }
+  throw new Error(`invalid_mode:${mode}`);
 };

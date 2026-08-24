@@ -11,16 +11,11 @@
 
 import { hmacSha256Hex } from "./r2";
 
-export type FilesWorkerOp =
-  | "process-image"
-  | "process-pdf"
-  | "build-export"
-  | "inspect";
+export type FilesWorkerOp = "process-image" | "build-export" | "inspect";
 
 /** Signed extra-field order per op; empty-string slots are allowed. */
 const OP_PARAM_ORDER: Record<FilesWorkerOp, string[]> = {
   "process-image": ["dest", "preview"],
-  "process-pdf": ["dest"],
   "build-export": ["artifact", "name"],
   inspect: ["mode", "mb", "rtf", "fmt"],
 };
@@ -132,16 +127,6 @@ export interface FilesWorkerProcessImageResult {
   palette: string[];
   previewGenerated: boolean;
   previewKey: string | null;
-  thumbhash: string | null;
-  thumbnailGenerated: boolean;
-  thumbnailKey: string | null;
-  width: number;
-}
-
-export interface FilesWorkerProcessPdfResult {
-  height: number;
-  pageCount: number;
-  palette: string[];
   thumbhash: string | null;
   thumbnailGenerated: boolean;
   thumbnailKey: string | null;

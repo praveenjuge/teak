@@ -7,7 +7,7 @@ import {
   parseCentralDirectory,
   runInspect,
 } from "./inspect";
-import { FakeBucket, readFixture } from "./testsupport";
+import { FakeBucket } from "./testsupport";
 
 describe("zip inspection over ranged reads", () => {
   const buildWordArchive = (): Uint8Array =>
@@ -153,31 +153,6 @@ describe("runInspect dispatch", () => {
     expect(
       (await runInspect(bucket, "notes.rtf", "text", "rtf", 1024, true)).text
     ).toBe("RTF text, line");
-  });
-
-  test("pdf mode extracts page count and text via pdfium", async () => {
-    const pdfBytes = await readFixture("src/fixtures/fixture.pdf");
-    bucket.objects.set("doc.pdf", { bytes: pdfBytes });
-
-    const result = await runInspect(
-      bucket,
-      "doc.pdf",
-      "pdf",
-      "pdf",
-      1024,
-      false
-    );
-    expect(result.facts?.pageCount).toBe(1);
-    expect(result.text).toContain("Teak PDF fixture");
-  });
-
-  test("pdf mode rejects malformed documents with a distinct error", async () => {
-    bucket.objects.set("bad.pdf", {
-      bytes: new TextEncoder().encode("%PDF-1.4 this is not really a pdf"),
-    });
-    await expect(
-      runInspect(bucket, "bad.pdf", "pdf", "pdf", 1024, false)
-    ).rejects.toThrow("pdf_parse_failed");
   });
 
   test("missing sources surface a distinct error", async () => {

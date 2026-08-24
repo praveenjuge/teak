@@ -104,7 +104,6 @@
       "dependencies": {
         "@cf-wasm/photon": "^0.4.0",
         "@discourse/heic": "^1.0.0",
-        "@hyzyla/pdfium": "^2.1.13",
         "@jsquash/webp": "^1.5.0",
         "@resvg/resvg-wasm": "^2.6.2",
         "client-zip": "^2.4.5",
@@ -1025,8 +1024,6 @@
     "@humanwhocodes/module-importer": ["@humanwhocodes/module-importer@1.0.1", "", {}, "sha512-bxveV4V8v5Yb4ncFTT3rPSgZBOpCkjfK0y4oVVVJwIuDVBRMDXrPyXRL988i5ap9m9bnyEEjWfm5WkBmtffLfA=="],
 
     "@humanwhocodes/retry": ["@humanwhocodes/retry@0.4.3", "", {}, "sha512-bV0Tgo9K4hfPCek+aMAn81RppFKv2ySDQeMoSZuvTASywNTnVJCArCZE2FWqpvIatKu7VMRLWlR1EazvVhDyhQ=="],
-
-    "@hyzyla/pdfium": ["@hyzyla/pdfium@2.1.13", "", {}, "sha512-4J+xMFJW6V+jktxor6Lsk/2YdPCpeY+Ga69J98uyNQwYESkAsUDxz8BeFU0ZbZJIJ+fK3J6bm61gmwWnUzVU1g=="],
 
     "@iconify-json/lucide": ["@iconify-json/lucide@1.2.120", "", { "dependencies": { "@iconify/types": "*" } }, "sha512-4ECF24fxag1n5tZlPGrbWuCGqhkwD0rvAzfCXretqQb4KEC8Y6ja3khF8qmvpR1Mk0NQDhBTRK3Fr/YoV8QyJw=="],
 

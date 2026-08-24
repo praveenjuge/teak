@@ -100,8 +100,6 @@ const asBody = (bytes: Uint8Array) => {
 };
 
 /** Stable fake validator mirroring R2's httpEtag behavior. */
-/** Stable fake validator mirroring R2's httpEtag behavior. */
-// biome-ignore lint/suspicious/noBitwiseOperators: FNV-1a hashing is bitwise by nature.
 export const fakeHttpEtag = (bytes: Uint8Array): string => {
   let hash = 0x81_1c_9d_c5;
   for (const byte of bytes) {

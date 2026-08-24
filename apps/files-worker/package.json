@@ -11,7 +11,6 @@
   "dependencies": {
     "@cf-wasm/photon": "^0.4.0",
     "@discourse/heic": "^1.0.0",
-    "@hyzyla/pdfium": "^2.1.13",
     "@jsquash/webp": "^1.5.0",
     "@resvg/resvg-wasm": "^2.6.2",
     "client-zip": "^2.4.5",

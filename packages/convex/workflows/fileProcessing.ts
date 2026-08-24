@@ -323,30 +323,23 @@ export const extractFileTextForAiForKey = async (
 ): Promise<string> => {
   if (isFilesWorkerConfigured()) {
     const isArchive = ["word", "powerpoint"].includes(format.id);
-    const isPdf = format.id === "pdf";
     const isTextKind = ["markdown", "source", "text", "tokens"].includes(
       format.kind
     );
-    if (isArchive || isTextKind || isPdf) {
-      let inspectMode = "text";
-      if (isArchive) {
-        inspectMode = "zip";
-      } else if (isPdf) {
-        inspectMode = "pdf";
-      }
+    if (isArchive || isTextKind) {
       try {
         const url = await buildSignedWorkerOpUrl({
           op: "inspect",
           key,
           params: {
-            mode: inspectMode,
+            mode: isArchive ? "zip" : "text",
             mb: String(
               isTextKind
                 ? MAX_SOURCE_DOWNLOAD_BYTES
                 : MAX_ARCHIVE_DOWNLOAD_BYTES
             ),
             rtf:
-              !(isArchive || isPdf) &&
+              !isArchive &&
               card.fileMetadata?.kind === "text" &&
               format.id === "rtf"
                 ? "1"

@@ -77,7 +77,6 @@ export const filePreviewFactsValidator = v.object({
   archiveFileCount: v.optional(v.number()),
   colorVariableCount: v.optional(v.number()),
   inspectedEntryCount: v.optional(v.number()),
-  pageCount: v.optional(v.number()),
   slideCount: v.optional(v.number()),
 });
 

@@ -12,7 +12,6 @@ import {
   buildSignedWorkerOpUrl,
   callFilesWorkerJson,
   type FilesWorkerProcessImageResult,
-  type FilesWorkerProcessPdfResult,
   isFilesWorkerConfigured,
 } from "../../../storage/filesWorkerClient";
 import { buildR2ObjectKey } from "../../../storage/r2";
@@ -130,87 +129,5 @@ export const generateImageViaFilesWorker = async (
     handled: true,
     generated: outcome.data.thumbnailGenerated,
     thumbnailKey: outcome.data.thumbnailKey ?? undefined,
-  };
-};
-
-/**
- * Fast path for PDFs: renders the first page into a lossy WebP thumbnail and
- * returns page count / palette / thumbhash. Returns null when the worker is
- * unconfigured or signalled a permanent fallback condition.
- */
-export const generatePdfViaFilesWorker = async (
-  ctx: ActionCtx,
-  cardId: string,
-  card: { userId: string; fileKey: string }
-): Promise<WorkerPipelineResult | null> => {
-  if (!isFilesWorkerConfigured()) {
-    return null;
-  }
-
-  const destKey = buildR2ObjectKey({
-    userId: card.userId,
-    cardId,
-    role: "thumbnail",
-  });
-
-  let url: string;
-  try {
-    url = await buildSignedWorkerOpUrl({
-      op: "process-pdf",
-      key: card.fileKey,
-      params: { dest: destKey },
-    });
-  } catch {
-    return null;
-  }
-
-  const outcome = await callFilesWorkerJson<FilesWorkerProcessPdfResult>(url);
-  if (outcome.kind === "fallback") {
-    return null;
-  }
-
-  const data = outcome.data;
-  if (data.thumbnailGenerated && data.thumbnailKey) {
-    await ctx.runMutation(
-      internal.workflows.steps.renderables.mutations.updateCardThumbnail,
-      {
-        cardId,
-        thumbnailKey: data.thumbnailKey,
-        originalWidth: data.width,
-        originalHeight: data.height,
-        ...(data.thumbhash && { placeholderHash: data.thumbhash }),
-      }
-    );
-  } else {
-    await ctx.runMutation(
-      internal.workflows.steps.renderables.mutations.updateCardFileMetadata,
-      { cardId, width: data.width, height: data.height }
-    );
-  }
-
-  // Record the page count for previews.
-  await ctx.runMutation(
-    internal.workflows.steps.renderables.mutations.updateCardFilePreview,
-    { cardId, preview: { pageCount: data.pageCount } }
-  );
-
-  if (
-    Array.isArray(data.palette) &&
-    data.palette.length > 0 &&
-    !hasKnownTinyImageDimensions({ width: data.width, height: data.height })
-  ) {
-    await ctx.runMutation(
-      internal.workflows.aiMetadata.mutations.updateCardColors,
-      {
-        cardId,
-        colors: data.palette.map((hex) => ({ hex })),
-      }
-    );
-  }
-
-  return {
-    handled: true,
-    generated: data.thumbnailGenerated,
-    thumbnailKey: data.thumbnailKey ?? undefined,
   };
 };

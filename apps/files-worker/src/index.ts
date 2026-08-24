@@ -12,7 +12,6 @@ import {
   verifySignedFileRequest,
   verifySignedOpRequest,
 } from "./lib";
-import { PdfSourceMissing, PdfTooLarge, processPdf } from "./pdf";
 
 export interface Env {
   BUCKET: R2Bucket;
@@ -59,8 +58,7 @@ const corsPreflight = (): Response => {
 };
 
 /**
- * Internal signed ops: image processing, PDF rendering, export building, file
- * inspection. Payload shapes are defined in lib.ts / wasm.ts consumers; Convex
+ * Internal signed ops: image processing, export building, file inspection. Payload shapes are defined in lib.ts / wasm.ts consumers; Convex
  * mirrors them in packages/convex/storage/filesWorkerClient.ts.
  */
 const handleOp = async (
@@ -74,7 +72,6 @@ const handleOp = async (
   // stay in lockstep with OP_PARAM_ORDER in filesWorkerClient.ts.
   const fieldNamesByOp: Record<string, string[]> = {
     "process-image": ["dest", "preview"],
-    "process-pdf": ["dest"],
     "build-export": ["artifact", "name"],
     inspect: ["mode", "mb", "rtf", "fmt"],
   };
@@ -105,10 +102,6 @@ const handleOp = async (
         });
         return json(result);
       }
-      case "process-pdf": {
-        const result = await processPdf(env.BUCKET, key, fields[0] || null);
-        return json(result);
-      }
       case "build-export": {
         const [artifactKey, fileName] = fields;
         if (!(artifactKey && isValidArtifactName(fileName ?? ""))) {
@@ -124,12 +117,7 @@ const handleOp = async (
       }
       case "inspect": {
         const [mode, mb, rtf] = fields;
-        if (
-          mode !== "zip" &&
-          mode !== "css" &&
-          mode !== "text" &&
-          mode !== "pdf"
-        ) {
+        if (mode !== "zip" && mode !== "css" && mode !== "text") {
           return json({ error: "invalid_mode" }, 400);
         }
         const maxBytes = Number.parseInt(mb ?? "", 10);
@@ -156,12 +144,11 @@ const handleOp = async (
   } catch (error) {
     if (
       error instanceof ImageSourceMissing ||
-      error instanceof InspectSourceMissing ||
-      error instanceof PdfSourceMissing
+      error instanceof InspectSourceMissing
     ) {
       return json({ error: error.message }, 404);
     }
-    if (error instanceof ImageTooLarge || error instanceof PdfTooLarge) {
+    if (error instanceof ImageTooLarge) {
       // Callers treat this as "fall back to the legacy action path".
       return json({ error: error.message }, 413);
     }
@@ -172,11 +159,7 @@ const handleOp = async (
       return json({ error: error.message }, 413);
     }
     const message = error instanceof Error ? error.message : "unknown_error";
-    if (
-      message === "decode_failed" ||
-      message === "archive_parse_failed" ||
-      message === "pdf_parse_failed"
-    ) {
+    if (message === "decode_failed" || message === "archive_parse_failed") {
       return json({ error: message }, 422);
     }
     console.error(`[files-worker] op ${op} failed`, error);

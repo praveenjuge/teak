@@ -1,7 +1,7 @@
 # @teak/files-worker
 
 Serves private card files from `files.teakvault.com` and runs internal file
-ops (image/PDF processing, export building, bounded inspection) at the edge.
+ops (image processing, export building, bounded inspection) at the edge.
 
 The Convex backend mints long-lived HMAC-signed URLs
 (`packages/convex/storage/r2.ts` → `buildSignedWorkerFileUrl`). This worker
@@ -26,9 +26,6 @@ sides in lockstep):
   applies EXIF orientation, optionally writes bounded lossy-WebP thumbnail +
   preview derivatives back to R2, and returns dimensions, dominant-color
   palette, EXIF facts, and a thumbhash placeholder (`src/image.ts`).
-- `op=process-pdf` — renders a PDF's first page via pdfium into a lossy WebP
-  thumbnail and returns page count, dimensions, palette, and thumbhash
-  (`src/pdf.ts`).
 - `op=build-export` — streams a manifest-described set of objects through
   client-zip into a multipart-uploaded ZIP artifact (`src/export.ts`).
 - `op=inspect` — bounded inspection returning facts or AI text without the

@@ -1,5 +1,5 @@
 // Edge codec loaders for the formats photon cannot handle natively (HEIC,
-// SVG, PDF) and the lossy WebP encoder used for all derived images.
+// SVG) and the lossy WebP encoder used for all derived images.
 //
 // Every codec's WASM module is imported statically so Wrangler bundles it via
 // the Data rule in wrangler.jsonc; initialization happens lazily on first use
@@ -7,7 +7,6 @@
 // resolve in each runtime.
 
 import heicDecWasm from "@discourse/heic/codec/dec/heic_dec.wasm";
-import pdfiumWasm from "@hyzyla/pdfium/pdfium.wasm";
 import webpEncWasm from "@jsquash/webp/codec/enc/webp_enc_simd.wasm";
 import resvgWasm from "@resvg/resvg-wasm/index_bg.wasm";
 
@@ -61,9 +60,6 @@ const memoize = <T>(load: () => Promise<T>): (() => Promise<T>) => {
     return promise;
   };
 };
-
-/** Rendering needs the whole document; refuse larger PDFs (shared with inspect). */
-export const MAX_PDF_BYTES = 25 * 1024 * 1024;
 
 /* ------------------------------------------------------------------ *
  * Lossy WebP encoding (@jsquash/webp — libwebp).
@@ -199,96 +195,4 @@ export const renderSvgToPng = async (
   } finally {
     natural.free();
   }
-};
-
-/* ------------------------------------------------------------------ *
- * PDF rendering + text extraction (@hyzyla/pdfium — PDFium, MIT).
- * ------------------------------------------------------------------ */
-
-export interface OpenedPdfPage {
-  /** Extracted text of the page (synchronous inside pdfium). */
-  getText: () => string;
-  getOriginalSize: () => { originalHeight: number; originalWidth: number };
-  /** Renders the page to RGBA pixels bounded by targetWidth. */
-  renderToRgba: (targetWidth: number) => Promise<DecodedRgbaImage>;
-}
-
-export interface OpenedPdfDocument {
-  destroy: () => void;
-  getPage: (index: number) => OpenedPdfPage;
-  getPageCount: () => number;
-}
-
-interface PdfiumLibraryLike {
-  destroy: () => void;
-  loadDocument: (data: Uint8Array) => Promise<{
-    destroy: () => void;
-    getPageCount: () => number;
-    getPage: (index: number) => {
-      destroy?: () => void;
-      getOriginalSize: () => { originalHeight: number; originalWidth: number };
-      getText: () => string;
-      render: (options: {
-        height?: number;
-        scale?: number;
-        transparent?: boolean;
-        width?: number;
-      }) => Promise<{ data: Uint8Array; height: number; width: number }>;
-    };
-  }>;
-}
-
-const loadPdfiumLibrary = memoize(async (): Promise<PdfiumLibraryLike> => {
-  const { PDFiumLibrary } = await import("@hyzyla/pdfium");
-  const library = await PDFiumLibrary.init({
-    wasmBinary: await resolveWasmBytes(pdfiumWasm),
-  });
-  return library as unknown as PdfiumLibraryLike;
-});
-
-/** PDFium bitmaps are BGRA; photon expects RGBA. */
-const bgraToRgba = (data: Uint8Array): Uint8Array => {
-  const rgba = new Uint8Array(data.length);
-  for (let offset = 0; offset + 3 < data.length; offset += 4) {
-    rgba[offset] = data[offset + 2];
-    rgba[offset + 1] = data[offset + 1];
-    rgba[offset + 2] = data[offset];
-    rgba[offset + 3] = data[offset + 3];
-  }
-  return rgba;
-};
-
-export const openPdf = async (
-  bytes: Uint8Array
-): Promise<OpenedPdfDocument> => {
-  const library = await loadPdfiumLibrary();
-  // pdfium's loadDocument requires a typed array view, not a bare buffer.
-  const doc = await library.loadDocument(bytes.slice());
-
-  return {
-    getPageCount: () => doc.getPageCount(),
-    getPage: (pageIndex) => {
-      const page = doc.getPage(pageIndex);
-      return {
-        getOriginalSize: () => page.getOriginalSize(),
-        getText: () => page.getText(),
-        renderToRgba: async (targetWidth) => {
-          // The bitmap must be fully materialized before the underlying page
-          // memory goes away, so the render is awaited here and the page is
-          // released by the document's destroy().
-          const bitmap = await page.render({ width: targetWidth });
-          return {
-            pixels: bgraToRgba(bitmap.data),
-            height: bitmap.height,
-            width: bitmap.width,
-          };
-        },
-      };
-    },
-    destroy: () => {
-      // Only the document is released per request; the pdfium library/wasm
-      // stays alive for the isolate lifetime (it is memoized above).
-      doc.destroy();
-    },
-  };
 };

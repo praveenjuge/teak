@@ -1,11 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import worker, { type Env } from "./index";
 import { buildSigningPayload, hmacSha256Hex } from "./lib";
-import {
-  FakeBucket,
-  fakeHttpEtag,
-  makePng,
-} from "./testsupport";
+import { FakeBucket, fakeHttpEtag, makePng } from "./testsupport";
 
 const SECRET = "test-secret";
 

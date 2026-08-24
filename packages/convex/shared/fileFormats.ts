@@ -55,7 +55,6 @@ export interface FilePreviewFacts {
   archiveFileCount?: number;
   colorVariableCount?: number;
   inspectedEntryCount?: number;
-  pageCount?: number;
   slideCount?: number;
 }
 
