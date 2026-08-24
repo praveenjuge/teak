@@ -239,7 +239,7 @@ export interface BackendSpanInput extends TelemetryContextInput {
 
 export const isRetryableBackendError = (error: unknown): boolean => {
   const message = error instanceof Error ? error.message : String(error);
-  return /retry|waiting|not yet|rate.?limit|too many requests|tokens per (?:day|minute)|\b(?:tpd|tpm|429)\b/iu.test(
+  return /retry|waiting|not yet|no (?:object|output) generated|failed to validate json|response did not match schema|rate.?limit|too many requests|tokens per (?:day|minute)|\b(?:tpd|tpm|429)\b/iu.test(
     message
   );
 };

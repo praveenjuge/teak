@@ -271,6 +271,26 @@ describe("backend Sentry OpenTelemetry", () => {
     );
   });
 
+  test("keeps transient empty AI output out of the issue feed", async () => {
+    const emptyOutputError = new Error("No output generated.");
+
+    await expect(
+      telemetry.withBackendSpan(
+        {
+          name: "ai.metadata",
+          operation: "gen_ai.generate",
+          stage: "ai_metadata",
+          surface: "backend",
+        },
+        () => Promise.reject(emptyOutputError)
+      )
+    ).rejects.toBe(emptyOutputError);
+
+    expect(spanSetAttribute).toHaveBeenCalledWith("retryable", true);
+    expect(sentryCaptureException).not.toHaveBeenCalled();
+    expect(sentryLogError).not.toHaveBeenCalled();
+  });
+
   test("counts a thrown workflow failure exactly once", async () => {
     const workflowError = new Error("workflow step failed");
 

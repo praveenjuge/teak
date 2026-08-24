@@ -51,6 +51,7 @@ export const generateTranscript = async (
   audioUrl: string,
   mimeHint?: string
 ) => {
+  let reportedBySpan = false;
   try {
     // Fetch the audio so we can provide a proper filename and mime type
     const response = await fetch(audioUrl);
@@ -72,6 +73,7 @@ export const generateTranscript = async (
 
     // Use Whisper large v3 turbo on Cloudflare Workers AI for fast,
     // cost-effective transcription (billed per audio minute)
+    reportedBySpan = true;
     return await withBackendSpan(
       {
         attributes: {
@@ -100,10 +102,12 @@ export const generateTranscript = async (
       }
     );
   } catch (error) {
-    recordBackendHandledFailure(error, {
-      operation: "gen_ai.generate",
-      stage: "transcript",
-    });
+    if (!reportedBySpan) {
+      recordBackendHandledFailure(error, {
+        operation: "gen_ai.generate",
+        stage: "transcript",
+      });
+    }
     return null;
   }
 };

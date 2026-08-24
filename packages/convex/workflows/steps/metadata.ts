@@ -23,7 +23,7 @@ import {
   generateImageMetadata,
   generateLinkMetadata,
   generateTextMetadata,
-  isAiProviderCapacityError,
+  isAiMetadataDeferredError,
 } from "../aiMetadata/generators";
 import { generateTranscript } from "../aiMetadata/transcript";
 import { extractFileTextForAiForKey } from "../fileProcessing";
@@ -366,16 +366,17 @@ export async function generateHandler(
         break;
     }
   } catch (error) {
-    if (!isAiProviderCapacityError(error)) {
+    if (!isAiMetadataDeferredError(error)) {
       throw error;
     }
-    console.warn("[workflow/metadata] AI capacity unavailable; deferring", {
+    console.warn("[workflow/metadata] AI metadata unavailable; deferring", {
       cardId,
       cardType,
     });
-    // Capacity failures are temporary. Leave metadata incomplete so the
-    // bounded periodic backfill can recover the card after provider capacity
-    // returns without multiplying a daily-quota failure into immediate calls.
+    // Provider capacity, malformed output, and not-yet-rasterized image inputs
+    // are recoverable. Leave metadata incomplete so the bounded periodic
+    // backfill can retry without multiplying one transient failure across the
+    // workflow retry budget.
     return {
       aiTags: [],
       aiSummary: undefined,

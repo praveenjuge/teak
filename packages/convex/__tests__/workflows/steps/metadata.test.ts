@@ -273,6 +273,20 @@ describe("metadata handler", () => {
       expect(mockRunMutation).not.toHaveBeenCalled();
     });
 
+    test("defers metadata after bounded empty-output retries", async () => {
+      mockRunQuery.mockResolvedValue({ _id: "c1", content: "content" });
+      aiMocks.generateText.mockRejectedValue(new Error("No output generated."));
+
+      const result = await generateHandler(ctx, {
+        cardId: "c1",
+        cardType: "text",
+      });
+
+      expect(result.mode).toBe("skipped");
+      expect(aiMocks.generateText).toHaveBeenCalledTimes(3);
+      expect(mockRunMutation).not.toHaveBeenCalled();
+    });
+
     test("keeps image metadata retryable when vision capacity is exhausted", async () => {
       mockRunQuery.mockResolvedValue({
         _id: "c1",

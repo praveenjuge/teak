@@ -28,6 +28,7 @@ let maxOutputTokens: number;
 let maxRetries: number;
 let maxValidationRetries: number;
 let isAiProviderCapacityError: any;
+let isAiMetadataDeferredError: any;
 
 const mockResponse = {
   output: {
@@ -59,6 +60,7 @@ describe("aiMetadata generators", () => {
     maxRetries = mod.MAX_AI_METADATA_RETRIES;
     maxValidationRetries = mod.MAX_AI_METADATA_VALIDATION_RETRIES;
     isAiProviderCapacityError = mod.isAiProviderCapacityError;
+    isAiMetadataDeferredError = mod.isAiMetadataDeferredError;
   });
 
   afterAll(() => {
@@ -103,6 +105,26 @@ describe("aiMetadata generators", () => {
         maxOutputTokens,
       })
     );
+  });
+
+  test("defers unsupported SVG input before calling the vision provider", async () => {
+    mockImageDownload.mockResolvedValueOnce({
+      ok: true,
+      headers: { get: () => "image/svg+xml" },
+      arrayBuffer: async () => new ArrayBuffer(8),
+    });
+
+    let caught: unknown;
+    try {
+      await generateImageMetadata("https://img.com/vector.svg");
+    } catch (error) {
+      caught = error;
+    }
+
+    expect(caught).toBeInstanceOf(Error);
+    expect((caught as Error).message).toContain("raster thumbnail");
+    expect(isAiMetadataDeferredError(caught)).toBe(true);
+    expect(mockGenerateText).not.toHaveBeenCalled();
   });
 
   test("generateLinkMetadata calls generateText with link model", async () => {
@@ -222,6 +244,9 @@ describe("aiMetadata generators", () => {
         new Error("No object generated: response did not match schema")
       )
     ).toBe(false);
+    expect(isAiMetadataDeferredError(new Error("No output generated."))).toBe(
+      true
+    );
   });
 
   test("stops after the bounded JSON validation retry budget", async () => {

@@ -12,6 +12,13 @@ const tinyGif = Uint8Array.from(
   Buffer.from("R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw==", "base64")
 );
 
+export const validWebmAudio = Uint8Array.from(
+  Buffer.from(
+    "GkXfo59ChoEBQveBAULygQRC84EIQoKEd2VibUKHgQRChYECGFOAZwEAAAAAAAKlEU2bdLpNu4tTq4QVSalmU6yBoU27i1OrhBZUrmtTrIHYTbuMU6uEElTDZ1OsggFCTbuMU6uEHFO7a1OsggKP7AEAAAAAAABZAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAVSalmsirXsYMPQkBNgI1MYXZmNjIuMTIuMTAyV0GNTGF2ZjYyLjEyLjEwMkSJiEBwIAAAAAAAFlSua+WuAQAAAAAAAFzXgQFzxYjr0TbJL9/JPpyBACK1nIN1bmSIgQCGhkFfT1BVU1aqg2MuoFa7hATEtACDgQLhkZ+BAbWIQM9AAAAAAABiZIEQY6KTT3B1c0hlYWQBATgBgD4AAAAAABJUw2f9c3OgY8CAZ8iaRaOHRU5DT0RFUkSHjUxhdmY2Mi4xMi4xMDJzc9djwItjxYjr0TbJL9/JPmfIokWjh0VOQ09ERVJEh5VMYXZjNjIuMjguMTAyIGxpYm9wdXNnyKFFo4hEVVJBVElPTkSHkzAwOjAwOjAwLjI1ODAwMDAwMAAfQ7Z1QMXngQCjjIEAAIBIC+TBNuzFgKONgQAVgEgHyXIn4UTqUKOMgQApgEgHyXnIyVfAo4yBAD2ASAfJecjJV8CjjIEAUYBIB8l5yMlXwKOMgQBlgEgHyXnIyVfAo4yBAHmASAfJecjJV8CjjIEAjYBIB8l5yMlXwKOMgQChgEgHyXnIyVfAo4yBALWASAfJecjJV8CjjIEAyYBIB8l5yMlXwKOMgQDdgEgHyXnIyVfAo4yBAO2ASAfJecjJV8CjjIEA8QBIB8l5yMlXwJuBEXWigzVn4BxTu2uRu4+zgQC3iveBAfGCAcTwgQM=",
+    "base64"
+  )
+);
+
 export const expandedFileFixtures = (marker: string): FileFixture[] => [
   {
     bytes: strToU8(`export const marker = "${marker}";`),
@@ -74,7 +81,7 @@ export const expandedFileFixtures = (marker: string): FileFixture[] => [
     mimeType: "application/octet-stream",
   },
   {
-    bytes: strToU8(`audio-recording-${marker}`),
+    bytes: validWebmAudio,
     fileName: `${marker}-recording.webm`,
     mimeType: "audio/webm",
   },

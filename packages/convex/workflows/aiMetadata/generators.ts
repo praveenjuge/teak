@@ -40,10 +40,25 @@ const JSON_VALIDATION_ERROR =
   /failed to validate json|failed_generation|no (?:object|output) generated|response did not match schema|type validation failed/iu;
 const PROVIDER_CAPACITY_ERROR =
   /\b(?:rate limit(?:ed| reached)?|too many requests|tokens per (?:day|minute)|tpd|tpm|status(?: code)? 429|429)\b/iu;
+const RASTER_THUMBNAIL_PENDING_ERROR = /waiting for a raster thumbnail/iu;
+const SUPPORTED_VISION_MEDIA_TYPES = new Set([
+  "image/jpeg",
+  "image/png",
+  "image/webp",
+]);
 
 export const isAiProviderCapacityError = (error: unknown): boolean => {
   const message = error instanceof Error ? error.message : String(error);
   return PROVIDER_CAPACITY_ERROR.test(message);
+};
+
+export const isAiMetadataDeferredError = (error: unknown): boolean => {
+  const message = error instanceof Error ? error.message : String(error);
+  return (
+    PROVIDER_CAPACITY_ERROR.test(message) ||
+    JSON_VALIDATION_ERROR.test(message) ||
+    RASTER_THUMBNAIL_PENDING_ERROR.test(message)
+  );
 };
 
 const validationRetryPrompt = (prompt: string, attempt: number): string => {
@@ -164,17 +179,22 @@ export const resolveImageAnalysisInput = async (
       `Failed to fetch image: ${response.status} ${response.statusText}`
     );
   }
-  const buffer = await response.arrayBuffer();
   const contentType = response.headers
     .get("content-type")
     ?.split(";")[0]
-    ?.trim();
+    ?.trim()
+    .toLowerCase();
+  if (!(contentType && SUPPORTED_VISION_MEDIA_TYPES.has(contentType))) {
+    throw new Error(
+      `Image analysis is waiting for a raster thumbnail (received ${
+        contentType || "unknown media type"
+      })`
+    );
+  }
+  const buffer = await response.arrayBuffer();
   return {
     data: new Uint8Array(buffer),
-    // Omit the media type unless it is actually an image so the SDK falls
-    // back to its default instead of sending something invalid.
-    mediaType:
-      contentType && /^image\//u.test(contentType) ? contentType : undefined,
+    mediaType: contentType,
   };
 };
 

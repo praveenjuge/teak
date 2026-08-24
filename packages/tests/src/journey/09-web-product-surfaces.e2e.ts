@@ -4,6 +4,7 @@ import { expect, type Page, test } from "@playwright/test";
 import { MAX_FILE_SIZE } from "@teak/convex/shared";
 import { strFromU8, strToU8, unzipSync, zipSync } from "fflate";
 import { apiFetch } from "../helpers/api";
+import { validWebmAudio } from "../helpers/file-formats";
 import { clientFor } from "../helpers/prod";
 import { readState, updateState } from "../helpers/run-state";
 
@@ -325,7 +326,7 @@ test("web uploads and paste-created files complete", async ({
     },
     { buffer: pdf, mimeType: "application/pdf", name: `${marker}.pdf` },
     {
-      buffer: Buffer.from("teak audio"),
+      buffer: Buffer.from(validWebmAudio),
       mimeType: "audio/webm",
       name: `${marker}.webm`,
     },
