@@ -163,6 +163,31 @@ describe("files worker handler", () => {
     });
   });
 
+  test("returns a controlled fallback for malformed process-image sources", async () => {
+    const env_ = env();
+    (env_.BUCKET as unknown as FakeBucket).objects.set(
+      "users/u1/cards/broken/file.jpg",
+      { bytes: new Uint8Array([0xff, 0xd8, 0xff, 0xd9]) }
+    );
+    const response = await worker.fetch(
+      await signedOpRequest("process-image", {
+        sourceKey: "users/u1/cards/broken/file.jpg",
+      }),
+      env_,
+      { waitUntil: () => undefined } as never
+    );
+    expect(response.status).toBe(415);
+    expect(await response.json()).toMatchObject({
+      error: {
+        code: "UNSUPPORTED",
+        message: "decode_failed",
+        retryable: false,
+      },
+      ok: false,
+      version: FILES_PROTOCOL_VERSION,
+    });
+  });
+
   test("returns typed errors for wrong internal API methods", async () => {
     for (const [path, allow] of [
       ["/__ops/v1", "POST"],

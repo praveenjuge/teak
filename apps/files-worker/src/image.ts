@@ -35,6 +35,12 @@ export const MAX_SVG_SOURCE_BYTES = 10 * 1024 * 1024;
 // risking an OOM kill mid-decode.
 export const MAX_INPUT_BYTES = 30 * 1024 * 1024;
 
+// Photon expands rasters to RGBA buffers. Keep the largest decoded image well
+// below the worker's 128 MB memory ceiling (source bytes and encoder buffers
+// are live at the same time). This also prevents decompression-bomb images
+// from reaching the WASM decoder.
+export const MAX_DECODE_PIXELS = 16 * 1024 * 1024;
+
 const MAX_COLORS = 5;
 const SAMPLE_TARGET = 4000;
 const CHANNEL_PRECISION = 16;
@@ -51,6 +57,12 @@ export class ImageSourceMissing extends Error {
 export class ImageTooLarge extends Error {
   constructor() {
     super("source_too_large");
+  }
+}
+
+export class ImageDecodeFailed extends Error {
+  constructor() {
+    super("decode_failed");
   }
 }
 
@@ -298,6 +310,128 @@ const HEIC_BRANDS = [
 
 export type DetectedImageFormat = "heic" | "raster" | "svg";
 
+interface ImageDimensions {
+  height: number;
+  width: number;
+}
+
+const isJpegStartOfFrame = (marker: number): boolean =>
+  marker >= 0xc0 && marker <= 0xcf && ![0xc4, 0xc8, 0xcc].includes(marker);
+
+/** Read dimensions without asking Photon to allocate the decoded pixel buffer. */
+export const readRasterDimensions = (
+  bytes: Uint8Array
+): ImageDimensions | null => {
+  // PNG: signature, then IHDR width/height.
+  if (
+    bytes.length >= 24 &&
+    bytes
+      .subarray(0, 8)
+      .every(
+        (value, index) => value === [137, 80, 78, 71, 13, 10, 26, 10][index]
+      ) &&
+    bytes[12] === 73 &&
+    bytes[13] === 72 &&
+    bytes[14] === 68 &&
+    bytes[15] === 82
+  ) {
+    const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+    return { height: view.getUint32(20), width: view.getUint32(16) };
+  }
+
+  // GIF stores its logical screen dimensions as little-endian uint16 values.
+  if (
+    bytes.length >= 10 &&
+    (new TextDecoder().decode(bytes.subarray(0, 6)) === "GIF87a" ||
+      new TextDecoder().decode(bytes.subarray(0, 6)) === "GIF89a")
+  ) {
+    const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+    return { height: view.getUint16(8, true), width: view.getUint16(6, true) };
+  }
+
+  // JPEG dimensions are carried by a Start Of Frame segment. Walk segments
+  // defensively so truncated or malformed files simply fall through to the
+  // decoder's typed failure instead of throwing while sniffing.
+  if (bytes.length >= 4 && bytes[0] === 0xff && bytes[1] === 0xd8) {
+    let offset = 2;
+    while (offset + 3 < bytes.length) {
+      if (bytes[offset] !== 0xff) {
+        return null;
+      }
+      while (offset < bytes.length && bytes[offset] === 0xff) {
+        offset += 1;
+      }
+      const marker = bytes[offset++];
+      if (marker === undefined || marker === 0xd9 || marker === 0xda) {
+        break;
+      }
+      if (marker >= 0xd0 && marker <= 0xd7) {
+        continue;
+      }
+      if (offset + 1 >= bytes.length) {
+        return null;
+      }
+      const segmentLength = new DataView(
+        bytes.buffer,
+        bytes.byteOffset + offset,
+        2
+      ).getUint16(0);
+      if (segmentLength < 2 || offset + segmentLength > bytes.length) {
+        return null;
+      }
+      if (isJpegStartOfFrame(marker) && segmentLength >= 7) {
+        const view = new DataView(
+          bytes.buffer,
+          bytes.byteOffset + offset,
+          segmentLength
+        );
+        return { height: view.getUint16(3), width: view.getUint16(5) };
+      }
+      offset += segmentLength;
+    }
+  }
+
+  // WebP extended headers expose dimensions directly. VP8/VP8L are left to
+  // Photon because their compact bit layouts are not needed for the guard.
+  if (
+    bytes.length >= 30 &&
+    bytes[0] === 0x52 &&
+    bytes[1] === 0x49 &&
+    bytes[2] === 0x46 &&
+    bytes[3] === 0x46 &&
+    bytes[8] === 0x57 &&
+    bytes[9] === 0x45 &&
+    bytes[10] === 0x42 &&
+    bytes[11] === 0x50 &&
+    bytes[12] === 0x56
+  ) {
+    const width =
+      1 + bytes[24] + (bytes[25] ?? 0) * 256 + (bytes[26] ?? 0) * 65_536;
+    const height =
+      1 + bytes[27] + (bytes[28] ?? 0) * 256 + (bytes[29] ?? 0) * 65_536;
+    return { height, width };
+  }
+
+  return null;
+};
+
+const enforceDecodedPixelBudget = (
+  dimensions: ImageDimensions | null
+): void => {
+  if (!dimensions) {
+    return;
+  }
+  const { height, width } = dimensions;
+  if (
+    !(Number.isSafeInteger(width) && Number.isSafeInteger(height)) ||
+    width <= 0 ||
+    height <= 0 ||
+    width > MAX_DECODE_PIXELS / height
+  ) {
+    throw new ImageTooLarge();
+  }
+};
+
 export const detectImageFormat = (
   bytes: Uint8Array,
   maxSvgBytes = MAX_SVG_SOURCE_BYTES
@@ -338,14 +472,14 @@ const decodeSource = async (
   bytes: Uint8Array
 ): Promise<{ decoded: PhotonImage; sourceForExif: Uint8Array }> => {
   if (format === "svg") {
-    const png = await renderSvgToPng(new TextDecoder().decode(bytes));
     try {
+      const png = await renderSvgToPng(new TextDecoder().decode(bytes));
       return {
         decoded: PhotonImage.new_from_byteslice(png.bytes),
         sourceForExif: bytes,
       };
     } catch {
-      throw new Error("decode_failed");
+      throw new ImageDecodeFailed();
     }
   }
 
@@ -354,21 +488,23 @@ const decodeSource = async (
     try {
       rgba = await decodeHeicToRgba(bytes);
     } catch {
-      throw new Error("decode_failed");
+      throw new ImageDecodeFailed();
     }
+    enforceDecodedPixelBudget(rgba);
     return {
       decoded: new PhotonImage(rgba.pixels, rgba.width, rgba.height),
       sourceForExif: bytes,
     };
   }
 
+  enforceDecodedPixelBudget(readRasterDimensions(bytes));
   try {
     return {
       decoded: PhotonImage.new_from_byteslice(bytes),
       sourceForExif: bytes,
     };
   } catch {
-    throw new Error("decode_failed");
+    throw new ImageDecodeFailed();
   }
 };
 
@@ -467,6 +603,34 @@ const computeFit = (
   return { height: Math.max(1, targetHeight), width: Math.max(1, targetWidth) };
 };
 
+// The Photon WASM module is isolate-global and retains Rust-owned image state
+// across awaits. Serializing image lifetimes avoids overlapping large decode /
+// resize / free sequences, which otherwise can trigger wasm-bindgen borrow
+// panics under concurrent requests.
+let imageProcessingTail = Promise.resolve();
+
+const withImageProcessingLock = async <T>(
+  operation: () => Promise<T>
+): Promise<T> => {
+  const previous = imageProcessingTail;
+  let release!: () => void;
+  imageProcessingTail = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  await previous;
+  try {
+    return await operation();
+  } finally {
+    release();
+  }
+};
+
+const isPhotonFailure = (error: unknown): boolean =>
+  error instanceof Error &&
+  (error.message === "Invalid array buffer length" ||
+    error.message ===
+      "attempted to take ownership of Rust value while it was borrowed");
+
 /**
  * Run the combined decode → orient → derive pipeline.
  *
@@ -475,7 +639,7 @@ const computeFit = (
  * @param opts.previewDestKey when non-null and the original exceeds the
  *   preview bounds, an additional bounded preview is written there.
  */
-export const processImage = async (
+const processImageUnlocked = async (
   bucket: R2Bucket,
   srcKey: string,
   destKey: string | null,
@@ -661,7 +825,35 @@ export const processImage = async (
         paletteSource.free();
       }
     } finally {
-      oriented.free();
+      try {
+        oriented.free();
+      } finally {
+        // Rotations return a new PhotonImage and leave the decoded source
+        // allocated. Release that source as well; flips keep the same object.
+        if (decoded !== oriented) {
+          decoded.free();
+        }
+      }
     }
   }
 };
+
+export const processImage = (
+  bucket: R2Bucket,
+  srcKey: string,
+  destKey: string | null,
+  opts?: { previewDestKey?: string | null }
+): Promise<ProcessImageResult> =>
+  withImageProcessingLock(async () => {
+    try {
+      return await processImageUnlocked(bucket, srcKey, destKey, opts);
+    } catch (error) {
+      // Photon reports malformed/unsupported raster bytes as low-level WASM
+      // exceptions. Convert those into the same controlled fallback as an
+      // explicit decode failure instead of reporting a user-input 500.
+      if (isPhotonFailure(error)) {
+        throw new ImageDecodeFailed();
+      }
+      throw error;
+    }
+  });

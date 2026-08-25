@@ -1,9 +1,12 @@
 import { describe, expect, test } from "bun:test";
 import {
   detectImageFormat,
+  ImageDecodeFailed,
   ImageSourceMissing,
   ImageTooLarge,
+  MAX_DECODE_PIXELS,
   processImage,
+  readRasterDimensions,
 } from "./image";
 import { FakeBucket, makePng, readFixture } from "./testsupport";
 
@@ -168,9 +171,68 @@ describe("process-image op", () => {
       ImageTooLarge
     );
   });
+
+  test("rejects decompression-bomb dimensions before Photon decodes them", async () => {
+    const bucket = new FakeBucket();
+    const header = new Uint8Array(24);
+    header.set([137, 80, 78, 71, 13, 10, 26, 10], 0);
+    header.set([0, 0, 0, 13, 73, 72, 68, 82], 8);
+    const view = new DataView(header.buffer);
+    view.setUint32(16, MAX_DECODE_PIXELS);
+    view.setUint32(20, 2);
+    bucket.objects.set("bomb.png", { bytes: header });
+
+    await expect(processImage(bucket, "bomb.png", null)).rejects.toBeInstanceOf(
+      ImageTooLarge
+    );
+  });
+
+  test("classifies malformed raster bytes as a decode failure", async () => {
+    const bucket = new FakeBucket();
+    bucket.objects.set("broken.jpg", {
+      bytes: new Uint8Array([0xff, 0xd8, 0xff, 0xd9]),
+    });
+
+    await expect(
+      processImage(bucket, "broken.jpg", null)
+    ).rejects.toBeInstanceOf(ImageDecodeFailed);
+  });
+
+  test("serializes concurrent large-image processing", async () => {
+    const bytes = makePng(4000, 3000);
+    const jobs = Array.from({ length: 3 }, (_, index) => {
+      const bucket = new FakeBucket();
+      const sourceKey = `concurrent-${index}.png`;
+      bucket.objects.set(sourceKey, { bytes });
+      return processImage(bucket, sourceKey, `dest/${index}.webp`, {
+        previewDestKey: `preview/${index}.webp`,
+      });
+    });
+
+    const results = await Promise.all(jobs);
+    expect(results.every((result) => result.thumbnailGenerated)).toBe(true);
+  });
 });
 
 describe("input format detection", () => {
+  test("reads PNG dimensions without decoding pixels", () => {
+    const header = new Uint8Array(24);
+    header.set([137, 80, 78, 71, 13, 10, 26, 10], 0);
+    header.set([0, 0, 0, 13, 73, 72, 68, 82], 8);
+    const view = new DataView(header.buffer);
+    view.setUint32(16, 1200);
+    view.setUint32(20, 630);
+    expect(readRasterDimensions(header)).toEqual({ height: 630, width: 1200 });
+  });
+
+  test("reads JPEG dimensions from a start-of-frame segment", () => {
+    const jpeg = new Uint8Array([
+      0xff, 0xd8, 0xff, 0xc0, 0x00, 0x0b, 0x08, 0x02, 0x80, 0x05, 0x00, 0x01,
+      0x01, 0x11, 0x00, 0xff, 0xd9,
+    ]);
+    expect(readRasterDimensions(jpeg)).toEqual({ height: 640, width: 1280 });
+  });
+
   test("detects HEIC containers by ftyp brand", () => {
     const header = new TextEncoder().encode("....ftypheic........");
     expect(detectImageFormat(header)).toBe("heic");

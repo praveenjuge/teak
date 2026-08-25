@@ -11,7 +11,12 @@ import {
   ExportManifestInvalid,
   ExportTooLarge,
 } from "./export";
-import { ImageSourceMissing, ImageTooLarge, processImage } from "./image";
+import {
+  ImageDecodeFailed,
+  ImageSourceMissing,
+  ImageTooLarge,
+  processImage,
+} from "./image";
 import {
   extractZipEntries,
   type InspectMode,
@@ -315,6 +320,9 @@ export const handleInternalOp = async (
     }
     if (error instanceof ImageTooLarge || error instanceof ExportTooLarge) {
       return fail(requestId, "PAYLOAD_TOO_LARGE", error.message, 413);
+    }
+    if (error instanceof ImageDecodeFailed) {
+      return fail(requestId, "UNSUPPORTED", error.message, 415);
     }
     if (error instanceof ExportManifestInvalid) {
       return fail(requestId, "INVALID_INPUT", error.message, 400);
