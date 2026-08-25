@@ -15,6 +15,11 @@ import { buildR2ObjectKey, resolveObjectUrl } from "../../../storage/r2";
 const THUMBNAIL_MAX_WIDTH = 400;
 const THUMBNAIL_MAX_HEIGHT = 400;
 
+// Escape a value for embedding in a single-quoted JavaScript string inside
+// generated Playwright code: backslashes first, then single quotes.
+const escapeForSingleQuotedJs = (value: string): string =>
+  value.replace(/\\/g, "\\\\").replace(/'/g, "\\'");
+
 /**
  * Generate a thumbnail image from a video file.
  * Uses @onkernel/sdk with Playwright to extract a video frame using the
@@ -209,7 +214,7 @@ export const generateVideoThumbnail = internalAction({
                       }
                       
                       const base64 = dataUrl.split(',')[1];
-                      const uploadUrl = mimeType === 'image/webp' ? '${webpUploadUrl.url.replace(/'/g, "\\'")}' : '${jpegUploadUrl.url.replace(/'/g, "\\'")}';
+                      const uploadUrl = mimeType === 'image/webp' ? '${escapeForSingleQuotedJs(webpUploadUrl.url)}' : '${escapeForSingleQuotedJs(jpegUploadUrl.url)}';
                       const uploadResponse = await fetch(uploadUrl, {
                         body: await (await fetch('data:' + mimeType + ';base64,' + base64)).arrayBuffer(),
                         headers: { 'content-type': mimeType },
