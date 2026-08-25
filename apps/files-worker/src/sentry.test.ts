@@ -15,7 +15,7 @@ const SECRET = "test-secret";
 
 const signedOpRequest = async (sourceKey: string): Promise<Request> => {
   const body = JSON.stringify({
-    op: "process-image",
+    op: "analyze-image",
     params: { sourceKey },
     version: FILES_PROTOCOL_VERSION,
   });
@@ -108,7 +108,7 @@ describe("parseFileKeyIdentifiers", () => {
 describe("reportFilesOpFailure", () => {
   test("is a safe no-op while the SDK is uninitialized", () => {
     expect(() =>
-      reportFilesOpFailure("process-image", new Error("wasm compile failed"), {
+      reportFilesOpFailure("analyze-image", new Error("wasm compile failed"), {
         httpMethod: "get",
         httpPath: "/users/9f8a/cards/c123/file/photo.png",
         objectKey: "users/9f8a/cards/c123/file/photo.png",
@@ -127,7 +127,7 @@ describe("reportFilesOpFailure", () => {
 describe("files worker error reporting", () => {
   test("unexpected op failures still return the handled 500 with Sentry wired", async () => {
     const env_ = {
-      // processImage's first R2 read rejects; nothing classifies this error,
+      // Image analysis's first R2 read rejects; nothing classifies this error,
       // so it lands on the console.error + captureException + 500 path.
       BUCKET: { get: () => Promise.reject(new Error("r2_unavailable")) },
       FILES_SIGNING_SECRET: SECRET,
@@ -146,7 +146,7 @@ describe("files worker error reporting", () => {
 
   test("expected op rejections stay unreported client-style statuses", async () => {
     const env_ = {
-      BUCKET: { get: () => Promise.resolve(null) },
+      BUCKET: { head: () => Promise.resolve(null) },
       FILES_SIGNING_SECRET: SECRET,
     } as unknown as Env;
     const response = await worker.fetch(

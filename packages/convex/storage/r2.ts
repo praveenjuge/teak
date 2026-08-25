@@ -1,6 +1,11 @@
 import { GetObjectCommand, S3Client } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import { R2 } from "@convex-dev/r2";
+import {
+  buildImageSigningPayload,
+  FILES_IMAGE_PATH,
+  type FilesImageRendition,
+} from "@teak/files-protocol";
 import { v } from "convex/values";
 import { components } from "../_generated/api";
 import type { ActionCtx, MutationCtx } from "../_generated/server";
@@ -234,6 +239,22 @@ export const buildSignedWorkerFileUrl = async (
   return `${base.replace(/\/+$/, "")}/${key}?${params.toString()}`;
 };
 
+export const buildSignedWorkerImageUrl = async (
+  base: string,
+  secret: string,
+  key: string,
+  rendition: FilesImageRendition,
+  expSeconds = Math.floor(Date.now() / 1000) + SIGNED_URL_EXPIRES_IN_SECONDS
+): Promise<string> => {
+  const expiresAt = String(expSeconds);
+  const signature = await hmacSha256Hex(
+    secret,
+    buildImageSigningPayload({ expiresAt, key, rendition })
+  );
+  const params = new URLSearchParams({ exp: expiresAt, sig: signature });
+  return `${base.replace(/\/+$/, "")}${FILES_IMAGE_PATH}/${rendition}/${encodeURIComponent(key)}?${params.toString()}`;
+};
+
 export const r2ComponentConfig = () => {
   const { R2_BUCKET, R2_ENDPOINT, R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY } =
     process.env;
@@ -258,6 +279,55 @@ export const resolveObjectUrl = async (
         fileName === undefined ? {} : fileDownloadResponsePolicy(fileName)
       )
     : null;
+
+export const resolveImageUrl = async (
+  key: string | undefined,
+  rendition: FilesImageRendition
+): Promise<string | null> => {
+  if (!key) {
+    return null;
+  }
+  const filesBase = process.env.FILES_BASE;
+  const signingSecret = process.env.FILES_SIGNING_SECRET;
+  return filesBase && signingSecret
+    ? await buildSignedWorkerImageUrl(
+        filesBase,
+        signingSecret,
+        key,
+        rendition,
+        bucketedSignatureExpiry()
+      )
+    : await resolveObjectUrl(key);
+};
+
+export const cardStorageObjectKeys = (card: {
+  fileKey?: string;
+  metadata?: {
+    linkPreview?: {
+      imageStorageKey?: string;
+      media?: Array<{ posterStorageKey?: string; storageKey?: string }>;
+      screenshotStorageKey?: string;
+    };
+  };
+  previewKey?: string;
+  thumbnailKey?: string;
+}): string[] => {
+  const linkPreview = card.metadata?.linkPreview;
+  return [
+    card.fileKey,
+    card.fileKey ? `${card.fileKey}.processing.json` : undefined,
+    card.thumbnailKey,
+    card.previewKey,
+    linkPreview?.imageStorageKey,
+    linkPreview?.screenshotStorageKey,
+    ...(linkPreview?.media ?? []).flatMap((item) => [
+      item.storageKey,
+      item.posterStorageKey,
+    ]),
+  ].filter((key, index, keys): key is string =>
+    Boolean(key && keys.indexOf(key) === index)
+  );
+};
 
 export const deleteObject = async (ctx: MutationCtx, key?: string) => {
   if (key) {

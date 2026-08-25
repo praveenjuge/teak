@@ -39,6 +39,7 @@ export interface Card {
   appUrl: string;
   content: string;
   createdAt: number;
+  detailUrl: string | null;
   fileExtension: string | null;
   fileKind: FileKind | null;
   fileLanguage: string | null;

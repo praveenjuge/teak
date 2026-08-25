@@ -145,34 +145,9 @@ export const callFilesWorkerJson = async <T>(spec: {
   return { kind: "ok", data: envelope.data };
 };
 
-export interface FilesWorkerImageExif {
-  exposureTime?: number;
-  fNumber?: number;
-  focalLength?: number;
-  iso?: number;
-  latitude?: number;
-  longitude?: number;
-  make?: string;
-  model?: string;
-  /** Capture time, epoch milliseconds (when present in the file). */
-  takenAt?: number;
-}
-
-export interface FilesWorkerProcessImageResult {
-  exif: FilesWorkerImageExif | null;
+export interface FilesWorkerImageAnalysisResult {
   height: number;
   palette: string[];
-  previewGenerated: boolean;
-  previewKey: string | null;
-  provenance: {
-    generatedAt: number;
-    processorVersion: string;
-    sourceEtag: string;
-    transformVersion: string;
-  };
-  thumbhash: string | null;
-  thumbnailGenerated: boolean;
-  thumbnailKey: string | null;
   width: number;
 }
 

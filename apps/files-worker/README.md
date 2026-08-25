@@ -1,8 +1,9 @@
 # @teak/files-worker
 
-The single Cloudflare Worker for Teak file delivery, uploads, processing,
-imports, and exports. It serves private card files from `files.teakvault.com`
-and performs storage-heavy operations directly against its private R2 binding.
+The Cloudflare Worker for Teak file delivery, uploads, processing, imports,
+and exports. Production serves `files.teakvault.com` from `teak-files-prod`;
+the isolated development environment serves `files-dev.teakvault.com` from
+`teak-files-dev`. Both buckets remain private.
 
 The Convex backend mints long-lived HMAC-signed URLs
 (`packages/convex/storage/r2.ts` → `buildSignedWorkerFileUrl`). This worker
@@ -21,11 +22,9 @@ Besides downloads, the worker accepts body-bound, short-lived signed `POST`
 requests at `/__ops/v1`. Contracts and typed success/error envelopes live in
 `@teak/files-protocol`; `HEAD` and `GET` can never execute an operation.
 
-- `op=process-image` — decodes a card image over the R2 binding (raster via
-  photon, HEIC via libheif, SVG via resvg — auto-detected from the bytes),
-  applies EXIF orientation, optionally writes bounded lossy-WebP thumbnail +
-  preview derivatives back to R2, and returns dimensions, dominant-color
-  palette, EXIF facts, and a thumbhash placeholder (`src/image.ts`).
+- `op=analyze-image` — reads intrinsic dimensions and a bounded color sample
+  through Cloudflare transformations; SVG input is rasterized with resvg.
+  Renditions are generated on demand and no image derivative is written to R2.
 - `build-export` — streams a manifest-described set of objects through
   client-zip into a checkpointed multipart ZIP upload that resumes after
   transient failures (`src/export.ts`).
@@ -55,13 +54,15 @@ bun run cf-typegen  # refresh generated Worker bindings/runtime types
 bun run typecheck   # tsc --noEmit
 bunx wrangler deploy --dry-run --outdir /tmp/out   # bundle size check
 bun run deploy      # wrangler deploy (creates files.teakvault.com custom domain)
+bunx wrangler deploy --env development # deploys files-dev.teakvault.com
 ```
 
 ## Secrets
 
-- `FILES_SIGNING_SECRET` — must match the `FILES_SIGNING_SECRET` env var on the
-  Convex production deployment. Set with:
-  `bunx wrangler secret put FILES_SIGNING_SECRET`
+- `FILES_SIGNING_SECRET` — must match its corresponding Convex deployment.
+  Set production with `bunx wrangler secret put FILES_SIGNING_SECRET` and
+  development with
+  `bunx wrangler secret put FILES_SIGNING_SECRET --env development`.
 - `SENTRY_DSN` — DSN for error reporting (`@sentry/cloudflare`, errors only).
   Reporting stays disabled until this is set. Set with:
   `bunx wrangler secret put SENTRY_DSN`
@@ -78,3 +79,5 @@ The Convex deployment requires both `FILES_BASE` and
 presigned-R2 fallback when the custom file domain is disabled.
 
 Deploys automatically via Cloudflare Workers Builds (main branch).
+The development Worker is deployed explicitly with `--env development` so
+development data can never be read through the production bucket binding.

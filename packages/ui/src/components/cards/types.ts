@@ -26,6 +26,7 @@ export interface CardWithUrls {
   _id: string;
   colors?: Array<{ hex: string }>;
   content?: string;
+  detailUrl?: string;
   fileKey?: string;
   fileMetadata?: {
     fileName?: string;

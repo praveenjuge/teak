@@ -22,6 +22,7 @@ export interface NormalizedNativeFile {
 }
 
 export interface MobileFilePreviewInput {
+  detailUrl?: string | null;
   fileKind?: string;
   fileLanguage?: string;
   fileName?: string;
@@ -83,7 +84,8 @@ export const getMobileFilePreview = (
         mimeType: input.mimeType,
       })
     : null;
-  const preferThumbnail = format?.id === "heic" || format?.id === "svg";
+  const requiresCompatibleRendition =
+    format?.id === "heic" || format?.id === "svg";
   const facts = [
     input.fileLanguage,
     input.fileKind,
@@ -105,9 +107,10 @@ export const getMobileFilePreview = (
     facts,
     format,
     imageFallback: input.thumbnailUrl ?? input.screenshotUrl ?? null,
-    imagePrimary: preferThumbnail
-      ? (input.thumbnailUrl ?? null)
-      : (input.fileUrl ?? null),
+    imagePrimary:
+      input.detailUrl ??
+      input.thumbnailUrl ??
+      (requiresCompatibleRendition ? null : (input.fileUrl ?? null)),
     isAnimatedGif: format?.id === "gif",
   };
 };

@@ -1,9 +1,12 @@
 import { withSentry } from "@sentry/cloudflare";
 import {
   buildMultipartPartSigningPayload,
+  FILES_IMAGE_PATH,
+  FILES_IMAGE_SOURCE_PATH,
   FILES_PROTOCOL_VERSION,
   type FilesErrorCode,
 } from "@teak/files-protocol";
+import { handleImageRequest, handleImageSourceRequest } from "./imageTransform";
 import {
   FILES_CACHE_CONTROL,
   FILES_EDGE_CACHE_CONTROL,
@@ -307,6 +310,20 @@ const handler = {
         return methodNotAllowed(request, "PUT");
       }
       return await handleMultipartPart(request, env, url);
+    }
+
+    if (url.pathname.startsWith(`${FILES_IMAGE_SOURCE_PATH}/`)) {
+      if (requestMethod !== "GET" && requestMethod !== "HEAD") {
+        return new Response(null, { status: 405 });
+      }
+      return await handleImageSourceRequest(request, env, url);
+    }
+
+    if (url.pathname.startsWith(`${FILES_IMAGE_PATH}/`)) {
+      if (requestMethod !== "GET" && requestMethod !== "HEAD") {
+        return new Response(null, { status: 405 });
+      }
+      return await handleImageRequest(request, env, fetch, undefined, ctx);
     }
 
     if (requestMethod !== "GET" && requestMethod !== "HEAD") {

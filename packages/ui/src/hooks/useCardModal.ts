@@ -7,6 +7,7 @@ import { toast } from "sonner";
 import { updateCardInSearchQueries } from "./cardQueryOptimisticUpdates";
 
 export type CardWithUrls = Doc<"cards"> & {
+  detailUrl?: string;
   fileUrl?: string;
   thumbnailUrl?: string;
   screenshotUrl?: string;

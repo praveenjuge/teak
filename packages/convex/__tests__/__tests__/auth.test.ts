@@ -502,8 +502,12 @@ describe("auth", () => {
       const result = await deleteAccountDataHandler(ctx, "u1");
 
       expect(result.deletedCards).toBe(2);
-      expect(result.deletedStorageObjectCount).toBe(2);
+      expect(result.deletedStorageObjectCount).toBe(3);
       expect(r2Mocks.deleteObject).toHaveBeenCalledWith(ctx, "f1");
+      expect(r2Mocks.deleteObject).toHaveBeenCalledWith(
+        ctx,
+        "f1.processing.json"
+      );
       expect(r2Mocks.deleteObject).toHaveBeenCalledWith(ctx, "t1");
       expect(ctx.db.delete).toHaveBeenCalledTimes(2);
     });

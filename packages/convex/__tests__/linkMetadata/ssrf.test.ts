@@ -220,7 +220,7 @@ describe("safeFetch", () => {
     globalThis.fetch = (() => {
       called = true;
       return Promise.resolve(new Response("nope"));
-    }) as typeof fetch;
+    }) as unknown as typeof fetch;
 
     await expect(
       safeFetch("http://127.0.0.1", resolveUnused)
@@ -248,7 +248,7 @@ describe("safeFetch", () => {
 
   test("returns the response for an allowed destination", async () => {
     globalThis.fetch = (async () =>
-      new Response("ok", { status: 200 })) as typeof fetch;
+      new Response("ok", { status: 200 })) as unknown as typeof fetch;
 
     const response = await safeFetch("https://8.8.8.8/data", resolveUnused);
     expect(response.status).toBe(200);

@@ -75,6 +75,13 @@ describe("native file normalization", () => {
     }
     expect(
       getMobileFilePreview({
+        detailUrl: "https://files.example/detail.webp",
+        fileName: "photo.heic",
+        fileUrl: "https://files.example/original",
+      }).imagePrimary
+    ).toBe("https://files.example/detail.webp");
+    expect(
+      getMobileFilePreview({
         fileName: "photo.heic",
         fileUrl: "https://files.example/original",
       }).imagePrimary

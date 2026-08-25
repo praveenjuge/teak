@@ -33,6 +33,7 @@ import { colors } from "@/constants/colors";
 import { getMobileFilePreview } from "@/lib/files";
 
 type Card = Doc<"cards"> & {
+  detailUrl?: string;
   fileUrl?: string;
   screenshotUrl?: string;
   thumbnailUrl?: string;
@@ -134,6 +135,7 @@ function CardPreviewSheet({ card, isOpen }: CardPreviewSheetProps) {
     fileKind: card.fileMetadata?.kind,
     fileLanguage: card.fileMetadata?.language,
     fileName: card.fileMetadata?.fileName,
+    detailUrl: card.detailUrl,
     fileUrl: card.fileUrl,
     mimeType: card.fileMetadata?.mimeType,
     preview: card.fileMetadata?.preview,

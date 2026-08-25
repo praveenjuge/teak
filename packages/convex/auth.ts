@@ -34,7 +34,7 @@ import {
   normalizeErrorClass,
   resolveBackendTelemetryDsn,
 } from "./shared/telemetry";
-import { deleteObject } from "./storage/r2";
+import { cardStorageObjectKeys, deleteObject } from "./storage/r2";
 import { scheduleAuthOutcome, scheduleUserCreated } from "./telemetry/schedule";
 
 const googleClientId = process.env.GOOGLE_CLIENT_ID;
@@ -601,12 +601,8 @@ export const deleteAccountDataHandler = async (
     .collect();
 
   for (const card of cards) {
-    if (card.fileKey) {
-      await deleteObject(ctx, card.fileKey);
-      deletedStorageObjectCount += 1;
-    }
-    if (card.thumbnailKey) {
-      await deleteObject(ctx, card.thumbnailKey);
+    for (const key of cardStorageObjectKeys(card)) {
+      await deleteObject(ctx, key);
       deletedStorageObjectCount += 1;
     }
 

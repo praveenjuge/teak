@@ -102,7 +102,7 @@ describe("resolveImageAnalysisKey", () => {
     ).toBe("thumbnail");
   });
 
-  test("uses an original only when stored dimensions prove it is bounded", () => {
+  test("uses the original key for any image large enough to analyze", () => {
     expect(
       resolveImageAnalysisKey({
         fileKey: "small",
@@ -114,7 +114,7 @@ describe("resolveImageAnalysisKey", () => {
         fileKey: "large",
         fileMetadata: { height: 6000, width: 6000 },
       })
-    ).toBeUndefined();
+    ).toBe("large");
     expect(
       resolveImageAnalysisKey({
         fileKey: "tiny",
@@ -138,6 +138,10 @@ describe("metadata handler", () => {
   beforeEach(() => {
     mockRunQuery.mockReset();
     mockRunMutation.mockReset();
+    r2Mocks.resolveImageUrl.mockReset();
+    r2Mocks.resolveImageUrl.mockImplementation((key: string) =>
+      r2Mocks.resolveObjectUrl(key)
+    );
     r2Mocks.resolveObjectUrl.mockReset();
     mockScheduler.runAfter.mockReset();
     aiMocks.generateText.mockReset();
@@ -384,6 +388,29 @@ describe("metadata handler", () => {
 
       expect(result.aiTags).toEqual(["svg"]);
       expect(r2Mocks.resolveObjectUrl).toHaveBeenCalledWith("t1");
+    });
+
+    test("uses a bounded detail rendition for a large image without a thumbnail", async () => {
+      mockRunQuery.mockResolvedValue({
+        _id: "c1",
+        fileKey: "f1",
+        fileMetadata: { height: 6000, mimeType: "image/png", width: 6000 },
+      });
+      r2Mocks.resolveImageUrl.mockResolvedValue(
+        "https://files.example/__images/v1/detail/f1"
+      );
+      aiMocks.generateText.mockResolvedValue({
+        output: { tags: ["photo"], summary: "A large photo" },
+      });
+
+      const result = await generateHandler(ctx, {
+        cardId: "c1",
+        cardType: "image",
+      });
+
+      expect(result.aiTags).toEqual(["photo"]);
+      expect(r2Mocks.resolveImageUrl).toHaveBeenCalledWith("f1", "detail");
+      expect(r2Mocks.resolveObjectUrl).not.toHaveBeenCalled();
     });
 
     test("detects SVG by file extension", async () => {

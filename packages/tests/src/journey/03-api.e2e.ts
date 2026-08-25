@@ -195,6 +195,107 @@ test("saving a color as content creates a palette card, not a text card", async 
     .toBe("palette");
 });
 
+test("private image originals and Cloudflare renditions share one API contract", async () => {
+  const apiKey = requireServiceApiKey("api");
+  const fileName = `api-image-${Date.now()}.png`;
+  const bytes = Buffer.from(
+    "iVBORw0KGgoAAAANSUhEUgAAAAIAAAABCAIAAAD91JpzAAAAFElEQVR42mP4z8DA8J+BgYGBgQEAEwQCAf8fL6sAAAAASUVORK5CYII=",
+    "base64"
+  );
+  const prepared = await apiFetch("/v1/uploads", apiKey, {
+    method: "POST",
+    body: JSON.stringify({
+      fileName,
+      fileSize: bytes.byteLength,
+      mimeType: "image/png",
+    }),
+  });
+  expect(prepared.status).toBe(200);
+  const upload = await prepared.json();
+  expect(upload.maxFileSize).toBe(100 * 1024 * 1024);
+
+  const put = await fetch(upload.uploadUrl, {
+    body: Uint8Array.from(bytes).buffer,
+    headers: { "Content-Type": "image/png" },
+    method: "PUT",
+  });
+  expect(put.ok).toBe(true);
+  const fileEtag = put.headers.get("etag");
+  expect(fileEtag).toBeTruthy();
+
+  const created = await apiFetch("/v1/cards", apiKey, {
+    method: "POST",
+    body: JSON.stringify({
+      cardType: "image",
+      fileEtag,
+      fileKey: upload.fileKey,
+      fileName,
+      fileSize: bytes.byteLength,
+      mimeType: "image/png",
+      source: "prod-e2e-cloudflare-image",
+      tags: ["prod-e2e", "cloudflare-image"],
+    }),
+  });
+  expect(created.status).toBe(200);
+  const { cardId } = await created.json();
+  updateState((state) => state.createdCardIds.push(cardId));
+
+  await expect
+    .poll(
+      async () => {
+        const response = await apiFetch(`/v1/cards/${cardId}`, apiKey);
+        if (!response.ok) {
+          return false;
+        }
+        const value = await response.json();
+        return Boolean(value.fileUrl && value.thumbnailUrl && value.detailUrl);
+      },
+      { timeout: 30_000, intervals: [500, 1000, 2000, 3000] }
+    )
+    .toBe(true);
+
+  const fetched = await apiFetch(`/v1/cards/${cardId}`, apiKey);
+  const image = await fetched.json();
+  expect(image).toMatchObject({
+    detailUrl: expect.stringContaining("/__images/v1/detail/"),
+    fileUrl: expect.stringMatching(/^https?:\/\//),
+    thumbnailUrl: expect.stringContaining("/__images/v1/grid/"),
+    type: "image",
+  });
+
+  const original = await fetch(image.fileUrl);
+  expect(original.ok).toBe(true);
+  expect(original.headers.get("content-type")).toContain("image/png");
+  expect(Buffer.from(await original.arrayBuffer())).toEqual(bytes);
+
+  for (const renditionUrl of [image.thumbnailUrl, image.detailUrl]) {
+    const response = await fetch(renditionUrl, {
+      headers: { Accept: "image/avif,image/webp,image/*" },
+    });
+    expect(response.ok).toBe(true);
+    expect(response.headers.get("content-type")).toMatch(
+      /^image\/(avif|webp|png|jpeg)/
+    );
+    expect((await response.arrayBuffer()).byteLength).toBeGreaterThan(0);
+
+    const head = await fetch(renditionUrl, { method: "HEAD" });
+    expect(head.ok).toBe(true);
+    expect((await head.arrayBuffer()).byteLength).toBe(0);
+  }
+
+  const tampered = new URL(image.thumbnailUrl);
+  const signature = tampered.searchParams.get("sig") ?? "";
+  tampered.searchParams.set(
+    "sig",
+    `${signature.slice(0, -1)}${signature.endsWith("0") ? "1" : "0"}`
+  );
+  expect((await fetch(tampered)).status).toBe(403);
+
+  const unsigned = new URL(image.thumbnailUrl);
+  unsigned.search = "";
+  expect((await fetch(unsigned)).status).toBe(401);
+});
+
 test("REST API uploads and infers the expanded file-format matrix", async () => {
   const apiKey = requireServiceApiKey("api");
   const marker = `api-file-${Date.now()}`;

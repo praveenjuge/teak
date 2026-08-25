@@ -124,7 +124,6 @@ import type * as workflows_aiMetadata_transcript from "../workflows/aiMetadata/t
 import type * as workflows_aiMetadata_types from "../workflows/aiMetadata/types.js";
 import type * as workflows_cardCleanup from "../workflows/cardCleanup.js";
 import type * as workflows_cardProcessing from "../workflows/cardProcessing.js";
-import type * as workflows_derivativeRepair from "../workflows/derivativeRepair.js";
 import type * as workflows_export from "../workflows/export.js";
 import type * as workflows_exportCleanup from "../workflows/exportCleanup.js";
 import type * as workflows_fileProcessing from "../workflows/fileProcessing.js";
@@ -153,12 +152,11 @@ import type * as workflows_steps_metadata from "../workflows/steps/metadata.js";
 import type * as workflows_steps_palette from "../workflows/steps/palette.js";
 import type * as workflows_steps_pinnedFetch from "../workflows/steps/pinnedFetch.js";
 import type * as workflows_steps_renderables from "../workflows/steps/renderables.js";
+import type * as workflows_steps_renderables_analyzeImage from "../workflows/steps/renderables/analyzeImage.js";
 import type * as workflows_steps_renderables_generateFilePreview from "../workflows/steps/renderables/generateFilePreview.js";
-import type * as workflows_steps_renderables_generateImageThumbnail from "../workflows/steps/renderables/generateImageThumbnail.js";
 import type * as workflows_steps_renderables_generatePdfThumbnail from "../workflows/steps/renderables/generatePdfThumbnail.js";
 import type * as workflows_steps_renderables_generateVideoThumbnail from "../workflows/steps/renderables/generateVideoThumbnail.js";
 import type * as workflows_steps_renderables_mutations from "../workflows/steps/renderables/mutations.js";
-import type * as workflows_steps_renderables_workerPipeline from "../workflows/steps/renderables/workerPipeline.js";
 import type * as workflows_steps_screenshot_captureScreenshot from "../workflows/steps/screenshot/captureScreenshot.js";
 import type * as workflows_steps_screenshot_retryable from "../workflows/steps/screenshot/retryable.js";
 
@@ -285,7 +283,6 @@ declare const fullApi: ApiFromModules<{
   "workflows/aiMetadata/types": typeof workflows_aiMetadata_types;
   "workflows/cardCleanup": typeof workflows_cardCleanup;
   "workflows/cardProcessing": typeof workflows_cardProcessing;
-  "workflows/derivativeRepair": typeof workflows_derivativeRepair;
   "workflows/export": typeof workflows_export;
   "workflows/exportCleanup": typeof workflows_exportCleanup;
   "workflows/fileProcessing": typeof workflows_fileProcessing;
@@ -314,12 +311,11 @@ declare const fullApi: ApiFromModules<{
   "workflows/steps/palette": typeof workflows_steps_palette;
   "workflows/steps/pinnedFetch": typeof workflows_steps_pinnedFetch;
   "workflows/steps/renderables": typeof workflows_steps_renderables;
+  "workflows/steps/renderables/analyzeImage": typeof workflows_steps_renderables_analyzeImage;
   "workflows/steps/renderables/generateFilePreview": typeof workflows_steps_renderables_generateFilePreview;
-  "workflows/steps/renderables/generateImageThumbnail": typeof workflows_steps_renderables_generateImageThumbnail;
   "workflows/steps/renderables/generatePdfThumbnail": typeof workflows_steps_renderables_generatePdfThumbnail;
   "workflows/steps/renderables/generateVideoThumbnail": typeof workflows_steps_renderables_generateVideoThumbnail;
   "workflows/steps/renderables/mutations": typeof workflows_steps_renderables_mutations;
-  "workflows/steps/renderables/workerPipeline": typeof workflows_steps_renderables_workerPipeline;
   "workflows/steps/screenshot/captureScreenshot": typeof workflows_steps_screenshot_captureScreenshot;
   "workflows/steps/screenshot/retryable": typeof workflows_steps_screenshot_retryable;
 }>;
