@@ -139,9 +139,10 @@ No Cloudflare account API key is shipped in application code.
 
 A release is proven only when all of the following are observed:
 
-1. Unit tests cover signature expiry/tampering, rendition allowlisting,
-   Cloudflare options, format negotiation, SVG caching, analysis, palette,
-   fallback, `HEAD`, missing objects, and non-image rejection.
+1. Automated tests cover signature expiry/tampering, rendition allowlisting,
+   Cloudflare options, format negotiation, SVG analysis and size limits,
+   palette, fallback, `HEAD`, missing objects, and non-image rejection; a live
+   edge check proves SVG cache reuse.
 2. The full repository lint, formatting, typecheck, and test suites pass on the
    pinned Bun version.
 3. A real image upload in local development shows a transformed grid image,

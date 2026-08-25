@@ -1,25 +1,12 @@
 import { v } from "convex/values";
 import type { Id } from "../_generated/dataModel";
 import { internalQuery, query } from "../_generated/server";
-import type { LinkPreviewMediaItem } from "../linkMetadata";
 import { cardValidator } from "../schema";
-import { resolveImageUrl, resolveObjectUrl } from "../storage/r2";
+import { attachFileUrls } from "./queryUtils";
 import {
   applyQuoteDisplayFormatting,
   applyQuoteFormattingToList,
 } from "./quoteFormatting";
-
-interface HydratedLinkPreviewMedia {
-  contentType?: string;
-  height?: number;
-  posterContentType?: string;
-  posterHeight?: number;
-  posterUrl?: string;
-  posterWidth?: number;
-  type: "image" | "video";
-  url: string;
-  width?: number;
-}
 
 // Return validator for single card - includes _id and _creationTime from Convex
 const cardReturnValidator = v.object({
@@ -57,134 +44,8 @@ export const getCardForUserHandler = async (
   if (!card || card.userId !== userId) {
     return null;
   }
-
-  const storageKeys = new Set<string>();
-  if (card.fileKey) {
-    storageKeys.add(card.fileKey);
-  }
-  if (card.thumbnailKey) {
-    storageKeys.add(card.thumbnailKey);
-  }
-  if (card.metadata?.linkPreview?.screenshotStorageKey) {
-    storageKeys.add(card.metadata.linkPreview.screenshotStorageKey);
-  }
-  if (card.metadata?.linkPreview?.imageStorageKey) {
-    storageKeys.add(card.metadata.linkPreview.imageStorageKey);
-  }
-  for (const item of (card.metadata?.linkPreview?.media ??
-    []) as LinkPreviewMediaItem[]) {
-    if (item.storageKey) {
-      storageKeys.add(item.storageKey);
-    }
-    if (item.posterStorageKey) {
-      storageKeys.add(item.posterStorageKey);
-    }
-  }
-
-  const resolvedUrls = await Promise.all(
-    Array.from(storageKeys).map(
-      async (key) =>
-        [
-          key,
-          await resolveObjectUrl(
-            key,
-            key === card.fileKey
-              ? (card.fileMetadata?.fileName ?? null)
-              : undefined
-          ),
-        ] as const
-    )
-  );
-  const urlMap = new Map(resolvedUrls);
-  const imageUrls =
-    card.type === "image" && card.fileKey
-      ? {
-          detailUrl: await resolveImageUrl(card.fileKey, "detail"),
-          thumbnailUrl: await resolveImageUrl(card.fileKey, "grid"),
-        }
-      : null;
-  const gridUrlMap = new Map(
-    await Promise.all(
-      [
-        card.thumbnailKey,
-        card.metadata?.linkPreview?.screenshotStorageKey,
-        card.metadata?.linkPreview?.imageStorageKey,
-        ...(card.metadata?.linkPreview?.media ?? []).flatMap(
-          (item: LinkPreviewMediaItem) => [
-            ...(item.type === "image" ? [item.storageKey] : []),
-            item.posterStorageKey,
-          ]
-        ),
-      ]
-        .filter((key): key is string => Boolean(key))
-        .map(async (key) => [key, await resolveImageUrl(key, "grid")] as const)
-    )
-  );
-
-  const linkPreviewMedia = (card.metadata?.linkPreview?.media ?? [])
-    .map((item: LinkPreviewMediaItem) => {
-      if (!item.storageKey) {
-        return null;
-      }
-      const url =
-        item.type === "image"
-          ? gridUrlMap.get(item.storageKey)
-          : urlMap.get(item.storageKey);
-      if (!url) {
-        return null;
-      }
-      return {
-        type: item.type,
-        url,
-        contentType: item.contentType,
-        width: item.width,
-        height: item.height,
-        posterUrl: item.posterStorageKey
-          ? (gridUrlMap.get(item.posterStorageKey) ?? undefined)
-          : undefined,
-        posterContentType: item.posterContentType,
-        posterWidth: item.posterWidth,
-        posterHeight: item.posterHeight,
-      };
-    })
-    .filter(
-      (
-        item: HydratedLinkPreviewMedia | null
-      ): item is HydratedLinkPreviewMedia => Boolean(item)
-    );
-
-  const linkPreviewOgImageUrl: string | undefined = card.metadata?.linkPreview
-    ?.imageStorageKey
-    ? (gridUrlMap.get(card.metadata.linkPreview.imageStorageKey) ?? undefined)
-    : undefined;
-
-  const linkPreviewImageUrl =
-    linkPreviewOgImageUrl ??
-    linkPreviewMedia?.find(
-      (item: NonNullable<(typeof linkPreviewMedia)[number]>) =>
-        item.type === "image"
-    )?.url ??
-    linkPreviewMedia?.find(
-      (item: NonNullable<(typeof linkPreviewMedia)[number]>) =>
-        item.type === "video"
-    )?.posterUrl;
-
-  return applyQuoteDisplayFormatting({
-    ...card,
-    fileUrl: card.fileKey ? (urlMap.get(card.fileKey) ?? undefined) : undefined,
-    detailUrl: imageUrls?.detailUrl ?? undefined,
-    thumbnailUrl:
-      imageUrls?.thumbnailUrl ??
-      (card.thumbnailKey
-        ? (gridUrlMap.get(card.thumbnailKey) ?? undefined)
-        : undefined),
-    screenshotUrl: card.metadata?.linkPreview?.screenshotStorageKey
-      ? (gridUrlMap.get(card.metadata.linkPreview.screenshotStorageKey) ??
-        undefined)
-      : undefined,
-    linkPreviewMedia: linkPreviewMedia?.length ? linkPreviewMedia : undefined,
-    linkPreviewImageUrl,
-  });
+  const [hydratedCard] = await attachFileUrls(ctx, [card]);
+  return hydratedCard ? applyQuoteDisplayFormatting(hydratedCard) : null;
 };
 
 export const getCard = query({

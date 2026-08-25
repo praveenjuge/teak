@@ -17,7 +17,7 @@ import { extractVisualStylesFromTags } from "../../shared/constants";
 import { inferFileFormat } from "../../shared/fileFormats";
 import { TELEMETRY_OPERATIONS } from "../../shared/telemetry";
 import type { Id } from "../../shared/types";
-import { resolveObjectUrl } from "../../storage/r2";
+import { resolveImageUrl, resolveObjectUrl } from "../../storage/r2";
 import { withBackendSpan } from "../../telemetry/sentry";
 import {
   generateImageMetadata,
@@ -55,8 +55,6 @@ interface ImageAnalysisCard {
   thumbnailKey?: string;
 }
 
-const MAX_ORIGINAL_AI_IMAGE_PIXELS = 500 * 500;
-
 export const resolveImageAnalysisKey = (
   card: ImageAnalysisCard
 ): string | undefined => {
@@ -66,15 +64,7 @@ export const resolveImageAnalysisKey = (
   if (card.thumbnailKey) {
     return card.thumbnailKey;
   }
-  const width = card.fileMetadata?.width;
-  const height = card.fileMetadata?.height;
-  if (
-    card.fileKey &&
-    typeof width === "number" &&
-    typeof height === "number" &&
-    hasMinimumImageAnalysisDimensions(card.fileMetadata) &&
-    width * height <= MAX_ORIGINAL_AI_IMAGE_PIXELS
-  ) {
+  if (card.fileKey && hasMinimumImageAnalysisDimensions(card.fileMetadata)) {
     return card.fileKey;
   }
 };
@@ -241,7 +231,10 @@ export async function generateHandler(
         const imageKey = resolveImageAnalysisKey(card);
 
         if (imageKey) {
-          const imageUrl = await resolveObjectUrl(imageKey);
+          const imageUrl =
+            imageKey === card.thumbnailKey
+              ? await resolveObjectUrl(imageKey)
+              : await resolveImageUrl(imageKey, "detail");
           if (imageUrl) {
             const result = await generateImageMetadata(imageUrl);
             aiTags = result.aiTags;

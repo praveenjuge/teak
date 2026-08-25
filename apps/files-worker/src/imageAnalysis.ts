@@ -9,6 +9,11 @@ export interface ImageAnalysisResult {
   width: number;
 }
 
+const isSvgSource = (key: string, contentType?: string): boolean =>
+  contentType === "image/svg+xml" ||
+  (key.toLowerCase().endsWith(".svg") &&
+    (contentType === "application/xml" || contentType === "text/xml"));
+
 interface CloudflareImageInfo {
   height?: number;
   original?: { height?: number; width?: number };
@@ -62,7 +67,7 @@ export const analyzeImage = async (
   if (!metadata) {
     throw new Error("source_not_found");
   }
-  if (metadata.httpMetadata?.contentType === "image/svg+xml") {
+  if (isSvgSource(sourceKey, metadata.httpMetadata?.contentType)) {
     return await analyzeSvg(env, sourceKey);
   }
 

@@ -113,6 +113,11 @@ const preferredFormat = (
   return normalized.includes("image/webp") ? "webp" : undefined;
 };
 
+const isSvgSource = (key: string, contentType: string): boolean =>
+  contentType === "image/svg+xml" ||
+  (key.toLowerCase().endsWith(".svg") &&
+    (contentType === "application/xml" || contentType === "text/xml"));
+
 const imageHeaders = (contentType: string): Headers =>
   new Headers({
     "Cache-Control": IMAGE_CACHE_CONTROL,
@@ -242,7 +247,7 @@ export const handleImageRequest = async (
     return new Response(null, { status: 404 });
   }
   const contentType = metadata.httpMetadata?.contentType?.toLowerCase() ?? "";
-  if (contentType === "image/svg+xml") {
+  if (isSvgSource(parsed.key, contentType)) {
     const cacheKey = new Request(`${url.origin}${url.pathname}`);
     if (request.method === "GET") {
       const cached = imageEdgeCache

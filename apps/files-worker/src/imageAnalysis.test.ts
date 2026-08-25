@@ -4,6 +4,7 @@ import type { Env } from "./index";
 import { FakeBucket, makePng } from "./testsupport";
 
 const KEY = "users/u/cards/c/file/photo.png";
+const SVG_KEY = "users/u/cards/c/file/vector.svg";
 
 describe("image analysis", () => {
   test("uses Cloudflare metadata and a 64px PNG color sample", async () => {
@@ -87,5 +88,30 @@ describe("image analysis", () => {
         1_800_000_000
       )
     ).rejects.toThrow("image_dimensions_missing");
+  });
+
+  test("rasterizes SVG sources for original dimensions and palette", async () => {
+    const bucket = new FakeBucket();
+    bucket.objects.set(SVG_KEY, {
+      bytes: new TextEncoder().encode(
+        `<svg xmlns="http://www.w3.org/2000/svg" width="120" height="80" viewBox="0 0 120 80"><rect width="120" height="80" fill="#ff0000"/></svg>`
+      ),
+      httpMetadata: { contentType: "application/xml" },
+    });
+    const env = {
+      BUCKET: bucket as unknown as R2Bucket,
+      FILES_SIGNING_SECRET: "secret",
+    } as Env;
+
+    const result = await analyzeImage(
+      env,
+      SVG_KEY,
+      "https://files.teakvault.com",
+      () =>
+        Promise.reject(new Error("SVG analysis must not use Image Resizing"))
+    );
+
+    expect(result).toMatchObject({ height: 80, width: 120 });
+    expect(result.palette).toContain("#FF0000");
   });
 });
