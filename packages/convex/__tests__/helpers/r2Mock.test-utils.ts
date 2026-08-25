@@ -94,6 +94,12 @@ export const r2MockModuleFactory = () => ({
     );
   },
   deleteObject: r2Mocks.deleteObject,
+  // Real HMAC helper: filesWorkerClient signs op payloads through this export,
+  // so keep it available even when the rest of the module is mocked.
+  hmacSha256Hex: async (secret: string, message: string): Promise<string> => {
+    const { createHmac } = await import("node:crypto");
+    return createHmac("sha256", secret).update(message).digest("hex");
+  },
   resolveImageUrl: r2Mocks.resolveImageUrl,
   resolveObjectUrl: r2Mocks.resolveObjectUrl,
   storeObject: r2Mocks.storeObject,

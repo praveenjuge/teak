@@ -354,12 +354,13 @@ export const storeObject = async (
     type?: string;
   }
 ) => {
-  const { etag } = await putObjectViaFilesWorker({
+  await putObjectViaFilesWorker({
     body: blob,
     contentType: opts.type ?? blob.type ?? "application/octet-stream",
     key: opts.key,
   });
-  return etag;
+  // Callers expect the storage key back (r2.store returned the key).
+  return opts.key;
 };
 
 export const generateUploadUrl = mutation({
