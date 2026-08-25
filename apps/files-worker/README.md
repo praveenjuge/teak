@@ -16,15 +16,25 @@ content-disposition policy, answers conditional GETs with 304s, and supports
 `HEAD`. The bucket is never public. `/__health` is an unauthenticated
 liveness probe for uptime monitors.
 
+The worker also owns the Images (`IMAGES`) and Workers AI (`AI`) bindings:
+only unique transformed variants (`grid`, `detail`) consume Image
+Transformations, and image understanding runs on Workers AI inside the
+worker. The Convex backend remains the control plane — it authenticates
+users, owns card state, validates uploads, and orchestrates workflows —
+while every byte-processing operation (uploads, deletes, analysis, AI,
+generated media) flows through this worker.
+
 ## Internal ops
 
 Besides downloads, the worker accepts body-bound, short-lived signed `POST`
 requests at `/__ops/v1`. Contracts and typed success/error envelopes live in
 `@teak/files-protocol`; `HEAD` and `GET` can never execute an operation.
 
-- `op=analyze-image` — reads intrinsic dimensions and a bounded color sample
-  through Cloudflare transformations; SVG input is rasterized with resvg.
-  Renditions are generated on demand and no image derivative is written to R2.
+- `op=analyze-image` / `analyze-image-content` — reads intrinsic dimensions
+  and a bounded color sample through Cloudflare transformations; SVG input is
+  rasterized with resvg. Renditions are generated on demand and no image
+  derivative is written to R2. `analyze-image-content` is the additive alias;
+  both are accepted so Worker and Convex deployments overlap safely.
 - `build-export` — streams a manifest-described set of objects through
   client-zip into a checkpointed multipart ZIP upload that resumes after
   transient failures (`src/export.ts`).
@@ -38,6 +48,27 @@ requests at `/__ops/v1`. Contracts and typed success/error envelopes live in
 - `finalize-upload` streams validated pending objects into their permanent
   key, and `extract-import-files` extracts bounded archive entries without
   sending file bytes through Convex.
+- `delete-object` removes one object; `delete-objects` accepts at most 100
+  keys per batch and treats missing objects as success. Durable deletion is
+  orchestrated by the Convex object-cleanup workflow.
+- `head-object` returns existence, size, ETag, and content type for a key —
+  used to verify Kernel-generated media after direct uploads before Convex
+  records it.
+- `generate-image-metadata` feeds the existing `detail` rendition into
+  Workers AI (Gemma multimodal) with the same system prompt, JSON output
+  shape, and bounded validation retries as the pipeline it replaced; image
+  bytes never leave the worker (`src/imageMetadata.ts`).
+
+## Single-file signed uploads
+
+`PUT /__upload/v1/<key>?exp&sig&ct[&sz]` accepts small user uploads,
+Convex-validated remote assets, export manifests, and Kernel-generated media
+(screenshots, PDF/video thumbnails). The HMAC binds the HTTP method, exact
+object key, expiry (≤15 minutes), content type, and — when known ahead of
+time — the expected byte size. `Content-Length` is mandatory, oversized
+bodies are rejected, and keys must live under a `users/<id>/...` prefix with
+no traversal segments (`src/upload.ts`). Server-generated media signs without
+a bound size and relies on the worker's hard cap instead.
 
 Convex owns authorization, durable product state, and workflow orchestration;
 this Worker is the one canonical implementation for file-byte operations.

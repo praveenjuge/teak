@@ -34,7 +34,7 @@ import {
   normalizeErrorClass,
   resolveBackendTelemetryDsn,
 } from "./shared/telemetry";
-import { cardStorageObjectKeys, deleteObject } from "./storage/r2";
+import { cardStorageObjectKeys } from "./storage/r2";
 import { scheduleAuthOutcome, scheduleUserCreated } from "./telemetry/schedule";
 
 const googleClientId = process.env.GOOGLE_CLIENT_ID;
@@ -593,20 +593,35 @@ export const deleteAccountDataHandler = async (
 ) => {
   let deletedStorageObjectCount = 0;
 
-  // Use by_user_deleted index with partial match (just userId)
-  // This works because Convex allows querying on prefix of compound indexes
   const cards = await ctx.db
     .query("cards")
     .withIndex("by_user_deleted", (q: any) => q.eq("userId", userId))
     .collect();
 
+  // Collect every object key first so deletion is scheduled as durable,
+  // batched workflow jobs (at most 100 keys each) instead of synchronous
+  // per-object deletes.
+  const allObjectKeys = new Set<string>();
   for (const card of cards) {
     for (const key of cardStorageObjectKeys(card)) {
-      await deleteObject(ctx, key);
-      deletedStorageObjectCount += 1;
+      if (key) {
+        allObjectKeys.add(key);
+      }
     }
 
     await ctx.db.delete("cards", card._id);
+  }
+  deletedStorageObjectCount += allObjectKeys.size;
+
+  const keysBatch = Array.from(allObjectKeys);
+  if (ctx.scheduler) {
+    for (let index = 0; index < keysBatch.length; index += 100) {
+      await ctx.scheduler.runAfter(
+        0,
+        (internal as any)["workflows/objectCleanup"].startObjectDeletion,
+        { keys: keysBatch.slice(index, index + 100) }
+      );
+    }
   }
 
   // Import source archives and reports are private R2 objects outside card

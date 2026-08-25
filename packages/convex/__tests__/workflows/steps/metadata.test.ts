@@ -28,7 +28,61 @@ import {
 
 afterAll(() => {
   global.fetch = originalFetch;
+  if (originalFilesBase === undefined) {
+    // biome-ignore lint/performance/noDelete: test env cleanup
+    delete process.env.FILES_BASE;
+  } else {
+    process.env.FILES_BASE = originalFilesBase;
+  }
+  if (originalFilesSecret === undefined) {
+    // biome-ignore lint/performance/noDelete: test env cleanup
+    delete process.env.FILES_SIGNING_SECRET;
+  } else {
+    process.env.FILES_SIGNING_SECRET = originalFilesSecret;
+  }
 });
+
+const originalFilesBase = process.env.FILES_BASE;
+const originalFilesSecret = process.env.FILES_SIGNING_SECRET;
+
+/**
+ * Route the image/video AI path through the Files Worker op envelope: image
+ * understanding now runs inside the worker against its `detail` rendition.
+ */
+const enableWorkerImageOp = (
+  data: unknown,
+  { status = 200 } = {}
+) => {
+  process.env.FILES_BASE = "https://files.teakvault.com";
+  process.env.FILES_SIGNING_SECRET = "test-signing-secret";
+  mockFetch.mockImplementation(async () =>
+    new Response(
+      status === 200
+        ? JSON.stringify({
+            data,
+            ok: true,
+            requestId: "r1",
+            version: 1,
+          })
+        : JSON.stringify({
+            error: {
+              code: "NOT_FOUND",
+              message: "missing",
+              requestId: "r1",
+              retryable: false,
+            },
+            ok: false,
+            version: 1,
+          }),
+      { status }
+    )
+  );
+};
+
+const lastWorkerOpRequest = (): { op: string; params: Record<string, unknown> } => {
+  const init = mockFetch.mock.calls.at(-1)?.[1] as { body?: string };
+  return JSON.parse(init?.body ?? "{}");
+};
 
 describe("metadata builds link content parts", () => {
   test("handles full metadata", () => {
@@ -291,18 +345,15 @@ describe("metadata handler", () => {
       expect(mockRunMutation).not.toHaveBeenCalled();
     });
 
-    test("keeps image metadata retryable when vision capacity is exhausted", async () => {
+    test("keeps image metadata retryable when the worker declines the source", async () => {
       mockRunQuery.mockResolvedValue({
         _id: "c1",
         fileKey: "f1",
         thumbnailKey: "t1",
         fileMetadata: { height: 1722, width: 3006 },
       });
-      r2Mocks.resolveObjectUrl.mockResolvedValue("https://image.png");
-      const capacityError = new Error(
-        "Rate limit reached on tokens per day (TPD): status 429"
-      );
-      aiMocks.generateText.mockRejectedValue(capacityError);
+      // A worker fallback surfaces as the deferred raster-pending condition.
+      enableWorkerImageOp(null, { status: 404 });
 
       const result = await generateHandler(ctx, {
         cardId: "c1",
@@ -347,17 +398,14 @@ describe("metadata handler", () => {
   });
 
   describe("image card metadata", () => {
-    test("generates metadata for raster image", async () => {
+    test("generates metadata via the worker op for raster image", async () => {
       mockRunQuery.mockResolvedValue({
         _id: "c1",
         fileKey: "f1",
         thumbnailKey: "t1",
         fileMetadata: { mimeType: "image/png" },
       });
-      r2Mocks.resolveObjectUrl.mockResolvedValue("https://image.png");
-      aiMocks.generateText.mockResolvedValue({
-        output: { tags: ["photo"], summary: "A photo" },
-      });
+      enableWorkerImageOp({ summary: "A photo", tags: ["photo"] });
 
       const result = await generateHandler(ctx, {
         cardId: "c1",
@@ -366,20 +414,18 @@ describe("metadata handler", () => {
 
       expect(result.aiTags).toEqual(["photo"]);
       expect(result.confidence).toBe(0.9);
-      expect(r2Mocks.resolveObjectUrl).toHaveBeenCalledWith("t1");
+      expect(lastWorkerOpRequest().op).toBe("generate-image-metadata");
+      expect(lastWorkerOpRequest().params.sourceKey).toBe("t1");
     });
 
-    test("uses thumbnail for SVG files", async () => {
+    test("uses thumbnail key as the worker source for SVG files", async () => {
       mockRunQuery.mockResolvedValue({
         _id: "c1",
         fileKey: "f1",
         thumbnailKey: "t1",
         fileMetadata: { mimeType: "image/svg+xml" },
       });
-      r2Mocks.resolveObjectUrl.mockResolvedValue("https://thumbnail.png");
-      aiMocks.generateText.mockResolvedValue({
-        output: { tags: ["svg"], summary: "SVG image" },
-      });
+      enableWorkerImageOp({ summary: "SVG image", tags: ["svg"] });
 
       const result = await generateHandler(ctx, {
         cardId: "c1",
@@ -387,21 +433,16 @@ describe("metadata handler", () => {
       });
 
       expect(result.aiTags).toEqual(["svg"]);
-      expect(r2Mocks.resolveObjectUrl).toHaveBeenCalledWith("t1");
+      expect(lastWorkerOpRequest().params.sourceKey).toBe("t1");
     });
 
-    test("uses a bounded detail rendition for a large image without a thumbnail", async () => {
+    test("passes the original key to the worker for a large image without a thumbnail", async () => {
       mockRunQuery.mockResolvedValue({
         _id: "c1",
         fileKey: "f1",
         fileMetadata: { height: 6000, mimeType: "image/png", width: 6000 },
       });
-      r2Mocks.resolveImageUrl.mockResolvedValue(
-        "https://files.example/__images/v1/detail/f1"
-      );
-      aiMocks.generateText.mockResolvedValue({
-        output: { tags: ["photo"], summary: "A large photo" },
-      });
+      enableWorkerImageOp({ summary: "A large photo", tags: ["photo"] });
 
       const result = await generateHandler(ctx, {
         cardId: "c1",
@@ -409,8 +450,7 @@ describe("metadata handler", () => {
       });
 
       expect(result.aiTags).toEqual(["photo"]);
-      expect(r2Mocks.resolveImageUrl).toHaveBeenCalledWith("f1", "detail");
-      expect(r2Mocks.resolveObjectUrl).not.toHaveBeenCalled();
+      expect(lastWorkerOpRequest().params.sourceKey).toBe("f1");
     });
 
     test("detects SVG by file extension", async () => {
@@ -420,17 +460,14 @@ describe("metadata handler", () => {
         thumbnailKey: "t1",
         fileMetadata: { fileName: "diagram.svg" },
       });
-      r2Mocks.resolveObjectUrl.mockResolvedValue("https://thumbnail.png");
-      aiMocks.generateText.mockResolvedValue({
-        output: { tags: ["diagram"], summary: "A diagram" },
-      });
+      enableWorkerImageOp({ summary: "A diagram", tags: ["diagram"] });
 
-      const _result = await generateHandler(ctx, {
+      await generateHandler(ctx, {
         cardId: "c1",
         cardType: "image",
       });
 
-      expect(r2Mocks.resolveObjectUrl).toHaveBeenCalledWith("t1");
+      expect(lastWorkerOpRequest().params.sourceKey).toBe("t1");
     });
 
     test("handles uppercase SVG extension", async () => {
@@ -440,11 +477,11 @@ describe("metadata handler", () => {
         thumbnailKey: "t1",
         fileMetadata: { fileName: "diagram.SVG" },
       });
-      r2Mocks.resolveObjectUrl.mockResolvedValue("https://thumbnail.png");
+      enableWorkerImageOp({ summary: "A diagram", tags: ["diagram"] });
 
       await generateHandler(ctx, { cardId: "c1", cardType: "image" });
 
-      expect(r2Mocks.resolveObjectUrl).toHaveBeenCalledWith("t1");
+      expect(lastWorkerOpRequest().params.sourceKey).toBe("t1");
     });
 
     test("handles missing image file", async () => {
@@ -481,15 +518,12 @@ describe("metadata handler", () => {
   });
 
   describe("video card metadata", () => {
-    test("generates metadata from video thumbnail", async () => {
+    test("generates metadata from video thumbnail via worker op", async () => {
       mockRunQuery.mockResolvedValue({
         _id: "c1",
         thumbnailKey: "t1",
       });
-      r2Mocks.resolveObjectUrl.mockResolvedValue("https://video-thumb.jpg");
-      aiMocks.generateText.mockResolvedValue({
-        output: { tags: ["video"], summary: "Video content" },
-      });
+      enableWorkerImageOp({ summary: "Video content", tags: ["video"] });
 
       const result = await generateHandler(ctx, {
         cardId: "c1",
@@ -498,36 +532,20 @@ describe("metadata handler", () => {
 
       expect(result.aiTags).toEqual(["video"]);
       expect(result.confidence).toBe(0.88);
-      expect(r2Mocks.resolveObjectUrl).toHaveBeenCalledWith("t1");
+      expect(lastWorkerOpRequest().params.sourceKey).toBe("t1");
     });
 
-    test("includes filename in video analysis", async () => {
+    test("includes filename in video analysis title", async () => {
       mockRunQuery.mockResolvedValue({
         _id: "c1",
         thumbnailKey: "t1",
         fileMetadata: { fileName: "movie.mp4" },
       });
-      r2Mocks.resolveObjectUrl.mockResolvedValue("https://thumb.jpg");
-      aiMocks.generateText.mockResolvedValue({
-        output: { tags: ["movie"], summary: "A movie" },
-      });
+      enableWorkerImageOp({ summary: "A movie", tags: ["movie"] });
 
       await generateHandler(ctx, { cardId: "c1", cardType: "video" });
 
-      expect(aiMocks.generateText).toHaveBeenCalledWith(
-        expect.objectContaining({
-          messages: expect.arrayContaining([
-            expect.objectContaining({
-              content: expect.arrayContaining([
-                expect.objectContaining({
-                  type: "text",
-                  text: expect.stringContaining("movie.mp4"),
-                }),
-              ]),
-            }),
-          ]),
-        })
-      );
+      expect(String(lastWorkerOpRequest().params.title)).toContain("movie.mp4");
     });
   });
 

@@ -21,8 +21,8 @@ import {
   buildR2ObjectKey,
   buildR2UserPrefix,
   PENDING_UPLOAD_CARD_ID,
-  r2,
 } from "../storage/r2";
+import { buildSignedWorkerUploadUrl } from "../storage/filesWorkerClient";
 import { scheduleCardOutcome } from "../telemetry/schedule";
 import {
   buildInitialProcessingStatus,
@@ -101,19 +101,22 @@ export const uploadAndCreateCard = mutation({
       // Check rate limit and card count limit
       await ensureCardCreationAllowed(ctx, user.subject);
 
-      const upload = await r2.generateUploadUrl(
-        buildR2ObjectKey({
-          userId: user.subject,
-          cardId: PENDING_UPLOAD_CARD_ID,
-          role: "file",
-          fileName: _args.fileName,
-        })
-      );
+      const key = buildR2ObjectKey({
+        userId: user.subject,
+        cardId: PENDING_UPLOAD_CARD_ID,
+        role: "file",
+        fileName: _args.fileName,
+      });
+      const signed = await buildSignedWorkerUploadUrl({
+        contentType: _args.fileType || "application/octet-stream",
+        key,
+        size: _args.fileSize,
+      });
 
       return {
         success: true,
-        uploadKey: upload.key,
-        uploadUrl: upload.url,
+        uploadKey: signed.key,
+        uploadUrl: signed.url,
         cardId: undefined, // Will be set after successful upload
       };
     } catch (error) {
@@ -271,11 +274,8 @@ export const createUploadedCardForUser = async (
     updatedAt: now,
   });
 
-  await ctx.scheduler.runAfter(
-    0,
-    (internal as any).storage.r2.syncUploadedObjectMetadata,
-    { key: args.fileKey }
-  );
+  // Object metadata is served by the Files Worker path; the Convex R2
+  // component's metadata sync is no longer part of the upload pipeline.
 
   await ctx.scheduler.runAfter(
     0,

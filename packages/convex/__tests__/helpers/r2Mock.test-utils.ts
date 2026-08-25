@@ -63,7 +63,43 @@ export const r2Mocks = {
 };
 
 export const r2MockModuleFactory = () => ({
+  // Faithful port of the real cardStorageObjectKeys so tests that receive the
+  // mocked module still observe identical key collection semantics.
+  cardStorageObjectKeys: (card: {
+    fileKey?: string;
+    thumbnailKey?: string;
+    previewKey?: string;
+    metadata?: {
+      linkPreview?: {
+        imageStorageKey?: string;
+        media?: Array<{ posterStorageKey?: string; storageKey?: string }>;
+        screenshotStorageKey?: string;
+      };
+    };
+  }): string[] => {
+    const linkPreview = card.metadata?.linkPreview;
+    return [
+      card.fileKey,
+      card.fileKey ? `${card.fileKey}.processing.json` : undefined,
+      card.thumbnailKey,
+      card.previewKey,
+      linkPreview?.imageStorageKey,
+      linkPreview?.screenshotStorageKey,
+      ...(linkPreview?.media ?? []).flatMap((item) => [
+        item.storageKey,
+        item.posterStorageKey,
+      ]),
+    ].filter((key, index, keys): key is string =>
+      Boolean(key && keys.indexOf(key) === index)
+    );
+  },
   deleteObject: r2Mocks.deleteObject,
+  // Real HMAC helper: filesWorkerClient signs op payloads through this export,
+  // so keep it available even when the rest of the module is mocked.
+  hmacSha256Hex: async (secret: string, message: string): Promise<string> => {
+    const { createHmac } = await import("node:crypto");
+    return createHmac("sha256", secret).update(message).digest("hex");
+  },
   resolveImageUrl: r2Mocks.resolveImageUrl,
   resolveObjectUrl: r2Mocks.resolveObjectUrl,
   storeObject: r2Mocks.storeObject,

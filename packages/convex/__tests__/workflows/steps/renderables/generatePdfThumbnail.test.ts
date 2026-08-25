@@ -5,11 +5,10 @@ import { crc32, deflateSync, inflateSync } from "node:zlib";
 // Captured across the mocked Kernel + storage layer so the assertions can
 // inspect exactly how the PDF thumbnail was produced.
 let capturedPlaywrightCode = "";
-let storedThumbnail: { key: string; type?: string } | null = null;
+let uploadedThumbnail: { url: string; body?: Buffer } | null = null;
+let headObjectCalls: Array<{ op: string; params: Record<string, unknown> }> = [];
 
 let generatePdfThumbnail: any;
-
-const THUMB_PNG_BASE64 = Buffer.from("fake-png").toString("base64");
 
 // Minimal valid one-page A4 PDF (qpdf-checked) used as the fixture bytes that
 // flow through the generated browser code.
@@ -202,6 +201,14 @@ const executeGeneratedCode = async (
     };
     const context = {
       request: {
+        put: (url: string, init: { data: Buffer }) => {
+          uploadedThumbnail = { body: init.data, url };
+          return {
+            headers: () => ({ etag: '"fake-etag"' }),
+            ok: () => true,
+            status: () => 200,
+          };
+        },
         get: (url: string) => {
           if (url.includes("the-pdf")) {
             return {
@@ -232,8 +239,8 @@ const executeGeneratedCode = async (
 };
 
 beforeAll(async () => {
-  // Kernel headless browser: return a canvas screenshot payload and record the
-  // Playwright code so we can assert how the PDF is rendered.
+  // Kernel headless browser: return the direct-upload result shape and record
+  // the Playwright code so we can assert how the PDF is rendered.
   mock.module("@onkernel/sdk", () => ({
     default: class KernelMock {
       browsers = {
@@ -245,10 +252,10 @@ beforeAll(async () => {
             return Promise.resolve({
               success: true,
               result: JSON.stringify({
-                success: true,
-                data: THUMB_PNG_BASE64,
-                width: 400,
+                etag: '"fake-etag"',
                 height: 560,
+                success: true,
+                width: 400,
               }),
             });
           },
@@ -261,16 +268,30 @@ beforeAll(async () => {
   const r2Path = import.meta.resolve("../../../../storage/r2");
   mock.module(r2Path, () => ({
     buildR2ObjectKey: () => "users/u/cards/c/thumbnail/generated",
+    hmacSha256Hex: async () => "fake-hex-signature",
     resolveObjectUrl: (key?: string) =>
       Promise.resolve(key ? "https://signed.r2.example/the-pdf" : null),
-    storeObject: (
-      _ctx: unknown,
-      _blob: unknown,
-      opts: { key: string; type?: string }
-    ) => {
-      storedThumbnail = { key: opts.key, type: opts.type };
-      return Promise.resolve("stored-thumbnail-key");
+  }));
+
+  // Files Worker client: mint deterministic signed URLs and verify committed
+  // objects so the direct-upload path can be asserted without a network.
+  mock.module(import.meta.resolve("../../../../storage/filesWorkerClient"), () => ({
+    buildSignedWorkerUploadUrl: async ({ key }: { key: string }) => ({
+      expiresAt: 123,
+      key,
+      url: `https://files.teakvault.com/__upload/v1/${encodeURIComponent(key)}?exp=123&sig=fake`,
+    }),
+    callFilesWorkerJson: (spec: {
+      op: string;
+      params: Record<string, unknown>;
+    }) => {
+      headObjectCalls.push(spec);
+      return Promise.resolve({
+        kind: "ok",
+        data: { contentType: "image/png", etag: '"fake-etag"', exists: true, size: 1024 },
+      });
     },
+    isFilesWorkerConfigured: () => true,
   }));
 
   generatePdfThumbnail = (
@@ -301,15 +322,18 @@ const createCtx = (card: unknown) => {
 };
 
 describe("generatePdfThumbnail", () => {
-  test("fetches the PDF inside the VM and stores a rendered thumbnail", async () => {
-    storedThumbnail = null;
+  test("fetches the PDF inside the VM and uploads the thumbnail directly", async () => {
+    uploadedThumbnail = null;
+    headObjectCalls = [];
     const { ctx, mutationCalls } = createCtx(pdfCard);
 
     const result = await generatePdfThumbnail(ctx, { cardId: "card-pdf" });
 
     expect(result.success).toBe(true);
     expect(result.generated).toBe(true);
-    expect(result.thumbnailKey).toBe("stored-thumbnail-key");
+    expect(result.thumbnailKey).toBe(
+      "users/u/cards/c/thumbnail/generated"
+    );
 
     // The signed URL is fetched inside the browser VM via Playwright's request
     // context (the fix for R2 signed-URL CORS) instead of a cross-origin
@@ -319,10 +343,17 @@ describe("generatePdfThumbnail", () => {
       "https://signed.r2.example/the-pdf"
     );
 
-    // A PNG thumbnail is persisted and written back to the card.
-    expect(storedThumbnail?.type).toBe("image/png");
+    // The rendered PNG uploads straight from the VM to the Files Worker, and
+    // the committed object is verified before the card records it.
+    expect(capturedPlaywrightCode).toContain(
+      "/__upload/v1/users%2Fu%2Fcards%2Fc%2Fthumbnail%2Fgenerated"
+    );
+    expect(headObjectCalls).toHaveLength(1);
+    expect(headObjectCalls[0]?.op).toBe("head-object");
     expect(mutationCalls).toHaveLength(1);
-    expect(mutationCalls[0]?.args.thumbnailKey).toBe("stored-thumbnail-key");
+    expect(mutationCalls[0]?.args.thumbnailKey).toBe(
+      "users/u/cards/c/thumbnail/generated"
+    );
   });
 
   test("never inlines the PDF bytes into the Kernel code payload", async () => {
@@ -386,12 +417,14 @@ describe("generatePdfThumbnail", () => {
     expect(result.width).toBe(401);
     expect(result.height).toBe(566);
 
-    const png = Buffer.from(result.data, "base64");
-    expect(png.subarray(0, 8)).toEqual(PNG_SIGNATURE);
-    expect(decodePngSize(png)).toEqual({ width: 401, height: 566 });
+    // The rendered PNG is PUT straight to the signed Files Worker URL.
+    const png = uploadedThumbnail?.body;
+    expect(uploadedThumbnail?.url).toContain("/__upload/v1/");
+    expect(png?.subarray(0, 8)).toEqual(PNG_SIGNATURE);
+    expect(decodePngSize(png as Buffer)).toEqual({ width: 401, height: 566 });
     // The stub pdf.js paints the page blue, so a blue first pixel proves the
     // render call actually executed and was serialized by toDataURL.
-    expect(decodePngFirstPixel(png)).toEqual([0x33, 0x66, 0xcc]);
+    expect(decodePngFirstPixel(png as Buffer)).toEqual([0x33, 0x66, 0xcc]);
   });
 
   test("fails cleanly when pdf.js cannot be evaluated", async () => {
