@@ -4,6 +4,8 @@ import {
   buildImageSigningPayload,
   buildImageSourceSigningPayload,
   buildMultipartPartSigningPayload,
+  buildUploadSigningPayload,
+  FILES_UPLOAD_MAX_TTL_SECONDS,
   isFilesImageRendition,
   isFilesOp,
 } from "./index";
@@ -17,6 +19,30 @@ describe("files protocol", () => {
         requestId: "req-1",
       })
     ).toBe("files-op\n1\nreq-1\n123\nabc");
+  });
+
+  test("binds upload signatures to method, key, type, size, and expiry", () => {
+    expect(
+      buildUploadSigningPayload({
+        contentType: "text/plain",
+        expiresAt: "123",
+        key: "users/u/cards/file/x.txt",
+        size: 42,
+      })
+    ).toBe(
+      "upload\n1\nPUT\nusers/u/cards/file/x.txt\ntext/plain\n42\n123"
+    );
+    // Server-generated media signs without a bound size.
+    expect(
+      buildUploadSigningPayload({
+        contentType: "image/jpeg",
+        expiresAt: "123",
+        key: "users/u/cards/screenshot/s.jpg",
+      })
+    ).toBe(
+      "upload\n1\nPUT\nusers/u/cards/screenshot/s.jpg\nimage/jpeg\n\n123"
+    );
+    expect(FILES_UPLOAD_MAX_TTL_SECONDS).toBe(900);
   });
 
   test("accepts only known operations", () => {

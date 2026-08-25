@@ -190,7 +190,14 @@ export class FakeBucket {
     return { httpEtag: fakeHttpEtag(bytes) };
   }
 
-  delete(key: string) {
+  delete(key: string | string[]) {
+    if (Array.isArray(key)) {
+      // Batch deletes treat missing objects as success.
+      for (const single of key) {
+        this.objects.delete(single);
+      }
+      return;
+    }
     this.objects.delete(key);
   }
 

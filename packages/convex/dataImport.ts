@@ -475,13 +475,6 @@ export const createPendingBatch = internalMutation({
           cardId,
           updatedAt: Date.now(),
         });
-        if (item.extractedFileKey) {
-          await ctx.scheduler.runAfter(
-            0,
-            internal.storage.r2.syncUploadedObjectMetadata,
-            { key: item.extractedFileKey }
-          );
-        }
         created += 1;
       } catch (error) {
         const data = errorData(error);

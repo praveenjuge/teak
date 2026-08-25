@@ -16,6 +16,10 @@ import {
   WORKERS_AI_PROVIDER,
 } from "../../ai/telemetry";
 import { trackAiRetry } from "../../shared/metrics";
+import {
+  callFilesWorkerJson,
+  type FilesWorkerImageMetadataResult,
+} from "../../storage/filesWorkerClient";
 import { recordBackendLog } from "../../telemetry/sentry";
 import { aiMetadataSchema } from "./schemas";
 
@@ -257,6 +261,37 @@ export const generateImageMetadata = async (
   return {
     aiTags: result.output.tags,
     aiSummary: result.output.summary,
+  };
+};
+
+/**
+ * Generate AI metadata for a stored image via the Files Worker's
+ * `generate-image-metadata` op. The worker feeds its existing `detail`
+ * rendition into Workers AI with the same model, prompt, output schema, and
+ * bounded validation retries — image bytes never reach Convex.
+ *
+ * A worker fallback (missing/oversized/unsupported source) surfaces as the
+ * same deferred "raster thumbnail pending" condition the direct path used.
+ */
+export const generateImageMetadataForStoredKey = async (
+  sourceKey: string,
+  title?: string
+) => {
+  const outcome = await callFilesWorkerJson<FilesWorkerImageMetadataResult>({
+    op: "generate-image-metadata",
+    params: {
+      sourceKey,
+      ...(title ? { title } : {}),
+    },
+  });
+  if (outcome.kind === "fallback") {
+    throw new Error(
+      "Image analysis is waiting for a raster thumbnail (worker unavailable)"
+    );
+  }
+  return {
+    aiTags: outcome.data.tags,
+    aiSummary: outcome.data.summary,
   };
 };
 

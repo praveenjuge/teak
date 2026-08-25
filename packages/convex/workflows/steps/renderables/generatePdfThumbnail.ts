@@ -5,10 +5,11 @@ import { v } from "convex/values";
 import { internal } from "../../../_generated/api";
 import { internalAction } from "../../../_generated/server";
 import {
-  buildR2ObjectKey,
-  resolveObjectUrl,
-  storeObject,
-} from "../../../storage/r2";
+  buildSignedWorkerUploadUrl,
+  callFilesWorkerJson,
+  type FilesWorkerHeadObjectResult,
+} from "../../../storage/filesWorkerClient";
+import { buildR2ObjectKey, resolveObjectUrl } from "../../../storage/r2";
 
 // Maximum thumbnail width - height will scale proportionally to maintain document aspect ratio
 const THUMBNAIL_MAX_WIDTH = 400;
@@ -102,6 +103,21 @@ export const generatePdfThumbnail = internalAction({
       }
 
       console.log(`[renderables/pdf] Processing PDF for card ${args.cardId}`);
+
+      // Mint a short-lived signed destination URL so the Kernel VM uploads
+      // the generated thumbnail directly to the Files Worker; the bytes never
+      // pass back through Convex.
+      const thumbnailKey = buildR2ObjectKey({
+        userId: card.userId,
+        cardId: args.cardId,
+        role: "thumbnail",
+      });
+      const uploadUrl = (
+        await buildSignedWorkerUploadUrl({
+          contentType: "image/png",
+          key: thumbnailKey,
+        })
+      ).url;
 
       // Use Kernel with Playwright + pdf.js to render the first page
       const kernel = new Kernel();
@@ -206,7 +222,22 @@ export const generatePdfThumbnail = internalAction({
                 maxWidth: ${THUMBNAIL_MAX_WIDTH}
               });
 
-              return JSON.stringify(result);
+              if (!result.success) {
+                return JSON.stringify(result);
+              }
+              // Upload the rendered PNG straight to the Files Worker from
+              // inside the VM so the bytes never return through Convex.
+              const thumbnailPng = Buffer.from(result.data, 'base64');
+              const uploadResponse = await context.request.put(${JSON.stringify(uploadUrl)}, { data: thumbnailPng });
+              if (!uploadResponse.ok()) {
+                return JSON.stringify({ error: 'upload_failed_' + uploadResponse.status(), success: false });
+              }
+              return JSON.stringify({
+                etag: uploadResponse.headers()['etag'] || null,
+                height: result.height,
+                success: true,
+                width: result.width,
+              });
             `,
             timeout_sec: 120,
           }
@@ -238,24 +269,26 @@ export const generatePdfThumbnail = internalAction({
           };
         }
 
-        const base64Screenshot = result.data as string;
-        const buffer = Buffer.from(base64Screenshot, "base64");
-        const imageArrayBuffer = buffer.buffer.slice(
-          buffer.byteOffset,
-          buffer.byteOffset + buffer.byteLength
-        );
-
-        const thumbnailBlob = new Blob([imageArrayBuffer], {
-          type: "image/png",
+        // Verify the committed object before Convex records it.
+        const head = await callFilesWorkerJson<FilesWorkerHeadObjectResult>({
+          op: "head-object",
+          params: { key: thumbnailKey },
         });
-        const thumbnailKey = await storeObject(ctx, thumbnailBlob, {
-          key: buildR2ObjectKey({
-            userId: card.userId,
-            cardId: args.cardId,
-            role: "thumbnail",
-          }),
-          type: "image/png",
-        });
+        if (
+          head.kind !== "ok" ||
+          !head.data.exists ||
+          !head.data.size ||
+          head.data.contentType !== "image/png"
+        ) {
+          console.warn(
+            `[renderables/pdf] Uploaded thumbnail failed verification for card ${args.cardId}`
+          );
+          return {
+            success: false,
+            generated: false,
+            error: "thumbnail_upload_verification_failed",
+          };
+        }
 
         const originalWidth = result.width as number | undefined;
         const originalHeight = result.height as number | undefined;

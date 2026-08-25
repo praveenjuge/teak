@@ -13,15 +13,26 @@ export const isFilesImageRendition = (
   typeof value === "string" &&
   (FILES_IMAGE_RENDITIONS as readonly string[]).includes(value);
 
+export const FILES_UPLOAD_PATH = "/__upload/v1" as const;
+
+/** Upper bound for single-file upload URL validity, enforced by the worker. */
+export const FILES_UPLOAD_MAX_TTL_SECONDS = 15 * 60;
+
 export const FILES_OPS = [
   "analyze-image",
+  // Additive alias of analyze-image; both are accepted so Worker and Convex
+  // deployments can overlap safely within protocol version 1.
+  "analyze-image-content",
   "abort-multipart",
   "build-export",
   "complete-multipart",
   "create-multipart",
   "delete-object",
+  "delete-objects",
   "extract-import-files",
   "finalize-upload",
+  "generate-image-metadata",
+  "head-object",
   "inspect",
 ] as const;
 
@@ -115,6 +126,35 @@ export const buildImageSigningPayload = ({
   ["image", String(FILES_PROTOCOL_VERSION), rendition, key, expiresAt].join(
     "\n"
   );
+
+/**
+ * Signing payload for single-file PUT uploads. Binds the HTTP method, object
+ * key, expiry, content type, and expected size into one HMAC. Size is bound
+ * only when known ahead of time; server-generated media (screenshots,
+ * thumbnails) signs with an empty size and relies on the worker's hard cap.
+ */
+export const buildUploadSigningPayload = ({
+  contentType,
+  expiresAt,
+  key,
+  method = "PUT",
+  size = null,
+}: {
+  contentType: string;
+  expiresAt: string;
+  key: string;
+  method?: string;
+  size?: number | null;
+}): string =>
+  [
+    "upload",
+    String(FILES_PROTOCOL_VERSION),
+    method,
+    key,
+    contentType,
+    size === null ? "" : String(size),
+    expiresAt,
+  ].join("\n");
 
 export const buildImageSourceSigningPayload = ({
   expiresAt,

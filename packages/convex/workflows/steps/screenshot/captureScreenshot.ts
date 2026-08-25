@@ -1,7 +1,6 @@
 "use node";
 
 import { lookup } from "node:dns/promises";
-import { PhotonImage } from "@cf-wasm/photon";
 import Kernel from "@onkernel/sdk";
 import { v } from "convex/values";
 import { internal } from "../../../_generated/api";
@@ -13,7 +12,12 @@ import {
   SsrfError,
   safeFetch,
 } from "../../../linkMetadata/ssrf";
-import { buildR2ObjectKey, storeObject } from "../../../storage/r2";
+import {
+  buildSignedWorkerUploadUrl,
+  callFilesWorkerJson,
+  type FilesWorkerHeadObjectResult,
+} from "../../../storage/filesWorkerClient";
+import { buildR2ObjectKey } from "../../../storage/r2";
 import { pinnedFetch } from "../pinnedFetch";
 import {
   SCREENSHOT_RETRYABLE_PREFIX,
@@ -46,9 +50,14 @@ const throwRetryable = (info: ScreenshotRetryableError): never => {
   throw new Error(`${SCREENSHOT_RETRYABLE_PREFIX}${JSON.stringify(info)}`);
 };
 
+// Viewport is fixed below; full-viewport JPEG screenshots are exactly this size.
+const SCREENSHOT_WIDTH = 1280;
+const SCREENSHOT_HEIGHT = 720;
+
 export const buildGenericScreenshotCode = (
   html: string,
-  screenshotCss: string
+  screenshotCss: string,
+  uploadUrl: string
 ): string => `
   await page.route('**/*', route => route.abort());
   await page.addInitScript(() => {
@@ -59,18 +68,23 @@ export const buildGenericScreenshotCode = (
       Object.defineProperty(globalThis.navigator, 'sendBeacon', { value: () => false });
     }
   });
-  await page.setViewportSize({ width: 1280, height: 720 });
+  await page.setViewportSize({ width: ${SCREENSHOT_WIDTH}, height: ${SCREENSHOT_HEIGHT} });
   await page.setContent(${JSON.stringify(html)}, {
     waitUntil: 'domcontentloaded',
     timeout: 30000
   });
   await page.addStyleTag({ content: ${JSON.stringify(screenshotCss)} });
   const screenshot = await page.screenshot({ type: 'jpeg', quality: 80 });
-  return screenshot.toString('base64');
+  // Upload the generated media straight to the Files Worker so the bytes
+  // never return to Convex as base64.
+  const uploadResponse = await context.request.put(${JSON.stringify(uploadUrl)}, { data: screenshot });
+  if (!uploadResponse.ok()) {
+    return JSON.stringify({ ok: false, status: uploadResponse.status() });
+  }
+  return JSON.stringify({ etag: uploadResponse.headers()['etag'] || null, ok: true, status: uploadResponse.status() });
 `;
 
 const captureScreenshotWithKernel = async (
-  ctx: any,
   {
     cardId,
     html,
@@ -92,6 +106,31 @@ const captureScreenshotWithKernel = async (
   const kernel = new Kernel();
   let kernelBrowser: { session_id: string } | undefined;
 
+  // Mint a short-lived signed upload URL so the Kernel VM uploads the
+  // screenshot directly to the Files Worker; bytes never pass through Convex.
+  const screenshotKey = buildR2ObjectKey({
+    userId,
+    cardId,
+    role: "screenshot",
+  });
+  let uploadUrl: string;
+  try {
+    uploadUrl = (
+      await buildSignedWorkerUploadUrl({
+        contentType: "image/jpeg",
+        key: screenshotKey,
+      })
+    ).url;
+  } catch (error) {
+    console.error("[screenshot] Failed to sign screenshot upload URL", error);
+    return {
+      error: {
+        type: "error",
+        message: "Failed to prepare screenshot upload",
+      },
+    };
+  }
+
   try {
     // Create a browser session
     kernelBrowser = await kernel.browsers.create({
@@ -110,12 +149,12 @@ const captureScreenshotWithKernel = async (
     const response = await kernel.browsers.playwright.execute(
       kernelBrowser.session_id,
       {
-        code: buildGenericScreenshotCode(html, screenshotCss),
+        code: buildGenericScreenshotCode(html, screenshotCss, uploadUrl),
         timeout_sec: 60,
       }
     );
 
-    if (!response.success) {
+    if (!(response.success && response.result)) {
       console.error(
         `[screenshot] Kernel Playwright execution failed for ${url}:`,
         response.error
@@ -142,49 +181,58 @@ const captureScreenshotWithKernel = async (
       };
     }
 
-    const base64Screenshot = response.result as string;
-    if (!base64Screenshot) {
-      console.warn(`[screenshot] Screenshot response missing data for ${url}`);
+    // The VM reports the Files Worker PUT result instead of image bytes.
+    let uploadResult: { etag?: string | null; ok: boolean; status?: number };
+    try {
+      uploadResult = JSON.parse(response.result as string);
+    } catch {
+      console.warn(`[screenshot] Unparseable upload result for ${url}`);
       return {
         error: {
           type: "missing_data",
-          message: "Screenshot response did not include image data",
+          message: "Screenshot upload result was not parseable",
+        },
+      };
+    }
+    if (!uploadResult.ok) {
+      console.warn(
+        `[screenshot] Direct upload failed with status ${uploadResult.status} for ${url}`
+      );
+      return {
+        error: {
+          type: "missing_data",
+          message: "Screenshot upload to storage failed",
         },
       };
     }
 
-    const buffer = Buffer.from(base64Screenshot, "base64");
-    let screenshotWidth: number | undefined;
-    let screenshotHeight: number | undefined;
-    try {
-      const image = PhotonImage.new_from_byteslice(buffer);
-      screenshotWidth = image.get_width();
-      screenshotHeight = image.get_height();
-    } catch (error) {
-      console.warn("[screenshot] Failed to read screenshot dimensions", error);
+    // Verify the committed object before Convex records it.
+    const head = await callFilesWorkerJson<FilesWorkerHeadObjectResult>({
+      op: "head-object",
+      params: { key: screenshotKey },
+    });
+    if (
+      head.kind !== "ok" ||
+      !head.data.exists ||
+      !head.data.size ||
+      !head.data.contentType?.startsWith("image/")
+    ) {
+      console.warn(
+        `[screenshot] Uploaded screenshot failed verification for ${url}`
+      );
+      return {
+        error: {
+          type: "missing_data",
+          message: "Uploaded screenshot did not pass verification",
+        },
+      };
     }
-    const imageArrayBuffer = buffer.buffer.slice(
-      buffer.byteOffset,
-      buffer.byteOffset + buffer.byteLength
-    );
 
-    const screenshotBlob = new Blob([imageArrayBuffer], {
-      type: "image/jpeg",
-    });
-
-    const screenshotKey = await storeObject(ctx, screenshotBlob, {
-      key: buildR2ObjectKey({
-        userId,
-        cardId,
-        role: "screenshot",
-      }),
-      type: "image/jpeg",
-    });
     return {
+      screenshotHeight: SCREENSHOT_HEIGHT,
       screenshotKey,
       screenshotUpdatedAt: Date.now(),
-      screenshotWidth,
-      screenshotHeight,
+      screenshotWidth: SCREENSHOT_WIDTH,
     };
   } catch (error) {
     console.error(`[screenshot] Screenshot capture error for ${url}:`, error);
@@ -274,7 +322,7 @@ export const captureScreenshot = internalAction({
       throw error;
     }
 
-    const screenshotResult = await captureScreenshotWithKernel(ctx, {
+    const screenshotResult = await captureScreenshotWithKernel({
       cardId,
       html,
       url: normalizedUrl,

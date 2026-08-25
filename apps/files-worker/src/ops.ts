@@ -12,6 +12,7 @@ import {
   ExportTooLarge,
 } from "./export";
 import { analyzeImage } from "./imageAnalysis";
+import { generateImageMetadataForOp } from "./imageMetadata";
 import {
   extractZipEntries,
   type InspectMode,
@@ -20,6 +21,7 @@ import {
 } from "./inspect";
 import { sha256Hex, verifyBodySignature } from "./lib";
 import { reportFilesOpFailure } from "./sentry";
+import { isValidUploadKey } from "./upload";
 
 export interface FilesOpsEnv {
   BUCKET: R2Bucket;
@@ -131,6 +133,20 @@ const finalizeUpload = async (
   };
 };
 
+const validKeyList = (value: unknown): string[] => {
+  if (
+    !Array.isArray(value) ||
+    value.length === 0 ||
+    value.length > 100 ||
+    value.some((key) => typeof key !== "string" || !isValidUploadKey(key))
+  ) {
+    throw new Error("invalid_keys");
+  }
+  // Object keys are immutable per-card paths; reject duplicates so a single
+  // batch never double-deletes across namespaces.
+  return Array.from(new Set(value as string[]));
+};
+
 const dispatch = async (
   env: FilesOpsEnv,
   requestId: string,
@@ -140,6 +156,7 @@ const dispatch = async (
   const params = (body.params ?? {}) as Record<string, unknown>;
   switch (body.op) {
     case "analyze-image":
+    case "analyze-image-content":
       return success(
         requestId,
         await analyzeImage(env, requiredString(params, "sourceKey"), origin)
@@ -248,6 +265,42 @@ const dispatch = async (
     case "delete-object":
       await env.BUCKET.delete(requiredString(params, "key"));
       return success(requestId, { deleted: true });
+    case "delete-objects": {
+      const keys = validKeyList(params.keys);
+      // R2 treats missing objects as success for batch deletes.
+      await env.BUCKET.delete(keys);
+      return success(requestId, { deleted: keys.length });
+    }
+    case "head-object": {
+      const key = requiredString(params, "key");
+      if (!isValidUploadKey(key)) {
+        throw new Error("invalid_storage_key");
+      }
+      const object = await env.BUCKET.head(key);
+      if (!object) {
+        return success(requestId, { exists: false });
+      }
+      return success(requestId, {
+        contentType: object.httpMetadata?.contentType,
+        etag: object.httpEtag,
+        exists: true,
+        size: object.size,
+      });
+    }
+    case "generate-image-metadata": {
+      const title = optionalString(params, "title");
+      if (title !== null && title.length > 2000) {
+        throw new Error("invalid_title");
+      }
+      return success(
+        requestId,
+        await generateImageMetadataForOp(env, {
+          origin,
+          sourceKey: requiredString(params, "sourceKey"),
+          title,
+        })
+      );
+    }
     case "extract-import-files": {
       if (!Array.isArray(params.entries)) {
         throw new Error("invalid_entries");

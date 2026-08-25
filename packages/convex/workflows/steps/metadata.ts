@@ -17,10 +17,10 @@ import { extractVisualStylesFromTags } from "../../shared/constants";
 import { inferFileFormat } from "../../shared/fileFormats";
 import { TELEMETRY_OPERATIONS } from "../../shared/telemetry";
 import type { Id } from "../../shared/types";
-import { resolveImageUrl, resolveObjectUrl } from "../../storage/r2";
+import { resolveObjectUrl } from "../../storage/r2";
 import { withBackendSpan } from "../../telemetry/sentry";
 import {
-  generateImageMetadata,
+  generateImageMetadataForStoredKey,
   generateLinkMetadata,
   generateTextMetadata,
   isAiMetadataDeferredError,
@@ -231,32 +231,28 @@ export async function generateHandler(
         const imageKey = resolveImageAnalysisKey(card);
 
         if (imageKey) {
-          const imageUrl =
-            imageKey === card.thumbnailKey
-              ? await resolveObjectUrl(imageKey)
-              : await resolveImageUrl(imageKey, "detail");
-          if (imageUrl) {
-            const result = await generateImageMetadata(imageUrl);
-            aiTags = result.aiTags;
-            aiSummary = result.aiSummary;
-            visualStyles = extractVisualStylesFromTags(result.aiTags);
-            confidence = 0.9;
-          }
+          // Image understanding runs on the Files Worker; no bytes are fetched
+          // into Convex.
+          const result = await generateImageMetadataForStoredKey(imageKey);
+          aiTags = result.aiTags;
+          aiSummary = result.aiSummary;
+          visualStyles = extractVisualStylesFromTags(result.aiTags);
+          confidence = 0.9;
         }
         break;
       }
       case "video": {
         if (card.thumbnailKey) {
-          const thumbnailUrl = await resolveObjectUrl(card.thumbnailKey);
-          if (thumbnailUrl) {
-            const title =
-              card.fileMetadata?.fileName ||
-              (typeof card.content === "string" ? card.content : undefined);
-            const result = await generateImageMetadata(thumbnailUrl, title);
-            aiTags = result.aiTags;
-            aiSummary = result.aiSummary;
-            confidence = 0.88;
-          }
+          const title =
+            card.fileMetadata?.fileName ||
+            (typeof card.content === "string" ? card.content : undefined);
+          const result = await generateImageMetadataForStoredKey(
+            card.thumbnailKey,
+            title
+          );
+          aiTags = result.aiTags;
+          aiSummary = result.aiSummary;
+          confidence = 0.88;
         }
         break;
       }

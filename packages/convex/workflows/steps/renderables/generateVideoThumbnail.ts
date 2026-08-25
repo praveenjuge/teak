@@ -5,10 +5,11 @@ import { v } from "convex/values";
 import { internal } from "../../../_generated/api";
 import { internalAction } from "../../../_generated/server";
 import {
-  buildR2ObjectKey,
-  resolveObjectUrl,
-  storeObject,
-} from "../../../storage/r2";
+  buildSignedWorkerUploadUrl,
+  callFilesWorkerJson,
+  type FilesWorkerHeadObjectResult,
+} from "../../../storage/filesWorkerClient";
+import { buildR2ObjectKey, resolveObjectUrl } from "../../../storage/r2";
 
 // Maximum thumbnail dimensions - matches image thumbnail settings
 const THUMBNAIL_MAX_WIDTH = 400;
@@ -83,6 +84,26 @@ export const generateVideoThumbnail = internalAction({
       console.log(
         `[renderables/video] Processing video for card ${args.cardId}`
       );
+
+      // Mint short-lived signed destination URLs so the Kernel VM uploads
+      // the generated frame directly to the Files Worker; the bytes never
+      // pass back through Convex. Both candidate encodings are signed because
+      // WebP support is decided inside the browser.
+      const thumbnailKey = buildR2ObjectKey({
+        userId: card.userId,
+        cardId: args.cardId,
+        role: "thumbnail",
+      });
+      const [webpUploadUrl, jpegUploadUrl] = await Promise.all([
+        buildSignedWorkerUploadUrl({
+          contentType: "image/webp",
+          key: thumbnailKey,
+        }),
+        buildSignedWorkerUploadUrl({
+          contentType: "image/jpeg",
+          key: thumbnailKey,
+        }),
+      ]);
 
       // Use Kernel with Playwright to extract video frame
       const kernel = new Kernel();
@@ -188,15 +209,26 @@ export const generateVideoThumbnail = internalAction({
                       }
                       
                       const base64 = dataUrl.split(',')[1];
-                      
+                      const uploadUrl = mimeType === 'image/webp' ? '${webpUploadUrl.url.replace(/'/g, "\\'")}' : '${jpegUploadUrl.url.replace(/'/g, "\\'")}';
+                      const uploadResponse = await fetch(uploadUrl, {
+                        body: await (await fetch('data:' + mimeType + ';base64,' + base64)).arrayBuffer(),
+                        headers: { 'content-type': mimeType },
+                        method: 'PUT',
+                      }).catch((err) => ({ ok: false, status: 0, error: String(err) }));
+                      if (!uploadResponse.ok) {
+                        resolve({ success: false, error: 'upload_failed_' + uploadResponse.status });
+                        return;
+                      }
+                      let etag = null;
+                      try { etag = uploadResponse.headers.get('etag'); } catch {}
                       resolve({
                         success: true,
-                        data: base64,
                         width: targetWidth,
                         height: targetHeight,
                         originalWidth: originalWidth,
                         originalHeight: originalHeight,
                         mimeType: mimeType,
+                        etag: etag,
                       });
                     } catch (err) {
                       resolve({ success: false, error: err.message || 'Canvas error' });
@@ -244,24 +276,26 @@ export const generateVideoThumbnail = internalAction({
           };
         }
 
-        const base64Screenshot = result.data as string;
-        const buffer = Buffer.from(base64Screenshot, "base64");
-        const imageArrayBuffer = buffer.buffer.slice(
-          buffer.byteOffset,
-          buffer.byteOffset + buffer.byteLength
-        );
-
-        const thumbnailBlob = new Blob([imageArrayBuffer], {
-          type: result.mimeType || "image/webp",
+        // Verify the committed object before Convex records it.
+        const head = await callFilesWorkerJson<FilesWorkerHeadObjectResult>({
+          op: "head-object",
+          params: { key: thumbnailKey },
         });
-        const thumbnailKey = await storeObject(ctx, thumbnailBlob, {
-          key: buildR2ObjectKey({
-            userId: card.userId,
-            cardId: args.cardId,
-            role: "thumbnail",
-          }),
-          type: result.mimeType || "image/webp",
-        });
+        if (
+          head.kind !== "ok" ||
+          !head.data.exists ||
+          !head.data.size ||
+          !head.data.contentType?.startsWith("image/")
+        ) {
+          console.warn(
+            `[renderables/video] Uploaded thumbnail failed verification for card ${args.cardId}`
+          );
+          return {
+            success: false,
+            generated: false,
+            error: "thumbnail_upload_verification_failed",
+          };
+        }
 
         // Extract original video dimensions from the result
         // These are the videoWidth and videoHeight from the HTMLVideoElement

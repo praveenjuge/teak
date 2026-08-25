@@ -503,13 +503,46 @@ describe("auth", () => {
 
       expect(result.deletedCards).toBe(2);
       expect(result.deletedStorageObjectCount).toBe(3);
-      expect(r2Mocks.deleteObject).toHaveBeenCalledWith(ctx, "f1");
-      expect(r2Mocks.deleteObject).toHaveBeenCalledWith(
-        ctx,
-        "f1.processing.json"
-      );
-      expect(r2Mocks.deleteObject).toHaveBeenCalledWith(ctx, "t1");
       expect(ctx.db.delete).toHaveBeenCalledTimes(2);
+    });
+
+    it("schedules durable batched object deletion", async () => {
+      r2Mocks.deleteObject.mockClear();
+
+      const scheduler = { runAfter: mock().mockResolvedValue(null) };
+      const ctx = {
+        db: {
+          query: () => ({
+            withIndex: (_name: any, cb: any) => {
+              if (cb) {
+                cb({ eq: () => undefined });
+              }
+              return {
+                collect: async () => [
+                  { _id: "c1", fileKey: "f1", thumbnailKey: "t1" },
+                  { _id: "c2" },
+                ],
+              };
+            },
+          }),
+          delete: mock(),
+        },
+        scheduler,
+      } as any;
+
+      const result = await deleteAccountDataHandler(ctx, "u1");
+      expect(result.deletedStorageObjectCount).toBe(3);
+      // One durable workflow per batch of keys (plus the import-objects job).
+      expect(scheduler.runAfter).toHaveBeenCalledTimes(2);
+      const [delay, , args] = scheduler.runAfter.mock.calls[0] as [
+        number,
+        unknown,
+        { keys: string[] },
+      ];
+      expect(delay).toBe(0);
+      expect(new Set(args.keys)).toEqual(
+        new Set(["f1", "f1.processing.json", "t1"])
+      );
     });
   });
 

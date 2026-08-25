@@ -16,7 +16,8 @@ import {
   MarkdownContentError,
   validateMarkdownByteLength,
 } from "./shared/markdown";
-import { buildR2ObjectKey, PENDING_UPLOAD_CARD_ID, r2 } from "./storage/r2";
+import { buildR2ObjectKey, PENDING_UPLOAD_CARD_ID } from "./storage/r2";
+import { buildSignedWorkerUploadUrl } from "./storage/filesWorkerClient";
 
 const UPLOAD_URL_EXPIRES_IN_SECONDS = 60 * 10;
 
@@ -76,22 +77,26 @@ export const generateUploadUrlForUser = internalMutation({
   handler: async (ctx, args) => {
     const { fileName } = validateUploadRequest(args);
     await ensureCardCreationAllowed(ctx, args.userId);
-    const upload = await r2.generateUploadUrl(
-      buildR2ObjectKey({
-        userId: args.userId,
-        cardId: PENDING_UPLOAD_CARD_ID,
-        role: "file",
-        fileName,
-      })
-    );
+    const key = buildR2ObjectKey({
+      userId: args.userId,
+      cardId: PENDING_UPLOAD_CARD_ID,
+      role: "file",
+      fileName,
+    });
+    const signed = await buildSignedWorkerUploadUrl({
+      contentType: args.mimeType || "application/octet-stream",
+      key,
+      size: args.fileSize,
+      ttlSeconds: UPLOAD_URL_EXPIRES_IN_SECONDS,
+    });
     return {
       expiresIn: UPLOAD_URL_EXPIRES_IN_SECONDS,
-      fileKey: upload.key,
+      fileKey: signed.key,
       maxFileSize: isMarkdownFileName(fileName)
         ? MARKDOWN_CONTENT_MAX_BYTES
         : MAX_FILE_SIZE,
       method: "PUT" as const,
-      uploadUrl: upload.url,
+      uploadUrl: signed.url,
     };
   },
 });

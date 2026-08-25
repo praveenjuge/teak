@@ -16,10 +16,17 @@ import {
 } from "./lib";
 import { handleInternalOp } from "./ops";
 import { resolveSentryOptions } from "./sentry";
+import { handleSignedUpload } from "./upload";
 
 export interface Env {
   BUCKET: R2Bucket;
   FILES_SIGNING_SECRET: string;
+  /** Workers AI binding; used for image understanding in generate-image-metadata. */
+  AI?: {
+    run: (model: string, args: Record<string, unknown>) => Promise<unknown>;
+  };
+  /** Cloudflare Images binding; reserved for metadata inspection of eligible rasters. */
+  IMAGES?: unknown;
   /** Wrangler secret; error reporting stays disabled until it is set. */
   SENTRY_DSN?: string;
   /** Optional overrides, normally left unset. */
@@ -310,6 +317,13 @@ const handler = {
         return methodNotAllowed(request, "PUT");
       }
       return await handleMultipartPart(request, env, url);
+    }
+
+    if (url.pathname.startsWith("/__upload/v1/")) {
+      if (requestMethod !== "PUT") {
+        return methodNotAllowed(request, "PUT");
+      }
+      return await handleSignedUpload(request, env, url);
     }
 
     if (url.pathname.startsWith(`${FILES_IMAGE_SOURCE_PATH}/`)) {

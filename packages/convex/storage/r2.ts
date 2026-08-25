@@ -7,10 +7,14 @@ import {
   type FilesImageRendition,
 } from "@teak/files-protocol";
 import { v } from "convex/values";
-import { components } from "../_generated/api";
+import { components, internal } from "../_generated/api";
 import type { ActionCtx, MutationCtx } from "../_generated/server";
 import { internalMutation, mutation, query } from "../_generated/server";
 import { inferFileFormat } from "../shared/fileFormats";
+import {
+  buildSignedWorkerUploadUrl,
+  putObjectViaFilesWorker,
+} from "./filesWorkerClient";
 
 // Object keys are content-immutable (every upload writes a fresh UUID key), so
 // signed URLs can live far longer than a single session. Long-lived,
@@ -330,24 +334,40 @@ export const cardStorageObjectKeys = (card: {
 };
 
 export const deleteObject = async (ctx: MutationCtx, key?: string) => {
-  if (key) {
-    await r2.deleteObject(ctx, key);
+  if (!key) {
+    return;
   }
+  // Durable deletion workflow instead of a synchronous component delete:
+  // the keys are recorded durably and retried by the workflow step.
+  await ctx.scheduler.runAfter(
+    0,
+    (internal as any)["workflows/objectCleanup"].startObjectDeletion,
+    { keys: [key] }
+  );
 };
 
 export const storeObject = async (
-  ctx: ActionCtx,
+  _ctx: ActionCtx,
   blob: Blob,
   opts: {
     key: string;
     type?: string;
   }
-) => r2.store(ctx, blob, opts);
+) => {
+  const { etag } = await putObjectViaFilesWorker({
+    body: blob,
+    contentType: opts.type ?? blob.type ?? "application/octet-stream",
+    key: opts.key,
+  });
+  return etag;
+};
 
 export const generateUploadUrl = mutation({
   args: {
     cardId: v.optional(v.id("cards")),
     fileName: v.optional(v.string()),
+    fileType: v.optional(v.string()),
+    fileSize: v.optional(v.number()),
     role: v.optional(v.string()),
   },
   returns: v.object({
@@ -359,14 +379,19 @@ export const generateUploadUrl = mutation({
     if (!user) {
       throw new Error("User must be authenticated");
     }
-    return r2.generateUploadUrl(
-      buildR2ObjectKey({
-        userId: user.subject,
-        cardId: args.cardId,
-        role: args.role ?? "file",
-        fileName: args.fileName,
-      })
-    );
+    const key = buildR2ObjectKey({
+      userId: user.subject,
+      cardId: args.cardId,
+      role: args.role ?? "file",
+      fileName: args.fileName,
+    });
+    const contentType = args.fileType ?? "application/octet-stream";
+    const signed = await buildSignedWorkerUploadUrl({
+      contentType,
+      key,
+      size: args.fileSize ?? null,
+    });
+    return { key, url: signed.url };
   },
 });
 

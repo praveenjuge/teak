@@ -17,6 +17,12 @@
       "bucket_name": "teak-files-prod"
     }
   ],
+  "ai": {
+    "binding": "AI"
+  },
+  "images": {
+    "binding": "IMAGES"
+  },
   "observability": {
     "enabled": true,
     "head_sampling_rate": 1
@@ -35,7 +41,13 @@
           "binding": "BUCKET",
           "bucket_name": "teak-files-dev"
         }
-      ]
+      ],
+      "ai": {
+        "binding": "AI"
+      },
+      "images": {
+        "binding": "IMAGES"
+      }
     }
   }
 }
