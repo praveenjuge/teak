@@ -39,6 +39,12 @@ export const CRON_MONITORS = {
     schedule: "30 * * * *",
     slug: "cleanup-stale-pending-card-uploads",
   },
+  sweepOrphanedObjects: {
+    checkinMarginMinutes: 30,
+    maxRuntimeMinutes: 60,
+    schedule: "0 4 * * 1",
+    slug: "sweep-orphaned-objects",
+  },
   ensureOauthClients: {
     checkinMarginMinutes: 15,
     maxRuntimeMinutes: 5,
@@ -95,6 +101,19 @@ export const cleanupStalePendingCardUploads = internalAction({
         internalAny.fileUploads.cleanupExpiredMultipartUploads,
         {}
       );
+    }),
+});
+
+export const sweepOrphanedObjects = internalAction({
+  args: {},
+  returns: v.null(),
+  handler: (ctx: ActionCtx) =>
+    monitored(CRON_MONITORS.sweepOrphanedObjects, async () => {
+      await ctx.runAction(
+        internalAny["workflows/orphanSweep"].sweepOrphanedObjects,
+        {}
+      );
+      return null;
     }),
 });
 

@@ -19,12 +19,12 @@ import { resolveSentryOptions } from "./sentry";
 import { handleSignedUpload } from "./upload";
 
 export interface Env {
-  BUCKET: R2Bucket;
-  FILES_SIGNING_SECRET: string;
   /** Workers AI binding; used for image understanding in generate-image-metadata. */
   AI?: {
     run: (model: string, args: Record<string, unknown>) => Promise<unknown>;
   };
+  BUCKET: R2Bucket;
+  FILES_SIGNING_SECRET: string;
   /** Cloudflare Images binding; reserved for metadata inspection of eligible rasters. */
   IMAGES?: unknown;
   /** Wrangler secret; error reporting stays disabled until it is set. */

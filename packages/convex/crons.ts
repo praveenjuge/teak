@@ -42,6 +42,14 @@ crons.cron(
   {}
 );
 
+// Weekly report-only reconciliation of orphaned storage objects (Mondays 04:00 UTC)
+crons.cron(
+  "sweep-orphaned-objects",
+  "0 4 * * 1",
+  (internal as any).telemetry.crons.sweepOrphanedObjects,
+  {}
+);
+
 // Generate AI metadata for cards that don't have it yet
 // Runs every 6 hours to catch any cards that failed generation
 crons.cron(

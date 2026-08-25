@@ -201,6 +201,34 @@ export class FakeBucket {
     this.objects.delete(key);
   }
 
+  list(options: { prefix: string; cursor?: string; limit?: number }) {
+    const all = [...this.objects.entries()]
+      .filter(([key]) => key.startsWith(options.prefix))
+      .sort(([a], [b]) => (a < b ? -1 : 1));
+    const start = options.cursor
+      ? Math.max(
+          all.findIndex(([key]) => key > options.cursor),
+          0
+        )
+      : 0;
+    const page = all.slice(
+      start,
+      options.limit ? start + options.limit : undefined
+    );
+    const truncated = options.limit
+      ? start + options.limit < all.length
+      : false;
+    return {
+      objects: page.map(([key, stored]) => ({
+        key,
+        size: stored.bytes?.length ?? 0,
+        uploaded: new Date(0),
+      })),
+      truncated,
+      ...(truncated ? { cursor: page.at(-1)?.[0] } : {}),
+    };
+  }
+
   createMultipartUpload(
     key: string,
     options?: { httpMetadata?: Record<string, string> }

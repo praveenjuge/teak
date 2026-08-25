@@ -34,7 +34,9 @@ export interface SignedUploadUrl {
 /**
  * Mint a signed single-file PUT URL on the Files Worker. The signature binds
  * the HTTP method, object key, expiry, content type, and — when known ahead
- * of time — the exact byte size.
+ * of time — the exact byte size. An empty contentType leaves the content type
+ * unbound (the worker stores the request's validated Content-Type); use it
+ * when the encoding is decided at generation time.
  */
 export const buildSignedWorkerUploadUrl = async (
   {
@@ -71,7 +73,9 @@ export const buildSignedWorkerUploadUrl = async (
   const url = new URL(
     `${base.replace(/\/+$/, "")}${FILES_UPLOAD_PATH}/${encodeURIComponent(key)}`
   );
-  url.searchParams.set("ct", contentType);
+  if (contentType) {
+    url.searchParams.set("ct", contentType);
+  }
   url.searchParams.set("exp", expiresAt);
   url.searchParams.set("sig", signature);
   if (size !== null) {
@@ -96,12 +100,7 @@ export const putObjectViaFilesWorker = async ({
 }): Promise<{ etag: string; key: string; size: number }> => {
   const signed = await buildSignedWorkerUploadUrl({ contentType, key });
   const response = await fetch(signed.url, {
-    body:
-      body instanceof Uint8Array
-        ? new Uint8Array(body)
-        : body instanceof ArrayBuffer
-          ? body
-          : body,
+    body: body instanceof Uint8Array ? new Uint8Array(body) : body,
     headers: {
       "content-type": contentType,
       // Content-Length is set automatically for fixed-size bodies.
@@ -109,17 +108,13 @@ export const putObjectViaFilesWorker = async ({
     },
     method: "PUT",
   });
-  const envelope = (await response
-    .json()
-    .catch(() => null)) as FilesEnvelope<{
+  const envelope = (await response.json().catch(() => null)) as FilesEnvelope<{
     etag: string;
     key: string;
     size: number;
   }> | null;
   if (!(response.ok && envelope?.ok)) {
-    throw new Error(
-      `files_worker_upload_error:${response.status}`
-    );
+    throw new Error(`files_worker_upload_error:${response.status}`);
   }
   return envelope.data;
 };
@@ -275,4 +270,16 @@ export interface FilesWorkerHeadObjectResult {
 export interface FilesWorkerImageMetadataResult {
   summary: string;
   tags: string[];
+}
+
+export interface FilesWorkerListedObject {
+  key: string;
+  lastModified: number;
+  size: number;
+}
+
+export interface FilesWorkerListObjectsResult {
+  cursor: string | null;
+  objects: FilesWorkerListedObject[];
+  truncated: boolean;
 }

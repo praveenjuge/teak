@@ -29,9 +29,7 @@ describe("files protocol", () => {
         key: "users/u/cards/file/x.txt",
         size: 42,
       })
-    ).toBe(
-      "upload\n1\nPUT\nusers/u/cards/file/x.txt\ntext/plain\n42\n123"
-    );
+    ).toBe("upload\n1\nPUT\nusers/u/cards/file/x.txt\ntext/plain\n42\n123");
     // Server-generated media signs without a bound size.
     expect(
       buildUploadSigningPayload({
@@ -39,9 +37,7 @@ describe("files protocol", () => {
         expiresAt: "123",
         key: "users/u/cards/screenshot/s.jpg",
       })
-    ).toBe(
-      "upload\n1\nPUT\nusers/u/cards/screenshot/s.jpg\nimage/jpeg\n\n123"
-    );
+    ).toBe("upload\n1\nPUT\nusers/u/cards/screenshot/s.jpg\nimage/jpeg\n\n123");
     expect(FILES_UPLOAD_MAX_TTL_SECONDS).toBe(900);
   });
 

@@ -61,7 +61,7 @@ export const recordObjectDeletionFailure = internalMutation({
     keys: v.array(v.string()),
   },
   returns: v.null(),
-  handler: async (_ctx, { error, keys }) => {
+  handler: (_ctx, { error, keys }) => {
     console.error(
       "[workflow/objectCleanup] Permanent storage object deletion failed",
       { count: keys.length, error, keys }

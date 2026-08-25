@@ -1,75 +1,72 @@
 "use node";
 
-import {
-  type _Object,
-  DeleteObjectsCommand,
-  ListObjectsV2Command,
-  S3Client,
-} from "@aws-sdk/client-s3";
 import { v } from "convex/values";
 import { internalAction } from "../_generated/server";
-import { PENDING_UPLOAD_CARD_ID, r2ComponentConfig } from "./r2";
+import {
+  callFilesWorkerJson,
+  type FilesWorkerListObjectsResult,
+  isFilesWorkerConfigured,
+} from "./filesWorkerClient";
+import { PENDING_UPLOAD_CARD_ID } from "./r2";
 
 const STALE_AFTER_MS = 24 * 60 * 60 * 1000;
 const PENDING_UPLOAD_SEGMENT = `/cards/${PENDING_UPLOAD_CARD_ID}/`;
+const LIST_PAGE_LIMIT = 1000;
+const DELETE_BATCH_SIZE = 100;
+// Hard page cap so a pathological bucket cannot spin the cron forever; the
+// next hourly run resumes from wherever listing left off.
+const MAX_LIST_PAGES = 200;
 
 export const stalePendingUploadKeys = (
-  objects: _Object[],
+  objects: Array<{ key: string; lastModified: number }>,
   now = Date.now()
 ): string[] =>
   objects.flatMap((object) => {
     if (
-      !(object.Key?.includes(PENDING_UPLOAD_SEGMENT) && object.LastModified) ||
-      object.LastModified.getTime() > now - STALE_AFTER_MS
+      !object.key.includes(PENDING_UPLOAD_SEGMENT) ||
+      object.lastModified > now - STALE_AFTER_MS
     ) {
       return [];
     }
-    return [object.Key];
+    return [object.key];
   });
 
-const createClient = () => {
-  const config = r2ComponentConfig();
-  return {
-    bucket: config.bucket,
-    client: new S3Client({
-      credentials: {
-        accessKeyId: config.accessKeyId,
-        secretAccessKey: config.secretAccessKey,
-      },
-      endpoint: config.endpoint,
-      forcePathStyle: true,
-      region: "auto",
-      requestChecksumCalculation: "WHEN_REQUIRED",
-    }),
-  };
-};
-
 export const sweepStalePendingUploadsHandler = async (): Promise<null> => {
-  const { bucket, client } = createClient();
-  let continuationToken: string | undefined;
+  if (!isFilesWorkerConfigured()) {
+    throw new Error("files_worker_not_configured");
+  }
+  let cursor: string | null = null;
+  let pages = 0;
 
   do {
-    const page = await client.send(
-      new ListObjectsV2Command({
-        Bucket: bucket,
-        ContinuationToken: continuationToken,
-        Prefix: "users/",
-      })
-    );
-    const keys = stalePendingUploadKeys(page.Contents ?? []);
-    if (keys.length > 0) {
-      await client.send(
-        new DeleteObjectsCommand({
-          Bucket: bucket,
-          Delete: {
-            Objects: keys.map((Key) => ({ Key })),
-            Quiet: true,
-          },
-        })
-      );
+    const params: Record<string, unknown> = {
+      prefix: "users/",
+      limit: LIST_PAGE_LIMIT,
+    };
+    if (cursor) {
+      params.cursor = cursor;
     }
-    continuationToken = page.NextContinuationToken;
-  } while (continuationToken);
+    const outcome = await callFilesWorkerJson<FilesWorkerListObjectsResult>({
+      op: "list-objects",
+      params,
+    });
+    if (outcome.kind !== "ok") {
+      throw new Error("files_worker_list_objects_unavailable");
+    }
+    cursor = outcome.data.cursor;
+    pages += 1;
+
+    const staleKeys = stalePendingUploadKeys(outcome.data.objects);
+    for (let index = 0; index < staleKeys.length; index += DELETE_BATCH_SIZE) {
+      const deleted = await callFilesWorkerJson<{ deleted: number }>({
+        op: "delete-objects",
+        params: { keys: staleKeys.slice(index, index + DELETE_BATCH_SIZE) },
+      });
+      if (deleted.kind !== "ok") {
+        throw new Error("files_worker_delete_objects_unavailable");
+      }
+    }
+  } while (cursor && pages < MAX_LIST_PAGES);
 
   return null;
 };

@@ -1,15 +1,12 @@
-import { GetObjectCommand, S3Client } from "@aws-sdk/client-s3";
-import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
-import { R2 } from "@convex-dev/r2";
 import {
   buildImageSigningPayload,
   FILES_IMAGE_PATH,
   type FilesImageRendition,
 } from "@teak/files-protocol";
 import { v } from "convex/values";
-import { components, internal } from "../_generated/api";
+import { internal } from "../_generated/api";
 import type { ActionCtx, MutationCtx } from "../_generated/server";
-import { internalMutation, mutation, query } from "../_generated/server";
+import { mutation, query } from "../_generated/server";
 import { inferFileFormat } from "../shared/fileFormats";
 import {
   buildSignedWorkerUploadUrl,
@@ -21,16 +18,11 @@ import {
 // time-bucketed URLs keep the URL string identical across reactive query
 // re-runs and page loads, which is what lets the browser HTTP cache actually
 // serve repeat views instead of refetching every card image.
-const SIGNED_URL_EXPIRES_IN_SECONDS = 7 * 24 * 60 * 60; // SigV4 presign cap: 7 days.
+const SIGNED_URL_EXPIRES_IN_SECONDS = 7 * 24 * 60 * 60;
 // All signatures produced within one bucket window share the same exp (and
 // therefore the exact same URL). Buckets also guarantee a minimum remaining
 // validity of SIGNED_URL_EXPIRES_IN_SECONDS at generation time.
 const SIGNED_URL_BUCKET_SECONDS = 6 * 60 * 60;
-
-// Must stay below the signed-URL minimum remaining validity above; keep in
-// lockstep between PRIVATE_FILE_CACHE_CONTROL here (browser-facing) and
-// FILES_CACHE_CONTROL / FILES_EDGE_CACHE_CONTROL in apps/files-worker/src/lib.ts.
-const PRIVATE_FILE_CACHE_CONTROL = "private, max-age=518400, immutable"; // 6 days.
 
 /**
  * Deterministic expiry for the current bucket window: every call made within
@@ -43,32 +35,10 @@ export const bucketedSignatureExpiry = (
     SIGNED_URL_BUCKET_SECONDS +
   SIGNED_URL_EXPIRES_IN_SECONDS;
 
-// Best-effort memo for the presigned-S3 fallback path (no worker proxy
-// configured): re-signing on every query execution churns the URL string and
-// defeats the browser cache even within a single isolate lifetime. Keyed by
-// object key + response policy, evicted shortly before expiry.
-const presignedUrlMemo = new Map<string, { url: string; refreshAt: number }>();
-const PRESIGN_REFRESH_MARGIN_SECONDS = 15 * 60;
-
-export const r2 = new R2(components.r2);
-
-let downloadClient: S3Client | null = null;
-
-// Build the download client lazily (on first signed-URL request) rather than at
-// module load, reusing the same R2 config the component resolves from env vars.
-const getDownloadClient = (): S3Client => {
-  if (!downloadClient) {
-    downloadClient = new S3Client({
-      credentials: {
-        accessKeyId: r2.config.accessKeyId,
-        secretAccessKey: r2.config.secretAccessKey,
-      },
-      endpoint: r2.config.endpoint,
-      region: "auto",
-    });
-  }
-  return downloadClient;
-};
+// Browser-facing cache directive; keep in lockstep with FILES_CACHE_CONTROL
+// in apps/files-worker/src/lib.ts and below the signed-URL minimum remaining
+// validity so browsers never replay an expired signature.
+export const PRIVATE_FILE_CACHE_CONTROL = "private, max-age=518400, immutable"; // 6 days.
 
 export type R2ObjectKey = string;
 export const PENDING_UPLOAD_CARD_ID = "upload-pending-v2";
@@ -128,59 +98,22 @@ export const buildR2ObjectKey = ({
   ].join("/");
 };
 
-export const buildR2DownloadCommand = (
-  key: string,
-  bucket = r2.config.bucket,
-  response: DownloadResponsePolicy = {}
-) =>
-  new GetObjectCommand({
-    Bucket: bucket,
-    Key: key,
-    ResponseCacheControl: PRIVATE_FILE_CACHE_CONTROL,
-    ResponseContentDisposition: response.contentDisposition,
-    ResponseContentType: response.contentType,
-  });
-
 export const getR2Url = async (
   key: string,
   response: DownloadResponsePolicy = {}
 ) => {
   const filesBase = process.env.FILES_BASE;
   const signingSecret = process.env.FILES_SIGNING_SECRET;
-  if (filesBase && signingSecret) {
-    return await buildSignedWorkerFileUrl(
-      filesBase,
-      signingSecret,
-      key,
-      response,
-      bucketedSignatureExpiry()
-    );
+  if (!(filesBase && signingSecret)) {
+    throw new Error("files_worker_not_configured");
   }
-  const memoKey = [
+  return await buildSignedWorkerFileUrl(
+    filesBase,
+    signingSecret,
     key,
-    response.contentType ?? "",
-    response.contentDisposition ?? "",
-  ].join("\n");
-  const nowSeconds = Math.floor(Date.now() / 1000);
-  const memoized = presignedUrlMemo.get(memoKey);
-  if (memoized && memoized.refreshAt > nowSeconds) {
-    return memoized.url;
-  }
-  const url = await getSignedUrl(
-    getDownloadClient(),
-    buildR2DownloadCommand(key, undefined, response),
-    {
-      expiresIn: SIGNED_URL_EXPIRES_IN_SECONDS,
-    }
+    response,
+    bucketedSignatureExpiry()
   );
-  presignedUrlMemo.set(memoKey, {
-    url,
-    refreshAt:
-      nowSeconds +
-      SIGNED_URL_EXPIRES_IN_SECONDS -
-      PRESIGN_REFRESH_MARGIN_SECONDS,
-  });
-  return url;
 };
 
 const hexEncode = (buffer: ArrayBuffer): string =>
@@ -259,20 +192,6 @@ export const buildSignedWorkerImageUrl = async (
   return `${base.replace(/\/+$/, "")}${FILES_IMAGE_PATH}/${rendition}/${encodeURIComponent(key)}?${params.toString()}`;
 };
 
-export const r2ComponentConfig = () => {
-  const { R2_BUCKET, R2_ENDPOINT, R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY } =
-    process.env;
-  if (!(R2_BUCKET && R2_ENDPOINT && R2_ACCESS_KEY_ID && R2_SECRET_ACCESS_KEY)) {
-    throw new Error("R2 environment variables are not configured");
-  }
-  return {
-    bucket: R2_BUCKET,
-    endpoint: R2_ENDPOINT,
-    accessKeyId: R2_ACCESS_KEY_ID,
-    secretAccessKey: R2_SECRET_ACCESS_KEY,
-  };
-};
-
 export const resolveObjectUrl = async (
   key?: string,
   fileName?: string | null
@@ -293,15 +212,16 @@ export const resolveImageUrl = async (
   }
   const filesBase = process.env.FILES_BASE;
   const signingSecret = process.env.FILES_SIGNING_SECRET;
-  return filesBase && signingSecret
-    ? await buildSignedWorkerImageUrl(
-        filesBase,
-        signingSecret,
-        key,
-        rendition,
-        bucketedSignatureExpiry()
-      )
-    : await resolveObjectUrl(key);
+  if (!(filesBase && signingSecret)) {
+    throw new Error("files_worker_not_configured");
+  }
+  return await buildSignedWorkerImageUrl(
+    filesBase,
+    signingSecret,
+    key,
+    rendition,
+    bucketedSignatureExpiry()
+  );
 };
 
 export const cardStorageObjectKeys = (card: {
@@ -393,18 +313,6 @@ export const generateUploadUrl = mutation({
       size: args.fileSize ?? null,
     });
     return { key, url: signed.url };
-  },
-});
-
-export const syncUploadedObjectMetadata = internalMutation({
-  args: { key: v.string() },
-  returns: v.null(),
-  handler: async (ctx, { key }) => {
-    await ctx.scheduler.runAfter(0, components.r2.lib.syncMetadata, {
-      key,
-      ...r2ComponentConfig(),
-    });
-    return null;
   },
 });
 

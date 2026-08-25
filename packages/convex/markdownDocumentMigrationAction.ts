@@ -14,7 +14,8 @@ import {
   MARKDOWN_CONTENT_MAX_BYTES,
   MarkdownContentError,
 } from "./shared/markdown";
-import { buildR2UserPrefix, r2ComponentConfig } from "./storage/r2";
+import { buildR2UserPrefix } from "./storage/r2";
+import { explicitR2Config } from "./storage/r2Config";
 
 interface MigrationFailure {
   reason: string;
@@ -47,7 +48,7 @@ export function classifyStorageError(error: unknown): MigrationFailure {
 }
 
 const createClient = () => {
-  const config = r2ComponentConfig();
+  const config = explicitR2Config();
   return {
     bucket: config.bucket,
     client: new S3Client({

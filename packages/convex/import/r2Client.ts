@@ -1,19 +1,16 @@
 "use node";
 
 import { S3Client } from "@aws-sdk/client-s3";
+import { explicitR2Config } from "../storage/r2Config";
 
 export function getImportR2Config() {
-  const { R2_BUCKET, R2_ENDPOINT, R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY } =
-    process.env;
-  if (!(R2_BUCKET && R2_ENDPOINT && R2_ACCESS_KEY_ID && R2_SECRET_ACCESS_KEY)) {
-    throw new Error("R2 environment variables are not configured");
-  }
+  const config = explicitR2Config();
   return {
-    bucket: R2_BUCKET,
-    endpoint: R2_ENDPOINT,
+    bucket: config.bucket,
+    endpoint: config.endpoint,
     credentials: {
-      accessKeyId: R2_ACCESS_KEY_ID,
-      secretAccessKey: R2_SECRET_ACCESS_KEY,
+      accessKeyId: config.accessKeyId,
+      secretAccessKey: config.secretAccessKey,
     },
   };
 }

@@ -10,15 +10,11 @@ import {
   type FilesWorkerHeadObjectResult,
 } from "../../../storage/filesWorkerClient";
 import { buildR2ObjectKey, resolveObjectUrl } from "../../../storage/r2";
+import { escapeForSingleQuotedJs } from "../kernelCodegen";
 
 // Maximum thumbnail dimensions - matches image thumbnail settings
 const THUMBNAIL_MAX_WIDTH = 400;
 const THUMBNAIL_MAX_HEIGHT = 400;
-
-// Escape a value for embedding in a single-quoted JavaScript string inside
-// generated Playwright code: backslashes first, then single quotes.
-const escapeForSingleQuotedJs = (value: string): string =>
-  value.replace(/\\/g, "\\\\").replace(/'/g, "\\'");
 
 /**
  * Generate a thumbnail image from a video file.
@@ -90,25 +86,22 @@ export const generateVideoThumbnail = internalAction({
         `[renderables/video] Processing video for card ${args.cardId}`
       );
 
-      // Mint short-lived signed destination URLs so the Kernel VM uploads
+      // Mint one short-lived signed destination URL so the Kernel VM uploads
       // the generated frame directly to the Files Worker; the bytes never
-      // pass back through Convex. Both candidate encodings are signed because
-      // WebP support is decided inside the browser.
+      // pass back through Convex. The content type is left unbound because
+      // the encoding (WebP with JPEG fallback) is decided inside the browser;
+      // the worker stores the request's validated Content-Type.
       const thumbnailKey = buildR2ObjectKey({
         userId: card.userId,
         cardId: args.cardId,
         role: "thumbnail",
       });
-      const [webpUploadUrl, jpegUploadUrl] = await Promise.all([
-        buildSignedWorkerUploadUrl({
-          contentType: "image/webp",
+      const uploadUrl = (
+        await buildSignedWorkerUploadUrl({
+          contentType: "",
           key: thumbnailKey,
-        }),
-        buildSignedWorkerUploadUrl({
-          contentType: "image/jpeg",
-          key: thumbnailKey,
-        }),
-      ]);
+        })
+      ).url;
 
       // Use Kernel with Playwright to extract video frame
       const kernel = new Kernel();
@@ -214,7 +207,7 @@ export const generateVideoThumbnail = internalAction({
                       }
                       
                       const base64 = dataUrl.split(',')[1];
-                      const uploadUrl = mimeType === 'image/webp' ? '${escapeForSingleQuotedJs(webpUploadUrl.url)}' : '${escapeForSingleQuotedJs(jpegUploadUrl.url)}';
+                      const uploadUrl = '${escapeForSingleQuotedJs(uploadUrl)}';
                       const uploadResponse = await fetch(uploadUrl, {
                         body: await (await fetch('data:' + mimeType + ';base64,' + base64)).arrayBuffer(),
                         headers: { 'content-type': mimeType },
@@ -244,7 +237,7 @@ export const generateVideoThumbnail = internalAction({
                   video.load();
                 });
               }, {
-                videoUrl: '${videoUrl.replace(/\\/g, "\\\\").replace(/'/g, "\\'")}',
+                videoUrl: '${escapeForSingleQuotedJs(videoUrl)}',
                 maxWidth: ${THUMBNAIL_MAX_WIDTH},
                 maxHeight: ${THUMBNAIL_MAX_HEIGHT}
               });

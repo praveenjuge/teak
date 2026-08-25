@@ -101,7 +101,9 @@ Add these to your env files before running locally or deploying.
 SITE_URL=http://app.teak.localhost:1355
 BETTER_AUTH_SECRET=your-secret               # Better Auth security
 TEAK_ADMIN_EMAIL=you@example.com             # Explicit administrator account
-R2_ACCESS_KEY_ID=access-key                  # R2 S3 access key
+FILES_BASE=https://files.yourdomain.com      # Files Worker origin
+FILES_SIGNING_SECRET=shared-secret           # Same value as the worker's FILES_SIGNING_SECRET
+R2_ACCESS_KEY_ID=access-key                  # R2 S3 access key (import archives + Markdown migration)
 R2_SECRET_ACCESS_KEY=secret-key              # R2 S3 secret key
 R2_ENDPOINT=https://account.r2.cloudflarestorage.com
 R2_BUCKET=teak-files                         # R2 bucket for private assets
@@ -114,6 +116,26 @@ POLAR_SERVER=sandbox                         # sandbox|production
 POLAR_WEBHOOK_SECRET=secret                  # Polar webhooks
 RESEND_API_KEY=token                         # Email service
 ```
+
+### Files Worker (`apps/files-worker/.dev.vars`, wrangler secrets)
+
+The Files Worker owns all file-byte operations (uploads, downloads,
+renditions, AI analysis) and binds directly to your R2 bucket plus
+Cloudflare Images and Workers AI:
+
+```bash
+FILES_SIGNING_SECRET=shared-secret           # Must match the Convex value
+```
+
+The bucket binding is configured in `wrangler.jsonc` (`binding: "BUCKET"` —
+set `bucket_name` to your own bucket). The worker config also declares
+Cloudflare Images (`IMAGES`) and Workers AI (`AI`) bindings, so your account
+needs both enabled.
+
+Deploy it with `bunx wrangler deploy` from `apps/files-worker`. Its
+`wrangler.jsonc` also declares Cloudflare Images and Workers AI bindings, so
+your account needs both enabled. Point `FILES_BASE` in the backend env at the
+worker's public origin.
 
 ### Web (`apps/web/.env.local`)
 
@@ -166,6 +188,7 @@ Convex serves the REST API at `/api/v1`, the MCP endpoint at `/mcp`, plus `/heal
   - `TEAK_ADMIN_EMAIL`: The normalized email address of the one account allowed to use administrative functions. Configure this independently for development and production.
 - **Optional Features**:
   - `R2_*`: Create a private Cloudflare R2 bucket and an API token/S3 credentials with object read, write, and delete access.
+  - `FILES_BASE` + `FILES_SIGNING_SECRET`: Deploy the Files Worker (see its section above); card uploads, downloads, thumbnails, and AI analysis all flow through it.
   - `CLOUDFLARE_ACCOUNT_ID` + `CLOUDFLARE_API_TOKEN`: Get from the [Cloudflare dashboard](https://dash.cloudflare.com/) — create an API token with Workers AI run permission for AI-powered card processing.
   - `KERNEL_API_KEY`: Get from [Kernel](https://onkernel.com/) for automated link screenshots.
   - `RESEND_API_KEY`: Get from [Resend](https://resend.com/) for email verification and password resets.

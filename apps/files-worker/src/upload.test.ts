@@ -125,6 +125,42 @@ describe("signed single-file uploads", () => {
     );
   });
 
+  test("accepts an unbound content type and stores the request header", async () => {
+    const bucket = new FakeBucket();
+    const envWithBucket = {
+      BUCKET: bucket,
+      FILES_SIGNING_SECRET: SECRET,
+    } as Env;
+    // Signature is minted with an empty content type (no ct param); the
+    // request's own validated Content-Type is stored verbatim.
+    const key = "users/u1/cards/thumbnail/frame";
+    const exp = String(Math.floor(Date.now() / 1000) + 600);
+    const sig = await hmacSha256Hex(
+      SECRET,
+      buildUploadSigningPayload({ contentType: "", expiresAt: exp, key })
+    );
+    const url = new URL(`https://files.teakvault.com/__upload/v1/${key}`);
+    url.searchParams.set("exp", exp);
+    url.searchParams.set("sig", sig);
+    const body = new Uint8Array([1, 2, 3, 4]);
+    const response = await worker.fetch(
+      new Request(url.toString(), {
+        body,
+        method: "PUT",
+        headers: {
+          "content-length": String(body.byteLength),
+          "content-type": "image/webp",
+          "x-teak-request-id": crypto.randomUUID(),
+        },
+      }),
+      envWithBucket,
+      { waitUntil: () => undefined } as never
+    );
+    expect(response.status).toBe(200);
+    const stored = bucket.objects.get(key);
+    expect(stored?.httpMetadata?.contentType).toBe("image/webp");
+  });
+
   test("rejects expired signatures", async () => {
     const response = await worker.fetch(
       await signedUploadRequest(new TextEncoder().encode("x"), {
@@ -149,7 +185,11 @@ describe("signed single-file uploads", () => {
 
   test("rejects tampered signatures", async () => {
     const response = await worker.fetch(
-      await signedUploadRequest(new TextEncoder().encode("x"), {}, { sig: "0".repeat(64) }),
+      await signedUploadRequest(
+        new TextEncoder().encode("x"),
+        {},
+        { sig: "0".repeat(64) }
+      ),
       env(),
       { waitUntil: () => undefined } as never
     );
@@ -207,11 +247,9 @@ describe("signed single-file uploads", () => {
 
   test("requires Content-Length", async () => {
     const request = await signedUploadRequest(null);
-    const response = await worker.fetch(
-      request,
-      env(),
-      { waitUntil: () => undefined } as never
-    );
+    const response = await worker.fetch(request, env(), {
+      waitUntil: () => undefined,
+    } as never);
     expect(response.status).toBe(411);
   });
 
@@ -230,20 +268,17 @@ describe("signed single-file uploads", () => {
   test("enforces a bound size mismatch", async () => {
     const bytes = new TextEncoder().encode("hello");
     const request = await signedUploadRequest(bytes, { boundSize: 999 });
-    const response = await worker.fetch(
-      request,
-      env(),
-      { waitUntil: () => undefined } as never
-    );
+    const response = await worker.fetch(request, env(), {
+      waitUntil: () => undefined,
+    } as never);
     expect(response.status).toBe(409);
   });
 
   test("answers OPTIONS preflight for the upload path", async () => {
     const response = await worker.fetch(
-      new Request(
-        "https://files.teakvault.com/__upload/v1/users/u1/x.txt",
-        { method: "OPTIONS" }
-      ),
+      new Request("https://files.teakvault.com/__upload/v1/users/u1/x.txt", {
+        method: "OPTIONS",
+      }),
       env(),
       { waitUntil: () => undefined } as never
     );
@@ -254,7 +289,9 @@ describe("signed single-file uploads", () => {
 describe("additive files ops", () => {
   test("delete-objects removes batches and tolerates missing keys", async () => {
     const bucket = new FakeBucket();
-    bucket.objects.set("users/u1/a.txt", { bytes: new TextEncoder().encode("a") });
+    bucket.objects.set("users/u1/a.txt", {
+      bytes: new TextEncoder().encode("a"),
+    });
     const response = await worker.fetch(
       await signedOpRequest("delete-objects", {
         keys: ["users/u1/a.txt", "users/u1/missing.bin"],
@@ -334,14 +371,12 @@ describe("additive files ops", () => {
     let calls = 0;
     const aiEnv = {
       AI: {
-        run: async () => {
+        run: () => {
           calls += 1;
           // First call returns invalid JSON, second valid output.
           if (calls === 1) {
             return {
-              choices: [
-                { message: { content: "not json at all" } },
-              ],
+              choices: [{ message: { content: "not json at all" } }],
             };
           }
           return {
@@ -369,9 +404,7 @@ describe("additive files ops", () => {
       httpMetadata: { contentType: "image/png" },
     });
 
-    const fakeFetch = (async (
-      input: RequestInfo | URL
-    ): Promise<Response> =>
+    const fakeFetch = (async (_input: RequestInfo | URL): Promise<Response> =>
       new Response(new Uint8Array([1, 2, 3]), {
         status: 200,
         headers: { "content-type": "image/jpeg" },

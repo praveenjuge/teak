@@ -54,6 +54,9 @@ requests at `/__ops/v1`. Contracts and typed success/error envelopes live in
 - `head-object` returns existence, size, ETag, and content type for a key —
   used to verify Kernel-generated media after direct uploads before Convex
   records it.
+- `list-objects` pages objects under a `users/` prefix (limit ≤1000, opaque
+  cursor) — used by the stale pending-upload sweep and the weekly
+  orphaned-object reconciliation report.
 - `generate-image-metadata` feeds the existing `detail` rendition into
   Workers AI (Gemma multimodal) with the same system prompt, JSON output
   shape, and bounded validation retries as the pipeline it replaced; image
@@ -65,10 +68,14 @@ requests at `/__ops/v1`. Contracts and typed success/error envelopes live in
 Convex-validated remote assets, export manifests, and Kernel-generated media
 (screenshots, PDF/video thumbnails). The HMAC binds the HTTP method, exact
 object key, expiry (≤15 minutes), content type, and — when known ahead of
-time — the expected byte size. `Content-Length` is mandatory, oversized
-bodies are rejected, and keys must live under a `users/<id>/...` prefix with
-no traversal segments (`src/upload.ts`). Server-generated media signs without
-a bound size and relies on the worker's hard cap instead.
+time — the expected byte size. Omitting the `ct` param leaves the content
+type unbound: the signature is computed with an empty content type and the
+request's validated `Content-Type` header is stored verbatim (used when the
+encoding is decided at generation time, e.g. WebP-vs-JPEG video frames).
+`Content-Length` is mandatory, oversized bodies are rejected, and keys must
+live under a `users/<id>/...` prefix with no traversal segments
+(`src/upload.ts`). Server-generated media signs without a bound size and
+relies on the worker's hard cap instead.
 
 Convex owns authorization, durable product state, and workflow orchestration;
 this Worker is the one canonical implementation for file-byte operations.

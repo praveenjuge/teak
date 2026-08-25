@@ -1,5 +1,5 @@
-import type { Env } from "./index";
 import { fetchPrivateImageSource } from "./imageTransform";
+import type { Env } from "./index";
 
 /**
  * Image understanding on Workers AI.
@@ -28,10 +28,7 @@ Respond with a single JSON object using exactly this shape and no other keys:
 {"tags": ["word", "word"], "summary": "..."}`;
 
 interface ImageMetadataAi {
-  run: (
-    model: string,
-    args: Record<string, unknown>
-  ) => Promise<unknown>;
+  run: (model: string, args: Record<string, unknown>) => Promise<unknown>;
 }
 
 export interface ImageMetadataResult {
@@ -96,9 +93,7 @@ const extractMessageText = (response: unknown): string | null => {
   if (
     typeof response !== "object" ||
     response === null ||
-    !Array.isArray(
-      (response as { choices?: unknown }).choices
-    )
+    !Array.isArray((response as { choices?: unknown }).choices)
   ) {
     return null;
   }
@@ -112,8 +107,8 @@ const extractMessageText = (response: unknown): string | null => {
 
 const toDataUrl = (bytes: Uint8Array, mediaType: string): string => {
   let binary = "";
-  for (let index = 0; index < bytes.length; index += 1) {
-    binary += String.fromCharCode(bytes[index]);
+  for (const byte of bytes) {
+    binary += String.fromCharCode(byte);
   }
   return `data:${mediaType};base64,${btoa(binary)}`;
 };
@@ -171,7 +166,6 @@ export const generateImageMetadataForOp = async (
       : "Analyze this image and generate tags and summary:"
   );
   const imageDataUrl = toDataUrl(bytes, contentType);
-  let lastError: unknown = null;
 
   for (let attempt = 0; ; attempt += 1) {
     try {
@@ -208,7 +202,6 @@ export const generateImageMetadataForOp = async (
       }
       return parsed;
     } catch (error) {
-      lastError = error;
       const message = error instanceof Error ? error.message : String(error);
       if (
         attempt >= MAX_IMAGE_METADATA_VALIDATION_RETRIES ||
@@ -221,5 +214,4 @@ export const generateImageMetadataForOp = async (
       }
     }
   }
-  throw lastError ?? new Error("invalid_image_metadata_output");
 };
