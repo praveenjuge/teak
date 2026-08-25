@@ -1,6 +1,6 @@
 {
   "name": "teak-cli",
-  "version": "1.0.64",
+  "version": "1.0.65",
   "description": "Command-line client for Teak, the personal knowledge hub for saving and rediscovering ideas.",
   "keywords": [
     "teak",
