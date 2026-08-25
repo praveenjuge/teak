@@ -20,5 +20,22 @@
   "observability": {
     "enabled": true,
     "head_sampling_rate": 1
+  },
+  "env": {
+    "development": {
+      "name": "teak-files-proxy-dev",
+      "routes": [
+        {
+          "pattern": "files-dev.teakvault.com",
+          "custom_domain": true
+        }
+      ],
+      "r2_buckets": [
+        {
+          "binding": "BUCKET",
+          "bucket_name": "teak-files-dev"
+        }
+      ]
+    }
   }
 }

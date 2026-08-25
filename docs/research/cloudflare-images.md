@@ -130,8 +130,10 @@ Required configuration stays small:
 - Cloudflare zone image transformations must be enabled for `teakvault.com`;
 - the files Worker needs its private R2 `BUCKET` binding and
   `FILES_SIGNING_SECRET` secret;
-- Convex development and production need the matching
-  `FILES_SIGNING_SECRET` and `FILES_BASE=https://files.teakvault.com`.
+- Convex production needs the matching `FILES_SIGNING_SECRET` and
+  `FILES_BASE=https://files.teakvault.com`; development uses its own Worker,
+  secret, and `FILES_BASE=https://files-dev.teakvault.com` so its isolated R2
+  bucket stays isolated.
 
 No Cloudflare account API key is shipped in application code.
 
