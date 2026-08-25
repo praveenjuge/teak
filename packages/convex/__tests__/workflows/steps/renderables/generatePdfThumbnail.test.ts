@@ -6,7 +6,8 @@ import { crc32, deflateSync, inflateSync } from "node:zlib";
 // inspect exactly how the PDF thumbnail was produced.
 let capturedPlaywrightCode = "";
 let uploadedThumbnail: { url: string; body?: Buffer } | null = null;
-let headObjectCalls: Array<{ op: string; params: Record<string, unknown> }> = [];
+let headObjectCalls: Array<{ op: string; params: Record<string, unknown> }> =
+  [];
 
 let generatePdfThumbnail: any;
 
@@ -275,24 +276,32 @@ beforeAll(async () => {
 
   // Files Worker client: mint deterministic signed URLs and verify committed
   // objects so the direct-upload path can be asserted without a network.
-  mock.module(import.meta.resolve("../../../../storage/filesWorkerClient"), () => ({
-    buildSignedWorkerUploadUrl: async ({ key }: { key: string }) => ({
-      expiresAt: 123,
-      key,
-      url: `https://files.teakvault.com/__upload/v1/${encodeURIComponent(key)}?exp=123&sig=fake`,
-    }),
-    callFilesWorkerJson: (spec: {
-      op: string;
-      params: Record<string, unknown>;
-    }) => {
-      headObjectCalls.push(spec);
-      return Promise.resolve({
-        kind: "ok",
-        data: { contentType: "image/png", etag: '"fake-etag"', exists: true, size: 1024 },
-      });
-    },
-    isFilesWorkerConfigured: () => true,
-  }));
+  mock.module(
+    import.meta.resolve("../../../../storage/filesWorkerClient"),
+    () => ({
+      buildSignedWorkerUploadUrl: async ({ key }: { key: string }) => ({
+        expiresAt: 123,
+        key,
+        url: `https://files.teakvault.com/__upload/v1/${encodeURIComponent(key)}?exp=123&sig=fake`,
+      }),
+      callFilesWorkerJson: (spec: {
+        op: string;
+        params: Record<string, unknown>;
+      }) => {
+        headObjectCalls.push(spec);
+        return Promise.resolve({
+          kind: "ok",
+          data: {
+            contentType: "image/png",
+            etag: '"fake-etag"',
+            exists: true,
+            size: 1024,
+          },
+        });
+      },
+      isFilesWorkerConfigured: () => true,
+    })
+  );
 
   generatePdfThumbnail = (
     await import("../../../../workflows/steps/renderables/generatePdfThumbnail")
@@ -331,9 +340,7 @@ describe("generatePdfThumbnail", () => {
 
     expect(result.success).toBe(true);
     expect(result.generated).toBe(true);
-    expect(result.thumbnailKey).toBe(
-      "users/u/cards/c/thumbnail/generated"
-    );
+    expect(result.thumbnailKey).toBe("users/u/cards/c/thumbnail/generated");
 
     // The signed URL is fetched inside the browser VM via Playwright's request
     // context (the fix for R2 signed-URL CORS) instead of a cross-origin

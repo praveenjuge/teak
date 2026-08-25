@@ -110,6 +110,7 @@ import type * as shared_utils_timeSearch from "../shared/utils/timeSearch.js";
 import type * as storage_filesWorkerClient from "../storage/filesWorkerClient.js";
 import type * as storage_pendingUploadCleanup from "../storage/pendingUploadCleanup.js";
 import type * as storage_r2 from "../storage/r2.js";
+import type * as storage_r2Config from "../storage/r2Config.js";
 import type * as telemetry_crons from "../telemetry/crons.js";
 import type * as telemetry_events from "../telemetry/events.js";
 import type * as telemetry_schedule from "../telemetry/schedule.js";
@@ -133,6 +134,7 @@ import type * as workflows_import from "../workflows/import.js";
 import type * as workflows_linkEnrichment from "../workflows/linkEnrichment.js";
 import type * as workflows_linkMetadata from "../workflows/linkMetadata.js";
 import type * as workflows_manager from "../workflows/manager.js";
+import type * as workflows_objectCleanup from "../workflows/objectCleanup.js";
 import type * as workflows_screenshot from "../workflows/screenshot.js";
 import type * as workflows_steps_categorization_index from "../workflows/steps/categorization/index.js";
 import type * as workflows_steps_categorization_mutations from "../workflows/steps/categorization/mutations.js";
@@ -269,6 +271,7 @@ declare const fullApi: ApiFromModules<{
   "storage/filesWorkerClient": typeof storage_filesWorkerClient;
   "storage/pendingUploadCleanup": typeof storage_pendingUploadCleanup;
   "storage/r2": typeof storage_r2;
+  "storage/r2Config": typeof storage_r2Config;
   "telemetry/crons": typeof telemetry_crons;
   "telemetry/events": typeof telemetry_events;
   "telemetry/schedule": typeof telemetry_schedule;
@@ -292,6 +295,7 @@ declare const fullApi: ApiFromModules<{
   "workflows/linkEnrichment": typeof workflows_linkEnrichment;
   "workflows/linkMetadata": typeof workflows_linkMetadata;
   "workflows/manager": typeof workflows_manager;
+  "workflows/objectCleanup": typeof workflows_objectCleanup;
   "workflows/screenshot": typeof workflows_screenshot;
   "workflows/steps/categorization/index": typeof workflows_steps_categorization_index;
   "workflows/steps/categorization/mutations": typeof workflows_steps_categorization_mutations;
@@ -353,6 +357,5 @@ export declare const components: {
   workflow: import("@convex-dev/workflow/_generated/component.js").ComponentApi<"workflow">;
   resend: import("@convex-dev/resend/_generated/component.js").ComponentApi<"resend">;
   ratelimiter: import("@convex-dev/ratelimiter/_generated/component.js").ComponentApi<"ratelimiter">;
-  r2: import("@convex-dev/r2/_generated/component.js").ComponentApi<"r2">;
   apiKeys: import("@vllnt/convex-api-keys/_generated/component.js").ComponentApi<"apiKeys">;
 };

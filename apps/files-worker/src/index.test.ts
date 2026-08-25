@@ -49,7 +49,8 @@ const signedOpRequest = async (
     | "analyze-image"
     | "complete-multipart"
     | "create-multipart"
-    | "finalize-upload",
+    | "finalize-upload"
+    | "list-objects",
   params: Record<string, unknown>,
   method = "POST"
 ): Promise<Request> => {
@@ -161,6 +162,73 @@ describe("files worker handler", () => {
       ok: true,
       data: { uploadId: expect.any(String) },
     });
+  });
+
+  test("lists objects under a prefix with pagination", async () => {
+    const bucket = new FakeBucket();
+    const envWithBucket = {
+      BUCKET: bucket,
+      FILES_SIGNING_SECRET: SECRET,
+    } as Env;
+    for (const key of [
+      "users/u1/cards/a/one",
+      "users/u1/cards/b/two",
+      "users/u1/cards/c/four",
+      "users/u2/cards/c/three",
+    ]) {
+      bucket.objects.set(key, { bytes: new Uint8Array([1]) });
+    }
+
+    const pageOneResponse = await worker.fetch(
+      await signedOpRequest("list-objects", {
+        limit: 2,
+        prefix: "users/u1/",
+      }),
+      envWithBucket,
+      { waitUntil: () => undefined } as never
+    );
+    expect(pageOneResponse.status).toBe(200);
+    const pageOne = (await pageOneResponse.json()) as {
+      data: {
+        cursor: string | null;
+        objects: Array<{ key: string; size: number }>;
+        truncated: boolean;
+      };
+      ok: boolean;
+    };
+    expect(pageOne.ok).toBe(true);
+    expect(pageOne.data.objects.map((object) => object.key)).toEqual([
+      "users/u1/cards/a/one",
+      "users/u1/cards/b/two",
+    ]);
+    expect(pageOne.data.truncated).toBe(true);
+    expect(pageOne.data.cursor).toBeTruthy();
+
+    const pageTwoResponse = await worker.fetch(
+      await signedOpRequest("list-objects", {
+        cursor: pageOne.data.cursor as string,
+        limit: 2,
+        prefix: "users/u1/",
+      }),
+      envWithBucket,
+      { waitUntil: () => undefined } as never
+    );
+    const pageTwo = (await pageTwoResponse.json()) as {
+      data: { objects: Array<{ key: string }>; truncated: boolean };
+    };
+    expect(pageTwo.data.objects.map((object) => object.key)).toEqual([
+      "users/u1/cards/c/four",
+    ]);
+    expect(pageTwo.data.truncated).toBe(false);
+  });
+
+  test("rejects list-objects with a non-users prefix", async () => {
+    const response = await worker.fetch(
+      await signedOpRequest("list-objects", { prefix: "exports/" }),
+      env(),
+      { waitUntil: () => undefined } as never
+    );
+    expect(response.status).toBe(400);
   });
 
   test("returns a controlled fallback for missing image-analysis sources", async () => {

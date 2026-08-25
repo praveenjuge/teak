@@ -17,12 +17,12 @@ import {
   MarkdownContentError,
   validateMarkdownByteLength,
 } from "../shared/markdown";
+import { buildSignedWorkerUploadUrl } from "../storage/filesWorkerClient";
 import {
   buildR2ObjectKey,
   buildR2UserPrefix,
   PENDING_UPLOAD_CARD_ID,
 } from "../storage/r2";
-import { buildSignedWorkerUploadUrl } from "../storage/filesWorkerClient";
 import { scheduleCardOutcome } from "../telemetry/schedule";
 import {
   buildInitialProcessingStatus,

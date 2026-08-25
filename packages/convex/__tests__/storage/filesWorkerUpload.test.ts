@@ -18,13 +18,11 @@ const originalFilesSecret = process.env.FILES_SIGNING_SECRET;
 
 afterAll(() => {
   if (originalFilesBase === undefined) {
-    // biome-ignore lint/performance/noDelete: test env cleanup
     delete process.env.FILES_BASE;
   } else {
     process.env.FILES_BASE = originalFilesBase;
   }
   if (originalFilesSecret === undefined) {
-    // biome-ignore lint/performance/noDelete: test env cleanup
     delete process.env.FILES_SIGNING_SECRET;
   } else {
     process.env.FILES_SIGNING_SECRET = originalFilesSecret;
@@ -85,9 +83,7 @@ describe("signed worker upload urls", () => {
   test("reports missing configuration", async () => {
     const base = process.env.FILES_BASE;
     const secret = process.env.FILES_SIGNING_SECRET;
-    // biome-ignore lint/performance/noDelete: env mutation is required here
     delete process.env.FILES_BASE;
-    // biome-ignore lint/performance/noDelete: env mutation is required here
     delete process.env.FILES_SIGNING_SECRET;
     try {
       expect(isFilesWorkerConfigured()).toBe(false);

@@ -29,13 +29,11 @@ import {
 afterAll(() => {
   global.fetch = originalFetch;
   if (originalFilesBase === undefined) {
-    // biome-ignore lint/performance/noDelete: test env cleanup
     delete process.env.FILES_BASE;
   } else {
     process.env.FILES_BASE = originalFilesBase;
   }
   if (originalFilesSecret === undefined) {
-    // biome-ignore lint/performance/noDelete: test env cleanup
     delete process.env.FILES_SIGNING_SECRET;
   } else {
     process.env.FILES_SIGNING_SECRET = originalFilesSecret;
@@ -49,37 +47,38 @@ const originalFilesSecret = process.env.FILES_SIGNING_SECRET;
  * Route the image/video AI path through the Files Worker op envelope: image
  * understanding now runs inside the worker against its `detail` rendition.
  */
-const enableWorkerImageOp = (
-  data: unknown,
-  { status = 200 } = {}
-) => {
+const enableWorkerImageOp = (data: unknown, { status = 200 } = {}) => {
   process.env.FILES_BASE = "https://files.teakvault.com";
   process.env.FILES_SIGNING_SECRET = "test-signing-secret";
-  mockFetch.mockImplementation(async () =>
-    new Response(
-      status === 200
-        ? JSON.stringify({
-            data,
-            ok: true,
-            requestId: "r1",
-            version: 1,
-          })
-        : JSON.stringify({
-            error: {
-              code: "NOT_FOUND",
-              message: "missing",
+  mockFetch.mockImplementation(
+    async () =>
+      new Response(
+        status === 200
+          ? JSON.stringify({
+              data,
+              ok: true,
               requestId: "r1",
-              retryable: false,
-            },
-            ok: false,
-            version: 1,
-          }),
-      { status }
-    )
+              version: 1,
+            })
+          : JSON.stringify({
+              error: {
+                code: "NOT_FOUND",
+                message: "missing",
+                requestId: "r1",
+                retryable: false,
+              },
+              ok: false,
+              version: 1,
+            }),
+        { status }
+      )
   );
 };
 
-const lastWorkerOpRequest = (): { op: string; params: Record<string, unknown> } => {
+const lastWorkerOpRequest = (): {
+  op: string;
+  params: Record<string, unknown>;
+} => {
   const init = mockFetch.mock.calls.at(-1)?.[1] as { body?: string };
   return JSON.parse(init?.body ?? "{}");
 };

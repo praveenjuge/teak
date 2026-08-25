@@ -4,7 +4,6 @@ import {
   FILES_UPLOAD_MAX_TTL_SECONDS,
   type FilesErrorCode,
 } from "@teak/files-protocol";
-import type { Env } from "./index";
 import { verifyHmacPayload } from "./lib";
 
 /**
@@ -42,10 +41,7 @@ export const uploadError = (
     { status, headers: { "cache-control": "no-store" } }
   );
   response.headers.set("Access-Control-Allow-Origin", "*");
-  response.headers.set(
-    "Access-Control-Expose-Headers",
-    "Content-Length, ETag"
-  );
+  response.headers.set("Access-Control-Expose-Headers", "Content-Length, ETag");
   return response;
 };
 
@@ -84,7 +80,7 @@ export const handleSignedUpload = async (
   const contentType = url.searchParams.get("ct") ?? "";
   const boundSize = url.searchParams.get("sz");
 
-  if (!key || !isValidUploadKey(key)) {
+  if (!(key && isValidUploadKey(key))) {
     return uploadError(requestId, "INVALID_INPUT", "Invalid object key", 400);
   }
   if (!(expiresAt && signature)) {
@@ -98,7 +94,13 @@ export const handleSignedUpload = async (
   const contentTypeValue =
     request.headers.get("content-type")?.split(";")[0]?.trim().toLowerCase() ??
     "";
-  const effectiveContentType = contentType || contentTypeValue;
+  // A `ct` param binds the content type into the signature; without one the
+  // signature leaves the type unbound and the request's validated header is
+  // stored verbatim (used when the encoding is decided at generation time).
+  const boundContentType = url.searchParams.has("ct");
+  const effectiveContentType = boundContentType
+    ? contentType || contentTypeValue
+    : contentTypeValue;
   if (!isValidContentType(effectiveContentType)) {
     return uploadError(
       requestId,
@@ -134,7 +136,7 @@ export const handleSignedUpload = async (
     !(await verifyHmacPayload(
       env.FILES_SIGNING_SECRET,
       buildUploadSigningPayload({
-        contentType: effectiveContentType,
+        contentType: boundContentType ? effectiveContentType : "",
         expiresAt,
         key,
         size:

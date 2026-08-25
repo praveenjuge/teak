@@ -60,10 +60,10 @@ export default defineConfig({
     },
     ...(
       [
-        ["api", "journey/03-api.e2e.ts"],
+        ["api", ["journey/03-api.e2e.ts", "journey/12-file-roundtrip.e2e.ts"]],
         ["cli", "journey/04-cli.e2e.ts"],
         ["mcp", "journey/05-mcp.e2e.ts"],
-      ] as const
+      ] satisfies [string, string | string[]][]
     ).map(([surface, testMatch]) => ({
       name: `journey-${surface}`,
       dependencies: ["journey-setup"],

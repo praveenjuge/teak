@@ -34,6 +34,7 @@ export const FILES_OPS = [
   "generate-image-metadata",
   "head-object",
   "inspect",
+  "list-objects",
 ] as const;
 
 export type FilesOp = (typeof FILES_OPS)[number];
@@ -132,6 +133,10 @@ export const buildImageSigningPayload = ({
  * key, expiry, content type, and expected size into one HMAC. Size is bound
  * only when known ahead of time; server-generated media (screenshots,
  * thumbnails) signs with an empty size and relies on the worker's hard cap.
+ * An empty contentType (no `ct` param) leaves the content type unbound: the
+ * worker stores the request's validated Content-Type but the signature does
+ * not cover it — used when the encoding is decided at generation time
+ * (e.g. WebP-vs-JPEG video frames).
  */
 export const buildUploadSigningPayload = ({
   contentType,

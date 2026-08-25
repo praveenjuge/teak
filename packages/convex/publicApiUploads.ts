@@ -16,8 +16,8 @@ import {
   MarkdownContentError,
   validateMarkdownByteLength,
 } from "./shared/markdown";
-import { buildR2ObjectKey, PENDING_UPLOAD_CARD_ID } from "./storage/r2";
 import { buildSignedWorkerUploadUrl } from "./storage/filesWorkerClient";
+import { buildR2ObjectKey, PENDING_UPLOAD_CARD_ID } from "./storage/r2";
 
 const UPLOAD_URL_EXPIRES_IN_SECONDS = 60 * 10;
 

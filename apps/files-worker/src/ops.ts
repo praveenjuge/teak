@@ -287,6 +287,37 @@ const dispatch = async (
         size: object.size,
       });
     }
+    case "list-objects": {
+      const prefix = requiredString(params, "prefix");
+      if (!prefix.startsWith("users/") || prefix.includes("\\0")) {
+        throw new Error("invalid_prefix");
+      }
+      const limit = params.limit;
+      if (
+        limit !== undefined &&
+        (typeof limit !== "number" ||
+          !Number.isSafeInteger(limit) ||
+          limit <= 0 ||
+          limit > 1000)
+      ) {
+        throw new Error("invalid_limit");
+      }
+      const cursor = optionalString(params, "cursor");
+      const listed = await env.BUCKET.list({
+        prefix,
+        ...(cursor ? { cursor } : {}),
+        ...(limit ? { limit } : {}),
+      });
+      return success(requestId, {
+        cursor: listed.truncated ? (listed.cursor ?? null) : null,
+        objects: listed.objects.map((object) => ({
+          key: object.key,
+          lastModified: object.uploaded.getTime(),
+          size: object.size,
+        })),
+        truncated: listed.truncated,
+      });
+    }
     case "generate-image-metadata": {
       const title = optionalString(params, "title");
       if (title !== null && title.length > 2000) {

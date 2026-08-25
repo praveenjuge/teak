@@ -84,19 +84,17 @@ export const buildGenericScreenshotCode = (
   return JSON.stringify({ etag: uploadResponse.headers()['etag'] || null, ok: true, status: uploadResponse.status() });
 `;
 
-const captureScreenshotWithKernel = async (
-  {
-    cardId,
-    html,
-    url,
-    userId,
-  }: {
-    cardId: string;
-    html: string;
-    url: string;
-    userId: string;
-  }
-): Promise<{
+const captureScreenshotWithKernel = async ({
+  cardId,
+  html,
+  url,
+  userId,
+}: {
+  cardId: string;
+  html: string;
+  url: string;
+  userId: string;
+}): Promise<{
   screenshotKey?: string;
   screenshotUpdatedAt?: number;
   screenshotWidth?: number;

@@ -39,7 +39,6 @@
     "@convex-dev/better-auth": "0.12.5",
     "@convex-dev/migrations": "^0.3.6",
     "@convex-dev/polar": "^0.9.2",
-    "@convex-dev/r2": "^0.10.2",
     "@convex-dev/ratelimiter": "^0.1.7",
     "@convex-dev/resend": "^0.2.6",
     "@convex-dev/workflow": "^0.4.4",

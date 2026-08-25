@@ -9,29 +9,20 @@ describe("stalePendingUploadKeys", () => {
       stalePendingUploadKeys(
         [
           {
-            Key: "users/a/cards/upload-pending-v2/file/old",
-            LastModified: new Date(now - 25 * 60 * 60 * 1000),
+            key: "users/a/cards/upload-pending-v2/file/old",
+            lastModified: now - 25 * 60 * 60 * 1000,
           },
           {
-            Key: "users/a/cards/upload-pending-v2/file/recent",
-            LastModified: new Date(now - 60 * 60 * 1000),
+            key: "users/a/cards/upload-pending-v2/file/recent",
+            lastModified: now - 60 * 60 * 1000,
           },
           {
-            Key: "users/a/cards/card-1/file/old",
-            LastModified: new Date(now - 25 * 60 * 60 * 1000),
+            key: "users/a/cards/card-1/file/old",
+            lastModified: now - 25 * 60 * 60 * 1000,
           },
         ],
         now
       )
     ).toEqual(["users/a/cards/upload-pending-v2/file/old"]);
-  });
-
-  test("keeps objects whose modification time is unavailable", () => {
-    expect(
-      stalePendingUploadKeys(
-        [{ Key: "users/a/cards/upload-pending-v2/file/unknown" }],
-        now
-      )
-    ).toEqual([]);
   });
 });
