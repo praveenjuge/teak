@@ -1,11 +1,16 @@
 import { describe, expect, test } from "bun:test";
 import { createHash, createHmac } from "node:crypto";
-import { buildFilesOpSigningPayload } from "@teak/files-protocol";
+import {
+  buildFilesOpSigningPayload,
+  buildImageSigningPayload,
+} from "@teak/files-protocol";
 import { buildSignedWorkerOpRequest } from "../../storage/filesWorkerClient";
 import {
   bucketedSignatureExpiry,
   buildSignedFilePayload,
   buildSignedWorkerFileUrl,
+  buildSignedWorkerImageUrl,
+  cardStorageObjectKeys,
 } from "../../storage/r2";
 
 const SECRET = "test-signing-secret";
@@ -98,6 +103,58 @@ describe("signed worker file urls", () => {
           exp,
           contentType: "application/pdf",
           contentDisposition: "attachment",
+        })
+      )
+    );
+  });
+});
+
+describe("card storage cleanup", () => {
+  test("includes legacy derivatives, sidecars, and link-preview media once", () => {
+    expect(
+      cardStorageObjectKeys({
+        fileKey: "file",
+        previewKey: "preview",
+        thumbnailKey: "thumbnail",
+        metadata: {
+          linkPreview: {
+            imageStorageKey: "image",
+            screenshotStorageKey: "screenshot",
+            media: [{ storageKey: "image", posterStorageKey: "poster" }],
+          },
+        },
+      })
+    ).toEqual([
+      "file",
+      "file.processing.json",
+      "thumbnail",
+      "preview",
+      "image",
+      "screenshot",
+      "poster",
+    ]);
+  });
+});
+
+describe("signed worker image urls", () => {
+  test("mints a URL bound to its fixed rendition and encoded object key", async () => {
+    const url = new URL(
+      await buildSignedWorkerImageUrl(
+        BASE,
+        SECRET,
+        KEY,
+        "detail",
+        1_800_000_000
+      )
+    );
+    expect(url.pathname).toBe(`/__images/v1/detail/${encodeURIComponent(KEY)}`);
+    expect(url.searchParams.get("exp")).toBe("1800000000");
+    expect(url.searchParams.get("sig")).toBe(
+      hmacHex(
+        buildImageSigningPayload({
+          expiresAt: "1800000000",
+          key: KEY,
+          rendition: "detail",
         })
       )
     );

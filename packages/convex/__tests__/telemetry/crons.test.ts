@@ -28,10 +28,6 @@ describe("Sentry cron monitoring", () => {
         slug: "cleanup-stale-pending-card-uploads",
       }),
       expect.objectContaining({
-        schedule: "15 * * * *",
-        slug: "repair-image-derivatives",
-      }),
-      expect.objectContaining({
         checkinMarginMinutes: 15,
         schedule: "*/15 * * * *",
         slug: "ensure-oauth-clients",
@@ -39,13 +35,13 @@ describe("Sentry cron monitoring", () => {
     ]);
   });
 
-  test("routes all seven schedules through monitored Node actions", () => {
+  test("routes all six schedules through monitored Node actions", () => {
     const source = readFileSync(
       resolve(import.meta.dir, "../../crons.ts"),
       "utf8"
     );
-    expect(source.match(/crons\.cron\(/gu)).toHaveLength(7);
-    expect(source.match(/telemetry\.crons\./gu)).toHaveLength(7);
+    expect(source.match(/crons\.cron\(/gu)).toHaveLength(6);
+    expect(source.match(/telemetry\.crons\./gu)).toHaveLength(6);
     expect(source).not.toContain("crons.daily(");
     expect(source).not.toContain("crons.interval(");
   });

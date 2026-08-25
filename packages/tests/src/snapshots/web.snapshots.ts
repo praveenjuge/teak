@@ -78,7 +78,7 @@ const stabilizeSettingsIdentity = async (page: Page, email: string) => {
       snapshotIdentityObserver?: MutationObserver;
     };
     const stabilizeIdentity = () => {
-      for (const button of document.querySelectorAll("button")) {
+      for (const button of Array.from(document.querySelectorAll("button"))) {
         if (button.textContent?.trim() === actualEmail) {
           button.textContent = "snapshot@fixtures.invalid";
         }
@@ -124,13 +124,17 @@ const stabilizeCardModalMetadata = async (page: Page) => {
       snapshotObserver?: MutationObserver;
     };
     const markVolatileMetadata = () => {
-      for (const label of snapshotDialog.querySelectorAll("label")) {
+      for (const label of Array.from(
+        snapshotDialog.querySelectorAll("label")
+      )) {
         if (label.textContent?.trim() === "Summary") {
           label.parentElement?.setAttribute("data-snapshot-ai-summary", "");
         }
       }
 
-      for (const button of snapshotDialog.querySelectorAll("button")) {
+      for (const button of Array.from(
+        snapshotDialog.querySelectorAll("button")
+      )) {
         if (button.textContent?.trim() === "Text") {
           button.setAttribute("data-snapshot-card-type", "");
           button.parentElement?.setAttribute("data-snapshot-metadata-row", "");

@@ -85,7 +85,7 @@ const bounded = (value: string): string =>
  * Explicit capture for op failures that handleOp already converted into 500
  * responses — they never propagate out of fetch(), so withSentry's automatic
  * unhandled-error capture cannot see them (this is exactly how the
- * 2026-08-24 process-image outage stayed invisible).
+ * image-analysis outages can otherwise stay invisible).
  */
 export const reportFilesOpFailure = (
   op: string,

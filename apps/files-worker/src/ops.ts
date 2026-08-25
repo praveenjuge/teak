@@ -11,12 +11,7 @@ import {
   ExportManifestInvalid,
   ExportTooLarge,
 } from "./export";
-import {
-  ImageDecodeFailed,
-  ImageSourceMissing,
-  ImageTooLarge,
-  processImage,
-} from "./image";
+import { analyzeImage } from "./imageAnalysis";
 import {
   extractZipEntries,
   type InspectMode,
@@ -139,19 +134,15 @@ const finalizeUpload = async (
 const dispatch = async (
   env: FilesOpsEnv,
   requestId: string,
-  body: FilesOpRequest
+  body: FilesOpRequest,
+  origin: string
 ): Promise<Response> => {
   const params = (body.params ?? {}) as Record<string, unknown>;
   switch (body.op) {
-    case "process-image":
+    case "analyze-image":
       return success(
         requestId,
-        await processImage(
-          env.BUCKET,
-          requiredString(params, "sourceKey"),
-          optionalString(params, "destinationKey"),
-          { previewDestKey: optionalString(params, "previewDestinationKey") }
-        )
+        await analyzeImage(env, requiredString(params, "sourceKey"), origin)
       );
     case "inspect": {
       const maxBytes = params.maxBytes;
@@ -310,18 +301,26 @@ export const handleInternalOp = async (
     return fail(requestId, "UNSUPPORTED", "Unsupported operation", 400);
   }
   try {
-    return await dispatch(env, requestId, body);
+    return await dispatch(env, requestId, body, new URL(request.url).origin);
   } catch (error) {
     if (
-      error instanceof ImageSourceMissing ||
+      (error instanceof Error && error.message === "source_not_found") ||
       error instanceof InspectSourceMissing
     ) {
       return fail(requestId, "NOT_FOUND", error.message, 404);
     }
-    if (error instanceof ImageTooLarge || error instanceof ExportTooLarge) {
+    if (
+      (error instanceof Error && error.message === "source_too_large") ||
+      error instanceof ExportTooLarge
+    ) {
       return fail(requestId, "PAYLOAD_TOO_LARGE", error.message, 413);
     }
-    if (error instanceof ImageDecodeFailed) {
+    if (
+      error instanceof Error &&
+      ["image_transform_failed", "image_dimensions_missing"].includes(
+        error.message
+      )
+    ) {
       return fail(requestId, "UNSUPPORTED", error.message, 415);
     }
     if (error instanceof ExportManifestInvalid) {

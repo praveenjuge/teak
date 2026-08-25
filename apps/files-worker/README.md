@@ -21,11 +21,9 @@ Besides downloads, the worker accepts body-bound, short-lived signed `POST`
 requests at `/__ops/v1`. Contracts and typed success/error envelopes live in
 `@teak/files-protocol`; `HEAD` and `GET` can never execute an operation.
 
-- `op=process-image` — decodes a card image over the R2 binding (raster via
-  photon, HEIC via libheif, SVG via resvg — auto-detected from the bytes),
-  applies EXIF orientation, optionally writes bounded lossy-WebP thumbnail +
-  preview derivatives back to R2, and returns dimensions, dominant-color
-  palette, EXIF facts, and a thumbhash placeholder (`src/image.ts`).
+- `op=analyze-image` — reads intrinsic dimensions and a bounded color sample
+  through Cloudflare transformations; SVG input is rasterized with resvg.
+  Renditions are generated on demand and no image derivative is written to R2.
 - `build-export` — streams a manifest-described set of objects through
   client-zip into a checkpointed multipart ZIP upload that resumes after
   transient failures (`src/export.ts`).

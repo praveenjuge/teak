@@ -107,7 +107,7 @@ describe("@teak/convex/sdk", () => {
             method: "PUT",
             uploadUrl: "https://upload.example",
           })
-        )) as typeof fetch,
+        )) as unknown as typeof fetch,
     });
 
     await expect(

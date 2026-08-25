@@ -6,7 +6,7 @@ import { internalAction } from "../../_generated/server";
 import { TELEMETRY_OPERATIONS } from "../../shared/telemetry";
 import {
   callFilesWorkerJson,
-  type FilesWorkerProcessImageResult,
+  type FilesWorkerImageAnalysisResult,
 } from "../../storage/filesWorkerClient";
 import { withBackendSpan } from "../../telemetry/sentry";
 import { hasKnownTinyImageDimensions } from "../imageAnalysis";
@@ -38,62 +38,32 @@ export const extractPaletteFromImage = internalAction({
           return card.colors as any;
         }
 
-        // For SVG files, use the generated thumbnail (rasterized PNG) for palette extraction
-        // Photon can only process raster images, not SVG
-        const isSvg =
-          card.fileMetadata?.mimeType === "image/svg+xml" ||
-          card.fileMetadata?.fileName?.endsWith(".svg") ||
-          card.fileMetadata?.fileName?.endsWith(".SVG");
-
-        const width = card.fileMetadata?.width;
-        const height = card.fileMetadata?.height;
-        const originalIsBounded =
-          typeof width === "number" &&
-          typeof height === "number" &&
-          width > 0 &&
-          height > 0 &&
-          width <= 500 &&
-          height <= 500;
-
         if (hasKnownTinyImageDimensions(card.fileMetadata)) {
-          return;
-        }
-
-        // Prefer the bounded thumbnail for every image. Only decode the
-        // original when thumbnailing intentionally skipped an already-small
-        // raster image.
-        const fileKeyForPalette =
-          card.thumbnailKey ??
-          (!isSvg && originalIsBounded ? card.fileKey : null);
-
-        if (!fileKeyForPalette) {
           return;
         }
 
         try {
           const outcome =
-            await callFilesWorkerJson<FilesWorkerProcessImageResult>({
-              op: "process-image",
-              params: { sourceKey: fileKeyForPalette },
+            await callFilesWorkerJson<FilesWorkerImageAnalysisResult>({
+              op: "analyze-image",
+              params: { sourceKey: card.fileKey },
             });
           if (outcome.kind !== "ok") {
             return;
           }
-          const {
-            width: processedWidth,
-            height: processedHeight,
-            palette,
-          } = outcome.data;
+          const { width, height, palette } = outcome.data;
           if (
             !Array.isArray(palette) ||
             palette.length === 0 ||
-            hasKnownTinyImageDimensions({
-              height: processedHeight,
-              width: processedWidth,
-            })
+            hasKnownTinyImageDimensions({ height, width })
           ) {
             return;
           }
+          await ctx.runMutation(
+            internal.workflows.steps.renderables.mutations
+              .updateCardFileMetadata,
+            { cardId, height, width }
+          );
           const colors = palette.map((hex) => ({ hex }));
           await ctx.runMutation(
             internal.workflows.aiMetadata.mutations.updateCardColors,

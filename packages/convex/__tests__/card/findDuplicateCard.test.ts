@@ -81,6 +81,7 @@ describe("card/findDuplicateCard.ts", () => {
 
     expect(result).toEqual({
       ...duplicateCard,
+      detailUrl: undefined,
       fileUrl: "file://f1",
       thumbnailUrl: "file://t1",
       screenshotUrl: "file://s1",
@@ -155,8 +156,9 @@ describe("card/findDuplicateCard.ts", () => {
 
     expect(result).toEqual({
       ...duplicateCard,
+      detailUrl: "file://f1",
       fileUrl: "file://f1",
-      thumbnailUrl: undefined,
+      thumbnailUrl: "file://f1",
       screenshotUrl: undefined,
       linkPreviewMedia: undefined,
       linkPreviewImageUrl: undefined,

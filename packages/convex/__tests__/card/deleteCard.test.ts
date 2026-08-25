@@ -1,11 +1,10 @@
 // @ts-nocheck
-import { beforeEach, describe, expect, mock, test } from "bun:test";
+import { beforeEach, describe, expect, mock, spyOn, test } from "bun:test";
+import * as r2Storage from "../../storage/r2";
 
-const deleteObjectMock = mock(() => Promise.resolve());
-
-mock.module("../../storage/r2", () => ({
-  deleteObject: deleteObjectMock,
-}));
+const deleteObjectMock = spyOn(r2Storage, "deleteObject").mockResolvedValue(
+  undefined
+);
 
 describe("card/deleteCard.ts", () => {
   let permanentDeleteCard: any;
@@ -34,6 +33,7 @@ describe("card/deleteCard.ts", () => {
           userId: "u1",
           type: "image",
           fileKey: "f1",
+          previewKey: "p1",
           thumbnailKey: "t1",
         }),
         delete: mock().mockResolvedValue(null),
@@ -43,6 +43,7 @@ describe("card/deleteCard.ts", () => {
     const handler = (permanentDeleteCard as any).handler ?? permanentDeleteCard;
     await handler(ctx, { id: "c1" });
     expect(deleteObjectMock).toHaveBeenCalledWith(ctx, "f1");
+    expect(deleteObjectMock).toHaveBeenCalledWith(ctx, "p1");
     expect(deleteObjectMock).toHaveBeenCalledWith(ctx, "t1");
     expect(ctx.db.delete).toHaveBeenCalledWith("cards", "c1");
   });

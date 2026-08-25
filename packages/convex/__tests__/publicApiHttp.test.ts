@@ -1236,6 +1236,7 @@ describe("publicApiHttp", () => {
             mimeType: "image/png",
           },
           fileUrl: "https://files.example.com/image.png",
+          detailUrl: "https://files.example.com/detail/image.png",
           tags: ["design"],
           aiTags: ["ui"],
           isFavorited: true,
@@ -1273,6 +1274,9 @@ describe("publicApiHttp", () => {
     expect(payload.items[0].mimeType).toBe("image/png");
     expect(payload.items[0].fileUrl).toBe(
       "https://files.example.com/image.png"
+    );
+    expect(payload.items[0].detailUrl).toBe(
+      "https://files.example.com/detail/image.png"
     );
   });
 

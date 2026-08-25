@@ -1,6 +1,6 @@
 import { v } from "convex/values";
 import { mutation } from "../_generated/server";
-import { deleteObject } from "../storage/r2";
+import { cardStorageObjectKeys, deleteObject } from "../storage/r2";
 
 export const permanentDeleteCard = mutation({
   args: {
@@ -25,8 +25,9 @@ export const permanentDeleteCard = mutation({
 
     // Permanently remove from database
     await ctx.db.delete("cards", args.id);
-    await deleteObject(ctx, card.fileKey);
-    await deleteObject(ctx, card.thumbnailKey);
+    for (const key of cardStorageObjectKeys(card)) {
+      await deleteObject(ctx, key);
+    }
 
     return null;
   },

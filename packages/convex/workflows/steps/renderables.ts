@@ -3,8 +3,7 @@
  *
  * Workflow step that generates thumbnails and other visual assets for cards.
  * Handles thumbnail generation for:
- * - Image cards (using @cf-wasm/photon for resizing)
- * - SVG images (using @onkernel/sdk with Playwright to rasterize SVG to PNG)
+ * - Image cards (dimensions and palette; Cloudflare serves renditions on demand)
  * - Video cards (using @onkernel/sdk with native HTML5 video + canvas APIs)
  * - PDF documents (using @onkernel/sdk with pdf.js for rendering)
  */
@@ -98,8 +97,7 @@ export async function generateHandler(
 
   if (cardType === "image" && card.fileKey) {
     const result = await ctx.runAction(
-      (internal as any).workflows.steps.renderables.generateImageThumbnail
-        .generateImageThumbnail,
+      (internal as any).workflows.steps.renderables.analyzeImage.analyzeImage,
       { cardId }
     );
     handleResult(result);

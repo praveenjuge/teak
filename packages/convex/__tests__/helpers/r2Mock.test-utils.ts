@@ -45,6 +45,7 @@ const buildR2ObjectKey = ({
 
 export const r2Mocks = {
   deleteObject: mock().mockResolvedValue(null),
+  resolveImageUrl: mock((key: string) => r2Mocks.resolveObjectUrl(key)),
   resolveObjectUrl: mock().mockResolvedValue(null),
   storeObject: mock().mockResolvedValue("stub-key"),
   generateUploadUrl: mock(),
@@ -63,6 +64,7 @@ export const r2Mocks = {
 
 export const r2MockModuleFactory = () => ({
   deleteObject: r2Mocks.deleteObject,
+  resolveImageUrl: r2Mocks.resolveImageUrl,
   resolveObjectUrl: r2Mocks.resolveObjectUrl,
   storeObject: r2Mocks.storeObject,
   generateUploadUrl: r2Mocks.generateUploadUrl,

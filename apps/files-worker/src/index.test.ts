@@ -46,10 +46,10 @@ const signedUrl = async (
 
 const signedOpRequest = async (
   op:
+    | "analyze-image"
     | "complete-multipart"
     | "create-multipart"
-    | "finalize-upload"
-    | "process-image",
+    | "finalize-upload",
   params: Record<string, unknown>,
   method = "POST"
 ): Promise<Request> => {
@@ -163,24 +163,20 @@ describe("files worker handler", () => {
     });
   });
 
-  test("returns a controlled fallback for malformed process-image sources", async () => {
+  test("returns a controlled fallback for missing image-analysis sources", async () => {
     const env_ = env();
-    (env_.BUCKET as unknown as FakeBucket).objects.set(
-      "users/u1/cards/broken/file.jpg",
-      { bytes: new Uint8Array([0xff, 0xd8, 0xff, 0xd9]) }
-    );
     const response = await worker.fetch(
-      await signedOpRequest("process-image", {
-        sourceKey: "users/u1/cards/broken/file.jpg",
+      await signedOpRequest("analyze-image", {
+        sourceKey: "users/u1/cards/missing/file.jpg",
       }),
       env_,
       { waitUntil: () => undefined } as never
     );
-    expect(response.status).toBe(415);
+    expect(response.status).toBe(404);
     expect(await response.json()).toMatchObject({
       error: {
-        code: "UNSUPPORTED",
-        message: "decode_failed",
+        code: "NOT_FOUND",
+        message: "source_not_found",
         retryable: false,
       },
       ok: false,

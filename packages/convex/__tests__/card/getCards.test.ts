@@ -7,6 +7,7 @@ const resolveObjectUrlMock = mock((key?: string) =>
 
 mock.module("../../storage/r2", () => ({
   deleteObject: mock(() => Promise.resolve()),
+  resolveImageUrl: resolveObjectUrlMock,
   resolveObjectUrl: resolveObjectUrlMock,
 }));
 

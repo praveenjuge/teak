@@ -3,7 +3,7 @@ import type { Id } from "../_generated/dataModel";
 import { internalQuery, query } from "../_generated/server";
 import type { LinkPreviewMediaItem } from "../linkMetadata";
 import { cardValidator } from "../schema";
-import { resolveObjectUrl } from "../storage/r2";
+import { resolveImageUrl, resolveObjectUrl } from "../storage/r2";
 import {
   applyQuoteDisplayFormatting,
   applyQuoteFormattingToList,
@@ -27,6 +27,7 @@ const cardReturnValidator = v.object({
   _id: v.id("cards"),
   _creationTime: v.number(),
   fileUrl: v.optional(v.string()),
+  detailUrl: v.optional(v.string()),
   thumbnailUrl: v.optional(v.string()),
   screenshotUrl: v.optional(v.string()),
   linkPreviewMedia: v.optional(
@@ -95,13 +96,40 @@ export const getCardForUserHandler = async (
     )
   );
   const urlMap = new Map(resolvedUrls);
+  const imageUrls =
+    card.type === "image" && card.fileKey
+      ? {
+          detailUrl: await resolveImageUrl(card.fileKey, "detail"),
+          thumbnailUrl: await resolveImageUrl(card.fileKey, "grid"),
+        }
+      : null;
+  const gridUrlMap = new Map(
+    await Promise.all(
+      [
+        card.thumbnailKey,
+        card.metadata?.linkPreview?.screenshotStorageKey,
+        card.metadata?.linkPreview?.imageStorageKey,
+        ...(card.metadata?.linkPreview?.media ?? []).flatMap(
+          (item: LinkPreviewMediaItem) => [
+            ...(item.type === "image" ? [item.storageKey] : []),
+            item.posterStorageKey,
+          ]
+        ),
+      ]
+        .filter((key): key is string => Boolean(key))
+        .map(async (key) => [key, await resolveImageUrl(key, "grid")] as const)
+    )
+  );
 
   const linkPreviewMedia = (card.metadata?.linkPreview?.media ?? [])
     .map((item: LinkPreviewMediaItem) => {
       if (!item.storageKey) {
         return null;
       }
-      const url = urlMap.get(item.storageKey);
+      const url =
+        item.type === "image"
+          ? gridUrlMap.get(item.storageKey)
+          : urlMap.get(item.storageKey);
       if (!url) {
         return null;
       }
@@ -112,7 +140,7 @@ export const getCardForUserHandler = async (
         width: item.width,
         height: item.height,
         posterUrl: item.posterStorageKey
-          ? (urlMap.get(item.posterStorageKey) ?? undefined)
+          ? (gridUrlMap.get(item.posterStorageKey) ?? undefined)
           : undefined,
         posterContentType: item.posterContentType,
         posterWidth: item.posterWidth,
@@ -127,7 +155,7 @@ export const getCardForUserHandler = async (
 
   const linkPreviewOgImageUrl: string | undefined = card.metadata?.linkPreview
     ?.imageStorageKey
-    ? (urlMap.get(card.metadata.linkPreview.imageStorageKey) ?? undefined)
+    ? (gridUrlMap.get(card.metadata.linkPreview.imageStorageKey) ?? undefined)
     : undefined;
 
   const linkPreviewImageUrl =
@@ -144,11 +172,14 @@ export const getCardForUserHandler = async (
   return applyQuoteDisplayFormatting({
     ...card,
     fileUrl: card.fileKey ? (urlMap.get(card.fileKey) ?? undefined) : undefined,
-    thumbnailUrl: card.thumbnailKey
-      ? (urlMap.get(card.thumbnailKey) ?? undefined)
-      : undefined,
+    detailUrl: imageUrls?.detailUrl ?? undefined,
+    thumbnailUrl:
+      imageUrls?.thumbnailUrl ??
+      (card.thumbnailKey
+        ? (gridUrlMap.get(card.thumbnailKey) ?? undefined)
+        : undefined),
     screenshotUrl: card.metadata?.linkPreview?.screenshotStorageKey
-      ? (urlMap.get(card.metadata.linkPreview.screenshotStorageKey) ??
+      ? (gridUrlMap.get(card.metadata.linkPreview.screenshotStorageKey) ??
         undefined)
       : undefined,
     linkPreviewMedia: linkPreviewMedia?.length ? linkPreviewMedia : undefined,

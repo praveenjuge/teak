@@ -1,6 +1,7 @@
 import type { Doc } from "@teak/convex/_generated/dataModel";
 
 export type CardModalCard = Doc<"cards"> & {
+  detailUrl?: string;
   fileUrl?: string;
   thumbnailUrl?: string;
   screenshotUrl?: string;

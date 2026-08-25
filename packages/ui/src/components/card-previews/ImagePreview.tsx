@@ -1,8 +1,8 @@
 import type { Doc } from "@teak/convex/_generated/dataModel";
-import { inferFileFormat } from "@teak/convex/shared/file-formats";
 import { cn } from "@teak/ui/lib/utils";
 
 type CardWithUrls = Doc<"cards"> & {
+  detailUrl?: string;
   fileUrl?: string;
   thumbnailUrl?: string;
 };
@@ -14,17 +14,7 @@ interface ImagePreviewProps {
 const TALL_IMAGE_RATIO = 1.5;
 
 export function ImagePreview({ card }: ImagePreviewProps) {
-  const format = card.fileMetadata?.fileName
-    ? inferFileFormat({
-        fileName: card.fileMetadata.fileName,
-        mimeType: card.fileMetadata.mimeType,
-      })
-    : null;
-  const prefersDerivative = format?.id === "svg" || format?.id === "heic";
-  const fileUrl =
-    (prefersDerivative ? card.thumbnailUrl : card.fileUrl) ??
-    card.thumbnailUrl ??
-    card.fileUrl;
+  const fileUrl = card.detailUrl ?? card.thumbnailUrl ?? card.fileUrl;
   const imageWidth = card.fileMetadata?.width;
   const imageHeight = card.fileMetadata?.height;
   const isTallImage =
