@@ -226,19 +226,21 @@ describe("files worker handler", () => {
     expect(response.status).toBe(403);
   });
 
-  test("streams a validated pending upload into its permanent key", async () => {
+  test("streams a validated pending upload and preserves a Markdown BOM", async () => {
     const env_ = env();
     const bucket = env_.BUCKET as unknown as FakeBucket;
-    const sourceKey = "users/u1/cards/upload-pending-v2/file/design..final.txt";
-    const destinationKey = "users/u1/cards/stored/file/design..final.txt";
+    const sourceKey = "users/u1/cards/upload-pending-v2/file/design..final.md";
+    const destinationKey = "users/u1/cards/stored/file/design..final.md";
+    const markdown = "\uFEFFHello worker";
+    const bytes = new TextEncoder().encode(markdown);
     bucket.objects.set(sourceKey, {
-      bytes: new TextEncoder().encode("Hello worker"),
-      httpMetadata: { contentType: "text/plain" },
+      bytes,
+      httpMetadata: { contentType: "text/markdown" },
     });
     const response = await worker.fetch(
       await signedOpRequest("finalize-upload", {
         destinationKey,
-        expectedSize: 12,
+        expectedSize: bytes.byteLength,
         readText: true,
         sourceKey,
       }),
@@ -247,15 +249,17 @@ describe("files worker handler", () => {
     );
     expect(response.status).toBe(200);
     expect(await response.json()).toMatchObject({
-      data: { content: "Hello worker", destinationKey, storedFileSize: 12 },
+      data: {
+        content: markdown,
+        destinationKey,
+        storedFileSize: bytes.byteLength,
+      },
       ok: true,
     });
     // Convex deletes the pending object only after its card mutation succeeds,
     // so a failed database write can safely retry finalization.
     expect(bucket.objects.has(sourceKey)).toBe(true);
-    expect(new TextDecoder().decode(bucket.storedBytes(destinationKey)!)).toBe(
-      "Hello worker"
-    );
+    expect(bucket.storedBytes(destinationKey)).toEqual(bytes);
   });
 
   test("uploads and idempotently completes a signed multipart upload", async () => {

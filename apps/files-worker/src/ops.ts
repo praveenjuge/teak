@@ -107,7 +107,7 @@ const finalizeUpload = async (
     try {
       content = new TextDecoder("utf-8", {
         fatal: true,
-        ignoreBOM: false,
+        ignoreBOM: true,
       }).decode(bytes);
     } catch {
       throw new Error("invalid_utf8");
