@@ -8,18 +8,16 @@
  * counted as orphans. The sweep never deletes anything: it logs a summary so
  * operators can investigate accumulation bugs (e.g. a step that uploads a
  * renderable but crashes before recording the key on the card).
+ *
+ * The action runs in Node (it calls the Files Worker and backend telemetry);
+ * its queries/mutation live in workflows/orphanSweepQueries.ts.
  */
 
 "use node";
 
 import { v } from "convex/values";
 import { internal } from "../_generated/api";
-import {
-  type ActionCtx,
-  internalAction,
-  internalMutation,
-  internalQuery,
-} from "../_generated/server";
+import { type ActionCtx, internalAction } from "../_generated/server";
 import {
   callFilesWorkerJson,
   type FilesWorkerListObjectsResult,
@@ -40,95 +38,6 @@ const LIST_PAGE_LIMIT = 1000;
 const MAX_CARDS_PAGES = 4000;
 const MAX_LIST_PAGES = 2000;
 
-export const pageSweepCards = internalQuery({
-  args: {
-    cursor: v.optional(v.string()),
-    numItems: v.number(),
-  },
-  returns: v.object({
-    continueCursor: v.string(),
-    isDone: v.boolean(),
-    cards: v.array(
-      v.object({
-        fileKey: v.optional(v.string()),
-        metadata: v.any(),
-        previewKey: v.optional(v.string()),
-        thumbnailKey: v.optional(v.string()),
-      })
-    ),
-  }),
-  handler: async (ctx, args) => {
-    const page = await ctx.db.query("cards").paginate({
-      cursor: args.cursor ?? null,
-      numItems: args.numItems,
-    });
-    return {
-      continueCursor: page.continueCursor,
-      isDone: page.isDone,
-      cards: page.page.map((card) => ({
-        fileKey: card.fileKey,
-        // Only linkPreview metadata carries storage keys.
-        metadata:
-          card.metadata && typeof card.metadata === "object"
-            ? { linkPreview: card.metadata.linkPreview }
-            : {},
-        previewKey: card.previewKey,
-        thumbnailKey: card.thumbnailKey,
-      })),
-    };
-  },
-});
-
-export const collectNonCardReferencedKeys = internalQuery({
-  args: {},
-  returns: v.array(v.string()),
-  handler: async (ctx) => {
-    const keys: string[] = [];
-    for await (const session of ctx.db.query("fileUploadSessions")) {
-      keys.push(session.sourceKey);
-    }
-    for await (const job of ctx.db.query("importJobs")) {
-      keys.push(job.sourceKey);
-      if (job.reportKey) {
-        keys.push(job.reportKey);
-      }
-    }
-    for await (const job of ctx.db.query("exportJobs")) {
-      if (!job.artifactKey) {
-        continue;
-      }
-      keys.push(
-        job.artifactKey,
-        `${job.artifactKey}.checkpoint.json`,
-        `${job.artifactKey}.result.json`
-      );
-    }
-    return keys;
-  },
-});
-
-export const logOrphanReport = internalMutation({
-  args: {
-    orphanCount: v.number(),
-    orphanBytes: v.number(),
-    scannedObjects: v.number(),
-  },
-  returns: v.null(),
-  handler: (_ctx, args) => {
-    const message =
-      args.orphanCount > 0
-        ? "storage.orphaned_objects_detected"
-        : "storage.orphan_scan_clean";
-    recordBackendLog(
-      args.orphanCount > 0 ? "warn" : "info",
-      message,
-      args as unknown as Record<string, string | number | boolean>
-    );
-    console.log("[workflow/orphanSweep]", message, args);
-    return null;
-  },
-});
-
 export const sweepOrphanedObjectsHandler = async (
   ctx: ActionCtx
 ): Promise<{ orphanCount: number }> => {
@@ -143,7 +52,7 @@ export const sweepOrphanedObjectsHandler = async (
   let cardsPages = 0;
   do {
     const page = (await ctx.runQuery(
-      internal.workflows.orphanSweep.pageSweepCards,
+      internal.workflows.orphanSweepQueries.pageSweepCards,
       {
         cursor,
         numItems: CARDS_PAGE_SIZE,
@@ -169,7 +78,7 @@ export const sweepOrphanedObjectsHandler = async (
   } while (!isDone && cardsPages < MAX_CARDS_PAGES);
 
   for (const key of await ctx.runQuery(
-    internal.workflows.orphanSweep.collectNonCardReferencedKeys
+    internal.workflows.orphanSweepQueries.collectNonCardReferencedKeys
   )) {
     if (key) {
       referenced.add(key);
@@ -210,7 +119,17 @@ export const sweepOrphanedObjectsHandler = async (
     }
   } while (listCursor && listPages < MAX_LIST_PAGES);
 
-  await ctx.runMutation(internal.workflows.orphanSweep.logOrphanReport, {
+  await ctx.runMutation(internal.workflows.orphanSweepQueries.logOrphanReport, {
+    orphanBytes,
+    orphanCount,
+    scannedObjects,
+  });
+
+  const message =
+    orphanCount > 0
+      ? "storage.orphaned_objects_detected"
+      : "storage.orphan_scan_clean";
+  recordBackendLog(orphanCount > 0 ? "warn" : "info", message, {
     orphanBytes,
     orphanCount,
     scannedObjects,

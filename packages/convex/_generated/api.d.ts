@@ -135,6 +135,8 @@ import type * as workflows_linkEnrichment from "../workflows/linkEnrichment.js";
 import type * as workflows_linkMetadata from "../workflows/linkMetadata.js";
 import type * as workflows_manager from "../workflows/manager.js";
 import type * as workflows_objectCleanup from "../workflows/objectCleanup.js";
+import type * as workflows_orphanSweep from "../workflows/orphanSweep.js";
+import type * as workflows_orphanSweepQueries from "../workflows/orphanSweepQueries.js";
 import type * as workflows_screenshot from "../workflows/screenshot.js";
 import type * as workflows_steps_categorization_index from "../workflows/steps/categorization/index.js";
 import type * as workflows_steps_categorization_mutations from "../workflows/steps/categorization/mutations.js";
@@ -147,6 +149,7 @@ import type * as workflows_steps_categorization_providers_imdb from "../workflow
 import type * as workflows_steps_categorization_providers_index from "../workflows/steps/categorization/providers/index.js";
 import type * as workflows_steps_classification from "../workflows/steps/classification.js";
 import type * as workflows_steps_classificationMutations from "../workflows/steps/classificationMutations.js";
+import type * as workflows_steps_kernelCodegen from "../workflows/steps/kernelCodegen.js";
 import type * as workflows_steps_linkMetadata_fetchMetadata from "../workflows/steps/linkMetadata/fetchMetadata.js";
 import type * as workflows_steps_linkMetadata_remoteImageDimensions from "../workflows/steps/linkMetadata/remoteImageDimensions.js";
 import type * as workflows_steps_linkMetadata_retryable from "../workflows/steps/linkMetadata/retryable.js";
@@ -296,6 +299,8 @@ declare const fullApi: ApiFromModules<{
   "workflows/linkMetadata": typeof workflows_linkMetadata;
   "workflows/manager": typeof workflows_manager;
   "workflows/objectCleanup": typeof workflows_objectCleanup;
+  "workflows/orphanSweep": typeof workflows_orphanSweep;
+  "workflows/orphanSweepQueries": typeof workflows_orphanSweepQueries;
   "workflows/screenshot": typeof workflows_screenshot;
   "workflows/steps/categorization/index": typeof workflows_steps_categorization_index;
   "workflows/steps/categorization/mutations": typeof workflows_steps_categorization_mutations;
@@ -308,6 +313,7 @@ declare const fullApi: ApiFromModules<{
   "workflows/steps/categorization/providers/index": typeof workflows_steps_categorization_providers_index;
   "workflows/steps/classification": typeof workflows_steps_classification;
   "workflows/steps/classificationMutations": typeof workflows_steps_classificationMutations;
+  "workflows/steps/kernelCodegen": typeof workflows_steps_kernelCodegen;
   "workflows/steps/linkMetadata/fetchMetadata": typeof workflows_steps_linkMetadata_fetchMetadata;
   "workflows/steps/linkMetadata/remoteImageDimensions": typeof workflows_steps_linkMetadata_remoteImageDimensions;
   "workflows/steps/linkMetadata/retryable": typeof workflows_steps_linkMetadata_retryable;
