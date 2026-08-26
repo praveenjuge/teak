@@ -252,6 +252,9 @@ test("private image originals and Cloudflare renditions share one API contract",
           value.fileUrl &&
             value.thumbnailUrl &&
             value.detailUrl &&
+            // New renditions ship alongside the historical pair.
+            value.compactUrl &&
+            value.placeholderUrl &&
             value.aiSummary &&
             value.aiTags?.length
         );
@@ -263,8 +266,10 @@ test("private image originals and Cloudflare renditions share one API contract",
   const fetched = await apiFetch(`/v1/cards/${cardId}`, apiKey);
   const image = await fetched.json();
   expect(image).toMatchObject({
+    compactUrl: expect.stringContaining("/__images/v1/compact/"),
     detailUrl: expect.stringContaining("/__images/v1/detail/"),
     fileUrl: expect.stringMatching(/^https?:\/\//),
+    placeholderUrl: expect.stringContaining("/__images/v1/tiny/"),
     thumbnailUrl: expect.stringContaining("/__images/v1/grid/"),
     type: "image",
   });
@@ -276,7 +281,12 @@ test("private image originals and Cloudflare renditions share one API contract",
   expect(original.headers.get("content-type")).toContain("image/png");
   expect(Buffer.from(await original.arrayBuffer())).toEqual(bytes);
 
-  for (const renditionUrl of [image.thumbnailUrl, image.detailUrl]) {
+  for (const renditionUrl of [
+    image.thumbnailUrl,
+    image.detailUrl,
+    image.compactUrl,
+    image.placeholderUrl,
+  ]) {
     const response = await fetch(renditionUrl, {
       headers: { Accept: "image/avif,image/webp,image/*" },
     });

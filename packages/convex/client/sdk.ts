@@ -37,6 +37,7 @@ export interface Card {
   aiSummary: string | null;
   aiTags: string[];
   appUrl: string;
+  compactUrl: string | null;
   content: string;
   createdAt: number;
   detailUrl: string | null;
@@ -54,6 +55,7 @@ export interface Card {
   metadataTitle: string | null;
   mimeType: string | null;
   notes: string | null;
+  placeholderUrl: string | null;
   screenshotUrl: string | null;
   tags: string[];
   thumbnailUrl: string | null;

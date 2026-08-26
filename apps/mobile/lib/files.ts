@@ -22,6 +22,7 @@ export interface NormalizedNativeFile {
 }
 
 export interface MobileFilePreviewInput {
+  compactUrl?: string | null;
   detailUrl?: string | null;
   fileKind?: string;
   fileLanguage?: string;
@@ -109,6 +110,7 @@ export const getMobileFilePreview = (
     imageFallback: input.thumbnailUrl ?? input.screenshotUrl ?? null,
     imagePrimary:
       input.detailUrl ??
+      input.compactUrl ??
       input.thumbnailUrl ??
       (requiresCompatibleRendition ? null : (input.fileUrl ?? null)),
     isAnimatedGif: format?.id === "gif",

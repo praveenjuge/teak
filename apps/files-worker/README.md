@@ -17,9 +17,11 @@ content-disposition policy, answers conditional GETs with 304s, and supports
 liveness probe for uptime monitors.
 
 The worker also owns the Images (`IMAGES`) and Workers AI (`AI`) bindings:
-only unique transformed variants (`grid`, `detail`) consume Image
-Transformations, and image understanding runs on Workers AI inside the
-worker. The Convex backend remains the control plane — it authenticates
+only unique transformed variants (`tiny`, `compact`, `grid`, `detail`) consume
+Image Transformations, and image understanding runs on Workers AI inside the
+worker. Eligible sources (≤20 MB) are transformed directly from R2 through
+the binding, cached per source ETag + rendition + format; larger sources keep
+the URL-based transformation path. The Convex backend remains the control plane — it authenticates
 users, owns card state, validates uploads, and orchestrates workflows —
 while every byte-processing operation (uploads, deletes, analysis, AI,
 generated media) flows through this worker.
@@ -46,8 +48,10 @@ requests at `/__ops/v1`. Contracts and typed success/error envelopes live in
   resumable browser uploads. Signed `PUT /__uploads/v1/...` URLs accept only
   an exact upload id, object key, and part number.
 - `finalize-upload` streams validated pending objects into their permanent
-  key, and `extract-import-files` extracts bounded archive entries without
-  sending file bytes through Convex.
+  key, `finalize-image-upload` decode-verifies image uploads first (decoded
+  format, dimensions, and size are returned as trusted facts to Convex), and
+  `extract-import-files` extracts bounded archive entries without sending file
+  bytes through Convex.
 - `delete-object` removes one object; `delete-objects` accepts at most 100
   keys per batch and treats missing objects as success. Durable deletion is
   orchestrated by the Convex object-cleanup workflow.

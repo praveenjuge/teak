@@ -19,6 +19,12 @@ const cardProperties = {
   aiSummary: { nullable: true, type: "string" },
   aiTags: { items: { type: "string" }, type: "array" },
   appUrl: { format: "uri", type: "string" },
+  compactUrl: {
+    description:
+      "256px rendition URL for small cards; present for image uploads.",
+    nullable: true,
+    type: "string",
+  },
   content: { type: "string" },
   createdAt: { type: "number" },
   detailUrl: { nullable: true, type: "string" },
@@ -40,6 +46,12 @@ const cardProperties = {
   metadataTitle: { nullable: true, type: "string" },
   mimeType: { nullable: true, type: "string" },
   notes: { nullable: true, type: "string" },
+  placeholderUrl: {
+    description:
+      "48px loading-placeholder rendition URL; present for image uploads.",
+    nullable: true,
+    type: "string",
+  },
   screenshotUrl: { nullable: true, type: "string" },
   tags: { items: { type: "string" }, type: "array" },
   thumbnailUrl: { nullable: true, type: "string" },
@@ -81,6 +93,12 @@ const components = {
         aiSummary: { nullable: true, type: "string" },
         aiTags: { items: { type: "string" }, type: "array" },
         appUrl: { format: "uri", type: "string" },
+        compactUrl: {
+          description:
+            "256px rendition URL for small cards; present for image uploads.",
+          nullable: true,
+          type: "string",
+        },
         content: { type: "string" },
         createdAt: { type: "number" },
         detailUrl: { nullable: true, type: "string" },

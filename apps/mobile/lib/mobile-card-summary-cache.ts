@@ -5,6 +5,7 @@ export interface MobileCardSummary {
   _creationTime: number;
   _id: Id<"cards">;
   colors?: string[];
+  compactUrl?: string;
   fileName?: string;
   previewText?: string;
   screenshotUrl?: string;
