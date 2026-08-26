@@ -89,20 +89,63 @@ describe("finalize-image-upload", () => {
     await expect(runOp(env)).rejects.toThrow("not_an_image");
   });
 
-  test("accepts image-typed uploads when decoders fail (unverified)", async () => {
+  test("stores the decoded image type instead of client upload metadata", async () => {
+    const env = makeEnv({
+      contentType: "image/png",
+      info: { format: "jpeg", height: 24, width: 32 },
+    });
+    const result = await runOp(env);
+    const put = (env.BUCKET as unknown as FakeBucket).puts.find(
+      (entry) => entry.key === DEST_KEY
+    );
+
+    expect(result.decodedFormat).toBe("image/jpeg");
+    expect(result.storedMimeType).toBe("image/jpeg");
+    expect(put?.httpMetadata?.contentType).toBe("image/jpeg");
+  });
+
+  test("accepts a valid bounded image container when decoders fail", async () => {
+    const env = makeEnv({
+      info: new Error("decode failed"),
+    });
+    const result = await runOp(env);
+    expect(result.decodedFormat).toBe("image/png");
+    expect(result.width).toBe(32);
+    expect(result.height).toBe(24);
+  });
+
+  test("rejects arbitrary bytes even when upload metadata says image", async () => {
     const env = makeEnv({
       bytes: new Uint8Array([1, 2, 3]),
       info: new Error("decode failed"),
     });
-    // Undecodable but image/*-typed objects are accepted without trusted
-    // dimensions rather than bouncing legitimate edge-case images.
-    const result = await runOp(env);
-    expect(result.decodedFormat).toBe("image/png");
-    expect(result.width).toBeNull();
-    expect(result.height).toBeNull();
-    expect((env.BUCKET as unknown as FakeBucket).storedBytes(DEST_KEY)).toEqual(
-      new Uint8Array([1, 2, 3])
-    );
+    await expect(runOp(env)).rejects.toThrow("not_an_image");
+    expect(
+      (env.BUCKET as unknown as FakeBucket).storedBytes(DEST_KEY)
+    ).toBeNull();
+  });
+
+  test("rejects truncated image containers when decoders fail", async () => {
+    const png = makePng(32, 24);
+    const env = makeEnv({
+      bytes: png.subarray(0, png.length - 12),
+      info: new Error("decode failed"),
+    });
+    await expect(runOp(env)).rejects.toThrow("not_an_image");
+  });
+
+  test("rejects structurally plausible images with corrupt pixel data", async () => {
+    const bytes = makePng(32, 24).slice();
+    bytes[45] = ((bytes[45] ?? 0) + 1) % 256;
+    const env = makeEnv({
+      bytes,
+      info: new Error("decode failed"),
+    });
+
+    await expect(runOp(env)).rejects.toThrow("not_an_image");
+    expect(
+      (env.BUCKET as unknown as FakeBucket).storedBytes(DEST_KEY)
+    ).toBeNull();
   });
 
   test("rejects non-image uploads when decoders cannot verify them", async () => {

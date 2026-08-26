@@ -337,8 +337,11 @@ export const Card = memo(function Card({
         <GridImagePreview
           altText={card.content}
           height={card.fileMetadata?.height}
-          imageUrl={card.thumbnailUrl ?? card.fileUrl ?? undefined}
+          imageUrl={
+            card.compactUrl ?? card.thumbnailUrl ?? card.fileUrl ?? undefined
+          }
           isPriority={isPriority}
+          placeholderUrl={card.placeholderUrl}
           width={card.fileMetadata?.width}
         />
       );

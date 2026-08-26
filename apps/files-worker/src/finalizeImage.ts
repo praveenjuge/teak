@@ -2,7 +2,12 @@
 // after the bytes have been decoded server-side. The worker returns trusted
 // image facts (decoded format, dimensions, size) so Convex never has to trust
 // client-provided MIME types or dimensions when creating the card.
-import { FILES_PROCESSOR_VERSION } from "@teak/files-protocol";
+import {
+  FILES_PROCESSOR_VERSION,
+  type FilesFinalizeImageParams,
+  type FilesFinalizeImageResult,
+} from "@teak/files-protocol";
+import { inspectImageContainer } from "./imageContainer";
 import { fetchPrivateImageSource } from "./imageTransform";
 import type { Env } from "./index";
 import { renderSvgToPng } from "./wasm";
@@ -10,6 +15,7 @@ import { renderSvgToPng } from "./wasm";
 // The Images binding accepts raw inputs up to 20 MB; larger images fall back
 // to the URL-transformation JSON metadata probe.
 const MAX_IMAGES_BINDING_INPUT_BYTES = 20 * 1024 * 1024;
+const MAX_CONTAINER_FALLBACK_BYTES = 1024 * 1024;
 const MAX_IMAGE_DIMENSION = 10_000;
 
 interface CloudflareImageInfo {
@@ -23,14 +29,6 @@ export interface FinalizeImageFacts {
   decodedFormat: string;
   height: number | null;
   width: number | null;
-}
-
-export interface FinalizeImageResult extends FinalizeImageFacts {
-  destinationKey: string;
-  sourceEtag: string;
-  storedEtag: string;
-  storedFileSize: number;
-  storedMimeType?: string;
 }
 
 const positiveDimension = (value: unknown): number | null =>
@@ -148,7 +146,6 @@ const factsFromSvg = async (
 const factsFromUrlProbe = async (
   env: Env,
   sourceKey: string,
-  storedContentType: string | undefined,
   origin: string,
   imageFetch: typeof fetch,
   now: number
@@ -165,19 +162,35 @@ const factsFromUrlProbe = async (
     throw new Error("not_an_image");
   }
   const info = (await response.json()) as CloudflareImageInfo;
-  const normalizedType = storedContentType
-    ?.split(";", 1)[0]
-    ?.trim()
-    .toLowerCase();
-  const decodedFormat =
-    normalizeDecodedFormat(info.format ?? "", sourceKey) ||
-    (normalizedType?.startsWith("image/") ? normalizedType : "");
+  const decodedFormat = normalizeDecodedFormat(info.format ?? "", sourceKey);
   const width = positiveDimension(info.original?.width ?? info.width);
   const height = positiveDimension(info.original?.height ?? info.height);
   if (!(decodedFormat && width && height)) {
     throw new Error("not_an_image");
   }
   return { decodedFormat, height, width };
+};
+
+const factsFromValidatedContainer = async (
+  bucket: R2Bucket,
+  sourceKey: string,
+  expected: { httpEtag: string; size: number }
+): Promise<FinalizeImageFacts> => {
+  if (expected.size > MAX_CONTAINER_FALLBACK_BYTES) {
+    throw new Error("not_an_image");
+  }
+  const object = await bucket.get(sourceKey);
+  if (!object) {
+    throw new Error("source_not_found");
+  }
+  assertUnchanged(object, expected);
+  const facts = inspectImageContainer(
+    new Uint8Array(await object.arrayBuffer())
+  );
+  if (!facts) {
+    throw new Error("not_an_image");
+  }
+  return facts;
 };
 
 /**
@@ -188,17 +201,13 @@ const factsFromUrlProbe = async (
  */
 export const finalizeImageUpload = async (
   env: Env,
-  params: Record<string, unknown>,
+  params: FilesFinalizeImageParams,
   origin: string,
   imageFetch: typeof fetch = fetch,
   now = Math.floor(Date.now() / 1000)
-): Promise<FinalizeImageResult> => {
+): Promise<FilesFinalizeImageResult> => {
   const sourceKey = params.sourceKey;
   const destinationKey = params.destinationKey;
-  if (typeof sourceKey !== "string" || typeof destinationKey !== "string") {
-    throw new Error("invalid_params");
-  }
-
   const metadata = await env.BUCKET.head(sourceKey);
   if (!metadata) {
     throw new Error("source_not_found");
@@ -228,33 +237,20 @@ export const finalizeImageUpload = async (
         facts = await factsFromUrlProbe(
           env,
           sourceKey,
-          metadata.httpMetadata?.contentType,
           origin,
           imageFetch,
           now
         );
       } catch (error) {
         if (error instanceof Error && error.message === "not_an_image") {
-          // Cloudflare's decoders are stricter than browsers: they reject
-          // some valid minimal images (e.g. unusual 1x1 PNGs) as
-          // "incomplete". Rejecting those would bounce legitimate user
-          // uploads, so treat undecodable-but-image-typed objects as
-          // unverified rather than invalid. Non-image content stays
-          // rejected.
-          const contentType =
-            metadata.httpMetadata?.contentType
-              ?.split(";", 1)[0]
-              ?.trim()
-              .toLowerCase() ?? "";
-          if (contentType.startsWith("image/")) {
-            facts = {
-              decodedFormat: contentType,
-              height: null,
-              width: null,
-            };
-          } else {
-            throw error;
-          }
+          // Cloudflare can reject a small browser-compatible image as
+          // incomplete. Accept that edge case only after validating the
+          // complete, bounded container and reading trusted dimensions.
+          facts = await factsFromValidatedContainer(
+            env.BUCKET,
+            sourceKey,
+            metadata
+          );
         } else {
           throw error;
         }
@@ -286,7 +282,10 @@ export const finalizeImageUpload = async (
     throw new Error("source_changed");
   }
   const stored = await env.BUCKET.put(destinationKey, source.body, {
-    httpMetadata: source.httpMetadata,
+    httpMetadata: {
+      ...source.httpMetadata,
+      contentType: facts.decodedFormat,
+    },
     customMetadata: {
       ...source.customMetadata,
       decodedFormat: facts.decodedFormat,
@@ -302,7 +301,7 @@ export const finalizeImageUpload = async (
     sourceEtag: source.httpEtag,
     storedEtag: stored.httpEtag,
     storedFileSize: source.size,
-    storedMimeType: source.httpMetadata?.contentType,
+    storedMimeType: facts.decodedFormat,
     width: facts.width,
   };
 };

@@ -12,6 +12,7 @@ describe("mobile card summaries", () => {
       content: longContent,
       createdAt: 1,
       processingStatus: {},
+      placeholderUrl: "https://example.com/tiny.jpg",
       thumbnailUrl: "https://example.com/thumb.jpg",
       type: "text",
       updatedAt: 1,
@@ -20,6 +21,7 @@ describe("mobile card summaries", () => {
 
     expect(summary.previewText).toHaveLength(280);
     expect(summary.thumbnailUrl).toBe("https://example.com/thumb.jpg");
+    expect(summary.placeholderUrl).toBe("https://example.com/tiny.jpg");
     expect(summary.colors).toEqual(["#112233"]);
     expect(summary).not.toHaveProperty("content");
     expect(summary).not.toHaveProperty("aiTranscript");

@@ -7,6 +7,7 @@ export interface MobileCardSummary {
   colors?: string[];
   compactUrl?: string;
   fileName?: string;
+  placeholderUrl?: string;
   previewText?: string;
   screenshotUrl?: string;
   thumbnailUrl?: string;

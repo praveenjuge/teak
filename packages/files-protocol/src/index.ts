@@ -1,5 +1,5 @@
 export const FILES_PROTOCOL_VERSION = 1 as const;
-export const FILES_PROCESSOR_VERSION = "2026-08-24.1" as const;
+export const FILES_PROCESSOR_VERSION = "2026-08-26.1" as const;
 export const FILES_OP_PATH = "/__ops/v1" as const;
 export const FILES_IMAGE_PATH = "/__images/v1" as const;
 export const FILES_IMAGE_SOURCE_PATH = "/__image-source/v1" as const;
@@ -78,6 +78,26 @@ export interface FilesSuccessEnvelope<T> {
 }
 
 export type FilesEnvelope<T> = FilesErrorEnvelope | FilesSuccessEnvelope<T>;
+
+/** Trusted facts returned after an uploaded image has been verified and stored. */
+export interface FilesFinalizeImageResult {
+  content?: undefined;
+  decodedFormat: string;
+  destinationKey: string;
+  height: number | null;
+  sourceEtag: string;
+  storedEtag: string;
+  storedFileSize: number;
+  storedMimeType?: string;
+  width: number | null;
+}
+
+export interface FilesFinalizeImageParams {
+  destinationKey: string;
+  expectedEtag?: string;
+  expectedSize?: number;
+  sourceKey: string;
+}
 
 export interface FilesOpRequest<T = unknown> {
   op: FilesOp;

@@ -13,8 +13,8 @@ import { buildR2ObjectKey, resolveObjectUrl } from "../../../storage/r2";
 import { escapeForSingleQuotedJs } from "../kernelCodegen";
 
 // Maximum thumbnail dimensions - matches image thumbnail settings
-const THUMBNAIL_MAX_WIDTH = 400;
-const THUMBNAIL_MAX_HEIGHT = 400;
+const THUMBNAIL_MAX_WIDTH = 1600;
+const THUMBNAIL_MAX_HEIGHT = 1600;
 
 /**
  * Generate a thumbnail image from a video file.

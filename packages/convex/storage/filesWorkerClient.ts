@@ -13,6 +13,7 @@ import {
   FILES_UPLOAD_MAX_TTL_SECONDS,
   FILES_UPLOAD_PATH,
   type FilesEnvelope,
+  type FilesFinalizeImageResult,
   type FilesOp,
   type FilesOpRequest,
 } from "@teak/files-protocol";
@@ -249,17 +250,7 @@ export interface FilesWorkerImageAnalysisResult {
 }
 
 /** Trusted image facts returned by the finalize-image-upload op. */
-export interface FilesWorkerFinalizeImageResult {
-  content?: undefined;
-  decodedFormat: string;
-  destinationKey: string;
-  height: number | null;
-  sourceEtag: string;
-  storedEtag: string;
-  storedFileSize: number;
-  storedMimeType?: string;
-  width: number | null;
-}
+export type FilesWorkerFinalizeImageResult = FilesFinalizeImageResult;
 
 export interface FilesWorkerBuildExportResult {
   artifactBytes: number;

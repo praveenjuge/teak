@@ -421,14 +421,17 @@ describe("generatePdfThumbnail", () => {
     const result = JSON.parse(raw);
 
     expect(result.success).toBe(true);
-    expect(result.width).toBe(401);
-    expect(result.height).toBe(566);
+    expect(result.width).toBe(1131);
+    expect(result.height).toBe(1600);
 
     // The rendered PNG is PUT straight to the signed Files Worker URL.
     const png = uploadedThumbnail?.body;
     expect(uploadedThumbnail?.url).toContain("/__upload/v1/");
     expect(png?.subarray(0, 8)).toEqual(PNG_SIGNATURE);
-    expect(decodePngSize(png as Buffer)).toEqual({ width: 401, height: 566 });
+    expect(decodePngSize(png as Buffer)).toEqual({
+      width: 1131,
+      height: 1600,
+    });
     // The stub pdf.js paints the page blue, so a blue first pixel proves the
     // render call actually executed and was serialized by toDataURL.
     expect(decodePngFirstPixel(png as Buffer)).toEqual([0x33, 0x66, 0xcc]);
