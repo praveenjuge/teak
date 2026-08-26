@@ -199,7 +199,7 @@ test("private image originals and Cloudflare renditions share one API contract",
   const apiKey = requireServiceApiKey("api");
   const fileName = `api-image-${Date.now()}.png`;
   const bytes = Buffer.from(
-    "iVBORw0KGgoAAAANSUhEUgAAAAIAAAABCAIAAAD91JpzAAAAFElEQVR42mP4z8DA8J+BgYGBgQEAEwQCAf8fL6sAAAAASUVORK5CYII=",
+    "iVBORw0KGgoAAAANSUhEUgAAAEAAAABACAIAAAAlC+aJAAAAg0lEQVR4nO3RQQkAMAwEwciJfz0VUxF9DIWFE5DMztn9esMv6AFNWAFNWAFNWAFNWAFNWAFNWAFNWAFNWAFNWAFNWAFNWAFNWAFNWAFNWAFNWAFNWAFNWAFNWAFNWAFNWAFNWAFNWAFNWAFNWAFNWAFNWAFNWAFNWAFNWIH1ii+785PBD68iABwAAAAASUVORK5CYII=",
     "base64"
   );
   const prepared = await apiFetch("/v1/uploads", apiKey, {
@@ -232,7 +232,7 @@ test("private image originals and Cloudflare renditions share one API contract",
       fileName,
       fileSize: bytes.byteLength,
       mimeType: "image/png",
-      source: "prod-e2e-cloudflare-image",
+      source: "prod-e2e-cloudflare-image-ai",
       tags: ["prod-e2e", "cloudflare-image"],
     }),
   });
@@ -248,9 +248,15 @@ test("private image originals and Cloudflare renditions share one API contract",
           return false;
         }
         const value = await response.json();
-        return Boolean(value.fileUrl && value.thumbnailUrl && value.detailUrl);
+        return Boolean(
+          value.fileUrl &&
+            value.thumbnailUrl &&
+            value.detailUrl &&
+            value.aiSummary &&
+            value.aiTags?.length
+        );
       },
-      { timeout: 30_000, intervals: [500, 1000, 2000, 3000] }
+      { timeout: 60_000, intervals: [500, 1000, 2000, 3000, 5000] }
     )
     .toBe(true);
 
@@ -262,6 +268,8 @@ test("private image originals and Cloudflare renditions share one API contract",
     thumbnailUrl: expect.stringContaining("/__images/v1/grid/"),
     type: "image",
   });
+  expect(image.aiSummary).toEqual(expect.any(String));
+  expect(image.aiTags).toEqual(expect.arrayContaining([expect.any(String)]));
 
   const original = await fetch(image.fileUrl);
   expect(original.ok).toBe(true);

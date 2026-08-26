@@ -1,4 +1,7 @@
-import { fetchPrivateImageSource } from "./imageTransform";
+import {
+  buildImageTransformOptions,
+  fetchPrivateImageSource,
+} from "./imageTransform";
 import type { Env } from "./index";
 
 /**
@@ -128,16 +131,7 @@ export const generateImageMetadataForOp = async (
     env,
     origin,
     sourceKey,
-    {
-      anim: false,
-      fit: "scale-down",
-      format: "jpeg",
-      height: 1600,
-      metadata: "none",
-      quality: 85,
-      sharpen: 1,
-      width: 1600,
-    },
+    buildImageTransformOptions("detail"),
     imageFetch as never,
     now
   );

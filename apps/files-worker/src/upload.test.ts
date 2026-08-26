@@ -411,11 +411,19 @@ describe("additive files ops", () => {
       httpMetadata: { contentType: "image/png" },
     });
 
-    const fakeFetch = (async (_input: RequestInfo | URL): Promise<Response> =>
-      new Response(new Uint8Array([1, 2, 3]), {
-        status: 200,
-        headers: { "content-type": "image/jpeg" },
-      })) as typeof fetch;
+    let capturedTransform: Record<string, unknown> | undefined;
+    const fakeFetch = ((
+      _input: RequestInfo | URL,
+      init?: RequestInit & { cf?: { image?: Record<string, unknown> } }
+    ): Promise<Response> => {
+      capturedTransform = init?.cf?.image;
+      return Promise.resolve(
+        new Response(new Uint8Array([1, 2, 3]), {
+          status: 200,
+          headers: { "content-type": "image/jpeg" },
+        })
+      );
+    }) as typeof fetch;
 
     const { generateImageMetadataForOp } = await import("./imageMetadata");
     const result = await generateImageMetadataForOp(
@@ -429,6 +437,16 @@ describe("additive files ops", () => {
     expect(calls).toBe(2);
     expect(capturedImageUrl).toEqual({
       url: "data:image/jpeg;base64,AQID",
+    });
+    expect(capturedTransform).toEqual({
+      anim: true,
+      fit: "scale-down",
+      height: 1600,
+      metadata: "none",
+      quality: 85,
+      sharpen: 1,
+      width: 1600,
+      "origin-auth": "share-publicly",
     });
   });
 });

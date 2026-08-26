@@ -18,7 +18,7 @@ const IMAGE_EDGE_CACHE_CONTROL = "public, max-age=518400, immutable";
 const imageEdgeCache: Cache | null =
   typeof caches === "undefined" ? null : caches.default;
 
-const RENDITIONS = {
+export const IMAGE_RENDITIONS = {
   grid: { edge: 512, quality: 80 },
   detail: { edge: 1600, quality: 85 },
 } as const satisfies Record<
@@ -58,6 +58,24 @@ export const fetchPrivateImageSource = async (
       },
     },
   });
+};
+
+export const buildImageTransformOptions = (
+  rendition: FilesImageRendition,
+  accept?: string | null
+): Record<string, unknown> => {
+  const preset = IMAGE_RENDITIONS[rendition];
+  const format = preferredFormat(accept ?? null);
+  return {
+    anim: true,
+    fit: "scale-down",
+    height: preset.edge,
+    metadata: "none",
+    quality: preset.quality,
+    sharpen: 1,
+    width: preset.edge,
+    ...(format ? { format } : {}),
+  };
 };
 
 const decodeKey = (encoded: string): string => {
@@ -162,7 +180,7 @@ const serveSvg = async (
     return new Response(null, { status: 413 });
   }
   const svg = await object.text();
-  const rendered = await renderSvgToPng(svg, RENDITIONS[rendition].edge);
+  const rendered = await renderSvgToPng(svg, IMAGE_RENDITIONS[rendition].edge);
   const headers = imageHeaders("image/png");
   headers.set("Content-Length", String(rendered.bytes.byteLength));
   return new Response(method === "HEAD" ? null : rendered.bytes, { headers });
@@ -285,22 +303,11 @@ export const handleImageRequest = async (
     return new Response(null, { status: 415 });
   }
 
-  const rendition = RENDITIONS[parsed.rendition];
-  const format = preferredFormat(request.headers.get("accept"));
   const transformed = await fetchPrivateImageSource(
     env,
     url.origin,
     parsed.key,
-    {
-      anim: true,
-      fit: "scale-down",
-      height: rendition.edge,
-      metadata: "none",
-      quality: rendition.quality,
-      sharpen: 1,
-      width: rendition.edge,
-      ...(format ? { format } : {}),
-    },
+    buildImageTransformOptions(parsed.rendition, request.headers.get("accept")),
     imageFetch,
     now
   );
