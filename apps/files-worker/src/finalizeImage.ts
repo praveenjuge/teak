@@ -224,14 +224,41 @@ export const finalizeImageUpload = async (
     if (!facts) {
       // Binding metadata unavailable (missing binding, unsupported input, or
       // transient failure): fall back to the remote transformation probe.
-      facts = await factsFromUrlProbe(
-        env,
-        sourceKey,
-        metadata.httpMetadata?.contentType,
-        origin,
-        imageFetch,
-        now
-      );
+      try {
+        facts = await factsFromUrlProbe(
+          env,
+          sourceKey,
+          metadata.httpMetadata?.contentType,
+          origin,
+          imageFetch,
+          now
+        );
+      } catch (error) {
+        if (error instanceof Error && error.message === "not_an_image") {
+          // Cloudflare's decoders are stricter than browsers: they reject
+          // some valid minimal images (e.g. unusual 1x1 PNGs) as
+          // "incomplete". Rejecting those would bounce legitimate user
+          // uploads, so treat undecodable-but-image-typed objects as
+          // unverified rather than invalid. Non-image content stays
+          // rejected.
+          const contentType =
+            metadata.httpMetadata?.contentType
+              ?.split(";", 1)[0]
+              ?.trim()
+              .toLowerCase() ?? "";
+          if (contentType.startsWith("image/")) {
+            facts = {
+              decodedFormat: contentType,
+              height: null,
+              width: null,
+            };
+          } else {
+            throw error;
+          }
+        } else {
+          throw error;
+        }
+      }
     }
   }
 
