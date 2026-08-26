@@ -199,7 +199,7 @@ test("private image originals and Cloudflare renditions share one API contract",
   const apiKey = requireServiceApiKey("api");
   const fileName = `api-image-${Date.now()}.png`;
   const bytes = Buffer.from(
-    "iVBORw0KGgoAAAANSUhEUgAAAEAAAABACAIAAAAlC+aJAAAAg0lEQVR4nO3RQQkAMAwEwciJfz0VUxF9DIWFE5DMztn9esMv6AFNWAFNWAFNWAFNWAFNWAFNWAFNWAFNWAFNWAFNWAFNWAFNWAFNWAFNWAFNWAFNWAFNWAFNWAFNWAFNWAFNWAFNWAFNWAFNWAFNWAFNWAFNWAFNWAFNWIH1ii+785PBD68iABwAAAAASUVORK5CYII=",
+    "iVBORw0KGgoAAAANSUhEUgAAAEAAAABACAIAAAAlC+aJAAAACXBIWXMAAAPoAAAD6AG1e1JrAAAAnklEQVRoge2SUQkAQBSDFsf+eRbmQtyHPBgYwMlSOE10g24AesXuQtwlukE3AL1idyHuEt2gG4BesbsQd4lu0A1Ar9hdiLtEN+gGoFfsLsRdoht0A9ArdhfiLtENugHoFbsLcZfoBt0A9IrdhbhLdINuAHrF7kLcJbpBNwC9Ynch7hLdoBuAXrG7EHeJbtANQK/YXYi7RDfoBqBX/OEB85PBD8A6yIQAAAAASUVORK5CYII=",
     "base64"
   );
   const prepared = await apiFetch("/v1/uploads", apiKey, {
