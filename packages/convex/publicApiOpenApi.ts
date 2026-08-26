@@ -78,10 +78,12 @@ const components = {
       required: [
         "aiTags",
         "appUrl",
+        "compactUrl",
         "content",
         "createdAt",
         "id",
         "isFavorited",
+        "placeholderUrl",
         "tags",
         "type",
         "updatedAt",
@@ -120,6 +122,12 @@ const components = {
         metadataDescription: { nullable: true, type: "string" },
         metadataTitle: { nullable: true, type: "string" },
         notes: { nullable: true, type: "string" },
+        placeholderUrl: {
+          description:
+            "48px loading-placeholder rendition URL; present for image uploads.",
+          nullable: true,
+          type: "string",
+        },
         processingStatus: { nullable: true, type: "string" },
         screenshotUrl: { nullable: true, type: "string" },
         tags: { items: { type: "string" }, type: "array" },

@@ -571,6 +571,7 @@ const serializeListCard = (
           detailUrl: card.detailUrl ?? null,
           fileUrl: card.fileUrl ?? null,
           linkPreviewImageUrl: card.linkPreviewImageUrl ?? null,
+          placeholderUrl: card.placeholderUrl ?? null,
           screenshotUrl: card.screenshotUrl ?? null,
           thumbnailUrl: card.thumbnailUrl ?? null,
         }

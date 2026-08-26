@@ -112,6 +112,43 @@ describe("finalize-image-upload", () => {
     );
   });
 
+  test("refuses to promote bytes replaced after decode verification", async () => {
+    const bucket = new FakeBucket();
+    const png = makePng(32, 24);
+    bucket.objects.set(SOURCE_KEY, {
+      bytes: png,
+      httpMetadata: { contentType: "image/png" },
+    });
+    let decodeCount = 0;
+    const env = {
+      BUCKET: bucket as unknown as R2Bucket,
+      FILES_SIGNING_SECRET: SECRET,
+      IMAGES: {
+        info: (stream: ReadableStream<Uint8Array>) => {
+          decodeCount += 1;
+          void stream.cancel();
+          if (decodeCount === 1) {
+            // The verified read; a concurrent writer replaces the key right
+            // after decoding completes.
+            bucket.objects.set(SOURCE_KEY, {
+              bytes: new TextEncoder().encode("malicious replacement"),
+              httpMetadata: { contentType: "text/plain" },
+            });
+          }
+          return Promise.resolve({
+            fileSize: png.length,
+            format: "png",
+            height: 24,
+            width: 32,
+          });
+        },
+      },
+    } as unknown as Parameters<typeof finalizeImageUpload>[0];
+
+    await expect(runOp(env)).rejects.toThrow("source_changed");
+    expect(bucket.storedBytes(DEST_KEY)).toBeNull();
+  });
+
   test("normalizes decoded format tokens into image MIME types", () => {
     expect(normalizeDecodedFormat("image/webp", "a.webp")).toBe("image/webp");
     expect(normalizeDecodedFormat("heic", "a.heic")).toBe("image/heic");

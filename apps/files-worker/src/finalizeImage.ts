@@ -72,13 +72,22 @@ const isSvgKey = (key: string, contentType?: string): boolean =>
   (key.toLowerCase().endsWith(".svg") &&
     (!contentType || ["application/xml", "text/xml"].includes(contentType)));
 
+const assertUnchanged = (
+  object: { httpEtag: string; size: number },
+  expected: { httpEtag: string; size: number }
+): void => {
+  if (object.httpEtag !== expected.httpEtag || object.size !== expected.size) {
+    throw new Error("source_changed");
+  }
+};
+
 const factsFromBindingInfo = async (
   env: Env,
   bucket: R2Bucket,
   sourceKey: string,
-  sourceSize: number
+  expected: { httpEtag: string; size: number }
 ): Promise<FinalizeImageFacts | null> => {
-  if (!(env.IMAGES && sourceSize <= MAX_IMAGES_BINDING_INPUT_BYTES)) {
+  if (!(env.IMAGES && expected.size <= MAX_IMAGES_BINDING_INPUT_BYTES)) {
     return null;
   }
   const object = await bucket.get(sourceKey);
@@ -86,6 +95,8 @@ const factsFromBindingInfo = async (
     throw new Error("source_not_found");
   }
   try {
+    // Only decode bytes that are still the object we validated above.
+    assertUnchanged(object, expected);
     const info = (await env.IMAGES.info(object.body)) as CloudflareImageInfo;
     if (info.format === "image/svg+xml") {
       // SVG has no raster dimensions in binding info; the resvg probe below
@@ -114,12 +125,14 @@ const factsFromBindingInfo = async (
 
 const factsFromSvg = async (
   bucket: R2Bucket,
-  sourceKey: string
+  sourceKey: string,
+  expected: { httpEtag: string; size: number }
 ): Promise<FinalizeImageFacts> => {
   const object = await bucket.get(sourceKey);
   if (!object) {
     throw new Error("source_not_found");
   }
+  assertUnchanged(object, expected);
   if (object.size > 10 * 1024 * 1024) {
     await object.body.cancel();
     throw new Error("source_too_large");
@@ -205,14 +218,9 @@ export const finalizeImageUpload = async (
 
   let facts: FinalizeImageFacts | null = null;
   if (isSvgKey(sourceKey, metadata.httpMetadata?.contentType)) {
-    facts = await factsFromSvg(env.BUCKET, sourceKey);
+    facts = await factsFromSvg(env.BUCKET, sourceKey, metadata);
   } else {
-    facts = await factsFromBindingInfo(
-      env,
-      env.BUCKET,
-      sourceKey,
-      metadata.size
-    );
+    facts = await factsFromBindingInfo(env, env.BUCKET, sourceKey, metadata);
     if (!facts) {
       // Binding metadata unavailable (missing binding, unsupported input, or
       // transient failure): fall back to the remote transformation probe.
@@ -234,12 +242,21 @@ export const finalizeImageUpload = async (
     throw new Error("image_dimensions_too_large");
   }
 
-  // Re-fetch and stream the verified source into its permanent key. Content-
-  // immutability of keys means the ETag cannot change between head and get
-  // without a concurrent same-key overwrite, which uploads never perform.
+  // Re-fetch and stream the verified source into its permanent key, pinning
+  // the promotion to the exact bytes that were decoded above: if the pending
+  // key changed between verification and this read, refuse instead of
+  // promoting unverified bytes under stale trusted facts.
   const source = await env.BUCKET.get(sourceKey);
   if (!source) {
     throw new Error("source_not_found");
+  }
+  if (source.httpEtag !== metadata.httpEtag || source.size !== metadata.size) {
+    try {
+      await source.body.cancel();
+    } catch {
+      // Already consumed.
+    }
+    throw new Error("source_changed");
   }
   const stored = await env.BUCKET.put(destinationKey, source.body, {
     httpMetadata: source.httpMetadata,
