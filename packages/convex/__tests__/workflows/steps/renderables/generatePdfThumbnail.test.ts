@@ -421,7 +421,7 @@ describe("generatePdfThumbnail", () => {
     const result = JSON.parse(raw);
 
     expect(result.success).toBe(true);
-    expect(result.width).toBe(1131);
+    expect(result.width).toBe(1132);
     expect(result.height).toBe(1600);
 
     // The rendered PNG is PUT straight to the signed Files Worker URL.
@@ -429,7 +429,7 @@ describe("generatePdfThumbnail", () => {
     expect(uploadedThumbnail?.url).toContain("/__upload/v1/");
     expect(png?.subarray(0, 8)).toEqual(PNG_SIGNATURE);
     expect(decodePngSize(png as Buffer)).toEqual({
-      width: 1131,
+      width: 1132,
       height: 1600,
     });
     // The stub pdf.js paints the page blue, so a blue first pixel proves the

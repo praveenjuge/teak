@@ -204,8 +204,8 @@ export const generatePdfThumbnail = internalAction({
                     maxHeight / baseViewport.height
                   );
                   const viewport = pdfPage.getViewport({ scale });
-                  const targetWidth = Math.max(1, Math.min(maxWidth, Math.floor(viewport.width)));
-                  const targetHeight = Math.max(1, Math.min(maxHeight, Math.floor(viewport.height)));
+                  const targetWidth = Math.max(1, Math.min(maxWidth, Math.ceil(viewport.width)));
+                  const targetHeight = Math.max(1, Math.min(maxHeight, Math.ceil(viewport.height)));
 
                   const canvas = document.createElement('canvas');
                   const ctx = canvas.getContext('2d');
