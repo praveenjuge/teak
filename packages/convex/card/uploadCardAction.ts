@@ -8,6 +8,7 @@ import { cardTypeValidator } from "../schema";
 import {
   FileFormatValidationError,
   fileUploadErrorCode,
+  inferFileFormat,
   MAX_FILE_SIZE,
   validateFileFormat,
   validateFileName,
@@ -18,6 +19,7 @@ import {
 } from "../shared/markdown";
 import {
   callFilesWorkerJson,
+  type FilesWorkerFinalizeImageResult,
   isFilesWorkerConfigured,
 } from "../storage/filesWorkerClient";
 import { buildR2ObjectKey, buildR2UserPrefix } from "../storage/r2";
@@ -148,25 +150,42 @@ const finalizeForUser = async (
     throw new Error("files_worker_not_configured");
   }
   const validated = validateFinalizeUpload(userId, args);
+  // Image uploads are committed through a decode-verify op so the card gets
+  // trusted format/dimension facts from the worker instead of client input.
+  const isImageUpload =
+    inferFileFormat({ fileName: validated.fileName })?.cardType === "image";
   const destinationKey = buildR2ObjectKey({
     userId,
     cardId: "stored",
     role: "file",
     fileName: validated.fileName,
   });
-  const outcome = await callFilesWorkerJson<FinalizedUpload>({
-    op: "finalize-upload",
+  const outcome = await callFilesWorkerJson<
+    FinalizedUpload | FilesWorkerFinalizeImageResult
+  >({
+    op: isImageUpload ? "finalize-image-upload" : "finalize-upload",
     params: {
       destinationKey,
       expectedEtag: validated.fileEtag,
       expectedSize: args.fileSize,
-      readText: validated.markdown,
+      readText: validated.markdown ? true : undefined,
       sourceKey: args.fileKey,
     },
   });
   if (outcome.kind !== "ok") {
+    if (isImageUpload) {
+      return throwUploadError(
+        "INVALID_INPUT",
+        "Uploaded file is not a decodable image"
+      );
+    }
     return throwUploadError("INVALID_INPUT", "Uploaded file was not found");
   }
+  const finalized = outcome.data;
+  const trustedImageFacts =
+    isImageUpload && "decodedFormat" in finalized
+      ? (finalized as FilesWorkerFinalizeImageResult)
+      : null;
   const storedMimeType = normalizeMimeType(outcome.data.storedMimeType);
   try {
     const requested = validateFileFormat({
@@ -201,7 +220,17 @@ const finalizeForUser = async (
     const result = await ctx.runMutation(
       (internal as any).publicApiUploads.finalizeUploadedCardForUser,
       {
-        additionalMetadata: args.additionalMetadata,
+        additionalMetadata: {
+          ...(args.additionalMetadata ?? {}),
+          // Trusted worker-decoded dimensions win over anything the client
+          // claimed; they land in fileMetadata at creation time.
+          ...(trustedImageFacts?.width && trustedImageFacts?.height
+            ? {
+                height: trustedImageFacts.height,
+                width: trustedImageFacts.width,
+              }
+            : {}),
+        },
         cardType: validated.markdown ? "text" : args.cardType,
         content: validated.markdown ? outcome.data.content : args.content,
         fileKey: destinationKey,

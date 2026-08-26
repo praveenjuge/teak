@@ -4,7 +4,16 @@ export const FILES_OP_PATH = "/__ops/v1" as const;
 export const FILES_IMAGE_PATH = "/__images/v1" as const;
 export const FILES_IMAGE_SOURCE_PATH = "/__image-source/v1" as const;
 
-export const FILES_IMAGE_RENDITIONS = ["grid", "detail"] as const;
+// Renditions are an allowlist: dimensions, crop, and quality stay
+// server-controlled so clients can never request arbitrary transform
+// combinations. `tiny` doubles as the loading placeholder and `compact`
+// serves small/mobile cards; `grid` and `detail` keep their historical roles.
+export const FILES_IMAGE_RENDITIONS = [
+  "tiny",
+  "compact",
+  "grid",
+  "detail",
+] as const;
 export type FilesImageRendition = (typeof FILES_IMAGE_RENDITIONS)[number];
 
 export const isFilesImageRendition = (
@@ -30,6 +39,7 @@ export const FILES_OPS = [
   "delete-object",
   "delete-objects",
   "extract-import-files",
+  "finalize-image-upload",
   "finalize-upload",
   "generate-image-metadata",
   "head-object",

@@ -170,7 +170,9 @@ const CardItem = memo(function CardItem({
   onPress,
   onDeleteRequest,
 }: CardItemProps) {
-  const mediaUrl = card.thumbnailUrl ?? card.screenshotUrl ?? null;
+  // Compact (256px) keeps small mobile tiles light; grid remains fallback.
+  const mediaUrl =
+    card.compactUrl ?? card.thumbnailUrl ?? card.screenshotUrl ?? null;
   const convex = useConvex();
 
   const loadFullCard = () =>

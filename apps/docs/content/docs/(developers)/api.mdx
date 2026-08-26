@@ -150,11 +150,12 @@ Bulk operations accept up to 100 items. Cursor-based listing and the card change
 
 See `/openapi.json` or the [API Reference](/reference) for methods, parameters, schemas, and response examples.
 
-Image card responses include three intentionally different URLs: `thumbnailUrl`
-is the optimized grid rendition, `detailUrl` is the optimized full-card
-rendition, and `fileUrl` remains the signed original used for downloads. These
-URLs are temporary bearer credentials; clients should consume them as returned
-instead of storing or modifying them.
+Image card responses include intentionally different URLs: `thumbnailUrl`
+is the optimized grid rendition, `compactUrl` is a smaller rendition for
+compact lists, `placeholderUrl` is a tiny loading placeholder, `detailUrl` is
+the optimized full-card rendition, and `fileUrl` remains the signed original
+used for downloads. These URLs are temporary bearer credentials; clients
+should consume them as returned instead of storing or modifying them.
 
 ## Errors
 

@@ -248,6 +248,19 @@ export interface FilesWorkerImageAnalysisResult {
   width: number;
 }
 
+/** Trusted image facts returned by the finalize-image-upload op. */
+export interface FilesWorkerFinalizeImageResult {
+  content?: undefined;
+  decodedFormat: string;
+  destinationKey: string;
+  height: number | null;
+  sourceEtag: string;
+  storedEtag: string;
+  storedFileSize: number;
+  storedMimeType?: string;
+  width: number | null;
+}
+
 export interface FilesWorkerBuildExportResult {
   artifactBytes: number;
   filesIncluded: number;

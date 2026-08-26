@@ -11,6 +11,7 @@ import {
   ExportManifestInvalid,
   ExportTooLarge,
 } from "./export";
+import { finalizeImageUpload } from "./finalizeImage";
 import { analyzeImage } from "./imageAnalysis";
 import { generateImageMetadataForOp } from "./imageMetadata";
 import {
@@ -26,6 +27,8 @@ import { isValidUploadKey } from "./upload";
 export interface FilesOpsEnv {
   BUCKET: R2Bucket;
   FILES_SIGNING_SECRET: string;
+  /** Images binding; used by finalize-image-upload for decode verification. */
+  IMAGES?: ImagesBinding;
 }
 
 const json = (data: unknown, status = 200): Response =>
@@ -262,6 +265,14 @@ const dispatch = async (
       return success(requestId, { aborted: true });
     case "finalize-upload":
       return success(requestId, await finalizeUpload(env.BUCKET, params));
+    case "finalize-image-upload": {
+      const sourceKey = requiredString(params, "sourceKey");
+      const destinationKey = requiredString(params, "destinationKey");
+      if (!sameUserNamespace(sourceKey, destinationKey)) {
+        throw new Error("invalid_storage_key");
+      }
+      return success(requestId, await finalizeImageUpload(env, params, origin));
+    }
     case "delete-object":
       await env.BUCKET.delete(requiredString(params, "key"));
       return success(requestId, { deleted: true });
@@ -401,9 +412,12 @@ export const handleInternalOp = async (
     }
     if (
       error instanceof Error &&
-      ["image_transform_failed", "image_dimensions_missing"].includes(
-        error.message
-      )
+      [
+        "image_transform_failed",
+        "image_dimensions_missing",
+        "not_an_image",
+        "image_dimensions_too_large",
+      ].includes(error.message)
     ) {
       return fail(requestId, "UNSUPPORTED", error.message, 415);
     }

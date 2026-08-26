@@ -42,14 +42,22 @@ Convex returns three roles for an image card:
 | Role | Source | Behavior |
 | --- | --- | --- |
 | `fileUrl` | private R2 original | signed download/view URL; original bytes |
+| `placeholderUrl` | `tiny` rendition | maximum 48 by 48, quality 60; loading placeholder |
+| `compactUrl` | `compact` rendition | maximum 256 by 256, quality 80; small/mobile cards |
 | `thumbnailUrl` | `grid` rendition | maximum 512 by 512, quality 80 |
 | `detailUrl` | `detail` rendition | maximum 1600 by 1600, quality 85 |
 
-Both renditions use `fit: scale-down`, strip metadata, apply conservative
+All renditions use `fit: scale-down`, strip metadata, apply conservative
 sharpening, preserve supported animation, and negotiate AVIF then WebP from
 the request `Accept` header. The finite rendition allowlist avoids unbounded
 transform combinations and prevents clients from supplying source URLs,
 dimensions, formats, or other transform options.
+
+Eligible sources (up to the Images binding's 20 MB input limit) are
+transformed directly from the R2 stream through the binding, skipping the
+internal source round-trip entirely. Binding results are cached per source
+ETag, rendition, and negotiated output format. Larger images keep the
+URL-based transformation path as a fallback.
 
 The public request path is:
 

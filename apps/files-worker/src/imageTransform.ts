@@ -19,12 +19,19 @@ const imageEdgeCache: Cache | null =
   typeof caches === "undefined" ? null : caches.default;
 
 export const IMAGE_RENDITIONS = {
+  tiny: { edge: 48, quality: 60 },
+  compact: { edge: 256, quality: 80 },
   grid: { edge: 512, quality: 80 },
   detail: { edge: 1600, quality: 85 },
 } as const satisfies Record<
   FilesImageRendition,
   { edge: number; quality: number }
 >;
+
+// The Images binding accepts raw inputs up to 20 MB. Larger sources keep the
+// proven URL-transformation path, whose remote-image limit covers Teak's
+// upload ceiling.
+const MAX_IMAGES_BINDING_INPUT_BYTES = 20 * 1024 * 1024;
 
 type ImageFetch = (
   input: RequestInfo | URL,
@@ -121,7 +128,7 @@ const isExpiredOrInvalid = (expiresAt: string | null, now: number): boolean => {
   );
 };
 
-const preferredFormat = (
+export const preferredFormat = (
   accept: string | null
 ): "avif" | "webp" | undefined => {
   const normalized = accept?.toLowerCase() ?? "";
@@ -130,6 +137,93 @@ const preferredFormat = (
   }
   return normalized.includes("image/webp") ? "webp" : undefined;
 };
+
+/** Map a negotiated format onto an Images binding output MIME type. */
+const bindingOutputFormat = (
+  format: "avif" | "webp" | undefined
+): "image/avif" | "image/webp" | null => {
+  if (format === "avif") {
+    return "image/avif";
+  }
+  return format === "webp" ? "image/webp" : null;
+};
+
+/**
+ * Transform an R2 stream directly through the Images binding. This skips the
+ * internal signed source round-trip entirely for eligible objects (≤20 MB)
+ * and is cached per source ETag + rendition + negotiated format so a
+ * re-uploaded key can never serve a stale variant. Returns null when the
+ * binding is unavailable, the source is too large, or the client negotiates
+ * no modern format — callers fall back to the URL-based transformation path.
+ */
+export const transformViaBinding = async (
+  env: Env,
+  key: string,
+  rendition: FilesImageRendition,
+  accept: string | null,
+  sourceSize: number,
+  bucket: R2Bucket = env.BUCKET
+): Promise<Response | null> => {
+  const format = preferredFormat(accept);
+  const outputFormat = bindingOutputFormat(format);
+  if (
+    !(env.IMAGES && outputFormat) ||
+    sourceSize > MAX_IMAGES_BINDING_INPUT_BYTES
+  ) {
+    return null;
+  }
+  const object = await bucket.get(key);
+  if (!object) {
+    return null;
+  }
+  try {
+    const preset = IMAGE_RENDITIONS[rendition];
+    const result = await env.IMAGES.input(object.body)
+      .transform({
+        fit: "scale-down",
+        height: preset.edge,
+        sharpen: 1,
+        width: preset.edge,
+      })
+      .output({
+        anim: true,
+        format: outputFormat,
+        quality: preset.quality,
+      });
+    const response = result.response();
+    const headers = new Headers(response.headers);
+    headers.set("Content-Type", result.contentType());
+    headers.set("X-Content-Type-Options", "nosniff");
+    headers.set("Vary", "Accept");
+    return new Response(response.body, {
+      headers,
+      status: response.status,
+    });
+  } catch {
+    // The binding may have locked or consumed the stream.
+    try {
+      await object.body.cancel();
+    } catch {
+      // Already consumed.
+    }
+    return null;
+  }
+};
+
+/**
+ * Edge-cache identity for a binding-transformed rendition: immutable object
+ * key + rendition live in the path; the source ETag and negotiated format are
+ * folded into the query so re-uploads and Accept differences never collide.
+ */
+export const buildBindingCacheKey = (
+  url: URL,
+  sourceEtag: string,
+  format: "avif" | "webp"
+): Request =>
+  new Request(
+    `${url.origin}${url.pathname}?binding=1&etag=${encodeURIComponent(sourceEtag)}&fmt=${format}`,
+    { method: "GET" }
+  );
 
 const isSvgSource = (key: string, contentType: string): boolean =>
   contentType === "image/svg+xml" ||
@@ -301,6 +395,50 @@ export const handleImageRequest = async (
   }
   if (!contentType.startsWith("image/")) {
     return new Response(null, { status: 415 });
+  }
+
+  // Preferred path: transform the R2 stream directly through the Images
+  // binding for eligible sources, cached per source ETag + rendition + format.
+  const accept = request.headers.get("accept");
+  const negotiatedFormat = preferredFormat(accept);
+  if (env.IMAGES && negotiatedFormat) {
+    const cacheKey = buildBindingCacheKey(
+      url,
+      metadata.httpEtag,
+      negotiatedFormat
+    );
+    if (request.method === "GET" && imageEdgeCache) {
+      const cached = await imageEdgeCache.match(cacheKey);
+      if (cached) {
+        const headers = new Headers(cached.headers);
+        headers.set("Cache-Control", IMAGE_CACHE_CONTROL);
+        return new Response(cached.body, { headers, status: cached.status });
+      }
+    }
+    const bound = await transformViaBinding(
+      env,
+      parsed.key,
+      parsed.rendition,
+      accept,
+      metadata.size
+    );
+    if (bound) {
+      bound.headers.set("Cache-Control", IMAGE_CACHE_CONTROL);
+      // Expose the source ETag so reloads can revalidate the rendition.
+      bound.headers.set(
+        "ETag",
+        `W/"${metadata.httpEtag.replace(/"/g, "")}-${parsed.rendition}"`
+      );
+      if (request.method === "GET" && bound.ok && imageEdgeCache && ctx) {
+        const edgeHeaders = new Headers(bound.headers);
+        edgeHeaders.set("Cache-Control", IMAGE_EDGE_CACHE_CONTROL);
+        ctx.waitUntil(imageEdgeCache.put(cacheKey, bound.clone()));
+      }
+      return new Response(request.method === "GET" ? bound.body : null, {
+        headers: bound.headers,
+        status: bound.status,
+      });
+    }
   }
 
   const transformed = await fetchPrivateImageSource(

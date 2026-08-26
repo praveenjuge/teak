@@ -39,7 +39,7 @@ const makeSvgEnv = (): Env => {
 };
 
 const signedImageRequest = async (
-  rendition: "detail" | "grid",
+  rendition: "tiny" | "compact" | "detail" | "grid",
   accept = "image/avif,image/webp",
   key = KEY,
   expiresAt = String(NOW + 3600)
@@ -244,5 +244,135 @@ describe("Cloudflare image transformations", () => {
     );
 
     expect(response.status).toBe(413);
+  });
+
+  test("serves the tiny and compact renditions with server-controlled sizes", async () => {
+    for (const [rendition, edge] of [
+      ["tiny", 48],
+      ["compact", 256],
+    ] as const) {
+      const request = await signedImageRequest(rendition);
+      let capturedInit:
+        | (RequestInit & { cf?: Record<string, unknown> })
+        | null = null;
+      const response = await handleImageRequest(
+        request,
+        makeEnv(),
+        (_input, init) => {
+          capturedInit = init ?? null;
+          return Promise.resolve(
+            new Response(makePng(16, 12), {
+              headers: { "content-type": "image/webp" },
+            })
+          );
+        },
+        NOW
+      );
+      expect(response.status).toBe(200);
+      expect(capturedInit?.cf).toEqual({
+        image: {
+          anim: true,
+          fit: "scale-down",
+          format: "avif",
+          height: edge,
+          metadata: "none",
+          "origin-auth": "share-publicly",
+          quality: rendition === "tiny" ? 60 : 80,
+          sharpen: 1,
+          width: edge,
+        },
+      });
+    }
+  });
+
+  test("transforms eligible sources directly through the Images binding", async () => {
+    const transforms: Record<string, unknown>[] = [];
+    const outputs: Record<string, unknown>[] = [];
+    const env = {
+      ...makeEnv(),
+      IMAGES: {
+        input: (stream: ReadableStream<Uint8Array>) => ({
+          transform: (options: Record<string, unknown>) => {
+            transforms.push(options);
+            return {
+              output: async (outputOptions: Record<string, unknown>) => {
+                outputs.push(outputOptions);
+                await stream.cancel();
+                return {
+                  contentType: () => "image/webp",
+                  response: () =>
+                    new Response(makePng(4, 4), {
+                      headers: { "content-type": "image/webp" },
+                    }),
+                };
+              },
+            };
+          },
+        }),
+      },
+    } as unknown as Env;
+
+    let fetchCalled = false;
+    const response = await handleImageRequest(
+      await signedImageRequest("grid"),
+      env,
+      () => {
+        fetchCalled = true;
+        return Promise.resolve(new Response(null, { status: 500 }));
+      },
+      NOW
+    );
+
+    expect(response.status).toBe(200);
+    expect(response.headers.get("content-type")).toBe("image/webp");
+    expect(response.headers.get("cache-control")).toContain("private");
+    expect(response.headers.get("etag")).toMatch(/-grid"$/u);
+    expect(transforms).toEqual([
+      { fit: "scale-down", height: 512, sharpen: 1, width: 512 },
+    ]);
+    expect(outputs).toEqual([
+      { anim: true, format: "image/avif", quality: 80 },
+    ]);
+    // The internal signed source round-trip never happens on this path.
+    expect(fetchCalled).toBe(false);
+  });
+
+  test("falls back to URL transformations when the binding fails", async () => {
+    const env = {
+      ...makeEnv(),
+      IMAGES: {
+        input: () => ({
+          transform: () => ({
+            output: () => Promise.reject(new Error("binding exploded")),
+          }),
+        }),
+      },
+    } as unknown as Env;
+
+    const response = await handleImageRequest(
+      await signedImageRequest("grid", "image/webp"),
+      env,
+      () =>
+        Promise.resolve(
+          new Response(makePng(16, 12), {
+            headers: { "content-type": "image/webp" },
+          })
+        ),
+      NOW
+    );
+    expect(response.status).toBe(200);
+    expect(response.headers.get("content-type")).toBe("image/webp");
+  });
+
+  test("never serves raw HEIC when transformations fail", async () => {
+    const request = await signedImageRequest("detail", "image/webp");
+    const unavailable = await handleImageRequest(
+      request,
+      makeEnv("image/heic"),
+      async () => new Response(null, { status: 503 }),
+      NOW
+    );
+    expect(unavailable.status).toBe(415);
+    expect(unavailable.body).toBeNull();
   });
 });

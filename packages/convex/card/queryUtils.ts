@@ -7,6 +7,10 @@ export type CardWithUrls = Doc<"cards"> & {
   fileUrl?: string;
   detailUrl?: string;
   thumbnailUrl?: string;
+  /** 256px rendition for small/mobile cards. */
+  compactUrl?: string;
+  /** 48px loading placeholder rendition. */
+  placeholderUrl?: string;
   screenshotUrl?: string;
   linkPreviewMedia?: Array<{
     contentType?: string;
@@ -145,7 +149,9 @@ export const attachFileUrls = async (
           [
             card._id,
             {
+              compactUrl: await resolveImageUrl(card.fileKey, "compact"),
               detailUrl: await resolveImageUrl(card.fileKey, "detail"),
+              placeholderUrl: await resolveImageUrl(card.fileKey, "tiny"),
               thumbnailUrl: await resolveImageUrl(card.fileKey, "grid"),
             },
           ] as const
@@ -196,6 +202,8 @@ export const attachFileUrls = async (
         (ids.thumbnailKey
           ? (gridUrlMap.get(ids.thumbnailKey) ?? undefined)
           : undefined),
+      compactUrl: imageUrls?.compactUrl ?? undefined,
+      placeholderUrl: imageUrls?.placeholderUrl ?? undefined,
       screenshotUrl: ids.screenshotKey
         ? (gridUrlMap.get(ids.screenshotKey) ?? undefined)
         : undefined,
@@ -228,6 +236,13 @@ export const attachCardSummaryUrls = async (
     )
   );
   const urlMap = new Map(resolvedUrls);
+  const compactUrlMap = new Map(
+    await Promise.all(
+      Array.from(storageKeys).map(
+        async (key) => [key, await resolveImageUrl(key, "compact")] as const
+      )
+    )
+  );
 
   const imageCardUrls = new Map(
     await Promise.all(
@@ -237,7 +252,14 @@ export const attachCardSummaryUrls = async (
               (async () =>
                 [
                   card._id,
-                  await resolveImageUrl(card.fileKey, "grid"),
+                  {
+                    compactUrl:
+                      (await resolveImageUrl(card.fileKey, "compact")) ??
+                      undefined,
+                    thumbnailUrl:
+                      (await resolveImageUrl(card.fileKey, "grid")) ??
+                      undefined,
+                  },
                 ] as const)(),
             ]
           : []
@@ -248,9 +270,14 @@ export const attachCardSummaryUrls = async (
   return cards.map((card) => ({
     ...card,
     thumbnailUrl:
-      imageCardUrls.get(card._id) ??
+      imageCardUrls.get(card._id)?.thumbnailUrl ??
       (card.thumbnailKey
         ? (urlMap.get(card.thumbnailKey) ?? undefined)
+        : undefined),
+    compactUrl:
+      imageCardUrls.get(card._id)?.compactUrl ??
+      (card.thumbnailKey
+        ? (compactUrlMap.get(card.thumbnailKey) ?? undefined)
         : undefined),
     screenshotUrl: card.metadata?.linkPreview?.screenshotStorageKey
       ? (urlMap.get(card.metadata.linkPreview.screenshotStorageKey) ??
