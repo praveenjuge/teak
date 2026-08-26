@@ -369,10 +369,17 @@ describe("additive files ops", () => {
 
   test("generate-image-metadata validates AI output with bounded retries", async () => {
     let calls = 0;
+    let capturedImageUrl: unknown;
     const aiEnv = {
       AI: {
-        run: () => {
+        run: (_model: string, args: Record<string, unknown>) => {
           calls += 1;
+          const messages = args.messages as Array<{
+            content?: Array<{ image_url?: unknown; type?: string }>;
+          }>;
+          capturedImageUrl = messages
+            .flatMap((message) => message.content ?? [])
+            .find((part) => part.type === "image_url")?.image_url;
           // First call returns invalid JSON, second valid output.
           if (calls === 1) {
             return {
@@ -420,5 +427,8 @@ describe("additive files ops", () => {
     expect(result.tags).toEqual(["red", "square"]);
     expect(result.summary).toBe("A red square.");
     expect(calls).toBe(2);
+    expect(capturedImageUrl).toEqual({
+      url: "data:image/jpeg;base64,AQID",
+    });
   });
 });

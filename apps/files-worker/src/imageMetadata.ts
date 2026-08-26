@@ -183,7 +183,7 @@ export const generateImageMetadataForOp = async (
                 type: "text",
               },
               {
-                image_url: imageDataUrl,
+                image_url: { url: imageDataUrl },
                 type: "image_url",
               },
             ],
