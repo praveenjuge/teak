@@ -89,12 +89,28 @@ describe("finalize-image-upload", () => {
     await expect(runOp(env)).rejects.toThrow("not_an_image");
   });
 
-  test("rejects corrupt images when neither the binding nor the probe can decode them", async () => {
+  test("accepts image-typed uploads when decoders fail (unverified)", async () => {
     const env = makeEnv({
       bytes: new Uint8Array([1, 2, 3]),
       info: new Error("decode failed"),
     });
-    // The URL probe fallback also fails for undecodable bytes.
+    // Undecodable but image/*-typed objects are accepted without trusted
+    // dimensions rather than bouncing legitimate edge-case images.
+    const result = await runOp(env);
+    expect(result.decodedFormat).toBe("image/png");
+    expect(result.width).toBeNull();
+    expect(result.height).toBeNull();
+    expect((env.BUCKET as unknown as FakeBucket).storedBytes(DEST_KEY)).toEqual(
+      new Uint8Array([1, 2, 3])
+    );
+  });
+
+  test("rejects non-image uploads when decoders cannot verify them", async () => {
+    const env = makeEnv({
+      bytes: new Uint8Array([1, 2, 3]),
+      contentType: "text/plain",
+      info: new Error("decode failed"),
+    });
     await expect(runOp(env)).rejects.toThrow("not_an_image");
   });
 
