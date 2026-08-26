@@ -43,6 +43,19 @@ describe("worker-backed card upload finalization", () => {
     ).toThrow("Uploaded file key does not belong to the current user");
   });
 
+  test("normalizes weak Cloudflare ETags before finalization", () => {
+    const fileKey = buildR2ObjectKey({ userId, role: "file" });
+    expect(
+      validateFinalizeUpload(userId, {
+        fileEtag: 'W/"etag-1"',
+        fileKey,
+        fileName: "photo.png",
+        fileSize: 128,
+        fileType: "image/png",
+      }).fileEtag
+    ).toBe('"etag-1"');
+  });
+
   test("rejects malformed etags and oversized files before storage work", () => {
     const fileKey = buildR2ObjectKey({ userId, role: "file" });
     expect(() =>

@@ -126,12 +126,18 @@ export const generateImageMetadataForOp = async (
   now = Math.floor(Date.now() / 1000),
   imageFetch: typeof fetch = fetch as typeof fetch
 ): Promise<ImageMetadataResult> => {
-  // The detail rendition is what the previous Convex path analyzed.
+  // Keep the canonical detail dimensions, but give the model one broadly
+  // supported raster frame even when the private original is animated or uses
+  // a format Workers AI cannot decode directly.
   const renditionResponse = await fetchPrivateImageSource(
     env,
     origin,
     sourceKey,
-    buildImageTransformOptions("detail"),
+    {
+      ...buildImageTransformOptions("detail"),
+      anim: false,
+      format: "jpeg",
+    },
     imageFetch as never,
     now
   );

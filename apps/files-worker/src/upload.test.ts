@@ -440,8 +440,9 @@ describe("additive files ops", () => {
       url: "data:image/jpeg;base64,AQID",
     });
     expect(capturedTransform).toEqual({
-      anim: true,
+      anim: false,
       fit: "scale-down",
+      format: "jpeg",
       height: 1600,
       metadata: "none",
       quality: 85,
