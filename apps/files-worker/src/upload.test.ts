@@ -118,6 +118,7 @@ describe("signed single-file uploads", () => {
     expect(payload.data.key).toBe("users/u1/cards/file/abc-test.txt");
     expect(payload.data.size).toBe(bytes.byteLength);
     expect(payload.data.etag).toBeTruthy();
+    expect(response.headers.get("etag")).toBe(payload.data.etag);
     const stored = bucket.objects.get("users/u1/cards/file/abc-test.txt");
     expect(stored?.httpMetadata?.contentType).toBe("text/plain");
     expect(new TextDecoder().decode(stored?.bytes ?? new Uint8Array())).toBe(

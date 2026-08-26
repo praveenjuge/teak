@@ -202,6 +202,7 @@ export const handleSignedUpload = async (
       },
       { headers: { "cache-control": "no-store" } }
     );
+    response.headers.set("ETag", stored.httpEtag);
     response.headers.set("Access-Control-Allow-Origin", "*");
     response.headers.set(
       "Access-Control-Expose-Headers",
