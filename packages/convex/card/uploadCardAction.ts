@@ -85,6 +85,7 @@ export const validateFinalizeUpload = (
   userId: string,
   args: FinalizeArgs
 ): {
+  fileEtag?: string;
   fileName: string;
   markdown: boolean;
   requestedMimeType?: string;
@@ -104,9 +105,12 @@ export const validateFinalizeUpload = (
       "Uploaded file key does not belong to the current user"
     );
   }
+  const fileEtag = args.fileEtag?.startsWith("W/")
+    ? args.fileEtag.slice(2)
+    : args.fileEtag;
   if (
-    args.fileEtag !== undefined &&
-    !/^"?[A-Za-z0-9+/=_-]{1,128}"?$/u.test(args.fileEtag)
+    fileEtag !== undefined &&
+    !/^"?[A-Za-z0-9+/=_-]{1,128}"?$/u.test(fileEtag)
   ) {
     return throwUploadError("INVALID_INPUT", "Uploaded file ETag is invalid");
   }
@@ -132,7 +136,7 @@ export const validateFinalizeUpload = (
     }
     throw error;
   }
-  return { fileName, markdown, requestedMimeType };
+  return { fileEtag, fileName, markdown, requestedMimeType };
 };
 
 const finalizeForUser = async (
@@ -154,7 +158,7 @@ const finalizeForUser = async (
     op: "finalize-upload",
     params: {
       destinationKey,
-      expectedEtag: args.fileEtag,
+      expectedEtag: validated.fileEtag,
       expectedSize: args.fileSize,
       readText: validated.markdown,
       sourceKey: args.fileKey,
