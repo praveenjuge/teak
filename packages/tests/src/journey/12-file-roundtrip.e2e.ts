@@ -97,7 +97,7 @@ test("REST file upload round-trips through the Files Worker and deletion is dura
   const deleted = await apiFetch(`/v1/cards/${cardId}`, apiKey, {
     method: "DELETE",
   });
-  expect(deleted.status).toBe(200);
+  expect(deleted.status).toBe(204);
 
   await expect
     .poll(async () => {
