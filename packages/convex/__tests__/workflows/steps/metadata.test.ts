@@ -288,6 +288,49 @@ describe("metadata handler", () => {
       }
     });
 
+    test("runs the image AI canary for production E2E users", async () => {
+      const originalDomain = process.env.E2E_EMAIL_DOMAIN;
+      process.env.E2E_EMAIL_DOMAIN = "tests.example.com";
+      enableWorkerImageOp({
+        summary: "A red square.",
+        tags: ["red", "square"],
+      });
+      mockRunQuery
+        .mockResolvedValueOnce({
+          _id: "c1",
+          fileKey: "users/e2e-user/red.png",
+          fileMetadata: { height: 64, width: 64 },
+          source: "prod-e2e-cloudflare-image-ai",
+          userId: "e2e-user",
+        })
+        .mockResolvedValueOnce({
+          email: "e2e-primary-123@tests.example.com",
+        });
+
+      try {
+        const result = await generateHandler(ctx, {
+          cardId: "c1",
+          cardType: "image",
+        });
+
+        expect(result).toMatchObject({
+          aiSummary: "A red square.",
+          aiTags: ["red", "square"],
+          mode: "completed",
+        });
+        expect(lastWorkerOpRequest()).toMatchObject({
+          op: "generate-image-metadata",
+          params: { sourceKey: "users/e2e-user/red.png" },
+        });
+      } finally {
+        if (originalDomain === undefined) {
+          delete process.env.E2E_EMAIL_DOMAIN;
+        } else {
+          process.env.E2E_EMAIL_DOMAIN = originalDomain;
+        }
+      }
+    });
+
     test("ignores an invalid E2E namespace for normal metadata generation", async () => {
       const originalDomain = process.env.E2E_EMAIL_DOMAIN;
       process.env.E2E_EMAIL_DOMAIN = "invalid-domain";

@@ -25,8 +25,8 @@ export interface Env {
   };
   BUCKET: R2Bucket;
   FILES_SIGNING_SECRET: string;
-  /** Cloudflare Images binding; reserved for metadata inspection of eligible rasters. */
-  IMAGES?: unknown;
+  /** Cloudflare Images binding; used for free metadata inspection of eligible rasters. */
+  IMAGES?: ImagesBinding;
   /** Wrangler secret; error reporting stays disabled until it is set. */
   SENTRY_DSN?: string;
   /** Optional overrides, normally left unset. */

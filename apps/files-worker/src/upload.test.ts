@@ -369,10 +369,17 @@ describe("additive files ops", () => {
 
   test("generate-image-metadata validates AI output with bounded retries", async () => {
     let calls = 0;
+    let capturedImageUrl: unknown;
     const aiEnv = {
       AI: {
-        run: () => {
+        run: (_model: string, args: Record<string, unknown>) => {
           calls += 1;
+          const messages = args.messages as Array<{
+            content?: Array<{ image_url?: unknown; type?: string }>;
+          }>;
+          capturedImageUrl = messages
+            .flatMap((message) => message.content ?? [])
+            .find((part) => part.type === "image_url")?.image_url;
           // First call returns invalid JSON, second valid output.
           if (calls === 1) {
             return {
@@ -404,11 +411,19 @@ describe("additive files ops", () => {
       httpMetadata: { contentType: "image/png" },
     });
 
-    const fakeFetch = (async (_input: RequestInfo | URL): Promise<Response> =>
-      new Response(new Uint8Array([1, 2, 3]), {
-        status: 200,
-        headers: { "content-type": "image/jpeg" },
-      })) as typeof fetch;
+    let capturedTransform: Record<string, unknown> | undefined;
+    const fakeFetch = ((
+      _input: RequestInfo | URL,
+      init?: RequestInit & { cf?: { image?: Record<string, unknown> } }
+    ): Promise<Response> => {
+      capturedTransform = init?.cf?.image;
+      return Promise.resolve(
+        new Response(new Uint8Array([1, 2, 3]), {
+          status: 200,
+          headers: { "content-type": "image/jpeg" },
+        })
+      );
+    }) as typeof fetch;
 
     const { generateImageMetadataForOp } = await import("./imageMetadata");
     const result = await generateImageMetadataForOp(
@@ -420,5 +435,18 @@ describe("additive files ops", () => {
     expect(result.tags).toEqual(["red", "square"]);
     expect(result.summary).toBe("A red square.");
     expect(calls).toBe(2);
+    expect(capturedImageUrl).toEqual({
+      url: "data:image/jpeg;base64,AQID",
+    });
+    expect(capturedTransform).toEqual({
+      anim: true,
+      fit: "scale-down",
+      height: 1600,
+      metadata: "none",
+      quality: 85,
+      sharpen: 1,
+      width: 1600,
+      "origin-auth": "share-publicly",
+    });
   });
 });

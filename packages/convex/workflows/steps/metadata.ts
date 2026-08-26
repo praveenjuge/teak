@@ -55,6 +55,8 @@ interface ImageAnalysisCard {
   thumbnailKey?: string;
 }
 
+export const PRODUCTION_E2E_IMAGE_AI_SOURCE = "prod-e2e-cloudflare-image-ai";
+
 export const resolveImageAnalysisKey = (
   card: ImageAnalysisCard
 ): string | undefined => {
@@ -208,7 +210,9 @@ export async function generateHandler(
       configuredE2EDomain &&
       isE2EEmail(user.email, configuredE2EDomain)
   );
-  if (isProductionE2EUser) {
+  const isProductionImageAiCanary =
+    cardType === "image" && card.source === PRODUCTION_E2E_IMAGE_AI_SOURCE;
+  if (isProductionE2EUser && !isProductionImageAiCanary) {
     return await completeWithoutAi();
   }
 

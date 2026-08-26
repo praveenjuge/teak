@@ -7,6 +7,56 @@ const KEY = "users/u/cards/c/file/photo.png";
 const SVG_KEY = "users/u/cards/c/file/vector.svg";
 
 describe("image analysis", () => {
+  test("uses the free Images binding info call for eligible raster dimensions", async () => {
+    const bucket = new FakeBucket();
+    bucket.objects.set(KEY, {
+      bytes: makePng(40, 30),
+      httpMetadata: { contentType: "image/png" },
+    });
+    let infoCalls = 0;
+    const env = {
+      BUCKET: bucket as unknown as R2Bucket,
+      FILES_SIGNING_SECRET: "secret",
+      IMAGES: {
+        info: async (stream: ReadableStream<Uint8Array>) => {
+          infoCalls += 1;
+          await new Response(stream).arrayBuffer();
+          return { height: 3000, width: 4000 };
+        },
+      } as unknown as ImagesBinding,
+    } as Env;
+    const options: Record<string, unknown>[] = [];
+    const imageFetch = ((
+      _input: RequestInfo | URL,
+      init?: RequestInit & { cf?: { image?: Record<string, unknown> } }
+    ) => {
+      const image = init?.cf?.image ?? {};
+      options.push(image);
+      if (image.format === "json") {
+        throw new Error("eligible images must use IMAGES.info");
+      }
+      return Promise.resolve(
+        new Response(makePng(64, 48), {
+          headers: { "content-type": "image/png" },
+        })
+      );
+    }) as unknown as typeof fetch;
+
+    const result = await analyzeImage(
+      env,
+      KEY,
+      "https://files.teakvault.com",
+      imageFetch,
+      1_800_000_000
+    );
+
+    expect(result).toMatchObject({ height: 3000, width: 4000 });
+    expect(result.palette.length).toBeGreaterThan(0);
+    expect(infoCalls).toBe(1);
+    expect(options).toHaveLength(1);
+    expect(options[0]).toMatchObject({ format: "png", height: 64, width: 64 });
+  });
+
   test("uses Cloudflare metadata and a 64px PNG color sample", async () => {
     const bucket = new FakeBucket();
     bucket.objects.set(KEY, {
