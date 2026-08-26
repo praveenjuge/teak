@@ -187,6 +187,9 @@ const finalizeForUser = async (
       ? (finalized as FilesWorkerFinalizeImageResult)
       : null;
   const storedMimeType = normalizeMimeType(outcome.data.storedMimeType);
+  const verifiedMimeType = normalizeMimeType(
+    trustedImageFacts?.decodedFormat ?? storedMimeType
+  );
   try {
     const requested = validateFileFormat({
       fileName: validated.fileName,
@@ -194,7 +197,7 @@ const finalizeForUser = async (
     });
     const stored = validateFileFormat({
       fileName: validated.fileName,
-      mimeType: storedMimeType,
+      mimeType: verifiedMimeType,
     });
     if (requested.id !== stored.id) {
       return throwUploadError(
@@ -216,12 +219,28 @@ const finalizeForUser = async (
     throw error;
   }
 
+  const additionalMetadata =
+    typeof args.additionalMetadata === "object" &&
+    args.additionalMetadata !== null &&
+    !Array.isArray(args.additionalMetadata)
+      ? { ...(args.additionalMetadata as Record<string, unknown>) }
+      : {};
+  // Dimensions are security- and layout-relevant image facts. Never carry
+  // client claims through when the worker is the source of truth.
+  const trustedAdditionalMetadata = isImageUpload
+    ? Object.fromEntries(
+        Object.entries(additionalMetadata).filter(
+          ([key]) => key !== "height" && key !== "width"
+        )
+      )
+    : additionalMetadata;
+
   try {
     const result = await ctx.runMutation(
       (internal as any).publicApiUploads.finalizeUploadedCardForUser,
       {
         additionalMetadata: {
-          ...(args.additionalMetadata ?? {}),
+          ...trustedAdditionalMetadata,
           // Trusted worker-decoded dimensions win over anything the client
           // claimed; they land in fileMetadata at creation time.
           ...(trustedImageFacts?.width && trustedImageFacts?.height
@@ -236,7 +255,7 @@ const finalizeForUser = async (
         fileKey: destinationKey,
         fileName: validated.fileName,
         fileSize: args.fileSize,
-        mimeType: args.fileType,
+        mimeType: verifiedMimeType ?? args.fileType,
         notes: args.notes ?? undefined,
         storedFileSize: outcome.data.storedFileSize,
         storedMimeType,

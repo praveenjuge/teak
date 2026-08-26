@@ -5,6 +5,7 @@ interface GridImagePreviewProps {
   height?: number;
   imageUrl?: string;
   isPriority?: boolean;
+  placeholderUrl?: string;
   width?: number;
 }
 
@@ -14,6 +15,7 @@ export function GridImagePreview({
   width,
   height,
   isPriority = false,
+  placeholderUrl,
 }: GridImagePreviewProps) {
   return (
     <div
@@ -21,17 +23,29 @@ export function GridImagePreview({
       style={{ aspectRatio: width && height ? width / height : 4 / 3 }}
     >
       {imageUrl ? (
-        <Image
-          alt={altText ?? "Image"}
-          className="h-full w-full object-cover"
-          decoding="async"
-          fetchPriority={isPriority ? "high" : undefined}
-          loading={isPriority ? "eager" : "lazy"}
-          preview={false}
-          rootClassName="h-full w-full"
-          src={imageUrl}
-          style={{ objectFit: "cover" }}
-        />
+        <>
+          {placeholderUrl ? (
+            <img
+              alt=""
+              aria-hidden
+              className="absolute inset-0 h-full w-full scale-110 object-cover blur-md"
+              height={48}
+              src={placeholderUrl}
+              width={48}
+            />
+          ) : null}
+          <Image
+            alt={altText ?? "Image"}
+            className="h-full w-full object-cover"
+            decoding="async"
+            fetchPriority={isPriority ? "high" : undefined}
+            loading={isPriority ? "eager" : "lazy"}
+            preview={false}
+            rootClassName="relative h-full w-full"
+            src={imageUrl}
+            style={{ objectFit: "cover" }}
+          />
+        </>
       ) : (
         <div aria-hidden className="h-full w-full bg-muted" />
       )}

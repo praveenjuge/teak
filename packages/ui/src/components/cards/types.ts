@@ -25,6 +25,7 @@ export interface LinkPreviewMedia {
 export interface CardWithUrls {
   _id: string;
   colors?: Array<{ hex: string }>;
+  compactUrl?: string;
   content?: string;
   detailUrl?: string;
   fileKey?: string;
@@ -47,6 +48,7 @@ export interface CardWithUrls {
   };
   metadataDescription?: string;
   metadataTitle?: string;
+  placeholderUrl?: string;
   screenshotUrl?: string;
   thumbnailUrl?: string;
   type?: string;

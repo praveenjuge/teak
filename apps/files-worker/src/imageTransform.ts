@@ -15,6 +15,11 @@ const SOURCE_URL_TTL_SECONDS = 5 * 60;
 const MAX_SVG_SOURCE_BYTES = 10 * 1024 * 1024;
 const IMAGE_CACHE_CONTROL = "private, max-age=518400, immutable";
 const IMAGE_EDGE_CACHE_CONTROL = "public, max-age=518400, immutable";
+const BROWSER_SAFE_TRANSCODE_TYPES = new Set([
+  "image/avif",
+  "image/jpeg",
+  "image/webp",
+]);
 const imageEdgeCache: Cache | null =
   typeof caches === "undefined" ? null : caches.default;
 
@@ -238,6 +243,13 @@ const imageHeaders = (contentType: string): Headers =>
     Vary: "Accept",
   });
 
+const edgeCacheResponse = (response: Response): Response => {
+  const clone = response.clone();
+  const headers = new Headers(clone.headers);
+  headers.set("Cache-Control", IMAGE_EDGE_CACHE_CONTROL);
+  return new Response(clone.body, { headers, status: clone.status });
+};
+
 const serveR2Object = async (
   env: Env,
   key: string,
@@ -336,7 +348,8 @@ export const handleImageRequest = async (
   env: Env,
   imageFetch: ImageFetch = fetch as ImageFetch,
   now = Math.floor(Date.now() / 1000),
-  ctx?: ExecutionContext
+  ctx?: ExecutionContext,
+  edgeCache: Cache | null = imageEdgeCache
 ): Promise<Response> => {
   const url = new URL(request.url);
   const parsed = parseImagePath(url.pathname);
@@ -358,13 +371,17 @@ export const handleImageRequest = async (
   if (!metadata) {
     return new Response(null, { status: 404 });
   }
-  const contentType = metadata.httpMetadata?.contentType?.toLowerCase() ?? "";
+  const contentType =
+    metadata.httpMetadata?.contentType
+      ?.split(";", 1)[0]
+      ?.trim()
+      .toLowerCase() ?? "";
+  const requiresBrowserSafeTranscode =
+    contentType === "image/heic" || contentType === "image/heif";
   if (isSvgSource(parsed.key, contentType)) {
     const cacheKey = new Request(`${url.origin}${url.pathname}`);
     if (request.method === "GET") {
-      const cached = imageEdgeCache
-        ? await imageEdgeCache.match(cacheKey)
-        : null;
+      const cached = edgeCache ? await edgeCache.match(cacheKey) : null;
       if (cached) {
         const headers = new Headers(cached.headers);
         headers.set("Cache-Control", IMAGE_CACHE_CONTROL);
@@ -377,19 +394,8 @@ export const handleImageRequest = async (
       parsed.rendition,
       request.method
     );
-    if (request.method === "GET" && response.ok && imageEdgeCache && ctx) {
-      const edgeResponse = response.clone();
-      const headers = new Headers(edgeResponse.headers);
-      headers.set("Cache-Control", IMAGE_EDGE_CACHE_CONTROL);
-      ctx.waitUntil(
-        imageEdgeCache.put(
-          cacheKey,
-          new Response(edgeResponse.body, {
-            headers,
-            status: edgeResponse.status,
-          })
-        )
-      );
+    if (request.method === "GET" && response.ok && edgeCache && ctx) {
+      ctx.waitUntil(edgeCache.put(cacheKey, edgeCacheResponse(response)));
     }
     return response;
   }
@@ -407,8 +413,8 @@ export const handleImageRequest = async (
       metadata.httpEtag,
       negotiatedFormat
     );
-    if (request.method === "GET" && imageEdgeCache) {
-      const cached = await imageEdgeCache.match(cacheKey);
+    if (request.method === "GET" && edgeCache) {
+      const cached = await edgeCache.match(cacheKey);
       if (cached) {
         const headers = new Headers(cached.headers);
         headers.set("Cache-Control", IMAGE_CACHE_CONTROL);
@@ -429,10 +435,8 @@ export const handleImageRequest = async (
         "ETag",
         `W/"${metadata.httpEtag.replace(/"/g, "")}-${parsed.rendition}"`
       );
-      if (request.method === "GET" && bound.ok && imageEdgeCache && ctx) {
-        const edgeHeaders = new Headers(bound.headers);
-        edgeHeaders.set("Cache-Control", IMAGE_EDGE_CACHE_CONTROL);
-        ctx.waitUntil(imageEdgeCache.put(cacheKey, bound.clone()));
+      if (request.method === "GET" && bound.ok && edgeCache && ctx) {
+        ctx.waitUntil(edgeCache.put(cacheKey, edgeCacheResponse(bound)));
       }
       return new Response(request.method === "GET" ? bound.body : null, {
         headers: bound.headers,
@@ -441,11 +445,20 @@ export const handleImageRequest = async (
     }
   }
 
+  const transformOptions = buildImageTransformOptions(
+    parsed.rendition,
+    request.headers.get("accept")
+  );
+  if (!transformOptions.format && requiresBrowserSafeTranscode) {
+    // HEIC/HEIF originals are not browser-safe. Always ask the URL fallback
+    // for JPEG when the client did not negotiate AVIF or WebP.
+    transformOptions.format = "jpeg";
+  }
   const transformed = await fetchPrivateImageSource(
     env,
     url.origin,
     parsed.key,
-    buildImageTransformOptions(parsed.rendition, request.headers.get("accept")),
+    transformOptions,
     imageFetch,
     now
   );
@@ -460,6 +473,20 @@ export const handleImageRequest = async (
     return browserSafe.has(contentType)
       ? await serveR2Object(env, parsed.key, request.method)
       : new Response(null, { status: 415 });
+  }
+
+  const transformedContentType =
+    transformed.headers
+      .get("content-type")
+      ?.split(";", 1)[0]
+      ?.trim()
+      .toLowerCase() ?? "";
+  if (
+    requiresBrowserSafeTranscode &&
+    !BROWSER_SAFE_TRANSCODE_TYPES.has(transformedContentType)
+  ) {
+    await transformed.body?.cancel();
+    return new Response(null, { status: 415 });
   }
 
   const headers = new Headers(transformed.headers);

@@ -3,6 +3,7 @@ import {
   FILES_PROCESSOR_VERSION,
   FILES_PROTOCOL_VERSION,
   type FilesErrorCode,
+  type FilesFinalizeImageParams,
   type FilesOpRequest,
   isFilesOp,
 } from "@teak/files-protocol";
@@ -271,7 +272,19 @@ const dispatch = async (
       if (!sameUserNamespace(sourceKey, destinationKey)) {
         throw new Error("invalid_storage_key");
       }
-      return success(requestId, await finalizeImageUpload(env, params, origin));
+      const finalization = {
+        destinationKey,
+        expectedEtag: optionalString(params, "expectedEtag") ?? undefined,
+        expectedSize:
+          typeof params.expectedSize === "number"
+            ? params.expectedSize
+            : undefined,
+        sourceKey,
+      } satisfies FilesFinalizeImageParams;
+      return success(
+        requestId,
+        await finalizeImageUpload(env, finalization, origin)
+      );
     }
     case "delete-object":
       await env.BUCKET.delete(requiredString(params, "key"));

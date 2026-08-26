@@ -459,6 +459,7 @@ const CardItem = memo(function CardItem({
                   cachePolicy="memory-disk"
                   contentFit="cover"
                   enforceEarlyResizing
+                  placeholder={card.placeholderUrl}
                   recyclingKey={card._id}
                   source={mediaUrl}
                   style={{ height: 28, width: 28 }}

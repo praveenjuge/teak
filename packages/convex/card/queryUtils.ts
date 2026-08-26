@@ -1,3 +1,4 @@
+import type { FilesImageRendition } from "@teak/files-protocol";
 import type { Doc } from "../_generated/dataModel";
 import type { LinkPreviewMediaItem } from "../linkMetadata";
 import type { CreatedAtRange } from "../shared";
@@ -38,6 +39,23 @@ export const ensureValidRange = (range?: CreatedAtRange) => {
   if (range.start >= range.end) {
     throw new Error("Invalid createdAtRange");
   }
+};
+
+const resolveImageRenditions = async (
+  key: string,
+  renditions: readonly FilesImageRendition[]
+): Promise<Partial<Record<FilesImageRendition, string>>> => {
+  const resolved = await Promise.all(
+    renditions.map(
+      async (rendition) =>
+        [rendition, await resolveImageUrl(key, rendition)] as const
+    )
+  );
+  return Object.fromEntries(
+    resolved.filter((entry): entry is [FilesImageRendition, string] =>
+      Boolean(entry[1])
+    )
+  );
 };
 
 export const attachFileUrls = async (
@@ -144,18 +162,21 @@ export const attachFileUrls = async (
   );
   const imageRenditions = new Map(
     await Promise.all(
-      imageCards.map(
-        async (card) =>
-          [
-            card._id,
-            {
-              compactUrl: await resolveImageUrl(card.fileKey, "compact"),
-              detailUrl: await resolveImageUrl(card.fileKey, "detail"),
-              placeholderUrl: await resolveImageUrl(card.fileKey, "tiny"),
-              thumbnailUrl: await resolveImageUrl(card.fileKey, "grid"),
-            },
-          ] as const
-      )
+      imageCards.map(async (card) => {
+        const fileKey = card.fileKey;
+        if (!fileKey) {
+          throw new Error("Image card is missing its file key");
+        }
+        return [
+          card._id,
+          await resolveImageRenditions(fileKey, [
+            "compact",
+            "detail",
+            "tiny",
+            "grid",
+          ]),
+        ] as const;
+      })
     )
   );
 
@@ -196,14 +217,14 @@ export const attachFileUrls = async (
     return {
       ...card,
       fileUrl: ids.fileKey ? (urlMap.get(ids.fileKey) ?? undefined) : undefined,
-      detailUrl: imageUrls?.detailUrl ?? undefined,
+      detailUrl: imageUrls?.detail ?? undefined,
       thumbnailUrl:
-        imageUrls?.thumbnailUrl ??
+        imageUrls?.grid ??
         (ids.thumbnailKey
           ? (gridUrlMap.get(ids.thumbnailKey) ?? undefined)
           : undefined),
-      compactUrl: imageUrls?.compactUrl ?? undefined,
-      placeholderUrl: imageUrls?.placeholderUrl ?? undefined,
+      compactUrl: imageUrls?.compact ?? undefined,
+      placeholderUrl: imageUrls?.tiny ?? undefined,
       screenshotUrl: ids.screenshotKey
         ? (gridUrlMap.get(ids.screenshotKey) ?? undefined)
         : undefined,
@@ -219,68 +240,76 @@ export const attachCardSummaryUrls = async (
   _ctx: unknown,
   cards: Doc<"cards">[]
 ): Promise<CardWithUrls[]> => {
-  const storageKeys = new Set<string>();
+  const thumbnailKeys = new Set<string>();
+  const screenshotKeys = new Set<string>();
 
   for (const card of cards) {
     if (card.thumbnailKey) {
-      storageKeys.add(card.thumbnailKey);
+      thumbnailKeys.add(card.thumbnailKey);
     }
     if (card.metadata?.linkPreview?.screenshotStorageKey) {
-      storageKeys.add(card.metadata.linkPreview.screenshotStorageKey);
+      screenshotKeys.add(card.metadata.linkPreview.screenshotStorageKey);
     }
   }
 
-  const resolvedUrls = await Promise.all(
-    Array.from(storageKeys).map(
-      async (key) => [key, await resolveImageUrl(key, "grid")] as const
+  const resolvedRenditions = await Promise.all(
+    Array.from(thumbnailKeys).map(
+      async (key) =>
+        [
+          key,
+          await resolveImageRenditions(key, ["grid", "compact", "tiny"]),
+        ] as const
     )
   );
-  const urlMap = new Map(resolvedUrls);
-  const compactUrlMap = new Map(
+  const renditionMap = new Map(resolvedRenditions);
+  const screenshotUrlMap = new Map(
     await Promise.all(
-      Array.from(storageKeys).map(
-        async (key) => [key, await resolveImageUrl(key, "compact")] as const
+      Array.from(screenshotKeys).map(
+        async (key) => [key, await resolveImageUrl(key, "grid")] as const
       )
     )
   );
 
   const imageCardUrls = new Map(
     await Promise.all(
-      cards.flatMap((card) =>
-        card.type === "image" && card.fileKey
+      cards.flatMap((card) => {
+        const fileKey = card.fileKey;
+        return card.type === "image" && fileKey
           ? [
               (async () =>
                 [
                   card._id,
-                  {
-                    compactUrl:
-                      (await resolveImageUrl(card.fileKey, "compact")) ??
-                      undefined,
-                    thumbnailUrl:
-                      (await resolveImageUrl(card.fileKey, "grid")) ??
-                      undefined,
-                  },
+                  await resolveImageRenditions(fileKey, [
+                    "compact",
+                    "tiny",
+                    "grid",
+                  ]),
                 ] as const)(),
             ]
-          : []
-      )
+          : [];
+      })
     )
   );
 
   return cards.map((card) => ({
     ...card,
     thumbnailUrl:
-      imageCardUrls.get(card._id)?.thumbnailUrl ??
+      imageCardUrls.get(card._id)?.grid ??
       (card.thumbnailKey
-        ? (urlMap.get(card.thumbnailKey) ?? undefined)
+        ? (renditionMap.get(card.thumbnailKey)?.grid ?? undefined)
         : undefined),
     compactUrl:
-      imageCardUrls.get(card._id)?.compactUrl ??
+      imageCardUrls.get(card._id)?.compact ??
       (card.thumbnailKey
-        ? (compactUrlMap.get(card.thumbnailKey) ?? undefined)
+        ? (renditionMap.get(card.thumbnailKey)?.compact ?? undefined)
+        : undefined),
+    placeholderUrl:
+      imageCardUrls.get(card._id)?.tiny ??
+      (card.thumbnailKey
+        ? (renditionMap.get(card.thumbnailKey)?.tiny ?? undefined)
         : undefined),
     screenshotUrl: card.metadata?.linkPreview?.screenshotStorageKey
-      ? (urlMap.get(card.metadata.linkPreview.screenshotStorageKey) ??
+      ? (screenshotUrlMap.get(card.metadata.linkPreview.screenshotStorageKey) ??
         undefined)
       : undefined,
   }));

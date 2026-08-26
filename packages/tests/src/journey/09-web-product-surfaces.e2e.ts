@@ -9,7 +9,7 @@ import { clientFor } from "../helpers/prod";
 import { readState, updateState } from "../helpers/run-state";
 
 const png = Buffer.from(
-  "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/p9sAAAAASUVORK5CYII=",
+  "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==",
   "base64"
 );
 
@@ -123,7 +123,7 @@ const primaryContext = () => {
 const markerFor = (scope: string) =>
   `prod-surface-${scope}-${Date.now().toString(36)}`;
 
-const hasUploadedFile = async (
+const findUploadedFile = async (
   apiKey: string,
   fileName: string,
   createdAfter: number
@@ -143,28 +143,29 @@ const hasUploadedFile = async (
     const payload = (await response.json()) as {
       items?: Array<{
         fileName?: string | null;
+        compactUrl?: string | null;
         fileUrl?: string | null;
+        placeholderUrl?: string | null;
         thumbnailUrl?: string | null;
         type?: string;
       }>;
       pageInfo?: { nextCursor?: string | null };
     };
-    if (
-      payload.items?.some(
-        (card) =>
-          card.type === "image" &&
-          card.fileName === fileName &&
-          (card.fileUrl ?? card.thumbnailUrl)
-      )
-    ) {
-      return true;
+    const uploadedFile = payload.items?.find(
+      (card) =>
+        card.type === "image" &&
+        card.fileName === fileName &&
+        (card.fileUrl ?? card.thumbnailUrl)
+    );
+    if (uploadedFile) {
+      return uploadedFile;
     }
     cursor = payload.pageInfo?.nextCursor ?? undefined;
     if (!cursor) {
-      return false;
+      return null;
     }
   }
-  return false;
+  return null;
 };
 
 test("web editor, deep links, and link metadata stay usable", async ({
@@ -391,10 +392,32 @@ test("web uploads and paste-created files complete", async ({
     itemCount: 1,
   });
   await expect
-    .poll(() => hasUploadedFile(apiKey, pastedFileName, pasteStartedAt), {
-      timeout: 90_000,
-    })
+    .poll(
+      async () =>
+        Boolean(await findUploadedFile(apiKey, pastedFileName, pasteStartedAt)),
+      {
+        timeout: 90_000,
+      }
+    )
     .toBe(true);
+
+  const uploadedImage = await findUploadedFile(
+    apiKey,
+    pastedFileName,
+    pasteStartedAt
+  );
+  expect(uploadedImage?.compactUrl).toContain("/__images/v1/compact/");
+  expect(uploadedImage?.placeholderUrl).toContain("/__images/v1/tiny/");
+
+  await page.goto("/");
+  const compactPath = new URL(uploadedImage?.compactUrl ?? "").pathname;
+  const placeholderPath = new URL(uploadedImage?.placeholderUrl ?? "").pathname;
+  await expect(page.locator(`main img[src*="${compactPath}"]`)).toBeVisible({
+    timeout: 30_000,
+  });
+  await expect(
+    page.locator(`main img[src*="${placeholderPath}"]`)
+  ).toBeAttached();
 });
 
 test("web bulk actions, restore, and empty states stay coherent", async ({

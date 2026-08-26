@@ -337,6 +337,56 @@ describe("Cloudflare image transformations", () => {
     expect(fetchCalled).toBe(false);
   });
 
+  test("stores binding renditions with public edge-cache headers", async () => {
+    const env = {
+      ...makeEnv(),
+      IMAGES: {
+        input: (stream: ReadableStream<Uint8Array>) => ({
+          transform: () => ({
+            output: async () => {
+              await stream.cancel();
+              return {
+                contentType: () => "image/avif",
+                response: () =>
+                  new Response(makePng(4, 4), {
+                    headers: { "content-type": "image/avif" },
+                  }),
+              };
+            },
+          }),
+        }),
+      },
+    } as unknown as Env;
+    let cachedResponse: Response | null = null;
+    const pending: Promise<unknown>[] = [];
+    const cache = {
+      match: () => Promise.resolve(undefined),
+      put: (_key: Request, response: Response) => {
+        cachedResponse = response;
+        return Promise.resolve();
+      },
+    } as unknown as Cache;
+    const ctx = {
+      waitUntil: (promise: Promise<unknown>) => pending.push(promise),
+    } as unknown as ExecutionContext;
+
+    const response = await handleImageRequest(
+      await signedImageRequest("grid", "image/avif"),
+      env,
+      undefined,
+      NOW,
+      ctx,
+      cache
+    );
+    await Promise.all(pending);
+
+    expect(response.headers.get("cache-control")).toContain("private");
+    expect(cachedResponse).not.toBeNull();
+    expect((cachedResponse as Response).headers.get("cache-control")).toContain(
+      "public"
+    );
+  });
+
   test("falls back to URL transformations when the binding fails", async () => {
     const env = {
       ...makeEnv(),
@@ -374,5 +424,46 @@ describe("Cloudflare image transformations", () => {
     );
     expect(unavailable.status).toBe(415);
     expect(unavailable.body).toBeNull();
+  });
+
+  test("requests JPEG for HEIC when Accept has no modern image format", async () => {
+    const request = await signedImageRequest("detail", "*/*");
+    let capturedInit:
+      | (RequestInit & { cf?: { image?: Record<string, unknown> } })
+      | undefined;
+    const response = await handleImageRequest(
+      request,
+      makeEnv("image/heic"),
+      (_input, init) => {
+        capturedInit = init;
+        return Promise.resolve(
+          new Response(makePng(16, 12), {
+            headers: { "content-type": "image/jpeg" },
+          })
+        );
+      },
+      NOW
+    );
+
+    expect(response.status).toBe(200);
+    expect(response.headers.get("content-type")).toBe("image/jpeg");
+    expect(capturedInit?.cf?.image?.format).toBe("jpeg");
+  });
+
+  test("rejects a successful HEIC transform that is still not browser-safe", async () => {
+    const response = await handleImageRequest(
+      await signedImageRequest("detail", "*/*"),
+      makeEnv("image/heic; charset=binary"),
+      () =>
+        Promise.resolve(
+          new Response(new Uint8Array([1, 2, 3]), {
+            headers: { "content-type": "image/heic" },
+          })
+        ),
+      NOW
+    );
+
+    expect(response.status).toBe(415);
+    expect(response.body).toBeNull();
   });
 });

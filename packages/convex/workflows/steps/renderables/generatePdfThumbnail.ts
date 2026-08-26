@@ -11,8 +11,10 @@ import {
 } from "../../../storage/filesWorkerClient";
 import { buildR2ObjectKey, resolveObjectUrl } from "../../../storage/r2";
 
-// Maximum thumbnail width - height will scale proportionally to maintain document aspect ratio
-const THUMBNAIL_MAX_WIDTH = 400;
+// Bound both dimensions so hostile page aspect ratios cannot create an
+// unbounded browser canvas. The page still scales proportionally.
+const THUMBNAIL_MAX_WIDTH = 1600;
+const THUMBNAIL_MAX_HEIGHT = 1600;
 
 // pdf.js is loaded directly into the headless browser so we render the first
 // page ourselves instead of relying on Mozilla's externally hosted viewer.
@@ -159,7 +161,7 @@ export const generatePdfThumbnail = internalAction({
 
               await page.goto('about:blank');
 
-              const result = await page.evaluate(async ({ pdfBase64, libSource, workerSource, maxWidth }) => {
+              const result = await page.evaluate(async ({ pdfBase64, libSource, workerSource, maxWidth, maxHeight }) => {
                 try {
                   if (!libSource) {
                     return { success: false, error: 'pdf.js failed to load' };
@@ -186,18 +188,32 @@ export const generatePdfThumbnail = internalAction({
                   const pdf = await pdfjsLib.getDocument({ data: bytes }).promise;
                   const pdfPage = await pdf.getPage(1);
 
-                  // Scale the first page down to the target thumbnail width.
+                  // Fit the first page inside the bounded thumbnail canvas.
                   const baseViewport = pdfPage.getViewport({ scale: 1 });
-                  const scale = Math.min(maxWidth / baseViewport.width, 3);
+                  if (
+                    !Number.isFinite(baseViewport.width) ||
+                    !Number.isFinite(baseViewport.height) ||
+                    baseViewport.width <= 0 ||
+                    baseViewport.height <= 0
+                  ) {
+                    return { success: false, error: 'Invalid PDF page dimensions' };
+                  }
+                  const scale = Math.min(
+                    3,
+                    maxWidth / baseViewport.width,
+                    maxHeight / baseViewport.height
+                  );
                   const viewport = pdfPage.getViewport({ scale });
+                  const targetWidth = Math.max(1, Math.min(maxWidth, Math.ceil(viewport.width)));
+                  const targetHeight = Math.max(1, Math.min(maxHeight, Math.ceil(viewport.height)));
 
                   const canvas = document.createElement('canvas');
                   const ctx = canvas.getContext('2d');
                   if (!ctx) {
                     return { success: false, error: 'Could not get canvas context' };
                   }
-                  canvas.width = Math.ceil(viewport.width);
-                  canvas.height = Math.ceil(viewport.height);
+                  canvas.width = targetWidth;
+                  canvas.height = targetHeight;
 
                   // Flatten transparency onto white so the thumbnail looks like paper.
                   ctx.fillStyle = '#ffffff';
@@ -219,7 +235,8 @@ export const generatePdfThumbnail = internalAction({
                 pdfBase64,
                 libSource,
                 workerSource,
-                maxWidth: ${THUMBNAIL_MAX_WIDTH}
+                maxWidth: ${THUMBNAIL_MAX_WIDTH},
+                maxHeight: ${THUMBNAIL_MAX_HEIGHT}
               });
 
               if (!result.success) {
