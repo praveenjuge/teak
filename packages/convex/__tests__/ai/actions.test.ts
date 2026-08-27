@@ -41,7 +41,7 @@ describe("ai/actions.ts", () => {
     const handler = (manuallyGenerateAI as any).handler ?? manuallyGenerateAI;
 
     await expect(handler(ctx, { cardId: "c1" })).rejects.toThrow(
-      "Too many reprocessing requests"
+      "Too many cards created"
     );
     expect(ctx.scheduler.runAfter).not.toHaveBeenCalled();
   });

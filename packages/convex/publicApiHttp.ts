@@ -594,6 +594,7 @@ const mapConvexErrorToResponse = (
     const payload = (error.data ?? {}) as {
       code?: unknown;
       message?: unknown;
+      retryAt?: unknown;
     };
 
     const code =
@@ -603,10 +604,28 @@ const mapConvexErrorToResponse = (
     const message =
       typeof payload.message === "string" ? payload.message : fallbackMessage;
 
+    if (code === "RATE_LIMITED") {
+      const retryAt =
+        typeof payload.retryAt === "number" && Number.isFinite(payload.retryAt)
+          ? payload.retryAt
+          : undefined;
+      return errorResponse(
+        429,
+        code,
+        message,
+        retryAt ? { retryAt } : undefined,
+        buildRateLimitHeaders(retryAt)
+      );
+    }
+
     return json(400, {
       code,
       error: message,
     });
+  }
+
+  if (isRateLimitContentionError(error)) {
+    return RATE_LIMIT_CONTENTION_ERROR();
   }
 
   return errorResponse(500, "INTERNAL_ERROR", fallbackMessage);

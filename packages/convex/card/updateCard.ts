@@ -1,4 +1,4 @@
-import { v } from "convex/values";
+import { ConvexError, v } from "convex/values";
 import { internal } from "../_generated/api";
 import type { Id } from "../_generated/dataModel";
 import {
@@ -6,6 +6,7 @@ import {
   type MutationCtx,
   mutation,
 } from "../_generated/server";
+import { CARD_ERROR_CODES, CARD_ERROR_MESSAGES } from "../shared/constants";
 import { rateLimiter } from "../shared/rateLimits";
 import { assertSafeExternalUrl } from "../shared/utils/safeUrl";
 import { validateTextCardContent } from "./markdown";
@@ -64,14 +65,26 @@ const consumeCardReprocessLimit = async (
     throws: false,
   });
   if (!perCardResult.ok) {
-    throw new Error("This card is already queued for reprocessing");
+    throw new ConvexError({
+      code: CARD_ERROR_CODES.RATE_LIMITED,
+      message: "This card is already queued for reprocessing",
+      retryAt: (perCardResult as any).retryAfter
+        ? Date.now() + (perCardResult as any).retryAfter
+        : undefined,
+    });
   }
   const result = await rateLimiter.limit(ctx, "cardReprocess", {
     key: userId,
     throws: false,
   });
   if (!result.ok) {
-    throw new Error("Too many reprocessing requests; try again later");
+    throw new ConvexError({
+      code: CARD_ERROR_CODES.RATE_LIMITED,
+      message: CARD_ERROR_MESSAGES.RATE_LIMITED,
+      retryAt: (result as any).retryAfter
+        ? Date.now() + (result as any).retryAfter
+        : undefined,
+    });
   }
 };
 

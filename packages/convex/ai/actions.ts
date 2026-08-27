@@ -1,6 +1,7 @@
-import { v } from "convex/values";
+import { ConvexError, v } from "convex/values";
 import { internal } from "../_generated/api";
 import { action } from "../_generated/server";
+import { CARD_ERROR_CODES, CARD_ERROR_MESSAGES } from "../shared/constants";
 
 export const manuallyGenerateAI = action({
   args: { cardId: v.id("cards") },
@@ -27,7 +28,10 @@ export const manuallyGenerateAI = action({
       { cardId, userId: user.subject }
     );
     if (!allowed) {
-      throw new Error("Too many reprocessing requests; try again later");
+      throw new ConvexError({
+        code: CARD_ERROR_CODES.RATE_LIMITED,
+        message: CARD_ERROR_MESSAGES.RATE_LIMITED,
+      });
     }
 
     await ctx.scheduler.runAfter(

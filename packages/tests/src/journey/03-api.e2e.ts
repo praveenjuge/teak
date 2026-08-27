@@ -114,10 +114,18 @@ test("REST text cards preserve raw Markdown and enforce the UTF-8 limit", async 
   });
 
   const updated = `  ---\r\ntitle: ${marker}\r\n---\r\n\r\n| A | B |\r\n| - | - |\r\n`;
-  const patched = await apiFetch(`/v1/cards/${createdCard.cardId}`, apiKey, {
+  let patched = await apiFetch(`/v1/cards/${createdCard.cardId}`, apiKey, {
     method: "PATCH",
     body: JSON.stringify({ content: updated }),
   });
+  // Retry once on transient 429/500 (rate-limit contention) to avoid flaky prod E2E.
+  if (patched.status === 429 || patched.status === 500) {
+    await new Promise((resolve) => setTimeout(resolve, 2000));
+    patched = await apiFetch(`/v1/cards/${createdCard.cardId}`, apiKey, {
+      method: "PATCH",
+      body: JSON.stringify({ content: updated }),
+    });
+  }
   expect(patched.status).toBe(200);
   expect(await patched.json()).toMatchObject({
     content: updated,

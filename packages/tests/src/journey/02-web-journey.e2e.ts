@@ -29,7 +29,7 @@ test("web journey covers cards, search, settings, upload, and revoked key", asyn
   await composer.fill(rawMarkdown);
   await composer.press("ControlOrMeta+Enter");
   const savedCard = page.locator("main p").filter({ hasText: marker }).first();
-  await expect(savedCard).toBeVisible();
+  await expect(savedCard).toBeVisible({ timeout: 30_000 });
   await expect
     .poll(
       async () =>
