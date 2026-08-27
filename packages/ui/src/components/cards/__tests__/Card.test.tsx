@@ -94,7 +94,7 @@ describe("Cards/Card", () => {
     });
   });
 
-  test("keeps copy available if refreshing the original URL fails", async () => {
+  test("does not substitute a preview if refreshing the original URL fails", async () => {
     await expect(
       resolveImageCopyUrl({
         cardId: "card_123",
@@ -102,7 +102,7 @@ describe("Cards/Card", () => {
         fileKey: "original-key",
         refresh: mock().mockRejectedValue(new Error("refresh failed")),
       })
-    ).resolves.toBe("https://files.teakvault.com/grid.jpg");
+    ).rejects.toThrow("refresh failed");
   });
 
   test("prefers attached X image media over screenshot in masonry preview", () => {

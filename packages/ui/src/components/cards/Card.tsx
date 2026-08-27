@@ -25,6 +25,7 @@ import {
 } from "lucide-react";
 import type { SyntheticEvent } from "react";
 import { memo, useState } from "react";
+import { toast } from "sonner";
 import { markdownToPlainText } from "../../lib/markdownToPlainText";
 import { prefetchCardModalMedia } from "../../lib/prefetchCardMedia";
 import { prefetchFileTextPreview } from "../card-previews/fileTextPreviewCache";
@@ -55,15 +56,11 @@ export async function resolveImageCopyUrl({
   if (!fileKey) {
     return fallbackUrl;
   }
-  try {
-    const { url } = await refresh({
-      cardId: cardId as Id<"cards">,
-      key: fileKey,
-    });
-    return url;
-  } catch {
-    return fallbackUrl;
-  }
+  const { url } = await refresh({
+    cardId: cardId as Id<"cards">,
+    key: fileKey,
+  });
+  return url;
 }
 
 export const Card = memo(function Card({
@@ -169,12 +166,17 @@ export const Card = memo(function Card({
     if (card.type === "image") {
       isImage = true;
       const fallbackUrl = card.fileUrl ?? card.thumbnailUrl ?? "";
-      contentToCopy = await resolveImageCopyUrl({
-        cardId: card._id,
-        fallbackUrl,
-        fileKey: card.fileKey,
-        refresh: refreshCardMediaUrl,
-      });
+      try {
+        contentToCopy = await resolveImageCopyUrl({
+          cardId: card._id,
+          fallbackUrl,
+          fileKey: card.fileKey,
+          refresh: refreshCardMediaUrl,
+        });
+      } catch {
+        toast.error("Failed to copy image");
+        return;
+      }
     } else if (card.type === "text") {
       contentToCopy = card.content ?? "";
     } else if (card.type === "link" && card.url) {
