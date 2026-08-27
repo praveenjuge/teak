@@ -55,10 +55,10 @@ jobs:
     steps:
       - uses: actions/checkout@v6
       - uses: oven-sh/setup-bun@v2
-      - run: bun install --frozen-lockfile
+      - run: bun install --frozen-lockfile --filter @teak/tests --filter teak-cli --filter @teak/convex
       - run: bun run build:cli
       - run: npm install --prefix "$RUNNER_TEMP/teak-npm" teak-cli@latest
-      - run: bunx playwright install --with-deps chromium
+      - run: bunx playwright install --with-deps --only-shell chromium
       - run: bun run --cwd packages/tests e2e:prod:journey
       - if: always()
         run: bun packages/tests/src/scripts/teardown.ts
@@ -73,14 +73,14 @@ jobs:
 
   docs:
     needs: gate
-    if: ${{ !inputs.preflight_only }}
+    if: ${{ always() && needs.gate.result == 'success' && !inputs.preflight_only }}
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v6
       - uses: oven-sh/setup-bun@v2
-      - run: bun install --frozen-lockfile
-      - run: bunx playwright install --with-deps chromium
+      - run: bun install --frozen-lockfile --filter @teak/tests
+      - run: bunx playwright install --with-deps --only-shell chromium
       - run: bun run --cwd packages/tests e2e:prod:docs
       - if: always()
         uses: actions/upload-artifact@v6
@@ -92,15 +92,16 @@ jobs:
           retention-days: 7
 
   matrix:
-    needs: [gate, journey]
-    if: always() && needs.gate.result == 'success' && !inputs.preflight_only
+    needs: gate
+    if: ${{ always() && needs.gate.result == 'success' && !inputs.preflight_only }}
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@v6
       - uses: oven-sh/setup-bun@v2
-      - run: bun install --frozen-lockfile
-      - run: bunx playwright install --with-deps chromium firefox webkit
+      - run: bun install --frozen-lockfile --filter @teak/tests
+      - run: bunx playwright install --with-deps --only-shell chromium
+      - run: bunx playwright install --with-deps firefox webkit
       - run: bun run --cwd packages/tests e2e:prod:matrix
       - if: always()
         uses: actions/upload-artifact@v6
@@ -113,13 +114,13 @@ jobs:
 
   extension:
     needs: gate
-    if: always() && needs.gate.result == 'success' && !inputs.preflight_only
+    if: ${{ always() && needs.gate.result == 'success' && !inputs.preflight_only }}
     runs-on: ubuntu-latest
     timeout-minutes: 25
     steps:
       - uses: actions/checkout@v6
       - uses: oven-sh/setup-bun@v2
-      - run: bun install --frozen-lockfile
+      - run: bun install --frozen-lockfile --filter @teak/tests --filter @teak/extension --filter @teak/convex
       - run: bun run --cwd apps/extension build
       - run: bunx playwright install --with-deps chromium
       - run: bun run --cwd packages/tests e2e:prod:extension
@@ -134,12 +135,13 @@ jobs:
 
   sweep:
     needs: gate
-    if: always() && needs.gate.result == 'success' && !inputs.preflight_only && (github.event_name == 'schedule' || inputs.sweep)
+    if: ${{ always() && needs.gate.result == 'success' && !inputs.preflight_only && (github.event_name == 'schedule' || inputs.sweep) }}
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
       - uses: actions/checkout@v6
       - uses: oven-sh/setup-bun@v2
+      - run: bun install --frozen-lockfile --filter @teak/tests
       - run: bun packages/tests/src/scripts/sweep.ts
 
   notify:

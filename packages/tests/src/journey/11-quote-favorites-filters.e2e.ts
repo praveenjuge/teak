@@ -4,12 +4,13 @@ import { readState, updateState } from "../helpers/run-state";
 
 const primaryContext = () => {
   const state = readState();
-  if (!state.primary?.apiKey) {
-    throw new Error("Missing primary API key");
+  const filtersAccount = state.webFilters ?? state.primary;
+  if (!filtersAccount?.apiKey) {
+    throw new Error("Missing web-filters API key");
   }
   return {
-    api: clientFor(state.primary.apiKey),
-    apiKey: state.primary.apiKey,
+    api: clientFor(filtersAccount.apiKey),
+    apiKey: filtersAccount.apiKey,
   };
 };
 

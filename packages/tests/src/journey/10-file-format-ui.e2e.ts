@@ -12,10 +12,11 @@ test("web picker and drag-drop upload files with safe opened previews", async ({
   const markdownName = `${marker}-text.MARKDOWN`;
   const rawMarkdown = `\uFEFF  # ${marker}-text\r\n\r\n- [ ] keep spacing  \n`;
   const state = readState();
-  if (!state.primary?.apiKey) {
-    throw new Error("Missing primary API key");
+  const filesAccount = state.webFiles ?? state.primary;
+  if (!filesAccount?.apiKey) {
+    throw new Error("Missing web-files API key");
   }
-  const api = clientFor(state.primary.apiKey);
+  const api = clientFor(filesAccount.apiKey);
 
   await page.goto("/");
   await page.getByRole("button", { name: "Upload files" }).click();

@@ -125,14 +125,15 @@ test("cross-tenant, revoked-key, hostile input, headers, and cookie security", a
   });
   try {
     const targetCard = state.createdCardIds[0];
-    if (targetCard) {
-      expect(
-        (await apiFetch(`/v1/cards/${targetCard}`, second.apiKey!)).status
-      ).toBe(404);
-    }
-    if (state.revokedKey) {
-      expect((await apiFetch("/v1/tags", state.revokedKey)).status).toBe(401);
-    }
+    expect(
+      targetCard,
+      "web-core should have created a card before security checks"
+    ).toBeTruthy();
+    expect(
+      (await apiFetch(`/v1/cards/${targetCard!}`, second.apiKey!)).status
+    ).toBe(404);
+    expect(state.revokedKey, "web-core should have revoked a key").toBeTruthy();
+    expect((await apiFetch("/v1/tags", state.revokedKey!)).status).toBe(401);
     const hostile = `<img src=x onerror="window.__teakXss=1"> javascript:alert(1) שלום ${"x".repeat(100_000)}`;
     await clientFor(state.primary.apiKey).cards.create({
       content: hostile,

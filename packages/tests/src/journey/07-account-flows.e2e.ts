@@ -14,9 +14,10 @@ test("scheduled email canary resets the password", async ({ browser }) => {
     !env.emailDeliveryEnabled,
     "Real email delivery runs only in the nightly production canary"
   );
-  const { primary } = readState();
+  const state = readState();
+  const primary = state.account ?? state.primary;
   if (!primary?.email) {
-    throw new Error("Missing primary account");
+    throw new Error("Missing account lifecycle account");
   }
   const nextPassword = `${requirePassword()}Reset1!`;
   const context = await newAnonymousContext(browser);
@@ -34,7 +35,10 @@ test("scheduled email canary resets the password", async ({ browser }) => {
       page.getByText("Your password has been updated")
     ).toBeVisible();
     updateState((state) => {
-      if (state.primary) {
+      if (state.account) {
+        state.account.passwordReset = true;
+      }
+      if (state.primary && state.primary.email === primary.email) {
         state.primary.passwordReset = true;
       }
       for (const account of state.accounts) {
@@ -55,9 +59,10 @@ test("scheduled email canary resets the password", async ({ browser }) => {
 });
 
 test("Polar checkout entry stays usable", async ({ browser }) => {
-  const { primary } = readState();
+  const state = readState();
+  const primary = state.account ?? state.primary;
   if (!primary?.email) {
-    throw new Error("Missing primary account");
+    throw new Error("Missing account lifecycle account");
   }
   const context = await newAnonymousContext(browser);
   const page = await context.newPage();
@@ -80,9 +85,10 @@ test("Polar checkout entry stays usable", async ({ browser }) => {
 test("signing out from settings returns to login without crashing", async ({
   browser,
 }) => {
-  const { primary } = readState();
+  const state = readState();
+  const primary = state.account ?? state.primary;
   if (!primary?.email) {
-    throw new Error("Missing primary account");
+    throw new Error("Missing account lifecycle account");
   }
   const context = await newAnonymousContext(browser);
   const page = await context.newPage();
