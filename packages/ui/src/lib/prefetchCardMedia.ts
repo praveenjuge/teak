@@ -15,6 +15,7 @@ const warmImage = (url: string | null | undefined): void => {
 };
 
 interface PrefetchableMedia {
+  detailUrl?: string | null;
   fileUrl?: string | null;
   thumbnailUrl?: string | null;
   type?: string | null;
@@ -27,7 +28,7 @@ interface PrefetchableMedia {
  */
 export const prefetchCardModalMedia = (card: PrefetchableMedia): void => {
   if (card.type === "image") {
-    warmImage(card.fileUrl ?? card.thumbnailUrl);
+    warmImage(card.detailUrl ?? card.thumbnailUrl);
     return;
   }
   if (card.type === "video") {

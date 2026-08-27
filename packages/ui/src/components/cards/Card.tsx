@@ -9,7 +9,6 @@ import {
   ContextMenuSeparator,
   ContextMenuTrigger,
 } from "@teak/ui/components/ui/context-menu";
-import { Image } from "antd";
 import {
   CheckSquare,
   Copy,
@@ -30,6 +29,7 @@ import { AudioWavePreview } from "./previews/AudioWavePreview";
 import { GridDocumentPreview } from "./previews/GridDocumentPreview";
 import { GridImagePreview } from "./previews/GridImagePreview";
 import { GridVideoPreview } from "./previews/GridVideoPreview";
+import { ResilientMediaImage } from "./previews/ResilientMediaImage";
 import type { CardProps, LinkPreviewMetadata } from "./types";
 import { isOptimisticCard } from "./types";
 
@@ -163,6 +163,9 @@ export const Card = memo(function Card({
     card.metadata?.linkPreview?.status === "success"
       ? (card.metadata.linkPreview as LinkPreviewMetadata)
       : undefined;
+  const storedLinkMedia = Array.isArray(card.metadata?.linkPreview?.media)
+    ? (card.metadata.linkPreview.media as Record<string, unknown>[])
+    : [];
   const linkCardTitle =
     linkPreview?.title || card.metadataTitle || card.url || "Link";
   const primaryAttachedMedia =
@@ -174,6 +177,18 @@ export const Card = memo(function Card({
     primaryAttachedMedia?.type === "image"
       ? primaryAttachedMedia.url
       : (primaryAttachedMedia?.posterUrl ?? card.linkPreviewImageUrl);
+  const primaryStoredMedia =
+    storedLinkMedia.find((item) => item.type === "image") ??
+    storedLinkMedia.find(
+      (item) =>
+        item.type === "video" && typeof item.posterStorageKey === "string"
+    );
+  const primaryLinkImageKey =
+    primaryStoredMedia?.type === "image"
+      ? primaryStoredMedia.storageKey
+      : (primaryStoredMedia?.posterStorageKey ??
+        card.metadata?.linkPreview?.imageStorageKey);
+  const screenshotStorageKey = card.metadata?.linkPreview?.screenshotStorageKey;
   const resolvedScreenshotUrl =
     typeof card.screenshotUrl === "string" ? card.screenshotUrl : undefined;
   const [useFallbackImage, setUseFallbackImage] = useState(false);
@@ -228,6 +243,9 @@ export const Card = memo(function Card({
   const displayLinkImageSize = shouldUseFallback
     ? fallbackDisplaySize
     : primaryDisplaySize;
+  const displayLinkImageKey = shouldUseFallback
+    ? screenshotStorageKey
+    : primaryLinkImageKey;
 
   const legacyPrimaryImage = linkCardImage;
   const legacyFallbackImage = resolvedScreenshotUrl;
@@ -289,13 +307,17 @@ export const Card = memo(function Card({
                   displayLinkImageSize.width / displayLinkImageSize.height,
               }}
             >
-              <Image
+              <ResilientMediaImage
                 alt={linkCardTitle}
+                cardId={card._id}
                 className="h-full w-full object-cover"
-                onError={handleLinkImageError}
-                preview={false}
-                rootClassName="h-full w-full"
+                onPermanentError={handleLinkImageError}
                 src={displayLinkImage}
+                storageKey={
+                  typeof displayLinkImageKey === "string"
+                    ? displayLinkImageKey
+                    : undefined
+                }
               />
             </div>
             <div className="px-4 py-3">
@@ -309,13 +331,21 @@ export const Card = memo(function Card({
         return (
           <div className="divide-y overflow-hidden rounded-xl border bg-card">
             <div className="h-28 min-h-28 overflow-hidden">
-              <Image
+              <ResilientMediaImage
                 alt={linkCardTitle}
+                cardId={card._id}
                 className="h-full w-full object-cover"
-                onError={handleLinkImageError}
-                preview={false}
-                rootClassName="h-full w-full"
+                onPermanentError={handleLinkImageError}
                 src={legacyDisplayImage}
+                storageKey={
+                  typeof (useFallbackImage
+                    ? screenshotStorageKey
+                    : primaryLinkImageKey) === "string"
+                    ? ((useFallbackImage
+                        ? screenshotStorageKey
+                        : primaryLinkImageKey) as string)
+                    : undefined
+                }
               />
             </div>
             <div className="px-4 py-3">
@@ -336,12 +366,15 @@ export const Card = memo(function Card({
       return (
         <GridImagePreview
           altText={card.content}
+          cardId={card._id}
+          compactUrl={card.compactUrl}
           height={card.fileMetadata?.height}
           imageUrl={
-            card.compactUrl ?? card.thumbnailUrl ?? card.fileUrl ?? undefined
+            card.thumbnailUrl ?? card.compactUrl ?? card.fileUrl ?? undefined
           }
           isPriority={isPriority}
-          placeholderUrl={card.placeholderUrl}
+          placeholderColor={card.colors?.[0]?.hex}
+          storageKey={card.fileKey}
           width={card.fileMetadata?.width}
         />
       );
@@ -353,10 +386,13 @@ export const Card = memo(function Card({
         (card.fileMetadata?.fileName?.toLowerCase().endsWith(".gif") ?? false);
       return (
         <GridVideoPreview
+          cardId={card._id}
           height={card.fileMetadata?.height}
           isGif={isGif}
           isPriority={isPriority}
+          thumbnailKey={card.thumbnailKey}
           thumbnailUrl={card.thumbnailUrl ?? undefined}
+          videoKey={card.fileKey}
           videoUrl={card.fileUrl ?? undefined}
           width={card.fileMetadata?.width}
         />
@@ -370,9 +406,11 @@ export const Card = memo(function Card({
     if (card.type === "document") {
       return (
         <GridDocumentPreview
+          cardId={card._id}
           fileName={card.fileMetadata?.fileName || card.content}
           height={card.fileMetadata?.height}
           isPriority={isPriority}
+          thumbnailKey={card.thumbnailKey}
           thumbnailUrl={card.thumbnailUrl ?? undefined}
           width={card.fileMetadata?.width}
         />

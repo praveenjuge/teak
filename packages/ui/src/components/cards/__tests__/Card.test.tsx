@@ -2,6 +2,14 @@ import { describe, expect, mock, test } from "bun:test";
 import React from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 
+mock.module("@teak/convex", () => ({
+  api: { card: { getFileUrl: { refreshCardMediaUrl: {} } } },
+}));
+
+mock.module("convex/react", () => ({
+  useAction: () => mock(),
+}));
+
 mock.module("antd", () => ({
   Image: ({ src, alt, className, ...props }: any) =>
     React.createElement("img", { src, alt, className, ...props }),

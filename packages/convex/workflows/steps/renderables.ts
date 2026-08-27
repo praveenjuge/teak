@@ -71,6 +71,7 @@ export async function generateHandler(
     success: boolean;
     generated: boolean;
     error?: string;
+    retryable?: boolean;
   }) => {
     if (!result.success) {
       renderablesSucceeded = false;
@@ -110,6 +111,11 @@ export async function generateHandler(
         .generateVideoThumbnail,
       { cardId }
     );
+    if (!result.success && result.retryable) {
+      throw new Error(
+        `video_thumbnail_retryable:${result.error ?? "thumbnail_generation_failed"}`
+      );
+    }
     handleResult(result);
   }
 

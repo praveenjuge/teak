@@ -266,16 +266,36 @@ export const cardProcessingWorkflow: any = workflow.define({
     // palette extraction and vision metadata.
     let metadataResult: any = null;
     let renderablesResult: any = null;
+    const runRenderablesStep = async () => {
+      try {
+        return await timeStage("renderables", classification.type, () =>
+          step.runAction(
+            internalWorkflow["workflows/steps/renderables"].generate,
+            { cardId, cardType: classification.type },
+            { retry: RENDERABLES_STEP_RETRY }
+          )
+        );
+      } catch (error) {
+        console.error(`${PIPELINE_LOG_PREFIX} Renderables exhausted retries`, {
+          cardId,
+          error,
+        });
+        await step.runMutation(
+          internalWorkflow["workflows/steps/renderables/mutations"]
+            .markCardRenderablesFailed,
+          { cardId, error: "thumbnail_generation_failed" }
+        );
+        return {
+          mode: "completed" as const,
+          success: false,
+          thumbnailGenerated: false,
+        };
+      }
+    };
 
     if (["image", "video"].includes(classification.type)) {
       renderablesResult = classification.shouldGenerateRenderables
-        ? await timeStage("renderables", classification.type, () =>
-            step.runAction(
-              internalWorkflow["workflows/steps/renderables"].generate,
-              { cardId, cardType: classification.type },
-              { retry: RENDERABLES_STEP_RETRY }
-            )
-          )
+        ? await runRenderablesStep()
         : null;
 
       if (classification.type === "image") {
@@ -320,13 +340,7 @@ export const cardProcessingWorkflow: any = workflow.define({
         : Promise.resolve(null);
 
       const renderablesPromise = classification.shouldGenerateRenderables
-        ? timeStage("renderables", classification.type, () =>
-            step.runAction(
-              internalWorkflow["workflows/steps/renderables"].generate,
-              { cardId, cardType: classification.type },
-              { retry: RENDERABLES_STEP_RETRY }
-            )
-          )
+        ? runRenderablesStep()
         : Promise.resolve(null);
 
       [metadataResult, renderablesResult] = await Promise.all([

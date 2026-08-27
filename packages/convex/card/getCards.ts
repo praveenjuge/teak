@@ -11,6 +11,7 @@ import {
 import {
   attachCardSummaryUrls,
   attachFileUrls,
+  attachGridFileUrls,
   ensureValidRange,
   isCreatedAtInRange,
 } from "./queryUtils";
@@ -468,11 +469,14 @@ type SearchCardsPaginatedArgs = Infer<typeof searchCardsPaginatedArgsValidator>;
 export const searchCardsPaginatedHandler = async (
   ctx: QueryCtx,
   args: SearchCardsPaginatedArgs,
-  options: { summariesOnly?: boolean } = {}
+  options: { gridOnly?: boolean; summariesOnly?: boolean } = {}
 ) => {
-  const attachListUrls = options.summariesOnly
-    ? attachCardSummaryUrls
-    : attachFileUrls;
+  let attachListUrls = attachFileUrls;
+  if (options.summariesOnly) {
+    attachListUrls = attachCardSummaryUrls;
+  } else if (options.gridOnly) {
+    attachListUrls = attachGridFileUrls;
+  }
   const user = await ctx.auth.getUserIdentity();
   if (!user) {
     return { page: [], isDone: true, continueCursor: null };
@@ -809,5 +813,6 @@ export const searchCardsPaginatedHandler = async (
 export const searchCardsPaginated = query({
   args: searchCardsPaginatedArgsValidator.fields,
   returns: paginationResultValidator,
-  handler: (ctx, args) => searchCardsPaginatedHandler(ctx, args),
+  handler: (ctx, args) =>
+    searchCardsPaginatedHandler(ctx, args, { gridOnly: true }),
 });

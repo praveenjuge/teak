@@ -25,6 +25,8 @@ export default function RootLayout({ children }: PropsWithChildren) {
   return (
     <html lang="en" suppressHydrationWarning>
       <head>
+        <link href="//files.teakvault.com" rel="dns-prefetch" />
+        <link href="https://files.teakvault.com" rel="preconnect" />
         <JsonLd
           schema={[
             organizationSchema,

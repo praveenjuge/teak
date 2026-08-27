@@ -30,6 +30,7 @@ export const generateVideoThumbnail = internalAction({
     generated: v.boolean(),
     thumbnailKey: v.optional(v.string()),
     error: v.optional(v.string()),
+    retryable: v.optional(v.boolean()),
   }),
   handler: async (ctx, args) => {
     try {
@@ -44,6 +45,7 @@ export const generateVideoThumbnail = internalAction({
           success: false,
           generated: false,
           error: "card_not_found",
+          retryable: false,
         };
       }
 
@@ -79,6 +81,7 @@ export const generateVideoThumbnail = internalAction({
           success: false,
           generated: false,
           error: "missing_storage_url",
+          retryable: true,
         };
       }
 
@@ -257,6 +260,7 @@ export const generateVideoThumbnail = internalAction({
             success: false,
             generated: false,
             error: "kernel_execution_failed",
+            retryable: true,
           };
         }
 
@@ -271,6 +275,10 @@ export const generateVideoThumbnail = internalAction({
             success: false,
             generated: false,
             error: result.error || "thumbnail_generation_failed",
+            retryable:
+              typeof result.error === "string" &&
+              (result.error.includes("timeout") ||
+                result.error.startsWith("upload_failed_")),
           };
         }
 
@@ -292,6 +300,7 @@ export const generateVideoThumbnail = internalAction({
             success: false,
             generated: false,
             error: "thumbnail_upload_verification_failed",
+            retryable: true,
           };
         }
 
@@ -343,6 +352,7 @@ export const generateVideoThumbnail = internalAction({
         success: false,
         generated: false,
         error: error instanceof Error ? error.message : "unknown_error",
+        retryable: true,
       };
     }
   },

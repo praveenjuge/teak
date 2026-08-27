@@ -1,6 +1,31 @@
 import { v } from "convex/values";
 import { internalMutation } from "../../../_generated/server";
+import { stageFailed } from "../../../card/processingStatus";
 import { filePreviewFactsValidator } from "../../../schema";
+
+export const markCardRenderablesFailed = internalMutation({
+  args: { cardId: v.id("cards"), error: v.string() },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    const card = await ctx.db.get("cards", args.cardId);
+    if (!card) {
+      return null;
+    }
+    const now = Date.now();
+    await ctx.db.patch("cards", args.cardId, {
+      processingStatus: {
+        ...(card.processingStatus ?? {}),
+        renderables: stageFailed(
+          now,
+          args.error,
+          card.processingStatus?.renderables
+        ),
+      },
+      updatedAt: now,
+    });
+    return null;
+  },
+});
 
 /**
  * Update only the fileMetadata dimensions (width/height) for a card.
