@@ -9,19 +9,29 @@ export interface AccountState {
 }
 
 export interface RunState {
+  account?: AccountState;
   accounts: AccountState[];
   createdCardIds: string[];
   importExport?: AccountState;
   primary?: AccountState;
   revokedKey?: string;
   serviceAccounts?: Partial<Record<ServiceAccountSurface, AccountState>>;
+  webCore?: AccountState;
+  webFiles?: AccountState;
+  webFilters?: AccountState;
+  webSurfaces?: AccountState;
 }
 
 export type ServiceAccountSurface = "api" | "cli" | "mcp";
 
 const file = new URL("../../.state/run-state.json", import.meta.url);
+export const accountStorageStateFile = ".state/account.json";
 export const importExportStorageStateFile = ".state/import-export.json";
 export const storageStateFile = ".state/user.json";
+export const webCoreStorageStateFile = ".state/web-core.json";
+export const webFilesStorageStateFile = ".state/web-files.json";
+export const webFiltersStorageStateFile = ".state/web-filters.json";
+export const webSurfacesStorageStateFile = ".state/web-surfaces.json";
 
 export const readState = (): RunState => {
   try {
@@ -49,6 +59,40 @@ export const requireServiceApiKey = (
   const apiKey = readState().serviceAccounts?.[surface]?.apiKey;
   if (!apiKey) {
     throw new Error(`Missing ${surface} service account API key`);
+  }
+  return apiKey;
+};
+
+export const requireAccount = (
+  key:
+    | "primary"
+    | "webCore"
+    | "webSurfaces"
+    | "webFiles"
+    | "webFilters"
+    | "account"
+    | "importExport"
+): AccountState => {
+  const account = readState()[key];
+  if (!account?.email) {
+    throw new Error(`Missing ${key} account`);
+  }
+  return account;
+};
+
+export const requireAccountApiKey = (
+  key:
+    | "primary"
+    | "webCore"
+    | "webSurfaces"
+    | "webFiles"
+    | "webFilters"
+    | "account"
+    | "importExport"
+): string => {
+  const apiKey = readState()[key]?.apiKey;
+  if (!apiKey) {
+    throw new Error(`Missing ${key} account API key`);
   }
   return apiKey;
 };

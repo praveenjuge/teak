@@ -16,7 +16,7 @@ export default defineConfig({
   use: {
     baseURL: env.appUrl,
     trace: "retain-on-failure",
-    screenshot: "on",
+    screenshot: "only-on-failure",
     video: "retain-on-failure",
   },
   projects: [
@@ -26,25 +26,50 @@ export default defineConfig({
       use: { ...devices["Desktop Chrome"] },
     },
     {
-      name: "journey-web",
+      name: "journey-web-core",
       dependencies: ["journey-setup"],
-      testMatch: [
-        "journey/02-web-journey.e2e.ts",
-        "journey/09-web-product-surfaces.e2e.ts",
-        "journey/10-file-format-ui.e2e.ts",
-        "journey/11-quote-favorites-filters.e2e.ts",
-      ],
-      grepInvert: importExportTest,
+      testMatch: "journey/02-web-journey.e2e.ts",
       workers: 1,
       use: {
         ...devices["Desktop Chrome"],
-        storageState: ".state/user.json",
+        storageState: ".state/web-core.json",
         launchOptions: {
           args: [
             "--use-fake-device-for-media-stream",
             "--use-fake-ui-for-media-stream",
           ],
         },
+      },
+    },
+    {
+      name: "journey-web-surfaces",
+      dependencies: ["journey-setup"],
+      testMatch: "journey/09-web-product-surfaces.e2e.ts",
+      grepInvert: importExportTest,
+      workers: 1,
+      use: {
+        ...devices["Desktop Chrome"],
+        storageState: ".state/web-surfaces.json",
+      },
+    },
+    {
+      name: "journey-web-files",
+      dependencies: ["journey-setup"],
+      testMatch: "journey/10-file-format-ui.e2e.ts",
+      workers: 1,
+      use: {
+        ...devices["Desktop Chrome"],
+        storageState: ".state/web-files.json",
+      },
+    },
+    {
+      name: "journey-web-filters",
+      dependencies: ["journey-setup"],
+      testMatch: "journey/11-quote-favorites-filters.e2e.ts",
+      workers: 1,
+      use: {
+        ...devices["Desktop Chrome"],
+        storageState: ".state/web-filters.json",
       },
     },
     {
@@ -87,7 +112,7 @@ export default defineConfig({
     },
     {
       name: "journey-security",
-      dependencies: ["journey-web"],
+      dependencies: ["journey-setup"],
       testMatch: "journey/06-security.e2e.ts",
       workers: 1,
       use: {
@@ -103,24 +128,23 @@ export default defineConfig({
     },
     {
       name: "journey-account",
-      dependencies: [
-        "journey-web",
-        "journey-api",
-        "journey-cli",
-        "journey-mcp",
-        "journey-a11y",
-        "journey-security",
-      ],
+      dependencies: ["journey-setup"],
       testMatch: "journey/07-account-flows.e2e.ts",
       workers: 1,
-      use: { ...devices["Desktop Chrome"] },
+      use: {
+        ...devices["Desktop Chrome"],
+        storageState: ".state/account.json",
+      },
     },
     {
       name: "journey-delete",
       dependencies: ["journey-account"],
       testMatch: deleteAccount,
       workers: 1,
-      use: { ...devices["Desktop Chrome"], storageState: ".state/user.json" },
+      use: {
+        ...devices["Desktop Chrome"],
+        storageState: ".state/account.json",
+      },
     },
     {
       name: "journey-post-delete",

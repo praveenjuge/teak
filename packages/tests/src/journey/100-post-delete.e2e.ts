@@ -4,9 +4,10 @@ import { env } from "../helpers/env";
 import { readState } from "../helpers/run-state";
 
 test("deleted account credentials are inert", async () => {
-  const { primary } = readState();
+  const state = readState();
+  const primary = state.account ?? state.primary;
   if (!primary?.apiKey) {
-    throw new Error("Missing primary API key");
+    throw new Error("Missing account lifecycle API key");
   }
   expect((await apiFetch("/v1/tags", primary.apiKey)).status).toBe(401);
   expect(

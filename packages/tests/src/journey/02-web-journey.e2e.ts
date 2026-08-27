@@ -8,10 +8,11 @@ test("web journey covers cards, search, settings, upload, and revoked key", asyn
   page,
 }) => {
   const state = readState();
-  if (!state.primary?.apiKey) {
-    throw new Error("Missing primary API key");
+  const coreAccount = state.webCore ?? state.primary;
+  if (!coreAccount?.apiKey) {
+    throw new Error("Missing web-core API key");
   }
-  const api = clientFor(state.primary.apiKey);
+  const api = clientFor(coreAccount.apiKey);
   const marker = `prod-e2e-${Date.now()}`;
   const rawMarkdown = `  # ${marker}\n\n- [ ] <script>alert("xss")</script>  \n`;
   const dialogTrap: string[] = [];
@@ -79,7 +80,7 @@ test("web journey covers cards, search, settings, upload, and revoked key", asyn
   updateState((s) => s.createdCardIds.push(link.cardId, text.cardId));
 
   await page.goto("/settings");
-  await expect(page.getByText(state.primary.email)).toBeVisible();
+  await expect(page.getByText(coreAccount.email)).toBeVisible();
   await expect(page.getByText("Free Plan")).toBeVisible();
   const revokedKey = await generateApiKey(page);
   await revokeVisibleKey(page, revokedKey);
@@ -95,8 +96,9 @@ test("saving a color in the composer creates a palette card", async ({
   // Regression: the web note composer forced type "text", which disabled
   // server-side classification, so colors stopped becoming palette cards.
   const state = readState();
-  if (!state.primary?.apiKey) {
-    throw new Error("Missing primary API key");
+  const coreAccount = state.webCore ?? state.primary;
+  if (!coreAccount?.apiKey) {
+    throw new Error("Missing web-core API key");
   }
   const hex = "#2050D0";
 
@@ -110,7 +112,7 @@ test("saving a color in the composer creates a palette card", async ({
   ).toBeVisible();
 
   // Poll the API until the composer-created card is classified as a palette.
-  const api = clientFor(state.primary.apiKey);
+  const api = clientFor(coreAccount.apiKey);
   await expect
     .poll(
       async () => {

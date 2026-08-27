@@ -3,9 +3,10 @@ import { deleteAccountViaUi } from "../helpers/prod";
 import { readState } from "../helpers/run-state";
 
 test("delete primary account through the web UI", async ({ page }) => {
-  const { primary } = readState();
+  const state = readState();
+  const primary = state.account ?? state.primary;
   if (!primary) {
-    throw new Error("Missing primary account");
+    throw new Error("Missing account lifecycle account");
   }
   await deleteAccountViaUi(page, primary);
   await page.getByLabel("Email").fill(primary.email);

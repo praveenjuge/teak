@@ -111,12 +111,13 @@ const showTrash = async (page: Page) => {
 
 const primaryContext = () => {
   const state = readState();
-  if (!state.primary?.apiKey) {
-    throw new Error("Missing primary API key");
+  const surfacesAccount = state.webSurfaces ?? state.primary;
+  if (!surfacesAccount?.apiKey) {
+    throw new Error("Missing web-surfaces API key");
   }
   return {
-    api: clientFor(state.primary.apiKey),
-    apiKey: state.primary.apiKey,
+    api: clientFor(surfacesAccount.apiKey),
+    apiKey: surfacesAccount.apiKey,
   };
 };
 
