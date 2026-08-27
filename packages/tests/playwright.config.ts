@@ -112,7 +112,7 @@ export default defineConfig({
     },
     {
       name: "journey-security",
-      dependencies: ["journey-setup"],
+      dependencies: ["journey-setup", "journey-web-core"],
       testMatch: "journey/06-security.e2e.ts",
       workers: 1,
       use: {

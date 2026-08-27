@@ -60,6 +60,7 @@ describe("production E2E project graph", () => {
     ]);
     expect(projects.get("journey-security")?.dependencies).toEqual([
       "journey-setup",
+      "journey-web-core",
     ]);
     expect(projects.get("snapshots")?.dependencies).toBeUndefined();
     expect(projects.get("journey-account")?.dependencies).toEqual([

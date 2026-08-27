@@ -35,7 +35,10 @@ test("scheduled email canary resets the password", async ({ browser }) => {
       page.getByText("Your password has been updated")
     ).toBeVisible();
     updateState((state) => {
-      if (state.primary) {
+      if (state.account) {
+        state.account.passwordReset = true;
+      }
+      if (state.primary && state.primary.email === primary.email) {
         state.primary.passwordReset = true;
       }
       for (const account of state.accounts) {
