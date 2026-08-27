@@ -1,4 +1,4 @@
-export const SEARCH_DEFAULT_CARD_LIMIT = 100;
+export const SEARCH_DEFAULT_CARD_LIMIT = 30;
 export const SEARCH_LOCAL_SEARCH_CACHE_LIMIT = 1000;
 
 /**

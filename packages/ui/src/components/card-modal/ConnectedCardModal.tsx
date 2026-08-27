@@ -40,7 +40,7 @@ export function ConnectedCardModal({
   const [showNotesEditModal, setShowNotesEditModal] = useState(false);
   const { isAuthenticated, isLoading: isAuthLoading } = useConvexAuth();
   const canHydrateCard = Boolean(
-    cardId && !cardData && !isAuthLoading && isAuthenticated
+    cardId && open && !isAuthLoading && isAuthenticated
   );
 
   const hydratedCard = useQuery(
@@ -48,7 +48,7 @@ export function ConnectedCardModal({
     canHydrateCard ? { id: cardId as string } : "skip"
   );
 
-  const resolvedCard = cardData ?? hydratedCard ?? null;
+  const resolvedCard = hydratedCard ?? cardData ?? null;
 
   const setTagManagementModalOpen = useCallback(
     (nextOpen: boolean) => {

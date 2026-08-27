@@ -2,6 +2,14 @@ import { describe, expect, mock, test } from "bun:test";
 import React from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 
+mock.module("@teak/convex", () => ({
+  api: { card: { getFileUrl: { refreshCardMediaUrl: {} } } },
+}));
+
+mock.module("convex/react", () => ({
+  useAction: () => mock(),
+}));
+
 mock.module("antd", () => ({
   Image: ({ src, alt, className, ...props }: any) =>
     React.createElement("img", { src, alt, className, ...props }),
@@ -53,7 +61,7 @@ mock.module("../previews/GridVideoPreview", () => ({
   GridVideoPreview: () => React.createElement("div"),
 }));
 
-const { Card } = await import("../Card");
+const { Card, resolveImageCopyUrl } = await import("../Card");
 
 const createLinkCard = (overrides?: Record<string, unknown>) => ({
   _id: "card_123",
@@ -68,6 +76,35 @@ const createLinkCard = (overrides?: Record<string, unknown>) => ({
 });
 
 describe("Cards/Card", () => {
+  test("mints the original image URL only when copying", async () => {
+    const refresh = mock().mockResolvedValue({
+      url: "https://files.teakvault.com/original.jpg",
+    });
+    await expect(
+      resolveImageCopyUrl({
+        cardId: "card_123",
+        fallbackUrl: "https://files.teakvault.com/grid.jpg",
+        fileKey: "original-key",
+        refresh,
+      })
+    ).resolves.toBe("https://files.teakvault.com/original.jpg");
+    expect(refresh).toHaveBeenCalledWith({
+      cardId: "card_123",
+      key: "original-key",
+    });
+  });
+
+  test("does not substitute a preview if refreshing the original URL fails", async () => {
+    await expect(
+      resolveImageCopyUrl({
+        cardId: "card_123",
+        fallbackUrl: "https://files.teakvault.com/grid.jpg",
+        fileKey: "original-key",
+        refresh: mock().mockRejectedValue(new Error("refresh failed")),
+      })
+    ).rejects.toThrow("refresh failed");
+  });
+
   test("prefers attached X image media over screenshot in masonry preview", () => {
     const markup = renderToStaticMarkup(
       <Card

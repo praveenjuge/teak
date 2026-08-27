@@ -15,9 +15,9 @@ describe("GridVideoPreview", () => {
     expect(source).toContain("style={{ aspectRatio }}");
   });
 
-  test("defers video mount until hover when a thumbnail can cover idle", () => {
+  test("defers every video mount until hover", () => {
     expect(source).toContain(
-      "const [shouldLoadVideo, setShouldLoadVideo] = useState(!thumbnailUrl)"
+      "const [shouldLoadVideo, setShouldLoadVideo] = useState(false)"
     );
     expect(source).toContain("setShouldLoadVideo(true)");
     expect(source).toContain("setIsHovering(true)");

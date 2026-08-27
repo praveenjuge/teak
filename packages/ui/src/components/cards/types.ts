@@ -50,6 +50,7 @@ export interface CardWithUrls {
   metadataTitle?: string;
   placeholderUrl?: string;
   screenshotUrl?: string;
+  thumbnailKey?: string;
   thumbnailUrl?: string;
   type?: string;
   url?: string;

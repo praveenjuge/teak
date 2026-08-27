@@ -1,10 +1,12 @@
-import { Image } from "antd";
 import { File } from "lucide-react";
+import { ResilientMediaImage } from "./ResilientMediaImage";
 
 interface GridDocumentPreviewProps {
+  cardId?: string;
   fileName?: string;
   height?: number;
   isPriority?: boolean;
+  thumbnailKey?: string;
   thumbnailUrl?: string;
   width?: number;
 }
@@ -14,11 +16,13 @@ interface GridDocumentPreviewProps {
 const FALLBACK_ASPECT_RATIO = 3 / 4;
 
 export function GridDocumentPreview({
+  cardId,
   thumbnailUrl,
   fileName,
   width,
   height,
   isPriority = false,
+  thumbnailKey,
 }: GridDocumentPreviewProps) {
   if (thumbnailUrl) {
     return (
@@ -30,15 +34,15 @@ export function GridDocumentPreview({
               width && height ? width / height : FALLBACK_ASPECT_RATIO,
           }}
         >
-          <Image
+          <ResilientMediaImage
             alt={`Preview of ${fileName || "document"}`}
+            cardId={cardId}
             className="h-full w-full bg-muted object-contain"
             decoding="async"
             fetchPriority={isPriority ? "high" : undefined}
             loading={isPriority ? "eager" : "lazy"}
-            preview={false}
-            rootClassName="h-full w-full"
             src={thumbnailUrl}
+            storageKey={thumbnailKey}
             style={{ objectFit: "contain" }}
           />
         </div>

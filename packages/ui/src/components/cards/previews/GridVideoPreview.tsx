@@ -1,12 +1,15 @@
-import { Image } from "antd";
 import { Play } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
+import { ResilientMediaImage } from "./ResilientMediaImage";
 
 interface GridVideoPreviewProps {
+  cardId?: string;
   height?: number;
   isGif?: boolean;
   isPriority?: boolean;
+  thumbnailKey?: string;
   thumbnailUrl?: string;
+  videoKey?: string;
   videoUrl?: string;
   width?: number;
 }
@@ -23,20 +26,24 @@ function PlayOverlay() {
 
 function HoverVideoPreview({
   aspectRatio,
+  cardId,
   isPriority,
+  thumbnailKey,
   thumbnailUrl,
   videoUrl,
 }: {
   aspectRatio: number;
+  cardId?: string;
   isPriority?: boolean;
+  thumbnailKey?: string;
   thumbnailUrl?: string;
   videoUrl: string;
 }) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const [isHovering, setIsHovering] = useState(false);
-  // Defer mounting the video until first hover when a thumbnail can cover idle.
-  // Without a thumbnail, mount immediately so the card still shows a frame.
-  const [shouldLoadVideo, setShouldLoadVideo] = useState(!thumbnailUrl);
+  // Never fetch video bytes before intent; the poster or neutral placeholder
+  // keeps an idle grid lightweight.
+  const [shouldLoadVideo, setShouldLoadVideo] = useState(false);
 
   useEffect(() => {
     const video = videoRef.current;
@@ -76,15 +83,15 @@ function HoverVideoPreview({
     >
       {thumbnailUrl ? (
         <div className={isHovering ? "invisible" : undefined}>
-          <Image
+          <ResilientMediaImage
             alt="Video thumbnail"
+            cardId={cardId}
             className="h-full w-full object-cover"
             decoding="async"
             fetchPriority={isPriority ? "high" : undefined}
             loading={isPriority ? "eager" : "lazy"}
-            preview={false}
-            rootClassName="h-full w-full"
             src={thumbnailUrl}
+            storageKey={thumbnailKey}
             style={{ objectFit: "cover" }}
           />
         </div>
@@ -114,10 +121,13 @@ function HoverVideoPreview({
 }
 
 export function GridVideoPreview({
+  cardId,
   height,
   isGif,
   isPriority,
+  thumbnailKey,
   thumbnailUrl,
+  videoKey,
   videoUrl,
   width,
 }: GridVideoPreviewProps) {
@@ -129,14 +139,16 @@ export function GridVideoPreview({
         className="relative h-full w-full overflow-hidden rounded-xl border bg-card"
         style={{ aspectRatio }}
       >
-        <img
+        <ResilientMediaImage
           alt="GIF preview"
+          cardId={cardId}
           className="h-full w-full object-cover"
           decoding="async"
           fetchPriority={isPriority ? "high" : undefined}
           height={height ?? 480}
           loading={isPriority ? "eager" : "lazy"}
           src={videoUrl}
+          storageKey={videoKey}
           width={width ?? 640}
         />
       </div>
@@ -147,7 +159,9 @@ export function GridVideoPreview({
     return (
       <HoverVideoPreview
         aspectRatio={aspectRatio}
+        cardId={cardId}
         isPriority={isPriority}
+        thumbnailKey={thumbnailKey}
         thumbnailUrl={thumbnailUrl}
         videoUrl={videoUrl}
       />
@@ -160,15 +174,15 @@ export function GridVideoPreview({
         className="relative h-full w-full overflow-hidden rounded-xl border bg-card"
         style={{ aspectRatio }}
       >
-        <Image
+        <ResilientMediaImage
           alt="Video thumbnail"
+          cardId={cardId}
           className="h-full w-full object-cover"
           decoding="async"
           fetchPriority={isPriority ? "high" : undefined}
           loading={isPriority ? "eager" : "lazy"}
-          preview={false}
-          rootClassName="h-full w-full"
           src={thumbnailUrl}
+          storageKey={thumbnailKey}
           style={{ objectFit: "cover" }}
         />
         <PlayOverlay />

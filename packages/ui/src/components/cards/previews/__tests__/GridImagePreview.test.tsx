@@ -17,4 +17,11 @@ describe("GridImagePreview", () => {
     expect(source).toContain('fetchPriority={isPriority ? "high" : undefined}');
     expect(source).toContain('decoding="async"');
   });
+
+  test("uses responsive renditions without a second placeholder request", () => {
+    expect(source).toContain("srcSet=");
+    expect(source).toContain('sizes="(max-width: 640px) 50vw');
+    expect(source).not.toContain("placeholderUrl");
+    expect(source).toContain("ResilientMediaImage");
+  });
 });

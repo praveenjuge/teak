@@ -60,7 +60,8 @@ const resolveImageRenditions = async (
 
 export const attachFileUrls = async (
   _ctx: any,
-  cards: Doc<"cards">[]
+  cards: Doc<"cards">[],
+  options: { gridOnly?: boolean } = {}
 ): Promise<CardWithUrls[]> => {
   const storageKeys = new Set<string>();
   const gridImageKeys = new Set<string>();
@@ -86,16 +87,16 @@ export const attachFileUrls = async (
   for (const card of cards) {
     const ids: CardStorageIds = {};
     if (card.fileKey) {
-      storageKeys.add(card.fileKey);
+      if (!(options.gridOnly && card.type === "image")) {
+        storageKeys.add(card.fileKey);
+      }
       ids.fileKey = card.fileKey;
     }
     if (card.thumbnailKey) {
-      storageKeys.add(card.thumbnailKey);
       gridImageKeys.add(card.thumbnailKey);
       ids.thumbnailKey = card.thumbnailKey;
     }
     if (card.metadata?.linkPreview?.imageStorageKey) {
-      storageKeys.add(card.metadata.linkPreview.imageStorageKey);
       gridImageKeys.add(card.metadata.linkPreview.imageStorageKey);
       ids.linkPreviewImageKey = card.metadata.linkPreview.imageStorageKey;
     }
@@ -104,9 +105,10 @@ export const attachFileUrls = async (
         if (!item.storageKey) {
           return null;
         }
-        storageKeys.add(item.storageKey);
+        if (item.type === "video") {
+          storageKeys.add(item.storageKey);
+        }
         if (item.posterStorageKey) {
-          storageKeys.add(item.posterStorageKey);
           gridImageKeys.add(item.posterStorageKey);
         }
         if (item.type === "image") {
@@ -129,7 +131,6 @@ export const attachFileUrls = async (
       ids.linkPreviewMedia = hydratedMedia;
     }
     if (card.metadata?.linkPreview?.screenshotStorageKey) {
-      storageKeys.add(card.metadata.linkPreview.screenshotStorageKey);
       gridImageKeys.add(card.metadata.linkPreview.screenshotStorageKey);
       ids.screenshotKey = card.metadata.linkPreview.screenshotStorageKey;
     }
@@ -169,12 +170,12 @@ export const attachFileUrls = async (
         }
         return [
           card._id,
-          await resolveImageRenditions(fileKey, [
-            "compact",
-            "detail",
-            "tiny",
-            "grid",
-          ]),
+          await resolveImageRenditions(
+            fileKey,
+            options.gridOnly
+              ? ["compact", "grid"]
+              : ["compact", "detail", "tiny", "grid"]
+          ),
         ] as const;
       })
     )
@@ -216,7 +217,10 @@ export const attachFileUrls = async (
     const imageUrls = imageRenditions.get(card._id);
     return {
       ...card,
-      fileUrl: ids.fileKey ? (urlMap.get(ids.fileKey) ?? undefined) : undefined,
+      fileUrl:
+        ids.fileKey && !(options.gridOnly && card.type === "image")
+          ? (urlMap.get(ids.fileKey) ?? undefined)
+          : undefined,
       detailUrl: imageUrls?.detail ?? undefined,
       thumbnailUrl:
         imageUrls?.grid ??
@@ -235,6 +239,11 @@ export const attachFileUrls = async (
     };
   });
 };
+
+export const attachGridFileUrls = async (
+  ctx: unknown,
+  cards: Doc<"cards">[]
+): Promise<CardWithUrls[]> => attachFileUrls(ctx, cards, { gridOnly: true });
 
 export const attachCardSummaryUrls = async (
   _ctx: unknown,

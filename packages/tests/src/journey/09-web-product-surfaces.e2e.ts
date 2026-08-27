@@ -413,12 +413,21 @@ test("web uploads and paste-created files complete", async ({
   await page.goto("/");
   const compactPath = new URL(uploadedImage?.compactUrl ?? "").pathname;
   const placeholderPath = new URL(uploadedImage?.placeholderUrl ?? "").pathname;
-  await expect(page.locator(`main img[src*="${compactPath}"]`)).toBeVisible({
+  const uploadedPreview = page
+    .locator(`main img[srcset*="${compactPath}"]`)
+    .first();
+  await expect(uploadedPreview).toBeVisible({
     timeout: 30_000,
   });
-  await expect(
-    page.locator(`main img[src*="${placeholderPath}"]`)
-  ).toBeAttached();
+  await expect(uploadedPreview).toHaveJSProperty("complete", true);
+  expect(
+    await uploadedPreview.evaluate(
+      (image) => (image as HTMLImageElement).naturalWidth
+    )
+  ).toBeGreaterThan(0);
+  await expect(page.locator(`main img[src*="${placeholderPath}"]`)).toHaveCount(
+    0
+  );
 });
 
 test("web bulk actions, restore, and empty states stay coherent", async ({
