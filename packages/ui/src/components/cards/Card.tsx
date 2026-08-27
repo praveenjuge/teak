@@ -1,3 +1,5 @@
+import { api } from "@teak/convex";
+import type { Id } from "@teak/convex/_generated/dataModel";
 import { inferFileFormat } from "@teak/convex/shared/file-formats";
 import { sanitizeExternalUrl } from "@teak/convex/shared/utils/safeUrl";
 import { CardContent, Card as UICard } from "@teak/ui/components/ui/card";
@@ -9,6 +11,7 @@ import {
   ContextMenuSeparator,
   ContextMenuTrigger,
 } from "@teak/ui/components/ui/context-menu";
+import { useAction } from "convex/react";
 import {
   CheckSquare,
   Copy,
@@ -35,6 +38,34 @@ import { isOptimisticCard } from "./types";
 
 export type { CardProps, CardWithUrls, LinkPreviewMetadata } from "./types";
 
+export async function resolveImageCopyUrl({
+  cardId,
+  fallbackUrl,
+  fileKey,
+  refresh,
+}: {
+  cardId: string;
+  fallbackUrl: string;
+  fileKey?: string;
+  refresh: (args: {
+    cardId: Id<"cards">;
+    key: string;
+  }) => Promise<{ url: string }>;
+}): Promise<string> {
+  if (!fileKey) {
+    return fallbackUrl;
+  }
+  try {
+    const { url } = await refresh({
+      cardId: cardId as Id<"cards">,
+      key: fileKey,
+    });
+    return url;
+  } catch {
+    return fallbackUrl;
+  }
+}
+
 export const Card = memo(function Card({
   card,
   onClick,
@@ -50,6 +81,9 @@ export const Card = memo(function Card({
   onEnterSelectionMode,
   onToggleSelection,
 }: CardProps) {
+  const refreshCardMediaUrl = useAction(
+    api.card.getFileUrl.refreshCardMediaUrl
+  );
   const isOptimistic = isOptimisticCard(card._id);
   const fileName = card.fileMetadata?.fileName;
   const fileFormat =
@@ -126,7 +160,7 @@ export const Card = memo(function Card({
     onAddTags?.(card._id);
   };
 
-  const handleCopyImage = () => {
+  const handleCopyImage = async () => {
     if (isOptimistic) {
       return;
     }
@@ -134,7 +168,13 @@ export const Card = memo(function Card({
     let isImage = false;
     if (card.type === "image") {
       isImage = true;
-      contentToCopy = card.fileUrl ?? card.thumbnailUrl ?? "";
+      const fallbackUrl = card.fileUrl ?? card.thumbnailUrl ?? "";
+      contentToCopy = await resolveImageCopyUrl({
+        cardId: card._id,
+        fallbackUrl,
+        fileKey: card.fileKey,
+        refresh: refreshCardMediaUrl,
+      });
     } else if (card.type === "text") {
       contentToCopy = card.content ?? "";
     } else if (card.type === "link" && card.url) {
@@ -506,7 +546,7 @@ export const Card = memo(function Card({
             card.type === "link" ||
             (card.type === "image" &&
               card.fileMetadata?.mimeType !== "image/svg+xml")) && (
-            <ContextMenuItem onClick={handleCopyImage}>
+            <ContextMenuItem onClick={() => void handleCopyImage()}>
               <Copy />
               {copyMenuLabel}
             </ContextMenuItem>
