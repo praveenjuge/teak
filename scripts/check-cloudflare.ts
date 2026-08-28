@@ -131,7 +131,7 @@ const checkDevVars = () => {
   );
 };
 
-const checkConvexEnv = () => {
+const checkConvexEnv = async () => {
   console.log("\n== Convex env parity (read-only, no secret output) ==");
   console.log(`  Expected prod vars: ${expectedProdVars.join(", ")}`);
   console.log(`  Expected dev vars: ${expectedDevVars.join(", ")}`);
@@ -139,31 +139,130 @@ const checkConvexEnv = () => {
     "  Dev-specific routing: R2_BUCKET=teak-files-prod, R2_KEY_PREFIX=dev/, FILES_BASE=https://files.teakvault.com (or temp preview during pre-merge)"
   );
 
-  // Without live comparison, report local env presence only.
-  for (const name of expectedProdVars) {
-    const present = Boolean(process.env[name]);
-    log(
-      `prod ${name}`,
-      present ? "ok" : "missing",
-      present
-        ? "set locally or via Convex"
-        : "copy from Convex prod to dev without logging value"
+  const getDeploymentValue = async (
+    name: string,
+    deployment: "prod" | "dev"
+  ): Promise<{ found: boolean; value: string }> => {
+    try {
+      // biome-ignore lint/correctness/noUndeclaredVariables: Bun global in Bun runtime
+      const proc = Bun.spawn(
+        ["npx", "convex", "env", "get", name, "--deployment", deployment],
+        { cwd: ROOT, stdout: "pipe", stderr: "pipe" }
+      );
+      await proc.exited;
+      const out = await new Response(proc.stdout).text();
+      const err = await new Response(proc.stderr).text();
+      const combined = `${out}\n${err}`;
+      if (combined.includes("not found")) {
+        return { found: false, value: "" };
+      }
+      const lines = out
+        .split("\n")
+        .filter(
+          (l) => !(l.includes("ExperimentalWarning") || l.includes("Use node"))
+        );
+      const value = lines[lines.length - 1]?.trim() ?? "";
+      if (!value || proc.exitCode !== 0) {
+        return { found: false, value: "" };
+      }
+      return { found: true, value };
+    } catch {
+      return { found: false, value: "" };
+    }
+  };
+
+  let hasDeployment = false;
+  try {
+    const test = await getDeploymentValue("CLOUDFLARE_ACCOUNT_ID", "prod");
+    hasDeployment =
+      test.found ||
+      (await getDeploymentValue("CLOUDFLARE_ACCOUNT_ID", "dev")).found;
+  } catch {}
+
+  if (hasDeployment) {
+    for (const name of expectedProdVars) {
+      const prod = await getDeploymentValue(name, "prod");
+      const dev = await getDeploymentValue(name, "dev");
+      if (!(prod.found || dev.found)) {
+        log(name, "missing", "both deployments missing");
+      } else if (!prod.found) {
+        log(name, "missing", "prod missing");
+      } else if (!dev.found) {
+        log(name, "missing", "dev missing");
+      } else if (prod.value === dev.value) {
+        log(name, "same", "prod == dev");
+      } else {
+        log(name, "different", "prod != dev (content not shown)");
+      }
+    }
+    for (const name of ["R2_BUCKET", "R2_KEY_PREFIX", "FILES_BASE"] as const) {
+      const dev = await getDeploymentValue(name, "dev");
+      const prod = await getDeploymentValue(name, "prod");
+      if (name === "R2_KEY_PREFIX") {
+        if (!dev.found) {
+          log(name, "missing", "dev should be dev/");
+        } else if (dev.value === "dev/") {
+          log(name, "same", "dev prefix ok");
+        } else {
+          log(
+            name,
+            "different",
+            `dev is ${dev.value ? "set" : "missing"} (content not shown)`
+          );
+        }
+        if (prod.found) {
+          log(`${name} (prod)`, "different", "prod should be unset");
+        }
+        continue;
+      }
+      if (
+        name === "R2_BUCKET" &&
+        dev.found &&
+        dev.value === "teak-files-prod"
+      ) {
+        log(name, "same", "prod bucket canonical");
+      } else if (
+        name === "FILES_BASE" &&
+        dev.found &&
+        dev.value === "https://files.teakvault.com"
+      ) {
+        log(name, "same", "worker origin prod");
+      } else if (dev.found) {
+        log(name, "different", "value present (content not shown)");
+      } else {
+        log(name, "missing");
+      }
+    }
+  } else {
+    console.log(
+      "  (No Convex deployment reachable locally; reporting local env presence only)"
     );
-  }
-  for (const name of ["R2_BUCKET", "R2_KEY_PREFIX", "FILES_BASE"] as const) {
-    const val = process.env[name];
-    if (!val) {
-      log(`dev ${name}`, "missing");
-    } else if (name === "R2_BUCKET" && val === "teak-files-prod") {
-      log(`dev ${name}`, "ok", "prod bucket canonical");
-    } else if (name === "R2_KEY_PREFIX" && val === "dev/") {
-      log(`dev ${name}`, "ok", "dev prefix");
-    } else if (name === "FILES_BASE" && val.startsWith("https://")) {
-      log(`dev ${name}`, "ok", "worker origin");
-    } else {
-      log(`dev ${name}`, "different", "value present (content not shown)");
+    for (const name of expectedProdVars) {
+      const present = Boolean(process.env[name]);
+      log(
+        `prod ${name}`,
+        present ? "ok" : "missing",
+        present
+          ? "set locally or via Convex"
+          : "copy from Convex prod to dev without logging value"
+      );
+    }
+    for (const name of ["R2_BUCKET", "R2_KEY_PREFIX", "FILES_BASE"] as const) {
+      const val = process.env[name];
+      if (!val) {
+        log(`dev ${name}`, "missing");
+      } else if (name === "R2_BUCKET" && val === "teak-files-prod") {
+        log(`dev ${name}`, "ok", "prod bucket canonical");
+      } else if (name === "R2_KEY_PREFIX" && val === "dev/") {
+        log(`dev ${name}`, "ok", "dev prefix");
+      } else if (name === "FILES_BASE" && val.startsWith("https://")) {
+        log(`dev ${name}`, "ok", "worker origin");
+      } else {
+        log(`dev ${name}`, "different", "value present (content not shown)");
+      }
     }
   }
+
   console.log(
     "\n  Convergence: read prod values (CLOUDFLARE_* etc.) and set in Convex dev via `npx convex env set --deployment dev NAME` without logging; report only same/different/missing/updated."
   );
@@ -172,13 +271,13 @@ const checkConvexEnv = () => {
   );
 };
 
-const main = () => {
+const main = async () => {
   console.log(
     "Cloudflare / R2 parity check (read-only, secrets never printed)"
   );
   checkWrangler();
   checkDevVars();
-  checkConvexEnv();
+  await checkConvexEnv();
   console.log("\n== Summary ==");
   console.log(
     "  • Keep `bun run dev` for all-surface stack; use `bun run dev:files` (remote bindings) vs `bun run dev:files:local` (Miniflare, low-fidelity Images)."

@@ -19,7 +19,8 @@ test("getFileUrl enforces auth and card ownership checks", () => {
       /linkPreview\?\.screenshotStorageKey\s*===\s*args\.key/.test(source) &&
       /linkPreview\?\.imageStorageKey\s*===\s*args\.key/.test(source)) ||
     (/cardOwnsMediaKey/.test(source) &&
-      /card\.fileKey\s*===\s*key/.test(source));
+      /card\.fileKey\s*===\s*key/.test(source) &&
+      /cardOwnsMediaKey\s*\(\s*card\s*,\s*args\.key\s*\)/.test(source));
 
   expect(requiresKey).toBe(true);
   expect(requiresCardId).toBe(true);

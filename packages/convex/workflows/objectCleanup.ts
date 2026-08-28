@@ -38,12 +38,11 @@ export const deleteObjectsAction = internalAction({
     if (!isFilesWorkerConfigured()) {
       throw new Error("files_worker_not_configured");
     }
-    const unique = Array.from(
-      new Set(keys.filter((key) => key.length > 0 && isR2KeyInNamespace(key)))
-    );
-    if (unique.length !== keys.filter((key) => key.length > 0).length) {
+    const usable = keys.filter((key) => key.length > 0);
+    if (usable.some((key) => !isR2KeyInNamespace(key))) {
       throw new Error("invalid_storage_key_namespace");
     }
+    const unique = Array.from(new Set(usable));
     let deleted = 0;
     for (let index = 0; index < unique.length; index += DELETE_BATCH_SIZE) {
       const outcome = await callFilesWorkerJson<{ deleted: number }>({
