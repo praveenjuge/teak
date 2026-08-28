@@ -7,7 +7,7 @@ import {
   type FilesWorkerListObjectsResult,
   isFilesWorkerConfigured,
 } from "./filesWorkerClient";
-import { PENDING_UPLOAD_CARD_ID } from "./r2";
+import { buildR2ListPrefix, PENDING_UPLOAD_CARD_ID } from "./r2";
 
 const STALE_AFTER_MS = 24 * 60 * 60 * 1000;
 const PENDING_UPLOAD_SEGMENT = `/cards/${PENDING_UPLOAD_CARD_ID}/`;
@@ -40,7 +40,7 @@ export const sweepStalePendingUploadsHandler = async (): Promise<null> => {
 
   do {
     const params: Record<string, unknown> = {
-      prefix: "users/",
+      prefix: buildR2ListPrefix(),
       limit: LIST_PAGE_LIMIT,
     };
     if (cursor) {

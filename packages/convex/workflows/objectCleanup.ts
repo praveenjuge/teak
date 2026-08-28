@@ -16,6 +16,7 @@ import {
   callFilesWorkerJson,
   isFilesWorkerConfigured,
 } from "../storage/filesWorkerClient";
+import { isR2KeyInNamespace } from "../storage/r2";
 import { workflow } from "./manager";
 
 const internalAny = internal as any;
@@ -37,7 +38,11 @@ export const deleteObjectsAction = internalAction({
     if (!isFilesWorkerConfigured()) {
       throw new Error("files_worker_not_configured");
     }
-    const unique = Array.from(new Set(keys.filter((key) => key.length > 0)));
+    const usable = keys.filter((key) => key.length > 0);
+    if (usable.some((key) => !isR2KeyInNamespace(key))) {
+      throw new Error("invalid_storage_key_namespace");
+    }
+    const unique = Array.from(new Set(usable));
     let deleted = 0;
     for (let index = 0; index < unique.length; index += DELETE_BATCH_SIZE) {
       const outcome = await callFilesWorkerJson<{ deleted: number }>({
@@ -113,6 +118,11 @@ export const startObjectDeletion = internalMutation({
   returns: v.null(),
   handler: async (ctx, { keys }) => {
     const usable = keys.filter((key) => key.length > 0);
+    for (const key of usable) {
+      if (!isR2KeyInNamespace(key)) {
+        throw new Error("invalid_storage_key_namespace");
+      }
+    }
     if (usable.length === 0) {
       return null;
     }

@@ -14,10 +14,13 @@ test("getFileUrl enforces auth and card ownership checks", () => {
   const requiresAuth = /if\s*\(\s*!user\s*\)/.test(source);
   const checksOwnership = /card\.userId\s*!==\s*user\.subject/.test(source);
   const checksFileMatch =
-    /card\.fileKey\s*===\s*args\.key/.test(source) &&
-    /card\.thumbnailKey\s*===\s*args\.key/.test(source) &&
-    /linkPreview\?\.screenshotStorageKey\s*===\s*args\.key/.test(source) &&
-    /linkPreview\?\.imageStorageKey\s*===\s*args\.key/.test(source);
+    (/card\.fileKey\s*===\s*args\.key/.test(source) &&
+      /card\.thumbnailKey\s*===\s*args\.key/.test(source) &&
+      /linkPreview\?\.screenshotStorageKey\s*===\s*args\.key/.test(source) &&
+      /linkPreview\?\.imageStorageKey\s*===\s*args\.key/.test(source)) ||
+    (/cardOwnsMediaKey/.test(source) &&
+      /card\.fileKey\s*===\s*key/.test(source) &&
+      /cardOwnsMediaKey\s*\(\s*card\s*,\s*args\.key\s*\)/.test(source));
 
   expect(requiresKey).toBe(true);
   expect(requiresCardId).toBe(true);

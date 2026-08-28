@@ -17,7 +17,7 @@ import {
   type FilesOp,
   type FilesOpRequest,
 } from "@teak/files-protocol";
-import { hmacSha256Hex } from "./r2";
+import { assertR2KeyInNamespace, hmacSha256Hex } from "./r2";
 
 // Op URLs are minted per action invocation; a short TTL bounds the replay
 // window (the worker additionally rejects exps further than 15 min out).
@@ -65,6 +65,7 @@ export const buildSignedWorkerUploadUrl = async (
   ) {
     throw new Error("invalid_upload_ttl");
   }
+  assertR2KeyInNamespace(key);
   const expiresAtNumber = nowSeconds + ttlSeconds;
   const expiresAt = String(expiresAtNumber);
   const signature = await hmacSha256Hex(
@@ -150,6 +151,7 @@ export const buildSignedMultipartPartUrl = async (
   if (!(base && secret)) {
     throw new Error("files_worker_not_configured");
   }
+  assertR2KeyInNamespace(key);
   const expiresAt = String(nowSeconds + 60 * 60);
   const signature = await hmacSha256Hex(
     secret,

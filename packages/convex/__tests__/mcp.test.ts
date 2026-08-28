@@ -44,10 +44,26 @@ const EXPECTED_TOOL_NAMES = [
 ];
 
 afterEach(() => {
-  process.env.PUBLIC_API_URL = originalPublicApiUrl;
-  process.env.PUBLIC_MCP_URL = originalPublicMcpUrl;
-  process.env.AUTH_ISSUER_URL = originalAuthIssuerUrl;
-  process.env.SITE_URL = originalSiteUrl;
+  if (originalPublicApiUrl === undefined) {
+    delete process.env.PUBLIC_API_URL;
+  } else {
+    process.env.PUBLIC_API_URL = originalPublicApiUrl;
+  }
+  if (originalPublicMcpUrl === undefined) {
+    delete process.env.PUBLIC_MCP_URL;
+  } else {
+    process.env.PUBLIC_MCP_URL = originalPublicMcpUrl;
+  }
+  if (originalAuthIssuerUrl === undefined) {
+    delete process.env.AUTH_ISSUER_URL;
+  } else {
+    process.env.AUTH_ISSUER_URL = originalAuthIssuerUrl;
+  }
+  if (originalSiteUrl === undefined) {
+    delete process.env.SITE_URL;
+  } else {
+    process.env.SITE_URL = originalSiteUrl;
+  }
 });
 
 const mcpRequest = (

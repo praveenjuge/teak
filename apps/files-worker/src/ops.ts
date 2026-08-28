@@ -73,9 +73,12 @@ const optionalString = (
   return typeof value === "string" && value ? value : null;
 };
 
+const stripDevPrefix = (key: string): string =>
+  key.startsWith("dev/") ? key.slice(4) : key;
+
 const sameUserNamespace = (left: string, right: string): boolean => {
-  const leftParts = left.split("/");
-  const rightParts = right.split("/");
+  const leftParts = stripDevPrefix(left).split("/");
+  const rightParts = stripDevPrefix(right).split("/");
   return (
     leftParts[0] === "users" &&
     rightParts[0] === "users" &&
@@ -313,7 +316,10 @@ const dispatch = async (
     }
     case "list-objects": {
       const prefix = requiredString(params, "prefix");
-      if (!prefix.startsWith("users/") || prefix.includes("\\0")) {
+      if (
+        !(prefix.startsWith("users/") || prefix.startsWith("dev/users/")) ||
+        prefix.includes("\0")
+      ) {
         throw new Error("invalid_prefix");
       }
       const limit = params.limit;

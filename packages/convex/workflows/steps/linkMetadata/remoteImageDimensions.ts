@@ -1,4 +1,4 @@
-import { imageSize } from "image-size";
+import probe from "probe-image-size";
 
 export const MAX_REMOTE_IMAGE_PIXELS = 32 * 1024 * 1024;
 
@@ -6,7 +6,11 @@ export const readRemoteImageDimensions = (
   bytes: Uint8Array
 ): { height: number; width: number } | null => {
   try {
-    const { height, width } = imageSize(bytes);
+    const result = probe.sync(Buffer.from(bytes));
+    if (!result) {
+      return null;
+    }
+    const { height, width } = result;
     if (!(height && width) || width > MAX_REMOTE_IMAGE_PIXELS / height) {
       return null;
     }

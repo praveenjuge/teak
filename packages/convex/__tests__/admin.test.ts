@@ -73,7 +73,7 @@ describe("admin.ts", () => {
     });
 
     test("fails closed when the admin email is not configured", async () => {
-      process.env.TEAK_ADMIN_EMAIL = undefined;
+      delete process.env.TEAK_ADMIN_EMAIL;
       const ctx = {
         auth: { getUserIdentity: mock().mockResolvedValue({ subject: "u1" }) },
         runQuery: mock(),

@@ -19,7 +19,7 @@
     "blume": "^1.4.1"
   },
   "devDependencies": {
-    "@types/bun": "^1.3.14",
+    "@types/bun": "^1.4.0",
     "open-cli": "9.0.0",
     "typescript": "^6.0.3"
   },
