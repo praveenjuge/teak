@@ -1,79 +1,34 @@
-# Desktop Release Runbook
+# Desktop release runbook
 
-This runbook defines Teak desktop launch and incident response for macOS Apple Silicon releases.
+Teak desktop ships signed and notarized macOS Apple Silicon builds through `.github/workflows/desktop-release.yml`.
 
-## Ownership
+## Canonical release
 
-- Release owner: Desktop maintainer on duty
-- Backup owner: Platform maintainer on duty
-- Incident channel: `#desktop-release`
-- On-call window: first 72 hours after each production desktop release
+1. Update every tracked `package.json` to the same next patch version and synchronize `bun.lock`.
+2. Merge the scoped version change to `main`.
+3. `Version Tag` verifies the patch and lockstep invariants, creates `v<version>`, and dispatches every product release for that tag.
+4. `Desktop Release` builds, signs, notarizes, and verifies the app before publishing the DMG, zip, blockmaps, and `latest-mac.yml` to the matching GitHub Release.
+5. Install the published DMG on a test Mac. Verify launch, sign-in, sync, codesigning, Gatekeeper acceptance, and the stapled notarization ticket.
+6. From an older installation, verify the updater resolves and installs the new version using the published `latest-mac.yml`.
+7. Monitor authentication, sync, updater failures, crash reports, and support reports for 72 hours.
 
-## Promotion Procedure
+The release is complete only when the workflow is green, the published artifact passes the installed-app smoke test, and an older build can resolve the update.
 
-1. Bump the `version` field in **every** `package.json` across the monorepo (root + all workspaces under `apps/*` and `packages/*`).
-2. Commit and push to `main`.
-3. Create and push a version tag:
-   ```bash
-   git tag v<version>
-   git push origin v<version>
-   ```
-4. `Desktop Release` workflow (`.github/workflows/desktop-release.yml`) runs from that tag:
-   - Builds renderer, main, and preload via `vite build` (orchestrated through `bun run build`, driven by `@electron-forge/plugin-vite` configs)
-   - Imports signing credentials from GitHub Actions secrets
-   - Packages, signs, and notarizes the macOS Apple Silicon app via `electron-builder`
-   - Verifies codesign, Gatekeeper assessment, and the stapled notarization ticket
-   - Publishes GitHub Release assets including `latest-mac.yml` updater metadata only after verification passes
-5. Validate release gates:
-   - Codesign verification (`codesign --verify --deep --strict`)
-   - Gatekeeper assessment (`spctl --assess --type execute`)
-   - Smoke test install from DMG
-6. Verify updater metadata publish:
-   - `latest-mac.yml` is present in the GitHub Release assets
-   - `electron-updater` resolves the new version on a test machine
-7. Announce release in team channel with:
-   - Version
-   - Release URL
-   - Known issues (if any)
+## Retry and recovery
 
-## Rollback Procedure
+- Rerun the failed GitHub Actions job when the failure is transient.
+- If source or workflow changes are required after a tag exists, ship the fix as the next patch version. Keep published version tags immutable.
+- The workflow is idempotent: it skips a version whose primary DMG already exists on the matching GitHub Release.
+- For a critical regression, mark the affected GitHub Release as a prerelease or add a warning, direct users to the last known good build, and ship a corrected patch. Do not silently replace a published tag or artifact.
 
-Use rollback when critical regressions impact launch, auth, sync, or update safety.
+## Required repository secrets
 
-1. Identify last known good release tag.
-2. Edit the GitHub Release for the bad version: mark as pre-release or add a warning note.
-3. Re-publish the last good version's `latest-mac.yml` as a new GitHub Release so `electron-updater` picks it up.
-4. Update `/apps` and support communications to steer users to stable build.
-5. Post-incident notes:
-   - impact window
-   - root cause
-   - corrective actions
+- `CSC_LINK`
+- `CSC_KEY_PASSWORD`
+- `APPLE_API_KEY_ID`
+- `APPLE_API_KEY_P8`
+- `APPLE_API_ISSUER`
+- `SENTRY_AUTH_TOKEN`
+- `SENTRY_DESKTOP_DSN`
 
-## 72-Hour Launch Monitoring Checklist
-
-- Auth success/failure rates are stable.
-- Updater success/failure rates are stable.
-- Crash reports and support tickets are reviewed at least twice daily.
-- New regressions are triaged with owner and ETA.
-
-## Release Artifacts
-
-- DMG installer for manual install.
-- Zip archive for auto-update delivery via `electron-updater`.
-- `latest-mac.yml` metadata for `electron-updater` version resolution.
-- GitHub Release description is intentionally left empty by the release workflow.
-
-## Required CI Secrets
-
-- `CSC_LINK` — Base64-encoded Developer ID Application `.p12` signing certificate
-- `CSC_KEY_PASSWORD` — Password for the signing certificate
-- `APPLE_API_KEY_ID` — App Store Connect API key ID for notarization
-- `APPLE_API_KEY_P8` — Raw `.p8` App Store Connect API private key content for notarization
-- `APPLE_API_ISSUER` — App Store Connect API issuer UUID for notarization
-- `GH_TOKEN` — GitHub token for publishing releases (provided automatically by `secrets.GITHUB_TOKEN`)
-
-### Build-Time Environment Variables (hardcoded in workflow)
-
-- `VITE_WEB_URL` — Production web app URL
-- `VITE_PUBLIC_CONVEX_URL` — Production Convex deployment URL
-- `VITE_PUBLIC_CONVEX_SITE_URL` — Production Convex site URL
+GitHub supplies the release token. Treat every signing and service credential as runtime-only secret material.
