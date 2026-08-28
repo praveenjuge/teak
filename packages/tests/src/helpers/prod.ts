@@ -10,9 +10,119 @@ import { env, requirePassword, uniqueEmail } from "./env";
 import { waitForEmail } from "./mailpit";
 import { type AccountState, rememberAccount, updateState } from "./run-state";
 
+const TRANSIENT_API_STATUSES = new Set([429, 500, 502, 503, 504]);
+const TRANSIENT_API_RETRY_DELAYS_MS = [500, 1500];
+const PROD_E2E_API_TIMEOUT_MS = 35_000;
+
+const sleep = (delayMs: number) =>
+  new Promise((resolve) => setTimeout(resolve, delayMs));
+
+const waitForRetry = async (
+  wait: (delayMs: number) => Promise<unknown>,
+  delayMs: number,
+  signal?: AbortSignal | null
+) => {
+  if (!signal) {
+    await wait(delayMs);
+    return;
+  }
+  if (signal.aborted) {
+    throw signal.reason ?? new DOMException("Aborted", "AbortError");
+  }
+
+  let rejectOnAbort: (() => void) | undefined;
+  const aborted = new Promise<never>((_resolve, reject) => {
+    rejectOnAbort = () =>
+      reject(signal.reason ?? new DOMException("Aborted", "AbortError"));
+    signal.addEventListener("abort", rejectOnAbort, { once: true });
+  });
+  try {
+    await Promise.race([wait(delayMs), aborted]);
+  } finally {
+    if (rejectOnAbort) {
+      signal.removeEventListener("abort", rejectOnAbort);
+    }
+  }
+};
+
+export const createProdE2EFetch = (
+  fetchImpl: typeof fetch = fetch,
+  wait: (delayMs: number) => Promise<unknown> = sleep,
+  attemptTimeoutMs = 10_000
+): typeof fetch => {
+  const retryingFetch = async (
+    input: RequestInfo | URL,
+    init?: RequestInit
+  ) => {
+    const request = input instanceof Request ? input : null;
+    const overallSignal = init?.signal ?? request?.signal;
+    const method = (init?.method ?? request?.method ?? "GET").toUpperCase();
+    const headers = new Headers(init?.headers ?? request?.headers);
+    const url = request?.url ?? String(input);
+    const isCardCreate =
+      method === "POST" && new URL(url).pathname.endsWith("/v1/cards");
+    if (isCardCreate && !headers.has("Idempotency-Key")) {
+      headers.set("Idempotency-Key", crypto.randomUUID());
+    }
+    const isSafeToRetry =
+      isCardCreate || ["GET", "HEAD", "OPTIONS"].includes(method);
+    // Normalize the reusable body without a signal. Each attempt composes a
+    // fresh timeout with the SDK's longer overall E2E request deadline.
+    const retryRequest = new Request(input, {
+      ...init,
+      headers,
+      signal: null,
+    });
+
+    for (let attempt = 0; ; attempt += 1) {
+      const delayMs = TRANSIENT_API_RETRY_DELAYS_MS[attempt];
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), attemptTimeoutMs);
+      const signal = overallSignal
+        ? AbortSignal.any([overallSignal, controller.signal])
+        : controller.signal;
+      let response: Response;
+      try {
+        response = await fetchImpl(retryRequest.clone(), {
+          signal,
+        });
+      } catch (error) {
+        if (
+          overallSignal?.aborted ||
+          delayMs === undefined ||
+          !isSafeToRetry ||
+          !(error instanceof DOMException && error.name === "AbortError")
+        ) {
+          throw error;
+        }
+        clearTimeout(timeout);
+        await waitForRetry(wait, delayMs, overallSignal);
+        continue;
+      } finally {
+        clearTimeout(timeout);
+      }
+      if (
+        delayMs === undefined ||
+        !isSafeToRetry ||
+        !TRANSIENT_API_STATUSES.has(response.status)
+      ) {
+        return response;
+      }
+      await response.body?.cancel();
+      if (overallSignal?.aborted) {
+        throw overallSignal.reason ?? new DOMException("Aborted", "AbortError");
+      }
+      await waitForRetry(wait, delayMs, overallSignal);
+    }
+  };
+  return retryingFetch as typeof fetch;
+};
+
 export const clientFor = (apiKey: string) =>
   createTeakClient({
     baseUrl: env.apiUrl,
+    fetch: createProdE2EFetch(),
+    timeoutMs: PROD_E2E_API_TIMEOUT_MS,
     tokenProvider: { getAccessToken: async () => apiKey },
     userAgent: "teak-prod-e2e",
   });

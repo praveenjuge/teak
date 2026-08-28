@@ -16,10 +16,42 @@ import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 
 const ROOT = join(import.meta.dir, "..");
+const CONVEX_PATH = join(ROOT, "packages/convex");
 const WRANGLER_PATH = join(ROOT, "apps/files-worker/wrangler.jsonc");
 const DEV_VARS_PATH = join(ROOT, "apps/files-worker/.dev.vars");
 
-type Status = "same" | "different" | "missing" | "updated" | "ok" | "warn";
+type Status = "same" | "different" | "missing" | "ok" | "warn";
+
+export type DeploymentValueResult =
+  | { status: "found"; value: string }
+  | { status: "missing" }
+  | { status: "unavailable"; reason: "command_failed" | "spawn_failed" };
+
+export const parseConvexEnvOutput = (
+  stdout: string,
+  stderr: string,
+  exitCode: number
+): DeploymentValueResult => {
+  const combined = `${stdout}\n${stderr}`;
+  if (/environment variable .* not found/i.test(combined)) {
+    return { status: "missing" };
+  }
+  if (exitCode !== 0) {
+    return { status: "unavailable", reason: "command_failed" };
+  }
+  const value = stdout
+    .split("\n")
+    .map((line) => line.trim())
+    .filter(
+      (line) =>
+        line.length > 0 &&
+        !(line.includes("ExperimentalWarning") || line.includes("Use node"))
+    )
+    .at(-1);
+  return value
+    ? { status: "found", value }
+    : { status: "unavailable", reason: "command_failed" };
+};
 
 const expectedProdVars = [
   "CLOUDFLARE_ACCOUNT_ID",
@@ -36,6 +68,7 @@ const expectedDevVars = [
   "R2_BUCKET",
   "R2_KEY_PREFIX",
   "FILES_BASE",
+  "FILES_LEGACY_BASE",
 ] as const;
 
 const log = (label: string, status: Status, detail?: string) => {
@@ -120,11 +153,7 @@ const checkDevVars = () => {
       }
     } catch {}
   } else {
-    log(
-      ".dev.vars",
-      "missing",
-      "create from template: echo 'FILES_SIGNING_SECRET=...' > apps/files-worker/.dev.vars (ignored)"
-    );
+    log(".dev.vars", "missing", "run bun run sync:cloudflare-dev");
   }
   console.log(
     "  Production-data warning: dev bucket is prod (teak-files-prod + dev/ prefix). Writes are isolated by prefix but share credentials bucket-wide."
@@ -136,135 +165,122 @@ const checkConvexEnv = async () => {
   console.log(`  Expected prod vars: ${expectedProdVars.join(", ")}`);
   console.log(`  Expected dev vars: ${expectedDevVars.join(", ")}`);
   console.log(
-    "  Dev-specific routing: R2_BUCKET=teak-files-prod, R2_KEY_PREFIX=dev/, FILES_BASE=https://files.teakvault.com (or temp preview during pre-merge)"
+    "  Dev-specific routing: R2_BUCKET=teak-files-prod, R2_KEY_PREFIX=dev/, FILES_BASE=https://files.teakvault.com, FILES_LEGACY_BASE=https://files-dev.teakvault.com"
   );
 
   const getDeploymentValue = async (
     name: string,
     deployment: "prod" | "dev"
-  ): Promise<{ found: boolean; value: string }> => {
+  ): Promise<DeploymentValueResult> => {
     try {
       // biome-ignore lint/correctness/noUndeclaredVariables: Bun global in Bun runtime
       const proc = Bun.spawn(
-        ["npx", "convex", "env", "get", name, "--deployment", deployment],
-        { cwd: ROOT, stdout: "pipe", stderr: "pipe" }
+        ["bunx", "convex", "env", "get", name, "--deployment", deployment],
+        { cwd: CONVEX_PATH, stdout: "pipe", stderr: "pipe" }
       );
       await proc.exited;
       const out = await new Response(proc.stdout).text();
       const err = await new Response(proc.stderr).text();
-      const combined = `${out}\n${err}`;
-      if (combined.includes("not found")) {
-        return { found: false, value: "" };
-      }
-      const lines = out
-        .split("\n")
-        .filter(
-          (l) => !(l.includes("ExperimentalWarning") || l.includes("Use node"))
-        );
-      const value = lines[lines.length - 1]?.trim() ?? "";
-      if (!value || proc.exitCode !== 0) {
-        return { found: false, value: "" };
-      }
-      return { found: true, value };
+      return parseConvexEnvOutput(out, err, proc.exitCode ?? 1);
     } catch {
-      return { found: false, value: "" };
+      return { status: "unavailable", reason: "spawn_failed" };
     }
   };
 
-  let hasDeployment = false;
-  try {
-    const test = await getDeploymentValue("CLOUDFLARE_ACCOUNT_ID", "prod");
-    hasDeployment =
-      test.found ||
-      (await getDeploymentValue("CLOUDFLARE_ACCOUNT_ID", "dev")).found;
-  } catch {}
+  const routingVars = [
+    "R2_BUCKET",
+    "R2_KEY_PREFIX",
+    "FILES_BASE",
+    "FILES_LEGACY_BASE",
+  ] as const;
+  const deploymentValues = new Map(
+    await Promise.all(
+      [...expectedProdVars, ...routingVars].map(async (name) => {
+        const [prod, dev] = await Promise.all([
+          getDeploymentValue(name, "prod"),
+          getDeploymentValue(name, "dev"),
+        ]);
+        return [name, { dev, prod }] as const;
+      })
+    )
+  );
 
-  if (hasDeployment) {
-    for (const name of expectedProdVars) {
-      const prod = await getDeploymentValue(name, "prod");
-      const dev = await getDeploymentValue(name, "dev");
-      if (!(prod.found || dev.found)) {
-        log(name, "missing", "both deployments missing");
-      } else if (!prod.found) {
-        log(name, "missing", "prod missing");
-      } else if (!dev.found) {
-        log(name, "missing", "dev missing");
-      } else if (prod.value === dev.value) {
-        log(name, "same", "prod == dev");
-      } else {
-        log(name, "different", "prod != dev (content not shown)");
-      }
+  for (const name of expectedProdVars) {
+    const values = deploymentValues.get(name);
+    if (!values) {
+      log(name, "warn", "parity result unavailable");
+      continue;
     }
-    for (const name of ["R2_BUCKET", "R2_KEY_PREFIX", "FILES_BASE"] as const) {
-      const dev = await getDeploymentValue(name, "dev");
-      const prod = await getDeploymentValue(name, "prod");
-      if (name === "R2_KEY_PREFIX") {
-        if (!dev.found) {
-          log(name, "missing", "dev should be dev/");
-        } else if (dev.value === "dev/") {
-          log(name, "same", "dev prefix ok");
-        } else {
-          log(
-            name,
-            "different",
-            `dev is ${dev.value ? "set" : "missing"} (content not shown)`
-          );
-        }
-        if (prod.found) {
-          log(`${name} (prod)`, "different", "prod should be unset");
-        }
-        continue;
+    const { dev, prod } = values;
+    if (prod.status === "unavailable" || dev.status === "unavailable") {
+      log(name, "warn", "Convex CLI or deployment unavailable");
+    } else if (prod.status === "missing" && dev.status === "missing") {
+      log(name, "missing", "both deployments missing");
+    } else if (prod.status === "missing") {
+      log(name, "missing", "prod missing");
+    } else if (dev.status === "missing") {
+      log(name, "missing", "dev missing");
+    } else if (prod.value === dev.value) {
+      log(name, "same", "prod == dev");
+    } else {
+      log(name, "different", "prod != dev (content not shown)");
+    }
+  }
+  for (const name of routingVars) {
+    const values = deploymentValues.get(name);
+    if (!values) {
+      log(name, "warn", "parity result unavailable");
+      continue;
+    }
+    const { dev, prod } = values;
+    if (dev.status === "unavailable" || prod.status === "unavailable") {
+      log(name, "warn", "Convex CLI or deployment unavailable");
+      continue;
+    }
+    if (name === "R2_KEY_PREFIX") {
+      if (dev.status === "missing") {
+        log(name, "missing", "dev should be dev/");
+      } else if (dev.value === "dev/") {
+        log(name, "same", "dev prefix ok");
+      } else {
+        log(name, "different", "dev prefix is set incorrectly");
       }
+      if (prod.status === "found") {
+        log(`${name} (prod)`, "different", "prod should be unset");
+      } else {
+        log(`${name} (prod)`, "same", "prod prefix unset");
+      }
+      continue;
+    }
+    if (name === "FILES_LEGACY_BASE") {
       if (
-        name === "R2_BUCKET" &&
-        dev.found &&
-        dev.value === "teak-files-prod"
+        dev.status === "found" &&
+        dev.value === "https://files-dev.teakvault.com"
       ) {
-        log(name, "same", "prod bucket canonical");
-      } else if (
-        name === "FILES_BASE" &&
-        dev.found &&
-        dev.value === "https://files.teakvault.com"
-      ) {
-        log(name, "same", "worker origin prod");
-      } else if (dev.found) {
-        log(name, "different", "value present (content not shown)");
+        log(name, "same", "legacy dev reads retained");
       } else {
-        log(name, "missing");
+        log(name, "missing", "dev legacy reads require the retained worker");
       }
-    }
-  } else {
-    console.log(
-      "  (No Convex deployment reachable locally; reporting local env presence only)"
-    );
-    for (const name of expectedProdVars) {
-      const present = Boolean(process.env[name]);
-      log(
-        `prod ${name}`,
-        present ? "ok" : "missing",
-        present
-          ? "set locally or via Convex"
-          : "copy from Convex prod to dev without logging value"
-      );
-    }
-    for (const name of ["R2_BUCKET", "R2_KEY_PREFIX", "FILES_BASE"] as const) {
-      const val = process.env[name];
-      if (!val) {
-        log(`dev ${name}`, "missing");
-      } else if (name === "R2_BUCKET" && val === "teak-files-prod") {
-        log(`dev ${name}`, "ok", "prod bucket canonical");
-      } else if (name === "R2_KEY_PREFIX" && val === "dev/") {
-        log(`dev ${name}`, "ok", "dev prefix");
-      } else if (name === "FILES_BASE" && val.startsWith("https://")) {
-        log(`dev ${name}`, "ok", "worker origin");
+      if (prod.status === "found") {
+        log(`${name} (prod)`, "different", "prod should be unset");
       } else {
-        log(`dev ${name}`, "different", "value present (content not shown)");
+        log(`${name} (prod)`, "same", "prod legacy route unset");
       }
+      continue;
+    }
+    const expected =
+      name === "R2_BUCKET" ? "teak-files-prod" : "https://files.teakvault.com";
+    if (dev.status === "missing" || prod.status === "missing") {
+      log(name, "missing", "required in both deployments");
+    } else if (dev.value === expected && prod.value === expected) {
+      log(name, "same", "prod and dev use the canonical value");
+    } else {
+      log(name, "different", "prod or dev differs from the canonical value");
     }
   }
 
   console.log(
-    "\n  Convergence: read prod values (CLOUDFLARE_* etc.) and set in Convex dev via `npx convex env set --deployment dev NAME` without logging; report only same/different/missing/updated."
+    "\n  Convergence: read prod values (CLOUDFLARE_* etc.) and set in Convex dev via `bunx convex env set --deployment dev NAME` without logging; report only same/different/missing."
   );
   console.log(
     "  Prefix is routine-mistake protection, not a hard security boundary; shared credentials retain bucket-wide authority."
@@ -291,4 +307,6 @@ const main = async () => {
   console.log("");
 };
 
-await main();
+if (import.meta.main) {
+  await main();
+}
