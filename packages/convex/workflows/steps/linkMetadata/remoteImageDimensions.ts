@@ -1,3 +1,5 @@
+"use node";
+
 import probe from "probe-image-size";
 
 export const MAX_REMOTE_IMAGE_PIXELS = 32 * 1024 * 1024;
