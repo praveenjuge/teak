@@ -158,8 +158,10 @@ describe("billing.ts", () => {
 
   test("uses sandbox server by default", () => {
     const originalProd = process.env.POLAR_SERVER;
-    process.env.POLAR_SERVER = undefined;
+    delete process.env.POLAR_SERVER;
     expect(process.env.POLAR_SERVER).toBeUndefined();
-    process.env.POLAR_SERVER = originalProd;
+    if (originalProd !== undefined) {
+      process.env.POLAR_SERVER = originalProd;
+    }
   });
 });

@@ -12,6 +12,7 @@
     "build:extension": "turbo run build --filter=@teak/extension",
     "build:raycast": "turbo run build --filter=./apps/raycast",
     "check": "ultracite check",
+    "check:cloudflare": "bun run scripts/check-cloudflare.ts",
     "clean": "turbo daemon clean && rm -rf node_modules/.cache && find . -name '.turbo' -type d -prune -exec rm -rf {} +",
     "dev": "turbo watch dev --filter=@teak/web --filter=@teak/convex --filter=@teak/desktop --filter=./apps/raycast --filter=@teak/docs --filter=@teak/extension",
     "dev:all": "turbo watch dev",
@@ -20,6 +21,8 @@
     "dev:desktop": "turbo watch dev --filter=@teak/desktop",
     "dev:docs": "turbo watch dev --filter=@teak/docs",
     "dev:extension": "turbo watch dev --filter=@teak/extension --filter=@teak/convex",
+    "dev:files": "bun run --filter @teak/files-worker dev",
+    "dev:files:local": "bun run --filter @teak/files-worker dev:local",
     "dev:mobile": "turbo watch dev --filter=@teak/mobile",
     "dev:raycast": "turbo watch dev --filter=./apps/raycast",
     "dev:web": "turbo watch dev --filter=@teak/web --filter=@teak/convex",
@@ -55,7 +58,7 @@
     "turbo": "^2.10.9",
     "ultracite": "7.10.4"
   },
-  "packageManager": "bun@1.3.14",
+  "packageManager": "bun@1.4.0",
   "trustedDependencies": [
     "@sentry/cli",
     "@swc/core",

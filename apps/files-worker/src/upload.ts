@@ -45,9 +45,12 @@ export const uploadError = (
   return response;
 };
 
-/** Object keys live under per-user prefixes; refuse anything that could escape. */
+/** Object keys live under per-user prefixes; refuse anything that could escape.
+ * Production uses `users/...`, development uses `dev/users/...`; the canonical
+ * production Worker accepts both so dev traffic can share the prod bucket.
+ */
 export const isValidUploadKey = (key: string): boolean =>
-  key.startsWith("users/") &&
+  (key.startsWith("users/") || key.startsWith("dev/users/")) &&
   !key.includes("\0") &&
   !key.split("/").includes("..") &&
   !key.includes("//") &&

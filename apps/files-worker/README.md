@@ -1,9 +1,12 @@
 # @teak/files-worker
 
 The Cloudflare Worker for Teak file delivery, uploads, processing, imports,
-and exports. Production serves `files.teakvault.com` from `teak-files-prod`;
-the isolated development environment serves `files-dev.teakvault.com` from
-`teak-files-dev`. Both buckets remain private.
+and exports. Production serves `files.teakvault.com` from `teak-files-prod`
+(the canonical bucket for both environments). Development objects live under
+`dev/users/...` in the same `teak-files-prod` bucket; the legacy
+`files-dev.teakvault.com` Worker/domain and `teak-files-dev` bucket are
+retained unchanged for rollback only and are no longer in the canonical
+`wrangler.jsonc`.
 
 The Convex backend mints long-lived HMAC-signed URLs
 (`packages/convex/storage/r2.ts` → `buildSignedWorkerFileUrl`). This worker
@@ -58,9 +61,11 @@ requests at `/__ops/v1`. Contracts and typed success/error envelopes live in
 - `head-object` returns existence, size, ETag, and content type for a key —
   used to verify Kernel-generated media after direct uploads before Convex
   records it.
-- `list-objects` pages objects under a `users/` prefix (limit ≤1000, opaque
-  cursor) — used by the stale pending-upload sweep and the weekly
-  orphaned-object reconciliation report.
+- `list-objects` pages objects under a `users/` (prod) or `dev/users/`
+  (dev) prefix (limit ≤1000, opaque cursor) — used by the stale
+  pending-upload sweep and the weekly orphaned-object reconciliation report.
+  The production Worker accepts both prefixes so dev traffic can share the
+  prod bucket.
 - `generate-image-metadata` feeds the existing `detail` rendition into
   Workers AI (Gemma multimodal) with the same system prompt, JSON output
   shape, and bounded validation retries as the pipeline it replaced; image
@@ -77,9 +82,9 @@ type unbound: the signature is computed with an empty content type and the
 request's validated `Content-Type` header is stored verbatim (used when the
 encoding is decided at generation time, e.g. WebP-vs-JPEG video frames).
 `Content-Length` is mandatory, oversized bodies are rejected, and keys must
-live under a `users/<id>/...` prefix with no traversal segments
-(`src/upload.ts`). Server-generated media signs without a bound size and
-relies on the worker's hard cap instead.
+live under a `users/<id>/...` (or `dev/users/<id>/...` for dev) prefix
+with no traversal segments (`src/upload.ts`). Server-generated media signs
+without a bound size and relies on the worker's hard cap instead.
 
 Convex owns authorization, durable product state, and workflow orchestration;
 this Worker is the one canonical implementation for file-byte operations.
@@ -96,18 +101,44 @@ bun run cf-typegen  # refresh generated Worker bindings/runtime types
 bun run typecheck   # tsc --noEmit
 bunx wrangler deploy --dry-run --outdir /tmp/out   # bundle size check
 bun run deploy      # wrangler deploy (creates files.teakvault.com custom domain)
-bunx wrangler deploy --env development # deploys files-dev.teakvault.com
+
+# Local development
+bun run dev              # wrangler dev --remote (prod R2/Images remote, code local)
+bun run dev:local        # wrangler dev (isolated Miniflare, low-fidelity Images)
+# Or from repo root:
+bun run dev:files        # same as above, remote bindings
+bun run dev:files:local  # same as above, isolated
+
+# Config parity (read-only, never prints secrets)
+bun run check:cloudflare  # reports wrangler names + Convex env parity as same/different/missing/updated
+
+# One-time Convex convergence (copy prod -> dev without logging values):
+#   npx convex env get CLOUDFLARE_ACCOUNT_ID --prod   # read prod (no print in CI)
+#   npx convex env set CLOUDFLARE_ACCOUNT_ID <value> --deployment dev  # set dev
+# Repeat for CLOUDFLARE_API_TOKEN, FILES_SIGNING_SECRET, R2_ACCESS_KEY_ID,
+# R2_ENDPOINT, R2_SECRET_ACCESS_KEY, R2_TOKEN, then:
+#   npx convex env set R2_BUCKET teak-files-prod --deployment dev
+#   npx convex env set R2_KEY_PREFIX dev/ --deployment dev
+#   npx convex env set FILES_BASE https://files.teakvault.com --deployment dev
+# (During pre-merge, point FILES_BASE to `wrangler dev --remote` preview URL.)
 ```
 
-## Secrets
+## Secrets and local vars
 
 - `FILES_SIGNING_SECRET` — must match its corresponding Convex deployment.
-  Set production with `bunx wrangler secret put FILES_SIGNING_SECRET` and
-  development with
-  `bunx wrangler secret put FILES_SIGNING_SECRET --env development`.
+  Set production with `bunx wrangler secret put FILES_SIGNING_SECRET`.
+  The legacy `files-dev` Worker used `--env development`; that Worker is
+  retained for rollback but no longer canonical.
 - `SENTRY_DSN` — DSN for error reporting (`@sentry/cloudflare`, errors only).
   Reporting stays disabled until this is set. Set with:
   `bunx wrangler secret put SENTRY_DSN`
+
+- `apps/files-worker/.dev.vars` (ignored) — per-developer local overrides for
+  `wrangler dev`. Example: `FILES_SIGNING_SECRET=...`. Do not commit. The
+  canonical dev routing (`R2_BUCKET`, `R2_KEY_PREFIX`, `FILES_BASE`) lives in
+  Convex env, not `.dev.vars`. Production-data warning: dev writes share the
+  prod bucket (`teak-files-prod`) and are isolated only by `dev/` prefix;
+  credentials retain bucket-wide authority.
 
 Handled op failures (the 500 path) are reported explicitly with op/route,
 HTTP method + path, and card/role identifiers parsed from the object key
@@ -121,5 +152,23 @@ The Convex deployment requires both `FILES_BASE` and
 presigned-R2 fallback when the custom file domain is disabled.
 
 Deploys automatically via Cloudflare Workers Builds (main branch).
-The development Worker is deployed explicitly with `--env development` so
-development data can never be read through the production bucket binding.
+
+**Rollback window:** the `files-dev` Worker, `files-dev.teakvault.com`
+domain, and `teak-files-dev` bucket (≃1 000 objects / 370 MB) are untouched
+and retained. To rollback, re-add the `env.development` block to
+`wrangler.jsonc` and reset Convex dev vars:
+`R2_BUCKET=teak-files-dev`, `R2_KEY_PREFIX=""`, and
+`FILES_BASE=https://files-dev.teakvault.com`. No copy/migration/backfill is
+performed.
+
+## Local development experience
+
+- `bun run dev` at repo root still starts the all-surface stack (web, convex,
+  desktop, raycast, docs, extension) via Turborepo.
+- `bun run dev:files` — local Worker with remote Cloudflare R2/Images/AI
+  bindings (code local, bucket remote). Use for real image transforms and
+  prod-data dev isolation (`dev/users/...`).
+- `bun run dev:files:local` — isolated Miniflare storage with low-fidelity
+  Images emulation; no remote credentials needed.
+- `bun run check:cloudflare` — read-only names/parity check without exposing
+  secret values.

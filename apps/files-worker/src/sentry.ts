@@ -53,7 +53,9 @@ export interface FileKeyIdentifiers {
  * else parses to no identifiers instead of guessing.
  */
 export const parseFileKeyIdentifiers = (key: string): FileKeyIdentifiers => {
-  const segments = key.split("/");
+  const rawSegments = key.split("/");
+  const segments =
+    rawSegments[0] === "dev" ? rawSegments.slice(1) : rawSegments;
   if (
     segments.length < 5 ||
     segments[0] !== "users" ||

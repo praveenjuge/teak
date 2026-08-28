@@ -43,6 +43,33 @@ export const PRIVATE_FILE_CACHE_CONTROL = "private, max-age=518400, immutable"; 
 export type R2ObjectKey = string;
 export const PENDING_UPLOAD_CARD_ID = "upload-pending-v2";
 
+/**
+ * Internal R2 key prefix for environment isolation.
+ * - Production: unset -> "users/..."
+ * - Development: "dev/" -> "dev/users/..."
+ * This is protection against routine mistakes; shared credentials retain bucket-wide authority.
+ */
+export const getR2KeyPrefix = (): string => {
+  const raw = process.env.R2_KEY_PREFIX ?? "";
+  const trimmed = raw.trim();
+  if (!trimmed) {
+    return "";
+  }
+  const normalized = trimmed.replace(/^\/+/, "");
+  return normalized.endsWith("/") ? normalized : `${normalized}/`;
+};
+
+export const buildR2ListPrefix = (): string => `${getR2KeyPrefix()}users/`;
+
+export const isR2KeyInNamespace = (key: string): boolean =>
+  key.startsWith(`${getR2KeyPrefix()}users/`);
+
+export const assertR2KeyInNamespace = (key: string): void => {
+  if (!isR2KeyInNamespace(key)) {
+    throw new Error("invalid_storage_key_namespace");
+  }
+};
+
 interface DownloadResponsePolicy {
   contentDisposition?: "attachment" | "inline";
   contentType?: string;
@@ -76,7 +103,7 @@ const hashUserId = (userId: string) =>
     .toString(36);
 
 export const buildR2UserPrefix = (userId: string) =>
-  ["users", hashUserId(userId), "cards"].join("/");
+  `${getR2KeyPrefix()}users/${hashUserId(userId)}/cards`;
 
 export const buildR2ObjectKey = ({
   userId,
@@ -107,6 +134,7 @@ export const getR2Url = async (
   if (!(filesBase && signingSecret)) {
     throw new Error("files_worker_not_configured");
   }
+  assertR2KeyInNamespace(key);
   return await buildSignedWorkerFileUrl(
     filesBase,
     signingSecret,
@@ -161,6 +189,7 @@ export const buildSignedWorkerFileUrl = async (
   response: DownloadResponsePolicy = {},
   expSeconds = Math.floor(Date.now() / 1000) + SIGNED_URL_EXPIRES_IN_SECONDS
 ): Promise<string> => {
+  assertR2KeyInNamespace(key);
   const exp = String(expSeconds);
   const signature = await hmacSha256Hex(
     secret,
@@ -183,6 +212,7 @@ export const buildSignedWorkerImageUrl = async (
   rendition: FilesImageRendition,
   expSeconds = Math.floor(Date.now() / 1000) + SIGNED_URL_EXPIRES_IN_SECONDS
 ): Promise<string> => {
+  assertR2KeyInNamespace(key);
   const expiresAt = String(expSeconds);
   const signature = await hmacSha256Hex(
     secret,
@@ -195,13 +225,16 @@ export const buildSignedWorkerImageUrl = async (
 export const resolveObjectUrl = async (
   key?: string,
   fileName?: string | null
-) =>
-  key
-    ? getR2Url(
-        key,
-        fileName === undefined ? {} : fileDownloadResponsePolicy(fileName)
-      )
-    : null;
+) => {
+  if (!key) {
+    return null;
+  }
+  assertR2KeyInNamespace(key);
+  return await getR2Url(
+    key,
+    fileName === undefined ? {} : fileDownloadResponsePolicy(fileName)
+  );
+};
 
 export const resolveImageUrl = async (
   key: string | undefined,
@@ -210,6 +243,7 @@ export const resolveImageUrl = async (
   if (!key) {
     return null;
   }
+  assertR2KeyInNamespace(key);
   const filesBase = process.env.FILES_BASE;
   const signingSecret = process.env.FILES_SIGNING_SECRET;
   if (!(filesBase && signingSecret)) {
@@ -257,6 +291,7 @@ export const deleteObject = async (ctx: MutationCtx, key?: string) => {
   if (!key) {
     return;
   }
+  assertR2KeyInNamespace(key);
   // Durable deletion workflow instead of a synchronous component delete:
   // the keys are recorded durably and retried by the workflow step.
   await ctx.scheduler.runAfter(
@@ -274,6 +309,7 @@ export const storeObject = async (
     type?: string;
   }
 ) => {
+  assertR2KeyInNamespace(opts.key);
   await putObjectViaFilesWorker({
     body: blob,
     contentType: opts.type ?? blob.type ?? "application/octet-stream",

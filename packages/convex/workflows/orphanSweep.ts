@@ -23,7 +23,7 @@ import {
   type FilesWorkerListObjectsResult,
   isFilesWorkerConfigured,
 } from "../storage/filesWorkerClient";
-import { cardStorageObjectKeys } from "../storage/r2";
+import { buildR2ListPrefix, cardStorageObjectKeys } from "../storage/r2";
 import { recordBackendLog } from "../telemetry/sentry";
 
 // Orphans younger than this are ignored: pending-upload sessions, in-flight
@@ -95,7 +95,7 @@ export const sweepOrphanedObjectsHandler = async (
 
   do {
     const params: Record<string, unknown> = {
-      prefix: "users/",
+      prefix: buildR2ListPrefix(),
       limit: LIST_PAGE_LIMIT,
     };
     if (listCursor) {
