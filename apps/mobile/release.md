@@ -9,8 +9,8 @@ iOS build history.
 
 ## Canonical release
 
-1. Patch-bump every tracked `package.json` to the same next version.
-2. Merge that scoped bump to `main`.
+1. Complete the shared preparation in `../../docs/agents/releases.md`.
+2. Merge that scoped version change to `main`.
 3. `Version Tag` verifies that the change is exactly one patch, creates
    `v<version>`, and dispatches every product release at that tag. A rerun
    reuses successful or active child runs and dispatches only missing work.

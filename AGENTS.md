@@ -46,7 +46,7 @@ For a user-visible change, update the dated entry in `apps/docs/content/changelo
 
 ## Release pointers
 
-Release runbooks are canonical; read the relevant file and follow it exactly:
+Before any release, complete the shared preparation in `docs/agents/releases.md`. Then read the relevant product runbook and follow it exactly:
 
 - Mobile: `apps/mobile/release.md`
 - Desktop: `apps/desktop/RELEASE.md`

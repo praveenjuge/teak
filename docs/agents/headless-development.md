@@ -6,7 +6,7 @@ Use this guide only in Cursor Cloud or another headless VM. For local developmen
 
 Read the required Bun version from the root `packageManager` field. Install that exact version if Bun is unavailable, then run `bun install --frozen-lockfile` from the repository root.
 
-`turbo watch` expects an interactive UI. In a headless session, set `TURBO_UI=tui` or run the required services separately.
+`turbo watch` defaults to an interactive UI. In a headless session, set `TURBO_UI=false` for streaming output or run the required services separately.
 
 ## Minimal web stack
 
