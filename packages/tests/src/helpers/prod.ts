@@ -17,6 +17,34 @@ const PROD_E2E_API_TIMEOUT_MS = 35_000;
 const sleep = (delayMs: number) =>
   new Promise((resolve) => setTimeout(resolve, delayMs));
 
+const waitForRetry = async (
+  wait: (delayMs: number) => Promise<unknown>,
+  delayMs: number,
+  signal?: AbortSignal | null
+) => {
+  if (!signal) {
+    await wait(delayMs);
+    return;
+  }
+  if (signal.aborted) {
+    throw signal.reason ?? new DOMException("Aborted", "AbortError");
+  }
+
+  let rejectOnAbort: (() => void) | undefined;
+  const aborted = new Promise<never>((_resolve, reject) => {
+    rejectOnAbort = () =>
+      reject(signal.reason ?? new DOMException("Aborted", "AbortError"));
+    signal.addEventListener("abort", rejectOnAbort, { once: true });
+  });
+  try {
+    await Promise.race([wait(delayMs), aborted]);
+  } finally {
+    if (rejectOnAbort) {
+      signal.removeEventListener("abort", rejectOnAbort);
+    }
+  }
+};
+
 export const createProdE2EFetch = (
   fetchImpl: typeof fetch = fetch,
   wait: (delayMs: number) => Promise<unknown> = sleep,
@@ -68,7 +96,7 @@ export const createProdE2EFetch = (
           throw error;
         }
         clearTimeout(timeout);
-        await wait(delayMs);
+        await waitForRetry(wait, delayMs, overallSignal);
         continue;
       } finally {
         clearTimeout(timeout);
@@ -84,7 +112,7 @@ export const createProdE2EFetch = (
       if (overallSignal?.aborted) {
         throw overallSignal.reason ?? new DOMException("Aborted", "AbortError");
       }
-      await wait(delayMs);
+      await waitForRetry(wait, delayMs, overallSignal);
     }
   };
   return retryingFetch as typeof fetch;

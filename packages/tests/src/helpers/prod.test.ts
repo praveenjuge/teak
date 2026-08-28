@@ -123,4 +123,25 @@ describe("production E2E API retries", () => {
     ).rejects.toThrow("Overall timeout");
     expect(fetchImpl).toHaveBeenCalledTimes(1);
   });
+
+  test("stops a retry backoff when the overall deadline expires", async () => {
+    const overall = new AbortController();
+    const fetchImpl = mock(() =>
+      Promise.resolve(new Response(null, { status: 500 }))
+    ) as unknown as typeof fetch;
+    const wait = mock(() => {
+      overall.abort(new DOMException("Overall timeout", "AbortError"));
+      return new Promise<never>(() => undefined);
+    });
+    const retryingFetch = createProdE2EFetch(fetchImpl, wait);
+
+    await expect(
+      retryingFetch("https://teakvault.com/api/v1/cards", {
+        method: "POST",
+        signal: overall.signal,
+      })
+    ).rejects.toThrow("Overall timeout");
+    expect(fetchImpl).toHaveBeenCalledTimes(1);
+    expect(wait).toHaveBeenCalledTimes(1);
+  });
 });
