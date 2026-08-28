@@ -18,7 +18,8 @@ const sleep = (delayMs: number) =>
 
 export const createProdE2EFetch = (
   fetchImpl: typeof fetch = fetch,
-  wait: (delayMs: number) => Promise<unknown> = sleep
+  wait: (delayMs: number) => Promise<unknown> = sleep,
+  attemptTimeoutMs = 10_000
 ): typeof fetch => {
   const retryingFetch = async (
     input: RequestInfo | URL,
@@ -35,10 +36,37 @@ export const createProdE2EFetch = (
     }
     const isSafeToRetry =
       isCardCreate || ["GET", "HEAD", "OPTIONS"].includes(method);
+    // The SDK owns an outer timeout signal. Normalize without that signal so
+    // every bounded retry receives a fresh timeout and body stream.
+    const retryRequest = new Request(input, {
+      ...init,
+      headers,
+      signal: null,
+    });
 
     for (let attempt = 0; ; attempt += 1) {
-      const response = await fetchImpl(input, { ...init, headers });
       const delayMs = TRANSIENT_API_RETRY_DELAYS_MS[attempt];
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), attemptTimeoutMs);
+      let response: Response;
+      try {
+        response = await fetchImpl(retryRequest.clone(), {
+          signal: controller.signal,
+        });
+      } catch (error) {
+        if (
+          delayMs === undefined ||
+          !isSafeToRetry ||
+          !(error instanceof DOMException && error.name === "AbortError")
+        ) {
+          throw error;
+        }
+        clearTimeout(timeout);
+        await wait(delayMs);
+        continue;
+      } finally {
+        clearTimeout(timeout);
+      }
       if (
         delayMs === undefined ||
         !isSafeToRetry ||
