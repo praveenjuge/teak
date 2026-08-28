@@ -176,6 +176,7 @@ test("web editor, deep links, and link metadata stay usable", async ({
   const marker = markerFor("editor");
   await saveTextCard(page, `${marker} original`);
   await page.getByRole("main").getByText(`${marker} original`).click();
+  await expect(page).toHaveURL(/[?&]card=[^&]+/);
   const editor = page
     .getByRole("dialog")
     .getByRole("textbox", { name: "Markdown content" });
@@ -275,6 +276,7 @@ https://example.com/editor
 toolbar ~~strike~~`;
   await page.getByRole("button", { name: "Save changes" }).click();
   await expect(editor).toContainText("updated");
+  await expect(page).toHaveURL(/[?&]card=[^&]+/);
   const deepLink = page.url();
   const cardId = new URL(deepLink).searchParams.get("card");
   expect(cardId).toBeTruthy();

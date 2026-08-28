@@ -70,6 +70,27 @@ export const assertR2KeyInNamespace = (key: string): void => {
   }
 };
 
+export const getR2ReadBase = (key: string): string => {
+  const filesBase = process.env.FILES_BASE;
+  if (isR2KeyInNamespace(key)) {
+    if (!filesBase) {
+      throw new Error("files_worker_not_configured");
+    }
+    return filesBase;
+  }
+
+  // Development databases can still reference objects created before the
+  // shared-bucket dev/ namespace was introduced. Reads may use the retained
+  // legacy worker, but writes, processing, and deletion remain restricted by
+  // assertR2KeyInNamespace to the canonical dev/ prefix.
+  const legacyBase = process.env.FILES_LEGACY_BASE;
+  if (getR2KeyPrefix() && key.startsWith("users/") && legacyBase) {
+    return legacyBase;
+  }
+
+  throw new Error("invalid_storage_key_namespace");
+};
+
 interface DownloadResponsePolicy {
   contentDisposition?: "attachment" | "inline";
   contentType?: string;
@@ -129,14 +150,12 @@ export const getR2Url = async (
   key: string,
   response: DownloadResponsePolicy = {}
 ) => {
-  const filesBase = process.env.FILES_BASE;
   const signingSecret = process.env.FILES_SIGNING_SECRET;
-  if (!(filesBase && signingSecret)) {
+  if (!signingSecret) {
     throw new Error("files_worker_not_configured");
   }
-  assertR2KeyInNamespace(key);
-  return await buildSignedWorkerFileUrl(
-    filesBase,
+  return await buildSignedWorkerFileUrlUnchecked(
+    getR2ReadBase(key),
     signingSecret,
     key,
     response,
@@ -190,6 +209,22 @@ export const buildSignedWorkerFileUrl = async (
   expSeconds = Math.floor(Date.now() / 1000) + SIGNED_URL_EXPIRES_IN_SECONDS
 ): Promise<string> => {
   assertR2KeyInNamespace(key);
+  return await buildSignedWorkerFileUrlUnchecked(
+    base,
+    secret,
+    key,
+    response,
+    expSeconds
+  );
+};
+
+const buildSignedWorkerFileUrlUnchecked = async (
+  base: string,
+  secret: string,
+  key: string,
+  response: DownloadResponsePolicy = {},
+  expSeconds = Math.floor(Date.now() / 1000) + SIGNED_URL_EXPIRES_IN_SECONDS
+): Promise<string> => {
   const exp = String(expSeconds);
   const signature = await hmacSha256Hex(
     secret,
@@ -213,6 +248,22 @@ export const buildSignedWorkerImageUrl = async (
   expSeconds = Math.floor(Date.now() / 1000) + SIGNED_URL_EXPIRES_IN_SECONDS
 ): Promise<string> => {
   assertR2KeyInNamespace(key);
+  return await buildSignedWorkerImageUrlUnchecked(
+    base,
+    secret,
+    key,
+    rendition,
+    expSeconds
+  );
+};
+
+const buildSignedWorkerImageUrlUnchecked = async (
+  base: string,
+  secret: string,
+  key: string,
+  rendition: FilesImageRendition,
+  expSeconds = Math.floor(Date.now() / 1000) + SIGNED_URL_EXPIRES_IN_SECONDS
+): Promise<string> => {
   const expiresAt = String(expSeconds);
   const signature = await hmacSha256Hex(
     secret,
@@ -229,7 +280,6 @@ export const resolveObjectUrl = async (
   if (!key) {
     return null;
   }
-  assertR2KeyInNamespace(key);
   return await getR2Url(
     key,
     fileName === undefined ? {} : fileDownloadResponsePolicy(fileName)
@@ -243,14 +293,12 @@ export const resolveImageUrl = async (
   if (!key) {
     return null;
   }
-  assertR2KeyInNamespace(key);
-  const filesBase = process.env.FILES_BASE;
   const signingSecret = process.env.FILES_SIGNING_SECRET;
-  if (!(filesBase && signingSecret)) {
+  if (!signingSecret) {
     throw new Error("files_worker_not_configured");
   }
-  return await buildSignedWorkerImageUrl(
-    filesBase,
+  return await buildSignedWorkerImageUrlUnchecked(
+    getR2ReadBase(key),
     signingSecret,
     key,
     rendition,

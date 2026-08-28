@@ -6,11 +6,13 @@ import {
 } from "@teak/files-protocol";
 import { buildSignedWorkerOpRequest } from "../../storage/filesWorkerClient";
 import {
+  assertR2KeyInNamespace,
   bucketedSignatureExpiry,
   buildSignedFilePayload,
   buildSignedWorkerFileUrl,
   buildSignedWorkerImageUrl,
   cardStorageObjectKeys,
+  getR2ReadBase,
 } from "../../storage/r2";
 
 const SECRET = "test-signing-secret";
@@ -106,6 +108,38 @@ describe("signed worker file urls", () => {
         })
       )
     );
+  });
+
+  test("reads legacy dev objects without widening the write namespace", () => {
+    const previous = {
+      filesBase: process.env.FILES_BASE,
+      legacyBase: process.env.FILES_LEGACY_BASE,
+      prefix: process.env.R2_KEY_PREFIX,
+      secret: process.env.FILES_SIGNING_SECRET,
+    };
+    process.env.FILES_BASE = BASE;
+    process.env.FILES_LEGACY_BASE = "https://files-dev.teakvault.com";
+    process.env.FILES_SIGNING_SECRET = SECRET;
+    process.env.R2_KEY_PREFIX = "dev/";
+
+    try {
+      expect(getR2ReadBase(KEY)).toBe("https://files-dev.teakvault.com");
+      expect(() => assertR2KeyInNamespace(KEY)).toThrow(
+        "invalid_storage_key_namespace"
+      );
+    } finally {
+      const restore = (name: string, value: string | undefined) => {
+        if (value === undefined) {
+          delete process.env[name];
+        } else {
+          process.env[name] = value;
+        }
+      };
+      restore("FILES_BASE", previous.filesBase);
+      restore("FILES_LEGACY_BASE", previous.legacyBase);
+      restore("FILES_SIGNING_SECRET", previous.secret);
+      restore("R2_KEY_PREFIX", previous.prefix);
+    }
   });
 });
 

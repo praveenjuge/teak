@@ -110,16 +110,18 @@ bun run dev:files        # same as above, remote bindings
 bun run dev:files:local  # same as above, isolated
 
 # Config parity (read-only, never prints secrets)
-bun run check:cloudflare  # reports wrangler names + Convex env parity as same/different/missing/updated
+bun run check:cloudflare   # reports actual Convex prod/dev parity without printing values
+bun run sync:cloudflare-dev # securely writes the dev signing secret to ignored .dev.vars
 
 # One-time Convex convergence (copy prod -> dev without logging values):
-#   npx convex env get CLOUDFLARE_ACCOUNT_ID --prod   # read prod (no print in CI)
-#   npx convex env set CLOUDFLARE_ACCOUNT_ID <value> --deployment dev  # set dev
+#   bunx convex env get CLOUDFLARE_ACCOUNT_ID --prod   # read prod (no print in CI)
+#   bunx convex env set CLOUDFLARE_ACCOUNT_ID <value> --deployment dev  # set dev
 # Repeat for CLOUDFLARE_API_TOKEN, FILES_SIGNING_SECRET, R2_ACCESS_KEY_ID,
 # R2_ENDPOINT, R2_SECRET_ACCESS_KEY, R2_TOKEN, then:
-#   npx convex env set R2_BUCKET teak-files-prod --deployment dev
-#   npx convex env set R2_KEY_PREFIX dev/ --deployment dev
-#   npx convex env set FILES_BASE https://files.teakvault.com --deployment dev
+#   bunx convex env set R2_BUCKET teak-files-prod --deployment dev
+#   bunx convex env set R2_KEY_PREFIX dev/ --deployment dev
+#   bunx convex env set FILES_BASE https://files.teakvault.com --deployment dev
+#   bunx convex env set FILES_LEGACY_BASE https://files-dev.teakvault.com --deployment dev
 # (During pre-merge, point FILES_BASE to `wrangler dev --remote` preview URL.)
 ```
 
@@ -136,7 +138,9 @@ bun run check:cloudflare  # reports wrangler names + Convex env parity as same/d
 - `apps/files-worker/.dev.vars` (ignored) — per-developer local overrides for
   `wrangler dev`. Example: `FILES_SIGNING_SECRET=...`. Do not commit. The
   canonical dev routing (`R2_BUCKET`, `R2_KEY_PREFIX`, `FILES_BASE`) lives in
-  Convex env, not `.dev.vars`. Production-data warning: dev writes share the
+  Convex env, not `.dev.vars`. `FILES_LEGACY_BASE` keeps pre-convergence dev
+  objects readable from the retained bucket; storage mutations never use it.
+  Production-data warning: dev writes share the
   prod bucket (`teak-files-prod`) and are isolated only by `dev/` prefix;
   credentials retain bucket-wide authority.
 

@@ -10,9 +10,53 @@ import { env, requirePassword, uniqueEmail } from "./env";
 import { waitForEmail } from "./mailpit";
 import { type AccountState, rememberAccount, updateState } from "./run-state";
 
+const TRANSIENT_API_STATUSES = new Set([429, 500, 502, 503, 504]);
+const TRANSIENT_API_RETRY_DELAYS_MS = [500, 1500];
+
+const sleep = (delayMs: number) =>
+  new Promise((resolve) => setTimeout(resolve, delayMs));
+
+export const createProdE2EFetch = (
+  fetchImpl: typeof fetch = fetch,
+  wait: (delayMs: number) => Promise<unknown> = sleep
+): typeof fetch => {
+  const retryingFetch = async (
+    input: RequestInfo | URL,
+    init?: RequestInit
+  ) => {
+    const request = input instanceof Request ? input : null;
+    const method = (init?.method ?? request?.method ?? "GET").toUpperCase();
+    const headers = new Headers(init?.headers ?? request?.headers);
+    const url = request?.url ?? String(input);
+    const isCardCreate =
+      method === "POST" && new URL(url).pathname.endsWith("/v1/cards");
+    if (isCardCreate && !headers.has("Idempotency-Key")) {
+      headers.set("Idempotency-Key", crypto.randomUUID());
+    }
+    const isSafeToRetry =
+      isCardCreate || ["GET", "HEAD", "OPTIONS"].includes(method);
+
+    for (let attempt = 0; ; attempt += 1) {
+      const response = await fetchImpl(input, { ...init, headers });
+      const delayMs = TRANSIENT_API_RETRY_DELAYS_MS[attempt];
+      if (
+        delayMs === undefined ||
+        !isSafeToRetry ||
+        !TRANSIENT_API_STATUSES.has(response.status)
+      ) {
+        return response;
+      }
+      await response.body?.cancel();
+      await wait(delayMs);
+    }
+  };
+  return retryingFetch as typeof fetch;
+};
+
 export const clientFor = (apiKey: string) =>
   createTeakClient({
     baseUrl: env.apiUrl,
+    fetch: createProdE2EFetch(),
     tokenProvider: { getAccessToken: async () => apiKey },
     userAgent: "teak-prod-e2e",
   });

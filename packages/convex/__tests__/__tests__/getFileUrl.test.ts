@@ -1,30 +1,41 @@
-import { expect, test } from "bun:test";
-import { readFileSync } from "node:fs";
-import { join } from "node:path";
+import { describe, expect, mock, test } from "bun:test";
 
-test("getFileUrl enforces auth and card ownership checks", () => {
-  const filePath = join(
-    new URL(".", import.meta.url).pathname,
-    "../../../convex/card/getFileUrl.ts"
-  );
-  const source = readFileSync(filePath, "utf8");
+describe("getFileUrl authorization", () => {
+  test("rejects a card owned by another user", async () => {
+    const { getFileUrl } = await import("../../card/getFileUrl");
+    const handler = (getFileUrl as any).handler ?? getFileUrl;
+    const ctx = {
+      auth: { getUserIdentity: mock().mockResolvedValue({ subject: "u1" }) },
+      db: {
+        get: mock().mockResolvedValue({
+          _id: "c1",
+          userId: "u2",
+          fileKey: "users/u2/cards/c1/file",
+        }),
+      },
+    } as any;
 
-  const requiresKey = /key:\s*v\.string\(\)/.test(source);
-  const requiresCardId = /cardId:\s*v\.id\("cards"\)/.test(source);
-  const requiresAuth = /if\s*\(\s*!user\s*\)/.test(source);
-  const checksOwnership = /card\.userId\s*!==\s*user\.subject/.test(source);
-  const checksFileMatch =
-    (/card\.fileKey\s*===\s*args\.key/.test(source) &&
-      /card\.thumbnailKey\s*===\s*args\.key/.test(source) &&
-      /linkPreview\?\.screenshotStorageKey\s*===\s*args\.key/.test(source) &&
-      /linkPreview\?\.imageStorageKey\s*===\s*args\.key/.test(source)) ||
-    (/cardOwnsMediaKey/.test(source) &&
-      /card\.fileKey\s*===\s*key/.test(source) &&
-      /cardOwnsMediaKey\s*\(\s*card\s*,\s*args\.key\s*\)/.test(source));
+    await expect(
+      handler(ctx, { cardId: "c1", key: "users/u2/cards/c1/file" })
+    ).rejects.toThrow("Unauthorized access to file");
+  });
 
-  expect(requiresKey).toBe(true);
-  expect(requiresCardId).toBe(true);
-  expect(requiresAuth).toBe(true);
-  expect(checksOwnership).toBe(true);
-  expect(checksFileMatch).toBe(true);
+  test("rejects a key that the owned card does not reference", async () => {
+    const { getFileUrl } = await import("../../card/getFileUrl");
+    const handler = (getFileUrl as any).handler ?? getFileUrl;
+    const ctx = {
+      auth: { getUserIdentity: mock().mockResolvedValue({ subject: "u1" }) },
+      db: {
+        get: mock().mockResolvedValue({
+          _id: "c1",
+          userId: "u1",
+          fileKey: "users/u1/cards/c1/file",
+        }),
+      },
+    } as any;
+
+    await expect(
+      handler(ctx, { cardId: "c1", key: "users/u1/cards/c2/file" })
+    ).rejects.toThrow("File does not belong to the specified card");
+  });
 });
