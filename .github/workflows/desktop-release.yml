@@ -36,11 +36,25 @@ jobs:
         run: |
           version="${RELEASE_VERSION#v}"
           tag_name="v${version}"
-          expected_asset="Teak-${version}-arm64.dmg"
-          if gh release view "$tag_name" --repo "$GITHUB_REPOSITORY" --json assets --jq '.assets[].name' 2>/dev/null | grep -qx "$expected_asset"; then
-            echo "Release $tag_name already contains $expected_asset — skipping desktop release."
+          expected_assets=(
+            "latest-mac.yml"
+            "Teak-${version}-arm64.dmg"
+            "Teak-${version}-arm64.dmg.blockmap"
+            "Teak-${version}-arm64-mac.zip"
+            "Teak-${version}-arm64-mac.zip.blockmap"
+          )
+          existing_assets="$(gh release view "$tag_name" --repo "$GITHUB_REPOSITORY" --json assets --jq '.assets[].name' 2>/dev/null || true)"
+          missing_assets=()
+          for asset in "${expected_assets[@]}"; do
+            if ! grep -Fxq "$asset" <<< "$existing_assets"; then
+              missing_assets+=("$asset")
+            fi
+          done
+          if [ "${#missing_assets[@]}" -eq 0 ]; then
+            echo "Release $tag_name already contains all required desktop assets — skipping desktop release."
             echo "should_run=false" >> "$GITHUB_OUTPUT"
           else
+            printf 'Release %s is missing desktop asset(s): %s\n' "$tag_name" "${missing_assets[*]}"
             echo "should_run=true" >> "$GITHUB_OUTPUT"
           fi
 
