@@ -12,6 +12,7 @@ import { type AccountState, rememberAccount, updateState } from "./run-state";
 
 const TRANSIENT_API_STATUSES = new Set([429, 500, 502, 503, 504]);
 const TRANSIENT_API_RETRY_DELAYS_MS = [500, 1500];
+const PROD_E2E_API_TIMEOUT_MS = 35_000;
 
 const sleep = (delayMs: number) =>
   new Promise((resolve) => setTimeout(resolve, delayMs));
@@ -26,6 +27,7 @@ export const createProdE2EFetch = (
     init?: RequestInit
   ) => {
     const request = input instanceof Request ? input : null;
+    const overallSignal = init?.signal ?? request?.signal;
     const method = (init?.method ?? request?.method ?? "GET").toUpperCase();
     const headers = new Headers(init?.headers ?? request?.headers);
     const url = request?.url ?? String(input);
@@ -36,8 +38,8 @@ export const createProdE2EFetch = (
     }
     const isSafeToRetry =
       isCardCreate || ["GET", "HEAD", "OPTIONS"].includes(method);
-    // The SDK owns an outer timeout signal. Normalize without that signal so
-    // every bounded retry receives a fresh timeout and body stream.
+    // Normalize the reusable body without a signal. Each attempt composes a
+    // fresh timeout with the SDK's longer overall E2E request deadline.
     const retryRequest = new Request(input, {
       ...init,
       headers,
@@ -48,13 +50,17 @@ export const createProdE2EFetch = (
       const delayMs = TRANSIENT_API_RETRY_DELAYS_MS[attempt];
       const controller = new AbortController();
       const timeout = setTimeout(() => controller.abort(), attemptTimeoutMs);
+      const signal = overallSignal
+        ? AbortSignal.any([overallSignal, controller.signal])
+        : controller.signal;
       let response: Response;
       try {
         response = await fetchImpl(retryRequest.clone(), {
-          signal: controller.signal,
+          signal,
         });
       } catch (error) {
         if (
+          overallSignal?.aborted ||
           delayMs === undefined ||
           !isSafeToRetry ||
           !(error instanceof DOMException && error.name === "AbortError")
@@ -75,6 +81,9 @@ export const createProdE2EFetch = (
         return response;
       }
       await response.body?.cancel();
+      if (overallSignal?.aborted) {
+        throw overallSignal.reason ?? new DOMException("Aborted", "AbortError");
+      }
       await wait(delayMs);
     }
   };
@@ -85,6 +94,7 @@ export const clientFor = (apiKey: string) =>
   createTeakClient({
     baseUrl: env.apiUrl,
     fetch: createProdE2EFetch(),
+    timeoutMs: PROD_E2E_API_TIMEOUT_MS,
     tokenProvider: { getAccessToken: async () => apiKey },
     userAgent: "teak-prod-e2e",
   });

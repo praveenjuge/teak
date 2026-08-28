@@ -103,4 +103,24 @@ describe("production E2E API retries", () => {
     expect(response.status).toBe(200);
     expect(bodies).toEqual(['{"content":"retry"}', '{"content":"retry"}']);
   });
+
+  test("does not outlive the overall request deadline", async () => {
+    const overall = new AbortController();
+    const fetchImpl = mock(() => {
+      overall.abort(new DOMException("Overall timeout", "AbortError"));
+      return Promise.resolve(new Response(null, { status: 500 }));
+    }) as unknown as typeof fetch;
+    const retryingFetch = createProdE2EFetch(
+      fetchImpl,
+      mock(() => Promise.resolve(undefined))
+    );
+
+    await expect(
+      retryingFetch("https://teakvault.com/api/v1/cards", {
+        method: "POST",
+        signal: overall.signal,
+      })
+    ).rejects.toThrow("Overall timeout");
+    expect(fetchImpl).toHaveBeenCalledTimes(1);
+  });
 });
