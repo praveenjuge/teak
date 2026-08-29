@@ -158,11 +158,11 @@ export const generateVideoThumbnail = internalAction({
                     video.currentTime = Math.max(0.1, targetTime); // At least 0.1s in
                   };
                   
-                  video.onseeked = () => {
+                  video.onseeked = async () => {
                     if (resolved) return;
                     resolved = true;
                     clearTimeout(timeout);
-                    
+
                     try {
                       const canvas = document.createElement('canvas');
                       const ctx = canvas.getContext('2d');
