@@ -62,7 +62,6 @@ describe("production E2E project graph", () => {
       "journey-setup",
       "journey-web-core",
     ]);
-    expect(projects.get("snapshots")?.dependencies).toBeUndefined();
     expect(projects.get("journey-account")?.dependencies).toEqual([
       "journey-setup",
     ]);

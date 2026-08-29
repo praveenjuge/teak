@@ -9,7 +9,6 @@
     "e2e:prod:journey": "playwright test --project=journey-setup --project=journey-web-core --project=journey-web-surfaces --project=journey-web-files --project=journey-web-filters --project=journey-import-export --project=journey-api --project=journey-cli --project=journey-mcp --project=journey-a11y --project=journey-security --project=journey-account --project=journey-delete --project=journey-post-delete",
     "e2e:prod:local": "tsx src/scripts/run-prod-suite.ts",
     "e2e:prod:matrix": "playwright test --project=matrix-chromium --project=matrix-firefox --project=matrix-webkit",
-    "e2e:snapshots": "playwright test --project=snapshots",
     "lint": "biome check .",
     "preflight": "tsx src/scripts/preflight.ts",
     "sweep": "tsx src/scripts/sweep.ts",

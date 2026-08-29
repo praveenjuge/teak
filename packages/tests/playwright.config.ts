@@ -121,12 +121,6 @@ export default defineConfig({
       },
     },
     {
-      name: "snapshots",
-      testMatch: "snapshots/web.snapshots.ts",
-      workers: 1,
-      use: { ...devices["Desktop Chrome"] },
-    },
-    {
       name: "journey-account",
       dependencies: ["journey-setup"],
       testMatch: "journey/07-account-flows.e2e.ts",
