@@ -33,7 +33,10 @@ Never commit `teakapi_` keys or paste them into public issue trackers. Rotate a 
 
 <Tabs param="auth">
   <Tab title="API key">
-    Generate a long-lived `teakapi_` key in Teak Settings. API keys are the simplest option for scripts, CI, and private integrations.
+    Generate a long-lived `teakapi_` key in Teak Settings. Each account can have
+    up to 10 active keys, and new keys can be created at most five times per
+    minute. Use **Revoke all keys** if you need to clear every key, including any
+    that no longer appear in the list.
 
     ```bash
     Authorization: Bearer teakapi_secret_live_a1b2c3d4_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx

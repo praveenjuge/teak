@@ -1,6 +1,6 @@
 import { ApiKeys, type KeyMetadata } from "@vllnt/convex-api-keys";
 import { v } from "convex/values";
-import { components } from "./_generated/api";
+import { components, internal } from "./_generated/api";
 import {
   internalMutation,
   type MutationCtx,
@@ -9,6 +9,7 @@ import {
   query,
 } from "./_generated/server";
 import { API_KEY_TOKEN_PREFIX, getApiKeyFormat } from "./shared/apiKeyFormat";
+import { rateLimiter } from "./shared/rateLimits";
 
 const API_KEY_NAME_DEFAULT = "Default API key";
 // Component keys minted before the rename may still carry the old default
@@ -18,6 +19,14 @@ const API_KEY_ACCESS = "full_access" as const;
 const COMPONENT_ENV = "live";
 const COMPONENT_SCOPES = [API_KEY_ACCESS];
 const LIST_LIMIT = 100;
+const MAX_ACTIVE_KEYS_PER_OWNER = 10;
+const LIVE_KEY_STATUSES = [
+  "active",
+  "disabled",
+  "rotating",
+  "expired",
+  "exhausted",
+] as const;
 
 const componentApiKeys = new ApiKeys(components.apiKeys, {
   defaultType: "secret",
@@ -99,16 +108,33 @@ const getAuthenticatedOwnerId = async (
   return user.subject;
 };
 
-const getComponentKeysForOwner = async (
-  ctx: QueryCtx,
-  ownerId: string
-): Promise<KeyMetadata[]> => {
-  const keys = await componentApiKeys.list(ctx, {
+const listComponentKeysByStatus = async (
+  ctx: QueryCtx | MutationCtx,
+  ownerId: string,
+  status: (typeof LIVE_KEY_STATUSES)[number]
+): Promise<KeyMetadata[]> =>
+  componentApiKeys.list(ctx, {
     ownerId,
     limit: LIST_LIMIT,
+    status,
   });
 
-  return keys.filter((key) => key.status !== "revoked");
+const countActiveKeysForOwner = async (
+  ctx: QueryCtx | MutationCtx,
+  ownerId: string
+): Promise<number> =>
+  (await listComponentKeysByStatus(ctx, ownerId, "active")).length;
+
+const getComponentKeysForOwner = async (
+  ctx: QueryCtx | MutationCtx,
+  ownerId: string
+): Promise<KeyMetadata[]> => {
+  const pages = await Promise.all(
+    LIVE_KEY_STATUSES.map((status) =>
+      listComponentKeysByStatus(ctx, ownerId, status)
+    )
+  );
+  return pages.flat();
 };
 
 const normalizeApiKeyName = (name: string) =>
@@ -127,7 +153,7 @@ const mapComponentKey = (key: KeyMetadata) => ({
 });
 
 const getComponentKeyForOwner = async (
-  ctx: QueryCtx,
+  ctx: QueryCtx | MutationCtx,
   ownerId: string,
   keyId: string
 ): Promise<KeyMetadata> => {
@@ -181,6 +207,20 @@ export const createUserApiKey = mutation({
   returns: createdApiKeyValidator,
   handler: async (ctx, args) => {
     const ownerId = await getAuthenticatedOwnerId(ctx);
+    const rateLimitResult = await rateLimiter.limit(ctx, "apiKeyCreation", {
+      key: ownerId,
+      throws: false,
+    });
+    if (!rateLimitResult.ok) {
+      throw new Error("Too many API keys created. Try again in a minute.");
+    }
+    if (
+      (await countActiveKeysForOwner(ctx, ownerId)) >= MAX_ACTIVE_KEYS_PER_OWNER
+    ) {
+      throw new Error(
+        "Active API key limit reached. Revoke unused keys first."
+      );
+    }
     const name = normalizeApiKeyName(args.name?.trim() || API_KEY_NAME_DEFAULT);
     const created = await componentApiKeys.create(ctx, {
       env: COMPONENT_ENV,
@@ -232,6 +272,57 @@ export const revokeUserApiKey = mutation({
       ownerId,
     });
     return null;
+  },
+});
+
+const drainActiveApiKeysPage = async (
+  ctx: MutationCtx,
+  ownerId: string,
+  revokedCount: number
+): Promise<{ hasMore: boolean; revokedCount: number }> => {
+  const keys = await listComponentKeysByStatus(ctx, ownerId, "active");
+  for (const key of keys) {
+    await componentApiKeys.revoke(ctx, {
+      keyId: key.keyId,
+      ownerId,
+    });
+  }
+
+  const nextCount = revokedCount + keys.length;
+  const hasMore = keys.length === LIST_LIMIT;
+  if (hasMore) {
+    await ctx.scheduler.runAfter(
+      0,
+      (internal as any).apiKeys.revokeAllUserApiKeysPage,
+      { ownerId, revokedCount: nextCount }
+    );
+  }
+
+  return { hasMore, revokedCount: nextCount };
+};
+
+export const revokeAllUserApiKeysPage = internalMutation({
+  args: {
+    ownerId: v.string(),
+    revokedCount: v.number(),
+  },
+  returns: v.object({
+    hasMore: v.boolean(),
+    revokedCount: v.number(),
+  }),
+  handler: async (ctx, args) =>
+    drainActiveApiKeysPage(ctx, args.ownerId, args.revokedCount),
+});
+
+export const revokeAllUserApiKeys = mutation({
+  args: {},
+  returns: v.object({
+    hasMore: v.boolean(),
+    revokedCount: v.number(),
+  }),
+  handler: async (ctx) => {
+    const ownerId = await getAuthenticatedOwnerId(ctx);
+    return drainActiveApiKeysPage(ctx, ownerId, 0);
   },
 });
 
