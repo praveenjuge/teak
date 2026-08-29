@@ -107,8 +107,8 @@ describe("auth.ts", () => {
   });
 
   test("trusted origins include teak:// protocol", () => {
-    const teakProtocol = "teak://*";
-    expect(teakProtocol).toContain("teak://");
+    const teakProtocol = "teak://";
+    expect(teakProtocol).toBe("teak://");
   });
 
   test("uses Google OAuth provider", () => {

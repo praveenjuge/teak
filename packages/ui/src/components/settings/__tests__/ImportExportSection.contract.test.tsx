@@ -13,6 +13,7 @@ mock.module("../../ui/button", () => ({
       { onClick, type: "button", "data-variant": variant },
       children
     ),
+  buttonVariants: () => "",
 }));
 // The modal pulls in Convex-backed panels; the section contract only cares
 // about the settings row + its entry-point button.

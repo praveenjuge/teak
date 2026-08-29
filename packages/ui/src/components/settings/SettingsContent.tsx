@@ -38,6 +38,7 @@ interface SettingsContentProps {
   onDeleteAccount: () => Promise<void>;
   onDeleteDialogOpenChange: (open: boolean) => void;
   onDownloadExport: (jobId: string) => Promise<void>;
+  onRevokeAllApiKeys: () => Promise<{ hasMore: boolean; revokedCount: number }>;
   onRevokeApiKey: (keyId: string) => Promise<void>;
   onRevokeOAuthConnection: (clientId: string) => Promise<void>;
   onRotateApiKey: (keyId: string) => Promise<{ key: string }>;
@@ -67,6 +68,7 @@ export function SettingsContent({
   onDeleteAccount,
   onDeleteDialogOpenChange,
   onDownloadExport,
+  onRevokeAllApiKeys,
   onRevokeApiKey,
   onRevokeOAuthConnection,
   onRotateApiKey,
@@ -138,6 +140,7 @@ export function SettingsContent({
           isLoading={keys === undefined}
           keys={keys}
           onCreateKey={onCreateApiKey}
+          onRevokeAllKeys={onRevokeAllApiKeys}
           onRevokeKey={onRevokeApiKey}
           onRotateKey={onRotateApiKey}
         />

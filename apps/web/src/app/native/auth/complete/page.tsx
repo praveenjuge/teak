@@ -5,8 +5,8 @@ import { Suspense, useEffect } from "react";
 
 function NativeAuthCompleteContent() {
   const searchParams = useSearchParams();
-  // `surface` is appended by the /native/auth/start route (the redirect_uri
-  // allowlist forbids caller-supplied params), so it is trusted here.
+  // `surface` is appended by the origin-protected approve action (the
+  // redirect_uri allowlist forbids caller-supplied params), so it is trusted.
   const isBrowserExtension =
     searchParams.get("surface") === "browser-extension";
 

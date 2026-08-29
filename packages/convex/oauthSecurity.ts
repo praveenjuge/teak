@@ -5,7 +5,8 @@ import type {
   DBAdapter,
 } from "better-auth";
 import { APIError, getSessionFromCtx } from "better-auth/api";
-import { isFirstPartyOAuthClientId } from "./oauthClients";
+import { isLocalDevelopmentUrl } from "./devUrls";
+import { EXACT_TEAK_CALLBACK_URL } from "./trustedOrigins";
 
 const MCP_AUTHORIZE_PATH = "/mcp/authorize";
 const OAUTH_CONSENT_PATH = "/oauth2/consent";
@@ -113,18 +114,72 @@ const responseJson = async (
   return returned as OAuthTokenResponse;
 };
 
-export const requireExternalClientConsent = (
-  clientId: unknown,
-  prompt: unknown
-): string | undefined => {
-  if (typeof clientId !== "string" || isFirstPartyOAuthClientId(clientId)) {
-    return typeof prompt === "string" ? prompt : undefined;
-  }
-
+export const requireOAuthConsentPrompt = (): "consent" =>
   // The 1.6.x MCP implementation checks exact equality rather than parsing
   // the OAuth prompt set. Return only `consent` so combinations such as
-  // `login consent` cannot accidentally fall through to silent issuance.
-  return "consent";
+  // `login consent` cannot accidentally fall through to silent issuance,
+  // including for seeded first-party clients.
+  "consent";
+
+const normalizedCallbackUrl = (value: string): string => {
+  if (value === "teak:///") {
+    return EXACT_TEAK_CALLBACK_URL;
+  }
+  return value;
+};
+
+export const assertAllowedAuthCallbackUrl = (
+  value: string,
+  siteUrl = process.env.SITE_URL ?? ""
+): void => {
+  if (!value.includes("://")) {
+    return;
+  }
+
+  let parsed: URL;
+  try {
+    parsed = new URL(value);
+  } catch {
+    throw new APIError("FORBIDDEN", {
+      message: "Invalid callbackURL",
+    });
+  }
+
+  if (parsed.protocol === "teak:") {
+    if (normalizedCallbackUrl(value) !== EXACT_TEAK_CALLBACK_URL) {
+      throw new APIError("FORBIDDEN", {
+        message: "Invalid callbackURL",
+      });
+    }
+    return;
+  }
+
+  const isExpoScheme =
+    parsed.protocol === "exp:" || value.startsWith("exp+teak://");
+  if (isExpoScheme && !isLocalDevelopmentUrl(siteUrl)) {
+    throw new APIError("FORBIDDEN", {
+      message: "Invalid callbackURL",
+    });
+  }
+};
+
+const callbackUrlKeys = [
+  "callbackURL",
+  "errorCallbackURL",
+  "newUserCallbackURL",
+] as const;
+
+const readCallbackCandidate = (
+  body: unknown,
+  query: Record<string, unknown> | undefined,
+  key: string
+): string | null => {
+  const fromBody = bodyValue(body, key);
+  if (fromBody) {
+    return fromBody;
+  }
+  const fromQuery = query?.[key];
+  return typeof fromQuery === "string" ? fromQuery : null;
 };
 
 /**
@@ -142,16 +197,35 @@ export const teakOAuthSecurity = (): BetterAuthPlugin => ({
   hooks: {
     before: [
       {
+        matcher: (context) =>
+          callbackUrlKeys.some((key) =>
+            readCallbackCandidate(
+              context.body,
+              context.query as Record<string, unknown> | undefined,
+              key
+            )
+          ),
+        handler: createAuthMiddleware((context) => {
+          for (const key of callbackUrlKeys) {
+            const value = readCallbackCandidate(
+              context.body,
+              context.query as Record<string, unknown> | undefined,
+              key
+            );
+            if (value) {
+              assertAllowedAuthCallbackUrl(value);
+            }
+          }
+          return Promise.resolve();
+        }),
+      },
+      {
         matcher: (context) => context.path === MCP_AUTHORIZE_PATH,
         handler: createAuthMiddleware((context) => {
           const query = context.query ?? {};
-          const prompt = requireExternalClientConsent(
-            query.client_id,
-            query.prompt
-          );
           return Promise.resolve({
             context: {
-              query: { ...query, ...(prompt ? { prompt } : {}) },
+              query: { ...query, prompt: requireOAuthConsentPrompt() },
             },
           });
         }),

@@ -36,6 +36,9 @@ const baseProps = {
   onDeleteAccount: mock(() => Promise.resolve()),
   onDeleteDialogOpenChange: mock(() => undefined),
   onDownloadExport: mock(() => Promise.resolve()),
+  onRevokeAllApiKeys: mock(() =>
+    Promise.resolve({ hasMore: false, revokedCount: 0 })
+  ),
   onRevokeApiKey: mock(() => Promise.resolve()),
   onRevokeOAuthConnection: mock(() => Promise.resolve()),
   onRotateApiKey: mock(() => Promise.resolve({ key: "teak_rotated" })),

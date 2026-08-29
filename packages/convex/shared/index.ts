@@ -5,6 +5,7 @@ export * from "./fileFormats";
 export * from "./linkCategories";
 export * from "./markdown";
 export * from "./metrics";
+export * from "./polarPlans";
 export * from "./search";
 export * from "./telemetry";
 export * from "./types";

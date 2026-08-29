@@ -56,4 +56,10 @@ export const rateLimiter = new RateLimiter(components.ratelimiter, {
     period: MINUTE,
     capacity: 20,
   },
+  apiKeyCreation: {
+    kind: "token bucket",
+    rate: 5,
+    period: MINUTE,
+    capacity: 5,
+  },
 });

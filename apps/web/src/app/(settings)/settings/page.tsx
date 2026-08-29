@@ -176,6 +176,7 @@ export default function ProfileSettingsPage() {
       onDeleteAccount={settings.handleDeleteAccount}
       onDeleteDialogOpenChange={settings.setDeleteDialogOpen}
       onDownloadExport={settings.handleDownloadExport}
+      onRevokeAllApiKeys={settings.handleRevokeAllApiKeys}
       onRevokeApiKey={settings.handleRevokeApiKey}
       onRevokeOAuthConnection={settings.handleRevokeOAuthConnection}
       onRotateApiKey={settings.handleRotateApiKey}

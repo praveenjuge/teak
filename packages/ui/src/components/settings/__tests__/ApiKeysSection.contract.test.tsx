@@ -78,6 +78,9 @@ const keys = [
 
 const handlers = {
   onCreateKey: mock(() => Promise.resolve({ key: "new-key" })),
+  onRevokeAllKeys: mock(() =>
+    Promise.resolve({ hasMore: false, revokedCount: 0 })
+  ),
   onRevokeKey: mock(() => Promise.resolve()),
   onRotateKey: mock(() => Promise.resolve({ key: "rotated-key" })),
 };
@@ -126,6 +129,8 @@ describe("ApiKeysDialog", () => {
 
     expect(markup).toContain("Manage API Keys");
     expect(markup).toContain("Generate Key");
+    expect(markup).toContain("Revoke all keys");
+    expect(markup).toContain("10 active keys");
     expect(markup).toContain("<th");
     expect(markup).toContain("Key");
     expect(markup).toContain("Used");

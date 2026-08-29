@@ -44,7 +44,7 @@ Teak's MCP server supports two authentication methods.
     Authorization: Bearer teakapi_secret_live_a1b2c3d4_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
     ```
 
-    Generate and manage API keys in Teak Settings. Unauthenticated requests receive `401` with discovery metadata that compatible clients use to begin browser sign-in.
+- Generate and manage API keys in Teak Settings. Each account can keep up to 10 active keys.
   </Tab>
 </Tabs>
 
@@ -72,6 +72,9 @@ Teak's MCP server supports two authentication methods.
 
 OAuth protected-resource discovery advertises the canonical production endpoint
 shown above, so MCP clients validate and connect to the same public resource.
+
+JSON-RPC batches are limited to 100 messages. Larger batches are rejected
+before any tool runs. Single-call requests are unchanged.
 
 ## Available Tools
 

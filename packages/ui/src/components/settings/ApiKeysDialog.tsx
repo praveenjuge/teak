@@ -32,6 +32,7 @@ interface ApiKeysDialogProps {
   keys: ApiKeyListItem[] | undefined;
   onCreateKey: () => Promise<CreatedApiKey | null>;
   onOpenChange: (open: boolean) => void;
+  onRevokeAllKeys?: () => Promise<{ hasMore: boolean; revokedCount: number }>;
   onRevokeKey: (keyId: string) => Promise<void>;
   onRotateKey: (keyId: string) => Promise<CreatedApiKey | null>;
   open: boolean;
@@ -87,6 +88,7 @@ export function ApiKeysDialog({
   keys,
   onCreateKey,
   onOpenChange,
+  onRevokeAllKeys,
   onRevokeKey,
   onRotateKey,
   open,
@@ -94,6 +96,7 @@ export function ApiKeysDialog({
   const [revealedKey, setRevealedKey] = useState<CreatedApiKey | null>(null);
   const [actionKey, setActionKey] = useState<string | null>(null);
   const [isCreating, setIsCreating] = useState(false);
+  const [isRevokingAll, setIsRevokingAll] = useState(false);
   const isCreatingRef = useRef(false);
 
   const handleCreate = async () => {
@@ -116,6 +119,34 @@ export function ApiKeysDialog({
     } finally {
       isCreatingRef.current = false;
       setIsCreating(false);
+    }
+  };
+
+  const handleRevokeAll = async () => {
+    if (!onRevokeAllKeys || isRevokingAll) {
+      return;
+    }
+
+    setIsRevokingAll(true);
+    const toastId = toast.loading("Revoking API keys...");
+    try {
+      const result = await onRevokeAllKeys();
+      if (result.hasMore) {
+        toast.success("Revoking remaining keys in the background.", {
+          id: toastId,
+        });
+      } else {
+        toast.success(
+          result.revokedCount === 0
+            ? "No active API keys to revoke."
+            : "All API keys revoked.",
+          { id: toastId }
+        );
+      }
+    } catch {
+      toast.error("Could not revoke API keys.", { id: toastId });
+    } finally {
+      setIsRevokingAll(false);
     }
   };
 
@@ -160,16 +191,34 @@ export function ApiKeysDialog({
             <DialogTitle>Manage API Keys</DialogTitle>
           </DialogHeader>
 
-          <Button
-            className="shrink-0"
-            disabled={isCreating}
-            onClick={handleCreate}
-            size="sm"
-          >
-            {isCreating ? <Spinner /> : null}
-            Generate Key
-          </Button>
+          <div className="flex shrink-0 flex-col gap-2 sm:flex-row">
+            {onRevokeAllKeys && keys && keys.length > 0 ? (
+              <Button
+                disabled={isCreating || isRevokingAll}
+                onClick={() => void handleRevokeAll()}
+                size="sm"
+                variant="outline"
+              >
+                {isRevokingAll ? <Spinner /> : null}
+                Revoke all keys
+              </Button>
+            ) : null}
+            <Button
+              className="shrink-0"
+              disabled={isCreating || isRevokingAll}
+              onClick={handleCreate}
+              size="sm"
+            >
+              {isCreating ? <Spinner /> : null}
+              Generate Key
+            </Button>
+          </div>
         </div>
+
+        <p className="text-muted-foreground text-xs">
+          You can keep up to 10 active keys. Creating keys is limited to five
+          per minute.
+        </p>
 
         <div className="space-y-3">
           {revealedKey && (

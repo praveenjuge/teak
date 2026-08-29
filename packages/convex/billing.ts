@@ -4,6 +4,7 @@ import { ConvexError, v } from "convex/values";
 import { api, components } from "./_generated/api";
 import { action, query } from "./_generated/server";
 import { resolveTeakDevAppUrl } from "./devUrls";
+import { isApprovedPolarProductId } from "./shared/polarPlans";
 import { normalizeErrorClass } from "./shared/telemetry";
 import { scheduleBillingOutcome } from "./telemetry/schedule";
 
@@ -45,6 +46,9 @@ export const createCheckoutLinkHandler = async (ctx: any, args: any) => {
     const devAppUrl = resolveTeakDevAppUrl(process.env);
     const user = await ctx.runQuery(api.billing.getUserInfo);
     userId = user.subject;
+    if (!isApprovedPolarProductId(args.productId)) {
+      throw new ConvexError("Invalid product");
+    }
     await scheduleBillingOutcome(ctx, {
       flow: "checkout",
       outcome: "attempt",

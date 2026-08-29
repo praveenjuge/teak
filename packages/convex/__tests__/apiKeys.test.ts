@@ -1,13 +1,16 @@
 // @ts-nocheck
-import { describe, expect, mock, test } from "bun:test";
+import { beforeEach, describe, expect, mock, test } from "bun:test";
 
 import {
   createUserApiKey,
   listUserApiKeys,
+  revokeAllUserApiKeys,
+  revokeAllUserApiKeysPage,
   revokeUserApiKey,
   rotateUserApiKey,
   validateUserApiKey,
 } from "../apiKeys";
+import { rateLimiter } from "../shared/rateLimits";
 
 const runHandler = (fn: any, ctx: any, args: any) => {
   const handler = (fn as any).handler ?? fn;
@@ -33,7 +36,19 @@ const buildAuth = (subject = "user_1") => ({
   getUserIdentity: mock().mockResolvedValue({ subject }),
 });
 
+const listActiveKeys = (keys: unknown[]) =>
+  mock().mockImplementation((_ref, args) => {
+    if (args?.status && args.status !== "active") {
+      return [];
+    }
+    return keys;
+  });
+
 describe("apiKeys", () => {
+  beforeEach(() => {
+    rateLimiter.limit = mock().mockResolvedValue({ ok: true });
+  });
+
   test("create stores new keys in the component", async () => {
     const key = `teakapi_secret_live_a1b2c3d4_${"f".repeat(64)}`;
     const ctx = {
@@ -42,6 +57,7 @@ describe("apiKeys", () => {
         key,
         keyId: "component_key",
       }),
+      runQuery: listActiveKeys([]),
     };
 
     const result = await runHandler(createUserApiKey, ctx, {
@@ -58,6 +74,13 @@ describe("apiKeys", () => {
       source: "component",
       status: "active",
     });
+    expect(ctx.runQuery).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({
+        ownerId: "user_1",
+        status: "active",
+      })
+    );
     expect(ctx.runMutation).toHaveBeenCalledWith(
       expect.anything(),
       expect.objectContaining({
@@ -70,10 +93,42 @@ describe("apiKeys", () => {
     );
   });
 
-  test("list returns only component keys", async () => {
+  test("create refuses a hidden overflow of active keys", async () => {
     const ctx = {
       auth: buildAuth(),
-      runQuery: mock().mockResolvedValue([componentKey]),
+      runMutation: mock(),
+      runQuery: listActiveKeys(
+        Array.from({ length: 10 }, (_, index) => ({
+          ...componentKey,
+          keyId: `key_${index}`,
+        }))
+      ),
+    };
+
+    await expect(runHandler(createUserApiKey, ctx, {})).rejects.toThrow(
+      "Active API key limit reached"
+    );
+    expect(ctx.runMutation).not.toHaveBeenCalled();
+  });
+
+  test("create rate-limits key minting", async () => {
+    rateLimiter.limit = mock().mockResolvedValue({ ok: false, retryAfter: 1 });
+    const ctx = {
+      auth: buildAuth(),
+      runMutation: mock(),
+      runQuery: listActiveKeys([]),
+    };
+
+    await expect(runHandler(createUserApiKey, ctx, {})).rejects.toThrow(
+      "Too many API keys created"
+    );
+    expect(ctx.runMutation).not.toHaveBeenCalled();
+  });
+
+  test("list queries live statuses instead of filtering a truncated page", async () => {
+    const ctx = {
+      auth: buildAuth(),
+      runQuery: listActiveKeys([componentKey]),
     };
 
     const result = await runHandler(listUserApiKeys, ctx, {});
@@ -85,8 +140,9 @@ describe("apiKeys", () => {
         status: "active",
       }),
     ]);
-    // `source` and `requiresUpdate` are no longer surfaced now that legacy
-    // keys are gone.
+    expect(
+      ctx.runQuery.mock.calls.some((call) => call[1]?.status === "active")
+    ).toBe(true);
     expect(result[0]).not.toHaveProperty("source");
     expect(result[0]).not.toHaveProperty("requiresUpdate");
   });
@@ -107,6 +163,48 @@ describe("apiKeys", () => {
     ]);
   });
 
+  test("revoke-all drains an active page and schedules the next page", async () => {
+    const keys = Array.from({ length: 100 }, (_, index) => ({
+      ...componentKey,
+      keyId: `key_${index}`,
+    }));
+    const ctx = {
+      runMutation: mock().mockResolvedValue(null),
+      runQuery: listActiveKeys(keys),
+      scheduler: { runAfter: mock().mockResolvedValue(null) },
+    };
+
+    const result = await runHandler(revokeAllUserApiKeysPage, ctx, {
+      ownerId: "user_1",
+      revokedCount: 0,
+    });
+
+    expect(result).toEqual({ hasMore: true, revokedCount: 100 });
+    expect(ctx.runMutation).toHaveBeenCalledTimes(100);
+    expect(ctx.scheduler.runAfter).toHaveBeenCalledWith(0, expect.anything(), {
+      ownerId: "user_1",
+      revokedCount: 100,
+    });
+  });
+
+  test("revoke-all public mutation authenticates then drains", async () => {
+    const ctx = {
+      auth: buildAuth(),
+      runMutation: mock().mockResolvedValue(null),
+      runQuery: listActiveKeys([
+        componentKey,
+        { ...componentKey, keyId: "component_key_2" },
+      ]),
+      scheduler: { runAfter: mock() },
+    };
+
+    const result = await runHandler(revokeAllUserApiKeys, ctx, {});
+
+    expect(result).toEqual({ hasMore: false, revokedCount: 2 });
+    expect(ctx.runMutation).toHaveBeenCalledTimes(2);
+    expect(ctx.scheduler.runAfter).not.toHaveBeenCalled();
+  });
+
   test("rotate creates a replacement key and immediately revokes the old component key", async () => {
     const newKey = `teakapi_secret_live_e5f6a7b8_${"a".repeat(64)}`;
     const ctx = {
@@ -117,7 +215,7 @@ describe("apiKeys", () => {
           keyId: "new_component_key",
         })
         .mockResolvedValueOnce(null),
-      runQuery: mock().mockResolvedValue([componentKey]),
+      runQuery: listActiveKeys([componentKey]),
     };
 
     const result = await runHandler(rotateUserApiKey, ctx, {
@@ -150,12 +248,17 @@ describe("apiKeys", () => {
     const ctx = {
       auth: buildAuth(),
       runMutation: mock(),
-      runQuery: mock().mockResolvedValue([
-        {
-          ...componentKey,
-          status: "exhausted",
-        },
-      ]),
+      runQuery: mock().mockImplementation((_ref, args) => {
+        if (args?.status === "exhausted") {
+          return [
+            {
+              ...componentKey,
+              status: "exhausted",
+            },
+          ];
+        }
+        return [];
+      }),
     };
 
     await expect(
@@ -208,8 +311,6 @@ describe("apiKeys", () => {
   });
 
   test("validate rejects a retired legacy-format token", async () => {
-    // The old `teakapi_<prefix>_<secret>` shape is now malformed and must never
-    // reach the component validator.
     const ctx = {
       runMutation: mock(),
       runQuery: mock(),

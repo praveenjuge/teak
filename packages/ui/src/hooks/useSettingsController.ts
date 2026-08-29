@@ -50,6 +50,7 @@ export function useSettingsController({
   const createKey = useMutation(api.apiKeys.createUserApiKey);
   const revokeKey = useMutation(api.apiKeys.revokeUserApiKey);
   const rotateKey = useMutation(api.apiKeys.rotateUserApiKey);
+  const revokeAllKeys = useMutation(api.apiKeys.revokeAllUserApiKeys);
   const oauthConnections = useQuery(api.oauthTokens.listOAuthConnections, {});
   const revokeOAuthConnection = useAction(
     api.oauthTokens.revokeOAuthConnection
@@ -154,6 +155,9 @@ export function useSettingsController({
     await revokeKey({ keyId });
   };
 
+  const handleRevokeAllApiKeys = async () =>
+    (await revokeAllKeys({})) as { hasMore: boolean; revokedCount: number };
+
   const handleRotateApiKey = async (keyId: string) =>
     (await rotateKey({ keyId })) as { key: string };
 
@@ -237,6 +241,7 @@ export function useSettingsController({
     handleCreateCustomerPortal,
     handleDeleteAccount,
     handleDownloadExport,
+    handleRevokeAllApiKeys,
     handleRevokeApiKey,
     handleRevokeOAuthConnection,
     handleRotateApiKey,

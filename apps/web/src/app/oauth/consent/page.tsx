@@ -93,8 +93,8 @@ function ConsentContent() {
       </CardTitle>
       <CardContent className="space-y-4">
         <p className="text-center text-muted-foreground text-sm">
-          An external app is requesting full access to your Teak vault. It can
-          read, create, edit, and delete your cards and access their files. Only
+          An app is requesting full access to your Teak vault. It can read,
+          create, edit, and delete your cards and access their files. Only
           continue if you started this connection.
         </p>
         <div className="rounded-2xl border p-3">

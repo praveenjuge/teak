@@ -25,6 +25,8 @@ const MCP_CORS_HEADERS: Record<string, string> = {
 
 const TOKEN_VALIDATION_TTL_MS = 30_000;
 const MAX_VALIDATED_TOKENS = 10_000;
+export const MAX_MCP_JSON_RPC_BATCH = 100;
+const JSON_RPC_RATE_LIMITED_CODE = -32_000;
 const validatedTokenCache = new Map<string, number>();
 
 const getAuthorizationHeader = (request: Request): string | null =>
@@ -211,6 +213,46 @@ const handleJsonRpcMessage = async (
   return jsonRpcError(rpc.id, -32_601, "Method not found");
 };
 
+const jsonRpcId = (message: unknown): null | number | string => {
+  if (!(message && typeof message === "object" && !Array.isArray(message))) {
+    return null;
+  }
+  const id = (message as { id?: unknown }).id;
+  if (typeof id === "number" || typeof id === "string") {
+    return id;
+  }
+  return null;
+};
+
+const isNotification = (message: unknown): boolean => {
+  if (!(message && typeof message === "object" && !Array.isArray(message))) {
+    return false;
+  }
+  return !("id" in message);
+};
+
+export const rateLimitedJsonRpcRemainder = (
+  remainingMessages: unknown[]
+): JsonObject[] =>
+  remainingMessages.flatMap((message) =>
+    isNotification(message)
+      ? []
+      : [
+          jsonRpcError(
+            jsonRpcId(message),
+            JSON_RPC_RATE_LIMITED_CODE,
+            "Rate limited"
+          ),
+        ]
+  );
+
+const isRateLimitedRpc = (response: JsonObject): boolean => {
+  const result = response.result as
+    | { isError?: boolean; structuredContent?: { status?: unknown } }
+    | undefined;
+  return result?.structuredContent?.status === 429;
+};
+
 const handleMcpPost = async (ctx: any, request: Request): Promise<Response> => {
   const accept = request.headers.get("accept") ?? "*/*";
   if (
@@ -228,12 +270,34 @@ const handleMcpPost = async (ctx: any, request: Request): Promise<Response> => {
   }
 
   const body = await parseJsonRpcBody(request);
+  if (Array.isArray(body) && body.length > MAX_MCP_JSON_RPC_BATCH) {
+    return json(
+      400,
+      jsonRpcError(
+        null,
+        -32_600,
+        `JSON-RPC batch exceeds ${MAX_MCP_JSON_RPC_BATCH} messages`
+      )
+    );
+  }
+
   const messages = Array.isArray(body) ? body : [body];
   const responses: JsonObject[] = [];
+  let rateLimited = false;
   for (const message of messages) {
+    if (rateLimited) {
+      if (!isNotification(message)) {
+        responses.push(...rateLimitedJsonRpcRemainder([message]));
+      }
+      continue;
+    }
+
     const response = await handleJsonRpcMessage(ctx, request, message);
     if (response) {
       responses.push(response);
+      if (isRateLimitedRpc(response)) {
+        rateLimited = true;
+      }
     }
   }
 

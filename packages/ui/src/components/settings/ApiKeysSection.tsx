@@ -12,6 +12,7 @@ interface ApiKeysSectionProps {
   isLoading: boolean;
   keys: ApiKeyListItem[] | undefined;
   onCreateKey: () => Promise<CreatedApiKey | null>;
+  onRevokeAllKeys?: () => Promise<{ hasMore: boolean; revokedCount: number }>;
   onRevokeKey: (keyId: string) => Promise<void>;
   onRotateKey: (keyId: string) => Promise<CreatedApiKey | null>;
 }
@@ -20,6 +21,7 @@ export function ApiKeysSection({
   isLoading,
   keys,
   onCreateKey,
+  onRevokeAllKeys,
   onRevokeKey,
   onRotateKey,
 }: ApiKeysSectionProps) {
@@ -44,6 +46,7 @@ export function ApiKeysSection({
         keys={keys}
         onCreateKey={onCreateKey}
         onOpenChange={setOpen}
+        onRevokeAllKeys={onRevokeAllKeys}
         onRevokeKey={onRevokeKey}
         onRotateKey={onRotateKey}
         open={open}
