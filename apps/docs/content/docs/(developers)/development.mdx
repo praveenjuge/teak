@@ -3,7 +3,7 @@ title: Development Guide
 description: Setup and development workflow for Teak
 ---
 
-**Prerequisites:** Bun 1.0+, Node.js 20+, Git
+**Prerequisites:** Bun 1.4.0+, Node.js 20+, Git
 
 ## Quick Start (local)
 
@@ -57,12 +57,17 @@ description: Setup and development workflow for Teak
     - raycast/ Raycast extension
     - cli/ npm command line client
     - docs/ Documentation site (Blume)
+    - files-worker/ Cloudflare Worker for file delivery and processing
+  - .agents/
+    - skills/ Agent Skills for skills.sh
   - packages/
     - convex/ Convex backend
       - ai/ AI metadata helpers
       - card/ Card mutations/queries
       - workflows/ AI pipeline orchestration
     - ui/ Shared UI components and hooks
+    - files-protocol/ Shared Worker operation contracts
+    - tests/ Cross-surface Playwright journeys
   - turbo.json Turborepo pipeline config
   - package.json Root package + workspaces
 
