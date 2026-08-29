@@ -1,8 +1,14 @@
 // @ts-nocheck
-import { beforeEach, describe, expect, mock, test } from "bun:test";
+import { afterEach, beforeEach, describe, expect, mock, test } from "bun:test";
 import {
+  cleanupCompletedWorkflowHandler,
+  cleanupWorkflowHistoryBatchHandler,
   initializeCardProcessingStateHandler,
+  MAX_WORKFLOW_CLEANUP_BATCH_SIZE,
+  scheduleCompletedWorkflowCleanupHandler,
   startCardProcessingWorkflowHandler,
+  WORKFLOW_CLEANUP_RETRY_MS,
+  WORKFLOW_RETENTION_MS,
   workflow,
 } from "../../../convex/workflows/manager";
 
@@ -100,10 +106,188 @@ describe("workflow manager", () => {
         ctx,
         expect.anything(),
         { cardId: "c1" },
-        { startAsync: true }
+        {
+          context: null,
+          onComplete: expect.anything(),
+          startAsync: true,
+        }
       );
       expect(mockRunMutation).toHaveBeenCalled();
       expect(result).toEqual({ workflowId: "wf_123" });
+    });
+  });
+
+  describe("workflow retention", () => {
+    const originalCleanup = workflow.cleanup;
+
+    afterEach(() => {
+      workflow.cleanup = originalCleanup;
+    });
+
+    test("schedules cleanup seven days after completion", async () => {
+      const runAfter = mock().mockResolvedValue("scheduled_123");
+      const runQuery = mock().mockResolvedValue({
+        workflow: { generationNumber: 3 },
+      });
+
+      await scheduleCompletedWorkflowCleanupHandler(
+        { runQuery, scheduler: { runAfter } } as any,
+        "wf_123" as any
+      );
+
+      expect(runAfter).toHaveBeenCalledWith(
+        WORKFLOW_RETENTION_MS,
+        expect.anything(),
+        { generationNumber: 3, workflowId: "wf_123" }
+      );
+    });
+
+    test("retries cleanup when a retained workflow is active again", async () => {
+      const runQuery = mock().mockResolvedValue({
+        workflow: { generationNumber: 3 },
+      });
+      const cleanup = mock().mockResolvedValue(true);
+      workflow.cleanup = cleanup;
+      const runAfter = mock().mockResolvedValue("scheduled_retry");
+      const ctx = { runQuery, scheduler: { runAfter } } as any;
+
+      const cleaned = await cleanupCompletedWorkflowHandler(
+        ctx,
+        "wf_123" as any,
+        3
+      );
+
+      expect(cleaned).toBe(false);
+      expect(cleanup).not.toHaveBeenCalled();
+      expect(runAfter).toHaveBeenCalledWith(
+        WORKFLOW_CLEANUP_RETRY_MS,
+        expect.anything(),
+        { generationNumber: 3, workflowId: "wf_123" }
+      );
+    });
+
+    test("ignores a stale cleanup timer after workflow restart", async () => {
+      const runQuery = mock().mockResolvedValue({
+        workflow: {
+          generationNumber: 4,
+          runResult: { kind: "success", returnValue: null },
+        },
+      });
+      const cleanup = mock().mockResolvedValue(true);
+      workflow.cleanup = cleanup;
+      const runAfter = mock().mockResolvedValue("scheduled_retry");
+      const ctx = { runQuery, scheduler: { runAfter } } as any;
+
+      const cleaned = await cleanupCompletedWorkflowHandler(
+        ctx,
+        "wf_123" as any,
+        3
+      );
+
+      expect(cleaned).toBe(false);
+      expect(cleanup).not.toHaveBeenCalled();
+      expect(runAfter).not.toHaveBeenCalled();
+    });
+
+    test("dry-runs and cleans only completed workflow IDs", async () => {
+      const cutoffMs = Date.now() - WORKFLOW_RETENTION_MS;
+      const runQuery = mock((_reference: any, { workflowId }: any) => {
+        if (workflowId === "wf_running") {
+          return {
+            workflow: { _creationTime: cutoffMs - 1 },
+          };
+        }
+        if (workflowId === "wf_missing") {
+          throw new Error("Workflow not found: wf_missing");
+        }
+        return {
+          workflow: {
+            _creationTime:
+              workflowId === "wf_recent" ? cutoffMs + 1 : cutoffMs - 1,
+            runResult: { kind: "success", returnValue: null },
+          },
+        };
+      });
+      const cleanup = mock().mockResolvedValue(true);
+      workflow.cleanup = cleanup;
+      const ctx = { runQuery } as any;
+      const workflowIds = [
+        "wf_completed",
+        "wf_running",
+        "wf_missing",
+        "wf_recent",
+        "wf_completed",
+      ] as any;
+
+      const preview = await cleanupWorkflowHistoryBatchHandler(ctx, {
+        cutoffMs,
+        dryRun: true,
+        workflowIds,
+      });
+
+      expect(preview).toEqual({
+        cleanedCount: 0,
+        eligibleCount: 1,
+        inProgressCount: 1,
+        missingCount: 1,
+        recentCount: 1,
+        uniqueCount: 4,
+      });
+      expect(cleanup).not.toHaveBeenCalled();
+
+      const applied = await cleanupWorkflowHistoryBatchHandler(ctx, {
+        cutoffMs,
+        dryRun: false,
+        workflowIds,
+      });
+
+      expect(applied).toEqual({
+        cleanedCount: 1,
+        eligibleCount: 0,
+        inProgressCount: 1,
+        missingCount: 1,
+        recentCount: 1,
+        uniqueCount: 4,
+      });
+      expect(cleanup).toHaveBeenCalledTimes(1);
+      expect(cleanup).toHaveBeenCalledWith(ctx, "wf_completed");
+    });
+
+    test("rejects oversized maintenance batches", () => {
+      expect(
+        cleanupWorkflowHistoryBatchHandler({} as any, {
+          cutoffMs: Date.now() - WORKFLOW_RETENTION_MS,
+          dryRun: true,
+          workflowIds: Array.from(
+            { length: MAX_WORKFLOW_CLEANUP_BATCH_SIZE + 1 },
+            (_, index) => `wf_${index}`
+          ) as any,
+        })
+      ).rejects.toThrow("workflowIds must contain 1-100 unique IDs");
+    });
+
+    test("rejects a cutoff that would delete recent history", () => {
+      expect(
+        cleanupWorkflowHistoryBatchHandler({} as any, {
+          cutoffMs: Date.now() - WORKFLOW_RETENTION_MS + 60_000,
+          dryRun: true,
+          workflowIds: ["wf_completed"] as any,
+        })
+      ).rejects.toThrow(
+        "cutoffMs must preserve at least seven days of history"
+      );
+    });
+
+    test("rejects non-finite retention cutoffs", () => {
+      expect(
+        cleanupWorkflowHistoryBatchHandler({} as any, {
+          cutoffMs: Number.NaN,
+          dryRun: true,
+          workflowIds: ["wf_completed"] as any,
+        })
+      ).rejects.toThrow(
+        "cutoffMs must preserve at least seven days of history"
+      );
     });
   });
 });

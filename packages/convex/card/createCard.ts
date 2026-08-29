@@ -16,7 +16,7 @@ import type { CardCreationSource } from "../shared/metrics";
 import { normalizeErrorClass } from "../shared/telemetry";
 import { assertSafeExternalUrl } from "../shared/utils/safeUrl";
 import { scheduleCardOutcome } from "../telemetry/schedule";
-import { workflow } from "../workflows/manager";
+import { startWorkflow } from "../workflows/manager";
 import { validateTextCardContent } from "./markdown";
 import {
   buildInitialProcessingStatus,
@@ -206,7 +206,7 @@ export const createCardForUserHandler = async (
   const cardId = await ctx.db.insert("cards", cardData);
 
   // Start the card processing workflow
-  await workflow.start(
+  await startWorkflow(
     ctx,
     (internal as any)["workflows/cardProcessing"].cardProcessingWorkflow,
     { cardId }

@@ -2,7 +2,7 @@ import { v } from "convex/values";
 import { internal } from "../_generated/api";
 import { internalMutation, internalQuery } from "../_generated/server";
 import { cardStorageObjectKeys, deleteObject } from "../storage/r2";
-import { workflow } from "./manager";
+import { startWorkflow, workflow } from "./manager";
 
 const internalWorkflow = internal as Record<string, any>;
 
@@ -159,7 +159,7 @@ export const startCardCleanupWorkflow = internalMutation({
     })
   ),
   handler: async (ctx, { startAsync }) => {
-    const result = await workflow.start(
+    const result = await startWorkflow(
       ctx,
       internalWorkflow["workflows/cardCleanup"].cardCleanupWorkflow,
       {},

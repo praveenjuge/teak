@@ -17,7 +17,7 @@ import {
   isFilesWorkerConfigured,
 } from "../storage/filesWorkerClient";
 import { isR2KeyInNamespace } from "../storage/r2";
-import { workflow } from "./manager";
+import { startWorkflow, workflow } from "./manager";
 
 const internalAny = internal as any;
 
@@ -126,7 +126,7 @@ export const startObjectDeletion = internalMutation({
     if (usable.length === 0) {
       return null;
     }
-    await workflow.start(
+    await startWorkflow(
       ctx,
       internalAny["workflows/objectCleanup"].objectDeletionWorkflow,
       { keys: usable },

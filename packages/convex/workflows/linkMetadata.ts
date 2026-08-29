@@ -3,7 +3,7 @@ import { v } from "convex/values";
 import { internal } from "../_generated/api";
 import { internalMutation } from "../_generated/server";
 import { buildErrorPreview } from "../linkMetadata";
-import { workflow } from "./manager";
+import { startWorkflow, workflow } from "./manager";
 import {
   LINK_METADATA_RETRYABLE_PREFIX,
   type LinkMetadataRetryableError,
@@ -106,7 +106,7 @@ export const startLinkMetadataWorkflowHandler = async (
   ctx: any,
   { cardId, startAsync }: any
 ) => {
-  const workflowId = await workflow.start(
+  const workflowId = await startWorkflow(
     ctx,
     internalWorkflow["workflows/linkMetadata"].linkMetadataWorkflow,
     { cardId },

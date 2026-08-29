@@ -9,7 +9,7 @@ import { v } from "convex/values";
 import { internal } from "../_generated/api";
 import { internalMutation } from "../_generated/server";
 import type { Id } from "../shared/types";
-import { workflow } from "./manager";
+import { startWorkflow, workflow } from "./manager";
 
 const internalWorkflow = internal as Record<string, any>;
 const aiMetadataInternal = internalWorkflow["workflows/aiMetadata/index"] as
@@ -87,7 +87,7 @@ export const startAiBackfillWorkflow = internalMutation({
     })
   ),
   handler: async (ctx, { startAsync }) => {
-    const result = await workflow.start(
+    const result = await startWorkflow(
       ctx,
       internalWorkflow["workflows/aiBackfill"].aiBackfillWorkflow,
       {},

@@ -4,7 +4,7 @@ import { internal } from "../../_generated/api";
 import { internalMutation } from "../../_generated/server";
 import type { CardType } from "../../schema";
 import { cardTypeValidator } from "../../schema";
-import { workflow } from "../manager";
+import { startWorkflow, workflow } from "../manager";
 import type { AiMetadataResult, AiMetadataWorkflowArgs } from "./types";
 
 // Typed internal reference map for workflow helpers
@@ -80,7 +80,7 @@ export const startAiMetadataWorkflow = internalMutation({
       );
     }
 
-    const workflowId = await workflow.start(
+    const workflowId = await startWorkflow(
       ctx,
       aiMetadataInternal.aiMetadataWorkflow,
       { cardId, cardType: cardType ?? undefined },
