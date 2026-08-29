@@ -135,26 +135,26 @@ type WorkflowCleanupStatus =
   | "eligible"
   | "inProgress"
   | "missing"
+  | "noTimestamp"
   | "oversized"
   | "recent";
 
 type WorkflowCleanupSchedulingStatus =
   | "eligible"
+  | "failed"
   | "inProgress"
   | "missing"
+  | "noTimestamp"
   | "oversized"
   | "scheduled";
 
 const getWorkflowCompletionTime = (
-  workflowRecord: { _creationTime: number },
   journalEntries: Array<{ step: { completedAt?: number } }>
-): number => {
+): number | null => {
   const completionTimes = journalEntries.flatMap((entry) =>
     entry.step.completedAt === undefined ? [] : [entry.step.completedAt]
   );
-  return completionTimes.length === 0
-    ? workflowRecord._creationTime
-    : Math.max(...completionTimes);
+  return completionTimes.length === 0 ? null : Math.max(...completionTimes);
 };
 
 const cleanupWorkflowHistoryEntry = async (
@@ -177,10 +177,10 @@ const cleanupWorkflowHistoryEntry = async (
     if (!completeJournalLoaded) {
       return "oversized";
     }
-    const completedAt = getWorkflowCompletionTime(
-      workflowRecord,
-      journalEntries
-    );
+    const completedAt = getWorkflowCompletionTime(journalEntries);
+    if (completedAt === null) {
+      return "noTimestamp";
+    }
     if (completedAt >= cutoffMs) {
       return "recent";
     }
@@ -216,10 +216,10 @@ const scheduleWorkflowHistoryEntry = async (
     if (!completeJournalLoaded) {
       return "oversized";
     }
-    const completedAt = getWorkflowCompletionTime(
-      workflowRecord,
-      journalEntries
-    );
+    const completedAt = getWorkflowCompletionTime(journalEntries);
+    if (completedAt === null) {
+      return "noTimestamp";
+    }
     if (dryRun) {
       return "eligible";
     }
@@ -259,8 +259,10 @@ export const scheduleWorkflowHistoryCleanupBatchHandler = async (
 
   const totals: Record<WorkflowCleanupSchedulingStatus, number> = {
     eligible: 0,
+    failed: 0,
     inProgress: 0,
     missing: 0,
+    noTimestamp: 0,
     oversized: 0,
     scheduled: 0,
   };
@@ -275,7 +277,8 @@ export const scheduleWorkflowHistoryCleanupBatchHandler = async (
     );
     for (const result of results) {
       if (result.status === "rejected") {
-        throw result.reason;
+        totals.failed += 1;
+        continue;
       }
       totals[result.value] += 1;
     }
@@ -283,8 +286,10 @@ export const scheduleWorkflowHistoryCleanupBatchHandler = async (
 
   return {
     eligibleCount: totals.eligible,
+    failedCount: totals.failed,
     inProgressCount: totals.inProgress,
     missingCount: totals.missing,
+    noTimestampCount: totals.noTimestamp,
     oversizedCount: totals.oversized,
     scheduledCount: totals.scheduled,
     uniqueCount: workflowIds.length,
@@ -318,6 +323,7 @@ export const cleanupWorkflowHistoryBatchHandler = async (
     eligible: 0,
     inProgress: 0,
     missing: 0,
+    noTimestamp: 0,
     oversized: 0,
     recent: 0,
   };
@@ -348,6 +354,7 @@ export const cleanupWorkflowHistoryBatchHandler = async (
     eligibleCount: totals.eligible,
     inProgressCount: totals.inProgress,
     missingCount: totals.missing,
+    noTimestampCount: totals.noTimestamp,
     oversizedCount: totals.oversized,
     recentCount: totals.recent,
     uniqueCount: workflowIds.length,
@@ -370,6 +377,7 @@ export const cleanupWorkflowHistoryBatch = internalAction({
     eligibleCount: v.number(),
     inProgressCount: v.number(),
     missingCount: v.number(),
+    noTimestampCount: v.number(),
     oversizedCount: v.number(),
     recentCount: v.number(),
     uniqueCount: v.number(),
@@ -385,8 +393,10 @@ export const scheduleWorkflowHistoryCleanupBatch = internalAction({
   args: { dryRun: v.boolean(), workflowIds: v.array(vWorkflowId) },
   returns: v.object({
     eligibleCount: v.number(),
+    failedCount: v.number(),
     inProgressCount: v.number(),
     missingCount: v.number(),
+    noTimestampCount: v.number(),
     oversizedCount: v.number(),
     scheduledCount: v.number(),
     uniqueCount: v.number(),
