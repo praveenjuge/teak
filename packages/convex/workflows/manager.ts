@@ -135,8 +135,27 @@ type WorkflowCleanupStatus =
   | "eligible"
   | "inProgress"
   | "missing"
+  | "noTimestamp"
   | "oversized"
   | "recent";
+
+type WorkflowCleanupSchedulingStatus =
+  | "eligible"
+  | "failed"
+  | "inProgress"
+  | "missing"
+  | "noTimestamp"
+  | "oversized"
+  | "scheduled";
+
+const getWorkflowCompletionTime = (
+  journalEntries: Array<{ step: { completedAt?: number } }>
+): number | null => {
+  const completionTimes = journalEntries.flatMap((entry) =>
+    entry.step.completedAt === undefined ? [] : [entry.step.completedAt]
+  );
+  return completionTimes.length === 0 ? null : Math.max(...completionTimes);
+};
 
 const cleanupWorkflowHistoryEntry = async (
   ctx: ActionCtx,
@@ -158,13 +177,10 @@ const cleanupWorkflowHistoryEntry = async (
     if (!completeJournalLoaded) {
       return "oversized";
     }
-    const completionTimes = journalEntries.flatMap((entry) =>
-      entry.step.completedAt === undefined ? [] : [entry.step.completedAt]
-    );
-    const completedAt =
-      completionTimes.length === 0
-        ? workflowRecord._creationTime
-        : Math.max(...completionTimes);
+    const completedAt = getWorkflowCompletionTime(journalEntries);
+    if (completedAt === null) {
+      return "noTimestamp";
+    }
     if (completedAt >= cutoffMs) {
       return "recent";
     }
@@ -181,6 +197,103 @@ const cleanupWorkflowHistoryEntry = async (
     }
     throw error;
   }
+};
+
+const scheduleWorkflowHistoryEntry = async (
+  ctx: ActionCtx,
+  workflowId: WorkflowId,
+  dryRun: boolean
+): Promise<WorkflowCleanupSchedulingStatus> => {
+  try {
+    const {
+      journalEntries,
+      ok: completeJournalLoaded,
+      workflow: workflowRecord,
+    } = await ctx.runQuery(components.workflow.journal.load, { workflowId });
+    if (!workflowRecord.runResult) {
+      return "inProgress";
+    }
+    if (!completeJournalLoaded) {
+      return "oversized";
+    }
+    const completedAt = getWorkflowCompletionTime(journalEntries);
+    if (completedAt === null) {
+      return "noTimestamp";
+    }
+    if (dryRun) {
+      return "eligible";
+    }
+    await ctx.scheduler.runAfter(
+      Math.max(0, completedAt + WORKFLOW_RETENTION_MS - Date.now()),
+      internalAny["workflows/manager"].cleanupCompletedWorkflow,
+      {
+        generationNumber: workflowRecord.generationNumber,
+        workflowId,
+      }
+    );
+    return "scheduled";
+  } catch (error) {
+    if (
+      error instanceof Error &&
+      error.message.includes("Workflow not found")
+    ) {
+      return "missing";
+    }
+    throw error;
+  }
+};
+
+export const scheduleWorkflowHistoryCleanupBatchHandler = async (
+  ctx: ActionCtx,
+  args: { dryRun: boolean; workflowIds: WorkflowId[] }
+) => {
+  const workflowIds = [...new Set(args.workflowIds)];
+  if (
+    workflowIds.length === 0 ||
+    workflowIds.length > MAX_WORKFLOW_CLEANUP_BATCH_SIZE
+  ) {
+    throw new Error(
+      `workflowIds must contain 1-${MAX_WORKFLOW_CLEANUP_BATCH_SIZE} unique IDs`
+    );
+  }
+
+  const totals: Record<WorkflowCleanupSchedulingStatus, number> = {
+    eligible: 0,
+    failed: 0,
+    inProgress: 0,
+    missing: 0,
+    noTimestamp: 0,
+    oversized: 0,
+    scheduled: 0,
+  };
+  const concurrency = 10;
+  for (let offset = 0; offset < workflowIds.length; offset += concurrency) {
+    const results = await Promise.allSettled(
+      workflowIds
+        .slice(offset, offset + concurrency)
+        .map((workflowId) =>
+          scheduleWorkflowHistoryEntry(ctx, workflowId, args.dryRun)
+        )
+    );
+    for (const result of results) {
+      if (result.status === "rejected") {
+        totals.failed += 1;
+        continue;
+      }
+      totals[result.value] += 1;
+    }
+  }
+
+  return {
+    eligibleCount: totals.eligible,
+    failedCount: totals.failed,
+    inProgressCount: totals.inProgress,
+    missingCount: totals.missing,
+    noTimestampCount: totals.noTimestamp,
+    oversizedCount: totals.oversized,
+    scheduledCount: totals.scheduled,
+    uniqueCount: workflowIds.length,
+  };
 };
 
 export const cleanupWorkflowHistoryBatchHandler = async (
@@ -210,6 +323,7 @@ export const cleanupWorkflowHistoryBatchHandler = async (
     eligible: 0,
     inProgress: 0,
     missing: 0,
+    noTimestamp: 0,
     oversized: 0,
     recent: 0,
   };
@@ -240,6 +354,7 @@ export const cleanupWorkflowHistoryBatchHandler = async (
     eligibleCount: totals.eligible,
     inProgressCount: totals.inProgress,
     missingCount: totals.missing,
+    noTimestampCount: totals.noTimestamp,
     oversizedCount: totals.oversized,
     recentCount: totals.recent,
     uniqueCount: workflowIds.length,
@@ -262,11 +377,31 @@ export const cleanupWorkflowHistoryBatch = internalAction({
     eligibleCount: v.number(),
     inProgressCount: v.number(),
     missingCount: v.number(),
+    noTimestampCount: v.number(),
     oversizedCount: v.number(),
     recentCount: v.number(),
     uniqueCount: v.number(),
   }),
   handler: cleanupWorkflowHistoryBatchHandler,
+});
+
+/**
+ * Guarded transition endpoint for workflows completed before retention existed.
+ * It schedules cleanup at each workflow's original seven-day deadline.
+ */
+export const scheduleWorkflowHistoryCleanupBatch = internalAction({
+  args: { dryRun: v.boolean(), workflowIds: v.array(vWorkflowId) },
+  returns: v.object({
+    eligibleCount: v.number(),
+    failedCount: v.number(),
+    inProgressCount: v.number(),
+    missingCount: v.number(),
+    noTimestampCount: v.number(),
+    oversizedCount: v.number(),
+    scheduledCount: v.number(),
+    uniqueCount: v.number(),
+  }),
+  handler: scheduleWorkflowHistoryCleanupBatchHandler,
 });
 
 interface CardIdentifier {

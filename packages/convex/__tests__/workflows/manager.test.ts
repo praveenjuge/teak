@@ -6,6 +6,7 @@ import {
   initializeCardProcessingStateHandler,
   MAX_WORKFLOW_CLEANUP_BATCH_SIZE,
   scheduleCompletedWorkflowCleanupHandler,
+  scheduleWorkflowHistoryCleanupBatchHandler,
   startCardProcessingWorkflowHandler,
   WORKFLOW_CLEANUP_RETRY_MS,
   WORKFLOW_RETENTION_MS,
@@ -240,6 +241,7 @@ describe("workflow manager", () => {
         eligibleCount: 1,
         inProgressCount: 1,
         missingCount: 1,
+        noTimestampCount: 0,
         oversizedCount: 0,
         recentCount: 1,
         uniqueCount: 4,
@@ -257,6 +259,7 @@ describe("workflow manager", () => {
         eligibleCount: 0,
         inProgressCount: 1,
         missingCount: 1,
+        noTimestampCount: 0,
         oversizedCount: 0,
         recentCount: 1,
         uniqueCount: 4,
@@ -317,6 +320,136 @@ describe("workflow manager", () => {
       expect(result.oversizedCount).toBe(1);
       expect(result.cleanedCount).toBe(0);
       expect(cleanup).not.toHaveBeenCalled();
+    });
+
+    test("schedules historical cleanup from the original completion time", async () => {
+      const now = Date.now();
+      const completedAt = now - WORKFLOW_RETENTION_MS + 60_000;
+      const runQuery = mock().mockResolvedValue({
+        journalEntries: [{ step: { completedAt } }],
+        ok: true,
+        workflow: {
+          _creationTime: completedAt - 1000,
+          generationNumber: 3,
+          runResult: { kind: "success", returnValue: null },
+        },
+      });
+      const runAfter = mock().mockResolvedValue("scheduled_transition");
+
+      const result = await scheduleWorkflowHistoryCleanupBatchHandler(
+        { runQuery, scheduler: { runAfter } } as any,
+        { dryRun: false, workflowIds: ["wf_123"] as any }
+      );
+
+      expect(result).toEqual({
+        eligibleCount: 0,
+        failedCount: 0,
+        inProgressCount: 0,
+        missingCount: 0,
+        noTimestampCount: 0,
+        oversizedCount: 0,
+        scheduledCount: 1,
+        uniqueCount: 1,
+      });
+      const [delay, , args] = runAfter.mock.calls[0];
+      expect(delay).toBeGreaterThanOrEqual(59_000);
+      expect(delay).toBeLessThanOrEqual(60_000);
+      expect(args).toEqual({ generationNumber: 3, workflowId: "wf_123" });
+    });
+
+    test("fails closed when historical workflow journals are incomplete", async () => {
+      const runQuery = mock().mockResolvedValue({
+        journalEntries: [],
+        ok: false,
+        workflow: {
+          _creationTime: Date.now(),
+          generationNumber: 3,
+          runResult: { kind: "success", returnValue: null },
+        },
+      });
+      const runAfter = mock().mockResolvedValue("scheduled_transition");
+
+      const result = await scheduleWorkflowHistoryCleanupBatchHandler(
+        { runQuery, scheduler: { runAfter } } as any,
+        { dryRun: false, workflowIds: ["wf_oversized"] as any }
+      );
+
+      expect(result.oversizedCount).toBe(1);
+      expect(result.scheduledCount).toBe(0);
+      expect(runAfter).not.toHaveBeenCalled();
+    });
+
+    test("fails closed when historical completion timestamps are missing", async () => {
+      const runQuery = mock().mockResolvedValue({
+        journalEntries: [{ step: {} }],
+        ok: true,
+        workflow: {
+          _creationTime: Date.now() - WORKFLOW_RETENTION_MS,
+          generationNumber: 3,
+          runResult: { kind: "success", returnValue: null },
+        },
+      });
+      const runAfter = mock().mockResolvedValue("scheduled_transition");
+
+      const result = await scheduleWorkflowHistoryCleanupBatchHandler(
+        { runQuery, scheduler: { runAfter } } as any,
+        { dryRun: false, workflowIds: ["wf_no_timestamp"] as any }
+      );
+
+      expect(result.noTimestampCount).toBe(1);
+      expect(result.scheduledCount).toBe(0);
+      expect(runAfter).not.toHaveBeenCalled();
+    });
+
+    test("reports partial scheduling failures without losing successful counts", async () => {
+      const runQuery = mock().mockResolvedValue({
+        journalEntries: [{ step: { completedAt: Date.now() } }],
+        ok: true,
+        workflow: {
+          _creationTime: Date.now(),
+          generationNumber: 3,
+          runResult: { kind: "success", returnValue: null },
+        },
+      });
+      const runAfter = mock((_delay: number, _reference: any, args: any) => {
+        if (args.workflowId === "wf_failed") {
+          throw new Error("scheduler unavailable");
+        }
+        return "scheduled_transition";
+      });
+
+      const result = await scheduleWorkflowHistoryCleanupBatchHandler(
+        { runQuery, scheduler: { runAfter } } as any,
+        {
+          dryRun: false,
+          workflowIds: ["wf_scheduled", "wf_failed"] as any,
+        }
+      );
+
+      expect(result.failedCount).toBe(1);
+      expect(result.scheduledCount).toBe(1);
+    });
+
+    test("dry-runs historical cleanup scheduling without creating timers", async () => {
+      const runQuery = mock().mockResolvedValue({
+        journalEntries: [{ step: { completedAt: Date.now() } }],
+        ok: true,
+        workflow: {
+          _creationTime: Date.now(),
+          generationNumber: 3,
+          runResult: { kind: "success", returnValue: null },
+        },
+      });
+      const runAfter = mock().mockResolvedValue("scheduled_transition");
+
+      const result = await scheduleWorkflowHistoryCleanupBatchHandler(
+        { runQuery, scheduler: { runAfter } } as any,
+        { dryRun: true, workflowIds: ["wf_123"] as any }
+      );
+
+      expect(result.eligibleCount).toBe(1);
+      expect(result.scheduledCount).toBe(0);
+      expect(runAfter).not.toHaveBeenCalled();
     });
 
     test("rejects oversized maintenance batches", () => {
