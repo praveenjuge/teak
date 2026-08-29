@@ -2,6 +2,7 @@ import { afterEach, describe, expect, mock, test } from "bun:test";
 import {
   handleMcpV1Request,
   handleOauthProtectedResourceV1Request,
+  rateLimitedJsonRpcRemainder,
 } from "../mcp/httpServer";
 import {
   callTeakV1Tool,
@@ -550,5 +551,94 @@ describe("Convex MCP endpoint", () => {
       code: "RATE_LIMITED",
       error: "Too many requests",
     });
+  });
+
+  test("accepts a 100-message JSON-RPC batch", async () => {
+    const runMutation = mock().mockResolvedValue({
+      keyId: "key_1",
+      userId: "user_1",
+      access: "full_access",
+      source: "component",
+      rateLimitKey: "component:key_1",
+    });
+    const ctx = { runMutation, runQuery: mock() };
+    const batch = Array.from({ length: 100 }, (_, index) => ({
+      jsonrpc: "2.0",
+      id: index + 1,
+      method: "initialize",
+    }));
+    const response = await handleMcpV1Request(
+      ctx,
+      new Request("https://api.teakvault.com/mcp", {
+        method: "POST",
+        headers: {
+          Accept: "application/json",
+          Authorization: TEST_AUTHORIZATION,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(batch),
+      })
+    );
+    expect(response.status).toBe(200);
+    const payload = (await response.json()) as Array<{ id: number }>;
+    expect(payload).toHaveLength(100);
+    expect(payload[0]?.id).toBe(1);
+    expect(payload[99]?.id).toBe(100);
+  });
+
+  test("rejects JSON-RPC batches over 100 messages before tool execution", async () => {
+    const runMutation = mock().mockResolvedValue({
+      keyId: "key_1",
+      userId: "user_1",
+      access: "full_access",
+      source: "component",
+      rateLimitKey: "component:key_1",
+    });
+    const ctx = { runMutation, runQuery: mock() };
+    const batch = Array.from({ length: 101 }, (_, index) => ({
+      jsonrpc: "2.0",
+      id: index + 1,
+      method: "tools/call",
+      params: { name: "teak_v1_list_cards", arguments: {} },
+    }));
+    const response = await handleMcpV1Request(
+      ctx,
+      new Request("https://api.teakvault.com/mcp", {
+        method: "POST",
+        headers: {
+          Accept: "application/json",
+          Authorization: TEST_AUTHORIZATION,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(batch),
+      })
+    );
+
+    const payload = (await response.json()) as {
+      error?: { message?: string };
+    };
+    expect(response.status).toBe(400);
+    expect(payload.error?.message).toContain("100");
+  });
+
+  test("synthesizes remaining batch errors with original request IDs", () => {
+    const remainder = rateLimitedJsonRpcRemainder([
+      { jsonrpc: "2.0", id: 12, method: "tools/call" },
+      { jsonrpc: "2.0", method: "notifications/cancelled" },
+      { jsonrpc: "2.0", id: "follow-up", method: "tools/call" },
+    ]);
+
+    expect(remainder).toEqual([
+      {
+        jsonrpc: "2.0",
+        id: 12,
+        error: { code: -32_000, message: "Rate limited" },
+      },
+      {
+        jsonrpc: "2.0",
+        id: "follow-up",
+        error: { code: -32_000, message: "Rate limited" },
+      },
+    ]);
   });
 });
