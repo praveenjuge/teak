@@ -21,7 +21,7 @@ import {
 } from "./_generated/server";
 import authConfig from "./auth.config";
 import { polar } from "./billing";
-import { isLocalDevelopmentUrl, resolveTeakDevAppUrl } from "./devUrls";
+import { isLocalDevelopmentUrl } from "./devUrls";
 import { e2eCleanupPlugin } from "./e2eCleanup";
 import { teakOAuthSecurity } from "./oauthSecurity";
 import {
@@ -29,6 +29,7 @@ import {
   CARD_ERROR_MESSAGES,
   FREE_TIER_LIMIT,
 } from "./shared/constants";
+import { isApprovedActiveSubscription } from "./shared/polarPlans";
 import { rateLimiter } from "./shared/rateLimits";
 import {
   normalizeErrorClass,
@@ -36,6 +37,7 @@ import {
 } from "./shared/telemetry";
 import { cardStorageObjectKeys } from "./storage/r2";
 import { scheduleAuthOutcome, scheduleUserCreated } from "./telemetry/schedule";
+import { buildTrustedOrigins } from "./trustedOrigins";
 
 const googleClientId = process.env.GOOGLE_CLIENT_ID;
 if (!googleClientId) {
@@ -67,8 +69,6 @@ try {
       "Example: http://app.teak.localhost:1355"
   );
 }
-const desktopDevOrigins = ["http://localhost:1420", "http://127.0.0.1:1420"];
-const appDevUrl = resolveTeakDevAppUrl(process.env);
 const APPLE_CLIENT_SECRET_TTL_SECONDS = 180 * 24 * 60 * 60;
 
 interface AppleClientSecretConfig {
@@ -122,27 +122,7 @@ const createAppleProvider = async () => {
   };
 };
 
-export const trustedOrigins = [
-  siteUrl,
-  "https://*.teakvault.com",
-  "https://app.teakvault.com",
-  "teak://",
-  "teak://*",
-  "chrome-extension://negnmfifahnnagnbnfppmlgfajngdpob",
-  appDevUrl,
-  "https://appleid.apple.com",
-  ...(isLocalDevelopmentUrl(siteUrl)
-    ? [
-        ...desktopDevOrigins,
-        "exp+teak://*",
-        "exp://*/*",
-        "exp://10.0.0.*:*/*",
-        "exp://192.168.*.*:*/*",
-        "exp://172.*.*.*:*/*",
-        "exp://localhost:*/*",
-      ]
-    : []),
-];
+export const trustedOrigins = buildTrustedOrigins(siteUrl);
 
 // The component client has methods needed for integrating Convex with Better Auth,
 // as well as helper methods for general use.
@@ -367,7 +347,7 @@ export const createAuth = (ctx: GenericCtx<DataModel>) => {
               type: "public",
               name: "Raycast",
               disabled: false,
-              skipConsent: true,
+              skipConsent: false,
               metadata: null,
               // Exact-string matched. Captured from the live Raycast Web
               // redirect method (`packageName=Extension`). Kept in sync with
@@ -385,7 +365,7 @@ export const createAuth = (ctx: GenericCtx<DataModel>) => {
               type: "public",
               name: "Teak Desktop",
               disabled: false,
-              skipConsent: true,
+              skipConsent: false,
               metadata: null,
               // Exact-match loopback URIs; the desktop app tries 14203 first
               // then falls back to 24203.
@@ -400,7 +380,7 @@ export const createAuth = (ctx: GenericCtx<DataModel>) => {
               type: "public",
               name: "Teak CLI",
               disabled: false,
-              skipConsent: true,
+              skipConsent: false,
               metadata: null,
               redirectUrls: [
                 "http://127.0.0.1:14210/oauth/callback",
@@ -438,7 +418,7 @@ export const getCurrentUserHandler = async (ctx: any) => {
     const subscription = await polar.getCurrentSubscription(ctx, {
       userId,
     });
-    hasPremium = subscription?.status === "active";
+    hasPremium = isApprovedActiveSubscription(subscription);
   } catch {
     hasPremium = false;
   }
@@ -489,7 +469,7 @@ export const getCardCreationStatusHandler = async (ctx: any) => {
     const subscription = await polar.getCurrentSubscription(ctx, {
       userId,
     });
-    hasPremium = subscription?.status === "active";
+    hasPremium = isApprovedActiveSubscription(subscription);
   } catch {
     hasPremium = false;
   }
@@ -530,7 +510,7 @@ interface CardCreationDeps {
   getSubscription: (
     ctx: MutationCtx,
     args: { userId: string }
-  ) => Promise<{ status?: string } | null | undefined>;
+  ) => Promise<{ productId?: string; status?: string } | null | undefined>;
   rateLimiter: Pick<typeof rateLimiter, "limit">;
 }
 
@@ -561,7 +541,7 @@ export async function ensureCardCreationAllowed(
   let hasPremium = false;
   try {
     const subscription = await deps.getSubscription(ctx, { userId });
-    hasPremium = subscription?.status === "active";
+    hasPremium = isApprovedActiveSubscription(subscription);
   } catch {
     hasPremium = false;
   }

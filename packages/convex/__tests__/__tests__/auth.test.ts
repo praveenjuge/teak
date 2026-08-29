@@ -55,6 +55,7 @@ let CARD_ERROR_CODES: any;
 let FREE_TIER_LIMIT: any;
 
 import { ConvexError } from "convex/values";
+import { POLAR_PLAN_IDS } from "../../shared/polarPlans";
 
 describe("auth", () => {
   beforeAll(async () => {
@@ -243,7 +244,10 @@ describe("auth", () => {
 
       await ensureCardCreationAllowed(ctx, "user_3", {
         rateLimiter: okRateLimiter,
-        getSubscription: async () => ({ status: "active" }),
+        getSubscription: async () => ({
+          productId: POLAR_PLAN_IDS.production.monthly,
+          status: "active",
+        }),
       });
 
       expect(queryCalled).toBe(false);
@@ -254,7 +258,10 @@ describe("auth", () => {
       const originalGetSubscription = polar.getCurrentSubscription;
 
       const mockLimit = mock().mockResolvedValue({ ok: true });
-      const mockGetSub = mock().mockResolvedValue({ status: "active" });
+      const mockGetSub = mock().mockResolvedValue({
+        productId: POLAR_PLAN_IDS.production.monthly,
+        status: "active",
+      });
 
       rateLimiter.limit = mockLimit;
       polar.getCurrentSubscription = mockGetSub;
@@ -405,7 +412,10 @@ describe("auth", () => {
     it("returns user info with premium status", async () => {
       const user = { subject: "u1" };
       mockGetAuthUser.mockResolvedValue(user);
-      mockGetCurrentSubscription.mockResolvedValue({ status: "active" });
+      mockGetCurrentSubscription.mockResolvedValue({
+        productId: POLAR_PLAN_IDS.production.monthly,
+        status: "active",
+      });
 
       const ctx = {
         db: {
@@ -435,6 +445,41 @@ describe("auth", () => {
       expect(result!.hasPremium).toBe(true);
       expect(result!.canCreateCard).toBe(true);
       expect(result!.cardCount).toBe(100);
+    });
+
+    it("does not grant premium for an unapproved Polar product", async () => {
+      const user = { subject: "u1" };
+      mockGetAuthUser.mockResolvedValue(user);
+      mockGetCurrentSubscription.mockResolvedValue({
+        productId: "prod_attacker",
+        status: "active",
+      });
+
+      const ctx = {
+        db: {
+          query: () => ({
+            withIndex: (_name: any, cb: any) => {
+              if (cb) {
+                cb({
+                  eq: () => ({
+                    eq: () => {
+                      // noop
+                    },
+                  }),
+                });
+              }
+              return {
+                collect: async () => Array.from({ length: 100 }),
+                take: async (limit: number) =>
+                  Array.from({ length: Math.min(limit, 3) }),
+              };
+            },
+          }),
+        },
+      } as any;
+
+      const result = await getCurrentUserHandler(ctx);
+      expect(result!.hasPremium).toBe(false);
     });
 
     it("returns lightweight card creation status for AddCardForm gating", async () => {

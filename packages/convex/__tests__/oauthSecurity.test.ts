@@ -1,30 +1,69 @@
 // @ts-nocheck
 import { describe, expect, mock, test } from "bun:test";
 import {
-  requireExternalClientConsent,
+  assertAllowedAuthCallbackUrl,
+  requireOAuthConsentPrompt,
   teakOAuthSecurity,
 } from "../oauthSecurity";
 
-describe("requireExternalClientConsent", () => {
-  test("does not force consent for seeded first-party clients", () => {
-    expect(requireExternalClientConsent("teak-cli", undefined)).toBeUndefined();
-    expect(requireExternalClientConsent("teak-desktop", "login")).toBe("login");
+describe("requireOAuthConsentPrompt", () => {
+  test("forces consent for first-party and external clients", () => {
+    expect(requireOAuthConsentPrompt()).toBe("consent");
+  });
+});
+
+describe("assertAllowedAuthCallbackUrl", () => {
+  test("accepts the exact teak:// production callback", () => {
+    expect(() =>
+      assertAllowedAuthCallbackUrl("teak://", "https://app.teakvault.com")
+    ).not.toThrow();
   });
 
-  test("forces consent for dynamically registered clients", () => {
-    expect(requireExternalClientConsent("external-client", undefined)).toBe(
-      "consent"
-    );
-    expect(requireExternalClientConsent("external-client", "login")).toBe(
-      "consent"
-    );
-    expect(requireExternalClientConsent("external-client", "consent")).toBe(
-      "consent"
-    );
+  test("rejects attacker-controlled teak:// variants in production", () => {
+    expect(() =>
+      assertAllowedAuthCallbackUrl("teak://evil", "https://app.teakvault.com")
+    ).toThrow();
+    expect(() =>
+      assertAllowedAuthCallbackUrl("teak://*", "https://app.teakvault.com")
+    ).toThrow();
+  });
+
+  test("rejects Expo callbacks on production deployments", () => {
+    expect(() =>
+      assertAllowedAuthCallbackUrl(
+        "exp://192.168.1.4:8081",
+        "https://app.teakvault.com"
+      )
+    ).toThrow();
+  });
+
+  test("allows Expo callbacks on local deployments", () => {
+    expect(() =>
+      assertAllowedAuthCallbackUrl(
+        "exp://192.168.1.4:8081",
+        "http://app.teak.localhost:1355"
+      )
+    ).not.toThrow();
   });
 });
 
 describe("teakOAuthSecurity", () => {
+  test("returns an exact consent prompt for first-party authorization", async () => {
+    const hook = teakOAuthSecurity().hooks?.before?.find(({ matcher }) =>
+      matcher({ path: "/mcp/authorize", context: {} } as never)
+    );
+
+    const result = await hook?.handler({
+      query: { client_id: "teak-cli", prompt: "login" },
+      context: {},
+    });
+
+    expect(result?.context?.query).toMatchObject({
+      client_id: "teak-cli",
+      prompt: "consent",
+    });
+  });
+
   test("returns an exact consent prompt for external authorization", async () => {
     const hook = teakOAuthSecurity().hooks?.before?.find(({ matcher }) =>
       matcher({ path: "/mcp/authorize", context: {} } as never)
@@ -39,6 +78,23 @@ describe("teakOAuthSecurity", () => {
       client_id: "external-client",
       prompt: "consent",
     });
+  });
+
+  test("rejects malicious custom-scheme callbacks before Better Auth", async () => {
+    const hook = teakOAuthSecurity().hooks?.before?.find(({ matcher }) =>
+      matcher({
+        path: "/sign-in/social",
+        body: { callbackURL: "teak://evil" },
+        context: {},
+      } as never)
+    );
+
+    await expect(
+      hook?.handler({
+        body: { callbackURL: "teak://evil" },
+        context: {},
+      })
+    ).rejects.toBeInstanceOf(Error);
   });
 
   test("atomically claims a refresh token before the upstream exchange", async () => {
