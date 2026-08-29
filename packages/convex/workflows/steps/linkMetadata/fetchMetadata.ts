@@ -572,7 +572,7 @@ const scrapeWithKernel = async (
   const kernel = new Kernel();
   let kernelBrowser: { session_id: string } | undefined;
   try {
-    kernelBrowser = await kernel.browsers.create({ stealth: true });
+    kernelBrowser = await kernel.browsers.create({ headless: true, stealth: true });
     const selectorStrings = selectors.map((selector) => selector.selector);
     const instagramPrimaryImageSnippet = buildInstagramPrimaryImageSnippet();
     const code = `

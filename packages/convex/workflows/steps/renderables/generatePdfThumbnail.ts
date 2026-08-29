@@ -128,6 +128,7 @@ export const generatePdfThumbnail = internalAction({
       try {
         // Create a browser session
         kernelBrowser = await kernel.browsers.create({
+          headless: true,
           stealth: true,
         });
 
