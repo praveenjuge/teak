@@ -40,11 +40,14 @@ teak/
 │   ├── safari-extension/ # Native macOS Safari extension app
 │   ├── raycast/    # Raycast extension
 │   ├── cli/        # npm command line client
-│   └── docs/       # Documentation site (Blume)
+│   ├── docs/       # Documentation site (Blume)
+│   └── files-worker/ # Cloudflare Worker for file delivery and processing
 ├── .agents/
 │   └── skills/     # Agent Skills published through skills.sh-compatible repos
 ├── packages/
 │   ├── convex/     # Convex backend, public API, MCP, and SDK
+│   ├── files-protocol/ # Shared Worker operation contracts
+│   ├── tests/      # Cross-surface Playwright journeys
 │   └── ui/         # Shared UI package
 ├── turbo.json      # Turborepo pipeline config
 └── package.json
