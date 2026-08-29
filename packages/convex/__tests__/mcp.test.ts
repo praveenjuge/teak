@@ -641,4 +641,19 @@ describe("Convex MCP endpoint", () => {
       },
     ]);
   });
+
+  test("omits responses for rate-limited notifications without an id", () => {
+    const remainder = rateLimitedJsonRpcRemainder([
+      { jsonrpc: "2.0", method: "tools/call" },
+      { jsonrpc: "2.0", id: 8, method: "tools/call" },
+    ]);
+
+    expect(remainder).toEqual([
+      {
+        jsonrpc: "2.0",
+        id: 8,
+        error: { code: -32_000, message: "Rate limited" },
+      },
+    ]);
+  });
 });

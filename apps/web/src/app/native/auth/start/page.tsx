@@ -114,7 +114,11 @@ export default async function NativeAuthStartPage({
         </div>
       </CardContent>
       <CardFooter>
-        <form action="/native/auth/approve" className="grid w-full gap-3">
+        <form
+          action="/native/auth/approve"
+          className="grid w-full gap-3"
+          method="post"
+        >
           <input
             name="code_challenge"
             type="hidden"

@@ -1,6 +1,7 @@
 import { api } from "@teak/convex";
 import { NextResponse } from "next/server";
 import { fetchAuthMutation, isAuthenticated } from "@/lib/auth-server";
+import type { NativeAuthRequest } from "@/lib/native-auth-request";
 import {
   isSameOriginPost,
   nativeAuthCompletionUrl,
@@ -24,6 +25,18 @@ const buildLoginRedirect = (requestUrl: URL): NextResponse => {
     `${requestUrl.pathname.replace("/approve", "/start")}${requestUrl.search}`
   );
   return NextResponse.redirect(loginUrl);
+};
+
+const pairingStartUrl = (requestUrl: URL, parsed: NativeAuthRequest): URL => {
+  const startUrl = new URL("/native/auth/start", requestUrl.origin);
+  startUrl.search = new URLSearchParams({
+    code_challenge: parsed.codeChallenge,
+    device_id: parsed.deviceId,
+    redirect_uri: parsed.redirectUri.toString(),
+    state: parsed.state,
+    surface: parsed.surface,
+  }).toString();
+  return startUrl;
 };
 
 export async function POST(request: Request): Promise<Response> {
@@ -52,19 +65,11 @@ export async function POST(request: Request): Promise<Response> {
 
   const authed = await isAuthenticated();
   if (!authed) {
-    const startUrl = new URL("/native/auth/start", requestUrl.origin);
-    startUrl.search = new URLSearchParams({
-      code_challenge: parsed.codeChallenge,
-      device_id: parsed.deviceId,
-      redirect_uri: parsed.redirectUri.toString(),
-      state: parsed.state,
-      surface: parsed.surface,
-    }).toString();
-    return buildLoginRedirect(startUrl);
+    return buildLoginRedirect(pairingStartUrl(requestUrl, parsed));
   }
 
   try {
-    await fetchAuthMutation((api as any).authNative.createNativeAuthCode, {
+    await fetchAuthMutation(api.authNative.createNativeAuthCode, {
       codeChallenge: parsed.codeChallenge,
       deviceId: parsed.deviceId,
       state: parsed.state,
@@ -78,6 +83,6 @@ export async function POST(request: Request): Promise<Response> {
       },
     });
   } catch {
-    return buildLoginRedirect(new URL("/native/auth/start", requestUrl.origin));
+    return buildLoginRedirect(pairingStartUrl(requestUrl, parsed));
   }
 }

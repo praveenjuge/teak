@@ -228,8 +228,7 @@ const isNotification = (message: unknown): boolean => {
   if (!(message && typeof message === "object" && !Array.isArray(message))) {
     return false;
   }
-  const method = (message as { method?: unknown }).method;
-  return typeof method === "string" && method.startsWith("notifications/");
+  return !("id" in message);
 };
 
 export const rateLimitedJsonRpcRemainder = (
