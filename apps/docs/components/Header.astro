@@ -11,7 +11,7 @@ const navLinks = [
 
 <header class="fixed top-0 left-0 z-50 w-full md:top-4 md:left-1/2 md:w-auto md:-translate-x-1/2">
   <nav
-    class="relative z-50 flex items-center justify-between gap-1 bg-zinc-900 py-2 pr-2 pl-4.5 md:rounded-xl"
+    class="relative z-50 flex items-center justify-between gap-1 bg-zinc-900 py-2 pr-2 pl-5 md:rounded-full"
     data-header-nav
   >
     <div class="flex w-full items-center justify-between">
@@ -22,7 +22,7 @@ const navLinks = [
       <div class="hidden items-center gap-1 md:flex">
         {navLinks.map((link) => (
           <a
-            class="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md font-medium text-sm cursor-pointer bg-transparent text-white/80 hover:bg-white/10 hover:text-white h-8 px-3"
+            class="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-full font-medium text-sm cursor-pointer bg-transparent text-white/80 hover:bg-white/10 hover:text-white h-8 px-3"
             href={link.href}
           >
             {link.name}
@@ -32,20 +32,20 @@ const navLinks = [
 
       <div class="flex items-center gap-1">
         <a
-          class="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md font-medium text-sm cursor-pointer bg-transparent text-white/80 hover:bg-white/10 hover:text-white h-8 px-3"
+          class="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-full font-medium text-sm cursor-pointer bg-transparent text-white/80 hover:bg-white/10 hover:text-white h-8 px-3"
           href="https://app.teakvault.com/login"
         >
           Login
         </a>
         <a
-          class="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md bg-primary text-primary-foreground font-medium text-sm h-8 px-3 hover:bg-primary/90"
+          class="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-full bg-white text-zinc-900 font-medium text-sm h-8 px-3 hover:bg-zinc-100"
           href="https://app.teakvault.com/register"
         >
           Register
         </a>
         <button
           aria-label="Toggle menu"
-          class="inline-flex items-center justify-center size-8 rounded-md bg-transparent text-white/80 hover:bg-white/10 hover:text-white md:hidden cursor-pointer"
+          class="inline-flex items-center justify-center size-8 rounded-full bg-transparent text-white/80 hover:bg-white/10 hover:text-white md:hidden cursor-pointer"
           data-menu-toggle
           type="button"
         >
@@ -58,7 +58,7 @@ const navLinks = [
     <div class="my-2 hidden w-full flex-col gap-2 md:hidden!" data-mobile-menu>
       {navLinks.map((link) => (
         <a
-          class="rounded-lg py-3 font-medium text-white/80 text-xl transition-colors hover:text-white"
+          class="rounded-full py-3 font-medium text-white/80 text-xl transition-colors hover:text-white"
           href={link.href}
         >
           {link.name}

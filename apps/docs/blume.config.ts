@@ -71,11 +71,10 @@ export default defineConfig({
   },
   navigation: {
     tabs: [
-      { label: "Apps", path: "/apps", href: "/apps" },
       { label: "Pricing", path: "/pricing", href: "/pricing" },
+      { label: "Apps", path: "/apps", href: "/apps" },
       { label: "Changelog", path: "/changelog", href: "/changelog" },
       { label: "Docs", path: "/docs" },
-      { label: "API Reference", path: "/reference" },
     ],
   },
   export: true,
