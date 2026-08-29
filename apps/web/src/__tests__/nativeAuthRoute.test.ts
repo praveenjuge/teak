@@ -1,34 +1,30 @@
-// @ts-nocheck
 import { describe, expect, test } from "bun:test";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 
 describe("native auth routes", () => {
-  test("start route validates native surfaces and uses native auth mutation", () => {
+  test("start page reviews pairing instead of minting on GET", () => {
     const source = readFileSync(
-      resolve(import.meta.dir, "../app/native/auth/start/route.ts"),
+      resolve(import.meta.dir, "../app/native/auth/start/page.tsx"),
       "utf8"
     );
 
-    expect(source).toContain('"desktop"');
-    expect(source).toContain('"safari-macos"');
-    expect(source).toContain('"safari-ios"');
-    expect(source).toContain('"safari-ipados"');
-    expect(source).toContain('"browser-extension"');
-    expect(source).toContain("INVALID_NATIVE_AUTH_REQUEST");
-    expect(source).toContain("authNative.createNativeAuthCode");
-    expect(source).toContain("/native/auth/complete");
+    expect(source).toContain("Approve device");
+    expect(source).toContain("Approve this device?");
+    expect(source).toContain("/native/auth/approve");
+    expect(source).not.toContain("createNativeAuthCode");
   });
 
-  test("start route passes the surface through to the completion redirect", () => {
+  test("approval action mints only after an authenticated same-origin POST", () => {
     const source = readFileSync(
-      resolve(import.meta.dir, "../app/native/auth/start/route.ts"),
+      resolve(import.meta.dir, "../app/native/auth/approve/route.ts"),
       "utf8"
     );
 
-    expect(source).toContain(
-      'redirectUri.searchParams.set("surface", surface)'
-    );
+    expect(source).toContain("isSameOriginPost");
+    expect(source).toContain("CROSS_SITE_BLOCKED");
+    expect(source).toContain("authNative.createNativeAuthCode");
+    expect(source).toContain("nativeAuthCompletionUrl");
   });
 
   test("completion page tailors copy for the browser extension surface", () => {

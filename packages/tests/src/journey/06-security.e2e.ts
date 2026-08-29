@@ -6,6 +6,25 @@ import { env } from "../helpers/env";
 import { clientFor, createAccount, newAnonymousContext } from "../helpers/prod";
 import { readState } from "../helpers/run-state";
 
+test("native pairing shows an approve step instead of minting on GET", async ({
+  page,
+}) => {
+  const start = new URL("/native/auth/start", env.appUrl);
+  start.search = new URLSearchParams({
+    code_challenge: "a".repeat(43),
+    device_id: "e2e-device-1234567",
+    redirect_uri: `${env.appUrl.replace(/\/$/, "")}/native/auth/complete`,
+    state: "state_e2e_pairing_ok",
+    surface: "desktop",
+  }).toString();
+
+  await page.goto(start.toString());
+  await expect(
+    page.getByRole("button", { name: "Approve device" })
+  ).toBeVisible();
+  await expect(page).not.toHaveURL(/\/native\/auth\/complete/);
+});
+
 test("external OAuth requires explicit full-vault consent and can be revoked", async ({
   page,
 }) => {
