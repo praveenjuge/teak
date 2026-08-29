@@ -16,7 +16,7 @@
   },
   "dependencies": {
     "@teak/convex": "workspace:*",
-    "blume": "^1.4.1"
+    "blume": "^1.5.3"
   },
   "devDependencies": {
     "@types/bun": "^1.4.0",

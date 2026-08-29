@@ -176,7 +176,7 @@ const pageSchemas = buildPageSchemas({
 
     <!-- Self-Hosted Section -->
     <section class="px-4 pb-20 md:pb-2">
-      <div class="mx-auto flex max-w-4xl flex-col gap-4 rounded-lg border border-border bg-card p-6 md:flex-row md:items-center md:justify-between">
+      <div class="mx-auto flex max-w-4xl flex-col gap-4 rounded-2xl border border-border bg-card p-6 md:flex-row md:items-center md:justify-between">
         <div class="flex items-center gap-4">
           <img
             alt={selfHostedPlan.emojiAlt}
@@ -195,7 +195,7 @@ const pageSchemas = buildPageSchemas({
           </div>
         </div>
         <a
-          class="inline-flex w-full items-center justify-center rounded-md border bg-background font-medium text-sm h-10 px-4 hover:bg-accent hover:text-accent-foreground md:w-auto"
+          class="inline-flex w-full items-center justify-center rounded-full border bg-background font-medium text-sm h-10 px-4 hover:bg-accent hover:text-accent-foreground md:w-auto"
           href={selfHostedPlan.cta.href}
         >
           {selfHostedPlan.cta.text}

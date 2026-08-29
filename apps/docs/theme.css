@@ -27,7 +27,16 @@
     "Helvetica Neue", Arial, sans-serif;
   /* Keep in sync with theme.accent / theme.radius in blume.config.ts */
   --blume-accent: oklch(0.58 0.22 27);
-  --blume-radius: 0.625rem;
+  --blume-radius: 1rem;
+}
+
+/* Pill polish — align Blume docs chrome with the site header's rounded-full buttons.
+   Latest Blume uses rounded-full for pills (search, tabs, badges); make the
+   remaining small controls pill-shaped while keeping cards/code at --blume-radius. */
+[data-blume-copy],
+blume-prompt button,
+blume-prompt a {
+  border-radius: 9999px !important;
 }
 
 /*

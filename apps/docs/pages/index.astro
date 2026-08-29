@@ -181,7 +181,7 @@ const jsonLd = buildPageSchemas({
           best ideas again.
         </p>
         <a
-          class="inline-flex shrink-0 items-center justify-center gap-2 whitespace-nowrap rounded-md font-medium text-sm bg-primary text-primary-foreground hover:bg-primary/90 h-11 px-8"
+          class="inline-flex shrink-0 items-center justify-center gap-2 whitespace-nowrap rounded-full font-medium text-sm bg-primary text-primary-foreground hover:bg-primary/90 h-11 px-8"
           href="https://app.teakvault.com/register"
           rel="noopener noreferrer"
           target="_blank"
@@ -192,7 +192,7 @@ const jsonLd = buildPageSchemas({
 
       <!-- Hero Image -->
       <div class="mx-auto max-w-4xl">
-        <div class="relative overflow-hidden rounded-lg">
+        <div class="relative overflow-hidden rounded-2xl">
           <img
             alt="Teak app interface showing various saved content types"
             class="h-auto w-full"
@@ -399,7 +399,7 @@ const jsonLd = buildPageSchemas({
 
       <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {testimonials.map((testimonial) => (
-          <figure class="flex flex-col justify-between gap-4 rounded-xl border border-border bg-card p-5">
+          <figure class="flex flex-col justify-between gap-4 rounded-2xl border border-border bg-card p-5">
             <blockquote class="text-balance text-card-foreground text-sm leading-relaxed">
               {testimonial.quote}
             </blockquote>

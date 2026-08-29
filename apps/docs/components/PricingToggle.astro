@@ -2,16 +2,16 @@
 ---
 
 <div class="mb-8 flex items-center justify-center">
-  <div class="relative inline-flex rounded-lg border bg-muted p-px">
+  <div class="relative inline-flex rounded-full border bg-muted p-1">
     <button
-      class="relative rounded-md px-4 py-1.5 font-medium border bg-background text-foreground cursor-pointer"
+      class="relative rounded-full px-4 py-1.5 font-medium border bg-background text-foreground cursor-pointer"
       data-pricing-toggle="monthly"
       type="button"
     >
       Monthly
     </button>
     <button
-      class="relative rounded-md px-4 py-1.5 font-medium text-muted-foreground hover:text-foreground cursor-pointer"
+      class="relative rounded-full px-4 py-1.5 font-medium text-muted-foreground hover:text-foreground cursor-pointer"
       data-pricing-toggle="yearly"
       type="button"
     >
@@ -32,8 +32,8 @@
       buttons.forEach((b) => {
         const active = b.dataset.pricingToggle === (isYearly ? "yearly" : "monthly");
         b.className = active
-          ? "relative rounded-md px-4 py-1.5 font-medium border bg-background text-foreground cursor-pointer"
-          : "relative rounded-md px-4 py-1.5 font-medium text-muted-foreground hover:text-foreground cursor-pointer";
+          ? "relative rounded-full px-4 py-1.5 font-medium border bg-background text-foreground cursor-pointer"
+          : "relative rounded-full px-4 py-1.5 font-medium text-muted-foreground hover:text-foreground cursor-pointer";
       });
 
       monthlyPrices.forEach((el) => el.classList.toggle("hidden", isYearly));

@@ -36,7 +36,7 @@ const isFixedPrice = typeof price === "string";
 ---
 
 <div class:list={[
-  "relative rounded-lg border bg-card p-8",
+  "relative rounded-2xl border bg-card p-8",
   popular ? "border-primary ring-1 ring-primary" : "border-border",
 ]}>
   {popular && (
@@ -90,7 +90,7 @@ const isFixedPrice = typeof price === "string";
 
   <a
     class:list={[
-      "inline-flex w-full items-center justify-center rounded-md font-medium text-sm h-10 px-4",
+      "inline-flex w-full items-center justify-center rounded-full font-medium text-sm h-10 px-4",
       ctaPrimary
         ? "bg-primary text-primary-foreground hover:bg-primary/90"
         : "border bg-background hover:bg-accent hover:text-accent-foreground",
