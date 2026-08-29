@@ -14,6 +14,7 @@ mock.module("../../../convexQueryHooks", () => ({
 mock.module("../../ui/button", () => ({
   Button: ({ children, ...props }: any) =>
     React.createElement("button", { type: "button", ...props }, children),
+  buttonVariants: () => "",
 }));
 mock.module("../../ui/spinner", () => ({
   Spinner: () => React.createElement("span", { "data-spinner": "" }),

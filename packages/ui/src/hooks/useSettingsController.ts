@@ -50,7 +50,7 @@ export function useSettingsController({
   const createKey = useMutation(api.apiKeys.createUserApiKey);
   const revokeKey = useMutation(api.apiKeys.revokeUserApiKey);
   const rotateKey = useMutation(api.apiKeys.rotateUserApiKey);
-  const revokeAllKeys = useMutation((api as any).apiKeys.revokeAllUserApiKeys);
+  const revokeAllKeys = useMutation(api.apiKeys.revokeAllUserApiKeys);
   const oauthConnections = useQuery(api.oauthTokens.listOAuthConnections, {});
   const revokeOAuthConnection = useAction(
     api.oauthTokens.revokeOAuthConnection

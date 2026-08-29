@@ -291,11 +291,10 @@ const drainActiveApiKeysPage = async (
   const nextCount = revokedCount + keys.length;
   const hasMore = keys.length === LIST_LIMIT;
   if (hasMore) {
-    await ctx.scheduler.runAfter(
-      0,
-      (internal as any).apiKeys.revokeAllUserApiKeysPage,
-      { ownerId, revokedCount: nextCount }
-    );
+    await ctx.scheduler.runAfter(0, internal.apiKeys.revokeAllUserApiKeysPage, {
+      ownerId,
+      revokedCount: nextCount,
+    });
   }
 
   return { hasMore, revokedCount: nextCount };
