@@ -135,6 +135,7 @@ type WorkflowCleanupStatus =
   | "eligible"
   | "inProgress"
   | "missing"
+  | "oversized"
   | "recent";
 
 const cleanupWorkflowHistoryEntry = async (
@@ -144,23 +145,26 @@ const cleanupWorkflowHistoryEntry = async (
   cutoffMs: number
 ): Promise<WorkflowCleanupStatus> => {
   try {
-    const { workflow: workflowRecord } = await ctx.runQuery(
-      components.workflow.workflow.getStatus,
-      { workflowId }
-    );
+    const {
+      journalEntries,
+      ok: completeJournalLoaded,
+      workflow: workflowRecord,
+    } = await ctx.runQuery(components.workflow.journal.load, {
+      workflowId,
+    });
     if (!workflowRecord.runResult) {
       return "inProgress";
     }
-    const latestSteps = await ctx.runQuery(
-      components.workflow.workflow.listSteps,
-      {
-        order: "desc",
-        paginationOpts: { cursor: null, numItems: 1 },
-        workflowId,
-      }
+    if (!completeJournalLoaded) {
+      return "oversized";
+    }
+    const completionTimes = journalEntries.flatMap((entry) =>
+      entry.step.completedAt === undefined ? [] : [entry.step.completedAt]
     );
     const completedAt =
-      latestSteps.page[0]?.completedAt ?? workflowRecord._creationTime;
+      completionTimes.length === 0
+        ? workflowRecord._creationTime
+        : Math.max(...completionTimes);
     if (completedAt >= cutoffMs) {
       return "recent";
     }
@@ -206,11 +210,12 @@ export const cleanupWorkflowHistoryBatchHandler = async (
     eligible: 0,
     inProgress: 0,
     missing: 0,
+    oversized: 0,
     recent: 0,
   };
   const concurrency = 10;
   for (let offset = 0; offset < workflowIds.length; offset += concurrency) {
-    const statuses = await Promise.all(
+    const results = await Promise.allSettled(
       workflowIds
         .slice(offset, offset + concurrency)
         .map((workflowId) =>
@@ -222,8 +227,11 @@ export const cleanupWorkflowHistoryBatchHandler = async (
           )
         )
     );
-    for (const status of statuses) {
-      totals[status] += 1;
+    for (const result of results) {
+      if (result.status === "rejected") {
+        throw result.reason;
+      }
+      totals[result.value] += 1;
     }
   }
 
@@ -232,6 +240,7 @@ export const cleanupWorkflowHistoryBatchHandler = async (
     eligibleCount: totals.eligible,
     inProgressCount: totals.inProgress,
     missingCount: totals.missing,
+    oversizedCount: totals.oversized,
     recentCount: totals.recent,
     uniqueCount: workflowIds.length,
   };
@@ -253,6 +262,7 @@ export const cleanupWorkflowHistoryBatch = internalAction({
     eligibleCount: v.number(),
     inProgressCount: v.number(),
     missingCount: v.number(),
+    oversizedCount: v.number(),
     recentCount: v.number(),
     uniqueCount: v.number(),
   }),
