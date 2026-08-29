@@ -2,6 +2,7 @@
 
 import { describe, expect, mock, test } from "bun:test";
 import { DEFAULT_TEAK_DEV_APP_URL } from "../devUrls";
+import { POLAR_PLAN_IDS } from "../shared/polarPlans";
 
 const mockCustomersCreate = mock().mockResolvedValue({ id: "cust_1" });
 const mockCheckoutsCreate = mock().mockResolvedValue({
@@ -72,10 +73,32 @@ describe("billing.ts", () => {
     } as any;
 
     const url = await module.createCheckoutLinkHandler(ctx, {
-      productId: "prod_123",
+      productId: POLAR_PLAN_IDS.production.monthly,
     });
 
     expect(url).toBe("https://checkout.example");
+    expect(mockCheckoutsCreate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        products: [POLAR_PLAN_IDS.production.monthly],
+      })
+    );
+  });
+
+  test("createCheckoutLinkHandler rejects arbitrary Polar products", async () => {
+    mockCheckoutsCreate.mockClear();
+    const module = await import("../billing");
+    const ctx = {
+      runQuery: mock().mockResolvedValue({
+        subject: "user_1",
+        email: "user@example.com",
+      }),
+      runMutation: mock().mockResolvedValue(null),
+    } as any;
+
+    await expect(
+      module.createCheckoutLinkHandler(ctx, { productId: "prod_attacker" })
+    ).rejects.toThrow("Invalid product");
+    expect(mockCheckoutsCreate).not.toHaveBeenCalled();
   });
 
   test("createCustomerPortal opens customer portal", async () => {
