@@ -26,7 +26,7 @@ export function GridDocumentPreview({
 }: GridDocumentPreviewProps) {
   if (thumbnailUrl) {
     return (
-      <div className="overflow-hidden rounded-xl border bg-card">
+      <div className="overflow-hidden rounded-2xl border bg-card">
         <div
           className="relative w-full overflow-hidden"
           style={{
@@ -55,7 +55,7 @@ export function GridDocumentPreview({
   }
 
   return (
-    <div className="flex items-center gap-2 rounded-xl border bg-card p-4">
+    <div className="flex items-center gap-2 rounded-2xl border bg-card p-4">
       <File className="size-4 shrink-0 text-muted-foreground" />
       <span className="truncate font-medium">{fileName}</span>
     </div>

@@ -69,7 +69,7 @@ export function DocumentPreview({ card }: DocumentPreviewProps) {
     return (
       <div className="flex h-full w-full flex-col">
         <iframe
-          className="h-full w-full rounded-lg"
+          className="h-full w-full rounded-xl"
           src={fileUrl}
           title={fileName}
         />
@@ -82,7 +82,7 @@ export function DocumentPreview({ card }: DocumentPreviewProps) {
 
   return (
     <div className="flex h-full flex-col gap-4">
-      <div className="flex items-center gap-3 rounded-lg border p-4">
+      <div className="flex items-center gap-3 rounded-xl border p-4">
         <Icon className="size-5 shrink-0 text-muted-foreground" />
         <div className="min-w-0 flex-1">
           <p className="truncate font-medium">{fileName}</p>

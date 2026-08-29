@@ -159,7 +159,7 @@ function SignUpForm() {
     <>
       <CardTitle className="text-center text-lg">Get started on Teak</CardTitle>
       {isOAuthAuthorize && (
-        <p className="mt-2 rounded-md bg-muted px-3 py-2 text-center text-muted-foreground text-sm">
+        <p className="mt-2 rounded-2xl bg-muted px-3 py-2 text-center text-muted-foreground text-sm">
           An app is requesting access to your Teak account. Create an account to
           continue.
         </p>

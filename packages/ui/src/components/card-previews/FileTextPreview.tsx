@@ -58,7 +58,7 @@ export function SourceCodePreview({ code, language }: SourceCodePreviewProps) {
     >
       {({ className, getLineProps, getTokenProps, style, tokens }) => (
         <pre
-          className={`${className} max-h-[70vh] overflow-auto rounded-lg p-4 font-mono text-xs leading-5`}
+          className={`${className} max-h-[70vh] overflow-auto rounded-xl p-4 font-mono text-xs leading-5`}
           data-not-typeset
           style={style}
         >

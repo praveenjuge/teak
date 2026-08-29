@@ -172,7 +172,7 @@ export function CardModal({
                   <div className="pointer-events-none absolute right-4 bottom-4 flex flex-col items-end gap-1">
                     {hasUnsavedChanges && (
                       <button
-                        className="pointer-events-auto rounded-md bg-primary px-4 py-2 text-primary-foreground text-sm"
+                        className="pointer-events-auto rounded-xl bg-primary px-4 py-2 text-primary-foreground text-sm"
                         onClick={() => {
                           void saveChanges();
                         }}

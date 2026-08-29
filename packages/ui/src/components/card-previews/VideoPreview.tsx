@@ -28,7 +28,7 @@ export function VideoPreview({ card }: VideoPreviewProps) {
     return (
       <img
         alt={card.fileMetadata?.fileName || card.content || "Animated GIF"}
-        className="h-full w-full rounded-lg object-contain"
+        className="h-full w-full rounded-xl object-contain"
         height={480}
         src={fileUrl}
         width={640}
@@ -39,7 +39,7 @@ export function VideoPreview({ card }: VideoPreviewProps) {
   return (
     <video
       autoPlay
-      className="h-full w-full rounded-lg bg-black object-contain"
+      className="h-full w-full rounded-xl bg-black object-contain"
       controls
       preload="metadata"
     >

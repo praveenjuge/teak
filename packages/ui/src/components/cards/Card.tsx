@@ -312,7 +312,7 @@ export const Card = memo(function Card({
   const renderCardContent = () => {
     if (card.type === "text") {
       return (
-        <div className="rounded-xl border bg-card p-4">
+        <div className="rounded-2xl border bg-card p-4">
           <p className="line-clamp-2 font-medium">
             {markdownToPlainText(card.content) || card.fileMetadata?.fileName}
           </p>
@@ -322,7 +322,7 @@ export const Card = memo(function Card({
 
     if (card.type === "quote") {
       return (
-        <div className="rounded-xl border bg-card px-6 py-4">
+        <div className="rounded-2xl border bg-card px-6 py-4">
           <div className="relative">
             <p className="line-clamp-2 text-balance text-center font-medium italic leading-relaxed">
               {markdownToPlainText(card.content)}
@@ -341,7 +341,7 @@ export const Card = memo(function Card({
     if (card.type === "link") {
       if (displayLinkImage && displayLinkImageSize) {
         return (
-          <div className="divide-y overflow-hidden rounded-xl border bg-card">
+          <div className="divide-y overflow-hidden rounded-2xl border bg-card">
             <div
               className="w-full overflow-hidden"
               style={{
@@ -371,7 +371,7 @@ export const Card = memo(function Card({
 
       if (legacyDisplayImage) {
         return (
-          <div className="divide-y overflow-hidden rounded-xl border bg-card">
+          <div className="divide-y overflow-hidden rounded-2xl border bg-card">
             <div className="h-28 min-h-28 overflow-hidden">
               <ResilientMediaImage
                 alt={linkCardTitle}
@@ -398,7 +398,7 @@ export const Card = memo(function Card({
       }
 
       return (
-        <p className="w-full min-w-0 overflow-hidden truncate text-ellipsis whitespace-nowrap rounded-xl border bg-card p-4 font-medium">
+        <p className="w-full min-w-0 overflow-hidden truncate text-ellipsis whitespace-nowrap rounded-2xl border bg-card p-4 font-medium">
           {markdownToPlainText(card.content) || linkCardTitle}
         </p>
       );
@@ -462,7 +462,7 @@ export const Card = memo(function Card({
     if (card.type === "palette") {
       if (card.colors?.length) {
         return (
-          <div className="flex overflow-hidden rounded-xl border bg-card">
+          <div className="flex overflow-hidden rounded-2xl border bg-card">
             {card.colors.slice(0, 12).map((color) => (
               <div
                 className="h-14 min-w-0 flex-1"
@@ -476,7 +476,7 @@ export const Card = memo(function Card({
       }
 
       return (
-        <div className="rounded-xl border bg-card p-4">
+        <div className="rounded-2xl border bg-card p-4">
           <p className="line-clamp-2 font-medium">
             {markdownToPlainText(card.content)}
           </p>
@@ -485,7 +485,7 @@ export const Card = memo(function Card({
     }
 
     return (
-      <div className="rounded-xl border bg-card p-4">
+      <div className="rounded-2xl border bg-card p-4">
         <p className="line-clamp-2 font-medium">
           {markdownToPlainText(card.content) || card.fileMetadata?.fileName}
         </p>
@@ -504,7 +504,7 @@ export const Card = memo(function Card({
         <UICard
           className={`relative overflow-hidden rounded-none border-0 bg-transparent p-0 contain-content ${
             isOptimistic ? "cursor-default opacity-70" : "cursor-pointer"
-          } ${card.isDeleted ? "opacity-60" : ""} ${isSelected ? "rounded-xl ring-2 ring-primary" : ""}`}
+          } ${card.isDeleted ? "opacity-60" : ""} ${isSelected ? "rounded-2xl ring-2 ring-primary" : ""}`}
           onClick={handleClick}
           onFocus={handlePrefetch}
           onPointerDown={handlePrefetch}

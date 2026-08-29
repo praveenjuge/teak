@@ -72,7 +72,7 @@ export function LinkCardWithImage({
 }: LinkCardWithImageProps) {
   if (displayImage && displayImageSize) {
     return (
-      <div className="divide-y overflow-hidden rounded-xl border bg-card">
+      <div className="divide-y overflow-hidden rounded-2xl border bg-card">
         <div
           className="w-full overflow-hidden"
           style={{
@@ -97,7 +97,7 @@ export function LinkCardWithImage({
 
   if (displayImage) {
     return (
-      <div className="divide-y overflow-hidden rounded-xl border bg-card">
+      <div className="divide-y overflow-hidden rounded-2xl border bg-card">
         <div className="h-28 min-h-28 overflow-hidden">
           <Image
             alt={linkCardTitle}
@@ -116,7 +116,7 @@ export function LinkCardWithImage({
   }
 
   return (
-    <p className="w-full min-w-0 overflow-hidden truncate text-ellipsis whitespace-nowrap rounded-xl border bg-card p-4 font-medium">
+    <p className="w-full min-w-0 overflow-hidden truncate text-ellipsis whitespace-nowrap rounded-2xl border bg-card p-4 font-medium">
       {linkCardTitle}
     </p>
   );

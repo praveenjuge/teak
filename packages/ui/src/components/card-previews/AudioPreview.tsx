@@ -24,7 +24,7 @@ export function AudioPreview({ card }: AudioPreviewProps) {
       )}
 
       {card.aiTranscript && (
-        <div className="rounded-lg border bg-background">
+        <div className="rounded-xl border bg-background">
           <div className="flex w-full items-center gap-2 px-3 pt-3 text-left">
             <Sparkles className="h-4 w-4 text-primary" />
             <span className="font-medium">Transcript</span>

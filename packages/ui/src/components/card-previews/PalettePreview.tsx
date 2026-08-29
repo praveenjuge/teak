@@ -37,9 +37,9 @@ export function PalettePreview({ card }: PalettePreviewProps) {
   return (
     <div className="space-y-2">
       {colors.map((color) => (
-        <div className="overflow-hidden rounded-lg" key={`${color.hex}`}>
+        <div className="overflow-hidden rounded-xl" key={`${color.hex}`}>
           <button
-            className="flex w-full cursor-pointer items-center justify-end rounded-lg border border-black/10 p-2 shadow-[inset_0_0_0_1px_rgba(255,255,255,0.18)]"
+            className="flex w-full cursor-pointer items-center justify-end rounded-xl border border-black/10 p-2 shadow-[inset_0_0_0_1px_rgba(255,255,255,0.18)]"
             onClick={() => void copyToClipboard(color.hex)}
             style={{ backgroundColor: color.hex }}
             type="button"

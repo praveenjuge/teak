@@ -69,7 +69,7 @@ export function OAuthConnectionsSection({
             {connections?.length ? (
               connections.map((connection) => (
                 <div
-                  className="flex items-center justify-between gap-3 rounded-md border p-3"
+                  className="flex items-center justify-between gap-3 rounded-xl border p-3"
                   key={connection.clientId}
                 >
                   <div className="min-w-0">

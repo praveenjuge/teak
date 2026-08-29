@@ -97,7 +97,7 @@ function ConsentContent() {
           read, create, edit, and delete your cards and access their files. Only
           continue if you started this connection.
         </p>
-        <div className="rounded-md border p-3">
+        <div className="rounded-2xl border p-3">
           <p className="font-medium text-sm">Requested access</p>
           <ul className="mt-2 list-disc space-y-1 pl-5 text-muted-foreground text-sm">
             {request?.scopes.map((scope) => (

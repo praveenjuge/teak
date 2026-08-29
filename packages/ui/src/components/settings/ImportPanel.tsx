@@ -539,7 +539,7 @@ export function ImportPanel({ onActiveChange }: ImportPanelProps) {
             const Icon = meta.icon;
             return (
               <button
-                className="-mx-2 flex w-full items-center gap-3 rounded-md px-2 py-2.5 text-left hover:bg-muted disabled:opacity-50"
+                className="-mx-2 flex w-full items-center gap-3 rounded-xl px-2 py-2.5 text-left hover:bg-muted disabled:opacity-50"
                 disabled={active}
                 key={mode}
                 onClick={() => inputRefs[mode].current?.click()}
@@ -619,7 +619,7 @@ export function ImportPanel({ onActiveChange }: ImportPanelProps) {
       ) : null}
 
       {terminalFailure ? (
-        <div className="min-w-0 rounded-md border border-destructive/35 bg-destructive/10 p-3 text-destructive">
+        <div className="min-w-0 rounded-xl border border-destructive/35 bg-destructive/10 p-3 text-destructive">
           <div className="font-medium">Import stopped</div>
           <p className="mt-1 break-words">{terminalFailure}</p>
         </div>

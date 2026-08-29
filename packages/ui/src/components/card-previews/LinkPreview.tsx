@@ -171,7 +171,7 @@ export function LinkPreview({
         <dl className="grid grid-cols-2 gap-2 pt-4 sm:grid-cols-4">
           {categoryMetadata.facts.map((fact) => (
             <div
-              className="flex flex-col gap-0.5 rounded-lg border bg-card px-3 py-2"
+              className="flex flex-col gap-0.5 rounded-xl border bg-card px-3 py-2"
               key={`${fact.label}-${fact.value}`}
             >
               <dt className="truncate font-medium text-muted-foreground text-xs uppercase tracking-wide">

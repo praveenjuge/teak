@@ -28,9 +28,9 @@ export function PlanOption({
     : "--";
 
   return (
-    <div className="relative flex w-full flex-col justify-between gap-4 overflow-hidden rounded-md border bg-background p-5 text-left">
+    <div className="relative flex w-full flex-col justify-between gap-4 overflow-hidden rounded-2xl border bg-background p-5 text-left">
       {badge && (
-        <Badge className="absolute top-0 right-0 rounded-none rounded-bl-md px-3">
+        <Badge className="absolute top-0 right-0 rounded-none rounded-bl-xl px-3">
           {badge}
         </Badge>
       )}

@@ -71,7 +71,7 @@ function HoverVideoPreview({
     // biome-ignore lint/a11y/noStaticElementInteractions: hover-only autoplay preview; native video controls stay keyboard-accessible
     // biome-ignore lint/a11y/noNoninteractiveElementInteractions: hover-only autoplay preview; native video controls stay keyboard-accessible
     <div
-      className="relative h-full w-full overflow-hidden rounded-xl border bg-card"
+      className="relative h-full w-full overflow-hidden rounded-2xl border bg-card"
       onMouseEnter={() => {
         setShouldLoadVideo(true);
         setIsHovering(true);
@@ -136,7 +136,7 @@ export function GridVideoPreview({
   if (isGif && videoUrl) {
     return (
       <div
-        className="relative h-full w-full overflow-hidden rounded-xl border bg-card"
+        className="relative h-full w-full overflow-hidden rounded-2xl border bg-card"
         style={{ aspectRatio }}
       >
         <ResilientMediaImage
@@ -171,7 +171,7 @@ export function GridVideoPreview({
   if (thumbnailUrl) {
     return (
       <div
-        className="relative h-full w-full overflow-hidden rounded-xl border bg-card"
+        className="relative h-full w-full overflow-hidden rounded-2xl border bg-card"
         style={{ aspectRatio }}
       >
         <ResilientMediaImage
@@ -192,7 +192,7 @@ export function GridVideoPreview({
 
   return (
     <div
-      className="relative flex h-full w-full items-center justify-center overflow-hidden rounded-xl border bg-black text-white"
+      className="relative flex h-full w-full items-center justify-center overflow-hidden rounded-2xl border bg-black text-white"
       style={{ aspectRatio }}
     >
       <Play className="size-6 text-white" />

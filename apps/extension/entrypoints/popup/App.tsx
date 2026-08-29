@@ -55,7 +55,7 @@ function UpgradePrompt() {
         </p>
       </div>
       <button
-        className="flex items-center gap-1.5 rounded-lg bg-red-600 px-4 py-2 font-semibold text-sm text-white transition-colors hover:bg-red-700"
+        className="flex items-center gap-1.5 rounded-full bg-red-600 px-4 py-2 font-semibold text-sm text-white transition-colors hover:bg-red-700"
         onClick={handleUpgradeClick}
         type="button"
       >
@@ -136,7 +136,7 @@ function SessionErrorState({
       <img alt="Teak Logo" className="h-6" src="./icon.svg" />
       <p className="text-red-600 text-sm">{message}</p>
       <button
-        className="rounded-lg border border-gray-300 px-4 py-2 font-medium text-gray-700 text-sm hover:bg-gray-50"
+        className="rounded-full border border-gray-300 px-4 py-2 font-medium text-gray-700 text-sm hover:bg-gray-50"
         onClick={onRetry}
         type="button"
       >
@@ -165,7 +165,7 @@ function AuthPanel({ isFinishingSignIn }: { isFinishingSignIn: boolean }) {
 
       <div className="w-full space-y-3">
         <button
-          className="flex w-full items-center justify-center gap-2 rounded-xl bg-red-600 px-4 py-2.5 font-semibold text-sm text-white hover:bg-red-700"
+          className="flex w-full items-center justify-center gap-2 rounded-full bg-red-600 px-4 py-2.5 font-semibold text-sm text-white hover:bg-red-700"
           onClick={() => {
             void handleSignIn();
           }}
@@ -459,7 +459,7 @@ function AuthenticatedPopup({ user }: { user: SessionUser }) {
       {renderStatus()}
 
       {signOutError && (
-        <p className="absolute top-2 left-1/2 w-11/12 -translate-x-1/2 rounded-lg bg-red-50 px-3 py-2 text-center text-[11px] text-red-600">
+        <p className="absolute top-2 left-1/2 w-11/12 -translate-x-1/2 rounded-xl bg-red-50 px-3 py-2 text-center text-[11px] text-red-600">
           {signOutError}
         </p>
       )}

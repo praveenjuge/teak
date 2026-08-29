@@ -14,7 +14,7 @@ export function BulkActionBar({
 }: BulkActionBarProps) {
   return (
     <div className="fixed bottom-4 left-1/2 z-50 -translate-x-1/2 transform">
-      <div className="flex items-center gap-4 rounded-lg border bg-background px-4 py-3 shadow-lg">
+      <div className="flex items-center gap-4 rounded-2xl border bg-background px-4 py-3 shadow-lg">
         <span className="font-medium text-sm">
           {selectedCount} card{selectedCount === 1 ? "" : "s"} selected
         </span>

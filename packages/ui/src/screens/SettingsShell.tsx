@@ -43,7 +43,7 @@ function SettingsShellContent({
       {backElement}
       <div
         className={cn(
-          "space-y-5 rounded-lg border bg-background p-7",
+          "space-y-5 rounded-2xl border bg-background p-7",
           contentClassName
         )}
       >

@@ -11,7 +11,7 @@ describe("AudioWavePreview", () => {
     expect(
       (markup.match(/rounded-full bg-muted-foreground/g) ?? []).length
     ).toBe(AUDIO_WAVE_BARS);
-    expect(markup).toContain("rounded-xl border bg-card");
+    expect(markup).toContain("rounded-2xl border bg-card");
   });
 
   test("produces deterministic heights for the same card id", () => {

@@ -72,7 +72,7 @@ export function CardMetadataPanel({
         {getCurrentValue("notes") && (
           <div>
             <Label>Notes</Label>
-            <p className="mt-1.5 whitespace-pre-wrap rounded-md border bg-background px-3 py-2.5">
+            <p className="mt-1.5 whitespace-pre-wrap rounded-xl border bg-background px-3 py-2.5">
               {getCurrentValue("notes")}
             </p>
           </div>
@@ -81,7 +81,7 @@ export function CardMetadataPanel({
         {card.aiSummary && (
           <div>
             <Label>Summary</Label>
-            <p className="mt-1.5 whitespace-pre-wrap rounded-md border bg-background px-3 py-2.5">
+            <p className="mt-1.5 whitespace-pre-wrap rounded-xl border bg-background px-3 py-2.5">
               {getCurrentValue("aiSummary")}
             </p>
           </div>
@@ -128,7 +128,7 @@ export function CardMetadataPanel({
               />
               <span
                 aria-hidden="true"
-                className="pointer-events-none absolute bottom-full left-1/2 z-10 mb-2 -translate-x-1/2 whitespace-nowrap rounded-md bg-foreground px-2 py-1 text-[11px] text-background opacity-0 shadow-sm transition-opacity duration-150 group-hover:opacity-100 group-focus-visible:opacity-100"
+                className="pointer-events-none absolute bottom-full left-1/2 z-10 mb-2 -translate-x-1/2 whitespace-nowrap rounded-xl bg-foreground px-2 py-1 text-[11px] text-background opacity-0 shadow-sm transition-opacity duration-150 group-hover:opacity-100 group-focus-visible:opacity-100"
               >
                 {hex}
               </span>

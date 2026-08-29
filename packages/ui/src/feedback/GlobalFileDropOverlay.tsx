@@ -25,7 +25,7 @@ export function GlobalFileDropOverlay({
       className="pointer-events-none fixed inset-0 z-50"
       data-testid="global-file-drop-overlay"
     >
-      <div className="absolute inset-2 rounded-md border-2 border-primary/60 border-dashed" />
+      <div className="absolute inset-2 rounded-xl border-2 border-primary/60 border-dashed" />
       <div className="absolute top-4 left-1/2 flex -translate-x-1/2 items-center gap-2 rounded-full bg-primary px-4 py-1.5 text-primary-foreground text-xs shadow-sm">
         <Upload className="size-3.5" />
         <span className="font-medium">Drop files to upload</span>

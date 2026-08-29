@@ -74,7 +74,7 @@ function ActionTooltip({
       {children}
       <span
         aria-hidden
-        className="pointer-events-none absolute bottom-[calc(100%+0.375rem)] left-1/2 z-10 -translate-x-1/2 rounded-md border bg-popover px-2 py-1 text-popover-foreground text-xs opacity-0 shadow-sm transition-opacity group-focus-within:opacity-100 group-hover:opacity-100"
+        className="pointer-events-none absolute bottom-[calc(100%+0.375rem)] left-1/2 z-10 -translate-x-1/2 rounded-xl border bg-popover px-2 py-1 text-popover-foreground text-xs opacity-0 shadow-sm transition-opacity group-focus-within:opacity-100 group-hover:opacity-100"
       >
         {label}
       </span>
@@ -174,7 +174,7 @@ export function ApiKeysDialog({
         <div className="space-y-3">
           {revealedKey && (
             <div
-              className="space-y-2 rounded-md border p-2.5"
+              className="space-y-2 rounded-xl border p-2.5"
               key={revealedKey.id ?? revealedKey.key}
             >
               <div className="font-medium text-sm">Copy your new key now</div>
@@ -192,7 +192,7 @@ export function ApiKeysDialog({
             </div>
           )}
 
-          <div className="rounded-md border">
+          <div className="rounded-xl border">
             {isLoading && (
               <div className="flex items-center justify-center p-6">
                 <Spinner />

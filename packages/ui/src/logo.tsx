@@ -75,7 +75,7 @@ export default function Logo({
         variant={variant}
       />
       <span
-        className="inline-flex w-fit shrink-0 items-center justify-center gap-1 overflow-hidden whitespace-nowrap rounded-md border bg-background px-2 py-0.5 font-medium text-foreground text-xs transition-[color,box-shadow]"
+        className="inline-flex w-fit shrink-0 items-center justify-center gap-1 overflow-hidden whitespace-nowrap rounded-xl border bg-background px-2 py-0.5 font-medium text-foreground text-xs transition-[color,box-shadow]"
         data-slot="badge"
       >
         Early Access
