@@ -5,10 +5,21 @@
  * Configured with retry behavior for resilient AI processing.
  */
 
-import { WorkflowManager } from "@convex-dev/workflow";
+import {
+  vResultValidator,
+  vWorkflowId,
+  type WorkflowId,
+  WorkflowManager,
+} from "@convex-dev/workflow";
+import type { FunctionArgs, FunctionReference } from "convex/server";
 import { v } from "convex/values";
 import { components, internal } from "../_generated/api";
-import { internalAction, internalMutation } from "../_generated/server";
+import {
+  type ActionCtx,
+  internalAction,
+  internalMutation,
+  type MutationCtx,
+} from "../_generated/server";
 import {
   buildInitialProcessingStatus,
   stagePending,
@@ -22,6 +33,231 @@ const internalAny: any = internal as any;
  * Workflow manager for card processing pipeline
  */
 export const workflow = new WorkflowManager(components.workflow);
+
+export const WORKFLOW_RETENTION_MS = 7 * 24 * 60 * 60 * 1000;
+export const WORKFLOW_CLEANUP_RETRY_MS = 24 * 60 * 60 * 1000;
+export const MAX_WORKFLOW_CLEANUP_BATCH_SIZE = 100;
+
+export const workflowRetentionOptions = (startAsync?: boolean) => ({
+  onComplete: internalAny["workflows/manager"].scheduleCompletedWorkflowCleanup,
+  context: null,
+  ...(startAsync === undefined ? {} : { startAsync }),
+});
+
+/**
+ * Start a durable workflow with Teak's canonical retention policy attached.
+ * Completed workflow journals are kept for seven days, then removed.
+ */
+export const startWorkflow = <
+  F extends FunctionReference<"mutation", "internal">,
+>(
+  ctx: MutationCtx | ActionCtx,
+  workflowRef: F,
+  args: FunctionArgs<F>["args"],
+  options?: { startAsync?: boolean }
+): Promise<WorkflowId> =>
+  workflow.start(
+    ctx,
+    workflowRef,
+    args,
+    workflowRetentionOptions(options?.startAsync)
+  );
+
+export const scheduleCompletedWorkflowCleanupHandler = async (
+  ctx: Pick<MutationCtx, "runQuery" | "scheduler">,
+  workflowId: WorkflowId
+): Promise<null> => {
+  const { workflow: workflowRecord } = await ctx.runQuery(
+    components.workflow.workflow.getStatus,
+    { workflowId }
+  );
+  await ctx.scheduler.runAfter(
+    WORKFLOW_RETENTION_MS,
+    internalAny["workflows/manager"].cleanupCompletedWorkflow,
+    { generationNumber: workflowRecord.generationNumber, workflowId }
+  );
+  return null;
+};
+
+export const scheduleCompletedWorkflowCleanup = internalMutation({
+  args: {
+    context: v.null(),
+    result: vResultValidator,
+    workflowId: vWorkflowId,
+  },
+  returns: v.null(),
+  handler: (ctx, { workflowId }) =>
+    scheduleCompletedWorkflowCleanupHandler(ctx, workflowId),
+});
+
+export const cleanupCompletedWorkflow = internalMutation({
+  args: { generationNumber: v.number(), workflowId: vWorkflowId },
+  returns: v.boolean(),
+  handler: (ctx, { generationNumber, workflowId }) =>
+    cleanupCompletedWorkflowHandler(ctx, workflowId, generationNumber),
+});
+
+export const cleanupCompletedWorkflowHandler = async (
+  ctx: MutationCtx,
+  workflowId: WorkflowId,
+  generationNumber: number
+): Promise<boolean> => {
+  try {
+    const { workflow: workflowRecord } = await ctx.runQuery(
+      components.workflow.workflow.getStatus,
+      { workflowId }
+    );
+    if (workflowRecord.generationNumber !== generationNumber) {
+      return false;
+    }
+    if (!workflowRecord.runResult) {
+      await ctx.scheduler.runAfter(
+        WORKFLOW_CLEANUP_RETRY_MS,
+        internalAny["workflows/manager"].cleanupCompletedWorkflow,
+        { generationNumber, workflowId }
+      );
+      return false;
+    }
+    return await workflow.cleanup(ctx, workflowId);
+  } catch (error) {
+    if (
+      error instanceof Error &&
+      error.message.includes("Workflow not found")
+    ) {
+      return false;
+    }
+    throw error;
+  }
+};
+
+type WorkflowCleanupStatus =
+  | "cleaned"
+  | "eligible"
+  | "inProgress"
+  | "missing"
+  | "recent";
+
+const cleanupWorkflowHistoryEntry = async (
+  ctx: ActionCtx,
+  workflowId: WorkflowId,
+  dryRun: boolean,
+  cutoffMs: number
+): Promise<WorkflowCleanupStatus> => {
+  try {
+    const { workflow: workflowRecord } = await ctx.runQuery(
+      components.workflow.workflow.getStatus,
+      { workflowId }
+    );
+    if (!workflowRecord.runResult) {
+      return "inProgress";
+    }
+    const latestSteps = await ctx.runQuery(
+      components.workflow.workflow.listSteps,
+      {
+        order: "desc",
+        paginationOpts: { cursor: null, numItems: 1 },
+        workflowId,
+      }
+    );
+    const completedAt =
+      latestSteps.page[0]?.completedAt ?? workflowRecord._creationTime;
+    if (completedAt >= cutoffMs) {
+      return "recent";
+    }
+    if (dryRun) {
+      return "eligible";
+    }
+    return (await workflow.cleanup(ctx, workflowId)) ? "cleaned" : "missing";
+  } catch (error) {
+    if (
+      error instanceof Error &&
+      error.message.includes("Workflow not found")
+    ) {
+      return "missing";
+    }
+    throw error;
+  }
+};
+
+export const cleanupWorkflowHistoryBatchHandler = async (
+  ctx: ActionCtx,
+  args: { cutoffMs: number; dryRun: boolean; workflowIds: WorkflowId[] }
+) => {
+  const workflowIds = [...new Set(args.workflowIds)];
+  if (
+    workflowIds.length === 0 ||
+    workflowIds.length > MAX_WORKFLOW_CLEANUP_BATCH_SIZE
+  ) {
+    throw new Error(
+      `workflowIds must contain 1-${MAX_WORKFLOW_CLEANUP_BATCH_SIZE} unique IDs`
+    );
+  }
+  const latestAllowedCutoff = Date.now() - WORKFLOW_RETENTION_MS;
+  if (
+    !Number.isFinite(args.cutoffMs) ||
+    args.cutoffMs < 0 ||
+    args.cutoffMs > latestAllowedCutoff
+  ) {
+    throw new Error("cutoffMs must preserve at least seven days of history");
+  }
+
+  const totals: Record<WorkflowCleanupStatus, number> = {
+    cleaned: 0,
+    eligible: 0,
+    inProgress: 0,
+    missing: 0,
+    recent: 0,
+  };
+  const concurrency = 10;
+  for (let offset = 0; offset < workflowIds.length; offset += concurrency) {
+    const statuses = await Promise.all(
+      workflowIds
+        .slice(offset, offset + concurrency)
+        .map((workflowId) =>
+          cleanupWorkflowHistoryEntry(
+            ctx,
+            workflowId,
+            args.dryRun,
+            args.cutoffMs
+          )
+        )
+    );
+    for (const status of statuses) {
+      totals[status] += 1;
+    }
+  }
+
+  return {
+    cleanedCount: totals.cleaned,
+    eligibleCount: totals.eligible,
+    inProgressCount: totals.inProgress,
+    missingCount: totals.missing,
+    recentCount: totals.recent,
+    uniqueCount: workflowIds.length,
+  };
+};
+
+/**
+ * Guarded maintenance endpoint for bounded, explicit workflow-history cleanup.
+ * Production callers must first select IDs older than the retention cutoff and
+ * validate the same batch with dryRun before deleting it.
+ */
+export const cleanupWorkflowHistoryBatch = internalAction({
+  args: {
+    cutoffMs: v.number(),
+    dryRun: v.boolean(),
+    workflowIds: v.array(vWorkflowId),
+  },
+  returns: v.object({
+    cleanedCount: v.number(),
+    eligibleCount: v.number(),
+    inProgressCount: v.number(),
+    missingCount: v.number(),
+    recentCount: v.number(),
+    uniqueCount: v.number(),
+  }),
+  handler: cleanupWorkflowHistoryBatchHandler,
+});
 
 interface CardIdentifier {
   cardId: Id<"cards">;
@@ -75,7 +311,7 @@ export const startCardProcessingWorkflowHandler = async (
 ) => {
   const workflowRef =
     internalAny["workflows/cardProcessing"].cardProcessingWorkflow;
-  const workflowId = await workflow.start(
+  const workflowId = await startWorkflow(
     ctx,
     workflowRef,
     { cardId },

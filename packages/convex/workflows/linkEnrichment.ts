@@ -2,7 +2,7 @@ import type { RetryBehavior } from "@convex-dev/workpool";
 import { v } from "convex/values";
 import { internal } from "../_generated/api";
 import { internalMutation } from "../_generated/server";
-import { workflow } from "./manager";
+import { startWorkflow, workflow } from "./manager";
 
 const internalWorkflow = internal as Record<string, any>;
 const LOG_PREFIX = "[workflow/linkEnrichment]";
@@ -85,7 +85,7 @@ export const startLinkEnrichmentWorkflow = internalMutation({
     })
   ),
   handler: async (ctx, { cardId, startAsync }) => {
-    const result = await workflow.start(
+    const result = await startWorkflow(
       ctx,
       internalWorkflow["workflows/linkEnrichment"].linkEnrichmentWorkflow,
       { cardId },

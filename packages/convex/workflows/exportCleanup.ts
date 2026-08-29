@@ -12,7 +12,7 @@
 import { v } from "convex/values";
 import { internal } from "../_generated/api";
 import { internalMutation } from "../_generated/server";
-import { workflow } from "./manager";
+import { startWorkflow, workflow } from "./manager";
 
 const internalWorkflow = internal as Record<string, any>;
 
@@ -80,7 +80,7 @@ export const startExportCleanupWorkflow = internalMutation({
     v.object({ expiredCount: v.number(), hasMore: v.boolean() })
   ),
   handler: async (ctx, { startAsync }) => {
-    const result = await workflow.start(
+    const result = await startWorkflow(
       ctx,
       internalWorkflow["workflows/exportCleanup"].exportCleanupWorkflow,
       {},

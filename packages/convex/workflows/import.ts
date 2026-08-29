@@ -3,7 +3,7 @@ import { internal } from "../_generated/api";
 import { internalMutation } from "../_generated/server";
 import { IMPORT_CARD_BATCH } from "../import/constants";
 import { CARD_ERROR_MESSAGES } from "../shared/constants";
-import { workflow } from "./manager";
+import { startWorkflow, workflow } from "./manager";
 
 const internalAny = internal as Record<string, any>;
 
@@ -124,7 +124,7 @@ export const startImportWorkflow = internalMutation({
   args: { jobId: v.id("importJobs") },
   returns: v.object({ workflowId: v.string() }),
   handler: async (ctx, { jobId }) => {
-    const workflowId = await workflow.start(
+    const workflowId = await startWorkflow(
       ctx,
       internalAny["workflows/import"].importWorkflow,
       { jobId },

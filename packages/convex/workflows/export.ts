@@ -20,7 +20,7 @@ import {
   MAX_EXPORT_BYTES,
   MAX_EXPORT_CARDS,
 } from "../export/constants";
-import { workflow } from "./manager";
+import { startWorkflow, workflow } from "./manager";
 
 const internalWorkflow = internal as Record<string, any>;
 
@@ -168,7 +168,7 @@ export const startExportWorkflow = internalMutation({
     if (!job) {
       throw new Error("Export job not found");
     }
-    const workflowId = await workflow.start(
+    const workflowId = await startWorkflow(
       ctx,
       internalWorkflow["workflows/export"].exportWorkflow,
       { jobId, userId: job.userId },

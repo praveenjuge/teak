@@ -1,7 +1,7 @@
 import { v } from "convex/values";
 import { internal } from "../_generated/api";
 import { internalMutation } from "../_generated/server";
-import { workflow } from "./manager";
+import { startWorkflow, workflow } from "./manager";
 import {
   SCREENSHOT_RETRYABLE_PREFIX,
   type ScreenshotRetryableError,
@@ -103,7 +103,7 @@ export const startScreenshotWorkflow = internalMutation({
     workflowId: v.string(),
   }),
   handler: async (ctx, { cardId, startAsync }) => {
-    const workflowId = await workflow.start(
+    const workflowId = await startWorkflow(
       ctx,
       internalWorkflow["workflows/screenshot"].screenshotWorkflow,
       { cardId },
