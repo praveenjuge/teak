@@ -191,7 +191,18 @@ describe("workflow manager", () => {
 
     test("dry-runs and cleans only completed workflow IDs", async () => {
       const cutoffMs = Date.now() - WORKFLOW_RETENTION_MS;
-      const runQuery = mock((_reference: any, { workflowId }: any) => {
+      const runQuery = mock((_reference: any, args: any) => {
+        const { workflowId } = args;
+        if (args.paginationOpts) {
+          return {
+            page: [
+              {
+                completedAt:
+                  workflowId === "wf_recent" ? cutoffMs + 1 : cutoffMs - 1,
+              },
+            ],
+          };
+        }
         if (workflowId === "wf_running") {
           return {
             workflow: { _creationTime: cutoffMs - 1 },
@@ -202,8 +213,7 @@ describe("workflow manager", () => {
         }
         return {
           workflow: {
-            _creationTime:
-              workflowId === "wf_recent" ? cutoffMs + 1 : cutoffMs - 1,
+            _creationTime: cutoffMs - 1,
             runResult: { kind: "success", returnValue: null },
           },
         };
@@ -251,6 +261,36 @@ describe("workflow manager", () => {
       });
       expect(cleanup).toHaveBeenCalledTimes(1);
       expect(cleanup).toHaveBeenCalledWith(ctx, "wf_completed");
+    });
+
+    test("uses terminal step completion time instead of workflow creation time", async () => {
+      const cutoffMs = Date.now() - WORKFLOW_RETENTION_MS;
+      const runQuery = mock((_reference: any, args: any) => {
+        if (args.paginationOpts) {
+          return { page: [{ completedAt: cutoffMs + 1 }] };
+        }
+        return {
+          workflow: {
+            _creationTime: cutoffMs - WORKFLOW_RETENTION_MS,
+            runResult: { kind: "success", returnValue: null },
+          },
+        };
+      });
+      const cleanup = mock().mockResolvedValue(true);
+      workflow.cleanup = cleanup;
+
+      const result = await cleanupWorkflowHistoryBatchHandler(
+        { runQuery } as any,
+        {
+          cutoffMs,
+          dryRun: false,
+          workflowIds: ["wf_recent_completion"] as any,
+        }
+      );
+
+      expect(result.recentCount).toBe(1);
+      expect(result.cleanedCount).toBe(0);
+      expect(cleanup).not.toHaveBeenCalled();
     });
 
     test("rejects oversized maintenance batches", () => {

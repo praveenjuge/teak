@@ -151,7 +151,17 @@ const cleanupWorkflowHistoryEntry = async (
     if (!workflowRecord.runResult) {
       return "inProgress";
     }
-    if (workflowRecord._creationTime >= cutoffMs) {
+    const latestSteps = await ctx.runQuery(
+      components.workflow.workflow.listSteps,
+      {
+        order: "desc",
+        paginationOpts: { cursor: null, numItems: 1 },
+        workflowId,
+      }
+    );
+    const completedAt =
+      latestSteps.page[0]?.completedAt ?? workflowRecord._creationTime;
+    if (completedAt >= cutoffMs) {
       return "recent";
     }
     if (dryRun) {
