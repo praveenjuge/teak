@@ -16,13 +16,18 @@ import {
   getAccountCardDeletionBatchHandler,
 } from "./auth";
 import {
+  CARD_USAGE_BASE_SHARDS,
   CARD_USAGE_SCAN_LIMIT,
+  CARD_USAGE_TOTAL_SHARDS,
+  getCardUsageSnapshot,
   getOrInitializeCardUsage,
+  initializeCardUsageShards,
   recordActiveCardCreated,
   recordActiveCardRemoved,
+  removeCardUsage,
 } from "./card/cardUsage";
 import { getDualReadSearchLimit } from "./card/getCards";
-import { ensureCardQuotaAvailable } from "./card/quota";
+import { authorizeCardCreation, ensureCardQuotaAvailable } from "./card/quota";
 import {
   buildCardSearchText,
   deduplicateCardSearchResults,
@@ -33,6 +38,10 @@ import {
   analyticsShardForRequest,
   IDEMPOTENCY_ANALYTICS_SHARDS,
 } from "./idempotencyAnalytics";
+import {
+  backfillUserCardUsageShardsHandler,
+  rollbackUserCardUsageShardsHandler,
+} from "./migrations";
 import schema from "./schema";
 import { FREE_TIER_LIMIT } from "./shared/constants";
 import { RATE_LIMIT_CONFIG, rateLimiter } from "./shared/rateLimits";
@@ -53,6 +62,25 @@ const insertCard = async (
     ...overrides,
   });
 
+const insertExactUsage = async (
+  ctx: MutationCtx,
+  userId: string,
+  activeCardCount: number
+) => {
+  const usageId = await ctx.db.insert("userCardUsage", {
+    userId,
+    activeCardCount,
+    isCountExact: true,
+    isSaturated: activeCardCount >= FREE_TIER_LIMIT,
+    updatedAt: Date.now(),
+  });
+  const usage = await ctx.db.get("userCardUsage", usageId);
+  if (!usage) {
+    throw new Error("Failed to insert card usage test fixture");
+  }
+  return usage;
+};
+
 describe("OCC contention behavior", () => {
   test("initializes usage with a bounded saturated scan", async () => {
     const t = convexTest(schema, modules);
@@ -71,49 +99,31 @@ describe("OCC contention behavior", () => {
   test("tracks create, delete, restore, and saturated recount transitions", async () => {
     const t = convexTest(schema, modules);
     await t.run(async (ctx) => {
-      await getOrInitializeCardUsage(ctx, "user-2");
+      const initialUsage = await getOrInitializeCardUsage(ctx, "user-2");
+      await initializeCardUsageShards(ctx, initialUsage);
       const cardId = await insertCard(ctx, "user-2");
       await recordActiveCardCreated(ctx, "user-2", cardId);
-      let usage = await ctx.db
-        .query("userCardUsage")
-        .withIndex("by_userId", (query) => query.eq("userId", "user-2"))
-        .unique();
-      expect(usage?.activeCardCount).toBe(1);
+      expect((await getCardUsageSnapshot(ctx, "user-2"))?.activeCardCount).toBe(
+        1
+      );
 
       await ctx.db.patch("cards", cardId, {
         deletedAt: Date.now(),
         isDeleted: true,
       });
       await recordActiveCardRemoved(ctx, "user-2", cardId);
-      usage = await ctx.db
-        .query("userCardUsage")
-        .withIndex("by_userId", (query) => query.eq("userId", "user-2"))
-        .unique();
-      expect(usage?.activeCardCount).toBe(0);
+      expect((await getCardUsageSnapshot(ctx, "user-2"))?.activeCardCount).toBe(
+        0
+      );
 
       await ctx.db.patch("cards", cardId, {
         deletedAt: undefined,
         isDeleted: undefined,
       });
       await recordActiveCardCreated(ctx, "user-2", cardId);
-      usage = await ctx.db
-        .query("userCardUsage")
-        .withIndex("by_userId", (query) => query.eq("userId", "user-2"))
-        .unique();
-      expect(usage?.activeCardCount).toBe(1);
-
-      await ctx.db.patch("userCardUsage", usage?._id as Id<"userCardUsage">, {
-        activeCardCount: FREE_TIER_LIMIT,
-        isCountExact: false,
-        isSaturated: true,
-      });
-      await recordActiveCardRemoved(ctx, "user-2", cardId);
-      usage = await ctx.db
-        .query("userCardUsage")
-        .withIndex("by_userId", (query) => query.eq("userId", "user-2"))
-        .unique();
-      expect(usage?.activeCardCount).toBe(1);
-      expect(usage?.isSaturated).toBe(false);
+      expect((await getCardUsageSnapshot(ctx, "user-2"))?.activeCardCount).toBe(
+        1
+      );
     });
   });
 
@@ -131,6 +141,210 @@ describe("OCC contention behavior", () => {
           getSubscription: async () => null,
         })
       ).rejects.toBeInstanceOf(ConvexError);
+    });
+  });
+
+  test("enforces the exact free-tier limit across bounded usage shards", async () => {
+    const t = convexTest(schema, modules);
+    await t.run(async (ctx) => {
+      const userId = "user-sharded-limit";
+      const usage = await insertExactUsage(ctx, userId, FREE_TIER_LIMIT - 1);
+      expect(await initializeCardUsageShards(ctx, usage)).toBe(true);
+      expect(await ctx.db.query("userCardUsageShards").collect()).toHaveLength(
+        CARD_USAGE_TOTAL_SHARDS
+      );
+
+      const finalFreeCard = await insertCard(ctx, userId);
+      await recordActiveCardCreated(ctx, userId, finalFreeCard);
+      expect((await getCardUsageSnapshot(ctx, userId))?.activeCardCount).toBe(
+        FREE_TIER_LIMIT
+      );
+
+      const overLimitCard = await insertCard(ctx, userId);
+      await expect(
+        recordActiveCardCreated(ctx, userId, overLimitCard)
+      ).rejects.toMatchObject({
+        data: expect.objectContaining({ code: "CARD_LIMIT_REACHED" }),
+      });
+      expect((await getCardUsageSnapshot(ctx, userId))?.activeCardCount).toBe(
+        FREE_TIER_LIMIT
+      );
+    });
+  });
+
+  test("initializes shards before the first canonical card insert", async () => {
+    const t = convexTest(schema, modules);
+    await t.run(async (ctx) => {
+      const userId = "user-first-canonical-create";
+      const authorization = await authorizeCardCreation(ctx, userId, {
+        getSubscription: async () => null,
+        rateLimiter: {
+          limit: async () => ({ ok: true, retryAfter: 0 }),
+        } as any,
+      });
+      expect((await getCardUsageSnapshot(ctx, userId))?.activeCardCount).toBe(
+        0
+      );
+
+      const cardId = await insertCard(ctx, userId);
+      await recordActiveCardCreated(ctx, userId, cardId, authorization);
+      expect((await getCardUsageSnapshot(ctx, userId))?.activeCardCount).toBe(
+        1
+      );
+    });
+  });
+
+  test("preserves premium overflow and drains it before base usage", async () => {
+    const t = convexTest(schema, modules);
+    await t.run(async (ctx) => {
+      const userId = "user-sharded-premium";
+      const usage = await insertExactUsage(ctx, userId, FREE_TIER_LIMIT);
+      await initializeCardUsageShards(ctx, usage);
+
+      const premiumCard = await insertCard(ctx, userId);
+      await recordActiveCardCreated(ctx, userId, premiumCard, {
+        hasPremium: true,
+      });
+      expect((await getCardUsageSnapshot(ctx, userId))?.activeCardCount).toBe(
+        FREE_TIER_LIMIT + 1
+      );
+
+      await recordActiveCardRemoved(ctx, userId, premiumCard);
+      expect((await getCardUsageSnapshot(ctx, userId))?.activeCardCount).toBe(
+        FREE_TIER_LIMIT
+      );
+      const overflowCount = (
+        await ctx.db.query("userCardUsageShards").collect()
+      )
+        .filter((usage) => usage.shard >= CARD_USAGE_BASE_SHARDS)
+        .reduce((sum, usage) => sum + usage.activeCardCount, 0);
+      expect(overflowCount).toBe(0);
+    });
+  });
+
+  test("allows downgraded users below the limit despite residual overflow", async () => {
+    const t = convexTest(schema, modules);
+    await t.run(async (ctx) => {
+      const userId = "user-sharded-downgraded";
+      const usage = await insertExactUsage(ctx, userId, FREE_TIER_LIMIT + 1);
+      await initializeCardUsageShards(ctx, usage);
+
+      const baseShard = await ctx.db
+        .query("userCardUsageShards")
+        .withIndex("by_userId_and_shard", (query) =>
+          query.eq("userId", userId).eq("shard", 0)
+        )
+        .unique();
+      expect(baseShard).not.toBeNull();
+      await ctx.db.patch("userCardUsageShards", baseShard!._id, {
+        activeCardCount: baseShard!.activeCardCount - 2,
+      });
+      expect((await getCardUsageSnapshot(ctx, userId))?.activeCardCount).toBe(
+        FREE_TIER_LIMIT - 1
+      );
+
+      const freeCard = await insertCard(ctx, userId);
+      await recordActiveCardCreated(ctx, userId, freeCard);
+      expect((await getCardUsageSnapshot(ctx, userId))?.activeCardCount).toBe(
+        FREE_TIER_LIMIT
+      );
+    });
+  });
+
+  test("initializes saturated accounts without losing overflow usage", async () => {
+    const t = convexTest(schema, modules);
+    await t.run(async (ctx) => {
+      const userId = "user-sharded-saturated";
+      const saturatedCount = FREE_TIER_LIMIT + 17;
+      const usage = await insertExactUsage(ctx, userId, saturatedCount);
+      await initializeCardUsageShards(ctx, usage);
+      const snapshot = await getCardUsageSnapshot(ctx, userId);
+      expect(snapshot?.activeCardCount).toBe(saturatedCount);
+      expect(snapshot?.isSaturated).toBe(true);
+
+      const cardId = await insertCard(ctx, userId);
+      await expect(
+        recordActiveCardCreated(ctx, userId, cardId)
+      ).rejects.toMatchObject({
+        data: expect.objectContaining({ code: "CARD_LIMIT_REACHED" }),
+      });
+    });
+  });
+
+  test("backfills, repairs, rolls back, and removes usage shards", async () => {
+    const t = convexTest(schema, modules);
+    await t.run(async (ctx) => {
+      const userId = "user-shard-migration";
+      const usage = await insertExactUsage(ctx, userId, 37);
+      await ctx.db.insert("userCardUsageShards", {
+        userId,
+        shard: 0,
+        activeCardCount: 999,
+        updatedAt: Date.now(),
+      });
+
+      await backfillUserCardUsageShardsHandler(ctx, usage);
+      expect((await getCardUsageSnapshot(ctx, userId))?.activeCardCount).toBe(
+        37
+      );
+      expect(
+        await ctx.db
+          .query("userCardUsageShards")
+          .withIndex("by_userId_and_shard", (query) =>
+            query.eq("userId", userId)
+          )
+          .collect()
+      ).toHaveLength(CARD_USAGE_TOTAL_SHARDS);
+
+      const shardedUsage = await ctx.db.get("userCardUsage", usage._id);
+      expect(shardedUsage).not.toBeNull();
+      await rollbackUserCardUsageShardsHandler(
+        ctx,
+        shardedUsage as Doc<"userCardUsage">
+      );
+      const rolledBackUsage = await ctx.db.get("userCardUsage", usage._id);
+      expect(rolledBackUsage).toMatchObject({
+        activeCardCount: 37,
+        isCountExact: true,
+      });
+      expect(rolledBackUsage?.shardVersion).toBeUndefined();
+      expect(await ctx.db.query("userCardUsageShards").collect()).toHaveLength(
+        0
+      );
+
+      await backfillUserCardUsageShardsHandler(
+        ctx,
+        rolledBackUsage as Doc<"userCardUsage">
+      );
+      await removeCardUsage(ctx, userId);
+      expect(await ctx.db.get("userCardUsage", usage._id)).toBeNull();
+      expect(await ctx.db.query("userCardUsageShards").collect()).toHaveLength(
+        0
+      );
+    });
+  });
+
+  test("rejects a versioned but incomplete shard set", async () => {
+    const t = convexTest(schema, modules);
+    await t.run(async (ctx) => {
+      const userId = "user-incomplete-shards";
+      const usage = await insertExactUsage(ctx, userId, 4);
+      await initializeCardUsageShards(ctx, usage);
+      const shard = await ctx.db
+        .query("userCardUsageShards")
+        .withIndex("by_userId_and_shard", (query) =>
+          query.eq("userId", userId).eq("shard", 0)
+        )
+        .unique();
+      expect(shard).not.toBeNull();
+      await ctx.db.delete(
+        "userCardUsageShards",
+        shard?._id as Id<"userCardUsageShards">
+      );
+      const versionedUsage = await ctx.db.get("userCardUsage", usage._id);
+      await expect(
+        initializeCardUsageShards(ctx, versionedUsage as Doc<"userCardUsage">)
+      ).rejects.toThrow("incomplete");
     });
   });
 
@@ -164,9 +378,9 @@ describe("OCC contention behavior", () => {
       const cardId = await insertCard(ctx, userId);
       const usageId = await ctx.db.insert("userCardUsage", {
         userId,
-        activeCardCount: CARD_USAGE_SCAN_LIMIT,
-        isCountExact: false,
-        isSaturated: true,
+        activeCardCount: 1,
+        isCountExact: true,
+        isSaturated: false,
         migrationActiveCardCount: 1,
         migrationCountStartedAt: Date.now(),
         updatedAt: Date.now(),
@@ -177,21 +391,20 @@ describe("OCC contention behavior", () => {
         countedActive: true,
         createdAt: Date.now(),
       });
+      const usage = await ctx.db.get("userCardUsage", usageId);
+      await initializeCardUsageShards(ctx, usage as Doc<"userCardUsage">);
 
       await ctx.db.patch("cards", cardId, { isDeleted: true });
       await recordActiveCardRemoved(ctx, userId, cardId);
-      let usage = await ctx.db.get("userCardUsage", usageId);
-      expect(usage?.migrationActiveCardCount).toBe(0);
+      expect((await getCardUsageSnapshot(ctx, userId))?.activeCardCount).toBe(
+        0
+      );
 
       await ctx.db.patch("cards", cardId, { isDeleted: undefined });
       await recordActiveCardCreated(ctx, userId, cardId);
-      usage = await ctx.db.get("userCardUsage", usageId);
-      expect(usage?.migrationActiveCardCount).toBe(1);
-      const entry = await ctx.db
-        .query("cardUsageMigrationEntries")
-        .withIndex("by_cardId", (query) => query.eq("cardId", cardId))
-        .unique();
-      expect(entry?.countedActive).toBe(true);
+      expect((await getCardUsageSnapshot(ctx, userId))?.activeCardCount).toBe(
+        1
+      );
     });
   });
 
@@ -297,6 +510,7 @@ describe("OCC contention behavior", () => {
       expect(usage.migrationBackfilledAt).toBeTypeOf("number");
       expect(document?.migrationBackfilledAt).toBeTypeOf("number");
 
+      await initializeCardUsageShards(ctx, usage);
       await recordActiveCardCreated(ctx, userId, cardId);
       await syncCardSearchDocumentHandler(ctx, cardId);
       const liveUsage = await ctx.db.get("userCardUsage", usage._id);

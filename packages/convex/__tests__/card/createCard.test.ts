@@ -10,6 +10,7 @@ process.env.APPLE_PRIVATE_KEY = TEST_APPLE_PRIVATE_KEY;
 process.env.APPLE_TEAM_ID = "test-apple-team-id";
 
 import { afterEach, beforeEach, describe, expect, mock, test } from "bun:test";
+import { CARD_USAGE_SHARD_VERSION } from "../../card/cardUsage";
 import { TEST_APPLE_PRIVATE_KEY } from "../helpers/appleAuth.test-utils";
 
 describe("card/createCard.ts", () => {
@@ -23,6 +24,23 @@ describe("card/createCard.ts", () => {
     }
     const query = ctx.db.query.bind(ctx.db);
     ctx.db.query = mock((table: string) => {
+      if (table === "userCardUsageShards") {
+        return {
+          withIndex: (_name: string, callback: (builder: any) => void) => {
+            const builder = { eq: () => builder };
+            callback(builder);
+            return {
+              unique: mock().mockResolvedValue({
+                _id: "usage_shard_1",
+                activeCardCount: 0,
+                shard: 0,
+                updatedAt: 1,
+                userId: "u1",
+              }),
+            };
+          },
+        };
+      }
       if (table !== "userCardUsage") {
         return query(table);
       }
@@ -31,7 +49,10 @@ describe("card/createCard.ts", () => {
           unique: mock().mockResolvedValue({
             _id: "usage_1",
             activeCardCount: 0,
+            isCountExact: true,
             isSaturated: false,
+            shardVersion: CARD_USAGE_SHARD_VERSION,
+            shardedAt: 1,
           }),
         }),
       };

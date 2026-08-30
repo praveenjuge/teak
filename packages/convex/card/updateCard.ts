@@ -10,7 +10,8 @@ import { CARD_ERROR_CODES, CARD_ERROR_MESSAGES } from "../shared/constants";
 import { rateLimiter } from "../shared/rateLimits";
 import { assertSafeExternalUrl } from "../shared/utils/safeUrl";
 import {
-  getOrInitializeCardUsage,
+  ensureCardUsageShards,
+  ensureCardUsageShardsForRemoval,
   recordActiveCardCreated,
   recordActiveCardRemoved,
 } from "./cardUsage";
@@ -21,7 +22,7 @@ import {
   stagePending,
   withStageStatus,
 } from "./processingStatus";
-import { ensureCardQuotaAvailable } from "./quota";
+import { getCardQuotaEntitlement } from "./quota";
 import { normalizeQuoteContent } from "./quoteFormatting";
 import { scheduleCardSearchSync } from "./searchDocumentHelpers";
 
@@ -338,17 +339,21 @@ export const updateCardFieldForUserHandler = async (
   }
 
   if (field === "delete") {
-    await getOrInitializeCardUsage(ctx, userId);
+    await ensureCardUsageShardsForRemoval(ctx, userId);
   }
+  const hasPremium =
+    field === "restore"
+      ? await getCardQuotaEntitlement(ctx, userId)
+      : undefined;
   if (field === "restore") {
-    await ensureCardQuotaAvailable(ctx, userId);
+    await ensureCardUsageShards(ctx, userId, hasPremium ?? false);
   }
 
   await ctx.db.patch("cards", cardId, updateData);
   if (field === "delete" && !card.isDeleted) {
     await recordActiveCardRemoved(ctx, userId, cardId);
   } else if (field === "restore" && card.isDeleted) {
-    await recordActiveCardCreated(ctx, userId, cardId);
+    await recordActiveCardCreated(ctx, userId, cardId, { hasPremium });
   }
   if (!options.deferSearchSync) {
     await scheduleCardSearchSync(ctx, cardId);

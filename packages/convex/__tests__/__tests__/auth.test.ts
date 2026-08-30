@@ -265,10 +265,13 @@ describe("auth", () => {
                 };
                 callback(builder);
                 return {
-                  unique: async () => ({
-                    activeCardCount: 12,
-                    isCountExact: true,
-                  }),
+                  unique: async () =>
+                    table === "userCardUsage"
+                      ? {
+                          activeCardCount: 12,
+                          isCountExact: true,
+                        }
+                      : null,
                 };
               },
             };
@@ -727,7 +730,8 @@ describe("auth", () => {
         db: {
           query: (table: string) => ({
             withIndex: (_name: string, cb: any) => {
-              cb({ eq: () => undefined });
+              const builder = { eq: () => builder };
+              cb(builder);
               return {
                 take: async () =>
                   table === "cardUsageMigrationEntries"

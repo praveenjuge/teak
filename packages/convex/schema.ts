@@ -562,8 +562,16 @@ export default defineSchema({
     migrationActiveCardCount: v.optional(v.number()),
     migrationBackfilledAt: v.optional(v.number()),
     migrationCountStartedAt: v.optional(v.number()),
+    shardVersion: v.optional(v.number()),
+    shardedAt: v.optional(v.number()),
     updatedAt: v.number(),
   }).index("by_userId", ["userId"]),
+  userCardUsageShards: defineTable({
+    userId: v.string(),
+    shard: v.number(),
+    activeCardCount: v.number(),
+    updatedAt: v.number(),
+  }).index("by_userId_and_shard", ["userId", "shard"]),
   cardUsageMigrationEntries: defineTable({
     cardId: v.id("cards"),
     userId: v.string(),

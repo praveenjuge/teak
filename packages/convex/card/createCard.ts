@@ -10,7 +10,6 @@ import {
   type MutationCtx,
   mutation,
 } from "../_generated/server";
-import { ensureCardCreationAllowed } from "../auth";
 import { cardTypeValidator, colorValidator } from "../schema";
 import type { CardCreationSource } from "../shared/metrics";
 import { normalizeErrorClass } from "../shared/telemetry";
@@ -24,6 +23,7 @@ import {
   stageCompleted,
   stagePending,
 } from "./processingStatus";
+import { authorizeCardCreation } from "./quota";
 import { normalizeQuoteContent } from "./quoteFormatting";
 import { scheduleCardSearchSync } from "./searchDocumentHelpers";
 import { extractUrlFromContent } from "./validationUtils";
@@ -80,7 +80,7 @@ export const createCardForUserHandler = async (
   } = {}
 ): Promise<Id<"cards">> => {
   // Check rate limit and card count limit
-  await ensureCardCreationAllowed(ctx, userId);
+  const { hasPremium } = await authorizeCardCreation(ctx, userId);
 
   const now = Date.now();
 
@@ -206,7 +206,7 @@ export const createCardForUserHandler = async (
   };
 
   const cardId = await ctx.db.insert("cards", cardData);
-  await recordActiveCardCreated(ctx, userId, cardId);
+  await recordActiveCardCreated(ctx, userId, cardId, { hasPremium });
   await scheduleCardSearchSync(ctx, cardId);
 
   // Start the card processing workflow

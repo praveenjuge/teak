@@ -29,6 +29,7 @@ import {
   buildInitialProcessingStatus,
   stageCompleted,
 } from "./processingStatus";
+import { authorizeCardCreation } from "./quota";
 import { scheduleCardSearchSync } from "./searchDocumentHelpers";
 
 const toConvexFileError = (error: FileFormatValidationError) =>
@@ -167,7 +168,7 @@ export const createUploadedCardForUser = async (
 ) => {
   const now = Date.now();
 
-  await ensureCardCreationAllowed(ctx, args.userId);
+  const { hasPremium } = await authorizeCardCreation(ctx, args.userId);
 
   if (!args.fileKey.startsWith(`${buildR2UserPrefix(args.userId)}/`)) {
     throw new ConvexError({
@@ -275,7 +276,7 @@ export const createUploadedCardForUser = async (
     createdAt: now,
     updatedAt: now,
   });
-  await recordActiveCardCreated(ctx, args.userId, cardId);
+  await recordActiveCardCreated(ctx, args.userId, cardId, { hasPremium });
   await scheduleCardSearchSync(ctx, cardId);
 
   // Object metadata is served by the Files Worker path; the Convex R2

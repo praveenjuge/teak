@@ -3,7 +3,11 @@ import { internalMutation } from "../_generated/server";
 import { assertAccountNotDeleting } from "../accountDeletion";
 import type { CardType } from "../schema";
 import { buildColorFacets } from "../shared/utils/colorUtils";
-import { getOrInitializeCardUsage, recordActiveCardCreated } from "./cardUsage";
+import {
+  getOrInitializeCardUsage,
+  initializeCardUsageShards,
+  recordActiveCardCreated,
+} from "./cardUsage";
 import { type ProcessingStatus, stageCompleted } from "./processingStatus";
 import { scheduleCardSearchSync } from "./searchDocumentHelpers";
 
@@ -103,6 +107,8 @@ export const createDefaultCardsForUser = internalMutation({
   args: { userId: v.string() },
   handler: async (ctx, { userId }) => {
     await assertAccountNotDeleting(ctx, userId);
+    const usage = await getOrInitializeCardUsage(ctx, userId);
+    await initializeCardUsageShards(ctx, usage);
     // Check if user already has any non-deleted cards
     const existingCard = await ctx.db
       .query("cards")
@@ -118,7 +124,6 @@ export const createDefaultCardsForUser = internalMutation({
     // Create default cards with slight timestamp offsets for consistent ordering
     const now = Date.now();
     const processingStatus = buildCompletedProcessingStatus(now);
-    await getOrInitializeCardUsage(ctx, userId);
 
     for (let i = 0; i < DEFAULT_CARDS.length; i++) {
       const cardDef = DEFAULT_CARDS[i];
