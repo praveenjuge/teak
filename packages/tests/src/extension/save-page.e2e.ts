@@ -47,6 +47,11 @@ test("extension saves a selected file and safe page asset with private URL fallb
     const nextPage = context.waitForEvent("page");
     await signIn.click();
     const authPage = await nextPage;
+    const approveDevice = authPage.getByRole("button", {
+      name: "Approve device",
+    });
+    await expect(approveDevice).toBeVisible();
+    await approveDevice.click();
     await authPage
       .waitForURL((url) => url.pathname === "/native/auth/complete")
       .catch((error: unknown) => {
