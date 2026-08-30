@@ -98,12 +98,18 @@ test("preview OCC harness keeps parallel card operations coherent", async ({
     await expect
       .poll(
         async () => {
-          const response = await apiFetch(`/v1/cards/${target}`, apiKey);
+          const response = await apiFetch(
+            "/v1/cards?include=processing&limit=100",
+            apiKey
+          );
           if (!response.ok) {
             return "request-failed";
           }
-          const status = (await response.json()).processingStatus?.metadata
-            ?.status;
+          const payload = await response.json();
+          const targetCard = payload.items?.find(
+            (card: { id?: string }) => card.id === target
+          );
+          const status = targetCard?.processingStatus?.metadata?.status;
           return status ?? "missing";
         },
         { intervals: [500, 1000, 2000, 3000], timeout: 30_000 }
