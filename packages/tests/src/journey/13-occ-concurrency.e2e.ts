@@ -146,7 +146,7 @@ test("preview OCC harness keeps parallel card operations coherent", async ({
           apiFetch(`/v1/cards/${cardId}`, apiKey, { method: "DELETE" })
         )
     );
-    expect(deletions.every((response) => response.status === 200)).toBe(true);
+    expect(deletions.every((response) => response.status === 204)).toBe(true);
 
     const rateChecks = await Promise.all(
       Array.from({ length: 40 }, (_, index) =>
