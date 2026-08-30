@@ -92,7 +92,6 @@ export const ensureOAuthClients = internalMutation({
         metadata: null,
         name: client.name,
         redirectUrls: client.redirectUrls.join(","),
-        skipConsent: false,
         type: "public",
         updatedAt: now,
         userId: null,

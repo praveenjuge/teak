@@ -147,6 +147,24 @@ describe("filterClientSentryEvent", () => {
     expect(filterClientSentryEvent(event)).toBeNull();
   });
 
+  test("drops injected network wrapper fetch failures", () => {
+    const event = {
+      exception: {
+        values: [
+          {
+            type: "TypeError",
+            value: "Failed to fetch (app.teakvault.com)",
+            stacktrace: {
+              frames: [{ filename: "app:///inject-net.js" }],
+            },
+          },
+        ],
+      },
+    } satisfies ErrorEvent;
+
+    expect(filterClientSentryEvent(event)).toBeNull();
+  });
+
   test("drops injected userscript execution failures", () => {
     const event = {
       exception: {

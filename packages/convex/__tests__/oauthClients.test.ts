@@ -25,7 +25,7 @@ describe("ensureOAuthClients", () => {
     expect(first.input.data.clientId).toBe("teak-raycast");
     // redirectUrls is stored as a comma-joined string.
     expect(first.input.data.redirectUrls).toContain(",");
-    expect(first.input.data.skipConsent).toBe(false);
+    expect(first.input.data).not.toHaveProperty("skipConsent");
   });
 
   test("updates clients that already exist (idempotent, no duplicates)", async () => {
@@ -40,7 +40,9 @@ describe("ensureOAuthClients", () => {
 
     expect(result).toMatchObject({ created: 0, updated: 3 });
     expect(runMutation.mock.calls[0][1].input.update.type).toBe("public");
-    expect(runMutation.mock.calls[0][1].input.update.skipConsent).toBe(false);
+    expect(runMutation.mock.calls[0][1].input.update).not.toHaveProperty(
+      "skipConsent"
+    );
     // The immutable clientId is not part of the update payload.
     expect(runMutation.mock.calls[0][1].input.update.clientId).toBeUndefined();
   });

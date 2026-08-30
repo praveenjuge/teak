@@ -451,4 +451,63 @@ describe("additive files ops", () => {
       "origin-auth": "share-publicly",
     });
   });
+
+  test("generate-image-metadata retries transient Workers AI capacity errors", async () => {
+    let calls = 0;
+    const aiEnv = {
+      AI: {
+        run: () => {
+          calls += 1;
+          if (calls === 1) {
+            throw new Error(
+              "3040: Capacity temporarily exceeded, please try again."
+            );
+          }
+          return {
+            choices: [
+              {
+                message: {
+                  content: JSON.stringify({
+                    summary: "A recovered request.",
+                    tags: ["recovered"],
+                  }),
+                },
+              },
+            ],
+          };
+        },
+      },
+      BUCKET: new FakeBucket(),
+      FILES_SIGNING_SECRET: SECRET,
+    } as unknown as Env;
+    const bucket = aiEnv.BUCKET as unknown as FakeBucket;
+    bucket.objects.set("users/u1/retry.png", {
+      bytes: new Uint8Array([1]),
+      httpMetadata: { contentType: "image/png" },
+    });
+    const fakeFetch = (() =>
+      Promise.resolve(
+        new Response(new Uint8Array([1, 2, 3]), {
+          status: 200,
+          headers: { "content-type": "image/jpeg" },
+        })
+      )) as typeof fetch;
+    const { generateImageMetadataForOp } = await import("./imageMetadata");
+
+    await expect(
+      generateImageMetadataForOp(
+        aiEnv,
+        {
+          origin: "https://files.teakvault.com",
+          sourceKey: "users/u1/retry.png",
+        },
+        Math.floor(Date.now() / 1000),
+        fakeFetch
+      )
+    ).resolves.toEqual({
+      summary: "A recovered request.",
+      tags: ["recovered"],
+    });
+    expect(calls).toBe(2);
+  });
 });

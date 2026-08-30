@@ -16,7 +16,11 @@ import type { Env } from "./index";
 export const IMAGE_METADATA_MODEL_ID = "@cf/google/gemma-4-26b-a4b-it";
 export const MAX_IMAGE_METADATA_OUTPUT_TOKENS = 768;
 export const MAX_IMAGE_METADATA_VALIDATION_RETRIES = 2;
+const MAX_IMAGE_METADATA_CAPACITY_RETRIES = 2;
 const MAX_PROMPT_CHARS = 6000;
+const CAPACITY_RETRY_BASE_DELAY_MS = 250;
+const WORKERS_AI_CAPACITY_ERROR =
+  /(?:\b3040\b.*capacity|capacity temporarily exceeded)/iu;
 
 // Kept in lockstep with SYSTEM_PROMPTS.imageAnalysis in packages/convex/ai/models.ts.
 export const IMAGE_ANALYSIS_SYSTEM_PROMPT = `You are an expert image analyzer. Generate relevant tags and a concise summary for the given image. Answer directly without thinking step by step.
@@ -116,6 +120,16 @@ const toDataUrl = (bytes: Uint8Array, mediaType: string): string => {
   return `data:${mediaType};base64,${btoa(binary)}`;
 };
 
+const isWorkersAiCapacityError = (error: unknown): boolean => {
+  const message = error instanceof Error ? error.message : String(error);
+  return WORKERS_AI_CAPACITY_ERROR.test(message);
+};
+
+const waitForCapacityRetry = (attempt: number): Promise<void> =>
+  new Promise((resolve) => {
+    setTimeout(resolve, CAPACITY_RETRY_BASE_DELAY_MS * 2 ** attempt);
+  });
+
 export const generateImageMetadataForOp = async (
   env: Env,
   {
@@ -167,7 +181,9 @@ export const generateImageMetadataForOp = async (
   );
   const imageDataUrl = toDataUrl(bytes, contentType);
 
-  for (let attempt = 0; ; attempt += 1) {
+  let capacityAttempt = 0;
+  let validationAttempt = 0;
+  while (true) {
     try {
       const response = await ai.run(IMAGE_METADATA_MODEL_ID, {
         max_tokens: MAX_IMAGE_METADATA_OUTPUT_TOKENS,
@@ -179,7 +195,7 @@ export const generateImageMetadataForOp = async (
           {
             content: [
               {
-                text: validationRetryPrompt(basePrompt, attempt),
+                text: validationRetryPrompt(basePrompt, validationAttempt),
                 type: "text",
               },
               {
@@ -204,7 +220,15 @@ export const generateImageMetadataForOp = async (
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       if (
-        attempt >= MAX_IMAGE_METADATA_VALIDATION_RETRIES ||
+        capacityAttempt < MAX_IMAGE_METADATA_CAPACITY_RETRIES &&
+        isWorkersAiCapacityError(error)
+      ) {
+        await waitForCapacityRetry(capacityAttempt);
+        capacityAttempt += 1;
+        continue;
+      }
+      if (
+        validationAttempt >= MAX_IMAGE_METADATA_VALIDATION_RETRIES ||
         ![
           "invalid_image_metadata_output",
           "malformed_workers_ai_response",
@@ -212,6 +236,7 @@ export const generateImageMetadataForOp = async (
       ) {
         throw error;
       }
+      validationAttempt += 1;
     }
   }
 };
