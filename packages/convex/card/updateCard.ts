@@ -346,9 +346,9 @@ export const updateCardFieldForUserHandler = async (
 
   await ctx.db.patch("cards", cardId, updateData);
   if (field === "delete" && !card.isDeleted) {
-    await recordActiveCardRemoved(ctx, userId);
+    await recordActiveCardRemoved(ctx, userId, cardId);
   } else if (field === "restore" && card.isDeleted) {
-    await recordActiveCardCreated(ctx, userId);
+    await recordActiveCardCreated(ctx, userId, cardId);
   }
   if (!options.deferSearchSync) {
     await scheduleCardSearchSync(ctx, cardId);

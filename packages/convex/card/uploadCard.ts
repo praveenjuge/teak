@@ -275,7 +275,7 @@ export const createUploadedCardForUser = async (
     createdAt: now,
     updatedAt: now,
   });
-  await recordActiveCardCreated(ctx, args.userId);
+  await recordActiveCardCreated(ctx, args.userId, cardId);
   await scheduleCardSearchSync(ctx, cardId);
 
   // Object metadata is served by the Files Worker path; the Convex R2

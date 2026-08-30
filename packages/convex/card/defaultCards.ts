@@ -1,5 +1,6 @@
 import { v } from "convex/values";
 import { internalMutation } from "../_generated/server";
+import { assertAccountNotDeleting } from "../accountDeletion";
 import type { CardType } from "../schema";
 import { buildColorFacets } from "../shared/utils/colorUtils";
 import { getOrInitializeCardUsage, recordActiveCardCreated } from "./cardUsage";
@@ -101,6 +102,7 @@ const DEFAULT_CARDS: DefaultCardDef[] = [
 export const createDefaultCardsForUser = internalMutation({
   args: { userId: v.string() },
   handler: async (ctx, { userId }) => {
+    await assertAccountNotDeleting(ctx, userId);
     // Check if user already has any non-deleted cards
     const existingCard = await ctx.db
       .query("cards")
@@ -141,7 +143,7 @@ export const createDefaultCardsForUser = internalMutation({
         createdAt: timestamp,
         updatedAt: timestamp,
       });
-      await recordActiveCardCreated(ctx, userId);
+      await recordActiveCardCreated(ctx, userId, cardId);
       await scheduleCardSearchSync(ctx, cardId);
     }
 

@@ -6,7 +6,7 @@ import { components } from "../_generated/api";
  *
  * Uses token bucket algorithm: 30 cards per minute for all users.
  */
-export const rateLimiter = new RateLimiter(components.rateLimiterV2, {
+export const RATE_LIMIT_CONFIG = {
   cardCreation: {
     kind: "token bucket",
     rate: 30,
@@ -66,4 +66,9 @@ export const rateLimiter = new RateLimiter(components.rateLimiterV2, {
     period: MINUTE,
     capacity: 5,
   },
-});
+} as const;
+
+export const rateLimiter = new RateLimiter(
+  components.rateLimiterV2,
+  RATE_LIMIT_CONFIG
+);

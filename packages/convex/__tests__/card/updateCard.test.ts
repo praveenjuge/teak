@@ -19,6 +19,7 @@ describe("card/updateCard.ts", () => {
               ? {
                   _id: "usage_1",
                   activeCardCount: 1,
+                  isCountExact: true,
                   isSaturated: false,
                 }
               : null

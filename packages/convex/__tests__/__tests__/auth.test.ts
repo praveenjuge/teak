@@ -19,7 +19,7 @@ process.env.APPLE_TEAM_ID = "test-apple-team-id";
 
 import { beforeAll, beforeEach, describe, expect, it, mock } from "bun:test";
 import { TEST_APPLE_PRIVATE_KEY } from "../helpers/appleAuth.test-utils";
-import { r2MockModuleFactory, r2Mocks } from "../helpers/r2Mock.test-utils";
+import { r2MockModuleFactory } from "../helpers/r2Mock.test-utils";
 
 const mockSendEmail = mock().mockResolvedValue({ id: "m1" });
 
@@ -37,8 +37,7 @@ mock.module("@convex-dev/better-auth/utils", () => ({
   isActionCtx: () => true,
 }));
 
-// Mock the R2 storage helpers used by auth.deleteAccountDataHandler so we can
-// assert deletions without standing up an actual R2 client.
+// Keep storage helpers isolated from the auth unit suite.
 mock.module("../../storage/r2", r2MockModuleFactory);
 
 // We will dynamically import these
@@ -47,6 +46,8 @@ let getCurrentUserHandler: any;
 let getAuthUserHandler: any;
 let getCardCreationStatusHandler: any;
 let deleteAccountDataHandler: any;
+let deleteAccountData: any;
+let getAccountCardDeletionBatchHandler: any;
 let authComponent: any;
 let createAuth: any;
 let polar: any;
@@ -57,7 +58,11 @@ let FREE_TIER_LIMIT: any;
 import { ConvexError } from "convex/values";
 import { POLAR_PLAN_IDS } from "../../shared/polarPlans";
 
-const addUsageRecord = (ctx: any, activeCardCount: number) => {
+const addUsageRecord = (
+  ctx: any,
+  activeCardCount: number,
+  isCountExact = true
+) => {
   const query = ctx.db.query.bind(ctx.db);
   ctx.db.query = (table: string) => {
     if (table !== "userCardUsage") {
@@ -71,6 +76,7 @@ const addUsageRecord = (ctx: any, activeCardCount: number) => {
           unique: async () => ({
             _id: "usage_1",
             activeCardCount,
+            isCountExact,
             isSaturated: activeCardCount >= FREE_TIER_LIMIT,
           }),
         };
@@ -88,6 +94,9 @@ describe("auth", () => {
     getAuthUserHandler = authModule.getAuthUserHandler;
     getCardCreationStatusHandler = authModule.getCardCreationStatusHandler;
     deleteAccountDataHandler = authModule.deleteAccountDataHandler;
+    deleteAccountData = authModule.deleteAccountData;
+    getAccountCardDeletionBatchHandler =
+      authModule.getAccountCardDeletionBatchHandler;
     authComponent = authModule.authComponent;
     createAuth = authModule.createAuth;
 
@@ -254,7 +263,10 @@ describe("auth", () => {
                 };
                 callback(builder);
                 return {
-                  unique: async () => ({ activeCardCount: 12 }),
+                  unique: async () => ({
+                    activeCardCount: 12,
+                    isCountExact: true,
+                  }),
                 };
               },
             };
@@ -267,7 +279,7 @@ describe("auth", () => {
         getSubscription: async () => null,
       });
 
-      expect(queriedTables).toEqual(["userCardUsage"]);
+      expect(queriedTables).toEqual(["accountDeletionStates", "userCardUsage"]);
     });
 
     it("skips card counting for premium users", async () => {
@@ -309,7 +321,7 @@ describe("auth", () => {
         }),
       });
 
-      expect(queryCalled).toBe(false);
+      expect(queryCalled).toBe(true);
     });
 
     it("uses default dependencies when not provided", async () => {
@@ -507,7 +519,41 @@ describe("auth", () => {
       expect(result).not.toBeNull();
       expect(result!.hasPremium).toBe(true);
       expect(result!.canCreateCard).toBe(true);
-      expect(result!.cardCount).toBe(100);
+      expect(result!.cardCount).toBe(3);
+    });
+
+    it("bounds premium card counting while usage backfill is incomplete", async () => {
+      const user = { subject: "u1" };
+      mockGetAuthUser.mockResolvedValue(user);
+      mockGetCurrentSubscription.mockResolvedValue({
+        productId: POLAR_PLAN_IDS.production.monthly,
+        status: "active",
+      });
+
+      const take = mock(async (limit: number) => Array.from({ length: limit }));
+      const ctx = {
+        db: {
+          query: () => ({
+            withIndex: (_name: any, cb: any) => {
+              cb?.({
+                eq: () => ({
+                  eq: () => undefined,
+                }),
+              });
+              return { take };
+            },
+          }),
+        },
+      } as any;
+
+      addUsageRecord(ctx, 0, false);
+      const result = await getCurrentUserHandler(ctx);
+      expect(take).toHaveBeenCalledWith(FREE_TIER_LIMIT + 1);
+      expect(result).toMatchObject({
+        hasPremium: true,
+        cardCount: FREE_TIER_LIMIT + 1,
+        canCreateCard: true,
+      });
     });
 
     it("does not grant premium for an unapproved Polar product", async () => {
@@ -580,14 +626,45 @@ describe("auth", () => {
         canCreateCard: false,
       });
     });
+
+    it("ignores partial usage while gating free-tier card creation", async () => {
+      const user = { subject: "u1" };
+      mockGetAuthUser.mockResolvedValue(user);
+      mockGetCurrentSubscription.mockResolvedValue(null);
+
+      const take = mock(async () => Array.from({ length: FREE_TIER_LIMIT }));
+      const ctx = {
+        db: {
+          query: () => ({
+            withIndex: (_name: any, cb: any) => {
+              cb?.({
+                eq: () => ({
+                  eq: () => undefined,
+                }),
+              });
+              return { take };
+            },
+          }),
+        },
+      } as any;
+
+      addUsageRecord(ctx, 0, false);
+      const result = await getCardCreationStatusHandler(ctx);
+      expect(take).toHaveBeenCalledWith(FREE_TIER_LIMIT);
+      expect(result).toEqual({
+        hasPremium: false,
+        canCreateCard: false,
+      });
+    });
   });
 
   describe("deleteAccountData", () => {
-    it("deletes cards and files", async () => {
-      r2Mocks.deleteObject.mockClear();
-
+    it("deletes bounded card and search rows", async () => {
       const ctx = {
         db: {
+          get: mock((table: string, id: string) =>
+            table === "cards" ? { _id: id, userId: "u1" } : null
+          ),
           query: (table: string) => ({
             withIndex: (_name: any, cb: any) => {
               if (cb) {
@@ -602,67 +679,106 @@ describe("auth", () => {
                   ? {
                       unique: async () => (cb ? { _id: "search_c1" } : null),
                     }
-                  : {
-                      take: async () => [
-                        { _id: "c1", fileKey: "f1", thumbnailKey: "t1" },
-                        { _id: "c2" },
-                      ],
-                    }),
+                  : {}),
               };
             },
           }),
           delete: mock(),
         },
-        scheduler: { runAfter: mock().mockResolvedValue(null) },
       } as any;
 
-      const result = await deleteAccountDataHandler(ctx, "u1");
+      const result = await deleteAccountDataHandler(ctx, "u1", ["c1", "c2"]);
 
-      expect(result.deletedCards).toBe(2);
-      expect(result.deletedStorageObjectCount).toBe(3);
+      expect(result).toBe(2);
       expect(ctx.db.delete).toHaveBeenCalledTimes(4);
     });
 
-    it("schedules durable batched object deletion", async () => {
-      r2Mocks.deleteObject.mockClear();
-
-      const scheduler = { runAfter: mock().mockResolvedValue(null) };
+    it("collects storage keys before deleting their owning rows", async () => {
       const ctx = {
         db: {
-          query: (table: string) => ({
+          query: () => ({
             withIndex: (_name: any, cb: any) => {
               if (cb) {
                 cb({ eq: () => undefined });
               }
               return {
-                ...(table === "cardSearchDocuments"
-                  ? { unique: async () => null }
-                  : {
-                      take: async () => [
-                        { _id: "c1", fileKey: "f1", thumbnailKey: "t1" },
-                        { _id: "c2" },
-                      ],
-                    }),
+                take: async () => [
+                  { _id: "c1", fileKey: "f1", thumbnailKey: "t1" },
+                  { _id: "c2" },
+                ],
               };
             },
           }),
-          delete: mock(),
         },
-        scheduler,
       } as any;
 
-      const result = await deleteAccountDataHandler(ctx, "u1");
-      expect(result.deletedStorageObjectCount).toBe(3);
-      expect(scheduler.runAfter).toHaveBeenCalledTimes(1);
-      const [delay, , args] = scheduler.runAfter.mock.calls[0] as [
-        number,
-        unknown,
-        { keys: string[] },
-      ];
-      expect(delay).toBe(0);
-      expect(new Set(args.keys)).toEqual(
+      const result = await getAccountCardDeletionBatchHandler(ctx, "u1");
+      expect(result.cardIds).toEqual(["c1", "c2"]);
+      expect(new Set(result.objectKeys)).toEqual(
         new Set(["f1", "f1.processing.json", "t1"])
       );
+    });
+
+    it("awaits private object cleanup before deleting owning rows", async () => {
+      const events: string[] = [];
+      let mutationCount = 0;
+      let queryCount = 0;
+      const ctx = {
+        runAction: mock((_ref: unknown, args: any) => {
+          events.push(
+            args.keys ? "delete-card-objects" : "delete-import-objects"
+          );
+          return args.keys ? { deleted: args.keys.length } : null;
+        }),
+        runMutation: mock((_ref: unknown, args: any) => {
+          mutationCount += 1;
+          if (mutationCount === 1) {
+            events.push("begin-lock");
+            return null;
+          }
+          if (args.cardIds) {
+            events.push("delete-card-rows");
+            return args.cardIds.length;
+          }
+          if (args.jobIds) {
+            events.push("delete-import-rows");
+          } else {
+            events.push("delete-usage");
+          }
+          return null;
+        }),
+        runQuery: mock((_ref: unknown, _args: any) => {
+          queryCount += 1;
+          if (queryCount === 1) {
+            return { cardIds: ["c1"], objectKeys: ["users/u1/file"] };
+          }
+          if (queryCount === 2 || queryCount === 5) {
+            return { cardIds: [], objectKeys: [] };
+          }
+          if (queryCount === 3) {
+            return {
+              itemIds: ["item1"],
+              jobIds: ["job1"],
+              objects: [{ sourceKey: "users/u1/import" }],
+            };
+          }
+          return { itemIds: [], jobIds: [], objects: [] };
+        }),
+      } as any;
+
+      const handler = deleteAccountData.handler ?? deleteAccountData;
+      await expect(handler(ctx, { userId: "u1" })).resolves.toEqual({
+        deletedCards: 1,
+        deletedStorageObjectCount: 1,
+      });
+      expect(events).toEqual([
+        "begin-lock",
+        "delete-card-objects",
+        "delete-card-rows",
+        "delete-import-objects",
+        "delete-import-rows",
+        "delete-usage",
+      ]);
     });
   });
 

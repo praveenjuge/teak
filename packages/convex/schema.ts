@@ -557,8 +557,24 @@ export default defineSchema({
   userCardUsage: defineTable({
     userId: v.string(),
     activeCardCount: v.number(),
+    isCountExact: v.optional(v.boolean()),
     isSaturated: v.boolean(),
+    migrationActiveCardCount: v.optional(v.number()),
+    migrationBackfilledAt: v.optional(v.number()),
+    migrationCountStartedAt: v.optional(v.number()),
     updatedAt: v.number(),
+  }).index("by_userId", ["userId"]),
+  cardUsageMigrationEntries: defineTable({
+    cardId: v.id("cards"),
+    userId: v.string(),
+    countedActive: v.boolean(),
+    createdAt: v.number(),
+  })
+    .index("by_cardId", ["cardId"])
+    .index("by_userId", ["userId"]),
+  accountDeletionStates: defineTable({
+    userId: v.string(),
+    startedAt: v.number(),
   }).index("by_userId", ["userId"]),
   cardSearchDocuments: defineTable({
     cardId: v.id("cards"),
@@ -567,6 +583,7 @@ export default defineSchema({
     isDeleted: v.optional(v.boolean()),
     type: cardTypeValidator,
     isFavorited: v.optional(v.boolean()),
+    migrationBackfilledAt: v.optional(v.number()),
     sourceUpdatedAt: v.number(),
   })
     .index("by_cardId", ["cardId"])

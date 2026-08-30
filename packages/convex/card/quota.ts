@@ -1,5 +1,6 @@
 import { ConvexError } from "convex/values";
 import type { MutationCtx } from "../_generated/server";
+import { assertAccountNotDeleting } from "../accountDeletion";
 import { polar } from "../billing";
 import {
   CARD_ERROR_CODES,
@@ -35,6 +36,7 @@ export const ensureCardQuotaAvailable = async (
   userId: string,
   deps: CardQuotaDeps = defaultQuotaDeps
 ): Promise<void> => {
+  await assertAccountNotDeleting(ctx, userId);
   let hasPremium = false;
   try {
     hasPremium = isApprovedActiveSubscription(
@@ -48,7 +50,17 @@ export const ensureCardQuotaAvailable = async (
   if (hasPremium) {
     return;
   }
-  if (usage.isSaturated || usage.activeCardCount >= FREE_TIER_LIMIT) {
+  const isAtLimit = usage.isCountExact
+    ? usage.activeCardCount >= FREE_TIER_LIMIT
+    : (
+        await ctx.db
+          .query("cards")
+          .withIndex("by_user_deleted", (query) =>
+            query.eq("userId", userId).eq("isDeleted", undefined)
+          )
+          .take(FREE_TIER_LIMIT)
+      ).length >= FREE_TIER_LIMIT;
+  if (usage.isSaturated || isAtLimit) {
     throw new ConvexError({
       code: CARD_ERROR_CODES.CARD_LIMIT_REACHED,
       message: CARD_ERROR_MESSAGES.CARD_LIMIT_REACHED,

@@ -13,6 +13,17 @@ const SEARCH_FIELDS = [
   "metadataDescription",
 ] as const;
 
+const LEGACY_GENERAL_SEARCH_INDEXES = [
+  { field: "content", index: "search_content" },
+  { field: "notes", index: "search_notes" },
+  { field: "aiSummary", index: "search_ai_summary" },
+  { field: "aiTranscript", index: "search_ai_transcript" },
+  { field: "metadataTitle", index: "search_metadata_title" },
+  { field: "metadataDescription", index: "search_metadata_description" },
+  { field: "tags", index: "search_tags" },
+  { field: "aiTags", index: "search_ai_tags" },
+] as const;
+
 export const buildCardSearchText = (card: Doc<"cards">): string =>
   [
     ...SEARCH_FIELDS.map((field) => card[field]),
@@ -58,7 +69,8 @@ export const patchCardWithSearchSync = async (
 
 export const syncCardSearchDocumentHandler = async (
   ctx: MutationCtx,
-  cardId: Id<"cards">
+  cardId: Id<"cards">,
+  options: { migrationBackfill?: boolean } = {}
 ) => {
   const [card, existing] = await Promise.all([
     ctx.db.get("cards", cardId),
@@ -82,6 +94,8 @@ export const syncCardSearchDocumentHandler = async (
     isDeleted: card.isDeleted,
     type: card.type,
     isFavorited: card.isFavorited,
+    migrationBackfilledAt:
+      options.migrationBackfill && !existing ? Date.now() : undefined,
     sourceUpdatedAt: card.updatedAt,
   };
   if (existing) {
@@ -94,7 +108,7 @@ export const syncCardSearchDocumentHandler = async (
   return null;
 };
 
-export const searchDerivedCards = async (
+export const searchCardsAcrossGeneralIndexes = async (
   ctx: QueryCtx,
   args: {
     userId: string;
@@ -103,35 +117,102 @@ export const searchDerivedCards = async (
     isFavorited?: boolean;
     type?: Doc<"cards">["type"];
     limit: number;
+    legacyFields?: ReadonlySet<
+      (typeof LEGACY_GENERAL_SEARCH_INDEXES)[number]["field"]
+    >;
+    resultFilter?: (card: Doc<"cards">) => boolean;
   }
 ): Promise<Doc<"cards">[]> => {
-  const documents = await ctx.db
-    .query("cardSearchDocuments")
-    .withSearchIndex("search_searchableText", (query) => {
-      let filtered = query
-        .search("searchableText", args.searchQuery)
-        .eq("userId", args.userId)
-        .eq("isDeleted", args.isDeleted);
-      if (args.type !== undefined) {
-        filtered = filtered.eq("type", args.type);
+  const legacyIndexes = args.legacyFields
+    ? LEGACY_GENERAL_SEARCH_INDEXES.filter(({ field }) =>
+        args.legacyFields?.has(field)
+      )
+    : LEGACY_GENERAL_SEARCH_INDEXES;
+  // Convex permits at most 4,096 documents in a single query result. Grow to
+  // that platform bound only when overlap or post-index filters require it.
+  const maximumSourceLimit = 4096;
+  let sourceLimit = Math.min(100, Math.max(1, args.limit));
+  while (true) {
+    const sourceResults = await Promise.all([
+      ctx.db
+        .query("cardSearchDocuments")
+        .withSearchIndex("search_searchableText", (query) => {
+          let filtered = query
+            .search("searchableText", args.searchQuery)
+            .eq("userId", args.userId)
+            .eq("isDeleted", args.isDeleted);
+          if (args.type !== undefined) {
+            filtered = filtered.eq("type", args.type);
+          }
+          if (args.isFavorited !== undefined) {
+            filtered = filtered.eq(
+              "isFavorited",
+              args.isFavorited ? true : undefined
+            );
+          }
+          return filtered;
+        })
+        .take(sourceLimit),
+      ...legacyIndexes.map(({ field, index }) =>
+        ctx.db
+          .query("cards")
+          .withSearchIndex(index, (query: any) => {
+            let filtered = query
+              .search(field, args.searchQuery)
+              .eq("userId", args.userId)
+              .eq("isDeleted", args.isDeleted);
+            if (args.type !== undefined) {
+              filtered = filtered.eq("type", args.type);
+            }
+            if (args.isFavorited !== undefined) {
+              filtered = filtered.eq(
+                "isFavorited",
+                args.isFavorited ? true : undefined
+              );
+            }
+            return filtered;
+          })
+          .take(sourceLimit)
+      ),
+    ]);
+    const cardsById = new Map<Id<"cards">, Doc<"cards">>();
+    const derivedDocuments = sourceResults[0] as Array<
+      Doc<"cardSearchDocuments"> | Doc<"cards">
+    >;
+    if (derivedDocuments.every((document) => !("cardId" in document))) {
+      for (const card of derivedDocuments as Doc<"cards">[]) {
+        cardsById.set(card._id, card);
       }
-      if (args.isFavorited !== undefined) {
-        filtered = filtered.eq(
-          "isFavorited",
-          args.isFavorited ? true : undefined
-        );
+    } else {
+      const derivedCards = await Promise.all(
+        (derivedDocuments as Doc<"cardSearchDocuments">[]).map((document) =>
+          ctx.db.get("cards", document.cardId)
+        )
+      );
+      for (const card of derivedCards) {
+        if (card) {
+          cardsById.set(card._id, card);
+        }
       }
-      return filtered;
-    })
-    .take(args.limit);
-  const cardIds = documents
-    .map((document) => document.cardId)
-    .filter((cardId): cardId is Id<"cards"> => typeof cardId === "string");
-  if (cardIds.length === 0) {
-    return [];
+    }
+    for (const results of sourceResults.slice(1) as Doc<"cards">[][]) {
+      for (const card of results) {
+        cardsById.set(card._id, card);
+      }
+    }
+    const cards = Array.from(cardsById.values()).filter(
+      args.resultFilter ?? (() => true)
+    );
+    const sourcesExhausted = sourceResults.every(
+      (results) => results.length < sourceLimit
+    );
+    if (
+      cards.length >= args.limit ||
+      sourcesExhausted ||
+      sourceLimit >= maximumSourceLimit
+    ) {
+      return cards;
+    }
+    sourceLimit = Math.min(sourceLimit * 2, maximumSourceLimit);
   }
-  const cards = await Promise.all(
-    cardIds.map((cardId) => ctx.db.get("cards", cardId))
-  );
-  return cards.filter((card): card is Doc<"cards"> => card !== null);
 };

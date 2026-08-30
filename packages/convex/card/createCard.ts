@@ -206,7 +206,7 @@ export const createCardForUserHandler = async (
   };
 
   const cardId = await ctx.db.insert("cards", cardData);
-  await recordActiveCardCreated(ctx, userId);
+  await recordActiveCardCreated(ctx, userId, cardId);
   await scheduleCardSearchSync(ctx, cardId);
 
   // Start the card processing workflow
