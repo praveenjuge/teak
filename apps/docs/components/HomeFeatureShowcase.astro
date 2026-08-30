@@ -1,0 +1,406 @@
+---
+import DeviceShowcase from "./DeviceShowcase.astro";
+
+const stories = [
+  {
+    number: "01",
+    eyebrow: "Eight card types, one library",
+    title: "Save anything worth remembering.",
+    description:
+      "Keep a thought, a link, a screenshot, a video, a recording, a document, a palette, or a quote without forcing it into the wrong shape.",
+    href: "/docs/features#card-types",
+    linkLabel: "Explore card types",
+    imageAlt:
+      "Teak library on a MacBook with text, link, image, palette, and quote cards",
+    imageHeight: 982,
+    imageSrc: "/home-showcase/designer-mac.webp",
+    imageWidth: 1512,
+    visual: "save",
+  },
+  {
+    number: "02",
+    eyebrow: "Search the way you remember",
+    title: "Start with the detail still in your head.",
+    description:
+      "Search keywords, card types, tags, favorites, trash, dates, color names, exact hex values, or visual styles. Teak turns the clues into filters for you.",
+    href: "/docs/features#smart-search",
+    linkLabel: "See how search works",
+    imageAlt:
+      "Teak research library on a MacBook with search and organized reference cards",
+    imageHeight: 982,
+    imageSrc: "/home-showcase/researcher-mac.webp",
+    imageWidth: 1512,
+    visual: "search",
+  },
+  {
+    number: "03",
+    eyebrow: "Automatic organization",
+    title: "Save it now. Let Teak do the filing.",
+    description:
+      "New cards can gain AI tags and summaries, richer link metadata and categories, extracted palettes, audio transcripts, and useful previews in the background.",
+    href: "/docs/features#ai-enrichment",
+    linkLabel: "See automatic enrichment",
+    imageAlt:
+      "Teak content creator library on a MacBook with quotes, palettes, links, and visual previews",
+    imageHeight: 982,
+    imageSrc: "/home-showcase/creator-mac.webp",
+    imageWidth: 1512,
+    visual: "organize",
+  },
+  {
+    number: "04",
+    eyebrow: "Capture everywhere",
+    title: "Keep the idea without leaving your flow.",
+    description:
+      "Save from the web, the iOS share sheet, Teak for macOS, Chrome and Safari extensions, or Raycast. Everything meets in the same synced library.",
+    href: "/apps",
+    linkLabel: "Find your Teak app",
+    visual: "capture",
+  },
+  {
+    number: "05",
+    eyebrow: "Portable by design",
+    title: "Bring your library in. Take it with you.",
+    description:
+      "Import browser bookmarks, a Raindrop CSV, or an earlier Teak archive. Matching links are skipped, and you can export active cards with original files in a portable ZIP.",
+    href: "/docs/import",
+    linkLabel: "Read the import guide",
+    imageAlt:
+      "Teak knowledge library on a MacBook with saved documents, images, palettes, and notes",
+    imageHeight: 982,
+    imageSrc: "/home-showcase/knowledge-worker-mac.webp",
+    imageWidth: 1512,
+    visual: "portable",
+  },
+  {
+    number: "06",
+    eyebrow: "Built for your tools and agents",
+    title: "Your library has an interface beyond the app.",
+    description:
+      "Use Teak through its REST API, remote MCP endpoint, CLI, Raycast AI tools, ChatGPT connector search and fetch, or the public agent skill.",
+    href: "/docs/ai-agents",
+    linkLabel: "Connect an AI agent",
+    imageAlt:
+      "Teak developer library with code references, notes, palettes, and technical links",
+    imageHeight: 982,
+    imageSrc: "/home-showcase/developer-mac.webp",
+    imageWidth: 1512,
+    visual: "agents",
+  },
+] as const;
+---
+
+<section class="feature-showcase" aria-labelledby="feature-showcase-title">
+  <header class="showcase-intro">
+    <p class="section-label">The whole workflow</p>
+    <h2 id="feature-showcase-title">One place for everything you want to find again.</h2>
+    <p>
+      Capture without friction, let Teak add the useful context, and come back
+      with whatever detail you still remember.
+    </p>
+  </header>
+
+  <ol class="story-list">
+    {stories.map((story, index) => (
+      <li class:list={["story", { reverse: index % 2 === 1 }]}>
+        <div class="story-copy">
+          <p class="story-eyebrow"><span>{story.number}</span>{story.eyebrow}</p>
+          <h3>{story.title}</h3>
+          <p class="story-description">{story.description}</p>
+          <div class="story-actions">
+            <a class="register-button" href="https://app.teakvault.com/register" rel="noopener noreferrer" target="_blank">Register</a>
+            <a class="story-link" href={story.href}>
+              {story.linkLabel}
+              <span aria-hidden="true">↗</span>
+            </a>
+          </div>
+        </div>
+
+        {story.visual === "capture" && (
+          <figure class="feature-visual capture-visual">
+            <DeviceShowcase
+              phoneAlt="Teak product library on iPhone"
+              phoneSrc="/home-showcase/product-manager-iphone.webp"
+              tabletAlt="Teak product library on iPad"
+              tabletSrc="/home-showcase/product-manager-ipad.webp"
+            />
+          </figure>
+        )}
+
+        {story.visual !== "capture" && (
+          <figure class:list={["feature-visual", `${story.visual}-visual`]}>
+            <img alt={story.imageAlt} decoding="async" height={story.imageHeight} loading="lazy" src={story.imageSrc} width={story.imageWidth} />
+          </figure>
+        )}
+      </li>
+    ))}
+  </ol>
+</section>
+
+<style>
+  .feature-showcase {
+    padding: 7rem 1rem;
+  }
+
+  .showcase-intro {
+    max-width: 52rem;
+    margin: 0 auto 6rem;
+    text-align: center;
+  }
+
+  .section-label,
+  .story-eyebrow {
+    font-size: 0.75rem;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+  }
+
+  .section-label {
+    margin-bottom: 1rem;
+    color: var(--primary);
+  }
+
+  .showcase-intro h2 {
+    max-width: 48rem;
+    margin: 0 auto 1.25rem;
+    font-size: clamp(2.25rem, 5vw, 4.5rem);
+    font-weight: 700;
+    letter-spacing: -0.055em;
+    line-height: 0.98;
+    text-wrap: balance;
+  }
+
+  .showcase-intro > p:last-child {
+    max-width: 38rem;
+    margin: 0 auto;
+    color: var(--muted-foreground);
+    font-size: 1.125rem;
+    line-height: 1.65;
+    text-wrap: balance;
+  }
+
+  .story-list {
+    display: grid;
+    max-width: 72rem;
+    margin: 0 auto;
+    padding: 0;
+    gap: 9rem;
+    list-style: none;
+  }
+
+  .story {
+    display: grid;
+    grid-template-columns: minmax(0, 0.82fr) minmax(0, 1.18fr);
+    align-items: center;
+    gap: clamp(3rem, 8vw, 7rem);
+  }
+
+  .story.reverse .story-copy {
+    order: 2;
+  }
+
+  .story.reverse {
+    grid-template-columns: minmax(0, 1.18fr) minmax(0, 0.82fr);
+  }
+
+  .story-copy {
+    max-width: 29rem;
+  }
+
+  .story-eyebrow {
+    display: flex;
+    align-items: center;
+    margin-bottom: 1.5rem;
+    color: var(--muted-foreground);
+    gap: 0.75rem;
+  }
+
+  .story-eyebrow span {
+    color: var(--primary);
+    font-variant-numeric: tabular-nums;
+  }
+
+  .story-copy h3 {
+    margin: 0 0 1.25rem;
+    font-size: clamp(2rem, 4vw, 3.5rem);
+    font-weight: 700;
+    letter-spacing: -0.05em;
+    line-height: 1.02;
+    text-wrap: balance;
+  }
+
+  .story-description {
+    margin-bottom: 1.5rem;
+    color: var(--muted-foreground);
+    font-size: 1.0625rem;
+    line-height: 1.7;
+  }
+
+  .story-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.625rem;
+  }
+
+  .story-actions a {
+    display: inline-flex;
+    height: 2.5rem;
+    align-items: center;
+    justify-content: center;
+    border-radius: 0.375rem;
+    padding: 0 1.5rem;
+    font-size: 0.875rem;
+    font-weight: 500;
+    gap: 0.5rem;
+    white-space: nowrap;
+    text-decoration: none;
+    transition: background-color 160ms ease, border-color 160ms ease, color 160ms ease;
+  }
+
+  .register-button {
+    background: var(--primary);
+    color: var(--primary-foreground);
+  }
+
+  .register-button:hover {
+    background: color-mix(in oklch, var(--primary) 90%, transparent);
+  }
+
+  .story-link {
+    border: 1px solid var(--border);
+    background: var(--background);
+    color: var(--foreground);
+  }
+
+  .story-link:hover {
+    background: var(--accent);
+    color: var(--accent-foreground);
+  }
+
+  .feature-visual {
+    position: relative;
+    min-height: 31rem;
+    margin: 0;
+    overflow: hidden;
+    border: 1px solid color-mix(in oklch, var(--border) 85%, transparent);
+    border-radius: 2rem;
+    isolation: isolate;
+    background-color: #8d1d13;
+    background-image:
+      linear-gradient(120deg, rgb(44 4 0 / 0.22), rgb(255 116 83 / 0.08)),
+      url("/home-showcase/feature-backdrop.webp");
+    background-position: center 62%;
+    background-size: cover;
+  }
+
+  .feature-visual::after {
+    position: absolute;
+    inset: 0;
+    z-index: 0;
+    pointer-events: none;
+    background:
+      linear-gradient(120deg, rgb(255 255 255 / 0.2), transparent 42%),
+      radial-gradient(circle at 78% 18%, rgb(255 255 255 / 0.22), transparent 34%);
+    content: "";
+  }
+
+  .feature-visual > img {
+    position: absolute;
+    z-index: 2;
+    display: block;
+    max-width: none;
+    height: auto;
+    border: 1px solid rgb(255 255 255 / 0.16);
+    border-radius: 1.25rem;
+  }
+
+  .save-visual > img {
+    top: 12%;
+    left: 8%;
+    width: 124%;
+  }
+
+  .search-visual > img {
+    top: 10%;
+    left: 8%;
+    width: 124%;
+  }
+
+  .organize-visual > img {
+    top: 12%;
+    left: 8%;
+    width: 124%;
+  }
+
+  .portable-visual > img {
+    top: 12%;
+    left: 8%;
+    width: 124%;
+  }
+
+  .agents-visual > img {
+    top: 12%;
+    left: 8%;
+    width: 124%;
+  }
+
+  .save-visual {
+    background-position: center 74%;
+  }
+
+  .search-visual {
+    background-position: 66% 20%;
+  }
+
+  .organize-visual {
+    background-position: 26% 46%;
+  }
+
+  .portable-visual {
+    background-position: 73% 38%;
+  }
+
+  .agents-visual {
+    background-position: 32% 16%;
+  }
+
+  .capture-visual {
+    min-height: 0;
+    aspect-ratio: 1.25;
+    background-position: 58% 56%;
+  }
+
+  @media (max-width: 800px) {
+    .feature-showcase { padding: 5rem 1rem; }
+    .showcase-intro { margin-bottom: 4.5rem; }
+    .story-list { gap: 6rem; }
+    .story { grid-template-columns: 1fr; gap: 2.5rem; }
+    .story.reverse { grid-template-columns: 1fr; }
+    .story.reverse .story-copy { order: initial; }
+    .story-copy { max-width: 38rem; }
+    .feature-visual { min-height: 29rem; }
+  }
+
+  @media (max-width: 520px) {
+    .feature-showcase { overflow: hidden; padding-inline: 1rem; }
+    .feature-visual { min-height: 25rem; border-radius: 1.5rem; }
+    .capture-visual { min-height: 0; }
+    .save-visual > img,
+    .search-visual > img,
+    .organize-visual > img,
+    .portable-visual > img,
+    .agents-visual > img { top: 11%; left: 8%; width: 145%; }
+  }
+
+  @media (prefers-reduced-motion: no-preference) {
+    .story-link span { transition: transform 180ms ease; }
+    .story-link:hover span { transform: translate(2px, -2px); }
+    .feature-visual > img { transition: transform 500ms cubic-bezier(0.2, 0.8, 0.2, 1); }
+    .save-visual:hover > img,
+    .search-visual:hover > img,
+    .organize-visual:hover > img,
+    .portable-visual:hover > img,
+    .agents-visual:hover > img { transform: scale(1.025); }
+  }
+</style>

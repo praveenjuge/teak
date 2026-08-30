@@ -1,0 +1,166 @@
+---
+interface Props {
+  laptopAlt?: string;
+  laptopSrc?: string;
+  phoneAlt?: string;
+  phoneSrc?: string;
+  tabletAlt?: string;
+  tabletSrc?: string;
+  variant?: "feature" | "hero";
+}
+
+const {
+  laptopAlt,
+  laptopSrc,
+  phoneAlt,
+  phoneSrc,
+  tabletAlt,
+  tabletSrc,
+  variant = "feature",
+} = Astro.props;
+
+const loading = variant === "hero" ? "eager" : "lazy";
+---
+
+<div class:list={["device-showcase", variant]}>
+  {laptopSrc && (
+    <div class="device device-laptop">
+      <img class="device-screen" alt={laptopAlt ?? "Teak library on MacBook"} decoding="async" height="982" loading={loading} src={laptopSrc} width="1512" />
+      <img class="device-frame" alt="" aria-hidden="true" decoding="async" height="2240" loading={loading} src="/home-showcase/device-frames/macbook-air-m5-13-silver.webp" width="3400" />
+    </div>
+  )}
+
+  {tabletSrc && (
+    <div class="device device-tablet">
+      <img class="device-screen" alt={tabletAlt ?? "Teak library on iPad"} decoding="async" height="1366" loading={loading} src={tabletSrc} width="1024" />
+      <img class="device-frame" alt="" aria-hidden="true" decoding="async" height="2300" loading={loading} src="/home-showcase/device-frames/ipad-pro-m5-13-silver.webp" width="3000" />
+    </div>
+  )}
+
+  {phoneSrc && (
+    <div class="device device-phone">
+      <img class="device-screen" alt={phoneAlt ?? "Teak library on iPhone"} decoding="async" height="932" loading={loading} src={phoneSrc} width="430" />
+      <img class="device-frame" alt="" aria-hidden="true" decoding="async" height="2760" loading={loading} src="/home-showcase/device-frames/iphone-17-white.webp" width="1350" />
+    </div>
+  )}
+</div>
+
+<style>
+  .device-showcase {
+    position: relative;
+    display: flex;
+    width: 100%;
+    height: 100%;
+    align-items: flex-end;
+    justify-content: center;
+    isolation: isolate;
+  }
+
+  .device-showcase.feature {
+    position: absolute;
+    inset: 0;
+  }
+
+  .device {
+    position: relative;
+    flex: none;
+  }
+
+  .device-screen,
+  .device-frame {
+    position: absolute;
+    display: block;
+  }
+
+  .device-screen {
+    z-index: 0;
+    object-fit: cover;
+    object-position: top;
+  }
+
+  .device-frame {
+    inset: 0;
+    z-index: 1;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+  }
+
+  .device-laptop {
+    aspect-ratio: 3400 / 2240;
+  }
+
+  .device-laptop .device-screen {
+    top: 12.86%;
+    left: 12.35%;
+    width: 75.3%;
+    height: 74.29%;
+    border-radius: 1.15% 1.15% 0 0;
+  }
+
+  .device-tablet {
+    aspect-ratio: 3000 / 2300;
+  }
+
+  .device-tablet .device-screen {
+    top: 5.13%;
+    left: 4.13%;
+    width: 91.73%;
+    height: 89.74%;
+    border-radius: 4%;
+  }
+
+  .device-phone {
+    aspect-ratio: 1350 / 2760;
+  }
+
+  .device-phone .device-screen {
+    top: 2.5%;
+    left: 5.33%;
+    width: 89.33%;
+    height: 95%;
+    border-radius: 8%;
+  }
+
+  .feature .device-tablet {
+    z-index: 2;
+    order: 3;
+    width: 78%;
+    margin-left: -10%;
+  }
+
+  .feature .device-phone {
+    z-index: 3;
+    order: 1;
+    width: 30%;
+    margin-right: -12%;
+  }
+
+  .hero .device-laptop {
+    z-index: 1;
+    order: 2;
+    width: 50%;
+  }
+
+  .hero .device-tablet {
+    z-index: 2;
+    order: 3;
+    width: 27%;
+    margin-left: -11%;
+  }
+
+  .hero .device-phone {
+    z-index: 3;
+    order: 1;
+    width: 10%;
+    margin-right: -6%;
+  }
+
+  @media (max-width: 520px) {
+    .feature .device-tablet { width: 78%; margin-left: -11%; }
+    .feature .device-phone { width: 30%; margin-right: -13%; }
+    .hero .device-laptop { width: 52%; }
+    .hero .device-tablet { width: 28%; margin-left: -12%; }
+    .hero .device-phone { width: 11%; margin-right: -7%; }
+  }
+</style>

@@ -1,0 +1,14 @@
+Current-generation frame assets
+
+- MacBook Air M5 13-inch, Silver
+- iPhone 17, White
+- iPad Pro 13-inch current chassis, Silver (shared by M4 and M5)
+
+Downloaded from the Apple Frames 4.0.1 asset pack distributed by MacStories and
+supported by the open-source frames-cli project:
+
+https://github.com/viticci/frames-cli
+https://cdn.macstories.net/AppleFrames401.zip
+
+The PNG sources were converted locally to transparent WebP files for the Teak
+documentation homepage. Product artwork remains the property of Apple Inc.
