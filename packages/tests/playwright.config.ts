@@ -85,7 +85,14 @@ export default defineConfig({
     },
     ...(
       [
-        ["api", ["journey/03-api.e2e.ts", "journey/12-file-roundtrip.e2e.ts"]],
+        [
+          "api",
+          [
+            "journey/03-api.e2e.ts",
+            "journey/12-file-roundtrip.e2e.ts",
+            "journey/13-occ-concurrency.e2e.ts",
+          ],
+        ],
         ["cli", "journey/04-cli.e2e.ts"],
         ["mcp", "journey/05-mcp.e2e.ts"],
       ] satisfies [string, string | string[]][]

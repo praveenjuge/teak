@@ -15,7 +15,14 @@ describe("admin.ts", () => {
     const module = await import("../admin");
     getAccess = module.getAccess;
     getOverview = module.getOverview;
-    resetCardProcessingState = module.resetCardProcessingState;
+    const registeredReset = module.resetCardProcessingState;
+    const resetHandler = registeredReset.handler ?? registeredReset;
+    resetCardProcessingState = {
+      handler: (ctx: any, args: any) => {
+        ctx.scheduler ??= { runAfter: mock().mockResolvedValue(null) };
+        return resetHandler(ctx, args);
+      },
+    };
     refreshCardProcessing = module.refreshCardProcessing;
   });
 

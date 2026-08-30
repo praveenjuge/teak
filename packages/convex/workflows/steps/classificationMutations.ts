@@ -9,6 +9,7 @@ import { v } from "convex/values";
 import { internalMutation } from "../../_generated/server";
 import { stageCompleted, stagePending } from "../../card/processingStatus";
 import { normalizeQuoteContent } from "../../card/quoteFormatting";
+import { patchCardWithSearchSync } from "../../card/searchDocumentHelpers";
 import type { CardType } from "../../schema";
 
 /**
@@ -58,7 +59,7 @@ export const updateClassification = internalMutation({
       }
     }
 
-    await ctx.db.patch("cards", cardId, patchData);
+    await patchCardWithSearchSync(ctx, cardId, patchData);
 
     return null;
   },

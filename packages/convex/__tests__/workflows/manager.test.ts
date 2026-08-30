@@ -9,16 +9,22 @@ import {
   scheduleWorkflowHistoryCleanupBatchHandler,
   startCardProcessingWorkflowHandler,
   WORKFLOW_CLEANUP_RETRY_MS,
+  WORKFLOW_MAX_PARALLELISM,
   WORKFLOW_RETENTION_MS,
   workflow,
 } from "../../../convex/workflows/manager";
 
 describe("workflow manager", () => {
+  test("limits workflow step parallelism to ten", () => {
+    expect(WORKFLOW_MAX_PARALLELISM).toBe(10);
+    expect(workflow.options?.workpoolOptions.maxParallelism).toBe(10);
+  });
   describe("initializeCardProcessingState", () => {
     const mockDbGet = mock();
     const mockDbPatch = mock();
     const ctx = {
       db: { get: mockDbGet, patch: mockDbPatch },
+      scheduler: { runAfter: mock().mockResolvedValue(null) },
     } as any;
 
     beforeEach(() => {

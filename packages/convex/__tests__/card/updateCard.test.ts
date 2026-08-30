@@ -7,12 +7,42 @@ describe("card/updateCard.ts", () => {
   let updateCard: any;
   let updateCardField: any;
 
+  const addUsageRecord = (ctx: any) => {
+    if (!ctx.db) {
+      return;
+    }
+    if (!ctx.db.query) {
+      ctx.db.query = mock((table: string) => ({
+        withIndex: () => ({
+          unique: mock().mockResolvedValue(
+            table === "userCardUsage"
+              ? {
+                  _id: "usage_1",
+                  activeCardCount: 1,
+                  isCountExact: true,
+                  isSaturated: false,
+                }
+              : null
+          ),
+        }),
+      }));
+    }
+  };
+
   beforeEach(async () => {
     mockReprocessLimit.mockReset();
     mockReprocessLimit.mockResolvedValue({ ok: true });
     const module = await import("../../card/updateCard");
     updateCard = module.updateCard;
-    updateCardField = module.updateCardField;
+    const registeredUpdateCardField = module.updateCardField;
+    const updateFieldHandler =
+      (registeredUpdateCardField as any).handler ?? registeredUpdateCardField;
+    updateCardField = {
+      handler: (ctx: any, args: any) => {
+        addUsageRecord(ctx);
+        return updateFieldHandler(ctx, args);
+      },
+    };
   });
 
   test("updateCard throws when unauthenticated", async () => {
@@ -651,7 +681,7 @@ describe("card/updateCard.ts", () => {
         deletedAt: expect.any(Number),
       })
     );
-    expect(ctx.scheduler.runAfter).not.toHaveBeenCalled();
+    expect(ctx.scheduler.runAfter).toHaveBeenCalledTimes(1);
   });
 
   test("updateCardField restores deleted card", async () => {

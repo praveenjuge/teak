@@ -11,6 +11,10 @@ import { createCardForUserHandler } from "./card/createCard";
 import { cardReturnValidator } from "./card/getCards";
 import { attachFileUrls } from "./card/queryUtils";
 import { applyQuoteFormattingToList } from "./card/quoteFormatting";
+import {
+  scheduleCardSearchSync,
+  searchCardsAcrossGeneralIndexes,
+} from "./card/searchDocumentHelpers";
 import { updateCardFieldForUserHandler } from "./card/updateCard";
 import { cardTypes, cardTypeValidator } from "./schema";
 import { isSafeExternalUrl } from "./shared/utils/safeUrl";
@@ -82,17 +86,6 @@ interface SearchOptions {
 type ApiCursor =
   | { mode: "index"; cursor: string | null; pageOffset: number }
   | { mode: "offset"; offset: number };
-
-const SEARCH_INDEXES = [
-  { field: "content", index: "search_content" },
-  { field: "notes", index: "search_notes" },
-  { field: "aiSummary", index: "search_ai_summary" },
-  { field: "aiTranscript", index: "search_ai_transcript" },
-  { field: "metadataTitle", index: "search_metadata_title" },
-  { field: "metadataDescription", index: "search_metadata_description" },
-  { field: "tags", index: "search_tags" },
-  { field: "aiTags", index: "search_ai_tags" },
-] as const;
 
 const normalizeLimit = (limit?: number): number => {
   if (!(typeof limit === "number" && Number.isFinite(limit))) {
@@ -187,27 +180,6 @@ const matchesStructuredFilters = (
   return !card.isDeleted;
 };
 
-const applySearchIndexFilters = (
-  query: any,
-  userId: string,
-  options: SearchOptions
-) => {
-  let filteredQuery = query.eq("userId", userId).eq("isDeleted", undefined);
-
-  if (options.type) {
-    filteredQuery = filteredQuery.eq("type", options.type);
-  }
-
-  if (options.favorited !== undefined) {
-    filteredQuery = filteredQuery.eq(
-      "isFavorited",
-      options.favorited ? true : undefined
-    );
-  }
-
-  return filteredQuery;
-};
-
 const sortCards = (cards: Doc<"cards">[], sort: ApiCardSort): Doc<"cards">[] =>
   cards.sort((left, right) => compareCards(left, right, sort));
 
@@ -262,22 +234,16 @@ const searchCardsByQuery = async (
     desiredLimit + 20
   );
 
-  const searchResults = await Promise.all(
-    SEARCH_INDEXES.map(({ field, index }) =>
-      ctx.db
-        .query("cards")
-        .withSearchIndex(index, (query: any) =>
-          applySearchIndexFilters(query, userId, options).search(
-            field,
-            searchQuery
-          )
-        )
-        .take(searchLimit)
-    )
-  );
-
-  const unique = Array.from(
-    new Map(searchResults.flat().map((card) => [card._id, card])).values()
+  const unique = (
+    await searchCardsAcrossGeneralIndexes(ctx, {
+      userId,
+      searchQuery,
+      isDeleted: undefined,
+      isFavorited: options.favorited,
+      type: options.type,
+      limit: searchLimit,
+      resultFilter: (card) => matchesStructuredFilters(card, options),
+    })
   ).filter((card) => matchesStructuredFilters(card, options));
 
   return sortCards(unique, normalizeSort(options.sort));
@@ -301,23 +267,17 @@ const searchCardsByTag = async (
     desiredLimit + 20
   );
 
-  const searchResults = await Promise.all([
-    ctx.db
-      .query("cards")
-      .withSearchIndex("search_tags", (query: any) =>
-        applySearchIndexFilters(query, userId, options).search("tags", tag)
-      )
-      .take(searchLimit),
-    ctx.db
-      .query("cards")
-      .withSearchIndex("search_ai_tags", (query: any) =>
-        applySearchIndexFilters(query, userId, options).search("aiTags", tag)
-      )
-      .take(searchLimit),
-  ]);
-
-  const unique = Array.from(
-    new Map(searchResults.flat().map((card) => [card._id, card])).values()
+  const unique = (
+    await searchCardsAcrossGeneralIndexes(ctx, {
+      userId,
+      searchQuery: tag,
+      isDeleted: undefined,
+      isFavorited: options.favorited,
+      type: options.type,
+      limit: searchLimit,
+      legacyFields: new Set(["tags", "aiTags"]),
+      resultFilter: (card) => matchesStructuredFilters(card, options),
+    })
   ).filter((card) => matchesStructuredFilters(card, options));
 
   return sortCards(unique, normalizeSort(options.sort));
@@ -700,11 +660,13 @@ const performBulkUpdate = async (
         field,
         value: valueForField(field),
       },
-      { deferPipelineSchedule: true }
+      { deferPipelineSchedule: true, deferSearchSync: true }
     );
     shouldSchedulePipeline =
       shouldSchedulePipeline || result.shouldSchedulePipeline;
   }
+
+  await scheduleCardSearchSync(ctx, args.cardId);
 
   return shouldSchedulePipeline;
 };

@@ -48,8 +48,8 @@ describe("raycast", () => {
     });
 
     expect(result).toEqual([]);
-    expect(searchIndexes.length).toBe(8);
-    expect(isFavoritedFilters).toHaveLength(8);
+    expect(searchIndexes.length).toBe(9);
+    expect(isFavoritedFilters).toHaveLength(9);
     for (const indexName of searchIndexes) {
       expect(isFavoritedFilters).toContain(indexName);
     }
@@ -129,7 +129,7 @@ describe("raycast", () => {
     });
 
     expect(patchCalls.length).toBe(2);
-    expect(runAfter).toHaveBeenCalledTimes(1);
+    expect(runAfter).toHaveBeenCalledTimes(2);
   });
 
   test("resolveCardIdForUserRequest normalizes card id", async () => {

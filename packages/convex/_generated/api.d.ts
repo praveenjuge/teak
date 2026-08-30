@@ -8,6 +8,7 @@
  * @module
  */
 
+import type * as accountDeletion from "../accountDeletion.js";
 import type * as admin from "../admin.js";
 import type * as ai_actions from "../ai/actions.js";
 import type * as ai_models from "../ai/models.js";
@@ -20,6 +21,7 @@ import type * as auth from "../auth.js";
 import type * as authDesktopOauth from "../authDesktopOauth.js";
 import type * as authNative from "../authNative.js";
 import type * as billing from "../billing.js";
+import type * as card_cardUsage from "../card/cardUsage.js";
 import type * as card_createCard from "../card/createCard.js";
 import type * as card_defaultCards from "../card/defaultCards.js";
 import type * as card_deleteCard from "../card/deleteCard.js";
@@ -32,7 +34,10 @@ import type * as card_migrations from "../card/migrations.js";
 import type * as card_mobileCardSummaries from "../card/mobileCardSummaries.js";
 import type * as card_processingStatus from "../card/processingStatus.js";
 import type * as card_queryUtils from "../card/queryUtils.js";
+import type * as card_quota from "../card/quota.js";
 import type * as card_quoteFormatting from "../card/quoteFormatting.js";
+import type * as card_searchDocumentHelpers from "../card/searchDocumentHelpers.js";
+import type * as card_searchDocuments from "../card/searchDocuments.js";
 import type * as card_updateCard from "../card/updateCard.js";
 import type * as card_uploadCard from "../card/uploadCard.js";
 import type * as card_uploadCardAction from "../card/uploadCardAction.js";
@@ -95,6 +100,7 @@ import type * as shared_index from "../shared/index.js";
 import type * as shared_linkCategories from "../shared/linkCategories.js";
 import type * as shared_markdown from "../shared/markdown.js";
 import type * as shared_metrics from "../shared/metrics.js";
+import type * as shared_polarPlans from "../shared/polarPlans.js";
 import type * as shared_rateLimits from "../shared/rateLimits.js";
 import type * as shared_search_constants from "../shared/search/constants.js";
 import type * as shared_search_index from "../shared/search/index.js";
@@ -115,6 +121,7 @@ import type * as telemetry_crons from "../telemetry/crons.js";
 import type * as telemetry_events from "../telemetry/events.js";
 import type * as telemetry_schedule from "../telemetry/schedule.js";
 import type * as telemetry_sentry from "../telemetry/sentry.js";
+import type * as trustedOrigins from "../trustedOrigins.js";
 import type * as workflows_aiBackfill from "../workflows/aiBackfill.js";
 import type * as workflows_aiMetadata_actions from "../workflows/aiMetadata/actions.js";
 import type * as workflows_aiMetadata_generators from "../workflows/aiMetadata/generators.js";
@@ -172,6 +179,7 @@ import type {
 } from "convex/server";
 
 declare const fullApi: ApiFromModules<{
+  accountDeletion: typeof accountDeletion;
   admin: typeof admin;
   "ai/actions": typeof ai_actions;
   "ai/models": typeof ai_models;
@@ -184,6 +192,7 @@ declare const fullApi: ApiFromModules<{
   authDesktopOauth: typeof authDesktopOauth;
   authNative: typeof authNative;
   billing: typeof billing;
+  "card/cardUsage": typeof card_cardUsage;
   "card/createCard": typeof card_createCard;
   "card/defaultCards": typeof card_defaultCards;
   "card/deleteCard": typeof card_deleteCard;
@@ -196,7 +205,10 @@ declare const fullApi: ApiFromModules<{
   "card/mobileCardSummaries": typeof card_mobileCardSummaries;
   "card/processingStatus": typeof card_processingStatus;
   "card/queryUtils": typeof card_queryUtils;
+  "card/quota": typeof card_quota;
   "card/quoteFormatting": typeof card_quoteFormatting;
+  "card/searchDocumentHelpers": typeof card_searchDocumentHelpers;
+  "card/searchDocuments": typeof card_searchDocuments;
   "card/updateCard": typeof card_updateCard;
   "card/uploadCard": typeof card_uploadCard;
   "card/uploadCardAction": typeof card_uploadCardAction;
@@ -259,6 +271,7 @@ declare const fullApi: ApiFromModules<{
   "shared/linkCategories": typeof shared_linkCategories;
   "shared/markdown": typeof shared_markdown;
   "shared/metrics": typeof shared_metrics;
+  "shared/polarPlans": typeof shared_polarPlans;
   "shared/rateLimits": typeof shared_rateLimits;
   "shared/search/constants": typeof shared_search_constants;
   "shared/search/index": typeof shared_search_index;
@@ -279,6 +292,7 @@ declare const fullApi: ApiFromModules<{
   "telemetry/events": typeof telemetry_events;
   "telemetry/schedule": typeof telemetry_schedule;
   "telemetry/sentry": typeof telemetry_sentry;
+  trustedOrigins: typeof trustedOrigins;
   "workflows/aiBackfill": typeof workflows_aiBackfill;
   "workflows/aiMetadata/actions": typeof workflows_aiMetadata_actions;
   "workflows/aiMetadata/generators": typeof workflows_aiMetadata_generators;
@@ -363,5 +377,6 @@ export declare const components: {
   workflow: import("@convex-dev/workflow/_generated/component.js").ComponentApi<"workflow">;
   resend: import("@convex-dev/resend/_generated/component.js").ComponentApi<"resend">;
   ratelimiter: import("@convex-dev/ratelimiter/_generated/component.js").ComponentApi<"ratelimiter">;
+  rateLimiterV2: import("@convex-dev/rate-limiter/_generated/component.js").ComponentApi<"rateLimiterV2">;
   apiKeys: import("@vllnt/convex-api-keys/_generated/component.js").ComponentApi<"apiKeys">;
 };

@@ -9,28 +9,34 @@ import { requireActionCtx } from "@convex-dev/better-auth/utils";
 import { Resend } from "@convex-dev/resend";
 import { type BetterAuthOptions, betterAuth } from "better-auth/minimal";
 import { mcp } from "better-auth/plugins";
-import { ConvexError, v } from "convex/values";
+import { v } from "convex/values";
 import { importPKCS8, SignJWT } from "jose";
 import { components, internal } from "./_generated/api";
-import type { DataModel } from "./_generated/dataModel";
+import type { DataModel, Id } from "./_generated/dataModel";
 import {
   internalAction,
   internalMutation,
+  internalQuery,
   type MutationCtx,
+  type QueryCtx,
   query,
 } from "./_generated/server";
+import { beginAccountDeletion, finishAccountDeletion } from "./accountDeletion";
 import authConfig from "./auth.config";
 import { polar } from "./billing";
+import {
+  CARD_USAGE_SCAN_LIMIT,
+  getCardUsage,
+  removeCardUsage,
+} from "./card/cardUsage";
+
+export { ensureCardCreationAllowed } from "./card/quota";
+
 import { isLocalDevelopmentUrl } from "./devUrls";
 import { e2eCleanupPlugin } from "./e2eCleanup";
 import { teakOAuthSecurity } from "./oauthSecurity";
-import {
-  CARD_ERROR_CODES,
-  CARD_ERROR_MESSAGES,
-  FREE_TIER_LIMIT,
-} from "./shared/constants";
+import { FREE_TIER_LIMIT } from "./shared/constants";
 import { isApprovedActiveSubscription } from "./shared/polarPlans";
-import { rateLimiter } from "./shared/rateLimits";
 import {
   normalizeErrorClass,
   resolveBackendTelemetryDsn,
@@ -302,11 +308,17 @@ export const createAuth = (ctx: GenericCtx<DataModel>) => {
       deleteUser: {
         enabled: true,
         beforeDelete: async (user) => {
-          await requireActionCtx(ctx).runMutation(
+          await requireActionCtx(ctx).runAction(
             internal.auth.deleteAccountData,
             {
               userId: user.id,
             }
+          );
+        },
+        afterDelete: async (user) => {
+          await requireActionCtx(ctx).runMutation(
+            internal.auth.finishAccountDataDeletion,
+            { userId: user.id }
           );
         },
       },
@@ -423,14 +435,20 @@ export const getCurrentUserHandler = async (ctx: any) => {
     hasPremium = false;
   }
 
+  const usage = await getCardUsage(ctx, userId);
   const cardsQuery = ctx.db
     .query("cards")
     .withIndex("by_user_deleted", (q: any) =>
       q.eq("userId", userId).eq("isDeleted", undefined)
     );
-  const cardCount = hasPremium
-    ? (await cardsQuery.collect()).length
-    : (await cardsQuery.take(FREE_TIER_LIMIT)).length;
+  let cardCount: number;
+  if (usage?.isCountExact) {
+    cardCount = usage.activeCardCount;
+  } else {
+    // During the resumable backfill, report a bounded transitional count. The
+    // exact counter becomes authoritative as soon as that user's scan finishes.
+    cardCount = (await cardsQuery.take(CARD_USAGE_SCAN_LIMIT)).length;
+  }
   const canCreateCard = hasPremium || cardCount < FREE_TIER_LIMIT;
 
   return {
@@ -481,14 +499,18 @@ export const getCardCreationStatusHandler = async (ctx: any) => {
     };
   }
 
-  const activeCardCount = (
-    await ctx.db
-      .query("cards")
-      .withIndex("by_user_deleted", (q: any) =>
-        q.eq("userId", userId).eq("isDeleted", undefined)
-      )
-      .take(FREE_TIER_LIMIT)
-  ).length;
+  const usage = await getCardUsage(ctx, userId);
+  const activeCardCount =
+    usage?.isCountExact === true
+      ? usage.activeCardCount
+      : (
+          await ctx.db
+            .query("cards")
+            .withIndex("by_user_deleted", (q: any) =>
+              q.eq("userId", userId).eq("isDeleted", undefined)
+            )
+            .take(FREE_TIER_LIMIT)
+        ).length;
 
   return {
     hasPremium,
@@ -501,151 +523,241 @@ export const getCardCreationStatus = query({
   handler: getCardCreationStatusHandler,
 });
 
-/**
- * Ensures the current user can create a new card.
- * Checks both rate limits (30 cards/minute) and card count limits (free tier).
- * Throws a ConvexError with appropriate code when limits are exceeded.
- */
-interface CardCreationDeps {
-  getSubscription: (
-    ctx: MutationCtx,
-    args: { userId: string }
-  ) => Promise<{ productId?: string; status?: string } | null | undefined>;
-  rateLimiter: Pick<typeof rateLimiter, "limit">;
-}
-
-const defaultCardCreationDeps: CardCreationDeps = {
-  rateLimiter,
-  getSubscription: (ctx, args) => polar.getCurrentSubscription(ctx, args),
-};
-
-export async function ensureCardCreationAllowed(
-  ctx: MutationCtx,
-  userId: string,
-  deps: CardCreationDeps = defaultCardCreationDeps
-): Promise<void> {
-  // Check rate limit first (fast fail for abuse prevention)
-  const rateLimitResult = await deps.rateLimiter.limit(ctx, "cardCreation", {
-    key: userId,
-    throws: false,
-  });
-
-  if (!rateLimitResult.ok) {
-    throw new ConvexError({
-      code: CARD_ERROR_CODES.RATE_LIMITED,
-      message: CARD_ERROR_MESSAGES.RATE_LIMITED,
-      retryAt: Date.now() + rateLimitResult.retryAfter,
-    });
-  }
-
-  let hasPremium = false;
-  try {
-    const subscription = await deps.getSubscription(ctx, { userId });
-    hasPremium = isApprovedActiveSubscription(subscription);
-  } catch {
-    hasPremium = false;
-  }
-
-  if (hasPremium) {
-    return;
-  }
-
-  const cardCount = (
-    await ctx.db
-      .query("cards")
-      .withIndex("by_user_deleted", (q) =>
-        q.eq("userId", userId).eq("isDeleted", undefined)
-      )
-      .take(FREE_TIER_LIMIT)
-  ).length;
-
-  if (cardCount >= FREE_TIER_LIMIT) {
-    throw new ConvexError({
-      code: CARD_ERROR_CODES.CARD_LIMIT_REACHED,
-      message: CARD_ERROR_MESSAGES.CARD_LIMIT_REACHED,
-    });
-  }
-}
-
-export const deleteAccountDataHandler = async (
-  ctx: MutationCtx,
+export const getAccountCardDeletionBatchHandler = async (
+  ctx: QueryCtx,
   userId: string
 ) => {
-  let deletedStorageObjectCount = 0;
-
   const cards = await ctx.db
     .query("cards")
     .withIndex("by_user_deleted", (q: any) => q.eq("userId", userId))
-    .collect();
+    .take(20);
+  return {
+    cardIds: cards.map((card) => card._id),
+    objectKeys: Array.from(
+      new Set(cards.flatMap((card) => cardStorageObjectKeys(card)))
+    ),
+  };
+};
 
-  // Collect every object key first so deletion is scheduled as durable,
-  // batched workflow jobs (at most 100 keys each) instead of synchronous
-  // per-object deletes.
-  const allObjectKeys = new Set<string>();
-  for (const card of cards) {
-    for (const key of cardStorageObjectKeys(card)) {
-      if (key) {
-        allObjectKeys.add(key);
-      }
+export const getAccountCardDeletionBatch = internalQuery({
+  args: { userId: v.string() },
+  returns: v.object({
+    cardIds: v.array(v.id("cards")),
+    objectKeys: v.array(v.string()),
+  }),
+  handler: (ctx, { userId }) => getAccountCardDeletionBatchHandler(ctx, userId),
+});
+
+export const deleteAccountDataHandler = async (
+  ctx: MutationCtx,
+  userId: string,
+  cardIds: Id<"cards">[]
+) => {
+  let deletedCards = 0;
+  for (const cardId of cardIds) {
+    const card = await ctx.db.get("cards", cardId);
+    if (!card || card.userId !== userId) {
+      continue;
     }
-
-    await ctx.db.delete("cards", card._id);
-  }
-  deletedStorageObjectCount += allObjectKeys.size;
-
-  const keysBatch = Array.from(allObjectKeys);
-  if (ctx.scheduler) {
-    for (let index = 0; index < keysBatch.length; index += 100) {
-      await ctx.scheduler.runAfter(
-        0,
-        (internal as any)["workflows/objectCleanup"].startObjectDeletion,
-        { keys: keysBatch.slice(index, index + 100) }
-      );
+    const searchDocument = await ctx.db
+      .query("cardSearchDocuments")
+      .withIndex("by_cardId", (query) => query.eq("cardId", cardId))
+      .unique();
+    if (searchDocument) {
+      await ctx.db.delete("cardSearchDocuments", searchDocument._id);
     }
+    await ctx.db.delete("cards", cardId);
+    deletedCards += 1;
   }
+  return deletedCards;
+};
 
-  // Import source archives and reports are private R2 objects outside card
-  // storage. Schedule their deletion before removing the ownership records.
-  if (ctx.scheduler) {
+export const deleteAccountDataBatch = internalMutation({
+  args: { cardIds: v.array(v.id("cards")), userId: v.string() },
+  returns: v.number(),
+  handler: async (ctx, { cardIds, userId }) =>
+    deleteAccountDataHandler(ctx, userId, cardIds),
+});
+
+export const getAccountImportDeletionBatch = internalQuery({
+  args: { userId: v.string() },
+  returns: v.object({
+    itemIds: v.array(v.id("importJobItems")),
+    jobIds: v.array(v.id("importJobs")),
+    objects: v.array(
+      v.object({
+        reportKey: v.optional(v.string()),
+        sourceKey: v.string(),
+        uploadId: v.optional(v.string()),
+      })
+    ),
+  }),
+  handler: async (ctx, { userId }) => {
     const jobs = await ctx.db
       .query("importJobs")
       .withIndex("by_user_created", (q: any) => q.eq("userId", userId))
-      .collect();
-    if (jobs.length) {
-      await ctx.scheduler.runAfter(
-        0,
-        (internal as any)["import/runImport"].deleteAccountImportObjects,
-        {
-          objects: jobs.map((job: any) => ({
-            sourceKey: job.sourceKey,
-            reportKey: job.reportKey,
-            uploadId: job.uploadId,
-          })),
-        }
-      );
-    }
+      .take(100);
     const items = await ctx.db
       .query("importJobItems")
       .withIndex("by_user", (q: any) => q.eq("userId", userId))
-      .collect();
-    for (const item of items) {
-      await ctx.db.delete("importJobItems", item._id);
-    }
-    for (const job of jobs) {
-      await ctx.db.delete("importJobs", job._id);
-    }
-  }
+      .take(100);
+    return {
+      itemIds: items.map((item) => item._id),
+      jobIds: jobs.map((job) => job._id),
+      objects: jobs.map((job) => ({
+        sourceKey: job.sourceKey,
+        reportKey: job.reportKey,
+        uploadId: job.uploadId,
+      })),
+    };
+  },
+});
 
-  return { deletedCards: cards.length, deletedStorageObjectCount };
-};
+export const deleteAccountImportRows = internalMutation({
+  args: {
+    itemIds: v.array(v.id("importJobItems")),
+    jobIds: v.array(v.id("importJobs")),
+    userId: v.string(),
+  },
+  returns: v.null(),
+  handler: async (ctx, { itemIds, jobIds, userId }) => {
+    for (const itemId of itemIds) {
+      const item = await ctx.db.get("importJobItems", itemId);
+      if (item?.userId === userId) {
+        await ctx.db.delete("importJobItems", itemId);
+      }
+    }
+    for (const jobId of jobIds) {
+      const job = await ctx.db.get("importJobs", jobId);
+      if (job?.userId === userId) {
+        await ctx.db.delete("importJobs", jobId);
+      }
+    }
+    return null;
+  },
+});
 
-export const deleteAccountData = internalMutation({
+export const deleteAccountData = internalAction({
   args: { userId: v.string() },
   returns: v.object({
     deletedCards: v.number(),
     deletedStorageObjectCount: v.number(),
   }),
-  handler: async (ctx, { userId }) => deleteAccountDataHandler(ctx, userId),
+  handler: async (ctx, { userId }) => {
+    await ctx.runMutation(internal.auth.beginAccountDataDeletion, { userId });
+    let deletedCards = 0;
+    let deletedStorageObjectCount = 0;
+    while (true) {
+      const batch = await ctx.runQuery(
+        internal.auth.getAccountCardDeletionBatch,
+        { userId }
+      );
+      if (batch.cardIds.length === 0) {
+        break;
+      }
+      if (batch.objectKeys.length > 0) {
+        await ctx.runAction(
+          (internal as any)["workflows/objectCleanup"].deleteObjectsAction,
+          { keys: batch.objectKeys }
+        );
+      }
+      deletedCards += await ctx.runMutation(
+        internal.auth.deleteAccountDataBatch,
+        {
+          cardIds: batch.cardIds,
+          userId,
+        }
+      );
+      deletedStorageObjectCount += batch.objectKeys.length;
+    }
+    while (true) {
+      const batch = await ctx.runQuery(
+        internal.auth.getAccountImportDeletionBatch,
+        { userId }
+      );
+      if (batch.jobIds.length === 0 && batch.itemIds.length === 0) {
+        break;
+      }
+      if (batch.objects.length > 0) {
+        await ctx.runAction(
+          (internal as any)["import/runImport"].deleteAccountImportObjects,
+          { objects: batch.objects }
+        );
+      }
+      await ctx.runMutation(internal.auth.deleteAccountImportRows, {
+        itemIds: batch.itemIds,
+        jobIds: batch.jobIds,
+        userId,
+      });
+    }
+    const finalCards = await ctx.runQuery(
+      internal.auth.getAccountCardDeletionBatch,
+      { userId }
+    );
+    const finalImports = await ctx.runQuery(
+      internal.auth.getAccountImportDeletionBatch,
+      { userId }
+    );
+    if (
+      finalCards.cardIds.length > 0 ||
+      finalImports.jobIds.length > 0 ||
+      finalImports.itemIds.length > 0
+    ) {
+      throw new Error("Account data changed during deletion");
+    }
+    while (true) {
+      const usageCleanup = await ctx.runMutation(
+        internal.auth.removeAccountCardUsage,
+        { userId }
+      );
+      if (!usageCleanup.hasMore) {
+        break;
+      }
+    }
+    return { deletedCards, deletedStorageObjectCount };
+  },
+});
+
+export const beginAccountDataDeletion = internalMutation({
+  args: { userId: v.string() },
+  returns: v.null(),
+  handler: async (ctx, { userId }) => {
+    await beginAccountDeletion(ctx, userId);
+    return null;
+  },
+});
+
+export const finishAccountDataDeletion = internalMutation({
+  args: { userId: v.string() },
+  returns: v.null(),
+  handler: async (ctx, { userId }) => {
+    await finishAccountDeletion(ctx, userId);
+    return null;
+  },
+});
+
+export const removeAccountCardUsageHandler = async (
+  ctx: MutationCtx,
+  userId: string
+) => {
+  const migrationEntries = await ctx.db
+    .query("cardUsageMigrationEntries")
+    .withIndex("by_userId", (query) => query.eq("userId", userId))
+    .take(20);
+  for (const entry of migrationEntries) {
+    await ctx.db.delete("cardUsageMigrationEntries", entry._id);
+  }
+  const hasMore = migrationEntries.length === 20;
+  if (!hasMore) {
+    await removeCardUsage(ctx, userId);
+  }
+  return { deletedEntries: migrationEntries.length, hasMore };
+};
+
+export const removeAccountCardUsage = internalMutation({
+  args: { userId: v.string() },
+  returns: v.object({ deletedEntries: v.number(), hasMore: v.boolean() }),
+  handler: (ctx, { userId }) => removeAccountCardUsageHandler(ctx, userId),
 });
 
 export const getLatestJwks = internalAction({

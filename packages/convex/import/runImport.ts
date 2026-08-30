@@ -46,6 +46,13 @@ import { assertImportCardCount, validateImportCard } from "./validate";
 
 const internalAny = internal as Record<string, any>;
 
+const isMissingMultipartUpload = (error: unknown): boolean =>
+  error instanceof Error &&
+  (error.name === "NoSuchUpload" ||
+    ("$metadata" in error &&
+      (error as { $metadata?: { httpStatusCode?: number } }).$metadata
+        ?.httpStatusCode === 404));
+
 const observeImport =
   <TArgs, TResult>(
     name: string,
@@ -598,20 +605,24 @@ export const deleteAccountImportObjects = internalAction({
     const client = createImportS3Client(config);
     for (const object of objects) {
       if (object.uploadId) {
-        await client
-          .send(
+        try {
+          await client.send(
             new AbortMultipartUploadCommand({
               Bucket: config.bucket,
               Key: object.sourceKey,
               UploadId: object.uploadId,
             })
-          )
-          .catch(() => undefined);
+          );
+        } catch (error) {
+          if (!isMissingMultipartUpload(error)) {
+            throw error;
+          }
+        }
       }
       for (const key of [object.sourceKey, object.reportKey].filter(Boolean)) {
-        await client
-          .send(new DeleteObjectCommand({ Bucket: config.bucket, Key: key }))
-          .catch(() => undefined);
+        await client.send(
+          new DeleteObjectCommand({ Bucket: config.bucket, Key: key })
+        );
       }
     }
     return null;

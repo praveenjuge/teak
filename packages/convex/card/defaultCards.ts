@@ -1,8 +1,11 @@
 import { v } from "convex/values";
 import { internalMutation } from "../_generated/server";
+import { assertAccountNotDeleting } from "../accountDeletion";
 import type { CardType } from "../schema";
 import { buildColorFacets } from "../shared/utils/colorUtils";
+import { getOrInitializeCardUsage, recordActiveCardCreated } from "./cardUsage";
 import { type ProcessingStatus, stageCompleted } from "./processingStatus";
+import { scheduleCardSearchSync } from "./searchDocumentHelpers";
 
 // Helper to create a fully completed processing status
 const buildCompletedProcessingStatus = (now: number): ProcessingStatus => ({
@@ -99,6 +102,7 @@ const DEFAULT_CARDS: DefaultCardDef[] = [
 export const createDefaultCardsForUser = internalMutation({
   args: { userId: v.string() },
   handler: async (ctx, { userId }) => {
+    await assertAccountNotDeleting(ctx, userId);
     // Check if user already has any non-deleted cards
     const existingCard = await ctx.db
       .query("cards")
@@ -114,13 +118,14 @@ export const createDefaultCardsForUser = internalMutation({
     // Create default cards with slight timestamp offsets for consistent ordering
     const now = Date.now();
     const processingStatus = buildCompletedProcessingStatus(now);
+    await getOrInitializeCardUsage(ctx, userId);
 
     for (let i = 0; i < DEFAULT_CARDS.length; i++) {
       const cardDef = DEFAULT_CARDS[i];
       const timestamp = now + i * 1000; // 1 second offset per card
       const { colorHexes, colorHues } = buildColorFacets(cardDef.colors as any);
 
-      await ctx.db.insert("cards", {
+      const cardId = await ctx.db.insert("cards", {
         userId,
         type: cardDef.type,
         content: cardDef.content,
@@ -138,6 +143,8 @@ export const createDefaultCardsForUser = internalMutation({
         createdAt: timestamp,
         updatedAt: timestamp,
       });
+      await recordActiveCardCreated(ctx, userId, cardId);
+      await scheduleCardSearchSync(ctx, cardId);
     }
 
     return { created: true, count: DEFAULT_CARDS.length };

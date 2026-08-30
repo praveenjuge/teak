@@ -5,9 +5,36 @@ describe("card/defaultCards.ts", () => {
   let createDefaultCardsForUser: any;
   let DEFAULT_CARDS: any;
 
+  const addUsageRecord = (ctx: any) => {
+    ctx.scheduler ??= { runAfter: mock().mockResolvedValue(null) };
+    const query = ctx.db.query.bind(ctx.db);
+    ctx.db.query = mock((table: string) => {
+      if (table !== "userCardUsage") {
+        return query(table);
+      }
+      return {
+        withIndex: () => ({
+          unique: mock().mockResolvedValue({
+            _id: "usage_1",
+            activeCardCount: 0,
+            isSaturated: false,
+          }),
+        }),
+      };
+    });
+    ctx.db.patch ??= mock().mockResolvedValue(null);
+  };
+
   beforeEach(async () => {
     const module = await import("../../card/defaultCards");
-    createDefaultCardsForUser = module.createDefaultCardsForUser;
+    const registered = module.createDefaultCardsForUser;
+    const handler = (registered as any).handler ?? registered;
+    createDefaultCardsForUser = {
+      handler: (ctx: any, args: any) => {
+        addUsageRecord(ctx);
+        return handler(ctx, args);
+      },
+    };
     DEFAULT_CARDS = module.DEFAULT_CARDS;
   });
 
@@ -90,7 +117,7 @@ describe("card/defaultCards.ts", () => {
     const result = await handler(ctx, { userId: "u1" });
 
     expect(ctx.db.insert).toHaveBeenCalledTimes(3);
-    expect(ctx.scheduler.runAfter).not.toHaveBeenCalled();
+    expect(ctx.scheduler.runAfter).toHaveBeenCalledTimes(3);
     expect(result).toEqual({ created: true, count: 3 });
   });
 

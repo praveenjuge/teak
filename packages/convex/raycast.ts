@@ -12,6 +12,10 @@ import { getCardForUserHandler } from "./card/getCard";
 import { cardReturnValidator } from "./card/getCards";
 import { attachFileUrls } from "./card/queryUtils";
 import { applyQuoteFormattingToList } from "./card/quoteFormatting";
+import {
+  scheduleCardSearchSync,
+  searchCardsAcrossGeneralIndexes,
+} from "./card/searchDocumentHelpers";
 import { updateCardFieldForUserHandler } from "./card/updateCard";
 import { cardTypeValidator } from "./schema";
 import { rateLimiter } from "./shared/rateLimits";
@@ -87,17 +91,6 @@ interface SearchOptions {
   tag?: string;
   type?: Doc<"cards">["type"];
 }
-
-const SEARCH_INDEXES = [
-  { field: "content", index: "search_content" },
-  { field: "notes", index: "search_notes" },
-  { field: "aiSummary", index: "search_ai_summary" },
-  { field: "aiTranscript", index: "search_ai_transcript" },
-  { field: "metadataTitle", index: "search_metadata_title" },
-  { field: "metadataDescription", index: "search_metadata_description" },
-  { field: "tags", index: "search_tags" },
-  { field: "aiTags", index: "search_ai_tags" },
-] as const;
 
 // Single shared bucket key for all failed public-API auth attempts. Keeping it
 // constant (rather than per-token) means rotating bearer tokens can no longer
@@ -212,24 +205,6 @@ const matchesStructuredFilters = (
   return true;
 };
 
-const applySearchIndexFilters = (
-  query: any,
-  userId: string,
-  options: SearchOptions
-) => {
-  let filteredQuery = query.eq("userId", userId).eq("isDeleted", undefined);
-
-  if (options.type) {
-    filteredQuery = filteredQuery.eq("type", options.type);
-  }
-
-  if (options.favoritesOnly) {
-    filteredQuery = filteredQuery.eq("isFavorited", true);
-  }
-
-  return filteredQuery;
-};
-
 const sortAndLimitCards = (
   cards: Doc<"cards">[],
   options: SearchOptions
@@ -297,22 +272,16 @@ const searchCardsByQuery = async (
     normalizeLimit(options.limit) + 20
   );
 
-  const searchResults = await Promise.all(
-    SEARCH_INDEXES.map(({ field, index }) =>
-      ctx.db
-        .query("cards")
-        .withSearchIndex(index, (query: any) =>
-          applySearchIndexFilters(query, userId, options).search(
-            field,
-            trimmedQuery
-          )
-        )
-        .take(searchLimit)
-    )
-  );
-
-  const unique = Array.from(
-    new Map(searchResults.flat().map((card) => [card._id, card])).values()
+  const unique = (
+    await searchCardsAcrossGeneralIndexes(ctx, {
+      userId,
+      searchQuery: trimmedQuery,
+      isDeleted: undefined,
+      isFavorited: options.favoritesOnly ? true : undefined,
+      type: options.type,
+      limit: searchLimit,
+      resultFilter: (card) => matchesStructuredFilters(card, options),
+    })
   ).filter((card) => matchesStructuredFilters(card, options));
 
   return sortAndLimitCards(unique, options);
@@ -333,29 +302,17 @@ const searchCardsByTag = async (
     normalizeLimit(options.limit) + 20
   );
 
-  const searchResults = await Promise.all([
-    ctx.db
-      .query("cards")
-      .withSearchIndex("search_tags", (query: any) =>
-        applySearchIndexFilters(query, userId, options).search(
-          "tags",
-          normalizedTag
-        )
-      )
-      .take(searchLimit),
-    ctx.db
-      .query("cards")
-      .withSearchIndex("search_ai_tags", (query: any) =>
-        applySearchIndexFilters(query, userId, options).search(
-          "aiTags",
-          normalizedTag
-        )
-      )
-      .take(searchLimit),
-  ]);
-
-  const unique = Array.from(
-    new Map(searchResults.flat().map((card) => [card._id, card])).values()
+  const unique = (
+    await searchCardsAcrossGeneralIndexes(ctx, {
+      userId,
+      searchQuery: normalizedTag,
+      isDeleted: undefined,
+      isFavorited: options.favoritesOnly ? true : undefined,
+      type: options.type,
+      limit: searchLimit,
+      legacyFields: new Set(["tags", "aiTags"]),
+      resultFilter: (card) => matchesStructuredFilters(card, options),
+    })
   ).filter((card) => matchesStructuredFilters(card, options));
 
   return sortAndLimitCards(unique, options);
@@ -485,7 +442,7 @@ const applyPatchField = (
       field: args.field,
       value: args.value,
     },
-    { deferPipelineSchedule: true }
+    { deferPipelineSchedule: true, deferSearchSync: true }
   );
 
 export const quickSaveForUser = internalMutation({
@@ -670,6 +627,7 @@ export const patchCardForUser = internalMutation({
         }
       );
     }
+    await scheduleCardSearchSync(ctx, args.cardId);
 
     return getCardForUserHandler(ctx, args.userId, args.cardId);
   },

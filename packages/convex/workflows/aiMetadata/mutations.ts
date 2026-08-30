@@ -1,5 +1,6 @@
 import { v } from "convex/values";
 import { internalMutation } from "../../_generated/server";
+import { patchCardWithSearchSync } from "../../card/searchDocumentHelpers";
 import { colorValidator, processingStatusValidator } from "../../schema";
 import { buildColorFacets } from "../../shared/utils/colorUtils";
 
@@ -20,7 +21,7 @@ export const updateCardAI = internalMutation({
     if (!card) {
       return false;
     }
-    await ctx.db.patch("cards", cardId, {
+    await patchCardWithSearchSync(ctx, cardId, {
       ...updates,
       ...(processingStatus === undefined ? {} : { processingStatus }),
       updatedAt: Date.now(),
@@ -37,7 +38,7 @@ export const resetCardAI = internalMutation({
     ),
   },
   handler: async (ctx, { cardId, metadataStatus }) => {
-    await ctx.db.patch("cards", cardId, {
+    await patchCardWithSearchSync(ctx, cardId, {
       aiTags: undefined,
       aiSummary: undefined,
       aiTranscript: undefined,
@@ -60,7 +61,7 @@ export const updateCardColors = internalMutation({
       return null;
     }
     const { colorHexes, colorHues } = buildColorFacets(colors);
-    await ctx.db.patch("cards", cardId, {
+    await patchCardWithSearchSync(ctx, cardId, {
       colors,
       colorHexes,
       colorHues,

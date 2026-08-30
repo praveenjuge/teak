@@ -24,10 +24,12 @@ import {
   PENDING_UPLOAD_CARD_ID,
 } from "../storage/r2";
 import { scheduleCardOutcome } from "../telemetry/schedule";
+import { recordActiveCardCreated } from "./cardUsage";
 import {
   buildInitialProcessingStatus,
   stageCompleted,
 } from "./processingStatus";
+import { scheduleCardSearchSync } from "./searchDocumentHelpers";
 
 const toConvexFileError = (error: FileFormatValidationError) =>
   new ConvexError({
@@ -273,6 +275,8 @@ export const createUploadedCardForUser = async (
     createdAt: now,
     updatedAt: now,
   });
+  await recordActiveCardCreated(ctx, args.userId, cardId);
+  await scheduleCardSearchSync(ctx, cardId);
 
   // Object metadata is served by the Files Worker path; the Convex R2
   // component's metadata sync is no longer part of the upload pipeline.

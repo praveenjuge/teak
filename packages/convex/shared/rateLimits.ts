@@ -1,4 +1,4 @@
-import { MINUTE, RateLimiter } from "@convex-dev/ratelimiter";
+import { MINUTE, RateLimiter } from "@convex-dev/rate-limiter";
 import { components } from "../_generated/api";
 
 /**
@@ -6,12 +6,13 @@ import { components } from "../_generated/api";
  *
  * Uses token bucket algorithm: 30 cards per minute for all users.
  */
-export const rateLimiter = new RateLimiter(components.ratelimiter, {
+export const RATE_LIMIT_CONFIG = {
   cardCreation: {
     kind: "token bucket",
     rate: 30,
     period: MINUTE,
     capacity: 30,
+    shards: 3,
   },
   cardReprocess: {
     kind: "token bucket",
@@ -30,6 +31,7 @@ export const rateLimiter = new RateLimiter(components.ratelimiter, {
     rate: 120,
     period: MINUTE,
     capacity: 120,
+    shards: 12,
   },
   // Shared bucket for invalid / unauthenticated public-API auth attempts.
   // All failures are consolidated onto a single keyed document so attackers
@@ -39,6 +41,7 @@ export const rateLimiter = new RateLimiter(components.ratelimiter, {
     rate: 60,
     period: MINUTE,
     capacity: 60,
+    shards: 6,
   },
   // Desktop OAuth -> session exchange. Keyed per client IP so a single host
   // cannot spam single-use token redemption attempts.
@@ -55,6 +58,7 @@ export const rateLimiter = new RateLimiter(components.ratelimiter, {
     rate: 20,
     period: MINUTE,
     capacity: 20,
+    shards: 2,
   },
   apiKeyCreation: {
     kind: "token bucket",
@@ -62,4 +66,9 @@ export const rateLimiter = new RateLimiter(components.ratelimiter, {
     period: MINUTE,
     capacity: 5,
   },
-});
+} as const;
+
+export const rateLimiter = new RateLimiter(
+  components.rateLimiterV2,
+  RATE_LIMIT_CONFIG
+);

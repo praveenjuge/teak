@@ -16,6 +16,7 @@ import {
   isCreatedAtInRange,
 } from "./queryUtils";
 import { applyQuoteFormattingToList } from "./quoteFormatting";
+import { searchCardsAcrossGeneralIndexes } from "./searchDocumentHelpers";
 import {
   applyCardLevelFilters,
   doesCardMatchVisualFilters,
@@ -67,34 +68,11 @@ const createdAtRangeValidator = v.object({
   end: v.number(),
 });
 
-const MIN_SEARCH_BATCH_SIZE = 12;
-const PRIMARY_SEARCH_BUFFER = 8;
-const SECONDARY_SEARCH_BUFFER = 6;
-const TAG_SEARCH_BUFFER = 10;
 const VISUAL_SEARCH_BUFFER = 12;
-
-const getSearchBatchLimit = (remainingSlots: number, buffer: number) =>
-  Math.max(remainingSlots + buffer, MIN_SEARCH_BATCH_SIZE);
-
-type SearchFieldName =
-  | "content"
-  | "metadataTitle"
-  | "notes"
-  | "metadataDescription"
-  | "aiSummary"
-  | "aiTranscript"
-  | "tags"
-  | "aiTags";
-
-type SearchIndexName =
-  | "search_content"
-  | "search_metadata_title"
-  | "search_notes"
-  | "search_metadata_description"
-  | "search_ai_summary"
-  | "search_ai_transcript"
-  | "search_tags"
-  | "search_ai_tags";
+export const getDualReadSearchLimit = (desiredLimit: number) =>
+  Math.max(1, desiredLimit);
+const getVisualSearchBatchLimit = (desiredLimit: number) =>
+  Math.max(desiredLimit + VISUAL_SEARCH_BUFFER, 12);
 
 export const getCards = query({
   args: {
@@ -232,118 +210,21 @@ export const searchCards = query({
         return applyQuoteFormattingToList(trashedWithUrls);
       }
 
-      // Search across multiple fields using search indexes
-      const searchResults = await Promise.all([
-        // Search content
-        ctx.db
-          .query("cards")
-          .withSearchIndex("search_content", (q) =>
-            q
-              .search("content", searchQuery)
-              .eq("userId", user.subject)
-              .eq("isDeleted", showTrashOnly ? true : undefined)
-          )
-          .take(limit),
-
-        // Search notes
-        ctx.db
-          .query("cards")
-          .withSearchIndex("search_notes", (q) =>
-            q
-              .search("notes", searchQuery)
-              .eq("userId", user.subject)
-              .eq("isDeleted", showTrashOnly ? true : undefined)
-          )
-          .take(limit),
-
-        // Search AI summary
-        ctx.db
-          .query("cards")
-          .withSearchIndex("search_ai_summary", (q) =>
-            q
-              .search("aiSummary", searchQuery)
-              .eq("userId", user.subject)
-              .eq("isDeleted", showTrashOnly ? true : undefined)
-          )
-          .take(limit),
-
-        // Search AI transcript
-        ctx.db
-          .query("cards")
-          .withSearchIndex("search_ai_transcript", (q) =>
-            q
-              .search("aiTranscript", searchQuery)
-              .eq("userId", user.subject)
-              .eq("isDeleted", showTrashOnly ? true : undefined)
-          )
-          .take(limit),
-
-        // Search metadata title
-        ctx.db
-          .query("cards")
-          .withSearchIndex("search_metadata_title", (q) =>
-            q
-              .search("metadataTitle", searchQuery)
-              .eq("userId", user.subject)
-              .eq("isDeleted", showTrashOnly ? true : undefined)
-          )
-          .take(limit),
-
-        // Search metadata description
-        ctx.db
-          .query("cards")
-          .withSearchIndex("search_metadata_description", (q) =>
-            q
-              .search("metadataDescription", searchQuery)
-              .eq("userId", user.subject)
-              .eq("isDeleted", showTrashOnly ? true : undefined)
-          )
-          .take(limit),
-
-        // Search tags (using JavaScript filter after getting all cards)
-        (async () => {
-          const allCards = await ctx.db
-            .query("cards")
-            .withIndex("by_user_deleted", (q) =>
-              q
-                .eq("userId", user.subject)
-                .eq("isDeleted", showTrashOnly ? true : undefined)
-            )
-            .take(limit * 2); // Get more to filter down
-
-          const searchTerms = searchQuery.toLowerCase().split(/\s+/);
-          return allCards.filter((card) =>
-            card.tags?.some((tag) =>
-              searchTerms.some((term) => tag.toLowerCase().includes(term))
-            )
-          );
-        })(),
-
-        // Search AI tags (using JavaScript filter after getting all cards)
-        (async () => {
-          const allCards = await ctx.db
-            .query("cards")
-            .withIndex("by_user_deleted", (q) =>
-              q
-                .eq("userId", user.subject)
-                .eq("isDeleted", showTrashOnly ? true : undefined)
-            )
-            .take(limit * 2); // Get more to filter down
-
-          const searchTerms = searchQuery.toLowerCase().split(/\s+/);
-          return allCards.filter((card) =>
-            card.aiTags?.some((tag) =>
-              searchTerms.some((term) => tag.toLowerCase().includes(term))
-            )
-          );
-        })(),
-      ]);
-
-      // Combine and deduplicate results
-      const allResults = searchResults.flat();
-      const uniqueResults = Array.from(
-        new Map(allResults.map((card) => [card._id, card])).values()
-      );
+      const uniqueResults = await searchCardsAcrossGeneralIndexes(ctx, {
+        userId: user.subject,
+        searchQuery,
+        isDeleted: showTrashOnly ? true : undefined,
+        isFavorited: favoritesOnly ? true : undefined,
+        type: types?.length === 1 ? types[0] : undefined,
+        limit: getDualReadSearchLimit(limit),
+        resultFilter: (card) =>
+          applyCardLevelFilters([card], {
+            types,
+            favoritesOnly,
+            createdAtRange,
+            visualFilters,
+          }).length === 1,
+      });
 
       // Apply additional filters
       const filteredResults = applyCardLevelFilters(uniqueResults, {
@@ -564,133 +445,30 @@ export const searchCardsPaginatedHandler = async (
     );
     const pageSize = clampPageSize(paginationOpts.numItems);
     const desiredLimit = offset + pageSize + 1;
+    const dualReadLimit = getDualReadSearchLimit(desiredLimit);
 
-    // Helper to apply optional filters to search queries
-    const applySearchFilters = (q: any) => {
-      let query = q
-        .eq("userId", user.subject)
-        .eq("isDeleted", showTrashOnly ? true : undefined);
-      if (types && types.length === 1) {
-        query = query.eq("type", types[0]);
-      }
-      if (favoritesOnly) {
-        query = query.eq("isFavorited", true);
-      }
-      return query;
-    };
-
-    // Determine which search indexes to include based on type filter
-    // This avoids searching fields that don't exist for certain card types
     const typesSet = new Set(types || []);
-    const noTypeFilter = typesSet.size === 0;
     const hasMultiTypeFilter = typesSet.size > 1;
-    const includeAiTranscript = noTypeFilter || typesSet.has("audio");
-    const includeAiSummary =
-      noTypeFilter ||
-      (["audio", "video", "document", "image", "link"] as const).some((t) =>
-        typesSet.has(t)
-      );
-
-    // Build search query array, ordered by selectivity (most selective first)
-    // 1. content - most unique user content
-    // 2. metadataTitle - usually selective
-    // 3. notes - user-written
-    // 4. metadataDescription - less selective
-    // 5. aiSummary - less selective, only for certain types
-    // 6. aiTranscript - only for audio type
-    // 7. tags - small value set, less selective
-    // 8. aiTags - small value set, less selective
-    const buildSearchQuery =
-      (indexName: SearchIndexName, fieldName: SearchFieldName) =>
-      (limit: number) =>
-        ctx.db
-          .query("cards")
-          .withSearchIndex(indexName, (q) =>
-            applySearchFilters(q).search(fieldName, searchQuery)
-          )
-          .take(limit);
-
-    const buildPrimaryBatch = (limit: number) => [
-      buildSearchQuery("search_content", "content")(limit),
-      buildSearchQuery("search_metadata_title", "metadataTitle")(limit),
-      buildSearchQuery("search_notes", "notes")(limit),
-    ];
-
-    const buildSecondaryBatch = (limit: number) => [
-      buildSearchQuery(
-        "search_metadata_description",
-        "metadataDescription"
-      )(limit),
-      ...(includeAiSummary
-        ? [buildSearchQuery("search_ai_summary", "aiSummary")(limit)]
-        : []),
-      ...(includeAiTranscript
-        ? [buildSearchQuery("search_ai_transcript", "aiTranscript")(limit)]
-        : []),
-    ];
-
-    const buildTagBatch = (limit: number) => [
-      buildSearchQuery("search_tags", "tags")(limit),
-      buildSearchQuery("search_ai_tags", "aiTags")(limit),
-    ];
-
-    const queryBatches: (() => Promise<Doc<"cards">[]>[])[] = [
-      () =>
-        buildPrimaryBatch(
-          getSearchBatchLimit(
-            desiredLimit - uniqueResults.length,
-            PRIMARY_SEARCH_BUFFER
-          )
-        ),
-      () =>
-        buildSecondaryBatch(
-          getSearchBatchLimit(
-            desiredLimit - uniqueResults.length,
-            SECONDARY_SEARCH_BUFFER
-          )
-        ),
-      () =>
-        buildTagBatch(
-          getSearchBatchLimit(
-            desiredLimit - uniqueResults.length,
-            TAG_SEARCH_BUFFER
-          )
-        ),
-    ];
-
-    // Incrementally deduplicate with early termination
-    // This avoids running less-selective queries when enough results are found.
-    const seenIds = new Set<string>();
+    const searchResults = await searchCardsAcrossGeneralIndexes(ctx, {
+      userId: user.subject,
+      searchQuery,
+      isDeleted: showTrashOnly ? true : undefined,
+      isFavorited: favoritesOnly ? true : undefined,
+      type: types?.length === 1 ? types[0] : undefined,
+      limit: dualReadLimit,
+      resultFilter: (card) =>
+        isCreatedAtInRange(card.createdAt, createdAtRange) &&
+        (!hasMultiTypeFilter || typesSet.has(card.type)) &&
+        doesCardMatchVisualFilters(card, visualFilters),
+    });
     const uniqueResults: Doc<"cards">[] = [];
-
-    for (const getBatch of queryBatches) {
-      const batchResults = await Promise.all(getBatch());
-      for (const results of batchResults) {
-        for (const card of results) {
-          if (seenIds.has(card._id)) {
-            continue;
-          }
-          seenIds.add(card._id);
-          if (!isCreatedAtInRange(card.createdAt, createdAtRange)) {
-            continue;
-          }
-          if (hasMultiTypeFilter && !typesSet.has(card.type)) {
-            continue;
-          }
-          if (!doesCardMatchVisualFilters(card, visualFilters)) {
-            continue;
-          }
-          uniqueResults.push(card);
-          if (uniqueResults.length >= desiredLimit) {
-            break;
-          }
-        }
-        if (uniqueResults.length >= desiredLimit) {
-          break;
-        }
-      }
-      if (uniqueResults.length >= desiredLimit) {
-        break;
+    for (const card of searchResults) {
+      if (
+        isCreatedAtInRange(card.createdAt, createdAtRange) &&
+        (!hasMultiTypeFilter || typesSet.has(card.type)) &&
+        doesCardMatchVisualFilters(card, visualFilters)
+      ) {
+        uniqueResults.push(card);
       }
     }
 
@@ -728,7 +506,7 @@ export const searchCardsPaginatedHandler = async (
       favoritesOnly,
       createdAtRange,
       visualFilters,
-      limit: getSearchBatchLimit(desiredLimit, VISUAL_SEARCH_BUFFER),
+      limit: getVisualSearchBatchLimit(desiredLimit),
     });
 
     const page = visualResults.slice(offset, offset + pageSize);

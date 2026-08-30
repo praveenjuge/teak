@@ -19,6 +19,9 @@ mock.module("@convex-dev/resend/convex.config", () => ({
 mock.module("@convex-dev/ratelimiter/convex.config", () => ({
   default: { componentDefinitionPath: "ratelimiter" },
 }));
+mock.module("@convex-dev/rate-limiter/convex.config", () => ({
+  default: { componentDefinitionPath: "rateLimiterV2" },
+}));
 mock.module("@vllnt/convex-api-keys/convex.config", () => ({
   default: { componentDefinitionPath: "apiKeys" },
 }));

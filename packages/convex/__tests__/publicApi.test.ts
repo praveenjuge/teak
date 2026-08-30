@@ -353,8 +353,18 @@ describe("publicApi", () => {
           runMutation: mock().mockResolvedValue({ ok: true }),
           db: {
             insert,
-            query: () => ({
-              withIndex: () => ({ take: mock().mockResolvedValue([]) }),
+            patch: mock().mockResolvedValue(null),
+            query: (table: string) => ({
+              withIndex: () =>
+                table === "userCardUsage"
+                  ? {
+                      unique: mock().mockResolvedValue({
+                        _id: "usage_1",
+                        activeCardCount: 0,
+                        isSaturated: false,
+                      }),
+                    }
+                  : { take: mock().mockResolvedValue([]) },
             }),
           },
           scheduler: { runAfter: mock().mockResolvedValue(null) },
@@ -459,6 +469,6 @@ describe("publicApi", () => {
       succeeded: 1,
       total: 1,
     });
-    expect(scheduler.runAfter).toHaveBeenCalledTimes(1);
+    expect(scheduler.runAfter).toHaveBeenCalledTimes(2);
   });
 });

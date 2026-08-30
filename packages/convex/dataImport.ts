@@ -7,6 +7,7 @@ import {
   type MutationCtx,
   query,
 } from "./_generated/server";
+import { assertAccountNotDeleting } from "./accountDeletion";
 import { createCardForUserHandler } from "./card/createCard";
 import {
   ACTIVE_IMPORT_STATUSES,
@@ -187,6 +188,7 @@ export const reserveJob = internalMutation({
   },
   returns: v.id("importJobs"),
   handler: async (ctx, args) => {
+    await assertAccountNotDeleting(ctx, args.userId);
     const previous = await ctx.db
       .query("importJobs")
       .withIndex("by_user_created", (q) => q.eq("userId", args.userId))
@@ -235,6 +237,11 @@ export const attachMultipart = internalMutation({
   args: { jobId: v.id("importJobs"), uploadId: v.string() },
   returns: v.null(),
   handler: async (ctx, { jobId, uploadId }) => {
+    const job = await ctx.db.get(jobId);
+    if (!job) {
+      throw new Error("Import job not found");
+    }
+    await assertAccountNotDeleting(ctx, job.userId);
     await ctx.db.patch(jobId, { uploadId, updatedAt: Date.now() });
     return null;
   },
@@ -295,6 +302,7 @@ export const setPhase = internalMutation({
     if (!job) {
       throw new Error("Import job not found");
     }
+    await assertAccountNotDeleting(ctx, job.userId);
     if (job.cancelRequested) {
       return { canceled: true };
     }
@@ -316,6 +324,7 @@ export const insertItems = internalMutation({
     if (!job) {
       throw new Error("Import job not found");
     }
+    await assertAccountNotDeleting(ctx, job.userId);
     let parsedDelta = 0,
       processedDelta = 0,
       skippedDelta = 0,
@@ -597,6 +606,11 @@ export const setExtractedFile = internalMutation({
   args: { itemId: v.id("importJobItems"), key: v.string() },
   returns: v.null(),
   handler: async (ctx, { itemId, key }) => {
+    const item = await ctx.db.get(itemId);
+    if (!item) {
+      throw new Error("Import item not found");
+    }
+    await assertAccountNotDeleting(ctx, item.userId);
     await ctx.db.patch(itemId, {
       extractedFileKey: key,
       updatedAt: Date.now(),
