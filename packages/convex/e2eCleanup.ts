@@ -102,7 +102,7 @@ export const deleteE2ECleanupCandidates = async ({
   candidates: CleanupCandidate[];
 }) => {
   const results = await runWithConcurrency(candidates, async (candidate) => {
-    await appCtx.runMutation(internal.auth.deleteAccountData, {
+    await appCtx.runAction(internal.auth.deleteAccountData, {
       userId: candidate.id,
     });
     await authCtx.internalAdapter.deleteUser(candidate.id);

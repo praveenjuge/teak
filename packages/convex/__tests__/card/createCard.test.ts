@@ -17,6 +17,28 @@ describe("card/createCard.ts", () => {
   let workflow: any;
   let originalGetSubscription: any;
 
+  const addCardUsage = (ctx: any) => {
+    if (!ctx.db?.query) {
+      return;
+    }
+    const query = ctx.db.query.bind(ctx.db);
+    ctx.db.query = mock((table: string) => {
+      if (table !== "userCardUsage") {
+        return query(table);
+      }
+      return {
+        withIndex: () => ({
+          unique: mock().mockResolvedValue({
+            _id: "usage_1",
+            activeCardCount: 0,
+            isSaturated: false,
+          }),
+        }),
+      };
+    });
+    ctx.db.patch ??= mock().mockResolvedValue(null);
+  };
+
   beforeEach(async () => {
     const managerModule = await import("../../workflows/manager");
     workflow = managerModule.workflow;
@@ -29,7 +51,16 @@ describe("card/createCard.ts", () => {
 
     billingModule.polar.getCurrentSubscription = mock().mockResolvedValue(null);
 
-    createCard = (await import("../../card/createCard")).createCard;
+    const registeredCreateCard = (await import("../../card/createCard"))
+      .createCard;
+    const handler =
+      (registeredCreateCard as any).handler ?? registeredCreateCard;
+    createCard = {
+      handler: (ctx: any, args: any) => {
+        addCardUsage(ctx);
+        return handler(ctx, args);
+      },
+    };
   });
 
   afterEach(async () => {

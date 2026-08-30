@@ -37,7 +37,18 @@ describe("card/deleteCard.ts", () => {
           thumbnailKey: "t1",
         }),
         delete: mock().mockResolvedValue(null),
+        patch: mock().mockResolvedValue(null),
+        query: mock().mockReturnValue({
+          withIndex: mock().mockReturnValue({
+            unique: mock().mockResolvedValue({
+              _id: "usage_1",
+              activeCardCount: 1,
+              isSaturated: false,
+            }),
+          }),
+        }),
       },
+      scheduler: { runAfter: mock().mockResolvedValue(null) },
     } as any;
 
     const handler = (permanentDeleteCard as any).handler ?? permanentDeleteCard;

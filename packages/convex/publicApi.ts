@@ -11,6 +11,10 @@ import { createCardForUserHandler } from "./card/createCard";
 import { cardReturnValidator } from "./card/getCards";
 import { attachFileUrls } from "./card/queryUtils";
 import { applyQuoteFormattingToList } from "./card/quoteFormatting";
+import {
+  scheduleCardSearchSync,
+  searchDerivedCards,
+} from "./card/searchDocumentHelpers";
 import { updateCardFieldForUserHandler } from "./card/updateCard";
 import { cardTypes, cardTypeValidator } from "./schema";
 import { isSafeExternalUrl } from "./shared/utils/safeUrl";
@@ -262,8 +266,16 @@ const searchCardsByQuery = async (
     desiredLimit + 20
   );
 
-  const searchResults = await Promise.all(
-    SEARCH_INDEXES.map(({ field, index }) =>
+  const searchResults = await Promise.all([
+    searchDerivedCards(ctx, {
+      userId,
+      searchQuery,
+      isDeleted: undefined,
+      isFavorited: options.favorited,
+      type: options.type,
+      limit: searchLimit,
+    }),
+    ...SEARCH_INDEXES.map(({ field, index }) =>
       ctx.db
         .query("cards")
         .withSearchIndex(index, (query: any) =>
@@ -273,8 +285,8 @@ const searchCardsByQuery = async (
           )
         )
         .take(searchLimit)
-    )
-  );
+    ),
+  ]);
 
   const unique = Array.from(
     new Map(searchResults.flat().map((card) => [card._id, card])).values()
@@ -302,6 +314,14 @@ const searchCardsByTag = async (
   );
 
   const searchResults = await Promise.all([
+    searchDerivedCards(ctx, {
+      userId,
+      searchQuery: tag,
+      isDeleted: undefined,
+      isFavorited: options.favorited,
+      type: options.type,
+      limit: searchLimit,
+    }),
     ctx.db
       .query("cards")
       .withSearchIndex("search_tags", (query: any) =>
@@ -700,11 +720,13 @@ const performBulkUpdate = async (
         field,
         value: valueForField(field),
       },
-      { deferPipelineSchedule: true }
+      { deferPipelineSchedule: true, deferSearchSync: true }
     );
     shouldSchedulePipeline =
       shouldSchedulePipeline || result.shouldSchedulePipeline;
   }
+
+  await scheduleCardSearchSync(ctx, args.cardId);
 
   return shouldSchedulePipeline;
 };

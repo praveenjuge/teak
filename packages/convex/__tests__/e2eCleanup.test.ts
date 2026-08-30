@@ -228,7 +228,7 @@ describe("production E2E cleanup safety", () => {
   });
 
   test("deletion removes Teak data before auth and surfaces failures", async () => {
-    const runMutation = mock((_reference: unknown, { userId }: any) => {
+    const runAction = mock((_reference: unknown, { userId }: any) => {
       if (userId === "user-2") {
         return Promise.reject(new Error("mutation failed"));
       }
@@ -239,7 +239,7 @@ describe("production E2E cleanup safety", () => {
     console.error = mock();
     try {
       const result = await deleteE2ECleanupCandidates({
-        appCtx: { runMutation } as never,
+        appCtx: { runAction } as never,
         authCtx: { internalAdapter: { deleteUser } } as never,
         candidates: [
           {
@@ -262,7 +262,7 @@ describe("production E2E cleanup safety", () => {
           reason: "account cleanup failed",
         },
       ]);
-      expect(runMutation).toHaveBeenCalledTimes(2);
+      expect(runAction).toHaveBeenCalledTimes(2);
       expect(deleteUser).toHaveBeenCalledTimes(1);
       expect(deleteUser).toHaveBeenCalledWith("user-1");
     } finally {

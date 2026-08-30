@@ -1,5 +1,6 @@
 import { v } from "convex/values";
 import { internalMutation } from "../_generated/server";
+import { patchCardWithSearchSync } from "./searchDocumentHelpers";
 
 // Migration function to backfill metadata search fields for existing cards
 export const backfillMetadataSearchFields = internalMutation({
@@ -49,7 +50,7 @@ export const backfillMetadataSearchFields = internalMutation({
 
         // Only update if we have fields to update
         if (Object.keys(updateFields).length > 1) {
-          await ctx.db.patch("cards", card._id, updateFields);
+          await patchCardWithSearchSync(ctx, card._id, updateFields);
           updatedCount++;
         }
       }

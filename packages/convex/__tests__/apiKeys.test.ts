@@ -1,5 +1,5 @@
 // @ts-nocheck
-import { beforeEach, describe, expect, mock, test } from "bun:test";
+import { afterAll, beforeEach, describe, expect, mock, test } from "bun:test";
 
 import {
   createUserApiKey,
@@ -11,6 +11,8 @@ import {
   validateUserApiKey,
 } from "../apiKeys";
 import { rateLimiter } from "../shared/rateLimits";
+
+const originalRateLimiterLimit = rateLimiter.limit;
 
 const runHandler = (fn: any, ctx: any, args: any) => {
   const handler = (fn as any).handler ?? fn;
@@ -45,6 +47,9 @@ const listActiveKeys = (keys: unknown[]) =>
   });
 
 describe("apiKeys", () => {
+  afterAll(() => {
+    rateLimiter.limit = originalRateLimiterLimit;
+  });
   beforeEach(() => {
     rateLimiter.limit = mock().mockResolvedValue({ ok: true });
   });

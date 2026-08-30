@@ -1,5 +1,6 @@
 import { v } from "convex/values";
 import { internalMutation } from "../_generated/server";
+import { patchCardWithSearchSync } from "../card/searchDocumentHelpers";
 import { cardTypeValidator, processingStatusObjectValidator } from "../schema";
 
 export const updateCardProcessing = internalMutation({
@@ -19,7 +20,7 @@ export const updateCardProcessing = internalMutation({
     if (!card) {
       return false;
     }
-    await ctx.db.patch("cards", cardId, {
+    await patchCardWithSearchSync(ctx, cardId, {
       ...(type ? { type } : {}),
       processingStatus,
       ...(metadataStatus ? { metadataStatus } : {}),

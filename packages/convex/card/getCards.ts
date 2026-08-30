@@ -16,6 +16,7 @@ import {
   isCreatedAtInRange,
 } from "./queryUtils";
 import { applyQuoteFormattingToList } from "./quoteFormatting";
+import { searchDerivedCards } from "./searchDocumentHelpers";
 import {
   applyCardLevelFilters,
   doesCardMatchVisualFilters,
@@ -234,6 +235,14 @@ export const searchCards = query({
 
       // Search across multiple fields using search indexes
       const searchResults = await Promise.all([
+        searchDerivedCards(ctx, {
+          userId: user.subject,
+          searchQuery,
+          isDeleted: showTrashOnly ? true : undefined,
+          isFavorited: favoritesOnly ? true : undefined,
+          type: types?.length === 1 ? types[0] : undefined,
+          limit,
+        }),
         // Search content
         ctx.db
           .query("cards")
@@ -660,8 +669,26 @@ export const searchCardsPaginatedHandler = async (
 
     // Incrementally deduplicate with early termination
     // This avoids running less-selective queries when enough results are found.
+    const derivedResults = await searchDerivedCards(ctx, {
+      userId: user.subject,
+      searchQuery,
+      isDeleted: showTrashOnly ? true : undefined,
+      isFavorited: favoritesOnly ? true : undefined,
+      type: types?.length === 1 ? types[0] : undefined,
+      limit: desiredLimit,
+    });
     const seenIds = new Set<string>();
     const uniqueResults: Doc<"cards">[] = [];
+    for (const card of derivedResults) {
+      seenIds.add(card._id);
+      if (
+        isCreatedAtInRange(card.createdAt, createdAtRange) &&
+        (!hasMultiTypeFilter || typesSet.has(card.type)) &&
+        doesCardMatchVisualFilters(card, visualFilters)
+      ) {
+        uniqueResults.push(card);
+      }
+    }
 
     for (const getBatch of queryBatches) {
       const batchResults = await Promise.all(getBatch());

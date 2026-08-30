@@ -1,6 +1,7 @@
 import { v } from "convex/values";
 import { internalMutation } from "../../../_generated/server";
 import { stageFailed } from "../../../card/processingStatus";
+import { patchCardWithSearchSync } from "../../../card/searchDocumentHelpers";
 import { filePreviewFactsValidator } from "../../../schema";
 
 export const markCardRenderablesFailed = internalMutation({
@@ -12,7 +13,7 @@ export const markCardRenderablesFailed = internalMutation({
       return null;
     }
     const now = Date.now();
-    await ctx.db.patch("cards", args.cardId, {
+    await patchCardWithSearchSync(ctx, args.cardId, {
       processingStatus: {
         ...(card.processingStatus ?? {}),
         renderables: stageFailed(
@@ -45,7 +46,7 @@ export const updateCardFileMetadata = internalMutation({
       return null;
     }
 
-    await ctx.db.patch("cards", args.cardId, {
+    await patchCardWithSearchSync(ctx, args.cardId, {
       fileMetadata: {
         ...(card.fileMetadata || {}),
         width: args.width,
@@ -69,7 +70,7 @@ export const updateCardFilePreview = internalMutation({
       return null;
     }
 
-    await ctx.db.patch("cards", args.cardId, {
+    await patchCardWithSearchSync(ctx, args.cardId, {
       fileMetadata: {
         ...(card.fileMetadata || {}),
         preview: {
@@ -125,7 +126,7 @@ export const updateCardThumbnail = internalMutation({
       };
     }
 
-    await ctx.db.patch("cards", args.cardId, updates);
+    await patchCardWithSearchSync(ctx, args.cardId, updates);
     return null;
   },
 });

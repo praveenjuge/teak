@@ -8,6 +8,7 @@
 import { v } from "convex/values";
 import { internalMutation } from "../../../_generated/server";
 import { stageCompleted } from "../../../card/processingStatus";
+import { patchCardWithSearchSync } from "../../../card/searchDocumentHelpers";
 
 /**
  * Internal mutation to update card with categorization result
@@ -40,7 +41,7 @@ export const updateCategorization = internalMutation({
       linkCategory: metadata,
     };
 
-    await ctx.db.patch("cards", cardId, {
+    await patchCardWithSearchSync(ctx, cardId, {
       metadata: updatedMetadata,
       processingStatus: updatedProcessing,
       updatedAt: now,

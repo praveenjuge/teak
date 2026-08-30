@@ -24,6 +24,7 @@ import {
   buildInitialProcessingStatus,
   stagePending,
 } from "../card/processingStatus";
+import { patchCardWithSearchSync } from "../card/searchDocumentHelpers";
 import type { CardType } from "../schema";
 import type { Id } from "../shared/types";
 
@@ -32,7 +33,10 @@ const internalAny: any = internal as any;
 /**
  * Workflow manager for card processing pipeline
  */
-export const workflow = new WorkflowManager(components.workflow);
+export const WORKFLOW_MAX_PARALLELISM = 10;
+export const workflow = new WorkflowManager(components.workflow, {
+  workpoolOptions: { maxParallelism: WORKFLOW_MAX_PARALLELISM },
+});
 
 export const WORKFLOW_RETENTION_MS = 7 * 24 * 60 * 60 * 1000;
 export const WORKFLOW_CLEANUP_RETRY_MS = 24 * 60 * 60 * 1000;
@@ -428,7 +432,7 @@ export const initializeCardProcessingStateHandler = async (
     classificationStatus: card.processingStatus?.classify ?? stagePending(),
   });
 
-  await ctx.db.patch("cards", cardId, {
+  await patchCardWithSearchSync(ctx, cardId, {
     aiTags: undefined,
     aiSummary: undefined,
     aiTranscript: undefined,

@@ -21,6 +21,12 @@ import {
 } from "./_generated/server";
 import authConfig from "./auth.config";
 import { polar } from "./billing";
+import {
+  getCardUsage,
+  getOrInitializeCardUsage,
+  removeCardUsage,
+} from "./card/cardUsage";
+import { scheduleCardSearchSync } from "./card/searchDocumentHelpers";
 import { isLocalDevelopmentUrl } from "./devUrls";
 import { e2eCleanupPlugin } from "./e2eCleanup";
 import { teakOAuthSecurity } from "./oauthSecurity";
@@ -302,7 +308,7 @@ export const createAuth = (ctx: GenericCtx<DataModel>) => {
       deleteUser: {
         enabled: true,
         beforeDelete: async (user) => {
-          await requireActionCtx(ctx).runMutation(
+          await requireActionCtx(ctx).runAction(
             internal.auth.deleteAccountData,
             {
               userId: user.id,
@@ -423,6 +429,7 @@ export const getCurrentUserHandler = async (ctx: any) => {
     hasPremium = false;
   }
 
+  const usage = await getCardUsage(ctx, userId);
   const cardsQuery = ctx.db
     .query("cards")
     .withIndex("by_user_deleted", (q: any) =>
@@ -430,7 +437,8 @@ export const getCurrentUserHandler = async (ctx: any) => {
     );
   const cardCount = hasPremium
     ? (await cardsQuery.collect()).length
-    : (await cardsQuery.take(FREE_TIER_LIMIT)).length;
+    : (usage?.activeCardCount ??
+      (await cardsQuery.take(FREE_TIER_LIMIT)).length);
   const canCreateCard = hasPremium || cardCount < FREE_TIER_LIMIT;
 
   return {
@@ -481,14 +489,17 @@ export const getCardCreationStatusHandler = async (ctx: any) => {
     };
   }
 
-  const activeCardCount = (
-    await ctx.db
-      .query("cards")
-      .withIndex("by_user_deleted", (q: any) =>
-        q.eq("userId", userId).eq("isDeleted", undefined)
-      )
-      .take(FREE_TIER_LIMIT)
-  ).length;
+  const usage = await getCardUsage(ctx, userId);
+  const activeCardCount =
+    usage?.activeCardCount ??
+    (
+      await ctx.db
+        .query("cards")
+        .withIndex("by_user_deleted", (q: any) =>
+          q.eq("userId", userId).eq("isDeleted", undefined)
+        )
+        .take(FREE_TIER_LIMIT)
+    ).length;
 
   return {
     hasPremium,
@@ -546,20 +557,12 @@ export async function ensureCardCreationAllowed(
     hasPremium = false;
   }
 
+  const usage = await getOrInitializeCardUsage(ctx, userId);
   if (hasPremium) {
     return;
   }
 
-  const cardCount = (
-    await ctx.db
-      .query("cards")
-      .withIndex("by_user_deleted", (q) =>
-        q.eq("userId", userId).eq("isDeleted", undefined)
-      )
-      .take(FREE_TIER_LIMIT)
-  ).length;
-
-  if (cardCount >= FREE_TIER_LIMIT) {
+  if (usage.isSaturated || usage.activeCardCount >= FREE_TIER_LIMIT) {
     throw new ConvexError({
       code: CARD_ERROR_CODES.CARD_LIMIT_REACHED,
       message: CARD_ERROR_MESSAGES.CARD_LIMIT_REACHED,
@@ -576,7 +579,7 @@ export const deleteAccountDataHandler = async (
   const cards = await ctx.db
     .query("cards")
     .withIndex("by_user_deleted", (q: any) => q.eq("userId", userId))
-    .collect();
+    .take(20);
 
   // Collect every object key first so deletion is scheduled as durable,
   // batched workflow jobs (at most 100 keys each) instead of synchronous
@@ -590,6 +593,7 @@ export const deleteAccountDataHandler = async (
     }
 
     await ctx.db.delete("cards", card._id);
+    await scheduleCardSearchSync(ctx, card._id);
   }
   deletedStorageObjectCount += allObjectKeys.size;
 
@@ -604,13 +608,33 @@ export const deleteAccountDataHandler = async (
     }
   }
 
-  // Import source archives and reports are private R2 objects outside card
-  // storage. Schedule their deletion before removing the ownership records.
-  if (ctx.scheduler) {
+  return {
+    deletedCards: cards.length,
+    deletedStorageObjectCount,
+    hasMore: cards.length === 20,
+  };
+};
+
+export const deleteAccountDataBatch = internalMutation({
+  args: { userId: v.string() },
+  returns: v.object({
+    deletedCards: v.number(),
+    deletedStorageObjectCount: v.number(),
+    hasMore: v.boolean(),
+  }),
+  handler: async (ctx, { userId }) => deleteAccountDataHandler(ctx, userId),
+});
+
+export const finalizeAccountDataDeletion = internalMutation({
+  args: { userId: v.string() },
+  returns: v.boolean(),
+  handler: async (ctx, { userId }) => {
+    // Import source archives and reports are private R2 objects outside card
+    // storage. Schedule their deletion before removing ownership records.
     const jobs = await ctx.db
       .query("importJobs")
       .withIndex("by_user_created", (q: any) => q.eq("userId", userId))
-      .collect();
+      .take(100);
     if (jobs.length) {
       await ctx.scheduler.runAfter(
         0,
@@ -627,25 +651,53 @@ export const deleteAccountDataHandler = async (
     const items = await ctx.db
       .query("importJobItems")
       .withIndex("by_user", (q: any) => q.eq("userId", userId))
-      .collect();
+      .take(100);
     for (const item of items) {
       await ctx.db.delete("importJobItems", item._id);
     }
     for (const job of jobs) {
       await ctx.db.delete("importJobs", job._id);
     }
-  }
+    const hasMore = jobs.length === 100 || items.length === 100;
+    if (!hasMore) {
+      await removeCardUsage(ctx, userId);
+    }
+    return hasMore;
+  },
+});
 
-  return { deletedCards: cards.length, deletedStorageObjectCount };
-};
-
-export const deleteAccountData = internalMutation({
+export const deleteAccountData = internalAction({
   args: { userId: v.string() },
   returns: v.object({
     deletedCards: v.number(),
     deletedStorageObjectCount: v.number(),
   }),
-  handler: async (ctx, { userId }) => deleteAccountDataHandler(ctx, userId),
+  handler: async (ctx, { userId }) => {
+    let deletedCards = 0;
+    let deletedStorageObjectCount = 0;
+    while (true) {
+      const batch: {
+        deletedCards: number;
+        deletedStorageObjectCount: number;
+        hasMore: boolean;
+      } = await ctx.runMutation(internal.auth.deleteAccountDataBatch, {
+        userId,
+      });
+      deletedCards += batch.deletedCards;
+      deletedStorageObjectCount += batch.deletedStorageObjectCount;
+      if (!batch.hasMore) {
+        break;
+      }
+    }
+    while (
+      await ctx.runMutation(internal.auth.finalizeAccountDataDeletion, {
+        userId,
+      })
+    ) {
+      // Continue until every bounded import batch has been removed.
+    }
+    return { deletedCards, deletedStorageObjectCount };
+  },
 });
 
 export const getLatestJwks = internalAction({

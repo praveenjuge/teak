@@ -15,6 +15,7 @@ import type {
   ProcessingStatus,
 } from "./card/processingStatus";
 import { stagePending } from "./card/processingStatus";
+import { patchCardWithSearchSync } from "./card/searchDocumentHelpers";
 import { deleteObject, resolveObjectUrl } from "./storage/r2";
 
 interface StageSummary {
@@ -509,7 +510,7 @@ export const resetCardProcessingState = internalMutation({
       classify: stagePending(),
     };
 
-    await ctx.db.patch("cards", cardId, {
+    await patchCardWithSearchSync(ctx, cardId, {
       thumbnailKey: undefined,
       aiTags: undefined,
       aiSummary: undefined,

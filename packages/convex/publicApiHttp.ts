@@ -189,11 +189,12 @@ interface IdempotencyState {
 const trackIdempotency = async (
   ctx: any,
   endpoint: string,
-  outcome: string
+  outcome: string,
+  requestKey: string
 ) => {
   await ctx.runMutation(
     (internal as any).idempotencyAnalytics.trackIdempotencyOutcome,
-    { endpoint, outcome }
+    { endpoint, outcome, requestKey }
   );
 };
 
@@ -211,7 +212,7 @@ const maybeHandleIdempotency = async (
     args.request.headers.get("idempotency-key")
   );
   if (!idempotencyKey) {
-    await trackIdempotency(ctx, args.path, "skipped");
+    await trackIdempotency(ctx, args.path, "skipped", crypto.randomUUID());
     return {
       keyHash: "",
       requestHash: "",
@@ -243,10 +244,10 @@ const maybeHandleIdempotency = async (
 
   switch (reservation.status) {
     case "started":
-      await trackIdempotency(ctx, args.path, "started");
+      await trackIdempotency(ctx, args.path, "started", keyHash);
       return { keyHash, requestHash, reserved: true };
     case "replay":
-      await trackIdempotency(ctx, args.path, "replayed");
+      await trackIdempotency(ctx, args.path, "replayed", keyHash);
       return {
         keyHash,
         requestHash,
@@ -254,21 +255,21 @@ const maybeHandleIdempotency = async (
         replayed: buildIdempotentResponse(reservation.record),
       };
     case "in_progress":
-      await trackIdempotency(ctx, args.path, "in_progress");
+      await trackIdempotency(ctx, args.path, "in_progress", keyHash);
       return errorResponse(
         409,
         "CONFLICT",
         "Idempotency-Key is already being processed"
       );
     case "conflict":
-      await trackIdempotency(ctx, args.path, "conflict");
+      await trackIdempotency(ctx, args.path, "conflict", keyHash);
       return errorResponse(
         409,
         "CONFLICT",
         "Idempotency-Key was already used with a different request"
       );
     default:
-      await trackIdempotency(ctx, args.path, "error");
+      await trackIdempotency(ctx, args.path, "error", keyHash);
       return errorResponse(
         500,
         "INTERNAL_ERROR",

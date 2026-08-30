@@ -17,6 +17,7 @@ import { normalizeErrorClass } from "../shared/telemetry";
 import { assertSafeExternalUrl } from "../shared/utils/safeUrl";
 import { scheduleCardOutcome } from "../telemetry/schedule";
 import { startWorkflow } from "../workflows/manager";
+import { recordActiveCardCreated } from "./cardUsage";
 import { validateTextCardContent } from "./markdown";
 import {
   buildInitialProcessingStatus,
@@ -24,6 +25,7 @@ import {
   stagePending,
 } from "./processingStatus";
 import { normalizeQuoteContent } from "./quoteFormatting";
+import { scheduleCardSearchSync } from "./searchDocumentHelpers";
 import { extractUrlFromContent } from "./validationUtils";
 
 const createCardArgs = {
@@ -204,12 +206,15 @@ export const createCardForUserHandler = async (
   };
 
   const cardId = await ctx.db.insert("cards", cardData);
+  await recordActiveCardCreated(ctx, userId);
+  await scheduleCardSearchSync(ctx, cardId);
 
   // Start the card processing workflow
   await startWorkflow(
     ctx,
     (internal as any)["workflows/cardProcessing"].cardProcessingWorkflow,
-    { cardId }
+    { cardId },
+    { startAsync: true }
   );
 
   await scheduleCardOutcome(ctx, {

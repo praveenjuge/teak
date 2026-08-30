@@ -223,6 +223,7 @@ export const apiIdempotencyKeyValidator = v.object({
 export const apiIdempotencyAnalyticsValidator = v.object({
   date: v.string(),
   endpoint: v.string(),
+  shard: v.optional(v.number()),
   totalRequests: v.number(),
   withKey: v.number(),
   skipped: v.number(),
@@ -553,13 +554,33 @@ export default defineSchema({
       searchField: "colorHues",
       filterFields: ["userId", "isDeleted", "type", "isFavorited"],
     }),
+  userCardUsage: defineTable({
+    userId: v.string(),
+    activeCardCount: v.number(),
+    isSaturated: v.boolean(),
+    updatedAt: v.number(),
+  }).index("by_userId", ["userId"]),
+  cardSearchDocuments: defineTable({
+    cardId: v.id("cards"),
+    userId: v.string(),
+    searchableText: v.string(),
+    isDeleted: v.optional(v.boolean()),
+    type: cardTypeValidator,
+    isFavorited: v.optional(v.boolean()),
+    sourceUpdatedAt: v.number(),
+  })
+    .index("by_cardId", ["cardId"])
+    .index("by_userId", ["userId"])
+    .searchIndex("search_searchableText", {
+      searchField: "searchableText",
+      filterFields: ["userId", "isDeleted", "type", "isFavorited"],
+    }),
   apiIdempotencyKeys: defineTable(apiIdempotencyKeyValidator)
     .index("by_user_key_hash", ["userId", "keyHash"])
     .index("by_expires_at", ["expiresAt"]),
-  apiIdempotencyAnalytics: defineTable(apiIdempotencyAnalyticsValidator).index(
-    "by_date_endpoint",
-    ["date", "endpoint"]
-  ),
+  apiIdempotencyAnalytics: defineTable(apiIdempotencyAnalyticsValidator)
+    .index("by_date_endpoint", ["date", "endpoint"])
+    .index("by_date_endpoint_shard", ["date", "endpoint", "shard"]),
   nativeAuthCodes: defineTable(nativeAuthCodeValidator)
     .index("by_expires_at", ["expiresAt"])
     .index("by_device_state_consumed", ["deviceId", "state", "consumedAt"])

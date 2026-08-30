@@ -9,6 +9,11 @@ import {
 import { CARD_ERROR_CODES, CARD_ERROR_MESSAGES } from "../shared/constants";
 import { rateLimiter } from "../shared/rateLimits";
 import { assertSafeExternalUrl } from "../shared/utils/safeUrl";
+import {
+  getOrInitializeCardUsage,
+  recordActiveCardCreated,
+  recordActiveCardRemoved,
+} from "./cardUsage";
 import { validateTextCardContent } from "./markdown";
 import {
   buildInitialProcessingStatus,
@@ -17,6 +22,7 @@ import {
   withStageStatus,
 } from "./processingStatus";
 import { normalizeQuoteContent } from "./quoteFormatting";
+import { scheduleCardSearchSync } from "./searchDocumentHelpers";
 
 const updateCardFieldValidator = v.union(
   v.literal("content"),
@@ -49,6 +55,7 @@ interface UpdateCardFieldForUserArgs {
 
 interface UpdateCardFieldForUserOptions {
   deferPipelineSchedule?: boolean;
+  deferSearchSync?: boolean;
 }
 
 interface UpdateCardFieldForUserResult {
@@ -159,6 +166,7 @@ export const updateCard = mutation({
       ...(processingStatus ? { processingStatus } : {}),
       updatedAt: now,
     });
+    await scheduleCardSearchSync(ctx, id);
 
     // If content was updated, regenerate AI metadata
     if (contentChanged) {
@@ -313,6 +321,13 @@ export const updateCardFieldForUserHandler = async (
       throw new Error(`Unsupported field: ${field}`);
   }
 
+  if (
+    (field === "content" && updateData.content === card.content) ||
+    (field === "url" && updateData.url === card.url)
+  ) {
+    return { shouldSchedulePipeline: false };
+  }
+
   if (processingStatus) {
     updateData.processingStatus = processingStatus;
   }
@@ -321,7 +336,19 @@ export const updateCardFieldForUserHandler = async (
     await consumeCardReprocessLimit(ctx, userId, cardId);
   }
 
+  if (field === "delete" || field === "restore") {
+    await getOrInitializeCardUsage(ctx, userId);
+  }
+
   await ctx.db.patch("cards", cardId, updateData);
+  if (field === "delete" && !card.isDeleted) {
+    await recordActiveCardRemoved(ctx, userId);
+  } else if (field === "restore" && card.isDeleted) {
+    await recordActiveCardCreated(ctx, userId);
+  }
+  if (!options.deferSearchSync) {
+    await scheduleCardSearchSync(ctx, cardId);
+  }
 
   if (shouldSchedulePipeline && !options.deferPipelineSchedule) {
     await ctx.scheduler.runAfter(

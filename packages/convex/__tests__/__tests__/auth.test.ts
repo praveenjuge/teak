@@ -57,6 +57,29 @@ let FREE_TIER_LIMIT: any;
 import { ConvexError } from "convex/values";
 import { POLAR_PLAN_IDS } from "../../shared/polarPlans";
 
+const addUsageRecord = (ctx: any, activeCardCount: number) => {
+  const query = ctx.db.query.bind(ctx.db);
+  ctx.db.query = (table: string) => {
+    if (table !== "userCardUsage") {
+      return query(table);
+    }
+    return {
+      withIndex: (_name: string, callback: (builder: any) => void) => {
+        const builder = { eq: () => builder };
+        callback(builder);
+        return {
+          unique: async () => ({
+            _id: "usage_1",
+            activeCardCount,
+            isSaturated: activeCardCount >= FREE_TIER_LIMIT,
+          }),
+        };
+      },
+    };
+  };
+  return ctx;
+};
+
 describe("auth", () => {
   beforeAll(async () => {
     const authModule = await import("../../auth");
@@ -131,6 +154,7 @@ describe("auth", () => {
         },
       } as any;
 
+      addUsageRecord(ctx, FREE_TIER_LIMIT - 1);
       await ensureCardCreationAllowed(ctx, "u1", {
         rateLimiter: okRateLimiter,
         getSubscription: () => {
@@ -167,6 +191,7 @@ describe("auth", () => {
       } as any;
 
       try {
+        addUsageRecord(ctx, FREE_TIER_LIMIT);
         await ensureCardCreationAllowed(ctx, "user_1", {
           rateLimiter: okRateLimiter,
           getSubscription: async () => null,
@@ -206,10 +231,43 @@ describe("auth", () => {
         },
       } as any;
 
+      addUsageRecord(ctx, FREE_TIER_LIMIT - 1);
       await ensureCardCreationAllowed(ctx, "user_2", {
         rateLimiter: okRateLimiter,
         getSubscription: async () => null,
       });
+    });
+
+    it("uses the bounded usage record instead of reading the cards range", async () => {
+      const queriedTables: string[] = [];
+      const ctx = {
+        db: {
+          query: (table: string) => {
+            queriedTables.push(table);
+            if (table === "cards") {
+              throw new Error("broad cards range read");
+            }
+            return {
+              withIndex: (_name: string, callback: (query: any) => void) => {
+                const builder = {
+                  eq: () => builder,
+                };
+                callback(builder);
+                return {
+                  unique: async () => ({ activeCardCount: 12 }),
+                };
+              },
+            };
+          },
+        },
+      } as any;
+
+      await ensureCardCreationAllowed(ctx, "user_bounded", {
+        rateLimiter: okRateLimiter,
+        getSubscription: async () => null,
+      });
+
+      expect(queriedTables).toEqual(["userCardUsage"]);
     });
 
     it("skips card counting for premium users", async () => {
@@ -242,6 +300,7 @@ describe("auth", () => {
         },
       } as any;
 
+      addUsageRecord(ctx, 0);
       await ensureCardCreationAllowed(ctx, "user_3", {
         rateLimiter: okRateLimiter,
         getSubscription: async () => ({
@@ -266,7 +325,8 @@ describe("auth", () => {
       rateLimiter.limit = mockLimit;
       polar.getCurrentSubscription = mockGetSub;
 
-      const ctx = {} as any;
+      const ctx = { db: { query: () => null } } as any;
+      addUsageRecord(ctx, 0);
       await ensureCardCreationAllowed(ctx, "u1");
 
       expect(mockLimit).toHaveBeenCalled();
@@ -368,6 +428,7 @@ describe("auth", () => {
         },
       } as any;
 
+      addUsageRecord(ctx, 0);
       const result = await getCurrentUserHandler(ctx);
       expect(result).not.toBeNull();
       expect(result!.hasPremium).toBe(false);
@@ -400,6 +461,7 @@ describe("auth", () => {
         },
       } as any;
 
+      addUsageRecord(ctx, 0);
       const result = await getCurrentUserHandler(ctx);
       expect(result).toEqual({
         ...user,
@@ -440,6 +502,7 @@ describe("auth", () => {
         },
       } as any;
 
+      addUsageRecord(ctx, 3);
       const result = await getCurrentUserHandler(ctx);
       expect(result).not.toBeNull();
       expect(result!.hasPremium).toBe(true);
@@ -478,6 +541,7 @@ describe("auth", () => {
         },
       } as any;
 
+      addUsageRecord(ctx, 3);
       const result = await getCurrentUserHandler(ctx);
       expect(result!.hasPremium).toBe(false);
     });
@@ -509,6 +573,7 @@ describe("auth", () => {
         },
       } as any;
 
+      addUsageRecord(ctx, FREE_TIER_LIMIT);
       const result = await getCardCreationStatusHandler(ctx);
       expect(result).toEqual({
         hasPremium: false,
@@ -533,7 +598,7 @@ describe("auth", () => {
                 });
               }
               return {
-                collect: async () => [
+                take: async () => [
                   { _id: "c1", fileKey: "f1", thumbnailKey: "t1" },
                   { _id: "c2" },
                 ],
@@ -542,6 +607,7 @@ describe("auth", () => {
           }),
           delete: mock(),
         },
+        scheduler: { runAfter: mock().mockResolvedValue(null) },
       } as any;
 
       const result = await deleteAccountDataHandler(ctx, "u1");
@@ -563,7 +629,7 @@ describe("auth", () => {
                 cb({ eq: () => undefined });
               }
               return {
-                collect: async () => [
+                take: async () => [
                   { _id: "c1", fileKey: "f1", thumbnailKey: "t1" },
                   { _id: "c2" },
                 ],
@@ -577,9 +643,9 @@ describe("auth", () => {
 
       const result = await deleteAccountDataHandler(ctx, "u1");
       expect(result.deletedStorageObjectCount).toBe(3);
-      // One durable workflow per batch of keys (plus the import-objects job).
-      expect(scheduler.runAfter).toHaveBeenCalledTimes(2);
-      const [delay, , args] = scheduler.runAfter.mock.calls[0] as [
+      // Two derived-search sync jobs plus one durable object cleanup workflow.
+      expect(scheduler.runAfter).toHaveBeenCalledTimes(3);
+      const [delay, , args] = scheduler.runAfter.mock.calls[2] as [
         number,
         unknown,
         { keys: string[] },
@@ -603,6 +669,7 @@ describe("auth", () => {
 
       try {
         const ctx = {
+          runAction: mock(),
           runQuery: mock(),
           runMutation: mock(),
         } as any;
@@ -628,7 +695,7 @@ describe("auth", () => {
         expect(options.emailAndPassword?.sendResetPassword).toBeFunction();
         expect(options.emailVerification?.sendVerificationEmail).toBeFunction();
         await options.user.deleteUser.beforeDelete({ id: "u1" });
-        expect(ctx.runMutation).toHaveBeenCalledWith(expect.anything(), {
+        expect(ctx.runAction).toHaveBeenCalledWith(expect.anything(), {
           userId: "u1",
         });
 

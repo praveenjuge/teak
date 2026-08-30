@@ -1,5 +1,6 @@
 import { v } from "convex/values";
 import { internalMutation, internalQuery } from "./_generated/server";
+import { patchCardWithSearchSync } from "./card/searchDocumentHelpers";
 import { deleteObject } from "./storage/r2";
 
 export * from "./linkMetadata/instagram";
@@ -177,7 +178,7 @@ export const updateCardMetadataHandler = async (
     updateFields.metadataDescription = description;
   }
 
-  return await ctx.db.patch("cards", cardId, updateFields);
+  return await patchCardWithSearchSync(ctx, cardId, updateFields);
 };
 
 export const updateCardMetadata = internalMutation({
@@ -234,7 +235,7 @@ export const updateCardScreenshotHandler = async (
     linkPreview: updatedLinkPreview,
   };
 
-  await ctx.db.patch("cards", cardId, {
+  await patchCardWithSearchSync(ctx, cardId, {
     metadata: updatedMetadata,
     updatedAt: Date.now(),
   });
