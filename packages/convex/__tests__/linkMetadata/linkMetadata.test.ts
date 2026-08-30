@@ -11,6 +11,11 @@ describe("linkMetadata.ts", () => {
   let updateCardMetadataHandler: any;
   let updateCardScreenshotHandler: any;
 
+  const withScheduler = (handler: any) => (ctx: any, args: any) => {
+    ctx.scheduler ??= { runAfter: mock().mockResolvedValue(null) };
+    return handler(ctx, args);
+  };
+
   beforeEach(async () => {
     r2Mocks.deleteObject.mockReset();
     r2Mocks.deleteObject.mockResolvedValue(null);
@@ -18,8 +23,10 @@ describe("linkMetadata.ts", () => {
     getCardForMetadata = module.getCardForMetadata;
     _updateCardMetadata = module.updateCardMetadata;
     _updateCardScreenshot = module.updateCardScreenshot;
-    updateCardMetadataHandler = module.updateCardMetadataHandler;
-    updateCardScreenshotHandler = module.updateCardScreenshotHandler;
+    updateCardMetadataHandler = withScheduler(module.updateCardMetadataHandler);
+    updateCardScreenshotHandler = withScheduler(
+      module.updateCardScreenshotHandler
+    );
   });
 
   describe("getCardForMetadata", () => {

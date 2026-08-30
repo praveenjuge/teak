@@ -25,13 +25,21 @@ export const buildCardSearchText = (card: Doc<"cards">): string =>
     )
     .join("\n");
 
+export const deduplicateCardSearchResults = (
+  resultSets: readonly (readonly Doc<"cards">[])[]
+): Doc<"cards">[] =>
+  Array.from(
+    new Map(
+      resultSets.flatMap((results) =>
+        results.map((card) => [card._id, card] as const)
+      )
+    ).values()
+  );
+
 export const scheduleCardSearchSync = async (
-  ctx: Partial<Pick<MutationCtx, "scheduler">>,
+  ctx: Pick<MutationCtx, "scheduler">,
   cardId: Id<"cards">
 ) => {
-  if (!ctx.scheduler) {
-    return;
-  }
   await ctx.scheduler.runAfter(
     0,
     internalAny["card/searchDocuments"].syncCardSearchDocument,

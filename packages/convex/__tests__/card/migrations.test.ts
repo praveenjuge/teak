@@ -6,7 +6,14 @@ describe("card/migrations.ts", () => {
 
   beforeEach(async () => {
     const module = await import("../../card/migrations");
-    backfillMetadataSearchFields = module.backfillMetadataSearchFields;
+    const registered = module.backfillMetadataSearchFields;
+    const handler = registered.handler ?? registered;
+    backfillMetadataSearchFields = {
+      handler: (ctx: any, args: any) => {
+        ctx.scheduler ??= { runAfter: mock().mockResolvedValue(null) };
+        return handler(ctx, args);
+      },
+    };
   });
 
   test("exports backfillMetadataSearchFields", () => {

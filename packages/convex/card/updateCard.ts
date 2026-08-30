@@ -21,6 +21,7 @@ import {
   stagePending,
   withStageStatus,
 } from "./processingStatus";
+import { ensureCardQuotaAvailable } from "./quota";
 import { normalizeQuoteContent } from "./quoteFormatting";
 import { scheduleCardSearchSync } from "./searchDocumentHelpers";
 
@@ -336,8 +337,11 @@ export const updateCardFieldForUserHandler = async (
     await consumeCardReprocessLimit(ctx, userId, cardId);
   }
 
-  if (field === "delete" || field === "restore") {
+  if (field === "delete") {
     await getOrInitializeCardUsage(ctx, userId);
+  }
+  if (field === "restore") {
+    await ensureCardQuotaAvailable(ctx, userId);
   }
 
   await ctx.db.patch("cards", cardId, updateData);

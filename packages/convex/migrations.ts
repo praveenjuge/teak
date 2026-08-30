@@ -22,7 +22,28 @@ export const backfillCardSearchDocuments = migrations.define({
   },
 });
 
+export const rollbackUserCardUsage = migrations.define({
+  table: "userCardUsage",
+  batchSize: 20,
+  migrateOne: async (ctx, usage) => {
+    await ctx.db.delete("userCardUsage", usage._id);
+  },
+});
+
+export const rollbackCardSearchDocuments = migrations.define({
+  table: "cardSearchDocuments",
+  batchSize: 20,
+  migrateOne: async (ctx, document) => {
+    await ctx.db.delete("cardSearchDocuments", document._id);
+  },
+});
+
 export const runOccContentionBackfills = migrations.runner([
   internal.migrations.backfillUserCardUsage,
   internal.migrations.backfillCardSearchDocuments,
+]);
+
+export const runOccContentionRollback = migrations.runner([
+  internal.migrations.rollbackUserCardUsage,
+  internal.migrations.rollbackCardSearchDocuments,
 ]);

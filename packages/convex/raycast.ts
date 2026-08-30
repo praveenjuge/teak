@@ -13,6 +13,7 @@ import { cardReturnValidator } from "./card/getCards";
 import { attachFileUrls } from "./card/queryUtils";
 import { applyQuoteFormattingToList } from "./card/quoteFormatting";
 import {
+  deduplicateCardSearchResults,
   scheduleCardSearchSync,
   searchDerivedCards,
 } from "./card/searchDocumentHelpers";
@@ -323,9 +324,9 @@ const searchCardsByQuery = async (
     ),
   ]);
 
-  const unique = Array.from(
-    new Map(searchResults.flat().map((card) => [card._id, card])).values()
-  ).filter((card) => matchesStructuredFilters(card, options));
+  const unique = deduplicateCardSearchResults(searchResults).filter((card) =>
+    matchesStructuredFilters(card, options)
+  );
 
   return sortAndLimitCards(unique, options);
 };
@@ -374,9 +375,9 @@ const searchCardsByTag = async (
       .take(searchLimit),
   ]);
 
-  const unique = Array.from(
-    new Map(searchResults.flat().map((card) => [card._id, card])).values()
-  ).filter((card) => matchesStructuredFilters(card, options));
+  const unique = deduplicateCardSearchResults(searchResults).filter((card) =>
+    matchesStructuredFilters(card, options)
+  );
 
   return sortAndLimitCards(unique, options);
 };

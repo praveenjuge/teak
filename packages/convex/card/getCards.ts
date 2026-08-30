@@ -16,7 +16,10 @@ import {
   isCreatedAtInRange,
 } from "./queryUtils";
 import { applyQuoteFormattingToList } from "./quoteFormatting";
-import { searchDerivedCards } from "./searchDocumentHelpers";
+import {
+  deduplicateCardSearchResults,
+  searchDerivedCards,
+} from "./searchDocumentHelpers";
 import {
   applyCardLevelFilters,
   doesCardMatchVisualFilters,
@@ -68,14 +71,9 @@ const createdAtRangeValidator = v.object({
   end: v.number(),
 });
 
-const MIN_SEARCH_BATCH_SIZE = 12;
-const PRIMARY_SEARCH_BUFFER = 8;
-const SECONDARY_SEARCH_BUFFER = 6;
-const TAG_SEARCH_BUFFER = 10;
 const VISUAL_SEARCH_BUFFER = 12;
-
-const getSearchBatchLimit = (remainingSlots: number, buffer: number) =>
-  Math.max(remainingSlots + buffer, MIN_SEARCH_BATCH_SIZE);
+const getVisualSearchBatchLimit = (desiredLimit: number) =>
+  Math.max(desiredLimit + VISUAL_SEARCH_BUFFER, 12);
 
 type SearchFieldName =
   | "content"
@@ -349,10 +347,7 @@ export const searchCards = query({
       ]);
 
       // Combine and deduplicate results
-      const allResults = searchResults.flat();
-      const uniqueResults = Array.from(
-        new Map(allResults.map((card) => [card._id, card])).values()
-      );
+      const uniqueResults = deduplicateCardSearchResults(searchResults);
 
       // Apply additional filters
       const filteredResults = applyCardLevelFilters(uniqueResults, {
@@ -643,43 +638,30 @@ export const searchCardsPaginatedHandler = async (
       buildSearchQuery("search_ai_tags", "aiTags")(limit),
     ];
 
-    const queryBatches: (() => Promise<Doc<"cards">[]>[])[] = [
-      () =>
-        buildPrimaryBatch(
-          getSearchBatchLimit(
-            desiredLimit - uniqueResults.length,
-            PRIMARY_SEARCH_BUFFER
-          )
-        ),
-      () =>
-        buildSecondaryBatch(
-          getSearchBatchLimit(
-            desiredLimit - uniqueResults.length,
-            SECONDARY_SEARCH_BUFFER
-          )
-        ),
-      () =>
-        buildTagBatch(
-          getSearchBatchLimit(
-            desiredLimit - uniqueResults.length,
-            TAG_SEARCH_BUFFER
-          )
-        ),
-    ];
-
-    // Incrementally deduplicate with early termination
-    // This avoids running less-selective queries when enough results are found.
-    const derivedResults = await searchDerivedCards(ctx, {
-      userId: user.subject,
-      searchQuery,
-      isDeleted: showTrashOnly ? true : undefined,
-      isFavorited: favoritesOnly ? true : undefined,
-      type: types?.length === 1 ? types[0] : undefined,
-      limit: desiredLimit,
-    });
+    const [derivedResults, legacyResults] = await Promise.all([
+      searchDerivedCards(ctx, {
+        userId: user.subject,
+        searchQuery,
+        isDeleted: showTrashOnly ? true : undefined,
+        isFavorited: favoritesOnly ? true : undefined,
+        type: types?.length === 1 ? types[0] : undefined,
+        limit: desiredLimit,
+      }),
+      Promise.all([
+        ...buildPrimaryBatch(desiredLimit),
+        ...buildSecondaryBatch(desiredLimit),
+        ...buildTagBatch(desiredLimit),
+      ]),
+    ]);
     const seenIds = new Set<string>();
     const uniqueResults: Doc<"cards">[] = [];
-    for (const card of derivedResults) {
+    for (const card of deduplicateCardSearchResults([
+      derivedResults,
+      ...legacyResults,
+    ])) {
+      if (seenIds.has(card._id)) {
+        continue;
+      }
       seenIds.add(card._id);
       if (
         isCreatedAtInRange(card.createdAt, createdAtRange) &&
@@ -687,37 +669,6 @@ export const searchCardsPaginatedHandler = async (
         doesCardMatchVisualFilters(card, visualFilters)
       ) {
         uniqueResults.push(card);
-      }
-    }
-
-    for (const getBatch of queryBatches) {
-      const batchResults = await Promise.all(getBatch());
-      for (const results of batchResults) {
-        for (const card of results) {
-          if (seenIds.has(card._id)) {
-            continue;
-          }
-          seenIds.add(card._id);
-          if (!isCreatedAtInRange(card.createdAt, createdAtRange)) {
-            continue;
-          }
-          if (hasMultiTypeFilter && !typesSet.has(card.type)) {
-            continue;
-          }
-          if (!doesCardMatchVisualFilters(card, visualFilters)) {
-            continue;
-          }
-          uniqueResults.push(card);
-          if (uniqueResults.length >= desiredLimit) {
-            break;
-          }
-        }
-        if (uniqueResults.length >= desiredLimit) {
-          break;
-        }
-      }
-      if (uniqueResults.length >= desiredLimit) {
-        break;
       }
     }
 
@@ -755,7 +706,7 @@ export const searchCardsPaginatedHandler = async (
       favoritesOnly,
       createdAtRange,
       visualFilters,
-      limit: getSearchBatchLimit(desiredLimit, VISUAL_SEARCH_BUFFER),
+      limit: getVisualSearchBatchLimit(desiredLimit),
     });
 
     const page = visualResults.slice(offset, offset + pageSize);

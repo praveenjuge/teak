@@ -5,7 +5,13 @@ import {
   updateCardColors,
 } from "../../../workflows/aiMetadata/mutations";
 
-const handlerOf = (mutation: any) => mutation.handler ?? mutation;
+const handlerOf = (mutation: any) => {
+  const handler = mutation.handler ?? mutation;
+  return (ctx: any, args: any) => {
+    ctx.scheduler ??= { runAfter: mock().mockResolvedValue(null) };
+    return handler(ctx, args);
+  };
+};
 
 describe("AI metadata mutations", () => {
   test("updates AI metadata only while the card exists", async () => {

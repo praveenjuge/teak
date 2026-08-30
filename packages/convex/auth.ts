@@ -9,7 +9,7 @@ import { requireActionCtx } from "@convex-dev/better-auth/utils";
 import { Resend } from "@convex-dev/resend";
 import { type BetterAuthOptions, betterAuth } from "better-auth/minimal";
 import { mcp } from "better-auth/plugins";
-import { ConvexError, v } from "convex/values";
+import { v } from "convex/values";
 import { importPKCS8, SignJWT } from "jose";
 import { components, internal } from "./_generated/api";
 import type { DataModel } from "./_generated/dataModel";
@@ -21,22 +21,15 @@ import {
 } from "./_generated/server";
 import authConfig from "./auth.config";
 import { polar } from "./billing";
-import {
-  getCardUsage,
-  getOrInitializeCardUsage,
-  removeCardUsage,
-} from "./card/cardUsage";
-import { scheduleCardSearchSync } from "./card/searchDocumentHelpers";
+import { getCardUsage, removeCardUsage } from "./card/cardUsage";
+
+export { ensureCardCreationAllowed } from "./card/quota";
+
 import { isLocalDevelopmentUrl } from "./devUrls";
 import { e2eCleanupPlugin } from "./e2eCleanup";
 import { teakOAuthSecurity } from "./oauthSecurity";
-import {
-  CARD_ERROR_CODES,
-  CARD_ERROR_MESSAGES,
-  FREE_TIER_LIMIT,
-} from "./shared/constants";
+import { FREE_TIER_LIMIT } from "./shared/constants";
 import { isApprovedActiveSubscription } from "./shared/polarPlans";
-import { rateLimiter } from "./shared/rateLimits";
 import {
   normalizeErrorClass,
   resolveBackendTelemetryDsn,
@@ -512,64 +505,6 @@ export const getCardCreationStatus = query({
   handler: getCardCreationStatusHandler,
 });
 
-/**
- * Ensures the current user can create a new card.
- * Checks both rate limits (30 cards/minute) and card count limits (free tier).
- * Throws a ConvexError with appropriate code when limits are exceeded.
- */
-interface CardCreationDeps {
-  getSubscription: (
-    ctx: MutationCtx,
-    args: { userId: string }
-  ) => Promise<{ productId?: string; status?: string } | null | undefined>;
-  rateLimiter: Pick<typeof rateLimiter, "limit">;
-}
-
-const defaultCardCreationDeps: CardCreationDeps = {
-  rateLimiter,
-  getSubscription: (ctx, args) => polar.getCurrentSubscription(ctx, args),
-};
-
-export async function ensureCardCreationAllowed(
-  ctx: MutationCtx,
-  userId: string,
-  deps: CardCreationDeps = defaultCardCreationDeps
-): Promise<void> {
-  // Check rate limit first (fast fail for abuse prevention)
-  const rateLimitResult = await deps.rateLimiter.limit(ctx, "cardCreation", {
-    key: userId,
-    throws: false,
-  });
-
-  if (!rateLimitResult.ok) {
-    throw new ConvexError({
-      code: CARD_ERROR_CODES.RATE_LIMITED,
-      message: CARD_ERROR_MESSAGES.RATE_LIMITED,
-      retryAt: Date.now() + rateLimitResult.retryAfter,
-    });
-  }
-
-  let hasPremium = false;
-  try {
-    const subscription = await deps.getSubscription(ctx, { userId });
-    hasPremium = isApprovedActiveSubscription(subscription);
-  } catch {
-    hasPremium = false;
-  }
-
-  const usage = await getOrInitializeCardUsage(ctx, userId);
-  if (hasPremium) {
-    return;
-  }
-
-  if (usage.isSaturated || usage.activeCardCount >= FREE_TIER_LIMIT) {
-    throw new ConvexError({
-      code: CARD_ERROR_CODES.CARD_LIMIT_REACHED,
-      message: CARD_ERROR_MESSAGES.CARD_LIMIT_REACHED,
-    });
-  }
-}
-
 export const deleteAccountDataHandler = async (
   ctx: MutationCtx,
   userId: string
@@ -592,8 +527,14 @@ export const deleteAccountDataHandler = async (
       }
     }
 
+    const searchDocument = await ctx.db
+      .query("cardSearchDocuments")
+      .withIndex("by_cardId", (query) => query.eq("cardId", card._id))
+      .unique();
+    if (searchDocument) {
+      await ctx.db.delete("cardSearchDocuments", searchDocument._id);
+    }
     await ctx.db.delete("cards", card._id);
-    await scheduleCardSearchSync(ctx, card._id);
   }
   deletedStorageObjectCount += allObjectKeys.size;
 

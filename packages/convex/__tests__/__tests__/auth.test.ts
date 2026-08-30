@@ -131,7 +131,7 @@ describe("auth", () => {
     it("handles subscription check error gracefully", async () => {
       const ctx = {
         db: {
-          query: () => ({
+          query: (_table: string) => ({
             withIndex: (_name: any, cb: any) => {
               if (cb) {
                 cb({
@@ -167,7 +167,7 @@ describe("auth", () => {
     it("rejects free users at the limit and avoids ctx.runQuery", async () => {
       const ctx = {
         db: {
-          query: () => ({
+          query: (_table: string) => ({
             withIndex: (_name: any, cb: any) => {
               if (cb) {
                 cb({
@@ -588,7 +588,7 @@ describe("auth", () => {
 
       const ctx = {
         db: {
-          query: () => ({
+          query: (table: string) => ({
             withIndex: (_name: any, cb: any) => {
               if (cb) {
                 cb({
@@ -598,10 +598,16 @@ describe("auth", () => {
                 });
               }
               return {
-                take: async () => [
-                  { _id: "c1", fileKey: "f1", thumbnailKey: "t1" },
-                  { _id: "c2" },
-                ],
+                ...(table === "cardSearchDocuments"
+                  ? {
+                      unique: async () => (cb ? { _id: "search_c1" } : null),
+                    }
+                  : {
+                      take: async () => [
+                        { _id: "c1", fileKey: "f1", thumbnailKey: "t1" },
+                        { _id: "c2" },
+                      ],
+                    }),
               };
             },
           }),
@@ -614,7 +620,7 @@ describe("auth", () => {
 
       expect(result.deletedCards).toBe(2);
       expect(result.deletedStorageObjectCount).toBe(3);
-      expect(ctx.db.delete).toHaveBeenCalledTimes(2);
+      expect(ctx.db.delete).toHaveBeenCalledTimes(4);
     });
 
     it("schedules durable batched object deletion", async () => {
@@ -623,16 +629,20 @@ describe("auth", () => {
       const scheduler = { runAfter: mock().mockResolvedValue(null) };
       const ctx = {
         db: {
-          query: () => ({
+          query: (table: string) => ({
             withIndex: (_name: any, cb: any) => {
               if (cb) {
                 cb({ eq: () => undefined });
               }
               return {
-                take: async () => [
-                  { _id: "c1", fileKey: "f1", thumbnailKey: "t1" },
-                  { _id: "c2" },
-                ],
+                ...(table === "cardSearchDocuments"
+                  ? { unique: async () => null }
+                  : {
+                      take: async () => [
+                        { _id: "c1", fileKey: "f1", thumbnailKey: "t1" },
+                        { _id: "c2" },
+                      ],
+                    }),
               };
             },
           }),
@@ -643,9 +653,8 @@ describe("auth", () => {
 
       const result = await deleteAccountDataHandler(ctx, "u1");
       expect(result.deletedStorageObjectCount).toBe(3);
-      // Two derived-search sync jobs plus one durable object cleanup workflow.
-      expect(scheduler.runAfter).toHaveBeenCalledTimes(3);
-      const [delay, , args] = scheduler.runAfter.mock.calls[2] as [
+      expect(scheduler.runAfter).toHaveBeenCalledTimes(1);
+      const [delay, , args] = scheduler.runAfter.mock.calls[0] as [
         number,
         unknown,
         { keys: string[] },

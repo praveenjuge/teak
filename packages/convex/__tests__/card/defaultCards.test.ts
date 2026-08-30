@@ -6,6 +6,7 @@ describe("card/defaultCards.ts", () => {
   let DEFAULT_CARDS: any;
 
   const addUsageRecord = (ctx: any) => {
+    ctx.scheduler ??= { runAfter: mock().mockResolvedValue(null) };
     const query = ctx.db.query.bind(ctx.db);
     ctx.db.query = mock((table: string) => {
       if (table !== "userCardUsage") {

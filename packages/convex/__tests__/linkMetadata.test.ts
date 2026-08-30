@@ -19,6 +19,7 @@ const createMockCtx = () => {
       get: mock(),
       patch: mock(),
     },
+    scheduler: { runAfter: mock().mockResolvedValue(null) },
   } as any;
 };
 

@@ -5,8 +5,15 @@ describe("ai/mutations.ts", () => {
   let updateCardProcessing: any;
 
   beforeEach(async () => {
-    updateCardProcessing = (await import("../../ai/mutations"))
+    const registered = (await import("../../ai/mutations"))
       .updateCardProcessing;
+    const handler = registered.handler ?? registered;
+    updateCardProcessing = {
+      handler: (ctx: any, args: any) => {
+        ctx.scheduler ??= { runAfter: mock().mockResolvedValue(null) };
+        return handler(ctx, args);
+      },
+    };
   });
 
   test("updates processing fields", async () => {

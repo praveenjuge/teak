@@ -1,12 +1,15 @@
 import { describe, expect, it } from "bun:test";
 import { updateCategorization } from "../../../../../convex/workflows/steps/categorization/mutations";
 
+const withScheduler = (registered: any) => {
+  const handler = registered.handler ?? registered._handler ?? registered;
+  return (ctx: any, args: any) =>
+    handler({ ...ctx, scheduler: { runAfter: async () => null } }, args);
+};
+
 describe("categorization updateCategorization", () => {
   it("updates categorization metadata without wiping AI fields", async () => {
-    const mutation =
-      (updateCategorization as any).handler ||
-      (updateCategorization as any)._handler ||
-      (updateCategorization as any);
+    const mutation = withScheduler(updateCategorization);
 
     const now = 1_760_000_000_000;
     const originalNow = Date.now;
@@ -65,10 +68,7 @@ describe("categorization updateCategorization", () => {
   });
 
   it("skips if the card was deleted during categorization", () => {
-    const mutation =
-      (updateCategorization as any).handler ||
-      (updateCategorization as any)._handler ||
-      (updateCategorization as any);
+    const mutation = withScheduler(updateCategorization);
 
     const mockCtx = {
       db: {

@@ -2,12 +2,15 @@
 import { describe, expect, test } from "bun:test";
 import { updateClassification } from "../../../../convex/workflows/steps/classificationMutations";
 
+const withScheduler = (registered: any) => {
+  const handler = registered.handler ?? registered._handler ?? registered;
+  return (ctx: any, args: any) =>
+    handler({ ...ctx, scheduler: { runAfter: async () => null } }, args);
+};
+
 describe("classification updateClassification", () => {
   test("updates card type and processing status", async () => {
-    const mutation =
-      (updateClassification as any).handler ||
-      (updateClassification as any)._handler ||
-      (updateClassification as any);
+    const mutation = withScheduler(updateClassification);
 
     const now = 1_760_000_000_000;
     const originalNow = Date.now;
@@ -45,10 +48,7 @@ describe("classification updateClassification", () => {
   });
 
   test("sets categorize to pending for link type", async () => {
-    const mutation =
-      (updateClassification as any).handler ||
-      (updateClassification as any)._handler ||
-      (updateClassification as any);
+    const mutation = withScheduler(updateClassification);
 
     const now = 1_760_000_000_000;
     const originalNow = Date.now;
@@ -83,10 +83,7 @@ describe("classification updateClassification", () => {
   });
 
   test("sets categorize to completed for non-link type", async () => {
-    const mutation =
-      (updateClassification as any).handler ||
-      (updateClassification as any)._handler ||
-      (updateClassification as any);
+    const mutation = withScheduler(updateClassification);
 
     const now = 1_760_000_000_000;
     const originalNow = Date.now;
@@ -122,10 +119,7 @@ describe("classification updateClassification", () => {
   });
 
   test("always sets metadata to pending", async () => {
-    const mutation =
-      (updateClassification as any).handler ||
-      (updateClassification as any)._handler ||
-      (updateClassification as any);
+    const mutation = withScheduler(updateClassification);
 
     const now = 1_760_000_000_000;
     const originalNow = Date.now;
@@ -160,10 +154,7 @@ describe("classification updateClassification", () => {
   });
 
   test("sets renderables to pending for image type", async () => {
-    const mutation =
-      (updateClassification as any).handler ||
-      (updateClassification as any)._handler ||
-      (updateClassification as any);
+    const mutation = withScheduler(updateClassification);
 
     const now = 1_760_000_000_000;
     const originalNow = Date.now;
@@ -198,10 +189,7 @@ describe("classification updateClassification", () => {
   });
 
   test("sets renderables to pending for video type", async () => {
-    const mutation =
-      (updateClassification as any).handler ||
-      (updateClassification as any)._handler ||
-      (updateClassification as any);
+    const mutation = withScheduler(updateClassification);
 
     const now = 1_760_000_000_000;
     const originalNow = Date.now;
@@ -236,10 +224,7 @@ describe("classification updateClassification", () => {
   });
 
   test("sets renderables to pending for document type", async () => {
-    const mutation =
-      (updateClassification as any).handler ||
-      (updateClassification as any)._handler ||
-      (updateClassification as any);
+    const mutation = withScheduler(updateClassification);
 
     const now = 1_760_000_000_000;
     const originalNow = Date.now;
@@ -274,10 +259,7 @@ describe("classification updateClassification", () => {
   });
 
   test("sets renderables to completed for text type", async () => {
-    const mutation =
-      (updateClassification as any).handler ||
-      (updateClassification as any)._handler ||
-      (updateClassification as any);
+    const mutation = withScheduler(updateClassification);
 
     const now = 1_760_000_000_000;
     const originalNow = Date.now;
@@ -312,10 +294,7 @@ describe("classification updateClassification", () => {
   });
 
   test("sets metadataStatus to pending for link type", async () => {
-    const mutation =
-      (updateClassification as any).handler ||
-      (updateClassification as any)._handler ||
-      (updateClassification as any);
+    const mutation = withScheduler(updateClassification);
 
     const now = 1_760_000_000_000;
     const originalNow = Date.now;
@@ -350,10 +329,7 @@ describe("classification updateClassification", () => {
   });
 
   test("does not set metadataStatus for non-link type", async () => {
-    const mutation =
-      (updateClassification as any).handler ||
-      (updateClassification as any)._handler ||
-      (updateClassification as any);
+    const mutation = withScheduler(updateClassification);
 
     const now = 1_760_000_000_000;
     const originalNow = Date.now;
@@ -388,10 +364,7 @@ describe("classification updateClassification", () => {
   });
 
   test("normalizes quote content by removing quotes", async () => {
-    const mutation =
-      (updateClassification as any).handler ||
-      (updateClassification as any)._handler ||
-      (updateClassification as any);
+    const mutation = withScheduler(updateClassification);
 
     const now = 1_760_000_000_000;
     const originalNow = Date.now;
@@ -427,10 +400,7 @@ describe("classification updateClassification", () => {
   });
 
   test("does not update content if quotes not removed", async () => {
-    const mutation =
-      (updateClassification as any).handler ||
-      (updateClassification as any)._handler ||
-      (updateClassification as any);
+    const mutation = withScheduler(updateClassification);
 
     const now = 1_760_000_000_000;
     const originalNow = Date.now;
@@ -466,10 +436,7 @@ describe("classification updateClassification", () => {
   });
 
   test("handles undefined content for quote normalization", async () => {
-    const mutation =
-      (updateClassification as any).handler ||
-      (updateClassification as any)._handler ||
-      (updateClassification as any);
+    const mutation = withScheduler(updateClassification);
 
     const now = 1_760_000_000_000;
     const originalNow = Date.now;
@@ -505,10 +472,7 @@ describe("classification updateClassification", () => {
   });
 
   test("skips if the card was deleted during classification", async () => {
-    const mutation =
-      (updateClassification as any).handler ||
-      (updateClassification as any)._handler ||
-      (updateClassification as any);
+    const mutation = withScheduler(updateClassification);
 
     const mockCtx = {
       db: {
@@ -526,10 +490,7 @@ describe("classification updateClassification", () => {
   });
 
   test("preserves existing processing status fields", async () => {
-    const mutation =
-      (updateClassification as any).handler ||
-      (updateClassification as any)._handler ||
-      (updateClassification as any);
+    const mutation = withScheduler(updateClassification);
 
     const now = 1_760_000_000_000;
     const originalNow = Date.now;
@@ -566,10 +527,7 @@ describe("classification updateClassification", () => {
   });
 
   test("sets renderables to completed for quote type", async () => {
-    const mutation =
-      (updateClassification as any).handler ||
-      (updateClassification as any)._handler ||
-      (updateClassification as any);
+    const mutation = withScheduler(updateClassification);
 
     const now = 1_760_000_000_000;
     const originalNow = Date.now;
@@ -604,10 +562,7 @@ describe("classification updateClassification", () => {
   });
 
   test("sets renderables to completed for link type", async () => {
-    const mutation =
-      (updateClassification as any).handler ||
-      (updateClassification as any)._handler ||
-      (updateClassification as any);
+    const mutation = withScheduler(updateClassification);
 
     const now = 1_760_000_000_000;
     const originalNow = Date.now;
