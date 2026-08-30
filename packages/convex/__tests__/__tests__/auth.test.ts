@@ -48,6 +48,7 @@ let getCardCreationStatusHandler: any;
 let deleteAccountDataHandler: any;
 let deleteAccountData: any;
 let getAccountCardDeletionBatchHandler: any;
+let removeAccountCardUsageHandler: any;
 let authComponent: any;
 let createAuth: any;
 let polar: any;
@@ -97,6 +98,7 @@ describe("auth", () => {
     deleteAccountData = authModule.deleteAccountData;
     getAccountCardDeletionBatchHandler =
       authModule.getAccountCardDeletionBatchHandler;
+    removeAccountCardUsageHandler = authModule.removeAccountCardUsageHandler;
     authComponent = authModule.authComponent;
     createAuth = authModule.createAuth;
 
@@ -719,6 +721,40 @@ describe("auth", () => {
       );
     });
 
+    it("removes usage migration entries before the aggregate row", async () => {
+      const events: string[] = [];
+      const ctx = {
+        db: {
+          query: (table: string) => ({
+            withIndex: (_name: string, cb: any) => {
+              cb({ eq: () => undefined });
+              return {
+                take: async () =>
+                  table === "cardUsageMigrationEntries"
+                    ? [{ _id: "entry1" }, { _id: "entry2" }]
+                    : [],
+                unique: async () =>
+                  table === "userCardUsage" ? { _id: "usage1" } : null,
+              };
+            },
+          }),
+          delete: mock((table: string, id: string) => {
+            events.push(`${table}:${id}`);
+          }),
+        },
+      } as any;
+
+      await expect(removeAccountCardUsageHandler(ctx, "u1")).resolves.toEqual({
+        deletedEntries: 2,
+        hasMore: false,
+      });
+      expect(events).toEqual([
+        "cardUsageMigrationEntries:entry1",
+        "cardUsageMigrationEntries:entry2",
+        "userCardUsage:usage1",
+      ]);
+    });
+
     it("awaits private object cleanup before deleting owning rows", async () => {
       const events: string[] = [];
       let mutationCount = 0;
@@ -744,6 +780,7 @@ describe("auth", () => {
             events.push("delete-import-rows");
           } else {
             events.push("delete-usage");
+            return { deletedEntries: 0, hasMore: false };
           }
           return null;
         }),

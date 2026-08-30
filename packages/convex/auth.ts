@@ -705,7 +705,15 @@ export const deleteAccountData = internalAction({
     ) {
       throw new Error("Account data changed during deletion");
     }
-    await ctx.runMutation(internal.auth.removeAccountCardUsage, { userId });
+    while (true) {
+      const usageCleanup = await ctx.runMutation(
+        internal.auth.removeAccountCardUsage,
+        { userId }
+      );
+      if (!usageCleanup.hasMore) {
+        break;
+      }
+    }
     return { deletedCards, deletedStorageObjectCount };
   },
 });
@@ -728,13 +736,28 @@ export const finishAccountDataDeletion = internalMutation({
   },
 });
 
+export const removeAccountCardUsageHandler = async (
+  ctx: MutationCtx,
+  userId: string
+) => {
+  const migrationEntries = await ctx.db
+    .query("cardUsageMigrationEntries")
+    .withIndex("by_userId", (query) => query.eq("userId", userId))
+    .take(20);
+  for (const entry of migrationEntries) {
+    await ctx.db.delete("cardUsageMigrationEntries", entry._id);
+  }
+  const hasMore = migrationEntries.length === 20;
+  if (!hasMore) {
+    await removeCardUsage(ctx, userId);
+  }
+  return { deletedEntries: migrationEntries.length, hasMore };
+};
+
 export const removeAccountCardUsage = internalMutation({
   args: { userId: v.string() },
-  returns: v.null(),
-  handler: async (ctx, { userId }) => {
-    await removeCardUsage(ctx, userId);
-    return null;
-  },
+  returns: v.object({ deletedEntries: v.number(), hasMore: v.boolean() }),
+  handler: (ctx, { userId }) => removeAccountCardUsageHandler(ctx, userId),
 });
 
 export const getLatestJwks = internalAction({
