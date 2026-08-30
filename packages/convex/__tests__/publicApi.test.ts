@@ -355,16 +355,32 @@ describe("publicApi", () => {
             insert,
             patch: mock().mockResolvedValue(null),
             query: (table: string) => ({
-              withIndex: () =>
-                table === "userCardUsage"
-                  ? {
-                      unique: mock().mockResolvedValue({
-                        _id: "usage_1",
-                        activeCardCount: 0,
-                        isSaturated: false,
-                      }),
-                    }
-                  : { take: mock().mockResolvedValue([]) },
+              withIndex: () => {
+                if (table === "userCardUsage") {
+                  return {
+                    unique: mock().mockResolvedValue({
+                      _id: "usage_1",
+                      activeCardCount: 0,
+                      isCountExact: true,
+                      isSaturated: false,
+                      shardVersion: 1,
+                      shardedAt: 1,
+                    }),
+                  };
+                }
+                if (table === "userCardUsageShards") {
+                  return {
+                    unique: mock().mockResolvedValue({
+                      _id: "usage_shard_1",
+                      activeCardCount: 0,
+                      shard: 0,
+                      updatedAt: 1,
+                      userId: "user_1",
+                    }),
+                  };
+                }
+                return { take: mock().mockResolvedValue([]) };
+              },
             }),
           },
           scheduler: { runAfter: mock().mockResolvedValue(null) },

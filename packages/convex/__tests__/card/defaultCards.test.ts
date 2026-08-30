@@ -1,5 +1,6 @@
 // @ts-nocheck
 import { beforeEach, describe, expect, mock, test } from "bun:test";
+import { CARD_USAGE_TOTAL_SHARDS } from "../../card/cardUsage";
 
 describe("card/defaultCards.ts", () => {
   let createDefaultCardsForUser: any;
@@ -7,22 +8,72 @@ describe("card/defaultCards.ts", () => {
 
   const addUsageRecord = (ctx: any) => {
     ctx.scheduler ??= { runAfter: mock().mockResolvedValue(null) };
+    const usageRecord = {
+      _id: "usage_1",
+      activeCardCount: 0,
+      isCountExact: true,
+      isSaturated: false,
+      updatedAt: 1,
+      userId: "u1",
+    };
+    const usageShards = new Map<number, Record<string, any>>();
     const query = ctx.db.query.bind(ctx.db);
     ctx.db.query = mock((table: string) => {
+      if (table === "userCardUsageShards") {
+        return {
+          withIndex: (_name: string, callback: (builder: any) => void) => {
+            let shard: number | undefined;
+            const builder = {
+              eq: (field: string, value: unknown) => {
+                if (field === "shard") {
+                  shard = value as number;
+                }
+                return builder;
+              },
+            };
+            callback(builder);
+            return {
+              collect: mock().mockImplementation(async () => [
+                ...usageShards.values(),
+              ]),
+              take: mock().mockImplementation(async () => [
+                ...usageShards.values(),
+              ]),
+              unique: mock().mockImplementation(async () =>
+                shard === undefined ? null : (usageShards.get(shard) ?? null)
+              ),
+            };
+          },
+        };
+      }
       if (table !== "userCardUsage") {
         return query(table);
       }
       return {
         withIndex: () => ({
-          unique: mock().mockResolvedValue({
-            _id: "usage_1",
-            activeCardCount: 0,
-            isSaturated: false,
-          }),
+          unique: mock().mockImplementation(async () => usageRecord),
         }),
       };
     });
-    ctx.db.patch ??= mock().mockResolvedValue(null);
+    const insert = ctx.db.insert.bind(ctx.db);
+    ctx.db.insert = mock(async (table: string, value: Record<string, any>) => {
+      if (table === "userCardUsageShards") {
+        usageShards.set(value.shard, {
+          ...value,
+          _id: `usage_shard_${value.shard}`,
+        });
+      }
+      return await insert(table, value);
+    });
+    const patch = ctx.db.patch?.bind(ctx.db);
+    ctx.db.patch = mock(
+      (table: string, id: string, value: Record<string, unknown>) => {
+        if (table === "userCardUsage" && id === usageRecord._id) {
+          Object.assign(usageRecord, value);
+        }
+        return patch?.(table, id, value);
+      }
+    );
   };
 
   beforeEach(async () => {
@@ -96,7 +147,11 @@ describe("card/defaultCards.ts", () => {
     const result = await handler(ctx, { userId: "u1" });
 
     expect(result).toEqual({ created: false, reason: "cards_exist" });
-    expect(ctx.db.insert).not.toHaveBeenCalled();
+    expect(
+      ctx.db.insert.mock.calls.filter(
+        ([table]: [string]) => table === "userCardUsageShards"
+      )
+    ).toHaveLength(CARD_USAGE_TOTAL_SHARDS);
   });
 
   test("creates default cards for new user", async () => {
@@ -116,7 +171,19 @@ describe("card/defaultCards.ts", () => {
       (createDefaultCardsForUser as any).handler ?? createDefaultCardsForUser;
     const result = await handler(ctx, { userId: "u1" });
 
-    expect(ctx.db.insert).toHaveBeenCalledTimes(3);
+    const insertTables = ctx.db.insert.mock.calls.map(
+      ([table]: [string]) => table
+    );
+    expect(
+      insertTables.filter((table: string) => table === "cards")
+    ).toHaveLength(3);
+    expect(
+      insertTables.filter((table: string) => table === "userCardUsageShards")
+    ).toHaveLength(CARD_USAGE_TOTAL_SHARDS);
+    expect(ctx.db.insert).toHaveBeenCalledWith(
+      "userCardUsageShards",
+      expect.objectContaining({ userId: "u1", shard: 0 })
+    );
     expect(ctx.scheduler.runAfter).toHaveBeenCalledTimes(3);
     expect(result).toEqual({ created: true, count: 3 });
   });
@@ -130,8 +197,10 @@ describe("card/defaultCards.ts", () => {
             first: mock().mockResolvedValue(null),
           }),
         }),
-        insert: mock().mockImplementation((_table: string, data: any) => {
-          insertedCards.push(data);
+        insert: mock().mockImplementation((table: string, data: any) => {
+          if (table === "cards") {
+            insertedCards.push(data);
+          }
           return `id_${insertedCards.length}`;
         }),
       },
@@ -185,8 +254,10 @@ describe("card/defaultCards.ts", () => {
             first: mock().mockResolvedValue(null),
           }),
         }),
-        insert: mock().mockImplementation((_table: string, data: any) => {
-          insertedCards.push(data);
+        insert: mock().mockImplementation((table: string, data: any) => {
+          if (table === "cards") {
+            insertedCards.push(data);
+          }
           return `id_${insertedCards.length}`;
         }),
       },
@@ -218,8 +289,10 @@ describe("card/defaultCards.ts", () => {
             first: mock().mockResolvedValue(null),
           }),
         }),
-        insert: mock().mockImplementation((_table: string, data: any) => {
-          insertedCards.push(data);
+        insert: mock().mockImplementation((table: string, data: any) => {
+          if (table === "cards") {
+            insertedCards.push(data);
+          }
           return `id_${insertedCards.length}`;
         }),
       },

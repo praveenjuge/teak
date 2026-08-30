@@ -26,7 +26,7 @@ import authConfig from "./auth.config";
 import { polar } from "./billing";
 import {
   CARD_USAGE_SCAN_LIMIT,
-  getCardUsage,
+  getCardUsageSnapshot,
   removeCardUsage,
 } from "./card/cardUsage";
 
@@ -435,7 +435,7 @@ export const getCurrentUserHandler = async (ctx: any) => {
     hasPremium = false;
   }
 
-  const usage = await getCardUsage(ctx, userId);
+  const usage = await getCardUsageSnapshot(ctx, userId);
   const cardsQuery = ctx.db
     .query("cards")
     .withIndex("by_user_deleted", (q: any) =>
@@ -499,7 +499,7 @@ export const getCardCreationStatusHandler = async (ctx: any) => {
     };
   }
 
-  const usage = await getCardUsage(ctx, userId);
+  const usage = await getCardUsageSnapshot(ctx, userId);
   const activeCardCount =
     usage?.isCountExact === true
       ? usage.activeCardCount

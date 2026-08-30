@@ -1,7 +1,10 @@
 import { v } from "convex/values";
 import { mutation } from "../_generated/server";
 import { cardStorageObjectKeys, deleteObject } from "../storage/r2";
-import { getOrInitializeCardUsage, recordActiveCardRemoved } from "./cardUsage";
+import {
+  ensureCardUsageShardsForRemoval,
+  recordActiveCardRemoved,
+} from "./cardUsage";
 import { scheduleCardSearchSync } from "./searchDocumentHelpers";
 
 export const permanentDeleteCard = mutation({
@@ -26,7 +29,7 @@ export const permanentDeleteCard = mutation({
     }
 
     if (!card.isDeleted) {
-      await getOrInitializeCardUsage(ctx, card.userId);
+      await ensureCardUsageShardsForRemoval(ctx, card.userId);
     }
 
     // Permanently remove from database

@@ -1,7 +1,12 @@
 import { Migrations } from "@convex-dev/migrations";
 import { components, internal } from "./_generated/api.js";
-import type { DataModel } from "./_generated/dataModel.js";
-import { getCardUsage } from "./card/cardUsage";
+import type { DataModel, Doc } from "./_generated/dataModel.js";
+import type { MutationCtx } from "./_generated/server.js";
+import {
+  CARD_USAGE_TOTAL_SHARDS,
+  getCardUsage,
+  initializeCardUsageShards,
+} from "./card/cardUsage";
 import { syncCardSearchDocumentHandler } from "./card/searchDocumentHelpers";
 import { FREE_TIER_LIMIT } from "./shared/constants";
 
@@ -84,6 +89,68 @@ export const backfillCardSearchDocuments = migrations.define({
   },
 });
 
+export const backfillUserCardUsageShardsHandler = async (
+  ctx: MutationCtx,
+  usage: Doc<"userCardUsage">
+) => {
+  if (!usage.isCountExact) {
+    throw new Error("Card usage must be exact before sharding");
+  }
+  await initializeCardUsageShards(ctx, usage);
+};
+
+export const backfillUserCardUsageShards = migrations.define({
+  table: "userCardUsage",
+  batchSize: 20,
+  migrateOne: backfillUserCardUsageShardsHandler,
+});
+
+export const rollbackUserCardUsageShardsHandler = async (
+  ctx: MutationCtx,
+  usage: Doc<"userCardUsage">
+) => {
+  let activeCardCount = 0;
+  const shards: Doc<"userCardUsageShards">[] = [];
+  for (let shard = 0; shard < CARD_USAGE_TOTAL_SHARDS; shard += 1) {
+    const usageShard = await ctx.db
+      .query("userCardUsageShards")
+      .withIndex("by_userId_and_shard", (query) =>
+        query.eq("userId", usage.userId).eq("shard", shard)
+      )
+      .unique();
+    if (usageShard) {
+      activeCardCount += usageShard.activeCardCount;
+      shards.push(usageShard);
+    }
+  }
+  if (shards.length === 0) {
+    if (usage.shardVersion !== undefined || usage.shardedAt !== undefined) {
+      throw new Error("Card usage shard set is incomplete");
+    }
+    return;
+  }
+  if (shards.length !== CARD_USAGE_TOTAL_SHARDS) {
+    throw new Error("Card usage shard set is incomplete");
+  }
+  await ctx.db.patch("userCardUsage", usage._id, {
+    activeCardCount,
+    isCountExact: true,
+    isSaturated: activeCardCount >= FREE_TIER_LIMIT,
+    shardVersion: undefined,
+    shardedAt: undefined,
+    updatedAt: Date.now(),
+  });
+  for (const usageShard of shards) {
+    await ctx.db.delete("userCardUsageShards", usageShard._id);
+  }
+};
+
+export const rollbackUserCardUsageShards = migrations.define({
+  table: "userCardUsage",
+  batchSize: 20,
+  migrateOne: rollbackUserCardUsageShardsHandler,
+});
+
 export const rollbackUserCardUsage = migrations.define({
   table: "userCardUsage",
   batchSize: 20,
@@ -127,4 +194,12 @@ export const runOccContentionRollback = migrations.runner([
   internal.migrations.rollbackCardUsageMigrationEntries,
   internal.migrations.rollbackUserCardUsage,
   internal.migrations.rollbackCardSearchDocuments,
+]);
+
+export const runCardUsageShardBackfill = migrations.runner([
+  internal.migrations.backfillUserCardUsageShards,
+]);
+
+export const runCardUsageShardRollback = migrations.runner([
+  internal.migrations.rollbackUserCardUsageShards,
 ]);

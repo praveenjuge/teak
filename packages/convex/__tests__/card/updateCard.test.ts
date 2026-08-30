@@ -1,5 +1,6 @@
 // @ts-nocheck
 import { beforeEach, describe, expect, mock, test } from "bun:test";
+import { CARD_USAGE_SHARD_VERSION } from "../../card/cardUsage";
 
 const mockReprocessLimit = mock().mockResolvedValue({ ok: true });
 
@@ -11,22 +12,43 @@ describe("card/updateCard.ts", () => {
     if (!ctx.db) {
       return;
     }
-    if (!ctx.db.query) {
-      ctx.db.query = mock((table: string) => ({
-        withIndex: () => ({
-          unique: mock().mockResolvedValue(
-            table === "userCardUsage"
-              ? {
-                  _id: "usage_1",
-                  activeCardCount: 1,
-                  isCountExact: true,
-                  isSaturated: false,
-                }
-              : null
-          ),
-        }),
-      }));
-    }
+    const query = ctx.db.query?.bind(ctx.db);
+    ctx.db.query = mock((table: string) => {
+      if (table === "userCardUsage") {
+        return {
+          withIndex: () => ({
+            unique: mock().mockResolvedValue({
+              _id: "usage_1",
+              activeCardCount: 1,
+              isCountExact: true,
+              isSaturated: false,
+              shardVersion: CARD_USAGE_SHARD_VERSION,
+              shardedAt: 1,
+            }),
+          }),
+        };
+      }
+      if (table === "userCardUsageShards") {
+        return {
+          withIndex: () => ({
+            unique: mock().mockResolvedValue({
+              _id: "usage_shard_1",
+              activeCardCount: 0,
+              shard: 0,
+              updatedAt: 1,
+              userId: "u1",
+            }),
+          }),
+        };
+      }
+      return query
+        ? query(table)
+        : {
+            withIndex: () => ({
+              unique: mock().mockResolvedValue(null),
+            }),
+          };
+    });
   };
 
   beforeEach(async () => {
