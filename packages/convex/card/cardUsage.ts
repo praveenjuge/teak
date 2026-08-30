@@ -173,10 +173,19 @@ const incrementShardedUsage = async (
   hasPremium: boolean
 ) => {
   if (!hasPremium) {
+    let overflowActiveCardCount = 0;
     for (let offset = 0; offset < CARD_USAGE_OVERFLOW_SHARDS; offset += 1) {
       const shard = CARD_USAGE_BASE_SHARDS + offset;
       const overflow = await getRequiredCardUsageShard(ctx, userId, shard);
-      if (overflow.activeCardCount > 0) {
+      overflowActiveCardCount += overflow.activeCardCount;
+    }
+    if (overflowActiveCardCount > 0) {
+      let activeCardCount = overflowActiveCardCount;
+      for (let shard = 0; shard < CARD_USAGE_BASE_SHARDS; shard += 1) {
+        const usage = await getRequiredCardUsageShard(ctx, userId, shard);
+        activeCardCount += usage.activeCardCount;
+      }
+      if (activeCardCount >= FREE_TIER_LIMIT) {
         throw new ConvexError({
           code: CARD_ERROR_CODES.CARD_LIMIT_REACHED,
           message: CARD_ERROR_MESSAGES.CARD_LIMIT_REACHED,

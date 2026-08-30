@@ -222,6 +222,35 @@ describe("OCC contention behavior", () => {
     });
   });
 
+  test("allows downgraded users below the limit despite residual overflow", async () => {
+    const t = convexTest(schema, modules);
+    await t.run(async (ctx) => {
+      const userId = "user-sharded-downgraded";
+      const usage = await insertExactUsage(ctx, userId, FREE_TIER_LIMIT + 1);
+      await initializeCardUsageShards(ctx, usage);
+
+      const baseShard = await ctx.db
+        .query("userCardUsageShards")
+        .withIndex("by_userId_and_shard", (query) =>
+          query.eq("userId", userId).eq("shard", 0)
+        )
+        .unique();
+      expect(baseShard).not.toBeNull();
+      await ctx.db.patch("userCardUsageShards", baseShard!._id, {
+        activeCardCount: baseShard!.activeCardCount - 2,
+      });
+      expect((await getCardUsageSnapshot(ctx, userId))?.activeCardCount).toBe(
+        FREE_TIER_LIMIT - 1
+      );
+
+      const freeCard = await insertCard(ctx, userId);
+      await recordActiveCardCreated(ctx, userId, freeCard);
+      expect((await getCardUsageSnapshot(ctx, userId))?.activeCardCount).toBe(
+        FREE_TIER_LIMIT
+      );
+    });
+  });
+
   test("initializes saturated accounts without losing overflow usage", async () => {
     const t = convexTest(schema, modules);
     await t.run(async (ctx) => {
