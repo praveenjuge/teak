@@ -26,7 +26,19 @@ test("preview OCC harness keeps parallel card operations coherent", async ({
         })
       )
     );
-    expect(creates.every((response) => response.status === 200)).toBe(true);
+    expect(
+      await Promise.all(
+        creates.map(async (response) => ({
+          body: response.ok ? undefined : await response.text(),
+          status: response.status,
+        }))
+      )
+    ).toEqual(
+      Array.from({ length: creates.length }, () => ({
+        body: undefined,
+        status: 200,
+      }))
+    );
     const created = await Promise.all(
       creates.map((response) => response.json())
     );
