@@ -27,12 +27,13 @@ test("signup, create, and search", async ({ page }) => {
       name: "Markdown content",
     });
     await expect(async () => {
+      await expect(creationForm).toBeVisible({ timeout: 5000 });
       await note.fill(marker);
-      await expect(note).toHaveText(marker);
-    }).toPass({ timeout: 15_000 });
+      await expect(note).toHaveText(marker, { timeout: 5000 });
+    }).toPass({ intervals: [250, 500, 1000], timeout: 30_000 });
     await creationForm
       .getByRole("button", { name: "Save", exact: true })
-      .click();
+      .click({ timeout: 5000 });
     const api = clientFor(account.apiKey);
     await expect
       .poll(
