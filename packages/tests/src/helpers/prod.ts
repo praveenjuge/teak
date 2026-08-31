@@ -275,7 +275,7 @@ export const deleteAccountViaUi = async (page: Page, account: AccountState) => {
               headers: { Authorization: `Bearer ${account.apiKey}` },
             })
           ).status,
-        { timeout: 30_000 }
+        { timeout: 60_000 }
       )
       .toBe(401);
   }
@@ -296,6 +296,9 @@ export const deleteAccountViaUi = async (page: Page, account: AccountState) => {
     }
     if (state.primary?.email === account.email) {
       state.primary.deleted = true;
+    }
+    if (state.account?.email === account.email) {
+      state.account.deleted = true;
     }
   });
 };

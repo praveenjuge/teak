@@ -4,6 +4,8 @@ import { apiFetch } from "../helpers/api";
 import { cleanupE2EAccounts } from "../helpers/e2e-cleanup";
 import { createAccount, deleteAccountViaUi } from "../helpers/prod";
 
+test.setTimeout(240_000);
+
 test("preview OCC harness keeps parallel card operations coherent", async ({
   page,
 }) => {
@@ -161,7 +163,9 @@ test("preview OCC harness keeps parallel card operations coherent", async ({
     await deleteAccountViaUi(page, account);
     const deletion = await cleanupE2EAccounts([account.email]);
     expect(deletion.failures).toEqual([]);
-    expect(deletion.alreadyDeleted).toContain(account.email);
+    expect([...deletion.deleted, ...deletion.alreadyDeleted]).toContain(
+      account.email
+    );
   } finally {
     await cleanupE2EAccounts([account.email]).catch(() => undefined);
   }

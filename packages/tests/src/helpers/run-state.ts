@@ -1,5 +1,13 @@
-import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
-import { dirname } from "node:path";
+import { randomUUID } from "node:crypto";
+import {
+  mkdirSync,
+  readFileSync,
+  renameSync,
+  rmdirSync,
+  writeFileSync,
+} from "node:fs";
+import { dirname, resolve } from "node:path";
+import { pathToFileURL } from "node:url";
 
 export interface AccountState {
   apiKey?: string;
@@ -24,7 +32,12 @@ export interface RunState {
 
 export type ServiceAccountSurface = "api" | "cli" | "mcp";
 
-const file = new URL("../../.state/run-state.json", import.meta.url);
+const file = process.env.TEAK_E2E_RUN_STATE_FILE
+  ? pathToFileURL(resolve(process.env.TEAK_E2E_RUN_STATE_FILE))
+  : new URL("../../.state/run-state.json", import.meta.url);
+const lockDirectory = new URL("run-state.lock/", file);
+const lockWaitArray = new Int32Array(new SharedArrayBuffer(4));
+const LOCK_TIMEOUT_MS = 5000;
 export const accountStorageStateFile = ".state/account.json";
 export const importExportStorageStateFile = ".state/import-export.json";
 export const storageStateFile = ".state/user.json";
@@ -41,17 +54,52 @@ export const readState = (): RunState => {
   }
 };
 
-export const writeState = (next: RunState) => {
+const writeStateUnlocked = (next: RunState) => {
   mkdirSync(dirname(file.pathname), { recursive: true });
-  writeFileSync(file, `${JSON.stringify(next, null, 2)}\n`);
+  const temporaryFile = new URL(
+    `run-state.${process.pid}.${randomUUID()}.tmp`,
+    file
+  );
+  writeFileSync(temporaryFile, `${JSON.stringify(next, null, 2)}\n`);
+  renameSync(temporaryFile, file);
 };
 
-export const updateState = (fn: (state: RunState) => void) => {
-  const state = readState();
-  fn(state);
-  writeState(state);
-  return state;
+const withStateLock = <T>(operation: () => T): T => {
+  const deadline = Date.now() + LOCK_TIMEOUT_MS;
+  mkdirSync(dirname(file.pathname), { recursive: true });
+  while (true) {
+    try {
+      mkdirSync(lockDirectory);
+      break;
+    } catch (error) {
+      if (
+        !(error instanceof Error && "code" in error && error.code === "EEXIST")
+      ) {
+        throw error;
+      }
+      if (Date.now() >= deadline) {
+        throw new Error("Timed out waiting for the production E2E state lock");
+      }
+      Atomics.wait(lockWaitArray, 0, 0, 10);
+    }
+  }
+  try {
+    return operation();
+  } finally {
+    rmdirSync(lockDirectory);
+  }
 };
+
+export const writeState = (next: RunState) =>
+  withStateLock(() => writeStateUnlocked(next));
+
+export const updateState = (fn: (state: RunState) => void) =>
+  withStateLock(() => {
+    const state = readState();
+    fn(state);
+    writeStateUnlocked(state);
+    return state;
+  });
 
 export const requireServiceApiKey = (
   surface: ServiceAccountSurface
