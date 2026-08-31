@@ -1,10 +1,11 @@
 /// <reference types="vite/client" />
 
+import { MINUTE, RateLimiter } from "@convex-dev/rate-limiter";
 import rateLimiterTest from "@convex-dev/rate-limiter/test";
 import { ConvexError } from "convex/values";
 import { convexTest } from "convex-test";
-import { describe, expect, test } from "vitest";
-import { api, internal } from "./_generated/api";
+import { describe, expect, test, vi } from "vitest";
+import { api, components, internal } from "./_generated/api";
 import type { Doc, Id } from "./_generated/dataModel";
 import type { MutationCtx } from "./_generated/server";
 import {
@@ -589,7 +590,7 @@ describe("OCC contention behavior", () => {
       expect(RATE_LIMIT_CONFIG.cardCreation).toMatchObject({
         capacity: 30,
         rate: 30,
-        shards: 3,
+        shards: 6,
       });
       expect(RATE_LIMIT_CONFIG.raycastApiRequests).toMatchObject({
         capacity: 120,
@@ -626,6 +627,50 @@ describe("OCC contention behavior", () => {
         })
       ).resolves.toMatchObject({ ok: false });
     });
+  });
+
+  test("preserves the threshold after the gated 3-to-6 shard transition", async () => {
+    vi.useFakeTimers();
+    try {
+      vi.setSystemTime(new Date("2026-08-31T00:00:00.000Z"));
+      const t = convexTest(schema, modules);
+      rateLimiterTest.register(t, "rateLimiterV2");
+      const previousLimiter = new RateLimiter(components.rateLimiterV2, {
+        cardCreation: {
+          capacity: 30,
+          kind: "token bucket",
+          period: MINUTE,
+          rate: 30,
+          shards: 3,
+        },
+      });
+
+      await t.run(async (ctx) => {
+        for (let count = 0; count < 30; count += 1) {
+          await previousLimiter.limit(ctx, "cardCreation", {
+            key: "transition-user",
+          });
+        }
+      });
+
+      vi.advanceTimersByTime(MINUTE);
+      await t.run(async (ctx) => {
+        let accepted = 0;
+        for (let count = 0; count < 60; count += 1) {
+          const result = await rateLimiter.limit(ctx, "cardCreation", {
+            key: "transition-user",
+            throws: false,
+          });
+          if (result.ok) {
+            accepted += 1;
+          }
+        }
+        expect(accepted).toBeGreaterThan(0);
+        expect(accepted).toBeLessThanOrEqual(30);
+      });
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   test("aggregates legacy and sharded idempotency analytics", async () => {

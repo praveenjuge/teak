@@ -12,7 +12,12 @@ export const RATE_LIMIT_CONFIG = {
     rate: 30,
     period: MINUTE,
     capacity: 30,
-    shards: 3,
+    // Six shards retain five burst tokens per shard while covering the
+    // observed eight-request production concurrency without exhausting
+    // Convex's OCC retry budget. When changing an existing deployment from
+    // three shards, first observe one full period without card-creation
+    // traffic so the old shards are full before the new shards become live.
+    shards: 6,
   },
   cardReprocess: {
     kind: "token bucket",

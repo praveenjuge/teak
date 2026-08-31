@@ -26,7 +26,7 @@ const saveTextCard = async (page: Page, content: string) => {
   await page.goto("/");
   const editor = page.getByRole("textbox", { name: "Markdown content" });
   await editor.fill(content);
-  await editor.press("ControlOrMeta+Enter");
+  await page.getByRole("button", { name: "Save", exact: true }).click();
   await expect(page.getByRole("main").getByText(content).first()).toBeVisible();
 };
 

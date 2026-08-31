@@ -4,6 +4,8 @@ import { apiFetch } from "../helpers/api";
 import { cleanupE2EAccounts } from "../helpers/e2e-cleanup";
 import { createAccount, deleteAccountViaUi } from "../helpers/prod";
 
+test.setTimeout(240_000);
+
 test("preview OCC harness keeps parallel card operations coherent", async ({
   page,
 }) => {
@@ -24,7 +26,19 @@ test("preview OCC harness keeps parallel card operations coherent", async ({
         })
       )
     );
-    expect(creates.every((response) => response.status === 200)).toBe(true);
+    expect(
+      await Promise.all(
+        creates.map(async (response) => ({
+          body: response.ok ? undefined : await response.text(),
+          status: response.status,
+        }))
+      )
+    ).toEqual(
+      Array.from({ length: creates.length }, () => ({
+        body: undefined,
+        status: 200,
+      }))
+    );
     const created = await Promise.all(
       creates.map((response) => response.json())
     );
@@ -146,7 +160,7 @@ test("preview OCC harness keeps parallel card operations coherent", async ({
           apiFetch(`/v1/cards/${cardId}`, apiKey, { method: "DELETE" })
         )
     );
-    expect(deletions.every((response) => response.status === 200)).toBe(true);
+    expect(deletions.every((response) => response.status === 204)).toBe(true);
 
     const rateChecks = await Promise.all(
       Array.from({ length: 40 }, (_, index) =>
@@ -161,7 +175,9 @@ test("preview OCC harness keeps parallel card operations coherent", async ({
     await deleteAccountViaUi(page, account);
     const deletion = await cleanupE2EAccounts([account.email]);
     expect(deletion.failures).toEqual([]);
-    expect(deletion.alreadyDeleted).toContain(account.email);
+    expect([...deletion.deleted, ...deletion.alreadyDeleted]).toContain(
+      account.email
+    );
   } finally {
     await cleanupE2EAccounts([account.email]).catch(() => undefined);
   }

@@ -30,7 +30,9 @@ test("signup, create, and search", async ({ page }) => {
       await note.fill(marker);
       await expect(note).toHaveText(marker);
     }).toPass({ timeout: 15_000 });
-    await note.press("ControlOrMeta+Enter");
+    await creationForm
+      .getByRole("button", { name: "Save", exact: true })
+      .click();
     const api = clientFor(account.apiKey);
     await expect
       .poll(

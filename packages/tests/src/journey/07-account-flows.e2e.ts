@@ -7,18 +7,14 @@ import {
   passwordFor,
   signIn,
 } from "../helpers/prod";
-import { readState, updateState } from "../helpers/run-state";
+import { requireAccount, updateState } from "../helpers/run-state";
 
 test("scheduled email canary resets the password", async ({ browser }) => {
   test.skip(
     !env.emailDeliveryEnabled,
     "Real email delivery runs only in the nightly production canary"
   );
-  const state = readState();
-  const primary = state.account ?? state.primary;
-  if (!primary?.email) {
-    throw new Error("Missing account lifecycle account");
-  }
+  const primary = requireAccount("account");
   const nextPassword = `${requirePassword()}Reset1!`;
   const context = await newAnonymousContext(browser);
   const page = await context.newPage();
@@ -59,11 +55,7 @@ test("scheduled email canary resets the password", async ({ browser }) => {
 });
 
 test("Polar checkout entry stays usable", async ({ browser }) => {
-  const state = readState();
-  const primary = state.account ?? state.primary;
-  if (!primary?.email) {
-    throw new Error("Missing account lifecycle account");
-  }
+  const primary = requireAccount("account");
   const context = await newAnonymousContext(browser);
   const page = await context.newPage();
   try {
@@ -85,11 +77,7 @@ test("Polar checkout entry stays usable", async ({ browser }) => {
 test("signing out from settings returns to login without crashing", async ({
   browser,
 }) => {
-  const state = readState();
-  const primary = state.account ?? state.primary;
-  if (!primary?.email) {
-    throw new Error("Missing account lifecycle account");
-  }
+  const primary = requireAccount("account");
   const context = await newAnonymousContext(browser);
   const page = await context.newPage();
   try {

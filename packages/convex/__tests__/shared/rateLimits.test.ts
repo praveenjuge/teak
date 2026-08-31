@@ -37,7 +37,7 @@ describe("rateLimits", () => {
 
     test("high-volume limits use the planned shard counts", async () => {
       const { rateLimiter } = await import("../../shared/rateLimits");
-      expect(rateLimiter.limits?.cardCreation.shards).toBe(3);
+      expect(rateLimiter.limits?.cardCreation.shards).toBe(6);
       expect(rateLimiter.limits?.raycastApiRequests.shards).toBe(12);
       expect(rateLimiter.limits?.invalidApiAuth.shards).toBe(6);
       expect(rateLimiter.limits?.nativeAuthPoll.shards).toBe(2);
