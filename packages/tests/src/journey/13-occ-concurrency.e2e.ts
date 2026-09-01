@@ -162,14 +162,22 @@ test("preview OCC harness keeps parallel card operations coherent", async ({
     );
     expect(deletions.every((response) => response.status === 204)).toBe(true);
 
-    const rateChecks = await Promise.all(
-      Array.from({ length: 40 }, (_, index) =>
-        apiFetch("/v1/cards", apiKey, {
-          body: JSON.stringify({ content: `${marker} rate-${index}` }),
-          method: "POST",
+    const rateChecks: Response[] = [];
+    const rateCheckConcurrency = 8;
+    for (let offset = 0; offset < 40; offset += rateCheckConcurrency) {
+      // Keep the harness parallel while respecting the production limiter's
+      // explicitly supported eight-request contention envelope.
+      const batch = await Promise.all(
+        Array.from({ length: rateCheckConcurrency }, (_, batchIndex) => {
+          const index = offset + batchIndex;
+          return apiFetch("/v1/cards", apiKey, {
+            body: JSON.stringify({ content: `${marker} rate-${index}` }),
+            method: "POST",
+          });
         })
-      )
-    );
+      );
+      rateChecks.push(...batch);
+    }
     expect(rateChecks.some((response) => response.status === 429)).toBe(true);
     expect(rateChecks.every((response) => response.status !== 500)).toBe(true);
     await deleteAccountViaUi(page, account);

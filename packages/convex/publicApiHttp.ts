@@ -323,13 +323,26 @@ const releaseIdempotencyResponse = async (
 };
 
 const isRateLimitContentionError = (error: unknown): boolean => {
-  if (!(error instanceof Error)) {
+  let message: string | undefined;
+  if (error instanceof Error) {
+    message = error.message;
+  } else if (typeof error === "string") {
+    message = error;
+  } else if (
+    error &&
+    typeof error === "object" &&
+    "message" in error &&
+    typeof error.message === "string"
+  ) {
+    message = error.message;
+  }
+  if (!message) {
     return false;
   }
 
   return (
-    error.message.includes('"rateLimits" table') &&
-    error.message.includes(
+    message.includes('"rateLimits" table') &&
+    message.includes(
       "changed while this mutation was being run and on every subsequent retry"
     )
   );
@@ -346,6 +359,10 @@ const RATE_LIMITED_ERROR = (retryAt?: number): Response =>
 
 const RATE_LIMIT_CONTENTION_ERROR = (): Response => {
   const retryAt = Date.now() + 1000;
+  console.warn("[rate-limit] Contention fallback", {
+    event: "rate_limit_contention_fallback",
+    retryAt,
+  });
   return errorResponse(
     429,
     "RATE_LIMITED",

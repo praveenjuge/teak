@@ -143,6 +143,40 @@ describe("publicApiHttp", () => {
     expect(payload.code).toBe("RATE_LIMITED");
   });
 
+  test("createCardV1 maps serialized rate limit contention errors to 429", async () => {
+    const runMutation = mock()
+      .mockResolvedValueOnce({
+        keyId: "key_1",
+        userId: "user_1",
+        access: "full_access",
+        source: "component",
+        rateLimitKey: "component:key_1",
+      })
+      .mockRejectedValueOnce({
+        message:
+          'Documents read from or written to the "rateLimits" table changed while this mutation was being run and on every subsequent retry.',
+      });
+
+    const response = await runHandler(
+      createCardV1,
+      { runMutation, runQuery: mock() },
+      new Request("https://example.com/v1/cards", {
+        method: "POST",
+        headers: {
+          Authorization:
+            "Bearer teakapi_secret_live_a1b2c3d4_ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ content: "hello" }),
+      })
+    );
+
+    expect(response.status).toBe(429);
+    await expect(response.json()).resolves.toMatchObject({
+      code: "RATE_LIMITED",
+    });
+  });
+
   test("createCardV1 returns 500 when auth mutation throws unexpected error", async () => {
     const runMutation = mock().mockRejectedValueOnce(
       new Error("db unavailable")
