@@ -4,6 +4,7 @@ import { createAccount } from "../helpers/prod";
 import {
   accountStorageStateFile,
   importExportStorageStateFile,
+  securityStorageStateFile,
   storageStateFile,
   updateState,
   webCoreStorageStateFile,
@@ -54,6 +55,7 @@ test("create isolated verified production accounts and API keys", async ({
     cli,
     mcp,
     importExport,
+    security,
   ] = await Promise.all([
     createIsolatedAccount("web-core", webCoreStorageStateFile),
     createIsolatedAccount("web-surfaces", webSurfacesStorageStateFile),
@@ -64,6 +66,7 @@ test("create isolated verified production accounts and API keys", async ({
     createIsolatedAccount("service-cli"),
     createIsolatedAccount("service-mcp"),
     createIsolatedAccount("import-export", importExportStorageStateFile),
+    createIsolatedAccount("security", securityStorageStateFile),
   ]);
   updateState((state) => {
     state.accounts.push(
@@ -75,7 +78,8 @@ test("create isolated verified production accounts and API keys", async ({
       api,
       cli,
       mcp,
-      importExport
+      importExport,
+      security
     );
     state.webCore = webCore;
     state.webSurfaces = webSurfaces;

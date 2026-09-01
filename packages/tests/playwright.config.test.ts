@@ -62,6 +62,9 @@ describe("production E2E project graph", () => {
       "journey-setup",
       "journey-web-core",
     ]);
+    expect(projects.get("journey-security")?.use?.storageState).toBe(
+      ".state/security.json"
+    );
     expect(projects.get("journey-account")?.dependencies).toEqual([
       "journey-setup",
     ]);
