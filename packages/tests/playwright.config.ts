@@ -124,7 +124,7 @@ export default defineConfig({
       workers: 1,
       use: {
         ...devices["Desktop Chrome"],
-        storageState: ".state/user.json",
+        storageState: ".state/security.json",
       },
     },
     {

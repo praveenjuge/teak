@@ -40,6 +40,7 @@ const lockWaitArray = new Int32Array(new SharedArrayBuffer(4));
 const LOCK_TIMEOUT_MS = 5000;
 export const accountStorageStateFile = ".state/account.json";
 export const importExportStorageStateFile = ".state/import-export.json";
+export const securityStorageStateFile = ".state/security.json";
 export const storageStateFile = ".state/user.json";
 export const webCoreStorageStateFile = ".state/web-core.json";
 export const webFilesStorageStateFile = ".state/web-files.json";
