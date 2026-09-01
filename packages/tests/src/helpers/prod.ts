@@ -161,6 +161,24 @@ export const clickVisibleControl = async (
   }
 };
 
+export const fillAndSubmitTextCard = async (page: Page, content: string) => {
+  const creationForm = page.locator("form[data-card-creation-status]");
+  const readyCreationForm = page.locator(
+    'form[data-card-creation-status="ready"]'
+  );
+  const editor = creationForm.getByRole("textbox", {
+    name: "Markdown content",
+  });
+  await expect(async () => {
+    await expect(readyCreationForm).toBeVisible({ timeout: 5000 });
+    await editor.fill(content);
+    await expect(editor).toHaveText(content, { timeout: 5000 });
+  }).toPass({ intervals: [250, 500, 1000], timeout: 30_000 });
+  await creationForm
+    .getByRole("button", { name: "Save", exact: true })
+    .click({ timeout: 15_000 });
+};
+
 const settingsRow = (page: Page, label: string) =>
   page
     .getByText(label, { exact: true })

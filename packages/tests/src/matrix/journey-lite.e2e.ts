@@ -1,6 +1,10 @@
 import { expect, test } from "@playwright/test";
 import { cleanupE2EAccounts } from "../helpers/e2e-cleanup";
-import { clientFor, createAccount } from "../helpers/prod";
+import {
+  clientFor,
+  createAccount,
+  fillAndSubmitTextCard,
+} from "../helpers/prod";
 
 test.setTimeout(180_000);
 
@@ -19,21 +23,7 @@ test("signup, create, and search", async ({ page }) => {
         { exact: true }
       )
     ).toBeVisible();
-    const creationForm = page.locator(
-      'form[data-card-creation-status="ready"]'
-    );
-    await expect(creationForm).toBeVisible();
-    const note = creationForm.getByRole("textbox", {
-      name: "Markdown content",
-    });
-    await expect(async () => {
-      await expect(creationForm).toBeVisible({ timeout: 5000 });
-      await note.fill(marker);
-      await expect(note).toHaveText(marker, { timeout: 5000 });
-    }).toPass({ intervals: [250, 500, 1000], timeout: 30_000 });
-    await creationForm
-      .getByRole("button", { name: "Save", exact: true })
-      .click({ timeout: 5000 });
+    await fillAndSubmitTextCard(page, marker);
     const api = clientFor(account.apiKey);
     await expect
       .poll(

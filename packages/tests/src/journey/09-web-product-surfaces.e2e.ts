@@ -5,7 +5,7 @@ import { MAX_FILE_SIZE } from "@teak/convex/shared";
 import { strFromU8, strToU8, unzipSync, zipSync } from "fflate";
 import { apiFetch } from "../helpers/api";
 import { validWebmAudio } from "../helpers/file-formats";
-import { clientFor } from "../helpers/prod";
+import { clientFor, fillAndSubmitTextCard } from "../helpers/prod";
 import { readState, updateState } from "../helpers/run-state";
 
 const png = Buffer.from(
@@ -24,18 +24,7 @@ const pdf = Buffer.from(
 
 const saveTextCard = async (page: Page, content: string) => {
   await page.goto("/");
-  const creationForm = page.locator('form[data-card-creation-status="ready"]');
-  const editor = creationForm.getByRole("textbox", {
-    name: "Markdown content",
-  });
-  await expect(async () => {
-    await expect(creationForm).toBeVisible({ timeout: 5000 });
-    await editor.fill(content);
-    await expect(editor).toHaveText(content, { timeout: 5000 });
-  }).toPass({ intervals: [250, 500, 1000], timeout: 30_000 });
-  await creationForm
-    .getByRole("button", { name: "Save", exact: true })
-    .click({ timeout: 5000 });
+  await fillAndSubmitTextCard(page, content);
   await expect(page.getByRole("main").getByText(content).first()).toBeVisible();
 };
 

@@ -3,7 +3,13 @@ import { expect, request as playwrightRequest, test } from "@playwright/test";
 import { apiFetch } from "../helpers/api";
 import { cleanupE2EAccounts } from "../helpers/e2e-cleanup";
 import { env } from "../helpers/env";
-import { clientFor, createAccount, newAnonymousContext } from "../helpers/prod";
+import {
+  clientFor,
+  createAccount,
+  generateApiKey,
+  newAnonymousContext,
+  revokeVisibleKey,
+} from "../helpers/prod";
 import { readState } from "../helpers/run-state";
 
 test("native pairing shows an approve step instead of minting on GET", async ({
@@ -77,7 +83,10 @@ test("external OAuth requires explicit full-vault consent and can be revoked", a
     state: "oauth-security-e2e",
   }).toString();
   await page.goto(authorize.toString());
-  await expect(page.getByText(clientName)).toBeVisible();
+  await expect(async () => {
+    await page.reload();
+    await expect(page.getByText(clientName)).toBeVisible({ timeout: 5000 });
+  }).toPass({ intervals: [500, 1000, 2000], timeout: 15_000 });
   await expect(
     page.getByText(/read, create, edit, and delete your cards/i)
   ).toBeVisible();
@@ -134,9 +143,7 @@ test("cross-tenant, revoked-key, hostile input, headers, and cookie security", a
   context,
 }) => {
   const state = readState();
-  if (!state.primary?.apiKey) {
-    throw new Error("Missing primary API key");
-  }
+  const securityApiKey = await generateApiKey(page);
   const secondContext = await newAnonymousContext(browser);
   const secondPage = await secondContext.newPage();
   const second = await createAccount(secondPage, "tenant-b", {
@@ -154,7 +161,7 @@ test("cross-tenant, revoked-key, hostile input, headers, and cookie security", a
     expect(state.revokedKey, "web-core should have revoked a key").toBeTruthy();
     expect((await apiFetch("/v1/tags", state.revokedKey!)).status).toBe(401);
     const hostile = `<img src=x onerror="window.__teakXss=1"> javascript:alert(1) שלום ${"x".repeat(100_000)}`;
-    await clientFor(state.primary.apiKey).cards.create({
+    await clientFor(securityApiKey).cards.create({
       content: hostile,
       source: "prod-e2e",
       tags: ["xss"],
@@ -184,7 +191,11 @@ test("cross-tenant, revoked-key, hostile input, headers, and cookie security", a
       )
     ).toBe(true);
   } finally {
-    await secondContext.close();
-    await cleanupE2EAccounts([second.email]);
+    try {
+      await revokeVisibleKey(page, securityApiKey);
+    } finally {
+      await secondContext.close();
+      await cleanupE2EAccounts([second.email]);
+    }
   }
 });
