@@ -162,6 +162,7 @@ export const clickVisibleControl = async (
 };
 
 export const fillAndSubmitTextCard = async (page: Page, content: string) => {
+  const creationForm = page.locator("form[data-card-creation-status]");
   const readyCreationForm = page.locator(
     'form[data-card-creation-status="ready"]'
   );
@@ -174,7 +175,7 @@ export const fillAndSubmitTextCard = async (page: Page, content: string) => {
     await expect(editor).toHaveText(content, { timeout: 5000 });
   }).toPass({ intervals: [250, 500, 1000], timeout: 30_000 });
   await clickVisibleControl(
-    readyCreationForm.getByRole("button", { name: "Save", exact: true })
+    creationForm.getByRole("button", { name: "Save", exact: true })
   );
 };
 
