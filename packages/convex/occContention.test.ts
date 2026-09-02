@@ -27,22 +27,17 @@ import {
   recordActiveCardRemoved,
   removeCardUsage,
 } from "./card/cardUsage";
-import { getDualReadSearchLimit } from "./card/getCards";
+import { getSearchResultLimit } from "./card/getCards";
 import { authorizeCardCreation, ensureCardQuotaAvailable } from "./card/quota";
 import {
   buildCardSearchText,
-  deduplicateCardSearchResults,
-  searchCardsAcrossGeneralIndexes,
+  searchCardsByDocument,
   syncCardSearchDocumentHandler,
 } from "./card/searchDocumentHelpers";
 import {
   analyticsShardForRequest,
   IDEMPOTENCY_ANALYTICS_SHARDS,
 } from "./idempotencyAnalytics";
-import {
-  backfillUserCardUsageShardsHandler,
-  rollbackUserCardUsageShardsHandler,
-} from "./migrations";
 import schema from "./schema";
 import { FREE_TIER_LIMIT } from "./shared/constants";
 import { RATE_LIMIT_CONFIG, rateLimiter } from "./shared/rateLimits";
@@ -272,7 +267,7 @@ describe("OCC contention behavior", () => {
     });
   });
 
-  test("backfills, repairs, rolls back, and removes usage shards", async () => {
+  test("initializes, repairs, and removes usage shards", async () => {
     const t = convexTest(schema, modules);
     await t.run(async (ctx) => {
       const userId = "user-shard-migration";
@@ -284,7 +279,7 @@ describe("OCC contention behavior", () => {
         updatedAt: Date.now(),
       });
 
-      await backfillUserCardUsageShardsHandler(ctx, usage);
+      await initializeCardUsageShards(ctx, usage);
       expect((await getCardUsageSnapshot(ctx, userId))?.activeCardCount).toBe(
         37
       );
@@ -297,26 +292,6 @@ describe("OCC contention behavior", () => {
           .collect()
       ).toHaveLength(CARD_USAGE_TOTAL_SHARDS);
 
-      const shardedUsage = await ctx.db.get("userCardUsage", usage._id);
-      expect(shardedUsage).not.toBeNull();
-      await rollbackUserCardUsageShardsHandler(
-        ctx,
-        shardedUsage as Doc<"userCardUsage">
-      );
-      const rolledBackUsage = await ctx.db.get("userCardUsage", usage._id);
-      expect(rolledBackUsage).toMatchObject({
-        activeCardCount: 37,
-        isCountExact: true,
-      });
-      expect(rolledBackUsage?.shardVersion).toBeUndefined();
-      expect(await ctx.db.query("userCardUsageShards").collect()).toHaveLength(
-        0
-      );
-
-      await backfillUserCardUsageShardsHandler(
-        ctx,
-        rolledBackUsage as Doc<"userCardUsage">
-      );
       await removeCardUsage(ctx, userId);
       expect(await ctx.db.get("userCardUsage", usage._id)).toBeNull();
       expect(await ctx.db.query("userCardUsageShards").collect()).toHaveLength(
@@ -372,44 +347,7 @@ describe("OCC contention behavior", () => {
     });
   });
 
-  test("keeps the exact-count backfill coherent with live transitions", async () => {
-    const t = convexTest(schema, modules);
-    await t.run(async (ctx) => {
-      const userId = "user-count-migration";
-      const cardId = await insertCard(ctx, userId);
-      const usageId = await ctx.db.insert("userCardUsage", {
-        userId,
-        activeCardCount: 1,
-        isCountExact: true,
-        isSaturated: false,
-        migrationActiveCardCount: 1,
-        migrationCountStartedAt: Date.now(),
-        updatedAt: Date.now(),
-      });
-      await ctx.db.insert("cardUsageMigrationEntries", {
-        cardId,
-        userId,
-        countedActive: true,
-        createdAt: Date.now(),
-      });
-      const usage = await ctx.db.get("userCardUsage", usageId);
-      await initializeCardUsageShards(ctx, usage as Doc<"userCardUsage">);
-
-      await ctx.db.patch("cards", cardId, { isDeleted: true });
-      await recordActiveCardRemoved(ctx, userId, cardId);
-      expect((await getCardUsageSnapshot(ctx, userId))?.activeCardCount).toBe(
-        0
-      );
-
-      await ctx.db.patch("cards", cardId, { isDeleted: undefined });
-      await recordActiveCardCreated(ctx, userId, cardId);
-      expect((await getCardUsageSnapshot(ctx, userId))?.activeCardCount).toBe(
-        1
-      );
-    });
-  });
-
-  test("composes all general fields and deduplicates dual-read results", async () => {
+  test("composes all general fields for canonical search documents", async () => {
     const t = convexTest(schema, modules);
     await t.run(async (ctx) => {
       const firstId = await insertCard(ctx, "user-4", {
@@ -422,11 +360,8 @@ describe("OCC contention behavior", () => {
         notes: "notes",
         tags: ["tag"],
       });
-      const secondId = await insertCard(ctx, "user-4", { content: "legacy" });
       const first = await ctx.db.get("cards", firstId);
-      const second = await ctx.db.get("cards", secondId);
       expect(first).not.toBeNull();
-      expect(second).not.toBeNull();
       expect(buildCardSearchText(first as Doc<"cards">).split("\n")).toEqual([
         "content",
         "notes",
@@ -437,17 +372,11 @@ describe("OCC contention behavior", () => {
         "tag",
         "ai-tag",
       ]);
-      expect(
-        deduplicateCardSearchResults([
-          [first as Doc<"cards">],
-          [first as Doc<"cards">, second as Doc<"cards">],
-        ]).map((card) => card._id)
-      ).toEqual([firstId, secondId]);
-      expect(getDualReadSearchLimit(25)).toBe(25);
+      expect(getSearchResultLimit(25)).toBe(25);
     });
   });
 
-  test("oversamples dual reads so overlap does not hide the next page", async () => {
+  test("returns a full page from canonical search documents", async () => {
     const t = convexTest(schema, modules);
     await t.run(async (ctx) => {
       for (let index = 0; index < 50; index += 1) {
@@ -455,17 +384,14 @@ describe("OCC contention behavior", () => {
           content: `overlap Card ${index}`,
           updatedAt: index,
         });
-        if (index < 25) {
-          await syncCardSearchDocumentHandler(ctx, cardId);
-        }
+        await syncCardSearchDocumentHandler(ctx, cardId);
       }
 
       const desiredPageSize = 25;
-      const unique = await searchCardsAcrossGeneralIndexes(ctx, {
+      const unique = await searchCardsByDocument(ctx, {
         userId: "user-overlap",
         searchQuery: "overlap",
         isDeleted: undefined,
-        legacyFields: new Set(["content"]),
         limit: desiredPageSize * 2,
       });
       expect(unique.slice(desiredPageSize, desiredPageSize * 2)).toHaveLength(
@@ -490,37 +416,6 @@ describe("OCC contention behavior", () => {
         .unique();
       expect(document?.searchableText).toBe("latest");
       expect(document?.sourceUpdatedAt).toBe(20);
-    });
-  });
-
-  test("live writes protect migration-created records from rollback", async () => {
-    const t = convexTest(schema, modules);
-    await t.run(async (ctx) => {
-      const userId = "user-migration";
-      const cardId = await insertCard(ctx, userId);
-      const usage = await getOrInitializeCardUsage(ctx, userId, {
-        migrationBackfill: true,
-      });
-      await syncCardSearchDocumentHandler(ctx, cardId, {
-        migrationBackfill: true,
-      });
-      let document = await ctx.db
-        .query("cardSearchDocuments")
-        .withIndex("by_cardId", (query) => query.eq("cardId", cardId))
-        .unique();
-      expect(usage.migrationBackfilledAt).toBeTypeOf("number");
-      expect(document?.migrationBackfilledAt).toBeTypeOf("number");
-
-      await initializeCardUsageShards(ctx, usage);
-      await recordActiveCardCreated(ctx, userId, cardId);
-      await syncCardSearchDocumentHandler(ctx, cardId);
-      const liveUsage = await ctx.db.get("userCardUsage", usage._id);
-      document = await ctx.db
-        .query("cardSearchDocuments")
-        .withIndex("by_cardId", (query) => query.eq("cardId", cardId))
-        .unique();
-      expect(liveUsage?.migrationBackfilledAt).toBeUndefined();
-      expect(document?.migrationBackfilledAt).toBeUndefined();
     });
   });
 

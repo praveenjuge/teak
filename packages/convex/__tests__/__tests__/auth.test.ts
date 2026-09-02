@@ -724,7 +724,7 @@ describe("auth", () => {
       );
     });
 
-    it("removes usage migration entries before the aggregate row", async () => {
+    it("removes canonical card usage", async () => {
       const events: string[] = [];
       const ctx = {
         db: {
@@ -733,10 +733,6 @@ describe("auth", () => {
               const builder = { eq: () => builder };
               cb(builder);
               return {
-                take: async () =>
-                  table === "cardUsageMigrationEntries"
-                    ? [{ _id: "entry1" }, { _id: "entry2" }]
-                    : [],
                 unique: async () =>
                   table === "userCardUsage" ? { _id: "usage1" } : null,
               };
@@ -748,15 +744,10 @@ describe("auth", () => {
         },
       } as any;
 
-      await expect(removeAccountCardUsageHandler(ctx, "u1")).resolves.toEqual({
-        deletedEntries: 2,
-        hasMore: false,
-      });
-      expect(events).toEqual([
-        "cardUsageMigrationEntries:entry1",
-        "cardUsageMigrationEntries:entry2",
-        "userCardUsage:usage1",
-      ]);
+      await expect(
+        removeAccountCardUsageHandler(ctx, "u1")
+      ).resolves.toBeNull();
+      expect(events).toEqual(["userCardUsage:usage1"]);
     });
 
     it("awaits private object cleanup before deleting owning rows", async () => {

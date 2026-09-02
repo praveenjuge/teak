@@ -14,7 +14,7 @@ const runHandler = (fn: any, ctx: any, args: any) => {
 };
 
 describe("raycast", () => {
-  test("favorite search applies isFavorited filter in each search index", async () => {
+  test("favorite search filters the canonical search index", async () => {
     const isFavoritedFilters: string[] = [];
     const searchIndexes: string[] = [];
 
@@ -48,8 +48,8 @@ describe("raycast", () => {
     });
 
     expect(result).toEqual([]);
-    expect(searchIndexes.length).toBe(9);
-    expect(isFavoritedFilters).toHaveLength(9);
+    expect(searchIndexes).toEqual(["search_searchableText"]);
+    expect(isFavoritedFilters).toEqual(["search_searchableText"]);
     for (const indexName of searchIndexes) {
       expect(isFavoritedFilters).toContain(indexName);
     }

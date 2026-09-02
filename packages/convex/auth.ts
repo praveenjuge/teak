@@ -705,15 +705,7 @@ export const deleteAccountData = internalAction({
     ) {
       throw new Error("Account data changed during deletion");
     }
-    while (true) {
-      const usageCleanup = await ctx.runMutation(
-        internal.auth.removeAccountCardUsage,
-        { userId }
-      );
-      if (!usageCleanup.hasMore) {
-        break;
-      }
-    }
+    await ctx.runMutation(internal.auth.removeAccountCardUsage, { userId });
     return { deletedCards, deletedStorageObjectCount };
   },
 });
@@ -740,23 +732,13 @@ export const removeAccountCardUsageHandler = async (
   ctx: MutationCtx,
   userId: string
 ) => {
-  const migrationEntries = await ctx.db
-    .query("cardUsageMigrationEntries")
-    .withIndex("by_userId", (query) => query.eq("userId", userId))
-    .take(20);
-  for (const entry of migrationEntries) {
-    await ctx.db.delete("cardUsageMigrationEntries", entry._id);
-  }
-  const hasMore = migrationEntries.length === 20;
-  if (!hasMore) {
-    await removeCardUsage(ctx, userId);
-  }
-  return { deletedEntries: migrationEntries.length, hasMore };
+  await removeCardUsage(ctx, userId);
+  return null;
 };
 
 export const removeAccountCardUsage = internalMutation({
   args: { userId: v.string() },
-  returns: v.object({ deletedEntries: v.number(), hasMore: v.boolean() }),
+  returns: v.null(),
   handler: (ctx, { userId }) => removeAccountCardUsageHandler(ctx, userId),
 });
 

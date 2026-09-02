@@ -25,6 +25,17 @@ const buildQuery = (cards: any[] = []) =>
     }),
   }) as any;
 
+const buildSearchDb = (cards: any[], cardQuery = buildQuery(cards)) => ({
+  get: mock((_table: string, id: string) =>
+    Promise.resolve(cards.find((card) => card._id === id) ?? null)
+  ),
+  query: mock((table: string) =>
+    table === "cardSearchDocuments"
+      ? buildQuery(cards.map((card) => ({ cardId: card._id })))
+      : cardQuery
+  ),
+});
+
 describe("card/getCards.ts", () => {
   let getCards: any;
   let searchCards: any;
@@ -337,7 +348,7 @@ describe("card/getCards.ts", () => {
 
       const ctx = {
         auth: { getUserIdentity: mock().mockResolvedValue({ subject: "u1" }) },
-        db: { query: mock().mockReturnValue(query) },
+        db: buildSearchDb(cards, query),
         storage: { getUrl: mock() },
       } as any;
 
@@ -367,7 +378,7 @@ describe("card/getCards.ts", () => {
 
       const ctx = {
         auth: { getUserIdentity: mock().mockResolvedValue({ subject: "u1" }) },
-        db: { query: mock().mockReturnValue(query) },
+        db: buildSearchDb(cards, query),
         storage: { getUrl: mock() },
       } as any;
 
@@ -401,7 +412,7 @@ describe("card/getCards.ts", () => {
 
       const ctx = {
         auth: { getUserIdentity: mock().mockResolvedValue({ subject: "u1" }) },
-        db: { query: mock().mockReturnValue(query) },
+        db: buildSearchDb(cards, query),
         storage: { getUrl: mock() },
       } as any;
 
@@ -435,7 +446,7 @@ describe("card/getCards.ts", () => {
 
       const ctx = {
         auth: { getUserIdentity: mock().mockResolvedValue({ subject: "u1" }) },
-        db: { query: mock().mockReturnValue(query) },
+        db: buildSearchDb(cards, query),
         storage: { getUrl: mock() },
       } as any;
 
@@ -460,7 +471,7 @@ describe("card/getCards.ts", () => {
 
       const ctx = {
         auth: { getUserIdentity: mock().mockResolvedValue({ subject: "u1" }) },
-        db: { query: mock().mockReturnValue(query) },
+        db: buildSearchDb(cards, query),
         storage: { getUrl: mock() },
       } as any;
 
@@ -657,7 +668,7 @@ describe("card/getCards.ts", () => {
 
       const ctx = {
         auth: { getUserIdentity: mock().mockResolvedValue({ subject: "u1" }) },
-        db: { query: mock().mockReturnValue(query) },
+        db: buildSearchDb(cards, query),
         storage: { getUrl: mock() },
       } as any;
 
@@ -684,7 +695,7 @@ describe("card/getCards.ts", () => {
 
       const ctx = {
         auth: { getUserIdentity: mock().mockResolvedValue({ subject: "u1" }) },
-        db: { query: mock().mockReturnValue(query) },
+        db: buildSearchDb(cards, query),
         storage: { getUrl: mock() },
       } as any;
 
@@ -712,7 +723,7 @@ describe("card/getCards.ts", () => {
 
       const ctx = {
         auth: { getUserIdentity: mock().mockResolvedValue({ subject: "u1" }) },
-        db: { query: mock().mockReturnValue(query) },
+        db: buildSearchDb(cards, query),
         storage: { getUrl: mock() },
       } as any;
 
@@ -747,7 +758,7 @@ describe("card/getCards.ts", () => {
 
       const ctx = {
         auth: { getUserIdentity: mock().mockResolvedValue({ subject: "u1" }) },
-        db: { query: mock().mockReturnValue(query) },
+        db: buildSearchDb(cards, query),
         storage: { getUrl: mock() },
       } as any;
 
@@ -827,7 +838,7 @@ describe("card/getCards.ts", () => {
 
       const ctx = {
         auth: { getUserIdentity: mock().mockResolvedValue({ subject: "u1" }) },
-        db: { query: mock().mockReturnValue(query) },
+        db: buildSearchDb(cards, query),
         storage: { getUrl: mock() },
       } as any;
 
