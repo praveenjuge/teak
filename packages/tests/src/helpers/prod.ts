@@ -189,11 +189,20 @@ export const fillAndSubmitTextCard = async (page: Page, content: string) => {
     try {
       await expect(saveButton).toBeVisible({ timeout: 5000 });
       await expect(saveButton).toBeEnabled({ timeout: 5000 });
+      await saveButton.click({ timeout: 5000, trial: true });
+    } catch (error) {
+      if (attempt === 3 || !isRetryableActionabilityError(error)) {
+        throw error;
+      }
+      continue;
+    }
+
+    try {
       await saveButton.click({ timeout: 5000 });
       return;
     } catch (error) {
       const didSave = await savedCard
-        .waitFor({ state: "visible", timeout: 5000 })
+        .waitFor({ state: "visible", timeout: 30_000 })
         .then(
           () => true,
           () => false
@@ -201,9 +210,7 @@ export const fillAndSubmitTextCard = async (page: Page, content: string) => {
       if (didSave) {
         return;
       }
-      if (attempt === 3 || !isRetryableActionabilityError(error)) {
-        throw error;
-      }
+      throw error;
     }
   }
 };
