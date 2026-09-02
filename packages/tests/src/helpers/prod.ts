@@ -134,7 +134,7 @@ export const newAnonymousContext = (browser: Browser) =>
 
 const isRetryableActionabilityError = (error: unknown) =>
   error instanceof Error &&
-  /element (is not stable|was detached)|Timeout .* exceeded/.test(
+  /element (is not stable|was detached)|Timeout .* exceeded|Timeout: \d+ms/.test(
     error.message
   );
 
@@ -169,14 +169,50 @@ export const fillAndSubmitTextCard = async (page: Page, content: string) => {
   const editor = readyCreationForm.getByRole("textbox", {
     name: "Markdown content",
   });
-  await expect(async () => {
-    await expect(readyCreationForm).toBeVisible({ timeout: 5000 });
-    await editor.fill(content);
-    await expect(editor).toHaveText(content, { timeout: 5000 });
-  }).toPass({ intervals: [250, 500, 1000], timeout: 30_000 });
-  await clickVisibleControl(
-    creationForm.getByRole("button", { name: "Save", exact: true })
-  );
+  const savedCard = page
+    .getByRole("main")
+    .getByRole("paragraph")
+    .filter({ hasText: content })
+    .first();
+
+  for (let attempt = 1; attempt <= 3; attempt += 1) {
+    await expect(async () => {
+      await expect(readyCreationForm).toBeVisible({ timeout: 5000 });
+      await editor.fill(content);
+      await expect(editor).toHaveText(content, { timeout: 5000 });
+    }).toPass({ intervals: [250, 500, 1000], timeout: 30_000 });
+
+    const saveButton = creationForm
+      .getByRole("button", { name: "Save", exact: true })
+      .filter({ visible: true })
+      .first();
+    try {
+      await expect(saveButton).toBeVisible({ timeout: 5000 });
+      await expect(saveButton).toBeEnabled({ timeout: 5000 });
+      await saveButton.click({ timeout: 5000, trial: true });
+    } catch (error) {
+      if (attempt === 3 || !isRetryableActionabilityError(error)) {
+        throw error;
+      }
+      continue;
+    }
+
+    try {
+      await saveButton.click({ timeout: 5000 });
+      return;
+    } catch (error) {
+      const didSave = await savedCard
+        .waitFor({ state: "visible", timeout: 30_000 })
+        .then(
+          () => true,
+          () => false
+        );
+      if (didSave) {
+        return;
+      }
+      throw error;
+    }
+  }
 };
 
 const settingsRow = (page: Page, label: string) =>
