@@ -507,6 +507,17 @@ export default defineSchema({
     .index("by_updated", ["userId", "updatedAt"])
     // Index for duplicate URL checking
     .index("by_user_url_deleted", ["userId", "url", "isDeleted"])
+    // These two tag indexes remain only during the exact-tag widen/backfill
+    // rollout. The follow-up narrowing deploy removes them after parity is
+    // verified for cardSearchTags.
+    .searchIndex("search_tags", {
+      searchField: "tags",
+      filterFields: ["userId", "isDeleted", "type", "isFavorited"],
+    })
+    .searchIndex("search_ai_tags", {
+      searchField: "aiTags",
+      filterFields: ["userId", "isDeleted", "type", "isFavorited"],
+    })
     // Visual-search indexes remain card-native; general text search uses
     // cardSearchDocuments.search_searchableText below.
     .searchIndex("search_visual_styles", {
@@ -555,6 +566,60 @@ export default defineSchema({
       searchField: "searchableText",
       filterFields: ["userId", "isDeleted", "type", "isFavorited"],
     }),
+  cardSearchTags: defineTable({
+    cardId: v.id("cards"),
+    userId: v.string(),
+    tag: v.string(),
+    isDeleted: v.optional(v.boolean()),
+    type: cardTypeValidator,
+    isFavorited: v.optional(v.boolean()),
+    cardCreatedAt: v.number(),
+    sourceUpdatedAt: v.number(),
+  })
+    .index("by_cardId", ["cardId"])
+    .index("by_cardId_and_tag", ["cardId", "tag"])
+    .index("by_user_tag_deleted_created", [
+      "userId",
+      "tag",
+      "isDeleted",
+      "cardCreatedAt",
+      "cardId",
+    ])
+    .index("by_user_tag_deleted_type", [
+      "userId",
+      "tag",
+      "isDeleted",
+      "type",
+      "cardCreatedAt",
+      "cardId",
+    ])
+    .index("by_user_tag_deleted_favorited", [
+      "userId",
+      "tag",
+      "isDeleted",
+      "isFavorited",
+      "cardCreatedAt",
+      "cardId",
+    ])
+    .index("by_user_tag_deleted_type_favorited", [
+      "userId",
+      "tag",
+      "isDeleted",
+      "type",
+      "isFavorited",
+      "cardCreatedAt",
+      "cardId",
+    ]),
+  cardSearchTagSyncStates: defineTable({
+    cardId: v.id("cards"),
+    phase: v.union(
+      v.literal("cleanup"),
+      v.literal("tags"),
+      v.literal("aiTags")
+    ),
+    offset: v.number(),
+    sourceUpdatedAt: v.optional(v.number()),
+  }).index("by_cardId", ["cardId"]),
   apiIdempotencyKeys: defineTable(apiIdempotencyKeyValidator)
     .index("by_user_key_hash", ["userId", "keyHash"])
     .index("by_expires_at", ["expiresAt"]),

@@ -76,6 +76,7 @@ try {
   );
 }
 const APPLE_CLIENT_SECRET_TTL_SECONDS = 180 * 24 * 60 * 60;
+const ACCOUNT_CARD_TAG_DELETE_BATCH_SIZE = 20;
 
 interface AppleClientSecretConfig {
   clientId: string;
@@ -531,10 +532,20 @@ export const getAccountCardDeletionBatchHandler = async (
     .query("cards")
     .withIndex("by_user_deleted", (q: any) => q.eq("userId", userId))
     .take(20);
+  const readyCards: typeof cards = [];
+  for (const card of cards) {
+    const tagDocuments = await ctx.db
+      .query("cardSearchTags")
+      .withIndex("by_cardId", (query) => query.eq("cardId", card._id))
+      .take(ACCOUNT_CARD_TAG_DELETE_BATCH_SIZE + 1);
+    if (tagDocuments.length <= ACCOUNT_CARD_TAG_DELETE_BATCH_SIZE) {
+      readyCards.push(card);
+    }
+  }
   return {
     cardIds: cards.map((card) => card._id),
     objectKeys: Array.from(
-      new Set(cards.flatMap((card) => cardStorageObjectKeys(card)))
+      new Set(readyCards.flatMap((card) => cardStorageObjectKeys(card)))
     ),
   };
 };
@@ -557,6 +568,19 @@ export const deleteAccountDataHandler = async (
   for (const cardId of cardIds) {
     const card = await ctx.db.get("cards", cardId);
     if (!card || card.userId !== userId) {
+      continue;
+    }
+    const tagDocuments = await ctx.db
+      .query("cardSearchTags")
+      .withIndex("by_cardId", (query) => query.eq("cardId", cardId))
+      .take(ACCOUNT_CARD_TAG_DELETE_BATCH_SIZE + 1);
+    for (const tagDocument of tagDocuments.slice(
+      0,
+      ACCOUNT_CARD_TAG_DELETE_BATCH_SIZE
+    )) {
+      await ctx.db.delete("cardSearchTags", tagDocument._id);
+    }
+    if (tagDocuments.length > ACCOUNT_CARD_TAG_DELETE_BATCH_SIZE) {
       continue;
     }
     const searchDocument = await ctx.db

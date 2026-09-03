@@ -14,6 +14,7 @@ import { attachFileUrls } from "./card/queryUtils";
 import { applyQuoteFormattingToList } from "./card/quoteFormatting";
 import {
   scheduleCardSearchSync,
+  searchCardsAcrossLegacyTagIndexes,
   searchCardsByDocument,
 } from "./card/searchDocumentHelpers";
 import { updateCardFieldForUserHandler } from "./card/updateCard";
@@ -303,9 +304,9 @@ const searchCardsByTag = async (
   );
 
   const unique = (
-    await searchCardsByDocument(ctx, {
+    await searchCardsAcrossLegacyTagIndexes(ctx, {
       userId,
-      searchQuery: normalizedTag,
+      tag: normalizedTag,
       isDeleted: undefined,
       isFavorited: options.favoritesOnly ? true : undefined,
       type: options.type,

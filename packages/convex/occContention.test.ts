@@ -30,9 +30,12 @@ import {
 import { getSearchResultLimit } from "./card/getCards";
 import { authorizeCardCreation, ensureCardQuotaAvailable } from "./card/quota";
 import {
+  buildCardSearchTags,
   buildCardSearchText,
   searchCardsByDocument,
+  searchCardsByExactTag,
   syncCardSearchDocumentHandler,
+  syncCardSearchTagsBatchHandler,
 } from "./card/searchDocumentHelpers";
 import {
   analyticsShardForRequest,
@@ -57,6 +60,19 @@ const insertCard = async (
     updatedAt: Date.now(),
     ...overrides,
   });
+
+const drainCardSearchTagSync = async (
+  ctx: MutationCtx,
+  cardId: Id<"cards">
+) => {
+  for (let attempt = 0; attempt < 100; attempt += 1) {
+    const result = await syncCardSearchTagsBatchHandler(ctx, cardId);
+    if (result.complete) {
+      return result;
+    }
+  }
+  throw new Error("Card search tag synchronization did not complete");
+};
 
 const insertExactUsage = async (
   ctx: MutationCtx,
@@ -372,7 +388,148 @@ describe("OCC contention behavior", () => {
         "tag",
         "ai-tag",
       ]);
+      expect(buildCardSearchTags(first as Doc<"cards">)).toEqual([
+        "ai-tag",
+        "tag",
+      ]);
       expect(getSearchResultLimit(25)).toBe(25);
+    });
+  });
+
+  test("synchronizes and queries canonical exact tags", async () => {
+    const t = convexTest(schema, modules);
+    await t.run(async (ctx) => {
+      const exactId = await insertCard(ctx, "user-tags", {
+        content: "design systems",
+        isFavorited: true,
+        tags: [" Product Design ", "product design"],
+        aiTags: ["Reference"],
+        type: "link",
+        updatedAt: 10,
+      });
+      const textOnlyId = await insertCard(ctx, "user-tags", {
+        content: "A note about product design",
+        tags: ["other"],
+        updatedAt: 10,
+      });
+      await syncCardSearchDocumentHandler(ctx, exactId);
+      await syncCardSearchDocumentHandler(ctx, textOnlyId);
+      await drainCardSearchTagSync(ctx, exactId);
+      await drainCardSearchTagSync(ctx, textOnlyId);
+
+      expect(
+        (await ctx.db.query("cardSearchTags").collect()).map(({ tag }) => tag)
+      ).toEqual(["product design", "reference", "other"]);
+      expect(
+        await searchCardsByExactTag(ctx, {
+          userId: "user-tags",
+          tag: "PRODUCT DESIGN",
+          isDeleted: undefined,
+          isFavorited: true,
+          limit: 10,
+          sort: "newest",
+          type: "link",
+        })
+      ).toMatchObject([{ _id: exactId }]);
+
+      await ctx.db.patch("cards", exactId, {
+        aiTags: undefined,
+        tags: ["Updated"],
+        updatedAt: 20,
+      });
+      await syncCardSearchDocumentHandler(ctx, exactId);
+      await drainCardSearchTagSync(ctx, exactId);
+      expect(
+        (await ctx.db.query("cardSearchTags").collect()).map(({ tag }) => tag)
+      ).toEqual(["other", "updated"]);
+      expect(
+        await ctx.db.query("cardSearchTagSyncStates").collect()
+      ).toHaveLength(0);
+    });
+  });
+
+  test("synchronizes very large tag sets in bounded resumable batches", async () => {
+    const t = convexTest(schema, modules);
+    await t.run(async (ctx) => {
+      const tags = Array.from(
+        { length: 1000 },
+        (_, index) => `tag-${String(index).padStart(4, "0")}`
+      );
+      const cardId = await insertCard(ctx, "user-many-tags", { tags });
+
+      const processedCounts: number[] = [];
+      for (let attempt = 0; attempt < 40; attempt += 1) {
+        const result = await syncCardSearchTagsBatchHandler(ctx, cardId);
+        processedCounts.push(result.processed);
+        if (result.complete) {
+          break;
+        }
+      }
+      expect(processedCounts[0]).toBe(0);
+      expect(processedCounts.every((processed) => processed <= 32)).toBe(true);
+      expect(processedCounts[processedCounts.length - 1]).toBe(0);
+      expect(await ctx.db.query("cardSearchTags").collect()).toHaveLength(1000);
+      expect(
+        await ctx.db.query("cardSearchTagSyncStates").collect()
+      ).toHaveLength(0);
+    });
+  });
+
+  test("orders and bounds exact-tag candidates before limiting", async () => {
+    const t = convexTest(schema, modules);
+    await t.run(async (ctx) => {
+      const cardIds: Id<"cards">[] = [];
+      for (const createdAt of [10, 20, 30]) {
+        const cardId = await insertCard(ctx, "user-tag-order", {
+          createdAt,
+          isFavorited: true,
+          tags: ["ordered"],
+          type: "text",
+        });
+        cardIds.push(cardId);
+        await drainCardSearchTagSync(ctx, cardId);
+      }
+
+      expect(
+        await searchCardsByExactTag(ctx, {
+          createdAfter: 15,
+          createdBefore: 25,
+          isDeleted: undefined,
+          isFavorited: true,
+          limit: 1,
+          sort: "newest",
+          tag: "ordered",
+          type: "text",
+          userId: "user-tag-order",
+        })
+      ).toMatchObject([{ _id: cardIds[1], createdAt: 20 }]);
+    });
+  });
+
+  test("normalizes false and missing favorite values for exact tags", async () => {
+    const t = convexTest(schema, modules);
+    await t.run(async (ctx) => {
+      const explicitFalseId = await insertCard(ctx, "user-tag-favorite", {
+        isFavorited: false,
+        tags: ["unstarred"],
+      });
+      const missingId = await insertCard(ctx, "user-tag-favorite", {
+        tags: ["unstarred"],
+      });
+      await drainCardSearchTagSync(ctx, explicitFalseId);
+      await drainCardSearchTagSync(ctx, missingId);
+
+      const cards = await searchCardsByExactTag(ctx, {
+        isDeleted: undefined,
+        isFavorited: false,
+        limit: 10,
+        sort: "newest",
+        tag: "unstarred",
+        userId: "user-tag-favorite",
+      });
+      expect(new Set(cards.map((card) => card._id))).toEqual(
+        new Set([explicitFalseId, missingId])
+      );
     });
   });
 
@@ -385,6 +542,7 @@ describe("OCC contention behavior", () => {
           updatedAt: index,
         });
         await syncCardSearchDocumentHandler(ctx, cardId);
+        await drainCardSearchTagSync(ctx, cardId);
       }
 
       const desiredPageSize = 25;
@@ -425,8 +583,10 @@ describe("OCC contention behavior", () => {
       for (let index = 0; index < 21; index += 1) {
         const cardId = await insertCard(ctx, "user-delete", {
           content: `Card ${index}`,
+          tags: ["cleanup"],
         });
         await syncCardSearchDocumentHandler(ctx, cardId);
+        await drainCardSearchTagSync(ctx, cardId);
       }
       const firstBatch = await getAccountCardDeletionBatchHandler(
         ctx,
@@ -447,6 +607,7 @@ describe("OCC contention behavior", () => {
       expect(await ctx.db.query("cardSearchDocuments").collect()).toHaveLength(
         1
       );
+      expect(await ctx.db.query("cardSearchTags").collect()).toHaveLength(1);
 
       const secondBatch = await getAccountCardDeletionBatchHandler(
         ctx,
@@ -459,6 +620,49 @@ describe("OCC contention behavior", () => {
       expect(await ctx.db.query("cardSearchDocuments").collect()).toHaveLength(
         0
       );
+      expect(await ctx.db.query("cardSearchTags").collect()).toHaveLength(0);
+    });
+  });
+
+  test("resumes account deletion for cards with large tag sets", async () => {
+    const t = convexTest(schema, modules);
+    await t.run(async (ctx) => {
+      const tags = Array.from(
+        { length: 45 },
+        (_, index) => `cleanup-${String(index).padStart(2, "0")}`
+      );
+      const cardId = await insertCard(ctx, "user-delete-many-tags", {
+        fileKey: "object-key",
+        tags,
+      });
+      await syncCardSearchDocumentHandler(ctx, cardId);
+      await drainCardSearchTagSync(ctx, cardId);
+
+      expect(
+        (await getAccountCardDeletionBatchHandler(ctx, "user-delete-many-tags"))
+          .objectKeys
+      ).toHaveLength(0);
+      expect(
+        await deleteAccountDataHandler(ctx, "user-delete-many-tags", [cardId])
+      ).toBe(0);
+      expect(await ctx.db.query("cardSearchTags").collect()).toHaveLength(25);
+      expect(
+        (await getAccountCardDeletionBatchHandler(ctx, "user-delete-many-tags"))
+          .objectKeys
+      ).toHaveLength(0);
+      expect(
+        await deleteAccountDataHandler(ctx, "user-delete-many-tags", [cardId])
+      ).toBe(0);
+      expect(await ctx.db.query("cardSearchTags").collect()).toHaveLength(5);
+      expect(
+        (await getAccountCardDeletionBatchHandler(ctx, "user-delete-many-tags"))
+          .objectKeys
+      ).toEqual(["object-key", "object-key.processing.json"]);
+      expect(
+        await deleteAccountDataHandler(ctx, "user-delete-many-tags", [cardId])
+      ).toBe(1);
+      expect(await ctx.db.get("cards", cardId)).toBeNull();
+      expect(await ctx.db.query("cardSearchTags").collect()).toHaveLength(0);
     });
   });
 
