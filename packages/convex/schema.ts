@@ -507,33 +507,9 @@ export default defineSchema({
     .index("by_updated", ["userId", "updatedAt"])
     // Index for duplicate URL checking
     .index("by_user_url_deleted", ["userId", "url", "isDeleted"])
-    // Search indexes for efficient full-text search
-    .searchIndex("search_content", {
-      searchField: "content",
-      filterFields: ["userId", "isDeleted", "type", "isFavorited"],
-    })
-    .searchIndex("search_notes", {
-      searchField: "notes",
-      filterFields: ["userId", "isDeleted", "type", "isFavorited"],
-    })
-
-    .searchIndex("search_ai_summary", {
-      searchField: "aiSummary",
-      filterFields: ["userId", "isDeleted", "type", "isFavorited"],
-    })
-    .searchIndex("search_ai_transcript", {
-      searchField: "aiTranscript",
-      filterFields: ["userId", "isDeleted", "type", "isFavorited"],
-    })
-    .searchIndex("search_metadata_title", {
-      searchField: "metadataTitle",
-      filterFields: ["userId", "isDeleted", "type", "isFavorited"],
-    })
-    .searchIndex("search_metadata_description", {
-      searchField: "metadataDescription",
-      filterFields: ["userId", "isDeleted", "type", "isFavorited"],
-    })
-    // Search indexes for tag fields - eliminates full table scan for tag searches
+    // These two tag indexes remain only during the exact-tag widen/backfill
+    // rollout. The follow-up narrowing deploy removes them after parity is
+    // verified for cardSearchTags.
     .searchIndex("search_tags", {
       searchField: "tags",
       filterFields: ["userId", "isDeleted", "type", "isFavorited"],
@@ -542,6 +518,8 @@ export default defineSchema({
       searchField: "aiTags",
       filterFields: ["userId", "isDeleted", "type", "isFavorited"],
     })
+    // Visual-search indexes remain card-native; general text search uses
+    // cardSearchDocuments.search_searchableText below.
     .searchIndex("search_visual_styles", {
       searchField: "visualStyles",
       filterFields: ["userId", "isDeleted", "type", "isFavorited"],
@@ -559,9 +537,6 @@ export default defineSchema({
     activeCardCount: v.number(),
     isCountExact: v.optional(v.boolean()),
     isSaturated: v.boolean(),
-    migrationActiveCardCount: v.optional(v.number()),
-    migrationBackfilledAt: v.optional(v.number()),
-    migrationCountStartedAt: v.optional(v.number()),
     shardVersion: v.optional(v.number()),
     shardedAt: v.optional(v.number()),
     updatedAt: v.number(),
@@ -572,14 +547,6 @@ export default defineSchema({
     activeCardCount: v.number(),
     updatedAt: v.number(),
   }).index("by_userId_and_shard", ["userId", "shard"]),
-  cardUsageMigrationEntries: defineTable({
-    cardId: v.id("cards"),
-    userId: v.string(),
-    countedActive: v.boolean(),
-    createdAt: v.number(),
-  })
-    .index("by_cardId", ["cardId"])
-    .index("by_userId", ["userId"]),
   accountDeletionStates: defineTable({
     userId: v.string(),
     startedAt: v.number(),
@@ -591,7 +558,6 @@ export default defineSchema({
     isDeleted: v.optional(v.boolean()),
     type: cardTypeValidator,
     isFavorited: v.optional(v.boolean()),
-    migrationBackfilledAt: v.optional(v.number()),
     sourceUpdatedAt: v.number(),
   })
     .index("by_cardId", ["cardId"])
@@ -600,6 +566,69 @@ export default defineSchema({
       searchField: "searchableText",
       filterFields: ["userId", "isDeleted", "type", "isFavorited"],
     }),
+  cardSearchTags: defineTable({
+    cardId: v.id("cards"),
+    userId: v.string(),
+    tag: v.string(),
+    isDeleted: v.optional(v.boolean()),
+    type: cardTypeValidator,
+    isFavorited: v.optional(v.boolean()),
+    cardCreatedAt: v.number(),
+    sourceUpdatedAt: v.number(),
+    syncGeneration: v.optional(v.number()),
+  })
+    .index("by_cardId", ["cardId"])
+    .index("by_cardId_and_tag", ["cardId", "tag"])
+    .index("by_cardId_and_generation", ["cardId", "syncGeneration"])
+    .index("by_user_tag_deleted_created", [
+      "userId",
+      "tag",
+      "isDeleted",
+      "cardCreatedAt",
+      "cardId",
+    ])
+    .index("by_user_tag_deleted_type", [
+      "userId",
+      "tag",
+      "isDeleted",
+      "type",
+      "cardCreatedAt",
+      "cardId",
+    ])
+    .index("by_user_tag_deleted_favorited", [
+      "userId",
+      "tag",
+      "isDeleted",
+      "isFavorited",
+      "cardCreatedAt",
+      "cardId",
+    ])
+    .index("by_user_tag_deleted_type_favorited", [
+      "userId",
+      "tag",
+      "isDeleted",
+      "type",
+      "isFavorited",
+      "cardCreatedAt",
+      "cardId",
+    ]),
+  cardSearchTagSyncStates: defineTable({
+    cardId: v.id("cards"),
+    phase: v.union(
+      v.literal("cleanup"),
+      v.literal("tags"),
+      v.literal("aiTags"),
+      v.literal("pruneLegacy"),
+      v.literal("pruneOld"),
+      v.literal("complete")
+    ),
+    generation: v.optional(v.number()),
+    offset: v.number(),
+    pending: v.optional(v.boolean()),
+    sourceUpdatedAt: v.optional(v.number()),
+  })
+    .index("by_cardId", ["cardId"])
+    .index("by_pending", ["pending"]),
   apiIdempotencyKeys: defineTable(apiIdempotencyKeyValidator)
     .index("by_user_key_hash", ["userId", "keyHash"])
     .index("by_expires_at", ["expiresAt"]),

@@ -16,7 +16,7 @@ import {
   isCreatedAtInRange,
 } from "./queryUtils";
 import { applyQuoteFormattingToList } from "./quoteFormatting";
-import { searchCardsAcrossGeneralIndexes } from "./searchDocumentHelpers";
+import { searchCardsByDocument } from "./searchDocumentHelpers";
 import {
   applyCardLevelFilters,
   doesCardMatchVisualFilters,
@@ -69,7 +69,7 @@ const createdAtRangeValidator = v.object({
 });
 
 const VISUAL_SEARCH_BUFFER = 12;
-export const getDualReadSearchLimit = (desiredLimit: number) =>
+export const getSearchResultLimit = (desiredLimit: number) =>
   Math.max(1, desiredLimit);
 const getVisualSearchBatchLimit = (desiredLimit: number) =>
   Math.max(desiredLimit + VISUAL_SEARCH_BUFFER, 12);
@@ -210,13 +210,13 @@ export const searchCards = query({
         return applyQuoteFormattingToList(trashedWithUrls);
       }
 
-      const uniqueResults = await searchCardsAcrossGeneralIndexes(ctx, {
+      const uniqueResults = await searchCardsByDocument(ctx, {
         userId: user.subject,
         searchQuery,
         isDeleted: showTrashOnly ? true : undefined,
         isFavorited: favoritesOnly ? true : undefined,
         type: types?.length === 1 ? types[0] : undefined,
-        limit: getDualReadSearchLimit(limit),
+        limit: getSearchResultLimit(limit),
         resultFilter: (card) =>
           applyCardLevelFilters([card], {
             types,
@@ -445,17 +445,17 @@ export const searchCardsPaginatedHandler = async (
     );
     const pageSize = clampPageSize(paginationOpts.numItems);
     const desiredLimit = offset + pageSize + 1;
-    const dualReadLimit = getDualReadSearchLimit(desiredLimit);
+    const searchResultLimit = getSearchResultLimit(desiredLimit);
 
     const typesSet = new Set(types || []);
     const hasMultiTypeFilter = typesSet.size > 1;
-    const searchResults = await searchCardsAcrossGeneralIndexes(ctx, {
+    const searchResults = await searchCardsByDocument(ctx, {
       userId: user.subject,
       searchQuery,
       isDeleted: showTrashOnly ? true : undefined,
       isFavorited: favoritesOnly ? true : undefined,
       type: types?.length === 1 ? types[0] : undefined,
-      limit: dualReadLimit,
+      limit: searchResultLimit,
       resultFilter: (card) =>
         isCreatedAtInRange(card.createdAt, createdAtRange) &&
         (!hasMultiTypeFilter || typesSet.has(card.type)) &&

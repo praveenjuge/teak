@@ -76,6 +76,7 @@ try {
   );
 }
 const APPLE_CLIENT_SECRET_TTL_SECONDS = 180 * 24 * 60 * 60;
+const ACCOUNT_CARD_TAG_DELETE_BATCH_SIZE = 20;
 
 interface AppleClientSecretConfig {
   clientId: string;
@@ -531,10 +532,20 @@ export const getAccountCardDeletionBatchHandler = async (
     .query("cards")
     .withIndex("by_user_deleted", (q: any) => q.eq("userId", userId))
     .take(20);
+  const readyCards: typeof cards = [];
+  for (const card of cards) {
+    const tagDocuments = await ctx.db
+      .query("cardSearchTags")
+      .withIndex("by_cardId", (query) => query.eq("cardId", card._id))
+      .take(ACCOUNT_CARD_TAG_DELETE_BATCH_SIZE + 1);
+    if (tagDocuments.length <= ACCOUNT_CARD_TAG_DELETE_BATCH_SIZE) {
+      readyCards.push(card);
+    }
+  }
   return {
     cardIds: cards.map((card) => card._id),
     objectKeys: Array.from(
-      new Set(cards.flatMap((card) => cardStorageObjectKeys(card)))
+      new Set(readyCards.flatMap((card) => cardStorageObjectKeys(card)))
     ),
   };
 };
@@ -559,12 +570,32 @@ export const deleteAccountDataHandler = async (
     if (!card || card.userId !== userId) {
       continue;
     }
+    const tagDocuments = await ctx.db
+      .query("cardSearchTags")
+      .withIndex("by_cardId", (query) => query.eq("cardId", cardId))
+      .take(ACCOUNT_CARD_TAG_DELETE_BATCH_SIZE + 1);
+    for (const tagDocument of tagDocuments.slice(
+      0,
+      ACCOUNT_CARD_TAG_DELETE_BATCH_SIZE
+    )) {
+      await ctx.db.delete("cardSearchTags", tagDocument._id);
+    }
+    if (tagDocuments.length > ACCOUNT_CARD_TAG_DELETE_BATCH_SIZE) {
+      continue;
+    }
     const searchDocument = await ctx.db
       .query("cardSearchDocuments")
       .withIndex("by_cardId", (query) => query.eq("cardId", cardId))
       .unique();
     if (searchDocument) {
       await ctx.db.delete("cardSearchDocuments", searchDocument._id);
+    }
+    const searchTagSyncState = await ctx.db
+      .query("cardSearchTagSyncStates")
+      .withIndex("by_cardId", (query) => query.eq("cardId", cardId))
+      .unique();
+    if (searchTagSyncState) {
+      await ctx.db.delete("cardSearchTagSyncStates", searchTagSyncState._id);
     }
     await ctx.db.delete("cards", cardId);
     deletedCards += 1;
@@ -705,15 +736,7 @@ export const deleteAccountData = internalAction({
     ) {
       throw new Error("Account data changed during deletion");
     }
-    while (true) {
-      const usageCleanup = await ctx.runMutation(
-        internal.auth.removeAccountCardUsage,
-        { userId }
-      );
-      if (!usageCleanup.hasMore) {
-        break;
-      }
-    }
+    await ctx.runMutation(internal.auth.removeAccountCardUsage, { userId });
     return { deletedCards, deletedStorageObjectCount };
   },
 });
@@ -740,23 +763,13 @@ export const removeAccountCardUsageHandler = async (
   ctx: MutationCtx,
   userId: string
 ) => {
-  const migrationEntries = await ctx.db
-    .query("cardUsageMigrationEntries")
-    .withIndex("by_userId", (query) => query.eq("userId", userId))
-    .take(20);
-  for (const entry of migrationEntries) {
-    await ctx.db.delete("cardUsageMigrationEntries", entry._id);
-  }
-  const hasMore = migrationEntries.length === 20;
-  if (!hasMore) {
-    await removeCardUsage(ctx, userId);
-  }
-  return { deletedEntries: migrationEntries.length, hasMore };
+  await removeCardUsage(ctx, userId);
+  return null;
 };
 
 export const removeAccountCardUsage = internalMutation({
   args: { userId: v.string() },
-  returns: v.object({ deletedEntries: v.number(), hasMore: v.boolean() }),
+  returns: v.null(),
   handler: (ctx, { userId }) => removeAccountCardUsageHandler(ctx, userId),
 });
 

@@ -3,6 +3,9 @@ import type { Doc, Id } from "../_generated/dataModel";
 import type { MutationCtx, QueryCtx } from "../_generated/server";
 
 const internalAny = internal as any;
+export const CARD_SEARCH_TAG_SYNC_BATCH_SIZE = 32;
+export const isCardSearchTagSyncEnabled = () =>
+  process.env.CARD_SEARCH_TAG_SYNC_DISABLED !== "true";
 
 const SEARCH_FIELDS = [
   "content",
@@ -11,17 +14,6 @@ const SEARCH_FIELDS = [
   "aiTranscript",
   "metadataTitle",
   "metadataDescription",
-] as const;
-
-const LEGACY_GENERAL_SEARCH_INDEXES = [
-  { field: "content", index: "search_content" },
-  { field: "notes", index: "search_notes" },
-  { field: "aiSummary", index: "search_ai_summary" },
-  { field: "aiTranscript", index: "search_ai_transcript" },
-  { field: "metadataTitle", index: "search_metadata_title" },
-  { field: "metadataDescription", index: "search_metadata_description" },
-  { field: "tags", index: "search_tags" },
-  { field: "aiTags", index: "search_ai_tags" },
 ] as const;
 
 export const buildCardSearchText = (card: Doc<"cards">): string =>
@@ -36,16 +28,17 @@ export const buildCardSearchText = (card: Doc<"cards">): string =>
     )
     .join("\n");
 
-export const deduplicateCardSearchResults = (
-  resultSets: readonly (readonly Doc<"cards">[])[]
-): Doc<"cards">[] =>
+export const normalizeCardSearchTag = (tag: string): string =>
+  tag.trim().toLowerCase();
+
+export const buildCardSearchTags = (card: Doc<"cards">): string[] =>
   Array.from(
-    new Map(
-      resultSets.flatMap((results) =>
-        results.map((card) => [card._id, card] as const)
-      )
-    ).values()
-  );
+    new Set(
+      [...(card.tags ?? []), ...(card.aiTags ?? [])]
+        .map(normalizeCardSearchTag)
+        .filter(Boolean)
+    )
+  ).sort();
 
 export const scheduleCardSearchSync = async (
   ctx: Pick<MutationCtx, "scheduler">,
@@ -56,6 +49,50 @@ export const scheduleCardSearchSync = async (
     internalAny["card/searchDocuments"].syncCardSearchDocument,
     { cardId }
   );
+};
+
+export const scheduleCardSearchTagSync = async (
+  ctx: Pick<MutationCtx, "scheduler">,
+  cardId: Id<"cards">
+) => {
+  await ctx.scheduler.runAfter(
+    0,
+    internalAny["card/searchDocuments"].syncCardSearchTagsBatch,
+    { cardId }
+  );
+};
+
+export const restartCardSearchTagSync = async (
+  ctx: MutationCtx,
+  cardId: Id<"cards">,
+  sourceUpdatedAt?: number
+) => {
+  if (!isCardSearchTagSyncEnabled()) {
+    return;
+  }
+  const existingState = await ctx.db
+    .query("cardSearchTagSyncStates")
+    .withIndex("by_cardId", (query) => query.eq("cardId", cardId))
+    .unique();
+  if (existingState) {
+    await ctx.db.patch("cardSearchTagSyncStates", existingState._id, {
+      generation: (existingState.generation ?? 0) + 1,
+      offset: 0,
+      pending: true,
+      phase: "tags",
+      sourceUpdatedAt,
+    });
+  } else {
+    await ctx.db.insert("cardSearchTagSyncStates", {
+      cardId,
+      generation: 1,
+      offset: 0,
+      pending: true,
+      phase: "tags",
+      sourceUpdatedAt,
+    });
+  }
+  await scheduleCardSearchTagSync(ctx, cardId);
 };
 
 export const patchCardWithSearchSync = async (
@@ -69,8 +106,7 @@ export const patchCardWithSearchSync = async (
 
 export const syncCardSearchDocumentHandler = async (
   ctx: MutationCtx,
-  cardId: Id<"cards">,
-  options: { migrationBackfill?: boolean } = {}
+  cardId: Id<"cards">
 ) => {
   const [card, existing] = await Promise.all([
     ctx.db.get("cards", cardId),
@@ -84,6 +120,7 @@ export const syncCardSearchDocumentHandler = async (
     if (existing) {
       await ctx.db.delete("cardSearchDocuments", existing._id);
     }
+    await restartCardSearchTagSync(ctx, cardId);
     return null;
   }
 
@@ -94,21 +131,361 @@ export const syncCardSearchDocumentHandler = async (
     isDeleted: card.isDeleted,
     type: card.type,
     isFavorited: card.isFavorited,
-    migrationBackfilledAt:
-      options.migrationBackfill && !existing ? Date.now() : undefined,
     sourceUpdatedAt: card.updatedAt,
   };
+  let changed = false;
   if (existing) {
-    if (existing.sourceUpdatedAt <= card.updatedAt) {
+    if (
+      existing.userId !== value.userId ||
+      existing.searchableText !== value.searchableText ||
+      existing.isDeleted !== value.isDeleted ||
+      existing.type !== value.type ||
+      existing.isFavorited !== value.isFavorited ||
+      existing.sourceUpdatedAt !== value.sourceUpdatedAt
+    ) {
       await ctx.db.replace("cardSearchDocuments", existing._id, value);
+      changed = true;
     }
   } else {
     await ctx.db.insert("cardSearchDocuments", value);
+    changed = true;
+  }
+
+  if (changed) {
+    await restartCardSearchTagSync(ctx, cardId, card.updatedAt);
   }
   return null;
 };
 
-export const searchCardsAcrossGeneralIndexes = async (
+export const syncCardSearchTagsBatchHandler = async (
+  ctx: MutationCtx,
+  cardId: Id<"cards">
+) => {
+  const card = await ctx.db.get("cards", cardId);
+  let state = await ctx.db
+    .query("cardSearchTagSyncStates")
+    .withIndex("by_cardId", (query) => query.eq("cardId", cardId))
+    .unique();
+  if (!isCardSearchTagSyncEnabled()) {
+    if (state) {
+      await ctx.db.delete("cardSearchTagSyncStates", state._id);
+    }
+    return { complete: true, processed: 0, writes: 0 };
+  }
+  if (!state) {
+    const stateId = await ctx.db.insert("cardSearchTagSyncStates", {
+      cardId,
+      generation: 1,
+      offset: 0,
+      pending: true,
+      phase: "tags",
+      sourceUpdatedAt: card?.updatedAt,
+    });
+    state = await ctx.db.get("cardSearchTagSyncStates", stateId);
+  }
+
+  if (!state) {
+    throw new Error("Failed to initialize card search tag synchronization");
+  }
+  if (state.phase === "cleanup") {
+    await ctx.db.patch("cardSearchTagSyncStates", state._id, {
+      generation: state.generation ?? 1,
+      offset: 0,
+      pending: true,
+      phase: "tags",
+    });
+    await scheduleCardSearchTagSync(ctx, cardId);
+    return { complete: false, processed: 0, writes: 0 };
+  }
+  if (state.phase === "complete") {
+    return { complete: true, processed: 0, writes: 0 };
+  }
+
+  let writes = 0;
+  if (state.phase === "pruneLegacy") {
+    const legacyTags = await ctx.db
+      .query("cardSearchTags")
+      .withIndex("by_cardId_and_generation", (query) =>
+        query.eq("cardId", cardId).eq("syncGeneration", undefined)
+      )
+      .take(CARD_SEARCH_TAG_SYNC_BATCH_SIZE);
+    for (const tagDocument of legacyTags) {
+      await ctx.db.delete("cardSearchTags", tagDocument._id);
+      writes += 1;
+    }
+    if (legacyTags.length === CARD_SEARCH_TAG_SYNC_BATCH_SIZE) {
+      await scheduleCardSearchTagSync(ctx, cardId);
+      return { complete: false, processed: legacyTags.length, writes };
+    }
+    await ctx.db.patch("cardSearchTagSyncStates", state._id, {
+      offset: 0,
+      phase: "pruneOld",
+    });
+    await scheduleCardSearchTagSync(ctx, cardId);
+    return { complete: false, processed: legacyTags.length, writes };
+  }
+
+  if (state.phase === "pruneOld") {
+    const oldTags = await ctx.db
+      .query("cardSearchTags")
+      .withIndex("by_cardId_and_generation", (query) => {
+        const cardRange = query.eq("cardId", cardId);
+        return card
+          ? cardRange.lt("syncGeneration", state.generation ?? 1)
+          : cardRange.lte("syncGeneration", state.generation ?? 1);
+      })
+      .take(CARD_SEARCH_TAG_SYNC_BATCH_SIZE);
+    for (const tagDocument of oldTags) {
+      await ctx.db.delete("cardSearchTags", tagDocument._id);
+      writes += 1;
+    }
+    if (oldTags.length === CARD_SEARCH_TAG_SYNC_BATCH_SIZE) {
+      await scheduleCardSearchTagSync(ctx, cardId);
+      return { complete: false, processed: oldTags.length, writes };
+    }
+    if (card) {
+      await ctx.db.patch("cardSearchTagSyncStates", state._id, {
+        offset: 0,
+        pending: false,
+        phase: "complete",
+      });
+    } else {
+      await ctx.db.delete("cardSearchTagSyncStates", state._id);
+    }
+    return { complete: true, processed: oldTags.length, writes };
+  }
+
+  if (!card) {
+    await ctx.db.patch("cardSearchTagSyncStates", state._id, {
+      offset: 0,
+      phase: "pruneLegacy",
+    });
+    await scheduleCardSearchTagSync(ctx, cardId);
+    return { complete: false, processed: 0, writes };
+  }
+
+  const source =
+    state.phase === "tags" ? (card.tags ?? []) : (card.aiTags ?? []);
+  const sourceSlice = source.slice(
+    state.offset,
+    state.offset + CARD_SEARCH_TAG_SYNC_BATCH_SIZE
+  );
+  const tags = Array.from(
+    new Set(sourceSlice.map(normalizeCardSearchTag).filter(Boolean))
+  );
+  for (const tag of tags) {
+    const existingTag = await ctx.db
+      .query("cardSearchTags")
+      .withIndex("by_cardId_and_tag", (query) =>
+        query.eq("cardId", cardId).eq("tag", tag)
+      )
+      .take(1)
+      .then((documents) => documents[0]);
+    const tagValue = {
+      cardId,
+      userId: card.userId,
+      tag,
+      isDeleted: card.isDeleted === true ? true : undefined,
+      type: card.type,
+      isFavorited: card.isFavorited === true ? true : undefined,
+      cardCreatedAt: card.createdAt,
+      sourceUpdatedAt: card.updatedAt,
+      syncGeneration: state.generation ?? 1,
+    };
+    if (existingTag) {
+      if (
+        existingTag.userId !== tagValue.userId ||
+        existingTag.isDeleted !== tagValue.isDeleted ||
+        existingTag.type !== tagValue.type ||
+        existingTag.isFavorited !== tagValue.isFavorited ||
+        existingTag.cardCreatedAt !== tagValue.cardCreatedAt ||
+        existingTag.sourceUpdatedAt !== tagValue.sourceUpdatedAt ||
+        existingTag.syncGeneration !== tagValue.syncGeneration
+      ) {
+        await ctx.db.replace("cardSearchTags", existingTag._id, tagValue);
+        writes += 1;
+      }
+    } else {
+      await ctx.db.insert("cardSearchTags", tagValue);
+      writes += 1;
+    }
+  }
+  const nextOffset = state.offset + sourceSlice.length;
+  if (nextOffset < source.length) {
+    await ctx.db.patch("cardSearchTagSyncStates", state._id, {
+      offset: nextOffset,
+    });
+    await scheduleCardSearchTagSync(ctx, cardId);
+    return { complete: false, processed: sourceSlice.length, writes };
+  }
+  if (state.phase === "tags") {
+    await ctx.db.patch("cardSearchTagSyncStates", state._id, {
+      offset: 0,
+      phase: "aiTags",
+    });
+    await scheduleCardSearchTagSync(ctx, cardId);
+    return { complete: false, processed: sourceSlice.length, writes };
+  }
+  await ctx.db.patch("cardSearchTagSyncStates", state._id, {
+    offset: 0,
+    phase: "pruneLegacy",
+  });
+  await scheduleCardSearchTagSync(ctx, cardId);
+  return { complete: false, processed: sourceSlice.length, writes };
+};
+
+export const searchCardsAcrossLegacyTagIndexes = async (
+  ctx: QueryCtx,
+  args: {
+    userId: string;
+    tag: string;
+    isDeleted?: boolean;
+    isFavorited?: boolean;
+    type?: Doc<"cards">["type"];
+    limit: number;
+    resultFilter?: (card: Doc<"cards">) => boolean;
+  }
+): Promise<Doc<"cards">[]> => {
+  const maximumSourceLimit = 1024;
+  let sourceLimit = Math.min(100, Math.max(1, args.limit));
+  while (true) {
+    const sourceResults = await Promise.all(
+      [
+        { field: "tags", index: "search_tags" },
+        { field: "aiTags", index: "search_ai_tags" },
+      ].map(({ field, index }) =>
+        ctx.db
+          .query("cards")
+          .withSearchIndex(index as any, (query: any) => {
+            let filtered = query
+              .search(field, args.tag)
+              .eq("userId", args.userId)
+              .eq("isDeleted", args.isDeleted);
+            if (args.type !== undefined) {
+              filtered = filtered.eq("type", args.type);
+            }
+            // Explicit false and an omitted value both mean "not favorited".
+            // The legacy search index cannot express that union, so only push
+            // the true case into the index and let resultFilter normalize false.
+            if (args.isFavorited === true) {
+              filtered = filtered.eq("isFavorited", true);
+            }
+            return filtered;
+          })
+          .take(sourceLimit)
+      )
+    );
+    const cards = Array.from(
+      new Map(
+        sourceResults.flat().map((card) => [card._id, card] as const)
+      ).values()
+    ).filter(args.resultFilter ?? (() => true));
+    const sourcesExhausted = sourceResults.every(
+      (results) => results.length < sourceLimit
+    );
+    if (
+      cards.length >= args.limit ||
+      sourcesExhausted ||
+      sourceLimit >= maximumSourceLimit
+    ) {
+      return cards;
+    }
+    sourceLimit = Math.min(sourceLimit * 2, maximumSourceLimit);
+  }
+};
+
+export const searchCardsByExactTag = async (
+  ctx: QueryCtx,
+  args: {
+    userId: string;
+    tag: string;
+    isDeleted?: boolean;
+    isFavorited?: boolean;
+    type?: Doc<"cards">["type"];
+    createdAfter?: number;
+    createdBefore?: number;
+    limit: number;
+    sort: "newest" | "oldest";
+    resultFilter?: (card: Doc<"cards">) => boolean;
+  }
+): Promise<Doc<"cards">[]> => {
+  const tag = normalizeCardSearchTag(args.tag);
+  if (!tag) {
+    return [];
+  }
+  const { isFavorited, type } = args;
+  const takeLimit = Math.min(400, Math.max(1, args.limit));
+  let tagDocuments: Doc<"cardSearchTags">[];
+  if (type !== undefined && isFavorited !== undefined) {
+    tagDocuments = await ctx.db
+      .query("cardSearchTags")
+      .withIndex("by_user_tag_deleted_type_favorited", (range) =>
+        range
+          .eq("userId", args.userId)
+          .eq("tag", tag)
+          .eq("isDeleted", args.isDeleted)
+          .eq("type", type)
+          .eq("isFavorited", isFavorited === true ? true : undefined)
+          .gte("cardCreatedAt", args.createdAfter ?? Number.MIN_SAFE_INTEGER)
+          .lte("cardCreatedAt", args.createdBefore ?? Number.MAX_SAFE_INTEGER)
+      )
+      .order(args.sort === "oldest" ? "asc" : "desc")
+      .take(takeLimit);
+  } else if (type !== undefined) {
+    tagDocuments = await ctx.db
+      .query("cardSearchTags")
+      .withIndex("by_user_tag_deleted_type", (range) =>
+        range
+          .eq("userId", args.userId)
+          .eq("tag", tag)
+          .eq("isDeleted", args.isDeleted)
+          .eq("type", type)
+          .gte("cardCreatedAt", args.createdAfter ?? Number.MIN_SAFE_INTEGER)
+          .lte("cardCreatedAt", args.createdBefore ?? Number.MAX_SAFE_INTEGER)
+      )
+      .order(args.sort === "oldest" ? "asc" : "desc")
+      .take(takeLimit);
+  } else if (isFavorited === undefined) {
+    tagDocuments = await ctx.db
+      .query("cardSearchTags")
+      .withIndex("by_user_tag_deleted_created", (range) =>
+        range
+          .eq("userId", args.userId)
+          .eq("tag", tag)
+          .eq("isDeleted", args.isDeleted)
+          .gte("cardCreatedAt", args.createdAfter ?? Number.MIN_SAFE_INTEGER)
+          .lte("cardCreatedAt", args.createdBefore ?? Number.MAX_SAFE_INTEGER)
+      )
+      .order(args.sort === "oldest" ? "asc" : "desc")
+      .take(takeLimit);
+  } else {
+    tagDocuments = await ctx.db
+      .query("cardSearchTags")
+      .withIndex("by_user_tag_deleted_favorited", (range) =>
+        range
+          .eq("userId", args.userId)
+          .eq("tag", tag)
+          .eq("isDeleted", args.isDeleted)
+          .eq("isFavorited", isFavorited === true ? true : undefined)
+          .gte("cardCreatedAt", args.createdAfter ?? Number.MIN_SAFE_INTEGER)
+          .lte("cardCreatedAt", args.createdBefore ?? Number.MAX_SAFE_INTEGER)
+      )
+      .order(args.sort === "oldest" ? "asc" : "desc")
+      .take(takeLimit);
+  }
+  const cards = await Promise.all(
+    tagDocuments.map((document) => ctx.db.get("cards", document.cardId))
+  );
+  return Array.from(
+    new Map(
+      cards
+        .filter((card): card is Doc<"cards"> => card !== null)
+        .map((card) => [card._id, card] as const)
+    ).values()
+  ).filter(args.resultFilter ?? (() => true));
+};
+
+export const searchCardsByDocument = async (
   ctx: QueryCtx,
   args: {
     userId: string;
@@ -117,98 +494,49 @@ export const searchCardsAcrossGeneralIndexes = async (
     isFavorited?: boolean;
     type?: Doc<"cards">["type"];
     limit: number;
-    legacyFields?: ReadonlySet<
-      (typeof LEGACY_GENERAL_SEARCH_INDEXES)[number]["field"]
-    >;
     resultFilter?: (card: Doc<"cards">) => boolean;
   }
 ): Promise<Doc<"cards">[]> => {
-  const legacyIndexes = args.legacyFields
-    ? LEGACY_GENERAL_SEARCH_INDEXES.filter(({ field }) =>
-        args.legacyFields?.has(field)
-      )
-    : LEGACY_GENERAL_SEARCH_INDEXES;
   // Convex permits at most 4,096 documents in a single query result. Grow to
   // that platform bound only when overlap or post-index filters require it.
   const maximumSourceLimit = 4096;
   let sourceLimit = Math.min(100, Math.max(1, args.limit));
   while (true) {
-    const sourceResults = await Promise.all([
-      ctx.db
-        .query("cardSearchDocuments")
-        .withSearchIndex("search_searchableText", (query) => {
-          let filtered = query
-            .search("searchableText", args.searchQuery)
-            .eq("userId", args.userId)
-            .eq("isDeleted", args.isDeleted);
-          if (args.type !== undefined) {
-            filtered = filtered.eq("type", args.type);
-          }
-          if (args.isFavorited !== undefined) {
-            filtered = filtered.eq(
-              "isFavorited",
-              args.isFavorited ? true : undefined
-            );
-          }
-          return filtered;
-        })
-        .take(sourceLimit),
-      ...legacyIndexes.map(({ field, index }) =>
-        ctx.db
-          .query("cards")
-          .withSearchIndex(index, (query: any) => {
-            let filtered = query
-              .search(field, args.searchQuery)
-              .eq("userId", args.userId)
-              .eq("isDeleted", args.isDeleted);
-            if (args.type !== undefined) {
-              filtered = filtered.eq("type", args.type);
-            }
-            if (args.isFavorited !== undefined) {
-              filtered = filtered.eq(
-                "isFavorited",
-                args.isFavorited ? true : undefined
-              );
-            }
-            return filtered;
-          })
-          .take(sourceLimit)
-      ),
-    ]);
-    const cardsById = new Map<Id<"cards">, Doc<"cards">>();
-    const derivedDocuments = sourceResults[0] as Array<
-      Doc<"cardSearchDocuments"> | Doc<"cards">
-    >;
-    if (derivedDocuments.every((document) => !("cardId" in document))) {
-      for (const card of derivedDocuments as Doc<"cards">[]) {
-        cardsById.set(card._id, card);
-      }
-    } else {
-      const derivedCards = await Promise.all(
-        (derivedDocuments as Doc<"cardSearchDocuments">[]).map((document) =>
-          ctx.db.get("cards", document.cardId)
-        )
-      );
-      for (const card of derivedCards) {
-        if (card) {
-          cardsById.set(card._id, card);
+    const derivedDocuments = await ctx.db
+      .query("cardSearchDocuments")
+      .withSearchIndex("search_searchableText", (query) => {
+        let filtered = query
+          .search("searchableText", args.searchQuery)
+          .eq("userId", args.userId)
+          .eq("isDeleted", args.isDeleted);
+        if (args.type !== undefined) {
+          filtered = filtered.eq("type", args.type);
         }
-      }
-    }
-    for (const results of sourceResults.slice(1) as Doc<"cards">[][]) {
-      for (const card of results) {
+        if (args.isFavorited !== undefined) {
+          filtered = filtered.eq(
+            "isFavorited",
+            args.isFavorited ? true : undefined
+          );
+        }
+        return filtered;
+      })
+      .take(sourceLimit);
+    const cardsById = new Map<Id<"cards">, Doc<"cards">>();
+    const derivedCards = await Promise.all(
+      derivedDocuments.map((document) => ctx.db.get("cards", document.cardId))
+    );
+    for (const card of derivedCards) {
+      if (card) {
         cardsById.set(card._id, card);
       }
     }
     const cards = Array.from(cardsById.values()).filter(
       args.resultFilter ?? (() => true)
     );
-    const sourcesExhausted = sourceResults.every(
-      (results) => results.length < sourceLimit
-    );
+    const sourceExhausted = derivedDocuments.length < sourceLimit;
     if (
       cards.length >= args.limit ||
-      sourcesExhausted ||
+      sourceExhausted ||
       sourceLimit >= maximumSourceLimit
     ) {
       return cards;

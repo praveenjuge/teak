@@ -16,19 +16,6 @@ export const CARD_USAGE_SHARD_VERSION = 1;
 
 type DatabaseReaderCtx = Pick<MutationCtx | QueryCtx, "db">;
 
-const getCardUsageMigrationEntry = async (
-  ctx: MutationCtx,
-  cardId: Id<"cards">
-) => {
-  const indexedQuery = ctx.db
-    .query("cardUsageMigrationEntries")
-    .withIndex("by_cardId", (query) => query.eq("cardId", cardId));
-  if (typeof indexedQuery.unique !== "function") {
-    return null;
-  }
-  return await indexedQuery.unique();
-};
-
 export const getCardUsage = async (ctx: DatabaseReaderCtx, userId: string) =>
   await ctx.db
     .query("userCardUsage")
@@ -118,7 +105,6 @@ export const initializeCardUsageShards = async (
     });
   }
   await ctx.db.patch("userCardUsage", usage._id, {
-    migrationBackfilledAt: undefined,
     shardVersion: CARD_USAGE_SHARD_VERSION,
     shardedAt: now,
     updatedAt: now,
@@ -256,8 +242,7 @@ const decrementShardedUsage = async (
 
 export const getOrInitializeCardUsage = async (
   ctx: MutationCtx,
-  userId: string,
-  options: { migrationBackfill?: boolean } = {}
+  userId: string
 ): Promise<Doc<"userCardUsage">> => {
   const existing = await getCardUsage(ctx, userId);
   if (existing) {
@@ -276,7 +261,6 @@ export const getOrInitializeCardUsage = async (
     activeCardCount,
     isCountExact: activeCards.length < CARD_USAGE_SCAN_LIMIT,
     isSaturated: activeCards.length >= FREE_TIER_LIMIT,
-    ...(options.migrationBackfill ? { migrationBackfilledAt: Date.now() } : {}),
     updatedAt: Date.now(),
   });
   const initialized = await ctx.db.get("userCardUsage", id);
@@ -350,22 +334,12 @@ export const recordActiveCardRemoved = async (
   }
   const initializedUsage =
     usage ?? (await getOrInitializeCardUsage(ctx, userId));
-  const migrationEntry = await getCardUsageMigrationEntry(ctx, cardId);
-  let migrationActiveCardCount = initializedUsage.migrationActiveCardCount;
-  if (migrationActiveCardCount !== undefined && migrationEntry?.countedActive) {
-    await ctx.db.patch("cardUsageMigrationEntries", migrationEntry._id, {
-      countedActive: false,
-    });
-    migrationActiveCardCount = Math.max(0, migrationActiveCardCount - 1);
-  }
   if (initializedUsage.isCountExact ?? !initializedUsage.isSaturated) {
     const nextCount = Math.max(0, initializedUsage.activeCardCount - 1);
     await ctx.db.patch("userCardUsage", initializedUsage._id, {
       activeCardCount: nextCount,
       isCountExact: true,
       isSaturated: nextCount >= FREE_TIER_LIMIT,
-      migrationActiveCardCount,
-      migrationBackfilledAt: undefined,
       updatedAt: Date.now(),
     });
     return;
@@ -381,8 +355,6 @@ export const recordActiveCardRemoved = async (
     activeCardCount: remaining.length,
     isCountExact: remaining.length < CARD_USAGE_SCAN_LIMIT,
     isSaturated: remaining.length >= FREE_TIER_LIMIT,
-    migrationActiveCardCount,
-    migrationBackfilledAt: undefined,
     updatedAt: Date.now(),
   });
 };

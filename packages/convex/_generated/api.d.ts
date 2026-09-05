@@ -376,7 +376,6 @@ export declare const components: {
   migrations: import("@convex-dev/migrations/_generated/component.js").ComponentApi<"migrations">;
   workflow: import("@convex-dev/workflow/_generated/component.js").ComponentApi<"workflow">;
   resend: import("@convex-dev/resend/_generated/component.js").ComponentApi<"resend">;
-  ratelimiter: import("@convex-dev/ratelimiter/_generated/component.js").ComponentApi<"ratelimiter">;
   rateLimiterV2: import("@convex-dev/rate-limiter/_generated/component.js").ComponentApi<"rateLimiterV2">;
   apiKeys: import("@vllnt/convex-api-keys/_generated/component.js").ComponentApi<"apiKeys">;
 };

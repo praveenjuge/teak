@@ -672,10 +672,11 @@ describe("auth", () => {
           ),
           query: (table: string) => ({
             withIndex: (_name: any, cb: any) => {
+              let cardId: string | undefined;
               if (cb) {
                 cb({
-                  eq: () => {
-                    // noop
+                  eq: (_field: string, value: string) => {
+                    cardId = value;
                   },
                 });
               }
@@ -683,6 +684,16 @@ describe("auth", () => {
                 ...(table === "cardSearchDocuments"
                   ? {
                       unique: async () => (cb ? { _id: "search_c1" } : null),
+                    }
+                  : {}),
+                ...(table === "cardSearchTags"
+                  ? {
+                      take: async () => [{ _id: `tag_${cardId}` }],
+                    }
+                  : {}),
+                ...(table === "cardSearchTagSyncStates"
+                  ? {
+                      unique: async () => ({ _id: `tag_state_${cardId}` }),
                     }
                   : {}),
               };
@@ -695,7 +706,7 @@ describe("auth", () => {
       const result = await deleteAccountDataHandler(ctx, "u1", ["c1", "c2"]);
 
       expect(result).toBe(2);
-      expect(ctx.db.delete).toHaveBeenCalledTimes(4);
+      expect(ctx.db.delete).toHaveBeenCalledTimes(8);
     });
 
     it("collects storage keys before deleting their owning rows", async () => {
@@ -724,21 +735,32 @@ describe("auth", () => {
       );
     });
 
-    it("removes usage migration entries before the aggregate row", async () => {
+    it("removes canonical card usage", async () => {
       const events: string[] = [];
       const ctx = {
         db: {
           query: (table: string) => ({
             withIndex: (_name: string, cb: any) => {
-              const builder = { eq: () => builder };
+              let shard: number | undefined;
+              const builder = {
+                eq: (field: string, value: unknown) => {
+                  if (field === "shard") {
+                    shard = value as number;
+                  }
+                  return builder;
+                },
+              };
               cb(builder);
               return {
-                take: async () =>
-                  table === "cardUsageMigrationEntries"
-                    ? [{ _id: "entry1" }, { _id: "entry2" }]
-                    : [],
-                unique: async () =>
-                  table === "userCardUsage" ? { _id: "usage1" } : null,
+                unique: () => {
+                  if (table === "userCardUsage") {
+                    return Promise.resolve({ _id: "usage1" });
+                  }
+                  if (table === "userCardUsageShards" && shard !== undefined) {
+                    return Promise.resolve({ _id: `shard${shard}` });
+                  }
+                  return Promise.resolve(null);
+                },
               };
             },
           }),
@@ -748,13 +770,14 @@ describe("auth", () => {
         },
       } as any;
 
-      await expect(removeAccountCardUsageHandler(ctx, "u1")).resolves.toEqual({
-        deletedEntries: 2,
-        hasMore: false,
-      });
+      await expect(
+        removeAccountCardUsageHandler(ctx, "u1")
+      ).resolves.toBeNull();
       expect(events).toEqual([
-        "cardUsageMigrationEntries:entry1",
-        "cardUsageMigrationEntries:entry2",
+        ...Array.from(
+          { length: 24 },
+          (_, shard) => `userCardUsageShards:shard${shard}`
+        ),
         "userCardUsage:usage1",
       ]);
     });

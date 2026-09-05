@@ -40,7 +40,6 @@
     "@convex-dev/migrations": "^0.3.6",
     "@convex-dev/polar": "^0.9.2",
     "@convex-dev/rate-limiter": "0.3.2",
-    "@convex-dev/ratelimiter": "^0.1.7",
     "@convex-dev/resend": "0.2.7",
     "@convex-dev/workflow": "0.4.6",
     "@convex-dev/workpool": "0.4.10",
