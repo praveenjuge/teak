@@ -15,6 +15,11 @@ export const backfillCardSearchTags = migrations.define({
   table: "cards",
   batchSize: 10,
   migrateOne: async (ctx, card) => {
+    if (!isCardSearchTagSyncEnabled()) {
+      throw new Error(
+        "Cannot backfill search tags while CARD_SEARCH_TAG_SYNC_DISABLED=true"
+      );
+    }
     await restartCardSearchTagSync(ctx, card._id, card.updatedAt);
     await syncCardSearchTagsBatchHandler(ctx, card._id);
   },
@@ -62,8 +67,15 @@ export const getCardSearchTagBackfillStatus = internalQuery({
     migrationDone: v.boolean(),
     migrationError: v.optional(v.string()),
     readyForParityCheck: v.boolean(),
+    syncEnabled: v.boolean(),
   }),
-  handler: async (ctx) => {
+  handler: async (ctx): Promise<{
+    hasPendingSyncs: boolean;
+    migrationDone: boolean;
+    migrationError?: string;
+    readyForParityCheck: boolean;
+    syncEnabled: boolean;
+  }> => {
     const [pendingSync, statuses] = await Promise.all([
       ctx.db
         .query("cardSearchTagSyncStates")
@@ -74,13 +86,15 @@ export const getCardSearchTagBackfillStatus = internalQuery({
       }),
     ]);
     const status = statuses[0];
+    const syncEnabled = isCardSearchTagSyncEnabled();
     const migrationDone = status?.state === "success" && status.isDone;
     const hasPendingSyncs = pendingSync !== null;
     return {
       hasPendingSyncs,
       migrationDone,
       migrationError: status?.error,
-      readyForParityCheck: migrationDone && !hasPendingSyncs,
+      readyForParityCheck: syncEnabled && migrationDone && !hasPendingSyncs,
+      syncEnabled,
     };
   },
 });
