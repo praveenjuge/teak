@@ -21,6 +21,7 @@ import { SettingsFooter } from "./SettingsFooter";
 import { ThemeToggle } from "./ThemeToggle";
 
 interface SettingsContentProps {
+  accountLoading: boolean;
   cardCount: number;
   deleteDialogError: string | null;
   deleteDialogOpen: boolean;
@@ -29,7 +30,6 @@ interface SettingsContentProps {
   exportLoading?: boolean;
   exportState?: ExportState | null;
   hasPremium?: boolean;
-  isLoading: boolean;
   keys: ApiKeyListItem[] | undefined;
   oauthConnections: OAuthConnection[] | undefined;
   onCancelExport: (jobId: string) => Promise<void>;
@@ -59,7 +59,7 @@ export function SettingsContent({
   exportState,
   exportLoading,
   hasPremium,
-  isLoading,
+  accountLoading,
   keys,
   oauthConnections,
   onCancelExport,
@@ -99,42 +99,27 @@ export function SettingsContent({
     </>
   );
 
-  if (isLoading) {
-    return (
-      <>
-        <h1 className="font-semibold text-xl tracking-tight">Settings</h1>
-        <div
-          aria-label="Loading settings"
-          className="flex min-h-64 items-center justify-center"
-          role="status"
-        >
-          <Spinner className="size-5" />
-        </div>
-      </>
-    );
-  }
-
   return (
     <>
       <h1 className="font-semibold text-xl tracking-tight">Settings</h1>
 
       <SettingRow title="Email">
         <Button disabled size="sm" variant="ghost">
-          {email ?? "Not available"}
+          {accountLoading ? <Spinner /> : (email ?? "Not available")}
         </Button>
       </SettingRow>
 
       <SettingRow title="Usage">
         <Button disabled size="sm" variant="ghost">
-          {`${cardCount} Cards`}
+          {accountLoading ? <Spinner /> : `${cardCount} Cards`}
         </Button>
       </SettingRow>
 
-      <SettingRow title="Plan">{planRowContent}</SettingRow>
+      <SettingRow title="Plan">
+        {accountLoading ? <Spinner /> : planRowContent}
+      </SettingRow>
 
-      {/* Show the API Keys section once keys have loaded, even for keyless
-          users, so they can create their first key. API keys remain a
-          supported alternative to browser sign-in. */}
+      {/* Keep the row visible while keys load without presenting an empty list. */}
       {shouldShowApiKeysSection(keys) ? (
         <ApiKeysSection
           isLoading={keys === undefined}
@@ -144,7 +129,11 @@ export function SettingsContent({
           onRevokeKey={onRevokeApiKey}
           onRotateKey={onRotateApiKey}
         />
-      ) : null}
+      ) : (
+        <SettingRow title="API Keys">
+          <Spinner />
+        </SettingRow>
+      )}
 
       <OAuthConnectionsSection
         connections={oauthConnections}

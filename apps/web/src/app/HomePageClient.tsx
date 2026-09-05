@@ -6,19 +6,29 @@ import { Settings } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 
-const settingsButton = (
-  <Button asChild size="icon" variant="outline">
-    <Link aria-label="Settings" href="/settings">
-      <Settings />
-    </Link>
-  </Button>
-);
-
 export function HomePageClient() {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const cardIdFromUrl = searchParams.get("card");
+
+  const rememberHomeScroll = () => {
+    const navigation = (
+      window as Window & {
+        navigation?: {
+          currentEntry?: { getState: () => unknown };
+          updateCurrentEntry: (options: { state: unknown }) => void;
+        };
+      }
+    ).navigation;
+    const state = navigation?.currentEntry?.getState();
+    navigation?.updateCurrentEntry({
+      state: {
+        ...(typeof state === "object" && state ? state : {}),
+        __teakHomeScrollY: window.scrollY,
+      },
+    });
+  };
 
   const setCardUrlParam = (cardId: string | null, replace = false) => {
     const params = new URLSearchParams(searchParams.toString());
@@ -43,8 +53,21 @@ export function HomePageClient() {
   };
 
   const handleUpgrade = () => {
+    rememberHomeScroll();
     router.push("/settings");
   };
+
+  const settingsButton = (
+    <Button asChild size="icon" variant="outline">
+      <Link
+        aria-label="Settings"
+        href="/settings"
+        onClickCapture={rememberHomeScroll}
+      >
+        <Settings />
+      </Link>
+    </Button>
+  );
 
   return (
     <CardsScreenAdapter

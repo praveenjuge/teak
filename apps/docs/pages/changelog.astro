@@ -2,6 +2,8 @@
 import type { CollectionEntry } from "astro:content";
 import { getCollection, render } from "astro:content";
 import Update from "blume/components/content/Update.astro";
+import data from "blume:data";
+import { getBlumeCollection } from "blume/runtime";
 import MarketingLayout from "../layouts/MarketingLayout.astro";
 
 type DocsEntry = CollectionEntry<"docs">;
@@ -16,14 +18,17 @@ const entries = (await getCollection("docs"))
     return bDate - aDate;
   });
 
+const routeByEntry = new Map(
+  getBlumeCollection(data, { prefix: "/changelog/" }).map((route) => [
+    route.entryId,
+    route.path,
+  ])
+);
+
 const renderedEntries = await Promise.all(
   entries.map(async (entry: DocsEntry) => {
     const { Content } = await render(entry);
-    const slug = entry.id
-      .split("/")
-      .at(-1)
-      ?.replace(/\.mdx$/u, "");
-    return { entry, Content, slug };
+    return { entry, Content, href: routeByEntry.get(entry.id) };
   })
 );
 ---
@@ -55,9 +60,9 @@ const renderedEntries = await Promise.all(
     </div>
 
     <div>
-      {renderedEntries.map(({ entry, Content, slug }) => (
+      {renderedEntries.map(({ entry, Content, href }) => (
         <Update
-          href={`/changelog/${slug}`}
+          href={href}
           label={entry.data.title}
           tags={entry.data.changelog?.category ?? "Product updates"}
         >

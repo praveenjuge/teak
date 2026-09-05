@@ -33,6 +33,7 @@ export function SettingsPage({ onNavigateBack }: SettingsPageProps) {
       withMain={true}
     >
       <SettingsContent
+        accountLoading={settings.accountLoading}
         cardCount={settings.cardCount}
         deleteDialogError={settings.deleteDialogError}
         deleteDialogOpen={settings.deleteDialogOpen}
@@ -40,7 +41,6 @@ export function SettingsPage({ onNavigateBack }: SettingsPageProps) {
         email={settings.email}
         exportState={settings.exportState}
         hasPremium={settings.hasPremium}
-        isLoading={settings.isLoading}
         keys={settings.keys}
         oauthConnections={settings.oauthConnections}
         onCancelExport={settings.handleCancelExport}

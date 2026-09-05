@@ -1,6 +1,6 @@
 "use client";
 
-import { PolarEmbedCheckout } from "@polar-sh/checkout/embed";
+import type { PolarEmbedCheckout } from "@polar-sh/checkout/embed";
 import * as Sentry from "@sentry/nextjs";
 import { api } from "@teak/convex";
 import { runClientSpan } from "@teak/convex/shared/client-telemetry";
@@ -12,7 +12,6 @@ import { TOAST_IDS } from "@teak/ui/constants/toast";
 import { useSettingsController } from "@teak/ui/hooks";
 import { SettingsContent, SubscriptionSection } from "@teak/ui/settings";
 import { useAction } from "convex/react";
-import { useRouter } from "next/navigation";
 import { useTheme } from "next-themes";
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
@@ -24,7 +23,6 @@ export default function ProfileSettingsPage() {
   const checkoutInstanceRef = useRef<PolarEmbedCheckout | null>(null);
   const createCheckoutLink = useAction(api.billing.createCheckoutLink);
   const { theme } = useTheme();
-  const router = useRouter();
 
   useEffect(
     () => () => {
@@ -41,7 +39,7 @@ export default function ProfileSettingsPage() {
       // react-doctor-disable-next-line react-doctor/async-defer-await
       await authClient.deleteUser(undefined, {
         onSuccess: async () => {
-          router.push("/login");
+          window.location.replace("/login");
         },
         onError: (ctx) => {
           deleteError = ctx.error?.message ?? "Failed to delete account.";
@@ -75,8 +73,7 @@ export default function ProfileSettingsPage() {
       await authClient.signOut({
         fetchOptions: {
           onSuccess: () => {
-            router.refresh();
-            router.push("/login");
+            window.location.replace("/login");
           },
         },
       });
@@ -108,6 +105,9 @@ export default function ProfileSettingsPage() {
               ? "dark"
               : "light";
           }
+          const { PolarEmbedCheckout } = await import(
+            "@polar-sh/checkout/embed"
+          );
           return await PolarEmbedCheckout.create(checkoutUrl, {
             theme: effectiveTheme,
           });
@@ -160,6 +160,7 @@ export default function ProfileSettingsPage() {
 
   return (
     <SettingsContent
+      accountLoading={settings.accountLoading}
       cardCount={settings.cardCount}
       deleteDialogError={settings.deleteDialogError}
       deleteDialogOpen={settings.deleteDialogOpen}
@@ -167,7 +168,6 @@ export default function ProfileSettingsPage() {
       email={settings.email}
       exportState={settings.exportState}
       hasPremium={settings.hasPremium}
-      isLoading={settings.isLoading}
       keys={settings.keys}
       oauthConnections={settings.oauthConnections}
       onCancelExport={settings.handleCancelExport}

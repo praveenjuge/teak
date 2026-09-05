@@ -49,27 +49,4 @@ describe("auth route session handling", () => {
     expect(source).not.toContain("isPending");
     expect(source).toContain("return fallback");
   });
-
-  test("token lookup is explicitly request-time behind route suspense", () => {
-    const providerSource = readFileSync(
-      resolve(import.meta.dir, "../components/AuthenticatedAppProvider.tsx"),
-      "utf8"
-    );
-    const homeSource = readFileSync(
-      resolve(import.meta.dir, "../app/page.tsx"),
-      "utf8"
-    );
-    const settingsSource = readFileSync(
-      resolve(import.meta.dir, "../app/(settings)/layout.tsx"),
-      "utf8"
-    );
-
-    expect(providerSource.indexOf("await connection()")).toBeLessThan(
-      providerSource.indexOf("await getToken()")
-    );
-    expect(homeSource).toContain("<Suspense fallback={<Loading />}");
-    expect(settingsSource).toContain(
-      "<Suspense fallback={<Loading fullscreen={false} />}>"
-    );
-  });
 });

@@ -37,7 +37,11 @@ const SKELETON_OPACITIES = [
 
 export function CardsGridSkeleton() {
   return (
-    <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-5">
+    <div
+      aria-label="Loading cards"
+      className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-5"
+      role="status"
+    >
       {SKELETON_OPACITIES.map((opacity) => (
         <div className={opacity} key={opacity}>
           <CardSkeleton />

@@ -93,6 +93,7 @@ function isRateLimitError(err: unknown): boolean {
 export interface AddCardFormProps {
   autoFocus?: boolean;
   canCreateCard?: boolean;
+  draftContentRef?: React.MutableRefObject<string>;
   onSuccess?: () => void;
   onUpgrade?: () => void;
   UpgradeLinkComponent?: React.ComponentType<{
@@ -107,13 +108,25 @@ export function AddCardForm({
   onSuccess,
   autoFocus,
   canCreateCard: canCreateCardProp,
+  draftContentRef,
   onUpgrade,
   upgradeUrl = "/settings",
 }: AddCardFormProps) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isFullScreenOpen, setIsFullScreenOpen] = useState(false);
 
-  const [content, setContent] = useState("");
+  const [content, setInternalContent] = useState(
+    () => draftContentRef?.current ?? ""
+  );
+  const setContent = useCallback(
+    (nextContent: string) => {
+      setInternalContent(nextContent);
+      if (draftContentRef) {
+        draftContentRef.current = nextContent;
+      }
+    },
+    [draftContentRef]
+  );
 
   const cardCreationStatus = useQuery(api.auth.getCardCreationStatus);
   const canCreateCard =

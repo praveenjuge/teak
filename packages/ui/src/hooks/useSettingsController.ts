@@ -248,11 +248,7 @@ export function useSettingsController({
     handleSignOut,
     handleStartExport,
     hasPremium: user?.hasPremium,
-    isLoading:
-      user === undefined ||
-      keys === undefined ||
-      exportState === undefined ||
-      oauthConnections === undefined,
+    accountLoading: user === undefined,
     keys,
     oauthConnections,
     setDeleteDialogOpen,

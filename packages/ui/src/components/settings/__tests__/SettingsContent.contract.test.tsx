@@ -9,7 +9,12 @@ mock.module("../DeleteAccountDialog", () => ({
   DeleteAccountDialog: () => null,
 }));
 mock.module("../ImportExportDialog", () => ({
-  ImportExportDialog: () => null,
+  ImportExportDialog: ({ exportLoading }: { exportLoading: boolean }) =>
+    React.createElement(
+      "span",
+      null,
+      exportLoading ? "Export loading" : "Export ready"
+    ),
 }));
 mock.module("../SettingsFooter", () => ({
   SettingsFooter: () => React.createElement("footer", null, "Footer"),
@@ -49,21 +54,45 @@ const baseProps = {
 };
 
 describe("SettingsContent", () => {
-  test("uses one settings-level loading state before data is ready", () => {
+  test("keeps independent controls available while account data loads", () => {
     const markup = renderToStaticMarkup(
-      <SettingsContent {...baseProps} isLoading={true} />
+      <SettingsContent {...baseProps} accountLoading={true} cardCount={0} />
     );
 
     expect(markup).toContain("Settings");
-    expect(markup).toContain("Loading settings");
-    expect(markup).not.toContain("Email");
-    expect(markup).not.toContain("Usage");
-    expect(markup).not.toContain("Plan");
+    expect(markup).toContain("Theme toggle");
+    expect(markup).toContain("Sign out");
+    expect(markup).toContain("Import/Export Data");
+    expect(markup).not.toContain("Loading settings");
+    expect(markup).not.toContain("hello@example.com");
+    expect(markup).not.toContain("0 Cards");
+    expect(markup).not.toContain("Free Plan");
+    expect(markup).not.toContain("Upgrade");
+  });
+
+  test("shows account details while keys, connections, and export are pending", () => {
+    const markup = renderToStaticMarkup(
+      <SettingsContent
+        {...baseProps}
+        accountLoading={false}
+        exportState={undefined}
+        keys={undefined}
+        oauthConnections={undefined}
+      />
+    );
+
+    expect(markup).toContain("hello@example.com");
+    expect(markup).toContain("3 Cards");
+    expect(markup).toContain("API Keys");
+    expect(markup).toContain("Connected apps");
+    expect(markup).toContain("Export loading");
+    expect(markup).toContain("Theme toggle");
+    expect(markup).not.toContain("No apps are connected");
   });
 
   test("shows all settings rows together after data is ready", () => {
     const markup = renderToStaticMarkup(
-      <SettingsContent {...baseProps} isLoading={false} />
+      <SettingsContent {...baseProps} accountLoading={false} />
     );
 
     expect(markup).toContain("hello@example.com");

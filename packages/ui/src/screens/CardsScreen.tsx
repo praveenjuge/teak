@@ -53,6 +53,7 @@ export function CardsScreen({
     null
   );
   const [tagInput, setTagInput] = useState("");
+  const draftContentRef = useRef("");
   const searchController = useCardsSearchController();
 
   const queryArgs = searchController.queryArgs;
@@ -221,6 +222,7 @@ export function CardsScreen({
   const AddCardFormWrapper = useCallback(
     () => (
       <AddCardForm
+        draftContentRef={draftContentRef}
         onUpgrade={onUpgrade}
         UpgradeLinkComponent={UpgradeLinkComponent}
         upgradeUrl={upgradeUrl}

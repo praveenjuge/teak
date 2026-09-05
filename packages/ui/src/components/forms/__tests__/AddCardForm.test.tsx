@@ -32,6 +32,16 @@ mock.module("@teak/ui/components/ui/textarea", () => ({
     }),
 }));
 
+mock.module("@teak/ui/text-editor", () => ({
+  MarkdownTextEditor: ({ ariaLabel, onChange, value, variant }: any) =>
+    React.createElement("textarea", {
+      "aria-label": ariaLabel,
+      "data-editor-variant": variant,
+      onChange,
+      value,
+    }),
+}));
+
 mock.module("@teak/ui/components/ui/card", () => ({
   Card: ({ children, className }: any) =>
     React.createElement("div", { className, "data-card": "" }, children),
@@ -166,6 +176,14 @@ describe("AddCardForm", () => {
     expect(() => {
       React.createElement(AddCardForm, { canCreateCard: false });
     }).not.toThrow();
+  });
+
+  test("restores a draft when the form remounts", () => {
+    const draftContentRef = { current: "Unsaved navigation draft" };
+
+    expect(
+      renderToStaticMarkup(<AddCardForm draftContentRef={draftContentRef} />)
+    ).toContain("Unsaved navigation draft");
   });
 
   test("exposes loading and ready card-creation states", () => {
