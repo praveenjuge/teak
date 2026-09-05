@@ -691,6 +691,11 @@ describe("auth", () => {
                       take: async () => [{ _id: `tag_${cardId}` }],
                     }
                   : {}),
+                ...(table === "cardSearchTagSyncStates"
+                  ? {
+                      unique: async () => ({ _id: `tag_state_${cardId}` }),
+                    }
+                  : {}),
               };
             },
           }),
@@ -701,7 +706,7 @@ describe("auth", () => {
       const result = await deleteAccountDataHandler(ctx, "u1", ["c1", "c2"]);
 
       expect(result).toBe(2);
-      expect(ctx.db.delete).toHaveBeenCalledTimes(6);
+      expect(ctx.db.delete).toHaveBeenCalledTimes(8);
     });
 
     it("collects storage keys before deleting their owning rows", async () => {

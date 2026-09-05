@@ -575,9 +575,11 @@ export default defineSchema({
     isFavorited: v.optional(v.boolean()),
     cardCreatedAt: v.number(),
     sourceUpdatedAt: v.number(),
+    syncGeneration: v.optional(v.number()),
   })
     .index("by_cardId", ["cardId"])
     .index("by_cardId_and_tag", ["cardId", "tag"])
+    .index("by_cardId_and_generation", ["cardId", "syncGeneration"])
     .index("by_user_tag_deleted_created", [
       "userId",
       "tag",
@@ -615,11 +617,18 @@ export default defineSchema({
     phase: v.union(
       v.literal("cleanup"),
       v.literal("tags"),
-      v.literal("aiTags")
+      v.literal("aiTags"),
+      v.literal("pruneLegacy"),
+      v.literal("pruneOld"),
+      v.literal("complete")
     ),
+    generation: v.optional(v.number()),
     offset: v.number(),
+    pending: v.optional(v.boolean()),
     sourceUpdatedAt: v.optional(v.number()),
-  }).index("by_cardId", ["cardId"]),
+  })
+    .index("by_cardId", ["cardId"])
+    .index("by_pending", ["pending"]),
   apiIdempotencyKeys: defineTable(apiIdempotencyKeyValidator)
     .index("by_user_key_hash", ["userId", "keyHash"])
     .index("by_expires_at", ["expiresAt"]),

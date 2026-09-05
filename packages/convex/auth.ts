@@ -590,6 +590,13 @@ export const deleteAccountDataHandler = async (
     if (searchDocument) {
       await ctx.db.delete("cardSearchDocuments", searchDocument._id);
     }
+    const searchTagSyncState = await ctx.db
+      .query("cardSearchTagSyncStates")
+      .withIndex("by_cardId", (query) => query.eq("cardId", cardId))
+      .unique();
+    if (searchTagSyncState) {
+      await ctx.db.delete("cardSearchTagSyncStates", searchTagSyncState._id);
+    }
     await ctx.db.delete("cards", cardId);
     deletedCards += 1;
   }

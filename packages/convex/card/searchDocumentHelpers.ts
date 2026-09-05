@@ -4,6 +4,8 @@ import type { MutationCtx, QueryCtx } from "../_generated/server";
 
 const internalAny = internal as any;
 export const CARD_SEARCH_TAG_SYNC_BATCH_SIZE = 32;
+export const isCardSearchTagSyncEnabled = () =>
+  process.env.CARD_SEARCH_TAG_SYNC_DISABLED !== "true";
 
 const SEARCH_FIELDS = [
   "content",
@@ -60,6 +62,39 @@ export const scheduleCardSearchTagSync = async (
   );
 };
 
+export const restartCardSearchTagSync = async (
+  ctx: MutationCtx,
+  cardId: Id<"cards">,
+  sourceUpdatedAt?: number
+) => {
+  if (!isCardSearchTagSyncEnabled()) {
+    return;
+  }
+  const existingState = await ctx.db
+    .query("cardSearchTagSyncStates")
+    .withIndex("by_cardId", (query) => query.eq("cardId", cardId))
+    .unique();
+  if (existingState) {
+    await ctx.db.patch("cardSearchTagSyncStates", existingState._id, {
+      generation: (existingState.generation ?? 0) + 1,
+      offset: 0,
+      pending: true,
+      phase: "tags",
+      sourceUpdatedAt,
+    });
+  } else {
+    await ctx.db.insert("cardSearchTagSyncStates", {
+      cardId,
+      generation: 1,
+      offset: 0,
+      pending: true,
+      phase: "tags",
+      sourceUpdatedAt,
+    });
+  }
+  await scheduleCardSearchTagSync(ctx, cardId);
+};
+
 export const patchCardWithSearchSync = async (
   ctx: MutationCtx,
   cardId: Id<"cards">,
@@ -85,7 +120,7 @@ export const syncCardSearchDocumentHandler = async (
     if (existing) {
       await ctx.db.delete("cardSearchDocuments", existing._id);
     }
-    await scheduleCardSearchTagSync(ctx, cardId);
+    await restartCardSearchTagSync(ctx, cardId);
     return null;
   }
 
@@ -117,7 +152,7 @@ export const syncCardSearchDocumentHandler = async (
   }
 
   if (changed) {
-    await scheduleCardSearchTagSync(ctx, cardId);
+    await restartCardSearchTagSync(ctx, cardId, card.updatedAt);
   }
   return null;
 };
@@ -131,62 +166,99 @@ export const syncCardSearchTagsBatchHandler = async (
     .query("cardSearchTagSyncStates")
     .withIndex("by_cardId", (query) => query.eq("cardId", cardId))
     .unique();
+  if (!isCardSearchTagSyncEnabled()) {
+    if (state) {
+      await ctx.db.delete("cardSearchTagSyncStates", state._id);
+    }
+    return { complete: true, processed: 0, writes: 0 };
+  }
   if (!state) {
     const stateId = await ctx.db.insert("cardSearchTagSyncStates", {
       cardId,
+      generation: 1,
       offset: 0,
-      phase: "cleanup",
+      pending: true,
+      phase: "tags",
       sourceUpdatedAt: card?.updatedAt,
     });
     state = await ctx.db.get("cardSearchTagSyncStates", stateId);
-  } else if (state.sourceUpdatedAt !== card?.updatedAt) {
-    await ctx.db.patch("cardSearchTagSyncStates", state._id, {
-      offset: 0,
-      phase: "cleanup",
-      sourceUpdatedAt: card?.updatedAt,
-    });
-    state = {
-      ...state,
-      offset: 0,
-      phase: "cleanup",
-      sourceUpdatedAt: card?.updatedAt,
-    };
   }
+
   if (!state) {
     throw new Error("Failed to initialize card search tag synchronization");
   }
-
-  let writes = 0;
   if (state.phase === "cleanup") {
-    const existingTags = await ctx.db
-      .query("cardSearchTags")
-      .withIndex("by_cardId", (query) => query.eq("cardId", cardId))
-      .take(CARD_SEARCH_TAG_SYNC_BATCH_SIZE);
-    for (const tagDocument of existingTags) {
-      await ctx.db.delete("cardSearchTags", tagDocument._id);
-      writes += 1;
-    }
-    if (existingTags.length === CARD_SEARCH_TAG_SYNC_BATCH_SIZE) {
-      await scheduleCardSearchTagSync(ctx, cardId);
-      return { complete: false, processed: existingTags.length, writes };
-    }
-    if (!card) {
-      await ctx.db.delete("cardSearchTagSyncStates", state._id);
-      return { complete: true, processed: existingTags.length, writes };
-    }
     await ctx.db.patch("cardSearchTagSyncStates", state._id, {
+      generation: state.generation ?? 1,
       offset: 0,
+      pending: true,
       phase: "tags",
     });
     await scheduleCardSearchTagSync(ctx, cardId);
-    return { complete: false, processed: existingTags.length, writes };
+    return { complete: false, processed: 0, writes: 0 };
+  }
+  if (state.phase === "complete") {
+    return { complete: true, processed: 0, writes: 0 };
+  }
+
+  let writes = 0;
+  if (state.phase === "pruneLegacy") {
+    const legacyTags = await ctx.db
+      .query("cardSearchTags")
+      .withIndex("by_cardId_and_generation", (query) =>
+        query.eq("cardId", cardId).eq("syncGeneration", undefined)
+      )
+      .take(CARD_SEARCH_TAG_SYNC_BATCH_SIZE);
+    for (const tagDocument of legacyTags) {
+      await ctx.db.delete("cardSearchTags", tagDocument._id);
+      writes += 1;
+    }
+    if (legacyTags.length === CARD_SEARCH_TAG_SYNC_BATCH_SIZE) {
+      await scheduleCardSearchTagSync(ctx, cardId);
+      return { complete: false, processed: legacyTags.length, writes };
+    }
+    await ctx.db.patch("cardSearchTagSyncStates", state._id, {
+      offset: 0,
+      phase: "pruneOld",
+    });
+    await scheduleCardSearchTagSync(ctx, cardId);
+    return { complete: false, processed: legacyTags.length, writes };
+  }
+
+  if (state.phase === "pruneOld") {
+    const oldTags = await ctx.db
+      .query("cardSearchTags")
+      .withIndex("by_cardId_and_generation", (query) => {
+        const cardRange = query.eq("cardId", cardId);
+        return card
+          ? cardRange.lt("syncGeneration", state.generation ?? 1)
+          : cardRange.lte("syncGeneration", state.generation ?? 1);
+      })
+      .take(CARD_SEARCH_TAG_SYNC_BATCH_SIZE);
+    for (const tagDocument of oldTags) {
+      await ctx.db.delete("cardSearchTags", tagDocument._id);
+      writes += 1;
+    }
+    if (oldTags.length === CARD_SEARCH_TAG_SYNC_BATCH_SIZE) {
+      await scheduleCardSearchTagSync(ctx, cardId);
+      return { complete: false, processed: oldTags.length, writes };
+    }
+    if (card) {
+      await ctx.db.patch("cardSearchTagSyncStates", state._id, {
+        offset: 0,
+        pending: false,
+        phase: "complete",
+      });
+    } else {
+      await ctx.db.delete("cardSearchTagSyncStates", state._id);
+    }
+    return { complete: true, processed: oldTags.length, writes };
   }
 
   if (!card) {
     await ctx.db.patch("cardSearchTagSyncStates", state._id, {
       offset: 0,
-      phase: "cleanup",
-      sourceUpdatedAt: undefined,
+      phase: "pruneLegacy",
     });
     await scheduleCardSearchTagSync(ctx, cardId);
     return { complete: false, processed: 0, writes };
@@ -207,16 +279,18 @@ export const syncCardSearchTagsBatchHandler = async (
       .withIndex("by_cardId_and_tag", (query) =>
         query.eq("cardId", cardId).eq("tag", tag)
       )
-      .unique();
+      .take(1)
+      .then((documents) => documents[0]);
     const tagValue = {
       cardId,
       userId: card.userId,
       tag,
-      isDeleted: card.isDeleted,
+      isDeleted: card.isDeleted === true ? true : undefined,
       type: card.type,
       isFavorited: card.isFavorited === true ? true : undefined,
       cardCreatedAt: card.createdAt,
       sourceUpdatedAt: card.updatedAt,
+      syncGeneration: state.generation ?? 1,
     };
     if (existingTag) {
       if (
@@ -225,7 +299,8 @@ export const syncCardSearchTagsBatchHandler = async (
         existingTag.type !== tagValue.type ||
         existingTag.isFavorited !== tagValue.isFavorited ||
         existingTag.cardCreatedAt !== tagValue.cardCreatedAt ||
-        existingTag.sourceUpdatedAt !== tagValue.sourceUpdatedAt
+        existingTag.sourceUpdatedAt !== tagValue.sourceUpdatedAt ||
+        existingTag.syncGeneration !== tagValue.syncGeneration
       ) {
         await ctx.db.replace("cardSearchTags", existingTag._id, tagValue);
         writes += 1;
@@ -251,8 +326,12 @@ export const syncCardSearchTagsBatchHandler = async (
     await scheduleCardSearchTagSync(ctx, cardId);
     return { complete: false, processed: sourceSlice.length, writes };
   }
-  await ctx.db.delete("cardSearchTagSyncStates", state._id);
-  return { complete: true, processed: sourceSlice.length, writes };
+  await ctx.db.patch("cardSearchTagSyncStates", state._id, {
+    offset: 0,
+    phase: "pruneLegacy",
+  });
+  await scheduleCardSearchTagSync(ctx, cardId);
+  return { complete: false, processed: sourceSlice.length, writes };
 };
 
 export const searchCardsAcrossLegacyTagIndexes = async (

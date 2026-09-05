@@ -65,7 +65,7 @@ const drainCardSearchTagSync = async (
   ctx: MutationCtx,
   cardId: Id<"cards">
 ) => {
-  for (let attempt = 0; attempt < 100; attempt += 1) {
+  for (let attempt = 0; attempt < 200; attempt += 1) {
     const result = await syncCardSearchTagsBatchHandler(ctx, cardId);
     if (result.complete) {
       return result;
@@ -443,8 +443,11 @@ describe("OCC contention behavior", () => {
         (await ctx.db.query("cardSearchTags").collect()).map(({ tag }) => tag)
       ).toEqual(["other", "updated"]);
       expect(
-        await ctx.db.query("cardSearchTagSyncStates").collect()
-      ).toHaveLength(0);
+        await ctx.db
+          .query("cardSearchTagSyncStates")
+          .withIndex("by_cardId", (query) => query.eq("cardId", exactId))
+          .unique()
+      ).toMatchObject({ cardId: exactId, pending: false, phase: "complete" });
     });
   });
 
@@ -458,20 +461,19 @@ describe("OCC contention behavior", () => {
       const cardId = await insertCard(ctx, "user-many-tags", { tags });
 
       const processedCounts: number[] = [];
-      for (let attempt = 0; attempt < 40; attempt += 1) {
+      for (let attempt = 0; attempt < 100; attempt += 1) {
         const result = await syncCardSearchTagsBatchHandler(ctx, cardId);
         processedCounts.push(result.processed);
         if (result.complete) {
           break;
         }
       }
-      expect(processedCounts[0]).toBe(0);
       expect(processedCounts.every((processed) => processed <= 32)).toBe(true);
       expect(processedCounts[processedCounts.length - 1]).toBe(0);
       expect(await ctx.db.query("cardSearchTags").collect()).toHaveLength(1000);
       expect(
         await ctx.db.query("cardSearchTagSyncStates").collect()
-      ).toHaveLength(0);
+      ).toMatchObject([{ cardId, pending: false, phase: "complete" }]);
     });
   });
 
@@ -510,6 +512,7 @@ describe("OCC contention behavior", () => {
     const t = convexTest(schema, modules);
     await t.run(async (ctx) => {
       const explicitFalseId = await insertCard(ctx, "user-tag-favorite", {
+        isDeleted: false,
         isFavorited: false,
         tags: ["unstarred"],
       });
@@ -530,6 +533,33 @@ describe("OCC contention behavior", () => {
       expect(new Set(cards.map((card) => card._id))).toEqual(
         new Set([explicitFalseId, missingId])
       );
+    });
+  });
+
+  test("keeps the previous tag generation visible until pruning", async () => {
+    const t = convexTest(schema, modules);
+    await t.run(async (ctx) => {
+      const cardId = await insertCard(ctx, "user-tag-generation", {
+        tags: ["keep", "old"],
+        updatedAt: 1,
+      });
+      await syncCardSearchDocumentHandler(ctx, cardId);
+      await drainCardSearchTagSync(ctx, cardId);
+
+      await ctx.db.patch("cards", cardId, {
+        tags: ["keep", "new"],
+        updatedAt: 2,
+      });
+      await syncCardSearchDocumentHandler(ctx, cardId);
+      await syncCardSearchTagsBatchHandler(ctx, cardId);
+      expect(
+        (await ctx.db.query("cardSearchTags").collect()).map(({ tag }) => tag)
+      ).toEqual(["keep", "old", "new"]);
+
+      await drainCardSearchTagSync(ctx, cardId);
+      expect(
+        (await ctx.db.query("cardSearchTags").collect()).map(({ tag }) => tag)
+      ).toEqual(["keep", "new"]);
     });
   });
 
