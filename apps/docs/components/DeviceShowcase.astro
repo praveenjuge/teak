@@ -142,6 +142,15 @@ const loading = variant === "hero" ? "eager" : "lazy";
     width: 50%;
   }
 
+  .hero:has(.device-laptop:only-child) {
+    display: block;
+  }
+
+  .hero:has(.device-laptop:only-child) .device-laptop {
+    width: 100%;
+    margin: 0 auto;
+  }
+
   .hero .device-tablet {
     z-index: 2;
     order: 3;

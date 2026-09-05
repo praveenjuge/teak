@@ -3,7 +3,6 @@ import DeviceShowcase from "./DeviceShowcase.astro";
 
 const stories = [
   {
-    number: "01",
     eyebrow: "Eight card types, one library",
     title: "Save anything worth remembering.",
     description:
@@ -18,7 +17,6 @@ const stories = [
     visual: "save",
   },
   {
-    number: "02",
     eyebrow: "Search the way you remember",
     title: "Start with the detail still in your head.",
     description:
@@ -33,7 +31,6 @@ const stories = [
     visual: "search",
   },
   {
-    number: "03",
     eyebrow: "Automatic organization",
     title: "Save it now. Let Teak do the filing.",
     description:
@@ -48,7 +45,6 @@ const stories = [
     visual: "organize",
   },
   {
-    number: "04",
     eyebrow: "Capture everywhere",
     title: "Keep the idea without leaving your flow.",
     description:
@@ -58,7 +54,6 @@ const stories = [
     visual: "capture",
   },
   {
-    number: "05",
     eyebrow: "Portable by design",
     title: "Bring your library in. Take it with you.",
     description:
@@ -73,7 +68,6 @@ const stories = [
     visual: "portable",
   },
   {
-    number: "06",
     eyebrow: "Built for your tools and agents",
     title: "Your library has an interface beyond the app.",
     description:
@@ -90,21 +84,12 @@ const stories = [
 ] as const;
 ---
 
-<section class="feature-showcase" aria-labelledby="feature-showcase-title">
-  <header class="showcase-intro">
-    <p class="section-label">The whole workflow</p>
-    <h2 id="feature-showcase-title">One place for everything you want to find again.</h2>
-    <p>
-      Capture without friction, let Teak add the useful context, and come back
-      with whatever detail you still remember.
-    </p>
-  </header>
-
+<section class="feature-showcase" aria-label="Teak workflow">
   <ol class="story-list">
     {stories.map((story, index) => (
-      <li class:list={["story", { reverse: index % 2 === 1 }]}>
+      <li class:list={["story", { reverse: index % 2 === 0 }]}>
         <div class="story-copy">
-          <p class="story-eyebrow"><span>{story.number}</span>{story.eyebrow}</p>
+          <p class="story-eyebrow">{story.eyebrow}</p>
           <h3>{story.title}</h3>
           <p class="story-description">{story.description}</p>
           <div class="story-actions">
@@ -139,61 +124,23 @@ const stories = [
 
 <style>
   .feature-showcase {
-    padding: 7rem 1rem;
-  }
-
-  .showcase-intro {
-    max-width: 52rem;
-    margin: 0 auto 6rem;
-    text-align: center;
-  }
-
-  .section-label,
-  .story-eyebrow {
-    font-size: 0.75rem;
-    font-weight: 700;
-    letter-spacing: 0.1em;
-    text-transform: uppercase;
-  }
-
-  .section-label {
-    margin-bottom: 1rem;
-    color: var(--primary);
-  }
-
-  .showcase-intro h2 {
-    max-width: 48rem;
-    margin: 0 auto 1.25rem;
-    font-size: clamp(2.25rem, 5vw, 4.5rem);
-    font-weight: 700;
-    letter-spacing: -0.055em;
-    line-height: 0.98;
-    text-wrap: balance;
-  }
-
-  .showcase-intro > p:last-child {
-    max-width: 38rem;
-    margin: 0 auto;
-    color: var(--muted-foreground);
-    font-size: 1.125rem;
-    line-height: 1.65;
-    text-wrap: balance;
+    padding: 1.5rem 1.5rem 5rem;
   }
 
   .story-list {
     display: grid;
-    max-width: 72rem;
+    max-width: 62rem;
     margin: 0 auto;
     padding: 0;
-    gap: 9rem;
+    gap: 5.5rem;
     list-style: none;
   }
 
   .story {
     display: grid;
-    grid-template-columns: minmax(0, 0.82fr) minmax(0, 1.18fr);
+    grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr);
     align-items: center;
-    gap: clamp(3rem, 8vw, 7rem);
+    gap: clamp(2.5rem, 6vw, 4.5rem);
   }
 
   .story.reverse .story-copy {
@@ -201,46 +148,43 @@ const stories = [
   }
 
   .story.reverse {
-    grid-template-columns: minmax(0, 1.18fr) minmax(0, 0.82fr);
+    grid-template-columns: minmax(0, 1.1fr) minmax(0, 0.9fr);
   }
 
   .story-copy {
-    max-width: 29rem;
+    max-width: 24rem;
   }
 
   .story-eyebrow {
-    display: flex;
-    align-items: center;
-    margin-bottom: 1.5rem;
+    margin: 0 0 0.875rem;
     color: var(--muted-foreground);
-    gap: 0.75rem;
-  }
-
-  .story-eyebrow span {
-    color: var(--primary);
-    font-variant-numeric: tabular-nums;
+    font-size: 0.6875rem;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    line-height: 1.4;
+    text-transform: uppercase;
   }
 
   .story-copy h3 {
-    margin: 0 0 1.25rem;
-    font-size: clamp(2rem, 4vw, 3.5rem);
+    margin: 0 0 0.875rem;
+    font-size: clamp(1.5rem, 2.8vw, 1.875rem);
     font-weight: 700;
-    letter-spacing: -0.05em;
-    line-height: 1.02;
+    letter-spacing: -0.03em;
+    line-height: 1.12;
     text-wrap: balance;
   }
 
   .story-description {
-    margin-bottom: 1.5rem;
+    margin: 0 0 1.25rem;
     color: var(--muted-foreground);
-    font-size: 1.0625rem;
-    line-height: 1.7;
+    font-size: 0.875rem;
+    line-height: 1.65;
   }
 
   .story-actions {
     display: flex;
     flex-wrap: wrap;
-    gap: 0.625rem;
+    gap: 0.5rem;
   }
 
   .story-actions a {
@@ -248,7 +192,7 @@ const stories = [
     height: 2.5rem;
     align-items: center;
     justify-content: center;
-    border-radius: 0.375rem;
+    border-radius: 9999px;
     padding: 0 1.5rem;
     font-size: 0.875rem;
     font-weight: 500;
@@ -280,11 +224,11 @@ const stories = [
 
   .feature-visual {
     position: relative;
-    min-height: 31rem;
+    min-height: 22rem;
     margin: 0;
     overflow: hidden;
     border: 1px solid color-mix(in oklch, var(--border) 85%, transparent);
-    border-radius: 2rem;
+    border-radius: 1.25rem;
     isolation: isolate;
     background-color: #8d1d13;
     background-image:
@@ -372,19 +316,17 @@ const stories = [
   }
 
   @media (max-width: 800px) {
-    .feature-showcase { padding: 5rem 1rem; }
-    .showcase-intro { margin-bottom: 4.5rem; }
-    .story-list { gap: 6rem; }
-    .story { grid-template-columns: 1fr; gap: 2.5rem; }
+    .feature-showcase { padding: 1rem 1.25rem 4rem; }
+    .story-list { gap: 4rem; }
+    .story { grid-template-columns: 1fr; gap: 1.75rem; }
     .story.reverse { grid-template-columns: 1fr; }
-    .story.reverse .story-copy { order: initial; }
-    .story-copy { max-width: 38rem; }
-    .feature-visual { min-height: 29rem; }
+    .story-copy { max-width: 36rem; }
+    .feature-visual { min-height: 21rem; }
   }
 
   @media (max-width: 520px) {
-    .feature-showcase { overflow: hidden; padding-inline: 1rem; }
-    .feature-visual { min-height: 25rem; border-radius: 1.5rem; }
+    .feature-showcase { overflow: hidden; padding-inline: 1.25rem; }
+    .feature-visual { min-height: 19rem; border-radius: 1rem; }
     .capture-visual { min-height: 0; }
     .save-visual > img,
     .search-visual > img,

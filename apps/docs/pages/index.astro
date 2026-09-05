@@ -1,6 +1,5 @@
 ---
 import DeviceShowcase from "../components/DeviceShowcase.astro";
-import FeatureCard from "../components/FeatureCard.astro";
 import HomeFeatureShowcase from "../components/HomeFeatureShowcase.astro";
 import MarketingLayout from "../layouts/MarketingLayout.astro";
 import { buildPageSchemas } from "../lib/jsonld";
@@ -84,10 +83,6 @@ const jsonLd = buildPageSchemas({
         <DeviceShowcase
           laptopAlt="Teak inspiration library on a MacBook"
           laptopSrc="/home-showcase/designer-mac.webp"
-          phoneAlt="Teak inspiration library on an iPhone"
-          phoneSrc="/home-showcase/designer-iphone.webp"
-          tabletAlt="Teak inspiration library on an iPad"
-          tabletSrc="/home-showcase/designer-ipad.webp"
           variant="hero"
         />
       </div>
@@ -106,25 +101,24 @@ const jsonLd = buildPageSchemas({
   <HomeFeatureShowcase />
 
   <!-- Testimonials Section -->
-  <section class="border-border border-t bg-background py-16">
-    <div class="container mx-auto max-w-4xl px-4">
-      <div class="mb-16 text-center">
-        <h2 class="mb-4 text-balance font-bold text-3xl">
+  <section class="testimonials">
+    <div class="testimonials-inner">
+      <div class="testimonials-header">
+        <h2>
           Designers are quietly switching
         </h2>
-        <p class="mx-auto max-w-xl text-balance text-lg text-muted-foreground">
+        <p>
           Straight from people who save with Teak every day.
         </p>
       </div>
 
-      <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+      <div class="testimonials-grid">
         {testimonials.map((testimonial) => (
-          <figure class="flex flex-col justify-between gap-4 rounded-2xl border border-border bg-card p-5">
-            <blockquote class="text-balance text-card-foreground text-sm leading-relaxed">
+          <figure class="testimonial-card">
+            <blockquote>
               {testimonial.quote}
             </blockquote>
             <svg
-              class="size-4 text-muted-foreground/60"
               viewBox="0 0 24 24"
               fill="currentColor"
               aria-hidden="true"
@@ -136,31 +130,6 @@ const jsonLd = buildPageSchemas({
       </div>
     </div>
   </section>
-
-  <!-- FAQ Section -->
-  <section class="py-20 md:py-24">
-    <div class="mx-auto max-w-4xl px-4">
-      <div class="mb-12 text-center">
-        <h2 class="mb-4 text-balance font-bold text-3xl">
-          Still have questions?
-        </h2>
-        <p class="mx-auto max-w-xl text-balance text-lg text-muted-foreground">
-          We've got answers. No corporate speak, promise.
-        </p>
-      </div>
-
-      <div class="grid grid-cols-1 gap-8 md:grid-cols-2">
-        {faqs.map((faq) => (
-          <FeatureCard
-            description={faq.answer}
-            emojiAlt=""
-            emojiSrc=""
-            title={faq.question}
-          />
-        ))}
-      </div>
-    </div>
-  </section>
 </MarketingLayout>
 
 <style>
@@ -168,25 +137,24 @@ const jsonLd = buildPageSchemas({
     position: relative;
     overflow: hidden;
     margin-top: -5rem;
-    padding: 5.5rem 1rem 6.5rem;
+    padding: 6rem 1.5rem 4.5rem;
     color: var(--foreground);
   }
 
   .hero-inner {
     position: relative;
-    max-width: 88rem;
+    max-width: 56rem;
     margin: 0 auto;
   }
 
   .hero-devices {
-    width: min(100%, 76rem);
-    height: clamp(18rem, 30vw, 26rem);
+    width: min(100%, 42rem);
     margin: 0 auto;
   }
 
   .hero-copy {
     display: flex;
-    max-width: 68rem;
+    max-width: 44rem;
     margin: 0 auto;
     align-items: center;
     flex-direction: column;
@@ -194,21 +162,21 @@ const jsonLd = buildPageSchemas({
   }
 
   .hero-copy h1 {
-    max-width: 58rem;
-    margin: 2.5rem 0 0;
-    font-size: clamp(2.75rem, 5.6vw, 5.25rem);
+    max-width: 36rem;
+    margin: 2.75rem 0 0;
+    font-size: clamp(2.125rem, 4.4vw, 3.125rem);
     font-weight: 700;
-    letter-spacing: -0.065em;
-    line-height: 0.94;
+    letter-spacing: -0.04em;
+    line-height: 1.04;
     text-wrap: balance;
   }
 
   .hero-description {
-    max-width: 48rem;
-    margin: 2rem auto 1.75rem;
+    max-width: 36rem;
+    margin: 1rem auto 1.5rem;
     color: var(--muted-foreground);
-    font-size: clamp(1.05rem, 2vw, 1.35rem);
-    line-height: 1.55;
+    font-size: 1rem;
+    line-height: 1.6;
     text-wrap: balance;
   }
 
@@ -217,8 +185,8 @@ const jsonLd = buildPageSchemas({
     height: 2.5rem;
     align-items: center;
     justify-content: center;
-    border-radius: 0.375rem;
-    padding: 0 1.5rem;
+    border-radius: 9999px;
+    padding: 0 1.75rem;
     background: var(--primary);
     color: var(--primary-foreground);
     font-size: 0.875rem;
@@ -232,10 +200,84 @@ const jsonLd = buildPageSchemas({
     background: color-mix(in oklch, var(--primary) 90%, transparent);
   }
 
+  .testimonials {
+    border-top: 1px solid var(--border);
+    padding: 4.5rem 1.5rem 5rem;
+  }
+
+  .testimonials-inner {
+    max-width: 62rem;
+    margin: 0 auto;
+  }
+
+  .testimonials-header {
+    margin-bottom: 2.5rem;
+    text-align: center;
+  }
+
+  .testimonials-header h2 {
+    margin: 0 0 0.625rem;
+    font-size: 1.375rem;
+    font-weight: 700;
+    letter-spacing: -0.025em;
+    line-height: 1.2;
+    text-wrap: balance;
+  }
+
+  .testimonials-header p {
+    margin: 0 auto;
+    max-width: 32rem;
+    color: var(--muted-foreground);
+    font-size: 0.9375rem;
+    line-height: 1.6;
+    text-wrap: balance;
+  }
+
+  .testimonials-grid {
+    display: grid;
+    gap: 1rem;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .testimonial-card {
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    gap: 1.25rem;
+    border: 1px solid var(--border);
+    border-radius: 0.875rem;
+    background: var(--card);
+    margin: 0;
+    padding: 1.25rem;
+  }
+
+  .testimonial-card blockquote {
+    margin: 0;
+    color: var(--card-foreground);
+    font-size: 0.8125rem;
+    line-height: 1.65;
+    text-wrap: pretty;
+  }
+
+  .testimonial-card svg {
+    width: 0.875rem;
+    height: 0.875rem;
+    color: var(--muted-foreground);
+    opacity: 0.6;
+  }
+
+  @media (max-width: 860px) {
+    .testimonials-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  }
+
   @media (max-width: 720px) {
-    .home-hero { padding: 4.5rem 1rem 5.5rem; }
-    .hero-devices { height: clamp(12rem, 52vw, 16rem); }
-    .hero-copy h1 { margin-top: 1.75rem; }
-    .hero-description { margin-top: 1.5rem; }
+    .home-hero { padding: 5rem 1.25rem 4rem; }
+    .hero-devices { width: min(100%, 30rem); }
+    .hero-copy h1 { margin-top: 2rem; }
+  }
+
+  @media (max-width: 560px) {
+    .testimonials { padding: 3.5rem 1.25rem 4rem; }
+    .testimonials-grid { grid-template-columns: 1fr; }
   }
 </style>
