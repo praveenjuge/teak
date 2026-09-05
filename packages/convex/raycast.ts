@@ -14,8 +14,8 @@ import { attachFileUrls } from "./card/queryUtils";
 import { applyQuoteFormattingToList } from "./card/quoteFormatting";
 import {
   scheduleCardSearchSync,
-  searchCardsAcrossLegacyTagIndexes,
   searchCardsByDocument,
+  searchCardsByExactTag,
 } from "./card/searchDocumentHelpers";
 import { updateCardFieldForUserHandler } from "./card/updateCard";
 import { cardTypeValidator } from "./schema";
@@ -197,7 +197,7 @@ const matchesStructuredFilters = (
 
   if (options.tag) {
     const tags = [...(card.tags ?? []), ...(card.aiTags ?? [])];
-    const tagSet = new Set(tags.map((tag) => tag.toLowerCase()));
+    const tagSet = new Set(tags.map((tag) => tag.trim().toLowerCase()));
     if (!tagSet.has(options.tag)) {
       return false;
     }
@@ -304,13 +304,16 @@ const searchCardsByTag = async (
   );
 
   const unique = (
-    await searchCardsAcrossLegacyTagIndexes(ctx, {
+    await searchCardsByExactTag(ctx, {
       userId,
       tag: normalizedTag,
       isDeleted: undefined,
       isFavorited: options.favoritesOnly ? true : undefined,
       type: options.type,
+      createdAfter: options.createdAfter,
+      createdBefore: options.createdBefore,
       limit: searchLimit,
+      sort: normalizeSort(options.sort),
       resultFilter: (card) => matchesStructuredFilters(card, options),
     })
   ).filter((card) => matchesStructuredFilters(card, options));

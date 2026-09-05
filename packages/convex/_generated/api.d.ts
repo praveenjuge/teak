@@ -80,7 +80,6 @@ import type * as markdownDocumentMigration from "../markdownDocumentMigration.js
 import type * as markdownDocumentMigrationAction from "../markdownDocumentMigrationAction.js";
 import type * as mcp_httpServer from "../mcp/httpServer.js";
 import type * as mcp_tools from "../mcp/tools.js";
-import type * as migrations from "../migrations.js";
 import type * as oauthClients from "../oauthClients.js";
 import type * as oauthSecurity from "../oauthSecurity.js";
 import type * as oauthTokens from "../oauthTokens.js";
@@ -251,7 +250,6 @@ declare const fullApi: ApiFromModules<{
   markdownDocumentMigrationAction: typeof markdownDocumentMigrationAction;
   "mcp/httpServer": typeof mcp_httpServer;
   "mcp/tools": typeof mcp_tools;
-  migrations: typeof migrations;
   oauthClients: typeof oauthClients;
   oauthSecurity: typeof oauthSecurity;
   oauthTokens: typeof oauthTokens;
@@ -373,7 +371,6 @@ export declare const internal: FilterApi<
 export declare const components: {
   betterAuth: import("@convex-dev/better-auth/_generated/component.js").ComponentApi<"betterAuth">;
   polar: import("@convex-dev/polar/_generated/component.js").ComponentApi<"polar">;
-  migrations: import("@convex-dev/migrations/_generated/component.js").ComponentApi<"migrations">;
   workflow: import("@convex-dev/workflow/_generated/component.js").ComponentApi<"workflow">;
   resend: import("@convex-dev/resend/_generated/component.js").ComponentApi<"resend">;
   rateLimiterV2: import("@convex-dev/rate-limiter/_generated/component.js").ComponentApi<"rateLimiterV2">;

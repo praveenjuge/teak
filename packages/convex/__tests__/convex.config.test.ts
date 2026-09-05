@@ -7,9 +7,6 @@ mock.module("@convex-dev/workflow/convex.config", () => ({
 mock.module("@convex-dev/polar/convex.config", () => ({
   default: { componentDefinitionPath: "polar" },
 }));
-mock.module("@convex-dev/migrations/convex.config", () => ({
-  default: { componentDefinitionPath: "migrations" },
-}));
 mock.module("@convex-dev/better-auth/convex.config", () => ({
   default: { componentDefinitionPath: "better-auth" },
 }));

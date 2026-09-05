@@ -37,7 +37,6 @@
     "@better-auth/expo": "1.6.26",
     "@cf-wasm/photon": "^0.4.0",
     "@convex-dev/better-auth": "0.12.5",
-    "@convex-dev/migrations": "^0.3.6",
     "@convex-dev/polar": "^0.9.2",
     "@convex-dev/rate-limiter": "0.3.2",
     "@convex-dev/resend": "0.2.7",

@@ -4,8 +4,6 @@ import type { MutationCtx, QueryCtx } from "../_generated/server";
 
 const internalAny = internal as any;
 export const CARD_SEARCH_TAG_SYNC_BATCH_SIZE = 32;
-export const isCardSearchTagSyncEnabled = () =>
-  process.env.CARD_SEARCH_TAG_SYNC_DISABLED !== "true";
 
 const SEARCH_FIELDS = [
   "content",
@@ -67,16 +65,13 @@ export const restartCardSearchTagSync = async (
   cardId: Id<"cards">,
   sourceUpdatedAt?: number
 ) => {
-  if (!isCardSearchTagSyncEnabled()) {
-    return;
-  }
   const existingState = await ctx.db
     .query("cardSearchTagSyncStates")
     .withIndex("by_cardId", (query) => query.eq("cardId", cardId))
     .unique();
   if (existingState) {
     await ctx.db.patch("cardSearchTagSyncStates", existingState._id, {
-      generation: (existingState.generation ?? 0) + 1,
+      generation: existingState.generation + 1,
       offset: 0,
       pending: true,
       phase: "tags",
@@ -166,12 +161,6 @@ export const syncCardSearchTagsBatchHandler = async (
     .query("cardSearchTagSyncStates")
     .withIndex("by_cardId", (query) => query.eq("cardId", cardId))
     .unique();
-  if (!isCardSearchTagSyncEnabled()) {
-    if (state) {
-      await ctx.db.delete("cardSearchTagSyncStates", state._id);
-    }
-    return { complete: true, processed: 0, writes: 0 };
-  }
   if (!state) {
     const stateId = await ctx.db.insert("cardSearchTagSyncStates", {
       cardId,
@@ -187,52 +176,19 @@ export const syncCardSearchTagsBatchHandler = async (
   if (!state) {
     throw new Error("Failed to initialize card search tag synchronization");
   }
-  if (state.phase === "cleanup") {
-    await ctx.db.patch("cardSearchTagSyncStates", state._id, {
-      generation: state.generation ?? 1,
-      offset: 0,
-      pending: true,
-      phase: "tags",
-    });
-    await scheduleCardSearchTagSync(ctx, cardId);
-    return { complete: false, processed: 0, writes: 0 };
-  }
   if (state.phase === "complete") {
     return { complete: true, processed: 0, writes: 0 };
   }
 
   let writes = 0;
-  if (state.phase === "pruneLegacy") {
-    const legacyTags = await ctx.db
-      .query("cardSearchTags")
-      .withIndex("by_cardId_and_generation", (query) =>
-        query.eq("cardId", cardId).eq("syncGeneration", undefined)
-      )
-      .take(CARD_SEARCH_TAG_SYNC_BATCH_SIZE);
-    for (const tagDocument of legacyTags) {
-      await ctx.db.delete("cardSearchTags", tagDocument._id);
-      writes += 1;
-    }
-    if (legacyTags.length === CARD_SEARCH_TAG_SYNC_BATCH_SIZE) {
-      await scheduleCardSearchTagSync(ctx, cardId);
-      return { complete: false, processed: legacyTags.length, writes };
-    }
-    await ctx.db.patch("cardSearchTagSyncStates", state._id, {
-      offset: 0,
-      phase: "pruneOld",
-    });
-    await scheduleCardSearchTagSync(ctx, cardId);
-    return { complete: false, processed: legacyTags.length, writes };
-  }
-
   if (state.phase === "pruneOld") {
     const oldTags = await ctx.db
       .query("cardSearchTags")
       .withIndex("by_cardId_and_generation", (query) => {
         const cardRange = query.eq("cardId", cardId);
         return card
-          ? cardRange.lt("syncGeneration", state.generation ?? 1)
-          : cardRange.lte("syncGeneration", state.generation ?? 1);
+          ? cardRange.lt("syncGeneration", state.generation)
+          : cardRange.lte("syncGeneration", state.generation);
       })
       .take(CARD_SEARCH_TAG_SYNC_BATCH_SIZE);
     for (const tagDocument of oldTags) {
@@ -258,7 +214,7 @@ export const syncCardSearchTagsBatchHandler = async (
   if (!card) {
     await ctx.db.patch("cardSearchTagSyncStates", state._id, {
       offset: 0,
-      phase: "pruneLegacy",
+      phase: "pruneOld",
     });
     await scheduleCardSearchTagSync(ctx, cardId);
     return { complete: false, processed: 0, writes };
@@ -290,7 +246,7 @@ export const syncCardSearchTagsBatchHandler = async (
       isFavorited: card.isFavorited === true ? true : undefined,
       cardCreatedAt: card.createdAt,
       sourceUpdatedAt: card.updatedAt,
-      syncGeneration: state.generation ?? 1,
+      syncGeneration: state.generation,
     };
     if (existingTag) {
       if (
@@ -328,70 +284,10 @@ export const syncCardSearchTagsBatchHandler = async (
   }
   await ctx.db.patch("cardSearchTagSyncStates", state._id, {
     offset: 0,
-    phase: "pruneLegacy",
+    phase: "pruneOld",
   });
   await scheduleCardSearchTagSync(ctx, cardId);
   return { complete: false, processed: sourceSlice.length, writes };
-};
-
-export const searchCardsAcrossLegacyTagIndexes = async (
-  ctx: QueryCtx,
-  args: {
-    userId: string;
-    tag: string;
-    isDeleted?: boolean;
-    isFavorited?: boolean;
-    type?: Doc<"cards">["type"];
-    limit: number;
-    resultFilter?: (card: Doc<"cards">) => boolean;
-  }
-): Promise<Doc<"cards">[]> => {
-  const maximumSourceLimit = 1024;
-  let sourceLimit = Math.min(100, Math.max(1, args.limit));
-  while (true) {
-    const sourceResults = await Promise.all(
-      [
-        { field: "tags", index: "search_tags" },
-        { field: "aiTags", index: "search_ai_tags" },
-      ].map(({ field, index }) =>
-        ctx.db
-          .query("cards")
-          .withSearchIndex(index as any, (query: any) => {
-            let filtered = query
-              .search(field, args.tag)
-              .eq("userId", args.userId)
-              .eq("isDeleted", args.isDeleted);
-            if (args.type !== undefined) {
-              filtered = filtered.eq("type", args.type);
-            }
-            // Explicit false and an omitted value both mean "not favorited".
-            // The legacy search index cannot express that union, so only push
-            // the true case into the index and let resultFilter normalize false.
-            if (args.isFavorited === true) {
-              filtered = filtered.eq("isFavorited", true);
-            }
-            return filtered;
-          })
-          .take(sourceLimit)
-      )
-    );
-    const cards = Array.from(
-      new Map(
-        sourceResults.flat().map((card) => [card._id, card] as const)
-      ).values()
-    ).filter(args.resultFilter ?? (() => true));
-    const sourcesExhausted = sourceResults.every(
-      (results) => results.length < sourceLimit
-    );
-    if (
-      cards.length >= args.limit ||
-      sourcesExhausted ||
-      sourceLimit >= maximumSourceLimit
-    ) {
-      return cards;
-    }
-    sourceLimit = Math.min(sourceLimit * 2, maximumSourceLimit);
-  }
 };
 
 export const searchCardsByExactTag = async (

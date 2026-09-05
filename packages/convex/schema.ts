@@ -507,17 +507,6 @@ export default defineSchema({
     .index("by_updated", ["userId", "updatedAt"])
     // Index for duplicate URL checking
     .index("by_user_url_deleted", ["userId", "url", "isDeleted"])
-    // These two tag indexes remain only during the exact-tag widen/backfill
-    // rollout. The follow-up narrowing deploy removes them after parity is
-    // verified for cardSearchTags.
-    .searchIndex("search_tags", {
-      searchField: "tags",
-      filterFields: ["userId", "isDeleted", "type", "isFavorited"],
-    })
-    .searchIndex("search_ai_tags", {
-      searchField: "aiTags",
-      filterFields: ["userId", "isDeleted", "type", "isFavorited"],
-    })
     // Visual-search indexes remain card-native; general text search uses
     // cardSearchDocuments.search_searchableText below.
     .searchIndex("search_visual_styles", {
@@ -575,7 +564,7 @@ export default defineSchema({
     isFavorited: v.optional(v.boolean()),
     cardCreatedAt: v.number(),
     sourceUpdatedAt: v.number(),
-    syncGeneration: v.optional(v.number()),
+    syncGeneration: v.number(),
   })
     .index("by_cardId", ["cardId"])
     .index("by_cardId_and_tag", ["cardId", "tag"])
@@ -615,16 +604,14 @@ export default defineSchema({
   cardSearchTagSyncStates: defineTable({
     cardId: v.id("cards"),
     phase: v.union(
-      v.literal("cleanup"),
       v.literal("tags"),
       v.literal("aiTags"),
-      v.literal("pruneLegacy"),
       v.literal("pruneOld"),
       v.literal("complete")
     ),
-    generation: v.optional(v.number()),
+    generation: v.number(),
     offset: v.number(),
-    pending: v.optional(v.boolean()),
+    pending: v.boolean(),
     sourceUpdatedAt: v.optional(v.number()),
   })
     .index("by_cardId", ["cardId"])
