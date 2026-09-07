@@ -34,11 +34,10 @@ export interface PendingNativeAuth {
 export type PollOutcome = "authenticated" | "pending" | "error" | "no-pending";
 
 // Better Auth + native-auth endpoints are hit on the Convex site URL (https),
-// NOT the web app URL. In dev the web app is served over https and force-
-// upgrades http->https; browsers strip the `Authorization: Bearer` header on
-// that cross-scheme redirect, so bearer-authenticated calls to the web app URL
-// silently lose auth. The Convex site is hit directly (no redirect), matching
-// how the desktop and Safari clients call these endpoints.
+// NOT the web app URL. Hitting the site origin directly avoids any redirect in
+// between (a cross-scheme http->https redirect would strip the `Authorization:
+// Bearer` header, so bearer-authenticated calls would silently lose auth),
+// matching how the desktop and Safari clients call these endpoints.
 export const getConvexSiteUrl = (): string => {
   const url = import.meta.env.VITE_PUBLIC_CONVEX_SITE_URL;
   if (!url) {

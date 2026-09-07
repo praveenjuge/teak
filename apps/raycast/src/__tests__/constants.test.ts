@@ -7,10 +7,10 @@ const loadLocalConstants = () =>
   import(`../lib/constants?local=${crypto.randomUUID()}`);
 
 describe("raycast local constants", () => {
-  test("uses the canonical portless app URL in development", async () => {
+  test("uses the canonical local app URL in development", async () => {
     const { TEAK_DEV_APP_URL, TEAK_SETTINGS_URL } = await loadLocalConstants();
-    expect(TEAK_DEV_APP_URL).toBe("http://app.teak.localhost:1355");
-    expect(TEAK_SETTINGS_URL).toBe("http://app.teak.localhost:1355/settings");
+    expect(TEAK_DEV_APP_URL).toBe("http://localhost:3000");
+    expect(TEAK_SETTINGS_URL).toBe("http://localhost:3000/settings");
   });
 
   test("uses the canonical Convex API URL in development", async () => {
@@ -20,10 +20,10 @@ describe("raycast local constants", () => {
     );
   });
 
-  test("builds local card URLs from the portless app origin", async () => {
+  test("builds local card URLs from the local app origin", async () => {
     const { getTeakCardUrl } = await loadLocalConstants();
     expect(getTeakCardUrl("card_123")).toBe(
-      "http://app.teak.localhost:1355/?card=card_123",
+      "http://localhost:3000/?card=card_123",
     );
   });
 });

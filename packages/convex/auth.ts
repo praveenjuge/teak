@@ -63,7 +63,7 @@ const siteUrl = process.env.SITE_URL;
 if (!siteUrl) {
   throw new Error(
     "SITE_URL environment variable is required. " +
-      "Run: bunx convex env set SITE_URL http://app.teak.localhost:1355"
+      "Run: bunx convex env set SITE_URL http://localhost:3000"
   );
 }
 let usesSecureCookies: boolean;
@@ -72,7 +72,7 @@ try {
 } catch {
   throw new Error(
     `SITE_URL environment variable is not a valid URL (received: "${siteUrl}"). ` +
-      "Example: http://app.teak.localhost:1355"
+      "Example: http://localhost:3000"
   );
 }
 const APPLE_CLIENT_SECRET_TTL_SECONDS = 180 * 24 * 60 * 60;

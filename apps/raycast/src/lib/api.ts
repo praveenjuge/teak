@@ -282,7 +282,6 @@ export const request = async <T>(
     status: response.status,
     statusText: response.statusText,
     url: response.url || requestUrl,
-    xPortless: response.headers.get("x-portless"),
   });
 
   throw new RaycastApiError(code, response.status);

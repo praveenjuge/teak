@@ -39,7 +39,7 @@ public domain at it.
     ```bash
     # Security & Auth
     npx convex env set BETTER_AUTH_SECRET $(openssl rand -base64 32)
-    npx convex env set SITE_URL http://app.teak.localhost:1355
+    npx convex env set SITE_URL http://localhost:3000
     npx convex env set TEAK_ADMIN_EMAIL you@example.com
 
     # Optional: AI (if you want card processing)
@@ -98,7 +98,7 @@ Add these to your env files before running locally or deploying.
 ### Backend (`packages/convex/.env.local`)
 
 ```bash
-SITE_URL=http://app.teak.localhost:1355
+SITE_URL=http://localhost:3000
 BETTER_AUTH_SECRET=your-secret               # Better Auth security
 TEAK_ADMIN_EMAIL=you@example.com             # Explicit administrator account
 FILES_BASE=https://files.yourdomain.com      # Files Worker origin
@@ -143,7 +143,7 @@ worker's public origin.
 CONVEX_DEPLOY_KEY=
 NEXT_PUBLIC_CONVEX_URL=https://deployment.convex.cloud
 NEXT_PUBLIC_CONVEX_SITE_URL=https://deployment.convex.site
-TEAK_DEV_APP_URL=http://app.teak.localhost:1355   # Optional local override
+TEAK_DEV_APP_URL=http://localhost:3000   # Optional local override
 # Origin your R2 files are served from, so the Content-Security-Policy allows
 # loading images and documents. Set this to your bucket's public/signed-URL
 # origin (e.g. https://your-bucket.<account>.r2.cloudflarestorage.com).
@@ -157,7 +157,7 @@ Mobile, Extension, and Desktop share the same base variables (use `EXPO_PUBLIC_`
 ```bash
 VITE_PUBLIC_CONVEX_URL=https://deployment.convex.cloud
 VITE_PUBLIC_CONVEX_SITE_URL=https://deployment.convex.site
-TEAK_DEV_APP_URL=http://app.teak.localhost:1355   # Optional local override
+TEAK_DEV_APP_URL=http://localhost:3000   # Optional local override
 ```
 
 #### Desktop-only
@@ -184,7 +184,7 @@ Convex serves the REST API at `/api/v1`, the MCP endpoint at `/mcp`, plus `/heal
 - **Convex URLs**: Run `bunx convex dev`. It prints both `CONVEX_URL` (for the client) and `CONVEX_SITE_URL` (for the site/auth endpoint). You can also find these in the Convex Dashboard under "Settings" -> "Deployment".
 - **Better Auth**:
   - `BETTER_AUTH_SECRET`: Generate a random string (e.g., via `openssl rand -base64 32`).
-  - `SITE_URL`: This is the URL where your Next.js app is running. Locally, it's `http://app.teak.localhost:1355`.
+  - `SITE_URL`: This is the URL where your Next.js app is running. Locally, it's `http://localhost:3000`.
   - `TEAK_ADMIN_EMAIL`: The normalized email address of the one account allowed to use administrative functions. Configure this independently for development and production.
 - **Optional Features**:
   - `R2_*`: Create a private Cloudflare R2 bucket and an API token/S3 credentials with object read, write, and delete access.

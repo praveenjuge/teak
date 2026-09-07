@@ -41,7 +41,7 @@ describe("assertAllowedAuthCallbackUrl", () => {
     expect(() =>
       assertAllowedAuthCallbackUrl(
         "exp://192.168.1.4:8081",
-        "http://app.teak.localhost:1355"
+        "http://localhost:3000"
       )
     ).not.toThrow();
   });

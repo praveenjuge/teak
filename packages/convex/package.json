@@ -27,7 +27,7 @@
   "types": "./index.ts",
   "scripts": {
     "dev": "convex dev",
-    "test": "export GOOGLE_CLIENT_ID=test GOOGLE_CLIENT_SECRET=test SITE_URL=http://app.teak.localhost:1355; bun test __tests__ --coverage --dots && vitest run --config vitest.config.ts",
+    "test": "export GOOGLE_CLIENT_ID=test GOOGLE_CLIENT_SECRET=test SITE_URL=http://localhost:3000; bun test __tests__ --coverage --dots && vitest run --config vitest.config.ts",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {

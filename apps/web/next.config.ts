@@ -57,7 +57,7 @@ export const nextConfig: NextConfig = {
     turbopackFileSystemCacheForBuild: true,
     turbopackRustReactCompiler: true,
   },
-  allowedDevOrigins: ["app.teak.localhost"],
+  allowedDevOrigins: [],
   turbopack: {
     resolveAlias: turbopackSingletonAliases,
   },

@@ -1,6 +1,6 @@
 import { environment } from "@raycast/api";
 
-const DEFAULT_TEAK_DEV_APP_URL = "http://app.teak.localhost:1355";
+const DEFAULT_TEAK_DEV_APP_URL = "http://localhost:3000";
 // Dev Convex deployment that `convex dev` targets and where the OAuth server
 // (Better Auth `mcp` plugin) and its seeded clients live. The token exchange
 // must reach THIS deployment — see getOAuthTokenBaseUrl. Overridable via
@@ -79,13 +79,12 @@ const resolveDevConvexSiteUrl = (): string => {
 
 // Base origin for the OAuth token exchange (POST `/api/auth/mcp/token`).
 //
-// The token POST must reach Better Auth without crossing a redirecting proxy.
-// In local dev, portless upgrades http -> https with a 302 that Raycast's token
-// fetch (undici, default redirect: "follow") replays as a GET, so the POST 404s
-// and sign-in bounces back. Convex's own site origin serves the same endpoint
-// over publicly-trusted HTTPS with no redirect, so we hit it directly in dev.
-// In production the app origin already serves the token endpoint without any
-// redirect, so it stays there.
+// The token POST must reach Better Auth directly with no redirect in between.
+// (A proxy that upgrades http -> https with a 302 would replay the POST as a
+// GET, so the exchange 404s and sign-in bounces back.) Convex's own site
+// origin serves the same endpoint over publicly-trusted HTTPS with no
+// redirect, so we hit it directly in dev. In production the app origin already
+// serves the token endpoint without any redirect, so it stays there.
 export const getOAuthTokenBaseUrl = (): string =>
   environment.isDevelopment ? resolveDevConvexSiteUrl() : TEAK_APP_URL;
 

@@ -13,7 +13,7 @@ const accessToken = "a".repeat(32);
 const refreshToken = "r".repeat(32);
 
 beforeEach(() => {
-  vi.stubEnv("SITE_URL", "http://app.teak.localhost:1355");
+  vi.stubEnv("SITE_URL", "http://localhost:3000");
   vi.stubEnv("GOOGLE_CLIENT_ID", "test");
   vi.stubEnv("GOOGLE_CLIENT_SECRET", "test");
   vi.stubEnv("APPLE_CLIENT_ID", "test-client");

@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "build": "next build",
-    "dev": "portless app.teak next dev",
+    "dev": "next dev --port 3000",
     "lint": "biome check .",
     "start": "next start",
     "test": "CLAUDECODE=1 AGENT=1 bun test src/__tests__ --coverage --dots",

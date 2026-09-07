@@ -35,7 +35,7 @@ describe("dev URL config", () => {
     expect(isLocalDevelopmentHostname("127.0.0.1")).toBe(true);
     expect(isLocalDevelopmentHostname("app.teak.localhost")).toBe(true);
     expect(isLocalDevelopmentHostname("app.teakvault.com")).toBe(false);
-    expect(isLocalDevelopmentUrl("http://app.teak.localhost:1355")).toBe(true);
+    expect(isLocalDevelopmentUrl("http://localhost:3000")).toBe(true);
     expect(isLocalDevelopmentUrl("https://app.teakvault.com")).toBe(false);
   });
 });

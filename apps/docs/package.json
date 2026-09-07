@@ -5,7 +5,7 @@
     "audit": "bun run build:site && blume audit --fail-on error",
     "build": "bun run build:site && blume audit --fail-on error",
     "build:site": "bun run generate:openapi && blume build",
-    "dev": "bun run generate:openapi && PORTLESS_PORT=1355 portless docs.teak blume dev",
+    "dev": "bun run generate:openapi && blume dev --port 3001 --host 127.0.0.1",
     "generate:openapi": "bun run scripts/generate-openapi.ts",
     "lint": "biome check blume.config.ts lib scripts styles vercel.json package.json turbo.json tsconfig.json tsconfig.typecheck.json",
     "preview": "blume preview",
