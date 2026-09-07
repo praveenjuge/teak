@@ -5,11 +5,18 @@
  *
  * Checks:
  * - Wrangler top-level bindings (R2, Images, AI) and removal of development env
- * - Local .dev.vars presence (ignored, per-surface)
+ * - Local .dev.vars presence (ignored, per-surface; never blocks)
  * - Expected Convex env names and their parity if deployments are reachable
  *
- * Usage: bun run check:cloudflare
- *        bun run scripts/check-cloudflare.ts
+ * Exit code is 1 when a blocking finding exists (missing or mismatched
+ * repository or deployment configuration). Warnings for unreachable
+ * deployments and the per-developer .dev.vars file never block.
+ *
+ * A production CONVEX_DEPLOY_KEY is scoped to the production deployment, so
+ * CI scopes the check with --only prod and gates on what the key can verify.
+ *
+ * Usage: bun run check:cloudflare [--only prod|dev]
+ *        bun run scripts/check-cloudflare.ts [--only prod|dev]
  */
 
 import { existsSync, readFileSync } from "node:fs";
@@ -22,10 +29,33 @@ const DEV_VARS_PATH = join(ROOT, "apps/files-worker/.dev.vars");
 
 type Status = "same" | "different" | "missing" | "ok" | "warn";
 
+let failureCount = 0;
+
+export const isBlockingFinding = (
+  status: Status,
+  opts?: { blocking?: boolean }
+): boolean =>
+  opts?.blocking ?? (status === "missing" || status === "different");
+
 export type DeploymentValueResult =
   | { status: "found"; value: string }
   | { status: "missing" }
+  | { status: "skipped" }
   | { status: "unavailable"; reason: "command_failed" | "spawn_failed" };
+
+export type DeploymentScope = "prod" | "dev";
+
+export const parseScopeArg = (argv: string[]): DeploymentScope | null => {
+  const index = argv.indexOf("--only");
+  if (index < 0) {
+    return null;
+  }
+  const value = argv[index + 1];
+  if (value !== "prod" && value !== "dev") {
+    throw new Error("Usage: bun run check:cloudflare [--only prod|dev]");
+  }
+  return value;
+};
 
 export const parseConvexEnvOutput = (
   stdout: string,
@@ -71,7 +101,12 @@ const expectedDevVars = [
   "FILES_LEGACY_BASE",
 ] as const;
 
-const log = (label: string, status: Status, detail?: string) => {
+const log = (
+  label: string,
+  status: Status,
+  detail?: string,
+  opts?: { blocking?: boolean }
+) => {
   let icon: string;
   if (status === "same" || status === "ok") {
     icon = "✓";
@@ -81,6 +116,9 @@ const log = (label: string, status: Status, detail?: string) => {
     icon = "•";
   }
   console.log(`${icon} ${label}: ${status}${detail ? ` (${detail})` : ""}`);
+  if (isBlockingFinding(status, opts)) {
+    failureCount += 1;
+  }
 };
 
 const checkWrangler = () => {
@@ -124,7 +162,7 @@ const checkWrangler = () => {
       "R2 and Images support --remote while Worker code stays local"
     );
   } catch (err) {
-    log("wrangler.jsonc parse", "warn", String(err));
+    log("wrangler.jsonc parse", "warn", String(err), { blocking: true });
   }
 };
 
@@ -138,7 +176,8 @@ const checkDevVars = () => {
       log(
         "FILES_SIGNING_SECRET in .dev.vars",
         hasSecret ? "ok" : "missing",
-        "must match Convex FILES_SIGNING_SECRET"
+        "must match Convex FILES_SIGNING_SECRET",
+        { blocking: false }
       );
       if (
         content.includes("R2_BUCKET") ||
@@ -153,15 +192,20 @@ const checkDevVars = () => {
       }
     } catch {}
   } else {
-    log(".dev.vars", "missing", "run bun run sync:cloudflare-dev");
+    log(".dev.vars", "missing", "run bun run sync:cloudflare-dev", {
+      blocking: false,
+    });
   }
   console.log(
     "  Production-data warning: dev bucket is prod (teak-files-prod + dev/ prefix). Writes are isolated by prefix but share credentials bucket-wide."
   );
 };
 
-const checkConvexEnv = async () => {
+const checkConvexEnv = async (only: DeploymentScope | null) => {
   console.log("\n== Convex env parity (read-only, no secret output) ==");
+  if (only) {
+    console.log(`  Scope: --only ${only} (other deployment skipped)`);
+  }
   console.log(`  Expected prod vars: ${expectedProdVars.join(", ")}`);
   console.log(`  Expected dev vars: ${expectedDevVars.join(", ")}`);
   console.log(
@@ -172,8 +216,10 @@ const checkConvexEnv = async () => {
     name: string,
     deployment: "prod" | "dev"
   ): Promise<DeploymentValueResult> => {
+    if (only && deployment !== only) {
+      return { status: "skipped" };
+    }
     try {
-      // biome-ignore lint/correctness/noUndeclaredVariables: Bun global in Bun runtime
       const proc = Bun.spawn(
         ["bunx", "convex", "env", "get", name, "--deployment", deployment],
         { cwd: CONVEX_PATH, stdout: "pipe", stderr: "pipe" }
@@ -212,6 +258,20 @@ const checkConvexEnv = async () => {
       continue;
     }
     const { dev, prod } = values;
+    if (prod.status === "skipped" || dev.status === "skipped") {
+      const side = prod.status === "skipped" ? dev : prod;
+      const sideName = prod.status === "skipped" ? "dev" : "prod";
+      if (side.status === "unavailable") {
+        log(name, "warn", `Convex ${sideName} deployment unavailable`, {
+          blocking: true,
+        });
+      } else if (side.status === "missing") {
+        log(name, "missing", `${sideName} missing`);
+      } else if (side.status === "found") {
+        log(name, "ok", `present in ${sideName}`);
+      }
+      continue;
+    }
     if (prod.status === "unavailable" || dev.status === "unavailable") {
       log(name, "warn", "Convex CLI or deployment unavailable");
     } else if (prod.status === "missing" && dev.status === "missing") {
@@ -234,48 +294,67 @@ const checkConvexEnv = async () => {
     }
     const { dev, prod } = values;
     if (dev.status === "unavailable" || prod.status === "unavailable") {
-      log(name, "warn", "Convex CLI or deployment unavailable");
+      log(name, "warn", "Convex deployment unavailable", {
+        blocking: only !== null,
+      });
       continue;
     }
     if (name === "R2_KEY_PREFIX") {
-      if (dev.status === "missing") {
-        log(name, "missing", "dev should be dev/");
-      } else if (dev.value === "dev/") {
-        log(name, "same", "dev prefix ok");
-      } else {
-        log(name, "different", "dev prefix is set incorrectly");
+      if (dev.status !== "skipped") {
+        if (dev.status === "missing") {
+          log(name, "missing", "dev should be dev/");
+        } else if (dev.value === "dev/") {
+          log(name, "same", "dev prefix ok");
+        } else {
+          log(name, "different", "dev prefix is set incorrectly");
+        }
       }
-      if (prod.status === "found") {
-        log(`${name} (prod)`, "different", "prod should be unset");
-      } else {
-        log(`${name} (prod)`, "same", "prod prefix unset");
+      if (prod.status !== "skipped") {
+        if (prod.status === "found") {
+          log(`${name} (prod)`, "different", "prod should be unset");
+        } else {
+          log(`${name} (prod)`, "same", "prod prefix unset");
+        }
       }
       continue;
     }
     if (name === "FILES_LEGACY_BASE") {
-      if (
-        dev.status === "found" &&
-        dev.value === "https://files-dev.teakvault.com"
-      ) {
-        log(name, "same", "legacy dev reads retained");
-      } else {
-        log(name, "missing", "dev legacy reads require the retained worker");
+      if (dev.status !== "skipped") {
+        if (
+          dev.status === "found" &&
+          dev.value === "https://files-dev.teakvault.com"
+        ) {
+          log(name, "same", "legacy dev reads retained");
+        } else {
+          log(name, "missing", "dev legacy reads require the retained worker");
+        }
       }
-      if (prod.status === "found") {
-        log(`${name} (prod)`, "different", "prod should be unset");
-      } else {
-        log(`${name} (prod)`, "same", "prod legacy route unset");
+      if (prod.status !== "skipped") {
+        if (prod.status === "found") {
+          log(`${name} (prod)`, "different", "prod should be unset");
+        } else {
+          log(`${name} (prod)`, "same", "prod legacy route unset");
+        }
       }
       continue;
     }
     const expected =
       name === "R2_BUCKET" ? "teak-files-prod" : "https://files.teakvault.com";
-    if (dev.status === "missing" || prod.status === "missing") {
-      log(name, "missing", "required in both deployments");
-    } else if (dev.value === expected && prod.value === expected) {
-      log(name, "same", "prod and dev use the canonical value");
+    const sides = [
+      { result: dev, sideName: "dev" },
+      { result: prod, sideName: "prod" },
+    ].filter(({ result }) => result.status !== "skipped");
+    const scopeNote = only ? ` (--only ${only})` : "";
+    if (sides.some(({ result }) => result.status === "missing")) {
+      log(name, "missing", `required${scopeNote}`);
+    } else if (
+      sides.every(
+        ({ result }) => result.status === "found" && result.value === expected
+      )
+    ) {
+      log(name, "same", `canonical value${scopeNote}`);
     } else {
-      log(name, "different", "prod or dev differs from the canonical value");
+      log(name, "different", `differs from the canonical value${scopeNote}`);
     }
   }
 
@@ -291,12 +370,13 @@ const main = async () => {
   console.log(
     "Cloudflare / R2 parity check (read-only, secrets never printed)"
   );
+  const only = parseScopeArg(process.argv.slice(2));
   checkWrangler();
   checkDevVars();
-  await checkConvexEnv();
+  await checkConvexEnv(only);
   console.log("\n== Summary ==");
   console.log(
-    "  • Keep `bun run dev` for all-surface stack; use `bun run dev:files` (remote bindings) vs `bun run dev:files:local` (Miniflare, low-fidelity Images)."
+    "  • Keep `bun run dev:all` for all-surface stack; use `bun run dev:files` (remote bindings) vs `bun run dev:files:local` (Miniflare, low-fidelity Images)."
   );
   console.log(
     "  • One-time Convex convergence required; .dev.vars is ignored and per-developer; prod-data warning applies (shared bucket + prefix)."
@@ -304,6 +384,14 @@ const main = async () => {
   console.log(
     "  • Rollback: wrangler.jsonc env.development removed but live files-dev Worker/domain/teak-files-dev bucket retained; re-add env block to rollback or set Convex dev FILES_BASE/R2_BUCKET back to files-dev."
   );
+  if (failureCount > 0) {
+    console.log(
+      `\ncheck:cloudflare found ${failureCount} blocking finding${failureCount === 1 ? "" : "s"} (exit 1).`
+    );
+    process.exitCode = 1;
+  } else {
+    console.log("\ncheck:cloudflare found no blocking findings.");
+  }
   console.log("");
 };
 
