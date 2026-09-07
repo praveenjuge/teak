@@ -115,6 +115,11 @@ describe("Safari OAuth connection", () => {
     expect(response.status).toBe(200);
     expect(response.headers.get("Cache-Control")).toBe("no-store");
     expect(await response.json()).toEqual({ cardId: expected });
+    const padded = await t.fetch(
+      `/v1/cards/duplicate?url=${encodeURIComponent(`  ${url}  `)}`,
+      { headers: { Authorization: `Bearer ${accessToken}` } }
+    );
+    expect(await padded.json()).toEqual({ cardId: expected });
     const absent = await t.fetch(
       `/v1/cards/duplicate?url=${encodeURIComponent(`${url}/different`)}`,
       { headers: { Authorization: `Bearer ${accessToken}` } }

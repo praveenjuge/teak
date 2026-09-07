@@ -9,13 +9,27 @@ nonisolated protocol SafariCredentialStorage: Sendable {
 
 nonisolated struct SafariCredentialStore: SafariCredentialStorage {
     static let group = "group.com.praveenjuge.teak-safari"
-    private let account = "oauth-tokens-v1"
+    static let keychainService = "com.praveenjuge.teak-safari.session"
+    static let keychainAccount = "oauth-tokens-v1"
+    /// Keychain access group, resolved at build time from `TeakKeychainAccessGroup`
+    /// (`$(AppIdentifierPrefix)com.praveenjuge.teak-safari` in each target's Info.plist)
+    /// so re-signing under another team keeps the entitlement and runtime query in sync.
+    /// Falls back to the current team's prefix for installs predating the plist key.
+    static var accessGroup: String {
+        if let configured = Bundle.main.object(forInfoDictionaryKey: "TeakKeychainAccessGroup") as? String,
+           !configured.isEmpty,
+           !configured.hasPrefix("$(") {
+            return configured
+        }
+        return "LW385M78LW.com.praveenjuge.teak-safari"
+    }
+    private let account = Self.keychainAccount
 
     private var query: [String: Any] {
         [
             kSecClass as String: kSecClassGenericPassword,
-            kSecAttrService as String: "com.praveenjuge.teak-safari.session",
-            kSecAttrAccessGroup as String: "LW385M78LW.com.praveenjuge.teak-safari",
+            kSecAttrService as String: Self.keychainService,
+            kSecAttrAccessGroup as String: Self.accessGroup,
             kSecUseDataProtectionKeychain as String: true,
             kSecAttrAccount as String: account,
         ]
