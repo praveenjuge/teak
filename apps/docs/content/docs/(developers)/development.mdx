@@ -34,14 +34,14 @@ description: Setup and development workflow for Teak
 
 ## Access Points
 
-- Web App: http://app.teak.localhost:1355
-- Public API: http://docs.teak.localhost:1355/api/v1
-- MCP Endpoint: http://docs.teak.localhost:1355/mcp
+- Web App: http://localhost:3000
+- Public API: http://localhost:3001/api/v1
+- MCP Endpoint: http://localhost:3001/mcp
 - Convex Dashboard: opens after `bunx convex dev`
 - Mobile: Expo Go or simulator
 - Extension: Chrome dev mode
 - Safari Extension: Xcode
-- Docs: http://docs.teak.localhost:1355
+- Docs: http://localhost:3001
 
 ## Project Layout
 
@@ -136,7 +136,7 @@ bun run clean            # Clear Turborepo caches
   </Step>
   <Step title="Point Convex at your local Next.js origin">
     ```bash
-    bunx convex env set SITE_URL http://app.teak.localhost:1355
+    bunx convex env set SITE_URL http://localhost:3000
     ```
   </Step>
 </Steps>
@@ -171,4 +171,4 @@ Follow the CLI prompt to add the DNS TXT record, then publish once verification 
 
 See **[Self-Hosting → Environment settings](/docs/self-hosting#detailed-environment-reference)** for every env var required across web, mobile, extension, and the Convex backend.
 
-Optional local overrides: `TEAK_DEV_APP_URL` (default: `http://app.teak.localhost:1355`), `TEAK_DEV_API_URL` (only needed when your Convex dev site differs from the repo default), `TEAK_DEV_DOCS_URL` (default: `http://docs.teak.localhost:1355`).
+Optional local overrides: `TEAK_DEV_APP_URL` (default: `http://localhost:3000`), `TEAK_DEV_API_URL` (only needed when your Convex dev site differs from the repo default), `TEAK_DEV_DOCS_URL` (default: `http://localhost:3001`).

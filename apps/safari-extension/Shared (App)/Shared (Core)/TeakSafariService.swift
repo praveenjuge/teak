@@ -4,7 +4,7 @@ import Foundation
 actor TeakSafariService {
     static let shared = TeakSafariService()
     #if DEBUG
-    static let appBaseURL = URL(string: "http://app.teak.localhost:1355")!
+    static let appBaseURL = URL(string: "http://localhost:3000")!
     private static let siteURL = URL(string: "https://reminiscent-kangaroo-59.convex.site")!
     #else
     static let appBaseURL = URL(string: "https://app.teakvault.com")!

@@ -20,10 +20,11 @@ bun run dev
 Start the web app from `apps/web` in another persistent session:
 
 ```bash
-bunx portless app.teak next dev
+bun run dev
 ```
 
-Use the localhost URL printed by Portless. Do not assume a fixed port.
+The web app serves at the fixed URL `http://localhost:3000`. The port is pinned,
+so every agent and developer shares the same origin.
 
 Create `apps/web/.env.local` from the active Convex deployment values. A local anonymous deployment normally uses:
 

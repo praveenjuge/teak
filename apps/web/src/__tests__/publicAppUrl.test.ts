@@ -5,25 +5,21 @@ import {
 } from "@/lib/public-app-url";
 
 describe("public app URL resolution", () => {
-  test("pins local requests to the public dev app origin", () => {
+  test("pins local requests to the local dev app origin", () => {
     const requestUrl = new URL("http://localhost:4015/login?next=%2Fsettings");
 
-    expect(resolvePublicAppOrigin(requestUrl)).toBe(
-      "http://app.teak.localhost:1355"
-    );
+    expect(resolvePublicAppOrigin(requestUrl)).toBe("http://localhost:3000");
     expect(buildPublicAppUrl("/login", requestUrl).toString()).toBe(
-      "http://app.teak.localhost:1355/login"
+      "http://localhost:3000/login"
     );
   });
 
-  test("preserves HTTPS when Portless terminates TLS", () => {
-    const requestUrl = new URL("https://app.teak.localhost:1355/settings");
+  test("preserves the request protocol for local origins", () => {
+    const requestUrl = new URL("https://localhost:3000/settings");
 
-    expect(resolvePublicAppOrigin(requestUrl)).toBe(
-      "https://app.teak.localhost:1355"
-    );
+    expect(resolvePublicAppOrigin(requestUrl)).toBe("https://localhost:3000");
     expect(buildPublicAppUrl("/login", requestUrl).toString()).toBe(
-      "https://app.teak.localhost:1355/login"
+      "https://localhost:3000/login"
     );
   });
 

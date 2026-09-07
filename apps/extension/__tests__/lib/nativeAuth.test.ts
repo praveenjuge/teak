@@ -233,8 +233,8 @@ describe("nativeAuth session lifecycle", () => {
     await signOut();
 
     const [calledUrl, init] = fetchMock.mock.calls[0];
-    // Sign-out hits the Convex site URL directly (avoids the http->https
-    // redirect that would strip the bearer header).
+    // Sign-out hits the Convex site URL directly (no redirect in between to
+    // strip the bearer header).
     expect(calledUrl).toBe(
       "https://test-deployment.convex.site/api/auth/sign-out"
     );

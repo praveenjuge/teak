@@ -18,11 +18,11 @@ describe("buildTrustedOrigins", () => {
   });
 
   test("local deployments keep Expo wildcards and the local app origin", () => {
-    const origins = buildTrustedOrigins("http://app.teak.localhost:1355", {
-      TEAK_DEV_APP_URL: "http://app.teak.localhost:1355",
+    const origins = buildTrustedOrigins("http://localhost:3000", {
+      TEAK_DEV_APP_URL: "http://localhost:3000",
     });
 
-    expect(origins).toContain("http://app.teak.localhost:1355");
+    expect(origins).toContain("http://localhost:3000");
     expect(origins).toContain("http://localhost:1420");
     expect(origins).toContain("exp+teak://*");
     expect(origins).toContain(EXACT_TEAK_CALLBACK_URL);

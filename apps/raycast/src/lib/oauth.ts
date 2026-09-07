@@ -10,8 +10,8 @@ import { getAppBaseUrl, getOAuthTokenBaseUrl } from "./constants";
 // `authorize` runs in the browser and must hit the web origin so the session
 // cookie authenticates the request. The `token`/refresh exchange is a
 // server-to-server POST that only needs to reach Better Auth, so it targets the
-// token base URL directly — avoiding the dev-only proxy redirect that would
-// otherwise downgrade the POST to a GET (see getOAuthTokenBaseUrl).
+// token base URL directly with no redirect in between (see
+// getOAuthTokenBaseUrl).
 const authorizeUrl = `${getAppBaseUrl()}/api/auth/mcp/authorize`;
 const tokenUrl = `${getOAuthTokenBaseUrl()}/api/auth/mcp/token`;
 

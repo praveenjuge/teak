@@ -605,8 +605,7 @@ describe("Background Service Worker", () => {
     });
 
     test("accepts a localhost dev host only in dev builds", () => {
-      const devUrl =
-        "http://app.teak.localhost:1355/native/auth/complete?state=abc";
+      const devUrl = "http://localhost:3000/native/auth/complete?state=abc";
       expect(isAllowedSender(devUrl, true)).toBe(true);
       expect(isAllowedSender(devUrl, false)).toBe(false);
     });
