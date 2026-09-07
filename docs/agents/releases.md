@@ -11,7 +11,8 @@ It validates the next patch, updates every tracked `package.json`,
 synchronizes `bun.lock` (and `apps/raycast/package-lock.json` when present),
 then verifies with a frozen install and the lockstep validator. Review the
 diff and commit every package manifest and lockfile together as one scoped
-version change.
+version change. The command is resume-safe: if a run fails partway, run it
+again with the same version to continue from the install step.
 
 Manual fallback (same steps the script performs):
 

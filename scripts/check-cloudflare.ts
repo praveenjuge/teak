@@ -5,8 +5,12 @@
  *
  * Checks:
  * - Wrangler top-level bindings (R2, Images, AI) and removal of development env
- * - Local .dev.vars presence (ignored, per-surface)
+ * - Local .dev.vars presence (ignored, per-surface; never blocks)
  * - Expected Convex env names and their parity if deployments are reachable
+ *
+ * Exit code is 1 when a blocking finding exists (missing or mismatched
+ * repository or deployment configuration). Warnings for unreachable
+ * deployments and the per-developer .dev.vars file never block.
  *
  * Usage: bun run check:cloudflare
  *        bun run scripts/check-cloudflare.ts
@@ -21,6 +25,14 @@ const WRANGLER_PATH = join(ROOT, "apps/files-worker/wrangler.jsonc");
 const DEV_VARS_PATH = join(ROOT, "apps/files-worker/.dev.vars");
 
 type Status = "same" | "different" | "missing" | "ok" | "warn";
+
+let failureCount = 0;
+
+export const isBlockingFinding = (
+  status: Status,
+  opts?: { blocking?: boolean }
+): boolean =>
+  opts?.blocking ?? (status === "missing" || status === "different");
 
 export type DeploymentValueResult =
   | { status: "found"; value: string }
@@ -71,7 +83,12 @@ const expectedDevVars = [
   "FILES_LEGACY_BASE",
 ] as const;
 
-const log = (label: string, status: Status, detail?: string) => {
+const log = (
+  label: string,
+  status: Status,
+  detail?: string,
+  opts?: { blocking?: boolean }
+) => {
   let icon: string;
   if (status === "same" || status === "ok") {
     icon = "✓";
@@ -81,6 +98,9 @@ const log = (label: string, status: Status, detail?: string) => {
     icon = "•";
   }
   console.log(`${icon} ${label}: ${status}${detail ? ` (${detail})` : ""}`);
+  if (isBlockingFinding(status, opts)) {
+    failureCount += 1;
+  }
 };
 
 const checkWrangler = () => {
@@ -124,7 +144,7 @@ const checkWrangler = () => {
       "R2 and Images support --remote while Worker code stays local"
     );
   } catch (err) {
-    log("wrangler.jsonc parse", "warn", String(err));
+    log("wrangler.jsonc parse", "warn", String(err), { blocking: true });
   }
 };
 
@@ -138,7 +158,8 @@ const checkDevVars = () => {
       log(
         "FILES_SIGNING_SECRET in .dev.vars",
         hasSecret ? "ok" : "missing",
-        "must match Convex FILES_SIGNING_SECRET"
+        "must match Convex FILES_SIGNING_SECRET",
+        { blocking: false }
       );
       if (
         content.includes("R2_BUCKET") ||
@@ -153,7 +174,9 @@ const checkDevVars = () => {
       }
     } catch {}
   } else {
-    log(".dev.vars", "missing", "run bun run sync:cloudflare-dev");
+    log(".dev.vars", "missing", "run bun run sync:cloudflare-dev", {
+      blocking: false,
+    });
   }
   console.log(
     "  Production-data warning: dev bucket is prod (teak-files-prod + dev/ prefix). Writes are isolated by prefix but share credentials bucket-wide."
@@ -303,6 +326,14 @@ const main = async () => {
   console.log(
     "  • Rollback: wrangler.jsonc env.development removed but live files-dev Worker/domain/teak-files-dev bucket retained; re-add env block to rollback or set Convex dev FILES_BASE/R2_BUCKET back to files-dev."
   );
+  if (failureCount > 0) {
+    console.log(
+      `\ncheck:cloudflare found ${failureCount} blocking finding${failureCount === 1 ? "" : "s"} (exit 1).`
+    );
+    process.exitCode = 1;
+  } else {
+    console.log("\ncheck:cloudflare found no blocking findings.");
+  }
   console.log("");
 };
 

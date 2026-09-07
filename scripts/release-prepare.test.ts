@@ -4,6 +4,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import {
   readVersion,
+  resolveBump,
   setManifestVersion,
   updateManifestVersions,
 } from "./release-prepare.ts";
@@ -20,6 +21,22 @@ describe("setManifestVersion", () => {
     writeManifest(path, "1.0.65");
     setManifestVersion(path, "1.0.66");
     expect(readVersion(path)).toBe("1.0.66");
+  });
+});
+
+describe("resolveBump", () => {
+  test("fresh on the next patch", () => {
+    expect(resolveBump("1.0.65", "1.0.66")).toBe("fresh");
+  });
+
+  test("resume when already at the target version", () => {
+    expect(resolveBump("1.0.66", "1.0.66")).toBe("resume");
+  });
+
+  test("rejects non-patch bumps", () => {
+    expect(() => resolveBump("1.0.65", "1.0.65")).not.toThrow();
+    expect(() => resolveBump("1.0.65", "1.1.0")).toThrow();
+    expect(() => resolveBump("1.0.66", "1.0.65")).toThrow();
   });
 });
 

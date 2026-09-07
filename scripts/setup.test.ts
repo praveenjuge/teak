@@ -1,10 +1,17 @@
 import { describe, expect, test } from "bun:test";
-import { mkdtempSync, readFileSync } from "node:fs";
+import {
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  utimesSync,
+  writeFileSync,
+} from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import {
   checkBunVersion,
   ensureFile,
+  isInstallStale,
   requiredBunVersion,
   webEnvTemplate,
 } from "./setup.ts";
@@ -51,5 +58,45 @@ describe("ensureFile", () => {
     expect(readFileSync(path, "utf-8")).toBe("A=1\n");
     expect(ensureFile(path, "B=2\n")).toBe("exists");
     expect(readFileSync(path, "utf-8")).toBe("A=1\n");
+  });
+});
+
+describe("isInstallStale", () => {
+  test("stale when node_modules is missing", () => {
+    const root = mkdtempSync(join(tmpdir(), "teak-setup-"));
+    writeFileSync(join(root, "bun.lock"), "lock");
+    expect(isInstallStale(root)).toBe(true);
+  });
+
+  test("stale when bun.lock is newer than node_modules", () => {
+    const root = mkdtempSync(join(tmpdir(), "teak-setup-"));
+    const modules = join(root, "node_modules");
+    const lock = join(root, "bun.lock");
+    mkdirSync(modules, { recursive: true });
+    writeFileSync(lock, "lock");
+    const now = new Date();
+    utimesSync(
+      modules,
+      new Date(now.getTime() - 10_000),
+      new Date(now.getTime() - 10_000)
+    );
+    utimesSync(lock, now, now);
+    expect(isInstallStale(root)).toBe(true);
+  });
+
+  test("fresh when node_modules is newer than bun.lock", () => {
+    const root = mkdtempSync(join(tmpdir(), "teak-setup-"));
+    const modules = join(root, "node_modules");
+    const lock = join(root, "bun.lock");
+    mkdirSync(modules, { recursive: true });
+    writeFileSync(lock, "lock");
+    const now = new Date();
+    utimesSync(
+      lock,
+      new Date(now.getTime() - 10_000),
+      new Date(now.getTime() - 10_000)
+    );
+    utimesSync(modules, now, now);
+    expect(isInstallStale(root)).toBe(false);
   });
 });

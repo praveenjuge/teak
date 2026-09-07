@@ -17,6 +17,11 @@ describe("findMissingKeys", () => {
     const content = "A=1\nB=2\n";
     expect(findMissingKeys(content, ["A", "B"])).toEqual([]);
   });
+
+  test("flags empty and quoted-empty values as missing", () => {
+    const content = "A=\nB=''\nC=\"value\"\n";
+    expect(findMissingKeys(content, ["A", "B", "C"])).toEqual(["A", "B"]);
+  });
 });
 
 describe("isPortOccupied", () => {

@@ -22,6 +22,17 @@ const ROOT = join(import.meta.dir, "..");
 export const readVersion = (manifestPath: string): string =>
   JSON.parse(readFileSync(manifestPath, "utf-8")).version;
 
+export const resolveBump = (
+  current: string,
+  target: string
+): "fresh" | "resume" => {
+  if (current === target) {
+    return "resume";
+  }
+  assertPatchBump(current, target);
+  return "fresh";
+};
+
 export const setManifestVersion = (
   manifestPath: string,
   version: string
@@ -64,7 +75,12 @@ const main = (): void => {
     throw new Error("Usage: bun run release:prepare <version>");
   }
   const previous = readVersion(join(ROOT, "package.json"));
-  assertPatchBump(previous, version);
+  const mode = resolveBump(previous, version);
+  if (mode === "resume") {
+    console.log(
+      `Manifests already at ${version}; resuming install and verification.`
+    );
+  }
 
   const updated = updateManifestVersions(ROOT, version);
   console.log(

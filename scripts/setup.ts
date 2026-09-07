@@ -7,7 +7,13 @@
  *   --check  report what setup would do without writing or installing.
  */
 
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import {
+  existsSync,
+  mkdirSync,
+  readFileSync,
+  statSync,
+  writeFileSync,
+} from "node:fs";
 import { dirname, join } from "node:path";
 
 const ROOT = join(import.meta.dir, "..");
@@ -55,6 +61,18 @@ export const ensureFile = (
   return "created";
 };
 
+export const isInstallStale = (repoRoot: string): boolean => {
+  const modules = join(repoRoot, "node_modules");
+  const lock = join(repoRoot, "bun.lock");
+  if (!existsSync(modules)) {
+    return true;
+  }
+  if (!existsSync(lock)) {
+    return false;
+  }
+  return statSync(lock).mtimeMs > statSync(modules).mtimeMs;
+};
+
 const runInstall = (root: string): void => {
   const result = Bun.spawnSync(["bun", "install", "--frozen-lockfile"], {
     cwd: root,
@@ -80,8 +98,8 @@ const main = (): void => {
     );
   }
 
-  if (existsSync(join(ROOT, "node_modules"))) {
-    console.log("Dependencies: node_modules present.");
+  if (!isInstallStale(ROOT)) {
+    console.log("Dependencies: node_modules up to date with bun.lock.");
   } else if (checkOnly) {
     console.log("Would run: bun install --frozen-lockfile");
   } else {

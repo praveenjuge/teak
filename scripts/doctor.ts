@@ -11,7 +11,11 @@ import { existsSync, readFileSync } from "node:fs";
 import { createConnection } from "node:net";
 import { homedir } from "node:os";
 import { join } from "node:path";
-import { checkBunVersion, requiredBunVersion } from "./setup.ts";
+import {
+  checkBunVersion,
+  isInstallStale,
+  requiredBunVersion,
+} from "./setup.ts";
 
 const ROOT = join(import.meta.dir, "..");
 
@@ -24,13 +28,27 @@ export const findMissingKeys = (
   content: string,
   keys: readonly string[]
 ): string[] => {
-  const present = new Set(
-    content
-      .split("\n")
-      .map((line) => line.split("=")[0]?.trim())
-      .filter((key) => key && !key.startsWith("#"))
-  );
-  return keys.filter((key) => !present.has(key));
+  const values = new Map<string, string>();
+  for (const line of content.split("\n")) {
+    const trimmed = line.trim();
+    if (!trimmed || trimmed.startsWith("#") || !trimmed.includes("=")) {
+      continue;
+    }
+    const index = trimmed.indexOf("=");
+    const key = trimmed.slice(0, index).trim();
+    if (!key || values.has(key)) {
+      continue;
+    }
+    const value = trimmed
+      .slice(index + 1)
+      .trim()
+      .replace(/^["']|["']$/g, "");
+    values.set(key, value);
+  }
+  return keys.filter((key) => {
+    const value = values.get(key);
+    return value === undefined || value === "";
+  });
 };
 
 export const isPortOccupied = (
@@ -81,13 +99,15 @@ const main = async (): Promise<void> => {
     hardFailure = true;
   }
 
-  const depsOk = existsSync(join(ROOT, "node_modules"));
+  const stale = isInstallStale(ROOT);
   findings.push({
-    ok: depsOk,
+    ok: !stale,
     label: "Dependencies",
-    detail: depsOk ? "node_modules present." : "run bun run setup.",
+    detail: stale
+      ? "node_modules missing or older than bun.lock: run bun run setup."
+      : "node_modules up to date with bun.lock.",
   });
-  if (!depsOk) {
+  if (stale) {
     hardFailure = true;
   }
 
