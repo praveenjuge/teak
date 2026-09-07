@@ -37,10 +37,36 @@
       "cache": false
     },
     "lint": {
+      "dependsOn": ["^lint"],
       "inputs": ["$TURBO_DEFAULT$", "$TURBO_ROOT$/biome.jsonc"],
       "outputs": []
     },
     "test": {
+      "dependsOn": ["^test"],
+      "inputs": ["$TURBO_DEFAULT$", ".env", ".env.*"],
+      "outputs": ["coverage/**"],
+      "env": [
+        "CLAUDECODE",
+        "AGENT",
+        "GOOGLE_CLIENT_ID",
+        "GOOGLE_CLIENT_SECRET",
+        "SITE_URL"
+      ]
+    },
+    "test:unit": {
+      "dependsOn": ["^test:unit"],
+      "inputs": ["$TURBO_DEFAULT$", ".env", ".env.*"],
+      "outputs": ["coverage/**"],
+      "env": [
+        "CLAUDECODE",
+        "AGENT",
+        "GOOGLE_CLIENT_ID",
+        "GOOGLE_CLIENT_SECRET",
+        "SITE_URL"
+      ]
+    },
+    "test:edge": {
+      "dependsOn": ["^test:edge"],
       "inputs": ["$TURBO_DEFAULT$", ".env", ".env.*"],
       "outputs": ["coverage/**"],
       "env": [
@@ -52,6 +78,8 @@
       ]
     },
     "typecheck": {
+      "dependsOn": ["^typecheck"],
+      "inputs": ["$TURBO_DEFAULT$"],
       "outputs": []
     },
     "start": {

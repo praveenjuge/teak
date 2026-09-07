@@ -1,6 +1,18 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+# Smoke the public API/MCP surface.
+# Usage: BASE_URL=https://preview-url.vercel.app bash scripts/smoke-urls.sh
+#        SMOKE_BASE_URL=... bash scripts/smoke-urls.sh
+# Defaults to production https://teakvault.com for scheduled checks.
+BASE_URL="${SMOKE_BASE_URL:-${BASE_URL:-https://teakvault.com}}"
+BASE_URL="${BASE_URL%/}"
+IS_PROD="false"
+if [[ "$BASE_URL" == "https://teakvault.com" ]]; then
+  IS_PROD="true"
+fi
+echo "Smoke base: $BASE_URL (prod: $IS_PROD)"
+
 json_rpc='{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-06-18","capabilities":{},"clientInfo":{"name":"teak-smoke","version":"1.0.0"}}}'
 curl_common=(
   --connect-timeout 10
@@ -76,20 +88,20 @@ check_mcp_unauthorized() {
   fi
 }
 
-check_status 200 "https://teakvault.com/api/healthz"
-check_contains "https://teakvault.com/api" '"version":"v1"'
-check_contains "https://teakvault.com/api/v1" '"endpoint":"https://teakvault.com/mcp"'
-check_contains "https://teakvault.com/api/openapi.json" '"openapi":"3.1.0"'
+check_status 200 "$BASE_URL/api/healthz"
+check_contains "$BASE_URL/api" '"version":"v1"'
+check_contains "$BASE_URL/api/v1" "\"endpoint\":\"$BASE_URL/mcp\""
+check_contains "$BASE_URL/api/openapi.json" '"openapi":"3.1.0"'
 check_mcp_unauthorized \
-  "https://teakvault.com/mcp" \
-  "https://teakvault.com/.well-known/oauth-protected-resource/mcp"
+  "$BASE_URL/mcp" \
+  "$BASE_URL/.well-known/oauth-protected-resource/mcp"
 check_contains \
-  "https://teakvault.com/.well-known/oauth-protected-resource/mcp" \
-  '"resource":"https://teakvault.com/mcp"'
-check_status 200 "https://teakvault.com/llms.txt"
+  "$BASE_URL/.well-known/oauth-protected-resource/mcp" \
+  "\"resource\":\"$BASE_URL/mcp\""
+check_status 200 "$BASE_URL/llms.txt"
 check_matches \
-  "https://teakvault.com/.well-known/mcp.json" \
-  '"endpoint"[[:space:]]*:[[:space:]]*"https://teakvault\.com/mcp"'
+  "$BASE_URL/.well-known/mcp.json" \
+  "\"endpoint\"[[:space:]]*:[[:space:]]*\"$(printf '%s' "$BASE_URL" | sed 's/\./\\./g')/mcp\""
 
 check_redirect() {
   local url="$1"
@@ -110,11 +122,14 @@ check_redirect() {
 }
 
 # The API lives at teakvault.com/api*; the legacy subdomain permanently redirects (308 keeps methods intact).
-check_redirect "https://api.teakvault.com/" "https://teakvault.com/api/v1"
-check_redirect "https://api.teakvault.com/v1" "https://teakvault.com/api/v1"
-check_redirect "https://api.teakvault.com/healthz" "https://teakvault.com/api/healthz"
-check_redirect "https://api.teakvault.com/openapi.json" "https://teakvault.com/api/openapi.json"
-check_redirect "https://api.teakvault.com/mcp" "https://teakvault.com/mcp"
-check_redirect \
-  "https://api.teakvault.com/.well-known/oauth-protected-resource/mcp" \
-  "https://teakvault.com/.well-known/oauth-protected-resource/mcp"
+# Preview deployments have no api.* alias, so only check redirects in prod.
+if [[ "$IS_PROD" == "true" ]]; then
+  check_redirect "https://api.teakvault.com/" "https://teakvault.com/api/v1"
+  check_redirect "https://api.teakvault.com/v1" "https://teakvault.com/api/v1"
+  check_redirect "https://api.teakvault.com/healthz" "https://teakvault.com/api/healthz"
+  check_redirect "https://api.teakvault.com/openapi.json" "https://teakvault.com/api/openapi.json"
+  check_redirect "https://api.teakvault.com/mcp" "https://teakvault.com/mcp"
+  check_redirect \
+    "https://api.teakvault.com/.well-known/oauth-protected-resource/mcp" \
+    "https://teakvault.com/.well-known/oauth-protected-resource/mcp"
+fi

@@ -1,0 +1,25 @@
+# Smoke Vercel preview deployments once they are ready.
+# The docs deployment serves the apex API/MCP rewrites, so the same
+# scripts/smoke-urls.sh suite runs against the preview URL with BASE_URL.
+name: Preview Smoke
+
+on:
+  deployment_status:
+
+permissions:
+  contents: read
+
+jobs:
+  preview-smoke:
+    if: github.event.deployment_status.state == 'success' && github.event.deployment_status.environment != 'Production'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      BASE_URL: ${{ github.event.deployment_status.target_url }}
+    steps:
+      - uses: actions/checkout@v6
+      - name: Smoke preview API and MCP URLs
+        run: |
+          echo "Preview target: $BASE_URL"
+          test -n "$BASE_URL"
+          bash scripts/smoke-urls.sh

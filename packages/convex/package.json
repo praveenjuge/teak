@@ -27,7 +27,9 @@
   "types": "./index.ts",
   "scripts": {
     "dev": "convex dev",
-    "test": "export GOOGLE_CLIENT_ID=test GOOGLE_CLIENT_SECRET=test SITE_URL=http://localhost:3000; bun test __tests__ --coverage --dots && vitest run --config vitest.config.ts",
+    "test": "bun run test:unit && bun run test:edge",
+    "test:edge": "GOOGLE_CLIENT_ID=test GOOGLE_CLIENT_SECRET=test SITE_URL=http://localhost:3000 vitest run --config vitest.config.ts",
+    "test:unit": "GOOGLE_CLIENT_ID=test GOOGLE_CLIENT_SECRET=test SITE_URL=http://localhost:3000 bun test __tests__ --coverage --dots",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {

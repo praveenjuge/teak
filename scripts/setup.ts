@@ -120,11 +120,16 @@ const main = (): void => {
 
   console.log("Next steps:");
   console.log("  1. bun run doctor      # validate the environment");
-  console.log("  2. bun run dev         # web + Convex");
   console.log(
-    "  3. bunx convex dev     # first run only: Convex login + deployment"
+    "  2. bun run dev         # web + Convex (bun run dev --help for targets)"
+  );
+  console.log("  3. bun run verify      # typecheck + lint + test (affected)");
+  console.log(
+    "  4. bunx convex dev     # first run only: Convex login + deployment"
   );
   console.log("     bunx convex env set SITE_URL http://localhost:3000");
+  console.log("     bunx convex env set GOOGLE_CLIENT_ID <client-id>");
+  console.log("     bunx convex env set GOOGLE_CLIENT_SECRET <client-secret>");
 };
 
 if (import.meta.main) {
