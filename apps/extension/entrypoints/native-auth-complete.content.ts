@@ -18,6 +18,8 @@ const buildMatches = (): string[] => {
 };
 
 export default defineContentScript({
+  // Retained source for the previous native flow; OAuth no longer injects it.
+  exclude: ["chrome", "firefox", "edge", "opera"],
   matches: buildMatches(),
   main() {
     if (window.location.pathname !== COMPLETE_PATHNAME) {

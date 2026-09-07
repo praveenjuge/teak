@@ -1,6 +1,11 @@
 import type { Platform } from "./social";
 
 export const MESSAGE_TYPES = {
+  RETRY_PENDING: "TEAK_RETRY_PENDING",
+  DISCARD_PENDING: "TEAK_DISCARD_PENDING",
+  SIGN_IN: "TEAK_SIGN_IN",
+  SIGN_OUT: "TEAK_SIGN_OUT",
+  SAVE_FILE: "TEAK_SAVE_FILE",
   GET_AUTH_STATE: "TEAK_GET_AUTH_STATE",
   SAVE_ASSET: "TEAK_SAVE_ASSET",
   SAVE_CONTENT: "TEAK_SAVE_CONTENT",
@@ -58,6 +63,14 @@ export interface SavePostRequest {
 }
 
 export type TeakRuntimeRequest =
+  | {
+      type:
+        | typeof MESSAGE_TYPES.SIGN_IN
+        | typeof MESSAGE_TYPES.SIGN_OUT
+        | typeof MESSAGE_TYPES.RETRY_PENDING
+        | typeof MESSAGE_TYPES.DISCARD_PENDING;
+    }
+  | { type: typeof MESSAGE_TYPES.SAVE_FILE; payload: { id: string } }
   | GetAuthStateRequest
   | SaveAssetRequest
   | SaveContentRequest
@@ -67,6 +80,9 @@ export type TeakRuntimeRequest =
 
 export interface AuthStateResponse {
   authenticated: boolean;
+  pending?: boolean;
+  pendingCount?: number;
+  user?: { id: string; email: string; name?: string };
 }
 
 export interface SaveSuccessResponse {

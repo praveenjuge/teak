@@ -176,15 +176,20 @@ export default function ProfileSettingsPage() {
       onDeleteAccount={settings.handleDeleteAccount}
       onDeleteDialogOpenChange={settings.setDeleteDialogOpen}
       onDownloadExport={settings.handleDownloadExport}
+      onLoadMoreSessions={settings.loadMoreSessions}
       onRevokeAllApiKeys={settings.handleRevokeAllApiKeys}
       onRevokeApiKey={settings.handleRevokeApiKey}
       onRevokeOAuthConnection={settings.handleRevokeOAuthConnection}
+      onRevokeSession={settings.handleRevokeSession}
       onRotateApiKey={settings.handleRotateApiKey}
       onSignOut={settings.handleSignOut}
       onStartExport={settings.handleStartExport}
       onUpgrade={() => {
         setSubscriptionOpen(true);
       }}
+      sessions={settings.sessions}
+      sessionsHasMore={settings.sessionsHasMore}
+      sessionsLoadingMore={settings.sessionsLoadingMore}
       signOutLoading={settings.signOutLoading}
       subscriptionDialog={
         <Dialog onOpenChange={setSubscriptionOpen} open={subscriptionOpen}>

@@ -1,12 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import {
-  clearLocalSession,
-  getConvexSiteUrl,
-  getSessionToken,
-  PENDING_AUTH_KEY,
-  hasPendingFlow as readHasPendingFlow,
-  SESSION_TOKEN_KEY,
-} from "../lib/nativeAuth";
+import { type AuthStateResponse, MESSAGE_TYPES } from "../types/messages";
 
 interface User {
   email: string;
@@ -24,73 +17,30 @@ interface UseExtensionSessionResult {
   error: Error | null;
   hasPendingFlow: boolean;
   isPending: boolean;
+  pendingCount: number;
   refetch: () => void;
 }
 
-/**
- * Resolves the current session from the extension's own stored session token.
- *
- * The stored dedicated token is sent as a bearer token to get-session on the
- * Convex site URL (the bearer plugin self-signs raw tokens). It must NOT go to
- * the web app URL: in dev that redirects http->https and the browser strips the
- * Authorization header on the cross-scheme hop, silently dropping auth. A 401
- * clears the local session, and a storage listener keeps the popup in sync when
- * the background stores a token after the completion-page handshake.
- */
 export function useExtensionSession(): UseExtensionSessionResult {
   const [data, setData] = useState<Session | null>(null);
   const [isPending, setIsPending] = useState(true);
   const [error, setError] = useState<Error | null>(null);
+  const [pendingCount, setPendingCount] = useState(0);
   const [hasPendingFlow, setHasPendingFlow] = useState(false);
 
   const fetchSession = useCallback(async () => {
-    setIsPending(true);
     setError(null);
 
     try {
-      setHasPendingFlow(await readHasPendingFlow());
-
-      const token = await getSessionToken();
-      if (!token) {
-        setData(null);
-        return;
+      const state = (await chrome.runtime.sendMessage({
+        type: MESSAGE_TYPES.GET_AUTH_STATE,
+      })) as AuthStateResponse & { message?: string; status?: string };
+      if (state.status === "error") {
+        throw new Error(state.message || "Could not load your account.");
       }
-
-      const response = await fetch(
-        `${getConvexSiteUrl()}/api/auth/get-session`,
-        {
-          method: "GET",
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-          credentials: "omit",
-        }
-      );
-
-      if (response.status === 401 || response.status === 403) {
-        await clearLocalSession();
-        setData(null);
-        return;
-      }
-
-      if (!response.ok) {
-        throw new Error("Failed to fetch session");
-      }
-
-      const sessionData = await response.json();
-
-      if (sessionData?.session?.userId && sessionData?.user) {
-        setData({
-          user: {
-            id: sessionData.user.id,
-            email: sessionData.user.email,
-            name: sessionData.user.name,
-            image: sessionData.user.image,
-          },
-        });
-      } else {
-        setData(null);
-      }
+      setHasPendingFlow(Boolean(state.pending));
+      setPendingCount(state.pendingCount ?? 0);
+      setData(state.authenticated && state.user ? { user: state.user } : null);
     } catch (err) {
       setError(err instanceof Error ? err : new Error("Unknown error"));
       setData(null);
@@ -103,11 +53,7 @@ export function useExtensionSession(): UseExtensionSessionResult {
     fetchSession();
   }, [fetchSession]);
 
-  // Flip live when the background stores/clears the token or the pending flow
-  // changes — e.g. when the completion-page handshake poll succeeds while the
-  // popup is open, or when a terminal poll error clears the pending record
-  // (which must drop the "Finishing sign-in…" spinner even though the token
-  // key never changed).
+  // Refresh the display state when the background completes sign-in or sign-out.
   useEffect(() => {
     const handleChange = (
       changes: Record<string, chrome.storage.StorageChange>,
@@ -115,7 +61,7 @@ export function useExtensionSession(): UseExtensionSessionResult {
     ) => {
       if (
         areaName === "local" &&
-        (changes[SESSION_TOKEN_KEY] || changes[PENDING_AUTH_KEY])
+        (changes.teakOAuthState || changes.teakPendingSaveChanged)
       ) {
         void fetchSession();
       }
@@ -129,6 +75,7 @@ export function useExtensionSession(): UseExtensionSessionResult {
     data,
     error,
     hasPendingFlow,
+    pendingCount,
     isPending,
     refetch: fetchSession,
   };

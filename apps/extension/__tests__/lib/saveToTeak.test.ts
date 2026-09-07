@@ -1,236 +1,126 @@
-// @ts-nocheck
-import { beforeEach, describe, expect, mock, test } from "bun:test";
-import { resetSaveToTeakTokenCache, saveToTeak } from "../../lib/saveToTeak";
+/// <reference types="bun" />
+import { describe, expect, mock, test } from "bun:test";
+import { saveToTeak } from "../../lib/saveToTeak";
 
-describe("saveToTeak", () => {
-  beforeEach(() => {
-    resetSaveToTeakTokenCache();
-    // The token exchange URL is built from the Convex site URL.
-    process.env.VITE_PUBLIC_CONVEX_SITE_URL = "https://test.convex.site";
+describe("OAuth content saving", () => {
+  test.each(["context-menu", "inline-post", "popup-auto-save"] as const)(
+    "saves a URL from %s and preserves its idempotency key",
+    async (source) => {
+      const request = mock(async (path: string, _init?: RequestInit) =>
+        path.startsWith("/v1/cards/duplicate")
+          ? Response.json({ cardId: null })
+          : Response.json({ cardId: "saved-card" })
+      );
+      expect(
+        await saveToTeak(
+          {
+            content: "https://example.com",
+            source,
+            idempotencyKey: "pending-save-id",
+          },
+          { request }
+        )
+      ).toEqual({ status: "saved", cardId: "saved-card" });
+      expect(request.mock.calls[0]?.[0]).toBe(
+        "/v1/cards/duplicate?url=https%3A%2F%2Fexample.com%2F"
+      );
+      const init = request.mock.calls[1]?.[1];
+      expect(JSON.parse(String(init?.body))).toEqual({
+        url: "https://example.com/",
+      });
+      expect(new Headers(init?.headers).get("Idempotency-Key")).toBe(
+        "pending-save-id"
+      );
+    }
+  );
+  test("preserves selected text without a duplicate lookup", async () => {
+    const request = mock(async (_path: string, _init?: RequestInit) =>
+      Response.json({ cardId: "text-card" })
+    );
+    expect(
+      await saveToTeak(
+        { content: "  Notes\nwith formatting  ", source: "context-menu" },
+        { request }
+      )
+    ).toEqual({ status: "saved", cardId: "text-card" });
+    expect(request).toHaveBeenCalledTimes(1);
+    expect(JSON.parse(String(request.mock.calls[0]?.[1]?.body))).toEqual({
+      content: "  Notes\nwith formatting  ",
+      cardType: "text",
+    });
   });
-
-  test("returns unauthenticated when no web session token exists", async () => {
+  test("returns the existing card without creating a duplicate", async () => {
+    const request = mock(async () =>
+      Response.json({ cardId: "existing-card" })
+    );
+    expect(
+      await saveToTeak(
+        { content: "https://example.com/", source: "inline-post" },
+        { request }
+      )
+    ).toEqual({ status: "duplicate", cardId: "existing-card" });
+    expect(request).toHaveBeenCalledTimes(1);
+  });
+  test("requests reconnect when its OAuth credential is absent or revoked", async () => {
+    expect(
+      await saveToTeak(
+        { content: "Note", source: "context-menu" },
+        { request: async () => null }
+      )
+    ).toEqual({ status: "unauthenticated" });
+  });
+  test("preserves API quota feedback", async () => {
     const result = await saveToTeak(
+      { content: "Note", source: "context-menu" },
       {
-        content: "https://x.com/teak/status/123",
-        enforceAllowedHosts: true,
-        source: "inline-post",
-      },
-      {
-        getSessionToken: async () => null,
+        request: async () =>
+          Response.json(
+            {
+              error: {
+                code: "CARD_LIMIT_REACHED",
+                message: "Your library is full.",
+              },
+            },
+            { status: 403 }
+          ),
       }
     );
-
-    expect(result.status).toBe("unauthenticated");
-  });
-
-  test("clears the local session and returns unauthenticated on a 401 token exchange", async () => {
-    const remove = mock(async () => {
-      // no-op storage stub
+    expect(result).toEqual({
+      status: "error",
+      code: "CARD_LIMIT_REACHED",
+      message: "Your library is full.",
     });
-    (globalThis as any).chrome = {
-      storage: {
-        local: {
-          get: async () => ({}),
-          set: async () => {
-            // no-op
-          },
-          remove,
-        },
-      },
-    };
-
-    try {
-      const result = await saveToTeak(
+  });
+  test("rejects empty content and unsupported inline hosts before network access", async () => {
+    const request = mock(async () => Response.json({}));
+    expect(
+      await saveToTeak({ content: " ", source: "context-menu" }, { request })
+    ).toMatchObject({ code: "EMPTY_CONTENT" });
+    expect(
+      await saveToTeak(
         {
-          content: "https://x.com/teak/status/123",
+          content: "https://example.com/post/1",
           enforceAllowedHosts: true,
           source: "inline-post",
         },
-        {
-          getSessionToken: async () => "stale_token",
-          fetchImpl: mock(
-            async () => new Response("", { status: 401 })
-          ) as unknown as typeof fetch,
-        }
-      );
-
-      expect(result.status).toBe("unauthenticated");
-      // clearLocalSession removed the stored token + pending flow.
-      expect(remove).toHaveBeenCalled();
-    } finally {
-      (globalThis as any).chrome = undefined;
-    }
+        { request }
+      )
+    ).toMatchObject({ code: "UNSUPPORTED_HOST" });
+    expect(request).not.toHaveBeenCalled();
   });
-
-  test("fails fast on unsupported host for inline saves", async () => {
-    const result = await saveToTeak(
-      {
-        content: "https://example.com/post/1",
-        enforceAllowedHosts: true,
-        source: "inline-post",
-      },
-      {
-        getSessionToken: async () => "session_token",
-      }
+  test("does not create a card when duplicate detection fails", async () => {
+    const request = mock(async () =>
+      Response.json(
+        { error: { message: "Try later", code: "RATE_LIMITED" } },
+        { status: 429 }
+      )
     );
-
-    expect(result.status).toBe("error");
-    if (result.status === "error") {
-      expect(result.code).toBe("UNSUPPORTED_HOST");
-    }
-  });
-
-  test("returns duplicate when an existing URL card is found", async () => {
-    const query = mock(async () => ({ _id: "card_1" }));
-    const mutation = mock(async () => "card_2");
-
-    const result = await saveToTeak(
-      {
-        content: "https://x.com/teak/status/123",
-        enforceAllowedHosts: true,
-        source: "inline-post",
-      },
-      {
-        createClient: () => ({ query, mutation }),
-        fetchImpl: mock(
-          async () =>
-            new Response(
-              JSON.stringify({ token: "header.payload.signature" }),
-              {
-                status: 200,
-              }
-            )
-        ) as unknown as typeof fetch,
-        getSessionToken: async () => "session_token",
-      }
-    );
-
-    expect(result).toEqual({
-      status: "duplicate",
-      cardId: "card_1",
-    });
-    expect(mutation).not.toHaveBeenCalled();
-  });
-
-  test("saves article URLs when inline-host enforcement is disabled", async () => {
-    const query = mock(async () => null);
-    const mutation = mock(async () => "card_hn");
-
-    const result = await saveToTeak(
-      {
-        content: "https://example.com/story",
-        source: "inline-post",
-      },
-      {
-        createClient: () => ({ query, mutation }),
-        fetchImpl: mock(
-          async () =>
-            new Response(
-              JSON.stringify({ token: "header.payload.signature" }),
-              {
-                status: 200,
-              }
-            )
-        ) as unknown as typeof fetch,
-        getSessionToken: async () => "session_token",
-      }
-    );
-
-    expect(result).toEqual({
-      status: "saved",
-      cardId: "card_hn",
-    });
-    expect(query).toHaveBeenCalledWith(expect.anything(), {
-      url: "https://example.com/story",
-    });
-    expect(mutation).toHaveBeenCalled();
-  });
-
-  test("saves non-url content without duplicate lookup", async () => {
-    const query = mock(async () => null);
-    const mutation = mock(async () => "card_saved");
-
-    const result = await saveToTeak(
-      {
-        content: "Some highlighted text",
-        source: "context-menu",
-      },
-      {
-        createClient: () => ({ query, mutation }),
-        fetchImpl: mock(
-          async () =>
-            new Response(
-              JSON.stringify({ token: "header.payload.signature" }),
-              {
-                status: 200,
-              }
-            )
-        ) as unknown as typeof fetch,
-        getSessionToken: async () => "session_token",
-      }
-    );
-
-    expect(result).toEqual({
-      status: "saved",
-      cardId: "card_saved",
-    });
-    expect(query).not.toHaveBeenCalled();
-  });
-
-  test("preserves selected Markdown exactly for text cards", async () => {
-    const query = mock(async () => null);
-    const mutation = mock(async () => "card_markdown");
-    const content = "\uFEFF  # Heading\r\n\r\n- [ ] task  \r\n";
-
-    await saveToTeak(
-      { content, source: "context-menu" },
-      {
-        createClient: () => ({ query, mutation }),
-        fetchImpl: mock(async () =>
-          Response.json({ token: "header.payload.signature" })
-        ) as unknown as typeof fetch,
-        getSessionToken: async () => "session_token",
-      }
-    );
-
-    expect(mutation.mock.calls[0]?.[1]).toMatchObject({
-      content,
-      type: "text",
-    });
-  });
-
-  test("maps card limit failures to explicit error code", async () => {
-    const result = await saveToTeak(
-      {
-        content: "https://x.com/teak/status/123",
-        enforceAllowedHosts: true,
-        source: "inline-post",
-      },
-      {
-        createClient: () => ({
-          query: async () => null,
-          mutation: () =>
-            Promise.reject(
-              new Error("CARD_LIMIT_REACHED: free tier limit exceeded")
-            ),
-        }),
-        fetchImpl: mock(
-          async () =>
-            new Response(
-              JSON.stringify({ token: "header.payload.signature" }),
-              {
-                status: 200,
-              }
-            )
-        ) as unknown as typeof fetch,
-        getSessionToken: async () => "session_token",
-      }
-    );
-
-    expect(result.status).toBe("error");
-    if (result.status === "error") {
-      expect(result.code).toBe("CARD_LIMIT_REACHED");
-    }
+    expect(
+      await saveToTeak(
+        { content: "https://example.com/", source: "context-menu" },
+        { request }
+      )
+    ).toMatchObject({ status: "error", code: "RATE_LIMITED" });
+    expect(request).toHaveBeenCalledTimes(1);
   });
 });

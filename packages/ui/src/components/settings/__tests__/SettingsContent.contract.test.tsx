@@ -35,6 +35,11 @@ const baseProps = {
   hasPremium: false,
   keys: [],
   oauthConnections: [],
+  sessions: [],
+  sessionsHasMore: false,
+  sessionsLoadingMore: false,
+  onLoadMoreSessions: mock(() => undefined),
+  onRevokeSession: mock(() => Promise.resolve()),
   onCancelExport: mock(() => Promise.resolve()),
   onCreateApiKey: mock(() => Promise.resolve({ key: "teak_test" })),
   onCreateCustomerPortal: mock(() => Promise.resolve()),
@@ -83,8 +88,8 @@ describe("SettingsContent", () => {
 
     expect(markup).toContain("hello@example.com");
     expect(markup).toContain("3 Cards");
-    expect(markup).toContain("API Keys");
-    expect(markup).toContain("Connected apps");
+    expect(markup).toContain("Security");
+    expect(markup).not.toContain("Connected apps");
     expect(markup).toContain("Export loading");
     expect(markup).toContain("Theme toggle");
     expect(markup).not.toContain("No apps are connected");

@@ -10,7 +10,8 @@ const popupSource = readFileSync(
 
 test("popup exposes user-selected file upload through the canonical saver", () => {
   expect(popupSource).toContain('type="file"');
-  expect(popupSource).toContain("saveFileToTeak(");
+  expect(popupSource).toContain("storePendingSave(");
+  expect(popupSource).toContain("MESSAGE_TYPES.SAVE_FILE");
   expect(popupSource).toContain('source: "popup-file"');
   expect(popupSource).toContain("Upload file");
 });
@@ -31,7 +32,6 @@ test("popup stays open until the selected file upload settles", () => {
   expect(popupSource).toContain('setFileUploadState("saving")');
   expect(popupSource).toContain('setFileUploadState("success")');
   expect(popupSource).toContain('setFileUploadState("error")');
-  expect(popupSource).toContain('setFileUploadState("idle")');
   expect(popupSource).toContain("shouldAutoClosePopup({");
   expect(popupSource).toMatch(/shouldAutoClosePopup\(\{\s*fileUploadState,/);
 });

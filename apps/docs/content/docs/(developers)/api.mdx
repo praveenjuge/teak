@@ -180,4 +180,6 @@ Use the returned request ID when contacting [Support](/docs/support). For MCP to
 
 ## Revoke an OAuth credential
 
-Native OAuth clients can send a form-encoded `POST` to the Convex site origin at `/api/oauth/revoke`, with `client_id` and `token` (an access or refresh token). Revocation invalidates the presented credential pair for that client. Unknown or already revoked tokens return 200, as do successful revocations. This endpoint does not accept API keys. Use **Connected apps** in Settings to revoke every connection for an app.
+Native OAuth clients can send a form-encoded `POST` to the Convex site origin at `/api/oauth/revoke`, with `client_id` and `token` (an access or refresh token). Revocation invalidates the presented credential pair for that client. Unknown or already revoked tokens return 200, as do successful revocations. This endpoint does not accept API keys. Use **Security** → **Connections** in Settings to revoke every connection for an app.
+
+Native OAuth clients can read the authenticated account with `GET /api/oauth/userinfo` on the Convex site origin. Send the OAuth access token as a bearer token. The response contains `sub`, `email`, and `name`; invalid or revoked credentials return 401. API keys are not accepted by this endpoint.

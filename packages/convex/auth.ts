@@ -388,6 +388,18 @@ export const createAuth = (ctx: GenericCtx<DataModel>) => {
               ],
             },
             {
+              clientId: "teak-chrome",
+              clientSecret: "",
+              type: "public",
+              name: "Teak Chrome",
+              disabled: false,
+              skipConsent: false,
+              metadata: null,
+              redirectUrls: [
+                "https://negnmfifahnnagnbnfppmlgfajngdpob.chromiumapp.org/oauth/callback",
+              ],
+            },
+            {
               clientId: "teak-safari",
               clientSecret: "",
               type: "public",

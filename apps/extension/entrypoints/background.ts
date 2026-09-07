@@ -1,17 +1,25 @@
-import { isLocalDevelopmentHostname } from "@teak/convex/dev-urls";
 import {
-  beginSignIn,
-  getSessionToken,
-  pollPendingNativeAuth,
-  readPendingNativeAuth,
-} from "../lib/nativeAuth";
-import { saveAssetUrlToTeak } from "../lib/saveFileToTeak";
+  beginOAuthSignIn,
+  getCaptureOwner,
+  getOAuthState,
+  initializeAuth,
+  oauthRequest,
+  signOutOAuth,
+} from "../lib/oauthAuth";
+import {
+  getPendingSave,
+  listPendingSaveIds,
+  type PendingSave,
+  removePendingSave,
+  storePendingSave,
+  updatePendingSave,
+} from "../lib/pendingSaves";
+import { downloadAssetFile, saveFileToTeak } from "../lib/saveFileToTeak";
 import { saveToTeak } from "../lib/saveToTeak";
 import type { ContextMenuAction } from "../types/contextMenu";
 import {
   type AuthStateResponse,
   MESSAGE_TYPES,
-  type NativeAuthCompletedRequest,
   type SaveAssetRequest,
   type SaveContentRequest,
   type SavePostRequest,
@@ -24,49 +32,155 @@ import {
   isSupportedInlineSaveHost,
 } from "../types/social";
 
-const NATIVE_AUTH_COMPLETE_PATHNAME = "/native/auth/complete";
+const runningSaves = new Map<string, Promise<TeakSaveResponse>>();
 
-// Serialize native-auth polls so the completion-page handshake and the
-// popup-open poll can't both consume the single-use auth code concurrently.
-let inflightPoll: Promise<unknown> | null = null;
-
-function pollNativeAuthOnce(): Promise<unknown> {
-  inflightPoll ??= pollPendingNativeAuth().finally(() => {
-    inflightPoll = null;
-  });
-  return inflightPoll;
+function runPendingSave(
+  pending: PendingSave,
+  interactive: boolean
+): Promise<TeakSaveResponse> {
+  let save = pending;
+  const existing = runningSaves.get(save.id);
+  if (existing) {
+    return existing;
+  }
+  const operation = (async () => {
+    const capture = async (): Promise<TeakSaveResponse> => {
+      // The API remembers operation IDs for 24 hours. Stop uncertain retries
+      // before that expires so a lost response cannot create a second card.
+      if (
+        save.firstAttemptAt &&
+        Date.now() - save.firstAttemptAt >= 23 * 60 * 60 * 1000
+      ) {
+        return buildSaveError(
+          "This save is too old to retry safely. Check your library before discarding it and saving again.",
+          "RETRY_EXPIRED"
+        );
+      }
+      const state = await getOAuthState();
+      if (!(state.authenticated && state.user)) {
+        return { status: "unauthenticated" };
+      }
+      if (save.ownerId && save.ownerId !== state.user.id) {
+        return buildSaveError(
+          "Sign in to the original account to finish this pending save.",
+          "ACCOUNT_MISMATCH"
+        );
+      }
+      if (!save.ownerId) {
+        save.ownerId = state.user.id;
+        await updatePendingSave(save);
+      }
+      if (!save.firstAttemptAt) {
+        save.firstAttemptAt = Date.now();
+        await updatePendingSave(save);
+      }
+      const ownerId = save.ownerId;
+      const request = (path: string, init?: RequestInit) =>
+        oauthRequest(path, init, ownerId);
+      if (save.kind === "content") {
+        return saveToTeak(
+          { ...save.input, idempotencyKey: save.id },
+          { request }
+        );
+      }
+      if (save.kind === "asset") {
+        const file = await downloadAssetFile(save.assetUrl);
+        if ("status" in file) {
+          return file;
+        }
+        save = {
+          id: save.id,
+          createdAt: save.createdAt,
+          firstAttemptAt: save.firstAttemptAt,
+          ownerId: save.ownerId,
+          kind: "file",
+          input: file,
+        };
+        await updatePendingSave(save);
+      }
+      const fileSave = save;
+      return saveFileToTeak(
+        { ...fileSave.input, idempotencyKey: fileSave.id },
+        {
+          request,
+          onUploaded: async (uploaded) => {
+            fileSave.input.uploaded = uploaded;
+            await updatePendingSave(fileSave);
+          },
+        }
+      );
+    };
+    let result = await capture();
+    if (result.status === "unauthenticated" && interactive) {
+      await beginOAuthSignIn();
+      result = await capture();
+    }
+    const permanentCodes = [
+      "EMPTY_CONTENT",
+      "UNSUPPORTED_HOST",
+      "UNSAFE_ASSET_URL",
+      "UNSUPPORTED_TYPE",
+      "FILE_TOO_LARGE",
+      "INVALID_FILE_NAME",
+      "INVALID_INPUT",
+      "CONTENT_TOO_LARGE",
+    ];
+    if (
+      result.status === "saved" ||
+      result.status === "duplicate" ||
+      (result.status === "error" && permanentCodes.includes(result.code ?? ""))
+    ) {
+      await removePendingSave(save.id);
+    }
+    await chrome.storage.local.set({
+      contextMenuSave: {
+        action: save.kind === "content" ? "save-page" : "save-asset",
+        timestamp: Date.now(),
+        status:
+          result.status === "saved" || result.status === "duplicate"
+            ? "success"
+            : "error",
+        error:
+          result.status === "error"
+            ? result.message
+            : (result.status === "unauthenticated" &&
+                "Reconnect to finish your pending save.") ||
+              undefined,
+      },
+    });
+    return result;
+  })().finally(() => runningSaves.delete(save.id));
+  runningSaves.set(save.id, operation);
+  return operation;
 }
 
-// Best-effort: begin a browser sign-in and open the web login/handoff tab.
-async function openSignInTab(): Promise<void> {
-  try {
-    const url = await beginSignIn();
-    await chrome.tabs.create({ url });
-  } catch {
-    // Ignore: sign-in can be retried from the popup.
-  }
+async function queueSave(
+  input:
+    | { kind: "content"; input: Parameters<typeof saveToTeak>[0] }
+    | { kind: "asset"; assetUrl: string }
+) {
+  const save: PendingSave = {
+    ...input,
+    id: crypto.randomUUID(),
+    createdAt: Date.now(),
+    ownerId: await getCaptureOwner(),
+  };
+  await storePendingSave(save);
+  return runPendingSave(save, true);
 }
 
-// A NATIVE_AUTH_COMPLETED message is only trusted from the completion page on
-// an allowed origin (prod host, or a localhost dev host in dev builds).
-const isNativeAuthCompleteSender = (rawUrl: string | undefined): boolean => {
-  if (!rawUrl) {
-    return false;
+async function resumePendingSaves() {
+  for (const id of await listPendingSaveIds()) {
+    const save = await getPendingSave(id);
+    if (!save) {
+      continue;
+    }
+    const result = await runPendingSave(save, false);
+    if (result.status === "unauthenticated") {
+      break;
+    }
   }
-  let url: URL;
-  try {
-    url = new URL(rawUrl);
-  } catch {
-    return false;
-  }
-  if (url.pathname !== NATIVE_AUTH_COMPLETE_PATHNAME) {
-    return false;
-  }
-  if (url.origin === "https://app.teakvault.com") {
-    return true;
-  }
-  return import.meta.env.DEV && isLocalDevelopmentHostname(url.hostname);
-};
+}
 
 // Check if a URL is restricted (can't inject scripts)
 function isRestrictedUrl(url?: string): boolean {
@@ -179,19 +293,54 @@ const isRuntimeRequest = (message: unknown): message is TeakRuntimeRequest => {
   if (!message || typeof message !== "object") {
     return false;
   }
-
-  const candidate = message as { type?: unknown };
-  return (
-    candidate.type === MESSAGE_TYPES.GET_AUTH_STATE ||
-    candidate.type === MESSAGE_TYPES.SAVE_ASSET ||
-    candidate.type === MESSAGE_TYPES.SAVE_CONTENT ||
-    candidate.type === MESSAGE_TYPES.SAVE_POST ||
-    candidate.type === MESSAGE_TYPES.NATIVE_AUTH_COMPLETED ||
-    candidate.type === MESSAGE_TYPES.POLL_NATIVE_AUTH
-  );
+  const { type, payload } = message as { type?: unknown; payload?: unknown };
+  if (
+    [
+      MESSAGE_TYPES.GET_AUTH_STATE,
+      MESSAGE_TYPES.SIGN_IN,
+      MESSAGE_TYPES.SIGN_OUT,
+      MESSAGE_TYPES.RETRY_PENDING,
+      MESSAGE_TYPES.DISCARD_PENDING,
+    ].some((value) => value === type)
+  ) {
+    return true;
+  }
+  if (!payload || typeof payload !== "object") {
+    return false;
+  }
+  const value = payload as Record<string, unknown>;
+  const boundedString = (
+    candidate: unknown,
+    limit: number
+  ): candidate is string =>
+    typeof candidate === "string" &&
+    candidate.length > 0 &&
+    candidate.length <= limit;
+  switch (type) {
+    case MESSAGE_TYPES.SAVE_FILE:
+      return boundedString(value.id, 128);
+    case MESSAGE_TYPES.SAVE_CONTENT:
+      return (
+        boundedString(value.content, 512 * 1024) &&
+        ["popup-auto-save", "context-menu"].includes(String(value.source))
+      );
+    case MESSAGE_TYPES.SAVE_ASSET:
+      return boundedString(value.assetUrl, 8192);
+    case MESSAGE_TYPES.SAVE_POST:
+      return (
+        boundedString(value.permalink, 8192) &&
+        boundedString(value.platform, 64) &&
+        boundedString(value.postKey, 8192)
+      );
+    default:
+      return false;
+  }
 };
 
 export default defineBackground(() => {
+  void initializeAuth()
+    .then(resumePendingSaves)
+    .catch(() => {});
   // Create context menus when extension starts
   chrome.runtime.onStartup.addListener(createContextMenus);
   chrome.runtime.onInstalled.addListener(createContextMenus);
@@ -263,16 +412,16 @@ export default defineBackground(() => {
 
       const saveResult =
         action === "save-asset"
-          ? await saveAssetUrlToTeak(content)
-          : await saveToTeak({
-              content,
-              source: "context-menu",
+          ? await queueSave({ kind: "asset", assetUrl: content })
+          : await queueSave({
+              kind: "content",
+              input: { content, source: "context-menu" },
             });
       if (saveResult.status === "unauthenticated") {
         // Clear the "saving" state and send the user to the sign-in tab rather
         // than surfacing an auth error in the popup.
         await chrome.storage.local.remove("contextMenuSave");
-        await openSignInTab();
+        void chrome.action.openPopup();
         return;
       }
 
@@ -313,47 +462,113 @@ export default defineBackground(() => {
     if (!isRuntimeRequest(message)) {
       return;
     }
+    const trustedPopup =
+      sender.id === chrome.runtime.id &&
+      sender.url === chrome.runtime.getURL("popup.html");
+    const ownPage =
+      sender.id === chrome.runtime.id &&
+      Boolean(sender.tab?.id) &&
+      Boolean(
+        sender.url?.startsWith("https://") || sender.url?.startsWith("http://")
+      );
+    if (
+      !(
+        trustedPopup ||
+        (ownPage &&
+          (message.type === MESSAGE_TYPES.SAVE_POST ||
+            message.type === MESSAGE_TYPES.GET_AUTH_STATE))
+      )
+    ) {
+      sendResponse(
+        buildSaveError("This action is only available in the Teak popup.")
+      );
+      return;
+    }
 
     void (async () => {
       try {
-        if (message.type === MESSAGE_TYPES.GET_AUTH_STATE) {
-          const response: AuthStateResponse = {
-            authenticated: Boolean(await getSessionToken()),
-          };
-          sendResponse(response);
-          return;
-        }
-
-        if (message.type === MESSAGE_TYPES.NATIVE_AUTH_COMPLETED) {
-          const completed = message as NativeAuthCompletedRequest;
-          const pending = await readPendingNativeAuth();
-          // Only poll for a message from the real completion page whose state
-          // matches the flow this device started.
-          if (
-            pending &&
-            isNativeAuthCompleteSender(sender.url ?? sender.tab?.url) &&
-            completed.payload.state === pending.state
-          ) {
-            await pollNativeAuthOnce();
+        await initializeAuth();
+        if (
+          message.type === MESSAGE_TYPES.RETRY_PENDING ||
+          message.type === MESSAGE_TYPES.DISCARD_PENDING
+        ) {
+          if (message.type === MESSAGE_TYPES.RETRY_PENDING) {
+            if (!(await getOAuthState()).authenticated) {
+              await beginOAuthSignIn();
+            }
+            await resumePendingSaves();
+          } else {
+            if (runningSaves.size) {
+              throw new Error(
+                "Wait for the current save to finish, then discard pending saves."
+              );
+            }
+            for (const id of await listPendingSaveIds()) {
+              await removePendingSave(id);
+            }
           }
-          sendResponse({ authenticated: Boolean(await getSessionToken()) });
+          sendResponse({
+            ...(await getOAuthState()),
+            pendingCount: (await listPendingSaveIds()).length,
+          });
           return;
         }
-
-        if (message.type === MESSAGE_TYPES.POLL_NATIVE_AUTH) {
-          await pollNativeAuthOnce();
-          sendResponse({ authenticated: Boolean(await getSessionToken()) });
+        if (
+          message.type === MESSAGE_TYPES.SIGN_IN ||
+          message.type === MESSAGE_TYPES.SIGN_OUT ||
+          message.type === MESSAGE_TYPES.SAVE_FILE
+        ) {
+          if (!trustedPopup) {
+            sendResponse(
+              buildSaveError("This action is only available in the Teak popup.")
+            );
+            return;
+          }
+          if (message.type === MESSAGE_TYPES.SAVE_FILE) {
+            const save = await getPendingSave(message.payload.id);
+            if (save?.kind !== "file") {
+              throw new Error("Pending file not found.");
+            }
+            if (!save.ownerId) {
+              save.ownerId = await getCaptureOwner();
+              await updatePendingSave(save);
+            }
+            sendResponse(await runPendingSave(save, true));
+            return;
+          }
+          if (message.type === MESSAGE_TYPES.SIGN_OUT) {
+            await signOutOAuth();
+          } else {
+            await beginOAuthSignIn();
+            await resumePendingSaves();
+          }
+          sendResponse({
+            ...(await getOAuthState()),
+            pendingCount: (await listPendingSaveIds()).length,
+          });
+          return;
+        }
+        if (message.type === MESSAGE_TYPES.GET_AUTH_STATE) {
+          const state = await getOAuthState();
+          sendResponse(
+            trustedPopup
+              ? { ...state, pendingCount: (await listPendingSaveIds()).length }
+              : { authenticated: state.authenticated }
+          );
           return;
         }
 
         if (message.type === MESSAGE_TYPES.SAVE_CONTENT) {
           const saveRequest = message as SaveContentRequest;
-          const result = await saveToTeak({
-            content: saveRequest.payload.content,
-            source: saveRequest.payload.source,
+          const result = await queueSave({
+            kind: "content",
+            input: {
+              content: saveRequest.payload.content,
+              source: saveRequest.payload.source,
+            },
           });
           if (result.status === "unauthenticated") {
-            await openSignInTab();
+            void chrome.action.openPopup();
           }
           sendResponse(result);
           return;
@@ -361,9 +576,12 @@ export default defineBackground(() => {
 
         if (message.type === MESSAGE_TYPES.SAVE_ASSET) {
           const saveRequest = message as SaveAssetRequest;
-          const result = await saveAssetUrlToTeak(saveRequest.payload.assetUrl);
+          const result = await queueSave({
+            kind: "asset",
+            assetUrl: saveRequest.payload.assetUrl,
+          });
           if (result.status === "unauthenticated") {
-            await openSignInTab();
+            void chrome.action.openPopup();
           }
           sendResponse(result);
           return;
@@ -422,13 +640,16 @@ export default defineBackground(() => {
             return;
           }
 
-          const result = await saveToTeak({
-            content: postRequest.payload.permalink,
-            enforceAllowedHosts: platformRule.permalinkPolicy === "same-host",
-            source: "inline-post",
+          const result = await queueSave({
+            kind: "content",
+            input: {
+              content: postRequest.payload.permalink,
+              enforceAllowedHosts: platformRule.permalinkPolicy === "same-host",
+              source: "inline-post",
+            },
           });
           if (result.status === "unauthenticated") {
-            await openSignInTab();
+            void chrome.action.openPopup();
           }
           sendResponse(result);
         }

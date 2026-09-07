@@ -49,15 +49,20 @@ export function SettingsPage({ onNavigateBack }: SettingsPageProps) {
         onDeleteAccount={settings.handleDeleteAccount}
         onDeleteDialogOpenChange={settings.setDeleteDialogOpen}
         onDownloadExport={settings.handleDownloadExport}
+        onLoadMoreSessions={settings.loadMoreSessions}
         onRevokeAllApiKeys={settings.handleRevokeAllApiKeys}
         onRevokeApiKey={settings.handleRevokeApiKey}
         onRevokeOAuthConnection={settings.handleRevokeOAuthConnection}
+        onRevokeSession={settings.handleRevokeSession}
         onRotateApiKey={settings.handleRotateApiKey}
         onSignOut={settings.handleSignOut}
         onStartExport={settings.handleStartExport}
         onUpgrade={() => {
           void handleUpgradeClick();
         }}
+        sessions={settings.sessions}
+        sessionsHasMore={settings.sessionsHasMore}
+        sessionsLoadingMore={settings.sessionsLoadingMore}
         signOutLoading={settings.signOutLoading}
       />
     </SettingsShell>

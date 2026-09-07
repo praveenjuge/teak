@@ -8,6 +8,7 @@ import {
   type QueryCtx,
   query,
 } from "./_generated/server";
+import { currentSession } from "./securitySessions";
 import { API_KEY_TOKEN_PREFIX, getApiKeyFormat } from "./shared/apiKeyFormat";
 import { rateLimiter } from "./shared/rateLimits";
 
@@ -101,11 +102,11 @@ const getAuthUserById = async (ctx: MutationCtx, userId: string) =>
 const getAuthenticatedOwnerId = async (
   ctx: QueryCtx | MutationCtx
 ): Promise<string> => {
-  const user = await ctx.auth.getUserIdentity();
-  if (!user) {
+  const session = await currentSession(ctx);
+  if (!session) {
     throw new Error("User must be authenticated");
   }
-  return user.subject;
+  return session.userId;
 };
 
 const listComponentKeysByStatus = async (

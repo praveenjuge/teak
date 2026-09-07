@@ -7,10 +7,9 @@ import {
   validateFileName,
 } from "@teak/convex/shared/file-formats";
 import type { TeakSaveResponse } from "../types/messages";
-import { api } from "./convex-api";
+import { oauthRequest } from "./oauthAuth";
 import {
-  type ConvexClientLike,
-  getAuthenticatedConvexClient,
+  restResult,
   type SaveSource,
   type SaveToTeakDependencies,
 } from "./saveToTeak";
@@ -18,11 +17,20 @@ import {
 const CONTENT_DISPOSITION_FILENAME_REGEX =
   /filename\*?=(?:UTF-8''|")?([^";]+)/iu;
 
+export interface UploadedFile {
+  fileEtag?: string;
+  fileKey: string;
+}
+export interface FileUploadDependencies extends SaveToTeakDependencies {
+  onUploaded?: (uploaded: UploadedFile) => Promise<void>;
+}
 export interface FileUploadInput {
   bytes: Blob;
   fileName: string;
+  idempotencyKey?: string;
   mimeType?: string;
   source: Extract<SaveSource, "context-menu-asset" | "popup-file">;
+  uploaded?: UploadedFile;
 }
 
 const errorResponse = (message: string, code?: string): TeakSaveResponse => ({
@@ -77,14 +85,15 @@ const fileNameFromResponse = (response: Response, assetUrl: string): string => {
 
 export async function saveFileToTeak(
   input: FileUploadInput,
-  dependencies: SaveToTeakDependencies = {}
+  dependencies: FileUploadDependencies = {}
 ): Promise<TeakSaveResponse> {
   let fileName: string;
   try {
     fileName = validateFileName(input.fileName);
   } catch (error) {
     return errorResponse(
-      error instanceof Error ? error.message : "Invalid file"
+      error instanceof Error ? error.message : "Invalid file",
+      "INVALID_FILE_NAME"
     );
   }
 
@@ -104,60 +113,69 @@ export async function saveFileToTeak(
     ? format.mimeType
     : declaredMimeType;
 
-  let client: ConvexClientLike | null;
+  const request = dependencies.request ?? oauthRequest;
   try {
-    client = await getAuthenticatedConvexClient(dependencies);
-  } catch (error) {
-    return errorResponse(
-      error instanceof Error ? error.message : "Unable to authenticate"
+    let uploaded = input.uploaded;
+    if (!uploaded) {
+      const prepared = await request("/v1/uploads", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          fileName,
+          fileSize: input.bytes.size,
+          mimeType,
+        }),
+      });
+      if (!prepared) {
+        return { status: "unauthenticated" };
+      }
+      if (!prepared.ok) {
+        return restResult(prepared);
+      }
+      const upload = await prepared.json();
+      if (
+        typeof upload.fileKey !== "string" ||
+        typeof upload.uploadUrl !== "string"
+      ) {
+        throw new Error("Invalid upload response.");
+      }
+      const fetchImpl = dependencies.fetchImpl ?? fetch;
+      const uploadResponse = await fetchImpl(upload.uploadUrl, {
+        body: input.bytes,
+        headers: { "Content-Type": mimeType },
+        method: "PUT",
+      });
+      if (!uploadResponse.ok) {
+        return errorResponse(
+          `Upload failed with status ${uploadResponse.status}`
+        );
+      }
+
+      uploaded = {
+        fileKey: upload.fileKey,
+        fileEtag: uploadResponse.headers.get("etag") ?? undefined,
+      };
+      await dependencies.onUploaded?.(uploaded);
+    }
+
+    return await restResult(
+      await request("/v1/cards", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Idempotency-Key": input.idempotencyKey ?? crypto.randomUUID(),
+        },
+        body: JSON.stringify({
+          cardType: format.cardType,
+          content: fileName,
+          fileKey: uploaded.fileKey,
+          fileName,
+          fileSize: input.bytes.size,
+          mimeType,
+          fileEtag: uploaded.fileEtag,
+        }),
+      })
     );
-  }
-  if (!client) {
-    return { status: "unauthenticated" };
-  }
-
-  try {
-    const upload = await client.mutation(api.cards.uploadAndCreateCard, {
-      cardType: format.cardType,
-      fileName,
-      fileSize: input.bytes.size,
-      fileType: mimeType,
-    });
-    if (!(upload.success && upload.uploadKey && upload.uploadUrl)) {
-      return errorResponse(
-        upload.error || "Failed to prepare upload",
-        upload.errorCode
-      );
-    }
-
-    const fetchImpl = dependencies.fetchImpl ?? fetch;
-    const uploadResponse = await fetchImpl(upload.uploadUrl, {
-      body: input.bytes,
-      headers: { "Content-Type": mimeType },
-      method: "PUT",
-    });
-    if (!uploadResponse.ok) {
-      return errorResponse(
-        `Upload failed with status ${uploadResponse.status}`
-      );
-    }
-
-    const finalized = await client.action(api.cards.finalizeUploadedCard, {
-      cardType: format.cardType,
-      content: fileName,
-      fileKey: upload.uploadKey,
-      fileName,
-      fileSize: input.bytes.size,
-      fileType: mimeType,
-      fileEtag: uploadResponse.headers.get("etag") ?? undefined,
-    });
-    if (!(finalized.success && finalized.cardId)) {
-      return errorResponse(
-        finalized.error || "Failed to create card",
-        finalized.errorCode
-      );
-    }
-    return { cardId: String(finalized.cardId), status: "saved" };
   } catch (error) {
     return errorResponse(
       error instanceof Error ? error.message : "Upload failed"
@@ -165,10 +183,10 @@ export async function saveFileToTeak(
   }
 }
 
-export async function saveAssetUrlToTeak(
+export async function downloadAssetFile(
   assetUrl: string,
   dependencies: SaveToTeakDependencies = {}
-): Promise<TeakSaveResponse> {
+): Promise<FileUploadInput | TeakSaveResponse> {
   if (!isSafeDownloadableAssetUrl(assetUrl)) {
     return errorResponse(
       "This asset URL cannot be downloaded safely.",
@@ -194,16 +212,21 @@ export async function saveAssetUrlToTeak(
     if (!bytes) {
       return fileTooLargeResponse();
     }
-    return saveFileToTeak(
-      {
-        bytes,
-        fileName: fileNameFromResponse(response, assetUrl),
-        mimeType: response.headers.get("content-type") ?? bytes.type,
-        source: "context-menu-asset",
-      },
-      dependencies
-    );
+    return {
+      bytes,
+      fileName: fileNameFromResponse(response, assetUrl),
+      mimeType: response.headers.get("content-type") ?? bytes.type,
+      source: "context-menu-asset",
+    };
   } catch {
     return errorResponse("The asset could not be downloaded safely.");
   }
+}
+
+export async function saveAssetUrlToTeak(
+  assetUrl: string,
+  dependencies: SaveToTeakDependencies = {}
+): Promise<TeakSaveResponse> {
+  const file = await downloadAssetFile(assetUrl, dependencies);
+  return "status" in file ? file : saveFileToTeak(file, dependencies);
 }

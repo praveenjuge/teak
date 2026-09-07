@@ -8,6 +8,7 @@ import { exchangeNativeAuthOptions, pollNativeAuthCode } from "./authNative";
 import { polar } from "./billing";
 import { mcpV1, oauthProtectedResourceV1 } from "./mcp/httpServer";
 import { revokeOAuthToken } from "./oauthRevocation";
+import { oauthUserInfo } from "./oauthUserInfo";
 import { duplicateCardV1 } from "./publicApiDuplicate";
 import {
   bulkCardsV1,
@@ -24,6 +25,12 @@ import { discoveryV1, healthzV1, v1CorsPreflight } from "./publicApiMeta";
 import { openApiV1 } from "./publicApiOpenApi";
 
 const http = httpRouter();
+
+http.route({
+  path: "/api/oauth/userinfo",
+  method: "GET",
+  handler: oauthUserInfo,
+});
 
 // Register the webhook handler at /polar/events
 polar.registerRoutes(http as any);

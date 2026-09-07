@@ -93,11 +93,11 @@ describe("ApiKeysSection", () => {
 
     expect(markup).toContain("API Keys");
     expect(markup).toContain(">Manage</button>");
-    expect(markup).not.toContain("Manage API Keys");
+    expect(markup).not.toContain("API keys");
     expect(markup).not.toContain("2 keys");
     expect(markup).not.toContain("No keys");
     expect(markup).not.toContain("Update required");
-    expect(markup).not.toContain("Generate Key");
+    expect(markup).not.toContain("Create key");
   });
 });
 
@@ -127,13 +127,12 @@ describe("ApiKeysDialog", () => {
       />
     );
 
-    expect(markup).toContain("Manage API Keys");
-    expect(markup).toContain("Generate Key");
+    expect(markup).toContain("API keys");
+    expect(markup).toContain("Create key");
     expect(markup).toContain("Revoke all keys");
     expect(markup).toContain("10 active keys");
-    expect(markup).toContain("<th");
     expect(markup).toContain("Key");
-    expect(markup).toContain("Used");
+    expect(markup).not.toContain("Last used");
     expect(markup).toContain("Created");
     expect(markup).not.toContain("Status");
     expect(markup).toContain("SDK Key");
