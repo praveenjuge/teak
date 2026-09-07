@@ -90,18 +90,25 @@ check_mcp_unauthorized() {
 
 check_status 200 "$BASE_URL/api/healthz"
 check_contains "$BASE_URL/api" '"version":"v1"'
-check_contains "$BASE_URL/api/v1" "\"endpoint\":\"$BASE_URL/mcp\""
+# Preview deployments rewrite /api* to the fixed production Convex site, whose
+# public metadata uses canonical prod URLs. Assert liveness against BASE_URL
+# but assert metadata against the canonical origin in preview mode.
+EXPECTED_BASE="$BASE_URL"
+if [[ "$IS_PROD" != "true" ]]; then
+  EXPECTED_BASE="https://teakvault.com"
+fi
+check_contains "$BASE_URL/api/v1" "\"endpoint\":\"$EXPECTED_BASE/mcp\""
 check_contains "$BASE_URL/api/openapi.json" '"openapi":"3.1.0"'
 check_mcp_unauthorized \
   "$BASE_URL/mcp" \
-  "$BASE_URL/.well-known/oauth-protected-resource/mcp"
+  "$EXPECTED_BASE/.well-known/oauth-protected-resource/mcp"
 check_contains \
   "$BASE_URL/.well-known/oauth-protected-resource/mcp" \
-  "\"resource\":\"$BASE_URL/mcp\""
+  "\"resource\":\"$EXPECTED_BASE/mcp\""
 check_status 200 "$BASE_URL/llms.txt"
 check_matches \
   "$BASE_URL/.well-known/mcp.json" \
-  "\"endpoint\"[[:space:]]*:[[:space:]]*\"$(printf '%s' "$BASE_URL" | sed 's/\./\\./g')/mcp\""
+  "\"endpoint\"[[:space:]]*:[[:space:]]*\"$(printf '%s' "$EXPECTED_BASE" | sed 's/\./\\./g')/mcp\""
 
 check_redirect() {
   local url="$1"

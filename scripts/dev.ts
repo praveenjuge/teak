@@ -77,6 +77,13 @@ export const parseDevArgs = (
   return { action: check ? "check" : "run", all, target };
 };
 
+export const needsWebEnv = (target: string, all = false): boolean => {
+  if (all) {
+    return true;
+  }
+  return (DEV_TARGETS[target] ?? []).includes("@teak/web");
+};
+
 const webEnvValid = (): boolean => {
   const path = join(ROOT, "apps/web/.env.local");
   if (!existsSync(path)) {
@@ -124,14 +131,17 @@ const main = (): void => {
     console.log(describeTargets());
     return;
   }
-  // Fail fast on web targets before Turbo spawns watchers (skip for --check dry-runs).
+  // Fail fast before Turbo spawns watchers (skip for --check dry-runs).
+  // Only the web stack needs apps/web/.env.local; extension uses its own
+  // VITE_PUBLIC_CONVEX_* variables and must stay runnable without web env.
   if (
     parsed.action === "run" &&
-    (parsed.all || parsed.target === "web" || parsed.target === "extension") &&
+    needsWebEnv(parsed.target, parsed.all) &&
     !webEnvValid()
   ) {
     console.error(
-      "✗ apps/web/.env.local missing or invalid — run: bun run setup && bun run doctor"
+      "✗ apps/web/.env.local missing or invalid — run: bun run setup && bun run doctor. " +
+        "If the file exists with missing/invalid keys, delete it and re-run setup, or edit it to set NEXT_PUBLIC_CONVEX_URL=http://127.0.0.1:3210 and NEXT_PUBLIC_CONVEX_SITE_URL=http://127.0.0.1:3211."
     );
     process.exitCode = 1;
     return;

@@ -2,7 +2,8 @@
 /**
  * One-command repository bootstrap.
  *
- * Idempotent: never overwrites existing files, only creates what is missing.
+ * Idempotent: never overwrites existing values, only creates missing files
+ * and appends missing required keys.
  * Usage: bun run setup [--check]
  *   --check  report what setup would do without writing or installing.
  */
@@ -61,6 +62,42 @@ export const ensureFile = (
   return "created";
 };
 
+export const REQUIRED_WEB_ENV_DEFAULTS: Record<string, string> = {
+  NEXT_PUBLIC_CONVEX_URL: "http://127.0.0.1:3210",
+  NEXT_PUBLIC_CONVEX_SITE_URL: "http://127.0.0.1:3211",
+};
+
+export const ensureWebEnv = (
+  path: string = WEB_ENV_PATH
+): "created" | "repaired" | "exists" => {
+  if (!existsSync(path)) {
+    mkdirSync(dirname(path), { recursive: true });
+    writeFileSync(path, webEnvTemplate());
+    return "created";
+  }
+  const content = readFileSync(path, "utf-8");
+  const present = new Set<string>();
+  for (const line of content.split("\n")) {
+    const trimmed = line.trim();
+    if (!trimmed || trimmed.startsWith("#") || !trimmed.includes("=")) {
+      continue;
+    }
+    present.add(trimmed.slice(0, trimmed.indexOf("=")).trim());
+  }
+  const missing = Object.entries(REQUIRED_WEB_ENV_DEFAULTS).filter(
+    ([key]) => !present.has(key)
+  );
+  if (missing.length === 0) {
+    return "exists";
+  }
+  const suffix = content.endsWith("\n") || content.length === 0 ? "" : "\n";
+  writeFileSync(
+    path,
+    `${content}${suffix}${missing.map(([key, value]) => `${key}=${value}`).join("\n")}\n`
+  );
+  return "repaired";
+};
+
 export const isInstallStale = (repoRoot: string): boolean => {
   const modules = join(repoRoot, "node_modules");
   const lock = join(repoRoot, "bun.lock");
@@ -107,15 +144,13 @@ const main = (): void => {
   }
 
   if (checkOnly) {
-    console.log(
-      existsSync(WEB_ENV_PATH)
-        ? "Web env: apps/web/.env.local present."
-        : "Would create: apps/web/.env.local (local Convex URLs)"
-    );
+    if (existsSync(WEB_ENV_PATH)) {
+      console.log("Web env: apps/web/.env.local present.");
+    } else {
+      console.log("Would create: apps/web/.env.local (local Convex URLs)");
+    }
   } else {
-    console.log(
-      `Web env: apps/web/.env.local ${ensureFile(WEB_ENV_PATH, webEnvTemplate())}.`
-    );
+    console.log(`Web env: apps/web/.env.local ${ensureWebEnv()}.`);
   }
 
   console.log("Next steps:");

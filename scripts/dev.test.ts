@@ -1,5 +1,10 @@
 import { describe, expect, test } from "bun:test";
-import { buildDevCommand, DEV_TARGETS, parseDevArgs } from "./dev.ts";
+import {
+  buildDevCommand,
+  DEV_TARGETS,
+  needsWebEnv,
+  parseDevArgs,
+} from "./dev.ts";
 
 describe("parseDevArgs", () => {
   test("defaults to web", () => {
@@ -61,5 +66,17 @@ describe("buildDevCommand", () => {
     for (const target of Object.keys(DEV_TARGETS)) {
       expect(buildDevCommand(target)[0]).toBe("turbo");
     }
+  });
+});
+
+describe("needsWebEnv", () => {
+  test("web and --all need web env", () => {
+    expect(needsWebEnv("web")).toBe(true);
+    expect(needsWebEnv("convex", true)).toBe(true);
+  });
+
+  test("extension and convex do not need web env", () => {
+    expect(needsWebEnv("extension")).toBe(false);
+    expect(needsWebEnv("convex")).toBe(false);
   });
 });
