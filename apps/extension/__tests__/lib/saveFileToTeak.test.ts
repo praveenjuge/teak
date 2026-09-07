@@ -1,5 +1,5 @@
 // @ts-nocheck
-import { beforeEach, describe, expect, mock, test } from "bun:test";
+import { describe, expect, mock, test } from "bun:test";
 import { readResponseBlobWithinLimit } from "@teak/convex/shared/bounded-response";
 import { MAX_FILE_SIZE } from "@teak/convex/shared/file-formats";
 import {
@@ -7,55 +7,31 @@ import {
   saveAssetUrlToTeak,
   saveFileToTeak,
 } from "../../lib/saveFileToTeak";
-import { resetSaveToTeakTokenCache } from "../../lib/saveToTeak";
-
-beforeEach(() => {
-  resetSaveToTeakTokenCache();
-  process.env.VITE_PUBLIC_CONVEX_SITE_URL = "https://test.convex.site";
-});
 
 const createDependencies = () => {
-  const mutation = mock(() =>
-    Promise.resolve({
-      success: true,
-      uploadKey: "users/u/cards/pending/file/key",
-      uploadUrl: "https://upload.example/file",
-    })
+  const request = mock((path: string) =>
+    Promise.resolve(
+      Response.json(
+        path === "/v1/uploads"
+          ? {
+              fileKey: "users/u/cards/pending/file/key",
+              uploadUrl: "https://upload.example/file",
+            }
+          : { cardId: "card_1" }
+      )
+    )
   );
-  const action = mock(() =>
-    Promise.resolve({ success: true, cardId: "card_1" })
-  );
-  const query = mock(() => Promise.resolve(null));
-  const fetchImpl = mock((url: string | URL | Request) => {
-    const value = String(url);
-    if (value.includes("/api/auth/convex/token")) {
-      return Promise.resolve(
-        Response.json({ token: "header.payload.signature" })
-      );
-    }
-    return Promise.resolve(
-      new Response(null, {
-        headers: { ETag: '"upload-etag"' },
-        status: 200,
-      })
-    );
-  }) as unknown as typeof fetch;
-
-  return {
-    dependencies: {
-      createClient: () => ({ action, mutation, query }),
-      fetchImpl,
-      getSessionToken: () => Promise.resolve("session"),
-      now: () => 0,
-    },
-    action,
-    mutation,
-  };
+  const fetchImpl = mock(() =>
+    Promise.resolve(
+      new Response(null, { headers: { ETag: '"upload-etag"' }, status: 200 })
+    )
+  ) as unknown as typeof fetch;
+  return { dependencies: { request, fetchImpl }, request };
 };
 
 describe("extension file saving", () => {
-  test("uploads a user-selected source file through the canonical mutations", async () => {
-    const { action, dependencies, mutation } = createDependencies();
+  test("uploads a user-selected source file through the OAuth REST API", async () => {
+    const { dependencies, request } = createDependencies();
     const result = await saveFileToTeak(
       {
         bytes: new Blob(["export const value = 1"], { type: "text/tsx" }),
@@ -67,23 +43,26 @@ describe("extension file saving", () => {
     );
 
     expect(result).toEqual({ cardId: "card_1", status: "saved" });
-    expect(mutation).toHaveBeenCalledTimes(1);
-    expect(mutation.mock.calls[0]?.[1]).toMatchObject({
-      cardType: "document",
+    expect(
+      request.mock.calls.filter(([path]) => path === "/v1/uploads")
+    ).toHaveLength(1);
+    expect(JSON.parse(request.mock.calls[0]?.[1].body)).toMatchObject({
       fileName: "component.tsx",
-      fileType: "text/tsx",
+      mimeType: "text/tsx",
     });
-    expect(action).toHaveBeenCalledTimes(1);
-    expect(action.mock.calls[0]?.[1]).toMatchObject({
+    expect(
+      request.mock.calls.filter(([path]) => path === "/v1/cards")
+    ).toHaveLength(1);
+    expect(JSON.parse(request.mock.calls[1]?.[1].body)).toMatchObject({
       cardType: "document",
       fileEtag: '"upload-etag"',
       fileName: "component.tsx",
-      fileType: "text/tsx",
+      mimeType: "text/tsx",
     });
   });
 
   test("surfaces unsupported and oversized files without uploading", async () => {
-    const { dependencies, mutation } = createDependencies();
+    const { dependencies, request } = createDependencies();
     await expect(
       saveFileToTeak(
         {
@@ -109,11 +88,11 @@ describe("extension file saving", () => {
         dependencies
       )
     ).resolves.toMatchObject({ status: "error", code: "FILE_TOO_LARGE" });
-    expect(mutation).not.toHaveBeenCalled();
+    expect(request).not.toHaveBeenCalled();
   });
 
   test("rejects local, private, blob, and file asset URLs without creating cards", async () => {
-    const { dependencies, mutation } = createDependencies();
+    const { dependencies, request } = createDependencies();
     for (const url of [
       "blob:https://example.com/id",
       "file:///tmp/photo.png",
@@ -138,7 +117,7 @@ describe("extension file saving", () => {
     expect(
       isSafeDownloadableAssetUrl("https://[2606:4700:4700::1111]/photo.png")
     ).toBe(true);
-    expect(mutation).not.toHaveBeenCalled();
+    expect(request).not.toHaveBeenCalled();
   });
 
   test("downloads an accessible context-menu asset and saves it", async () => {
@@ -188,7 +167,7 @@ describe("extension file saving", () => {
   });
 
   test("surfaces upload errors without finalizing a broken card", async () => {
-    const { dependencies, mutation } = createDependencies();
+    const { dependencies, request } = createDependencies();
     const baseFetch = dependencies.fetchImpl;
     dependencies.fetchImpl = mock((url: string | URL | Request, init) => {
       if (String(url) === "https://upload.example/file") {
@@ -210,16 +189,23 @@ describe("extension file saving", () => {
       message: "Upload failed with status 503",
       status: "error",
     });
-    expect(mutation).toHaveBeenCalledTimes(1);
+    expect(
+      request.mock.calls.filter(([path]) => path === "/v1/uploads")
+    ).toHaveLength(1);
   });
 
   test("preserves stable Markdown preparation errors", async () => {
-    const { action, dependencies, mutation } = createDependencies();
-    mutation.mockResolvedValueOnce({
-      error: "Text card content must not exceed 512 KiB when encoded as UTF-8.",
-      errorCode: "CONTENT_TOO_LARGE",
-      success: false,
-    });
+    const { dependencies, request } = createDependencies();
+    request.mockResolvedValueOnce(
+      Response.json(
+        {
+          code: "CONTENT_TOO_LARGE",
+          error:
+            "Text card content must not exceed 512 KiB when encoded as UTF-8.",
+        },
+        { status: 400 }
+      )
+    );
 
     await expect(
       saveFileToTeak(
@@ -234,6 +220,8 @@ describe("extension file saving", () => {
       code: "CONTENT_TOO_LARGE",
       status: "error",
     });
-    expect(action).not.toHaveBeenCalled();
+    expect(
+      request.mock.calls.filter(([path]) => path === "/v1/cards")
+    ).toHaveLength(0);
   });
 });

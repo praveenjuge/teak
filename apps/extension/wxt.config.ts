@@ -14,7 +14,14 @@ export default defineConfig({
       email: "hi@praveenjuge.com",
     },
     homepage_url: "https://teakvault.com",
-    permissions: ["storage", "activeTab", "tabs", "contextMenus", "scripting"],
+    permissions: [
+      "identity",
+      "storage",
+      "activeTab",
+      "tabs",
+      "contextMenus",
+      "scripting",
+    ],
     host_permissions: ["<all_urls>"],
     action: {
       default_title: "Save to Teak",

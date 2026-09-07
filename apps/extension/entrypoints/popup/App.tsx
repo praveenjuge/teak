@@ -1,4 +1,5 @@
 import { resolveTeakDevAppUrl } from "@teak/convex/dev-urls";
+import { MAX_FILE_SIZE } from "@teak/convex/shared/file-formats";
 import {
   AlertTriangle,
   ArrowRight,
@@ -13,13 +14,12 @@ import type { DuplicateCard } from "../../hooks/useAutoSaveUrl";
 import { useAutoSaveUrl } from "../../hooks/useAutoSaveUrl";
 import { useContextMenuSave } from "../../hooks/useContextMenuSave";
 import { useExtensionSession } from "../../hooks/useExtensionSession";
-import { beginSignIn } from "../../lib/nativeAuth";
+import { storePendingSave } from "../../lib/pendingSaves";
 import {
   type FileUploadState,
   shouldAutoClosePopup,
 } from "../../lib/popupAutoClose";
-import { saveFileToTeak } from "../../lib/saveFileToTeak";
-import { MESSAGE_TYPES } from "../../types/messages";
+import { MESSAGE_TYPES, type TeakSaveResponse } from "../../types/messages";
 import { getAuthErrorMessage } from "../../utils/getAuthErrorMessage";
 
 // Error code constant for card limit - should match convex/shared/constants.ts
@@ -80,21 +80,8 @@ function App() {
     error: sessionError,
     refetch,
     hasPendingFlow,
+    pendingCount,
   } = useExtensionSession();
-
-  // If the popup opened while a sign-in is mid-flight, ask the background to
-  // poll once. This is the fallback for when the completion-page handshake was
-  // missed; a successful poll stores the token and the storage listener in
-  // useExtensionSession flips the UI to signed-in.
-  useEffect(() => {
-    if (!hasPendingFlow) {
-      return;
-    }
-    chrome.runtime.sendMessage({ type: MESSAGE_TYPES.POLL_NATIVE_AUTH }, () => {
-      // Swallow "receiving end does not exist" style errors.
-      void chrome.runtime.lastError;
-    });
-  }, [hasPendingFlow]);
 
   if (isPending) {
     return (
@@ -117,10 +104,15 @@ function App() {
   }
 
   if (!session) {
-    return <AuthPanel isFinishingSignIn={hasPendingFlow} />;
+    return (
+      <AuthPanel
+        isFinishingSignIn={hasPendingFlow}
+        pendingCount={pendingCount}
+      />
+    );
   }
 
-  return <AuthenticatedPopup user={session.user} />;
+  return <AuthenticatedPopup pendingCount={pendingCount} user={session.user} />;
 }
 
 function SessionErrorState({
@@ -146,13 +138,84 @@ function SessionErrorState({
   );
 }
 
-function AuthPanel({ isFinishingSignIn }: { isFinishingSignIn: boolean }) {
+function PendingSavesNotice({ count }: { count: number }) {
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  if (!count) {
+    return null;
+  }
+  const act = async (
+    type:
+      | typeof MESSAGE_TYPES.RETRY_PENDING
+      | typeof MESSAGE_TYPES.DISCARD_PENDING
+  ) => {
+    setBusy(true);
+    setError(null);
+    try {
+      const result = await chrome.runtime.sendMessage({ type });
+      if (result?.status === "error") {
+        throw new Error(result.message);
+      }
+    } catch (failure) {
+      setError(
+        failure instanceof Error
+          ? failure.message
+          : "Could not update pending saves."
+      );
+    } finally {
+      setBusy(false);
+    }
+  };
+  return (
+    <div className="space-y-1 text-gray-600 text-xs">
+      <div className="flex items-center justify-center gap-3">
+        <span>
+          {count} pending {count === 1 ? "save" : "saves"}
+        </span>
+        <button
+          disabled={busy}
+          onClick={() => void act(MESSAGE_TYPES.RETRY_PENDING)}
+          type="button"
+        >
+          Retry
+        </button>
+        <button
+          disabled={busy}
+          onClick={() => void act(MESSAGE_TYPES.DISCARD_PENDING)}
+          type="button"
+        >
+          Discard
+        </button>
+      </div>
+      {error ? (
+        <p className="text-red-600" role="alert">
+          {error}
+        </p>
+      ) : null}
+    </div>
+  );
+}
+
+function AuthPanel({
+  isFinishingSignIn,
+  pendingCount,
+}: {
+  isFinishingSignIn: boolean;
+  pendingCount: number;
+}) {
+  const [error, setError] = useState<string | null>(null);
   const handleSignIn = async () => {
-    // The start route bounces unauthenticated users to /login?next=… (and
-    // login<->register preserve next), so one button covers sign in and sign up.
-    const url = await beginSignIn();
-    await chrome.tabs.create({ url });
-    window.close();
+    setError(null);
+    try {
+      const result = await chrome.runtime.sendMessage({
+        type: MESSAGE_TYPES.SIGN_IN,
+      });
+      if (result?.status === "error") {
+        setError(result.message || "Could not sign in. Please try again.");
+      }
+    } catch {
+      setError("Could not sign in. Please try again.");
+    }
   };
 
   return (
@@ -163,9 +226,16 @@ function AuthPanel({ isFinishingSignIn }: { isFinishingSignIn: boolean }) {
         <h1 className="font-semibold text-base">Save Anything. Anywhere.</h1>
       </div>
 
+      <PendingSavesNotice count={pendingCount} />
+      {error ? (
+        <p className="text-red-600 text-sm" role="alert">
+          {error}
+        </p>
+      ) : null}
       <div className="w-full space-y-3">
         <button
           className="flex w-full items-center justify-center gap-2 rounded-full bg-red-600 px-4 py-2.5 font-semibold text-sm text-white hover:bg-red-700"
+          disabled={isFinishingSignIn}
           onClick={() => {
             void handleSignIn();
           }}
@@ -230,11 +300,17 @@ function DuplicateState({
   );
 }
 
-function AuthenticatedPopup({ user }: { user: SessionUser }) {
+function AuthenticatedPopup({
+  user,
+  pendingCount,
+}: {
+  user: SessionUser;
+  pendingCount: number;
+}) {
   const { state: contextMenuState, isRecentSave } = useContextMenuSave();
   const { state, error, duplicateCard } = useAutoSaveUrl(!isRecentSave);
-  const [_signOutLoading, _setSignOutLoading] = useState(false);
-  const [signOutError, _setSignOutError] = useState<string | null>(null);
+  const [signOutLoading, setSignOutLoading] = useState(false);
+  const [signOutError, setSignOutError] = useState<string | null>(null);
   const [fileUploadState, setFileUploadState] =
     useState<FileUploadState>("idle");
   const [fileUploadError, setFileUploadError] = useState<string | null>(null);
@@ -269,17 +345,38 @@ function AuthenticatedPopup({ user }: { user: SessionUser }) {
 
     setFileUploadError(null);
     setFileUploadState("saving");
-    const result = await saveFileToTeak({
-      bytes: file,
-      fileName: file.name,
-      mimeType: file.type,
-      source: "popup-file",
-    });
+    if (file.size <= 0 || file.size > MAX_FILE_SIZE) {
+      setFileUploadError("File is empty or too large.");
+      setFileUploadState("error");
+      return;
+    }
+    let result: TeakSaveResponse;
+    try {
+      const id = crypto.randomUUID();
+      await storePendingSave({
+        ownerId: user.id,
+        id,
+        createdAt: Date.now(),
+        kind: "file",
+        input: {
+          bytes: file,
+          fileName: file.name,
+          mimeType: file.type,
+          source: "popup-file",
+        },
+      });
+      result = await chrome.runtime.sendMessage({
+        type: MESSAGE_TYPES.SAVE_FILE,
+        payload: { id },
+      });
+    } catch {
+      setFileUploadError("Could not save the file. Please try again.");
+      setFileUploadState("error");
+      return;
+    }
     if (result.status === "unauthenticated") {
-      setFileUploadState("idle");
-      const url = await beginSignIn();
-      await chrome.tabs.create({ url });
-      window.close();
+      setFileUploadError("Reconnect to finish your pending upload.");
+      setFileUploadState("error");
       return;
     }
     if (result.status === "saved") {
@@ -426,6 +523,9 @@ function AuthenticatedPopup({ user }: { user: SessionUser }) {
 
   return (
     <div className="relative min-h-96 w-96">
+      <div className="absolute inset-x-3 top-3">
+        <PendingSavesNotice count={pendingCount} />
+      </div>
       <div className="absolute right-0 bottom-0 left-0 flex items-center justify-between gap-2 p-3">
         <a
           href="https://app.teakvault.com"
@@ -450,6 +550,29 @@ function AuthenticatedPopup({ user }: { user: SessionUser }) {
               type="file"
             />
           </label>
+          <button
+            className="text-gray-600 text-xs"
+            disabled={signOutLoading}
+            onClick={async () => {
+              setSignOutLoading(true);
+              setSignOutError(null);
+              try {
+                const result = await chrome.runtime.sendMessage({
+                  type: MESSAGE_TYPES.SIGN_OUT,
+                });
+                if (result?.status === "error") {
+                  throw new Error(result.message);
+                }
+              } catch {
+                setSignOutError("Could not sign out. Please try again.");
+              } finally {
+                setSignOutLoading(false);
+              }
+            }}
+            type="button"
+          >
+            Sign out
+          </button>
           <div className="max-w-36 truncate rounded-full bg-gray-100 px-3 py-1">
             {user?.email}
           </div>

@@ -43,6 +43,13 @@ export const FIRST_PARTY_OAUTH_CLIENTS: OAuthClientSeed[] = [
     ],
   },
   {
+    clientId: "teak-chrome",
+    name: "Teak Chrome",
+    redirectUrls: [
+      "https://negnmfifahnnagnbnfppmlgfajngdpob.chromiumapp.org/oauth/callback",
+    ],
+  },
+  {
     clientId: "teak-safari",
     name: "Teak Safari",
     redirectUrls: ["teak-safari://oauth/callback"],

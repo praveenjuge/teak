@@ -281,6 +281,11 @@ describe("OAuth connection management", () => {
   test("lists distinct clients for only the authenticated user", async () => {
     const runQuery = mock()
       .mockResolvedValueOnce({
+        _id: "session_1",
+        userId: "user_1",
+        expiresAt: Date.now() + 60_000,
+      })
+      .mockResolvedValueOnce({
         page: [
           {
             clientId: "teak-cli",
@@ -297,7 +302,10 @@ describe("OAuth connection management", () => {
       .mockResolvedValueOnce({ name: "Teak CLI" });
     const ctx = {
       auth: {
-        getUserIdentity: mock().mockResolvedValue({ subject: "user_1" }),
+        getUserIdentity: mock().mockResolvedValue({
+          subject: "user_1",
+          sessionId: "session_1",
+        }),
       },
       runQuery,
     };
@@ -310,7 +318,7 @@ describe("OAuth connection management", () => {
         name: "Teak CLI",
       },
     ]);
-    expect(runQuery.mock.calls[0][1].where).toEqual([
+    expect(runQuery.mock.calls[1][1].where).toEqual([
       { field: "userId", operator: "eq", value: "user_1" },
     ]);
   });
@@ -330,12 +338,20 @@ describe("OAuth connection management", () => {
 
   test("revokes only the selected client for the authenticated user", async () => {
     const runQuery = mock()
+      .mockResolvedValueOnce({
+        _id: "session_1",
+        userId: "user_1",
+        expiresAt: Date.now() + 60_000,
+      })
       .mockResolvedValueOnce({ page: [{ _id: "token_1" }] })
       .mockResolvedValueOnce({ page: [{ _id: "consent_1" }] });
     const runMutation = mock().mockResolvedValue(undefined);
     const ctx = {
       auth: {
-        getUserIdentity: mock().mockResolvedValue({ subject: "user_1" }),
+        getUserIdentity: mock().mockResolvedValue({
+          subject: "user_1",
+          sessionId: "session_1",
+        }),
       },
       runMutation,
       runQuery,
@@ -346,7 +362,7 @@ describe("OAuth connection management", () => {
         clientId: "external-client",
       })
     ).toBeNull();
-    expect(runQuery.mock.calls[0][1].where).toEqual([
+    expect(runQuery.mock.calls[1][1].where).toEqual([
       { field: "clientId", operator: "eq", value: "external-client" },
       { field: "userId", operator: "eq", value: "user_1" },
     ]);

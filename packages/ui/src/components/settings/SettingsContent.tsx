@@ -6,16 +6,12 @@ import { Badge } from "../ui/badge";
 import { Button } from "../ui/button";
 import { Spinner } from "../ui/spinner";
 import type { ApiKeyListItem } from "./ApiKeysDialog";
-import { ApiKeysSection } from "./ApiKeysSection";
-import { shouldShowApiKeysSection } from "./apiKeysGating";
 import { CustomerPortalButton } from "./CustomerPortalButton";
 import { DeleteAccountDialog } from "./DeleteAccountDialog";
 import type { ExportState } from "./ExportPanel";
 import { ImportExportSection } from "./ImportExportSection";
-import {
-  type OAuthConnection,
-  OAuthConnectionsSection,
-} from "./OAuthConnectionsSection";
+import type { OAuthConnection } from "./OAuthConnectionsSection";
+import { type DeviceSession, SecuritySection } from "./SecuritySection";
 import { SettingRow } from "./SettingRow";
 import { SettingsFooter } from "./SettingsFooter";
 import { ThemeToggle } from "./ThemeToggle";
@@ -38,14 +34,19 @@ interface SettingsContentProps {
   onDeleteAccount: () => Promise<void>;
   onDeleteDialogOpenChange: (open: boolean) => void;
   onDownloadExport: (jobId: string) => Promise<void>;
+  onLoadMoreSessions: () => void;
   onRevokeAllApiKeys: () => Promise<{ hasMore: boolean; revokedCount: number }>;
   onRevokeApiKey: (keyId: string) => Promise<void>;
   onRevokeOAuthConnection: (clientId: string) => Promise<void>;
+  onRevokeSession: (sessionId: string, current: boolean) => Promise<void>;
   onRotateApiKey: (keyId: string) => Promise<{ key: string }>;
   onSignOut: () => Promise<void> | void;
   onStartExport: () => Promise<void>;
   onThemeChange?: (value: string) => void;
   onUpgrade: () => void;
+  sessions: DeviceSession[] | undefined;
+  sessionsHasMore: boolean;
+  sessionsLoadingMore: boolean;
   signOutLoading: boolean;
   subscriptionDialog?: ReactNode;
 }
@@ -62,6 +63,11 @@ export function SettingsContent({
   accountLoading,
   keys,
   oauthConnections,
+  sessions,
+  sessionsHasMore,
+  sessionsLoadingMore,
+  onLoadMoreSessions,
+  onRevokeSession,
   onCancelExport,
   onCreateApiKey,
   onCreateCustomerPortal,
@@ -119,25 +125,22 @@ export function SettingsContent({
         {accountLoading ? <Spinner /> : planRowContent}
       </SettingRow>
 
-      {/* Keep the row visible while keys load without presenting an empty list. */}
-      {shouldShowApiKeysSection(keys) ? (
-        <ApiKeysSection
-          isLoading={keys === undefined}
-          keys={keys}
-          onCreateKey={onCreateApiKey}
-          onRevokeAllKeys={onRevokeAllApiKeys}
-          onRevokeKey={onRevokeApiKey}
-          onRotateKey={onRotateApiKey}
-        />
-      ) : (
-        <SettingRow title="API Keys">
-          <Spinner />
-        </SettingRow>
-      )}
-
-      <OAuthConnectionsSection
+      <SecuritySection
+        apiKeys={{
+          isLoading: keys === undefined,
+          keys,
+          onCreateKey: onCreateApiKey,
+          onRevokeAllKeys: onRevokeAllApiKeys,
+          onRevokeKey: onRevokeApiKey,
+          onRotateKey: onRotateApiKey,
+        }}
         connections={oauthConnections}
-        onRevoke={onRevokeOAuthConnection}
+        onLoadMoreSessions={onLoadMoreSessions}
+        onRevokeConnection={onRevokeOAuthConnection}
+        onRevokeSession={onRevokeSession}
+        sessions={sessions}
+        sessionsHasMore={sessionsHasMore}
+        sessionsLoadingMore={sessionsLoadingMore}
       />
 
       {/* Import is always available; the Export tab uses these handlers, which

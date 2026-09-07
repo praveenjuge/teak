@@ -9,6 +9,7 @@ import {
   query,
 } from "./_generated/server";
 import { isFirstPartyOAuthClientId } from "./oauthClients";
+import { currentSession } from "./securitySessions";
 
 // Better Auth's `mcp`/oidc authorization server mints opaque access and refresh
 // tokens with `generateRandomString(32, ...)`. Today the mcp plugin uses the
@@ -256,11 +257,11 @@ const oauthConsentRequestValidator = v.union(
 const requireAuthenticatedUserId = async (
   ctx: ActionCtx | MutationCtx | QueryCtx
 ): Promise<string> => {
-  const identity = await ctx.auth.getUserIdentity();
-  if (!identity?.subject) {
+  const session = await currentSession(ctx);
+  if (!session) {
     throw new Error("User must be authenticated");
   }
-  return identity.subject;
+  return session.userId;
 };
 
 export const getOAuthConsentRequest = query({
@@ -342,11 +343,11 @@ export const listOAuthConnections = query({
     // Settings can subscribe before the session token finishes hydrating.
     // Return no connections during that transient state; the reactive query
     // reruns as soon as authentication becomes available.
-    const identity = await ctx.auth.getUserIdentity();
-    if (!identity?.subject) {
+    const session = await currentSession(ctx);
+    if (!session) {
       return [];
     }
-    const userId = identity.subject;
+    const userId = session.userId;
     const tokens: OAuthAccessTokenRecord[] = [];
     let cursor: string | null = null;
     let isDone = false;

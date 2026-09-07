@@ -1,17 +1,9 @@
 import { Copy, RotateCw, Trash2 } from "lucide-react";
-import { type ReactNode, useRef, useState } from "react";
-import { toast } from "sonner";
+import { useRef, useState } from "react";
 import { Button } from "../ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "../ui/dialog";
 import { Input } from "../ui/input";
 import { Spinner } from "../ui/spinner";
-import {
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "../ui/table";
 
 export interface ApiKeyListItem {
   createdAt: number;
@@ -27,337 +19,270 @@ export interface CreatedApiKey {
   key: string;
 }
 
-interface ApiKeysDialogProps {
+interface ApiKeysPanelProps {
   isLoading: boolean;
   keys: ApiKeyListItem[] | undefined;
   onCreateKey: () => Promise<CreatedApiKey | null>;
-  onOpenChange: (open: boolean) => void;
   onRevokeAllKeys?: () => Promise<{ hasMore: boolean; revokedCount: number }>;
   onRevokeKey: (keyId: string) => Promise<void>;
   onRotateKey: (keyId: string) => Promise<CreatedApiKey | null>;
+}
+
+interface ApiKeysDialogProps extends ApiKeysPanelProps {
+  onOpenChange: (open: boolean) => void;
   open: boolean;
 }
 
-const apiKeyDateFormatter = new Intl.DateTimeFormat(undefined, {
+const dateFormatter = new Intl.DateTimeFormat(undefined, {
   dateStyle: "medium",
-  timeStyle: "short",
 });
-
-const formatDate = (value?: number) => {
-  if (!value) {
-    return "Never";
-  }
-
-  return apiKeyDateFormatter.format(new Date(value));
-};
-
 const visibleKeyName = (name: string) => {
   const trimmed = name.trim();
-  if (
-    trimmed === "" ||
-    trimmed === "API Keys" ||
-    trimmed === "Default API key"
-  ) {
-    return null;
-  }
-  return trimmed;
+  return ["", "API Keys", "Default API key"].includes(trimmed) ? null : trimmed;
 };
 
-function ActionTooltip({
-  children,
-  label,
+function ApiKeyRow({
+  item,
+  busy,
+  disabled,
+  onRotate,
+  onRevoke,
 }: {
-  children: ReactNode;
-  label: string;
+  item: ApiKeyListItem;
+  busy: boolean;
+  disabled: boolean;
+  onRotate: () => void;
+  onRevoke: () => void;
 }) {
+  const name = visibleKeyName(item.name);
+  const identity = [
+    name,
+    item.maskedKey,
+    `created ${dateFormatter.format(item.createdAt)}`,
+  ]
+    .filter(Boolean)
+    .join(", ");
+  const canRotate = item.status === "active" || item.status === "disabled";
   return (
-    <span className="group relative inline-flex">
-      {children}
-      <span
-        aria-hidden
-        className="pointer-events-none absolute bottom-[calc(100%+0.375rem)] left-1/2 z-10 -translate-x-1/2 rounded-xl border bg-popover px-2 py-1 text-popover-foreground text-xs opacity-0 shadow-sm transition-opacity group-focus-within:opacity-100 group-hover:opacity-100"
-      >
-        {label}
-      </span>
-    </span>
+    <li className="flex items-center justify-between gap-3 py-3">
+      <div className="min-w-0 space-y-1">
+        {name ? <p className="truncate font-medium text-sm">{name}</p> : null}
+        <p className="truncate font-mono text-muted-foreground text-xs">
+          {item.maskedKey}
+        </p>
+        <p className="text-muted-foreground text-xs">
+          Created {dateFormatter.format(item.createdAt)}
+        </p>
+      </div>
+      <div className="flex shrink-0 items-center gap-1">
+        {canRotate ? (
+          <Button
+            aria-label={`Regenerate ${identity}`}
+            disabled={disabled}
+            onClick={onRotate}
+            size="icon"
+            title="Regenerate key"
+            variant="ghost"
+          >
+            {busy ? <Spinner /> : <RotateCw />}
+          </Button>
+        ) : null}
+        <Button
+          aria-label={`Revoke ${identity}`}
+          disabled={disabled}
+          onClick={onRevoke}
+          size="icon"
+          title="Revoke key"
+          variant="ghost"
+        >
+          <Trash2 />
+        </Button>
+      </div>
+    </li>
+  );
+}
+
+function RevealedKey({ value, onCopy }: { value: string; onCopy: () => void }) {
+  return (
+    <div className="space-y-2">
+      <p className="font-medium text-sm">Copy your new key now</p>
+      <div className="flex gap-2">
+        <Input aria-label="New API key" readOnly value={value} />
+        <Button onClick={onCopy} size="sm" variant="secondary">
+          <Copy />
+          Copy
+        </Button>
+      </div>
+    </div>
+  );
+}
+
+export function ApiKeysPanel({
+  isLoading,
+  keys,
+  onCreateKey,
+  onRevokeAllKeys,
+  onRevokeKey,
+  onRotateKey,
+}: ApiKeysPanelProps) {
+  const [revealedKey, setRevealedKey] = useState<CreatedApiKey | null>(null);
+  const [busy, setBusy] = useState<string | null>(null);
+  const [feedback, setFeedback] = useState<{
+    message: string;
+    error: boolean;
+  } | null>(null);
+  const actionInFlight = useRef(false);
+
+  const perform = async (id: string, action: () => Promise<string>) => {
+    if (actionInFlight.current) {
+      return;
+    }
+    actionInFlight.current = true;
+    setBusy(id);
+    setFeedback(null);
+    try {
+      setFeedback({ message: await action(), error: false });
+    } catch {
+      setFeedback({
+        message: "Could not update your API keys. Please try again.",
+        error: true,
+      });
+    } finally {
+      actionInFlight.current = false;
+      setBusy(null);
+    }
+  };
+
+  const create = () =>
+    perform("create", async () => {
+      setRevealedKey(null);
+      const key = await onCreateKey();
+      if (!key) {
+        throw new Error("No API key returned");
+      }
+      setRevealedKey(key);
+      return "API key created. Copy it now; it is only shown once.";
+    });
+  const revokeAll = () =>
+    perform("all", async () => {
+      if (!onRevokeAllKeys) {
+        return "";
+      }
+      const result = await onRevokeAllKeys();
+      setRevealedKey(null);
+      return result.hasMore
+        ? "Revoking remaining keys in the background."
+        : "All API keys revoked.";
+    });
+  const copy = async () => {
+    if (!revealedKey) {
+      return;
+    }
+    try {
+      await navigator.clipboard.writeText(revealedKey.key);
+      setFeedback({ message: "API key copied.", error: false });
+    } catch {
+      setFeedback({
+        message: "Could not copy the key. Select and copy it manually.",
+        error: true,
+      });
+    }
+  };
+
+  return (
+    <div className="space-y-3 pt-2">
+      <div className="flex items-center gap-2">
+        <Button
+          disabled={isLoading || busy !== null}
+          onClick={() => void create()}
+          size="sm"
+        >
+          {busy === "create" ? <Spinner /> : null}Create key
+        </Button>
+        {onRevokeAllKeys && keys?.length ? (
+          <Button
+            disabled={busy !== null}
+            onClick={() => void revokeAll()}
+            size="sm"
+            variant="ghost"
+          >
+            {busy === "all" ? <Spinner /> : null}Revoke all keys
+          </Button>
+        ) : null}
+      </div>
+      <p className="text-muted-foreground text-xs">
+        Keys have full access to your library. You can keep up to 10 active
+        keys.
+      </p>
+      {feedback ? (
+        <p
+          className={
+            feedback.error
+              ? "text-destructive text-sm"
+              : "text-muted-foreground text-sm"
+          }
+          role={feedback.error ? "alert" : "status"}
+        >
+          {feedback.message}
+        </p>
+      ) : null}
+      {revealedKey ? (
+        <RevealedKey onCopy={() => void copy()} value={revealedKey.key} />
+      ) : null}
+      {isLoading ? (
+        <p className="flex items-center gap-2 py-6 text-muted-foreground text-sm">
+          <Spinner />
+          Loading API keys…
+        </p>
+      ) : null}
+      {!isLoading && keys?.length === 0 ? (
+        <p className="py-6 text-muted-foreground text-sm">
+          Create your first API key to connect external tools.
+        </p>
+      ) : null}
+      <ul className="divide-y">
+        {keys?.map((item) => (
+          <ApiKeyRow
+            busy={busy === item.id}
+            disabled={busy !== null}
+            item={item}
+            key={item.id}
+            onRevoke={() =>
+              void perform(item.id, async () => {
+                await onRevokeKey(item.id);
+                setRevealedKey(null);
+                return "API key revoked.";
+              })
+            }
+            onRotate={() =>
+              void perform(item.id, async () => {
+                const key = await onRotateKey(item.id);
+                if (!key) {
+                  throw new Error("No API key returned");
+                }
+                setRevealedKey(key);
+                return "API key regenerated. Copy the new key now.";
+              })
+            }
+          />
+        ))}
+      </ul>
+    </div>
   );
 }
 
 export function ApiKeysDialog({
-  isLoading,
-  keys,
-  onCreateKey,
-  onOpenChange,
-  onRevokeAllKeys,
-  onRevokeKey,
-  onRotateKey,
   open,
+  onOpenChange,
+  ...props
 }: ApiKeysDialogProps) {
-  const [revealedKey, setRevealedKey] = useState<CreatedApiKey | null>(null);
-  const [actionKey, setActionKey] = useState<string | null>(null);
-  const [isCreating, setIsCreating] = useState(false);
-  const [isRevokingAll, setIsRevokingAll] = useState(false);
-  const isCreatingRef = useRef(false);
-
-  const handleCreate = async () => {
-    if (isCreatingRef.current) {
-      return;
-    }
-
-    isCreatingRef.current = true;
-    setIsCreating(true);
-    setRevealedKey(null);
-    const toastId = toast.loading("Generating API key...");
-    try {
-      const created = await onCreateKey();
-      if (created) {
-        setRevealedKey(created);
-        toast.success("API key generated. Copy it now.", { id: toastId });
-      }
-    } catch {
-      toast.error("Failed to generate API key.", { id: toastId });
-    } finally {
-      isCreatingRef.current = false;
-      setIsCreating(false);
-    }
-  };
-
-  const handleRevokeAll = async () => {
-    if (!onRevokeAllKeys || isRevokingAll) {
-      return;
-    }
-
-    setIsRevokingAll(true);
-    const toastId = toast.loading("Revoking API keys...");
-    try {
-      const result = await onRevokeAllKeys();
-      if (result.hasMore) {
-        toast.success("Revoking remaining keys in the background.", {
-          id: toastId,
-        });
-      } else {
-        toast.success(
-          result.revokedCount === 0
-            ? "No active API keys to revoke."
-            : "All API keys revoked.",
-          { id: toastId }
-        );
-      }
-    } catch {
-      toast.error("Could not revoke API keys.", { id: toastId });
-    } finally {
-      setIsRevokingAll(false);
-    }
-  };
-
-  const handleCopy = async () => {
-    if (!revealedKey) {
-      return;
-    }
-
-    try {
-      await navigator.clipboard.writeText(revealedKey.key);
-      toast.success("API key copied.");
-    } catch {
-      toast.error("Could not copy API key.");
-    }
-  };
-
-  const runKeyAction = async (
-    keyId: string,
-    action: () => Promise<CreatedApiKey | null | undefined>,
-    successMessage: string
-  ) => {
-    setActionKey(keyId);
-    const toastId = toast.loading("Updating API key...");
-    try {
-      const result = await action();
-      if (result?.key) {
-        setRevealedKey(result);
-      }
-      toast.success(successMessage, { id: toastId });
-    } catch {
-      toast.error("Could not update API key.", { id: toastId });
-    } finally {
-      setActionKey(null);
-    }
-  };
-
   return (
     <Dialog onOpenChange={onOpenChange} open={open}>
-      <DialogContent className="max-h-[82vh] gap-3 overflow-y-auto p-4 sm:max-w-2xl">
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-          <DialogHeader>
-            <DialogTitle>Manage API Keys</DialogTitle>
-          </DialogHeader>
-
-          <div className="flex shrink-0 flex-col gap-2 sm:flex-row">
-            {onRevokeAllKeys && keys && keys.length > 0 ? (
-              <Button
-                disabled={isCreating || isRevokingAll}
-                onClick={() => void handleRevokeAll()}
-                size="sm"
-                variant="outline"
-              >
-                {isRevokingAll ? <Spinner /> : null}
-                Revoke all keys
-              </Button>
-            ) : null}
-            <Button
-              className="shrink-0"
-              disabled={isCreating || isRevokingAll}
-              onClick={handleCreate}
-              size="sm"
-            >
-              {isCreating ? <Spinner /> : null}
-              Generate Key
-            </Button>
-          </div>
-        </div>
-
-        <p className="text-muted-foreground text-xs">
-          You can keep up to 10 active keys. Creating keys is limited to five
-          per minute.
-        </p>
-
-        <div className="space-y-3">
-          {revealedKey && (
-            <div
-              className="space-y-2 rounded-xl border p-2.5"
-              key={revealedKey.id ?? revealedKey.key}
-            >
-              <div className="font-medium text-sm">Copy your new key now</div>
-              <div className="flex flex-col gap-2 sm:flex-row">
-                <Input
-                  key={revealedKey.id ?? revealedKey.key}
-                  readOnly
-                  value={revealedKey.key}
-                />
-                <Button onClick={handleCopy} size="sm" variant="secondary">
-                  <Copy />
-                  Copy
-                </Button>
-              </div>
-            </div>
-          )}
-
-          <div className="rounded-xl border">
-            {isLoading && (
-              <div className="flex items-center justify-center p-6">
-                <Spinner />
-              </div>
-            )}
-
-            {!isLoading && (!keys || keys.length === 0) && (
-              <div className="p-6 text-center text-muted-foreground text-sm">
-                Generate your first API key to connect external tools.
-              </div>
-            )}
-
-            {keys && keys.length > 0 ? (
-              <table className="w-full table-fixed caption-bottom text-sm">
-                <TableHeader>
-                  <TableRow>
-                    <TableHead className="w-[70%] pr-2 pl-3 sm:w-[58%]">
-                      Key
-                    </TableHead>
-                    <TableHead className="hidden px-2 sm:table-cell sm:w-[26%]">
-                      Used
-                    </TableHead>
-                    <TableHead className="w-[30%] pr-3 pl-2 sm:w-[16%]" />
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {keys.map((key) => {
-                    const isBusy = actionKey === key.id;
-                    const canRotate =
-                      key.status === "active" || key.status === "disabled";
-                    const label = visibleKeyName(key.name);
-                    const keyIdentity = [
-                      label,
-                      key.maskedKey,
-                      `created ${formatDate(key.createdAt)}`,
-                    ]
-                      .filter(Boolean)
-                      .join(", ");
-
-                    return (
-                      <TableRow key={key.id}>
-                        <TableCell className="max-w-0 py-3 pr-2 pl-3">
-                          {label ? (
-                            <div className="truncate font-medium text-foreground text-sm">
-                              {label}
-                            </div>
-                          ) : null}
-                          <div className="truncate font-mono text-muted-foreground text-xs">
-                            {key.maskedKey}
-                          </div>
-                          <div className="truncate text-muted-foreground text-xs">
-                            Created {formatDate(key.createdAt)}
-                          </div>
-                          <div className="truncate text-muted-foreground text-xs sm:hidden">
-                            Used {formatDate(key.lastUsedAt)}
-                          </div>
-                        </TableCell>
-                        <TableCell className="hidden whitespace-nowrap px-2 text-muted-foreground sm:table-cell">
-                          {formatDate(key.lastUsedAt)}
-                        </TableCell>
-                        <TableCell className="pr-3 pl-2">
-                          <div className="flex justify-end gap-1.5">
-                            {canRotate && (
-                              <ActionTooltip label="Regenerate key">
-                                <Button
-                                  aria-label={`Regenerate ${keyIdentity}`}
-                                  className="size-8"
-                                  disabled={isBusy}
-                                  onClick={() =>
-                                    runKeyAction(
-                                      key.id,
-                                      () => onRotateKey(key.id),
-                                      "API key regenerated. Copy the new key now."
-                                    )
-                                  }
-                                  size="icon"
-                                  type="button"
-                                  variant="outline"
-                                >
-                                  {isBusy ? <Spinner /> : <RotateCw />}
-                                </Button>
-                              </ActionTooltip>
-                            )}
-
-                            <ActionTooltip label="Revoke key">
-                              <Button
-                                aria-label={`Revoke ${keyIdentity}`}
-                                className="size-8"
-                                disabled={isBusy}
-                                onClick={() =>
-                                  runKeyAction(
-                                    key.id,
-                                    async () => {
-                                      await onRevokeKey(key.id);
-                                      return null;
-                                    },
-                                    "API key revoked."
-                                  )
-                                }
-                                size="icon"
-                                type="button"
-                                variant="ghost"
-                              >
-                                {isBusy ? <Spinner /> : <Trash2 />}
-                              </Button>
-                            </ActionTooltip>
-                          </div>
-                        </TableCell>
-                      </TableRow>
-                    );
-                  })}
-                </TableBody>
-              </table>
-            ) : null}
-          </div>
-        </div>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>API keys</DialogTitle>
+        </DialogHeader>
+        <ApiKeysPanel {...props} />
       </DialogContent>
     </Dialog>
   );

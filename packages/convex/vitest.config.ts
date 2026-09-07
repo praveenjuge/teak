@@ -3,6 +3,10 @@ import { defineConfig } from "vitest/config";
 export default defineConfig({
   test: {
     environment: "edge-runtime",
-    include: ["./occContention.test.ts", "./safariOAuth.test.ts"],
+    include: [
+      "./occContention.test.ts",
+      "./safariOAuth.test.ts",
+      "./securitySessions.test.ts",
+    ],
   },
 });

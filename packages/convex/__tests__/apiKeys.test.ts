@@ -35,11 +35,21 @@ const componentKey = {
 };
 
 const buildAuth = (subject = "user_1") => ({
-  getUserIdentity: mock().mockResolvedValue({ subject }),
+  getUserIdentity: mock().mockResolvedValue({
+    subject,
+    sessionId: "session_1",
+  }),
 });
 
 const listActiveKeys = (keys: unknown[]) =>
   mock().mockImplementation((_ref, args) => {
+    if (args?.model === "session") {
+      return {
+        _id: "session_1",
+        userId: "user_1",
+        expiresAt: Date.now() + 60_000,
+      };
+    }
     if (args?.status && args.status !== "active") {
       return [];
     }
@@ -155,6 +165,7 @@ describe("apiKeys", () => {
   test("revoke component keys through the component", async () => {
     const ctx = {
       auth: buildAuth(),
+      runQuery: listActiveKeys([]),
       runMutation: mock().mockResolvedValue(null),
     };
 
@@ -254,6 +265,13 @@ describe("apiKeys", () => {
       auth: buildAuth(),
       runMutation: mock(),
       runQuery: mock().mockImplementation((_ref, args) => {
+        if (args?.model === "session") {
+          return {
+            _id: "session_1",
+            userId: "user_1",
+            expiresAt: Date.now() + 60_000,
+          };
+        }
         if (args?.status === "exhausted") {
           return [
             {
