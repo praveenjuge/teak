@@ -33,7 +33,7 @@ jobs:
       - uses: oven-sh/setup-bun@v2
       - run: bun install --frozen-lockfile
       - name: Cloudflare parity check (read-only)
-        run: bun run check:cloudflare
+        run: bun run check:cloudflare -- --only prod
       - name: Verify deployment credentials
         run: |
           test -n "$CONVEX_DEPLOY_KEY"

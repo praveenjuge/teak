@@ -29,12 +29,12 @@ describe("resolveBump", () => {
     expect(resolveBump("1.0.65", "1.0.66")).toBe("fresh");
   });
 
-  test("resume when already at the target version", () => {
-    expect(resolveBump("1.0.66", "1.0.66")).toBe("resume");
+  test("resume requires the flag when already at the target version", () => {
+    expect(resolveBump("1.0.66", "1.0.66", { resume: true })).toBe("resume");
+    expect(() => resolveBump("1.0.66", "1.0.66")).toThrow();
   });
 
   test("rejects non-patch bumps", () => {
-    expect(() => resolveBump("1.0.65", "1.0.65")).not.toThrow();
     expect(() => resolveBump("1.0.65", "1.1.0")).toThrow();
     expect(() => resolveBump("1.0.66", "1.0.65")).toThrow();
   });

@@ -6,7 +6,7 @@
  * bun.lock (and apps/raycast/package-lock.json when present), then verifies
  * with a frozen install and the lockstep validator. Review the diff and
  * commit it as one scoped version change afterwards.
- * Usage: bun run release:prepare <version>
+ * Usage: bun run release:prepare <version> [--resume]
  */
 
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
@@ -24,9 +24,15 @@ export const readVersion = (manifestPath: string): string =>
 
 export const resolveBump = (
   current: string,
-  target: string
+  target: string,
+  opts?: { resume?: boolean }
 ): "fresh" | "resume" => {
   if (current === target) {
+    if (!opts?.resume) {
+      throw new Error(
+        `Already at ${target}; pass --resume to re-run install and verification, or specify the next patch version.`
+      );
+    }
     return "resume";
   }
   assertPatchBump(current, target);
@@ -70,12 +76,14 @@ const run = (cmd: string[], cwd: string): void => {
 };
 
 const main = (): void => {
-  const [version] = process.argv.slice(2);
+  const args = process.argv.slice(2);
+  const version = args.find((arg) => !arg.startsWith("--"));
+  const resume = args.includes("--resume");
   if (!version) {
-    throw new Error("Usage: bun run release:prepare <version>");
+    throw new Error("Usage: bun run release:prepare <version> [--resume]");
   }
   const previous = readVersion(join(ROOT, "package.json"));
-  const mode = resolveBump(previous, version);
+  const mode = resolveBump(previous, version, { resume });
   if (mode === "resume") {
     console.log(
       `Manifests already at ${version}; resuming install and verification.`
