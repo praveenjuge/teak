@@ -27,6 +27,14 @@ describe("parseDevArgs", () => {
   test("rejects unknown targets", () => {
     expect(() => parseDevArgs(["unknown-surface"])).toThrow();
   });
+
+  test("rejects unknown flags", () => {
+    expect(() => parseDevArgs(["--typo", "mobile"])).toThrow();
+  });
+
+  test("rejects multiple targets", () => {
+    expect(() => parseDevArgs(["mobile", "desktop"])).toThrow();
+  });
 });
 
 describe("buildDevCommand", () => {

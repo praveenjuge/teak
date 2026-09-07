@@ -64,17 +64,18 @@ describe("backend telemetry Node runtime", () => {
     expect(invalidPaths).toEqual([]);
   });
 
-  test("links hoisted TypeScript where Convex deploy resolves it", () => {
+  test("typechecks regenerated declarations without a hoisted-typescript symlink", () => {
     const workflow = readFileSync(
       resolve(repositoryRoot, ".github/workflows/backend-deploy.yml"),
       "utf8"
     );
 
-    expect(workflow).toContain(
+    expect(workflow).toContain("bunx convex codegen");
+    expect(workflow).toContain("bun run typecheck");
+    expect(workflow).toContain("--typecheck disable");
+    expect(workflow).not.toContain(
       'ln -s "$GITHUB_WORKSPACE/node_modules/typescript" node_modules/typescript'
     );
-    expect(workflow).toContain("test -f node_modules/typescript/bin/tsc");
-    expect(workflow).toContain("--typecheck enable");
     expect(workflow).not.toContain("--typecheck-components");
   });
 });

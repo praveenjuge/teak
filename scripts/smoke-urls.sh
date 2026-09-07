@@ -4,6 +4,7 @@ set -euo pipefail
 # Smoke the public API/MCP surface.
 # Usage: BASE_URL=https://preview-url.vercel.app bash scripts/smoke-urls.sh
 #        SMOKE_BASE_URL=... bash scripts/smoke-urls.sh
+#        EXPECTED_BASE_URL=https://teakvault.com bash scripts/smoke-urls.sh
 # Defaults to production https://teakvault.com for scheduled checks.
 BASE_URL="${SMOKE_BASE_URL:-${BASE_URL:-https://teakvault.com}}"
 BASE_URL="${BASE_URL%/}"
@@ -93,10 +94,20 @@ check_contains "$BASE_URL/api" '"version":"v1"'
 # Preview deployments rewrite /api* to the fixed production Convex site, whose
 # public metadata uses canonical prod URLs. Assert liveness against BASE_URL
 # but assert metadata against the canonical origin in preview mode.
-EXPECTED_BASE="$BASE_URL"
-if [[ "$IS_PROD" != "true" ]]; then
-  EXPECTED_BASE="https://teakvault.com"
+# Custom origins (staging/self-hosted via workflow_dispatch base_url) advertise
+# their own origin, so only Vercel previews (*.vercel.app) use the canonical
+# override unless EXPECTED_BASE_URL is set explicitly.
+EXPECTED_BASE="${EXPECTED_BASE_URL:-}"
+if [[ -z "$EXPECTED_BASE" ]]; then
+  if [[ "$IS_PROD" == "true" ]]; then
+    EXPECTED_BASE="$BASE_URL"
+  elif [[ "$BASE_URL" == *.vercel.app ]]; then
+    EXPECTED_BASE="https://teakvault.com"
+  else
+    EXPECTED_BASE="$BASE_URL"
+  fi
 fi
+EXPECTED_BASE="${EXPECTED_BASE%/}"
 check_contains "$BASE_URL/api/v1" "\"endpoint\":\"$EXPECTED_BASE/mcp\""
 check_contains "$BASE_URL/api/openapi.json" '"openapi":"3.1.0"'
 check_mcp_unauthorized \

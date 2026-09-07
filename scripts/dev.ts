@@ -59,21 +59,21 @@ export const parseDevArgs = (
   if (argv.includes("--help") || argv.includes("-h")) {
     return { action: "help", all: false, target: "web" };
   }
-  const all = argv.includes("--all");
-  const check = argv.includes("--check");
-  const target =
-    argv.find(
-      (arg) =>
-        !arg.startsWith("-") && (DEV_TARGETS[arg] || FILES_TARGETS.has(arg))
-    ) ?? "web";
+  const flags = new Set(["--all", "--check"]);
+  const targets = argv.filter(
+    (arg) => DEV_TARGETS[arg] || FILES_TARGETS.has(arg)
+  );
   if (
     argv.some(
-      (arg) =>
-        !(arg.startsWith("-") || DEV_TARGETS[arg] || FILES_TARGETS.has(arg))
-    )
+      (arg) => !(flags.has(arg) || DEV_TARGETS[arg] || FILES_TARGETS.has(arg))
+    ) ||
+    targets.length > 1
   ) {
     throw new Error(`Unknown dev target. ${describeTargets()}`);
   }
+  const all = argv.includes("--all");
+  const check = argv.includes("--check");
+  const target = targets[0] ?? "web";
   return { action: check ? "check" : "run", all, target };
 };
 

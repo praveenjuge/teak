@@ -45,6 +45,21 @@ const parseDotenv = (content: string): Map<string, string> => {
   return values;
 };
 
+const EXPAND_ESCAPED_DOLLAR = "__TEAK_ESCAPED_DOLLAR__";
+
+export const expandEnvReferences = (
+  value: string,
+  lookup: (name: string) => string | undefined
+): string => {
+  const unescaped = value.replace(/\\\$/g, EXPAND_ESCAPED_DOLLAR);
+  const expanded = unescaped.replace(
+    /\$(?:\{([A-Za-z_][A-Za-z0-9_]*)\}|([A-Za-z_][A-Za-z0-9_]*))/g,
+    (_, braced: string | undefined, plain: string | undefined) =>
+      lookup(braced ?? plain ?? "") ?? ""
+  );
+  return expanded.replaceAll(EXPAND_ESCAPED_DOLLAR, "$");
+};
+
 const isHttpUrl = (value: string): boolean => {
   try {
     const url = new URL(value);
@@ -54,19 +69,27 @@ const isHttpUrl = (value: string): boolean => {
   }
 };
 
-export const validateWebEnvContent = (content: string): EnvIssue[] => {
+export const validateWebEnvContent = (
+  content: string,
+  env: NodeJS.ProcessEnv = process.env
+): EnvIssue[] => {
   const values = parseDotenv(content);
+  const lookup = (name: string): string | undefined =>
+    values.get(name) ?? env[name];
   const issues: EnvIssue[] = [];
   for (const key of REQUIRED_WEB_ENV_KEYS) {
-    const value = values.get(key);
-    if (value === undefined || value === "") {
+    const raw = values.get(key);
+    if (raw === undefined || raw === "") {
       issues.push({
+        hint: `Add ${key} to apps/web/.env.local (bun run setup writes local defaults).`,
         key,
         problem: "missing",
-        hint: `Add ${key} to apps/web/.env.local (bun run setup writes local defaults).`,
       });
       continue;
     }
+    // Next.js expands $VARIABLE / ${VARIABLE} references before assigning
+    // process.env; validate the expanded value so indirection is accepted.
+    const value = expandEnvReferences(raw, lookup);
     if (!isHttpUrl(value)) {
       issues.push({
         key,

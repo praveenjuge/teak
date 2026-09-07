@@ -1,5 +1,9 @@
 import { describe, expect, test } from "bun:test";
-import { formatEnvIssues, validateWebEnvContent } from "./validate-env.ts";
+import {
+  expandEnvReferences,
+  formatEnvIssues,
+  validateWebEnvContent,
+} from "./validate-env.ts";
 
 describe("validateWebEnvContent", () => {
   test("empty when local Convex URLs are present and valid", () => {
@@ -32,5 +36,21 @@ describe("validateWebEnvContent", () => {
     );
     expect(text).toContain("NEXT_PUBLIC_CONVEX_URL");
     expect(text).toContain("bun run setup");
+  });
+
+  test("expands $VARIABLE references before URL validation", () => {
+    const content = [
+      "CONVEX_URL=http://127.0.0.1:3210",
+      "CONVEX_SITE_URL=http://127.0.0.1:3211",
+      "NEXT_PUBLIC_CONVEX_URL=$CONVEX_URL",
+      // biome-ignore lint/suspicious/noTemplateCurlyInString: intentional dotenv fixture, not a template
+      "NEXT_PUBLIC_CONVEX_SITE_URL=${CONVEX_SITE_URL}",
+      "",
+    ].join("\n");
+    expect(validateWebEnvContent(content, {})).toEqual([]);
+  });
+
+  test("expandEnvReferences keeps escaped dollars literal", () => {
+    expect(expandEnvReferences("a/\\$b", () => "X")).toBe("a/$b");
   });
 });
