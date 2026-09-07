@@ -262,7 +262,9 @@ const checkConvexEnv = async (only: DeploymentScope | null) => {
       const side = prod.status === "skipped" ? dev : prod;
       const sideName = prod.status === "skipped" ? "dev" : "prod";
       if (side.status === "unavailable") {
-        log(name, "warn", `Convex ${sideName} deployment unavailable`);
+        log(name, "warn", `Convex ${sideName} deployment unavailable`, {
+          blocking: true,
+        });
       } else if (side.status === "missing") {
         log(name, "missing", `${sideName} missing`);
       } else if (side.status === "found") {
@@ -292,7 +294,9 @@ const checkConvexEnv = async (only: DeploymentScope | null) => {
     }
     const { dev, prod } = values;
     if (dev.status === "unavailable" || prod.status === "unavailable") {
-      log(name, "warn", "Convex CLI or deployment unavailable");
+      log(name, "warn", "Convex deployment unavailable", {
+        blocking: only !== null,
+      });
       continue;
     }
     if (name === "R2_KEY_PREFIX") {
