@@ -167,8 +167,9 @@ performed.
 
 ## Local development experience
 
-- `bun run dev` at repo root still starts the all-surface stack (web, convex,
-  desktop, raycast, docs, extension) via Turborepo.
+- `bun run dev` at repo root starts the default stack (web + Convex) via
+  Turborepo. `bun run dev:all` starts every surface (web, convex, desktop,
+  raycast, docs, extension).
 - `bun run dev:files` — local Worker with remote Cloudflare R2/Images/AI
   bindings (code local, bucket remote). Use for real image transforms and
   prod-data dev isolation (`dev/users/...`).

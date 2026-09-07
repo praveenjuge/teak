@@ -2,9 +2,6 @@
   "$schema": "https://turborepo.dev/schema.v2.json",
   "globalEnv": ["NODE_ENV", "VERCEL_ENV"],
   "globalPassThroughEnv": ["CI", "GITHUB_ACTIONS"],
-  "remoteCache": {
-    "enabled": true
-  },
   "ui": "tui",
   "tasks": {
     "build": {
@@ -15,7 +12,8 @@
         "!.next/cache/**",
         "dist/**",
         "out/**",
-        ".output/**"
+        ".output/**",
+        ".vite/**"
       ],
       "env": [
         "NEXT_PUBLIC_*",
@@ -34,22 +32,25 @@
     "//#fix": {
       "cache": false
     },
+    "check": {
+      "dependsOn": ["^check"]
+    },
     "lint": {
-      "dependsOn": ["^transit"],
       "inputs": ["$TURBO_DEFAULT$", "$TURBO_ROOT$/biome.jsonc"],
       "outputs": []
     },
     "test": {
-      "dependsOn": ["^transit"],
       "inputs": ["$TURBO_DEFAULT$", ".env", ".env.*"],
       "outputs": ["coverage/**"],
-      "env": ["CLAUDECODE", "AGENT"]
-    },
-    "transit": {
-      "dependsOn": ["^transit"]
+      "env": [
+        "CLAUDECODE",
+        "AGENT",
+        "GOOGLE_CLIENT_ID",
+        "GOOGLE_CLIENT_SECRET",
+        "SITE_URL"
+      ]
     },
     "typecheck": {
-      "dependsOn": ["^transit"],
       "outputs": []
     },
     "start": {

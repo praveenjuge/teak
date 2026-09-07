@@ -173,7 +173,6 @@ const checkConvexEnv = async () => {
     deployment: "prod" | "dev"
   ): Promise<DeploymentValueResult> => {
     try {
-      // biome-ignore lint/correctness/noUndeclaredVariables: Bun global in Bun runtime
       const proc = Bun.spawn(
         ["bunx", "convex", "env", "get", name, "--deployment", deployment],
         { cwd: CONVEX_PATH, stdout: "pipe", stderr: "pipe" }
@@ -296,7 +295,7 @@ const main = async () => {
   await checkConvexEnv();
   console.log("\n== Summary ==");
   console.log(
-    "  • Keep `bun run dev` for all-surface stack; use `bun run dev:files` (remote bindings) vs `bun run dev:files:local` (Miniflare, low-fidelity Images)."
+    "  • Keep `bun run dev:all` for all-surface stack; use `bun run dev:files` (remote bindings) vs `bun run dev:files:local` (Miniflare, low-fidelity Images)."
   );
   console.log(
     "  • One-time Convex convergence required; .dev.vars is ignored and per-developer; prod-data warning applies (shared bucket + prefix)."

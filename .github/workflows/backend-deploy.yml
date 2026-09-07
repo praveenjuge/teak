@@ -32,6 +32,8 @@ jobs:
           fetch-depth: 0
       - uses: oven-sh/setup-bun@v2
       - run: bun install --frozen-lockfile
+      - name: Cloudflare parity check (read-only)
+        run: bun run check:cloudflare
       - name: Verify deployment credentials
         run: |
           test -n "$CONVEX_DEPLOY_KEY"

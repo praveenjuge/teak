@@ -34,7 +34,6 @@ export const mergeDotenvValue = (
 };
 
 const main = async () => {
-  // biome-ignore lint/correctness/noUndeclaredVariables: Bun global in Bun runtime
   const proc = Bun.spawn(
     [
       "bunx",

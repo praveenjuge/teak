@@ -1,6 +1,19 @@
 # Shared release preparation
 
-Every Teak product release starts from one next-patch version change. Complete this preparation before following a product runbook:
+Every Teak product release starts from one next-patch version change. The
+preferred path is one command from the repository root:
+
+```bash
+bun run release:prepare <version>
+```
+
+It validates the next patch, updates every tracked `package.json`,
+synchronizes `bun.lock` (and `apps/raycast/package-lock.json` when present),
+then verifies with a frozen install and the lockstep validator. Review the
+diff and commit every package manifest and lockfile together as one scoped
+version change.
+
+Manual fallback (same steps the script performs):
 
 1. Update the `version` field in every tracked `package.json` to the same next patch version.
 2. Run `bun install` from the repository root to synchronize `bun.lock`.
