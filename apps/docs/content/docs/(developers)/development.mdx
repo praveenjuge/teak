@@ -94,24 +94,25 @@ description: Setup and development workflow for Teak
 ```bash
 bun run setup            # First run: install deps + write local env templates
 bun run doctor           # Validate the environment
-bun run dev              # Web + Convex backend
-bun run dev:all          # All services
+bun run dev              # Web + Convex backend (bun run dev --help for targets)
+bun run dev --all        # All services (legacy alias: bun run dev:all)
 
-bun run dev:convex       # Convex backend only
-bun run dev:web          # Next.js web
-bun run dev:mobile       # Expo mobile
-bun run dev:desktop      # Electron desktop
-bun run dev:extension    # Chrome extension
+bun run dev convex       # Convex backend only (alias: bun run dev:convex)
+bun run dev web          # Next.js web (alias: bun run dev:web)
+bun run dev mobile       # Expo mobile (alias: bun run dev:mobile)
+bun run dev desktop      # Electron desktop (alias: bun run dev:desktop)
+bun run dev extension    # Chrome extension (alias: bun run dev:extension)
 open apps/safari-extension/teak-safari.xcodeproj # Safari extension
-bun run dev:raycast      # Raycast extension
-bun run dev:docs         # Docs site
+bun run dev raycast      # Raycast extension (alias: bun run dev:raycast)
+bun run dev docs         # Docs site (alias: bun run dev:docs)
 
 bun run build            # Production build (all)
 bun run build:extension  # Package Chrome extension
 bun run build:raycast    # Build Raycast extension
 
 bun run lint && bun run typecheck
-bun run test             # Unit tests
+bun run test             # Unit tests (turbo; test:unit / test:edge for Convex splits)
+bun run verify           # typecheck + lint + test (affected)
 
 bun run check            # Quality report (Ultracite)
 bun run fix              # Auto-fix issues

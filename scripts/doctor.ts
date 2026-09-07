@@ -16,6 +16,7 @@ import {
   isInstallStale,
   requiredBunVersion,
 } from "./setup.ts";
+import { validateWebEnvContent } from "./validate-env.ts";
 
 const ROOT = join(import.meta.dir, "..");
 
@@ -113,19 +114,16 @@ const main = async (): Promise<void> => {
 
   const webEnvPath = join(ROOT, "apps/web/.env.local");
   if (existsSync(webEnvPath)) {
-    const missing = findMissingKeys(
-      readFileSync(webEnvPath, "utf-8"),
-      REQUIRED_WEB_ENV_KEYS
-    );
+    const issues = validateWebEnvContent(readFileSync(webEnvPath, "utf-8"));
     findings.push({
-      ok: missing.length === 0,
+      ok: issues.length === 0,
       label: "Web env",
       detail:
-        missing.length === 0
-          ? "Convex URLs present."
-          : `missing keys: ${missing.join(", ")}`,
+        issues.length === 0
+          ? "Convex URLs present and valid."
+          : issues.map((issue) => `${issue.key} ${issue.problem}`).join(", "),
     });
-    if (missing.length > 0) {
+    if (issues.length > 0) {
       hardFailure = true;
     }
   } else {
@@ -136,6 +134,47 @@ const main = async (): Promise<void> => {
     });
     hardFailure = true;
   }
+
+  const devVarsPath = join(ROOT, "apps/files-worker/.dev.vars");
+  findings.push({
+    ok: true,
+    label: "Files .dev.vars",
+    detail: existsSync(devVarsPath)
+      ? "present (per-developer, ignored)."
+      : "missing (warn): run bun run sync:cloudflare-dev for files-worker.",
+  });
+
+  const teakDevOverrides = [
+    "TEAK_DEV_APP_URL",
+    "TEAK_DEV_API_URL",
+    "TEAK_DEV_DOCS_URL",
+  ].filter((key) => {
+    const value = process.env[key];
+    if (!value) {
+      return false;
+    }
+    try {
+      const url = new URL(value);
+      return url.protocol !== "http:" && url.protocol !== "https:";
+    } catch {
+      return true;
+    }
+  });
+  findings.push({
+    ok: true,
+    label: "TEAK_DEV_* overrides",
+    detail:
+      teakDevOverrides.length === 0
+        ? "unset or valid."
+        : `invalid URL(s): ${teakDevOverrides.join(", ")} (warn).`,
+  });
+
+  findings.push({
+    ok: true,
+    label: "Convex SITE_URL",
+    detail:
+      "checked at runtime (warn): run bunx convex env get SITE_URL, expected http://localhost:3000 locally.",
+  });
 
   for (const port of [3000, 3001, 3210, 3211]) {
     const occupied = await isPortOccupied(port);

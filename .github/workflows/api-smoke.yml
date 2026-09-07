@@ -5,6 +5,11 @@ on:
   schedule:
     - cron: "0 */6 * * *"
   workflow_dispatch:
+    inputs:
+      base_url:
+        description: "Base URL to smoke (defaults to production)"
+        required: false
+        default: "https://teakvault.com"
 
 permissions:
   contents: read
@@ -12,6 +17,8 @@ permissions:
 jobs:
   smoke:
     runs-on: ubuntu-latest
+    env:
+      BASE_URL: ${{ inputs.base_url || 'https://teakvault.com' }}
     steps:
       - name: Check out repository
         uses: actions/checkout@v6

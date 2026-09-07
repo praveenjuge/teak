@@ -7,7 +7,9 @@ import { convexAuthClient } from "@/lib/auth-client";
 
 const convexUrl = process.env.NEXT_PUBLIC_CONVEX_URL;
 if (!convexUrl) {
-  throw new Error("Missing NEXT_PUBLIC_CONVEX_URL environment variable");
+  throw new Error(
+    "Missing NEXT_PUBLIC_CONVEX_URL environment variable (run: bun run setup, expected http://127.0.0.1:3210 locally)"
+  );
 }
 
 const convex = new ConvexReactClient(convexUrl, {

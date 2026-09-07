@@ -11,6 +11,7 @@ import { join } from "node:path";
 import {
   checkBunVersion,
   ensureFile,
+  ensureWebEnv,
   isInstallStale,
   requiredBunVersion,
   webEnvTemplate,
@@ -58,6 +59,20 @@ describe("ensureFile", () => {
     expect(readFileSync(path, "utf-8")).toBe("A=1\n");
     expect(ensureFile(path, "B=2\n")).toBe("exists");
     expect(readFileSync(path, "utf-8")).toBe("A=1\n");
+  });
+});
+
+describe("ensureWebEnv", () => {
+  test("repairs missing keys without overwriting existing values", () => {
+    const dir = mkdtempSync(join(tmpdir(), "teak-setup-"));
+    const path = join(dir, ".env.local");
+    writeFileSync(path, "NEXT_PUBLIC_CONVEX_URL=http://custom\n");
+    expect(ensureWebEnv(path)).toBe("repaired");
+    const content = readFileSync(path, "utf-8");
+    expect(content).toContain("NEXT_PUBLIC_CONVEX_URL=http://custom");
+    expect(content).toContain(
+      "NEXT_PUBLIC_CONVEX_SITE_URL=http://127.0.0.1:3211"
+    );
   });
 });
 

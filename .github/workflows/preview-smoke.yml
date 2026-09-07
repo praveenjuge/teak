@@ -1,0 +1,37 @@
+# Smoke Vercel preview deployments once they are ready.
+# The docs deployment serves the apex API/MCP rewrites, so the same
+# scripts/smoke-urls.sh suite runs against the preview URL with BASE_URL.
+name: Preview Smoke
+
+on:
+  deployment_status:
+
+permissions:
+  contents: read
+
+jobs:
+  preview-smoke:
+    if: github.event.deployment_status.state == 'success' && github.event.deployment_status.environment != 'Production'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      BASE_URL: ${{ github.event.deployment_status.target_url }}
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          ref: ${{ github.event.deployment.sha }}
+      - name: Smoke preview API and MCP URLs
+        run: |
+          echo "Preview target: $BASE_URL"
+          test -n "$BASE_URL"
+          # Vercel previews may sit behind SSO protection (302 to vercel.com/sso-api).
+          # Without a bypass token the preview is not publicly smokeable; skip
+          # gracefully instead of failing the PR. To enable full preview smoke,
+          # set VERCEL_AUTOMATION_BYPASS_SECRET and wire it to an
+          # x-vercel-protection-bypass header here.
+          location="$(curl -sS -o /dev/null -w '%{redirect_url}' --max-time 20 "$BASE_URL/api/healthz" || true)"
+          if [[ "$location" == *"vercel.com/sso-api"* ]]; then
+            echo "Preview is SSO-protected; skipping unauthenticated smoke (pass with warning)."
+            exit 0
+          fi
+          bash scripts/smoke-urls.sh

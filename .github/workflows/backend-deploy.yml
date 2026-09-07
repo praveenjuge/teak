@@ -49,16 +49,16 @@ jobs:
           release="teak-backend@$GITHUB_SHA"
           bunx sentry-cli releases new "$release"
           bunx sentry-cli releases set-commits "$release" --auto --ignore-missing
+      - name: Typecheck Convex backend (including regenerated declarations)
+        working-directory: packages/convex
+        run: |
+          bunx convex codegen
+          bun run typecheck
       - name: Deploy Convex production
         working-directory: packages/convex
         run: |
-          mkdir -p node_modules
-          if [ ! -e node_modules/typescript ]; then
-            ln -s "$GITHUB_WORKSPACE/node_modules/typescript" node_modules/typescript
-          fi
-          test -f node_modules/typescript/bin/tsc
           bunx convex deploy \
-            --typecheck enable \
+            --typecheck disable \
             --message "Sentry release teak-backend@$GITHUB_SHA"
       - name: Finalize Sentry release
         run: |
