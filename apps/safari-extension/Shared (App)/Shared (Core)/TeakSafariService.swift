@@ -46,28 +46,29 @@ actor TeakSafariService {
 
     func authState() async -> [String: Any] {
         do {
-            return try await withCredentials {
-                guard try self.credentials.load() != nil else {
-                    return ["authenticated": false, "message": "Connect Teak Safari to save pages."]
-                }
-                let token = try await self.accessToken()
-                var request = URLRequest(url: self.apiURL.appendingPathComponent("api/auth/mcp/get-session"))
-                request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
-                let (data, response) = try await self.send(request)
-                guard response.statusCode == 200 || response.statusCode == 401 else {
-                    throw SafariServiceError.message("Unable to verify your Teak connection. Please try again.")
-                }
-                let body = try JSONSerialization.jsonObject(with: data, options: .fragmentsAllowed)
-                if response.statusCode == 401 || body is NSNull {
-                    try self.credentials.clear()
-                    throw SafariServiceError.unauthenticated
-                }
-                guard let account = body as? [String: Any], account["userId"] is String,
-                      account["clientId"] as? String == SafariOAuthRequest.clientID else {
-                    throw SafariServiceError.message("Teak returned an invalid connection response.")
-                }
-                return ["authenticated": true]
+            guard (try? self.credentials.load()) != nil else {
+                return ["authenticated": false, "message": "Connect Teak Safari to save pages."]
             }
+            // The shared lock guards refresh-token rotation inside accessToken();
+            // the session verification request runs outside it so a slow network
+            // cannot starve the other process past its lock wait budget.
+            let token = try await self.accessToken()
+            var request = URLRequest(url: self.apiURL.appendingPathComponent("api/auth/mcp/get-session"))
+            request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+            let (data, response) = try await self.send(request)
+            guard response.statusCode == 200 || response.statusCode == 401 else {
+                throw SafariServiceError.message("Unable to verify your Teak connection. Please try again.")
+            }
+            let body = try? JSONSerialization.jsonObject(with: data, options: .fragmentsAllowed)
+            if response.statusCode == 401 || body is NSNull {
+                try await withCredentials { try self.credentials.clear() }
+                throw SafariServiceError.unauthenticated
+            }
+            guard let account = body as? [String: Any], account["userId"] is String,
+                  account["clientId"] as? String == SafariOAuthRequest.clientID else {
+                throw SafariServiceError.message("Teak returned an invalid connection response.")
+            }
+            return ["authenticated": true]
         } catch SafariServiceError.unauthenticated {
             return ["authenticated": false]
         } catch {
@@ -119,38 +120,42 @@ actor TeakSafariService {
             return ["status": "invalid-url", "message": "This page cannot be saved to Teak."]
         }
         do {
-            return try await withCredentials {
-                let token = try await self.accessToken()
-                var lookup = URLComponents(url: self.apiURL.appendingPathComponent("v1/cards/duplicate"), resolvingAgainstBaseURL: false)!
-                lookup.queryItems = [URLQueryItem(name: "url", value: pageURL.absoluteString)]
-                let duplicate = try await self.apiRequest(URLRequest(url: lookup.url!), token: token)
-                if duplicate["cardId"] is String { return ["status": "duplicate"] }
-                var request = URLRequest(url: self.apiURL.appendingPathComponent("v1/cards"))
-                request.httpMethod = "POST"
-                request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-                request.setValue(UUID().uuidString, forHTTPHeaderField: "Idempotency-Key")
-                request.httpBody = try JSONSerialization.data(withJSONObject: ["url": pageURL.absoluteString])
-                let result = try await self.apiRequest(request, token: token)
-                guard let cardID = result["cardId"] as? String else {
-                    throw SafariServiceError.message("Teak returned an invalid save response.")
-                }
-                return ["status": "saved", "cardId": cardID]
+            // Only the token read/refresh holds the shared lock (inside
+            // accessToken()); the duplicate lookup and card creation run outside
+            // it so a slow save cannot starve the other process past its lock
+            // wait budget. The Idempotency-Key keeps a retried create safe.
+            let token = try await self.accessToken()
+            var lookup = URLComponents(url: self.apiURL.appendingPathComponent("v1/cards/duplicate"), resolvingAgainstBaseURL: false)!
+            lookup.queryItems = [URLQueryItem(name: "url", value: pageURL.absoluteString)]
+            let duplicate = try await self.apiRequest(URLRequest(url: lookup.url!), token: token)
+            if duplicate["cardId"] is String { return ["status": "duplicate"] }
+            var request = URLRequest(url: self.apiURL.appendingPathComponent("v1/cards"))
+            request.httpMethod = "POST"
+            request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+            request.setValue(UUID().uuidString, forHTTPHeaderField: "Idempotency-Key")
+            request.httpBody = try JSONSerialization.data(withJSONObject: ["url": pageURL.absoluteString])
+            let result = try await self.apiRequest(request, token: token)
+            guard let cardID = result["cardId"] as? String else {
+                throw SafariServiceError.message("Teak returned an invalid save response.")
             }
+            return ["status": "saved", "cardId": cardID]
         } catch SafariServiceError.unauthenticated {
             return ["status": "unauthenticated", "message": "Sign in to Teak to save pages."]
         } catch { return errorResponse(error) }
     }
 
     private func accessToken() async throws -> String {
-        guard let tokens = try credentials.load() else { throw SafariServiceError.unauthenticated }
-        if tokens.expiresAt.timeIntervalSinceNow > 60 { return tokens.accessToken }
-        do {
-            let refreshed = try await exchange(["grant_type": "refresh_token", "refresh_token": tokens.refreshToken])
-            try credentials.save(refreshed)
-            return refreshed.accessToken
-        } catch SafariServiceError.unauthenticated {
-            try credentials.clear()
-            throw SafariServiceError.unauthenticated
+        try await withCredentials {
+            guard let tokens = try credentials.load() else { throw SafariServiceError.unauthenticated }
+            if tokens.expiresAt.timeIntervalSinceNow > 60 { return tokens.accessToken }
+            do {
+                let refreshed = try await exchange(["grant_type": "refresh_token", "refresh_token": tokens.refreshToken])
+                try credentials.save(refreshed)
+                return refreshed.accessToken
+            } catch SafariServiceError.unauthenticated {
+                try credentials.clear()
+                throw SafariServiceError.unauthenticated
+            }
         }
     }
 
@@ -178,7 +183,7 @@ actor TeakSafariService {
             try credentials.clear()
             throw SafariServiceError.unauthenticated
         }
-        let body = try JSONSerialization.jsonObject(with: data) as? [String: Any]
+        let body = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any]
         guard (200..<300).contains(response.statusCode), let body else {
             throw SafariServiceError.message(body?["error"] as? String ?? "Unable to save this page. Please try again.")
         }

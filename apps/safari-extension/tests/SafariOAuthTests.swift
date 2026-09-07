@@ -146,6 +146,15 @@ final class MockHTTP: URLProtocol, @unchecked Sendable {
         let refused = await service.saveCurrentPage(url: "https://example.com/page")
         try check(refused["status"] as? String == "unauthenticated", "revoked access cannot save")
         try store.save(tokens())
+        MockHTTP.respond = { _ in (401, "") }
+        let emptyDenied = await service.authState()
+        try check(emptyDenied["authenticated"] as? Bool == false, "empty 401 requires reconnect")
+        try check(try store.load() == nil, "empty 401 clears credentials")
+        try store.save(tokens())
+        MockHTTP.respond = { _ in (200, "") }
+        let emptySave = await service.saveCurrentPage(url: "https://example.com/page")
+        try check(emptySave["status"] as? String == "error", "empty save response surfaces error")
+        try store.save(tokens())
         MockHTTP.respond = { request in
             try check(request.url?.path == "/api/oauth/revoke", "logout calls revocation")
             return (200, "")
