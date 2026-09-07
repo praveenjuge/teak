@@ -77,9 +77,9 @@ const jsonLd = buildPageSchemas({
   keywords="design bookmarking, visual inspiration, design organization, creative workflow, designer tools, bookmark manager"
   jsonLd={jsonLd}
 >
-  <section class="home-hero">
-    <div class="hero-inner">
-      <div class="hero-devices">
+  <section class="relative -mt-20 overflow-hidden px-6 pt-24 pb-18 max-md:px-5 max-md:pt-20 max-md:pb-16">
+    <div class="relative mx-auto max-w-4xl">
+      <div class="mx-auto w-full max-w-xl max-md:max-w-[26rem]">
         <DeviceShowcase
           laptopAlt="Teak inspiration library on a MacBook"
           laptopSrc="/home-showcase/designer-mac.webp"
@@ -87,13 +87,13 @@ const jsonLd = buildPageSchemas({
         />
       </div>
 
-      <div class="hero-copy">
-        <h1>Never lose that perfect design again.</h1>
-        <p class="hero-description">
+      <div class="mx-auto flex max-w-[44rem] flex-col items-center text-center">
+        <h1 class="mt-11 max-w-xl text-[clamp(2.125rem,4.4vw,3.125rem)] leading-[1.04] font-bold tracking-[-0.04em] text-balance max-md:mt-8">Never lose that perfect design again.</h1>
+        <p class="mx-auto mt-4 mb-6 max-w-xl text-base leading-[1.6] text-balance text-muted-foreground">
           Save inspiration in one click, find it in seconds, and keep every
           useful idea ready for the moment you need it.
         </p>
-        <a class="hero-primary" href="https://app.teakvault.com/register" rel="noopener noreferrer" target="_blank">Start free</a>
+        <a class="inline-flex h-10 items-center justify-center rounded-full bg-primary px-7 text-sm font-medium whitespace-nowrap text-primary-foreground no-underline transition-colors hover:bg-primary/90" href="https://app.teakvault.com/register" rel="noopener noreferrer" target="_blank">Start free</a>
       </div>
     </div>
   </section>
@@ -101,24 +101,25 @@ const jsonLd = buildPageSchemas({
   <HomeFeatureShowcase />
 
   <!-- Testimonials Section -->
-  <section class="testimonials">
-    <div class="testimonials-inner">
-      <div class="testimonials-header">
-        <h2>
+  <section class="border-t border-border px-6 pt-18 pb-20 max-md:px-5 max-md:pt-14 max-md:pb-16">
+    <div class="mx-auto max-w-[62rem]">
+      <div class="mb-10 text-center">
+        <h2 class="mb-2.5 text-[1.375rem] leading-[1.2] font-bold tracking-[-0.025em] text-balance">
           Designers are quietly switching
         </h2>
-        <p>
+        <p class="mx-auto max-w-lg text-[0.9375rem] leading-[1.6] text-balance text-muted-foreground">
           Straight from people who save with Teak every day.
         </p>
       </div>
 
-      <div class="testimonials-grid">
+      <div class="grid grid-cols-1 gap-4 min-[561px]:grid-cols-2 min-[861px]:grid-cols-3">
         {testimonials.map((testimonial) => (
-          <figure class="testimonial-card">
-            <blockquote>
+          <figure class="m-0 flex flex-col justify-between gap-5 rounded-[0.875rem] border border-border bg-card p-5">
+            <blockquote class="m-0 text-[0.8125rem] leading-[1.65] text-pretty text-card-foreground">
               {testimonial.quote}
             </blockquote>
             <svg
+              class="size-3.5 text-muted-foreground opacity-60"
               viewBox="0 0 24 24"
               fill="currentColor"
               aria-hidden="true"
@@ -131,153 +132,3 @@ const jsonLd = buildPageSchemas({
     </div>
   </section>
 </MarketingLayout>
-
-<style>
-  .home-hero {
-    position: relative;
-    overflow: hidden;
-    margin-top: -5rem;
-    padding: 6rem 1.5rem 4.5rem;
-    color: var(--foreground);
-  }
-
-  .hero-inner {
-    position: relative;
-    max-width: 56rem;
-    margin: 0 auto;
-  }
-
-  .hero-devices {
-    width: min(100%, 42rem);
-    margin: 0 auto;
-  }
-
-  .hero-copy {
-    display: flex;
-    max-width: 44rem;
-    margin: 0 auto;
-    align-items: center;
-    flex-direction: column;
-    text-align: center;
-  }
-
-  .hero-copy h1 {
-    max-width: 36rem;
-    margin: 2.75rem 0 0;
-    font-size: clamp(2.125rem, 4.4vw, 3.125rem);
-    font-weight: 700;
-    letter-spacing: -0.04em;
-    line-height: 1.04;
-    text-wrap: balance;
-  }
-
-  .hero-description {
-    max-width: 36rem;
-    margin: 1rem auto 1.5rem;
-    color: var(--muted-foreground);
-    font-size: 1rem;
-    line-height: 1.6;
-    text-wrap: balance;
-  }
-
-  .hero-primary {
-    display: inline-flex;
-    height: 2.5rem;
-    align-items: center;
-    justify-content: center;
-    border-radius: 9999px;
-    padding: 0 1.75rem;
-    background: var(--primary);
-    color: var(--primary-foreground);
-    font-size: 0.875rem;
-    font-weight: 500;
-    text-decoration: none;
-    transition: background-color 160ms ease;
-    white-space: nowrap;
-  }
-
-  .hero-primary:hover {
-    background: color-mix(in oklch, var(--primary) 90%, transparent);
-  }
-
-  .testimonials {
-    border-top: 1px solid var(--border);
-    padding: 4.5rem 1.5rem 5rem;
-  }
-
-  .testimonials-inner {
-    max-width: 62rem;
-    margin: 0 auto;
-  }
-
-  .testimonials-header {
-    margin-bottom: 2.5rem;
-    text-align: center;
-  }
-
-  .testimonials-header h2 {
-    margin: 0 0 0.625rem;
-    font-size: 1.375rem;
-    font-weight: 700;
-    letter-spacing: -0.025em;
-    line-height: 1.2;
-    text-wrap: balance;
-  }
-
-  .testimonials-header p {
-    margin: 0 auto;
-    max-width: 32rem;
-    color: var(--muted-foreground);
-    font-size: 0.9375rem;
-    line-height: 1.6;
-    text-wrap: balance;
-  }
-
-  .testimonials-grid {
-    display: grid;
-    gap: 1rem;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-  }
-
-  .testimonial-card {
-    display: flex;
-    flex-direction: column;
-    justify-content: space-between;
-    gap: 1.25rem;
-    border: 1px solid var(--border);
-    border-radius: 0.875rem;
-    background: var(--card);
-    margin: 0;
-    padding: 1.25rem;
-  }
-
-  .testimonial-card blockquote {
-    margin: 0;
-    color: var(--card-foreground);
-    font-size: 0.8125rem;
-    line-height: 1.65;
-    text-wrap: pretty;
-  }
-
-  .testimonial-card svg {
-    width: 0.875rem;
-    height: 0.875rem;
-    color: var(--muted-foreground);
-    opacity: 0.6;
-  }
-
-  @media (max-width: 860px) {
-    .testimonials-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  }
-
-  @media (max-width: 720px) {
-    .home-hero { padding: 5rem 1.25rem 4rem; }
-    .hero-devices { width: min(100%, 30rem); }
-    .hero-copy h1 { margin-top: 2rem; }
-  }
-
-  @media (max-width: 560px) {
-    .testimonials { padding: 3.5rem 1.25rem 4rem; }
-    .testimonials-grid { grid-template-columns: 1fr; }
-  }
-</style>

@@ -84,19 +84,27 @@ const stories = [
 ] as const;
 ---
 
-<section class="feature-showcase" aria-label="Teak workflow">
-  <ol class="story-list">
+<section class="px-6 pt-6 pb-20 max-[800px]:px-5 max-[800px]:pt-4 max-[800px]:pb-16 max-[520px]:overflow-hidden" aria-label="Teak workflow">
+  <ol class="mx-auto grid max-w-[62rem] list-none gap-22 p-0 max-[800px]:gap-16">
     {stories.map((story, index) => (
-      <li class:list={["story", { reverse: index % 2 === 0 }]}>
-        <div class="story-copy">
-          <p class="story-eyebrow">{story.eyebrow}</p>
-          <h3>{story.title}</h3>
-          <p class="story-description">{story.description}</p>
-          <div class="story-actions">
-            <a class="register-button" href="https://app.teakvault.com/register" rel="noopener noreferrer" target="_blank">Register</a>
-            <a class="story-link" href={story.href}>
+      <li
+        class:list={[
+          "grid items-center gap-[clamp(2.5rem,6vw,4.5rem)] max-[800px]:grid-cols-1 max-[800px]:gap-7",
+          {
+            "min-[801px]:[grid-template-columns:minmax(0,1.1fr)_minmax(0,0.9fr)]": index % 2 === 0,
+            "min-[801px]:[grid-template-columns:minmax(0,0.9fr)_minmax(0,1.1fr)]": index % 2 !== 0,
+          },
+        ]}
+      >
+        <div class:list={["max-w-sm", "max-[800px]:max-w-xl", { "order-2": index % 2 === 0 }]}>
+          <p class="mb-3.5 text-[0.6875rem] leading-[1.4] font-semibold tracking-[0.08em] text-muted-foreground uppercase">{story.eyebrow}</p>
+          <h3 class="mb-3.5 text-[clamp(1.5rem,2.8vw,1.875rem)] leading-[1.12] font-bold tracking-[-0.03em] text-balance">{story.title}</h3>
+          <p class="mb-5 text-sm leading-[1.65] text-muted-foreground">{story.description}</p>
+          <div class="flex flex-wrap gap-2">
+            <a class="inline-flex h-10 items-center justify-center gap-2 rounded-full bg-primary px-6 text-sm font-medium whitespace-nowrap text-primary-foreground no-underline transition-colors hover:bg-primary/90" href="https://app.teakvault.com/register" rel="noopener noreferrer" target="_blank">Register</a>
+            <a class="group inline-flex h-10 items-center justify-center gap-2 rounded-full border border-border bg-background px-6 text-sm font-medium whitespace-nowrap text-foreground no-underline transition-colors hover:bg-accent hover:text-accent-foreground" href={story.href}>
               {story.linkLabel}
-              <span aria-hidden="true">↗</span>
+              <span class="motion-safe:transition-transform motion-safe:duration-180 motion-safe:group-hover:translate-x-[2px] motion-safe:group-hover:-translate-y-[2px]" aria-hidden="true">↗</span>
             </a>
           </div>
         </div>
@@ -123,105 +131,6 @@ const stories = [
 </section>
 
 <style>
-  .feature-showcase {
-    padding: 1.5rem 1.5rem 5rem;
-  }
-
-  .story-list {
-    display: grid;
-    max-width: 62rem;
-    margin: 0 auto;
-    padding: 0;
-    gap: 5.5rem;
-    list-style: none;
-  }
-
-  .story {
-    display: grid;
-    grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr);
-    align-items: center;
-    gap: clamp(2.5rem, 6vw, 4.5rem);
-  }
-
-  .story.reverse .story-copy {
-    order: 2;
-  }
-
-  .story.reverse {
-    grid-template-columns: minmax(0, 1.1fr) minmax(0, 0.9fr);
-  }
-
-  .story-copy {
-    max-width: 24rem;
-  }
-
-  .story-eyebrow {
-    margin: 0 0 0.875rem;
-    color: var(--muted-foreground);
-    font-size: 0.6875rem;
-    font-weight: 600;
-    letter-spacing: 0.08em;
-    line-height: 1.4;
-    text-transform: uppercase;
-  }
-
-  .story-copy h3 {
-    margin: 0 0 0.875rem;
-    font-size: clamp(1.5rem, 2.8vw, 1.875rem);
-    font-weight: 700;
-    letter-spacing: -0.03em;
-    line-height: 1.12;
-    text-wrap: balance;
-  }
-
-  .story-description {
-    margin: 0 0 1.25rem;
-    color: var(--muted-foreground);
-    font-size: 0.875rem;
-    line-height: 1.65;
-  }
-
-  .story-actions {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 0.5rem;
-  }
-
-  .story-actions a {
-    display: inline-flex;
-    height: 2.5rem;
-    align-items: center;
-    justify-content: center;
-    border-radius: 9999px;
-    padding: 0 1.5rem;
-    font-size: 0.875rem;
-    font-weight: 500;
-    gap: 0.5rem;
-    white-space: nowrap;
-    text-decoration: none;
-    transition: background-color 160ms ease, border-color 160ms ease, color 160ms ease;
-  }
-
-  .register-button {
-    background: var(--primary);
-    color: var(--primary-foreground);
-  }
-
-  .register-button:hover {
-    background: color-mix(in oklch, var(--primary) 90%, transparent);
-  }
-
-  .story-link {
-    border: 1px solid var(--border);
-    background: var(--background);
-    color: var(--foreground);
-  }
-
-  .story-link:hover {
-    background: var(--accent);
-    color: var(--accent-foreground);
-  }
-
   .feature-visual {
     position: relative;
     min-height: 22rem;
@@ -316,16 +225,10 @@ const stories = [
   }
 
   @media (max-width: 800px) {
-    .feature-showcase { padding: 1rem 1.25rem 4rem; }
-    .story-list { gap: 4rem; }
-    .story { grid-template-columns: 1fr; gap: 1.75rem; }
-    .story.reverse { grid-template-columns: 1fr; }
-    .story-copy { max-width: 36rem; }
     .feature-visual { min-height: 21rem; }
   }
 
   @media (max-width: 520px) {
-    .feature-showcase { overflow: hidden; padding-inline: 1.25rem; }
     .feature-visual { min-height: 19rem; border-radius: 1rem; }
     .capture-visual { min-height: 0; }
     .save-visual > img,
@@ -336,8 +239,6 @@ const stories = [
   }
 
   @media (prefers-reduced-motion: no-preference) {
-    .story-link span { transition: transform 180ms ease; }
-    .story-link:hover span { transform: translate(2px, -2px); }
     .feature-visual > img { transition: transform 500ms cubic-bezier(0.2, 0.8, 0.2, 1); }
     .save-visual:hover > img,
     .search-visual:hover > img,

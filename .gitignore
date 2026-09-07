@@ -65,3 +65,4 @@ apps/mobile/build-*.ipa
 # security review handoff notes
 todo/
 .pi/
+.blume/
