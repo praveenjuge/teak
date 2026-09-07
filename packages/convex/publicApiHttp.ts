@@ -400,7 +400,7 @@ const enforceInvalidAuthLimit = async (ctx: any): Promise<Response | null> => {
   return null;
 };
 
-const withAuthorizedUser = async (
+export const withAuthorizedUser = async (
   ctx: any,
   request: Request,
   options: { chargeRateLimit?: boolean } = {}

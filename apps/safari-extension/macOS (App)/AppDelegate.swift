@@ -17,6 +17,18 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         }
     }
 
+    func application(_ application: NSApplication, open urls: [URL]) {
+        guard urls.contains(where: { $0.absoluteString == "teak-safari://connect" }) else { return }
+        application.activate(ignoringOtherApps: true)
+        for window in application.windows {
+            if let controller = window.contentViewController as? ViewController {
+                window.makeKeyAndOrderFront(nil)
+                controller.startSignIn()
+                return
+            }
+        }
+    }
+
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {
         return true
     }

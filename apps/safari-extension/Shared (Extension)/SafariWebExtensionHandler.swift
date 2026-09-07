@@ -5,6 +5,7 @@
 //  Created by Praveen Juge on 16/05/26.
 //
 
+import AppKit
 import SafariServices
 import os.log
 
@@ -58,7 +59,12 @@ class SafariWebExtensionHandler: NSObject, NSExtensionRequestHandling {
         case "getAuthState":
             return await TeakSafariService.shared.authState()
         case "startSignIn":
-            return await TeakSafariService.shared.startSignIn()
+            let opened = await MainActor.run {
+                NSWorkspace.shared.open(URL(string: "teak-safari://connect")!)
+            }
+            return opened
+                ? ["status": "opening-app"]
+                : ["status": "error", "message": "Open Teak for Safari from Applications to sign in."]
         case "saveCurrentPage":
             return await TeakSafariService.shared.saveCurrentPage(url: payload["url"] as? String)
         case "signOut":

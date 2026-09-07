@@ -14,6 +14,7 @@ export const V1_ENDPOINTS = [
   "POST /v1/cards/bulk",
   "GET /v1/cards/changes",
   "GET /v1/cards/search",
+  "GET /v1/cards/duplicate",
   "GET /v1/cards/favorites",
   "GET /v1/cards/:cardId",
   "PATCH /v1/cards/:cardId",

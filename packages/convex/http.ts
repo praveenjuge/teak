@@ -7,6 +7,8 @@ import {
 import { exchangeNativeAuthOptions, pollNativeAuthCode } from "./authNative";
 import { polar } from "./billing";
 import { mcpV1, oauthProtectedResourceV1 } from "./mcp/httpServer";
+import { revokeOAuthToken } from "./oauthRevocation";
+import { duplicateCardV1 } from "./publicApiDuplicate";
 import {
   bulkCardsV1,
   cardByIdV1,
@@ -194,6 +196,17 @@ http.route({
   pathPrefix: "/v1/cards/",
   method: "DELETE",
   handler: cardByIdV1,
+});
+
+http.route({
+  path: "/v1/cards/duplicate",
+  method: "GET",
+  handler: duplicateCardV1,
+});
+http.route({
+  path: "/api/oauth/revoke",
+  method: "POST",
+  handler: revokeOAuthToken,
 });
 
 export default http;

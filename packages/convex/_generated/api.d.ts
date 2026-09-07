@@ -81,9 +81,11 @@ import type * as markdownDocumentMigrationAction from "../markdownDocumentMigrat
 import type * as mcp_httpServer from "../mcp/httpServer.js";
 import type * as mcp_tools from "../mcp/tools.js";
 import type * as oauthClients from "../oauthClients.js";
+import type * as oauthRevocation from "../oauthRevocation.js";
 import type * as oauthSecurity from "../oauthSecurity.js";
 import type * as oauthTokens from "../oauthTokens.js";
 import type * as publicApi from "../publicApi.js";
+import type * as publicApiDuplicate from "../publicApiDuplicate.js";
 import type * as publicApiHttp from "../publicApiHttp.js";
 import type * as publicApiMeta from "../publicApiMeta.js";
 import type * as publicApiOpenApi from "../publicApiOpenApi.js";
@@ -251,9 +253,11 @@ declare const fullApi: ApiFromModules<{
   "mcp/httpServer": typeof mcp_httpServer;
   "mcp/tools": typeof mcp_tools;
   oauthClients: typeof oauthClients;
+  oauthRevocation: typeof oauthRevocation;
   oauthSecurity: typeof oauthSecurity;
   oauthTokens: typeof oauthTokens;
   publicApi: typeof publicApi;
+  publicApiDuplicate: typeof publicApiDuplicate;
   publicApiHttp: typeof publicApiHttp;
   publicApiMeta: typeof publicApiMeta;
   publicApiOpenApi: typeof publicApiOpenApi;

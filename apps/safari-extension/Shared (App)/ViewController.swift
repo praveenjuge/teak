@@ -5,16 +5,17 @@
 //  Created by Praveen Juge on 16/05/26.
 //
 
+import AuthenticationServices
 import WebKit
 import Cocoa
 import SafariServices
 
 let extensionBundleIdentifier = "com.praveenjuge.teak-safari.Extension"
 
-class ViewController: NSViewController, WKNavigationDelegate, WKScriptMessageHandler {
+class ViewController: NSViewController, WKNavigationDelegate, WKScriptMessageHandler, ASWebAuthenticationPresentationContextProviding {
 
     @IBOutlet var webView: WKWebView!
-    private var authPollTimer: Timer?
+    private var authenticationSession: ASWebAuthenticationSession?
 
     override func viewDidLoad() {
         super.viewDidLoad()
@@ -72,49 +73,50 @@ class ViewController: NSViewController, WKNavigationDelegate, WKScriptMessageHan
         }
     }
 
-    private func startSignIn() {
-        Task { @MainActor in
-            let response = await TeakSafariService.shared.startSignIn()
-            renderAccountState([
-                "authenticated": false,
-                "status": "waiting",
-                "message": "Complete sign in in your browser.",
-            ])
-
-            if let authURL = response["authUrl"] as? String, let url = URL(string: authURL) {
-                openExternalURL(url)
-                startAuthPolling()
-            } else {
-                renderAccountState(response)
+    func startSignIn() {
+        guard authenticationSession == nil else { return }
+        do {
+            let pending = try SafariOAuthRequest()
+            let session = ASWebAuthenticationSession(
+                url: pending.authorizationURL(baseURL: TeakSafariService.appBaseURL),
+                callback: .customScheme("teak-safari")
+            ) { [weak self] callback, error in
+                Task { @MainActor in
+                    guard let self else { return }
+                    self.authenticationSession = nil
+                    guard let callback, error == nil else {
+                        self.renderAccountState([
+                            "authenticated": false,
+                            "message": "Sign-in was cancelled. You can try again.",
+                        ])
+                        return
+                    }
+                    let state = await TeakSafariService.shared.completeSignIn(pending, callback: callback)
+                    self.renderAccountState(state)
+                }
             }
+            session.presentationContextProvider = self
+            authenticationSession = session
+            renderAccountState(["status": "waiting", "message": "Approve Teak Safari in your browser."])
+            if !session.start() {
+                authenticationSession = nil
+                renderAccountState(["message": "Unable to open sign in. Please try again."])
+            }
+        } catch {
+            renderAccountState(["message": error.localizedDescription])
         }
+    }
+
+    func presentationAnchor(for session: ASWebAuthenticationSession) -> ASPresentationAnchor {
+        view.window ?? ASPresentationAnchor()
     }
 
     private func signOut() {
+        authenticationSession?.cancel()
+        authenticationSession = nil
         Task { @MainActor in
-            authPollTimer?.invalidate()
             let state = await TeakSafariService.shared.signOut()
             renderAccountState(state)
-        }
-    }
-
-    private func startAuthPolling() {
-        authPollTimer?.invalidate()
-        authPollTimer = Timer.scheduledTimer(withTimeInterval: 2, repeats: true) { [weak self] timer in
-            Task { @MainActor in
-                guard let self else {
-                    timer.invalidate()
-                    return
-                }
-
-                let state = await TeakSafariService.shared.authState()
-                self.renderAccountState(state)
-
-                if state["authenticated"] as? Bool == true {
-                    timer.invalidate()
-                    self.authPollTimer = nil
-                }
-            }
         }
     }
 
@@ -127,10 +129,6 @@ class ViewController: NSViewController, WKNavigationDelegate, WKScriptMessageHan
         }
 
         webView.evaluateJavaScript("renderAccountState(\(json))")
-    }
-
-    private func openExternalURL(_ url: URL) {
-        NSWorkspace.shared.open(url)
     }
 
     private func openSafariExtensionPreferences() {

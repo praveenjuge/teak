@@ -548,6 +548,37 @@ export const openApiSpec = {
         summary: "List card changes since a timestamp",
       },
     },
+    "/v1/cards/duplicate": {
+      get: {
+        summary: "Find a non-deleted card by exact URL",
+        security: apiKeySecurity,
+        parameters: [
+          {
+            in: "query",
+            name: "url",
+            required: true,
+            schema: { type: "string", format: "uri", maxLength: 8192 },
+          },
+        ],
+        responses: {
+          200: {
+            description: "Matching card ID, or null",
+            content: {
+              "application/json": {
+                schema: {
+                  type: "object",
+                  required: ["cardId"],
+                  properties: { cardId: { type: "string", nullable: true } },
+                },
+              },
+            },
+          },
+          400: { description: "Invalid URL" },
+          401: { description: "Invalid or revoked credentials" },
+          429: { description: "Rate limit exceeded" },
+        },
+      },
+    },
     "/v1/cards/search": {
       get: {
         parameters: [
