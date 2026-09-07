@@ -44,6 +44,14 @@ const saveCurrentPage = async () => {
   setState("checking", "Teak", "Checking session...");
 
   const authState = await sendNative({ type: "getAuthState" });
+  if (authState.status === "error") {
+    setState(
+      "error",
+      "Unable to connect",
+      authState.message || "Please try again."
+    );
+    return;
+  }
   if (authState.authenticated !== true) {
     setState("signed-out", "Sign in to Teak", "Sign in to save pages.");
     return;
@@ -92,8 +100,7 @@ const startSignIn = async () => {
   setState("checking", "Opening Teak", "Complete sign in.");
   const response = await sendNative({ type: "startSignIn" });
 
-  if (response.authUrl) {
-    await browser.tabs.create({ url: response.authUrl });
+  if (response.status === "opening-app") {
     setState("checking", "Finish sign in", "Return here after signing in.");
     return;
   }
@@ -107,7 +114,12 @@ const startSignIn = async () => {
 
 const signOut = async () => {
   setState("checking", "Signing out", "Clearing session...");
-  await sendNative({ type: "signOut" });
+  const response = await sendNative({ type: "signOut" });
+  if (response.status !== "signed-out") {
+    throw new Error(
+      response.message || "Could not sign out. Please try again."
+    );
+  }
   setState("signed-out", "Signed out", "Sign in to save pages.");
 };
 

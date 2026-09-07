@@ -388,6 +388,16 @@ export const createAuth = (ctx: GenericCtx<DataModel>) => {
               ],
             },
             {
+              clientId: "teak-safari",
+              clientSecret: "",
+              type: "public",
+              name: "Teak Safari",
+              disabled: false,
+              skipConsent: false,
+              metadata: null,
+              redirectUrls: ["teak-safari://oauth/callback"],
+            },
+            {
               clientId: "teak-cli",
               clientSecret: "",
               type: "public",

@@ -6,7 +6,7 @@ const runHandler = (fn: any, ctx: any, args: any) =>
   (fn.handler ?? fn)(ctx, args);
 
 describe("ensureOAuthClients", () => {
-  test("creates both first-party clients when none exist", async () => {
+  test("creates all first-party clients when none exist", async () => {
     const runQuery = mock().mockResolvedValue(null);
     const runMutation = mock().mockResolvedValue(undefined);
 
@@ -16,8 +16,8 @@ describe("ensureOAuthClients", () => {
       {}
     );
 
-    expect(result).toMatchObject({ created: 3, updated: 0 });
-    expect(runMutation).toHaveBeenCalledTimes(3);
+    expect(result).toMatchObject({ created: 4, updated: 0 });
+    expect(runMutation).toHaveBeenCalledTimes(4);
 
     const first = runMutation.mock.calls[0][1];
     expect(first.input.model).toBe("oauthApplication");
@@ -38,7 +38,7 @@ describe("ensureOAuthClients", () => {
       {}
     );
 
-    expect(result).toMatchObject({ created: 0, updated: 3 });
+    expect(result).toMatchObject({ created: 0, updated: 4 });
     expect(runMutation.mock.calls[0][1].input.update.type).toBe("public");
     expect(runMutation.mock.calls[0][1].input.update).not.toHaveProperty(
       "skipConsent"
@@ -55,6 +55,18 @@ describe("ensureOAuthClients", () => {
       "http://127.0.0.1:14203/oauth/callback",
       "http://127.0.0.1:24203/oauth/callback",
     ]);
+  });
+
+  test("seeds Safari as a public client with an exact callback", () => {
+    expect(
+      FIRST_PARTY_OAUTH_CLIENTS.find(
+        (client) => client.clientId === "teak-safari"
+      )
+    ).toEqual({
+      clientId: "teak-safari",
+      name: "Teak Safari",
+      redirectUrls: ["teak-safari://oauth/callback"],
+    });
   });
 
   test("seeds teak-cli with both loopback callback ports", () => {

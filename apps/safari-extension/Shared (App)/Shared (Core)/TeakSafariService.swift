@@ -1,401 +1,201 @@
-import CryptoKit
+import Darwin
 import Foundation
-import Security
 
-final class TeakSafariService {
+actor TeakSafariService {
     static let shared = TeakSafariService()
-
     #if DEBUG
-    private let appBaseURL = URL(string: "http://app.teak.localhost:1355")!
-    private let convexSiteURL = URL(string: "https://reminiscent-kangaroo-59.convex.site")!
-    private let convexDeploymentURL = URL(string: "https://reminiscent-kangaroo-59.convex.cloud")!
+    static let appBaseURL = URL(string: "http://app.teak.localhost:1355")!
+    private static let siteURL = URL(string: "https://reminiscent-kangaroo-59.convex.site")!
     #else
-    private let appBaseURL = URL(string: "https://app.teakvault.com")!
-    private let convexSiteURL = URL(string: "https://uncommon-ladybug-882.convex.site")!
-    private let convexDeploymentURL = URL(string: "https://uncommon-ladybug-882.convex.cloud")!
+    static let appBaseURL = URL(string: "https://app.teakvault.com")!
+    private static let siteURL = URL(string: "https://uncommon-ladybug-882.convex.site")!
     #endif
-    private let appGroupIdentifier = "group.com.praveenjuge.teak-safari"
-    private let keychainAccessGroup = "LW385M78LW.com.praveenjuge.teak-safari"
-    private let keychainService = "com.praveenjuge.teak-safari.session"
-    private let sessionAccount = "better-auth-session-token"
-    private let pendingAuthKey = "teak.pendingNativeAuth"
-    private let session = URLSession(configuration: .ephemeral)
 
-    private init() {}
+    private let session: URLSession
+    private let credentials: any SafariCredentialStorage
+    private let apiURL: URL
+    private let lockURL: URL?
 
-    func authState() async -> [String: Any] {
-        if let token = loadSessionToken(), !token.isEmpty {
-            return ["authenticated": true]
-        }
-
-        if await pollPendingAuth() {
-            return ["authenticated": true]
-        }
-
-        return ["authenticated": false]
+    init(session: URLSession = URLSession(configuration: .ephemeral),
+         credentials: any SafariCredentialStorage = SafariCredentialStore(),
+         apiURL: URL = TeakSafariService.siteURL,
+         lockURL: URL? = FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: SafariCredentialStore.group)?.appendingPathComponent("oauth-credentials.lock")) {
+        self.session = session
+        self.credentials = credentials
+        self.apiURL = apiURL
+        self.lockURL = lockURL
     }
 
-    func startSignIn() async -> [String: Any] {
+    // Both the app and extension can refresh. Hold a process-shared lock across
+    // read/refresh/write so rotating a refresh token can never be replayed.
+    private func withCredentials<T>(_ operation: () async throws -> T) async throws -> T {
+        guard let lockURL else { throw SafariServiceError.message("Unable to access Teak's shared storage.") }
+        let descriptor = open(lockURL.path, O_CREAT | O_RDWR | O_NOFOLLOW, S_IRUSR | S_IWUSR)
+        guard descriptor >= 0 else { throw SafariServiceError.message("Unable to access Teak's shared storage.") }
+        defer { close(descriptor) }
+        let deadline = Date().addingTimeInterval(35)
+        while flock(descriptor, LOCK_EX | LOCK_NB) != 0 {
+            guard errno == EWOULDBLOCK, Date() < deadline else {
+                throw SafariServiceError.message("Teak is busy. Please try again.")
+            }
+            try await Task.sleep(nanoseconds: 50_000_000)
+        }
+        defer { flock(descriptor, LOCK_UN) }
+        return try await operation()
+    }
+
+    func authState() async -> [String: Any] {
         do {
-            let pending = try PendingNativeAuth(
-                deviceId: UUID().uuidString,
-                codeVerifier: Self.randomBase64URL(byteCount: 32),
-                state: Self.randomBase64URL(byteCount: 24),
-                surface: Self.currentSurface,
-                createdAt: Date().timeIntervalSince1970
-            )
-            try savePendingAuth(pending)
-
-            var components = URLComponents(
-                url: appBaseURL.appendingPathComponent("/native/auth/start"),
-                resolvingAgainstBaseURL: false
-            )!
-            components.queryItems = [
-                URLQueryItem(name: "device_id", value: pending.deviceId),
-                URLQueryItem(name: "code_challenge", value: try Self.codeChallenge(for: pending.codeVerifier)),
-                URLQueryItem(name: "state", value: pending.state),
-                URLQueryItem(name: "surface", value: pending.surface),
-                URLQueryItem(
-                    name: "redirect_uri",
-                    value: appBaseURL.appendingPathComponent("/native/auth/complete").absoluteString
-                ),
-            ]
-
-            return [
-                "status": "auth-url",
-                "authenticated": false,
-                "authUrl": components.url!.absoluteString,
-            ]
+            return try await withCredentials {
+                guard try self.credentials.load() != nil else {
+                    return ["authenticated": false, "message": "Connect Teak Safari to save pages."]
+                }
+                let token = try await self.accessToken()
+                var request = URLRequest(url: self.apiURL.appendingPathComponent("api/auth/mcp/get-session"))
+                request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+                let (data, response) = try await self.send(request)
+                guard response.statusCode == 200 || response.statusCode == 401 else {
+                    throw SafariServiceError.message("Unable to verify your Teak connection. Please try again.")
+                }
+                let body = try JSONSerialization.jsonObject(with: data, options: .fragmentsAllowed)
+                if response.statusCode == 401 || body is NSNull {
+                    try self.credentials.clear()
+                    throw SafariServiceError.unauthenticated
+                }
+                guard let account = body as? [String: Any], account["userId"] is String,
+                      account["clientId"] as? String == SafariOAuthRequest.clientID else {
+                    throw SafariServiceError.message("Teak returned an invalid connection response.")
+                }
+                return ["authenticated": true]
+            }
+        } catch SafariServiceError.unauthenticated {
+            return ["authenticated": false]
         } catch {
             return errorResponse(error)
         }
+    }
+
+    func completeSignIn(_ pending: SafariOAuthRequest, callback: URL) async -> [String: Any] {
+        do {
+            let code = try pending.authorizationCode(from: callback)
+            return try await withCredentials {
+                let tokens = try await self.exchange([
+                    "grant_type": "authorization_code", "code": code,
+                    "code_verifier": pending.verifier, "redirect_uri": SafariOAuthRequest.callback,
+                ])
+                try self.credentials.save(tokens)
+                return ["authenticated": true, "status": "connected"]
+            }
+        } catch { return errorResponse(error) }
     }
 
     func signOut() async -> [String: Any] {
-        let token = loadSessionToken()
-        clearSessionToken()
-        clearPendingAuth()
-
-        if let token, !token.isEmpty {
-            var request = URLRequest(url: convexSiteURL.appendingPathComponent("/api/auth/sign-out"))
-            request.httpMethod = "POST"
-            request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
-            _ = try? await session.data(for: request)
-        }
-
-        return ["status": "signed-out", "authenticated": false]
+        do {
+            return try await withCredentials {
+                if let tokens = try self.credentials.load() {
+                    // Keep the credential on transient failures so sign-out can
+                    // be retried and we do not strand an active connection.
+                    var request = URLRequest(url: self.apiURL.appendingPathComponent("api/oauth/revoke"))
+                    request.httpMethod = "POST"
+                    request.setValue("application/x-www-form-urlencoded", forHTTPHeaderField: "Content-Type")
+                    request.httpBody = SafariOAuthRequest.formBody([
+                        "client_id": SafariOAuthRequest.clientID, "token": tokens.refreshToken,
+                        "token_type_hint": "refresh_token",
+                    ])
+                    let (_, response) = try await self.send(request)
+                    guard response.statusCode == 200 else {
+                        throw SafariServiceError.message("Could not disconnect Teak. Please try again.")
+                    }
+                }
+                try self.credentials.clear()
+                return ["status": "signed-out", "authenticated": false]
+            }
+        } catch { return errorResponse(error) }
     }
 
     func saveCurrentPage(url rawURL: String?) async -> [String: Any] {
-        guard let rawURL, let pageURL = Self.validPageURL(rawURL) else {
-            return [
-                "status": "invalid-url",
-                "message": "This page cannot be saved to Teak.",
-            ]
+        guard let rawURL, let pageURL = URL(string: rawURL),
+              ["http", "https"].contains(pageURL.scheme?.lowercased()), pageURL.host != nil else {
+            return ["status": "invalid-url", "message": "This page cannot be saved to Teak."]
         }
-
-        if loadSessionToken() == nil, await pollPendingAuth() == false {
-            return [
-                "status": "unauthenticated",
-                "message": "Sign in to Teak to save pages.",
-            ]
-        }
-
-        guard let sessionToken = loadSessionToken() else {
-            return [
-                "status": "unauthenticated",
-                "message": "Sign in to Teak to save pages.",
-            ]
-        }
-
         do {
-            let convexToken = try await fetchConvexToken(sessionToken: sessionToken)
-            let normalizedURL = pageURL.absoluteString
-            let duplicate = try await callConvex(
-                endpoint: "query",
-                path: "cards:findDuplicateCard",
-                args: ["url": normalizedURL],
-                token: convexToken
-            )
-
-            if !(duplicate is NSNull) {
-                return ["status": "duplicate"]
+            return try await withCredentials {
+                let token = try await self.accessToken()
+                var lookup = URLComponents(url: self.apiURL.appendingPathComponent("v1/cards/duplicate"), resolvingAgainstBaseURL: false)!
+                lookup.queryItems = [URLQueryItem(name: "url", value: pageURL.absoluteString)]
+                let duplicate = try await self.apiRequest(URLRequest(url: lookup.url!), token: token)
+                if duplicate["cardId"] is String { return ["status": "duplicate"] }
+                var request = URLRequest(url: self.apiURL.appendingPathComponent("v1/cards"))
+                request.httpMethod = "POST"
+                request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+                request.setValue(UUID().uuidString, forHTTPHeaderField: "Idempotency-Key")
+                request.httpBody = try JSONSerialization.data(withJSONObject: ["url": pageURL.absoluteString])
+                let result = try await self.apiRequest(request, token: token)
+                guard let cardID = result["cardId"] as? String else {
+                    throw SafariServiceError.message("Teak returned an invalid save response.")
+                }
+                return ["status": "saved", "cardId": cardID]
             }
-
-            let cardId = try await callConvex(
-                endpoint: "mutation",
-                path: "cards:createCard",
-                args: ["content": normalizedURL],
-                token: convexToken
-            )
-
-            return [
-                "status": "saved",
-                "cardId": String(describing: cardId),
-            ]
-        } catch ServiceError.unauthenticated {
-            clearSessionToken()
-            return [
-                "status": "unauthenticated",
-                "message": "Sign in to Teak to save pages.",
-            ]
-        } catch {
-            return errorResponse(error)
-        }
+        } catch SafariServiceError.unauthenticated {
+            return ["status": "unauthenticated", "message": "Sign in to Teak to save pages."]
+        } catch { return errorResponse(error) }
     }
 
-    private func pollPendingAuth() async -> Bool {
-        guard let pending = loadPendingAuth() else {
-            return false
-        }
-
-        if Date().timeIntervalSince1970 - pending.createdAt > 300 {
-            clearPendingAuth()
-            return false
-        }
-
+    private func accessToken() async throws -> String {
+        guard let tokens = try credentials.load() else { throw SafariServiceError.unauthenticated }
+        if tokens.expiresAt.timeIntervalSinceNow > 60 { return tokens.accessToken }
         do {
-            var request = URLRequest(url: convexSiteURL.appendingPathComponent("/api/native/auth/poll"))
-            request.httpMethod = "POST"
-            request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-            request.httpBody = try JSONEncoder().encode([
-                "codeVerifier": pending.codeVerifier,
-                "deviceId": pending.deviceId,
-                "state": pending.state,
-            ])
-
-            let (data, response) = try await session.data(for: request)
-            guard let httpResponse = response as? HTTPURLResponse else {
-                return false
-            }
-
-            if httpResponse.statusCode == 204 {
-                return false
-            }
-
-            guard httpResponse.statusCode == 200 else {
-                return false
-            }
-
-            let payload = try JSONSerialization.jsonObject(with: data) as? [String: Any]
-            guard let sessionToken = payload?["sessionToken"] as? String, !sessionToken.isEmpty else {
-                return false
-            }
-
-            try saveSessionToken(sessionToken)
-            clearPendingAuth()
-            return true
-        } catch {
-            return false
+            let refreshed = try await exchange(["grant_type": "refresh_token", "refresh_token": tokens.refreshToken])
+            try credentials.save(refreshed)
+            return refreshed.accessToken
+        } catch SafariServiceError.unauthenticated {
+            try credentials.clear()
+            throw SafariServiceError.unauthenticated
         }
     }
 
-    private func fetchConvexToken(sessionToken: String) async throws -> String {
-        var request = URLRequest(url: convexSiteURL.appendingPathComponent("/api/auth/convex/token"))
-        request.httpMethod = "GET"
-        request.setValue("Bearer \(sessionToken)", forHTTPHeaderField: "Authorization")
-
-        let (data, response) = try await session.data(for: request)
-        guard let httpResponse = response as? HTTPURLResponse else {
-            throw ServiceError.requestFailed("Unable to reach Teak.")
-        }
-
-        if httpResponse.statusCode == 401 || httpResponse.statusCode == 403 {
-            throw ServiceError.unauthenticated
-        }
-
-        guard (200..<300).contains(httpResponse.statusCode) else {
-            throw ServiceError.requestFailed("Unable to authenticate with Teak.")
-        }
-
-        let payload = try JSONSerialization.jsonObject(with: data) as? [String: Any]
-        guard let token = payload?["token"] as? String, !token.isEmpty else {
-            throw ServiceError.requestFailed("Teak returned an invalid auth token.")
-        }
-
-        return token
-    }
-
-    private func callConvex(
-        endpoint: String,
-        path: String,
-        args: [String: Any],
-        token: String
-    ) async throws -> Any {
-        var request = URLRequest(url: convexDeploymentURL.appendingPathComponent("/api/\(endpoint)"))
+    private func exchange(_ values: [String: String]) async throws -> SafariOAuthTokens {
+        var request = URLRequest(url: apiURL.appendingPathComponent("api/auth/mcp/token"))
         request.httpMethod = "POST"
-        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-            request.setValue("macos-safari-1.0", forHTTPHeaderField: "Convex-Client")
+        request.setValue("application/x-www-form-urlencoded", forHTTPHeaderField: "Content-Type")
+        request.httpBody = SafariOAuthRequest.formBody(values.merging(["client_id": SafariOAuthRequest.clientID]) { _, new in new })
+        let (data, response) = try await send(request)
+        if response.statusCode == 400 || response.statusCode == 401 {
+            let body = try? JSONSerialization.jsonObject(with: data) as? [String: Any]
+            if body?["error"] as? String == "invalid_grant" { throw SafariServiceError.unauthenticated }
+        }
+        guard response.statusCode == 200 else {
+            throw SafariServiceError.message("Unable to connect to Teak. Please try again.")
+        }
+        return try SafariOAuthTokens.decode(data)
+    }
+
+    private func apiRequest(_ original: URLRequest, token: String) async throws -> [String: Any] {
+        var request = original
         request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
-        request.httpBody = try JSONSerialization.data(withJSONObject: [
-            "path": path,
-            "format": "convex_encoded_json",
-            "args": [args],
-        ])
+        let (data, response) = try await send(request)
+        if response.statusCode == 401 {
+            try credentials.clear()
+            throw SafariServiceError.unauthenticated
+        }
+        let body = try JSONSerialization.jsonObject(with: data) as? [String: Any]
+        guard (200..<300).contains(response.statusCode), let body else {
+            throw SafariServiceError.message(body?["error"] as? String ?? "Unable to save this page. Please try again.")
+        }
+        return body
+    }
 
+    private func send(_ original: URLRequest) async throws -> (Data, HTTPURLResponse) {
+        var request = original
+        request.timeoutInterval = 15
         let (data, response) = try await session.data(for: request)
-        guard let httpResponse = response as? HTTPURLResponse else {
-            throw ServiceError.requestFailed("Unable to reach Teak.")
+        guard let http = response as? HTTPURLResponse else {
+            throw SafariServiceError.message("Unable to reach Teak.")
         }
-
-        if httpResponse.statusCode == 401 || httpResponse.statusCode == 403 {
-            throw ServiceError.unauthenticated
-        }
-
-        guard let payload = try JSONSerialization.jsonObject(with: data) as? [String: Any] else {
-            throw ServiceError.requestFailed("Teak returned an invalid response.")
-        }
-
-        if payload["status"] as? String == "success" {
-            return payload["value"] ?? NSNull()
-        }
-
-        if let message = payload["errorMessage"] as? String {
-            throw ServiceError.requestFailed(message)
-        }
-
-        if !(200..<300).contains(httpResponse.statusCode) {
-            throw ServiceError.requestFailed("Unable to save this page.")
-        }
-
-        throw ServiceError.requestFailed("Unable to save this page.")
-    }
-
-    private func saveSessionToken(_ token: String) throws {
-        guard let data = token.data(using: .utf8) else {
-            throw ServiceError.requestFailed("Unable to store session.")
-        }
-
-        clearSessionToken()
-
-        let query = keychainQuery().merging([
-            kSecAttrAccount as String: sessionAccount,
-            kSecValueData as String: data,
-            kSecAttrAccessible as String: kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly,
-        ]) { _, new in new }
-
-        let status = SecItemAdd(query as CFDictionary, nil)
-        guard status == errSecSuccess else {
-            throw ServiceError.requestFailed("Unable to store session.")
-        }
-    }
-
-    private func loadSessionToken() -> String? {
-        let query = keychainQuery().merging([
-            kSecAttrAccount as String: sessionAccount,
-            kSecReturnData as String: true,
-            kSecMatchLimit as String: kSecMatchLimitOne,
-        ]) { _, new in new }
-
-        var item: CFTypeRef?
-        let status = SecItemCopyMatching(query as CFDictionary, &item)
-        guard status == errSecSuccess, let data = item as? Data else {
-            return nil
-        }
-
-        return String(data: data, encoding: .utf8)
-    }
-
-    private func clearSessionToken() {
-        SecItemDelete(keychainQuery().merging([
-            kSecAttrAccount as String: sessionAccount,
-        ]) { _, new in new } as CFDictionary)
-    }
-
-    private func keychainQuery() -> [String: Any] {
-        var query: [String: Any] = [
-            kSecClass as String: kSecClassGenericPassword,
-            kSecAttrService as String: keychainService,
-            kSecAttrAccessGroup as String: keychainAccessGroup,
-        ]
-
-        if #available(macOS 10.15, *) {
-            query[kSecUseDataProtectionKeychain as String] = true
-        }
-
-        return query
-    }
-
-    private func savePendingAuth(_ pending: PendingNativeAuth) throws {
-        let data = try JSONEncoder().encode(pending)
-        defaults.set(data, forKey: pendingAuthKey)
-    }
-
-    private func loadPendingAuth() -> PendingNativeAuth? {
-        guard let data = defaults.data(forKey: pendingAuthKey) else {
-            return nil
-        }
-        return try? JSONDecoder().decode(PendingNativeAuth.self, from: data)
-    }
-
-    private func clearPendingAuth() {
-        defaults.removeObject(forKey: pendingAuthKey)
-    }
-
-    private var defaults: UserDefaults {
-        UserDefaults(suiteName: appGroupIdentifier) ?? .standard
+        return (data, http)
     }
 
     private func errorResponse(_ error: Error) -> [String: Any] {
-        [
-            "status": "error",
-            "message": error.localizedDescription,
-        ]
-    }
-
-    private static var currentSurface: String {
-        "safari-macos"
-    }
-
-    private static func validPageURL(_ rawURL: String) -> URL? {
-        guard let url = URL(string: rawURL), ["http", "https"].contains(url.scheme?.lowercased()) else {
-            return nil
-        }
-        return url
-    }
-
-    private static func codeChallenge(for verifier: String) throws -> String {
-        guard let data = verifier.data(using: .utf8) else {
-            throw ServiceError.requestFailed("Unable to prepare sign in.")
-        }
-        return base64URL(Data(SHA256.hash(data: data)))
-    }
-
-    private static func randomBase64URL(byteCount: Int) throws -> String {
-        var bytes = [UInt8](repeating: 0, count: byteCount)
-        let status = SecRandomCopyBytes(kSecRandomDefault, bytes.count, &bytes)
-        guard status == errSecSuccess else {
-            throw ServiceError.requestFailed("Unable to prepare sign in.")
-        }
-        return base64URL(Data(bytes))
-    }
-
-    private static func base64URL(_ data: Data) -> String {
-        data.base64EncodedString()
-            .replacingOccurrences(of: "+", with: "-")
-            .replacingOccurrences(of: "/", with: "_")
-            .replacingOccurrences(of: "=", with: "")
-    }
-}
-
-private struct PendingNativeAuth: Codable {
-    let deviceId: String
-    let codeVerifier: String
-    let state: String
-    let surface: String
-    let createdAt: TimeInterval
-}
-
-private enum ServiceError: LocalizedError {
-    case requestFailed(String)
-    case unauthenticated
-
-    var errorDescription: String? {
-        switch self {
-        case .requestFailed(let message):
-            return message
-        case .unauthenticated:
-            return "Sign in to Teak to save pages."
-        }
+        ["status": "error", "authenticated": (try? credentials.load()) != nil, "message": error.localizedDescription]
     }
 }

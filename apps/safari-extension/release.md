@@ -80,3 +80,19 @@ gh workflow run safari-extension-release.yml --ref main -f "version=$version" -f
 App Store Connect app: `6770003409`
 
 Bundle ID: `com.praveenjuge.teak-safari`
+
+
+## Connected apps readiness
+
+Before distributing the Safari OAuth update, deploy the backend changes and run
+`bunx convex run --prod oauthClients:debugOAuthClients` from `packages/convex`.
+Confirm `teak-safari` is enabled, public, and registered with the exact redirect
+`teak-safari://oauth/callback`. The existing client-registration cron provisions
+it; verify the stored result before distributing the app.
+
+Run `bash scripts/test-safari-oauth.sh` and
+`bun test apps/safari-extension/tests/companion.test.ts` from the repository root.
+The Convex Safari integration tests cover Connected apps, URL lookup, provider
+refresh, and revocation. Verify the signed app and Safari popup against the
+matching backend, including a save, duplicate save, restart, and disconnect.
+Existing Safari users reconnect once; no session backfill is required.

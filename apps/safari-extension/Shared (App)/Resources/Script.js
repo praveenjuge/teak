@@ -22,11 +22,14 @@ function show(platform, enabled, useSettingsInsteadOfPreferences) {
 
 // biome-ignore lint/correctness/noUnusedVariables: invoked by the native Safari host
 function renderAccountState(state) {
-  const authenticated = state.authenticated === true;
+  const authenticated =
+    typeof state.authenticated === "boolean"
+      ? state.authenticated
+      : document.body.classList.contains("signed-in");
   document.body.classList.toggle("signed-in", authenticated);
 
   if (authenticated) {
-    statusLabel.innerText = "Ready.";
+    statusLabel.innerText = state.message || "Ready.";
     return;
   }
 

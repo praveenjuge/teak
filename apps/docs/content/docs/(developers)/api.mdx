@@ -172,3 +172,12 @@ Errors keep a stable `{ code, error }` shape and can also include `requestId`, `
 ```
 
 Use the returned request ID when contacting [Support](/docs/support). For MCP tool contracts and JSON-RPC examples, continue to the dedicated [MCP guide](/docs/mcp).
+
+
+## Check for a saved URL
+
+`GET /v1/cards/duplicate?url=<encoded-url>` accepts the same bearer credentials as other card endpoints. It checks the exact URL against your non-deleted cards and returns `{ "cardId": "..." }`, or `{ "cardId": null }` when no match exists. The URL must use HTTP or HTTPS and be at most 8,192 characters. Invalid input returns 400; invalid or revoked credentials return 401.
+
+## Revoke an OAuth credential
+
+Native OAuth clients can send a form-encoded `POST` to the Convex site origin at `/api/oauth/revoke`, with `client_id` and `token` (an access or refresh token). Revocation invalidates the presented credential pair for that client. Unknown or already revoked tokens return 200, as do successful revocations. This endpoint does not accept API keys. Use **Connected apps** in Settings to revoke every connection for an app.

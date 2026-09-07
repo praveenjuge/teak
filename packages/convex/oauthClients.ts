@@ -43,6 +43,11 @@ export const FIRST_PARTY_OAUTH_CLIENTS: OAuthClientSeed[] = [
     ],
   },
   {
+    clientId: "teak-safari",
+    name: "Teak Safari",
+    redirectUrls: ["teak-safari://oauth/callback"],
+  },
+  {
     clientId: "teak-cli",
     name: "Teak CLI",
     redirectUrls: [
