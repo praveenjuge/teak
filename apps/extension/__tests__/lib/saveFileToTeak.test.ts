@@ -199,11 +199,9 @@ describe("extension file saving", () => {
     request.mockResolvedValueOnce(
       Response.json(
         {
-          error: {
-            message:
-              "Text card content must not exceed 512 KiB when encoded as UTF-8.",
-            code: "CONTENT_TOO_LARGE",
-          },
+          code: "CONTENT_TOO_LARGE",
+          error:
+            "Text card content must not exceed 512 KiB when encoded as UTF-8.",
         },
         { status: 400 }
       )

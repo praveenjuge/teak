@@ -76,10 +76,8 @@ describe("OAuth content saving", () => {
         request: async () =>
           Response.json(
             {
-              error: {
-                code: "CARD_LIMIT_REACHED",
-                message: "Your library is full.",
-              },
+              code: "CARD_LIMIT_REACHED",
+              error: "Your library is full.",
             },
             { status: 403 }
           ),
@@ -111,7 +109,7 @@ describe("OAuth content saving", () => {
   test("does not create a card when duplicate detection fails", async () => {
     const request = mock(async () =>
       Response.json(
-        { error: { message: "Try later", code: "RATE_LIMITED" } },
+        { code: "RATE_LIMITED", error: "Try later" },
         { status: 429 }
       )
     );

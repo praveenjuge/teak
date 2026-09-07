@@ -45,18 +45,23 @@ export async function restResult(
   if (!response) {
     return { status: "unauthenticated" };
   }
-  const data = await response.json();
+  const payload: unknown = await response.json();
+  const body: Record<string, unknown> =
+    typeof payload === "object" && payload !== null
+      ? (payload as Record<string, unknown>)
+      : {};
   if (!response.ok) {
     return {
       status: "error",
-      code: data.error?.code,
-      message: data.error?.message || "Could not save content.",
+      code: typeof body.code === "string" ? body.code : undefined,
+      message:
+        typeof body.error === "string" ? body.error : "Could not save content.",
     };
   }
-  if (typeof data.cardId !== "string") {
+  if (typeof body.cardId !== "string") {
     throw new Error("Invalid save response.");
   }
-  return { status: "saved", cardId: data.cardId };
+  return { status: "saved", cardId: body.cardId };
 }
 
 export async function saveToTeak(
