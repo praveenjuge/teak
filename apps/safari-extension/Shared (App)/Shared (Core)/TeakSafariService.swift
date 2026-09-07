@@ -61,7 +61,7 @@ actor TeakSafariService {
             }
             let body = try? JSONSerialization.jsonObject(with: data, options: .fragmentsAllowed)
             if response.statusCode == 401 || body is NSNull {
-                try await withCredentials { try self.credentials.clear() }
+                try await clearIfStale(token)
                 throw SafariServiceError.unauthenticated
             }
             guard let account = body as? [String: Any], account["userId"] is String,
@@ -175,12 +175,26 @@ actor TeakSafariService {
         return try SafariOAuthTokens.decode(data)
     }
 
+    /// Clears stored credentials only if they still match the token that just
+    /// failed. Requests run outside the shared lock, so the other process can
+    /// rotate and store a fresh pair while our request is in flight; an
+    /// unconditional clear would wipe those valid credentials. The
+    /// check-and-clear runs under the lock so it cannot interleave with a
+    /// concurrent rotation.
+    private func clearIfStale(_ token: String) async throws {
+        try await withCredentials {
+            if try credentials.load()?.accessToken == token {
+                try credentials.clear()
+            }
+        }
+    }
+
     private func apiRequest(_ original: URLRequest, token: String) async throws -> [String: Any] {
         var request = original
         request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
         let (data, response) = try await send(request)
         if response.statusCode == 401 {
-            try credentials.clear()
+            try await clearIfStale(token)
             throw SafariServiceError.unauthenticated
         }
         let body = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any]

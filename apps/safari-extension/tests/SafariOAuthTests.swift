@@ -145,6 +145,22 @@ final class MockHTTP: URLProtocol, @unchecked Sendable {
         MockHTTP.respond = { _ in (401, #"{"error":"Unauthorized"}"#) }
         let refused = await service.saveCurrentPage(url: "https://example.com/page")
         try check(refused["status"] as? String == "unauthenticated", "revoked access cannot save")
+        let racy = MemoryCredentials(tokens())
+        let racyService = fixture(racy)
+        MockHTTP.respond = { request in
+            // The other process rotates credentials while our request is in flight.
+            try racy.save(SafariOAuthTokens(accessToken: "rotated-access", refreshToken: "rotated-refresh",
+                expiresAt: Date().addingTimeInterval(3600)))
+            _ = request
+            return (401, #"{"error":"Unauthorized"}"#)
+        }
+        let stale = await racyService.saveCurrentPage(url: "https://example.com/page")
+        try check(stale["status"] as? String == "unauthenticated", "stale 401 reports unauthenticated")
+        try check(try racy.load()?.accessToken == "rotated-access", "stale 401 preserves rotated credentials")
+        MockHTTP.respond = { _ in (401, #"{"error":"Unauthorized"}"#) }
+        let genuine = await racyService.saveCurrentPage(url: "https://example.com/page")
+        try check(genuine["status"] as? String == "unauthenticated", "genuine 401 requires reconnect")
+        try check(try racy.load() == nil, "genuine 401 clears matching credentials")
         try store.save(tokens())
         MockHTTP.respond = { _ in (401, "") }
         let emptyDenied = await service.authState()
