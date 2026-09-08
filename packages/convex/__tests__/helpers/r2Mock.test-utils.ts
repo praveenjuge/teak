@@ -14,6 +14,13 @@
  */
 
 import { mock } from "bun:test";
+import { PENDING_UPLOAD_CARD_ID } from "../../storage/r2";
+import {
+  assertR2KeyInNamespace,
+  buildR2ListPrefix,
+  getR2KeyPrefix,
+  isR2KeyInNamespace,
+} from "../../storage/r2Keys";
 
 const hashUserId = (userId: string) =>
   Array.from(new TextEncoder().encode(userId))
@@ -62,6 +69,13 @@ export const r2Mocks = {
 };
 
 export const r2MockModuleFactory = () => ({
+  // Pure key-namespace helpers pass through from the dependency-free leaf
+  // module so mocked importers never hit a named-export link error.
+  assertR2KeyInNamespace,
+  buildR2ListPrefix,
+  getR2KeyPrefix,
+  isR2KeyInNamespace,
+  PENDING_UPLOAD_CARD_ID,
   // Faithful port of the real cardStorageObjectKeys so tests that receive the
   // mocked module still observe identical key collection semantics.
   cardStorageObjectKeys: (card: {
