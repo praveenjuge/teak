@@ -17,7 +17,7 @@ import {
   type FilesOp,
   type FilesOpRequest,
 } from "@teak/files-protocol";
-import { assertR2KeyInNamespace, hmacSha256Hex } from "./r2";
+import { assertR2KeyInNamespace, hmacSha256Hex } from "./r2Keys";
 
 // Op URLs are minted per action invocation; a short TTL bounds the replay
 // window (the worker additionally rejects exps further than 15 min out).

@@ -16,7 +16,7 @@ import {
   callFilesWorkerJson,
   isFilesWorkerConfigured,
 } from "../storage/filesWorkerClient";
-import { isR2KeyInNamespace } from "../storage/r2";
+import { isR2KeyInNamespace } from "../storage/r2Keys";
 import { startWorkflow, workflow } from "./manager";
 
 const internalAny = internal as any;

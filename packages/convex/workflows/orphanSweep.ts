@@ -23,7 +23,8 @@ import {
   type FilesWorkerListObjectsResult,
   isFilesWorkerConfigured,
 } from "../storage/filesWorkerClient";
-import { buildR2ListPrefix, cardStorageObjectKeys } from "../storage/r2";
+import { cardStorageObjectKeys } from "../storage/r2";
+import { buildR2ListPrefix } from "../storage/r2Keys";
 import { recordBackendLog } from "../telemetry/sentry";
 
 // Orphans younger than this are ignored: pending-upload sessions, in-flight

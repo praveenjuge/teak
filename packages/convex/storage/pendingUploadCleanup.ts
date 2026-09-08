@@ -7,7 +7,8 @@ import {
   type FilesWorkerListObjectsResult,
   isFilesWorkerConfigured,
 } from "./filesWorkerClient";
-import { buildR2ListPrefix, PENDING_UPLOAD_CARD_ID } from "./r2";
+import { PENDING_UPLOAD_CARD_ID } from "./r2";
+import { buildR2ListPrefix } from "./r2Keys";
 
 const STALE_AFTER_MS = 24 * 60 * 60 * 1000;
 const PENDING_UPLOAD_SEGMENT = `/cards/${PENDING_UPLOAD_CARD_ID}/`;

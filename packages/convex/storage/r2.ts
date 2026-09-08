@@ -13,6 +13,24 @@ import {
   buildSignedWorkerUploadUrl,
   putObjectViaFilesWorker,
 } from "./filesWorkerClient";
+import {
+  assertR2KeyInNamespace,
+  getR2KeyPrefix,
+  hmacSha256Hex,
+  isR2KeyInNamespace,
+} from "./r2Keys";
+
+// Re-exported for backward compatibility: existing importers keep importing
+// these names from `storage/r2`. New code should import them from
+// `storage/r2Keys` directly so it never depends on the mocked `storage/r2`
+// surface (see r2Keys.ts).
+export {
+  assertR2KeyInNamespace,
+  buildR2ListPrefix,
+  getR2KeyPrefix,
+  hmacSha256Hex,
+  isR2KeyInNamespace,
+} from "./r2Keys";
 
 // Object keys are content-immutable (every upload writes a fresh UUID key), so
 // signed URLs can live far longer than a single session. Long-lived,
@@ -43,33 +61,6 @@ export const PRIVATE_FILE_CACHE_CONTROL = "private, max-age=518400, immutable"; 
 
 export type R2ObjectKey = string;
 export const PENDING_UPLOAD_CARD_ID = "upload-pending-v2";
-
-/**
- * Internal R2 key prefix for environment isolation.
- * - Production: unset -> "users/..."
- * - Development: "dev/" -> "dev/users/..."
- * This is protection against routine mistakes; shared credentials retain bucket-wide authority.
- */
-export const getR2KeyPrefix = (): string => {
-  const raw = process.env.R2_KEY_PREFIX ?? "";
-  const trimmed = raw.trim();
-  if (!trimmed) {
-    return "";
-  }
-  const normalized = trimmed.replace(/^\/+/, "");
-  return normalized.endsWith("/") ? normalized : `${normalized}/`;
-};
-
-export const buildR2ListPrefix = (): string => `${getR2KeyPrefix()}users/`;
-
-export const isR2KeyInNamespace = (key: string): boolean =>
-  key.startsWith(`${getR2KeyPrefix()}users/`);
-
-export const assertR2KeyInNamespace = (key: string): void => {
-  if (!isR2KeyInNamespace(key)) {
-    throw new Error("invalid_storage_key_namespace");
-  }
-};
 
 export const getR2ReadBase = (key: string): string => {
   const filesBase = process.env.FILES_BASE;
@@ -161,30 +152,6 @@ export const getR2Url = async (
     key,
     response,
     bucketedSignatureExpiry()
-  );
-};
-
-const hexEncode = (buffer: ArrayBuffer): string =>
-  Array.from(new Uint8Array(buffer), (byte) =>
-    byte.toString(16).padStart(2, "0")
-  ).join("");
-
-// Must stay in lockstep with apps/files-worker/src/lib.ts — the shared test
-// vectors prove both runtimes produce identical HMAC output.
-export const hmacSha256Hex = async (
-  secret: string,
-  message: string
-): Promise<string> => {
-  const encoder = new TextEncoder();
-  const cryptoKey = await crypto.subtle.importKey(
-    "raw",
-    encoder.encode(secret),
-    { name: "HMAC", hash: "SHA-256" },
-    false,
-    ["sign"]
-  );
-  return hexEncode(
-    await crypto.subtle.sign("HMAC", cryptoKey, encoder.encode(message))
   );
 };
 
