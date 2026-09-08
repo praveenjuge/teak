@@ -11,6 +11,7 @@ import {
 } from "./_generated/server";
 import { ensureCardCreationAllowed } from "./auth";
 import { validateDirectUploadRequest } from "./card/uploadCard";
+import { getSessionIdentity } from "./securitySessions";
 import { MULTIPART_UPLOAD_THRESHOLD } from "./shared/constants";
 import {
   buildSignedMultipartPartUrl,
@@ -40,8 +41,8 @@ interface SessionResponse {
   uploadKey: string;
 }
 
-const requireIdentity = async (ctx: Pick<ActionCtx, "auth">) => {
-  const identity = await ctx.auth.getUserIdentity();
+const requireIdentity = async (ctx: Pick<ActionCtx, "auth" | "runQuery">) => {
+  const identity = await getSessionIdentity(ctx);
   if (!identity) {
     throw new ConvexError({
       code: "UNAUTHENTICATED",

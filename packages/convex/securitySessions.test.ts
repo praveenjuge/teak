@@ -49,6 +49,41 @@ async function setup() {
 }
 
 describe("Security sessions", () => {
+  test("revoking a device blocks cached-token card reads and writes", async () => {
+    const { t, authenticated, current, other } = await setup();
+    const id = await t.run((ctx) =>
+      ctx.db.insert("cards", {
+        userId: "owner",
+        type: "text",
+        content: "Private card",
+        createdAt: Date.now(),
+        updatedAt: Date.now(),
+      })
+    );
+    const otherDevice = t.withIdentity({
+      subject: "owner",
+      sessionId: other._id,
+    });
+    expect(await authenticated.query(api.cards.getCard, { id })).toMatchObject({
+      content: "Private card",
+    });
+    await otherDevice.mutation(api.securitySessions.revokeSession, {
+      sessionId: current._id,
+    });
+    expect(await authenticated.query(api.cards.getCard, { id })).toBeNull();
+    expect(await authenticated.query(api.cards.getCards, { limit: 2 })).toEqual(
+      []
+    );
+    await expect(
+      authenticated.mutation(api.cards.createCard, {
+        type: "text",
+        content: "Revocation bypass",
+      })
+    ).rejects.toThrow("authenticated");
+    expect(await otherDevice.query(api.cards.getCard, { id })).toMatchObject({
+      content: "Private card",
+    });
+  });
   test("lists only owned live sessions with safe fields and this device first", async () => {
     const { authenticated, current, other } = await setup();
     const result = await authenticated.query(

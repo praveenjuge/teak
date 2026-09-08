@@ -124,6 +124,10 @@ function ConnectionsPanel(props: SecurityConnectionsProps) {
   ].sort((a, b) => Number(b.current) - Number(a.current) || b.date - a.date);
   return (
     <div>
+      <p className="py-2 text-muted-foreground text-sm">
+        Sign out a single device, or disconnect an app across all its
+        installations.
+      </p>
       {error ? (
         <p className="py-2 text-destructive text-sm" role="alert">
           {error}

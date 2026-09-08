@@ -8,6 +8,7 @@ import {
   mutation,
 } from "./_generated/server";
 import { resolveTeakDevAppUrl } from "./devUrls";
+import { getSessionIdentity } from "./securitySessions";
 import { mintDedicatedSession } from "./shared/dedicatedSessions";
 import { rateLimiter } from "./shared/rateLimits";
 
@@ -304,7 +305,7 @@ export const createNativeAuthCode = mutation({
   },
   returns: createNativeAuthCodeResultValidator,
   handler: async (ctx, args) => {
-    const user = await ctx.auth.getUserIdentity();
+    const user = await getSessionIdentity(ctx);
     const sessionId =
       user && typeof user.sessionId === "string" ? user.sessionId : null;
     if (!(user?.subject && sessionId)) {

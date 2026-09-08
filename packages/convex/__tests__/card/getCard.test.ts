@@ -1,5 +1,7 @@
 // @ts-nocheck
+
 import { beforeEach, describe, expect, mock, test } from "bun:test";
+import { withTestSession } from "../helpers/session.test-utils";
 
 const resolveObjectUrlMock = mock((key?: string) =>
   Promise.resolve(key ? `file://${key}` : null)
@@ -30,16 +32,16 @@ describe("card/getCard.ts", () => {
   });
 
   test("getCard returns null when unauthenticated", async () => {
-    const ctx = {
+    const ctx = withTestSession({
       auth: { getUserIdentity: mock().mockResolvedValue(null) },
-    } as any;
+    } as any);
     const handler = (getCard as any).handler ?? getCard;
     const result = await handler(ctx, { id: "c1" });
     expect(result).toBeNull();
   });
 
   test("getCard attaches urls and formats quote", async () => {
-    const ctx = {
+    const ctx = withTestSession({
       auth: { getUserIdentity: mock().mockResolvedValue({ subject: "u1" }) },
       db: {
         get: mock().mockResolvedValue({
@@ -53,7 +55,7 @@ describe("card/getCard.ts", () => {
           metadata: { linkPreview: { screenshotStorageKey: "s1" } },
         }),
       },
-    } as any;
+    } as any);
 
     const handler = (getCard as any).handler ?? getCard;
     const result = await handler(ctx, { id: "c1" });
@@ -64,7 +66,7 @@ describe("card/getCard.ts", () => {
   });
 
   test("getCardByUrlId returns null for malformed ids", async () => {
-    const ctx = {
+    const ctx = withTestSession({
       auth: { getUserIdentity: mock().mockResolvedValue({ subject: "u1" }) },
       db: {
         get: mock().mockImplementation(() => {
@@ -72,7 +74,7 @@ describe("card/getCard.ts", () => {
         }),
       },
       storage: { getUrl: mock() },
-    } as any;
+    } as any);
 
     const handler = (getCardByUrlId as any).handler ?? getCardByUrlId;
     const result = await handler(ctx, { id: "12345" });
@@ -81,7 +83,7 @@ describe("card/getCard.ts", () => {
   });
 
   test("getCard hydrates stored link media and falls back preview image to first attachment", async () => {
-    const ctx = {
+    const ctx = withTestSession({
       auth: { getUserIdentity: mock().mockResolvedValue({ subject: "u1" }) },
       db: {
         get: mock().mockResolvedValue({
@@ -111,7 +113,7 @@ describe("card/getCard.ts", () => {
           },
         }),
       },
-    } as any;
+    } as any);
 
     const handler = (getCard as any).handler ?? getCard;
     const result = await handler(ctx, { id: "c1" });
@@ -153,10 +155,10 @@ describe("card/getCard.ts", () => {
         content: "Hi",
       },
     ];
-    const ctx = {
+    const ctx = withTestSession({
       auth: { getUserIdentity: mock().mockResolvedValue({ subject: "u1" }) },
       db: { query: mock().mockReturnValue(buildQuery(cards)) },
-    } as any;
+    } as any);
 
     const handler = (getDeletedCards as any).handler ?? getDeletedCards;
     const result = await handler(ctx, { limit: 1 });

@@ -4,13 +4,14 @@ import { ConvexError, v } from "convex/values";
 import { api, components } from "./_generated/api";
 import { action, query } from "./_generated/server";
 import { resolveTeakDevAppUrl } from "./devUrls";
+import { getSessionIdentity } from "./securitySessions";
 import { isApprovedPolarProductId } from "./shared/polarPlans";
 import { normalizeErrorClass } from "./shared/telemetry";
 import { scheduleBillingOutcome } from "./telemetry/schedule";
 
 // User query to use in the Polar component
 export const getUserInfoHandler = async (ctx: any) => {
-  const user = await ctx.auth.getUserIdentity();
+  const user = await getSessionIdentity(ctx);
   if (!user) {
     throw new ConvexError("User not found");
   }

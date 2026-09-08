@@ -1,6 +1,8 @@
 // @ts-nocheck
+
 import { beforeEach, describe, expect, mock, spyOn, test } from "bun:test";
 import * as r2Storage from "../../storage/r2";
+import { withTestSession } from "../helpers/session.test-utils";
 
 const deleteObjectMock = spyOn(r2Storage, "deleteObject").mockResolvedValue(
   undefined
@@ -15,9 +17,9 @@ describe("card/deleteCard.ts", () => {
   });
 
   test("throws when unauthenticated", async () => {
-    const ctx = {
+    const ctx = withTestSession({
       auth: { getUserIdentity: mock().mockResolvedValue(null) },
-    } as any;
+    } as any);
     const handler = (permanentDeleteCard as any).handler ?? permanentDeleteCard;
     await expect(handler(ctx, { id: "c1" })).rejects.toThrow(
       "User must be authenticated"
@@ -25,7 +27,7 @@ describe("card/deleteCard.ts", () => {
   });
 
   test("deletes files and card", async () => {
-    const ctx = {
+    const ctx = withTestSession({
       auth: { getUserIdentity: mock().mockResolvedValue({ subject: "u1" }) },
       db: {
         get: mock().mockResolvedValue({
@@ -49,7 +51,7 @@ describe("card/deleteCard.ts", () => {
         }),
       },
       scheduler: { runAfter: mock().mockResolvedValue(null) },
-    } as any;
+    } as any);
 
     const handler = (permanentDeleteCard as any).handler ?? permanentDeleteCard;
     await handler(ctx, { id: "c1" });

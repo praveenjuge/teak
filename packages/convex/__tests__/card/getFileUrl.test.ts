@@ -1,5 +1,7 @@
 // @ts-nocheck
+
 import { beforeEach, describe, expect, mock, test } from "bun:test";
+import { withTestSession } from "../helpers/session.test-utils";
 
 const resolveObjectUrlMock = mock((key?: string) =>
   Promise.resolve(key ? "https://file" : null)
@@ -22,9 +24,9 @@ describe("card/getFileUrl.ts", () => {
   });
 
   test("throws when unauthenticated", async () => {
-    const ctx = {
+    const ctx = withTestSession({
       auth: { getUserIdentity: mock().mockResolvedValue(null) },
-    } as any;
+    } as any);
     const handler = (getFileUrl as any).handler ?? getFileUrl;
     await expect(handler(ctx, { key: "f1", cardId: "c1" })).rejects.toThrow(
       "Unauthenticated call to getFileUrl"
@@ -32,7 +34,7 @@ describe("card/getFileUrl.ts", () => {
   });
 
   test("returns file url for matching fileKey", async () => {
-    const ctx = {
+    const ctx = withTestSession({
       auth: { getUserIdentity: mock().mockResolvedValue({ subject: "u1" }) },
       db: {
         get: mock().mockResolvedValue({
@@ -42,7 +44,7 @@ describe("card/getFileUrl.ts", () => {
           fileMetadata: { fileName: "payload.html" },
         }),
       },
-    } as any;
+    } as any);
 
     const handler = (getFileUrl as any).handler ?? getFileUrl;
     const result = await handler(ctx, { key: "f1", cardId: "c1" });

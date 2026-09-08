@@ -27,7 +27,7 @@ Teak's MCP server supports two authentication methods.
 
     Start the MCP connection, then complete the browser sign-in when prompted.
 
-    You can revoke a connection at any time from Teak Settings → **Connected apps**. Revocation immediately invalidates that app's access and refresh credentials.
+    You can revoke a connection at any time from Teak Settings → **Security** → **Connections**. Disconnecting an app revokes its access across all installations, including its refresh credentials. Every subsequent MCP request checks access again, even in an already-open client. API-key connections are managed under **Security** → **API keys**.
 
     <Prompt
       description="Connect Claude Code to Teak MCP with browser sign-in."

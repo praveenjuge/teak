@@ -1,13 +1,7 @@
 import { paginationOptsValidator } from "convex/server";
 import { v } from "convex/values";
 import { components } from "./_generated/api";
-import {
-  type ActionCtx,
-  type MutationCtx,
-  mutation,
-  type QueryCtx,
-  query,
-} from "./_generated/server";
+import { type ActionCtx, mutation, query } from "./_generated/server";
 
 interface SessionRecord {
   _id: string;
@@ -52,7 +46,9 @@ export function sessionDisplayName(agent: string | null | undefined): string {
 
 // Check the live session as well as the signed JWT. A revoked session must not
 // use a cached JWT to inspect or revoke other credentials.
-export async function currentSession(ctx: ActionCtx | MutationCtx | QueryCtx) {
+export async function currentSession(
+  ctx: Pick<ActionCtx, "auth" | "runQuery">
+) {
   const identity = await ctx.auth.getUserIdentity();
   if (!identity || typeof identity.sessionId !== "string") {
     return null;
@@ -65,6 +61,18 @@ export async function currentSession(ctx: ActionCtx | MutationCtx | QueryCtx) {
     ],
   })) as SessionRecord | null;
   return session && session.expiresAt > Date.now() ? session : null;
+}
+
+// Reuse the same live-session check for all device-authenticated data APIs.
+// Query callers also subscribe to the session row, so revocation invalidates
+// their existing subscriptions without waiting for the signed JWT to expire.
+export async function getSessionIdentity(
+  ctx: Pick<ActionCtx, "auth" | "runQuery">
+) {
+  if (!(await currentSession(ctx))) {
+    return null;
+  }
+  return ctx.auth.getUserIdentity();
 }
 
 const displayValidator = v.object({

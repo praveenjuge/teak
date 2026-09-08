@@ -1,4 +1,5 @@
 // @ts-nocheck
+
 import { describe, expect, mock, test } from "bun:test";
 import {
   getOAuthConsentRequest,
@@ -8,6 +9,7 @@ import {
   revokeOAuthConnection,
   validateOAuthAccessToken,
 } from "../oauthTokens";
+import { withTestSession } from "./helpers/session.test-utils";
 
 const runHandler = (fn: any, ctx: any, args: any) =>
   (fn.handler ?? fn)(ctx, args);
@@ -210,10 +212,10 @@ describe("getOAuthUserInfo", () => {
 
 describe("OAuth connection management", () => {
   test("hides consent details while authentication is hydrating", async () => {
-    const ctx = {
+    const ctx = withTestSession({
       auth: { getUserIdentity: mock().mockResolvedValue(null) },
       runQuery: mock(),
-    };
+    });
 
     expect(
       await runHandler(getOAuthConsentRequest, ctx, {
@@ -235,12 +237,12 @@ describe("OAuth connection management", () => {
         }),
       })
       .mockResolvedValueOnce({ name: "Trusted Notes" });
-    const ctx = {
+    const ctx = withTestSession({
       auth: {
         getUserIdentity: mock().mockResolvedValue({ subject: "user_1" }),
       },
       runQuery,
-    };
+    });
 
     expect(
       await runHandler(getOAuthConsentRequest, ctx, {
@@ -263,12 +265,12 @@ describe("OAuth connection management", () => {
         userId: "user_2",
       }),
     });
-    const ctx = {
+    const ctx = withTestSession({
       auth: {
         getUserIdentity: mock().mockResolvedValue({ subject: "user_1" }),
       },
       runQuery,
-    };
+    });
 
     expect(
       await runHandler(getOAuthConsentRequest, ctx, {
@@ -300,7 +302,7 @@ describe("OAuth connection management", () => {
         ],
       })
       .mockResolvedValueOnce({ name: "Teak CLI" });
-    const ctx = {
+    const ctx = withTestSession({
       auth: {
         getUserIdentity: mock().mockResolvedValue({
           subject: "user_1",
@@ -308,7 +310,7 @@ describe("OAuth connection management", () => {
         }),
       },
       runQuery,
-    };
+    });
 
     expect(await runHandler(listOAuthConnections, ctx, {})).toEqual([
       {
@@ -325,12 +327,12 @@ describe("OAuth connection management", () => {
 
   test("returns no connections while settings authentication hydrates", async () => {
     const runQuery = mock();
-    const ctx = {
+    const ctx = withTestSession({
       auth: {
         getUserIdentity: mock().mockResolvedValue(null),
       },
       runQuery,
-    };
+    });
 
     expect(await runHandler(listOAuthConnections, ctx, {})).toEqual([]);
     expect(runQuery).not.toHaveBeenCalled();
@@ -346,7 +348,7 @@ describe("OAuth connection management", () => {
       .mockResolvedValueOnce({ page: [{ _id: "token_1" }] })
       .mockResolvedValueOnce({ page: [{ _id: "consent_1" }] });
     const runMutation = mock().mockResolvedValue(undefined);
-    const ctx = {
+    const ctx = withTestSession({
       auth: {
         getUserIdentity: mock().mockResolvedValue({
           subject: "user_1",
@@ -355,7 +357,7 @@ describe("OAuth connection management", () => {
       },
       runMutation,
       runQuery,
-    };
+    });
 
     expect(
       await runHandler(revokeOAuthConnection, ctx, {

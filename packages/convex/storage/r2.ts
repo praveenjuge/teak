@@ -7,6 +7,7 @@ import { v } from "convex/values";
 import { internal } from "../_generated/api";
 import type { ActionCtx, MutationCtx } from "../_generated/server";
 import { mutation, query } from "../_generated/server";
+import { getSessionIdentity } from "../securitySessions";
 import { inferFileFormat } from "../shared/fileFormats";
 import {
   buildSignedWorkerUploadUrl,
@@ -380,7 +381,7 @@ export const generateUploadUrl = mutation({
     url: v.string(),
   }),
   handler: async (ctx, args) => {
-    const user = await ctx.auth.getUserIdentity();
+    const user = await getSessionIdentity(ctx);
     if (!user) {
       throw new Error("User must be authenticated");
     }
@@ -407,7 +408,7 @@ export const getFileUrl = query({
   },
   returns: v.union(v.string(), v.null()),
   handler: async (ctx, args) => {
-    const user = await ctx.auth.getUserIdentity();
+    const user = await getSessionIdentity(ctx);
     if (!user) {
       throw new Error("Unauthenticated call to getFileUrl");
     }

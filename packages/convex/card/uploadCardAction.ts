@@ -5,6 +5,7 @@ import { internal } from "../_generated/api";
 import type { Id } from "../_generated/dataModel";
 import { type ActionCtx, action, internalAction } from "../_generated/server";
 import { cardTypeValidator } from "../schema";
+import { getSessionIdentity } from "../securitySessions";
 import {
   FileFormatValidationError,
   fileUploadErrorCode,
@@ -295,7 +296,7 @@ export const finalizeUploadedCard = action({
   args: finalizeArgs,
   returns: finalizeResult,
   handler: async (ctx, args) => {
-    const user = await ctx.auth.getUserIdentity();
+    const user = await getSessionIdentity(ctx);
     if (!user) {
       return { success: false, error: "User must be authenticated" };
     }

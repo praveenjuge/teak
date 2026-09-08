@@ -3,11 +3,13 @@ import { expect, request as playwrightRequest, test } from "@playwright/test";
 import { apiFetch } from "../helpers/api";
 import { cleanupE2EAccounts } from "../helpers/e2e-cleanup";
 import { env } from "../helpers/env";
+import { connectMcp } from "../helpers/mcp";
 import {
   clientFor,
   createAccount,
   generateApiKey,
   newAnonymousContext,
+  openSecurity,
   revokeVisibleKey,
 } from "../helpers/prod";
 import { readState } from "../helpers/run-state";
@@ -122,19 +124,22 @@ test("external OAuth requires explicit full-vault consent and can be revoked", a
   }
   expect((await apiFetch("/v1/tags", tokens.access_token)).status).toBe(200);
 
-  await page.goto("/settings");
-  await page
-    .getByText("Connected apps")
-    .locator("xpath=ancestor::div[.//button][1]")
-    .getByRole("button", { name: "Manage" })
-    .click();
-  const dialog = page.getByRole("dialog", { name: "Connected apps" });
-  await expect(dialog.getByText(clientName)).toBeVisible();
-  await dialog.getByRole("button", { name: "Disconnect" }).click();
-  await expect(dialog.getByText(clientName)).not.toBeVisible();
-  await expect
-    .poll(async () => (await apiFetch("/v1/tags", tokens.access_token)).status)
-    .toBe(401);
+  const mcp = await connectMcp(tokens.access_token);
+  try {
+    expect((await mcp.listTools()).tools.length).toBeGreaterThan(0);
+    const dialog = await openSecurity(page);
+    await expect(dialog.getByText(clientName, { exact: true })).toBeVisible();
+    await dialog
+      .getByRole("button", { name: `Disconnect ${clientName}`, exact: true })
+      .click();
+    await expect(
+      dialog.getByText(clientName, { exact: true })
+    ).not.toBeVisible();
+    expect((await apiFetch("/v1/tags", tokens.access_token)).status).toBe(401);
+    await expect(mcp.listTools()).rejects.toThrow(/401|unauthorized/i);
+  } finally {
+    await mcp.close();
+  }
 });
 
 test("cross-tenant, revoked-key, hostile input, headers, and cookie security", async ({

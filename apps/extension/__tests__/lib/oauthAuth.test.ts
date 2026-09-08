@@ -12,6 +12,7 @@ let webAuth: ReturnType<typeof mock>;
 let setAccessLevel: ReturnType<typeof mock>;
 
 beforeEach(() => {
+  process.env.BROWSER = "chrome";
   process.env.VITE_PUBLIC_CONVEX_SITE_URL = "https://test.convex.site";
   storage = {};
   let tail: Promise<unknown> = Promise.resolve();
@@ -122,6 +123,31 @@ describe("Chrome OAuth background credentials", () => {
     });
     expect(JSON.stringify(state)).not.toContain(accessToken);
     expect(JSON.stringify(state)).not.toContain(refreshToken);
+  });
+  test("Firefox initializes without exposing credentials through unsupported storage access controls", async () => {
+    process.env.BROWSER = "firefox";
+    Reflect.deleteProperty(chrome.storage.local, "setAccessLevel");
+    const auth = await load();
+    await expect(auth.initializeAuth()).resolves.toBeUndefined();
+    expect(storage[tokenKey]).toBeUndefined();
+  });
+  test("Firefox uses its registered client and native redirect URI", async () => {
+    process.env.BROWSER = "firefox";
+    Reflect.deleteProperty(chrome.storage.local, "setAccessLevel");
+    const redirect =
+      "https://810ad09f1a9233882b69a56ac05bd31b93aad88b.extensions.allizom.org/oauth/callback";
+    chrome.identity.getRedirectURL = () => redirect;
+    webAuth.mockImplementation(({ url }: { url: string }) => {
+      const authorize = new URL(url);
+      expect(authorize.searchParams.get("client_id")).toBe("teak-firefox");
+      expect(authorize.searchParams.get("redirect_uri")).toBe(redirect);
+      return Promise.resolve(`${redirect}?state=wrong&code=code`);
+    });
+    const fetchMock = mock(async () => tokenResponse());
+    globalThis.fetch = fetchMock as unknown as typeof fetch;
+    await expect((await load()).beginOAuthSignIn()).rejects.toThrow("verified");
+    expect(webAuth).toHaveBeenCalledTimes(1);
+    expect(fetchMock).not.toHaveBeenCalled();
   });
   test("rejects a mismatched state without exchanging the code", async () => {
     webAuth.mockResolvedValue(

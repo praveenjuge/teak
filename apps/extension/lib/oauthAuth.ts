@@ -1,7 +1,8 @@
 import { resolveTeakDevAppUrl } from "@teak/convex/dev-urls";
 
 // Background-worker only. Never import this module from popup/content scripts.
-const CLIENT_ID = "teak-chrome";
+const IS_FIREFOX = import.meta.env.BROWSER === "firefox";
+const CLIENT_ID = IS_FIREFOX ? "teak-firefox" : "teak-chrome";
 const TOKEN_KEY = "teakOAuthCredentials";
 const OWNER_KEY = "teakOAuthOwner";
 export const AUTH_STATE_KEY = "teakOAuthState";
@@ -24,24 +25,56 @@ export function getConvexSiteUrl() {
 }
 
 export function initializeAuth() {
-  ready ??= chrome.storage.local
-    .setAccessLevel({ accessLevel: "TRUSTED_CONTEXTS" })
-    .then(async () => {
-      // The previous dedicated session is deliberately not exchanged. Updating
-      // requires one OAuth reconnect; shared native-session infrastructure stays intact.
-      await chrome.storage.local.remove([
-        "teakSessionToken",
-        "teakPendingNativeAuth",
-      ]);
-    });
+  ready ??= (
+    IS_FIREFOX
+      ? Promise.resolve()
+      : chrome.storage.local.setAccessLevel({ accessLevel: "TRUSTED_CONTEXTS" })
+  ).then(async () => {
+    // The previous dedicated session is deliberately not exchanged. Updating
+    // requires one OAuth reconnect; shared native-session infrastructure stays intact.
+    await chrome.storage.local.remove([
+      "teakSessionToken",
+      "teakPendingNativeAuth",
+    ]);
+  });
   return ready;
+}
+
+// Firefox cannot restrict storage.local to trusted extension contexts. Its
+// extension-origin IndexedDB is inaccessible to page content scripts and durable
+// across background-page restarts. Chromium keeps its existing protected storage.
+async function firefoxCredentials<T>(
+  mode: IDBTransactionMode,
+  operation: (store: IDBObjectStore) => IDBRequest<T>
+): Promise<T> {
+  const database = await new Promise<IDBDatabase>((resolve, reject) => {
+    const request = indexedDB.open("teak-oauth", 1);
+    request.onupgradeneeded = () =>
+      request.result.createObjectStore("credentials");
+    request.onsuccess = () => resolve(request.result);
+    request.onerror = () => reject(request.error);
+  });
+  try {
+    return await new Promise<T>((resolve, reject) => {
+      const transaction = database.transaction("credentials", mode);
+      const request = operation(transaction.objectStore("credentials"));
+      transaction.oncomplete = () => resolve(request.result);
+      transaction.onerror = () => reject(transaction.error);
+      transaction.onabort = () =>
+        reject(transaction.error ?? new Error("Could not store sign-in."));
+    });
+  } finally {
+    database.close();
+  }
 }
 
 async function readCredentials(): Promise<Credentials | null> {
   await initializeAuth();
-  const record = (await chrome.storage.local.get(TOKEN_KEY))[TOKEN_KEY] as
-    | Partial<Credentials>
-    | undefined;
+  const record = (
+    IS_FIREFOX
+      ? await firefoxCredentials("readonly", (store) => store.get(TOKEN_KEY))
+      : (await chrome.storage.local.get(TOKEN_KEY))[TOKEN_KEY]
+  ) as Partial<Credentials> | undefined;
   return record &&
     typeof record.accessToken === "string" &&
     typeof record.refreshToken === "string" &&
@@ -52,10 +85,17 @@ async function readCredentials(): Promise<Credentials | null> {
 
 async function writeCredentials(credentials: Credentials | null) {
   if (credentials) {
+    if (IS_FIREFOX) {
+      await firefoxCredentials("readwrite", (store) =>
+        store.put(credentials, TOKEN_KEY)
+      );
+    }
     await chrome.storage.local.set({
-      [TOKEN_KEY]: credentials,
+      ...(IS_FIREFOX ? {} : { [TOKEN_KEY]: credentials }),
       ...(credentials.userId ? { [OWNER_KEY]: credentials.userId } : {}),
     });
+  } else if (IS_FIREFOX) {
+    await firefoxCredentials("readwrite", (store) => store.delete(TOKEN_KEY));
   } else {
     await chrome.storage.local.remove(TOKEN_KEY);
   }

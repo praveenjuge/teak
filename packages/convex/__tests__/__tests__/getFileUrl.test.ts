@@ -1,10 +1,11 @@
 import { describe, expect, mock, test } from "bun:test";
+import { withTestSession } from "../helpers/session.test-utils";
 
 describe("getFileUrl authorization", () => {
   test("rejects a card owned by another user", async () => {
     const { getFileUrl } = await import("../../card/getFileUrl");
     const handler = (getFileUrl as any).handler ?? getFileUrl;
-    const ctx = {
+    const ctx = withTestSession({
       auth: { getUserIdentity: mock().mockResolvedValue({ subject: "u1" }) },
       db: {
         get: mock().mockResolvedValue({
@@ -13,7 +14,7 @@ describe("getFileUrl authorization", () => {
           fileKey: "users/u2/cards/c1/file",
         }),
       },
-    } as any;
+    } as any);
 
     await expect(
       handler(ctx, { cardId: "c1", key: "users/u2/cards/c1/file" })
@@ -23,7 +24,7 @@ describe("getFileUrl authorization", () => {
   test("rejects a key that the owned card does not reference", async () => {
     const { getFileUrl } = await import("../../card/getFileUrl");
     const handler = (getFileUrl as any).handler ?? getFileUrl;
-    const ctx = {
+    const ctx = withTestSession({
       auth: { getUserIdentity: mock().mockResolvedValue({ subject: "u1" }) },
       db: {
         get: mock().mockResolvedValue({
@@ -32,7 +33,7 @@ describe("getFileUrl authorization", () => {
           fileKey: "users/u1/cards/c1/file",
         }),
       },
-    } as any;
+    } as any);
 
     await expect(
       handler(ctx, { cardId: "c1", key: "users/u1/cards/c2/file" })

@@ -50,6 +50,13 @@ export const FIRST_PARTY_OAUTH_CLIENTS: OAuthClientSeed[] = [
     ],
   },
   {
+    clientId: "teak-firefox",
+    name: "Teak Firefox",
+    redirectUrls: [
+      "https://810ad09f1a9233882b69a56ac05bd31b93aad88b.extensions.allizom.org/oauth/callback",
+    ],
+  },
+  {
     clientId: "teak-safari",
     name: "Teak Safari",
     redirectUrls: ["teak-safari://oauth/callback"],

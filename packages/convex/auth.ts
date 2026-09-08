@@ -400,6 +400,18 @@ export const createAuth = (ctx: GenericCtx<DataModel>) => {
               ],
             },
             {
+              clientId: "teak-firefox",
+              clientSecret: "",
+              type: "public",
+              name: "Teak Firefox",
+              disabled: false,
+              skipConsent: false,
+              metadata: null,
+              redirectUrls: [
+                "https://810ad09f1a9233882b69a56ac05bd31b93aad88b.extensions.allizom.org/oauth/callback",
+              ],
+            },
+            {
               clientId: "teak-safari",
               clientSecret: "",
               type: "public",

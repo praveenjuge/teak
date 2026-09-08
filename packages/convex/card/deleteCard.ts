@@ -1,5 +1,6 @@
 import { v } from "convex/values";
 import { mutation } from "../_generated/server";
+import { getSessionIdentity } from "../securitySessions";
 import { cardStorageObjectKeys, deleteObject } from "../storage/r2";
 import {
   ensureCardUsageShardsForRemoval,
@@ -13,7 +14,7 @@ export const permanentDeleteCard = mutation({
   },
   returns: v.null(),
   handler: async (ctx, args) => {
-    const user = await ctx.auth.getUserIdentity();
+    const user = await getSessionIdentity(ctx);
     if (!user) {
       throw new Error("User must be authenticated");
     }

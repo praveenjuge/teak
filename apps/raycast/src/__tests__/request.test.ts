@@ -5,7 +5,9 @@ import { createRaycastApiMock } from "./raycastApiMock";
 const getPreferenceValuesMock = mock(() => ({ apiKey: "valid-test-key" }));
 const authorizeMock = mock(() => Promise.resolve("oauth-access-token"));
 const removeTokensMock = mock(() => Promise.resolve());
-const getTokensMock = mock(() => Promise.resolve(undefined));
+const getTokensMock = mock<
+  () => Promise<{ accessToken: string; refreshToken?: string } | undefined>
+>(() => Promise.resolve(undefined));
 
 const mockRaycastApi = (isDevelopment: boolean) => {
   mock.module("@raycast/api", () =>
@@ -36,6 +38,8 @@ const {
   softDeleteCard,
   updateCard,
 } = await import("../lib/api");
+const { signOutTeak, authorizeTeak, getStoredTeakAccessToken } =
+  await import("../lib/oauth");
 
 const sampleCard = {
   appUrl: "https://app.teakvault.com/?card=card_123",
@@ -428,5 +432,84 @@ describe("raycast request handling", () => {
 
     expect(removeTokensMock).toHaveBeenCalledTimes(1);
     expect(seenTokens).toEqual(["Bearer stale-token", "Bearer fresh-token"]);
+  });
+});
+
+describe("Raycast sign out", () => {
+  test("revokes the installation before removing its tokens", async () => {
+    getTokensMock.mockResolvedValueOnce({
+      accessToken: "access",
+      refreshToken: "refresh",
+    });
+    globalThis.fetch = mock((input: RequestInfo | URL, init?: RequestInit) => {
+      expect(String(input)).toBe("https://teakvault.com/api/api/oauth/revoke");
+      expect(init?.method).toBe("POST");
+      expect(new URLSearchParams(String(init?.body)).get("token")).toBe(
+        "refresh",
+      );
+      expect(new URLSearchParams(String(init?.body)).get("client_id")).toBe(
+        "teak-raycast",
+      );
+      expect(removeTokensMock).not.toHaveBeenCalled();
+      return Promise.resolve(new Response(null, { status: 200 }));
+    }) as unknown as typeof fetch;
+    await signOutTeak();
+    expect(removeTokensMock).toHaveBeenCalledTimes(1);
+  });
+
+  test.each(["offline", "server"])(
+    "preserves tokens on %s failure",
+    async (failure) => {
+      getTokensMock.mockResolvedValueOnce({
+        accessToken: "access",
+        refreshToken: "refresh",
+      });
+      globalThis.fetch = mock(() => {
+        if (failure === "offline") {
+          throw new Error("offline");
+        }
+        return Promise.resolve(new Response(null, { status: 503 }));
+      }) as unknown as typeof fetch;
+      await expect(signOutTeak()).rejects.toThrow("try Sign Out again");
+      expect(removeTokensMock).not.toHaveBeenCalled();
+    },
+  );
+
+  test("waits for a running authorization and blocks refresh while signing out", async () => {
+    let finishAuthorization: (token: string) => void = () => {};
+    authorizeMock.mockImplementationOnce(
+      () =>
+        new Promise<string>((resolve) => {
+          finishAuthorization = resolve;
+        }),
+    );
+    const authorization = authorizeTeak();
+    const signOut = signOutTeak();
+    await expect(authorizeTeak()).rejects.toThrow("sign-out is in progress");
+    expect(await getStoredTeakAccessToken()).toBeNull();
+    expect(getTokensMock).not.toHaveBeenCalled();
+    getTokensMock.mockResolvedValueOnce({
+      accessToken: "fresh-access",
+      refreshToken: "fresh-refresh",
+    });
+    globalThis.fetch = mock((_input: RequestInfo | URL, init?: RequestInit) => {
+      expect(new URLSearchParams(String(init?.body)).get("token")).toBe(
+        "fresh-refresh",
+      );
+      return Promise.resolve(new Response(null, { status: 200 }));
+    }) as unknown as typeof fetch;
+    finishAuthorization("fresh-access");
+    await authorization;
+    await signOut;
+    expect(removeTokensMock).toHaveBeenCalledTimes(1);
+  });
+
+  test("handles an already-cleared session without revoking an API key", async () => {
+    getTokensMock.mockResolvedValueOnce(undefined);
+    const fetchMock = mock();
+    globalThis.fetch = fetchMock as unknown as typeof fetch;
+    await signOutTeak();
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(removeTokensMock).toHaveBeenCalledTimes(1);
   });
 });

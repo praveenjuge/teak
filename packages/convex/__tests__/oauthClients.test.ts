@@ -16,8 +16,11 @@ describe("ensureOAuthClients", () => {
       {}
     );
 
-    expect(result).toMatchObject({ created: 4, updated: 0 });
-    expect(runMutation).toHaveBeenCalledTimes(4);
+    expect(result).toMatchObject({
+      created: FIRST_PARTY_OAUTH_CLIENTS.length,
+      updated: 0,
+    });
+    expect(runMutation).toHaveBeenCalledTimes(FIRST_PARTY_OAUTH_CLIENTS.length);
 
     const first = runMutation.mock.calls[0][1];
     expect(first.input.model).toBe("oauthApplication");
@@ -38,7 +41,10 @@ describe("ensureOAuthClients", () => {
       {}
     );
 
-    expect(result).toMatchObject({ created: 0, updated: 4 });
+    expect(result).toMatchObject({
+      created: 0,
+      updated: FIRST_PARTY_OAUTH_CLIENTS.length,
+    });
     expect(runMutation.mock.calls[0][1].input.update.type).toBe("public");
     expect(runMutation.mock.calls[0][1].input.update).not.toHaveProperty(
       "skipConsent"

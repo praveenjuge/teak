@@ -258,16 +258,24 @@ export const signUp = async (page: Page, email = uniqueEmail()) => {
   return email;
 };
 
-export const generateApiKey = async (page: Page) => {
+export const openSecurity = async (
+  page: Page,
+  tab: "Connections" | "API keys" = "Connections"
+) => {
   await page.goto(appPath("/settings"));
-  await page.getByText("API Keys").waitFor();
-  await settingsRow(page, "API Keys")
+  await settingsRow(page, "Security")
     .getByRole("button", { name: "Manage" })
     .click();
-  const dialog = page.getByRole("dialog", { name: "Manage API Keys" });
+  const dialog = page.getByRole("dialog", { name: "Security", exact: true });
   await expect(dialog).toBeVisible();
+  await dialog.getByRole("tab", { name: tab, exact: true }).click();
+  return dialog;
+};
+
+export const generateApiKey = async (page: Page) => {
+  const dialog = await openSecurity(page, "API keys");
   await clickVisibleControl(
-    dialog.getByRole("button", { name: "Generate Key" })
+    dialog.getByRole("button", { name: "Create key", exact: true })
   );
   // React updates the input's live value property, not necessarily its HTML
   // value attribute, so do not use an attribute-prefix CSS selector here.
@@ -359,12 +367,8 @@ export const deleteAccountViaUi = async (page: Page, account: AccountState) => {
 
 export const revokeVisibleKey = async (page: Page, rawKey: string) => {
   const visiblePrefix = rawKey.split("_").slice(0, 4).join("_");
-  await page.goto(appPath("/settings"));
-  await settingsRow(page, "API Keys")
-    .getByRole("button", { name: "Manage" })
-    .click();
-  const dialog = page.getByRole("dialog", { name: "Manage API Keys" });
-  const row = dialog.getByRole("row").filter({ hasText: visiblePrefix });
+  const dialog = await openSecurity(page, "API keys");
+  const row = dialog.getByRole("listitem").filter({ hasText: visiblePrefix });
   await expect(row).toBeVisible();
   await row.getByRole("button", { name: /^Revoke / }).click();
   await expect(

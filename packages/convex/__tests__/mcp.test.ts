@@ -256,7 +256,7 @@ describe("Convex MCP endpoint", () => {
     expect(names).toEqual(EXPECTED_TOOL_NAMES);
   });
 
-  test("caches successful MCP bearer validation briefly", async () => {
+  test("checks live credentials on consecutive MCP requests", async () => {
     const authorization = `Bearer teakapi_secret_live_b1c2d3e4_${"a".repeat(64)}`;
     const runMutation = mock().mockResolvedValue({
       keyId: "key_2",
@@ -294,8 +294,68 @@ describe("Convex MCP endpoint", () => {
 
     expect(firstResponse.status).toBe(200);
     expect(secondResponse.status).toBe(200);
-    expect(runMutation).toHaveBeenCalledTimes(1);
+    expect(runMutation).toHaveBeenCalledTimes(2);
   });
+
+  for (const [kind, authorization] of [
+    ["API key", `Bearer teakapi_secret_live_c1d2e3f4_${"b".repeat(64)}`],
+    ["OAuth token", `Bearer ${"r".repeat(32)}`],
+  ] as const) {
+    test(`immediately rejects a revoked ${kind} after initialize`, async () => {
+      let revoked = false;
+      const runMutation = mock(
+        (_reference: unknown, args: { token?: string }) => {
+          if (!args.token) {
+            return Promise.resolve({ ok: true });
+          }
+          return Promise.resolve(
+            revoked
+              ? null
+              : {
+                  keyId: "connection",
+                  userId: "owner",
+                  access: "full_access",
+                  source: "oauth",
+                  rateLimitKey: "oauth:client:owner",
+                }
+          );
+        }
+      );
+      const ctx = { runMutation, runQuery: mock() };
+      const initialize = await handleMcpV1Request(
+        ctx,
+        mcpRequest(
+          {
+            jsonrpc: "2.0",
+            id: 1,
+            method: "initialize",
+            params: { protocolVersion: "2025-06-18" },
+          },
+          authorization
+        )
+      );
+      expect(initialize.status).toBe(200);
+      revoked = true;
+      for (const method of ["tools/list", "ping", "tools/call"]) {
+        const response = await handleMcpV1Request(
+          ctx,
+          mcpRequest(
+            {
+              jsonrpc: "2.0",
+              id: 2,
+              method,
+              params: { name: "teak_v1_list_cards", arguments: {} },
+            },
+            authorization
+          )
+        );
+        expect(response.status).toBe(401);
+        expect(response.headers.get("WWW-Authenticate")).toContain(
+          "resource_metadata="
+        );
+      }
+    });
+  }
 
   test("forwards MCP tools to the injected v1 executor", async () => {
     const captured: Array<{

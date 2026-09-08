@@ -11,6 +11,7 @@ import {
   mutation,
 } from "../_generated/server";
 import { cardTypeValidator, colorValidator } from "../schema";
+import { getSessionIdentity } from "../securitySessions";
 import type { CardCreationSource } from "../shared/metrics";
 import { normalizeErrorClass } from "../shared/telemetry";
 import { assertSafeExternalUrl } from "../shared/utils/safeUrl";
@@ -232,7 +233,7 @@ export const createCard = mutation({
   args: createCardArgs,
   returns: v.id("cards"),
   handler: async (ctx, args) => {
-    const user = await ctx.auth.getUserIdentity();
+    const user = await getSessionIdentity(ctx);
     if (!user) {
       throw new Error("User must be authenticated");
     }

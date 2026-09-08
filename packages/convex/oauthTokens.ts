@@ -9,7 +9,7 @@ import {
   query,
 } from "./_generated/server";
 import { isFirstPartyOAuthClientId } from "./oauthClients";
-import { currentSession } from "./securitySessions";
+import { currentSession, getSessionIdentity } from "./securitySessions";
 
 // Better Auth's `mcp`/oidc authorization server mints opaque access and refresh
 // tokens with `generateRandomString(32, ...)`. Today the mcp plugin uses the
@@ -271,7 +271,7 @@ export const getOAuthConsentRequest = query({
     // The client can subscribe before its session token finishes hydrating.
     // Treat that transient state as no visible request instead of surfacing a
     // production query error; the subscription reruns when auth becomes ready.
-    const identity = await ctx.auth.getUserIdentity();
+    const identity = await getSessionIdentity(ctx);
     if (!identity?.subject) {
       return null;
     }
