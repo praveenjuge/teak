@@ -1,6 +1,6 @@
 {
   "name": "@teak/docs",
-  "version": "1.0.66",
+  "version": "1.0.67",
   "scripts": {
     "audit": "bun run build:site && blume audit --fail-on error",
     "build": "bun run build:site && blume audit --fail-on error",
