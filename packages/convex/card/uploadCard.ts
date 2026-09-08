@@ -3,6 +3,7 @@ import { internal } from "../_generated/api";
 import { type MutationCtx, mutation } from "../_generated/server";
 import { ensureCardCreationAllowed } from "../auth";
 import { type CardType, cardTypeValidator } from "../schema";
+import { getSessionIdentity } from "../securitySessions";
 import {
   type FileFormat,
   FileFormatValidationError,
@@ -83,7 +84,7 @@ export const uploadAndCreateCard = mutation({
     errorCode: v.optional(v.string()),
   }),
   handler: async (ctx, _args) => {
-    const user = await ctx.auth.getUserIdentity();
+    const user = await getSessionIdentity(ctx);
     if (!user) {
       return { success: false, error: "User must be authenticated" };
     }

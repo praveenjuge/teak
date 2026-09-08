@@ -5,6 +5,7 @@ import {
   internalMutation,
   internalQuery,
   type MutationCtx,
+  type QueryCtx,
   query,
 } from "./_generated/server";
 import { assertAccountNotDeleting } from "./accountDeletion";
@@ -18,6 +19,7 @@ import {
   colorValidator,
   importModeValidator,
 } from "./schema";
+import { getSessionIdentity } from "./securitySessions";
 
 const internalAny = internal as Record<string, any>;
 const activeStatuses = new Set<string>(ACTIVE_IMPORT_STATUSES);
@@ -76,10 +78,8 @@ const itemInputValidator = v.object({
   failureReason: v.optional(v.string()),
 });
 
-async function requireUserId(ctx: {
-  auth: { getUserIdentity: () => Promise<any> };
-}) {
-  const identity = await ctx.auth.getUserIdentity();
+async function requireUserId(ctx: MutationCtx | QueryCtx) {
+  const identity = await getSessionIdentity(ctx);
   if (!identity) {
     throw new Error("User must be authenticated");
   }

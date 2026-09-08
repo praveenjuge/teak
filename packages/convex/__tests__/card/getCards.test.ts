@@ -1,5 +1,7 @@
 // @ts-nocheck
+
 import { beforeEach, describe, expect, mock, test } from "bun:test";
+import { withTestSession } from "../helpers/session.test-utils";
 
 const resolveObjectUrlMock = mock((key?: string) =>
   Promise.resolve(key ? `file://${key}` : null)
@@ -50,9 +52,9 @@ describe("card/getCards.ts", () => {
 
   describe("getCards", () => {
     test("returns empty when unauthenticated", async () => {
-      const ctx = {
+      const ctx = withTestSession({
         auth: { getUserIdentity: mock().mockResolvedValue(null) },
-      } as any;
+      } as any);
       const handler = (getCards as any).handler ?? getCards;
       const result = await handler(ctx, {});
       expect(result).toEqual([]);
@@ -71,10 +73,10 @@ describe("card/getCards.ts", () => {
           metadata: { linkPreview: { screenshotStorageKey: "s1" } },
         },
       ];
-      const ctx = {
+      const ctx = withTestSession({
         auth: { getUserIdentity: mock().mockResolvedValue({ subject: "u1" }) },
         db: { query: mock().mockReturnValue(buildQuery(cards)) },
-      } as any;
+      } as any);
 
       const handler = (getCards as any).handler ?? getCards;
       const result = await handler(ctx, { limit: 1 });
@@ -87,11 +89,11 @@ describe("card/getCards.ts", () => {
     test("uses favorites index when favoritesOnly", async () => {
       const cards: any[] = [];
       const query = buildQuery(cards);
-      const ctx = {
+      const ctx = withTestSession({
         auth: { getUserIdentity: mock().mockResolvedValue({ subject: "u1" }) },
         db: { query: mock().mockReturnValue(query) },
         storage: { getUrl: mock() },
-      } as any;
+      } as any);
 
       const handler = (getCards as any).handler ?? getCards;
       await handler(ctx, { favoritesOnly: true });
@@ -102,11 +104,11 @@ describe("card/getCards.ts", () => {
     test("uses by_user_type_deleted index when type is specified", async () => {
       const cards: any[] = [];
       const query = buildQuery(cards);
-      const ctx = {
+      const ctx = withTestSession({
         auth: { getUserIdentity: mock().mockResolvedValue({ subject: "u1" }) },
         db: { query: mock().mockReturnValue(query) },
         storage: { getUrl: mock() },
-      } as any;
+      } as any);
 
       const handler = (getCards as any).handler ?? getCards;
       await handler(ctx, { type: "image" });
@@ -128,11 +130,11 @@ describe("card/getCards.ts", () => {
         }),
       } as any;
 
-      const ctx = {
+      const ctx = withTestSession({
         auth: { getUserIdentity: mock().mockResolvedValue({ subject: "u1" }) },
         db: { query: mock().mockReturnValue(query) },
         storage: { getUrl: mock() },
-      } as any;
+      } as any);
 
       const handler = (getCards as any).handler ?? getCards;
       await handler(ctx, {});
@@ -149,11 +151,11 @@ describe("card/getCards.ts", () => {
         withIndex: mock().mockReturnValue({ order: orderMock }),
       } as any;
 
-      const ctx = {
+      const ctx = withTestSession({
         auth: { getUserIdentity: mock().mockResolvedValue({ subject: "u1" }) },
         db: { query: mock().mockReturnValue(query) },
         storage: { getUrl: mock() },
-      } as any;
+      } as any);
 
       const handler = (getCards as any).handler ?? getCards;
       await handler(ctx, { limit: 100_000 });
@@ -170,11 +172,11 @@ describe("card/getCards.ts", () => {
         withIndex: mock().mockReturnValue({ order: orderMock }),
       } as any;
 
-      const ctx = {
+      const ctx = withTestSession({
         auth: { getUserIdentity: mock().mockResolvedValue({ subject: "u1" }) },
         db: { query: mock().mockReturnValue(query) },
         storage: { getUrl: mock() },
-      } as any;
+      } as any);
 
       const handler = (getCards as any).handler ?? getCards;
       await handler(ctx, { limit: -10 });
@@ -192,10 +194,10 @@ describe("card/getCards.ts", () => {
           metadata: { linkPreview: { imageStorageKey: "img1" } },
         },
       ];
-      const ctx = {
+      const ctx = withTestSession({
         auth: { getUserIdentity: mock().mockResolvedValue({ subject: "u1" }) },
         db: { query: mock().mockReturnValue(buildQuery(cards)) },
-      } as any;
+      } as any);
 
       const handler = (getCards as any).handler ?? getCards;
       const result = await handler(ctx, {});
@@ -229,10 +231,10 @@ describe("card/getCards.ts", () => {
           },
         },
       ];
-      const ctx = {
+      const ctx = withTestSession({
         auth: { getUserIdentity: mock().mockResolvedValue({ subject: "u1" }) },
         db: { query: mock().mockReturnValue(buildQuery(cards)) },
-      } as any;
+      } as any);
 
       const handler = (getCards as any).handler ?? getCards;
       const result = await handler(ctx, {});
@@ -274,11 +276,11 @@ describe("card/getCards.ts", () => {
           fileId: "f1",
         },
       ];
-      const ctx = {
+      const ctx = withTestSession({
         auth: { getUserIdentity: mock().mockResolvedValue({ subject: "u1" }) },
         db: { query: mock().mockReturnValue(buildQuery(cards)) },
         storage: { getUrl: mock().mockResolvedValue(null) },
-      } as any;
+      } as any);
 
       const handler = (getCards as any).handler ?? getCards;
       const result = await handler(ctx, {});
@@ -288,9 +290,9 @@ describe("card/getCards.ts", () => {
 
   describe("searchCards", () => {
     test("returns empty when unauthenticated", async () => {
-      const ctx = {
+      const ctx = withTestSession({
         auth: { getUserIdentity: mock().mockResolvedValue(null) },
-      } as any;
+      } as any);
       const handler = (searchCards as any).handler ?? searchCards;
       const result = await handler(ctx, {});
       expect(result).toEqual([]);
@@ -308,11 +310,11 @@ describe("card/getCards.ts", () => {
       ];
       const query = buildQuery(cards);
 
-      const ctx = {
+      const ctx = withTestSession({
         auth: { getUserIdentity: mock().mockResolvedValue({ subject: "u1" }) },
         db: { query: mock().mockReturnValue(query) },
         storage: { getUrl: mock() },
-      } as any;
+      } as any);
 
       const handler = (searchCards as any).handler ?? searchCards;
       const result = await handler(ctx, { searchQuery: "fav" });
@@ -329,11 +331,11 @@ describe("card/getCards.ts", () => {
       ];
       const query = buildQuery(cards);
 
-      const ctx = {
+      const ctx = withTestSession({
         auth: { getUserIdentity: mock().mockResolvedValue({ subject: "u1" }) },
         db: { query: mock().mockReturnValue(query) },
         storage: { getUrl: mock() },
-      } as any;
+      } as any);
 
       const handler = (searchCards as any).handler ?? searchCards;
       const result = await handler(ctx, { searchQuery: "trash" });
@@ -346,11 +348,11 @@ describe("card/getCards.ts", () => {
       ];
       const query = buildQuery([cards[0], cards[0]]); // Same card twice
 
-      const ctx = {
+      const ctx = withTestSession({
         auth: { getUserIdentity: mock().mockResolvedValue({ subject: "u1" }) },
         db: buildSearchDb(cards, query),
         storage: { getUrl: mock() },
-      } as any;
+      } as any);
 
       const handler = (searchCards as any).handler ?? searchCards;
       const result = await handler(ctx, { searchQuery: "test" });
@@ -376,11 +378,11 @@ describe("card/getCards.ts", () => {
       ];
       const query = buildQuery(cards);
 
-      const ctx = {
+      const ctx = withTestSession({
         auth: { getUserIdentity: mock().mockResolvedValue({ subject: "u1" }) },
         db: buildSearchDb(cards, query),
         storage: { getUrl: mock() },
-      } as any;
+      } as any);
 
       const handler = (searchCards as any).handler ?? searchCards;
       const result = await handler(ctx, {
@@ -410,11 +412,11 @@ describe("card/getCards.ts", () => {
       ];
       const query = buildQuery(cards);
 
-      const ctx = {
+      const ctx = withTestSession({
         auth: { getUserIdentity: mock().mockResolvedValue({ subject: "u1" }) },
         db: buildSearchDb(cards, query),
         storage: { getUrl: mock() },
-      } as any;
+      } as any);
 
       const handler = (searchCards as any).handler ?? searchCards;
       const result = await handler(ctx, {
@@ -444,11 +446,11 @@ describe("card/getCards.ts", () => {
       ];
       const query = buildQuery(cards);
 
-      const ctx = {
+      const ctx = withTestSession({
         auth: { getUserIdentity: mock().mockResolvedValue({ subject: "u1" }) },
         db: buildSearchDb(cards, query),
         storage: { getUrl: mock() },
-      } as any;
+      } as any);
 
       const handler = (searchCards as any).handler ?? searchCards;
       const result = await handler(ctx, {
@@ -469,11 +471,11 @@ describe("card/getCards.ts", () => {
       }));
       const query = buildQuery(cards);
 
-      const ctx = {
+      const ctx = withTestSession({
         auth: { getUserIdentity: mock().mockResolvedValue({ subject: "u1" }) },
         db: buildSearchDb(cards, query),
         storage: { getUrl: mock() },
-      } as any;
+      } as any);
 
       const handler = (searchCards as any).handler ?? searchCards;
       const result = await handler(ctx, { searchQuery: "test", limit: 10 });
@@ -484,11 +486,11 @@ describe("card/getCards.ts", () => {
       const cards: any[] = [];
       const query = buildQuery(cards);
 
-      const ctx = {
+      const ctx = withTestSession({
         auth: { getUserIdentity: mock().mockResolvedValue({ subject: "u1" }) },
         db: { query: mock().mockReturnValue(query) },
         storage: { getUrl: mock() },
-      } as any;
+      } as any);
 
       const handler = (searchCards as any).handler ?? searchCards;
       await handler(ctx, { types: ["image"] });
@@ -504,11 +506,11 @@ describe("card/getCards.ts", () => {
       ];
       const query = buildQuery(cards);
 
-      const ctx = {
+      const ctx = withTestSession({
         auth: { getUserIdentity: mock().mockResolvedValue({ subject: "u1" }) },
         db: { query: mock().mockReturnValue(query) },
         storage: { getUrl: mock() },
-      } as any;
+      } as any);
 
       const handler = (searchCards as any).handler ?? searchCards;
       const result = await handler(ctx, { types: ["image"] });
@@ -519,11 +521,11 @@ describe("card/getCards.ts", () => {
       const cards: any[] = [];
       const query = buildQuery(cards);
 
-      const ctx = {
+      const ctx = withTestSession({
         auth: { getUserIdentity: mock().mockResolvedValue({ subject: "u1" }) },
         db: { query: mock().mockReturnValue(query) },
         storage: { getUrl: mock() },
-      } as any;
+      } as any);
 
       const handler = (searchCards as any).handler ?? searchCards;
       await handler(ctx, {
@@ -560,11 +562,11 @@ describe("card/getCards.ts", () => {
         },
       ];
       const query = buildQuery(cards);
-      const ctx = {
+      const ctx = withTestSession({
         auth: { getUserIdentity: mock().mockResolvedValue({ subject: "u1" }) },
         db: { query: mock().mockReturnValue(query) },
         storage: { getUrl: mock() },
-      } as any;
+      } as any);
 
       const handler = (searchCards as any).handler ?? searchCards;
       const result = await handler(ctx, {
@@ -580,11 +582,11 @@ describe("card/getCards.ts", () => {
 
     test("throws for invalid hex filters", async () => {
       const query = buildQuery([]);
-      const ctx = {
+      const ctx = withTestSession({
         auth: { getUserIdentity: mock().mockResolvedValue({ subject: "u1" }) },
         db: { query: mock().mockReturnValue(query) },
         storage: { getUrl: mock() },
-      } as any;
+      } as any);
 
       const handler = (searchCards as any).handler ?? searchCards;
       await expect(
@@ -597,9 +599,9 @@ describe("card/getCards.ts", () => {
 
   describe("searchCardsPaginated", () => {
     test("returns empty pagination when unauthenticated", async () => {
-      const ctx = {
+      const ctx = withTestSession({
         auth: { getUserIdentity: mock().mockResolvedValue(null) },
-      } as any;
+      } as any);
       const handler =
         (searchCardsPaginated as any).handler ?? searchCardsPaginated;
       const result = await handler(ctx, {
@@ -620,11 +622,11 @@ describe("card/getCards.ts", () => {
       ];
       const query = buildQuery(cards);
 
-      const ctx = {
+      const ctx = withTestSession({
         auth: { getUserIdentity: mock().mockResolvedValue({ subject: "u1" }) },
         db: { query: mock().mockReturnValue(query) },
         storage: { getUrl: mock() },
-      } as any;
+      } as any);
 
       const handler =
         (searchCardsPaginated as any).handler ?? searchCardsPaginated;
@@ -641,11 +643,11 @@ describe("card/getCards.ts", () => {
       ];
       const query = buildQuery(cards);
 
-      const ctx = {
+      const ctx = withTestSession({
         auth: { getUserIdentity: mock().mockResolvedValue({ subject: "u1" }) },
         db: { query: mock().mockReturnValue(query) },
         storage: { getUrl: mock() },
-      } as any;
+      } as any);
 
       const handler =
         (searchCardsPaginated as any).handler ?? searchCardsPaginated;
@@ -666,11 +668,11 @@ describe("card/getCards.ts", () => {
       }));
       const query = buildQuery(cards);
 
-      const ctx = {
+      const ctx = withTestSession({
         auth: { getUserIdentity: mock().mockResolvedValue({ subject: "u1" }) },
         db: buildSearchDb(cards, query),
         storage: { getUrl: mock() },
-      } as any;
+      } as any);
 
       const handler =
         (searchCardsPaginated as any).handler ?? searchCardsPaginated;
@@ -693,11 +695,11 @@ describe("card/getCards.ts", () => {
       ];
       const query = buildQuery(cards);
 
-      const ctx = {
+      const ctx = withTestSession({
         auth: { getUserIdentity: mock().mockResolvedValue({ subject: "u1" }) },
         db: buildSearchDb(cards, query),
         storage: { getUrl: mock() },
-      } as any;
+      } as any);
 
       const handler =
         (searchCardsPaginated as any).handler ?? searchCardsPaginated;
@@ -721,11 +723,11 @@ describe("card/getCards.ts", () => {
       ];
       const query = buildQuery(cards);
 
-      const ctx = {
+      const ctx = withTestSession({
         auth: { getUserIdentity: mock().mockResolvedValue({ subject: "u1" }) },
         db: buildSearchDb(cards, query),
         storage: { getUrl: mock() },
-      } as any;
+      } as any);
 
       const handler =
         (searchCardsPaginated as any).handler ?? searchCardsPaginated;
@@ -756,11 +758,11 @@ describe("card/getCards.ts", () => {
       ];
       const query = buildQuery(cards);
 
-      const ctx = {
+      const ctx = withTestSession({
         auth: { getUserIdentity: mock().mockResolvedValue({ subject: "u1" }) },
         db: buildSearchDb(cards, query),
         storage: { getUrl: mock() },
-      } as any;
+      } as any);
 
       const handler =
         (searchCardsPaginated as any).handler ?? searchCardsPaginated;
@@ -779,11 +781,11 @@ describe("card/getCards.ts", () => {
       ];
       const query = buildQuery(cards);
 
-      const ctx = {
+      const ctx = withTestSession({
         auth: { getUserIdentity: mock().mockResolvedValue({ subject: "u1" }) },
         db: { query: mock().mockReturnValue(query) },
         storage: { getUrl: mock() },
-      } as any;
+      } as any);
 
       const handler =
         (searchCardsPaginated as any).handler ?? searchCardsPaginated;
@@ -808,11 +810,11 @@ describe("card/getCards.ts", () => {
         paginate: paginateMock,
       } as any;
 
-      const ctx = {
+      const ctx = withTestSession({
         auth: { getUserIdentity: mock().mockResolvedValue({ subject: "u1" }) },
         db: { query: mock().mockReturnValue(query) },
         storage: { getUrl: mock() },
-      } as any;
+      } as any);
 
       const handler =
         (searchCardsPaginated as any).handler ?? searchCardsPaginated;
@@ -836,11 +838,11 @@ describe("card/getCards.ts", () => {
       }));
       const query = buildQuery(cards);
 
-      const ctx = {
+      const ctx = withTestSession({
         auth: { getUserIdentity: mock().mockResolvedValue({ subject: "u1" }) },
         db: buildSearchDb(cards, query),
         storage: { getUrl: mock() },
-      } as any;
+      } as any);
 
       const handler =
         (searchCardsPaginated as any).handler ?? searchCardsPaginated;
@@ -856,11 +858,11 @@ describe("card/getCards.ts", () => {
       const cards: any[] = [];
       const query = buildQuery(cards);
 
-      const ctx = {
+      const ctx = withTestSession({
         auth: { getUserIdentity: mock().mockResolvedValue({ subject: "u1" }) },
         db: { query: mock().mockReturnValue(query) },
         storage: { getUrl: mock() },
-      } as any;
+      } as any);
 
       const handler =
         (searchCardsPaginated as any).handler ?? searchCardsPaginated;
@@ -896,11 +898,11 @@ describe("card/getCards.ts", () => {
         },
       ];
       const query = buildQuery(cards);
-      const ctx = {
+      const ctx = withTestSession({
         auth: { getUserIdentity: mock().mockResolvedValue({ subject: "u1" }) },
         db: { query: mock().mockReturnValue(query) },
         storage: { getUrl: mock() },
-      } as any;
+      } as any);
 
       const handler =
         (searchCardsPaginated as any).handler ?? searchCardsPaginated;
@@ -916,11 +918,11 @@ describe("card/getCards.ts", () => {
 
     test("throws for invalid hex filters in paginated mode", async () => {
       const query = buildQuery([]);
-      const ctx = {
+      const ctx = withTestSession({
         auth: { getUserIdentity: mock().mockResolvedValue({ subject: "u1" }) },
         db: { query: mock().mockReturnValue(query) },
         storage: { getUrl: mock() },
-      } as any;
+      } as any);
 
       const handler =
         (searchCardsPaginated as any).handler ?? searchCardsPaginated;

@@ -1,4 +1,5 @@
 // @ts-nocheck
+import { withTestSession } from "../helpers/session.test-utils";
 
 // Set environment variables BEFORE any imports that might load auth.ts
 process.env.SITE_URL = "https://teakvault.com";
@@ -90,10 +91,10 @@ describe("card/createCard.ts", () => {
   });
 
   test("throws when unauthenticated", async () => {
-    const ctx = {
+    const ctx = withTestSession({
       runMutation: mock().mockResolvedValue({ ok: true }),
       auth: { getUserIdentity: mock().mockResolvedValue(null) },
-    } as any;
+    } as any);
 
     await expect(
       ((createCard as any).handler ?? createCard)(ctx, { content: "Hello" })
@@ -101,7 +102,7 @@ describe("card/createCard.ts", () => {
   });
 
   test("creates quote card when content is quoted", async () => {
-    const ctx = {
+    const ctx = withTestSession({
       runMutation: mock().mockResolvedValue({ ok: true }),
       auth: { getUserIdentity: mock().mockResolvedValue({ subject: "u1" }) },
       db: {
@@ -115,7 +116,7 @@ describe("card/createCard.ts", () => {
         insert: mock().mockResolvedValue("c1"),
       },
       scheduler: { runAfter: mock().mockResolvedValue(null) },
-    } as any;
+    } as any);
 
     const handler = (createCard as any).handler ?? createCard;
     const cardId = await handler(ctx, {
@@ -146,7 +147,7 @@ describe("card/createCard.ts", () => {
   });
 
   test("sets metadataStatus pending for link cards", async () => {
-    const ctx = {
+    const ctx = withTestSession({
       runMutation: mock().mockResolvedValue({ ok: true }),
       auth: { getUserIdentity: mock().mockResolvedValue({ subject: "u1" }) },
       db: {
@@ -160,7 +161,7 @@ describe("card/createCard.ts", () => {
         insert: mock().mockResolvedValue("c2"),
       },
       scheduler: { runAfter: mock().mockResolvedValue(null) },
-    } as any;
+    } as any);
 
     const handler = (createCard as any).handler ?? createCard;
     await handler(ctx, {
@@ -184,7 +185,7 @@ describe("card/createCard.ts", () => {
     // "I read this at https://example.com") should keep a text card. The
     // backend only auto-upgrades URL content to a link when no type is
     // provided, so an explicit type is always honored.
-    const ctx = {
+    const ctx = withTestSession({
       runMutation: mock().mockResolvedValue({ ok: true }),
       auth: { getUserIdentity: mock().mockResolvedValue({ subject: "u1" }) },
       db: {
@@ -198,7 +199,7 @@ describe("card/createCard.ts", () => {
         insert: mock().mockResolvedValue("c_text_url"),
       },
       scheduler: { runAfter: mock().mockResolvedValue(null) },
-    } as any;
+    } as any);
 
     const handler = (createCard as any).handler ?? createCard;
     await handler(ctx, {
@@ -216,7 +217,7 @@ describe("card/createCard.ts", () => {
 
   test("keeps explicit text stable for URLs, quotes, colors, and Markdown", async () => {
     const insert = mock(async () => "c_explicit");
-    const ctx = {
+    const ctx = withTestSession({
       runMutation: mock().mockResolvedValue({ ok: true }),
       auth: { getUserIdentity: mock().mockResolvedValue({ subject: "u1" }) },
       db: {
@@ -229,7 +230,7 @@ describe("card/createCard.ts", () => {
         insert,
       },
       scheduler: { runAfter: mock().mockResolvedValue(null) },
-    } as any;
+    } as any);
     const handler = (createCard as any).handler ?? createCard;
     const sources = [
       "https://example.com",
@@ -250,7 +251,7 @@ describe("card/createCard.ts", () => {
   });
 
   test("preserves explicit Markdown text source exactly and enforces UTF-8 bytes", async () => {
-    const ctx = {
+    const ctx = withTestSession({
       runMutation: mock().mockResolvedValue({ ok: true }),
       auth: { getUserIdentity: mock().mockResolvedValue({ subject: "u1" }) },
       db: {
@@ -262,7 +263,7 @@ describe("card/createCard.ts", () => {
         insert: mock().mockResolvedValue("c_markdown"),
       },
       scheduler: { runAfter: mock().mockResolvedValue(null) },
-    } as any;
+    } as any);
     const source =
       "\uFEFF  # Heading\r\n- [ ] task\rBody\nhttps://example.com  ";
     const handler = (createCard as any).handler ?? createCard;
@@ -282,7 +283,7 @@ describe("card/createCard.ts", () => {
   });
 
   test("lets the backend upgrade a URL to a link card when type is omitted", async () => {
-    const ctx = {
+    const ctx = withTestSession({
       runMutation: mock().mockResolvedValue({ ok: true }),
       auth: { getUserIdentity: mock().mockResolvedValue({ subject: "u1" }) },
       db: {
@@ -296,7 +297,7 @@ describe("card/createCard.ts", () => {
         insert: mock().mockResolvedValue("c_link_auto"),
       },
       scheduler: { runAfter: mock().mockResolvedValue(null) },
-    } as any;
+    } as any);
 
     const handler = (createCard as any).handler ?? createCard;
     await handler(ctx, {
@@ -314,7 +315,7 @@ describe("card/createCard.ts", () => {
   });
 
   test("keeps implicit text source exact when content has no URL", async () => {
-    const ctx = {
+    const ctx = withTestSession({
       runMutation: mock().mockResolvedValue({ ok: true }),
       auth: { getUserIdentity: mock().mockResolvedValue({ subject: "u1" }) },
       db: {
@@ -328,7 +329,7 @@ describe("card/createCard.ts", () => {
         insert: mock().mockResolvedValue("c_text"),
       },
       scheduler: { runAfter: mock().mockResolvedValue(null) },
-    } as any;
+    } as any);
 
     const handler = (createCard as any).handler ?? createCard;
     const content = "\uFEFF  # regular note\r\n\rBody  ";
@@ -346,7 +347,7 @@ describe("card/createCard.ts", () => {
   });
 
   test("rejects unsafe url schemes", async () => {
-    const ctx = {
+    const ctx = withTestSession({
       runMutation: mock().mockResolvedValue({ ok: true }),
       auth: { getUserIdentity: mock().mockResolvedValue({ subject: "u1" }) },
       db: {
@@ -360,7 +361,7 @@ describe("card/createCard.ts", () => {
         insert: mock().mockResolvedValue("c_unsafe"),
       },
       scheduler: { runAfter: mock().mockResolvedValue(null) },
-    } as any;
+    } as any);
 
     const handler = (createCard as any).handler ?? createCard;
     await expect(
@@ -375,7 +376,7 @@ describe("card/createCard.ts", () => {
   });
 
   test("normalizes failure classes before scheduling telemetry", async () => {
-    const ctx = {
+    const ctx = withTestSession({
       runMutation: mock().mockResolvedValue({ ok: true }),
       auth: { getUserIdentity: mock().mockResolvedValue({ subject: "u1" }) },
       db: {
@@ -389,7 +390,7 @@ describe("card/createCard.ts", () => {
         insert: mock().mockRejectedValue(new Error("Request timed out")),
       },
       scheduler: { runAfter: mock().mockResolvedValue(null) },
-    } as any;
+    } as any);
 
     const handler = (createCard as any).handler ?? createCard;
     await expect(handler(ctx, { content: "Hello" })).rejects.toThrow(
@@ -406,7 +407,7 @@ describe("card/createCard.ts", () => {
   });
 
   test("builds fileMetadata when fileKey provided", async () => {
-    const ctx = {
+    const ctx = withTestSession({
       runMutation: mock().mockResolvedValue({ ok: true }),
       auth: { getUserIdentity: mock().mockResolvedValue({ subject: "u1" }) },
       db: {
@@ -419,7 +420,7 @@ describe("card/createCard.ts", () => {
         insert: mock().mockResolvedValue("c3"),
       },
       scheduler: { runAfter: mock().mockResolvedValue(null) },
-    } as any;
+    } as any);
 
     const handler = (createCard as any).handler ?? createCard;
     await handler(ctx, {
@@ -445,7 +446,7 @@ describe("card/createCard.ts", () => {
   });
 
   test("preserves metadata source when provided", async () => {
-    const ctx = {
+    const ctx = withTestSession({
       runMutation: mock().mockResolvedValue({ ok: true }),
       auth: { getUserIdentity: mock().mockResolvedValue({ subject: "u1" }) },
       db: {
@@ -459,7 +460,7 @@ describe("card/createCard.ts", () => {
         insert: mock().mockResolvedValue("c4"),
       },
       scheduler: { runAfter: mock().mockResolvedValue(null) },
-    } as any;
+    } as any);
 
     const handler = (createCard as any).handler ?? createCard;
     await handler(ctx, {

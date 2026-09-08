@@ -66,3 +66,4 @@ apps/mobile/build-*.ipa
 todo/
 .pi/
 .blume/
+.wxt/

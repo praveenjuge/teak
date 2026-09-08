@@ -23,52 +23,8 @@ const MCP_CORS_HEADERS: Record<string, string> = {
   "Access-Control-Max-Age": "86400",
 };
 
-const TOKEN_VALIDATION_TTL_MS = 30_000;
-const MAX_VALIDATED_TOKENS = 10_000;
 export const MAX_MCP_JSON_RPC_BATCH = 100;
 const JSON_RPC_RATE_LIMITED_CODE = -32_000;
-const validatedTokenCache = new Map<string, number>();
-
-const getAuthorizationHeader = (request: Request): string | null =>
-  request.headers.get("authorization");
-
-const hasFreshValidation = (authorization: string, now: number): boolean => {
-  const expiresAt = validatedTokenCache.get(authorization);
-  if (!expiresAt) {
-    return false;
-  }
-
-  if (expiresAt <= now) {
-    validatedTokenCache.delete(authorization);
-    return false;
-  }
-
-  return true;
-};
-
-const rememberValidation = (authorization: string, now: number): void => {
-  validatedTokenCache.set(authorization, now + TOKEN_VALIDATION_TTL_MS);
-
-  for (const [cachedAuthorization, expiresAt] of validatedTokenCache) {
-    if (expiresAt <= now) {
-      validatedTokenCache.delete(cachedAuthorization);
-    }
-  }
-
-  if (validatedTokenCache.size <= MAX_VALIDATED_TOKENS) {
-    return;
-  }
-
-  const overflow = validatedTokenCache.size - MAX_VALIDATED_TOKENS;
-  let removed = 0;
-  for (const cachedAuthorization of validatedTokenCache.keys()) {
-    validatedTokenCache.delete(cachedAuthorization);
-    removed += 1;
-    if (removed >= overflow) {
-      return;
-    }
-  }
-};
 
 const withMcpCors = (response: Response): Response => {
   const withGatewayHeaders = withPublicApiGatewayHeaders(response);
@@ -316,21 +272,13 @@ const validateMcpBearer = async (
   ctx: any,
   request: Request
 ): Promise<Response | null> => {
-  const authorization = getAuthorizationHeader(request);
-  const now = Date.now();
-  if (authorization && hasFreshValidation(authorization, now)) {
-    return null;
-  }
-
+  // Validate even protocol-only requests against live credentials. A previous
+  // successful request must not keep a disconnected app or revoked key usable.
   const authError = await validatePublicApiBearer(ctx, request);
   if (authError) {
     return authError.status === 401
       ? withAuthChallenge(authError, request.url)
       : withMcpCors(authError);
-  }
-
-  if (authorization) {
-    rememberValidation(authorization, now);
   }
 
   return null;

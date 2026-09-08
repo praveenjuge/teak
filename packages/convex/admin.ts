@@ -16,6 +16,7 @@ import type {
 } from "./card/processingStatus";
 import { stagePending } from "./card/processingStatus";
 import { patchCardWithSearchSync } from "./card/searchDocumentHelpers";
+import { getSessionIdentity } from "./securitySessions";
 import { deleteObject, resolveObjectUrl } from "./storage/r2";
 
 interface StageSummary {
@@ -78,7 +79,7 @@ const getAdminUserId = async (ctx: AdminCtx) => {
 };
 
 const ensureAdmin = async (ctx: AdminCtx) => {
-  const identity = await ctx.auth.getUserIdentity();
+  const identity = await getSessionIdentity(ctx);
   if (!identity) {
     throw new Error("Unauthorized");
   }
@@ -157,7 +158,7 @@ const getActiveCardCountForUser = async (
 export const getAccess = query({
   args: {},
   handler: async (ctx) => {
-    const identity = await ctx.auth.getUserIdentity();
+    const identity = await getSessionIdentity(ctx);
     if (!identity) {
       return { allowed: false } as const;
     }

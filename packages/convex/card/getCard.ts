@@ -1,6 +1,7 @@
 import { v } from "convex/values";
 import type { Id } from "../_generated/dataModel";
 import { internalQuery, query } from "../_generated/server";
+import { getSessionIdentity } from "../securitySessions";
 import { cardReturnValidator } from "./getCards";
 import { attachFileUrls } from "./queryUtils";
 import {
@@ -27,7 +28,7 @@ export const getCard = query({
   },
   returns: v.union(v.null(), cardReturnValidator),
   handler: async (ctx, { id }) => {
-    const user = await ctx.auth.getUserIdentity();
+    const user = await getSessionIdentity(ctx);
     if (!user) {
       return null;
     }
@@ -42,7 +43,7 @@ export const getCardByUrlId = query({
   },
   returns: v.union(v.null(), cardReturnValidator),
   handler: async (ctx, { id }) => {
-    const user = await ctx.auth.getUserIdentity();
+    const user = await getSessionIdentity(ctx);
     if (!user) {
       return null;
     }
@@ -70,7 +71,7 @@ export const getDeletedCards = query({
   },
   returns: v.array(cardReturnValidator),
   handler: async (ctx, args) => {
-    const user = await ctx.auth.getUserIdentity();
+    const user = await getSessionIdentity(ctx);
     if (!user) {
       return [];
     }

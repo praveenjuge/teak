@@ -1,6 +1,8 @@
 // @ts-nocheck
+
 import { beforeEach, describe, expect, mock, test } from "bun:test";
 import { r2MockModuleFactory, r2Mocks } from "./helpers/r2Mock.test-utils";
+import { withTestSession } from "./helpers/session.test-utils";
 
 mock.module("../storage/r2", r2MockModuleFactory);
 
@@ -28,29 +30,29 @@ describe("admin.ts", () => {
 
   describe("getAccess", () => {
     test("returns not allowed when unauthenticated", async () => {
-      const ctx = {
+      const ctx = withTestSession({
         auth: { getUserIdentity: mock().mockResolvedValue(null) },
-      } as any;
+      } as any);
       const handler = (getAccess as any).handler ?? getAccess;
       const result = await handler(ctx, {});
       expect(result).toEqual({ allowed: false });
     });
 
     test("returns not allowed when no configured admin exists", async () => {
-      const ctx = {
+      const ctx = withTestSession({
         auth: { getUserIdentity: mock().mockResolvedValue({ subject: "u1" }) },
         runQuery: mock().mockResolvedValue({ page: [] }),
-      } as any;
+      } as any);
       const handler = (getAccess as any).handler ?? getAccess;
       const result = await handler(ctx, {});
       expect(result).toEqual({ allowed: false });
     });
 
     test("returns allowed when user matches the configured admin", async () => {
-      const ctx = {
+      const ctx = withTestSession({
         auth: { getUserIdentity: mock().mockResolvedValue({ subject: "u1" }) },
         runQuery: mock().mockResolvedValue({ page: [{ _id: "u1" }] }),
-      } as any;
+      } as any);
       const handler = (getAccess as any).handler ?? getAccess;
       const result = await handler(ctx, {});
       expect(result).toEqual({ allowed: true });
@@ -70,10 +72,10 @@ describe("admin.ts", () => {
     });
 
     test("returns not allowed when user is not the configured admin", async () => {
-      const ctx = {
+      const ctx = withTestSession({
         auth: { getUserIdentity: mock().mockResolvedValue({ subject: "u2" }) },
         runQuery: mock().mockResolvedValue({ page: [{ _id: "u1" }] }),
-      } as any;
+      } as any);
       const handler = (getAccess as any).handler ?? getAccess;
       const result = await handler(ctx, {});
       expect(result).toEqual({ allowed: false });
@@ -81,35 +83,36 @@ describe("admin.ts", () => {
 
     test("fails closed when the admin email is not configured", async () => {
       delete process.env.TEAK_ADMIN_EMAIL;
-      const ctx = {
+      const runQuery = mock();
+      const ctx = withTestSession({
         auth: { getUserIdentity: mock().mockResolvedValue({ subject: "u1" }) },
-        runQuery: mock(),
-      } as any;
+        runQuery,
+      } as any);
       const handler = (getAccess as any).handler ?? getAccess;
       const result = await handler(ctx, {});
       expect(result).toEqual({ allowed: false });
-      expect(ctx.runQuery).not.toHaveBeenCalled();
+      expect(runQuery).not.toHaveBeenCalled();
     });
   });
 
   describe("getOverview", () => {
     test("throws when unauthorized", async () => {
-      const ctx = {
+      const ctx = withTestSession({
         auth: { getUserIdentity: mock().mockResolvedValue(null) },
         runQuery: mock().mockResolvedValue({ page: [] }),
-      } as any;
+      } as any);
       const handler = (getOverview as any).handler ?? getOverview;
       await expect(handler(ctx, {})).rejects.toThrow("Unauthorized");
     });
 
     test("returns empty overview when no cards", async () => {
-      const ctx = {
+      const ctx = withTestSession({
         auth: { getUserIdentity: mock().mockResolvedValue({ subject: "u1" }) },
         runQuery: mock().mockResolvedValue({ page: [{ _id: "u1" }] }),
         db: {
           query: mock().mockReturnValue({ take: mock().mockResolvedValue([]) }),
         },
-      } as any;
+      } as any);
       const handler = (getOverview as any).handler ?? getOverview;
       const result = await handler(ctx, {});
 
@@ -145,7 +148,7 @@ describe("admin.ts", () => {
           metadataStatus: "completed",
         },
       ];
-      const ctx = {
+      const ctx = withTestSession({
         auth: { getUserIdentity: mock().mockResolvedValue({ subject: "u1" }) },
         runQuery: mock().mockResolvedValue({ page: [{ _id: "u1" }] }),
         db: {
@@ -153,7 +156,7 @@ describe("admin.ts", () => {
             take: mock().mockResolvedValue(cards),
           }),
         },
-      } as any;
+      } as any);
       const handler = (getOverview as any).handler ?? getOverview;
       const result = await handler(ctx, {});
 
@@ -189,7 +192,7 @@ describe("admin.ts", () => {
           createdAt: Date.now(),
         },
       ];
-      const ctx = {
+      const ctx = withTestSession({
         auth: { getUserIdentity: mock().mockResolvedValue({ subject: "u1" }) },
         runQuery: mock().mockResolvedValue({ page: [{ _id: "u1" }] }),
         db: {
@@ -197,7 +200,7 @@ describe("admin.ts", () => {
             take: mock().mockResolvedValue(cards),
           }),
         },
-      } as any;
+      } as any);
       const handler = (getOverview as any).handler ?? getOverview;
       const result = await handler(ctx, {});
 
@@ -219,7 +222,7 @@ describe("admin.ts", () => {
           createdAt: Date.now(),
         },
       ];
-      const ctx = {
+      const ctx = withTestSession({
         auth: { getUserIdentity: mock().mockResolvedValue({ subject: "u1" }) },
         runQuery: mock().mockResolvedValue({ page: [{ _id: "u1" }] }),
         db: {
@@ -227,7 +230,7 @@ describe("admin.ts", () => {
             take: mock().mockResolvedValue(cards),
           }),
         },
-      } as any;
+      } as any);
       const handler = (getOverview as any).handler ?? getOverview;
       const result = await handler(ctx, {});
 
@@ -243,7 +246,7 @@ describe("admin.ts", () => {
         userId: "u1",
         createdAt: Date.now(),
       }));
-      const ctx = {
+      const ctx = withTestSession({
         auth: { getUserIdentity: mock().mockResolvedValue({ subject: "u1" }) },
         runQuery: mock().mockResolvedValue({ page: [{ _id: "u1" }] }),
         db: {
@@ -251,7 +254,7 @@ describe("admin.ts", () => {
             take: mock().mockResolvedValue(cards),
           }),
         },
-      } as any;
+      } as any);
       const handler = (getOverview as any).handler ?? getOverview;
       const result = await handler(ctx, {});
 
@@ -282,7 +285,7 @@ describe("admin.ts", () => {
           createdAt: Date.now(),
         },
       ];
-      const ctx = {
+      const ctx = withTestSession({
         auth: { getUserIdentity: mock().mockResolvedValue({ subject: "u1" }) },
         runQuery: mock().mockResolvedValue({ page: [{ _id: "u1" }] }),
         db: {
@@ -290,7 +293,7 @@ describe("admin.ts", () => {
             take: mock().mockResolvedValue(cards),
           }),
         },
-      } as any;
+      } as any);
       const handler = (getOverview as any).handler ?? getOverview;
       const result = await handler(ctx, {});
 
@@ -387,12 +390,12 @@ describe("admin.ts", () => {
 
   describe("refreshCardProcessing", () => {
     test("throws when unauthorized", async () => {
-      const ctx = {
+      const ctx = withTestSession({
         auth: { getUserIdentity: mock().mockResolvedValue(null) },
         runQuery: mock().mockResolvedValue({ page: [] }),
         runMutation: mock(),
         scheduler: { runAfter: mock() },
-      } as any;
+      } as any);
       const handler =
         (refreshCardProcessing as any).handler ?? refreshCardProcessing;
       await expect(handler(ctx, { cardId: "c1" })).rejects.toThrow(
@@ -402,7 +405,7 @@ describe("admin.ts", () => {
 
     test("returns not_found when card missing", async () => {
       let callCount = 0;
-      const ctx = {
+      const ctx = withTestSession({
         auth: { getUserIdentity: mock().mockResolvedValue({ subject: "u1" }) },
         runQuery: mock().mockImplementation(() => {
           callCount++;
@@ -412,7 +415,7 @@ describe("admin.ts", () => {
         }),
         runMutation: mock(),
         scheduler: { runAfter: mock() },
-      } as any;
+      } as any);
       const handler =
         (refreshCardProcessing as any).handler ?? refreshCardProcessing;
       const result = await handler(ctx, { cardId: "c1" });
@@ -424,7 +427,7 @@ describe("admin.ts", () => {
     test("resets processing and schedules workflow", async () => {
       let callCount = 0;
       const card = { _id: "c1" };
-      const ctx = {
+      const ctx = withTestSession({
         auth: { getUserIdentity: mock().mockResolvedValue({ subject: "u1" }) },
         runQuery: mock().mockImplementation(() => {
           callCount++;
@@ -434,7 +437,7 @@ describe("admin.ts", () => {
         }),
         runMutation: mock().mockResolvedValue({ clearedThumbnail: false }),
         scheduler: { runAfter: mock().mockResolvedValue(null) },
-      } as any;
+      } as any);
       const handler =
         (refreshCardProcessing as any).handler ?? refreshCardProcessing;
       const result = await handler(ctx, { cardId: "c1" });

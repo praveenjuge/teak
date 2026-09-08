@@ -1,6 +1,8 @@
 // @ts-nocheck
+
 import { beforeEach, describe, expect, mock, test } from "bun:test";
 import { r2MockModuleFactory, r2Mocks } from "../helpers/r2Mock.test-utils";
+import { withTestSession } from "../helpers/session.test-utils";
 
 mock.module("../../storage/r2", r2MockModuleFactory);
 
@@ -15,16 +17,16 @@ describe("card/findDuplicateCard.ts", () => {
   });
 
   test("returns null when unauthenticated", async () => {
-    const ctx = {
+    const ctx = withTestSession({
       auth: { getUserIdentity: mock().mockResolvedValue(null) },
-    } as any;
+    } as any);
     const handler = (findDuplicateCard as any).handler ?? findDuplicateCard;
     const result = await handler(ctx, { url: "https://example.com" });
     expect(result).toBeNull();
   });
 
   test("returns null when no duplicate found", async () => {
-    const ctx = {
+    const ctx = withTestSession({
       auth: { getUserIdentity: mock().mockResolvedValue({ subject: "u1" }) },
       db: {
         query: mock().mockReturnValue({
@@ -35,7 +37,7 @@ describe("card/findDuplicateCard.ts", () => {
           }),
         }),
       },
-    } as any;
+    } as any);
 
     const handler = (findDuplicateCard as any).handler ?? findDuplicateCard;
     const result = await handler(ctx, { url: "https://example.com" });
@@ -63,7 +65,7 @@ describe("card/findDuplicateCard.ts", () => {
       key ? `file://${key}` : null
     );
 
-    const ctx = {
+    const ctx = withTestSession({
       auth: { getUserIdentity: mock().mockResolvedValue({ subject: "u1" }) },
       db: {
         query: mock().mockReturnValue({
@@ -74,7 +76,7 @@ describe("card/findDuplicateCard.ts", () => {
           }),
         }),
       },
-    } as any;
+    } as any);
 
     const handler = (findDuplicateCard as any).handler ?? findDuplicateCard;
     const result = await handler(ctx, { url: "https://example.com" });
@@ -99,7 +101,7 @@ describe("card/findDuplicateCard.ts", () => {
       url: "https://example.com",
     };
 
-    const ctx = {
+    const ctx = withTestSession({
       auth: { getUserIdentity: mock().mockResolvedValue({ subject: "u1" }) },
       db: {
         query: mock().mockReturnValue({
@@ -110,7 +112,7 @@ describe("card/findDuplicateCard.ts", () => {
           }),
         }),
       },
-    } as any;
+    } as any);
 
     const handler = (findDuplicateCard as any).handler ?? findDuplicateCard;
     const result = await handler(ctx, { url: "https://example.com" });
@@ -138,7 +140,7 @@ describe("card/findDuplicateCard.ts", () => {
 
     r2Mocks.resolveObjectUrl.mockResolvedValue("file://f1");
 
-    const ctx = {
+    const ctx = withTestSession({
       auth: { getUserIdentity: mock().mockResolvedValue({ subject: "u1" }) },
       db: {
         query: mock().mockReturnValue({
@@ -149,7 +151,7 @@ describe("card/findDuplicateCard.ts", () => {
           }),
         }),
       },
-    } as any;
+    } as any);
 
     const handler = (findDuplicateCard as any).handler ?? findDuplicateCard;
     const result = await handler(ctx, { url: "https://example.com/image.jpg" });
@@ -184,12 +186,12 @@ describe("card/findDuplicateCard.ts", () => {
       }),
     };
 
-    const ctx = {
+    const ctx = withTestSession({
       auth: { getUserIdentity: mock().mockResolvedValue({ subject: "u1" }) },
       db: {
         query: mock().mockReturnValue(queryMock),
       },
-    } as any;
+    } as any);
 
     const handler = (findDuplicateCard as any).handler ?? findDuplicateCard;
     await handler(ctx, { url: "https://example.com" });

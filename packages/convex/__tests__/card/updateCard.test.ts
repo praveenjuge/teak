@@ -1,6 +1,8 @@
 // @ts-nocheck
+
 import { beforeEach, describe, expect, mock, test } from "bun:test";
 import { CARD_USAGE_SHARD_VERSION } from "../../card/cardUsage";
+import { withTestSession } from "../helpers/session.test-utils";
 
 const mockReprocessLimit = mock().mockResolvedValue({ ok: true });
 
@@ -68,9 +70,9 @@ describe("card/updateCard.ts", () => {
   });
 
   test("updateCard throws when unauthenticated", async () => {
-    const ctx = {
+    const ctx = withTestSession({
       auth: { getUserIdentity: mock().mockResolvedValue(null) },
-    } as any;
+    } as any);
     await expect(
       ((updateCard as any).handler ?? updateCard)(ctx, {
         id: "c1",
@@ -80,7 +82,7 @@ describe("card/updateCard.ts", () => {
   });
 
   test("updateCard normalizes quote content and schedules pipeline", async () => {
-    const ctx = {
+    const ctx = withTestSession({
       runMutation: mockReprocessLimit,
       auth: { getUserIdentity: mock().mockResolvedValue({ subject: "u1" }) },
       db: {
@@ -94,7 +96,7 @@ describe("card/updateCard.ts", () => {
         patch: mock().mockResolvedValue(null),
       },
       scheduler: { runAfter: mock().mockResolvedValue(null) },
-    } as any;
+    } as any);
 
     const updateHandler = (updateCard as any).handler ?? updateCard;
     await updateHandler(ctx, { id: "c1", content: "'New quote'" });
@@ -116,7 +118,7 @@ describe("card/updateCard.ts", () => {
 
   test("updateCard rejects rapid reprocessing before changing the card", async () => {
     mockReprocessLimit.mockResolvedValueOnce({ ok: false });
-    const ctx = {
+    const ctx = withTestSession({
       runMutation: mockReprocessLimit,
       auth: { getUserIdentity: mock().mockResolvedValue({ subject: "u1" }) },
       db: {
@@ -129,7 +131,7 @@ describe("card/updateCard.ts", () => {
         patch: mock(),
       },
       scheduler: { runAfter: mock() },
-    } as any;
+    } as any);
 
     const handler = (updateCard as any).handler ?? updateCard;
     await expect(handler(ctx, { id: "c1", content: "New" })).rejects.toThrow(
@@ -140,14 +142,14 @@ describe("card/updateCard.ts", () => {
   });
 
   test("updateCard throws when card not found", async () => {
-    const ctx = {
+    const ctx = withTestSession({
       auth: { getUserIdentity: mock().mockResolvedValue({ subject: "u1" }) },
       db: {
         get: mock().mockResolvedValue(null),
         patch: mock(),
       },
       scheduler: { runAfter: mock() },
-    } as any;
+    } as any);
 
     const updateHandler = (updateCard as any).handler ?? updateCard;
     await expect(
@@ -156,7 +158,7 @@ describe("card/updateCard.ts", () => {
   });
 
   test("updateCard throws when not authorized", async () => {
-    const ctx = {
+    const ctx = withTestSession({
       auth: { getUserIdentity: mock().mockResolvedValue({ subject: "u2" }) },
       db: {
         get: mock().mockResolvedValue({
@@ -168,7 +170,7 @@ describe("card/updateCard.ts", () => {
         patch: mock(),
       },
       scheduler: { runAfter: mock() },
-    } as any;
+    } as any);
 
     const updateHandler = (updateCard as any).handler ?? updateCard;
     await expect(
@@ -177,7 +179,7 @@ describe("card/updateCard.ts", () => {
   });
 
   test("updateCard does not normalize content for non-quote types", async () => {
-    const ctx = {
+    const ctx = withTestSession({
       runMutation: mockReprocessLimit,
       auth: { getUserIdentity: mock().mockResolvedValue({ subject: "u1" }) },
       db: {
@@ -190,7 +192,7 @@ describe("card/updateCard.ts", () => {
         patch: mock().mockResolvedValue(null),
       },
       scheduler: { runAfter: mock().mockResolvedValue(null) },
-    } as any;
+    } as any);
 
     const updateHandler = (updateCard as any).handler ?? updateCard;
     await updateHandler(ctx, { id: "c1", content: "'quoted text'" });
@@ -210,7 +212,7 @@ describe("card/updateCard.ts", () => {
       content: "Old",
       processingStatus: { classify: { status: "completed" } },
     };
-    const ctx = {
+    const ctx = withTestSession({
       runMutation: mockReprocessLimit,
       auth: { getUserIdentity: mock().mockResolvedValue({ subject: "u1" }) },
       db: {
@@ -218,7 +220,7 @@ describe("card/updateCard.ts", () => {
         patch: mock().mockResolvedValue(null),
       },
       scheduler: { runAfter: mock().mockResolvedValue(null) },
-    } as any;
+    } as any);
     const handler = (updateCard as any).handler ?? updateCard;
     const source = "\uFEFF  # Heading\r\n\rBody  ";
     await handler(ctx, { id: "c1", content: source });
@@ -232,7 +234,7 @@ describe("card/updateCard.ts", () => {
   });
 
   test("updateCard updates link type with categorize stage", async () => {
-    const ctx = {
+    const ctx = withTestSession({
       runMutation: mockReprocessLimit,
       auth: { getUserIdentity: mock().mockResolvedValue({ subject: "u1" }) },
       db: {
@@ -245,7 +247,7 @@ describe("card/updateCard.ts", () => {
         patch: mock().mockResolvedValue(null),
       },
       scheduler: { runAfter: mock().mockResolvedValue(null) },
-    } as any;
+    } as any);
 
     const updateHandler = (updateCard as any).handler ?? updateCard;
     await updateHandler(ctx, { id: "c1", content: "New content" });
@@ -256,9 +258,9 @@ describe("card/updateCard.ts", () => {
   });
 
   test("updateCardField throws when unauthenticated", async () => {
-    const ctx = {
+    const ctx = withTestSession({
       auth: { getUserIdentity: mock().mockResolvedValue(null) },
-    } as any;
+    } as any);
     const handler = (updateCardField as any).handler ?? updateCardField;
     await expect(
       handler(ctx, { cardId: "c1", field: "content", value: "Hi" })
@@ -266,10 +268,10 @@ describe("card/updateCard.ts", () => {
   });
 
   test("updateCardField throws when card not found", async () => {
-    const ctx = {
+    const ctx = withTestSession({
       auth: { getUserIdentity: mock().mockResolvedValue({ subject: "u1" }) },
       db: { get: mock().mockResolvedValue(null) },
-    } as any;
+    } as any);
 
     const handler = (updateCardField as any).handler ?? updateCardField;
     await expect(
@@ -278,12 +280,12 @@ describe("card/updateCard.ts", () => {
   });
 
   test("updateCardField throws when not authorized", async () => {
-    const ctx = {
+    const ctx = withTestSession({
       auth: { getUserIdentity: mock().mockResolvedValue({ subject: "u2" }) },
       db: {
         get: mock().mockResolvedValue({ _id: "c1", userId: "u1" }),
       },
-    } as any;
+    } as any);
 
     const handler = (updateCardField as any).handler ?? updateCardField;
     await expect(
@@ -292,7 +294,7 @@ describe("card/updateCard.ts", () => {
   });
 
   test("updateCardField updates url and clears link preview", async () => {
-    const ctx = {
+    const ctx = withTestSession({
       runMutation: mockReprocessLimit,
       auth: { getUserIdentity: mock().mockResolvedValue({ subject: "u1" }) },
       db: {
@@ -310,7 +312,7 @@ describe("card/updateCard.ts", () => {
         patch: mock().mockResolvedValue(null),
       },
       scheduler: { runAfter: mock().mockResolvedValue(null) },
-    } as any;
+    } as any);
 
     const updateFieldHandler =
       (updateCardField as any).handler ?? updateCardField;
@@ -334,7 +336,7 @@ describe("card/updateCard.ts", () => {
   });
 
   test("updateCardField captures favorite state changes", async () => {
-    const ctx = {
+    const ctx = withTestSession({
       auth: { getUserIdentity: mock().mockResolvedValue({ subject: "u1" }) },
       db: {
         get: mock().mockResolvedValue({
@@ -346,7 +348,7 @@ describe("card/updateCard.ts", () => {
         patch: mock().mockResolvedValue(null),
       },
       scheduler: { runAfter: mock().mockResolvedValue(null) },
-    } as any;
+    } as any);
 
     const updateFieldHandler =
       (updateCardField as any).handler ?? updateCardField;
@@ -358,7 +360,7 @@ describe("card/updateCard.ts", () => {
   });
 
   test("updateCardField updates notes field", async () => {
-    const ctx = {
+    const ctx = withTestSession({
       auth: { getUserIdentity: mock().mockResolvedValue({ subject: "u1" }) },
       db: {
         get: mock().mockResolvedValue({
@@ -370,7 +372,7 @@ describe("card/updateCard.ts", () => {
         patch: mock().mockResolvedValue(null),
       },
       scheduler: { runAfter: mock() },
-    } as any;
+    } as any);
 
     const handler = (updateCardField as any).handler ?? updateCardField;
     await handler(ctx, { cardId: "c1", field: "notes", value: " New notes " });
@@ -383,7 +385,7 @@ describe("card/updateCard.ts", () => {
   });
 
   test("updateCardField clears notes with empty string", async () => {
-    const ctx = {
+    const ctx = withTestSession({
       auth: { getUserIdentity: mock().mockResolvedValue({ subject: "u1" }) },
       db: {
         get: mock().mockResolvedValue({
@@ -395,7 +397,7 @@ describe("card/updateCard.ts", () => {
         patch: mock().mockResolvedValue(null),
       },
       scheduler: { runAfter: mock() },
-    } as any;
+    } as any);
 
     const handler = (updateCardField as any).handler ?? updateCardField;
     await handler(ctx, { cardId: "c1", field: "notes", value: "   " });
@@ -408,7 +410,7 @@ describe("card/updateCard.ts", () => {
   });
 
   test("updateCardField updates tags field", async () => {
-    const ctx = {
+    const ctx = withTestSession({
       auth: { getUserIdentity: mock().mockResolvedValue({ subject: "u1" }) },
       db: {
         get: mock().mockResolvedValue({
@@ -419,7 +421,7 @@ describe("card/updateCard.ts", () => {
         patch: mock().mockResolvedValue(null),
       },
       scheduler: { runAfter: mock() },
-    } as any;
+    } as any);
 
     const handler = (updateCardField as any).handler ?? updateCardField;
     await handler(ctx, {
@@ -436,7 +438,7 @@ describe("card/updateCard.ts", () => {
   });
 
   test("updateCardField clears tags with empty array", async () => {
-    const ctx = {
+    const ctx = withTestSession({
       auth: { getUserIdentity: mock().mockResolvedValue({ subject: "u1" }) },
       db: {
         get: mock().mockResolvedValue({
@@ -448,7 +450,7 @@ describe("card/updateCard.ts", () => {
         patch: mock().mockResolvedValue(null),
       },
       scheduler: { runAfter: mock() },
-    } as any;
+    } as any);
 
     const handler = (updateCardField as any).handler ?? updateCardField;
     await handler(ctx, { cardId: "c1", field: "tags", value: [] });
@@ -461,7 +463,7 @@ describe("card/updateCard.ts", () => {
   });
 
   test("updateCardField updates aiSummary field", async () => {
-    const ctx = {
+    const ctx = withTestSession({
       auth: { getUserIdentity: mock().mockResolvedValue({ subject: "u1" }) },
       db: {
         get: mock().mockResolvedValue({
@@ -472,7 +474,7 @@ describe("card/updateCard.ts", () => {
         patch: mock().mockResolvedValue(null),
       },
       scheduler: { runAfter: mock() },
-    } as any;
+    } as any);
 
     const handler = (updateCardField as any).handler ?? updateCardField;
     await handler(ctx, {
@@ -489,7 +491,7 @@ describe("card/updateCard.ts", () => {
   });
 
   test("updateCardField toggles isFavorited", async () => {
-    const ctx = {
+    const ctx = withTestSession({
       auth: { getUserIdentity: mock().mockResolvedValue({ subject: "u1" }) },
       db: {
         get: mock().mockResolvedValue({
@@ -501,7 +503,7 @@ describe("card/updateCard.ts", () => {
         patch: mock().mockResolvedValue(null),
       },
       scheduler: { runAfter: mock() },
-    } as any;
+    } as any);
 
     const handler = (updateCardField as any).handler ?? updateCardField;
     await handler(ctx, { cardId: "c1", field: "isFavorited" });
@@ -514,7 +516,7 @@ describe("card/updateCard.ts", () => {
   });
 
   test("updateCardField removes AI tag", async () => {
-    const ctx = {
+    const ctx = withTestSession({
       auth: { getUserIdentity: mock().mockResolvedValue({ subject: "u1" }) },
       db: {
         get: mock().mockResolvedValue({
@@ -526,7 +528,7 @@ describe("card/updateCard.ts", () => {
         patch: mock().mockResolvedValue(null),
       },
       scheduler: { runAfter: mock() },
-    } as any;
+    } as any);
 
     const handler = (updateCardField as any).handler ?? updateCardField;
     await handler(ctx, {
@@ -543,7 +545,7 @@ describe("card/updateCard.ts", () => {
   });
 
   test("updateCardField clears aiTags when last tag removed", async () => {
-    const ctx = {
+    const ctx = withTestSession({
       auth: { getUserIdentity: mock().mockResolvedValue({ subject: "u1" }) },
       db: {
         get: mock().mockResolvedValue({
@@ -555,7 +557,7 @@ describe("card/updateCard.ts", () => {
         patch: mock().mockResolvedValue(null),
       },
       scheduler: { runAfter: mock() },
-    } as any;
+    } as any);
 
     const handler = (updateCardField as any).handler ?? updateCardField;
     await handler(ctx, {
@@ -573,14 +575,14 @@ describe("card/updateCard.ts", () => {
 
   test("updateCardField returns card early when no tag to remove", async () => {
     const card = { _id: "c1", userId: "u1", type: "text" };
-    const ctx = {
+    const ctx = withTestSession({
       auth: { getUserIdentity: mock().mockResolvedValue({ subject: "u1" }) },
       db: {
         get: mock().mockResolvedValue(card),
         patch: mock(),
       },
       scheduler: { runAfter: mock() },
-    } as any;
+    } as any);
 
     const handler = (updateCardField as any).handler ?? updateCardField;
     const result = await handler(ctx, { cardId: "c1", field: "removeAiTag" });
@@ -590,7 +592,7 @@ describe("card/updateCard.ts", () => {
   });
 
   test("updateCardField clears notes when value is null", async () => {
-    const ctx = {
+    const ctx = withTestSession({
       auth: { getUserIdentity: mock().mockResolvedValue({ subject: "u1" }) },
       db: {
         get: mock().mockResolvedValue({
@@ -602,7 +604,7 @@ describe("card/updateCard.ts", () => {
         patch: mock().mockResolvedValue(null),
       },
       scheduler: { runAfter: mock() },
-    } as any;
+    } as any);
 
     const handler = (updateCardField as any).handler ?? updateCardField;
     await handler(ctx, { cardId: "c1", field: "notes", value: null });
@@ -615,7 +617,7 @@ describe("card/updateCard.ts", () => {
   });
 
   test("updateCardField supports explicit favorite state", async () => {
-    const ctx = {
+    const ctx = withTestSession({
       auth: { getUserIdentity: mock().mockResolvedValue({ subject: "u1" }) },
       db: {
         get: mock().mockResolvedValue({
@@ -627,7 +629,7 @@ describe("card/updateCard.ts", () => {
         patch: mock().mockResolvedValue(null),
       },
       scheduler: { runAfter: mock() },
-    } as any;
+    } as any);
 
     const handler = (updateCardField as any).handler ?? updateCardField;
     await handler(ctx, {
@@ -645,7 +647,7 @@ describe("card/updateCard.ts", () => {
 
   test("updateCardField marks card as deleted", async () => {
     const _now = Date.now();
-    const ctx = {
+    const ctx = withTestSession({
       auth: { getUserIdentity: mock().mockResolvedValue({ subject: "u1" }) },
       db: {
         get: mock().mockResolvedValue({
@@ -656,7 +658,7 @@ describe("card/updateCard.ts", () => {
         patch: mock().mockResolvedValue(null),
       },
       scheduler: { runAfter: mock() },
-    } as any;
+    } as any);
 
     const handler = (updateCardField as any).handler ?? updateCardField;
     await handler(ctx, { cardId: "c1", field: "delete" });
@@ -672,7 +674,7 @@ describe("card/updateCard.ts", () => {
   });
 
   test("updateCardField soft-deletes while processing is still pending", async () => {
-    const ctx = {
+    const ctx = withTestSession({
       auth: { getUserIdentity: mock().mockResolvedValue({ subject: "u1" }) },
       db: {
         get: mock().mockResolvedValue({
@@ -688,7 +690,7 @@ describe("card/updateCard.ts", () => {
         patch: mock().mockResolvedValue(null),
       },
       scheduler: { runAfter: mock() },
-    } as any;
+    } as any);
 
     const handler = (updateCardField as any).handler ?? updateCardField;
     await expect(
@@ -707,7 +709,7 @@ describe("card/updateCard.ts", () => {
   });
 
   test("updateCardField restores deleted card", async () => {
-    const ctx = {
+    const ctx = withTestSession({
       auth: { getUserIdentity: mock().mockResolvedValue({ subject: "u1" }) },
       db: {
         get: mock().mockResolvedValue({
@@ -720,7 +722,7 @@ describe("card/updateCard.ts", () => {
         patch: mock().mockResolvedValue(null),
       },
       scheduler: { runAfter: mock() },
-    } as any;
+    } as any);
 
     const handler = (updateCardField as any).handler ?? updateCardField;
     await handler(ctx, { cardId: "c1", field: "restore" });
@@ -736,7 +738,7 @@ describe("card/updateCard.ts", () => {
   });
 
   test("updateCardField throws when restoring non-deleted card", async () => {
-    const ctx = {
+    const ctx = withTestSession({
       auth: { getUserIdentity: mock().mockResolvedValue({ subject: "u1" }) },
       db: {
         get: mock().mockResolvedValue({
@@ -748,7 +750,7 @@ describe("card/updateCard.ts", () => {
         patch: mock(),
       },
       scheduler: { runAfter: mock() },
-    } as any;
+    } as any);
 
     const handler = (updateCardField as any).handler ?? updateCardField;
     await expect(
@@ -757,7 +759,7 @@ describe("card/updateCard.ts", () => {
   });
 
   test("updateCardField throws for unsupported field", async () => {
-    const ctx = {
+    const ctx = withTestSession({
       auth: { getUserIdentity: mock().mockResolvedValue({ subject: "u1" }) },
       db: {
         get: mock().mockResolvedValue({
@@ -768,7 +770,7 @@ describe("card/updateCard.ts", () => {
         patch: mock(),
       },
       scheduler: { runAfter: mock() },
-    } as any;
+    } as any);
 
     const handler = (updateCardField as any).handler ?? updateCardField;
     await expect(
@@ -777,7 +779,7 @@ describe("card/updateCard.ts", () => {
   });
 
   test("updateCardField does not schedule pipeline when content unchanged", async () => {
-    const ctx = {
+    const ctx = withTestSession({
       auth: { getUserIdentity: mock().mockResolvedValue({ subject: "u1" }) },
       db: {
         get: mock().mockResolvedValue({
@@ -789,7 +791,7 @@ describe("card/updateCard.ts", () => {
         patch: mock().mockResolvedValue(null),
       },
       scheduler: { runAfter: mock() },
-    } as any;
+    } as any);
 
     const handler = (updateCardField as any).handler ?? updateCardField;
     await handler(ctx, {
@@ -802,7 +804,7 @@ describe("card/updateCard.ts", () => {
   });
 
   test("updateCardField does not schedule pipeline when url unchanged", async () => {
-    const ctx = {
+    const ctx = withTestSession({
       auth: { getUserIdentity: mock().mockResolvedValue({ subject: "u1" }) },
       db: {
         get: mock().mockResolvedValue({
@@ -815,7 +817,7 @@ describe("card/updateCard.ts", () => {
         patch: mock().mockResolvedValue(null),
       },
       scheduler: { runAfter: mock() },
-    } as any;
+    } as any);
 
     const handler = (updateCardField as any).handler ?? updateCardField;
     await handler(ctx, {

@@ -1,0 +1,12 @@
+---
+title: "More reliable sign-out and app connections"
+description: Revoked devices and apps lose access immediately.
+type: changelog
+date: "2026-09-08"
+changelog:
+  category: Improvements
+---
+
+- Signing out a device in Security now immediately stops it from reading or saving cards.
+- Signing out of desktop, CLI, or Raycast revokes that installation's access. If sign-out fails, you can retry without losing the saved credentials.
+- Disconnecting an app or revoking an API key immediately stops its MCP access, including existing connections.

@@ -7,6 +7,7 @@ export default defineConfig({
       "./occContention.test.ts",
       "./safariOAuth.test.ts",
       "./securitySessions.test.ts",
+      "./mcpRevocation.test.ts",
     ],
   },
 });

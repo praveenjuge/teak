@@ -413,22 +413,28 @@ async function fetchConvexJwt(
 
 // ── Logout ─────────────────────────────────────────────────────────────────────
 
-/**
- * Sign out of the desktop app only. This is deliberately local: it clears the
- * dedicated desktop session token, the cached Convex JWT, and any pending OAuth
- * state, but does NOT call the global Better Auth `/sign-out` endpoint. Hitting
- * that endpoint would tear down the shared Better Auth session and could sign
- * the user out of Teak in their browser too. The desktop session is a separate,
- * short-lived server session that expires on its own; dropping the token here
- * makes it unusable from this machine.
- */
+/** Revoke this dedicated device session before discarding its credentials. */
 export async function logoutNativeSession(): Promise<void> {
-  // Invalidate any in-flight OAuth attempt so a callback still exchanging a
-  // code cannot write a fresh session back after the user signs out (see the
-  // attempt guard in completeDesktopOAuth).
   liveOAuthAttempt = null;
+  await ensureInitialized();
+  const sessionToken = getSnapshot().sessionToken;
+  if (sessionToken) {
+    const response = await fetch(`${convexSiteBaseUrl}/api/auth/sign-out`, {
+      method: "POST",
+      credentials: "omit",
+      headers: {
+        Authorization: `Bearer ${sessionToken}`,
+        "Content-Type": "application/json",
+      },
+      body: "{}",
+    });
+    if (!response.ok) {
+      throw new Error("Could not sign out of Teak. Please try again.");
+    }
+  }
   await clearNativeSessionToken();
   await writeStoreValue(PENDING_AUTH_KEY, null);
+  await window.teakDesktop.oauth.cancel();
 }
 
 // ── React hook for ConvexProviderWithAuth ──────────────────────────────────────

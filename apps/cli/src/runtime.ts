@@ -160,6 +160,30 @@ const tokenEndpoint = (options: ClientOptions) =>
 const authorizeEndpoint = (options: ClientOptions) =>
   `${authBaseUrl(options)}/api/auth/mcp/authorize`;
 
+export const logout = async (options: ClientOptions = {}) => {
+  const credentials = readCredentials();
+  const token = credentials?.refreshToken || credentials?.accessToken;
+  if (token) {
+    try {
+      const response = await fetch(`${apiBaseUrl(options)}/api/oauth/revoke`, {
+        body: new URLSearchParams({ client_id: "teak-cli", token }),
+        headers: { "Content-Type": "application/x-www-form-urlencoded" },
+        method: "POST",
+        redirect: "error",
+        signal: AbortSignal.timeout(10_000),
+      });
+      if (!response.ok) {
+        throw new Error("Revocation failed");
+      }
+    } catch {
+      throw new Error(
+        "Could not disconnect Teak CLI. Your credentials are still saved. Check your connection and run teak logout again."
+      );
+    }
+  }
+  clearCredentials();
+};
+
 const exchangeToken = async (
   options: ClientOptions,
   body: Record<string, string>

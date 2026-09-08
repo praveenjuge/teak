@@ -1,3 +1,4 @@
+import { getSessionIdentity } from "./securitySessions";
 /**
  * Export feature Convex functions.
  *
@@ -88,7 +89,7 @@ const startResultValidator = v.object({
 // ---------------------------------------------------------------------------
 
 async function requireUserId(ctx: QueryCtx | MutationCtx): Promise<string> {
-  const user = await ctx.auth.getUserIdentity();
+  const user = await getSessionIdentity(ctx);
   if (!user) {
     throw new Error("User must be authenticated");
   }
@@ -294,7 +295,7 @@ export const getExportDownloadUrl = action({
     ctx,
     { jobId }
   ): Promise<{ url: string; expiresInSeconds: number } | null> => {
-    const user = await ctx.auth.getUserIdentity();
+    const user = await getSessionIdentity(ctx);
     if (!user) {
       throw new Error("User must be authenticated");
     }

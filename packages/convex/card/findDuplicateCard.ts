@@ -1,5 +1,6 @@
 import { v } from "convex/values";
 import { internalQuery, query } from "../_generated/server";
+import { getSessionIdentity } from "../securitySessions";
 import { cardReturnValidator } from "./getCards";
 import { attachFileUrls } from "./queryUtils";
 
@@ -31,7 +32,7 @@ export const findDuplicateCard = query({
   },
   returns: v.union(cardReturnValidator, v.null()),
   handler: async (ctx, args) => {
-    const user = await ctx.auth.getUserIdentity();
+    const user = await getSessionIdentity(ctx);
     if (!user) {
       return null;
     }

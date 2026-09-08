@@ -1,10 +1,12 @@
 // @ts-nocheck
+
 import { describe, expect, mock, test } from "bun:test";
 import {
   consumeNativeAuthByState,
   createNativeAuthCode,
   pollNativeAuthCode,
 } from "../authNative";
+import { withTestSession } from "./helpers/session.test-utils";
 
 const toBase64Url = (bytes: Uint8Array): string =>
   btoa(String.fromCharCode(...bytes))
@@ -25,7 +27,7 @@ const getHandler = (fn: unknown) => (fn as any).handler ?? fn;
 describe("authNative.ts", () => {
   test("creates native auth codes for authenticated users", async () => {
     const insert = mock().mockResolvedValue("native-auth-id");
-    const ctx = {
+    const ctx = withTestSession({
       auth: {
         getUserIdentity: mock().mockResolvedValue({
           subject: "user_123",
@@ -33,7 +35,7 @@ describe("authNative.ts", () => {
         }),
       },
       db: { insert },
-    };
+    });
 
     const result = await getHandler(createNativeAuthCode)(ctx, {
       deviceId: "desktop-device-123456",
@@ -58,7 +60,7 @@ describe("authNative.ts", () => {
 
   test("accepts the browser-extension surface", async () => {
     const insert = mock().mockResolvedValue("native-auth-id");
-    const ctx = {
+    const ctx = withTestSession({
       auth: {
         getUserIdentity: mock().mockResolvedValue({
           subject: "user_123",
@@ -66,7 +68,7 @@ describe("authNative.ts", () => {
         }),
       },
       db: { insert },
-    };
+    });
 
     const result = await getHandler(createNativeAuthCode)(ctx, {
       deviceId: "extension-device-123456",
@@ -83,7 +85,7 @@ describe("authNative.ts", () => {
   });
 
   test("rejects invalid native surfaces", async () => {
-    const ctx = {
+    const ctx = withTestSession({
       auth: {
         getUserIdentity: mock().mockResolvedValue({
           subject: "user_123",
@@ -91,7 +93,7 @@ describe("authNative.ts", () => {
         }),
       },
       db: { insert: mock() },
-    };
+    });
 
     await expect(
       getHandler(createNativeAuthCode)(ctx, {
@@ -104,7 +106,7 @@ describe("authNative.ts", () => {
   });
 
   test("rejects invalid device, state, and code challenge inputs", async () => {
-    const ctx = {
+    const ctx = withTestSession({
       auth: {
         getUserIdentity: mock().mockResolvedValue({
           subject: "user_123",
@@ -112,7 +114,7 @@ describe("authNative.ts", () => {
         }),
       },
       db: { insert: mock() },
-    };
+    });
 
     for (const args of [
       {

@@ -6,6 +6,7 @@ import {
   type MutationCtx,
   mutation,
 } from "../_generated/server";
+import { getSessionIdentity } from "../securitySessions";
 import { CARD_ERROR_CODES, CARD_ERROR_MESSAGES } from "../shared/constants";
 import { rateLimiter } from "../shared/rateLimits";
 import { assertSafeExternalUrl } from "../shared/utils/safeUrl";
@@ -107,7 +108,7 @@ export const updateCard = mutation({
   },
   returns: v.null(), // db.patch returns void/null
   handler: async (ctx, args) => {
-    const user = await ctx.auth.getUserIdentity();
+    const user = await getSessionIdentity(ctx);
     if (!user) {
       throw new Error("User must be authenticated");
     }
@@ -382,7 +383,7 @@ export const updateCardField = mutation({
   },
   returns: v.null(),
   handler: async (ctx, { cardId, field, value, tagToRemove }) => {
-    const user = await ctx.auth.getUserIdentity();
+    const user = await getSessionIdentity(ctx);
     if (!user) {
       throw new Error("User must be authenticated");
     }

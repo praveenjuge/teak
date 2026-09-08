@@ -12,12 +12,12 @@ import { addCard, readStdin } from "./files";
 import { formatCardLine, formatDetail } from "./format";
 import {
   type ClientOptions,
-  clearCredentials,
   client,
   EXIT,
   exitCodeFor,
   type GlobalOptions,
   login,
+  logout,
   readCredentials,
   readJson,
   VERSION,
@@ -192,8 +192,8 @@ program
     write(await login({ ...program.opts(), ...options }), program.opts())
   );
 
-program.command("logout").action(() => {
-  clearCredentials();
+program.command("logout").action(async () => {
+  await logout(program.opts());
   write("Logged out of Teak.", program.opts());
 });
 

@@ -4,6 +4,7 @@ import { defineConfig } from "wxt";
 // See https://wxt.dev/api/config.html
 export default defineConfig({
   modules: ["@wxt-dev/module-react"],
+  manifestVersion: 3,
   manifest: {
     name: "Teak",
     description:
@@ -14,6 +15,9 @@ export default defineConfig({
       email: "hi@praveenjuge.com",
     },
     homepage_url: "https://teakvault.com",
+    browser_specific_settings: {
+      gecko: { id: "teak@teakvault.com", strict_min_version: "140.0" },
+    },
     permissions: [
       "identity",
       "storage",

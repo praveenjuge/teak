@@ -2,6 +2,7 @@ import type { FilesImageRendition } from "@teak/files-protocol";
 import { v } from "convex/values";
 import { internal } from "../_generated/api";
 import { action, internalQuery, query } from "../_generated/server";
+import { getSessionIdentity } from "../securitySessions";
 import { resolveImageUrl, resolveObjectUrl } from "../storage/r2";
 
 const mediaRenditionValidator = v.union(
@@ -42,7 +43,7 @@ export const getFileUrl = query({
   },
   returns: v.union(v.string(), v.null()),
   handler: async (ctx, args) => {
-    const user = await ctx.auth.getUserIdentity();
+    const user = await getSessionIdentity(ctx);
     if (!user) {
       throw new Error("Unauthenticated call to getFileUrl");
     }
@@ -76,7 +77,7 @@ export const getAuthorizedMedia = internalQuery({
     v.null()
   ),
   handler: async (ctx, args) => {
-    const user = await ctx.auth.getUserIdentity();
+    const user = await getSessionIdentity(ctx);
     if (!user) {
       throw new Error("Unauthenticated media refresh");
     }

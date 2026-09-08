@@ -13,7 +13,7 @@ import {
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import { ConvexError, v } from "convex/values";
 import { internal } from "./_generated/api";
-import { action } from "./_generated/server";
+import { type ActionCtx, action } from "./_generated/server";
 import {
   IMPORT_PART_BYTES,
   IMPORT_UPLOAD_TTL_MS,
@@ -23,6 +23,7 @@ import {
 } from "./import/constants";
 import { createImportS3Client, getImportR2Config } from "./import/r2Client";
 import { importModeValidator } from "./schema";
+import { getSessionIdentity } from "./securitySessions";
 import { buildR2ObjectKey } from "./storage/r2";
 
 const internalAny = internal as Record<string, any>;
@@ -36,10 +37,8 @@ const uploadResultValidator = v.object({
   parts: v.array(partValidator),
 });
 
-async function requireUserId(ctx: {
-  auth: { getUserIdentity: () => Promise<any> };
-}) {
-  const identity = await ctx.auth.getUserIdentity();
+async function requireUserId(ctx: ActionCtx) {
+  const identity = await getSessionIdentity(ctx);
   if (!identity) {
     throw new Error("User must be authenticated");
   }

@@ -3,6 +3,7 @@ import { type Infer, v } from "convex/values";
 import type { Doc } from "../_generated/dataModel";
 import { type QueryCtx, query } from "../_generated/server";
 import { cardTypeValidator, cardValidator } from "../schema";
+import { getSessionIdentity } from "../securitySessions";
 import {
   clampPageSize,
   clampSearchLimit,
@@ -82,7 +83,7 @@ export const getCards = query({
   },
   returns: v.array(cardReturnValidator),
   handler: async (ctx, args) => {
-    const user = await ctx.auth.getUserIdentity();
+    const user = await getSessionIdentity(ctx);
     if (!user) {
       return [];
     }
@@ -140,7 +141,7 @@ export const searchCards = query({
   },
   returns: v.array(cardReturnValidator),
   handler: async (ctx, args) => {
-    const user = await ctx.auth.getUserIdentity();
+    const user = await getSessionIdentity(ctx);
     if (!user) {
       return [];
     }
@@ -358,7 +359,7 @@ export const searchCardsPaginatedHandler = async (
   } else if (options.gridOnly) {
     attachListUrls = attachGridFileUrls;
   }
-  const user = await ctx.auth.getUserIdentity();
+  const user = await getSessionIdentity(ctx);
   if (!user) {
     return { page: [], isDone: true, continueCursor: null };
   }
