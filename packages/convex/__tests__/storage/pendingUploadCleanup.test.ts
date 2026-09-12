@@ -83,6 +83,25 @@ describe("withFilesWorkerRetry", () => {
     expect(calls).toBe(1);
   });
 
+  test("stops retrying when the shared budget is exhausted", async () => {
+    const budget = { remainingMs: 5 };
+    let calls = 0;
+    await expect(
+      withFilesWorkerRetry(
+        () => {
+          calls += 1;
+          return Promise.reject(
+            new Error("files_worker_network_error:fetch failed")
+          );
+        },
+        [3, 3],
+        budget
+      )
+    ).rejects.toThrow("files_worker_network_error:fetch failed");
+    expect(calls).toBe(2);
+    expect(budget.remainingMs).toBe(2);
+  });
+
   test("gives up after the retry budget", async () => {
     let calls = 0;
     await expect(
