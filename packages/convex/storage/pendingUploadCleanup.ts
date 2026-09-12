@@ -18,8 +18,11 @@ const DELETE_BATCH_SIZE = 100;
 // next hourly run resumes from wherever listing left off.
 const MAX_LIST_PAGES = 200;
 // Transient files-worker failures (network resets, 5xx) should not fail the
-// whole hourly sweep: retry the idempotent list/delete ops with backoff.
+// whole hourly sweep: retry the idempotent list/delete ops with backoff. One
+// budget is shared across every call in a run so intermittent failures cannot
+// consume the action's execution window.
 const RETRY_DELAYS_MS = [1000, 4000];
+const SWEEP_RETRY_BUDGET_MS = 30_000;
 
 const isTransientFilesWorkerError = (error: unknown): boolean => {
   const message = error instanceof Error ? error.message : String(error);
@@ -31,7 +34,8 @@ const isTransientFilesWorkerError = (error: unknown): boolean => {
 
 export const withFilesWorkerRetry = async <T>(
   operation: () => Promise<T>,
-  retryDelaysMs: readonly number[] = RETRY_DELAYS_MS
+  retryDelaysMs: readonly number[] = RETRY_DELAYS_MS,
+  budget?: { remainingMs: number }
 ): Promise<T> => {
   let lastError: unknown;
   for (let attempt = 0; attempt <= retryDelaysMs.length; attempt += 1) {
@@ -40,8 +44,15 @@ export const withFilesWorkerRetry = async <T>(
     } catch (error) {
       lastError = error;
       const delay = retryDelaysMs[attempt];
-      if (delay === undefined || !isTransientFilesWorkerError(error)) {
+      if (
+        delay === undefined ||
+        !isTransientFilesWorkerError(error) ||
+        (budget !== undefined && delay > budget.remainingMs)
+      ) {
         break;
+      }
+      if (budget !== undefined) {
+        budget.remainingMs -= delay;
       }
       await new Promise((resolve) => setTimeout(resolve, delay));
     }
@@ -70,6 +81,7 @@ export const sweepStalePendingUploadsHandler = async (): Promise<null> => {
   }
   let cursor: string | null = null;
   let pages = 0;
+  const retryBudget = { remainingMs: SWEEP_RETRY_BUDGET_MS };
 
   do {
     const params: Record<string, unknown> = {
@@ -79,11 +91,14 @@ export const sweepStalePendingUploadsHandler = async (): Promise<null> => {
     if (cursor) {
       params.cursor = cursor;
     }
-    const outcome = await withFilesWorkerRetry(() =>
-      callFilesWorkerJson<FilesWorkerListObjectsResult>({
-        op: "list-objects",
-        params,
-      })
+    const outcome = await withFilesWorkerRetry(
+      () =>
+        callFilesWorkerJson<FilesWorkerListObjectsResult>({
+          op: "list-objects",
+          params,
+        }),
+      RETRY_DELAYS_MS,
+      retryBudget
     );
     if (outcome.kind !== "ok") {
       throw new Error("files_worker_list_objects_unavailable");
@@ -93,11 +108,14 @@ export const sweepStalePendingUploadsHandler = async (): Promise<null> => {
 
     const staleKeys = stalePendingUploadKeys(outcome.data.objects);
     for (let index = 0; index < staleKeys.length; index += DELETE_BATCH_SIZE) {
-      const deleted = await withFilesWorkerRetry(() =>
-        callFilesWorkerJson<{ deleted: number }>({
-          op: "delete-objects",
-          params: { keys: staleKeys.slice(index, index + DELETE_BATCH_SIZE) },
-        })
+      const deleted = await withFilesWorkerRetry(
+        () =>
+          callFilesWorkerJson<{ deleted: number }>({
+            op: "delete-objects",
+            params: { keys: staleKeys.slice(index, index + DELETE_BATCH_SIZE) },
+          }),
+        RETRY_DELAYS_MS,
+        retryBudget
       );
       if (deleted.kind !== "ok") {
         throw new Error("files_worker_delete_objects_unavailable");
