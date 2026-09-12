@@ -1,57 +1,31 @@
 "use node";
 
-import {
-  AbortMultipartUploadCommand,
-  DeleteObjectCommand,
-  GetObjectCommand,
-  PutObjectCommand,
-} from "@aws-sdk/client-s3";
 import { v } from "convex/values";
-import type yauzl from "yauzl";
 import { internal } from "../_generated/api";
 import { type ActionCtx, internalAction } from "../_generated/server";
 import { inferFileFormat } from "../shared/fileFormats";
-import {
-  isMarkdownFileName,
-  MARKDOWN_CONTENT_MAX_BYTES,
-} from "../shared/markdown";
+import { isMarkdownFileName } from "../shared/markdown";
 import { TELEMETRY_OPERATIONS } from "../shared/telemetry";
 import {
   callFilesWorkerJson,
+  type FilesWorkerHeadObjectResult,
   isFilesWorkerConfigured,
+  putObjectViaFilesWorker,
 } from "../storage/filesWorkerClient";
-import { buildR2UserPrefix } from "../storage/r2";
+import { assertR2KeyInNamespace, buildR2UserPrefix } from "../storage/r2";
 import {
   recordBackendHandledFailure,
   withBackendSpan,
 } from "../telemetry/sentry";
-import {
-  ArchiveEntryTooLargeError,
-  entryBuffer,
-  openZip,
-  readZipIndex,
-} from "./archiveZip";
-import { type ParsedBookmarkItem, parseBookmarksHtml } from "./bookmarks";
+import { readImportIndexPage, readLegacyMarkdown } from "./archiveZip";
 import {
   IMPORT_INDEX_BATCH,
   type ImportMode,
-  MAX_BOOKMARK_BYTES,
   MAX_IMPORT_FILE_BYTES,
-  MAX_RAINDROP_BYTES,
 } from "./constants";
-import { resolveLegacyMarkdownImport } from "./markdown";
-import { createImportS3Client, getImportR2Config } from "./r2Client";
-import { parseRaindropCsv } from "./raindrop";
 import { assertImportCardCount, validateImportCard } from "./validate";
 
 const internalAny = internal as Record<string, any>;
-
-const isMissingMultipartUpload = (error: unknown): boolean =>
-  error instanceof Error &&
-  (error.name === "NoSuchUpload" ||
-    ("$metadata" in error &&
-      (error as { $metadata?: { httpStatusCode?: number } }).$metadata
-        ?.httpStatusCode === 404));
 
 const observeImport =
   <TArgs, TResult>(
@@ -79,7 +53,7 @@ const observeImport =
 function normalizeIndexItem(
   raw: unknown,
   sourceIndex: number,
-  entries: Map<string, yauzl.Entry>,
+  entries: Map<string, { uncompressedSize: number }>,
   seenUrls: Set<string>
 ) {
   try {
@@ -151,7 +125,11 @@ function normalizeIndexItem(
   }
 }
 
-async function storeItems(ctx: any, jobId: string, items: any[]) {
+async function storeItems(
+  ctx: ActionCtx,
+  jobId: string,
+  items: ReturnType<typeof normalizeIndexItem>[]
+) {
   for (let index = 0; index < items.length; index += IMPORT_INDEX_BATCH) {
     await ctx.runMutation(internalAny.dataImport.insertItems, {
       jobId,
@@ -160,173 +138,131 @@ async function storeItems(ctx: any, jobId: string, items: any[]) {
   }
 }
 
-async function decodeLegacyMarkdownItems(
-  client: ReturnType<typeof createImportS3Client>,
-  bucket: string,
-  key: string,
-  size: number,
-  items: any[]
+async function bindSourceVersion(
+  ctx: ActionCtx,
+  job: { _id: string; sourceKey: string; sourceEtag?: string; fileSize: number }
 ) {
-  const needed = new Map<string, any>(
-    items
-      .filter(
-        (item) =>
-          item.status === "pending" &&
-          item.type === "document" &&
-          item.filePath &&
-          item.fileName &&
-          isMarkdownFileName(item.fileName)
-      )
-      .map((item) => [item.filePath, item] as [string, any])
-  );
-  if (!needed.size) {
-    return;
+  if (job.sourceEtag) {
+    return job.sourceEtag;
   }
-
-  const zip = await openZip(client, bucket, key, size);
-  try {
-    await new Promise<void>((resolve, reject) => {
-      zip.on("error", reject);
-      zip.on("end", resolve);
-      zip.on("entry", (entry) => {
-        void (async () => {
-          const item = needed.get(entry.fileName);
-          if (item) {
-            try {
-              const bytes = await entryBuffer(
-                zip,
-                entry,
-                MARKDOWN_CONTENT_MAX_BYTES
-              );
-              Object.assign(item, resolveLegacyMarkdownImport(item, bytes));
-            } catch (error) {
-              item.status = "failed";
-              item.failureCode =
-                error instanceof ArchiveEntryTooLargeError
-                  ? "CONTENT_TOO_LARGE"
-                  : "INVALID_ITEM";
-              item.failureReason =
-                error instanceof Error
-                  ? error.message
-                  : "Markdown file could not be imported";
-            }
-            needed.delete(entry.fileName);
-          }
-          zip.readEntry();
-        })().catch(reject);
-      });
-      zip.readEntry();
-    });
-  } finally {
-    zip.close();
+  assertR2KeyInNamespace(job.sourceKey);
+  const outcome = await callFilesWorkerJson<FilesWorkerHeadObjectResult>({
+    op: "head-object",
+    params: { key: job.sourceKey },
+  });
+  if (outcome.kind !== "ok" || !outcome.data.exists || !outcome.data.etag) {
+    throw new Error("missing_source");
   }
-}
-
-async function indexParsedBookmarks(
-  ctx: any,
-  jobId: string,
-  parsed: ParsedBookmarkItem[],
-  mode: ImportMode
-) {
-  assertImportCardCount(parsed.length, mode);
-  const seen = new Set<string>();
-  const items = parsed.map((item, sourceIndex) =>
-    item.card
-      ? normalizeIndexItem(item.card, sourceIndex, new Map(), seen)
-      : {
-          sourceIndex,
-          status: "failed" as const,
-          type: "text" as const,
-          content: item.label,
-          failureCode: "INVALID_BOOKMARK",
-          failureReason: item.error,
-        }
-  );
-  await storeItems(ctx, jobId, items);
+  if (outcome.data.size !== job.fileSize) {
+    throw new Error("source_changed");
+  }
+  return ctx.runMutation(internalAny["import/sourceVersion"].bind, {
+    jobId: job._id,
+    sourceEtag: outcome.data.etag,
+  });
 }
 
 export const indexImportSource = internalAction({
-  args: { jobId: v.id("importJobs") },
-  returns: v.object({ ok: v.boolean(), failureClass: v.optional(v.string()) }),
+  args: { jobId: v.id("importJobs"), cursor: v.optional(v.number()) },
+  returns: v.object({
+    ok: v.boolean(),
+    failureClass: v.optional(v.string()),
+    nextCursor: v.optional(v.number()),
+  }),
   handler: observeImport(
     "import.index",
-    async (ctx, { jobId }: { jobId: string }) => {
+    async (ctx, { jobId, cursor = 0 }: { jobId: string; cursor?: number }) => {
       const job = await ctx.runQuery(internalAny.dataImport.getJob, { jobId });
       if (!job) {
         return { ok: false, failureClass: "missing_job" };
       }
-      const config = getImportR2Config();
-      const client = createImportS3Client(config);
       try {
-        if (job.mode === "bookmarks" || job.mode === "raindrop") {
-          const isRaindrop = job.mode === "raindrop";
-          const maxBytes = isRaindrop ? MAX_RAINDROP_BYTES : MAX_BOOKMARK_BYTES;
-          if (job.fileSize > maxBytes) {
-            throw new Error(
-              isRaindrop
-                ? "Raindrop CSV exceeds 20 MiB"
-                : "Bookmark file exceeds 20 MiB"
-            );
+        const seen = new Set<string>();
+        const sourceEtag = await bindSourceVersion(ctx, job);
+        const current = await ctx.runQuery(internalAny.dataImport.getJob, {
+          jobId,
+        });
+        if (!current || current.cancelRequested) {
+          return { ok: true };
+        }
+        const page = await readImportIndexPage({
+          sourceKey: job.sourceKey,
+          expectedSize: job.fileSize,
+          mode: job.mode as ImportMode,
+          cursor,
+          sourceEtag,
+        });
+        assertImportCardCount(page.total, job.mode as ImportMode);
+        if (page.sourceEtag !== sourceEtag) {
+          throw new Error("source_changed");
+        }
+        const normalized = page.items.map((raw) => {
+          if (raw.error) {
+            const failed = {
+              sourceIndex: raw.sourceIndex,
+              status: "failed" as const,
+              type: "text" as const,
+              content: (raw.label ?? `Item ${raw.sourceIndex + 1}`).slice(
+                0,
+                100_000
+              ),
+              failureCode:
+                job.mode === "archive" ? "INVALID_ITEM" : "INVALID_BOOKMARK",
+              failureReason: raw.error,
+            };
+            return failed;
           }
-          const response = await client.send(
-            new GetObjectCommand({ Bucket: config.bucket, Key: job.sourceKey })
-          );
-          const bytes = await response.Body?.transformToByteArray();
-          if (!bytes || bytes.byteLength !== job.fileSize) {
-            throw new Error(
-              isRaindrop
-                ? "Raindrop source could not be read"
-                : "Bookmark source could not be read"
-            );
+          const entries = new Map<string, { uncompressedSize: number }>();
+          if (raw.file) {
+            entries.set(raw.file.path, raw.file);
           }
-          const text = Buffer.from(bytes).toString("utf8");
-          const parsed = isRaindrop
-            ? parseRaindropCsv(text)
-            : parseBookmarksHtml(text);
-          await indexParsedBookmarks(
-            ctx,
-            jobId,
-            parsed,
-            job.mode as ImportMode
+          return normalizeIndexItem(raw.card, raw.sourceIndex, entries, seen);
+        });
+        const items: ReturnType<typeof normalizeIndexItem>[] = [];
+        let batchBytes = 0;
+        // Bound both concurrent remote reads and expanded Markdown memory.
+        for (let offset = 0; offset < normalized.length; offset += 8) {
+          const batch = normalized.slice(offset, offset + 8);
+          await Promise.all(
+            batch.map(async (item) => {
+              if (
+                item.status === "pending" &&
+                item.type === "document" &&
+                item.filePath &&
+                item.fileName &&
+                isMarkdownFileName(item.fileName)
+              ) {
+                Object.assign(
+                  item,
+                  await readLegacyMarkdown(
+                    job.sourceKey,
+                    sourceEtag,
+                    item.filePath
+                  )
+                );
+              }
+            })
           );
-        } else {
-          const zip = await openZip(
-            client,
-            config.bucket,
-            job.sourceKey,
-            job.fileSize
-          );
-          try {
-            const index = await readZipIndex(zip);
-            const manifest = index.manifest as any;
-            const version = manifest?.version ?? manifest?.exportVersion;
-            if (version !== 1) {
-              throw new Error("Unsupported Teak archive version");
+          for (const item of batch) {
+            const itemBytes = new TextEncoder().encode(
+              JSON.stringify(item)
+            ).byteLength;
+            if (items.length && batchBytes + itemBytes > 4 * 1024 * 1024) {
+              await storeItems(ctx, jobId, items);
+              items.length = 0;
+              batchBytes = 0;
             }
-            const rawCards = Array.isArray(manifest?.cards)
-              ? manifest.cards
-              : index.cards;
-            if (!Array.isArray(rawCards)) {
-              throw new Error("Archive is missing cards");
-            }
-            assertImportCardCount(rawCards.length, job.mode as ImportMode);
-            const seen = new Set<string>();
-            const items = rawCards.map((card, sourceIndex) =>
-              normalizeIndexItem(card, sourceIndex, index.entries, seen)
-            );
-            await decodeLegacyMarkdownItems(
-              client,
-              config.bucket,
-              job.sourceKey,
-              job.fileSize,
-              items
-            );
-            await storeItems(ctx, jobId, items);
-          } finally {
-            zip.close();
+            items.push(item);
+            batchBytes += itemBytes;
           }
         }
-        return { ok: true };
+        await storeItems(ctx, jobId, items);
+        if (page.nextCursor !== null && page.nextCursor <= cursor) {
+          throw new Error("invalid_import_cursor");
+        }
+        return page.nextCursor === null
+          ? { ok: true }
+          : { ok: true, nextCursor: page.nextCursor };
       } catch (error) {
         recordBackendHandledFailure(error, {
           operation: TELEMETRY_OPERATIONS.import,
@@ -374,7 +310,10 @@ export const importStoredContentType = (item: {
 };
 
 export const extractImportFiles = internalAction({
-  args: { jobId: v.id("importJobs"), itemIds: v.array(v.id("importJobItems")) },
+  args: {
+    jobId: v.id("importJobs"),
+    itemIds: v.array(v.id("importJobItems")),
+  },
   returns: v.object({ ok: v.boolean(), failureClass: v.optional(v.string()) }),
   handler: observeImport(
     "import.extract_files",
@@ -399,6 +338,7 @@ export const extractImportFiles = internalAction({
         if (!isFilesWorkerConfigured()) {
           throw new Error("files_worker_not_configured");
         }
+        const sourceEtag = await bindSourceVersion(ctx, job);
         const entries = [...needed.values()].map((item) => ({
           contentType: importStoredContentType(item),
           destinationKey: deterministicFileKey(
@@ -413,7 +353,7 @@ export const extractImportFiles = internalAction({
           Array<{ destinationKey: string; path: string }>
         >({
           op: "extract-import-files",
-          params: { archiveKey: job.sourceKey, entries },
+          params: { archiveKey: job.sourceKey, entries, sourceEtag },
         });
         if (outcome.kind !== "ok") {
           throw new Error("file_extract_rejected");
@@ -445,6 +385,36 @@ export const extractImportFiles = internalAction({
   ),
 });
 
+// Failure reports contain a bounded identifying excerpt, never entire card bodies.
+const reportLabel = (text: string) =>
+  text.length > 1024 ? `${text.slice(0, 1024)}…` : text;
+
+async function abortImportUpload(key: string, uploadId?: string) {
+  if (!uploadId) {
+    return;
+  }
+  assertR2KeyInNamespace(key);
+  const result = await callFilesWorkerJson({
+    op: "abort-multipart",
+    params: { key, uploadId },
+  });
+  if (result.kind !== "ok") {
+    throw new Error("import_upload_abort_unavailable");
+  }
+}
+
+async function queueImportObjectDeletion(
+  ctx: ActionCtx,
+  keys: Array<string | undefined>
+) {
+  await ctx.runMutation(
+    internalAny["workflows/objectCleanup"].startObjectDeletion,
+    {
+      keys: keys.filter((key): key is string => Boolean(key)),
+    }
+  );
+}
+
 export const finalizeImportObjects = internalAction({
   args: { jobId: v.id("importJobs") },
   returns: v.object({ reportKey: v.optional(v.string()) }),
@@ -455,8 +425,6 @@ export const finalizeImportObjects = internalAction({
       if (!job) {
         return {};
       }
-      const config = getImportR2Config();
-      const client = createImportS3Client(config);
       let reportKey: string | undefined;
       if (job.failedCount > 0) {
         const lines = [
@@ -474,27 +442,19 @@ export const finalizeImportObjects = internalAction({
           );
           for (const item of page.page) {
             lines.push(
-              `${item.sourceIndex + 1}. ${item.content || item.fileName}: ${item.failureReason ?? "Import failed"}`
+              `${item.sourceIndex + 1}. ${reportLabel(item.content || item.fileName || "Item")}: ${reportLabel(item.failureReason ?? "Import failed")}`
             );
           }
           cursor = page.isDone ? null : page.continueCursor;
         } while (cursor);
         reportKey = `${buildR2UserPrefix(job.userId)}/imports/${jobId}/error-report.txt`;
-        await client.send(
-          new PutObjectCommand({
-            Bucket: config.bucket,
-            Key: reportKey,
-            Body: lines.join("\n"),
-            ContentType: "text/plain; charset=utf-8",
-            ContentDisposition: 'attachment; filename="teak-import-report.txt"',
-          })
-        );
+        await putObjectViaFilesWorker({
+          key: reportKey,
+          body: new TextEncoder().encode(lines.join("\n")),
+          contentType: "text/plain; charset=utf-8",
+        });
       }
-      await client
-        .send(
-          new DeleteObjectCommand({ Bucket: config.bucket, Key: job.sourceKey })
-        )
-        .catch(() => undefined);
+      await queueImportObjectDeletion(ctx, [job.sourceKey]);
       return { reportKey };
     }
   ),
@@ -510,24 +470,8 @@ export const cleanupImportJob = internalAction({
       if (!job) {
         return null;
       }
-      const config = getImportR2Config();
-      const client = createImportS3Client(config);
-      if (job.uploadId) {
-        await client
-          .send(
-            new AbortMultipartUploadCommand({
-              Bucket: config.bucket,
-              Key: job.sourceKey,
-              UploadId: job.uploadId,
-            })
-          )
-          .catch(() => undefined);
-      }
-      for (const key of [job.sourceKey, job.reportKey].filter(Boolean)) {
-        await client
-          .send(new DeleteObjectCommand({ Bucket: config.bucket, Key: key }))
-          .catch(() => undefined);
-      }
+      await abortImportUpload(job.sourceKey, job.uploadId);
+      await queueImportObjectDeletion(ctx, [job.sourceKey, job.reportKey]);
       for (;;) {
         const result = await ctx.runMutation(
           internalAny.dataImport.deleteItemsPage,
@@ -557,27 +501,8 @@ export const cleanupExpiredUploads = internalAction({
         }
       );
       for (const job of jobs) {
-        const config = getImportR2Config();
-        const client = createImportS3Client(config);
-        if (job.uploadId) {
-          await client
-            .send(
-              new AbortMultipartUploadCommand({
-                Bucket: config.bucket,
-                Key: job.sourceKey,
-                UploadId: job.uploadId,
-              })
-            )
-            .catch(() => undefined);
-        }
-        await client
-          .send(
-            new DeleteObjectCommand({
-              Bucket: config.bucket,
-              Key: job.sourceKey,
-            })
-          )
-          .catch(() => undefined);
+        await abortImportUpload(job.sourceKey, job.uploadId);
+        await queueImportObjectDeletion(ctx, [job.sourceKey]);
         await ctx.runMutation(internalAny.dataImport.finishJob, {
           jobId: job._id,
           status: "failed",
@@ -600,30 +525,14 @@ export const deleteAccountImportObjects = internalAction({
     ),
   },
   returns: v.null(),
-  handler: async (_ctx, { objects }) => {
-    const config = getImportR2Config();
-    const client = createImportS3Client(config);
+  handler: async (ctx, { objects }) => {
     for (const object of objects) {
-      if (object.uploadId) {
-        try {
-          await client.send(
-            new AbortMultipartUploadCommand({
-              Bucket: config.bucket,
-              Key: object.sourceKey,
-              UploadId: object.uploadId,
-            })
-          );
-        } catch (error) {
-          if (!isMissingMultipartUpload(error)) {
-            throw error;
-          }
-        }
-      }
-      for (const key of [object.sourceKey, object.reportKey].filter(Boolean)) {
-        await client.send(
-          new DeleteObjectCommand({ Bucket: config.bucket, Key: key })
-        );
-      }
+      await abortImportUpload(object.sourceKey, object.uploadId);
+      // Persist deletion work before the account cleanup removes these rows.
+      await queueImportObjectDeletion(ctx, [
+        object.sourceKey,
+        object.reportKey,
+      ]);
     }
     return null;
   },

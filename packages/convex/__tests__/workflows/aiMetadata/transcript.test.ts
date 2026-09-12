@@ -1,111 +1,85 @@
-// @ts-nocheck
-import {
-  afterAll,
-  beforeAll,
-  beforeEach,
-  describe,
-  expect,
-  mock,
-  test,
-} from "bun:test";
+import { afterEach, beforeEach, describe, expect, mock, test } from "bun:test";
+import { generateTranscript } from "../../../workflows/aiMetadata/transcript";
 
-const originalFetch = global.fetch;
-const mockFetch = mock();
-
-let generateTranscript: any;
-
-const audioResponse = (mimeType = "audio/mp3") => ({
-  ok: true,
-  headers: { get: () => mimeType },
-  arrayBuffer: async () => new ArrayBuffer(8),
+const originalFetch = globalThis.fetch;
+const prior = {
+  FILES_BASE: process.env.FILES_BASE,
+  FILES_SIGNING_SECRET: process.env.FILES_SIGNING_SECRET,
+  R2_KEY_PREFIX: process.env.R2_KEY_PREFIX,
+};
+const mockFetch = mock(
+  (_input: RequestInfo | URL, _init?: RequestInit): Promise<Response> =>
+    Promise.reject(new Error("Unexpected fetch"))
+);
+beforeEach(() => {
+  process.env.FILES_BASE = "https://files.test";
+  process.env.FILES_SIGNING_SECRET = "test-secret";
+  process.env.R2_KEY_PREFIX = "";
+  globalThis.fetch = mockFetch;
+  mockFetch.mockReset();
 });
-
-const workersAiResponse = (text: string) => ({
-  ok: true,
-  json: async () => ({ result: { text }, success: true }),
+afterEach(() => {
+  globalThis.fetch = originalFetch;
+  for (const [key, value] of Object.entries(prior)) {
+    if (value === undefined) {
+      delete process.env[key];
+    } else {
+      process.env[key] = value;
+    }
+  }
 });
 
 describe("generateTranscript", () => {
-  beforeAll(async () => {
-    global.fetch = mockFetch;
-    generateTranscript = (
-      await import("../../../workflows/aiMetadata/transcript")
-    ).generateTranscript;
-  });
-
-  afterAll(() => {
-    global.fetch = originalFetch;
-  });
-
-  beforeEach(() => {
-    mockFetch.mockReset();
-  });
-
-  test("generates transcript successfully", async () => {
-    mockFetch
-      .mockResolvedValueOnce(audioResponse())
-      .mockResolvedValueOnce(workersAiResponse("Transcript text"));
-
-    const result = await generateTranscript("https://audio.com/file.mp3");
-    expect(result).toBe("Transcript text");
-
-    const request = mockFetch.mock.calls[1]?.[0];
-    expect(request).toContain("/ai/run/@cf/openai/whisper-large-v3-turbo");
-    expect(mockFetch.mock.calls[1]?.[1]?.method).toBe("POST");
-    expect(mockFetch.mock.calls[1]?.[1]?.headers["Content-Type"]).toBe(
-      "audio/mp3"
+  test("requests transcription by source key without downloading audio", async () => {
+    mockFetch.mockResolvedValue(
+      Response.json({
+        ok: true,
+        version: 1,
+        data: {
+          text: "Transcript",
+          byteLength: 8,
+          mimeType: "audio/mp4",
+          sourceEtag: '"1"',
+        },
+      })
     );
-  });
-
-  test("handles fetch error", async () => {
-    mockFetch.mockResolvedValue({
-      ok: false,
-      status: 404,
-      statusText: "Not Found",
+    expect(
+      await generateTranscript("users/u/card/file/audio.m4a", "audio/mp4")
+    ).toBe("Transcript");
+    expect(mockFetch).toHaveBeenCalledTimes(1);
+    const [url, request] = mockFetch.mock.calls[0];
+    expect(url).toBe("https://files.test/__ops/v1");
+    expect(JSON.parse(String(request?.body))).toMatchObject({
+      op: "transcribe-audio",
+      params: {
+        sourceKey: "users/u/card/file/audio.m4a",
+        mimeType: "audio/mp4",
+      },
     });
-    const result = await generateTranscript("url");
-    expect(result).toBeNull();
+    expect(new Headers(request?.headers).has("x-teak-signature")).toBe(true);
   });
-
-  test("handles transcription error response", async () => {
-    mockFetch.mockResolvedValueOnce(audioResponse()).mockResolvedValueOnce({
-      ok: false,
-      status: 400,
-      statusText: "Bad Request",
-      json: async () => ({
-        errors: [{ message: "Invalid input" }],
-        success: false,
-      }),
-    });
-    const result = await generateTranscript("url");
-    expect(result).toBeNull();
+  test("preserves optional enrichment failure semantics", async () => {
+    for (const code of [
+      "NOT_FOUND",
+      "PAYLOAD_TOO_LARGE",
+      "UNSUPPORTED",
+      "INTERNAL",
+    ]) {
+      mockFetch.mockResolvedValue(
+        Response.json(
+          { ok: false, error: { code, requestId: "test" } },
+          { status: 500 }
+        )
+      );
+      expect(await generateTranscript("users/u/file")).toBeNull();
+    }
+    mockFetch.mockRejectedValue(new Error("offline"));
+    expect(await generateTranscript("users/u/file")).toBeNull();
   });
-
-  test("handles network error during transcription", async () => {
-    mockFetch
-      .mockResolvedValueOnce(audioResponse())
-      .mockRejectedValueOnce(new Error("AI error"));
-    const result = await generateTranscript("url");
-    expect(result).toBeNull();
-  });
-
-  test("mime type extension logic > covers all branches", async () => {
-    mockFetch
-      .mockResolvedValueOnce(audioResponse("audio/wav"))
-      .mockResolvedValueOnce(workersAiResponse("Wav"));
-    await generateTranscript("u");
-    expect(mockFetch.mock.calls[1]?.[1]?.headers["Content-Type"]).toBe(
-      "audio/wav"
-    );
-  });
-
-  test("mime type extension logic > uses mimeHint", async () => {
-    mockFetch
-      .mockResolvedValueOnce(audioResponse("audio/unknown"))
-      .mockResolvedValueOnce(workersAiResponse("Mime"));
-    await generateTranscript("u", "audio/mp4");
-    expect(mockFetch.mock.calls[1]?.[1]?.headers["Content-Type"]).toBe(
-      "audio/mp4"
-    );
+  test("rejects arbitrary URLs and keys outside this deployment before fetching", async () => {
+    expect(await generateTranscript("https://attacker.test/audio")).toBeNull();
+    process.env.R2_KEY_PREFIX = "dev/";
+    expect(await generateTranscript("users/u/file")).toBeNull();
+    expect(mockFetch).not.toHaveBeenCalled();
   });
 });

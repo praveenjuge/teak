@@ -11,65 +11,71 @@ import { parseImportedTimestamp } from "./validate";
 export function parseCsvRows(input: string): string[][] {
   const rows: string[][] = [];
   let row: string[] = [];
-  let field = "";
+  let pieces: string[] = [];
+  let blocks: string[] = [];
+  let pieceLength = 0;
+  const appendPiece = (piece: string) => {
+    pieces.push(piece);
+    pieceLength += piece.length;
+    if (pieceLength >= 65_536 || pieces.length >= 1024) {
+      blocks.push(pieces.join(""));
+      pieces = [];
+      pieceLength = 0;
+    }
+  };
+  let fieldStart = 0;
   let inQuotes = false;
   let index = 0;
   const length = input.length;
-
   const endField = () => {
-    row.push(field);
-    field = "";
+    if (row.length >= 256) {
+      throw new Error("Raindrop CSV has too many columns");
+    }
+    appendPiece(input.slice(fieldStart, index));
+    blocks.push(pieces.join(""));
+    row.push(blocks.join(""));
+    pieces = [];
+    blocks = [];
+    pieceLength = 0;
+    fieldStart = index + 1;
   };
   const endRow = () => {
     endField();
-    rows.push(row);
+    if (rows.length === 0 || !isEmptyRow(row)) {
+      if (rows.length > 10_000) {
+        throw new Error("Raindrop CSV exceeds 10,000 bookmarks");
+      }
+      rows.push(row);
+    }
     row = [];
   };
-
   while (index < length) {
     const char = input[index];
-    if (inQuotes) {
-      if (char === '"') {
-        if (input[index + 1] === '"') {
-          field += '"';
-          index += 2;
-          continue;
-        }
-        inQuotes = false;
-        index += 1;
-        continue;
-      }
-      field += char;
-      index += 1;
-      continue;
-    }
     if (char === '"') {
-      inQuotes = true;
-      index += 1;
-      continue;
-    }
-    if (char === ",") {
-      endField();
-      index += 1;
-      continue;
-    }
-    if (char === "\r") {
-      if (input[index + 1] === "\n") {
+      appendPiece(input.slice(fieldStart, index));
+      if (inQuotes && input[index + 1] === '"') {
+        appendPiece('"');
+        index += 2;
+      } else {
+        inQuotes = !inQuotes;
         index += 1;
       }
-      endRow();
-      index += 1;
+      fieldStart = index;
       continue;
     }
-    if (char === "\n") {
-      endRow();
-      index += 1;
-      continue;
+    if (!inQuotes && char === ",") {
+      endField();
     }
-    field += char;
+    if (!inQuotes && (char === "\r" || char === "\n")) {
+      endRow();
+      if (char === "\r" && input[index + 1] === "\n") {
+        index += 1;
+        fieldStart = index + 1;
+      }
+    }
     index += 1;
   }
-  if (field.length > 0 || row.length > 0) {
+  if (fieldStart < length || pieces.length || blocks.length || row.length) {
     endRow();
   }
   return rows;

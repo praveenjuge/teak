@@ -26,14 +26,16 @@ worker. Eligible sources (≤20 MB) are transformed directly from R2 through
 the binding, cached per source ETag + rendition + format; larger sources keep
 the URL-based transformation path. The Convex backend remains the control plane — it authenticates
 users, owns card state, validates uploads, and orchestrates workflows —
-while every byte-processing operation (uploads, deletes, analysis, AI,
-generated media) flows through this worker.
+while stored-file processing and storage transfers flow through this worker.
+Remote preview fetching retains its DNS-pinned Convex implementation (see below);
+PDF/video rendering and screenshots remain in Kernel.
 
 ## Internal ops
 
 Besides downloads, the worker accepts body-bound, short-lived signed `POST`
 requests at `/__ops/v1`. Contracts and typed success/error envelopes live in
 `@teak/files-protocol`; `HEAD` and `GET` can never execute an operation.
+Operation request bodies are limited to 1 MiB before signature verification.
 
 - `op=analyze-image` / `analyze-image-content` — reads intrinsic dimensions
   and a bounded color sample through Cloudflare transformations; SVG input is
@@ -70,6 +72,98 @@ requests at `/__ops/v1`. Contracts and typed success/error envelopes live in
   Workers AI (Gemma multimodal) with the same system prompt, JSON output
   shape, and bounded validation retries as the pipeline it replaced; image
   bytes never leave the worker (`src/imageMetadata.ts`).
+
+## Import and audio processing
+
+- `transcribe-audio` accepts an authorized R2 source key and optional MIME hint.
+  The AI binding streams the R2 body to `@cf/openai/whisper-large-v3-turbo`.
+  Audio is limited to the existing 100 MiB upload limit; returned UTF-8 text
+  is limited to 512 KiB. Results contain text, byte count, MIME type, and source
+  ETag, never segments or audio bytes. Convex retains AI telemetry and optional
+  enrichment failure semantics; card processing status and retries stay there.
+- `index-import-source` accepts archive/bookmarks/raindrop, expected source size,
+  and an offset cursor. It returns at most 100 items and 4 MiB of item JSON;
+  continuation requests bind the original ETag. The import action binds
+  that ETag to the job before storing rows and uses it during extraction. Convex owns card
+  validation, deduplication across pages, cancellation, and database writes.
+- `read-import-markdown` returns one UTF-8 Markdown entry (512 KiB maximum),
+  or a typed per-item decoding/size failure. Convex decides whether a legacy
+  document becomes a text card. Import writes are batched by both item count
+  and encoded size after Markdown expansion.
+- ZIP inspection, indexing, and `extract-import-files` share `src/zip.ts`.
+  Ranged reads support classic ZIP and ZIP64 offsets within the existing 5 GiB
+  archive/expanded-byte limits. Central directories are capped at 32 MiB and
+  20,002 entries (10,000 cards plus files and metadata). Multi-disk, encrypted,
+  duplicate, traversal, and unsupported-compression entries are rejected.
+  Every read checks source ETag; local headers and actual decompressed sizes
+  are checked before extracted files are stored under the same user namespace.
+- Import JSON retains its 64 MiB byte limit and is parsed incrementally with
+  completed siblings discarded. Only the requested page is retained. Defensive
+  limits also bound JSON nesting (64), string tokens (1 MiB), and individual
+  in-progress values (4 MiB). Extraction/preview entries retain the 100:1
+  compression-ratio guard; JSON and Markdown use actual streamed byte limits
+  so highly compressible valid text remains importable.
+- The canonical pure bookmark/CSV parsers remain in `packages/convex/import`
+  and are imported directly by the worker. They execute in the worker for
+  imports; no second parser or S3 fallback exists. Sources remain capped at
+  20 MiB and 10,000 bookmarks. HTML is parsed without building a DOM, with a
+  nesting limit of 128; CSV is limited to 256 columns and assembles quoted
+  fields in bounded chunks.
+- Convex generates bounded error-report excerpts and uploads them through the
+  existing signed PUT endpoint. Source/report cleanup is handed to the durable
+  object-deletion workflow before import rows are removed. Multipart abort is
+  idempotent only for R2 `NoSuchUpload` (10024); other errors propagate.
+
+### Remote preview ingestion: retained security boundary
+
+`workflows/steps/linkMetadata/fetchMetadata.ts` still downloads remote preview
+assets using the existing DNS validation, pinned address set, redirect checks,
+byte/type limits, and dimensions checks, then uploads through the worker.
+Moving this fetch without equivalent connection pinning would permit DNS
+rebinding between validation and connection.
+
+The [Workers HTTP API](https://developers.cloudflare.com/workers/runtime-apis/nodejs/http/)
+does not implement `lookup` or `createConnection`.
+[`resolveOverride`](https://developers.cloudflare.com/workers/runtime-apis/request/#requestinitcfproperties)
+is restricted to hosts in the zone and cannot pin arbitrary external preview
+hosts. A local workerd probe using the existing Undici Agent with a custom
+lookup failed before calling lookup with
+`ERR_OPTION_NOT_IMPLEMENTED: The options.ALPNProtocols option is not implemented`.
+This was reproduced on 2026-09-12 with both repository Wrangler 4.125.0 and
+latest Wrangler 4.131.1. Replacing the transport with custom TLS/HTTP shims
+is outside this consolidation. The protected Convex path remains canonical.
+
+### Verification and deployment boundary
+
+Deterministic tests cover signed routes, pagination, source replacement, ZIP64
+reads beyond 4 GiB, unsafe entries, actual decompression limits, Markdown
+outcomes, and binding input/output limits. `packages/convex/importConsolidation.test.ts`
+checks real Convex mutation state for deduplication, action replay, cancellation,
+and rejected source changes using the edge test runtime.
+
+Local workerd verification used a separate config with a local-only R2 bucket
+and test signing secret. It exercised upload, 103-card indexing over two pages,
+Markdown, file extraction, HTML/CSV, and cleanup. The real AI binding was tested
+with synthetic speech streamed from local R2; no production objects were written.
+The streaming binding contract is also documented in the
+[Cloudflare binding implementation](https://github.com/cloudflare/workerd/blob/main/src/cloudflare/internal/ai-api.ts).
+
+Deploy the worker operations before their Convex callers. The backend deployment
+runs `bun run scripts/check-files-readiness.ts --prod --wait`: an authenticated,
+read-only capability probe must confirm the required operations and AI/Images
+bindings before Convex deploys. It waits at most ten minutes for Cloudflare Builds.
+
+The first index step retains its original function reference and arguments.
+Old journal results have no continuation cursor and follow their existing step
+sequence. New imports checkpoint one page per action and deduplicate across
+pages using the job/URL index. Markdown reads run eight at a time. The optional `importJobs.sourceEtag` is bound atomically
+inside indexing/extraction, so existing journals can resume without a restart
+or backfill. A local backend plus real R2 run indexed 10,000 items (about
+55 MiB of JSON, including 256 Markdown files) across 100 pages in 391 seconds.
+The longest Markdown-heavy page took 44 seconds; all fixtures were cleaned up. Before rollback, retain this optional schema field while reverting
+callers; reverting to a schema that rejects stored ETags requires a separate,
+explicitly approved data migration. Keep the compatible worker deployed while
+rolling back backend callers.
 
 ## Single-file signed uploads
 

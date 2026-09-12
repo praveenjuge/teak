@@ -28,6 +28,7 @@ export const FILES_UPLOAD_PATH = "/__upload/v1" as const;
 export const FILES_UPLOAD_MAX_TTL_SECONDS = 15 * 60;
 
 export const FILES_OPS = [
+  "capabilities",
   "analyze-image",
   // Additive alias of analyze-image; both are accepted so Worker and Convex
   // deployments can overlap safely within protocol version 1.
@@ -45,6 +46,9 @@ export const FILES_OPS = [
   "head-object",
   "inspect",
   "list-objects",
+  "transcribe-audio",
+  "index-import-source",
+  "read-import-markdown",
 ] as const;
 
 export type FilesOp = (typeof FILES_OPS)[number];
@@ -199,3 +203,53 @@ export const buildImageSourceSigningPayload = ({
   key: string;
 }): string =>
   ["image-source", String(FILES_PROTOCOL_VERSION), key, expiresAt].join("\n");
+
+export const FILES_TRANSCRIPTION_MODEL =
+  "@cf/openai/whisper-large-v3-turbo" as const;
+export const FILES_AUDIO_MAX_BYTES = 100 * 1024 * 1024;
+export const FILES_TRANSCRIPT_MAX_BYTES = 512 * 1024;
+export interface FilesTranscriptParams {
+  mimeType?: string;
+  sourceKey: string;
+}
+export interface FilesTranscriptResult {
+  byteLength: number;
+  mimeType: string;
+  sourceEtag: string;
+  text: string;
+}
+
+export const FILES_IMPORT_PAGE_BYTES = 4 * 1024 * 1024;
+export const FILES_IMPORT_PAGE_ITEMS = 100;
+export interface FilesImportIndexParams {
+  cursor?: number;
+  expectedSize: number;
+  mode: "archive" | "bookmarks" | "raindrop";
+  sourceEtag?: string;
+  sourceKey: string;
+}
+export interface FilesImportIndexItem {
+  card?: unknown;
+  error?: string;
+  file?: { path: string; uncompressedSize: number };
+  label?: string;
+  sourceIndex: number;
+}
+export interface FilesImportIndexResult {
+  items: FilesImportIndexItem[];
+  nextCursor: number | null;
+  sourceEtag: string;
+  total: number;
+}
+export interface FilesImportMarkdownParams {
+  path: string;
+  sourceEtag: string;
+  sourceKey: string;
+}
+export type FilesImportMarkdownResult =
+  | { content: string; type: "text" }
+  | {
+      status: "failed";
+      failureCode: "CONTENT_TOO_LARGE" | "INVALID_UTF8" | "INVALID_ITEM";
+      failureReason: string;
+    };

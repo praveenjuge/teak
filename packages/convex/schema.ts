@@ -403,6 +403,8 @@ export const importJobValidator = v.object({
   fileSize: v.number(),
   fileLastModified: v.number(),
   sourceKey: r2KeyValidator,
+  // Bound on first processing attempt; optional for jobs created before rollout.
+  sourceEtag: v.optional(v.string()),
   uploadId: v.optional(v.string()),
   uploadExpiresAt: v.optional(v.number()),
   workflowId: v.optional(v.string()),
@@ -641,6 +643,7 @@ export default defineSchema({
     .index("by_user_status", ["userId", "status"])
     .index("by_status_upload_expires", ["status", "uploadExpiresAt"]),
   importJobItems: defineTable(importJobItemValidator)
+    .index("by_jobId_and_url", ["jobId", "url"])
     .index("by_job_source", ["jobId", "sourceIndex"])
     .index("by_job_status_source", ["jobId", "status", "sourceIndex"])
     .index("by_user", ["userId"]),

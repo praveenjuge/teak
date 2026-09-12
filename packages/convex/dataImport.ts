@@ -339,6 +339,19 @@ export const insertItems = internalMutation({
       if (exists) {
         continue;
       }
+      if (item.status === "pending" && item.url) {
+        const duplicate = await ctx.db
+          .query("importJobItems")
+          .withIndex("by_jobId_and_url", (q) =>
+            q.eq("jobId", jobId).eq("url", item.url)
+          )
+          .first();
+        if (duplicate) {
+          item.status = "skipped";
+          item.failureCode = "SOURCE_DUPLICATE";
+          item.failureReason = "Duplicate URL in import file";
+        }
+      }
       const now = Date.now();
       await ctx.db.insert("importJobItems", {
         ...item,

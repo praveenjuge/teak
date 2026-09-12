@@ -38,11 +38,9 @@ export const IMAGE_METADATA_MODEL = workersAi(IMAGE_METADATA_MODEL_ID);
 
 /**
  * Transcription model for audio content
- * Whisper large v3 turbo — billed per audio minute via the REST `/ai/run`
- * endpoint (see workflows/aiMetadata/transcript.ts).
+ * Whisper large v3 turbo via the files worker AI binding.
  */
-export const TRANSCRIPTION_MODEL_ID =
-  "@cf/openai/whisper-large-v3-turbo" as const;
+export { FILES_TRANSCRIPTION_MODEL as TRANSCRIPTION_MODEL_ID } from "@teak/files-protocol";
 
 /**
  * System prompts optimized for reuse across requests.
