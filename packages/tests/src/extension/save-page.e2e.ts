@@ -47,43 +47,18 @@ test("extension saves a selected file and safe page asset with private URL fallb
     const nextPage = context.waitForEvent("page");
     await signIn.click();
     const authPage = await nextPage;
-    const approveDevice = authPage.getByRole("button", {
-      name: "Approve device",
-    });
-    await expect(approveDevice).toBeVisible();
-    await approveDevice.click();
-    await authPage
-      .waitForURL((url) => url.pathname === "/native/auth/complete")
-      .catch((error: unknown) => {
-        if (!authPage.isClosed()) {
-          throw error;
-        }
-      });
+    await expect(
+      authPage.getByText("Allow this app to access Teak?")
+    ).toBeVisible();
+    await expect(authPage.getByText("Teak Chrome · teak-chrome")).toBeVisible();
+    await authPage.getByRole("button", { name: "Allow", exact: true }).click();
 
-    // The completion tab can close before its document-idle content script
-    // runs. Reopening the popup exercises the extension's normal fallback poll.
+    // Verify the completed OAuth flow through the authenticated upload UI.
     const finishingPopup = await context.newPage();
     await finishingPopup.goto(popupUrl);
-
-    await expect
-      .poll(
-        () =>
-          serviceWorker.evaluate(() => {
-            const extensionChrome = (
-              globalThis as typeof globalThis & { chrome: ExtensionChrome }
-            ).chrome;
-            return new Promise<boolean>((resolveToken) => {
-              extensionChrome.storage.local.get(
-                "teakSessionToken",
-                (result) => {
-                  resolveToken(Boolean(result.teakSessionToken));
-                }
-              );
-            });
-          }),
-        { timeout: 30_000 }
-      )
-      .toBe(true);
+    await expect(finishingPopup.locator('input[type="file"]')).toBeAttached({
+      timeout: 30_000,
+    });
 
     const marker = `extension-file-${Date.now()}`;
     const markdown = `\uFEFF  # ${marker}\r\n\r\nSaved from the extension.  \n`;

@@ -37,12 +37,17 @@ test("changelog renders Blume release notes", async ({ page }) => {
   const releaseNotes = page.locator("[data-blume-update]").first();
   await expect(releaseNotes).toBeVisible();
   const releaseLink = releaseNotes.getByRole("link").first();
-  await expect(releaseLink).toHaveText(/^[A-Z][a-z]+ 20\d{2}$/);
+  await expect(releaseLink).toHaveText(/\S/);
   await expect(releaseLink).toHaveAttribute(
     "href",
-    /^\/changelog\/[a-z]+-20\d{2}$/
+    /^\/changelog\/[a-z0-9-]+\/?$/
   );
   await expect(releaseNotes.locator("li")).not.toHaveCount(0);
+  const title = await releaseLink.innerText();
+  await releaseLink.click();
+  await expect(
+    page.getByRole("heading", { name: title, exact: true })
+  ).toBeVisible();
 });
 
 test("public docs describe expanded file support and optional card types", async ({

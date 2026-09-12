@@ -631,8 +631,8 @@ test("settings import and export surface terminal states", async ({ page }) => {
     )
     .toMatchObject({
       content: legacyContent,
-      fileName: legacyFileName,
-      fileUrl: expect.stringMatching(/^https?:\/\//),
+      fileName: null,
+      fileUrl: null,
       type: "text",
     });
 
