@@ -6,6 +6,9 @@ on:
     paths:
       - ".github/workflows/backend-deploy.yml"
       - "packages/convex/**"
+      - "packages/files-protocol/**"
+      - "apps/files-worker/**"
+      - "scripts/check-files-readiness.ts"
       - "bun.lock"
   workflow_dispatch:
 
@@ -37,6 +40,8 @@ jobs:
           test -n "$CONVEX_DEPLOY_KEY"
           test -n "$SENTRY_AUTH_TOKEN"
           test -n "$SENTRY_BACKEND_DSN"
+      - name: Wait for compatible files worker
+        run: bun run scripts/check-files-readiness.ts --prod --wait
       - name: Configure backend release context
         working-directory: packages/convex
         run: |

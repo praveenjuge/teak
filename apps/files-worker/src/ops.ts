@@ -1,5 +1,7 @@
+import { readResponseTextWithinLimit } from "@teak/convex/shared/bounded-response";
 import {
   buildFilesOpSigningPayload,
+  FILES_OPS,
   FILES_PROCESSOR_VERSION,
   FILES_PROTOCOL_VERSION,
   type FilesErrorCode,
@@ -15,6 +17,7 @@ import {
 import { finalizeImageUpload } from "./finalizeImage";
 import { analyzeImage } from "./imageAnalysis";
 import { generateImageMetadataForOp } from "./imageMetadata";
+import { indexImportSource, readImportMarkdown } from "./importSource";
 import {
   extractZipEntries,
   type InspectMode,
@@ -23,9 +26,14 @@ import {
 } from "./inspect";
 import { sha256Hex, verifyBodySignature } from "./lib";
 import { reportFilesOpFailure } from "./sentry";
+import { transcribeAudio } from "./transcript";
 import { isValidUploadKey } from "./upload";
+import { ArchiveEntryTooLargeError } from "./zip";
 
 export interface FilesOpsEnv {
+  AI?: {
+    run: (model: string, args: Record<string, unknown>) => Promise<unknown>;
+  };
   BUCKET: R2Bucket;
   FILES_SIGNING_SECRET: string;
   /** Images binding; used by finalize-image-upload for decode verification. */
@@ -162,6 +170,18 @@ const dispatch = async (
 ): Promise<Response> => {
   const params = (body.params ?? {}) as Record<string, unknown>;
   switch (body.op) {
+    case "capabilities":
+      return success(requestId, {
+        operations: FILES_OPS,
+        ai: Boolean(env.AI),
+        images: Boolean(env.IMAGES),
+      });
+    case "index-import-source":
+      return success(requestId, await indexImportSource(env.BUCKET, params));
+    case "read-import-markdown":
+      return success(requestId, await readImportMarkdown(env.BUCKET, params));
+    case "transcribe-audio":
+      return success(requestId, await transcribeAudio(env, params));
     case "analyze-image":
     case "analyze-image-content":
       return success(
@@ -261,12 +281,30 @@ const dispatch = async (
         size: object.size,
       });
     }
-    case "abort-multipart":
-      await env.BUCKET.resumeMultipartUpload(
-        requiredString(params, "key"),
-        requiredString(params, "uploadId")
-      ).abort();
+    case "abort-multipart": {
+      const key = requiredString(params, "key");
+      if (!isValidUploadKey(key)) {
+        throw new Error("invalid_storage_key");
+      }
+      try {
+        await env.BUCKET.resumeMultipartUpload(
+          key,
+          requiredString(params, "uploadId")
+        ).abort();
+      } catch (error) {
+        // R2 NoSuchUpload means this idempotent cleanup has already completed.
+        // All other errors must propagate to durable workflow/cron retries.
+        if (
+          !(
+            error instanceof Error &&
+            /\b10024\b|NoSuchUpload/u.test(error.message)
+          )
+        ) {
+          throw error;
+        }
+      }
       return success(requestId, { aborted: true });
+    }
     case "finalize-upload":
       return success(requestId, await finalizeUpload(env.BUCKET, params));
     case "finalize-image-upload": {
@@ -371,7 +409,8 @@ const dispatch = async (
         await extractZipEntries(
           env.BUCKET,
           requiredString(params, "archiveKey"),
-          params.entries as never
+          params.entries,
+          optionalString(params, "sourceEtag") ?? undefined
         )
       );
     }
@@ -385,7 +424,18 @@ export const handleInternalOp = async (
   env: FilesOpsEnv
 ): Promise<Response> => {
   const requestId = request.headers.get("x-teak-request-id") ?? "unknown";
-  const rawBody = await request.text();
+  const rawBody = await readResponseTextWithinLimit(
+    new Response(request.body),
+    1024 * 1024
+  );
+  if (rawBody === null) {
+    return fail(
+      requestId,
+      "PAYLOAD_TOO_LARGE",
+      "Operation request exceeds 1 MiB",
+      413
+    );
+  }
   const bodySha256 = await sha256Hex(rawBody);
   const verification = await verifyBodySignature(
     env.FILES_SIGNING_SECRET,
@@ -411,8 +461,25 @@ export const handleInternalOp = async (
   } catch {
     return fail(requestId, "INVALID_INPUT", "Invalid JSON body", 400);
   }
-  if (body.version !== FILES_PROTOCOL_VERSION || !isFilesOp(body.op)) {
+  if (
+    !body ||
+    typeof body !== "object" ||
+    body.version !== FILES_PROTOCOL_VERSION ||
+    !isFilesOp(body.op)
+  ) {
     return fail(requestId, "UNSUPPORTED", "Unsupported operation", 400);
+  }
+  if (
+    !body.params ||
+    typeof body.params !== "object" ||
+    Array.isArray(body.params)
+  ) {
+    return fail(
+      requestId,
+      "INVALID_INPUT",
+      "Invalid operation parameters",
+      400
+    );
   }
   try {
     return await dispatch(env, requestId, body, new URL(request.url).origin);
@@ -425,7 +492,8 @@ export const handleInternalOp = async (
     }
     if (
       (error instanceof Error && error.message === "source_too_large") ||
-      error instanceof ExportTooLarge
+      error instanceof ExportTooLarge ||
+      error instanceof ArchiveEntryTooLargeError
     ) {
       return fail(requestId, "PAYLOAD_TOO_LARGE", error.message, 413);
     }

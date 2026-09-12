@@ -1,4 +1,4 @@
-import { DomUtils, parseDocument } from "htmlparser2";
+import { Parser } from "htmlparser2";
 import { sanitizeExternalUrl } from "../shared/utils/safeUrl";
 import type { ImportCardInput } from "./validate";
 
@@ -8,106 +8,110 @@ export interface ParsedBookmarkItem {
   label: string;
 }
 
-function children(node: any): any[] {
-  return Array.isArray(node?.children) ? node.children : [];
+interface BookmarkList {
+  folders: string[];
+  pendingFolder?: string;
 }
 
-function elementName(node: any): string {
-  return typeof node?.name === "string" ? node.name.toLowerCase() : "";
-}
-
-function attribute(node: any, name: string): string | undefined {
-  const value = node?.attribs?.[name] ?? node?.attribs?.[name.toUpperCase()];
-  return typeof value === "string" ? value : undefined;
-}
-
-function findFirst(node: any, name: string): any | undefined {
-  if (elementName(node) === name) {
-    return node;
-  }
-  for (const child of children(node)) {
-    const found = findFirst(child, name);
-    if (found) {
-      return found;
-    }
-  }
-}
-
-function walkList(node: any, folders: string[], output: ParsedBookmarkItem[]) {
-  const nodes = children(node).flatMap((child) =>
-    elementName(child) === "p" ? children(child) : [child]
-  );
-  let pendingFolder: string | undefined;
-  for (const child of nodes) {
-    const name = elementName(child);
-    if (name === "dt") {
-      const heading = children(child).find(
-        (value) => elementName(value) === "h3"
-      );
-      if (heading) {
-        pendingFolder = DomUtils.textContent(heading).trim();
-      }
-      const anchor = children(child).find(
-        (value) => elementName(value) === "a"
-      );
-      if (anchor) {
-        const title = DomUtils.textContent(anchor).trim();
-        const rawUrl = attribute(anchor, "href");
-        const url = sanitizeExternalUrl(rawUrl);
-        if (url) {
-          const addDate = attribute(anchor, "add_date");
-          const seconds = addDate ? Number(addDate) : Number.NaN;
-          output.push({
-            label: title || url,
-            card: {
-              type: "link",
-              content: title || url,
-              url,
-              tags: folders.length ? [...folders] : undefined,
-              createdAt:
-                Number.isFinite(seconds) && seconds > 0
-                  ? Math.floor(seconds * 1000)
-                  : undefined,
-            },
-          });
-        } else {
-          output.push({
-            label: title || rawUrl || "Bookmark",
-            error: "Bookmark URL is unsafe",
-          });
-        }
-      }
-      const nested = children(child).find(
-        (nestedChild) => elementName(nestedChild) === "dl"
-      );
-      if (nested) {
-        walkList(
-          nested,
-          pendingFolder ? [...folders, pendingFolder] : folders,
-          output
-        );
-        pendingFolder = undefined;
-      }
-      continue;
-    }
-    if (name === "dl") {
-      walkList(
-        child,
-        pendingFolder ? [...folders, pendingFolder] : folders,
-        output
-      );
-      pendingFolder = undefined;
-    }
-  }
-}
-
+/** Parse Netscape bookmark exports without constructing a DOM for the 20 MiB source. */
 export function parseBookmarksHtml(html: string): ParsedBookmarkItem[] {
-  const document = parseDocument(html, { decodeEntities: true });
-  const rootList = findFirst(document, "dl");
-  if (!rootList) {
+  const output: ParsedBookmarkItem[] = [];
+  const lists: BookmarkList[] = [];
+  let foundList = false;
+  let finishedList = false;
+  let depth = 0;
+  let heading: string[] | undefined;
+  let anchor:
+    | { attributes: Record<string, string>; text: string[] }
+    | undefined;
+  const parser = new Parser(
+    {
+      onopentag(name, attributes) {
+        depth += 1;
+        if (depth > 128) {
+          throw new Error("Bookmark HTML nesting exceeds its limit");
+        }
+        if (finishedList) {
+          return;
+        }
+        if (name === "dl") {
+          foundList = true;
+          const parent = lists[lists.length - 1];
+          const folders = parent?.pendingFolder
+            ? [...parent.folders, parent.pendingFolder]
+            : (parent?.folders ?? []);
+          if (parent) {
+            parent.pendingFolder = undefined;
+          }
+          lists.push({ folders });
+        }
+        if (!lists.length) {
+          return;
+        }
+        if (name === "h3") {
+          heading = [];
+        }
+        if (name === "a") {
+          anchor = { attributes, text: [] };
+        }
+      },
+      ontext(text) {
+        heading?.push(text);
+        anchor?.text.push(text);
+      },
+      onclosetag(name) {
+        depth -= 1;
+        if (name === "h3" && heading) {
+          const list = lists[lists.length - 1];
+          if (list) {
+            list.pendingFolder = heading.join("").trim();
+          }
+          heading = undefined;
+        }
+        if (name === "a" && anchor) {
+          const title = anchor.text.join("").trim();
+          const rawUrl = anchor.attributes.href;
+          const url = sanitizeExternalUrl(rawUrl);
+          const seconds = Number(anchor.attributes.add_date);
+          const folders = lists[lists.length - 1]?.folders ?? [];
+          if (output.length >= 10_000) {
+            throw new Error("Bookmark file exceeds 10,000 bookmarks");
+          }
+          output.push(
+            url
+              ? {
+                  label: title || url,
+                  card: {
+                    type: "link",
+                    content: title || url,
+                    url,
+                    tags: folders.length ? [...folders] : undefined,
+                    createdAt:
+                      Number.isFinite(seconds) && seconds > 0
+                        ? Math.floor(seconds * 1000)
+                        : undefined,
+                  },
+                }
+              : {
+                  label: title || rawUrl || "Bookmark",
+                  error: "Bookmark URL is unsafe",
+                }
+          );
+          anchor = undefined;
+        }
+        if (name === "dl" && lists.length) {
+          lists.pop();
+          if (!lists.length) {
+            finishedList = true;
+          }
+        }
+      },
+    },
+    { decodeEntities: true }
+  );
+  parser.end(html);
+  if (!foundList) {
     throw new Error("Bookmarks HTML does not contain a bookmark list");
   }
-  const output: ParsedBookmarkItem[] = [];
-  walkList(rootList, [], output);
   return output;
 }

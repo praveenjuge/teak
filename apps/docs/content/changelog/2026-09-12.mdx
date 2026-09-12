@@ -1,0 +1,12 @@
+---
+title: "More reliable imports"
+description: Imports handle cancellation and changed uploads more reliably.
+type: changelog
+date: "2026-09-12"
+changelog:
+  category: Improvements
+---
+
+- Canceling an import now stops parsing between batches.
+- Archive imports detect changes to the uploaded file during processing.
+- Import error reports show short excerpts of failed items to keep large reports manageable.

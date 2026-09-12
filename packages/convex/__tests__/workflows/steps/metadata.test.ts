@@ -44,10 +44,9 @@ const originalFilesBase = process.env.FILES_BASE;
 const originalFilesSecret = process.env.FILES_SIGNING_SECRET;
 
 /**
- * Route the image/video AI path through the Files Worker op envelope: image
- * understanding now runs inside the worker against its `detail` rendition.
+ * Return the signed Files Worker operation envelope for media processing.
  */
-const enableWorkerImageOp = (data: unknown, { status = 200 } = {}) => {
+const enableWorkerOp = (data: unknown, { status = 200 } = {}) => {
   process.env.FILES_BASE = "https://files.teakvault.com";
   process.env.FILES_SIGNING_SECRET = "test-signing-secret";
   mockFetch.mockImplementation(
@@ -291,7 +290,7 @@ describe("metadata handler", () => {
     test("runs the image AI canary for production E2E users", async () => {
       const originalDomain = process.env.E2E_EMAIL_DOMAIN;
       process.env.E2E_EMAIL_DOMAIN = "tests.example.com";
-      enableWorkerImageOp({
+      enableWorkerOp({
         summary: "A red square.",
         tags: ["red", "square"],
       });
@@ -395,7 +394,7 @@ describe("metadata handler", () => {
         fileMetadata: { height: 1722, width: 3006 },
       });
       // A worker fallback surfaces as the deferred raster-pending condition.
-      enableWorkerImageOp(null, { status: 404 });
+      enableWorkerOp(null, { status: 404 });
 
       const result = await generateHandler(ctx, {
         cardId: "c1",
@@ -447,7 +446,7 @@ describe("metadata handler", () => {
         thumbnailKey: "t1",
         fileMetadata: { mimeType: "image/png" },
       });
-      enableWorkerImageOp({ summary: "A photo", tags: ["photo"] });
+      enableWorkerOp({ summary: "A photo", tags: ["photo"] });
 
       const result = await generateHandler(ctx, {
         cardId: "c1",
@@ -467,7 +466,7 @@ describe("metadata handler", () => {
         thumbnailKey: "t1",
         fileMetadata: { mimeType: "image/svg+xml" },
       });
-      enableWorkerImageOp({ summary: "SVG image", tags: ["svg"] });
+      enableWorkerOp({ summary: "SVG image", tags: ["svg"] });
 
       const result = await generateHandler(ctx, {
         cardId: "c1",
@@ -484,7 +483,7 @@ describe("metadata handler", () => {
         fileKey: "f1",
         fileMetadata: { height: 6000, mimeType: "image/png", width: 6000 },
       });
-      enableWorkerImageOp({ summary: "A large photo", tags: ["photo"] });
+      enableWorkerOp({ summary: "A large photo", tags: ["photo"] });
 
       const result = await generateHandler(ctx, {
         cardId: "c1",
@@ -502,7 +501,7 @@ describe("metadata handler", () => {
         thumbnailKey: "t1",
         fileMetadata: { fileName: "diagram.svg" },
       });
-      enableWorkerImageOp({ summary: "A diagram", tags: ["diagram"] });
+      enableWorkerOp({ summary: "A diagram", tags: ["diagram"] });
 
       await generateHandler(ctx, {
         cardId: "c1",
@@ -519,7 +518,7 @@ describe("metadata handler", () => {
         thumbnailKey: "t1",
         fileMetadata: { fileName: "diagram.SVG" },
       });
-      enableWorkerImageOp({ summary: "A diagram", tags: ["diagram"] });
+      enableWorkerOp({ summary: "A diagram", tags: ["diagram"] });
 
       await generateHandler(ctx, { cardId: "c1", cardType: "image" });
 
@@ -565,7 +564,7 @@ describe("metadata handler", () => {
         _id: "c1",
         thumbnailKey: "t1",
       });
-      enableWorkerImageOp({ summary: "Video content", tags: ["video"] });
+      enableWorkerOp({ summary: "Video content", tags: ["video"] });
 
       const result = await generateHandler(ctx, {
         cardId: "c1",
@@ -583,7 +582,7 @@ describe("metadata handler", () => {
         thumbnailKey: "t1",
         fileMetadata: { fileName: "movie.mp4" },
       });
-      enableWorkerImageOp({ summary: "A movie", tags: ["movie"] });
+      enableWorkerOp({ summary: "A movie", tags: ["movie"] });
 
       await generateHandler(ctx, { cardId: "c1", cardType: "video" });
 
@@ -595,23 +594,10 @@ describe("metadata handler", () => {
     test("generates metadata from audio transcript", async () => {
       mockRunQuery.mockResolvedValue({
         _id: "c1",
-        fileKey: "a1",
+        fileKey: "users/u/audio.mp3",
         fileMetadata: { mimeType: "audio/mp3" },
       });
-      r2Mocks.resolveObjectUrl.mockResolvedValue("https://audio.mp3");
-      mockFetch
-        .mockResolvedValueOnce({
-          ok: true,
-          headers: { get: () => "audio/mp3" },
-          arrayBuffer: async () => new ArrayBuffer(8),
-        })
-        .mockResolvedValueOnce({
-          ok: true,
-          json: async () => ({
-            result: { text: "spoken text in audio" },
-            success: true,
-          }),
-        });
+      enableWorkerOp({ text: "spoken text in audio", byteLength: 8 });
       aiMocks.generateText.mockResolvedValue({
         output: { tags: ["speech"], summary: "Audio content" },
       });
@@ -624,15 +610,19 @@ describe("metadata handler", () => {
       expect(result.aiTranscript).toBe("spoken text in audio");
       expect(result.aiTags).toEqual(["speech"]);
       expect(result.confidence).toBe(0.85);
+      expect(lastWorkerOpRequest()).toMatchObject({
+        op: "transcribe-audio",
+        params: { sourceKey: "users/u/audio.mp3" },
+      });
     });
 
     test("handles missing audio file", async () => {
       mockRunQuery.mockResolvedValue({
         _id: "c1",
-        fileKey: "a1",
+        fileKey: "users/u/audio.wav",
         fileMetadata: { mimeType: "audio/wav" },
       });
-      r2Mocks.resolveObjectUrl.mockResolvedValue(null);
+      enableWorkerOp(null, { status: 404 });
 
       const result = await generateHandler(ctx, {
         cardId: "c1",

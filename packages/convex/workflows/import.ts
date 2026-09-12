@@ -45,10 +45,21 @@ export const importWorkflow = workflow.define({
       return finalize(step, jobId, "canceled");
     }
 
-    const indexed = await step.runAction(
+    let indexed = await step.runAction(
       internalAny["import/runImport"].indexImportSource,
       { jobId }
     );
+    // Old journal results have no cursor and replay the original step sequence.
+    // New imports checkpoint each bounded page instead of one long action.
+    while (indexed.ok && indexed.nextCursor !== undefined) {
+      indexed = await step.runAction(
+        internalAny["import/runImport"].indexImportSource,
+        {
+          jobId,
+          cursor: indexed.nextCursor,
+        }
+      );
+    }
     if (!indexed.ok) {
       return finalize(
         step,

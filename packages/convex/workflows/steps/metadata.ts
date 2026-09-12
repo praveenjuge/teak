@@ -17,7 +17,6 @@ import { extractVisualStylesFromTags } from "../../shared/constants";
 import { inferFileFormat } from "../../shared/fileFormats";
 import { TELEMETRY_OPERATIONS } from "../../shared/telemetry";
 import type { Id } from "../../shared/types";
-import { resolveObjectUrl } from "../../storage/r2";
 import { withBackendSpan } from "../../telemetry/sentry";
 import {
   generateImageMetadataForStoredKey,
@@ -262,19 +261,16 @@ export async function generateHandler(
       }
       case "audio": {
         if (card.fileKey) {
-          const audioUrl = await resolveObjectUrl(card.fileKey);
-          if (audioUrl) {
-            const transcriptResult = await generateTranscript(
-              audioUrl,
-              card.fileMetadata?.mimeType
-            );
-            if (transcriptResult) {
-              aiTranscript = transcriptResult;
-              const result = await generateTextMetadata(transcriptResult);
-              aiTags = result.aiTags;
-              aiSummary = result.aiSummary;
-              confidence = 0.85;
-            }
+          const transcriptResult = await generateTranscript(
+            card.fileKey,
+            card.fileMetadata?.mimeType
+          );
+          if (transcriptResult) {
+            aiTranscript = transcriptResult;
+            const result = await generateTextMetadata(transcriptResult);
+            aiTags = result.aiTags;
+            aiSummary = result.aiSummary;
+            confidence = 0.85;
           }
         }
         break;

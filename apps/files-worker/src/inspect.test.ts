@@ -124,13 +124,19 @@ describe("import archive extraction", () => {
       files[`files/${index}.txt`] = new Uint8Array([index % 255]);
     }
     const bucket = new FakeBucket();
-    bucket.objects.set("large-import.zip", { bytes: zipSync(files) });
-    const result = await extractZipEntries(bucket, "large-import.zip", [
-      {
-        destinationKey: "users/u/imports/10001.txt",
-        path: "files/10001.txt",
-      },
-    ]);
+    bucket.objects.set("users/u/imports/job/large-import.zip", {
+      bytes: zipSync(files),
+    });
+    const result = await extractZipEntries(
+      bucket,
+      "users/u/imports/job/large-import.zip",
+      [
+        {
+          destinationKey: "users/u/imports/10001.txt",
+          path: "files/10001.txt",
+        },
+      ]
+    );
     expect(result).toHaveLength(1);
     expect(bucket.storedBytes("users/u/imports/10001.txt")).toEqual(
       new Uint8Array([10_001 % 255])
@@ -139,19 +145,23 @@ describe("import archive extraction", () => {
 
   test("extracts only requested entries directly into destination keys", async () => {
     const bucket = new FakeBucket();
-    bucket.objects.set("import.zip", {
+    bucket.objects.set("users/u/imports/job/import.zip", {
       bytes: zipSync({
         "files/a.txt": new TextEncoder().encode("Alpha"),
         "files/b.txt": new TextEncoder().encode("Beta"),
       }),
     });
-    const result = await extractZipEntries(bucket, "import.zip", [
-      {
-        contentType: "text/plain",
-        destinationKey: "users/u/imports/a.txt",
-        path: "files/a.txt",
-      },
-    ]);
+    const result = await extractZipEntries(
+      bucket,
+      "users/u/imports/job/import.zip",
+      [
+        {
+          contentType: "text/plain",
+          destinationKey: "users/u/imports/a.txt",
+          path: "files/a.txt",
+        },
+      ]
+    );
     expect(result).toEqual([
       {
         bytes: 5,
