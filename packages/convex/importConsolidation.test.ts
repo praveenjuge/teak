@@ -169,6 +169,8 @@ describe("import orchestration through the worker", () => {
       type: "text",
       content: "# Notes",
     });
+    expect(items[3]).not.toHaveProperty("filePath");
+    expect(items[3]).not.toHaveProperty("fileName");
     expect(
       requests.filter((request) => request.op === "read-import-markdown")
     ).toHaveLength(2);

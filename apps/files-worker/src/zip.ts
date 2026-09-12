@@ -2,6 +2,24 @@ import { isSafeArchivePath } from "@teak/convex/import/validate";
 import { Inflate } from "fflate";
 import { isValidUploadKey } from "./upload";
 
+// ZIP names without the UTF-8 flag use the standard DOS code page.
+const CP437_HIGH =
+  "ÇüéâäàåçêëèïîìÄÅÉæÆôöòûùÿÖÜ¢£¥₧ƒáíóúñÑªº¿⌐¬½¼¡«»░▒▓│┤╡╢╖╕╣║╗╝╜╛┐└┴┬├─┼╞╟╚╔╩╦╠═╬╧╨╤╥╙╘╒╓╫╪┘┌█▄▌▐▀αßΓπΣσµτΦΘΩδ∞φε∩≡±≥≤⌠⌡÷≈°∙·√ⁿ²■\xa0";
+const decodeZipName = (bytes: Uint8Array, flags: number) => {
+  if (Math.floor(flags / 2048) % 2 === 1) {
+    try {
+      return new TextDecoder("utf-8", { fatal: true, ignoreBOM: true }).decode(
+        bytes
+      );
+    } catch {
+      throw new Error("invalid_archive_filename");
+    }
+  }
+  return Array.from(bytes, (byte) =>
+    byte < 128 ? String.fromCharCode(byte) : CP437_HIGH[byte - 128]
+  ).join("");
+};
+
 export class InspectSourceMissing extends Error {
   constructor() {
     super("source_not_found");
@@ -126,9 +144,7 @@ export function parseCentralDirectory(
     }
     const flags = u16(bytes, offset + 8);
     const entry: ZipCentralEntry = {
-      name: new TextDecoder().decode(
-        bytes.subarray(offset + 46, offset + 46 + nl)
-      ),
+      name: decodeZipName(bytes.subarray(offset + 46, offset + 46 + nl), flags),
       compressionMethod: u16(bytes, offset + 10),
       compressedSize: u32(bytes, offset + 20),
       uncompressedSize: u32(bytes, offset + 24),
@@ -332,14 +348,15 @@ export async function consumeZipEntry(
   if (start + entry.compressedSize > directory.cdOffset) {
     throw new Error("archive_parse_failed");
   }
-  const name = new TextDecoder().decode(
+  const name = decodeZipName(
     await rangeRead(
       bucket,
       key,
       entry.localHeaderOffset + 30,
       nl,
       directory.sourceEtag
-    )
+    ),
+    entry.flags ?? 0
   );
   if (name !== entry.name) {
     throw new Error("archive_parse_failed");

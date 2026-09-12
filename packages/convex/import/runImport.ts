@@ -69,9 +69,6 @@ function normalizeIndexItem(
         failureReason: "Duplicate URL in import file",
       };
     }
-    if (card.url) {
-      seenUrls.add(card.url);
-    }
     if (card.file) {
       const entry = entries.get(card.file.path);
       if (!entry) {
@@ -86,6 +83,9 @@ function normalizeIndexItem(
       ) {
         throw new Error("File size does not match the archive entry");
       }
+    }
+    if (card.url) {
+      seenUrls.add(card.url);
     }
     return {
       sourceIndex,
@@ -232,14 +232,18 @@ export const indexImportSource = internalAction({
                 item.fileName &&
                 isMarkdownFileName(item.fileName)
               ) {
-                Object.assign(
-                  item,
-                  await readLegacyMarkdown(
-                    job.sourceKey,
-                    sourceEtag,
-                    item.filePath
-                  )
+                const markdown = await readLegacyMarkdown(
+                  job.sourceKey,
+                  sourceEtag,
+                  item.filePath
                 );
+                Object.assign(item, markdown);
+                if ("type" in markdown && markdown.type === "text") {
+                  item.filePath = undefined;
+                  item.fileName = undefined;
+                  item.fileSize = undefined;
+                  item.mimeType = undefined;
+                }
               }
             })
           );
@@ -500,14 +504,24 @@ export const cleanupExpiredUploads = internalAction({
           limit: 50,
         }
       );
+      let failureCount = 0;
       for (const job of jobs) {
-        await abortImportUpload(job.sourceKey, job.uploadId);
-        await queueImportObjectDeletion(ctx, [job.sourceKey]);
-        await ctx.runMutation(internalAny.dataImport.finishJob, {
-          jobId: job._id,
-          status: "failed",
-          failureClass: "upload_expired",
-        });
+        try {
+          await abortImportUpload(job.sourceKey, job.uploadId);
+          await queueImportObjectDeletion(ctx, [job.sourceKey]);
+          await ctx.runMutation(internalAny.dataImport.finishJob, {
+            jobId: job._id,
+            status: "failed",
+            failureClass: "upload_expired",
+          });
+        } catch {
+          failureCount += 1;
+        }
+      }
+      if (failureCount) {
+        throw new Error(
+          `Import cleanup incomplete for ${failureCount} jobs; retry required`
+        );
       }
       return null;
     }
@@ -526,13 +540,23 @@ export const deleteAccountImportObjects = internalAction({
   },
   returns: v.null(),
   handler: async (ctx, { objects }) => {
+    let failureCount = 0;
     for (const object of objects) {
-      await abortImportUpload(object.sourceKey, object.uploadId);
-      // Persist deletion work before the account cleanup removes these rows.
-      await queueImportObjectDeletion(ctx, [
-        object.sourceKey,
-        object.reportKey,
-      ]);
+      try {
+        await abortImportUpload(object.sourceKey, object.uploadId);
+        // Persist deletion work before the account cleanup removes these rows.
+        await queueImportObjectDeletion(ctx, [
+          object.sourceKey,
+          object.reportKey,
+        ]);
+      } catch {
+        failureCount += 1;
+      }
+    }
+    if (failureCount) {
+      throw new Error(
+        `Account import cleanup incomplete for ${failureCount} objects; retry required`
+      );
     }
     return null;
   },

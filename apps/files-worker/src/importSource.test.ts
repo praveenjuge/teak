@@ -23,6 +23,32 @@ function archive(files: Record<string, Uint8Array>) {
 const asBucket = (bucket: FakeBucket) => bucket as unknown as R2Bucket;
 
 describe("worker import source", () => {
+  test("matches CP437 filenames in both ZIP headers to Unicode manifest paths", async () => {
+    const { bucket, params, bytes } = archive({
+      "manifest.json": strToU8(
+        JSON.stringify({
+          version: 1,
+          cards: [{ type: "document", file: { path: "files/café.md" } }],
+        })
+      ),
+      "files/cafX.md": strToU8("# Café"),
+    });
+    const name = strToU8("files/cafX.md");
+    for (let i = 0; i <= bytes.length - name.length; i++) {
+      if (name.every((byte, j) => bytes[i + j] === byte)) {
+        bytes[i + 9] = 130;
+      }
+    }
+    const page = await indexImportSource(asBucket(bucket), params);
+    expect(page.items[0].file?.path).toBe("files/café.md");
+    expect(
+      await readImportMarkdown(asBucket(bucket), {
+        sourceKey,
+        sourceEtag: page.sourceEtag,
+        path: "files/café.md",
+      })
+    ).toEqual({ content: "# Café", type: "text" });
+  });
   test("pages inline manifest cards and returns only referenced file facts", async () => {
     const cards = Array.from({ length: 103 }, (_, i) => ({
       type: "text",
