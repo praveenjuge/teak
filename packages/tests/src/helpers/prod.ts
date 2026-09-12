@@ -328,6 +328,10 @@ export const deleteAccountViaUi = async (page: Page, account: AccountState) => {
   ).toBeVisible();
   await page.locator("#deleteConfirm").fill("delete account");
   await page.getByRole("button", { name: "Delete account" }).click();
+  // Batched account-data cleanup runs before the session is dropped, so
+  // deleting a data-heavy account can take minutes: wait for the app to
+  // return to /login before asserting that the API key is revoked.
+  await page.waitForURL(/\/login/, { timeout: 180_000 });
   if (account.apiKey) {
     await expect
       .poll(
@@ -337,19 +341,10 @@ export const deleteAccountViaUi = async (page: Page, account: AccountState) => {
               headers: { Authorization: `Bearer ${account.apiKey}` },
             })
           ).status,
-        { timeout: 60_000 }
+        { timeout: 30_000 }
       )
       .toBe(401);
   }
-  await page
-    .waitForURL(/\/login/, { timeout: account.apiKey ? 10_000 : 30_000 })
-    .catch(async (error: unknown) => {
-      if (!account.apiKey) {
-        throw error;
-      }
-      await page.context().clearCookies();
-      await page.goto(appPath("/login"));
-    });
   updateState((state) => {
     for (const saved of state.accounts) {
       if (saved.email === account.email) {
