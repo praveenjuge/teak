@@ -182,10 +182,7 @@ export const prepareMultipartUpload = action({
       role: "file",
       fileName: `${crypto.randomUUID()}-${args.fileName}`,
     });
-    const created = await callFilesWorkerJson<{
-      key: string;
-      uploadId: string;
-    }>({
+    const created = await callFilesWorkerJson({
       op: "create-multipart",
       params: { key: sourceKey, contentType: args.fileType },
     });
@@ -342,11 +339,7 @@ export const completeMultipartUpload = action({
         message: "Upload has incomplete parts",
       });
     }
-    const completed = await callFilesWorkerJson<{
-      etag: string;
-      key: string;
-      size: number;
-    }>({
+    const completed = await callFilesWorkerJson({
       op: "complete-multipart",
       params: {
         key: session.sourceKey,

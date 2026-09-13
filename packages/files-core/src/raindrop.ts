@@ -1,6 +1,6 @@
-import { sanitizeExternalUrl } from "../shared/utils/safeUrl";
 import type { ParsedBookmarkItem } from "./bookmarks";
-import { parseImportedTimestamp } from "./validate";
+import { parseImportedTimestamp } from "./importValidate";
+import { sanitizeExternalUrl } from "./safeUrl";
 
 /**
  * Minimal RFC-4180 CSV parser. Handles quoted fields, embedded commas and

@@ -161,6 +161,8 @@ describe("card storage cleanup", () => {
     ).toEqual([
       "file",
       "file.processing.json",
+      "file.receipts/transcribe-audio.json",
+      "file.receipts/generate-image-metadata.json",
       "thumbnail",
       "preview",
       "image",

@@ -214,6 +214,8 @@ export const reserveJob = internalMutation({
       status: "uploading",
       phase: "Uploading",
       cancelRequested: false,
+      uploadTransport: "worker",
+      uploadParts: [],
       parsedCount: 0,
       processedCount: 0,
       createdCount: 0,
@@ -279,6 +281,7 @@ export const markQueued = internalMutation({
       phase: "Waiting to parse",
       uploadId: undefined,
       uploadExpiresAt: undefined,
+      uploadParts: [],
       updatedAt: Date.now(),
     });
     await ctx.scheduler.runAfter(

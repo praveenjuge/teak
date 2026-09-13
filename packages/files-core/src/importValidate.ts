@@ -1,10 +1,11 @@
-import { validateMarkdownContent } from "../shared/markdown";
-import { sanitizeExternalUrl } from "../shared/utils/safeUrl";
+import { isSafeArchivePath } from "./archivePaths";
 import {
   type ImportMode,
   MAX_IMPORT_CARDS,
   MAX_IMPORT_FILE_BYTES,
-} from "./constants";
+} from "./importLimits";
+import { validateMarkdownContent } from "./markdown";
+import { sanitizeExternalUrl } from "./safeUrl";
 
 export const IMPORT_CARD_TYPES = [
   "text",
@@ -47,20 +48,6 @@ const FILE_TYPES = new Set<ImportCardType>([
   "audio",
   "document",
 ]);
-
-export function isSafeArchivePath(path: string): boolean {
-  if (
-    !path ||
-    path.includes("\\") ||
-    path.startsWith("/") ||
-    path.includes("\0")
-  ) {
-    return false;
-  }
-  const normalized = path.endsWith("/") ? path.slice(0, -1) : path;
-  const segments = normalized.split("/");
-  return !segments.some((segment) => segment === ".." || segment === "");
-}
 
 export function parseImportedTimestamp(value: unknown): number | undefined {
   const candidate =

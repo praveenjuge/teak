@@ -1,6 +1,6 @@
 import { Parser } from "htmlparser2";
-import { sanitizeExternalUrl } from "../shared/utils/safeUrl";
-import type { ImportCardInput } from "./validate";
+import type { ImportCardInput } from "./importValidate";
+import { sanitizeExternalUrl } from "./safeUrl";
 
 export interface ParsedBookmarkItem {
   card?: ImportCardInput;

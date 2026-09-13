@@ -1,10 +1,10 @@
 import { describe, expect, test } from "bun:test";
+import { isSafeArchivePath } from "./archivePaths";
 import {
   assertImportCardCount,
-  isSafeArchivePath,
   mimeMatchesType,
   validateImportCard,
-} from "../../import/validate";
+} from "./importValidate";
 
 describe("Teak archive card validation", () => {
   test("rejects traversal, absolute paths, and remote file URLs", () => {

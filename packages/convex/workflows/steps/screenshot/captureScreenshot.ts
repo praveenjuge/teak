@@ -15,7 +15,6 @@ import {
 import {
   buildSignedWorkerUploadUrl,
   callFilesWorkerJson,
-  type FilesWorkerHeadObjectResult,
 } from "../../../storage/filesWorkerClient";
 import { buildR2ObjectKey } from "../../../storage/r2";
 import { pinnedFetch } from "../pinnedFetch";
@@ -206,7 +205,7 @@ const captureScreenshotWithKernel = async ({
     }
 
     // Verify the committed object before Convex records it.
-    const head = await callFilesWorkerJson<FilesWorkerHeadObjectResult>({
+    const head = await callFilesWorkerJson({
       op: "head-object",
       params: { key: screenshotKey },
     });

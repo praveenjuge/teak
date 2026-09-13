@@ -7,6 +7,7 @@
 
 "use node";
 
+import { inferFileFormat } from "@teak/files-core";
 import { v } from "convex/values";
 import { components, internal } from "../../_generated/api";
 import { internalAction } from "../../_generated/server";
@@ -14,7 +15,6 @@ import { stageCompleted } from "../../card/processingStatus";
 import { isE2EEmail, normalizeE2EEmailDomain } from "../../e2eAccounts";
 import type { CardType } from "../../schema";
 import { extractVisualStylesFromTags } from "../../shared/constants";
-import { inferFileFormat } from "../../shared/fileFormats";
 import { TELEMETRY_OPERATIONS } from "../../shared/telemetry";
 import type { Id } from "../../shared/types";
 import { withBackendSpan } from "../../telemetry/sentry";

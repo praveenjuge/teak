@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { parseBookmarksHtml } from "../../import/bookmarks";
+import { parseBookmarksHtml } from "./bookmarks";
 
 describe("backend bookmark parser", () => {
   test("maps nested folders, titles, URLs, and valid dates", () => {

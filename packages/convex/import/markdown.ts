@@ -2,7 +2,7 @@ import {
   decodeMarkdownUtf8,
   isMarkdownFileName,
   MarkdownContentError,
-} from "../shared/markdown";
+} from "@teak/files-core";
 
 export type LegacyMarkdownImportResult =
   | { content: string; type: "text" }

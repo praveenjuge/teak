@@ -89,10 +89,13 @@ export interface FilesFinalizeImageResult {
   decodedFormat: string;
   destinationKey: string;
   height: number | null;
+  palette: string[];
+  processorVersion: string;
   sourceEtag: string;
   storedEtag: string;
   storedFileSize: number;
   storedMimeType?: string;
+  verificationLevel: "decoded";
   width: number | null;
 }
 
@@ -215,6 +218,7 @@ export interface FilesTranscriptParams {
 export interface FilesTranscriptResult {
   byteLength: number;
   mimeType: string;
+  receiptReused?: boolean;
   sourceEtag: string;
   text: string;
 }
@@ -253,3 +257,5 @@ export type FilesImportMarkdownResult =
       failureCode: "CONTENT_TOO_LARGE" | "INVALID_UTF8" | "INVALID_ITEM";
       failureReason: string;
     };
+
+export * from "./ops";

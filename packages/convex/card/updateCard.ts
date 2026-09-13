@@ -1,3 +1,4 @@
+import { assertSafeExternalUrl } from "@teak/files-core";
 import { ConvexError, v } from "convex/values";
 import { internal } from "../_generated/api";
 import type { Id } from "../_generated/dataModel";
@@ -9,7 +10,6 @@ import {
 import { getSessionIdentity } from "../securitySessions";
 import { CARD_ERROR_CODES, CARD_ERROR_MESSAGES } from "../shared/constants";
 import { rateLimiter } from "../shared/rateLimits";
-import { assertSafeExternalUrl } from "../shared/utils/safeUrl";
 import {
   ensureCardUsageShards,
   ensureCardUsageShardsForRemoval,

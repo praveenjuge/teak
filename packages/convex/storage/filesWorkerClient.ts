@@ -12,10 +12,19 @@ import {
   FILES_PROTOCOL_VERSION,
   FILES_UPLOAD_MAX_TTL_SECONDS,
   FILES_UPLOAD_PATH,
+  type FilesAnalyzeImageResult,
+  type FilesBuildExportResult,
   type FilesEnvelope,
   type FilesFinalizeImageResult,
+  type FilesFinalizeUploadResult,
+  type FilesGenerateImageMetadataResult,
+  type FilesHeadObjectResult,
+  type FilesInspectResult,
+  type FilesListObjectsResult,
   type FilesOp,
+  type FilesOpParams,
   type FilesOpRequest,
+  type FilesOpResults,
 } from "@teak/files-protocol";
 import { assertR2KeyInNamespace, hmacSha256Hex } from "./r2Keys";
 
@@ -171,8 +180,8 @@ export const buildSignedMultipartPartUrl = async (
   return url.toString();
 };
 
-export const buildSignedWorkerOpRequest = async (
-  spec: { op: FilesOp; params: Record<string, unknown> },
+export const buildSignedWorkerOpRequest = async <Op extends FilesOp>(
+  spec: { op: Op; params: FilesOpParams[Op] },
   nowSeconds = Math.floor(Date.now() / 1000)
 ): Promise<SignedWorkerOpRequest> => {
   const base = process.env.FILES_BASE;
@@ -215,10 +224,10 @@ export type FilesWorkerOutcome<T> =
   | { kind: "ok"; data: T }
   | { kind: "fallback" };
 
-export const callFilesWorkerJson = async <T>(spec: {
-  op: FilesOp;
-  params: Record<string, unknown>;
-}): Promise<FilesWorkerOutcome<T>> => {
+export const callFilesWorkerJson = async <Op extends FilesOp>(spec: {
+  op: Op;
+  params: FilesOpParams[Op];
+}): Promise<FilesWorkerOutcome<FilesOpResults[Op]>> => {
   const signed = await buildSignedWorkerOpRequest(spec);
   let response: Response;
   try {
@@ -228,9 +237,9 @@ export const callFilesWorkerJson = async <T>(spec: {
       `files_worker_network_error:${error instanceof Error ? error.message : String(error)}`
     );
   }
-  const envelope = (await response
-    .json()
-    .catch(() => null)) as FilesEnvelope<T> | null;
+  const envelope = (await response.json().catch(() => null)) as FilesEnvelope<
+    FilesOpResults[Op]
+  > | null;
   if (!(response.ok && envelope?.ok)) {
     const code = envelope && !envelope.ok ? envelope.error.code : "INTERNAL";
     const requestId =
@@ -245,47 +254,22 @@ export const callFilesWorkerJson = async <T>(spec: {
   return { kind: "ok", data: envelope.data };
 };
 
-export interface FilesWorkerImageAnalysisResult {
-  height: number;
-  palette: string[];
-  width: number;
-}
+/** Convex-facing aliases of the canonical protocol result maps. */
+export type FilesWorkerImageAnalysisResult = FilesAnalyzeImageResult;
 
 /** Trusted image facts returned by the finalize-image-upload op. */
 export type FilesWorkerFinalizeImageResult = FilesFinalizeImageResult;
 
-export interface FilesWorkerBuildExportResult {
-  artifactBytes: number;
-  filesIncluded: number;
-  filesOmitted: number;
-  omittedPaths: string[];
-}
+export type FilesWorkerFinalizeUploadResult = FilesFinalizeUploadResult;
 
-export interface FilesWorkerInspectResult {
-  facts?: Record<string, number>;
-  text?: string;
-}
+export type FilesWorkerBuildExportResult = FilesBuildExportResult;
 
-export interface FilesWorkerHeadObjectResult {
-  contentType?: string;
-  etag?: string;
-  exists: boolean;
-  size?: number;
-}
+export type FilesWorkerInspectResult = FilesInspectResult;
 
-export interface FilesWorkerImageMetadataResult {
-  summary: string;
-  tags: string[];
-}
+export type FilesWorkerHeadObjectResult = FilesHeadObjectResult;
 
-export interface FilesWorkerListedObject {
-  key: string;
-  lastModified: number;
-  size: number;
-}
+export type FilesWorkerImageMetadataResult = FilesGenerateImageMetadataResult;
 
-export interface FilesWorkerListObjectsResult {
-  cursor: string | null;
-  objects: FilesWorkerListedObject[];
-  truncated: boolean;
-}
+export type FilesWorkerListedObject = FilesListObjectsResult["objects"][number];
+
+export type FilesWorkerListObjectsResult = FilesListObjectsResult;

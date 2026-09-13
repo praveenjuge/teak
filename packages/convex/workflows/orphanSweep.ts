@@ -15,12 +15,12 @@
 
 "use node";
 
+import type { FilesListObjectsParams } from "@teak/files-protocol";
 import { v } from "convex/values";
 import { internal } from "../_generated/api";
 import { type ActionCtx, internalAction } from "../_generated/server";
 import {
   callFilesWorkerJson,
-  type FilesWorkerListObjectsResult,
   isFilesWorkerConfigured,
 } from "../storage/filesWorkerClient";
 import { cardStorageObjectKeys } from "../storage/r2";
@@ -95,14 +95,14 @@ export const sweepOrphanedObjectsHandler = async (
   let listPages = 0;
 
   do {
-    const params: Record<string, unknown> = {
+    const params: FilesListObjectsParams = {
       prefix: buildR2ListPrefix(),
       limit: LIST_PAGE_LIMIT,
     };
     if (listCursor) {
       params.cursor = listCursor;
     }
-    const outcome = await callFilesWorkerJson<FilesWorkerListObjectsResult>({
+    const outcome = await callFilesWorkerJson({
       op: "list-objects",
       params,
     });

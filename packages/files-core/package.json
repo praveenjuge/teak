@@ -1,0 +1,28 @@
+{
+  "name": "@teak/files-core",
+  "version": "1.0.67",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./archive-paths": "./src/archivePaths.ts",
+    "./bookmarks": "./src/bookmarks.ts",
+    "./bounded-response": "./src/boundedResponse.ts",
+    "./file-formats": "./src/fileFormats.ts",
+    "./import-limits": "./src/importLimits.ts",
+    "./import-validate": "./src/importValidate.ts",
+    "./markdown": "./src/markdown.ts",
+    "./raindrop": "./src/raindrop.ts",
+    "./safe-url": "./src/safeUrl.ts"
+  },
+  "scripts": {
+    "test": "bun test src",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "htmlparser2": "^12.0.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.9.3"
+  }
+}

@@ -1,5 +1,5 @@
 import { describe, expect, mock, test } from "bun:test";
-import { MAX_FILE_SIZE } from "@teak/convex/shared/file-formats";
+import { MAX_FILE_SIZE } from "@teak/files-core";
 import { importIncomingShareItems } from "../../lib/share/importIncomingShare";
 import type { NormalizedShareItem } from "../../lib/share/types";
 

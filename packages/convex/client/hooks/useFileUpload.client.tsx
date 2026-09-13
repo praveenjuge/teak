@@ -1,3 +1,4 @@
+import { inferFileFormat, isGenericMimeType } from "@teak/files-core";
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
   captureClientException,
@@ -11,7 +12,6 @@ import {
   MAX_FILES_PER_UPLOAD,
   MULTIPART_UPLOAD_THRESHOLD,
 } from "../../shared/constants";
-import { inferFileFormat, isGenericMimeType } from "../../shared/fileFormats";
 import { trackUpload } from "../../shared/metrics";
 import type {
   UploadFileResult,

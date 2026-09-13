@@ -1,6 +1,6 @@
+import { FILE_KINDS } from "@teak/files-core";
 import { defineSchema, defineTable } from "convex/server";
 import { v } from "convex/values";
-import { FILE_KINDS } from "./shared/fileFormats";
 import { LINK_CATEGORIES } from "./shared/linkCategories";
 
 // Card types as literals for validator
@@ -90,7 +90,11 @@ export const fileProcessingProvenanceValidator = v.object({
   generatedAt: v.number(),
   processorVersion: v.string(),
   sourceEtag: v.string(),
-  transformVersion: v.string(),
+  // Upload finalization receipts carry verification facts instead of a
+  // renderable transform version; derivatives set transformVersion.
+  transformVersion: v.optional(v.string()),
+  verificationLevel: v.optional(v.string()),
+  storedEtag: v.optional(v.string()),
 });
 
 export const imageExifValidator = v.object({
@@ -407,6 +411,17 @@ export const importJobValidator = v.object({
   sourceEtag: v.optional(v.string()),
   uploadId: v.optional(v.string()),
   uploadExpiresAt: v.optional(v.number()),
+  // Worker-transport receipts. Absent on pre-cutover jobs, which restart.
+  uploadTransport: v.optional(v.union(v.literal("worker"), v.literal("s3"))),
+  uploadParts: v.optional(
+    v.array(
+      v.object({
+        partNumber: v.number(),
+        etag: v.string(),
+        size: v.number(),
+      })
+    )
+  ),
   workflowId: v.optional(v.string()),
   cancelRequested: v.optional(v.boolean()),
   parsedCount: v.number(),

@@ -1,9 +1,9 @@
 "use node";
 
+import { inferFileFormat } from "@teak/files-core";
 import { v } from "convex/values";
 import { internal } from "../../../_generated/api";
 import { internalAction } from "../../../_generated/server";
-import { inferFileFormat } from "../../../shared/fileFormats";
 import { buildFilePreviewFactsForKey } from "../../fileProcessing";
 
 export const generateFilePreview = internalAction({

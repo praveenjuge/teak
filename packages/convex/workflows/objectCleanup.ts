@@ -45,7 +45,7 @@ export const deleteObjectsAction = internalAction({
     const unique = Array.from(new Set(usable));
     let deleted = 0;
     for (let index = 0; index < unique.length; index += DELETE_BATCH_SIZE) {
-      const outcome = await callFilesWorkerJson<{ deleted: number }>({
+      const outcome = await callFilesWorkerJson({
         op: "delete-objects",
         params: { keys: unique.slice(index, index + DELETE_BATCH_SIZE) },
       });

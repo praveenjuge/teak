@@ -1,4 +1,4 @@
-import { isSafeArchivePath } from "@teak/convex/import/validate";
+import { isSafeArchivePath } from "@teak/files-core";
 import { Inflate } from "fflate";
 import { isValidUploadKey } from "./upload";
 

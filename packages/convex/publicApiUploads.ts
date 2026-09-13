@@ -1,21 +1,24 @@
+import {
+  FileFormatValidationError,
+  fileUploadErrorCode,
+  isMarkdownFileName,
+  MARKDOWN_CONTENT_MAX_BYTES,
+  MAX_FILE_SIZE,
+  MarkdownContentError,
+  validateFileName,
+  validateMarkdownByteLength,
+  validateUploadFile,
+} from "@teak/files-core";
 import { ConvexError, v } from "convex/values";
 import { internalMutation } from "./_generated/server";
 import { ensureCardCreationAllowed } from "./auth";
 import { createUploadedCardForUser } from "./card/uploadCard";
-import { type CardType, cardTypeValidator } from "./schema";
 import {
-  FileFormatValidationError,
-  fileUploadErrorCode,
-  MAX_FILE_SIZE,
-  validateFileName,
-  validateUploadFile,
-} from "./shared/fileFormats";
-import {
-  isMarkdownFileName,
-  MARKDOWN_CONTENT_MAX_BYTES,
-  MarkdownContentError,
-  validateMarkdownByteLength,
-} from "./shared/markdown";
+  type CardType,
+  cardTypeValidator,
+  colorValidator,
+  fileProcessingProvenanceValidator,
+} from "./schema";
 import { buildSignedWorkerUploadUrl } from "./storage/filesWorkerClient";
 import { buildR2ObjectKey, PENDING_UPLOAD_CARD_ID } from "./storage/r2";
 
@@ -105,12 +108,14 @@ export const finalizeUploadedCardForUser = internalMutation({
   args: {
     additionalMetadata: v.optional(v.any()),
     cardType: v.optional(cardTypeValidator),
+    colors: v.optional(v.array(colorValidator)),
     content: v.optional(v.string()),
     fileKey: v.string(),
     fileName: v.string(),
     fileSize: v.optional(v.number()),
     mimeType: v.optional(v.string()),
     notes: v.optional(v.union(v.string(), v.null())),
+    processing: v.optional(fileProcessingProvenanceValidator),
     storedFileSize: v.number(),
     storedMimeType: v.optional(v.string()),
     tags: v.optional(v.array(v.string())),
@@ -124,12 +129,14 @@ export const finalizeUploadedCardForUser = internalMutation({
     const cardId = await createUploadedCardForUser(ctx, {
       additionalMetadata: args.additionalMetadata,
       cardType: args.cardType as CardType,
+      colors: args.colors,
       content: args.content,
       fileKey: args.fileKey,
       fileName: sanitizeFileName(args.fileName),
       fileSize: args.fileSize,
       fileType: args.mimeType,
       notes: args.notes,
+      processing: args.processing,
       storedFileSize: args.storedFileSize,
       storedFileType: args.storedMimeType,
       tags: args.tags,

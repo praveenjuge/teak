@@ -1,9 +1,8 @@
 "use node";
 
-import type { FileFormat, FilePreviewFacts } from "../shared/fileFormats";
+import type { FileFormat, FilePreviewFacts } from "@teak/files-core";
 import {
   callFilesWorkerJson,
-  type FilesWorkerInspectResult,
   isFilesWorkerConfigured,
 } from "../storage/filesWorkerClient";
 
@@ -34,7 +33,7 @@ export const buildFilePreviewFactsForKey = async (
     return null;
   }
   requireWorker();
-  const outcome = await callFilesWorkerJson<FilesWorkerInspectResult>({
+  const outcome = await callFilesWorkerJson({
     op: "inspect",
     params: {
       formatId: format.id,
@@ -62,7 +61,7 @@ export const extractFileTextForAiForKey = async (
     return "";
   }
   requireWorker();
-  const outcome = await callFilesWorkerJson<FilesWorkerInspectResult>({
+  const outcome = await callFilesWorkerJson({
     op: "inspect",
     params: {
       formatId: format.id,

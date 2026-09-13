@@ -1,14 +1,19 @@
 "use node";
 
+import {
+  assertImportCardCount,
+  type ImportMode,
+  inferFileFormat,
+  isMarkdownFileName,
+  MAX_IMPORT_FILE_BYTES,
+  validateImportCard,
+} from "@teak/files-core";
 import { v } from "convex/values";
 import { internal } from "../_generated/api";
 import { type ActionCtx, internalAction } from "../_generated/server";
-import { inferFileFormat } from "../shared/fileFormats";
-import { isMarkdownFileName } from "../shared/markdown";
 import { TELEMETRY_OPERATIONS } from "../shared/telemetry";
 import {
   callFilesWorkerJson,
-  type FilesWorkerHeadObjectResult,
   isFilesWorkerConfigured,
   putObjectViaFilesWorker,
 } from "../storage/filesWorkerClient";
@@ -18,12 +23,7 @@ import {
   withBackendSpan,
 } from "../telemetry/sentry";
 import { readImportIndexPage, readLegacyMarkdown } from "./archiveZip";
-import {
-  IMPORT_INDEX_BATCH,
-  type ImportMode,
-  MAX_IMPORT_FILE_BYTES,
-} from "./constants";
-import { assertImportCardCount, validateImportCard } from "./validate";
+import { IMPORT_INDEX_BATCH } from "./constants";
 
 const internalAny = internal as Record<string, any>;
 
@@ -146,7 +146,7 @@ async function bindSourceVersion(
     return job.sourceEtag;
   }
   assertR2KeyInNamespace(job.sourceKey);
-  const outcome = await callFilesWorkerJson<FilesWorkerHeadObjectResult>({
+  const outcome = await callFilesWorkerJson({
     op: "head-object",
     params: { key: job.sourceKey },
   });
@@ -353,9 +353,7 @@ export const extractImportFiles = internalAction({
           ),
           path: item.filePath,
         }));
-        const outcome = await callFilesWorkerJson<
-          Array<{ destinationKey: string; path: string }>
-        >({
+        const outcome = await callFilesWorkerJson({
           op: "extract-import-files",
           params: { archiveKey: job.sourceKey, entries, sourceEtag },
         });

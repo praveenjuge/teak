@@ -14,6 +14,7 @@
  */
 
 import { mock } from "bun:test";
+import { aiReceiptKeysFor } from "@teak/files-core";
 import { PENDING_UPLOAD_CARD_ID } from "../../storage/r2";
 import {
   assertR2KeyInNamespace,
@@ -94,6 +95,7 @@ export const r2MockModuleFactory = () => ({
     return [
       card.fileKey,
       card.fileKey ? `${card.fileKey}.processing.json` : undefined,
+      ...(card.fileKey ? aiReceiptKeysFor(card.fileKey) : []),
       card.thumbnailKey,
       card.previewKey,
       linkPreview?.imageStorageKey,

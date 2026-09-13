@@ -1,3 +1,4 @@
+import { isSafeExternalUrl } from "@teak/files-core";
 import { ConvexError } from "convex/values";
 import { internal } from "./_generated/api";
 import { httpAction } from "./_generated/server";
@@ -5,7 +6,6 @@ import { isLocalDevelopmentHostname, resolveTeakDevAppUrl } from "./devUrls";
 import { isWellFormedOAuthToken } from "./oauthTokens";
 import { withPublicApiGatewayHeaders } from "./publicApiMeta";
 import { isWellFormedApiKey } from "./shared/apiKeyFormat";
-import { isSafeExternalUrl } from "./shared/utils/safeUrl";
 
 const DEFAULT_LIMIT = 50;
 const MAX_LIMIT = 100;

@@ -1,5 +1,5 @@
 import { resolveTeakDevAppUrl } from "@teak/convex/dev-urls";
-import { MAX_FILE_SIZE } from "@teak/convex/shared/file-formats";
+import { MAX_FILE_SIZE } from "@teak/files-core";
 import {
   AlertTriangle,
   ArrowRight,

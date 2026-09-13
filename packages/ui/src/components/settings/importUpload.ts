@@ -13,7 +13,12 @@ export async function putParts(
   file: File,
   plan: UploadPlan,
   onProgress: (percent: number) => void,
-  controllers: Set<AbortController>
+  controllers: Set<AbortController>,
+  recordPart: (receipt: {
+    partNumber: number;
+    etag: string;
+    size: number;
+  }) => Promise<unknown>
 ) {
   const totalBytes = Math.max(file.size, 1);
   const completeBytes = plan.uploadedParts.reduce((total, partNumber) => {
@@ -54,7 +59,15 @@ export async function putParts(
         // Each worker uploads its assigned parts sequentially; cross-part
         // concurrency comes from running UPLOAD_CONCURRENCY workers in parallel.
         // react-doctor-disable-next-line react-doctor/async-await-in-loop
-        await putPartWithRetry(part, chunk, controllers);
+        const etag = await putPartWithRetry(part, chunk, controllers);
+        // Persist the receipt before reporting progress so resume never
+        // re-uploads a part Convex cannot complete.
+        // react-doctor-disable-next-line react-doctor/async-await-in-loop
+        await recordPart({
+          partNumber: part.partNumber,
+          etag,
+          size: chunk.size,
+        });
         uploadedBytes += chunk.size;
         onProgress(
           Math.min(100, Math.round((uploadedBytes / totalBytes) * 100))
@@ -83,7 +96,7 @@ async function putPartWithRetry(
   part: UploadPlan["parts"][number],
   chunk: Blob,
   controllers: Set<AbortController>
-) {
+): Promise<string> {
   let lastError: unknown;
   for (
     let attempt = 0;
@@ -100,7 +113,11 @@ async function putPartWithRetry(
         if (!response.ok) {
           throw uploadPartError(part.partNumber, response.status);
         }
-        return;
+        const etag = response.headers.get("ETag")?.trim();
+        if (!etag) {
+          throw uploadPartError(part.partNumber, response.status);
+        }
+        return etag;
       }
       lastError = uploadPartError(part.partNumber, response.status);
     } catch (error) {

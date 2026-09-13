@@ -16,10 +16,7 @@ import {
   WORKERS_AI_PROVIDER,
 } from "../../ai/telemetry";
 import { trackAiRetry } from "../../shared/metrics";
-import {
-  callFilesWorkerJson,
-  type FilesWorkerImageMetadataResult,
-} from "../../storage/filesWorkerClient";
+import { callFilesWorkerJson } from "../../storage/filesWorkerClient";
 import { recordBackendLog } from "../../telemetry/sentry";
 import { aiMetadataSchema } from "./schemas";
 
@@ -277,7 +274,7 @@ export const generateImageMetadataForStoredKey = async (
   sourceKey: string,
   title?: string
 ) => {
-  const outcome = await callFilesWorkerJson<FilesWorkerImageMetadataResult>({
+  const outcome = await callFilesWorkerJson({
     op: "generate-image-metadata",
     params: {
       sourceKey,

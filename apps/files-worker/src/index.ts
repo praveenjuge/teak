@@ -110,7 +110,9 @@ const corsPreflight = (): Response => {
 };
 
 const MULTIPART_URL_MAX_TTL_SECONDS = 60 * 60;
-const MULTIPART_MAX_PART_BYTES = 16 * 1024 * 1024;
+// Import sources upload in 64 MiB parts; general card uploads keep their own
+// smaller part size, enforced Convex-side when the plan is created.
+const MULTIPART_MAX_PART_BYTES = 64 * 1024 * 1024;
 
 const handleMultipartPart = async (
   request: Request,

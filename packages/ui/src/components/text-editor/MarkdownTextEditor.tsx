@@ -12,7 +12,7 @@ import {
 import {
   MARKDOWN_CONTENT_MAX_BYTES,
   markdownContentByteLength,
-} from "@teak/convex/shared/markdown";
+} from "@teak/files-core";
 import { cn } from "@teak/ui/lib/utils";
 import { useEffect, useRef } from "react";
 import {

@@ -1,3 +1,4 @@
+import { aiReceiptKeysFor, inferFileFormat } from "@teak/files-core";
 import {
   buildImageSigningPayload,
   FILES_IMAGE_PATH,
@@ -8,7 +9,6 @@ import { internal } from "../_generated/api";
 import type { ActionCtx, MutationCtx } from "../_generated/server";
 import { mutation, query } from "../_generated/server";
 import { getSessionIdentity } from "../securitySessions";
-import { inferFileFormat } from "../shared/fileFormats";
 import {
   buildSignedWorkerUploadUrl,
   putObjectViaFilesWorker,
@@ -290,6 +290,9 @@ export const cardStorageObjectKeys = (card: {
   return [
     card.fileKey,
     card.fileKey ? `${card.fileKey}.processing.json` : undefined,
+    // AI receipt sidecars die with the card and are known to the orphan
+    // sweep through this same derivation.
+    ...(card.fileKey ? aiReceiptKeysFor(card.fileKey) : []),
     card.thumbnailKey,
     card.previewKey,
     linkPreview?.imageStorageKey,

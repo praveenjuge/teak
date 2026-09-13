@@ -1,8 +1,12 @@
+import { aiReceiptKeyFor } from "@teak/files-core";
+import type { FilesGenerateImageMetadataResult } from "@teak/files-protocol";
+import { FILES_PROCESSOR_VERSION } from "@teak/files-protocol";
 import {
   buildImageTransformOptions,
   fetchPrivateImageSource,
 } from "./imageTransform";
 import type { Env } from "./index";
+import { hashReceiptInput, readAiReceipt, writeAiReceipt } from "./receipts";
 
 /**
  * Image understanding on Workers AI.
@@ -139,7 +143,29 @@ export const generateImageMetadataForOp = async (
   }: { origin: string; sourceKey: string; title?: string | null },
   now = Math.floor(Date.now() / 1000),
   imageFetch: typeof fetch = fetch as typeof fetch
-): Promise<ImageMetadataResult> => {
+): Promise<FilesGenerateImageMetadataResult> => {
+  // A receipt hit skips both the image transform and the AI call. The
+  // source HEAD supplies the ETag the receipt is keyed on.
+  const sourceHead = await env.BUCKET.head(sourceKey);
+  if (!sourceHead) {
+    throw new Error("source_not_found");
+  }
+  const receiptKey = aiReceiptKeyFor(sourceKey, "generate-image-metadata");
+  const identity = {
+    inputHash: await hashReceiptInput({ title: title ?? null }),
+    model: IMAGE_METADATA_MODEL_ID,
+    op: "generate-image-metadata",
+    processorVersion: FILES_PROCESSOR_VERSION,
+    sourceEtag: sourceHead.httpEtag,
+  };
+  const cached = await readAiReceipt<FilesGenerateImageMetadataResult>(
+    env.BUCKET,
+    receiptKey,
+    identity
+  );
+  if (cached) {
+    return { ...cached, receiptReused: true };
+  }
   // Keep the canonical detail dimensions, but give the model one broadly
   // supported raster frame even when the private original is animated or uses
   // a format Workers AI cannot decode directly.
@@ -216,6 +242,12 @@ export const generateImageMetadataForOp = async (
       if (!parsed) {
         throw new Error("invalid_image_metadata_output");
       }
+      // Only validated results are cached; a failed write never fails the
+      // call.
+      await writeAiReceipt(env.BUCKET, receiptKey, {
+        ...identity,
+        result: parsed,
+      });
       return parsed;
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);

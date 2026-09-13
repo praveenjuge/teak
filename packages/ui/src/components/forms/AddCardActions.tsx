@@ -1,12 +1,12 @@
 import { api } from "@teak/convex";
 import { CARD_ERROR_CODES } from "@teak/convex/shared";
-import { inferFileFormat } from "@teak/convex/shared/file-formats";
 import {
   type FinalizeUploadedCardArgs,
   type UploadAndCreateCardArgs,
   useFileUploadCore,
 } from "@teak/convex/shared/hooks/useFileUpload";
 import { trackCardCreateAttempt } from "@teak/convex/shared/metrics";
+import { inferFileFormat } from "@teak/files-core";
 import { Button } from "@teak/ui/components/ui/button";
 import {
   Dialog,

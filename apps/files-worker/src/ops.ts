@@ -1,19 +1,22 @@
-import { readResponseTextWithinLimit } from "@teak/convex/shared/bounded-response";
+import { readResponseTextWithinLimit } from "@teak/files-core";
 import {
   buildFilesOpSigningPayload,
   FILES_OPS,
   FILES_PROCESSOR_VERSION,
   FILES_PROTOCOL_VERSION,
+  type FilesCapabilityFeature,
   type FilesErrorCode,
   type FilesFinalizeImageParams,
   type FilesOpRequest,
   isFilesOp,
+  isFilesOpParams,
 } from "@teak/files-protocol";
 import {
   buildExportIntoBucket,
   ExportManifestInvalid,
   ExportTooLarge,
 } from "./export";
+import { finalizeUpload } from "./finalize";
 import { finalizeImageUpload } from "./finalizeImage";
 import { analyzeImage } from "./imageAnalysis";
 import { generateImageMetadataForOp } from "./imageMetadata";
@@ -62,7 +65,7 @@ const fail = (
 const success = <T>(requestId: string, data: T): Response =>
   json({ data, ok: true, requestId, version: FILES_PROTOCOL_VERSION });
 
-const requiredString = (
+export const requiredString = (
   params: Record<string, unknown>,
   key: string
 ): string => {
@@ -73,7 +76,7 @@ const requiredString = (
   return value;
 };
 
-const optionalString = (
+export const optionalString = (
   params: Record<string, unknown>,
   key: string
 ): string | null => {
@@ -84,7 +87,7 @@ const optionalString = (
 const stripDevPrefix = (key: string): string =>
   key.startsWith("dev/") ? key.slice(4) : key;
 
-const sameUserNamespace = (left: string, right: string): boolean => {
+export const sameUserNamespace = (left: string, right: string): boolean => {
   const leftParts = stripDevPrefix(left).split("/");
   const rightParts = stripDevPrefix(right).split("/");
   return (
@@ -92,60 +95,6 @@ const sameUserNamespace = (left: string, right: string): boolean => {
     rightParts[0] === "users" &&
     leftParts[1] === rightParts[1]
   );
-};
-
-const finalizeUpload = async (
-  bucket: R2Bucket,
-  params: Record<string, unknown>
-) => {
-  const sourceKey = requiredString(params, "sourceKey");
-  const destinationKey = requiredString(params, "destinationKey");
-  if (!sameUserNamespace(sourceKey, destinationKey)) {
-    throw new Error("invalid_storage_key");
-  }
-  const source = await bucket.get(sourceKey);
-  if (!source) {
-    throw new InspectSourceMissing();
-  }
-  const expectedEtag = optionalString(params, "expectedEtag");
-  const expectedSize = params.expectedSize;
-  if (
-    (expectedEtag && source.httpEtag !== expectedEtag) ||
-    (typeof expectedSize === "number" && source.size !== expectedSize)
-  ) {
-    await source.body.cancel();
-    throw new Error("source_changed");
-  }
-  let content: string | undefined;
-  let body: ReadableStream | Uint8Array = source.body;
-  if (params.readText === true) {
-    const bytes = new Uint8Array(await source.arrayBuffer());
-    body = bytes;
-    try {
-      content = new TextDecoder("utf-8", {
-        fatal: true,
-        ignoreBOM: true,
-      }).decode(bytes);
-    } catch {
-      throw new Error("invalid_utf8");
-    }
-  }
-  const stored = await bucket.put(destinationKey, body, {
-    httpMetadata: source.httpMetadata,
-    customMetadata: {
-      ...source.customMetadata,
-      processorVersion: FILES_PROCESSOR_VERSION,
-      sourceEtag: source.httpEtag,
-    },
-  });
-  return {
-    content,
-    destinationKey,
-    sourceEtag: source.httpEtag,
-    storedEtag: stored.httpEtag,
-    storedFileSize: source.size,
-    storedMimeType: source.httpMetadata?.contentType,
-  };
 };
 
 const validKeyList = (value: unknown): string[] => {
@@ -170,12 +119,24 @@ const dispatch = async (
 ): Promise<Response> => {
   const params = (body.params ?? {}) as Record<string, unknown>;
   switch (body.op) {
-    case "capabilities":
+    case "capabilities": {
+      // Every feature the backend cut over to must be listed here; the
+      // deployment gate blocks until the worker reports them all.
+      const features: FilesCapabilityFeature[] = [
+        "verified-finalization",
+        "worker-import-transport",
+        "verified-text-reads",
+        "media-facts",
+        "ai-receipts",
+      ];
       return success(requestId, {
-        operations: FILES_OPS,
+        operations: [...FILES_OPS],
         ai: Boolean(env.AI),
         images: Boolean(env.IMAGES),
+        processorVersion: FILES_PROCESSOR_VERSION,
+        features,
       });
+    }
     case "index-import-source":
       return success(requestId, await indexImportSource(env.BUCKET, params));
     case "read-import-markdown":
@@ -306,7 +267,7 @@ const dispatch = async (
       return success(requestId, { aborted: true });
     }
     case "finalize-upload":
-      return success(requestId, await finalizeUpload(env.BUCKET, params));
+      return success(requestId, await finalizeUpload(env, params));
     case "finalize-image-upload": {
       const sourceKey = requiredString(params, "sourceKey");
       const destinationKey = requiredString(params, "destinationKey");
@@ -472,7 +433,8 @@ export const handleInternalOp = async (
   if (
     !body.params ||
     typeof body.params !== "object" ||
-    Array.isArray(body.params)
+    Array.isArray(body.params) ||
+    !isFilesOpParams(body.op, body.params)
   ) {
     return fail(
       requestId,

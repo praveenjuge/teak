@@ -1,7 +1,7 @@
 import {
   MARKDOWN_CONTENT_TOO_LARGE_MESSAGE,
   MARKDOWN_INVALID_UTF8_MESSAGE,
-} from "./markdown";
+} from "@teak/files-core";
 
 // === Card Types ===
 // NOTE: Keep in sync with convex/schema.ts
@@ -241,7 +241,7 @@ export const FREE_TIER_LIMIT = 200;
 /**
  * Maximum file size for uploads (100MB in bytes)
  */
-export { MAX_FILE_SIZE } from "./fileFormats";
+export { MAX_FILE_SIZE } from "@teak/files-core";
 
 /**
  * Maximum number of files that can be uploaded at once

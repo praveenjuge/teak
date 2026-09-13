@@ -9,7 +9,7 @@ import {
   validateFileFormat,
   validateFileName,
   validateUploadFile,
-} from "../../shared/fileFormats";
+} from "./fileFormats";
 
 const REQUIRED_FILE_NAMES = [
   "data.json",

@@ -11,7 +11,7 @@ export async function readImportIndexPage(
   params: FilesImportIndexParams
 ): Promise<FilesImportIndexResult> {
   assertR2KeyInNamespace(params.sourceKey);
-  const outcome = await callFilesWorkerJson<FilesImportIndexResult>({
+  const outcome = await callFilesWorkerJson({
     op: "index-import-source",
     params: { ...params },
   });
@@ -27,7 +27,7 @@ export async function readLegacyMarkdown(
   path: string
 ): Promise<FilesImportMarkdownResult> {
   assertR2KeyInNamespace(sourceKey);
-  const outcome = await callFilesWorkerJson<FilesImportMarkdownResult>({
+  const outcome = await callFilesWorkerJson({
     op: "read-import-markdown",
     params: { sourceKey, sourceEtag, path },
   });

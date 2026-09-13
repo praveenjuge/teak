@@ -20,6 +20,7 @@
     "@axe-core/playwright": "^4.12.1",
     "@modelcontextprotocol/sdk": "^1.30.0",
     "@teak/convex": "workspace:*",
+    "@teak/files-core": "workspace:*",
     "ajv": "^8.20.0",
     "ajv-formats": "^3.0.1",
     "fflate": "0.8.3",

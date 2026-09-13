@@ -1,3 +1,8 @@
+import {
+  isMarkdownFileName,
+  markdownContentByteLength,
+  validateMarkdownContent,
+} from "@teak/files-core";
 import { v } from "convex/values";
 import { internal } from "./_generated/api";
 import type { Id } from "./_generated/dataModel";
@@ -6,11 +11,6 @@ import {
   internalQuery,
   type MutationCtx,
 } from "./_generated/server";
-import {
-  isMarkdownFileName,
-  markdownContentByteLength,
-  validateMarkdownContent,
-} from "./shared/markdown";
 import { buildR2UserPrefix } from "./storage/r2";
 
 const MAX_ATTEMPTS = 5;

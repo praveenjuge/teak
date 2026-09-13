@@ -1,5 +1,5 @@
 import type { Doc } from "@teak/convex/_generated/dataModel";
-import { inferFileFormat } from "@teak/convex/shared/file-formats";
+import { inferFileFormat } from "@teak/files-core";
 
 type CardWithUrls = Doc<"cards"> & {
   fileUrl?: string;

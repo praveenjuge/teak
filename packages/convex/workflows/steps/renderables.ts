@@ -10,11 +10,11 @@
 
 "use node";
 
+import { inferFileFormat } from "@teak/files-core";
 import { v } from "convex/values";
 import { internal } from "../../_generated/api";
 import { internalAction } from "../../_generated/server";
 import { stageCompleted, stageFailed } from "../../card/processingStatus";
-import { inferFileFormat } from "../../shared/fileFormats";
 import { TELEMETRY_OPERATIONS } from "../../shared/telemetry";
 import { withBackendSpan } from "../../telemetry/sentry";
 

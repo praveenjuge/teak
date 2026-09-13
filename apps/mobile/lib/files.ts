@@ -5,7 +5,7 @@ import {
   isGenericMimeType,
   MAX_FILE_SIZE,
   mimeTypeForFileName,
-} from "@teak/convex/shared/file-formats";
+} from "@teak/files-core";
 
 interface NativeFileAsset {
   mimeType?: string | null;

@@ -1,7 +1,7 @@
 import { Buffer } from "node:buffer";
 import { readFileSync, writeFileSync } from "node:fs";
 import { expect, type Page, test } from "@playwright/test";
-import { MAX_FILE_SIZE } from "@teak/convex/shared";
+import { MAX_FILE_SIZE } from "@teak/files-core";
 import { strFromU8, strToU8, unzipSync, zipSync } from "fflate";
 import { apiFetch } from "../helpers/api";
 import { validWebmAudio } from "../helpers/file-formats";

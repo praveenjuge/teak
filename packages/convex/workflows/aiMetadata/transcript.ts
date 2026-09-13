@@ -1,7 +1,6 @@
 "use node";
 
 import { trace } from "@opentelemetry/api";
-import type { FilesTranscriptResult } from "@teak/files-protocol";
 import { TRANSCRIPTION_MODEL_ID } from "../../ai/models";
 import { observeAiGeneration } from "../../ai/telemetry";
 import { callFilesWorkerJson } from "../../storage/filesWorkerClient";
@@ -39,7 +38,7 @@ export const generateTranscript = async (
             model: TRANSCRIPTION_MODEL_ID,
           },
           async () => {
-            const result = await callFilesWorkerJson<FilesTranscriptResult>({
+            const result = await callFilesWorkerJson({
               op: "transcribe-audio",
               params: { sourceKey, mimeType: mimeHint },
             });

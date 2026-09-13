@@ -1,10 +1,10 @@
 "use node";
 
+import type { FilesListObjectsParams } from "@teak/files-protocol";
 import { v } from "convex/values";
 import { internalAction } from "../_generated/server";
 import {
   callFilesWorkerJson,
-  type FilesWorkerListObjectsResult,
   isFilesWorkerConfigured,
 } from "./filesWorkerClient";
 import { PENDING_UPLOAD_CARD_ID } from "./r2";
@@ -40,14 +40,14 @@ export const sweepStalePendingUploadsHandler = async (): Promise<null> => {
   let pages = 0;
 
   do {
-    const params: Record<string, unknown> = {
+    const params: FilesListObjectsParams = {
       prefix: buildR2ListPrefix(),
       limit: LIST_PAGE_LIMIT,
     };
     if (cursor) {
       params.cursor = cursor;
     }
-    const outcome = await callFilesWorkerJson<FilesWorkerListObjectsResult>({
+    const outcome = await callFilesWorkerJson({
       op: "list-objects",
       params,
     });
@@ -59,7 +59,7 @@ export const sweepStalePendingUploadsHandler = async (): Promise<null> => {
 
     const staleKeys = stalePendingUploadKeys(outcome.data.objects);
     for (let index = 0; index < staleKeys.length; index += DELETE_BATCH_SIZE) {
-      const deleted = await callFilesWorkerJson<{ deleted: number }>({
+      const deleted = await callFilesWorkerJson({
         op: "delete-objects",
         params: { keys: staleKeys.slice(index, index + DELETE_BATCH_SIZE) },
       });

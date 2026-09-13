@@ -95,6 +95,52 @@ describe("signed file operations", () => {
     expect(result.data).not.toHaveProperty("segments");
     expect(run.mock.calls[0][0]).toBe(FILES_TRANSCRIPTION_MODEL);
   });
+  test("reuses the transcript receipt instead of invoking AI again", async () => {
+    const bucket = new FakeBucket();
+    bucket.objects.set("users/u/audio.wav", {
+      bytes: new Uint8Array([1, 2, 3]),
+      httpMetadata: { contentType: "audio/wav" },
+    });
+    const run = mock(async () => ({ text: "Hello world" }));
+    const env = { ...envFor(bucket), AI: { run } };
+    const first = await handleInternalOp(
+      await request("transcribe-audio", { sourceKey: "users/u/audio.wav" }),
+      env
+    );
+    expect(first.status).toBe(200);
+    expect(run).toHaveBeenCalledTimes(1);
+    const second = await handleInternalOp(
+      await request("transcribe-audio", { sourceKey: "users/u/audio.wav" }),
+      env
+    );
+    expect(second.status).toBe(200);
+    expect(run).toHaveBeenCalledTimes(1);
+    const result = (await second.json()) as { data: Record<string, unknown> };
+    expect(result.data).toMatchObject({
+      receiptReused: true,
+      text: "Hello world",
+    });
+    expect(
+      bucket.objects.has("users/u/audio.wav.receipts/transcribe-audio.json")
+    ).toBe(true);
+  });
+  test("failed transcriptions cache nothing and retry AI on the next call", async () => {
+    const bucket = new FakeBucket();
+    bucket.objects.set("users/u/audio.wav", {
+      bytes: new Uint8Array([1, 2, 3]),
+      httpMetadata: { contentType: "audio/wav" },
+    });
+    const run = mock(() => Promise.reject(new Error("workers_ai_down")));
+    const env = { ...envFor(bucket), AI: { run } };
+    const failed = await handleInternalOp(
+      await request("transcribe-audio", { sourceKey: "users/u/audio.wav" }),
+      env
+    );
+    expect(failed.status).toBe(500);
+    expect(
+      bucket.objects.has("users/u/audio.wav.receipts/transcribe-audio.json")
+    ).toBe(false);
+  });
   test("rejects oversized audio before inference and bounds model output", async () => {
     const run = mock(async () => ({
       text: "x".repeat(FILES_TRANSCRIPT_MAX_BYTES + 1),

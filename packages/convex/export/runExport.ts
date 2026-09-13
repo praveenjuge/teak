@@ -1,11 +1,10 @@
 /**
- * Node action that performs the heavy export work:
+ * Action that performs the heavy export work:
  *   1. pages the start-time snapshot (joined to active card docs)
- *   2. reads each original file directly from Cloudflare R2 via the AWS S3 SDK
- *   3. builds the streaming ZIP archive (manifest.json + cards.json + files/)
- *   4. writes the completed artifact back to private R2 via the AWS S3 SDK
- *
- * Runs in the Convex Node runtime so it can use `archiver` and `@aws-sdk/client-s3`.
+ *   2. builds the export manifest (manifest.json + cards.json + files/)
+ *   3. streams the checkpointed ZIP artifact through the files-worker
+ *      `build-export` op, which reads sources and writes the artifact
+ *      through its R2 binding — bytes never transit Convex.
  */
 
 "use node";
@@ -17,7 +16,6 @@ import { type ActionCtx, internalAction } from "../_generated/server";
 import { TELEMETRY_OPERATIONS } from "../shared/telemetry";
 import {
   callFilesWorkerJson,
-  type FilesWorkerBuildExportResult,
   isFilesWorkerConfigured,
 } from "../storage/filesWorkerClient";
 import { buildR2ObjectKey, storeObject } from "../storage/r2";
@@ -211,16 +209,14 @@ async function runExportArchiveViaFilesWorker(
     for (let attempt = 0; attempt < 2; attempt += 1) {
       const manifestKey = await buildManifestObject();
       try {
-        const outcome = await callFilesWorkerJson<FilesWorkerBuildExportResult>(
-          {
-            op: "build-export",
-            params: {
-              artifactKey,
-              fileName: downloadName,
-              manifestKey,
-            },
-          }
-        );
+        const outcome = await callFilesWorkerJson({
+          op: "build-export",
+          params: {
+            artifactKey,
+            fileName: downloadName,
+            manifestKey,
+          },
+        });
         await deleteManifest(manifestKey);
 
         if (outcome.kind === "fallback") {
@@ -347,7 +343,7 @@ export const deleteArtifact = internalAction({
             `${artifactKey}.checkpoint.json`,
             `${artifactKey}.result.json`,
           ].map((key) =>
-            callFilesWorkerJson<{ deleted: boolean }>({
+            callFilesWorkerJson({
               op: "delete-object",
               params: { key },
             })

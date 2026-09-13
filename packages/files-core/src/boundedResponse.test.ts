@@ -2,7 +2,7 @@ import { describe, expect, test } from "bun:test";
 import {
   readResponseBlobWithinLimit,
   readResponseTextWithinLimit,
-} from "../../shared/boundedResponse";
+} from "./boundedResponse";
 
 const streamingResponse = (onCancel: () => void, close = false) =>
   new Response(

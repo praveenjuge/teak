@@ -1,5 +1,5 @@
+import type { FileKind, FilePreviewFacts } from "@teak/files-core";
 import { type CardType, cardTypes } from "../shared/constants";
-import type { FileKind, FilePreviewFacts } from "../shared/fileFormats";
 
 export type { CardType } from "../shared/constants";
 

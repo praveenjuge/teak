@@ -1,0 +1,12 @@
+---
+title: "Font uploads and verified files"
+description: Font files can now be saved, and uploads verify contents before saving.
+type: changelog
+date: "2026-09-13"
+changelog:
+  category: Improvements
+---
+
+- Font files (TTF, OTF, WOFF, and WOFF2) can now be saved as document cards.
+- Uploads now check that a file's contents match its declared type before saving, so mismatched files are rejected with a clear error.
+- Interrupted import uploads resume from the parts that already finished instead of starting over.

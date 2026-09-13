@@ -16,7 +16,7 @@
     "@resvg/resvg-wasm": "^2.6.2",
     "@sentry/cloudflare": "10.69.0",
     "@streamparser/json": "^0.0.26",
-    "@teak/convex": "workspace:*",
+    "@teak/files-core": "workspace:*",
     "@teak/files-protocol": "workspace:*",
     "client-zip": "^2.4.5",
     "fflate": "^0.8.2"

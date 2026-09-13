@@ -12,12 +12,12 @@ import {
   type Color,
   extractPaletteColors,
 } from "@teak/convex/shared/utils/colorUtils";
+import { inferFileFormat } from "@teak/files-core";
 import { v } from "convex/values";
 import { internal } from "../../_generated/api";
 import { internalAction } from "../../_generated/server";
 import { normalizeQuoteContent } from "../../card/quoteFormatting";
 import type { CardType } from "../../schema";
-import { inferFileFormat } from "../../shared/fileFormats";
 import { TELEMETRY_OPERATIONS } from "../../shared/telemetry";
 import type { Id } from "../../shared/types";
 import { withBackendSpan } from "../../telemetry/sentry";

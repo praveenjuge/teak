@@ -8,7 +8,7 @@ import {
 } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { inferFileFormat } from "@teak/convex/shared/file-formats";
+import { inferFileFormat } from "@teak/files-core";
 import { formatCardLine, getUploadFileInfo, mimeFor, parseSort } from ".";
 import { resolveAddInput } from "./files";
 import { CLI_OAUTH_SCOPE, createAuthorizeUrl, VERSION } from "./runtime";

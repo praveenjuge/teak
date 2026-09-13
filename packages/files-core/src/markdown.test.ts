@@ -5,7 +5,7 @@ import {
   MARKDOWN_CONTENT_MAX_BYTES,
   markdownContentByteLength,
   validateMarkdownContent,
-} from "../../shared/markdown";
+} from "./markdown";
 
 describe("Markdown text-card contract", () => {
   test("matches Markdown filenames by final extension only", () => {

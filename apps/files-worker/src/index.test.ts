@@ -2,6 +2,7 @@ import { describe, expect, test } from "bun:test";
 import {
   buildFilesOpSigningPayload,
   buildMultipartPartSigningPayload,
+  FILES_PROCESSOR_VERSION,
   FILES_PROTOCOL_VERSION,
 } from "@teak/files-protocol";
 import worker, { type Env } from "./index";
@@ -47,6 +48,7 @@ const signedUrl = async (
 const signedOpRequest = async (
   op:
     | "analyze-image"
+    | "capabilities"
     | "complete-multipart"
     | "create-multipart"
     | "finalize-upload"
@@ -93,6 +95,37 @@ describe("files worker handler", () => {
     expect(response.status).toBe(200);
     expect(await response.json()).toEqual({ ok: true });
     expect(response.headers.get("cache-control")).toBe("no-store");
+  });
+
+  test("reports operations, bindings, processor version, and features", async () => {
+    const response = await worker.fetch(
+      await signedOpRequest("capabilities", {}),
+      env(),
+      { waitUntil: () => undefined } as never
+    );
+    expect(response.status).toBe(200);
+    const payload = (await response.json()) as {
+      data: {
+        operations: string[];
+        ai: boolean;
+        images: boolean;
+        processorVersion: string;
+        features: string[];
+      };
+      ok: boolean;
+    };
+    expect(payload.ok).toBe(true);
+    expect(payload.data.operations).toContain("finalize-upload");
+    expect(payload.data.ai).toBe(false);
+    expect(payload.data.images).toBe(false);
+    expect(payload.data.processorVersion).toBe(FILES_PROCESSOR_VERSION);
+    expect(payload.data.features).toEqual([
+      "verified-finalization",
+      "worker-import-transport",
+      "verified-text-reads",
+      "media-facts",
+      "ai-receipts",
+    ]);
   });
 
   test("rejects non-GET/HEAD methods and answers OPTIONS preflights", async () => {
@@ -309,7 +342,9 @@ describe("files worker handler", () => {
       await signedOpRequest("finalize-upload", {
         destinationKey,
         expectedSize: bytes.byteLength,
+        fileName: "design..final.md",
         readText: true,
+        requestedMimeType: "text/markdown",
         sourceKey,
       }),
       env_,
@@ -456,6 +491,87 @@ describe("files worker handler", () => {
     expect(response.status).toBe(411);
     expect(await response.json()).toMatchObject({
       error: { code: "INVALID_INPUT", retryable: false },
+      ok: false,
+      version: FILES_PROTOCOL_VERSION,
+    });
+  });
+
+  test("accepts import-sized parts above the legacy 16 MiB ceiling", async () => {
+    const env_ = env();
+    const bucket = env_.BUCKET as unknown as FakeBucket;
+    const key = "users/u1/cards/upload/import.bin";
+    const multipart = bucket.createMultipartUpload(key);
+    const partNumber = 1;
+    const expiresAt = String(Math.floor(Date.now() / 1000) + 600);
+    const url = new URL(
+      `https://files.teakvault.com/__uploads/v1/${multipart.uploadId}/${partNumber}`
+    );
+    url.searchParams.set("key", key);
+    url.searchParams.set("exp", expiresAt);
+    url.searchParams.set(
+      "sig",
+      await hmacSha256Hex(
+        SECRET,
+        buildMultipartPartSigningPayload({
+          expiresAt,
+          key,
+          partNumber,
+          uploadId: multipart.uploadId,
+        })
+      )
+    );
+    // 17 MiB exceeds the pre-consolidation ceiling; imports use 64 MiB parts.
+    const body = new Uint8Array(17 * 1024 * 1024).fill(7);
+    const response = await worker.fetch(
+      new Request(url, {
+        body: new Blob([body]),
+        headers: { "content-length": String(body.byteLength) },
+        method: "PUT",
+      }),
+      env_,
+      { waitUntil: () => undefined } as never
+    );
+    expect(response.status).toBe(204);
+    expect(response.headers.get("etag")).toBeTruthy();
+  });
+
+  test("rejects multipart parts above the 64 MiB ceiling", async () => {
+    const env_ = env();
+    const bucket = env_.BUCKET as unknown as FakeBucket;
+    const key = "users/u1/cards/upload/huge.bin";
+    const multipart = bucket.createMultipartUpload(key);
+    const partNumber = 1;
+    const expiresAt = String(Math.floor(Date.now() / 1000) + 600);
+    const url = new URL(
+      `https://files.teakvault.com/__uploads/v1/${multipart.uploadId}/${partNumber}`
+    );
+    url.searchParams.set("key", key);
+    url.searchParams.set("exp", expiresAt);
+    url.searchParams.set(
+      "sig",
+      await hmacSha256Hex(
+        SECRET,
+        buildMultipartPartSigningPayload({
+          expiresAt,
+          key,
+          partNumber,
+          uploadId: multipart.uploadId,
+        })
+      )
+    );
+    // The ceiling is enforced on the declared length before streaming.
+    const response = await worker.fetch(
+      new Request(url, {
+        body: new Blob(["hello"]),
+        headers: { "content-length": String(64 * 1024 * 1024 + 1) },
+        method: "PUT",
+      }),
+      env_,
+      { waitUntil: () => undefined } as never
+    );
+    expect(response.status).toBe(413);
+    expect(await response.json()).toMatchObject({
+      error: { code: "PAYLOAD_TOO_LARGE", retryable: false },
       ok: false,
       version: FILES_PROTOCOL_VERSION,
     });

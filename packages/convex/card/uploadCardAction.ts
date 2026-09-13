@@ -1,5 +1,15 @@
 "use node";
 
+import {
+  FileFormatValidationError,
+  fileUploadErrorCode,
+  inferFileFormat,
+  isMarkdownFileName,
+  MARKDOWN_CONTENT_MAX_BYTES,
+  MAX_FILE_SIZE,
+  validateFileFormat,
+  validateFileName,
+} from "@teak/files-core";
 import { ConvexError, v } from "convex/values";
 import { internal } from "../_generated/api";
 import type { Id } from "../_generated/dataModel";
@@ -7,20 +17,10 @@ import { type ActionCtx, action, internalAction } from "../_generated/server";
 import { cardTypeValidator } from "../schema";
 import { getSessionIdentity } from "../securitySessions";
 import {
-  FileFormatValidationError,
-  fileUploadErrorCode,
-  inferFileFormat,
-  MAX_FILE_SIZE,
-  validateFileFormat,
-  validateFileName,
-} from "../shared/fileFormats";
-import {
-  isMarkdownFileName,
-  MARKDOWN_CONTENT_MAX_BYTES,
-} from "../shared/markdown";
-import {
   callFilesWorkerJson,
   type FilesWorkerFinalizeImageResult,
+  type FilesWorkerFinalizeUploadResult,
+  type FilesWorkerOutcome,
   isFilesWorkerConfigured,
 } from "../storage/filesWorkerClient";
 import { buildR2ObjectKey, buildR2UserPrefix } from "../storage/r2";
@@ -64,15 +64,6 @@ interface FinalizeArgs {
   fileType?: string;
   notes?: string | null;
   tags?: string[];
-}
-
-interface FinalizedUpload {
-  content?: string;
-  destinationKey: string;
-  sourceEtag: string;
-  storedEtag: string;
-  storedFileSize: number;
-  storedMimeType?: string;
 }
 
 const throwUploadError = (code: string, message: string): never => {
@@ -161,18 +152,48 @@ const finalizeForUser = async (
     role: "file",
     fileName: validated.fileName,
   });
-  const outcome = await callFilesWorkerJson<
-    FinalizedUpload | FilesWorkerFinalizeImageResult
-  >({
-    op: isImageUpload ? "finalize-image-upload" : "finalize-upload",
-    params: {
-      destinationKey,
-      expectedEtag: validated.fileEtag,
-      expectedSize: args.fileSize,
-      readText: validated.markdown ? true : undefined,
-      sourceKey: args.fileKey,
-    },
-  });
+  const finalizeParams = {
+    destinationKey,
+    expectedEtag: validated.fileEtag,
+    expectedSize: args.fileSize,
+    sourceKey: args.fileKey,
+  };
+  let outcome:
+    | FilesWorkerOutcome<FilesWorkerFinalizeImageResult>
+    | FilesWorkerOutcome<FilesWorkerFinalizeUploadResult>;
+  try {
+    outcome = isImageUpload
+      ? await callFilesWorkerJson({
+          op: "finalize-image-upload",
+          params: finalizeParams,
+        })
+      : await callFilesWorkerJson({
+          op: "finalize-upload",
+          params: {
+            ...finalizeParams,
+            fileName: validated.fileName,
+            readText: validated.markdown ? true : undefined,
+            requestedMimeType: validated.requestedMimeType,
+          },
+        });
+  } catch (error) {
+    if (
+      error instanceof Error &&
+      error.message.startsWith("files_worker_error:INVALID_INPUT")
+    ) {
+      // Verification runs before anything is stored; the delete is
+      // best-effort hygiene for partially written destinations.
+      await callFilesWorkerJson({
+        op: "delete-object",
+        params: { key: destinationKey },
+      }).catch(() => undefined);
+      return throwUploadError(
+        "TYPE_MISMATCH",
+        "Uploaded file does not match its name or type"
+      );
+    }
+    throw error;
+  }
   if (outcome.kind !== "ok") {
     if (isImageUpload) {
       return throwUploadError(
@@ -187,38 +208,32 @@ const finalizeForUser = async (
     isImageUpload && "decodedFormat" in finalized
       ? (finalized as FilesWorkerFinalizeImageResult)
       : null;
-  const storedMimeType = normalizeMimeType(outcome.data.storedMimeType);
-  const verifiedMimeType = normalizeMimeType(
-    trustedImageFacts?.decodedFormat ?? storedMimeType
-  );
-  try {
+  const trustedUploadFacts =
+    !isImageUpload && "verificationLevel" in finalized
+      ? (finalized as FilesWorkerFinalizeUploadResult)
+      : null;
+  // Worker-returned MIME, dimensions, and facts are authoritative. Convex
+  // re-checks only that the verified format still matches the request.
+  if (trustedUploadFacts) {
     const requested = validateFileFormat({
       fileName: validated.fileName,
       mimeType: validated.requestedMimeType,
     });
-    const stored = validateFileFormat({
-      fileName: validated.fileName,
-      mimeType: verifiedMimeType,
-    });
-    if (requested.id !== stored.id) {
+    if (requested.id !== trustedUploadFacts.formatId) {
+      await callFilesWorkerJson({
+        op: "delete-object",
+        params: { key: destinationKey },
+      }).catch(() => undefined);
       return throwUploadError(
-        "INVALID_INPUT",
+        "TYPE_MISMATCH",
         "Uploaded file type does not match the stored object"
       );
     }
-  } catch (error) {
-    await callFilesWorkerJson({
-      op: "delete-object",
-      params: { key: destinationKey },
-    }).catch(() => undefined);
-    if (error instanceof ConvexError) {
-      throw error;
-    }
-    if (error instanceof FileFormatValidationError) {
-      return throwUploadError(fileUploadErrorCode(error), error.message);
-    }
-    throw error;
   }
+  const verifiedMimeType = normalizeMimeType(
+    trustedImageFacts?.decodedFormat ?? trustedUploadFacts?.mimeType
+  );
+  const storedMimeType = normalizeMimeType(finalized.storedMimeType);
 
   const additionalMetadata =
     typeof args.additionalMetadata === "object" &&
@@ -226,15 +241,27 @@ const finalizeForUser = async (
     !Array.isArray(args.additionalMetadata)
       ? { ...(args.additionalMetadata as Record<string, unknown>) }
       : {};
-  // Dimensions are security- and layout-relevant image facts. Never carry
-  // client claims through when the worker is the source of truth.
-  const trustedAdditionalMetadata = isImageUpload
-    ? Object.fromEntries(
-        Object.entries(additionalMetadata).filter(
-          ([key]) => key !== "height" && key !== "width"
-        )
-      )
-    : additionalMetadata;
+  // Dimensions, durations, and palettes are worker-verified facts. Never
+  // carry client claims through when the worker is the source of truth.
+  const trustedAdditionalMetadata = Object.fromEntries(
+    Object.entries(additionalMetadata).filter(
+      ([key]) => key !== "height" && key !== "width" && key !== "duration"
+    )
+  );
+  const workerFacts = {
+    ...(trustedImageFacts?.width && trustedImageFacts?.height
+      ? { height: trustedImageFacts.height, width: trustedImageFacts.width }
+      : {}),
+    ...(trustedUploadFacts?.facts?.width && trustedUploadFacts.facts.height
+      ? {
+          height: trustedUploadFacts.facts.height,
+          width: trustedUploadFacts.facts.width,
+        }
+      : {}),
+    ...(trustedUploadFacts?.facts?.duration
+      ? { duration: trustedUploadFacts.facts.duration }
+      : {}),
+  };
 
   try {
     const result = await ctx.runMutation(
@@ -242,23 +269,29 @@ const finalizeForUser = async (
       {
         additionalMetadata: {
           ...trustedAdditionalMetadata,
-          // Trusted worker-decoded dimensions win over anything the client
-          // claimed; they land in fileMetadata at creation time.
-          ...(trustedImageFacts?.width && trustedImageFacts?.height
-            ? {
-                height: trustedImageFacts.height,
-                width: trustedImageFacts.width,
-              }
-            : {}),
+          ...workerFacts,
         },
         cardType: validated.markdown ? "text" : args.cardType,
-        content: validated.markdown ? outcome.data.content : args.content,
+        colors:
+          trustedImageFacts && trustedImageFacts.palette.length > 0
+            ? trustedImageFacts.palette.map((hex) => ({ hex }))
+            : undefined,
+        content: validated.markdown
+          ? (finalized as FilesWorkerFinalizeUploadResult).content
+          : args.content,
         fileKey: destinationKey,
         fileName: validated.fileName,
         fileSize: args.fileSize,
         mimeType: verifiedMimeType ?? args.fileType,
         notes: args.notes ?? undefined,
-        storedFileSize: outcome.data.storedFileSize,
+        processing: {
+          generatedAt: Date.now(),
+          processorVersion: finalized.processorVersion,
+          sourceEtag: finalized.sourceEtag,
+          storedEtag: finalized.storedEtag,
+          verificationLevel: finalized.verificationLevel,
+        },
+        storedFileSize: finalized.storedFileSize,
         storedMimeType,
         tags: args.tags,
         userId,

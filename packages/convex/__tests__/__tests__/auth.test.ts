@@ -731,7 +731,13 @@ describe("auth", () => {
       const result = await getAccountCardDeletionBatchHandler(ctx, "u1");
       expect(result.cardIds).toEqual(["c1", "c2"]);
       expect(new Set(result.objectKeys)).toEqual(
-        new Set(["f1", "f1.processing.json", "t1"])
+        new Set([
+          "f1",
+          "f1.processing.json",
+          "f1.receipts/transcribe-audio.json",
+          "f1.receipts/generate-image-metadata.json",
+          "t1",
+        ])
       );
     });
 

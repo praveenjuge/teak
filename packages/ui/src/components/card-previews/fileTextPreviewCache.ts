@@ -1,4 +1,4 @@
-import { readResponseTextWithinLimit } from "@teak/convex/shared/bounded-response";
+import { readResponseTextWithinLimit } from "@teak/files-core";
 
 const MAX_BROWSER_PREVIEW_BYTES = 1024 * 1024;
 const MAX_MEMORY_CACHE_BYTES = 4 * 1024 * 1024;

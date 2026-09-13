@@ -1,8 +1,5 @@
 import type { Doc } from "@teak/convex/_generated/dataModel";
-import {
-  getSafeUrlHostname,
-  sanitizeExternalUrl,
-} from "@teak/convex/shared/utils/safeUrl";
+import { getSafeUrlHostname, sanitizeExternalUrl } from "@teak/files-core";
 import { ArrowUpRight } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 

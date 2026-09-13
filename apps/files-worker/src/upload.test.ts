@@ -510,4 +510,75 @@ describe("additive files ops", () => {
     });
     expect(calls).toBe(2);
   });
+
+  test("generate-image-metadata reuses its receipt without transform or AI", async () => {
+    let calls = 0;
+    let fetches = 0;
+    const aiEnv = {
+      AI: {
+        run: () => {
+          calls += 1;
+          return {
+            choices: [
+              {
+                message: {
+                  content: JSON.stringify({
+                    summary: "A cached scene.",
+                    tags: ["cached"],
+                  }),
+                },
+              },
+            ],
+          };
+        },
+      },
+      BUCKET: new FakeBucket(),
+      FILES_SIGNING_SECRET: SECRET,
+    } as unknown as Env;
+    const bucket = aiEnv.BUCKET as unknown as FakeBucket;
+    bucket.objects.set("users/u1/cached.png", {
+      bytes: new Uint8Array([1]),
+      httpMetadata: { contentType: "image/png" },
+    });
+    const fakeFetch = (() => {
+      fetches += 1;
+      return Promise.resolve(
+        new Response(new Uint8Array([1, 2, 3]), {
+          status: 200,
+          headers: { "content-type": "image/jpeg" },
+        })
+      );
+    }) as typeof fetch;
+    const { generateImageMetadataForOp } = await import("./imageMetadata");
+    const args = {
+      origin: "https://files.teakvault.com",
+      sourceKey: "users/u1/cached.png",
+    } as const;
+    const now = Math.floor(Date.now() / 1000);
+
+    const first = await generateImageMetadataForOp(aiEnv, args, now, fakeFetch);
+    expect(first).toEqual({ summary: "A cached scene.", tags: ["cached"] });
+    expect(calls).toBe(1);
+    expect(fetches).toBeGreaterThan(0);
+    const fetchesAfterFirst = fetches;
+
+    const second = await generateImageMetadataForOp(
+      aiEnv,
+      args,
+      now,
+      fakeFetch
+    );
+    expect(second).toEqual({
+      receiptReused: true,
+      summary: "A cached scene.",
+      tags: ["cached"],
+    });
+    expect(calls).toBe(1);
+    expect(fetches).toBe(fetchesAfterFirst);
+    expect(
+      bucket.objects.has(
+        "users/u1/cached.png.receipts/generate-image-metadata.json"
+      )
+    ).toBe(true);
+  });
 });

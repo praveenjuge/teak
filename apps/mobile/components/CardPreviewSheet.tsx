@@ -20,7 +20,7 @@ import {
   tint,
 } from "@expo/ui/swift-ui/modifiers";
 import type { Doc } from "@teak/convex/_generated/dataModel";
-import { sanitizeExternalUrl } from "@teak/convex/shared/utils/safeUrl";
+import { sanitizeExternalUrl } from "@teak/files-core";
 import { useEvent } from "expo";
 import { setAudioModeAsync, useAudioPlayer } from "expo-audio";
 import { useCallback, useEffect } from "react";

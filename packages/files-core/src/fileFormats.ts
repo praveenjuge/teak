@@ -1,9 +1,15 @@
-import type { CardType } from "./constants";
+/**
+ * Card types that can carry an uploaded file. Mirrors the corresponding
+ * `CardType` members in `@teak/convex/shared/constants`; kept local so this
+ * runtime-independent package never depends on the Convex workspace.
+ */
+export type FileCardType = "audio" | "document" | "image" | "text" | "video";
 
 export const FILE_KINDS = [
   "archive",
   "audio",
   "design",
+  "font",
   "image",
   "markdown",
   "motion",
@@ -31,10 +37,7 @@ export const FILE_PREVIEW_KINDS = [
 export type FilePreviewKind = (typeof FILE_PREVIEW_KINDS)[number];
 
 export interface FileFormat {
-  cardType: Extract<
-    CardType,
-    "audio" | "document" | "image" | "text" | "video"
-  >;
+  cardType: FileCardType;
   extension: string;
   id: string;
   kind: FileKind;
@@ -540,6 +543,42 @@ export const FILE_FORMATS = [
     kind: "audio",
     mimeTypes: ["audio/flac", "audio/ogg", "audio/opus"],
     preview: "audio",
+  }),
+  defineFormat({
+    id: "font-truetype",
+    suffixes: ["ttf"],
+    cardType: "document",
+    extension: "ttf",
+    kind: "font",
+    mimeTypes: ["font/ttf", "application/x-font-ttf"],
+    preview: "facts",
+  }),
+  defineFormat({
+    id: "font-opentype",
+    suffixes: ["otf"],
+    cardType: "document",
+    extension: "otf",
+    kind: "font",
+    mimeTypes: ["font/otf", "application/x-font-opentype"],
+    preview: "facts",
+  }),
+  defineFormat({
+    id: "font-woff",
+    suffixes: ["woff"],
+    cardType: "document",
+    extension: "woff",
+    kind: "font",
+    mimeTypes: ["font/woff", "application/font-woff"],
+    preview: "facts",
+  }),
+  defineFormat({
+    id: "font-woff2",
+    suffixes: ["woff2"],
+    cardType: "document",
+    extension: "woff2",
+    kind: "font",
+    mimeTypes: ["font/woff2", "application/font-woff2"],
+    preview: "facts",
   }),
 ] as const satisfies readonly FileFormatDefinition[];
 

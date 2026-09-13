@@ -5,7 +5,6 @@ import { internal } from "../../../_generated/api";
 import { internalAction } from "../../../_generated/server";
 import {
   callFilesWorkerJson,
-  type FilesWorkerImageAnalysisResult,
   isFilesWorkerConfigured,
 } from "../../../storage/filesWorkerClient";
 import { hasKnownTinyImageDimensions } from "../../imageAnalysis";
@@ -24,6 +23,15 @@ export const analyzeImage = internalAction({
     if (!card?.fileKey || card.type !== "image") {
       return { generated: false, success: true };
     }
+    // Upload finalization already stores worker-verified dimensions and a
+    // palette; re-analyzing would duplicate the decode.
+    if (
+      typeof card.fileMetadata?.width === "number" &&
+      typeof card.fileMetadata.height === "number" &&
+      (card.colors?.length ?? 0) > 0
+    ) {
+      return { generated: false, success: true };
+    }
     if (!isFilesWorkerConfigured()) {
       return {
         error: "files_worker_not_configured",
@@ -32,12 +40,10 @@ export const analyzeImage = internalAction({
       };
     }
     try {
-      const outcome = await callFilesWorkerJson<FilesWorkerImageAnalysisResult>(
-        {
-          op: "analyze-image",
-          params: { sourceKey: card.fileKey },
-        }
-      );
+      const outcome = await callFilesWorkerJson({
+        op: "analyze-image",
+        params: { sourceKey: card.fileKey },
+      });
       if (outcome.kind !== "ok") {
         return {
           error: "files_worker_image_analysis_unavailable",

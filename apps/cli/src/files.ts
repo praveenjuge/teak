@@ -4,14 +4,12 @@ import { parseTags } from "@teak/convex/sdk";
 import {
   inferFileFormat,
   isGenericMimeType,
-  MAX_FILE_SIZE,
-  mimeTypeForFileName,
-} from "@teak/convex/shared/file-formats";
-import {
   isMarkdownFileName,
   MARKDOWN_CONTENT_MAX_BYTES,
   MARKDOWN_CONTENT_TOO_LARGE_MESSAGE,
-} from "@teak/convex/shared/markdown";
+  MAX_FILE_SIZE,
+  mimeTypeForFileName,
+} from "@teak/files-core";
 import { InvalidArgumentError } from "commander";
 import { type ClientOptions, client } from "./runtime";
 

@@ -230,3 +230,158 @@ describe("import orchestration through the worker", () => {
     ).toHaveLength(0);
   });
 });
+
+describe("import upload part receipts", () => {
+  const PART_BYTES = 64 * 1024 * 1024;
+  const setupUpload = async (overrides: Record<string, unknown> = {}) => {
+    const t = convexTest(schema, modules);
+    const jobId = await t.run((ctx) =>
+      ctx.db.insert("importJobs", {
+        userId: "import-test",
+        mode: "archive",
+        status: "uploading",
+        phase: "Uploading",
+        fileName: "source.zip",
+        fileSize: PART_BYTES + 10,
+        fileLastModified: 0,
+        sourceKey,
+        uploadId: "upload-1",
+        uploadExpiresAt: Date.now() + 60_000,
+        uploadTransport: "worker",
+        uploadParts: [],
+        parsedCount: 0,
+        processedCount: 0,
+        createdCount: 0,
+        skippedCount: 0,
+        failedCount: 0,
+        createdAt: 0,
+        updatedAt: 0,
+        ...overrides,
+      })
+    );
+    return { t, jobId };
+  };
+
+  test("records parts with exact sizes and replaces re-uploaded parts", async () => {
+    const { t, jobId } = await setupUpload();
+    await t.mutation(internal["import/uploadParts"].recordUploadPart, {
+      jobId,
+      userId: "import-test",
+      partNumber: 2,
+      etag: '"part-2"',
+      size: 10,
+    });
+    await t.mutation(internal["import/uploadParts"].recordUploadPart, {
+      jobId,
+      userId: "import-test",
+      partNumber: 1,
+      etag: '"part-1"',
+      size: PART_BYTES,
+    });
+    await t.mutation(internal["import/uploadParts"].recordUploadPart, {
+      jobId,
+      userId: "import-test",
+      partNumber: 1,
+      etag: '"part-1-retry"',
+      size: PART_BYTES,
+    });
+    expect(await t.run((ctx) => ctx.db.get(jobId))).toMatchObject({
+      uploadParts: [
+        { partNumber: 1, etag: '"part-1-retry"', size: PART_BYTES },
+        { partNumber: 2, etag: '"part-2"', size: 10 },
+      ],
+    });
+  });
+
+  test("rejects invalid part numbers, sizes, etags, and owners", async () => {
+    const { t, jobId } = await setupUpload();
+    const receipt = {
+      jobId,
+      userId: "import-test",
+      partNumber: 1,
+      etag: '"part-1"',
+      size: PART_BYTES,
+    };
+    await expect(
+      t.mutation(internal["import/uploadParts"].recordUploadPart, {
+        ...receipt,
+        partNumber: 3,
+      })
+    ).rejects.toThrow();
+    await expect(
+      t.mutation(internal["import/uploadParts"].recordUploadPart, {
+        ...receipt,
+        size: PART_BYTES - 1,
+      })
+    ).rejects.toThrow();
+    await expect(
+      t.mutation(internal["import/uploadParts"].recordUploadPart, {
+        ...receipt,
+        etag: "not an etag!!",
+      })
+    ).rejects.toThrow();
+    await expect(
+      t.mutation(internal["import/uploadParts"].recordUploadPart, {
+        ...receipt,
+        userId: "someone-else",
+      })
+    ).rejects.toThrow();
+    expect(await t.run((ctx) => ctx.db.get(jobId))).toMatchObject({
+      uploadParts: [],
+    });
+  });
+
+  test("rejects receipts for expired or pre-cutover uploads", async () => {
+    const expired = await setupUpload({ uploadExpiresAt: Date.now() - 1 });
+    await expect(
+      expired.t.mutation(internal["import/uploadParts"].recordUploadPart, {
+        jobId: expired.jobId,
+        userId: "import-test",
+        partNumber: 1,
+        etag: '"part-1"',
+        size: PART_BYTES,
+      })
+    ).rejects.toThrow();
+    const legacy = await setupUpload({
+      uploadTransport: undefined,
+      uploadParts: undefined,
+    });
+    await expect(
+      legacy.t.mutation(internal["import/uploadParts"].recordUploadPart, {
+        jobId: legacy.jobId,
+        userId: "import-test",
+        partNumber: 1,
+        etag: '"part-1"',
+        size: PART_BYTES,
+      })
+    ).rejects.toThrow();
+  });
+
+  test("restarts pre-cutover transport within the same job", async () => {
+    const { t, jobId } = await setupUpload({
+      uploadTransport: undefined,
+      uploadParts: undefined,
+      uploadId: "legacy-upload",
+    });
+    await t.mutation(internal["import/uploadParts"].restartUploadTransport, {
+      jobId,
+      userId: "import-test",
+      uploadExpiresAt: 1234,
+    });
+    const restarted = await t.run((ctx) => ctx.db.get(jobId));
+    expect(restarted).toMatchObject({
+      status: "uploading",
+      uploadTransport: "worker",
+      uploadParts: [],
+      uploadExpiresAt: 1234,
+    });
+    expect(restarted?.uploadId).toBeUndefined();
+    await expect(
+      t.mutation(internal["import/uploadParts"].restartUploadTransport, {
+        jobId,
+        userId: "someone-else",
+        uploadExpiresAt: 1234,
+      })
+    ).rejects.toThrow("Import upload not found");
+  });
+});

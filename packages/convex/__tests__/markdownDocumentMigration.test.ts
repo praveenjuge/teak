@@ -209,12 +209,18 @@ test("reports eligible document cards missing an audit row", async () => {
   expect(result.page).toEqual([{ cardId: card._id, userId: card.userId }]);
 });
 
-test("classifies missing, precondition, and transient storage failures", () => {
-  expect(classifyStorageError({ $metadata: { httpStatusCode: 404 } })).toEqual({
+test("classifies missing, changed, and transient storage failures", () => {
+  expect(classifyStorageError(new Error("missing_object"))).toEqual({
     reason: "missing_object",
     retryable: false,
   });
-  expect(classifyStorageError({ name: "PreconditionFailed" })).toEqual({
+  expect(
+    classifyStorageError(new Error("files_worker_error:NOT_FOUND:404:id"))
+  ).toEqual({
+    reason: "missing_object",
+    retryable: false,
+  });
+  expect(classifyStorageError(new Error("concurrently_changed"))).toEqual({
     reason: "concurrently_changed",
     retryable: false,
   });
@@ -225,7 +231,10 @@ test("classifies missing, precondition, and transient storage failures", () => {
 });
 
 async function runStorageScenario(
-  send: ReturnType<typeof mock>,
+  storage: {
+    headObject: ReturnType<typeof mock>;
+    readObject: ReturnType<typeof mock>;
+  },
   overrides: Record<string, unknown> = {}
 ) {
   const { audit } = fixture();
@@ -240,14 +249,19 @@ async function runStorageScenario(
       runQuery: mock(async () => audit),
     },
     { auditId: audit._id, claimedAt: audit.updatedAt },
-    { bucket: "test", client: { send } }
+    storage
   );
   return mutations;
 }
 
+const inertStorage = () => ({
+  headObject: mock(async () => null),
+  readObject: mock(async () => null),
+});
+
 test("ignores an action from an older claim", async () => {
   const { audit } = fixture();
-  const send = mock();
+  const storage = inertStorage();
   const runMutation = mock();
   await processAuditHandler(
     {
@@ -255,31 +269,30 @@ test("ignores an action from an older claim", async () => {
       runQuery: mock().mockResolvedValue(audit),
     },
     { auditId: audit._id, claimedAt: audit.updatedAt - 1 },
-    { bucket: "test", client: { send } }
+    storage
   );
-  expect(send).not.toHaveBeenCalled();
+  expect(storage.headObject).not.toHaveBeenCalled();
+  expect(storage.readObject).not.toHaveBeenCalled();
   expect(runMutation).not.toHaveBeenCalled();
 });
 
 test("persists missing, oversized, invalid UTF-8, and ownership failures", async () => {
-  const missing = await runStorageScenario(
-    mock(() => {
-      throw Object.assign(new Error("missing"), {
-        $metadata: { httpStatusCode: 404 },
-      });
-    })
-  );
+  const missing = await runStorageScenario({
+    headObject: mock(() => Promise.reject(new Error("missing_object"))),
+    readObject: mock(async () => null),
+  });
   expect(missing[0]).toMatchObject({
     failureReason: "missing_object",
     retryable: false,
   });
 
-  const oversized = await runStorageScenario(
-    mock(async () => ({
-      ContentLength: 512 * 1024 + 1,
-      ETag: '"large"',
-    }))
-  );
+  const oversized = await runStorageScenario({
+    headObject: mock(async () => ({
+      size: 512 * 1024 + 1,
+      etag: '"large"',
+    })),
+    readObject: mock(async () => null),
+  });
   expect(oversized[0]).toMatchObject({
     failureReason: "content_too_large",
     retryable: false,
@@ -287,50 +300,43 @@ test("persists missing, oversized, invalid UTF-8, and ownership failures", async
   });
 
   const invalidBytes = new Uint8Array([0xc3, 0x28]);
-  const invalid = await runStorageScenario(
-    mock(async (command) =>
-      command.constructor.name === "HeadObjectCommand"
-        ? { ContentLength: invalidBytes.byteLength, ETag: '"etag-1"' }
-        : {
-            Body: { transformToByteArray: async () => invalidBytes },
-            ETag: '"etag-1"',
-          }
-    )
-  );
+  const invalid = await runStorageScenario({
+    headObject: mock(async () => ({
+      size: invalidBytes.byteLength,
+      etag: '"etag-1"',
+    })),
+    readObject: mock(async () => ({ bytes: invalidBytes, etag: '"etag-1"' })),
+  });
   expect(invalid[0]).toMatchObject({
     failureReason: "invalid_utf8",
     retryable: false,
   });
 
-  const send = mock();
-  const ownership = await runStorageScenario(send, {
+  const storage = inertStorage();
+  const ownership = await runStorageScenario(storage, {
     sourceFileKey: "users/another-user/file/note.md",
   });
   expect(ownership[0]).toMatchObject({
     failureReason: "ownership_invalid",
     retryable: false,
   });
-  expect(send).not.toHaveBeenCalled();
+  expect(storage.headObject).not.toHaveBeenCalled();
+  expect(storage.readObject).not.toHaveBeenCalled();
 });
 
 test("detects object changes after decoding and never completes the card patch", async () => {
   const bytes = new TextEncoder().encode("# unchanged");
-  let call = 0;
-  const mutations = await runStorageScenario(
-    mock(() => {
-      call += 1;
-      if (call === 1) {
-        return { ContentLength: bytes.byteLength, ETag: '"etag-1"' };
-      }
-      if (call === 2) {
-        return {
-          Body: { transformToByteArray: async () => bytes },
-          ETag: '"etag-1"',
-        };
-      }
-      return { ContentLength: bytes.byteLength, ETag: '"etag-2"' };
-    })
-  );
+  let heads = 0;
+  const mutations = await runStorageScenario({
+    headObject: mock(() => {
+      heads += 1;
+      return {
+        size: bytes.byteLength,
+        etag: heads === 1 ? '"etag-1"' : '"etag-2"',
+      };
+    }),
+    readObject: mock(async () => ({ bytes, etag: '"etag-1"' })),
+  });
   expect(mutations).toHaveLength(1);
   expect(mutations[0]).toMatchObject({
     failureReason: "concurrently_changed",
@@ -341,18 +347,13 @@ test("detects object changes after decoding and never completes the card patch",
 test("passes exact decoded source and checksum to guarded completion", async () => {
   const content = "\uFEFF  # Migrated\r\n\r\nBody  ";
   const bytes = new TextEncoder().encode(content);
-  let call = 0;
-  const mutations = await runStorageScenario(
-    mock(() => {
-      call += 1;
-      return call === 2
-        ? {
-            Body: { transformToByteArray: async () => bytes },
-            ETag: '"etag-1"',
-          }
-        : { ContentLength: bytes.byteLength, ETag: '"etag-1"' };
-    })
-  );
+  const mutations = await runStorageScenario({
+    headObject: mock(async () => ({
+      size: bytes.byteLength,
+      etag: '"etag-1"',
+    })),
+    readObject: mock(async () => ({ bytes, etag: '"etag-1"' })),
+  });
   expect(mutations).toHaveLength(1);
   expect(mutations[0]).toMatchObject({
     content,

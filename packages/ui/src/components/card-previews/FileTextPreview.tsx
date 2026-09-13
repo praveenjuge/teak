@@ -1,6 +1,6 @@
 "use client";
 
-import type { FileFormat } from "@teak/convex/shared/file-formats";
+import type { FileFormat } from "@teak/files-core";
 import { Skeleton } from "@teak/ui/components/ui/skeleton";
 import { Highlight, type Language, themes } from "prism-react-renderer";
 import { useEffect, useState } from "react";

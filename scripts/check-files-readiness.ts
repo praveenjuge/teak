@@ -1,14 +1,37 @@
 #!/usr/bin/env bun
 /** Read-only deployment gate: the worker must support the backend's byte paths. */
+import { FILES_PROCESSOR_VERSION } from "@teak/files-protocol";
 import { buildSignedWorkerOpRequest } from "../packages/convex/storage/filesWorkerClient";
 
+// Every op Convex calls. Keep in sync with `op: "` call sites under
+// packages/convex; the backend deploy blocks until the worker serves them.
 const required = [
-  "transcribe-audio",
-  "index-import-source",
-  "read-import-markdown",
-  "extract-import-files",
   "abort-multipart",
+  "analyze-image",
+  "build-export",
+  "complete-multipart",
+  "create-multipart",
+  "delete-object",
   "delete-objects",
+  "extract-import-files",
+  "finalize-image-upload",
+  "finalize-upload",
+  "generate-image-metadata",
+  "head-object",
+  "index-import-source",
+  "inspect",
+  "list-objects",
+  "read-import-markdown",
+  "transcribe-audio",
+];
+
+// Feature flags the backend cut over to.
+const requiredFeatures = [
+  "verified-finalization",
+  "worker-import-transport",
+  "verified-text-reads",
+  "media-facts",
+  "ai-receipts",
 ];
 
 async function productionEnv(name: string): Promise<string> {
@@ -53,20 +76,30 @@ for (;;) {
     });
     const result = (await response.json()) as {
       ok?: boolean;
-      data?: { operations?: string[]; ai?: boolean; images?: boolean };
+      data?: {
+        operations?: string[];
+        ai?: boolean;
+        images?: boolean;
+        features?: string[];
+        processorVersion?: string;
+      };
     };
     ready =
       response.ok &&
       result.ok === true &&
       result.data?.ai === true &&
       result.data.images === true &&
-      required.every((op) => result.data?.operations?.includes(op));
+      result.data.processorVersion === FILES_PROCESSOR_VERSION &&
+      required.every((op) => result.data?.operations?.includes(op)) &&
+      requiredFeatures.every((feature) =>
+        result.data?.features?.includes(feature)
+      );
   } catch {
     // Never log signed URLs, request headers, or deployment secrets.
   }
   if (ready) {
     console.log(
-      "Files worker ready: required operations, AI, Images, and signing verified."
+      "Files worker ready: required operations, features, processor version, AI, Images, and signing verified."
     );
     break;
   }

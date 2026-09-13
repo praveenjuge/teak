@@ -1,7 +1,6 @@
 import { api } from "@teak/convex";
 import type { Id } from "@teak/convex/_generated/dataModel";
-import { inferFileFormat } from "@teak/convex/shared/file-formats";
-import { sanitizeExternalUrl } from "@teak/convex/shared/utils/safeUrl";
+import { inferFileFormat, sanitizeExternalUrl } from "@teak/files-core";
 import { CardContent, Card as UICard } from "@teak/ui/components/ui/card";
 import { Checkbox } from "@teak/ui/components/ui/checkbox";
 import {

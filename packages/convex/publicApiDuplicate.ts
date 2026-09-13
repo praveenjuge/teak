@@ -1,8 +1,8 @@
+import { isSafeExternalUrl } from "@teak/files-core";
 import { internal } from "./_generated/api";
 import { httpAction } from "./_generated/server";
 import { withAuthorizedUser } from "./publicApiHttp";
 import { json, withPublicApiGatewayHeaders } from "./publicApiMeta";
-import { isSafeExternalUrl } from "./shared/utils/safeUrl";
 
 export const duplicateCardV1 = httpAction(async (ctx, request) => {
   const respond = (body: object, status = 200) =>

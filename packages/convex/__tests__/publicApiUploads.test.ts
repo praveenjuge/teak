@@ -1,8 +1,8 @@
 // @ts-nocheck
 
 import { beforeAll, describe, expect, test } from "bun:test";
+import { MAX_FILE_SIZE } from "@teak/files-core";
 import { ConvexError } from "convex/values";
-import { MAX_FILE_SIZE } from "../shared/fileFormats";
 
 let generateUploadUrlHandler: any;
 

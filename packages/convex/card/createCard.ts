@@ -2,6 +2,7 @@ import {
   buildColorFacets,
   extractPaletteColors,
 } from "@teak/convex/shared/utils/colorUtils";
+import { assertSafeExternalUrl } from "@teak/files-core";
 import { v } from "convex/values";
 import { internal } from "../_generated/api";
 import type { Id } from "../_generated/dataModel";
@@ -14,7 +15,6 @@ import { cardTypeValidator, colorValidator } from "../schema";
 import { getSessionIdentity } from "../securitySessions";
 import type { CardCreationSource } from "../shared/metrics";
 import { normalizeErrorClass } from "../shared/telemetry";
-import { assertSafeExternalUrl } from "../shared/utils/safeUrl";
 import { scheduleCardOutcome } from "../telemetry/schedule";
 import { startWorkflow } from "../workflows/manager";
 import { recordActiveCardCreated } from "./cardUsage";

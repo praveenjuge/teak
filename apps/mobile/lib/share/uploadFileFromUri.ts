@@ -1,7 +1,7 @@
 import { CARD_ERROR_CODES } from "@teak/convex/shared/constants";
-import { inferFileFormat } from "@teak/convex/shared/file-formats";
 import type { UploadFileFromUriArgs } from "@teak/convex/shared/hooks/useFileUpload";
 import type { UploadFileResult } from "@teak/convex/shared/types";
+import { inferFileFormat } from "@teak/files-core";
 import * as FileSystem from "expo-file-system/legacy";
 
 export interface UploadFileFromUriParams {

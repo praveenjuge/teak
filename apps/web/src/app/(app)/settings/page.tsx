@@ -5,7 +5,7 @@ import * as Sentry from "@sentry/nextjs";
 import { api } from "@teak/convex";
 import { runClientSpan } from "@teak/convex/shared/client-telemetry";
 import { trackCheckout } from "@teak/convex/shared/metrics";
-import { sanitizeExternalUrl } from "@teak/convex/shared/utils/safeUrl";
+import { sanitizeExternalUrl } from "@teak/files-core";
 import { Dialog, DialogContent } from "@teak/ui/components/ui/dialog";
 import { getPolarPlanIds } from "@teak/ui/constants/billing";
 import { TOAST_IDS } from "@teak/ui/constants/toast";

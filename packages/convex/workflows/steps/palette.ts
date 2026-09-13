@@ -4,10 +4,7 @@ import { v } from "convex/values";
 import { internal } from "../../_generated/api";
 import { internalAction } from "../../_generated/server";
 import { TELEMETRY_OPERATIONS } from "../../shared/telemetry";
-import {
-  callFilesWorkerJson,
-  type FilesWorkerImageAnalysisResult,
-} from "../../storage/filesWorkerClient";
+import { callFilesWorkerJson } from "../../storage/filesWorkerClient";
 import { withBackendSpan } from "../../telemetry/sentry";
 import { hasKnownTinyImageDimensions } from "../imageAnalysis";
 
@@ -43,11 +40,10 @@ export const extractPaletteFromImage = internalAction({
         }
 
         try {
-          const outcome =
-            await callFilesWorkerJson<FilesWorkerImageAnalysisResult>({
-              op: "analyze-image",
-              params: { sourceKey: card.fileKey },
-            });
+          const outcome = await callFilesWorkerJson({
+            op: "analyze-image",
+            params: { sourceKey: card.fileKey },
+          });
           if (outcome.kind !== "ok") {
             return;
           }

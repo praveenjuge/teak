@@ -79,6 +79,7 @@
   },
   "peerDependencies": {
     "@teak/convex": "workspace:*",
+    "@teak/files-core": "workspace:*",
     "convex": "^1.43.0",
     "convex-helpers": "^0.1.122",
     "react": "^19.2.8",

@@ -7,6 +7,7 @@ import {
   type FilesFinalizeImageParams,
   type FilesFinalizeImageResult,
 } from "@teak/files-protocol";
+import { analyzeImage } from "./imageAnalysis";
 import { inspectImageContainer } from "./imageContainer";
 import { fetchPrivateImageSource } from "./imageTransform";
 import type { Env } from "./index";
@@ -294,14 +295,28 @@ export const finalizeImageUpload = async (
     },
   });
 
+  // Palette extraction reuses the stored bytes so Convex can skip its later
+  // duplicate analyze-image read. Sampling failures stay non-fatal: the
+  // pipeline falls back to analyze-image when colors are absent.
+  let palette: string[] = [];
+  try {
+    palette = (await analyzeImage(env, destinationKey, origin, imageFetch, now))
+      .palette;
+  } catch {
+    palette = [];
+  }
+
   return {
     decodedFormat: facts.decodedFormat,
     destinationKey,
     height: facts.height,
+    palette,
+    processorVersion: FILES_PROCESSOR_VERSION,
     sourceEtag: source.httpEtag,
     storedEtag: stored.httpEtag,
     storedFileSize: source.size,
     storedMimeType: facts.decodedFormat,
+    verificationLevel: "decoded",
     width: facts.width,
   };
 };

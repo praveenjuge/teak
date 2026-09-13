@@ -11,7 +11,7 @@ import {
   runClientSpan,
 } from "@teak/convex/shared/client-telemetry";
 import { trackLifecycle, trackUpload } from "@teak/convex/shared/metrics";
-import { useAction } from "convex/react";
+import { useAction, useMutation } from "convex/react";
 import {
   Archive,
   Bookmark,
@@ -234,6 +234,7 @@ function errorMessage(error: unknown, fallback = "Import could not start") {
 export function ImportPanel({ onActiveChange }: ImportPanelProps) {
   const createUpload = useAction(api.importUpload.createImportUpload);
   const resumeUpload = useAction(api.importUpload.resumeImportUpload);
+  const recordUploadPart = useMutation(api.importUpload.recordImportUploadPart);
   const completeUpload = useAction(api.importUpload.completeImportUpload);
   const cancelImport = useAction(api.importUpload.cancelImport);
   const getReportUrl = useAction(api.importUpload.getImportReportUrl);
@@ -346,8 +347,30 @@ export function ImportPanel({ onActiveChange }: ImportPanelProps) {
           }
           observedImportIdRef.current = plan.jobId;
           observedImportStartedAtRef.current = startedAt;
-          await putParts(file, plan, setUploadPercent, controllers);
-          await completeUpload({ jobId: plan.jobId as never });
+          await putParts(file, plan, setUploadPercent, controllers, (receipt) =>
+            recordUploadPart({ jobId: plan.jobId as never, ...receipt })
+          );
+          const completed = (await completeUpload({
+            jobId: plan.jobId as never,
+          })) as { restartRequired?: true } | null;
+          if (completed?.restartRequired) {
+            // Pre-cutover upload restarted server-side; re-upload once with
+            // fresh Worker URLs instead of leaving the job stalled.
+            const retry = (await resumeUpload({
+              fileName: file.name,
+              fileSize: file.size,
+              fileLastModified: file.lastModified,
+            })) as UploadPlan;
+            await putParts(
+              file,
+              retry,
+              setUploadPercent,
+              controllers,
+              (receipt) =>
+                recordUploadPart({ jobId: retry.jobId as never, ...receipt })
+            );
+            await completeUpload({ jobId: retry.jobId as never });
+          }
         }
       );
       trackUpload({

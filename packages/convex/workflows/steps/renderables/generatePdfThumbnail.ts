@@ -7,7 +7,6 @@ import { internalAction } from "../../../_generated/server";
 import {
   buildSignedWorkerUploadUrl,
   callFilesWorkerJson,
-  type FilesWorkerHeadObjectResult,
 } from "../../../storage/filesWorkerClient";
 import { buildR2ObjectKey, resolveObjectUrl } from "../../../storage/r2";
 
@@ -288,7 +287,7 @@ export const generatePdfThumbnail = internalAction({
         }
 
         // Verify the committed object before Convex records it.
-        const head = await callFilesWorkerJson<FilesWorkerHeadObjectResult>({
+        const head = await callFilesWorkerJson({
           op: "head-object",
           params: { key: thumbnailKey },
         });

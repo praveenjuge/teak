@@ -1,10 +1,10 @@
-import { parseBookmarksHtml } from "@teak/convex/import/bookmarks";
-import { parseRaindropCsv } from "@teak/convex/import/raindrop";
 import {
   decodeMarkdownUtf8,
   MARKDOWN_CONTENT_MAX_BYTES,
   MarkdownContentError,
-} from "@teak/convex/shared/markdown";
+  parseBookmarksHtml,
+  parseRaindropCsv,
+} from "@teak/files-core";
 import {
   FILES_IMPORT_PAGE_BYTES,
   FILES_IMPORT_PAGE_ITEMS,

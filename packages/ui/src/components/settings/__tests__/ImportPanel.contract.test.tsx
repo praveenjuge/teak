@@ -7,8 +7,10 @@ let importQueryResult: unknown = null;
 mock.module("convex/react", () => ({
   ...convexReact,
   useAction: () => mock(),
+  useMutation: () => mock(),
 }));
 mock.module("../../../convexQueryHooks", () => ({
+  usePaginatedQuery: () => ({ results: [], status: "Exhausted" }),
   useQuery: () => importQueryResult,
 }));
 mock.module("../../ui/button", () => ({
@@ -214,10 +216,16 @@ describe("ImportPanel", () => {
     const originalFetch = globalThis.fetch;
     const uploadFetch = mock()
       .mockResolvedValueOnce(new Response(null, { status: 503 }))
-      .mockResolvedValueOnce(new Response(null, { status: 200 }));
+      .mockResolvedValueOnce(
+        new Response(null, {
+          headers: { ETag: '"part-etag"' },
+          status: 200,
+        })
+      );
     globalThis.fetch = uploadFetch as typeof fetch;
     const controllers = new Set<AbortController>();
     const onProgress = mock();
+    const recordPart = mock(() => Promise.resolve(null));
 
     try {
       await putParts(
@@ -229,9 +237,15 @@ describe("ImportPanel", () => {
           uploadedParts: [],
         },
         onProgress,
-        controllers
+        controllers,
+        recordPart
       );
       expect(uploadFetch).toHaveBeenCalledTimes(2);
+      expect(recordPart).toHaveBeenCalledWith({
+        partNumber: 1,
+        etag: '"part-etag"',
+        size: 1,
+      });
       expect(onProgress).toHaveBeenCalledWith(0);
       expect(onProgress).toHaveBeenCalledWith(100);
       expect(controllers.size).toBe(0);

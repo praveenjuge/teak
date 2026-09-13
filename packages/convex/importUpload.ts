@@ -1,19 +1,6 @@
-"use node";
-
-import {
-  AbortMultipartUploadCommand,
-  CompleteMultipartUploadCommand,
-  CreateMultipartUploadCommand,
-  DeleteObjectCommand,
-  GetObjectCommand,
-  HeadObjectCommand,
-  ListPartsCommand,
-  UploadPartCommand,
-} from "@aws-sdk/client-s3";
-import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import { ConvexError, v } from "convex/values";
 import { internal } from "./_generated/api";
-import { type ActionCtx, action } from "./_generated/server";
+import { type ActionCtx, action, mutation } from "./_generated/server";
 import {
   IMPORT_PART_BYTES,
   IMPORT_UPLOAD_TTL_MS,
@@ -21,13 +8,17 @@ import {
   MAX_BOOKMARK_BYTES,
   MAX_RAINDROP_BYTES,
 } from "./import/constants";
-import { createImportS3Client, getImportR2Config } from "./import/r2Client";
 import { importModeValidator } from "./schema";
 import { getSessionIdentity } from "./securitySessions";
-import { buildR2ObjectKey } from "./storage/r2";
+import {
+  buildSignedMultipartPartUrl,
+  callFilesWorkerJson,
+  isFilesWorkerConfigured,
+} from "./storage/filesWorkerClient";
+import { buildR2ObjectKey, getR2Url } from "./storage/r2";
+import { assertR2KeyInNamespace } from "./storage/r2Keys";
 
 const internalAny = internal as Record<string, any>;
-const URL_TTL_SECONDS = 24 * 60 * 60;
 
 const partValidator = v.object({ partNumber: v.number(), url: v.string() });
 const uploadResultValidator = v.object({
@@ -43,6 +34,12 @@ async function requireUserId(ctx: ActionCtx) {
     throw new Error("User must be authenticated");
   }
   return identity.subject as string;
+}
+
+function requireWorker() {
+  if (!isFilesWorkerConfigured()) {
+    throw new Error("files_worker_not_configured");
+  }
 }
 
 function validateSource(
@@ -117,40 +114,7 @@ function totalParts(fileSize: number) {
   return Math.ceil(fileSize / IMPORT_PART_BYTES);
 }
 
-async function listAllParts(
-  client: ReturnType<typeof createImportS3Client>,
-  bucket: string,
-  key: string,
-  uploadId: string
-) {
-  const result: Array<{ PartNumber: number; ETag: string; Size: number }> = [];
-  let marker: string | undefined;
-  do {
-    const page = await client.send(
-      new ListPartsCommand({
-        Bucket: bucket,
-        Key: key,
-        UploadId: uploadId,
-        PartNumberMarker: marker,
-      })
-    );
-    for (const part of page.Parts ?? []) {
-      if (part.PartNumber && part.ETag && typeof part.Size === "number") {
-        result.push({
-          PartNumber: part.PartNumber,
-          ETag: part.ETag,
-          Size: part.Size,
-        });
-      }
-    }
-    marker = page.IsTruncated ? page.NextPartNumberMarker : undefined;
-  } while (marker);
-  return result.sort((a, b) => a.PartNumber - b.PartNumber);
-}
-
 async function signMissingParts(args: {
-  client: ReturnType<typeof createImportS3Client>;
-  bucket: string;
   key: string;
   uploadId: string;
   fileSize: number;
@@ -166,19 +130,40 @@ async function signMissingParts(args: {
     if (uploaded.has(partNumber)) {
       continue;
     }
-    const url = await getSignedUrl(
-      args.client,
-      new UploadPartCommand({
-        Bucket: args.bucket,
-        Key: args.key,
-        UploadId: args.uploadId,
-        PartNumber: partNumber,
-      }),
-      { expiresIn: URL_TTL_SECONDS }
-    );
+    // Signed Worker part URLs expire after one hour; resume re-signs them.
+    const url = await buildSignedMultipartPartUrl({
+      key: args.key,
+      partNumber,
+      uploadId: args.uploadId,
+    });
     parts.push({ partNumber, url });
   }
   return parts;
+}
+
+async function createWorkerUpload(args: {
+  key: string;
+  contentType: string;
+}): Promise<string> {
+  assertR2KeyInNamespace(args.key);
+  const created = await callFilesWorkerJson({
+    op: "create-multipart",
+    params: { key: args.key, contentType: args.contentType },
+  });
+  if (created.kind !== "ok" || !created.data.uploadId) {
+    throw new Error("Worker did not return an upload ID");
+  }
+  return created.data.uploadId;
+}
+
+async function abortWorkerUpload(key: string, uploadId: string | undefined) {
+  if (!uploadId) {
+    return;
+  }
+  await callFilesWorkerJson({
+    op: "abort-multipart",
+    params: { key, uploadId },
+  }).catch(() => undefined);
 }
 
 export const createImportUpload = action({
@@ -191,9 +176,8 @@ export const createImportUpload = action({
   returns: uploadResultValidator,
   handler: async (ctx, args) => {
     const userId = await requireUserId(ctx);
+    requireWorker();
     validateSource(args.mode, args.fileName, args.fileSize);
-    const config = getImportR2Config();
-    const client = createImportS3Client(config);
     const sourceKey = buildR2ObjectKey({
       userId,
       role: "import-source",
@@ -206,25 +190,17 @@ export const createImportUpload = action({
       uploadExpiresAt: Date.now() + IMPORT_UPLOAD_TTL_MS,
     });
     try {
-      const created = await client.send(
-        new CreateMultipartUploadCommand({
-          Bucket: config.bucket,
-          Key: sourceKey,
-          ContentType: contentTypeForMode(args.mode),
-        })
-      );
-      if (!created.UploadId) {
-        throw new Error("R2 did not return an upload ID");
-      }
+      const uploadId = await createWorkerUpload({
+        key: sourceKey,
+        contentType: contentTypeForMode(args.mode),
+      });
       await ctx.runMutation(internalAny.dataImport.attachMultipart, {
         jobId,
-        uploadId: created.UploadId,
+        uploadId,
       });
       const parts = await signMissingParts({
-        client,
-        bucket: config.bucket,
         key: sourceKey,
-        uploadId: created.UploadId,
+        uploadId,
         fileSize: args.fileSize,
         uploaded: [],
       });
@@ -240,6 +216,27 @@ export const createImportUpload = action({
   },
 });
 
+export const recordImportUploadPart = mutation({
+  args: {
+    jobId: v.id("importJobs"),
+    partNumber: v.number(),
+    etag: v.string(),
+    size: v.number(),
+  },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    const identity = await getSessionIdentity(ctx);
+    if (!identity) {
+      throw new Error("User must be authenticated");
+    }
+    await ctx.runMutation(internalAny["import/uploadParts"].recordUploadPart, {
+      ...args,
+      userId: identity.subject as string,
+    });
+    return null;
+  },
+});
+
 export const resumeImportUpload = action({
   args: {
     fileName: v.string(),
@@ -249,6 +246,7 @@ export const resumeImportUpload = action({
   returns: uploadResultValidator,
   handler: async (ctx, args) => {
     const userId = await requireUserId(ctx);
+    requireWorker();
     const job = await ctx.runQuery(internalAny.dataImport.findUploadForUser, {
       userId,
     });
@@ -274,18 +272,43 @@ export const resumeImportUpload = action({
         message: "This upload has expired",
       });
     }
-    const config = getImportR2Config();
-    const client = createImportS3Client(config);
-    const listed = await listAllParts(
-      client,
-      config.bucket,
-      job.sourceKey,
-      job.uploadId
-    );
-    const uploadedParts = listed.map((part) => part.PartNumber);
+    if (job.uploadTransport !== "worker" || !Array.isArray(job.uploadParts)) {
+      // Pre-cutover direct-S3 upload: abort the orphaned multipart upload and
+      // restart Worker transport within the same import job.
+      await abortWorkerUpload(job.sourceKey, job.uploadId);
+      await ctx.runMutation(
+        internalAny["import/uploadParts"].restartUploadTransport,
+        {
+          jobId: job._id,
+          userId,
+          uploadExpiresAt: Date.now() + IMPORT_UPLOAD_TTL_MS,
+        }
+      );
+      const uploadId = await createWorkerUpload({
+        key: job.sourceKey,
+        contentType: contentTypeForMode(job.mode),
+      });
+      await ctx.runMutation(internalAny.dataImport.attachMultipart, {
+        jobId: job._id,
+        uploadId,
+      });
+      const parts = await signMissingParts({
+        key: job.sourceKey,
+        uploadId,
+        fileSize: job.fileSize,
+        uploaded: [],
+      });
+      return {
+        jobId: job._id,
+        partSize: IMPORT_PART_BYTES,
+        uploadedParts: [],
+        parts,
+      };
+    }
+    const uploadedParts = (job.uploadParts as Array<{ partNumber: number }>)
+      .map((part) => part.partNumber)
+      .sort((left, right) => left - right);
     const parts = await signMissingParts({
-      client,
-      bucket: config.bucket,
       key: job.sourceKey,
       uploadId: job.uploadId,
       fileSize: job.fileSize,
@@ -302,9 +325,10 @@ export const resumeImportUpload = action({
 
 export const completeImportUpload = action({
   args: { jobId: v.id("importJobs") },
-  returns: v.null(),
+  returns: v.union(v.null(), v.object({ restartRequired: v.literal(true) })),
   handler: async (ctx, { jobId }) => {
     const userId = await requireUserId(ctx);
+    requireWorker();
     const job = await ctx.runQuery(internalAny.dataImport.getJob, { jobId });
     if (
       !job ||
@@ -314,51 +338,75 @@ export const completeImportUpload = action({
     ) {
       throw new Error("Import upload not found");
     }
-    const config = getImportR2Config();
-    const client = createImportS3Client(config);
-    const parts = await listAllParts(
-      client,
-      config.bucket,
-      job.sourceKey,
-      job.uploadId
+    if (job.uploadTransport !== "worker" || !Array.isArray(job.uploadParts)) {
+      // An old page finishing a pre-cutover upload: restart Worker transport
+      // and report it so the client re-uploads instead of hanging.
+      await abortWorkerUpload(job.sourceKey, job.uploadId);
+      await ctx.runMutation(
+        internalAny["import/uploadParts"].restartUploadTransport,
+        {
+          jobId,
+          userId,
+          uploadExpiresAt: Date.now() + IMPORT_UPLOAD_TTL_MS,
+        }
+      );
+      const uploadId = await createWorkerUpload({
+        key: job.sourceKey,
+        contentType: contentTypeForMode(job.mode),
+      });
+      await ctx.runMutation(internalAny.dataImport.attachMultipart, {
+        jobId,
+        uploadId,
+      });
+      return { restartRequired: true as const };
+    }
+    assertR2KeyInNamespace(job.sourceKey);
+    const parts = [...job.uploadParts].sort(
+      (left, right) => left.partNumber - right.partNumber
     );
     const expected = totalParts(job.fileSize);
     if (
       parts.length !== expected ||
-      parts.some((part, index) => part.PartNumber !== index + 1)
+      parts.some((part, index) => part.partNumber !== index + 1)
     ) {
       throw new ConvexError({
         code: "INCOMPLETE_UPLOAD",
         message: "Not all upload parts are present",
       });
     }
-    const listedSize = parts.reduce((sum, part) => sum + part.Size, 0);
+    const listedSize = parts.reduce((sum, part) => sum + part.size, 0);
     if (
       listedSize !== job.fileSize ||
-      parts.slice(0, -1).some((part) => part.Size !== IMPORT_PART_BYTES)
+      parts.slice(0, -1).some((part) => part.size !== IMPORT_PART_BYTES)
     ) {
       throw new ConvexError({
         code: "INVALID_UPLOAD",
         message: "Uploaded part sizes do not match the selected file",
       });
     }
-    await client.send(
-      new CompleteMultipartUploadCommand({
-        Bucket: config.bucket,
-        Key: job.sourceKey,
-        UploadId: job.uploadId,
-        MultipartUpload: {
-          Parts: parts.map(({ PartNumber, ETag }) => ({ PartNumber, ETag })),
-        },
-      })
-    );
-    const head = await client.send(
-      new HeadObjectCommand({ Bucket: config.bucket, Key: job.sourceKey })
-    );
-    if (head.ContentLength !== job.fileSize) {
-      await client.send(
-        new DeleteObjectCommand({ Bucket: config.bucket, Key: job.sourceKey })
-      );
+    const completed = await callFilesWorkerJson({
+      op: "complete-multipart",
+      params: {
+        key: job.sourceKey,
+        uploadId: job.uploadId,
+        expectedSize: job.fileSize,
+        parts: parts.map((part) => ({
+          partNumber: part.partNumber,
+          etag: part.etag,
+        })),
+      },
+    });
+    if (completed.kind !== "ok") {
+      throw new ConvexError({
+        code: "INVALID_UPLOAD",
+        message: "Upload completion was rejected",
+      });
+    }
+    if (completed.data.size !== job.fileSize) {
+      await callFilesWorkerJson({
+        op: "delete-object",
+        params: { key: job.sourceKey },
+      }).catch(() => undefined);
       throw new ConvexError({
         code: "INVALID_UPLOAD",
         message: "Completed upload size is invalid",
@@ -382,17 +430,8 @@ export const cancelImport = action({
       return { canceled: false };
     }
     if (state.uploadId) {
-      const config = getImportR2Config();
-      const client = createImportS3Client(config);
-      await client
-        .send(
-          new AbortMultipartUploadCommand({
-            Bucket: config.bucket,
-            Key: state.sourceKey,
-            UploadId: state.uploadId,
-          })
-        )
-        .catch(() => undefined);
+      requireWorker();
+      await abortWorkerUpload(state.sourceKey, state.uploadId);
       await ctx.runMutation(internalAny.dataImport.finishJob, {
         jobId,
         status: "canceled",
@@ -407,20 +446,13 @@ export const getImportReportUrl = action({
   returns: v.string(),
   handler: async (ctx, { jobId }) => {
     const userId = await requireUserId(ctx);
+    requireWorker();
     const job = await ctx.runQuery(internalAny.dataImport.getJob, { jobId });
     if (!job || job.userId !== userId || !job.reportKey) {
       throw new Error("Import report is unavailable");
     }
-    const config = getImportR2Config();
-    return getSignedUrl(
-      createImportS3Client(config),
-      new GetObjectCommand({
-        Bucket: config.bucket,
-        Key: job.reportKey,
-        ResponseContentDisposition:
-          'attachment; filename="teak-import-report.txt"',
-      }),
-      { expiresIn: 15 * 60 }
-    );
+    // The report key ends in error-report.txt, so attachment disposition keeps
+    // the download filename without embedding it in the signed URL.
+    return await getR2Url(job.reportKey, { contentDisposition: "attachment" });
   },
 });

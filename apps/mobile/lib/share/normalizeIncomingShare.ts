@@ -1,7 +1,4 @@
-import {
-  inferFileFormat,
-  isGenericMimeType,
-} from "@teak/convex/shared/file-formats";
+import { inferFileFormat, isGenericMimeType } from "@teak/files-core";
 import type { ResolvedSharePayload, SharePayload } from "expo-sharing";
 import type {
   DroppedSharePayload,

@@ -25,8 +25,10 @@ Image Transformations, and image understanding runs on Workers AI inside the
 worker. Eligible sources (≤20 MB) are transformed directly from R2 through
 the binding, cached per source ETag + rendition + format; larger sources keep
 the URL-based transformation path. The Convex backend remains the control plane — it authenticates
-users, owns card state, validates uploads, and orchestrates workflows —
-while stored-file processing and storage transfers flow through this worker.
+users, owns card state, validates upload requests, and orchestrates
+workflows — while this worker verifies bytes, moves bytes, and runs file
+AI. MIME types, dimensions, and media facts the worker returns are
+authoritative: Convex persists them instead of client claims.
 Remote preview fetching retains its DNS-pinned Convex implementation (see below);
 PDF/video rendering and screenshots remain in Kernel.
 
@@ -52,10 +54,21 @@ Operation request bodies are limited to 1 MiB before signature verification.
 - `create-multipart`, `complete-multipart`, and `abort-multipart` coordinate
   resumable browser uploads. Signed `PUT /__uploads/v1/...` URLs accept only
   an exact upload id, object key, and part number.
-- `finalize-upload` streams validated pending objects into their permanent
-  key, `finalize-image-upload` decode-verifies image uploads first (decoded
-  format, dimensions, and size are returned as trusted facts to Convex), and
-  `extract-import-files` extracts bounded archive entries without sending file
+- `finalize-upload` verifies pending bytes against the claimed file name
+  and MIME type, then copies the object to its permanent key. Nothing is
+  stored until verification succeeds. Detection is conclusive for images
+  (decode), PDF, ZIP/Office, audio, video, fonts, and design containers
+  (bounded header/container inspection), plus strict UTF-8 and structural
+  checks for text/source formats; anything else keeps its validated
+  extension/MIME claim with `verificationLevel: "claimed"`. Results carry
+  the detected format and MIME type, a verification level, byte size,
+  source and stored ETags, processor version, optional media/document
+  facts, and Markdown content when requested
+  (`src/finalize.ts`, `src/verify.ts`).
+- `finalize-image-upload` decode-verifies image uploads and additionally
+  returns trusted dimensions and a color palette, so newly uploaded images
+  skip the later `analyze-image` read (`src/finalizeImage.ts`).
+- `extract-import-files` extracts bounded archive entries without sending file
   bytes through Convex.
 - `delete-object` removes one object; `delete-objects` accepts at most 100
   keys per batch and treats missing objects as success. Durable deletion is
@@ -71,7 +84,13 @@ Operation request bodies are limited to 1 MiB before signature verification.
 - `generate-image-metadata` feeds the existing `detail` rendition into
   Workers AI (Gemma multimodal) with the same system prompt, JSON output
   shape, and bounded validation retries as the pipeline it replaced; image
-  bytes never leave the worker (`src/imageMetadata.ts`).
+  bytes never leave the worker (`src/imageMetadata.ts`). Validated results
+  are stored in a receipt sidecar (see below) and reused on repeat calls.
+- `capabilities` reports the operations served, the AI/Images binding
+  presence, the `processorVersion` Convex pins its facts to, and the
+  feature flags the backend cut over to. The backend deployment gate
+  (`scripts/check-files-readiness.ts`) blocks until the worker reports
+  every required operation, feature, and the current processor version.
 
 ## Import and audio processing
 
@@ -79,8 +98,10 @@ Operation request bodies are limited to 1 MiB before signature verification.
   The AI binding streams the R2 body to `@cf/openai/whisper-large-v3-turbo`.
   Audio is limited to the existing 100 MiB upload limit; returned UTF-8 text
   is limited to 512 KiB. Results contain text, byte count, MIME type, and source
-  ETag, never segments or audio bytes. Convex retains AI telemetry and optional
-  enrichment failure semantics; card processing status and retries stay there.
+  ETag, never segments or audio bytes. Validated results are stored in a
+  receipt sidecar (see below) and reused on repeat calls. Convex retains AI
+  telemetry and optional enrichment failure semantics; card processing status
+  and retries stay there.
 - `index-import-source` accepts archive/bookmarks/raindrop, expected source size,
   and an offset cursor. It returns at most 100 items and 4 MiB of item JSON;
   continuation requests bind the original ETag. The import action binds
@@ -103,16 +124,56 @@ Operation request bodies are limited to 1 MiB before signature verification.
   in-progress values (4 MiB). Extraction/preview entries retain the 100:1
   compression-ratio guard; JSON and Markdown use actual streamed byte limits
   so highly compressible valid text remains importable.
-- The canonical pure bookmark/CSV parsers remain in `packages/convex/import`
-  and are imported directly by the worker. They execute in the worker for
-  imports; no second parser or S3 fallback exists. Sources remain capped at
-  20 MiB and 10,000 bookmarks. HTML is parsed without building a DOM, with a
-  nesting limit of 128; CSV is limited to 256 columns and assembles quoted
-  fields in bounded chunks.
+- The canonical pure bookmark/CSV parsers live in `@teak/files-core`
+  (with the file-format registry, Markdown helpers, bounded-response
+  helpers, and archive-path validation) and are imported directly by the
+  worker, Convex, and every client; no second parser or S3 fallback exists.
+  Sources remain capped at 20 MiB and 10,000 bookmarks. HTML is parsed
+  without building a DOM, with a nesting limit of 128; CSV is limited to
+  256 columns and assembles quoted fields in bounded chunks.
 - Convex generates bounded error-report excerpts and uploads them through the
   existing signed PUT endpoint. Source/report cleanup is handed to the durable
   object-deletion workflow before import rows are removed. Multipart abort is
   idempotent only for R2 `NoSuchUpload` (10024); other errors propagate.
+
+## AI receipt sidecars
+
+`transcribe-audio` and `generate-image-metadata` store each validated result
+in a deterministic private sidecar beside its source object
+(`<sourceKey>.receipts/<op>.json`, derived by `aiReceiptKeyFor` in
+`@teak/files-core`). A receipt is valid only when the source ETag,
+normalized-input hash, processor version, model id, and operation name all
+match the current call; the receipt is checked before invoking AI, and
+written only after a valid result (`src/receipts.ts`). Repeat calls return
+the cached result with `receiptReused: true`.
+
+Receipts are an optimization, never a correctness dependency: misses,
+mismatches, oversized or malformed sidecars, and failed writes all fall
+through to a fresh AI call. Each operation owns a separate sidecar so
+concurrent executions cannot clobber each other; simultaneous first runs
+may duplicate work. Convex deletes receipt sidecars with their card
+(`cardStorageObjectKeys`) and counts them as referenced in the weekly
+orphan reconciliation sweep. Export checkpointing remains the canonical
+export receipt mechanism.
+
+## Import upload transport
+
+Import bytes move through worker multipart operations only; Convex holds no
+S3 credentials. Clients upload parts to signed worker URLs (`create-multipart`
+→ per-part PUT → `complete-multipart`, `abort-multipart` for cancellation).
+Import parts are 64 MiB; general uploads keep the 8 MiB part size. Convex
+records each part's number, ETag, and exact size before reporting progress,
+resumes from those persisted receipts with fresh short-lived signed URLs
+for missing parts, and verifies contiguous numbers, exact sizes, total
+size, key
+ownership, and upload id before the worker completes the upload and returns
+the final ETag.
+
+Cutover is immediate with no migration or backfill: new jobs use worker
+transport from creation. A pre-cutover job without worker part receipts is
+aborted and restarted within the same import job, and an old page attempting
+completion receives a `restartRequired` result so the client re-uploads
+instead of hanging.
 
 ### Remote preview ingestion: retained security boundary
 

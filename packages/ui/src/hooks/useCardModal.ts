@@ -1,6 +1,6 @@
 import { api } from "@teak/convex";
 import type { Doc, Id } from "@teak/convex/_generated/dataModel";
-import { sanitizeExternalUrl } from "@teak/convex/shared/utils/safeUrl";
+import { sanitizeExternalUrl } from "@teak/files-core";
 import { useMutation } from "convex/react";
 import { useCallback, useMemo, useState } from "react";
 import { toast } from "sonner";

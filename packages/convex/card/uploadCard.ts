@@ -1,23 +1,21 @@
+import {
+  type FileFormat,
+  FileFormatValidationError,
+  fileUploadErrorCode,
+  isGenericMimeType,
+  isMarkdownFileName,
+  MAX_FILE_SIZE,
+  MarkdownContentError,
+  validateFileFormat,
+  validateMarkdownByteLength,
+  validateUploadFile,
+} from "@teak/files-core";
 import { ConvexError, v } from "convex/values";
 import { internal } from "../_generated/api";
 import { type MutationCtx, mutation } from "../_generated/server";
 import { ensureCardCreationAllowed } from "../auth";
 import { type CardType, cardTypeValidator } from "../schema";
 import { getSessionIdentity } from "../securitySessions";
-import {
-  type FileFormat,
-  FileFormatValidationError,
-  fileUploadErrorCode,
-  isGenericMimeType,
-  MAX_FILE_SIZE,
-  validateFileFormat,
-  validateUploadFile,
-} from "../shared/fileFormats";
-import {
-  isMarkdownFileName,
-  MarkdownContentError,
-  validateMarkdownByteLength,
-} from "../shared/markdown";
 import { buildSignedWorkerUploadUrl } from "../storage/filesWorkerClient";
 import {
   buildR2ObjectKey,
@@ -25,6 +23,7 @@ import {
   PENDING_UPLOAD_CARD_ID,
 } from "../storage/r2";
 import { scheduleCardOutcome } from "../telemetry/schedule";
+import { hasKnownTinyImageDimensions } from "../workflows/imageAnalysis";
 import { recordActiveCardCreated } from "./cardUsage";
 import {
   buildInitialProcessingStatus,
@@ -155,11 +154,19 @@ export const createUploadedCardForUser = async (
   args: {
     additionalMetadata?: any;
     cardType?: CardType;
+    colors?: Array<{ hex: string }>;
     content?: string;
     fileKey: string;
     fileName: string;
     fileSize?: number;
     fileType?: string;
+    processing?: {
+      generatedAt: number;
+      processorVersion: string;
+      sourceEtag: string;
+      storedEtag?: string;
+      verificationLevel?: string;
+    };
     storedFileSize?: number;
     storedFileType?: string;
     notes?: string | null;
@@ -257,12 +264,29 @@ export const createUploadedCardForUser = async (
     ...(additionalMeta.duration && { duration: additionalMeta.duration }),
     ...(additionalMeta.width && { width: additionalMeta.width }),
     ...(additionalMeta.height && { height: additionalMeta.height }),
+    ...(args.processing ? { processing: args.processing } : {}),
   };
 
+  // Worker-verified palettes land at creation time so the renderables step
+  // can skip re-analysis; tiny images never carry colors.
+  const trustedColors =
+    args.colors && args.colors.length > 0
+      ? args.colors.filter(
+          (color) =>
+            typeof color?.hex === "string" && color.hex.trim().length > 0
+        )
+      : [];
   const cardId = await ctx.db.insert("cards", {
     userId: args.userId,
     content: args.content || "",
     type: cardType,
+    ...(trustedColors.length > 0 &&
+    !hasKnownTinyImageDimensions({
+      height: fileMetadataObj.height,
+      width: fileMetadataObj.width,
+    })
+      ? { colors: trustedColors }
+      : {}),
     fileKey: args.fileKey,
     fileMetadata: fileMetadataObj,
     metadataTitle: args.fileName,

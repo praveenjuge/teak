@@ -16,7 +16,7 @@ import { verifyHmacPayload } from "./lib";
  * hard cap below instead.
  */
 
-// Matches MAX_FILE_SIZE in packages/convex/shared/fileFormats.ts.
+// Matches MAX_FILE_SIZE in packages/files-core/src/fileFormats.ts.
 export const MAX_UPLOAD_BYTES = 100 * 1024 * 1024;
 
 const MAX_CONTENT_TYPE_LENGTH = 255;
