@@ -5,6 +5,7 @@ export default defineConfig({
     environment: "edge-runtime",
     include: [
       "./occContention.test.ts",
+      "./accountDeletionRetry.test.ts",
       "./importConsolidation.test.ts",
       "./safariOAuth.test.ts",
       "./securitySessions.test.ts",
