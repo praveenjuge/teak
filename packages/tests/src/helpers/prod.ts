@@ -263,10 +263,23 @@ export const openSecurity = async (
   tab: "Connections" | "API keys" = "Connections"
 ) => {
   await page.goto(appPath("/settings"));
-  await settingsRow(page, "Security")
-    .getByRole("button", { name: "Manage" })
-    .click();
+  const manageButton = settingsRow(page, "Security").getByRole("button", {
+    name: "Manage",
+  });
   const dialog = page.getByRole("dialog", { name: "Security", exact: true });
+  // On slow production loads the first click can land before the settings
+  // page has hydrated, silently no-oping. Retry opening the dialog instead of
+  // assuming the first attempt took.
+  for (
+    let attempt = 0;
+    attempt < 3 && !(await dialog.isVisible());
+    attempt += 1
+  ) {
+    await clickVisibleControl(manageButton);
+    await dialog
+      .waitFor({ state: "visible", timeout: 15_000 })
+      .catch(() => undefined);
+  }
   await expect(dialog).toBeVisible();
   await dialog.getByRole("tab", { name: tab, exact: true }).click();
   return dialog;
