@@ -21,7 +21,11 @@ import {
   type QueryCtx,
   query,
 } from "./_generated/server";
-import { beginAccountDeletion, finishAccountDeletion } from "./accountDeletion";
+import {
+  beginAccountDeletion,
+  finishAccountDeletion,
+  withOptimisticConcurrencyRetry,
+} from "./accountDeletion";
 import authConfig from "./auth.config";
 import { polar } from "./billing";
 import {
@@ -726,12 +730,11 @@ export const deleteAccountData = internalAction({
           { keys: batch.objectKeys }
         );
       }
-      deletedCards += await ctx.runMutation(
-        internal.auth.deleteAccountDataBatch,
-        {
+      deletedCards += await withOptimisticConcurrencyRetry(() =>
+        ctx.runMutation(internal.auth.deleteAccountDataBatch, {
           cardIds: batch.cardIds,
           userId,
-        }
+        })
       );
       deletedStorageObjectCount += batch.objectKeys.length;
     }
@@ -749,11 +752,13 @@ export const deleteAccountData = internalAction({
           { objects: batch.objects }
         );
       }
-      await ctx.runMutation(internal.auth.deleteAccountImportRows, {
-        itemIds: batch.itemIds,
-        jobIds: batch.jobIds,
-        userId,
-      });
+      await withOptimisticConcurrencyRetry(() =>
+        ctx.runMutation(internal.auth.deleteAccountImportRows, {
+          itemIds: batch.itemIds,
+          jobIds: batch.jobIds,
+          userId,
+        })
+      );
     }
     const finalCards = await ctx.runQuery(
       internal.auth.getAccountCardDeletionBatch,
