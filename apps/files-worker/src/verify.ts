@@ -52,6 +52,8 @@ export interface VerifiedUpload {
   facts: FilesFinalizeFacts;
   format: FileFormat;
   mimeType: string;
+  /** ETag of the object generation every verification read was bound to. */
+  sourceEtag: string;
   verificationLevel: FilesVerificationLevel;
 }
 
@@ -373,11 +375,16 @@ export const verifyUploadBytes = async (args: {
     facts.archiveFileCount = files;
     facts.archiveDirectoryCount = directories;
     const names = new Set(directory.entries.map((entry) => entry.name));
+    // Each Office subtype requires its own marker: a Word archive claimed
+    // as PowerPoint must fail, not be stored under the wrong type.
+    const ooxmlMarkers: Record<string, string> = {
+      excel: "xl/workbook.xml",
+      powerpoint: "ppt/presentation.xml",
+      word: "word/document.xml",
+    };
     const ooxml =
       names.has("[Content_Types].xml") &&
-      (names.has("word/document.xml") ||
-        names.has("ppt/presentation.xml") ||
-        names.has("xl/workbook.xml"));
+      Object.values(ooxmlMarkers).some((marker) => names.has(marker));
     if (
       format.id === "zip" ||
       format.kind === "design" ||
@@ -389,7 +396,8 @@ export const verifyUploadBytes = async (args: {
         facts.container = "zip";
       }
     } else if (["word", "powerpoint", "excel"].includes(format.id)) {
-      if (!ooxml) {
+      const requiredMarker = ooxmlMarkers[format.id];
+      if (!(ooxml && requiredMarker && names.has(requiredMarker))) {
         throw new Error("invalid_type_mismatch");
       }
       verificationLevel = "structural";
@@ -408,7 +416,7 @@ export const verifyUploadBytes = async (args: {
     } else {
       throw new Error("invalid_type_mismatch");
     }
-    return { facts, format, mimeType, verificationLevel };
+    return { facts, format, mimeType, sourceEtag: etag, verificationLevel };
   }
 
   if (detection) {
@@ -573,7 +581,7 @@ export const verifyUploadBytes = async (args: {
       default:
         break;
     }
-    return { facts, format, mimeType, verificationLevel };
+    return { facts, format, mimeType, sourceEtag: etag, verificationLevel };
   }
 
   // No conclusive magic bytes: text-family claims verify by strict UTF-8 and
@@ -647,7 +655,14 @@ export const verifyUploadBytes = async (args: {
         }
       }
     }
-    return { content, facts, format, mimeType, verificationLevel };
+    return {
+      content,
+      facts,
+      format,
+      mimeType,
+      sourceEtag: etag,
+      verificationLevel,
+    };
   }
 
   if (format.id === "svg" || (format.id === "html" && isSvgDocument(head))) {
@@ -657,11 +672,11 @@ export const verifyUploadBytes = async (args: {
     if (format.id === "svg") {
       mimeType = "image/svg+xml";
     }
-    return { facts, format, mimeType, verificationLevel };
+    return { facts, format, mimeType, sourceEtag: etag, verificationLevel };
   }
 
   // Opaque formats (design binaries, legacy containers without magic, unknown
   // bytes with a valid extension/MIME agreement) keep working under a
   // validated claim instead of failing verification.
-  return { facts, format, mimeType, verificationLevel };
+  return { facts, format, mimeType, sourceEtag: etag, verificationLevel };
 };

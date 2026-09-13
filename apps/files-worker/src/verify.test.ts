@@ -140,6 +140,19 @@ describe("upload verification fixtures", () => {
     expect(result.facts.pageCount).toBe(1);
   });
 
+  test("cross-subtype Office archives are rejected, not stored mistyped", async () => {
+    const word = fixtureForFormat("word");
+    const powerpoint = fixtureForFormat("powerpoint");
+    // Word bytes claimed as PowerPoint must fail verification.
+    await expect(
+      verify(store(word.bytes), "deck.pptx", powerpoint.mimeType)
+    ).rejects.toThrow("invalid_type_mismatch");
+    // PowerPoint bytes claimed as Word must fail verification.
+    await expect(
+      verify(store(powerpoint.bytes), "doc.docx", word.mimeType)
+    ).rejects.toThrow("invalid_type_mismatch");
+  });
+
   test("font fixtures report family and format", async () => {
     const fixture = fixtureForFormat("font-truetype");
     const result = await verify(

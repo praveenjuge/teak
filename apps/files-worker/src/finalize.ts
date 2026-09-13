@@ -47,7 +47,12 @@ export const finalizeUpload = async (
   if (!source) {
     throw new Error("source_not_found");
   }
+  // The copy is bound to the generation verification read, even when the
+  // caller supplied no expectations: a pending-key overwrite between
+  // verification and this read must fail instead of storing unverified
+  // bytes with another object's facts.
   if (
+    source.httpEtag !== verified.sourceEtag ||
     (expectedEtag && source.httpEtag !== expectedEtag) ||
     (expectedSize !== undefined && source.size !== expectedSize)
   ) {

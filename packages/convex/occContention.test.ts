@@ -687,7 +687,12 @@ describe("OCC contention behavior", () => {
       expect(
         (await getAccountCardDeletionBatchHandler(ctx, "user-delete-many-tags"))
           .objectKeys
-      ).toEqual(["object-key", "object-key.processing.json"]);
+      ).toEqual([
+        "object-key",
+        "object-key.processing.json",
+        "object-key.receipts/transcribe-audio.json",
+        "object-key.receipts/generate-image-metadata.json",
+      ]);
       expect(
         await deleteAccountDataHandler(ctx, "user-delete-many-tags", [cardId])
       ).toBe(1);

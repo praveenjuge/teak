@@ -241,13 +241,6 @@ const finalizeForUser = async (
     !Array.isArray(args.additionalMetadata)
       ? { ...(args.additionalMetadata as Record<string, unknown>) }
       : {};
-  // Dimensions, durations, and palettes are worker-verified facts. Never
-  // carry client claims through when the worker is the source of truth.
-  const trustedAdditionalMetadata = Object.fromEntries(
-    Object.entries(additionalMetadata).filter(
-      ([key]) => key !== "height" && key !== "width" && key !== "duration"
-    )
-  );
   const workerFacts = {
     ...(trustedImageFacts?.width && trustedImageFacts?.height
       ? { height: trustedImageFacts.height, width: trustedImageFacts.width }
@@ -262,6 +255,13 @@ const finalizeForUser = async (
       ? { duration: trustedUploadFacts.facts.duration }
       : {}),
   };
+  // Worker-verified facts win on conflict. Client claims survive only as a
+  // fallback when bounded worker inspection cannot derive the fact (AAC
+  // duration, AVI/ASF dimensions, non-fast-start MP4 metadata); dropping
+  // them unconditionally would lose valid mobile picker metadata.
+  const trustedAdditionalMetadata = Object.fromEntries(
+    Object.entries(additionalMetadata).filter(([key]) => !(key in workerFacts))
+  );
 
   try {
     const result = await ctx.runMutation(

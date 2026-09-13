@@ -137,7 +137,12 @@ describe("finalizeUploadedCardForUser", () => {
       requestedMimeType: "audio/mpeg",
     });
     expect(mutationArgs).toHaveLength(1);
-    expect(mutationArgs[0]?.additionalMetadata).toEqual({ duration: 180 });
+    // Worker duration wins on conflict; the client width survives because
+    // the worker derived no width for this upload.
+    expect(mutationArgs[0]?.additionalMetadata).toEqual({
+      duration: 180,
+      width: 9999,
+    });
     expect(mutationArgs[0]?.mimeType).toBe("audio/mpeg");
     expect(mutationArgs[0]?.processing).toMatchObject({
       processorVersion: "files/1",

@@ -365,6 +365,64 @@ describe("files worker handler", () => {
     expect(bucket.storedBytes(destinationKey)).toEqual(bytes);
   });
 
+  test("finalize-upload rejects a pending overwrite even without caller ETag", async () => {
+    const env_ = env();
+    const bucket = env_.BUCKET as unknown as FakeBucket;
+    const sourceKey = "users/u1/cards/upload-pending-v2/race.md";
+    const destinationKey = "users/u1/cards/stored/race.md";
+    const original = new TextEncoder().encode("# original");
+    const replacement = new TextEncoder().encode("# replacement");
+    // No expectedEtag/expectedSize: the copy must still bind to the
+    // generation verification read.
+    const finalize = async () =>
+      worker.fetch(
+        await signedOpRequest("finalize-upload", {
+          destinationKey,
+          fileName: "race.md",
+          readText: true,
+          requestedMimeType: "text/markdown",
+          sourceKey,
+        }),
+        env_,
+        { waitUntil: () => undefined } as never
+      );
+    // Learn how many bucket reads a clean finalization performs.
+    bucket.objects.set(sourceKey, { bytes: original });
+    let probeReads = 0;
+    const probeGet = bucket.get.bind(bucket);
+    bucket.get = ((
+      key: string,
+      options?: { range?: { offset?: number; length?: number } }
+    ) => {
+      probeReads += 1;
+      return probeGet(key, options);
+    }) as FakeBucket["get"];
+    expect((await finalize()).status).toBe(200);
+    expect(probeReads).toBeGreaterThan(0);
+    // Overwrite the pending key on the final read (the copy read): every
+    // verification read still sees the original bytes.
+    bucket.objects.delete(destinationKey);
+    bucket.objects.set(sourceKey, { bytes: original });
+    let reads = 0;
+    bucket.get = ((
+      key: string,
+      options?: { range?: { offset?: number; length?: number } }
+    ) => {
+      reads += 1;
+      if (reads === probeReads) {
+        bucket.objects.set(sourceKey, { bytes: replacement });
+      }
+      return probeGet(key, options);
+    }) as FakeBucket["get"];
+    const raced = await finalize();
+    expect(raced.status).toBe(409);
+    expect(await raced.json()).toMatchObject({
+      error: { code: "CONFLICT" },
+      ok: false,
+    });
+    expect(bucket.objects.has(destinationKey)).toBe(false);
+  });
+
   test("uploads and idempotently completes a signed multipart upload", async () => {
     const env_ = env();
     const bucket = env_.BUCKET as unknown as FakeBucket;
