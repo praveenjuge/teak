@@ -47,38 +47,33 @@ const TYPE_ONLY_RE = /(?:import|export)\s+type\s[^;]*?(?:;|$)/gs;
 
 const SOURCE_EXTENSIONS = [".ts", ".tsx", ".js", ".jsx", ".mts", ".mjs"];
 
-const USE_NODE_DIRECTIVE_RE = /^["']use node["'];?(\s*(\/\/.*|\/\*.*\*\/))?$/;
-
 // A "use node" directive is the first statement of a module, but license
-// headers and doc comments may precede it. Parse the prologue instead of
-// checking the start of the trimmed source.
+// headers and doc comments may precede it. Strip leading line and block
+// comments (block comments may span lines), then check the first statement.
+// Anything after the directive does not matter.
 const hasUseNodeDirective = (source: string): boolean => {
-  let inBlockComment = false;
-  for (const rawLine of source.split("\n")) {
-    let line = rawLine.trim();
-    if (inBlockComment) {
-      const end = line.indexOf("*/");
-      if (end === -1) {
-        continue;
+  let rest = source;
+  for (;;) {
+    rest = rest.trimStart();
+    if (rest.startsWith("//")) {
+      const newline = rest.indexOf("\n");
+      if (newline === -1) {
+        return false;
       }
-      inBlockComment = false;
-      line = line.slice(end + 2).trim();
-    }
-    while (line.startsWith("/*")) {
-      const end = line.indexOf("*/", 2);
-      if (end === -1) {
-        inBlockComment = true;
-        line = "";
-        break;
-      }
-      line = line.slice(end + 2).trim();
-    }
-    if (line.length === 0 || line.startsWith("//")) {
+      rest = rest.slice(newline + 1);
       continue;
     }
-    return USE_NODE_DIRECTIVE_RE.test(line);
+    if (rest.startsWith("/*")) {
+      const end = rest.indexOf("*/", 2);
+      if (end === -1) {
+        return false;
+      }
+      rest = rest.slice(end + 2);
+      continue;
+    }
+    break;
   }
-  return false;
+  return /^["']use node["'];?/.test(rest);
 };
 
 const resolveRelativeImport = (
@@ -115,6 +110,7 @@ describe("backend telemetry Node runtime", () => {
       '"use node";',
       '"use node";\n// trailing comment',
       '"use node"; /* trailing block */',
+      '"use node"; /* trailing\nmultiline block */',
       "// doc comment\n\"use node\";",
       '/* header */\n"use node";\n\nexport {};',
       "'use node'",
