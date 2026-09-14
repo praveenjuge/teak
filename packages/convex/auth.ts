@@ -717,8 +717,10 @@ const reportAccountDeletionFailure = async (
   ctx: Pick<ActionCtx, "runAction">,
   error: unknown
 ): Promise<void> => {
-  const message = error instanceof Error ? error.message : String(error);
   try {
+    // String(error) can throw for a custom toString; keep every conversion
+    // inside the best-effort boundary so the original error always wins.
+    const message = error instanceof Error ? error.message : String(error);
     await ctx.runAction(
       (internal as any)["telemetry/events"].emitAccountDeletionFailure,
       {
@@ -853,4 +855,5 @@ export const getLatestJwks = internalAction({
     return await auth.api.getLatestJwks();
   },
 });
+
 
