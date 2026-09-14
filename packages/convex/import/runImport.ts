@@ -3,6 +3,7 @@
 import { v } from "convex/values";
 import { internal } from "../_generated/api";
 import { type ActionCtx, internalAction } from "../_generated/server";
+import type { AccountImportDeletionObject } from "../accountDeletion";
 import { inferFileFormat } from "../shared/fileFormats";
 import { isMarkdownFileName } from "../shared/markdown";
 import { TELEMETRY_OPERATIONS } from "../shared/telemetry";
@@ -528,6 +529,31 @@ export const cleanupExpiredUploads = internalAction({
   ),
 });
 
+export const deleteAccountImportObjectsHandler = async (
+  ctx: ActionCtx,
+  { objects }: { objects: AccountImportDeletionObject[] }
+) => {
+  let failureCount = 0;
+  for (const object of objects) {
+    try {
+      await abortImportUpload(object.sourceKey, object.uploadId);
+      // Persist deletion work before the account cleanup removes these rows.
+      await queueImportObjectDeletion(ctx, [
+        object.sourceKey,
+        object.reportKey,
+      ]);
+    } catch {
+      failureCount += 1;
+    }
+  }
+  if (failureCount) {
+    throw new Error(
+      `Account import cleanup incomplete for ${failureCount} objects; retry required`
+    );
+  }
+  return null;
+};
+
 export const deleteAccountImportObjects = internalAction({
   args: {
     objects: v.array(
@@ -539,25 +565,5 @@ export const deleteAccountImportObjects = internalAction({
     ),
   },
   returns: v.null(),
-  handler: async (ctx, { objects }) => {
-    let failureCount = 0;
-    for (const object of objects) {
-      try {
-        await abortImportUpload(object.sourceKey, object.uploadId);
-        // Persist deletion work before the account cleanup removes these rows.
-        await queueImportObjectDeletion(ctx, [
-          object.sourceKey,
-          object.reportKey,
-        ]);
-      } catch {
-        failureCount += 1;
-      }
-    }
-    if (failureCount) {
-      throw new Error(
-        `Account import cleanup incomplete for ${failureCount} objects; retry required`
-      );
-    }
-    return null;
-  },
+  handler: deleteAccountImportObjectsHandler,
 });

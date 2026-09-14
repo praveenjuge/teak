@@ -18,6 +18,7 @@ import type * as ai_schemas from "../ai/schemas.js";
 import type * as ai_telemetry from "../ai/telemetry.js";
 import type * as apiKeys from "../apiKeys.js";
 import type * as auth from "../auth.js";
+import type * as authActions from "../authActions.js";
 import type * as authDesktopOauth from "../authDesktopOauth.js";
 import type * as authNative from "../authNative.js";
 import type * as billing from "../billing.js";
@@ -195,6 +196,7 @@ declare const fullApi: ApiFromModules<{
   "ai/telemetry": typeof ai_telemetry;
   apiKeys: typeof apiKeys;
   auth: typeof auth;
+  authActions: typeof authActions;
   authDesktopOauth: typeof authDesktopOauth;
   authNative: typeof authNative;
   billing: typeof billing;

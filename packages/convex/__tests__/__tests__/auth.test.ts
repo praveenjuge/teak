@@ -46,7 +46,7 @@ let getCurrentUserHandler: any;
 let getAuthUserHandler: any;
 let getCardCreationStatusHandler: any;
 let deleteAccountDataHandler: any;
-let deleteAccountData: any;
+let runAccountDataDeletion: any;
 let getAccountCardDeletionBatchHandler: any;
 let removeAccountCardUsageHandler: any;
 let authComponent: any;
@@ -57,6 +57,7 @@ let CARD_ERROR_CODES: any;
 let FREE_TIER_LIMIT: any;
 
 import { ConvexError } from "convex/values";
+import { internal } from "../../_generated/api";
 import { POLAR_PLAN_IDS } from "../../shared/polarPlans";
 
 const addUsageRecord = (
@@ -90,12 +91,13 @@ const addUsageRecord = (
 describe("auth", () => {
   beforeAll(async () => {
     const authModule = await import("../../auth");
+    const accountDeletionModule = await import("../../accountDeletion");
     ensureCardCreationAllowed = authModule.ensureCardCreationAllowed;
     getCurrentUserHandler = authModule.getCurrentUserHandler;
     getAuthUserHandler = authModule.getAuthUserHandler;
     getCardCreationStatusHandler = authModule.getCardCreationStatusHandler;
     deleteAccountDataHandler = authModule.deleteAccountDataHandler;
-    deleteAccountData = authModule.deleteAccountData;
+    runAccountDataDeletion = accountDeletionModule.runAccountDataDeletion;
     getAccountCardDeletionBatchHandler =
       authModule.getAccountCardDeletionBatchHandler;
     removeAccountCardUsageHandler = authModule.removeAccountCardUsageHandler;
@@ -830,8 +832,14 @@ describe("auth", () => {
         }),
       } as any;
 
-      const handler = deleteAccountData.handler ?? deleteAccountData;
-      await expect(handler(ctx, { userId: "u1" })).resolves.toEqual({
+      await expect(
+        runAccountDataDeletion(ctx, "u1", {
+          deleteImportObjects: (objects: unknown[]) =>
+            ctx.runAction("delete-import-objects", { objects }),
+          observe: (_input: unknown, callback: () => Promise<unknown>) =>
+            callback(),
+        })
+      ).resolves.toEqual({
         deletedCards: 1,
         deletedStorageObjectCount: 1,
       });
@@ -845,7 +853,7 @@ describe("auth", () => {
       ]);
     });
 
-    it("propagates deletion failures when telemetry is disabled", async () => {
+    it("propagates deletion failures", async () => {
       const ctx = {
         runAction: mock(() => null),
         runMutation: mock(() => {
@@ -854,9 +862,24 @@ describe("auth", () => {
         runQuery: mock(() => ({ cardIds: [], objectKeys: [] })),
       } as any;
 
-      const handler = deleteAccountData.handler ?? deleteAccountData;
-      await expect(handler(ctx, { userId: "u1" })).rejects.toThrow(
-        "begin lock failed"
+      const observe = mock(
+        (_input: unknown, callback: () => Promise<unknown>) => callback()
+      );
+
+      await expect(
+        runAccountDataDeletion(ctx, "u1", {
+          deleteImportObjects: mock(),
+          observe,
+        })
+      ).rejects.toThrow("begin lock failed");
+      expect(observe).toHaveBeenCalledWith(
+        {
+          name: "auth.deleteAccountData",
+          operation: "auth",
+          surface: "backend",
+          userId: "u1",
+        },
+        expect.any(Function)
       );
     });
   });
@@ -899,9 +922,10 @@ describe("auth", () => {
         expect(options.emailAndPassword?.sendResetPassword).toBeFunction();
         expect(options.emailVerification?.sendVerificationEmail).toBeFunction();
         await options.user.deleteUser.beforeDelete({ id: "u1" });
-        expect(ctx.runAction).toHaveBeenCalledWith(expect.anything(), {
-          userId: "u1",
-        });
+        expect(ctx.runAction).toHaveBeenCalledWith(
+          internal.authActions.deleteAccountData,
+          { userId: "u1" }
+        );
 
         const originalBackendDsn = process.env.SENTRY_BACKEND_DSN;
         const originalConsoleError = console.error;
@@ -959,4 +983,3 @@ describe("auth", () => {
     });
   });
 });
-

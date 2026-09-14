@@ -1,5 +1,7 @@
 import { ConvexError } from "convex/values";
-import type { MutationCtx, QueryCtx } from "./_generated/server";
+import { internal } from "./_generated/api";
+import type { ActionCtx, MutationCtx, QueryCtx } from "./_generated/server";
+import { TELEMETRY_OPERATIONS } from "./shared/telemetry";
 
 type DatabaseReaderCtx = Pick<MutationCtx | QueryCtx, "db">;
 
@@ -100,3 +102,101 @@ export const withOptimisticConcurrencyRetry = async <T>(
     }
   }
 };
+
+export interface AccountImportDeletionObject {
+  reportKey?: string;
+  sourceKey: string;
+  uploadId?: string;
+}
+
+interface AccountDataDeletionOptions {
+  deleteImportObjects: (
+    objects: AccountImportDeletionObject[]
+  ) => Promise<unknown>;
+  observe: <T>(
+    input: {
+      name: string;
+      operation: typeof TELEMETRY_OPERATIONS.auth;
+      surface: "backend";
+      userId: string;
+    },
+    callback: () => Promise<T>
+  ) => Promise<T>;
+}
+
+export const runAccountDataDeletion = (
+  ctx: ActionCtx,
+  userId: string,
+  { deleteImportObjects, observe }: AccountDataDeletionOptions
+) =>
+  observe(
+    {
+      name: "auth.deleteAccountData",
+      operation: TELEMETRY_OPERATIONS.auth,
+      surface: "backend",
+      userId,
+    },
+    async () => {
+      await ctx.runMutation(internal.auth.beginAccountDataDeletion, { userId });
+      let deletedCards = 0;
+      let deletedStorageObjectCount = 0;
+      while (true) {
+        const batch = await ctx.runQuery(
+          internal.auth.getAccountCardDeletionBatch,
+          { userId }
+        );
+        if (batch.cardIds.length === 0) {
+          break;
+        }
+        if (batch.objectKeys.length > 0) {
+          await ctx.runAction(
+            (internal as any)["workflows/objectCleanup"].deleteObjectsAction,
+            { keys: batch.objectKeys }
+          );
+        }
+        deletedCards += await withOptimisticConcurrencyRetry(() =>
+          ctx.runMutation(internal.auth.deleteAccountDataBatch, {
+            cardIds: batch.cardIds,
+            userId,
+          })
+        );
+        deletedStorageObjectCount += batch.objectKeys.length;
+      }
+      while (true) {
+        const batch = await ctx.runQuery(
+          internal.auth.getAccountImportDeletionBatch,
+          { userId }
+        );
+        if (batch.jobIds.length === 0 && batch.itemIds.length === 0) {
+          break;
+        }
+        if (batch.objects.length > 0) {
+          await deleteImportObjects(batch.objects);
+        }
+        await withOptimisticConcurrencyRetry(() =>
+          ctx.runMutation(internal.auth.deleteAccountImportRows, {
+            itemIds: batch.itemIds,
+            jobIds: batch.jobIds,
+            userId,
+          })
+        );
+      }
+      const finalCards = await ctx.runQuery(
+        internal.auth.getAccountCardDeletionBatch,
+        { userId }
+      );
+      const finalImports = await ctx.runQuery(
+        internal.auth.getAccountImportDeletionBatch,
+        { userId }
+      );
+      if (
+        finalCards.cardIds.length > 0 ||
+        finalImports.jobIds.length > 0 ||
+        finalImports.itemIds.length > 0
+      ) {
+        throw new Error("Account data changed during deletion");
+      }
+      await ctx.runMutation(internal.auth.removeAccountCardUsage, { userId });
+      return { deletedCards, deletedStorageObjectCount };
+    }
+  );

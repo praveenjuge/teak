@@ -22,11 +22,7 @@ import {
   type QueryCtx,
   query,
 } from "./_generated/server";
-import {
-  beginAccountDeletion,
-  finishAccountDeletion,
-  withOptimisticConcurrencyRetry,
-} from "./accountDeletion";
+import { beginAccountDeletion, finishAccountDeletion } from "./accountDeletion";
 import authConfig from "./auth.config";
 import { polar } from "./billing";
 import {
@@ -51,11 +47,9 @@ import { isApprovedActiveSubscription } from "./shared/polarPlans";
 import {
   normalizeErrorClass,
   resolveBackendTelemetryDsn,
-  TELEMETRY_OPERATIONS,
 } from "./shared/telemetry";
 import { cardStorageObjectKeys } from "./storage/r2";
 import { scheduleAuthOutcome, scheduleUserCreated } from "./telemetry/schedule";
-import { withBackendSpan } from "./telemetry/sentry";
 import { buildTrustedOrigins } from "./trustedOrigins";
 
 const siteUrl = readSiteUrl();
@@ -298,7 +292,7 @@ export const createAuth = (ctx: GenericCtx<DataModel>) => {
         enabled: true,
         beforeDelete: async (user) => {
           await requireActionCtx(ctx).runAction(
-            internal.auth.deleteAccountData,
+            internal.authActions.deleteAccountData,
             {
               userId: user.id,
             }
@@ -690,91 +684,6 @@ export const deleteAccountImportRows = internalMutation({
   },
 });
 
-export const deleteAccountData = internalAction({
-  args: { userId: v.string() },
-  returns: v.object({
-    deletedCards: v.number(),
-    deletedStorageObjectCount: v.number(),
-  }),
-  handler: async (ctx, { userId }) =>
-    withBackendSpan(
-      {
-        name: "auth.deleteAccountData",
-        operation: TELEMETRY_OPERATIONS.auth,
-        surface: "backend",
-        userId,
-      },
-      async () => {
-        await ctx.runMutation(internal.auth.beginAccountDataDeletion, {
-          userId,
-        });
-        let deletedCards = 0;
-        let deletedStorageObjectCount = 0;
-        while (true) {
-          const batch = await ctx.runQuery(
-            internal.auth.getAccountCardDeletionBatch,
-            { userId }
-          );
-          if (batch.cardIds.length === 0) {
-            break;
-          }
-          if (batch.objectKeys.length > 0) {
-            await ctx.runAction(
-              (internal as any)["workflows/objectCleanup"].deleteObjectsAction,
-              { keys: batch.objectKeys }
-            );
-          }
-          deletedCards += await withOptimisticConcurrencyRetry(() =>
-            ctx.runMutation(internal.auth.deleteAccountDataBatch, {
-              cardIds: batch.cardIds,
-              userId,
-            })
-          );
-          deletedStorageObjectCount += batch.objectKeys.length;
-        }
-        while (true) {
-          const batch = await ctx.runQuery(
-            internal.auth.getAccountImportDeletionBatch,
-            { userId }
-          );
-          if (batch.jobIds.length === 0 && batch.itemIds.length === 0) {
-            break;
-          }
-          if (batch.objects.length > 0) {
-            await ctx.runAction(
-              (internal as any)["import/runImport"].deleteAccountImportObjects,
-              { objects: batch.objects }
-            );
-          }
-          await withOptimisticConcurrencyRetry(() =>
-            ctx.runMutation(internal.auth.deleteAccountImportRows, {
-              itemIds: batch.itemIds,
-              jobIds: batch.jobIds,
-              userId,
-            })
-          );
-        }
-        const finalCards = await ctx.runQuery(
-          internal.auth.getAccountCardDeletionBatch,
-          { userId }
-        );
-        const finalImports = await ctx.runQuery(
-          internal.auth.getAccountImportDeletionBatch,
-          { userId }
-        );
-        if (
-          finalCards.cardIds.length > 0 ||
-          finalImports.jobIds.length > 0 ||
-          finalImports.itemIds.length > 0
-        ) {
-          throw new Error("Account data changed during deletion");
-        }
-        await ctx.runMutation(internal.auth.removeAccountCardUsage, { userId });
-        return { deletedCards, deletedStorageObjectCount };
-      }
-    ),
-});
-
 export const beginAccountDataDeletion = internalMutation({
   args: { userId: v.string() },
   returns: v.null(),
@@ -816,4 +725,3 @@ export const getLatestJwks = internalAction({
     return await auth.api.getLatestJwks();
   },
 });
-
