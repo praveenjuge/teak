@@ -47,7 +47,7 @@ const TYPE_ONLY_RE = /(?:import|export)\s+type\s[^;]*?(?:;|$)/gs;
 
 const SOURCE_EXTENSIONS = [".ts", ".tsx", ".js", ".jsx", ".mts", ".mjs"];
 
-const USE_NODE_DIRECTIVE_RE = /^["']use node["'];?$/;
+const USE_NODE_DIRECTIVE_RE = /^["']use node["'];?(\s*(\/\/.*|\/\*.*\*\/))?$/;
 
 // A "use node" directive is the first statement of a module, but license
 // headers and doc comments may precede it. Parse the prologue instead of
@@ -110,6 +110,27 @@ const resolveRelativeImport = (
 };
 
 describe("backend telemetry Node runtime", () => {
+  test("recognizes the Node directive prologue", () => {
+    for (const source of [
+      '"use node";',
+      '"use node";\n// trailing comment',
+      '"use node"; /* trailing block */',
+      "// doc comment\n\"use node\";",
+      '/* header */\n"use node";\n\nexport {};',
+      "'use node'",
+    ]) {
+      expect(hasUseNodeDirective(source)).toBe(true);
+    }
+    for (const source of [
+      'export const x = 1;\n"use node";',
+      '// "use node";',
+      '/* "use node"; */\nexport {};',
+      '"use strict";',
+    ]) {
+      expect(hasUseNodeDirective(source)).toBe(false);
+    }
+  });
+
   test("marks every Node-only AI telemetry helper", () => {
     for (const relativePath of [
       "ai/telemetry.ts",
