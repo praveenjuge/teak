@@ -73,7 +73,9 @@ const hasUseNodeDirective = (source: string): boolean => {
     }
     break;
   }
-  return /^["']use node["'];?/.test(rest);
+  // The directive must be a standalone expression statement: a continued
+  // expression like "use node".trim() is not a directive.
+  return /^["']use node["'];?(?=\s|$|\/)/.test(rest);
 };
 
 const resolveRelativeImport = (
@@ -122,6 +124,7 @@ describe("backend telemetry Node runtime", () => {
       '// "use node";',
       '/* "use node"; */\nexport {};',
       '"use strict";',
+      '"use node".trim();',
     ]) {
       expect(hasUseNodeDirective(source)).toBe(false);
     }
