@@ -1,16 +1,18 @@
 const trim = (value: string | undefined, fallback: string) =>
   (value?.trim() || fallback).replace(/\/+$/, "");
 
+const publicOrigin = trim(
+  process.env.E2E_PUBLIC_ORIGIN,
+  "https://teakvault.com"
+);
+
 export const env = {
-  appUrl: trim(process.env.PROD_APP_URL, "https://app.teakvault.com"),
-  siteUrl: trim(process.env.PROD_SITE_URL, "https://teakvault.com"),
-  apiUrl: trim(process.env.PROD_API_URL, "https://teakvault.com/api"),
-  mcpUrl: trim(process.env.PROD_MCP_URL, "https://teakvault.com/mcp"),
-  convexSiteUrl: trim(
-    process.env.VITE_PUBLIC_CONVEX_SITE_URL ??
-      process.env.NEXT_PUBLIC_CONVEX_SITE_URL,
-    ""
-  ),
+  appUrl: trim(process.env.E2E_APP_ORIGIN, "https://app.teakvault.com"),
+  siteUrl: publicOrigin,
+  apiUrl: `${publicOrigin}/api`,
+  mcpUrl: `${publicOrigin}/mcp`,
+  convexUrl: trim(process.env.E2E_CONVEX_URL, ""),
+  convexSiteUrl: trim(process.env.E2E_CONVEX_SITE_URL, ""),
   cleanupToken: process.env.E2E_CLEANUP_TOKEN ?? "",
   emailDeliveryEnabled: process.env.E2E_EMAIL_DELIVERY_ENABLED === "true",
   mailpitUrl: trim(process.env.MAILPIT_URL, ""),
@@ -33,9 +35,7 @@ export const requireMailpit = () => {
 
 export const requireE2ECleanup = () => {
   if (!(env.cleanupToken && env.convexSiteUrl)) {
-    throw new Error(
-      "E2E_CLEANUP_TOKEN and VITE_PUBLIC_CONVEX_SITE_URL are required"
-    );
+    throw new Error("E2E_CLEANUP_TOKEN and E2E_CONVEX_SITE_URL are required");
   }
 };
 

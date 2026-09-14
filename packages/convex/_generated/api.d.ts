@@ -51,6 +51,7 @@ import type * as dataImport from "../dataImport.js";
 import type * as devUrls from "../devUrls.js";
 import type * as e2eAccounts from "../e2eAccounts.js";
 import type * as e2eCleanup from "../e2eCleanup.js";
+import type * as env from "../env.js";
 import type * as export_constants from "../export/constants.js";
 import type * as export_runExport from "../export/runExport.js";
 import type * as export_serialize from "../export/serialize.js";
@@ -65,6 +66,7 @@ import type * as import_markdown from "../import/markdown.js";
 import type * as import_r2Client from "../import/r2Client.js";
 import type * as import_raindrop from "../import/raindrop.js";
 import type * as import_runImport from "../import/runImport.js";
+import type * as import_sourceVersion from "../import/sourceVersion.js";
 import type * as import_validate from "../import/validate.js";
 import type * as importUpload from "../importUpload.js";
 import type * as index from "../index.js";
@@ -120,6 +122,7 @@ import type * as storage_filesWorkerClient from "../storage/filesWorkerClient.js
 import type * as storage_pendingUploadCleanup from "../storage/pendingUploadCleanup.js";
 import type * as storage_r2 from "../storage/r2.js";
 import type * as storage_r2Config from "../storage/r2Config.js";
+import type * as storage_r2Keys from "../storage/r2Keys.js";
 import type * as telemetry_crons from "../telemetry/crons.js";
 import type * as telemetry_events from "../telemetry/events.js";
 import type * as telemetry_schedule from "../telemetry/schedule.js";
@@ -225,6 +228,7 @@ declare const fullApi: ApiFromModules<{
   devUrls: typeof devUrls;
   e2eAccounts: typeof e2eAccounts;
   e2eCleanup: typeof e2eCleanup;
+  env: typeof env;
   "export/constants": typeof export_constants;
   "export/runExport": typeof export_runExport;
   "export/serialize": typeof export_serialize;
@@ -239,6 +243,7 @@ declare const fullApi: ApiFromModules<{
   "import/r2Client": typeof import_r2Client;
   "import/raindrop": typeof import_raindrop;
   "import/runImport": typeof import_runImport;
+  "import/sourceVersion": typeof import_sourceVersion;
   "import/validate": typeof import_validate;
   importUpload: typeof importUpload;
   index: typeof index;
@@ -294,6 +299,7 @@ declare const fullApi: ApiFromModules<{
   "storage/pendingUploadCleanup": typeof storage_pendingUploadCleanup;
   "storage/r2": typeof storage_r2;
   "storage/r2Config": typeof storage_r2Config;
+  "storage/r2Keys": typeof storage_r2Keys;
   "telemetry/crons": typeof telemetry_crons;
   "telemetry/events": typeof telemetry_events;
   "telemetry/schedule": typeof telemetry_schedule;

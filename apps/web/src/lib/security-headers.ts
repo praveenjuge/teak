@@ -13,73 +13,32 @@ const R2_FRAME_SOURCES = [
 const normalizeHttpsOrigin = (value: string): string | null => {
   try {
     const url = new URL(value);
-    if (url.protocol !== "https:") {
-      return null;
-    }
-    return url.origin;
+    return url.protocol === "https:" ? url.origin : null;
   } catch {
     return null;
   }
 };
 
-const configuredR2StorageSources = () => {
+/**
+ * Self-hosted file origins. Mirror the backend FILES_BASE /
+ * FILES_LEGACY_BASE into NEXT_PUBLIC_FILES_BASE /
+ * NEXT_PUBLIC_FILES_LEGACY_BASE at web build time so signed file URLs stay
+ * loadable; static Teak origins always apply.
+ */
+const customFilesOrigins = (): string[] => {
   const values = [
-    process.env.NEXT_PUBLIC_R2_STORAGE_ORIGIN,
-    process.env.NEXT_PUBLIC_R2_STORAGE_URL,
-    process.env.R2_STORAGE_ORIGIN,
-    process.env.R2_STORAGE_URL,
+    process.env.NEXT_PUBLIC_FILES_BASE,
+    process.env.NEXT_PUBLIC_FILES_LEGACY_BASE,
   ];
   return Array.from(
     new Set(
-      values.flatMap(
-        (value) =>
-          value
-            ?.split(",")
-            .map((item) => normalizeHttpsOrigin(item.trim()))
-            .filter((item): item is string => Boolean(item)) ?? []
-      )
-    )
-  );
-};
-
-const configuredR2FrameSources = () => {
-  const values = [
-    process.env.NEXT_PUBLIC_R2_PUBLIC_ORIGIN,
-    process.env.NEXT_PUBLIC_R2_PUBLIC_URL,
-    process.env.R2_PUBLIC_ORIGIN,
-    process.env.R2_PUBLIC_URL,
-  ];
-  return Array.from(
-    new Set(
-      values.flatMap(
-        (value) =>
-          value
-            ?.split(",")
-            .map((item) => normalizeHttpsOrigin(item.trim()))
-            .filter((item): item is string => Boolean(item)) ?? []
-      )
-    )
-  );
-};
-
-const configuredR2UploadSources = () => {
-  const values = [
-    TEAK_R2_UPLOAD_ORIGIN,
-    process.env.NEXT_PUBLIC_R2_UPLOAD_ORIGIN,
-    process.env.NEXT_PUBLIC_R2_UPLOAD_URL,
-    process.env.R2_UPLOAD_ORIGIN,
-    process.env.R2_UPLOAD_URL,
-    process.env.R2_ENDPOINT,
-  ];
-  return Array.from(
-    new Set(
-      values.flatMap(
-        (value) =>
-          value
-            ?.split(",")
-            .map((item) => normalizeHttpsOrigin(item.trim()))
-            .filter((item): item is string => Boolean(item)) ?? []
-      )
+      values.flatMap((value) => {
+        if (!value) {
+          return [];
+        }
+        const origin = normalizeHttpsOrigin(value.trim());
+        return origin ? [origin] : [];
+      })
     )
   );
 };
@@ -87,8 +46,9 @@ const configuredR2UploadSources = () => {
 export const buildContentSecurityPolicy = (
   environment: "development" | "production" | "test" | undefined = process.env
     .NODE_ENV
-) =>
-  [
+) => {
+  const customOrigins = customFilesOrigins();
+  return [
     "default-src 'self'",
     "base-uri 'self'",
     "object-src 'none'",
@@ -97,10 +57,10 @@ export const buildContentSecurityPolicy = (
     [
       "img-src 'self' blob: data:",
       TEAK_R2_STORAGE_ORIGIN,
-      ...configuredR2StorageSources(),
       "https://www.google.com",
       "https://*.gstatic.com",
       "https://*.teakvault.com",
+      ...customOrigins,
     ].join(" "),
     "font-src 'self' data:",
     "style-src 'self' 'unsafe-inline'",
@@ -125,26 +85,26 @@ export const buildContentSecurityPolicy = (
       "https://*.polar.sh",
       TEAK_R2_STORAGE_ORIGIN,
       TEAK_FILES_ORIGIN,
-      ...configuredR2StorageSources(),
-      ...configuredR2UploadSources(),
+      TEAK_R2_UPLOAD_ORIGIN,
+      ...customOrigins,
     ].join(" "),
     [
       "media-src 'self' blob: data:",
       TEAK_R2_STORAGE_ORIGIN,
       TEAK_FILES_ORIGIN,
-      ...configuredR2StorageSources(),
+      ...customOrigins,
     ].join(" "),
     [
       "frame-src https://*.polar.sh https://polar.sh",
       TEAK_R2_STORAGE_ORIGIN,
       TEAK_FILES_ORIGIN,
-      ...configuredR2StorageSources(),
       ...R2_FRAME_SOURCES,
-      ...configuredR2FrameSources(),
+      ...customOrigins,
     ].join(" "),
     "worker-src 'self' blob:",
     "upgrade-insecure-requests",
   ].join("; ");
+};
 
 export const staticSecurityHeaders: { key: string; value: string }[] = [
   {

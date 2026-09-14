@@ -6,6 +6,7 @@ Teak is a personal knowledge hub for collecting, remembering, and rediscovering 
 
 - Use Bun. Read the pinned version and available commands from `package.json`; do not duplicate that inventory here.
 - Read the nearest nested `AGENTS.md` before changing a workspace.
+- On a fresh checkout, run `bun run setup` once, then diagnose with `bun run doctor` before asking the human. `bun run dev [target]` starts the watch loop; never bind production credentials locally.
 - Inspect the current implementation and tests before choosing a pattern. Treat repository code and configuration as the source of truth.
 - Keep changes focused. Preserve unrelated work already in the tree.
 

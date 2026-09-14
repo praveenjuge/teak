@@ -21,11 +21,9 @@ Required secret:
 
 Useful variables:
 
-- `PROD_APP_URL` defaults to `https://app.teakvault.com`
-- `PROD_SITE_URL` defaults to `https://teakvault.com`
-- `PROD_API_URL` defaults to `https://teakvault.com/api`
-- `PROD_MCP_URL` defaults to `https://teakvault.com/mcp`
-- `VITE_PUBLIC_CONVEX_URL` and `VITE_PUBLIC_CONVEX_SITE_URL` are required for the extension build. You can use matching `NEXT_PUBLIC_CONVEX_URL` and `NEXT_PUBLIC_CONVEX_SITE_URL` values locally.
+- `E2E_PUBLIC_ORIGIN` defaults to `https://teakvault.com`. The `/api` and `/mcp` paths derive from it.
+- `E2E_APP_ORIGIN` defaults to `https://app.teakvault.com`
+- `E2E_CONVEX_URL` and `E2E_CONVEX_SITE_URL` are required. The runner exports them to the Vite-prefixed names the extension build consumes.
 - `E2E_EMAIL_DELIVERY_ENABLED=true` opts into the two real email-delivery canaries. Scheduled GitHub runs enable it; manual runs leave it disabled.
 
 Most test accounts are provisioned as already-verified users through the token-protected backend endpoint, so manual runs send no email. The nightly run sends one signup verification and one password-reset message to preserve real delivery coverage. Cleanup is browserless. Exact accounts created by a test are removed during teardown, while the scheduled sweep discovers orphan accounts directly from the production auth database. The backend accepts only the configured `e2e-*` email namespace, enforces account-age bounds, caps each sweep, and reuses the same Teak data-deletion path as user-initiated account deletion. Mailpit messages are deleted separately by exact message ID.

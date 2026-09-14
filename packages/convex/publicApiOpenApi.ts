@@ -1,4 +1,4 @@
-import { httpAction } from "./_generated/server";
+import { env, httpAction } from "./_generated/server";
 import { resolveTeakDevApiUrl } from "./devUrls";
 import { withPublicApiGatewayHeaders } from "./publicApiMeta";
 
@@ -371,7 +371,7 @@ export const openApiSpec = {
   servers: [
     { url: "https://teakvault.com/api" },
     { url: "https://api.teakvault.com" },
-    { url: resolveTeakDevApiUrl(process.env) },
+    { url: resolveTeakDevApiUrl(env) },
   ],
   components,
   paths: {

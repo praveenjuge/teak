@@ -1,4 +1,15 @@
 {
   "extends": ["//"],
-  "tags": ["backend"]
+  "tags": ["backend"],
+  "tasks": {
+    "test": {
+      "env": ["SITE_URL"]
+    },
+    "test:edge": {
+      "env": ["SITE_URL"]
+    },
+    "test:unit": {
+      "env": ["SITE_URL"]
+    }
+  }
 }

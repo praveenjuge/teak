@@ -2,6 +2,35 @@
   "extends": ["//"],
   "tags": ["app"],
   "tasks": {
+    "build": {
+      "env": [
+        "GIT_SHA",
+        "GITHUB_SHA",
+        "NEXT_PUBLIC_APP_VERSION",
+        "NEXT_PUBLIC_CONVEX_SITE_URL",
+        "NEXT_PUBLIC_CONVEX_URL",
+        "NEXT_PUBLIC_FILES_BASE",
+        "NEXT_PUBLIC_FILES_LEGACY_BASE",
+        "NEXT_PUBLIC_SENTRY_DSN",
+        "NEXT_PUBLIC_SENTRY_ENVIRONMENT",
+        "NEXT_PUBLIC_SENTRY_RELEASE",
+        "NEXT_PUBLIC_VERCEL_GIT_COMMIT_SHA",
+        "SENTRY_RELEASE",
+        "VERCEL_GIT_COMMIT_SHA"
+      ],
+      "inputs": ["$TURBO_DEFAULT$", ".env", ".env.local"],
+      "passThroughEnv": ["SENTRY_AUTH_TOKEN"]
+    },
+    "test:e2e": {
+      "passThroughEnv": [
+        "E2E_BETTER_AUTH_USER_EMAIL",
+        "E2E_BETTER_AUTH_USER_PASSWORD",
+        "E2E_TEST_EMAIL",
+        "E2E_TEST_PASSWORD",
+        "SKIP_AUTH_TESTS",
+        "TEAK_DEV_APP_URL"
+      ]
+    },
     "typecheck": {
       "outputs": ["tsconfig.tsbuildinfo"]
     }

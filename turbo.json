@@ -6,7 +6,7 @@
   "tasks": {
     "build": {
       "dependsOn": ["^build"],
-      "inputs": ["$TURBO_DEFAULT$", ".env", ".env.*"],
+      "inputs": ["$TURBO_DEFAULT$"],
       "outputs": [
         ".next/**",
         "!.next/cache/**",
@@ -14,13 +14,6 @@
         "out/**",
         ".output/**",
         ".vite/**"
-      ],
-      "env": [
-        "NEXT_PUBLIC_*",
-        "CONVEX_*",
-        "EXPO_PUBLIC_*",
-        "SENTRY_*",
-        "POLAR_*"
       ]
     },
     "dev": {
@@ -43,39 +36,18 @@
     },
     "test": {
       "dependsOn": ["^test"],
-      "inputs": ["$TURBO_DEFAULT$", ".env", ".env.*"],
-      "outputs": ["coverage/**"],
-      "env": [
-        "CLAUDECODE",
-        "AGENT",
-        "GOOGLE_CLIENT_ID",
-        "GOOGLE_CLIENT_SECRET",
-        "SITE_URL"
-      ]
+      "inputs": ["$TURBO_DEFAULT$"],
+      "outputs": ["coverage/**"]
     },
     "test:unit": {
       "dependsOn": ["^test:unit"],
-      "inputs": ["$TURBO_DEFAULT$", ".env", ".env.*"],
-      "outputs": ["coverage/**"],
-      "env": [
-        "CLAUDECODE",
-        "AGENT",
-        "GOOGLE_CLIENT_ID",
-        "GOOGLE_CLIENT_SECRET",
-        "SITE_URL"
-      ]
+      "inputs": ["$TURBO_DEFAULT$"],
+      "outputs": ["coverage/**"]
     },
     "test:edge": {
       "dependsOn": ["^test:edge"],
-      "inputs": ["$TURBO_DEFAULT$", ".env", ".env.*"],
-      "outputs": ["coverage/**"],
-      "env": [
-        "CLAUDECODE",
-        "AGENT",
-        "GOOGLE_CLIENT_ID",
-        "GOOGLE_CLIENT_SECRET",
-        "SITE_URL"
-      ]
+      "inputs": ["$TURBO_DEFAULT$"],
+      "outputs": ["coverage/**"]
     },
     "typecheck": {
       "dependsOn": ["^typecheck"],

@@ -211,7 +211,7 @@ bun run sync:cloudflare-dev # securely writes the dev signing secret to ignored 
 #   bunx convex env get CLOUDFLARE_ACCOUNT_ID --prod   # read prod (no print in CI)
 #   bunx convex env set CLOUDFLARE_ACCOUNT_ID <value> --deployment dev  # set dev
 # Repeat for CLOUDFLARE_API_TOKEN, FILES_SIGNING_SECRET, R2_ACCESS_KEY_ID,
-# R2_ENDPOINT, R2_SECRET_ACCESS_KEY, R2_TOKEN, then:
+# R2_ENDPOINT, R2_SECRET_ACCESS_KEY, then:
 #   bunx convex env set R2_BUCKET teak-files-prod --deployment dev
 #   bunx convex env set R2_KEY_PREFIX dev/ --deployment dev
 #   bunx convex env set FILES_BASE https://files.teakvault.com --deployment dev

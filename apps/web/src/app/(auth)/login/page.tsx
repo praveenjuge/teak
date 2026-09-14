@@ -1,6 +1,10 @@
 "use client";
 
-import { AuthDivider, SocialAuthButtons } from "@teak/ui/auth";
+import {
+  AuthDivider,
+  SocialAuthButtons,
+  socialSignInErrorMessage,
+} from "@teak/ui/auth";
 import { Button, buttonVariants } from "@teak/ui/components/ui/button";
 import {
   CardContent,
@@ -66,14 +70,19 @@ function SignInForm() {
       });
       if (response?.error) {
         showSignInError(
-          response.error.message ??
+          socialSignInErrorMessage(
+            "google",
+            response.error.message,
             "Failed to sign in with Google. Please try again."
+          )
         );
       }
     } catch (err) {
       const errorMessage =
         err instanceof Error ? err.message : "Failed to sign in with Google";
-      showSignInError(errorMessage);
+      showSignInError(
+        socialSignInErrorMessage("google", errorMessage, errorMessage)
+      );
     }
     setPending(null);
   };
@@ -87,14 +96,19 @@ function SignInForm() {
       });
       if (response?.error) {
         showSignInError(
-          response.error.message ??
+          socialSignInErrorMessage(
+            "apple",
+            response.error.message,
             "Failed to sign in with Apple. Please try again."
+          )
         );
       }
     } catch (err) {
       const errorMessage =
         err instanceof Error ? err.message : "Failed to sign in with Apple";
-      showSignInError(errorMessage);
+      showSignInError(
+        socialSignInErrorMessage("apple", errorMessage, errorMessage)
+      );
     }
     setPending(null);
   };

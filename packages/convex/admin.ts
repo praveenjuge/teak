@@ -5,6 +5,7 @@ import type { Doc, Id } from "./_generated/dataModel";
 import {
   type ActionCtx,
   action,
+  env,
   internalMutation,
   type QueryCtx,
   query,
@@ -63,7 +64,7 @@ const SINGLE_RESULT_PAGE = {
 } as const;
 
 const getAdminUserId = async (ctx: AdminCtx) => {
-  const adminEmail = process.env.TEAK_ADMIN_EMAIL?.trim().toLowerCase();
+  const adminEmail = env.TEAK_ADMIN_EMAIL?.trim().toLowerCase();
   if (!adminEmail) {
     return null;
   }

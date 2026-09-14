@@ -1,4 +1,4 @@
-import { httpAction } from "./_generated/server";
+import { env, httpAction } from "./_generated/server";
 import {
   isLocalDevelopmentHostname,
   resolveTeakDevApiUrl,
@@ -44,17 +44,34 @@ const OAUTH_SCOPES_SUPPORTED = ["profile", "email", "offline_access"];
 
 const normalizeBaseUrl = (raw: string): string => raw.replace(/\/+$/, "");
 
+const readPublicOrigin = (): string | undefined => {
+  const raw = env.PUBLIC_ORIGIN?.trim();
+  if (!raw) {
+    return;
+  }
+  let origin: string;
+  try {
+    origin = new URL(raw).origin;
+  } catch {
+    throw new Error(
+      `PUBLIC_ORIGIN environment variable is not a valid origin (received: "${raw}"). ` +
+        "Example: https://teak.example.com"
+    );
+  }
+  return origin === "null" ? undefined : origin;
+};
+
 const isLocalApiHost = (hostname: string): boolean =>
   isLocalDevelopmentHostname(hostname);
 
 export const getPublicApiUrl = (requestUrl: string): string => {
-  const fromEnv = process.env.PUBLIC_API_URL?.trim();
-  if (fromEnv) {
-    return normalizeBaseUrl(fromEnv);
+  const publicOrigin = readPublicOrigin();
+  if (publicOrigin) {
+    return `${publicOrigin}/api`;
   }
 
   const { hostname, origin } = new URL(requestUrl);
-  const devApiOrigin = resolveTeakDevApiUrl(process.env);
+  const devApiOrigin = resolveTeakDevApiUrl(env);
   return isLocalApiHost(hostname) || origin === devApiOrigin
     ? origin
     : PROD_PUBLIC_API_URL;
@@ -64,33 +81,27 @@ export const getMcpEndpointFromRequestUrl = (requestUrl: string): string =>
   getPublicMcpUrl(requestUrl);
 
 export const getPublicMcpUrl = (requestUrl: string): string => {
-  const fromEnv = process.env.PUBLIC_MCP_URL?.trim();
-  if (fromEnv) {
-    return normalizeBaseUrl(fromEnv);
-  }
-
-  const apiUrlFromEnv = process.env.PUBLIC_API_URL?.trim();
-  if (apiUrlFromEnv) {
-    return `${normalizeBaseUrl(apiUrlFromEnv)}/mcp`;
+  const publicOrigin = readPublicOrigin();
+  if (publicOrigin) {
+    return `${publicOrigin}/mcp`;
   }
 
   const { hostname, origin } = new URL(requestUrl);
-  const devApiOrigin = resolveTeakDevApiUrl(process.env);
+  const devApiOrigin = resolveTeakDevApiUrl(env);
   return isLocalApiHost(hostname) || origin === devApiOrigin
     ? `${origin}/mcp`
     : PROD_PUBLIC_MCP_URL;
 };
 
 const getAuthIssuerUrl = (requestUrl: string): string => {
-  const fromEnv =
-    process.env.AUTH_ISSUER_URL?.trim() || process.env.SITE_URL?.trim();
+  const fromEnv = env.SITE_URL?.trim();
   if (fromEnv) {
     return normalizeBaseUrl(fromEnv);
   }
 
   const { hostname } = new URL(requestUrl);
   return isLocalApiHost(hostname)
-    ? resolveTeakDevAppUrl(process.env)
+    ? resolveTeakDevAppUrl(env)
     : PROD_AUTH_ISSUER_URL;
 };
 

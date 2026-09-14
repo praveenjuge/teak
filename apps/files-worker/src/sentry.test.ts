@@ -9,6 +9,8 @@ import {
   parseFileKeyIdentifiers,
   reportFilesOpFailure,
   resolveSentryOptions,
+  resolveWorkerEnvironment,
+  WORKER_RELEASE,
 } from "./sentry";
 
 const SECRET = "test-secret";
@@ -45,13 +47,25 @@ describe("resolveSentryOptions", () => {
     expect(resolveSentryOptions({ SENTRY_DSN: "   " })).toBeUndefined();
   });
 
-  test("resolves a trimmed DSN without extra fields", () => {
+  test("derives development environment and versioned release by default", () => {
     expect(
       resolveSentryOptions({ SENTRY_DSN: " https://k@example.invalid/1 " })
     ).toEqual({
       dsn: "https://k@example.invalid/1",
+      environment: "development",
+      release: WORKER_RELEASE,
       sendDefaultPii: false,
     });
+    expect(WORKER_RELEASE).toMatch(/^teak-files-worker@\d+\.\d+\.\d+$/);
+  });
+
+  test("normalizes environment aliases to the shared vocabulary", () => {
+    expect(resolveWorkerEnvironment("prod")).toBe("production");
+    expect(resolveWorkerEnvironment(" Production ")).toBe("production");
+    expect(resolveWorkerEnvironment("staging")).toBe("preview");
+    expect(resolveWorkerEnvironment("testing")).toBe("test");
+    expect(resolveWorkerEnvironment("whatever")).toBe("development");
+    expect(resolveWorkerEnvironment(undefined)).toBe("development");
   });
 
   test("passes optional environment/release overrides through", () => {

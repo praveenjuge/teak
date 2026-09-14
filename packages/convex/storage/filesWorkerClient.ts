@@ -4,6 +4,7 @@
  * exact JSON bytes, request id, and short expiration into one HMAC.
  */
 
+import { env } from "../_generated/server";
 import {
   buildFilesOpSigningPayload,
   buildMultipartPartSigningPayload,
@@ -24,7 +25,7 @@ import { assertR2KeyInNamespace, hmacSha256Hex } from "./r2Keys";
 export const FILES_OP_TTL_SECONDS = 10 * 60;
 
 export const isFilesWorkerConfigured = (): boolean =>
-  Boolean(process.env.FILES_BASE && process.env.FILES_SIGNING_SECRET);
+  Boolean(env.FILES_BASE && env.FILES_SIGNING_SECRET);
 
 export interface SignedUploadUrl {
   expiresAt: number;
@@ -53,8 +54,8 @@ export const buildSignedWorkerUploadUrl = async (
   },
   nowSeconds = Math.floor(Date.now() / 1000)
 ): Promise<SignedUploadUrl> => {
-  const base = process.env.FILES_BASE;
-  const secret = process.env.FILES_SIGNING_SECRET;
+  const base = env.FILES_BASE;
+  const secret = env.FILES_SIGNING_SECRET;
   if (!(base && secret)) {
     throw new Error("files_worker_not_configured");
   }
@@ -146,8 +147,8 @@ export const buildSignedMultipartPartUrl = async (
   }: { key: string; partNumber: number; uploadId: string },
   nowSeconds = Math.floor(Date.now() / 1000)
 ): Promise<string> => {
-  const base = process.env.FILES_BASE;
-  const secret = process.env.FILES_SIGNING_SECRET;
+  const base = env.FILES_BASE;
+  const secret = env.FILES_SIGNING_SECRET;
   if (!(base && secret)) {
     throw new Error("files_worker_not_configured");
   }
@@ -175,8 +176,8 @@ export const buildSignedWorkerOpRequest = async (
   spec: { op: FilesOp; params: Record<string, unknown> },
   nowSeconds = Math.floor(Date.now() / 1000)
 ): Promise<SignedWorkerOpRequest> => {
-  const base = process.env.FILES_BASE;
-  const secret = process.env.FILES_SIGNING_SECRET;
+  const base = env.FILES_BASE;
+  const secret = env.FILES_SIGNING_SECRET;
   if (!(base && secret)) {
     throw new Error("files_worker_not_configured");
   }
