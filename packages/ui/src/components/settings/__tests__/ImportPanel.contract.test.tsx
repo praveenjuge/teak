@@ -9,6 +9,11 @@ mock.module("convex/react", () => ({
   useAction: () => mock(),
 }));
 mock.module("../../../convexQueryHooks", () => ({
+  usePaginatedQuery: () => ({
+    loadMore: mock(),
+    results: [],
+    status: "Exhausted",
+  }),
   useQuery: () => importQueryResult,
 }));
 mock.module("../../ui/button", () => ({
