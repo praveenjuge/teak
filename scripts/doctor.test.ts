@@ -65,6 +65,15 @@ describe("parseDoctorArgs", () => {
       'Unknown argument "--nope"'
     );
   });
+
+  test("rejects dashboard-owned profiles doctor cannot validate", () => {
+    expect(() =>
+      parseDoctorArgs(["bun", "doctor.ts", "--profile", "production"])
+    ).toThrow('--profile "production"');
+    expect(() =>
+      parseDoctorArgs(["bun", "doctor.ts", "--profile", "preview"])
+    ).toThrow('--profile "preview"');
+  });
 });
 
 describe("evaluateCapabilityGroups", () => {

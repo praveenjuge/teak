@@ -10,11 +10,45 @@ const R2_FRAME_SOURCES = [
   "https://*.r2.dev",
 ] as const;
 
+const normalizeHttpsOrigin = (value: string): string | null => {
+  try {
+    const url = new URL(value);
+    return url.protocol === "https:" ? url.origin : null;
+  } catch {
+    return null;
+  }
+};
+
+/**
+ * Self-hosted file origins. Mirror the backend FILES_BASE /
+ * FILES_LEGACY_BASE into NEXT_PUBLIC_FILES_BASE /
+ * NEXT_PUBLIC_FILES_LEGACY_BASE at web build time so signed file URLs stay
+ * loadable; static Teak origins always apply.
+ */
+const customFilesOrigins = (): string[] => {
+  const values = [
+    process.env.NEXT_PUBLIC_FILES_BASE,
+    process.env.NEXT_PUBLIC_FILES_LEGACY_BASE,
+  ];
+  return Array.from(
+    new Set(
+      values.flatMap((value) => {
+        if (!value) {
+          return [];
+        }
+        const origin = normalizeHttpsOrigin(value.trim());
+        return origin ? [origin] : [];
+      })
+    )
+  );
+};
+
 export const buildContentSecurityPolicy = (
   environment: "development" | "production" | "test" | undefined = process.env
     .NODE_ENV
-) =>
-  [
+) => {
+  const customOrigins = customFilesOrigins();
+  return [
     "default-src 'self'",
     "base-uri 'self'",
     "object-src 'none'",
@@ -26,6 +60,7 @@ export const buildContentSecurityPolicy = (
       "https://www.google.com",
       "https://*.gstatic.com",
       "https://*.teakvault.com",
+      ...customOrigins,
     ].join(" "),
     "font-src 'self' data:",
     "style-src 'self' 'unsafe-inline'",
@@ -51,21 +86,25 @@ export const buildContentSecurityPolicy = (
       TEAK_R2_STORAGE_ORIGIN,
       TEAK_FILES_ORIGIN,
       TEAK_R2_UPLOAD_ORIGIN,
+      ...customOrigins,
     ].join(" "),
     [
       "media-src 'self' blob: data:",
       TEAK_R2_STORAGE_ORIGIN,
       TEAK_FILES_ORIGIN,
+      ...customOrigins,
     ].join(" "),
     [
       "frame-src https://*.polar.sh https://polar.sh",
       TEAK_R2_STORAGE_ORIGIN,
       TEAK_FILES_ORIGIN,
       ...R2_FRAME_SOURCES,
+      ...customOrigins,
     ].join(" "),
     "worker-src 'self' blob:",
     "upgrade-insecure-requests",
   ].join("; ");
+};
 
 export const staticSecurityHeaders: { key: string; value: string }[] = [
   {

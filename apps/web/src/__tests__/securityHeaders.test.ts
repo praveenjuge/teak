@@ -116,6 +116,53 @@ describe("web security headers", () => {
     }
   });
 
+  test("allows self-hosted file origins from build-time configuration", () => {
+    const names = ["NEXT_PUBLIC_FILES_BASE", "NEXT_PUBLIC_FILES_LEGACY_BASE"];
+    const previous = new Map(
+      names.map((name) => [name, process.env[name]] as const)
+    );
+    process.env.NEXT_PUBLIC_FILES_BASE = "https://files.example.com/worker";
+    process.env.NEXT_PUBLIC_FILES_LEGACY_BASE = "https://legacy.example.com";
+    try {
+      const policy = buildContentSecurityPolicy("production");
+      const tokens = (name: string) =>
+        policy
+          .split("; ")
+          .find((directive) => directive.startsWith(`${name} `))
+          ?.split(" ")
+          .slice(1) ?? [];
+      for (const name of ["img-src", "connect-src", "media-src", "frame-src"]) {
+        expect(tokens(name)).toContain("https://files.example.com");
+        expect(tokens(name)).toContain("https://legacy.example.com");
+      }
+      expect(policy).toContain("https://files.teakvault.com");
+    } finally {
+      for (const name of names) {
+        const value = previous.get(name);
+        if (value === undefined) {
+          delete process.env[name];
+        } else {
+          process.env[name] = value;
+        }
+      }
+    }
+  });
+
+  test("ignores non-https file origins", () => {
+    const previous = process.env.NEXT_PUBLIC_FILES_BASE;
+    process.env.NEXT_PUBLIC_FILES_BASE = "http://files.example.com";
+    try {
+      const policy = buildContentSecurityPolicy("production");
+      expect(policy).not.toContain("files.example.com");
+    } finally {
+      if (previous === undefined) {
+        delete process.env.NEXT_PUBLIC_FILES_BASE;
+      } else {
+        process.env.NEXT_PUBLIC_FILES_BASE = previous;
+      }
+    }
+  });
+
   test("allows framework bootstraps in production but eval only in development", () => {
     const scriptTokens = (environment: "development" | "production") =>
       buildContentSecurityPolicy(environment)

@@ -39,12 +39,7 @@ export const DOCTOR_TARGETS = [
 ] as const;
 export type DoctorTarget = (typeof DOCTOR_TARGETS)[number];
 
-export const DOCTOR_PROFILES = [
-  "local",
-  "preview",
-  "production",
-  "e2e",
-] as const;
+export const DOCTOR_PROFILES = ["local", "e2e"] as const;
 export type DoctorProfile = (typeof DOCTOR_PROFILES)[number];
 
 export type DoctorSeverity = "error" | "warn";
@@ -110,7 +105,7 @@ export const parseDoctorArgs = (argv: string[]): DoctorOptions => {
 };
 
 export const DOCTOR_USAGE =
-  "Usage: bun run doctor [--json] [--target web|convex|files|extension|desktop|mobile|cli|docs] [--profile local|preview|production|e2e]";
+  "Usage: bun run doctor [--json] [--target web|convex|files|extension|desktop|mobile|cli|docs] [--profile local|e2e]";
 
 export const findMissingKeys = (content: string, keys: string[]): string[] => {
   const values = new Map<string, string>();

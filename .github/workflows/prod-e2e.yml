@@ -120,6 +120,9 @@ jobs:
       - uses: oven-sh/setup-bun@v2
       - run: bun install --frozen-lockfile --filter @teak/tests --filter @teak/extension --filter @teak/convex
       - run: bun run --cwd apps/extension build
+        env:
+          VITE_PUBLIC_CONVEX_URL: ${{ secrets.VITE_PUBLIC_CONVEX_URL }}
+          VITE_PUBLIC_CONVEX_SITE_URL: ${{ secrets.VITE_PUBLIC_CONVEX_SITE_URL }}
       - run: bunx playwright install --with-deps chromium
       - run: bun run --cwd packages/tests e2e:prod:extension
       - if: always()
