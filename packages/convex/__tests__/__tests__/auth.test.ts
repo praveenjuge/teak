@@ -844,6 +844,21 @@ describe("auth", () => {
         "delete-usage",
       ]);
     });
+
+    it("propagates deletion failures when telemetry is disabled", async () => {
+      const ctx = {
+        runAction: mock(() => null),
+        runMutation: mock(() => {
+          throw new Error("begin lock failed");
+        }),
+        runQuery: mock(() => ({ cardIds: [], objectKeys: [] })),
+      } as any;
+
+      const handler = deleteAccountData.handler ?? deleteAccountData;
+      await expect(handler(ctx, { userId: "u1" })).rejects.toThrow(
+        "begin lock failed"
+      );
+    });
   });
 
   describe("createAuth", () => {
@@ -944,3 +959,4 @@ describe("auth", () => {
     });
   });
 });
+
