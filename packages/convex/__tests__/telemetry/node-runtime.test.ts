@@ -36,6 +36,38 @@ const listDeployableSourceFiles = (
       : [];
   });
 
+const IMPORT_FROM_RE =
+  /(?:import|export)\s[^"']*?\sfrom\s*["']([^"']+)["']|import\s*["']([^"']+)["']|import\(\s*["']([^"']+)["']\s*\)/g;
+
+const TYPE_ONLY_RE = /(?:import|export)\s+type\s[^;]*?(?:;|$)/gs;
+
+const SOURCE_EXTENSIONS = [".ts", ".tsx", ".js", ".jsx", ".mts", ".mjs"];
+
+const resolveRelativeImport = (
+  importer: string,
+  specifier: string
+): string[] => {
+  const directory = importer.includes("/")
+    ? importer.slice(0, importer.lastIndexOf("/"))
+    : "";
+  const parts = `${directory ? `${directory}/` : ""}${specifier}`
+    .split("/")
+    .filter((part) => part.length > 0);
+  const resolved: string[] = [];
+  for (const part of parts) {
+    if (part === "..") {
+      resolved.pop();
+    } else if (part !== ".") {
+      resolved.push(part);
+    }
+  }
+  const base = resolved.join("/");
+  return [
+    ...SOURCE_EXTENSIONS.map((ext) => `${base}${ext}`),
+    ...SOURCE_EXTENSIONS.map((ext) => `${base}/index${ext}`),
+  ];
+};
+
 describe("backend telemetry Node runtime", () => {
   test("marks every Node-only AI telemetry helper", () => {
     for (const relativePath of [
@@ -64,6 +96,37 @@ describe("backend telemetry Node runtime", () => {
     expect(invalidPaths).toEqual([]);
   });
 
+  test("isolate modules never import a \"use node\" module", () => {
+    const files = listDeployableSourceFiles(convexRoot);
+    const nodeModules = new Set(
+      files.filter((path) =>
+        readConvexSource(path).trimStart().startsWith('"use node";')
+      )
+    );
+
+    const offenders: string[] = [];
+    for (const path of files) {
+      if (nodeModules.has(path)) {
+        continue;
+      }
+      const source = readConvexSource(path).replace(TYPE_ONLY_RE, "");
+      for (const match of source.matchAll(IMPORT_FROM_RE)) {
+        const specifier = match[1] ?? match[2] ?? match[3];
+        if (!specifier?.startsWith(".")) {
+          continue;
+        }
+        const target = resolveRelativeImport(path, specifier).find(
+          (candidate) => nodeModules.has(candidate)
+        );
+        if (target) {
+          offenders.push(`${path} imports ${target}`);
+        }
+      }
+    }
+
+    expect(offenders).toEqual([]);
+  });
+
   test("typechecks regenerated declarations without a hoisted-typescript symlink", () => {
     const workflow = readFileSync(
       resolve(repositoryRoot, ".github/workflows/backend-deploy.yml"),
@@ -79,3 +142,4 @@ describe("backend telemetry Node runtime", () => {
     expect(workflow).not.toContain("--typecheck-components");
   });
 });
+
