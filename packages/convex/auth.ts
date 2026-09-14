@@ -30,7 +30,12 @@ import {
   getCardUsageSnapshot,
   removeCardUsage,
 } from "./card/cardUsage";
-import { getAppleCredentials, getGoogleCredentials, readSiteUrl } from "./env";
+import {
+  getAppleCredentials,
+  getGoogleCredentials,
+  readJwksDocument,
+  readSiteUrl,
+} from "./env";
 
 export { ensureCardCreationAllowed } from "./card/quota";
 
@@ -303,7 +308,7 @@ export const createAuth = (ctx: GenericCtx<DataModel>) => {
       convex({
         authConfig,
         jwksRotateOnTokenGenerationError: true,
-        jwks: env.JWKS,
+        jwks: readJwksDocument(),
       }),
       teakOAuthSecurity(),
       // OAuth 2.1 authorization server for browser-login clients (Raycast,

@@ -38,7 +38,7 @@ export const BACKEND_ENTRIES: EnvVarSpec[] = [
     validation: "string",
     providers: ["convex-dashboard"],
     required: false,
-    note: "Public JWKS for the Convex auth bridge.",
+    note: "Static JWKS for the Convex auth bridge. Fresh deployments use JSON null (setup default): verification uses the live endpoint. Pin production with an exported document.",
   }),
   spec("BETTER_AUTH_SECRET", {
     owners: ["@teak/convex"],

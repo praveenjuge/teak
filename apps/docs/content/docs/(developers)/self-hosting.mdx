@@ -26,7 +26,7 @@ public domain at it.
     bun run setup
     ```
 
-    Setup installs dependencies, provisions an isolated Convex development deployment, sets the local `SITE_URL`, pushes backend code, and derives `apps/web/.env.local` — no OAuth or billing credentials required. Verify with `bun run doctor`.
+    Setup installs dependencies, provisions an isolated Convex development deployment, sets the local `SITE_URL` and `JWKS` defaults, pushes backend code, and derives `apps/web/.env.local` — no OAuth or billing credentials required. Verify with `bun run doctor`.
   </Step>
   <Step title="Start a Convex dev deployment">
     ```bash
@@ -104,6 +104,7 @@ Add these to your env files before running locally or deploying.
 
 ```bash
 SITE_URL=http://localhost:3000
+JWKS=null                                    # Static keys, or null for the live endpoint
 PUBLIC_ORIGIN=https://yourdomain.com         # Optional: /api and /mcp derive from this origin
 BETTER_AUTH_SECRET=your-secret               # Better Auth security
 TEAK_ADMIN_EMAIL=you@example.com             # Explicit administrator account

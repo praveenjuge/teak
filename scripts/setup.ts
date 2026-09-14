@@ -6,7 +6,8 @@
  * 2. Run `bun ci` when node_modules is stale.
  * 3. Refuse an implicitly selected production Convex deployment.
  * 4. Preserve an existing isolated development deployment or provision one.
- * 5. Configure local SITE_URL (never overwrites a set value).
+ * 5. Configure local SITE_URL and JWKS defaults (never overwrites a set
+ *    value).
  * 6. Run `bunx convex dev --once` for push and code generation.
  * 7. Derive the ignored local web Convex configuration without overwriting
  *    custom values.
@@ -36,6 +37,13 @@ const WEB_ENV_PATH = join(ROOT, "apps/web/.env.local");
 export const LOCAL_SITE_URL = "http://localhost:3000";
 const LOCAL_CONVEX_URL = "http://127.0.0.1:3210";
 const LOCAL_CONVEX_SITE_URL = "http://127.0.0.1:3211";
+/**
+ * Sentinel meaning "no static keys". Convex requires every variable
+ * referenced by auth.config.ts to be set, so fresh deployments set JWKS to
+ * JSON null and token verification uses the live endpoint instead (see
+ * readJwksDocument in packages/convex/env.ts).
+ */
+const LOCAL_JWKS_ABSENT = "null";
 
 const runCommand = async (
   command: string[],
@@ -292,6 +300,19 @@ const convexEnvSet = async (
   };
 };
 
+export const summarizePushFailure = (stderr: string): string => {
+  const lines = stderr
+    .split("\n")
+    .map((line) => line.trim())
+    .filter(Boolean);
+  const signal = lines.find((line) =>
+    /error|required|not set|missing|cannot|failed/i.test(line)
+  );
+  const tail = lines.slice(-3);
+  const parts = signal && !tail.includes(signal) ? [signal, ...tail] : tail;
+  return parts.join(" ") || "unknown error";
+};
+
 const convexDevOnce = async (): Promise<{ ok: boolean; detail: string }> => {
   const result = await runCommand(["bunx", "convex", "dev", "--once"], {
     cwd: CONVEX_PATH,
@@ -299,12 +320,32 @@ const convexDevOnce = async (): Promise<{ ok: boolean; detail: string }> => {
   });
   return {
     detail:
-      result.exitCode === 0
-        ? "pushed"
-        : result.stderr.trim().split("\n").slice(-3).join(" ") ||
-          "unknown error",
+      result.exitCode === 0 ? "pushed" : summarizePushFailure(result.stderr),
     ok: result.exitCode === 0,
   };
+};
+
+const ensureDeploymentVar = async (
+  name: string,
+  localValue: string
+): Promise<void> => {
+  const current = await convexEnvGet(name);
+  if (current.status === "found") {
+    console.log(`${name}: already set on the selected deployment`);
+    return;
+  }
+  if (current.status === "missing") {
+    const set = await convexEnvSet(name, localValue);
+    if (!set.ok) {
+      throw new Error(`Could not set ${name}: ${set.detail}`);
+    }
+    console.log(`${name}: configured local default ${localValue}`);
+    return;
+  }
+  throw new Error(
+    `Could not read ${name} from the selected deployment: ${current.detail}. ` +
+      "Run `bunx convex login` (or export CONVEX_AGENT_MODE=anonymous for a local anonymous deployment) and re-run bun run setup."
+  );
 };
 
 const main = async (): Promise<void> => {
@@ -367,27 +408,14 @@ const main = async (): Promise<void> => {
 
   if (checkOnly) {
     console.log(
-      "SITE_URL: would verify with `convex env get SITE_URL` and set the local default when missing"
+      "Deployment vars: would verify SITE_URL and JWKS with `convex env get` and set local defaults when missing"
     );
     console.log(
       "Convex push: would run `bunx convex dev --once` in packages/convex"
     );
   } else {
-    const siteUrl = await convexEnvGet("SITE_URL");
-    if (siteUrl.status === "found") {
-      console.log("SITE_URL: already set on the selected deployment");
-    } else if (siteUrl.status === "missing") {
-      const set = await convexEnvSet("SITE_URL", LOCAL_SITE_URL);
-      if (!set.ok) {
-        throw new Error(`Could not set SITE_URL: ${set.detail}`);
-      }
-      console.log(`SITE_URL: configured local default ${LOCAL_SITE_URL}`);
-    } else {
-      throw new Error(
-        `Could not read SITE_URL from the selected deployment: ${siteUrl.detail}. ` +
-          "Run `bunx convex login` (or export CONVEX_AGENT_MODE=anonymous for a local anonymous deployment) and re-run bun run setup."
-      );
-    }
+    await ensureDeploymentVar("SITE_URL", LOCAL_SITE_URL);
+    await ensureDeploymentVar("JWKS", LOCAL_JWKS_ABSENT);
 
     const push = await convexDevOnce();
     if (!push.ok) {

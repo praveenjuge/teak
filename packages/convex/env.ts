@@ -27,6 +27,33 @@ export const readSiteUrl = (): string => {
   }
 };
 
+/**
+ * Static JWKS document for the Convex auth bridge. Returns undefined when
+ * unset or JSON-falsy; throws on invalid JSON.
+ *
+ * Convex requires every variable referenced by auth.config.ts to be set on
+ * the deployment, even when declared optional. Fresh deployments therefore
+ * set JWKS to JSON null (`bun run setup` default): token verification then
+ * uses the live /api/auth/convex/jwks endpoint served by the backend
+ * itself. Set an exported JWKS document to pin verification to those keys.
+ */
+export const readJwksDocument = (): string | undefined => {
+  const raw = env.JWKS?.trim();
+  if (!raw) {
+    return;
+  }
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(raw);
+  } catch {
+    throw new Error(
+      "JWKS environment variable is not valid JSON. Set JWKS to `null` " +
+        "to verify via the live endpoint, or set an exported JWKS document."
+    );
+  }
+  return parsed ? raw : undefined;
+};
+
 export interface GoogleCredentials {
   clientId: string;
   clientSecret: string;

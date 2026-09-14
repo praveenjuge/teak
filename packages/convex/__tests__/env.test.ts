@@ -2,6 +2,7 @@ import { afterEach, describe, expect, test } from "bun:test";
 
 const NAMES = [
   "SITE_URL",
+  "JWKS",
   "GOOGLE_CLIENT_ID",
   "GOOGLE_CLIENT_SECRET",
   "APPLE_CLIENT_ID",
@@ -85,5 +86,30 @@ describe("convex env capability groups", () => {
     expect(() => getAppleCredentials()).toThrow("APPLE_KEY_ID");
     expect(() => getAppleCredentials()).toThrow("APPLE_PRIVATE_KEY");
     expect(() => getAppleCredentials()).toThrow("APPLE_TEAM_ID");
+  });
+
+  test("jwks document vanishes when unset or JSON-falsy", async () => {
+    const { readJwksDocument } = await import("../env");
+    delete process.env.JWKS;
+    expect(readJwksDocument()).toBeUndefined();
+    process.env.JWKS = "";
+    expect(readJwksDocument()).toBeUndefined();
+    for (const sentinel of ["null", "false", "0", '""', "  null  "]) {
+      process.env.JWKS = sentinel;
+      expect(readJwksDocument()).toBeUndefined();
+    }
+  });
+
+  test("jwks document passes an exported document through verbatim", async () => {
+    const { readJwksDocument } = await import("../env");
+    const doc = '[{"id":"k1","publicKey":"{}","privateKey":"{}"}]';
+    process.env.JWKS = doc;
+    expect(readJwksDocument()).toBe(doc);
+  });
+
+  test("jwks document rejects invalid JSON", async () => {
+    const { readJwksDocument } = await import("../env");
+    process.env.JWKS = "not-json{";
+    expect(() => readJwksDocument()).toThrow("not valid JSON");
   });
 });

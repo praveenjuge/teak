@@ -19,6 +19,7 @@ import {
   readConvexDotenvUrls,
   readConvexSelection,
   requiredBunVersion,
+  summarizePushFailure,
   webEnvTemplate,
 } from "./setup.ts";
 
@@ -210,5 +211,29 @@ describe("isInstallStale", () => {
     );
     utimesSync(modules, now, now);
     expect(isInstallStale(root)).toBe(false);
+  });
+});
+
+describe("summarizePushFailure", () => {
+  test("keeps the signal line even when it precedes the tail", () => {
+    const stderr = [
+      "Environment variable JWKS is used in auth config file but its value was not set.",
+      "Go to:",
+      "",
+      "    https://dashboard.convex.dev/d/acme/settings/environment-variables?var=JWKS",
+      "",
+      "  to set it up.",
+    ].join("\n");
+    const summary = summarizePushFailure(stderr);
+    expect(summary).toContain("Environment variable JWKS");
+    expect(summary).toContain("to set it up.");
+  });
+
+  test("falls back to the tail when nothing matches", () => {
+    expect(summarizePushFailure("a\nb\nc\nd")).toBe("b c d");
+  });
+
+  test("reports unknown error for blank output", () => {
+    expect(summarizePushFailure("  \n ")).toBe("unknown error");
   });
 });
