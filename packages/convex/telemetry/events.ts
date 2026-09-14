@@ -2,9 +2,11 @@
 
 import { v } from "convex/values";
 import { internalAction } from "../_generated/server";
-import { TELEMETRY_METRICS } from "../shared/telemetry";
+import { TELEMETRY_METRICS, TELEMETRY_OPERATIONS } from "../shared/telemetry";
 import {
   BACKEND_CARD_METRICS,
+  flushBackendTelemetry,
+  recordBackendHandledFailure,
   recordBackendMetric,
   recordBackendOutcome,
   withBackendSpan,
@@ -132,6 +134,36 @@ export const emitAuthOutcome = internalAction({
         userId: args.userId,
       });
       return { sent };
+    } catch {
+      return { sent: false };
+    }
+  },
+});
+
+// Isolate actions (for example auth.ts account deletion) cannot import the
+// Node-backed Sentry helpers directly, so they report failures through this
+// emitter by function reference. It captures the exception with auth context
+// and flushes before the action exits so the event survives the invocation.
+export const emitAccountDeletionFailure = internalAction({
+  args: {
+    errorClass: v.optional(v.string()),
+    message: v.optional(v.string()),
+  },
+  returns: v.object({ sent: v.boolean() }),
+  handler: async (_ctx, args) => {
+    try {
+      recordBackendHandledFailure(
+        new Error(args.message ?? "Account data deletion failed"),
+        {
+          attributes: {
+            "auth.action": "deleteAccountData",
+            "error.class": args.errorClass,
+          },
+          operation: TELEMETRY_OPERATIONS.auth,
+        }
+      );
+      await flushBackendTelemetry();
+      return { sent: true };
     } catch {
       return { sent: false };
     }
@@ -269,3 +301,4 @@ export const emitUploadOutcome = internalAction({
     }
   },
 });
+
