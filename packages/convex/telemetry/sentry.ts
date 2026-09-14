@@ -17,6 +17,7 @@ import {
   type TelemetryAttributes,
   type TelemetryContextInput,
   type TelemetryEnvironment,
+  type TelemetryErrorClass,
   type TelemetryMetricName,
   type TelemetryOperation,
   type TelemetryOutcome,
@@ -476,6 +477,9 @@ export const recordBackendHandledFailure = (
   error: unknown,
   input: {
     attributes?: TelemetryAttributes;
+    // Preserves a classification computed from the original error when the
+    // recorded error is a cross-runtime reconstruction (see events.ts).
+    errorClass?: TelemetryErrorClass;
     operation: string;
     stage?: TelemetryStage;
   }
@@ -483,7 +487,7 @@ export const recordBackendHandledFailure = (
   if (!ensureBackendTelemetry()) {
     return;
   }
-  const errorClass = normalizeErrorClass(error);
+  const errorClass = input.errorClass ?? normalizeErrorClass(error);
   const attributes = {
     ...input.attributes,
     "error.class": errorClass,
@@ -678,3 +682,4 @@ export const withCronCheckIn = async <T>(
     }
   );
 };
+
