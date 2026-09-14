@@ -36,12 +36,50 @@ const listDeployableSourceFiles = (
       : [];
   });
 
+// Only value imports cross the runtime boundary at bundle time. Re-export
+// barrels (`export ... from`) are excluded: cards.ts re-exports the
+// "use node" card/uploadCardAction.ts and production deploys stay green,
+// while the value import of telemetry/sentry.ts in auth.ts broke the deploy.
 const IMPORT_FROM_RE =
-  /(?:import|export)\s[^"']*?\sfrom\s*["']([^"']+)["']|import\s*["']([^"']+)["']|import\(\s*["']([^"']+)["']\s*\)/g;
+  /import\s[^"']*?\sfrom\s*["']([^"']+)["']|import\s*["']([^"']+)["']|import\(\s*["']([^"']+)["']\s*\)/g;
 
 const TYPE_ONLY_RE = /(?:import|export)\s+type\s[^;]*?(?:;|$)/gs;
 
 const SOURCE_EXTENSIONS = [".ts", ".tsx", ".js", ".jsx", ".mts", ".mjs"];
+
+const USE_NODE_DIRECTIVE_RE = /^["']use node["'];?$/;
+
+// A "use node" directive is the first statement of a module, but license
+// headers and doc comments may precede it. Parse the prologue instead of
+// checking the start of the trimmed source.
+const hasUseNodeDirective = (source: string): boolean => {
+  let inBlockComment = false;
+  for (const rawLine of source.split("\n")) {
+    let line = rawLine.trim();
+    if (inBlockComment) {
+      const end = line.indexOf("*/");
+      if (end === -1) {
+        continue;
+      }
+      inBlockComment = false;
+      line = line.slice(end + 2).trim();
+    }
+    while (line.startsWith("/*")) {
+      const end = line.indexOf("*/", 2);
+      if (end === -1) {
+        inBlockComment = true;
+        line = "";
+        break;
+      }
+      line = line.slice(end + 2).trim();
+    }
+    if (line.length === 0 || line.startsWith("//")) {
+      continue;
+    }
+    return USE_NODE_DIRECTIVE_RE.test(line);
+  }
+  return false;
+};
 
 const resolveRelativeImport = (
   importer: string,
@@ -62,6 +100,9 @@ const resolveRelativeImport = (
     }
   }
   const base = resolved.join("/");
+  if (SOURCE_EXTENSIONS.some((extension) => base.endsWith(extension))) {
+    return [base];
+  }
   return [
     ...SOURCE_EXTENSIONS.map((ext) => `${base}${ext}`),
     ...SOURCE_EXTENSIONS.map((ext) => `${base}/index${ext}`),
@@ -75,9 +116,7 @@ describe("backend telemetry Node runtime", () => {
       "workflows/aiMetadata/generators.ts",
       "workflows/aiMetadata/transcript.ts",
     ]) {
-      expect(readConvexSource(relativePath).trimStart()).toStartWith(
-        '"use node";'
-      );
+      expect(hasUseNodeDirective(readConvexSource(relativePath))).toBe(true);
     }
   });
 
@@ -99,9 +138,7 @@ describe("backend telemetry Node runtime", () => {
   test("isolate modules never import a \"use node\" module", () => {
     const files = listDeployableSourceFiles(convexRoot);
     const nodeModules = new Set(
-      files.filter((path) =>
-        readConvexSource(path).trimStart().startsWith('"use node";')
-      )
+      files.filter((path) => hasUseNodeDirective(readConvexSource(path)))
     );
 
     const offenders: string[] = [];
@@ -142,4 +179,3 @@ describe("backend telemetry Node runtime", () => {
     expect(workflow).not.toContain("--typecheck-components");
   });
 });
-
