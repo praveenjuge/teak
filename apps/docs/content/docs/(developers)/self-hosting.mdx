@@ -105,7 +105,7 @@ Add these to your env files before running locally or deploying.
 ```bash
 SITE_URL=http://localhost:3000
 JWKS=null                                    # Static keys, or null for the live endpoint
-PUBLIC_ORIGIN=https://yourdomain.com         # Optional: /api and /mcp derive from this origin
+PUBLIC_ORIGIN=https://yourdomain.com         # Required to expose self-hosted /api and /mcp (else production URLs are advertised)
 BETTER_AUTH_SECRET=your-secret               # Better Auth security
 TEAK_ADMIN_EMAIL=you@example.com             # Explicit administrator account
 FILES_BASE=https://files.yourdomain.com      # Files Worker origin
@@ -182,18 +182,21 @@ VITE_WEB_URL=https://app.yourdomain.com   # Defaults to https://app.teakvault.co
 ### Public API and MCP
 
 ```bash
-PUBLIC_ORIGIN=https://yourdomain.com            # Optional: /api and /mcp derive from this origin
+PUBLIC_ORIGIN=https://yourdomain.com            # Required to expose self-hosted /api and /mcp (else production URLs are advertised)
 TEAK_DEV_API_URL=https://deployment.convex.site # Optional local override
 ```
 
 Convex serves the REST API at `/api/v1`, the MCP endpoint at `/mcp`, plus `/healthz`, `/openapi.json`, and OAuth protected-resource metadata. In production, Teak exposes these through apex path rewrites (e.g. `https://teakvault.com/api` and `https://teakvault.com/mcp`). For self-hosted setups, configure your reverse proxy or DNS to route `/api` and `/mcp` to the Convex deployment's `.convex.site` domain. `SITE_URL` is the Better Auth application origin and the OAuth issuer; there is no separate issuer override.
 
 :::warning[Breaking configuration change]
-`PUBLIC_API_URL`, `PUBLIC_MCP_URL`, and `AUTH_ISSUER_URL` were removed. If
-you set them, delete all three and set `PUBLIC_ORIGIN` to your public origin
-instead (for example, replace `PUBLIC_API_URL=https://yourdomain.com/api`
-with `PUBLIC_ORIGIN=https://yourdomain.com`). There is no compatibility
-period: the old names are ignored.
+`PUBLIC_API_URL` and `PUBLIC_MCP_URL` were replaced by `PUBLIC_ORIGIN`, and
+`AUTH_ISSUER_URL` was removed without a replacement (the issuer is always
+`SITE_URL`). If you set the API or MCP variables, delete them and set
+`PUBLIC_ORIGIN` to your public origin instead (for example, replace
+`PUBLIC_API_URL=https://yourdomain.com/api` with
+`PUBLIC_ORIGIN=https://yourdomain.com`). If you set `AUTH_ISSUER_URL`, delete
+it and make sure `SITE_URL` is correct. There is no compatibility period:
+the old names are ignored.
 :::
 
 ## Where to get the values

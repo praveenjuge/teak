@@ -28,6 +28,7 @@ import {
 } from "node:fs";
 import { dirname, join } from "node:path";
 import { parseConvexEnvOutput } from "./check-cloudflare.ts";
+import { runCommand } from "./proc.ts";
 
 const ROOT = join(import.meta.dir, "..");
 const CONVEX_PATH = join(ROOT, "packages/convex");
@@ -44,31 +45,6 @@ const LOCAL_CONVEX_SITE_URL = "http://127.0.0.1:3211";
  * readJwksDocument in packages/convex/env.ts).
  */
 const LOCAL_JWKS_ABSENT = "null";
-
-const runCommand = async (
-  command: string[],
-  opts?: { cwd?: string; timeoutMs?: number }
-): Promise<{ exitCode: number; stdout: string; stderr: string }> => {
-  const proc = Bun.spawn(command, {
-    cwd: opts?.cwd ?? ROOT,
-    stderr: "pipe",
-    stdin: "ignore",
-    stdout: "pipe",
-  });
-  const timeoutMs = opts?.timeoutMs ?? 180_000;
-  const timer = setTimeout(() => {
-    try {
-      proc.kill();
-    } catch {}
-  }, timeoutMs);
-  const [stdout, stderr, exitCode] = await Promise.all([
-    new Response(proc.stdout).text(),
-    new Response(proc.stderr).text(),
-    proc.exited,
-  ]);
-  clearTimeout(timer);
-  return { exitCode: exitCode ?? 1, stdout, stderr };
-};
 
 export const requiredBunVersion = (packageManager: string): string => {
   const match = /^bun@(\d+\.\d+\.\d+)$/.exec(packageManager.trim());
@@ -373,7 +349,10 @@ const main = async (): Promise<void> => {
       console.log("Dependencies: stale (would run bun ci)");
     } else {
       console.log("Dependencies: stale (running bun ci)");
-      const install = await runCommand(["bun", "ci"], { timeoutMs: 300_000 });
+      const install = await runCommand(["bun", "ci"], {
+        cwd: ROOT,
+        timeoutMs: 300_000,
+      });
       if (install.exitCode !== 0) {
         throw new Error(
           `bun ci failed: ${install.stderr.trim().split("\n").pop() || "unknown error"}`

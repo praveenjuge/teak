@@ -3,7 +3,13 @@
   "tags": ["app"],
   "tasks": {
     "build": {
-      "env": ["GITHUB_SHA", "SENTRY_RELEASE"],
+      "env": [
+        "GITHUB_SHA",
+        "SENTRY_RELEASE",
+        "VITE_PUBLIC_CONVEX_SITE_URL",
+        "VITE_PUBLIC_CONVEX_URL",
+        "VITE_PUBLIC_SENTRY_DESKTOP_DSN"
+      ],
       "inputs": ["$TURBO_DEFAULT$", ".env", ".env.local"],
       "passThroughEnv": ["SENTRY_AUTH_TOKEN"]
     }

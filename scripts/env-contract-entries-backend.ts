@@ -28,7 +28,7 @@ export const BACKEND_ENTRIES: EnvVarSpec[] = [
     validation: "origin",
     providers: ["convex-dashboard"],
     required: false,
-    note: "Optional public origin. /api and /mcp endpoints derive from it.",
+    note: "Public origin for self-hosted /api and /mcp. Optional locally; required when self-hosting public endpoints.",
   }),
   spec("JWKS", {
     owners: ["@teak/convex"],

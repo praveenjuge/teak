@@ -121,12 +121,13 @@ export const listScannedFiles = (root: string): string[] => {
 const PROCESS_ENV_RE =
   /process\.env(?:\.([A-Za-z_][A-Za-z0-9_]*)|\[['"]([A-Za-z_][A-Za-z0-9_]*)['"]\])/g;
 const IMPORT_META_ENV_RE = /import\.meta\.env(?:\.([A-Za-z_][A-Za-z0-9_]*))/g;
-const RUBY_ENV_RE = /ENV(?:\.fetch|\[)\(\s*["']([A-Za-z_][A-Za-z0-9_]*)["']/g;
+const RUBY_ENV_RE =
+  /ENV(?:\.fetch\(\s*|\[\s*)["']([A-Za-z_][A-Za-z0-9_]*)["']/g;
 const SHELL_VAR_RE =
   /\$\{([A-Za-z_][A-Za-z0-9_]*)[^}]*\}|\$([A-Za-z_][A-Za-z0-9_]*)/g;
 const SECRETS_REF_RE = /\$\{\{\s*secrets\.([A-Za-z_][A-Za-z0-9_]*)\s*\}\}/g;
 const VARS_REF_RE = /\$\{\{\s*vars\.([A-Za-z_][A-Za-z0-9_]*)\s*\}\}/g;
-const ENV_BLOCK_KEY_RE = /^\s{2,}env:\s*$/;
+const ENV_BLOCK_KEY_RE = /^\s*env:\s*(?:#.*)?$/;
 /** Convex typed env reads: env.NAME and env?.NAME. */
 const TYPED_ENV_RE = /(?:^|[^\w$.])env\??\.([A-Z][A-Za-z0-9_]*)/g;
 
@@ -243,6 +244,9 @@ export const extractWorkflowEnvKeys = (content: string): NameUse[] => {
     if (!inEnvBlock) {
       return;
     }
+    if (/^\s*(?:#.*)?$/.test(line)) {
+      return;
+    }
     const match = /^(\s*)([A-Za-z_][A-Za-z0-9_]*)\s*:/.exec(line);
     if (!(match && match[1].length > envIndent)) {
       inEnvBlock = false;
@@ -309,27 +313,65 @@ export const extractWranglerDecls = (content: string): string[] => {
 
 const DIAGNOSTIC_FILES = ["scripts/doctor.ts", "scripts/setup.ts"];
 
+/** Platform-provided credentials that must never appear in diagnostics. */
+const PLATFORM_DIAGNOSTIC_SECRETS = ["GH_TOKEN", "GITHUB_TOKEN"];
+
+const readsSecretValue = (fragment: string, name: string): boolean => {
+  if (
+    fragment.includes(`process.env.${name}`) ||
+    fragment.includes(`process.env["${name}"]`) ||
+    fragment.includes(`process.env['${name}']`)
+  ) {
+    return true;
+  }
+  return new RegExp(`(?:^|[^\\w$.])env\\??\\.${name}(?![\\w])`).test(fragment);
+};
+
 export const findSecretDiagnostics = (
   path: string,
   content: string
 ): AuditFinding[] => {
   const findings: AuditFinding[] = [];
-  content.split("\n").forEach((line, index) => {
+  const names = [...SECRET_VAR_NAMES, ...PLATFORM_DIAGNOSTIC_SECRETS];
+  const lines = content.split("\n");
+  const aliases = new Map<string, string>();
+  for (const line of lines) {
+    const assigned =
+      /^(?:.*?\b)?(?:const|let|var)\s+([A-Za-z_$][\w$]*)\s*=/.exec(line);
+    if (!assigned) {
+      continue;
+    }
+    const rhs = line.slice(line.indexOf("=", assigned.index) + 1);
+    for (const name of names) {
+      if (readsSecretValue(rhs, name)) {
+        aliases.set(assigned[1], name);
+        break;
+      }
+    }
+  }
+  lines.forEach((line, index) => {
     if (!(line.includes("console.") || line.includes("${"))) {
       return;
     }
-    for (const name of SECRET_VAR_NAMES) {
-      if (
-        line.includes(`process.env.${name}`) ||
-        line.includes(`process.env["${name}"]`) ||
-        line.includes(`process.env['${name}']`)
-      ) {
+    for (const name of names) {
+      if (readsSecretValue(line, name)) {
         findings.push({
+          detail: "secret value is reachable from diagnostic output",
           kind: "secret-in-diagnostics",
           name,
           path: `${path}:${index + 1}`,
-          detail: "secret value is reachable from diagnostic output",
         });
+      }
+    }
+    for (const [alias, name] of aliases) {
+      if (new RegExp(`(^|[^\\w$])${alias}([^\\w$]|$)`).test(line)) {
+        findings.push({
+          detail: `secret value is reachable from diagnostic output via ${alias}`,
+          kind: "secret-in-diagnostics",
+          name,
+          path: `${path}:${index + 1}`,
+        });
+        break;
       }
     }
   });

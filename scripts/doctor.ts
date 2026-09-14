@@ -19,6 +19,7 @@ import { createServer } from "node:net";
 import { join } from "node:path";
 import { parseConvexEnvOutput } from "./check-cloudflare.ts";
 import { auditFiles, listScannedFiles } from "./env-audit.ts";
+import { runCommand } from "./proc.ts";
 import { isInstallStale, readConvexSelection } from "./setup.ts";
 import { validateWebEnvContent } from "./validate-env.ts";
 
@@ -145,24 +146,10 @@ const convexCommand = async (
   timeoutMs = 25_000
 ): Promise<{ exitCode: number; stdout: string; stderr: string } | null> => {
   try {
-    const proc = Bun.spawn(["bunx", "convex", ...args], {
+    return await runCommand(["bunx", "convex", ...args], {
       cwd: CONVEX_PATH,
-      stderr: "pipe",
-      stdin: "ignore",
-      stdout: "pipe",
+      timeoutMs,
     });
-    const timer = setTimeout(() => {
-      try {
-        proc.kill(9);
-      } catch {}
-    }, timeoutMs);
-    const [stdout, stderr, exitCode] = await Promise.all([
-      new Response(proc.stdout).text(),
-      new Response(proc.stderr).text(),
-      proc.exited,
-    ]);
-    clearTimeout(timer);
-    return { exitCode: exitCode ?? 1, stdout, stderr };
   } catch {
     return null;
   }
@@ -596,20 +583,33 @@ export const checkTargetReadiness = (target: DoctorTarget): DoctorCheck => {
   };
 };
 
+/** Targets that never consume a Convex deployment; backend checks are skipped for them. */
+const NON_CONVEX_TARGETS: ReadonlySet<DoctorTarget> = new Set([
+  "cli",
+  "docs",
+  "files",
+]);
+
+export const needsConvexChecks = (target: DoctorTarget): boolean =>
+  !NON_CONVEX_TARGETS.has(target);
+
 export const runDoctor = async (
   target: DoctorTarget,
   profile: DoctorProfile
 ): Promise<DoctorReport> => {
+  const needsConvex = needsConvexChecks(target);
+  const [siteUrlCheck, capabilityCheck] = needsConvex
+    ? await Promise.all([checkConvexSiteUrl(), checkCapabilityGroups()])
+    : [null, null];
   const checks: DoctorCheck[] = [
     checkBunVersion(),
     checkDependencyLock(),
-    checkConvexIsolation(),
-    checkConvexGenerated(),
+    ...(needsConvex ? [checkConvexIsolation(), checkConvexGenerated()] : []),
     checkEnvAudit(),
     checkTargetReadiness(target),
     ...(profile === "e2e" ? [checkE2EVars()] : []),
-    await checkConvexSiteUrl(),
-    await checkCapabilityGroups(),
+    ...(siteUrlCheck ? [siteUrlCheck] : []),
+    ...(capabilityCheck ? [capabilityCheck] : []),
     await checkPorts(),
   ];
   return {

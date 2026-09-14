@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, test } from "bun:test";
 
-const E2E_NAMES = [
+const MANAGED_NAMES = [
   "E2E_PUBLIC_ORIGIN",
   "E2E_APP_ORIGIN",
   "E2E_CONVEX_URL",
@@ -9,12 +9,13 @@ const E2E_NAMES = [
   "E2E_EMAIL_DOMAIN",
   "PROD_E2E_PASSWORD",
   "MAILPIT_URL",
+  "NEXT_PUBLIC_CONVEX_SITE_URL",
 ];
 
-const saved = new Map(E2E_NAMES.map((name) => [name, process.env[name]]));
+const saved = new Map(MANAGED_NAMES.map((name) => [name, process.env[name]]));
 
 afterEach(() => {
-  for (const name of E2E_NAMES) {
+  for (const name of MANAGED_NAMES) {
     const value = saved.get(name);
     if (value === undefined) {
       delete process.env[name];
@@ -29,7 +30,7 @@ const loadEnv = async (tag: string) =>
 
 describe("e2e env origins", () => {
   test("derives api and mcp paths from the default public origin", async () => {
-    for (const name of E2E_NAMES) {
+    for (const name of MANAGED_NAMES) {
       delete process.env[name];
     }
     const env = await loadEnv("defaults");
@@ -56,7 +57,6 @@ describe("e2e env origins", () => {
     const env = await loadEnv("convex");
     expect(env.convexUrl).toBe("https://convex.example.com");
     expect(env.convexSiteUrl).toBe("https://site.example.com");
-    delete process.env.NEXT_PUBLIC_CONVEX_SITE_URL;
   });
 
   test("cleanup guard names the canonical convex origin", async () => {

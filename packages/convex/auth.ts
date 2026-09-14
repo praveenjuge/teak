@@ -254,9 +254,13 @@ export const createAuth = (ctx: GenericCtx<DataModel>) => {
         });
       },
     },
+    // Better Auth evaluates every function-valued social provider eagerly
+    // when a request context is created, so only configured providers are
+    // registered. Anything else would abort unrelated email and session
+    // requests on deployments without social credentials.
     socialProviders: {
-      google: createGoogleProvider,
-      apple: createAppleProvider,
+      ...(getGoogleCredentials() ? { google: createGoogleProvider } : {}),
+      ...(getAppleCredentials() ? { apple: createAppleProvider } : {}),
     },
     emailAndPassword: {
       enabled: true,

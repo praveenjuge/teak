@@ -6,7 +6,9 @@ import {
   evaluateCapabilityGroups,
   findMissingKeys,
   isPortOccupied,
+  needsConvexChecks,
   parseDoctorArgs,
+  runDoctor,
 } from "./doctor.ts";
 
 describe("findMissingKeys", () => {
@@ -185,5 +187,42 @@ describe("isPortOccupied", () => {
       });
     });
     expect(await isPortOccupied(port)).toBe(false);
+  });
+});
+
+describe("needsConvexChecks", () => {
+  test("is false only for targets that never consume convex", () => {
+    expect(needsConvexChecks("docs")).toBe(false);
+    expect(needsConvexChecks("cli")).toBe(false);
+    expect(needsConvexChecks("files")).toBe(false);
+    for (const target of [
+      "web",
+      "convex",
+      "extension",
+      "desktop",
+      "mobile",
+    ] as const) {
+      expect(needsConvexChecks(target)).toBe(true);
+    }
+  });
+});
+
+describe("runDoctor", () => {
+  test("docs report omits convex checks but keeps shared ones", async () => {
+    const report = await runDoctor("docs", "local");
+    const ids = report.checks.map((check) => check.id);
+    for (const id of [
+      "convex-isolation",
+      "convex-generated",
+      "convex-site-url",
+      "capability-groups",
+    ]) {
+      expect(ids).not.toContain(id);
+    }
+    expect(ids).toContain("target-readiness");
+    expect(ids).toContain("env-audit");
+    expect(report.target).toBe("docs");
+    expect(report.profile).toBe("local");
+    expect(report.version).toBe(1);
   });
 });

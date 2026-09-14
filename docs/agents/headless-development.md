@@ -18,7 +18,7 @@ bun run setup
 bun run doctor --json --target web --profile local
 ```
 
-Setup installs dependencies with `bun ci`, preserves or provisions an isolated Convex development deployment (anonymous deployments run locally), configures the local `SITE_URL`, pushes backend code with `convex dev --once`, and derives `apps/web/.env.local` without overwriting custom values. Re-running setup changes nothing. Doctor reports `ok: true` when the tree is ready; it prints variable names and remediation only, never values.
+Setup installs dependencies with `bun ci`, preserves or provisions an isolated Convex development deployment (anonymous deployments run locally), configures the local `SITE_URL` and `JWKS` defaults, pushes backend code with `convex dev --once`, and derives `apps/web/.env.local` without overwriting custom values. Re-running setup changes nothing. Doctor reports `ok: true` when the tree is ready; it prints variable names and remediation only, never values.
 
 Discover services with `bun run dev --help`, then start the web stack from the repository root:
 
@@ -30,7 +30,7 @@ The web app serves at the fixed URL `http://localhost:3000`. The port is pinned,
 
 ## First-run authentication
 
-Email sign-in works without external OAuth credentials. Google and Apple sign-in stay visible but report a clear unavailable message until their credentials are configured; test values are acceptable for OAuth credentials in local development. `JWKS` is generated as the array expected by the installed `@convex-dev/better-auth` version; consult its current documentation instead of copying a stale shape.
+Email sign-in works without external OAuth credentials. Google and Apple sign-in stay visible but report a clear unavailable message until their credentials are configured; test values are acceptable for OAuth credentials in local development. `JWKS` defaults to JSON `null` on fresh deployments, so verification uses the live endpoint; consult the installed `@convex-dev/better-auth` documentation for the pinned-keys shape before overriding it.
 
 Better Auth validates the browser origin. If authentication reports `Invalid origin`, set `SITE_URL` to the exact browser origin, wait for Convex to redeploy, and retry.
 

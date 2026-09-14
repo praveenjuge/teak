@@ -3,6 +3,7 @@ import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import {
   auditFiles,
+  extractCodeUses,
   extractShellUses,
   extractTurboDecls,
   extractWorkflowEnvKeys,
@@ -24,6 +25,41 @@ describe("env-audit extractors", () => {
       "  env:\n    FOO: bar\n    BAZ_QUX: 1\n  run: echo"
     );
     expect(keys.map((key) => key.name)).toEqual(["FOO", "BAZ_QUX"]);
+  });
+
+  test("top-level workflow env blocks survive blanks and comments", () => {
+    const keys = extractWorkflowEnvKeys(
+      [
+        "env:",
+        "  FOO: bar",
+        "",
+        "  # comment",
+        "  BAZ_QUX: 1",
+        "jobs:",
+        "  build:",
+        "    env: # trailing comment",
+        "      NESTED_ONE: x",
+        "",
+        "      NESTED_TWO: y",
+        "    runs-on: ubuntu-latest",
+      ].join("\n")
+    );
+    expect(keys.map((key) => key.name)).toEqual([
+      "FOO",
+      "BAZ_QUX",
+      "NESTED_ONE",
+      "NESTED_TWO",
+    ]);
+  });
+
+  test("ruby bracket and fetch reads resolve with lines", () => {
+    const uses = extractCodeUses(
+      "token = ENV[\"API_KEY\"]\nsecret = ENV.fetch('OTHER_SECRET')"
+    );
+    expect(uses).toEqual([
+      { name: "API_KEY", line: 1 },
+      { name: "OTHER_SECRET", line: 2 },
+    ]);
   });
 
   test("turbo declarations include env and passThroughEnv", () => {
@@ -65,6 +101,38 @@ describe("env-audit extractors", () => {
       "const present = Boolean(process.env.E2E_CLEANUP_TOKEN);\nconsole.log('checked');"
     );
     expect(clean).toHaveLength(0);
+  });
+
+  test("secret diagnostics flag aliased secrets", () => {
+    const flagged = findSecretDiagnostics(
+      "scripts/doctor.ts",
+      "const token = process.env.E2E_CLEANUP_TOKEN;\nconsole.log(token);"
+    );
+    expect(flagged).toHaveLength(1);
+    expect(flagged[0]).toMatchObject({
+      kind: "secret-in-diagnostics",
+      name: "E2E_CLEANUP_TOKEN",
+    });
+    const unlogged = findSecretDiagnostics(
+      "scripts/doctor.ts",
+      "const token = process.env.E2E_CLEANUP_TOKEN;\nconsole.log('checked');"
+    );
+    expect(unlogged).toHaveLength(0);
+  });
+
+  test("secret diagnostics flag platform credentials and typed reads", () => {
+    const platform = findSecretDiagnostics(
+      "scripts/doctor.ts",
+      "console.log(process.env.GITHUB_TOKEN);"
+    );
+    expect(platform).toHaveLength(1);
+    expect(platform[0].name).toBe("GITHUB_TOKEN");
+    const typed = findSecretDiagnostics(
+      "scripts/doctor.ts",
+      "console.log(env.R2_SECRET_ACCESS_KEY);"
+    );
+    expect(typed).toHaveLength(1);
+    expect(typed[0].name).toBe("R2_SECRET_ACCESS_KEY");
   });
 });
 
