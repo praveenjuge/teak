@@ -69,6 +69,11 @@ mock.module("convex/react", () => ({
 }));
 
 mock.module("../../../convexQueryHooks", () => ({
+  usePaginatedQuery: () => ({
+    loadMore: mock(),
+    results: [],
+    status: "Exhausted",
+  }),
   useQuery: () => cardCreationStatusResult,
 }));
 
