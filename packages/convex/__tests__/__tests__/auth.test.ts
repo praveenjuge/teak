@@ -859,6 +859,47 @@ describe("auth", () => {
         "begin lock failed"
       );
     });
+
+    it("reports deletion failures to the telemetry emitter before rethrowing", async () => {
+      const runActionCalls: any[][] = [];
+      const ctx = {
+        runAction: mock((...args: any[]) => {
+          runActionCalls.push(args);
+          return null;
+        }),
+        runMutation: mock(() => {
+          throw new Error("begin lock failed");
+        }),
+        runQuery: mock(() => ({ cardIds: [], objectKeys: [] })),
+      } as any;
+
+      const handler = deleteAccountData.handler ?? deleteAccountData;
+      await expect(handler(ctx, { userId: "u1" })).rejects.toThrow(
+        "begin lock failed"
+      );
+      expect(runActionCalls).toHaveLength(1);
+      expect(runActionCalls[0]?.[1]).toMatchObject({
+        errorClass: "UnknownError",
+        message: "begin lock failed",
+      });
+    });
+
+    it("still rethrows when failure reporting itself fails", async () => {
+      const ctx = {
+        runAction: mock(() => {
+          throw new Error("telemetry unavailable");
+        }),
+        runMutation: mock(() => {
+          throw new Error("begin lock failed");
+        }),
+        runQuery: mock(() => ({ cardIds: [], objectKeys: [] })),
+      } as any;
+
+      const handler = deleteAccountData.handler ?? deleteAccountData;
+      await expect(handler(ctx, { userId: "u1" })).rejects.toThrow(
+        "begin lock failed"
+      );
+    });
   });
 
   describe("createAuth", () => {
