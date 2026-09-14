@@ -2,7 +2,11 @@
 
 import { v } from "convex/values";
 import { internalAction } from "../_generated/server";
-import { TELEMETRY_METRICS, TELEMETRY_OPERATIONS } from "../shared/telemetry";
+import {
+  TELEMETRY_METRICS,
+  TELEMETRY_OPERATIONS,
+  type TelemetryErrorClass,
+} from "../shared/telemetry";
 import {
   BACKEND_CARD_METRICS,
   flushBackendTelemetry,
@@ -157,13 +161,15 @@ export const emitAccountDeletionFailure = internalAction({
         {
           attributes: {
             "auth.action": "deleteAccountData",
-            "error.class": args.errorClass,
           },
+          // The isolate caller already classified the original error; a
+          // reconstructed Error would normalize to UnknownError.
+          errorClass: args.errorClass as TelemetryErrorClass | undefined,
           operation: TELEMETRY_OPERATIONS.auth,
         }
       );
-      await flushBackendTelemetry();
-      return { sent: true };
+      const sent = await flushBackendTelemetry();
+      return { sent };
     } catch {
       return { sent: false };
     }
@@ -301,4 +307,5 @@ export const emitUploadOutcome = internalAction({
     }
   },
 });
+
 
