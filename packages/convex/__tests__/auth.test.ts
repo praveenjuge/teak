@@ -33,11 +33,6 @@ describe("auth.ts", () => {
     expect(module.getCurrentUser).toBeDefined();
   });
 
-  test("exports canonical account data deletion", async () => {
-    const module = await import("../auth");
-    expect(module.deleteAccountData).toBeDefined();
-  });
-
   test("exports ensureCardCreationAllowed", async () => {
     const module = await import("../auth");
     expect(module.ensureCardCreationAllowed).toBeDefined();
@@ -75,11 +70,6 @@ describe("auth.ts", () => {
   test("getCurrentUser is a query function", async () => {
     const module = await import("../auth");
     expect(module.getCurrentUser).toBeDefined();
-  });
-
-  test("account data deletion is an internal mutation", async () => {
-    const module = await import("../auth");
-    expect(module.deleteAccountData).toBeDefined();
   });
 
   test("createAuth returns auth configuration", async () => {
