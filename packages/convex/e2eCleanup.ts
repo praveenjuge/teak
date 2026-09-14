@@ -6,7 +6,7 @@ import { APIError, createAuthEndpoint } from "better-auth/api";
 import { z } from "zod";
 import { internal } from "./_generated/api";
 import type { DataModel } from "./_generated/dataModel";
-import type { ActionCtx } from "./_generated/server";
+import { type ActionCtx, env } from "./_generated/server";
 import { isE2EEmail, normalizeE2EEmailDomain } from "./e2eAccounts";
 
 export { isE2EEmail, normalizeE2EEmailDomain } from "./e2eAccounts";
@@ -271,8 +271,8 @@ export const e2eCleanupPlugin = (
       "/internal/e2e/provision",
       { method: "POST", body: provisionRequestSchema },
       async (ctx) => {
-        const expectedToken = process.env.E2E_CLEANUP_TOKEN;
-        const emailDomain = process.env.E2E_EMAIL_DOMAIN;
+        const expectedToken = env.E2E_CLEANUP_TOKEN;
+        const emailDomain = env.E2E_EMAIL_DOMAIN;
         if (!(expectedToken && emailDomain)) {
           throw new APIError("SERVICE_UNAVAILABLE", {
             message: "E2E provisioning is not configured",
@@ -295,8 +295,8 @@ export const e2eCleanupPlugin = (
       "/internal/e2e/cleanup",
       { method: "POST", body: requestSchema },
       async (ctx) => {
-        const expectedToken = process.env.E2E_CLEANUP_TOKEN;
-        const emailDomain = process.env.E2E_EMAIL_DOMAIN;
+        const expectedToken = env.E2E_CLEANUP_TOKEN;
+        const emailDomain = env.E2E_EMAIL_DOMAIN;
         if (!(expectedToken && emailDomain)) {
           throw new APIError("SERVICE_UNAVAILABLE", {
             message: "E2E cleanup is not configured",

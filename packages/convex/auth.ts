@@ -14,6 +14,7 @@ import { importPKCS8, SignJWT } from "jose";
 import { components, internal } from "./_generated/api";
 import type { DataModel, Id } from "./_generated/dataModel";
 import {
+  env,
   type ActionCtx,
   internalAction,
   internalMutation,
@@ -34,6 +35,12 @@ import {
   getCardUsageSnapshot,
   removeCardUsage,
 } from "./card/cardUsage";
+import {
+  getAppleCredentials,
+  getGoogleCredentials,
+  readJwksDocument,
+  readSiteUrl,
+} from "./env";
 
 export { ensureCardCreationAllowed } from "./card/quota";
 
@@ -50,36 +57,8 @@ import { cardStorageObjectKeys } from "./storage/r2";
 import { scheduleAuthOutcome, scheduleUserCreated } from "./telemetry/schedule";
 import { buildTrustedOrigins } from "./trustedOrigins";
 
-const googleClientId = process.env.GOOGLE_CLIENT_ID;
-if (!googleClientId) {
-  throw new Error(
-    "GOOGLE_CLIENT_ID environment variable is required. " +
-      "Run: bunx convex env set GOOGLE_CLIENT_ID <client-id>"
-  );
-}
-const googleClientSecret = process.env.GOOGLE_CLIENT_SECRET;
-if (!googleClientSecret) {
-  throw new Error(
-    "GOOGLE_CLIENT_SECRET environment variable is required. " +
-      "Run: bunx convex env set GOOGLE_CLIENT_SECRET <client-secret>"
-  );
-}
-const siteUrl = process.env.SITE_URL;
-if (!siteUrl) {
-  throw new Error(
-    "SITE_URL environment variable is required. " +
-      "Run: bunx convex env set SITE_URL http://localhost:3000"
-  );
-}
-let usesSecureCookies: boolean;
-try {
-  usesSecureCookies = new URL(siteUrl).protocol === "https:";
-} catch {
-  throw new Error(
-    `SITE_URL environment variable is not a valid URL (received: "${siteUrl}"). ` +
-      "Example: http://localhost:3000"
-  );
-}
+const siteUrl = readSiteUrl();
+const usesSecureCookies = new URL(siteUrl).protocol === "https:";
 const APPLE_CLIENT_SECRET_TTL_SECONDS = 180 * 24 * 60 * 60;
 const ACCOUNT_CARD_TAG_DELETE_BATCH_SIZE = 20;
 
@@ -90,14 +69,16 @@ interface AppleClientSecretConfig {
   teamId: string;
 }
 
-const requireAppleEnvironmentValue = (name: string): string => {
-  const value = process.env[name]?.trim();
-  if (!value) {
-    throw new Error(
-      `${name} environment variable is required for Apple sign-in`
-    );
+const createGoogleProvider = () => {
+  const credentials = getGoogleCredentials();
+  if (!credentials) {
+    throw new Error("Google sign-in is not configured on this deployment.");
   }
-  return value;
+  return {
+    clientId: credentials.clientId,
+    clientSecret: credentials.clientSecret,
+    prompt: "select_account" as const,
+  };
 };
 
 export const generateAppleClientSecret = async (
@@ -119,18 +100,21 @@ export const generateAppleClientSecret = async (
 };
 
 const createAppleProvider = async () => {
-  const clientId = requireAppleEnvironmentValue("APPLE_CLIENT_ID");
-  const appBundleIdentifier = process.env.APPLE_APP_BUNDLE_IDENTIFIER?.trim();
-
+  const credentials = getAppleCredentials();
+  if (!credentials) {
+    throw new Error("Apple sign-in is not configured on this deployment.");
+  }
   return {
-    clientId,
+    clientId: credentials.clientId,
     clientSecret: await generateAppleClientSecret({
-      clientId,
-      keyId: requireAppleEnvironmentValue("APPLE_KEY_ID"),
-      privateKey: requireAppleEnvironmentValue("APPLE_PRIVATE_KEY"),
-      teamId: requireAppleEnvironmentValue("APPLE_TEAM_ID"),
+      clientId: credentials.clientId,
+      keyId: credentials.keyId,
+      privateKey: credentials.privateKey,
+      teamId: credentials.teamId,
     }),
-    ...(appBundleIdentifier ? { appBundleIdentifier } : {}),
+    ...(credentials.appBundleIdentifier
+      ? { appBundleIdentifier: credentials.appBundleIdentifier }
+      : {}),
   };
 };
 
@@ -256,9 +240,7 @@ export const createAuth = (ctx: GenericCtx<DataModel>) => {
         const logFallback = () => {
           console.error("[auth] Request failed", { errorClass });
         };
-        const hasTelemetryDsn = Boolean(
-          resolveBackendTelemetryDsn(process.env)
-        );
+        const hasTelemetryDsn = Boolean(resolveBackendTelemetryDsn(env));
         if (!hasScheduler(ctx)) {
           logFallback();
           return;
@@ -277,13 +259,13 @@ export const createAuth = (ctx: GenericCtx<DataModel>) => {
         });
       },
     },
+    // Better Auth evaluates every function-valued social provider eagerly
+    // when a request context is created, so only configured providers are
+    // registered. Anything else would abort unrelated email and session
+    // requests on deployments without social credentials.
     socialProviders: {
-      google: {
-        clientId: googleClientId,
-        clientSecret: googleClientSecret,
-        prompt: "select_account",
-      },
-      apple: createAppleProvider,
+      ...(getGoogleCredentials() ? { google: createGoogleProvider } : {}),
+      ...(getAppleCredentials() ? { apple: createAppleProvider } : {}),
     },
     emailAndPassword: {
       enabled: true,
@@ -335,7 +317,7 @@ export const createAuth = (ctx: GenericCtx<DataModel>) => {
       convex({
         authConfig,
         jwksRotateOnTokenGenerationError: true,
-        jwks: process.env.JWKS,
+        jwks: readJwksDocument(),
       }),
       teakOAuthSecurity(),
       // OAuth 2.1 authorization server for browser-login clients (Raycast,
@@ -706,32 +688,6 @@ export const deleteAccountImportRows = internalMutation({
     return null;
   },
 });
-
-const ACCOUNT_DELETION_ERROR_MESSAGE_LIMIT = 200;
-
-// Account deletion runs in the default Convex runtime, which cannot import the
-// Node-backed telemetry helpers (importing a "use node" module here breaks the
-// convex deploy bundle). Report failures through the Node emitter action by
-// function reference instead; reporting must never alter deletion behavior.
-const reportAccountDeletionFailure = async (
-  ctx: Pick<ActionCtx, "runAction">,
-  error: unknown
-): Promise<void> => {
-  try {
-    // String(error) can throw for a custom toString; keep every conversion
-    // inside the best-effort boundary so the original error always wins.
-    const message = error instanceof Error ? error.message : String(error);
-    await ctx.runAction(
-      (internal as any)["telemetry/events"].emitAccountDeletionFailure,
-      {
-        errorClass: normalizeErrorClass(error),
-        message: message.slice(0, ACCOUNT_DELETION_ERROR_MESSAGE_LIMIT),
-      }
-    );
-  } catch {
-    // Reporting is best-effort: the original deletion error takes precedence.
-  }
-};
 
 export const deleteAccountData = internalAction({
   args: { userId: v.string() },

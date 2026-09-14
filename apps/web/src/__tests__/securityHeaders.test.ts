@@ -78,10 +78,51 @@ describe("web security headers", () => {
     );
   });
 
-  test("allows configured custom R2 origins only for document frames", () => {
-    const previous = process.env.NEXT_PUBLIC_R2_PUBLIC_ORIGIN;
-    process.env.NEXT_PUBLIC_R2_PUBLIC_ORIGIN =
-      "https://cdn.example.com/path, http://unsafe.example, not-a-url";
+  test("ignores removed R2 origin aliases and keeps canonical file origins", () => {
+    const aliases = [
+      "NEXT_PUBLIC_R2_STORAGE_ORIGIN",
+      "NEXT_PUBLIC_R2_STORAGE_URL",
+      "R2_STORAGE_ORIGIN",
+      "R2_STORAGE_URL",
+      "NEXT_PUBLIC_R2_PUBLIC_ORIGIN",
+      "NEXT_PUBLIC_R2_PUBLIC_URL",
+      "R2_PUBLIC_ORIGIN",
+      "R2_PUBLIC_URL",
+      "NEXT_PUBLIC_R2_UPLOAD_ORIGIN",
+      "NEXT_PUBLIC_R2_UPLOAD_URL",
+      "R2_UPLOAD_ORIGIN",
+      "R2_UPLOAD_URL",
+    ];
+    const previous = new Map(
+      aliases.map((name) => [name, process.env[name]] as const)
+    );
+    for (const name of aliases) {
+      process.env[name] = "https://cdn.example.com";
+    }
+    try {
+      const policy = buildContentSecurityPolicy("production");
+      expect(policy).not.toContain("https://cdn.example.com");
+      expect(policy).toContain("https://files.teakvault.com");
+      expect(policy).toContain(teakR2StorageOrigin);
+    } finally {
+      for (const name of aliases) {
+        const value = previous.get(name);
+        if (value === undefined) {
+          delete process.env[name];
+        } else {
+          process.env[name] = value;
+        }
+      }
+    }
+  });
+
+  test("allows self-hosted file origins from build-time configuration", () => {
+    const names = ["NEXT_PUBLIC_FILES_BASE", "NEXT_PUBLIC_FILES_LEGACY_BASE"];
+    const previous = new Map(
+      names.map((name) => [name, process.env[name]] as const)
+    );
+    process.env.NEXT_PUBLIC_FILES_BASE = "https://files.example.com/worker";
+    process.env.NEXT_PUBLIC_FILES_LEGACY_BASE = "https://legacy.example.com";
     try {
       const policy = buildContentSecurityPolicy("production");
       const tokens = (name: string) =>
@@ -90,17 +131,34 @@ describe("web security headers", () => {
           .find((directive) => directive.startsWith(`${name} `))
           ?.split(" ")
           .slice(1) ?? [];
+      for (const name of ["img-src", "connect-src", "media-src", "frame-src"]) {
+        expect(tokens(name)).toContain("https://files.example.com");
+        expect(tokens(name)).toContain("https://legacy.example.com");
+      }
+      expect(policy).toContain("https://files.teakvault.com");
+    } finally {
+      for (const name of names) {
+        const value = previous.get(name);
+        if (value === undefined) {
+          delete process.env[name];
+        } else {
+          process.env[name] = value;
+        }
+      }
+    }
+  });
 
-      expect(tokens("frame-src")).toContain("https://cdn.example.com");
-      expect(tokens("frame-src")).not.toContain("http://unsafe.example");
-      expect(tokens("img-src")).not.toContain("https://cdn.example.com");
-      expect(tokens("connect-src")).not.toContain("https://cdn.example.com");
-      expect(tokens("media-src")).not.toContain("https://cdn.example.com");
+  test("ignores non-https file origins", () => {
+    const previous = process.env.NEXT_PUBLIC_FILES_BASE;
+    process.env.NEXT_PUBLIC_FILES_BASE = "http://files.example.com";
+    try {
+      const policy = buildContentSecurityPolicy("production");
+      expect(policy).not.toContain("files.example.com");
     } finally {
       if (previous === undefined) {
-        delete process.env.NEXT_PUBLIC_R2_PUBLIC_ORIGIN;
+        delete process.env.NEXT_PUBLIC_FILES_BASE;
       } else {
-        process.env.NEXT_PUBLIC_R2_PUBLIC_ORIGIN = previous;
+        process.env.NEXT_PUBLIC_FILES_BASE = previous;
       }
     }
   });
@@ -117,72 +175,6 @@ describe("web security headers", () => {
     expect(scriptTokens("development")).toContain("'unsafe-inline'");
     expect(scriptTokens("production")).not.toContain("'unsafe-eval'");
     expect(scriptTokens("production")).toContain("'unsafe-inline'");
-  });
-
-  test("allows configured R2 storage origins for images, media, uploads and frames", () => {
-    const previous = process.env.NEXT_PUBLIC_R2_STORAGE_ORIGIN;
-    process.env.NEXT_PUBLIC_R2_STORAGE_ORIGIN =
-      "https://teak-files-dev.example.r2.cloudflarestorage.com/path, http://unsafe.example, not-a-url";
-    try {
-      const policy = buildContentSecurityPolicy("production");
-      const tokens = (name: string) =>
-        policy
-          .split("; ")
-          .find((directive) => directive.startsWith(`${name} `))
-          ?.split(" ")
-          .slice(1) ?? [];
-
-      const devStorageOrigin =
-        "https://teak-files-dev.example.r2.cloudflarestorage.com";
-      expect(tokens("img-src")).toContain(devStorageOrigin);
-      expect(tokens("media-src")).toContain(devStorageOrigin);
-      expect(tokens("connect-src")).toContain(devStorageOrigin);
-      expect(tokens("frame-src")).toContain(devStorageOrigin);
-      expect(tokens("img-src")).not.toContain("http://unsafe.example");
-      // Exact origins only - never widened to a bare scheme or wildcard host.
-      expect(tokens("img-src")).not.toContain("https:");
-      expect(tokens("img-src")).not.toContain(
-        "https://*.r2.cloudflarestorage.com"
-      );
-    } finally {
-      if (previous === undefined) {
-        delete process.env.NEXT_PUBLIC_R2_STORAGE_ORIGIN;
-      } else {
-        process.env.NEXT_PUBLIC_R2_STORAGE_ORIGIN = previous;
-      }
-    }
-  });
-
-  test("allows configured R2 upload origins only for browser uploads", () => {
-    const previous = process.env.R2_ENDPOINT;
-    process.env.R2_ENDPOINT =
-      "https://uploads.teakvault.example/path, http://unsafe.example, not-a-url";
-    try {
-      const policy = buildContentSecurityPolicy("production");
-      const tokens = (name: string) =>
-        policy
-          .split("; ")
-          .find((directive) => directive.startsWith(`${name} `))
-          ?.split(" ")
-          .slice(1) ?? [];
-
-      expect(tokens("connect-src")).toContain(
-        "https://uploads.teakvault.example"
-      );
-      expect(tokens("connect-src")).not.toContain("http://unsafe.example");
-      expect(tokens("img-src")).not.toContain(
-        "https://uploads.teakvault.example"
-      );
-      expect(tokens("frame-src")).not.toContain(
-        "https://uploads.teakvault.example"
-      );
-    } finally {
-      if (previous === undefined) {
-        delete process.env.R2_ENDPOINT;
-      } else {
-        process.env.R2_ENDPOINT = previous;
-      }
-    }
   });
 
   test("keeps baseline browser security headers enabled", () => {

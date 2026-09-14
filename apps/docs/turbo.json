@@ -3,6 +3,8 @@
   "tags": ["app"],
   "tasks": {
     "build": {
+      "env": ["TEAK_DEV_API_URL"],
+      "inputs": ["$TURBO_DEFAULT$", ".env", ".env.local"],
       "outputs": ["dist/**"]
     }
   }

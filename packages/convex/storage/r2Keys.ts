@@ -10,6 +10,8 @@
  * re-exports them for backward compatibility.
  */
 
+import { env } from "../_generated/server";
+
 /**
  * Internal R2 key prefix for environment isolation.
  * - Production: unset -> "users/..."
@@ -17,7 +19,7 @@
  * This is protection against routine mistakes; shared credentials retain bucket-wide authority.
  */
 export const getR2KeyPrefix = (): string => {
-  const raw = process.env.R2_KEY_PREFIX ?? "";
+  const raw = env.R2_KEY_PREFIX ?? "";
   const trimmed = raw.trim();
   if (!trimmed) {
     return "";

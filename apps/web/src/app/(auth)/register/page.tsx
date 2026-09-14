@@ -1,6 +1,10 @@
 "use client";
 
-import { AuthDivider, SocialAuthButtons } from "@teak/ui/auth";
+import {
+  AuthDivider,
+  SocialAuthButtons,
+  socialSignInErrorMessage,
+} from "@teak/ui/auth";
 import { Button, buttonVariants } from "@teak/ui/components/ui/button";
 import {
   CardContent,
@@ -72,15 +76,20 @@ function SignUpForm() {
       });
       if (response?.error) {
         toast.error(
-          response.error.message ??
-            "Failed to sign in with Google. Please try again.",
+          socialSignInErrorMessage(
+            "google",
+            response.error.message,
+            "Failed to sign in with Google. Please try again."
+          ),
           MANUAL_CLOSE_TOAST_OPTIONS
         );
       }
     } catch (err) {
       const errorMessage =
         err instanceof Error ? err.message : "Failed to sign in with Google";
-      toast.error(errorMessage);
+      toast.error(
+        socialSignInErrorMessage("google", errorMessage, errorMessage)
+      );
     }
     setPending(null);
   };
@@ -94,14 +103,20 @@ function SignUpForm() {
       });
       if (response?.error) {
         toast.error(
-          response.error.message ??
+          socialSignInErrorMessage(
+            "apple",
+            response.error.message,
             "Failed to sign in with Apple. Please try again."
+          )
         );
       }
     } catch (err) {
       const errorMessage =
         err instanceof Error ? err.message : "Failed to sign in with Apple";
-      toast.error(errorMessage, MANUAL_CLOSE_TOAST_OPTIONS);
+      toast.error(
+        socialSignInErrorMessage("apple", errorMessage, errorMessage),
+        MANUAL_CLOSE_TOAST_OPTIONS
+      );
     }
     setPending(null);
   };

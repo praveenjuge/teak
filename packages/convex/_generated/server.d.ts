@@ -22,6 +22,45 @@ import {
 import type { DataModel } from "./dataModel.js";
 
 /**
+ * Typesafe environment variables declared in `convex.config.ts`.
+ */
+type Env = {
+  readonly APPLE_APP_BUNDLE_IDENTIFIER: string | undefined;
+  readonly APPLE_CLIENT_ID: string | undefined;
+  readonly APPLE_KEY_ID: string | undefined;
+  readonly APPLE_PRIVATE_KEY: string | undefined;
+  readonly APPLE_TEAM_ID: string | undefined;
+  readonly CLOUDFLARE_ACCOUNT_ID: string | undefined;
+  readonly CLOUDFLARE_API_TOKEN: string | undefined;
+  readonly CONVEX_GIT_COMMIT_SHA: string | undefined;
+  readonly E2E_CLEANUP_TOKEN: string | undefined;
+  readonly E2E_EMAIL_DOMAIN: string | undefined;
+  readonly FILES_BASE: string | undefined;
+  readonly FILES_LEGACY_BASE: string | undefined;
+  readonly FILES_SIGNING_SECRET: string | undefined;
+  readonly GOOGLE_CLIENT_ID: string | undefined;
+  readonly GOOGLE_CLIENT_SECRET: string | undefined;
+  readonly JWKS: string | undefined;
+  readonly POLAR_ACCESS_TOKEN: string | undefined;
+  readonly POLAR_SERVER: string | undefined;
+  readonly PUBLIC_ORIGIN: string | undefined;
+  readonly R2_ACCESS_KEY_ID: string | undefined;
+  readonly R2_BUCKET: string | undefined;
+  readonly R2_ENDPOINT: string | undefined;
+  readonly R2_KEY_PREFIX: string | undefined;
+  readonly R2_SECRET_ACCESS_KEY: string | undefined;
+  readonly SENTRY_BACKEND_DSN: string | undefined;
+  readonly SENTRY_DSN: string | undefined;
+  readonly SENTRY_ENVIRONMENT: string | undefined;
+  readonly SENTRY_RELEASE: string | undefined;
+  readonly SITE_URL: string;
+  readonly TEAK_ADMIN_EMAIL: string | undefined;
+  readonly TEAK_DEV_API_URL: string | undefined;
+  readonly TEAK_DEV_APP_URL: string | undefined;
+  readonly TEAK_DEV_DOCS_URL: string | undefined;
+};
+
+/**
  * Define a query in this Convex app's public API.
  *
  * This function will be allowed to read your Convex database and will be accessible from the client.
@@ -94,6 +133,11 @@ export declare const internalAction: ActionBuilder<DataModel, "internal">;
  * @returns The wrapped function. Import this function from `convex/http.js` and route it to hook it up.
  */
 export declare const httpAction: HttpActionBuilder;
+
+/**
+ * Typesafe environment variables declared in `convex.config.ts`.
+ */
+export declare const env: Env;
 
 /**
  * A set of services for use within Convex query functions.

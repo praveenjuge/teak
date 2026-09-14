@@ -9,7 +9,7 @@
 
 import { v } from "convex/values";
 import { components, internal } from "../../_generated/api";
-import { internalAction } from "../../_generated/server";
+import { env, internalAction } from "../../_generated/server";
 import { stageCompleted } from "../../card/processingStatus";
 import { isE2EEmail, normalizeE2EEmailDomain } from "../../e2eAccounts";
 import type { CardType } from "../../schema";
@@ -189,8 +189,8 @@ export async function generateHandler(
 
   let configuredE2EDomain: string | undefined;
   try {
-    configuredE2EDomain = process.env.E2E_EMAIL_DOMAIN
-      ? normalizeE2EEmailDomain(process.env.E2E_EMAIL_DOMAIN)
+    configuredE2EDomain = env.E2E_EMAIL_DOMAIN
+      ? normalizeE2EEmailDomain(env.E2E_EMAIL_DOMAIN)
       : undefined;
   } catch (error) {
     console.warn("[workflow/metadata] Ignoring invalid E2E email domain", {

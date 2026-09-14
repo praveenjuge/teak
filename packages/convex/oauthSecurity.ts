@@ -5,6 +5,7 @@ import type {
   DBAdapter,
 } from "better-auth";
 import { APIError, getSessionFromCtx } from "better-auth/api";
+import { env } from "./_generated/server";
 import { isLocalDevelopmentUrl } from "./devUrls";
 import { EXACT_TEAK_CALLBACK_URL } from "./trustedOrigins";
 
@@ -130,7 +131,7 @@ const normalizedCallbackUrl = (value: string): string => {
 
 export const assertAllowedAuthCallbackUrl = (
   value: string,
-  siteUrl = process.env.SITE_URL ?? ""
+  siteUrl = env.SITE_URL ?? ""
 ): void => {
   if (!value.includes("://")) {
     return;

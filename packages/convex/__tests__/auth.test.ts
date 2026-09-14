@@ -89,6 +89,44 @@ describe("auth.ts", () => {
     expect(result).toBeDefined();
   });
 
+  test("createAuth registers only configured social providers", async () => {
+    const names = [
+      "GOOGLE_CLIENT_ID",
+      "GOOGLE_CLIENT_SECRET",
+      "APPLE_CLIENT_ID",
+      "APPLE_KEY_ID",
+      "APPLE_PRIVATE_KEY",
+      "APPLE_TEAM_ID",
+      "APPLE_APP_BUNDLE_IDENTIFIER",
+    ];
+    const saved = new Map(
+      names.map((name) => [name, process.env[name]] as const)
+    );
+    try {
+      for (const name of names) {
+        delete process.env[name];
+      }
+      const module = await import("../auth");
+      const bare = module.createAuth({} as any);
+      expect(bare.options.socialProviders).toEqual({});
+      process.env.GOOGLE_CLIENT_ID = "id";
+      process.env.GOOGLE_CLIENT_SECRET = "secret";
+      const googleOnly = module.createAuth({} as any);
+      expect(Object.keys(googleOnly.options.socialProviders)).toEqual([
+        "google",
+      ]);
+    } finally {
+      for (const name of names) {
+        const value = saved.get(name);
+        if (value === undefined) {
+          delete process.env[name];
+        } else {
+          process.env[name] = value;
+        }
+      }
+    }
+  });
+
   test("authComponent has getAuthUser method", async () => {
     const module = await import("../auth");
     expect(module.authComponent?.getAuthUser).toBeDefined();

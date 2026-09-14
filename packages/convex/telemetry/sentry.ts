@@ -3,6 +3,7 @@
 import { createHash } from "node:crypto";
 import { SpanStatusCode, trace } from "@opentelemetry/api";
 import * as Sentry from "@sentry/node";
+import { env } from "../_generated/server";
 import { configureMetrics, type MetricAttributes } from "../shared/metrics";
 import {
   buildBackendRelease,
@@ -34,14 +35,14 @@ let enabled = false;
 
 const resolveBackendEnvironment = (): TelemetryEnvironment =>
   resolveTelemetryEnvironment({
-    explicit: process.env.SENTRY_ENVIRONMENT,
+    explicit: env.SENTRY_ENVIRONMENT,
     nodeEnvironment: process.env.NODE_ENV,
   });
 
 export const resolveBackendRelease = (): string | undefined =>
-  process.env.SENTRY_RELEASE?.trim() ||
+  env.SENTRY_RELEASE?.trim() ||
   buildBackendRelease(
-    process.env.CONVEX_GIT_COMMIT_SHA ??
+    env.CONVEX_GIT_COMMIT_SHA ??
       process.env.VERCEL_GIT_COMMIT_SHA ??
       process.env.GITHUB_SHA
   );
@@ -137,7 +138,7 @@ export const ensureBackendTelemetry = (): boolean => {
     return enabled;
   }
   initialized = true;
-  const dsn = resolveBackendTelemetryDsn(process.env);
+  const dsn = resolveBackendTelemetryDsn(env);
   if (!dsn) {
     return false;
   }

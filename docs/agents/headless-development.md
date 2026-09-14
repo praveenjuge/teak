@@ -4,38 +4,33 @@ Use this guide only in Cursor Cloud or another headless VM. For local developmen
 
 ## Runtime
 
-Read the required Bun version from the root `packageManager` field. Install that exact version if Bun is unavailable, then run `bun install --frozen-lockfile` from the repository root.
+Read the required Bun version from the root `packageManager` field. Install that exact version if Bun is unavailable.
 
 `turbo watch` defaults to an interactive UI. In a headless session, set `TURBO_UI=false` for streaming output or run the required services separately.
 
-## Minimal web stack
+## Bootstrap
 
-Start Convex from `packages/convex` in a persistent session:
+Setup owns installation, Convex provisioning, and local configuration. It refuses production credentials, so it is safe to run anywhere:
 
 ```bash
 export CONVEX_AGENT_MODE=anonymous
-bun run dev
+bun run setup
+bun run doctor --json --target web --profile local
 ```
 
-Start the web app from `apps/web` in another persistent session:
+Setup installs dependencies with `bun ci`, preserves or provisions an isolated Convex development deployment (anonymous deployments run locally), configures the local `SITE_URL` and `JWKS` defaults, pushes backend code with `convex dev --once`, and derives `apps/web/.env.local` without overwriting custom values. Re-running setup changes nothing. Doctor reports `ok: true` when the tree is ready; it prints variable names and remediation only, never values.
+
+Discover services with `bun run dev --help`, then start the web stack from the repository root:
 
 ```bash
 bun run dev
 ```
 
-The web app serves at the fixed URL `http://localhost:3000`. The port is pinned,
-so every agent and developer shares the same origin.
-
-Create `apps/web/.env.local` from the active Convex deployment values. A local anonymous deployment normally uses:
-
-```dotenv
-NEXT_PUBLIC_CONVEX_URL=http://127.0.0.1:3210
-NEXT_PUBLIC_CONVEX_SITE_URL=http://127.0.0.1:3211
-```
+The web app serves at the fixed URL `http://localhost:3000`. The port is pinned, so every agent and developer shares the same origin.
 
 ## First-run authentication
 
-Set the anonymous Convex deployment's Google client values, `SITE_URL`, and `JWKS`. Test values are acceptable for OAuth credentials in local development. Generate `JWKS` as the array expected by the installed `@convex-dev/better-auth` version; consult its current documentation instead of copying a stale shape.
+Email sign-in works without external OAuth credentials. Google and Apple sign-in stay visible but report a clear unavailable message until their credentials are configured; test values are acceptable for OAuth credentials in local development. `JWKS` defaults to JSON `null` on fresh deployments, so verification uses the live endpoint; consult the installed `@convex-dev/better-auth` documentation for the pinned-keys shape before overriding it.
 
 Better Auth validates the browser origin. If authentication reports `Invalid origin`, set `SITE_URL` to the exact browser origin, wait for Convex to redeploy, and retry.
 

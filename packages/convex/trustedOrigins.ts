@@ -1,3 +1,4 @@
+import { env } from "./_generated/server";
 import {
   type DevUrlEnv,
   isLocalDevelopmentUrl,
@@ -13,7 +14,7 @@ export const EXACT_TEAK_CALLBACK_URL = "teak://";
 
 export const buildTrustedOrigins = (
   siteUrl: string,
-  env: DevUrlEnv = process.env
+  devEnv: DevUrlEnv = env
 ): string[] => {
   const origins = [
     siteUrl,
@@ -30,7 +31,7 @@ export const buildTrustedOrigins = (
 
   return [
     ...origins,
-    resolveTeakDevAppUrl(env),
+    resolveTeakDevAppUrl(devEnv),
     ...DESKTOP_DEV_ORIGINS,
     "exp+teak://*",
     "exp://*/*",
