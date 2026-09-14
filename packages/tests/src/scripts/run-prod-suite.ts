@@ -45,24 +45,13 @@ for (const filePath of [
   loadEnvFile(filePath);
 }
 
-if (!process.env.VITE_PUBLIC_CONVEX_URL && process.env.NEXT_PUBLIC_CONVEX_URL) {
-  process.env.VITE_PUBLIC_CONVEX_URL = process.env.NEXT_PUBLIC_CONVEX_URL;
-}
-if (
-  !process.env.VITE_PUBLIC_CONVEX_SITE_URL &&
-  process.env.NEXT_PUBLIC_CONVEX_SITE_URL
-) {
-  process.env.VITE_PUBLIC_CONVEX_SITE_URL =
-    process.env.NEXT_PUBLIC_CONVEX_SITE_URL;
-}
-
 const required = [
   "PROD_E2E_PASSWORD",
   "E2E_CLEANUP_TOKEN",
   "MAILPIT_URL",
   "E2E_EMAIL_DOMAIN",
-  "VITE_PUBLIC_CONVEX_URL",
-  "VITE_PUBLIC_CONVEX_SITE_URL",
+  "E2E_CONVEX_URL",
+  "E2E_CONVEX_SITE_URL",
 ];
 const missing = required.filter((name) => !process.env[name]);
 if (missing.length > 0) {
@@ -72,6 +61,11 @@ if (missing.length > 0) {
   );
   process.exit(1);
 }
+
+// The extension build step below consumes Vite-prefixed names. Export them
+// from the canonical E2E origins so the suite inputs stay framework-free.
+process.env.VITE_PUBLIC_CONVEX_URL ??= process.env.E2E_CONVEX_URL;
+process.env.VITE_PUBLIC_CONVEX_SITE_URL ??= process.env.E2E_CONVEX_SITE_URL;
 
 const run = (
   label: string,

@@ -1,4 +1,5 @@
 import { createOpenAICompatible } from "@ai-sdk/openai-compatible";
+import { env } from "../_generated/server";
 
 /**
  * Cloudflare Workers AI accessed through its OpenAI-compatible REST endpoint
@@ -7,9 +8,9 @@ import { createOpenAICompatible } from "@ai-sdk/openai-compatible";
  * permission).
  */
 export const workersAi = createOpenAICompatible({
-  apiKey: process.env.CLOUDFLARE_API_TOKEN ?? "",
+  apiKey: env.CLOUDFLARE_API_TOKEN ?? "",
   baseURL: `https://api.cloudflare.com/client/v4/accounts/${
-    process.env.CLOUDFLARE_ACCOUNT_ID ?? ""
+    env.CLOUDFLARE_ACCOUNT_ID ?? ""
   }/ai/v1`,
   name: "cloudflare-workers-ai",
 });

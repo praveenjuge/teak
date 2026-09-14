@@ -15,6 +15,7 @@
 
 import type { CloudflareOptions } from "@sentry/cloudflare";
 import { captureException } from "@sentry/cloudflare";
+import packageJson from "../package.json";
 
 /** Env vars backing error reporting; SENTRY_DSN is a wrangler secret. */
 export interface SentryEnvVars {
@@ -23,6 +24,32 @@ export interface SentryEnvVars {
   SENTRY_RELEASE?: string;
 }
 
+export const WORKER_RELEASE = `teak-files-worker@${packageJson.version}`;
+
+/**
+ * Normalize the explicit environment label to the shared telemetry
+ * vocabulary. Workers expose no deployment classification, so the explicit
+ * SENTRY_ENVIRONMENT var is authoritative and unset means development.
+ */
+export const resolveWorkerEnvironment = (
+  explicit: string | undefined
+): string => {
+  const normalized = explicit?.trim().toLowerCase();
+  if (!normalized) {
+    return "development";
+  }
+  if (["prod", "production"].includes(normalized)) {
+    return "production";
+  }
+  if (["preview", "staging"].includes(normalized)) {
+    return "preview";
+  }
+  if (["test", "testing"].includes(normalized)) {
+    return "test";
+  }
+  return "development";
+};
+
 export const resolveSentryOptions = (
   env: SentryEnvVars
 ): CloudflareOptions | undefined => {
@@ -30,12 +57,11 @@ export const resolveSentryOptions = (
   if (!dsn) {
     return undefined;
   }
-  const environment = env.SENTRY_ENVIRONMENT?.trim();
-  const release = env.SENTRY_RELEASE?.trim();
+  const release = env.SENTRY_RELEASE?.trim() || WORKER_RELEASE;
   return {
     dsn,
-    ...(environment ? { environment } : {}),
-    ...(release ? { release } : {}),
+    environment: resolveWorkerEnvironment(env.SENTRY_ENVIRONMENT),
+    release,
     // Requests are HMAC-signed URLs and internal ops; never attach PII.
     sendDefaultPii: false,
   };

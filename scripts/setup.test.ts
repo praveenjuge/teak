@@ -9,10 +9,15 @@ import {
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import {
+  assertNoProductionConvex,
   checkBunVersion,
   ensureFile,
   ensureWebEnv,
   isInstallStale,
+  isProductionDeployment,
+  parseDotenvValue,
+  readConvexDotenvUrls,
+  readConvexSelection,
   requiredBunVersion,
   webEnvTemplate,
 } from "./setup.ts";
@@ -73,6 +78,98 @@ describe("ensureWebEnv", () => {
     expect(content).toContain(
       "NEXT_PUBLIC_CONVEX_SITE_URL=http://127.0.0.1:3211"
     );
+  });
+});
+
+describe("parseDotenvValue", () => {
+  test("reads keys and strips quotes and comments", () => {
+    const content = "# comment\nA=1\nB='two'\nC=\"three\"\nEMPTY=\nNOT_PAIR\n";
+    expect(parseDotenvValue(content, "A")).toBe("1");
+    expect(parseDotenvValue(content, "B")).toBe("two");
+    expect(parseDotenvValue(content, "C")).toBe("three");
+    expect(parseDotenvValue(content, "EMPTY")).toBe("");
+    expect(parseDotenvValue(content, "MISSING")).toBeUndefined();
+  });
+});
+
+describe("readConvexSelection", () => {
+  test("prefers the environment over dotenv", () => {
+    const dir = mkdtempSync(join(tmpdir(), "teak-setup-"));
+    const dotenv = join(dir, ".env.local");
+    writeFileSync(dotenv, "CONVEX_DEPLOYMENT=dev:from-file\n");
+    expect(
+      readConvexSelection({ CONVEX_DEPLOYMENT: "dev:from-env" }, dotenv)
+    ).toEqual({ deployment: "dev:from-env", source: "env" });
+    expect(readConvexSelection({}, dotenv)).toEqual({
+      deployment: "dev:from-file",
+      source: "dotenv",
+    });
+    expect(readConvexSelection({}, join(dir, "absent"))).toEqual({
+      source: "none",
+    });
+  });
+});
+
+describe("production refusal", () => {
+  test("detects prod: deployments only", () => {
+    expect(isProductionDeployment("prod:main")).toBe(true);
+    expect(isProductionDeployment("dev:main")).toBe(false);
+    expect(isProductionDeployment("anonymous:local")).toBe(false);
+    expect(isProductionDeployment(undefined)).toBe(false);
+  });
+
+  test("refuses deploy keys and prod selections", () => {
+    expect(() =>
+      assertNoProductionConvex({ source: "none" }, "prod-key")
+    ).toThrow("CONVEX_DEPLOY_KEY");
+    expect(() =>
+      assertNoProductionConvex({ deployment: "prod:main", source: "env" })
+    ).toThrow("production");
+    expect(() =>
+      assertNoProductionConvex({ deployment: "dev:main", source: "dotenv" })
+    ).not.toThrow();
+    expect(() => assertNoProductionConvex({ source: "none" })).not.toThrow();
+  });
+});
+
+describe("derived web env", () => {
+  test("template accepts derived overrides", () => {
+    const template = webEnvTemplate({
+      convexUrl: "https://cloud.example",
+      convexSiteUrl: "https://site.example",
+    });
+    expect(template).toContain("NEXT_PUBLIC_CONVEX_URL=https://cloud.example");
+    expect(template).toContain(
+      "NEXT_PUBLIC_CONVEX_SITE_URL=https://site.example"
+    );
+  });
+
+  test("reads convex dotenv urls without requiring them", () => {
+    const dir = mkdtempSync(join(tmpdir(), "teak-setup-"));
+    const dotenv = join(dir, ".env.local");
+    writeFileSync(
+      dotenv,
+      "CONVEX_DEPLOYMENT=dev:x\nNEXT_PUBLIC_CONVEX_URL=https://c.example\n"
+    );
+    expect(readConvexDotenvUrls(dotenv)).toEqual({
+      convexUrl: "https://c.example",
+    });
+    expect(readConvexDotenvUrls(join(dir, "absent"))).toEqual({});
+  });
+
+  test("repair keeps custom values and fills derived gaps", () => {
+    const dir = mkdtempSync(join(tmpdir(), "teak-setup-"));
+    const path = join(dir, ".env.local");
+    writeFileSync(path, "NEXT_PUBLIC_CONVEX_URL=http://custom\n");
+    expect(
+      ensureWebEnv(path, {
+        convexUrl: "https://c.example",
+        convexSiteUrl: "https://s.example",
+      })
+    ).toBe("repaired");
+    const content = readFileSync(path, "utf-8");
+    expect(content).toContain("NEXT_PUBLIC_CONVEX_URL=http://custom");
+    expect(content).toContain("NEXT_PUBLIC_CONVEX_SITE_URL=https://s.example");
   });
 });
 

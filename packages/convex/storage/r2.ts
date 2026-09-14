@@ -6,7 +6,7 @@ import {
 import { v } from "convex/values";
 import { internal } from "../_generated/api";
 import type { ActionCtx, MutationCtx } from "../_generated/server";
-import { mutation, query } from "../_generated/server";
+import { env, mutation, query } from "../_generated/server";
 import { getSessionIdentity } from "../securitySessions";
 import { inferFileFormat } from "../shared/fileFormats";
 import {
@@ -63,7 +63,7 @@ export type R2ObjectKey = string;
 export const PENDING_UPLOAD_CARD_ID = "upload-pending-v2";
 
 export const getR2ReadBase = (key: string): string => {
-  const filesBase = process.env.FILES_BASE;
+  const filesBase = env.FILES_BASE;
   if (isR2KeyInNamespace(key)) {
     if (!filesBase) {
       throw new Error("files_worker_not_configured");
@@ -75,7 +75,7 @@ export const getR2ReadBase = (key: string): string => {
   // shared-bucket dev/ namespace was introduced. Reads may use the retained
   // legacy worker, but writes, processing, and deletion remain restricted by
   // assertR2KeyInNamespace to the canonical dev/ prefix.
-  const legacyBase = process.env.FILES_LEGACY_BASE;
+  const legacyBase = env.FILES_LEGACY_BASE;
   if (getR2KeyPrefix() && key.startsWith("users/") && legacyBase) {
     return legacyBase;
   }
@@ -142,7 +142,7 @@ export const getR2Url = async (
   key: string,
   response: DownloadResponsePolicy = {}
 ) => {
-  const signingSecret = process.env.FILES_SIGNING_SECRET;
+  const signingSecret = env.FILES_SIGNING_SECRET;
   if (!signingSecret) {
     throw new Error("files_worker_not_configured");
   }
@@ -261,7 +261,7 @@ export const resolveImageUrl = async (
   if (!key) {
     return null;
   }
-  const signingSecret = process.env.FILES_SIGNING_SECRET;
+  const signingSecret = env.FILES_SIGNING_SECRET;
   if (!signingSecret) {
     throw new Error("files_worker_not_configured");
   }

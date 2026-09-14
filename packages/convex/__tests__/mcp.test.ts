@@ -23,9 +23,7 @@ interface JsonRpcSuccess {
 
 const TEST_AUTHORIZATION = `Bearer teakapi_secret_live_a1b2c3d4_${"f".repeat(64)}`;
 
-const originalPublicApiUrl = process.env.PUBLIC_API_URL;
-const originalPublicMcpUrl = process.env.PUBLIC_MCP_URL;
-const originalAuthIssuerUrl = process.env.AUTH_ISSUER_URL;
+const originalPublicOrigin = process.env.PUBLIC_ORIGIN;
 const originalSiteUrl = process.env.SITE_URL;
 const EXPECTED_TOOL_NAMES = [
   "fetch",
@@ -45,20 +43,10 @@ const EXPECTED_TOOL_NAMES = [
 ];
 
 afterEach(() => {
-  if (originalPublicApiUrl === undefined) {
-    delete process.env.PUBLIC_API_URL;
+  if (originalPublicOrigin === undefined) {
+    delete process.env.PUBLIC_ORIGIN;
   } else {
-    process.env.PUBLIC_API_URL = originalPublicApiUrl;
-  }
-  if (originalPublicMcpUrl === undefined) {
-    delete process.env.PUBLIC_MCP_URL;
-  } else {
-    process.env.PUBLIC_MCP_URL = originalPublicMcpUrl;
-  }
-  if (originalAuthIssuerUrl === undefined) {
-    delete process.env.AUTH_ISSUER_URL;
-  } else {
-    process.env.AUTH_ISSUER_URL = originalAuthIssuerUrl;
+    process.env.PUBLIC_ORIGIN = originalPublicOrigin;
   }
   if (originalSiteUrl === undefined) {
     delete process.env.SITE_URL;
@@ -171,9 +159,8 @@ describe("Convex MCP endpoint", () => {
     });
   });
 
-  test("derives self-hosted MCP metadata from PUBLIC_API_URL", async () => {
-    process.env.PUBLIC_API_URL = "https://api.selfhost.example";
-    process.env.PUBLIC_MCP_URL = "";
+  test("derives self-hosted MCP metadata from PUBLIC_ORIGIN", async () => {
+    process.env.PUBLIC_ORIGIN = "https://api.selfhost.example";
 
     const response = await handleOauthProtectedResourceV1Request(
       new Request(

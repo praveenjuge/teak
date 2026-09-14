@@ -80,7 +80,14 @@ beforeAll(async () => {
 });
 
 afterEach(() => {
-  process.env = { ...originalEnvironment };
+  // Restore in place: replacing process.env wholesale would orphan the
+  // generated typed `env` alias (bound to this object at module init).
+  for (const key of Object.keys(process.env)) {
+    if (!(key in originalEnvironment)) {
+      delete process.env[key];
+    }
+  }
+  Object.assign(process.env, originalEnvironment);
   process.env.SENTRY_BACKEND_DSN = "https://public@example.invalid/1";
   process.env.SENTRY_ENVIRONMENT = "production";
   process.env.CONVEX_GIT_COMMIT_SHA =

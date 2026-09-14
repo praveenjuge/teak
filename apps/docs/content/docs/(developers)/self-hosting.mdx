@@ -19,32 +19,37 @@ public domain at it.
 ## Quickstart (local)
 
 <Steps>
-  <Step title="Clone and install">
-    Clone the repo and install dependencies:
+  <Step title="Clone and run setup">
+    Clone the repo, then run the idempotent bootstrap:
 
     ```bash
-    bun install
+    bun run setup
     ```
+
+    Setup installs dependencies, provisions an isolated Convex development deployment, sets the local `SITE_URL`, pushes backend code, and derives `apps/web/.env.local` — no OAuth or billing credentials required. Verify with `bun run doctor`.
   </Step>
   <Step title="Start a Convex dev deployment">
     ```bash
     bunx convex dev
     ```
 
-    This creates a dev deployment and prints the `CONVEX_SITE_URL` and `CONVEX_URL`. It does not configure Better Auth — that's the next step.
+    This keeps the dev deployment in sync and prints the `CONVEX_SITE_URL` and `CONVEX_URL`. It does not configure Better Auth — that's the next step.
   </Step>
   <Step title="Configure essential secrets">
-    Run these commands to set the minimum required secrets in your Convex dashboard:
+    Run these commands to set the minimum required secrets in your Convex dashboard (`SITE_URL` is already set by setup):
 
     ```bash
     # Security & Auth
     npx convex env set BETTER_AUTH_SECRET $(openssl rand -base64 32)
-    npx convex env set SITE_URL http://localhost:3000
     npx convex env set TEAK_ADMIN_EMAIL you@example.com
 
     # Optional: AI (if you want card processing)
     npx convex env set CLOUDFLARE_ACCOUNT_ID your-account-id
     npx convex env set CLOUDFLARE_API_TOKEN your-api-token
+
+    # Optional: Google sign-in (both or neither; email works without them)
+    npx convex env set GOOGLE_CLIENT_ID your-client-id
+    npx convex env set GOOGLE_CLIENT_SECRET your-client-secret
     ```
   </Step>
   <Step title="Create local env files">
@@ -99,6 +104,7 @@ Add these to your env files before running locally or deploying.
 
 ```bash
 SITE_URL=http://localhost:3000
+PUBLIC_ORIGIN=https://yourdomain.com         # Optional: /api and /mcp derive from this origin
 BETTER_AUTH_SECRET=your-secret               # Better Auth security
 TEAK_ADMIN_EMAIL=you@example.com             # Explicit administrator account
 FILES_BASE=https://files.yourdomain.com      # Files Worker origin
@@ -144,11 +150,12 @@ CONVEX_DEPLOY_KEY=
 NEXT_PUBLIC_CONVEX_URL=https://deployment.convex.cloud
 NEXT_PUBLIC_CONVEX_SITE_URL=https://deployment.convex.site
 TEAK_DEV_APP_URL=http://localhost:3000   # Optional local override
-# Origin your R2 files are served from, so the Content-Security-Policy allows
-# loading images and documents. Set this to your bucket's public/signed-URL
-# origin (e.g. https://your-bucket.<account>.r2.cloudflarestorage.com).
-NEXT_PUBLIC_R2_STORAGE_ORIGIN=https://your-bucket.account.r2.cloudflarestorage.com
 ```
+
+The web Content-Security-Policy allows the canonical file origins
+(`https://files.teakvault.com` and the R2 storage origin). If you serve files
+from a custom origin, add it to the policy in
+`apps/web/src/lib/security-headers.ts`.
 
 ### Client Apps (`apps/mobile`, `apps/extension`, `apps/desktop`)
 
@@ -171,13 +178,19 @@ VITE_WEB_URL=https://app.yourdomain.com   # Defaults to https://app.teakvault.co
 ### Public API and MCP
 
 ```bash
-PUBLIC_API_URL=https://yourdomain.com/api       # Optional: public API origin used in discovery
-PUBLIC_MCP_URL=https://yourdomain.com/mcp       # Optional: defaults to PUBLIC_API_URL + /mcp
-AUTH_ISSUER_URL=https://app.yourdomain.com      # Optional: OAuth issuer override for MCP discovery
+PUBLIC_ORIGIN=https://yourdomain.com            # Optional: /api and /mcp derive from this origin
 TEAK_DEV_API_URL=https://deployment.convex.site # Optional local override
 ```
 
-Convex serves the REST API at `/api/v1`, the MCP endpoint at `/mcp`, plus `/healthz`, `/openapi.json`, and OAuth protected-resource metadata. In production, Teak exposes these through apex path rewrites (e.g. `https://teakvault.com/api` and `https://teakvault.com/mcp`). For self-hosted setups, configure your reverse proxy or DNS to route `/api` and `/mcp` to the Convex deployment's `.convex.site` domain.
+Convex serves the REST API at `/api/v1`, the MCP endpoint at `/mcp`, plus `/healthz`, `/openapi.json`, and OAuth protected-resource metadata. In production, Teak exposes these through apex path rewrites (e.g. `https://teakvault.com/api` and `https://teakvault.com/mcp`). For self-hosted setups, configure your reverse proxy or DNS to route `/api` and `/mcp` to the Convex deployment's `.convex.site` domain. `SITE_URL` is the Better Auth application origin and the OAuth issuer; there is no separate issuer override.
+
+:::warning[Breaking configuration change]
+`PUBLIC_API_URL`, `PUBLIC_MCP_URL`, and `AUTH_ISSUER_URL` were removed. If
+you set them, delete all three and set `PUBLIC_ORIGIN` to your public origin
+instead (for example, replace `PUBLIC_API_URL=https://yourdomain.com/api`
+with `PUBLIC_ORIGIN=https://yourdomain.com`). There is no compatibility
+period: the old names are ignored.
+:::
 
 ## Where to get the values
 

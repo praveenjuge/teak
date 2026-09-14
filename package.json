@@ -7,6 +7,7 @@
     "packages/*"
   ],
   "scripts": {
+    "audit:env": "bun run scripts/env-audit.ts",
     "build": "turbo run build",
     "build:cli": "turbo run build --filter=teak-cli",
     "build:extension": "turbo run build --filter=@teak/extension",
@@ -36,7 +37,7 @@
     "setup": "bun run scripts/setup.ts",
     "start": "turbo run start",
     "sync:cloudflare-dev": "bun run scripts/sync-files-worker-dev-secret.ts",
-    "test": "turbo run test",
+    "test": "turbo run test && bun test scripts/",
     "typecheck": "turbo run typecheck",
     "verify": "turbo run typecheck lint test --affected",
     "verify:all": "turbo run typecheck lint test"

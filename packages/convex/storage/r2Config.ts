@@ -4,9 +4,11 @@
  * write objects with their own S3 client; canonical card byte processing goes
  * through the Files Worker instead.
  */
+import { env } from "../_generated/server";
+
 export const explicitR2Config = () => {
   const { R2_BUCKET, R2_ENDPOINT, R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY } =
-    process.env;
+    env;
   if (!(R2_BUCKET && R2_ENDPOINT && R2_ACCESS_KEY_ID && R2_SECRET_ACCESS_KEY)) {
     throw new Error("R2 environment variables are not configured");
   }

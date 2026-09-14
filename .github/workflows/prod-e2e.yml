@@ -25,17 +25,15 @@ concurrency:
   cancel-in-progress: false
 
 env:
-  PROD_APP_URL: https://app.teakvault.com
-  PROD_SITE_URL: https://teakvault.com
-  PROD_API_URL: https://teakvault.com/api
-  PROD_MCP_URL: https://teakvault.com/mcp
+  E2E_PUBLIC_ORIGIN: https://teakvault.com
+  E2E_APP_ORIGIN: https://app.teakvault.com
   PROD_E2E_PASSWORD: ${{ secrets.PROD_E2E_PASSWORD }}
   E2E_CLEANUP_TOKEN: ${{ secrets.E2E_CLEANUP_TOKEN }}
   E2E_EMAIL_DELIVERY_ENABLED: ${{ github.event_name == 'schedule' && 'true' || 'false' }}
   MAILPIT_URL: ${{ secrets.MAILPIT_URL }}
   E2E_EMAIL_DOMAIN: ${{ secrets.E2E_EMAIL_DOMAIN }}
-  VITE_PUBLIC_CONVEX_URL: ${{ secrets.VITE_PUBLIC_CONVEX_URL }}
-  VITE_PUBLIC_CONVEX_SITE_URL: ${{ secrets.VITE_PUBLIC_CONVEX_SITE_URL }}
+  E2E_CONVEX_URL: ${{ secrets.VITE_PUBLIC_CONVEX_URL }}
+  E2E_CONVEX_SITE_URL: ${{ secrets.VITE_PUBLIC_CONVEX_SITE_URL }}
 
 jobs:
   gate:
@@ -44,7 +42,7 @@ jobs:
       - uses: actions/checkout@v6
       - uses: oven-sh/setup-bun@v2
       - run: bun packages/tests/src/scripts/preflight.ts
-      - run: curl -fsS "$PROD_APP_URL/login" >/dev/null
+      - run: curl -fsS "$E2E_APP_ORIGIN/login" >/dev/null
       - run: bash scripts/smoke-urls.sh
 
   journey:

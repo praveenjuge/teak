@@ -2,7 +2,7 @@ import { Polar } from "@convex-dev/polar";
 import { Polar as PolarBilling } from "@polar-sh/sdk";
 import { ConvexError, v } from "convex/values";
 import { api, components } from "./_generated/api";
-import { action, query } from "./_generated/server";
+import { action, env, query } from "./_generated/server";
 import { resolveTeakDevAppUrl } from "./devUrls";
 import { getSessionIdentity } from "./securitySessions";
 import { isApprovedPolarProductId } from "./shared/polarPlans";
@@ -44,7 +44,7 @@ export const polar = new Polar(components.polar, {
 export const createCheckoutLinkHandler = async (ctx: any, args: any) => {
   let userId: string | undefined;
   try {
-    const devAppUrl = resolveTeakDevAppUrl(process.env);
+    const devAppUrl = resolveTeakDevAppUrl(env);
     const user = await ctx.runQuery(api.billing.getUserInfo);
     userId = user.subject;
     if (!isApprovedPolarProductId(args.productId)) {
@@ -57,9 +57,8 @@ export const createCheckoutLinkHandler = async (ctx: any, args: any) => {
     });
 
     const polar = new PolarBilling({
-      accessToken: process.env.POLAR_ACCESS_TOKEN ?? "",
-      server:
-        process.env.POLAR_SERVER === "production" ? "production" : "sandbox",
+      accessToken: env.POLAR_ACCESS_TOKEN ?? "",
+      server: env.POLAR_SERVER === "production" ? "production" : "sandbox",
     });
 
     const dbCustomer = await ctx.runQuery(
@@ -94,7 +93,7 @@ export const createCheckoutLinkHandler = async (ctx: any, args: any) => {
       allowDiscountCodes: true,
       customerId,
       embedOrigin:
-        process.env.POLAR_SERVER === "production"
+        env.POLAR_SERVER === "production"
           ? "https://app.teakvault.com"
           : devAppUrl,
     });
@@ -141,9 +140,8 @@ export const createCustomerPortalHandler = async (ctx: any) => {
     }
 
     const polarSdk = new PolarBilling({
-      accessToken: process.env.POLAR_ACCESS_TOKEN ?? "",
-      server:
-        process.env.POLAR_SERVER === "production" ? "production" : "sandbox",
+      accessToken: env.POLAR_ACCESS_TOKEN ?? "",
+      server: env.POLAR_SERVER === "production" ? "production" : "sandbox",
     });
 
     const result = await polarSdk.customerSessions.create({

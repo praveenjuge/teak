@@ -1,4 +1,13 @@
 {
   "extends": ["//"],
-  "tags": ["app"]
+  "tags": ["app"],
+  "tasks": {
+    "build": {
+      "env": ["VITE_PUBLIC_CONVEX_SITE_URL"],
+      "inputs": ["$TURBO_DEFAULT$", ".env", ".env.local"]
+    },
+    "test": {
+      "env": ["VITE_PUBLIC_CONVEX_SITE_URL"]
+    }
+  }
 }

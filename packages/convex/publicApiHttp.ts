@@ -1,6 +1,6 @@
 import { ConvexError } from "convex/values";
 import { internal } from "./_generated/api";
-import { httpAction } from "./_generated/server";
+import { env, httpAction } from "./_generated/server";
 import { isLocalDevelopmentHostname, resolveTeakDevAppUrl } from "./devUrls";
 import { isWellFormedOAuthToken } from "./oauthTokens";
 import { withPublicApiGatewayHeaders } from "./publicApiMeta";
@@ -12,7 +12,7 @@ const MAX_LIMIT = 100;
 const MAX_QUERY_SCAN = 400;
 const MAX_BULK_ITEMS = 100;
 const APP_PROD_URL = "https://app.teakvault.com";
-const APP_DEV_URL = resolveTeakDevAppUrl(process.env);
+const APP_DEV_URL = resolveTeakDevAppUrl(env);
 const CARD_TYPES = new Set([
   "text",
   "link",

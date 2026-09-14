@@ -3,9 +3,9 @@
   "tags": ["app"],
   "tasks": {
     "build": {
-      "env": ["TEAK_DEV_API_URL"],
+      "env": ["GITHUB_SHA", "SENTRY_RELEASE"],
       "inputs": ["$TURBO_DEFAULT$", ".env", ".env.local"],
-      "outputs": ["dist/**"]
+      "passThroughEnv": ["SENTRY_AUTH_TOKEN"]
     }
   }
 }
