@@ -14,6 +14,7 @@ import { importPKCS8, SignJWT } from "jose";
 import { components, internal } from "./_generated/api";
 import type { DataModel, Id } from "./_generated/dataModel";
 import {
+  type ActionCtx,
   internalAction,
   internalMutation,
   internalQuery,
@@ -44,11 +45,9 @@ import { isApprovedActiveSubscription } from "./shared/polarPlans";
 import {
   normalizeErrorClass,
   resolveBackendTelemetryDsn,
-  TELEMETRY_OPERATIONS,
 } from "./shared/telemetry";
 import { cardStorageObjectKeys } from "./storage/r2";
 import { scheduleAuthOutcome, scheduleUserCreated } from "./telemetry/schedule";
-import { withBackendSpan } from "./telemetry/sentry";
 import { buildTrustedOrigins } from "./trustedOrigins";
 
 const googleClientId = process.env.GOOGLE_CLIENT_ID;
@@ -708,89 +707,109 @@ export const deleteAccountImportRows = internalMutation({
   },
 });
 
+const ACCOUNT_DELETION_ERROR_MESSAGE_LIMIT = 200;
+
+// Account deletion runs in the default Convex runtime, which cannot import the
+// Node-backed telemetry helpers (importing a "use node" module here breaks the
+// convex deploy bundle). Report failures through the Node emitter action by
+// function reference instead; reporting must never alter deletion behavior.
+const reportAccountDeletionFailure = async (
+  ctx: Pick<ActionCtx, "runAction">,
+  error: unknown
+): Promise<void> => {
+  const message = error instanceof Error ? error.message : String(error);
+  try {
+    await ctx.runAction(
+      (internal as any)["telemetry/events"].emitAccountDeletionFailure,
+      {
+        errorClass: normalizeErrorClass(error),
+        message: message.slice(0, ACCOUNT_DELETION_ERROR_MESSAGE_LIMIT),
+      }
+    );
+  } catch {
+    // Reporting is best-effort: the original deletion error takes precedence.
+  }
+};
+
 export const deleteAccountData = internalAction({
   args: { userId: v.string() },
   returns: v.object({
     deletedCards: v.number(),
     deletedStorageObjectCount: v.number(),
   }),
-  handler: async (ctx, { userId }) =>
-    withBackendSpan(
-      {
-        name: "auth.deleteAccountData",
-        operation: TELEMETRY_OPERATIONS.auth,
-        surface: "backend",
+  handler: async (ctx, { userId }) => {
+    try {
+      await ctx.runMutation(internal.auth.beginAccountDataDeletion, {
         userId,
-      },
-      async () => {
-        await ctx.runMutation(internal.auth.beginAccountDataDeletion, {
-          userId,
-        });
-        let deletedCards = 0;
-        let deletedStorageObjectCount = 0;
-        while (true) {
-          const batch = await ctx.runQuery(
-            internal.auth.getAccountCardDeletionBatch,
-            { userId }
-          );
-          if (batch.cardIds.length === 0) {
-            break;
-          }
-          if (batch.objectKeys.length > 0) {
-            await ctx.runAction(
-              (internal as any)["workflows/objectCleanup"].deleteObjectsAction,
-              { keys: batch.objectKeys }
-            );
-          }
-          deletedCards += await withOptimisticConcurrencyRetry(() =>
-            ctx.runMutation(internal.auth.deleteAccountDataBatch, {
-              cardIds: batch.cardIds,
-              userId,
-            })
-          );
-          deletedStorageObjectCount += batch.objectKeys.length;
-        }
-        while (true) {
-          const batch = await ctx.runQuery(
-            internal.auth.getAccountImportDeletionBatch,
-            { userId }
-          );
-          if (batch.jobIds.length === 0 && batch.itemIds.length === 0) {
-            break;
-          }
-          if (batch.objects.length > 0) {
-            await ctx.runAction(
-              (internal as any)["import/runImport"].deleteAccountImportObjects,
-              { objects: batch.objects }
-            );
-          }
-          await withOptimisticConcurrencyRetry(() =>
-            ctx.runMutation(internal.auth.deleteAccountImportRows, {
-              itemIds: batch.itemIds,
-              jobIds: batch.jobIds,
-              userId,
-            })
-          );
-        }
-        const finalCards = await ctx.runQuery(
+      });
+      let deletedCards = 0;
+      let deletedStorageObjectCount = 0;
+      while (true) {
+        const batch = await ctx.runQuery(
           internal.auth.getAccountCardDeletionBatch,
           { userId }
         );
-        const finalImports = await ctx.runQuery(
+        if (batch.cardIds.length === 0) {
+          break;
+        }
+        if (batch.objectKeys.length > 0) {
+          await ctx.runAction(
+            (internal as any)["workflows/objectCleanup"].deleteObjectsAction,
+            { keys: batch.objectKeys }
+          );
+        }
+        deletedCards += await withOptimisticConcurrencyRetry(() =>
+          ctx.runMutation(internal.auth.deleteAccountDataBatch, {
+            cardIds: batch.cardIds,
+            userId,
+          })
+        );
+        deletedStorageObjectCount += batch.objectKeys.length;
+      }
+      while (true) {
+        const batch = await ctx.runQuery(
           internal.auth.getAccountImportDeletionBatch,
           { userId }
         );
-        if (
-          finalCards.cardIds.length > 0 ||
-          finalImports.jobIds.length > 0 ||
-          finalImports.itemIds.length > 0
-        ) {
-          throw new Error("Account data changed during deletion");
+        if (batch.jobIds.length === 0 && batch.itemIds.length === 0) {
+          break;
         }
-        await ctx.runMutation(internal.auth.removeAccountCardUsage, { userId });
-        return { deletedCards, deletedStorageObjectCount };
+        if (batch.objects.length > 0) {
+          await ctx.runAction(
+            (internal as any)["import/runImport"].deleteAccountImportObjects,
+            { objects: batch.objects }
+          );
+        }
+        await withOptimisticConcurrencyRetry(() =>
+          ctx.runMutation(internal.auth.deleteAccountImportRows, {
+            itemIds: batch.itemIds,
+            jobIds: batch.jobIds,
+            userId,
+          })
+        );
       }
-    ),
+      const finalCards = await ctx.runQuery(
+        internal.auth.getAccountCardDeletionBatch,
+        { userId }
+      );
+      const finalImports = await ctx.runQuery(
+        internal.auth.getAccountImportDeletionBatch,
+        { userId }
+      );
+      if (
+        finalCards.cardIds.length > 0 ||
+        finalImports.jobIds.length > 0 ||
+        finalImports.itemIds.length > 0
+      ) {
+        throw new Error("Account data changed during deletion");
+      }
+      await ctx.runMutation(internal.auth.removeAccountCardUsage, { userId });
+      return { deletedCards, deletedStorageObjectCount };
+    } catch (error) {
+      await reportAccountDeletionFailure(ctx, error);
+      throw error;
+    }
+  },
 });
 
 export const beginAccountDataDeletion = internalMutation({
