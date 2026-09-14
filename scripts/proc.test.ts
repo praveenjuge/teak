@@ -26,4 +26,38 @@ describe("runCommand", () => {
     expect(result.timedOut).toBe(true);
     expect(result.stderr).toContain("timed out after 2000ms");
   });
+
+  test("timeout terminates descendant processes with the tree", async () => {
+    const result = await runCommand(["sh", "-c", "sleep 30 & wait"], {
+      timeoutMs: 2000,
+    });
+    expect(result.timedOut).toBe(true);
+    const groupGone = (): boolean => {
+      try {
+        process.kill(-result.pid, 0);
+        return false;
+      } catch {
+        return true;
+      }
+    };
+    let gone = groupGone();
+    for (let i = 0; i < 30 && !gone; i++) {
+      await new Promise((resolve) => setTimeout(resolve, 100));
+      gone = groupGone();
+    }
+    expect(gone).toBe(true);
+    // pgrep independently proves the sleeper itself is gone. Restricted
+    // sandboxes cannot list processes (pgrep exits 3); there this half is
+    // skipped and the signal-zero check above still applies.
+    const probe = await runCommand(["pgrep", "-f", "sleep 30$"], {
+      timeoutMs: 5000,
+    });
+    if (probe.exitCode === 0 || probe.exitCode === 1) {
+      expect(probe.stdout.trim()).toBe("");
+    } else {
+      console.warn(
+        `pgrep descendant check skipped (exit ${probe.exitCode}); sandbox cannot list processes`
+      );
+    }
+  });
 });
