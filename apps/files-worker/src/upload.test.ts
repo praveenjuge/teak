@@ -288,7 +288,7 @@ describe("signed single-file uploads", () => {
 });
 
 describe("additive files ops", () => {
-  test("cleans stale pending uploads in one signed worker operation", async () => {
+  test("cleans one stale pending-upload page inside the worker", async () => {
     const bucket = new FakeBucket();
     bucket.objects.set("users/u1/cards/upload-pending-v2/file/old", {
       bytes: new Uint8Array([1]),
@@ -297,7 +297,7 @@ describe("additive files ops", () => {
       bytes: new Uint8Array([2]),
     });
     const response = await worker.fetch(
-      await signedOpRequest("cleanup-stale-pending-uploads", {
+      await signedOpRequest("cleanup-stale-pending-upload-page", {
         pendingCardId: "upload-pending-v2",
         prefix: "users/",
         staleBefore: Date.now(),
@@ -307,7 +307,7 @@ describe("additive files ops", () => {
     );
     expect(response.status).toBe(200);
     expect(await response.json()).toMatchObject({
-      data: { deleted: 1, pages: 1 },
+      data: { cursor: null, deleted: 1 },
       ok: true,
     });
     expect(
