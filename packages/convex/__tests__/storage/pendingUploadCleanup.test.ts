@@ -1,17 +1,37 @@
-import { describe, expect, test } from "bun:test";
-import { readFileSync } from "node:fs";
-import { withFilesWorkerRetry } from "../../storage/pendingUploadCleanup";
+import { describe, expect, mock, test } from "bun:test";
+import {
+  runStalePendingCleanup,
+  withFilesWorkerRetry,
+} from "../../storage/pendingUploadCleanup";
 
 describe("worker-side stale cleanup", () => {
-  test("uses the bounded page operation instead of remote delete batches", () => {
-    const source = readFileSync(
-      new URL("../../storage/pendingUploadCleanup.ts", import.meta.url),
-      "utf8"
+  test("forwards and persists the continuation cursor", async () => {
+    const cleanupPage = mock(async () => ({ cursor: "next-page" }));
+    const getCursor = mock(async () => "saved-page");
+    const setCursor = mock(async () => undefined);
+
+    await runStalePendingCleanup(
+      { cleanupPage, getCursor, setCursor },
+      Date.UTC(2026, 8, 16)
     );
-    expect(source).toContain('op: "cleanup-stale-pending-upload-page"');
-    expect(source).not.toContain('op: "delete-objects"');
-    expect(source).toContain("pendingUploadCleanupState.getCursor");
-    expect(source).toContain("pendingUploadCleanupState.setCursor");
+
+    expect(cleanupPage).toHaveBeenCalledTimes(200);
+    expect(cleanupPage.mock.calls[0]?.[0]).toMatchObject({
+      cursor: "saved-page",
+      pendingCardId: "upload-pending-v2",
+      prefix: "users/",
+    });
+    expect(setCursor).toHaveBeenCalledWith("next-page");
+  });
+
+  test("clears the saved cursor when the scan finishes", async () => {
+    const setCursor = mock(async () => undefined);
+    await runStalePendingCleanup({
+      cleanupPage: mock(async () => ({ cursor: null })),
+      getCursor: mock(async () => "saved-page"),
+      setCursor,
+    });
+    expect(setCursor).toHaveBeenCalledWith(null);
   });
 });
 
