@@ -630,7 +630,7 @@ export const patchCardForUser = internalMutation({
         }
       );
     }
-    await scheduleCardSearchSync(ctx, args.cardId);
+    await scheduleCardSearchSync(ctx, args.cardId, args.userId);
 
     return getCardForUserHandler(ctx, args.userId, args.cardId);
   },

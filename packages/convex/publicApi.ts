@@ -669,7 +669,7 @@ const performBulkUpdate = async (
       shouldSchedulePipeline || result.shouldSchedulePipeline;
   }
 
-  await scheduleCardSearchSync(ctx, args.cardId);
+  await scheduleCardSearchSync(ctx, args.cardId, args.userId);
 
   return shouldSchedulePipeline;
 };
