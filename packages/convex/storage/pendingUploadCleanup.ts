@@ -1,6 +1,8 @@
 "use node";
 
 import { v } from "convex/values";
+import { internal } from "../_generated/api";
+import type { ActionCtx } from "../_generated/server";
 import { internalAction } from "../_generated/server";
 import {
   callFilesWorkerJson,
@@ -10,11 +12,6 @@ import { PENDING_UPLOAD_CARD_ID } from "./r2";
 import { buildR2ListPrefix } from "./r2Keys";
 
 const STALE_AFTER_MS = 24 * 60 * 60 * 1000;
-const PENDING_UPLOAD_SEGMENT = `/cards/${PENDING_UPLOAD_CARD_ID}/`;
-// R2 supports pages up to 1,000 objects. The cleanup only needs object
-// metadata, so request the full page to keep ordinary sweeps to one list call.
-const LIST_PAGE_LIMIT = 1000;
-const DELETE_BATCH_SIZE = 100;
 // Hard page cap so a pathological bucket cannot spin the cron forever; the
 // next hourly run resumes from wherever listing left off.
 const MAX_LIST_PAGES = 200;
@@ -61,12 +58,19 @@ export const withFilesWorkerRetry = async <T>(
   throw lastError;
 };
 
-export const sweepStalePendingUploadsHandler = async (): Promise<null> => {
+const internalAny = internal as Record<string, any>;
+
+export const sweepStalePendingUploadsHandler = async (
+  ctx: ActionCtx
+): Promise<null> => {
   if (!isFilesWorkerConfigured()) {
     throw new Error("files_worker_not_configured");
   }
   const staleBefore = Date.now() - STALE_AFTER_MS;
-  let cursor: string | null = null;
+  let cursor = (await ctx.runQuery(
+    internalAny.storage.pendingUploadCleanupState.getCursor,
+    {}
+  )) as string | null;
   let pages = 0;
   const retryBudget = { remainingMs: SWEEP_RETRY_BUDGET_MS };
   do {
@@ -90,14 +94,17 @@ export const sweepStalePendingUploadsHandler = async (): Promise<null> => {
     cursor = outcome.data.cursor;
     pages += 1;
   } while (cursor && pages < MAX_LIST_PAGES);
-  if (cursor) {
-    throw new Error("files_worker_cleanup_page_limit");
-  }
+  await ctx.runMutation(
+    internalAny.storage.pendingUploadCleanupState.setCursor,
+    {
+      cursor,
+    }
+  );
   return null;
 };
 
 export const sweepStalePendingUploads = internalAction({
   args: {},
   returns: v.null(),
-  handler: sweepStalePendingUploadsHandler,
+  handler: (ctx: ActionCtx) => sweepStalePendingUploadsHandler(ctx),
 });
