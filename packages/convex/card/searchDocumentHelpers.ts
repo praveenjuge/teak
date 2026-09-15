@@ -41,30 +41,33 @@ export const buildCardSearchTags = (card: Doc<"cards">): string[] =>
 
 export const scheduleCardSearchSync = async (
   ctx: Pick<MutationCtx, "scheduler">,
-  cardId: Id<"cards">
+  cardId: Id<"cards">,
+  userId?: string
 ) => {
   await ctx.scheduler.runAfter(
     0,
     internalAny["card/searchDocuments"].syncCardSearchDocument,
-    { cardId }
+    { cardId, userId }
   );
 };
 
 export const scheduleCardSearchTagSync = async (
   ctx: Pick<MutationCtx, "scheduler">,
-  cardId: Id<"cards">
+  cardId: Id<"cards">,
+  userId?: string
 ) => {
   await ctx.scheduler.runAfter(
     0,
     internalAny["card/searchDocuments"].syncCardSearchTagsBatch,
-    { cardId }
+    { cardId, userId }
   );
 };
 
 export const restartCardSearchTagSync = async (
   ctx: MutationCtx,
   cardId: Id<"cards">,
-  sourceUpdatedAt?: number
+  sourceUpdatedAt?: number,
+  userId?: string
 ) => {
   const existingState = await ctx.db
     .query("cardSearchTagSyncStates")
@@ -88,7 +91,7 @@ export const restartCardSearchTagSync = async (
       sourceUpdatedAt,
     });
   }
-  await scheduleCardSearchTagSync(ctx, cardId);
+  await scheduleCardSearchTagSync(ctx, cardId, userId);
 };
 
 export const patchCardWithSearchSync = async (
@@ -102,7 +105,8 @@ export const patchCardWithSearchSync = async (
 
 export const syncCardSearchDocumentHandler = async (
   ctx: MutationCtx,
-  cardId: Id<"cards">
+  cardId: Id<"cards">,
+  userId?: string
 ) => {
   const [card, existing] = await Promise.all([
     ctx.db.get("cards", cardId),
@@ -115,7 +119,7 @@ export const syncCardSearchDocumentHandler = async (
   // While an account deletion is in progress the deletion batches own
   // cleanup of the search tables for that user's cards. Writing here would
   // race those batches with optimistic concurrency conflicts, so stand down.
-  const ownerId = card?.userId ?? existing?.userId;
+  const ownerId = card?.userId ?? existing?.userId ?? userId;
   if (ownerId && (await getAccountDeletionState(ctx, ownerId))) {
     return null;
   }
@@ -124,7 +128,7 @@ export const syncCardSearchDocumentHandler = async (
     if (existing) {
       await ctx.db.delete("cardSearchDocuments", existing._id);
     }
-    await restartCardSearchTagSync(ctx, cardId);
+    await restartCardSearchTagSync(ctx, cardId, undefined, ownerId);
     return null;
   }
 
@@ -156,14 +160,15 @@ export const syncCardSearchDocumentHandler = async (
   }
 
   if (changed) {
-    await restartCardSearchTagSync(ctx, cardId, card.updatedAt);
+    await restartCardSearchTagSync(ctx, cardId, card.updatedAt, card.userId);
   }
   return null;
 };
 
 export const syncCardSearchTagsBatchHandler = async (
   ctx: MutationCtx,
-  cardId: Id<"cards">
+  cardId: Id<"cards">,
+  userId?: string
 ) => {
   const card = await ctx.db.get("cards", cardId);
   let state = await ctx.db
@@ -194,6 +199,7 @@ export const syncCardSearchTagsBatchHandler = async (
     )[0];
     ownerId = leftoverTag?.userId;
   }
+  ownerId = ownerId ?? userId;
   if (ownerId && (await getAccountDeletionState(ctx, ownerId))) {
     return { complete: true, processed: 0, writes: 0 };
   }
@@ -233,7 +239,7 @@ export const syncCardSearchTagsBatchHandler = async (
       writes += 1;
     }
     if (oldTags.length === CARD_SEARCH_TAG_SYNC_BATCH_SIZE) {
-      await scheduleCardSearchTagSync(ctx, cardId);
+      await scheduleCardSearchTagSync(ctx, cardId, ownerId);
       return { complete: false, processed: oldTags.length, writes };
     }
     if (card) {
@@ -253,7 +259,7 @@ export const syncCardSearchTagsBatchHandler = async (
       offset: 0,
       phase: "pruneOld",
     });
-    await scheduleCardSearchTagSync(ctx, cardId);
+    await scheduleCardSearchTagSync(ctx, cardId, ownerId);
     return { complete: false, processed: 0, writes };
   }
 
@@ -308,7 +314,7 @@ export const syncCardSearchTagsBatchHandler = async (
     await ctx.db.patch("cardSearchTagSyncStates", state._id, {
       offset: nextOffset,
     });
-    await scheduleCardSearchTagSync(ctx, cardId);
+    await scheduleCardSearchTagSync(ctx, cardId, ownerId);
     return { complete: false, processed: sourceSlice.length, writes };
   }
   if (state.phase === "tags") {
@@ -316,14 +322,14 @@ export const syncCardSearchTagsBatchHandler = async (
       offset: 0,
       phase: "aiTags",
     });
-    await scheduleCardSearchTagSync(ctx, cardId);
+    await scheduleCardSearchTagSync(ctx, cardId, ownerId);
     return { complete: false, processed: sourceSlice.length, writes };
   }
   await ctx.db.patch("cardSearchTagSyncStates", state._id, {
     offset: 0,
     phase: "pruneOld",
   });
-  await scheduleCardSearchTagSync(ctx, cardId);
+  await scheduleCardSearchTagSync(ctx, cardId, ownerId);
   return { complete: false, processed: sourceSlice.length, writes };
 };
 
