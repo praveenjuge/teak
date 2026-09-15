@@ -11,6 +11,7 @@ import type { MutationCtx } from "./_generated/server";
 import {
   assertAccountNotDeleting,
   beginAccountDeletion,
+  finishAccountDeletion,
 } from "./accountDeletion";
 import {
   deleteAccountDataHandler,
@@ -32,6 +33,7 @@ import { authorizeCardCreation, ensureCardQuotaAvailable } from "./card/quota";
 import {
   buildCardSearchTags,
   buildCardSearchText,
+  restartCardSearchTagSync,
   searchCardsByDocument,
   searchCardsByExactTag,
   syncCardSearchDocumentHandler,
@@ -693,6 +695,49 @@ describe("OCC contention behavior", () => {
       ).toBe(1);
       expect(await ctx.db.get("cards", cardId)).toBeNull();
       expect(await ctx.db.query("cardSearchTags").collect()).toHaveLength(0);
+    });
+  });
+
+  test("stands down search sync writers while account deletion is in progress", async () => {
+    const t = convexTest(schema, modules);
+    await t.run(async (ctx) => {
+      const cardId = await insertCard(ctx, "user-deleting", {
+        content: "before",
+        tags: ["alpha"],
+      });
+      await syncCardSearchDocumentHandler(ctx, cardId);
+      await drainCardSearchTagSync(ctx, cardId);
+      await restartCardSearchTagSync(ctx, cardId);
+
+      await beginAccountDeletion(ctx, "user-deleting");
+      await ctx.db.patch("cards", cardId, {
+        content: "after",
+        updatedAt: 999,
+      });
+
+      const tagResult = await syncCardSearchTagsBatchHandler(ctx, cardId);
+      expect(tagResult).toEqual({ complete: true, processed: 0, writes: 0 });
+      expect(await syncCardSearchDocumentHandler(ctx, cardId)).toBeNull();
+
+      const state = await ctx.db
+        .query("cardSearchTagSyncStates")
+        .withIndex("by_cardId", (query) => query.eq("cardId", cardId))
+        .unique();
+      expect(state?.phase).toBe("tags");
+      expect(state?.pending).toBe(true);
+      const document = await ctx.db
+        .query("cardSearchDocuments")
+        .withIndex("by_cardId", (query) => query.eq("cardId", cardId))
+        .unique();
+      expect(document?.sourceUpdatedAt).not.toBe(999);
+
+      await finishAccountDeletion(ctx, "user-deleting");
+      expect(await syncCardSearchDocumentHandler(ctx, cardId)).toBeNull();
+      const synced = await ctx.db
+        .query("cardSearchDocuments")
+        .withIndex("by_cardId", (query) => query.eq("cardId", cardId))
+        .unique();
+      expect(synced?.sourceUpdatedAt).toBe(999);
     });
   });
 
