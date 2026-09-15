@@ -44,6 +44,19 @@ describe("withFilesWorkerRetry", () => {
     expect(calls).toBe(2);
   });
 
+  test("retries rate-limited responses", async () => {
+    let calls = 0;
+    const result = await withFilesWorkerRetry(() => {
+      calls += 1;
+      if (calls === 1) {
+        return Promise.reject(new Error("files_worker_error:INTERNAL:429:req"));
+      }
+      return Promise.resolve("ok");
+    }, [0]);
+    expect(result).toBe("ok");
+    expect(calls).toBe(2);
+  });
+
   test("does not retry non-transient errors", async () => {
     let calls = 0;
     await expect(
