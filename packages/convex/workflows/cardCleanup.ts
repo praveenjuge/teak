@@ -80,7 +80,7 @@ export const cleanupDeletedCard = internalMutation({
     let deleted = false;
     try {
       await ctx.db.delete("cards", cardId);
-      await scheduleCardSearchSync(ctx, cardId);
+      await scheduleCardSearchSync(ctx, cardId, card.userId);
       deleted = true;
     } catch (error) {
       console.error(`${WORKFLOW_LOG_PREFIX} Failed to delete card record`, {
