@@ -35,6 +35,9 @@ export const FILES_OPS = [
   "analyze-image-content",
   "abort-multipart",
   "build-export",
+  // Keep the original name as a rollout alias while deployed Convex callers
+  // and the independently deployed Worker can overlap safely.
+  "cleanup-stale-pending-uploads",
   "cleanup-stale-pending-upload-page",
   "complete-multipart",
   "create-multipart",
