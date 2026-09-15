@@ -96,7 +96,7 @@ export const cleanupStalePendingCardUploads = internalAction({
   returns: v.null(),
   handler: (ctx: ActionCtx) =>
     monitored(CRON_MONITORS.cleanupStalePendingCardUploads, async () => {
-      await sweepStalePendingUploadsHandler();
+      await sweepStalePendingUploadsHandler(ctx);
       await ctx.runAction(
         internalAny.fileUploads.cleanupExpiredMultipartUploads,
         {}
