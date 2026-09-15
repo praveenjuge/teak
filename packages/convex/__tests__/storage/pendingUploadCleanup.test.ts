@@ -10,7 +10,6 @@ describe("buildStalePendingCleanupSpec", () => {
     expect(buildStalePendingCleanupSpec(now)).toEqual({
       op: "cleanup-stale-pending-uploads",
       params: {
-        maxPages: 200,
         pendingCardId: "upload-pending-v2",
         prefix: "users/",
         staleBefore: now - 24 * 60 * 60 * 1000,
