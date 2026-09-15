@@ -327,6 +327,57 @@ const dispatch = async (
         await finalizeImageUpload(env, finalization, origin)
       );
     }
+    case "cleanup-stale-pending-uploads": {
+      const prefix = requiredString(params, "prefix");
+      const pendingCardId = requiredString(params, "pendingCardId");
+      const staleBefore = params.staleBefore;
+      const maxPages = params.maxPages;
+      if (
+        !(
+          (prefix === "users/" || prefix === "dev/users/") &&
+          /^[a-z0-9-]{1,64}$/u.test(pendingCardId)
+        ) ||
+        typeof staleBefore !== "number" ||
+        !Number.isSafeInteger(staleBefore) ||
+        typeof maxPages !== "number" ||
+        !Number.isSafeInteger(maxPages) ||
+        maxPages < 1 ||
+        maxPages > 200
+      ) {
+        throw new Error("invalid_cleanup_params");
+      }
+      const pendingSegment = `/cards/${pendingCardId}/`;
+      let cursor: string | undefined;
+      let deleted = 0;
+      let pages = 0;
+      let truncated = false;
+      do {
+        const listed = await env.BUCKET.list({
+          prefix,
+          ...(cursor ? { cursor } : {}),
+          limit: 1000,
+        });
+        pages += 1;
+        const staleKeys = listed.objects.flatMap((object) =>
+          object.key.includes(pendingSegment) &&
+          object.uploaded.getTime() <= staleBefore
+            ? [object.key]
+            : []
+        );
+        for (let index = 0; index < staleKeys.length; index += 100) {
+          const batch = staleKeys.slice(index, index + 100);
+          await env.BUCKET.delete(batch);
+          deleted += batch.length;
+        }
+        truncated = listed.truncated;
+        cursor = listed.truncated ? listed.cursor : undefined;
+      } while (cursor && pages < maxPages);
+      return success(requestId, {
+        deleted,
+        pages,
+        truncated: Boolean(cursor && truncated),
+      });
+    }
     case "delete-object":
       await env.BUCKET.delete(requiredString(params, "key"));
       return success(requestId, { deleted: true });
