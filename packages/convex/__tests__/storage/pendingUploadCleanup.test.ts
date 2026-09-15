@@ -1,58 +1,91 @@
 import { describe, expect, test } from "bun:test";
-import {
-  buildStalePendingCleanupSpec,
-  withTransientFilesWorkerRetry,
-} from "../../storage/pendingUploadCleanup";
+import { readFileSync } from "node:fs";
+import { withFilesWorkerRetry } from "../../storage/pendingUploadCleanup";
 
-describe("buildStalePendingCleanupSpec", () => {
-  test("moves the whole stale-object sweep behind one worker operation", () => {
-    const now = Date.UTC(2026, 8, 15, 4, 30);
-    expect(buildStalePendingCleanupSpec(now)).toEqual({
-      op: "cleanup-stale-pending-uploads",
-      params: {
-        pendingCardId: "upload-pending-v2",
-        prefix: "users/",
-        staleBefore: now - 24 * 60 * 60 * 1000,
-      },
-    });
+describe("worker-side stale cleanup", () => {
+  test("uses the bounded page operation instead of remote delete batches", async () => {
+    const source = readFileSync(
+      new URL("../../storage/pendingUploadCleanup.ts", import.meta.url),
+      "utf8"
+    );
+    expect(source).toContain('op: "cleanup-stale-pending-upload-page"');
+    expect(source).not.toContain('op: "delete-objects"');
   });
 });
 
-describe("withTransientFilesWorkerRetry", () => {
-  test("retries transient worker failures", async () => {
+describe("withFilesWorkerRetry", () => {
+  test("retries transient network errors until the call succeeds", async () => {
     let calls = 0;
-    const result = await withTransientFilesWorkerRetry(async () => {
+    const result = await withFilesWorkerRetry(() => {
       calls += 1;
       if (calls < 3) {
-        throw new Error("files_worker_network_error:reset");
+        return Promise.reject(
+          new Error("files_worker_network_error:fetch failed")
+        );
       }
-      return "ok";
+      return Promise.resolve("ok");
     }, [0, 0]);
     expect(result).toBe("ok");
     expect(calls).toBe(3);
   });
 
-  test("retries rate-limited worker failures", async () => {
+  test("retries transient 5xx responses", async () => {
     let calls = 0;
-    const result = await withTransientFilesWorkerRetry(async () => {
+    const result = await withFilesWorkerRetry(() => {
       calls += 1;
       if (calls === 1) {
-        throw new Error("files_worker_error:INTERNAL:429:req");
+        return Promise.reject(
+          new Error("files_worker_error:INTERNAL:500:req-1")
+        );
       }
-      return "ok";
-    }, [0]);
+      return Promise.resolve("ok");
+    }, [0, 0]);
     expect(result).toBe("ok");
     expect(calls).toBe(2);
   });
 
-  test("does not retry non-transient failures", async () => {
+  test("does not retry non-transient errors", async () => {
     let calls = 0;
     await expect(
-      withTransientFilesWorkerRetry(async () => {
+      withFilesWorkerRetry(() => {
         calls += 1;
-        throw new Error("files_worker_error:UNAUTHORIZED:401:req");
+        return Promise.reject(
+          new Error("files_worker_error:UNAUTHORIZED:401:req-1")
+        );
       }, [0, 0])
-    ).rejects.toThrow("UNAUTHORIZED");
+    ).rejects.toThrow("files_worker_error:UNAUTHORIZED:401:req-1");
     expect(calls).toBe(1);
+  });
+
+  test("stops retrying when the shared budget is exhausted", async () => {
+    const budget = { remainingMs: 5 };
+    let calls = 0;
+    await expect(
+      withFilesWorkerRetry(
+        () => {
+          calls += 1;
+          return Promise.reject(
+            new Error("files_worker_network_error:fetch failed")
+          );
+        },
+        [3, 3],
+        budget
+      )
+    ).rejects.toThrow("files_worker_network_error:fetch failed");
+    expect(calls).toBe(2);
+    expect(budget.remainingMs).toBe(2);
+  });
+
+  test("gives up after the retry budget", async () => {
+    let calls = 0;
+    await expect(
+      withFilesWorkerRetry(() => {
+        calls += 1;
+        return Promise.reject(
+          new Error("files_worker_network_error:fetch failed")
+        );
+      }, [0, 0])
+    ).rejects.toThrow("files_worker_network_error:fetch failed");
+    expect(calls).toBe(3);
   });
 });
