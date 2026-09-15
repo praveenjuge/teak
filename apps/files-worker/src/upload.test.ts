@@ -288,6 +288,35 @@ describe("signed single-file uploads", () => {
 });
 
 describe("additive files ops", () => {
+  test("cleans stale pending uploads in one signed worker operation", async () => {
+    const bucket = new FakeBucket();
+    bucket.objects.set("users/u1/cards/upload-pending-v2/file/old", {
+      bytes: new Uint8Array([1]),
+    });
+    bucket.objects.set("users/u1/cards/card-1/file/old", {
+      bytes: new Uint8Array([2]),
+    });
+    const response = await worker.fetch(
+      await signedOpRequest("cleanup-stale-pending-uploads", {
+        maxPages: 200,
+        pendingCardId: "upload-pending-v2",
+        prefix: "users/",
+        staleBefore: Date.now(),
+      }),
+      { BUCKET: bucket, FILES_SIGNING_SECRET: SECRET } as Env,
+      { waitUntil: () => undefined } as never
+    );
+    expect(response.status).toBe(200);
+    expect(await response.json()).toMatchObject({
+      data: { deleted: 1, pages: 1, truncated: false },
+      ok: true,
+    });
+    expect(
+      bucket.objects.has("users/u1/cards/upload-pending-v2/file/old")
+    ).toBe(false);
+    expect(bucket.objects.has("users/u1/cards/card-1/file/old")).toBe(true);
+  });
+
   test("delete-objects removes batches and tolerates missing keys", async () => {
     const bucket = new FakeBucket();
     bucket.objects.set("users/u1/a.txt", {
