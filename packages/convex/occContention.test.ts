@@ -741,6 +741,40 @@ describe("OCC contention behavior", () => {
     });
   });
 
+  test("stands down queued search sync after deletion cleanup via the owner hint", async () => {
+    const t = convexTest(schema, modules);
+    await t.run(async (ctx) => {
+      const cardId = await insertCard(ctx, "user-queued", {
+        tags: ["alpha"],
+      });
+      await syncCardSearchDocumentHandler(ctx, cardId);
+      await drainCardSearchTagSync(ctx, cardId);
+
+      await beginAccountDeletion(ctx, "user-queued");
+      expect(
+        await deleteAccountDataHandler(ctx, "user-queued", [cardId])
+      ).toBe(1);
+
+      const tagResult = await syncCardSearchTagsBatchHandler(
+        ctx,
+        cardId,
+        "user-queued"
+      );
+      expect(tagResult).toEqual({ complete: true, processed: 0, writes: 0 });
+      expect(
+        await syncCardSearchDocumentHandler(ctx, cardId, "user-queued")
+      ).toBeNull();
+
+      expect(await ctx.db.query("cardSearchTagSyncStates").collect()).toHaveLength(
+        0
+      );
+      expect(await ctx.db.query("cardSearchDocuments").collect()).toHaveLength(0);
+      expect(await ctx.db.query("cardSearchTags").collect()).toHaveLength(0);
+
+      await finishAccountDeletion(ctx, "user-queued");
+    });
+  });
+
   test("enforces the configured card-creation threshold", async () => {
     const t = convexTest(schema, modules);
     rateLimiterTest.register(t, "rateLimiterV2");
