@@ -298,7 +298,6 @@ describe("additive files ops", () => {
     });
     const response = await worker.fetch(
       await signedOpRequest("cleanup-stale-pending-uploads", {
-        maxPages: 200,
         pendingCardId: "upload-pending-v2",
         prefix: "users/",
         staleBefore: Date.now(),
@@ -308,7 +307,7 @@ describe("additive files ops", () => {
     );
     expect(response.status).toBe(200);
     expect(await response.json()).toMatchObject({
-      data: { deleted: 1, pages: 1, truncated: false },
+      data: { deleted: 1, pages: 1 },
       ok: true,
     });
     expect(
