@@ -278,7 +278,7 @@ export const createUploadedCardForUser = async (
     updatedAt: now,
   });
   await recordActiveCardCreated(ctx, args.userId, cardId, { hasPremium });
-  await scheduleCardSearchSync(ctx, cardId);
+  await scheduleCardSearchSync(ctx, cardId, args.userId);
 
   // Object metadata is served by the Files Worker path; the Convex R2
   // component's metadata sync is no longer part of the upload pipeline.
