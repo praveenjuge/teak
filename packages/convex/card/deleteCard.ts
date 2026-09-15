@@ -38,7 +38,7 @@ export const permanentDeleteCard = mutation({
     if (!card.isDeleted) {
       await recordActiveCardRemoved(ctx, card.userId, args.id);
     }
-    await scheduleCardSearchSync(ctx, args.id);
+    await scheduleCardSearchSync(ctx, args.id, card.userId);
     for (const key of cardStorageObjectKeys(card)) {
       await deleteObject(ctx, key);
     }
