@@ -327,7 +327,7 @@ const dispatch = async (
         await finalizeImageUpload(env, finalization, origin)
       );
     }
-    case "cleanup-stale-pending-uploads": {
+    case "cleanup-stale-pending-upload-page": {
       const prefix = requiredString(params, "prefix");
       const pendingCardId = requiredString(params, "pendingCardId");
       const staleBefore = params.staleBefore;
@@ -341,31 +341,26 @@ const dispatch = async (
       ) {
         throw new Error("invalid_cleanup_params");
       }
+      const cursor = optionalString(params, "cursor");
+      const listed = await env.BUCKET.list({
+        prefix,
+        ...(cursor ? { cursor } : {}),
+        limit: 1000,
+      });
       const pendingSegment = `/cards/${pendingCardId}/`;
-      let cursor: string | undefined;
-      let deleted = 0;
-      let pages = 0;
-      do {
-        const listed = await env.BUCKET.list({
-          prefix,
-          ...(cursor ? { cursor } : {}),
-          limit: 1000,
-        });
-        pages += 1;
-        const staleKeys = listed.objects.flatMap((object) =>
-          object.key.includes(pendingSegment) &&
-          object.uploaded.getTime() <= staleBefore
-            ? [object.key]
-            : []
-        );
-        for (let index = 0; index < staleKeys.length; index += 100) {
-          const batch = staleKeys.slice(index, index + 100);
-          await env.BUCKET.delete(batch);
-          deleted += batch.length;
-        }
-        cursor = listed.truncated ? listed.cursor : undefined;
-      } while (cursor);
-      return success(requestId, { deleted, pages });
+      const staleKeys = listed.objects.flatMap((object) =>
+        object.key.includes(pendingSegment) &&
+        object.uploaded.getTime() <= staleBefore
+          ? [object.key]
+          : []
+      );
+      for (let index = 0; index < staleKeys.length; index += 100) {
+        await env.BUCKET.delete(staleKeys.slice(index, index + 100));
+      }
+      return success(requestId, {
+        cursor: listed.truncated ? (listed.cursor ?? null) : null,
+        deleted: staleKeys.length,
+      });
     }
     case "delete-object":
       await env.BUCKET.delete(requiredString(params, "key"));
