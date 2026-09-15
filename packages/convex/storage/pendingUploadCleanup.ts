@@ -60,47 +60,68 @@ export const withFilesWorkerRetry = async <T>(
 
 const internalAny = internal as Record<string, any>;
 
+export interface StalePendingCleanupDependencies {
+  cleanupPage: (args: {
+    cursor?: string;
+    pendingCardId: string;
+    prefix: string;
+    staleBefore: number;
+  }) => Promise<{ cursor: string | null }>;
+  getCursor: () => Promise<string | null>;
+  setCursor: (cursor: string | null) => Promise<void>;
+}
+
+export const runStalePendingCleanup = async (
+  dependencies: StalePendingCleanupDependencies,
+  now = Date.now()
+): Promise<null> => {
+  const staleBefore = now - STALE_AFTER_MS;
+  let cursor = await dependencies.getCursor();
+  let pages = 0;
+  do {
+    const outcome = await dependencies.cleanupPage({
+      ...(cursor ? { cursor } : {}),
+      pendingCardId: PENDING_UPLOAD_CARD_ID,
+      prefix: buildR2ListPrefix(),
+      staleBefore,
+    });
+    cursor = outcome.cursor;
+    pages += 1;
+  } while (cursor && pages < MAX_LIST_PAGES);
+  await dependencies.setCursor(cursor);
+  return null;
+};
+
 export const sweepStalePendingUploadsHandler = async (
   ctx: ActionCtx
 ): Promise<null> => {
   if (!isFilesWorkerConfigured()) {
     throw new Error("files_worker_not_configured");
   }
-  const staleBefore = Date.now() - STALE_AFTER_MS;
-  let cursor = (await ctx.runQuery(
-    internalAny.storage.pendingUploadCleanupState.getCursor,
-    {}
-  )) as string | null;
-  let pages = 0;
   const retryBudget = { remainingMs: SWEEP_RETRY_BUDGET_MS };
-  do {
-    const outcome = await withFilesWorkerRetry(
-      () =>
-        callFilesWorkerJson<{ cursor: string | null; deleted: number }>({
-          op: "cleanup-stale-pending-upload-page",
-          params: {
-            ...(cursor ? { cursor } : {}),
-            pendingCardId: PENDING_UPLOAD_CARD_ID,
-            prefix: buildR2ListPrefix(),
-            staleBefore,
-          },
-        }),
-      RETRY_DELAYS_MS,
-      retryBudget
-    );
-    if (outcome.kind !== "ok") {
-      throw new Error("files_worker_cleanup_unavailable");
-    }
-    cursor = outcome.data.cursor;
-    pages += 1;
-  } while (cursor && pages < MAX_LIST_PAGES);
-  await ctx.runMutation(
-    internalAny.storage.pendingUploadCleanupState.setCursor,
-    {
-      cursor,
-    }
-  );
-  return null;
+  return await runStalePendingCleanup({
+    cleanupPage: async (params) => {
+      const outcome = await withFilesWorkerRetry(
+        () =>
+          callFilesWorkerJson<{ cursor: string | null; deleted: number }>({
+            op: "cleanup-stale-pending-upload-page",
+            params,
+          }),
+        RETRY_DELAYS_MS,
+        retryBudget
+      );
+      if (outcome.kind !== "ok") {
+        throw new Error("files_worker_cleanup_unavailable");
+      }
+      return outcome.data;
+    },
+    getCursor: () =>
+      ctx.runQuery(internalAny.storage.pendingUploadCleanupState.getCursor, {}),
+    setCursor: (cursor) =>
+      ctx.runMutation(internalAny.storage.pendingUploadCleanupState.setCursor, {
+        cursor,
+      }),
+  });
 };
 
 export const sweepStalePendingUploads = internalAction({
