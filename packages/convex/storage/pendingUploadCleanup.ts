@@ -10,7 +10,6 @@ import { PENDING_UPLOAD_CARD_ID } from "./r2";
 import { buildR2ListPrefix } from "./r2Keys";
 
 const STALE_AFTER_MS = 24 * 60 * 60 * 1000;
-const MAX_LIST_PAGES = 200;
 const RETRY_DELAYS_MS = [1000, 4000] as const;
 
 const isTransientFilesWorkerError = (error: unknown): boolean => {
@@ -44,7 +43,6 @@ export const withTransientFilesWorkerRetry = async <T>(
 export const buildStalePendingCleanupSpec = (now = Date.now()) => ({
   op: "cleanup-stale-pending-uploads" as const,
   params: {
-    maxPages: MAX_LIST_PAGES,
     pendingCardId: PENDING_UPLOAD_CARD_ID,
     prefix: buildR2ListPrefix(),
     staleBefore: now - STALE_AFTER_MS,
@@ -60,7 +58,6 @@ export const sweepStalePendingUploadsHandler = async (): Promise<null> => {
       callFilesWorkerJson<{
         deleted: number;
         pages: number;
-        truncated: boolean;
       }>(buildStalePendingCleanupSpec())
     );
     if (outcome.kind !== "ok") {
