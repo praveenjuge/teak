@@ -35,7 +35,7 @@ export const FILES_OPS = [
   "analyze-image-content",
   "abort-multipart",
   "build-export",
-  "cleanup-stale-pending-uploads",
+  "cleanup-stale-pending-upload-page",
   "complete-multipart",
   "create-multipart",
   "delete-object",
