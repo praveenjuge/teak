@@ -149,7 +149,7 @@ export const createDefaultCardsForUser = internalMutation({
         updatedAt: timestamp,
       });
       await recordActiveCardCreated(ctx, userId, cardId);
-      await scheduleCardSearchSync(ctx, cardId);
+      await scheduleCardSearchSync(ctx, cardId, userId);
     }
 
     return { created: true, count: DEFAULT_CARDS.length };
