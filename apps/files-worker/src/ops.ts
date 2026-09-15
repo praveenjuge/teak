@@ -327,6 +327,7 @@ const dispatch = async (
         await finalizeImageUpload(env, finalization, origin)
       );
     }
+    case "cleanup-stale-pending-uploads":
     case "cleanup-stale-pending-upload-page": {
       const prefix = requiredString(params, "prefix");
       const pendingCardId = requiredString(params, "pendingCardId");
