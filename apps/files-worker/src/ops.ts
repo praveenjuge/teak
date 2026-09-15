@@ -331,18 +331,13 @@ const dispatch = async (
       const prefix = requiredString(params, "prefix");
       const pendingCardId = requiredString(params, "pendingCardId");
       const staleBefore = params.staleBefore;
-      const maxPages = params.maxPages;
       if (
         !(
           (prefix === "users/" || prefix === "dev/users/") &&
           /^[a-z0-9-]{1,64}$/u.test(pendingCardId)
         ) ||
         typeof staleBefore !== "number" ||
-        !Number.isSafeInteger(staleBefore) ||
-        typeof maxPages !== "number" ||
-        !Number.isSafeInteger(maxPages) ||
-        maxPages < 1 ||
-        maxPages > 200
+        !Number.isSafeInteger(staleBefore)
       ) {
         throw new Error("invalid_cleanup_params");
       }
@@ -350,7 +345,6 @@ const dispatch = async (
       let cursor: string | undefined;
       let deleted = 0;
       let pages = 0;
-      let truncated = false;
       do {
         const listed = await env.BUCKET.list({
           prefix,
@@ -369,14 +363,9 @@ const dispatch = async (
           await env.BUCKET.delete(batch);
           deleted += batch.length;
         }
-        truncated = listed.truncated;
         cursor = listed.truncated ? listed.cursor : undefined;
-      } while (cursor && pages < maxPages);
-      return success(requestId, {
-        deleted,
-        pages,
-        truncated: Boolean(cursor && truncated),
-      });
+      } while (cursor);
+      return success(requestId, { deleted, pages });
     }
     case "delete-object":
       await env.BUCKET.delete(requiredString(params, "key"));
