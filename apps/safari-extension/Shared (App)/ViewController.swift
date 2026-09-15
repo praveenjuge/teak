@@ -74,6 +74,7 @@ final class SettingsViewController: NSViewController, ASWebAuthenticationPresent
     private var authenticationSession: ASWebAuthenticationSession?
     private var isSignedIn = false
     private var activeObserver: NSObjectProtocol?
+    private var accountStateGeneration = 0
 
     override func loadView() {
         view = NSView()
@@ -169,9 +170,17 @@ final class SettingsViewController: NSViewController, ASWebAuthenticationPresent
         return label
     }
 
+    private func nextAccountStateGeneration() -> Int {
+        accountStateGeneration += 1
+        return accountStateGeneration
+    }
+
     private func refreshAccountState() {
+        let generation = nextAccountStateGeneration()
         Task { @MainActor in
-            self.renderAccountState(await TeakSafariService.shared.authState())
+            let state = await TeakSafariService.shared.authState()
+            guard generation == self.accountStateGeneration else { return }
+            self.renderAccountState(state)
         }
     }
 
@@ -213,6 +222,7 @@ final class SettingsViewController: NSViewController, ASWebAuthenticationPresent
 
     func startSignIn() {
         guard authenticationSession == nil else { return }
+        let generation = nextAccountStateGeneration()
         do {
             let pending = try SafariOAuthRequest()
             let session = ASWebAuthenticationSession(
@@ -222,6 +232,7 @@ final class SettingsViewController: NSViewController, ASWebAuthenticationPresent
                 Task { @MainActor in
                     guard let self else { return }
                     self.authenticationSession = nil
+                    guard generation == self.accountStateGeneration else { return }
                     guard let callback, error == nil else {
                         self.renderAccountState([
                             "authenticated": false,
@@ -229,7 +240,9 @@ final class SettingsViewController: NSViewController, ASWebAuthenticationPresent
                         ])
                         return
                     }
-                    self.renderAccountState(await TeakSafariService.shared.completeSignIn(pending, callback: callback))
+                    let state = await TeakSafariService.shared.completeSignIn(pending, callback: callback)
+                    guard generation == self.accountStateGeneration else { return }
+                    self.renderAccountState(state)
                 }
             }
             session.presentationContextProvider = self
@@ -255,8 +268,11 @@ final class SettingsViewController: NSViewController, ASWebAuthenticationPresent
     @objc private func signOutFromButton() {
         authenticationSession?.cancel()
         authenticationSession = nil
+        let generation = nextAccountStateGeneration()
         Task { @MainActor in
-            self.renderAccountState(await TeakSafariService.shared.signOut())
+            let state = await TeakSafariService.shared.signOut()
+            guard generation == self.accountStateGeneration else { return }
+            self.renderAccountState(state)
         }
     }
 
