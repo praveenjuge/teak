@@ -17,7 +17,7 @@ const isTransientFilesWorkerError = (error: unknown): boolean => {
   const message = error instanceof Error ? error.message : String(error);
   return (
     message.startsWith("files_worker_network_error:") ||
-    /^files_worker_error:[A-Z0-9_]+:5\d\d:/u.test(message)
+    /^files_worker_error:[A-Z0-9_]+:(?:429|5\d\d):/u.test(message)
   );
 };
 
