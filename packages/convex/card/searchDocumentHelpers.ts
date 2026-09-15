@@ -1,4 +1,5 @@
 import { internal } from "../_generated/api";
+import { getAccountDeletionState } from "../accountDeletion";
 import type { Doc, Id } from "../_generated/dataModel";
 import type { MutationCtx, QueryCtx } from "../_generated/server";
 
@@ -111,6 +112,14 @@ export const syncCardSearchDocumentHandler = async (
       .unique(),
   ]);
 
+  // While an account deletion is in progress the deletion batches own
+  // cleanup of the search tables for that user's cards. Writing here would
+  // race those batches with optimistic concurrency conflicts, so stand down.
+  const ownerId = card?.userId ?? existing?.userId;
+  if (ownerId && (await getAccountDeletionState(ctx, ownerId))) {
+    return null;
+  }
+
   if (!card) {
     if (existing) {
       await ctx.db.delete("cardSearchDocuments", existing._id);
@@ -161,6 +170,34 @@ export const syncCardSearchTagsBatchHandler = async (
     .query("cardSearchTagSyncStates")
     .withIndex("by_cardId", (query) => query.eq("cardId", cardId))
     .unique();
+
+  // While an account deletion is in progress the deletion batches own
+  // cleanup of the search tables for that user's cards. Writing here would
+  // race those batches with optimistic concurrency conflicts, so stand down.
+  // The card row, its sync state, and its tag rows are removed atomically by
+  // the deletion batch, so a missing card with leftover rows means the batch
+  // has not reached this card yet and the owner can still be resolved.
+  let ownerId = card?.userId;
+  if (!ownerId) {
+    const searchDocument = await ctx.db
+      .query("cardSearchDocuments")
+      .withIndex("by_cardId", (query) => query.eq("cardId", cardId))
+      .unique();
+    ownerId = searchDocument?.userId;
+  }
+  if (!ownerId) {
+    const leftoverTag = (
+      await ctx.db
+        .query("cardSearchTags")
+        .withIndex("by_cardId", (query) => query.eq("cardId", cardId))
+        .take(1)
+    )[0];
+    ownerId = leftoverTag?.userId;
+  }
+  if (ownerId && (await getAccountDeletionState(ctx, ownerId))) {
+    return { complete: true, processed: 0, writes: 0 };
+  }
+
   if (!state) {
     const stateId = await ctx.db.insert("cardSearchTagSyncStates", {
       cardId,
