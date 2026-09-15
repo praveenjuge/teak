@@ -176,6 +176,9 @@ final class SettingsViewController: NSViewController, ASWebAuthenticationPresent
     }
 
     private func refreshAccountState() {
+        // Never interleave with an active OAuth exchange: the callback's
+        // result is authoritative and must render uncontested.
+        guard authenticationSession == nil else { return }
         let generation = nextAccountStateGeneration()
         Task { @MainActor in
             let state = await TeakSafariService.shared.authState()
@@ -222,18 +225,22 @@ final class SettingsViewController: NSViewController, ASWebAuthenticationPresent
 
     func startSignIn() {
         guard authenticationSession == nil else { return }
-        let generation = nextAccountStateGeneration()
+        // Invalidate in-flight reads; the callback below renders unconditionally.
+        _ = nextAccountStateGeneration()
         do {
             let pending = try SafariOAuthRequest()
             let session = ASWebAuthenticationSession(
                 url: pending.authorizationURL(baseURL: TeakSafariService.appBaseURL),
                 callback: .customScheme("teak-safari")
             ) { [weak self] callback, error in
+                // The OAuth callback is authoritative: it always runs the
+                // exchange and renders, so a returning user can never lose a
+                // completed sign-in to a racing refresh. The session stays
+                // non-nil through the exchange to keep refreshes out.
                 Task { @MainActor in
                     guard let self else { return }
-                    self.authenticationSession = nil
-                    guard generation == self.accountStateGeneration else { return }
                     guard let callback, error == nil else {
+                        self.authenticationSession = nil
                         self.renderAccountState([
                             "authenticated": false,
                             "message": "Sign-in was cancelled. You can try again.",
@@ -241,7 +248,7 @@ final class SettingsViewController: NSViewController, ASWebAuthenticationPresent
                         return
                     }
                     let state = await TeakSafariService.shared.completeSignIn(pending, callback: callback)
-                    guard generation == self.accountStateGeneration else { return }
+                    self.authenticationSession = nil
                     self.renderAccountState(state)
                 }
             }
