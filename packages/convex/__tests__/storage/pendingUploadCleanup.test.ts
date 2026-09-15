@@ -3,13 +3,15 @@ import { readFileSync } from "node:fs";
 import { withFilesWorkerRetry } from "../../storage/pendingUploadCleanup";
 
 describe("worker-side stale cleanup", () => {
-  test("uses the bounded page operation instead of remote delete batches", async () => {
+  test("uses the bounded page operation instead of remote delete batches", () => {
     const source = readFileSync(
       new URL("../../storage/pendingUploadCleanup.ts", import.meta.url),
       "utf8"
     );
     expect(source).toContain('op: "cleanup-stale-pending-upload-page"');
     expect(source).not.toContain('op: "delete-objects"');
+    expect(source).toContain("pendingUploadCleanupState.getCursor");
+    expect(source).toContain("pendingUploadCleanupState.setCursor");
   });
 });
 
