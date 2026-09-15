@@ -102,7 +102,9 @@ export const buildContentSecurityPolicy = (
       ...customOrigins,
     ].join(" "),
     "worker-src 'self' blob:",
-    "upgrade-insecure-requests",
+    // Production is https-only, but development serves plain http://localhost
+    // where this directive breaks every subresource with TLS failures.
+    ...(environment === "production" ? ["upgrade-insecure-requests"] : []),
   ].join("; ");
 };
 

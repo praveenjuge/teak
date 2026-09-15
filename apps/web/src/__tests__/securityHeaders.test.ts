@@ -4,7 +4,10 @@ import {
   staticSecurityHeaders,
 } from "../lib/security-headers";
 
-const contentSecurityPolicy = buildContentSecurityPolicy("production");
+// Ambient environment, matching what staticSecurityHeaders embeds; the policy
+// is environment-dependent (unsafe-eval in development, http upgrades only in
+// production), so the prod-shaped assertions below pin the non-varying parts.
+const contentSecurityPolicy = buildContentSecurityPolicy();
 
 const headers = new Map(
   staticSecurityHeaders.map(({ key, value }) => [key, value] as const)
@@ -161,6 +164,17 @@ describe("web security headers", () => {
         process.env.NEXT_PUBLIC_FILES_BASE = previous;
       }
     }
+  });
+
+  test("upgrades insecure requests only in production", () => {
+    // Development serves plain http://localhost; the upgrade directive makes
+    // browsers request chunks over https:// and fail with connection errors.
+    expect(buildContentSecurityPolicy("production")).toContain(
+      "upgrade-insecure-requests"
+    );
+    expect(buildContentSecurityPolicy("development")).not.toContain(
+      "upgrade-insecure-requests"
+    );
   });
 
   test("allows framework bootstraps in production but eval only in development", () => {
