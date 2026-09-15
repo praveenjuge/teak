@@ -4,7 +4,10 @@ import {
   staticSecurityHeaders,
 } from "../lib/security-headers";
 
-const contentSecurityPolicy = buildContentSecurityPolicy("production");
+// Ambient environment, matching what staticSecurityHeaders embeds; the policy
+// is environment-dependent (unsafe-eval in development, http upgrades only in
+// production), so the prod-shaped assertions below pin the non-varying parts.
+const contentSecurityPolicy = buildContentSecurityPolicy();
 
 const headers = new Map(
   staticSecurityHeaders.map(({ key, value }) => [key, value] as const)
@@ -159,6 +162,39 @@ describe("web security headers", () => {
         delete process.env.NEXT_PUBLIC_FILES_BASE;
       } else {
         process.env.NEXT_PUBLIC_FILES_BASE = previous;
+      }
+    }
+  });
+
+  test("upgrades insecure requests everywhere except development and test", () => {
+    // Development serves plain http://localhost; the upgrade directive makes
+    // browsers request chunks over https:// and fail with connection errors.
+    expect(buildContentSecurityPolicy("production")).toContain(
+      "upgrade-insecure-requests"
+    );
+    expect(buildContentSecurityPolicy("development")).not.toContain(
+      "upgrade-insecure-requests"
+    );
+    expect(buildContentSecurityPolicy("test")).not.toContain(
+      "upgrade-insecure-requests"
+    );
+    expect(buildContentSecurityPolicy("staging")).toContain(
+      "upgrade-insecure-requests"
+    );
+  });
+
+  test("upgrades insecure requests when the environment is missing", () => {
+    const previous = process.env.NODE_ENV;
+    delete process.env.NODE_ENV;
+    try {
+      expect(buildContentSecurityPolicy()).toContain(
+        "upgrade-insecure-requests"
+      );
+    } finally {
+      if (previous === undefined) {
+        delete process.env.NODE_ENV;
+      } else {
+        process.env.NODE_ENV = previous;
       }
     }
   });
