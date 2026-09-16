@@ -86,6 +86,20 @@ const convexEnvSet = async (
   };
 };
 
+/**
+ * Transient local-backend failures worth retrying. Every `convex dev --once`
+ * run starts its own SQLite-backed local backend; when a previous run shuts
+ * down uncleanly (e.g. the provision push that fails on missing SITE_URL by
+ * design), the next run can stat a journal file that vanished mid-startup:
+ * ENOENT on convex_local_backend.sqlite3-journal. Retrying starts a fresh
+ * backend. Deterministic failures (missing env vars, type errors) never match.
+ */
+const TRANSIENT_PUSH_FAILURE =
+  /convex_local_backend\.sqlite3|SQLITE_BUSY|ECONNREFUSED.*127\.0\.0\.1:3210/i;
+
+export const isTransientPushFailure = (output: string): boolean =>
+  TRANSIENT_PUSH_FAILURE.test(output);
+
 export const summarizePushFailure = (stderr: string): string => {
   const lines = stderr
     .split("\n")
@@ -99,18 +113,41 @@ export const summarizePushFailure = (stderr: string): string => {
   return parts.join(" ") || "unknown error";
 };
 
+export interface ConvexDevOnceOptions {
+  /** Total attempts; transient failures retry with backoff. Defaults to 3. */
+  attempts?: number;
+  /** Subprocess runner; defaults to runCommand. */
+  run?: typeof runCommand;
+  /** Backoff sleeper; defaults to Bun.sleep. */
+  sleepMs?: (ms: number) => Promise<void>;
+}
+
 export const convexDevOnce = async (
-  cwd: string = convexProjectDir()
+  cwd: string = convexProjectDir(),
+  opts?: ConvexDevOnceOptions
 ): Promise<{ ok: boolean; detail: string }> => {
-  const result = await runCommand(["bunx", "convex", "dev", "--once"], {
-    cwd,
-    timeoutMs: 300_000,
-  });
-  return {
-    detail:
-      result.exitCode === 0 ? "pushed" : summarizePushFailure(result.stderr),
-    ok: result.exitCode === 0,
-  };
+  const attempts = Math.max(1, Math.floor(opts?.attempts ?? 3));
+  const run = opts?.run ?? runCommand;
+  const sleepMs = opts?.sleepMs ?? Bun.sleep;
+  let detail = "unknown error";
+  for (let attempt = 1; attempt <= attempts; attempt++) {
+    const result = await run(["bunx", "convex", "dev", "--once"], {
+      cwd,
+      timeoutMs: 300_000,
+    });
+    if (result.exitCode === 0) {
+      return { detail: "pushed", ok: true };
+    }
+    detail = summarizePushFailure(result.stderr);
+    const transient = isTransientPushFailure(
+      `${result.stderr}\n${result.stdout}`
+    );
+    if (!(transient && attempt < attempts)) {
+      break;
+    }
+    await sleepMs(2000 * attempt);
+  }
+  return { detail, ok: false };
 };
 
 export const ensureDeploymentVar = async (
