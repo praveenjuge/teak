@@ -53,7 +53,9 @@ describe("classification step", () => {
         _id: "c1",
         type: "quote",
         content: "to be or not to be",
-        processingStatus: { classify: { confidence: 0.95 } },
+        processingStatus: {
+          classify: { status: "completed", confidence: 0.95 },
+        },
       };
       mockRunQuery.mockResolvedValue(card);
 
@@ -81,6 +83,26 @@ describe("classification step", () => {
 
       expect(result.type).toBe("quote");
       expect(result.confidence).toBe(0.95);
+    });
+
+    test("marks classify completed for a sticky quote card with a pending stage", async () => {
+      const card = {
+        _id: "c1",
+        type: "quote",
+        content: "to be or not to be",
+        processingStatus: { classify: { status: "pending" } },
+      };
+      mockRunQuery.mockResolvedValue(card);
+
+      const result = await classify(mockCtx, { cardId: "c1" });
+
+      expect(result.mode).toBe("completed");
+      expect(result.type).toBe("quote");
+      expect(mockRunMutation).toHaveBeenCalledTimes(1);
+      expect(mockRunMutation.mock.calls[0][1]).toEqual({
+        cardId: "c1",
+        confidence: 0.95,
+      });
     });
 
     test("re-classifies quote when URL present", async () => {
