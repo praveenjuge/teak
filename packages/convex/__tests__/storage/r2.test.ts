@@ -6,10 +6,6 @@ import {
 } from "@teak/files-protocol";
 import { buildSignedWorkerOpRequest } from "../../storage/filesWorkerClient";
 import {
-  assertR2KeyInNamespace,
-  cardStorageObjectKeys,
-} from "../../storage/r2";
-import {
   bucketedSignatureExpiry,
   buildSignedFilePayload,
   buildSignedWorkerFileUrl,
@@ -18,6 +14,10 @@ import {
   tryResolveImageUrl,
   tryResolveObjectUrl,
 } from "../../storage/fileUrls";
+import {
+  assertR2KeyInNamespace,
+  cardStorageObjectKeys,
+} from "../../storage/r2";
 
 const SECRET = "test-signing-secret";
 const BASE = "https://files.teakvault.com";
@@ -130,13 +130,13 @@ describe("signed worker file urls", () => {
       const url = await tryResolveObjectUrl(`dev/${KEY}`, "x.png");
       expect(url).toContain(`${BASE}/dev/${KEY}`);
     } finally {
+      const envNames = {
+        filesBase: "FILES_BASE",
+        prefix: "R2_KEY_PREFIX",
+        secret: "FILES_SIGNING_SECRET",
+      } as const;
       for (const [name, value] of Object.entries(previous)) {
-        const envName =
-          name === "filesBase"
-            ? "FILES_BASE"
-            : name === "prefix"
-              ? "R2_KEY_PREFIX"
-              : "FILES_SIGNING_SECRET";
+        const envName = envNames[name as keyof typeof envNames];
         if (value === undefined) {
           delete process.env[envName];
         } else {
@@ -184,9 +184,7 @@ describe("signed worker file urls", () => {
     process.env.R2_KEY_PREFIX = "dev/";
 
     try {
-      expect(() => getR2ReadBase(KEY)).toThrow(
-        "invalid_storage_key_namespace"
-      );
+      expect(() => getR2ReadBase(KEY)).toThrow("invalid_storage_key_namespace");
       expect(() => assertR2KeyInNamespace(KEY)).toThrow(
         "invalid_storage_key_namespace"
       );

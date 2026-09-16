@@ -15,10 +15,10 @@ import {
 import {
   errorResponse,
   json,
-  mapConvexErrorToResponse,
   MAX_BULK_ITEMS,
   MAX_LIMIT,
   MAX_QUERY_SCAN,
+  mapConvexErrorToResponse,
   parseJsonBody,
   parseLimit,
   parseOptionalString,
@@ -319,7 +319,10 @@ const handleCardsListRequest = async (
   }
 };
 
-const resolveCardId = (ctx: ActionCtx, cardId: string): Promise<string | null> =>
+const resolveCardId = (
+  ctx: ActionCtx,
+  cardId: string
+): Promise<string | null> =>
   ctx.runQuery((internal as any).raycast.resolveCardIdForUserRequest, {
     cardId,
   });

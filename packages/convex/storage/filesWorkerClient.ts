@@ -4,7 +4,6 @@
  * exact JSON bytes, request id, and short expiration into one HMAC.
  */
 
-import { env } from "../_generated/server";
 import {
   buildFilesOpSigningPayload,
   buildMultipartPartSigningPayload,
@@ -18,6 +17,7 @@ import {
   type FilesOp,
   type FilesOpRequest,
 } from "@teak/files-protocol";
+import { env } from "../_generated/server";
 import { assertR2KeyInNamespace, hmacSha256Hex } from "./r2Keys";
 
 // Op URLs are minted per action invocation; a short TTL bounds the replay

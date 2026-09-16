@@ -1,7 +1,7 @@
 import { internal } from "../_generated/api";
-import { getAccountDeletionState } from "../accountDeletion";
 import type { Doc, Id } from "../_generated/dataModel";
 import type { MutationCtx, QueryCtx } from "../_generated/server";
+import { getAccountDeletionState } from "../accountDeletion";
 
 const internalAny = internal as any;
 export const CARD_SEARCH_TAG_SYNC_BATCH_SIZE = 32;

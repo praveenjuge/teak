@@ -232,8 +232,7 @@ export const resolveImageUrl = async (
 };
 
 export const isStorageNamespaceError = (error: unknown): boolean =>
-  error instanceof Error &&
-  error.message === "invalid_storage_key_namespace";
+  error instanceof Error && error.message === "invalid_storage_key_namespace";
 
 /**
  * Resolve a file URL, treating an out-of-namespace key as an absent object.

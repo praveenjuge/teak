@@ -209,7 +209,10 @@ const isRateLimitedRpc = (response: JsonObject): boolean => {
   return result?.structuredContent?.status === 429;
 };
 
-const handleMcpPost = async (ctx: ActionCtx, request: Request): Promise<Response> => {
+const handleMcpPost = async (
+  ctx: ActionCtx,
+  request: Request
+): Promise<Response> => {
   const accept = request.headers.get("accept") ?? "*/*";
   if (
     !(

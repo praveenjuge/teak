@@ -22,7 +22,6 @@
  */
 
 import { mock } from "bun:test";
-import { PENDING_UPLOAD_CARD_ID } from "../../storage/r2";
 import {
   bucketedSignatureExpiry,
   buildSignedFilePayload,
@@ -33,6 +32,7 @@ import {
   tryResolveImageUrl,
   tryResolveObjectUrl,
 } from "../../storage/fileUrls";
+import { PENDING_UPLOAD_CARD_ID } from "../../storage/r2";
 import {
   assertR2KeyInNamespace,
   buildR2ListPrefix,

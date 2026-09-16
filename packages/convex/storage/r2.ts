@@ -3,24 +3,12 @@ import { internal } from "../_generated/api";
 import type { ActionCtx, MutationCtx } from "../_generated/server";
 import { mutation, query } from "../_generated/server";
 import { getSessionIdentity } from "../securitySessions";
-import { tryResolveObjectUrl } from "./fileUrls";
 import {
   buildSignedWorkerUploadUrl,
   putObjectViaFilesWorker,
 } from "./filesWorkerClient";
+import { tryResolveObjectUrl } from "./fileUrls";
 import { assertR2KeyInNamespace, getR2KeyPrefix } from "./r2Keys";
-
-// Re-exported for backward compatibility: existing importers keep importing
-// these names from `storage/r2`. New code should import them from
-// `storage/r2Keys` directly so it never depends on the mocked `storage/r2`
-// surface (see r2Keys.ts).
-export {
-  assertR2KeyInNamespace,
-  buildR2ListPrefix,
-  getR2KeyPrefix,
-  hmacSha256Hex,
-  isR2KeyInNamespace,
-} from "./r2Keys";
 
 // Re-exported for backward compatibility: the signed-URL stack lives in the
 // unmocked `storage/fileUrls` leaf so tests that need real URL resolution can
@@ -35,12 +23,23 @@ export {
   getR2Url,
   isStorageNamespaceError,
   PRIVATE_FILE_CACHE_CONTROL,
+  type R2ObjectKey,
   resolveImageUrl,
   resolveObjectUrl,
-  type R2ObjectKey,
   tryResolveImageUrl,
   tryResolveObjectUrl,
 } from "./fileUrls";
+// Re-exported for backward compatibility: existing importers keep importing
+// these names from `storage/r2`. New code should import them from
+// `storage/r2Keys` directly so it never depends on the mocked `storage/r2`
+// surface (see r2Keys.ts).
+export {
+  assertR2KeyInNamespace,
+  buildR2ListPrefix,
+  getR2KeyPrefix,
+  hmacSha256Hex,
+  isR2KeyInNamespace,
+} from "./r2Keys";
 
 export const PENDING_UPLOAD_CARD_ID = "upload-pending-v2";
 

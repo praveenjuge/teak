@@ -15,20 +15,17 @@ import {
   handleCreateUploadRequest,
   handleTagsRequest,
 } from "./publicApiHttpCards";
-import {
-  errorResponse,
-  type PublicApiOperation,
-} from "./publicApiHttpShared";
+import { errorResponse, type PublicApiOperation } from "./publicApiHttpShared";
 import { withPublicApiGatewayHeaders } from "./publicApiMeta";
 
-export {
-  handleCardsByIdV1Request,
-  handleCreateCardRequest,
-} from "./publicApiHttpCards";
 export {
   validatePublicApiBearer,
   withAuthorizedUser,
 } from "./publicApiHttpAuth";
+export {
+  handleCardsByIdV1Request,
+  handleCreateCardRequest,
+} from "./publicApiHttpCards";
 export type { PublicApiOperation } from "./publicApiHttpShared";
 
 const toPublicApiRequest = (operation: PublicApiOperation): Request => {

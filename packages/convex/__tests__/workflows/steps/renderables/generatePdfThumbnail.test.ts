@@ -1,12 +1,5 @@
 // @ts-nocheck
-import {
-  afterAll,
-  beforeAll,
-  describe,
-  expect,
-  mock,
-  test,
-} from "bun:test";
+import { afterAll, beforeAll, describe, expect, mock, test } from "bun:test";
 import { crc32, deflateSync, inflateSync } from "node:zlib";
 
 // The step resolves the source PDF through the real (unmocked)
@@ -244,9 +237,7 @@ const executeGeneratedCode = async (
           };
         },
         get: (url: string) => {
-          if (
-            url.startsWith(`${FILES_BASE}/users/u/cards/c/file/original?`)
-          ) {
+          if (url.startsWith(`${FILES_BASE}/users/u/cards/c/file/original?`)) {
             return {
               ok: () => true,
               body: async () => Buffer.from(options.pdfBase64, "base64"),

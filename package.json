@@ -2,9 +2,6 @@
   "name": "teak",
   "version": "1.0.70",
   "private": true,
-  "engines": {
-    "node": "22.23.2"
-  },
   "workspaces": [
     "apps/*",
     "packages/*"
@@ -62,13 +59,16 @@
     "react-dom": "19.2.8"
   },
   "devDependencies": {
-    "@biomejs/biome": "2.5.8",
+    "@biomejs/biome": "2.5.14",
     "lru-cache": "11.5.2",
     "simple-git-hooks": "^2.13.1",
     "turbo": "^2.10.9",
-    "ultracite": "7.10.4"
+    "ultracite": "7.12.0"
   },
   "packageManager": "bun@1.4.0",
+  "engines": {
+    "node": "22.23.2"
+  },
   "trustedDependencies": [
     "@sentry/cli",
     "@swc/core",

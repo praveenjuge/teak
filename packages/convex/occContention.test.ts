@@ -751,9 +751,9 @@ describe("OCC contention behavior", () => {
       await drainCardSearchTagSync(ctx, cardId);
 
       await beginAccountDeletion(ctx, "user-queued");
-      expect(
-        await deleteAccountDataHandler(ctx, "user-queued", [cardId])
-      ).toBe(1);
+      expect(await deleteAccountDataHandler(ctx, "user-queued", [cardId])).toBe(
+        1
+      );
 
       const tagResult = await syncCardSearchTagsBatchHandler(
         ctx,
@@ -765,10 +765,12 @@ describe("OCC contention behavior", () => {
         await syncCardSearchDocumentHandler(ctx, cardId, "user-queued")
       ).toBeNull();
 
-      expect(await ctx.db.query("cardSearchTagSyncStates").collect()).toHaveLength(
+      expect(
+        await ctx.db.query("cardSearchTagSyncStates").collect()
+      ).toHaveLength(0);
+      expect(await ctx.db.query("cardSearchDocuments").collect()).toHaveLength(
         0
       );
-      expect(await ctx.db.query("cardSearchDocuments").collect()).toHaveLength(0);
       expect(await ctx.db.query("cardSearchTags").collect()).toHaveLength(0);
 
       await finishAccountDeletion(ctx, "user-queued");

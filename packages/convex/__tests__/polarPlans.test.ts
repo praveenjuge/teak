@@ -1,7 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import {
   APPROVED_POLAR_PRODUCT_IDS,
-  getPolarPlanIds,
   isApprovedActiveSubscription,
   isApprovedPolarProductId,
   POLAR_PLAN_IDS,

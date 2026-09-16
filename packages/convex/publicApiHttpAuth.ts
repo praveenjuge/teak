@@ -172,7 +172,9 @@ const releaseIdempotencyResponse = async (
 // Throttle well-formed-but-invalid API keys via a single shared bucket so an
 // attacker rotating random bearer tokens cannot mint a fresh limit per token.
 // Returns a 429 Response when the shared bucket is exhausted, otherwise null.
-const enforceInvalidAuthLimit = async (ctx: ActionCtx): Promise<Response | null> => {
+const enforceInvalidAuthLimit = async (
+  ctx: ActionCtx
+): Promise<Response | null> => {
   let limit: { ok?: boolean; retryAt?: number } | null = null;
   try {
     limit = await ctx.runMutation(
