@@ -4,7 +4,7 @@ Teak desktop ships signed and notarized macOS Apple Silicon builds through `.git
 
 ## Canonical release
 
-1. Complete the shared preparation in `../../docs/agents/releases.md` and merge the scoped version change to `main`.
+1. Complete the shared preparation in `../../.agents/releases.md` and merge the scoped version change to `main`.
 2. `Version Tag` verifies the patch and lockstep invariants, creates `v<version>`, and dispatches every product release for that tag.
 3. `Desktop Release` builds, signs, notarizes, and verifies the app before publishing the DMG, zip, blockmaps, and `latest-mac.yml` to the matching GitHub Release.
 4. Install the published DMG on a test Mac. Verify launch, sign-in, sync, codesigning, Gatekeeper acceptance, and the stapled notarization ticket.

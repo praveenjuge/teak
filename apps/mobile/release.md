@@ -9,7 +9,7 @@ iOS build history.
 
 ## Canonical release
 
-1. Complete the shared preparation in `../../docs/agents/releases.md`.
+1. Complete the shared preparation in `../../.agents/releases.md`.
 2. Merge that scoped version change to `main`.
 3. `Version Tag` verifies that the change is exactly one patch, creates
    `v<version>`, and dispatches every product release at that tag. A rerun

@@ -7,7 +7,7 @@ patch bump merged to `main` is the only normal manual release action. Root
 
 ## Canonical release
 
-1. Complete the shared preparation in `../../docs/agents/releases.md` and merge
+1. Complete the shared preparation in `../../.agents/releases.md` and merge
    the scoped version change to `main`.
 2. `Version Tag` verifies the next-patch and lockstep invariants, creates
    `v<version>`, and dispatches every product release at that tag. A rerun

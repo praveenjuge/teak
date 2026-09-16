@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
 /**
- * Perform the shared release preparation from docs/agents/releases.md.
+ * Perform the shared release preparation from .agents/releases.md.
  *
  * Updates every tracked package.json to the next patch version, synchronizes
  * bun.lock (and apps/raycast/package-lock.json when present), then verifies

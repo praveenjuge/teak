@@ -7,7 +7,7 @@ Teak is a personal knowledge hub for collecting, remembering, and rediscovering 
 - Use Bun. Read the pinned version and available commands from `package.json`; do not duplicate that inventory here.
 - Read the nearest nested `AGENTS.md` before changing a workspace.
 - On a fresh checkout, run `bun run setup` once, then diagnose with `bun run doctor` before asking the human. `bun run dev [target]` starts the watch loop; never bind production credentials locally.
-- Environment sources, precedence, and ownership live in `docs/agents/environment.md`.
+- Environment sources, precedence, and ownership live in `.agents/environment.md`; read it before adding env vars or debugging config.
 - Inspect the current implementation and tests before choosing a pattern. Treat repository code and configuration as the source of truth.
 - Keep changes focused. Preserve unrelated work already in the tree.
 
@@ -38,7 +38,7 @@ Keep user documentation synchronized per `apps/docs/AGENTS.md`.
 
 ## Release pointers
 
-Before any release, complete the shared preparation in `docs/agents/releases.md`. Then read the relevant product runbook and follow it exactly:
+Before any release, complete the shared preparation in `.agents/releases.md` (one next-patch version change across every manifest, confirmed by the lockstep validator). Then read the relevant product runbook and follow it exactly:
 
 - Mobile: `apps/mobile/release.md`
 - Desktop: `apps/desktop/RELEASE.md`
@@ -50,4 +50,4 @@ All package versions move in lockstep. Release tasks use the next patch version 
 
 ## Headless development
 
-When working in Cursor Cloud or another headless VM, read `docs/agents/headless-development.md`. Local development should use the scripts and environment already present in the repository.
+When working in Cursor Cloud or another headless VM, read `.agents/headless-development.md` for the headless bootstrap (Bun install, anonymous Convex setup, non-interactive Turbo). Local development should use the scripts and environment already present in the repository.

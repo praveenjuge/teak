@@ -2,7 +2,7 @@
 
 The npm package is `teak-cli`; the installed binary is `teak`.
 
-Complete the shared preparation in `../../docs/agents/releases.md`, then:
+Complete the shared preparation in `../../.agents/releases.md`, then:
 
 1. Merge the scoped version change to `main`.
 2. Let `.github/workflows/version-tag.yml` verify the patch and lockstep invariants, create `v<version>`, and dispatch `.github/workflows/cli-release.yml`.
