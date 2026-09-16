@@ -63,27 +63,17 @@ export async function uploadNativeFileBinary({
   };
 }
 
-export async function downloadNativeFileToCache(
-  url: string,
-  fileName: string
-): Promise<string> {
-  const file = await File.downloadFileAsync(
-    url,
-    new File(Paths.cache, fileName),
-    { idempotent: true }
-  );
-  return file.uri;
-}
+export type NativeDownloadDirectory = "cache" | "documents";
 
-export async function downloadNativeFileToDocuments(
+export async function downloadNativeFile(
   url: string,
-  fileName: string
+  fileName: string,
+  directory: NativeDownloadDirectory
 ): Promise<string> {
-  const file = await File.downloadFileAsync(
-    url,
-    new File(Paths.document, fileName),
-    { idempotent: true }
-  );
+  const base = directory === "cache" ? Paths.cache : Paths.document;
+  const file = await File.downloadFileAsync(url, new File(base, fileName), {
+    idempotent: true,
+  });
   return file.uri;
 }
 

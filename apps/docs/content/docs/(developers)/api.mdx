@@ -170,9 +170,9 @@ The `include=content,metadata` pair returns the same full-card fields the
 deprecated routes return. The list response is paginated (`items` plus
 `pageInfo`) instead of returning a `total` count.
 
-Clients released with Teak 1.0.70 or later (CLI, SDK, MCP tools, and the
-Raycast extension) already use the list endpoint for search and favorites, so
-upgrading is the migration for most integrations.
+The CLI, SDK, MCP tools, and the Raycast extension switch to the list
+endpoint for search and favorites with the upcoming Teak 1.0.70 release, so
+upgrading once it ships is the migration for most integrations.
 
 Image card responses include intentionally different URLs: `thumbnailUrl`
 is the optimized grid rendition, `compactUrl` is a smaller rendition for

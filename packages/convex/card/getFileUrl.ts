@@ -3,7 +3,7 @@ import { v } from "convex/values";
 import { internal } from "../_generated/api";
 import { action, internalQuery, query } from "../_generated/server";
 import { getSessionIdentity } from "../securitySessions";
-import { resolveImageUrl, resolveObjectUrl } from "../storage/r2";
+import { tryResolveImageUrl, tryResolveObjectUrl } from "../storage/fileUrls";
 
 const mediaRenditionValidator = v.union(
   v.literal("tiny"),
@@ -61,7 +61,7 @@ export const getFileUrl = query({
       throw new Error("File does not belong to the specified card");
     }
 
-    return resolveObjectUrl(
+    return tryResolveObjectUrl(
       args.key,
       args.key === card.fileKey
         ? (card.fileMetadata?.fileName ?? null)
@@ -114,8 +114,11 @@ export const refreshCardMediaUrl = action({
       throw new Error("Unauthorized media refresh");
     }
     const url: string | null = args.rendition
-      ? await resolveImageUrl(args.key, args.rendition as FilesImageRendition)
-      : await resolveObjectUrl(args.key, media.fileName);
+      ? await tryResolveImageUrl(
+          args.key,
+          args.rendition as FilesImageRendition
+        )
+      : await tryResolveObjectUrl(args.key, media.fileName);
     if (!url) {
       throw new Error("Media URL unavailable");
     }

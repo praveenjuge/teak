@@ -39,7 +39,7 @@ import {
   isWithinQuota,
   quotaResetInMs,
 } from "./export/serialize";
-import { getR2Url } from "./storage/r2";
+import { getR2Url } from "./storage/fileUrls";
 
 const internalAny = internal as Record<string, any>;
 

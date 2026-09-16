@@ -1,227 +1,501 @@
 import { beforeEach, describe, expect, mock, test } from "bun:test";
+import { CARD_ERROR_CODES } from "@teak/convex/shared/constants";
 
-const infoMock = mock(() => ({ exists: true, size: 128 }));
-const writeMock = mock(() => undefined);
-const downloadFileAsyncMock = mock(
-  async (_url: string, dest: { uri: string }) => ({
-    uri: dest.uri,
-  })
-);
-const uploadAsyncMock = mock(async () => ({
+/**
+ * Workflow coverage for the mobile native filesystem boundary: uploads,
+ * cancellation, downloads, text sharing, and incoming-share imports.
+ *
+ * Instead of asserting mock-construction internals, these tests drive the
+ * public functions against a fake `expo-file-system` with observable state
+ * (stored files, recorded upload/download requests) and assert on results
+ * plus effects: returned URIs, response mapping, error shapes, and which
+ * directory each artifact lands in.
+ */
+
+interface FakeStoredFile {
+  content: string;
+  size: number;
+}
+
+interface RecordedUpload {
+  cancelled: boolean;
+  completed: boolean;
+  headers: Record<string, string>;
+  method: string;
+  sourceUri: string;
+  url: string;
+}
+
+interface RecordedDownload {
+  destUri: string;
+  idempotent: boolean;
+  url: string;
+}
+
+const CACHE_URI = "file:///cache/";
+const DOCUMENTS_URI = "file:///documents/";
+
+const fileStore = new Map<string, FakeStoredFile>();
+const recordedUploads: RecordedUpload[] = [];
+const recordedDownloads: RecordedDownload[] = [];
+const downloadBytes = new Map<string, string>();
+let uploadHandler: () => Promise<{
+  body: string;
+  headers: Record<string, string>;
+  status: number;
+}>;
+let downloadHandler: ((url: string) => Promise<void>) | null = null;
+
+const defaultUploadHandler = async () => ({
   body: "",
   headers: { etag: '"abc"' },
   status: 200,
-}));
-const cancelMock = mock(() => undefined);
-const constructedFiles: unknown[][] = [];
-const constructedTasks: { file: unknown; options: unknown; url: string }[] = [];
+});
 
-class MockFile {
+const joinUri = (...segments: Array<string | { uri: string }>): string =>
+  segments
+    .map((segment) => (typeof segment === "string" ? segment : segment.uri))
+    .map((part, index, parts) => {
+      if (index === 0) {
+        return part.replace(/\/+$/, "");
+      }
+      if (index === parts.length - 1) {
+        return part.replace(/^\/+/, "");
+      }
+      return part.replace(/^\/+|\/+$/g, "");
+    })
+    .join("/");
+
+const readFakeFile = (uri: string): FakeStoredFile | null =>
+  fileStore.get(uri) ?? null;
+
+class FakeFile {
   uri: string;
-  constructor(...segments: unknown[]) {
-    constructedFiles.push(segments);
-    this.uri = `file:///mock/${constructedFiles.length}`;
+  constructor(...segments: Array<string | { uri: string }>) {
+    this.uri = joinUri(...segments);
   }
-  info = (...args: unknown[]) => infoMock(...args);
-  write = (...args: unknown[]) => writeMock(...args);
-  static downloadFileAsync = (...args: unknown[]) =>
-    downloadFileAsyncMock(...(args as [string, { uri: string }]));
+  info = () => {
+    const stored = fileStore.get(this.uri);
+    return stored
+      ? { exists: true as const, size: stored.size }
+      : { exists: false as const };
+  };
+  write = (value: string) => {
+    fileStore.set(this.uri, {
+      content: value,
+      size: new TextEncoder().encode(value).length,
+    });
+  };
+  static downloadFileAsync = async (
+    url: string,
+    dest: FakeFile,
+    options?: { idempotent?: boolean }
+  ) => {
+    recordedDownloads.push({
+      destUri: dest.uri,
+      idempotent: options?.idempotent === true,
+      url,
+    });
+    if (downloadHandler) {
+      await downloadHandler(url);
+    }
+    const content = downloadBytes.get(url) ?? "";
+    fileStore.set(dest.uri, {
+      content,
+      size: new TextEncoder().encode(content).length,
+    });
+    return dest;
+  };
 }
 
-class MockUploadTask {
-  constructor(file: unknown, url: string, options: unknown) {
-    constructedTasks.push({ file, options, url });
+class FakeUploadTask {
+  private readonly record: RecordedUpload;
+  private readonly signal: AbortSignal | undefined;
+  constructor(
+    file: FakeFile,
+    url: string,
+    options: {
+      headers?: Record<string, string>;
+      httpMethod?: string;
+      signal?: AbortSignal;
+    }
+  ) {
+    this.signal = options.signal;
+    this.record = {
+      cancelled: false,
+      completed: false,
+      headers: options.headers ?? {},
+      method: options.httpMethod ?? "POST",
+      sourceUri: file.uri,
+      url,
+    };
+    recordedUploads.push(this.record);
   }
-  uploadAsync = (...args: unknown[]) => uploadAsyncMock(...args);
-  cancel = (...args: unknown[]) => cancelMock(...args);
+  uploadAsync = async () => {
+    if (this.signal?.aborted) {
+      throw new Error("native upload aborted");
+    }
+    const result = await uploadHandler();
+    this.record.completed = true;
+    return result;
+  };
+  cancel = () => {
+    this.record.cancelled = true;
+  };
 }
-
-const mockCacheDir = { uri: "file:///cache/" };
-const mockDocumentDir = { uri: "file:///documents/" };
 
 mock.module("expo-file-system", () => ({
-  File: MockFile,
-  Paths: { cache: mockCacheDir, document: mockDocumentDir },
-  UploadTask: MockUploadTask,
+  File: FakeFile,
+  Paths: { cache: { uri: CACHE_URI }, document: { uri: DOCUMENTS_URI } },
+  UploadTask: FakeUploadTask,
 }));
 
 const loadBoundary = () => import("../../lib/nativeFileSystem");
+const loadShareImport = () => import("../../lib/share/uploadFileFromUri");
 
-describe("nativeFileSystem", () => {
+describe("nativeFileSystem workflows", () => {
   beforeEach(() => {
-    constructedFiles.length = 0;
-    constructedTasks.length = 0;
-    for (const fn of [
-      infoMock,
-      writeMock,
-      downloadFileAsyncMock,
-      uploadAsyncMock,
-      cancelMock,
-    ]) {
-      fn.mockClear();
-    }
-    infoMock.mockImplementation(() => ({ exists: true, size: 128 }));
-    downloadFileAsyncMock.mockImplementation(
-      async (_url: string, dest: { uri: string }) => ({ uri: dest.uri })
-    );
-    uploadAsyncMock.mockImplementation(async () => ({
-      body: "",
-      headers: { etag: '"abc"' },
-      status: 200,
-    }));
+    fileStore.clear();
+    recordedUploads.length = 0;
+    recordedDownloads.length = 0;
+    downloadBytes.clear();
+    downloadHandler = null;
+    uploadHandler = defaultUploadHandler;
   });
 
-  test("getNativeFileSize returns the file size", async () => {
-    const { getNativeFileSize } = await loadBoundary();
+  describe("upload workflow", () => {
+    test("PUTs the file bytes and returns the ok result", async () => {
+      const { uploadNativeFileBinary } = await loadBoundary();
 
-    expect(getNativeFileSize("file:///share/a.png")).toBe(128);
-    expect(constructedFiles[0]).toEqual(["file:///share/a.png"]);
-  });
+      const result = await uploadNativeFileBinary({
+        contentType: "image/png",
+        fileUri: "file:///share/a.png",
+        signal: new AbortController().signal,
+        uploadUrl: "https://uploads.example.com/put",
+      });
 
-  test("getNativeFileSize returns 0 for missing or sizeless files", async () => {
-    const { getNativeFileSize } = await loadBoundary();
-    infoMock.mockImplementationOnce(() => ({ exists: false }));
-    infoMock.mockImplementationOnce(() => ({ exists: true }));
-
-    expect(getNativeFileSize("file:///missing")).toBe(0);
-    expect(getNativeFileSize("file:///nosize")).toBe(0);
-  });
-
-  test("uploadNativeFileBinary PUTs the file with content type and signal", async () => {
-    const { uploadNativeFileBinary } = await loadBoundary();
-    const controller = new AbortController();
-
-    const result = await uploadNativeFileBinary({
-      contentType: "image/png",
-      fileUri: "file:///share/a.png",
-      signal: controller.signal,
-      uploadUrl: "https://uploads.example.com/put",
+      expect(result).toEqual({
+        headers: { etag: '"abc"' },
+        ok: true,
+        status: 200,
+      });
+      expect(recordedUploads).toHaveLength(1);
+      expect(recordedUploads[0]).toMatchObject({
+        cancelled: false,
+        completed: true,
+        headers: { "Content-Type": "image/png" },
+        method: "PUT",
+        sourceUri: "file:///share/a.png",
+        url: "https://uploads.example.com/put",
+      });
     });
 
-    expect(result).toEqual({
-      headers: { etag: '"abc"' },
-      ok: true,
-      status: 200,
+    test("maps non-2xx statuses to ok:false with the status passed through", async () => {
+      const { uploadNativeFileBinary } = await loadBoundary();
+      uploadHandler = async () => ({
+        body: "denied",
+        headers: {},
+        status: 403,
+      });
+
+      const result = await uploadNativeFileBinary({
+        contentType: "image/png",
+        fileUri: "file:///share/a.png",
+        signal: new AbortController().signal,
+        uploadUrl: "https://uploads.example.com/put",
+      });
+
+      expect(result).toEqual({ headers: {}, ok: false, status: 403 });
+      expect(recordedUploads[0]?.completed).toBe(true);
     });
-    expect(constructedTasks).toHaveLength(1);
-    expect(constructedTasks[0]?.url).toBe("https://uploads.example.com/put");
-    expect(constructedTasks[0]?.options).toEqual({
-      headers: { "Content-Type": "image/png" },
-      httpMethod: "PUT",
-      signal: controller.signal,
-    });
-    expect(constructedTasks[0]?.file).toBeInstanceOf(MockFile);
   });
 
-  test("uploadNativeFileBinary maps non-2xx statuses to ok:false", async () => {
-    const { uploadNativeFileBinary } = await loadBoundary();
-    uploadAsyncMock.mockImplementationOnce(async () => ({
-      body: "denied",
-      headers: {},
-      status: 403,
-    }));
-
-    const result = await uploadNativeFileBinary({
-      contentType: "image/png",
-      fileUri: "file:///share/a.png",
-      signal: new AbortController().signal,
-      uploadUrl: "https://uploads.example.com/put",
-    });
-
-    expect(result).toEqual({ headers: {}, ok: false, status: 403 });
-  });
-
-  test("uploadNativeFileBinary cancels and throws AbortError when pre-aborted", async () => {
-    const { uploadNativeFileBinary } = await loadBoundary();
-    const controller = new AbortController();
-    controller.abort();
-
-    const error = await uploadNativeFileBinary({
-      contentType: "image/png",
-      fileUri: "file:///share/a.png",
-      signal: controller.signal,
-      uploadUrl: "https://uploads.example.com/put",
-    }).catch((e: Error) => e);
-
-    expect(error).toBeInstanceOf(Error);
-    expect(error.name).toBe("AbortError");
-    expect(cancelMock).toHaveBeenCalledTimes(1);
-    expect(uploadAsyncMock).not.toHaveBeenCalled();
-  });
-
-  test("uploadNativeFileBinary maps mid-upload aborts to AbortError", async () => {
-    const { uploadNativeFileBinary } = await loadBoundary();
-    const controller = new AbortController();
-    uploadAsyncMock.mockImplementationOnce(() => {
+  describe("upload cancellation", () => {
+    test("pre-aborted uploads throw AbortError without attempting the upload", async () => {
+      const { uploadNativeFileBinary } = await loadBoundary();
+      const controller = new AbortController();
       controller.abort();
-      return Promise.reject(new Error("native abort"));
+
+      const error = await uploadNativeFileBinary({
+        contentType: "image/png",
+        fileUri: "file:///share/a.png",
+        signal: controller.signal,
+        uploadUrl: "https://uploads.example.com/put",
+      }).catch((e: Error) => e);
+
+      expect(error).toBeInstanceOf(Error);
+      expect(error.name).toBe("AbortError");
+      expect(recordedUploads).toHaveLength(1);
+      expect(recordedUploads[0]?.cancelled).toBe(true);
+      expect(recordedUploads[0]?.completed).toBe(false);
     });
 
-    const error = await uploadNativeFileBinary({
-      contentType: "image/png",
-      fileUri: "file:///share/a.png",
-      signal: controller.signal,
-      uploadUrl: "https://uploads.example.com/put",
-    }).catch((e: Error) => e);
+    test("mid-upload aborts surface as AbortError", async () => {
+      const { uploadNativeFileBinary } = await loadBoundary();
+      const controller = new AbortController();
+      uploadHandler = () => {
+        controller.abort();
+        return Promise.reject(new Error("native abort"));
+      };
 
-    expect(error.name).toBe("AbortError");
-    expect(error.message).toBe("Upload cancelled");
-  });
+      const error = await uploadNativeFileBinary({
+        contentType: "image/png",
+        fileUri: "file:///share/a.png",
+        signal: controller.signal,
+        uploadUrl: "https://uploads.example.com/put",
+      }).catch((e: Error) => e);
 
-  test("uploadNativeFileBinary rethrows non-abort failures", async () => {
-    const { uploadNativeFileBinary } = await loadBoundary();
-    uploadAsyncMock.mockImplementationOnce(() =>
-      Promise.reject(new Error("connection reset"))
-    );
+      expect(error.name).toBe("AbortError");
+      expect(error.message).toBe("Upload cancelled");
+    });
 
-    const error = await uploadNativeFileBinary({
-      contentType: "image/png",
-      fileUri: "file:///share/a.png",
-      signal: new AbortController().signal,
-      uploadUrl: "https://uploads.example.com/put",
-    }).catch((e: Error) => e);
+    test("an abort landing after completion still cancels the result", async () => {
+      const { uploadNativeFileBinary } = await loadBoundary();
+      const controller = new AbortController();
+      uploadHandler = () => {
+        controller.abort();
+        return Promise.resolve({ body: "", headers: {}, status: 200 });
+      };
 
-    expect(error.message).toBe("connection reset");
-  });
+      const error = await uploadNativeFileBinary({
+        contentType: "image/png",
+        fileUri: "file:///share/a.png",
+        signal: controller.signal,
+        uploadUrl: "https://uploads.example.com/put",
+      }).catch((e: Error) => e);
 
-  test("downloadNativeFileToCache overwrites idempotently and returns the uri", async () => {
-    const { downloadNativeFileToCache } = await loadBoundary();
+      expect(error.name).toBe("AbortError");
+    });
 
-    const uri = await downloadNativeFileToCache(
-      "https://files.example.com/a.png",
-      "a.png"
-    );
+    test("non-abort failures rethrow unchanged", async () => {
+      const { uploadNativeFileBinary } = await loadBoundary();
+      uploadHandler = () => Promise.reject(new Error("connection reset"));
 
-    expect(uri).toBe("file:///mock/1");
-    expect(downloadFileAsyncMock).toHaveBeenCalledTimes(1);
-    const [url, dest, options] = downloadFileAsyncMock.mock.calls[0] ?? [];
-    expect(url).toBe("https://files.example.com/a.png");
-    expect(dest).toBeInstanceOf(MockFile);
-    expect(options).toEqual({ idempotent: true });
-    expect(constructedFiles[0]).toEqual([mockCacheDir, "a.png"]);
-  });
+      const error = await uploadNativeFileBinary({
+        contentType: "image/png",
+        fileUri: "file:///share/a.png",
+        signal: new AbortController().signal,
+        uploadUrl: "https://uploads.example.com/put",
+      }).catch((e: Error) => e);
 
-  test("downloadNativeFileToDocuments targets the document directory", async () => {
-    const { downloadNativeFileToDocuments } = await loadBoundary();
-
-    await downloadNativeFileToDocuments(
-      "https://files.example.com/a.png",
-      "a.png"
-    );
-
-    expect(constructedFiles[0]).toEqual([mockDocumentDir, "a.png"]);
-    expect(downloadFileAsyncMock.mock.calls[0]?.[2]).toEqual({
-      idempotent: true,
+      expect(error.message).toBe("connection reset");
     });
   });
 
-  test("writeNativeCacheText writes UTF-8 text and returns the uri", async () => {
-    const { writeNativeCacheText } = await loadBoundary();
+  describe("download workflow", () => {
+    test("downloads into the cache directory for share flows", async () => {
+      const { downloadNativeFile } = await loadBoundary();
 
-    const uri = writeNativeCacheText("note.txt", "hello");
+      const uri = await downloadNativeFile(
+        "https://files.example.com/a.png",
+        "a.png",
+        "cache"
+      );
 
-    expect(uri).toBe("file:///mock/1");
-    expect(constructedFiles[0]).toEqual([mockCacheDir, "note.txt"]);
-    expect(writeMock).toHaveBeenCalledWith("hello");
+      expect(uri).toBe("file:///cache/a.png");
+      expect(recordedDownloads).toEqual([
+        {
+          destUri: "file:///cache/a.png",
+          idempotent: true,
+          url: "https://files.example.com/a.png",
+        },
+      ]);
+      expect(readFakeFile(uri)?.content).toBe("");
+    });
+
+    test("downloads into the documents directory for saved files", async () => {
+      const { downloadNativeFile } = await loadBoundary();
+
+      const uri = await downloadNativeFile(
+        "https://files.example.com/a.png",
+        "a.png",
+        "documents"
+      );
+
+      expect(uri).toBe("file:///documents/a.png");
+      expect(recordedDownloads[0]?.destUri).toBe("file:///documents/a.png");
+    });
+
+    test("repeat downloads overwrite the same uri idempotently", async () => {
+      const { downloadNativeFile } = await loadBoundary();
+      downloadBytes.set("https://files.example.com/a.png", "v1");
+
+      const first = await downloadNativeFile(
+        "https://files.example.com/a.png",
+        "a.png",
+        "cache"
+      );
+      downloadBytes.set("https://files.example.com/a.png", "v2");
+      const second = await downloadNativeFile(
+        "https://files.example.com/a.png",
+        "a.png",
+        "cache"
+      );
+
+      expect(first).toBe(second);
+      expect(readFakeFile(second)?.content).toBe("v2");
+      expect(recordedDownloads).toHaveLength(2);
+    });
+
+    test("download failures propagate to the caller", async () => {
+      const { downloadNativeFile } = await loadBoundary();
+      downloadHandler = () => Promise.reject(new Error("network down"));
+
+      const error = await downloadNativeFile(
+        "https://files.example.com/a.png",
+        "a.png",
+        "cache"
+      ).catch((e: Error) => e);
+
+      expect(error.message).toBe("network down");
+      expect(readFakeFile("file:///cache/a.png")).toBeNull();
+    });
+  });
+
+  describe("text sharing workflow", () => {
+    test("written text lands in cache and reads back verbatim", async () => {
+      const { writeNativeCacheText } = await loadBoundary();
+
+      const uri = writeNativeCacheText("note.txt", "hello share");
+
+      expect(uri).toBe("file:///cache/note.txt");
+      const stored = readFakeFile(uri);
+      expect(stored?.content).toBe("hello share");
+      expect(stored?.size).toBe("hello share".length);
+    });
+  });
+
+  describe("file size workflow", () => {
+    test("returns the stored size, or 0 for missing files", async () => {
+      const { getNativeFileSize, writeNativeCacheText } = await loadBoundary();
+
+      writeNativeCacheText("sized.txt", "12345");
+
+      expect(getNativeFileSize("file:///cache/sized.txt")).toBe(5);
+      expect(getNativeFileSize("file:///cache/missing.txt")).toBe(0);
+    });
+  });
+
+  describe("incoming-share import workflow", () => {
+    const shareParams = {
+      content: "shared photo",
+      fileName: "shared-photo.jpg",
+      fileUri: "file:///share/incoming.jpg",
+      mimeType: "image/jpeg",
+    };
+
+    test("rejects unsupported file types without calling upload", async () => {
+      const { uploadFileFromUri } = await loadShareImport();
+      const uploadFromUri = mock(async () => ({
+        success: true as const,
+        cardId: "card_1",
+      }));
+
+      const result = await uploadFileFromUri(
+        {
+          ...shareParams,
+          fileName: "archive.zzz9",
+          mimeType: "application/x-unknown",
+        },
+        { uploadFromUri }
+      );
+
+      expect(result).toEqual({
+        success: false,
+        error: "Unsupported file type",
+        errorCode: CARD_ERROR_CODES.UNSUPPORTED_TYPE,
+      });
+      expect(uploadFromUri).not.toHaveBeenCalled();
+    });
+
+    test("resolves a missing size from the device file", async () => {
+      const { uploadFileFromUri } = await loadShareImport();
+      const { writeNativeCacheText } = await loadBoundary();
+      writeNativeCacheText("incoming-copy.jpg", "fake-bytes");
+      const uploadFromUri = mock(async () => ({
+        success: true as const,
+        cardId: "card_1",
+      }));
+
+      const result = await uploadFileFromUri(
+        { ...shareParams, fileUri: "file:///cache/incoming-copy.jpg" },
+        { uploadFromUri }
+      );
+
+      expect(result).toEqual({ success: true, cardId: "card_1" });
+      expect(uploadFromUri).toHaveBeenCalledWith(
+        expect.objectContaining({
+          name: "shared-photo.jpg",
+          size: "fake-bytes".length,
+          type: "image/jpeg",
+          uri: "file:///cache/incoming-copy.jpg",
+        })
+      );
+    });
+
+    test("prefers a provided size over reading the device file", async () => {
+      const { uploadFileFromUri } = await loadShareImport();
+      const uploadFromUri = mock(async () => ({
+        success: true as const,
+        cardId: "card_1",
+      }));
+
+      await uploadFileFromUri(
+        { ...shareParams, fileSize: 4096 },
+        { uploadFromUri }
+      );
+
+      expect(uploadFromUri).toHaveBeenCalledWith(
+        expect.objectContaining({ size: 4096 })
+      );
+    });
+
+    test("fails cleanly when the shared file is unreadable", async () => {
+      const { uploadFileFromUri } = await loadShareImport();
+      const uploadFromUri = mock(async () => ({
+        success: true as const,
+        cardId: "card_1",
+      }));
+
+      const result = await uploadFileFromUri(
+        { ...shareParams, fileUri: "file:///share/gone.jpg" },
+        { uploadFromUri }
+      );
+
+      expect(result).toEqual({
+        success: false,
+        error: "Unable to read shared file size.",
+      });
+      expect(uploadFromUri).not.toHaveBeenCalled();
+    });
+
+    test("normalizes unexpected upload dependency failures", async () => {
+      const { uploadFileFromUri } = await loadShareImport();
+      const uploadFromUri = mock(() =>
+        Promise.reject(new Error("network timeout"))
+      );
+
+      const result = await uploadFileFromUri(
+        { ...shareParams, fileSize: 128 },
+        { uploadFromUri }
+      );
+
+      expect(result).toEqual({ success: false, error: "network timeout" });
+    });
+
+    test("passes dependency results through untouched", async () => {
+      const { uploadFileFromUri } = await loadShareImport();
+      const uploadFromUri = mock(async () => ({
+        success: false as const,
+        error: "quota exceeded",
+      }));
+
+      const result = await uploadFileFromUri(
+        { ...shareParams, fileSize: 128 },
+        { uploadFromUri }
+      );
+
+      expect(result).toEqual({ success: false, error: "quota exceeded" });
+    });
   });
 });

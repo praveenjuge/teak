@@ -2,7 +2,7 @@ import {
   buildColorFacets,
   extractPaletteColors,
 } from "@teak/convex/shared/utils/colorUtils";
-import { v } from "convex/values";
+import { ConvexError, v } from "convex/values";
 import { internal } from "../_generated/api";
 import type { Id } from "../_generated/dataModel";
 import {
@@ -13,6 +13,7 @@ import {
 import { cardTypeValidator, colorValidator } from "../schema";
 import { getSessionIdentity } from "../securitySessions";
 import type { CardCreationSource } from "../shared/metrics";
+import { buildR2UserPrefix } from "../storage/r2";
 import { normalizeErrorClass } from "../shared/telemetry";
 import { assertSafeExternalUrl } from "../shared/utils/safeUrl";
 import { scheduleCardOutcome } from "../telemetry/schedule";
@@ -82,6 +83,21 @@ export const createCardForUserHandler = async (
 ): Promise<Id<"cards">> => {
   // Check rate limit and card count limit
   const { hasPremium } = await authorizeCardCreation(ctx, userId);
+
+  // Client-supplied storage keys must live in the caller's namespace so a
+  // stale or forged key can never persist and break later reads.
+  const userPrefix = `${buildR2UserPrefix(userId)}/`;
+  for (const [label, key] of [
+    ["fileKey", args.fileKey],
+    ["thumbnailKey", args.thumbnailKey],
+  ] as const) {
+    if (key !== undefined && !key.startsWith(userPrefix)) {
+      throw new ConvexError({
+        code: "INVALID_STORAGE_KEY",
+        message: `${label} does not belong to the current user`,
+      });
+    }
+  }
 
   const now = Date.now();
 

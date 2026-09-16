@@ -7,13 +7,17 @@ import {
 import { buildSignedWorkerOpRequest } from "../../storage/filesWorkerClient";
 import {
   assertR2KeyInNamespace,
+  cardStorageObjectKeys,
+} from "../../storage/r2";
+import {
   bucketedSignatureExpiry,
   buildSignedFilePayload,
   buildSignedWorkerFileUrl,
   buildSignedWorkerImageUrl,
-  cardStorageObjectKeys,
   getR2ReadBase,
-} from "../../storage/r2";
+  tryResolveImageUrl,
+  tryResolveObjectUrl,
+} from "../../storage/fileUrls";
 
 const SECRET = "test-signing-secret";
 const BASE = "https://files.teakvault.com";
@@ -108,6 +112,65 @@ describe("signed worker file urls", () => {
         })
       )
     );
+  });
+
+  test("try-resolvers treat out-of-namespace keys as absent", async () => {
+    const previous = {
+      filesBase: process.env.FILES_BASE,
+      prefix: process.env.R2_KEY_PREFIX,
+      secret: process.env.FILES_SIGNING_SECRET,
+    };
+    process.env.FILES_BASE = BASE;
+    process.env.FILES_SIGNING_SECRET = SECRET;
+    process.env.R2_KEY_PREFIX = "dev/";
+
+    try {
+      await expect(tryResolveObjectUrl(KEY)).resolves.toBeNull();
+      await expect(tryResolveImageUrl(KEY, "grid")).resolves.toBeNull();
+      const url = await tryResolveObjectUrl(`dev/${KEY}`, "x.png");
+      expect(url).toContain(`${BASE}/dev/${KEY}`);
+    } finally {
+      for (const [name, value] of Object.entries(previous)) {
+        const envName =
+          name === "filesBase"
+            ? "FILES_BASE"
+            : name === "prefix"
+              ? "R2_KEY_PREFIX"
+              : "FILES_SIGNING_SECRET";
+        if (value === undefined) {
+          delete process.env[envName];
+        } else {
+          process.env[envName] = value;
+        }
+      }
+    }
+  });
+
+  test("try-resolvers still throw on misconfiguration", async () => {
+    const previousSecret = process.env.FILES_SIGNING_SECRET;
+    const previousBase = process.env.FILES_BASE;
+    delete process.env.FILES_SIGNING_SECRET;
+    process.env.FILES_BASE = BASE;
+
+    try {
+      await expect(tryResolveObjectUrl(KEY)).rejects.toThrow(
+        "files_worker_not_configured"
+      );
+      await expect(tryResolveImageUrl(KEY, "grid")).rejects.toThrow(
+        "files_worker_not_configured"
+      );
+    } finally {
+      if (previousSecret === undefined) {
+        delete process.env.FILES_SIGNING_SECRET;
+      } else {
+        process.env.FILES_SIGNING_SECRET = previousSecret;
+      }
+      if (previousBase === undefined) {
+        delete process.env.FILES_BASE;
+      } else {
+        process.env.FILES_BASE = previousBase;
+      }
+    }
   });
 
   test("rejects out-of-namespace keys for both reads and writes", () => {

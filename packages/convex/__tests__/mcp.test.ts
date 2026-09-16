@@ -1,4 +1,5 @@
 import { afterEach, describe, expect, mock, test } from "bun:test";
+import type { ActionCtx } from "../_generated/server";
 import {
   handleMcpV1Request,
   handleOauthProtectedResourceV1Request,
@@ -91,7 +92,7 @@ const initializeMcp = (ctx: any) =>
 describe("Convex MCP endpoint", () => {
   test("returns 401 with OAuth protected-resource challenge for missing auth", async () => {
     const response = await handleMcpV1Request(
-      { runMutation: mock(), runQuery: mock() },
+      { runMutation: mock(), runQuery: mock() } as unknown as ActionCtx,
       new Request("https://api.teakvault.com/mcp", {
         method: "POST",
         headers: {
@@ -174,7 +175,7 @@ describe("Convex MCP endpoint", () => {
     });
 
     const challenge = await handleMcpV1Request(
-      { runMutation: mock(), runQuery: mock() },
+      { runMutation: mock(), runQuery: mock() } as unknown as ActionCtx,
       new Request("https://api.selfhost.example/mcp", {
         method: "POST",
         headers: {
@@ -191,7 +192,7 @@ describe("Convex MCP endpoint", () => {
 
   test("lets unauthenticated OPTIONS /mcp preflight through", async () => {
     const response = await handleMcpV1Request(
-      { runMutation: mock(), runQuery: mock() },
+      { runMutation: mock(), runQuery: mock() } as unknown as ActionCtx,
       new Request("https://api.teakvault.com/mcp", { method: "OPTIONS" })
     );
 
@@ -204,7 +205,7 @@ describe("Convex MCP endpoint", () => {
 
   test("challenges unauthenticated non-POST MCP requests", async () => {
     const response = await handleMcpV1Request(
-      { runMutation: mock(), runQuery: mock() },
+      { runMutation: mock(), runQuery: mock() } as unknown as ActionCtx,
       new Request("https://api.teakvault.com/mcp", { method: "GET" })
     );
 
@@ -226,7 +227,7 @@ describe("Convex MCP endpoint", () => {
       source: "component",
       rateLimitKey: "component:key_1",
     });
-    const ctx = { runMutation, runQuery: mock() };
+    const ctx = { runMutation, runQuery: mock() } as unknown as ActionCtx;
     expect((await initializeMcp(ctx)).status).toBe(200);
 
     const listResponse = await handleMcpV1Request(
@@ -252,7 +253,7 @@ describe("Convex MCP endpoint", () => {
       source: "component",
       rateLimitKey: "component:key_2",
     });
-    const ctx = { runMutation, runQuery: mock() };
+    const ctx = { runMutation, runQuery: mock() } as unknown as ActionCtx;
 
     const firstResponse = await handleMcpV1Request(
       ctx,
@@ -308,7 +309,7 @@ describe("Convex MCP endpoint", () => {
           );
         }
       );
-      const ctx = { runMutation, runQuery: mock() };
+      const ctx = { runMutation, runQuery: mock() } as unknown as ActionCtx;
       const initialize = await handleMcpV1Request(
         ctx,
         mcpRequest(
@@ -656,7 +657,7 @@ describe("Convex MCP endpoint", () => {
       source: "component",
       rateLimitKey: "component:key_1",
     });
-    const ctx = { runMutation, runQuery: mock() };
+    const ctx = { runMutation, runQuery: mock() } as unknown as ActionCtx;
     const batch = Array.from({ length: 100 }, (_, index) => ({
       jsonrpc: "2.0",
       id: index + 1,
@@ -689,7 +690,7 @@ describe("Convex MCP endpoint", () => {
       source: "component",
       rateLimitKey: "component:key_1",
     });
-    const ctx = { runMutation, runQuery: mock() };
+    const ctx = { runMutation, runQuery: mock() } as unknown as ActionCtx;
     const batch = Array.from({ length: 101 }, (_, index) => ({
       jsonrpc: "2.0",
       id: index + 1,

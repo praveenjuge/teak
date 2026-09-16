@@ -1,17 +1,40 @@
 // @ts-nocheck
 
-import { beforeEach, describe, expect, mock, test } from "bun:test";
+import {
+  afterEach,
+  beforeEach,
+  describe,
+  expect,
+  mock,
+  test,
+} from "bun:test";
 import { withTestSession } from "../helpers/session.test-utils";
 
-const resolveObjectUrlMock = mock((key?: string) =>
-  Promise.resolve(key ? `file://${key}` : null)
-);
+// No `storage/r2` mock: URL hydration resolves through the unmocked
+// `storage/fileUrls` leaf, so these tests assert real signed-URL shapes.
+const FILES_BASE = "https://files.example.com";
+const FILES_SECRET = "test-secret-for-urls";
+const PREVIOUS_ENV = {
+  FILES_BASE: process.env.FILES_BASE,
+  FILES_SIGNING_SECRET: process.env.FILES_SIGNING_SECRET,
+  R2_KEY_PREFIX: process.env.R2_KEY_PREFIX,
+};
 
-mock.module("../../storage/r2", () => ({
-  deleteObject: mock(() => Promise.resolve()),
-  resolveImageUrl: resolveObjectUrlMock,
-  resolveObjectUrl: resolveObjectUrlMock,
-}));
+beforeEach(() => {
+  process.env.FILES_BASE = FILES_BASE;
+  process.env.FILES_SIGNING_SECRET = FILES_SECRET;
+  delete process.env.R2_KEY_PREFIX;
+});
+
+afterEach(() => {
+  for (const [name, value] of Object.entries(PREVIOUS_ENV)) {
+    if (value === undefined) {
+      delete process.env[name];
+    } else {
+      process.env[name] = value;
+    }
+  }
+});
 
 const buildQuery = (cards: any[] = []) =>
   ({
@@ -61,6 +84,9 @@ describe("card/getCards.ts", () => {
     });
 
     test("attaches file urls and formats quotes", async () => {
+      const fileKey = "users/u1/cards/c1/file/f1";
+      const thumbnailKey = "users/u1/cards/c1/thumbnail/t1";
+      const screenshotKey = "users/u1/cards/c1/screenshot/s1";
       const cards = [
         {
           _id: "c1",
@@ -68,9 +94,9 @@ describe("card/getCards.ts", () => {
           userId: "u1",
           content: '"Hello"',
           type: "quote",
-          fileKey: "f1",
-          thumbnailKey: "t1",
-          metadata: { linkPreview: { screenshotStorageKey: "s1" } },
+          fileKey,
+          thumbnailKey,
+          metadata: { linkPreview: { screenshotStorageKey: screenshotKey } },
         },
       ];
       const ctx = withTestSession({
@@ -81,9 +107,13 @@ describe("card/getCards.ts", () => {
       const handler = (getCards as any).handler ?? getCards;
       const result = await handler(ctx, { limit: 1 });
       expect(result[0].content).toBe("Hello");
-      expect(result[0].fileUrl).toBe("file://f1");
-      expect(result[0].thumbnailUrl).toBe("file://t1");
-      expect(result[0].screenshotUrl).toBe("file://s1");
+      expect(result[0].fileUrl).toContain(`${FILES_BASE}/${fileKey}?`);
+      expect(result[0].thumbnailUrl).toContain(
+        `/__images/v1/grid/${encodeURIComponent(thumbnailKey)}`
+      );
+      expect(result[0].screenshotUrl).toContain(
+        `/__images/v1/grid/${encodeURIComponent(screenshotKey)}`
+      );
     });
 
     test("uses favorites index when favoritesOnly", async () => {
@@ -184,6 +214,7 @@ describe("card/getCards.ts", () => {
     });
 
     test("attaches linkPreviewImageUrl from metadata", async () => {
+      const imageStorageKey = "users/u1/cards/c1/link/img1";
       const cards = [
         {
           _id: "c1",
@@ -191,7 +222,7 @@ describe("card/getCards.ts", () => {
           userId: "u1",
           content: "Hello",
           type: "link",
-          metadata: { linkPreview: { imageStorageKey: "img1" } },
+          metadata: { linkPreview: { imageStorageKey } },
         },
       ];
       const ctx = withTestSession({
@@ -201,10 +232,15 @@ describe("card/getCards.ts", () => {
 
       const handler = (getCards as any).handler ?? getCards;
       const result = await handler(ctx, {});
-      expect(result[0].linkPreviewImageUrl).toBe("file://img1");
+      expect(result[0].linkPreviewImageUrl).toContain(
+        `/__images/v1/grid/${encodeURIComponent(imageStorageKey)}`
+      );
     });
 
     test("hydrates linkPreviewMedia and falls back to the first attached image", async () => {
+      const imageKey = "users/u1/cards/c1/link/img1";
+      const videoKey = "users/u1/cards/c1/link/vid1";
+      const posterKey = "users/u1/cards/c1/link/poster1";
       const cards = [
         {
           _id: "c1",
@@ -217,13 +253,13 @@ describe("card/getCards.ts", () => {
               media: [
                 {
                   type: "image",
-                  storageKey: "img1",
+                  storageKey: imageKey,
                   updatedAt: 1,
                 },
                 {
                   type: "video",
-                  storageKey: "vid1",
-                  posterStorageKey: "poster1",
+                  storageKey: videoKey,
+                  posterStorageKey: posterKey,
                   updatedAt: 1,
                 },
               ],
@@ -238,31 +274,21 @@ describe("card/getCards.ts", () => {
 
       const handler = (getCards as any).handler ?? getCards;
       const result = await handler(ctx, {});
-      expect(result[0].linkPreviewImageUrl).toBe("file://img1");
-      expect(result[0].linkPreviewMedia).toEqual([
-        {
-          type: "image",
-          url: "file://img1",
-          contentType: undefined,
-          width: undefined,
-          height: undefined,
-          posterUrl: undefined,
-          posterContentType: undefined,
-          posterWidth: undefined,
-          posterHeight: undefined,
-        },
-        {
-          type: "video",
-          url: "file://vid1",
-          contentType: undefined,
-          width: undefined,
-          height: undefined,
-          posterUrl: "file://poster1",
-          posterContentType: undefined,
-          posterWidth: undefined,
-          posterHeight: undefined,
-        },
-      ]);
+      expect(result[0].linkPreviewImageUrl).toContain(
+        `/__images/v1/grid/${encodeURIComponent(imageKey)}`
+      );
+      expect(result[0].linkPreviewMedia).toHaveLength(2);
+      expect(result[0].linkPreviewMedia[0]).toMatchObject({ type: "image" });
+      expect(result[0].linkPreviewMedia[0].url).toContain(
+        `/__images/v1/grid/${encodeURIComponent(imageKey)}`
+      );
+      expect(result[0].linkPreviewMedia[1]).toMatchObject({ type: "video" });
+      expect(result[0].linkPreviewMedia[1].url).toContain(
+        `${FILES_BASE}/${videoKey}?`
+      );
+      expect(result[0].linkPreviewMedia[1].posterUrl).toContain(
+        `/__images/v1/grid/${encodeURIComponent(posterKey)}`
+      );
     });
 
     test("handles null storage URLs gracefully", async () => {

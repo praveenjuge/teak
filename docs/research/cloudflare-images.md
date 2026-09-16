@@ -139,9 +139,11 @@ Required configuration stays small:
 - the files Worker needs its private R2 `BUCKET` binding and
   `FILES_SIGNING_SECRET` secret;
 - Convex production needs the matching `FILES_SIGNING_SECRET` and
-  `FILES_BASE=https://files.teakvault.com`; development uses its own Worker,
-  secret, and `FILES_BASE=https://files-dev.teakvault.com` so its isolated R2
-  bucket stays isolated.
+  `FILES_BASE=https://files.teakvault.com`. Development shares the same
+  Worker, secret, and `FILES_BASE`, with its objects isolated under the
+  `dev/users/...` prefix in the same `teak-files-prod` bucket. The retired
+  `files-dev` Worker/domain are deleted and the legacy bucket is draining
+  before deletion.
 
 No Cloudflare account API key is shipped in application code.
 
