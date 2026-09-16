@@ -107,10 +107,13 @@ const webEnvValid = (): boolean => {
 
 export const buildDevCommand = (
   target: string,
-  opts?: { all?: boolean }
+  opts?: { all?: boolean; headless?: boolean }
 ): string[] => {
+  // Dev tasks are persistent but never interactive (no stdin), so stream
+  // mode runs the same servers headlessly for agents and CI.
+  const ui = opts?.headless ? "--ui=stream" : "--ui=tui";
   if (opts?.all) {
-    return ["turbo", "watch", "dev", "--ui=tui"];
+    return ["turbo", "watch", "dev", ui];
   }
   if (target === "files") {
     return ["bun", "run", "--filter", "@teak/files-worker", "dev"];
@@ -123,7 +126,7 @@ export const buildDevCommand = (
     "turbo",
     "watch",
     "dev",
-    "--ui=tui",
+    ui,
     ...filters.flatMap((filter) => ["--filter", filter]),
   ];
 };
@@ -159,7 +162,10 @@ const main = (): void => {
     process.exitCode = 1;
     return;
   }
-  const command = buildDevCommand(parsed.target, { all: parsed.all });
+  const command = buildDevCommand(parsed.target, {
+    all: parsed.all,
+    headless: parsed.headless,
+  });
   if (parsed.action === "check") {
     console.log(
       `Would run${parsed.headless ? " (headless, TURBO_UI=false)" : ""}: ${command.join(" ")}`

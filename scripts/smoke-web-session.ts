@@ -3,11 +3,11 @@
  * Clean-container web session smoke (issue #407, Phase 5).
  *
  * Proves a local authenticated journey without production secrets: sign up
- * a random local user, mark verified through the internal test-setup
- * endpoint, sign in, and show the session reaches `/` while anonymous
- * requests redirect to `/login`. Reads ONLY the web target's declared
- * dotenv file explicitly. Reports status and names; credentials are random
- * per run and never printed.
+ * a random local user, sign in, and show the session reaches `/` while
+ * anonymous requests redirect to `/login`. Local sign-in does not require
+ * verified email, so no verification step is needed. Reads ONLY the web
+ * target's declared dotenv file explicitly. Reports status and names;
+ * credentials are random per run and never printed.
  *
  * Usage: bun run smoke:web [--base-url <url>] [--json]
  */
@@ -98,7 +98,7 @@ export const runSmoke = async (baseUrl: string): Promise<SmokeReport> => {
 
   const email = `smoke-${Date.now()}-${randomUUID().slice(0, 8)}@teakvault.local`;
   const password = `${randomUUID()}${randomUUID()}!aA`;
-  const signUp = await fetchText(`${convexSiteUrl}/api/auth/sign-up`, {
+  const signUp = await fetchText(`${convexSiteUrl}/api/auth/sign-up/email`, {
     body: JSON.stringify({ email, password, name: "Smoke User" }),
     headers: { "Content-Type": "application/json" },
     method: "POST",
@@ -111,31 +111,6 @@ export const runSmoke = async (baseUrl: string): Promise<SmokeReport> => {
     ok: true,
     detail: "random user signed up",
   });
-
-  const verify = await fetchText(
-    `${convexUrl}/api/internal/testSetup:markUserVerified`,
-    {
-      body: JSON.stringify({ email }),
-      headers: { "Content-Type": "application/json" },
-      method: "POST",
-    }
-  );
-  if (!verify.status.toString().startsWith("2")) {
-    return fail(
-      "smoke-verify",
-      `test-setup verification returned ${verify.status}`
-    );
-  }
-  let found = false;
-  try {
-    found = (JSON.parse(verify.body) as { found?: boolean }).found === true;
-  } catch {
-    found = false;
-  }
-  if (!found) {
-    return fail("smoke-verify", "test-setup did not find the new user");
-  }
-  steps.push({ id: "smoke-verify", ok: true, detail: "user marked verified" });
 
   const signIn = await fetchText(`${convexSiteUrl}/api/auth/sign-in/email`, {
     body: JSON.stringify({ email, password }),

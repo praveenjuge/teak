@@ -68,6 +68,19 @@ describe("buildDevCommand", () => {
     ]);
   });
 
+  test("headless uses stream output", () => {
+    expect(buildDevCommand("web", { headless: true })).toEqual([
+      "turbo",
+      "watch",
+      "dev",
+      "--ui=stream",
+      "--filter",
+      "@teak/web",
+      "--filter",
+      "@teak/convex",
+    ]);
+  });
+
   test("files targets use workspace filter", () => {
     expect(buildDevCommand("files")).toEqual([
       "bun",
