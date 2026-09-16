@@ -9,7 +9,8 @@ import {
   callFilesWorkerJson,
   type FilesWorkerHeadObjectResult,
 } from "../../../storage/filesWorkerClient";
-import { buildR2ObjectKey, resolveObjectUrl } from "../../../storage/r2";
+import { tryResolveObjectUrl } from "../../../storage/fileUrls";
+import { buildR2ObjectKey } from "../../../storage/r2";
 import { escapeForSingleQuotedJs } from "../kernelCodegen";
 
 // Maximum thumbnail dimensions - matches image thumbnail settings
@@ -72,7 +73,7 @@ export const generateVideoThumbnail = internalAction({
         };
       }
 
-      const videoUrl = await resolveObjectUrl(card.fileKey);
+      const videoUrl = await tryResolveObjectUrl(card.fileKey);
       if (!videoUrl) {
         console.log(
           `[renderables/video] Could not get URL for card ${args.cardId}`

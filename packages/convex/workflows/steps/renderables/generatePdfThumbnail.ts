@@ -9,7 +9,8 @@ import {
   callFilesWorkerJson,
   type FilesWorkerHeadObjectResult,
 } from "../../../storage/filesWorkerClient";
-import { buildR2ObjectKey, resolveObjectUrl } from "../../../storage/r2";
+import { tryResolveObjectUrl } from "../../../storage/fileUrls";
+import { buildR2ObjectKey } from "../../../storage/r2";
 
 // Bound both dimensions so hostile page aspect ratios cannot create an
 // unbounded browser canvas. The page still scales proportionally.
@@ -92,7 +93,7 @@ export const generatePdfThumbnail = internalAction({
         };
       }
 
-      const pdfUrl = await resolveObjectUrl(card.fileKey);
+      const pdfUrl = await tryResolveObjectUrl(card.fileKey);
       if (!pdfUrl) {
         console.log(
           `[renderables/pdf] Could not get URL for card ${args.cardId}`

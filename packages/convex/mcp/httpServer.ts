@@ -1,4 +1,4 @@
-import { httpAction } from "../_generated/server";
+import { type ActionCtx, httpAction } from "../_generated/server";
 import {
   executePublicApiOperation,
   type PublicApiOperation,
@@ -76,7 +76,7 @@ export const oauthProtectedResourceV1 = httpAction(async (_ctx, request) =>
 );
 
 const executeToolOperation = (
-  ctx: any,
+  ctx: ActionCtx,
   request: Request,
   operation: PublicApiOperation
 ): Promise<Response> =>
@@ -110,7 +110,7 @@ const parseJsonRpcBody = async (request: Request): Promise<unknown> => {
 };
 
 const handleJsonRpcMessage = async (
-  ctx: any,
+  ctx: ActionCtx,
   request: Request,
   message: unknown
 ): Promise<JsonObject | null> => {
@@ -209,7 +209,7 @@ const isRateLimitedRpc = (response: JsonObject): boolean => {
   return result?.structuredContent?.status === 429;
 };
 
-const handleMcpPost = async (ctx: any, request: Request): Promise<Response> => {
+const handleMcpPost = async (ctx: ActionCtx, request: Request): Promise<Response> => {
   const accept = request.headers.get("accept") ?? "*/*";
   if (
     !(
@@ -269,7 +269,7 @@ const handleMcpPost = async (ctx: any, request: Request): Promise<Response> => {
 };
 
 const validateMcpBearer = async (
-  ctx: any,
+  ctx: ActionCtx,
   request: Request
 ): Promise<Response | null> => {
   // Validate even protocol-only requests against live credentials. A previous
@@ -285,7 +285,7 @@ const validateMcpBearer = async (
 };
 
 export const handleMcpV1Request = async (
-  ctx: any,
+  ctx: ActionCtx,
   request: Request
 ): Promise<Response> => {
   if (request.method === "OPTIONS") {

@@ -1,6 +1,39 @@
 // @ts-nocheck
-import { beforeAll, describe, expect, mock, test } from "bun:test";
+import {
+  afterAll,
+  beforeAll,
+  describe,
+  expect,
+  mock,
+  test,
+} from "bun:test";
 import { crc32, deflateSync, inflateSync } from "node:zlib";
+
+// The step resolves the source PDF through the real (unmocked)
+// `storage/fileUrls` leaf, so tests configure signing env and assert the
+// real signed-URL shape.
+const FILES_BASE = "https://files.example.com";
+const PREVIOUS_ENV = {
+  FILES_BASE: process.env.FILES_BASE,
+  FILES_SIGNING_SECRET: process.env.FILES_SIGNING_SECRET,
+  R2_KEY_PREFIX: process.env.R2_KEY_PREFIX,
+};
+
+beforeAll(() => {
+  process.env.FILES_BASE = FILES_BASE;
+  process.env.FILES_SIGNING_SECRET = "test-secret-for-urls";
+  delete process.env.R2_KEY_PREFIX;
+});
+
+afterAll(() => {
+  for (const [name, value] of Object.entries(PREVIOUS_ENV)) {
+    if (value === undefined) {
+      delete process.env[name];
+    } else {
+      process.env[name] = value;
+    }
+  }
+});
 
 // Captured across the mocked Kernel + storage layer so the assertions can
 // inspect exactly how the PDF thumbnail was produced.
@@ -211,7 +244,9 @@ const executeGeneratedCode = async (
           };
         },
         get: (url: string) => {
-          if (url.includes("the-pdf")) {
+          if (
+            url.startsWith(`${FILES_BASE}/users/u/cards/c/file/original?`)
+          ) {
             return {
               ok: () => true,
               body: async () => Buffer.from(options.pdfBase64, "base64"),
@@ -265,7 +300,9 @@ beforeAll(async () => {
     },
   }));
 
-  // Replace the R2 storage layer so the test never touches the network/S3.
+  // Replace the R2 key builder so the test never touches the network/S3.
+  // Source-PDF URL resolution goes through the real (unmocked)
+  // `storage/fileUrls` leaf, configured via env above.
   const r2Path = import.meta.resolve("../../../../storage/r2");
   mock.module(r2Path, () => ({
     buildR2ObjectKey: () => "users/u/cards/c/thumbnail/generated",
@@ -347,7 +384,7 @@ describe("generatePdfThumbnail", () => {
     // browser fetch, so only the URL — never the document bytes — is embedded.
     expect(capturedPlaywrightCode).toContain("context.request");
     expect(capturedPlaywrightCode).toContain(
-      "https://signed.r2.example/the-pdf"
+      `${FILES_BASE}/users/u/cards/c/file/original?`
     );
 
     // The rendered PNG uploads straight from the VM to the Files Worker, and

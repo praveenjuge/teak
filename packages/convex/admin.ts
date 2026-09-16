@@ -18,7 +18,8 @@ import type {
 import { stagePending } from "./card/processingStatus";
 import { patchCardWithSearchSync } from "./card/searchDocumentHelpers";
 import { getSessionIdentity } from "./securitySessions";
-import { deleteObject, resolveObjectUrl } from "./storage/r2";
+import { tryResolveObjectUrl } from "./storage/fileUrls";
+import { deleteObject } from "./storage/r2";
 
 interface StageSummary {
   failed: number;
@@ -116,19 +117,21 @@ const attachCardUrls = async (
       const [fileUrl, thumbnailUrl, screenshotUrl, linkPreviewImageUrl] =
         await Promise.all([
           card.fileKey
-            ? resolveObjectUrl(
+            ? tryResolveObjectUrl(
                 card.fileKey,
                 card.fileMetadata?.fileName ?? null
               )
             : Promise.resolve(null),
           card.thumbnailKey
-            ? resolveObjectUrl(card.thumbnailKey)
+            ? tryResolveObjectUrl(card.thumbnailKey)
             : Promise.resolve(null),
           card.metadata?.linkPreview?.screenshotStorageKey
-            ? resolveObjectUrl(card.metadata.linkPreview.screenshotStorageKey)
+            ? tryResolveObjectUrl(
+                card.metadata.linkPreview.screenshotStorageKey
+              )
             : Promise.resolve(null),
           card.metadata?.linkPreview?.imageStorageKey
-            ? resolveObjectUrl(card.metadata.linkPreview.imageStorageKey)
+            ? tryResolveObjectUrl(card.metadata.linkPreview.imageStorageKey)
             : Promise.resolve(null),
         ]);
 

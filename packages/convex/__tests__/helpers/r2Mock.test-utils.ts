@@ -11,10 +11,28 @@
  * Use it like:
  *   import { r2Mocks } from "../helpers/r2Mock.test-utils";
  *   // in a test: r2Mocks.deleteObject.mockResolvedValueOnce(...);
+ *
+ * The factory deliberately does NOT provide `resolveObjectUrl`,
+ * `resolveImageUrl`, or `getR2Url`: Bun merges this factory over the real
+ * module and overwrites bindings in place through `storage/r2`'s re-export
+ * of the `storage/fileUrls` leaf, so provisioning mocks under those names
+ * would hijack the leaf's real implementations suite-wide. URL resolution
+ * is always real; tests that need deterministic URLs set `FILES_BASE` /
+ * `FILES_SIGNING_SECRET` and assert real signed-URL shapes instead.
  */
 
 import { mock } from "bun:test";
 import { PENDING_UPLOAD_CARD_ID } from "../../storage/r2";
+import {
+  bucketedSignatureExpiry,
+  buildSignedFilePayload,
+  buildSignedWorkerFileUrl,
+  buildSignedWorkerImageUrl,
+  getR2ReadBase,
+  isStorageNamespaceError,
+  tryResolveImageUrl,
+  tryResolveObjectUrl,
+} from "../../storage/fileUrls";
 import {
   assertR2KeyInNamespace,
   buildR2ListPrefix,
@@ -76,6 +94,13 @@ export const r2MockModuleFactory = () => ({
   getR2KeyPrefix,
   isR2KeyInNamespace,
   PENDING_UPLOAD_CARD_ID,
+  // Pure URL-signing helpers pass through so files importing them alongside
+  // the mocked module never hit a named-export link error.
+  bucketedSignatureExpiry,
+  buildSignedFilePayload,
+  buildSignedWorkerFileUrl,
+  buildSignedWorkerImageUrl,
+  getR2ReadBase,
   // Faithful port of the real cardStorageObjectKeys so tests that receive the
   // mocked module still observe identical key collection semantics.
   cardStorageObjectKeys: (card: {
@@ -113,12 +138,15 @@ export const r2MockModuleFactory = () => ({
     const { createHmac } = await import("node:crypto");
     return createHmac("sha256", secret).update(message).digest("hex");
   },
-  resolveImageUrl: r2Mocks.resolveImageUrl,
-  resolveObjectUrl: r2Mocks.resolveObjectUrl,
+  // Imported from the unmocked `storage/fileUrls` leaf (never from the mocked
+  // `storage/r2` surface): capturing real `storage/r2` functions here would
+  // rebind their internal calls to the mock's siblings.
+  tryResolveImageUrl,
+  tryResolveObjectUrl,
+  isStorageNamespaceError,
   storeObject: r2Mocks.storeObject,
   generateUploadUrl: r2Mocks.generateUploadUrl,
   getFileUrl: r2Mocks.getFileUrl,
-  getR2Url: r2Mocks.getR2Url,
   buildR2UserPrefix: r2Mocks.buildR2UserPrefix,
   buildR2ObjectKey: r2Mocks.buildR2ObjectKey,
   r2: r2Mocks.r2,

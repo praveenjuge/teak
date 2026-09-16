@@ -1,26 +1,43 @@
 // @ts-nocheck
 
-import { beforeEach, describe, expect, mock, test } from "bun:test";
+import {
+  afterEach,
+  beforeEach,
+  describe,
+  expect,
+  mock,
+  test,
+} from "bun:test";
 import { withTestSession } from "../helpers/session.test-utils";
 
-const resolveObjectUrlMock = mock((key?: string) =>
-  Promise.resolve(key ? "https://file" : null)
-);
-const resolveImageUrlMock = mock((key?: string, rendition?: string) =>
-  Promise.resolve(key && rendition ? `https://file/${rendition}` : null)
-);
+// No `storage/r2` mock: the handlers resolve URLs through the unmocked
+// `storage/fileUrls` leaf, so these tests exercise the real signing and
+// namespace behavior. Env vars are set per test below.
 
-mock.module("../../storage/r2", () => ({
-  deleteObject: mock(() => Promise.resolve()),
-  resolveObjectUrl: resolveObjectUrlMock,
-  resolveImageUrl: resolveImageUrlMock,
-}));
+const FILES_BASE = "https://files.example.com";
+const SIGNING_SECRET = "test-secret-for-urls";
 
 describe("card/getFileUrl.ts", () => {
   let getFileUrl: any;
+  const previousEnv = {
+    FILES_BASE: process.env.FILES_BASE,
+    FILES_SIGNING_SECRET: process.env.FILES_SIGNING_SECRET,
+  };
 
   beforeEach(async () => {
+    process.env.FILES_BASE = FILES_BASE;
+    process.env.FILES_SIGNING_SECRET = SIGNING_SECRET;
     getFileUrl = (await import("../../card/getFileUrl")).getFileUrl;
+  });
+
+  afterEach(() => {
+    for (const [name, value] of Object.entries(previousEnv)) {
+      if (value === undefined) {
+        delete process.env[name];
+      } else {
+        process.env[name] = value;
+      }
+    }
   });
 
   test("throws when unauthenticated", async () => {
@@ -40,16 +57,46 @@ describe("card/getFileUrl.ts", () => {
         get: mock().mockResolvedValue({
           _id: "c1",
           userId: "u1",
-          fileKey: "f1",
+          fileKey: "users/u1/cards/c1/file/payload.html",
           fileMetadata: { fileName: "payload.html" },
         }),
       },
     } as any);
 
     const handler = (getFileUrl as any).handler ?? getFileUrl;
-    const result = await handler(ctx, { key: "f1", cardId: "c1" });
-    expect(result).toBe("https://file");
-    expect(resolveObjectUrlMock).toHaveBeenCalledWith("f1", "payload.html");
+    const result = await handler(ctx, {
+      key: "users/u1/cards/c1/file/payload.html",
+      cardId: "c1",
+    });
+    expect(result).toContain(
+      `${FILES_BASE}/users/u1/cards/c1/file/payload.html`
+    );
+  });
+
+  test("returns null for out-of-namespace keys", async () => {
+    process.env.R2_KEY_PREFIX = "dev/";
+    try {
+      const ctx = withTestSession({
+        auth: { getUserIdentity: mock().mockResolvedValue({ subject: "u1" }) },
+        db: {
+          get: mock().mockResolvedValue({
+            _id: "c1",
+            userId: "u1",
+            fileKey: "users/u1/cards/c1/file/stale.png",
+            fileMetadata: { fileName: "stale.png" },
+          }),
+        },
+      } as any);
+
+      const handler = (getFileUrl as any).handler ?? getFileUrl;
+      const result = await handler(ctx, {
+        key: "users/u1/cards/c1/file/stale.png",
+        cardId: "c1",
+      });
+      expect(result).toBeNull();
+    } finally {
+      delete process.env.R2_KEY_PREFIX;
+    }
   });
 
   test("refreshes an authorized image rendition", async () => {
@@ -60,10 +107,14 @@ describe("card/getFileUrl.ts", () => {
       runQuery: mock().mockResolvedValue({ fileName: null }),
     } as any;
 
-    await expect(
-      handler(ctx, { cardId: "c1", key: "f1", rendition: "grid" })
-    ).resolves.toEqual({ url: "https://file/grid" });
-    expect(resolveImageUrlMock).toHaveBeenCalledWith("f1", "grid");
+    const result = await handler(ctx, {
+      cardId: "c1",
+      key: "users/u1/cards/c1/file/photo.png",
+      rendition: "grid",
+    });
+    expect(result.url).toContain(
+      `/__images/v1/grid/${encodeURIComponent("users/u1/cards/c1/file/photo.png")}`
+    );
   });
 
   test("rejects a refresh when the media is not authorized", async () => {
@@ -78,7 +129,6 @@ describe("card/getFileUrl.ts", () => {
   });
 
   test("grid hydration omits original, detail, and tiny image URLs", async () => {
-    resolveObjectUrlMock.mockClear();
     const { attachGridFileUrls } = await import("../../card/queryUtils");
     const [card] = await attachGridFileUrls({} as any, [
       {
@@ -86,7 +136,7 @@ describe("card/getFileUrl.ts", () => {
         _creationTime: 1,
         userId: "u1",
         type: "image",
-        fileKey: "image-key",
+        fileKey: "users/u1/cards/c-grid/file/grid.png",
         content: "Grid image",
         isDeleted: undefined,
         createdAt: 1,
@@ -97,8 +147,10 @@ describe("card/getFileUrl.ts", () => {
     expect(card?.fileUrl).toBeUndefined();
     expect(card?.detailUrl).toBeUndefined();
     expect(card?.placeholderUrl).toBeUndefined();
-    expect(card?.compactUrl).toBe("https://file/compact");
-    expect(card?.thumbnailUrl).toBe("https://file/grid");
-    expect(resolveObjectUrlMock).not.toHaveBeenCalled();
+    const encodedKey = encodeURIComponent(
+      "users/u1/cards/c-grid/file/grid.png"
+    );
+    expect(card?.compactUrl).toContain(`/__images/v1/compact/${encodedKey}`);
+    expect(card?.thumbnailUrl).toContain(`/__images/v1/grid/${encodedKey}`);
   });
 });

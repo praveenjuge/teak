@@ -2,7 +2,7 @@ import type { FilesImageRendition } from "@teak/files-protocol";
 import type { Doc } from "../_generated/dataModel";
 import type { LinkPreviewMediaItem } from "../linkMetadata";
 import type { CreatedAtRange } from "../shared";
-import { resolveImageUrl, resolveObjectUrl } from "../storage/r2";
+import { tryResolveImageUrl, tryResolveObjectUrl } from "../storage/fileUrls";
 
 export type CardWithUrls = Doc<"cards"> & {
   fileUrl?: string;
@@ -48,7 +48,7 @@ const resolveImageRenditions = async (
   const resolved = await Promise.all(
     renditions.map(
       async (rendition) =>
-        [rendition, await resolveImageUrl(key, rendition)] as const
+        [rendition, await tryResolveImageUrl(key, rendition)] as const
     )
   );
   return Object.fromEntries(
@@ -146,14 +146,14 @@ export const attachFileUrls = async (
   );
   const urlPromises = Array.from(storageKeys).map(async (key) => ({
     key,
-    url: await resolveObjectUrl(key, fileNamesByKey.get(key)),
+    url: await tryResolveObjectUrl(key, fileNamesByKey.get(key)),
   }));
   const urlResults = await Promise.all(urlPromises);
   const urlMap = new Map(urlResults.map((result) => [result.key, result.url]));
   const gridUrlMap = new Map(
     await Promise.all(
       Array.from(gridImageKeys).map(
-        async (key) => [key, await resolveImageUrl(key, "grid")] as const
+        async (key) => [key, await tryResolveImageUrl(key, "grid")] as const
       )
     )
   );
@@ -274,7 +274,7 @@ export const attachCardSummaryUrls = async (
   const screenshotUrlMap = new Map(
     await Promise.all(
       Array.from(screenshotKeys).map(
-        async (key) => [key, await resolveImageUrl(key, "grid")] as const
+        async (key) => [key, await tryResolveImageUrl(key, "grid")] as const
       )
     )
   );

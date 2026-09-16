@@ -12,6 +12,7 @@ process.env.APPLE_TEAM_ID = "test-apple-team-id";
 
 import { afterEach, beforeEach, describe, expect, mock, test } from "bun:test";
 import { CARD_USAGE_SHARD_VERSION } from "../../card/cardUsage";
+import { buildR2UserPrefix } from "../../storage/r2";
 import { TEST_APPLE_PRIVATE_KEY } from "../helpers/appleAuth.test-utils";
 
 describe("card/createCard.ts", () => {
@@ -88,6 +89,37 @@ describe("card/createCard.ts", () => {
   afterEach(async () => {
     const billingModule = await import("../../billing");
     billingModule.polar.getCurrentSubscription = originalGetSubscription;
+  });
+
+  test("rejects storage keys outside the caller's namespace", async () => {
+    const ctx = withTestSession({
+      runMutation: mock().mockResolvedValue({ ok: true }),
+      auth: { getUserIdentity: mock().mockResolvedValue({ subject: "u1" }) },
+      db: {
+        system: { get: mock().mockResolvedValue(null) },
+        query: mock().mockReturnValue({
+          withIndex: mock().mockReturnValue({
+            collect: mock().mockResolvedValue([]),
+            take: mock().mockResolvedValue([]),
+          }),
+        }),
+        insert: mock().mockResolvedValue("c1"),
+      },
+      scheduler: { runAfter: mock().mockResolvedValue(null) },
+    } as any);
+
+    const handler = (createCard as any).handler ?? createCard;
+    for (const args of [
+      { content: "file", fileKey: "users/someone-else/file" },
+      { content: "file", thumbnailKey: "stale-bucket/thumb" },
+    ]) {
+      const error = await handler(ctx, args).catch((e: unknown) => e);
+      expect((error as any)?.data).toEqual({
+        code: "INVALID_STORAGE_KEY",
+        message: expect.stringContaining("does not belong"),
+      });
+    }
+    expect(ctx.db.insert).not.toHaveBeenCalled();
   });
 
   test("throws when unauthenticated", async () => {
@@ -425,7 +457,7 @@ describe("card/createCard.ts", () => {
     const handler = (createCard as any).handler ?? createCard;
     await handler(ctx, {
       content: "Image",
-      fileKey: "users/u/cards/c/file/key",
+      fileKey: `${buildR2UserPrefix("u1")}/c/file/key`,
       metadata: {
         fileName: "photo.png",
         fileSize: 123,

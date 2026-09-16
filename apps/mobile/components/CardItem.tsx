@@ -30,8 +30,7 @@ import { colors } from "@/constants/colors";
 import { getNativeShareOptions } from "@/lib/files";
 import type { MobileCardSummary } from "@/lib/mobile-card-summary-cache";
 import {
-  downloadNativeFileToCache,
-  downloadNativeFileToDocuments,
+  downloadNativeFile,
   writeNativeCacheText,
 } from "@/lib/nativeFileSystem";
 
@@ -208,7 +207,7 @@ const CardItem = memo(function CardItem({
       const name = buildFileName(url, fileName);
 
       if (Platform.OS === "ios") {
-        const uri = await downloadNativeFileToCache(url, name);
+        const uri = await downloadNativeFile(url, name, "cache");
 
         if (await Sharing.isAvailableAsync()) {
           await Sharing.shareAsync(uri, {
@@ -220,7 +219,7 @@ const CardItem = memo(function CardItem({
         return;
       }
 
-      const uri = await downloadNativeFileToDocuments(url, name);
+      const uri = await downloadNativeFile(url, name, "documents");
       Alert.alert("Downloaded", `Saved to ${uri}`);
     } catch (error) {
       if (
@@ -262,7 +261,7 @@ const CardItem = memo(function CardItem({
 
     try {
       const fileName = buildFileName(url, name);
-      const uri = await downloadNativeFileToCache(url, fileName);
+      const uri = await downloadNativeFile(url, fileName, "cache");
 
       if (await Sharing.isAvailableAsync()) {
         await Sharing.shareAsync(uri, getNativeShareOptions(fileName));

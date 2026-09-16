@@ -1,17 +1,45 @@
 // @ts-nocheck
 
-import { beforeEach, describe, expect, mock, test } from "bun:test";
-import { r2MockModuleFactory, r2Mocks } from "../helpers/r2Mock.test-utils";
+import {
+  afterEach,
+  beforeEach,
+  describe,
+  expect,
+  mock,
+  test,
+} from "bun:test";
 import { withTestSession } from "../helpers/session.test-utils";
 
-mock.module("../../storage/r2", r2MockModuleFactory);
+// No `storage/r2` mock: URL hydration resolves through the unmocked
+// `storage/fileUrls` leaf, so these tests assert real signed-URL shapes.
+const FILES_BASE = "https://files.example.com";
+const FILES_SECRET = "test-secret-for-urls";
+const PREVIOUS_ENV = {
+  FILES_BASE: process.env.FILES_BASE,
+  FILES_SIGNING_SECRET: process.env.FILES_SIGNING_SECRET,
+  R2_KEY_PREFIX: process.env.R2_KEY_PREFIX,
+};
+
+beforeEach(() => {
+  process.env.FILES_BASE = FILES_BASE;
+  process.env.FILES_SIGNING_SECRET = FILES_SECRET;
+  delete process.env.R2_KEY_PREFIX;
+});
+
+afterEach(() => {
+  for (const [name, value] of Object.entries(PREVIOUS_ENV)) {
+    if (value === undefined) {
+      delete process.env[name];
+    } else {
+      process.env[name] = value;
+    }
+  }
+});
 
 describe("card/findDuplicateCard.ts", () => {
   let findDuplicateCard: any;
 
   beforeEach(async () => {
-    r2Mocks.resolveObjectUrl.mockReset();
-    r2Mocks.resolveObjectUrl.mockResolvedValue(null);
     findDuplicateCard = (await import("../../card/findDuplicateCard"))
       .findDuplicateCard;
   });
@@ -45,25 +73,25 @@ describe("card/findDuplicateCard.ts", () => {
   });
 
   test("returns duplicate card with all URLs", async () => {
+    const fileKey = "users/u1/cards/c1/file/f1";
+    const thumbnailKey = "users/u1/cards/c1/thumbnail/t1";
+    const screenshotKey = "users/u1/cards/c1/screenshot/s1";
+    const imageKey = "users/u1/cards/c1/link/i1";
     const duplicateCard = {
       _id: "c1",
       _creationTime: 1,
       userId: "u1",
       type: "link",
       url: "https://example.com",
-      fileKey: "f1",
-      thumbnailKey: "t1",
+      fileKey,
+      thumbnailKey,
       metadata: {
         linkPreview: {
-          screenshotStorageKey: "s1",
-          imageStorageKey: "i1",
+          screenshotStorageKey: screenshotKey,
+          imageStorageKey: imageKey,
         },
       },
     };
-
-    r2Mocks.resolveObjectUrl.mockImplementation(async (key) =>
-      key ? `file://${key}` : null
-    );
 
     const ctx = withTestSession({
       auth: { getUserIdentity: mock().mockResolvedValue({ subject: "u1" }) },
@@ -81,15 +109,18 @@ describe("card/findDuplicateCard.ts", () => {
     const handler = (findDuplicateCard as any).handler ?? findDuplicateCard;
     const result = await handler(ctx, { url: "https://example.com" });
 
-    expect(result).toEqual({
-      ...duplicateCard,
-      detailUrl: undefined,
-      fileUrl: "file://f1",
-      thumbnailUrl: "file://t1",
-      screenshotUrl: "file://s1",
-      linkPreviewMedia: undefined,
-      linkPreviewImageUrl: "file://i1",
-    });
+    expect(result).toMatchObject({ ...duplicateCard, detailUrl: undefined });
+    expect(result.fileUrl).toContain(`${FILES_BASE}/${fileKey}?`);
+    expect(result.thumbnailUrl).toContain(
+      `/__images/v1/grid/${encodeURIComponent(thumbnailKey)}`
+    );
+    expect(result.screenshotUrl).toContain(
+      `/__images/v1/grid/${encodeURIComponent(screenshotKey)}`
+    );
+    expect(result.linkPreviewMedia).toBeUndefined();
+    expect(result.linkPreviewImageUrl).toContain(
+      `/__images/v1/grid/${encodeURIComponent(imageKey)}`
+    );
   });
 
   test("handles card with minimal storage keys", async () => {
@@ -125,20 +156,18 @@ describe("card/findDuplicateCard.ts", () => {
       linkPreviewMedia: undefined,
       linkPreviewImageUrl: undefined,
     });
-    expect(r2Mocks.resolveObjectUrl).not.toHaveBeenCalled();
   });
 
   test("handles card with only fileKey", async () => {
+    const fileKey = "users/u1/cards/c1/file/f1";
     const duplicateCard = {
       _id: "c1",
       _creationTime: 1,
       userId: "u1",
       type: "image",
       url: "https://example.com/image.jpg",
-      fileKey: "f1",
+      fileKey,
     };
-
-    r2Mocks.resolveObjectUrl.mockResolvedValue("file://f1");
 
     const ctx = withTestSession({
       auth: { getUserIdentity: mock().mockResolvedValue({ subject: "u1" }) },
@@ -156,17 +185,18 @@ describe("card/findDuplicateCard.ts", () => {
     const handler = (findDuplicateCard as any).handler ?? findDuplicateCard;
     const result = await handler(ctx, { url: "https://example.com/image.jpg" });
 
-    expect(result).toEqual({
+    expect(result).toMatchObject({
       ...duplicateCard,
-      compactUrl: "file://f1",
-      detailUrl: "file://f1",
-      fileUrl: "file://f1",
-      placeholderUrl: "file://f1",
-      thumbnailUrl: "file://f1",
       screenshotUrl: undefined,
       linkPreviewMedia: undefined,
       linkPreviewImageUrl: undefined,
     });
+    expect(result.fileUrl).toContain(`${FILES_BASE}/${fileKey}?`);
+    const encodedKey = encodeURIComponent(fileKey);
+    expect(result.compactUrl).toContain(`/__images/v1/compact/${encodedKey}`);
+    expect(result.detailUrl).toContain(`/__images/v1/detail/${encodedKey}`);
+    expect(result.placeholderUrl).toContain(`/__images/v1/tiny/${encodedKey}`);
+    expect(result.thumbnailUrl).toContain(`/__images/v1/grid/${encodedKey}`);
   });
 
   test("uses by_user_url_deleted index", async () => {
