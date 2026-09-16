@@ -55,7 +55,7 @@ jobs:
         if: steps.check.outputs.should_publish == 'true'
         uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
-          node-version-file: .nvmrc
+          node-version-file: package.json
           registry-url: "https://registry.npmjs.org"
 
       - name: Install latest npm

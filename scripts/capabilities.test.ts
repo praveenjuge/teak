@@ -38,7 +38,7 @@ describe("pinned versions", () => {
     );
   });
 
-  test("live pins match package.json and .nvmrc", () => {
+  test("live pins match package.json", () => {
     const root = join(import.meta.dir, "..");
     const pinned = readPinnedVersions(root);
     expect(pinned.bun).toMatch(/^\d+\.\d+\.\d+$/);

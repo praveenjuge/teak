@@ -324,7 +324,7 @@ export const runSetup = async (
     ...(nodeStatus === "ok" || nodeStatus === "warn"
       ? {}
       : {
-          remediation: [`Install Node ${pinned.node} (see .nvmrc) and re-run`],
+          remediation: [`Install Node ${pinned.node} and re-run`],
         }),
   });
   if (checks.some((check) => !check.ok)) {

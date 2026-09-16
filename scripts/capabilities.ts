@@ -160,7 +160,7 @@ export const checkNodeVersion = async (
       ok: false,
       severity: "error",
       detail: "engines.node is not pinned in package.json",
-      remediation: ["Pin engines.node to an exact version (see .nvmrc)"],
+      remediation: ["Pin engines.node to an exact version in package.json"],
     };
   }
   const actual = await readNodeVersion();
@@ -170,7 +170,7 @@ export const checkNodeVersion = async (
       ok: false,
       severity: "error",
       detail: "Node.js is not installed",
-      remediation: [`Install Node ${pinned} (see .nvmrc) and re-run`],
+      remediation: [`Install Node ${pinned} and re-run`],
     };
   }
   return versionCheck("node-version", "Node", `v${actual}`, pinned);

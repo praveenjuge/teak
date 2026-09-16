@@ -65,11 +65,12 @@ Classification is derived from contract metadata (see
 
 ## Runtime versions: exact pin, patch drift warns
 
-Bun (`packageManager`) and Node (`engines.node`, mirrored in `.nvmrc`) follow
-one policy: the pinned version is exact, patch drift warns, and minor/major
-drift fails. Setup and doctor enforce it locally; CI enforces the same pins
-via `bun-version-file: package.json` and `node-version-file: .nvmrc` on the
-setup actions, so local and CI never disagree about the toolchain.
+Bun (`packageManager`) and Node (`engines.node`) follow one policy: the
+pinned version is exact, patch drift warns, and minor/major drift fails.
+Setup and doctor enforce it locally; the CLI release workflow enforces the
+same pins via `bun-version-file: package.json` and
+`node-version-file: package.json`, so local and CI never disagree about the
+toolchain.
 
 Convex Node actions execute under the system Node runtime, which is why Node
 is pinned alongside Bun. Bun's `process.version` reports compatibility, not
