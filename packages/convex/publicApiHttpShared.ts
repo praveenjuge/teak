@@ -7,7 +7,7 @@
 import { ConvexError } from "convex/values";
 import { json } from "./publicApiMeta";
 
-export { json };
+export { json } from "./publicApiMeta";
 
 const DEFAULT_LIMIT = 50;
 const MAX_LIMIT = 100;
@@ -131,12 +131,15 @@ const parseBearerToken = (request: Request): string | null => {
 };
 
 const parseLimit = (raw: string | null): number => {
-  if (!raw) {
+  if (!raw || raw.trim().length === 0) {
     return DEFAULT_LIMIT;
   }
 
-  const parsed = Number.parseInt(raw, 10);
-  if (!Number.isFinite(parsed)) {
+  // Number() parses the complete value: partial numerics such as "10junk"
+  // or "1e2" must fall back to the default instead of being truncated the
+  // way parseInt would.
+  const parsed = Number(raw);
+  if (!Number.isInteger(parsed)) {
     return DEFAULT_LIMIT;
   }
 
@@ -315,7 +318,13 @@ const parseTimestampQuery = (value: string | null): number | undefined => {
     return;
   }
 
-  const parsed = Number.parseInt(value, 10);
+  if (value.trim().length === 0) {
+    return Number.NaN;
+  }
+
+  // Number() parses the complete value so partial numerics such as
+  // "10junk" fail validation instead of being truncated by parseInt.
+  const parsed = Number(value);
   return Number.isFinite(parsed) ? parsed : Number.NaN;
 };
 
@@ -324,20 +333,20 @@ export {
   type AuthorizedUser,
   type AuthResult,
   buildRateLimitHeaders,
-  type CardListInclude,
-  type CardsQueryOptions,
   CARD_SORTS,
   CARD_TYPES,
+  type CardListInclude,
+  type CardsQueryOptions,
   type CreateCardPayload,
   type CreateUploadPayload,
   DEFAULT_LIMIT,
   type ErrorCode,
   errorResponse,
   isRateLimitContentionError,
-  mapConvexErrorToResponse,
   MAX_BULK_ITEMS,
   MAX_LIMIT,
   MAX_QUERY_SCAN,
+  mapConvexErrorToResponse,
   parseBearerToken,
   parseBooleanQuery,
   parseJsonBody,

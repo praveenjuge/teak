@@ -10,7 +10,6 @@ import {
   listCardsV1,
   searchCardsV1,
   tagsV1,
-
 } from "../publicApiHttp";
 import {
   buildAuthorizedMutationMock,
@@ -64,6 +63,46 @@ describe("publicApiHttp card endpoints", () => {
     expect(response.status).toBe(200);
     expect(runQuery).toHaveBeenCalledTimes(1);
     expect(runQuery.mock.calls[0][1].limit).toBe(100);
+  });
+
+  test("searchCardsV1 falls back to the default limit for partial numerics", async () => {
+    const runMutation = buildAuthorizedMutationMock();
+    const runQuery = mock().mockResolvedValue([]);
+
+    const response = await runHandler(
+      searchCardsV1,
+      { runMutation, runQuery },
+      new Request("https://example.com/v1/cards/search?limit=10junk", {
+        method: "GET",
+        headers: {
+          Authorization:
+            "Bearer teakapi_secret_live_a1b2c3d4_ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+        },
+      })
+    );
+
+    expect(response.status).toBe(200);
+    expect(runQuery.mock.calls[0][1].limit).toBe(50);
+  });
+
+  test("listCardsV1 rejects partial numeric createdAfter values", async () => {
+    const runMutation = buildAuthorizedMutationMock();
+
+    const response = await runHandler(
+      listCardsV1,
+      { runMutation, runQuery: mock() },
+      new Request("https://example.com/v1/cards?createdAfter=10junk", {
+        method: "GET",
+        headers: {
+          Authorization:
+            "Bearer teakapi_secret_live_a1b2c3d4_ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+        },
+      })
+    );
+
+    expect(response.status).toBe(400);
+    const payload = await response.json();
+    expect(payload.code).toBe("INVALID_INPUT");
   });
 
   test("favoriteCardsV1 returns items and total", async () => {
