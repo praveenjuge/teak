@@ -162,6 +162,12 @@ const validKeyList = (value: unknown): string[] => {
   return Array.from(new Set(value as string[]));
 };
 
+const PENDING_UPLOAD_CARD_ID = "upload-pending-v2";
+const PENDING_UPLOAD_STALE_AFTER_MS = 24 * 60 * 60 * 1000;
+const CLEANUP_LIST_PAGE_SIZE = 1000;
+const CLEANUP_MAX_PAGES = 10;
+const CLEANUP_DELETE_BATCH_SIZE = 100;
+
 const dispatch = async (
   env: FilesOpsEnv,
   requestId: string,
@@ -326,6 +332,47 @@ const dispatch = async (
         requestId,
         await finalizeImageUpload(env, finalization, origin)
       );
+    }
+    case "cleanup-stale-pending-uploads": {
+      const prefix = requiredString(params, "prefix");
+      if (!(prefix === "users/" || prefix === "dev/users/")) {
+        throw new Error("invalid_cleanup_params");
+      }
+      let cursor = optionalString(params, "cursor");
+      let deleted = 0;
+      let pages = 0;
+      const staleBefore = Date.now() - PENDING_UPLOAD_STALE_AFTER_MS;
+      const pendingSegment = `/cards/${PENDING_UPLOAD_CARD_ID}/`;
+      do {
+        const listed = await env.BUCKET.list({
+          prefix,
+          ...(cursor ? { cursor } : {}),
+          limit: CLEANUP_LIST_PAGE_SIZE,
+        });
+        const staleKeys = listed.objects.flatMap((object) =>
+          object.key.includes(pendingSegment) &&
+          object.uploaded.getTime() <= staleBefore
+            ? [object.key]
+            : []
+        );
+        for (
+          let index = 0;
+          index < staleKeys.length;
+          index += CLEANUP_DELETE_BATCH_SIZE
+        ) {
+          await env.BUCKET.delete(
+            staleKeys.slice(index, index + CLEANUP_DELETE_BATCH_SIZE)
+          );
+        }
+        deleted += staleKeys.length;
+        pages += 1;
+        cursor = listed.truncated ? (listed.cursor ?? null) : null;
+      } while (cursor && pages < CLEANUP_MAX_PAGES);
+      return success(requestId, {
+        cursor,
+        deleted,
+        pages,
+      });
     }
     case "delete-object":
       await env.BUCKET.delete(requiredString(params, "key"));

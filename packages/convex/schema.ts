@@ -647,6 +647,11 @@ export default defineSchema({
     .index("by_job_source", ["jobId", "sourceIndex"])
     .index("by_job_status_source", ["jobId", "status", "sourceIndex"])
     .index("by_user", ["userId"]),
+  pendingUploadCleanupStates: defineTable({
+    cursor: v.union(v.string(), v.null()),
+    name: v.string(),
+    updatedAt: v.number(),
+  }).index("by_name", ["name"]),
   fileUploadSessions: defineTable(fileUploadSessionValidator)
     .index("by_identity_file", [
       "identityKey",
