@@ -8,7 +8,9 @@
 import { resolveTeakDevAppUrl } from "@teak/convex/dev-urls";
 import dotenv from "dotenv";
 
-dotenv.config({ path: "../../.env.local" });
+// Explicit test scope, then build inputs. Never the legacy root dotenv.
+dotenv.config({ path: ".env.e2e.local" });
+dotenv.config({ path: ".env.local" });
 
 const APP_URL =
   process.env.NEXT_PUBLIC_CONVEX_SITE_URL || resolveTeakDevAppUrl(process.env);

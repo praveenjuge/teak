@@ -7,6 +7,7 @@ Teak is a personal knowledge hub for collecting, remembering, and rediscovering 
 - Use Bun. Read the pinned version and available commands from `package.json`; do not duplicate that inventory here.
 - Read the nearest nested `AGENTS.md` before changing a workspace.
 - On a fresh checkout, run `bun run setup` once, then diagnose with `bun run doctor` before asking the human. `bun run dev [target]` starts the watch loop; never bind production credentials locally.
+- Environment sources, precedence, and ownership live in `docs/agents/environment.md`.
 - Inspect the current implementation and tests before choosing a pattern. Treat repository code and configuration as the source of truth.
 - Keep changes focused. Preserve unrelated work already in the tree.
 
@@ -21,9 +22,7 @@ Teak is a personal knowledge hub for collecting, remembering, and rediscovering 
 
 ## Convex work
 
-Before editing anything under `packages/convex`, read `packages/convex/_generated/ai/guidelines.md` completely. Its generated Convex rules override general guidance.
-
-Schema changes require explicit approval for any migration or backfill. Define indexes in `packages/convex/schema.ts` and scheduled jobs in `packages/convex/crons.ts`.
+Read `packages/convex/AGENTS.md` before editing backend code.
 
 ## Verification
 
@@ -35,15 +34,7 @@ Schema changes require explicit approval for any migration or backfill. Define i
 
 ## Documentation contract
 
-Keep user documentation synchronized in the same change:
-
-- Public API contracts in `packages/convex/http.ts`, `publicApiHttp.ts`, `publicApiMeta.ts`, or `publicApiOpenApi.ts` -> `apps/docs/content/docs/(developers)/api.mdx`
-- MCP behavior under `packages/convex/mcp` -> `apps/docs/content/docs/(developers)/mcp.mdx`
-- Raycast commands or authentication -> `apps/docs/content/docs/(apps)/raycast.mdx`
-- CLI or public SDK behavior under `apps/cli` or `packages/convex/client/sdk.ts` -> `apps/docs/content/docs/(apps)/cli.mdx`
-- Public skills under `.agents/skills` -> `apps/docs/content/docs/(developers)/skills.mdx` and `apps/docs/pages/apps.astro`
-
-For a user-visible change, update the dated entry in `apps/docs/content/changelog`. The docs workspace `AGENTS.md` defines its editorial rules. Internal-only changes need no public entry.
+Keep user documentation synchronized per `apps/docs/AGENTS.md`.
 
 ## Release pointers
 

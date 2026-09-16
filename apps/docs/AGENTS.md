@@ -1,5 +1,17 @@
 # Documentation conventions
 
+## Synchronization contract
+
+Keep user documentation synchronized in the same change:
+
+- Public API contracts in `packages/convex/http.ts`, `publicApiHttp.ts`, `publicApiMeta.ts`, or `publicApiOpenApi.ts` -> `content/docs/(developers)/api.mdx`
+- MCP behavior under `packages/convex/mcp` -> `content/docs/(developers)/mcp.mdx`
+- Raycast commands or authentication -> `content/docs/(apps)/raycast.mdx`
+- CLI or public SDK behavior under `apps/cli` or `packages/convex/client/sdk.ts` -> `content/docs/(apps)/cli.mdx`
+- Public skills under `.agents/skills` -> `content/docs/(developers)/skills.mdx` and `pages/apps.astro`
+
+For a user-visible change, update the dated entry in `content/changelog`. Internal-only changes need no public entry.
+
 ## Changelog entries
 
 `content/changelog` is a public product surface. Write for Teak users, not maintainers.

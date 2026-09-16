@@ -1,0 +1,55 @@
+name: Clean Container Smoke
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+concurrency:
+  group: clean-smoke-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      CONVEX_AGENT_MODE: anonymous
+      TURBO_UI: "false"
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
+        with:
+          bun-version-file: package.json
+      - name: Assert clean dotenv state
+        run: |
+          test ! -e .env.local
+          test ! -e apps/web/.env.local
+          test ! -e apps/desktop/.env.local
+          test ! -e apps/extension/.env.local
+          test ! -e apps/mobile/.env.local
+          test ! -e apps/files-worker/.dev.vars
+          test ! -e packages/convex/.env.local
+      - name: Setup web target
+        run: bun run setup --target web --convex local
+      - name: Doctor JSON must pass
+        run: |
+          bun run --silent doctor --target web --profile local --json > /tmp/doctor.json
+          test "$(jq -r .ok /tmp/doctor.json)" = "true"
+      - name: Start web target
+        run: |
+          bun run dev web --headless > /tmp/dev.log 2>&1 &
+          echo $! > /tmp/dev.pid
+          for _ in $(seq 1 60); do
+            curl -fsS http://localhost:3000/login > /dev/null && break
+            sleep 5
+          done
+          curl -fsS http://localhost:3000/login > /dev/null
+      - name: Authenticated journey smoke
+        run: bun run smoke:web
+      - name: Stop dev servers
+        if: always()
+        run: kill "$(cat /tmp/dev.pid)" 2> /dev/null || true

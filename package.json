@@ -38,6 +38,7 @@
     "publish:raycast": "cd apps/raycast && bun run publish",
     "release:prepare": "bun --no-env-file run scripts/release-prepare.ts",
     "setup": "bun --no-env-file run scripts/setup.ts",
+    "smoke:web": "bun --no-env-file run scripts/smoke-web-session.ts",
     "start": "turbo run start",
     "sync:cloudflare-dev": "bun --no-env-file run scripts/sync-files-worker-dev-secret.ts",
     "test": "turbo run test && bun --no-env-file test scripts/",

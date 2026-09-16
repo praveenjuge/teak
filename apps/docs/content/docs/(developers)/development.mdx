@@ -3,7 +3,7 @@ title: Development Guide
 description: Setup and development workflow for Teak
 ---
 
-**Prerequisites:** Bun 1.4.0+, Node.js 20+, Git
+**Prerequisites:** Git plus Bun and Node.js at the versions pinned in `package.json` (`packageManager` and `engines.node`; Node is mirrored in `.nvmrc`). Setup validates both and refuses to run on the wrong toolchain.
 
 ## Quick Start (local)
 
@@ -18,9 +18,16 @@ description: Setup and development workflow for Teak
     cd teak
     ```
   </Step>
-  <Step title="Install dependencies">
+  <Step title="Provision the local stack">
     ```bash
-    bun install
+    bun run setup
+    ```
+
+    Setup installs dependencies, provisions an isolated Convex development deployment, and derives the local env files. It needs no production credentials. For another surface, pass `--target` (see below).
+  </Step>
+  <Step title="Verify readiness">
+    ```bash
+    bun run doctor
     ```
   </Step>
   <Step title="Start the stack">
@@ -93,9 +100,13 @@ description: Setup and development workflow for Teak
 
 ```bash
 bun run setup            # First run: install deps + provision Convex + write local env
+bun run setup --target desktop --convex local --json  # Per-target setup with a machine-readable report
 bun run doctor           # Validate the environment (--json --target --profile for agents)
 bun run dev              # Web + Convex backend (bun run dev --help for targets)
+bun run dev web --headless  # Non-interactive output for agents and CI
 bun run dev --all        # All services (legacy alias: bun run dev:all)
+bun run smoke:web        # End-to-end local session check (needs the stack running)
+bun run audit:env        # Environment contract + local dotenv audit
 
 bun run dev convex       # Convex backend only (alias: bun run dev:convex)
 bun run dev web          # Next.js web (alias: bun run dev:web)
@@ -120,6 +131,36 @@ bun run fix              # Auto-fix issues
 bun run pre-commit       # Pre-commit checks
 bun run publish:raycast  # Publish to Raycast store
 bun run clean            # Clear Turborepo caches
+```
+
+## Supported Targets and Limitations
+
+`bun run setup --target <name>` provisions one surface. Every target except `e2e`
+works with zero copied credentials.
+
+| Target | Needs | Limitations |
+| --- | --- | --- |
+| `web` | Convex deployment | None; the default path |
+| `docs`, `cli` | Nothing beyond install | No Convex provisioning |
+| `desktop`, `extension` | Convex deployment | Env files derive `VITE_*` aliases automatically |
+| `mobile-simulator` | Convex deployment | iOS simulator uses loopback; Android emulators need `10.0.2.2` instead of `localhost` |
+| `mobile-device` | Convex deployment, LAN | The host must be LAN-reachable; doctor reports the address or an actionable diagnostic |
+| `files-worker` | `bun run sync:cloudflare-dev` afterwards | Worker secrets are owned by the sync command, not setup |
+| `e2e` | Production credentials | Not provisioned by setup; see `packages/tests/README.md` |
+
+Linked git worktrees get deterministic ports and a namespace; pair them with
+`--convex cloud` for an isolated cloud development deployment so two
+checkouts never collide. iOS simulators, device builds, Xcode, and Safari
+stay on macOS (see `.devcontainer/README.md` for what the Linux dev
+container covers).
+
+## Reporting Setup Problems
+
+Paste the redacted JSON report with your issue. It contains check names and
+remediations but never secret values:
+
+```bash
+bun run doctor --target web --profile local --json
 ```
 
 ## Setup Checklist
