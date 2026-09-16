@@ -1,6 +1,9 @@
 // @ts-nocheck
 import { describe, expect, test } from "bun:test";
-import { updateClassification } from "../../../../convex/workflows/steps/classificationMutations";
+import {
+  markClassificationCompleted,
+  updateClassification,
+} from "../../../../convex/workflows/steps/classificationMutations";
 
 const withScheduler = (registered: any) => {
   const handler = registered.handler ?? registered._handler ?? registered;
@@ -594,5 +597,86 @@ describe("classification updateClassification", () => {
     } finally {
       Date.now = originalNow;
     }
+  });
+});
+
+describe("classification markClassificationCompleted", () => {
+  test("marks a pending classify stage completed without touching other stages", async () => {
+    const mutation = withScheduler(markClassificationCompleted);
+
+    let patchCount = 0;
+    const cardState: any = {
+      _id: "card_123",
+      type: "link",
+      url: "https://example.com/page",
+      metadataStatus: "pending",
+      processingStatus: {
+        classify: { status: "pending" },
+        categorize: { status: "pending" },
+      },
+    };
+
+    const mockCtx = {
+      db: {
+        get: async (_table: string, _id: string) => cardState,
+        patch: (_table: string, _id: string, updates: any) => {
+          patchCount += 1;
+          Object.assign(cardState, updates);
+        },
+      },
+    };
+
+    await mutation(mockCtx, { cardId: "card_123", confidence: 0.8 });
+
+    expect(patchCount).toBe(1);
+    expect(cardState.processingStatus.classify.status).toBe("completed");
+    expect(cardState.processingStatus.classify.confidence).toBe(0.8);
+    expect(cardState.processingStatus.categorize.status).toBe("pending");
+    expect(cardState.type).toBe("link");
+    expect(cardState.metadataStatus).toBe("pending");
+  });
+
+  test("is a no-op when classify is already completed", async () => {
+    const mutation = withScheduler(markClassificationCompleted);
+
+    let patchCount = 0;
+    const cardState: any = {
+      _id: "card_123",
+      type: "link",
+      processingStatus: {
+        classify: { status: "completed", confidence: 0.7 },
+      },
+    };
+
+    const mockCtx = {
+      db: {
+        get: async (_table: string, _id: string) => cardState,
+        patch: () => {
+          patchCount += 1;
+        },
+      },
+    };
+
+    await mutation(mockCtx, { cardId: "card_123", confidence: 0.9 });
+
+    expect(patchCount).toBe(0);
+    expect(cardState.processingStatus.classify.confidence).toBe(0.7);
+  });
+
+  test("returns null for a missing card", async () => {
+    const mutation = withScheduler(markClassificationCompleted);
+
+    const mockCtx = {
+      db: {
+        get: async () => null,
+        patch: () => {
+          throw new Error("should not patch");
+        },
+      },
+    };
+
+    await expect(
+      mutation(mockCtx, { cardId: "missing", confidence: 0.9 })
+    ).resolves.toBeNull();
   });
 });

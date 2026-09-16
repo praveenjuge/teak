@@ -64,3 +64,38 @@ export const updateClassification = internalMutation({
     return null;
   },
 });
+
+/**
+ * Internal mutation to mark the classification stage as completed without
+ * changing the card type. updateClassification only runs when classification
+ * changes the type; when re-classification confirms the existing type this
+ * records stage completion so downstream steps gated on
+ * processingStatus.classify (link metadata fetching) are not stuck retrying
+ * until they fail permanently.
+ */
+export const markClassificationCompleted = internalMutation({
+  args: {
+    cardId: v.id("cards"),
+    confidence: v.number(),
+  },
+  returns: v.null(),
+  handler: async (ctx, { cardId, confidence }) => {
+    const card = await ctx.db.get("cards", cardId);
+    if (!card) {
+      return null;
+    }
+
+    if (card.processingStatus?.classify?.status === "completed") {
+      return null;
+    }
+
+    await patchCardWithSearchSync(ctx, cardId, {
+      processingStatus: {
+        ...(card.processingStatus ?? {}),
+        classify: stageCompleted(Date.now(), confidence),
+      },
+    });
+
+    return null;
+  },
+});

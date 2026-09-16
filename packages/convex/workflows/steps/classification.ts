@@ -331,6 +331,20 @@ export const classify = internalAction({
         if (card.type === "quote" && !card.url && !card.fileKey) {
           const confidence =
             card.processingStatus?.classify?.confidence ?? 0.95;
+
+          if (card.processingStatus?.classify?.status !== "completed") {
+            // A card update (for example removing a quote's URL) can reset
+            // the classify stage to pending while this sticky branch returns
+            // before updateClassification. Record completion so steps gated
+            // on processingStatus.classify do not retry until they fail
+            // permanently.
+            await ctx.runMutation(
+              (internal as any)["workflows/steps/classificationMutations"]
+                .markClassificationCompleted,
+              { cardId, confidence }
+            );
+          }
+
           const stickyResult: ClassificationWorkflowResult = {
             mode: "completed",
             type: "quote",
@@ -408,6 +422,20 @@ export const classify = internalAction({
 
           // Update palette colors if needed
           await maybeUpdatePaletteColors(ctx, card, normalizedType, cardId);
+        } else if (card.processingStatus?.classify?.status !== "completed") {
+          // Re-classification confirmed the existing type, so
+          // updateClassification does not run. Still record stage completion:
+          // link metadata fetching gates on processingStatus.classify and
+          // would otherwise retry until it fails permanently (e.g. after a
+          // URL edit resets the classify stage to pending on a link card).
+          await ctx.runMutation(
+            (internal as any)["workflows/steps/classificationMutations"]
+              .markClassificationCompleted,
+            {
+              cardId,
+              confidence: normalizedConfidence,
+            }
+          );
         }
 
         const needsLinkMetadata =
