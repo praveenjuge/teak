@@ -43,6 +43,8 @@ describe("files protocol", () => {
 
   test("accepts only known operations", () => {
     expect(isFilesOp("analyze-image")).toBe(true);
+    expect(isFilesOp("cleanup-stale-pending-uploads")).toBe(true);
+    expect(isFilesOp("cleanup-stale-pending-upload-page")).toBe(false);
     expect(isFilesOp("process_image")).toBe(false);
   });
 

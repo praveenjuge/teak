@@ -72,6 +72,7 @@ export const makePng = (
 export interface FakeStoredObject {
   bytes: Uint8Array | null;
   httpMetadata?: Record<string, string>;
+  uploadedAt?: number;
 }
 
 interface PutRecord {
@@ -119,6 +120,8 @@ export const readFixture = async (path: string): Promise<Uint8Array> => {
 };
 
 export class FakeBucket {
+  deleteBatches: string[][] = [];
+  listCalls = 0;
   objects = new Map<string, FakeStoredObject>();
   puts: PutRecord[] = [];
   multipartCompletions: Array<{ key: string; bytes: Uint8Array }> = [];
@@ -192,6 +195,7 @@ export class FakeBucket {
 
   delete(key: string | string[]) {
     if (Array.isArray(key)) {
+      this.deleteBatches.push([...key]);
       // Batch deletes treat missing objects as success.
       for (const single of key) {
         this.objects.delete(single);
@@ -202,6 +206,7 @@ export class FakeBucket {
   }
 
   list(options: { prefix: string; cursor?: string; limit?: number }) {
+    this.listCalls += 1;
     const all = [...this.objects.entries()]
       .filter(([key]) => key.startsWith(options.prefix))
       .sort(([a], [b]) => (a < b ? -1 : 1));
@@ -222,7 +227,7 @@ export class FakeBucket {
       objects: page.map(([key, stored]) => ({
         key,
         size: stored.bytes?.length ?? 0,
-        uploaded: new Date(0),
+        uploaded: new Date(stored.uploadedAt ?? 0),
       })),
       truncated,
       ...(truncated ? { cursor: page.at(-1)?.[0] } : {}),

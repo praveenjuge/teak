@@ -288,32 +288,83 @@ describe("signed single-file uploads", () => {
 });
 
 describe("additive files ops", () => {
-  test("cleans one stale pending-upload page inside the worker", async () => {
+  test("cleans bounded stale pending-upload pages inside one worker call", async () => {
     const bucket = new FakeBucket();
-    bucket.objects.set("users/u1/cards/upload-pending-v2/file/old", {
-      bytes: new Uint8Array([1]),
+    for (let index = 0; index < 1001; index += 1) {
+      bucket.objects.set(
+        `users/u1/cards/upload-pending-v2/file/${index
+          .toString()
+          .padStart(4, "0")}`,
+        { bytes: new Uint8Array([1]) }
+      );
+    }
+    const recentKey = "users/u1/cards/upload-pending-v2/file/recent";
+    bucket.objects.set(recentKey, {
+      bytes: new Uint8Array([2]),
+      uploadedAt: Date.now(),
     });
     bucket.objects.set("users/u1/cards/card-1/file/old", {
-      bytes: new Uint8Array([2]),
+      bytes: new Uint8Array([3]),
     });
     const response = await worker.fetch(
-      await signedOpRequest("cleanup-stale-pending-upload-page", {
-        pendingCardId: "upload-pending-v2",
+      await signedOpRequest("cleanup-stale-pending-uploads", {
         prefix: "users/",
-        staleBefore: Date.now(),
       }),
       { BUCKET: bucket, FILES_SIGNING_SECRET: SECRET } as Env,
       { waitUntil: () => undefined } as never
     );
     expect(response.status).toBe(200);
     expect(await response.json()).toMatchObject({
-      data: { cursor: null, deleted: 1 },
+      data: { cursor: null, deleted: 1001, pages: 2 },
       ok: true,
     });
-    expect(
-      bucket.objects.has("users/u1/cards/upload-pending-v2/file/old")
-    ).toBe(false);
+    expect(bucket.listCalls).toBe(2);
+    expect(bucket.deleteBatches.every((batch) => batch.length <= 100)).toBe(
+      true
+    );
+    expect(bucket.objects.has(recentKey)).toBe(true);
     expect(bucket.objects.has("users/u1/cards/card-1/file/old")).toBe(true);
+  });
+
+  test("caps each cleanup operation and returns a continuation cursor", async () => {
+    const bucket = new FakeBucket();
+    for (let index = 0; index < 10_001; index += 1) {
+      bucket.objects.set(
+        `users/u1/cards/card-1/file/${index.toString().padStart(5, "0")}`,
+        { bytes: new Uint8Array([1]) }
+      );
+    }
+    const response = await worker.fetch(
+      await signedOpRequest("cleanup-stale-pending-uploads", {
+        prefix: "users/",
+      }),
+      { BUCKET: bucket, FILES_SIGNING_SECRET: SECRET } as Env,
+      { waitUntil: () => undefined } as never
+    );
+    expect(response.status).toBe(200);
+    const payload = (await response.json()) as {
+      data: { cursor: string | null; deleted: number; pages: number };
+      ok: boolean;
+    };
+    expect(payload).toMatchObject({
+      data: { deleted: 0, pages: 10 },
+      ok: true,
+    });
+    expect(payload.data.cursor).toBeString();
+    expect(bucket.listCalls).toBe(10);
+  });
+
+  test("rejects cleanup outside the bounded user namespaces", async () => {
+    const response = await worker.fetch(
+      await signedOpRequest("cleanup-stale-pending-uploads", {
+        pendingCardId: "card-1",
+        prefix: "exports/",
+        staleBefore: Date.now(),
+      }),
+      env(),
+      { waitUntil: () => undefined } as never
+    );
+    expect(response.status).toBe(400);
   });
 
   test("delete-objects removes batches and tolerates missing keys", async () => {

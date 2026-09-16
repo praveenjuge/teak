@@ -8,17 +8,11 @@ import {
   callFilesWorkerJson,
   isFilesWorkerConfigured,
 } from "./filesWorkerClient";
-import { PENDING_UPLOAD_CARD_ID } from "./r2";
 import { buildR2ListPrefix } from "./r2Keys";
 
-const STALE_AFTER_MS = 24 * 60 * 60 * 1000;
-// Hard page cap so a pathological bucket cannot spin the cron forever; the
-// next hourly run resumes from wherever listing left off.
-const MAX_LIST_PAGES = 200;
 // Transient files-worker failures (network resets, 5xx) should not fail the
-// whole hourly sweep: retry the idempotent list/delete ops with backoff. One
-// budget is shared across every call in a run so intermittent failures cannot
-// consume the action's execution window.
+// whole hourly sweep: retry the idempotent bounded worker operation with
+// backoff without consuming the action's execution window.
 const RETRY_DELAYS_MS = [1000, 4000];
 const SWEEP_RETRY_BUDGET_MS = 30_000;
 
@@ -58,37 +52,24 @@ export const withFilesWorkerRetry = async <T>(
   throw lastError;
 };
 
-const internalAny = internal as Record<string, any>;
-
 export interface StalePendingCleanupDependencies {
-  cleanupPage: (args: {
+  cleanup: (args: {
     cursor?: string;
-    pendingCardId: string;
     prefix: string;
-    staleBefore: number;
   }) => Promise<{ cursor: string | null }>;
   getCursor: () => Promise<string | null>;
   setCursor: (cursor: string | null) => Promise<void>;
 }
 
 export const runStalePendingCleanup = async (
-  dependencies: StalePendingCleanupDependencies,
-  now = Date.now()
+  dependencies: StalePendingCleanupDependencies
 ): Promise<null> => {
-  const staleBefore = now - STALE_AFTER_MS;
-  let cursor = await dependencies.getCursor();
-  let pages = 0;
-  do {
-    const outcome = await dependencies.cleanupPage({
-      ...(cursor ? { cursor } : {}),
-      pendingCardId: PENDING_UPLOAD_CARD_ID,
-      prefix: buildR2ListPrefix(),
-      staleBefore,
-    });
-    cursor = outcome.cursor;
-    pages += 1;
-  } while (cursor && pages < MAX_LIST_PAGES);
-  await dependencies.setCursor(cursor);
+  const cursor = await dependencies.getCursor();
+  const outcome = await dependencies.cleanup({
+    ...(cursor ? { cursor } : {}),
+    prefix: buildR2ListPrefix(),
+  });
+  await dependencies.setCursor(outcome.cursor);
   return null;
 };
 
@@ -100,11 +81,11 @@ export const sweepStalePendingUploadsHandler = async (
   }
   const retryBudget = { remainingMs: SWEEP_RETRY_BUDGET_MS };
   return await runStalePendingCleanup({
-    cleanupPage: async (params) => {
+    cleanup: async (params) => {
       const outcome = await withFilesWorkerRetry(
         () =>
           callFilesWorkerJson<{ cursor: string | null; deleted: number }>({
-            op: "cleanup-stale-pending-upload-page",
+            op: "cleanup-stale-pending-uploads",
             params,
           }),
         RETRY_DELAYS_MS,
@@ -116,9 +97,9 @@ export const sweepStalePendingUploadsHandler = async (
       return outcome.data;
     },
     getCursor: () =>
-      ctx.runQuery(internalAny.storage.pendingUploadCleanupState.getCursor, {}),
+      ctx.runQuery(internal.storage.pendingUploadCleanupState.getCursor, {}),
     setCursor: (cursor) =>
-      ctx.runMutation(internalAny.storage.pendingUploadCleanupState.setCursor, {
+      ctx.runMutation(internal.storage.pendingUploadCleanupState.setCursor, {
         cursor,
       }),
   });

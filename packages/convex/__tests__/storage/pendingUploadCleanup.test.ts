@@ -5,20 +5,16 @@ import {
 } from "../../storage/pendingUploadCleanup";
 
 describe("worker-side stale cleanup", () => {
-  test("forwards and persists the continuation cursor", async () => {
-    const cleanupPage = mock(async () => ({ cursor: "next-page" }));
+  test("makes one worker call and persists its continuation cursor", async () => {
+    const cleanup = mock(async () => ({ cursor: "next-page" }));
     const getCursor = mock(async () => "saved-page");
     const setCursor = mock(async () => undefined);
 
-    await runStalePendingCleanup(
-      { cleanupPage, getCursor, setCursor },
-      Date.UTC(2026, 8, 16)
-    );
+    await runStalePendingCleanup({ cleanup, getCursor, setCursor });
 
-    expect(cleanupPage).toHaveBeenCalledTimes(200);
-    expect(cleanupPage.mock.calls[0]?.[0]).toMatchObject({
+    expect(cleanup).toHaveBeenCalledTimes(1);
+    expect(cleanup.mock.calls[0]?.[0]).toEqual({
       cursor: "saved-page",
-      pendingCardId: "upload-pending-v2",
       prefix: "users/",
     });
     expect(setCursor).toHaveBeenCalledWith("next-page");
@@ -27,7 +23,7 @@ describe("worker-side stale cleanup", () => {
   test("clears the saved cursor when the scan finishes", async () => {
     const setCursor = mock(async () => undefined);
     await runStalePendingCleanup({
-      cleanupPage: mock(async () => ({ cursor: null })),
+      cleanup: mock(async () => ({ cursor: null })),
       getCursor: mock(async () => "saved-page"),
       setCursor,
     });

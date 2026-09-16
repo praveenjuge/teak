@@ -121,6 +121,7 @@ import type * as shared_utils_safeUrl from "../shared/utils/safeUrl.js";
 import type * as shared_utils_timeSearch from "../shared/utils/timeSearch.js";
 import type * as storage_filesWorkerClient from "../storage/filesWorkerClient.js";
 import type * as storage_pendingUploadCleanup from "../storage/pendingUploadCleanup.js";
+import type * as storage_pendingUploadCleanupState from "../storage/pendingUploadCleanupState.js";
 import type * as storage_r2 from "../storage/r2.js";
 import type * as storage_r2Config from "../storage/r2Config.js";
 import type * as storage_r2Keys from "../storage/r2Keys.js";
@@ -299,6 +300,7 @@ declare const fullApi: ApiFromModules<{
   "shared/utils/timeSearch": typeof shared_utils_timeSearch;
   "storage/filesWorkerClient": typeof storage_filesWorkerClient;
   "storage/pendingUploadCleanup": typeof storage_pendingUploadCleanup;
+  "storage/pendingUploadCleanupState": typeof storage_pendingUploadCleanupState;
   "storage/r2": typeof storage_r2;
   "storage/r2Config": typeof storage_r2Config;
   "storage/r2Keys": typeof storage_r2Keys;
