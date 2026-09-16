@@ -267,6 +267,28 @@ describe("publicApiHttp create endpoints", () => {
     });
   });
 
+  test("createCardV1 rejects supplied string fields with the wrong type", async () => {
+    const token = `teakapi_secret_live_a1b2c3d4_${"f".repeat(64)}`;
+    const runMutation = buildAuthorizedMutationMock();
+
+    const response = await runHandler(
+      createCardV1,
+      { runMutation, runQuery: mock() },
+      new Request("https://example.com/v1/cards", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ cardType: 123, url: "https://example.com" }),
+      })
+    );
+
+    expect(response.status).toBe(400);
+    const payload = await response.json();
+    expect(payload.code).toBe("INVALID_INPUT");
+  });
+
   test("createUploadV1 prepares a presigned upload for an authorized user", async () => {
     const token = `teakapi_secret_live_a1b2c3d4_${"f".repeat(64)}`;
     const runMutation = buildAuthorizedMutationMock().mockResolvedValueOnce({

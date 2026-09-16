@@ -178,6 +178,26 @@ const validateCreatePayload = (payload: unknown): CreateCardPayload | null => {
     }
   }
 
+  // Reject supplied string fields with the wrong type instead of silently
+  // dropping them (notes/tags/fileSize already guard their own shapes below).
+  const optionalStringKeys = [
+    "cardType",
+    "content",
+    "fileEtag",
+    "fileKey",
+    "fileName",
+    "mimeType",
+    "source",
+    "url",
+  ] as const;
+
+  for (const key of optionalStringKeys) {
+    const value = source[key];
+    if (value !== undefined && typeof value !== "string") {
+      return null;
+    }
+  }
+
   const content =
     typeof source.content === "string" ? source.content : undefined;
   const url = parseOptionalString(source.url);
