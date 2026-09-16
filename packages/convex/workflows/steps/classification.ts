@@ -408,6 +408,20 @@ export const classify = internalAction({
 
           // Update palette colors if needed
           await maybeUpdatePaletteColors(ctx, card, normalizedType, cardId);
+        } else if (card.processingStatus?.classify?.status !== "completed") {
+          // Re-classification confirmed the existing type, so
+          // updateClassification does not run. Still record stage completion:
+          // link metadata fetching gates on processingStatus.classify and
+          // would otherwise retry until it fails permanently (e.g. after a
+          // URL edit resets the classify stage to pending on a link card).
+          await ctx.runMutation(
+            (internal as any)["workflows/steps/classificationMutations"]
+              .markClassificationCompleted,
+            {
+              cardId,
+              confidence: normalizedConfidence,
+            }
+          );
         }
 
         const needsLinkMetadata =
