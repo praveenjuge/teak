@@ -128,16 +128,7 @@ export const BACKEND_ENTRIES: EnvVarSpec[] = [
     providers: ["convex-dashboard"],
     required: false,
   }),
-  spec("FILES_LEGACY_BASE", {
-    owners: ["@teak/convex"],
-    targets: ["convex"],
-    profiles: ["local", "preview", "production"],
-    secret: false,
-    validation: "url",
-    providers: ["convex-dashboard"],
-    required: false,
-    note: "Preserved storage-compatibility base. No migration in this change.",
-  }),
+
   spec("FILES_SIGNING_SECRET", {
     owners: ["@teak/convex", "@teak/files-worker"],
     targets: ["convex", "files-worker"],

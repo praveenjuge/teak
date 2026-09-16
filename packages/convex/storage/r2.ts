@@ -71,15 +71,6 @@ export const getR2ReadBase = (key: string): string => {
     return filesBase;
   }
 
-  // Development databases can still reference objects created before the
-  // shared-bucket dev/ namespace was introduced. Reads may use the retained
-  // legacy worker, but writes, processing, and deletion remain restricted by
-  // assertR2KeyInNamespace to the canonical dev/ prefix.
-  const legacyBase = env.FILES_LEGACY_BASE;
-  if (getR2KeyPrefix() && key.startsWith("users/") && legacyBase) {
-    return legacyBase;
-  }
-
   throw new Error("invalid_storage_key_namespace");
 };
 

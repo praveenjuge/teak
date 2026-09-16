@@ -20,16 +20,12 @@ const normalizeHttpsOrigin = (value: string): string | null => {
 };
 
 /**
- * Self-hosted file origins. Mirror the backend FILES_BASE /
- * FILES_LEGACY_BASE into NEXT_PUBLIC_FILES_BASE /
- * NEXT_PUBLIC_FILES_LEGACY_BASE at web build time so signed file URLs stay
+ * Self-hosted file origins. Mirror the backend FILES_BASE into
+ * NEXT_PUBLIC_FILES_BASE at web build time so signed file URLs stay
  * loadable; static Teak origins always apply.
  */
 const customFilesOrigins = (): string[] => {
-  const values = [
-    process.env.NEXT_PUBLIC_FILES_BASE,
-    process.env.NEXT_PUBLIC_FILES_LEGACY_BASE,
-  ];
+  const values = [process.env.NEXT_PUBLIC_FILES_BASE];
   return Array.from(
     new Set(
       values.flatMap((value) => {

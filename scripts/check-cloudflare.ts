@@ -97,7 +97,6 @@ const expectedDevVars = [
   "R2_BUCKET",
   "R2_KEY_PREFIX",
   "FILES_BASE",
-  "FILES_LEGACY_BASE",
 ] as const;
 
 const log = (
@@ -150,11 +149,6 @@ const checkWrangler = () => {
       hasEnvDev ? "warn" : "ok",
       hasEnvDev ? "env.development still present" : "canonical config prod-only"
     );
-    if (hasEnvDev) {
-      console.log(
-        "  Note: live files-dev Worker/domain/teak-files-dev bucket are retained for rollback but not in wrangler.jsonc."
-      );
-    }
     log(
       "remote bindings",
       "ok",
@@ -208,7 +202,7 @@ const checkConvexEnv = async (only: DeploymentScope | null) => {
   console.log(`  Expected prod vars: ${expectedProdVars.join(", ")}`);
   console.log(`  Expected dev vars: ${expectedDevVars.join(", ")}`);
   console.log(
-    "  Dev-specific routing: R2_BUCKET=teak-files-prod, R2_KEY_PREFIX=dev/, FILES_BASE=https://files.teakvault.com, FILES_LEGACY_BASE=https://files-dev.teakvault.com"
+    "  Dev-specific routing: R2_BUCKET=teak-files-prod, R2_KEY_PREFIX=dev/, FILES_BASE=https://files.teakvault.com"
   );
 
   const getDeploymentValue = async (
@@ -232,12 +226,7 @@ const checkConvexEnv = async (only: DeploymentScope | null) => {
     }
   };
 
-  const routingVars = [
-    "R2_BUCKET",
-    "R2_KEY_PREFIX",
-    "FILES_BASE",
-    "FILES_LEGACY_BASE",
-  ] as const;
+  const routingVars = ["R2_BUCKET", "R2_KEY_PREFIX", "FILES_BASE"] as const;
   const deploymentValues = new Map(
     await Promise.all(
       [...expectedProdVars, ...routingVars].map(async (name) => {
@@ -317,26 +306,6 @@ const checkConvexEnv = async (only: DeploymentScope | null) => {
       }
       continue;
     }
-    if (name === "FILES_LEGACY_BASE") {
-      if (dev.status !== "skipped") {
-        if (
-          dev.status === "found" &&
-          dev.value === "https://files-dev.teakvault.com"
-        ) {
-          log(name, "same", "legacy dev reads retained");
-        } else {
-          log(name, "missing", "dev legacy reads require the retained worker");
-        }
-      }
-      if (prod.status !== "skipped") {
-        if (prod.status === "found") {
-          log(`${name} (prod)`, "different", "prod should be unset");
-        } else {
-          log(`${name} (prod)`, "same", "prod legacy route unset");
-        }
-      }
-      continue;
-    }
     const expected =
       name === "R2_BUCKET" ? "teak-files-prod" : "https://files.teakvault.com";
     const sides = [
@@ -381,7 +350,7 @@ const main = async () => {
     "  • One-time Convex convergence required; .dev.vars is ignored and per-developer; prod-data warning applies (shared bucket + prefix)."
   );
   console.log(
-    "  • Rollback: wrangler.jsonc env.development removed but live files-dev Worker/domain/teak-files-dev bucket retained; re-add env block to rollback or set Convex dev FILES_BASE/R2_BUCKET back to files-dev."
+    "  • Single files Worker and bucket: wrangler.jsonc is prod-only, the files-dev Worker/domain are deleted, and teak-files-dev is draining via lifecycle expiration before bucket deletion."
   );
   if (failureCount > 0) {
     console.log(

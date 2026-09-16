@@ -36,7 +36,6 @@ type Env = {
   readonly E2E_CLEANUP_TOKEN: string | undefined;
   readonly E2E_EMAIL_DOMAIN: string | undefined;
   readonly FILES_BASE: string | undefined;
-  readonly FILES_LEGACY_BASE: string | undefined;
   readonly FILES_SIGNING_SECRET: string | undefined;
   readonly GOOGLE_CLIENT_ID: string | undefined;
   readonly GOOGLE_CLIENT_SECRET: string | undefined;
