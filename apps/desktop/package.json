@@ -1,6 +1,6 @@
 {
   "name": "@teak/desktop",
-  "version": "1.0.69",
+  "version": "1.0.70",
   "private": true,
   "type": "module",
   "main": ".vite/build/main.js",
