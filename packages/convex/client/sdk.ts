@@ -292,14 +292,10 @@ const asCard = (value: unknown): Card => {
   }
   return value as unknown as Card;
 };
-const asCards = (value: unknown): LegacyCardsResponse => {
-  if (
-    !(isObject(value) && Array.isArray(value.items)) ||
-    typeof value.total !== "number"
-  ) {
-    throw new TeakApiError("PARSE_ERROR");
-  }
-  return { items: value.items.map(asCard), total: value.total };
+const asLegacyCardsFromPage = (value: unknown): LegacyCardsResponse => {
+  const page = asPage(value);
+  const items = page.items.map(asCard);
+  return { items, total: items.length };
 };
 const asPage = (value: unknown): CardsPage => {
   if (
@@ -461,7 +457,11 @@ export const createTeakClient = (options: {
           () => null
         ),
       favorites: (input: Parameters<typeof qs>[0] = {}) =>
-        request(`/v1/cards/favorites?${qs(input)}`, { method: "GET" }, asCards),
+        request(
+          `/v1/cards?${qs({ ...input, favorited: true, include: "content,metadata" })}`,
+          { method: "GET" },
+          asLegacyCardsFromPage
+        ),
       get: (id: string) =>
         request(
           `/v1/cards/${encodeURIComponent(id)}`,
@@ -471,7 +471,11 @@ export const createTeakClient = (options: {
       list: (input: Parameters<typeof qs>[0] = {}) =>
         request(`/v1/cards?${qs(input)}`, { method: "GET" }, asPage),
       search: (input: Parameters<typeof qs>[0] = {}) =>
-        request(`/v1/cards/search?${qs(input)}`, { method: "GET" }, asCards),
+        request(
+          `/v1/cards?${qs({ ...input, include: "content,metadata" })}`,
+          { method: "GET" },
+          asLegacyCardsFromPage
+        ),
       setFavorite: (id: string, isFavorited: boolean) =>
         request(
           `/v1/cards/${encodeURIComponent(id)}/favorite`,

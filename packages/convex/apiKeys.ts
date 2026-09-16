@@ -13,9 +13,6 @@ import { API_KEY_TOKEN_PREFIX, getApiKeyFormat } from "./shared/apiKeyFormat";
 import { rateLimiter } from "./shared/rateLimits";
 
 const API_KEY_NAME_DEFAULT = "Default API key";
-// Component keys minted before the rename may still carry the old default
-// name; normalize it on read so the UI shows the current label.
-const API_KEY_NAME_LEGACY_DEFAULT = "API Keys";
 const API_KEY_ACCESS = "full_access" as const;
 const COMPONENT_ENV = "live";
 const COMPONENT_SCOPES = [API_KEY_ACCESS];
@@ -86,11 +83,6 @@ const validateApiKeyArgsValidator = v.object({
 
 const revokeKeyArgsValidator = v.object({
   keyId: v.string(),
-  // `source` is unused now that component keys are the only path. It stays as an
-  // optional, ignored string so API clients deployed before this change (which
-  // still send it during the rollout window) are not rejected for an unknown
-  // argument. Safe to remove once those clients have rolled over.
-  source: v.optional(v.string()),
 });
 
 const getAuthUserById = async (ctx: MutationCtx, userId: string) =>
@@ -138,12 +130,9 @@ const getComponentKeysForOwner = async (
   return pages.flat();
 };
 
-const normalizeApiKeyName = (name: string) =>
-  name === API_KEY_NAME_LEGACY_DEFAULT ? API_KEY_NAME_DEFAULT : name;
-
 const mapComponentKey = (key: KeyMetadata) => ({
   id: key.keyId,
-  name: normalizeApiKeyName(key.name),
+  name: key.name,
   keyPrefix: key.lookupPrefix,
   maskedKey: `${API_KEY_TOKEN_PREFIX}_${key.type === "publishable" ? "pub" : "secret"}_${key.env}_${key.lookupPrefix}_••••••••`,
   access: API_KEY_ACCESS,
@@ -222,7 +211,7 @@ export const createUserApiKey = mutation({
         "Active API key limit reached. Revoke unused keys first."
       );
     }
-    const name = normalizeApiKeyName(args.name?.trim() || API_KEY_NAME_DEFAULT);
+    const name = args.name?.trim() || API_KEY_NAME_DEFAULT;
     const created = await componentApiKeys.create(ctx, {
       env: COMPONENT_ENV,
       name,
@@ -336,7 +325,7 @@ export const rotateUserApiKey = mutation({
       throw new Error("API key cannot be regenerated");
     }
 
-    const name = normalizeApiKeyName(existing.name);
+    const name = existing.name;
     const created = await componentApiKeys.create(ctx, {
       env: COMPONENT_ENV,
       name,

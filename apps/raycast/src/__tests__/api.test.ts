@@ -30,6 +30,12 @@ describe("raycast api helpers", () => {
     );
   });
 
+  test("buildCardsSearchParams includes full-card fields on request", () => {
+    expect(
+      buildCardsSearchParams({ include: "content,metadata", limit: 10 }),
+    ).toBe("include=content%2Cmetadata&limit=10");
+  });
+
   test("normalizeLimit clamps limits to backend contract", () => {
     expect(normalizeLimit(0)).toBe(1);
     expect(normalizeLimit(101)).toBe(100);

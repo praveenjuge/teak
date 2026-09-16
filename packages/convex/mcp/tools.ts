@@ -520,13 +520,27 @@ const count = (payload: JsonObject, field = "items"): number =>
   Array.isArray(payload[field]) ? payload[field].length : 0;
 
 const cardPath = (id: string): string => `/v1/cards/${encodeURIComponent(id)}`;
-const queryTool = (path: string): ToolConfig => ({
+// Canonical list transport for the retired search/favorites routes. The list
+// endpoint returns full cards only with content+metadata included, and the
+// transform keeps the legacy {items,total} tool payload unchanged.
+const LEGACY_LIST_INCLUDE = "content,metadata";
+const pageToLegacyCards = (payload: JsonObject): JsonObject => ({
+  items: Array.isArray(payload.items) ? payload.items : [],
+  total: count(payload),
+});
+const queryTool = (extraQuery: Record<string, QueryValue>): ToolConfig => ({
   schema: queryInputSchema,
   operation: (input) => ({
     method: "GET",
-    path,
-    query: queryParams({ q: input.q, limit: input.limit }),
+    path: "/v1/cards",
+    query: queryParams({
+      q: input.q,
+      limit: input.limit,
+      include: LEGACY_LIST_INCLUDE,
+      ...extraQuery,
+    }),
   }),
+  transform: (payload) => pageToLegacyCards(payload),
   summary: (payload) => `Fetched ${Number(payload.total) || 0} cards`,
 });
 
@@ -555,9 +569,9 @@ const toolConfigs: Record<string, ToolConfig> = {
     summary: (payload) =>
       `Card ${typeof payload.status === "string" ? payload.status : "created"}`,
   },
-  teak_v1_search_cards: queryTool("/v1/cards/search"),
+  teak_v1_search_cards: queryTool({}),
   teak_v1_list_favorite_cards: {
-    ...queryTool("/v1/cards/favorites"),
+    ...queryTool({ favorited: true }),
     summary: (payload) =>
       `Fetched ${Number(payload.total) || 0} favorite cards`,
   },
@@ -629,8 +643,8 @@ const toolConfigs: Record<string, ToolConfig> = {
     schema: chatgptSearchInputSchema,
     operation: (input) => ({
       method: "GET",
-      path: "/v1/cards/search",
-      query: { q: input.query, limit: 10 },
+      path: "/v1/cards",
+      query: { q: input.query, limit: 10, include: LEGACY_LIST_INCLUDE },
     }),
     transform: (payload) => ({
       results: (Array.isArray(payload.items) ? payload.items : []).map(

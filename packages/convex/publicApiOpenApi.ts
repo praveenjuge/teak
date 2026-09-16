@@ -581,6 +581,9 @@ export const openApiSpec = {
     },
     "/v1/cards/search": {
       get: {
+        deprecated: true,
+        description:
+          "Deprecated: use GET /v1/cards with q and include=content,metadata instead.",
         parameters: [
           { in: "query", name: "q", schema: { type: "string" } },
           { in: "query", name: "limit", schema: { type: "integer" } },
@@ -615,6 +618,9 @@ export const openApiSpec = {
     },
     "/v1/cards/favorites": {
       get: {
+        deprecated: true,
+        description:
+          "Deprecated: use GET /v1/cards with favorited=true and include=content,metadata instead.",
         parameters: [
           { in: "query", name: "q", schema: { type: "string" } },
           { in: "query", name: "limit", schema: { type: "integer" } },

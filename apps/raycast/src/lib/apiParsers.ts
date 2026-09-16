@@ -119,6 +119,29 @@ export const parseCardsResponse = (payload: unknown): CardsResponse => {
   };
 };
 
+export const parseCardsPageResponse = (payload: unknown): CardsResponse => {
+  if (!isJsonObject(payload)) {
+    throw new RaycastApiError("REQUEST_FAILED");
+  }
+
+  const { items, pageInfo } = payload;
+
+  if (
+    !(
+      Array.isArray(items) &&
+      items.every((item) => isRaycastCard(item)) &&
+      isJsonObject(pageInfo)
+    )
+  ) {
+    throw new RaycastApiError("REQUEST_FAILED");
+  }
+
+  return {
+    items,
+    total: items.length,
+  };
+};
+
 const isTagSummary = (value: unknown): value is TagSummary => {
   if (!isJsonObject(value)) {
     return false;

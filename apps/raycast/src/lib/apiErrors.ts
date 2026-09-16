@@ -67,6 +67,7 @@ export const buildCardsSearchParams = (input: {
   createdAfter?: number;
   createdBefore?: number;
   favorited?: boolean;
+  include?: string;
   limit?: number;
   query?: string;
   sort?: "newest" | "oldest";
@@ -102,6 +103,10 @@ export const buildCardsSearchParams = (input: {
 
   if (typeof input.createdBefore === "number") {
     search.set("createdBefore", String(input.createdBefore));
+  }
+
+  if (input.include?.trim()) {
+    search.set("include", input.include.trim());
   }
 
   search.set("limit", String(normalizeLimit(input.limit)));

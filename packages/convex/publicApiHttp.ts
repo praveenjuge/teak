@@ -1099,6 +1099,29 @@ const handleCreateUploadRequest = async (
   }
 };
 
+const LEGACY_CARDS_QUERY_DEPRECATION_HEADERS: HeadersInit = {
+  Deprecation: "true",
+  Link: '</v1/cards>; rel="successor-version"',
+  Warning:
+    '299 - "Deprecated: use GET /v1/cards with q, favorited, and include=content,metadata instead."',
+};
+
+const trackLegacyCardsQueryHit = async (
+  ctx: any,
+  favoritesOnly: boolean
+): Promise<void> => {
+  try {
+    await trackIdempotency(
+      ctx,
+      favoritesOnly ? "/v1/cards/favorites" : "/v1/cards/search",
+      "skipped",
+      crypto.randomUUID()
+    );
+  } catch {
+    // Telemetry must never break serving the deprecated routes.
+  }
+};
+
 export const handleCardsQueryRequest = async (
   ctx: any,
   request: Request,
@@ -1114,6 +1137,8 @@ export const handleCardsQueryRequest = async (
     return options;
   }
 
+  await trackLegacyCardsQueryHit(ctx, favoritesOnly);
+
   try {
     const cards = await ctx.runQuery(
       favoritesOnly
@@ -1125,10 +1150,14 @@ export const handleCardsQueryRequest = async (
       }
     );
 
-    return json(200, {
-      items: cards.map((card: any) => serializeCard(card, request.url)),
-      total: cards.length,
-    });
+    return json(
+      200,
+      {
+        items: cards.map((card: any) => serializeCard(card, request.url)),
+        total: cards.length,
+      },
+      LEGACY_CARDS_QUERY_DEPRECATION_HEADERS
+    );
   } catch {
     return errorResponse(
       500,

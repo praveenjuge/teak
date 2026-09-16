@@ -22,7 +22,6 @@ import {
 import { api } from "@teak/convex";
 import { useConvex } from "convex/react";
 import * as Clipboard from "expo-clipboard";
-import * as FileSystem from "expo-file-system/legacy";
 import { Image as ExpoImage } from "expo-image";
 import * as Sharing from "expo-sharing";
 import { memo, type ReactNode, useMemo, useState } from "react";
@@ -30,6 +29,11 @@ import { Alert, Platform } from "react-native";
 import { colors } from "@/constants/colors";
 import { getNativeShareOptions } from "@/lib/files";
 import type { MobileCardSummary } from "@/lib/mobile-card-summary-cache";
+import {
+  downloadNativeFileToCache,
+  downloadNativeFileToDocuments,
+  writeNativeCacheText,
+} from "@/lib/nativeFileSystem";
 
 const WWW_PREFIX_REGEX = /^www\./;
 const failedFaviconHosts = new Set<string>();
@@ -204,11 +208,10 @@ const CardItem = memo(function CardItem({
       const name = buildFileName(url, fileName);
 
       if (Platform.OS === "ios") {
-        const destination = `${FileSystem.cacheDirectory ?? ""}${name}`;
-        const result = await FileSystem.downloadAsync(url, destination);
+        const uri = await downloadNativeFileToCache(url, name);
 
         if (await Sharing.isAvailableAsync()) {
-          await Sharing.shareAsync(result.uri, {
+          await Sharing.shareAsync(uri, {
             ...getNativeShareOptions(name),
             dialogTitle: "Save to Files",
           });
@@ -217,9 +220,8 @@ const CardItem = memo(function CardItem({
         return;
       }
 
-      const destination = `${FileSystem.documentDirectory ?? ""}${name}`;
-      const result = await FileSystem.downloadAsync(url, destination);
-      Alert.alert("Downloaded", `Saved to ${result.uri}`);
+      const uri = await downloadNativeFileToDocuments(url, name);
+      Alert.alert("Downloaded", `Saved to ${uri}`);
     } catch (error) {
       if (
         !(
@@ -238,11 +240,10 @@ const CardItem = memo(function CardItem({
 
     try {
       const fileName = name ? `${name}.txt` : `teak-share-${Date.now()}.txt`;
-      const destination = `${FileSystem.cacheDirectory ?? ""}${fileName}`;
-      await FileSystem.writeAsStringAsync(destination, value);
+      const uri = writeNativeCacheText(fileName, value);
 
       if (await Sharing.isAvailableAsync()) {
-        await Sharing.shareAsync(destination, getNativeShareOptions(fileName));
+        await Sharing.shareAsync(uri, getNativeShareOptions(fileName));
       } else {
         Alert.alert("Sharing Unavailable", "Sharing is not available here.");
       }
@@ -261,11 +262,10 @@ const CardItem = memo(function CardItem({
 
     try {
       const fileName = buildFileName(url, name);
-      const destination = `${FileSystem.cacheDirectory ?? ""}${fileName}`;
-      const result = await FileSystem.downloadAsync(url, destination);
+      const uri = await downloadNativeFileToCache(url, fileName);
 
       if (await Sharing.isAvailableAsync()) {
-        await Sharing.shareAsync(result.uri, getNativeShareOptions(fileName));
+        await Sharing.shareAsync(uri, getNativeShareOptions(fileName));
       } else {
         Alert.alert("Sharing Unavailable", "Sharing is not available here.");
       }

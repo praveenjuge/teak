@@ -6,13 +6,7 @@ import {
   useFileUploadCore,
 } from "@teak/convex/shared/hooks/useFileUpload";
 import { useAction, useMutation } from "convex/react";
-import * as FileSystem from "expo-file-system/legacy";
-
-const createUploadAbortError = () => {
-  const error = new Error("Upload cancelled");
-  error.name = "AbortError";
-  return error;
-};
+import { uploadNativeFileBinary } from "@/lib/nativeFileSystem";
 
 export function useFileUpload(config: UnifiedFileUploadConfig = {}) {
   const uploadAndCreateCardMutation = useMutation(
@@ -42,52 +36,7 @@ export function useFileUpload(config: UnifiedFileUploadConfig = {}) {
       finalizeUploadedCard,
       prepareMultipartUpload,
       recordMultipartPart,
-      uploadBinaryFromUri: async ({
-        fileUri,
-        uploadUrl,
-        contentType,
-        signal,
-      }) => {
-        const uploadTask = FileSystem.createUploadTask(uploadUrl, fileUri, {
-          headers: { "Content-Type": contentType },
-          httpMethod: "PUT",
-          uploadType: FileSystem.FileSystemUploadType.BINARY_CONTENT,
-        });
-        const cancelUpload = () => {
-          void uploadTask.cancelAsync().catch(() => {
-            // The shared hook suppresses callbacks once the signal is aborted.
-          });
-        };
-
-        if (signal.aborted) {
-          await uploadTask.cancelAsync();
-          throw createUploadAbortError();
-        }
-
-        signal.addEventListener("abort", cancelUpload, { once: true });
-
-        let result: FileSystem.FileSystemUploadResult | null | undefined;
-        try {
-          result = await uploadTask.uploadAsync();
-        } catch (error) {
-          if (signal.aborted) {
-            throw createUploadAbortError();
-          }
-          throw error;
-        } finally {
-          signal.removeEventListener("abort", cancelUpload);
-        }
-
-        if (signal.aborted) {
-          throw createUploadAbortError();
-        }
-
-        return {
-          headers: result?.headers,
-          ok: result ? result.status >= 200 && result.status < 300 : false,
-          status: result?.status ?? 0,
-        };
-      },
+      uploadBinaryFromUri: (args) => uploadNativeFileBinary(args),
     },
     config
   );

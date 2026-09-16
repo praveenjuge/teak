@@ -2,7 +2,7 @@ import { CARD_ERROR_CODES } from "@teak/convex/shared/constants";
 import { inferFileFormat } from "@teak/convex/shared/file-formats";
 import type { UploadFileFromUriArgs } from "@teak/convex/shared/hooks/useFileUpload";
 import type { UploadFileResult } from "@teak/convex/shared/types";
-import * as FileSystem from "expo-file-system/legacy";
+import { getNativeFileSize } from "@/lib/nativeFileSystem";
 
 export interface UploadFileFromUriParams {
   additionalMetadata?: Record<string, unknown>;
@@ -24,19 +24,15 @@ function normalizeErrorMessage(error: unknown): string {
   return "File upload failed.";
 }
 
-async function resolveFileSize(
+function resolveFileSize(
   fileUri: string,
   providedSize: number | null | undefined
-): Promise<number> {
+): number {
   if (typeof providedSize === "number" && providedSize > 0) {
     return providedSize;
   }
 
-  const fileInfo = await FileSystem.getInfoAsync(fileUri);
-  const resolvedSize =
-    fileInfo.exists && "size" in fileInfo && typeof fileInfo.size === "number"
-      ? fileInfo.size
-      : 0;
+  const resolvedSize = getNativeFileSize(fileUri);
 
   if (resolvedSize <= 0) {
     throw new Error("Unable to read shared file size.");
@@ -63,9 +59,9 @@ export async function uploadFileFromUri(
       };
     }
 
-    const fileSize = await resolveFileSize(params.fileUri, params.fileSize);
+    const fileSize = resolveFileSize(params.fileUri, params.fileSize);
 
-    return dependencies.uploadFromUri({
+    return await dependencies.uploadFromUri({
       uri: params.fileUri,
       name: params.fileName,
       type: params.mimeType,

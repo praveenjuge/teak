@@ -444,14 +444,14 @@ describe("Convex MCP endpoint", () => {
       "POST /v1/cards",
       "POST /v1/cards",
       "POST /v1/cards",
-      "GET /v1/cards/search",
+      "GET /v1/cards",
       "DELETE /v1/cards/card_1",
       "GET /v1/cards/card_1",
       "GET /v1/tags",
       "GET /v1/cards/changes",
       "POST /v1/cards/bulk",
       "POST /v1/uploads",
-      "GET /v1/cards/search",
+      "GET /v1/cards",
       "GET /v1/cards/card_1",
     ]);
     expect(captured[2]?.body).toEqual({
@@ -480,7 +480,55 @@ describe("Convex MCP endpoint", () => {
       mimeType: "image/png",
       fileSize: 123,
     });
-    expect(captured[11]?.query).toEqual({ q: "design", limit: 10 });
+    expect(captured[4]?.query).toEqual({
+      q: "design",
+      limit: 10,
+      include: "content,metadata",
+    });
+    expect(captured[11]?.query).toEqual({
+      q: "design",
+      limit: 10,
+      include: "content,metadata",
+    });
+  });
+
+  test("favorite search tools use the canonical list transport", async () => {
+    const captured: Array<{
+      path: string;
+      query?: Record<string, unknown>;
+    }> = [];
+    const executor = mock((operation: Parameters<PublicApiToolExecutor>[0]) => {
+      captured.push({ path: operation.path, query: operation.query });
+      return Promise.resolve(
+        new Response(
+          JSON.stringify({
+            items: [{ id: "card_1" }],
+            pageInfo: { hasMore: false, nextCursor: null },
+          }),
+          {
+            status: 200,
+            headers: { "Content-Type": "application/json" },
+          }
+        )
+      );
+    }) as PublicApiToolExecutor;
+
+    const result = await callTeakV1Tool(
+      "teak_v1_list_favorite_cards",
+      { limit: 5 },
+      mcpRequest({ jsonrpc: "2.0", id: 40, method: "tools/call" }),
+      executor
+    );
+
+    expect(result.isError).toBeUndefined();
+    expect(captured[0]).toEqual({
+      path: "/v1/cards",
+      query: { limit: 5, include: "content,metadata", favorited: true },
+    });
+    expect(result.structuredContent).toMatchObject({
+      items: [{ id: "card_1" }],
+      total: 1,
+    });
   });
 
   test("requires confirm=true for bulk delete tool", async () => {
