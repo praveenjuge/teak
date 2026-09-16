@@ -26,7 +26,6 @@ const app = defineApp({
     APPLE_APP_BUNDLE_IDENTIFIER: v.optional(v.string()),
     // Files / R2 capability group.
     FILES_BASE: v.optional(v.string()),
-    FILES_LEGACY_BASE: v.optional(v.string()),
     FILES_SIGNING_SECRET: v.optional(v.string()),
     R2_BUCKET: v.optional(v.string()),
     R2_ENDPOINT: v.optional(v.string()),

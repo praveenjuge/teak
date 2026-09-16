@@ -66,9 +66,8 @@ export const cleanupDeletedCard = internalMutation({
       try {
         await deleteObject(ctx, key);
       } catch (error) {
-        // Legacy dev keys (users/...) are rejected by dev's dev/ namespace guard;
-        // they remain in the retained teak-files-dev bucket (spec: no migration).
-        // The new prefix-scoped orphan sweep correctly ignores them.
+        // A single object failure (missing object, namespace violation) must
+        // not block deletion of the card record itself.
         console.error(`${WORKFLOW_LOG_PREFIX} Failed to delete object`, {
           cardId,
           key,

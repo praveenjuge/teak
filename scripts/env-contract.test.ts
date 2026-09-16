@@ -87,7 +87,6 @@ describe("env-contract", () => {
   });
 
   test("preserved compatibility entries exist", () => {
-    expect(getEnvSpec("FILES_LEGACY_BASE")).toBeDefined();
     expect(getEnvSpec("TEAK_ADMIN_EMAIL")).toBeDefined();
   });
 });

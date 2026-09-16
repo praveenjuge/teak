@@ -151,15 +151,13 @@ CONVEX_DEPLOY_KEY=
 NEXT_PUBLIC_CONVEX_URL=https://deployment.convex.cloud
 NEXT_PUBLIC_CONVEX_SITE_URL=https://deployment.convex.site
 NEXT_PUBLIC_FILES_BASE=https://files.yourdomain.com            # Mirror of FILES_BASE for the CSP
-NEXT_PUBLIC_FILES_LEGACY_BASE=https://legacy-files.yourdomain.com  # Mirror of FILES_LEGACY_BASE for the CSP
 TEAK_DEV_APP_URL=http://localhost:3000   # Optional local override
 ```
 
 The web Content-Security-Policy always allows the canonical file origins
 (`https://files.teakvault.com` and the R2 storage origin). If you serve files
-from custom origins, mirror the backend `FILES_BASE` and
-`FILES_LEGACY_BASE` into `NEXT_PUBLIC_FILES_BASE` and
-`NEXT_PUBLIC_FILES_LEGACY_BASE` at web build time.
+from custom origins, mirror the backend `FILES_BASE` into
+`NEXT_PUBLIC_FILES_BASE` at web build time.
 
 ### Client Apps (`apps/mobile`, `apps/extension`, `apps/desktop`)
 

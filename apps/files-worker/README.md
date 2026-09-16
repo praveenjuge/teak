@@ -3,10 +3,9 @@
 The Cloudflare Worker for Teak file delivery, uploads, processing, imports,
 and exports. Production serves `files.teakvault.com` from `teak-files-prod`
 (the canonical bucket for both environments). Development objects live under
-`dev/users/...` in the same `teak-files-prod` bucket; the legacy
-`files-dev.teakvault.com` Worker/domain and `teak-files-dev` bucket are
-retained unchanged for rollback only and are no longer in the canonical
-`wrangler.jsonc`.
+`dev/users/...` in the same `teak-files-prod` bucket. The pre-convergence
+`files-dev` Worker/domain and `teak-files-dev` bucket were retired after the
+legacy dev references reached zero; `wrangler.jsonc` is prod-only.
 
 The Convex backend mints long-lived HMAC-signed URLs
 (`packages/convex/storage/r2.ts` → `buildSignedWorkerFileUrl`). This worker
@@ -215,7 +214,6 @@ bun run sync:cloudflare-dev # securely writes the dev signing secret to ignored 
 #   bunx convex env set R2_BUCKET teak-files-prod --deployment dev
 #   bunx convex env set R2_KEY_PREFIX dev/ --deployment dev
 #   bunx convex env set FILES_BASE https://files.teakvault.com --deployment dev
-#   bunx convex env set FILES_LEGACY_BASE https://files-dev.teakvault.com --deployment dev
 # (During pre-merge, point FILES_BASE to `wrangler dev --remote` preview URL.)
 ```
 
@@ -223,8 +221,6 @@ bun run sync:cloudflare-dev # securely writes the dev signing secret to ignored 
 
 - `FILES_SIGNING_SECRET` — must match its corresponding Convex deployment.
   Set production with `bunx wrangler secret put FILES_SIGNING_SECRET`.
-  The legacy `files-dev` Worker used `--env development`; that Worker is
-  retained for rollback but no longer canonical.
 - `SENTRY_DSN` — DSN for error reporting (`@sentry/cloudflare`, errors only).
   Reporting stays disabled until this is set. Set with:
   `bunx wrangler secret put SENTRY_DSN`
@@ -232,8 +228,7 @@ bun run sync:cloudflare-dev # securely writes the dev signing secret to ignored 
 - `apps/files-worker/.dev.vars` (ignored) — per-developer local overrides for
   `wrangler dev`. Example: `FILES_SIGNING_SECRET=...`. Do not commit. The
   canonical dev routing (`R2_BUCKET`, `R2_KEY_PREFIX`, `FILES_BASE`) lives in
-  Convex env, not `.dev.vars`. `FILES_LEGACY_BASE` keeps pre-convergence dev
-  objects readable from the retained bucket; storage mutations never use it.
+  Convex env, not `.dev.vars`.
   Production-data warning: dev writes share the
   prod bucket (`teak-files-prod`) and are isolated only by `dev/` prefix;
   credentials retain bucket-wide authority.
@@ -251,13 +246,13 @@ presigned-R2 fallback when the custom file domain is disabled.
 
 Deploys automatically via Cloudflare Workers Builds (main branch).
 
-**Rollback window:** the `files-dev` Worker, `files-dev.teakvault.com`
-domain, and `teak-files-dev` bucket (≃1 000 objects / 370 MB) are untouched
-and retained. To rollback, re-add the `env.development` block to
-`wrangler.jsonc` and reset Convex dev vars:
-`R2_BUCKET=teak-files-dev`, `R2_KEY_PREFIX=""`, and
-`FILES_BASE=https://files-dev.teakvault.com`. No copy/migration/backfill is
-performed.
+**Retired:** the pre-convergence `files-dev` Worker and
+`files-dev.teakvault.com` domain were deleted after the legacy dev
+references reached zero and the dual-read branch was removed. The
+`teak-files-dev` bucket (≃1 000 objects / 370 MB of dev-only data) is
+draining via a lifecycle expiration rule and will be deleted once empty.
+There is no rollback path to the legacy bucket; dev objects live under
+`dev/users/...` in `teak-files-prod`.
 
 ## Local development experience
 
