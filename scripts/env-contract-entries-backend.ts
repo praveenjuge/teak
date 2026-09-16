@@ -305,6 +305,7 @@ export const BACKEND_ENTRIES: EnvVarSpec[] = [
     validation: "url",
     providers: ["convex-dashboard", "github-secrets"],
     required: false,
+    note: "Single writer is the GitHub secret; Backend Deploy stamps it into the Convex dashboard each release.",
   }),
   spec("SENTRY_DSN", {
     owners: ["@teak/convex", "@teak/web", "@teak/files-worker"],
@@ -369,6 +370,7 @@ export const BACKEND_ENTRIES: EnvVarSpec[] = [
     providers: ["convex-dashboard", "github-secrets", "dotenv-local"],
     required: true,
     requiredIn: ["e2e"],
+    note: "Single writer is the operator: the same Bearer [REDACTED] is stored in the Convex dashboard and the GitHub secret, and must match.",
   }),
   spec("E2E_EMAIL_DOMAIN", {
     owners: ["@teak/convex", "@teak/tests"],
@@ -379,6 +381,7 @@ export const BACKEND_ENTRIES: EnvVarSpec[] = [
     providers: ["convex-dashboard", "github-secrets", "dotenv-local"],
     required: true,
     requiredIn: ["e2e"],
+    note: "Single writer is the operator: the private MX domain is mirrored in the Convex dashboard and CI, and must match.",
   }),
   // Convex deployment plumbing.
   spec("CONVEX_DEPLOY_KEY", {
@@ -399,6 +402,7 @@ export const BACKEND_ENTRIES: EnvVarSpec[] = [
     validation: "sha",
     providers: ["workflow"],
     required: false,
+    derivedFrom: "provider commit metadata via scripts/build-metadata.ts",
     note: "Stamped by Backend Deploy for the backend Sentry release.",
   }),
 ];

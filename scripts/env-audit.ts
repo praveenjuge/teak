@@ -155,8 +155,8 @@ const RUBY_ENV_RE =
   /ENV(?:\.fetch\(\s*|\[\s*)["']([A-Za-z_][A-Za-z0-9_]*)["']/g;
 const SHELL_VAR_RE =
   /\$\{([A-Za-z_][A-Za-z0-9_]*)[^}]*\}|\$([A-Za-z_][A-Za-z0-9_]*)/g;
-const SECRETS_REF_RE = /\$\{\{\s*secrets\.([A-Za-z_][A-Za-z0-9_]*)\s*\}\}/g;
-const VARS_REF_RE = /\$\{\{\s*vars\.([A-Za-z_][A-Za-z0-9_]*)\s*\}\}/g;
+const SECRETS_REF_RE = /\$\{\{[^}]*?\bsecrets\.([A-Za-z_][A-Za-z0-9_]*)/g;
+const VARS_REF_RE = /\$\{\{[^}]*?\bvars\.([A-Za-z_][A-Za-z0-9_]*)/g;
 const ENV_BLOCK_KEY_RE = /^\s*env:\s*(?:#.*)?$/;
 /** Convex typed env reads: env.NAME and env?.NAME. */
 const TYPED_ENV_RE = /(?:^|[^\w$.])env\??\.([A-Z][A-Za-z0-9_]*)/g;

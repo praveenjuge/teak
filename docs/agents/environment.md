@@ -63,6 +63,26 @@ rewrites a developer's dotenv files.
 Classification is derived from contract metadata (see
 `scripts/env-classify.ts`) so it cannot drift from the declared fields.
 
+## Stable values live in code, not configuration
+
+Values that do not vary by deployment are typed code with an environment
+override, not required inputs. The pattern is a code default plus an optional
+override: `packages/tests/src/helpers/env.ts` defaults `E2E_PUBLIC_ORIGIN` to
+the production origin, and `scripts/build-metadata.ts` derives release IDs
+from provider metadata with a `GIT_SHA` override. Do not add a contract entry
+for a value that is constant across deployments.
+
+## Cloud credentials and OIDC (evaluated 2026-09)
+
+- `CONVEX_DEPLOY_KEY` (Backend Deploy): Convex non-interactive auth has no OIDC
+  alternative; the deploy key stays, scoped to that workflow's `env` block.
+- `EXPO_TOKEN`: used only for manual `eas` runs; no workflow consumes it, so
+  there is nothing to migrate. If EAS remote builds move into CI, prefer the
+  OIDC flow over a long-lived token.
+- Web deploys through the Vercel Git integration with no repository
+  credential; App Store and Chrome Web Store credentials are vendor JWT/OAuth
+  flows without an OIDC alternative.
+
 ## Diagnostics
 
 - `bun run audit:env`: contract-vs-repo audit plus the dotenv audit.

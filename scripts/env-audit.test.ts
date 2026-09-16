@@ -20,6 +20,14 @@ describe("env-audit extractors", () => {
     expect(vars).toEqual([{ name: "BAZ_QUX", line: 2 }]);
   });
 
+  test("workflow vars-with-secrets fallbacks resolve both sides", () => {
+    const { secrets, vars } = extractWorkflowRefs(
+      `a: $${"{{ vars.PUBLIC_URL || secrets.PUBLIC_URL }}"}`
+    );
+    expect(secrets).toEqual([{ name: "PUBLIC_URL", line: 1 }]);
+    expect(vars).toEqual([{ name: "PUBLIC_URL", line: 1 }]);
+  });
+
   test("workflow env block keys are collected", () => {
     const keys = extractWorkflowEnvKeys(
       "  env:\n    FOO: bar\n    BAZ_QUX: 1\n  run: echo"

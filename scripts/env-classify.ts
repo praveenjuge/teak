@@ -24,11 +24,14 @@ export const classify = (entry: EnvVarSpec): EnvClassification => {
   if (entry.kind === "binding") {
     return "platform-binding";
   }
-  if (isFrameworkAlias(entry.name) || entry.derivedFrom) {
+  if (isFrameworkAlias(entry.name)) {
     return "generated";
   }
   if (entry.providers.includes("build") || entry.validation === "sha") {
     return "build-metadata";
+  }
+  if (entry.derivedFrom) {
+    return "generated";
   }
   return "public-config";
 };
