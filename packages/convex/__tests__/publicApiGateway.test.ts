@@ -126,4 +126,21 @@ describe("Convex public API metadata", () => {
     expect(openApiSpec.paths).toHaveProperty("/v1/cards/{cardId}");
     expect(openApiSpec.paths).toHaveProperty("/v1/cards/{cardId}/favorite");
   });
+
+  test("no longer advertises the removed search routes", async () => {
+    const response = await runHandler(
+      discoveryV1,
+      {},
+      new Request("https://api.teakvault.com/v1")
+    );
+
+    const payload = await response.json();
+    expect(payload.endpoints).not.toContain("GET /v1/cards/search");
+    expect(payload.endpoints).not.toContain("GET /v1/cards/favorites");
+    expect(openApiSpec.paths).not.toHaveProperty("/v1/cards/search");
+    expect(openApiSpec.paths).not.toHaveProperty("/v1/cards/favorites");
+    expect(openApiSpec.components.schemas).not.toHaveProperty(
+      "LegacyCardsResponse"
+    );
+  });
 });

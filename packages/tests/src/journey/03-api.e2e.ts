@@ -7,12 +7,7 @@ import { requireServiceApiKey, updateState } from "../helpers/run-state";
 test("REST API happy paths and OpenAPI contracts", async () => {
   const apiKey = requireServiceApiKey("api");
   const openapi = await loadOpenApi();
-  for (const path of [
-    "/v1/cards",
-    "/v1/cards/search",
-    "/v1/cards/favorites",
-    "/v1/tags",
-  ]) {
+  for (const path of ["/v1/cards", "/v1/tags"]) {
     const response = await apiFetch(path, apiKey);
     expect(response.ok).toBe(true);
     openapi.validate(
@@ -137,15 +132,6 @@ test("REST text cards preserve raw Markdown and enforce the UTF-8 limit", async 
     apiKey
   );
   expect((await listed.json()).items).toEqual(
-    expect.arrayContaining([
-      expect.objectContaining({ content: updated, type: "text" }),
-    ])
-  );
-  const searched = await apiFetch(
-    `/v1/cards/search?q=${encodeURIComponent(marker)}`,
-    apiKey
-  );
-  expect((await searched.json()).items).toEqual(
     expect.arrayContaining([
       expect.objectContaining({ content: updated, type: "text" }),
     ])

@@ -300,8 +300,7 @@ const validateUploadPayload = (
 };
 
 const parseCardsQueryOptions = (
-  request: Request,
-  favoritesOnly: boolean
+  request: Request
 ): CardsQueryOptions | Response => {
   const { searchParams } = new URL(request.url);
   const query = parseOptionalString(searchParams.get("q"));
@@ -368,7 +367,7 @@ const parseCardsQueryOptions = (
     createdAfter,
     createdBefore,
     cursor: parseOptionalString(searchParams.get("cursor")),
-    favoritesOnly: favoritesOnly || favorited === true,
+    favoritesOnly: favorited === true,
     limit: parseLimit(searchParams.get("limit")),
     searchQuery: query,
     sort: sort as CardsQueryOptions["sort"] | undefined,

@@ -99,26 +99,6 @@ export const getPayloadCode = (payload: unknown): string | undefined => {
   return typeof payload.code === "string" ? payload.code : undefined;
 };
 
-export const parseCardsResponse = (payload: unknown): CardsResponse => {
-  if (!isJsonObject(payload)) {
-    throw new RaycastApiError("REQUEST_FAILED");
-  }
-
-  const { items, total } = payload;
-
-  if (
-    !(Array.isArray(items) && items.every((item) => isRaycastCard(item))) ||
-    typeof total !== "number"
-  ) {
-    throw new RaycastApiError("REQUEST_FAILED");
-  }
-
-  return {
-    items,
-    total,
-  };
-};
-
 export const parseCardsPageResponse = (payload: unknown): CardsResponse => {
   if (!isJsonObject(payload)) {
     throw new RaycastApiError("REQUEST_FAILED");

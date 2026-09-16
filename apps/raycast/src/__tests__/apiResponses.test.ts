@@ -2,7 +2,6 @@ import { describe, expect, test } from "bun:test";
 import { RaycastApiError } from "../lib/apiErrors";
 import {
   parseCardsPageResponse,
-  parseCardsResponse,
   parseQuickSaveResponse,
 } from "../lib/apiParsers";
 
@@ -28,25 +27,6 @@ const sampleCard = {
 };
 
 describe("raycast api response parsing", () => {
-  test("parses a valid cards response", () => {
-    const result = parseCardsResponse({
-      items: [sampleCard],
-      total: 1,
-    });
-
-    expect(result.items).toHaveLength(1);
-    expect(result.total).toBe(1);
-  });
-
-  test("rejects malformed cards response", () => {
-    expect(() => {
-      parseCardsResponse({
-        items: [{ ...sampleCard, createdAt: "invalid" }],
-        total: 1,
-      });
-    }).toThrow(RaycastApiError);
-  });
-
   test("parses a paginated cards page with item-count total", () => {
     const result = parseCardsPageResponse({
       items: [sampleCard],

@@ -18,8 +18,6 @@ test("llms, OpenAPI, and OAuth metadata are fresh", async () => {
     "/v1/cards",
     "/v1/uploads",
     "/v1/cards/bulk",
-    "/v1/cards/search",
-    "/v1/cards/favorites",
     "/v1/tags",
   ]) {
     expect(spec.paths[path], path).toBeTruthy();

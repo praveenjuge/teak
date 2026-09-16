@@ -98,7 +98,7 @@ teak search --help
 By default, commands print human-readable output. Add `--json` to any command for machine-readable JSON, useful for piping into `jq` or other tools:
 
 ```bash
-teak search "buttons" --json | jq '.[].url'
+teak search "buttons" --json | jq '.items[].url'
 ```
 
 ## Troubleshooting

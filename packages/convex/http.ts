@@ -16,9 +16,7 @@ import {
   changesCardsV1,
   createCardV1,
   createUploadV1,
-  favoriteCardsV1,
   listCardsV1,
-  searchCardsV1,
   tagsV1,
 } from "./publicApiHttp";
 import { discoveryV1, healthzV1, v1CorsPreflight } from "./publicApiMeta";
@@ -96,8 +94,6 @@ for (const path of [
   "/v1/uploads",
   "/v1/cards/bulk",
   "/v1/cards/changes",
-  "/v1/cards/search",
-  "/v1/cards/favorites",
   "/v1/tags",
 ]) {
   http.route({
@@ -167,18 +163,6 @@ http.route({
   path: "/v1/cards/changes",
   method: "GET",
   handler: changesCardsV1,
-});
-
-http.route({
-  path: "/v1/cards/search",
-  method: "GET",
-  handler: searchCardsV1,
-});
-
-http.route({
-  path: "/v1/cards/favorites",
-  method: "GET",
-  handler: favoriteCardsV1,
 });
 
 http.route({

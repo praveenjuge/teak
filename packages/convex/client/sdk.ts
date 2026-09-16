@@ -83,10 +83,6 @@ export interface CardsPage {
   items: CardListItem[];
   pageInfo: PageInfo;
 }
-export interface LegacyCardsResponse {
-  items: Card[];
-  total: number;
-}
 export interface CardChangesResponse {
   deletedIds: string[];
   items: Card[];
@@ -292,11 +288,6 @@ const asCard = (value: unknown): Card => {
   }
   return value as unknown as Card;
 };
-const asLegacyCardsFromPage = (value: unknown): LegacyCardsResponse => {
-  const page = asPage(value);
-  const items = page.items.map(asCard);
-  return { items, total: items.length };
-};
 const asPage = (value: unknown): CardsPage => {
   if (
     !(isObject(value) && Array.isArray(value.items) && isObject(value.pageInfo))
@@ -460,7 +451,7 @@ export const createTeakClient = (options: {
         request(
           `/v1/cards?${qs({ ...input, favorited: true, include: "content,metadata" })}`,
           { method: "GET" },
-          asLegacyCardsFromPage
+          asPage
         ),
       get: (id: string) =>
         request(
@@ -474,7 +465,7 @@ export const createTeakClient = (options: {
         request(
           `/v1/cards?${qs({ ...input, include: "content,metadata" })}`,
           { method: "GET" },
-          asLegacyCardsFromPage
+          asPage
         ),
       setFavorite: (id: string, isFavorited: boolean) =>
         request(

@@ -11,7 +11,6 @@ import {
   handleCardChangesRequest,
   handleCardsByIdV1Request,
   handleCardsListRequest,
-  handleCardsQueryRequest,
   handleCreateCardRequest,
   handleCreateUploadRequest,
   handleTagsRequest,
@@ -24,7 +23,6 @@ import { withPublicApiGatewayHeaders } from "./publicApiMeta";
 
 export {
   handleCardsByIdV1Request,
-  handleCardsQueryRequest,
   handleCreateCardRequest,
 } from "./publicApiHttpCards";
 export {
@@ -86,12 +84,6 @@ export const executePublicApiOperation = (
   if (request.method === "GET" && pathname === "/v1/cards/changes") {
     return handleCardChangesRequest(ctx, request);
   }
-  if (request.method === "GET" && pathname === "/v1/cards/search") {
-    return handleCardsQueryRequest(ctx, request, false);
-  }
-  if (request.method === "GET" && pathname === "/v1/cards/favorites") {
-    return handleCardsQueryRequest(ctx, request, true);
-  }
   if (request.method === "GET" && pathname === "/v1/tags") {
     return handleTagsRequest(ctx, request);
   }
@@ -142,26 +134,6 @@ export const listCardsV1 = withGatewayHeaders((ctx, request) => {
   }
 
   return handleCardsListRequest(ctx, request);
-});
-
-export const searchCardsV1 = withGatewayHeaders((ctx, request) => {
-  if (request.method !== "GET") {
-    return Promise.resolve(
-      errorResponse(405, "METHOD_NOT_ALLOWED", "Method not allowed")
-    );
-  }
-
-  return handleCardsQueryRequest(ctx, request, false);
-});
-
-export const favoriteCardsV1 = withGatewayHeaders((ctx, request) => {
-  if (request.method !== "GET") {
-    return Promise.resolve(
-      errorResponse(405, "METHOD_NOT_ALLOWED", "Method not allowed")
-    );
-  }
-
-  return handleCardsQueryRequest(ctx, request, true);
 });
 
 export const cardByIdV1 = withGatewayHeaders((ctx, request) => {

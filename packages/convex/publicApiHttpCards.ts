@@ -10,7 +10,6 @@ import {
   type IdempotencyState,
   maybeHandleIdempotency,
   releaseIdempotencyResponse,
-  trackIdempotency,
   withAuthorizedUser,
 } from "./publicApiHttpAuth";
 import {
@@ -188,74 +187,6 @@ const handleCreateUploadRequest = async (
   }
 };
 
-const LEGACY_CARDS_QUERY_DEPRECATION_HEADERS: HeadersInit = {
-  Deprecation: "true",
-  Link: '</v1/cards>; rel="successor-version"',
-  Warning:
-    '299 - "Deprecated: use GET /v1/cards with q, favorited, and include=content,metadata instead."',
-};
-
-const trackLegacyCardsQueryHit = async (
-  ctx: ActionCtx,
-  favoritesOnly: boolean
-): Promise<void> => {
-  try {
-    await trackIdempotency(
-      ctx,
-      favoritesOnly ? "/v1/cards/favorites" : "/v1/cards/search",
-      "skipped",
-      crypto.randomUUID()
-    );
-  } catch {
-    // Telemetry must never break serving the deprecated routes.
-  }
-};
-
-const handleCardsQueryRequest = async (
-  ctx: ActionCtx,
-  request: Request,
-  favoritesOnly: boolean
-): Promise<Response> => {
-  const auth = await withAuthorizedUser(ctx, request);
-  if ("error" in auth) {
-    return auth.error;
-  }
-
-  const options = parseCardsQueryOptions(request, favoritesOnly);
-  if (options instanceof Response) {
-    return options;
-  }
-
-  await trackLegacyCardsQueryHit(ctx, favoritesOnly);
-
-  try {
-    const cards = await ctx.runQuery(
-      favoritesOnly
-        ? (internal as any).raycast.favoriteCardsForUser
-        : (internal as any).raycast.searchCardsForUser,
-      {
-        ...options,
-        userId: auth.validated.userId,
-      }
-    );
-
-    return json(
-      200,
-      {
-        items: cards.map((card: any) => serializeCard(card, request.url)),
-        total: cards.length,
-      },
-      LEGACY_CARDS_QUERY_DEPRECATION_HEADERS
-    );
-  } catch {
-    return errorResponse(
-      500,
-      "INTERNAL_ERROR",
-      favoritesOnly ? "Failed to fetch favorite cards" : "Failed to fetch cards"
-    );
-  }
-};
-
 const handleCardsListRequest = async (
   ctx: ActionCtx,
   request: Request
@@ -265,7 +196,7 @@ const handleCardsListRequest = async (
     return auth.error;
   }
 
-  const options = parseCardsQueryOptions(request, false);
+  const options = parseCardsQueryOptions(request);
   if (options instanceof Response) {
     return options;
   }
@@ -715,7 +646,6 @@ export {
   handleCardChangesRequest,
   handleCardsByIdV1Request,
   handleCardsListRequest,
-  handleCardsQueryRequest,
   handleCreateCardRequest,
   handleCreateUploadRequest,
   handleTagsRequest,
