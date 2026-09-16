@@ -319,9 +319,16 @@ describe("additive files ops", () => {
       ok: true,
     });
     expect(bucket.listCalls).toBe(2);
+    expect(bucket.deleteBatches.length).toBeGreaterThan(0);
     expect(bucket.deleteBatches.every((batch) => batch.length <= 100)).toBe(
       true
     );
+    expect(
+      bucket.objects.has("users/u1/cards/upload-pending-v2/file/0000")
+    ).toBe(false);
+    expect(
+      bucket.objects.has("users/u1/cards/upload-pending-v2/file/1000")
+    ).toBe(false);
     expect(bucket.objects.has(recentKey)).toBe(true);
     expect(bucket.objects.has("users/u1/cards/card-1/file/old")).toBe(true);
   });
