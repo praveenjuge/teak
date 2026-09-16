@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, mock, test } from "bun:test";
-import { parseCardsResponse } from "../lib/apiParsers";
+import { parseCardsPageResponse } from "../lib/apiParsers";
 import { createRaycastApiMock } from "./raycastApiMock";
 
 const getPreferenceValuesMock = mock(() => ({ apiKey: "valid-test-key" }));
@@ -68,7 +68,7 @@ const createCardsResponse = (
 ) => {
   const payload =
     status === 200 && Object.keys(body).length === 0
-      ? { items: [sampleCard], total: 1 }
+      ? { items: [sampleCard], pageInfo: { hasMore: false, nextCursor: null } }
       : body;
 
   return new Response(JSON.stringify(payload), {
@@ -111,7 +111,7 @@ describe("raycast request handling", () => {
     });
     globalThis.fetch = fetchMock as unknown as typeof fetch;
 
-    await request("/cards/search?limit=1", parseCardsResponse, {
+    await request("/cards?limit=1", parseCardsPageResponse, {
       headers: {
         Authorization: "Bearer attacker",
         "Content-Type": "text/plain",
@@ -164,7 +164,7 @@ describe("raycast request handling", () => {
     }
 
     expect(capturedUrls).toEqual([
-      "https://reminiscent-kangaroo-59.convex.site/v1/cards/search?limit=1",
+      "https://reminiscent-kangaroo-59.convex.site/v1/cards?include=content%2Cmetadata&limit=1",
     ]);
   });
 

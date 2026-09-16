@@ -294,32 +294,6 @@ export const importItemStatusValidator = v.union(
   v.literal("failed")
 );
 
-export const markdownConversionStatusValidator = v.union(
-  v.literal("pending"),
-  v.literal("in_progress"),
-  v.literal("converted"),
-  v.literal("failed")
-);
-
-export const markdownConversionAuditValidator = v.object({
-  cardId: v.id("cards"),
-  userId: v.string(),
-  sourceFileKey: v.optional(r2KeyValidator),
-  sourceUpdatedAt: v.number(),
-  sourceEtag: v.optional(v.string()),
-  sourceChecksum: v.optional(v.string()),
-  sourceByteSize: v.optional(v.number()),
-  status: markdownConversionStatusValidator,
-  attempts: v.number(),
-  retryable: v.boolean(),
-  failureReason: v.optional(v.string()),
-  nextRetryAt: v.optional(v.number()),
-  createdAt: v.number(),
-  updatedAt: v.number(),
-  startedAt: v.optional(v.number()),
-  completedAt: v.optional(v.number()),
-});
-
 export const fileUploadSessionValidator = v.object({
   userId: v.string(),
   identityKey: v.string(),
@@ -662,8 +636,4 @@ export default defineSchema({
     .index("by_identity_status", ["identityKey", "status"])
     .index("by_source_key", ["sourceKey"])
     .index("by_expires_at", ["expiresAt"]),
-  markdownConversionAudits: defineTable(markdownConversionAuditValidator)
-    .index("by_card_id", ["cardId"])
-    .index("by_status_and_next_retry_at", ["status", "nextRetryAt"])
-    .index("by_status_and_updated_at", ["status", "updatedAt"]),
 });

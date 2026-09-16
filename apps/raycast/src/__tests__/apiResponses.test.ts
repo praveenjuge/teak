@@ -1,6 +1,10 @@
 import { describe, expect, test } from "bun:test";
 import { RaycastApiError } from "../lib/apiErrors";
-import { parseCardsResponse, parseQuickSaveResponse } from "../lib/apiParsers";
+import {
+  parseCardsPageResponse,
+  parseCardsResponse,
+  parseQuickSaveResponse,
+} from "../lib/apiParsers";
 
 const sampleCard = {
   appUrl: "https://app.teakvault.com/?card=card_123",
@@ -40,6 +44,22 @@ describe("raycast api response parsing", () => {
         items: [{ ...sampleCard, createdAt: "invalid" }],
         total: 1,
       });
+    }).toThrow(RaycastApiError);
+  });
+
+  test("parses a paginated cards page with item-count total", () => {
+    const result = parseCardsPageResponse({
+      items: [sampleCard],
+      pageInfo: { hasMore: false, nextCursor: null },
+    });
+
+    expect(result.items).toHaveLength(1);
+    expect(result.total).toBe(1);
+  });
+
+  test("rejects cards pages without page info", () => {
+    expect(() => {
+      parseCardsPageResponse({ items: [sampleCard] });
     }).toThrow(RaycastApiError);
   });
 

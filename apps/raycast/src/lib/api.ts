@@ -8,7 +8,7 @@ import {
 import {
   type CardsResponse,
   getPayloadCode,
-  parseCardsResponse,
+  parseCardsPageResponse,
   parseQuickSaveResponse,
   parseRaycastCard,
   parseTagsResponse,
@@ -317,11 +317,12 @@ export const searchCards = (
   options?: RequestAuthOptions,
 ): Promise<CardsResponse> =>
   request<CardsResponse>(
-    `/cards/search?${buildCardsSearchParams({
+    `/cards?${buildCardsSearchParams({
       ...input,
+      include: "content,metadata",
       limit: input.limit ?? DEFAULT_LIMIT,
     })}`,
-    parseCardsResponse,
+    parseCardsPageResponse,
     {
       method: "GET",
     },
@@ -332,11 +333,13 @@ export const getFavoriteCards = (
   input: CardSearchInput = {},
 ): Promise<CardsResponse> =>
   request<CardsResponse>(
-    `/cards/favorites?${buildCardsSearchParams({
+    `/cards?${buildCardsSearchParams({
       ...input,
+      favorited: true,
+      include: "content,metadata",
       limit: input.limit ?? DEFAULT_LIMIT,
     })}`,
-    parseCardsResponse,
+    parseCardsPageResponse,
     {
       method: "GET",
     },

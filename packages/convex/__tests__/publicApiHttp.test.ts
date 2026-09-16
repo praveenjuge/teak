@@ -1197,6 +1197,12 @@ describe("publicApiHttp", () => {
 
     expect(response.status).toBe(200);
     expect(await response.json()).toEqual({ items: [], total: 0 });
+    expect(response.headers.get("Deprecation")).toBe("true");
+    expect(response.headers.get("Link")).toContain("/v1/cards");
+    expect(runMutation).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({ endpoint: "/v1/cards/search" })
+    );
   });
 
   test("searchCardsV1 clamps invalid limit values", async () => {

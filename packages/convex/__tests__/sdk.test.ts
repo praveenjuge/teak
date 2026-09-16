@@ -151,6 +151,57 @@ describe("@teak/convex/sdk", () => {
     });
   });
 
+  test("search uses the canonical list transport with full-card fields", async () => {
+    const seenUrls: string[] = [];
+    const client = createTeakClient({
+      baseUrl: "https://api.example",
+      tokenProvider: { getAccessToken: () => "token" },
+      fetch: ((url) => {
+        seenUrls.push(String(url));
+        return Promise.resolve(
+          Response.json({
+            items: [{ id: "card_1", content: "hello" }],
+            pageInfo: { hasMore: false, nextCursor: null },
+          })
+        );
+      }) as typeof fetch,
+    });
+
+    const result = await client.cards.search({ query: "hello", limit: 10 });
+
+    expect(seenUrls).toEqual([
+      "https://api.example/v1/cards?q=hello&include=content%2Cmetadata&limit=10",
+    ]);
+    expect(result).toEqual({
+      items: [{ id: "card_1", content: "hello" }],
+      total: 1,
+    });
+  });
+
+  test("favorites forces the favorited filter on the canonical transport", async () => {
+    const seenUrls: string[] = [];
+    const client = createTeakClient({
+      baseUrl: "https://api.example",
+      tokenProvider: { getAccessToken: () => "token" },
+      fetch: ((url) => {
+        seenUrls.push(String(url));
+        return Promise.resolve(
+          Response.json({
+            items: [],
+            pageInfo: { hasMore: true, nextCursor: "cursor_1" },
+          })
+        );
+      }) as typeof fetch,
+    });
+
+    const result = await client.cards.favorites({ limit: 5 });
+
+    expect(seenUrls).toEqual([
+      "https://api.example/v1/cards?include=content%2Cmetadata&favorited=true&limit=5",
+    ]);
+    expect(result).toEqual({ items: [], total: 0 });
+  });
+
   test("sends explicit raw Markdown without changing bytes", async () => {
     let requestBody: any;
     const client = createTeakClient({
