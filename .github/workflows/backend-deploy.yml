@@ -30,10 +30,12 @@ jobs:
       SENTRY_ORG: teakvault
       SENTRY_PROJECT: teak-backend-prod
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
         with:
           fetch-depth: 0
-      - uses: oven-sh/setup-bun@v2
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
+        with:
+          bun-version-file: package.json
       - run: bun install --frozen-lockfile
       - name: Verify deployment credentials
         run: |
@@ -42,16 +44,21 @@ jobs:
           test -n "$SENTRY_BACKEND_DSN"
       - name: Wait for compatible files worker
         run: bun run scripts/check-files-readiness.ts --prod --wait
+      - name: Resolve build metadata
+        run: |
+          release="$(bun --no-env-file run scripts/build-metadata.ts --release teak-backend)"
+          echo "TEAK_BACKEND_RELEASE=$release" >> "$GITHUB_ENV"
+          echo "TEAK_BACKEND_SHA=${release#teak-backend@}" >> "$GITHUB_ENV"
       - name: Configure backend release context
         working-directory: packages/convex
         run: |
           bunx convex env set SENTRY_BACKEND_DSN "$SENTRY_BACKEND_DSN"
           bunx convex env set SENTRY_ENVIRONMENT production
-          bunx convex env set CONVEX_GIT_COMMIT_SHA "$GITHUB_SHA"
-          bunx convex env set SENTRY_RELEASE "teak-backend@$GITHUB_SHA"
+          bunx convex env set CONVEX_GIT_COMMIT_SHA "$TEAK_BACKEND_SHA"
+          bunx convex env set SENTRY_RELEASE "$TEAK_BACKEND_RELEASE"
       - name: Create Sentry release
         run: |
-          release="teak-backend@$GITHUB_SHA"
+          release="$TEAK_BACKEND_RELEASE"
           bunx sentry-cli releases new "$release"
           bunx sentry-cli releases set-commits "$release" --auto --ignore-missing
       - name: Typecheck Convex backend (including regenerated declarations)
@@ -67,6 +74,6 @@ jobs:
             --message "Sentry release teak-backend@$GITHUB_SHA"
       - name: Finalize Sentry release
         run: |
-          release="teak-backend@$GITHUB_SHA"
+          release="$TEAK_BACKEND_RELEASE"
           bunx sentry-cli releases finalize "$release"
           bunx sentry-cli releases deploys "$release" new -e production

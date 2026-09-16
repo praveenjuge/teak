@@ -53,6 +53,7 @@ export const SURFACE_ENTRIES: EnvVarSpec[] = [
   }),
   // Web client.
   spec("NEXT_PUBLIC_CONVEX_URL", {
+    derivedFrom: "CONVEX_URL",
     owners: ["@teak/web"],
     targets: ["web"],
     profiles: ["local", "preview", "production"],
@@ -63,6 +64,7 @@ export const SURFACE_ENTRIES: EnvVarSpec[] = [
     requiredIn: ["local", "preview", "production"],
   }),
   spec("NEXT_PUBLIC_CONVEX_SITE_URL", {
+    derivedFrom: "CONVEX_SITE_URL",
     owners: ["@teak/web"],
     targets: ["web"],
     profiles: ["local", "preview", "production"],
@@ -104,6 +106,7 @@ export const SURFACE_ENTRIES: EnvVarSpec[] = [
     note: "Client-exposed by design; the secret flag stays off for DSNs shipped in bundles.",
   }),
   spec("NEXT_PUBLIC_SENTRY_RELEASE", {
+    derivedFrom: "package.json version + provider commit SHA",
     owners: ["@teak/web"],
     targets: ["web"],
     profiles: ["preview", "production"],
@@ -114,6 +117,7 @@ export const SURFACE_ENTRIES: EnvVarSpec[] = [
     note: "Written by next.config from the app version and commit SHA.",
   }),
   spec("NEXT_PUBLIC_APP_VERSION", {
+    derivedFrom: "package.json version",
     owners: ["@teak/web"],
     targets: ["web"],
     profiles: ["preview", "production"],
@@ -124,6 +128,7 @@ export const SURFACE_ENTRIES: EnvVarSpec[] = [
     note: "Written by next.config from package.json for release derivation.",
   }),
   spec("NEXT_PUBLIC_VERCEL_GIT_COMMIT_SHA", {
+    derivedFrom: "provider commit metadata",
     owners: ["@teak/web"],
     targets: ["web"],
     profiles: ["preview", "production"],
@@ -145,6 +150,7 @@ export const SURFACE_ENTRIES: EnvVarSpec[] = [
   }),
   // Desktop and extension (Vite).
   spec("VITE_PUBLIC_CONVEX_URL", {
+    derivedFrom: "CONVEX_URL",
     owners: ["@teak/desktop", "@teak/extension"],
     targets: ["desktop", "extension"],
     profiles: ["local", "preview", "production"],
@@ -155,6 +161,7 @@ export const SURFACE_ENTRIES: EnvVarSpec[] = [
     requiredIn: ["local", "preview", "production"],
   }),
   spec("VITE_PUBLIC_CONVEX_SITE_URL", {
+    derivedFrom: "CONVEX_SITE_URL",
     owners: ["@teak/desktop", "@teak/extension"],
     targets: ["desktop", "extension"],
     profiles: ["local", "preview", "production"],
@@ -165,6 +172,7 @@ export const SURFACE_ENTRIES: EnvVarSpec[] = [
     requiredIn: ["local", "preview", "production"],
   }),
   spec("VITE_WEB_URL", {
+    derivedFrom: "SITE_URL",
     owners: ["@teak/desktop"],
     targets: ["desktop"],
     profiles: ["local", "preview", "production"],
@@ -184,6 +192,7 @@ export const SURFACE_ENTRIES: EnvVarSpec[] = [
     required: false,
   }),
   spec("VITE_SENTRY_RELEASE", {
+    derivedFrom: "package.json version + provider commit SHA",
     owners: ["@teak/desktop"],
     targets: ["desktop"],
     profiles: ["preview", "production"],
@@ -225,6 +234,7 @@ export const SURFACE_ENTRIES: EnvVarSpec[] = [
   }),
   // Mobile (Expo / EAS).
   spec("EXPO_PUBLIC_CONVEX_URL", {
+    derivedFrom: "CONVEX_URL",
     owners: ["@teak/mobile"],
     targets: ["mobile"],
     profiles: ["local", "preview", "production"],
@@ -235,6 +245,7 @@ export const SURFACE_ENTRIES: EnvVarSpec[] = [
     requiredIn: ["local", "preview", "production"],
   }),
   spec("EXPO_PUBLIC_CONVEX_SITE_URL", {
+    derivedFrom: "CONVEX_SITE_URL",
     owners: ["@teak/mobile"],
     targets: ["mobile"],
     profiles: ["local", "preview", "production"],
@@ -266,6 +277,7 @@ export const SURFACE_ENTRIES: EnvVarSpec[] = [
     note: "Client-exposed by design; asserted for production EAS builds.",
   }),
   spec("TEAK_IOS_BUILD_NUMBER", {
+    classification: "build-metadata",
     owners: ["@teak/mobile"],
     targets: ["mobile", "release"],
     profiles: ["production"],
@@ -276,6 +288,7 @@ export const SURFACE_ENTRIES: EnvVarSpec[] = [
     requiredIn: ["production"],
   }),
   spec("TEAK_IOS_VERSION", {
+    classification: "build-metadata",
     owners: ["@teak/mobile"],
     targets: ["mobile", "release"],
     profiles: ["production"],

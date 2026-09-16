@@ -5,6 +5,8 @@
 // public document only advertises endpoints and scopes this deployment actually
 // supports for the opaque-token MCP/API flow.
 
+import { getConvexSiteUrl } from "@/lib/public-env";
+
 const CORS_HEADERS: Record<string, string> = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Methods": "GET, OPTIONS",
@@ -18,13 +20,8 @@ const CORS_HEADERS: Record<string, string> = {
 const UPSTREAM_PATH = "/api/auth/.well-known/oauth-authorization-server";
 const PUBLIC_SCOPES = ["profile", "email", "offline_access"] as const;
 
-const getConvexSiteUrl = (): string => {
-  const url = process.env.NEXT_PUBLIC_CONVEX_SITE_URL;
-  if (!url) {
-    throw new Error("Missing NEXT_PUBLIC_CONVEX_SITE_URL environment variable");
-  }
-  return url.replace(/\/$/, "");
-};
+const getTrailingSlashFreeSiteUrl = (): string =>
+  getConvexSiteUrl().replace(/\/$/, "");
 
 const jsonResponse = (
   status: number,
@@ -95,7 +92,7 @@ const normalizeAuthorizationServerMetadata = (
 export async function proxyAuthorizationServerMetadata(): Promise<Response> {
   let upstream: Response;
   try {
-    upstream = await fetch(`${getConvexSiteUrl()}${UPSTREAM_PATH}`, {
+    upstream = await fetch(`${getTrailingSlashFreeSiteUrl()}${UPSTREAM_PATH}`, {
       headers: { Accept: "application/json" },
       cache: "no-store",
     });

@@ -21,6 +21,7 @@
       "passThroughEnv": ["SENTRY_AUTH_TOKEN"]
     },
     "test:e2e": {
+      "inputs": ["$TURBO_DEFAULT$", ".env.e2e.local"],
       "passThroughEnv": [
         "E2E_BETTER_AUTH_USER_EMAIL",
         "E2E_BETTER_AUTH_USER_PASSWORD",

@@ -2,7 +2,10 @@ import { defineConfig, devices } from "@playwright/test";
 import { resolveTeakDevAppUrl } from "@teak/convex/dev-urls";
 import dotenv from "dotenv";
 
-// Load .env.local for E2E tests
+// Explicit test-only scope first (wins on conflicts), then build inputs for
+// backward compatibility. Keep E2E credentials in .env.e2e.local; the
+// dotenv audit flags them in .env.local as wrong-scope.
+dotenv.config({ path: ".env.e2e.local" });
 dotenv.config({ path: ".env.local" });
 
 const DEFAULT_BASE_URL = resolveTeakDevAppUrl(process.env);

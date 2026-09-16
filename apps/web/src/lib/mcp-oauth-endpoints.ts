@@ -1,5 +1,6 @@
 import { ConvexHttpClient } from "convex/browser";
 import { makeFunctionReference } from "convex/server";
+import { getConvexSiteUrl, getConvexUrl } from "@/lib/public-env";
 
 const CORS_HEADERS: Record<string, string> = {
   "Access-Control-Allow-Origin": "*",
@@ -21,21 +22,8 @@ const getOAuthUserInfo = makeFunctionReference<
   UserInfo | null
 >("oauthTokens:getOAuthUserInfo");
 
-const getConvexUrl = (): string => {
-  const url = process.env.NEXT_PUBLIC_CONVEX_URL;
-  if (!url) {
-    throw new Error("Missing NEXT_PUBLIC_CONVEX_URL environment variable");
-  }
-  return url;
-};
-
-const getConvexSiteUrl = (): string => {
-  const url = process.env.NEXT_PUBLIC_CONVEX_SITE_URL;
-  if (!url) {
-    throw new Error("Missing NEXT_PUBLIC_CONVEX_SITE_URL environment variable");
-  }
-  return url.replace(/\/$/, "");
-};
+const getTrailingSlashFreeSiteUrl = (): string =>
+  getConvexSiteUrl().replace(/\/$/, "");
 
 const parseBearerToken = (request: Request): string | null => {
   const authorization = request.headers.get("authorization");
@@ -110,10 +98,13 @@ export async function mcpUserInfo(request: Request): Promise<Response> {
 }
 
 export async function mcpJwks(): Promise<Response> {
-  const response = await fetch(`${getConvexSiteUrl()}/api/auth/convex/jwks`, {
-    headers: { Accept: "application/json" },
-    cache: "no-store",
-  });
+  const response = await fetch(
+    `${getTrailingSlashFreeSiteUrl()}/api/auth/convex/jwks`,
+    {
+      headers: { Accept: "application/json" },
+      cache: "no-store",
+    }
+  );
 
   if (!response.ok) {
     return jsonResponse(502, {

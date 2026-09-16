@@ -12,6 +12,8 @@
 
 import { readdirSync, readFileSync, statSync } from "node:fs";
 import { join, relative } from "node:path";
+import { auditDotenv, hasDotenvErrors } from "./dotenv-audit.ts";
+import { isFrameworkAlias } from "./env-aliases.ts";
 import {
   ENV_CONTRACT,
   ENV_VAR_NAMES,
@@ -29,10 +31,38 @@ export interface AuditFinding {
     | "stale"
     | "secret-in-diagnostics"
     | "deleted-alias"
-    | "turbo-wildcard";
+    | "turbo-wildcard"
+    | "direct-alias-read";
   name: string;
   path: string;
 }
+
+/**
+ * Application code reads generated framework aliases only through one
+ * accessor per workspace. Tests, scripts, and the E2E harness are exempt:
+ * they set up or inject values rather than consume them at runtime.
+ */
+const ALIAS_ACCESSOR_FILES = new Set([
+  "apps/web/src/lib/public-env.ts",
+  "apps/desktop/src/lib/desktop-config.ts",
+  "apps/extension/lib/env.ts",
+  "apps/mobile/lib/public-env.ts",
+]);
+
+export const isAliasAccessorPath = (path: string): boolean => {
+  if (ALIAS_ACCESSOR_FILES.has(path) || path.startsWith("scripts/")) {
+    return true;
+  }
+  if (path.startsWith("packages/tests/")) {
+    return true;
+  }
+  return (
+    path.includes("__tests__") ||
+    path.includes("/tests/") ||
+    path.includes(".test.") ||
+    path.includes(".e2e.")
+  );
+};
 
 const SCAN_EXTENSIONS = new Set([
   ".ts",
@@ -125,8 +155,8 @@ const RUBY_ENV_RE =
   /ENV(?:\.fetch\(\s*|\[\s*)["']([A-Za-z_][A-Za-z0-9_]*)["']/g;
 const SHELL_VAR_RE =
   /\$\{([A-Za-z_][A-Za-z0-9_]*)[^}]*\}|\$([A-Za-z_][A-Za-z0-9_]*)/g;
-const SECRETS_REF_RE = /\$\{\{\s*secrets\.([A-Za-z_][A-Za-z0-9_]*)\s*\}\}/g;
-const VARS_REF_RE = /\$\{\{\s*vars\.([A-Za-z_][A-Za-z0-9_]*)\s*\}\}/g;
+const SECRETS_REF_RE = /\$\{\{[^}]*?\bsecrets\.([A-Za-z_][A-Za-z0-9_]*)/g;
+const VARS_REF_RE = /\$\{\{[^}]*?\bvars\.([A-Za-z_][A-Za-z0-9_]*)/g;
 const ENV_BLOCK_KEY_RE = /^\s*env:\s*(?:#.*)?$/;
 /** Convex typed env reads: env.NAME and env?.NAME. */
 const TYPED_ENV_RE = /(?:^|[^\w$.])env\??\.([A-Z][A-Za-z0-9_]*)/g;
@@ -485,6 +515,14 @@ export const auditFiles = (files: Map<string, string>): AuditFinding[] => {
           path: `${path}:${use.line}`,
           detail: "env read is not in the contract",
         });
+      } else if (isFrameworkAlias(use.name) && !isAliasAccessorPath(path)) {
+        findings.push({
+          kind: "direct-alias-read",
+          name: use.name,
+          path: `${path}:${use.line}`,
+          detail:
+            "generated alias is read outside its workspace accessor; use the accessor instead",
+        });
       }
     }
     if (DIAGNOSTIC_FILES.includes(path)) {
@@ -518,19 +556,31 @@ const main = (): void => {
     files.set(rel, readFileSync(join(ROOT, rel), "utf-8"));
   }
   const findings = auditFiles(files);
-  if (findings.length === 0) {
-    console.log(
-      `env-audit: ok (${ENV_CONTRACT.length} contract entries, ${files.size} files scanned).`
-    );
-    return;
-  }
   for (const finding of findings) {
     console.log(
       `✗ [${finding.kind}] ${finding.path} ${finding.name}: ${finding.detail}`
     );
   }
-  console.log(`env-audit: ${findings.length} finding(s).`);
-  process.exitCode = 1;
+  // Name-only local dotenv state: errors fail the audit, warnings inform.
+  const dotenvFindings = auditDotenv(ROOT);
+  for (const finding of dotenvFindings) {
+    console.log(
+      `${finding.severity === "error" ? "✗" : "~"} [dotenv:${finding.kind}] ${finding.path} ${finding.name}: ${finding.detail}`
+    );
+  }
+  if (findings.length === 0 && dotenvFindings.length === 0) {
+    console.log(
+      `env-audit: ok (${ENV_CONTRACT.length} contract entries, ${files.size} files scanned).`
+    );
+    return;
+  }
+  const failed = findings.length > 0 || hasDotenvErrors(dotenvFindings);
+  console.log(
+    failed
+      ? `env-audit: ${findings.length + dotenvFindings.length} finding(s).`
+      : `env-audit: warnings only (${ENV_CONTRACT.length} contract entries, ${files.size} files scanned).`
+  );
+  process.exitCode = failed ? 1 : 0;
 };
 
 if (import.meta.main) {

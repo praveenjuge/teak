@@ -89,4 +89,26 @@ describe("env-contract", () => {
   test("preserved compatibility entries exist", () => {
     expect(getEnvSpec("TEAK_ADMIN_EMAIL")).toBeDefined();
   });
+
+  test("multi-provider credentials document their single writer", () => {
+    const credentialProviders = new Set([
+      "convex-dashboard",
+      "vercel",
+      "eas",
+      "wrangler-secret",
+      "cloudflare",
+      "github-secrets",
+    ]);
+    for (const entry of ENV_CONTRACT) {
+      const writers = entry.providers.filter((provider) =>
+        credentialProviders.has(provider)
+      );
+      if (writers.length > 1) {
+        expect(
+          entry.note ?? "",
+          `${entry.name} is owned by ${writers.join(", ")} without a documented sync direction`
+        ).not.toBe("");
+      }
+    }
+  });
 });

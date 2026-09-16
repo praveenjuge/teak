@@ -1,11 +1,11 @@
 import { describe, expect, test } from "bun:test";
 import { createServer } from "node:net";
+import { isPortOccupied } from "./capabilities.ts";
 import {
   checkE2EVars,
   checkTargetReadiness,
   evaluateCapabilityGroups,
   findMissingKeys,
-  isPortOccupied,
   needsConvexChecks,
   parseDoctorArgs,
   runDoctor,

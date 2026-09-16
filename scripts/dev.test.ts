@@ -11,8 +11,16 @@ describe("parseDevArgs", () => {
     expect(parseDevArgs([])).toEqual({
       action: "run",
       all: false,
+      headless: false,
       target: "web",
     });
+  });
+
+  test("parses --headless and matrix aliases", () => {
+    expect(parseDevArgs(["web", "--headless"]).headless).toBe(true);
+    expect(parseDevArgs(["mobile-simulator"]).target).toBe("mobile");
+    expect(parseDevArgs(["mobile-device"]).target).toBe("mobile");
+    expect(parseDevArgs(["files-worker"]).target).toBe("files");
   });
 
   test("parses a single target", () => {
@@ -57,6 +65,19 @@ describe("buildDevCommand", () => {
       "watch",
       "dev",
       "--ui=tui",
+    ]);
+  });
+
+  test("headless uses stream output", () => {
+    expect(buildDevCommand("web", { headless: true })).toEqual([
+      "turbo",
+      "watch",
+      "dev",
+      "--ui=stream",
+      "--filter",
+      "@teak/web",
+      "--filter",
+      "@teak/convex",
     ]);
   });
 

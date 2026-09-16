@@ -4,14 +4,12 @@ import { ConvexBetterAuthProvider } from "@convex-dev/better-auth/react";
 import { ConvexReactClient } from "convex/react";
 import type React from "react";
 import { convexAuthClient } from "@/lib/auth-client";
+import { getConvexUrl } from "@/lib/public-env";
 
-const convex = new ConvexReactClient(
-  process.env.EXPO_PUBLIC_CONVEX_URL as string,
-  {
-    expectAuth: true,
-    unsavedChangesWarning: false,
-  }
-);
+const convex = new ConvexReactClient(getConvexUrl(), {
+  expectAuth: true,
+  unsavedChangesWarning: false,
+});
 
 export default function ConvexClientProvider({
   children,

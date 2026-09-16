@@ -30,6 +30,30 @@ export const BACKEND_ENTRIES: EnvVarSpec[] = [
     required: false,
     note: "Public origin for self-hosted /api and /mcp. Optional locally; required when self-hosting public endpoints.",
   }),
+  // Canonical deployment facts. Framework aliases derive from these via
+  // scripts/env-aliases.ts; nothing reads the canonical names directly.
+  spec("CONVEX_URL", {
+    owners: ["@teak/convex"],
+    targets: ["convex"],
+    profiles: ["local", "preview", "production"],
+    secret: false,
+    validation: "url",
+    providers: ["convex-dashboard"],
+    required: false,
+    implicit: true,
+    note: "Canonical deployment API URL. Local values come from convex dev; setup expands it into NEXT/VITE/EXPO_PUBLIC_CONVEX_URL.",
+  }),
+  spec("CONVEX_SITE_URL", {
+    owners: ["@teak/convex"],
+    targets: ["convex"],
+    profiles: ["local", "preview", "production"],
+    secret: false,
+    validation: "url",
+    providers: ["convex-dashboard"],
+    required: false,
+    implicit: true,
+    note: "Canonical deployment HTTP-actions URL. Setup expands it into the NEXT/VITE/EXPO_PUBLIC_CONVEX_SITE_URL aliases.",
+  }),
   spec("JWKS", {
     owners: ["@teak/convex"],
     targets: ["convex"],
@@ -281,6 +305,7 @@ export const BACKEND_ENTRIES: EnvVarSpec[] = [
     validation: "url",
     providers: ["convex-dashboard", "github-secrets"],
     required: false,
+    note: "Single writer is the GitHub secret; Backend Deploy stamps it into the Convex dashboard each release.",
   }),
   spec("SENTRY_DSN", {
     owners: ["@teak/convex", "@teak/web", "@teak/files-worker"],
@@ -345,6 +370,7 @@ export const BACKEND_ENTRIES: EnvVarSpec[] = [
     providers: ["convex-dashboard", "github-secrets", "dotenv-local"],
     required: true,
     requiredIn: ["e2e"],
+    note: "Single writer is the operator: the same Bearer [REDACTED] is stored in the Convex dashboard and the GitHub secret, and must match.",
   }),
   spec("E2E_EMAIL_DOMAIN", {
     owners: ["@teak/convex", "@teak/tests"],
@@ -355,6 +381,7 @@ export const BACKEND_ENTRIES: EnvVarSpec[] = [
     providers: ["convex-dashboard", "github-secrets", "dotenv-local"],
     required: true,
     requiredIn: ["e2e"],
+    note: "Single writer is the operator: the private MX domain is mirrored in the Convex dashboard and CI, and must match.",
   }),
   // Convex deployment plumbing.
   spec("CONVEX_DEPLOY_KEY", {
@@ -375,6 +402,7 @@ export const BACKEND_ENTRIES: EnvVarSpec[] = [
     validation: "sha",
     providers: ["workflow"],
     required: false,
+    derivedFrom: "provider commit metadata via scripts/build-metadata.ts",
     note: "Stamped by Backend Deploy for the backend Sentry release.",
   }),
 ];

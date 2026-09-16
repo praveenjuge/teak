@@ -15,13 +15,21 @@
  */
 
 import { existsSync, readFileSync } from "node:fs";
-import { createServer } from "node:net";
 import { join } from "node:path";
+import {
+  checkBunVersion,
+  checkNodeVersion,
+  inferLanHost,
+  isInstallStale,
+  isPortOccupied,
+  readConvexSelection,
+} from "./capabilities.ts";
 import { parseConvexEnvOutput } from "./check-cloudflare.ts";
+import { auditDotenv } from "./dotenv-audit.ts";
 import { auditFiles, listScannedFiles } from "./env-audit.ts";
 import { runCommand } from "./proc.ts";
-import { isInstallStale, readConvexSelection } from "./setup.ts";
 import { validateWebEnvContent } from "./validate-env.ts";
+import { resolveWorktree } from "./worktree-env.ts";
 
 const ROOT = join(import.meta.dir, "..");
 const CONVEX_PATH = join(ROOT, "packages/convex");
@@ -127,20 +135,6 @@ export const findMissingKeys = (content: string, keys: string[]): string[] => {
   });
 };
 
-export const isPortOccupied = (port: number): Promise<boolean> =>
-  new Promise((resolve) => {
-    const server = createServer();
-    server.once("error", () => {
-      resolve(true);
-    });
-    server.once("listening", () => {
-      server.close(() => {
-        resolve(false);
-      });
-    });
-    server.listen(port, "127.0.0.1");
-  });
-
 const convexCommand = async (
   args: string[],
   timeoutMs = 25_000
@@ -174,44 +168,29 @@ const convexEnvPresence = async (name: string): Promise<EnvPresence> => {
   return parsed.status === "missing" ? "missing" : "unavailable";
 };
 
-export const checkBunVersion = (): DoctorCheck => {
-  const packageJson = JSON.parse(
-    readFileSync(join(ROOT, "package.json"), "utf-8")
-  ) as { packageManager?: string };
-  const pinned = packageJson.packageManager?.replace(/^bun@/, "");
-  if (!pinned) {
+export const checkDotenvHygiene = (): DoctorCheck => {
+  const findings = auditDotenv(ROOT);
+  if (findings.length === 0) {
     return {
-      id: "bun-version",
-      ok: false,
-      severity: "error",
-      detail: "packageManager is not pinned in package.json",
-      remediation: ["Pin packageManager to bun@x.y.z"],
-    };
-  }
-  const [major, minor] = Bun.version.split(".");
-  const [pinnedMajor, pinnedMinor] = pinned.split(".");
-  if (Bun.version === pinned) {
-    return {
-      detail: `Bun ${Bun.version} matches pinned ${pinned}`,
-      id: "bun-version",
-      ok: true,
-      severity: "error",
-    };
-  }
-  if (major === pinnedMajor && minor === pinnedMinor) {
-    return {
-      detail: `Bun ${Bun.version} drifts from pinned ${pinned} (patch only)`,
-      id: "bun-version",
+      detail: "local dotenv state is clean",
+      id: "dotenv-hygiene",
       ok: true,
       severity: "warn",
     };
   }
+  const errors = findings.filter((finding) => finding.severity === "error");
+  const sample = findings
+    .slice(0, 3)
+    .map((finding) => `${finding.path}:${finding.name}`)
+    .join(", ");
   return {
-    detail: `Bun ${Bun.version} does not match pinned ${pinned}`,
-    id: "bun-version",
-    ok: false,
-    remediation: [`Install Bun ${pinned} and re-run`],
-    severity: "error",
+    detail: `${findings.length} local dotenv finding(s) (${errors.length} error): ${sample}${findings.length > 3 ? ", ..." : ""}`,
+    id: "dotenv-hygiene",
+    ok: true,
+    remediation: [
+      "Run bun run scripts/dotenv-audit.ts and clean up the named keys",
+    ],
+    severity: "warn",
   };
 };
 
@@ -429,21 +408,28 @@ export const checkCapabilityGroups = async (): Promise<DoctorCheck> => {
 };
 
 export const checkPorts = async (): Promise<DoctorCheck> => {
+  const worktree = await resolveWorktree(ROOT);
+  const own = worktree.namespaced
+    ? [worktree.web, worktree.docs]
+    : [worktree.web, worktree.docs, worktree.convex, worktree.convexSite];
   const occupied: number[] = [];
-  for (const port of [3000, 3001, 3210, 3211]) {
+  for (const port of own) {
     if (await isPortOccupied(port)) {
       occupied.push(port);
     }
   }
+  const scope = worktree.namespaced
+    ? `worktree ${worktree.namespace} (convex is remote)`
+    : "main checkout";
   return occupied.length === 0
     ? {
-        detail: "local ports 3000, 3001, 3210, 3211 are free",
+        detail: `local ports ${own.join(", ")} are free (${scope})`,
         id: "ports",
         ok: true,
         severity: "warn",
       }
     : {
-        detail: `ports in use: ${occupied.join(", ")} (a stack may already be running)`,
+        detail: `ports in use: ${occupied.join(", ")} (a stack may already be running; ${scope})`,
         id: "ports",
         ok: true,
         remediation: ["Stop the owning process or reuse the running stack"],
@@ -556,7 +542,7 @@ export const checkTargetReadiness = (target: DoctorTarget): DoctorCheck => {
           severity: "warn",
         };
   }
-  if (target === "extension" || target === "desktop" || target === "mobile") {
+  if (target === "extension" || target === "desktop") {
     const path = join(ROOT, `apps/${target}/.env.local`);
     return existsSync(path)
       ? {
@@ -570,10 +556,40 @@ export const checkTargetReadiness = (target: DoctorTarget): DoctorCheck => {
           id,
           ok: true,
           remediation: [
-            `Create apps/${target}/.env.local with the ${target === "mobile" ? "EXPO_PUBLIC" : "VITE_PUBLIC"}_CONVEX_* origins`,
+            `Run bun run setup --target ${target} to derive VITE_PUBLIC_CONVEX_*`,
           ],
           severity: "warn",
         };
+  }
+  if (target === "mobile") {
+    const path = join(ROOT, "apps/mobile/.env.local");
+    const lan = inferLanHost();
+    const hostDetail = lan
+      ? `simulators use loopback; physical devices reach this host at ${lan}`
+      : "no LAN address inferred: simulators work, physical devices need this host on a reachable network";
+    if (!existsSync(path)) {
+      return {
+        detail: `mobile .env.local is missing; ${hostDetail}`,
+        id,
+        ok: true,
+        remediation: [
+          "Run bun run setup --target mobile-simulator to derive EXPO_PUBLIC_CONVEX_*",
+          ...(lan ? [] : ["Join a LAN and re-run, or use a simulator"]),
+        ],
+        severity: "warn",
+      };
+    }
+    return {
+      detail: `mobile local dotenv is present; ${hostDetail}`,
+      id,
+      ok: true,
+      ...(lan
+        ? { severity: "error" as const }
+        : {
+            severity: "warn" as const,
+            remediation: ["Join a LAN and re-run, or use a simulator"],
+          }),
+    };
   }
   return {
     detail: `${target} needs no local dotenv (defaults and flags apply)`,
@@ -603,9 +619,11 @@ export const runDoctor = async (
     : [null, null];
   const checks: DoctorCheck[] = [
     checkBunVersion(),
+    await checkNodeVersion(),
     checkDependencyLock(),
     ...(needsConvex ? [checkConvexIsolation(), checkConvexGenerated()] : []),
     checkEnvAudit(),
+    checkDotenvHygiene(),
     checkTargetReadiness(target),
     ...(profile === "e2e" ? [checkE2EVars()] : []),
     ...(siteUrlCheck ? [siteUrlCheck] : []),
