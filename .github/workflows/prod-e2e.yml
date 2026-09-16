@@ -32,11 +32,10 @@ env:
   E2E_EMAIL_DELIVERY_ENABLED: ${{ github.event_name == 'schedule' && 'true' || 'false' }}
   MAILPIT_URL: ${{ secrets.MAILPIT_URL }}
   E2E_EMAIL_DOMAIN: ${{ secrets.E2E_EMAIL_DOMAIN }}
-  # Public deployment URLs: prefer GitHub variables, fall back to the legacy
-  # secrets until VITE_PUBLIC_CONVEX_URL/SITE_URL variables are created
-  # (same values as the checked release constants). Then delete the secrets.
-  E2E_CONVEX_URL: ${{ vars.VITE_PUBLIC_CONVEX_URL || secrets.VITE_PUBLIC_CONVEX_URL }}
-  E2E_CONVEX_SITE_URL: ${{ vars.VITE_PUBLIC_CONVEX_SITE_URL || secrets.VITE_PUBLIC_CONVEX_SITE_URL }}
+  # Public deployment URLs live in GitHub variables (same values as the
+  # checked release constants).
+  E2E_CONVEX_URL: ${{ vars.VITE_PUBLIC_CONVEX_URL }}
+  E2E_CONVEX_SITE_URL: ${{ vars.VITE_PUBLIC_CONVEX_SITE_URL }}
 
 jobs:
   gate:
@@ -134,8 +133,8 @@ jobs:
       - run: bun install --frozen-lockfile --filter @teak/tests --filter @teak/extension --filter @teak/convex
       - run: bun run --cwd apps/extension build
         env:
-          VITE_PUBLIC_CONVEX_URL: ${{ vars.VITE_PUBLIC_CONVEX_URL || secrets.VITE_PUBLIC_CONVEX_URL }}
-          VITE_PUBLIC_CONVEX_SITE_URL: ${{ vars.VITE_PUBLIC_CONVEX_SITE_URL || secrets.VITE_PUBLIC_CONVEX_SITE_URL }}
+          VITE_PUBLIC_CONVEX_URL: ${{ vars.VITE_PUBLIC_CONVEX_URL }}
+          VITE_PUBLIC_CONVEX_SITE_URL: ${{ vars.VITE_PUBLIC_CONVEX_SITE_URL }}
       - run: bunx playwright install --with-deps chromium
       - run: bun run --cwd packages/tests e2e:prod:extension
       - if: always()
