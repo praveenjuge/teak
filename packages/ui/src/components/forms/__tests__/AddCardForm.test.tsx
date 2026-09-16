@@ -5,6 +5,13 @@ import { renderToStaticMarkup } from "react-dom/server";
 
 let cardCreationStatusResult: { canCreateCard: boolean } | undefined;
 
+// NOTE: bun:test's mock.module() registrations leak across test files that run
+// in the same `bun test` process. Every factory below spreads the real module
+// so a leaked mock still exposes the full export surface.
+const realTeakConvex = await import("@teak/convex");
+const realConvexReact = await import("convex/react");
+const realCardUi = await import("@teak/ui/components/ui/card");
+
 mock.module("@teak/ui/components/ui/button", () => ({
   Button: ({ children, type, onClick, disabled, variant, size }: any) =>
     React.createElement(
@@ -43,6 +50,7 @@ mock.module("@teak/ui/text-editor", () => ({
 }));
 
 mock.module("@teak/ui/components/ui/card", () => ({
+  ...realCardUi,
   Card: ({ children, className }: any) =>
     React.createElement("div", { className, "data-card": "" }, children),
   CardContent: ({ children }: any) =>
@@ -61,6 +69,7 @@ mock.module("@teak/ui/components/ui/dialog", () => ({
 }));
 
 mock.module("convex/react", () => ({
+  ...realConvexReact,
   useMutation: () => {
     const mutation = mock().mockResolvedValue({});
     mutation.withOptimisticUpdate = () => mutation;
@@ -102,30 +111,39 @@ mock.module("sonner", () => ({
   },
 }));
 
-mock.module("@teak/convex", () => ({
-  api: {
-    cards: {
-      createCard: {},
-      uploadAndCreateCard: {},
-      finalizeUploadedCard: {},
-      searchCards: {},
-    },
-    auth: {
-      getCurrentUser: {},
-      getCardCreationStatus: {},
-    },
-    dataImport: {
-      getImportFailureSamples: {},
-      getLatestImport: {},
-    },
-    importUpload: {
-      cancelImport: {},
-      completeImportUpload: {},
-      createImportUpload: {},
-      getImportReportUrl: {},
-      resumeImportUpload: {},
-    },
+const addCardApi = {
+  cards: {
+    createCard: {},
+    uploadAndCreateCard: {},
+    finalizeUploadedCard: {},
+    searchCards: {},
   },
+  auth: {
+    getCurrentUser: {},
+    getCardCreationStatus: {},
+  },
+  dataImport: {
+    getImportFailureSamples: {},
+    getLatestImport: {},
+  },
+  importUpload: {
+    cancelImport: {},
+    completeImportUpload: {},
+    createImportUpload: {},
+    getImportReportUrl: {},
+    resumeImportUpload: {},
+  },
+};
+mock.module("@teak/convex", () => ({
+  ...realTeakConvex,
+  // `api` is a path-dynamic proxy that cannot be spread; fall back to the real
+  // proxy for paths this test does not stub.
+  api: new Proxy(addCardApi, {
+    get: (target, prop, receiver) =>
+      typeof prop === "string" && !(prop in target)
+        ? (realTeakConvex.api as any)[prop]
+        : Reflect.get(target, prop, receiver),
+  }),
 }));
 
 mock.module("@teak/convex/shared", () => ({
