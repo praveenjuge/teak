@@ -12,6 +12,7 @@
 
 import { readdirSync, readFileSync, statSync } from "node:fs";
 import { join, relative } from "node:path";
+import { auditDotenv, hasDotenvErrors } from "./dotenv-audit.ts";
 import {
   ENV_CONTRACT,
   ENV_VAR_NAMES,
@@ -518,19 +519,31 @@ const main = (): void => {
     files.set(rel, readFileSync(join(ROOT, rel), "utf-8"));
   }
   const findings = auditFiles(files);
-  if (findings.length === 0) {
-    console.log(
-      `env-audit: ok (${ENV_CONTRACT.length} contract entries, ${files.size} files scanned).`
-    );
-    return;
-  }
   for (const finding of findings) {
     console.log(
       `✗ [${finding.kind}] ${finding.path} ${finding.name}: ${finding.detail}`
     );
   }
-  console.log(`env-audit: ${findings.length} finding(s).`);
-  process.exitCode = 1;
+  // Name-only local dotenv state: errors fail the audit, warnings inform.
+  const dotenvFindings = auditDotenv(ROOT);
+  for (const finding of dotenvFindings) {
+    console.log(
+      `${finding.severity === "error" ? "✗" : "~"} [dotenv:${finding.kind}] ${finding.path} ${finding.name}: ${finding.detail}`
+    );
+  }
+  if (findings.length === 0 && dotenvFindings.length === 0) {
+    console.log(
+      `env-audit: ok (${ENV_CONTRACT.length} contract entries, ${files.size} files scanned).`
+    );
+    return;
+  }
+  const failed = findings.length > 0 || hasDotenvErrors(dotenvFindings);
+  console.log(
+    failed
+      ? `env-audit: ${findings.length + dotenvFindings.length} finding(s).`
+      : `env-audit: warnings only (${ENV_CONTRACT.length} contract entries, ${files.size} files scanned).`
+  );
+  process.exitCode = failed ? 1 : 0;
 };
 
 if (import.meta.main) {

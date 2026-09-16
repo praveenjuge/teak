@@ -15,7 +15,6 @@ import {
   ensureWebEnv,
   isInstallStale,
   isProductionDeployment,
-  parseDotenvValue,
   readConvexDotenvUrls,
   readConvexSelection,
   requiredBunVersion,
@@ -79,17 +78,6 @@ describe("ensureWebEnv", () => {
     expect(content).toContain(
       "NEXT_PUBLIC_CONVEX_SITE_URL=http://127.0.0.1:3211"
     );
-  });
-});
-
-describe("parseDotenvValue", () => {
-  test("reads keys and strips quotes and comments", () => {
-    const content = "# comment\nA=1\nB='two'\nC=\"three\"\nEMPTY=\nNOT_PAIR\n";
-    expect(parseDotenvValue(content, "A")).toBe("1");
-    expect(parseDotenvValue(content, "B")).toBe("two");
-    expect(parseDotenvValue(content, "C")).toBe("three");
-    expect(parseDotenvValue(content, "EMPTY")).toBe("");
-    expect(parseDotenvValue(content, "MISSING")).toBeUndefined();
   });
 });
 

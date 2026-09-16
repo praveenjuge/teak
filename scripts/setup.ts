@@ -28,6 +28,7 @@ import {
 } from "node:fs";
 import { dirname, join } from "node:path";
 import { parseConvexEnvOutput } from "./check-cloudflare.ts";
+import { parseDotenvValue } from "./env-loader.ts";
 import { runCommand } from "./proc.ts";
 
 const ROOT = join(import.meta.dir, "..");
@@ -136,26 +137,6 @@ export const isInstallStale = (root: string): boolean => {
     return true;
   }
   return statSync(lock).mtimeMs > statSync(modules).mtimeMs;
-};
-
-export const parseDotenvValue = (
-  content: string,
-  name: string
-): string | undefined => {
-  for (const line of content.replace(/\r\n/g, "\n").split("\n")) {
-    const trimmed = line.trim();
-    if (!(trimmed && !trimmed.startsWith("#") && trimmed.includes("="))) {
-      continue;
-    }
-    const key = trimmed.slice(0, trimmed.indexOf("=")).trim();
-    if (key !== name) {
-      continue;
-    }
-    return trimmed
-      .slice(trimmed.indexOf("=") + 1)
-      .trim()
-      .replace(/^(['"])(.*)\1$/, "$2");
-  }
 };
 
 export type ConvexSelectionSource = "env" | "dotenv" | "none";
