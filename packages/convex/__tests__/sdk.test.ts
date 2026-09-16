@@ -174,7 +174,7 @@ describe("@teak/convex/sdk", () => {
     ]);
     expect(result).toEqual({
       items: [{ id: "card_1", content: "hello" }],
-      total: 1,
+      pageInfo: { hasMore: false, nextCursor: null },
     });
   });
 
@@ -199,7 +199,10 @@ describe("@teak/convex/sdk", () => {
     expect(seenUrls).toEqual([
       "https://api.example/v1/cards?include=content%2Cmetadata&favorited=true&limit=5",
     ]);
-    expect(result).toEqual({ items: [], total: 0 });
+    expect(result).toEqual({
+      items: [],
+      pageInfo: { hasMore: true, nextCursor: "cursor_1" },
+    });
   });
 
   test("sends explicit raw Markdown without changing bytes", async () => {

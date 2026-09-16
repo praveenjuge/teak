@@ -520,11 +520,11 @@ const count = (payload: JsonObject, field = "items"): number =>
   Array.isArray(payload[field]) ? payload[field].length : 0;
 
 const cardPath = (id: string): string => `/v1/cards/${encodeURIComponent(id)}`;
-// Canonical list transport for the retired search/favorites routes. The list
-// endpoint returns full cards only with content+metadata included, and the
-// transform keeps the legacy {items,total} tool payload unchanged.
-const LEGACY_LIST_INCLUDE = "content,metadata";
-const pageToLegacyCards = (payload: JsonObject): JsonObject => ({
+// Search-style tools query the card list endpoint. The list returns full cards
+// only with content+metadata included, and the transform keeps the stable
+// {items,total} tool payload unchanged.
+const FULL_CARD_INCLUDE = "content,metadata";
+const pageToCardResults = (payload: JsonObject): JsonObject => ({
   items: Array.isArray(payload.items) ? payload.items : [],
   total: count(payload),
 });
@@ -536,11 +536,11 @@ const queryTool = (extraQuery: Record<string, QueryValue>): ToolConfig => ({
     query: queryParams({
       q: input.q,
       limit: input.limit,
-      include: LEGACY_LIST_INCLUDE,
+      include: FULL_CARD_INCLUDE,
       ...extraQuery,
     }),
   }),
-  transform: (payload) => pageToLegacyCards(payload),
+  transform: (payload) => pageToCardResults(payload),
   summary: (payload) => `Fetched ${Number(payload.total) || 0} cards`,
 });
 
@@ -644,7 +644,7 @@ const toolConfigs: Record<string, ToolConfig> = {
     operation: (input) => ({
       method: "GET",
       path: "/v1/cards",
-      query: { q: input.query, limit: 10, include: LEGACY_LIST_INCLUDE },
+      query: { q: input.query, limit: 10, include: FULL_CARD_INCLUDE },
     }),
     transform: (payload) => ({
       results: (Array.isArray(payload.items) ? payload.items : []).map(

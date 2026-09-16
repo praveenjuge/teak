@@ -141,7 +141,7 @@ test("preview OCC harness keeps parallel card operations coherent", async ({
       .poll(
         async () => {
           const response = await apiFetch(
-            `/v1/cards/search?q=${encodeURIComponent(marker)}`,
+            `/v1/cards?q=${encodeURIComponent(marker)}`,
             apiKey
           );
           if (!response.ok) {

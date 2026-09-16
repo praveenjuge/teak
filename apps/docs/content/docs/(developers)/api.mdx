@@ -153,26 +153,22 @@ Bulk operations accept up to 100 items. Cursor-based listing and the card change
 
 See `/openapi.json` or the [API Reference](/reference) for methods, parameters, schemas, and response examples.
 
-## Deprecated search routes
+## Search and favorites
 
-`GET /v1/cards/search` and `GET /v1/cards/favorites` are deprecated and return
-`Deprecation`, `Link`, and `Warning` headers pointing at the replacement. Both
-routes still work, and no removal date is set yet.
-
-Use `GET /v1/cards` instead. It supports the same `q`, `type`, `tag`, `sort`,
-`createdAfter`, `createdBefore`, `limit`, and `cursor` parameters, plus
-`favorited` and `include`:
+Search and favorites are filtered card listings. `GET /v1/cards` supports
+`q`, `type`, `tag`, `sort`, `createdAfter`, `createdBefore`, `limit`,
+`cursor`, `favorited`, and `include`:
 
 - Search: `GET /v1/cards?q=design&include=content,metadata`
 - Favorites: `GET /v1/cards?favorited=true&include=content,metadata`
 
-The `include=content,metadata` pair returns the same full-card fields the
-deprecated routes return. The list response is paginated (`items` plus
-`pageInfo`) instead of returning a `total` count.
+The `include=content,metadata` pair returns full-card fields. The list
+response is paginated (`items` plus `pageInfo`).
 
-The CLI, SDK, MCP tools, and the Raycast extension switch to the list
-endpoint for search and favorites with the upcoming Teak 1.0.70 release, so
-upgrading once it ships is the migration for most integrations.
+The dedicated `GET /v1/cards/search` and `GET /v1/cards/favorites` routes were
+removed in Teak 1.0.70 and now return `404`. The CLI, SDK, MCP tools, and the
+Raycast extension use the list endpoint since 1.0.70, so upgrading is the
+migration for most integrations.
 
 Image card responses include intentionally different URLs: `thumbnailUrl`
 is the optimized grid rendition, `compactUrl` is a smaller rendition for

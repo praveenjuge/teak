@@ -7,9 +7,7 @@ import {
   cardByIdV1,
   changesCardsV1,
   createCardV1,
-  favoriteCardsV1,
-  searchCardsV1,
-
+  listCardsV1,
 } from "../publicApiHttp";
 import {
   buildAuthorizedMutationMock,
@@ -56,16 +54,15 @@ describe("publicApiHttp auth and validation", () => {
   test("static card routes authorize with the bearer API key", async () => {
     const cases = [
       {
-        handler: searchCardsV1,
+        handler: listCardsV1,
         method: "GET",
-        path: "/v1/cards/search",
-        query: mock().mockResolvedValue([]),
-      },
-      {
-        handler: favoriteCardsV1,
-        method: "GET",
-        path: "/v1/cards/favorites",
-        query: mock().mockResolvedValue([]),
+        path: "/v1/cards",
+        query: mock().mockResolvedValue({
+          itemCursors: [],
+          items: [],
+          nextCursor: null,
+          scannedRows: 0,
+        }),
       },
       {
         body: {
@@ -177,7 +174,7 @@ describe("publicApiHttp auth and validation", () => {
     expect(payload.code).toBe("INVALID_API_KEY");
   });
 
-  test("searchCardsV1 authorizes a valid OAuth access token", async () => {
+  test("listCardsV1 authorizes a valid OAuth access token", async () => {
     // 32-char alphabetic token -> OAuth-shaped, not API-key-shaped.
     const token = "a".repeat(32);
     const runMutation = mock()
@@ -189,12 +186,17 @@ describe("publicApiHttp auth and validation", () => {
         userId: "user_1",
       })
       .mockResolvedValueOnce({ ok: true, retryAt: undefined });
-    const runQuery = mock().mockResolvedValue([]);
+    const runQuery = mock().mockResolvedValue({
+      itemCursors: [],
+      items: [],
+      nextCursor: null,
+      scannedRows: 0,
+    });
 
     const response = await runHandler(
-      searchCardsV1,
+      listCardsV1,
       { runMutation, runQuery },
-      new Request("https://example.com/v1/cards/search?limit=10", {
+      new Request("https://example.com/v1/cards?limit=10", {
         method: "GET",
         headers: { Authorization: `Bearer ${token}` },
       })

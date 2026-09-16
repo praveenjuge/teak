@@ -6,9 +6,8 @@ import {
   bulkCardsV1,
   cardByIdV1,
   changesCardsV1,
-  favoriteCardsV1,
+  executePublicApiOperation,
   listCardsV1,
-  searchCardsV1,
   tagsV1,
 } from "../publicApiHttp";
 import {
@@ -18,71 +17,28 @@ import {
 } from "./helpers/publicApiHttp.test-utils";
 
 describe("publicApiHttp card endpoints", () => {
-  test("searchCardsV1 returns items and total", async () => {
-    const runMutation = buildAuthorizedMutationMock();
-    const runQuery = mock().mockResolvedValue([]);
+  test("removed search and favorites routes no longer serve card queries", async () => {
+    const token = `teakapi_secret_live_a1b2c3d4_${"f".repeat(64)}`;
 
-    const response = await runHandler(
-      searchCardsV1,
-      { runMutation, runQuery },
-      new Request("https://example.com/v1/cards/search?limit=10", {
-        method: "GET",
-        headers: {
-          Authorization:
-            "Bearer teakapi_secret_live_a1b2c3d4_ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
-        },
-      })
-    );
+    for (const path of ["/v1/cards/search", "/v1/cards/favorites"]) {
+      const response = await executePublicApiOperation(
+        {
+          runMutation: buildAuthorizedMutationMock(),
+          runQuery: mock().mockResolvedValue(null),
+        } as any,
+        {
+          method: "GET",
+          path,
+          query: { limit: 10 },
+          headers: { Authorization: `Bearer ${token}` },
+        }
+      );
 
-    expect(response.status).toBe(200);
-    expect(await response.json()).toEqual({ items: [], total: 0 });
-    expect(response.headers.get("Deprecation")).toBe("true");
-    expect(response.headers.get("Link")).toContain("/v1/cards");
-    expect(runMutation).toHaveBeenCalledWith(
-      expect.anything(),
-      expect.objectContaining({ endpoint: "/v1/cards/search" })
-    );
-  });
-
-  test("searchCardsV1 clamps invalid limit values", async () => {
-    const runMutation = buildAuthorizedMutationMock();
-    const runQuery = mock().mockResolvedValue([]);
-
-    const response = await runHandler(
-      searchCardsV1,
-      { runMutation, runQuery },
-      new Request("https://example.com/v1/cards/search?limit=999", {
-        method: "GET",
-        headers: {
-          Authorization:
-            "Bearer teakapi_secret_live_a1b2c3d4_ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
-        },
-      })
-    );
-
-    expect(response.status).toBe(200);
-    expect(runQuery).toHaveBeenCalledTimes(1);
-    expect(runQuery.mock.calls[0][1].limit).toBe(100);
-  });
-
-  test("searchCardsV1 falls back to the default limit for partial numerics", async () => {
-    const runMutation = buildAuthorizedMutationMock();
-    const runQuery = mock().mockResolvedValue([]);
-
-    const response = await runHandler(
-      searchCardsV1,
-      { runMutation, runQuery },
-      new Request("https://example.com/v1/cards/search?limit=10junk", {
-        method: "GET",
-        headers: {
-          Authorization:
-            "Bearer teakapi_secret_live_a1b2c3d4_ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
-        },
-      })
-    );
-
-    expect(response.status).toBe(200);
-    expect(runQuery.mock.calls[0][1].limit).toBe(50);
+      // The paths now fall through to the card-by-id handler, where the
+      // trailing segment reads as an unknown card id.
+      expect(response.status).toBe(404);
+      expect(await response.json()).toMatchObject({ code: "NOT_FOUND" });
+    }
   });
 
   test("listCardsV1 rejects partial numeric createdAfter values", async () => {
@@ -103,40 +59,6 @@ describe("publicApiHttp card endpoints", () => {
     expect(response.status).toBe(400);
     const payload = await response.json();
     expect(payload.code).toBe("INVALID_INPUT");
-  });
-
-  test("favoriteCardsV1 returns items and total", async () => {
-    const runMutation = buildAuthorizedMutationMock();
-    const runQuery = mock().mockResolvedValue([]);
-
-    const response = await runHandler(
-      favoriteCardsV1,
-      { runMutation, runQuery },
-      new Request("https://example.com/v1/cards/favorites?limit=10", {
-        method: "GET",
-        headers: {
-          Authorization:
-            "Bearer teakapi_secret_live_a1b2c3d4_ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
-        },
-      })
-    );
-
-    expect(response.status).toBe(200);
-    expect(await response.json()).toEqual({ items: [], total: 0 });
-  });
-
-  test("favoriteCardsV1 returns 405 for non-GET methods", async () => {
-    const response = await runHandler(
-      favoriteCardsV1,
-      { runMutation: mock(), runQuery: mock() },
-      new Request("https://example.com/v1/cards/favorites", {
-        method: "POST",
-      })
-    );
-
-    expect(response.status).toBe(405);
-    const payload = await response.json();
-    expect(payload.code).toBe("METHOD_NOT_ALLOWED");
   });
 
   test("listCardsV1 returns paginated items with requested includes", async () => {

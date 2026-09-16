@@ -292,7 +292,7 @@ toolbar ~~strike~~`;
   await expect(page.getByRole("dialog")).toBeVisible();
   await page.keyboard.press("Escape");
   const searchResponse = await apiFetch(
-    `/v1/cards/search?q=${encodeURIComponent(marker)}`,
+    `/v1/cards?include=content&q=${encodeURIComponent(marker)}`,
     apiKey
   );
   const searchPayload = (await searchResponse.json()) as {
@@ -614,7 +614,7 @@ test("settings import and export surface terminal states", async ({ page }) => {
     .poll(
       async () => {
         const response = await apiFetch(
-          `/v1/cards/search?q=${encodeURIComponent(`${marker}-legacy`)}`,
+          `/v1/cards?include=content,metadata&q=${encodeURIComponent(`${marker}-legacy`)}`,
           apiKey
         );
         const payload = (await response.json()) as {
@@ -674,7 +674,7 @@ test("settings import and export surface terminal states", async ({ page }) => {
     .poll(
       async () => {
         const response = await apiFetch(
-          `/v1/cards/search?q=${encodeURIComponent(`${marker}-legacy`)}`,
+          `/v1/cards?include=content,metadata&q=${encodeURIComponent(`${marker}-legacy`)}`,
           apiKey
         );
         const payload = (await response.json()) as {

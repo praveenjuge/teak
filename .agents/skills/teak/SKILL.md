@@ -98,8 +98,6 @@ GET    /v1
 GET    /v1/cards
 POST   /v1/cards
 POST   /v1/uploads
-GET    /v1/cards/search
-GET    /v1/cards/favorites
 GET    /v1/cards/:cardId
 PATCH  /v1/cards/:cardId
 DELETE /v1/cards/:cardId

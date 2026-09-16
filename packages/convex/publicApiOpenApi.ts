@@ -266,14 +266,6 @@ const components = {
       required: ["items", "pageInfo"],
       type: "object",
     },
-    LegacyCardsResponse: {
-      properties: {
-        items: { items: { $ref: "#/components/schemas/Card" }, type: "array" },
-        total: { type: "number" },
-      },
-      required: ["items", "total"],
-      type: "object",
-    },
     CardChangesResponse: {
       properties: {
         deletedIds: { items: { type: "string" }, type: "array" },
@@ -577,80 +569,6 @@ export const openApiSpec = {
           401: { description: "Invalid or revoked credentials" },
           429: { description: "Rate limit exceeded" },
         },
-      },
-    },
-    "/v1/cards/search": {
-      get: {
-        deprecated: true,
-        description:
-          "Deprecated: use GET /v1/cards with q and include=content,metadata instead.",
-        parameters: [
-          { in: "query", name: "q", schema: { type: "string" } },
-          { in: "query", name: "limit", schema: { type: "integer" } },
-          {
-            in: "query",
-            name: "type",
-            schema: { enum: CARD_TYPES, type: "string" },
-          },
-          { in: "query", name: "tag", schema: { type: "string" } },
-          {
-            in: "query",
-            name: "sort",
-            schema: { enum: CARD_SORTS, type: "string" },
-          },
-          { in: "query", name: "favorited", schema: { type: "boolean" } },
-          { in: "query", name: "createdAfter", schema: { type: "number" } },
-          { in: "query", name: "createdBefore", schema: { type: "number" } },
-        ],
-        responses: {
-          200: {
-            content: {
-              "application/json": {
-                schema: { $ref: "#/components/schemas/LegacyCardsResponse" },
-              },
-            },
-            description: "Legacy search response",
-          },
-        },
-        security: apiKeySecurity,
-        summary: "Search cards",
-      },
-    },
-    "/v1/cards/favorites": {
-      get: {
-        deprecated: true,
-        description:
-          "Deprecated: use GET /v1/cards with favorited=true and include=content,metadata instead.",
-        parameters: [
-          { in: "query", name: "q", schema: { type: "string" } },
-          { in: "query", name: "limit", schema: { type: "integer" } },
-          {
-            in: "query",
-            name: "type",
-            schema: { enum: CARD_TYPES, type: "string" },
-          },
-          { in: "query", name: "tag", schema: { type: "string" } },
-          {
-            in: "query",
-            name: "sort",
-            schema: { enum: CARD_SORTS, type: "string" },
-          },
-          { in: "query", name: "favorited", schema: { type: "boolean" } },
-          { in: "query", name: "createdAfter", schema: { type: "number" } },
-          { in: "query", name: "createdBefore", schema: { type: "number" } },
-        ],
-        responses: {
-          200: {
-            content: {
-              "application/json": {
-                schema: { $ref: "#/components/schemas/LegacyCardsResponse" },
-              },
-            },
-            description: "Legacy favorites response",
-          },
-        },
-        security: apiKeySecurity,
-        summary: "List favorite cards",
       },
     },
     "/v1/cards/{cardId}": {
