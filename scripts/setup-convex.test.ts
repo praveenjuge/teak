@@ -80,6 +80,14 @@ describe("isTransientPushFailure", () => {
     ).toBe(false);
     expect(isTransientPushFailure("")).toBe(false);
   });
+
+  test("rejects deterministic database errors naming the backend file", () => {
+    expect(
+      isTransientPushFailure(
+        "Error: convex_local_backend.sqlite3 database disk image is malformed"
+      )
+    ).toBe(false);
+  });
 });
 
 describe("convexDevOnce retry", () => {
@@ -88,7 +96,13 @@ describe("convexDevOnce retry", () => {
   const SITE_URL_STDERR =
     "Failed to analyze auth.js: Uncaught Error: SITE_URL environment variable is required.";
 
-  const makeRunner = (script: Array<{ exitCode: number; stderr: string }>) => {
+  interface ScriptedResult {
+    exitCode: number;
+    stderr: string;
+    stdout?: string;
+  }
+
+  const makeRunner = (script: ScriptedResult[]) => {
     const calls: string[][] = [];
     const run = (command: string[]): Promise<RunCommandResult> => {
       calls.push(command);
@@ -97,7 +111,7 @@ describe("convexDevOnce retry", () => {
         exitCode: next.exitCode,
         pid: 1,
         stderr: next.stderr,
-        stdout: "",
+        stdout: next.stdout ?? "",
         timedOut: false,
       });
     };
@@ -165,5 +179,37 @@ describe("convexDevOnce retry", () => {
     });
     expect(result.ok).toBe(false);
     expect(calls).toHaveLength(1);
+  });
+
+  test("falls back to the default attempts for nonfinite values", async () => {
+    for (const attempts of [Number.NaN, Number.POSITIVE_INFINITY]) {
+      const { calls, run } = makeRunner([
+        { exitCode: 1, stderr: JOURNAL_STDERR },
+      ]);
+      const result = await convexDevOnce("/tmp/teak-convex", {
+        attempts,
+        run,
+        sleepMs: () => Promise.resolve(),
+      });
+      expect(result.ok).toBe(false);
+      expect(calls).toHaveLength(3);
+    }
+  });
+
+  test("preserves transient diagnostics that appear only in stdout", async () => {
+    const { calls, run } = makeRunner([
+      {
+        exitCode: 1,
+        stderr: "",
+        stdout: "Error: SQLITE_BUSY: database is locked",
+      },
+    ]);
+    const result = await convexDevOnce("/tmp/teak-convex", {
+      run,
+      sleepMs: () => Promise.resolve(),
+    });
+    expect(result.ok).toBe(false);
+    expect(result.detail).toContain("SQLITE_BUSY");
+    expect(calls).toHaveLength(3);
   });
 });

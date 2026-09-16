@@ -92,10 +92,11 @@ const convexEnvSet = async (
  * down uncleanly (e.g. the provision push that fails on missing SITE_URL by
  * design), the next run can stat a journal file that vanished mid-startup:
  * ENOENT on convex_local_backend.sqlite3-journal. Retrying starts a fresh
- * backend. Deterministic failures (missing env vars, type errors) never match.
+ * backend. The SQLite alternative requires that ENOENT journal signature so
+ * deterministic database errors fail fast instead of retrying.
  */
 const TRANSIENT_PUSH_FAILURE =
-  /convex_local_backend\.sqlite3|SQLITE_BUSY|ECONNREFUSED.*127\.0\.0\.1:3210/i;
+  /ENOENT[^\n]*convex_local_backend\.sqlite3-journal|SQLITE_BUSY|ECONNREFUSED[^\n]*127\.0\.0\.1:3210/i;
 
 export const isTransientPushFailure = (output: string): boolean =>
   TRANSIENT_PUSH_FAILURE.test(output);
@@ -126,7 +127,10 @@ export const convexDevOnce = async (
   cwd: string = convexProjectDir(),
   opts?: ConvexDevOnceOptions
 ): Promise<{ ok: boolean; detail: string }> => {
-  const attempts = Math.max(1, Math.floor(opts?.attempts ?? 3));
+  const requestedAttempts = opts?.attempts ?? 3;
+  const attempts = Number.isFinite(requestedAttempts)
+    ? Math.max(1, Math.floor(requestedAttempts))
+    : 3;
   const run = opts?.run ?? runCommand;
   const sleepMs = opts?.sleepMs ?? Bun.sleep;
   let detail = "unknown error";
@@ -138,10 +142,9 @@ export const convexDevOnce = async (
     if (result.exitCode === 0) {
       return { detail: "pushed", ok: true };
     }
-    detail = summarizePushFailure(result.stderr);
-    const transient = isTransientPushFailure(
-      `${result.stderr}\n${result.stdout}`
-    );
+    const output = `${result.stderr}\n${result.stdout}`;
+    detail = summarizePushFailure(output);
+    const transient = isTransientPushFailure(output);
     if (!(transient && attempt < attempts)) {
       break;
     }
