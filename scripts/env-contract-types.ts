@@ -47,8 +47,21 @@ export type EnvProvider =
   | "sdk-implicit"
   | "component-implicit";
 
+export type EnvClassification =
+  | "secret"
+  | "public-config"
+  | "generated"
+  | "build-metadata"
+  | "platform-binding";
+
+export type EnvExposure = "server" | "public";
+
 export interface EnvVarSpec {
   allowedValues?: string[];
+  /** Explicit classification; otherwise derived by ./env-classify.ts. */
+  classification?: EnvClassification;
+  /** Canonical fact or source this value is generated from. */
+  derivedFrom?: string;
   /** Read by an SDK or Convex component without a direct code reference. */
   implicit?: boolean;
   kind?: "env" | "binding";

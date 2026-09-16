@@ -13,6 +13,7 @@
 import { readdirSync, readFileSync, statSync } from "node:fs";
 import { join, relative } from "node:path";
 import { auditDotenv, hasDotenvErrors } from "./dotenv-audit.ts";
+import { isFrameworkAlias } from "./env-aliases.ts";
 import {
   ENV_CONTRACT,
   ENV_VAR_NAMES,
@@ -30,10 +31,38 @@ export interface AuditFinding {
     | "stale"
     | "secret-in-diagnostics"
     | "deleted-alias"
-    | "turbo-wildcard";
+    | "turbo-wildcard"
+    | "direct-alias-read";
   name: string;
   path: string;
 }
+
+/**
+ * Application code reads generated framework aliases only through one
+ * accessor per workspace. Tests, scripts, and the E2E harness are exempt:
+ * they set up or inject values rather than consume them at runtime.
+ */
+const ALIAS_ACCESSOR_FILES = new Set([
+  "apps/web/src/lib/public-env.ts",
+  "apps/desktop/src/lib/desktop-config.ts",
+  "apps/extension/lib/env.ts",
+  "apps/mobile/lib/public-env.ts",
+]);
+
+export const isAliasAccessorPath = (path: string): boolean => {
+  if (ALIAS_ACCESSOR_FILES.has(path) || path.startsWith("scripts/")) {
+    return true;
+  }
+  if (path.startsWith("packages/tests/")) {
+    return true;
+  }
+  return (
+    path.includes("__tests__") ||
+    path.includes("/tests/") ||
+    path.includes(".test.") ||
+    path.includes(".e2e.")
+  );
+};
 
 const SCAN_EXTENSIONS = new Set([
   ".ts",
@@ -485,6 +514,14 @@ export const auditFiles = (files: Map<string, string>): AuditFinding[] => {
           name: use.name,
           path: `${path}:${use.line}`,
           detail: "env read is not in the contract",
+        });
+      } else if (isFrameworkAlias(use.name) && !isAliasAccessorPath(path)) {
+        findings.push({
+          kind: "direct-alias-read",
+          name: use.name,
+          path: `${path}:${use.line}`,
+          detail:
+            "generated alias is read outside its workspace accessor; use the accessor instead",
         });
       }
     }

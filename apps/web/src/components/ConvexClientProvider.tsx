@@ -4,13 +4,9 @@ import { ConvexBetterAuthProvider } from "@convex-dev/better-auth/react";
 import { ConvexReactClient } from "convex/react";
 import type { ReactNode } from "react";
 import { convexAuthClient } from "@/lib/auth-client";
+import { getConvexUrl } from "@/lib/public-env";
 
-const convexUrl = process.env.NEXT_PUBLIC_CONVEX_URL;
-if (!convexUrl) {
-  throw new Error(
-    "Missing NEXT_PUBLIC_CONVEX_URL environment variable (run: bun run setup, expected http://127.0.0.1:3210 locally)"
-  );
-}
+const convexUrl = getConvexUrl();
 
 const convex = new ConvexReactClient(convexUrl, {
   expectAuth: true,

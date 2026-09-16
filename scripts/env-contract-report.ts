@@ -12,7 +12,13 @@
 
 import { isFrameworkAlias } from "./env-aliases.ts";
 import { ENV_CONTRACT } from "./env-contract.ts";
-import type { EnvVarSpec } from "./env-contract-types.ts";
+import type {
+  EnvTarget,
+  EnvValidation,
+  EnvVarSpec,
+} from "./env-contract-types.ts";
+import { loadTargetEnv } from "./env-loader.ts";
+import { isSupportedTarget, type SupportedTarget } from "./env-targets.ts";
 
 export const CONTRACT_REPORT_VERSION = 1;
 
@@ -74,6 +80,101 @@ export const buildContractReport = (
   };
 };
 
+export interface MissingEntry {
+  example: string;
+  name: string;
+  providers: string[];
+  reason: string;
+}
+
+/** Placeholder examples by validation shape. Never real values. */
+export const exampleForValidation = (
+  validation: EnvValidation,
+  allowedValues?: string[]
+): string => {
+  switch (validation) {
+    case "url":
+      return "https://example.com";
+    case "origin":
+      return "https://example.com";
+    case "email":
+      return "you@example.com";
+    case "number":
+      return "1234";
+    case "boolean":
+      return "true";
+    case "enum":
+      return allowedValues?.[0] ?? "value";
+    case "sha":
+      return "<40-char-hex-sha>";
+    case "path":
+      return "/absolute/path";
+    default:
+      return "<value>";
+  }
+};
+
+const toContractTarget = (target: SupportedTarget): EnvTarget => {
+  if (target === "mobile-simulator" || target === "mobile-device") {
+    return "mobile";
+  }
+  return target;
+};
+
+/** Required names for a combo that are absent from `present`. */
+export const missingEntries = (
+  target: SupportedTarget,
+  profile: string,
+  present: Set<string>,
+  entries: EnvVarSpec[] = ENV_CONTRACT
+): MissingEntry[] => {
+  const contractTarget = toContractTarget(target);
+  return entries
+    .filter(
+      (entry) =>
+        entry.targets.includes(contractTarget) &&
+        (entry.requiredIn ?? []).includes(
+          profile as (typeof entry.profiles)[number]
+        ) &&
+        !present.has(entry.name)
+    )
+    .map((entry) => ({
+      name: entry.name,
+      example: `${entry.name}=${exampleForValidation(entry.validation, entry.allowedValues)}`,
+      providers: [...entry.providers],
+      reason: entry.derivedFrom
+        ? `generated from ${entry.derivedFrom}; run setup`
+        : `required ${contractTarget}/${profile} input`,
+    }))
+    .sort((a, b) => a.name.localeCompare(b.name));
+};
+
+export interface MissingReport {
+  missing: MissingEntry[];
+  profile: string;
+  target: SupportedTarget;
+  version: number;
+}
+
+export const buildMissingReport = (
+  target: SupportedTarget,
+  profile: string,
+  present?: Set<string>
+): MissingReport => {
+  const names =
+    present ??
+    new Set([
+      ...loadTargetEnv(target, profile as "local").values.keys(),
+      ...Object.keys(process.env),
+    ]);
+  return {
+    version: CONTRACT_REPORT_VERSION,
+    target,
+    profile,
+    missing: missingEntries(target, profile, names),
+  };
+};
+
 const main = (): void => {
   const args = process.argv.slice(2);
   const target = args.includes("--target")
@@ -82,6 +183,36 @@ const main = (): void => {
   const profile = args.includes("--profile")
     ? args[args.indexOf("--profile") + 1]
     : undefined;
+  if (args.includes("--missing")) {
+    if (!(target && isSupportedTarget(target))) {
+      console.error(
+        "usage: bun run scripts/env-contract-report.ts --missing --target <target> --profile <profile> [--json]"
+      );
+      process.exitCode = 1;
+      return;
+    }
+    const report = buildMissingReport(target, profile ?? "local");
+    if (args.includes("--json")) {
+      console.log(JSON.stringify(report, null, 2));
+      return;
+    }
+    if (report.missing.length === 0) {
+      console.log(
+        `contract: no missing required names for ${target}/${profile ?? "local"}.`
+      );
+      return;
+    }
+    console.log(
+      [
+        `contract: ${report.missing.length} missing required name(s) for ${target}/${profile ?? "local"}:`,
+        ...report.missing.map(
+          (entry) =>
+            `  ${entry.example}  # ${entry.reason} (provide via ${entry.providers.join(", ")})`
+        ),
+      ].join("\n")
+    );
+    return;
+  }
   const report = buildContractReport();
   if (target ?? profile) {
     report.byTargetProfile = report.byTargetProfile.filter(

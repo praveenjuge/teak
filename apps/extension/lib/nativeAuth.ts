@@ -1,4 +1,5 @@
 import { resolveTeakDevAppUrl } from "@teak/convex/dev-urls";
+import { getConvexSiteUrl } from "./env";
 
 // Browser-login device-poll flow shared by the popup, background, and the
 // completion-page content script. The extension no longer reads the web app's
@@ -38,13 +39,6 @@ export type PollOutcome = "authenticated" | "pending" | "error" | "no-pending";
 // between (a cross-scheme http->https redirect would strip the `Authorization:
 // Bearer` header, so bearer-authenticated calls would silently lose auth),
 // matching how the desktop and Safari clients call these endpoints.
-export const getConvexSiteUrl = (): string => {
-  const url = import.meta.env.VITE_PUBLIC_CONVEX_SITE_URL;
-  if (!url) {
-    throw new Error("Missing VITE_PUBLIC_CONVEX_SITE_URL in extension runtime");
-  }
-  return url;
-};
 
 // ── PKCE helpers (S256, base64url) ──────────────────────────────────────────
 

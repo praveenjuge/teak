@@ -1,4 +1,5 @@
 import { resolveTeakDevAppUrl } from "@teak/convex/dev-urls";
+import { getConvexSiteUrl } from "./env";
 
 // Background-worker only. Never import this module from popup/content scripts.
 const IS_FIREFOX = import.meta.env.BROWSER === "firefox";
@@ -15,14 +16,6 @@ interface Credentials {
 let ready: Promise<void> | undefined;
 let login: Promise<void> | undefined;
 let generation = 0;
-
-export function getConvexSiteUrl() {
-  const url = import.meta.env.VITE_PUBLIC_CONVEX_SITE_URL;
-  if (!url) {
-    throw new Error("Missing VITE_PUBLIC_CONVEX_SITE_URL");
-  }
-  return url;
-}
 
 export function initializeAuth() {
   ready ??= (

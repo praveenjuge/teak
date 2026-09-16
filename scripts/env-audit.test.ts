@@ -201,6 +201,58 @@ describe("env-audit auditFiles", () => {
       )
     ).toBe(false);
   });
+
+  test("direct alias reads fail outside accessors", () => {
+    const findings = auditFiles(
+      new Map([
+        [
+          "apps/web/src/a.ts",
+          "const url = process.env.NEXT_PUBLIC_CONVEX_URL;\n",
+        ],
+      ])
+    );
+    expect(
+      findings.some(
+        (finding) =>
+          finding.kind === "direct-alias-read" &&
+          finding.name === "NEXT_PUBLIC_CONVEX_URL"
+      )
+    ).toBe(true);
+  });
+
+  test("accessors, tests, and the e2e harness may touch aliases", () => {
+    const findings = auditFiles(
+      new Map([
+        [
+          "apps/web/src/lib/public-env.ts",
+          "const url = process.env.NEXT_PUBLIC_CONVEX_URL;\n",
+        ],
+        [
+          "apps/mobile/lib/public-env.ts",
+          "const url = process.env.EXPO_PUBLIC_CONVEX_URL;\n",
+        ],
+        [
+          "apps/extension/lib/env.ts",
+          "const url = import.meta.env.VITE_PUBLIC_CONVEX_SITE_URL;\n",
+        ],
+        [
+          "apps/desktop/src/lib/desktop-config.ts",
+          "const url = import.meta.env.VITE_PUBLIC_CONVEX_URL;\n",
+        ],
+        [
+          "apps/web/src/tests/setup.ts",
+          "const url = process.env.NEXT_PUBLIC_CONVEX_URL;\n",
+        ],
+        [
+          "packages/tests/src/harness.ts",
+          "const url = process.env.NEXT_PUBLIC_CONVEX_URL;\n",
+        ],
+      ])
+    );
+    expect(
+      findings.filter((finding) => finding.kind === "direct-alias-read")
+    ).toHaveLength(0);
+  });
 });
 
 describe("turbo env scoping", () => {
@@ -230,6 +282,16 @@ describe("turbo env scoping", () => {
     for (const name of ["test", "test:unit", "test:edge"]) {
       expect(config.tasks?.[name]?.env).toEqual(["SITE_URL"]);
     }
+  });
+
+  test("web build inputs exclude e2e scope; test:e2e owns it", () => {
+    const config = load("apps/web/turbo.json");
+    const buildInputs = config.tasks?.build?.inputs ?? [];
+    expect(buildInputs).toContain(".env.local");
+    expect(buildInputs.filter((input) => input.includes("e2e"))).toEqual([]);
+    expect(config.tasks?.["test:e2e"]?.inputs ?? []).toContain(
+      ".env.e2e.local"
+    );
   });
 
   test("no turbo config declares wildcards", () => {

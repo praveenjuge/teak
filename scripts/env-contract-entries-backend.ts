@@ -30,6 +30,30 @@ export const BACKEND_ENTRIES: EnvVarSpec[] = [
     required: false,
     note: "Public origin for self-hosted /api and /mcp. Optional locally; required when self-hosting public endpoints.",
   }),
+  // Canonical deployment facts. Framework aliases derive from these via
+  // scripts/env-aliases.ts; nothing reads the canonical names directly.
+  spec("CONVEX_URL", {
+    owners: ["@teak/convex"],
+    targets: ["convex"],
+    profiles: ["local", "preview", "production"],
+    secret: false,
+    validation: "url",
+    providers: ["convex-dashboard"],
+    required: false,
+    implicit: true,
+    note: "Canonical deployment API URL. Local values come from convex dev; setup expands it into NEXT/VITE/EXPO_PUBLIC_CONVEX_URL.",
+  }),
+  spec("CONVEX_SITE_URL", {
+    owners: ["@teak/convex"],
+    targets: ["convex"],
+    profiles: ["local", "preview", "production"],
+    secret: false,
+    validation: "url",
+    providers: ["convex-dashboard"],
+    required: false,
+    implicit: true,
+    note: "Canonical deployment HTTP-actions URL. Setup expands it into the NEXT/VITE/EXPO_PUBLIC_CONVEX_SITE_URL aliases.",
+  }),
   spec("JWKS", {
     owners: ["@teak/convex"],
     targets: ["convex"],
