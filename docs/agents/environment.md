@@ -63,6 +63,27 @@ rewrites a developer's dotenv files.
 Classification is derived from contract metadata (see
 `scripts/env-classify.ts`) so it cannot drift from the declared fields.
 
+## Runtime versions: exact pin, patch drift warns
+
+Bun (`packageManager`) and Node (`engines.node`, mirrored in `.nvmrc`) follow
+one policy: the pinned version is exact, patch drift warns, and minor/major
+drift fails. Setup and doctor enforce it locally; CI enforces the same pins
+via `bun-version-file: package.json` and `node-version-file: .nvmrc` on the
+setup actions, so local and CI never disagree about the toolchain.
+
+Convex Node actions execute under the system Node runtime, which is why Node
+is pinned alongside Bun. Bun's `process.version` reports compatibility, not
+the toolchain, so the version probes shell out to `node --version`.
+
+## Local backends and worktree concurrency
+
+Convex local deployments bind fixed ports (3210/3211) with no supported way
+to move them, so two checkouts cannot both run a local backend. The main
+checkout uses the fixed ports; linked worktrees get deterministic web/docs
+ports plus a namespace from `scripts/worktree-env.ts`, and select an isolated
+cloud development deployment instead of local. Setup refuses a namespaced
+local selection when the fixed ports are occupied, with a remediation.
+
 ## Stable values live in code, not configuration
 
 Values that do not vary by deployment are typed code with an environment

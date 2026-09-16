@@ -44,6 +44,8 @@ jobs:
     steps:
       - uses: actions/checkout@v6
       - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version-file: package.json
       - run: bun packages/tests/src/scripts/preflight.ts
       - run: curl -fsS "$E2E_APP_ORIGIN/login" >/dev/null
       - run: bash scripts/smoke-urls.sh
@@ -56,6 +58,8 @@ jobs:
     steps:
       - uses: actions/checkout@v6
       - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version-file: package.json
       - run: bun install --frozen-lockfile --filter @teak/tests --filter teak-cli --filter @teak/convex
       - run: bun run --cwd apps/cli build
       - run: npm install --prefix "$RUNNER_TEMP/teak-npm" teak-cli@latest
@@ -80,6 +84,8 @@ jobs:
     steps:
       - uses: actions/checkout@v6
       - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version-file: package.json
       - run: bun install --frozen-lockfile --filter @teak/tests
       - run: bunx playwright install --with-deps --only-shell chromium
       - run: bun run --cwd packages/tests e2e:prod:docs
@@ -100,6 +106,8 @@ jobs:
     steps:
       - uses: actions/checkout@v6
       - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version-file: package.json
       - run: bun install --frozen-lockfile --filter @teak/tests
       - run: bunx playwright install --with-deps --only-shell chromium
       - run: bunx playwright install --with-deps firefox webkit
@@ -121,6 +129,8 @@ jobs:
     steps:
       - uses: actions/checkout@v6
       - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version-file: package.json
       - run: bun install --frozen-lockfile --filter @teak/tests --filter @teak/extension --filter @teak/convex
       - run: bun run --cwd apps/extension build
         env:
@@ -145,6 +155,8 @@ jobs:
     steps:
       - uses: actions/checkout@v6
       - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version-file: package.json
       - run: bun install --frozen-lockfile --filter @teak/tests
       - run: bun packages/tests/src/scripts/sweep.ts
 
