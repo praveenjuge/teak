@@ -30,11 +30,8 @@ env:
   PROD_E2E_PASSWORD: ${{ secrets.PROD_E2E_PASSWORD }}
   E2E_CLEANUP_TOKEN: ${{ secrets.E2E_CLEANUP_TOKEN }}
   E2E_EMAIL_DELIVERY_ENABLED: ${{ github.event_name == 'schedule' && 'true' || 'false' }}
-  # Non-credential origins: prefer GitHub variables, fall back to the legacy
-  # secrets until MAILPIT_URL/E2E_EMAIL_DOMAIN variables are created with the
-  # same values. Then delete the secrets.
-  MAILPIT_URL: ${{ vars.MAILPIT_URL || secrets.MAILPIT_URL }}
-  E2E_EMAIL_DOMAIN: ${{ vars.E2E_EMAIL_DOMAIN || secrets.E2E_EMAIL_DOMAIN }}
+  MAILPIT_URL: ${{ secrets.MAILPIT_URL }}
+  E2E_EMAIL_DOMAIN: ${{ secrets.E2E_EMAIL_DOMAIN }}
   # Public deployment URLs: prefer GitHub variables, fall back to the legacy
   # secrets until VITE_PUBLIC_CONVEX_URL/SITE_URL variables are created
   # (same values as the checked release constants). Then delete the secrets.
