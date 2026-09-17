@@ -28,7 +28,7 @@ import {
   Video,
   Volume2,
 } from "lucide-react";
-import type { ReactNode } from "react";
+import type { FormEvent, ReactNode } from "react";
 import { useRef, useState } from "react";
 
 export interface SearchBarProps {
@@ -77,6 +77,23 @@ function preventBlur(e: React.MouseEvent) {
   e.preventDefault();
 }
 
+// Declarative WebMCP attributes (draft spec:
+// https://webmachinelearning.github.io/webmcp/). Browsers without WebMCP
+// ignore them. Spread keeps the non-standard attributes past the JSX types.
+// The name must stay distinct from the imperative tools in apps/web: WebMCP
+// rejects duplicate tool names. toolautosubmit lets agent fills submit
+// without a submit button, which this search box has no room for.
+const webMcpSearchAttributes = {
+  toolname: "teak_search_form",
+  tooldescription:
+    "Fill the Teak search box with a keyword query and submit it. Read-only; shows matching cards in the page.",
+  toolautosubmit: "",
+};
+
+const webMcpQueryAttributes = {
+  toolparamdescription: "Keyword query to filter the user's Teak cards.",
+};
+
 export function SearchBar({
   searchQuery,
   onSearchChange,
@@ -121,9 +138,24 @@ export function SearchBar({
     (type) => !filterTags.includes(type)
   );
 
+  const handleSubmit = (e: FormEvent<HTMLFormElement>) => {
+    // Typing already filters live; committing on submit keeps Enter and
+    // declarative WebMCP form fills applying the same search path.
+    e.preventDefault();
+    const query = new FormData(e.currentTarget).get("q");
+    if (typeof query === "string") {
+      onSearchChange(query);
+    }
+  };
+
   return (
     <>
-      <div className="group flex items-center">
+      <form
+        aria-label="Search cards"
+        className="group flex items-center"
+        onSubmit={handleSubmit}
+        {...webMcpSearchAttributes}
+      >
         <div className="flex items-center gap-2">
           <Search className="size-4 text-muted-foreground group-focus-within:stroke-[2.5] group-focus-within:text-primary group-hover:stroke-[2.5] group-hover:text-primary" />
         </div>
@@ -133,6 +165,7 @@ export function SearchBar({
             autoCapitalize="off"
             autoCorrect="off"
             className="h-16 rounded-none border-0 bg-transparent focus-visible:outline-none focus-visible:ring-0 dark:bg-transparent"
+            name="q"
             onBlur={() => setIsFocused(false)}
             onChange={(e) => onSearchChange(e.target.value)}
             onFocus={() => setIsFocused(true)}
@@ -141,6 +174,7 @@ export function SearchBar({
             ref={inputRef}
             type="search"
             value={searchQuery}
+            {...webMcpQueryAttributes}
           />
         </div>
 
@@ -148,7 +182,7 @@ export function SearchBar({
           {HeaderActions}
           {SettingsButton}
         </div>
-      </div>
+      </form>
       {shouldShowFilters && (
         <div className="slide-in-from-top-2 fade-in-0 animate-in pb-5 duration-200">
           <div className="flex flex-wrap gap-2">

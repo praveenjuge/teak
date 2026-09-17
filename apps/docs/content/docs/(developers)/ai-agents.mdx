@@ -48,6 +48,7 @@ you need the full page body without HTML chrome.
 - `https://teakvault.com/docs/api.md` for the REST API contract
 - `https://teakvault.com/reference` for the interactive OpenAPI reference
 - `https://teakvault.com/docs/mcp.md` for MCP setup and tools
+- `https://teakvault.com/docs/webmcp.md` for in-browser WebMCP tools
 - `https://teakvault.com/.well-known/mcp.json` for remote MCP discovery metadata
 - `https://teakvault.com/agent-readability.json` for the machine-readable docs surface map
 
@@ -66,6 +67,14 @@ teak cards search design
 teak cards create "https://teakvault.com"
 teak tags
 ```
+
+## Can agents use Teak inside the browser?
+
+Yes. In browsers that ship the draft WebMCP API, the signed-in Teak web app
+registers read-only `teak_search_cards` and `teak_get_card` tools plus a
+declarative search form, all running in your existing session with no extra
+authentication. See [WebMCP](/docs/webmcp) for requirements and the tool
+reference.
 
 ## Is there an Agent Skill?
 

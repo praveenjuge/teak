@@ -114,7 +114,9 @@ export const staticSecurityHeaders: { key: string; value: string }[] = [
   },
   {
     key: "Permissions-Policy",
-    value: "camera=(), geolocation=(), microphone=(self)",
+    // The WebMCP `tools` feature defaults to self; pin it explicitly so the
+    // page's own modelContext tools keep working if the default ever changes.
+    value: "camera=(), geolocation=(), microphone=(self), tools=(self)",
   },
   {
     key: "X-DNS-Prefetch-Control",

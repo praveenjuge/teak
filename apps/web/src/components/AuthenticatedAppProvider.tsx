@@ -5,6 +5,7 @@ import { getToken } from "@/lib/auth-server";
 import { ClientAuthBoundary } from "./ClientAuthBoundary";
 import ConvexClientProvider from "./ConvexClientProvider";
 import { SentryUserManager } from "./SentryUserManager";
+import { WebMcpTools } from "./WebMcpTools";
 
 export default async function AuthenticatedAppProvider({
   children,
@@ -18,6 +19,7 @@ export default async function AuthenticatedAppProvider({
     <ConvexClientProvider initialToken={initialToken}>
       <SentryUserManager />
       <ClientAuthBoundary>
+        <WebMcpTools />
         <GlobalFileDropProvider upgradeUrl="/settings">
           {children}
         </GlobalFileDropProvider>
