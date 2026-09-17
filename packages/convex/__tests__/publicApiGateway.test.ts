@@ -127,6 +127,16 @@ describe("Convex public API metadata", () => {
     expect(openApiSpec.paths).toHaveProperty("/v1/cards/{cardId}/favorite");
   });
 
+  test("gives every OpenAPI operation a unique operationId", () => {
+    const operationIds = Object.values(openApiSpec.paths).flatMap((path) =>
+      Object.values(path).map((operation) => operation.operationId)
+    );
+
+    expect(operationIds).toHaveLength(13);
+    expect(new Set(operationIds).size).toBe(operationIds.length);
+    expect(operationIds.every(Boolean)).toBe(true);
+  });
+
   test("no longer advertises the removed search routes", async () => {
     const response = await runHandler(
       discoveryV1,
