@@ -82,9 +82,8 @@ describe("resolveSentryEnvironment", () => {
   test("disables Sentry when a production DSN is present during local development", () => {
     process.env.NEXT_PUBLIC_SENTRY_DSN = "https://public@example.invalid/1";
     process.env.NODE_ENV = "development";
-    delete process.env.NEXT_PUBLIC_SENTRY_ENVIRONMENT;
-    delete process.env.SENTRY_ENVIRONMENT;
-    delete process.env.VERCEL_ENV;
+    process.env.NEXT_PUBLIC_SENTRY_ENVIRONMENT = "production";
+    process.env.VERCEL_ENV = "production";
 
     expect(resolveSentryDsn()).toBeUndefined();
   });
