@@ -31,9 +31,12 @@ API key.
 
 ### Declarative search
 
-The search box on the home page is annotated as a declarative WebMCP form, so
-agents in browsers without the imperative API can still fill in a keyword
-query and submit it through the same search path as typing.
+The search box on the home page is annotated as the declarative `teak_search_form`
+tool. Its name stays distinct from the imperative tools above because WebMCP
+rejects duplicate tool names. The form carries `toolautosubmit`, so agents can
+fill in the `q` field and submit through the same search path as typing without
+needing a submit button. Unlike the imperative search tool, the declarative
+form drives the page UI rather than returning structured data.
 
 ## Try it
 

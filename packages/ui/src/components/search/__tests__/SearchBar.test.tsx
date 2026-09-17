@@ -32,13 +32,18 @@ describe("SearchBar WebMCP annotations", () => {
   test("renders the search box as a declarative WebMCP form", () => {
     const markup = renderSearchBar();
     expect(markup).toContain("<form");
-    expect(markup).toContain('toolname="teak_search_cards"');
+    // Distinct from the imperative teak_search_cards tool: WebMCP rejects
+    // duplicate tool names.
+    expect(markup).toContain('toolname="teak_search_form"');
     expect(markup).toContain("tooldescription=");
+    expect(markup).toContain("toolautosubmit");
     expect(markup).toContain('name="q"');
+    expect(markup).toContain("toolparamdescription=");
   });
 
-  test("wraps the form in a search landmark", () => {
+  test("keeps the form a named landmark without extra nesting", () => {
     const markup = renderSearchBar("keyboards");
-    expect(markup).toContain("<search>");
+    expect(markup).toContain('aria-label="Search cards"');
+    expect(markup).not.toContain("<search>");
   });
 });
