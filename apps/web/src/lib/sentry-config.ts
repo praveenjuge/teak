@@ -49,8 +49,10 @@ export const resolveSentryDsn = (): string | undefined => {
   // A production DSN in that file must not turn local Next.js crashes into
   // production-project events. Preview and production deployments retain the
   // configured DSN; local and test runtimes disable Sentry at initialization.
+  const environment = resolveSentryEnvironment();
   if (
-    resolveSentryEnvironment() === "development" ||
+    environment === "development" ||
+    environment === "test" ||
     process.env.NODE_ENV === "test"
   ) {
     return;
