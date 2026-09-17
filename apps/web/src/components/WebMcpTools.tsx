@@ -40,6 +40,7 @@ export function WebMcpTools() {
         }
       },
       () => {
+        controller.abort();
         // Registration failing (unsupported schema, revoked permission) must
         // never break the app; the page simply stays non-agent-callable.
       }
