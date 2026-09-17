@@ -67,3 +67,6 @@ todo/
 .pi/
 .blume/
 .wxt/
+
+# Amp orb runtime
+.amp/portals/*

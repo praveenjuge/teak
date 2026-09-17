@@ -1,0 +1,172 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+cd "$repo_root"
+
+step() {
+  local label="$1"
+  shift
+  local started=$SECONDS
+  printf '\n==> %s\n' "$label"
+  "$@"
+  printf '<== %s (%ss)\n' "$label" "$((SECONDS - started))"
+}
+
+read_pin() {
+  local field="$1"
+  local value
+  case "$field" in
+    bun)
+      value="$(sed -nE 's/.*"packageManager"[[:space:]]*:[[:space:]]*"bun@([^"]+)".*/\1/p' package.json)"
+      ;;
+    node)
+      value="$(sed -nE 's/.*"node"[[:space:]]*:[[:space:]]*"([^"]+)".*/\1/p' package.json)"
+      ;;
+    *)
+      return 1
+      ;;
+  esac
+  if [[ ! "$value" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+    printf 'Could not read the exact %s version from package.json.\n' "$field" >&2
+    return 1
+  fi
+  printf '%s\n' "$value"
+}
+
+install_system_packages() {
+  local -a packages=()
+  command -v curl >/dev/null 2>&1 || packages+=(curl)
+  command -v git >/dev/null 2>&1 || packages+=(git)
+  command -v tar >/dev/null 2>&1 || packages+=(tar)
+  command -v unzip >/dev/null 2>&1 || packages+=(unzip)
+  command -v xz >/dev/null 2>&1 || packages+=(xz-utils)
+  [[ -f /etc/ssl/certs/ca-certificates.crt ]] || packages+=(ca-certificates)
+
+  if ((${#packages[@]} == 0)); then
+    printf 'Required system packages are already installed.\n'
+    return
+  fi
+
+  if ((EUID == 0)); then
+    env DEBIAN_FRONTEND=noninteractive apt-get update
+    env DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends "${packages[@]}"
+  elif command -v sudo >/dev/null 2>&1; then
+    sudo env DEBIAN_FRONTEND=noninteractive apt-get update
+    sudo env DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends "${packages[@]}"
+  else
+    printf 'Missing system packages (%s) and sudo is unavailable.\n' "${packages[*]}" >&2
+    return 1
+  fi
+}
+
+platform_arch() {
+  case "$(uname -m)" in
+    x86_64) printf 'x64\n' ;;
+    aarch64 | arm64) printf 'arm64\n' ;;
+    *)
+      printf 'Unsupported architecture: %s\n' "$(uname -m)" >&2
+      return 1
+      ;;
+  esac
+}
+
+install_node() {
+  local version="$1"
+  local arch="$2"
+  local install_dir="$HOME/.local/share/teak-toolchains/node-v${version}-linux-${arch}"
+  local archive="node-v${version}-linux-${arch}.tar.xz"
+
+  if [[ ! -x "$install_dir/bin/node" ]] || [[ "$("$install_dir/bin/node" --version)" != "v$version" ]]; then
+    local temp_dir
+    temp_dir="$(mktemp -d)"
+    curl --fail --location --retry 3 --silent --show-error \
+      "https://nodejs.org/dist/v${version}/${archive}" \
+      --output "$temp_dir/$archive"
+    tar -xJf "$temp_dir/$archive" -C "$temp_dir"
+    mkdir -p "$(dirname "$install_dir")"
+    rm -rf "$install_dir"
+    mv "$temp_dir/node-v${version}-linux-${arch}" "$install_dir"
+    rm -rf "$temp_dir"
+  fi
+
+  mkdir -p "$HOME/.local/bin"
+  local command
+  for command in node npm npx corepack; do
+    ln -sfn "$install_dir/bin/$command" "$HOME/.local/bin/$command"
+  done
+}
+
+install_bun() {
+  local version="$1"
+  local arch="$2"
+  local bun_arch="$arch"
+  [[ "$bun_arch" == "arm64" ]] && bun_arch="aarch64"
+  local install_dir="$HOME/.local/share/teak-toolchains/bun-v${version}-linux-${bun_arch}"
+  local archive="bun-linux-${bun_arch}.zip"
+
+  if [[ ! -x "$install_dir/bin/bun" ]] || [[ "$("$install_dir/bin/bun" --version)" != "$version" ]]; then
+    local temp_dir
+    temp_dir="$(mktemp -d)"
+    curl --fail --location --retry 3 --silent --show-error \
+      "https://github.com/oven-sh/bun/releases/download/bun-v${version}/${archive}" \
+      --output "$temp_dir/$archive"
+    unzip -q "$temp_dir/$archive" -d "$temp_dir"
+    mkdir -p "$install_dir/bin"
+    install -m 0755 "$temp_dir/bun-linux-${bun_arch}/bun" "$install_dir/bin/bun"
+    rm -rf "$temp_dir"
+  fi
+
+  mkdir -p "$HOME/.local/bin"
+  ln -sfn "$install_dir/bin/bun" "$HOME/.local/bin/bun"
+  ln -sfn "$install_dir/bin/bun" "$HOME/.local/bin/bunx"
+}
+
+persist_path() {
+  local profile="$HOME/.bash_profile"
+  local marker="# Teak orb toolchain"
+  touch "$profile"
+  if ! grep -Fqx "$marker" "$profile"; then
+    cat >>"$profile" <<'EOF'
+
+# Teak orb toolchain
+export PATH="$HOME/.local/bin:$PATH"
+EOF
+  fi
+}
+
+install_dependencies() {
+  if [[ ! -d node_modules ]] || [[ bun.lock -nt node_modules ]]; then
+    bun ci
+  else
+    printf 'node_modules is already current with bun.lock.\n'
+  fi
+}
+
+bootstrap_development() {
+  env \
+    -u CONVEX_DEPLOY_KEY \
+    -u CONVEX_DEPLOYMENT \
+    CONVEX_AGENT_MODE=anonymous \
+    TURBO_UI=false \
+    bun run setup --target web --convex local
+}
+
+bun_version="$(read_pin bun)"
+node_version="$(read_pin node)"
+arch="$(platform_arch)"
+
+step "Install required system packages" install_system_packages
+step "Install Node $node_version" install_node "$node_version" "$arch"
+step "Install Bun $bun_version" install_bun "$bun_version" "$arch"
+persist_path
+export PATH="$HOME/.local/bin:$PATH"
+hash -r
+
+[[ "$(node --version)" == "v$node_version" ]]
+[[ "$(bun --version)" == "$bun_version" ]]
+
+step "Install workspace dependencies" install_dependencies
+step "Provision anonymous local development environment" bootstrap_development
+
+printf '\nTeak orb setup complete: Node %s, Bun %s.\n' "$(node --version)" "$(bun --version)"

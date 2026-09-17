@@ -1,0 +1,44 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+cd "$repo_root"
+
+export PATH="$HOME/.local/bin:$PATH"
+
+bun_version="$(sed -nE 's/.*"packageManager"[[:space:]]*:[[:space:]]*"bun@([^"]+)".*/\1/p' package.json)"
+node_version="$(sed -nE 's/.*"node"[[:space:]]*:[[:space:]]*"([^"]+)".*/\1/p' package.json)"
+
+case "$(uname -m)" in
+  x86_64)
+    node_arch="x64"
+    bun_arch="x64"
+    ;;
+  aarch64 | arm64)
+    node_arch="arm64"
+    bun_arch="aarch64"
+    ;;
+  *)
+    printf 'Unsupported architecture: %s\n' "$(uname -m)" >&2
+    exit 1
+    ;;
+esac
+
+node_dir="$HOME/.local/share/teak-toolchains/node-v${node_version}-linux-${node_arch}"
+bun_dir="$HOME/.local/share/teak-toolchains/bun-v${bun_version}-linux-${bun_arch}"
+mkdir -p "$HOME/.local/bin"
+
+if [[ ! -x "$node_dir/bin/node" ]] || [[ ! -x "$bun_dir/bin/bun" ]]; then
+  printf 'The cached Teak toolchain is incomplete; refresh the project orb snapshot.\n' >&2
+  exit 1
+fi
+
+for command in node npm npx corepack; do
+  ln -sfn "$node_dir/bin/$command" "$HOME/.local/bin/$command"
+done
+ln -sfn "$bun_dir/bin/bun" "$HOME/.local/bin/bun"
+ln -sfn "$bun_dir/bin/bun" "$HOME/.local/bin/bunx"
+hash -r
+
+[[ "$(node --version)" == "v$node_version" ]]
+[[ "$(bun --version)" == "$bun_version" ]]
