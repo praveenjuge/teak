@@ -220,6 +220,7 @@ describe("web security headers", () => {
     );
     expect(headers.get("Permissions-Policy")).toContain("camera=()");
     expect(headers.get("Permissions-Policy")).toContain("microphone=(self)");
+    expect(headers.get("Permissions-Policy")).toContain("tools=(self)");
     expect(headers.get("X-Content-Type-Options")).toBe("nosniff");
     expect(headers.get("X-Frame-Options")).toBe("DENY");
   });

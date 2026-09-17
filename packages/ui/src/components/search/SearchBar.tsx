@@ -28,7 +28,7 @@ import {
   Video,
   Volume2,
 } from "lucide-react";
-import type { ReactNode } from "react";
+import type { FormEvent, ReactNode } from "react";
 import { useRef, useState } from "react";
 
 export interface SearchBarProps {
@@ -77,6 +77,15 @@ function preventBlur(e: React.MouseEvent) {
   e.preventDefault();
 }
 
+// Declarative WebMCP attributes (draft spec:
+// https://webmachinelearning.github.io/webmcp/). Browsers without WebMCP
+// ignore them. Spread keeps the non-standard attributes past the JSX types.
+const webMcpSearchAttributes = {
+  toolname: "teak_search_cards",
+  tooldescription:
+    "Search the user's Teak cards by keyword. Fill the q field and submit.",
+};
+
 export function SearchBar({
   searchQuery,
   onSearchChange,
@@ -121,34 +130,51 @@ export function SearchBar({
     (type) => !filterTags.includes(type)
   );
 
+  const handleSubmit = (e: FormEvent<HTMLFormElement>) => {
+    // Typing already filters live; committing on submit keeps Enter and
+    // declarative WebMCP form fills applying the same search path.
+    e.preventDefault();
+    const query = new FormData(e.currentTarget).get("q");
+    if (typeof query === "string") {
+      onSearchChange(query);
+    }
+  };
+
   return (
     <>
-      <div className="group flex items-center">
-        <div className="flex items-center gap-2">
-          <Search className="size-4 text-muted-foreground group-focus-within:stroke-[2.5] group-focus-within:text-primary group-hover:stroke-[2.5] group-hover:text-primary" />
-        </div>
+      <search>
+        <form
+          className="group flex items-center"
+          onSubmit={handleSubmit}
+          {...webMcpSearchAttributes}
+        >
+          <div className="flex items-center gap-2">
+            <Search className="size-4 text-muted-foreground group-focus-within:stroke-[2.5] group-focus-within:text-primary group-hover:stroke-[2.5] group-hover:text-primary" />
+          </div>
 
-        <div className="relative flex-1">
-          <Input
-            autoCapitalize="off"
-            autoCorrect="off"
-            className="h-16 rounded-none border-0 bg-transparent focus-visible:outline-none focus-visible:ring-0 dark:bg-transparent"
-            onBlur={() => setIsFocused(false)}
-            onChange={(e) => onSearchChange(e.target.value)}
-            onFocus={() => setIsFocused(true)}
-            onKeyDown={onKeyDown}
-            placeholder="Search for anything..."
-            ref={inputRef}
-            type="search"
-            value={searchQuery}
-          />
-        </div>
+          <div className="relative flex-1">
+            <Input
+              autoCapitalize="off"
+              autoCorrect="off"
+              className="h-16 rounded-none border-0 bg-transparent focus-visible:outline-none focus-visible:ring-0 dark:bg-transparent"
+              name="q"
+              onBlur={() => setIsFocused(false)}
+              onChange={(e) => onSearchChange(e.target.value)}
+              onFocus={() => setIsFocused(true)}
+              onKeyDown={onKeyDown}
+              placeholder="Search for anything..."
+              ref={inputRef}
+              type="search"
+              value={searchQuery}
+            />
+          </div>
 
-        <div className="flex items-center gap-1">
-          {HeaderActions}
-          {SettingsButton}
-        </div>
-      </div>
+          <div className="flex items-center gap-1">
+            {HeaderActions}
+            {SettingsButton}
+          </div>
+        </form>
+      </search>
       {shouldShowFilters && (
         <div className="slide-in-from-top-2 fade-in-0 animate-in pb-5 duration-200">
           <div className="flex flex-wrap gap-2">

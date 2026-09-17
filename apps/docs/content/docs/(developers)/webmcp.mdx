@@ -1,0 +1,64 @@
+---
+title: WebMCP
+description: In-browser WebMCP tools for the signed-in Teak web app
+---
+
+Teak's web app exposes [WebMCP](https://webmachinelearning.github.io/webmcp/)
+tools in browsers that ship the draft `document.modelContext` API. Unlike the
+[remote MCP server](/docs/mcp), these tools run inside your signed-in browser
+session, so an agent helping you in the Teak web app needs no extra sign-in or
+API key.
+
+## Requirements
+
+- A browser with the draft WebMCP API. As of September 2026 this is
+  Chrome's WebMCP preview behind its experimental flag.
+- A signed-in Teak web app session. The tools query your cards with your
+  session and are registered only while you are signed in.
+
+## Available tools
+
+### Imperative tools
+
+- `teak_search_cards`
+  - Input: `{ q?: string, limit?: number, type?: string, favorited?: boolean }`
+  - Output: `{ items: CardSummary[], total: number }`. Omit `q` to list
+    recent cards. `type` accepts `text`, `link`, `image`, `video`, `audio`,
+    `document`, `palette`, or `quote`.
+- `teak_get_card`
+  - Input: `{ cardId: string }`
+  - Output: the card detail, or `null` when the ID does not exist.
+
+### Declarative search
+
+The search box on the home page is annotated as a declarative WebMCP form, so
+agents in browsers without the imperative API can still fill in a keyword
+query and submit it through the same search path as typing.
+
+## Try it
+
+<WebMcpStatus />
+
+On the signed-in web app you can also inspect the registered tools from the
+DevTools console:
+
+```js
+const tools = await document.modelContext.getTools();
+tools.map((tool) => tool.name);
+```
+
+## Security
+
+- The tools are read-only: search and read cards only. Saving, updating, and
+  deleting stay on the [remote MCP server](/docs/mcp#available-tools) and the
+  [REST API](/docs/api), where every write is authenticated and scoped.
+- Tool descriptions are static strings. They never interpolate card content,
+  following the spec's tool-poisoning guidance.
+- The web app serves `Permissions-Policy: tools=(self)`, so only Teak's own
+  pages can register and call these tools.
+
+## Related
+
+- [MCP](/docs/mcp) for external clients such as Claude Code and ChatGPT.
+- [Teak for AI Agents](/docs/ai-agents) for choosing between MCP, REST, CLI,
+  and in-browser tools.
