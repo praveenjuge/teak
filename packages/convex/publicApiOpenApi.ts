@@ -516,7 +516,7 @@ export const openApiSpec = {
           },
         },
         security: apiKeySecurity,
-        operationId: "bulkUpdateCards",
+        operationId: "bulkCards",
         summary: "Execute bulk card operations",
       },
     },
