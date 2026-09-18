@@ -25,6 +25,16 @@
       "source": "/docs/skills/",
       "destination": "/docs/ai-agents",
       "permanent": true
+    },
+    {
+      "source": "/docs/skills.md",
+      "destination": "/docs/ai-agents.md",
+      "permanent": true
+    },
+    {
+      "source": "/docs/skills.mdx",
+      "destination": "/docs/ai-agents.mdx",
+      "permanent": true
     }
   ],
   "rewrites": [

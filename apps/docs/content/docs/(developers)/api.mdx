@@ -37,6 +37,8 @@ that no longer appear in the list.
 Authorization: Bearer teakapi_...
 ```
 
+Native clients using browser sign-in send short-lived OAuth access tokens instead — see [Development](/docs/development#public-api-and-mcp).
+
 ## Create your first card
 
 <CodeGroup>
@@ -147,7 +149,7 @@ Search and favorites are filtered card listings. `GET /v1/cards` supports
 The `include=content,metadata` pair returns full-card fields. The list
 response is paginated (`items` plus `pageInfo`).
 
-See the [API Reference](/reference) for the rendition URL fields on image cards.
+Image card responses include intentionally different URLs: `thumbnailUrl` is the optimized grid rendition, `compactUrl` is a smaller rendition for compact lists, `placeholderUrl` is a tiny loading placeholder, `detailUrl` is the optimized full-card rendition, and `fileUrl` remains the signed original used for downloads. These URLs are temporary, signed credentials — consume them as returned instead of storing or modifying them. See the [API Reference](/reference) for field details.
 
 ## Errors
 

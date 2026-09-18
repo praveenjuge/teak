@@ -114,6 +114,8 @@ export default defineConfig({
     { from: "/llms-small.txt", to: "/llms.txt", status: 301 },
     { from: "/docs/index.md", to: "/docs.md", status: 301 },
     { from: "/docs/skills/", to: "/docs/ai-agents", status: 301 },
+    { from: "/docs/skills.md", to: "/docs/ai-agents.md", status: 301 },
+    { from: "/docs/skills.mdx", to: "/docs/ai-agents.mdx", status: 301 },
   ],
   ai: {
     llmsTxt: true,
