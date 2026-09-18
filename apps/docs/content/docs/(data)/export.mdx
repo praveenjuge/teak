@@ -13,10 +13,10 @@ Starting an export does not change, delete, or move anything in your Teak librar
 
 <Steps>
   <Step title="Open Export">
-    Open Teak on web, or the desktop app via **Teak → Settings…**, then find **Export Data** and choose **Manage**.
+    Open Teak on web, or the desktop app via **Teak → Settings…**, then find **Import/Export Data** and choose **Manage**.
   </Step>
   <Step title="Start export">
-    Choose **Start export**, then keep working while Teak prepares the archive in the background.
+    Switch to the **Export** tab and choose **Start export**, then keep working while Teak prepares the archive in the background.
   </Step>
   <Step title="Download">
     When the export is ready, choose **Download archive**.
@@ -27,11 +27,11 @@ You can cancel an export while it is still preparing. Canceled and failed export
 
 ## What the Archive Includes
 
-Each export is a ZIP with your active cards (`cards.json`), their original files (`files/`), and a manifest. Importing the archive adds the exported cards and any included files to your library.
+Each export is a ZIP with your active cards (`cards.json`), their original files (`files/`), and a manifest. Importing the archive adds the exported cards and included files that satisfy import limits; cards with missing or oversized (>20 MiB) files fail to import.
 
 ## What Is Not Included
 
-Exports focus on portable library content: trash, AI enrichment, generated previews, and account data are not included. If an original file cannot be read, its card is still included without the file.
+Exports focus on portable library content: trash, AI enrichment, generated previews, and account data are not included. If an original file cannot be read, its card is still included in the archive, but the card cannot be restored on re-import.
 
 ## Limits and Availability
 
