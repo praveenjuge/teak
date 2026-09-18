@@ -44,9 +44,25 @@ export const resolveSentryEnvironment = (): TelemetryEnvironment =>
     vercelEnvironment: process.env.VERCEL_ENV,
   });
 
-export const resolveSentryDsn = (): string | undefined =>
-  (process.env.NEXT_PUBLIC_SENTRY_DSN ?? process.env.SENTRY_DSN)?.trim() ||
-  undefined;
+export const resolveSentryDsn = (): string | undefined => {
+  // Developers commonly pull Vercel environment variables into .env.local.
+  // A production DSN in that file must not turn local Next.js crashes into
+  // production-project events. Preview and production deployments retain the
+  // configured DSN; local and test runtimes disable Sentry at initialization.
+  const environment = resolveSentryEnvironment();
+  if (
+    environment === "development" ||
+    environment === "test" ||
+    process.env.NODE_ENV === "development" ||
+    process.env.NODE_ENV === "test"
+  ) {
+    return;
+  }
+  return (
+    (process.env.NEXT_PUBLIC_SENTRY_DSN ?? process.env.SENTRY_DSN)?.trim() ||
+    undefined
+  );
+};
 
 export const resolveSentryRelease = (): string | undefined =>
   process.env.NEXT_PUBLIC_SENTRY_RELEASE?.trim() ||

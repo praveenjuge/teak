@@ -79,8 +79,35 @@ describe("resolveSentryEnvironment", () => {
     expect(resolveSentryEnvironment()).toBe("production");
   });
 
+  test("disables Sentry when a production DSN is present during local development", () => {
+    process.env.NEXT_PUBLIC_SENTRY_DSN = "https://public@example.invalid/1";
+    process.env.NODE_ENV = "development";
+    process.env.NEXT_PUBLIC_SENTRY_ENVIRONMENT = "production";
+    process.env.VERCEL_ENV = "production";
+
+    expect(resolveSentryDsn()).toBeUndefined();
+  });
+
+  test("disables Sentry for an explicit test environment", () => {
+    process.env.NEXT_PUBLIC_SENTRY_DSN = "https://public@example.invalid/1";
+    process.env.NEXT_PUBLIC_SENTRY_ENVIRONMENT = "test";
+    process.env.NODE_ENV = "production";
+
+    expect(resolveSentryDsn()).toBeUndefined();
+  });
+
+  test("disables Sentry during tests even when an explicit environment is stale", () => {
+    process.env.NEXT_PUBLIC_SENTRY_DSN = "https://public@example.invalid/1";
+    process.env.NEXT_PUBLIC_SENTRY_ENVIRONMENT = "production";
+    process.env.NODE_ENV = "test";
+
+    expect(resolveSentryDsn()).toBeUndefined();
+  });
+
   test("uses environment DSNs and versioned releases", () => {
     process.env.NEXT_PUBLIC_SENTRY_DSN = "https://public@example.invalid/1";
+    process.env.NEXT_PUBLIC_SENTRY_ENVIRONMENT = "production";
+    process.env.NODE_ENV = "production";
     process.env.NEXT_PUBLIC_APP_VERSION = "1.2.3";
     process.env.NEXT_PUBLIC_VERCEL_GIT_COMMIT_SHA =
       "abcdef0123456789abcdef0123456789abcdef01";
