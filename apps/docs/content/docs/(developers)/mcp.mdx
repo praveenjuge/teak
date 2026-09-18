@@ -44,40 +44,16 @@ Teak's MCP server supports two authentication methods.
     Send a Teak API key in the `Authorization` header:
 
     ```bash
-    Authorization: Bearer teakapi_secret_live_a1b2c3d4_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+    Authorization: Bearer teakapi_...
     ```
 
-- Generate and manage API keys in Teak Settings. Each account can keep up to 10 active keys.
+    Generate and manage API keys in Teak Settings. Each account can keep up to 10 active keys.
   </Tab>
 </Tabs>
 
 ## Transport
 
-<TypeTable
-  type={{
-    Protocol: {
-      type: "string",
-      required: true,
-      description: "MCP Streamable HTTP",
-    },
-    "Endpoint path": {
-      type: "string",
-      required: true,
-      description: "/mcp (also /mcp/)",
-    },
-    "Server mode": {
-      type: "string",
-      required: true,
-      description: "Stateless JSON response mode",
-    },
-  }}
-/>
-
-OAuth protected-resource discovery advertises the canonical production endpoint
-shown above, so MCP clients validate and connect to the same public resource.
-
-JSON-RPC batches are limited to 100 messages. Larger batches are rejected
-before any tool runs. Single-call requests are unchanged.
+MCP Streamable HTTP at `/mcp` (a trailing slash also works), answered in stateless JSON mode. JSON-RPC batches are limited to 100 messages.
 
 ## Available Tools
 
@@ -141,55 +117,4 @@ Tool failures are returned as MCP tool errors with this structured shape:
 }
 ```
 
-## JSON-RPC Examples
 
-<Expandable title="Initialize a connection">
-
-```json
-{
-  "jsonrpc": "2.0",
-  "id": 1,
-  "method": "initialize",
-  "params": {
-    "protocolVersion": "2025-06-18",
-    "capabilities": {},
-    "clientInfo": {
-      "name": "my-client",
-      "version": "1.0.0"
-    }
-  }
-}
-```
-
-</Expandable>
-
-<Expandable title="List available tools">
-
-```json
-{
-  "jsonrpc": "2.0",
-  "id": 2,
-  "method": "tools/list",
-  "params": {}
-}
-```
-
-</Expandable>
-
-<Expandable title="Create a card">
-
-```json
-{
-  "jsonrpc": "2.0",
-  "id": 3,
-  "method": "tools/call",
-  "params": {
-    "name": "teak_v1_create_card",
-    "arguments": {
-      "content": "https://teakvault.com"
-    }
-  }
-}
-```
-
-</Expandable>

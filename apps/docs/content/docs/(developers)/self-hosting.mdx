@@ -104,45 +104,37 @@ Add these to your env files before running locally or deploying.
 
 ```bash
 SITE_URL=http://localhost:3000
-JWKS=null                                    # Static keys, or null for the live endpoint
-PUBLIC_ORIGIN=https://yourdomain.com         # Required to expose self-hosted /api and /mcp (else production URLs are advertised)
-BETTER_AUTH_SECRET=your-secret               # Better Auth security
-TEAK_ADMIN_EMAIL=you@example.com             # Explicit administrator account
-FILES_BASE=https://files.yourdomain.com      # Files Worker origin
-FILES_SIGNING_SECRET=shared-secret           # Same value as the worker's FILES_SIGNING_SECRET
-R2_ACCESS_KEY_ID=access-key                  # R2 S3 access key (import archives + Markdown migration)
-R2_SECRET_ACCESS_KEY=secret-key              # R2 S3 secret key
+JWKS=null
+PUBLIC_ORIGIN=https://yourdomain.com
+BETTER_AUTH_SECRET=your-secret
+TEAK_ADMIN_EMAIL=you@example.com
+FILES_BASE=https://files.yourdomain.com
+FILES_SIGNING_SECRET=shared-secret
+R2_ACCESS_KEY_ID=access-key
+R2_SECRET_ACCESS_KEY=secret-key
 R2_ENDPOINT=https://account.r2.cloudflarestorage.com
-R2_BUCKET=teak-files                         # R2 bucket for private assets
-KERNEL_API_KEY=token                         # Kernel Browser
-CLOUDFLARE_ACCOUNT_ID=your-account-id        # AI processing (Workers AI)
-CLOUDFLARE_API_TOKEN=your-api-token          # AI processing (Workers AI)
-POLAR_ACCESS_TOKEN=token                     # Billing
-POLAR_ORGANIZATION_TOKEN=token               # Polar organization
-POLAR_SERVER=sandbox                         # sandbox|production
-POLAR_WEBHOOK_SECRET=secret                  # Polar webhooks
-RESEND_API_KEY=token                         # Email service
+R2_BUCKET=teak-files
+KERNEL_API_KEY=token
+CLOUDFLARE_ACCOUNT_ID=your-account-id
+CLOUDFLARE_API_TOKEN=your-api-token
+POLAR_ACCESS_TOKEN=token
+POLAR_ORGANIZATION_TOKEN=token
+POLAR_SERVER=sandbox
+POLAR_WEBHOOK_SECRET=secret
+RESEND_API_KEY=token
 ```
+
+`SITE_URL` is required to boot; `BETTER_AUTH_SECRET` is required for authentication, while `TEAK_ADMIN_EMAIL` is only needed for admin access. Add the rest for the features you want. See [Where to get the values](#where-to-get-the-values) for sources.
 
 ### Files Worker (`apps/files-worker/.dev.vars`, wrangler secrets)
 
-The Files Worker owns all file-byte operations (uploads, downloads,
-renditions, AI analysis) and binds directly to your R2 bucket plus
-Cloudflare Images and Workers AI:
+The Files Worker owns all file-byte operations and binds to your R2 bucket plus Cloudflare Images and Workers AI (all declared in `wrangler.jsonc` — set `bucket_name` to your own bucket):
 
 ```bash
 FILES_SIGNING_SECRET=shared-secret           # Must match the Convex value
 ```
 
-The bucket binding is configured in `wrangler.jsonc` (`binding: "BUCKET"` —
-set `bucket_name` to your own bucket). The worker config also declares
-Cloudflare Images (`IMAGES`) and Workers AI (`AI`) bindings, so your account
-needs both enabled.
-
-Deploy it with `bunx wrangler deploy` from `apps/files-worker`. Its
-`wrangler.jsonc` also declares Cloudflare Images and Workers AI bindings, so
-your account needs both enabled. Point `FILES_BASE` in the backend env at the
-worker's public origin.
+Deploy it with `bunx wrangler deploy` from `apps/files-worker`, then point `FILES_BASE` in the backend env at the worker's public origin.
 
 ### Web (`apps/web/.env.local`)
 
@@ -185,17 +177,6 @@ TEAK_DEV_API_URL=https://deployment.convex.site # Optional local override
 ```
 
 Convex serves the REST API at `/api/v1`, the MCP endpoint at `/mcp`, plus `/healthz`, `/openapi.json`, and OAuth protected-resource metadata. In production, Teak exposes these through apex path rewrites (e.g. `https://teakvault.com/api` and `https://teakvault.com/mcp`). For self-hosted setups, configure your reverse proxy or DNS to route `/api` and `/mcp` to the Convex deployment's `.convex.site` domain. `SITE_URL` is the Better Auth application origin and the OAuth issuer; there is no separate issuer override.
-
-:::warning[Breaking configuration change]
-`PUBLIC_API_URL` and `PUBLIC_MCP_URL` were replaced by `PUBLIC_ORIGIN`, and
-`AUTH_ISSUER_URL` was removed without a replacement (the issuer is always
-`SITE_URL`). If you set the API or MCP variables, delete them and set
-`PUBLIC_ORIGIN` to your public origin instead (for example, replace
-`PUBLIC_API_URL=https://yourdomain.com/api` with
-`PUBLIC_ORIGIN=https://yourdomain.com`). If you set `AUTH_ISSUER_URL`, delete
-it and make sure `SITE_URL` is correct. There is no compatibility period:
-the old names are ignored.
-:::
 
 ## Where to get the values
 

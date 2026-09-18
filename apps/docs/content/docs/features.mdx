@@ -14,9 +14,11 @@ Eight types cover common save workflows. Each gets automatic processing and a ri
 | **Image** | Screenshots, mockups, photos | Color palette extraction |
 | **Video** | Tutorials, animations, clips | Inline player, thumbnails |
 | **Audio** | Voice memos, recordings | Transcription |
-| **Document** | PDFs, Office files, source, Markdown, ZIP, and design files | Adaptive previews and file facts |
+| **Document** | PDFs, Office files, source, `.mdx`, ZIP, and design files | Adaptive previews and file facts |
 | **Palette** | Color swatches from images | Hex values per color |
 | **Quote** | Highlighted passages | Source context |
+
+Ordinary file uploads (images, video, audio, documents, source files, Markdown, ZIP archives, and design files) are supported up to 100 MB. For [Teak archive imports](/docs/import#limits), the archive itself can be up to 5 GiB (exempt from the 100 MB upload limit), while each attached file inside is limited to 20 MiB. `.md` and `.markdown` files become editable text cards limited to 512 KiB of valid UTF-8.
 
 ## Search and organization
 
@@ -50,18 +52,6 @@ AI applies tags automatically; you can add your own. Filter by type, favorites, 
 
 Deleted cards go to trash first. Restore them, or delete permanently (including files). Open trash with `trash`, `bin`, or `deleted` in the search bar.
 
-### Import and export
-
-From Settings on web and desktop:
-
-:::note[Limits]
-Imports accept up to 10,000 items per file. Exports can take a few minutes for
-large libraries — keep the tab open until the archive downloads.
-:::
-
-- [Import](/docs/import) bookmarks, Raindrop CSV, or a Teak archive
-- [Export](/docs/export) a portable ZIP of active cards and original files
-
 ### Grid
 
 Cards show in a masonry grid that adapts to different sizes and aspect ratios.
@@ -81,29 +71,6 @@ Each card is processed automatically:
 
 ## Apps and access
 
-Everything syncs in real time. Pick the surface that fits:
-
-<Columns cols={2}>
-  <Column>
-    <Card title="Desktop" href="/docs/desktop" icon="monitor">
-      Native macOS app with automatic updates.
-    </Card>
-  </Column>
-  <Column>
-    <Card title="Mobile" href="/docs/mobile" icon="smartphone">
-      Share sheet, camera, and voice notes on iOS.
-    </Card>
-  </Column>
-  <Column>
-    <Card title="Browser extension" href="/docs/extension" icon="puzzle">
-      One-click save from Chrome, Safari, Edge, and more.
-    </Card>
-  </Column>
-  <Column>
-    <Card title="API and MCP" href="/docs/api" icon="code">
-      Programmatic access for tools and agents.
-    </Card>
-  </Column>
-</Columns>
+Everything syncs in real time — pick your apps on the [Apps page](/apps).
 
 Sign in with your browser, or create a long-lived key under **Settings → API Keys**.

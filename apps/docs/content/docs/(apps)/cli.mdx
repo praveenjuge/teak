@@ -16,12 +16,9 @@ npm i -g teak-cli
 bun add -g teak-cli
 ```
 
-```bash npx
-npx teak-cli@latest --help
-```
 </CodeGroup>
 
-After installing globally, the `teak` command is available on your PATH.
+After installing globally, the `teak` command is available on your PATH. To try it without installing: `npx teak-cli@latest --help`.
 
 ## Authentication
 
@@ -44,7 +41,7 @@ After installing globally, the `teak` command is available on your PATH.
     TEAK_API_KEY=teakapi_... teak ls --json
     ```
 
-    Generate and manage API keys in Teak Settings → **Manage API Keys**.
+    Generate and manage API keys in Teak Settings — see the [API guide](/docs/api) for key limits and rotation.
   </Tab>
 </Tabs>
 
@@ -52,11 +49,7 @@ After installing globally, the `teak` command is available on your PATH.
 teak logout
 ```
 
-`teak logout` revokes this installation's browser sign-in before removing stored
-credentials from your machine. If Teak cannot be reached, credentials stay saved
-so you can retry. Other CLI installations remain connected. To disconnect them
-all, use **Settings → Security → Connections**. API keys remain managed under
-**Security → API keys**.
+`teak logout` revokes this installation's browser sign-in (if Teak is unreachable, credentials stay saved so you can retry). To disconnect every CLI installation at once, use **Settings → Security → Connections**. API keys are unaffected.
 
 ## Commands
 
@@ -79,7 +72,7 @@ example `teak add https://example.com`) — the CLI detects whether it's text,
 a URL, or a file. Use `--url` / `--file` when you want to be explicit or when
 scripting.
 
-File uploads support source and design-token files, Markdown and MDX, ZIP archives, PDF and Office documents, SVG, HEIC, animated GIF, WebM/MP4, Figma `.fig`, and common image/audio formats. `.md` and `.markdown` files become editable text cards, must be valid UTF-8, and are limited to 512 KiB; `.mdx` remains a document. Other supported files allow up to 100 MB.
+File uploads support the same formats as the web app (source files, Markdown and MDX, ZIP archives, documents, images, audio, and video — see [Features](/docs/features)), up to 100 MB. `.md` and `.markdown` files become editable text cards, must be valid UTF-8, and are limited to 512 KiB; `.mdx` remains a document.
 
 Text passed to `teak add`, including standard input, is stored as raw Markdown exactly as submitted. Text cards have a 512 KiB UTF-8 limit.
 

@@ -8,7 +8,7 @@ Keep user documentation synchronized in the same change:
 - MCP behavior under `packages/convex/mcp` -> `content/docs/(developers)/mcp.mdx`
 - Raycast commands or authentication -> `content/docs/(apps)/raycast.mdx`
 - CLI or public SDK behavior under `apps/cli` or `packages/convex/client/sdk.ts` -> `content/docs/(apps)/cli.mdx`
-- Public skills under `.agents/skills` -> `content/docs/(developers)/skills.mdx` and `pages/apps.astro`
+- Public skills under `.agents/skills` -> `content/docs/(developers)/ai-agents.mdx` and `pages/apps.astro` (`/docs/skills` redirects to `/docs/ai-agents`)
 
 For a user-visible change, update the dated entry in `content/changelog`. Internal-only changes need no public entry.
 

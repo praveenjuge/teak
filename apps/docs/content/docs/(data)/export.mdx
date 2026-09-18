@@ -12,17 +12,11 @@ Starting an export does not change, delete, or move anything in your Teak librar
 ## Start an Export
 
 <Steps>
-  <Step title="Open Settings">
-    Open Teak on web, or open the desktop app and choose **Teak -> Settings...** from the macOS menu bar.
-  </Step>
   <Step title="Open Export">
-    In Settings, find **Export Data** and choose **Manage**.
+    Open Teak on web, or the desktop app via **Teak → Settings…**, then find **Import/Export Data** and choose **Manage**.
   </Step>
   <Step title="Start export">
-    Choose **Start export**.
-  </Step>
-  <Step title="Wait for preparation">
-    Keep working while Teak prepares the archive in the background.
+    Switch to the **Export** tab and choose **Start export**, then keep working while Teak prepares the archive in the background.
   </Step>
   <Step title="Download">
     When the export is ready, choose **Download archive**.
@@ -33,40 +27,11 @@ You can cancel an export while it is still preparing. Canceled and failed export
 
 ## What the Archive Includes
 
-Each export is a ZIP file with this layout:
-
-```text
-manifest.json
-cards.json
-files/
-```
-
-| File or folder | What it contains |
-|---|---|
-| `manifest.json` | Export version, schema version, creation time, expiry time, and counts for cards and files. |
-| `cards.json` | Your active cards in a portable JSON format. |
-| `files/` | Original uploaded files that were available when the archive was created. |
-
-Each card entry can include:
-
-- Card ID, type, content, URL, notes, tags, and favorite status
-- Created and updated timestamps
-- Visible palette colors
-- A file reference when the original file was included
-
-Text cards export their canonical Markdown content only. If a text card originally came from an uploaded Markdown file, that source attachment is intentionally excluded; importing the new archive recreates it as a text-only card.
+Each export is a ZIP with your active cards (`cards.json`), their original files (`files/`), and a manifest. Importing the archive adds the exported cards and included files that satisfy import limits; cards with missing or oversized (>20 MiB) files fail to import.
 
 ## What Is Not Included
 
-Exports are intentionally focused on your portable library content. They do not include:
-
-- Cards currently in trash
-- AI tags, summaries, transcripts, or generated enrichment fields
-- Generated thumbnails, screenshots, favicons, or preview media
-- Account, billing, API key, session, or source metadata
-- Internal processing state
-
-If an original file cannot be read after retrying, Teak still includes the card in `cards.json` and omits only that file. The export dialog shows how many files were unavailable.
+Exports focus on portable library content: trash, AI enrichment, generated previews, and account data are not included. If an original file cannot be read, its card is still included in the archive, but the card cannot be restored on re-import.
 
 ## Limits and Availability
 
