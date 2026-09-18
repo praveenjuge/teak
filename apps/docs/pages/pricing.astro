@@ -20,10 +20,6 @@ const pricingPlans = [
       "Find anything in 2 seconds",
       "Works on phone, laptop, tablet",
       "No credit card, ever",
-      "Dark mode",
-      "No ads",
-      "Fully private",
-      "No tracking",
     ],
     cta: {
       text: "Start Free",
@@ -46,10 +42,6 @@ const pricingPlans = [
       "Find anything in 2 seconds",
       "Works on phone, laptop, tablet",
       "Get help in 2 hours, not 2 days",
-      "Dark mode",
-      "No ads",
-      "Fully private",
-      "No tracking",
     ],
     cta: {
       text: "Get Pro",
@@ -80,7 +72,7 @@ const pricingFaqs = [
   {
     question: "So... Pro or Self-hosted?",
     answer:
-      "Pro: We handle all the tech stuff, you just create. Self-hosted: You handle the tech, keep it free forever. Same features, different headache level.",
+      "Pro: We handle all the tech stuff, you just create. Self-hosted: You handle the tech, keep it free forever — 100% free under the MIT license, same features, different headache level.",
   },
   {
     question: "Can I switch plans anytime?",
@@ -91,11 +83,6 @@ const pricingFaqs = [
     question: "What if I hate it?",
     answer:
       "30-day full refund. No questions, no hassle. Try Pro for a month, if you don\u2019t love it, we\u2019ll give you every penny back.",
-  },
-  {
-    question: "Self-hosting is actually free?",
-    answer:
-      "100% free. MIT license, run it anywhere. Perfect for agencies who want their data to never touch our servers.",
   },
   {
     question: "What happens when I hit 200 cards?",
@@ -171,6 +158,9 @@ const pageSchemas = buildPageSchemas({
             />
           ))}
         </div>
+        <p class="mx-auto mt-8 max-w-xl text-center text-sm text-muted-foreground">
+          Every plan includes dark mode, no ads, full privacy, and no tracking.
+        </p>
       </div>
     </section>
 

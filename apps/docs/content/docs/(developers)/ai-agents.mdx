@@ -7,7 +7,7 @@ Teak gives AI agents a private memory layer for saved links, notes, files, tags,
 
 ## What can agents do with Teak?
 
-Agents can save new cards, search existing cards, get a card by ID, list tags, sync changes, run bulk updates, favorite or delete cards, and create upload URLs for file cards. The MCP server and REST API share the same card operations, so behavior is consistent across tools. This mirrors the tool set in the [Raycast extension](/docs/raycast#ai-tools) and the [MCP server](/docs/mcp#available-tools).
+Agents can save, search, read, update, favorite, delete, and sync cards through identical operations on the [MCP server](/docs/mcp#available-tools) and the [REST API](/docs/api).
 
 ## How do I connect Claude?
 
@@ -19,10 +19,7 @@ Start the MCP connection in Claude and complete browser sign-in when prompted. A
 
 ## How do I connect ChatGPT or Deep Research?
 
-Use `https://teakvault.com/mcp` as the remote MCP server URL. Teak exposes the plain `search` and `fetch` tools expected by ChatGPT connectors:
-
-- `search` finds matching cards and returns IDs, titles, and Teak app URLs.
-- `fetch` opens a specific card and returns readable text plus metadata.
+Use `https://teakvault.com/mcp` as the remote MCP server URL. Teak exposes the plain `search` and `fetch` tools ChatGPT connectors expect — see [MCP](/docs/mcp) for the tool contracts.
 
 ## How do I use the REST API?
 
@@ -85,3 +82,5 @@ Install it from [Skills.sh](https://skills.sh/praveenjuge/teak):
 ```bash
 npx skills add praveenjuge/teak --skill teak
 ```
+
+Works with Codex, Claude Code, Cursor, GitHub Copilot, Windsurf, and other skills-compatible agents. The skill covers when to use CLI vs API vs MCP vs SDK, browser sign-in or API key auth, and keeping secrets out of logs and prompts. Invoke it with e.g. `Use the Teak skill to save this research link with the tags ai and reference.`

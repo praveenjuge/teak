@@ -86,15 +86,15 @@ export default defineConfig({
   search: {
     popular: [
       { label: "Features", href: "/docs/features", icon: "sparkles" },
-      { label: "Desktop", href: "/docs/desktop", icon: "monitor" },
-      { label: "Mobile", href: "/docs/mobile", icon: "smartphone" },
       {
         label: "Browser extensions",
         href: "/docs/extension",
         icon: "puzzle",
       },
-      { label: "API reference", href: "/reference", icon: "code" },
-      { label: "Self-hosting", href: "/docs/self-hosting", icon: "server" },
+      { label: "Mobile", href: "/docs/mobile", icon: "smartphone" },
+      { label: "Desktop", href: "/docs/desktop", icon: "monitor" },
+      { label: "Import", href: "/docs/import", icon: "download" },
+      { label: "Export", href: "/docs/export", icon: "upload" },
     ],
   },
   seo: {
@@ -113,6 +113,7 @@ export default defineConfig({
     { from: "/sitemap-index.xml", to: "/sitemap.xml", status: 301 },
     { from: "/llms-small.txt", to: "/llms.txt", status: 301 },
     { from: "/docs/index.md", to: "/docs.md", status: 301 },
+    { from: "/docs/skills/", to: "/docs/ai-agents", status: 301 },
   ],
   ai: {
     llmsTxt: true,

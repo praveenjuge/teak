@@ -16,25 +16,7 @@ Download the app from the [App Store](https://apps.apple.com/us/app/teak-save-in
 
 ## Sign In
 
-On first launch, Teak shows the welcome screen. Choose how you want to continue:
-
-<Tabs>
-  <Tab title="Apple">
-    One-tap authentication using your Apple ID. Tap **Continue with Apple** and approve with Face ID or Touch ID. Fastest option on iOS.
-  </Tab>
-  <Tab title="Google">
-    OAuth sign-in via a browser redirect. Tap **Continue with Google**, pick an account in the browser sheet, and you'll return to Teak when it completes.
-  </Tab>
-  <Tab title="Email">
-    Tap **Login with Email** or **Register with Email** to open a native iOS form sheet. Both options take an email and password — tap the checkmark to confirm.
-
-    For new accounts, use a password of at least 8 characters. Teak will send a verification email you must open before signing in.
-  </Tab>
-</Tabs>
-
-## Browsing Your Library
-
-The **Home** tab shows your cards in a scrollable grid. Tap any card to open a full preview sheet with metadata, tags, notes, and action buttons.
+On first launch, sign in with Apple, Google, or email. New email accounts need a password of at least 8 characters and email verification before the first sign-in.
 
 ## Saving Content
 
@@ -54,16 +36,9 @@ Use the iOS Share Sheet to save content to Teak without leaving another app:
 2. Select **Teak** from the share destinations.
 3. The Teak share extension opens and saves the item automatically.
 
-The share extension shows live status while saving:
+The share extension shows live status while saving, including which items failed. If it asks you to sign in, open Teak, sign in, then retry.
 
-- **Saving to your Teak vault…** — in progress
-- **Your shared content was saved.** — success
-- **Some items could not be saved.** — partial failure (individual items listed)
-- **Shared content could not be saved.** — complete save failure
-- **Sign in to save shared content.** — open Teak, sign in, then retry
-- **Teak did not receive anything to share.** — share sheet was opened with no content
-
-Supported share sources include links, text, images, and files. Files shared from Files or another app use the same source, Markdown, archive, Office, design, image, motion, and audio format support as Teak on the web, up to 100 MB.
+Supported share sources include links, text, images, and files, with the same format support as the web app (see [Features](/docs/features)), up to 100 MB.
 
 ## Settings
 
@@ -77,11 +52,6 @@ The **Settings** tab lets you:
 ## Troubleshooting
 
 <Accordion>
-  <AccordionItem title="App opens but cannot sign in">
-    - Check your internet connection.
-    - Confirm your system clock is correct.
-    - Retry after a minute in case of a temporary authentication issue.
-  </AccordionItem>
   <AccordionItem title="Share sheet does not appear in the iOS Share menu">
     - Open the iOS Share Sheet from any app.
     - Scroll the share destinations row and tap **More**.

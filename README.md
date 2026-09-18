@@ -55,7 +55,7 @@ teak/
 
 ## Docs
 
-[View docs →](https://teakvault.com/docs/)
+[View docs →](https://teakvault.com/docs/) · [Local development →](https://teakvault.com/docs/development)
 
 ## License
 

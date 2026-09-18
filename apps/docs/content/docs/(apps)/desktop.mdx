@@ -30,23 +30,7 @@ Teak Desktop gives you a native macOS app with automatic updates and the same re
   </Step>
 </Steps>
 
-## First Launch Security Checks
-
-Teak desktop releases are signed and notarized.
-
-If Gatekeeper blocks launch:
-
-<Steps>
-  <Step title="Open Privacy & Security">
-    Open **System Settings → Privacy & Security**.
-  </Step>
-  <Step title="Allow Teak">
-    Find the Teak block message and choose **Open Anyway**.
-  </Step>
-  <Step title="Relaunch">
-    Relaunch Teak.
-  </Step>
-</Steps>
+Releases are signed and notarized. If Gatekeeper blocks the first launch, choose **Open Anyway** under **System Settings → Privacy & Security**, then relaunch.
 
 ## Sign In
 
@@ -55,87 +39,23 @@ on the consent screen, then the app returns you automatically after login. The
 desktop app keeps its own session, so signing out on desktop does not sign you
 out of Teak in your browser.
 
-## Teak Menu
-
-The **Teak** menu in the macOS menu bar exposes these actions:
-
-| Item                   | What it does                                                             |
-| ---------------------- | ------------------------------------------------------------------------ |
-| **About Teak**         | Shows the installed version, copyright, and app icon                     |
-| **Check for Updates…** | Manually checks for new versions and shows a notification while checking |
-| **Settings…**          | Opens the Settings panel (account info, API keys, billing)               |
-| **Log Out**            | Signs you out and returns to the login screen                            |
-
 ## Settings
 
-Open **Teak menu → Settings…** to manage your account:
+Open **Teak menu → Settings…** for **Appearance** (**Auto** follows macOS), **Sign Out**, and shortcuts to account, billing, API keys, and import/export in the web app.
 
-- **Account**: View your email address and card count.
-- **Upgrade / Billing**: Upgrade to Pro or open the customer portal to manage your subscription.
-- **API Keys**: Generate API keys for the [Teak API](/docs/api) and [Raycast extension](/docs/raycast).
-- **Import/Export Data**: [Import](/docs/import) bookmarks, a Raindrop CSV, or a Teak archive, and start, cancel, and download a portable [data export](/docs/export).
-- **Appearance**: Switch between **Auto**, **Light**, and **Dark** themes. Auto follows your macOS system appearance.
-- **Sign Out**: Ends your desktop session and returns to the login screen.
-- **Delete Account**: Opens `app.teakvault.com/settings` in your browser to complete account deletion.
+## Updates
 
-## Auto Updates
+Teak checks for updates on each launch via GitHub Releases, showing download progress and prompting to restart when ready. If a check fails, Teak keeps running and retries on the next launch.
 
-Teak checks for updates on each launch via GitHub Releases.
-
-- If an update is available, you'll see a prompt asking whether to download now or later.
-- During download, a macOS notification and a percent badge on the Dock icon show progress.
-- After download completes, you'll see a prompt to restart now or later to install the update.
-- If update checks fail (for example network outage), Teak continues running and retries on next launch.
-
-## Manual Update / Recovery
-
-If you need to update manually or recover from a failed install:
-
-<Steps>
-  <Step title="Quit">
-    Quit Teak.
-  </Step>
-  <Step title="Download">
-    Download the latest release from [GitHub Releases](https://github.com/praveenjuge/teak/releases/latest).
-  </Step>
-  <Step title="Replace">
-    Replace **Teak.app** in Applications.
-  </Step>
-  <Step title="Relaunch">
-    Relaunch Teak.
-  </Step>
-</Steps>
-
-## Rollback
-
-If a release is unstable:
-
-<Steps>
-  <Step title="Download prior release">
-    Download the prior stable release from GitHub Releases.
-  </Step>
-  <Step title="Replace">
-    Replace **Teak.app** in Applications with that version.
-  </Step>
-  <Step title="Relaunch">
-    Relaunch Teak.
-  </Step>
-</Steps>
-
-Your account data stays in Teak backend storage and local session state is preserved unless you sign out.
+To update manually or recover a failed install, quit Teak, download the latest release from [GitHub Releases](https://github.com/praveenjuge/teak/releases/latest), replace **Teak.app** in Applications, and relaunch.
 
 ## Troubleshooting
 
 <Accordion>
-  <AccordionItem title="App opens but cannot sign in">
-    - Check your network connection.
-    - Confirm your system clock is correct.
-    - Retry after a minute in case of a temporary authentication issue.
-  </AccordionItem>
   <AccordionItem title="An update does not apply">
     - Relaunch the app and wait for the update check.
     - Confirm GitHub Releases is reachable from your network.
-    - On a very old build, install the latest release manually from GitHub.
+    - Install the latest release manually from GitHub.
   </AccordionItem>
   <AccordionItem title="Still stuck?">
     Reach out via [Support](/docs/support).

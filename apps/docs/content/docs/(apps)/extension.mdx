@@ -14,13 +14,13 @@ options on this page are Chrome/Chromium-only.
 ## Install
 
 <Tabs param="browser">
-  <Tab title="Chrome">
+  <Tab title="Chrome / Edge / Brave / Arc">
     <Steps>
       <Step title="Open the Chrome Web Store">
         Open the [Teak extension](https://chromewebstore.google.com/detail/teak/negnmfifahnnagnbnfppmlgfajngdpob) in the Chrome Web Store.
       </Step>
       <Step title="Add the extension">
-        Click **Add to Chrome**, then confirm by clicking **Add extension**.
+        Click **Add to Chrome** (or your browser's equivalent), then confirm.
       </Step>
       <Step title="Sign in">
         Click the Teak icon in your Chrome toolbar to sign in.
@@ -37,35 +37,6 @@ options on this page are Chrome/Chromium-only.
       </Step>
       <Step title="Sign in and save">
         Click the Teak icon in the Safari toolbar and choose **Sign in**. Teak for Safari opens so you can approve **Teak Safari** in your browser. Return to the toolbar to save the current page.
-      </Step>
-    </Steps>
-  </Tab>
-  <Tab title="Edge">
-    <Steps>
-      <Step title="Open the Chrome Web Store">
-        Open the [Teak extension](https://chromewebstore.google.com/detail/teak/negnmfifahnnagnbnfppmlgfajngdpob) in the Chrome Web Store.
-      </Step>
-      <Step title="Allow other stores">
-        Edge will prompt you to allow extensions from other stores — accept it.
-      </Step>
-      <Step title="Add the extension">
-        Click **Add to Chrome**, then confirm in the Edge dialog.
-      </Step>
-      <Step title="Sign in">
-        Click the Teak icon in your Edge toolbar to sign in.
-      </Step>
-    </Steps>
-  </Tab>
-  <Tab title="Brave / Arc / other Chromium">
-    <Steps>
-      <Step title="Open the Chrome Web Store">
-        Open the [Teak extension](https://chromewebstore.google.com/detail/teak/negnmfifahnnagnbnfppmlgfajngdpob) in the Chrome Web Store.
-      </Step>
-      <Step title="Add the extension">
-        Click **Add to Brave** (or your browser's equivalent), then confirm.
-      </Step>
-      <Step title="Sign in">
-        Pin the Teak icon to your toolbar and click it to sign in.
       </Step>
     </Steps>
   </Tab>
@@ -99,19 +70,7 @@ Context menu saves are available on standard web pages. Teak does not attempt to
 
 ### Social Media Inline Save Buttons
 
-On supported sites, Teak injects a save button directly into each post or story. You can save individual items without leaving the feed.
-
-| Platform                                               | Supported content                                                             |
-| ------------------------------------------------------ | ----------------------------------------------------------------------------- |
-| [instagram.com](https://www.instagram.com)             | Posts and Reels                                                               |
-| [pinterest.com](https://www.pinterest.com)             | Pins                                                                          |
-| [x.com](https://x.com)                                 | Posts (tweets) — saved with tweet text, author, and attached images or videos |
-| [news.ycombinator.com](https://news.ycombinator.com)   | Story links (saves the outbound article URL)                                  |
-| [sidebar.io](https://sidebar.io)                       | Story links                                                                   |
-| [webdesignernews.com](https://www.webdesignernews.com) | Story links                                                                   |
-| [heydesigner.com](https://heydesigner.com)             | Story links                                                                   |
-
-Inline save buttons appear automatically once you are signed in to the extension. Each saved post is deduplicated — saving the same post twice will not create a duplicate card.
+On supported sites (Instagram, Pinterest, X, Hacker News, and select design feeds), Teak injects a save button directly into each post or story, so you can save individual items without leaving the feed. Buttons appear automatically once you are signed in, and each saved post is deduplicated.
 
 ### Free Tier Limit
 
@@ -119,13 +78,9 @@ When you reach your free plan card limit, the Chrome extension popup shows an up
 
 ## Sign In
 
-In Safari, choose **Sign in** to open Teak for Safari and approve **Teak Safari** in your browser. Your connection stays signed in across restarts. After updating from the previous sign-in experience, connect once again.
+Choose **Sign in** in the extension popup and approve Teak in your browser. Your connection stays signed in across restarts.
 
-Manage Safari access from Teak Settings → **Security** → **Connections**. Disconnect **Teak Safari** to revoke access across your Safari installations immediately. Signing out inside Safari disconnects that installation. If you are offline, reconnect to the internet and retry sign-out.
-
-In Chrome and Chromium-based browsers, choose **Sign in** and approve **Teak Chrome** in the browser sign-in window. After updating from the previous sign-in experience, connect once again.
-
-Manage Chrome access from Teak Settings → **Security** → **Connections**. Disconnect **Teak Chrome** to revoke access across your Chrome installations. Signing out inside the extension disconnects only that installation. If a save needs you to reconnect, the extension keeps it pending so you can retry it after signing in. You can also discard pending saves from the popup.
+Manage access from Teak Settings → **Security** → **Connections**: disconnecting an app revokes every installation, while signing out inside the popup disconnects only that one. In Chrome, interrupted saves stay pending so you can retry them after reconnecting, or discard them from the popup.
 
 ## Troubleshooting
 
