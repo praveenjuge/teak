@@ -147,6 +147,33 @@ describe("filterClientSentryEvent", () => {
     expect(filterClientSentryEvent(event)).toBeNull();
   });
 
+  test("drops injected React DevTools backend failures", () => {
+    const event = {
+      exception: {
+        values: [
+          {
+            stacktrace: {
+              frames: [
+                {
+                  filename: "app:///build/backendManager.js",
+                  function: "welcome",
+                },
+                {
+                  filename: "app:///build/backendManager.js",
+                  function: "registerRenderer",
+                },
+              ],
+            },
+            type: "TypeError",
+            value: "Cannot read properties of undefined (reading 'has')",
+          },
+        ],
+      },
+    } satisfies ErrorEvent;
+
+    expect(filterClientSentryEvent(event)).toBeNull();
+  });
+
   test("drops injected network wrapper fetch failures", () => {
     const event = {
       exception: {
