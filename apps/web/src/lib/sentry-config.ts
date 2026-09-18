@@ -25,6 +25,7 @@ export const buildPseudonymousSentryUser = async (
 };
 
 const INJECTED_FRAME_PREFIXES = [
+  "app:///build/backendManager.js",
   "app:///inject-net.js",
   "app:///scripts/",
   "app:///userscript",
