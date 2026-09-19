@@ -8,7 +8,7 @@ mock.module("expo-crypto", () => ({
 }));
 
 const {
-  filterMobileSentryEvent,
+  MOBILE_APP_HANG_TIMEOUT_SECONDS,
   mobileTracesSampler,
   resolveMobileEnvironment,
   resolveMobileRelease,
@@ -42,69 +42,8 @@ describe("mobile Sentry configuration", () => {
     expect(mobileTracesSampler({ name: "mobile.auth.bootstrap" })).toBe(1);
   });
 
-  test("drops system-only iOS pointer interaction hangs", () => {
-    expect(
-      filterMobileSentryEvent({
-        exception: {
-          values: [
-            {
-              stacktrace: {
-                frames: [
-                  { function: "main" },
-                  { function: "-[_UIPointerInteractionAssistant init]" },
-                  { function: "UIApplicationMain" },
-                  { function: "mach_msg2_trap" },
-                ],
-              },
-              type: "App Hang Non Fully Blocked",
-            },
-          ],
-        },
-      })
-    ).toBeNull();
-  });
-
-  test("keeps chained pointer hangs with an application exception", () => {
-    const event = {
-      exception: {
-        values: [
-          {
-            stacktrace: {
-              frames: [{ function: "-[_UIPointerInteractionAssistant init]" }],
-            },
-            type: "App Hang Non Fully Blocked",
-          },
-          {
-            stacktrace: {
-              frames: [{ function: "openMenu", in_app: true }],
-            },
-            type: "Error",
-          },
-        ],
-      },
-    };
-
-    expect(filterMobileSentryEvent(event)).toEqual(event);
-  });
-
-  test("keeps pointer interaction hangs with an application frame", () => {
-    const event = {
-      exception: {
-        values: [
-          {
-            stacktrace: {
-              frames: [
-                { function: "-[_UIPointerInteractionAssistant init]" },
-                { filename: "app:///src/navigation.ts", function: "openMenu" },
-              ],
-            },
-            type: "App Hang Non Fully Blocked",
-          },
-        ],
-      },
-    };
-
-    expect(filterMobileSentryEvent(event)).toEqual(event);
+  test("uses a three-second native app hang threshold", () => {
+    expect(MOBILE_APP_HANG_TIMEOUT_SECONDS).toBe(3);
   });
 
   test("scrubs credentials and hashes authenticated users", async () => {
