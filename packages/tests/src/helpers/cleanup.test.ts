@@ -181,10 +181,10 @@ describe("production E2E cleanup helpers", () => {
 
     await expect(
       provisionE2EAccount(
-      "e2e-primary@tests.example.com",
-      "safe-password",
-      noOpSleep
-    )
+        "e2e-primary@tests.example.com",
+        "safe-password",
+        noOpSleep
+      )
     ).rejects.toThrow("Production E2E provisioning failed (409)");
     expect(fetchMock).toHaveBeenCalledTimes(2);
   });
@@ -208,10 +208,10 @@ describe("production E2E cleanup helpers", () => {
 
     await expect(
       provisionE2EAccount(
-      "e2e-primary@tests.example.com",
-      "safe-password",
-      noOpSleep
-    )
+        "e2e-primary@tests.example.com",
+        "safe-password",
+        noOpSleep
+      )
     ).rejects.toThrow("Production E2E provisioning failed (409)");
     expect(fetchMock).toHaveBeenCalledTimes(2);
   });
@@ -252,10 +252,10 @@ describe("production E2E cleanup helpers", () => {
 
     await expect(
       provisionE2EAccount(
-      "e2e-primary@tests.example.com",
-      "safe-password",
-      noOpSleep
-    )
+        "e2e-primary@tests.example.com",
+        "safe-password",
+        noOpSleep
+      )
     ).rejects.toThrow("Production E2E provisioning failed (network)");
     expect(fetchMock).toHaveBeenCalledTimes(4);
   });
