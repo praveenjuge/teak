@@ -86,6 +86,11 @@ export const cleanupE2EAccounts = async (
   return result;
 };
 
+const PROVISION_MAX_ATTEMPTS = 4;
+
+const waitForProvisionRetry = (attempt: number): Promise<void> =>
+  new Promise((resolve) => setTimeout(resolve, 1000 * 2 ** (attempt - 1)));
+
 export const provisionE2EAccount = async (
   email: string,
   password: string
@@ -95,26 +100,53 @@ export const provisionE2EAccount = async (
   if (!isConfiguredE2EEmail(email)) {
     throw new Error("Production E2E provisioning email is invalid");
   }
-  const response = await fetch(
-    `${env.convexSiteUrl}/api/auth/internal/e2e/provision`,
-    {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${env.cleanupToken}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({ email, password }),
+  const requestInit: RequestInit = {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${env.cleanupToken}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ email, password }),
+  };
+  let sawServerFailure = false;
+  for (let attempt = 1; attempt <= PROVISION_MAX_ATTEMPTS; attempt += 1) {
+    let response: Response;
+    try {
+      response = await fetch(
+        `${env.convexSiteUrl}/api/auth/internal/e2e/provision`,
+        requestInit
+      );
+    } catch (error) {
+      // Network-level failures lose the response, so the account may still
+      // have been created; a later CONFLICT then counts as success.
+      sawServerFailure = true;
+      if (attempt === PROVISION_MAX_ATTEMPTS) {
+        throw error;
+      }
+      await waitForProvisionRetry(attempt);
+      continue;
     }
-  );
-  const payload: unknown = await response.json().catch(() => null);
-  if (
-    !(
+    const payload: unknown = await response.json().catch(() => null);
+    if (
       response.ok &&
       payload &&
       typeof payload === "object" &&
       (payload as { email?: unknown }).email === email.toLowerCase()
-    )
-  ) {
+    ) {
+      return;
+    }
+    if (response.status === 409 && sawServerFailure) {
+      // The retried request raced an earlier attempt whose response was
+      // lost: the account now exists, which is the goal of this helper.
+      return;
+    }
+    if (response.status >= 500 || response.status === 429) {
+      sawServerFailure = true;
+      if (attempt < PROVISION_MAX_ATTEMPTS) {
+        await waitForProvisionRetry(attempt);
+        continue;
+      }
+    }
     throw new Error(`Production E2E provisioning failed (${response.status})`);
   }
 };
