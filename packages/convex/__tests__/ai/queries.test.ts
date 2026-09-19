@@ -143,6 +143,23 @@ describe("ai/queries.ts", () => {
     expect(result).toEqual([{ cardId: "eligible" }]);
   });
 
+  test("findCardsMissingAi stops at the scan budget for a long ineligible prefix", async () => {
+    const rejected = Array.from({ length: 200 }, (_, i) => ({
+      _id: `dead${i}`,
+      isDeleted: true,
+    }));
+    const pages = Array.from({ length: 15 }, () => ({
+      page: rejected,
+      isDone: false,
+    }));
+    const { mockQuery, calls } = makePagedQuery(pages);
+    const ctx = { db: { query: mock().mockReturnValue(mockQuery) } } as any;
+    const handler = (findCardsMissingAi as any).handler ?? findCardsMissingAi;
+    const result = await handler(ctx, {});
+    expect(result).toEqual([]);
+    expect(calls).toHaveLength(10); // 10 pages x 200 = 2000-entry budget
+  });
+
   test("findCardsMissingAi caps the batch at 50 cards", async () => {
     const cards = Array.from({ length: 200 }, (_, i) => ({ _id: `c${i}` }));
     const { mockQuery, calls } = makePagedQuery([{ page: cards, isDone: false }]);
