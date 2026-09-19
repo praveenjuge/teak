@@ -14,6 +14,8 @@ import {
   messageIdsForRecipients,
 } from "./mailpit";
 
+const noOpSleep = (): Promise<void> => Promise.resolve();
+
 const originalFetch = globalThis.fetch;
 const originalCleanupToken = env.cleanupToken;
 const originalConvexSiteUrl = env.convexSiteUrl;
@@ -110,7 +112,11 @@ describe("production E2E cleanup helpers", () => {
     );
     globalThis.fetch = fetchMock as unknown as typeof fetch;
 
-    await provisionE2EAccount("e2e-primary@tests.example.com", "safe-password");
+    await provisionE2EAccount(
+      "e2e-primary@tests.example.com",
+      "safe-password",
+      noOpSleep
+    );
 
     expect(fetchMock).toHaveBeenCalledTimes(1);
     const [url, init] = fetchMock.mock.calls[0];
@@ -145,9 +151,13 @@ describe("production E2E cleanup helpers", () => {
     );
     globalThis.fetch = fetchMock as unknown as typeof fetch;
 
-    await provisionE2EAccount("e2e-primary@tests.example.com", "safe-password");
+    await provisionE2EAccount(
+      "e2e-primary@tests.example.com",
+      "safe-password",
+      noOpSleep
+    );
     expect(fetchMock).toHaveBeenCalledTimes(2);
-  }, 10_000);
+  });
 
   test("provisioning does not mask a stale account behind a retried 5xx", async () => {
     env.cleanupToken = "test-token";
@@ -170,10 +180,14 @@ describe("production E2E cleanup helpers", () => {
     globalThis.fetch = fetchMock as unknown as typeof fetch;
 
     await expect(
-      provisionE2EAccount("e2e-primary@tests.example.com", "safe-password")
+      provisionE2EAccount(
+      "e2e-primary@tests.example.com",
+      "safe-password",
+      noOpSleep
+    )
     ).rejects.toThrow("Production E2E provisioning failed (409)");
     expect(fetchMock).toHaveBeenCalledTimes(2);
-  }, 10_000);
+  });
 
   test("provisioning does not mask a stale account behind a retried 429", async () => {
     env.cleanupToken = "test-token";
@@ -193,10 +207,14 @@ describe("production E2E cleanup helpers", () => {
     globalThis.fetch = fetchMock as unknown as typeof fetch;
 
     await expect(
-      provisionE2EAccount("e2e-primary@tests.example.com", "safe-password")
+      provisionE2EAccount(
+      "e2e-primary@tests.example.com",
+      "safe-password",
+      noOpSleep
+    )
     ).rejects.toThrow("Production E2E provisioning failed (409)");
     expect(fetchMock).toHaveBeenCalledTimes(2);
-  }, 10_000);
+  });
 
   test("provisioning treats a conflict after a lost response as success", async () => {
     env.cleanupToken = "test-token";
@@ -215,9 +233,13 @@ describe("production E2E cleanup helpers", () => {
     });
     globalThis.fetch = fetchMock as unknown as typeof fetch;
 
-    await provisionE2EAccount("e2e-primary@tests.example.com", "safe-password");
+    await provisionE2EAccount(
+      "e2e-primary@tests.example.com",
+      "safe-password",
+      noOpSleep
+    );
     expect(fetchMock).toHaveBeenCalledTimes(2);
-  }, 10_000);
+  });
 
   test("provisioning reports network failure after exhausting retries", async () => {
     env.cleanupToken = "test-token";
@@ -229,10 +251,14 @@ describe("production E2E cleanup helpers", () => {
     globalThis.fetch = fetchMock as unknown as typeof fetch;
 
     await expect(
-      provisionE2EAccount("e2e-primary@tests.example.com", "safe-password")
+      provisionE2EAccount(
+      "e2e-primary@tests.example.com",
+      "safe-password",
+      noOpSleep
+    )
     ).rejects.toThrow("Production E2E provisioning failed (network)");
     expect(fetchMock).toHaveBeenCalledTimes(4);
-  }, 20_000);
+  });
 
   test("retries preflight cleanup after a failed first attempt", async () => {
     env.cleanupToken = "test-token";
