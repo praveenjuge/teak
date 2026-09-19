@@ -6,6 +6,7 @@ import {
   initializeCardProcessingStateHandler,
   MAX_WORKFLOW_CLEANUP_BATCH_SIZE,
   scheduleCompletedWorkflowCleanupHandler,
+  reapStuckWorkflowsHandler,
   scheduleWorkflowHistoryCleanupBatchHandler,
   startCardProcessingWorkflowHandler,
   WORKFLOW_CLEANUP_RETRY_MS,
@@ -492,6 +493,109 @@ describe("workflow manager", () => {
         })
       ).rejects.toThrow(
         "cutoffMs must preserve at least seven days of history"
+      );
+    });
+  });
+
+  describe("stuck workflow reaping", () => {
+    const originalCancel = workflow.cancel;
+    const originalCleanup = workflow.cleanup;
+
+    afterEach(() => {
+      workflow.cancel = originalCancel;
+      workflow.cleanup = originalCleanup;
+    });
+
+    test("cleanup handler cancels and cleans a workflow stuck past retention", async () => {
+      const runQuery = mock().mockResolvedValue({
+        workflow: {
+          generationNumber: 3,
+          _creationTime: Date.now() - WORKFLOW_RETENTION_MS - 1,
+        },
+      });
+      const cancel = mock().mockResolvedValue(undefined);
+      const cleanup = mock().mockResolvedValue(true);
+      workflow.cancel = cancel;
+      workflow.cleanup = cleanup;
+      const runAfter = mock().mockResolvedValue("scheduled_retry");
+
+      const cleaned = await cleanupCompletedWorkflowHandler(
+        { runQuery, scheduler: { runAfter } } as any,
+        "wf_stuck" as any,
+        3
+      );
+
+      expect(cleaned).toBe(true);
+      expect(cancel).toHaveBeenCalledWith(expect.anything(), "wf_stuck");
+      expect(cleanup).toHaveBeenCalledWith(expect.anything(), "wf_stuck");
+      expect(runAfter).not.toHaveBeenCalled();
+    });
+
+    test("sweep reaps old in-progress workflows and skips the rest", async () => {
+      const cutoff = Date.now() - WORKFLOW_RETENTION_MS;
+      const list = mock().mockResolvedValue({
+        page: [
+          { workflowId: "wf_done", runResult: { kind: "success" } },
+          { workflowId: "wf_young" },
+          { workflowId: "wf_stuck" },
+        ],
+        isDone: true,
+        continueCursor: "cursor",
+      });
+      const getStatus = mock().mockImplementation((_ref: any, args: any) =>
+        Promise.resolve({
+          workflow:
+            args.workflowId === "wf_young"
+              ? { _creationTime: cutoff + 1000 }
+              : { _creationTime: cutoff - 1000 },
+        })
+      );
+      const cancel = mock().mockResolvedValue(undefined);
+      const cleanup = mock().mockResolvedValue(true);
+      workflow.cancel = cancel;
+      workflow.cleanup = cleanup;
+      const ctx = {
+        runQuery: mock().mockImplementation((ref: any, args: any) =>
+          "paginationOpts" in args ? list() : getStatus(ref, args)
+        ),
+        scheduler: { runAfter: mock() },
+      } as any;
+
+      const result = await reapStuckWorkflowsHandler(ctx);
+
+      expect(result).toEqual({ examinedCount: 2, reapedCount: 1 });
+      expect(cancel).toHaveBeenCalledTimes(1);
+      expect(cancel).toHaveBeenCalledWith(expect.anything(), "wf_stuck");
+      expect(cleanup).toHaveBeenCalledWith(expect.anything(), "wf_stuck");
+    });
+
+    test("sweep schedules a follow-up while a backlog drains", async () => {
+      const stuck = { workflowId: "wf_stuck" };
+      const list = mock().mockResolvedValue({
+        page: Array.from({ length: 50 }, () => stuck),
+        isDone: false,
+        continueCursor: "cursor",
+      });
+      const getStatus = mock().mockResolvedValue({
+        workflow: { _creationTime: Date.now() - WORKFLOW_RETENTION_MS - 1 },
+      });
+      workflow.cancel = mock().mockResolvedValue(undefined);
+      workflow.cleanup = mock().mockResolvedValue(true);
+      const runAfter = mock().mockResolvedValue("scheduled_followup");
+      const ctx = {
+        runQuery: mock().mockImplementation((_ref: any, args: any) =>
+          "paginationOpts" in args ? list() : getStatus()
+        ),
+        scheduler: { runAfter },
+      } as any;
+
+      const result = await reapStuckWorkflowsHandler(ctx);
+
+      expect(result.reapedCount).toBe(50);
+      expect(runAfter).toHaveBeenCalledWith(
+        60000,
+        expect.anything(),
+        {}
       );
     });
   });
