@@ -93,7 +93,8 @@ const waitForProvisionRetry = (attempt: number): Promise<void> =>
 
 export const provisionE2EAccount = async (
   email: string,
-  password: string
+  password: string,
+  sleep: (attempt: number) => Promise<void> = waitForProvisionRetry
 ): Promise<void> => {
   requireE2ECleanup();
   requireE2ENamespace();
@@ -129,7 +130,7 @@ export const provisionE2EAccount = async (
           }`
         );
       }
-      await waitForProvisionRetry(attempt);
+      await sleep(attempt);
       continue;
     }
     const payload: unknown = await response.json().catch(() => null);
@@ -150,7 +151,7 @@ export const provisionE2EAccount = async (
       (response.status >= 500 || response.status === 429) &&
       attempt < PROVISION_MAX_ATTEMPTS
     ) {
-      await waitForProvisionRetry(attempt);
+      await sleep(attempt);
       continue;
     }
     throw new Error(`Production E2E provisioning failed (${response.status})`);
