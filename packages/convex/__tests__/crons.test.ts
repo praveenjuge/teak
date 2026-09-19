@@ -22,6 +22,10 @@ const EXPECTED_CRONS: Record<string, { cron: string; handler: string }> = {
     cron: "0 4 * * 1",
     handler: "sweepOrphanedObjects",
   },
+  "reap-stuck-workflows": {
+    cron: "0 5 * * 1",
+    handler: "reapStuckWorkflows",
+  },
   "ai-metadata-backfill": {
     cron: "0 */6 * * *",
     handler: "aiMetadataBackfill",

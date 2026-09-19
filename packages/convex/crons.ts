@@ -50,6 +50,15 @@ crons.cron(
   {}
 );
 
+// Cancel and clean workflows stuck in progress beyond the seven-day retention
+// horizon so they stop keeping the workpool loop hot (Mondays 05:00 UTC)
+crons.cron(
+  "reap-stuck-workflows",
+  "0 5 * * 1",
+  (internal as any).telemetry.crons.reapStuckWorkflows,
+  {}
+);
+
 // Generate AI metadata for cards that don't have it yet
 // Runs every 6 hours to catch any cards that failed generation
 crons.cron(

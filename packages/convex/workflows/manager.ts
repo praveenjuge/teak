@@ -115,6 +115,18 @@ export const cleanupCompletedWorkflowHandler = async (
       return false;
     }
     if (!workflowRecord.runResult) {
+      // A workflow still in progress past the retention horizon is stuck:
+      // its steps will never finish (for example survivors of past retry
+      // storms). Cancel and clean it instead of rescheduling this check
+      // forever - stuck workflows keep the workpool loop hot and accumulate
+      // journal state without bound.
+      if (
+        typeof workflowRecord._creationTime === "number" &&
+        Date.now() - workflowRecord._creationTime > WORKFLOW_RETENTION_MS
+      ) {
+        await workflow.cancel(ctx, workflowId);
+        return await workflow.cleanup(ctx, workflowId);
+      }
       await ctx.scheduler.runAfter(
         WORKFLOW_CLEANUP_RETRY_MS,
         internalAny["workflows/manager"].cleanupCompletedWorkflow,
@@ -133,6 +145,98 @@ export const cleanupCompletedWorkflowHandler = async (
     throw error;
   }
 };
+
+export const STUCK_WORKFLOW_SWEEP_PAGE_SIZE = 100;
+export const STUCK_WORKFLOW_REAP_LIMIT = 50;
+const STUCK_WORKFLOW_SWEEP_FOLLOW_UP_MS = 60 * 1000;
+
+/**
+ * Weekly sweep for workflows stuck in progress beyond the retention horizon.
+ * Completed workflows are reaped by the per-workflow retention timer, but a
+ * workflow that never finishes would otherwise live forever: it keeps the
+ * workpool loop hot (the loop cannot go idle while jobs are running) and its
+ * journal rows accumulate. Canceling releases the workpool and cleaning
+ * deletes the journal.
+ */
+export const reapStuckWorkflowsHandler = async (
+  ctx: ActionCtx,
+  cursor: string | null = null
+) => {
+  const cutoff = Date.now() - WORKFLOW_RETENTION_MS;
+  const page = await ctx.runQuery(components.workflow.workflow.list, {
+    order: "asc",
+    paginationOpts: { cursor, numItems: STUCK_WORKFLOW_SWEEP_PAGE_SIZE },
+  });
+
+  let examinedCount = 0;
+  let reapedCount = 0;
+  for (const entry of page.page) {
+    if (reapedCount >= STUCK_WORKFLOW_REAP_LIMIT) {
+      break;
+    }
+    if (entry.runResult !== undefined) {
+      continue;
+    }
+    examinedCount += 1;
+    try {
+      const { workflow: workflowRecord } = await ctx.runQuery(
+        components.workflow.workflow.getStatus,
+        { workflowId: entry.workflowId }
+      );
+      if (
+        workflowRecord.runResult !== undefined ||
+        typeof workflowRecord._creationTime !== "number" ||
+        workflowRecord._creationTime > cutoff
+      ) {
+        continue;
+      }
+      const workflowId = entry.workflowId as WorkflowId;
+      await workflow.cancel(ctx, workflowId);
+      await workflow.cleanup(ctx, workflowId);
+      reapedCount += 1;
+    } catch (error) {
+      if (
+        error instanceof Error &&
+        error.message.includes("Workflow not found")
+      ) {
+        continue;
+      }
+      throw error;
+    }
+  }
+
+  // Drain a large backlog in bounded follow-up runs instead of one long
+  // action. Reaped workflows are deleted from the list, so when the reap
+  // limit stops this run mid-page, re-reading the current page via the same
+  // cursor now yields its unprocessed remainder; otherwise continue from the
+  // page cursor so eligible workflows on later pages are not skipped until
+  // the next weekly cron.
+  if (reapedCount >= STUCK_WORKFLOW_REAP_LIMIT) {
+    await ctx.scheduler.runAfter(
+      STUCK_WORKFLOW_SWEEP_FOLLOW_UP_MS,
+      internalAny["workflows/manager"].reapStuckWorkflows,
+      cursor === null ? {} : { cursor }
+    );
+  } else if (!page.isDone) {
+    await ctx.scheduler.runAfter(
+      STUCK_WORKFLOW_SWEEP_FOLLOW_UP_MS,
+      internalAny["workflows/manager"].reapStuckWorkflows,
+      { cursor: page.continueCursor }
+    );
+  }
+
+  return { examinedCount, reapedCount };
+};
+
+export const reapStuckWorkflows = internalAction({
+  args: { cursor: v.optional(v.string()) },
+  returns: v.object({
+    examinedCount: v.number(),
+    reapedCount: v.number(),
+  }),
+  handler: async (ctx, args) =>
+    await reapStuckWorkflowsHandler(ctx, args.cursor ?? null),
+});
 
 type WorkflowCleanupStatus =
   | "cleaned"
