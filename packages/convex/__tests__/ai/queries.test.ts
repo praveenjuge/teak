@@ -31,7 +31,7 @@ describe("ai/queries.ts", () => {
 
   test("findCardsMissingAi maps to card ids", async () => {
     const mockQuery = {
-      filter: mock().mockReturnThis(),
+      withIndex: mock().mockReturnThis(),
       take: mock().mockResolvedValue([{ _id: "c1" }, { _id: "c2" }]),
     } as any;
     const ctx = { db: { query: mock().mockReturnValue(mockQuery) } } as any;
@@ -42,7 +42,7 @@ describe("ai/queries.ts", () => {
 
   test("findCardsMissingAi filters for cards older than 5 minutes", async () => {
     const mockQuery = {
-      filter: mock().mockReturnThis(),
+      withIndex: mock().mockReturnThis(),
       take: mock().mockResolvedValue([]),
     } as any;
     const ctx = { db: { query: mock().mockReturnValue(mockQuery) } } as any;
@@ -50,30 +50,62 @@ describe("ai/queries.ts", () => {
     await handler(ctx, {});
 
     expect(ctx.db.query).toHaveBeenCalledWith("cards");
-    expect(mockQuery.filter).toHaveBeenCalledWith(expect.any(Function));
+    expect(mockQuery.withIndex).toHaveBeenCalledWith(
+      "by_aiSummary_created",
+      expect.any(Function)
+    );
   });
 
   test("findCardsMissingAi limits to 50 cards", async () => {
     const mockQuery = {
-      filter: mock().mockReturnThis(),
+      withIndex: mock().mockReturnThis(),
       take: mock().mockResolvedValue([]),
     } as any;
     const takeMock = mockQuery.take;
     const ctx = { db: { query: mock().mockReturnValue(mockQuery) } } as any;
     const handler = (findCardsMissingAi as any).handler ?? findCardsMissingAi;
     await handler(ctx, {});
-    expect(takeMock).toHaveBeenCalledWith(50);
+    expect(takeMock).toHaveBeenCalledWith(200);
   });
 
   test("findCardsMissingAi handles empty results", async () => {
     const mockQuery = {
-      filter: mock().mockReturnThis(),
+      withIndex: mock().mockReturnThis(),
       take: mock().mockResolvedValue([]),
     } as any;
     const ctx = { db: { query: mock().mockReturnValue(mockQuery) } } as any;
     const handler = (findCardsMissingAi as any).handler ?? findCardsMissingAi;
     const result = await handler(ctx, {});
     expect(result).toEqual([]);
+  });
+
+  test("findCardsMissingAi post-filters deleted and partially-processed cards", async () => {
+    const mockQuery = {
+      withIndex: mock().mockReturnThis(),
+      take: mock().mockResolvedValue([
+        { _id: "keep", isDeleted: false },
+        { _id: "deleted", isDeleted: true },
+        { _id: "hasTags", aiTags: ["x"] },
+        { _id: "hasTranscript", aiTranscript: "t" },
+      ]),
+    } as any;
+    const ctx = { db: { query: mock().mockReturnValue(mockQuery) } } as any;
+    const handler = (findCardsMissingAi as any).handler ?? findCardsMissingAi;
+    const result = await handler(ctx, {});
+    expect(result).toEqual([{ cardId: "keep" }]);
+  });
+
+  test("findCardsMissingAi caps the batch at 50 cards", async () => {
+    const cards = Array.from({ length: 200 }, (_, i) => ({ _id: `c${i}` }));
+    const mockQuery = {
+      withIndex: mock().mockReturnThis(),
+      take: mock().mockResolvedValue(cards),
+    } as any;
+    const ctx = { db: { query: mock().mockReturnValue(mockQuery) } } as any;
+    const handler = (findCardsMissingAi as any).handler ?? findCardsMissingAi;
+    const result = await handler(ctx, {});
+    expect(result).toHaveLength(50);
+    expect(result[0]).toEqual({ cardId: "c0" });
   });
 
   test("getCardForVerification returns null when card missing", async () => {
