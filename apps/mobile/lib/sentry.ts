@@ -8,6 +8,7 @@ import type { TelemetryAttributeValue } from "@teak/convex/shared/telemetry";
 import * as Application from "expo-application";
 import Constants from "expo-constants";
 import {
+  filterMobileSentryEvent,
   mobileTracesSampler,
   resolveMobileDsn,
   resolveMobileEnvironment,
@@ -44,7 +45,7 @@ SentryClient.init({
   appHangTimeoutInterval: 2,
   attachScreenshot: false,
   attachViewHierarchy: false,
-  beforeSend: scrubMobilePayload,
+  beforeSend: filterMobileSentryEvent,
   beforeSendLog: scrubMobilePayload,
   beforeSendSpan: scrubMobilePayload,
   dist: buildNumber?.toString(),
