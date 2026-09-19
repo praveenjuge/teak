@@ -158,11 +158,14 @@ const STUCK_WORKFLOW_SWEEP_FOLLOW_UP_MS = 60 * 1000;
  * journal rows accumulate. Canceling releases the workpool and cleaning
  * deletes the journal.
  */
-export const reapStuckWorkflowsHandler = async (ctx: ActionCtx) => {
+export const reapStuckWorkflowsHandler = async (
+  ctx: ActionCtx,
+  cursor: string | null = null
+) => {
   const cutoff = Date.now() - WORKFLOW_RETENTION_MS;
   const page = await ctx.runQuery(components.workflow.workflow.list, {
     order: "asc",
-    paginationOpts: { cursor: null, numItems: STUCK_WORKFLOW_SWEEP_PAGE_SIZE },
+    paginationOpts: { cursor, numItems: STUCK_WORKFLOW_SWEEP_PAGE_SIZE },
   });
 
   let examinedCount = 0;
@@ -202,12 +205,23 @@ export const reapStuckWorkflowsHandler = async (ctx: ActionCtx) => {
     }
   }
 
-  // Drain a large backlog in bounded follow-up runs instead of one long action.
-  if (reapedCount >= STUCK_WORKFLOW_REAP_LIMIT && !page.isDone) {
+  // Drain a large backlog in bounded follow-up runs instead of one long
+  // action. Reaped workflows are deleted from the list, so when the reap
+  // limit stops this run mid-page, re-reading the current page via the same
+  // cursor now yields its unprocessed remainder; otherwise continue from the
+  // page cursor so eligible workflows on later pages are not skipped until
+  // the next weekly cron.
+  if (reapedCount >= STUCK_WORKFLOW_REAP_LIMIT) {
     await ctx.scheduler.runAfter(
       STUCK_WORKFLOW_SWEEP_FOLLOW_UP_MS,
       internalAny["workflows/manager"].reapStuckWorkflows,
-      {}
+      cursor === null ? {} : { cursor }
+    );
+  } else if (!page.isDone) {
+    await ctx.scheduler.runAfter(
+      STUCK_WORKFLOW_SWEEP_FOLLOW_UP_MS,
+      internalAny["workflows/manager"].reapStuckWorkflows,
+      { cursor: page.continueCursor }
     );
   }
 
@@ -215,12 +229,13 @@ export const reapStuckWorkflowsHandler = async (ctx: ActionCtx) => {
 };
 
 export const reapStuckWorkflows = internalAction({
-  args: {},
+  args: { cursor: v.optional(v.string()) },
   returns: v.object({
     examinedCount: v.number(),
     reapedCount: v.number(),
   }),
-  handler: async (ctx) => await reapStuckWorkflowsHandler(ctx),
+  handler: async (ctx, args) =>
+    await reapStuckWorkflowsHandler(ctx, args.cursor ?? null),
 });
 
 type WorkflowCleanupStatus =
