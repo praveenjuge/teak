@@ -124,6 +124,116 @@ describe("production E2E cleanup helpers", () => {
     ).rejects.toThrow("provisioning email is invalid");
   });
 
+  test("provisioning retries a transient 5xx before succeeding", async () => {
+    env.cleanupToken = "test-token";
+    env.convexSiteUrl = "https://example.convex.site";
+    env.emailDomain = "tests.example.com";
+    let attempts = 0;
+    const fetchMock = mock(
+      async (_input: RequestInfo | URL, init?: RequestInit) => {
+        attempts += 1;
+        if (attempts === 1) {
+          return Response.json(
+            { message: "temporarily unavailable" },
+            { status: 500 }
+          );
+        }
+        return Response.json({
+          email: JSON.parse(String(init?.body)).email,
+        });
+      }
+    );
+    globalThis.fetch = fetchMock as unknown as typeof fetch;
+
+    await provisionE2EAccount("e2e-primary@tests.example.com", "safe-password");
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+  }, 10_000);
+
+  test("provisioning does not mask a stale account behind a retried 5xx", async () => {
+    env.cleanupToken = "test-token";
+    env.convexSiteUrl = "https://example.convex.site";
+    env.emailDomain = "tests.example.com";
+    let attempts = 0;
+    const fetchMock = mock(async () => {
+      attempts += 1;
+      if (attempts === 1) {
+        return Response.json(
+          { message: "temporarily unavailable" },
+          { status: 500 }
+        );
+      }
+      return Response.json(
+        { code: "CONFLICT", message: "E2E account already exists" },
+        { status: 409 }
+      );
+    });
+    globalThis.fetch = fetchMock as unknown as typeof fetch;
+
+    await expect(
+      provisionE2EAccount("e2e-primary@tests.example.com", "safe-password")
+    ).rejects.toThrow("Production E2E provisioning failed (409)");
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+  }, 10_000);
+
+  test("provisioning does not mask a stale account behind a retried 429", async () => {
+    env.cleanupToken = "test-token";
+    env.convexSiteUrl = "https://example.convex.site";
+    env.emailDomain = "tests.example.com";
+    let attempts = 0;
+    const fetchMock = mock(async () => {
+      attempts += 1;
+      if (attempts === 1) {
+        return Response.json({ message: "slow down" }, { status: 429 });
+      }
+      return Response.json(
+        { code: "CONFLICT", message: "E2E account already exists" },
+        { status: 409 }
+      );
+    });
+    globalThis.fetch = fetchMock as unknown as typeof fetch;
+
+    await expect(
+      provisionE2EAccount("e2e-primary@tests.example.com", "safe-password")
+    ).rejects.toThrow("Production E2E provisioning failed (409)");
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+  }, 10_000);
+
+  test("provisioning treats a conflict after a lost response as success", async () => {
+    env.cleanupToken = "test-token";
+    env.convexSiteUrl = "https://example.convex.site";
+    env.emailDomain = "tests.example.com";
+    let attempts = 0;
+    const fetchMock = mock(async () => {
+      attempts += 1;
+      if (attempts === 1) {
+        throw new TypeError("fetch failed");
+      }
+      return Response.json(
+        { code: "CONFLICT", message: "E2E account already exists" },
+        { status: 409 }
+      );
+    });
+    globalThis.fetch = fetchMock as unknown as typeof fetch;
+
+    await provisionE2EAccount("e2e-primary@tests.example.com", "safe-password");
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+  }, 10_000);
+
+  test("provisioning reports network failure after exhausting retries", async () => {
+    env.cleanupToken = "test-token";
+    env.convexSiteUrl = "https://example.convex.site";
+    env.emailDomain = "tests.example.com";
+    const fetchMock = mock(async () => {
+      throw new TypeError("fetch failed");
+    });
+    globalThis.fetch = fetchMock as unknown as typeof fetch;
+
+    await expect(
+      provisionE2EAccount("e2e-primary@tests.example.com", "safe-password")
+    ).rejects.toThrow("Production E2E provisioning failed (network)");
+    expect(fetchMock).toHaveBeenCalledTimes(4);
+  }, 20_000);
+
   test("retries preflight cleanup after a failed first attempt", async () => {
     env.cleanupToken = "test-token";
     env.convexSiteUrl = "https://example.convex.site";
