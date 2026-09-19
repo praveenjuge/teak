@@ -64,6 +64,29 @@ describe("mobile Sentry configuration", () => {
     ).toBeNull();
   });
 
+  test("keeps chained pointer hangs with an application exception", () => {
+    const event = {
+      exception: {
+        values: [
+          {
+            stacktrace: {
+              frames: [{ function: "-[_UIPointerInteractionAssistant init]" }],
+            },
+            type: "App Hang Non Fully Blocked",
+          },
+          {
+            stacktrace: {
+              frames: [{ function: "openMenu", in_app: true }],
+            },
+            type: "Error",
+          },
+        ],
+      },
+    };
+
+    expect(filterMobileSentryEvent(event)).toEqual(event);
+  });
+
   test("keeps pointer interaction hangs with an application frame", () => {
     const event = {
       exception: {
