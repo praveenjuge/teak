@@ -3,6 +3,9 @@ import { internalQuery } from "../_generated/server";
 
 const AI_BACKFILL_BATCH_SIZE = 50;
 const AI_BACKFILL_SCAN_PAGE_SIZE = 4 * AI_BACKFILL_BATCH_SIZE;
+// Cap total index entries read per run so a long ineligible prefix cannot
+// turn one backfill run into an unbounded scan.
+const AI_BACKFILL_SCAN_BUDGET = 10 * AI_BACKFILL_SCAN_PAGE_SIZE;
 
 // Internal query to get card data for AI processing
 export const getCardForAI = internalQuery({
@@ -21,24 +24,39 @@ export const findCardsMissingAi = internalQuery({
     // summary are a small subset, so reads stay proportional to the backlog
     // instead of scanning the whole table on every backfill run. The index
     // range applies the age cutoff; deletion and the remaining AI fields are
-    // cheap post-filters on an over-fetched page. Cards beyond the page are
-    // picked up by the next scheduled run.
-    const candidates = await ctx.db
-      .query("cards")
-      .withIndex("by_aiSummary_created", (q) =>
-        q.eq("aiSummary", undefined).lt("createdAt", fiveMinutesAgo)
-      )
-      .take(AI_BACKFILL_SCAN_PAGE_SIZE);
-
-    return candidates
-      .filter(
-        (card) =>
+    // cheap post-filters. Paginate until the batch is full so a page of
+    // ineligible entries (deleted or partially processed cards) cannot starve
+    // eligible ones behind it; the scan budget keeps each run bounded, and
+    // the ineligible prefix drains as card cleanup removes deleted rows.
+    const batch = [];
+    let cursor: string | null = null;
+    let scanned = 0;
+    while (batch.length < AI_BACKFILL_BATCH_SIZE) {
+      const page = await ctx.db
+        .query("cards")
+        .withIndex("by_aiSummary_created", (q) =>
+          q.eq("aiSummary", undefined).lt("createdAt", fiveMinutesAgo)
+        )
+        .paginate({ cursor, numItems: AI_BACKFILL_SCAN_PAGE_SIZE });
+      scanned += page.page.length;
+      for (const card of page.page) {
+        if (
           card.isDeleted !== true &&
           card.aiTags === undefined &&
           card.aiTranscript === undefined
-      )
-      .slice(0, AI_BACKFILL_BATCH_SIZE) // Process in batches
-      .map((card) => ({ cardId: card._id }));
+        ) {
+          batch.push({ cardId: card._id });
+          if (batch.length >= AI_BACKFILL_BATCH_SIZE) {
+            break;
+          }
+        }
+      }
+      if (page.isDone || scanned >= AI_BACKFILL_SCAN_BUDGET) {
+        break;
+      }
+      cursor = page.continueCursor;
+    }
+    return batch; // Process in batches
   },
 });
 
