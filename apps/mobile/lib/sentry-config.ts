@@ -39,6 +39,8 @@ export const mobileTracesSampler = (context: {
         : undefined,
   });
 
+export const MOBILE_APP_HANG_TIMEOUT_SECONDS = 3;
+
 export const scrubMobilePayload = <T>(payload: T): T =>
   scrubTelemetryValue(payload) as T;
 

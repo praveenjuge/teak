@@ -8,6 +8,7 @@ mock.module("expo-crypto", () => ({
 }));
 
 const {
+  MOBILE_APP_HANG_TIMEOUT_SECONDS,
   mobileTracesSampler,
   resolveMobileEnvironment,
   resolveMobileRelease,
@@ -39,6 +40,10 @@ describe("mobile Sentry configuration", () => {
     expect(mobileTracesSampler({ name: "mobile.navigation" })).toBe(0.2);
     expect(mobileTracesSampler({ name: "mobile.card.save" })).toBe(1);
     expect(mobileTracesSampler({ name: "mobile.auth.bootstrap" })).toBe(1);
+  });
+
+  test("uses a three-second native app hang threshold", () => {
+    expect(MOBILE_APP_HANG_TIMEOUT_SECONDS).toBe(3);
   });
 
   test("scrubs credentials and hashes authenticated users", async () => {
