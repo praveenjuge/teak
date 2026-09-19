@@ -39,42 +39,7 @@ export const mobileTracesSampler = (context: {
         : undefined,
   });
 
-interface MobileErrorEvent {
-  exception?: {
-    values?: {
-      stacktrace?: {
-        frames?: { filename?: string; function?: string; in_app?: boolean }[];
-      };
-      type?: string;
-    }[];
-  };
-}
-
-const isSystemPointerInteractionHang = (event: MobileErrorEvent): boolean => {
-  const exceptions = event.exception?.values ?? [];
-  const frames = exceptions.flatMap(
-    (exception) => exception.stacktrace?.frames ?? []
-  );
-
-  return (
-    exceptions.some(
-      (exception) =>
-        exception.type === "App Hang Non Fully Blocked" &&
-        exception.stacktrace?.frames?.some(
-          (frame) => frame.function === "-[_UIPointerInteractionAssistant init]"
-        )
-    ) &&
-    frames.length > 0 &&
-    frames.every((frame) => !frame.filename && frame.in_app !== true)
-  );
-};
-
-export const filterMobileSentryEvent = <T extends MobileErrorEvent>(
-  event: T
-): T | null =>
-  isSystemPointerInteractionHang(event)
-    ? null
-    : (scrubTelemetryValue(event) as T);
+export const MOBILE_APP_HANG_TIMEOUT_SECONDS = 3;
 
 export const scrubMobilePayload = <T>(payload: T): T =>
   scrubTelemetryValue(payload) as T;
