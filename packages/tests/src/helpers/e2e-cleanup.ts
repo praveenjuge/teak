@@ -108,7 +108,11 @@ export const provisionE2EAccount = async (
     },
     body: JSON.stringify({ email, password }),
   };
-  let sawServerFailure = false;
+  // Only a network-level failure is ambiguous: the request may have
+  // reached the server while its response was lost. An explicit error
+  // status means the server rejected the request, so it cannot prove the
+  // account was created.
+  let sawLostResponse = false;
   for (let attempt = 1; attempt <= PROVISION_MAX_ATTEMPTS; attempt += 1) {
     let response: Response;
     try {
@@ -117,11 +121,13 @@ export const provisionE2EAccount = async (
         requestInit
       );
     } catch (error) {
-      // Network-level failures lose the response, so the account may still
-      // have been created; a later CONFLICT then counts as success.
-      sawServerFailure = true;
+      sawLostResponse = true;
       if (attempt === PROVISION_MAX_ATTEMPTS) {
-        throw error;
+        throw new Error(
+          `Production E2E provisioning failed (network): ${
+            error instanceof Error ? error.message : String(error)
+          }`
+        );
       }
       await waitForProvisionRetry(attempt);
       continue;
@@ -135,17 +141,17 @@ export const provisionE2EAccount = async (
     ) {
       return;
     }
-    if (response.status === 409 && sawServerFailure) {
+    if (response.status === 409 && sawLostResponse) {
       // The retried request raced an earlier attempt whose response was
       // lost: the account now exists, which is the goal of this helper.
       return;
     }
-    if (response.status >= 500 || response.status === 429) {
-      sawServerFailure = true;
-      if (attempt < PROVISION_MAX_ATTEMPTS) {
-        await waitForProvisionRetry(attempt);
-        continue;
-      }
+    if (
+      (response.status >= 500 || response.status === 429) &&
+      attempt < PROVISION_MAX_ATTEMPTS
+    ) {
+      await waitForProvisionRetry(attempt);
+      continue;
     }
     throw new Error(`Production E2E provisioning failed (${response.status})`);
   }
