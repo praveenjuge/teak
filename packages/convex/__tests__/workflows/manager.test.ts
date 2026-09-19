@@ -569,6 +569,58 @@ describe("workflow manager", () => {
       expect(cleanup).toHaveBeenCalledWith(expect.anything(), "wf_stuck");
     });
 
+    test("sweep continues from the page cursor when more pages remain", async () => {
+      const list = mock().mockResolvedValue({
+        page: [
+          { workflowId: "wf_done", runResult: { kind: "success" } },
+          { workflowId: "wf_stuck" },
+        ],
+        isDone: false,
+        continueCursor: "next_page",
+      });
+      const getStatus = mock().mockResolvedValue({
+        workflow: { _creationTime: Date.now() - WORKFLOW_RETENTION_MS - 1 },
+      });
+      workflow.cancel = mock().mockResolvedValue(undefined);
+      workflow.cleanup = mock().mockResolvedValue(true);
+      const runAfter = mock().mockResolvedValue("scheduled_followup");
+      const ctx = {
+        runQuery: mock().mockImplementation((_ref: any, args: any) =>
+          "paginationOpts" in args ? list() : getStatus()
+        ),
+        scheduler: { runAfter },
+      } as any;
+
+      const result = await reapStuckWorkflowsHandler(ctx);
+
+      expect(result.reapedCount).toBe(1);
+      expect(runAfter).toHaveBeenCalledWith(60000, expect.anything(), {
+        cursor: "next_page",
+      });
+    });
+
+    test("sweep passes the resume cursor through to the next page", async () => {
+      const list = mock().mockResolvedValue({
+        page: [],
+        isDone: true,
+        continueCursor: "unused",
+      });
+      const runAfter = mock();
+      const ctx = {
+        runQuery: mock().mockImplementation((_ref: any, args: any) =>
+          "paginationOpts" in args ? list() : Promise.resolve({ workflow: {} })
+        ),
+        scheduler: { runAfter },
+      } as any;
+
+      await reapStuckWorkflowsHandler(ctx, "resume_cursor");
+
+      expect(list).toHaveBeenCalledWith();
+      const listArgs = ctx.runQuery.mock.calls[0][1];
+      expect(listArgs.paginationOpts.cursor).toBe("resume_cursor");
+      expect(runAfter).not.toHaveBeenCalled();
+    });
+
     test("sweep schedules a follow-up while a backlog drains", async () => {
       const stuck = { workflowId: "wf_stuck" };
       const list = mock().mockResolvedValue({
