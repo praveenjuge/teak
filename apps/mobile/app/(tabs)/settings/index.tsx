@@ -1,4 +1,8 @@
 import {
+  captureClientException,
+  createClientRequestErrorFromContext,
+} from "@teak/convex/shared/client-telemetry";
+import {
   Button,
   Form,
   Host,
@@ -110,7 +114,9 @@ export default function SettingsScreen() {
     try {
       await authClient.deleteUser(undefined, {
         onError: (ctx) => {
-          setDeleteError(ctx.error?.message ?? "Failed to delete account.");
+          const error = createClientRequestErrorFromContext(ctx, "Failed to delete account.");
+          captureClientException(error, { operation: "account.delete" });
+          setDeleteError(error.message);
         },
         onSuccess: () => {
           router.replace("/(auth)/welcome");

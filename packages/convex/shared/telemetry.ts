@@ -314,6 +314,9 @@ export const normalizeErrorClass = (error: unknown): TelemetryErrorClass => {
   const value =
     error instanceof Error ? `${error.name} ${error.message}` : String(error);
   const normalized = value.toLowerCase();
+  if (error instanceof Error && error.name === "ClientRequestError") {
+    return "NetworkError";
+  }
   if (/abort|cancel/u.test(normalized)) {
     return "AbortError";
   }

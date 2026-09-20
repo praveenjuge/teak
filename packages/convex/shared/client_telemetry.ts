@@ -88,6 +88,58 @@ export const logClientTelemetry = (
   });
 };
 
+export interface ClientRequestErrorInput {
+  code?: string;
+  message: string;
+  status?: number;
+  statusText?: string;
+}
+
+export class ClientRequestError extends Error {
+  readonly code?: string;
+  readonly status?: number;
+  readonly statusText?: string;
+
+  constructor({ code, message, status, statusText }: ClientRequestErrorInput) {
+    super(message);
+    this.name = "ClientRequestError";
+    this.code = code;
+    this.status = status;
+    this.statusText = statusText;
+  }
+}
+
+export const createClientRequestError = (
+  input: ClientRequestErrorInput
+): ClientRequestError => new ClientRequestError(input);
+
+export const createClientRequestErrorFromContext = (context: {
+  error?: { code?: unknown; message?: string } | null;
+  response?: { status?: number; statusText?: string };
+}): ClientRequestError =>
+  createClientRequestError({
+    code:
+      typeof context.error?.code === "string"
+        ? context.error.code
+        : undefined,
+    message: context.error?.message ?? "Request failed.",
+    status: context.response?.status,
+    statusText: context.response?.statusText,
+  });
+
+const requestErrorTelemetryAttributes = (
+  error: unknown
+): TelemetryAttributes => {
+  if (!(error instanceof ClientRequestError)) {
+    return {};
+  }
+  return {
+    "http.status_code": error.status,
+    "http.status_text": error.statusText,
+    "error.code": error.code,
+  };
+};
+
 export const captureClientException = (
   error: unknown,
   attributes: TelemetryAttributes = {}
@@ -97,7 +149,10 @@ export const captureClientException = (
   }
   safeTelemetryCall(() => {
     activeRecorder.captureException?.(error, {
-      ...normalizeTelemetryAttributes(attributes),
+      ...normalizeTelemetryAttributes({
+        ...requestErrorTelemetryAttributes(error),
+        ...attributes,
+      }),
       "error.class": normalizeErrorClass(error),
     });
   });

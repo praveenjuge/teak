@@ -3,7 +3,10 @@
 import type { PolarEmbedCheckout } from "@polar-sh/checkout/embed";
 import * as Sentry from "@sentry/nextjs";
 import { api } from "@teak/convex";
-import { runClientSpan } from "@teak/convex/shared/client-telemetry";
+import {
+  createClientRequestErrorFromContext,
+  runClientSpan,
+} from "@teak/convex/shared/client-telemetry";
 import { trackCheckout } from "@teak/convex/shared/metrics";
 import { sanitizeExternalUrl } from "@teak/convex/shared/utils/safeUrl";
 import { Dialog, DialogContent } from "@teak/ui/components/ui/dialog";
@@ -33,7 +36,7 @@ export default function ProfileSettingsPage() {
 
   const settings = useSettingsController({
     onDeleteAccount: async () => {
-      let deleteError: string | null = null;
+      let deleteError: Error | null = null;
       // The awaited call's onError callback assigns `deleteError`; the guard
       // below reads that side effect, so this await cannot be deferred past it.
       // react-doctor-disable-next-line react-doctor/async-defer-await
@@ -42,12 +45,12 @@ export default function ProfileSettingsPage() {
           window.location.replace("/login");
         },
         onError: (ctx) => {
-          deleteError = ctx.error?.message ?? "Failed to delete account.";
+          deleteError = createClientRequestErrorFromContext(ctx, "Failed to delete account.");
         },
       });
 
       if (deleteError) {
-        throw new Error(deleteError);
+        throw deleteError;
       }
     },
     onOpenExternal: (url) => {
