@@ -88,6 +88,44 @@ export const logClientTelemetry = (
   });
 };
 
+export interface ClientRequestErrorInput {
+  code?: string;
+  message: string;
+  status?: number;
+  statusText?: string;
+}
+
+export class ClientRequestError extends Error {
+  readonly code?: string;
+  readonly status?: number;
+  readonly statusText?: string;
+
+  constructor({ code, message, status, statusText }: ClientRequestErrorInput) {
+    super(message);
+    this.name = "ClientRequestError";
+    this.code = code;
+    this.status = status;
+    this.statusText = statusText;
+  }
+}
+
+export const createClientRequestError = (
+  input: ClientRequestErrorInput
+): ClientRequestError => new ClientRequestError(input);
+
+const requestErrorTelemetryAttributes = (
+  error: unknown
+): TelemetryAttributes => {
+  if (!(error instanceof ClientRequestError)) {
+    return {};
+  }
+  return {
+    "http.status_code": error.status,
+    "http.status_text": error.statusText,
+    "error.code": error.code,
+  };
+};
+
 export const captureClientException = (
   error: unknown,
   attributes: TelemetryAttributes = {}
@@ -97,7 +135,10 @@ export const captureClientException = (
   }
   safeTelemetryCall(() => {
     activeRecorder.captureException?.(error, {
-      ...normalizeTelemetryAttributes(attributes),
+      ...normalizeTelemetryAttributes({
+        ...requestErrorTelemetryAttributes(error),
+        ...attributes,
+      }),
       "error.class": normalizeErrorClass(error),
     });
   });
