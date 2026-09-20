@@ -4,6 +4,7 @@ import {
   captureClientException,
   configureClientTelemetry,
   createClientRequestError,
+  createClientRequestErrorFromContext,
   resetClientTelemetry,
   runClientSpan,
 } from "../../shared/client_telemetry";
@@ -64,11 +65,23 @@ describe("client telemetry adapter", () => {
     captureClientException(error, { operation: "account.delete" });
 
     expect(captureException).toHaveBeenCalledWith(error, {
-      "error.class": "UnknownError",
+      "error.class": "NetworkError",
       "error.code": "INTERNAL_SERVER_ERROR",
       "http.status_code": 500,
       "http.status_text": "Internal Server Error",
       operation: "account.delete",
+    });
+  });
+
+  test("handles request failures without an HTTP response", () => {
+    expect(
+      createClientRequestErrorFromContext({
+        error: { message: "Failed to fetch" },
+      })
+    ).toMatchObject({
+      message: "Failed to fetch",
+      status: undefined,
+      statusText: undefined,
     });
   });
 
