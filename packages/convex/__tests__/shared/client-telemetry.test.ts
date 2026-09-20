@@ -3,6 +3,7 @@ import {
   addTelemetryBreadcrumb,
   captureClientException,
   configureClientTelemetry,
+  createClientRequestError,
   resetClientTelemetry,
   runClientSpan,
 } from "../../shared/client_telemetry";
@@ -48,6 +49,27 @@ describe("client telemetry adapter", () => {
         () => Promise.reject(applicationError)
       )
     ).rejects.toBe(applicationError);
+  });
+
+  test("records safe request failure diagnostics", () => {
+    const captureException = mock();
+    configureClientTelemetry({ captureException });
+    const error = createClientRequestError({
+      code: "INTERNAL_SERVER_ERROR",
+      message: "Failed to delete account.",
+      status: 500,
+      statusText: "Internal Server Error",
+    });
+
+    captureClientException(error, { operation: "account.delete" });
+
+    expect(captureException).toHaveBeenCalledWith(error, {
+      "error.class": "UnknownError",
+      "error.code": "INTERNAL_SERVER_ERROR",
+      "http.status_code": 500,
+      "http.status_text": "Internal Server Error",
+      operation: "account.delete",
+    });
   });
 
   test("bounds breadcrumb data and isolates capture failures", () => {
