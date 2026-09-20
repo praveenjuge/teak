@@ -114,7 +114,7 @@ export default function SettingsScreen() {
     try {
       await authClient.deleteUser(undefined, {
         onError: (ctx) => {
-          const error = createClientRequestErrorFromContext(ctx);
+          const error = createClientRequestErrorFromContext(ctx, "Failed to delete account.");
           captureClientException(error, { operation: "account.delete" });
           setDeleteError(error.message);
         },
