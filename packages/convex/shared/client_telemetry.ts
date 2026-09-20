@@ -113,6 +113,20 @@ export const createClientRequestError = (
   input: ClientRequestErrorInput
 ): ClientRequestError => new ClientRequestError(input);
 
+export const createClientRequestErrorFromContext = (context: {
+  error?: { code?: unknown; message?: string } | null;
+  response?: { status?: number; statusText?: string };
+}): ClientRequestError =>
+  createClientRequestError({
+    code:
+      typeof context.error?.code === "string"
+        ? context.error.code
+        : undefined,
+    message: context.error?.message ?? "Request failed.",
+    status: context.response?.status,
+    statusText: context.response?.statusText,
+  });
+
 const requestErrorTelemetryAttributes = (
   error: unknown
 ): TelemetryAttributes => {
