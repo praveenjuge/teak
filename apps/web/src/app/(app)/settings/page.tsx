@@ -4,7 +4,7 @@ import type { PolarEmbedCheckout } from "@polar-sh/checkout/embed";
 import * as Sentry from "@sentry/nextjs";
 import { api } from "@teak/convex";
 import {
-  createClientRequestError,
+  createClientRequestErrorFromContext,
   runClientSpan,
 } from "@teak/convex/shared/client-telemetry";
 import { trackCheckout } from "@teak/convex/shared/metrics";
@@ -45,13 +45,7 @@ export default function ProfileSettingsPage() {
           window.location.replace("/login");
         },
         onError: (ctx) => {
-          deleteError = createClientRequestError({
-            code:
-              typeof ctx.error?.code === "string" ? ctx.error.code : undefined,
-            message: ctx.error?.message ?? "Failed to delete account.",
-            status: ctx.response.status,
-            statusText: ctx.response.statusText,
-          });
+          deleteError = createClientRequestErrorFromContext(ctx);
         },
       });
 
