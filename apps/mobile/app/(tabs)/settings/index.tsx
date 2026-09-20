@@ -1,6 +1,6 @@
 import {
   captureClientException,
-  createClientRequestError,
+  createClientRequestErrorFromContext,
 } from "@teak/convex/shared/client-telemetry";
 import {
   Button,
@@ -114,13 +114,7 @@ export default function SettingsScreen() {
     try {
       await authClient.deleteUser(undefined, {
         onError: (ctx) => {
-          const error = createClientRequestError({
-            code:
-              typeof ctx.error?.code === "string" ? ctx.error.code : undefined,
-            message: ctx.error?.message ?? "Failed to delete account.",
-            status: ctx.response.status,
-            statusText: ctx.response.statusText,
-          });
+          const error = createClientRequestErrorFromContext(ctx);
           captureClientException(error, { operation: "account.delete" });
           setDeleteError(error.message);
         },
