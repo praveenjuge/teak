@@ -73,6 +73,29 @@ describe("client telemetry adapter", () => {
     });
   });
 
+  test("preserves response context in request errors", () => {
+    expect(
+      createClientRequestErrorFromContext({
+        error: { code: "INTERNAL_SERVER_ERROR", message: "Deletion failed" },
+        response: { status: 500, statusText: "Internal Server Error" },
+      })
+    ).toMatchObject({
+      code: "INTERNAL_SERVER_ERROR",
+      message: "Deletion failed",
+      status: 500,
+      statusText: "Internal Server Error",
+    });
+  });
+
+  test("uses the caller fallback when the server omits a message", () => {
+    expect(
+      createClientRequestErrorFromContext(
+        { error: {}, response: { status: 500, statusText: "" } },
+        "Failed to delete account."
+      ).message
+    ).toBe("Failed to delete account.");
+  });
+
   test("handles request failures without an HTTP response", () => {
     expect(
       createClientRequestErrorFromContext({
