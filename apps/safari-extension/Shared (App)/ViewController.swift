@@ -34,7 +34,7 @@ final class ViewController: NSViewController {
     override func viewDidAppear() {
         super.viewDidAppear()
         if let window = view.window {
-            window.setContentSize(NSSize(width: 460, height: 280))
+            window.setContentSize(NSSize(width: 460, height: 344))
             window.minSize = window.frame.size
             window.maxSize = window.frame.size
         }
@@ -44,8 +44,8 @@ final class ViewController: NSViewController {
         super.viewDidLoad()
         // Fixed pane size: without it the tab controller stretches the window
         // to each tab's fitting width (the About paragraph unwraps to 1200+pt).
-        settingsViewController.preferredContentSize = NSSize(width: 460, height: 280)
-        aboutViewController.preferredContentSize = NSSize(width: 460, height: 280)
+        settingsViewController.preferredContentSize = NSSize(width: 460, height: 344)
+        aboutViewController.preferredContentSize = NSSize(width: 460, height: 344)
         addChild(tabViewController)
         tabViewController.view.translatesAutoresizingMaskIntoConstraints = false
         view.addSubview(tabViewController.view)
@@ -71,6 +71,7 @@ final class SettingsViewController: NSViewController, ASWebAuthenticationPresent
     private let spinner = NSProgressIndicator()
     private let extensionStatusLabel = NSTextField(labelWithString: "Checking extension…")
     private let openSettingsButton = NSButton(title: "Open Safari Settings…", target: nil, action: #selector(openSafariExtensionPreferences))
+    private let menuBarToggle = NSButton(checkboxWithTitle: "Show Teak in the menu bar", target: nil, action: #selector(menuBarToggleChanged))
     private var authenticationSession: ASWebAuthenticationSession?
     private var isSignedIn = false
     private var activeObserver: NSObjectProtocol?
@@ -86,6 +87,8 @@ final class SettingsViewController: NSViewController, ASWebAuthenticationPresent
         signInButton.target = self
         signOutButton.target = self
         openSettingsButton.target = self
+        menuBarToggle.target = self
+        menuBarToggle.state = MenuBarController.isEnabled ? .on : .off
         signInButton.bezelStyle = .rounded
         signOutButton.bezelStyle = .rounded
         openSettingsButton.bezelStyle = .rounded
@@ -113,6 +116,9 @@ final class SettingsViewController: NSViewController, ASWebAuthenticationPresent
         let separator = NSBox()
         separator.boxType = .separator
 
+        let menuSeparator = NSBox()
+        menuSeparator.boxType = .separator
+
         let stack = NSStackView(views: [
             Self.sectionLabel("Account"),
             statusRow,
@@ -121,12 +127,17 @@ final class SettingsViewController: NSViewController, ASWebAuthenticationPresent
             Self.sectionLabel("Safari Extension"),
             extensionStatusLabel,
             openSettingsButton,
+            menuSeparator,
+            Self.sectionLabel("Menu Bar"),
+            menuBarToggle,
         ])
         stack.orientation = .vertical
         stack.alignment = .leading
         stack.spacing = 8
         stack.setCustomSpacing(12, after: accountButtons)
         stack.setCustomSpacing(12, after: separator)
+        stack.setCustomSpacing(12, after: openSettingsButton)
+        stack.setCustomSpacing(12, after: menuSeparator)
         stack.translatesAutoresizingMaskIntoConstraints = false
         view.addSubview(stack)
         NSLayoutConstraint.activate([
@@ -139,6 +150,7 @@ final class SettingsViewController: NSViewController, ASWebAuthenticationPresent
             statusRow.widthAnchor.constraint(equalTo: stack.widthAnchor),
             separator.widthAnchor.constraint(equalTo: stack.widthAnchor),
             extensionStatusLabel.widthAnchor.constraint(equalTo: stack.widthAnchor),
+            menuSeparator.widthAnchor.constraint(equalTo: stack.widthAnchor),
         ])
     }
 
@@ -281,6 +293,11 @@ final class SettingsViewController: NSViewController, ASWebAuthenticationPresent
             guard generation == self.accountStateGeneration else { return }
             self.renderAccountState(state)
         }
+    }
+
+    @objc private func menuBarToggleChanged() {
+        MenuBarController.isEnabled = menuBarToggle.state == .on
+        (NSApp.delegate as? AppDelegate)?.refreshMenuBar()
     }
 
     @objc private func openSafariExtensionPreferences() {
