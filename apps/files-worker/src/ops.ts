@@ -30,6 +30,31 @@ import { transcribeAudio } from "./transcript";
 import { isValidUploadKey } from "./upload";
 import { ArchiveEntryTooLargeError } from "./zip";
 
+export const getFilesOpObjectKey = (
+  params: unknown
+): string => {
+  if (!params || typeof params !== "object" || Array.isArray(params)) {
+    return "";
+  }
+  const record = params as Record<string, unknown>;
+  const singleKeyParams = [
+    "key",
+    "sourceKey",
+    "archiveKey",
+    "artifactKey",
+    "manifestKey",
+  ];
+  for (const name of singleKeyParams) {
+    const value = record[name];
+    if (typeof value === "string") {
+      return value;
+    }
+  }
+  return Array.isArray(record.keys) && typeof record.keys[0] === "string"
+    ? record.keys[0]
+    : "";
+};
+
 export interface FilesOpsEnv {
   AI?: {
     run: (model: string, args: Record<string, unknown>) => Promise<unknown>;
@@ -566,10 +591,11 @@ export const handleInternalOp = async (
       return fail(requestId, "CONFLICT", message, 409);
     }
     console.error("[files-worker] operation failed", { error, requestId });
+    const objectKey = getFilesOpObjectKey(body.params);
     reportFilesOpFailure(body.op, error, {
       httpMethod: request.method,
       httpPath: "/__ops/v1",
-      objectKey: "",
+      objectKey,
     });
     return fail(requestId, "INTERNAL", "Internal operation failed", 500, true);
   }

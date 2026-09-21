@@ -130,7 +130,7 @@ export const reportFilesOpFailure = (
         ...(cardId ? { "card.id": cardId } : {}),
         "http.method": httpMethod.toUpperCase(),
         "http.path": bounded(httpPath),
-        "object.key": bounded(objectKey),
+        ...(objectKey ? { "object.key": bounded(objectKey) } : {}),
         ...(role ? { "object.role": role } : {}),
       },
     },
