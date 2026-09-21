@@ -4,7 +4,8 @@
   "scripts": {
     "audit": "bun run build:site && blume audit --fail-on error",
     "build": "bun run build:site && blume audit --fail-on error",
-    "build:site": "bun run generate:openapi && blume build",
+    "build:site": "bun run generate:openapi && blume build && bun run complete:llms",
+    "complete:llms": "bun run scripts/complete-llms.ts",
     "dev": "bun run generate:openapi && blume dev --port 3001 --host 127.0.0.1",
     "generate:openapi": "bun run scripts/generate-openapi.ts",
     "lint": "biome check blume.config.ts lib scripts styles vercel.json package.json turbo.json tsconfig.json tsconfig.typecheck.json",
