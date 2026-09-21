@@ -1,5 +1,15 @@
 import { describe, expect, test } from "bun:test";
-import { addAgentGuidance } from "./complete-llms";
+import { addAgentGuidance, extractAgentGuidance } from "./complete-llms";
+
+describe("extractAgentGuidance", () => {
+  test("reads the canonical section from the AI agent docs", () => {
+    const source =
+      "# Intro\n\n## When to use Teak\n\nCanonical guidance.\n\n## Next\n";
+    expect(extractAgentGuidance(source)).toBe(
+      "## When to use Teak\n\nCanonical guidance.\n"
+    );
+  });
+});
 
 describe("addAgentGuidance", () => {
   test("adds when-to-use guidance before the generated page index", () => {
