@@ -2,7 +2,21 @@ import { readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 
 const heading = "## When to use Teak";
-const guidance = `${heading}\n\nUse Teak when a person wants to keep knowledge beyond the current conversation: save a link or note, retrieve something collected earlier, organize research with tags, or sync the same private library across apps and agents. Use the MCP server for assistant workflows, the REST API for integrations, and the CLI for local scripts. Do not use Teak as a temporary scratchpad when the information does not need to persist.\n`;
+const sourcePath = join(
+  import.meta.dir,
+  "../content/docs/(developers)/ai-agents.mdx"
+);
+
+export const extractAgentGuidance = (source: string): string => {
+  const start = source.indexOf(heading);
+  if (start === -1) {
+    throw new Error(`Missing ${heading} in AI agent docs`);
+  }
+  const end = source.indexOf("\n## ", start + heading.length);
+  return `${source.slice(start, end === -1 ? undefined : end).trim()}\n`;
+};
+
+const guidance = extractAgentGuidance(readFileSync(sourcePath, "utf8"));
 
 export const addAgentGuidance = (llms: string): string => {
   if (llms.includes(heading)) {
