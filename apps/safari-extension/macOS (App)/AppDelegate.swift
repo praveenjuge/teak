@@ -31,11 +31,12 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         }
     }
 
-    /// Brings the existing Settings window forward.
+    /// Brings the existing Settings window forward, on the Settings tab.
     func showSettingsWindow() {
         NSApplication.shared.activate(ignoringOtherApps: true)
         for window in NSApplication.shared.windows {
-            if window.contentViewController is ViewController {
+            if let controller = window.contentViewController as? ViewController {
+                controller.showSettingsTab()
                 window.makeKeyAndOrderFront(nil)
                 return
             }

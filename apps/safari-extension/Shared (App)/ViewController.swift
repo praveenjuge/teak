@@ -59,8 +59,13 @@ final class ViewController: NSViewController {
 
     /// Opens the Settings tab and starts OAuth. Invoked by the teak-safari://connect deep link.
     func startSignIn() {
-        tabViewController.selectedTabViewItemIndex = 0
+        showSettingsTab()
         settingsViewController.startSignIn()
+    }
+
+    /// Selects the Settings tab (index 0) so "Open Settings…" never lands on About.
+    func showSettingsTab() {
+        tabViewController.selectedTabViewItemIndex = 0
     }
 }
 

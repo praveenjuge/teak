@@ -18,7 +18,8 @@ final class MenuBarController: NSObject, NSMenuDelegate {
 
     private var statusItem: NSStatusItem?
     private let menu = NSMenu()
-    private let statusMenuItem = NSMenuItem(title: "", action: nil, keyEquivalent: "")
+    private let statusMenuItem = NSMenuItem(title: "Checking account…", action: nil, keyEquivalent: "")
+    private var statusGeneration = 0
 
     override init() {
         super.init()
@@ -57,7 +58,8 @@ final class MenuBarController: NSObject, NSMenuDelegate {
         if Self.isEnabled {
             if statusItem == nil {
                 let item = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
-                item.behavior = .removalAllowed
+                // No .removalAllowed: the Settings toggle is the sole way to
+                // remove the item, so nothing here can fight a drag-out.
                 if let button = item.button {
                     if let icon = Self.menuIcon() {
                         button.image = icon
@@ -80,13 +82,25 @@ final class MenuBarController: NSObject, NSMenuDelegate {
         refreshStatus()
     }
 
+    private func nextStatusGeneration() -> Int {
+        statusGeneration += 1
+        return statusGeneration
+    }
+
     private func refreshStatus() {
-        Task {
+        // Placeholder first so the row is never blank or stale, then the
+        // newest refresh wins (same generation pattern as ViewController).
+        statusMenuItem.title = "Checking account…"
+        let generation = nextStatusGeneration()
+        Task { @MainActor in
             let state = await TeakSafariService.shared.authState()
-            if (state["authenticated"] as? Bool) == true {
-                self.statusMenuItem.title = "Signed in."
-            } else if let message = state["message"] as? String {
+            guard generation == self.statusGeneration else { return }
+            // A message always reports a failure, even when expired
+            // credentials are still stored — never show it as signed in.
+            if let message = state["message"] as? String {
                 self.statusMenuItem.title = message
+            } else if (state["authenticated"] as? Bool) == true {
+                self.statusMenuItem.title = "Signed in."
             } else {
                 self.statusMenuItem.title = "Signed out — sign in from Settings."
             }
