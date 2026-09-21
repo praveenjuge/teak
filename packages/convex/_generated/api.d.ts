@@ -88,6 +88,10 @@ import type * as oauthUserInfo from "../oauthUserInfo.js";
 import type * as publicApi from "../publicApi.js";
 import type * as publicApiDuplicate from "../publicApiDuplicate.js";
 import type * as publicApiHttp from "../publicApiHttp.js";
+import type * as publicApiHttpAuth from "../publicApiHttpAuth.js";
+import type * as publicApiHttpCards from "../publicApiHttpCards.js";
+import type * as publicApiHttpShared from "../publicApiHttpShared.js";
+import type * as publicApiHttpValidation from "../publicApiHttpValidation.js";
 import type * as publicApiMeta from "../publicApiMeta.js";
 import type * as publicApiOpenApi from "../publicApiOpenApi.js";
 import type * as publicApiUploads from "../publicApiUploads.js";
@@ -116,6 +120,7 @@ import type * as shared_utils_linkCategoryResolver from "../shared/utils/linkCat
 import type * as shared_utils_linkDetection from "../shared/utils/linkDetection.js";
 import type * as shared_utils_safeUrl from "../shared/utils/safeUrl.js";
 import type * as shared_utils_timeSearch from "../shared/utils/timeSearch.js";
+import type * as storage_fileUrls from "../storage/fileUrls.js";
 import type * as storage_filesWorkerClient from "../storage/filesWorkerClient.js";
 import type * as storage_pendingUploadCleanup from "../storage/pendingUploadCleanup.js";
 import type * as storage_pendingUploadCleanupState from "../storage/pendingUploadCleanupState.js";
@@ -263,6 +268,10 @@ declare const fullApi: ApiFromModules<{
   publicApi: typeof publicApi;
   publicApiDuplicate: typeof publicApiDuplicate;
   publicApiHttp: typeof publicApiHttp;
+  publicApiHttpAuth: typeof publicApiHttpAuth;
+  publicApiHttpCards: typeof publicApiHttpCards;
+  publicApiHttpShared: typeof publicApiHttpShared;
+  publicApiHttpValidation: typeof publicApiHttpValidation;
   publicApiMeta: typeof publicApiMeta;
   publicApiOpenApi: typeof publicApiOpenApi;
   publicApiUploads: typeof publicApiUploads;
@@ -291,6 +300,7 @@ declare const fullApi: ApiFromModules<{
   "shared/utils/linkDetection": typeof shared_utils_linkDetection;
   "shared/utils/safeUrl": typeof shared_utils_safeUrl;
   "shared/utils/timeSearch": typeof shared_utils_timeSearch;
+  "storage/fileUrls": typeof storage_fileUrls;
   "storage/filesWorkerClient": typeof storage_filesWorkerClient;
   "storage/pendingUploadCleanup": typeof storage_pendingUploadCleanup;
   "storage/pendingUploadCleanupState": typeof storage_pendingUploadCleanupState;

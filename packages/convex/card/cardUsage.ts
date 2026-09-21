@@ -52,7 +52,8 @@ const getRequiredCardUsageShard = async (
 
 export const initializeCardUsageShards = async (
   ctx: MutationCtx,
-  usage: Doc<"userCardUsage">
+  usage: Doc<"userCardUsage">,
+  options: { allowInexact?: boolean } = {}
 ) => {
   const existingShards = await ctx.db
     .query("userCardUsageShards")
@@ -76,7 +77,10 @@ export const initializeCardUsageShards = async (
   if (usage.shardVersion !== undefined || usage.shardedAt !== undefined) {
     throw new Error("Card usage shard version is unsupported");
   }
-  if (!usage.isCountExact) {
+  // Exactness gates free-tier limit enforcement. Premium users have no
+  // limit, so their shards may start from the bounded scan count instead of
+  // failing card creation when the count is inexact.
+  if (!usage.isCountExact && !options.allowInexact) {
     throw new Error("Card usage must be exact before sharding");
   }
   for (const existingShard of existingShards) {
@@ -131,7 +135,9 @@ export const getCardUsageSnapshot = async (
   );
   return {
     activeCardCount,
-    isCountExact: true,
+    // Premium users may shard from a bounded scan count; report the usage
+    // doc's flag instead of claiming exactness the shards don't have.
+    isCountExact: usage.isCountExact ?? true,
     isSaturated: activeCardCount >= FREE_TIER_LIMIT,
     shardVersion: usage.shardVersion,
     shardedAt: usage.shardedAt,
@@ -290,7 +296,7 @@ export const ensureCardUsageShards = async (
       message: CARD_ERROR_MESSAGES.CARD_LIMIT_REACHED,
     });
   }
-  await initializeCardUsageShards(ctx, usage);
+  await initializeCardUsageShards(ctx, usage, { allowInexact: hasPremium });
 };
 
 export const ensureCardUsageShardsForRemoval = async (
