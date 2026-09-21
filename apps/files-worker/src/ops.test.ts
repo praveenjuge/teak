@@ -15,6 +15,7 @@ describe("getFilesOpObjectKey", () => {
     ],
     [{ key: 42, keys: ["first.png"] }, "first.png"],
     [{}, ""],
+    [[], ""],
     [null, ""],
     [undefined, ""],
   ] as const)("extracts %p", (params, expected) => {

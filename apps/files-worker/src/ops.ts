@@ -31,11 +31,12 @@ import { isValidUploadKey } from "./upload";
 import { ArchiveEntryTooLargeError } from "./zip";
 
 export const getFilesOpObjectKey = (
-  params: Record<string, unknown> | null | undefined
+  params: unknown
 ): string => {
-  if (!params) {
+  if (!params || typeof params !== "object" || Array.isArray(params)) {
     return "";
   }
+  const record = params as Record<string, unknown>;
   const singleKeyParams = [
     "key",
     "sourceKey",
@@ -44,13 +45,13 @@ export const getFilesOpObjectKey = (
     "manifestKey",
   ];
   for (const name of singleKeyParams) {
-    const value = params[name];
+    const value = record[name];
     if (typeof value === "string") {
       return value;
     }
   }
-  return Array.isArray(params.keys) && typeof params.keys[0] === "string"
-    ? params.keys[0]
+  return Array.isArray(record.keys) && typeof record.keys[0] === "string"
+    ? record.keys[0]
     : "";
 };
 
