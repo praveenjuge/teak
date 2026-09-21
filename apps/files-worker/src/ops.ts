@@ -29,16 +29,30 @@ import { reportFilesOpFailure } from "./sentry";
 import { transcribeAudio } from "./transcript";
 import { isValidUploadKey } from "./upload";
 import { ArchiveEntryTooLargeError } from "./zip";
+
 export const getFilesOpObjectKey = (
-  params: Record<string, unknown>
-): string =>
-  typeof params.key === "string"
-    ? params.key
-    : Array.isArray(params.keys) && typeof params.keys[0] === "string"
-      ? params.keys[0]
-      : typeof params.sourceKey === "string"
-        ? params.sourceKey
-        : "";
+  params: Record<string, unknown> | null | undefined
+): string => {
+  if (!params) {
+    return "";
+  }
+  const singleKeyParams = [
+    "key",
+    "sourceKey",
+    "archiveKey",
+    "artifactKey",
+    "manifestKey",
+  ];
+  for (const name of singleKeyParams) {
+    const value = params[name];
+    if (typeof value === "string") {
+      return value;
+    }
+  }
+  return Array.isArray(params.keys) && typeof params.keys[0] === "string"
+    ? params.keys[0]
+    : "";
+};
 
 export interface FilesOpsEnv {
   AI?: {
