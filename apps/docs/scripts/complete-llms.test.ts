@@ -9,6 +9,12 @@ describe("extractAgentGuidance", () => {
       "## When to use Teak\n\nCanonical guidance.\n"
     );
   });
+
+  test("fails when the canonical guidance section is missing", () => {
+    expect(() => extractAgentGuidance("# No guidance\n")).toThrow(
+      "Missing ## When to use Teak in AI agent docs"
+    );
+  });
 });
 
 describe("addAgentGuidance", () => {
