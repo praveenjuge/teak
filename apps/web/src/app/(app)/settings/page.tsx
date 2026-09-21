@@ -45,7 +45,10 @@ export default function ProfileSettingsPage() {
           window.location.replace("/login");
         },
         onError: (ctx) => {
-          deleteError = createClientRequestErrorFromContext(ctx, "Failed to delete account.");
+          deleteError = createClientRequestErrorFromContext(
+            ctx,
+            "Failed to delete account."
+          );
         },
       });
 
