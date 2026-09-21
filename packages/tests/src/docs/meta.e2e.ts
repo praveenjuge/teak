@@ -5,7 +5,10 @@ test("llms, OpenAPI, and OAuth metadata are fresh", async () => {
   const llmsResponse = await fetch(`${env.siteUrl}/llms.txt`);
   expect(llmsResponse.status).toBe(200);
   const llms = await llmsResponse.text();
-  expect(llms).toContain("## When to use Teak");
+  expect(llms).toContain("\n## When to use Teak\n");
+  expect(llms).toContain(
+    "Use Teak when a person wants to keep knowledge beyond the current conversation"
+  );
   expect(await fetch(`${env.siteUrl}/robots.txt`).then((r) => r.status)).toBe(
     200
   );
