@@ -29,146 +29,71 @@ describe("ai/queries.ts", () => {
     expect(result).toBeNull();
   });
 
-  const makePagedQuery = (pages: { page: any[]; isDone: boolean }[]) => {
-    const calls: { cursor: string | null; numItems: number }[] = [];
+  const makeIndexedQuery = (batches: any[][]) => {
+    const ranges: Array<{ eq: any; lt: any }> = [];
+    const limits: number[] = [];
     const mockQuery = {
-      withIndex: mock().mockReturnThis(),
-      paginate: mock().mockImplementation((opts: any) => {
-        calls.push(opts);
-        const page = pages[calls.length - 1] ?? { page: [], isDone: true };
-        return Promise.resolve({
-          page: page.page,
-          isDone: page.isDone,
-          continueCursor: `cursor_${calls.length}`,
-        });
-      }),
-    } as any;
-    return { mockQuery, calls };
-  };
-
-  test("findCardsMissingAi maps to card ids", async () => {
-    const { mockQuery } = makePagedQuery([
-      { page: [{ _id: "c1" }, { _id: "c2" }], isDone: true },
-    ]);
-    const ctx = { db: { query: mock().mockReturnValue(mockQuery) } } as any;
-    const handler = (findCardsMissingAi as any).handler ?? findCardsMissingAi;
-    const result = await handler(ctx, {});
-    expect(result).toEqual([{ cardId: "c1" }, { cardId: "c2" }]);
-  });
-
-  test("findCardsMissingAi filters for cards older than 5 minutes", async () => {
-    const { mockQuery } = makePagedQuery([{ page: [], isDone: true }]);
-    const ctx = { db: { query: mock().mockReturnValue(mockQuery) } } as any;
-    const handler = (findCardsMissingAi as any).handler ?? findCardsMissingAi;
-    await handler(ctx, {});
-
-    expect(ctx.db.query).toHaveBeenCalledWith("cards");
-    expect(mockQuery.withIndex).toHaveBeenCalledWith(
-      "by_aiSummary_created",
-      expect.any(Function)
-    );
-  });
-
-  test("findCardsMissingAi index range applies summary and age bounds", async () => {
-    const range: { eq: any; lt: any } = {
-      eq: mock().mockReturnThis(),
-      lt: mock().mockReturnThis(),
-    };
-    const mockQuery = {
-      withIndex: mock().mockImplementation((_name: string, cb: any) => {
-        cb(range);
+      withIndex: mock().mockImplementation((_name: string, callback: any) => {
+        const range = {
+          eq: mock().mockReturnThis(),
+          lt: mock().mockReturnThis(),
+        };
+        callback(range);
+        ranges.push(range);
         return mockQuery;
       }),
-      paginate: mock().mockResolvedValue({
-        page: [],
-        isDone: true,
-        continueCursor: "cursor_1",
+      take: mock().mockImplementation((limit: number) => {
+        limits.push(limit);
+        return Promise.resolve(batches[limits.length - 1] ?? []);
       }),
     } as any;
-    const ctx = { db: { query: mock().mockReturnValue(mockQuery) } } as any;
-    const handler = (findCardsMissingAi as any).handler ?? findCardsMissingAi;
-    await handler(ctx, {});
-    expect(range.eq).toHaveBeenCalledWith("aiSummary", undefined);
-    expect(range.lt).toHaveBeenCalledWith("createdAt", expect.any(Number));
-  });
+    return { mockQuery, ranges, limits };
+  };
 
-  test("findCardsMissingAi pages 200 candidates at a time", async () => {
-    const { mockQuery, calls } = makePagedQuery([{ page: [], isDone: true }]);
-    const ctx = { db: { query: mock().mockReturnValue(mockQuery) } } as any;
-    const handler = (findCardsMissingAi as any).handler ?? findCardsMissingAi;
-    await handler(ctx, {});
-    expect(calls).toEqual([{ cursor: null, numItems: 200 }]);
-  });
-
-  test("findCardsMissingAi handles empty results", async () => {
-    const { mockQuery } = makePagedQuery([{ page: [], isDone: true }]);
-    const ctx = { db: { query: mock().mockReturnValue(mockQuery) } } as any;
-    const handler = (findCardsMissingAi as any).handler ?? findCardsMissingAi;
-    const result = await handler(ctx, {});
-    expect(result).toEqual([]);
-  });
-
-  test("findCardsMissingAi post-filters deleted and partially-processed cards", async () => {
-    const { mockQuery } = makePagedQuery([
-      {
-        page: [
-          { _id: "keep", isDeleted: false },
-          { _id: "deleted", isDeleted: true },
-          { _id: "hasTags", aiTags: ["x"] },
-          { _id: "hasTranscript", aiTranscript: "t" },
-        ],
-        isDone: true,
-      },
+  test("findCardsMissingAi maps both active-card representations", async () => {
+    const { mockQuery, limits } = makeIndexedQuery([
+      [{ _id: "unset" }],
+      [{ _id: "false" }],
     ]);
     const ctx = { db: { query: mock().mockReturnValue(mockQuery) } } as any;
     const handler = (findCardsMissingAi as any).handler ?? findCardsMissingAi;
     const result = await handler(ctx, {});
-    expect(result).toEqual([{ cardId: "keep" }]);
+    expect(result).toEqual([{ cardId: "unset" }, { cardId: "false" }]);
+    expect(limits).toEqual([50, 49]);
   });
 
-  test("findCardsMissingAi keeps paging past a fully ineligible page", async () => {
-    const rejected = Array.from({ length: 200 }, (_, i) => ({
-      _id: `dead${i}`,
-      isDeleted: true,
-    }));
-    const { mockQuery, calls } = makePagedQuery([
-      { page: rejected, isDone: false },
-      { page: [{ _id: "eligible" }], isDone: true },
-    ]);
+  test("findCardsMissingAi applies complete AI, deletion, and age bounds", async () => {
+    const { mockQuery, ranges } = makeIndexedQuery([[], []]);
     const ctx = { db: { query: mock().mockReturnValue(mockQuery) } } as any;
     const handler = (findCardsMissingAi as any).handler ?? findCardsMissingAi;
-    const result = await handler(ctx, {});
-    expect(calls).toHaveLength(2);
-    expect(calls[1].cursor).toBe("cursor_1");
-    expect(result).toEqual([{ cardId: "eligible" }]);
+    await handler(ctx, {});
+    expect(mockQuery.withIndex).toHaveBeenCalledTimes(2);
+    expect(mockQuery.withIndex.mock.calls[0][0]).toBe(
+      "by_aiSummary_aiTags_aiTranscript_isDeleted_createdAt"
+    );
+    for (const [index, isDeleted] of [undefined, false].entries()) {
+      expect(ranges[index].eq.mock.calls).toEqual([
+        ["aiSummary", undefined],
+        ["aiTags", undefined],
+        ["aiTranscript", undefined],
+        ["isDeleted", isDeleted],
+      ]);
+      expect(ranges[index].lt).toHaveBeenCalledWith(
+        "createdAt",
+        expect.any(Number)
+      );
+    }
   });
 
-  test("findCardsMissingAi stops at the scan budget for a long ineligible prefix", async () => {
-    const rejected = Array.from({ length: 200 }, (_, i) => ({
-      _id: `dead${i}`,
-      isDeleted: true,
-    }));
-    const pages = Array.from({ length: 15 }, () => ({
-      page: rejected,
-      isDone: false,
-    }));
-    const { mockQuery, calls } = makePagedQuery(pages);
-    const ctx = { db: { query: mock().mockReturnValue(mockQuery) } } as any;
-    const handler = (findCardsMissingAi as any).handler ?? findCardsMissingAi;
-    const result = await handler(ctx, {});
-    expect(result).toEqual([]);
-    expect(calls).toHaveLength(10); // 10 pages x 200 = 2000-entry budget
-  });
-
-  test("findCardsMissingAi caps the batch at 50 cards", async () => {
-    const cards = Array.from({ length: 200 }, (_, i) => ({ _id: `c${i}` }));
-    const { mockQuery, calls } = makePagedQuery([{ page: cards, isDone: false }]);
+  test("findCardsMissingAi caps the batch without a second query", async () => {
+    const cards = Array.from({ length: 50 }, (_, i) => ({ _id: `c${i}` }));
+    const { mockQuery, limits } = makeIndexedQuery([cards]);
     const ctx = { db: { query: mock().mockReturnValue(mockQuery) } } as any;
     const handler = (findCardsMissingAi as any).handler ?? findCardsMissingAi;
     const result = await handler(ctx, {});
     expect(result).toHaveLength(50);
     expect(result[0]).toEqual({ cardId: "c0" });
-    expect(calls).toHaveLength(1); // full batch reached without another page
+    expect(limits).toEqual([50]);
   });
 
   test("getCardForVerification returns null when card missing", async () => {

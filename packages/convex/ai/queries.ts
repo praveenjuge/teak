@@ -2,10 +2,8 @@ import { v } from "convex/values";
 import { internalQuery } from "../_generated/server";
 
 const AI_BACKFILL_BATCH_SIZE = 50;
-const AI_BACKFILL_SCAN_PAGE_SIZE = 4 * AI_BACKFILL_BATCH_SIZE;
-// Cap total index entries read per run so a long ineligible prefix cannot
-// turn one backfill run into an unbounded scan.
-const AI_BACKFILL_SCAN_BUDGET = 10 * AI_BACKFILL_SCAN_PAGE_SIZE;
+const AI_BACKFILL_INDEX =
+  "by_aiSummary_aiTags_aiTranscript_isDeleted_createdAt" as const;
 
 // Internal query to get card data for AI processing
 export const getCardForAI = internalQuery({
@@ -20,43 +18,36 @@ export const findCardsMissingAi = internalQuery({
     // Find cards that don't have AI metadata (created more than 5 minutes ago to avoid race conditions)
     const fiveMinutesAgo = Date.now() - 5 * 60 * 1000;
 
-    // Bound the scan with the by_aiSummary_created index: cards without a
-    // summary are a small subset, so reads stay proportional to the backlog
-    // instead of scanning the whole table on every backfill run. The index
-    // range applies the age cutoff; deletion and the remaining AI fields are
-    // cheap post-filters. Paginate until the batch is full so a page of
-    // ineligible entries (deleted or partially processed cards) cannot starve
-    // eligible ones behind it; the scan budget keeps each run bounded, and
-    // the ineligible prefix drains as card cleanup removes deleted rows.
-    const batch = [];
-    let cursor: string | null = null;
-    let scanned = 0;
-    while (batch.length < AI_BACKFILL_BATCH_SIZE) {
-      const page = await ctx.db
+    // Query both active-card representations directly through the compound
+    // index. This keeps reads bounded without repeatedly restarting behind a
+    // persistent prefix of deleted or partially processed cards.
+    const findActiveCards = async (
+      isDeleted: boolean | undefined,
+      limit: number
+    ) =>
+      await ctx.db
         .query("cards")
-        .withIndex("by_aiSummary_created", (q) =>
-          q.eq("aiSummary", undefined).lt("createdAt", fiveMinutesAgo)
+        .withIndex(AI_BACKFILL_INDEX, (q) =>
+          q
+            .eq("aiSummary", undefined)
+            .eq("aiTags", undefined)
+            .eq("aiTranscript", undefined)
+            .eq("isDeleted", isDeleted)
+            .lt("createdAt", fiveMinutesAgo)
         )
-        .paginate({ cursor, numItems: AI_BACKFILL_SCAN_PAGE_SIZE });
-      scanned += page.page.length;
-      for (const card of page.page) {
-        if (
-          card.isDeleted !== true &&
-          card.aiTags === undefined &&
-          card.aiTranscript === undefined
-        ) {
-          batch.push({ cardId: card._id });
-          if (batch.length >= AI_BACKFILL_BATCH_SIZE) {
-            break;
-          }
-        }
-      }
-      if (page.isDone || scanned >= AI_BACKFILL_SCAN_BUDGET) {
-        break;
-      }
-      cursor = page.continueCursor;
-    }
-    return batch; // Process in batches
+        .take(limit);
+
+    const cardsWithUnsetDeletedFlag = await findActiveCards(
+      undefined,
+      AI_BACKFILL_BATCH_SIZE
+    );
+    const remaining = AI_BACKFILL_BATCH_SIZE - cardsWithUnsetDeletedFlag.length;
+    const cardsWithFalseDeletedFlag =
+      remaining > 0 ? await findActiveCards(false, remaining) : [];
+
+    return [...cardsWithUnsetDeletedFlag, ...cardsWithFalseDeletedFlag].map(
+      (card) => ({ cardId: card._id })
+    );
   },
 });
 

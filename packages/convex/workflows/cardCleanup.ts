@@ -22,14 +22,14 @@ export const getCardsPendingCleanup = internalQuery({
     })
   ),
   handler: async (ctx, { olderThan, limit }) => {
-    // Bound the scan with the by_deleted_deletedAt index: soft-deleted cards
+    // Bound the scan with the by_isDeleted_deletedAt index: soft-deleted cards
     // are a small fraction of the table, and the deletedAt range keeps the
     // read proportional to the cleanup backlog instead of scanning every
     // card. The gte(0) bound excludes rows with no deletedAt, preserving the
     // previous undefined guard.
     const candidates = await ctx.db
       .query("cards")
-      .withIndex("by_deleted_deletedAt", (q) =>
+      .withIndex("by_isDeleted_deletedAt", (q) =>
         q.eq("isDeleted", true).gte("deletedAt", 0).lt("deletedAt", olderThan)
       )
       .take(limit);

@@ -484,8 +484,14 @@ export default defineSchema({
     // missing AI summaries are small subsets, so these indexes keep the
     // cleanup/backfill queries proportional to the result set instead of
     // scanning the whole table.
-    .index("by_deleted_deletedAt", ["isDeleted", "deletedAt"])
-    .index("by_aiSummary_created", ["aiSummary", "createdAt"])
+    .index("by_isDeleted_deletedAt", ["isDeleted", "deletedAt"])
+    .index("by_aiSummary_aiTags_aiTranscript_isDeleted_createdAt", [
+      "aiSummary",
+      "aiTags",
+      "aiTranscript",
+      "isDeleted",
+      "createdAt",
+    ])
     .index("by_updated", ["userId", "updatedAt"])
     // Index for duplicate URL checking
     .index("by_user_url_deleted", ["userId", "url", "isDeleted"])
