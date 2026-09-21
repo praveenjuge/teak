@@ -9,6 +9,11 @@ describe("getFilesOpObjectKey", () => {
     [{ artifactKey: "export.zip" }, "export.zip"],
     [{ manifestKey: "manifest.json" }, "manifest.json"],
     [{ keys: ["first.png", "second.png"] }, "first.png"],
+    [
+      { artifactKey: "export.zip", manifestKey: "manifest.json" },
+      "export.zip",
+    ],
+    [{ key: 42, keys: ["first.png"] }, "first.png"],
     [{}, ""],
     [null, ""],
     [undefined, ""],
