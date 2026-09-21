@@ -1,8 +1,4 @@
 import {
-  captureClientException,
-  createClientRequestErrorFromContext,
-} from "@teak/convex/shared/client-telemetry";
-import {
   Button,
   Form,
   Host,
@@ -24,6 +20,10 @@ import {
   tag,
 } from "@expo/ui/swift-ui/modifiers";
 import { api } from "@teak/convex";
+import {
+  captureClientException,
+  createClientRequestErrorFromContext,
+} from "@teak/convex/shared/client-telemetry";
 import { useQuery } from "convex-helpers/react/cache/hooks";
 import { Stack, useRouter } from "expo-router";
 import { useMemo, useState } from "react";
@@ -114,7 +114,10 @@ export default function SettingsScreen() {
     try {
       await authClient.deleteUser(undefined, {
         onError: (ctx) => {
-          const error = createClientRequestErrorFromContext(ctx, "Failed to delete account.");
+          const error = createClientRequestErrorFromContext(
+            ctx,
+            "Failed to delete account."
+          );
           captureClientException(error, { operation: "account.delete" });
           setDeleteError(error.message);
         },

@@ -113,16 +113,17 @@ export const createClientRequestError = (
   input: ClientRequestErrorInput
 ): ClientRequestError => new ClientRequestError(input);
 
-export const createClientRequestErrorFromContext = (context: {
-  error?: { code?: unknown; message?: string } | null;
-  response?: { status?: number; statusText?: string };
-}): ClientRequestError =>
+export const createClientRequestErrorFromContext = (
+  context: {
+    error?: { code?: unknown; message?: string } | null;
+    response?: { status?: number; statusText?: string };
+  },
+  fallbackMessage = "Request failed."
+): ClientRequestError =>
   createClientRequestError({
     code:
-      typeof context.error?.code === "string"
-        ? context.error.code
-        : undefined,
-    message: context.error?.message ?? "Request failed.",
+      typeof context.error?.code === "string" ? context.error.code : undefined,
+    message: context.error?.message ?? fallbackMessage,
     status: context.response?.status,
     statusText: context.response?.statusText,
   });

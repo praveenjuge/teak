@@ -135,20 +135,18 @@ describe("production E2E cleanup helpers", () => {
     env.convexSiteUrl = "https://example.convex.site";
     env.emailDomain = "tests.example.com";
     let attempts = 0;
-    const fetchMock = mock(
-      async (_input: RequestInfo | URL, init?: RequestInit) => {
-        attempts += 1;
-        if (attempts === 1) {
-          return Response.json(
-            { message: "temporarily unavailable" },
-            { status: 500 }
-          );
-        }
-        return Response.json({
-          email: JSON.parse(String(init?.body)).email,
-        });
+    const fetchMock = mock((_input: RequestInfo | URL, init?: RequestInit) => {
+      attempts += 1;
+      if (attempts === 1) {
+        return Response.json(
+          { message: "temporarily unavailable" },
+          { status: 500 }
+        );
       }
-    );
+      return Response.json({
+        email: JSON.parse(String(init?.body)).email,
+      });
+    });
     globalThis.fetch = fetchMock as unknown as typeof fetch;
 
     await provisionE2EAccount(
@@ -164,7 +162,7 @@ describe("production E2E cleanup helpers", () => {
     env.convexSiteUrl = "https://example.convex.site";
     env.emailDomain = "tests.example.com";
     let attempts = 0;
-    const fetchMock = mock(async () => {
+    const fetchMock = mock(() => {
       attempts += 1;
       if (attempts === 1) {
         return Response.json(
@@ -194,7 +192,7 @@ describe("production E2E cleanup helpers", () => {
     env.convexSiteUrl = "https://example.convex.site";
     env.emailDomain = "tests.example.com";
     let attempts = 0;
-    const fetchMock = mock(async () => {
+    const fetchMock = mock(() => {
       attempts += 1;
       if (attempts === 1) {
         return Response.json({ message: "slow down" }, { status: 429 });
@@ -221,7 +219,7 @@ describe("production E2E cleanup helpers", () => {
     env.convexSiteUrl = "https://example.convex.site";
     env.emailDomain = "tests.example.com";
     let attempts = 0;
-    const fetchMock = mock(async () => {
+    const fetchMock = mock(() => {
       attempts += 1;
       if (attempts === 1) {
         throw new TypeError("fetch failed");
@@ -245,7 +243,7 @@ describe("production E2E cleanup helpers", () => {
     env.cleanupToken = "test-token";
     env.convexSiteUrl = "https://example.convex.site";
     env.emailDomain = "tests.example.com";
-    const fetchMock = mock(async () => {
+    const fetchMock = mock(() => {
       throw new TypeError("fetch failed");
     });
     globalThis.fetch = fetchMock as unknown as typeof fetch;
