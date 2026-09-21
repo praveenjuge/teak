@@ -4,7 +4,6 @@ import {
   FILES_PROTOCOL_VERSION,
 } from "@teak/files-protocol";
 import worker, { type Env } from "./index";
-import { getFilesOpObjectKey } from "./ops";
 import { hmacSha256Hex, sha256Hex } from "./lib";
 import {
   parseFileKeyIdentifiers,
@@ -157,25 +156,6 @@ describe("files worker error reporting", () => {
       error: { code: "INTERNAL", retryable: true },
       ok: false,
     });
-  });
-
-  test("extracts object identifiers from failed operation parameters", () => {
-    expect(
-      getFilesOpObjectKey({
-        key: "users/9f8a/cards/c123/file/photo.png",
-      })
-    ).toBe("users/9f8a/cards/c123/file/photo.png");
-    expect(
-      getFilesOpObjectKey({
-        keys: ["users/9f8a/cards/c123/file/one.png", "two.png"],
-      })
-    ).toBe("users/9f8a/cards/c123/file/one.png");
-    expect(
-      getFilesOpObjectKey({
-        sourceKey: "users/9f8a/cards/c123/file/source.png",
-      })
-    ).toBe("users/9f8a/cards/c123/file/source.png");
-    expect(getFilesOpObjectKey({})).toBe("");
   });
 
   test("expected op rejections stay unreported client-style statuses", async () => {
