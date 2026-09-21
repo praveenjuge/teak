@@ -29,51 +29,71 @@ describe("ai/queries.ts", () => {
     expect(result).toBeNull();
   });
 
-  test("findCardsMissingAi maps to card ids", async () => {
+  const makeIndexedQuery = (batches: any[][]) => {
+    const ranges: Array<{ eq: any; lt: any }> = [];
+    const limits: number[] = [];
     const mockQuery = {
-      filter: mock().mockReturnThis(),
-      take: mock().mockResolvedValue([{ _id: "c1" }, { _id: "c2" }]),
+      withIndex: mock().mockImplementation((_name: string, callback: any) => {
+        const range = {
+          eq: mock().mockReturnThis(),
+          lt: mock().mockReturnThis(),
+        };
+        callback(range);
+        ranges.push(range);
+        return mockQuery;
+      }),
+      take: mock().mockImplementation((limit: number) => {
+        limits.push(limit);
+        return Promise.resolve(batches[limits.length - 1] ?? []);
+      }),
     } as any;
+    return { mockQuery, ranges, limits };
+  };
+
+  test("findCardsMissingAi maps both active-card representations", async () => {
+    const { mockQuery, limits } = makeIndexedQuery([
+      [{ _id: "unset" }],
+      [{ _id: "false" }],
+    ]);
     const ctx = { db: { query: mock().mockReturnValue(mockQuery) } } as any;
     const handler = (findCardsMissingAi as any).handler ?? findCardsMissingAi;
     const result = await handler(ctx, {});
-    expect(result).toEqual([{ cardId: "c1" }, { cardId: "c2" }]);
+    expect(result).toEqual([{ cardId: "unset" }, { cardId: "false" }]);
+    expect(limits).toEqual([50, 49]);
   });
 
-  test("findCardsMissingAi filters for cards older than 5 minutes", async () => {
-    const mockQuery = {
-      filter: mock().mockReturnThis(),
-      take: mock().mockResolvedValue([]),
-    } as any;
+  test("findCardsMissingAi applies complete AI, deletion, and age bounds", async () => {
+    const { mockQuery, ranges } = makeIndexedQuery([[], []]);
     const ctx = { db: { query: mock().mockReturnValue(mockQuery) } } as any;
     const handler = (findCardsMissingAi as any).handler ?? findCardsMissingAi;
     await handler(ctx, {});
-
-    expect(ctx.db.query).toHaveBeenCalledWith("cards");
-    expect(mockQuery.filter).toHaveBeenCalledWith(expect.any(Function));
+    expect(mockQuery.withIndex).toHaveBeenCalledTimes(2);
+    expect(mockQuery.withIndex.mock.calls[0][0]).toBe(
+      "by_aiSummary_aiTags_aiTranscript_isDeleted_createdAt"
+    );
+    for (const [index, isDeleted] of [undefined, false].entries()) {
+      expect(ranges[index].eq.mock.calls).toEqual([
+        ["aiSummary", undefined],
+        ["aiTags", undefined],
+        ["aiTranscript", undefined],
+        ["isDeleted", isDeleted],
+      ]);
+      expect(ranges[index].lt).toHaveBeenCalledWith(
+        "createdAt",
+        expect.any(Number)
+      );
+    }
   });
 
-  test("findCardsMissingAi limits to 50 cards", async () => {
-    const mockQuery = {
-      filter: mock().mockReturnThis(),
-      take: mock().mockResolvedValue([]),
-    } as any;
-    const takeMock = mockQuery.take;
-    const ctx = { db: { query: mock().mockReturnValue(mockQuery) } } as any;
-    const handler = (findCardsMissingAi as any).handler ?? findCardsMissingAi;
-    await handler(ctx, {});
-    expect(takeMock).toHaveBeenCalledWith(50);
-  });
-
-  test("findCardsMissingAi handles empty results", async () => {
-    const mockQuery = {
-      filter: mock().mockReturnThis(),
-      take: mock().mockResolvedValue([]),
-    } as any;
+  test("findCardsMissingAi caps the batch without a second query", async () => {
+    const cards = Array.from({ length: 50 }, (_, i) => ({ _id: `c${i}` }));
+    const { mockQuery, limits } = makeIndexedQuery([cards]);
     const ctx = { db: { query: mock().mockReturnValue(mockQuery) } } as any;
     const handler = (findCardsMissingAi as any).handler ?? findCardsMissingAi;
     const result = await handler(ctx, {});
-    expect(result).toEqual([]);
+    expect(result).toHaveLength(50);
+    expect(result[0]).toEqual({ cardId: "c0" });
+    expect(limits).toEqual([50]);
   });
 
   test("getCardForVerification returns null when card missing", async () => {

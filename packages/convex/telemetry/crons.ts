@@ -45,6 +45,12 @@ export const CRON_MONITORS = {
     schedule: "0 4 * * 1",
     slug: "sweep-orphaned-objects",
   },
+  reapStuckWorkflows: {
+    checkinMarginMinutes: 30,
+    maxRuntimeMinutes: 30,
+    schedule: "0 5 * * 1",
+    slug: "reap-stuck-workflows",
+  },
   ensureOauthClients: {
     checkinMarginMinutes: 15,
     maxRuntimeMinutes: 5,
@@ -127,6 +133,19 @@ export const aiMetadataBackfill = internalAction({
         {}
       )
     ),
+});
+
+export const reapStuckWorkflows = internalAction({
+  args: {},
+  returns: v.null(),
+  handler: (ctx: ActionCtx) =>
+    monitored(CRON_MONITORS.reapStuckWorkflows, async () => {
+      await ctx.runAction(
+        internalAny["workflows/manager"].reapStuckWorkflows,
+        {}
+      );
+      return null;
+    }),
 });
 
 export const cleanupExpiredExports = internalAction({

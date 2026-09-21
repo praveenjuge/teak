@@ -480,6 +480,18 @@ export default defineSchema({
     .index("by_user_favorites_deleted", ["userId", "isFavorited", "isDeleted"])
     .index("by_user_deleted", ["userId", "isDeleted"])
     .index("by_created", ["userId", "createdAt"])
+    // Bounded maintenance scans: soft-deleted cards pending cleanup and cards
+    // missing AI summaries are small subsets, so these indexes keep the
+    // cleanup/backfill queries proportional to the result set instead of
+    // scanning the whole table.
+    .index("by_isDeleted_deletedAt", ["isDeleted", "deletedAt"])
+    .index("by_aiSummary_aiTags_aiTranscript_isDeleted_createdAt", [
+      "aiSummary",
+      "aiTags",
+      "aiTranscript",
+      "isDeleted",
+      "createdAt",
+    ])
     .index("by_updated", ["userId", "updatedAt"])
     // Index for duplicate URL checking
     .index("by_user_url_deleted", ["userId", "url", "isDeleted"])
