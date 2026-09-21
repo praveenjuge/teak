@@ -50,9 +50,37 @@ const getRequiredCardUsageShard = async (
   return usageShard;
 };
 
+const writeShardDistribution = async (
+  ctx: MutationCtx,
+  userId: string,
+  activeCardCount: number,
+  now: number
+) => {
+  const cappedCount = Math.min(activeCardCount, FREE_TIER_LIMIT);
+  const overflowCount = Math.max(0, activeCardCount - FREE_TIER_LIMIT);
+  for (let shard = 0; shard < CARD_USAGE_TOTAL_SHARDS; shard += 1) {
+    const isOverflow = shard >= CARD_USAGE_BASE_SHARDS;
+    const relativeShard = isOverflow ? shard - CARD_USAGE_BASE_SHARDS : shard;
+    const count = isOverflow ? overflowCount : cappedCount;
+    const shardCountForTier = isOverflow
+      ? CARD_USAGE_OVERFLOW_SHARDS
+      : CARD_USAGE_BASE_SHARDS;
+    const shardCount =
+      Math.floor(count / shardCountForTier) +
+      (relativeShard < count % shardCountForTier ? 1 : 0);
+    await ctx.db.insert("userCardUsageShards", {
+      userId,
+      shard,
+      activeCardCount: shardCount,
+      updatedAt: now,
+    });
+  }
+};
+
 export const initializeCardUsageShards = async (
   ctx: MutationCtx,
-  usage: Doc<"userCardUsage">
+  usage: Doc<"userCardUsage">,
+  options: { allowInexact?: boolean } = {}
 ) => {
   const existingShards = await ctx.db
     .query("userCardUsageShards")
@@ -76,40 +104,66 @@ export const initializeCardUsageShards = async (
   if (usage.shardVersion !== undefined || usage.shardedAt !== undefined) {
     throw new Error("Card usage shard version is unsupported");
   }
-  if (!usage.isCountExact) {
+  // Exactness gates free-tier limit enforcement. Premium users have no
+  // limit, so their shards may start from the bounded scan count instead of
+  // failing card creation when the count is inexact.
+  if (!usage.isCountExact && !options.allowInexact) {
     throw new Error("Card usage must be exact before sharding");
   }
   for (const existingShard of existingShards) {
     await ctx.db.delete("userCardUsageShards", existingShard._id);
   }
 
-  const { activeCardCount, userId } = usage;
-  const cappedCount = Math.min(activeCardCount, FREE_TIER_LIMIT);
-  const overflowCount = Math.max(0, activeCardCount - FREE_TIER_LIMIT);
   const now = Date.now();
-  for (let shard = 0; shard < CARD_USAGE_TOTAL_SHARDS; shard += 1) {
-    const isOverflow = shard >= CARD_USAGE_BASE_SHARDS;
-    const relativeShard = isOverflow ? shard - CARD_USAGE_BASE_SHARDS : shard;
-    const count = isOverflow ? overflowCount : cappedCount;
-    const shardCountForTier = isOverflow
-      ? CARD_USAGE_OVERFLOW_SHARDS
-      : CARD_USAGE_BASE_SHARDS;
-    const shardCount =
-      Math.floor(count / shardCountForTier) +
-      (relativeShard < count % shardCountForTier ? 1 : 0);
-    await ctx.db.insert("userCardUsageShards", {
-      userId,
-      shard,
-      activeCardCount: shardCount,
-      updatedAt: now,
-    });
-  }
+  await writeShardDistribution(ctx, usage.userId, usage.activeCardCount, now);
   await ctx.db.patch("userCardUsage", usage._id, {
     shardVersion: CARD_USAGE_SHARD_VERSION,
     shardedAt: now,
     updatedAt: now,
   });
   return true;
+};
+
+/**
+ * Reconciles inexact shards for a free user (typically lapsed premium):
+ * seed shards undercount, so gate on a bounded rescan instead of the shard
+ * total, and rebuild exact shards when the user is truly under the limit.
+ */
+const reconcileInexactShards = async (
+  ctx: MutationCtx,
+  usage: Doc<"userCardUsage">
+) => {
+  const remaining = await ctx.db
+    .query("cards")
+    .withIndex("by_user_deleted", (query) =>
+      query.eq("userId", usage.userId).eq("isDeleted", undefined)
+    )
+    .take(FREE_TIER_LIMIT);
+  if (remaining.length >= FREE_TIER_LIMIT) {
+    throw new ConvexError({
+      code: CARD_ERROR_CODES.CARD_LIMIT_REACHED,
+      message: CARD_ERROR_MESSAGES.CARD_LIMIT_REACHED,
+    });
+  }
+  const existingShards = await ctx.db
+    .query("userCardUsageShards")
+    .withIndex("by_userId_and_shard", (query) =>
+      query.eq("userId", usage.userId)
+    )
+    .take(CARD_USAGE_TOTAL_SHARDS + 1);
+  for (const existingShard of existingShards) {
+    await ctx.db.delete("userCardUsageShards", existingShard._id);
+  }
+  const now = Date.now();
+  await writeShardDistribution(ctx, usage.userId, remaining.length, now);
+  await ctx.db.patch("userCardUsage", usage._id, {
+    activeCardCount: remaining.length,
+    isCountExact: true,
+    isSaturated: remaining.length >= FREE_TIER_LIMIT,
+    shardVersion: CARD_USAGE_SHARD_VERSION,
+    shardedAt: now,
+    updatedAt: now,
+  });
 };
 
 export const getCardUsageSnapshot = async (
@@ -131,7 +185,9 @@ export const getCardUsageSnapshot = async (
   );
   return {
     activeCardCount,
-    isCountExact: true,
+    // Premium users may shard from a bounded scan count; report the usage
+    // doc's flag instead of claiming exactness the shards don't have.
+    isCountExact: usage.isCountExact ?? true,
     isSaturated: activeCardCount >= FREE_TIER_LIMIT,
     shardVersion: usage.shardVersion,
     shardedAt: usage.shardedAt,
@@ -277,6 +333,11 @@ export const ensureCardUsageShards = async (
 ) => {
   const usage = await getOrInitializeCardUsage(ctx, userId);
   if (usage.shardVersion === CARD_USAGE_SHARD_VERSION) {
+    // Inexact shards (seeded from a bounded premium scan) undercount, so a
+    // lapsed-premium user must not gate free creation on the shard total.
+    if (!hasPremium && !usage.isCountExact) {
+      await reconcileInexactShards(ctx, usage);
+    }
     return;
   }
   if (
@@ -290,7 +351,7 @@ export const ensureCardUsageShards = async (
       message: CARD_ERROR_MESSAGES.CARD_LIMIT_REACHED,
     });
   }
-  await initializeCardUsageShards(ctx, usage);
+  await initializeCardUsageShards(ctx, usage, { allowInexact: hasPremium });
 };
 
 export const ensureCardUsageShardsForRemoval = async (
