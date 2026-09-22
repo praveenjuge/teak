@@ -74,8 +74,10 @@ export function safariXcodeVersions(contents) {
   };
 }
 
-function defaultSafariXcodeSource() {
+function defaultSafariXcodeSource(repoRoot) {
+  const originalDirectory = process.cwd();
   try {
+    process.chdir(repoRoot);
     return fs.readFileSync(
       "apps/safari-extension/teak-safari.xcodeproj/project.pbxproj",
       "utf8"
@@ -85,13 +87,15 @@ function defaultSafariXcodeSource() {
       return null;
     }
     throw error;
+  } finally {
+    process.chdir(originalDirectory);
   }
 }
 
 export function assertLockstep(
   repoRoot,
   expectedVersion,
-  safariXcodeSource = defaultSafariXcodeSource()
+  safariXcodeSource = defaultSafariXcodeSource(repoRoot)
 ) {
   const [, , patchVersion] = parseVersion(expectedVersion);
   const mismatches = [];

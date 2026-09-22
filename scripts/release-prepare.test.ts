@@ -1,5 +1,11 @@
 import { describe, expect, test } from "bun:test";
-import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
+import {
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  writeFileSync,
+} from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import {
@@ -8,6 +14,7 @@ import {
   setManifestVersion,
   setSafariXcodeVersion,
   updateManifestVersions,
+  writeFileAtomically,
 } from "./release-prepare.ts";
 import { safariXcodeProject } from "./release-version.mjs";
 
@@ -37,6 +44,17 @@ describe("setManifestVersion", () => {
     writeManifest(path, "1.0.65");
     setManifestVersion(path, "1.0.66");
     expect(readVersion(path)).toBe("1.0.66");
+  });
+});
+
+describe("writeFileAtomically", () => {
+  test("removes its temporary file when replacement fails", () => {
+    const dir = mkdtempSync(join(tmpdir(), "teak-release-"));
+    const destination = join(dir, "destination");
+    mkdirSync(destination);
+
+    expect(() => writeFileAtomically(destination, "replacement")).toThrow();
+    expect(existsSync(`${destination}.${process.pid}.tmp`)).toBe(false);
   });
 });
 

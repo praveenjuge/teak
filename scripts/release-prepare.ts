@@ -9,7 +9,13 @@
  * Usage: bun run release:prepare <version> [--resume]
  */
 
-import { existsSync, readFileSync, renameSync, writeFileSync } from "node:fs";
+import {
+  existsSync,
+  readFileSync,
+  renameSync,
+  unlinkSync,
+  writeFileSync,
+} from "node:fs";
 import { join, resolve } from "node:path";
 import {
   assertLockstep,
@@ -42,10 +48,33 @@ export const resolveBump = (
   return "fresh";
 };
 
-const writeFileAtomically = (filePath: string, contents: string): void => {
+export const writeFileAtomically = (
+  filePath: string,
+  contents: string
+): void => {
   const temporaryPath = `${filePath}.${process.pid}.tmp`;
-  writeFileSync(temporaryPath, contents);
-  renameSync(temporaryPath, filePath);
+  try {
+    writeFileSync(temporaryPath, contents);
+    renameSync(temporaryPath, filePath);
+  } catch (error) {
+    try {
+      unlinkSync(temporaryPath);
+    } catch (cleanupError) {
+      if (
+        !(
+          cleanupError instanceof Error &&
+          "code" in cleanupError &&
+          cleanupError.code === "ENOENT"
+        )
+      ) {
+        throw new AggregateError(
+          [error, cleanupError],
+          `Failed to write ${filePath} atomically and remove ${temporaryPath}.`
+        );
+      }
+    }
+    throw error;
+  }
 };
 
 export const setManifestVersion = (
