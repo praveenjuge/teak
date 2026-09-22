@@ -3,6 +3,7 @@ set -euo pipefail
 cd "$(dirname "$0")/.."
 test_build_dir="$(mktemp -d "${TMPDIR:-/tmp}/teak-safari-oauth.XXXXXX")"
 xcrun swiftc -parse-as-library \
+  "apps/safari-extension/macOS (App)/CompanionRoute.swift" \
   "apps/safari-extension/Shared (App)/Shared (Core)/SafariOAuth.swift" \
   "apps/safari-extension/Shared (App)/Shared (Core)/SafariCredentialStore.swift" \
   "apps/safari-extension/Shared (App)/Shared (Core)/TeakSafariService.swift" \

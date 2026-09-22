@@ -2,8 +2,9 @@
 
 Teak for Safari ships through
 `.github/workflows/safari-extension-release.yml`. A lockstep `package.json`
-patch bump merged to `main` is the only normal manual release action. Root
-`package.json` is the sole marketing-version source.
+patch bump merged to `main` is the only normal manual release action. Shared
+release preparation keeps the root package, extension manifest, and Xcode
+marketing/build versions in lockstep.
 
 ## Canonical release
 

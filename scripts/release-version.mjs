@@ -4,6 +4,10 @@ import process from "node:process";
 import { fileURLToPath } from "node:url";
 
 const semverPattern = /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$/;
+const safariManifest =
+  "apps/safari-extension/Shared (Extension)/Resources/manifest.json";
+export const safariXcodeProject =
+  "apps/safari-extension/teak-safari.xcodeproj/project.pbxproj";
 
 export function parseVersion(value) {
   const match = semverPattern.exec(value);
@@ -53,13 +57,65 @@ export function npmLockFiles(repoRoot) {
     .sort();
 }
 
-export function assertLockstep(repoRoot, expectedVersion) {
-  parseVersion(expectedVersion);
-  const mismatches = [];
-  for (const relative of packageFiles(repoRoot)) {
-    const manifest = JSON.parse(
-      fs.readFileSync(path.join(repoRoot, relative), "utf8")
+export function releaseManifestFiles(repoRoot) {
+  const files = packageFiles(repoRoot);
+  files.push(safariManifest);
+  return files.sort();
+}
+
+export function safariXcodeVersions(contents) {
+  return {
+    build: [...contents.matchAll(/CURRENT_PROJECT_VERSION = ([^;]+);/g)].map(
+      (match) => match[1]
+    ),
+    marketing: [...contents.matchAll(/MARKETING_VERSION = ([^;]+);/g)].map(
+      (match) => match[1]
+    ),
+  };
+}
+
+function defaultSafariXcodeSource(repoRoot) {
+  const originalDirectory = process.cwd();
+  try {
+    process.chdir(repoRoot);
+    return fs.readFileSync(
+      "apps/safari-extension/teak-safari.xcodeproj/project.pbxproj",
+      "utf8"
     );
+  } catch (error) {
+    if (error instanceof Error && "code" in error && error.code === "ENOENT") {
+      return null;
+    }
+    throw error;
+  } finally {
+    process.chdir(originalDirectory);
+  }
+}
+
+export function assertLockstep(
+  repoRoot,
+  expectedVersion,
+  safariXcodeSource = defaultSafariXcodeSource(repoRoot)
+) {
+  const [, , patchVersion] = parseVersion(expectedVersion);
+  const mismatches = [];
+  for (const relative of releaseManifestFiles(repoRoot)) {
+    let manifest;
+    try {
+      manifest = JSON.parse(
+        fs.readFileSync(path.join(repoRoot, relative), "utf8")
+      );
+    } catch (error) {
+      if (
+        error instanceof Error &&
+        "code" in error &&
+        error.code === "ENOENT"
+      ) {
+        mismatches.push(`${relative}: missing`);
+        continue;
+      }
+      throw error;
+    }
     if (manifest.version !== expectedVersion) {
       mismatches.push(`${relative}: ${manifest.version ?? "missing"}`);
     }
@@ -78,9 +134,27 @@ export function assertLockstep(repoRoot, expectedVersion) {
       }
     }
   }
+  if (safariXcodeSource === null) {
+    mismatches.push(`${safariXcodeProject}: missing`);
+  } else {
+    const xcodeVersions = safariXcodeVersions(safariXcodeSource);
+    for (const [field, versions, expected] of [
+      ["MARKETING_VERSION", xcodeVersions.marketing, expectedVersion],
+      ["CURRENT_PROJECT_VERSION", xcodeVersions.build, String(patchVersion)],
+    ]) {
+      if (versions.length === 0) {
+        mismatches.push(`${safariXcodeProject} ${field}: missing`);
+      }
+      for (const version of new Set(versions)) {
+        if (version !== expected) {
+          mismatches.push(`${safariXcodeProject} ${field}: ${version}`);
+        }
+      }
+    }
+  }
   if (mismatches.length > 0) {
     throw new Error(
-      `Every package manifest and npm lockfile must use ${expectedVersion}:\n${mismatches.join("\n")}`
+      `Every release version source must use ${expectedVersion}:\n${mismatches.join("\n")}`
     );
   }
 }
@@ -104,9 +178,7 @@ function main() {
   }
   if (command === "lockstep" && first && !second) {
     assertLockstep(repoRoot, first);
-    console.log(
-      `All package manifests and npm lockfiles are lockstep at ${first}.`
-    );
+    console.log(`All release version sources are lockstep at ${first}.`);
     return;
   }
   if (command === "patch" && first && second) {

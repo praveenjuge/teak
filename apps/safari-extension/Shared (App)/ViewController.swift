@@ -5,7 +5,6 @@
 //  Created by Praveen Juge on 16/05/26.
 //
 
-import AuthenticationServices
 import Cocoa
 import SafariServices
 
@@ -16,6 +15,10 @@ let extensionBundleIdentifier = "com.praveenjuge.teak-safari.Extension"
 final class ViewController: NSViewController {
     private let settingsViewController = SettingsViewController()
     private let aboutViewController = AboutViewController()
+    var onSignInRequested: ((NSWindow) -> Void)?
+    var onSignOutStarted: (() -> Void)?
+    var onSignedOut: (([String: Any]) -> Void)?
+    var onAuthenticationRequired: (([String: Any]) -> Void)?
 
     private lazy var tabViewController: NSTabViewController = {
         let settingsItem = NSTabViewItem(viewController: settingsViewController)
@@ -42,6 +45,18 @@ final class ViewController: NSViewController {
 
     override func viewDidLoad() {
         super.viewDidLoad()
+        settingsViewController.onSignInRequested = { [weak self] in
+            self?.startSignIn()
+        }
+        settingsViewController.onSignOutStarted = { [weak self] in
+            self?.onSignOutStarted?()
+        }
+        settingsViewController.onSignedOut = { [weak self] state in
+            self?.onSignedOut?(state)
+        }
+        settingsViewController.onAuthenticationRequired = { [weak self] state in
+            self?.onAuthenticationRequired?(state)
+        }
         // Fixed pane size: without it the tab controller stretches the window
         // to each tab's fitting width (the About paragraph unwraps to 1200+pt).
         settingsViewController.preferredContentSize = NSSize(width: 460, height: 344)
@@ -57,19 +72,30 @@ final class ViewController: NSViewController {
         ])
     }
 
-    /// Opens the Settings tab and starts OAuth. Invoked by the teak-safari://connect deep link.
+    /// Starts OAuth from the Settings fallback account action.
     func startSignIn() {
         showSettingsTab()
-        settingsViewController.startSignIn()
+        guard let window = view.window else { return }
+        settingsViewController.prepareForSignIn()
+        onSignInRequested?(window)
     }
 
     /// Selects the Settings tab (index 0) so "Open Settings…" never lands on About.
     func showSettingsTab() {
         tabViewController.selectedTabViewItemIndex = 0
     }
+
+    func renderAccountState(_ state: [String: Any]) {
+        settingsViewController.renderAccountState(state)
+    }
 }
 
-final class SettingsViewController: NSViewController, ASWebAuthenticationPresentationContextProviding {
+final class SettingsViewController: NSViewController {
+    var onSignInRequested: (() -> Void)?
+    var onSignOutStarted: (() -> Void)?
+    var onSignedOut: (([String: Any]) -> Void)?
+    var onAuthenticationRequired: (([String: Any]) -> Void)?
+
     private let accountStatusLabel = NSTextField(labelWithString: "Checking account…")
     private let signInButton = NSButton(title: "Sign In", target: nil, action: #selector(startSignInFromButton))
     private let signOutButton = NSButton(title: "Sign Out", target: nil, action: #selector(signOutFromButton))
@@ -77,8 +103,9 @@ final class SettingsViewController: NSViewController, ASWebAuthenticationPresent
     private let extensionStatusLabel = NSTextField(labelWithString: "Checking extension…")
     private let openSettingsButton = NSButton(title: "Open Safari Settings…", target: nil, action: #selector(openSafariExtensionPreferences))
     private let menuBarToggle = NSButton(checkboxWithTitle: "Show Teak in the menu bar", target: nil, action: #selector(menuBarToggleChanged))
-    private var authenticationSession: ASWebAuthenticationSession?
     private var isSignedIn = false
+    private var isSigningIn = false
+    private var isSigningOut = false
     private var activeObserver: NSObjectProtocol?
     private var accountStateGeneration = 0
 
@@ -195,7 +222,7 @@ final class SettingsViewController: NSViewController, ASWebAuthenticationPresent
     private func refreshAccountState() {
         // Never interleave with an active OAuth exchange: the callback's
         // result is authoritative and must render uncontested.
-        guard authenticationSession == nil else { return }
+        guard !isSigningIn, !isSigningOut else { return }
         let generation = nextAccountStateGeneration()
         Task { @MainActor in
             let state = await TeakSafariService.shared.authState()
@@ -204,7 +231,10 @@ final class SettingsViewController: NSViewController, ASWebAuthenticationPresent
         }
     }
 
-    private func renderAccountState(_ state: [String: Any]) {
+    func renderAccountState(
+        _ state: [String: Any],
+        routeAuthenticationFailure: Bool = true
+    ) {
         if let authenticated = state["authenticated"] as? Bool {
             isSignedIn = authenticated
         }
@@ -215,7 +245,9 @@ final class SettingsViewController: NSViewController, ASWebAuthenticationPresent
         }
         signInButton.isHidden = isSignedIn
         signOutButton.isHidden = !isSignedIn
-        let busy = state["status"] as? String == "waiting"
+        let accountStatus = (state["status"] as? String).flatMap(SafariAccountStatus.init(rawValue:))
+        let busy = accountStatus == .waiting
+        isSigningIn = busy
         if busy {
             spinner.startAnimation(nil)
         } else {
@@ -223,6 +255,14 @@ final class SettingsViewController: NSViewController, ASWebAuthenticationPresent
         }
         signInButton.isEnabled = !busy
         signOutButton.isEnabled = !busy
+
+        if !busy,
+           CompanionRoute.shouldRouteAuthenticationFailure(
+               state,
+               duringExplicitSignOut: !routeAuthenticationFailure
+           ) {
+            onAuthenticationRequired?(state)
+        }
     }
 
     private func refreshExtensionState() {
@@ -240,63 +280,37 @@ final class SettingsViewController: NSViewController, ASWebAuthenticationPresent
         }
     }
 
-    func startSignIn() {
-        guard authenticationSession == nil else { return }
-        // Invalidate in-flight reads; the callback below renders unconditionally.
+    func prepareForSignIn() {
+        guard !isSigningIn else { return }
+        // Invalidate in-flight reads; the shared coordinator's callback below
+        // renders unconditionally.
         _ = nextAccountStateGeneration()
-        do {
-            let pending = try SafariOAuthRequest()
-            let session = ASWebAuthenticationSession(
-                url: pending.authorizationURL(baseURL: TeakSafariService.appBaseURL),
-                callback: .customScheme("teak-safari")
-            ) { [weak self] callback, error in
-                // The OAuth callback is authoritative: it always runs the
-                // exchange and renders, so a returning user can never lose a
-                // completed sign-in to a racing refresh. The session stays
-                // non-nil through the exchange to keep refreshes out.
-                Task { @MainActor in
-                    guard let self else { return }
-                    guard let callback, error == nil else {
-                        self.authenticationSession = nil
-                        self.renderAccountState([
-                            "authenticated": false,
-                            "message": "Sign-in was cancelled. You can try again.",
-                        ])
-                        return
-                    }
-                    let state = await TeakSafariService.shared.completeSignIn(pending, callback: callback)
-                    self.authenticationSession = nil
-                    self.renderAccountState(state)
-                }
-            }
-            session.presentationContextProvider = self
-            authenticationSession = session
-            renderAccountState(["status": "waiting", "message": "Approve Teak Safari in your browser."])
-            if !session.start() {
-                authenticationSession = nil
-                renderAccountState(["message": "Unable to open sign in. Please try again."])
-            }
-        } catch {
-            renderAccountState(["message": error.localizedDescription])
-        }
-    }
-
-    func presentationAnchor(for session: ASWebAuthenticationSession) -> ASPresentationAnchor {
-        view.window ?? ASPresentationAnchor()
+        isSigningIn = true
     }
 
     @objc private func startSignInFromButton() {
-        startSignIn()
+        onSignInRequested?()
     }
 
     @objc private func signOutFromButton() {
-        authenticationSession?.cancel()
-        authenticationSession = nil
+        onSignOutStarted?()
+        isSigningIn = false
+        isSigningOut = true
+        signOutButton.isEnabled = false
         let generation = nextAccountStateGeneration()
         Task { @MainActor in
             let state = await TeakSafariService.shared.signOut()
-            guard generation == self.accountStateGeneration else { return }
-            self.renderAccountState(state)
+            guard generation == self.accountStateGeneration else {
+                self.isSigningOut = false
+                return
+            }
+            self.isSigningOut = false
+            // A credential-clear failure is a logout error, not evidence that
+            // the stored session was revoked. Keep Settings visible for retry.
+            self.renderAccountState(state, routeAuthenticationFailure: false)
+            if CompanionRoute.shouldShowOnboardingAfterSignOut(state) {
+                self.onSignedOut?(state)
+            }
         }
     }
 

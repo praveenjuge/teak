@@ -102,7 +102,7 @@ final class MenuBarController: NSObject, NSMenuDelegate {
             } else if (state["authenticated"] as? Bool) == true {
                 self.statusMenuItem.title = "Signed in."
             } else {
-                self.statusMenuItem.title = "Signed out — sign in from Settings."
+                self.statusMenuItem.title = "Signed out — choose Open Settings… to sign in."
             }
         }
     }

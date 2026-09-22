@@ -1,6 +1,6 @@
 {
   "name": "@teak/tests",
-  "version": "1.0.70",
+  "version": "1.0.71",
   "private": true,
   "type": "module",
   "scripts": {
