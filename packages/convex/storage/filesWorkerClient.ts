@@ -17,6 +17,7 @@ import {
   type FilesOp,
   type FilesOpRequest,
 } from "@teak/files-protocol";
+import { SpanStatusCode, trace } from "@opentelemetry/api";
 import { env } from "../_generated/server";
 import { assertR2KeyInNamespace, hmacSha256Hex } from "./r2Keys";
 
@@ -216,35 +217,61 @@ export type FilesWorkerOutcome<T> =
   | { kind: "ok"; data: T }
   | { kind: "fallback" };
 
+const filesWorkerTracer = trace.getTracer("teak-files-worker");
+
 export const callFilesWorkerJson = async <T>(spec: {
   op: FilesOp;
   params: Record<string, unknown>;
-}): Promise<FilesWorkerOutcome<T>> => {
-  const signed = await buildSignedWorkerOpRequest(spec);
-  let response: Response;
-  try {
-    response = await fetch(signed.url, signed);
-  } catch (error) {
-    throw new Error(
-      `files_worker_network_error:${error instanceof Error ? error.message : String(error)}`
-    );
-  }
-  const envelope = (await response
-    .json()
-    .catch(() => null)) as FilesEnvelope<T> | null;
-  if (!(response.ok && envelope?.ok)) {
-    const code = envelope && !envelope.ok ? envelope.error.code : "INTERNAL";
-    const requestId =
-      envelope && !envelope.ok ? envelope.error.requestId : "unknown";
-    if (["NOT_FOUND", "PAYLOAD_TOO_LARGE", "UNSUPPORTED"].includes(code)) {
-      return { kind: "fallback" };
+}): Promise<FilesWorkerOutcome<T>> =>
+  await filesWorkerTracer.startActiveSpan(
+    `files.worker.${spec.op}`,
+    {
+      attributes: {
+        "files.op": spec.op,
+        "sentry.op": "http.client.files-worker",
+      },
+    },
+    async (span) => {
+      try {
+        const signed = await buildSignedWorkerOpRequest(spec);
+        let response: Response;
+        try {
+          response = await fetch(signed.url, signed);
+        } catch (error) {
+          span.setAttribute("files.outcome", "network_error");
+          throw new Error(
+            `files_worker_network_error:${error instanceof Error ? error.message : String(error)}`
+          );
+        }
+        span.setAttribute("http.response.status_code", response.status);
+        const envelope = (await response
+          .json()
+          .catch(() => null)) as FilesEnvelope<T> | null;
+        if (!(response.ok && envelope?.ok)) {
+          const code =
+            envelope && !envelope.ok ? envelope.error.code : "INTERNAL";
+          const requestId =
+            envelope && !envelope.ok ? envelope.error.requestId : "unknown";
+          if (["NOT_FOUND", "PAYLOAD_TOO_LARGE", "UNSUPPORTED"].includes(code)) {
+            span.setAttribute("files.outcome", "fallback");
+            return { kind: "fallback" };
+          }
+          span.setAttribute("files.outcome", "error");
+          throw new Error(
+            `files_worker_error:${code}:${String(response.status)}:${requestId}`
+          );
+        }
+        span.setAttribute("files.outcome", "ok");
+        span.setStatus({ code: SpanStatusCode.OK });
+        return { kind: "ok", data: envelope.data };
+      } catch (error) {
+        span.setStatus({ code: SpanStatusCode.ERROR });
+        throw error;
+      } finally {
+        span.end();
+      }
     }
-    throw new Error(
-      `files_worker_error:${code}:${String(response.status)}:${requestId}`
-    );
-  }
-  return { kind: "ok", data: envelope.data };
-};
+  );
 
 export interface FilesWorkerImageAnalysisResult {
   height: number;
