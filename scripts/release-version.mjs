@@ -78,9 +78,12 @@ export function assertLockstep(repoRoot, expectedVersion) {
   const [, , patchVersion] = parseVersion(expectedVersion);
   const mismatches = [];
   for (const relative of releaseManifestFiles(repoRoot)) {
-    const manifest = JSON.parse(
-      fs.readFileSync(path.join(repoRoot, relative), "utf8")
-    );
+    const absolute = path.resolve(repoRoot, relative);
+    if (!fs.existsSync(absolute)) {
+      mismatches.push(`${relative}: missing`);
+      continue;
+    }
+    const manifest = JSON.parse(fs.readFileSync(absolute, "utf8"));
     if (manifest.version !== expectedVersion) {
       mismatches.push(`${relative}: ${manifest.version ?? "missing"}`);
     }
@@ -99,27 +102,29 @@ export function assertLockstep(repoRoot, expectedVersion) {
       }
     }
   }
-  const xcodeVersions = safariXcodeVersions(
-    fs.readFileSync(
-      path.resolve(
-        repoRoot,
-        "apps/safari-extension/teak-safari.xcodeproj/project.pbxproj"
-      ),
-      "utf8"
-    )
+  const xcodeProjectPath = path.resolve(
+    repoRoot,
+    "apps/safari-extension/teak-safari.xcodeproj/project.pbxproj"
   );
-  for (const [field, versions, expected] of [
-    ["MARKETING_VERSION", xcodeVersions.marketing, expectedVersion],
-    ["CURRENT_PROJECT_VERSION", xcodeVersions.build, String(patchVersion)],
-  ]) {
-    if (versions.length === 0) {
-      mismatches.push(`${safariXcodeProject} ${field}: missing`);
-    }
-    for (const version of new Set(versions)) {
-      if (version !== expected) {
-        mismatches.push(`${safariXcodeProject} ${field}: ${version}`);
+  if (fs.existsSync(xcodeProjectPath)) {
+    const xcodeVersions = safariXcodeVersions(
+      fs.readFileSync(xcodeProjectPath, "utf8")
+    );
+    for (const [field, versions, expected] of [
+      ["MARKETING_VERSION", xcodeVersions.marketing, expectedVersion],
+      ["CURRENT_PROJECT_VERSION", xcodeVersions.build, String(patchVersion)],
+    ]) {
+      if (versions.length === 0) {
+        mismatches.push(`${safariXcodeProject} ${field}: missing`);
+      }
+      for (const version of new Set(versions)) {
+        if (version !== expected) {
+          mismatches.push(`${safariXcodeProject} ${field}: ${version}`);
+        }
       }
     }
+  } else {
+    mismatches.push(`${safariXcodeProject}: missing`);
   }
   if (mismatches.length > 0) {
     throw new Error(
@@ -147,9 +152,7 @@ function main() {
   }
   if (command === "lockstep" && first && !second) {
     assertLockstep(repoRoot, first);
-    console.log(
-      `All release version sources are lockstep at ${first}.`
-    );
+    console.log(`All release version sources are lockstep at ${first}.`);
     return;
   }
   if (command === "patch" && first && second) {

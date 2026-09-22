@@ -16,6 +16,7 @@ final class ViewController: NSViewController {
     private let settingsViewController = SettingsViewController()
     private let aboutViewController = AboutViewController()
     var onSignInRequested: ((NSWindow) -> Void)?
+    var onSignOutStarted: (() -> Void)?
     var onSignedOut: (([String: Any]) -> Void)?
     var onAuthenticationRequired: (([String: Any]) -> Void)?
 
@@ -47,6 +48,9 @@ final class ViewController: NSViewController {
         settingsViewController.onSignInRequested = { [weak self] in
             self?.startSignIn()
         }
+        settingsViewController.onSignOutStarted = { [weak self] in
+            self?.onSignOutStarted?()
+        }
         settingsViewController.onSignedOut = { [weak self] state in
             self?.onSignedOut?(state)
         }
@@ -68,7 +72,7 @@ final class ViewController: NSViewController {
         ])
     }
 
-    /// Opens the Settings tab and starts OAuth. Invoked by the teak-safari://connect deep link.
+    /// Starts OAuth from the Settings fallback account action.
     func startSignIn() {
         showSettingsTab()
         guard let window = view.window else { return }
@@ -88,6 +92,7 @@ final class ViewController: NSViewController {
 
 final class SettingsViewController: NSViewController {
     var onSignInRequested: (() -> Void)?
+    var onSignOutStarted: (() -> Void)?
     var onSignedOut: (([String: Any]) -> Void)?
     var onAuthenticationRequired: (([String: Any]) -> Void)?
 
@@ -251,10 +256,11 @@ final class SettingsViewController: NSViewController {
         signInButton.isEnabled = !busy
         signOutButton.isEnabled = !busy
 
-        if routeAuthenticationFailure,
-           !busy,
-           state["authenticated"] as? Bool == false,
-           accountStatus != .signedOut {
+        if !busy,
+           CompanionRoute.shouldRouteAuthenticationFailure(
+               state,
+               duringExplicitSignOut: !routeAuthenticationFailure
+           ) {
             onAuthenticationRequired?(state)
         }
     }
@@ -287,6 +293,7 @@ final class SettingsViewController: NSViewController {
     }
 
     @objc private func signOutFromButton() {
+        onSignOutStarted?()
         isSigningIn = false
         isSigningOut = true
         signOutButton.isEnabled = false

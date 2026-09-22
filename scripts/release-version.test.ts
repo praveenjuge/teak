@@ -145,4 +145,23 @@ describe("release versions", () => {
       fs.rmSync(root, { recursive: true, force: true });
     }
   });
+
+  test("reports missing Safari version sources as lockstep mismatches", () => {
+    const root = fs.mkdtempSync(
+      path.join(os.tmpdir(), "teak-release-version-missing-")
+    );
+    fs.mkdirSync(path.join(root, "apps"), { recursive: true });
+    fs.mkdirSync(path.join(root, "packages"), { recursive: true });
+    fs.writeFileSync(
+      path.join(root, "package.json"),
+      `${JSON.stringify({ version: "1.0.60" })}\n`
+    );
+
+    expect(() => assertLockstep(root, "1.0.60")).toThrow(
+      "apps/safari-extension/Shared (Extension)/Resources/manifest.json: missing"
+    );
+    expect(() => assertLockstep(root, "1.0.60")).toThrow(
+      `${safariXcodeProject}: missing`
+    );
+  });
 });

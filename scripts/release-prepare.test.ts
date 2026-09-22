@@ -102,6 +102,9 @@ describe("updateManifestVersions", () => {
     expect(readFileSync(projectPath, "utf-8")).toContain(
       "CURRENT_PROJECT_VERSION = 66;"
     );
+    expect(readFileSync(projectPath, "utf-8")).toContain(
+      "MARKETING_VERSION = 1.0.66;"
+    );
   });
 
   test("skips manifests already at the target version", () => {

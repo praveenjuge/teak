@@ -5,6 +5,7 @@ import Cocoa
 final class SafariSignInCoordinator: NSObject, ASWebAuthenticationPresentationContextProviding {
     private weak var anchorWindow: NSWindow?
     private var authenticationSession: ASWebAuthenticationSession?
+    private var sessionGeneration = 0
 
     var isAuthenticating: Bool {
         authenticationSession != nil
@@ -12,6 +13,14 @@ final class SafariSignInCoordinator: NSObject, ASWebAuthenticationPresentationCo
 
     var presentingWindow: NSWindow? {
         anchorWindow
+    }
+
+    func cancel() {
+        sessionGeneration += 1
+        let session = authenticationSession
+        authenticationSession = nil
+        anchorWindow = nil
+        session?.cancel()
     }
 
     func start(
@@ -23,6 +32,8 @@ final class SafariSignInCoordinator: NSObject, ASWebAuthenticationPresentationCo
 
         do {
             let pending = try SafariOAuthRequest()
+            sessionGeneration += 1
+            let generation = sessionGeneration
             anchorWindow = window
             let session = ASWebAuthenticationSession(
                 url: pending.authorizationURL(baseURL: TeakSafariService.appBaseURL),
@@ -30,6 +41,7 @@ final class SafariSignInCoordinator: NSObject, ASWebAuthenticationPresentationCo
             ) { [weak self] callback, error in
                 Task { @MainActor in
                     guard let self else { return }
+                    guard generation == self.sessionGeneration else { return }
                     guard let callback, error == nil else {
                         self.authenticationSession = nil
                         self.anchorWindow = nil

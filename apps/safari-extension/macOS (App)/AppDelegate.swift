@@ -14,10 +14,9 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     private var settingsWindowController: NSWindowController?
     private var onboardingWindowController: OnboardingWindowController?
     private let signInCoordinator = SafariSignInCoordinator()
-    private var routeGeneration = 0
+    private var routingState = CompanionRoutingState()
     private var isResolvingInitialRoute = true
     private var didFinishLaunching = false
-    private var connectRequested = false
 
     func applicationWillFinishLaunching(_ notification: Notification) {
         // The storyboard owns the Settings window, but account state owns
@@ -43,7 +42,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
     func application(_ application: NSApplication, open urls: [URL]) {
         guard urls.contains(where: { $0.absoluteString == "teak-safari://connect" }) else { return }
-        connectRequested = true
+        routingState.requestConnect()
         guard didFinishLaunching else { return }
         resolveAndPresentRoute()
     }
@@ -71,53 +70,44 @@ class AppDelegate: NSObject, NSApplicationDelegate {
                 controller?.renderAccountState(state)
             }
         }
+        controller.onSignOutStarted = { [weak self] in
+            self?.signInCoordinator.cancel()
+        }
         controller.onSignedOut = { [weak self] state in
-            self?.presentOnboarding(state: state)
+            self?.presentAuthoritativeOnboarding(state: state)
         }
         controller.onAuthenticationRequired = { [weak self] state in
-            self?.presentOnboarding(state: state)
+            self?.presentAuthoritativeOnboarding(state: state)
         }
-    }
-
-    private func nextRouteGeneration() -> Int {
-        routeGeneration += 1
-        return routeGeneration
     }
 
     private func resolveAndPresentRoute() {
         if signInCoordinator.isAuthenticating {
-            connectRequested = false
+            routingState.preserveAuthenticationPresentation()
             NSApplication.shared.activate(ignoringOtherApps: true)
             signInCoordinator.presentingWindow?.makeKeyAndOrderFront(nil)
             return
         }
 
-        let generation = nextRouteGeneration()
+        let generation = routingState.beginResolution()
         Task { @MainActor in
             let state = await TeakSafariService.shared.authState()
-            guard generation == self.routeGeneration else { return }
+            guard let resolution = self.routingState.completeResolution(
+                generation: generation,
+                state: state,
+                isAuthenticating: self.signInCoordinator.isAuthenticating
+            ) else { return }
 
-            // A newer OAuth session is authoritative. Do not replace its
-            // waiting state with the signed-out result from this earlier read.
-            if self.signInCoordinator.isAuthenticating {
-                self.connectRequested = false
+            switch resolution {
+            case .preserveCurrentPresentation:
                 NSApplication.shared.activate(ignoringOtherApps: true)
                 self.signInCoordinator.presentingWindow?.makeKeyAndOrderFront(nil)
-                return
-            }
-
-            switch CompanionRoute.resolve(from: state) {
-            case .settings:
-                self.connectRequested = false
+            case let .present(.settings, _):
                 self.presentSettings(state: state)
-            case .onboarding:
+            case let .present(.onboarding, startSignIn):
                 self.presentOnboarding(state: state)
-                if CompanionRoute.shouldStartSignIn(
-                    from: state,
-                    connectRequested: self.connectRequested
-                ),
+                if startSignIn,
                    let window = self.onboardingWindowController?.window {
-                    self.connectRequested = false
                     self.startOnboardingSignIn(presenting: window)
                 }
             }
@@ -127,12 +117,20 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     private func presentSettings(state: [String: Any]) {
         NSApplication.shared.activate(ignoringOtherApps: true)
         guard let window = settingsWindow,
-              let controller = window.contentViewController as? ViewController else { return }
+              let controller = window.contentViewController as? ViewController else {
+            finishInitialRouteIfNeeded()
+            return
+        }
         controller.showSettingsTab()
         controller.renderAccountState(state)
         window.makeKeyAndOrderFront(nil)
         onboardingWindowController?.window?.orderOut(nil)
         finishInitialRouteIfNeeded()
+    }
+
+    private func presentAuthoritativeOnboarding(state: [String: Any]) {
+        routingState.invalidatePendingResolution()
+        presentOnboarding(state: state)
     }
 
     private func presentOnboarding(state: [String: Any] = [:]) {
@@ -172,6 +170,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             guard let self else { return }
             render(state)
             if CompanionRoute.resolve(from: state) == .settings {
+                self.routingState.invalidatePendingResolution()
                 self.presentSettings(state: state)
             }
         }

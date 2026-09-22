@@ -96,6 +96,79 @@ final class MockHTTP: URLProtocol, @unchecked Sendable {
             ]),
             "failed sign-out stays in Settings"
         )
+        try check(
+            !CompanionRoute.shouldRouteAuthenticationFailure(
+                ["status": "error", "authenticated": false],
+                duringExplicitSignOut: true
+            ),
+            "credential-clear errors from explicit sign-out stay in Settings"
+        )
+
+        var coldLaunchRouting = CompanionRoutingState()
+        coldLaunchRouting.requestConnect()
+        let coldLaunchGeneration = coldLaunchRouting.beginResolution()
+        try check(
+            coldLaunchRouting.completeResolution(
+                generation: coldLaunchGeneration,
+                state: ["authenticated": false],
+                isAuthenticating: false
+            ) == .present(.onboarding, startSignIn: true),
+            "a pre-launch connect intent survives until initial routing completes"
+        )
+
+        var racingRouting = CompanionRoutingState()
+        let staleGeneration = racingRouting.beginResolution()
+        racingRouting.requestConnect()
+        let currentGeneration = racingRouting.beginResolution()
+        try check(
+            racingRouting.completeResolution(
+                generation: staleGeneration,
+                state: ["authenticated": true],
+                isAuthenticating: false
+            ) == nil,
+            "a stale auth read cannot replace an authoritative route"
+        )
+        try check(
+            racingRouting.completeResolution(
+                generation: currentGeneration,
+                state: ["authenticated": false],
+                isAuthenticating: false
+            ) == .present(.onboarding, startSignIn: true),
+            "the newest auth read consumes the pending connect intent"
+        )
+
+        var activeAuthenticationRouting = CompanionRoutingState()
+        activeAuthenticationRouting.requestConnect()
+        let activeGeneration = activeAuthenticationRouting.beginResolution()
+        try check(
+            activeAuthenticationRouting.completeResolution(
+                generation: activeGeneration,
+                state: ["authenticated": false],
+                isAuthenticating: true
+            ) == .preserveCurrentPresentation,
+            "duplicate routes preserve an active OAuth presentation"
+        )
+        let laterGeneration = activeAuthenticationRouting.beginResolution()
+        try check(
+            activeAuthenticationRouting.completeResolution(
+                generation: laterGeneration,
+                state: ["authenticated": false],
+                isAuthenticating: false
+            ) == .present(.onboarding, startSignIn: false),
+            "a duplicate connect request cannot restart OAuth after completion"
+        )
+
+        var authoritativeRouting = CompanionRoutingState()
+        let pendingGeneration = authoritativeRouting.beginResolution()
+        authoritativeRouting.invalidatePendingResolution()
+        try check(
+            authoritativeRouting.completeResolution(
+                generation: pendingGeneration,
+                state: ["authenticated": true],
+                isAuthenticating: false
+            ) == nil,
+            "logout and credential-revocation transitions invalidate older auth reads"
+        )
         print("PASS: companion window routing")
 
         let pending = try SafariOAuthRequest(verifier: "dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk", state: "expected")

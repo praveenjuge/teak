@@ -9,7 +9,7 @@
  * Usage: bun run release:prepare <version> [--resume]
  */
 
-import { existsSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, readFileSync, renameSync, writeFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 import {
   assertLockstep,
@@ -42,13 +42,19 @@ export const resolveBump = (
   return "fresh";
 };
 
+const writeFileAtomically = (filePath: string, contents: string): void => {
+  const temporaryPath = `${filePath}.${process.pid}.tmp`;
+  writeFileSync(temporaryPath, contents);
+  renameSync(temporaryPath, filePath);
+};
+
 export const setManifestVersion = (
   manifestPath: string,
   version: string
 ): void => {
   const manifest = JSON.parse(readFileSync(manifestPath, "utf-8"));
   manifest.version = version;
-  writeFileSync(manifestPath, `${JSON.stringify(manifest, null, 2)}\n`);
+  writeFileAtomically(manifestPath, `${JSON.stringify(manifest, null, 2)}\n`);
 };
 
 export const setSafariXcodeVersion = (
@@ -70,7 +76,7 @@ export const setSafariXcodeVersion = (
   if (updated === source) {
     return false;
   }
-  writeFileSync(projectPath, updated);
+  writeFileAtomically(projectPath, updated);
   return true;
 };
 
