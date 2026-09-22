@@ -76,6 +76,13 @@ describe("updateManifestVersions", () => {
     writeManifest(join(root, "package.json"), "1.0.66");
     mkdirSync(join(root, "apps"), { recursive: true });
     mkdirSync(join(root, "packages"), { recursive: true });
+    writeManifest(
+      join(
+        root,
+        "apps/safari-extension/Shared (Extension)/Resources/manifest.json"
+      ),
+      "1.0.66"
+    );
     expect(updateManifestVersions(root, "1.0.66")).toEqual([]);
   });
 });

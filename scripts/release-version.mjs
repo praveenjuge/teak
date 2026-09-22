@@ -57,9 +57,7 @@ export function npmLockFiles(repoRoot) {
 
 export function releaseManifestFiles(repoRoot) {
   const files = packageFiles(repoRoot);
-  if (fs.existsSync(path.join(repoRoot, safariManifest))) {
-    files.push(safariManifest);
-  }
+  files.push(safariManifest);
   return files.sort();
 }
 

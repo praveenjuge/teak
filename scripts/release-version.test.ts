@@ -30,16 +30,13 @@ describe("release versions", () => {
       path.join(os.tmpdir(), "teak-release-version-")
     );
     try {
-      for (const directory of ["apps/web", "packages/ui"]) {
+      for (const directory of [
+        "apps/web",
+        "packages/ui",
+        "apps/safari-extension/Shared (Extension)/Resources",
+      ]) {
         fs.mkdirSync(path.join(root, directory), { recursive: true });
       }
-      fs.mkdirSync(
-        path.join(
-          root,
-          "apps/safari-extension/Shared (Extension)/Resources"
-        ),
-        { recursive: true }
-      );
       for (const relative of [
         "package.json",
         "apps/web/package.json",
