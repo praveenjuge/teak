@@ -69,13 +69,8 @@ describe("release versions", () => {
       expect(() => assertLockstep(root, "1.0.60", null)).toThrow(
         `${safariXcodeProject}: missing`
       );
-      const xcodeProjectPath = path.resolve(
-        root,
-        "apps/safari-extension/teak-safari.xcodeproj/project.pbxproj"
-      );
       const validXcodeSource =
         "MARKETING_VERSION = 1.0.60;\nCURRENT_PROJECT_VERSION = 60;\n";
-      fs.writeFileSync(xcodeProjectPath, validXcodeSource);
       expect(releaseManifestFiles(root)).toEqual([
         "apps/safari-extension/Shared (Extension)/Resources/manifest.json",
         "apps/web/package.json",
@@ -89,11 +84,9 @@ describe("release versions", () => {
 
       const staleXcodeSource =
         "MARKETING_VERSION = 1.0.59;\nCURRENT_PROJECT_VERSION = 59;\n";
-      fs.writeFileSync(xcodeProjectPath, staleXcodeSource);
       expect(() => assertLockstep(root, "1.0.60", staleXcodeSource)).toThrow(
         `${safariXcodeProject} MARKETING_VERSION: 1.0.59`
       );
-      fs.writeFileSync(xcodeProjectPath, validXcodeSource);
 
       fs.writeFileSync(
         path.join(

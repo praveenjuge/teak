@@ -77,10 +77,7 @@ export function safariXcodeVersions(contents) {
 function defaultSafariXcodeSource() {
   try {
     return fs.readFileSync(
-      new URL(
-        "../apps/safari-extension/teak-safari.xcodeproj/project.pbxproj",
-        import.meta.url
-      ),
+      "apps/safari-extension/teak-safari.xcodeproj/project.pbxproj",
       "utf8"
     );
   } catch (error) {
