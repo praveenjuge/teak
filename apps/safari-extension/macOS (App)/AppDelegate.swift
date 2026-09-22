@@ -16,6 +16,8 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     private let signInCoordinator = SafariSignInCoordinator()
     private var routeGeneration = 0
     private var isResolvingInitialRoute = true
+    private var didFinishLaunching = false
+    private var connectRequested = false
 
     func applicationWillFinishLaunching(_ notification: Notification) {
         // The storyboard owns the Settings window, but account state owns
@@ -35,12 +37,15 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         UserDefaults.standard.register(defaults: [MenuBarController.enabledDefaultsKey: false])
         menuBar = MenuBarController()
         configureSettingsWindow()
+        didFinishLaunching = true
         resolveAndPresentRoute()
     }
 
     func application(_ application: NSApplication, open urls: [URL]) {
         guard urls.contains(where: { $0.absoluteString == "teak-safari://connect" }) else { return }
-        resolveAndPresentRoute(startSignInIfNeeded: true)
+        connectRequested = true
+        guard didFinishLaunching else { return }
+        resolveAndPresentRoute()
     }
 
     /// Resolves account state before presenting Settings or onboarding.
@@ -79,21 +84,40 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         return routeGeneration
     }
 
-    private func resolveAndPresentRoute(startSignInIfNeeded: Bool = false) {
+    private func resolveAndPresentRoute() {
+        if signInCoordinator.isAuthenticating {
+            connectRequested = false
+            NSApplication.shared.activate(ignoringOtherApps: true)
+            signInCoordinator.presentingWindow?.makeKeyAndOrderFront(nil)
+            return
+        }
+
         let generation = nextRouteGeneration()
         Task { @MainActor in
             let state = await TeakSafariService.shared.authState()
             guard generation == self.routeGeneration else { return }
+
+            // A newer OAuth session is authoritative. Do not replace its
+            // waiting state with the signed-out result from this earlier read.
+            if self.signInCoordinator.isAuthenticating {
+                self.connectRequested = false
+                NSApplication.shared.activate(ignoringOtherApps: true)
+                self.signInCoordinator.presentingWindow?.makeKeyAndOrderFront(nil)
+                return
+            }
+
             switch CompanionRoute.resolve(from: state) {
             case .settings:
+                self.connectRequested = false
                 self.presentSettings(state: state)
             case .onboarding:
                 self.presentOnboarding(state: state)
                 if CompanionRoute.shouldStartSignIn(
                     from: state,
-                    connectRequested: startSignInIfNeeded
+                    connectRequested: self.connectRequested
                 ),
                    let window = self.onboardingWindowController?.window {
+                    self.connectRequested = false
                     self.startOnboardingSignIn(presenting: window)
                 }
             }

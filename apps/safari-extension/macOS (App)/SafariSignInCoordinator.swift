@@ -6,6 +6,14 @@ final class SafariSignInCoordinator: NSObject, ASWebAuthenticationPresentationCo
     private weak var anchorWindow: NSWindow?
     private var authenticationSession: ASWebAuthenticationSession?
 
+    var isAuthenticating: Bool {
+        authenticationSession != nil
+    }
+
+    var presentingWindow: NSWindow? {
+        anchorWindow
+    }
+
     func start(
         presenting window: NSWindow,
         onStateChange: @escaping ([String: Any]) -> Void,

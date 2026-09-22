@@ -100,6 +100,7 @@ final class SettingsViewController: NSViewController {
     private let menuBarToggle = NSButton(checkboxWithTitle: "Show Teak in the menu bar", target: nil, action: #selector(menuBarToggleChanged))
     private var isSignedIn = false
     private var isSigningIn = false
+    private var isSigningOut = false
     private var activeObserver: NSObjectProtocol?
     private var accountStateGeneration = 0
 
@@ -216,7 +217,7 @@ final class SettingsViewController: NSViewController {
     private func refreshAccountState() {
         // Never interleave with an active OAuth exchange: the callback's
         // result is authoritative and must render uncontested.
-        guard !isSigningIn else { return }
+        guard !isSigningIn, !isSigningOut else { return }
         let generation = nextAccountStateGeneration()
         Task { @MainActor in
             let state = await TeakSafariService.shared.authState()
@@ -225,7 +226,10 @@ final class SettingsViewController: NSViewController {
         }
     }
 
-    func renderAccountState(_ state: [String: Any]) {
+    func renderAccountState(
+        _ state: [String: Any],
+        routeAuthenticationFailure: Bool = true
+    ) {
         if let authenticated = state["authenticated"] as? Bool {
             isSignedIn = authenticated
         }
@@ -247,7 +251,8 @@ final class SettingsViewController: NSViewController {
         signInButton.isEnabled = !busy
         signOutButton.isEnabled = !busy
 
-        if !busy,
+        if routeAuthenticationFailure,
+           !busy,
            state["authenticated"] as? Bool == false,
            accountStatus != .signedOut {
             onAuthenticationRequired?(state)
@@ -283,11 +288,19 @@ final class SettingsViewController: NSViewController {
 
     @objc private func signOutFromButton() {
         isSigningIn = false
+        isSigningOut = true
+        signOutButton.isEnabled = false
         let generation = nextAccountStateGeneration()
         Task { @MainActor in
             let state = await TeakSafariService.shared.signOut()
-            guard generation == self.accountStateGeneration else { return }
-            self.renderAccountState(state)
+            guard generation == self.accountStateGeneration else {
+                self.isSigningOut = false
+                return
+            }
+            self.isSigningOut = false
+            // A credential-clear failure is a logout error, not evidence that
+            // the stored session was revoked. Keep Settings visible for retry.
+            self.renderAccountState(state, routeAuthenticationFailure: false)
             if CompanionRoute.shouldShowOnboardingAfterSignOut(state) {
                 self.onSignedOut?(state)
             }

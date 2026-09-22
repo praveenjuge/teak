@@ -63,7 +63,10 @@ describe("release versions", () => {
         ),
         `${JSON.stringify({ version: "1.0.60" })}\n`
       );
-      const xcodeProjectPath = path.resolve(root, safariXcodeProject);
+      const xcodeProjectPath = path.resolve(
+        root,
+        "apps/safari-extension/teak-safari.xcodeproj/project.pbxproj"
+      );
       fs.writeFileSync(
         xcodeProjectPath,
         "MARKETING_VERSION = 1.0.60;\nCURRENT_PROJECT_VERSION = 60;\n"

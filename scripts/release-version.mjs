@@ -100,7 +100,13 @@ export function assertLockstep(repoRoot, expectedVersion) {
     }
   }
   const xcodeVersions = safariXcodeVersions(
-    fs.readFileSync(path.resolve(repoRoot, safariXcodeProject), "utf8")
+    fs.readFileSync(
+      path.resolve(
+        repoRoot,
+        "apps/safari-extension/teak-safari.xcodeproj/project.pbxproj"
+      ),
+      "utf8"
+    )
   );
   for (const [field, versions, expected] of [
     ["MARKETING_VERSION", xcodeVersions.marketing, expectedVersion],
