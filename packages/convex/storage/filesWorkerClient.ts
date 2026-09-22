@@ -233,6 +233,7 @@ export const callFilesWorkerJson = async <T>(spec: {
     },
     async (span) => {
       try {
+        span.setAttribute("files.outcome", "error");
         const signed = await buildSignedWorkerOpRequest(spec);
         let response: Response;
         try {
@@ -265,6 +266,7 @@ export const callFilesWorkerJson = async <T>(spec: {
         span.setStatus({ code: SpanStatusCode.OK });
         return { kind: "ok", data: envelope.data };
       } catch (error) {
+        span.recordException(error instanceof Error ? error : String(error));
         span.setStatus({ code: SpanStatusCode.ERROR });
         throw error;
       } finally {
