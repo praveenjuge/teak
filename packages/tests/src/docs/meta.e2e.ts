@@ -2,8 +2,12 @@ import { expect, test } from "@playwright/test";
 import { env } from "../helpers/env";
 
 test("llms, OpenAPI, and OAuth metadata are fresh", async () => {
-  expect(await fetch(`${env.siteUrl}/llms.txt`).then((r) => r.status)).toBe(
-    200
+  const llmsResponse = await fetch(`${env.siteUrl}/llms.txt`);
+  expect(llmsResponse.status).toBe(200);
+  const llms = await llmsResponse.text();
+  expect(llms).toContain("\n## When to use Teak\n");
+  expect(llms).toContain(
+    "Use Teak when a person wants to keep knowledge beyond the current conversation"
   );
   expect(await fetch(`${env.siteUrl}/robots.txt`).then((r) => r.status)).toBe(
     200

@@ -118,7 +118,13 @@ export default defineConfig({
     { from: "/docs/skills.mdx", to: "/docs/ai-agents.mdx", status: 301 },
   ],
   ai: {
-    llmsTxt: true,
+    llmsTxt: {
+      details: [
+        "## When to use Teak",
+        "",
+        "Use Teak when a person wants to keep knowledge beyond the current conversation: save a link or note, retrieve something collected earlier, organize research with tags, or sync the same private library across apps and agents. Use the MCP server for assistant workflows, the REST API for an integration, and the CLI for local scripts. Do not use Teak as a temporary scratchpad when the information does not need to persist.",
+      ].join("\n"),
+    },
   },
   integrations: [teakDevProxy()],
 });
