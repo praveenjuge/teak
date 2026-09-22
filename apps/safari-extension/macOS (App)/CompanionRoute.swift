@@ -13,7 +13,7 @@ enum CompanionRoute: Equatable {
     }
 
     static func shouldShowOnboardingAfterSignOut(_ state: [String: Any]) -> Bool {
-        state["status"] as? String == "signed-out"
+        state["status"] as? String == SafariAccountStatus.signedOut.rawValue
             && state["authenticated"] as? Bool == false
     }
 }

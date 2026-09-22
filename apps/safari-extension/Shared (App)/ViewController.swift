@@ -236,7 +236,8 @@ final class SettingsViewController: NSViewController {
         }
         signInButton.isHidden = isSignedIn
         signOutButton.isHidden = !isSignedIn
-        let busy = state["status"] as? String == "waiting"
+        let accountStatus = (state["status"] as? String).flatMap(SafariAccountStatus.init(rawValue:))
+        let busy = accountStatus == .waiting
         isSigningIn = busy
         if busy {
             spinner.startAnimation(nil)
@@ -248,7 +249,7 @@ final class SettingsViewController: NSViewController {
 
         if !busy,
            state["authenticated"] as? Bool == false,
-           state["status"] as? String != "signed-out" {
+           accountStatus != .signedOut {
             onAuthenticationRequired?(state)
         }
     }

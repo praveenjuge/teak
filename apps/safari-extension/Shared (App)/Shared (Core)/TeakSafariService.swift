@@ -1,6 +1,12 @@
 import Darwin
 import Foundation
 
+enum SafariAccountStatus: String {
+    case connected
+    case signedOut = "signed-out"
+    case waiting
+}
+
 actor TeakSafariService {
     static let shared = TeakSafariService()
     #if DEBUG
@@ -47,7 +53,11 @@ actor TeakSafariService {
     func authState() async -> [String: Any] {
         do {
             guard (try? self.credentials.load()) != nil else {
-                return ["authenticated": false, "message": "Connect Teak Safari to save pages."]
+                return [
+                    "authenticated": false,
+                    "status": SafariAccountStatus.signedOut.rawValue,
+                    "message": "Connect Teak Safari to save pages.",
+                ]
             }
             // The shared lock guards refresh-token rotation inside accessToken();
             // the session verification request runs outside it so a slow network
@@ -70,7 +80,10 @@ actor TeakSafariService {
             }
             return ["authenticated": true]
         } catch SafariServiceError.unauthenticated {
-            return ["authenticated": false]
+            return [
+                "authenticated": false,
+                "status": SafariAccountStatus.signedOut.rawValue,
+            ]
         } catch {
             return errorResponse(error)
         }
@@ -85,7 +98,7 @@ actor TeakSafariService {
                     "code_verifier": pending.verifier, "redirect_uri": SafariOAuthRequest.callback,
                 ])
                 try self.credentials.save(tokens)
-                return ["authenticated": true, "status": "connected"]
+                return ["authenticated": true, "status": SafariAccountStatus.connected.rawValue]
             }
         } catch { return errorResponse(error) }
     }
@@ -109,7 +122,10 @@ actor TeakSafariService {
                     }
                 }
                 try self.credentials.clear()
-                return ["status": "signed-out", "authenticated": false]
+                return [
+                    "status": SafariAccountStatus.signedOut.rawValue,
+                    "authenticated": false,
+                ]
             }
         } catch { return errorResponse(error) }
     }

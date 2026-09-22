@@ -45,7 +45,7 @@ final class SafariSignInCoordinator: NSObject, ASWebAuthenticationPresentationCo
             authenticationSession = session
             onStateChange([
                 "authenticated": false,
-                "status": "waiting",
+                "status": SafariAccountStatus.waiting.rawValue,
                 "message": "Approve Teak Safari in your browser.",
             ])
             if !session.start() {

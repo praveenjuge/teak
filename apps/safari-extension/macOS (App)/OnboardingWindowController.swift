@@ -98,7 +98,6 @@ final class OnboardingViewController: NSViewController {
         signInButton.keyEquivalent = "\r"
         signInButton.setAccessibilityLabel("Sign In to Teak")
         signInButton.translatesAutoresizingMaskIntoConstraints = false
-        signInButton.widthAnchor.constraint(equalToConstant: 144).isActive = true
 
         let actionRow = NSStackView(views: [spinner, signInButton])
         actionRow.orientation = .horizontal
@@ -122,11 +121,13 @@ final class OnboardingViewController: NSViewController {
             headline.widthAnchor.constraint(equalToConstant: 400),
             description.widthAnchor.constraint(equalToConstant: 380),
             statusLabel.widthAnchor.constraint(equalToConstant: 380),
+            signInButton.widthAnchor.constraint(equalToConstant: 144),
         ])
     }
 
     func render(_ state: [String: Any]) {
-        let busy = state["status"] as? String == "waiting"
+        let accountStatus = (state["status"] as? String).flatMap(SafariAccountStatus.init(rawValue:))
+        let busy = accountStatus == .waiting
         signInButton.isEnabled = !busy
         signInButton.title = busy ? "Signing In…" : "Sign In"
         if busy {
@@ -136,7 +137,7 @@ final class OnboardingViewController: NSViewController {
         }
 
         let message = state["message"] as? String ?? ""
-        statusLabel.stringValue = message == "Connect Teak Safari to save pages." ? "" : message
+        statusLabel.stringValue = accountStatus == .signedOut ? "" : message
         statusLabel.isHidden = statusLabel.stringValue.isEmpty
     }
 

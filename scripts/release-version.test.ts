@@ -9,6 +9,8 @@ import {
   packageFiles,
   parseVersion,
   releaseManifestFiles,
+  safariXcodeProject,
+  safariXcodeVersions,
 } from "./release-version.mjs";
 
 describe("release versions", () => {
@@ -34,6 +36,7 @@ describe("release versions", () => {
         "apps/web",
         "packages/ui",
         "apps/safari-extension/Shared (Extension)/Resources",
+        "apps/safari-extension/teak-safari.xcodeproj",
       ]) {
         fs.mkdirSync(path.join(root, directory), { recursive: true });
       }
@@ -60,6 +63,14 @@ describe("release versions", () => {
         ),
         `${JSON.stringify({ version: "1.0.60" })}\n`
       );
+      const xcodeProjectPath = path.resolve(root, safariXcodeProject);
+      fs.writeFileSync(
+        xcodeProjectPath,
+        "MARKETING_VERSION = 1.0.60;\nCURRENT_PROJECT_VERSION = 60;\n"
+      );
+      expect(
+        safariXcodeVersions(fs.readFileSync(xcodeProjectPath, "utf8"))
+      ).toEqual({ build: ["60"], marketing: ["1.0.60"] });
       expect(releaseManifestFiles(root)).toEqual([
         "apps/safari-extension/Shared (Extension)/Resources/manifest.json",
         "apps/web/package.json",
@@ -68,6 +79,18 @@ describe("release versions", () => {
       ]);
       expect(npmLockFiles(root)).toEqual([]);
       expect(() => assertLockstep(root, "1.0.60")).not.toThrow();
+
+      fs.writeFileSync(
+        xcodeProjectPath,
+        "MARKETING_VERSION = 1.0.59;\nCURRENT_PROJECT_VERSION = 59;\n"
+      );
+      expect(() => assertLockstep(root, "1.0.60")).toThrow(
+        `${safariXcodeProject} MARKETING_VERSION: 1.0.59`
+      );
+      fs.writeFileSync(
+        xcodeProjectPath,
+        "MARKETING_VERSION = 1.0.60;\nCURRENT_PROJECT_VERSION = 60;\n"
+      );
 
       fs.writeFileSync(
         path.join(
