@@ -119,6 +119,8 @@ const createStore = () => {
             args.types ? args.types.includes(card.type as "text") : true
           )
           .filter((card) => (args.favoritesOnly ? card.isFavorited : true))
+          // Mirror the production query: newest first, then take the limit.
+          .sort((a, b) => b.createdAt - a.createdAt)
           .slice(0, args.limit ?? 20)
       ),
     updateCardField: ({ cardId, field, value }) => {
@@ -229,6 +231,14 @@ await scenario("search and get round-trip", async () => {
   assert(detail.tags.includes("setup"), "detail carries tags");
   const missing = await execute("teak_get_card", { cardId: "nope" });
   assert(missing === null, "unknown card returns null");
+  const textOnly = (await execute("teak_search_cards", {
+    type: "text",
+  })) as { total: number };
+  assert(textOnly.total === 2, "type filter keeps text cards");
+  const linkOnly = (await execute("teak_search_cards", {
+    type: "link",
+  })) as { total: number };
+  assert(linkOnly.total === 0, "type filter excludes other types");
 });
 
 await scenario("create, tag, and favorite lifecycle", async () => {
@@ -259,11 +269,15 @@ await scenario("create, tag, and favorite lifecycle", async () => {
   assert(favorited.isFavorited === true, "favorite flag is set");
   const favorites = (await execute("teak_search_cards", {
     favorited: true,
-  })) as { items: { id: string }[] };
+  })) as { items: { id: string }[]; total: number };
+  const favoriteIds = favorites.items.map((item) => item.id);
+  assert(favoriteIds.includes("created-1"), "new favorite is listed");
+  assert(favoriteIds.includes("seed-tea"), "seed favorite is listed");
   assert(
-    favorites.items.some((item) => item.id === "created-1"),
-    "favorited card appears in favorites search"
+    !favoriteIds.includes("seed-keyboards"),
+    "unfavorited card is excluded"
   );
+  assert(favorites.total === 2, "favorites total is exact");
 });
 
 await scenario("invalid input is rejected per tool", async () => {

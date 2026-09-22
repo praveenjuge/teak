@@ -22,14 +22,19 @@ declare global {
   }
 }
 
-const IMPERATIVE_TOOL_NAMES = [
+const READ_TOOL_NAMES = [
   "teak_search_cards",
   "teak_get_card",
+  "teak_recent_cards",
+] as const;
+
+const WRITE_TOOL_NAMES = [
   "teak_create_card",
   "teak_update_tags",
   "teak_set_favorite",
-  "teak_recent_cards",
 ] as const;
+
+const IMPERATIVE_TOOL_NAMES = [...READ_TOOL_NAMES, ...WRITE_TOOL_NAMES];
 
 /** Wait until every executable imperative tool has registered. */
 const waitForImperativeTools = (page: Page) =>
@@ -152,52 +157,43 @@ test.describe("WebMCP", () => {
 
     test("marks write tools consequential", async ({ page }) => {
       await waitForImperativeTools(page);
-      const annotations = await page.evaluate(() =>
-        (window.__webmcpRegistered ?? [])
-          .filter((entry) =>
-            [
-              "teak_create_card",
-              "teak_update_tags",
-              "teak_set_favorite",
-            ].includes(entry.name)
-          )
-          .map(
-            (entry) =>
-              (entry.tool as { annotations?: Record<string, unknown> })
-                .annotations ?? null
-          )
+      const annotations = await page.evaluate(
+        (names: readonly string[]) =>
+          (window.__webmcpRegistered ?? [])
+            .filter((entry) => names.includes(entry.name))
+            .map(
+              (entry) =>
+                (entry.tool as { annotations?: Record<string, unknown> })
+                  .annotations ?? null
+            ),
+        [...WRITE_TOOL_NAMES]
       );
-      expect(annotations).toEqual([
-        { consequentialHint: true },
-        { consequentialHint: true },
-        { consequentialHint: true },
-      ]);
+      expect(annotations).toEqual(
+        WRITE_TOOL_NAMES.map(() => ({ consequentialHint: true }))
+      );
     });
 
     test("marks read tools read-only with untrusted output", async ({
       page,
     }) => {
       await waitForImperativeTools(page);
-      const annotations = await page.evaluate(() =>
-        (window.__webmcpRegistered ?? [])
-          .filter((entry) =>
-            [
-              "teak_search_cards",
-              "teak_get_card",
-              "teak_recent_cards",
-            ].includes(entry.name)
-          )
-          .map(
-            (entry) =>
-              (entry.tool as { annotations?: Record<string, unknown> })
-                .annotations ?? null
-          )
+      const annotations = await page.evaluate(
+        (names: readonly string[]) =>
+          (window.__webmcpRegistered ?? [])
+            .filter((entry) => names.includes(entry.name))
+            .map(
+              (entry) =>
+                (entry.tool as { annotations?: Record<string, unknown> })
+                  .annotations ?? null
+            ),
+        [...READ_TOOL_NAMES]
       );
-      expect(annotations).toEqual([
-        { readOnlyHint: true, untrustedContentHint: true },
-        { readOnlyHint: true, untrustedContentHint: true },
-        { readOnlyHint: true, untrustedContentHint: true },
-      ]);
+      expect(annotations).toEqual(
+        READ_TOOL_NAMES.map(() => ({
+          readOnlyHint: true,
+          untrustedContentHint: true,
+        }))
+      );
     });
 
     test("search tool executes against the signed-in session", async ({

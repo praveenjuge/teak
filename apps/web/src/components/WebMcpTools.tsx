@@ -44,6 +44,19 @@ export function WebMcpTools() {
       return;
     }
     const controller = new AbortController();
+    type DebugWindow = Window & { __teakWebmcp?: TeakWebmcpDebugHandle };
+    const clearDebugHandle = (): void => {
+      if (process.env.NODE_ENV !== "production") {
+        // Drop the debug handle so DevTools never shows tools that are no
+        // longer registered after unmount, sign-out, or failed registration.
+        (window as DebugWindow).__teakWebmcp = undefined;
+      }
+    };
+    if (process.env.NODE_ENV !== "production") {
+      // Initialize before subscribing so registration-time toolchange
+      // events are counted too; tools fill in once registration succeeds.
+      (window as DebugWindow).__teakWebmcp = { events: {}, tools: [] };
+    }
     const unsubscribeEvents = subscribeWebMcpToolEvents(
       modelContext,
       recordToolEvent
@@ -71,17 +84,16 @@ export function WebMcpTools() {
     ).then(
       () => {
         if (process.env.NODE_ENV !== "production") {
-          (
-            window as Window & { __teakWebmcp?: TeakWebmcpDebugHandle }
-          ).__teakWebmcp = {
-            events: {},
-            tools: [...WEBMCP_TOOL_NAMES],
-          };
+          const debug = (window as DebugWindow).__teakWebmcp;
+          if (debug) {
+            debug.tools = [...WEBMCP_TOOL_NAMES];
+          }
         }
       },
       () => {
         unsubscribeEvents();
         controller.abort();
+        clearDebugHandle();
         // Registration failing (unsupported schema, revoked permission) must
         // never break the app; the page simply stays non-agent-callable.
       }
@@ -89,13 +101,7 @@ export function WebMcpTools() {
     return () => {
       unsubscribeEvents();
       controller.abort();
-      if (process.env.NODE_ENV !== "production") {
-        // Drop the debug handle so DevTools never shows tools that are no
-        // longer registered after unmount or sign-out.
-        (
-          window as Window & { __teakWebmcp?: TeakWebmcpDebugHandle }
-        ).__teakWebmcp = undefined;
-      }
+      clearDebugHandle();
     };
   }, [convex]);
 

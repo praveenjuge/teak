@@ -399,6 +399,7 @@ describe("webmcp tool registration", () => {
     const { modelContext, registered, unusedDeps } = setup();
     const fakeSignal = new AbortController().signal;
     const seen: unknown[] = [];
+    const readBackIds: string[] = [];
 
     await registerTeakWebMcpTools(
       modelContext,
@@ -408,14 +409,18 @@ describe("webmcp tool registration", () => {
           seen.push(args);
           return Promise.resolve("new-id");
         },
-        getCard: (cardId) =>
-          Promise.resolve(
+        getCard: (cardId) => {
+          readBackIds.push(cardId);
+          // Stored values deliberately differ from the request so the
+          // assertions below prove the result came from the read-back.
+          return Promise.resolve(
             cardFixture({
               _id: cardId,
-              tags: ["a"],
-              url: "https://example.com",
+              tags: ["server-tag"],
+              url: "https://server.example.com",
             })
-          ),
+          );
+        },
       },
       { logger: () => {} }
     );
@@ -437,11 +442,12 @@ describe("webmcp tool registration", () => {
         url: "https://example.com",
       },
     ]);
+    expect(readBackIds).toEqual(["new-id"]);
     expect(result).toEqual({
       id: "new-id",
-      tags: ["a"],
+      tags: ["server-tag"],
       type: "text",
-      url: "https://example.com",
+      url: "https://server.example.com",
     });
     await expect(
       registered[2].execute({ content: "  " }, { signal: fakeSignal })
