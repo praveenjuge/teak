@@ -1,6 +1,7 @@
 {
   "functions": ".",
   "node": {
+    "nodeVersion": "24",
     "externalPackages": [
       "react",
       "@better-auth/expo",
