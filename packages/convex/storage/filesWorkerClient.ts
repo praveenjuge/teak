@@ -223,7 +223,7 @@ export const callFilesWorkerJson = async <T>(spec: {
   op: FilesOp;
   params: Record<string, unknown>;
 }): Promise<FilesWorkerOutcome<T>> =>
-  await filesWorkerTracer.startActiveSpan(
+  await filesWorkerTracer.startActiveSpan<FilesWorkerOutcome<T>>(
     `files.worker.${spec.op}`,
     {
       attributes: {
