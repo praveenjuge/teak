@@ -41,6 +41,7 @@ jobs:
       - name: Doctor JSON must pass
         run: |
           bun run --silent doctor --target web --profile local --json > /tmp/doctor.json
+          cat /tmp/doctor.json
           test "$(jq -r .ok /tmp/doctor.json)" = "true"
       - name: Start web target
         run: |

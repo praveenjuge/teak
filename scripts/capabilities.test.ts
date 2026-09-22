@@ -112,11 +112,15 @@ describe("isInstallStale", () => {
   test("markInstallFresh clears staleness after an install", () => {
     // Bun writes the lockfile last, so a fresh install looks stale.
     const { root } = createMockProject("lock");
+    // Real lockfiles carry sub-millisecond mtimes; the stamp must beat those.
+    const lock = join(root, "bun.lock");
+    const nowMs = Date.now() + 0.5;
+    utimesSync(lock, nowMs / 1000, nowMs / 1000);
     expect(isInstallStale(root)).toBe(true);
     markInstallFresh(root);
     expect(isInstallStale(root)).toBe(false);
-    expect(statSync(join(root, "node_modules")).mtimeMs).toBe(
-      statSync(join(root, "bun.lock")).mtimeMs
+    expect(statSync(join(root, "node_modules")).mtimeMs).toBeGreaterThan(
+      statSync(lock).mtimeMs
     );
   });
 });
