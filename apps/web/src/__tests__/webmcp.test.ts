@@ -448,6 +448,84 @@ describe("webmcp tool registration", () => {
     ).rejects.toThrow(/"content"/);
   });
 
+  test("create execute reports a missing read-back instead of echoing", async () => {
+    const { modelContext, registered, unusedDeps } = setup();
+    const fakeSignal = new AbortController().signal;
+
+    await registerTeakWebMcpTools(
+      modelContext,
+      {
+        ...unusedDeps,
+        createCard: () => Promise.resolve("new-id"),
+        getCard: () => Promise.resolve(null),
+      },
+      { logger: () => {} }
+    );
+
+    await expect(
+      registered[2].execute({ content: "hello" }, { signal: fakeSignal })
+    ).rejects.toThrow(/could not be read back/);
+  });
+
+  test("reads reject when the execution signal aborts", async () => {
+    const { modelContext, registered, unusedDeps } = setup();
+    let calls = 0;
+
+    await registerTeakWebMcpTools(
+      modelContext,
+      {
+        ...unusedDeps,
+        searchCards: () => {
+          calls += 1;
+          return new Promise(() => {});
+        },
+      },
+      { logger: () => {} }
+    );
+
+    const controller = new AbortController();
+    const pending = registered[0].execute(
+      { q: "keyboards" },
+      { signal: controller.signal }
+    );
+    controller.abort();
+    await expect(pending).rejects.toThrow(/cancelled/);
+    expect(calls).toBe(1);
+  });
+
+  test("executes refuse to start on an already-aborted signal", async () => {
+    const { modelContext, registered, unusedDeps } = setup();
+    let creates = 0;
+    let searches = 0;
+
+    await registerTeakWebMcpTools(
+      modelContext,
+      {
+        ...unusedDeps,
+        createCard: () => {
+          creates += 1;
+          return Promise.resolve("new-id");
+        },
+        searchCards: () => {
+          searches += 1;
+          return Promise.resolve([]);
+        },
+      },
+      { logger: () => {} }
+    );
+
+    const controller = new AbortController();
+    controller.abort();
+    await expect(
+      registered[0].execute({ q: "x" }, { signal: controller.signal })
+    ).rejects.toThrow(/cancelled/);
+    await expect(
+      registered[2].execute({ content: "x" }, { signal: controller.signal })
+    ).rejects.toThrow(/cancelled/);
+    expect(searches).toBe(0);
+    expect(creates).toBe(0);
+  });
+
   test("tags execute merges against the stored tags", async () => {
     const { modelContext, registered, unusedDeps } = setup();
     const fakeSignal = new AbortController().signal;

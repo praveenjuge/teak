@@ -30,9 +30,10 @@ const recordToolEvent = (type: WebMcpToolEventType): void => {
 };
 
 /**
- * Registers Teak's read-only WebMCP tools with the browser when the draft
+ * Registers Teak's WebMCP tools with the browser when the draft
  * `document.modelContext` API exists. Mounted for signed-in users only; the
- * tools run that user's Convex queries, so no extra auth is needed.
+ * tools run that user's Convex queries and mutations, so no extra auth is
+ * needed.
  */
 export function WebMcpTools() {
   const convex = useConvex();
@@ -79,6 +80,7 @@ export function WebMcpTools() {
         }
       },
       () => {
+        unsubscribeEvents();
         controller.abort();
         // Registration failing (unsupported schema, revoked permission) must
         // never break the app; the page simply stays non-agent-callable.
@@ -87,6 +89,13 @@ export function WebMcpTools() {
     return () => {
       unsubscribeEvents();
       controller.abort();
+      if (process.env.NODE_ENV !== "production") {
+        // Drop the debug handle so DevTools never shows tools that are no
+        // longer registered after unmount or sign-out.
+        (
+          window as Window & { __teakWebmcp?: TeakWebmcpDebugHandle }
+        ).__teakWebmcp = undefined;
+      }
     };
   }, [convex]);
 

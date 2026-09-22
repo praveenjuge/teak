@@ -260,6 +260,50 @@ export interface WebMcpSearchArgs {
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === "object" && value !== null && !Array.isArray(value);
 
+const throwIfAborted = (toolName: string, signal: AbortSignal): void => {
+  if (signal.aborted) {
+    throw new DOMException(
+      `${toolName}: tool execution was cancelled`,
+      "AbortError"
+    );
+  }
+};
+
+/**
+ * Race a side-effect-free read against cancellation. Writes never race:
+ * rejecting after a mutation may already have applied would fake a
+ * cancellation and invite a duplicate retry.
+ */
+const withAbort = <T>(
+  toolName: string,
+  signal: AbortSignal,
+  work: () => Promise<T>
+): Promise<T> => {
+  throwIfAborted(toolName, signal);
+  return new Promise<T>((resolve, reject) => {
+    const onAbort = (): void => {
+      signal.removeEventListener("abort", onAbort);
+      reject(
+        new DOMException(
+          `${toolName}: tool execution was cancelled`,
+          "AbortError"
+        )
+      );
+    };
+    signal.addEventListener("abort", onAbort, { once: true });
+    work().then(
+      (value) => {
+        signal.removeEventListener("abort", onAbort);
+        resolve(value);
+      },
+      (error) => {
+        signal.removeEventListener("abort", onAbort);
+        reject(error);
+      }
+    );
+  });
+};
+
 const isCardType = (value: unknown): value is CardType =>
   typeof value === "string" && (cardTypes as readonly string[]).includes(value);
 
@@ -631,16 +675,18 @@ export const registerTeakWebMcpTools = async (
       description: SEARCH_TOOL_DESCRIPTION,
       inputSchema: WEBMCP_SEARCH_INPUT_SCHEMA,
       annotations: readAnnotations,
-      execute: async (input) => {
+      execute: async (input, { signal }) => {
         const args = normalizeSearchToolInput(input);
-        const cards = await deps.searchCards({
-          ...(args.q === undefined ? {} : { searchQuery: args.q }),
-          ...(args.type === undefined ? {} : { types: [args.type] }),
-          ...(args.favorited === undefined
-            ? {}
-            : { favoritesOnly: args.favorited }),
-          limit: args.limit,
-        });
+        const cards = await withAbort(WEBMCP_SEARCH_TOOL_NAME, signal, () =>
+          deps.searchCards({
+            ...(args.q === undefined ? {} : { searchQuery: args.q }),
+            ...(args.type === undefined ? {} : { types: [args.type] }),
+            ...(args.favorited === undefined
+              ? {}
+              : { favoritesOnly: args.favorited }),
+            limit: args.limit,
+          })
+        );
         return {
           items: cards.map(toWebMcpCardSummary),
           total: cards.length,
@@ -653,9 +699,11 @@ export const registerTeakWebMcpTools = async (
       description: GET_TOOL_DESCRIPTION,
       inputSchema: WEBMCP_GET_INPUT_SCHEMA,
       annotations: readAnnotations,
-      execute: async (input) => {
+      execute: async (input, { signal }) => {
         const { cardId } = normalizeGetToolInput(input);
-        const card = await deps.getCard(cardId);
+        const card = await withAbort(WEBMCP_GET_TOOL_NAME, signal, () =>
+          deps.getCard(cardId)
+        );
         return card ? toWebMcpCardDetail(card) : null;
       },
     },
@@ -665,7 +713,8 @@ export const registerTeakWebMcpTools = async (
       description: CREATE_TOOL_DESCRIPTION,
       inputSchema: WEBMCP_CREATE_INPUT_SCHEMA,
       annotations: writeAnnotations,
-      execute: async (input) => {
+      execute: async (input, { signal }) => {
+        throwIfAborted(WEBMCP_CREATE_TOOL_NAME, signal);
         const args = normalizeCreateToolInput(input);
         const id = await deps.createCard({
           content: args.content,
@@ -675,13 +724,19 @@ export const registerTeakWebMcpTools = async (
           ...(args.tags === undefined ? {} : { tags: args.tags }),
         });
         // The server may classify the type and extract URLs, so confirm
-        // the stored shape instead of echoing the request.
+        // the stored shape instead of echoing the request. A missing
+        // read-back is reported, never papered over with request values.
         const card = await deps.getCard(id);
+        if (!card) {
+          throw new Error(
+            `${WEBMCP_CREATE_TOOL_NAME}: card ${id} was created but could not be read back`
+          );
+        }
         return {
           id,
-          type: card?.type ?? args.type,
-          url: card?.url ?? args.url ?? null,
-          tags: card?.tags ?? args.tags ?? [],
+          type: card.type,
+          url: card.url ?? null,
+          tags: card.tags ?? [],
         };
       },
     },
@@ -691,12 +746,18 @@ export const registerTeakWebMcpTools = async (
       description: TAGS_TOOL_DESCRIPTION,
       inputSchema: WEBMCP_TAGS_INPUT_SCHEMA,
       annotations: writeAnnotations,
-      execute: async (input) => {
+      execute: async (input, { signal }) => {
+        throwIfAborted(WEBMCP_TAGS_TOOL_NAME, signal);
         const args = normalizeTagsToolInput(input);
         const card = await deps.getCard(args.cardId);
         if (!card) {
           throw new Error(`${WEBMCP_TAGS_TOOL_NAME}: card not found`);
         }
+        // Read-merge-write matches the app's own tag editing (CardsScreen
+        // handleAddTag/handleRemoveTag): single-user, tab-scoped calls with
+        // a fresh read per call. Concurrent same-card edits can overwrite
+        // each other; an atomic merge would need a server-side patch
+        // mutation, which is out of scope for this web-only change.
         const merged = mergeCardTags(card.tags, args.add, args.remove);
         await deps.updateCardField({
           cardId: card._id,
@@ -712,7 +773,8 @@ export const registerTeakWebMcpTools = async (
       description: FAVORITE_TOOL_DESCRIPTION,
       inputSchema: WEBMCP_FAVORITE_INPUT_SCHEMA,
       annotations: writeAnnotations,
-      execute: async (input) => {
+      execute: async (input, { signal }) => {
+        throwIfAborted(WEBMCP_FAVORITE_TOOL_NAME, signal);
         const args = normalizeFavoriteToolInput(input);
         const card = await deps.getCard(args.cardId);
         if (!card) {
@@ -732,12 +794,17 @@ export const registerTeakWebMcpTools = async (
       description: RECENT_TOOL_DESCRIPTION,
       inputSchema: WEBMCP_RECENT_INPUT_SCHEMA,
       annotations: readAnnotations,
-      execute: async (input) => {
+      execute: async (input, { signal }) => {
         const args = normalizeRecentToolInput(input);
-        const cards = await deps.searchCards({
-          ...(args.type === undefined ? {} : { types: [args.type] }),
-          limit: args.limit,
-        });
+        // The backend orders index-descending before taking the limit, so
+        // this is already the newest slice; the client sort only normalizes
+        // by the createdAt field (which imports can backdate).
+        const cards = await withAbort(WEBMCP_RECENT_TOOL_NAME, signal, () =>
+          deps.searchCards({
+            ...(args.type === undefined ? {} : { types: [args.type] }),
+            limit: args.limit,
+          })
+        );
         const sorted = [...cards].sort((a, b) => b.createdAt - a.createdAt);
         const items = sorted.slice(0, args.limit).map(toWebMcpCardSummary);
         return { items, total: items.length };
