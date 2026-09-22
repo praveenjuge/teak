@@ -190,11 +190,13 @@ export const isInstallStale = (root: string): boolean => {
  * Record a completed install. Bun finishes by writing the lockfile, so a
  * fresh install always leaves the lock newer than the modules directory;
  * without this marker the staleness check above would fail right after its
- * own remediation. Setup calls this after a successful `bun ci`.
+ * own remediation. Setup calls this after a successful `bun ci`. The stamp
+ * copies the lockfile's own mtime (equality satisfies the strict check),
+ * which also holds on coarse filesystems and across clock adjustments.
  */
 export const markInstallFresh = (root: string): void => {
-  const now = new Date();
-  utimesSync(join(root, "node_modules"), now, now);
+  const lockMtime = statSync(join(root, "bun.lock")).mtime;
+  utimesSync(join(root, "node_modules"), lockMtime, lockMtime);
 };
 
 export type ConvexSelectionSource = "env" | "dotenv" | "none";

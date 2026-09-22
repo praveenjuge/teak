@@ -13,5 +13,6 @@ on the mirrored extension, so the lockfile must stay in sync with
 `package.json`. After changing dependencies, regenerate it in isolation (the
 in-monorepo invocation fails on the bun-workspace protocol): copy
 `package.json` to a temp dir, run `npm install --package-lock-only` there, and
-copy the lockfile back. Verify with a clean `npm ci` and confirm lockstep
-versions still match.
+verify with a clean `npm ci` in that temp dir (never in the monorepo: npm
+discovers the root workspace and fails). Then copy the lockfile back and
+confirm lockstep versions still match.

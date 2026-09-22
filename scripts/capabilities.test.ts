@@ -1,5 +1,11 @@
 import { describe, expect, test } from "bun:test";
-import { mkdirSync, mkdtempSync, utimesSync, writeFileSync } from "node:fs";
+import {
+  mkdirSync,
+  mkdtempSync,
+  statSync,
+  utimesSync,
+  writeFileSync,
+} from "node:fs";
 import { createServer } from "node:net";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -109,6 +115,9 @@ describe("isInstallStale", () => {
     expect(isInstallStale(root)).toBe(true);
     markInstallFresh(root);
     expect(isInstallStale(root)).toBe(false);
+    expect(statSync(join(root, "node_modules")).mtimeMs).toBe(
+      statSync(join(root, "bun.lock")).mtimeMs
+    );
   });
 });
 
