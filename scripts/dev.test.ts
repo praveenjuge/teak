@@ -103,30 +103,36 @@ describe("buildDevCommand", () => {
 });
 
 describe("dev target filters", () => {
+  const manifests = new Map<string, string>();
+  for (const dir of ["apps", "packages"]) {
+    for (const entry of readdirSync(join(ROOT, dir), {
+      withFileTypes: true,
+    })) {
+      if (!entry.isDirectory()) {
+        continue;
+      }
+      const manifest = join(ROOT, dir, entry.name, "package.json");
+      if (!existsSync(manifest)) {
+        continue;
+      }
+      const pkg = JSON.parse(readFileSync(manifest, "utf-8")) as {
+        name?: string;
+      };
+      if (pkg.name) {
+        manifests.set(pkg.name, manifest);
+      }
+    }
+  }
+
   const manifestFor = (filter: string): string => {
     if (filter.startsWith(".")) {
       return join(ROOT, filter, "package.json");
     }
-    for (const dir of ["apps", "packages"]) {
-      for (const entry of readdirSync(join(ROOT, dir), {
-        withFileTypes: true,
-      })) {
-        if (!entry.isDirectory()) {
-          continue;
-        }
-        const manifest = join(ROOT, dir, entry.name, "package.json");
-        if (!existsSync(manifest)) {
-          continue;
-        }
-        const pkg = JSON.parse(readFileSync(manifest, "utf-8")) as {
-          name?: string;
-        };
-        if (pkg.name === filter) {
-          return manifest;
-        }
-      }
+    const manifest = manifests.get(filter);
+    if (!manifest) {
+      throw new Error(`No workspace found for dev filter "${filter}"`);
     }
-    throw new Error(`No workspace found for dev filter "${filter}"`);
+    return manifest;
   };
 
   test("every dev target filter has a dev script", () => {

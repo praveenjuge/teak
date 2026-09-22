@@ -71,6 +71,22 @@ describe("readConvexSelection", () => {
 });
 
 describe("isInstallStale", () => {
+  /** Fixture root with node_modules and bun.lock at controlled mtimes. */
+  const createMockProject = (newer: "lock" | "modules"): { root: string } => {
+    const root = mkdtempSync(join(tmpdir(), "teak-setup-"));
+    const modules = join(root, "node_modules");
+    const lock = join(root, "bun.lock");
+    mkdirSync(modules, { recursive: true });
+    writeFileSync(lock, "lock");
+    const now = new Date();
+    const older = new Date(now.getTime() - 10_000);
+    const [newerPath, olderPath] =
+      newer === "lock" ? [lock, modules] : [modules, lock];
+    utimesSync(newerPath, now, now);
+    utimesSync(olderPath, older, older);
+    return { root };
+  };
+
   test("stale when node_modules is missing", () => {
     const root = mkdtempSync(join(tmpdir(), "teak-setup-"));
     writeFileSync(join(root, "bun.lock"), "lock");
@@ -78,51 +94,18 @@ describe("isInstallStale", () => {
   });
 
   test("stale when bun.lock is newer than node_modules", () => {
-    const root = mkdtempSync(join(tmpdir(), "teak-setup-"));
-    const modules = join(root, "node_modules");
-    const lock = join(root, "bun.lock");
-    mkdirSync(modules, { recursive: true });
-    writeFileSync(lock, "lock");
-    const now = new Date();
-    utimesSync(
-      modules,
-      new Date(now.getTime() - 10_000),
-      new Date(now.getTime() - 10_000)
-    );
-    utimesSync(lock, now, now);
+    const { root } = createMockProject("lock");
     expect(isInstallStale(root)).toBe(true);
   });
 
   test("fresh when node_modules is newer than bun.lock", () => {
-    const root = mkdtempSync(join(tmpdir(), "teak-setup-"));
-    const modules = join(root, "node_modules");
-    const lock = join(root, "bun.lock");
-    mkdirSync(modules, { recursive: true });
-    writeFileSync(lock, "lock");
-    const now = new Date();
-    utimesSync(
-      lock,
-      new Date(now.getTime() - 10_000),
-      new Date(now.getTime() - 10_000)
-    );
-    utimesSync(modules, now, now);
+    const { root } = createMockProject("modules");
     expect(isInstallStale(root)).toBe(false);
   });
 
   test("markInstallFresh clears staleness after an install", () => {
-    const root = mkdtempSync(join(tmpdir(), "teak-setup-"));
-    const modules = join(root, "node_modules");
-    const lock = join(root, "bun.lock");
-    mkdirSync(modules, { recursive: true });
-    writeFileSync(lock, "lock");
     // Bun writes the lockfile last, so a fresh install looks stale.
-    const now = new Date();
-    utimesSync(
-      modules,
-      new Date(now.getTime() - 10_000),
-      new Date(now.getTime() - 10_000)
-    );
-    utimesSync(lock, now, now);
+    const { root } = createMockProject("lock");
     expect(isInstallStale(root)).toBe(true);
     markInstallFresh(root);
     expect(isInstallStale(root)).toBe(false);
