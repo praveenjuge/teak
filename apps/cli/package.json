@@ -33,6 +33,7 @@
   ],
   "scripts": {
     "build": "bun build src/index.ts --outdir dist --target=node --format=esm --banner '#!/usr/bin/env node' && chmod +x dist/index.js",
+    "dev": "bun build src/index.ts --outdir dist --target=node --format=esm --banner '#!/usr/bin/env node' --watch",
     "test": "bun test src --coverage --dots",
     "typecheck": "tsc --noEmit"
   },

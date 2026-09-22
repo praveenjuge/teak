@@ -28,6 +28,7 @@ import {
   inferLanHost,
   isInstallStale,
   isPortOccupied,
+  markInstallFresh,
   planCapabilities,
   readConvexSelection,
   readNodeVersion,
@@ -354,6 +355,22 @@ export const runSetup = async (
             detail: `bun ci failed: ${install.stderr.trim().split("\n").pop() || "unknown error"}`,
             remediation: [
               "Fix the install error above and re-run bun run setup",
+            ],
+          },
+        ]);
+      }
+      try {
+        markInstallFresh(root);
+      } catch (error) {
+        return fail([
+          ...checks,
+          {
+            id: "setup-dependencies",
+            ok: false,
+            severity: "error",
+            detail: `bun ci succeeded but the install could not be marked fresh: ${error instanceof Error ? error.message : String(error)}`,
+            remediation: [
+              "Check node_modules permissions and re-run bun run setup",
             ],
           },
         ]);

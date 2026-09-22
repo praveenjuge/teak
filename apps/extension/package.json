@@ -21,7 +21,7 @@
     "@tailwindcss/vite": "^4.3.3",
     "@teak/convex": "workspace:*",
     "better-auth": "1.6.26",
-    "convex": "^1.43.0",
+    "convex": "^1.46.0",
     "lucide-react": "^1.30.0",
     "react": "^19.2.8",
     "react-dom": "^19.2.8",

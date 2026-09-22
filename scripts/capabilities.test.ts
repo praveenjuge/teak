@@ -8,6 +8,7 @@ import {
   inferLanHost,
   isInstallStale,
   isPortOccupied,
+  markInstallFresh,
   readConvexSelection,
   readNodeVersion,
   readPinnedVersions,
@@ -105,6 +106,25 @@ describe("isInstallStale", () => {
       new Date(now.getTime() - 10_000)
     );
     utimesSync(modules, now, now);
+    expect(isInstallStale(root)).toBe(false);
+  });
+
+  test("markInstallFresh clears staleness after an install", () => {
+    const root = mkdtempSync(join(tmpdir(), "teak-setup-"));
+    const modules = join(root, "node_modules");
+    const lock = join(root, "bun.lock");
+    mkdirSync(modules, { recursive: true });
+    writeFileSync(lock, "lock");
+    // Bun writes the lockfile last, so a fresh install looks stale.
+    const now = new Date();
+    utimesSync(
+      modules,
+      new Date(now.getTime() - 10_000),
+      new Date(now.getTime() - 10_000)
+    );
+    utimesSync(lock, now, now);
+    expect(isInstallStale(root)).toBe(true);
+    markInstallFresh(root);
     expect(isInstallStale(root)).toBe(false);
   });
 });

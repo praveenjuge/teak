@@ -13,6 +13,7 @@ import {
   existsSync,
   readFileSync,
   statSync,
+  utimesSync,
 } from "node:fs";
 import { connect, createServer } from "node:net";
 import { networkInterfaces } from "node:os";
@@ -183,6 +184,17 @@ export const isInstallStale = (root: string): boolean => {
     return true;
   }
   return statSync(lock).mtimeMs > statSync(modules).mtimeMs;
+};
+
+/**
+ * Record a completed install. Bun finishes by writing the lockfile, so a
+ * fresh install always leaves the lock newer than the modules directory;
+ * without this marker the staleness check above would fail right after its
+ * own remediation. Setup calls this after a successful `bun ci`.
+ */
+export const markInstallFresh = (root: string): void => {
+  const now = new Date();
+  utimesSync(join(root, "node_modules"), now, now);
 };
 
 export type ConvexSelectionSource = "env" | "dotenv" | "none";

@@ -21,7 +21,7 @@
     "@tailwindcss/vite": "^4.3.3",
     "@teak/convex": "workspace:*",
     "@teak/ui": "workspace:*",
-    "convex": "^1.43.0",
+    "convex": "^1.46.0",
     "convex-helpers": "^0.1.122",
     "electron-store": "11.0.2",
     "electron-updater": "6.8.9",
