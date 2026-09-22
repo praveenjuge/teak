@@ -231,7 +231,7 @@ export const callFilesWorkerJson = async <T>(spec: {
         "sentry.op": "http.client.files-worker",
       },
     },
-    async (span) => {
+    async (span): Promise<FilesWorkerOutcome<T>> => {
       try {
         span.setAttribute("files.outcome", "error");
         const signed = await buildSignedWorkerOpRequest(spec);
