@@ -46,11 +46,29 @@ describe("updateManifestVersions", () => {
     writeManifest(join(root, "package.json"), "1.0.65");
     writeManifest(join(root, "apps/web/package.json"), "1.0.65");
     writeManifest(join(root, "packages/ui/package.json"), "1.0.64");
+    writeManifest(
+      join(
+        root,
+        "apps/safari-extension/Shared (Extension)/Resources/manifest.json"
+      ),
+      "1.0.39"
+    );
     const updated = updateManifestVersions(root, "1.0.66");
     expect(updated).toContain("package.json");
     expect(updated).toContain("apps/web/package.json");
     expect(updated).toContain("packages/ui/package.json");
+    expect(updated).toContain(
+      "apps/safari-extension/Shared (Extension)/Resources/manifest.json"
+    );
     expect(readVersion(join(root, "packages/ui/package.json"))).toBe("1.0.66");
+    expect(
+      readVersion(
+        join(
+          root,
+          "apps/safari-extension/Shared (Extension)/Resources/manifest.json"
+        )
+      )
+    ).toBe("1.0.66");
   });
 
   test("skips manifests already at the target version", () => {

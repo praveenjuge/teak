@@ -8,6 +8,7 @@ import {
   npmLockFiles,
   packageFiles,
   parseVersion,
+  releaseManifestFiles,
 } from "./release-version.mjs";
 
 describe("release versions", () => {
@@ -32,6 +33,13 @@ describe("release versions", () => {
       for (const directory of ["apps/web", "packages/ui"]) {
         fs.mkdirSync(path.join(root, directory), { recursive: true });
       }
+      fs.mkdirSync(
+        path.join(
+          root,
+          "apps/safari-extension/Shared (Extension)/Resources"
+        ),
+        { recursive: true }
+      );
       for (const relative of [
         "package.json",
         "apps/web/package.json",
@@ -48,8 +56,39 @@ describe("release versions", () => {
         "package.json",
         "packages/ui/package.json",
       ]);
+      fs.writeFileSync(
+        path.join(
+          root,
+          "apps/safari-extension/Shared (Extension)/Resources/manifest.json"
+        ),
+        `${JSON.stringify({ version: "1.0.60" })}\n`
+      );
+      expect(releaseManifestFiles(root)).toEqual([
+        "apps/safari-extension/Shared (Extension)/Resources/manifest.json",
+        "apps/web/package.json",
+        "package.json",
+        "packages/ui/package.json",
+      ]);
       expect(npmLockFiles(root)).toEqual([]);
       expect(() => assertLockstep(root, "1.0.60")).not.toThrow();
+
+      fs.writeFileSync(
+        path.join(
+          root,
+          "apps/safari-extension/Shared (Extension)/Resources/manifest.json"
+        ),
+        `${JSON.stringify({ version: "1.0.59" })}\n`
+      );
+      expect(() => assertLockstep(root, "1.0.60")).toThrow(
+        "apps/safari-extension/Shared (Extension)/Resources/manifest.json: 1.0.59"
+      );
+      fs.writeFileSync(
+        path.join(
+          root,
+          "apps/safari-extension/Shared (Extension)/Resources/manifest.json"
+        ),
+        `${JSON.stringify({ version: "1.0.60" })}\n`
+      );
 
       fs.writeFileSync(
         path.join(root, "apps/web/package-lock.json"),

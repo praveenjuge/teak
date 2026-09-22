@@ -4,6 +4,8 @@ import process from "node:process";
 import { fileURLToPath } from "node:url";
 
 const semverPattern = /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$/;
+const safariManifest =
+  "apps/safari-extension/Shared (Extension)/Resources/manifest.json";
 
 export function parseVersion(value) {
   const match = semverPattern.exec(value);
@@ -53,10 +55,18 @@ export function npmLockFiles(repoRoot) {
     .sort();
 }
 
+export function releaseManifestFiles(repoRoot) {
+  const files = packageFiles(repoRoot);
+  if (fs.existsSync(path.join(repoRoot, safariManifest))) {
+    files.push(safariManifest);
+  }
+  return files.sort();
+}
+
 export function assertLockstep(repoRoot, expectedVersion) {
   parseVersion(expectedVersion);
   const mismatches = [];
-  for (const relative of packageFiles(repoRoot)) {
+  for (const relative of releaseManifestFiles(repoRoot)) {
     const manifest = JSON.parse(
       fs.readFileSync(path.join(repoRoot, relative), "utf8")
     );

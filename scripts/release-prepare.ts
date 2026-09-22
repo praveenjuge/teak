@@ -14,7 +14,7 @@ import { join } from "node:path";
 import {
   assertLockstep,
   assertPatchBump,
-  packageFiles,
+  releaseManifestFiles,
 } from "./release-version.mjs";
 
 const ROOT = join(import.meta.dir, "..");
@@ -53,7 +53,7 @@ export const updateManifestVersions = (
   version: string
 ): string[] => {
   const updated: string[] = [];
-  for (const relative of packageFiles(repoRoot)) {
+  for (const relative of releaseManifestFiles(repoRoot)) {
     const absolute = join(repoRoot, relative);
     if (readVersion(absolute) !== version) {
       setManifestVersion(absolute, version);
