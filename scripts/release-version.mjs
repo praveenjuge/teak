@@ -59,9 +59,7 @@ export function npmLockFiles(repoRoot) {
 
 export function releaseManifestFiles(repoRoot) {
   const files = packageFiles(repoRoot);
-  if (fs.existsSync(path.resolve(repoRoot, safariManifest))) {
-    files.push(safariManifest);
-  }
+  files.push(safariManifest);
   return files.sort();
 }
 
@@ -76,17 +74,47 @@ export function safariXcodeVersions(contents) {
   };
 }
 
-export function assertLockstep(repoRoot, expectedVersion) {
+function defaultSafariXcodeSource() {
+  try {
+    return fs.readFileSync(
+      new URL(
+        "../apps/safari-extension/teak-safari.xcodeproj/project.pbxproj",
+        import.meta.url
+      ),
+      "utf8"
+    );
+  } catch (error) {
+    if (error instanceof Error && "code" in error && error.code === "ENOENT") {
+      return null;
+    }
+    throw error;
+  }
+}
+
+export function assertLockstep(
+  repoRoot,
+  expectedVersion,
+  safariXcodeSource = defaultSafariXcodeSource()
+) {
   const [, , patchVersion] = parseVersion(expectedVersion);
   const mismatches = [];
-  const manifests = releaseManifestFiles(repoRoot);
-  if (!manifests.includes(safariManifest)) {
-    mismatches.push(`${safariManifest}: missing`);
-  }
-  for (const relative of manifests) {
-    const manifest = JSON.parse(
-      fs.readFileSync(path.join(repoRoot, relative), "utf8")
-    );
+  for (const relative of releaseManifestFiles(repoRoot)) {
+    let manifest;
+    try {
+      manifest = JSON.parse(
+        fs.readFileSync(path.join(repoRoot, relative), "utf8")
+      );
+    } catch (error) {
+      if (
+        error instanceof Error &&
+        "code" in error &&
+        error.code === "ENOENT"
+      ) {
+        mismatches.push(`${relative}: missing`);
+        continue;
+      }
+      throw error;
+    }
     if (manifest.version !== expectedVersion) {
       mismatches.push(`${relative}: ${manifest.version ?? "missing"}`);
     }
@@ -105,23 +133,10 @@ export function assertLockstep(repoRoot, expectedVersion) {
       }
     }
   }
-  if (
-    fs.existsSync(
-      path.resolve(
-        repoRoot,
-        "apps/safari-extension/teak-safari.xcodeproj/project.pbxproj"
-      )
-    )
-  ) {
-    const xcodeVersions = safariXcodeVersions(
-      fs.readFileSync(
-        path.resolve(
-          repoRoot,
-          "apps/safari-extension/teak-safari.xcodeproj/project.pbxproj"
-        ),
-        "utf8"
-      )
-    );
+  if (safariXcodeSource === null) {
+    mismatches.push(`${safariXcodeProject}: missing`);
+  } else {
+    const xcodeVersions = safariXcodeVersions(safariXcodeSource);
     for (const [field, versions, expected] of [
       ["MARKETING_VERSION", xcodeVersions.marketing, expectedVersion],
       ["CURRENT_PROJECT_VERSION", xcodeVersions.build, String(patchVersion)],
@@ -135,8 +150,6 @@ export function assertLockstep(repoRoot, expectedVersion) {
         }
       }
     }
-  } else {
-    mismatches.push(`${safariXcodeProject}: missing`);
   }
   if (mismatches.length > 0) {
     throw new Error(

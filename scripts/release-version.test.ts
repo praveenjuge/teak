@@ -66,17 +66,16 @@ describe("release versions", () => {
         ),
         `${JSON.stringify({ version: "1.0.60" })}\n`
       );
-      expect(() => assertLockstep(root, "1.0.60")).toThrow(
+      expect(() => assertLockstep(root, "1.0.60", null)).toThrow(
         `${safariXcodeProject}: missing`
       );
       const xcodeProjectPath = path.resolve(
         root,
         "apps/safari-extension/teak-safari.xcodeproj/project.pbxproj"
       );
-      fs.writeFileSync(
-        xcodeProjectPath,
-        "MARKETING_VERSION = 1.0.60;\nCURRENT_PROJECT_VERSION = 60;\n"
-      );
+      const validXcodeSource =
+        "MARKETING_VERSION = 1.0.60;\nCURRENT_PROJECT_VERSION = 60;\n";
+      fs.writeFileSync(xcodeProjectPath, validXcodeSource);
       expect(releaseManifestFiles(root)).toEqual([
         "apps/safari-extension/Shared (Extension)/Resources/manifest.json",
         "apps/web/package.json",
@@ -84,19 +83,17 @@ describe("release versions", () => {
         "packages/ui/package.json",
       ]);
       expect(npmLockFiles(root)).toEqual([]);
-      expect(() => assertLockstep(root, "1.0.60")).not.toThrow();
+      expect(() =>
+        assertLockstep(root, "1.0.60", validXcodeSource)
+      ).not.toThrow();
 
-      fs.writeFileSync(
-        xcodeProjectPath,
-        "MARKETING_VERSION = 1.0.59;\nCURRENT_PROJECT_VERSION = 59;\n"
-      );
-      expect(() => assertLockstep(root, "1.0.60")).toThrow(
+      const staleXcodeSource =
+        "MARKETING_VERSION = 1.0.59;\nCURRENT_PROJECT_VERSION = 59;\n";
+      fs.writeFileSync(xcodeProjectPath, staleXcodeSource);
+      expect(() => assertLockstep(root, "1.0.60", staleXcodeSource)).toThrow(
         `${safariXcodeProject} MARKETING_VERSION: 1.0.59`
       );
-      fs.writeFileSync(
-        xcodeProjectPath,
-        "MARKETING_VERSION = 1.0.60;\nCURRENT_PROJECT_VERSION = 60;\n"
-      );
+      fs.writeFileSync(xcodeProjectPath, validXcodeSource);
 
       fs.writeFileSync(
         path.join(
@@ -105,7 +102,7 @@ describe("release versions", () => {
         ),
         `${JSON.stringify({ version: "1.0.59" })}\n`
       );
-      expect(() => assertLockstep(root, "1.0.60")).toThrow(
+      expect(() => assertLockstep(root, "1.0.60", validXcodeSource)).toThrow(
         "apps/safari-extension/Shared (Extension)/Resources/manifest.json: 1.0.59"
       );
       fs.writeFileSync(
@@ -124,7 +121,9 @@ describe("release versions", () => {
         })}\n`
       );
       expect(npmLockFiles(root)).toEqual(["apps/web/package-lock.json"]);
-      expect(() => assertLockstep(root, "1.0.60")).not.toThrow();
+      expect(() =>
+        assertLockstep(root, "1.0.60", validXcodeSource)
+      ).not.toThrow();
 
       fs.writeFileSync(
         path.join(root, "apps/web/package-lock.json"),
@@ -133,7 +132,7 @@ describe("release versions", () => {
           packages: { "": { version: "1.0.59" } },
         })}\n`
       );
-      expect(() => assertLockstep(root, "1.0.60")).toThrow(
+      expect(() => assertLockstep(root, "1.0.60", validXcodeSource)).toThrow(
         "apps/web/package-lock.json version: 1.0.59"
       );
 
@@ -141,7 +140,7 @@ describe("release versions", () => {
         path.join(root, "packages/ui/package.json"),
         `${JSON.stringify({ version: "1.0.59" })}\n`
       );
-      expect(() => assertLockstep(root, "1.0.60")).toThrow(
+      expect(() => assertLockstep(root, "1.0.60", validXcodeSource)).toThrow(
         "packages/ui/package.json: 1.0.59"
       );
     } finally {
