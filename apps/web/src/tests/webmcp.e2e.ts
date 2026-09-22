@@ -1,5 +1,17 @@
+/**
+ * WebMCP provider coverage.
+ *
+ * Local verification runbook: the specs below run against a mock
+ * `document.modelContext` injected below, so they pass in any Chromium. To
+ * verify against the real draft API, use Chrome 149+ with
+ * `about:flags#enable-webmcp-testing` enabled (origin trials are the
+ * alternative on unflagged builds), sign in to the local dev server, and
+ * confirm in DevTools that `document.modelContext.getTools()` lists the
+ * imperative tools plus the declarative search form. Secure-context
+ * requirements follow spec section 4; plain `http://localhost` qualifies.
+ */
 import { expect, type Page, test } from "@playwright/test";
-import { AuthHelper } from "./test-helpers";
+import { AuthHelper, generateTestContent } from "./test-helpers";
 
 const TEST_EMAIL = process.env.E2E_BETTER_AUTH_USER_EMAIL;
 const TEST_PASSWORD = process.env.E2E_BETTER_AUTH_USER_PASSWORD;
@@ -10,14 +22,32 @@ declare global {
   }
 }
 
-/** Wait until both executable imperative tools have registered. */
+const READ_TOOL_NAMES = [
+  "teak_search_cards",
+  "teak_get_card",
+  "teak_recent_cards",
+] as const;
+
+const WRITE_TOOL_NAMES = [
+  "teak_create_card",
+  "teak_update_tags",
+  "teak_set_favorite",
+] as const;
+
+const IMPERATIVE_TOOL_NAMES = [...READ_TOOL_NAMES, ...WRITE_TOOL_NAMES];
+
+/** Wait until every executable imperative tool has registered. */
 const waitForImperativeTools = (page: Page) =>
   page.waitForFunction(
-    () =>
-      (window.__webmcpRegistered ?? []).filter(
-        (entry) =>
-          typeof (entry.tool as { execute?: unknown })?.execute === "function"
-      ).length >= 2,
+    (names: readonly string[]) =>
+      names.every((name) =>
+        (window.__webmcpRegistered ?? []).some(
+          (entry) =>
+            entry.name === name &&
+            typeof (entry.tool as { execute?: unknown })?.execute === "function"
+        )
+      ),
+    [...IMPERATIVE_TOOL_NAMES],
     { timeout: 30_000 }
   );
 
@@ -119,9 +149,51 @@ test.describe("WebMCP", () => {
         (window.__webmcpRegistered ?? []).map((entry) => entry.name)
       );
       expect(names).toContain("teak_search_form");
-      expect(names).toContain("teak_search_cards");
-      expect(names).toContain("teak_get_card");
+      for (const name of IMPERATIVE_TOOL_NAMES) {
+        expect(names).toContain(name);
+      }
       expect(new Set(names).size).toBe(names.length);
+    });
+
+    test("marks write tools consequential", async ({ page }) => {
+      await waitForImperativeTools(page);
+      const annotations = await page.evaluate(
+        (names: readonly string[]) =>
+          (window.__webmcpRegistered ?? [])
+            .filter((entry) => names.includes(entry.name))
+            .map(
+              (entry) =>
+                (entry.tool as { annotations?: Record<string, unknown> })
+                  .annotations ?? null
+            ),
+        [...WRITE_TOOL_NAMES]
+      );
+      expect(annotations).toEqual(
+        WRITE_TOOL_NAMES.map(() => ({ consequentialHint: true }))
+      );
+    });
+
+    test("marks read tools read-only with untrusted output", async ({
+      page,
+    }) => {
+      await waitForImperativeTools(page);
+      const annotations = await page.evaluate(
+        (names: readonly string[]) =>
+          (window.__webmcpRegistered ?? [])
+            .filter((entry) => names.includes(entry.name))
+            .map(
+              (entry) =>
+                (entry.tool as { annotations?: Record<string, unknown> })
+                  .annotations ?? null
+            ),
+        [...READ_TOOL_NAMES]
+      );
+      expect(annotations).toEqual(
+        READ_TOOL_NAMES.map(() => ({
+          readOnlyHint: true,
+          untrustedContentHint: true,
+        }))
+      );
     });
 
     test("search tool executes against the signed-in session", async ({
@@ -143,6 +215,113 @@ test.describe("WebMCP", () => {
         cardId: "000000000000000000000000",
       });
       expect(result).toBeNull();
+    });
+
+    test("create tool creates a card and reads it back", async ({ page }) => {
+      await waitForImperativeTools(page);
+      const content = generateTestContent("WebMCP create");
+      const created = (await executeTool(page, "teak_create_card", {
+        content,
+        type: "text",
+      })) as { id: string; tags: string[]; type: string; url: string | null };
+      expect(typeof created.id).toBe("string");
+      expect(created.type).toBe("text");
+
+      const fetched = (await executeTool(page, "teak_get_card", {
+        cardId: created.id,
+      })) as { content: string };
+      expect(fetched.content).toContain(content);
+    });
+
+    test("tags tool adds and removes tags", async ({ page }) => {
+      await waitForImperativeTools(page);
+      const tag = `e2e-tag-${Date.now().toString(36)}`;
+      const created = (await executeTool(page, "teak_create_card", {
+        content: generateTestContent("WebMCP tags"),
+      })) as { id: string };
+
+      const added = (await executeTool(page, "teak_update_tags", {
+        add: [tag],
+        cardId: created.id,
+      })) as { tags: string[] };
+      expect(added.tags).toContain(tag);
+
+      const removed = (await executeTool(page, "teak_update_tags", {
+        cardId: created.id,
+        remove: [tag],
+      })) as { tags: string[] };
+      expect(removed.tags).not.toContain(tag);
+    });
+
+    test("favorite tool sets and clears the flag", async ({ page }) => {
+      await waitForImperativeTools(page);
+      const created = (await executeTool(page, "teak_create_card", {
+        content: generateTestContent("WebMCP favorite"),
+      })) as { id: string };
+
+      const favorited = (await executeTool(page, "teak_set_favorite", {
+        cardId: created.id,
+        favorited: true,
+      })) as { isFavorited: boolean };
+      expect(favorited.isFavorited).toBe(true);
+
+      const fetched = (await executeTool(page, "teak_get_card", {
+        cardId: created.id,
+      })) as { isFavorited: boolean };
+      expect(fetched.isFavorited).toBe(true);
+
+      const unfavorited = (await executeTool(page, "teak_set_favorite", {
+        cardId: created.id,
+        favorited: false,
+      })) as { isFavorited: boolean };
+      expect(unfavorited.isFavorited).toBe(false);
+    });
+
+    test("recent tool lists newest cards first", async ({ page }) => {
+      await waitForImperativeTools(page);
+      const first = (await executeTool(page, "teak_create_card", {
+        content: generateTestContent("WebMCP recent first"),
+      })) as { id: string };
+      const second = (await executeTool(page, "teak_create_card", {
+        content: generateTestContent("WebMCP recent second"),
+      })) as { id: string };
+
+      const result = (await executeTool(page, "teak_recent_cards", {
+        limit: 50,
+      })) as { items: { createdAt: number; id: string }[]; total: number };
+      const ids = result.items.map((item) => item.id);
+      expect(ids).toContain(first.id);
+      expect(ids).toContain(second.id);
+      expect(ids.indexOf(second.id)).toBeLessThan(ids.indexOf(first.id));
+      for (let index = 1; index < result.items.length; index += 1) {
+        expect(result.items[index - 1].createdAt).toBeGreaterThanOrEqual(
+          result.items[index].createdAt
+        );
+      }
+      expect(result.total).toBe(result.items.length);
+
+      const limited = (await executeTool(page, "teak_recent_cards", {
+        limit: 1,
+      })) as { items: unknown[] };
+      expect(limited.items).toHaveLength(1);
+    });
+
+    test("write tools reject invalid input and unknown cards", async ({
+      page,
+    }) => {
+      await waitForImperativeTools(page);
+      await expect(
+        executeTool(page, "teak_create_card", { content: "   " })
+      ).rejects.toThrow(/"content"/);
+      await expect(
+        executeTool(page, "teak_update_tags", { cardId: "whatever" })
+      ).rejects.toThrow(/add.*remove|empty/i);
+      await expect(
+        executeTool(page, "teak_set_favorite", {
+          cardId: "000000000000000000000000",
+          favorited: true,
+        })
+      ).rejects.toThrow(/not found/);
     });
   });
 });
