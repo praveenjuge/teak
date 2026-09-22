@@ -59,7 +59,9 @@ export function npmLockFiles(repoRoot) {
 
 export function releaseManifestFiles(repoRoot) {
   const files = packageFiles(repoRoot);
-  files.push(safariManifest);
+  if (fs.existsSync(path.resolve(repoRoot, safariManifest))) {
+    files.push(safariManifest);
+  }
   return files.sort();
 }
 
@@ -77,13 +79,14 @@ export function safariXcodeVersions(contents) {
 export function assertLockstep(repoRoot, expectedVersion) {
   const [, , patchVersion] = parseVersion(expectedVersion);
   const mismatches = [];
-  for (const relative of releaseManifestFiles(repoRoot)) {
-    const absolute = path.resolve(repoRoot, relative);
-    if (!fs.existsSync(absolute)) {
-      mismatches.push(`${relative}: missing`);
-      continue;
-    }
-    const manifest = JSON.parse(fs.readFileSync(absolute, "utf8"));
+  const manifests = releaseManifestFiles(repoRoot);
+  if (!manifests.includes(safariManifest)) {
+    mismatches.push(`${safariManifest}: missing`);
+  }
+  for (const relative of manifests) {
+    const manifest = JSON.parse(
+      fs.readFileSync(path.join(repoRoot, relative), "utf8")
+    );
     if (manifest.version !== expectedVersion) {
       mismatches.push(`${relative}: ${manifest.version ?? "missing"}`);
     }
@@ -102,13 +105,22 @@ export function assertLockstep(repoRoot, expectedVersion) {
       }
     }
   }
-  const xcodeProjectPath = path.resolve(
-    repoRoot,
-    "apps/safari-extension/teak-safari.xcodeproj/project.pbxproj"
-  );
-  if (fs.existsSync(xcodeProjectPath)) {
+  if (
+    fs.existsSync(
+      path.resolve(
+        repoRoot,
+        "apps/safari-extension/teak-safari.xcodeproj/project.pbxproj"
+      )
+    )
+  ) {
     const xcodeVersions = safariXcodeVersions(
-      fs.readFileSync(xcodeProjectPath, "utf8")
+      fs.readFileSync(
+        path.resolve(
+          repoRoot,
+          "apps/safari-extension/teak-safari.xcodeproj/project.pbxproj"
+        ),
+        "utf8"
+      )
     );
     for (const [field, versions, expected] of [
       ["MARKETING_VERSION", xcodeVersions.marketing, expectedVersion],

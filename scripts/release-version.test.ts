@@ -10,7 +10,6 @@ import {
   parseVersion,
   releaseManifestFiles,
   safariXcodeProject,
-  safariXcodeVersions,
 } from "./release-version.mjs";
 
 describe("release versions", () => {
@@ -51,6 +50,10 @@ describe("release versions", () => {
         );
       }
 
+      expect(() => assertLockstep(root, "1.0.60")).toThrow(
+        "apps/safari-extension/Shared (Extension)/Resources/manifest.json: missing"
+      );
+
       expect(packageFiles(root)).toEqual([
         "apps/web/package.json",
         "package.json",
@@ -63,6 +66,9 @@ describe("release versions", () => {
         ),
         `${JSON.stringify({ version: "1.0.60" })}\n`
       );
+      expect(() => assertLockstep(root, "1.0.60")).toThrow(
+        `${safariXcodeProject}: missing`
+      );
       const xcodeProjectPath = path.resolve(
         root,
         "apps/safari-extension/teak-safari.xcodeproj/project.pbxproj"
@@ -71,9 +77,6 @@ describe("release versions", () => {
         xcodeProjectPath,
         "MARKETING_VERSION = 1.0.60;\nCURRENT_PROJECT_VERSION = 60;\n"
       );
-      expect(
-        safariXcodeVersions(fs.readFileSync(xcodeProjectPath, "utf8"))
-      ).toEqual({ build: ["60"], marketing: ["1.0.60"] });
       expect(releaseManifestFiles(root)).toEqual([
         "apps/safari-extension/Shared (Extension)/Resources/manifest.json",
         "apps/web/package.json",
@@ -144,24 +147,5 @@ describe("release versions", () => {
     } finally {
       fs.rmSync(root, { recursive: true, force: true });
     }
-  });
-
-  test("reports missing Safari version sources as lockstep mismatches", () => {
-    const root = fs.mkdtempSync(
-      path.join(os.tmpdir(), "teak-release-version-missing-")
-    );
-    fs.mkdirSync(path.join(root, "apps"), { recursive: true });
-    fs.mkdirSync(path.join(root, "packages"), { recursive: true });
-    fs.writeFileSync(
-      path.join(root, "package.json"),
-      `${JSON.stringify({ version: "1.0.60" })}\n`
-    );
-
-    expect(() => assertLockstep(root, "1.0.60")).toThrow(
-      "apps/safari-extension/Shared (Extension)/Resources/manifest.json: missing"
-    );
-    expect(() => assertLockstep(root, "1.0.60")).toThrow(
-      `${safariXcodeProject}: missing`
-    );
   });
 });
