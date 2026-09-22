@@ -18,7 +18,9 @@
     }
   ],
   "ai": {
-    "binding": "AI"
+    "binding": "AI",
+    // AI bindings always access remote resources, even in local dev.
+    "remote": true
   },
   "images": {
     "binding": "IMAGES"

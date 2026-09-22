@@ -1,10 +1,14 @@
 import { describe, expect, test } from "bun:test";
+import { existsSync, readdirSync, readFileSync } from "node:fs";
+import { join } from "node:path";
 import {
   buildDevCommand,
   DEV_TARGETS,
   needsWebEnv,
   parseDevArgs,
 } from "./dev.ts";
+
+const ROOT = join(import.meta.dir, "..");
 
 describe("parseDevArgs", () => {
   test("defaults to web", () => {
@@ -95,6 +99,65 @@ describe("buildDevCommand", () => {
     for (const target of Object.keys(DEV_TARGETS)) {
       expect(buildDevCommand(target)[0]).toBe("turbo");
     }
+  });
+});
+
+describe("dev target filters", () => {
+  const manifests = new Map<string, string>();
+  for (const dir of ["apps", "packages"]) {
+    for (const entry of readdirSync(join(ROOT, dir), {
+      withFileTypes: true,
+    })) {
+      if (!entry.isDirectory()) {
+        continue;
+      }
+      const manifest = join(ROOT, dir, entry.name, "package.json");
+      if (!existsSync(manifest)) {
+        continue;
+      }
+      const pkg = JSON.parse(readFileSync(manifest, "utf-8")) as {
+        name?: string;
+      };
+      if (pkg.name) {
+        manifests.set(pkg.name, manifest);
+      }
+    }
+  }
+
+  const manifestFor = (filter: string): string => {
+    if (filter.startsWith(".")) {
+      return join(ROOT, filter, "package.json");
+    }
+    const manifest = manifests.get(filter);
+    if (!manifest) {
+      throw new Error(`No workspace found for dev filter "${filter}"`);
+    }
+    return manifest;
+  };
+
+  test("every dev target filter has a dev script", () => {
+    for (const [target, filters] of Object.entries(DEV_TARGETS)) {
+      for (const filter of filters) {
+        const manifest = manifestFor(filter);
+        expect(existsSync(manifest)).toBe(true);
+        const pkg = JSON.parse(readFileSync(manifest, "utf-8")) as {
+          scripts?: Record<string, string>;
+        };
+        expect(
+          pkg.scripts?.dev,
+          `${target} filter ${filter} must have a dev script`
+        ).toBeDefined();
+      }
+    }
+  });
+
+  test("files targets use scripts the worker defines", () => {
+    const manifest = manifestFor("@teak/files-worker");
+    const pkg = JSON.parse(readFileSync(manifest, "utf-8")) as {
+      scripts?: Record<string, string>;
+    };
+    expect(pkg.scripts?.dev).toBeDefined();
+    expect(pkg.scripts?.["dev:local"]).toBeDefined();
   });
 });
 
