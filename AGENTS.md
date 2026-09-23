@@ -34,7 +34,7 @@ Read `packages/convex/AGENTS.md` before editing backend code.
 
 ## Documentation contract
 
-Keep user documentation synchronized per `apps/docs/AGENTS.md`.
+For user documentation or changelog changes, follow `apps/docs/AGENTS.md`.
 
 ## Release pointers
 

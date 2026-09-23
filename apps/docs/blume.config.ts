@@ -116,6 +116,13 @@ export default defineConfig({
     { from: "/docs/skills/", to: "/docs/ai-agents", status: 301 },
     { from: "/docs/skills.md", to: "/docs/ai-agents.md", status: 301 },
     { from: "/docs/skills.mdx", to: "/docs/ai-agents.mdx", status: 301 },
+    { from: "/changelog/09-05", to: "/changelog/september-2026", status: 301 },
+    { from: "/changelog/09-07", to: "/changelog/september-2026", status: 301 },
+    { from: "/changelog/09-08", to: "/changelog/september-2026", status: 301 },
+    { from: "/changelog/09-12", to: "/changelog/september-2026", status: 301 },
+    { from: "/changelog/09-14", to: "/changelog/september-2026", status: 301 },
+    { from: "/changelog/09-16", to: "/changelog/september-2026", status: 301 },
+    { from: "/changelog/09-17", to: "/changelog/september-2026", status: 301 },
   ],
   ai: {
     llmsTxt: {

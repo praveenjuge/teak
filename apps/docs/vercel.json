@@ -35,6 +35,41 @@
       "source": "/docs/skills.mdx",
       "destination": "/docs/ai-agents.mdx",
       "permanent": true
+    },
+    {
+      "source": "/changelog/09-05",
+      "destination": "/changelog/september-2026",
+      "permanent": true
+    },
+    {
+      "source": "/changelog/09-07",
+      "destination": "/changelog/september-2026",
+      "permanent": true
+    },
+    {
+      "source": "/changelog/09-08",
+      "destination": "/changelog/september-2026",
+      "permanent": true
+    },
+    {
+      "source": "/changelog/09-12",
+      "destination": "/changelog/september-2026",
+      "permanent": true
+    },
+    {
+      "source": "/changelog/09-14",
+      "destination": "/changelog/september-2026",
+      "permanent": true
+    },
+    {
+      "source": "/changelog/09-16",
+      "destination": "/changelog/september-2026",
+      "permanent": true
+    },
+    {
+      "source": "/changelog/09-17",
+      "destination": "/changelog/september-2026",
+      "permanent": true
     }
   ],
   "rewrites": [
