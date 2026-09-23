@@ -9,6 +9,8 @@ import {
   listOAuthConnections,
   OAUTH_ACCESS_TOKEN_FIELD,
   OAUTH_ACCESS_TOKEN_MODEL,
+  oauthBearerResponse,
+  parseOAuthBearerToken,
   revokeOAuthConnection,
   validateOAuthAccessToken,
 } from "../oauthTokens";
@@ -39,6 +41,55 @@ describe("isWellFormedOAuthToken", () => {
     expect(
       isWellFormedOAuthToken(`teakapi_secret_live_a1b2c3d4_${"f".repeat(64)}`)
     ).toBe(false);
+  });
+});
+
+describe("parseOAuthBearerToken", () => {
+  const token = "c".repeat(32);
+  const requestWith = (authorization?: string) =>
+    new Request(
+      "https://example.com",
+      authorization === undefined ? undefined : { headers: { authorization } }
+    );
+
+  test("accepts exact and whitespace-padded Bearer credentials", () => {
+    for (const authorization of [
+      `Bearer ${token}`,
+      `bearer ${token}`,
+      `  Bearer ${token}  `,
+      `Bearer  ${token}`,
+      `Bearer\t${token}`,
+    ]) {
+      expect(parseOAuthBearerToken(requestWith(authorization))).toBe(token);
+    }
+  });
+
+  test("rejects missing, malformed, and non-Bearer credentials", () => {
+    expect(parseOAuthBearerToken(requestWith())).toBeNull();
+    for (const authorization of [
+      "",
+      "Bearer",
+      "Bearer short",
+      `Bearer ${token}x`,
+      `Basic ${token}`,
+      `Bearer ${token} extra`,
+    ]) {
+      expect(parseOAuthBearerToken(requestWith(authorization))).toBeNull();
+    }
+  });
+});
+
+describe("oauthBearerResponse", () => {
+  test("renders payloads as 200 JSON and null as a 401 invalid_token", async () => {
+    const ok = oauthBearerResponse({ email: "hello@example.com" });
+    expect(ok.status).toBe(200);
+    expect(await ok.json()).toEqual({ email: "hello@example.com" });
+    expect(ok.headers.get("Cache-Control")).toBe("no-store");
+
+    const denied = oauthBearerResponse(null);
+    expect(denied.status).toBe(401);
+    expect(await denied.json()).toEqual({ error: "invalid_token" });
+    expect(denied.headers.get("Cache-Control")).toBe("no-store");
   });
 });
 

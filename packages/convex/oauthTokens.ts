@@ -29,10 +29,11 @@ export const isWellFormedOAuthToken = (token: string): boolean =>
 
 // Single canonical parser for the opaque OAuth Bearer scheme shared by the
 // userinfo and Safari account-summary HTTP actions. The scheme match is
-// case-insensitive per RFC 7235 (mirroring parseBearerToken); the captured
-// token is the verbatim client-sent substring and still passes through
+// case-insensitive per RFC 7235 and tolerates surrounding OWS plus repeated
+// inner whitespace (mirroring parseBearerToken); the captured token is the
+// verbatim client-sent substring and still passes through
 // isWellFormedOAuthToken plus a fail-closed adapter lookup.
-const OAUTH_BEARER_PATTERN = /^Bearer ([A-Za-z0-9]{32})$/i;
+const OAUTH_BEARER_PATTERN = /^\s*Bearer\s+([A-Za-z0-9]{32})\s*$/i;
 
 export const parseOAuthBearerToken = (request: Request): string | null =>
   request.headers.get("authorization")?.match(OAUTH_BEARER_PATTERN)?.[1] ??
