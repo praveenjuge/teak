@@ -200,7 +200,7 @@ struct LibraryCardDetail: View {
             DocumentDetail(card: card)
         case .palette:
             if let colors = card.colors, !colors.isEmpty {
-                ForEach(colors, id: \.hex) { swatch in
+                ForEach(Array(colors.enumerated()), id: \.offset) { _, swatch in
                     Button {
                         NSPasteboard.general.clearContents()
                         NSPasteboard.general.setString(swatch.hex, forType: .string)
