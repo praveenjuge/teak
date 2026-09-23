@@ -82,6 +82,7 @@ interface SearchOptions {
   sort?: ApiCardSort;
   tag?: string;
   type?: Doc<"cards">["type"];
+  types?: Doc<"cards">["type"][];
 }
 
 type ApiCursor =
@@ -156,6 +157,9 @@ const matchesStructuredFilters = (
   options: SearchOptions
 ): boolean => {
   if (options.type && card.type !== options.type) {
+    return false;
+  }
+  if (options.types && !options.types.includes(card.type)) {
     return false;
   }
 
@@ -425,6 +429,7 @@ const normalizeCardsQueryOptions = (args: {
   sort?: ApiCardSort;
   tag?: string;
   type?: Doc<"cards">["type"];
+  types?: Doc<"cards">["type"][];
 }): SearchOptions => {
   const normalized: SearchOptions = {
     createdAfter: normalizeCreatedTimestamp(args.createdAfter),
@@ -435,6 +440,7 @@ const normalizeCardsQueryOptions = (args: {
     sort: normalizeSort(args.sort),
     tag: normalizeTag(args.tag),
     type: args.type,
+    types: args.types,
   };
 
   if (
@@ -457,6 +463,7 @@ export const searchCardsPageForUser = internalQuery({
     cursor: v.optional(v.string()),
     searchQuery: v.optional(v.string()),
     type: v.optional(cardTypeValidator),
+    types: v.optional(v.array(cardTypeValidator)),
     tag: v.optional(v.string()),
     favorited: v.optional(v.boolean()),
     createdAfter: v.optional(v.number()),
@@ -512,6 +519,7 @@ export const scanCardsPageForUser = internalQuery({
     userId: v.string(),
     cursor: v.optional(v.string()),
     type: v.optional(cardTypeValidator),
+    types: v.optional(v.array(cardTypeValidator)),
     favorited: v.optional(v.boolean()),
     createdAfter: v.optional(v.number()),
     createdBefore: v.optional(v.number()),

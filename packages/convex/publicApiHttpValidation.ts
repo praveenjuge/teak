@@ -36,12 +36,27 @@ const getCardAppUrl = (requestUrl: string, cardId: string): string => {
   return appUrl.toString();
 };
 
+const serializeDisplayMetadata = (card: any) => ({
+  colors:
+    card.colors?.map((color: { hex: string; name?: string }) => ({
+      hex: color.hex,
+      ...(color.name ? { name: color.name } : {}),
+    })) ?? [],
+  linkAuthor: card.metadata?.linkPreview?.author ?? null,
+  linkPreviewMedia: card.linkPreviewMedia ?? [],
+  linkPublishedAt: card.metadata?.linkPreview?.publishedAt ?? null,
+  linkPublisher: card.metadata?.linkPreview?.publisher ?? null,
+  linkSiteName: card.metadata?.linkPreview?.siteName ?? null,
+});
+
 const serializeCard = (card: any, requestUrl: string) => ({
   aiSummary: card.aiSummary ?? null,
   aiTags: card.aiTags ?? [],
+  aiTranscript: card.aiTranscript ?? null,
   appUrl: getCardAppUrl(requestUrl, card._id),
   compactUrl: card.compactUrl ?? null,
   content: card.content,
+  ...serializeDisplayMetadata(card),
   createdAt: card.createdAt,
   detailUrl: card.detailUrl ?? null,
   fileUrl: card.fileUrl ?? null,
@@ -104,6 +119,7 @@ const serializeListCard = (
           fileKind: card.fileMetadata?.kind ?? null,
           fileLanguage: card.fileMetadata?.language ?? null,
           filePreview: card.fileMetadata?.preview ?? null,
+          ...serializeDisplayMetadata(card),
           compactUrl: card.compactUrl ?? null,
           detailUrl: card.detailUrl ?? null,
           fileUrl: card.fileUrl ?? null,
@@ -301,14 +317,18 @@ const parseCardsQueryOptions = (
 ): CardsQueryOptions | Response => {
   const { searchParams } = new URL(request.url);
   const query = parseOptionalString(searchParams.get("q"));
-  const type = parseOptionalString(searchParams.get("type"));
+  const types = searchParams
+    .getAll("type")
+    .map((value) => value.trim())
+    .filter(Boolean);
+  const uniqueTypes = [...new Set(types)];
   const tag = parseOptionalString(searchParams.get("tag"));
   const sort = parseOptionalString(searchParams.get("sort"));
   const createdAfter = parseTimestampQuery(searchParams.get("createdAfter"));
   const createdBefore = parseTimestampQuery(searchParams.get("createdBefore"));
   const favorited = parseBooleanQuery(searchParams.get("favorited"));
 
-  if (type && !CARD_TYPES.has(type)) {
+  if (uniqueTypes.some((type) => !CARD_TYPES.has(type))) {
     return errorResponse(
       400,
       "INVALID_INPUT",
@@ -369,7 +389,8 @@ const parseCardsQueryOptions = (
     searchQuery: query,
     sort: sort as CardsQueryOptions["sort"] | undefined,
     tag,
-    type,
+    type: uniqueTypes.length === 1 ? uniqueTypes[0] : undefined,
+    types: uniqueTypes.length > 1 ? uniqueTypes : undefined,
   };
 };
 

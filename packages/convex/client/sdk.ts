@@ -36,7 +36,9 @@ export interface TokenProvider {
 export interface Card {
   aiSummary: string | null;
   aiTags: string[];
+  aiTranscript: string | null;
   appUrl: string;
+  colors: Array<{ hex: string; name?: string }>;
   compactUrl: string | null;
   content: string;
   createdAt: number;
@@ -50,7 +52,22 @@ export interface Card {
   fileUrl: string | null;
   id: string;
   isFavorited: boolean;
+  linkAuthor: string | null;
   linkPreviewImageUrl: string | null;
+  linkPreviewMedia: Array<{
+    type: "image" | "video";
+    url: string;
+    contentType?: string;
+    width?: number;
+    height?: number;
+    posterUrl?: string;
+    posterContentType?: string;
+    posterWidth?: number;
+    posterHeight?: number;
+  }>;
+  linkPublishedAt: string | null;
+  linkPublisher: string | null;
+  linkSiteName: string | null;
   metadataDescription: string | null;
   metadataTitle: string | null;
   mimeType: string | null;
@@ -224,14 +241,22 @@ export const buildCardsSearchParams = (input: {
   query?: string;
   sort?: CardSort;
   tag?: string;
-  type?: CardType | string;
+  type?: CardType | string | readonly (CardType | string)[];
 }) => {
   const search = new URLSearchParams();
   if (input.query?.trim()) {
     search.set("q", input.query.trim());
   }
-  if (input.type?.trim()) {
-    search.set("type", input.type.trim());
+  let types: readonly string[] = [];
+  if (Array.isArray(input.type)) {
+    types = input.type;
+  } else if (typeof input.type === "string") {
+    types = [input.type];
+  }
+  for (const type of types) {
+    if (type.trim()) {
+      search.append("type", type.trim());
+    }
   }
   if (input.tag?.trim()) {
     search.set("tag", input.tag.trim());

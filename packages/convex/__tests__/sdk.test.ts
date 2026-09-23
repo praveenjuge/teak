@@ -18,6 +18,12 @@ describe("@teak/convex/sdk", () => {
     ).toBe("q=hi&tag=ux&sort=oldest&limit=100");
   });
 
+  test("encodes selected types as repeated query parameters", () => {
+    expect(buildCardsSearchParams({ type: ["image", "link"] })).toBe(
+      "type=image&type=link&limit=50"
+    );
+  });
+
   test("deduplicates tags", () => {
     expect(parseTags("a, b,a,,")).toEqual(["a", "b"]);
   });

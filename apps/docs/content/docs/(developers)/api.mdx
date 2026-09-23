@@ -145,9 +145,18 @@ Search and favorites are filtered card listings. `GET /v1/cards` supports
 
 - Search: `GET /v1/cards?q=design&include=content,metadata`
 - Favorites: `GET /v1/cards?favorited=true&include=content,metadata`
+- Multiple card types: `GET /v1/cards?type=image&type=link&include=content,metadata`
 
 The `include=content,metadata` pair returns full-card fields. The list
-response is paginated (`items` plus `pageInfo`).
+response is paginated (`items` plus `pageInfo`). Repeat `type` for an OR filter;
+a single `type` remains supported. Invalid types return 400. When loading the
+next page, keep the same filters and pass `pageInfo.nextCursor` as `cursor`.
+
+`include=metadata` adds palette `colors` (`hex` and optional `name`), resolved
+`linkPreviewMedia`, and the link's site name, author, publisher, and publish
+date when present. `include=processing` adds `aiTranscript`; the single-card
+response includes these display fields without an `include` parameter. Link
+preview media contains temporary resolved URLs, never storage keys.
 
 Image card responses include intentionally different URLs: `thumbnailUrl` is the optimized grid rendition, `compactUrl` is a smaller rendition for compact lists, `placeholderUrl` is a tiny loading placeholder, `detailUrl` is the optimized full-card rendition, and `fileUrl` remains the signed original used for downloads. These URLs are temporary, signed credentials — consume them as returned instead of storing or modifying them. See the [API Reference](/reference) for field details.
 
@@ -167,4 +176,3 @@ Use the returned request ID when contacting [Support](/docs/support). For MCP to
 ## Check for a saved URL
 
 `GET /v1/cards/duplicate?url=<encoded-url>` accepts the same bearer credentials as other card endpoints. It checks the exact URL against your non-deleted cards and returns `{ "cardId": "..." }`, or `{ "cardId": null }` when no match exists. The URL must use HTTP or HTTPS and be at most 8,192 characters. Invalid input returns 400; invalid or revoked credentials return 401.
-

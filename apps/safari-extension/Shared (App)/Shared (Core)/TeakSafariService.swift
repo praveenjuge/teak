@@ -166,7 +166,9 @@ actor TeakSafariService {
             var lookup = URLComponents(url: self.apiURL.appendingPathComponent("v1/cards/duplicate"), resolvingAgainstBaseURL: false)!
             lookup.queryItems = [URLQueryItem(name: "url", value: pageURL.absoluteString)]
             let duplicate = try await self.apiRequest(URLRequest(url: lookup.url!), token: token)
-            if duplicate["cardId"] is String { return ["status": "duplicate"] }
+            if let cardID = duplicate["cardId"] as? String {
+                return ["status": "duplicate", "cardId": cardID]
+            }
             var request = URLRequest(url: self.apiURL.appendingPathComponent("v1/cards"))
             request.httpMethod = "POST"
             request.setValue("application/json", forHTTPHeaderField: "Content-Type")
@@ -180,6 +182,33 @@ actor TeakSafariService {
         } catch SafariServiceError.unauthenticated {
             return ["status": "unauthenticated", "message": "Sign in to Teak to save pages."]
         } catch { return errorResponse(error) }
+    }
+
+    /// The containing app uses the same OAuth credential and refresh lock as
+    /// Safari. Only API-relative paths are accepted, so a token cannot be sent
+    /// to a URL supplied by card content.
+    func libraryGET(path: String, queryItems: [URLQueryItem] = []) async throws -> Data {
+        guard path == "v1/cards" || path.hasPrefix("v1/cards/") else {
+            throw SafariServiceError.message("Invalid library request.")
+        }
+        var components = URLComponents(url: apiURL.appendingPathComponent(path), resolvingAgainstBaseURL: false)!
+        components.queryItems = queryItems.isEmpty ? nil : queryItems
+        guard let url = components.url else {
+            throw SafariServiceError.message("Invalid library request.")
+        }
+        let token = try await accessToken()
+        var request = URLRequest(url: url)
+        request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        let (data, response) = try await send(request)
+        if response.statusCode == 401 {
+            try await clearIfStale(token)
+            throw SafariServiceError.unauthenticated
+        }
+        guard (200..<300).contains(response.statusCode) else {
+            let body = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any]
+            throw SafariServiceError.message(body?["error"] as? String ?? "Unable to load your library. Please try again.")
+        }
+        return data
     }
 
     private func accessToken() async throws -> String {

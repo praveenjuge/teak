@@ -47,8 +47,8 @@ final class MockHTTP: URLProtocol, @unchecked Sendable {
     }
     static func main() async throws {
         try check(
-            CompanionRoute.resolve(from: ["authenticated": true]) == .settings,
-            "authenticated accounts route to Settings"
+            CompanionRoute.resolve(from: ["authenticated": true]) == .library,
+            "authenticated accounts route to Library"
         )
         try check(
             CompanionRoute.resolve(from: ["authenticated": false]) == .onboarding,
@@ -59,8 +59,8 @@ final class MockHTTP: URLProtocol, @unchecked Sendable {
                 "status": "error",
                 "authenticated": true,
                 "message": "Unable to verify your Teak connection.",
-            ]) == .settings,
-            "offline accounts with stored credentials remain in Settings"
+            ]) == .library,
+            "offline accounts with stored credentials remain in Library"
         )
         try check(
             CompanionRoute.resolve(from: ["status": "error", "authenticated": false]) == .onboarding,
@@ -76,7 +76,7 @@ final class MockHTTP: URLProtocol, @unchecked Sendable {
             !CompanionRoute.shouldStartSignIn(
                 from: ["authenticated": true], connectRequested: true
             ),
-            "an authenticated Safari deep link opens Settings without signing in again"
+            "an authenticated Safari deep link opens Library without signing in again"
         )
         try check(
             !CompanionRoute.shouldStartSignIn(
@@ -269,6 +269,58 @@ final class MockHTTP: URLProtocol, @unchecked Sendable {
         try check(refreshes == 1, "concurrent clients refresh once")
         try check(try rotating.load()?.refreshToken == "new-refresh", "rotated refresh token persisted")
         print("PASS: silent refresh and cross-client refresh serialization")
+
+        let libraryService = fixture(MemoryCredentials(tokens()))
+        let library = LibraryAPI(service: libraryService)
+        let cardJSON = ##"{"id":"card-1","type":"palette","content":"Warm colors","url":null,"metadataTitle":"Autumn","metadataDescription":null,"linkSiteName":null,"linkAuthor":null,"linkPublisher":null,"linkPublishedAt":null,"notes":"Reference","aiSummary":"Warm palette","aiTranscript":null,"tags":["design"],"aiTags":[],"colors":[{"hex":"#FFAA00","name":"Amber"}],"isFavorited":true,"createdAt":1000,"updatedAt":2000,"fileName":null,"fileKind":null,"fileLanguage":null,"filePreview":null,"fileSize":null,"mimeType":null,"fileUrl":null,"thumbnailUrl":null,"compactUrl":null,"detailUrl":null,"screenshotUrl":null,"linkPreviewImageUrl":null,"linkPreviewMedia":[]}"##
+        var listCalls = 0
+        MockHTTP.respond = { request in
+            try check(request.url?.path == "/v1/cards", "library requests card list")
+            try check(request.value(forHTTPHeaderField: "Authorization") == "Bearer access", "library uses Safari OAuth bearer")
+            let query = URLComponents(url: request.url!, resolvingAgainstBaseURL: false)!.queryItems ?? []
+            try check(query.filter { $0.name == "type" }.map(\.value) == ["link", "palette"], "multiple type filters are repeated in stable order")
+            try check(query.first { $0.name == "q" }?.value == "Autumn", "search query is trimmed")
+            try check(query.first { $0.name == "favorited" }?.value == "true", "favorite filter is included")
+            try check(query.first { $0.name == "include" }?.value == "content,metadata,processing", "presentation fields are requested")
+            listCalls += 1
+            if listCalls == 1 {
+                try check(!query.contains { $0.name == "cursor" }, "first page has no cursor")
+                return (200, "{\"items\":[\(cardJSON)],\"pageInfo\":{\"hasMore\":true,\"nextCursor\":\"next-1\"}}")
+            }
+            try check(query.first { $0.name == "cursor" }?.value == "next-1", "next page carries server cursor")
+            return (200, #"{"items":[],"pageInfo":{"hasMore":false,"nextCursor":null}}"#)
+        }
+        let filters: Set<LibraryCardType> = [.palette, .link]
+        let firstPage = try await library.list(query: " Autumn ", types: filters, favoritesOnly: true, cursor: nil)
+        try check(firstPage.items.count == 1 && firstPage.items[0].colors?.first?.hex == "#FFAA00", "palette presentation decodes")
+        try check(firstPage.items[0].notes == "Reference" && firstPage.items[0].aiSummary == "Warm palette", "detail metadata decodes")
+        try check(firstPage.pageInfo.hasMore && firstPage.pageInfo.nextCursor == "next-1", "next cursor decodes")
+        let secondPage = try await library.list(query: "Autumn", types: filters, favoritesOnly: true, cursor: firstPage.pageInfo.nextCursor)
+        try check(secondPage.items.isEmpty && !secondPage.pageInfo.hasMore, "pagination ends cleanly")
+        let mediaJSON = ##"{"id":"card-2","type":"link","content":null,"url":"https://example.com","metadataTitle":"Example","metadataDescription":null,"linkSiteName":"Example","linkAuthor":null,"linkPublisher":null,"linkPublishedAt":null,"notes":null,"aiSummary":null,"aiTranscript":null,"tags":[],"aiTags":[],"colors":[],"isFavorited":false,"createdAt":1000,"updatedAt":1000,"fileName":null,"fileKind":null,"fileLanguage":null,"filePreview":null,"fileSize":null,"mimeType":null,"fileUrl":null,"thumbnailUrl":null,"compactUrl":null,"detailUrl":null,"screenshotUrl":null,"linkPreviewImageUrl":null,"linkPreviewMedia":[{"type":"video","url":"https://cdn.example.com/video.mp4","contentType":"video/mp4","width":640,"height":360,"posterUrl":"https://cdn.example.com/poster.jpg"}]}"##
+        MockHTTP.respond = { request in
+            try check(request.url?.path == "/v1/cards/card-2", "card detail uses validated ID")
+            return (200, mediaJSON)
+        }
+        let detail = try await library.card(id: "card-2")
+        try check(detail.linkPreviewMedia?.first?.posterUrl == "https://cdn.example.com/poster.jpg", "resolved link media decodes")
+        MockHTTP.respond = { request in
+            if request.url?.path == "/v1/cards/duplicate" { return (200, #"{"cardId":null}"#) }
+            return (200, #"{"cardId":"saved-card"}"#)
+        }
+        if case let .saved(id) = try await library.saveLink(" https://example.com/page ") {
+            try check(id == "saved-card", "library save returns created card")
+        } else { throw SafariServiceError.message("TEST FAILED: library save result") }
+        let refreshingStore = MemoryCredentials(tokens(expired: true))
+        let refreshingLibrary = LibraryAPI(service: fixture(refreshingStore))
+        MockHTTP.respond = { request in
+            if request.url?.path == "/api/auth/mcp/token" { return (200, tokenResponse) }
+            try check(request.value(forHTTPHeaderField: "Authorization") == "Bearer new-access", "library uses refreshed access token")
+            return (200, #"{"items":[],"pageInfo":{"hasMore":false,"nextCursor":null}}"#)
+        }
+        _ = try await refreshingLibrary.list(query: "", types: [], favoritesOnly: false, cursor: nil)
+        try check(try refreshingStore.load()?.accessToken == "new-access", "library refresh persists credentials")
+        print("PASS: native library decoding, combined filters, pagination, refresh, save")
 
         MockHTTP.respond = { _ in throw URLError(.notConnectedToInternet) }
         let offline = await service.authState()

@@ -49,7 +49,7 @@ marketing/build versions in lockstep.
 
 The release note is:
 
-> Small fixes and polish to keep saving pages from Safari smooth and reliable.
+> Browse and search your Teak cards in a new native Mac library. Open cards to see their details and save links directly from the app.
 
 ## Dry run
 
