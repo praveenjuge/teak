@@ -36,9 +36,11 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     private var menuBar: MenuBarController?
     private var settingsWindow: NSWindow?
     private var settingsWindowController: NSWindowController?
+    private var libraryWindowController: LibraryWindowController?
     private var onboardingWindowController: OnboardingWindowController?
     private let signInCoordinator = SafariSignInCoordinator()
     private var routingState = CompanionRoutingState()
+    private var settingsRequestGeneration = 0
     private var isResolvingInitialRoute = true
     private var didFinishLaunching = false
 
@@ -80,6 +82,20 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
     /// Resolves account state before presenting Settings or onboarding.
     func showSettingsWindow() {
+        settingsRequestGeneration += 1
+        let requestGeneration = settingsRequestGeneration
+        Task { @MainActor in
+            let state = await TeakSafariService.shared.authState()
+            guard requestGeneration == self.settingsRequestGeneration else { return }
+            if CompanionRoute.resolve(from: state) == .library {
+                self.presentSettings(state: state)
+            } else {
+                self.presentOnboarding(state: state)
+            }
+        }
+    }
+
+    func showLibraryWindow() {
         resolveAndPresentRoute()
     }
 
@@ -113,6 +129,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     private func resolveAndPresentRoute() {
+        settingsRequestGeneration += 1
         if signInCoordinator.isAuthenticating {
             routingState.preserveAuthenticationPresentation()
             NSApplication.shared.activate(ignoringOtherApps: true)
@@ -133,8 +150,8 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             case .preserveCurrentPresentation:
                 NSApplication.shared.activate(ignoringOtherApps: true)
                 self.signInCoordinator.presentingWindow?.makeKeyAndOrderFront(nil)
-            case let .present(.settings, _):
-                self.presentSettings(state: state)
+            case .present(.library, _):
+                self.presentLibrary()
             case let .present(.onboarding, startSignIn):
                 self.presentOnboarding(state: state)
                 if startSignIn,
@@ -156,10 +173,26 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         controller.renderAccountState(state)
         window.makeKeyAndOrderFront(nil)
         onboardingWindowController?.window?.orderOut(nil)
+        libraryWindowController?.window?.orderOut(nil)
+        finishInitialRouteIfNeeded()
+    }
+
+    private func presentLibrary() {
+        if libraryWindowController == nil {
+            libraryWindowController = LibraryWindowController(
+                onSettings: { [weak self] in self?.showSettingsWindow() },
+                onAuthenticationRequired: { [weak self] in self?.resolveAndPresentRoute() }
+            )
+        }
+        NSApplication.shared.activate(ignoringOtherApps: true)
+        libraryWindowController?.present()
+        onboardingWindowController?.window?.orderOut(nil)
+        settingsWindow?.orderOut(nil)
         finishInitialRouteIfNeeded()
     }
 
     private func presentAuthoritativeOnboarding(state: [String: Any]) {
+        settingsRequestGeneration += 1
         routingState.invalidatePendingResolution()
         presentOnboarding(state: state)
     }
@@ -181,6 +214,8 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         NSApplication.shared.activate(ignoringOtherApps: true)
         controller.present()
         settingsWindow?.orderOut(nil)
+        libraryWindowController?.window?.close()
+        libraryWindowController = nil
         finishInitialRouteIfNeeded()
     }
 
@@ -200,9 +235,9 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         ) { [weak self] state in
             guard let self else { return }
             render(state)
-            if CompanionRoute.resolve(from: state) == .settings {
+            if CompanionRoute.resolve(from: state) == .library {
                 self.routingState.invalidatePendingResolution()
-                self.presentSettings(state: state)
+                self.presentLibrary()
             }
         }
     }

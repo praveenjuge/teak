@@ -7,6 +7,8 @@ xcrun swiftc -parse-as-library \
   "apps/safari-extension/Shared (App)/Shared (Core)/SafariOAuth.swift" \
   "apps/safari-extension/Shared (App)/Shared (Core)/SafariCredentialStore.swift" \
   "apps/safari-extension/Shared (App)/Shared (Core)/TeakSafariService.swift" \
+  "apps/safari-extension/macOS (App)/LibraryModels.swift" \
+  "apps/safari-extension/macOS (App)/LibraryStore.swift" \
   apps/safari-extension/tests/SafariOAuthTests.swift \
   -o "$test_build_dir/safari-oauth-tests"
 "$test_build_dir/safari-oauth-tests"

@@ -108,7 +108,7 @@ final class MenuBarController: NSObject, NSMenuDelegate {
     }
 
     @objc private func openLibrary() {
-        NSWorkspace.shared.open(TeakSafariService.appBaseURL)
+        (NSApp.delegate as? AppDelegate)?.showLibraryWindow()
     }
 
     @objc private func openSettings() {

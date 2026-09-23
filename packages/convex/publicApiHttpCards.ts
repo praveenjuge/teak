@@ -220,6 +220,7 @@ const handleCardsListRequest = async (
       favorited: options.favoritesOnly ? true : undefined,
       sort: options.sort,
       type: options.type,
+      types: options.types,
       userId: auth.validated.userId,
     };
     let cardsPage: {

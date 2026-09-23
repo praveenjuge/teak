@@ -37,7 +37,7 @@ env:
   APPLE_TEAM_ID: LW385M78LW
   PLATFORM: MAC_OS
   PROJECT_PATH: apps/safari-extension/teak-safari.xcodeproj
-  RELEASE_NOTES: ${{ inputs.release_notes || 'Small fixes and polish to keep saving pages from Safari smooth and reliable.' }}
+  RELEASE_NOTES: ${{ inputs.release_notes || 'Browse and search your Teak cards in a new native Mac library. Open cards to see their details and save links directly from the app.' }}
   SCHEME_NAME: teak-safari (macOS)
   VERSION: ${{ inputs.version }}
 

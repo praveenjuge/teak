@@ -230,6 +230,99 @@ describe("publicApi", () => {
     expect(scan.scannedRows).toBe(2);
   });
 
+  test("scanCardsPageForUser resumes a multi-type page without skips", async () => {
+    const pagination = buildSinglePaginateContext({
+      continueCursor: "cursor-1",
+      isDone: false,
+      page: [
+        buildBaseCard({ _id: "text_1", type: "text" }),
+        buildBaseCard({ _id: "image_1", type: "image" }),
+        buildBaseCard({ _id: "quote_1", type: "quote" }),
+        buildBaseCard({ _id: "link_1", type: "link" }),
+      ],
+    });
+    const handler =
+      (scanCardsPageForUser as any).handler ?? scanCardsPageForUser;
+    const args = { scanLimit: 100, types: ["image", "link"], userId: "user_1" };
+
+    pagination.beginInvocation();
+    const first = await handler(pagination.ctx, args);
+    expect(first.items.map((card: any) => card._id)).toEqual([
+      "image_1",
+      "link_1",
+    ]);
+
+    pagination.beginInvocation();
+    const second = await handler(pagination.ctx, {
+      ...args,
+      cursor: first.itemCursors[0],
+    });
+    expect(second.items.map((card: any) => card._id)).toEqual(["link_1"]);
+  });
+
+  test("searchCardsPageForUser paginates across selected type indexes", async () => {
+    const module = await import("../publicApi");
+    const handler =
+      (module.searchCardsPageForUser as any).handler ??
+      module.searchCardsPageForUser;
+    const cards = {
+      quote_1: buildBaseCard({ _id: "quote_1", type: "quote", createdAt: 3 }),
+      palette_1: buildBaseCard({
+        _id: "palette_1",
+        type: "palette",
+        createdAt: 2,
+      }),
+      text_1: buildBaseCard({ _id: "text_1", type: "text", createdAt: 4 }),
+    };
+    const searchedTypes: string[] = [];
+    const ctx = {
+      db: {
+        get: mock((_table: string, id: keyof typeof cards) => cards[id]),
+        query: mock(() => ({
+          withSearchIndex: mock(
+            (_index: string, build: (range: any) => void) => {
+              let selectedType: string | undefined;
+              const range = {
+                search: () => range,
+                eq: (field: string, value: string) => {
+                  if (field === "type") {
+                    selectedType = value;
+                  }
+                  return range;
+                },
+              };
+              build(range);
+              searchedTypes.push(selectedType ?? "all");
+              return {
+                take: mock().mockResolvedValue(
+                  Object.values(cards)
+                    .filter((card) => card.type === selectedType)
+                    .map((card) => ({ cardId: card._id }))
+                ),
+              };
+            }
+          ),
+        })),
+      },
+    } as any;
+    const args = {
+      limit: 1,
+      searchQuery: "Native",
+      types: ["quote", "palette"],
+      userId: "user_1",
+    };
+    const first = await handler(ctx, args);
+    const second = await handler(ctx, {
+      ...args,
+      cursor: first.pageInfo.nextCursor,
+    });
+
+    expect(first.items.map((card: any) => card._id)).toEqual(["quote_1"]);
+    expect(second.items.map((card: any) => card._id)).toEqual(["palette_1"]);
+    expect(second.pageInfo.hasMore).toBe(false);
+    expect(searchedTypes).toEqual(["quote", "palette", "quote", "palette"]);
+  });
+
   test("listCardChangesForUser returns active items and soft-deleted ids", async () => {
     const module = await import("../publicApi");
     const handler =

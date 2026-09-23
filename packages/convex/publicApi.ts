@@ -82,6 +82,7 @@ interface SearchOptions {
   sort?: ApiCardSort;
   tag?: string;
   type?: Doc<"cards">["type"];
+  types?: Doc<"cards">["type"][];
 }
 
 type ApiCursor =
@@ -156,6 +157,9 @@ const matchesStructuredFilters = (
   options: SearchOptions
 ): boolean => {
   if (options.type && card.type !== options.type) {
+    return false;
+  }
+  if (options.types && !options.types.includes(card.type)) {
     return false;
   }
 
@@ -235,17 +239,23 @@ const searchCardsByQuery = async (
     desiredLimit + 20
   );
 
-  const unique = (
-    await searchCardsByDocument(ctx, {
-      userId,
-      searchQuery,
-      isDeleted: undefined,
-      isFavorited: options.favorited,
-      type: options.type,
-      limit: searchLimit,
-      resultFilter: (card) => matchesStructuredFilters(card, options),
-    })
-  ).filter((card) => matchesStructuredFilters(card, options));
+  const typeGroups = options.types ?? [options.type];
+  const found = await Promise.all(
+    typeGroups.map((type) =>
+      searchCardsByDocument(ctx, {
+        userId,
+        searchQuery,
+        isDeleted: undefined,
+        isFavorited: options.favorited,
+        type,
+        limit: searchLimit,
+        resultFilter: (card) => matchesStructuredFilters(card, options),
+      })
+    )
+  );
+  const unique = Array.from(
+    new Map(found.flat().map((card) => [card._id, card] as const)).values()
+  );
 
   return sortCards(unique, normalizeSort(options.sort));
 };
@@ -268,20 +278,26 @@ const searchCardsByTag = async (
     desiredLimit + 20
   );
 
-  const unique = (
-    await searchCardsByExactTag(ctx, {
-      userId,
-      tag,
-      isDeleted: undefined,
-      isFavorited: options.favorited,
-      type: options.type,
-      createdAfter: options.createdAfter,
-      createdBefore: options.createdBefore,
-      limit: searchLimit,
-      sort: normalizeSort(options.sort),
-      resultFilter: (card) => matchesStructuredFilters(card, options),
-    })
-  ).filter((card) => matchesStructuredFilters(card, options));
+  const typeGroups = options.types ?? [options.type];
+  const found = await Promise.all(
+    typeGroups.map((type) =>
+      searchCardsByExactTag(ctx, {
+        userId,
+        tag,
+        isDeleted: undefined,
+        isFavorited: options.favorited,
+        type,
+        createdAfter: options.createdAfter,
+        createdBefore: options.createdBefore,
+        limit: searchLimit,
+        sort: normalizeSort(options.sort),
+        resultFilter: (card) => matchesStructuredFilters(card, options),
+      })
+    )
+  );
+  const unique = Array.from(
+    new Map(found.flat().map((card) => [card._id, card] as const)).values()
+  );
 
   return sortCards(unique, normalizeSort(options.sort));
 };
@@ -425,6 +441,7 @@ const normalizeCardsQueryOptions = (args: {
   sort?: ApiCardSort;
   tag?: string;
   type?: Doc<"cards">["type"];
+  types?: Doc<"cards">["type"][];
 }): SearchOptions => {
   const normalized: SearchOptions = {
     createdAfter: normalizeCreatedTimestamp(args.createdAfter),
@@ -435,6 +452,7 @@ const normalizeCardsQueryOptions = (args: {
     sort: normalizeSort(args.sort),
     tag: normalizeTag(args.tag),
     type: args.type,
+    types: args.types?.length ? args.types : undefined,
   };
 
   if (
@@ -457,6 +475,7 @@ export const searchCardsPageForUser = internalQuery({
     cursor: v.optional(v.string()),
     searchQuery: v.optional(v.string()),
     type: v.optional(cardTypeValidator),
+    types: v.optional(v.array(cardTypeValidator)),
     tag: v.optional(v.string()),
     favorited: v.optional(v.boolean()),
     createdAfter: v.optional(v.number()),
@@ -512,6 +531,7 @@ export const scanCardsPageForUser = internalQuery({
     userId: v.string(),
     cursor: v.optional(v.string()),
     type: v.optional(cardTypeValidator),
+    types: v.optional(v.array(cardTypeValidator)),
     favorited: v.optional(v.boolean()),
     createdAfter: v.optional(v.number()),
     createdBefore: v.optional(v.number()),

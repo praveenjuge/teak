@@ -60,6 +60,7 @@ interface CardsQueryOptions {
   sort?: "newest" | "oldest";
   tag?: string;
   type?: string;
+  types?: string[];
 }
 interface CreateCardPayload {
   cardType?: string;

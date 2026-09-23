@@ -2,10 +2,10 @@ import Foundation
 
 enum CompanionRoute: Equatable {
     case onboarding
-    case settings
+    case library
 
     static func resolve(from state: [String: Any]) -> CompanionRoute {
-        (state["authenticated"] as? Bool) == true ? .settings : .onboarding
+        (state["authenticated"] as? Bool) == true ? .library : .onboarding
     }
 
     static func shouldStartSignIn(from state: [String: Any], connectRequested: Bool) -> Bool {

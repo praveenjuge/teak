@@ -18,6 +18,7 @@ const apiKeySecurity = [{ bearerAuth: [] }];
 const cardProperties = {
   aiSummary: { nullable: true, type: "string" },
   aiTags: { items: { type: "string" }, type: "array" },
+  aiTranscript: { nullable: true, type: "string" },
   appUrl: { format: "uri", type: "string" },
   compactUrl: {
     description:
@@ -26,6 +27,14 @@ const cardProperties = {
     type: "string",
   },
   content: { type: "string" },
+  colors: {
+    items: {
+      properties: { hex: { type: "string" }, name: { type: "string" } },
+      required: ["hex"],
+      type: "object",
+    },
+    type: "array",
+  },
   createdAt: { type: "number" },
   detailUrl: { nullable: true, type: "string" },
   fileExtension: { nullable: true, type: "string" },
@@ -42,6 +51,28 @@ const cardProperties = {
   id: { type: "string" },
   isFavorited: { type: "boolean" },
   linkPreviewImageUrl: { nullable: true, type: "string" },
+  linkPreviewMedia: {
+    items: {
+      properties: {
+        type: { enum: ["image", "video"], type: "string" },
+        url: { type: "string" },
+        contentType: { type: "string" },
+        width: { type: "number" },
+        height: { type: "number" },
+        posterUrl: { type: "string" },
+        posterContentType: { type: "string" },
+        posterWidth: { type: "number" },
+        posterHeight: { type: "number" },
+      },
+      required: ["type", "url"],
+      type: "object",
+    },
+    type: "array",
+  },
+  linkSiteName: { nullable: true, type: "string" },
+  linkAuthor: { nullable: true, type: "string" },
+  linkPublisher: { nullable: true, type: "string" },
+  linkPublishedAt: { nullable: true, type: "string" },
   metadataDescription: { nullable: true, type: "string" },
   metadataTitle: { nullable: true, type: "string" },
   mimeType: { nullable: true, type: "string" },
@@ -94,6 +125,7 @@ const components = {
       properties: {
         aiSummary: { nullable: true, type: "string" },
         aiTags: { items: { type: "string" }, type: "array" },
+        aiTranscript: cardProperties.aiTranscript,
         appUrl: { format: "uri", type: "string" },
         compactUrl: {
           description:
@@ -102,6 +134,7 @@ const components = {
           type: "string",
         },
         content: { type: "string" },
+        colors: cardProperties.colors,
         createdAt: { type: "number" },
         detailUrl: { nullable: true, type: "string" },
         fileName: { nullable: true, type: "string" },
@@ -119,6 +152,11 @@ const components = {
         id: { type: "string" },
         isFavorited: { type: "boolean" },
         linkPreviewImageUrl: { nullable: true, type: "string" },
+        linkPreviewMedia: cardProperties.linkPreviewMedia,
+        linkSiteName: cardProperties.linkSiteName,
+        linkAuthor: cardProperties.linkAuthor,
+        linkPublisher: cardProperties.linkPublisher,
+        linkPublishedAt: cardProperties.linkPublishedAt,
         metadataDescription: { nullable: true, type: "string" },
         metadataTitle: { nullable: true, type: "string" },
         notes: { nullable: true, type: "string" },
@@ -413,7 +451,14 @@ export const openApiSpec = {
           {
             in: "query",
             name: "type",
-            schema: { enum: CARD_TYPES, type: "string" },
+            description:
+              "Repeat to match any selected card type, for example type=image&type=link.",
+            explode: true,
+            style: "form",
+            schema: {
+              items: { enum: CARD_TYPES, type: "string" },
+              type: "array",
+            },
           },
           { in: "query", name: "tag", schema: { type: "string" } },
           { in: "query", name: "favorited", schema: { type: "boolean" } },

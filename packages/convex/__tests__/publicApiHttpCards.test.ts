@@ -61,6 +61,78 @@ describe("publicApiHttp card endpoints", () => {
     expect(payload.code).toBe("INVALID_INPUT");
   });
 
+  test("listCardsV1 forwards repeated types and exposes selected display fields", async () => {
+    const runQuery = mock().mockResolvedValue({
+      itemCursors: ["after-card-1"],
+      items: [
+        {
+          _id: "card_1",
+          type: "link",
+          content: "https://example.com",
+          createdAt: 1,
+          updatedAt: 2,
+          storageKey: "private-object-key",
+          colors: [{ hex: "#112233", name: "Ink", rgb: { r: 1, g: 2, b: 3 } }],
+          aiTranscript: "Transcript",
+          linkPreviewMedia: [
+            { type: "image", url: "https://files.example.com/signed" },
+          ],
+          metadata: {
+            linkPreview: {
+              siteName: "Example",
+              author: "Author",
+              raw: { secret: "hidden" },
+            },
+          },
+        },
+      ],
+      nextCursor: null,
+      scannedRows: 1,
+    });
+    const response = await runHandler(
+      listCardsV1,
+      { runMutation: buildAuthorizedMutationMock(), runQuery },
+      new Request(
+        "https://example.com/v1/cards?type=image&type=link&include=content,metadata,processing",
+        {
+          headers: {
+            Authorization:
+              "Bearer teakapi_secret_live_a1b2c3d4_ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+          },
+        }
+      )
+    );
+    expect(response.status).toBe(200);
+    expect(runQuery.mock.calls[0]?.[1]).toMatchObject({
+      types: ["image", "link"],
+      type: undefined,
+    });
+    const item = (await response.json()).items[0];
+    expect(item.colors).toEqual([{ hex: "#112233", name: "Ink" }]);
+    expect(item.aiTranscript).toBe("Transcript");
+    expect(item.linkPreviewMedia).toEqual([
+      { type: "image", url: "https://files.example.com/signed" },
+    ]);
+    expect(item.linkSiteName).toBe("Example");
+    expect(item.linkAuthor).toBe("Author");
+    expect(JSON.stringify(item)).not.toContain("secret");
+    expect(JSON.stringify(item)).not.toContain("storageKey");
+  });
+
+  test("listCardsV1 rejects any invalid repeated type", async () => {
+    const response = await runHandler(
+      listCardsV1,
+      { runMutation: buildAuthorizedMutationMock(), runQuery: mock() },
+      new Request("https://example.com/v1/cards?type=image&type=invalid", {
+        headers: {
+          Authorization:
+            "Bearer teakapi_secret_live_a1b2c3d4_ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+        },
+      })
+    );
+    expect(response.status).toBe(400);
+  });
+
   test("listCardsV1 returns paginated items with requested includes", async () => {
     const runMutation = buildAuthorizedMutationMock();
     const runQuery = mock().mockResolvedValueOnce({
@@ -285,6 +357,50 @@ describe("publicApiHttp card endpoints", () => {
     expect(response.status).toBe(404);
     const payload = await response.json();
     expect(payload.code).toBe("NOT_FOUND");
+  });
+
+  test("cardByIdV1 returns native display fields without internal metadata", async () => {
+    const runQuery = mock()
+      .mockResolvedValueOnce("card_1")
+      .mockResolvedValueOnce({
+        _id: "card_1",
+        type: "link",
+        content: "https://example.com",
+        createdAt: 1,
+        updatedAt: 2,
+        colors: [{ hex: "#112233", hsl: { h: 1, s: 2, l: 3 } }],
+        aiTranscript: "A transcript",
+        linkPreviewMedia: [
+          { type: "video", url: "https://files.example.com/signed-video" },
+        ],
+        metadata: {
+          linkPreview: {
+            siteName: "Example",
+            publishedAt: "2026-09-23",
+            raw: { token: "secret" },
+          },
+        },
+      });
+    const response = await runHandler(
+      cardByIdV1,
+      { runMutation: buildAuthorizedMutationMock(), runQuery },
+      new Request("https://example.com/v1/cards/card_1", {
+        headers: {
+          Authorization:
+            "Bearer teakapi_secret_live_a1b2c3d4_ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+        },
+      })
+    );
+    expect(response.status).toBe(200);
+    const card = await response.json();
+    expect(card.colors).toEqual([{ hex: "#112233" }]);
+    expect(card.aiTranscript).toBe("A transcript");
+    expect(card.linkPreviewMedia).toEqual([
+      { type: "video", url: "https://files.example.com/signed-video" },
+    ]);
+    expect(card.linkSiteName).toBe("Example");
+    expect(card.linkPublishedAt).toBe("2026-09-23");
+    expect(JSON.stringify(card)).not.toContain("secret");
   });
 
   test("cardByIdV1 patches card fields", async () => {

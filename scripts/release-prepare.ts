@@ -165,7 +165,7 @@ const main = (): void => {
   run(["bun", "install"], ROOT);
   if (existsSync(join(ROOT, "apps/raycast/package-lock.json"))) {
     run(
-      ["npm", "install", "--package-lock-only", "--ignore-scripts"],
+      ["npm", "install", "--package-lock-only", "--ignore-scripts", "--workspaces=false"],
       join(ROOT, "apps/raycast")
     );
   }

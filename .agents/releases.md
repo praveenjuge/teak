@@ -21,7 +21,7 @@ Manual fallback (same steps the script performs):
 2. Update `apps/safari-extension/Shared (Extension)/Resources/manifest.json` to the same version.
 3. Update every `MARKETING_VERSION` in `apps/safari-extension/teak-safari.xcodeproj/project.pbxproj` to the same version and every `CURRENT_PROJECT_VERSION` to its patch number.
 4. Run `bun install` from the repository root to synchronize `bun.lock`.
-5. From `apps/raycast`, run `npm install --package-lock-only --ignore-scripts` to synchronize both version fields in `package-lock.json`.
+5. From `apps/raycast`, run `npm install --package-lock-only --ignore-scripts --workspaces=false` to synchronize both version fields in `package-lock.json` without traversing the Bun workspace packages.
 6. From the repository root, run `bun install --frozen-lockfile` and `node scripts/release-version.mjs lockstep <version>`. Both commands must exit successfully without changing files.
 7. Commit every package manifest, Safari version source, `bun.lock`, and `apps/raycast/package-lock.json` together as one scoped version change.
 
