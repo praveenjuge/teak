@@ -7,6 +7,8 @@ import {
   getSafariAccountSummary,
   isWellFormedOAuthToken,
   listOAuthConnections,
+  OAUTH_ACCESS_TOKEN_FIELD,
+  OAUTH_ACCESS_TOKEN_MODEL,
   revokeOAuthConnection,
   validateOAuthAccessToken,
 } from "../oauthTokens";
@@ -236,7 +238,27 @@ describe("getSafariAccountSummary", () => {
     );
 
     expect(summary).toEqual({ email: "hello@example.com", cardCount: 830 });
+    expect(runQuery).toHaveBeenCalledTimes(2);
+    expect(runQuery.mock.calls[0][1]).toEqual({
+      model: OAUTH_ACCESS_TOKEN_MODEL,
+      where: [
+        {
+          field: OAUTH_ACCESS_TOKEN_FIELD,
+          operator: "eq",
+          value: token,
+        },
+      ],
+    });
+    expect(runQuery.mock.calls[1][1]).toEqual({
+      model: "user",
+      where: [{ field: "_id", operator: "eq", value: "user_1" }],
+    });
     expect(db.query).toHaveBeenCalledWith("userCardUsage");
+    expect(withIndex.mock.calls[0][0]).toBe("by_userId");
+    const indexCallback = withIndex.mock.calls[0][1];
+    const eq = mock().mockReturnValue({});
+    indexCallback({ eq });
+    expect(eq).toHaveBeenCalledWith("userId", "user_1");
   });
 
   test("rejects expired and other-client tokens before reading account data", async () => {
@@ -251,6 +273,7 @@ describe("getSafariAccountSummary", () => {
       expect(
         await runHandler(getSafariAccountSummary, { db, runQuery }, { token })
       ).toBeNull();
+      expect(runQuery).toHaveBeenCalledTimes(1);
       expect(db.query).not.toHaveBeenCalled();
     }
   });

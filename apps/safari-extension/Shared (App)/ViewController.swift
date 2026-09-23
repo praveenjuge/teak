@@ -357,7 +357,9 @@ final class SettingsViewController: NSViewController {
     }
 
     private func refreshAccountSummary() {
-        let generation = accountStateGeneration
+        // Supersede any in-flight summary so a slower older response cannot
+        // overwrite newer account data.
+        let generation = nextAccountStateGeneration()
         emailLabel.stringValue = "Checking…"
         usageLabel.stringValue = "Checking…"
         emailLabel.toolTip = nil
@@ -368,7 +370,8 @@ final class SettingsViewController: NSViewController {
                 let email = summary.email?.trimmingCharacters(in: .whitespacesAndNewlines)
                 self.emailLabel.stringValue = email.flatMap { $0.isEmpty ? nil : $0 } ?? "Not available"
                 self.emailLabel.toolTip = email
-                self.usageLabel.stringValue = "\(NumberFormatter.localizedString(from: NSNumber(value: summary.cardCount), number: .decimal)) cards"
+                let unit = summary.cardCount == 1 ? "card" : "cards"
+                self.usageLabel.stringValue = "\(NumberFormatter.localizedString(from: NSNumber(value: summary.cardCount), number: .decimal)) \(unit)"
             } catch SafariServiceError.unauthenticated {
                 guard generation == self.accountStateGeneration else { return }
                 self.renderAccountState(["authenticated": false, "status": SafariAccountStatus.signedOut.rawValue])

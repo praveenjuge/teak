@@ -220,7 +220,7 @@ final class MockHTTP: URLProtocol, @unchecked Sendable {
             _ = try await restarted.accountSummary()
             throw SafariServiceError.message("TEST FAILED: negative usage accepted")
         } catch SafariServiceError.message(let message) {
-            try check(message != "TEST FAILED: negative usage accepted", "negative usage rejected")
+            try check(message == "Unable to load account details. Please try again.", "negative usage rejected")
         }
         MockHTTP.respond = { _ in (401, #"{"error":"invalid_token"}"#) }
         do {

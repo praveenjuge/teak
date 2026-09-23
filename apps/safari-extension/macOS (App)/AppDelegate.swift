@@ -43,6 +43,12 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     private var didFinishLaunching = false
 
     func applicationWillFinishLaunching(_ notification: Notification) {
+        // Register before the first preference read so launch-time activation
+        // policy never depends on an unregistered default.
+        UserDefaults.standard.register(defaults: [
+            MenuBarController.enabledDefaultsKey: false,
+            CompanionAppearance.defaultsKey: CompanionAppearance.system.rawValue,
+        ])
         syncActivationPolicy()
         // The storyboard owns the Settings window, but account state owns
         // which window is allowed to appear. Keep it hidden until routing
@@ -58,10 +64,6 @@ class AppDelegate: NSObject, NSApplicationDelegate {
            let icon = NSImage(contentsOf: iconURL) {
             NSApplication.shared.applicationIconImage = icon
         }
-        UserDefaults.standard.register(defaults: [
-            MenuBarController.enabledDefaultsKey: false,
-            CompanionAppearance.defaultsKey: CompanionAppearance.system.rawValue,
-        ])
         CompanionAppearance.apply(.selected)
         menuBar = MenuBarController()
         configureSettingsWindow()

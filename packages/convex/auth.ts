@@ -25,11 +25,7 @@ import {
 import { beginAccountDeletion, finishAccountDeletion } from "./accountDeletion";
 import authConfig from "./auth.config";
 import { polar } from "./billing";
-import {
-  getActiveCardCount,
-  getCardUsageSnapshot,
-  removeCardUsage,
-} from "./card/cardUsage";
+import { getActiveCardCount, removeCardUsage } from "./card/cardUsage";
 import {
   getAppleCredentials,
   getGoogleCredentials,
@@ -503,22 +499,11 @@ export const getCardCreationStatusHandler = async (ctx: any) => {
     };
   }
 
-  const usage = await getCardUsageSnapshot(ctx, userId);
-  const activeCardCount =
-    usage?.isCountExact === true
-      ? usage.activeCardCount
-      : (
-          await ctx.db
-            .query("cards")
-            .withIndex("by_user_deleted", (q: any) =>
-              q.eq("userId", userId).eq("isDeleted", undefined)
-            )
-            .take(FREE_TIER_LIMIT)
-        ).length;
+  const cardCount = await getActiveCardCount(ctx, userId);
 
   return {
     hasPremium,
-    canCreateCard: activeCardCount < FREE_TIER_LIMIT,
+    canCreateCard: cardCount < FREE_TIER_LIMIT,
   };
 };
 
