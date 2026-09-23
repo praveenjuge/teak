@@ -322,6 +322,30 @@ final class MockHTTP: URLProtocol, @unchecked Sendable {
         try check(try refreshingStore.load()?.accessToken == "new-access", "library refresh persists credentials")
         print("PASS: native library decoding, combined filters, pagination, refresh, save")
 
+        var sparseCalls = 0
+        MockHTTP.respond = { request in
+            sparseCalls += 1
+            let query = URLComponents(url: request.url!, resolvingAgainstBaseURL: false)!.queryItems ?? []
+            let cursor = query.first { $0.name == "cursor" }?.value
+            let expectedCursor = sparseCalls == 1 ? nil : "scan-\(sparseCalls - 1)"
+            try check(cursor == expectedCursor, "sparse results advance with the server cursor")
+            if sparseCalls <= 8 {
+                return (200, "{\"items\":[],\"pageInfo\":{\"hasMore\":true,\"nextCursor\":\"scan-\(sparseCalls)\"}}")
+            }
+            return (200, "{\"items\":[\(cardJSON)],\"pageInfo\":{\"hasMore\":false,\"nextCursor\":null}}")
+        }
+        let sparseStore = await MainActor.run {
+            LibraryStore(api: LibraryAPI(service: fixture(MemoryCredentials(tokens()))), onAuthenticationRequired: {})
+        }
+        await sparseStore.loadFirstPage()
+        let initialSparseCards = sparseStore.cards
+        let canContinue = sparseStore.hasMore
+        try check(initialSparseCards.isEmpty && canContinue && sparseCalls == 8, "sparse pages stay resumable after a bounded scan")
+        await sparseStore.loadMore()
+        let resumedCards = sparseStore.cards
+        try check(resumedCards.count == 1 && sparseCalls == 9, "continuing a sparse scan reaches its matching card")
+        print("PASS: sparse native library pagination")
+
         MockHTTP.respond = { _ in throw URLError(.notConnectedToInternet) }
         let offline = await service.authState()
         try check(offline["status"] as? String == "error", "offline is not misreported as sign-out")

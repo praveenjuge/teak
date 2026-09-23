@@ -46,17 +46,25 @@ jobs:
           bun run --silent doctor --target web --profile local --json > /tmp/doctor.json
           cat /tmp/doctor.json
           test "$(jq -r .ok /tmp/doctor.json)" = "true"
-      - name: Start web target
+      - name: Authenticated journey smoke
         run: |
           bun run dev web --headless > /tmp/dev.log 2>&1 &
-          echo $! > /tmp/dev.pid
+          dev_pid=$!
+          trap 'kill "$dev_pid" 2> /dev/null || true' EXIT
           for _ in $(seq 1 60); do
-            curl -fsS http://localhost:3000/login > /dev/null && break
+            if curl -fsS http://localhost:3000/login > /dev/null 2>&1; then
+              break
+            fi
+            if ! kill -0 "$dev_pid" 2> /dev/null; then
+              break
+            fi
             sleep 5
           done
-          curl -fsS http://localhost:3000/login > /dev/null
-      - name: Authenticated journey smoke
-        run: bun run smoke:web
-      - name: Stop dev servers
-        if: always()
-        run: kill "$(cat /tmp/dev.pid)" 2> /dev/null || true
+          if ! curl -fsS http://localhost:3000/login > /dev/null; then
+            tail -80 /tmp/dev.log
+            exit 1
+          fi
+          if ! bun run smoke:web; then
+            tail -80 /tmp/dev.log
+            exit 1
+          fi

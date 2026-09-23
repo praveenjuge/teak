@@ -67,14 +67,15 @@ final class LibraryStore: ObservableObject {
         isLoading = true
         error = nil
         do {
-            let page = try await api.list(
+            let page = try await firstNonEmptyPage(
                 query: searchText, types: selectedTypes,
-                favoritesOnly: favoritesOnly, cursor: nil
+                favoritesOnly: favoritesOnly, cursor: nil,
+                currentGeneration: currentGeneration
             )
             guard currentGeneration == generation else { return }
             cards = page.items
-            hasMore = page.pageInfo.hasMore
-            nextCursor = page.pageInfo.nextCursor
+            hasMore = page.pageInfo.hasMore && page.pageInfo.nextCursor != nil
+            nextCursor = hasMore ? page.pageInfo.nextCursor : nil
         } catch {
             guard currentGeneration == generation else { return }
             hasMore = false
@@ -90,14 +91,16 @@ final class LibraryStore: ObservableObject {
         isLoadingMore = true
         defer { isLoadingMore = false }
         do {
-            let page = try await api.list(
+            let page = try await firstNonEmptyPage(
                 query: searchText, types: selectedTypes,
-                favoritesOnly: favoritesOnly, cursor: nextCursor
+                favoritesOnly: favoritesOnly, cursor: nextCursor,
+                currentGeneration: currentGeneration
             )
             guard currentGeneration == generation else { return }
             let known = Set(cards.map(\.id))
             cards.append(contentsOf: page.items.filter { !known.contains($0.id) })
-            hasMore = page.pageInfo.hasMore && page.pageInfo.nextCursor != nextCursor
+            hasMore = page.pageInfo.hasMore && page.pageInfo.nextCursor != nil
+                && page.pageInfo.nextCursor != nextCursor
             self.nextCursor = hasMore ? page.pageInfo.nextCursor : nil
         } catch {
             guard currentGeneration == generation else { return }
@@ -105,6 +108,26 @@ final class LibraryStore: ObservableObject {
             self.nextCursor = nil
             handle(error)
         }
+    }
+
+    private func firstNonEmptyPage(
+        query: String, types: Set<LibraryCardType>, favoritesOnly: Bool,
+        cursor: String?, currentGeneration: Int
+    ) async throws -> LibraryPage {
+        var currentCursor = cursor
+        for attempt in 0..<8 {
+            let page = try await api.list(
+                query: query, types: types, favoritesOnly: favoritesOnly,
+                cursor: currentCursor
+            )
+            guard currentGeneration == generation else { throw CancellationError() }
+            if attempt == 7 || !page.items.isEmpty || !page.pageInfo.hasMore ||
+                page.pageInfo.nextCursor == nil || page.pageInfo.nextCursor == currentCursor {
+                return page
+            }
+            currentCursor = page.pageInfo.nextCursor
+        }
+        throw CancellationError()
     }
 
     private func handle(_ failure: Error) {

@@ -284,6 +284,7 @@ struct LibraryCardDetail: View {
             panel.nameFieldStringValue = card.fileName ?? "Teak file"
             guard panel.runModal() == .OK, let destination = panel.url else { return }
             let (temporary, response) = try await URLSession.shared.download(from: url)
+            defer { try? FileManager.default.removeItem(at: temporary) }
             guard let http = response as? HTTPURLResponse, (200..<300).contains(http.statusCode) else {
                 throw URLError(.badServerResponse)
             }

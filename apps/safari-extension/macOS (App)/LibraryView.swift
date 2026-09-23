@@ -26,11 +26,17 @@ struct LibraryView: View {
                 ProgressView("Loading your library…")
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else if store.cards.isEmpty {
-                ContentUnavailableView(
-                    store.hasFilters ? "No matching cards" : "Your library is empty",
-                    systemImage: store.hasFilters ? "magnifyingglass" : "square.grid.2x2",
-                    description: Text(store.hasFilters ? "Try another search or clear your filters." : "Save a page from Safari or add a link here.")
-                )
+                VStack(spacing: 12) {
+                    ContentUnavailableView(
+                        emptyStateTitle,
+                        systemImage: store.hasFilters ? "magnifyingglass" : "square.grid.2x2",
+                        description: Text(emptyStateDescription)
+                    )
+                    if store.hasMore {
+                        Button("Keep searching") { Task { await store.loadMore() } }
+                            .disabled(store.isLoadingMore)
+                    }
+                }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else {
                 masonry
@@ -57,6 +63,16 @@ struct LibraryView: View {
             SaveLinkSheet(onComplete: handleSave, onAuthenticationRequired: onAuthenticationRequired)
         }
         .task { await store.loadFirstPage() }
+    }
+
+    private var emptyStateTitle: String {
+        if store.hasMore { return "Still searching your library" }
+        return store.hasFilters ? "No matching cards" : "Your library is empty"
+    }
+
+    private var emptyStateDescription: String {
+        if store.hasMore { return "More cards may match these filters." }
+        return store.hasFilters ? "Try another search or clear your filters." : "Save a page from Safari or add a link here."
     }
 
     private var header: some View {
