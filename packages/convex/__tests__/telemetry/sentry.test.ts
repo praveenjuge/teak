@@ -409,6 +409,7 @@ describe("backend Sentry OpenTelemetry", () => {
       1,
       { monitorSlug: "hourly-test", status: "in_progress" },
       expect.objectContaining({
+        failureIssueThreshold: 1,
         schedule: { type: "crontab", value: "0 * * * *" },
         timezone: "UTC",
       })
@@ -421,6 +422,28 @@ describe("backend Sentry OpenTelemetry", () => {
       })
     );
     expect(sentryFlush).toHaveBeenCalledTimes(1);
+  });
+
+  test("passes a per-monitor failure threshold to the monitor config", async () => {
+    await telemetry.withCronCheckIn(
+      {
+        checkinMarginMinutes: 15,
+        failureIssueThreshold: 2,
+        maxRuntimeMinutes: 5,
+        schedule: "*/15 * * * *",
+        slug: "frequent-test",
+      },
+      async () => "done"
+    );
+
+    expect(sentryCaptureCheckIn).toHaveBeenNthCalledWith(
+      1,
+      { monitorSlug: "frequent-test", status: "in_progress" },
+      expect.objectContaining({
+        failureIssueThreshold: 2,
+        recoveryThreshold: 1,
+      })
+    );
   });
 
   test("reports cron failures and preserves the thrown application error", async () => {

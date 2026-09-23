@@ -593,6 +593,12 @@ export const BACKEND_CARD_METRICS = {
 
 export interface CronCheckInConfig {
   checkinMarginMinutes: number;
+  /**
+   * Consecutive failed check-ins before Sentry opens an issue. Defaults to 1.
+   * Only sub-hourly monitors should raise it, so one lost completion
+   * check-in does not page while a real outage still alerts quickly.
+   */
+  failureIssueThreshold?: number;
   maxRuntimeMinutes: number;
   schedule: string;
   slug: string;
@@ -613,7 +619,7 @@ export const withCronCheckIn = async <T>(
       { monitorSlug: config.slug, status: "in_progress" },
       {
         checkinMargin: config.checkinMarginMinutes,
-        failureIssueThreshold: 1,
+        failureIssueThreshold: config.failureIssueThreshold ?? 1,
         maxRuntime: config.maxRuntimeMinutes,
         recoveryThreshold: 1,
         schedule: { type: "crontab", value: config.schedule },
