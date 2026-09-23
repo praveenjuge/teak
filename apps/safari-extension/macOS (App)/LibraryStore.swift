@@ -115,19 +115,24 @@ final class LibraryStore: ObservableObject {
         cursor: String?, currentGeneration: Int
     ) async throws -> LibraryPage {
         var currentCursor = cursor
-        for attempt in 0..<8 {
-            let page = try await api.list(
+        var page = try await api.list(
+            query: query, types: types, favoritesOnly: favoritesOnly,
+            cursor: currentCursor
+        )
+        guard currentGeneration == generation else { throw CancellationError() }
+        var attempts = 1
+        while attempts < 8 && page.items.isEmpty && page.pageInfo.hasMore {
+            guard let nextCursor = page.pageInfo.nextCursor,
+                  nextCursor != currentCursor else { break }
+            currentCursor = nextCursor
+            page = try await api.list(
                 query: query, types: types, favoritesOnly: favoritesOnly,
                 cursor: currentCursor
             )
             guard currentGeneration == generation else { throw CancellationError() }
-            if attempt == 7 || !page.items.isEmpty || !page.pageInfo.hasMore ||
-                page.pageInfo.nextCursor == nil || page.pageInfo.nextCursor == currentCursor {
-                return page
-            }
-            currentCursor = page.pageInfo.nextCursor
+            attempts += 1
         }
-        throw CancellationError()
+        return page
     }
 
     private func handle(_ failure: Error) {
