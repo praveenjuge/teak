@@ -46,10 +46,22 @@ describe("Sentry cron monitoring", () => {
   });
 
   test("only sub-hourly monitors tolerate a single failed check-in", () => {
-    const tolerant = Object.values(CRON_MONITORS)
+    const runsMoreThanHourly = (schedule: string) => {
+      const [minute, hour] = schedule.split(" ");
+      return (
+        hour === "*" &&
+        (minute === "*" || minute.includes("/") || minute.includes(","))
+      );
+    };
+    const monitors = Object.values(CRON_MONITORS);
+    const tolerant = monitors
       .filter((monitor) => (monitor.failureIssueThreshold ?? 1) > 1)
       .map((monitor) => monitor.slug);
-    expect(tolerant).toEqual(["ensure-oauth-clients"]);
+    const subHourly = monitors
+      .filter((monitor) => runsMoreThanHourly(monitor.schedule))
+      .map((monitor) => monitor.slug);
+    expect(subHourly).toEqual(["ensure-oauth-clients"]);
+    expect(tolerant).toEqual(subHourly);
   });
 
   test("routes all eight schedules through monitored Node actions", () => {
