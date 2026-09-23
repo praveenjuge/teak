@@ -7,8 +7,6 @@ const stories = [
     title: "Save anything worth remembering.",
     description:
       "Keep a thought, a link, a screenshot, a video, a recording, a document, a palette, or a quote without forcing it into the wrong shape.",
-    href: "/docs/features#card-types",
-    linkLabel: "Explore card types",
     imageAlt:
       "Teak library on a MacBook with text, link, image, palette, and quote cards",
     imageHeight: 982,
@@ -21,8 +19,6 @@ const stories = [
     title: "Start with the detail still in your head.",
     description:
       "Search keywords, card types, tags, favorites, trash, dates, color names, exact hex values, or visual styles. Teak turns the clues into filters for you.",
-    href: "/docs/features#smart-search",
-    linkLabel: "See how search works",
     imageAlt:
       "Teak research library on a MacBook with search and organized reference cards",
     imageHeight: 982,
@@ -35,8 +31,6 @@ const stories = [
     title: "Save it now. Let Teak do the filing.",
     description:
       "New cards can gain AI tags and summaries, richer link metadata and categories, extracted palettes, audio transcripts, and useful previews in the background.",
-    href: "/docs/features#ai-enrichment",
-    linkLabel: "See automatic enrichment",
     imageAlt:
       "Teak content creator library on a MacBook with quotes, palettes, links, and visual previews",
     imageHeight: 982,
@@ -49,8 +43,6 @@ const stories = [
     title: "Keep the idea without leaving your flow.",
     description:
       "Save from the web, the iOS share sheet, Teak for macOS, Chrome and Safari extensions, or Raycast. Everything meets in the same synced library.",
-    href: "/apps",
-    linkLabel: "Find your Teak app",
     visual: "capture",
   },
   {
@@ -58,8 +50,6 @@ const stories = [
     title: "Bring your library in. Take it with you.",
     description:
       "Import browser bookmarks, a Raindrop CSV, or an earlier Teak archive. Matching links are skipped, and you can export active cards with original files in a portable ZIP.",
-    href: "/docs/import",
-    linkLabel: "Read the import guide",
     imageAlt:
       "Teak knowledge library on a MacBook with saved documents, images, palettes, and notes",
     imageHeight: 982,
@@ -72,8 +62,6 @@ const stories = [
     title: "Your library has an interface beyond the app.",
     description:
       "Use Teak through its REST API, remote MCP endpoint, CLI, Raycast AI tools, ChatGPT connector search and fetch, or the public agent skill.",
-    href: "/docs/ai-agents",
-    linkLabel: "Connect an AI agent",
     imageAlt:
       "Teak developer library with code references, notes, palettes, and technical links",
     imageHeight: 982,
@@ -100,13 +88,7 @@ const stories = [
           <p class="mb-3.5 text-[0.6875rem] leading-[1.4] font-semibold tracking-[0.08em] text-muted-foreground uppercase">{story.eyebrow}</p>
           <h3 class="mb-3.5 text-[clamp(1.5rem,2.8vw,1.875rem)] leading-[1.12] font-bold tracking-[-0.03em] text-balance">{story.title}</h3>
           <p class="mb-5 text-sm leading-[1.65] text-muted-foreground">{story.description}</p>
-          <div class="flex flex-wrap gap-2">
-            <a class="inline-flex h-10 items-center justify-center gap-2 rounded-full bg-primary px-6 text-sm font-medium whitespace-nowrap text-primary-foreground no-underline transition-colors hover:bg-primary/90" href="https://app.teakvault.com/register" rel="noopener noreferrer" target="_blank">Register</a>
-            <a class="group inline-flex h-10 items-center justify-center gap-2 rounded-full border border-border bg-background px-6 text-sm font-medium whitespace-nowrap text-foreground no-underline transition-colors hover:bg-accent hover:text-accent-foreground" href={story.href}>
-              {story.linkLabel}
-              <span class="motion-safe:transition-transform motion-safe:duration-180 motion-safe:group-hover:translate-x-[2px] motion-safe:group-hover:-translate-y-[2px]" aria-hidden="true">↗</span>
-            </a>
-          </div>
+          <a class="inline-flex h-10 items-center justify-center gap-2 rounded-full bg-primary px-6 text-sm font-medium whitespace-nowrap text-primary-foreground no-underline transition-colors hover:bg-primary/90" href="https://app.teakvault.com/register" rel="noopener noreferrer" target="_blank">Start Saving →</a>
         </div>
 
         {story.visual === "capture" && (
