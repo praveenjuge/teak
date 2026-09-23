@@ -196,6 +196,24 @@ export const getCardUsageSnapshot = async (
   };
 };
 
+export const getActiveCardCount = async (
+  ctx: DatabaseReaderCtx,
+  userId: string
+): Promise<number> => {
+  const usage = await getCardUsageSnapshot(ctx, userId);
+  if (usage?.isCountExact) {
+    return usage.activeCardCount;
+  }
+  return (
+    await ctx.db
+      .query("cards")
+      .withIndex("by_user_deleted", (query) =>
+        query.eq("userId", userId).eq("isDeleted", undefined)
+      )
+      .take(CARD_USAGE_SCAN_LIMIT)
+  ).length;
+};
+
 const shardForCard = (cardId: Id<"cards">) => {
   let hash = 0;
   for (const character of cardId) {

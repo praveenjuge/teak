@@ -4,10 +4,12 @@ import {
   type ActionCtx,
   action,
   internalMutation,
+  internalQuery,
   type MutationCtx,
   type QueryCtx,
   query,
 } from "./_generated/server";
+import { getActiveCardCount } from "./card/cardUsage";
 import { isFirstPartyOAuthClientId } from "./oauthClients";
 import { currentSession, getSessionIdentity } from "./securitySessions";
 
@@ -54,6 +56,11 @@ const oauthUserInfoValidator = v.union(
     name: v.optional(v.string()),
     sub: v.string(),
   }),
+  v.null()
+);
+
+const safariAccountSummaryValidator = v.union(
+  v.object({ email: v.optional(v.string()), cardCount: v.number() }),
   v.null()
 );
 
@@ -234,6 +241,35 @@ export const getOAuthUserInfo = query({
         ? { email_verified: user.emailVerified }
         : {}),
       ...(typeof user.name === "string" ? { name: user.name } : {}),
+    };
+  },
+});
+
+export const getSafariAccountSummary = internalQuery({
+  args: { token: v.string() },
+  returns: safariAccountSummaryValidator,
+  handler: async (ctx, args) => {
+    const token = args.token.trim();
+    if (!isWellFormedOAuthToken(token)) {
+      return null;
+    }
+    const record = await findOAuthAccessToken(ctx, token);
+    if (
+      record?.clientId !== "teak-safari" ||
+      typeof record.accessTokenExpiresAt !== "number" ||
+      record.accessTokenExpiresAt <= Date.now() ||
+      typeof record.userId !== "string" ||
+      !record.userId
+    ) {
+      return null;
+    }
+    const user = await findAuthUser(ctx, record.userId);
+    if (!user) {
+      return null;
+    }
+    return {
+      ...(typeof user.email === "string" ? { email: user.email } : {}),
+      cardCount: await getActiveCardCount(ctx, record.userId),
     };
   },
 });

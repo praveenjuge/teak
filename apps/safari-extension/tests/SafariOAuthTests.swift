@@ -208,6 +208,29 @@ final class MockHTTP: URLProtocol, @unchecked Sendable {
         try check(restartedState["authenticated"] as? Bool == true, "restart uses persisted credentials")
         print("PASS: reconnect, code exchange, credential persistence, restart")
 
+        MockHTTP.respond = { request in
+            try check(request.url?.path == "/api/safari/account-summary", "account details use Safari endpoint")
+            try check(request.value(forHTTPHeaderField: "Authorization") == "Bearer new-access", "account details use OAuth bearer")
+            return (200, #"{"email":"hello@example.com","cardCount":830}"#)
+        }
+        let summary = try await restarted.accountSummary()
+        try check(summary.email == "hello@example.com" && summary.cardCount == 830, "account details decode")
+        MockHTTP.respond = { _ in (200, #"{"email":"hello@example.com","cardCount":-1}"#) }
+        do {
+            _ = try await restarted.accountSummary()
+            throw SafariServiceError.message("TEST FAILED: negative usage accepted")
+        } catch SafariServiceError.message(let message) {
+            try check(message != "TEST FAILED: negative usage accepted", "negative usage rejected")
+        }
+        MockHTTP.respond = { _ in (401, #"{"error":"invalid_token"}"#) }
+        do {
+            _ = try await restarted.accountSummary()
+            throw SafariServiceError.message("TEST FAILED: revoked account token accepted")
+        } catch SafariServiceError.unauthenticated {
+            try check(try freshStore.load() == nil, "revoked account token clears matching credentials")
+        }
+        print("PASS: Safari account summary and revoked-token handling")
+
         let store = MemoryCredentials(tokens())
         let service = fixture(store)
         var creates = 0

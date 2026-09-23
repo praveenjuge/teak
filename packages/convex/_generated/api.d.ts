@@ -96,6 +96,7 @@ import type * as publicApiMeta from "../publicApiMeta.js";
 import type * as publicApiOpenApi from "../publicApiOpenApi.js";
 import type * as publicApiUploads from "../publicApiUploads.js";
 import type * as raycast from "../raycast.js";
+import type * as safariAccountSummary from "../safariAccountSummary.js";
 import type * as securitySessions from "../securitySessions.js";
 import type * as shared_apiKeyFormat from "../shared/apiKeyFormat.js";
 import type * as shared_boundedResponse from "../shared/boundedResponse.js";
@@ -276,6 +277,7 @@ declare const fullApi: ApiFromModules<{
   publicApiOpenApi: typeof publicApiOpenApi;
   publicApiUploads: typeof publicApiUploads;
   raycast: typeof raycast;
+  safariAccountSummary: typeof safariAccountSummary;
   securitySessions: typeof securitySessions;
   "shared/apiKeyFormat": typeof shared_apiKeyFormat;
   "shared/boundedResponse": typeof shared_boundedResponse;

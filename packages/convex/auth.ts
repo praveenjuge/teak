@@ -26,7 +26,7 @@ import { beginAccountDeletion, finishAccountDeletion } from "./accountDeletion";
 import authConfig from "./auth.config";
 import { polar } from "./billing";
 import {
-  CARD_USAGE_SCAN_LIMIT,
+  getActiveCardCount,
   getCardUsageSnapshot,
   removeCardUsage,
 } from "./card/cardUsage";
@@ -452,20 +452,7 @@ export const getCurrentUserHandler = async (ctx: any) => {
     hasPremium = false;
   }
 
-  const usage = await getCardUsageSnapshot(ctx, userId);
-  const cardsQuery = ctx.db
-    .query("cards")
-    .withIndex("by_user_deleted", (q: any) =>
-      q.eq("userId", userId).eq("isDeleted", undefined)
-    );
-  let cardCount: number;
-  if (usage?.isCountExact) {
-    cardCount = usage.activeCardCount;
-  } else {
-    // During the resumable backfill, report a bounded transitional count. The
-    // exact counter becomes authoritative as soon as that user's scan finishes.
-    cardCount = (await cardsQuery.take(CARD_USAGE_SCAN_LIMIT)).length;
-  }
+  const cardCount = await getActiveCardCount(ctx, userId);
   const canCreateCard = hasPremium || cardCount < FREE_TIER_LIMIT;
 
   return {

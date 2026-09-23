@@ -4,6 +4,7 @@ import { describe, expect, mock, test } from "bun:test";
 import {
   getOAuthConsentRequest,
   getOAuthUserInfo,
+  getSafariAccountSummary,
   isWellFormedOAuthToken,
   listOAuthConnections,
   revokeOAuthConnection,
@@ -207,6 +208,51 @@ describe("getOAuthUserInfo", () => {
       )
     ).toBeNull();
     expect(malformedQuery).not.toHaveBeenCalled();
+  });
+});
+
+describe("getSafariAccountSummary", () => {
+  const token = "s".repeat(32);
+
+  test("returns the signed-in Safari user's email and active card count", async () => {
+    const runQuery = mock()
+      .mockResolvedValueOnce({
+        accessTokenExpiresAt: Date.now() + 60_000,
+        clientId: "teak-safari",
+        userId: "user_1",
+      })
+      .mockResolvedValueOnce({ _id: "user_1", email: "hello@example.com" });
+    const unique = mock().mockResolvedValue({
+      activeCardCount: 830,
+      isCountExact: true,
+    });
+    const withIndex = mock().mockReturnValue({ unique });
+    const db = { query: mock().mockReturnValue({ withIndex }) };
+
+    const summary = await runHandler(
+      getSafariAccountSummary,
+      { db, runQuery },
+      { token }
+    );
+
+    expect(summary).toEqual({ email: "hello@example.com", cardCount: 830 });
+    expect(db.query).toHaveBeenCalledWith("userCardUsage");
+  });
+
+  test("rejects expired and other-client tokens before reading account data", async () => {
+    for (const clientId of ["teak-raycast", "teak-safari"]) {
+      const runQuery = mock().mockResolvedValueOnce({
+        accessTokenExpiresAt:
+          clientId === "teak-safari" ? Date.now() - 1 : Date.now() + 60_000,
+        clientId,
+        userId: "user_1",
+      });
+      const db = { query: mock() };
+      expect(
+        await runHandler(getSafariAccountSummary, { db, runQuery }, { token })
+      ).toBeNull();
+      expect(db.query).not.toHaveBeenCalled();
+    }
   });
 });
 
