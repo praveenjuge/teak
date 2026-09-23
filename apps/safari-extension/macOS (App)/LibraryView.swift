@@ -10,6 +10,7 @@ struct LibraryView: View {
     @State private var selectedCard: LibraryCard?
     @State private var pendingCard: LibraryCard?
     @State private var showingSaveLink = false
+    @State private var paginationFooterVisible = false
 
     init(onSettings: @escaping () -> Void, onAuthenticationRequired: @escaping () -> Void) {
         self.onSettings = onSettings
@@ -81,21 +82,25 @@ struct LibraryView: View {
             if searchFocused || store.hasFilters {
                 if store.hasFilters {
                     HStack(spacing: 7) {
-                        ForEach(LibraryCardType.allCases.filter { store.selectedTypes.contains($0) }) { type in
-                            Button { store.toggleType(type) } label: {
-                                Label(type.title, systemImage: type.symbol)
+                        ScrollView(.horizontal) {
+                            HStack(spacing: 7) {
+                                ForEach(LibraryCardType.allCases.filter { store.selectedTypes.contains($0) }) { type in
+                                    Button { store.toggleType(type) } label: {
+                                        Label(type.title, systemImage: type.symbol)
+                                    }
+                                    .buttonStyle(.borderedProminent)
+                                    .accessibilityLabel("Remove \(type.title) filter")
+                                }
+                                if store.favoritesOnly {
+                                    Button { store.toggleFavorites() } label: {
+                                        Label("Favorites", systemImage: "heart")
+                                    }
+                                    .buttonStyle(.borderedProminent)
+                                    .accessibilityLabel("Remove Favorites filter")
+                                }
                             }
-                            .buttonStyle(.borderedProminent)
-                            .accessibilityLabel("Remove \(type.title) filter")
                         }
-                        if store.favoritesOnly {
-                            Button { store.toggleFavorites() } label: {
-                                Label("Favorites", systemImage: "heart")
-                            }
-                            .buttonStyle(.borderedProminent)
-                            .accessibilityLabel("Remove Favorites filter")
-                        }
-                        Spacer(minLength: 0)
+                        .scrollIndicators(.hidden)
                         Button("Clear All") { store.clearFilters() }
                             .buttonStyle(.borderless)
                     }
@@ -109,6 +114,7 @@ struct LibraryView: View {
                                 Label(type.title, systemImage: type.symbol)
                             }
                             .buttonStyle(.bordered)
+                            .accessibilityLabel("Filter \(type.title) cards")
                         }
                         if !store.favoritesOnly {
                             Button {
@@ -117,6 +123,7 @@ struct LibraryView: View {
                                 Label("Favorites", systemImage: "heart")
                             }
                             .buttonStyle(.bordered)
+                            .accessibilityLabel("Filter favorite cards")
                         }
                     }
                 }
@@ -130,35 +137,45 @@ struct LibraryView: View {
     private var masonry: some View {
         GeometryReader { geometry in
             let columnCount = max(1, min(5, Int((geometry.size.width - 40 + 16) / 266)))
-            let columns = distribute(store.cards, across: columnCount)
+            let layout = distribute(store.cards, across: columnCount)
             ScrollView {
                 HStack(alignment: .top, spacing: 16) {
                     ForEach(0..<columnCount, id: \.self) { index in
                         LazyVStack(spacing: 16) {
-                            ForEach(columns[index]) { card in
+                            ForEach(layout.columns[index]) { card in
                                 Button { selectedCard = card } label: {
                                     LibraryCardTile(card: card)
                                 }
                                 .buttonStyle(.plain)
+                                .accessibilityLabel("Open \(card.cardType?.title ?? "card") card: \(card.title)")
+                            }
+                            if index == layout.footerColumn && store.hasMore {
+                                ProgressView()
+                                    .frame(maxWidth: .infinity)
+                                    .padding(16)
+                                    .onAppear {
+                                        paginationFooterVisible = true
+                                        Task { await store.loadMore() }
+                                    }
+                                    .onDisappear { paginationFooterVisible = false }
+                                    .onChange(of: store.isLoadingMore) { _, loading in
+                                        guard !loading, paginationFooterVisible, store.hasMore else { return }
+                                        Task {
+                                            try? await Task.sleep(for: .milliseconds(100))
+                                            if paginationFooterVisible { await store.loadMore() }
+                                        }
+                                    }
                             }
                         }
                         .frame(maxWidth: .infinity, alignment: .top)
                     }
                 }
                 .padding(20)
-
-                if store.hasMore {
-                    ProgressView()
-                        .frame(maxWidth: .infinity)
-                        .padding(16)
-                        .id(store.paginationKey)
-                        .onAppear { Task { await store.loadMore() } }
-                }
             }
         }
     }
 
-    private func distribute(_ cards: [LibraryCard], across count: Int) -> [[LibraryCard]] {
+    private func distribute(_ cards: [LibraryCard], across count: Int) -> (columns: [[LibraryCard]], footerColumn: Int) {
         var columns = Array(repeating: [LibraryCard](), count: count)
         var heights = Array(repeating: Double.zero, count: count)
         for card in cards {
@@ -169,7 +186,8 @@ struct LibraryView: View {
             let paletteHeight: Double = card.cardType == .palette ? 118 : 0
             heights[shortest] += 100 + imageHeight + paletteHeight + min(110, textLength * 0.17)
         }
-        return columns
+        let footerColumn = heights.enumerated().max { $0.element < $1.element }?.offset ?? 0
+        return (columns, footerColumn)
     }
 
     private func handleSave(_ result: LibrarySaveResult) {
@@ -178,7 +196,6 @@ struct LibraryView: View {
             case .saved:
                 showingSaveLink = false
                 store.clearFilters()
-                await store.loadFirstPage()
             case let .duplicate(id):
                 do { pendingCard = try await LibraryAPI().card(id: id) }
                 catch SafariServiceError.unauthenticated { onAuthenticationRequired() }

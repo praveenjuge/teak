@@ -6,12 +6,23 @@ import SwiftUI
 private extension Color {
     init?(teakHex: String) {
         let digits = teakHex.trimmingCharacters(in: CharacterSet(charactersIn: "#"))
-        guard digits.count == 6, let value = UInt32(digits, radix: 16) else { return nil }
+        let expanded: String
+        switch digits.count {
+        case 3, 4:
+            expanded = digits.map { "\($0)\($0)" }.joined()
+        case 6, 8:
+            expanded = digits
+        default:
+            return nil
+        }
+        guard let value = UInt64(expanded, radix: 16) else { return nil }
+        let hasAlpha = expanded.count == 8
+        let rgb = hasAlpha ? value >> 8 : value
         self.init(.sRGB,
-                  red: Double((value >> 16) & 0xff) / 255,
-                  green: Double((value >> 8) & 0xff) / 255,
-                  blue: Double(value & 0xff) / 255,
-                  opacity: 1)
+                  red: Double((rgb >> 16) & 0xff) / 255,
+                  green: Double((rgb >> 8) & 0xff) / 255,
+                  blue: Double(rgb & 0xff) / 255,
+                  opacity: hasAlpha ? Double(value & 0xff) / 255 : 1)
     }
 }
 
@@ -272,8 +283,15 @@ struct LibraryCardDetail: View {
             let panel = NSSavePanel()
             panel.nameFieldStringValue = card.fileName ?? "Teak file"
             guard panel.runModal() == .OK, let destination = panel.url else { return }
-            let (temporary, _) = try await URLSession.shared.download(from: url)
-            try FileManager.default.copyItem(at: temporary, to: destination)
+            let (temporary, response) = try await URLSession.shared.download(from: url)
+            guard let http = response as? HTTPURLResponse, (200..<300).contains(http.statusCode) else {
+                throw URLError(.badServerResponse)
+            }
+            if FileManager.default.fileExists(atPath: destination.path) {
+                _ = try FileManager.default.replaceItemAt(destination, withItemAt: temporary)
+            } else {
+                try FileManager.default.moveItem(at: temporary, to: destination)
+            }
         } catch {
             self.error = "Couldn’t download this file. \(error.localizedDescription)"
         }

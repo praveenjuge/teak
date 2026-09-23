@@ -18,6 +18,7 @@ final class LibraryWindowController: NSWindowController {
             onSettings: onSettings,
             onAuthenticationRequired: onAuthenticationRequired
         ))
+        window.setContentSize(NSSize(width: 1120, height: 760))
         super.init(window: window)
         shouldCascadeWindows = false
     }

@@ -24,14 +24,15 @@ final class LibraryStore: ObservableObject {
     }
 
     var hasFilters: Bool {
-        !searchText.isEmpty || !selectedTypes.isEmpty || favoritesOnly
+        !searchText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+            || !selectedTypes.isEmpty || favoritesOnly
     }
-
-    var paginationKey: String { "\(nextCursor ?? "end"):\(isLoadingMore)" }
 
     func scheduleSearch() {
         generation += 1
         searchTask?.cancel()
+        hasMore = false
+        nextCursor = nil
         searchTask = Task { [weak self] in
             try? await Task.sleep(nanoseconds: 250_000_000)
             guard !Task.isCancelled else { return }
@@ -76,6 +77,8 @@ final class LibraryStore: ObservableObject {
             nextCursor = page.pageInfo.nextCursor
         } catch {
             guard currentGeneration == generation else { return }
+            hasMore = false
+            nextCursor = nil
             handle(error)
         }
         if currentGeneration == generation { isLoading = false }
@@ -98,6 +101,8 @@ final class LibraryStore: ObservableObject {
             self.nextCursor = hasMore ? page.pageInfo.nextCursor : nil
         } catch {
             guard currentGeneration == generation else { return }
+            hasMore = false
+            self.nextCursor = nil
             handle(error)
         }
     }

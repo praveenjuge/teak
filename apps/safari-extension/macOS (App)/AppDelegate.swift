@@ -40,6 +40,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     private var onboardingWindowController: OnboardingWindowController?
     private let signInCoordinator = SafariSignInCoordinator()
     private var routingState = CompanionRoutingState()
+    private var settingsRequestGeneration = 0
     private var isResolvingInitialRoute = true
     private var didFinishLaunching = false
 
@@ -81,8 +82,11 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
     /// Resolves account state before presenting Settings or onboarding.
     func showSettingsWindow() {
+        settingsRequestGeneration += 1
+        let requestGeneration = settingsRequestGeneration
         Task { @MainActor in
             let state = await TeakSafariService.shared.authState()
+            guard requestGeneration == self.settingsRequestGeneration else { return }
             if CompanionRoute.resolve(from: state) == .library {
                 self.presentSettings(state: state)
             } else {
@@ -125,6 +129,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     private func resolveAndPresentRoute() {
+        settingsRequestGeneration += 1
         if signInCoordinator.isAuthenticating {
             routingState.preserveAuthenticationPresentation()
             NSApplication.shared.activate(ignoringOtherApps: true)
@@ -168,6 +173,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         controller.renderAccountState(state)
         window.makeKeyAndOrderFront(nil)
         onboardingWindowController?.window?.orderOut(nil)
+        libraryWindowController?.window?.orderOut(nil)
         finishInitialRouteIfNeeded()
     }
 
@@ -186,6 +192,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     private func presentAuthoritativeOnboarding(state: [String: Any]) {
+        settingsRequestGeneration += 1
         routingState.invalidatePendingResolution()
         presentOnboarding(state: state)
     }
@@ -207,7 +214,8 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         NSApplication.shared.activate(ignoringOtherApps: true)
         controller.present()
         settingsWindow?.orderOut(nil)
-        libraryWindowController?.window?.orderOut(nil)
+        libraryWindowController?.window?.close()
+        libraryWindowController = nil
         finishInitialRouteIfNeeded()
     }
 

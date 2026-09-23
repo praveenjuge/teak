@@ -71,6 +71,7 @@ describe("publicApiHttp card endpoints", () => {
           content: "https://example.com",
           createdAt: 1,
           updatedAt: 2,
+          storageKey: "private-object-key",
           colors: [{ hex: "#112233", name: "Ink", rgb: { r: 1, g: 2, b: 3 } }],
           aiTranscript: "Transcript",
           linkPreviewMedia: [

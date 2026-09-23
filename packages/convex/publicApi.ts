@@ -239,17 +239,23 @@ const searchCardsByQuery = async (
     desiredLimit + 20
   );
 
-  const unique = (
-    await searchCardsByDocument(ctx, {
-      userId,
-      searchQuery,
-      isDeleted: undefined,
-      isFavorited: options.favorited,
-      type: options.type,
-      limit: searchLimit,
-      resultFilter: (card) => matchesStructuredFilters(card, options),
-    })
-  ).filter((card) => matchesStructuredFilters(card, options));
+  const typeGroups = options.types ?? [options.type];
+  const found = await Promise.all(
+    typeGroups.map((type) =>
+      searchCardsByDocument(ctx, {
+        userId,
+        searchQuery,
+        isDeleted: undefined,
+        isFavorited: options.favorited,
+        type,
+        limit: searchLimit,
+        resultFilter: (card) => matchesStructuredFilters(card, options),
+      })
+    )
+  );
+  const unique = Array.from(
+    new Map(found.flat().map((card) => [card._id, card] as const)).values()
+  );
 
   return sortCards(unique, normalizeSort(options.sort));
 };
@@ -272,20 +278,26 @@ const searchCardsByTag = async (
     desiredLimit + 20
   );
 
-  const unique = (
-    await searchCardsByExactTag(ctx, {
-      userId,
-      tag,
-      isDeleted: undefined,
-      isFavorited: options.favorited,
-      type: options.type,
-      createdAfter: options.createdAfter,
-      createdBefore: options.createdBefore,
-      limit: searchLimit,
-      sort: normalizeSort(options.sort),
-      resultFilter: (card) => matchesStructuredFilters(card, options),
-    })
-  ).filter((card) => matchesStructuredFilters(card, options));
+  const typeGroups = options.types ?? [options.type];
+  const found = await Promise.all(
+    typeGroups.map((type) =>
+      searchCardsByExactTag(ctx, {
+        userId,
+        tag,
+        isDeleted: undefined,
+        isFavorited: options.favorited,
+        type,
+        createdAfter: options.createdAfter,
+        createdBefore: options.createdBefore,
+        limit: searchLimit,
+        sort: normalizeSort(options.sort),
+        resultFilter: (card) => matchesStructuredFilters(card, options),
+      })
+    )
+  );
+  const unique = Array.from(
+    new Map(found.flat().map((card) => [card._id, card] as const)).values()
+  );
 
   return sortCards(unique, normalizeSort(options.sort));
 };
@@ -440,7 +452,7 @@ const normalizeCardsQueryOptions = (args: {
     sort: normalizeSort(args.sort),
     tag: normalizeTag(args.tag),
     type: args.type,
-    types: args.types,
+    types: args.types?.length ? args.types : undefined,
   };
 
   if (
