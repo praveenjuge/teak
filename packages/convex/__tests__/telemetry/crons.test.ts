@@ -38,10 +38,18 @@ describe("Sentry cron monitoring", () => {
       }),
       expect.objectContaining({
         checkinMarginMinutes: 15,
+        failureIssueThreshold: 2,
         schedule: "*/15 * * * *",
         slug: "ensure-oauth-clients",
       }),
     ]);
+  });
+
+  test("only sub-hourly monitors tolerate a single failed check-in", () => {
+    const tolerant = Object.values(CRON_MONITORS)
+      .filter((monitor) => (monitor.failureIssueThreshold ?? 1) > 1)
+      .map((monitor) => monitor.slug);
+    expect(tolerant).toEqual(["ensure-oauth-clients"]);
   });
 
   test("routes all eight schedules through monitored Node actions", () => {
