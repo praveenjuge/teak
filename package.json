@@ -1,6 +1,6 @@
 {
   "name": "teak",
-  "version": "1.0.71",
+  "version": "1.0.72",
   "private": true,
   "workspaces": [
     "apps/*",
