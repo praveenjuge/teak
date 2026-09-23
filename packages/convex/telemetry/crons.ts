@@ -55,7 +55,9 @@ export const CRON_MONITORS = {
     checkinMarginMinutes: 15,
     // Runs every 15 minutes and finishes in about a second. A single lost
     // completion check-in shows up as a timeout even when the job succeeded,
-    // so require two failures in a row (about 30 minutes) before paging.
+    // so require two failures in a row before paging. With a 5-minute max
+    // runtime, a real outage still opens an issue about 20 minutes after the
+    // first failed run starts.
     failureIssueThreshold: 2,
     maxRuntimeMinutes: 5,
     schedule: "*/15 * * * *",
