@@ -10,6 +10,15 @@ import SafariServices
 
 let extensionBundleIdentifier = "com.praveenjuge.teak-safari.Extension"
 
+private final class SettingsTabsController: NSTabViewController {
+    var onSelectionChanged: (() -> Void)?
+
+    override func tabView(_ tabView: NSTabView, didSelect tabViewItem: NSTabViewItem?) {
+        super.tabView(tabView, didSelect: tabViewItem)
+        onSelectionChanged?()
+    }
+}
+
 /// Hosts the Settings and About tabs in a toolbar-styled tab controller,
 /// matching the standard macOS app settings window.
 final class ViewController: NSViewController {
@@ -20,27 +29,24 @@ final class ViewController: NSViewController {
     var onSignedOut: (([String: Any]) -> Void)?
     var onAuthenticationRequired: (([String: Any]) -> Void)?
 
-    private lazy var tabViewController: NSTabViewController = {
+    private lazy var tabViewController: SettingsTabsController = {
         let settingsItem = NSTabViewItem(viewController: settingsViewController)
         settingsItem.label = "Settings"
         settingsItem.image = NSImage(systemSymbolName: "gearshape", accessibilityDescription: "Settings")
         let aboutItem = NSTabViewItem(viewController: aboutViewController)
         aboutItem.label = "About"
         aboutItem.image = NSImage(systemSymbolName: "info.circle", accessibilityDescription: "About")
-        let tabs = NSTabViewController()
+        let tabs = SettingsTabsController()
         tabs.tabStyle = .toolbar
         tabs.addTabViewItem(settingsItem)
         tabs.addTabViewItem(aboutItem)
+        tabs.onSelectionChanged = { [weak self] in self?.resizeForSelectedTab() }
         return tabs
     }()
 
     override func viewDidAppear() {
         super.viewDidAppear()
-        if let window = view.window {
-            window.setContentSize(NSSize(width: 460, height: 344))
-            window.minSize = window.frame.size
-            window.maxSize = window.frame.size
-        }
+        resizeForSelectedTab()
     }
 
     override func viewDidLoad() {
@@ -59,7 +65,7 @@ final class ViewController: NSViewController {
         }
         // Fixed pane size: without it the tab controller stretches the window
         // to each tab's fitting width (the About paragraph unwraps to 1200+pt).
-        settingsViewController.preferredContentSize = NSSize(width: 460, height: 344)
+        settingsViewController.preferredContentSize = NSSize(width: 460, height: 370)
         aboutViewController.preferredContentSize = NSSize(width: 460, height: 344)
         addChild(tabViewController)
         tabViewController.view.translatesAutoresizingMaskIntoConstraints = false
@@ -70,6 +76,16 @@ final class ViewController: NSViewController {
             tabViewController.view.topAnchor.constraint(equalTo: view.topAnchor),
             tabViewController.view.bottomAnchor.constraint(equalTo: view.bottomAnchor),
         ])
+    }
+
+    private func resizeForSelectedTab() {
+        guard let window = view.window else { return }
+        window.minSize = .zero
+        window.maxSize = NSSize(width: 10_000, height: 10_000)
+        let height: CGFloat = tabViewController.selectedTabViewItemIndex == 0 ? 370 : 344
+        window.setContentSize(NSSize(width: 460, height: height))
+        window.minSize = window.frame.size
+        window.maxSize = window.frame.size
     }
 
     /// Starts OAuth from the Settings fallback account action.
@@ -97,12 +113,15 @@ final class SettingsViewController: NSViewController {
     var onAuthenticationRequired: (([String: Any]) -> Void)?
 
     private let accountStatusLabel = NSTextField(labelWithString: "Checking account…")
+    private let emailLabel = NSTextField(labelWithString: "Checking…")
+    private let usageLabel = NSTextField(labelWithString: "Checking…")
     private let signInButton = NSButton(title: "Sign In", target: nil, action: #selector(startSignInFromButton))
     private let signOutButton = NSButton(title: "Sign Out", target: nil, action: #selector(signOutFromButton))
     private let spinner = NSProgressIndicator()
     private let extensionStatusLabel = NSTextField(labelWithString: "Checking extension…")
     private let openSettingsButton = NSButton(title: "Open Safari Settings…", target: nil, action: #selector(openSafariExtensionPreferences))
     private let menuBarToggle = NSButton(checkboxWithTitle: "Show Teak in the menu bar", target: nil, action: #selector(menuBarToggleChanged))
+    private let appearancePicker = NSPopUpButton()
     private var isSignedIn = false
     private var isSigningIn = false
     private var isSigningOut = false
@@ -120,6 +139,11 @@ final class SettingsViewController: NSViewController {
         signOutButton.target = self
         openSettingsButton.target = self
         menuBarToggle.target = self
+        appearancePicker.target = self
+        appearancePicker.action = #selector(appearanceChanged)
+        appearancePicker.addItems(withTitles: CompanionAppearance.allCases.map(\.rawValue))
+        appearancePicker.selectItem(withTitle: CompanionAppearance.selected.rawValue)
+        appearancePicker.setAccessibilityLabel("Appearance")
         menuBarToggle.state = MenuBarController.isEnabled ? .on : .off
         signInButton.bezelStyle = .rounded
         signOutButton.bezelStyle = .rounded
@@ -131,34 +155,72 @@ final class SettingsViewController: NSViewController {
         spinner.startAnimation(nil)
         signInButton.isEnabled = false
 
+        for label in [emailLabel, usageLabel] {
+            label.font = .systemFont(ofSize: 13)
+            label.textColor = .labelColor
+        }
+        emailLabel.isSelectable = true
+        emailLabel.lineBreakMode = .byTruncatingMiddle
+        emailLabel.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
+
         let statusRow = NSStackView(views: [spinner, accountStatusLabel])
         statusRow.orientation = .horizontal
         statusRow.alignment = .centerY
         statusRow.spacing = 6
-        accountStatusLabel.lineBreakMode = .byWordWrapping
-        accountStatusLabel.maximumNumberOfLines = 2
+        statusRow.detachesHiddenViews = true
+        accountStatusLabel.font = .systemFont(ofSize: 13)
+        accountStatusLabel.textColor = .secondaryLabelColor
+        accountStatusLabel.lineBreakMode = .byTruncatingTail
         accountStatusLabel.setContentHuggingPriority(.init(1), for: .horizontal)
-        extensionStatusLabel.lineBreakMode = .byWordWrapping
-        extensionStatusLabel.maximumNumberOfLines = 2
+        extensionStatusLabel.font = .systemFont(ofSize: 13)
+        extensionStatusLabel.textColor = .secondaryLabelColor
+        extensionStatusLabel.lineBreakMode = .byTruncatingTail
+        extensionStatusLabel.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
 
         let accountButtons = NSStackView(views: [signInButton, signOutButton])
         accountButtons.orientation = .horizontal
         accountButtons.spacing = 8
 
-        let separator = NSBox()
-        separator.boxType = .separator
+        let accountSpacer = NSView()
+        accountSpacer.setContentHuggingPriority(.init(1), for: .horizontal)
+        let accountFooter = NSStackView(views: [statusRow, accountSpacer, accountButtons])
+        accountFooter.orientation = .horizontal
+        accountFooter.alignment = .centerY
+        accountFooter.spacing = 10
 
-        let menuSeparator = NSBox()
-        menuSeparator.boxType = .separator
+        let accountGrid = NSGridView(views: [
+            [Self.rowLabel("Email"), emailLabel],
+            [Self.rowLabel("Usage"), usageLabel],
+        ])
+        accountGrid.columnSpacing = 12
+        accountGrid.rowSpacing = 12
+        accountGrid.column(at: 0).width = 94
+
+        let extensionRow = NSStackView(views: [extensionStatusLabel, openSettingsButton])
+        extensionRow.orientation = .horizontal
+        extensionRow.alignment = .centerY
+        extensionRow.spacing = 12
+
+        let appearanceGrid = NSGridView(views: [
+            [Self.rowLabel("Appearance"), appearancePicker],
+        ])
+        appearanceGrid.columnSpacing = 12
+        appearanceGrid.column(at: 0).width = 94
+
+        let separator = Self.separator()
+        let appearanceSeparator = Self.separator()
+        let menuSeparator = Self.separator()
 
         let stack = NSStackView(views: [
             Self.sectionLabel("Account"),
-            statusRow,
-            accountButtons,
+            accountGrid,
+            accountFooter,
             separator,
             Self.sectionLabel("Safari Extension"),
-            extensionStatusLabel,
-            openSettingsButton,
+            extensionRow,
+            appearanceSeparator,
+            Self.sectionLabel("Appearance"),
+            appearanceGrid,
             menuSeparator,
             Self.sectionLabel("Menu Bar"),
             menuBarToggle,
@@ -166,10 +228,13 @@ final class SettingsViewController: NSViewController {
         stack.orientation = .vertical
         stack.alignment = .leading
         stack.spacing = 8
-        stack.setCustomSpacing(12, after: accountButtons)
-        stack.setCustomSpacing(12, after: separator)
-        stack.setCustomSpacing(12, after: openSettingsButton)
-        stack.setCustomSpacing(12, after: menuSeparator)
+        stack.setCustomSpacing(12, after: accountGrid)
+        stack.setCustomSpacing(14, after: accountFooter)
+        stack.setCustomSpacing(14, after: separator)
+        stack.setCustomSpacing(14, after: extensionRow)
+        stack.setCustomSpacing(14, after: appearanceSeparator)
+        stack.setCustomSpacing(14, after: appearanceGrid)
+        stack.setCustomSpacing(14, after: menuSeparator)
         stack.translatesAutoresizingMaskIntoConstraints = false
         view.addSubview(stack)
         NSLayoutConstraint.activate([
@@ -177,11 +242,12 @@ final class SettingsViewController: NSViewController {
             stack.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -20),
             stack.topAnchor.constraint(equalTo: view.topAnchor, constant: 16),
             stack.bottomAnchor.constraint(lessThanOrEqualTo: view.bottomAnchor, constant: -16),
-            // The stack's leading alignment leaves rows at their fitting size;
-            // stretch the full-width rows so labels wrap and the rule spans.
-            statusRow.widthAnchor.constraint(equalTo: stack.widthAnchor),
+            accountGrid.widthAnchor.constraint(equalTo: stack.widthAnchor),
+            accountFooter.widthAnchor.constraint(equalTo: stack.widthAnchor),
             separator.widthAnchor.constraint(equalTo: stack.widthAnchor),
-            extensionStatusLabel.widthAnchor.constraint(equalTo: stack.widthAnchor),
+            extensionRow.widthAnchor.constraint(equalTo: stack.widthAnchor),
+            appearanceSeparator.widthAnchor.constraint(equalTo: stack.widthAnchor),
+            appearanceGrid.widthAnchor.constraint(equalTo: stack.widthAnchor),
             menuSeparator.widthAnchor.constraint(equalTo: stack.widthAnchor),
         ])
     }
@@ -214,6 +280,20 @@ final class SettingsViewController: NSViewController {
         return label
     }
 
+    private static func rowLabel(_ text: String) -> NSTextField {
+        let label = NSTextField(labelWithString: text)
+        label.font = .systemFont(ofSize: 13)
+        label.textColor = .secondaryLabelColor
+        label.alignment = .right
+        return label
+    }
+
+    private static func separator() -> NSBox {
+        let box = NSBox()
+        box.boxType = .separator
+        return box
+    }
+
     private func nextAccountStateGeneration() -> Int {
         accountStateGeneration += 1
         return accountStateGeneration
@@ -237,21 +317,32 @@ final class SettingsViewController: NSViewController {
     ) {
         if let authenticated = state["authenticated"] as? Bool {
             isSignedIn = authenticated
+            if !authenticated { _ = nextAccountStateGeneration() }
+        }
+        if isSignedIn {
+            refreshAccountSummary()
+        } else {
+            emailLabel.stringValue = "Not available"
+            usageLabel.stringValue = "Not available"
+            emailLabel.toolTip = nil
         }
         if let message = state["message"] as? String {
             accountStatusLabel.stringValue = message
         } else {
             accountStatusLabel.stringValue = isSignedIn ? "Ready to save pages." : "Sign in to save pages."
         }
+        accountStatusLabel.toolTip = accountStatusLabel.stringValue
         signInButton.isHidden = isSignedIn
         signOutButton.isHidden = !isSignedIn
         let accountStatus = (state["status"] as? String).flatMap(SafariAccountStatus.init(rawValue:))
         let busy = accountStatus == .waiting
         isSigningIn = busy
         if busy {
+            spinner.isHidden = false
             spinner.startAnimation(nil)
         } else {
             spinner.stopAnimation(nil)
+            spinner.isHidden = true
         }
         signInButton.isEnabled = !busy
         signOutButton.isEnabled = !busy
@@ -265,14 +356,41 @@ final class SettingsViewController: NSViewController {
         }
     }
 
+    private func refreshAccountSummary() {
+        // Supersede any in-flight summary so a slower older response cannot
+        // overwrite newer account data.
+        let generation = nextAccountStateGeneration()
+        emailLabel.stringValue = "Checking…"
+        usageLabel.stringValue = "Checking…"
+        emailLabel.toolTip = nil
+        Task { @MainActor in
+            do {
+                let summary = try await TeakSafariService.shared.accountSummary()
+                guard generation == self.accountStateGeneration, self.isSignedIn else { return }
+                let email = summary.email?.trimmingCharacters(in: .whitespacesAndNewlines)
+                self.emailLabel.stringValue = email.flatMap { $0.isEmpty ? nil : $0 } ?? "Not available"
+                self.emailLabel.toolTip = email
+                let unit = summary.cardCount == 1 ? "card" : "cards"
+                self.usageLabel.stringValue = "\(NumberFormatter.localizedString(from: NSNumber(value: summary.cardCount), number: .decimal)) \(unit)"
+            } catch SafariServiceError.unauthenticated {
+                guard generation == self.accountStateGeneration else { return }
+                self.renderAccountState(["authenticated": false, "status": SafariAccountStatus.signedOut.rawValue])
+            } catch {
+                guard generation == self.accountStateGeneration else { return }
+                self.emailLabel.stringValue = "Unavailable"
+                self.usageLabel.stringValue = "Unavailable"
+            }
+        }
+    }
+
     private func refreshExtensionState() {
         SFSafariExtensionManager.getStateOfSafariExtension(withIdentifier: extensionBundleIdentifier) { [weak self] state, _ in
             DispatchQueue.main.async {
                 guard let self else { return }
                 if let state {
                     self.extensionStatusLabel.stringValue = state.isEnabled
-                        ? "Teak for Safari is on — save pages from the Safari toolbar."
-                        : "Teak for Safari is off — turn it on in Safari Settings."
+                        ? "Enabled in Safari"
+                        : "Turn on in Safari Settings"
                 } else {
                     self.extensionStatusLabel.stringValue = "Couldn’t check the extension state."
                 }
@@ -317,6 +435,12 @@ final class SettingsViewController: NSViewController {
     @objc private func menuBarToggleChanged() {
         MenuBarController.isEnabled = menuBarToggle.state == .on
         (NSApp.delegate as? AppDelegate)?.refreshMenuBar()
+    }
+
+    @objc private func appearanceChanged() {
+        guard let title = appearancePicker.selectedItem?.title,
+              let choice = CompanionAppearance(rawValue: title) else { return }
+        CompanionAppearance.selected = choice
     }
 
     @objc private func openSafariExtensionPreferences() {

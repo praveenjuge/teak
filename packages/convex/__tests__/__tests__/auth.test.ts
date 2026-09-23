@@ -657,7 +657,7 @@ describe("auth", () => {
 
       addUsageRecord(ctx, 0, false);
       const result = await getCardCreationStatusHandler(ctx);
-      expect(take).toHaveBeenCalledWith(FREE_TIER_LIMIT);
+      expect(take).toHaveBeenCalledWith(FREE_TIER_LIMIT + 1);
       expect(result).toEqual({
         hasPremium: false,
         canCreateCard: false,

@@ -4,10 +4,12 @@ import {
   type ActionCtx,
   action,
   internalMutation,
+  internalQuery,
   type MutationCtx,
   type QueryCtx,
   query,
 } from "./_generated/server";
+import { getActiveCardCount } from "./card/cardUsage";
 import { isFirstPartyOAuthClientId } from "./oauthClients";
 import { currentSession, getSessionIdentity } from "./securitySessions";
 
@@ -24,6 +26,24 @@ const OAUTH_TOKEN_PATTERN = /^[A-Za-z0-9]{32}$/;
 
 export const isWellFormedOAuthToken = (token: string): boolean =>
   OAUTH_TOKEN_PATTERN.test(token);
+
+// Single canonical parser for the opaque OAuth Bearer scheme shared by the
+// userinfo and Safari account-summary HTTP actions. The scheme match is
+// case-insensitive per RFC 7235 and tolerates surrounding OWS plus repeated
+// inner whitespace (mirroring parseBearerToken); the captured token is the
+// verbatim client-sent substring and still passes through
+// isWellFormedOAuthToken plus a fail-closed adapter lookup.
+const OAUTH_BEARER_PATTERN = /^\s*Bearer\s+([A-Za-z0-9]{32})\s*$/i;
+
+export const parseOAuthBearerToken = (request: Request): string | null =>
+  request.headers.get("authorization")?.match(OAUTH_BEARER_PATTERN)?.[1] ??
+  null;
+
+export const oauthBearerResponse = (payload: unknown): Response =>
+  Response.json(payload ?? { error: "invalid_token" }, {
+    status: payload ? 200 : 401,
+    headers: { "Cache-Control": "no-store" },
+  });
 
 // Better Auth's oidc-provider schema stores the opaque OAuth tokens on the
 // `oauthAccessToken` model under the string field `accessToken` (paired with
@@ -54,6 +74,11 @@ const oauthUserInfoValidator = v.union(
     name: v.optional(v.string()),
     sub: v.string(),
   }),
+  v.null()
+);
+
+const safariAccountSummaryValidator = v.union(
+  v.object({ email: v.optional(v.string()), cardCount: v.number() }),
   v.null()
 );
 
@@ -133,6 +158,50 @@ const hasApprovedClientAccess = async (
     .every((scope) => grantedScopes.has(scope));
 };
 
+interface ResolvedOAuthAccessRecord {
+  clientId: string;
+  record: OAuthAccessTokenRecord;
+  userId: string;
+}
+
+/**
+ * Shared fail-closed preamble for opaque OAuth access-token validators:
+ * structural shape, adapter lookup, expiry, and non-empty user/client ids.
+ * Consent checks and response shaping stay with each caller.
+ */
+const resolveOAuthAccessRecord = async (
+  ctx: MutationCtx | QueryCtx,
+  token: string
+): Promise<ResolvedOAuthAccessRecord | null> => {
+  const trimmed = token.trim();
+  if (!isWellFormedOAuthToken(trimmed)) {
+    return null;
+  }
+
+  const record = await findOAuthAccessToken(ctx, trimmed);
+  if (!record) {
+    return null;
+  }
+
+  const expiresAt = record.accessTokenExpiresAt;
+  if (typeof expiresAt !== "number" || expiresAt <= Date.now()) {
+    return null;
+  }
+
+  const userId = record.userId;
+  const clientId = record.clientId;
+  if (
+    typeof userId !== "string" ||
+    !userId ||
+    typeof clientId !== "string" ||
+    !clientId
+  ) {
+    return null;
+  }
+
+  return { record, userId, clientId };
+};
+
 /**
  * Resolve a Teak user from an opaque OAuth access token.
  *
@@ -144,31 +213,11 @@ export const validateOAuthAccessToken = internalMutation({
   args: { token: v.string() },
   returns: validatedOAuthTokenValidator,
   handler: async (ctx, args) => {
-    const token = args.token.trim();
-    if (!isWellFormedOAuthToken(token)) {
+    const resolved = await resolveOAuthAccessRecord(ctx, args.token);
+    if (!resolved) {
       return null;
     }
-
-    const record = await findOAuthAccessToken(ctx, token);
-    if (!record) {
-      return null;
-    }
-
-    const expiresAt = record.accessTokenExpiresAt;
-    if (typeof expiresAt !== "number" || expiresAt <= Date.now()) {
-      return null;
-    }
-
-    const userId = record.userId;
-    const clientId = record.clientId;
-    if (
-      typeof userId !== "string" ||
-      !userId ||
-      typeof clientId !== "string" ||
-      !clientId
-    ) {
-      return null;
-    }
+    const { record, userId, clientId } = resolved;
 
     if (!(await userExists(ctx, userId))) {
       return null;
@@ -192,31 +241,11 @@ export const getOAuthUserInfo = query({
   args: { token: v.string() },
   returns: oauthUserInfoValidator,
   handler: async (ctx, args) => {
-    const token = args.token.trim();
-    if (!isWellFormedOAuthToken(token)) {
+    const resolved = await resolveOAuthAccessRecord(ctx, args.token);
+    if (!resolved) {
       return null;
     }
-
-    const record = await findOAuthAccessToken(ctx, token);
-    if (!record) {
-      return null;
-    }
-
-    const expiresAt = record.accessTokenExpiresAt;
-    if (typeof expiresAt !== "number" || expiresAt <= Date.now()) {
-      return null;
-    }
-
-    const userId = record.userId;
-    const clientId = record.clientId;
-    if (
-      typeof userId !== "string" ||
-      !userId ||
-      typeof clientId !== "string" ||
-      !clientId
-    ) {
-      return null;
-    }
+    const { record, userId, clientId } = resolved;
 
     if (!(await hasApprovedClientAccess(ctx, record, userId, clientId))) {
       return null;
@@ -234,6 +263,25 @@ export const getOAuthUserInfo = query({
         ? { email_verified: user.emailVerified }
         : {}),
       ...(typeof user.name === "string" ? { name: user.name } : {}),
+    };
+  },
+});
+
+export const getSafariAccountSummary = internalQuery({
+  args: { token: v.string() },
+  returns: safariAccountSummaryValidator,
+  handler: async (ctx, args) => {
+    const resolved = await resolveOAuthAccessRecord(ctx, args.token);
+    if (resolved?.clientId !== "teak-safari") {
+      return null;
+    }
+    const user = await findAuthUser(ctx, resolved.userId);
+    if (!user) {
+      return null;
+    }
+    return {
+      ...(typeof user.email === "string" ? { email: user.email } : {}),
+      cardCount: await getActiveCardCount(ctx, resolved.userId),
     };
   },
 });

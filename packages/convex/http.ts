@@ -21,6 +21,7 @@ import {
 } from "./publicApiHttp";
 import { discoveryV1, healthzV1, v1CorsPreflight } from "./publicApiMeta";
 import { openApiV1 } from "./publicApiOpenApi";
+import { safariAccountSummary } from "./safariAccountSummary";
 
 const http = httpRouter();
 
@@ -28,6 +29,12 @@ http.route({
   path: "/api/oauth/userinfo",
   method: "GET",
   handler: oauthUserInfo,
+});
+
+http.route({
+  path: "/api/safari/account-summary",
+  method: "GET",
+  handler: safariAccountSummary,
 });
 
 // Register the webhook handler at /polar/events

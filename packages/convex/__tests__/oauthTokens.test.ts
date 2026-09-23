@@ -4,8 +4,13 @@ import { describe, expect, mock, test } from "bun:test";
 import {
   getOAuthConsentRequest,
   getOAuthUserInfo,
+  getSafariAccountSummary,
   isWellFormedOAuthToken,
   listOAuthConnections,
+  OAUTH_ACCESS_TOKEN_FIELD,
+  OAUTH_ACCESS_TOKEN_MODEL,
+  oauthBearerResponse,
+  parseOAuthBearerToken,
   revokeOAuthConnection,
   validateOAuthAccessToken,
 } from "../oauthTokens";
@@ -36,6 +41,55 @@ describe("isWellFormedOAuthToken", () => {
     expect(
       isWellFormedOAuthToken(`teakapi_secret_live_a1b2c3d4_${"f".repeat(64)}`)
     ).toBe(false);
+  });
+});
+
+describe("parseOAuthBearerToken", () => {
+  const token = "c".repeat(32);
+  const requestWith = (authorization?: string) =>
+    new Request(
+      "https://example.com",
+      authorization === undefined ? undefined : { headers: { authorization } }
+    );
+
+  test("accepts exact and whitespace-padded Bearer credentials", () => {
+    for (const authorization of [
+      `Bearer ${token}`,
+      `bearer ${token}`,
+      `  Bearer ${token}  `,
+      `Bearer  ${token}`,
+      `Bearer\t${token}`,
+    ]) {
+      expect(parseOAuthBearerToken(requestWith(authorization))).toBe(token);
+    }
+  });
+
+  test("rejects missing, malformed, and non-Bearer credentials", () => {
+    expect(parseOAuthBearerToken(requestWith())).toBeNull();
+    for (const authorization of [
+      "",
+      "Bearer",
+      "Bearer short",
+      `Bearer ${token}x`,
+      `Basic ${token}`,
+      `Bearer ${token} extra`,
+    ]) {
+      expect(parseOAuthBearerToken(requestWith(authorization))).toBeNull();
+    }
+  });
+});
+
+describe("oauthBearerResponse", () => {
+  test("renders payloads as 200 JSON and null as a 401 invalid_token", async () => {
+    const ok = oauthBearerResponse({ email: "hello@example.com" });
+    expect(ok.status).toBe(200);
+    expect(await ok.json()).toEqual({ email: "hello@example.com" });
+    expect(ok.headers.get("Cache-Control")).toBe("no-store");
+
+    const denied = oauthBearerResponse(null);
+    expect(denied.status).toBe(401);
+    expect(await denied.json()).toEqual({ error: "invalid_token" });
+    expect(denied.headers.get("Cache-Control")).toBe("no-store");
   });
 });
 
@@ -207,6 +261,72 @@ describe("getOAuthUserInfo", () => {
       )
     ).toBeNull();
     expect(malformedQuery).not.toHaveBeenCalled();
+  });
+});
+
+describe("getSafariAccountSummary", () => {
+  const token = "s".repeat(32);
+
+  test("returns the signed-in Safari user's email and active card count", async () => {
+    const runQuery = mock()
+      .mockResolvedValueOnce({
+        accessTokenExpiresAt: Date.now() + 60_000,
+        clientId: "teak-safari",
+        userId: "user_1",
+      })
+      .mockResolvedValueOnce({ _id: "user_1", email: "hello@example.com" });
+    const unique = mock().mockResolvedValue({
+      activeCardCount: 830,
+      isCountExact: true,
+    });
+    const withIndex = mock().mockReturnValue({ unique });
+    const db = { query: mock().mockReturnValue({ withIndex }) };
+
+    const summary = await runHandler(
+      getSafariAccountSummary,
+      { db, runQuery },
+      { token }
+    );
+
+    expect(summary).toEqual({ email: "hello@example.com", cardCount: 830 });
+    expect(runQuery).toHaveBeenCalledTimes(2);
+    expect(runQuery.mock.calls[0][1]).toEqual({
+      model: OAUTH_ACCESS_TOKEN_MODEL,
+      where: [
+        {
+          field: OAUTH_ACCESS_TOKEN_FIELD,
+          operator: "eq",
+          value: token,
+        },
+      ],
+    });
+    expect(runQuery.mock.calls[1][1]).toEqual({
+      model: "user",
+      where: [{ field: "_id", operator: "eq", value: "user_1" }],
+    });
+    expect(db.query).toHaveBeenCalledWith("userCardUsage");
+    expect(withIndex.mock.calls[0][0]).toBe("by_userId");
+    const indexCallback = withIndex.mock.calls[0][1];
+    const eq = mock().mockReturnValue({});
+    indexCallback({ eq });
+    expect(eq).toHaveBeenCalledWith("userId", "user_1");
+  });
+
+  test("rejects expired and other-client tokens before reading account data", async () => {
+    for (const clientId of ["teak-raycast", "teak-safari"]) {
+      const runQuery = mock().mockResolvedValueOnce({
+        accessTokenExpiresAt:
+          clientId === "teak-safari" ? Date.now() - 1 : Date.now() + 60_000,
+        clientId,
+        userId: "user_1",
+      });
+      const db = { query: mock() };
+      expect(
+        await runHandler(getSafariAccountSummary, { db, runQuery }, { token })
+      ).toBeNull();
+      expect(runQuery).toHaveBeenCalledTimes(1);
+      expect(db.query).not.toHaveBeenCalled();
+    }
   });
 });
 

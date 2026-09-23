@@ -7,6 +7,11 @@ enum SafariAccountStatus: String {
     case waiting
 }
 
+nonisolated struct SafariAccountSummary: Decodable, Sendable {
+    let email: String?
+    let cardCount: Int
+}
+
 actor TeakSafariService {
     static let shared = TeakSafariService()
     #if DEBUG
@@ -87,6 +92,23 @@ actor TeakSafariService {
         } catch {
             return errorResponse(error)
         }
+    }
+
+    func accountSummary() async throws -> SafariAccountSummary {
+        let token = try await accessToken()
+        var request = URLRequest(url: apiURL.appendingPathComponent("api/safari/account-summary"))
+        request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        let (data, response) = try await send(request)
+        if response.statusCode == 401 {
+            try await clearIfStale(token)
+            throw SafariServiceError.unauthenticated
+        }
+        guard response.statusCode == 200,
+              let summary = try? JSONDecoder().decode(SafariAccountSummary.self, from: data),
+              summary.cardCount >= 0 else {
+            throw SafariServiceError.message("Unable to load account details. Please try again.")
+        }
+        return summary
     }
 
     func completeSignIn(_ pending: SafariOAuthRequest, callback: URL) async -> [String: Any] {

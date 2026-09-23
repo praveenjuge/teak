@@ -7,6 +7,30 @@
 
 import Cocoa
 
+enum CompanionAppearance: String, CaseIterable {
+    case system = "System"
+    case light = "Light"
+    case dark = "Dark"
+
+    static let defaultsKey = "teak.appearance"
+
+    static var selected: CompanionAppearance {
+        get { CompanionAppearance(rawValue: UserDefaults.standard.string(forKey: defaultsKey) ?? "") ?? .system }
+        set {
+            UserDefaults.standard.set(newValue.rawValue, forKey: defaultsKey)
+            apply(newValue)
+        }
+    }
+
+    static func apply(_ choice: CompanionAppearance) {
+        switch choice {
+        case .system: NSApp.appearance = nil
+        case .light: NSApp.appearance = NSAppearance(named: .aqua)
+        case .dark: NSApp.appearance = NSAppearance(named: .darkAqua)
+        }
+    }
+}
+
 @main
 class AppDelegate: NSObject, NSApplicationDelegate {
     private var menuBar: MenuBarController?
@@ -19,6 +43,13 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     private var didFinishLaunching = false
 
     func applicationWillFinishLaunching(_ notification: Notification) {
+        // Register before the first preference read so launch-time activation
+        // policy never depends on an unregistered default.
+        UserDefaults.standard.register(defaults: [
+            MenuBarController.enabledDefaultsKey: false,
+            CompanionAppearance.defaultsKey: CompanionAppearance.system.rawValue,
+        ])
+        syncActivationPolicy()
         // The storyboard owns the Settings window, but account state owns
         // which window is allowed to appear. Keep it hidden until routing
         // resolves so signed-out launches never flash Settings first.
@@ -33,7 +64,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
            let icon = NSImage(contentsOf: iconURL) {
             NSApplication.shared.applicationIconImage = icon
         }
-        UserDefaults.standard.register(defaults: [MenuBarController.enabledDefaultsKey: false])
+        CompanionAppearance.apply(.selected)
         menuBar = MenuBarController()
         configureSettingsWindow()
         didFinishLaunching = true
@@ -185,6 +216,11 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     /// Syncs the menu bar item with its Settings toggle.
     func refreshMenuBar() {
         menuBar?.sync()
+        syncActivationPolicy()
+    }
+
+    private func syncActivationPolicy() {
+        NSApp.setActivationPolicy(MenuBarController.isEnabled ? .accessory : .regular)
     }
 
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {
