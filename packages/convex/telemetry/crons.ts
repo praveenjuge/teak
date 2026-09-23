@@ -53,6 +53,10 @@ export const CRON_MONITORS = {
   },
   ensureOauthClients: {
     checkinMarginMinutes: 15,
+    // Runs every 15 minutes and finishes in about a second. A single lost
+    // completion check-in shows up as a timeout even when the job succeeded,
+    // so require two failures in a row (about 30 minutes) before paging.
+    failureIssueThreshold: 2,
     maxRuntimeMinutes: 5,
     schedule: "*/15 * * * *",
     slug: "ensure-oauth-clients",
