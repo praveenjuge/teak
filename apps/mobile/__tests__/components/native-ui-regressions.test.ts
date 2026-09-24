@@ -30,6 +30,10 @@ const addUploadPath = join(
   (import.meta as any).dir,
   "../../../mobile/components/add/upload-file-actions-section.tsx"
 );
+const cardDetailPath = join(
+  (import.meta as any).dir,
+  "../../../mobile/app/(tabs)/(home)/card/[id].tsx"
+);
 
 test("home cards list keeps native refresh and link navigation without swipe delete", () => {
   const source = readFileSync(cardsGridPath, "utf8");
@@ -105,4 +109,12 @@ test("add flows no longer use save feedback sheet helpers", () => {
   expect(uploadSource.includes("showSavedFeedback")).toBe(false);
   expect(uploadSource.includes("showSavingFeedback")).toBe(false);
   expect(uploadSource.includes("showFailedFeedback")).toBe(false);
+});
+
+test("card sheet shows only a native spinner while loading", () => {
+  const source = readFileSync(cardDetailPath, "utf8");
+
+  expect(source).toContain("if (card === undefined)");
+  expect(source).toContain("<ProgressView />");
+  expect(source.includes("MobileCardSummaryPreview")).toBe(false);
 });

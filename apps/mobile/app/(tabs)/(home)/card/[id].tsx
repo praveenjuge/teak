@@ -11,7 +11,6 @@ import { useQuery } from "convex-helpers/react/cache/hooks";
 import { Stack, useLocalSearchParams } from "expo-router";
 import type { ReactNode } from "react";
 import { CardPreviewSheet } from "@/components/CardPreviewSheet";
-import { MobileCardSummaryPreview } from "@/components/MobileCardSummaryPreview";
 import { getRememberedMobileCardSummary } from "@/lib/mobile-card-summary-cache";
 
 export default function CardPreviewRoute() {
@@ -20,9 +19,7 @@ export default function CardPreviewRoute() {
   const card = useQuery(api.cards.getCard, { id: id as Id<"cards"> });
 
   let cardContent: ReactNode;
-  if (card === undefined && rememberedCard) {
-    cardContent = <MobileCardSummaryPreview summary={rememberedCard} />;
-  } else if (card === undefined) {
+  if (card === undefined) {
     cardContent = (
       <HStack alignment="center" spacing={0}>
         <Spacer />
