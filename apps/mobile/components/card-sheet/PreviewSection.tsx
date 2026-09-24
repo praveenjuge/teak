@@ -17,7 +17,7 @@ import {
 } from "@expo/ui/swift-ui/modifiers";
 import { useEvent } from "expo";
 import { setAudioModeAsync, useAudioPlayer } from "expo-audio";
-import { useCallback, useEffect } from "react";
+import { useCallback, useEffect, useMemo } from "react";
 import {
   FullHeightMedia,
   FullHeightPlaceholder,
@@ -58,7 +58,10 @@ function AudioPreviewRow({
   const isExtSupported = !(audioExt && unsupportedAudioExts.has(audioExt));
   const isSupported = isMimeSupported && isExtSupported;
 
-  const audioSource = audioUrl && isSupported ? { uri: audioUrl } : null;
+  const audioSource = useMemo(
+    () => (audioUrl && isSupported ? { uri: audioUrl } : null),
+    [audioUrl, isSupported]
+  );
   const player = useAudioPlayer(audioSource);
   const { playing: isPlaying, isLoaded } = useEvent(
     player,
@@ -208,6 +211,7 @@ function PreviewSection({ card, isOpen }: PreviewSectionProps) {
           <FullHeightMedia
             fallbackIcon="photo.on.rectangle.angled"
             fallbackLabel="Animated preview unavailable"
+            fallbackUri={videoPoster}
             height={COMPACT_PREVIEW_HEIGHT}
             primaryUri={card.fileUrl}
           />

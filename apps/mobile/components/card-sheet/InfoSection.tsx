@@ -1,4 +1,5 @@
 import { LabeledContent, Section } from "@expo/ui/swift-ui";
+import { font } from "@expo/ui/swift-ui/modifiers";
 import { SheetText } from "@/components/card-sheet/SheetText";
 import {
   type CardSheetDetail,
@@ -10,7 +11,10 @@ function InfoSection({ card }: { card: CardSheetDetail }) {
   const rows = getSheetDetailRows(card);
 
   return (
-    <Section title="Info">
+    <Section
+      modifiers={[font({ design: "rounded", weight: "medium" })]}
+      title="Info"
+    >
       {rows.map((row) => (
         <LabeledContent
           key={row.label}

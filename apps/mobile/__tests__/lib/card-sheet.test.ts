@@ -18,13 +18,18 @@ const baseCard = {
   userId: "user1",
 } as unknown as CardSheetDetail;
 
+// Fixed fixture: 2026-06-21T00:00:00Z. Keep the year assertions below in
+// sync if this timestamp ever changes.
+const FIXTURE_TIMESTAMP = 1_782_000_000_000;
+
 describe("formatSheetTimestamp", () => {
   test("formats a timestamp with date and time", () => {
-    const formatted = formatSheetTimestamp(1_782_000_000_000);
+    const formatted = formatSheetTimestamp(FIXTURE_TIMESTAMP);
 
     expect(typeof formatted).toBe("string");
     expect(formatted.length).toBeGreaterThan(0);
     expect(formatted).toContain("2026");
+    expect(formatted).toMatch(/\d{1,2}:\d{2}/);
   });
 });
 
@@ -90,6 +95,20 @@ describe("getSheetDetailRows", () => {
     expect(rows).toEqual([{ label: "Type", value: "Text" }]);
   });
 
+  test("includes the metadata description", () => {
+    const rows = getSheetDetailRows({
+      ...baseCard,
+      metadataDescription: "A great read.",
+      type: "link",
+      url: "https://example.com",
+    });
+
+    expect(rows).toContainEqual({
+      label: "Description",
+      value: "A great read.",
+    });
+  });
+
   test("drops file facts that duplicate the card type", () => {
     const rows = getSheetDetailRows({
       ...baseCard,
@@ -139,6 +158,12 @@ describe("getSheetCopyText", () => {
     expect(
       getSheetCopyText({ ...baseCard, content: "   ", type: "text" })
     ).toBeNull();
+  });
+
+  test("falls back to content when a link has no URL", () => {
+    expect(
+      getSheetCopyText({ ...baseCard, content: "note", type: "link" })
+    ).toBe("note");
   });
 });
 
@@ -197,5 +222,41 @@ describe("getSheetShareTarget", () => {
     expect(getSheetShareTarget({ ...baseCard, type: "image" })).toEqual({
       kind: "none",
     });
+  });
+
+  test("shares palette hexes as text", () => {
+    expect(
+      getSheetShareTarget({
+        ...baseCard,
+        colors: [{ hex: "#ff0000" }],
+        type: "palette",
+      })
+    ).toEqual({ item: "#ff0000", kind: "item" });
+  });
+
+  test("attaches the link title as share subject", () => {
+    expect(
+      getSheetShareTarget({
+        ...baseCard,
+        metadataTitle: "Example",
+        type: "link",
+        url: "https://example.com",
+      })
+    ).toEqual({
+      item: "https://example.com",
+      kind: "item",
+      subject: "Example",
+    });
+  });
+
+  test("refuses to share video thumbnails as the original file", () => {
+    expect(
+      getSheetShareTarget({
+        ...baseCard,
+        fileMetadata: { fileName: "clip.mp4" },
+        thumbnailUrl: "https://files.example/thumb.jpg",
+        type: "video",
+      })
+    ).toEqual({ kind: "none" });
   });
 });

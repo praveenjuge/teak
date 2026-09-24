@@ -194,13 +194,25 @@ export const getSheetShareTarget = (
       const copyText = getSheetCopyText(card);
       return copyText ? { item: copyText, kind: "item" } : { kind: "none" };
     }
-    default: {
+    case "image": {
+      // Thumbnails and screenshots are still images, so they stay valid
+      // shares when the original file URL is missing.
       const url =
-        card.fileUrl ??
-        card.thumbnailUrl ??
-        card.screenshotUrl ??
-        card.url ??
-        null;
+        card.fileUrl ?? card.thumbnailUrl ?? card.screenshotUrl ?? null;
+      if (!url) {
+        return { kind: "none" };
+      }
+      return {
+        fileName: buildDownloadFileName(url, card.fileMetadata?.fileName),
+        kind: "file",
+        url,
+      };
+    }
+    default: {
+      // Video, audio, and documents share only the original file: a
+      // thumbnail served under the original extension and MIME type
+      // would arrive as corrupt bytes.
+      const url = card.fileUrl ?? null;
       if (!url) {
         return { kind: "none" };
       }

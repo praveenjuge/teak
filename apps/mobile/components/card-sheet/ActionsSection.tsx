@@ -5,11 +5,12 @@ import {
   Section,
   ShareLink,
 } from "@expo/ui/swift-ui";
+import { font } from "@expo/ui/swift-ui/modifiers";
 import { api } from "@teak/convex";
 import { sanitizeExternalUrl } from "@teak/convex/shared/utils/safeUrl";
 import { useMutation } from "convex/react";
 import { useRouter } from "expo-router";
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Linking } from "react-native";
 import { SheetText } from "@/components/card-sheet/SheetText";
 import {
@@ -37,6 +38,13 @@ function ActionsSection({ card }: { card: CardSheetDetail }) {
   const [error, setError] = useState<string | null>(null);
 
   const isFavorited = favoriteOverride ?? card.isFavorited ?? false;
+
+  useEffect(() => {
+    if (favoriteOverride !== null && card.isFavorited === favoriteOverride) {
+      setFavoriteOverride(null);
+    }
+  }, [card.isFavorited, favoriteOverride]);
+
   const copyText = getSheetCopyText(card);
   const shareTarget = getSheetShareTarget(card);
   const linkUrl = card.type === "link" ? (card.url?.trim() ?? "") : "";
@@ -127,7 +135,10 @@ function ActionsSection({ card }: { card: CardSheetDetail }) {
   }, [card._id, clearError, router, showError, updateCardField]);
 
   return (
-    <Section title="Actions">
+    <Section
+      modifiers={[font({ design: "rounded", weight: "medium" })]}
+      title="Actions"
+    >
       <Button onPress={() => void handleToggleFavorite()}>
         <Label systemImage={isFavorited ? "star.fill" : "star"}>
           <SheetText>{isFavorited ? "Favorited" : "Favorite"}</SheetText>
