@@ -1,4 +1,6 @@
 import type { Doc } from "@teak/convex/_generated/dataModel";
+import { CARD_TYPE_LABELS } from "@teak/convex/shared/constants";
+import { inferFileFormat } from "@teak/convex/shared/file-formats";
 import { getMobileFilePreview } from "./files";
 
 export type CardSheetDetail = Doc<"cards"> & {
@@ -19,17 +21,6 @@ export type SheetShareTarget =
   | { fileName: string; kind: "file"; url: string };
 
 const WWW_PREFIX_REGEX = /^www\./;
-
-const TYPE_LABELS: Record<CardSheetDetail["type"], string> = {
-  audio: "Audio",
-  document: "Document",
-  image: "Image",
-  link: "Link",
-  palette: "Palette",
-  quote: "Quote",
-  text: "Text",
-  video: "Video",
-};
 
 const SIZE_UNITS = ["B", "KB", "MB", "GB"];
 
@@ -77,12 +68,36 @@ const decodeUrlSegment = (segment: string): string => {
   }
 };
 
+/**
+ * Strip path separators from an untrusted filename so it cannot escape
+ * the download directory. Returns null when nothing safe remains.
+ */
+const sanitizeFileName = (name: string): string | null => {
+  const trimmed = name.trim().replace(/[/\\]+/g, "_");
+  if (!trimmed || trimmed === "." || trimmed === "..") {
+    return null;
+  }
+  return trimmed;
+};
+
+const extensionForMimeType = (mimeType?: string): string => {
+  if (!mimeType) {
+    return "";
+  }
+  const format = inferFileFormat({ fileName: "download", mimeType });
+  return format ? `.${format.extension}` : "";
+};
+
 export const buildDownloadFileName = (
   url?: string | null,
-  fallback?: string
+  fallback?: string,
+  mimeType?: string
 ): string => {
   if (fallback) {
-    return fallback;
+    const safe = sanitizeFileName(fallback);
+    if (safe) {
+      return safe;
+    }
   }
 
   if (url) {
@@ -92,14 +107,17 @@ export const buildDownloadFileName = (
         .filter(Boolean)
         .pop();
       if (lastSegment) {
-        return decodeUrlSegment(lastSegment);
+        const safe = sanitizeFileName(decodeUrlSegment(lastSegment));
+        if (safe) {
+          return safe;
+        }
       }
     } catch {
       // Ignore parse errors and fall through to the generated name.
     }
   }
 
-  return `download-${Date.now()}`;
+  return `download-${Date.now()}${extensionForMimeType(mimeType)}`;
 };
 
 const getLinkHostname = (url?: string): string | null => {
@@ -116,7 +134,7 @@ const getLinkHostname = (url?: string): string | null => {
 
 export const getSheetDetailRows = (card: CardSheetDetail): SheetDetailRow[] => {
   const rows: SheetDetailRow[] = [
-    { label: "Type", value: TYPE_LABELS[card.type] },
+    { label: "Type", value: CARD_TYPE_LABELS[card.type] },
   ];
   const file = card.fileMetadata;
 
@@ -153,7 +171,7 @@ export const getSheetDetailRows = (card: CardSheetDetail): SheetDetailRow[] => {
     screenshotUrl: card.screenshotUrl,
     thumbnailUrl: card.thumbnailUrl,
   });
-  const typeLabel = TYPE_LABELS[card.type].toLowerCase();
+  const typeLabel = CARD_TYPE_LABELS[card.type].toLowerCase();
   const facts = preview.facts.filter(
     (fact) => fact.toLowerCase() !== typeLabel
   );
@@ -222,7 +240,11 @@ export const getSheetShareTarget = (
       return {
         fileName:
           url === card.fileUrl
-            ? buildDownloadFileName(url, card.fileMetadata?.fileName)
+            ? buildDownloadFileName(
+                url,
+                card.fileMetadata?.fileName,
+                card.fileMetadata?.mimeType
+              )
             : buildDownloadFileName(url),
         kind: "file",
         url,
@@ -237,7 +259,11 @@ export const getSheetShareTarget = (
         return { kind: "none" };
       }
       return {
-        fileName: buildDownloadFileName(url, card.fileMetadata?.fileName),
+        fileName: buildDownloadFileName(
+          url,
+          card.fileMetadata?.fileName,
+          card.fileMetadata?.mimeType
+        ),
         kind: "file",
         url,
       };

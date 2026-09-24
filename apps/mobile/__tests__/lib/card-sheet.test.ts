@@ -192,6 +192,22 @@ describe("buildDownloadFileName", () => {
     expect(buildDownloadFileName(null)).toMatch(/^download-\d+$/);
     expect(buildDownloadFileName("not a url")).toMatch(/^download-\d+$/);
   });
+
+  test("strips path separators from untrusted filenames", () => {
+    expect(buildDownloadFileName(null, "../../etc/passwd")).toBe(
+      ".._.._etc_passwd"
+    );
+    expect(buildDownloadFileName(null, "..")).toMatch(/^download-\d+$/);
+  });
+
+  test("derives a fallback extension from the MIME type", () => {
+    expect(buildDownloadFileName(null, undefined, "image/jpeg")).toMatch(
+      /^download-\d+\.jpg$/
+    );
+    expect(buildDownloadFileName(null, undefined, "unknown/type")).toMatch(
+      /^download-\d+$/
+    );
+  });
 });
 
 describe("getSheetShareTarget", () => {

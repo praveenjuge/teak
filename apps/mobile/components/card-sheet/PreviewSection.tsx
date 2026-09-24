@@ -8,6 +8,7 @@ import {
   VStack,
 } from "@expo/ui/swift-ui";
 import {
+  accessibilityLabel,
   buttonStyle,
   controlSize,
   cornerRadius,
@@ -118,6 +119,7 @@ function AudioPreviewRow({
           buttonStyle("bordered"),
           controlSize("large"),
           disabledModifier(!isLoaded),
+          accessibilityLabel(isPlaying ? "Pause" : "Play"),
         ]}
         onPress={handleToggle}
       >

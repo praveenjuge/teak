@@ -19,11 +19,11 @@ export const shareSheetFile = async (
   url: string,
   fileName: string
 ): Promise<void> => {
-  const uri = await downloadNativeFile(url, fileName, "cache");
-
   if (!(await Sharing.isAvailableAsync())) {
     throw new Error("Sharing is not available on this device.");
   }
+
+  const uri = await downloadNativeFile(url, fileName, "cache");
 
   await Sharing.shareAsync(uri, {
     ...getNativeShareOptions(fileName),
