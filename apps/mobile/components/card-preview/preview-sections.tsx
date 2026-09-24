@@ -12,16 +12,24 @@ import {
 import {
   buttonStyle,
   controlSize,
+  cornerRadius,
   disabled as disabledModifier,
   font,
   foregroundStyle,
   frame,
+  listRowInsets,
   padding,
 } from "@expo/ui/swift-ui/modifiers";
 import { useEvent } from "expo";
 import { Image as ExpoImage } from "expo-image";
 import { useVideoPlayer, VideoView } from "expo-video";
 import { useEffect, useState } from "react";
+
+const fullBleedMediaModifiers = (height: number) => [
+  frame({ height }),
+  listRowInsets({ bottom: 0, leading: 0, top: 0, trailing: 0 }),
+  cornerRadius(10),
+];
 
 export const FullHeightPlaceholder = ({
   icon,
@@ -98,11 +106,11 @@ export const FullHeightMedia = ({
   };
 
   return (
-    <ZStack modifiers={[frame({ height })]}>
+    <ZStack modifiers={fullBleedMediaModifiers(height)}>
       <RNHostView>
         <ExpoImage
           cachePolicy="memory-disk"
-          contentFit="contain"
+          contentFit="cover"
           enforceEarlyResizing
           onError={handleError}
           onLoadEnd={() => setIsLoading(false)}
@@ -309,12 +317,12 @@ export const VideoPreview = ({
   }, [isOpen, player]);
 
   return (
-    <ZStack modifiers={[frame({ height })]}>
+    <ZStack modifiers={fullBleedMediaModifiers(height)}>
       {posterUri && !hasStartedPlaying ? (
         <RNHostView>
           <ExpoImage
             cachePolicy="memory-disk"
-            contentFit="contain"
+            contentFit="cover"
             enforceEarlyResizing
             recyclingKey={posterUri}
             source={posterUri}
@@ -324,7 +332,7 @@ export const VideoPreview = ({
       ) : null}
       <RNHostView>
         <VideoView
-          contentFit="contain"
+          contentFit="cover"
           nativeControls
           player={player}
           style={{ height: "100%", width: "100%" }}
