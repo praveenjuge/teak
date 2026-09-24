@@ -196,14 +196,19 @@ export const getSheetShareTarget = (
     }
     case "image": {
       // Thumbnails and screenshots are still images, so they stay valid
-      // shares when the original file URL is missing.
+      // shares when the original file URL is missing. Fallback renditions
+      // are named from their own URL: the original filename may describe
+      // different bytes (e.g. photo.heic for a JPEG thumbnail).
       const url =
         card.fileUrl ?? card.thumbnailUrl ?? card.screenshotUrl ?? null;
       if (!url) {
         return { kind: "none" };
       }
       return {
-        fileName: buildDownloadFileName(url, card.fileMetadata?.fileName),
+        fileName:
+          url === card.fileUrl
+            ? buildDownloadFileName(url, card.fileMetadata?.fileName)
+            : buildDownloadFileName(url),
         kind: "file",
         url,
       };

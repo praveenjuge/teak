@@ -249,6 +249,21 @@ describe("getSheetShareTarget", () => {
     });
   });
 
+  test("names image fallbacks from their own URL", () => {
+    expect(
+      getSheetShareTarget({
+        ...baseCard,
+        fileMetadata: { fileName: "photo.heic" },
+        thumbnailUrl: "https://files.example/thumb.jpg",
+        type: "image",
+      })
+    ).toEqual({
+      fileName: "thumb.jpg",
+      kind: "file",
+      url: "https://files.example/thumb.jpg",
+    });
+  });
+
   test("refuses to share video thumbnails as the original file", () => {
     expect(
       getSheetShareTarget({
