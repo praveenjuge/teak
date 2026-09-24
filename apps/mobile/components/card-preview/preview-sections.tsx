@@ -25,6 +25,12 @@ import { Image as ExpoImage } from "expo-image";
 import { useVideoPlayer, VideoView } from "expo-video";
 import { useEffect, useState } from "react";
 
+const fullBleedMediaModifiers = (height: number) => [
+  frame({ height }),
+  listRowInsets({ bottom: 0, leading: 0, top: 0, trailing: 0 }),
+  cornerRadius(10),
+];
+
 export const FullHeightPlaceholder = ({
   icon,
   label,
@@ -100,13 +106,7 @@ export const FullHeightMedia = ({
   };
 
   return (
-    <ZStack
-      modifiers={[
-        frame({ height }),
-        listRowInsets({ bottom: 0, leading: 0, top: 0, trailing: 0 }),
-        cornerRadius(10),
-      ]}
-    >
+    <ZStack modifiers={fullBleedMediaModifiers(height)}>
       <RNHostView>
         <ExpoImage
           cachePolicy="memory-disk"
@@ -317,13 +317,7 @@ export const VideoPreview = ({
   }, [isOpen, player]);
 
   return (
-    <ZStack
-      modifiers={[
-        frame({ height }),
-        listRowInsets({ bottom: 0, leading: 0, top: 0, trailing: 0 }),
-        cornerRadius(10),
-      ]}
-    >
+    <ZStack modifiers={fullBleedMediaModifiers(height)}>
       {posterUri && !hasStartedPlaying ? (
         <RNHostView>
           <ExpoImage
