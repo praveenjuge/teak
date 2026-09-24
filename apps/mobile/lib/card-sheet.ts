@@ -62,6 +62,21 @@ export const formatSheetTimestamp = (value: number): string =>
     timeStyle: "short",
   }).format(new Date(value));
 
+/**
+ * Decode a URL path segment into a readable filename. Signed rendition
+ * URLs carry the whole encoded storage key as one segment, so decoding
+ * plus basename extraction turns `users%2F…%2Fuuid-photo.heic` back into
+ * `uuid-photo.heic`.
+ */
+const decodeUrlSegment = (segment: string): string => {
+  try {
+    const decoded = decodeURIComponent(segment);
+    return decoded.split("/").filter(Boolean).pop() ?? decoded;
+  } catch {
+    return segment;
+  }
+};
+
 export const buildDownloadFileName = (
   url?: string | null,
   fallback?: string
@@ -77,7 +92,7 @@ export const buildDownloadFileName = (
         .filter(Boolean)
         .pop();
       if (lastSegment) {
-        return lastSegment;
+        return decodeUrlSegment(lastSegment);
       }
     } catch {
       // Ignore parse errors and fall through to the generated name.

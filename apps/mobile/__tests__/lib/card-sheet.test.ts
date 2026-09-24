@@ -180,6 +180,14 @@ describe("buildDownloadFileName", () => {
     ).toBe("report.pdf");
   });
 
+  test("decodes signed rendition URLs to the embedded filename", () => {
+    expect(
+      buildDownloadFileName(
+        "https://files.example/files/image/grid/users%2Fabc%2Ffile%2Fuuid-photo.heic?exp=1&sig=2"
+      )
+    ).toBe("uuid-photo.heic");
+  });
+
   test("generates a download name when nothing is known", () => {
     expect(buildDownloadFileName(null)).toMatch(/^download-\d+$/);
     expect(buildDownloadFileName("not a url")).toMatch(/^download-\d+$/);
