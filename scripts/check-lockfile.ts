@@ -12,13 +12,7 @@
  *   under a Bun other than the `packageManager` pin CI uses.
  */
 import { spawnSync } from "node:child_process";
-import {
-  mkdirSync,
-  mkdtempSync,
-  readFileSync,
-  rmSync,
-  writeFileSync,
-} from "node:fs";
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 
@@ -72,9 +66,8 @@ export const runFrozenCheck = (dir: string): FrozenCheckResult => {
 };
 
 const main = (): number => {
-  const pinned = pinnedBunVersion(
-    readFileSync(join(ROOT, "package.json"), "utf-8")
-  );
+  // Read the staged pin: that is the Bun CI will use for this commit.
+  const pinned = pinnedBunVersion(git(["show", ":package.json"]));
   if (pinned && pinned !== Bun.version) {
     console.error(
       `bun.lock check needs Bun ${pinned} (package.json packageManager), found ${Bun.version}. ` +
