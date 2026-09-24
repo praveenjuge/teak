@@ -1,4 +1,5 @@
 import { defineConfig } from "blume";
+import { openapi } from "blume/reference";
 
 const devConvexSite =
   process.env.TEAK_DEV_API_URL?.trim() ||
@@ -62,10 +63,9 @@ export default defineConfig({
   },
   deployment: {
     // Keep static hosting (Ask AI needs server output).
-    output: "static",
     site: "https://teakvault.com",
   },
-  lastModified: true,
+  lastModified: "git",
   theme: {
     accent: "oklch(0.58 0.22 27)",
   },
@@ -78,11 +78,9 @@ export default defineConfig({
     ],
   },
   export: true,
-  openapi: {
-    enabled: true,
-    route: "/reference",
-    spec: "./.generated/openapi.json",
-  },
+  reference: [
+    openapi({ route: "/reference", spec: "./.generated/openapi.json" }),
+  ],
   search: {
     popular: [
       { label: "Features", href: "/docs/features", icon: "sparkles" },
@@ -124,7 +122,10 @@ export default defineConfig({
     { from: "/changelog/09-16", to: "/changelog/september-2026", status: 301 },
     { from: "/changelog/09-17", to: "/changelog/september-2026", status: 301 },
   ],
-  ai: {
+  markdown: {
+    externalLinks: true,
+  },
+  agents: {
     llmsTxt: {
       details: [
         "## When to use Teak",

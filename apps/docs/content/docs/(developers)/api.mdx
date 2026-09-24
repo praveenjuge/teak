@@ -140,8 +140,52 @@ See `/openapi.json` or the [API Reference](/reference) for methods, parameters, 
 ## Search and favorites
 
 Search and favorites are filtered card listings. `GET /v1/cards` supports
-`q`, `type`, `tag`, `sort`, `createdAfter`, `createdBefore`, `limit`,
-`cursor`, `favorited`, and `include`:
+these query parameters:
+
+<TypeTable
+  type={{
+    q: {
+      type: "string",
+      description: "Full-text search query.",
+    },
+    type: {
+      type: "string",
+      description: "Card type filter. Repeat for an OR filter.",
+    },
+    tag: {
+      type: "string",
+      description: "Filter cards by tag.",
+    },
+    sort: {
+      type: '"newest" | "oldest"',
+      description: "Result sort order.",
+    },
+    createdAfter: {
+      type: "number",
+      description: "Only cards created after this timestamp.",
+    },
+    createdBefore: {
+      type: "number",
+      description: "Only cards created before this timestamp.",
+    },
+    limit: {
+      type: "number",
+      description: "Page size.",
+    },
+    cursor: {
+      type: "string",
+      description: "Pagination cursor from a previous pageInfo.nextCursor.",
+    },
+    favorited: {
+      type: "boolean",
+      description: "Set to true to list favorites.",
+    },
+    include: {
+      type: "string",
+      description: "Extra field sets: content, metadata, processing.",
+    },
+  }}
+/>
 
 - Search: `GET /v1/cards?q=design&include=content,metadata`
 - Favorites: `GET /v1/cards?favorited=true&include=content,metadata`
