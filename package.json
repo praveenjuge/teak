@@ -30,7 +30,7 @@
     "doctor": "bun --no-env-file run scripts/doctor.ts",
     "fix": "ultracite fix",
     "lint": "turbo run lint",
-    "pre-commit": "turbo run typecheck lint build --affected",
+    "pre-commit": "bun --no-env-file run scripts/check-lockfile.ts && turbo run typecheck lint build --affected",
     "prepare": "simple-git-hooks || exit 0",
     "publish:raycast": "cd apps/raycast && bun run publish",
     "release:prepare": "bun --no-env-file run scripts/release-prepare.ts",
