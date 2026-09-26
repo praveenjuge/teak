@@ -841,6 +841,40 @@ describe("OCC contention behavior", () => {
     });
   });
 
+  test("skips generation-tagged invocations whose state row was pruned", async () => {
+    const t = convexTest(schema, modules);
+    await t.run(async (ctx) => {
+      const cardId = await insertCard(ctx, "user-pruned-state", {
+        tags: ["one", "two"],
+      });
+      await syncCardSearchDocumentHandler(ctx, cardId);
+
+      // A chain step is scheduled for generation 1, but the state row is
+      // pruned (deleted card or account deletion) before the step runs.
+      const state = await ctx.db
+        .query("cardSearchTagSyncStates")
+        .withIndex("by_cardId", (query) => query.eq("cardId", cardId))
+        .unique();
+      expect(state).not.toBeNull();
+      await ctx.db.delete("cardSearchTagSyncStates", state!._id);
+
+      const result = await syncCardSearchTagsBatchHandler(
+        ctx,
+        cardId,
+        "user-pruned-state",
+        1
+      );
+      expect(result).toEqual({ complete: true, processed: 0, writes: 0 });
+
+      // The stale invocation recreates nothing, so no self-fencing row
+      // appears that could never make progress again.
+      expect(
+        await ctx.db.query("cardSearchTagSyncStates").collect()
+      ).toHaveLength(0);
+      expect(await ctx.db.query("cardSearchTags").collect()).toHaveLength(0);
+    });
+  });
+
   test("syncs tags from the state-row snapshot without reading the card", async () => {
     const t = convexTest(schema, modules);
     await t.run(async (ctx) => {
