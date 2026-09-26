@@ -269,9 +269,13 @@ export const syncCardSearchTagsBatchHandler = async (
 
   // Generation fencing: every restart schedules the batch with the new
   // generation, so an invocation scheduled before the latest restart is
-  // stale. Exit after this single-row read instead of adding more writes to
-  // the state row - the current generation's invocation does the work.
-  if (state && generation !== undefined && state.generation !== generation) {
+  // stale. A missing state row with a generation argument means the row was
+  // pruned after scheduling (deleted card or account deletion), so that
+  // invocation is stale too - recreating a generation-1 row here would
+  // leave its continuation fenced against its own row forever. Exit after
+  // this single-row read instead of adding more writes to the state row -
+  // the current generation's invocation does the work.
+  if (generation !== undefined && (!state || state.generation !== generation)) {
     return { complete: true, processed: 0, writes: 0 };
   }
 
