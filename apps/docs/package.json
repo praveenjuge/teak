@@ -16,6 +16,7 @@
   },
   "dependencies": {
     "@teak/convex": "workspace:*",
+    "@vercel/functions": "^3.7.6",
     "blume": "^2.0.1"
   },
   "devDependencies": {
