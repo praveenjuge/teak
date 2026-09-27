@@ -56,6 +56,31 @@ describe("prefersMarkdown", () => {
     expect(prefersMarkdown("text/markdown;q=0.4, text/html;q=0.8")).toBe(false);
   });
 
+  test("is true when a specific range beats a higher-q wildcard", () => {
+    expect(
+      prefersMarkdown("text/markdown;q=0.8, text/html;q=0.5, text/*;q=0.9")
+    ).toBe(true);
+  });
+
+  test("is true when HTML is explicitly refused but a wildcard allows it", () => {
+    expect(prefersMarkdown("text/markdown;q=0.5, text/html;q=0, */*")).toBe(
+      true
+    );
+  });
+
+  test("honours the quality parameter without case sensitivity", () => {
+    expect(prefersMarkdown("text/markdown;Q=0, text/html;q=0.5")).toBe(false);
+  });
+
+  test("honours a spaced-out quality parameter", () => {
+    expect(prefersMarkdown("text/markdown; q = 0, text/html")).toBe(false);
+  });
+
+  test("rejects quality values outside the qvalue grammar", () => {
+    expect(prefersMarkdown("text/markdown;q=0.8x, text/html")).toBe(false);
+    expect(prefersMarkdown("text/markdown;q=1.5, text/html")).toBe(false);
+  });
+
   test("is false when Markdown is explicitly unacceptable", () => {
     expect(prefersMarkdown("text/markdown;q=0, text/html")).toBe(false);
   });
