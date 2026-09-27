@@ -25,9 +25,14 @@ export function parseAcceptHeader(header: string): AcceptEntry[] {
 
       for (const param of params) {
         const [name, value] = param.trim().split("=");
-        if (name === "q") {
-          const parsed = Number.parseFloat(value ?? "");
-          quality = Number.isNaN(parsed) ? 0 : parsed;
+        if (name.trim().toLowerCase() === "q") {
+          // RFC 9110 qvalue grammar: 0-1 with at most three decimal digits.
+          // Anything else is not a valid quality value and rejects the range.
+          quality = /^(?:0(?:\.\d{0,3})?|1(?:\.0{0,3})?)$/.test(
+            (value ?? "").trim()
+          )
+            ? Number.parseFloat((value ?? "").trim())
+            : 0;
         }
       }
 
@@ -50,12 +55,17 @@ export function parseAcceptHeader(header: string): AcceptEntry[] {
     );
 }
 
-/** Quality value a client assigned to a media type, if it mentioned it. */
+/**
+ * Quality value a client assigned to a media type, if it mentioned it.
+ * RFC 9110 12.5.1: the most specific matching range sets the quality, so an
+ * explicit text/html;q=0 beats a higher-q wildcard like text/* or *\/*.
+ */
 export function qualityFor(
   entries: AcceptEntry[],
   mediaType: string
 ): number | undefined {
   const [type, subtype] = mediaType.split("/");
+  let best: AcceptEntry | undefined;
 
   for (const entry of entries) {
     const [entryType, entrySubtype] = entry.mediaRange.split("/");
@@ -63,12 +73,22 @@ export function qualityFor(
       (entryType === "*" || entryType === type) &&
       (entrySubtype === "*" || entrySubtype === subtype);
 
-    if (matches) {
-      return entry.quality;
+    if (!matches) {
+      continue;
+    }
+
+    if (
+      !best ||
+      entry.specificity > best.specificity ||
+      (entry.specificity === best.specificity &&
+        (entry.quality > best.quality ||
+          (entry.quality === best.quality && entry.order < best.order)))
+    ) {
+      best = entry;
     }
   }
 
-  return undefined;
+  return best?.quality;
 }
 
 /** Quality value from an exact media type mention, wildcards excluded. */
