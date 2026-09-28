@@ -54,33 +54,79 @@ export const scheduleCardSearchSync = async (
 export const scheduleCardSearchTagSync = async (
   ctx: Pick<MutationCtx, "scheduler">,
   cardId: Id<"cards">,
-  userId?: string
+  userId?: string,
+  generation?: number
 ) => {
   await ctx.scheduler.runAfter(
     0,
     internalAny["card/searchDocuments"].syncCardSearchTagsBatch,
-    { cardId, userId }
+    { cardId, userId, generation }
   );
 };
 
+// Card fields the tag sync needs, snapshotted onto the sync-state row by
+// restarts. Batch invocations sync from the snapshot instead of reading the
+// cards table, which removes the write-conflict window between a running
+// sync chain and concurrent card writes (AI metadata, edits, deletes).
+type CardSyncSnapshot = {
+  userId: string;
+  tags?: string[];
+  aiTags?: string[];
+  isDeleted?: boolean;
+  type: Doc<"cards">["type"];
+  isFavorited?: boolean;
+  cardCreatedAt: number;
+};
+
+const cardSyncSnapshotFromCard = (card: Doc<"cards">): CardSyncSnapshot => ({
+  userId: card.userId,
+  tags: card.tags,
+  aiTags: card.aiTags,
+  isDeleted: card.isDeleted,
+  type: card.type,
+  isFavorited: card.isFavorited,
+  cardCreatedAt: card.createdAt,
+});
+
+// card is the card document at restart time: provided to record a snapshot,
+// null when the card is gone (clears the snapshot so the batch takes the
+// deleted-card path), or omitted to leave any existing snapshot untouched.
 export const restartCardSearchTagSync = async (
   ctx: MutationCtx,
   cardId: Id<"cards">,
   sourceUpdatedAt?: number,
-  userId?: string
+  userId?: string,
+  card?: Doc<"cards"> | null
 ) => {
+  const snapshot =
+    card === undefined
+      ? {}
+      : card === null
+        ? {
+            userId,
+            tags: undefined,
+            aiTags: undefined,
+            isDeleted: undefined,
+            type: undefined,
+            isFavorited: undefined,
+            cardCreatedAt: undefined,
+          }
+        : cardSyncSnapshotFromCard(card);
   const existingState = await ctx.db
     .query("cardSearchTagSyncStates")
     .withIndex("by_cardId", (query) => query.eq("cardId", cardId))
     .unique();
   if (existingState) {
+    const generation = existingState.generation + 1;
     await ctx.db.patch("cardSearchTagSyncStates", existingState._id, {
-      generation: existingState.generation + 1,
+      generation,
       offset: 0,
       pending: true,
       phase: "tags",
       sourceUpdatedAt,
+      ...snapshot,
     });
+    await scheduleCardSearchTagSync(ctx, cardId, userId, generation);
   } else {
     await ctx.db.insert("cardSearchTagSyncStates", {
       cardId,
@@ -89,9 +135,10 @@ export const restartCardSearchTagSync = async (
       pending: true,
       phase: "tags",
       sourceUpdatedAt,
+      ...snapshot,
     });
+    await scheduleCardSearchTagSync(ctx, cardId, userId, 1);
   }
-  await scheduleCardSearchTagSync(ctx, cardId, userId);
 };
 
 export const patchCardWithSearchSync = async (
@@ -128,7 +175,7 @@ export const syncCardSearchDocumentHandler = async (
     if (existing) {
       await ctx.db.delete("cardSearchDocuments", existing._id);
     }
-    await restartCardSearchTagSync(ctx, cardId, undefined, ownerId);
+    await restartCardSearchTagSync(ctx, cardId, undefined, ownerId, null);
     return null;
   }
 
@@ -160,21 +207,88 @@ export const syncCardSearchDocumentHandler = async (
   }
 
   if (changed) {
-    await restartCardSearchTagSync(ctx, cardId, card.updatedAt, card.userId);
+    await restartCardSearchTagSync(
+      ctx,
+      cardId,
+      card.updatedAt,
+      card.userId,
+      card
+    );
   }
   return null;
+};
+
+// The view the batch handler syncs from: either the state-row snapshot or a
+// card document, both normalized to the card's field names.
+type CardSyncSource = {
+  userId: string;
+  tags?: string[];
+  aiTags?: string[];
+  isDeleted?: boolean;
+  type: Doc<"cards">["type"];
+  isFavorited?: boolean;
+  createdAt: number;
+  updatedAt: number;
+};
+
+// A state row carries a usable snapshot only when every field the tag writes
+// depend on is present; partial rows fall back to reading the card.
+const cardSyncSourceFromState = (
+  state: Doc<"cardSearchTagSyncStates">
+): CardSyncSource | null => {
+  if (
+    state.cardCreatedAt === undefined ||
+    state.type === undefined ||
+    state.userId === undefined ||
+    state.sourceUpdatedAt === undefined
+  ) {
+    return null;
+  }
+  return {
+    userId: state.userId,
+    tags: state.tags,
+    aiTags: state.aiTags,
+    isDeleted: state.isDeleted,
+    type: state.type,
+    isFavorited: state.isFavorited,
+    createdAt: state.cardCreatedAt,
+    updatedAt: state.sourceUpdatedAt,
+  };
 };
 
 export const syncCardSearchTagsBatchHandler = async (
   ctx: MutationCtx,
   cardId: Id<"cards">,
-  userId?: string
+  userId?: string,
+  generation?: number
 ) => {
-  const card = await ctx.db.get("cards", cardId);
   let state = await ctx.db
     .query("cardSearchTagSyncStates")
     .withIndex("by_cardId", (query) => query.eq("cardId", cardId))
     .unique();
+
+  // Generation fencing: every restart schedules the batch with the new
+  // generation, so an invocation scheduled before the latest restart is
+  // stale. A missing state row with a generation argument means the row was
+  // pruned after scheduling (deleted card or account deletion), so that
+  // invocation is stale too - recreating a generation-1 row here would
+  // leave its continuation fenced against its own row forever. Exit after
+  // this single-row read instead of adding more writes to the state row -
+  // the current generation's invocation does the work.
+  if (generation !== undefined && (!state || state.generation !== generation)) {
+    return { complete: true, processed: 0, writes: 0 };
+  }
+
+  // Sync from the snapshot recorded on the state row when one exists, so the
+  // hot path never reads the cards table and cannot conflict with concurrent
+  // card writes; rows written before snapshots existed fall back to reading
+  // the card.
+  let card: CardSyncSource | null = state
+    ? cardSyncSourceFromState(state)
+    : null;
+  if (!card) {
+    card = await ctx.db.get("cards", cardId);
+  }
 
   // While an account deletion is in progress the deletion batches own
   // cleanup of the search tables for that user's cards. Writing here would
@@ -182,7 +296,7 @@ export const syncCardSearchTagsBatchHandler = async (
   // The card row, its sync state, and its tag rows are removed atomically by
   // the deletion batch, so a missing card with leftover rows means the batch
   // has not reached this card yet and the owner can still be resolved.
-  let ownerId = card?.userId;
+  let ownerId = card?.userId ?? state?.userId;
   if (!ownerId) {
     const searchDocument = await ctx.db
       .query("cardSearchDocuments")
@@ -212,6 +326,17 @@ export const syncCardSearchTagsBatchHandler = async (
       pending: true,
       phase: "tags",
       sourceUpdatedAt: card?.updatedAt,
+      ...(card
+        ? {
+            userId: card.userId,
+            tags: card.tags,
+            aiTags: card.aiTags,
+            isDeleted: card.isDeleted,
+            type: card.type,
+            isFavorited: card.isFavorited,
+            cardCreatedAt: card.createdAt,
+          }
+        : {}),
     });
     state = await ctx.db.get("cardSearchTagSyncStates", stateId);
   }
@@ -222,6 +347,9 @@ export const syncCardSearchTagsBatchHandler = async (
   if (state.phase === "complete") {
     return { complete: true, processed: 0, writes: 0 };
   }
+
+  // Steps this chain schedules for itself stay fenced to the same generation.
+  const chainGeneration = generation ?? state.generation;
 
   let writes = 0;
   if (state.phase === "pruneOld") {
@@ -239,7 +367,7 @@ export const syncCardSearchTagsBatchHandler = async (
       writes += 1;
     }
     if (oldTags.length === CARD_SEARCH_TAG_SYNC_BATCH_SIZE) {
-      await scheduleCardSearchTagSync(ctx, cardId, ownerId);
+      await scheduleCardSearchTagSync(ctx, cardId, ownerId, chainGeneration);
       return { complete: false, processed: oldTags.length, writes };
     }
     if (card) {
@@ -259,7 +387,7 @@ export const syncCardSearchTagsBatchHandler = async (
       offset: 0,
       phase: "pruneOld",
     });
-    await scheduleCardSearchTagSync(ctx, cardId, ownerId);
+    await scheduleCardSearchTagSync(ctx, cardId, ownerId, chainGeneration);
     return { complete: false, processed: 0, writes };
   }
 
@@ -314,7 +442,7 @@ export const syncCardSearchTagsBatchHandler = async (
     await ctx.db.patch("cardSearchTagSyncStates", state._id, {
       offset: nextOffset,
     });
-    await scheduleCardSearchTagSync(ctx, cardId, ownerId);
+    await scheduleCardSearchTagSync(ctx, cardId, ownerId, chainGeneration);
     return { complete: false, processed: sourceSlice.length, writes };
   }
   if (state.phase === "tags") {
@@ -322,14 +450,14 @@ export const syncCardSearchTagsBatchHandler = async (
       offset: 0,
       phase: "aiTags",
     });
-    await scheduleCardSearchTagSync(ctx, cardId, ownerId);
+    await scheduleCardSearchTagSync(ctx, cardId, ownerId, chainGeneration);
     return { complete: false, processed: sourceSlice.length, writes };
   }
   await ctx.db.patch("cardSearchTagSyncStates", state._id, {
     offset: 0,
     phase: "pruneOld",
   });
-  await scheduleCardSearchTagSync(ctx, cardId, ownerId);
+  await scheduleCardSearchTagSync(ctx, cardId, ownerId, chainGeneration);
   return { complete: false, processed: sourceSlice.length, writes };
 };
 

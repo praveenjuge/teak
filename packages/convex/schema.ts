@@ -601,6 +601,16 @@ export default defineSchema({
     offset: v.number(),
     pending: v.boolean(),
     sourceUpdatedAt: v.optional(v.number()),
+    // Snapshot of the card fields the tag sync needs, written by restarts so
+    // batch invocations sync from the state row instead of reading the cards
+    // table (a write-conflict hotspot while card writes land mid-chain).
+    userId: v.optional(v.string()),
+    tags: v.optional(v.array(v.string())),
+    aiTags: v.optional(v.array(v.string())),
+    isDeleted: v.optional(v.boolean()),
+    type: v.optional(cardTypeValidator),
+    isFavorited: v.optional(v.boolean()),
+    cardCreatedAt: v.optional(v.number()),
   })
     .index("by_cardId", ["cardId"])
     .index("by_pending", ["pending"]),

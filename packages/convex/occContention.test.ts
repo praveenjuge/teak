@@ -777,6 +777,200 @@ describe("OCC contention behavior", () => {
     });
   });
 
+  test("fences out stale-generation tag sync invocations without writing", async () => {
+    const t = convexTest(schema, modules);
+    await t.run(async (ctx) => {
+      const manyTags = Array.from({ length: 40 }, (_, i) => `tag-${i}`);
+      const cardId = await insertCard(ctx, "user-fencing", {
+        tags: manyTags,
+      });
+      await syncCardSearchDocumentHandler(ctx, cardId);
+
+      // First batch step processes one page and leaves the chain mid-flight.
+      const first = await syncCardSearchTagsBatchHandler(ctx, cardId, undefined, 1);
+      expect(first).toEqual({ complete: false, processed: 32, writes: 32 });
+
+      // A newer restart lands before the next scheduled step runs.
+      const card = await ctx.db.get("cards", cardId);
+      await restartCardSearchTagSync(
+        ctx,
+        cardId,
+        card!.updatedAt,
+        "user-fencing",
+        card
+      );
+
+      const before = await ctx.db.query("cardSearchTags").collect();
+      const stale = await syncCardSearchTagsBatchHandler(
+        ctx,
+        cardId,
+        undefined,
+        1
+      );
+      expect(stale).toEqual({ complete: true, processed: 0, writes: 0 });
+
+      // The fenced invocation wrote nothing: tag rows and state are untouched.
+      expect(await ctx.db.query("cardSearchTags").collect()).toEqual(before);
+      const state = await ctx.db
+        .query("cardSearchTagSyncStates")
+        .withIndex("by_cardId", (query) => query.eq("cardId", cardId))
+        .unique();
+      expect(state?.generation).toBe(2);
+      expect(state?.offset).toBe(0);
+
+      // The current generation still drives the chain to completion.
+      for (let attempt = 0; attempt < 10; attempt += 1) {
+        const step = await syncCardSearchTagsBatchHandler(
+          ctx,
+          cardId,
+          undefined,
+          2
+        );
+        if (step.complete) break;
+      }
+      const finished = await ctx.db
+        .query("cardSearchTagSyncStates")
+        .withIndex("by_cardId", (query) => query.eq("cardId", cardId))
+        .unique();
+      expect(finished?.phase).toBe("complete");
+      const tags = await ctx.db.query("cardSearchTags").collect();
+      expect(tags).toHaveLength(40);
+      expect(new Set(tags.map((tag) => tag.syncGeneration))).toEqual(
+        new Set([2])
+      );
+    });
+  });
+
+  test("skips generation-tagged invocations whose state row was pruned", async () => {
+    const t = convexTest(schema, modules);
+    await t.run(async (ctx) => {
+      const cardId = await insertCard(ctx, "user-pruned-state", {
+        tags: ["one", "two"],
+      });
+      await syncCardSearchDocumentHandler(ctx, cardId);
+
+      // A chain step is scheduled for generation 1, but the state row is
+      // pruned (deleted card or account deletion) before the step runs.
+      const state = await ctx.db
+        .query("cardSearchTagSyncStates")
+        .withIndex("by_cardId", (query) => query.eq("cardId", cardId))
+        .unique();
+      expect(state).not.toBeNull();
+      await ctx.db.delete("cardSearchTagSyncStates", state!._id);
+
+      const result = await syncCardSearchTagsBatchHandler(
+        ctx,
+        cardId,
+        "user-pruned-state",
+        1
+      );
+      expect(result).toEqual({ complete: true, processed: 0, writes: 0 });
+
+      // The stale invocation recreates nothing, so no self-fencing row
+      // appears that could never make progress again.
+      expect(
+        await ctx.db.query("cardSearchTagSyncStates").collect()
+      ).toHaveLength(0);
+      expect(await ctx.db.query("cardSearchTags").collect()).toHaveLength(0);
+    });
+  });
+
+  test("syncs tags from the state-row snapshot without reading the card", async () => {
+    const t = convexTest(schema, modules);
+    await t.run(async (ctx) => {
+      const cardId = await insertCard(ctx, "user-snapshot", {
+        tags: ["alpha", "beta"],
+      });
+      await syncCardSearchDocumentHandler(ctx, cardId);
+
+      // Change the card without a restart; the snapshot keeps the old view.
+      await ctx.db.patch("cards", cardId, {
+        tags: ["gamma"],
+        updatedAt: 12345,
+      });
+
+      for (let attempt = 0; attempt < 10; attempt += 1) {
+        const step = await syncCardSearchTagsBatchHandler(
+          ctx,
+          cardId,
+          undefined,
+          1
+        );
+        if (step.complete) break;
+      }
+      const snapshotTags = (
+        await ctx.db.query("cardSearchTags").collect()
+      ).map((tag) => tag.tag);
+      expect(snapshotTags.sort()).toEqual(["alpha", "beta"]);
+
+      // The next document sync restarts with a fresh snapshot.
+      await syncCardSearchDocumentHandler(ctx, cardId);
+      for (let attempt = 0; attempt < 10; attempt += 1) {
+        const step = await syncCardSearchTagsBatchHandler(
+          ctx,
+          cardId,
+          undefined,
+          2
+        );
+        if (step.complete) break;
+      }
+      const resynced = (
+        await ctx.db.query("cardSearchTags").collect()
+      ).map((tag) => tag.tag);
+      expect(resynced).toEqual(["gamma"]);
+    });
+  });
+
+  test("legacy state rows without a snapshot still read the card", async () => {
+    const t = convexTest(schema, modules);
+    await t.run(async (ctx) => {
+      const cardId = await insertCard(ctx, "user-legacy", {
+        tags: ["delta"],
+      });
+      // State row as written before snapshots existed.
+      await ctx.db.insert("cardSearchTagSyncStates", {
+        cardId,
+        generation: 1,
+        offset: 0,
+        pending: true,
+        phase: "tags",
+      });
+      const result = await syncCardSearchTagsBatchHandler(
+        ctx,
+        cardId,
+        undefined,
+        1
+      );
+      expect(result.writes).toBe(1);
+      const tags = (
+        await ctx.db.query("cardSearchTags").collect()
+      ).map((tag) => tag.tag);
+      expect(tags).toEqual(["delta"]);
+    });
+  });
+
+  test("clears the snapshot on card deletion and prunes the tag rows", async () => {
+    const t = convexTest(schema, modules);
+    await t.run(async (ctx) => {
+      const cardId = await insertCard(ctx, "user-deleted", {
+        tags: ["omega"],
+      });
+      await syncCardSearchDocumentHandler(ctx, cardId);
+      await drainCardSearchTagSync(ctx, cardId);
+      expect(await ctx.db.query("cardSearchTags").collect()).toHaveLength(1);
+
+      await ctx.db.delete("cards", cardId);
+      await restartCardSearchTagSync(ctx, cardId, undefined, "user-deleted", null);
+
+      // Snapshot cleared: the batch takes the deleted-card path and prunes.
+      await drainCardSearchTagSync(ctx, cardId);
+      expect(await ctx.db.query("cardSearchTags").collect()).toHaveLength(0);
+      expect(
+        await ctx.db.query("cardSearchTagSyncStates").collect()
+      ).toHaveLength(0);
+    });
+  });
+
   test("enforces the configured card-creation threshold", async () => {
     const t = convexTest(schema, modules);
     rateLimiterTest.register(t, "rateLimiterV2");
