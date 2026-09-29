@@ -573,7 +573,8 @@ describe("categorization providers common", () => {
   });
 
   it("formatDate", () => {
-    expect(formatDate("2023-12-21")).toBe("Dec 21, 2023");
+    // Local noon keeps the calendar day stable in every time zone.
+    expect(formatDate("2023-12-21T12:00:00")).toBe("Dec 21, 2023");
     expect(formatDate("invalid date")).toBeUndefined();
     expect(formatDate(undefined)).toBeUndefined();
   });
@@ -684,7 +685,7 @@ describe("enrichImdb", () => {
       ["span[data-testid='title-techspec_runtime'] span", { text: "2h 30m" }],
       [
         "meta[property='video:release_date']",
-        { attributes: [{ name: "content", value: "2023-12-21" }] },
+        { attributes: [{ name: "content", value: "2023-12-21T12:00:00" }] },
       ],
     ]);
     const result = enrichImdb(map);

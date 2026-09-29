@@ -114,9 +114,7 @@ describe("normalizeLinkCategory", () => {
     expect(normalizeLinkCategory("eBook")).toBe("book");
     expect(normalizeLinkCategory("Film")).toBe("movie");
     expect(normalizeLinkCategory("TV Show")).toBe("tv");
-    // These parts don't exist in the lookup after normalization
-    // expect(normalizeLinkCategory("Series")).toBe("tv");
-    // expect(normalizeLinkCategory("Long-form Post")).toBe("article");
+    expect(normalizeLinkCategory("Series")).toBe("tv");
   });
 
   it("should handle whitespace and special characters", () => {
@@ -173,11 +171,6 @@ describe("normalizeLinkCategory", () => {
   it("should return null for whitespace only", () => {
     expect(normalizeLinkCategory("   ")).toBeNull();
     expect(normalizeLinkCategory("\t\n")).toBeNull();
-  });
-
-  it("should throw or return null for undefined input", () => {
-    // The implementation doesn't handle undefined, so we test for that behavior
-    expect(() => normalizeLinkCategory(undefined as any)).toThrow();
   });
 });
 

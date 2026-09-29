@@ -230,15 +230,10 @@ describe("Constants", () => {
       expect(isCardType([])).toBe(false);
     });
 
-    it("should work as type guard", () => {
-      const value = "link" as unknown;
-      if (isCardType(value)) {
-        // TypeScript should know value is CardType here
-        // The satisfies operator returns the value itself if it satisfies the type
-        expect(value).toBe("link");
-        // And cardTypes includes "link"
-        expect(cardTypes.includes(value as CardType)).toBe(true);
-      }
+    it("narrows unknown values that are card types", () => {
+      const value: unknown = "link";
+      expect(isCardType(value)).toBe(true);
+      expect(isCardType({ type: "link" })).toBe(false);
     });
   });
 

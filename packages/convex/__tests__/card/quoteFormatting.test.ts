@@ -6,48 +6,7 @@ import {
   stripSurroundingQuotes,
 } from "../../card/quoteFormatting";
 
-describe("quoteFormatting", () => {
-  describe("normalizeQuoteContent", () => {
-    test("removes symmetric quotes", () => {
-      expect(normalizeQuoteContent('"Hello"')).toEqual({
-        text: "Hello",
-        removedQuotes: true,
-      });
-    });
-
-    test("removes smart quotes and preserves trailing attribution", () => {
-      expect(normalizeQuoteContent("“Hello”—Ada")).toEqual({
-        text: "Hello—Ada",
-        removedQuotes: true,
-      });
-    });
-
-    test("leaves content alone when closing quote is missing", () => {
-      const original = "'Hello";
-      expect(normalizeQuoteContent(original)).toEqual({
-        text: original,
-        removedQuotes: false,
-      });
-    });
-
-    test("trims surrounding whitespace when quotes are removed", () => {
-      expect(normalizeQuoteContent("  'Hello'  ")).toEqual({
-        text: "Hello",
-        removedQuotes: true,
-      });
-    });
-  });
-
-  describe("stripSurroundingQuotes", () => {
-    test("returns original string when not quoted", () => {
-      expect(stripSurroundingQuotes("Hello")).toBe("Hello");
-    });
-
-    test("removes nested quote layers", () => {
-      expect(stripSurroundingQuotes("'“Hello”'")).toBe("Hello");
-    });
-  });
-
+describe("applyQuoteDisplayFormatting", () => {
   describe("applyQuoteDisplayFormatting", () => {
     test("normalizes non-quote cards when quotes are removed", () => {
       const card = { type: "text", content: "'Hello'" };
@@ -152,9 +111,9 @@ describe("normalizeQuoteContent", () => {
       expect(result.removedQuotes).toBe(true);
     });
 
-    it("should preserve trailing comma (if inside the quote)", () => {
+    it("keeps the quotes when a comma and speaker tag follow", () => {
       const result = normalizeQuoteContent('"Hello world", he said');
-      // Comma is inside the quote's closing index, so it's removed
+      // ", he said" is not allowed trailing text, so the quotes stay
       expect(result.text).toBe('"Hello world", he said');
       expect(result.removedQuotes).toBe(false);
     });
@@ -364,7 +323,7 @@ describe("normalizeQuoteContent", () => {
 
     it("should handle quote followed by comma and space", () => {
       const result = normalizeQuoteContent('"Hello", world');
-      // Comma is after the closing quote, so quotes are removed
+      // ", world" is not allowed trailing text, so the quotes stay
       expect(result.text).toBe('"Hello", world');
       expect(result.removedQuotes).toBe(false);
     });

@@ -1,13 +1,13 @@
 {
   "mcpServers": {
     "playwright-test": {
-      "command": "bunx",
+      "command": "bun",
       "args": [
+        "--cwd=apps/web",
+        "x",
         "playwright",
         "run-test-mcp-server",
-        "--headless",
-        "--config",
-        "apps/web/playwright.config.ts"
+        "--headless"
       ]
     },
     "playwright": {

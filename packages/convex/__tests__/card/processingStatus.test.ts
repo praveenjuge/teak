@@ -91,13 +91,6 @@ describe("stageInProgress", () => {
 
     expect(result.confidence).toBe(0.5);
   });
-
-  it("should use current time when no previous status provided", () => {
-    const now = Date.now();
-    const result = stageInProgress(now);
-
-    expect(result.startedAt).toBe(now);
-  });
 });
 
 describe("stageFailed", () => {

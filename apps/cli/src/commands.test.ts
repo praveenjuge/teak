@@ -72,6 +72,8 @@ const teak = async (...args: string[]) => {
     },
     stderr: "pipe",
     stdout: "pipe",
+    // Fail the test instead of hanging the suite if the CLI never exits.
+    timeout: 15_000,
   });
   const [code, stdout, stderr] = await Promise.all([
     child.exited,

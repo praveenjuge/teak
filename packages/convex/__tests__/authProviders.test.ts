@@ -1,8 +1,32 @@
 // @ts-nocheck
-import { describe, expect, mock, test } from "bun:test";
+import { afterAll, describe, expect, mock, test } from "bun:test";
 import { TEST_APPLE_PRIVATE_KEY } from "./helpers/appleAuth.test-utils";
 
-// Set environment variables BEFORE any imports that might load auth.ts
+const OVERRIDDEN_ENV = [
+  "SITE_URL",
+  "GOOGLE_CLIENT_ID",
+  "GOOGLE_CLIENT_SECRET",
+  "APPLE_CLIENT_ID",
+  "APPLE_KEY_ID",
+  "APPLE_PRIVATE_KEY",
+  "APPLE_TEAM_ID",
+] as const;
+const originalEnv = new Map(
+  OVERRIDDEN_ENV.map((name) => [name, process.env[name]] as const)
+);
+
+// Restore the environment so later test files do not inherit these values.
+afterAll(() => {
+  for (const [name, value] of originalEnv) {
+    if (value === undefined) {
+      delete process.env[name];
+    } else {
+      process.env[name] = value;
+    }
+  }
+});
+
+// Set environment variables before auth.ts reads them
 process.env.SITE_URL = "https://teakvault.com";
 process.env.GOOGLE_CLIENT_ID = "test-google-client-id";
 process.env.GOOGLE_CLIENT_SECRET = "test-google-client-secret";
@@ -63,6 +87,15 @@ describe("auth.ts", () => {
       const googleOnly = module.createAuth({} as any);
       expect(Object.keys(googleOnly.options.socialProviders)).toEqual([
         "google",
+      ]);
+      process.env.APPLE_CLIENT_ID = "com.example.teak.apple.si";
+      process.env.APPLE_KEY_ID = "TESTKEY123";
+      process.env.APPLE_PRIVATE_KEY = TEST_APPLE_PRIVATE_KEY;
+      process.env.APPLE_TEAM_ID = "TESTTEAM123";
+      const both = module.createAuth({} as any);
+      expect(Object.keys(both.options.socialProviders)).toEqual([
+        "google",
+        "apple",
       ]);
     } finally {
       for (const name of names) {

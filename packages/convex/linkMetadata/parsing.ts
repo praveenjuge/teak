@@ -142,7 +142,8 @@ export const sanitizeImageUrl = (
   }
   const trimmed = value.trim();
   if (/^data:/i.test(trimmed)) {
-    return trimmed;
+    // Inline previews must be images; storage only accepts image/* bodies.
+    return /^data:image\//i.test(trimmed) ? trimmed : undefined;
   }
   return sanitizeUrl(baseUrl, trimmed, { allowData: true });
 };

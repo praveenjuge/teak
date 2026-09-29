@@ -13,6 +13,8 @@ test.describe("Seed", () => {
   );
 
   test("seed", async ({ page }) => {
+    // Sign-in and the sign-up fallback each wait up to 30s before failing.
+    test.setTimeout(120_000);
     const auth = new AuthHelper(page);
     const email = TEST_EMAIL as string;
     const password = TEST_PASSWORD as string;
