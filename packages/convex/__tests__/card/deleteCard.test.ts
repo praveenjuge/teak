@@ -40,6 +40,8 @@ describe("card/deleteCard.ts", () => {
         }),
         delete: mock().mockResolvedValue(null),
         patch: mock().mockResolvedValue(null),
+        insert: mock().mockResolvedValue("sync_1"),
+        replace: mock().mockResolvedValue(null),
         query: mock().mockReturnValue({
           withIndex: mock().mockReturnValue({
             unique: mock().mockResolvedValue({
