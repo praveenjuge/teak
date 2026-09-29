@@ -96,7 +96,14 @@ describe("card/createCard.ts", () => {
       runMutation: mock().mockResolvedValue({ ok: true }),
       auth: { getUserIdentity: mock().mockResolvedValue({ subject: "u1" }) },
       db: {
-        get: mock().mockResolvedValue(null),
+        get: mock().mockResolvedValue({
+          _id: "c1",
+          userId: "u1",
+          type: "text",
+          content: "Card",
+          createdAt: 1,
+          updatedAt: 1,
+        }),
         system: { get: mock().mockResolvedValue(null) },
         query: mock().mockReturnValue({
           withIndex: mock().mockReturnValue({
@@ -140,7 +147,14 @@ describe("card/createCard.ts", () => {
       runMutation: mock().mockResolvedValue({ ok: true }),
       auth: { getUserIdentity: mock().mockResolvedValue({ subject: "u1" }) },
       db: {
-        get: mock().mockResolvedValue(null),
+        get: mock().mockResolvedValue({
+          _id: "c1",
+          userId: "u1",
+          type: "text",
+          content: "Card",
+          createdAt: 1,
+          updatedAt: 1,
+        }),
         system: { get: mock().mockResolvedValue(null) },
         query: mock().mockReturnValue({
           withIndex: mock().mockReturnValue({
@@ -168,6 +182,10 @@ describe("card/createCard.ts", () => {
         userId: "u1",
       })
     );
+    expect(ctx.db.insert).toHaveBeenCalledWith(
+      "cardSearchDocuments",
+      expect.objectContaining({ cardId: "c1", userId: "u1" })
+    );
     expect(workflow.start).toHaveBeenCalled();
     expect(ctx.scheduler.runAfter).toHaveBeenCalledWith(
       0,
@@ -187,7 +205,14 @@ describe("card/createCard.ts", () => {
       runMutation: mock().mockResolvedValue({ ok: true }),
       auth: { getUserIdentity: mock().mockResolvedValue({ subject: "u1" }) },
       db: {
-        get: mock().mockResolvedValue(null),
+        get: mock().mockResolvedValue({
+          _id: "c1",
+          userId: "u1",
+          type: "text",
+          content: "Card",
+          createdAt: 1,
+          updatedAt: 1,
+        }),
         system: { get: mock().mockResolvedValue(null) },
         query: mock().mockReturnValue({
           withIndex: mock().mockReturnValue({
@@ -227,7 +252,14 @@ describe("card/createCard.ts", () => {
       runMutation: mock().mockResolvedValue({ ok: true }),
       auth: { getUserIdentity: mock().mockResolvedValue({ subject: "u1" }) },
       db: {
-        get: mock().mockResolvedValue(null),
+        get: mock().mockResolvedValue({
+          _id: "c1",
+          userId: "u1",
+          type: "text",
+          content: "Card",
+          createdAt: 1,
+          updatedAt: 1,
+        }),
         system: { get: mock().mockResolvedValue(null) },
         query: mock().mockReturnValue({
           withIndex: mock().mockReturnValue({
@@ -261,7 +293,14 @@ describe("card/createCard.ts", () => {
       runMutation: mock().mockResolvedValue({ ok: true }),
       auth: { getUserIdentity: mock().mockResolvedValue({ subject: "u1" }) },
       db: {
-        get: mock().mockResolvedValue(null),
+        get: mock().mockResolvedValue({
+          _id: "c1",
+          userId: "u1",
+          type: "text",
+          content: "Card",
+          createdAt: 1,
+          updatedAt: 1,
+        }),
         query: mock().mockReturnValue({
           withIndex: mock().mockReturnValue({
             collect: mock().mockResolvedValue([]),
@@ -303,7 +342,14 @@ describe("card/createCard.ts", () => {
       runMutation: mock().mockResolvedValue({ ok: true }),
       auth: { getUserIdentity: mock().mockResolvedValue({ subject: "u1" }) },
       db: {
-        get: mock().mockResolvedValue(null),
+        get: mock().mockResolvedValue({
+          _id: "c1",
+          userId: "u1",
+          type: "text",
+          content: "Card",
+          createdAt: 1,
+          updatedAt: 1,
+        }),
         query: mock().mockReturnValue({
           withIndex: mock().mockReturnValue({
             take: mock().mockResolvedValue([]),
@@ -337,7 +383,14 @@ describe("card/createCard.ts", () => {
       runMutation: mock().mockResolvedValue({ ok: true }),
       auth: { getUserIdentity: mock().mockResolvedValue({ subject: "u1" }) },
       db: {
-        get: mock().mockResolvedValue(null),
+        get: mock().mockResolvedValue({
+          _id: "c1",
+          userId: "u1",
+          type: "text",
+          content: "Card",
+          createdAt: 1,
+          updatedAt: 1,
+        }),
         system: { get: mock().mockResolvedValue(null) },
         query: mock().mockReturnValue({
           withIndex: mock().mockReturnValue({
@@ -371,7 +424,14 @@ describe("card/createCard.ts", () => {
       runMutation: mock().mockResolvedValue({ ok: true }),
       auth: { getUserIdentity: mock().mockResolvedValue({ subject: "u1" }) },
       db: {
-        get: mock().mockResolvedValue(null),
+        get: mock().mockResolvedValue({
+          _id: "c1",
+          userId: "u1",
+          type: "text",
+          content: "Card",
+          createdAt: 1,
+          updatedAt: 1,
+        }),
         system: { get: mock().mockResolvedValue(null) },
         query: mock().mockReturnValue({
           withIndex: mock().mockReturnValue({
@@ -405,7 +465,14 @@ describe("card/createCard.ts", () => {
       runMutation: mock().mockResolvedValue({ ok: true }),
       auth: { getUserIdentity: mock().mockResolvedValue({ subject: "u1" }) },
       db: {
-        get: mock().mockResolvedValue(null),
+        get: mock().mockResolvedValue({
+          _id: "c1",
+          userId: "u1",
+          type: "text",
+          content: "Card",
+          createdAt: 1,
+          updatedAt: 1,
+        }),
         system: { get: mock().mockResolvedValue(null) },
         query: mock().mockReturnValue({
           withIndex: mock().mockReturnValue({
@@ -436,7 +503,14 @@ describe("card/createCard.ts", () => {
       runMutation: mock().mockResolvedValue({ ok: true }),
       auth: { getUserIdentity: mock().mockResolvedValue({ subject: "u1" }) },
       db: {
-        get: mock().mockResolvedValue(null),
+        get: mock().mockResolvedValue({
+          _id: "c1",
+          userId: "u1",
+          type: "text",
+          content: "Card",
+          createdAt: 1,
+          updatedAt: 1,
+        }),
         system: { get: mock().mockResolvedValue(null) },
         query: mock().mockReturnValue({
           withIndex: mock().mockReturnValue({
@@ -469,7 +543,14 @@ describe("card/createCard.ts", () => {
       runMutation: mock().mockResolvedValue({ ok: true }),
       auth: { getUserIdentity: mock().mockResolvedValue({ subject: "u1" }) },
       db: {
-        get: mock().mockResolvedValue(null),
+        get: mock().mockResolvedValue({
+          _id: "c1",
+          userId: "u1",
+          type: "text",
+          content: "Card",
+          createdAt: 1,
+          updatedAt: 1,
+        }),
         query: mock().mockReturnValue({
           withIndex: mock().mockReturnValue({
             collect: mock().mockResolvedValue([]),
@@ -510,7 +591,14 @@ describe("card/createCard.ts", () => {
       runMutation: mock().mockResolvedValue({ ok: true }),
       auth: { getUserIdentity: mock().mockResolvedValue({ subject: "u1" }) },
       db: {
-        get: mock().mockResolvedValue(null),
+        get: mock().mockResolvedValue({
+          _id: "c1",
+          userId: "u1",
+          type: "text",
+          content: "Card",
+          createdAt: 1,
+          updatedAt: 1,
+        }),
         system: { get: mock().mockResolvedValue(null) },
         query: mock().mockReturnValue({
           withIndex: mock().mockReturnValue({
