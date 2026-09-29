@@ -109,12 +109,9 @@ Each workspace script runs only the files it matches. A test file outside these 
 - `page.consoleMessages()` and `page.pageErrors()` help explain failures.
 - `toMatchAriaSnapshot` pins page structure by role and name instead of markup.
 
-**Playwright test agents (`.claude/agents/playwright-test-*.md`)**
-- `playwright-test-planner` explores the running app from `apps/web/src/tests/seed.e2e.ts` and writes a plan to `apps/web/specs/`.
-- `playwright-test-generator` turns a plan into `*.e2e.ts` specs.
-- `playwright-test-healer` runs failing specs and repairs selectors and timing. It must not skip tests or weaken assertions; if the app is wrong, the test stays red and the bug gets reported.
-- They use the `playwright-test` MCP server from `.mcp.json`. Start the app first (`bun run dev web`, see `.agents/headless-development.md`).
-- To regenerate the agents after a Playwright upgrade, run `bunx playwright init-agents --loop=claude` in `apps/web`. Then re-apply the Teak rules at the end of each file and move them back to the repo root.
+**Playwright test runner MCP (`playwright-test` in `.mcp.json`)**
+- Lists, runs, and debugs the `apps/web` specs from an agent session. Start the app first (`bun run dev web`, see `.agents/headless-development.md`).
+- For planner, generator, and healer agents, run `bunx playwright init-agents --loop=claude` in `apps/web`. Before using them, add the rules above: specs end in `.e2e.ts`, and the healer must never skip tests or weaken assertions.
 
 **Playwright MCP (`playwright` in `.mcp.json`)**
 - Drives a real browser, so you can check UI work in the running app at `http://localhost:3000` instead of relying on a passing build.

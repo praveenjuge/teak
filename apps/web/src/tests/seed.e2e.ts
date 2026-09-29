@@ -1,8 +1,8 @@
 import { expect, test } from "@playwright/test";
 import { AuthHelper } from "./test-helpers";
 
-// Seed for the Playwright test agents (.claude/agents/playwright-test-*.md):
-// planner and generator start every plan from a signed-in home page.
+// Signed-in smoke check: the configured E2E account reaches the home page
+// composer. Also the seed for `playwright init-agents` if agents are added.
 const TEST_EMAIL = process.env.E2E_BETTER_AUTH_USER_EMAIL;
 const TEST_PASSWORD = process.env.E2E_BETTER_AUTH_USER_PASSWORD;
 

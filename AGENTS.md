@@ -32,7 +32,7 @@ Read `packages/convex/AGENTS.md` before editing backend code.
 - Cross-surface production journeys belong in `packages/tests`; read `packages/tests/README.md` before changing or running them.
 - Never bypass git hooks with `--no-verify`. Fix the failing check.
 - Verify user-facing work in the real interface when practical. A passing build alone is not proof of the experience.
-- The `playwright` MCP server in `.mcp.json` drives a real browser against the local app; the Playwright test agents in `.claude/agents/` plan, generate, and heal web e2e specs.
+- The `playwright` MCP server in `.mcp.json` drives a real browser against the local app, and `playwright-test` runs the web e2e specs.
 
 ## Documentation contract
 
