@@ -4,6 +4,7 @@ import {
   markClassificationCompleted,
   updateClassification,
 } from "../../../../convex/workflows/steps/classificationMutations";
+import { inlineSearchSyncDb } from "../../helpers/session.test-utils";
 
 const withScheduler = (registered: any) => {
   const handler = registered.handler ?? registered._handler ?? registered;
@@ -29,6 +30,7 @@ describe("classification updateClassification", () => {
 
       const mockCtx = {
         db: {
+        ...inlineSearchSyncDb(),
           get: async (_table: string, _id: string) => cardState,
           patch: (_table: string, _id: string, updates: any) => {
             cardState = { ...cardState, ...updates };
@@ -66,6 +68,7 @@ describe("classification updateClassification", () => {
 
       const mockCtx = {
         db: {
+        ...inlineSearchSyncDb(),
           get: async (_table: string, _id: string) => cardState,
           patch: (_table: string, _id: string, updates: any) => {
             cardState = { ...cardState, ...updates };
@@ -101,6 +104,7 @@ describe("classification updateClassification", () => {
 
       const mockCtx = {
         db: {
+        ...inlineSearchSyncDb(),
           get: async (_table: string, _id: string) => cardState,
           patch: (_table: string, _id: string, updates: any) => {
             cardState = { ...cardState, ...updates };
@@ -137,6 +141,7 @@ describe("classification updateClassification", () => {
 
       const mockCtx = {
         db: {
+        ...inlineSearchSyncDb(),
           get: async (_table: string, _id: string) => cardState,
           patch: (_table: string, _id: string, updates: any) => {
             cardState = { ...cardState, ...updates };
@@ -172,6 +177,7 @@ describe("classification updateClassification", () => {
 
       const mockCtx = {
         db: {
+        ...inlineSearchSyncDb(),
           get: async (_table: string, _id: string) => cardState,
           patch: (_table: string, _id: string, updates: any) => {
             cardState = { ...cardState, ...updates };
@@ -207,6 +213,7 @@ describe("classification updateClassification", () => {
 
       const mockCtx = {
         db: {
+        ...inlineSearchSyncDb(),
           get: async (_table: string, _id: string) => cardState,
           patch: (_table: string, _id: string, updates: any) => {
             cardState = { ...cardState, ...updates };
@@ -242,6 +249,7 @@ describe("classification updateClassification", () => {
 
       const mockCtx = {
         db: {
+        ...inlineSearchSyncDb(),
           get: async (_table: string, _id: string) => cardState,
           patch: (_table: string, _id: string, updates: any) => {
             cardState = { ...cardState, ...updates };
@@ -277,6 +285,7 @@ describe("classification updateClassification", () => {
 
       const mockCtx = {
         db: {
+        ...inlineSearchSyncDb(),
           get: async (_table: string, _id: string) => cardState,
           patch: (_table: string, _id: string, updates: any) => {
             cardState = { ...cardState, ...updates };
@@ -312,6 +321,7 @@ describe("classification updateClassification", () => {
 
       const mockCtx = {
         db: {
+        ...inlineSearchSyncDb(),
           get: async (_table: string, _id: string) => cardState,
           patch: (_table: string, _id: string, updates: any) => {
             cardState = { ...cardState, ...updates };
@@ -347,6 +357,7 @@ describe("classification updateClassification", () => {
 
       const mockCtx = {
         db: {
+        ...inlineSearchSyncDb(),
           get: async (_table: string, _id: string) => cardState,
           patch: (_table: string, _id: string, updates: any) => {
             cardState = { ...cardState, ...updates };
@@ -383,6 +394,7 @@ describe("classification updateClassification", () => {
 
       const mockCtx = {
         db: {
+        ...inlineSearchSyncDb(),
           get: async (_table: string, _id: string) => cardState,
           patch: (_table: string, _id: string, updates: any) => {
             cardState = { ...cardState, ...updates };
@@ -419,6 +431,7 @@ describe("classification updateClassification", () => {
 
       const mockCtx = {
         db: {
+        ...inlineSearchSyncDb(),
           get: async (_table: string, _id: string) => cardState,
           patch: (_table: string, _id: string, updates: any) => {
             cardState = { ...cardState, ...updates };
@@ -455,6 +468,7 @@ describe("classification updateClassification", () => {
 
       const mockCtx = {
         db: {
+        ...inlineSearchSyncDb(),
           get: async (_table: string, _id: string) => cardState,
           patch: (_table: string, _id: string, updates: any) => {
             cardState = { ...cardState, ...updates };
@@ -479,6 +493,7 @@ describe("classification updateClassification", () => {
 
     const mockCtx = {
       db: {
+        ...inlineSearchSyncDb(),
         get: async () => null,
       },
     };
@@ -510,6 +525,7 @@ describe("classification updateClassification", () => {
 
       const mockCtx = {
         db: {
+        ...inlineSearchSyncDb(),
           get: async (_table: string, _id: string) => cardState,
           patch: (_table: string, _id: string, updates: any) => {
             cardState = { ...cardState, ...updates };
@@ -545,6 +561,7 @@ describe("classification updateClassification", () => {
 
       const mockCtx = {
         db: {
+        ...inlineSearchSyncDb(),
           get: async (_table: string, _id: string) => cardState,
           patch: (_table: string, _id: string, updates: any) => {
             cardState = { ...cardState, ...updates };
@@ -580,6 +597,7 @@ describe("classification updateClassification", () => {
 
       const mockCtx = {
         db: {
+        ...inlineSearchSyncDb(),
           get: async (_table: string, _id: string) => cardState,
           patch: (_table: string, _id: string, updates: any) => {
             cardState = { ...cardState, ...updates };
@@ -618,6 +636,7 @@ describe("classification markClassificationCompleted", () => {
 
     const mockCtx = {
       db: {
+        ...inlineSearchSyncDb(),
         get: async (_table: string, _id: string) => cardState,
         patch: (_table: string, _id: string, updates: any) => {
           patchCount += 1;
@@ -650,6 +669,7 @@ describe("classification markClassificationCompleted", () => {
 
     const mockCtx = {
       db: {
+        ...inlineSearchSyncDb(),
         get: async (_table: string, _id: string) => cardState,
         patch: () => {
           patchCount += 1;
@@ -668,6 +688,7 @@ describe("classification markClassificationCompleted", () => {
 
     const mockCtx = {
       db: {
+        ...inlineSearchSyncDb(),
         get: async () => null,
         patch: () => {
           throw new Error("should not patch");
