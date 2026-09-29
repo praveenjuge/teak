@@ -133,7 +133,14 @@ describe("card/defaultCards.ts", () => {
   test("returns cards_exist when user already has cards", async () => {
     const ctx = {
       db: {
-        get: mock().mockResolvedValue(null),
+        get: mock().mockResolvedValue({
+          _id: "c1",
+          userId: "u1",
+          type: "text",
+          content: "Card",
+          createdAt: 1,
+          updatedAt: 1,
+        }),
         query: mock().mockReturnValue({
           withIndex: mock().mockReturnValue({
             first: mock().mockResolvedValue({ _id: "existing" }),
@@ -159,7 +166,14 @@ describe("card/defaultCards.ts", () => {
   test("creates default cards for new user", async () => {
     const ctx = {
       db: {
-        get: mock().mockResolvedValue(null),
+        get: mock().mockResolvedValue({
+          _id: "c1",
+          userId: "u1",
+          type: "text",
+          content: "Card",
+          createdAt: 1,
+          updatedAt: 1,
+        }),
         query: mock().mockReturnValue({
           withIndex: mock().mockReturnValue({
             first: mock().mockResolvedValue(null),
@@ -188,6 +202,10 @@ describe("card/defaultCards.ts", () => {
       "userCardUsageShards",
       expect.objectContaining({ userId: "u1", shard: 0 })
     );
+    expect(ctx.db.insert).toHaveBeenCalledWith(
+      "cardSearchDocuments",
+      expect.objectContaining({ userId: "u1" })
+    );
     expect(ctx.scheduler.runAfter).toHaveBeenCalledTimes(3);
     expect(result).toEqual({ created: true, count: 3 });
   });
@@ -196,7 +214,14 @@ describe("card/defaultCards.ts", () => {
     const insertedCards: any[] = [];
     const ctx = {
       db: {
-        get: mock().mockResolvedValue(null),
+        get: mock().mockResolvedValue({
+          _id: "c1",
+          userId: "u1",
+          type: "text",
+          content: "Card",
+          createdAt: 1,
+          updatedAt: 1,
+        }),
         query: mock().mockReturnValue({
           withIndex: mock().mockReturnValue({
             first: mock().mockResolvedValue(null),
@@ -255,7 +280,14 @@ describe("card/defaultCards.ts", () => {
 
     const ctx = {
       db: {
-        get: mock().mockResolvedValue(null),
+        get: mock().mockResolvedValue({
+          _id: "c1",
+          userId: "u1",
+          type: "text",
+          content: "Card",
+          createdAt: 1,
+          updatedAt: 1,
+        }),
         query: mock().mockReturnValue({
           withIndex: mock().mockReturnValue({
             first: mock().mockResolvedValue(null),
@@ -292,7 +324,14 @@ describe("card/defaultCards.ts", () => {
 
     const ctx = {
       db: {
-        get: mock().mockResolvedValue(null),
+        get: mock().mockResolvedValue({
+          _id: "c1",
+          userId: "u1",
+          type: "text",
+          content: "Card",
+          createdAt: 1,
+          updatedAt: 1,
+        }),
         query: mock().mockReturnValue({
           withIndex: mock().mockReturnValue({
             first: mock().mockResolvedValue(null),
