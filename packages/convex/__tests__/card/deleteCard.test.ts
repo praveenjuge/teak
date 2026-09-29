@@ -63,5 +63,9 @@ describe("card/deleteCard.ts", () => {
     expect(deleteObjectMock).toHaveBeenCalledWith(ctx, "p1");
     expect(deleteObjectMock).toHaveBeenCalledWith(ctx, "t1");
     expect(ctx.db.delete).toHaveBeenCalledWith("cards", "c1");
+    // Inline sync cleanup is atomic with the delete: the search document is
+    // removed in the same mutation (the query mock's shared row stands in for
+    // the cardSearchDocuments row).
+    expect(ctx.db.delete).toHaveBeenCalledWith("cardSearchDocuments", "usage_1");
   });
 });
