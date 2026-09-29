@@ -133,9 +133,11 @@ describe("card/defaultCards.ts", () => {
   test("returns cards_exist when user already has cards", async () => {
     const ctx = {
       db: {
+        get: mock().mockResolvedValue(null),
         query: mock().mockReturnValue({
           withIndex: mock().mockReturnValue({
             first: mock().mockResolvedValue({ _id: "existing" }),
+            unique: mock().mockResolvedValue(null),
           }),
         }),
         insert: mock(),
@@ -157,9 +159,11 @@ describe("card/defaultCards.ts", () => {
   test("creates default cards for new user", async () => {
     const ctx = {
       db: {
+        get: mock().mockResolvedValue(null),
         query: mock().mockReturnValue({
           withIndex: mock().mockReturnValue({
             first: mock().mockResolvedValue(null),
+            unique: mock().mockResolvedValue(null),
           }),
         }),
         insert: mock().mockResolvedValue("c1"),
@@ -192,9 +196,11 @@ describe("card/defaultCards.ts", () => {
     const insertedCards: any[] = [];
     const ctx = {
       db: {
+        get: mock().mockResolvedValue(null),
         query: mock().mockReturnValue({
           withIndex: mock().mockReturnValue({
             first: mock().mockResolvedValue(null),
+            unique: mock().mockResolvedValue(null),
           }),
         }),
         insert: mock().mockImplementation((table: string, data: any) => {
@@ -249,9 +255,11 @@ describe("card/defaultCards.ts", () => {
 
     const ctx = {
       db: {
+        get: mock().mockResolvedValue(null),
         query: mock().mockReturnValue({
           withIndex: mock().mockReturnValue({
             first: mock().mockResolvedValue(null),
+            unique: mock().mockResolvedValue(null),
           }),
         }),
         insert: mock().mockImplementation((table: string, data: any) => {
@@ -284,9 +292,11 @@ describe("card/defaultCards.ts", () => {
 
     const ctx = {
       db: {
+        get: mock().mockResolvedValue(null),
         query: mock().mockReturnValue({
           withIndex: mock().mockReturnValue({
             first: mock().mockResolvedValue(null),
+            unique: mock().mockResolvedValue(null),
           }),
         }),
         insert: mock().mockImplementation((table: string, data: any) => {
