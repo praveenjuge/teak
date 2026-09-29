@@ -14,16 +14,23 @@ test.describe("Seed", () => {
 
   test("seed", async ({ page }) => {
     const auth = new AuthHelper(page);
+    const email = TEST_EMAIL as string;
+    const password = TEST_PASSWORD as string;
     // Sign in first: the account usually exists, and signing up an existing
-    // account waits out the registration redirect before falling back.
-    await auth
-      .signInWithEmailAndPassword(TEST_EMAIL as string, TEST_PASSWORD as string)
-      .catch(() =>
-        auth.signUpWithEmailAndPassword(
-          TEST_EMAIL as string,
-          TEST_PASSWORD as string
-        )
-      );
+    // account waits out the registration redirect before falling back. Auth
+    // answers "invalid email or password" for both a missing account and a
+    // wrong password, so fall back to sign-up, but report both failures.
+    try {
+      await auth.signInWithEmailAndPassword(email, password);
+    } catch (signInError) {
+      try {
+        await auth.signUpWithEmailAndPassword(email, password);
+      } catch (signUpError) {
+        throw new Error(
+          `Could not sign in (${String(signInError)}) or sign up (${String(signUpError)}). Check E2E_BETTER_AUTH_USER_PASSWORD.`
+        );
+      }
+    }
 
     await expect(page).toHaveURL(/\/$/);
     await expect(
