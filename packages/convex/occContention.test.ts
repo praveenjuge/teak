@@ -33,7 +33,9 @@ import { authorizeCardCreation, ensureCardQuotaAvailable } from "./card/quota";
 import {
   buildCardSearchTags,
   buildCardSearchText,
+  patchCardWithSearchSync,
   restartCardSearchTagSync,
+  scheduleCardSearchSync,
   searchCardsByDocument,
   searchCardsByExactTag,
   syncCardSearchDocumentHandler,
@@ -606,6 +608,101 @@ describe("OCC contention behavior", () => {
         .unique();
       expect(document?.searchableText).toBe("latest");
       expect(document?.sourceUpdatedAt).toBe(20);
+    });
+  });
+
+  test("syncs the search document inline with the card patch", async () => {
+    const t = convexTest(schema, modules);
+    await t.run(async (ctx) => {
+      const cardId = await insertCard(ctx, "user-inline", {
+        content: "before",
+        tags: ["alpha"],
+        updatedAt: 10,
+      });
+      await patchCardWithSearchSync(ctx, cardId, {
+        content: "after",
+        updatedAt: 20,
+      });
+      // The document write is inline with the patch: it is visible before
+      // any scheduled tag-sync work runs.
+      const document = await ctx.db
+        .query("cardSearchDocuments")
+        .withIndex("by_cardId", (query) => query.eq("cardId", cardId))
+        .unique();
+      expect(document?.searchableText).toContain("after");
+      expect(document?.searchableText).toContain("alpha");
+      expect(document?.sourceUpdatedAt).toBe(20);
+      const state = await ctx.db
+        .query("cardSearchTagSyncStates")
+        .withIndex("by_cardId", (query) => query.eq("cardId", cardId))
+        .unique();
+      expect(state?.pending).toBe(true);
+      await drainCardSearchTagSync(ctx, cardId);
+      expect(
+        (await ctx.db.query("cardSearchTags").collect()).map(({ tag }) => tag)
+      ).toEqual(["alpha"]);
+    });
+  });
+
+  test("inline sync leaves the search rows untouched when nothing searchable changed", async () => {
+    const t = convexTest(schema, modules);
+    await t.run(async (ctx) => {
+      const cardId = await insertCard(ctx, "user-inline-noop", {
+        content: "stable",
+        tags: ["alpha"],
+        updatedAt: 10,
+      });
+      await scheduleCardSearchSync(ctx, cardId);
+      await drainCardSearchTagSync(ctx, cardId);
+      const stateBefore = await ctx.db
+        .query("cardSearchTagSyncStates")
+        .withIndex("by_cardId", (query) => query.eq("cardId", cardId))
+        .unique();
+      // A patch that touches neither the searchable fields nor updatedAt
+      // must not rewrite the document or restart the tag sync.
+      await patchCardWithSearchSync(ctx, cardId, {
+        url: "https://example.com/unchanged-search",
+      });
+      const document = await ctx.db
+        .query("cardSearchDocuments")
+        .withIndex("by_cardId", (query) => query.eq("cardId", cardId))
+        .unique();
+      expect(document?.sourceUpdatedAt).toBe(10);
+      const stateAfter = await ctx.db
+        .query("cardSearchTagSyncStates")
+        .withIndex("by_cardId", (query) => query.eq("cardId", cardId))
+        .unique();
+      expect(stateAfter?.generation).toBe(stateBefore?.generation);
+      expect(stateAfter?.phase).toBe("complete");
+    });
+  });
+
+  test("inline sync removes search data atomically with the card delete", async () => {
+    const t = convexTest(schema, modules);
+    await t.run(async (ctx) => {
+      const cardId = await insertCard(ctx, "user-inline-delete", {
+        content: "doomed",
+        tags: ["alpha"],
+        updatedAt: 10,
+      });
+      await scheduleCardSearchSync(ctx, cardId);
+      await drainCardSearchTagSync(ctx, cardId);
+      await ctx.db.delete("cards", cardId);
+      await scheduleCardSearchSync(ctx, cardId, "user-inline-delete");
+      expect(
+        await ctx.db
+          .query("cardSearchDocuments")
+          .withIndex("by_cardId", (query) => query.eq("cardId", cardId))
+          .unique()
+      ).toBeNull();
+      await drainCardSearchTagSync(ctx, cardId);
+      expect(await ctx.db.query("cardSearchTags").collect()).toHaveLength(0);
+      expect(
+        await ctx.db
+          .query("cardSearchTagSyncStates")
+          .withIndex("by_cardId", (query) => query.eq("cardId", cardId))
+          .unique()
+      ).toBeNull();
     });
   });
 
