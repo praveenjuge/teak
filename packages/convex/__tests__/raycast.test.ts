@@ -7,6 +7,7 @@ import {
   patchCardForUser,
   resolveCardIdForUserRequest,
 } from "../raycast";
+import { inlineSearchSyncDb } from "./helpers/session.test-utils";
 
 const runHandler = (fn: any, ctx: any, args: any) => {
   const handler = (fn as any).handler ?? fn;
@@ -20,6 +21,7 @@ describe("raycast", () => {
 
     const ctx = {
       db: {
+        ...inlineSearchSyncDb(),
         query: () => ({
           withSearchIndex: (indexName: string, cb: (q: any) => void) => {
             searchIndexes.push(indexName);
@@ -60,6 +62,7 @@ describe("raycast", () => {
 
     const ctx = {
       db: {
+        ...inlineSearchSyncDb(),
         get: async () => ({
           _id: "card_1",
           userId: "user_1",
@@ -97,6 +100,7 @@ describe("raycast", () => {
 
     const ctx = {
       db: {
+        ...inlineSearchSyncDb(),
         get: async () => ({
           _id: "card_1",
           _creationTime: 1,
@@ -135,6 +139,7 @@ describe("raycast", () => {
   test("resolveCardIdForUserRequest normalizes card id", async () => {
     const ctx = {
       db: {
+        ...inlineSearchSyncDb(),
         normalizeId: (_table: string, id: string) =>
           id === "valid" ? "card_1" : null,
       },
