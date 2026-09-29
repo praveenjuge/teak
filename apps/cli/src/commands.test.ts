@@ -63,7 +63,7 @@ beforeEach(() => {
 
 const teak = async (...args: string[]) => {
   const child = spawn([process.execPath, "run", "src/index.ts", ...args], {
-    cwd: new URL("..", import.meta.url).pathname,
+    cwd: join(import.meta.dir, ".."),
     env: {
       ...env,
       TEAK_API_KEY: API_KEY,
