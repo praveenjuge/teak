@@ -133,14 +133,7 @@ describe("card/defaultCards.ts", () => {
   test("returns cards_exist when user already has cards", async () => {
     const ctx = {
       db: {
-        get: mock().mockResolvedValue({
-          _id: "c1",
-          userId: "u1",
-          type: "text",
-          content: "Card",
-          createdAt: 1,
-          updatedAt: 1,
-        }),
+        get: mock().mockResolvedValue(null),
         query: mock().mockReturnValue({
           withIndex: mock().mockReturnValue({
             first: mock().mockResolvedValue({ _id: "existing" }),
@@ -164,23 +157,27 @@ describe("card/defaultCards.ts", () => {
   });
 
   test("creates default cards for new user", async () => {
+    const cardsById = new Map<string, any>();
+    let nextCardId = 0;
     const ctx = {
       db: {
-        get: mock().mockResolvedValue({
-          _id: "c1",
-          userId: "u1",
-          type: "text",
-          content: "Card",
-          createdAt: 1,
-          updatedAt: 1,
-        }),
+        get: mock().mockImplementation(
+          async (_table: string, id: string) => cardsById.get(id) ?? null
+        ),
         query: mock().mockReturnValue({
           withIndex: mock().mockReturnValue({
             first: mock().mockResolvedValue(null),
             unique: mock().mockResolvedValue(null),
           }),
         }),
-        insert: mock().mockResolvedValue("c1"),
+        insert: mock().mockImplementation(async (table: string, data: any) => {
+          if (table === "cards") {
+            const id = `card_${++nextCardId}`;
+            cardsById.set(id, { ...data, _id: id });
+            return id;
+          }
+          return `${table}_${nextCardId}`;
+        }),
       },
       scheduler: { runAfter: mock() },
     } as any;
@@ -202,26 +199,32 @@ describe("card/defaultCards.ts", () => {
       "userCardUsageShards",
       expect.objectContaining({ userId: "u1", shard: 0 })
     );
-    expect(ctx.db.insert).toHaveBeenCalledWith(
-      "cardSearchDocuments",
-      expect.objectContaining({ userId: "u1" })
-    );
+    const searchDocInserts = ctx.db.insert.mock.calls
+      .filter(([table]: [string]) => table === "cardSearchDocuments")
+      .map(([, doc]: [string, any]) => doc);
+    expect(searchDocInserts).toHaveLength(3);
+    for (const defaultCard of DEFAULT_CARDS) {
+      expect(searchDocInserts).toContainEqual(
+        expect.objectContaining({
+          userId: "u1",
+          type: defaultCard.type,
+          searchableText: expect.stringContaining(defaultCard.content),
+        })
+      );
+    }
     expect(ctx.scheduler.runAfter).toHaveBeenCalledTimes(3);
     expect(result).toEqual({ created: true, count: 3 });
   });
 
   test("creates cards with correct structure", async () => {
+    const cardsById = new Map<string, any>();
+    let nextCardId = 0;
     const insertedCards: any[] = [];
     const ctx = {
       db: {
-        get: mock().mockResolvedValue({
-          _id: "c1",
-          userId: "u1",
-          type: "text",
-          content: "Card",
-          createdAt: 1,
-          updatedAt: 1,
-        }),
+        get: mock().mockImplementation(
+          async (_table: string, id: string) => cardsById.get(id) ?? null
+        ),
         query: mock().mockReturnValue({
           withIndex: mock().mockReturnValue({
             first: mock().mockResolvedValue(null),
@@ -230,9 +233,12 @@ describe("card/defaultCards.ts", () => {
         }),
         insert: mock().mockImplementation((table: string, data: any) => {
           if (table === "cards") {
+            const id = `id_${insertedCards.length + 1}`;
             insertedCards.push(data);
+            cardsById.set(id, { ...data, _id: id });
+            return id;
           }
-          return `id_${insertedCards.length}`;
+          return `${table}_${insertedCards.length}`;
         }),
       },
     } as any;
@@ -275,19 +281,16 @@ describe("card/defaultCards.ts", () => {
   });
 
   test("creates cards with incremental timestamps", async () => {
+    const cardsById = new Map<string, any>();
+    let nextCardId = 0;
     const insertedCards: any[] = [];
     const baseTimestamp = 1_700_000_000_000;
 
     const ctx = {
       db: {
-        get: mock().mockResolvedValue({
-          _id: "c1",
-          userId: "u1",
-          type: "text",
-          content: "Card",
-          createdAt: 1,
-          updatedAt: 1,
-        }),
+        get: mock().mockImplementation(
+          async (_table: string, id: string) => cardsById.get(id) ?? null
+        ),
         query: mock().mockReturnValue({
           withIndex: mock().mockReturnValue({
             first: mock().mockResolvedValue(null),
@@ -296,9 +299,12 @@ describe("card/defaultCards.ts", () => {
         }),
         insert: mock().mockImplementation((table: string, data: any) => {
           if (table === "cards") {
+            const id = `id_${insertedCards.length + 1}`;
             insertedCards.push(data);
+            cardsById.set(id, { ...data, _id: id });
+            return id;
           }
-          return `id_${insertedCards.length}`;
+          return `${table}_${insertedCards.length}`;
         }),
       },
     } as any;
@@ -320,18 +326,15 @@ describe("card/defaultCards.ts", () => {
   });
 
   test("creates palette cards with proper color structure", async () => {
+    const cardsById = new Map<string, any>();
+    let nextCardId = 0;
     const insertedCards: any[] = [];
 
     const ctx = {
       db: {
-        get: mock().mockResolvedValue({
-          _id: "c1",
-          userId: "u1",
-          type: "text",
-          content: "Card",
-          createdAt: 1,
-          updatedAt: 1,
-        }),
+        get: mock().mockImplementation(
+          async (_table: string, id: string) => cardsById.get(id) ?? null
+        ),
         query: mock().mockReturnValue({
           withIndex: mock().mockReturnValue({
             first: mock().mockResolvedValue(null),
@@ -340,9 +343,12 @@ describe("card/defaultCards.ts", () => {
         }),
         insert: mock().mockImplementation((table: string, data: any) => {
           if (table === "cards") {
+            const id = `id_${insertedCards.length + 1}`;
             insertedCards.push(data);
+            cardsById.set(id, { ...data, _id: id });
+            return id;
           }
-          return `id_${insertedCards.length}`;
+          return `${table}_${insertedCards.length}`;
         }),
       },
     } as any;
