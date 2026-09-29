@@ -30,14 +30,16 @@ describe("card/deleteCard.ts", () => {
     const ctx = withTestSession({
       auth: { getUserIdentity: mock().mockResolvedValue({ subject: "u1" }) },
       db: {
-        get: mock().mockResolvedValue({
-          _id: "c1",
-          userId: "u1",
-          type: "image",
-          fileKey: "f1",
-          previewKey: "p1",
-          thumbnailKey: "t1",
-        }),
+        get: mock()
+          .mockResolvedValueOnce({
+            _id: "c1",
+            userId: "u1",
+            type: "image",
+            fileKey: "f1",
+            previewKey: "p1",
+            thumbnailKey: "t1",
+          })
+          .mockResolvedValue(null),
         delete: mock().mockResolvedValue(null),
         patch: mock().mockResolvedValue(null),
         insert: mock().mockResolvedValue("sync_1"),
