@@ -11,12 +11,12 @@ import {
   sanitizeText,
   sanitizeUrl,
   toSelectorMap,
-} from "../../../convex/linkMetadata/parsing";
+} from "../../linkMetadata/parsing";
 import type {
   ScrapeResultItem,
   ScrapeSelectorResult,
   SelectorSource,
-} from "../../../convex/linkMetadata/types";
+} from "../../linkMetadata/types";
 
 describe("parsing", () => {
   describe("toSelectorMap", () => {
@@ -81,6 +81,41 @@ describe("parsing", () => {
     test("returns undefined if value is empty", () => {
       const source: SelectorSource = { selector: "sel3", attribute: "text" };
       expect(getSelectorValue(map, source)).toBeUndefined();
+    });
+
+    test("skips empty leading results and returns the first with text", () => {
+      const results = new Map<string, ScrapeResultItem[]>([
+        ["title", [{ text: "  " }, { text: "Real title" }, { text: "Later" }]],
+      ]);
+      expect(
+        getSelectorValue(results, { selector: "title", attribute: "text" })
+      ).toBe("Real title");
+    });
+
+    test("falls back to html when text is empty", () => {
+      const results = new Map<string, ScrapeResultItem[]>([
+        ["title", [{ text: "", html: " <b>Bold</b> " }]],
+      ]);
+      expect(
+        getSelectorValue(results, { selector: "title", attribute: "text" })
+      ).toBe("<b>Bold</b>");
+    });
+
+    test("uses the first result that has the requested attribute", () => {
+      const results = new Map<string, ScrapeResultItem[]>([
+        [
+          "meta",
+          [
+            { attributes: [{ name: "name", value: "og:image" }] },
+            {
+              attributes: [{ name: "content", value: "https://a.test/i.png" }],
+            },
+          ],
+        ],
+      ]);
+      expect(
+        getSelectorValue(results, { selector: "meta", attribute: "content" })
+      ).toBe("https://a.test/i.png");
     });
   });
 
@@ -177,6 +212,13 @@ describe("parsing", () => {
       expect(sanitizeImageUrl(baseUrl, "/img.png")).toBe(
         "https://base.com/img.png"
       );
+    });
+    test.each([
+      "data:text/html;base64,PHNjcmlwdD4=",
+      "data:application/pdf;base64,JVBERi0=",
+      "data:,plain",
+    ])("rejects non-image data url %s", (value: string) => {
+      expect(sanitizeImageUrl(baseUrl, value)).toBeUndefined();
     });
   });
 

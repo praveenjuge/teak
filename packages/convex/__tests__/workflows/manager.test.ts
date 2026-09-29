@@ -5,8 +5,8 @@ import {
   cleanupWorkflowHistoryBatchHandler,
   initializeCardProcessingStateHandler,
   MAX_WORKFLOW_CLEANUP_BATCH_SIZE,
-  scheduleCompletedWorkflowCleanupHandler,
   reapStuckWorkflowsHandler,
+  scheduleCompletedWorkflowCleanupHandler,
   scheduleWorkflowHistoryCleanupBatchHandler,
   startCardProcessingWorkflowHandler,
   WORKFLOW_CLEANUP_RETRY_MS,
@@ -34,9 +34,9 @@ describe("workflow manager", () => {
       mockDbPatch.mockReset();
     });
 
-    test("throws if card not found", () => {
+    test("throws if card not found", async () => {
       mockDbGet.mockResolvedValue(null);
-      expect(
+      await expect(
         initializeCardProcessingStateHandler(ctx, { cardId: "c1" })
       ).rejects.toThrow("Card c1 not found");
     });
@@ -460,8 +460,8 @@ describe("workflow manager", () => {
       expect(runAfter).not.toHaveBeenCalled();
     });
 
-    test("rejects oversized maintenance batches", () => {
-      expect(
+    test("rejects oversized maintenance batches", async () => {
+      await expect(
         cleanupWorkflowHistoryBatchHandler({} as any, {
           cutoffMs: Date.now() - WORKFLOW_RETENTION_MS,
           dryRun: true,
@@ -473,8 +473,8 @@ describe("workflow manager", () => {
       ).rejects.toThrow("workflowIds must contain 1-100 unique IDs");
     });
 
-    test("rejects a cutoff that would delete recent history", () => {
-      expect(
+    test("rejects a cutoff that would delete recent history", async () => {
+      await expect(
         cleanupWorkflowHistoryBatchHandler({} as any, {
           cutoffMs: Date.now() - WORKFLOW_RETENTION_MS + 60_000,
           dryRun: true,
@@ -485,8 +485,8 @@ describe("workflow manager", () => {
       );
     });
 
-    test("rejects non-finite retention cutoffs", () => {
-      expect(
+    test("rejects non-finite retention cutoffs", async () => {
+      await expect(
         cleanupWorkflowHistoryBatchHandler({} as any, {
           cutoffMs: Number.NaN,
           dryRun: true,
@@ -595,7 +595,7 @@ describe("workflow manager", () => {
       const result = await reapStuckWorkflowsHandler(ctx);
 
       expect(result.reapedCount).toBe(1);
-      expect(runAfter).toHaveBeenCalledWith(60000, expect.anything(), {
+      expect(runAfter).toHaveBeenCalledWith(60_000, expect.anything(), {
         cursor: "next_page",
       });
     });
@@ -645,11 +645,7 @@ describe("workflow manager", () => {
       const result = await reapStuckWorkflowsHandler(ctx);
 
       expect(result.reapedCount).toBe(50);
-      expect(runAfter).toHaveBeenCalledWith(
-        60000,
-        expect.anything(),
-        {}
-      );
+      expect(runAfter).toHaveBeenCalledWith(60_000, expect.anything(), {});
     });
   });
 });

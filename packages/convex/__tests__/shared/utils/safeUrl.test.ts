@@ -5,7 +5,7 @@ import {
   isSafeExternalUrl,
   sanitizeExternalUrl,
   UnsafeUrlError,
-} from "./safeUrl";
+} from "../../../shared/utils/safeUrl";
 
 describe("isSafeExternalUrl", () => {
   it("accepts http and https URLs", () => {

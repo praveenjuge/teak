@@ -12,7 +12,7 @@ import {
   isInstagramPostUrl,
   isInstagramUrl,
   normalizeInstagramExtractedMedia,
-} from "./instagram";
+} from "../../linkMetadata/instagram";
 
 describe("instagram constants", () => {
   it("should have correct hostname constant", () => {

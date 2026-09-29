@@ -3,7 +3,7 @@ import {
   API_KEY_TOKEN_PREFIX,
   getApiKeyFormat,
   isWellFormedApiKey,
-} from "./apiKeyFormat";
+} from "../../shared/apiKeyFormat";
 
 describe("apiKeyFormat", () => {
   test("treats the retired teakapi_<prefix>_<secret> token as malformed", () => {

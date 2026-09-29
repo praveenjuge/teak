@@ -69,7 +69,7 @@ describe("categorization updateCategorization", () => {
     }
   });
 
-  it("skips if the card was deleted during categorization", () => {
+  it("skips if the card was deleted during categorization", async () => {
     const mutation = withScheduler(updateCategorization);
 
     const mockCtx = {
@@ -79,7 +79,7 @@ describe("categorization updateCategorization", () => {
       },
     };
 
-    expect(
+    await expect(
       mutation(mockCtx, { cardId: "card_missing", metadata: {} })
     ).resolves.toBeNull();
   });

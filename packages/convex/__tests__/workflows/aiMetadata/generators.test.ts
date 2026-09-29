@@ -180,11 +180,11 @@ describe("aiMetadata generators", () => {
     expect(linkCall.prompt.length).toBe(maxInputChars);
   });
 
-  test("handles errors in all generators", () => {
+  test("handles errors in all generators", async () => {
     mockGenerateText.mockRejectedValue(new Error("AI error"));
-    expect(generateTextMetadata("c")).rejects.toThrow("AI error");
-    expect(generateImageMetadata("url")).rejects.toThrow("AI error");
-    expect(generateLinkMetadata("url")).rejects.toThrow("AI error");
+    await expect(generateTextMetadata("c")).rejects.toThrow("AI error");
+    await expect(generateImageMetadata("url")).rejects.toThrow("AI error");
+    await expect(generateLinkMetadata("url")).rejects.toThrow("AI error");
   });
 
   test("retries provider JSON validation failures with a corrective prompt", async () => {

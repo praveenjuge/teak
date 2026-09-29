@@ -105,6 +105,10 @@ describe("resolveSentryEnvironment", () => {
   });
 
   test("uses environment DSNs and versioned releases", () => {
+    // Importing next.config (nextConfig.test.ts) exports a release derived
+    // from GITHUB_SHA in CI; clear it so this test derives its own release.
+    delete process.env.NEXT_PUBLIC_SENTRY_RELEASE;
+    delete process.env.SENTRY_RELEASE;
     process.env.NEXT_PUBLIC_SENTRY_DSN = "https://public@example.invalid/1";
     process.env.NEXT_PUBLIC_SENTRY_ENVIRONMENT = "production";
     process.env.NODE_ENV = "production";

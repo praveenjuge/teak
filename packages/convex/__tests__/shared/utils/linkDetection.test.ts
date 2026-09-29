@@ -1,5 +1,8 @@
 import { describe, expect, it } from "bun:test";
-import { extractUrlFromContent, resolveTextCardInput } from "./linkDetection";
+import {
+  extractUrlFromContent,
+  resolveTextCardInput,
+} from "../../../shared/utils/linkDetection";
 
 describe("extractUrlFromContent", () => {
   it("should return empty result for empty content", () => {

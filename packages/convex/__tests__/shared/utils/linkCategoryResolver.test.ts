@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { resolveLinkCategory } from "./linkCategoryResolver";
+import { resolveLinkCategory } from "../../../shared/utils/linkCategoryResolver";
 
 describe("resolveLinkCategory", () => {
   describe("domain-based resolution", () => {

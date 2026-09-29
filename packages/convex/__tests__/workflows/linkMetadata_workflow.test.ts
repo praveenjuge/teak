@@ -62,12 +62,12 @@ describe("linkMetadataWorkflow", () => {
     expect(mockStep.runMutation).toHaveBeenCalled();
   });
 
-  test("workflow handler non-retryable error", () => {
+  test("workflow handler non-retryable error", async () => {
     const mockStep = {
       runAction: mock().mockRejectedValue(new Error("Fatal")),
     };
 
-    expect(
+    await expect(
       linkMetadataWorkflowHandler(mockStep, { cardId: "c1" })
     ).rejects.toThrow("Fatal");
   });

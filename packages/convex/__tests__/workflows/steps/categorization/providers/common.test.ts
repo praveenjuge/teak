@@ -7,7 +7,7 @@ import {
   getRawText,
   normalizeWhitespace,
   type RawSelectorMap,
-} from "./common";
+} from "../../../../../workflows/steps/categorization/providers/common";
 
 describe("normalizeWhitespace", () => {
   it("should return undefined for undefined input", () => {
