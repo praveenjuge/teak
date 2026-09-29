@@ -90,16 +90,17 @@ Production suite (`packages/tests`, follow its README: numbered journeys, dedica
 - Extend `04-cli.e2e.ts`: `update`, `bulk`, `changes`, `rm`, `fav`.
 - Extend `extension/save-page.e2e.ts`: save current page URL from popup.
 - Use Playwright 1.63 features: `toMatchAriaSnapshot` for card modal and settings structure (stable, agent-readable), `test.step` with `subtitle`/`params`, trace `snapshots: { dom, aria, screen }`.
-- Add each new project to `playwright.config.ts` and update `playwright.config.test.ts`.
+- Add each new project to `playwright.config.ts`, to the explicit `--project` lists in `packages/tests/package.json` (`e2e:prod:journey`) and `src/scripts/run-prod-suite.ts`, and update `playwright.config.test.ts` so it fails when a journey project is missing from those lists.
 
 Local suite (`apps/web/src/tests`), run manually or by agents against the headless stack:
-- Seed a verified user automatically in `global.setup.ts` (currently a no-op) using the internal test-setup endpoint described in `.agents/headless-development.md`, so specs no longer need `E2E_BETTER_AUTH_USER_*` to run.
-- Add `seed.spec.ts` (needed by Playwright test agents) that signs in and lands on `/`.
+- Seed a verified user automatically in `global.setup.ts` (currently a no-op) using the internal test-setup endpoint described in `.agents/headless-development.md`. That endpoint needs its token and email domain configured, so `bun run setup --target e2e` must write them to the local env, and setup must hand the created credentials to the specs (storage state plus `E2E_BETTER_AUTH_USER_*` in `process.env`) so the credential gate no longer skips.
+- Add `seed.e2e.ts` (the seed test Playwright test agents need; named to match the config's `**/*.e2e.ts` pattern) that signs in and lands on `/`.
 - Fill `fixtures/` with small real files (png, pdf, mp4, webm, md) reused from `packages/tests/src/helpers/file-formats.ts` where possible.
 
 ## Phase 5: CI and coverage gates (unit only)
 
 - New `.github/workflows/unit-tests.yml` on `pull_request` and `push: main`: Bun from `packageManager`, `bun install --frozen-lockfile`, `bun run test` (turbo, affected where possible via `--affected`), upload `coverage/` as artifact. No e2e.
+- Add `--coverage` to the workspace test scripts that lack it (`apps/files-worker`, `packages/files-protocol`, `packages/tests`) so every workspace reports coverage.
 - Coverage thresholds: add `[test] coverageThreshold` in each workspace `bunfig.toml` (or root) set at current measured value minus 1 point, per workspace, then ratchet. Add `coverageSkipTestFiles = true` and `coveragePathIgnorePatterns` for `_generated`. Vitest: `coverage.thresholds` in `vitest.config.ts` with `@vitest/coverage-v8`.
 - Set `CLAUDECODE=1`/`AGENT=1` is not needed in scripts: Bun and Vitest auto-detect agents. Remove the hardcoded `CLAUDECODE=1 AGENT=1` from `apps/web` `test` script so humans get normal output.
 - `scripts/check-test-hygiene.ts` (bun test'd, run in `lint`): fails on `expect(true)`, `@ts-nocheck` in new test files, `readFileSync` of non-fixture source in tests, unawaited `.rejects`/`.resolves`, `test.only`, and test files outside the paths each workspace script runs. Chip away at the 110 `@ts-nocheck` files opportunistically, not in this change.
