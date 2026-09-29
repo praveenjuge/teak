@@ -1,6 +1,7 @@
 // @ts-nocheck
 import { describe, expect, mock, test } from "bun:test";
 import { r2MockModuleFactory, r2Mocks } from "./helpers/r2Mock.test-utils";
+import { inlineSearchSyncDb } from "./helpers/session.test-utils";
 
 mock.module("../storage/r2", r2MockModuleFactory);
 
@@ -16,6 +17,7 @@ const createMockCtx = () => {
   r2Mocks.deleteObject.mockResolvedValue(null);
   return {
     db: {
+        ...inlineSearchSyncDb(),
       get: mock(),
       patch: mock(),
     },
