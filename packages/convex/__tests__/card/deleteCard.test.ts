@@ -44,15 +44,21 @@ describe("card/deleteCard.ts", () => {
         patch: mock().mockResolvedValue(null),
         insert: mock().mockResolvedValue("sync_1"),
         replace: mock().mockResolvedValue(null),
-        query: mock().mockReturnValue({
+        query: mock().mockImplementation((table: string) => ({
           withIndex: mock().mockReturnValue({
-            unique: mock().mockResolvedValue({
-              _id: "usage_1",
-              activeCardCount: 1,
-              isSaturated: false,
-            }),
+            unique: mock().mockResolvedValue(
+              table === "cardSearchDocuments"
+                ? { _id: "searchdoc_1", cardId: "c1", userId: "u1" }
+                : table === "cardSearchTagSyncStates"
+                  ? { _id: "syncstate_1", cardId: "c1", generation: 1 }
+                  : {
+                      _id: "usage_1",
+                      activeCardCount: 1,
+                      isSaturated: false,
+                    }
+            ),
           }),
-        }),
+        })),
       },
       scheduler: { runAfter: mock().mockResolvedValue(null) },
     } as any);
@@ -64,8 +70,10 @@ describe("card/deleteCard.ts", () => {
     expect(deleteObjectMock).toHaveBeenCalledWith(ctx, "t1");
     expect(ctx.db.delete).toHaveBeenCalledWith("cards", "c1");
     // Inline sync cleanup is atomic with the delete: the search document is
-    // removed in the same mutation (the query mock's shared row stands in for
-    // the cardSearchDocuments row).
-    expect(ctx.db.delete).toHaveBeenCalledWith("cardSearchDocuments", "usage_1");
+    // removed in the same mutation.
+    expect(ctx.db.delete).toHaveBeenCalledWith(
+      "cardSearchDocuments",
+      "searchdoc_1"
+    );
   });
 });
