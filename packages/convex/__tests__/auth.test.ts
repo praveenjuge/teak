@@ -17,9 +17,37 @@ process.env.APPLE_KEY_ID = "test-apple-key-id";
 process.env.APPLE_PRIVATE_KEY = TEST_APPLE_PRIVATE_KEY;
 process.env.APPLE_TEAM_ID = "test-apple-team-id";
 
-import { beforeAll, beforeEach, describe, expect, it, mock } from "bun:test";
+import {
+  afterAll,
+  beforeAll,
+  beforeEach,
+  describe,
+  expect,
+  it,
+  mock,
+} from "bun:test";
 import { TEST_APPLE_PRIVATE_KEY } from "./helpers/appleAuth.test-utils";
 import { r2MockModuleFactory } from "./helpers/r2Mock.test-utils";
+
+// Restore the environment this file overrides for auth.ts once it finishes.
+afterAll(() => {
+  const originals: Record<string, string | undefined> = {
+    APPLE_CLIENT_ID: _originalAppleClientId,
+    APPLE_KEY_ID: _originalAppleKeyId,
+    APPLE_PRIVATE_KEY: _originalApplePrivateKey,
+    APPLE_TEAM_ID: _originalAppleTeamId,
+    GOOGLE_CLIENT_ID: _originalGoogleClientId,
+    GOOGLE_CLIENT_SECRET: _originalGoogleClientSecret,
+    SITE_URL: _originalSiteUrl,
+  };
+  for (const [name, value] of Object.entries(originals)) {
+    if (value === undefined) {
+      delete process.env[name];
+    } else {
+      process.env[name] = value;
+    }
+  }
+});
 
 const mockSendEmail = mock().mockResolvedValue({ id: "m1" });
 
@@ -344,16 +372,17 @@ describe("auth", () => {
       rateLimiter.limit = mockLimit;
       polar.getCurrentSubscription = mockGetSub;
 
-      const ctx = { db: { query: () => null } } as any;
-      addUsageRecord(ctx, 0);
-      await ensureCardCreationAllowed(ctx, "u1");
+      try {
+        const ctx = { db: { query: () => null } } as any;
+        addUsageRecord(ctx, 0);
+        await ensureCardCreationAllowed(ctx, "u1");
 
-      expect(mockLimit).toHaveBeenCalled();
-      expect(mockGetSub).toHaveBeenCalled();
-
-      // Restore
-      rateLimiter.limit = originalLimit;
-      polar.getCurrentSubscription = originalGetSubscription;
+        expect(mockLimit).toHaveBeenCalled();
+        expect(mockGetSub).toHaveBeenCalled();
+      } finally {
+        rateLimiter.limit = originalLimit;
+        polar.getCurrentSubscription = originalGetSubscription;
+      }
     });
   });
 
@@ -905,13 +934,16 @@ describe("auth", () => {
 
         // Test development origins branch
         const originalNodeEnv = process.env.NODE_ENV;
-        process.env.NODE_ENV = "development";
-        const authDev = createAuth(ctx) as any;
-        expect(Array.isArray(authDev.options.trustedOrigins)).toBe(true);
-        expect(authDev.options.trustedOrigins).toContain(
-          "https://app.teakvault.com"
-        );
-        process.env.NODE_ENV = originalNodeEnv;
+        try {
+          process.env.NODE_ENV = "development";
+          const authDev = createAuth(ctx) as any;
+          expect(Array.isArray(authDev.options.trustedOrigins)).toBe(true);
+          expect(authDev.options.trustedOrigins).toContain(
+            "https://app.teakvault.com"
+          );
+        } finally {
+          process.env.NODE_ENV = originalNodeEnv;
+        }
 
         // Test callbacks
         // We need to mock resend.sendEmail which is used in callbacks
