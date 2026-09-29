@@ -5,6 +5,10 @@ import {
   syncCardSearchTagsBatchHandler,
 } from "./searchDocumentHelpers";
 
+// Legacy entry point: app code now syncs search documents inline via
+// scheduleCardSearchSync (see searchDocumentHelpers), so nothing schedules
+// this mutation anymore. It stays registered so invocations queued before
+// the cutover still run.
 export const syncCardSearchDocument = internalMutation({
   args: { cardId: v.id("cards"), userId: v.optional(v.string()) },
   returns: v.null(),
