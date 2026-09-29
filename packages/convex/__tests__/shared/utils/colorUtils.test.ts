@@ -340,6 +340,24 @@ describe("extractPaletteColors", () => {
     expect(colors[0]?.name).toBeUndefined();
   });
 
+  it("names a repeated color once a later match supplies a label", () => {
+    const colors = extractPaletteColors("--__: #123456\nBrand: #123456");
+    expect(colors).toEqual([
+      expect.objectContaining({ hex: "#123456", name: "Brand" }),
+    ]);
+  });
+
+  it("caps the palette at 12 colors by default", () => {
+    const hexes = Array.from(
+      { length: 15 },
+      (_, i) => `#${(i + 1).toString(16).padStart(2, "0")}0000`
+    );
+    const colors = extractPaletteColors(hexes.join(", "));
+    expect(colors.map((c) => c.hex)).toEqual(
+      hexes.slice(0, 12).map((h) => h.toUpperCase())
+    );
+  });
+
   it("should extract colors from comma-separated list", () => {
     const result = extractPaletteColors("#FF5733, #00FF00, #0000FF");
     expect(result.length).toBeGreaterThan(0);
