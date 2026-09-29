@@ -1,5 +1,6 @@
 // @ts-nocheck
 import { beforeEach, describe, expect, mock, test } from "bun:test";
+import { inlineSearchSyncDb } from "../helpers/session.test-utils";
 
 describe("ai/mutations.ts", () => {
   let updateCardProcessing: any;
@@ -19,6 +20,7 @@ describe("ai/mutations.ts", () => {
   test("updates processing fields", async () => {
     const ctx = {
       db: {
+        ...inlineSearchSyncDb(),
         get: mock().mockResolvedValue({ _id: "c1" }),
         patch: mock().mockResolvedValue(undefined),
       },

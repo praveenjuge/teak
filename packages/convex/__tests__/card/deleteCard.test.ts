@@ -30,25 +30,35 @@ describe("card/deleteCard.ts", () => {
     const ctx = withTestSession({
       auth: { getUserIdentity: mock().mockResolvedValue({ subject: "u1" }) },
       db: {
-        get: mock().mockResolvedValue({
-          _id: "c1",
-          userId: "u1",
-          type: "image",
-          fileKey: "f1",
-          previewKey: "p1",
-          thumbnailKey: "t1",
-        }),
+        get: mock()
+          .mockResolvedValueOnce({
+            _id: "c1",
+            userId: "u1",
+            type: "image",
+            fileKey: "f1",
+            previewKey: "p1",
+            thumbnailKey: "t1",
+          })
+          .mockResolvedValue(null),
         delete: mock().mockResolvedValue(null),
         patch: mock().mockResolvedValue(null),
-        query: mock().mockReturnValue({
+        insert: mock().mockResolvedValue("sync_1"),
+        replace: mock().mockResolvedValue(null),
+        query: mock().mockImplementation((table: string) => ({
           withIndex: mock().mockReturnValue({
-            unique: mock().mockResolvedValue({
-              _id: "usage_1",
-              activeCardCount: 1,
-              isSaturated: false,
-            }),
+            unique: mock().mockResolvedValue(
+              table === "cardSearchDocuments"
+                ? { _id: "searchdoc_1", cardId: "c1", userId: "u1" }
+                : table === "cardSearchTagSyncStates"
+                  ? { _id: "syncstate_1", cardId: "c1", generation: 1 }
+                  : {
+                      _id: "usage_1",
+                      activeCardCount: 1,
+                      isSaturated: false,
+                    }
+            ),
           }),
-        }),
+        })),
       },
       scheduler: { runAfter: mock().mockResolvedValue(null) },
     } as any);
@@ -59,5 +69,11 @@ describe("card/deleteCard.ts", () => {
     expect(deleteObjectMock).toHaveBeenCalledWith(ctx, "p1");
     expect(deleteObjectMock).toHaveBeenCalledWith(ctx, "t1");
     expect(ctx.db.delete).toHaveBeenCalledWith("cards", "c1");
+    // Inline sync cleanup is atomic with the delete: the search document is
+    // removed in the same mutation.
+    expect(ctx.db.delete).toHaveBeenCalledWith(
+      "cardSearchDocuments",
+      "searchdoc_1"
+    );
   });
 });

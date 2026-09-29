@@ -49,3 +49,19 @@ export function withTestSession<T extends TestContext>(ctx: T): T {
     runQuery,
   };
 }
+
+// Minimal db surface for the inline card search sync in mocked mutation
+// contexts. Spread FIRST in a db literal so the test's own mocks override
+// these defaults.
+export const inlineSearchSyncDb = () => ({
+  get: mock().mockResolvedValue(null),
+  query: mock().mockReturnValue({
+    withIndex: mock().mockReturnValue({
+      unique: mock().mockResolvedValue(null),
+    }),
+  }),
+  insert: mock().mockResolvedValue("sync_1"),
+  patch: mock().mockResolvedValue(null),
+  replace: mock().mockResolvedValue(null),
+  delete: mock().mockResolvedValue(null),
+});

@@ -14,6 +14,7 @@ import {
   WORKFLOW_RETENTION_MS,
   workflow,
 } from "../../../convex/workflows/manager";
+import { inlineSearchSyncDb } from "../helpers/session.test-utils";
 
 describe("workflow manager", () => {
   test("limits workflow step parallelism to ten", () => {
@@ -24,7 +25,7 @@ describe("workflow manager", () => {
     const mockDbGet = mock();
     const mockDbPatch = mock();
     const ctx = {
-      db: { get: mockDbGet, patch: mockDbPatch },
+      db: { ...inlineSearchSyncDb(), get: mockDbGet, patch: mockDbPatch },
       scheduler: { runAfter: mock().mockResolvedValue(null) },
     } as any;
 
