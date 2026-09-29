@@ -16,10 +16,21 @@ Decisions from user: unit tests only on PRs (no local e2e in CI); rewrite slop +
 
 ## Status (2026-09-29)
 
-- Phase 0 blocked: `bun install` gets a 403 fetching the `electron/node-gyp` git tarball from `api.github.com` / `codeload.github.com` in the cloud container. The environment network policy must allow those hosts before the lockfile can be regenerated. Target note: pin `@next/playwright` to the installed `next` version (16.3.3) rather than 16.3.7.
-- Phase 1 done except item 5: orphaned convex tests moved and merged (1993 unit tests across 132 files pass), nested `__tests__/__tests__` flattened, 22 async assertions awaited (none were hiding failures), UI script finds every test file (fixed the stale `prefetchCardMedia` test it exposed), Safari companion test in root `test`.
-- Phase 5 part 1 done: `.github/workflows/unit-tests.yml` runs `bun run test`. It does not upload coverage yet: Bun only writes files with `--coverage-reporter=lcov` in each workspace script (a root `bunfig.toml` does not reach workspace runs), so the artifact upload lands with the thresholds in part 2.
-- Phase 1 item 5 (e2e skips) deferred until the local stack can run, so hard assertions are verified rather than guessed.
+Done in praveenjuge/teak#460:
+- Phase 1 (except item 5): orphaned convex tests moved and merged, nested `__tests__/__tests__` flattened, 22 async assertions awaited, the UI script finds every test file, the Safari companion test runs from the root `test`.
+- Phase 2, partly: module-exists, literal-echo, and re-implementation tests deleted in convex, mobile, and extension (for example the cardProcessing, cardCleanup, linkEnrichment, screenshot, rateLimits, and billing slop, and the extension hook and background files). Where the code had real behavior, it now has a behavior test instead (`isValidUrl`, `isRestrictedUrl` in `apps/extension/lib/restrictedUrl.ts`, `parseScreenshotRetryableError`).
+- Phase 3, first items: CLI commands against a fake API (`apps/cli/src/commands.test.ts`), public API validation (`__tests__/publicApiHttpValidation.test.ts`), and idempotency keys on convex-test (`idempotency.test.ts`). Each was checked by breaking the code.
+- Phase 5 part 1: `.github/workflows/unit-tests.yml` runs `bun run test`. It does not upload coverage yet: Bun only writes files with `--coverage-reporter=lcov` in each workspace script (a root `bunfig.toml` does not reach workspace runs), so the upload lands with the thresholds in part 2.
+- Phase 6: `.agents/testing.md`, the Playwright test agents in `.claude/agents/` (the healer may not skip tests or weaken assertions), `.mcp.json` with the `playwright-test` and `playwright` servers, and `apps/web/src/tests/seed.e2e.ts`.
+- Fixed along the way: the Sentry release test depended on test file order in CI; the stale `prefetchCardMedia` test.
+
+Still open:
+- Phase 0 is blocked: `bun install` gets a 403 fetching the `electron/node-gyp` git tarball from `api.github.com` / `codeload.github.com` in the cloud container. The environment network policy must allow those hosts. Pin `@next/playwright` to the installed `next` version.
+- Phase 1 item 5 (e2e skips) waits until the local stack runs, so the hard assertions are verified rather than guessed.
+- Phase 2: replace the ~32 source-grep tests (desktop wiring, mobile regressions, UI previews, web wiring, convex schema and import).
+- Phase 3: the card processing workflow end to end on convex-test (register `@convex-dev/workflow/test` and mock the AI, R2, and telemetry actions at the boundary), then uploads, import, search, and UI hooks.
+- The convex `types/bun-test.d.ts` shim types every test helper as `any`, which is why 79 convex test files use `@ts-nocheck`. Replace it with the real `bun-types` and fix the fallout file by file.
+- Phases 4 and 5 part 2 as written below.
 
 ## Phase 0: Upgrade test dependencies (do first, one commit per tool)
 
