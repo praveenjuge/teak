@@ -13,7 +13,7 @@ import {
   isXHostname,
   isXStatusUrl,
   isXUrl,
-} from "./x";
+} from "../../linkMetadata/x";
 
 type MockFetchInput = string | URL | Request;
 

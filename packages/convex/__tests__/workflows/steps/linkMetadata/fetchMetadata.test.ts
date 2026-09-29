@@ -188,7 +188,7 @@ describe("fetchMetadata", () => {
     expect(mockRunMutation).toHaveBeenCalled();
   });
 
-  test("throws retryable if awaiting classification", () => {
+  test("throws retryable if awaiting classification", async () => {
     mockRunQuery.mockResolvedValue({
       _id: "c1",
       type: "link",
@@ -196,7 +196,7 @@ describe("fetchMetadata", () => {
       metadata: { linkCategory: { status: "pending" } },
     });
 
-    expect(fetchMetadataHandler(ctx, { cardId: "c1" })).rejects.toThrow(
+    await expect(fetchMetadataHandler(ctx, { cardId: "c1" })).rejects.toThrow(
       /retryable/
     );
   });
@@ -500,7 +500,7 @@ describe("fetchMetadata", () => {
     );
   });
 
-  test("handles scrape failure (retryable)", () => {
+  test("handles scrape failure (retryable)", async () => {
     mockRunQuery.mockResolvedValue({
       _id: "c1",
       type: "link",
@@ -524,12 +524,12 @@ describe("fetchMetadata", () => {
         })
       );
 
-    expect(fetchMetadataHandler(ctx, { cardId: "c1" })).rejects.toThrow(
+    await expect(fetchMetadataHandler(ctx, { cardId: "c1" })).rejects.toThrow(
       /retryable/
     );
   });
 
-  test("handles rate limit failure (retryable)", () => {
+  test("handles rate limit failure (retryable)", async () => {
     mockRunQuery.mockResolvedValue({
       _id: "c1",
       type: "link",
@@ -553,7 +553,7 @@ describe("fetchMetadata", () => {
         })
       );
 
-    expect(fetchMetadataHandler(ctx, { cardId: "c1" })).rejects.toThrow(
+    await expect(fetchMetadataHandler(ctx, { cardId: "c1" })).rejects.toThrow(
       /rate_limit/
     );
   });
@@ -603,7 +603,7 @@ describe("fetchMetadata", () => {
     // Should have logged warning but succeeded
   });
 
-  test("throws retryable if non-link card is still being classified", () => {
+  test("throws retryable if non-link card is still being classified", async () => {
     mockRunQuery.mockResolvedValue({
       _id: "c1",
       type: "text", // not a link
@@ -611,12 +611,12 @@ describe("fetchMetadata", () => {
       processingStatus: { classify: { status: "pending" } },
     });
 
-    expect(fetchMetadataHandler(ctx, { cardId: "c1" })).rejects.toThrow(
+    await expect(fetchMetadataHandler(ctx, { cardId: "c1" })).rejects.toThrow(
       /awaiting_classification/
     );
   });
 
-  test("handles AbortError (timeout)", () => {
+  test("handles AbortError (timeout)", async () => {
     mockRunQuery.mockResolvedValue({
       _id: "c1",
       type: "link",
@@ -636,12 +636,12 @@ describe("fetchMetadata", () => {
       throw abortError;
     });
 
-    expect(fetchMetadataHandler(ctx, { cardId: "c1" })).rejects.toThrow(
+    await expect(fetchMetadataHandler(ctx, { cardId: "c1" })).rejects.toThrow(
       /timeout/
     );
   });
 
-  test("handles TypeError (network)", () => {
+  test("handles TypeError (network)", async () => {
     mockRunQuery.mockResolvedValue({
       _id: "c1",
       type: "link",
@@ -660,7 +660,7 @@ describe("fetchMetadata", () => {
       throw typeError;
     });
 
-    expect(fetchMetadataHandler(ctx, { cardId: "c1" })).rejects.toThrow(
+    await expect(fetchMetadataHandler(ctx, { cardId: "c1" })).rejects.toThrow(
       /network_error/
     );
   });
@@ -693,7 +693,7 @@ describe("fetchMetadata", () => {
     );
   });
 
-  test("handles kernel creation failure", () => {
+  test("handles kernel creation failure", async () => {
     mockRunQuery.mockResolvedValue({
       _id: "c1",
       type: "link",
@@ -718,7 +718,7 @@ describe("fetchMetadata", () => {
       );
 
     // Should be treated as a scrape error (retryable) because scrapeWithKernel catches it and returns success: false
-    expect(fetchMetadataHandler(ctx, { cardId: "c1" })).rejects.toThrow(
+    await expect(fetchMetadataHandler(ctx, { cardId: "c1" })).rejects.toThrow(
       /retryable/
     );
   });

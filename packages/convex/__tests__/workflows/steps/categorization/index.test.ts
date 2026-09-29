@@ -118,9 +118,9 @@ describe("categorization index", () => {
       });
     });
 
-    test("throws if card type is not link", () => {
+    test("throws if card type is not link", async () => {
       mockRunQuery.mockResolvedValue({ _id: "c1", type: "text" });
-      expect(classifyHandler(ctx, { cardId: "c1" })).rejects.toThrow(
+      await expect(classifyHandler(ctx, { cardId: "c1" })).rejects.toThrow(
         "is not a link card"
       );
     });
@@ -163,9 +163,9 @@ describe("categorization index", () => {
       expect(result.mode).toBe("classified");
     });
 
-    test("throws if classification fails", () => {
+    test("throws if classification fails", async () => {
       mockRunQuery.mockResolvedValue({ _id: "c1", type: "link", url: "" });
-      expect(classifyHandler(ctx, { cardId: "c1" })).rejects.toThrow(
+      await expect(classifyHandler(ctx, { cardId: "c1" })).rejects.toThrow(
         "Failed to classify"
       );
     });
@@ -968,14 +968,14 @@ describe("categorization index", () => {
       expect(mockRunMutation).toHaveBeenCalled();
     });
 
-    test("throws on skip if existingMetadata missing", () => {
-      expect(
+    test("throws on skip if existingMetadata missing", async () => {
+      await expect(
         mergeAndSaveHandler(ctx, { cardId: "c1", mode: "skipped" })
       ).rejects.toThrow("required to skip");
     });
 
-    test("throws if classification missing on classified mode", () => {
-      expect(
+    test("throws if classification missing on classified mode", async () => {
+      await expect(
         mergeAndSaveHandler(ctx, { cardId: "c1", mode: "classified" })
       ).rejects.toThrow("missing");
     });

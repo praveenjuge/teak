@@ -1,6 +1,6 @@
 // @ts-nocheck
 import { describe, expect, test } from "bun:test";
-import { parseTimeSearchQuery } from "./timeSearch";
+import { parseTimeSearchQuery } from "../../../shared/utils/timeSearch";
 
 const toParts = (timestamp: number) => {
   const date = new Date(timestamp);

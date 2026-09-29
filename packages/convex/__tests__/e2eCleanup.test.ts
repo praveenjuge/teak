@@ -189,7 +189,7 @@ describe("production E2E cleanup safety", () => {
     expect(result.alreadyDeleted).toEqual(["e2e-missing@tests.example.com"]);
     expect(result.ignoredOutOfRange).toEqual(["e2e-old@tests.example.com"]);
     expect(findUserByEmail).toHaveBeenCalledTimes(3);
-    expect(
+    await expect(
       resolveExactE2ECleanupCandidates({
         authCtx: { internalAdapter: { findUserByEmail } } as never,
         domain: "tests.example.com",
