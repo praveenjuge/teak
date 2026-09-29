@@ -361,6 +361,7 @@ describe("auth", () => {
         }),
       });
 
+      expect(queriedTables).toContain("accountDeletionStates");
       expect(queriedTables).not.toContain("userCardUsage");
       expect(queriedTables).not.toContain("cards");
     });
