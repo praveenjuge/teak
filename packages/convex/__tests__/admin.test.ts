@@ -3,6 +3,7 @@
 import { beforeEach, describe, expect, mock, test } from "bun:test";
 import { r2MockModuleFactory, r2Mocks } from "./helpers/r2Mock.test-utils";
 import { withTestSession } from "./helpers/session.test-utils";
+import { inlineSearchSyncDb } from "./helpers/session.test-utils";
 
 mock.module("../storage/r2", r2MockModuleFactory);
 
@@ -110,6 +111,7 @@ describe("admin.ts", () => {
         auth: { getUserIdentity: mock().mockResolvedValue({ subject: "u1" }) },
         runQuery: mock().mockResolvedValue({ page: [{ _id: "u1" }] }),
         db: {
+        ...inlineSearchSyncDb(),
           query: mock().mockReturnValue({ take: mock().mockResolvedValue([]) }),
         },
       } as any);
@@ -152,6 +154,7 @@ describe("admin.ts", () => {
         auth: { getUserIdentity: mock().mockResolvedValue({ subject: "u1" }) },
         runQuery: mock().mockResolvedValue({ page: [{ _id: "u1" }] }),
         db: {
+        ...inlineSearchSyncDb(),
           query: mock().mockReturnValue({
             take: mock().mockResolvedValue(cards),
           }),
@@ -196,6 +199,7 @@ describe("admin.ts", () => {
         auth: { getUserIdentity: mock().mockResolvedValue({ subject: "u1" }) },
         runQuery: mock().mockResolvedValue({ page: [{ _id: "u1" }] }),
         db: {
+        ...inlineSearchSyncDb(),
           query: mock().mockReturnValue({
             take: mock().mockResolvedValue(cards),
           }),
@@ -226,6 +230,7 @@ describe("admin.ts", () => {
         auth: { getUserIdentity: mock().mockResolvedValue({ subject: "u1" }) },
         runQuery: mock().mockResolvedValue({ page: [{ _id: "u1" }] }),
         db: {
+        ...inlineSearchSyncDb(),
           query: mock().mockReturnValue({
             take: mock().mockResolvedValue(cards),
           }),
@@ -250,6 +255,7 @@ describe("admin.ts", () => {
         auth: { getUserIdentity: mock().mockResolvedValue({ subject: "u1" }) },
         runQuery: mock().mockResolvedValue({ page: [{ _id: "u1" }] }),
         db: {
+        ...inlineSearchSyncDb(),
           query: mock().mockReturnValue({
             take: mock().mockResolvedValue(cards),
           }),
@@ -289,6 +295,7 @@ describe("admin.ts", () => {
         auth: { getUserIdentity: mock().mockResolvedValue({ subject: "u1" }) },
         runQuery: mock().mockResolvedValue({ page: [{ _id: "u1" }] }),
         db: {
+        ...inlineSearchSyncDb(),
           query: mock().mockReturnValue({
             take: mock().mockResolvedValue(cards),
           }),
@@ -322,6 +329,7 @@ describe("admin.ts", () => {
       };
       const ctx = {
         db: {
+        ...inlineSearchSyncDb(),
           get: mock().mockResolvedValue(card),
           patch: mock().mockResolvedValue(null),
         },
@@ -352,6 +360,7 @@ describe("admin.ts", () => {
       };
       const ctx = {
         db: {
+        ...inlineSearchSyncDb(),
           get: mock().mockResolvedValue(card),
           patch: mock().mockResolvedValue(null),
         },
@@ -374,6 +383,7 @@ describe("admin.ts", () => {
       };
       const ctx = {
         db: {
+        ...inlineSearchSyncDb(),
           get: mock().mockResolvedValue(card),
           patch: mock().mockResolvedValue(null),
         },
