@@ -32,7 +32,7 @@ const card = (id: string, overrides: Record<string, unknown> = {}) => ({
 const json = (body: unknown, status = 200) => Response.json(body, { status });
 
 type Route = (request: Request, url: URL) => Response | Promise<Response>;
-let routes: Record<string, Route> = {};
+const routes = new Map<string, Route>();
 const requests: { method: string; path: string; auth: string | null }[] = [];
 
 const server = serve({
@@ -44,7 +44,7 @@ const server = serve({
       method: request.method,
       path: `${url.pathname}${url.search}`,
     });
-    const route = routes[`${request.method} ${url.pathname}`];
+    const route = routes.get(`${request.method} ${url.pathname}`);
     return route
       ? route(request, url)
       : json({ code: "NOT_FOUND", error: "No such route" }, 404);
@@ -57,7 +57,7 @@ afterAll(() => {
 });
 
 beforeEach(() => {
-  routes = {};
+  routes.clear();
   requests.length = 0;
 });
 
@@ -83,11 +83,12 @@ const teak = async (...args: string[]) => {
 
 describe("teak cards", () => {
   test("lists cards one per line and reports the next cursor", async () => {
-    routes["GET /v1/cards"] = () =>
+    routes.set("GET /v1/cards", () =>
       json({
         items: [card("card_a", { tags: ["design"] }), card("card_b")],
         pageInfo: { hasMore: true, nextCursor: "cursor_2" },
-      });
+      })
+    );
 
     const result = await teak("cards", "list");
 
@@ -102,7 +103,7 @@ describe("teak cards", () => {
   });
 
   test("--all follows cursors until the last page", async () => {
-    routes["GET /v1/cards"] = (_request, url) =>
+    routes.set("GET /v1/cards", (_request, url) =>
       url.searchParams.get("cursor") === "cursor_2"
         ? json({
             items: [card("card_c")],
@@ -111,7 +112,8 @@ describe("teak cards", () => {
         : json({
             items: [card("card_a"), card("card_b")],
             pageInfo: { hasMore: true, nextCursor: "cursor_2" },
-          });
+          })
+    );
 
     const result = await teak("--json", "cards", "list", "--all");
 
@@ -127,14 +129,15 @@ describe("teak cards", () => {
   });
 
   test("get prints the card detail", async () => {
-    routes["GET /v1/cards/card_a"] = () =>
+    routes.set("GET /v1/cards/card_a", () =>
       json(
         card("card_a", {
           notes: "remember this",
           tags: ["design", "cli"],
           url: "https://example.com",
         })
-      );
+      )
+    );
 
     const result = await teak("cards", "get", "card_a");
 
@@ -148,10 +151,14 @@ describe("teak cards", () => {
   });
 
   test("delete moves every id to trash and says so", async () => {
-    routes["DELETE /v1/cards/card_a"] = () =>
-      new Response(null, { status: 204 });
-    routes["DELETE /v1/cards/card_b"] = () =>
-      new Response(null, { status: 204 });
+    routes.set(
+      "DELETE /v1/cards/card_a",
+      () => new Response(null, { status: 204 })
+    );
+    routes.set(
+      "DELETE /v1/cards/card_b",
+      () => new Response(null, { status: 204 })
+    );
 
     const result = await teak("--json", "rm", "card_a", "card_b");
 
@@ -166,13 +173,14 @@ describe("teak cards", () => {
   });
 
   test("tags list prints names with counts", async () => {
-    routes["GET /v1/tags"] = () =>
+    routes.set("GET /v1/tags", () =>
       json({
         items: [
           { count: 3, name: "design" },
           { count: 1, name: "cli" },
         ],
-      });
+      })
+    );
 
     const result = await teak("tags", "list");
 
@@ -183,8 +191,9 @@ describe("teak cards", () => {
 
 describe("teak exit codes", () => {
   test("a missing card exits with the not-found code and a JSON error", async () => {
-    routes["GET /v1/cards/missing"] = () =>
-      json({ code: "NOT_FOUND", error: "Card not found" }, 404);
+    routes.set("GET /v1/cards/missing", () =>
+      json({ code: "NOT_FOUND", error: "Card not found" }, 404)
+    );
 
     const result = await teak("--json", "cards", "get", "missing");
 
@@ -196,8 +205,9 @@ describe("teak exit codes", () => {
   });
 
   test("a rejected API key exits with the auth code", async () => {
-    routes["GET /v1/tags"] = () =>
-      json({ code: "INVALID_API_KEY", error: "Invalid API key" }, 401);
+    routes.set("GET /v1/tags", () =>
+      json({ code: "INVALID_API_KEY", error: "Invalid API key" }, 401)
+    );
 
     const result = await teak("tags", "list");
 
@@ -206,8 +216,9 @@ describe("teak exit codes", () => {
   });
 
   test("rate limiting exits with the rate-limited code", async () => {
-    routes["GET /v1/cards"] = () =>
-      json({ code: "RATE_LIMITED", error: "Slow down" }, 429);
+    routes.set("GET /v1/cards", () =>
+      json({ code: "RATE_LIMITED", error: "Slow down" }, 429)
+    );
 
     const result = await teak("cards", "list");
 

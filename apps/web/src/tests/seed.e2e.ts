@@ -13,10 +13,17 @@ test.describe("Seed", () => {
   );
 
   test("seed", async ({ page }) => {
-    await new AuthHelper(page).signUpWithEmailAndPassword(
-      TEST_EMAIL as string,
-      TEST_PASSWORD as string
-    );
+    const auth = new AuthHelper(page);
+    // Sign in first: the account usually exists, and signing up an existing
+    // account waits out the registration redirect before falling back.
+    await auth
+      .signInWithEmailAndPassword(TEST_EMAIL as string, TEST_PASSWORD as string)
+      .catch(() =>
+        auth.signUpWithEmailAndPassword(
+          TEST_EMAIL as string,
+          TEST_PASSWORD as string
+        )
+      );
 
     await expect(page).toHaveURL(/\/$/);
     await expect(
