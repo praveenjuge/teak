@@ -11,6 +11,7 @@ export default defineConfig({
       "./securitySessions.test.ts",
       "./mcpRevocation.test.ts",
       "./maintenanceQueries.test.ts",
+      "./idempotency.test.ts",
     ],
   },
 });
