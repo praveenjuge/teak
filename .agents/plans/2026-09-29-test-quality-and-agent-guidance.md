@@ -14,6 +14,13 @@ Goal: fewer, better tests that fail when behavior breaks; wider e2e coverage; a 
 
 Decisions from user: unit tests only on PRs (no local e2e in CI); rewrite slop + add convex-test coverage for high-value areas (not a full migration); adopt Playwright test agents and Playwright MCP.
 
+## Status (2026-09-29)
+
+- Phase 0 blocked: `bun install` gets a 403 fetching the `electron/node-gyp` git tarball from `api.github.com` / `codeload.github.com` in the cloud container. The environment network policy must allow those hosts before the lockfile can be regenerated. Target note: pin `@next/playwright` to the installed `next` version (16.3.3) rather than 16.3.7.
+- Phase 1 done except item 5: orphaned convex tests moved and merged (1993 unit tests across 132 files pass), nested `__tests__/__tests__` flattened, 22 async assertions awaited (none were hiding failures), UI script finds every test file (fixed the stale `prefetchCardMedia` test it exposed), Safari companion test in root `test`.
+- Phase 5 part 1 done: `.github/workflows/unit-tests.yml`.
+- Phase 1 item 5 (e2e skips) deferred until the local stack can run, so hard assertions are verified rather than guessed.
+
 ## Phase 0: Upgrade test dependencies (do first, one commit per tool)
 
 | Package | Where | Now | Target |
