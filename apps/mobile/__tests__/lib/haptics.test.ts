@@ -76,22 +76,22 @@ describe("haptics", () => {
   test("never throws when native haptics call fails", async () => {
     process.env.EXPO_OS = "ios";
 
-    await triggerCardTapHaptic({
-      ImpactFeedbackStyle: {
-        Light: "light",
-      },
-      NotificationFeedbackType: {
-        Error: "error",
-        Success: "success",
-      },
-      impactAsync: () => {
-        throw new Error("native haptics unavailable");
-      },
-      notificationAsync: async () => {
-        // no-op
-      },
-    } as any);
-
-    expect(true).toBe(true);
+    await expect(
+      triggerCardTapHaptic({
+        ImpactFeedbackStyle: {
+          Light: "light",
+        },
+        NotificationFeedbackType: {
+          Error: "error",
+          Success: "success",
+        },
+        impactAsync: () => {
+          throw new Error("native haptics unavailable");
+        },
+        notificationAsync: async () => {
+          // no-op
+        },
+      } as any)
+    ).resolves.toBeUndefined();
   });
 });

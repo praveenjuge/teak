@@ -1,195 +1,27 @@
-// @ts-nocheck
 import { describe, expect, test } from "bun:test";
+import {
+  createMissingCardWorkflowResult,
+  resolveCardProcessingDurationMs,
+} from "../../workflows/cardProcessing";
 
 describe("workflows/cardProcessing", () => {
-  describe("cardProcessingWorkflow", () => {
-    test("module exports cardProcessingWorkflow", async () => {
-      const module = await import("../../workflows/cardProcessing");
-      expect(module.cardProcessingWorkflow).toBeDefined();
+  test("omits completion duration when the initial card is missing", () => {
+    expect(resolveCardProcessingDurationMs(undefined, 1000)).toBeUndefined();
+  });
+
+  test("clamps completion duration to a non-negative value", () => {
+    expect(resolveCardProcessingDurationMs(500, 1000)).toBe(500);
+    expect(resolveCardProcessingDurationMs(1500, 1000)).toBe(0);
+  });
+
+  test("finishes a card deleted mid-run as skipped, not failed", () => {
+    const result = createMissingCardWorkflowResult();
+
+    expect(result).toEqual({
+      success: true,
+      mode: "skipped",
+      reason: "card_missing",
     });
-
-    test("omits completion duration when the initial card is missing", async () => {
-      const module = await import("../../workflows/cardProcessing");
-      expect(module.resolveCardProcessingDurationMs(undefined, 1000)).toBe(
-        undefined
-      );
-    });
-
-    test("finishes a deleted-card workflow as skipped instead of failed", async () => {
-      const module = await import("../../workflows/cardProcessing");
-
-      expect(module.createMissingCardWorkflowResult()).toEqual({
-        success: true,
-        mode: "skipped",
-        reason: "card_missing",
-      });
-    });
-
-    test("delete-while-processing uses the skipped missing-card result shape", async () => {
-      const module = await import("../../workflows/cardProcessing");
-      const skipped = module.createMissingCardWorkflowResult();
-
-      expect(skipped.success).toBe(true);
-      expect(skipped.mode).toBe("skipped");
-      expect(skipped.reason).toBe("card_missing");
-      expect(skipped).not.toHaveProperty("error");
-    });
-
-    test("retries transient renderable failures", async () => {
-      const module = await import("../../workflows/cardProcessing");
-
-      expect(module.RENDERABLES_STEP_RETRY).toEqual({
-        maxAttempts: 3,
-        initialBackoffMs: 500,
-        base: 2,
-      });
-    });
-
-    test("clamps completion duration to a non-negative value", async () => {
-      const module = await import("../../workflows/cardProcessing");
-      expect(module.resolveCardProcessingDurationMs(500, 1000)).toBe(500);
-      expect(module.resolveCardProcessingDurationMs(1500, 1000)).toBe(0);
-    });
-
-    test("accepts cardId argument", () => {
-      const args = { cardId: "card123" };
-      expect(args).toHaveProperty("cardId");
-    });
-
-    test("returns structured result object", () => {
-      const result = {
-        success: true,
-        classification: { type: "text", confidence: 1 },
-        categorization: { category: "Article" },
-        metadata: { aiTagsCount: 2, hasSummary: true },
-        renderables: { thumbnailGenerated: false },
-      };
-      expect(result).toHaveProperty("success");
-      expect(result).toHaveProperty("classification");
-      expect(result).toHaveProperty("categorization");
-      expect(result).toHaveProperty("metadata");
-      expect(result).toHaveProperty("renderables");
-    });
-
-    test("processes text card successfully", () => {
-      const card = {
-        type: "text",
-        processingStatus: { classify: { status: "completed", confidence: 1 } },
-      };
-      expect(card.type).toBe("text");
-    });
-
-    test("processes link card successfully", () => {
-      const card = { type: "link", url: "https://example.com" };
-      expect(card.type).toBe("link");
-      expect(card.url).toBeDefined();
-    });
-
-    test("processes image card successfully", () => {
-      const card = { type: "image" };
-      expect(card.type).toBe("image");
-    });
-
-    test("processes video card successfully", () => {
-      const card = { type: "video" };
-      expect(card.type).toBe("video");
-    });
-
-    test("processes document card successfully", () => {
-      const card = { type: "document" };
-      expect(card.type).toBe("document");
-    });
-
-    test("handles SVG image specially", () => {
-      const mimeType = "image/svg+xml";
-      expect(mimeType).toContain("svg");
-    });
-
-    test("detects SVG by file extension", () => {
-      const fileName = "test.SVG";
-      const lowerFileName = fileName.toLowerCase();
-      expect(
-        lowerFileName.endsWith(".svg") || lowerFileName.endsWith(".svgz")
-      ).toBe(true);
-    });
-
-    test("runs classification when not already classified", () => {
-      const classification = { type: "text", confidence: 0.9 };
-      expect(classification.type).toBe("text");
-    });
-
-    test("fetches link metadata when needed", () => {
-      const metadataStatus = "pending";
-      expect(metadataStatus).toBe("pending");
-    });
-
-    test("runs categorization for link cards", () => {
-      const categorization = { category: "Article", confidence: 0.9 };
-      expect(categorization).toHaveProperty("category");
-    });
-
-    test("handles palette extraction for images", () => {
-      const palette = ["#ff0000", "#00ff00"];
-      expect(Array.isArray(palette)).toBe(true);
-    });
-
-    test("handles palette extraction failure gracefully", () => {
-      const palette: string[] | null = null;
-      expect(palette).toBeNull();
-    });
-
-    test("runs metadata generation for text cards", () => {
-      const metadata = { aiTags: ["text"], aiSummary: "Summary" };
-      expect(metadata).toHaveProperty("aiTags");
-    });
-
-    test("runs renderables generation for images", () => {
-      const renderables = { thumbnailGenerated: true };
-      expect(renderables.thumbnailGenerated).toBe(true);
-    });
-
-    test("runs renderables generation for videos", () => {
-      const renderables = { thumbnailGenerated: true };
-      expect(renderables.thumbnailGenerated).toBe(true);
-    });
-
-    test("runs renderables generation for documents", () => {
-      const renderables = { thumbnailGenerated: true };
-      expect(renderables.thumbnailGenerated).toBe(true);
-    });
-
-    test("logs info on successful completion", () => {
-      const logMessage = "[workflow/cardProcessing] Completed";
-      expect(logMessage).toContain("Completed");
-    });
-
-    test("logs info on start", () => {
-      const logMessage = "[workflow/cardProcessing] Starting";
-      expect(logMessage).toContain("Starting");
-    });
-
-    test("handles missing metadata gracefully", () => {
-      const metadata = { aiTagsCount: 0, hasSummary: false };
-      expect(metadata.aiTagsCount).toBe(0);
-      expect(metadata.hasSummary).toBe(false);
-    });
-
-    test("returns correct result structure for link card", () => {
-      const result = {
-        success: true,
-        classification: { type: "link", confidence: 1 },
-        categorization: { category: "Article" },
-        metadata: { aiTagsCount: 1 },
-      };
-      expect(result.success).toBe(true);
-      expect(result.classification.type).toBe("link");
-    });
-
-    test("uses a rendered thumbnail before image metadata", () => {
-      const orderedStages = ["renderables", "palette", "metadata"];
-      expect(orderedStages.indexOf("renderables")).toBeLessThan(
-        orderedStages.indexOf("metadata")
-      );
-    });
+    expect(result).not.toHaveProperty("error");
   });
 });

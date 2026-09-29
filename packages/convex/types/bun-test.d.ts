@@ -1,7 +1,10 @@
 declare module "bun:test" {
   export const describe: (...args: any[]) => void;
-  export const it: (...args: any[]) => void;
-  export const test: (...args: any[]) => void;
+  type TestFn = ((...args: any[]) => void) & {
+    each: (cases: readonly any[]) => (...args: any[]) => void;
+  };
+  export const it: TestFn;
+  export const test: TestFn;
   export const expect: (...args: any[]) => any;
   export const beforeEach: (...args: any[]) => void;
   export const beforeAll: (...args: any[]) => void;
