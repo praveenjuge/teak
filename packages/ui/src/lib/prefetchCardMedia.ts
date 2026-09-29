@@ -22,8 +22,8 @@ interface PrefetchableMedia {
 }
 
 /**
- * Prefetch the media the card modal will render. Image cards load their full
- * file in the modal, so that is what gets warmed; videos only warm their
+ * Prefetch the media the card modal will render. Image cards warm the detail
+ * rendition (or the thumbnail when there is none); videos only warm their
  * poster thumbnail since the clip itself should keep streaming on demand.
  */
 export const prefetchCardModalMedia = (card: PrefetchableMedia): void => {

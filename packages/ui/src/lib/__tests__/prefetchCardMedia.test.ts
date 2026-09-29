@@ -1,4 +1,4 @@
-import { describe, expect, test } from "bun:test";
+import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import { prefetchCardModalMedia } from "../prefetchCardMedia";
 
 class StubImage {
@@ -11,47 +11,64 @@ class StubImage {
   }
 }
 
-describe("lib/prefetchCardMedia", () => {
-  test("warms image cards once per url", () => {
-    const originalImage = globalThis.Image;
-    globalThis.Image = StubImage as unknown as typeof Image;
-    try {
-      const card = {
-        fileUrl: "https://files.example.com/original.jpg",
-        thumbnailUrl: "https://files.example.com/thumb.webp",
-        type: "image",
-      };
-      prefetchCardModalMedia(card);
-      prefetchCardModalMedia(card);
+const originalImage = globalThis.Image;
+let urlSeed = 0;
+// The module remembers every warmed URL for the page session, so each test
+// uses fresh URLs to stay independent of test order.
+const uniqueUrl = (name: string) =>
+  `https://files.example.com/${++urlSeed}-${name}`;
 
-      expect(StubImage.created).toHaveLength(1);
-      expect(StubImage.created[0]!.src).toBe(card.fileUrl);
-    } finally {
-      globalThis.Image = originalImage;
-    }
+beforeEach(() => {
+  StubImage.created.length = 0;
+  globalThis.Image = StubImage as unknown as typeof Image;
+});
+
+afterEach(() => {
+  globalThis.Image = originalImage;
+});
+
+describe("lib/prefetchCardMedia", () => {
+  test("warms the image modal's detail rendition once per url", () => {
+    const card = {
+      detailUrl: uniqueUrl("detail.webp"),
+      fileUrl: uniqueUrl("original.jpg"),
+      thumbnailUrl: uniqueUrl("thumb.webp"),
+      type: "image",
+    };
+
+    prefetchCardModalMedia(card);
+    prefetchCardModalMedia(card);
+
+    expect(StubImage.created.map((image) => image.src)).toEqual([
+      card.detailUrl,
+    ]);
+  });
+
+  test("falls back to the thumbnail when an image has no detail rendition", () => {
+    const thumbnailUrl = uniqueUrl("thumb.webp");
+
+    prefetchCardModalMedia({
+      fileUrl: uniqueUrl("original.jpg"),
+      thumbnailUrl,
+      type: "image",
+    });
+
+    expect(StubImage.created.map((image) => image.src)).toEqual([thumbnailUrl]);
   });
 
   test("warms only the poster for video cards and ignores other types", () => {
-    const originalImage = globalThis.Image;
-    globalThis.Image = StubImage as unknown as typeof Image;
-    StubImage.created.length = 0;
-    try {
-      prefetchCardModalMedia({
-        fileUrl: "https://files.example.com/clip.mp4",
-        thumbnailUrl: "https://files.example.com/poster.webp",
-        type: "video",
-      });
-      prefetchCardModalMedia({
-        content: "just text",
-        type: "text",
-      });
+    const posterUrl = uniqueUrl("poster.webp");
 
-      expect(StubImage.created).toHaveLength(1);
-      expect(StubImage.created[0]!.src).toBe(
-        "https://files.example.com/poster.webp"
-      );
-    } finally {
-      globalThis.Image = originalImage;
-    }
+    prefetchCardModalMedia({
+      fileUrl: uniqueUrl("clip.mp4"),
+      thumbnailUrl: posterUrl,
+      type: "video",
+    });
+    prefetchCardModalMedia({
+      content: "just text",
+      type: "text",
+    } as Parameters<typeof prefetchCardModalMedia>[0]);
+
+    expect(StubImage.created.map((image) => image.src)).toEqual([posterUrl]);
   });
 });
