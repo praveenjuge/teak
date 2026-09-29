@@ -40,7 +40,7 @@ const INVALID_URL_PATTERNS = [
   /^edge-extension:/,
 ];
 
-const isValidUrl = (url: string): boolean => {
+export const isValidUrl = (url: string): boolean => {
   if (!url) {
     return false;
   }

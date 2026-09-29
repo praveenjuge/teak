@@ -14,6 +14,7 @@ import {
   storePendingSave,
   updatePendingSave,
 } from "../lib/pendingSaves";
+import { isRestrictedUrl } from "../lib/restrictedUrl";
 import { downloadAssetFile, saveFileToTeak } from "../lib/saveFileToTeak";
 import { saveToTeak } from "../lib/saveToTeak";
 import type { ContextMenuAction } from "../types/contextMenu";
@@ -180,27 +181,6 @@ async function resumePendingSaves() {
       break;
     }
   }
-}
-
-// Check if a URL is restricted (can't inject scripts)
-function isRestrictedUrl(url?: string): boolean {
-  if (!url) {
-    return true;
-  }
-
-  const restrictedPrefixes = [
-    "chrome://",
-    "chrome-extension://",
-    "moz-extension://",
-    "edge-extension://",
-    "about:",
-    "data:",
-    "file://",
-    "view-source:",
-    "filesystem:",
-  ];
-
-  return restrictedPrefixes.some((prefix) => url.startsWith(prefix));
 }
 
 const getNormalizedHost = (urlString: string): string | null => {
