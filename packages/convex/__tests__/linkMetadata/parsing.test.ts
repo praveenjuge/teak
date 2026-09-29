@@ -82,6 +82,41 @@ describe("parsing", () => {
       const source: SelectorSource = { selector: "sel3", attribute: "text" };
       expect(getSelectorValue(map, source)).toBeUndefined();
     });
+
+    test("skips empty leading results and returns the first with text", () => {
+      const results = new Map<string, ScrapeResultItem[]>([
+        ["title", [{ text: "  " }, { text: "Real title" }, { text: "Later" }]],
+      ]);
+      expect(
+        getSelectorValue(results, { selector: "title", attribute: "text" })
+      ).toBe("Real title");
+    });
+
+    test("falls back to html when text is empty", () => {
+      const results = new Map<string, ScrapeResultItem[]>([
+        ["title", [{ text: "", html: " <b>Bold</b> " }]],
+      ]);
+      expect(
+        getSelectorValue(results, { selector: "title", attribute: "text" })
+      ).toBe("<b>Bold</b>");
+    });
+
+    test("uses the first result that has the requested attribute", () => {
+      const results = new Map<string, ScrapeResultItem[]>([
+        [
+          "meta",
+          [
+            { attributes: [{ name: "name", value: "og:image" }] },
+            {
+              attributes: [{ name: "content", value: "https://a.test/i.png" }],
+            },
+          ],
+        ],
+      ]);
+      expect(
+        getSelectorValue(results, { selector: "meta", attribute: "content" })
+      ).toBe("https://a.test/i.png");
+    });
   });
 
   describe("firstFromSources", () => {

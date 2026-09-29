@@ -318,11 +318,10 @@ describe("auth", () => {
     });
 
     it("skips card counting for premium users", async () => {
-      let queryCalled = false;
+      const queriedTables: string[] = [];
       const ctx = {
         db: {
           query: () => {
-            queryCalled = true;
             return {
               withIndex: (_name: any, cb: any) => {
                 if (cb) {
@@ -347,7 +346,13 @@ describe("auth", () => {
         },
       } as any;
 
-      addUsageRecord(ctx, 0);
+      // At the free limit, so only the premium check lets this through.
+      addUsageRecord(ctx, FREE_TIER_LIMIT);
+      const query = ctx.db.query;
+      ctx.db.query = (table: string) => {
+        queriedTables.push(table);
+        return query(table);
+      };
       await ensureCardCreationAllowed(ctx, "user_3", {
         rateLimiter: okRateLimiter,
         getSubscription: async () => ({
@@ -356,7 +361,8 @@ describe("auth", () => {
         }),
       });
 
-      expect(queryCalled).toBe(true);
+      expect(queriedTables).not.toContain("userCardUsage");
+      expect(queriedTables).not.toContain("cards");
     });
 
     it("uses default dependencies when not provided", async () => {

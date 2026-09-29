@@ -29,12 +29,6 @@ describe("LINK_CATEGORIES", () => {
     expect(LINK_CATEGORIES).toEqual(expected);
   });
 
-  it("should be a readonly array", () => {
-    // LINK_CATEGORIES is defined with 'as const'
-    const categories = LINK_CATEGORIES;
-    expect(categories[0]).toBe("book");
-  });
-
   it("should have unique categories", () => {
     const unique = new Set(LINK_CATEGORIES);
     expect(unique.size).toBe(LINK_CATEGORIES.length);

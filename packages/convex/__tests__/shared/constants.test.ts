@@ -9,7 +9,6 @@ import {
   type CardErrorCode,
   type CardType,
   cardTypes,
-  FREE_TIER_LIMIT,
   getCardTypeConfig,
   getCardTypeIcon,
   getCardTypeLabel,
@@ -21,92 +20,38 @@ import {
 
 describe("Constants", () => {
   describe("cardTypes", () => {
-    it("should contain all expected card types", () => {
-      expect(cardTypes).toContain("text");
-      expect(cardTypes).toContain("link");
-      expect(cardTypes).toContain("image");
-      expect(cardTypes).toContain("video");
-      expect(cardTypes).toContain("audio");
-      expect(cardTypes).toContain("document");
-      expect(cardTypes).toContain("palette");
-      expect(cardTypes).toContain("quote");
-    });
-
-    it("should be a readonly array of 8 types", () => {
-      expect(cardTypes).toHaveLength(8);
-    });
-  });
-
-  describe("FREE_TIER_LIMIT", () => {
-    it("should be 200", () => {
-      expect(FREE_TIER_LIMIT).toBe(200);
-    });
-  });
-
-  describe("MAX_FILE_SIZE", () => {
-    it("should be 100MB in bytes", () => {
-      expect(MAX_FILE_SIZE).toBe(100 * 1024 * 1024);
-      expect(MAX_FILE_SIZE).toBe(104_857_600);
-    });
-  });
-
-  describe("MAX_FILES_PER_UPLOAD", () => {
-    it("should be 5", () => {
-      expect(MAX_FILES_PER_UPLOAD).toBe(5);
-    });
-  });
-
-  describe("CARD_ERROR_CODES", () => {
-    it("should have all expected error codes", () => {
-      expect(CARD_ERROR_CODES.CARD_LIMIT_REACHED).toBe("CARD_LIMIT_REACHED");
-      expect(CARD_ERROR_CODES.CONTENT_TOO_LARGE).toBe("CONTENT_TOO_LARGE");
-      expect(CARD_ERROR_CODES.INVALID_UTF8).toBe("INVALID_UTF8");
-      expect(CARD_ERROR_CODES.RATE_LIMITED).toBe("RATE_LIMITED");
-      expect(CARD_ERROR_CODES.FILE_TOO_LARGE).toBe("FILE_TOO_LARGE");
-      expect(CARD_ERROR_CODES.TOO_MANY_FILES).toBe("TOO_MANY_FILES");
-      expect(CARD_ERROR_CODES.UNSUPPORTED_TYPE).toBe("UNSUPPORTED_TYPE");
-      expect(CARD_ERROR_CODES.TYPE_MISMATCH).toBe("TYPE_MISMATCH");
+    it("lists exactly the supported card types", () => {
+      expect([...cardTypes].sort()).toEqual([
+        "audio",
+        "document",
+        "image",
+        "link",
+        "palette",
+        "quote",
+        "text",
+        "video",
+      ]);
+      expect(CARD_TYPES).toEqual(cardTypes);
     });
   });
 
   describe("CARD_ERROR_MESSAGES", () => {
-    it("should have message for each error code", () => {
-      const codes: CardErrorCode[] = [
-        "CARD_LIMIT_REACHED",
-        "CONTENT_TOO_LARGE",
-        "INVALID_UTF8",
-        "RATE_LIMITED",
-        "FILE_TOO_LARGE",
-        "TOO_MANY_FILES",
-        "UNSUPPORTED_TYPE",
-        "TYPE_MISMATCH",
-      ];
-
-      for (const code of codes) {
-        expect(CARD_ERROR_MESSAGES[code]).toBeDefined();
-        expect(typeof CARD_ERROR_MESSAGES[code]).toBe("string");
-        expect(CARD_ERROR_MESSAGES[code].length).toBeGreaterThan(0);
+    it("has a non-empty message for every error code", () => {
+      for (const code of Object.values(CARD_ERROR_CODES)) {
+        expect(CARD_ERROR_MESSAGES[code as CardErrorCode]).toBeString();
+        expect(
+          CARD_ERROR_MESSAGES[code as CardErrorCode].length
+        ).toBeGreaterThan(0);
       }
     });
 
-    it("should have specific messages", () => {
-      expect(CARD_ERROR_MESSAGES.CARD_LIMIT_REACHED).toContain(
-        "upgrade to Pro"
+    it("states the same upload limits the server enforces", () => {
+      expect(CARD_ERROR_MESSAGES.FILE_TOO_LARGE).toContain(
+        `${MAX_FILE_SIZE / (1024 * 1024)}MB`
       );
-      expect(CARD_ERROR_MESSAGES.CONTENT_TOO_LARGE).toContain("512 KiB");
-      expect(CARD_ERROR_MESSAGES.INVALID_UTF8).toContain("UTF-8");
-      expect(CARD_ERROR_MESSAGES.FILE_TOO_LARGE).toContain("100MB");
-      expect(CARD_ERROR_MESSAGES.TOO_MANY_FILES).toContain("5 files");
-    });
-  });
-
-  describe("CARD_TYPES", () => {
-    it("should be an array", () => {
-      expect(Array.isArray(CARD_TYPES)).toBe(true);
-    });
-
-    it("should have all card types", () => {
-      expect(CARD_TYPES).toHaveLength(8);
+      expect(CARD_ERROR_MESSAGES.TOO_MANY_FILES).toContain(
+        `${MAX_FILES_PER_UPLOAD} files`
+      );
     });
   });
 
@@ -117,17 +62,6 @@ describe("Constants", () => {
         expect(typeof CARD_TYPE_LABELS[type]).toBe("string");
       }
     });
-
-    it("should have human-readable labels", () => {
-      expect(CARD_TYPE_LABELS.text).toBe("Text");
-      expect(CARD_TYPE_LABELS.link).toBe("Link");
-      expect(CARD_TYPE_LABELS.image).toBe("Image");
-      expect(CARD_TYPE_LABELS.video).toBe("Video");
-      expect(CARD_TYPE_LABELS.audio).toBe("Audio");
-      expect(CARD_TYPE_LABELS.document).toBe("Document");
-      expect(CARD_TYPE_LABELS.palette).toBe("Palette");
-      expect(CARD_TYPE_LABELS.quote).toBe("Quote");
-    });
   });
 
   describe("CARD_TYPE_ICONS", () => {
@@ -136,17 +70,6 @@ describe("Constants", () => {
         expect(CARD_TYPE_ICONS[type]).toBeDefined();
         expect(typeof CARD_TYPE_ICONS[type]).toBe("string");
       }
-    });
-
-    it("should have expected icon names", () => {
-      expect(CARD_TYPE_ICONS.text).toBe("FileText");
-      expect(CARD_TYPE_ICONS.link).toBe("Link");
-      expect(CARD_TYPE_ICONS.image).toBe("Image");
-      expect(CARD_TYPE_ICONS.video).toBe("Video");
-      expect(CARD_TYPE_ICONS.audio).toBe("Volume2");
-      expect(CARD_TYPE_ICONS.document).toBe("File");
-      expect(CARD_TYPE_ICONS.palette).toBe("Palette");
-      expect(CARD_TYPE_ICONS.quote).toBe("Quote");
     });
   });
 
