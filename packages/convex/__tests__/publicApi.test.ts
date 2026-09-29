@@ -3,6 +3,7 @@
 import { beforeEach, describe, expect, mock, test } from "bun:test";
 import { ConvexError } from "convex/values";
 import { r2MockModuleFactory } from "./helpers/r2Mock.test-utils";
+import { inlineSearchSyncDb } from "./helpers/session.test-utils";
 
 mock.module("../storage/r2", r2MockModuleFactory);
 
@@ -161,6 +162,7 @@ describe("publicApi", () => {
     };
     const ctx = {
       db: {
+        ...inlineSearchSyncDb(),
         query: mock(() => ({
           withIndex: mock().mockReturnValue({
             order: mock().mockReturnValue({
@@ -277,6 +279,7 @@ describe("publicApi", () => {
     const searchedTypes: string[] = [];
     const ctx = {
       db: {
+        ...inlineSearchSyncDb(),
         get: mock((_table: string, id: keyof typeof cards) => cards[id]),
         query: mock(() => ({
           withSearchIndex: mock(
@@ -330,6 +333,7 @@ describe("publicApi", () => {
       module.listCardChangesForUser;
     const ctx = {
       db: {
+        ...inlineSearchSyncDb(),
         query: mock(() => ({
           withIndex: mock().mockReturnValue({
             order: mock().mockReturnValue({
@@ -404,6 +408,7 @@ describe("publicApi", () => {
     const result = await handler(
       {
         db: {
+        ...inlineSearchSyncDb(),
           normalizeId: mock(),
         },
       },
@@ -445,6 +450,7 @@ describe("publicApi", () => {
         {
           runMutation: mock().mockResolvedValue({ ok: true }),
           db: {
+        ...inlineSearchSyncDb(),
             insert,
             patch: mock().mockResolvedValue(null),
             query: (table: string) => ({
@@ -472,7 +478,10 @@ describe("publicApi", () => {
                     }),
                   };
                 }
-                return { take: mock().mockResolvedValue([]) };
+                return {
+                  take: mock().mockResolvedValue([]),
+                  unique: mock().mockResolvedValue(null),
+                };
               },
             }),
           },
@@ -514,6 +523,7 @@ describe("publicApi", () => {
     const result = await handler(
       {
         db: {
+        ...inlineSearchSyncDb(),
           normalizeId: mock().mockReturnValue("card_1"),
         },
       },
@@ -546,6 +556,7 @@ describe("publicApi", () => {
     const result = await handler(
       {
         db: {
+        ...inlineSearchSyncDb(),
           get: mock().mockResolvedValue(
             buildBaseCard({
               _id: "card_1",
