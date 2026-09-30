@@ -827,7 +827,7 @@ describe("auth", () => {
           }),
           delete: mock((table: string, id: string) => {
             if (table === "cards" && id === "c1") {
-              throw new Error("Document not found");
+              throw new Error("Delete on non-existent doc");
             }
           }),
         },
@@ -838,6 +838,37 @@ describe("auth", () => {
       expect(result).toBe(1);
       expect(ctx.db.delete).toHaveBeenCalledWith("cards", "c1");
       expect(ctx.db.delete).toHaveBeenCalledWith("cards", "c2");
+    });
+
+    it("rethrows unexpected card deletion failures", async () => {
+      const ctx = {
+        db: {
+          get: mock(() => null),
+          query: (table: string) => ({
+            withIndex: (_name: any, cb: any) => {
+              if (cb) {
+                cb({ eq: () => undefined });
+              }
+              return {
+                ...(table === "cardSearchDocuments"
+                  ? { unique: async () => null }
+                  : {}),
+                ...(table === "cardSearchTags" ? { take: async () => [] } : {}),
+                ...(table === "cardSearchTagSyncStates"
+                  ? { unique: async () => null }
+                  : {}),
+              };
+            },
+          }),
+          delete: mock(() => {
+            throw new Error("Connection lost to backend");
+          }),
+        },
+      } as any;
+
+      await expect(
+        deleteAccountDataHandler(ctx, "u1", ["c1"])
+      ).rejects.toThrow("Connection lost to backend");
     });
 
     it("collects storage keys before deleting their owning rows", async () => {
