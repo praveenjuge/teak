@@ -4,6 +4,8 @@ import { afterEach, describe, expect, test, vi } from "vitest";
 import { internal } from "./_generated/api";
 import type { Doc } from "./_generated/dataModel";
 import schema from "./schema";
+import { archiveCardHandler } from "./storage/rawMetadataMaintenance";
+import type { ActionCtx } from "./_generated/server";
 import { cardStorageObjectKeys } from "./storage/r2";
 import {
   copyAndVerifyRaw,
@@ -136,6 +138,69 @@ describe("raw metadata archival", () => {
       card.metadata?.linkPreview?.raw
     );
     expect(result?.metadata?.linkPreview?.rawStorageKey).toBeUndefined();
+  });
+
+  test("failed commit enqueue retains the copy key for a commit-only retry", async () => {
+    vi.stubEnv("FILES_BASE", "https://files.example.com");
+    vi.stubEnv("FILES_SIGNING_SECRET", "test-secret");
+    const { t, cardId, card, args } = await setup();
+    const archiveCard = {
+      ...card,
+      metadata: { linkPreview: card.metadata?.linkPreview },
+    };
+    const objects = new Map<string, Uint8Array>();
+    const fetchMock = vi.fn(async (url: string, init?: RequestInit) => {
+      const path = new URL(url).pathname;
+      if (init?.method === "PUT") {
+        const key = decodeURIComponent(path.replace("/__upload/v1/", ""));
+        const bytes = init.body as Uint8Array;
+        objects.set(key, bytes);
+        return Response.json({
+          ok: true,
+          data: { etag: "etag", key, size: bytes.byteLength },
+        });
+      }
+      const bytes = objects.get(path.slice(1));
+      return bytes
+        ? new Response(new Uint8Array(bytes))
+        : new Response("missing", { status: 404 });
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    const retry = vi.fn(
+      async (_delay: number, _fn: unknown, _args: typeof args) => "scheduled"
+    );
+    const ctx = {
+      runQuery: vi.fn(async () => archiveCard),
+      runMutation: vi.fn(async () => {
+        throw new Error("cleanup enqueue unavailable");
+      }),
+      scheduler: { runAfter: retry },
+    } as unknown as ActionCtx;
+    expect(await archiveCardHandler(ctx, { cardId })).toEqual({
+      archived: 0,
+      skipped: 1,
+    });
+    expect(retry).toHaveBeenCalledTimes(1);
+    expect(retry).toHaveBeenCalledWith(
+      60_000,
+      internal.storage.rawMetadataMaintenance.commitArchive,
+      args
+    );
+    expect(fetchMock).toHaveBeenCalledTimes(2); // one upload and one verification, no recopy
+    // The durable retry carries the key even after the owning card disappears.
+    await t.run((dbCtx) => dbCtx.db.delete("cards", cardId));
+    expect(
+      await t.mutation(
+        internal.storage.rawMetadataMaintenance.commitArchive,
+        retry.mock.calls[0][2]
+      )
+    ).toBe(false);
+    const pending = await t.run((dbCtx) =>
+      dbCtx.db.system.query("_scheduled_functions").collect()
+    );
+    expect(
+      pending.some((scheduled) => scheduled.args[0]?.keys?.includes(args.key))
+    ).toBe(true);
   });
 
   test("commitArchive removes the orphaned copy when the card is gone", async () => {
