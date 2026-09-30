@@ -143,6 +143,62 @@ describe("linkMetadata.ts", () => {
       expect(r2Mocks.deleteObject).toHaveBeenCalledWith(ctx, "new_shot");
     });
 
+    test("fenced patch deletes new image and media objects but keeps carried-over references", async () => {
+      const existingCard = {
+        _id: "c1",
+        userId: "u1",
+        type: "link",
+        metadata: {
+          linkPreview: {
+            imageStorageKey: "old_image",
+            screenshotStorageKey: "keep_shot",
+            media: [
+              { storageKey: "keep_media", posterStorageKey: "keep_poster" },
+            ],
+          },
+        },
+      };
+      const newLinkPreview = {
+        imageStorageKey: "new_image",
+        screenshotStorageKey: "keep_shot",
+        media: [
+          { storageKey: "keep_media", posterStorageKey: "keep_poster" },
+          { storageKey: "new_media", posterStorageKey: "new_poster" },
+        ],
+      };
+      const ctx = {
+        db: {
+          ...inlineSearchSyncDb(),
+          get: mock().mockResolvedValue(existingCard),
+          query: mock().mockImplementation((table: string) => ({
+            withIndex: mock().mockReturnValue({
+              unique: mock().mockResolvedValue(
+                table === "accountDeletionStates"
+                  ? { _id: "del1", userId: "u1", startedAt: 1 }
+                  : null
+              ),
+            }),
+          })),
+        },
+      } as any;
+
+      const result = await updateCardMetadataHandler(ctx, {
+        cardId: "c1",
+        linkPreview: newLinkPreview,
+        status: "completed",
+      });
+
+      expect(result).toBe(false);
+      expect(ctx.db.patch).not.toHaveBeenCalled();
+      // Only the objects this call introduced are removed; everything the
+      // unchanged card references (including the replaced OG image)
+      // survives.
+      const deleted = r2Mocks.deleteObject.mock.calls
+        .map((call: any[]) => call[1])
+        .sort();
+      expect(deleted).toEqual(["new_image", "new_media", "new_poster"]);
+    });
+
     test("preserves existing image when new image not provided", async () => {
       const existingCard = {
         _id: "c1",
