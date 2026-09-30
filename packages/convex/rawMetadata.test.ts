@@ -147,6 +147,13 @@ describe("raw metadata archival", () => {
         args
       )
     ).toBe(false);
+    const pending = await t.run((ctx) =>
+      ctx.db.system.query("_scheduled_functions").collect()
+    );
+    // The copied archive is unreferenced with the card gone, so its
+    // deletion is scheduled rather than leaked.
+    expect(pending).toHaveLength(1);
+    expect(pending[0].args).toEqual([{ keys: [args.key] }]);
   });
 
   test("stale raw, missing cards, wrong namespace and wrong hash never clear data", async () => {
