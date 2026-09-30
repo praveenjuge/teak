@@ -102,6 +102,46 @@ describe("linkMetadata.ts", () => {
       );
     });
 
+    test("skips storage cleanup when the patch is fenced by account deletion", async () => {
+      const existingCard = {
+        _id: "c1",
+        userId: "u1",
+        type: "link",
+        metadata: {
+          linkPreview: { screenshotStorageKey: "old_shot" },
+        },
+      };
+      const newLinkPreview = { screenshotStorageKey: "new_shot" };
+      const ctx = {
+        db: {
+          ...inlineSearchSyncDb(),
+          get: mock().mockResolvedValue(existingCard),
+          query: mock().mockImplementation((table: string) => ({
+            withIndex: mock().mockReturnValue({
+              unique: mock().mockResolvedValue(
+                table === "accountDeletionStates"
+                  ? { _id: "del1", userId: "u1", startedAt: 1 }
+                  : null
+              ),
+            }),
+          })),
+        },
+      } as any;
+
+      const result = await updateCardMetadataHandler(ctx, {
+        cardId: "c1",
+        linkPreview: newLinkPreview,
+        status: "completed",
+      });
+
+      // The fenced patch leaves the card unchanged, so the replaced
+      // screenshot must survive: deleting it would leave the card
+      // referencing a removed object.
+      expect(result).toBe(false);
+      expect(ctx.db.patch).not.toHaveBeenCalled();
+      expect(r2Mocks.deleteObject).not.toHaveBeenCalled();
+    });
+
     test("preserves existing image when new image not provided", async () => {
       const existingCard = {
         _id: "c1",
