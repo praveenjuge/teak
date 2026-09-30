@@ -17,6 +17,7 @@ import {
   type FilesFinalizeImageResult,
   type FilesOp,
   type FilesOpRequest,
+  readFilesAiGenerationFacts,
 } from "@teak/files-protocol";
 import { env } from "../_generated/server";
 import { assertR2KeyInNamespace, hmacSha256Hex } from "./r2Keys";
@@ -240,7 +241,16 @@ export const callFilesWorkerJson = async <T>(spec: {
         const signed = await buildSignedWorkerOpRequest(spec);
         let response: Response;
         try {
-          response = await fetch(signed.url, signed);
+          response = await fetch(signed.url, {
+            ...signed,
+            ...(spec.op === "generate-text-metadata" ||
+            spec.op === "generate-link-metadata"
+              ? {
+                  signal: AbortSignal.timeout(90_000),
+                  redirect: "error" as const,
+                }
+              : {}),
+          });
         } catch (error) {
           span.setAttribute("files.outcome", "network_error");
           throw new Error(
@@ -263,6 +273,18 @@ export const callFilesWorkerJson = async <T>(spec: {
             return { kind: "fallback" };
           }
           span.setAttribute("files.outcome", "error");
+          if (code === "AI_CAPACITY" || code === "AI_INVALID_OUTPUT") {
+            const error = new Error(
+              code === "AI_CAPACITY"
+                ? "files_worker_ai: rate limit reached 429"
+                : "files_worker_ai: failed to validate JSON"
+            );
+            const facts =
+              envelope && !envelope.ok
+                ? readFilesAiGenerationFacts(envelope.error.aiFacts)
+                : null;
+            throw Object.assign(error, facts ? { aiFacts: facts } : {});
+          }
           throw new Error(
             `files_worker_error:${code}:${String(response.status)}:${requestId}`
           );

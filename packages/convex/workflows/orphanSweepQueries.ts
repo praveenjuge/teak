@@ -21,6 +21,7 @@ export const pageSweepCards = internalQuery({
         metadata: v.any(),
         previewKey: v.optional(v.string()),
         thumbnailKey: v.optional(v.string()),
+        workflowArtifactKeys: v.optional(v.array(v.string())),
       })
     ),
   }),
@@ -34,6 +35,7 @@ export const pageSweepCards = internalQuery({
       isDone: page.isDone,
       cards: page.page.map((card) => ({
         fileKey: card.fileKey,
+        workflowArtifactKeys: card.workflowArtifactKeys,
         // Both preview assets and archived metadata carry storage keys.
         metadata:
           card.metadata && typeof card.metadata === "object"

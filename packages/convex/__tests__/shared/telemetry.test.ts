@@ -9,6 +9,7 @@ import {
   normalizeTelemetryAttributes,
   prepareTelemetryContent,
   resolveBackendTelemetryDsn,
+  resolveBackendTraceSampleRate,
   resolveTelemetryEnvironment,
   resolveTraceSampleRate,
   scrubTelemetryString,
@@ -210,6 +211,49 @@ describe("telemetry naming and sampling", () => {
       resolveTraceSampleRate({
         environment: "preview",
         operation: "navigation",
+      })
+    ).toBe(1);
+  });
+
+  test("samples routine backend success without reducing critical retention", () => {
+    for (const operation of [
+      "teak.workflow",
+      "teak.card.create",
+      "gen_ai.generate",
+      "storage.upload",
+    ]) {
+      expect(
+        resolveBackendTraceSampleRate({
+          environment: "production",
+          operation,
+          outcome: "success",
+          durationMs: 1999,
+        })
+      ).toBe(0.1);
+      expect(
+        resolveBackendTraceSampleRate({
+          environment: "production",
+          operation,
+          outcome: "failure",
+        })
+      ).toBe(1);
+      expect(
+        resolveBackendTraceSampleRate({
+          environment: "production",
+          operation,
+          durationMs: 2000,
+        })
+      ).toBe(1);
+    }
+    for (const operation of ["auth", "billing", "security", "oauth"]) {
+      expect(
+        resolveBackendTraceSampleRate({ environment: "production", operation })
+      ).toBe(1);
+    }
+    expect(
+      resolveBackendTraceSampleRate({
+        environment: "development",
+        operation: "teak.workflow",
       })
     ).toBe(1);
   });

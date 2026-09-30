@@ -9,6 +9,9 @@ import {
   test,
 } from "bun:test";
 
+import { configureMetrics, resetMetricsConfig } from "../../../shared/metrics";
+import { TELEMETRY_METRICS } from "../../../shared/telemetry";
+
 const aiMocks = (global as any).__AI_MOCKS__ ?? {};
 aiMocks.generateText ??= mock();
 aiMocks.generateObject ??= mock();
@@ -259,4 +262,218 @@ describe("aiMetadata generators", () => {
     ).rejects.toThrow("Failed to validate JSON");
     expect(mockGenerateText).toHaveBeenCalledTimes(maxValidationRetries + 1);
   });
+  test("routes enabled text/link generation through signed Worker operations without direct AI", async () => {
+    const names = [
+      "FILES_TEXT_AI_ENABLED",
+      "FILES_BASE",
+      "FILES_SIGNING_SECRET",
+    ];
+    const previous = names.map((name) => process.env[name]);
+    process.env.FILES_TEXT_AI_ENABLED = "true";
+    process.env.FILES_BASE = "https://files.teakvault.com";
+    process.env.FILES_SIGNING_SECRET = "test-secret";
+    const metrics: Array<{ name: string; value: number }> = [];
+    const record = (name: string, value: number) => {
+      metrics.push({ name, value });
+    };
+    configureMetrics({
+      recorder: { count: record, distribution: record, gauge: record },
+    });
+    const calls: string[] = [];
+    const fetchBefore = global.fetch;
+    global.fetch = (_url, request) => {
+      const body = JSON.parse(request.body as string);
+      calls.push(body.op);
+      expect(body.params.prompt.length).toBeLessThanOrEqual(6000);
+      expect(request.headers["x-teak-signature"]).toMatch(/^[a-f0-9]{64}$/);
+      return Promise.resolve(
+        Response.json({
+          ok: true,
+          version: 1,
+          requestId: "test",
+          data: {
+            tags: ["design"],
+            summary: "Useful.",
+            validationRetryCount: 1,
+            usage: { inputTokens: 18, outputTokens: 7 },
+          },
+        })
+      );
+    };
+    try {
+      expect(await generateTextMetadata("Text", "Title")).toEqual({
+        aiTags: ["design"],
+        aiSummary: "Useful.",
+      });
+      expect(await generateLinkMetadata("Link", "https://example.com")).toEqual(
+        { aiTags: ["design"], aiSummary: "Useful." }
+      );
+      expect(
+        metrics.filter((metric) => metric.name === TELEMETRY_METRICS.aiCalls)
+      ).toHaveLength(2);
+      expect(
+        metrics.filter((metric) => metric.name === TELEMETRY_METRICS.aiLatency)
+      ).toHaveLength(2);
+      expect(
+        metrics.filter((metric) => metric.name === TELEMETRY_METRICS.aiCostUsd)
+      ).toHaveLength(2);
+      expect(
+        metrics
+          .filter((metric) => metric.name === TELEMETRY_METRICS.aiTokensInput)
+          .map((metric) => metric.value)
+      ).toEqual([18, 18]);
+      expect(
+        metrics
+          .filter((metric) => metric.name === TELEMETRY_METRICS.aiTokensOutput)
+          .map((metric) => metric.value)
+      ).toEqual([7, 7]);
+      expect(
+        metrics.filter((metric) => metric.name === TELEMETRY_METRICS.aiRetries)
+      ).toHaveLength(2);
+      expect(calls).toEqual([
+        "generate-text-metadata",
+        "generate-link-metadata",
+      ]);
+      expect(mockGenerateText).toHaveBeenCalledTimes(0);
+    } finally {
+      resetMetricsConfig();
+      global.fetch = fetchBefore;
+      names.forEach((name, index) => {
+        if (previous[index] === undefined) {
+          delete process.env[name];
+        } else {
+          process.env[name] = previous[index];
+        }
+      });
+    }
+  });
+  test.each([
+    { code: "AI_CAPACITY", httpStatus: 429, capacity: true },
+    { code: "AI_INVALID_OUTPUT", httpStatus: 502, capacity: false },
+    { code: "MALFORMED_SUCCESS", httpStatus: 200, capacity: false },
+    { code: "UNSUPPORTED", httpStatus: 501, capacity: false },
+  ])(
+    "keeps enabled Worker $code errors deferred without calling direct AI",
+    async ({ code, httpStatus, capacity }) => {
+      const names = [
+        "FILES_TEXT_AI_ENABLED",
+        "FILES_BASE",
+        "FILES_SIGNING_SECRET",
+      ];
+      const previous = names.map((name) => process.env[name]);
+      const fetchBefore = global.fetch;
+      const metrics: Array<{
+        name: string;
+        value: number;
+        attributes: Record<string, unknown>;
+      }> = [];
+      const record = (
+        name: string,
+        value: number,
+        attributes: Record<string, unknown>
+      ) => {
+        metrics.push({ name, value, attributes });
+      };
+      configureMetrics({
+        recorder: { count: record, distribution: record, gauge: record },
+      });
+      process.env.FILES_TEXT_AI_ENABLED = "true";
+      process.env.FILES_BASE = "https://files.teakvault.com";
+      process.env.FILES_SIGNING_SECRET = "test-secret";
+      global.fetch = () =>
+        Promise.resolve(
+          Response.json(
+            code === "MALFORMED_SUCCESS"
+              ? {
+                  ok: true,
+                  version: 1,
+                  data: { tags: [42], summary: "Invalid" },
+                }
+              : {
+                  ok: false,
+                  version: 1,
+                  error: {
+                    code,
+                    message: "Worker failed",
+                    requestId: "test",
+                    retryable: true,
+                    aiFacts: {
+                      validationRetryCount: 2,
+                      usage: { inputTokens: 24, outputTokens: 6 },
+                    },
+                  },
+                },
+            { status: httpStatus }
+          )
+        );
+      try {
+        let failure: unknown;
+        try {
+          await generateTextMetadata("Text");
+        } catch (error) {
+          failure = error;
+        }
+        expect(
+          metrics.filter((metric) => metric.name === TELEMETRY_METRICS.aiCalls)
+        ).toMatchObject([{ attributes: { outcome: "failure" } }]);
+        expect(
+          metrics.filter(
+            (metric) => metric.name === TELEMETRY_METRICS.aiLatency
+          )
+        ).toHaveLength(1);
+        if (code !== "MALFORMED_SUCCESS" && code !== "UNSUPPORTED") {
+          expect(
+            metrics
+              .filter(
+                (metric) => metric.name === TELEMETRY_METRICS.aiTokensInput
+              )
+              .map((metric) => metric.value)
+          ).toEqual([24]);
+          expect(
+            metrics
+              .filter(
+                (metric) => metric.name === TELEMETRY_METRICS.aiTokensOutput
+              )
+              .map((metric) => metric.value)
+          ).toEqual([6]);
+          expect(
+            metrics.filter(
+              (metric) => metric.name === TELEMETRY_METRICS.aiCostUsd
+            )
+          ).toHaveLength(1);
+          expect(
+            metrics.filter(
+              (metric) => metric.name === TELEMETRY_METRICS.aiRetries
+            )
+          ).toHaveLength(2);
+        }
+        if (code === "UNSUPPORTED") {
+          for (const name of [
+            TELEMETRY_METRICS.aiTokensInput,
+            TELEMETRY_METRICS.aiTokensOutput,
+            TELEMETRY_METRICS.aiCostUsd,
+            TELEMETRY_METRICS.aiRetries,
+          ]) {
+            expect(
+              metrics.filter((metric) => metric.name === name)
+            ).toHaveLength(0);
+          }
+        }
+        expect(failure).toBeInstanceOf(Error);
+        expect(isAiMetadataDeferredError(failure)).toBe(true);
+        expect(isAiProviderCapacityError(failure)).toBe(capacity);
+        expect(mockGenerateText).toHaveBeenCalledTimes(0);
+      } finally {
+        resetMetricsConfig();
+        global.fetch = fetchBefore;
+        names.forEach((name, index) => {
+          if (previous[index] === undefined) {
+            delete process.env[name];
+          } else {
+            process.env[name] = previous[index];
+          }
+        });
+      }
+    }
+  );
 });

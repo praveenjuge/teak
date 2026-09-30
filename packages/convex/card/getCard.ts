@@ -84,7 +84,9 @@ export const getDeletedCards = query({
       .order("desc")
       .take(args.limit || 50);
 
-    return applyQuoteFormattingToList(cards);
+    return applyQuoteFormattingToList(
+      cards.map(({ workflowArtifactKeys: _internalKeys, ...card }) => card)
+    );
   },
 });
 

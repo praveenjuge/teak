@@ -46,6 +46,9 @@ const app = defineApp({
     CONVEX_GIT_COMMIT_SHA: v.optional(v.string()),
     // Administration.
     TEAK_ADMIN_EMAIL: v.optional(v.string()),
+    // Staged operational-cost rollout; unset means disabled.
+    OPERATIONAL_RETENTION_ENABLED: v.optional(v.string()),
+    FILES_TEXT_AI_ENABLED: v.optional(v.string()),
     // E2E capability group.
     E2E_CLEANUP_TOKEN: v.optional(v.string()),
     E2E_EMAIL_DOMAIN: v.optional(v.string()),

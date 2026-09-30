@@ -14,6 +14,7 @@ import {
   WORKFLOW_RETENTION_MS,
   workflow,
 } from "../../../convex/workflows/manager";
+import { workflowArtifactKey } from "../../storage/workflowArtifacts";
 import { inlineSearchSyncDb } from "../helpers/session.test-utils";
 
 describe("workflow manager", () => {
@@ -136,7 +137,10 @@ describe("workflow manager", () => {
     test("schedules cleanup seven days after completion", async () => {
       const runAfter = mock().mockResolvedValue("scheduled_123");
       const runQuery = mock().mockResolvedValue({
-        workflow: { generationNumber: 3 },
+        workflow: {
+          generationNumber: 3,
+          runResult: { kind: "success", returnValue: null },
+        },
       });
 
       await scheduleCompletedWorkflowCleanupHandler(
@@ -147,7 +151,11 @@ describe("workflow manager", () => {
       expect(runAfter).toHaveBeenCalledWith(
         WORKFLOW_RETENTION_MS,
         expect.anything(),
-        { generationNumber: 3, workflowId: "wf_123" }
+        {
+          generationNumber: 3,
+          workflowId: "wf_123",
+          terminalObservedAt: expect.any(Number),
+        }
       );
     });
 
@@ -173,6 +181,185 @@ describe("workflow manager", () => {
         expect.anything(),
         { generationNumber: 3, workflowId: "wf_123" }
       );
+    });
+
+    test("schedules only retained journal-owned artifacts after terminal cleanup", async () => {
+      const digest = "a".repeat(64);
+      const ref = {
+        artifactVersion: 1,
+        cardId: "card1",
+        userId: "user1",
+        workflowId: "workflow1",
+        generationNumber: 3,
+        digest,
+        byteLength: 20_000,
+        key: "",
+      };
+      ref.key = workflowArtifactKey(ref as any);
+      const record = {
+        args: { cardId: "card1" },
+        generationNumber: 3,
+        runResult: { kind: "success", returnValue: null },
+      };
+      const runQuery = mock()
+        .mockResolvedValueOnce({ workflow: record })
+        .mockResolvedValueOnce({
+          workflow: record,
+          ok: true,
+          journalEntries: [
+            {
+              step: {
+                completedAt: Date.now() - WORKFLOW_RETENTION_MS - 1000,
+                runResult: { kind: "success", returnValue: { card: ref } },
+              },
+            },
+          ],
+        });
+      const cleanup = mock().mockResolvedValue(true);
+      workflow.cleanup = cleanup;
+      const runAfter = mock();
+      expect(
+        await cleanupCompletedWorkflowHandler(
+          { runQuery, scheduler: { runAfter } } as any,
+          "workflow1" as any,
+          3
+        )
+      ).toBe(true);
+      expect(cleanup).toHaveBeenCalledTimes(1);
+      expect(runAfter).toHaveBeenCalledWith(0, expect.anything(), {
+        references: [ref],
+        cardId: "card1",
+        workflowId: "workflow1",
+        generationNumber: 3,
+      });
+    });
+
+    test("preserves incomplete or recently terminal journals before artifact cleanup", async () => {
+      for (const journal of [
+        { ok: false, journalEntries: [] },
+        { ok: true, journalEntries: [{ step: {} }] },
+        { ok: true, journalEntries: [{ step: { completedAt: Date.now() } }] },
+      ]) {
+        const record = {
+          args: { cardId: "card1" },
+          generationNumber: 3,
+          runResult: { kind: "success", returnValue: null },
+        };
+        const runQuery = mock()
+          .mockResolvedValueOnce({ workflow: record })
+          .mockResolvedValueOnce({ workflow: record, ...journal });
+        const cleanup = mock();
+        workflow.cleanup = cleanup;
+        expect(
+          await cleanupCompletedWorkflowHandler(
+            { runQuery, scheduler: { runAfter: mock() } } as any,
+            "workflow1" as any,
+            3
+          )
+        ).toBe(false);
+        expect(cleanup).not.toHaveBeenCalled();
+      }
+    });
+
+    test("retains canceled and oversized journals for seven days from terminal observation", async () => {
+      for (const journal of [
+        { ok: true, journalEntries: [] },
+        { ok: false, journalEntries: [] },
+        {
+          ok: true,
+          journalEntries: [
+            { step: { completedAt: Date.now() - 2 * WORKFLOW_RETENTION_MS } },
+          ],
+        },
+      ]) {
+        const record = {
+          args: { cardId: "card1" },
+          generationNumber: 3,
+          runResult: { kind: "canceled" },
+        };
+        const runQuery = mock(() =>
+          Promise.resolve({ workflow: record, ...journal })
+        );
+        const runAfter = mock();
+        const cleanup = mock().mockResolvedValue(true);
+        workflow.cleanup = cleanup;
+        const ctx = { runQuery, scheduler: { runAfter } };
+        expect(
+          await cleanupCompletedWorkflowHandler(
+            ctx as any,
+            "workflow1" as any,
+            3
+          )
+        ).toBe(false);
+        expect(cleanup).not.toHaveBeenCalled();
+        const [delay, , scheduled] = runAfter.mock.calls[0];
+        expect(delay).toBeGreaterThanOrEqual(WORKFLOW_RETENTION_MS - 1000);
+        expect(delay).toBeLessThanOrEqual(WORKFLOW_RETENTION_MS);
+        expect(scheduled.terminalObservedAt).toBeGreaterThan(Date.now() - 1000);
+        expect(
+          await cleanupCompletedWorkflowHandler(
+            ctx as any,
+            "workflow1" as any,
+            3,
+            Date.now() - WORKFLOW_RETENTION_MS - 1
+          )
+        ).toBe(true);
+        expect(runAfter).toHaveBeenCalledWith(0, expect.anything(), {
+          references: [],
+          cardId: "card1",
+          workflowId: "workflow1",
+          generationNumber: 3,
+        });
+      }
+    });
+
+    test("preserves recent terminal observations and journal generation races", async () => {
+      for (const scenario of [
+        { observedAt: Date.now(), journalGeneration: 3 },
+        {
+          observedAt: Date.now() + WORKFLOW_RETENTION_MS,
+          journalGeneration: 3,
+        },
+        {
+          observedAt: Date.now() - 2 * WORKFLOW_RETENTION_MS,
+          journalGeneration: 4,
+        },
+      ]) {
+        const record = {
+          args: { cardId: "card1" },
+          generationNumber: 3,
+          runResult: { kind: "canceled" },
+        };
+        const runQuery = mock()
+          .mockResolvedValueOnce({ workflow: record })
+          .mockResolvedValueOnce({
+            workflow: {
+              ...record,
+              generationNumber: scenario.journalGeneration,
+            },
+            ok: false,
+            journalEntries: [],
+          });
+        const cleanup = mock();
+        workflow.cleanup = cleanup;
+        const runAfter = mock();
+        expect(
+          await cleanupCompletedWorkflowHandler(
+            { runQuery, scheduler: { runAfter } } as any,
+            "workflow1" as any,
+            3,
+            scenario.observedAt
+          )
+        ).toBe(false);
+        expect(cleanup).not.toHaveBeenCalled();
+        if (scenario.journalGeneration === 4) {
+          expect(runAfter).not.toHaveBeenCalled();
+        } else {
+          expect(runAfter.mock.calls[0][0]).toBeGreaterThanOrEqual(
+            WORKFLOW_RETENTION_MS - 1000
+          );
+        }
+      }
     });
 
     test("ignores a stale cleanup timer after workflow restart", async () => {
@@ -223,13 +410,24 @@ describe("workflow manager", () => {
           ok: true,
           workflow: {
             _creationTime: cutoffMs - 1,
+            generationNumber: 1,
+            args: { cardId: "c1" },
             runResult: { kind: "success", returnValue: null },
           },
         };
       });
       const cleanup = mock().mockResolvedValue(true);
       workflow.cleanup = cleanup;
-      const ctx = { runQuery } as any;
+      const ctx = {
+        runQuery,
+        scheduler: { runAfter: mock() },
+        runMutation: (_ref, args) =>
+          cleanupCompletedWorkflowHandler(
+            ctx,
+            args.workflowId,
+            args.generationNumber
+          ),
+      } as any;
       const workflowIds = [
         "wf_completed",
         "wf_running",
@@ -362,10 +560,14 @@ describe("workflow manager", () => {
       const [delay, , args] = runAfter.mock.calls[0];
       expect(delay).toBeGreaterThanOrEqual(59_000);
       expect(delay).toBeLessThanOrEqual(60_000);
-      expect(args).toEqual({ generationNumber: 3, workflowId: "wf_123" });
+      expect(args).toEqual({
+        generationNumber: 3,
+        workflowId: "wf_123",
+        terminalObservedAt: completedAt,
+      });
     });
 
-    test("fails closed when historical workflow journals are incomplete", async () => {
+    test("schedules a full grace period when historical workflow journals are incomplete", async () => {
       const runQuery = mock().mockResolvedValue({
         journalEntries: [],
         ok: false,
@@ -382,12 +584,17 @@ describe("workflow manager", () => {
         { dryRun: false, workflowIds: ["wf_oversized"] as any }
       );
 
-      expect(result.oversizedCount).toBe(1);
-      expect(result.scheduledCount).toBe(0);
-      expect(runAfter).not.toHaveBeenCalled();
+      expect(result.oversizedCount).toBe(0);
+      expect(result.scheduledCount).toBe(1);
+      expect(runAfter.mock.calls[0][0]).toBeGreaterThanOrEqual(
+        WORKFLOW_RETENTION_MS - 1000
+      );
+      expect(runAfter.mock.calls[0][2].terminalObservedAt).toBeGreaterThan(
+        Date.now() - 1000
+      );
     });
 
-    test("fails closed when historical completion timestamps are missing", async () => {
+    test("schedules a full grace period when historical completion timestamps are missing", async () => {
       const runQuery = mock().mockResolvedValue({
         journalEntries: [{ step: {} }],
         ok: true,
@@ -404,9 +611,14 @@ describe("workflow manager", () => {
         { dryRun: false, workflowIds: ["wf_no_timestamp"] as any }
       );
 
-      expect(result.noTimestampCount).toBe(1);
-      expect(result.scheduledCount).toBe(0);
-      expect(runAfter).not.toHaveBeenCalled();
+      expect(result.noTimestampCount).toBe(0);
+      expect(result.scheduledCount).toBe(1);
+      expect(runAfter.mock.calls[0][0]).toBeGreaterThanOrEqual(
+        WORKFLOW_RETENTION_MS - 1000
+      );
+      expect(runAfter.mock.calls[0][2].terminalObservedAt).toBeGreaterThan(
+        Date.now() - 1000
+      );
     });
 
     test("reports partial scheduling failures without losing successful counts", async () => {
@@ -507,7 +719,7 @@ describe("workflow manager", () => {
       workflow.cleanup = originalCleanup;
     });
 
-    test("cleanup handler cancels and cleans a workflow stuck past retention", async () => {
+    test("cancels a stuck workflow while retaining its journal and artifacts for seven more days", async () => {
       const runQuery = mock().mockResolvedValue({
         workflow: {
           generationNumber: 3,
@@ -526,10 +738,14 @@ describe("workflow manager", () => {
         3
       );
 
-      expect(cleaned).toBe(true);
+      expect(cleaned).toBe(false);
       expect(cancel).toHaveBeenCalledWith(expect.anything(), "wf_stuck");
-      expect(cleanup).toHaveBeenCalledWith(expect.anything(), "wf_stuck");
-      expect(runAfter).not.toHaveBeenCalled();
+      expect(cleanup).not.toHaveBeenCalled();
+      expect(runAfter).toHaveBeenCalledWith(
+        WORKFLOW_RETENTION_MS,
+        expect.anything(),
+        { generationNumber: 3, workflowId: "wf_stuck" }
+      );
     });
 
     test("sweep reaps old in-progress workflows and skips the rest", async () => {
@@ -567,7 +783,12 @@ describe("workflow manager", () => {
       expect(result).toEqual({ examinedCount: 2, reapedCount: 1 });
       expect(cancel).toHaveBeenCalledTimes(1);
       expect(cancel).toHaveBeenCalledWith(expect.anything(), "wf_stuck");
-      expect(cleanup).toHaveBeenCalledWith(expect.anything(), "wf_stuck");
+      expect(cleanup).not.toHaveBeenCalled();
+      expect(ctx.scheduler.runAfter).toHaveBeenCalledWith(
+        WORKFLOW_RETENTION_MS,
+        expect.anything(),
+        expect.objectContaining({ workflowId: "wf_stuck" })
+      );
     });
 
     test("sweep continues from the page cursor when more pages remain", async () => {

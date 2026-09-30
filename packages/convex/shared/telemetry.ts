@@ -585,3 +585,22 @@ export const resolveTraceSampleRate = ({
     ? 1
     : 0.2;
 };
+
+/** Backend traces are retained at completion so failures and slow calls survive. */
+export const resolveBackendTraceSampleRate = (
+  context: SamplingContext
+): number => {
+  if (context.environment !== "production") {
+    return 1;
+  }
+  const description =
+    `${context.name ?? ""} ${context.operation ?? ""}`.toLowerCase();
+  const critical = /auth|billing|checkout|security|oauth/u.test(description);
+  const failed =
+    context.outcome === "failure" ||
+    context.outcome === "error" ||
+    context.outcome === "retry";
+  const slow =
+    typeof context.durationMs === "number" && context.durationMs >= 2000;
+  return critical || failed || slow ? 1 : 0.1;
+};

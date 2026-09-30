@@ -4,12 +4,20 @@ import crons from "../crons";
 import { cleanupResendEmails } from "../telemetry/crons";
 
 const EXPECTED_CRONS: Record<string, { cron: string; handler: string }> = {
+  "cleanup-expired-idempotency": {
+    cron: "10 * * * *",
+    handler: "cleanupExpiredIdempotency",
+  },
+  "cleanup-expired-native-auth-codes": {
+    cron: "30 6 * * *",
+    handler: "cleanupExpiredNativeAuthCodes",
+  },
   "cleanup-resend-emails": {
     cron: "0 6 * * *",
     handler: "cleanupResendEmails",
   },
   "ensure-oauth-clients": {
-    cron: "*/15 * * * *",
+    cron: "0 1 * * *",
     handler: "ensureOauthClients",
   },
   "cleanup-old-deleted-cards": {

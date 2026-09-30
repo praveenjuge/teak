@@ -4,6 +4,8 @@ import { buildSignedWorkerOpRequest } from "../packages/convex/storage/filesWork
 
 const required = [
   "transcribe-audio",
+  "generate-text-metadata",
+  "generate-link-metadata",
   "index-import-source",
   "read-import-markdown",
   "extract-import-files",

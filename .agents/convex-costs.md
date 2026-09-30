@@ -66,3 +66,57 @@ Arbitrary-domain preview downloads remain on Convex. Its canonical downloader
 pins validated DNS results across redirects; the current Workers fetch surface
 cannot preserve that guarantee. Do not move this path without equivalent SSRF
 protection. Raw metadata archival calls only the configured signed Files Worker.
+
+## Operational cost rollout
+
+Keep `OPERATIONAL_RETENTION_ENABLED` and `FILES_TEXT_AI_ENABLED` unset or `false`
+until the deployed Files Worker advertises both metadata operations and the
+production snapshot and dry-run report have been checked. Deploy Worker support
+before the Convex consumer. Enable text AI first, verify an isolated text/link
+journey, then enable retention. Disabling text AI routes text/link generation back
+to the direct Convex provider; it does not stop AI work or its costs. Disabling
+retention stops deletion; queued batches recheck the flag before deleting anything.
+
+Text/link metadata uses the existing Workers AI binding and the same Qwen model,
+prompts, input limit, output validation and retry policy. Inputs are signed text,
+not URLs to fetch. Keep call, error, latency, retry, token and cost aggregates;
+routine successful traces are sampled at 10%, while failures, slow transactions
+and auth/billing/security operations are retained. A deployment explicitly
+repairs OAuth clients; the daily check remains as recovery.
+
+Before enabling retention, export a private production snapshot outside Git.
+Preview the indexed pages from `packages/convex`:
+
+```bash
+bunx convex run --prod operationalRetention:cleanupExpiredRecords '{"kind":"idempotency"}'
+bunx convex run --prod operationalRetention:cleanupExpiredRecords '{"kind":"nativeAuthCodes"}'
+```
+
+Pass the frozen `cutoff` and returned `continueCursor` as `cursor` to inspect
+later pages. Apply with `dryRun:false` only after checking eligibility. Each batch
+reads at most 100 records/2 MiB. Twenty batches form a burst; additional pages
+continue after five minutes using the same cutoff and cursor. A per-table
+transactional scan lease prevents overlapping cron/manual runs; stale leases
+recover their stored cursor after 15 minutes and fence old scheduled jobs. Pending API
+reservations and unexpired replay responses are always retained. Native exchange
+codes are eligible only after expiry plus 24 hours; this does not touch sessions,
+users, accounts, OAuth tokens, signing keys or API keys. Compare preserved IDs and
+customer fields against the snapshot after cleanup, accounting for real customer
+activity. Never restore whole cards or auth records over concurrent changes.
+
+Workflow queries/results now carry compact summaries. Necessary intermediate
+values above 16 KiB are stored as immutable private R2 artifacts, verified by
+byte count, SHA-256 and Convex-value round trip before a journal references them.
+Existing journals and function identities remain readable. Remove referenced
+artifacts only with terminal workflow history older than seven days. Retain
+active/unknown histories for investigation. A bounded internal card manifest
+tracks copies before upload, including failed attempts, so normal card/account
+teardown discovers them. Canceled workflows retain journals for seven days before
+artifact cleanup; no blanket R2 lifecycle deletion is safe. A rollback must retain the additive
+artifact readers until all journals containing references have drained.
+
+Legacy desktop codes, inactive component tables and revoked API keys remain
+report-only. Do not remove them without a supported API and separate approval.
+Recurring usage should be measured after the maintenance burst; exports, audits
+and migrations themselves consume database I/O. These changes reduce avoidable
+usage but do not guarantee zero overage as customer traffic grows.

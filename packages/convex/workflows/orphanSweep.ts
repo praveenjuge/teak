@@ -64,6 +64,7 @@ export const sweepOrphanedObjectsHandler = async (
         metadata?: any;
         previewKey?: string;
         thumbnailKey?: string;
+        workflowArtifactKeys?: string[];
       }>;
       continueCursor: string;
       isDone: boolean;

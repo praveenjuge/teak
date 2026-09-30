@@ -6,6 +6,9 @@ import { inlineSearchSyncDb } from "./helpers/session.test-utils";
 mock.module("../storage/r2", r2MockModuleFactory);
 
 const {
+  getFullCardForMetadataHandler,
+  getCardForLinkFetchHandler,
+  getCardForScreenshotHandler,
   getCardForMetadataHandler,
   updateCardMetadataHandler,
   updateCardScreenshotHandler,
@@ -17,7 +20,7 @@ const createMockCtx = () => {
   r2Mocks.deleteObject.mockResolvedValue(null);
   return {
     db: {
-        ...inlineSearchSyncDb(),
+      ...inlineSearchSyncDb(),
       get: mock(),
       patch: mock(),
     },
@@ -26,14 +29,14 @@ const createMockCtx = () => {
 };
 
 describe("linkMetadata", () => {
-  describe("getCardForMetadata", () => {
+  describe("getFullCardForMetadata", () => {
     test("fetches card by id", async () => {
       const ctx = createMockCtx();
       const cardId = "card_123";
       const card = { _id: cardId, type: "link" };
       ctx.db.get.mockResolvedValue(card);
 
-      const result = await getCardForMetadataHandler(ctx, { cardId });
+      const result = await getFullCardForMetadataHandler(ctx, { cardId });
       expect(ctx.db.get).toHaveBeenCalledWith("cards", cardId);
       expect(result).toEqual(card);
     });
@@ -501,5 +504,125 @@ describe("linkMetadata", () => {
         })
       );
     });
+  });
+});
+
+test("workflow reader retains decisions without journaling customer content or provider payloads", async () => {
+  const ctx = createMockCtx();
+  const card = {
+    _id: "c1",
+    _creationTime: 1,
+    type: "link",
+    url: "https://example.com",
+    content: "content".repeat(10_000),
+    notes: "private",
+    aiTranscript: "transcript".repeat(10_000),
+    metadataStatus: "pending",
+    processingStatus: {
+      classify: { status: "completed", confidence: 0.95 },
+      metadata: { status: "pending" },
+    },
+    metadata: {
+      linkPreview: { status: "success", raw: { body: "raw".repeat(10_000) } },
+    },
+  };
+  ctx.db.get.mockResolvedValue(card);
+  const state = await getCardForMetadataHandler(ctx, { cardId: "c1" });
+  expect(state).toMatchObject({
+    workflowPayloadVersion: 1,
+    type: "link",
+    url: card.url,
+    metadataStatus: "pending",
+    processingStatus: { classify: { status: "completed", confidence: 0.95 } },
+    metadata: { linkPreview: { status: "success" } },
+  });
+  expect(JSON.stringify(state).length).toBeLessThan(512);
+  expect(state).not.toHaveProperty("content");
+  expect(state).not.toHaveProperty("notes");
+  expect(await getFullCardForMetadataHandler(ctx, { cardId: "c1" })).toEqual(
+    card
+  );
+  ctx.db.get.mockResolvedValue(null);
+  expect(await getCardForMetadataHandler(ctx, { cardId: "c1" })).toBeNull();
+});
+
+test("link fetch reader preserves classification gates and owner without unrelated payloads", async () => {
+  const ctx = createMockCtx();
+  const card = {
+    _id: "c1",
+    userId: "owner",
+    type: "link",
+    url: "https://example.com",
+    content: "content".repeat(10_000),
+    aiTranscript: "transcript".repeat(10_000),
+    processingStatus: {
+      classify: { status: "in_progress", confidence: 0.95 },
+      metadata: { status: "pending" },
+    },
+    metadata: {
+      linkCategory: { status: "pending", reason: "large".repeat(10_000) },
+      linkPreview: { status: "success", raw: { body: "raw".repeat(10_000) } },
+    },
+  };
+  ctx.db.get.mockResolvedValue(card);
+  expect(await getCardForLinkFetchHandler(ctx, { cardId: "c1" })).toEqual({
+    type: "link",
+    url: card.url,
+    userId: "owner",
+    processingStatus: { classify: { status: "in_progress" } },
+    metadata: { linkCategory: { status: "pending" } },
+  });
+  expect(await getFullCardForMetadataHandler(ctx, { cardId: "c1" })).toEqual(
+    card
+  );
+  ctx.db.get.mockResolvedValue(null);
+  expect(await getCardForLinkFetchHandler(ctx, { cardId: "c1" })).toBeNull();
+});
+
+test("screenshot reader retains existing screenshot guard without preview raw data or transcript", async () => {
+  const ctx = createMockCtx();
+  ctx.db.get.mockResolvedValue({
+    userId: "owner",
+    type: "link",
+    url: "https://example.com",
+    aiTranscript: "transcript".repeat(10_000),
+    metadata: {
+      linkPreview: {
+        status: "success",
+        screenshotStorageKey: "existing-screenshot",
+        raw: { body: "raw".repeat(10_000) },
+        media: [{ storageKey: "unrelated" }],
+      },
+    },
+  });
+  expect(await getCardForScreenshotHandler(ctx, { cardId: "c1" })).toEqual({
+    userId: "owner",
+    type: "link",
+    url: "https://example.com",
+    metadata: {
+      linkPreview: {
+        status: "success",
+        screenshotStorageKey: "existing-screenshot",
+      },
+    },
+  });
+  ctx.db.get.mockResolvedValue(null);
+  expect(await getCardForScreenshotHandler(ctx, { cardId: "c1" })).toBeNull();
+});
+
+test("link fetch projection accepts legacy string categories without private payloads", async () => {
+  const ctx = createMockCtx();
+  ctx.db.get.mockResolvedValue({
+    type: "link",
+    userId: "u1",
+    url: "https://example.com",
+    metadata: { linkCategory: "article" },
+  });
+  expect(await getCardForLinkFetchHandler(ctx, { cardId: "c1" })).toEqual({
+    type: "link",
+    userId: "u1",
+    url: "https://example.com",
+    processingStatus: undefined,
+    metadata: { linkCategory: { status: undefined } },
   });
 });

@@ -84,6 +84,7 @@ export const cardStorageObjectKeys = (card: {
   };
   previewKey?: string;
   thumbnailKey?: string;
+  workflowArtifactKeys?: string[];
 }): string[] => {
   const linkPreview = card.metadata?.linkPreview;
   return [
@@ -91,6 +92,7 @@ export const cardStorageObjectKeys = (card: {
     card.fileKey ? `${card.fileKey}.processing.json` : undefined,
     card.thumbnailKey,
     card.previewKey,
+    ...(card.workflowArtifactKeys ?? []),
     linkPreview?.rawStorageKey,
     card.metadata?.linkCategory?.rawStorageKey,
     linkPreview?.imageStorageKey,

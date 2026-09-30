@@ -2,13 +2,25 @@
 
 import { v } from "convex/values";
 import { components, internal } from "../_generated/api";
-import { type ActionCtx, internalAction } from "../_generated/server";
+import { type ActionCtx, env, internalAction } from "../_generated/server";
 import { sweepStalePendingUploadsHandler } from "../storage/pendingUploadCleanup";
 import { type CronCheckInConfig, withCronCheckIn } from "./sentry";
 
 const internalAny = internal as Record<string, any>;
 
 export const CRON_MONITORS = {
+  cleanupExpiredIdempotency: {
+    checkinMarginMinutes: 10,
+    maxRuntimeMinutes: 10,
+    schedule: "10 * * * *",
+    slug: "cleanup-expired-idempotency",
+  },
+  cleanupExpiredNativeAuthCodes: {
+    checkinMarginMinutes: 15,
+    maxRuntimeMinutes: 10,
+    schedule: "30 6 * * *",
+    slug: "cleanup-expired-native-auth-codes",
+  },
   aiMetadataBackfill: {
     checkinMarginMinutes: 15,
     maxRuntimeMinutes: 30,
@@ -59,17 +71,48 @@ export const CRON_MONITORS = {
   },
   ensureOauthClients: {
     checkinMarginMinutes: 15,
-    // Runs every 15 minutes and finishes in about a second. A single lost
-    // completion check-in shows up as a timeout even when the job succeeded,
-    // so require two failures in a row before paging. With a 5-minute max
-    // runtime, a real outage still opens an issue about 20 minutes after the
-    // first failed run starts.
-    failureIssueThreshold: 2,
+    failureIssueThreshold: 1,
     maxRuntimeMinutes: 5,
-    schedule: "*/15 * * * *",
+    schedule: "0 1 * * *",
     slug: "ensure-oauth-clients",
   },
 } as const satisfies Record<string, CronCheckInConfig>;
+
+export const cleanupExpiredIdempotency = internalAction({
+  args: {},
+  returns: v.null(),
+  handler: (ctx: ActionCtx) =>
+    monitored(CRON_MONITORS.cleanupExpiredIdempotency, async () => {
+      if (env.OPERATIONAL_RETENTION_ENABLED !== "true") {
+        return;
+      }
+      await ctx.runMutation(
+        internal.operationalRetention.cleanupExpiredRecords,
+        {
+          kind: "idempotency",
+          dryRun: false,
+        }
+      );
+    }),
+});
+
+export const cleanupExpiredNativeAuthCodes = internalAction({
+  args: {},
+  returns: v.null(),
+  handler: (ctx: ActionCtx) =>
+    monitored(CRON_MONITORS.cleanupExpiredNativeAuthCodes, async () => {
+      if (env.OPERATIONAL_RETENTION_ENABLED !== "true") {
+        return;
+      }
+      await ctx.runMutation(
+        internal.operationalRetention.cleanupExpiredRecords,
+        {
+          kind: "nativeAuthCodes",
+          dryRun: false,
+        }
+      );
+    }),
+});
 
 const monitored = async (
   config: CronCheckInConfig,

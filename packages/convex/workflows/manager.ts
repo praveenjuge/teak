@@ -27,6 +27,7 @@ import {
 import { patchCardWithSearchSync } from "../card/searchDocumentHelpers";
 import type { CardType } from "../schema";
 import type { Id } from "../shared/types";
+import { collectWorkflowArtifacts } from "../storage/workflowArtifacts";
 
 const internalAny: any = internal as any;
 
@@ -68,7 +69,9 @@ export const startWorkflow = <
   );
 
 export const scheduleCompletedWorkflowCleanupHandler = async (
-  ctx: Pick<MutationCtx, "runQuery" | "scheduler">,
+  ctx:
+    | Pick<MutationCtx, "runQuery" | "scheduler">
+    | Pick<ActionCtx, "runQuery" | "scheduler">,
   workflowId: WorkflowId
 ): Promise<null> => {
   const { workflow: workflowRecord } = await ctx.runQuery(
@@ -78,7 +81,11 @@ export const scheduleCompletedWorkflowCleanupHandler = async (
   await ctx.scheduler.runAfter(
     WORKFLOW_RETENTION_MS,
     internalAny["workflows/manager"].cleanupCompletedWorkflow,
-    { generationNumber: workflowRecord.generationNumber, workflowId }
+    {
+      generationNumber: workflowRecord.generationNumber,
+      workflowId,
+      ...(workflowRecord.runResult ? { terminalObservedAt: Date.now() } : {}),
+    }
   );
   return null;
 };
@@ -95,16 +102,26 @@ export const scheduleCompletedWorkflowCleanup = internalMutation({
 });
 
 export const cleanupCompletedWorkflow = internalMutation({
-  args: { generationNumber: v.number(), workflowId: vWorkflowId },
+  args: {
+    generationNumber: v.number(),
+    workflowId: vWorkflowId,
+    terminalObservedAt: v.optional(v.number()),
+  },
   returns: v.boolean(),
-  handler: (ctx, { generationNumber, workflowId }) =>
-    cleanupCompletedWorkflowHandler(ctx, workflowId, generationNumber),
+  handler: (ctx, { generationNumber, workflowId, terminalObservedAt }) =>
+    cleanupCompletedWorkflowHandler(
+      ctx,
+      workflowId,
+      generationNumber,
+      terminalObservedAt
+    ),
 });
 
 export const cleanupCompletedWorkflowHandler = async (
   ctx: MutationCtx,
   workflowId: WorkflowId,
-  generationNumber: number
+  generationNumber: number,
+  terminalObservedAt?: number
 ): Promise<boolean> => {
   try {
     const { workflow: workflowRecord } = await ctx.runQuery(
@@ -125,7 +142,8 @@ export const cleanupCompletedWorkflowHandler = async (
         Date.now() - workflowRecord._creationTime > WORKFLOW_RETENTION_MS
       ) {
         await workflow.cancel(ctx, workflowId);
-        return await workflow.cleanup(ctx, workflowId);
+        await scheduleCompletedWorkflowCleanupHandler(ctx, workflowId);
+        return false;
       }
       await ctx.scheduler.runAfter(
         WORKFLOW_CLEANUP_RETRY_MS,
@@ -134,7 +152,64 @@ export const cleanupCompletedWorkflowHandler = async (
       );
       return false;
     }
-    return await workflow.cleanup(ctx, workflowId);
+    const journal = await ctx.runQuery(components.workflow.journal.load, {
+      workflowId,
+    });
+    // Never carry an observation across a restarted or changed owner.
+    if (
+      journal.workflow.generationNumber !== generationNumber ||
+      !journal.workflow.runResult ||
+      journal.workflow.args?.cardId !== workflowRecord.args?.cardId
+    ) {
+      return false;
+    }
+    // Old scheduled jobs have no terminal timestamp. Canceled or failed workflows may
+    // have no completed steps, and their last step can predate termination.
+    // Oversized journals likewise need an observation-based grace period.
+    const completedAt =
+      journal.ok && workflowRecord.runResult.kind === "success"
+        ? getWorkflowCompletionTime(journal.journalEntries)
+        : null;
+    const observedAt =
+      terminalObservedAt !== undefined &&
+      Number.isFinite(terminalObservedAt) &&
+      terminalObservedAt >= 0 &&
+      terminalObservedAt <= Date.now()
+        ? terminalObservedAt
+        : undefined;
+    const retentionStart = Math.max(
+      observedAt ?? completedAt ?? Date.now(),
+      completedAt ?? 0
+    );
+    if (Date.now() - retentionStart < WORKFLOW_RETENTION_MS) {
+      await ctx.scheduler.runAfter(
+        retentionStart + WORKFLOW_RETENTION_MS - Date.now(),
+        internalAny["workflows/manager"].cleanupCompletedWorkflow,
+        { generationNumber, workflowId, terminalObservedAt: retentionStart }
+      );
+      return false;
+    }
+    const references = journal.ok
+      ? collectWorkflowArtifacts(journal.journalEntries, {
+          cardId: workflowRecord.args?.cardId ?? "",
+          workflowId,
+          generationNumber,
+        })
+      : [];
+    const cleaned = await workflow.cleanup(ctx, workflowId);
+    if (cleaned && workflowRecord.args?.cardId) {
+      await ctx.scheduler.runAfter(
+        0,
+        internalAny.storage.workflowArtifacts.deleteRetainedArtifacts,
+        {
+          references,
+          cardId: workflowRecord.args.cardId,
+          workflowId,
+          generationNumber,
+        }
+      );
+    }
+    return cleaned;
   } catch (error) {
     if (
       error instanceof Error &&
@@ -192,7 +267,7 @@ export const reapStuckWorkflowsHandler = async (
       }
       const workflowId = entry.workflowId as WorkflowId;
       await workflow.cancel(ctx, workflowId);
-      await workflow.cleanup(ctx, workflowId);
+      await scheduleCompletedWorkflowCleanupHandler(ctx, workflowId);
       reapedCount += 1;
     } catch (error) {
       if (
@@ -295,7 +370,12 @@ const cleanupWorkflowHistoryEntry = async (
     if (dryRun) {
       return "eligible";
     }
-    return (await workflow.cleanup(ctx, workflowId)) ? "cleaned" : "missing";
+    return (await ctx.runMutation(
+      internalAny["workflows/manager"].cleanupCompletedWorkflow,
+      { workflowId, generationNumber: workflowRecord.generationNumber }
+    ))
+      ? "cleaned"
+      : "missing";
   } catch (error) {
     if (
       error instanceof Error &&
@@ -321,22 +401,21 @@ const scheduleWorkflowHistoryEntry = async (
     if (!workflowRecord.runResult) {
       return "inProgress";
     }
-    if (!completeJournalLoaded) {
-      return "oversized";
-    }
-    const completedAt = getWorkflowCompletionTime(journalEntries);
-    if (completedAt === null) {
-      return "noTimestamp";
-    }
+    const completedAt =
+      completeJournalLoaded && workflowRecord.runResult.kind === "success"
+        ? getWorkflowCompletionTime(journalEntries)
+        : null;
     if (dryRun) {
       return "eligible";
     }
+    const terminalObservedAt = completedAt ?? Date.now();
     await ctx.scheduler.runAfter(
-      Math.max(0, completedAt + WORKFLOW_RETENTION_MS - Date.now()),
+      Math.max(0, terminalObservedAt + WORKFLOW_RETENTION_MS - Date.now()),
       internalAny["workflows/manager"].cleanupCompletedWorkflow,
       {
         generationNumber: workflowRecord.generationNumber,
         workflowId,
+        terminalObservedAt,
       }
     );
     return "scheduled";

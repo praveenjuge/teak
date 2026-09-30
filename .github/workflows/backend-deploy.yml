@@ -72,6 +72,9 @@ jobs:
           bunx convex deploy \
             --typecheck disable \
             --message "Sentry release teak-backend@$GITHUB_SHA"
+      - name: Reconcile first-party OAuth clients
+        working-directory: packages/convex
+        run: bunx convex run --prod oauthClients:ensureOAuthClients '{}'
       - name: Finalize Sentry release
         run: |
           release="$TEAK_BACKEND_RELEASE"

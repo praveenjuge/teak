@@ -125,9 +125,9 @@ export const generate: any = internalAction({
     cardType: v.string(),
   },
   returns: v.object({
-    aiTags: v.array(v.string()),
-    aiSummary: v.optional(v.string()),
-    aiTranscript: v.optional(v.string()),
+    aiTagsCount: v.number(),
+    hasSummary: v.boolean(),
+    hasTranscript: v.boolean(),
     confidence: v.number(),
     mode: v.union(v.literal("completed"), v.literal("skipped")),
   }),
@@ -155,9 +155,9 @@ export async function generateHandler(
 
   if (!card) {
     return {
-      aiTags: [],
-      aiSummary: undefined,
-      aiTranscript: undefined,
+      aiTagsCount: 0,
+      hasSummary: false,
+      hasTranscript: false,
       confidence: 0,
       mode: "skipped" as const,
     };
@@ -179,9 +179,9 @@ export async function generateHandler(
       }
     );
     return {
-      aiTags: [],
-      aiSummary: undefined,
-      aiTranscript: undefined,
+      aiTagsCount: 0,
+      hasSummary: false,
+      hasTranscript: false,
       confidence: 0,
       mode: "skipped" as const,
     };
@@ -367,9 +367,9 @@ export async function generateHandler(
     // backfill can retry without multiplying one transient failure across the
     // workflow retry budget.
     return {
-      aiTags: [],
-      aiSummary: undefined,
-      aiTranscript: undefined,
+      aiTagsCount: 0,
+      hasSummary: false,
+      hasTranscript: false,
       confidence: 0,
       mode: "skipped" as const,
     };
@@ -402,9 +402,9 @@ export async function generateHandler(
 
   if (saved === false) {
     return {
-      aiTags: [],
-      aiSummary: undefined,
-      aiTranscript: undefined,
+      aiTagsCount: 0,
+      hasSummary: false,
+      hasTranscript: false,
       confidence: 0,
       mode: "skipped" as const,
     };
@@ -420,9 +420,9 @@ export async function generateHandler(
   }
 
   return {
-    aiTags,
-    aiSummary,
-    aiTranscript,
+    aiTagsCount: aiTags.length,
+    hasSummary: Boolean(aiSummary),
+    hasTranscript: Boolean(aiTranscript),
     confidence,
     mode: "completed" as const,
   };

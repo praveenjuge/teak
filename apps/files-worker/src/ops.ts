@@ -26,13 +26,16 @@ import {
 } from "./inspect";
 import { sha256Hex, verifyBodySignature } from "./lib";
 import { reportFilesOpFailure } from "./sentry";
+import {
+  generateTextMetadataForOp,
+  MetadataCapacityError,
+  MetadataValidationError,
+} from "./textMetadata";
 import { transcribeAudio } from "./transcript";
 import { isValidUploadKey } from "./upload";
 import { ArchiveEntryTooLargeError } from "./zip";
 
-export const getFilesOpObjectKey = (
-  params: unknown
-): string => {
+export const getFilesOpObjectKey = (params: unknown): string => {
   if (!params || typeof params !== "object" || Array.isArray(params)) {
     return "";
   }
@@ -73,11 +76,18 @@ const fail = (
   code: FilesErrorCode,
   message: string,
   status: number,
-  retryable = false
+  retryable = false,
+  aiFacts?: import("@teak/files-protocol").FilesAiGenerationFacts
 ): Response =>
   json(
     {
-      error: { code, message, requestId, retryable },
+      error: {
+        code,
+        message,
+        requestId,
+        retryable,
+        ...(aiFacts ? { aiFacts } : {}),
+      },
       ok: false,
       version: FILES_PROTOCOL_VERSION,
     },
@@ -458,6 +468,12 @@ const dispatch = async (
         truncated: listed.truncated,
       });
     }
+    case "generate-text-metadata":
+    case "generate-link-metadata":
+      return success(
+        requestId,
+        await generateTextMetadataForOp(env, body.op, params)
+      );
     case "generate-image-metadata": {
       const title = optionalString(params, "title");
       if (title !== null && title.length > 2000) {
@@ -556,6 +572,26 @@ export const handleInternalOp = async (
   try {
     return await dispatch(env, requestId, body, new URL(request.url).origin);
   } catch (error) {
+    if (error instanceof MetadataCapacityError) {
+      return fail(
+        requestId,
+        "AI_CAPACITY",
+        error.message,
+        429,
+        false,
+        error.aiFacts
+      );
+    }
+    if (error instanceof MetadataValidationError) {
+      return fail(
+        requestId,
+        "AI_INVALID_OUTPUT",
+        error.message,
+        502,
+        true,
+        error.aiFacts
+      );
+    }
     if (
       (error instanceof Error && error.message === "source_not_found") ||
       error instanceof InspectSourceMissing

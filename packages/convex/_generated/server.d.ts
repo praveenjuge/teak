@@ -42,9 +42,11 @@ type Env = {
   readonly E2E_EMAIL_DOMAIN: string | undefined;
   readonly FILES_BASE: string | undefined;
   readonly FILES_SIGNING_SECRET: string | undefined;
+  readonly FILES_TEXT_AI_ENABLED: string | undefined;
   readonly GOOGLE_CLIENT_ID: string | undefined;
   readonly GOOGLE_CLIENT_SECRET: string | undefined;
   readonly JWKS: string | undefined;
+  readonly OPERATIONAL_RETENTION_ENABLED: string | undefined;
   readonly POLAR_ACCESS_TOKEN: string | undefined;
   readonly POLAR_SERVER: string | undefined;
   readonly PUBLIC_ORIGIN: string | undefined;

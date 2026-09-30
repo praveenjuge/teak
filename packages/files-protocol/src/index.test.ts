@@ -80,3 +80,27 @@ describe("files protocol", () => {
     ).toBe("image-source\n1\nusers/u/cards/c/file.png\n123");
   });
 });
+
+import { readFilesAiGenerationFacts } from "./metadata";
+
+test.each([
+  { validationRetryCount: 3 },
+  { validationRetryCount: -1 },
+  { validationRetryCount: 1, usage: { inputTokens: -1 } },
+  { validationRetryCount: 1, usage: { outputTokens: "secret" } },
+  { validationRetryCount: 1, usage: { inputTokens: Number.POSITIVE_INFINITY } },
+])("rejects invalid AI diagnostics %p", (value) => {
+  expect(readFilesAiGenerationFacts(value)).toBeNull();
+});
+test("copies only numeric AI diagnostics", () => {
+  expect(
+    readFilesAiGenerationFacts({
+      validationRetryCount: 2,
+      usage: { inputTokens: 4, outputTokens: 2, prompt: "private" },
+      content: "private",
+    })
+  ).toEqual({
+    validationRetryCount: 2,
+    usage: { inputTokens: 4, outputTokens: 2 },
+  });
+});
