@@ -76,7 +76,13 @@ export const commitArchive = internalMutation({
         part?.rawStorageKey === key &&
         part?.rawSha256 === digest;
       if (!alreadyCommitted && !cardStorageObjectKeys(card).includes(key)) {
-        await deleteObject(ctx, key);
+        // Content-addressed keys may be referenced by a later archive of
+        // the same payload. Retain stale copies in the card's internal
+        // storage inventory instead of racing a queued deletion. Account
+        // deletion and orphan sweeping already collect these tracked keys.
+        await ctx.db.patch("cards", cardId, {
+          workflowArtifactKeys: [...(card.workflowArtifactKeys ?? []), key],
+        });
       }
       return alreadyCommitted;
     }
@@ -119,7 +125,8 @@ export const archiveCardHandler = async (
   if (!rawArchivalConfigured()) {
     return { archived, skipped: 1 };
   }
-  let commitRetryScheduled = false;
+  let commitError: unknown;
+  let hasCommitError = false;
   try {
     const card = await ctx.runQuery(functions().getRawCard, { cardId });
     if (!card) {
@@ -154,8 +161,9 @@ export const archiveCardHandler = async (
           functions().commitArchive,
           commitArgs
         );
-        commitRetryScheduled = true;
-        throw error;
+        if (!hasCommitError) commitError = error;
+        hasCommitError = true;
+        continue;
       }
       if (committed) {
         archived += 1;
@@ -166,9 +174,9 @@ export const archiveCardHandler = async (
   } catch (error) {
     // A failed copy/verification retains the entire inline payload. Retry
     // boundedly; later explicit maintenance can retry exhausted items.
-    // Commit failures already retain the copy key in a durable commit retry;
-    // surface them to archivePage without scheduling a second upload.
-    if (!commitRetryScheduled && attempt < 2) {
+    // Query/copy/enqueue failures still retry the full card so later kinds
+    // are not stranded inline. Retained commit errors are surfaced below.
+    if (attempt < 2) {
       await ctx.scheduler.runAfter(
         60_000 * (attempt + 1),
         functions().archiveCard,
@@ -177,6 +185,9 @@ export const archiveCardHandler = async (
     }
     throw error;
   }
+  // Attempt every kind before surfacing a retained commit failure to
+  // archivePage. Each failed commit has its own key-preserving retry.
+  if (hasCommitError) throw commitError;
   return { archived, skipped };
 };
 
