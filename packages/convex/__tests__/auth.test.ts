@@ -840,6 +840,51 @@ describe("auth", () => {
       expect(ctx.db.delete).toHaveBeenCalledWith("cards", "c2");
     });
 
+    it("skips the production nonexistent-document delete error", async () => {
+      const ctx = {
+        db: {
+          get: mock(() => {
+            throw new Error("cards read would widen the OCC read set");
+          }),
+          query: (table: string) => ({
+            withIndex: (_name: any, cb: any) => {
+              let cardId: string | undefined;
+              if (cb) {
+                cb({
+                  eq: (_field: string, value: string) => {
+                    cardId = value;
+                  },
+                });
+              }
+              return {
+                ...(table === "cardSearchDocuments"
+                  ? { unique: async () => null }
+                  : {}),
+                ...(table === "cardSearchTags"
+                  ? { take: async () => [] }
+                  : {}),
+                ...(table === "cardSearchTagSyncStates"
+                  ? { unique: async () => null }
+                  : {}),
+              };
+            },
+          }),
+          delete: mock((table: string, id: string) => {
+            if (table === "cards" && id === "c1") {
+              // Verbatim production Convex backend wording (no hyphen).
+              throw new Error('Delete on nonexistent document ID "c1"');
+            }
+          }),
+        },
+      } as any;
+
+      const result = await deleteAccountDataHandler(ctx, "u1", ["c1", "c2"]);
+
+      expect(result).toBe(1);
+      expect(ctx.db.delete).toHaveBeenCalledWith("cards", "c1");
+      expect(ctx.db.delete).toHaveBeenCalledWith("cards", "c2");
+    });
+
     it("rethrows unexpected card deletion failures", async () => {
       const ctx = {
         db: {
