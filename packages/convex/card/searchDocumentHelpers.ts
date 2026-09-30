@@ -160,9 +160,12 @@ export const patchCardWithSearchSync = async (
   // conflicting with updateCardAI on a cards row. Card writers stand down,
   // mirroring the search-sync stand-down below; a missing card keeps the
   // previous behavior of letting db.patch throw.
+  // Returns false so callers can tell the patch was skipped and hold back
+  // follow-up work (for example screenshot scheduling) until deletion
+  // finishes.
   const card = await ctx.db.get("cards", cardId);
   if (card && (await getAccountDeletionState(ctx, card.userId))) {
-    return;
+    return false;
   }
   await ctx.db.patch("cards", cardId, value);
   const searchableFields = [
@@ -178,6 +181,7 @@ export const patchCardWithSearchSync = async (
   if (searchableFields.some((field) => Object.keys(value).includes(field))) {
     await scheduleCardSearchSync(ctx, cardId);
   }
+  return true;
 };
 
 export const syncCardSearchDocumentHandler = async (
