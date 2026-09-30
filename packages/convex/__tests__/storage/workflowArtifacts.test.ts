@@ -251,11 +251,13 @@ test("artifact writes stand down during account deletion", async () => {
     keys: [ref.key],
   });
   // Retained-artifact cleanup stands down entirely: account deletion
-  // removes the card and its artifact objects together.
+  // removes the card and its artifact objects together. references carries
+  // a real artifact so removing the fence would schedule its deletion and
+  // fail the runAfter assertion.
   runAfter.mockClear();
   expect(
     await deleteRetainedArtifactsHandler(registerCtx, {
-      references: [],
+      references: [ref],
       cardId: ref.cardId,
       workflowId: ref.workflowId,
       generationNumber: 3,
