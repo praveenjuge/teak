@@ -193,17 +193,15 @@ export const updateCardMetadataHandler = async (
 
   const previousScreenshotRef = previousLinkPreview?.screenshotStorageKey;
   const nextScreenshotRef = nextLinkPreview?.screenshotStorageKey;
+  // Obsolete storage objects are deleted only after the card patch below
+  // succeeds. patchCardWithSearchSync stands down during account deletion
+  // (returns false), and deleting first would leave the unchanged card
+  // referencing removed objects.
+  const pendingStorageDeletes: string[] = [];
 
   if (previousScreenshotRef) {
     if (nextScreenshotRef && nextScreenshotRef !== previousScreenshotRef) {
-      try {
-        await deleteObject(ctx, previousScreenshotRef);
-      } catch (error) {
-        console.error(
-          `[linkMetadata] Failed to delete previous screenshot for card ${cardId}:`,
-          error
-        );
-      }
+      pendingStorageDeletes.push(previousScreenshotRef);
     } else if (nextLinkPreview && !nextLinkPreview.screenshotStorageKey) {
       nextLinkPreview.screenshotStorageKey =
         previousLinkPreview.screenshotStorageKey;
@@ -229,22 +227,11 @@ export const updateCardMetadataHandler = async (
         previousLinkPreview.media
       );
 
-      await Promise.all(
-        Array.from(previousMediaStorageIds).map(async (storageRef) => {
-          if (nextMediaStorageIds.has(storageRef)) {
-            return;
-          }
-
-          try {
-            await deleteObject(ctx, storageRef);
-          } catch (error) {
-            console.error(
-              `[linkMetadata] Failed to delete previous media ${storageRef} for card ${cardId}:`,
-              error
-            );
-          }
-        })
-      );
+      for (const storageRef of previousMediaStorageIds) {
+        if (!nextMediaStorageIds.has(storageRef)) {
+          pendingStorageDeletes.push(storageRef);
+        }
+      }
     } else if (nextLinkPreview) {
       nextLinkPreview.media = previousLinkPreview.media;
     }
@@ -286,12 +273,26 @@ export const updateCardMetadataHandler = async (
   }
 
   const result = await patchCardWithSearchSync(ctx, cardId, updateFields);
-  if (serializeArchivableRaw(nextLinkPreview?.raw) !== null) {
-    await ctx.scheduler.runAfter(
-      0,
-      internal.storage.rawMetadataMaintenance.archiveCard,
-      { cardId }
+  if (result) {
+    await Promise.all(
+      pendingStorageDeletes.map(async (storageRef) => {
+        try {
+          await deleteObject(ctx, storageRef);
+        } catch (error) {
+          console.error(
+            `[linkMetadata] Failed to delete previous storage ${storageRef} for card ${cardId}:`,
+            error
+          );
+        }
+      })
     );
+    if (serializeArchivableRaw(nextLinkPreview?.raw) !== null) {
+      await ctx.scheduler.runAfter(
+        0,
+        internal.storage.rawMetadataMaintenance.archiveCard,
+        { cardId }
+      );
+    }
   }
   return result;
 };
@@ -322,20 +323,11 @@ export const updateCardScreenshotHandler = async (
 
   const existingMetadata = card.metadata || {};
   const existingLinkPreview = existingMetadata.linkPreview || {};
-
-  if (
+  const previousScreenshotKey =
     existingLinkPreview.screenshotStorageKey &&
     existingLinkPreview.screenshotStorageKey !== screenshotStorageKey
-  ) {
-    try {
-      await deleteObject(ctx, existingLinkPreview.screenshotStorageKey);
-    } catch (error) {
-      console.error(
-        `[linkMetadata] Failed to delete previous screenshot for card ${cardId}:`,
-        error
-      );
-    }
-  }
+      ? existingLinkPreview.screenshotStorageKey
+      : undefined;
 
   const updatedLinkPreview = {
     ...existingLinkPreview,
@@ -350,10 +342,22 @@ export const updateCardScreenshotHandler = async (
     linkPreview: updatedLinkPreview,
   };
 
-  await patchCardWithSearchSync(ctx, cardId, {
+  // Delete the replaced screenshot only after the patch succeeds; a
+  // fenced patch (account deletion) leaves the card referencing it.
+  const patched = await patchCardWithSearchSync(ctx, cardId, {
     metadata: updatedMetadata,
     updatedAt: Date.now(),
   });
+  if (patched && previousScreenshotKey) {
+    try {
+      await deleteObject(ctx, previousScreenshotKey);
+    } catch (error) {
+      console.error(
+        `[linkMetadata] Failed to delete previous screenshot for card ${cardId}:`,
+        error
+      );
+    }
+  }
 };
 
 export const updateCardScreenshot = internalMutation({
