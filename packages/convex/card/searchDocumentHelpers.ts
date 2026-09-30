@@ -152,6 +152,18 @@ export const patchCardWithSearchSync = async (
   cardId: Id<"cards">,
   value: Partial<Omit<Doc<"cards">, "_creationTime" | "_id">>
 ) => {
+  // While an account deletion runs, its batches delete every card the user
+  // owns, and any concurrent card patch races them: Convex conflicts on
+  // documents read from OR written to, so the deletion batch retries until
+  // it exhausts and fails the whole deletion. Production evidence: a
+  // deleteAccountDataBatch run failed permanently after repeatedly
+  // conflicting with updateCardAI on a cards row. Card writers stand down,
+  // mirroring the search-sync stand-down below; a missing card keeps the
+  // previous behavior of letting db.patch throw.
+  const card = await ctx.db.get("cards", cardId);
+  if (card && (await getAccountDeletionState(ctx, card.userId))) {
+    return;
+  }
   await ctx.db.patch("cards", cardId, value);
   const searchableFields = [
     ...SEARCH_FIELDS,
