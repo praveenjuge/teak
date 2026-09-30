@@ -146,7 +146,7 @@ describe("raw metadata archival", () => {
     const { t, cardId, card, args } = await setup();
     const archiveCard = {
       ...card,
-      metadata: { linkPreview: card.metadata?.linkPreview },
+      metadata: card.metadata,
     };
     const objects = new Map<string, Uint8Array>();
     const fetchMock = vi.fn(async (url: string, init?: RequestInit) => {
@@ -171,8 +171,10 @@ describe("raw metadata archival", () => {
     );
     const ctx = {
       runQuery: vi.fn(async () => archiveCard),
-      runMutation: vi.fn(async () => {
-        throw new Error("cleanup enqueue unavailable");
+      runMutation: vi.fn(async (_fn: unknown, commitArgs: { kind: string }) => {
+        if (commitArgs.kind === "linkPreview")
+          throw new Error("cleanup enqueue unavailable");
+        return true;
       }),
       scheduler: { runAfter: retry },
     } as unknown as ActionCtx;
@@ -185,7 +187,8 @@ describe("raw metadata archival", () => {
       internal.storage.rawMetadataMaintenance.commitArchive,
       args
     );
-    expect(fetchMock).toHaveBeenCalledTimes(2); // one upload and one verification, no recopy
+    expect(fetchMock).toHaveBeenCalledTimes(4); // both kinds uploaded/verified once, no recopy
+    expect(ctx.runMutation).toHaveBeenCalledTimes(2);
     // The durable retry carries the key even after the owning card disappears.
     await t.run((dbCtx) => dbCtx.db.delete("cards", cardId));
     expect(
@@ -202,7 +205,7 @@ describe("raw metadata archival", () => {
     ).toBe(true);
   });
 
-  test("retained commit cleans stale copies but preserves referenced and invalid keys", async () => {
+  test("retained commit tracks stale copies without racing future references", async () => {
     const { t, cardId, card, args } = await setup();
     await t.run((ctx) =>
       ctx.db.patch("cards", cardId, {
@@ -239,12 +242,34 @@ describe("raw metadata archival", () => {
         args
       )
     ).toBe(false);
-    const pending = await t.run((ctx) =>
-      ctx.db.system.query("_scheduled_functions").collect()
+    const retained = await t.run((ctx) => ctx.db.get("cards", cardId));
+    expect(retained?.workflowArtifactKeys).toContain(args.key);
+    expect(cardStorageObjectKeys(retained!)).toContain(args.key);
+    expect(
+      await t.run((ctx) =>
+        ctx.db.system.query("_scheduled_functions").collect()
+      )
+    ).toHaveLength(0);
+    // Restoring the original payload can safely reference the same key:
+    // stale cleanup has retained it, not queued a future deletion.
+    await t.run((ctx) =>
+      ctx.db.patch("cards", cardId, { metadata: card.metadata })
     );
     expect(
-      pending.some((scheduled) => scheduled.args[0]?.keys?.includes(args.key))
+      await t.mutation(
+        internal.storage.rawMetadataMaintenance.commitArchive,
+        args
+      )
     ).toBe(true);
+    expect(
+      (await t.run((ctx) => ctx.db.get("cards", cardId)))?.metadata?.linkPreview
+        ?.rawStorageKey
+    ).toBe(args.key);
+    expect(
+      await t.run((ctx) =>
+        ctx.db.system.query("_scheduled_functions").collect()
+      )
+    ).toHaveLength(0);
     // A stale copy still referenced anywhere on this card must be retained.
     await t.run((ctx) =>
       ctx.db.patch("cards", cardId, {
@@ -268,7 +293,7 @@ describe("raw metadata archival", () => {
       await t.run((ctx) =>
         ctx.db.system.query("_scheduled_functions").collect()
       )
-    ).toHaveLength(pending.length);
+    ).toHaveLength(0);
   });
 
   test("commitArchive removes the orphaned copy when the card is gone", async () => {
