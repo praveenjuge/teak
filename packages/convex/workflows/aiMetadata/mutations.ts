@@ -21,12 +21,11 @@ export const updateCardAI = internalMutation({
     if (!card) {
       return false;
     }
-    await patchCardWithSearchSync(ctx, cardId, {
+    return await patchCardWithSearchSync(ctx, cardId, {
       ...updates,
       ...(processingStatus === undefined ? {} : { processingStatus }),
       updatedAt: Date.now(),
     });
-    return true;
   },
 });
 
