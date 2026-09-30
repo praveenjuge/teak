@@ -426,3 +426,54 @@ test("artifact cleanup traverses unrelated provider artifactVersion fields", asy
     )
   ).toEqual([ref]);
 });
+
+test("retained raw archives do not consume workflow slots, but real artifacts still enforce the quota", async () => {
+  const digest = await hashRawMetadata("payload");
+  const ref = {
+    artifactVersion: 1 as const,
+    cardId: "card1" as any,
+    userId: "user1",
+    workflowId: "workflow1",
+    generationNumber: 3,
+    digest,
+    byteLength: 7,
+    key: "",
+  };
+  ref.key = workflowArtifactKey(ref);
+  const prefix = ref.key.split("/workflow-artifacts/")[0];
+  const rawKeys = Array.from(
+    { length: 100 },
+    (_, i) =>
+      `${prefix}/raw-linkPreview/${i.toString(16).padStart(64, "0")}.json`
+  );
+  const artifactKeys = Array.from({ length: 99 }, (_, i) =>
+    workflowArtifactKey({ ...ref, workflowId: `other${i}` })
+  );
+  const data = { ...card, workflowArtifactKeys: [...rawKeys, ...artifactKeys] };
+  const runAfter = mock().mockResolvedValue("job");
+  const registerCtx = {
+    db: {
+      get: async () => data,
+      patch: async (_table: string, _id: string, fields: any) => {
+        Object.assign(data, fields);
+      },
+    },
+    runQuery: ctx.runQuery,
+    scheduler: { runAfter },
+  } as any;
+  expect(await registerArtifactHandler(registerCtx, ref)).toBe(true);
+  expect(data.workflowArtifactKeys).toHaveLength(200);
+  expect(runAfter).not.toHaveBeenCalled();
+  // Re-registering an existing artifact at the quota remains idempotent.
+  expect(await registerArtifactHandler(registerCtx, ref)).toBe(true);
+  const next = { ...ref, digest: await hashRawMetadata("new payload") };
+  next.key = workflowArtifactKey(next);
+  expect(await registerArtifactHandler(registerCtx, next)).toBe(false);
+  expect(runAfter).toHaveBeenCalledWith(0, expect.anything(), {
+    keys: [next.key],
+  });
+  expect(data.workflowArtifactKeys).toHaveLength(200);
+  expect(rawKeys.every((key) => data.workflowArtifactKeys.includes(key))).toBe(
+    true
+  );
+});
