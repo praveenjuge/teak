@@ -820,6 +820,41 @@ describe("OCC contention behavior", () => {
     });
   });
 
+  test("stands down card patch writers while account deletion is in progress", async () => {
+    const t = convexTest(schema, modules);
+    await t.run(async (ctx) => {
+      const cardId = await insertCard(ctx, "user-fence-patch", {
+        content: "before",
+      });
+      await syncCardSearchDocumentHandler(ctx, cardId);
+
+      await beginAccountDeletion(ctx, "user-fence-patch");
+      // Background writers (AI metadata, link metadata, classification, ...)
+      // all patch cards through this seam. During deletion their writes only
+      // race the deletion batches with OCC conflicts, so the seam stands
+      // down: no patch, no search sync.
+      await patchCardWithSearchSync(ctx, cardId, {
+        content: "after",
+        updatedAt: 999,
+      });
+
+      const card = await ctx.db.get("cards", cardId);
+      expect(card?.content).toBe("before");
+      const document = await ctx.db
+        .query("cardSearchDocuments")
+        .withIndex("by_cardId", (query) => query.eq("cardId", cardId))
+        .unique();
+      expect(document?.sourceUpdatedAt).not.toBe(999);
+
+      await finishAccountDeletion(ctx, "user-fence-patch");
+      await patchCardWithSearchSync(ctx, cardId, {
+        content: "after",
+        updatedAt: 999,
+      });
+      expect((await ctx.db.get("cards", cardId))?.content).toBe("after");
+    });
+  });
+
   test("stands down search sync writers while account deletion is in progress", async () => {
     const t = convexTest(schema, modules);
     await t.run(async (ctx) => {
