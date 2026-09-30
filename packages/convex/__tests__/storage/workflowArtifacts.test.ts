@@ -202,6 +202,70 @@ test("journal cleanup collects only unique references from its own card, workflo
   ).toEqual([]);
 });
 
+test("artifact writes stand down during account deletion", async () => {
+  const data = {
+    _id: "card1",
+    userId: "user1",
+    content: "customer content",
+    workflowArtifactKeys: ["existing_key"],
+  } as any;
+  const digest = await hashRawMetadata("payload");
+  const ref = {
+    artifactVersion: 1 as const,
+    cardId: "card1" as any,
+    userId: "user1",
+    workflowId: "workflow1",
+    generationNumber: 3,
+    digest,
+    byteLength: 7,
+    key: "",
+  };
+  ref.key = workflowArtifactKey(ref);
+  const runAfter = mock().mockResolvedValue("job");
+  const patch = mock();
+  const registerCtx = {
+    db: {
+      get: async () => data,
+      patch,
+      query: (table: string) => ({
+        withIndex: (_name: any, cb: any) => {
+          cb?.({ eq: () => undefined });
+          return {
+            unique: async () =>
+              table === "accountDeletionStates"
+                ? { _id: "del1", userId: "user1", startedAt: 1 }
+                : null,
+          };
+        },
+      }),
+    },
+    runQuery: ctx.runQuery,
+    scheduler: { runAfter },
+  } as any;
+  // Registration stands down and removes the unreferenced copy instead of
+  // racing the deletion batches.
+  expect(await registerArtifactHandler(registerCtx, ref)).toBe(false);
+  expect(data.workflowArtifactKeys).toEqual(["existing_key"]);
+  expect(patch).not.toHaveBeenCalled();
+  expect(runAfter).toHaveBeenCalledWith(0, expect.anything(), {
+    keys: [ref.key],
+  });
+  // Retained-artifact cleanup stands down entirely: account deletion
+  // removes the card and its artifact objects together.
+  runAfter.mockClear();
+  expect(
+    await deleteRetainedArtifactsHandler(registerCtx, {
+      references: [],
+      cardId: ref.cardId,
+      workflowId: ref.workflowId,
+      generationNumber: 3,
+    })
+  ).toBeNull();
+  expect(runAfter).not.toHaveBeenCalled();
+  expect(patch).not.toHaveBeenCalled();
+  expect(data.workflowArtifactKeys).toEqual(["existing_key"]);
+});
+
 test("registers verified artifacts without changing customer fields and makes teardown discover them", async () => {
   const data = {
     _id: "card1",
