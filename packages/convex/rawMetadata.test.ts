@@ -17,6 +17,7 @@ const modules = import.meta.glob("./**/*.ts");
 afterEach(() => {
   vi.unstubAllGlobals();
   vi.unstubAllEnvs();
+  vi.useRealTimers();
 });
 
 const setup = async () => {

@@ -89,26 +89,29 @@ const readArchivedRaw = async (
     base.protocol !== "https:" ||
     base.username ||
     base.password ||
-    signedUrl.origin !== base.origin ||
     signedUrl.pathname !== `/${key}`
   ) {
     throw new Error("raw_metadata_invalid_read_origin");
   }
-  const response = await fetch(signedUrl.toString(), {
-    redirect: "error",
-    cache: "no-store",
-    signal: AbortSignal.timeout(30_000),
-  });
-  if (!response.ok) {
-    throw new Error(`raw_metadata_read_failed:${response.status}`);
+  const allowedOrigins = [base.origin];
+  if (allowedOrigins.includes(signedUrl.origin)) {
+    const response = await fetch(signedUrl.toString(), {
+      redirect: "error",
+      cache: "no-store",
+      signal: AbortSignal.timeout(30_000),
+    });
+    if (!response.ok) {
+      throw new Error(`raw_metadata_read_failed:${response.status}`);
+    }
+    const json = new TextDecoder("utf-8", { fatal: true }).decode(
+      await readBodyWithLimit(response, RAW_METADATA_MAX_BYTES)
+    );
+    if ((await hashRawMetadata(json)) !== digest) {
+      throw new Error("raw_metadata_hash_mismatch");
+    }
+    return JSON.parse(json);
   }
-  const json = new TextDecoder("utf-8", { fatal: true }).decode(
-    await readBodyWithLimit(response, RAW_METADATA_MAX_BYTES)
-  );
-  if ((await hashRawMetadata(json)) !== digest) {
-    throw new Error("raw_metadata_hash_mismatch");
-  }
-  return JSON.parse(json);
+  throw new Error("raw_metadata_invalid_read_origin");
 };
 
 export const copyAndVerifyRaw = async (

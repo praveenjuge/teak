@@ -21,7 +21,9 @@ archived data; card/account cleanup and orphan scans track current references.
 
 Old archive copies are deliberately retained for recovery. The orphan process
 reports unreferenced objects; it does not delete them automatically. Review that
-report periodically and approve cleanup separately after confirming references
+report periodically, then obtain an object-level listing before proposing
+cleanup: aggregate counts/bytes do not identify safe deletion candidates.
+Approve cleanup separately after checking each key against current references
 and recovery needs. Never delete archive objects while cards reference them.
 
 After explicit approval, process one bounded migration page at a time from

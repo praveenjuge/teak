@@ -14,6 +14,7 @@ export default defineConfig({
       "./idempotency.test.ts",
       "./costOptimization.test.ts",
       "./rawMetadata.test.ts",
+      "./rawMetadataPipeline.test.ts",
     ],
   },
 });

@@ -91,26 +91,31 @@ describe("ensureOAuthClients", () => {
     userId: "unexpected-owner",
   })) {
     test(`repairs ${field} drift on only the affected client`, async () => {
-      const runQuery = mock().mockImplementation((_ref, args) => {
-        const client = FIRST_PARTY_OAUTH_CLIENTS.find(
-          (value) => value.clientId === args.where[0].value
-        );
-        const row = {
-          clientSecret: "",
-          disabled: false,
-          metadata: null,
-          name: client.name,
-          redirectUrls: client.redirectUrls.join(","),
-          type: "public",
-          updatedAt: 1,
-          userId: null,
-        };
-        if (client.clientId === "teak-cli") {
-          row[field] = drift;
-        }
-        return Promise.resolve(row);
+      const rows = new Map(
+        FIRST_PARTY_OAUTH_CLIENTS.map((client) => [
+          client.clientId,
+          {
+            clientSecret: "",
+            disabled: false,
+            metadata: null,
+            name: client.name,
+            redirectUrls: client.redirectUrls.join(","),
+            type: "public",
+            updatedAt: 1,
+            userId: null,
+          },
+        ])
+      );
+      const configuredRow = { ...rows.get("teak-cli") };
+      rows.get("teak-cli")[field] = drift;
+      const runQuery = mock().mockImplementation((_ref, args) =>
+        Promise.resolve(rows.get(args.where[0].value))
+      );
+      const runMutation = mock().mockImplementation((_ref, args) => {
+        const { update, where } = args.input;
+        Object.assign(rows.get(where[0].value), update);
+        return Promise.resolve(undefined);
       });
-      const runMutation = mock().mockResolvedValue(undefined);
       const result = await runHandler(
         ensureOAuthClients,
         { runMutation, runQuery },
@@ -124,6 +129,20 @@ describe("ensureOAuthClients", () => {
       expect(
         runMutation.mock.calls[0][1].input.update.updatedAt
       ).toBeGreaterThan(1);
+      expect(rows.get("teak-cli")).toEqual({
+        ...configuredRow,
+        updatedAt: expect.any(Number),
+      });
+
+      // A repaired row must stay unchanged on the next cron execution.
+      // Leaving even one configured field wrong would trigger another update.
+      const secondResult = await runHandler(
+        ensureOAuthClients,
+        { runMutation, runQuery },
+        {}
+      );
+      expect(secondResult).toMatchObject({ created: 0, updated: 0 });
+      expect(runMutation).toHaveBeenCalledTimes(1);
     });
   }
 
