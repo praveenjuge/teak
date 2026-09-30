@@ -58,9 +58,19 @@ export const commitArchive = internalMutation({
     if (await getAccountDeletionState(ctx, card.userId)) {
       // Account deletion owns this card's teardown; patching here would
       // race its batches with OCC conflicts. The copied object is not yet
-      // referenced by the card, so remove it rather than leak it.
+      // referenced by the card, so remove it rather than leak it. A
+      // cleanup scheduling failure must not reject commitArchive and
+      // trigger an archive retry - the copy is content-addressed, so a
+      // later run can collect it.
       if (card.metadata?.[kind]?.rawStorageKey !== key) {
-        await deleteObject(ctx, key);
+        try {
+          await deleteObject(ctx, key);
+        } catch (error) {
+          console.error(
+            `[rawMetadataMaintenance] Failed to delete orphaned archive ${key}:`,
+            error
+          );
+        }
       }
       return false;
     }
