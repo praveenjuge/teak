@@ -8,6 +8,14 @@ describe("Sentry cron monitoring", () => {
   test("defines one bounded monitor for each scheduled job", () => {
     expect(Object.values(CRON_MONITORS)).toEqual([
       expect.objectContaining({
+        schedule: "10 * * * *",
+        slug: "cleanup-expired-idempotency",
+      }),
+      expect.objectContaining({
+        schedule: "30 6 * * *",
+        slug: "cleanup-expired-native-auth-codes",
+      }),
+      expect.objectContaining({
         schedule: "0 */6 * * *",
         slug: "ai-metadata-backfill",
       }),
@@ -42,8 +50,8 @@ describe("Sentry cron monitoring", () => {
       }),
       expect.objectContaining({
         checkinMarginMinutes: 15,
-        failureIssueThreshold: 2,
-        schedule: "*/15 * * * *",
+        failureIssueThreshold: 1,
+        schedule: "0 1 * * *",
         slug: "ensure-oauth-clients",
       }),
     ]);
@@ -64,17 +72,17 @@ describe("Sentry cron monitoring", () => {
     const subHourly = monitors
       .filter((monitor) => runsMoreThanHourly(monitor.schedule))
       .map((monitor) => monitor.slug);
-    expect(subHourly).toEqual(["ensure-oauth-clients"]);
+    expect(subHourly).toEqual([]);
     expect(tolerant).toEqual(subHourly);
   });
 
-  test("routes all nine schedules through monitored Node actions", () => {
+  test("routes all eleven schedules through monitored Node actions", () => {
     const source = readFileSync(
       resolve(import.meta.dir, "../../crons.ts"),
       "utf8"
     );
-    expect(source.match(/crons\.cron\(/gu)).toHaveLength(9);
-    expect(source.match(/telemetry\.crons\./gu)).toHaveLength(9);
+    expect(source.match(/crons\.cron\(/gu)).toHaveLength(11);
+    expect(source.match(/telemetry\.crons\./gu)).toHaveLength(11);
     expect(source).not.toContain("crons.daily(");
     expect(source).not.toContain("crons.interval(");
   });

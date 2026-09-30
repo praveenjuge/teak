@@ -182,7 +182,11 @@ export const emitWorkflowCompletion = internalAction({
     try {
       await withBackendSpan(
         {
-          attributes: { "card.type": args.cardType, outcome: "success" },
+          attributes: {
+            "card.type": args.cardType,
+            "duration.ms": args.durationMs,
+            outcome: "success",
+          },
           cardId: args.cardId,
           name: "card.processing.completed",
           operation: "teak.workflow",
@@ -223,6 +227,7 @@ export const emitUploadOutcome = internalAction({
           attributes: {
             "error.class": args.errorClass,
             "file.bucket": args.fileBucket,
+            "duration.ms": args.durationMs,
             outcome: args.outcome,
           },
           name: `storage.upload.${args.outcome}`,

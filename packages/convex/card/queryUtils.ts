@@ -181,7 +181,8 @@ export const attachFileUrls = async (
     )
   );
 
-  return cards.map((card) => {
+  return cards.map((storedCard) => {
+    const { workflowArtifactKeys: _workflowArtifactKeys, ...card } = storedCard;
     const ids = cardToIds.get(card._id) || ({} as CardStorageIds);
     const linkPreviewMedia =
       ids.linkPreviewMedia
@@ -320,26 +321,29 @@ export const attachCardSummaryUrls = async (
     )
   );
 
-  return cards.map((card) => ({
-    ...card,
-    thumbnailUrl:
-      imageCardUrls.get(card._id)?.grid ??
-      (card.thumbnailKey
-        ? (renditionMap.get(card.thumbnailKey)?.grid ?? undefined)
-        : undefined),
-    compactUrl:
-      imageCardUrls.get(card._id)?.compact ??
-      (card.thumbnailKey
-        ? (renditionMap.get(card.thumbnailKey)?.compact ?? undefined)
-        : undefined),
-    placeholderUrl:
-      imageCardUrls.get(card._id)?.tiny ??
-      (card.thumbnailKey
-        ? (renditionMap.get(card.thumbnailKey)?.tiny ?? undefined)
-        : undefined),
-    screenshotUrl: card.metadata?.linkPreview?.screenshotStorageKey
-      ? (screenshotUrlMap.get(card.metadata.linkPreview.screenshotStorageKey) ??
-        undefined)
-      : undefined,
-  }));
+  return cards.map(
+    ({ workflowArtifactKeys: _workflowArtifactKeys, ...card }) => ({
+      ...card,
+      thumbnailUrl:
+        imageCardUrls.get(card._id)?.grid ??
+        (card.thumbnailKey
+          ? (renditionMap.get(card.thumbnailKey)?.grid ?? undefined)
+          : undefined),
+      compactUrl:
+        imageCardUrls.get(card._id)?.compact ??
+        (card.thumbnailKey
+          ? (renditionMap.get(card.thumbnailKey)?.compact ?? undefined)
+          : undefined),
+      placeholderUrl:
+        imageCardUrls.get(card._id)?.tiny ??
+        (card.thumbnailKey
+          ? (renditionMap.get(card.thumbnailKey)?.tiny ?? undefined)
+          : undefined),
+      screenshotUrl: card.metadata?.linkPreview?.screenshotStorageKey
+        ? (screenshotUrlMap.get(
+            card.metadata.linkPreview.screenshotStorageKey
+          ) ?? undefined)
+        : undefined,
+    })
+  );
 };

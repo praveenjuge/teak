@@ -44,6 +44,8 @@ export const FILES_OPS = [
   "finalize-image-upload",
   "finalize-upload",
   "generate-image-metadata",
+  "generate-text-metadata",
+  "generate-link-metadata",
   "head-object",
   "inspect",
   "list-objects",
@@ -55,6 +57,8 @@ export const FILES_OPS = [
 export type FilesOp = (typeof FILES_OPS)[number];
 
 export type FilesErrorCode =
+  | "AI_CAPACITY"
+  | "AI_INVALID_OUTPUT"
   | "AUTH_EXPIRED"
   | "AUTH_INVALID"
   | "CONFLICT"
@@ -67,6 +71,7 @@ export type FilesErrorCode =
 export interface FilesErrorEnvelope {
   error: {
     code: FilesErrorCode;
+    aiFacts?: import("./metadata").FilesAiGenerationFacts;
     message: string;
     requestId: string;
     retryable: boolean;
@@ -254,3 +259,5 @@ export type FilesImportMarkdownResult =
       failureCode: "CONTENT_TOO_LARGE" | "INVALID_UTF8" | "INVALID_ITEM";
       failureReason: string;
     };
+
+export * from "./metadata";

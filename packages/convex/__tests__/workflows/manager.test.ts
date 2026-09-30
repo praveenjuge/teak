@@ -14,6 +14,7 @@ import {
   WORKFLOW_RETENTION_MS,
   workflow,
 } from "../../../convex/workflows/manager";
+import { workflowArtifactKey } from "../../storage/workflowArtifacts";
 import { inlineSearchSyncDb } from "../helpers/session.test-utils";
 
 describe("workflow manager", () => {
@@ -175,6 +176,84 @@ describe("workflow manager", () => {
       );
     });
 
+    test("schedules only retained journal-owned artifacts after terminal cleanup", async () => {
+      const digest = "a".repeat(64);
+      const ref = {
+        artifactVersion: 1,
+        cardId: "card1",
+        userId: "user1",
+        workflowId: "workflow1",
+        generationNumber: 3,
+        digest,
+        byteLength: 20_000,
+        key: "",
+      };
+      ref.key = workflowArtifactKey(ref as any);
+      const record = {
+        args: { cardId: "card1" },
+        generationNumber: 3,
+        runResult: { kind: "success", returnValue: null },
+      };
+      const runQuery = mock()
+        .mockResolvedValueOnce({ workflow: record })
+        .mockResolvedValueOnce({
+          workflow: record,
+          ok: true,
+          journalEntries: [
+            {
+              step: {
+                completedAt: Date.now() - WORKFLOW_RETENTION_MS - 1000,
+                runResult: { kind: "success", returnValue: { card: ref } },
+              },
+            },
+          ],
+        });
+      const cleanup = mock().mockResolvedValue(true);
+      workflow.cleanup = cleanup;
+      const runAfter = mock();
+      expect(
+        await cleanupCompletedWorkflowHandler(
+          { runQuery, scheduler: { runAfter } } as any,
+          "workflow1" as any,
+          3
+        )
+      ).toBe(true);
+      expect(cleanup).toHaveBeenCalledTimes(1);
+      expect(runAfter).toHaveBeenCalledWith(0, expect.anything(), {
+        references: [ref],
+        cardId: "card1",
+        workflowId: "workflow1",
+        generationNumber: 3,
+      });
+    });
+
+    test("preserves incomplete or recently terminal journals before artifact cleanup", async () => {
+      for (const journal of [
+        { ok: false, journalEntries: [] },
+        { ok: true, journalEntries: [{ step: {} }] },
+        { ok: true, journalEntries: [{ step: { completedAt: Date.now() } }] },
+      ]) {
+        const record = {
+          args: { cardId: "card1" },
+          generationNumber: 3,
+          runResult: { kind: "success", returnValue: null },
+        };
+        const runQuery = mock()
+          .mockResolvedValueOnce({ workflow: record })
+          .mockResolvedValueOnce({ workflow: record, ...journal });
+        const cleanup = mock();
+        workflow.cleanup = cleanup;
+        expect(
+          await cleanupCompletedWorkflowHandler(
+            { runQuery, scheduler: { runAfter: mock() } } as any,
+            "workflow1" as any,
+            3
+          )
+        ).toBe(false);
+        expect(cleanup).not.toHaveBeenCalled();
+      }
+    });
+
     test("ignores a stale cleanup timer after workflow restart", async () => {
       const runQuery = mock().mockResolvedValue({
         workflow: {
@@ -223,13 +302,24 @@ describe("workflow manager", () => {
           ok: true,
           workflow: {
             _creationTime: cutoffMs - 1,
+            generationNumber: 1,
+            args: { cardId: "c1" },
             runResult: { kind: "success", returnValue: null },
           },
         };
       });
       const cleanup = mock().mockResolvedValue(true);
       workflow.cleanup = cleanup;
-      const ctx = { runQuery } as any;
+      const ctx = {
+        runQuery,
+        scheduler: { runAfter: mock() },
+        runMutation: (_ref, args) =>
+          cleanupCompletedWorkflowHandler(
+            ctx,
+            args.workflowId,
+            args.generationNumber
+          ),
+      } as any;
       const workflowIds = [
         "wf_completed",
         "wf_running",
@@ -507,7 +597,7 @@ describe("workflow manager", () => {
       workflow.cleanup = originalCleanup;
     });
 
-    test("cleanup handler cancels and cleans a workflow stuck past retention", async () => {
+    test("cancels a stuck workflow while retaining its journal and artifacts for seven more days", async () => {
       const runQuery = mock().mockResolvedValue({
         workflow: {
           generationNumber: 3,
@@ -526,10 +616,14 @@ describe("workflow manager", () => {
         3
       );
 
-      expect(cleaned).toBe(true);
+      expect(cleaned).toBe(false);
       expect(cancel).toHaveBeenCalledWith(expect.anything(), "wf_stuck");
-      expect(cleanup).toHaveBeenCalledWith(expect.anything(), "wf_stuck");
-      expect(runAfter).not.toHaveBeenCalled();
+      expect(cleanup).not.toHaveBeenCalled();
+      expect(runAfter).toHaveBeenCalledWith(
+        WORKFLOW_RETENTION_MS,
+        expect.anything(),
+        { generationNumber: 3, workflowId: "wf_stuck" }
+      );
     });
 
     test("sweep reaps old in-progress workflows and skips the rest", async () => {
@@ -567,7 +661,12 @@ describe("workflow manager", () => {
       expect(result).toEqual({ examinedCount: 2, reapedCount: 1 });
       expect(cancel).toHaveBeenCalledTimes(1);
       expect(cancel).toHaveBeenCalledWith(expect.anything(), "wf_stuck");
-      expect(cleanup).toHaveBeenCalledWith(expect.anything(), "wf_stuck");
+      expect(cleanup).not.toHaveBeenCalled();
+      expect(ctx.scheduler.runAfter).toHaveBeenCalledWith(
+        WORKFLOW_RETENTION_MS,
+        expect.anything(),
+        expect.objectContaining({ workflowId: "wf_stuck" })
+      );
     });
 
     test("sweep continues from the page cursor when more pages remain", async () => {

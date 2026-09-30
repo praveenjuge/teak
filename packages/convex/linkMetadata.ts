@@ -1,5 +1,7 @@
 import { v } from "convex/values";
 import { internal } from "./_generated/api";
+import type { Doc, Id } from "./_generated/dataModel";
+import type { QueryCtx } from "./_generated/server";
 import { internalMutation, internalQuery } from "./_generated/server";
 import { patchCardWithSearchSync } from "./card/searchDocumentHelpers";
 import { deleteObject } from "./storage/r2";
@@ -23,8 +25,44 @@ export * from "./linkMetadata/selectors";
 export * from "./linkMetadata/types";
 export { normalizeUrl } from "./linkMetadata/url";
 
-export const getCardForMetadataHandler = async (ctx: any, { cardId }: any) =>
-  await ctx.db.get("cards", cardId);
+export const getFullCardForMetadataHandler = async (
+  ctx: QueryCtx,
+  { cardId }: { cardId: Id<"cards"> }
+) => await ctx.db.get("cards", cardId);
+
+// Keep this workflow step's identity and arguments stable for journal replay.
+export const projectCardProcessingState = (card: Doc<"cards">) => ({
+  workflowPayloadVersion: 1 as const,
+  _id: card._id,
+  _creationTime: card._creationTime,
+  type: card.type,
+  url: card.url,
+  metadataStatus: card.metadataStatus,
+  processingStatus: card.processingStatus?.classify
+    ? {
+        classify: {
+          status: card.processingStatus.classify.status,
+          confidence: card.processingStatus.classify.confidence,
+        },
+      }
+    : undefined,
+  metadata: card.metadata?.linkPreview
+    ? { linkPreview: { status: card.metadata.linkPreview.status } }
+    : undefined,
+});
+
+export const getCardForMetadataHandler = async (
+  ctx: QueryCtx,
+  args: { cardId: Id<"cards"> }
+) => {
+  const card = await getFullCardForMetadataHandler(ctx, args);
+  return card ? projectCardProcessingState(card) : null;
+};
+
+export const getFullCardForMetadata = internalQuery({
+  args: { cardId: v.id("cards") },
+  handler: getFullCardForMetadataHandler,
+});
 
 export const getCardForMetadata = internalQuery({
   args: { cardId: v.id("cards") },

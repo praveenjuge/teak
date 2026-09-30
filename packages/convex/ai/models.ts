@@ -1,4 +1,10 @@
 import { createOpenAICompatible } from "@ai-sdk/openai-compatible";
+import {
+  LINK_ANALYSIS_SYSTEM_PROMPT,
+  LINK_METADATA_MODEL_ID,
+  TEXT_ANALYSIS_SYSTEM_PROMPT,
+  TEXT_METADATA_MODEL_ID,
+} from "@teak/files-protocol";
 import { env } from "../_generated/server";
 
 /**
@@ -20,14 +26,12 @@ export const workersAi = createOpenAICompatible({
  * Qwen 3 MoE (3B active) — cheapest capable option on Workers AI.
  * The "/no_think" suffix appended to prompts suppresses reasoning tokens.
  */
-export const TEXT_METADATA_MODEL = workersAi("@cf/qwen/qwen3-30b-a3b-fp8");
-export const TEXT_METADATA_MODEL_ID = "@cf/qwen/qwen3-30b-a3b-fp8" as const;
+export const TEXT_METADATA_MODEL = workersAi(TEXT_METADATA_MODEL_ID);
 
 /**
  * Model for link content analysis
  */
-export const LINK_METADATA_MODEL = workersAi("@cf/qwen/qwen3-30b-a3b-fp8");
-export const LINK_METADATA_MODEL_ID = "@cf/qwen/qwen3-30b-a3b-fp8" as const;
+export const LINK_METADATA_MODEL = workersAi(LINK_METADATA_MODEL_ID);
 
 /**
  * Model for image/vision analysis
@@ -50,16 +54,7 @@ export const SYSTEM_PROMPTS = {
   /**
    * System prompt for text content analysis
    */
-  textAnalysis: `You are an expert content analyzer. Generate relevant tags and a concise summary for the given content. /no_think
-
-Guidelines:
-- Tags should be 5-6 specific, relevant single words only (no spaces, no hyphens)
-- Summary should be 1-2 sentences that capture the essence
-- Focus on the main topics, themes, and key information
-- Use clear, searchable language
-
-Respond with a single JSON object using exactly this shape and no other keys:
-{"tags": ["word", "word"], "summary": "..."}`,
+  textAnalysis: TEXT_ANALYSIS_SYSTEM_PROMPT,
 
   /**
    * System prompt for image analysis
@@ -78,16 +73,10 @@ Respond with a single JSON object using exactly this shape and no other keys:
   /**
    * System prompt for web content analysis
    */
-  linkAnalysis: `You are an expert web content analyzer. Generate relevant tags and a concise summary for the given web page content. /no_think
-
-Guidelines:
-- Tags should be 5-6 single words capturing main topics, categories, and key concepts (no spaces, no hyphens)
-- Include relevant technology, industry, or topic tags where applicable
-- Summary should be 1-2 sentences capturing the essence and value of the content
-- Focus on what makes this link useful and searchable
-- Use clear, specific language that helps with discovery
-- Consider the source, author, and context when available
-
-Respond with a single JSON object using exactly this shape and no other keys:
-{"tags": ["word", "word"], "summary": "..."}`,
+  linkAnalysis: LINK_ANALYSIS_SYSTEM_PROMPT,
 } as const;
+
+export {
+  LINK_METADATA_MODEL_ID,
+  TEXT_METADATA_MODEL_ID,
+} from "@teak/files-protocol";

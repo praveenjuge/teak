@@ -48,6 +48,22 @@ export const resolveCardProcessingDurationMs = (
 ): number | undefined =>
   creationTime === undefined ? undefined : Math.max(0, now - creationTime);
 
+// Old journals contain strings; new steps return only persisted-result facts.
+export const normalizeWorkflowMetadataResult = (
+  result: {
+    aiTagsCount?: number;
+    hasSummary?: boolean;
+    hasTranscript?: boolean;
+    aiTags?: string[];
+    aiSummary?: string;
+    aiTranscript?: string;
+  } | null
+) => ({
+  aiTagsCount: result?.aiTagsCount ?? result?.aiTags?.length ?? 0,
+  hasSummary: result?.hasSummary ?? Boolean(result?.aiSummary),
+  hasTranscript: result?.hasTranscript ?? Boolean(result?.aiTranscript),
+});
+
 export const createMissingCardWorkflowResult = () => ({
   success: true as const,
   mode: "skipped" as const,
@@ -146,6 +162,11 @@ export const cardProcessingWorkflow: any = workflow.define({
       return createMissingCardWorkflowResult();
     }
 
+    const artifactOwner =
+      initialCard.workflowPayloadVersion === 1
+        ? { workflowId: step.workflowId }
+        : {};
+
     // Step 1: Classification
     // If already classified (client-provided type), reuse it; otherwise run classifier
     const existingClassifyStatus = initialCard?.processingStatus?.classify;
@@ -208,7 +229,7 @@ export const cardProcessingWorkflow: any = workflow.define({
           const classifyStepResult = await step.runAction(
             internalWorkflow["workflows/steps/categorization/index"]
               .classifyStep,
-            { cardId },
+            { cardId, ...artifactOwner },
             { retry: LINK_ENRICHMENT_STEP_RETRY }
           );
 
@@ -228,6 +249,7 @@ export const cardProcessingWorkflow: any = workflow.define({
                 cardId,
                 sourceUrl: classifyStepResult.sourceUrl,
                 shouldFetch: true,
+                ...artifactOwner,
               },
               { retry: LINK_ENRICHMENT_STEP_RETRY }
             );
@@ -245,6 +267,7 @@ export const cardProcessingWorkflow: any = workflow.define({
               classification: classifyStepResult.classification,
               existingMetadata: classifyStepResult.existingMetadata,
               structuredData,
+              ...artifactOwner,
             },
             { retry: LINK_ENRICHMENT_STEP_RETRY }
           );
@@ -349,11 +372,7 @@ export const cardProcessingWorkflow: any = workflow.define({
       ]);
     }
 
-    const metadata = metadataResult ?? {
-      aiTags: [],
-      aiSummary: undefined,
-      aiTranscript: undefined,
-    };
+    const metadata = normalizeWorkflowMetadataResult(metadataResult);
 
     const renderables = renderablesResult
       ? { thumbnailGenerated: renderablesResult.thumbnailGenerated }
@@ -367,18 +386,14 @@ export const cardProcessingWorkflow: any = workflow.define({
         confidence: classification.confidence,
       },
       categorization,
-      metadata: {
-        aiTagsCount: metadata.aiTags.length,
-        hasSummary: !!metadata.aiSummary,
-        hasTranscript: !!metadata.aiTranscript,
-      },
+      metadata,
       renderables,
     };
 
     console.info(`${PIPELINE_LOG_PREFIX} Completed`, {
       cardId,
       type: classification.type,
-      tags: metadata.aiTags.length,
+      tags: metadata.aiTagsCount,
     });
 
     const durationMs = resolveCardProcessingDurationMs(

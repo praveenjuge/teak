@@ -108,13 +108,38 @@ export const observeAiGeneration = async <T>(
       }
       return result;
     } catch (error) {
+      const usage =
+        error && typeof error === "object" && "aiFacts" in error
+          ? getUsage((error as { aiFacts?: unknown }).aiFacts)
+          : undefined;
+      const costUsd = usage
+        ? estimateWorkersAiCostUsd({
+            inputTokens: usage.inputTokens,
+            outputTokens: usage.outputTokens,
+            model: input.model,
+          })
+        : undefined;
       trackAiCall({
+        inputTokens: usage?.inputTokens,
+        outputTokens: usage?.outputTokens,
         durationMs: Date.now() - startedAt,
         model: input.model,
         outcome: "failure",
         provider: WORKERS_AI_PROVIDER,
         validationFailure: normalizeErrorClass(error) === "ValidationError",
       });
+      if (costUsd !== undefined) {
+        distribution(
+          TELEMETRY_METRICS.aiCostUsd,
+          costUsd,
+          {
+            function: input.functionId,
+            model: input.model,
+            provider: WORKERS_AI_PROVIDER,
+          },
+          "none"
+        );
+      }
       throw error;
     }
   };

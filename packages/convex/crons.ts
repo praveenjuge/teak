@@ -3,18 +3,29 @@ import { internal } from "./_generated/api";
 
 const crons = cronJobs();
 
+crons.cron(
+  "cleanup-expired-idempotency",
+  "10 * * * *",
+  internal.telemetry.crons.cleanupExpiredIdempotency,
+  {}
+);
+crons.cron(
+  "cleanup-expired-native-auth-codes",
+  "30 6 * * *",
+  internal.telemetry.crons.cleanupExpiredNativeAuthCodes,
+  {}
+);
+
 // Ensure the first-party OAuth clients (Raycast, desktop) exist as
 // `oauthApplication` rows. The mcp plugin resolves clients from the DB, so the
 // browser-login flow returns `invalid_client` if these are missing.
 //
-// Convex runs an interval cron's FIRST execution at deploy time (see
-// https://docs.convex.dev/scheduling/cron-jobs), so a brand-new deployment
-// seeds these clients as part of the deploy rather than up to an interval
-// later; the recurring interval then just re-asserts them and corrects drift.
-// Also runnable on demand via `bunx convex run oauthClients:ensureOAuthClients`.
+// Backend Deploy explicitly reconciles clients before marking deployment healthy.
+// Daily repair catches configuration drift. Manual repair remains available via
+// `bunx convex run oauthClients:ensureOAuthClients`.
 crons.cron(
   "ensure-oauth-clients",
-  "*/15 * * * *",
+  "0 1 * * *",
   (internal as any).telemetry.crons.ensureOauthClients,
   {}
 );

@@ -649,7 +649,7 @@ ${instagramPrimaryImageSnippet}
 };
 
 export const fetchMetadataHandler = async (ctx: any, { cardId }: any) => {
-  const card = await ctx.runQuery(linkMetadataInternal.getCardForMetadata, {
+  const card = await ctx.runQuery(linkMetadataInternal.getFullCardForMetadata, {
     cardId,
   });
 

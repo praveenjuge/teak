@@ -143,6 +143,18 @@ export const BACKEND_ENTRIES: EnvVarSpec[] = [
     required: false,
   }),
   // Files / R2 capability group.
+  ...["FILES_TEXT_AI_ENABLED", "OPERATIONAL_RETENTION_ENABLED"].map((name) =>
+    spec(name, {
+      owners: ["@teak/convex"],
+      targets: ["convex"],
+      profiles: ["local", "preview", "production"],
+      secret: false,
+      validation: "boolean",
+      providers: ["convex-dashboard"],
+      required: false,
+      note: "Optional staged rollout switch. Only true enables the capability; unset stays disabled.",
+    })
+  ),
   spec("FILES_BASE", {
     owners: ["@teak/convex"],
     targets: ["convex"],

@@ -27,6 +27,7 @@ import {
 import { patchCardWithSearchSync } from "../card/searchDocumentHelpers";
 import type { CardType } from "../schema";
 import type { Id } from "../shared/types";
+import { collectWorkflowArtifacts } from "../storage/workflowArtifacts";
 
 const internalAny: any = internal as any;
 
@@ -68,7 +69,9 @@ export const startWorkflow = <
   );
 
 export const scheduleCompletedWorkflowCleanupHandler = async (
-  ctx: Pick<MutationCtx, "runQuery" | "scheduler">,
+  ctx:
+    | Pick<MutationCtx, "runQuery" | "scheduler">
+    | Pick<ActionCtx, "runQuery" | "scheduler">,
   workflowId: WorkflowId
 ): Promise<null> => {
   const { workflow: workflowRecord } = await ctx.runQuery(
@@ -125,7 +128,8 @@ export const cleanupCompletedWorkflowHandler = async (
         Date.now() - workflowRecord._creationTime > WORKFLOW_RETENTION_MS
       ) {
         await workflow.cancel(ctx, workflowId);
-        return await workflow.cleanup(ctx, workflowId);
+        await scheduleCompletedWorkflowCleanupHandler(ctx, workflowId);
+        return false;
       }
       await ctx.scheduler.runAfter(
         WORKFLOW_CLEANUP_RETRY_MS,
@@ -134,7 +138,45 @@ export const cleanupCompletedWorkflowHandler = async (
       );
       return false;
     }
-    return await workflow.cleanup(ctx, workflowId);
+    const journal = await ctx.runQuery(components.workflow.journal.load, {
+      workflowId,
+    });
+    if (!journal.ok) {
+      return false;
+    }
+    const completedAt = getWorkflowCompletionTime(journal.journalEntries);
+    // Artifact deletion needs an independently confirmed terminal journal and
+    // seven full days since its final completed step, not workflow creation.
+    if (completedAt === null) {
+      return false;
+    }
+    if (Date.now() - completedAt < WORKFLOW_RETENTION_MS) {
+      await ctx.scheduler.runAfter(
+        completedAt + WORKFLOW_RETENTION_MS - Date.now(),
+        internalAny["workflows/manager"].cleanupCompletedWorkflow,
+        { generationNumber, workflowId }
+      );
+      return false;
+    }
+    const references = collectWorkflowArtifacts(journal.journalEntries, {
+      cardId: journal.workflow.args?.cardId ?? "",
+      workflowId,
+      generationNumber,
+    });
+    const cleaned = await workflow.cleanup(ctx, workflowId);
+    if (cleaned && journal.workflow.args?.cardId) {
+      await ctx.scheduler.runAfter(
+        0,
+        internalAny.storage.workflowArtifacts.deleteRetainedArtifacts,
+        {
+          references,
+          cardId: journal.workflow.args.cardId,
+          workflowId,
+          generationNumber,
+        }
+      );
+    }
+    return cleaned;
   } catch (error) {
     if (
       error instanceof Error &&
@@ -192,7 +234,7 @@ export const reapStuckWorkflowsHandler = async (
       }
       const workflowId = entry.workflowId as WorkflowId;
       await workflow.cancel(ctx, workflowId);
-      await workflow.cleanup(ctx, workflowId);
+      await scheduleCompletedWorkflowCleanupHandler(ctx, workflowId);
       reapedCount += 1;
     } catch (error) {
       if (
@@ -295,7 +337,12 @@ const cleanupWorkflowHistoryEntry = async (
     if (dryRun) {
       return "eligible";
     }
-    return (await workflow.cleanup(ctx, workflowId)) ? "cleaned" : "missing";
+    return (await ctx.runMutation(
+      internalAny["workflows/manager"].cleanupCompletedWorkflow,
+      { workflowId, generationNumber: workflowRecord.generationNumber }
+    ))
+      ? "cleaned"
+      : "missing";
   } catch (error) {
     if (
       error instanceof Error &&

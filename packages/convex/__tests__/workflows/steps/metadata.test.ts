@@ -250,7 +250,7 @@ describe("metadata handler", () => {
         cardType: "link",
       });
       expect(result.mode).toBe("completed");
-      expect(result.aiTags).toEqual(["tag1"]);
+      expect(result.aiTagsCount).toBe(1);
     });
 
     test("skips AI generation for production E2E users", async () => {
@@ -313,8 +313,8 @@ describe("metadata handler", () => {
         });
 
         expect(result).toMatchObject({
-          aiSummary: "A red square.",
-          aiTags: ["red", "square"],
+          hasSummary: true,
+          aiTagsCount: 2,
           mode: "completed",
         });
         expect(lastWorkerOpRequest()).toMatchObject({
@@ -418,8 +418,8 @@ describe("metadata handler", () => {
         cardType: "text",
       });
 
-      expect(result.aiTags).toEqual(["greeting"]);
-      expect(result.aiSummary).toBe("A greeting");
+      expect(result.aiTagsCount).toBe(1);
+      expect(result.hasSummary).toBe(true);
       expect(result.confidence).toBe(0.95);
       expect(mockRunMutation).toHaveBeenCalled();
     });
@@ -453,7 +453,7 @@ describe("metadata handler", () => {
         cardType: "image",
       });
 
-      expect(result.aiTags).toEqual(["photo"]);
+      expect(result.aiTagsCount).toBe(1);
       expect(result.confidence).toBe(0.9);
       expect(lastWorkerOpRequest().op).toBe("generate-image-metadata");
       expect(lastWorkerOpRequest().params.sourceKey).toBe("t1");
@@ -473,7 +473,7 @@ describe("metadata handler", () => {
         cardType: "image",
       });
 
-      expect(result.aiTags).toEqual(["svg"]);
+      expect(result.aiTagsCount).toBe(1);
       expect(lastWorkerOpRequest().params.sourceKey).toBe("t1");
     });
 
@@ -490,7 +490,7 @@ describe("metadata handler", () => {
         cardType: "image",
       });
 
-      expect(result.aiTags).toEqual(["photo"]);
+      expect(result.aiTagsCount).toBe(1);
       expect(lastWorkerOpRequest().params.sourceKey).toBe("f1");
     });
 
@@ -571,7 +571,7 @@ describe("metadata handler", () => {
         cardType: "video",
       });
 
-      expect(result.aiTags).toEqual(["video"]);
+      expect(result.aiTagsCount).toBe(1);
       expect(result.confidence).toBe(0.88);
       expect(lastWorkerOpRequest().params.sourceKey).toBe("t1");
     });
@@ -591,6 +591,40 @@ describe("metadata handler", () => {
   });
 
   describe("audio card metadata", () => {
+    test("persists a long transcript without copying customer content into the journal", async () => {
+      const transcript = "spoken text ".repeat(4000);
+      mockRunQuery.mockResolvedValue({
+        _id: "c1",
+        fileKey: "users/u/audio.mp3",
+        processingStatus: { classify: { status: "completed" } },
+      });
+      enableWorkerOp({ text: transcript, byteLength: 8 });
+      aiMocks.generateText.mockResolvedValue({
+        output: { tags: ["speech"], summary: "Audio content" },
+      });
+      const result = await generateHandler(ctx, {
+        cardId: "c1",
+        cardType: "audio",
+      });
+      expect(mockRunMutation.mock.calls.at(-1)?.[1]).toMatchObject({
+        aiTranscript: transcript,
+        aiTags: ["speech"],
+        aiSummary: "Audio content",
+        processingStatus: {
+          classify: { status: "completed" },
+          metadata: { status: "completed" },
+        },
+      });
+      expect(result).toEqual({
+        aiTagsCount: 1,
+        hasSummary: true,
+        hasTranscript: true,
+        confidence: 0.85,
+        mode: "completed",
+      });
+      expect(JSON.stringify(result).length).toBeLessThan(256);
+    });
+
     test("generates metadata from audio transcript", async () => {
       mockRunQuery.mockResolvedValue({
         _id: "c1",
@@ -607,8 +641,8 @@ describe("metadata handler", () => {
         cardType: "audio",
       });
 
-      expect(result.aiTranscript).toBe("spoken text in audio");
-      expect(result.aiTags).toEqual(["speech"]);
+      expect(result.hasTranscript).toBe(true);
+      expect(result.aiTagsCount).toBe(1);
       expect(result.confidence).toBe(0.85);
       expect(lastWorkerOpRequest()).toMatchObject({
         op: "transcribe-audio",
@@ -654,7 +688,7 @@ describe("metadata handler", () => {
         cardType: "link",
       });
 
-      expect(result.aiTags).toEqual(["website"]);
+      expect(result.aiTagsCount).toBe(1);
       expect(result.confidence).toBe(0.9);
     });
 
@@ -692,7 +726,7 @@ describe("metadata handler", () => {
         cardType: "link",
       });
 
-      expect(result.aiSummary).toBe("Link summary");
+      expect(result.hasSummary).toBe(true);
     });
   });
 
@@ -712,7 +746,7 @@ describe("metadata handler", () => {
         cardType: "document",
       });
 
-      expect(result.aiTags).toEqual(["report"]);
+      expect(result.aiTagsCount).toBe(1);
       expect(result.confidence).toBe(0.85);
     });
 
@@ -730,7 +764,7 @@ describe("metadata handler", () => {
         cardType: "document",
       });
 
-      expect(result.aiTags).toEqual(["doc"]);
+      expect(result.aiTagsCount).toBe(1);
     });
   });
 
@@ -749,7 +783,7 @@ describe("metadata handler", () => {
         cardType: "quote",
       });
 
-      expect(result.aiTags).toEqual(["shakespeare"]);
+      expect(result.aiTagsCount).toBe(1);
       expect(result.confidence).toBe(0.95);
     });
 
@@ -767,7 +801,7 @@ describe("metadata handler", () => {
         cardType: "quote",
       });
 
-      expect(result.aiTags).toEqual(["quote"]);
+      expect(result.aiTagsCount).toBe(1);
     });
   });
 
@@ -790,7 +824,7 @@ describe("metadata handler", () => {
         cardType: "palette",
       });
 
-      expect(result.aiTags).toEqual(["colors"]);
+      expect(result.aiTagsCount).toBe(1);
       expect(result.confidence).toBe(0.9);
     });
 
@@ -808,7 +842,7 @@ describe("metadata handler", () => {
         cardType: "palette",
       });
 
-      expect(result.aiTags).toEqual(["palette"]);
+      expect(result.aiTagsCount).toBe(1);
     });
 
     test("handles palette without colors", async () => {
@@ -825,11 +859,31 @@ describe("metadata handler", () => {
         cardType: "palette",
       });
 
-      expect(result.aiTags).toEqual(["palette"]);
+      expect(result.aiTagsCount).toBe(1);
     });
   });
 
   describe("processing status updates", () => {
+    test("does not report saved metadata or schedule a screenshot after a concurrent card deletion", async () => {
+      mockRunQuery.mockResolvedValue({ _id: "c1", url: "https://example.com" });
+      mockRunMutation.mockResolvedValue(false);
+      aiMocks.generateText.mockResolvedValue({
+        output: { tags: ["link"], summary: "Summary" },
+      });
+      const result = await generateHandler(ctx, {
+        cardId: "c1",
+        cardType: "link",
+      });
+      expect(result).toEqual({
+        aiTagsCount: 0,
+        hasSummary: false,
+        hasTranscript: false,
+        confidence: 0,
+        mode: "skipped",
+      });
+      expect(mockScheduler.runAfter).not.toHaveBeenCalled();
+    });
+
     test("updates processing status with metadata stage", async () => {
       mockRunQuery.mockResolvedValue({
         _id: "c1",
@@ -894,7 +948,7 @@ describe("metadata handler", () => {
         cardType: "text",
       });
 
-      expect(result.aiTags).toEqual(["tag1"]);
+      expect(result.aiTagsCount).toBe(1);
       expect(mockRunMutation).toHaveBeenCalledWith(
         internal.workflows.aiMetadata.mutations.updateCardAI,
         expect.objectContaining({
@@ -914,7 +968,7 @@ describe("metadata handler", () => {
         cardType: "text",
       });
 
-      expect(result.aiSummary).toBe("Summary only");
+      expect(result.hasSummary).toBe(true);
       expect(mockRunMutation).toHaveBeenCalledWith(
         internal.workflows.aiMetadata.mutations.updateCardAI,
         expect.objectContaining({

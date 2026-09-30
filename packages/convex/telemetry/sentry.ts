@@ -1,5 +1,6 @@
 "use node";
 
+import { AsyncLocalStorage } from "node:async_hooks";
 import { createHash } from "node:crypto";
 import { SpanStatusCode, trace } from "@opentelemetry/api";
 import * as Sentry from "@sentry/node";
@@ -10,8 +11,8 @@ import {
   buildTelemetryContext,
   normalizeErrorClass,
   resolveBackendTelemetryDsn,
+  resolveBackendTraceSampleRate,
   resolveTelemetryEnvironment,
-  resolveTraceSampleRate,
   scrubTelemetryString,
   scrubTelemetryValue,
   TELEMETRY_METRICS,
@@ -23,6 +24,10 @@ import {
   type TelemetryOutcome,
   type TelemetryStage,
 } from "../shared/telemetry";
+
+import { sampleBackendTransaction } from "./sampling";
+
+const invocation = new AsyncLocalStorage<{ active: boolean }>();
 
 const FLUSH_TIMEOUT_MS = 2000;
 const CONTENT_LIMIT = 16_000;
@@ -148,6 +153,8 @@ export const ensureBackendTelemetry = (): boolean => {
       beforeSend: (event) => scrubTelemetryValue(event) as typeof event,
       beforeSendLog: (log) => scrubTelemetryValue(log) as typeof log,
       beforeSendSpan: sanitizeSpan,
+      beforeSendTransaction: (event) =>
+        sampleBackendTransaction(event, environment),
       dsn,
       enableLogs: true,
       environment,
@@ -164,24 +171,9 @@ export const ensureBackendTelemetry = (): boolean => {
       ],
       release: resolveBackendRelease(),
       sendDefaultPii: false,
-      streamGenAiSpans: true,
-      tracesSampler: ({ attributes = {}, name }) =>
-        resolveTraceSampleRate({
-          durationMs:
-            typeof attributes["duration.ms"] === "number"
-              ? attributes["duration.ms"]
-              : undefined,
-          environment,
-          name,
-          operation:
-            typeof attributes["sentry.op"] === "string"
-              ? attributes["sentry.op"]
-              : undefined,
-          outcome:
-            typeof attributes.outcome === "string"
-              ? attributes.outcome
-              : undefined,
-        }),
+      // Head sampling cannot know the eventual duration or failure outcome.
+      streamGenAiSpans: false,
+      tracesSampleRate: 1,
     });
     Sentry.validateOpenTelemetrySetup();
     configureMetrics({
@@ -197,7 +189,7 @@ export const ensureBackendTelemetry = (): boolean => {
 };
 
 export const flushBackendTelemetry = async (): Promise<boolean> => {
-  if (!ensureBackendTelemetry()) {
+  if (invocation.getStore()?.active || !ensureBackendTelemetry()) {
     return false;
   }
   try {
@@ -245,7 +237,7 @@ export const isRetryableBackendError = (error: unknown): boolean => {
   );
 };
 
-export const withBackendSpan = async <T>(
+const recordSpan = async <T>(
   input: BackendSpanInput,
   callback: () => Promise<T>
 ): Promise<T> => {
@@ -268,9 +260,6 @@ export const withBackendSpan = async <T>(
         callbackStarted = true;
         const isWorkflowOperation = input.operation.startsWith("teak.workflow");
         const startedAt = Date.now();
-        safely(() =>
-          Sentry.logger.info("telemetry.operation.started", attributes)
-        );
         try {
           const result = await callback();
           const durationMs = Date.now() - startedAt;
@@ -282,8 +271,15 @@ export const withBackendSpan = async <T>(
             resultRecord?.success === false ||
             resultRecord?.ok === false ||
             resultRecord?.status === "failed";
-          const outcome = returnedFailure ? "failure" : "success";
+          const outcome =
+            returnedFailure || attributes.outcome === "failure"
+              ? "failure"
+              : "success";
           span.setAttribute("outcome", outcome);
+          span.setAttribute(
+            "duration.ms",
+            Math.max(durationMs, Number(attributes["duration.ms"]) || 0)
+          );
           if (resultRecord?.mode === "skipped") {
             span.setAttribute("outcome", "skipped");
           }
@@ -322,21 +318,35 @@ export const withBackendSpan = async <T>(
               })
             );
           }
-          safely(() =>
-            Sentry.logger[returnedFailure ? "error" : "info"](
-              "telemetry.operation.completed",
-              {
-                ...attributes,
-                "duration.ms": durationMs,
-                outcome,
-              }
-            )
-          );
+          if (
+            resolveBackendTraceSampleRate({
+              durationMs: Math.max(
+                durationMs,
+                Number(attributes["duration.ms"]) || 0
+              ),
+              environment: resolveBackendEnvironment(),
+              name: input.name,
+              operation: input.operation,
+              outcome,
+            }) > Math.random()
+          ) {
+            safely(() =>
+              Sentry.logger[returnedFailure ? "error" : "info"](
+                "telemetry.operation.completed",
+                {
+                  ...attributes,
+                  "duration.ms": durationMs,
+                  outcome,
+                }
+              )
+            );
+          }
           return result;
         } catch (error) {
           const durationMs = Date.now() - startedAt;
           const errorClass = normalizeErrorClass(error);
           const retryable = isRetryableBackendError(error);
+          span.setAttribute("duration.ms", durationMs);
           span.setAttribute("error.class", errorClass);
           span.setAttribute("outcome", "failure");
           span.setAttribute("retryable", retryable);
@@ -406,7 +416,6 @@ export const withBackendSpan = async <T>(
           throw error;
         } finally {
           span.end();
-          await flushBackendTelemetry();
         }
       }
     );
@@ -416,6 +425,25 @@ export const withBackendSpan = async <T>(
     }
     return await callback();
   }
+};
+
+/** Nested and concurrent child spans share one flush at the owning action boundary. */
+export const withBackendSpan = async <T>(
+  input: BackendSpanInput,
+  callback: () => Promise<T>
+): Promise<T> => {
+  if (invocation.getStore()?.active) {
+    return await recordSpan(input, callback);
+  }
+  const state = { active: true };
+  return await invocation.run(state, async () => {
+    try {
+      return await recordSpan(input, callback);
+    } finally {
+      state.active = false;
+      await flushBackendTelemetry();
+    }
+  });
 };
 
 export const recordBackendMetric = (
@@ -436,40 +464,19 @@ export const recordBackendMetric = (
   });
 };
 
-const setPreparedSpanAttribute = (
-  key: string,
-  value: string | undefined
-): void => {
-  if (!value) {
-    return;
-  }
-  const span = trace.getActiveSpan();
-  if (!span) {
-    return;
-  }
-  const prepared = prepareString(value);
-  span.setAttribute(key, prepared.content);
-  if (prepared.truncated) {
-    span.setAttribute(`${key}.content.truncated`, true);
-    span.setAttribute(
-      `${key}.content.original_length`,
-      prepared.originalLength
-    );
-    if (prepared.hash) {
-      span.setAttribute(`${key}.content.sha256`, prepared.hash);
-    }
-  }
-};
-
+/** Record shape only: private AI inputs and outputs never leave in telemetry. */
 export const recordBackendAiContent = (input: {
   prompt?: string;
   response?: string;
   system?: string;
 }): void => {
   safely(() => {
-    setPreparedSpanAttribute("gen_ai.request.prompt", input.prompt);
-    setPreparedSpanAttribute("gen_ai.request.system", input.system);
-    setPreparedSpanAttribute("gen_ai.response.text", input.response);
+    const span = trace.getActiveSpan();
+    for (const [key, value] of Object.entries(input)) {
+      if (value !== undefined) {
+        span?.setAttribute(`gen_ai.${key}.characters`, value.length);
+      }
+    }
   });
 };
 
@@ -574,12 +581,20 @@ export const recordBackendOutcome = async (input: {
     },
     () => {
       safely(() => Sentry.metrics.count(input.metric, 1, { attributes }));
-      safely(() =>
-        Sentry.logger[input.outcome === "failure" ? "error" : "info"](
-          input.metric,
-          attributes
-        )
-      );
+      if (
+        resolveBackendTraceSampleRate({
+          environment: resolveBackendEnvironment(),
+          operation: input.operation,
+          outcome: input.outcome,
+        }) > Math.random()
+      ) {
+        safely(() =>
+          Sentry.logger[input.outcome === "failure" ? "error" : "info"](
+            input.metric,
+            attributes
+          )
+        );
+      }
       return Promise.resolve({ success: input.outcome !== "failure" });
     }
   );

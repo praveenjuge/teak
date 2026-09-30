@@ -6,7 +6,7 @@ import { inlineSearchSyncDb } from "../helpers/session.test-utils";
 mock.module("../../storage/r2", r2MockModuleFactory);
 
 describe("linkMetadata.ts", () => {
-  let getCardForMetadata: any;
+  let getFullCardForMetadata: any;
   let _updateCardMetadata: any;
   let _updateCardScreenshot: any;
   let updateCardMetadataHandler: any;
@@ -21,7 +21,7 @@ describe("linkMetadata.ts", () => {
     r2Mocks.deleteObject.mockReset();
     r2Mocks.deleteObject.mockResolvedValue(null);
     const module = await import("../../linkMetadata");
-    getCardForMetadata = module.getCardForMetadata;
+    getFullCardForMetadata = module.getFullCardForMetadata;
     _updateCardMetadata = module.updateCardMetadata;
     _updateCardScreenshot = module.updateCardScreenshot;
     updateCardMetadataHandler = withScheduler(module.updateCardMetadataHandler);
@@ -30,12 +30,13 @@ describe("linkMetadata.ts", () => {
     );
   });
 
-  describe("getCardForMetadata", () => {
+  describe("getFullCardForMetadata", () => {
     test("fetches card by id", async () => {
       const ctx = {
         db: { get: mock().mockResolvedValue({ _id: "c1" }) },
       } as any;
-      const handler = (getCardForMetadata as any).handler ?? getCardForMetadata;
+      const handler =
+        (getFullCardForMetadata as any).handler ?? getFullCardForMetadata;
       const result = await handler(ctx, { cardId: "c1" });
       expect(ctx.db.get).toHaveBeenCalledWith("cards", "c1");
       expect(result).toEqual({ _id: "c1" });
@@ -43,7 +44,8 @@ describe("linkMetadata.ts", () => {
 
     test("returns null for missing card", async () => {
       const ctx = { db: { get: mock().mockResolvedValue(null) } } as any;
-      const handler = (getCardForMetadata as any).handler ?? getCardForMetadata;
+      const handler =
+        (getFullCardForMetadata as any).handler ?? getFullCardForMetadata;
       const result = await handler(ctx, { cardId: "c1" });
       expect(result).toBeNull();
     });
@@ -74,7 +76,7 @@ describe("linkMetadata.ts", () => {
       const newLinkPreview = { imageStorageKey: "new_image" };
       const ctx = {
         db: {
-        ...inlineSearchSyncDb(),
+          ...inlineSearchSyncDb(),
           get: mock().mockResolvedValue(existingCard),
           patch: mock().mockResolvedValue(null),
         },
@@ -116,7 +118,7 @@ describe("linkMetadata.ts", () => {
       const newLinkPreview = { title: "New Title" };
       const ctx = {
         db: {
-        ...inlineSearchSyncDb(),
+          ...inlineSearchSyncDb(),
           get: mock().mockResolvedValue(existingCard),
           patch: mock().mockResolvedValue(null),
         },
@@ -161,7 +163,7 @@ describe("linkMetadata.ts", () => {
       const newLinkPreview = { imageStorageKey: "same_image" };
       const ctx = {
         db: {
-        ...inlineSearchSyncDb(),
+          ...inlineSearchSyncDb(),
           get: mock().mockResolvedValue(existingCard),
           patch: mock().mockResolvedValue(null),
         },
@@ -199,7 +201,7 @@ describe("linkMetadata.ts", () => {
       const newLinkPreview = { screenshotStorageKey: "new_screenshot" };
       const ctx = {
         db: {
-        ...inlineSearchSyncDb(),
+          ...inlineSearchSyncDb(),
           get: mock().mockResolvedValue(existingCard),
           patch: mock().mockResolvedValue(null),
         },
@@ -241,7 +243,7 @@ describe("linkMetadata.ts", () => {
       const newLinkPreview = { title: "New Title" };
       const ctx = {
         db: {
-        ...inlineSearchSyncDb(),
+          ...inlineSearchSyncDb(),
           get: mock().mockResolvedValue(existingCard),
           patch: mock().mockResolvedValue(null),
         },
@@ -285,7 +287,7 @@ describe("linkMetadata.ts", () => {
       const newLinkPreview = { screenshotStorageKey: "same_screenshot" };
       const ctx = {
         db: {
-        ...inlineSearchSyncDb(),
+          ...inlineSearchSyncDb(),
           get: mock().mockResolvedValue(existingCard),
           patch: mock().mockResolvedValue(null),
         },
@@ -323,7 +325,7 @@ describe("linkMetadata.ts", () => {
       const newLinkPreview = { title: "New Title" };
       const ctx = {
         db: {
-        ...inlineSearchSyncDb(),
+          ...inlineSearchSyncDb(),
           get: mock().mockResolvedValue(existingCard),
           patch: mock().mockResolvedValue(null),
         },
@@ -357,7 +359,7 @@ describe("linkMetadata.ts", () => {
       const newLinkPreview = { title: "New Title" };
       const ctx = {
         db: {
-        ...inlineSearchSyncDb(),
+          ...inlineSearchSyncDb(),
           get: mock().mockResolvedValue(existingCard),
           patch: mock().mockResolvedValue(null),
         },
@@ -388,7 +390,7 @@ describe("linkMetadata.ts", () => {
       };
       const ctx = {
         db: {
-        ...inlineSearchSyncDb(),
+          ...inlineSearchSyncDb(),
           get: mock().mockResolvedValue(existingCard),
           patch: mock().mockResolvedValue(null),
         },
@@ -422,7 +424,7 @@ describe("linkMetadata.ts", () => {
       r2Mocks.deleteObject.mockRejectedValueOnce(new Error("Storage error"));
       const ctx = {
         db: {
-        ...inlineSearchSyncDb(),
+          ...inlineSearchSyncDb(),
           get: mock().mockResolvedValue(existingCard),
           patch: mock().mockResolvedValue(null),
         },
@@ -449,7 +451,7 @@ describe("linkMetadata.ts", () => {
       r2Mocks.deleteObject.mockRejectedValueOnce(new Error("Storage error"));
       const ctx = {
         db: {
-        ...inlineSearchSyncDb(),
+          ...inlineSearchSyncDb(),
           get: mock().mockResolvedValue(existingCard),
           patch: mock().mockResolvedValue(null),
         },
@@ -468,7 +470,7 @@ describe("linkMetadata.ts", () => {
       const existingCard = { _id: "c1", type: "link" };
       const ctx = {
         db: {
-        ...inlineSearchSyncDb(),
+          ...inlineSearchSyncDb(),
           get: mock().mockResolvedValue(existingCard),
           patch: mock().mockResolvedValue(null),
         },
@@ -507,7 +509,7 @@ describe("linkMetadata.ts", () => {
     test("returns early for non-link card", async () => {
       const ctx = {
         db: {
-        ...inlineSearchSyncDb(),
+          ...inlineSearchSyncDb(),
           get: mock().mockResolvedValue({ _id: "c1", type: "image" }),
           patch: mock(),
         },
@@ -529,7 +531,7 @@ describe("linkMetadata.ts", () => {
       };
       const ctx = {
         db: {
-        ...inlineSearchSyncDb(),
+          ...inlineSearchSyncDb(),
           get: mock().mockResolvedValue(existingCard),
           patch: mock().mockResolvedValue(null),
         },
@@ -567,7 +569,7 @@ describe("linkMetadata.ts", () => {
       };
       const ctx = {
         db: {
-        ...inlineSearchSyncDb(),
+          ...inlineSearchSyncDb(),
           get: mock().mockResolvedValue(existingCard),
           patch: mock().mockResolvedValue(null),
         },
@@ -591,7 +593,7 @@ describe("linkMetadata.ts", () => {
       r2Mocks.deleteObject.mockRejectedValueOnce(new Error("Storage error"));
       const ctx = {
         db: {
-        ...inlineSearchSyncDb(),
+          ...inlineSearchSyncDb(),
           get: mock().mockResolvedValue(existingCard),
           patch: mock().mockResolvedValue(null),
         },
@@ -621,7 +623,7 @@ describe("linkMetadata.ts", () => {
       };
       const ctx = {
         db: {
-        ...inlineSearchSyncDb(),
+          ...inlineSearchSyncDb(),
           get: mock().mockResolvedValue(existingCard),
           patch: mock().mockResolvedValue(null),
         },
@@ -651,7 +653,7 @@ describe("linkMetadata.ts", () => {
       const existingCard = { _id: "c1", type: "link", metadata: undefined };
       const ctx = {
         db: {
-        ...inlineSearchSyncDb(),
+          ...inlineSearchSyncDb(),
           get: mock().mockResolvedValue(existingCard),
           patch: mock().mockResolvedValue(null),
         },

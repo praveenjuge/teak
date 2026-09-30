@@ -120,7 +120,7 @@ describe("backend Sentry OpenTelemetry", () => {
     );
   });
 
-  test("initializes full AI monitoring with streaming and scrubbing", () => {
+  test("initializes tail-sampled AI monitoring with scrubbing", () => {
     expect(telemetry.ensureBackendTelemetry()).toBe(true);
     expect(sentryInit).toHaveBeenCalledTimes(1);
     expect(sentryVercelAiIntegration).toHaveBeenCalledWith({
@@ -142,7 +142,7 @@ describe("backend Sentry OpenTelemetry", () => {
     expect(options.release).toBe(
       "teak-backend@abcdef0123456789abcdef0123456789abcdef01"
     );
-    expect(options.streamGenAiSpans).toBe(true);
+    expect(options.streamGenAiSpans).toBe(false);
 
     const span = options.beforeSendSpan({
       data: {
@@ -159,7 +159,7 @@ describe("backend Sentry OpenTelemetry", () => {
     );
   });
 
-  test("records AI content only through the scrubbed explicit span path", () => {
+  test("records AI lengths without leaking private content", () => {
     telemetry.recordBackendAiContent({
       prompt: "Private note for planning TOKEN=secret person@example.com",
       response: "Generated private summary",
@@ -167,19 +167,11 @@ describe("backend Sentry OpenTelemetry", () => {
     });
 
     const attributes = Object.fromEntries(spanSetAttribute.mock.calls);
-    expect(attributes["gen_ai.request.prompt"]).toContain(
-      "Private note for planning"
-    );
-    expect(attributes["gen_ai.request.prompt"]).not.toContain("secret");
-    expect(attributes["gen_ai.request.prompt"]).not.toContain(
-      "person@example.com"
-    );
-    expect(attributes["gen_ai.request.system"]).toBe(
-      "Follow the system instructions"
-    );
-    expect(attributes["gen_ai.response.text"]).toBe(
-      "Generated private summary"
-    );
+    expect(attributes["gen_ai.prompt.characters"]).toBe(57);
+    expect(attributes["gen_ai.response.characters"]).toBe(25);
+    expect(attributes["gen_ai.system.characters"]).toBe(30);
+    expect(JSON.stringify(attributes)).not.toContain("Private note");
+    expect(JSON.stringify(attributes)).not.toContain("secret");
   });
 
   test("exports a successful semantic span and flushes the action boundary", async () => {
@@ -214,6 +206,116 @@ describe("backend Sentry OpenTelemetry", () => {
     expect(spanEnd).toHaveBeenCalledTimes(1);
     expect(sentryFlush).toHaveBeenCalledTimes(1);
     expect(sentryFlush).toHaveBeenCalledWith(2000);
+  });
+
+  test("flushes nested concurrent emissions once after all metrics are recorded", async () => {
+    await telemetry.withBackendSpan(
+      { name: "parent", operation: "teak.workflow", surface: "backend" },
+      async () => {
+        await Promise.all(
+          [1, 2].map(() =>
+            telemetry.recordBackendOutcome({
+              metric: "teak.card.create.success",
+              operation: "teak.card.create",
+              outcome: "success",
+            })
+          )
+        );
+        expect(sentryMetricCount).toHaveBeenCalledTimes(2);
+        expect(sentryFlush).not.toHaveBeenCalled();
+        return "done";
+      }
+    );
+    expect(sentryFlush).toHaveBeenCalledTimes(1);
+    expect(sentryMetricCount).toHaveBeenCalledTimes(2);
+  });
+
+  test("flushes failure metrics once when a nested action rejects", async () => {
+    const error = new Error("nested workflow failed");
+    await expect(
+      telemetry.withBackendSpan(
+        { name: "parent", operation: "teak.workflow", surface: "backend" },
+        () =>
+          telemetry.withBackendSpan(
+            {
+              name: "child",
+              operation: "teak.workflow.step",
+              surface: "backend",
+            },
+            () => Promise.reject(error)
+          )
+      )
+    ).rejects.toBe(error);
+    expect(sentryFlush).toHaveBeenCalledTimes(1);
+    expect(
+      sentryMetricCount.mock.calls.filter(
+        ([name]) => name === "teak.workflow.failure"
+      )
+    ).toHaveLength(2);
+    expect(sentryCaptureException).toHaveBeenCalled();
+  });
+
+  test("keeps simultaneous action flush boundaries independent", async () => {
+    await Promise.all(
+      [1, 2].map(() =>
+        telemetry.withBackendSpan(
+          {
+            name: "independent",
+            operation: "teak.workflow",
+            surface: "backend",
+          },
+          () => Promise.resolve("done")
+        )
+      )
+    );
+    expect(sentryFlush).toHaveBeenCalledTimes(2);
+  });
+
+  test("tail filter retains failures and slow child spans while sampling success", () => {
+    telemetry.ensureBackendTelemetry();
+    const filter = sentryInit.mock.calls[0][0].beforeSendTransaction;
+    const random = Math.random;
+    Math.random = () => 0.9;
+    try {
+      const event = {
+        transaction: "card.processing",
+        start_timestamp: 1,
+        timestamp: 1.1,
+        contexts: {
+          trace: { op: "teak.workflow", data: { outcome: "success" } },
+        },
+      };
+      expect(filter(event)).toBeNull();
+      expect(filter({ ...event, timestamp: 3 })).not.toBeNull();
+      expect(
+        filter({
+          ...event,
+          spans: [{ op: "teak.workflow.step", data: { outcome: "failure" } }],
+        })
+      ).not.toBeNull();
+      expect(
+        filter({
+          ...event,
+          spans: [{ op: "auth", data: { outcome: "success" } }],
+        })
+      ).not.toBeNull();
+      expect(
+        filter({
+          ...event,
+          spans: [
+            {
+              op: "fetch",
+              status: "internal_error",
+              data: { outcome: "success" },
+            },
+          ],
+        })
+      ).not.toBeNull();
+      Math.random = () => 0.05;
+      expect(filter(event)).not.toBeNull();
+    } finally {
+      Math.random = random;
+    }
   });
 
   test("captures application failures without changing the thrown error", async () => {

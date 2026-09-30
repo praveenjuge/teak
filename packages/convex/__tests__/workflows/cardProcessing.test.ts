@@ -1,6 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import {
   createMissingCardWorkflowResult,
+  normalizeWorkflowMetadataResult,
   resolveCardProcessingDurationMs,
 } from "../../workflows/cardProcessing";
 
@@ -23,5 +24,22 @@ describe("workflows/cardProcessing", () => {
       reason: "card_missing",
     });
     expect(result).not.toHaveProperty("error");
+  });
+});
+
+test("summarizes old persisted metadata journals and new compact results identically", () => {
+  const expected = { aiTagsCount: 2, hasSummary: true, hasTranscript: true };
+  expect(
+    normalizeWorkflowMetadataResult({
+      aiTags: ["one", "two"],
+      aiSummary: "summary",
+      aiTranscript: "transcript",
+    })
+  ).toEqual(expected);
+  expect(normalizeWorkflowMetadataResult(expected)).toEqual(expected);
+  expect(normalizeWorkflowMetadataResult(null)).toEqual({
+    aiTagsCount: 0,
+    hasSummary: false,
+    hasTranscript: false,
   });
 });

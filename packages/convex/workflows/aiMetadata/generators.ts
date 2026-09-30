@@ -1,6 +1,26 @@
 "use node";
 
+import {
+  boundAiMetadataInput,
+  buildLinkMetadataPrompt,
+  buildTextMetadataPrompt,
+  type FilesTextMetadataOpResult,
+  MAX_AI_METADATA_OUTPUT_TOKENS,
+  MAX_AI_METADATA_VALIDATION_RETRIES,
+  readFilesAiGenerationFacts,
+  validateTextMetadata,
+  validationRetryPrompt,
+} from "@teak/files-protocol";
 import { generateText, Output } from "ai";
+
+export {
+  boundAiMetadataInput,
+  MAX_AI_METADATA_INPUT_CHARS,
+  MAX_AI_METADATA_OUTPUT_TOKENS,
+  MAX_AI_METADATA_VALIDATION_RETRIES,
+} from "@teak/files-protocol";
+
+import { env } from "../../_generated/server";
 import {
   IMAGE_METADATA_MODEL,
   IMAGE_METADATA_MODEL_ID,
@@ -19,6 +39,7 @@ import { trackAiRetry } from "../../shared/metrics";
 import {
   callFilesWorkerJson,
   type FilesWorkerImageMetadataResult,
+  type FilesWorkerOutcome,
 } from "../../storage/filesWorkerClient";
 import { recordBackendLog } from "../../telemetry/sentry";
 import { aiMetadataSchema } from "./schemas";
@@ -35,10 +56,7 @@ import { aiMetadataSchema } from "./schemas";
  * Reasoning models (qwen3) are switched to non-thinking mode via the
  * "/no_think" suffix baked into the system prompts in ai/models.ts.
  */
-export const MAX_AI_METADATA_INPUT_CHARS = 6000;
-export const MAX_AI_METADATA_OUTPUT_TOKENS = 768;
 export const MAX_AI_METADATA_RETRIES = 0;
-export const MAX_AI_METADATA_VALIDATION_RETRIES = 2;
 
 const JSON_VALIDATION_ERROR =
   /failed to validate json|failed_generation|no (?:object|output) generated|response did not match schema|type validation failed/iu;
@@ -62,15 +80,6 @@ export const isAiMetadataDeferredError = (error: unknown): boolean => {
     PROVIDER_CAPACITY_ERROR.test(message) ||
     JSON_VALIDATION_ERROR.test(message) ||
     RASTER_THUMBNAIL_PENDING_ERROR.test(message)
-  );
-};
-
-const validationRetryPrompt = (prompt: string, attempt: number): string => {
-  if (attempt === 0) {
-    return prompt;
-  }
-  return boundAiMetadataInput(
-    `JSON validation retry ${attempt}: Return only the required JSON object with tags and summary. Do not include markdown, commentary, or any other keys.\n\n${prompt}`
   );
 };
 
@@ -104,68 +113,81 @@ const generateWithValidationRetries = async <T>(
   }
 };
 
-export const boundAiMetadataInput = (content: string): string => {
-  if (content.length <= MAX_AI_METADATA_INPUT_CHARS) {
-    return content;
-  }
-
-  const marker = `\n\n[Content truncated from ${content.length} characters]\n\n`;
-  const retainedLength = MAX_AI_METADATA_INPUT_CHARS - marker.length;
-  const prefixLength = Math.ceil(retainedLength / 2);
-  const suffixLength = Math.floor(retainedLength / 2);
-
-  return `${content.slice(0, prefixLength)}${marker}${content.slice(-suffixLength)}`;
-};
-
 /**
  * Generate AI metadata for text content
  */
-export const generateTextMetadata = async (content: string, title?: string) => {
-  const fullContent = title
-    ? `Title: ${title}\n\nContent: ${content}`
-    : content;
-  const prompt = boundAiMetadataInput(
-    `Analyze this content and generate tags and summary:\n\n${fullContent}`
-  );
-
+const generateWorkerMetadata = async (
+  op: "generate-text-metadata" | "generate-link-metadata",
+  prompt: string
+) => {
+  const model = TEXT_METADATA_MODEL_ID;
+  const isLink = op === "generate-link-metadata";
+  const recordRetries = (count: number) => {
+    if (
+      !Number.isInteger(count) ||
+      count < 0 ||
+      count > MAX_AI_METADATA_VALIDATION_RETRIES
+    ) {
+      return;
+    }
+    for (let attempt = 0; attempt < count; attempt += 1) {
+      trackAiRetry({
+        model,
+        provider: WORKERS_AI_PROVIDER,
+        reason: "validation",
+      });
+    }
+  };
   const result = await observeAiGeneration(
     {
-      functionId: "teak.ai.metadata.text",
-      model: TEXT_METADATA_MODEL_ID,
+      functionId: isLink ? "teak.ai.metadata.link" : "teak.ai.metadata.text",
+      model,
       prompt,
+      system: isLink
+        ? SYSTEM_PROMPTS.linkAnalysis
+        : SYSTEM_PROMPTS.textAnalysis,
       stage: "ai_metadata",
-      system: SYSTEM_PROMPTS.textAnalysis,
     },
-    () =>
-      generateWithValidationRetries(TEXT_METADATA_MODEL_ID, (attempt) =>
-        generateText({
-          experimental_telemetry: createAiTelemetrySettings({
-            functionId: "teak.ai.metadata.text",
-            model: TEXT_METADATA_MODEL_ID,
-            stage: "ai_metadata",
-          }),
-          model: TEXT_METADATA_MODEL,
-          // Metadata is optional. Surface provider errors immediately so the
-          // workflow can skip exhausted capacity or apply its own bounded retry
-          // without the SDK waiting through provider-supplied reset windows.
-          maxRetries: MAX_AI_METADATA_RETRIES,
-          maxOutputTokens: MAX_AI_METADATA_OUTPUT_TOKENS,
-          // Static system prompt
-          system: SYSTEM_PROMPTS.textAnalysis,
-          // Dynamic content last
-          prompt: validationRetryPrompt(prompt, attempt),
-          output: Output.object({
-            schema: aiMetadataSchema,
-          }),
-        })
-      )
+    async () => {
+      let outcome: FilesWorkerOutcome<FilesTextMetadataOpResult>;
+      try {
+        outcome = await callFilesWorkerJson<FilesTextMetadataOpResult>({
+          op,
+          params: { prompt },
+        });
+      } catch (error) {
+        if (error && typeof error === "object" && "aiFacts" in error) {
+          recordRetries(
+            (error as { aiFacts?: { validationRetryCount?: number } }).aiFacts
+              ?.validationRetryCount ?? 0
+          );
+        }
+        throw error;
+      }
+      if (outcome.kind === "fallback") {
+        throw new Error("files_worker_metadata_unavailable");
+      }
+      const facts = readFilesAiGenerationFacts(outcome.data);
+      if (!facts) {
+        throw new Error("failed to validate JSON metadata diagnostics");
+      }
+      recordRetries(facts.validationRetryCount);
+      const metadata = validateTextMetadata(outcome.data);
+      if (!metadata) {
+        throw new Error("failed to validate JSON metadata response");
+      }
+      return { output: metadata, usage: facts.usage };
+    }
   );
-
-  return {
-    aiTags: result.output.tags,
-    aiSummary: result.output.summary,
-  };
+  return { aiTags: result.output.tags, aiSummary: result.output.summary };
 };
+export const generateTextMetadata = (content: string, title?: string) =>
+  env.FILES_TEXT_AI_ENABLED === "true"
+    ? generateWorkerMetadata(
+        "generate-text-metadata",
+        buildTextMetadataPrompt(content, title)
+      )
+    : generateTextMetadataDirect(content, title);
 
 /**
  * Generate AI metadata for image content (using vision)
@@ -298,16 +320,58 @@ export const generateImageMetadataForStoredKey = async (
 /**
  * Generate AI metadata for link content
  */
-export const generateLinkMetadata = async (content: string, url?: string) => {
-  const prompt = boundAiMetadataInput(
-    `Analyze this web page content and generate optimized tags and summary for knowledge management:
+export const generateLinkMetadata = (content: string, url?: string) =>
+  env.FILES_TEXT_AI_ENABLED === "true"
+    ? generateWorkerMetadata(
+        "generate-link-metadata",
+        buildLinkMetadataPrompt(content, url)
+      )
+    : generateLinkMetadataDirect(content, url);
 
-${content}
+const generateTextMetadataDirect = async (content: string, title?: string) => {
+  const prompt = buildTextMetadataPrompt(content, title);
 
-${url ? `URL: ${url}` : ""}
-
-Generate tags and summary that will help the user rediscover and understand the value of this content.`
+  const result = await observeAiGeneration(
+    {
+      functionId: "teak.ai.metadata.text",
+      model: TEXT_METADATA_MODEL_ID,
+      prompt,
+      stage: "ai_metadata",
+      system: SYSTEM_PROMPTS.textAnalysis,
+    },
+    () =>
+      generateWithValidationRetries(TEXT_METADATA_MODEL_ID, (attempt) =>
+        generateText({
+          experimental_telemetry: createAiTelemetrySettings({
+            functionId: "teak.ai.metadata.text",
+            model: TEXT_METADATA_MODEL_ID,
+            stage: "ai_metadata",
+          }),
+          model: TEXT_METADATA_MODEL,
+          // Metadata is optional. Surface provider errors immediately so the
+          // workflow can skip exhausted capacity or apply its own bounded retry
+          // without the SDK waiting through provider-supplied reset windows.
+          maxRetries: MAX_AI_METADATA_RETRIES,
+          maxOutputTokens: MAX_AI_METADATA_OUTPUT_TOKENS,
+          // Static system prompt
+          system: SYSTEM_PROMPTS.textAnalysis,
+          // Dynamic content last
+          prompt: validationRetryPrompt(prompt, attempt),
+          output: Output.object({
+            schema: aiMetadataSchema,
+          }),
+        })
+      )
   );
+
+  return {
+    aiTags: result.output.tags,
+    aiSummary: result.output.summary,
+  };
+};
+
+const generateLinkMetadataDirect = async (content: string, url?: string) => {
+  const prompt = buildLinkMetadataPrompt(content, url);
   const result = await observeAiGeneration(
     {
       functionId: "teak.ai.metadata.link",

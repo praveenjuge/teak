@@ -437,6 +437,7 @@ export const cardValidator = v.object({
   url: v.optional(v.string()),
   fileKey: v.optional(r2KeyValidator),
   thumbnailKey: v.optional(r2KeyValidator),
+  workflowArtifactKeys: v.optional(v.array(r2KeyValidator)),
   /** Bounded ~1600px preview derivative for large originals. */
   previewKey: v.optional(r2KeyValidator),
   /** Thumbhash placeholder bytes (base64) decoded into a blurry stand-in. */

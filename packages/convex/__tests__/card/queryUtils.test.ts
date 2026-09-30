@@ -51,6 +51,9 @@ describe("card/queryUtils.ts", () => {
         },
       },
     });
+    storedCard.workflowArtifactKeys = [
+      "users/customer/card/workflow-artifacts/private.json",
+    ];
     const original = structuredClone(storedCard);
     const [grid] = await attachGridFileUrls({}, [storedCard]);
     const [detail] = await attachFileUrls({}, [storedCard]);
@@ -66,6 +69,8 @@ describe("card/queryUtils.ts", () => {
       sourceUrl: "https://example.com",
       facts: [{ label: "Author", value: "Author name" }],
     });
+    expect(grid).not.toHaveProperty("workflowArtifactKeys");
+    expect(detail).not.toHaveProperty("workflowArtifactKeys");
     expect(grid?.content).toBe(original.content);
     expect(grid?.notes).toBe(original.notes);
     expect(grid?.tags).toEqual(original.tags);
