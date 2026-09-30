@@ -1,5 +1,7 @@
 import { v } from "convex/values";
 import { internal } from "../_generated/api";
+import { getAccountDeletionState } from "../accountDeletion";
+import { deleteObject } from "./r2";
 import type { Id } from "../_generated/dataModel";
 import {
   type ActionCtx,
@@ -39,6 +41,15 @@ export const commitArchive = internalMutation({
   returns: v.boolean(),
   handler: async (ctx, { cardId, kind, expectedJson, key, digest }) => {
     const card = await ctx.db.get("cards", cardId);
+    if (card && (await getAccountDeletionState(ctx, card.userId))) {
+      // Account deletion owns this card's teardown; patching here would
+      // race its batches with OCC conflicts. The copied object is not yet
+      // referenced by the card, so remove it rather than leak it.
+      if (card.metadata?.[kind]?.rawStorageKey !== key) {
+        await deleteObject(ctx, key);
+      }
+      return false;
+    }
     const part = card?.metadata?.[kind];
     if (
       !(card && part) ||
