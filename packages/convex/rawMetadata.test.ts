@@ -176,10 +176,9 @@ describe("raw metadata archival", () => {
       }),
       scheduler: { runAfter: retry },
     } as unknown as ActionCtx;
-    expect(await archiveCardHandler(ctx, { cardId })).toEqual({
-      archived: 0,
-      skipped: 1,
-    });
+    await expect(archiveCardHandler(ctx, { cardId })).rejects.toThrow(
+      "cleanup enqueue unavailable"
+    );
     expect(retry).toHaveBeenCalledTimes(1);
     expect(retry).toHaveBeenCalledWith(
       60_000,
@@ -201,6 +200,75 @@ describe("raw metadata archival", () => {
     expect(
       pending.some((scheduled) => scheduled.args[0]?.keys?.includes(args.key))
     ).toBe(true);
+  });
+
+  test("retained commit cleans stale copies but preserves referenced and invalid keys", async () => {
+    const { t, cardId, card, args } = await setup();
+    await t.run((ctx) =>
+      ctx.db.patch("cards", cardId, {
+        metadata: {
+          ...card.metadata,
+          linkPreview: {
+            ...card.metadata?.linkPreview,
+            raw: [{ newer: true }],
+          },
+        },
+      })
+    );
+    // Invalid hash/key arguments must not delete anything.
+    expect(
+      await t.mutation(internal.storage.rawMetadataMaintenance.commitArchive, {
+        ...args,
+        digest: "0".repeat(64),
+      })
+    ).toBe(false);
+    expect(
+      await t.mutation(internal.storage.rawMetadataMaintenance.commitArchive, {
+        ...args,
+        key: "outside/namespace",
+      })
+    ).toBe(false);
+    expect(
+      await t.run((ctx) =>
+        ctx.db.system.query("_scheduled_functions").collect()
+      )
+    ).toHaveLength(0);
+    expect(
+      await t.mutation(
+        internal.storage.rawMetadataMaintenance.commitArchive,
+        args
+      )
+    ).toBe(false);
+    const pending = await t.run((ctx) =>
+      ctx.db.system.query("_scheduled_functions").collect()
+    );
+    expect(
+      pending.some((scheduled) => scheduled.args[0]?.keys?.includes(args.key))
+    ).toBe(true);
+    // A stale copy still referenced anywhere on this card must be retained.
+    await t.run((ctx) =>
+      ctx.db.patch("cards", cardId, {
+        metadata: {
+          ...card.metadata,
+          linkPreview: {
+            ...card.metadata?.linkPreview,
+            rawStorageKey: args.key,
+            raw: [{ newer: true }],
+          },
+        },
+      })
+    );
+    expect(
+      await t.mutation(
+        internal.storage.rawMetadataMaintenance.commitArchive,
+        args
+      )
+    ).toBe(false);
+    expect(
+      await t.run((ctx) =>
+        ctx.db.system.query("_scheduled_functions").collect()
+      )
+    ).toHaveLength(pending.length);
   });
 
   test("commitArchive removes the orphaned copy when the card is gone", async () => {
