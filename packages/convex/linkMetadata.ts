@@ -165,17 +165,15 @@ export const updateCardMetadataHandler = async (
 
   const previousImageRef = previousLinkPreview?.imageStorageKey;
   const nextImageRef = nextLinkPreview?.imageStorageKey;
+  // Obsolete storage objects are deleted only after the card patch below
+  // succeeds. patchCardWithSearchSync stands down during account deletion
+  // (returns false), and deleting first would leave the unchanged card
+  // referencing removed objects.
+  const pendingStorageDeletes: string[] = [];
 
   if (previousImageRef) {
     if (nextImageRef && nextImageRef !== previousImageRef) {
-      try {
-        await deleteObject(ctx, previousImageRef);
-      } catch (error) {
-        console.error(
-          `[linkMetadata] Failed to delete previous OG image for card ${cardId}:`,
-          error
-        );
-      }
+      pendingStorageDeletes.push(previousImageRef);
     } else if (nextLinkPreview) {
       if (!nextLinkPreview.imageStorageKey) {
         nextLinkPreview.imageStorageKey = previousLinkPreview.imageStorageKey;
@@ -193,11 +191,6 @@ export const updateCardMetadataHandler = async (
 
   const previousScreenshotRef = previousLinkPreview?.screenshotStorageKey;
   const nextScreenshotRef = nextLinkPreview?.screenshotStorageKey;
-  // Obsolete storage objects are deleted only after the card patch below
-  // succeeds. patchCardWithSearchSync stands down during account deletion
-  // (returns false), and deleting first would leave the unchanged card
-  // referencing removed objects.
-  const pendingStorageDeletes: string[] = [];
 
   if (previousScreenshotRef) {
     if (nextScreenshotRef && nextScreenshotRef !== previousScreenshotRef) {
@@ -293,6 +286,37 @@ export const updateCardMetadataHandler = async (
         { cardId }
       );
     }
+  } else {
+    // The patch was fenced by account deletion: the unchanged card keeps
+    // its current references, so objects this call introduced (new OG
+    // image, screenshot, media) would otherwise be orphaned - account
+    // deletion only removes keys collected from card rows.
+    const previousRefs = new Set<string>(
+      [
+        previousLinkPreview?.imageStorageKey,
+        previousLinkPreview?.screenshotStorageKey,
+        ...collectMediaStorageRefs(previousLinkPreview?.media),
+      ].filter((ref): ref is string => Boolean(ref))
+    );
+    const orphanedRefs = [
+      nextLinkPreview?.imageStorageKey,
+      nextLinkPreview?.screenshotStorageKey,
+      ...collectMediaStorageRefs(nextLinkPreview?.media),
+    ].filter(
+      (ref): ref is string => Boolean(ref) && !previousRefs.has(ref as string)
+    );
+    await Promise.all(
+      orphanedRefs.map(async (storageRef) => {
+        try {
+          await deleteObject(ctx, storageRef);
+        } catch (error) {
+          console.error(
+            `[linkMetadata] Failed to delete orphaned storage ${storageRef} for card ${cardId}:`,
+            error
+          );
+        }
+      })
+    );
   }
   return result;
 };
@@ -343,7 +367,9 @@ export const updateCardScreenshotHandler = async (
   };
 
   // Delete the replaced screenshot only after the patch succeeds; a
-  // fenced patch (account deletion) leaves the card referencing it.
+  // fenced patch (account deletion) leaves the card referencing it. On a
+  // fenced patch the freshly uploaded screenshot is the orphan instead:
+  // the card never references it, so remove it.
   const patched = await patchCardWithSearchSync(ctx, cardId, {
     metadata: updatedMetadata,
     updatedAt: Date.now(),
@@ -354,6 +380,18 @@ export const updateCardScreenshotHandler = async (
     } catch (error) {
       console.error(
         `[linkMetadata] Failed to delete previous screenshot for card ${cardId}:`,
+        error
+      );
+    }
+  } else if (
+    !patched &&
+    screenshotStorageKey !== existingLinkPreview.screenshotStorageKey
+  ) {
+    try {
+      await deleteObject(ctx, screenshotStorageKey);
+    } catch (error) {
+      console.error(
+        `[linkMetadata] Failed to delete orphaned screenshot for card ${cardId}:`,
         error
       );
     }
