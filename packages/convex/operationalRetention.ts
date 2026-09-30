@@ -4,6 +4,7 @@ import { env, internalMutation } from "./_generated/server";
 
 export const AUTH_CODE_RETENTION_GRACE_MS = 24 * 60 * 60 * 1000;
 const MAX_BATCHES = 20;
+export const RETENTION_SCAN_LEASE_MS = 15 * 60 * 1000;
 const kindValidator = v.union(
   v.literal("idempotency"),
   v.literal("nativeAuthCodes")
@@ -18,9 +19,11 @@ export const cleanupExpiredRecords = internalMutation({
     cursor: v.optional(v.union(v.string(), v.null())),
     dryRun: v.optional(v.boolean()),
     remainingBatches: v.optional(v.number()),
+    runId: v.optional(v.id("operationalRetentionStates")),
   },
   returns: v.object({
     cutoff: v.number(),
+    skipped: v.boolean(),
     examined: v.number(),
     eligible: v.number(),
     deleted: v.number(),
@@ -37,7 +40,9 @@ export const cleanupExpiredRecords = internalMutation({
     const latestCutoff =
       Date.now() -
       (args.kind === "nativeAuthCodes" ? AUTH_CODE_RETENTION_GRACE_MS : 0);
-    const cutoff = args.cutoff ?? latestCutoff;
+    let cutoff = args.cutoff ?? latestCutoff;
+    let cursor = args.cursor ?? null;
+    let runId = args.runId;
     if (!Number.isFinite(cutoff) || cutoff > latestCutoff) {
       throw new Error("Retention cutoff cannot include unexpired records");
     }
@@ -49,8 +54,49 @@ export const cleanupExpiredRecords = internalMutation({
     ) {
       throw new Error("Invalid retention batch budget");
     }
+    if (!dryRun) {
+      const state = await ctx.db
+        .query("operationalRetentionStates")
+        .withIndex("by_kind", (q) => q.eq("kind", args.kind))
+        .unique();
+      // Run IDs fence old scheduled work after recovery. Only one transactional
+      // cursor owner may scan each table; cron/manual requests never overlap it.
+      if (
+        (runId && state?._id !== runId) ||
+        (!runId &&
+          state &&
+          Date.now() - state.updatedAt < RETENTION_SCAN_LEASE_MS)
+      ) {
+        return {
+          cutoff: state?.cutoff ?? cutoff,
+          skipped: true,
+          examined: 0,
+          eligible: 0,
+          deleted: 0,
+          preservedPending: 0,
+          isDone: false,
+          continueCursor: state?.cursor ?? null,
+          continuationScheduled: false,
+        };
+      }
+      if (state) {
+        cutoff = state.cutoff;
+        cursor = state.cursor;
+        if (!runId) {
+          await ctx.db.delete("operationalRetentionStates", state._id);
+        }
+      }
+      if (!runId) {
+        runId = await ctx.db.insert("operationalRetentionStates", {
+          kind: args.kind,
+          cutoff,
+          cursor,
+          updatedAt: Date.now(),
+        });
+      }
+    }
     const options = {
-      cursor: args.cursor ?? null,
+      cursor,
       numItems: 100,
       maximumBytesRead: 2 * 1024 * 1024,
     };
@@ -94,6 +140,16 @@ export const cleanupExpiredRecords = internalMutation({
     }
     // Yield between bounded bursts while retaining the cursor. Restarting at the
     // first page would let expired pending reservations starve later responses.
+    if (runId && !dryRun) {
+      if (isDone) {
+        await ctx.db.delete("operationalRetentionStates", runId);
+      } else {
+        await ctx.db.patch("operationalRetentionStates", runId, {
+          cursor: continueCursor,
+          updatedAt: Date.now(),
+        });
+      }
+    }
     const continuationScheduled = !(dryRun || isDone);
     if (continuationScheduled) {
       await ctx.scheduler.runAfter(
@@ -101,6 +157,7 @@ export const cleanupExpiredRecords = internalMutation({
         internal.operationalRetention.cleanupExpiredRecords,
         {
           kind: args.kind,
+          runId,
           cutoff,
           cursor: continueCursor,
           dryRun: false,
@@ -111,6 +168,7 @@ export const cleanupExpiredRecords = internalMutation({
     }
     return {
       cutoff,
+      skipped: false,
       examined,
       eligible,
       deleted: dryRun ? 0 : eligible,

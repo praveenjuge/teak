@@ -1,5 +1,9 @@
 import { afterEach, describe, expect, test } from "bun:test";
-import { attachFileUrls, attachGridFileUrls } from "../../card/queryUtils";
+import {
+  attachCardSummaryUrls,
+  attachFileUrls,
+  attachGridFileUrls,
+} from "../../card/queryUtils";
 
 const PREVIOUS = {
   FILES_BASE: process.env.FILES_BASE,
@@ -57,6 +61,7 @@ describe("card/queryUtils.ts", () => {
     const original = structuredClone(storedCard);
     const [grid] = await attachGridFileUrls({}, [storedCard]);
     const [detail] = await attachFileUrls({}, [storedCard]);
+    const [summary] = await attachCardSummaryUrls({}, [storedCard]);
 
     expect(grid?.metadata?.linkPreview).toStrictEqual({
       status: "success",
@@ -71,6 +76,7 @@ describe("card/queryUtils.ts", () => {
     });
     expect(grid).not.toHaveProperty("workflowArtifactKeys");
     expect(detail).not.toHaveProperty("workflowArtifactKeys");
+    expect(summary).not.toHaveProperty("workflowArtifactKeys");
     expect(grid?.content).toBe(original.content);
     expect(grid?.notes).toBe(original.notes);
     expect(grid?.tags).toEqual(original.tags);

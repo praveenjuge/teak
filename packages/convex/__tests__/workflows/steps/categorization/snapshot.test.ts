@@ -36,6 +36,8 @@ test("categorization snapshots exclude unrelated customer fields without modifyi
   });
   expect(snapshot).not.toHaveProperty("content");
   expect(snapshot).not.toHaveProperty("notes");
+  expect(snapshot).not.toHaveProperty("tags");
+  expect(snapshot).not.toHaveProperty("aiTranscript");
   expect(snapshot.metadata.linkPreview).not.toHaveProperty("media");
   expect(JSON.stringify(snapshot).length).toBeLessThan(1024);
   expect(card).toEqual(before);

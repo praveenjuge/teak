@@ -187,6 +187,13 @@ describe("metadata handler", () => {
     scheduler: mockScheduler,
   } as any;
 
+  const expectSaved = (aiTags: string[], aiSummary: string) => {
+    expect(mockRunMutation).toHaveBeenCalledWith(
+      internal.workflows.aiMetadata.mutations.updateCardAI,
+      expect.objectContaining({ cardId: "c1", aiTags, aiSummary })
+    );
+  };
+
   beforeEach(() => {
     mockRunQuery.mockReset();
     mockRunMutation.mockReset();
@@ -421,7 +428,7 @@ describe("metadata handler", () => {
       expect(result.aiTagsCount).toBe(1);
       expect(result.hasSummary).toBe(true);
       expect(result.confidence).toBe(0.95);
-      expect(mockRunMutation).toHaveBeenCalled();
+      expectSaved(["greeting"], "A greeting");
     });
 
     test("handles empty text content", async () => {
@@ -455,6 +462,7 @@ describe("metadata handler", () => {
 
       expect(result.aiTagsCount).toBe(1);
       expect(result.confidence).toBe(0.9);
+      expectSaved(["photo"], "A photo");
       expect(lastWorkerOpRequest().op).toBe("generate-image-metadata");
       expect(lastWorkerOpRequest().params.sourceKey).toBe("t1");
     });
@@ -572,6 +580,7 @@ describe("metadata handler", () => {
       });
 
       expect(result.aiTagsCount).toBe(1);
+      expectSaved(["video"], "Video content");
       expect(result.confidence).toBe(0.88);
       expect(lastWorkerOpRequest().params.sourceKey).toBe("t1");
     });
@@ -643,6 +652,7 @@ describe("metadata handler", () => {
 
       expect(result.hasTranscript).toBe(true);
       expect(result.aiTagsCount).toBe(1);
+      expectSaved(["speech"], "Audio content");
       expect(result.confidence).toBe(0.85);
       expect(lastWorkerOpRequest()).toMatchObject({
         op: "transcribe-audio",
@@ -689,6 +699,7 @@ describe("metadata handler", () => {
       });
 
       expect(result.aiTagsCount).toBe(1);
+      expectSaved(["website"], "Web content");
       expect(result.confidence).toBe(0.9);
     });
 

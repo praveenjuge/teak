@@ -7,6 +7,8 @@ mock.module("../storage/r2", r2MockModuleFactory);
 
 const {
   getFullCardForMetadataHandler,
+  getCardForLinkFetchHandler,
+  getCardForScreenshotHandler,
   getCardForMetadataHandler,
   updateCardMetadataHandler,
   updateCardScreenshotHandler,
@@ -542,4 +544,68 @@ test("workflow reader retains decisions without journaling customer content or p
   );
   ctx.db.get.mockResolvedValue(null);
   expect(await getCardForMetadataHandler(ctx, { cardId: "c1" })).toBeNull();
+});
+
+test("link fetch reader preserves classification gates and owner without unrelated payloads", async () => {
+  const ctx = createMockCtx();
+  const card = {
+    _id: "c1",
+    userId: "owner",
+    type: "link",
+    url: "https://example.com",
+    content: "content".repeat(10_000),
+    aiTranscript: "transcript".repeat(10_000),
+    processingStatus: {
+      classify: { status: "in_progress", confidence: 0.95 },
+      metadata: { status: "pending" },
+    },
+    metadata: {
+      linkCategory: { status: "pending", reason: "large".repeat(10_000) },
+      linkPreview: { status: "success", raw: { body: "raw".repeat(10_000) } },
+    },
+  };
+  ctx.db.get.mockResolvedValue(card);
+  expect(await getCardForLinkFetchHandler(ctx, { cardId: "c1" })).toEqual({
+    type: "link",
+    url: card.url,
+    userId: "owner",
+    processingStatus: { classify: { status: "in_progress" } },
+    metadata: { linkCategory: { status: "pending" } },
+  });
+  expect(await getFullCardForMetadataHandler(ctx, { cardId: "c1" })).toEqual(
+    card
+  );
+  ctx.db.get.mockResolvedValue(null);
+  expect(await getCardForLinkFetchHandler(ctx, { cardId: "c1" })).toBeNull();
+});
+
+test("screenshot reader retains existing screenshot guard without preview raw data or transcript", async () => {
+  const ctx = createMockCtx();
+  ctx.db.get.mockResolvedValue({
+    userId: "owner",
+    type: "link",
+    url: "https://example.com",
+    aiTranscript: "transcript".repeat(10_000),
+    metadata: {
+      linkPreview: {
+        status: "success",
+        screenshotStorageKey: "existing-screenshot",
+        raw: { body: "raw".repeat(10_000) },
+        media: [{ storageKey: "unrelated" }],
+      },
+    },
+  });
+  expect(await getCardForScreenshotHandler(ctx, { cardId: "c1" })).toEqual({
+    userId: "owner",
+    type: "link",
+    url: "https://example.com",
+    metadata: {
+      linkPreview: {
+        status: "success",
+        screenshotStorageKey: "existing-screenshot",
+      },
+    },
+  });
+  ctx.db.get.mockResolvedValue(null);
+  expect(await getCardForScreenshotHandler(ctx, { cardId: "c1" })).toBeNull();
 });

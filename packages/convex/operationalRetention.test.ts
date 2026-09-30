@@ -2,7 +2,10 @@
 import { convexTest } from "convex-test";
 import { afterEach, beforeEach, expect, test, vi } from "vitest";
 import { internal } from "./_generated/api";
-import { AUTH_CODE_RETENTION_GRACE_MS } from "./operationalRetention";
+import {
+  AUTH_CODE_RETENTION_GRACE_MS,
+  RETENTION_SCAN_LEASE_MS,
+} from "./operationalRetention";
 import schema from "./schema";
 
 const modules = import.meta.glob("./**/*.ts");
@@ -201,17 +204,7 @@ test("a pending first page cannot block expired completed records on later pages
     isDone: false,
     continuationScheduled: true,
   });
-  const second = await t.mutation(
-    internal.operationalRetention.cleanupExpiredRecords,
-    {
-      kind: "idempotency",
-      cutoff: first.cutoff,
-      cursor: first.continueCursor,
-      dryRun: false,
-      remainingBatches: 1,
-    }
-  );
-  expect(second).toMatchObject({ deleted: 2, isDone: true });
+  await t.finishAllScheduledFunctions(() => vi.runAllTimers());
   expect(
     (await t.run((ctx) => ctx.db.query("apiIdempotencyKeys").collect())).length
   ).toBe(100);
@@ -274,4 +267,61 @@ test("operational cleanup leaves complete customer cards unchanged", async () =>
     dryRun: false,
   });
   expect(await t.run((ctx) => ctx.db.query("cards").collect())).toEqual(before);
+});
+
+test("overlapping cron requests skip active scans and stale recovery fences old jobs", async () => {
+  const t = convexTest(schema, modules);
+  await t.run(async (ctx) => {
+    for (let i = 0; i < 101; i++) {
+      await ctx.db.insert("apiIdempotencyKeys", {
+        keyHash: `overlap-${i}`,
+        userId: "customer",
+        method: "POST",
+        path: "/v1/cards",
+        requestHash: "body",
+        state: i < 100 ? "pending" : "completed",
+        responseStatus: 201,
+        responseBody: null,
+        expiresAt: now - 1000 + i,
+        createdAt: now - 2000,
+        updatedAt: now - 2000,
+      });
+    }
+  });
+  const first = await t.mutation(
+    internal.operationalRetention.cleanupExpiredRecords,
+    { kind: "idempotency", dryRun: false, remainingBatches: 1 }
+  );
+  const [state] = await t.run((ctx) =>
+    ctx.db.query("operationalRetentionStates").collect()
+  );
+  const overlap = await t.mutation(
+    internal.operationalRetention.cleanupExpiredRecords,
+    { kind: "idempotency", dryRun: false }
+  );
+  expect(overlap).toMatchObject({
+    skipped: true,
+    examined: 0,
+    continueCursor: first.continueCursor,
+  });
+  vi.setSystemTime(now + RETENTION_SCAN_LEASE_MS + 1);
+  const recovered = await t.mutation(
+    internal.operationalRetention.cleanupExpiredRecords,
+    { kind: "idempotency", dryRun: false }
+  );
+  expect(recovered).toMatchObject({
+    deleted: 1,
+    isDone: true,
+    skipped: false,
+    cutoff: first.cutoff,
+  });
+  const oldJob = await t.mutation(
+    internal.operationalRetention.cleanupExpiredRecords,
+    { kind: "idempotency", dryRun: false, runId: state._id }
+  );
+  expect(oldJob).toMatchObject({ skipped: true, examined: 0 });
+  await t.finishAllScheduledFunctions(() => vi.runAllTimers());
+  expect(
+    await t.run((ctx) => ctx.db.query("operationalRetentionStates").collect())
+  ).toEqual([]);
 });

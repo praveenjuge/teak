@@ -165,7 +165,7 @@ describe("card/getCard.ts", () => {
     );
   });
 
-  test("getDeletedCards returns deleted list", async () => {
+  test("getDeletedCards returns deleted list without internal artifact keys", async () => {
     const cards = [
       {
         _id: "c1",
@@ -173,6 +173,7 @@ describe("card/getCard.ts", () => {
         userId: "u1",
         type: "text",
         content: "Hi",
+        workflowArtifactKeys: ["private-workflow-key"],
       },
     ];
     const ctx = withTestSession({
@@ -183,5 +184,7 @@ describe("card/getCard.ts", () => {
     const handler = (getDeletedCards as any).handler ?? getDeletedCards;
     const result = await handler(ctx, { limit: 1 });
     expect(result.length).toBe(1);
+    expect(result[0]).not.toHaveProperty("workflowArtifactKeys");
+    expect(cards[0].workflowArtifactKeys).toEqual(["private-workflow-key"]);
   });
 });

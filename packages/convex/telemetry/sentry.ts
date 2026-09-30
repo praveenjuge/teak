@@ -117,7 +117,9 @@ const safely = (callback: () => void): void => {
 
 const createMetricsRecorder = () => ({
   count: (name: string, value: number, attributes: MetricAttributes) => {
-    Sentry.metrics.count(name, value, { attributes });
+    Sentry.metrics.count(name, value, {
+      attributes: metricDimensions(attributes),
+    });
   },
   distribution: (
     name: string,
@@ -125,7 +127,10 @@ const createMetricsRecorder = () => ({
     attributes: MetricAttributes,
     unit?: "millisecond" | "second" | "byte" | "kilobyte" | "megabyte" | "none"
   ) => {
-    Sentry.metrics.distribution(name, value, { attributes, unit });
+    Sentry.metrics.distribution(name, value, {
+      attributes: metricDimensions(attributes),
+      unit,
+    });
   },
   gauge: (
     name: string,
@@ -133,7 +138,10 @@ const createMetricsRecorder = () => ({
     attributes: MetricAttributes,
     unit?: "millisecond" | "second" | "byte" | "kilobyte" | "megabyte" | "none"
   ) => {
-    Sentry.metrics.gauge(name, value, { attributes, unit });
+    Sentry.metrics.gauge(name, value, {
+      attributes: metricDimensions(attributes),
+      unit,
+    });
   },
 });
 
@@ -237,6 +245,11 @@ export const isRetryableBackendError = (error: unknown): boolean => {
   );
 };
 
+const metricDimensions = (attributes: MetricAttributes): MetricAttributes =>
+  Object.fromEntries(
+    Object.entries(attributes).filter(([key]) => key !== "duration.ms")
+  );
+
 const recordSpan = async <T>(
   input: BackendSpanInput,
   callback: () => Promise<T>
@@ -245,6 +258,8 @@ const recordSpan = async <T>(
     return await callback();
   }
   const attributes = await contextAttributes(input, input.stage);
+  // Durations are measurements and span data, never metric dimensions.
+  const metricAttributes = metricDimensions(attributes);
   const tracer = trace.getTracer(BACKEND_TRACER_NAME, resolveBackendRelease());
   let callbackStarted = false;
   try {
@@ -292,7 +307,7 @@ const recordSpan = async <T>(
                 TELEMETRY_METRICS.workflowStageDuration,
                 durationMs,
                 {
-                  attributes: { ...attributes, outcome },
+                  attributes: { ...metricAttributes, outcome },
                   unit: "millisecond",
                 }
               )
@@ -307,14 +322,14 @@ const recordSpan = async <T>(
           ) {
             safely(() =>
               Sentry.metrics.count(TELEMETRY_METRICS.workflowSkip, 1, {
-                attributes: { ...attributes, outcome: "skipped" },
+                attributes: { ...metricAttributes, outcome: "skipped" },
               })
             );
           }
           if (returnedFailure && isWorkflowOperation) {
             safely(() =>
               Sentry.metrics.count(TELEMETRY_METRICS.workflowFailure, 1, {
-                attributes: { ...attributes, outcome },
+                attributes: { ...metricAttributes, outcome },
               })
             );
           }
@@ -384,7 +399,7 @@ const recordSpan = async <T>(
                 durationMs,
                 {
                   attributes: {
-                    ...attributes,
+                    ...metricAttributes,
                     "error.class": errorClass,
                     outcome: "failure",
                   },
@@ -395,7 +410,7 @@ const recordSpan = async <T>(
             safely(() =>
               Sentry.metrics.count(TELEMETRY_METRICS.workflowFailure, 1, {
                 attributes: {
-                  ...attributes,
+                  ...metricAttributes,
                   "error.class": errorClass,
                   outcome: "failure",
                 },
@@ -406,7 +421,7 @@ const recordSpan = async <T>(
             safely(() =>
               Sentry.metrics.count(TELEMETRY_METRICS.workflowRetry, 1, {
                 attributes: {
-                  ...attributes,
+                  ...metricAttributes,
                   "error.class": errorClass,
                   outcome: "retry",
                 },
@@ -457,10 +472,15 @@ export const recordBackendMetric = (
   }
   safely(() => {
     if (unit) {
-      Sentry.metrics.distribution(name, value, { attributes, unit });
+      Sentry.metrics.distribution(name, value, {
+        attributes: metricDimensions(attributes),
+        unit,
+      });
       return;
     }
-    Sentry.metrics.count(name, value, { attributes });
+    Sentry.metrics.count(name, value, {
+      attributes: metricDimensions(attributes),
+    });
   });
 };
 
@@ -516,7 +536,7 @@ export const recordBackendHandledFailure = (
   if (input.operation.startsWith("teak.workflow")) {
     safely(() =>
       Sentry.metrics.count(TELEMETRY_METRICS.workflowFailure, 1, {
-        attributes,
+        attributes: metricDimensions(attributes),
       })
     );
   }
@@ -580,7 +600,11 @@ export const recordBackendOutcome = async (input: {
       workflowId: input.workflowId,
     },
     () => {
-      safely(() => Sentry.metrics.count(input.metric, 1, { attributes }));
+      safely(() =>
+        Sentry.metrics.count(input.metric, 1, {
+          attributes: metricDimensions(attributes),
+        })
+      );
       if (
         resolveBackendTraceSampleRate({
           environment: resolveBackendEnvironment(),

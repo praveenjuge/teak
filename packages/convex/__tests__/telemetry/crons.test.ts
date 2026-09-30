@@ -1,10 +1,51 @@
 // @ts-nocheck
-import { describe, expect, test } from "bun:test";
+import { describe, expect, mock, test } from "bun:test";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
-import { CRON_MONITORS } from "../../telemetry/crons";
+import { getFunctionName } from "convex/server";
+import {
+  CRON_MONITORS,
+  cleanupExpiredIdempotency,
+  cleanupExpiredNativeAuthCodes,
+} from "../../telemetry/crons";
 
 describe("Sentry cron monitoring", () => {
+  test.each([
+    ["idempotency", cleanupExpiredIdempotency],
+    ["nativeAuthCodes", cleanupExpiredNativeAuthCodes],
+  ])(
+    "retention cron %s runs only with explicit activation",
+    async (kind, action) => {
+      const previous = process.env.OPERATIONAL_RETENTION_ENABLED;
+      const runMutation = mock(async () => null);
+      try {
+        for (const flag of [undefined, "false", "TRUE"]) {
+          if (flag === undefined) {
+            delete process.env.OPERATIONAL_RETENTION_ENABLED;
+          } else {
+            process.env.OPERATIONAL_RETENTION_ENABLED = flag;
+          }
+          expect(await action._handler({ runMutation }, {})).toBeNull();
+          expect(runMutation).not.toHaveBeenCalled();
+        }
+        process.env.OPERATIONAL_RETENTION_ENABLED = "true";
+        expect(await action._handler({ runMutation }, {})).toBeNull();
+        expect(runMutation).toHaveBeenCalledTimes(1);
+        const [reference, args] = runMutation.mock.calls[0];
+        expect(getFunctionName(reference)).toBe(
+          "operationalRetention:cleanupExpiredRecords"
+        );
+        expect(args).toEqual({ kind, dryRun: false });
+      } finally {
+        if (previous === undefined) {
+          delete process.env.OPERATIONAL_RETENTION_ENABLED;
+        } else {
+          process.env.OPERATIONAL_RETENTION_ENABLED = previous;
+        }
+      }
+    }
+  );
+
   test("defines one bounded monitor for each scheduled job", () => {
     expect(Object.values(CRON_MONITORS)).toEqual([
       expect.objectContaining({

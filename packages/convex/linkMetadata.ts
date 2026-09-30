@@ -69,6 +69,70 @@ export const getCardForMetadata = internalQuery({
   handler: getCardForMetadataHandler,
 });
 
+// Actions need only their own gate and storage ownership fields. Keep large
+// content, transcripts and raw previews out of their query response.
+export const getCardForLinkFetchHandler = async (
+  ctx: QueryCtx,
+  { cardId }: { cardId: Id<"cards"> }
+) => {
+  const card = await ctx.db.get("cards", cardId);
+  if (!card) {
+    return null;
+  }
+  const category = card.metadata?.linkCategory;
+  // Older category payloads may carry the classification gate; current cards
+  // use processingStatus. Preserve the legacy gate without copying the payload.
+  const categoryStatus =
+    category && "status" in category && typeof category.status === "string"
+      ? category.status
+      : undefined;
+  return {
+    type: card.type,
+    url: card.url,
+    userId: card.userId,
+    processingStatus: card.processingStatus?.classify
+      ? { classify: { status: card.processingStatus.classify.status } }
+      : undefined,
+    metadata: card.metadata?.linkCategory
+      ? { linkCategory: { status: categoryStatus } }
+      : undefined,
+  };
+};
+
+export const getCardForScreenshotHandler = async (
+  ctx: QueryCtx,
+  { cardId }: { cardId: Id<"cards"> }
+) => {
+  const card = await ctx.db.get("cards", cardId);
+  if (!card) {
+    return null;
+  }
+  return {
+    type: card.type,
+    url: card.url,
+    userId: card.userId,
+    metadata: card.metadata?.linkPreview
+      ? {
+          linkPreview: {
+            status: card.metadata.linkPreview.status,
+            screenshotStorageKey:
+              card.metadata.linkPreview.screenshotStorageKey,
+          },
+        }
+      : undefined,
+  };
+};
+
+export const getCardForLinkFetch = internalQuery({
+  args: { cardId: v.id("cards") },
+  handler: getCardForLinkFetchHandler,
+});
+
+export const getCardForScreenshot = internalQuery({
+  args: { cardId: v.id("cards") },
+  handler: getCardForScreenshotHandler,
+});
+
 export const updateCardMetadataHandler = async (
   ctx: any,
   { cardId, linkPreview, status }: any

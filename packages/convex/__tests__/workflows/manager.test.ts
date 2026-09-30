@@ -137,7 +137,10 @@ describe("workflow manager", () => {
     test("schedules cleanup seven days after completion", async () => {
       const runAfter = mock().mockResolvedValue("scheduled_123");
       const runQuery = mock().mockResolvedValue({
-        workflow: { generationNumber: 3 },
+        workflow: {
+          generationNumber: 3,
+          runResult: { kind: "success", returnValue: null },
+        },
       });
 
       await scheduleCompletedWorkflowCleanupHandler(
@@ -148,7 +151,11 @@ describe("workflow manager", () => {
       expect(runAfter).toHaveBeenCalledWith(
         WORKFLOW_RETENTION_MS,
         expect.anything(),
-        { generationNumber: 3, workflowId: "wf_123" }
+        {
+          generationNumber: 3,
+          workflowId: "wf_123",
+          terminalObservedAt: expect.any(Number),
+        }
       );
     });
 
@@ -251,6 +258,106 @@ describe("workflow manager", () => {
           )
         ).toBe(false);
         expect(cleanup).not.toHaveBeenCalled();
+      }
+    });
+
+    test("retains canceled and oversized journals for seven days from terminal observation", async () => {
+      for (const journal of [
+        { ok: true, journalEntries: [] },
+        { ok: false, journalEntries: [] },
+        {
+          ok: true,
+          journalEntries: [
+            { step: { completedAt: Date.now() - 2 * WORKFLOW_RETENTION_MS } },
+          ],
+        },
+      ]) {
+        const record = {
+          args: { cardId: "card1" },
+          generationNumber: 3,
+          runResult: { kind: "canceled" },
+        };
+        const runQuery = mock(() =>
+          Promise.resolve({ workflow: record, ...journal })
+        );
+        const runAfter = mock();
+        const cleanup = mock().mockResolvedValue(true);
+        workflow.cleanup = cleanup;
+        const ctx = { runQuery, scheduler: { runAfter } };
+        expect(
+          await cleanupCompletedWorkflowHandler(
+            ctx as any,
+            "workflow1" as any,
+            3
+          )
+        ).toBe(false);
+        expect(cleanup).not.toHaveBeenCalled();
+        const [delay, , scheduled] = runAfter.mock.calls[0];
+        expect(delay).toBe(WORKFLOW_RETENTION_MS);
+        expect(scheduled.terminalObservedAt).toBeGreaterThan(Date.now() - 1000);
+        expect(
+          await cleanupCompletedWorkflowHandler(
+            ctx as any,
+            "workflow1" as any,
+            3,
+            Date.now() - WORKFLOW_RETENTION_MS - 1
+          )
+        ).toBe(true);
+        expect(runAfter).toHaveBeenCalledWith(0, expect.anything(), {
+          references: [],
+          cardId: "card1",
+          workflowId: "workflow1",
+          generationNumber: 3,
+        });
+      }
+    });
+
+    test("preserves recent terminal observations and journal generation races", async () => {
+      for (const scenario of [
+        { observedAt: Date.now(), journalGeneration: 3 },
+        {
+          observedAt: Date.now() + WORKFLOW_RETENTION_MS,
+          journalGeneration: 3,
+        },
+        {
+          observedAt: Date.now() - 2 * WORKFLOW_RETENTION_MS,
+          journalGeneration: 4,
+        },
+      ]) {
+        const record = {
+          args: { cardId: "card1" },
+          generationNumber: 3,
+          runResult: { kind: "canceled" },
+        };
+        const runQuery = mock()
+          .mockResolvedValueOnce({ workflow: record })
+          .mockResolvedValueOnce({
+            workflow: {
+              ...record,
+              generationNumber: scenario.journalGeneration,
+            },
+            ok: false,
+            journalEntries: [],
+          });
+        const cleanup = mock();
+        workflow.cleanup = cleanup;
+        const runAfter = mock();
+        expect(
+          await cleanupCompletedWorkflowHandler(
+            { runQuery, scheduler: { runAfter } } as any,
+            "workflow1" as any,
+            3,
+            scenario.observedAt
+          )
+        ).toBe(false);
+        expect(cleanup).not.toHaveBeenCalled();
+        if (scenario.journalGeneration === 4) {
+          expect(runAfter).not.toHaveBeenCalled();
+        } else {
+          expect(runAfter.mock.calls[0][0]).toBeGreaterThanOrEqual(
+            WORKFLOW_RETENTION_MS - 1000
+          );
+        }
       }
     });
 
@@ -452,10 +559,14 @@ describe("workflow manager", () => {
       const [delay, , args] = runAfter.mock.calls[0];
       expect(delay).toBeGreaterThanOrEqual(59_000);
       expect(delay).toBeLessThanOrEqual(60_000);
-      expect(args).toEqual({ generationNumber: 3, workflowId: "wf_123" });
+      expect(args).toEqual({
+        generationNumber: 3,
+        workflowId: "wf_123",
+        terminalObservedAt: completedAt,
+      });
     });
 
-    test("fails closed when historical workflow journals are incomplete", async () => {
+    test("schedules a full grace period when historical workflow journals are incomplete", async () => {
       const runQuery = mock().mockResolvedValue({
         journalEntries: [],
         ok: false,
@@ -472,12 +583,17 @@ describe("workflow manager", () => {
         { dryRun: false, workflowIds: ["wf_oversized"] as any }
       );
 
-      expect(result.oversizedCount).toBe(1);
-      expect(result.scheduledCount).toBe(0);
-      expect(runAfter).not.toHaveBeenCalled();
+      expect(result.oversizedCount).toBe(0);
+      expect(result.scheduledCount).toBe(1);
+      expect(runAfter.mock.calls[0][0]).toBeGreaterThanOrEqual(
+        WORKFLOW_RETENTION_MS - 1000
+      );
+      expect(runAfter.mock.calls[0][2].terminalObservedAt).toBeGreaterThan(
+        Date.now() - 1000
+      );
     });
 
-    test("fails closed when historical completion timestamps are missing", async () => {
+    test("schedules a full grace period when historical completion timestamps are missing", async () => {
       const runQuery = mock().mockResolvedValue({
         journalEntries: [{ step: {} }],
         ok: true,
@@ -494,9 +610,14 @@ describe("workflow manager", () => {
         { dryRun: false, workflowIds: ["wf_no_timestamp"] as any }
       );
 
-      expect(result.noTimestampCount).toBe(1);
-      expect(result.scheduledCount).toBe(0);
-      expect(runAfter).not.toHaveBeenCalled();
+      expect(result.noTimestampCount).toBe(0);
+      expect(result.scheduledCount).toBe(1);
+      expect(runAfter.mock.calls[0][0]).toBeGreaterThanOrEqual(
+        WORKFLOW_RETENTION_MS - 1000
+      );
+      expect(runAfter.mock.calls[0][2].terminalObservedAt).toBeGreaterThan(
+        Date.now() - 1000
+      );
     });
 
     test("reports partial scheduling failures without losing successful counts", async () => {

@@ -271,12 +271,9 @@ export const captureScreenshot = internalAction({
     retryCount: v.optional(v.number()),
   },
   handler: async (ctx, { cardId, retryCount = 0 }) => {
-    const card = await ctx.runQuery(
-      linkMetadataInternal.getFullCardForMetadata,
-      {
-        cardId,
-      }
-    );
+    const card = await ctx.runQuery(linkMetadataInternal.getCardForScreenshot, {
+      cardId,
+    });
 
     if (card?.type !== "link" || !card.url) {
       return;

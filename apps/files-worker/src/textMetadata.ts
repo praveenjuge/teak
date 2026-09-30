@@ -31,6 +31,24 @@ const VALIDATION_ERROR =
 const CAPACITY_ERROR =
   /\b(?:rate limit(?:ed| reached)?|too many requests|tokens per (?:day|minute)|tpd|tpm|429|3040)\b|capacity temporarily exceeded/iu;
 
+const isCapacityError = (error: unknown): boolean => {
+  if (error && typeof error === "object") {
+    const facts = error as {
+      status?: unknown;
+      statusCode?: unknown;
+      code?: unknown;
+    };
+    const status = facts.status ?? facts.statusCode;
+    const code = facts.code;
+    if (typeof status === "number" || typeof code === "number") {
+      return status === 429 || code === 3040 || code === 3036;
+    }
+  }
+  return CAPACITY_ERROR.test(
+    error instanceof Error ? error.message : String(error)
+  );
+};
+
 const responseText = (response: unknown): string | null => {
   if (typeof response === "string") {
     return response;
@@ -86,11 +104,7 @@ export const generateTextMetadataForOp = async (
         response_format: { type: "json_object" },
       });
     } catch (error) {
-      if (
-        CAPACITY_ERROR.test(
-          error instanceof Error ? error.message : String(error)
-        )
-      ) {
+      if (isCapacityError(error)) {
         throw new MetadataCapacityError(facts);
       }
       const message = error instanceof Error ? error.message : String(error);

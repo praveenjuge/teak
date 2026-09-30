@@ -30,6 +30,7 @@ import {
   detectProvider,
   enrichWithStructuredData,
   mergeFacts,
+  pickFields,
 } from "./enrichment";
 import { enrichProvider } from "./providers";
 
@@ -162,19 +163,6 @@ export const classifyLinkCategory = (
     providerHint: resolution.provider,
     reason: resolution.reason,
   };
-};
-
-const pickFields = (
-  value: Record<string, any>,
-  fields: string[]
-): Record<string, any> => {
-  const result: Record<string, any> = {};
-  for (const field of fields) {
-    if (value[field] !== undefined) {
-      result[field] = value[field];
-    }
-  }
-  return result;
 };
 
 interface StructuredDataResult {

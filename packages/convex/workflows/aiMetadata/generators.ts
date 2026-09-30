@@ -79,7 +79,8 @@ export const isAiMetadataDeferredError = (error: unknown): boolean => {
   return (
     PROVIDER_CAPACITY_ERROR.test(message) ||
     JSON_VALIDATION_ERROR.test(message) ||
-    RASTER_THUMBNAIL_PENDING_ERROR.test(message)
+    RASTER_THUMBNAIL_PENDING_ERROR.test(message) ||
+    message === "files_worker_metadata_unavailable"
   );
 };
 

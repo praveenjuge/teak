@@ -62,7 +62,10 @@ describe("signed text/link metadata", () => {
         env(run)
       );
       expect(response.status).toBe(200);
-      expect((await response.json()).data).toMatchObject(result);
+      expect((await response.json()).data).toEqual({
+        ...result,
+        validationRetryCount: 0,
+      });
       expect(run).toHaveBeenCalledTimes(1);
     }
   );
@@ -129,6 +132,29 @@ describe("signed text/link metadata", () => {
       );
       expect(response.status).toBe(429);
       expect((await response.json()).error.code).toBe("AI_CAPACITY");
+      expect(run).toHaveBeenCalledTimes(1);
+    }
+  );
+  test.each([
+    { status: 429, code: undefined, expected: 429 },
+    { status: undefined, code: 3040, expected: 429 },
+    { status: 400, code: 5004, expected: 500 },
+  ])(
+    "uses structured provider errors before message text: $expected",
+    async ({ status, code, expected }) => {
+      const run = mock(() =>
+        Promise.reject(
+          Object.assign(new Error("Unrelated data includes 429"), {
+            status,
+            code,
+          })
+        )
+      );
+      const response = await handleInternalOp(
+        await signedRequest("generate-text-metadata", { prompt: "Content" }),
+        env(run)
+      );
+      expect(response.status).toBe(expected);
       expect(run).toHaveBeenCalledTimes(1);
     }
   );

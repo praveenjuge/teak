@@ -188,12 +188,12 @@ test("journal cleanup collects only unique references from its own card, workflo
       owner
     )
   ).toEqual([ref]);
-  expect(() =>
+  expect(
     collectWorkflowArtifacts(ref, { ...owner, workflowId: "workflow2" })
-  ).toThrow("owner_mismatch");
-  expect(() =>
+  ).toEqual([]);
+  expect(
     collectWorkflowArtifacts(ref, { ...owner, generationNumber: 2 })
-  ).toThrow("owner_mismatch");
+  ).toEqual([]);
   expect(
     collectWorkflowArtifacts(
       { rawStorageKey: "users/user1/card1/raw-linkPreview/keep.json" },
@@ -342,4 +342,21 @@ test("failed verification keeps private copies tracked and teardown racing PUT q
   expect(scheduler.runAfter.mock.calls.at(-1)?.[2]).toEqual({
     keys: [trackedKey],
   });
+});
+
+test("artifact cleanup traverses unrelated provider artifactVersion fields", async () => {
+  const ref = await archiveWorkflowValue(ctx, card, "workflow1", {
+    raw: "x".repeat(20_000),
+  });
+  const owner = {
+    cardId: "card1",
+    workflowId: "workflow1",
+    generationNumber: 3,
+  };
+  expect(
+    collectWorkflowArtifacts(
+      { raw: { artifactVersion: 1, nested: ref } },
+      owner
+    )
+  ).toEqual([ref]);
 });

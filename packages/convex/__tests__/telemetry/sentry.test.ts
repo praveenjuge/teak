@@ -208,6 +208,28 @@ describe("backend Sentry OpenTelemetry", () => {
     expect(sentryFlush).toHaveBeenCalledWith(2000);
   });
 
+  test("keeps workflow duration on spans without creating metric dimensions", async () => {
+    await telemetry.withBackendSpan(
+      {
+        attributes: { "duration.ms": 4500, "card.type": "link" },
+        name: "workflow.completed",
+        operation: "teak.workflow",
+        surface: "backend",
+      },
+      async () => ({ mode: "skipped" })
+    );
+    expect(spanSetAttribute).toHaveBeenCalledWith("duration.ms", 4500);
+    expect(sentryMetricDistribution).toHaveBeenCalledTimes(1);
+    expect(sentryMetricCount).toHaveBeenCalledTimes(1);
+    for (const call of [
+      ...sentryMetricDistribution.mock.calls,
+      ...sentryMetricCount.mock.calls,
+    ]) {
+      expect(call[2].attributes["duration.ms"]).toBeUndefined();
+      expect(call[2].attributes["card.type"]).toBe("link");
+    }
+  });
+
   test("flushes nested concurrent emissions once after all metrics are recorded", async () => {
     await telemetry.withBackendSpan(
       { name: "parent", operation: "teak.workflow", surface: "backend" },
@@ -311,6 +333,31 @@ describe("backend Sentry OpenTelemetry", () => {
           ],
         })
       ).not.toBeNull();
+      expect(
+        filter({
+          ...event,
+          spans: [
+            {
+              op: "fetch",
+              start_timestamp: 1,
+              timestamp: 4,
+              data: { outcome: "success" },
+            },
+          ],
+        })
+      ).not.toBeNull();
+      for (const status of [
+        "failed_precondition",
+        "unimplemented",
+        "cancelled",
+      ]) {
+        expect(
+          filter({
+            ...event,
+            spans: [{ op: "fetch", status, data: { outcome: "success" } }],
+          })
+        ).not.toBeNull();
+      }
       Math.random = () => 0.05;
       expect(filter(event)).not.toBeNull();
     } finally {
@@ -458,6 +505,7 @@ describe("backend Sentry OpenTelemetry", () => {
 
   test("records canonical outcomes without raw identifiers", async () => {
     const sent = await telemetry.recordBackendOutcome({
+      attributes: { "duration.ms": 3500 },
       cardId: "card-123",
       metric: "teak.card.create.success",
       operation: "teak.card.create",
@@ -475,6 +523,8 @@ describe("backend Sentry OpenTelemetry", () => {
     expect(JSON.stringify(attributes)).not.toContain("card-123");
     expect(JSON.stringify(attributes)).not.toContain("user-123");
     expect(attributes.attributes.origin).toBe("web");
+    expect(attributes.attributes["duration.ms"]).toBeUndefined();
+    expect(spanSetAttribute).toHaveBeenCalledWith("duration.ms", 3500);
     expect(startActiveSpan).toHaveBeenCalledTimes(1);
     expect(spanSetStatus).toHaveBeenCalledWith({ code: 1 });
   });

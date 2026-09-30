@@ -376,15 +376,12 @@ export const collectWorkflowArtifacts = (
     if (!item || typeof item !== "object") {
       return;
     }
-    if ("artifactVersion" in item) {
-      if (
-        !isWorkflowArtifactRef(item) ||
-        item.cardId !== owner.cardId ||
-        item.workflowId !== owner.workflowId ||
-        item.generationNumber > owner.generationNumber
-      ) {
-        throw new Error("workflow_artifact_cleanup_owner_mismatch");
-      }
+    if (
+      isWorkflowArtifactRef(item) &&
+      item.cardId === owner.cardId &&
+      item.workflowId === owner.workflowId &&
+      item.generationNumber <= owner.generationNumber
+    ) {
       refs.set(item.key, item);
       if (refs.size > 100) {
         throw new Error("workflow_artifact_cleanup_too_large");

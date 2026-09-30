@@ -73,8 +73,9 @@ Keep `OPERATIONAL_RETENTION_ENABLED` and `FILES_TEXT_AI_ENABLED` unset or `false
 until the deployed Files Worker advertises both metadata operations and the
 production snapshot and dry-run report have been checked. Deploy Worker support
 before the Convex consumer. Enable text AI first, verify an isolated text/link
-journey, then enable retention. Disable either flag to stop its new work; queued
-retention batches recheck the flag before deleting anything.
+journey, then enable retention. Disabling text AI routes text/link generation back
+to the direct Convex provider; it does not stop AI work or its costs. Disabling
+retention stops deletion; queued batches recheck the flag before deleting anything.
 
 Text/link metadata uses the existing Workers AI binding and the same Qwen model,
 prompts, input limit, output validation and retry policy. Inputs are signed text,
@@ -94,7 +95,9 @@ bunx convex run --prod operationalRetention:cleanupExpiredRecords '{"kind":"nati
 Pass the frozen `cutoff` and returned `continueCursor` as `cursor` to inspect
 later pages. Apply with `dryRun:false` only after checking eligibility. Each batch
 reads at most 100 records/2 MiB. Twenty batches form a burst; additional pages
-continue after five minutes using the same cutoff and cursor. Pending API
+continue after five minutes using the same cutoff and cursor. A per-table
+transactional scan lease prevents overlapping cron/manual runs; stale leases
+recover their stored cursor after 15 minutes and fence old scheduled jobs. Pending API
 reservations and unexpired replay responses are always retained. Native exchange
 codes are eligible only after expiry plus 24 hours; this does not touch sessions,
 users, accounts, OAuth tokens, signing keys or API keys. Compare preserved IDs and

@@ -351,6 +351,7 @@ describe("aiMetadata generators", () => {
     { code: "AI_CAPACITY", httpStatus: 429, capacity: true },
     { code: "AI_INVALID_OUTPUT", httpStatus: 502, capacity: false },
     { code: "MALFORMED_SUCCESS", httpStatus: 200, capacity: false },
+    { code: "UNSUPPORTED", httpStatus: 501, capacity: false },
   ])(
     "keeps enabled Worker $code errors deferred without calling direct AI",
     async ({ code, httpStatus, capacity }) => {
@@ -420,7 +421,7 @@ describe("aiMetadata generators", () => {
             (metric) => metric.name === TELEMETRY_METRICS.aiLatency
           )
         ).toHaveLength(1);
-        if (code !== "MALFORMED_SUCCESS") {
+        if (code !== "MALFORMED_SUCCESS" && code !== "UNSUPPORTED") {
           expect(
             metrics
               .filter(

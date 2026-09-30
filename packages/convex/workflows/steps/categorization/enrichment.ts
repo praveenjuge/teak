@@ -40,7 +40,7 @@ const toArray = <T>(value: T | T[] | undefined): T[] => {
   return Array.isArray(value) ? value : [value];
 };
 
-const pickFields = (
+export const pickFields = (
   value: Record<string, any>,
   fields: string[]
 ): Record<string, any> => {

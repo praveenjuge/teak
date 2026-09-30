@@ -9,20 +9,6 @@ import {
   type TelemetryEnvironment,
 } from "../shared/telemetry";
 
-const failureStatuses = new Set([
-  "internal_error",
-  "unknown_error",
-  "deadline_exceeded",
-  "permission_denied",
-  "unauthenticated",
-  "unavailable",
-  "resource_exhausted",
-  "invalid_argument",
-  "not_found",
-  "aborted",
-  "data_loss",
-]);
-
 /** Tail sampling preserves a critical child even when its routine parent succeeds. */
 export const sampleBackendTransaction = (
   event: TransactionEvent,
@@ -38,12 +24,20 @@ export const sampleBackendTransaction = (
   const rates = spans.map((span) => {
     const data = span?.data ?? {};
     const status = span?.status;
+    const spanDuration =
+      span &&
+      "timestamp" in span &&
+      "start_timestamp" in span &&
+      typeof span.timestamp === "number" &&
+      typeof span.start_timestamp === "number"
+        ? (span.timestamp - span.start_timestamp) * 1000
+        : rootDuration;
     const duration =
       typeof data["duration.ms"] === "number"
         ? data["duration.ms"]
-        : rootDuration;
+        : spanDuration;
     let outcome = typeof data.outcome === "string" ? data.outcome : undefined;
-    if (status && failureStatuses.has(status)) {
+    if (status && status !== "ok") {
       outcome = "failure";
     }
     return resolveBackendTraceSampleRate({

@@ -618,6 +618,12 @@ export default defineSchema({
   })
     .index("by_cardId", ["cardId"])
     .index("by_pending", ["pending"]),
+  operationalRetentionStates: defineTable({
+    kind: v.union(v.literal("idempotency"), v.literal("nativeAuthCodes")),
+    cutoff: v.number(),
+    cursor: v.union(v.string(), v.null()),
+    updatedAt: v.number(),
+  }).index("by_kind", ["kind"]),
   apiIdempotencyKeys: defineTable(apiIdempotencyKeyValidator)
     .index("by_user_key_hash", ["userId", "keyHash"])
     .index("by_expires_at", ["expiresAt"]),
