@@ -1,6 +1,7 @@
 import { describe, expect, mock, test } from "bun:test";
 import { type FunctionReference, getFunctionAddress } from "convex/server";
-import crons, { cleanupResendEmails } from "../crons";
+import crons from "../crons";
+import { cleanupResendEmails } from "../telemetry/crons";
 
 const EXPECTED_CRONS: Record<string, { cron: string; handler: string }> = {
   "cleanup-resend-emails": {
@@ -58,40 +59,51 @@ describe("crons.ts", () => {
   }
 });
 
-test("email retention schedules bounded component cleanup with safe horizons", async () => {
-  const runAfter = mock(
-    (
-      _delay: number,
-      _reference: FunctionReference<"mutation">,
-      _args: { olderThan: number }
-    ) => Promise.resolve("scheduled")
+test("email retention awaits component cleanup with safe horizons", async () => {
+  const calls: {
+    reference: string | undefined;
+    args: { olderThan: number };
+  }[] = [];
+  const runMutation = mock(
+    (ref: FunctionReference<"mutation">, args: { olderThan: number }) => {
+      calls.push({ reference: getFunctionAddress(ref).reference, args });
+      return Promise.resolve(null);
+    }
   );
   await (
     cleanupResendEmails as unknown as {
       _handler: (ctx: unknown, args: object) => Promise<null>;
     }
-  )._handler({ scheduler: { runAfter } }, {});
-  expect(runAfter).toHaveBeenCalledTimes(2);
-  expect(
-    runAfter.mock.calls.map(
-      (
-        call: [number, FunctionReference<"mutation">, { olderThan: number }]
-      ) => ({
-        delay: call[0],
-        reference: getFunctionAddress(call[1]).reference,
-        args: call[2],
-      })
-    )
-  ).toEqual([
+  )._handler({ runMutation }, {});
+  expect(calls).toEqual([
     {
-      delay: 0,
       reference: "_reference/childComponent/resend/lib/cleanupOldEmails",
       args: { olderThan: 7 * 24 * 60 * 60 * 1000 },
     },
     {
-      delay: 0,
       reference: "_reference/childComponent/resend/lib/cleanupAbandonedEmails",
       args: { olderThan: 28 * 24 * 60 * 60 * 1000 },
     },
   ]);
 });
+
+for (const failingBatch of [1, 2]) {
+  test(`email cleanup reports a failure in batch ${failingBatch}`, async () => {
+    let calls = 0;
+    const runMutation = mock(() => {
+      calls += 1;
+      if (calls === failingBatch) {
+        return Promise.reject(new Error("cleanup_failed"));
+      }
+      return Promise.resolve(null);
+    });
+    await expect(
+      (
+        cleanupResendEmails as unknown as {
+          _handler: (ctx: unknown, args: object) => Promise<null>;
+        }
+      )._handler({ runMutation }, {})
+    ).rejects.toThrow("cleanup_failed");
+    expect(calls).toBe(failingBatch);
+  });
+}

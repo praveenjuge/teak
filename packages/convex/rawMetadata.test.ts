@@ -252,6 +252,69 @@ describe("raw metadata archival", () => {
     expect(archivedFields).toEqual(originalFields);
   });
 
+  test("a failed card remains intact while later cards archive and the page cursor advances", async () => {
+    vi.stubEnv("FILES_BASE", "https://files.example.com");
+    vi.stubEnv("FILES_SIGNING_SECRET", "test-secret");
+    const { t, cardId, card } = await setup();
+    const { _id: _originalId, _creationTime: _originalTime, ...fields } = card;
+    const [second, third] = await t.run(async (ctx) => [
+      await ctx.db.insert("cards", fields),
+      await ctx.db.insert("cards", fields),
+    ]);
+    const objects = new Map<string, Uint8Array>();
+    vi.stubGlobal(
+      "fetch",
+      vi.fn((url: string, init?: RequestInit) => {
+        const path = new URL(url).pathname;
+        if (init?.method === "PUT") {
+          const key = decodeURIComponent(path.replace("/__upload/v1/", ""));
+          if (key.includes(`/cards/${cardId}/`)) {
+            return Promise.resolve(
+              new Response("unavailable", { status: 503 })
+            );
+          }
+          const bytes = init.body as Uint8Array;
+          objects.set(key, bytes);
+          return Promise.resolve(
+            Response.json({
+              ok: true,
+              data: { etag: "etag", key, size: bytes.byteLength },
+            })
+          );
+        }
+        const bytes = objects.get(path.slice(1));
+        return Promise.resolve(
+          bytes
+            ? new Response(new Uint8Array(bytes))
+            : new Response("missing", { status: 404 })
+        );
+      })
+    );
+    const page = await t.action(
+      internal.storage.rawMetadataMaintenance.archivePage,
+      { limit: 2, dryRun: false }
+    );
+    expect(page.failed).toEqual([{ cardId, error: "archive_failed" }]);
+    expect(page.archived).toBe(2);
+    expect(page.cursor).not.toBeNull();
+    expect(await t.run((ctx) => ctx.db.get("cards", cardId))).toEqual(card);
+    expect(
+      (await t.run((ctx) => ctx.db.get("cards", second)))?.metadata?.linkPreview
+        ?.raw
+    ).toBeUndefined();
+    expect(
+      (await t.run((ctx) => ctx.db.get("cards", third)))?.metadata?.linkPreview
+        ?.raw
+    ).toBeDefined();
+    const next = await t.query(
+      internal.storage.rawMetadataMaintenance.pageInlineRaw,
+      { limit: 2, cursor: page.cursor! }
+    );
+    expect(
+      next.cards.map((item: { cardId: Doc<"cards">["_id"] }) => item.cardId)
+    ).toEqual([third]);
+  });
+
   test("failed upload or corrupt readback never clears inline customer metadata", async () => {
     vi.stubEnv("FILES_BASE", "https://files.example.com");
     vi.stubEnv("FILES_SIGNING_SECRET", "test-secret");
@@ -348,6 +411,7 @@ describe("raw metadata archival", () => {
     for (const raw of [
       undefined,
       Number.NaN,
+      -0,
       1n,
       new Uint8Array([1]),
       { value: undefined },
@@ -373,7 +437,20 @@ describe("raw metadata archival", () => {
         : new Response(json)
     );
     vi.stubGlobal("fetch", fetchMock);
-    await copyAndVerifyRaw(key, json, digest);
+    await expect(
+      copyAndVerifyRaw(fixture, "linkCategory", json, "../bad")
+    ).rejects.toThrow("invalid_key");
+    await expect(
+      copyAndVerifyRaw(
+        { ...fixture, _id: "../other" as Doc<"cards">["_id"] },
+        "linkCategory",
+        json,
+        digest
+      )
+    ).rejects.toThrow("invalid_key");
+    expect(fetchMock).not.toHaveBeenCalled();
+    await copyAndVerifyRaw(fixture, "linkCategory", json, digest);
+    expect(fetchMock.mock.calls[1][1]?.redirect).toBe("error");
     expect(fetchMock.mock.calls[0][1]?.body).toEqual(
       new TextEncoder().encode(json)
     );

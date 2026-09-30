@@ -55,12 +55,12 @@ describe("card/queryUtils.ts", () => {
     const [grid] = await attachGridFileUrls({}, [storedCard]);
     const [detail] = await attachFileUrls({}, [storedCard]);
 
-    expect(grid?.metadata?.linkPreview).toEqual({
+    expect(grid?.metadata?.linkPreview).toStrictEqual({
       status: "success",
       title: "Preview title",
       description: "Preview description",
     });
-    expect(grid?.metadata?.linkCategory).toEqual({
+    expect(grid?.metadata?.linkCategory).toStrictEqual({
       category: "article",
       fetchedAt: 1,
       sourceUrl: "https://example.com",

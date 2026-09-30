@@ -109,7 +109,7 @@ export const archiveCardHandler = async (
       }
       const digest = await hashRawMetadata(json);
       const key = rawMetadataKey(card, kind, digest);
-      await copyAndVerifyRaw(key, json, digest);
+      await copyAndVerifyRaw(card, kind, json, digest);
       if (
         await ctx.runMutation(functions().commitArchive, {
           cardId,
@@ -198,6 +198,9 @@ export const archivePage = internalAction({
     cursor: v.union(v.string(), v.null()),
     cards: v.array(v.object({ cardId: v.id("cards"), bytes: v.number() })),
     dryRun: v.boolean(),
+    archived: v.number(),
+    skipped: v.number(),
+    failed: v.array(v.object({ cardId: v.id("cards"), error: v.string() })),
   }),
   handler: async (
     ctx,
@@ -206,16 +209,37 @@ export const archivePage = internalAction({
     cursor: string | null;
     cards: { cardId: Id<"cards">; bytes: number }[];
     dryRun: boolean;
+    archived: number;
+    skipped: number;
+    failed: { cardId: Id<"cards">; error: string }[];
   }> => {
     const page = await ctx.runQuery(functions().pageInlineRaw, {
       cursor,
       limit,
     });
+    let archived = 0;
+    let skipped = 0;
+    const failed: { cardId: Id<"cards">; error: string }[] = [];
+    const startedAt = Date.now();
     if (!dryRun) {
       for (const { cardId } of page.cards) {
-        await archiveCardHandler(ctx, { cardId });
+        // Leave time for a card's bounded network requests. Return every
+        // unattempted ID so operators can retry it without losing the cursor.
+        if (Date.now() - startedAt >= 4 * 60_000) {
+          failed.push({ cardId, error: "time_budget" });
+          continue;
+        }
+        try {
+          const result = await archiveCardHandler(ctx, { cardId });
+          archived += result.archived;
+          skipped += result.skipped;
+        } catch {
+          // Inline raw is retained and the card schedules its bounded retry.
+          // One bad object must not prevent the rest of a page progressing.
+          failed.push({ cardId, error: "archive_failed" });
+        }
       }
     }
-    return { ...page, dryRun };
+    return { ...page, dryRun, archived, skipped, failed };
   },
 });

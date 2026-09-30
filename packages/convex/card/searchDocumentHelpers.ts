@@ -42,7 +42,7 @@ export const buildCardSearchTags = (
   ).sort();
 
 // Runs the card's search sync inline in the caller's mutation: the search
-// document write (and the tag-sync restart when the document changed) is
+// document write (and tag-sync restart when its snapshot changed) is
 // atomic with the card write that triggered it. This replaces the old
 // runAfter(0) fan-out, under which a burst of patches to one card queued
 // duplicate sync invocations that all wrote the same cardSearchDocuments and

@@ -19,8 +19,10 @@ compares the current inline value before clearing it. Any failed verification
 or concurrent change retains inline data. Backend enrichment securely hydrates
 archived data; card/account cleanup and orphan scans track current references.
 
-Old archive copies are retained until the normal orphan process handles them.
-Do not delete archive objects to reduce storage while cards reference them.
+Old archive copies are deliberately retained for recovery. The orphan process
+reports unreferenced objects; it does not delete them automatically. Review that
+report periodically and approve cleanup separately after confirming references
+and recovery needs. Never delete archive objects while cards reference them.
 
 After explicit approval, process one bounded migration page at a time from
 `packages/convex`:
@@ -30,7 +32,9 @@ bunx convex run --prod storage/rawMetadataMaintenance:archivePage '{"limit":25,"
 bunx convex run --prod storage/rawMetadataMaintenance:archivePage '{"limit":25,"dryRun":false}'
 ```
 
-Pass the returned cursor on each next page. Stop at a null cursor. The default
+Pass the returned cursor on each next page. Persist returned `failed` card IDs
+and retry those individually after investigating; a failing card does not block
+page progress. Stop at a null cursor. The default
 is dry-run; deployment never schedules a whole-table migration. Each card can
 retry twice; exhausted items retain their raw payload and can be retried later.
 Compare card IDs/counts and every customer field against the snapshot, and
@@ -45,7 +49,9 @@ Then roll back archive scheduling. Never replace whole cards from an old backup.
 
 Finalized Resend delivery records expire after seven days; unfinished records
 after 28 days. Daily cleanup is bounded by the Resend component. This never
-deletes cards. Completed workflow journals older than seven days use the
+deletes cards. Sentry checks cover the initial bounded deletion batches;
+Resend-owned continuation jobs report failures through Convex scheduled-job
+health/logs. Verify retention counts after manual cleanup. Completed workflow journals older than seven days use the
 existing guarded history cleanup; active/recent/unknown histories are retained.
 
 Use CLI usage warnings, not deployment-disable caps. Convex supports integer

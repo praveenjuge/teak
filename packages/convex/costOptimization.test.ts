@@ -122,3 +122,32 @@ test("tag edits and favorite changes remain searchable with the right filters", 
     expect((await ctx.db.get("cards", id))?.content).toBe("original text");
   });
 });
+
+test("reordered normalized tags preserve exact-tag rows and generations", async () => {
+  const t = convexTest(schema, modules);
+  await t.run(async (ctx) => {
+    const id = await seed(ctx);
+    await patchCardWithSearchSync(ctx, id, { tags: ["alpha", "beta"] });
+    await drainTags(ctx, id);
+    const before = await searchState(ctx, id);
+    await patchCardWithSearchSync(ctx, id, {
+      tags: [" Beta ", "ALPHA"],
+      updatedAt: 30,
+    });
+    const after = await searchState(ctx, id);
+    expect(after.tags).toEqual(before.tags);
+    expect(after.sync).toEqual(before.sync);
+    for (const tag of ["alpha", "beta"]) {
+      expect(
+        (
+          await searchCardsByExactTag(ctx, {
+            userId: "cost-test",
+            tag,
+            limit: 10,
+            sort: "newest",
+          })
+        ).map((card) => card._id)
+      ).toEqual([id]);
+    }
+  });
+});

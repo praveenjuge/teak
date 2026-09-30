@@ -1,7 +1,5 @@
 import { cronJobs } from "convex/server";
-import { v } from "convex/values";
-import { components, internal } from "./_generated/api";
-import { internalMutation } from "./_generated/server";
+import { internal } from "./_generated/api";
 
 const crons = cronJobs();
 
@@ -81,32 +79,14 @@ crons.cron(
 
 // Retain finalized email delivery records for seven days, and unfinished
 // records for four weeks for debugging. Component cleanup is bounded and
-// schedules its own continuation; it never touches card data.
+// schedules its own continuation; it never touches card data. The monitored
+// action awaits the initial cleanup batches. Component-owned continuations
+// are visible as scheduled functions in Convex, outside that check-in.
 crons.cron(
   "cleanup-resend-emails",
   "0 6 * * *",
   (internal as any).telemetry.crons.cleanupResendEmails,
   {}
 );
-
-const ONE_WEEK_MS = 7 * 24 * 60 * 60 * 1000;
-
-export const cleanupResendEmails = internalMutation({
-  args: {},
-  returns: v.null(),
-  handler: async (ctx) => {
-    await ctx.scheduler.runAfter(0, components.resend.lib.cleanupOldEmails, {
-      olderThan: ONE_WEEK_MS,
-    });
-    await ctx.scheduler.runAfter(
-      0,
-      components.resend.lib.cleanupAbandonedEmails,
-      {
-        olderThan: 4 * ONE_WEEK_MS,
-      }
-    );
-    return null;
-  },
-});
 
 export default crons;

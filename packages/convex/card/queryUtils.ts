@@ -253,10 +253,12 @@ export const attachGridFileUrls = (
     }
     const metadata = { ...card.metadata };
     if (metadata.linkPreview) {
-      metadata.linkPreview = { ...metadata.linkPreview, raw: undefined };
+      const { raw: _previewRaw, ...preview } = metadata.linkPreview;
+      metadata.linkPreview = preview;
     }
     if (metadata.linkCategory) {
-      metadata.linkCategory = { ...metadata.linkCategory, raw: undefined };
+      const { raw: _categoryRaw, ...category } = metadata.linkCategory;
+      metadata.linkCategory = category;
     }
     return { ...card, metadata };
   });
