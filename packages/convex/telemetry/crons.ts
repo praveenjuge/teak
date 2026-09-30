@@ -51,6 +51,12 @@ export const CRON_MONITORS = {
     schedule: "0 5 * * 1",
     slug: "reap-stuck-workflows",
   },
+  cleanupResendEmails: {
+    checkinMarginMinutes: 15,
+    maxRuntimeMinutes: 10,
+    schedule: "0 6 * * *",
+    slug: "cleanup-resend-emails",
+  },
   ensureOauthClients: {
     checkinMarginMinutes: 15,
     // Runs every 15 minutes and finishes in about a second. A single lost
@@ -163,5 +169,14 @@ export const cleanupExpiredExports = internalAction({
         internalAny.workflows.exportCleanup.startExportCleanupWorkflow,
         {}
       )
+    ),
+});
+
+export const cleanupResendEmails = internalAction({
+  args: {},
+  returns: v.null(),
+  handler: (ctx: ActionCtx) =>
+    monitored(CRON_MONITORS.cleanupResendEmails, () =>
+      ctx.runMutation(internal.crons.cleanupResendEmails, {})
     ),
 });

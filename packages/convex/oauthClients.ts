@@ -112,15 +112,21 @@ export const ensureOAuthClients = internalMutation({
         name: client.name,
         redirectUrls: client.redirectUrls.join(","),
         type: "public",
-        updatedAt: now,
         userId: null,
       };
 
       if (existing) {
+        const hasChanges = Object.entries(mutableFields).some(
+          ([field, value]) =>
+            (existing as Record<string, unknown>)[field] !== value
+        );
+        if (!hasChanges) {
+          continue;
+        }
         await ctx.runMutation(components.betterAuth.adapter.updateOne, {
           input: {
             model: "oauthApplication",
-            update: mutableFields,
+            update: { ...mutableFields, updatedAt: now },
             where: [
               { field: "clientId", operator: "eq", value: client.clientId },
             ],
@@ -135,6 +141,7 @@ export const ensureOAuthClients = internalMutation({
               ...mutableFields,
               clientId: client.clientId,
               createdAt: now,
+              updatedAt: now,
             },
           },
         });

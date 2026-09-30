@@ -128,6 +128,8 @@ import type * as storage_pendingUploadCleanupState from "../storage/pendingUploa
 import type * as storage_r2 from "../storage/r2.js";
 import type * as storage_r2Config from "../storage/r2Config.js";
 import type * as storage_r2Keys from "../storage/r2Keys.js";
+import type * as storage_rawMetadata from "../storage/rawMetadata.js";
+import type * as storage_rawMetadataMaintenance from "../storage/rawMetadataMaintenance.js";
 import type * as telemetry_crons from "../telemetry/crons.js";
 import type * as telemetry_events from "../telemetry/events.js";
 import type * as telemetry_schedule from "../telemetry/schedule.js";
@@ -309,6 +311,8 @@ declare const fullApi: ApiFromModules<{
   "storage/r2": typeof storage_r2;
   "storage/r2Config": typeof storage_r2Config;
   "storage/r2Keys": typeof storage_r2Keys;
+  "storage/rawMetadata": typeof storage_rawMetadata;
+  "storage/rawMetadataMaintenance": typeof storage_rawMetadataMaintenance;
   "telemetry/crons": typeof telemetry_crons;
   "telemetry/events": typeof telemetry_events;
   "telemetry/schedule": typeof telemetry_schedule;

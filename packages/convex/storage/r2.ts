@@ -74,7 +74,9 @@ export const buildR2ObjectKey = ({
 export const cardStorageObjectKeys = (card: {
   fileKey?: string;
   metadata?: {
+    linkCategory?: { rawStorageKey?: string };
     linkPreview?: {
+      rawStorageKey?: string;
       imageStorageKey?: string;
       media?: Array<{ posterStorageKey?: string; storageKey?: string }>;
       screenshotStorageKey?: string;
@@ -89,6 +91,8 @@ export const cardStorageObjectKeys = (card: {
     card.fileKey ? `${card.fileKey}.processing.json` : undefined,
     card.thumbnailKey,
     card.previewKey,
+    linkPreview?.rawStorageKey,
+    card.metadata?.linkCategory?.rawStorageKey,
     linkPreview?.imageStorageKey,
     linkPreview?.screenshotStorageKey,
     ...(linkPreview?.media ?? []).flatMap((item) => [

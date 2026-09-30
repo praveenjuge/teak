@@ -4,6 +4,7 @@
  * exact JSON bytes, request id, and short expiration into one HMAC.
  */
 
+import { SpanStatusCode, trace } from "@opentelemetry/api";
 import {
   buildFilesOpSigningPayload,
   buildMultipartPartSigningPayload,
@@ -17,7 +18,6 @@ import {
   type FilesOp,
   type FilesOpRequest,
 } from "@teak/files-protocol";
-import { SpanStatusCode, trace } from "@opentelemetry/api";
 import { env } from "../_generated/server";
 import { assertR2KeyInNamespace, hmacSha256Hex } from "./r2Keys";
 
@@ -97,10 +97,12 @@ export const putObjectViaFilesWorker = async ({
   body,
   contentType,
   key,
+  signal,
 }: {
   body: Blob | ArrayBuffer | Uint8Array;
   contentType: string;
   key: string;
+  signal?: AbortSignal;
 }): Promise<{ etag: string; key: string; size: number }> => {
   const signed = await buildSignedWorkerUploadUrl({ contentType, key });
   const response = await fetch(signed.url, {
@@ -111,6 +113,7 @@ export const putObjectViaFilesWorker = async ({
       "x-teak-request-id": crypto.randomUUID(),
     },
     method: "PUT",
+    signal,
   });
   const envelope = (await response.json().catch(() => null)) as FilesEnvelope<{
     etag: string;
@@ -253,7 +256,9 @@ export const callFilesWorkerJson = async <T>(spec: {
             envelope && !envelope.ok ? envelope.error.code : "INTERNAL";
           const requestId =
             envelope && !envelope.ok ? envelope.error.requestId : "unknown";
-          if (["NOT_FOUND", "PAYLOAD_TOO_LARGE", "UNSUPPORTED"].includes(code)) {
+          if (
+            ["NOT_FOUND", "PAYLOAD_TOO_LARGE", "UNSUPPORTED"].includes(code)
+          ) {
             span.setAttribute("files.outcome", "fallback");
             return { kind: "fallback" };
           }

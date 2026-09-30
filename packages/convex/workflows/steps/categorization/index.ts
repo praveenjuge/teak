@@ -18,6 +18,7 @@ import {
 } from "../../../linkMetadata/ssrf";
 import { TELEMETRY_OPERATIONS } from "../../../shared/telemetry";
 import type { Id } from "../../../shared/types";
+import { hydrateArchivedMetadata } from "../../../storage/rawMetadata";
 import { withBackendSpan } from "../../../telemetry/sentry";
 import { pinnedFetch } from "../pinnedFetch";
 import { enrichProvider } from "./providers";
@@ -78,6 +79,7 @@ export interface CategorizationContextCard {
   tags?: string[];
   type: string;
   url?: string;
+  userId?: string;
 }
 
 export interface CategoryClassificationResult {
@@ -947,13 +949,18 @@ export async function classifyHandler(
     throw new Error(`Failed to classify link category for card ${cardId}`);
   }
 
+  const structuredFetchedAt =
+    existingMetadata?.raw?.structuredMeta?.fetchedAt ??
+    existingMetadata?.rawStructuredFetchedAt;
   const structuredFresh =
-    existingMetadata?.raw?.structuredMeta?.fetchedAt &&
-    Date.now() - existingMetadata.raw.structuredMeta.fetchedAt <
-      METADATA_TTL_MS;
+    structuredFetchedAt && Date.now() - structuredFetchedAt < METADATA_TTL_MS;
 
   const shouldFetchStructured =
-    !!sourceUrl && !existingMetadata?.raw?.structured && !structuredFresh;
+    !!sourceUrl &&
+    !(
+      existingMetadata?.raw?.structured ?? existingMetadata?.rawHasStructured
+    ) &&
+    !structuredFresh;
 
   return {
     mode: "classified" as const,
@@ -1074,7 +1081,7 @@ export async function mergeAndSaveHandler(
   }
 
   const metadata = await enrichLinkCategory(
-    card as CategorizationContextCard,
+    await hydrateArchivedMetadata(card as CategorizationContextCard),
     classification as CategoryClassificationResult,
     {
       structuredData,

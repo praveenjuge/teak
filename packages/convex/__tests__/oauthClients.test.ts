@@ -3,7 +3,7 @@ import { describe, expect, mock, test } from "bun:test";
 import { ensureOAuthClients, FIRST_PARTY_OAUTH_CLIENTS } from "../oauthClients";
 
 const runHandler = (fn: any, ctx: any, args: any) =>
-  (fn.handler ?? fn)(ctx, args);
+  (fn._handler ?? fn.handler ?? fn)(ctx, args);
 
 describe("ensureOAuthClients", () => {
   test("creates all first-party clients when none exist", async () => {
@@ -31,7 +31,7 @@ describe("ensureOAuthClients", () => {
     expect(first.input.data).not.toHaveProperty("skipConsent");
   });
 
-  test("updates clients that already exist (idempotent, no duplicates)", async () => {
+  test("repairs existing clients without creating duplicates", async () => {
     const runQuery = mock().mockResolvedValue({ _id: "app_1", clientId: "x" });
     const runMutation = mock().mockResolvedValue(undefined);
 
@@ -52,6 +52,80 @@ describe("ensureOAuthClients", () => {
     // The immutable clientId is not part of the update payload.
     expect(runMutation.mock.calls[0][1].input.update.clientId).toBeUndefined();
   });
+
+  test("leaves matching clients untouched even when their timestamps differ", async () => {
+    const runQuery = mock().mockImplementation((_ref, args) => {
+      const client = FIRST_PARTY_OAUTH_CLIENTS.find(
+        (value) => value.clientId === args.where[0].value
+      );
+      return Promise.resolve({
+        clientId: client.clientId,
+        clientSecret: "",
+        createdAt: 1,
+        disabled: false,
+        metadata: null,
+        name: client.name,
+        redirectUrls: client.redirectUrls.join(","),
+        type: "public",
+        updatedAt: 1,
+        userId: null,
+      });
+    });
+    const runMutation = mock().mockResolvedValue(undefined);
+    const result = await runHandler(
+      ensureOAuthClients,
+      { runMutation, runQuery },
+      {}
+    );
+    expect(result).toMatchObject({ created: 0, updated: 0 });
+    expect(runMutation).not.toHaveBeenCalled();
+  });
+
+  for (const [field, drift] of Object.entries({
+    clientSecret: "unexpected-secret",
+    disabled: true,
+    metadata: "unexpected-metadata",
+    name: "Outdated name",
+    redirectUrls: "https://unexpected.example/callback",
+    type: "confidential",
+    userId: "unexpected-owner",
+  })) {
+    test(`repairs ${field} drift on only the affected client`, async () => {
+      const runQuery = mock().mockImplementation((_ref, args) => {
+        const client = FIRST_PARTY_OAUTH_CLIENTS.find(
+          (value) => value.clientId === args.where[0].value
+        );
+        const row = {
+          clientSecret: "",
+          disabled: false,
+          metadata: null,
+          name: client.name,
+          redirectUrls: client.redirectUrls.join(","),
+          type: "public",
+          updatedAt: 1,
+          userId: null,
+        };
+        if (client.clientId === "teak-cli") {
+          row[field] = drift;
+        }
+        return Promise.resolve(row);
+      });
+      const runMutation = mock().mockResolvedValue(undefined);
+      const result = await runHandler(
+        ensureOAuthClients,
+        { runMutation, runQuery },
+        {}
+      );
+      expect(result).toMatchObject({ created: 0, updated: 1 });
+      expect(runMutation).toHaveBeenCalledTimes(1);
+      expect(runMutation.mock.calls[0][1].input.where[0].value).toBe(
+        "teak-cli"
+      );
+      expect(
+        runMutation.mock.calls[0][1].input.update.updatedAt
+      ).toBeGreaterThan(1);
+    });
+  }
 
   test("seeds teak-desktop with both loopback callback ports", () => {
     const desktop = FIRST_PARTY_OAUTH_CLIENTS.find(

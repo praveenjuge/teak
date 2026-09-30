@@ -240,10 +240,28 @@ export const attachFileUrls = async (
   });
 };
 
-export const attachGridFileUrls = async (
+export const attachGridFileUrls = (
   ctx: unknown,
   cards: Doc<"cards">[]
-): Promise<CardWithUrls[]> => attachFileUrls(ctx, cards, { gridOnly: true });
+): Promise<CardWithUrls[]> => {
+  // Provider diagnostics are cold data, not grid content. Shape copies only:
+  // customer-facing fields stay intact. Raw diagnostics remain inline or in
+  // their verified R2 archive for backend enrichment.
+  const gridCards = cards.map((card) => {
+    if (!card.metadata) {
+      return card;
+    }
+    const metadata = { ...card.metadata };
+    if (metadata.linkPreview) {
+      metadata.linkPreview = { ...metadata.linkPreview, raw: undefined };
+    }
+    if (metadata.linkCategory) {
+      metadata.linkCategory = { ...metadata.linkCategory, raw: undefined };
+    }
+    return { ...card, metadata };
+  });
+  return attachFileUrls(ctx, gridCards, { gridOnly: true });
+};
 
 export const attachCardSummaryUrls = async (
   _ctx: unknown,
