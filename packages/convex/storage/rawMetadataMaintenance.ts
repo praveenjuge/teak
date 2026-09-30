@@ -45,32 +45,17 @@ export const commitArchive = internalMutation({
       // The card vanished (for example account deletion already removed
       // it) after the archive copy was made; the copy is unreferenced, so
       // remove it rather than leak it.
-      try {
-        await deleteObject(ctx, key);
-      } catch (error) {
-        console.error(
-          `[rawMetadataMaintenance] Failed to delete orphaned archive ${key}:`,
-          error
-        );
-      }
+      await deleteObject(ctx, key);
       return false;
     }
     if (await getAccountDeletionState(ctx, card.userId)) {
       // Account deletion owns this card's teardown; patching here would
       // race its batches with OCC conflicts. The copied object is not yet
-      // referenced by the card, so remove it rather than leak it. A
-      // cleanup scheduling failure must not reject commitArchive and
-      // trigger an archive retry - the copy is content-addressed, so a
-      // later run can collect it.
+      // referenced by the card, so enqueue durable deletion. Let a failed
+      // enqueue reject: archiveCard retains the immutable key in a commit
+      // retry rather than acknowledging cleanup that was never recorded.
       if (card.metadata?.[kind]?.rawStorageKey !== key) {
-        try {
-          await deleteObject(ctx, key);
-        } catch (error) {
-          console.error(
-            `[rawMetadataMaintenance] Failed to delete orphaned archive ${key}:`,
-            error
-          );
-        }
+        await deleteObject(ctx, key);
       }
       return false;
     }
@@ -145,15 +130,26 @@ export const archiveCardHandler = async (
       const digest = await hashRawMetadata(json);
       const key = rawMetadataKey(card, kind, digest);
       await copyAndVerifyRaw(card, kind, json, digest);
-      if (
-        await ctx.runMutation(functions().commitArchive, {
-          cardId,
-          kind,
-          expectedJson: json,
-          key,
-          digest,
-        })
-      ) {
+      const commitArgs = { cardId, kind, expectedJson: json, key, digest };
+      let committed: boolean;
+      try {
+        committed = await ctx.runMutation(
+          functions().commitArchive,
+          commitArgs
+        );
+      } catch {
+        // The copy already exists. Retain its immutable key durably and
+        // retry only the commit/cleanup, not the upload or card lookup. This
+        // still cleans the copy if account deletion has removed the card.
+        await ctx.scheduler.runAfter(
+          60_000,
+          functions().commitArchive,
+          commitArgs
+        );
+        skipped += 1;
+        continue;
+      }
+      if (committed) {
         archived += 1;
       } else {
         skipped += 1;
