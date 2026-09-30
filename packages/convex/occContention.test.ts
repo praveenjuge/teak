@@ -795,6 +795,31 @@ describe("OCC contention behavior", () => {
     });
   });
 
+  test("deletion batch tolerates a card deleted by a concurrent batch", async () => {
+    const t = convexTest(schema, modules);
+    await t.run(async (ctx) => {
+      const cardId = await insertCard(ctx, "user-race-delete", {
+        content: "gone",
+      });
+      await syncCardSearchDocumentHandler(ctx, cardId);
+      await drainCardSearchTagSync(ctx, cardId);
+      await ctx.db.delete("cards", cardId);
+
+      // The card vanished between the batch query and the batch mutation
+      // (concurrent batch won the race): the handler skips it instead of
+      // failing the whole account deletion.
+      expect(
+        await deleteAccountDataHandler(ctx, "user-race-delete", [cardId])
+      ).toBe(0);
+      expect(await ctx.db.query("cardSearchDocuments").collect()).toHaveLength(
+        0
+      );
+      expect(
+        await ctx.db.query("cardSearchTagSyncStates").collect()
+      ).toHaveLength(0);
+    });
+  });
+
   test("stands down search sync writers while account deletion is in progress", async () => {
     const t = convexTest(schema, modules);
     await t.run(async (ctx) => {
