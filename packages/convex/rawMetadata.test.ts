@@ -114,6 +114,30 @@ describe("raw metadata archival", () => {
     ).toBe(true);
   });
 
+  test("commitArchive stands down during account deletion", async () => {
+    const { t, cardId, args, card } = await setup();
+    await t.run((ctx) =>
+      ctx.db.insert("accountDeletionStates", {
+        userId: card.userId,
+        startedAt: Date.now(),
+      })
+    );
+    expect(
+      await t.mutation(
+        internal.storage.rawMetadataMaintenance.commitArchive,
+        args
+      )
+    ).toBe(false);
+    const result = await t.run((ctx) => ctx.db.get("cards", cardId));
+    // The card keeps its inline raw payload: no archive commit raced the
+    // deletion batches, and account deletion removes the card and its
+    // storage objects together.
+    expect(result?.metadata?.linkPreview?.raw).toEqual(
+      card.metadata?.linkPreview?.raw
+    );
+    expect(result?.metadata?.linkPreview?.rawStorageKey).toBeUndefined();
+  });
+
   test("stale raw, missing cards, wrong namespace and wrong hash never clear data", async () => {
     const { t, cardId, args, card } = await setup();
     expect(
