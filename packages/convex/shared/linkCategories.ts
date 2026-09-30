@@ -68,6 +68,10 @@ export interface LinkCategoryMetadata {
   fetchedAt: number;
   imageUrl?: string;
   raw?: Record<string, unknown>;
+  rawHasStructured?: boolean;
+  rawSha256?: string;
+  rawStorageKey?: string;
+  rawStructuredFetchedAt?: number;
   sourceUrl: string;
 }
 

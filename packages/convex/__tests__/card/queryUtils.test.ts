@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, test } from "bun:test";
-import { attachFileUrls } from "../../card/queryUtils";
+import { attachFileUrls, attachGridFileUrls } from "../../card/queryUtils";
 
 const PREVIOUS = {
   FILES_BASE: process.env.FILES_BASE,
@@ -30,6 +30,64 @@ const card = (overrides: Record<string, unknown>) =>
   }) as any;
 
 describe("card/queryUtils.ts", () => {
+  test("grid results omit raw provider payloads while preserving card data", async () => {
+    const storedCard = card({
+      content: "Customer content ".repeat(1000),
+      notes: "Customer notes",
+      tags: ["saved"],
+      metadata: {
+        linkPreview: {
+          status: "success",
+          title: "Preview title",
+          description: "Preview description",
+          raw: { scrape: "large scrape payload".repeat(1000) },
+        },
+        linkCategory: {
+          category: "article",
+          fetchedAt: 1,
+          sourceUrl: "https://example.com",
+          facts: [{ label: "Author", value: "Author name" }],
+          raw: { provider: "large provider payload".repeat(1000) },
+        },
+      },
+    });
+    const original = structuredClone(storedCard);
+    const [grid] = await attachGridFileUrls({}, [storedCard]);
+    const [detail] = await attachFileUrls({}, [storedCard]);
+
+    expect(grid?.metadata?.linkPreview).toStrictEqual({
+      status: "success",
+      title: "Preview title",
+      description: "Preview description",
+    });
+    expect(grid?.metadata?.linkCategory).toStrictEqual({
+      category: "article",
+      fetchedAt: 1,
+      sourceUrl: "https://example.com",
+      facts: [{ label: "Author", value: "Author name" }],
+    });
+    expect(grid?.content).toBe(original.content);
+    expect(grid?.notes).toBe(original.notes);
+    expect(grid?.tags).toEqual(original.tags);
+    expect(detail?.metadata).toEqual(original.metadata);
+    expect(storedCard).toEqual(original);
+    expect(JSON.stringify(grid).length).toBeLessThan(
+      JSON.stringify(detail).length / 2
+    );
+  });
+
+  test("grid results preserve absent metadata and preview-only metadata", async () => {
+    const metadata = {
+      linkPreview: { status: "success", title: "Preview title" },
+    };
+    const [withoutMetadata, preview] = await attachGridFileUrls({}, [
+      card({}),
+      card({ metadata }),
+    ]);
+    expect(withoutMetadata?.metadata).toBeUndefined();
+    expect(preview?.metadata).toEqual(metadata);
+  });
+
   test("skips out-of-namespace keys instead of failing hydration", async () => {
     process.env.FILES_BASE = "https://files.example.com";
     process.env.FILES_SIGNING_SECRET = "test-secret";

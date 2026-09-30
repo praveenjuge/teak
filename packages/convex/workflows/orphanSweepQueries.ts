@@ -34,10 +34,13 @@ export const pageSweepCards = internalQuery({
       isDone: page.isDone,
       cards: page.page.map((card) => ({
         fileKey: card.fileKey,
-        // Only linkPreview metadata carries storage keys.
+        // Both preview assets and archived metadata carry storage keys.
         metadata:
           card.metadata && typeof card.metadata === "object"
-            ? { linkPreview: card.metadata.linkPreview }
+            ? {
+                linkPreview: card.metadata.linkPreview,
+                linkCategory: card.metadata.linkCategory,
+              }
             : {},
         previewKey: card.previewKey,
         thumbnailKey: card.thumbnailKey,

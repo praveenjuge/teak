@@ -12,6 +12,9 @@ export default defineConfig({
       "./mcpRevocation.test.ts",
       "./maintenanceQueries.test.ts",
       "./idempotency.test.ts",
+      "./costOptimization.test.ts",
+      "./rawMetadata.test.ts",
+      "./rawMetadataPipeline.test.ts",
     ],
   },
 });

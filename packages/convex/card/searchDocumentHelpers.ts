@@ -30,7 +30,9 @@ export const buildCardSearchText = (card: Doc<"cards">): string =>
 export const normalizeCardSearchTag = (tag: string): string =>
   tag.trim().toLowerCase();
 
-export const buildCardSearchTags = (card: Doc<"cards">): string[] =>
+export const buildCardSearchTags = (
+  card: Pick<Doc<"cards">, "tags" | "aiTags">
+): string[] =>
   Array.from(
     new Set(
       [...(card.tags ?? []), ...(card.aiTags ?? [])]
@@ -40,7 +42,7 @@ export const buildCardSearchTags = (card: Doc<"cards">): string[] =>
   ).sort();
 
 // Runs the card's search sync inline in the caller's mutation: the search
-// document write (and the tag-sync restart when the document changed) is
+// document write (and tag-sync restart when its snapshot changed) is
 // atomic with the card write that triggered it. This replaces the old
 // runAfter(0) fan-out, under which a burst of patches to one card queued
 // duplicate sync invocations that all wrote the same cardSearchDocuments and
@@ -72,15 +74,15 @@ export const scheduleCardSearchTagSync = async (
 // restarts. Batch invocations sync from the snapshot instead of reading the
 // cards table, which removes the write-conflict window between a running
 // sync chain and concurrent card writes (AI metadata, edits, deletes).
-type CardSyncSnapshot = {
-  userId: string;
-  tags?: string[];
+interface CardSyncSnapshot {
   aiTags?: string[];
-  isDeleted?: boolean;
-  type: Doc<"cards">["type"];
-  isFavorited?: boolean;
   cardCreatedAt: number;
-};
+  isDeleted?: boolean;
+  isFavorited?: boolean;
+  tags?: string[];
+  type: Doc<"cards">["type"];
+  userId: string;
+}
 
 const cardSyncSnapshotFromCard = (card: Doc<"cards">): CardSyncSnapshot => ({
   userId: card.userId,
@@ -102,20 +104,20 @@ export const restartCardSearchTagSync = async (
   userId?: string,
   card?: Doc<"cards"> | null
 ) => {
-  const snapshot =
-    card === undefined
-      ? {}
-      : card === null
-        ? {
-            userId,
-            tags: undefined,
-            aiTags: undefined,
-            isDeleted: undefined,
-            type: undefined,
-            isFavorited: undefined,
-            cardCreatedAt: undefined,
-          }
-        : cardSyncSnapshotFromCard(card);
+  let snapshot: Partial<CardSyncSnapshot> = {};
+  if (card === null) {
+    snapshot = {
+      userId,
+      tags: undefined,
+      aiTags: undefined,
+      isDeleted: undefined,
+      type: undefined,
+      isFavorited: undefined,
+      cardCreatedAt: undefined,
+    };
+  } else if (card !== undefined) {
+    snapshot = cardSyncSnapshotFromCard(card);
+  }
   const existingState = await ctx.db
     .query("cardSearchTagSyncStates")
     .withIndex("by_cardId", (query) => query.eq("cardId", cardId))
@@ -151,7 +153,19 @@ export const patchCardWithSearchSync = async (
   value: Partial<Omit<Doc<"cards">, "_creationTime" | "_id">>
 ) => {
   await ctx.db.patch("cards", cardId, value);
-  await scheduleCardSearchSync(ctx, cardId);
+  const searchableFields = [
+    ...SEARCH_FIELDS,
+    "tags",
+    "aiTags",
+    "userId",
+    "type",
+    "isDeleted",
+    "isFavorited",
+    "createdAt",
+  ];
+  if (searchableFields.some((field) => Object.keys(value).includes(field))) {
+    await scheduleCardSearchSync(ctx, cardId);
+  }
 };
 
 export const syncCardSearchDocumentHandler = async (
@@ -192,25 +206,36 @@ export const syncCardSearchDocumentHandler = async (
     isFavorited: card.isFavorited,
     sourceUpdatedAt: card.updatedAt,
   };
-  let changed = false;
   if (existing) {
     if (
       existing.userId !== value.userId ||
       existing.searchableText !== value.searchableText ||
       existing.isDeleted !== value.isDeleted ||
       existing.type !== value.type ||
-      existing.isFavorited !== value.isFavorited ||
-      existing.sourceUpdatedAt !== value.sourceUpdatedAt
+      existing.isFavorited !== value.isFavorited
     ) {
       await ctx.db.replace("cardSearchDocuments", existing._id, value);
-      changed = true;
     }
   } else {
     await ctx.db.insert("cardSearchDocuments", value);
-    changed = true;
   }
 
-  if (changed) {
+  // Text changes do not require rewriting every exact-tag row. The snapshot
+  // also repairs older states that predate snapshot-based synchronization.
+  const tagState = await ctx.db
+    .query("cardSearchTagSyncStates")
+    .withIndex("by_cardId", (query) => query.eq("cardId", cardId))
+    .unique();
+  const tagsChanged =
+    !tagState ||
+    tagState.userId !== card.userId ||
+    tagState.type !== card.type ||
+    (tagState.isDeleted === true) !== (card.isDeleted === true) ||
+    (tagState.isFavorited === true) !== (card.isFavorited === true) ||
+    tagState.cardCreatedAt !== card.createdAt ||
+    JSON.stringify(buildCardSearchTags(tagState)) !==
+      JSON.stringify(buildCardSearchTags(card));
+  if (tagsChanged) {
     await restartCardSearchTagSync(
       ctx,
       cardId,
@@ -224,16 +249,16 @@ export const syncCardSearchDocumentHandler = async (
 
 // The view the batch handler syncs from: either the state-row snapshot or a
 // card document, both normalized to the card's field names.
-type CardSyncSource = {
-  userId: string;
-  tags?: string[];
+interface CardSyncSource {
   aiTags?: string[];
-  isDeleted?: boolean;
-  type: Doc<"cards">["type"];
-  isFavorited?: boolean;
   createdAt: number;
+  isDeleted?: boolean;
+  isFavorited?: boolean;
+  tags?: string[];
+  type: Doc<"cards">["type"];
   updatedAt: number;
-};
+  userId: string;
+}
 
 // A state row carries a usable snapshot only when every field the tag writes
 // depend on is present; partial rows fall back to reading the card.

@@ -1,7 +1,7 @@
 "use node";
 
 import { v } from "convex/values";
-import { internal } from "../_generated/api";
+import { components, internal } from "../_generated/api";
 import { type ActionCtx, internalAction } from "../_generated/server";
 import { sweepStalePendingUploadsHandler } from "../storage/pendingUploadCleanup";
 import { type CronCheckInConfig, withCronCheckIn } from "./sentry";
@@ -50,6 +50,12 @@ export const CRON_MONITORS = {
     maxRuntimeMinutes: 30,
     schedule: "0 5 * * 1",
     slug: "reap-stuck-workflows",
+  },
+  cleanupResendEmails: {
+    checkinMarginMinutes: 15,
+    maxRuntimeMinutes: 10,
+    schedule: "0 6 * * *",
+    slug: "cleanup-resend-emails",
   },
   ensureOauthClients: {
     checkinMarginMinutes: 15,
@@ -164,4 +170,19 @@ export const cleanupExpiredExports = internalAction({
         {}
       )
     ),
+});
+
+export const cleanupResendEmails = internalAction({
+  args: {},
+  returns: v.null(),
+  handler: (ctx: ActionCtx) =>
+    monitored(CRON_MONITORS.cleanupResendEmails, async () => {
+      const oneWeekMs = 7 * 24 * 60 * 60 * 1000;
+      await ctx.runMutation(components.resend.lib.cleanupOldEmails, {
+        olderThan: oneWeekMs,
+      });
+      await ctx.runMutation(components.resend.lib.cleanupAbandonedEmails, {
+        olderThan: 4 * oneWeekMs,
+      });
+    }),
 });

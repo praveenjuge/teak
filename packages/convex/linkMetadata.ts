@@ -1,7 +1,9 @@
 import { v } from "convex/values";
+import { internal } from "./_generated/api";
 import { internalMutation, internalQuery } from "./_generated/server";
 import { patchCardWithSearchSync } from "./card/searchDocumentHelpers";
 import { deleteObject } from "./storage/r2";
+import { serializeArchivableRaw } from "./storage/rawMetadata";
 
 export * from "./linkMetadata/instagram";
 export {
@@ -178,7 +180,15 @@ export const updateCardMetadataHandler = async (
     updateFields.metadataDescription = description;
   }
 
-  return await patchCardWithSearchSync(ctx, cardId, updateFields);
+  const result = await patchCardWithSearchSync(ctx, cardId, updateFields);
+  if (serializeArchivableRaw(nextLinkPreview?.raw) !== null) {
+    await ctx.scheduler.runAfter(
+      0,
+      internal.storage.rawMetadataMaintenance.archiveCard,
+      { cardId }
+    );
+  }
+  return result;
 };
 
 export const updateCardMetadata = internalMutation({

@@ -59,6 +59,8 @@ export interface LinkPreviewMetadata {
   publishedAt?: string;
   publisher?: string;
   raw?: ScrapeSelectorResult[];
+  rawSha256?: string;
+  rawStorageKey?: string;
   screenshotHeight?: number;
   screenshotStorageKey?: string;
   screenshotUpdatedAt?: number;

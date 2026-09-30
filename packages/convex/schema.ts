@@ -69,6 +69,10 @@ export const linkCategoryMetadataValidator = v.object({
   imageUrl: v.optional(v.string()),
   facts: v.optional(v.array(linkCategoryFactValidator)),
   raw: v.optional(v.any()),
+  rawStorageKey: v.optional(v.string()),
+  rawSha256: v.optional(v.string()),
+  rawHasStructured: v.optional(v.boolean()),
+  rawStructuredFetchedAt: v.optional(v.number()),
 });
 
 export const filePreviewFactsValidator = v.object({
@@ -180,6 +184,8 @@ export const metadataValidator = v.optional(
           })
         ),
         raw: v.optional(v.any()),
+        rawStorageKey: v.optional(v.string()),
+        rawSha256: v.optional(v.string()),
       })
     ),
     linkCategory: v.optional(linkCategoryMetadataValidator),
@@ -469,13 +475,10 @@ export default defineSchema({
   cards: defineTable(cardValidator)
     // Note: by_user index removed as redundant - by_user_deleted can serve same purpose
     // with partial index matching (just userId) per Convex best practices
-    .index("by_user_type", ["userId", "type"])
-    .index("by_type", ["type"])
     .index("by_type_derivative_version", ["type", "derivativeVersion"])
     .index("by_type_derivative_checked", ["type", "derivativeCheckedAt"])
     // Compound index for type filtering with isDeleted to avoid post-index .filter()
     .index("by_user_type_deleted", ["userId", "type", "isDeleted"])
-    .index("by_user_favorites", ["userId", "isFavorited"])
     // Compound index for favorites filtering with isDeleted to avoid post-index .filter()
     .index("by_user_favorites_deleted", ["userId", "isFavorited", "isDeleted"])
     .index("by_user_deleted", ["userId", "isDeleted"])

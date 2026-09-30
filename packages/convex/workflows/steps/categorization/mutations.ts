@@ -6,9 +6,11 @@
  */
 
 import { v } from "convex/values";
+import { internal } from "../../../_generated/api";
 import { internalMutation } from "../../../_generated/server";
 import { stageCompleted } from "../../../card/processingStatus";
 import { patchCardWithSearchSync } from "../../../card/searchDocumentHelpers";
+import { serializeArchivableRaw } from "../../../storage/rawMetadata";
 
 /**
  * Internal mutation to update card with categorization result
@@ -47,6 +49,13 @@ export const updateCategorization = internalMutation({
       updatedAt: now,
     });
 
+    if (serializeArchivableRaw(metadata.raw) !== null) {
+      await ctx.scheduler.runAfter(
+        0,
+        internal.storage.rawMetadataMaintenance.archiveCard,
+        { cardId }
+      );
+    }
     return null;
   },
 });

@@ -77,4 +77,16 @@ crons.cron(
   {}
 );
 
+// Retain finalized email delivery records for seven days, and unfinished
+// records for four weeks for debugging. Component cleanup is bounded and
+// schedules its own continuation; it never touches card data. The monitored
+// action awaits the initial cleanup batches. Component-owned continuations
+// are visible as scheduled functions in Convex, outside that check-in.
+crons.cron(
+  "cleanup-resend-emails",
+  "0 6 * * *",
+  (internal as any).telemetry.crons.cleanupResendEmails,
+  {}
+);
+
 export default crons;
