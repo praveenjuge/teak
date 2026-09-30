@@ -447,6 +447,18 @@ describe("aiMetadata generators", () => {
             )
           ).toHaveLength(2);
         }
+        if (code === "UNSUPPORTED") {
+          for (const name of [
+            TELEMETRY_METRICS.aiTokensInput,
+            TELEMETRY_METRICS.aiTokensOutput,
+            TELEMETRY_METRICS.aiCostUsd,
+            TELEMETRY_METRICS.aiRetries,
+          ]) {
+            expect(
+              metrics.filter((metric) => metric.name === name)
+            ).toHaveLength(0);
+          }
+        }
         expect(failure).toBeInstanceOf(Error);
         expect(isAiMetadataDeferredError(failure)).toBe(true);
         expect(isAiProviderCapacityError(failure)).toBe(capacity);

@@ -83,7 +83,10 @@ export const getCardForLinkFetchHandler = async (
   // Older category payloads may carry the classification gate; current cards
   // use processingStatus. Preserve the legacy gate without copying the payload.
   const categoryStatus =
-    category && "status" in category && typeof category.status === "string"
+    category &&
+    typeof category === "object" &&
+    "status" in category &&
+    typeof category.status === "string"
       ? category.status
       : undefined;
   return {

@@ -152,9 +152,15 @@ test("classification and structured artifacts hydrate before enrichment persists
     },
   });
   expect(JSON.stringify(persisted[0])).not.toContain('"artifactVersion"');
-  expect(card.content).toBe(before.content);
-  expect(card.notes).toBe(before.notes);
-  expect(card.aiTranscript).toBe(before.aiTranscript);
+  for (const value of [before.content, before.notes, before.aiTranscript]) {
+    expect(JSON.stringify(persisted[0])).not.toContain(value);
+  }
+  for (const body of stored.values()) {
+    const archived = JSON.parse(new TextDecoder().decode(body));
+    expect(archived).not.toHaveProperty("content");
+    expect(archived).not.toHaveProperty("notes");
+    expect(archived).not.toHaveProperty("aiTranscript");
+  }
 });
 
 test("fresh cached categorization restores the complete saved provider metadata from its artifact", async () => {

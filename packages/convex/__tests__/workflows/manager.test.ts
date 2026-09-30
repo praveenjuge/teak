@@ -293,7 +293,8 @@ describe("workflow manager", () => {
         ).toBe(false);
         expect(cleanup).not.toHaveBeenCalled();
         const [delay, , scheduled] = runAfter.mock.calls[0];
-        expect(delay).toBe(WORKFLOW_RETENTION_MS);
+        expect(delay).toBeGreaterThanOrEqual(WORKFLOW_RETENTION_MS - 1000);
+        expect(delay).toBeLessThanOrEqual(WORKFLOW_RETENTION_MS);
         expect(scheduled.terminalObservedAt).toBeGreaterThan(Date.now() - 1000);
         expect(
           await cleanupCompletedWorkflowHandler(

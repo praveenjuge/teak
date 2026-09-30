@@ -609,3 +609,20 @@ test("screenshot reader retains existing screenshot guard without preview raw da
   ctx.db.get.mockResolvedValue(null);
   expect(await getCardForScreenshotHandler(ctx, { cardId: "c1" })).toBeNull();
 });
+
+test("link fetch projection accepts legacy string categories without private payloads", async () => {
+  const ctx = createMockCtx();
+  ctx.db.get.mockResolvedValue({
+    type: "link",
+    userId: "u1",
+    url: "https://example.com",
+    metadata: { linkCategory: "article" },
+  });
+  expect(await getCardForLinkFetchHandler(ctx, { cardId: "c1" })).toEqual({
+    type: "link",
+    userId: "u1",
+    url: "https://example.com",
+    processingStatus: undefined,
+    metadata: { linkCategory: { status: undefined } },
+  });
+});
