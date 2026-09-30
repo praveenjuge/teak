@@ -138,6 +138,17 @@ describe("raw metadata archival", () => {
     expect(result?.metadata?.linkPreview?.rawStorageKey).toBeUndefined();
   });
 
+  test("commitArchive removes the orphaned copy when the card is gone", async () => {
+    const { t, cardId, args } = await setup();
+    await t.run((ctx) => ctx.db.delete("cards", cardId));
+    expect(
+      await t.mutation(
+        internal.storage.rawMetadataMaintenance.commitArchive,
+        args
+      )
+    ).toBe(false);
+  });
+
   test("stale raw, missing cards, wrong namespace and wrong hash never clear data", async () => {
     const { t, cardId, args, card } = await setup();
     expect(
