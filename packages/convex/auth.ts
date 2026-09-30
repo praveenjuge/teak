@@ -593,10 +593,13 @@ export const deleteAccountDataHandler = async (
     } catch (error) {
       // Only the already-deleted race is skippable. Anything else (backend
       // failure, invalid ID) must surface so the deletion action retries or
-      // fails loudly instead of reporting progress it did not make.
+      // fails loudly instead of reporting progress it did not make. The
+      // production backend says "Delete on nonexistent document ID ..."
+      // while convex-test says "Delete on non-existent doc", so match both
+      // spellings.
       if (
         !(error instanceof Error) ||
-        !/non-existent|not found/i.test(error.message)
+        !/non-?existent|not found/i.test(error.message)
       ) {
         throw error;
       }
