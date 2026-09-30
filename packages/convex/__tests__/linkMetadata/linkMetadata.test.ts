@@ -135,11 +135,12 @@ describe("linkMetadata.ts", () => {
       });
 
       // The fenced patch leaves the card unchanged, so the replaced
-      // screenshot must survive: deleting it would leave the card
-      // referencing a removed object.
+      // screenshot must survive - but the freshly uploaded screenshot the
+      // card never referenced is removed instead of orphaned.
       expect(result).toBe(false);
       expect(ctx.db.patch).not.toHaveBeenCalled();
-      expect(r2Mocks.deleteObject).not.toHaveBeenCalled();
+      expect(r2Mocks.deleteObject).toHaveBeenCalledTimes(1);
+      expect(r2Mocks.deleteObject).toHaveBeenCalledWith(ctx, "new_shot");
     });
 
     test("preserves existing image when new image not provided", async () => {
