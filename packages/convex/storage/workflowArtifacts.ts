@@ -262,13 +262,19 @@ export const registerArtifactHandler = async (
     }
   }
   const keys = card?.workflowArtifactKeys ?? [];
+  // This internal inventory also retains reusable raw-metadata copies.
+  // Only workflow artifacts consume the workflow registration quota.
+  const artifactPrefix = `${buildR2UserPrefix(ref.userId)}/${ref.cardId}/workflow-artifacts/`;
+  const artifactCount = keys.filter((key) =>
+    key.startsWith(artifactPrefix)
+  ).length;
   if (
     !card ||
     card.userId !== ref.userId ||
     owner?.args?.cardId !== ref.cardId ||
     owner.runResult !== undefined ||
     owner.generationNumber !== ref.generationNumber ||
-    (!keys.includes(ref.key) && keys.length >= MAX_CARD_WORKFLOW_ARTIFACTS)
+    (!keys.includes(ref.key) && artifactCount >= MAX_CARD_WORKFLOW_ARTIFACTS)
   ) {
     // The verified object never entered a journal; durable deletion is safe,
     // including when card teardown raced the copy or owner was canceled.
