@@ -158,6 +158,29 @@ describe("signed text/link metadata", () => {
       expect(run).toHaveBeenCalledTimes(1);
     }
   );
+  test.each([
+    {
+      status: 502,
+      code: undefined,
+      message: "AiError 3040 capacity temporarily exceeded",
+    },
+    { status: 500, code: "3040", message: "Provider failed" },
+    { status: "429", code: undefined, message: "Provider failed" },
+  ])(
+    "defers capacity behind generic HTTP wrappers: $status/$code",
+    async ({ status, code, message }) => {
+      const run = mock(() =>
+        Promise.reject(Object.assign(new Error(message), { status, code }))
+      );
+      const response = await handleInternalOp(
+        await signedRequest("generate-text-metadata", { prompt: "Content" }),
+        env(run)
+      );
+      expect(response.status).toBe(429);
+      expect((await response.json()).error.code).toBe("AI_CAPACITY");
+      expect(run).toHaveBeenCalledTimes(1);
+    }
+  );
   test("bounds text and link prompts while retaining beginning and end", () => {
     const content = `beginning${"x".repeat(10_000)}ending`;
     for (const prompt of [

@@ -31,22 +31,41 @@ const VALIDATION_ERROR =
 const CAPACITY_ERROR =
   /\b(?:rate limit(?:ed| reached)?|too many requests|tokens per (?:day|minute)|tpd|tpm|429|3040)\b|capacity temporarily exceeded/iu;
 
+const numericErrorFact = (value: unknown): number | undefined => {
+  if (typeof value === "number" && Number.isFinite(value)) {
+    return value;
+  }
+  if (typeof value === "string" && /^\d+$/.test(value)) {
+    return Number(value);
+  }
+  return undefined;
+};
+
 const isCapacityError = (error: unknown): boolean => {
+  const message = error instanceof Error ? error.message : String(error);
   if (error && typeof error === "object") {
     const facts = error as {
       status?: unknown;
       statusCode?: unknown;
       code?: unknown;
     };
-    const status = facts.status ?? facts.statusCode;
-    const code = facts.code;
-    if (typeof status === "number" || typeof code === "number") {
-      return status === 429 || code === 3040 || code === 3036;
+    const status = numericErrorFact(facts.status ?? facts.statusCode);
+    const code = numericErrorFact(facts.code);
+    if (status === 429 || code === 3040 || code === 3036) {
+      return true;
+    }
+    // Provider codes are authoritative; generic 5xx wrappers are not.
+    if (code !== undefined) {
+      return false;
+    }
+    if (/\b(?:3040|3036)\b/u.test(message)) {
+      return true;
+    }
+    if (status !== undefined && status >= 400 && status < 500) {
+      return false;
     }
   }
-  return CAPACITY_ERROR.test(
-    error instanceof Error ? error.message : String(error)
-  );
+  return CAPACITY_ERROR.test(message);
 };
 
 const responseText = (response: unknown): string | null => {
