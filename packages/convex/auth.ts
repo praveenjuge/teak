@@ -555,14 +555,11 @@ export const deleteAccountDataHandler = async (
   let deletedCards = 0;
   for (const cardId of cardIds) {
     // Deliberately no ctx.db.get("cards", cardId) ownership re-check here:
-    // reading each card puts the whole batch in this mutation's optimistic
-    // concurrency read set, so one concurrent card write (e.g. an AI
-    // metadata workflow patching a card mid-deletion) invalidates every
-    // retry until the batch exhausts them and the account deletion fails.
-    // Production evidence: a deleteAccountDataBatch run failed permanently
-    // after conflicting with updateCardAI on a cards row. Card ownership is
-    // immutable and the caller derives these IDs from the by_user_deleted
-    // index for this user, so deleting without re-reading is safe.
+    // card ownership is immutable (no code path patches cards.userId) and
+    // the caller derives these IDs from the by_user_deleted index for this
+    // user, so the extra read only widened the mutation's conflict surface.
+    // The writers that raced these batches are fenced off during account
+    // deletion in patchCardWithSearchSync.
     const tagDocuments = await ctx.db
       .query("cardSearchTags")
       .withIndex("by_cardId", (query) => query.eq("cardId", cardId))
@@ -593,9 +590,16 @@ export const deleteAccountDataHandler = async (
     try {
       await ctx.db.delete("cards", cardId);
       deletedCards += 1;
-    } catch {
-      // A concurrent batch already deleted the card; its search rows are
-      // cleaned up above, so there is nothing left to do for it.
+    } catch (error) {
+      // Only the already-deleted race is skippable. Anything else (backend
+      // failure, invalid ID) must surface so the deletion action retries or
+      // fails loudly instead of reporting progress it did not make.
+      if (
+        !(error instanceof Error) ||
+        !/non-existent|not found/i.test(error.message)
+      ) {
+        throw error;
+      }
     }
   }
   return deletedCards;
