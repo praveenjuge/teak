@@ -833,10 +833,11 @@ describe("OCC contention behavior", () => {
       // all patch cards through this seam. During deletion their writes only
       // race the deletion batches with OCC conflicts, so the seam stands
       // down: no patch, no search sync.
-      await patchCardWithSearchSync(ctx, cardId, {
+      const fenced = await patchCardWithSearchSync(ctx, cardId, {
         content: "after",
         updatedAt: 999,
       });
+      expect(fenced).toBe(false);
 
       const card = await ctx.db.get("cards", cardId);
       expect(card?.content).toBe("before");
@@ -844,14 +845,22 @@ describe("OCC contention behavior", () => {
         .query("cardSearchDocuments")
         .withIndex("by_cardId", (query) => query.eq("cardId", cardId))
         .unique();
+      expect(document).not.toBeNull();
       expect(document?.sourceUpdatedAt).not.toBe(999);
 
       await finishAccountDeletion(ctx, "user-fence-patch");
-      await patchCardWithSearchSync(ctx, cardId, {
+      const resumed = await patchCardWithSearchSync(ctx, cardId, {
         content: "after",
         updatedAt: 999,
       });
+      expect(resumed).toBe(true);
       expect((await ctx.db.get("cards", cardId))?.content).toBe("after");
+      expect(await syncCardSearchDocumentHandler(ctx, cardId)).toBeNull();
+      const synced = await ctx.db
+        .query("cardSearchDocuments")
+        .withIndex("by_cardId", (query) => query.eq("cardId", cardId))
+        .unique();
+      expect(synced?.sourceUpdatedAt).toBe(999);
     });
   });
 
