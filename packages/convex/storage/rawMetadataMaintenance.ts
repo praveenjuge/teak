@@ -41,7 +41,21 @@ export const commitArchive = internalMutation({
   returns: v.boolean(),
   handler: async (ctx, { cardId, kind, expectedJson, key, digest }) => {
     const card = await ctx.db.get("cards", cardId);
-    if (card && (await getAccountDeletionState(ctx, card.userId))) {
+    if (!card) {
+      // The card vanished (for example account deletion already removed
+      // it) after the archive copy was made; the copy is unreferenced, so
+      // remove it rather than leak it.
+      try {
+        await deleteObject(ctx, key);
+      } catch (error) {
+        console.error(
+          `[rawMetadataMaintenance] Failed to delete orphaned archive ${key}:`,
+          error
+        );
+      }
+      return false;
+    }
+    if (await getAccountDeletionState(ctx, card.userId)) {
       // Account deletion owns this card's teardown; patching here would
       // race its batches with OCC conflicts. The copied object is not yet
       // referenced by the card, so remove it rather than leak it.
