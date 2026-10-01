@@ -155,7 +155,12 @@ describe("vercel.json cache headers", () => {
 describe("resolveMarkdownRequest", () => {
   const NOT_FOUND_MD =
     "# Page not found\n\n- [Back to home](https://x.test/)\n";
-  const existing = new Set(["/pricing", "/docs/ai-agents.md", "/index.md"]);
+  const existing = new Set([
+    "/pricing",
+    "/docs/ai-agents.md",
+    "/docs/no-mirror",
+    "/index.md",
+  ]);
   const calls: { path: string; method?: string; accept?: string }[] = [];
 
   const fakeFetch = async (input: URL, init?: RequestInit) => {
@@ -204,6 +209,40 @@ describe("resolveMarkdownRequest", () => {
         fakeFetch,
       ),
     ).toEqual({ type: "not-found", markdown: NOT_FOUND_MD });
+  });
+
+  test("keeps serving HTML for a page whose mirror was not built", async () => {
+    expect(
+      await resolveMarkdownRequest(
+        request("/docs/no-mirror", "text/markdown"),
+        fakeFetch
+      )
+    ).toEqual({ type: "html" });
+  });
+
+  test("falls back to HTML when a probe or the 404 fetch rejects", async () => {
+    const probeFails = async () => {
+      throw new Error("network down");
+    };
+    const notFoundFetchFails = async (input: URL) => {
+      if (input.pathname === "/404.md") {
+        throw new Error("network down");
+      }
+      return new Response(null, { status: 404 });
+    };
+
+    expect(
+      await resolveMarkdownRequest(
+        request("/docs/ai-agents", "text/markdown"),
+        probeFails
+      )
+    ).toEqual({ type: "html" });
+    expect(
+      await resolveMarkdownRequest(
+        request("/__missing", "text/markdown"),
+        notFoundFetchFails
+      )
+    ).toEqual({ type: "html" });
   });
 
   test("keeps serving HTML for existing pages without a mirror", async () => {
