@@ -1,30 +1,23 @@
 import { rewrite } from "@vercel/functions";
 import {
-  markdownMirrorPath,
-  prefersMarkdown,
+  markdownNotFoundResponse,
+  resolveMarkdownRequest,
 } from "./lib/markdown-negotiation";
 
 export const config = {
-  matcher: [
-    "/",
-    "/docs",
-    "/docs/:path*",
-    "/changelog/:path*",
-    "/reference/operations/:path*",
-  ],
+  // Every page route, so unknown URLs can answer in Markdown too. API, MCP,
+  // and platform paths are excluded here and again in the resolver.
+  matcher: ["/((?!api(?:/|$)|mcp(?:/|$)|\\.well-known|_vercel|.*\\.[^/]+$).*)"],
 };
 
-export default function middleware(request: Request) {
-  if (!prefersMarkdown(request.headers.get("accept"))) {
-    return;
+export default async function middleware(request: Request) {
+  const resolution = await resolveMarkdownRequest(request);
+
+  if (resolution.type === "rewrite") {
+    return rewrite(new URL(resolution.path, request.url));
   }
 
-  const { pathname } = new URL(request.url);
-  const mirrorPath = markdownMirrorPath(pathname);
-
-  if (!mirrorPath) {
-    return;
+  if (resolution.type === "not-found") {
+    return markdownNotFoundResponse(resolution.markdown, request.method);
   }
-
-  return rewrite(new URL(mirrorPath, request.url));
 }
