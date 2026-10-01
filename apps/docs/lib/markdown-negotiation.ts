@@ -214,21 +214,27 @@ export async function resolveMarkdownRequest(
     return { type: "html" };
   }
 
-  const exists = async (target: URL) => {
-    const response = await fetchImpl(target, {
+  const probe = (target: URL) =>
+    fetchImpl(target, {
       method: "HEAD",
       headers: { accept: "text/html" },
       redirect: "manual",
     });
-    return response.status !== 404;
-  };
+  // A page counts as existing for anything but 404, so redirects and server
+  // errors keep serving the normal response. A mirror must answer 2xx before
+  // we rewrite to it; otherwise the client would get its error or redirect.
+  const exists = async (target: URL) => (await probe(target)).status !== 404;
+  const mirrorReady = async (target: URL) => (await probe(target)).ok;
 
   // A failed probe must never break a page that would otherwise load, so any
   // network error degrades to the normal HTML response.
   try {
     const mirrorPath = markdownMirrorPath(url.pathname);
 
-    if (mirrorPath && (await exists(new URL(mirrorPath, request.url)))) {
+    if (
+      mirrorPath &&
+      (await mirrorReady(new URL(mirrorPath, request.url)))
+    ) {
       return { type: "rewrite", path: mirrorPath };
     }
 
