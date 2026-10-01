@@ -674,6 +674,10 @@ const performBulkUpdate = async (
     return args.tags;
   };
 
+  // Pre-patch card lets the search sync skip the mutable tag-progress read
+  // when the edit leaves tags and filters unchanged.
+  const previousCard = await ctx.db.get("cards", args.cardId);
+
   for (const field of requestedFields) {
     const result = await updateCardFieldForUserHandler(
       ctx,
@@ -689,7 +693,12 @@ const performBulkUpdate = async (
       shouldSchedulePipeline || result.shouldSchedulePipeline;
   }
 
-  await scheduleCardSearchSync(ctx, args.cardId, args.userId);
+  await scheduleCardSearchSync(
+    ctx,
+    args.cardId,
+    args.userId,
+    previousCard ?? undefined
+  );
 
   return shouldSchedulePipeline;
 };
