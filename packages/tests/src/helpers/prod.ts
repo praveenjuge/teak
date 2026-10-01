@@ -220,6 +220,23 @@ const settingsRow = (page: Page, label: string) =>
     .getByText(label, { exact: true })
     .locator("xpath=ancestor::div[.//button][1]");
 
+// Eleven accounts sign in at once against production, so the first post-login
+// render can outlast the default 15s expect timeout. Give it a longer
+// budget, then reload once in case the session was set but the page stalled.
+const expectComposer = async (page: Page) => {
+  const composer = page.getByPlaceholder(/Write a note/i);
+  const ready = await composer
+    .waitFor({ state: "visible", timeout: 20_000 })
+    .then(
+      () => true,
+      () => false
+    );
+  if (!ready) {
+    await page.reload();
+  }
+  await expect(composer).toBeVisible({ timeout: 30_000 });
+};
+
 export const signIn = async (
   page: Page,
   email: string,
@@ -234,13 +251,13 @@ export const signIn = async (
       () => false
     );
   if (!canSignIn) {
-    await expect(page.getByPlaceholder(/Write a note/i)).toBeVisible();
+    await expectComposer(page);
     return;
   }
   await emailInput.fill(email);
   await page.getByLabel("Password").fill(password);
   await page.getByRole("button", { name: /login|sign in/i }).click();
-  await expect(page.getByPlaceholder(/Write a note/i)).toBeVisible();
+  await expectComposer(page);
 };
 
 export const passwordFor = (account: AccountState) =>
