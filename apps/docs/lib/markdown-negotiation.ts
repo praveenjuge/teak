@@ -166,3 +166,101 @@ export function markdownMirrorPath(pathname: string): string | null {
 
   return null;
 }
+
+/**
+ * Paths proxied to other services or owned by the platform. They never
+ * serve site pages, so a Markdown request must reach them untouched.
+ */
+const PASSTHROUGH_PATH = /^\/(?:api|mcp|\.well-known|_vercel)(?:\/|$)/;
+
+/** True when a path can be probed for a Markdown "not found" response. */
+export function canServeMarkdownNotFound(pathname: string): boolean {
+  return !PASSTHROUGH_PATH.test(pathname);
+}
+
+export type MarkdownResolution =
+  | { type: "html" }
+  | { type: "rewrite"; path: string }
+  | { type: "not-found"; markdown: string };
+
+type Fetcher = (input: URL, init?: RequestInit) => Promise<Response>;
+
+/**
+ * Decides how to answer a request from a client that prefers Markdown.
+ *
+ * - A page with a built mirror is rewritten to that mirror.
+ * - A missing page (no mirror, or no HTML page either) gets the built
+ *   /404.md body so agents read the recovery links instead of an HTML
+ *   error page. The caller keeps the 404 status.
+ * - Everything else keeps serving HTML.
+ *
+ * Probes use HEAD requests with an HTML Accept header so they never
+ * re-enter the Markdown branch.
+ */
+export async function resolveMarkdownRequest(
+  request: Request,
+  fetchImpl: Fetcher = fetch,
+): Promise<MarkdownResolution> {
+  if (
+    (request.method !== "GET" && request.method !== "HEAD") ||
+    !prefersMarkdown(request.headers.get("accept"))
+  ) {
+    return { type: "html" };
+  }
+
+  const url = new URL(request.url);
+
+  if (!canServeMarkdownNotFound(url.pathname)) {
+    return { type: "html" };
+  }
+
+  const exists = async (target: URL) => {
+    const response = await fetchImpl(target, {
+      method: "HEAD",
+      headers: { accept: "text/html" },
+      redirect: "manual",
+    });
+    return response.status !== 404;
+  };
+
+  const mirrorPath = markdownMirrorPath(url.pathname);
+
+  if (mirrorPath) {
+    const mirrorUrl = new URL(mirrorPath, request.url);
+    if (await exists(mirrorUrl)) {
+      return { type: "rewrite", path: mirrorPath };
+    }
+  } else if (await exists(url)) {
+    return { type: "html" };
+  }
+
+  const notFound = await fetchImpl(new URL("/404.md", request.url), {
+    headers: { accept: "text/markdown" },
+  });
+
+  if (!notFound.ok) {
+    return { type: "html" };
+  }
+
+  const markdown = await notFound.text();
+
+  return markdown.trim() ? { type: "not-found", markdown } : { type: "html" };
+}
+
+/** 404 response carrying the Markdown error page. */
+export function markdownNotFoundResponse(
+  markdown: string,
+  method: string,
+): Response {
+  const body = new TextEncoder().encode(markdown);
+
+  return new Response(method === "HEAD" ? null : body, {
+    status: 404,
+    headers: {
+      "Cache-Control": "public, max-age=0, must-revalidate",
+      "Content-Length": String(body.byteLength),
+      "Content-Type": "text/markdown; charset=utf-8",
+      Vary: "Accept",
+    },
+  });
+}
