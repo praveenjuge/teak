@@ -199,7 +199,7 @@ type Fetcher = (input: URL, init?: RequestInit) => Promise<Response>;
  */
 export async function resolveMarkdownRequest(
   request: Request,
-  fetchImpl: Fetcher = fetch,
+  fetchImpl: Fetcher = fetch
 ): Promise<MarkdownResolution> {
   if (
     (request.method !== "GET" && request.method !== "HEAD") ||
@@ -223,28 +223,35 @@ export async function resolveMarkdownRequest(
     return response.status !== 404;
   };
 
-  const mirrorPath = markdownMirrorPath(url.pathname);
+  // A failed probe must never break a page that would otherwise load, so any
+  // network error degrades to the normal HTML response.
+  try {
+    const mirrorPath = markdownMirrorPath(url.pathname);
 
-  if (mirrorPath) {
-    const mirrorUrl = new URL(mirrorPath, request.url);
-    if (await exists(mirrorUrl)) {
+    if (mirrorPath && (await exists(new URL(mirrorPath, request.url)))) {
       return { type: "rewrite", path: mirrorPath };
     }
-  } else if (await exists(url)) {
+
+    // No mirror: the page may still exist as HTML (for example /pricing, or a
+    // page whose mirror was not built), and must keep serving it.
+    if (await exists(url)) {
+      return { type: "html" };
+    }
+
+    const notFound = await fetchImpl(new URL("/404.md", request.url), {
+      headers: { accept: "text/markdown" },
+    });
+
+    if (!notFound.ok) {
+      return { type: "html" };
+    }
+
+    const markdown = await notFound.text();
+
+    return markdown.trim() ? { type: "not-found", markdown } : { type: "html" };
+  } catch {
     return { type: "html" };
   }
-
-  const notFound = await fetchImpl(new URL("/404.md", request.url), {
-    headers: { accept: "text/markdown" },
-  });
-
-  if (!notFound.ok) {
-    return { type: "html" };
-  }
-
-  const markdown = await notFound.text();
-
-  return markdown.trim() ? { type: "not-found", markdown } : { type: "html" };
 }
 
 /** 404 response carrying the Markdown error page. */
