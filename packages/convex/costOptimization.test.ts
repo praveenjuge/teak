@@ -151,3 +151,75 @@ test("reordered normalized tags preserve exact-tag rows and generations", async 
     }
   });
 });
+
+test("text-only patches do not read tag-chain state while a batch is pending", async () => {
+  const t = convexTest(schema, modules);
+  await t.run(async (ctx) => {
+    const id = await ctx.db.insert("cards", {
+      userId: "text-occ",
+      type: "text",
+      content: "before",
+      tags: ["alpha"],
+      createdAt: 10,
+      updatedAt: 10,
+    });
+    await syncCardSearchDocumentHandler(ctx, id);
+    const originalQuery = ctx.db.query.bind(ctx.db);
+    const guarded = {
+      ...ctx,
+      db: new Proxy(ctx.db, {
+        get(target, key) {
+          if (key === "query")
+            return (table: string) => {
+              if (table === "cardSearchTagSyncStates")
+                throw new Error("text patch read tag progress");
+              return originalQuery(table as any);
+            };
+          const value = Reflect.get(target, key);
+          return typeof value === "function" ? value.bind(target) : value;
+        },
+      }),
+    } as MutationCtx;
+    await patchCardWithSearchSync(guarded, id, {
+      content: "new words",
+      updatedAt: 20,
+    });
+    await patchCardWithSearchSync(guarded, id, {
+      aiSummary: "new summary",
+      updatedAt: 30,
+    });
+    const state = await ctx.db
+      .query("cardSearchTagSyncStates")
+      .withIndex("by_cardId", (q) => q.eq("cardId", id))
+      .unique();
+    expect(state?.generation).toBe(1);
+    expect(state?.pending).toBe(true);
+    await drainTags(ctx, id);
+    expect((await searchState(ctx, id)).document?.searchableText).toContain(
+      "new summary"
+    );
+    expect((await searchState(ctx, id)).tags.map((x) => x.tag)).toEqual([
+      "alpha",
+    ]);
+  });
+});
+
+test("missing search documents and direct sync still repair tag state", async () => {
+  const t = convexTest(schema, modules);
+  await t.run(async (ctx) => {
+    const id = await seed(ctx);
+    const before = await searchState(ctx, id);
+    await ctx.db.delete("cardSearchDocuments", before.document!._id);
+    await ctx.db.delete("cardSearchTagSyncStates", before.sync!._id);
+    await patchCardWithSearchSync(ctx, id, {
+      content: "repair missing document",
+      updatedAt: 20,
+    });
+    expect((await searchState(ctx, id)).sync?.pending).toBe(true);
+    await drainTags(ctx, id);
+    const repaired = await searchState(ctx, id);
+    await ctx.db.delete("cardSearchTagSyncStates", repaired.sync!._id);
+    await syncCardSearchDocumentHandler(ctx, id);
+    expect((await searchState(ctx, id)).sync?.pending).toBe(true);
+  });
+});
