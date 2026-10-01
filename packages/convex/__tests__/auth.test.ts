@@ -747,6 +747,175 @@ describe("auth", () => {
       expect(ctx.db.delete).toHaveBeenCalledTimes(8);
     });
 
+    it("does not read the cards table while deleting", async () => {
+      // Regression: reading each card put the whole batch in the mutation's
+      // optimistic-concurrency read set, so a concurrent card write (e.g.
+      // updateCardAI) invalidated every retry until the batch failed the
+      // account deletion. The handler must not read cards rows.
+      const ctx = {
+        db: {
+          get: mock((table: string) => {
+            if (table === "cards") {
+              throw new Error("cards read would widen the OCC read set");
+            }
+            return null;
+          }),
+          query: (table: string) => ({
+            withIndex: (_name: any, cb: any) => {
+              let cardId: string | undefined;
+              if (cb) {
+                cb({
+                  eq: (_field: string, value: string) => {
+                    cardId = value;
+                  },
+                });
+              }
+              return {
+                ...(table === "cardSearchDocuments"
+                  ? { unique: async () => ({ _id: "search_c1" }) }
+                  : {}),
+                ...(table === "cardSearchTags"
+                  ? { take: async () => [{ _id: `tag_${cardId}` }] }
+                  : {}),
+                ...(table === "cardSearchTagSyncStates"
+                  ? { unique: async () => ({ _id: `tag_state_${cardId}` }) }
+                  : {}),
+              };
+            },
+          }),
+          delete: mock(),
+        },
+      } as any;
+
+      const result = await deleteAccountDataHandler(ctx, "u1", ["c1", "c2"]);
+
+      expect(result).toBe(2);
+      expect(ctx.db.get).not.toHaveBeenCalledWith("cards", "c1");
+      expect(ctx.db.get).not.toHaveBeenCalledWith("cards", "c2");
+      expect(ctx.db.delete).toHaveBeenCalledWith("cards", "c1");
+      expect(ctx.db.delete).toHaveBeenCalledWith("cards", "c2");
+    });
+
+    it("skips cards already deleted by a concurrent batch", async () => {
+      const ctx = {
+        db: {
+          get: mock(() => {
+            throw new Error("cards read would widen the OCC read set");
+          }),
+          query: (table: string) => ({
+            withIndex: (_name: any, cb: any) => {
+              let cardId: string | undefined;
+              if (cb) {
+                cb({
+                  eq: (_field: string, value: string) => {
+                    cardId = value;
+                  },
+                });
+              }
+              return {
+                ...(table === "cardSearchDocuments"
+                  ? { unique: async () => null }
+                  : {}),
+                ...(table === "cardSearchTags"
+                  ? { take: async () => [] }
+                  : {}),
+                ...(table === "cardSearchTagSyncStates"
+                  ? { unique: async () => null }
+                  : {}),
+              };
+            },
+          }),
+          delete: mock((table: string, id: string) => {
+            if (table === "cards" && id === "c1") {
+              throw new Error("Delete on non-existent doc");
+            }
+          }),
+        },
+      } as any;
+
+      const result = await deleteAccountDataHandler(ctx, "u1", ["c1", "c2"]);
+
+      expect(result).toBe(1);
+      expect(ctx.db.delete).toHaveBeenCalledWith("cards", "c1");
+      expect(ctx.db.delete).toHaveBeenCalledWith("cards", "c2");
+    });
+
+    it("skips the production nonexistent-document delete error", async () => {
+      const ctx = {
+        db: {
+          get: mock(() => {
+            throw new Error("cards read would widen the OCC read set");
+          }),
+          query: (table: string) => ({
+            withIndex: (_name: any, cb: any) => {
+              let cardId: string | undefined;
+              if (cb) {
+                cb({
+                  eq: (_field: string, value: string) => {
+                    cardId = value;
+                  },
+                });
+              }
+              return {
+                ...(table === "cardSearchDocuments"
+                  ? { unique: async () => null }
+                  : {}),
+                ...(table === "cardSearchTags"
+                  ? { take: async () => [] }
+                  : {}),
+                ...(table === "cardSearchTagSyncStates"
+                  ? { unique: async () => null }
+                  : {}),
+              };
+            },
+          }),
+          delete: mock((table: string, id: string) => {
+            if (table === "cards" && id === "c1") {
+              // Verbatim production Convex backend wording (no hyphen).
+              throw new Error('Delete on nonexistent document ID "c1"');
+            }
+          }),
+        },
+      } as any;
+
+      const result = await deleteAccountDataHandler(ctx, "u1", ["c1", "c2"]);
+
+      expect(result).toBe(1);
+      expect(ctx.db.delete).toHaveBeenCalledWith("cards", "c1");
+      expect(ctx.db.delete).toHaveBeenCalledWith("cards", "c2");
+    });
+
+    it("rethrows unexpected card deletion failures", async () => {
+      const ctx = {
+        db: {
+          get: mock(() => null),
+          query: (table: string) => ({
+            withIndex: (_name: any, cb: any) => {
+              if (cb) {
+                cb({ eq: () => undefined });
+              }
+              return {
+                ...(table === "cardSearchDocuments"
+                  ? { unique: async () => null }
+                  : {}),
+                ...(table === "cardSearchTags" ? { take: async () => [] } : {}),
+                ...(table === "cardSearchTagSyncStates"
+                  ? { unique: async () => null }
+                  : {}),
+              };
+            },
+          }),
+          delete: mock(() => {
+            throw new Error("Connection lost to backend");
+          }),
+        },
+      } as any;
+
+      await expect(
+        deleteAccountDataHandler(ctx, "u1", ["c1"])
+      ).rejects.toThrow("Connection lost to backend");
+    });
+
     it("collects storage keys before deleting their owning rows", async () => {
       const ctx = {
         db: {

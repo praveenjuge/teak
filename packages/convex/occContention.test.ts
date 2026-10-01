@@ -795,6 +795,75 @@ describe("OCC contention behavior", () => {
     });
   });
 
+  test("deletion batch tolerates a card deleted by a concurrent batch", async () => {
+    const t = convexTest(schema, modules);
+    await t.run(async (ctx) => {
+      const cardId = await insertCard(ctx, "user-race-delete", {
+        content: "gone",
+      });
+      await syncCardSearchDocumentHandler(ctx, cardId);
+      await drainCardSearchTagSync(ctx, cardId);
+      await ctx.db.delete("cards", cardId);
+
+      // The card vanished between the batch query and the batch mutation
+      // (concurrent batch won the race): the handler skips it instead of
+      // failing the whole account deletion.
+      expect(
+        await deleteAccountDataHandler(ctx, "user-race-delete", [cardId])
+      ).toBe(0);
+      expect(await ctx.db.query("cardSearchDocuments").collect()).toHaveLength(
+        0
+      );
+      expect(
+        await ctx.db.query("cardSearchTagSyncStates").collect()
+      ).toHaveLength(0);
+    });
+  });
+
+  test("stands down card patch writers while account deletion is in progress", async () => {
+    const t = convexTest(schema, modules);
+    await t.run(async (ctx) => {
+      const cardId = await insertCard(ctx, "user-fence-patch", {
+        content: "before",
+      });
+      await syncCardSearchDocumentHandler(ctx, cardId);
+
+      await beginAccountDeletion(ctx, "user-fence-patch");
+      // Background writers (AI metadata, link metadata, classification, ...)
+      // all patch cards through this seam. During deletion their writes only
+      // race the deletion batches with OCC conflicts, so the seam stands
+      // down: no patch, no search sync.
+      const fenced = await patchCardWithSearchSync(ctx, cardId, {
+        content: "after",
+        updatedAt: 999,
+      });
+      expect(fenced).toBe(false);
+
+      const card = await ctx.db.get("cards", cardId);
+      expect(card?.content).toBe("before");
+      const document = await ctx.db
+        .query("cardSearchDocuments")
+        .withIndex("by_cardId", (query) => query.eq("cardId", cardId))
+        .unique();
+      expect(document).not.toBeNull();
+      expect(document?.sourceUpdatedAt).not.toBe(999);
+
+      await finishAccountDeletion(ctx, "user-fence-patch");
+      const resumed = await patchCardWithSearchSync(ctx, cardId, {
+        content: "after",
+        updatedAt: 999,
+      });
+      expect(resumed).toBe(true);
+      expect((await ctx.db.get("cards", cardId))?.content).toBe("after");
+      expect(await syncCardSearchDocumentHandler(ctx, cardId)).toBeNull();
+      const synced = await ctx.db
+        .query("cardSearchDocuments")
+        .withIndex("by_cardId", (query) => query.eq("cardId", cardId))
+        .unique();
+      expect(synced?.sourceUpdatedAt).toBe(999);
+    });
+  });
+
   test("stands down search sync writers while account deletion is in progress", async () => {
     const t = convexTest(schema, modules);
     await t.run(async (ctx) => {

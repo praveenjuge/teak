@@ -549,15 +549,17 @@ export const getAccountCardDeletionBatch = internalQuery({
 
 export const deleteAccountDataHandler = async (
   ctx: MutationCtx,
-  userId: string,
+  _userId: string,
   cardIds: Id<"cards">[]
 ) => {
   let deletedCards = 0;
   for (const cardId of cardIds) {
-    const card = await ctx.db.get("cards", cardId);
-    if (!card || card.userId !== userId) {
-      continue;
-    }
+    // Deliberately no ctx.db.get("cards", cardId) ownership re-check here:
+    // card ownership is immutable (no code path patches cards.userId) and
+    // the caller derives these IDs from the by_user_deleted index for this
+    // user, so the extra read only widened the mutation's conflict surface.
+    // The writers that raced these batches are fenced off during account
+    // deletion in patchCardWithSearchSync.
     const tagDocuments = await ctx.db
       .query("cardSearchTags")
       .withIndex("by_cardId", (query) => query.eq("cardId", cardId))
@@ -585,8 +587,23 @@ export const deleteAccountDataHandler = async (
     if (searchTagSyncState) {
       await ctx.db.delete("cardSearchTagSyncStates", searchTagSyncState._id);
     }
-    await ctx.db.delete("cards", cardId);
-    deletedCards += 1;
+    try {
+      await ctx.db.delete("cards", cardId);
+      deletedCards += 1;
+    } catch (error) {
+      // Only the already-deleted race is skippable. Anything else (backend
+      // failure, invalid ID) must surface so the deletion action retries or
+      // fails loudly instead of reporting progress it did not make. The
+      // production backend says "Delete on nonexistent document ID ..."
+      // while convex-test says "Delete on non-existent doc", so match both
+      // spellings.
+      if (
+        !(error instanceof Error) ||
+        !/non-?existent|not found/i.test(error.message)
+      ) {
+        throw error;
+      }
+    }
   }
   return deletedCards;
 };

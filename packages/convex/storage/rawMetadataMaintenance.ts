@@ -1,5 +1,7 @@
 import { v } from "convex/values";
 import { internal } from "../_generated/api";
+import { getAccountDeletionState } from "../accountDeletion";
+import { cardStorageObjectKeys, deleteObject } from "./r2";
 import type { Id } from "../_generated/dataModel";
 import {
   type ActionCtx,
@@ -39,19 +41,50 @@ export const commitArchive = internalMutation({
   returns: v.boolean(),
   handler: async (ctx, { cardId, kind, expectedJson, key, digest }) => {
     const card = await ctx.db.get("cards", cardId);
+    if (!card) {
+      // The card vanished (for example account deletion already removed
+      // it) after the archive copy was made; the copy is unreferenced, so
+      // remove it rather than leak it.
+      await deleteObject(ctx, key);
+      return false;
+    }
+    if (await getAccountDeletionState(ctx, card.userId)) {
+      // Account deletion owns this card's teardown; patching here would
+      // race its batches with OCC conflicts. The copied object is not yet
+      // referenced by the card, so enqueue durable deletion. Let a failed
+      // enqueue reject: archiveCard retains the immutable key in a commit
+      // retry rather than acknowledging cleanup that was never recorded.
+      if (card.metadata?.[kind]?.rawStorageKey !== key) {
+        await deleteObject(ctx, key);
+      }
+      return false;
+    }
     const part = card?.metadata?.[kind];
     if (
-      !(card && part) ||
       key !== rawMetadataKey(card, kind, digest) ||
       (await hashRawMetadata(expectedJson)) !== digest
     ) {
       return false;
     }
-    if (part.raw === undefined) {
-      return part.rawStorageKey === key && part.rawSha256 === digest;
-    }
-    if (serializeRawMetadata(part.raw) !== expectedJson) {
-      return false;
+    if (
+      !part ||
+      part.raw === undefined ||
+      serializeRawMetadata(part.raw) !== expectedJson
+    ) {
+      const alreadyCommitted =
+        part?.raw === undefined &&
+        part?.rawStorageKey === key &&
+        part?.rawSha256 === digest;
+      if (!alreadyCommitted && !cardStorageObjectKeys(card).includes(key)) {
+        // Content-addressed keys may be referenced by a later archive of
+        // the same payload. Retain stale copies in the card's internal
+        // storage inventory instead of racing a queued deletion. Account
+        // deletion and orphan sweeping already collect these tracked keys.
+        await ctx.db.patch("cards", cardId, {
+          workflowArtifactKeys: [...(card.workflowArtifactKeys ?? []), key],
+        });
+      }
+      return alreadyCommitted;
     }
     const archived = {
       ...part,
@@ -92,6 +125,8 @@ export const archiveCardHandler = async (
   if (!rawArchivalConfigured()) {
     return { archived, skipped: 1 };
   }
+  let commitError: unknown;
+  let hasCommitError = false;
   try {
     const card = await ctx.runQuery(functions().getRawCard, { cardId });
     if (!card) {
@@ -110,15 +145,27 @@ export const archiveCardHandler = async (
       const digest = await hashRawMetadata(json);
       const key = rawMetadataKey(card, kind, digest);
       await copyAndVerifyRaw(card, kind, json, digest);
-      if (
-        await ctx.runMutation(functions().commitArchive, {
-          cardId,
-          kind,
-          expectedJson: json,
-          key,
-          digest,
-        })
-      ) {
+      const commitArgs = { cardId, kind, expectedJson: json, key, digest };
+      let committed: boolean;
+      try {
+        committed = await ctx.runMutation(
+          functions().commitArchive,
+          commitArgs
+        );
+      } catch (error) {
+        // The copy already exists. Retain its immutable key durably and
+        // retry only the commit/cleanup, not the upload or card lookup. This
+        // still cleans the copy if account deletion has removed the card.
+        await ctx.scheduler.runAfter(
+          60_000,
+          functions().commitArchive,
+          commitArgs
+        );
+        if (!hasCommitError) commitError = error;
+        hasCommitError = true;
+        continue;
+      }
+      if (committed) {
         archived += 1;
       } else {
         skipped += 1;
@@ -127,6 +174,8 @@ export const archiveCardHandler = async (
   } catch (error) {
     // A failed copy/verification retains the entire inline payload. Retry
     // boundedly; later explicit maintenance can retry exhausted items.
+    // Query/copy/enqueue failures still retry the full card so later kinds
+    // are not stranded inline. Retained commit errors are surfaced below.
     if (attempt < 2) {
       await ctx.scheduler.runAfter(
         60_000 * (attempt + 1),
@@ -136,6 +185,9 @@ export const archiveCardHandler = async (
     }
     throw error;
   }
+  // Attempt every kind before surfacing a retained commit failure to
+  // archivePage. Each failed commit has its own key-preserving retry.
+  if (hasCommitError) throw commitError;
   return { archived, skipped };
 };
 

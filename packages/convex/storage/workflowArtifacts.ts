@@ -10,6 +10,7 @@ import {
 import { readBodyWithLimit } from "../linkMetadata/ssrf";
 import { putObjectViaFilesWorker } from "./filesWorkerClient";
 import { getR2Url } from "./fileUrls";
+import { getAccountDeletionState } from "../accountDeletion";
 import { buildR2UserPrefix, deleteObject } from "./r2";
 import { hashRawMetadata } from "./rawMetadata";
 
@@ -261,16 +262,29 @@ export const registerArtifactHandler = async (
     }
   }
   const keys = card?.workflowArtifactKeys ?? [];
+  // This internal inventory also retains reusable raw-metadata copies.
+  // Only workflow artifacts consume the workflow registration quota.
+  const artifactPrefix = `${buildR2UserPrefix(ref.userId)}/${ref.cardId}/workflow-artifacts/`;
+  const artifactCount = keys.filter((key) =>
+    key.startsWith(artifactPrefix)
+  ).length;
   if (
     !card ||
     card.userId !== ref.userId ||
     owner?.args?.cardId !== ref.cardId ||
     owner.runResult !== undefined ||
     owner.generationNumber !== ref.generationNumber ||
-    (!keys.includes(ref.key) && keys.length >= MAX_CARD_WORKFLOW_ARTIFACTS)
+    (!keys.includes(ref.key) && artifactCount >= MAX_CARD_WORKFLOW_ARTIFACTS)
   ) {
     // The verified object never entered a journal; durable deletion is safe,
     // including when card teardown raced the copy or owner was canceled.
+    await deleteObject(ctx, ref.key);
+    return false;
+  }
+  if (await getAccountDeletionState(ctx, card.userId)) {
+    // Account deletion owns this card's teardown; registering now would
+    // race its batches with OCC conflicts. The copied object is
+    // unreferenced, so durable deletion is safe.
     await deleteObject(ctx, ref.key);
     return false;
   }
@@ -338,6 +352,12 @@ export const deleteRetainedArtifactsHandler = async (
     }
   }
   const card = await ctx.db.get("cards", cardId);
+  if (card && (await getAccountDeletionState(ctx, card.userId))) {
+    // Account deletion removes the card and its artifact objects together
+    // (cardStorageObjectKeys covers workflowArtifactKeys); cleaning up here
+    // would race its batches with OCC conflicts.
+    return null;
+  }
   const owned = card
     ? ownedWorkflowArtifactKeys(card, workflowId, generationNumber)
     : [];
