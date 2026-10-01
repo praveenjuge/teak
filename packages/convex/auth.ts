@@ -549,7 +549,7 @@ export const getAccountCardDeletionBatch = internalQuery({
 
 export const deleteAccountDataHandler = async (
   ctx: MutationCtx,
-  userId: string,
+  _userId: string,
   cardIds: Id<"cards">[]
 ) => {
   let deletedCards = 0;

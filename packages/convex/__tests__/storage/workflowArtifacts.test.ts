@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, expect, mock, test } from "bun:test";
 import { jsonToConvex } from "convex/values";
+import { internal } from "../../_generated/api";
 import { hashRawMetadata } from "../../storage/rawMetadata";
 import {
   archiveWorkflowValue,
@@ -247,9 +248,11 @@ test("artifact writes stand down during account deletion", async () => {
   expect(await registerArtifactHandler(registerCtx, ref)).toBe(false);
   expect(data.workflowArtifactKeys).toEqual(["existing_key"]);
   expect(patch).not.toHaveBeenCalled();
-  expect(runAfter).toHaveBeenCalledWith(0, expect.anything(), {
-    keys: [ref.key],
-  });
+  expect(runAfter).toHaveBeenCalledWith(
+    0,
+    internal["workflows/objectCleanup"].startObjectDeletion,
+    { keys: [ref.key] }
+  );
   // Retained-artifact cleanup stands down entirely: account deletion
   // removes the card and its artifact objects together. references carries
   // a real artifact so removing the fence would schedule its deletion and
@@ -469,9 +472,11 @@ test("retained raw archives do not consume workflow slots, but real artifacts st
   const next = { ...ref, digest: await hashRawMetadata("new payload") };
   next.key = workflowArtifactKey(next);
   expect(await registerArtifactHandler(registerCtx, next)).toBe(false);
-  expect(runAfter).toHaveBeenCalledWith(0, expect.anything(), {
-    keys: [next.key],
-  });
+  expect(runAfter).toHaveBeenCalledWith(
+    0,
+    internal["workflows/objectCleanup"].startObjectDeletion,
+    { keys: [next.key] }
+  );
   expect(data.workflowArtifactKeys).toHaveLength(200);
   expect(rawKeys.every((key) => data.workflowArtifactKeys.includes(key))).toBe(
     true
