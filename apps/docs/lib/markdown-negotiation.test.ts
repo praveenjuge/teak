@@ -1,10 +1,13 @@
 import { describe, expect, test } from "bun:test";
 import vercelConfig from "../vercel.json";
 import {
+  canServeMarkdownNotFound,
   markdownMirrorPath,
+  markdownNotFoundResponse,
   parseAcceptHeader,
   prefersMarkdown,
   qualityFor,
+  resolveMarkdownRequest,
 } from "./markdown-negotiation";
 
 describe("parseAcceptHeader", () => {
@@ -146,5 +149,158 @@ describe("vercel.json cache headers", () => {
   test("top-level Markdown mirrors vary on Accept", () => {
     expect(varyFor("/index.md")).toBe("Accept");
     expect(varyFor("/docs.md")).toBe("Accept");
+  });
+});
+
+describe("resolveMarkdownRequest", () => {
+  const NOT_FOUND_MD =
+    "# Page not found\n\n- [Back to home](https://x.test/)\n";
+  const existing = new Set(["/pricing", "/docs/ai-agents.md", "/index.md"]);
+  const calls: { path: string; method?: string; accept?: string }[] = [];
+
+  const fakeFetch = async (input: URL, init?: RequestInit) => {
+    const headers = new Headers(init?.headers);
+    calls.push({
+      path: input.pathname,
+      method: init?.method,
+      accept: headers.get("accept") ?? undefined,
+    });
+    if (input.pathname === "/404.md") {
+      return new Response(NOT_FOUND_MD, { status: 200 });
+    }
+    return new Response(null, {
+      status: existing.has(input.pathname) ? 200 : 404,
+    });
+  };
+
+  const request = (path: string, accept: string | null, method = "GET") =>
+    new Request(`https://x.test${path}`, {
+      method,
+      headers: accept ? { accept } : {},
+    });
+
+  test("rewrites mirrored pages to their Markdown mirror", async () => {
+    expect(
+      await resolveMarkdownRequest(
+        request("/docs/ai-agents", "text/markdown"),
+        fakeFetch,
+      ),
+    ).toEqual({ type: "rewrite", path: "/docs/ai-agents.md" });
+  });
+
+  test("answers unknown URLs with the Markdown 404 body", async () => {
+    expect(
+      await resolveMarkdownRequest(
+        request("/__missing", "text/markdown"),
+        fakeFetch,
+      ),
+    ).toEqual({ type: "not-found", markdown: NOT_FOUND_MD });
+  });
+
+  test("answers mirrored paths whose mirror is missing with the 404 body", async () => {
+    expect(
+      await resolveMarkdownRequest(
+        request("/docs/gone", "text/markdown"),
+        fakeFetch,
+      ),
+    ).toEqual({ type: "not-found", markdown: NOT_FOUND_MD });
+  });
+
+  test("keeps serving HTML for existing pages without a mirror", async () => {
+    expect(
+      await resolveMarkdownRequest(
+        request("/pricing", "text/markdown"),
+        fakeFetch,
+      ),
+    ).toEqual({ type: "html" });
+  });
+
+  test("never probes browsers, other methods, or proxied paths", async () => {
+    calls.length = 0;
+    const html = { type: "html" };
+
+    expect(
+      await resolveMarkdownRequest(
+        request("/__missing", "text/html"),
+        fakeFetch,
+      ),
+    ).toEqual(html);
+    expect(
+      await resolveMarkdownRequest(request("/__missing", null), fakeFetch),
+    ).toEqual(html);
+    expect(
+      await resolveMarkdownRequest(
+        request("/__missing", "text/markdown", "POST"),
+        fakeFetch,
+      ),
+    ).toEqual(html);
+    expect(
+      await resolveMarkdownRequest(
+        request("/api/v1/x", "text/markdown"),
+        fakeFetch,
+      ),
+    ).toEqual(html);
+    expect(calls).toEqual([]);
+  });
+
+  test("probes with HEAD and an HTML Accept so it cannot loop", async () => {
+    calls.length = 0;
+    await resolveMarkdownRequest(
+      request("/__missing", "text/markdown"),
+      fakeFetch,
+    );
+
+    expect(calls[0]).toEqual({
+      path: "/__missing",
+      method: "HEAD",
+      accept: "text/html",
+    });
+  });
+
+  test("falls back to HTML when the Markdown 404 page is unavailable", async () => {
+    const broken = async (input: URL) =>
+      new Response(null, { status: input.pathname === "/404.md" ? 500 : 404 });
+
+    expect(
+      await resolveMarkdownRequest(
+        request("/__missing", "text/markdown"),
+        broken,
+      ),
+    ).toEqual({ type: "html" });
+  });
+});
+
+describe("markdownNotFoundResponse", () => {
+  test("is a 404 Markdown response that varies on Accept", async () => {
+    const response = markdownNotFoundResponse("# Not found\n", "GET");
+
+    expect(response.status).toBe(404);
+    expect(response.headers.get("content-type")).toBe(
+      "text/markdown; charset=utf-8",
+    );
+    expect(response.headers.get("vary")).toBe("Accept");
+    expect(response.headers.get("content-length")).toBe("12");
+    expect(await response.text()).toBe("# Not found\n");
+  });
+
+  test("HEAD keeps the headers and drops the body", async () => {
+    const response = markdownNotFoundResponse("# Not found\n", "HEAD");
+
+    expect(response.status).toBe(404);
+    expect(response.headers.get("content-length")).toBe("12");
+    expect(await response.text()).toBe("");
+  });
+});
+
+describe("canServeMarkdownNotFound", () => {
+  test("excludes proxied and platform paths only", () => {
+    expect(canServeMarkdownNotFound("/api")).toBe(false);
+    expect(canServeMarkdownNotFound("/api/v1/cards")).toBe(false);
+    expect(canServeMarkdownNotFound("/mcp")).toBe(false);
+    expect(
+      canServeMarkdownNotFound("/.well-known/oauth-protected-resource"),
+    ).toBe(false);
+    expect(canServeMarkdownNotFound("/apple")).toBe(true);
+    expect(canServeMarkdownNotFound("/pricing")).toBe(true);
   });
 });
