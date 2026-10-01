@@ -243,12 +243,15 @@ export const syncCardSearchDocumentHandler = async (
     await ctx.db.insert("cardSearchDocuments", value);
   }
 
+  const currentTags = JSON.stringify(buildCardSearchTags(card));
   // A caller-provided pre-patch card proves an ordinary text-only edit
   // cannot invalidate the exact-tag snapshot. Avoid reading the mutable
   // batch progress row in that case: even a read-only lookup puts it into
   // the caller's OCC set and races the running tag chain. A missing search
   // document, direct sync invocation, or tag/filter change still takes the
-  // repair path below.
+  // repair path below. Invariant: every sync that creates a search document
+  // also writes its tag-sync state, so an existing document implies a state
+  // row; legacy rows are repaired by any direct sync or tag change.
   if (
     existing &&
     previousCard &&
@@ -257,8 +260,7 @@ export const syncCardSearchDocumentHandler = async (
     (previousCard.isDeleted === true) === (card.isDeleted === true) &&
     (previousCard.isFavorited === true) === (card.isFavorited === true) &&
     previousCard.createdAt === card.createdAt &&
-    JSON.stringify(buildCardSearchTags(previousCard)) ===
-      JSON.stringify(buildCardSearchTags(card))
+    currentTags === JSON.stringify(buildCardSearchTags(previousCard))
   ) {
     return null;
   }
@@ -276,8 +278,7 @@ export const syncCardSearchDocumentHandler = async (
     (tagState.isDeleted === true) !== (card.isDeleted === true) ||
     (tagState.isFavorited === true) !== (card.isFavorited === true) ||
     tagState.cardCreatedAt !== card.createdAt ||
-    JSON.stringify(buildCardSearchTags(tagState)) !==
-      JSON.stringify(buildCardSearchTags(card));
+    JSON.stringify(buildCardSearchTags(tagState)) !== currentTags;
   if (tagsChanged) {
     await restartCardSearchTagSync(
       ctx,
