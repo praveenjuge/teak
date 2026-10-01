@@ -25,6 +25,10 @@
   "images": {
     "binding": "IMAGES"
   },
+  // This config deploys the production custom domain. Local dev overrides it.
+  "vars": {
+    "SENTRY_ENVIRONMENT": "production"
+  },
   "observability": {
     "enabled": true,
     "head_sampling_rate": 1
