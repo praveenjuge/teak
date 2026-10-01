@@ -220,6 +220,22 @@ describe("resolveMarkdownRequest", () => {
     ).toEqual({ type: "html" });
   });
 
+  test("does not rewrite to a mirror that redirects or errors", async () => {
+    for (const status of [301, 500]) {
+      const brokenMirror = async (input: URL) =>
+        new Response(null, {
+          status: input.pathname === "/docs/ai-agents.md" ? status : 200,
+        });
+
+      expect(
+        await resolveMarkdownRequest(
+          request("/docs/ai-agents", "text/markdown"),
+          brokenMirror
+        )
+      ).toEqual({ type: "html" });
+    }
+  });
+
   test("falls back to HTML when a probe or the 404 fetch rejects", async () => {
     const probeFails = async () => {
       throw new Error("network down");
