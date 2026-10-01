@@ -10,6 +10,7 @@ import {
   syncCardSearchDocumentHandler,
   syncCardSearchTagsBatchHandler,
 } from "./card/searchDocumentHelpers";
+import { updateCardFieldForUserHandler } from "./card/updateCard";
 import schema from "./schema";
 
 const modules = import.meta.glob("./**/*.ts");
@@ -219,6 +220,50 @@ test("missing search documents and direct sync still repair tag state", async ()
     await drainTags(ctx, id);
     const repaired = await searchState(ctx, id);
     await ctx.db.delete("cardSearchTagSyncStates", repaired.sync!._id);
+    await syncCardSearchDocumentHandler(ctx, id);
+    expect((await searchState(ctx, id)).sync?.pending).toBe(true);
+  });
+});
+
+test("field updates avoid tag progress reads and still repair a missing state on direct sync", async () => {
+  const t = convexTest(schema, modules);
+  await t.run(async (ctx) => {
+    const id = await ctx.db.insert("cards", {
+      userId: "field-occ",
+      type: "text",
+      content: "before",
+      tags: ["alpha"],
+      createdAt: 10,
+      updatedAt: 10,
+    });
+    await syncCardSearchDocumentHandler(ctx, id);
+    const originalQuery = ctx.db.query.bind(ctx.db);
+    const guarded = {
+      ...ctx,
+      db: new Proxy(ctx.db, {
+        get(target, key) {
+          if (key === "query")
+            return (table: string) => {
+              if (table === "cardSearchTagSyncStates")
+                throw new Error("field update read tag progress");
+              return originalQuery(table as any);
+            };
+          const value = Reflect.get(target, key);
+          return typeof value === "function" ? value.bind(target) : value;
+        },
+      }),
+    } as MutationCtx;
+    await updateCardFieldForUserHandler(guarded, {
+      userId: "field-occ",
+      cardId: id,
+      field: "notes",
+      value: "a note",
+    });
+    expect((await ctx.db.get("cards", id))?.notes).toBe("a note");
+    expect((await searchState(ctx, id)).sync?.generation).toBe(1);
+    // Existing document with a missing state row: a direct sync repairs it.
+    const state = await searchState(ctx, id);
+    await ctx.db.delete("cardSearchTagSyncStates", state.sync!._id);
     await syncCardSearchDocumentHandler(ctx, id);
     expect((await searchState(ctx, id)).sync?.pending).toBe(true);
   });
