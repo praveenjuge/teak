@@ -52,9 +52,10 @@ export const buildCardSearchTags = (
 export const scheduleCardSearchSync = async (
   ctx: MutationCtx,
   cardId: Id<"cards">,
-  userId?: string
+  userId?: string,
+  previousCard?: Doc<"cards">
 ) => {
-  await syncCardSearchDocumentHandler(ctx, cardId, userId);
+  await syncCardSearchDocumentHandler(ctx, cardId, userId, previousCard);
 };
 
 export const scheduleCardSearchTagSync = async (
@@ -179,7 +180,12 @@ export const patchCardWithSearchSync = async (
     "createdAt",
   ];
   if (searchableFields.some((field) => Object.keys(value).includes(field))) {
-    await scheduleCardSearchSync(ctx, cardId);
+    await scheduleCardSearchSync(
+      ctx,
+      cardId,
+      undefined,
+      card ?? undefined
+    );
   }
   return true;
 };
@@ -187,7 +193,8 @@ export const patchCardWithSearchSync = async (
 export const syncCardSearchDocumentHandler = async (
   ctx: MutationCtx,
   cardId: Id<"cards">,
-  userId?: string
+  userId?: string,
+  previousCard?: Doc<"cards">
 ) => {
   const [card, existing] = await Promise.all([
     ctx.db.get("cards", cardId),
@@ -234,6 +241,26 @@ export const syncCardSearchDocumentHandler = async (
     }
   } else {
     await ctx.db.insert("cardSearchDocuments", value);
+  }
+
+  // A caller-provided pre-patch card proves an ordinary text-only edit
+  // cannot invalidate the exact-tag snapshot. Avoid reading the mutable
+  // batch progress row in that case: even a read-only lookup puts it into
+  // the caller's OCC set and races the running tag chain. A missing search
+  // document, direct sync invocation, or tag/filter change still takes the
+  // repair path below.
+  if (
+    existing &&
+    previousCard &&
+    previousCard.userId === card.userId &&
+    previousCard.type === card.type &&
+    (previousCard.isDeleted === true) === (card.isDeleted === true) &&
+    (previousCard.isFavorited === true) === (card.isFavorited === true) &&
+    previousCard.createdAt === card.createdAt &&
+    JSON.stringify(buildCardSearchTags(previousCard)) ===
+      JSON.stringify(buildCardSearchTags(card))
+  ) {
+    return null;
   }
 
   // Text changes do not require rewriting every exact-tag row. The snapshot
