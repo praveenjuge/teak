@@ -10,6 +10,8 @@ import {
 import { requireAccount, updateState } from "../helpers/run-state";
 
 test("scheduled email canary resets the password", async ({ browser }) => {
+  // Allow the 180s email wait, composer recovery, and password-reset steps.
+  test.setTimeout(300_000);
   test.skip(
     !env.emailDeliveryEnabled,
     "Real email delivery runs only in the nightly production canary"
