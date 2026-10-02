@@ -224,7 +224,10 @@ const settingsRow = (page: Page, label: string) =>
 // render can outlast the default 15s expect timeout. Give it a longer
 // budget, then reload once in case the session was set but the page stalled.
 const expectComposer = async (page: Page) => {
-  const composer = page.getByPlaceholder(/Write a note/i);
+  const composer = page.getByRole("textbox", {
+    name: "Markdown content",
+    exact: true,
+  });
   const ready = await composer
     .waitFor({ state: "visible", timeout: 20_000 })
     .then(
@@ -271,7 +274,9 @@ export const signUp = async (page: Page, email = uniqueEmail()) => {
     .getByRole("button", { name: /create an account|sign up/i })
     .click();
   await page.goto(await waitForEmail(email, "Verify your email address"));
-  await expect(page.getByPlaceholder(/Write a note/i)).toBeVisible();
+  await expect(
+    page.getByRole("textbox", { name: "Markdown content", exact: true })
+  ).toBeVisible();
   return email;
 };
 
