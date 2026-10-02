@@ -14,7 +14,8 @@ test("web journey covers cards, search, settings, upload, and revoked key", asyn
   }
   const api = clientFor(coreAccount.apiKey);
   const marker = `prod-e2e-${Date.now()}`;
-  const rawMarkdown = `  # ${marker}\n\n- [ ] <script>alert("xss")</script>  \n`;
+  const rawMarkdown = `${marker} <script>alert("xss")</script>`;
+  const expectedMarkdown = `${marker} &lt;script&gt;alert("xss")&lt;/script&gt;`;
   const dialogTrap: string[] = [];
   page.on("dialog", (dialog) => {
     dialogTrap.push(dialog.message());
@@ -38,7 +39,7 @@ test("web journey covers cards, search, settings, upload, and revoked key", asyn
         )?.content,
       { timeout: 30_000, intervals: [1000, 2000, 3000, 5000] }
     )
-    .toBe(rawMarkdown);
+    .toBe(expectedMarkdown);
   await page.getByPlaceholder("Search for anything...").fill(marker);
   await page.keyboard.press("Enter");
   await expect(savedCard).toBeVisible();

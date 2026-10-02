@@ -130,12 +130,35 @@ function LinkEditor({
     editor.getAttributes("link").href ?? ""
   );
   const [invalid, setInvalid] = useState(false);
+  const [selection] = useState(() => ({
+    from: editor.state.selection.from,
+    to: editor.state.selection.to,
+  }));
+  useEffect(() => {
+    const closeOnEdit = ({
+      transaction,
+    }: {
+      transaction: Editor["state"]["tr"];
+    }) => {
+      if (transaction.docChanged) {
+        onDone();
+      }
+    };
+    editor.on("transaction", closeOnEdit);
+    return () => {
+      editor.off("transaction", closeOnEdit);
+    };
+  }, [editor, onDone]);
   const apply = () => {
     if (url && !isSafeExternalUrl(url)) {
       setInvalid(true);
       return;
     }
-    const chain = editor.chain().focus().extendMarkRange("link");
+    const chain = editor
+      .chain()
+      .focus()
+      .setTextSelection(selection)
+      .extendMarkRange("link");
     if (url) {
       chain.setLink({ href: url.trim() }).run();
     } else {

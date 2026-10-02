@@ -9,6 +9,11 @@ import { Extension } from "@tiptap/core";
 import Placeholder from "@tiptap/extension-placeholder";
 import { Markdown } from "@tiptap/markdown";
 import { Plugin, PluginKey } from "@tiptap/pm/state";
+import {
+  AddMarkStep,
+  ReplaceAroundStep,
+  ReplaceStep,
+} from "@tiptap/pm/transform";
 import { EditorContent, useEditor } from "@tiptap/react";
 import { exitSuggestion, type SuggestionProps } from "@tiptap/suggestion";
 import { useEffect, useRef, useState } from "react";
@@ -16,7 +21,6 @@ import { toast } from "sonner";
 import { EditorFormatting } from "./EditorControls";
 import {
   documentExtensions,
-  hasSameMarkdownMeaning,
   isWithinMarkdownLimit,
   markdownManager,
   prepareMarkdownDocument,
@@ -31,7 +35,14 @@ export function RichMarkdownEditor(props: MarkdownTextEditorProps) {
   const callbacks = useRef(props);
   callbacks.current = props;
   const lastValue = useRef(props.value);
-  const [initial] = useState(() => prepareMarkdownDocument(props.value));
+  const [initial] = useState(() => {
+    const prepared = prepareMarkdownDocument(props.value);
+    return {
+      ...prepared,
+      serialized: markdownManager.serialize(prepared.document),
+    };
+  });
+  const lastSerialized = useRef(initial.serialized);
   const [menu, setMenu] =
     useState<SuggestionProps<SlashCommandSuggestionItem> | null>(null);
   const selectedCommand = useRef(0);
@@ -41,7 +52,8 @@ export function RichMarkdownEditor(props: MarkdownTextEditorProps) {
     ...documentExtensions(),
     Markdown,
     Placeholder.configure({
-      placeholder: props.placeholder ?? "Write a note…",
+      showOnlyWhenEditable: false,
+      placeholder: () => callbacks.current.placeholder ?? "Write a note…",
     }),
     SlashCommand.configure({
       suggestion: {
@@ -117,7 +129,10 @@ export function RichMarkdownEditor(props: MarkdownTextEditorProps) {
         return [
           new Plugin({
             filterTransaction(transaction) {
-              if (!transaction.docChanged) {
+              if (
+                !transaction.docChanged ||
+                transaction.getMeta("teakExternalSync")
+              ) {
                 return true;
               }
               if (callbacks.current.disabled) {
@@ -131,21 +146,38 @@ export function RichMarkdownEditor(props: MarkdownTextEditorProps) {
                 return false;
               }
               let safe = true;
-              transaction.doc.descendants((node) => {
+              for (const step of transaction.steps) {
                 if (
-                  node.marks.some(
-                    (mark) =>
-                      mark.type.name === "link" &&
-                      !isSafeExternalUrl(mark.attrs.href)
-                  )
+                  step instanceof AddMarkStep &&
+                  step.mark.type.name === "link" &&
+                  !isSafeExternalUrl(step.mark.attrs.href)
                 ) {
                   safe = false;
                 }
-              });
+                if (
+                  step instanceof ReplaceStep ||
+                  step instanceof ReplaceAroundStep
+                ) {
+                  step.slice.content.descendants((node) => {
+                    if (
+                      node.marks.some(
+                        (mark) =>
+                          mark.type.name === "link" &&
+                          !isSafeExternalUrl(mark.attrs.href)
+                      )
+                    ) {
+                      safe = false;
+                    }
+                  });
+                }
+              }
               if (!safe) {
                 queueMicrotask(() =>
                   toast.error("This change cannot be saved as Markdown.")
                 );
+              }
+              if (safe) {
+                transaction.setMeta("teakMarkdown", markdown);
               }
               return safe;
             },
@@ -162,14 +194,14 @@ export function RichMarkdownEditor(props: MarkdownTextEditorProps) {
     autofocus: props.autoFocus ? "end" : false,
     extensions,
     editorProps: {
-      attributes: {
+      attributes: () => ({
         role: "textbox",
-        "aria-label": props.ariaLabel ?? "Markdown note",
+        "aria-label": callbacks.current.ariaLabel ?? "Markdown note",
         "aria-multiline": "true",
-        "aria-placeholder": props.placeholder ?? "Write a note…",
+        "aria-placeholder": callbacks.current.placeholder ?? "Write a note…",
         spellcheck: "true",
-        "aria-readonly": String(Boolean(props.disabled)),
-      },
+        "aria-readonly": String(Boolean(callbacks.current.disabled)),
+      }),
       handleDrop(_view, event) {
         event.preventDefault();
         toast.info("Paste text or Markdown into this note.");
@@ -208,12 +240,14 @@ export function RichMarkdownEditor(props: MarkdownTextEditorProps) {
         return true;
       },
     },
-    onUpdate({ editor: current }) {
-      const markdown = current.getMarkdown();
-      if (
-        markdown !== lastValue.current &&
-        !hasSameMarkdownMeaning(markdown, lastValue.current)
-      ) {
+    onUpdate({ editor: current, transaction }) {
+      const markdown: string =
+        transaction.getMeta("teakMarkdown") ?? current.getMarkdown();
+      if (markdown === lastSerialized.current) {
+        return;
+      }
+      lastSerialized.current = markdown;
+      if (markdown !== lastValue.current) {
         lastValue.current = markdown;
         callbacks.current.onChange(markdown);
       }
@@ -225,13 +259,23 @@ export function RichMarkdownEditor(props: MarkdownTextEditorProps) {
       return;
     }
     const prepared = prepareMarkdownDocument(props.value);
+    editor
+      .chain()
+      .setMeta("teakExternalSync", true)
+      .setContent(prepared.document, { emitUpdate: false })
+      .run();
     lastValue.current = props.value;
-    editor.commands.setContent(prepared.document, { emitUpdate: false });
+    lastSerialized.current = markdownManager.serialize(prepared.document);
   }, [editor, props.value]);
 
   useEffect(() => {
-    editor?.setEditable(!props.disabled);
-  }, [editor, props.disabled]);
+    if (editor) {
+      editor.setEditable(!props.disabled);
+      editor.view.dispatch(
+        editor.state.tr.setMeta("teakPlaceholder", props.placeholder)
+      );
+    }
+  }, [editor, props.disabled, props.placeholder]);
 
   if (!editor) {
     return null;

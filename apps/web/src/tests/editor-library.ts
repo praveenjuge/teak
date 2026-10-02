@@ -42,8 +42,17 @@ export class EditorLibrary {
   }
 
   async cleanup(): Promise<void> {
-    for (const id of this.ids) {
-      await this.client.mutation(api.cards.permanentDeleteCard, { id });
+    const results = await Promise.allSettled(
+      this.ids.map((id) =>
+        this.client.mutation(api.cards.permanentDeleteCard, { id })
+      )
+    );
+    const failures = results.filter((result) => result.status === "rejected");
+    if (failures.length) {
+      throw new AggregateError(
+        failures.map((result) => result.reason),
+        "Test card cleanup failed"
+      );
     }
   }
 }

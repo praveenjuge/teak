@@ -139,7 +139,11 @@ export function prepareMarkdownDocument(source: string): MarkdownDocument {
     return literal;
   }
   try {
-    semantics(lexer.lexer(source));
+    const tokens = lexer.lexer(source);
+    if (Object.keys(tokens.links).length) {
+      return literal;
+    }
+    semantics(tokens);
     const document = markdownManager.parse(source);
     schema.nodeFromJSON(document).check();
     if (!hasSameMarkdownMeaning(source, markdownManager.serialize(document))) {

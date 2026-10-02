@@ -8,7 +8,7 @@ import {
 } from "../markdownDocument";
 
 // Failure modes: dropped text/formatting, reordered blocks, broken nesting,
-// changed task state/table cells, unsafe URLs, lost unknown syntax, and limits
+// changed task state/link titles, unsafe URLs, lost unknown syntax, and limits
 // counted in characters instead of UTF-8 bytes.
 const fixtures = [
   ["headings", "# Title\n\n## Section\n\n### Detail"],
@@ -54,6 +54,9 @@ describe("Markdown compatibility", () => {
     "---\ntitle: Keep me\n---\n\nBody",
     "![Private image](https://private.example/image.png)",
     "[label][ref]\n\n[ref]: https://example.com",
+    "[ref]: https://example.com",
+    "Body\n\n[ref]: https://example.com",
+    '[label][ref]\n\n[ref]: https://example.com "Title"',
     "<script>alert(1)</script>",
     '<img src="https://private.example/image.png" onerror="alert(1)">',
     "[unsafe](javascript:alert%281%29)",
@@ -81,7 +84,10 @@ describe("Markdown compatibility", () => {
     ["- [x] Done", "- [ ] Done"],
     ["[link](https://a.example)", "[link](https://b.example)"],
     ["```ts\ncode\n```", "```js\ncode\n```"],
-    ["| A |\n| --- |\n| x |", "| A |\n| --- |\n| y |"],
+    [
+      '[link](https://a.example "Title")',
+      '[link](https://a.example "Changed")',
+    ],
   ])("detects meaning lost from %s", (before, after) => {
     expect(hasSameMarkdownMeaning(before, after)).toBe(false);
   });

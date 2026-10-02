@@ -8,7 +8,7 @@ import {
 } from "@floating-ui/dom";
 import { Button } from "@teak/ui/components/ui/button";
 import type { SuggestionProps } from "@tiptap/suggestion";
-import { useEffect, useRef } from "react";
+import { useEffect, useId, useRef } from "react";
 
 export function SlashMenu({
   menu,
@@ -18,6 +18,16 @@ export function SlashMenu({
   selected: number;
 }) {
   const ref = useRef<HTMLDivElement>(null);
+  const id = useId();
+  useEffect(() => {
+    const editor = menu.editor.view.dom;
+    editor.setAttribute("aria-controls", id);
+    editor.setAttribute("aria-activedescendant", `${id}-${selected}`);
+    return () => {
+      editor.removeAttribute("aria-controls");
+      editor.removeAttribute("aria-activedescendant");
+    };
+  }, [id, menu.editor, selected]);
   useEffect(() => {
     const element = ref.current;
     if (!element) {
@@ -46,18 +56,21 @@ export function SlashMenu({
   }
   return (
     <div
-      aria-label="Insert block"
+      aria-label="Formatting commands"
       className="fixed z-50 max-h-64 w-64 max-w-[calc(100vw-2rem)] overflow-auto rounded-md border bg-popover p-1 text-popover-foreground shadow-md"
+      id={id}
       ref={ref}
-      role="toolbar"
+      role="listbox"
     >
       {menu.items.map((item, index) => (
         <Button
-          aria-pressed={selected === index}
+          aria-selected={selected === index}
           className="w-full justify-start"
+          id={`${id}-${index}`}
           key={item.id}
           onClick={() => menu.command(item)}
           onMouseDown={(event) => event.preventDefault()}
+          role="option"
           type="button"
           variant={selected === index ? "secondary" : "ghost"}
         >

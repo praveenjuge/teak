@@ -254,7 +254,7 @@ test("slash commands work by keyboard inside a dialog", async ({ library }) => {
   await blocks.pressSequentially("/heading");
   await dialog
     .page()
-    .getByRole("button", { name: /Heading 2/ })
+    .getByRole("option", { name: /Heading 2/ })
     .waitFor({ state: "visible" });
   await blocks.press("ArrowDown");
   await blocks.press("Enter");
@@ -430,7 +430,7 @@ test("compact slash controls change the draft without submitting it", async ({
   await blocks.press("Enter");
   await blocks.pressSequentially("/heading");
   await composer
-    .getByRole("button", { name: "Heading 2", exact: true })
+    .getByRole("option", { name: "Heading 2", exact: true })
     .click();
   await blocks.pressSequentially("Draft heading");
   await expect(blocks.locator("h2")).toHaveText("Draft heading");
@@ -489,4 +489,150 @@ test("existing tables remain editable as literal Markdown without table controls
   await expect(await getBlockEditor(await library.open(id))).toHaveText(
     `${original} edited`
   );
+});
+
+test("trailing blank lines reach the saved draft", async ({ library }) => {
+  const original = generateTestContent("Blank line");
+  const id = await library.create(original);
+  const dialog = await library.open(id);
+  const editor = await getBlockEditor(dialog);
+  await goToEnd(editor);
+  await editor.press("Enter");
+  await dialog.getByRole("button", { name: "Save changes" }).click();
+  await expect.poll(() => library.read(id)).toBe(`${original}\n\n`);
+});
+
+test("a disabled composer restores its draft after a failed save", async ({
+  page,
+  library,
+}) => {
+  const marker = generateTestContent("Disabled restore");
+  let statusQuery: number | undefined;
+  let lastStatus: Record<string, unknown> | undefined;
+  let requestId: number | undefined;
+  let pendingFailure: (() => void) | undefined;
+  await page.routeWebSocket(/convex\.cloud/, (socket) => {
+    const server = socket.connectToServer();
+    socket.onMessage((message) => {
+      const data = JSON.parse(message.toString());
+      for (const query of data.modifications ?? []) {
+        if (query.udfPath === "auth:getCardCreationStatus") {
+          statusQuery = query.queryId;
+        }
+      }
+      if (data.type === "Mutation" && data.udfPath === "cards:createCard") {
+        requestId = data.requestId;
+      }
+      server.send(message);
+    });
+    server.onMessage((message) => {
+      const data = JSON.parse(message.toString());
+      if (data.type === "MutationResponse" && data.requestId === requestId) {
+        pendingFailure = () =>
+          socket.send(
+            JSON.stringify({
+              type: "MutationResponse",
+              requestId,
+              success: false,
+              result: "Editor test card limit",
+              logLines: [],
+            })
+          );
+        return;
+      }
+      if (data.type === "Transition") {
+        for (const modification of data.modifications ?? []) {
+          if (
+            modification.type === "QueryUpdated" &&
+            modification.queryId === statusQuery
+          ) {
+            lastStatus = modification;
+          }
+        }
+        if (requestId !== undefined && lastStatus) {
+          data.modifications = data.modifications.filter(
+            (modification: { queryId?: number }) =>
+              modification.queryId !== statusQuery
+          );
+          data.modifications.push({
+            ...lastStatus,
+            value: { canCreateCard: false, hasPremium: false },
+          });
+        }
+      }
+      socket.send(JSON.stringify(data));
+    });
+  });
+  await page.reload();
+  const composer = page.getByRole("group", { name: "Markdown content editor" });
+  const editor = await getBlockEditor(composer);
+  await editor.fill(marker);
+  await page.getByRole("button", { name: "Save", exact: true }).click();
+  await expect(editor).toHaveAttribute("aria-readonly", "true");
+  await expect.poll(() => Boolean(pendingFailure)).toBe(true);
+  pendingFailure?.();
+  await expect(editor).toHaveText(marker);
+  const saved = (await library.client.query(api.cards.getCards, {})).find(
+    (card: { content?: string }) => card.content === marker
+  );
+  if (!saved) {
+    throw new Error("Missing owned test card");
+  }
+  library.ids.push(saved._id);
+  await editor.evaluate((element) => {
+    const data = new DataTransfer();
+    data.setData("text/plain", "Rejected while disabled");
+    element.dispatchEvent(
+      new ClipboardEvent("paste", {
+        bubbles: true,
+        cancelable: true,
+        clipboardData: data,
+      })
+    );
+  });
+  await expect(editor).toHaveText(marker);
+});
+
+test("link editing keeps the original selection when the selection changes", async ({
+  library,
+}) => {
+  const original = "First\n\nMiddle\n\nAnother passage\n\nSecond";
+  const id = await library.create(original);
+  const dialog = await library.open(id);
+  const editor = await getBlockEditor(dialog);
+  await editor
+    .locator("p")
+    .first()
+    .evaluate((element) => {
+      const range = document.createRange();
+      range.selectNodeContents(element);
+      const selection = window.getSelection();
+      selection?.removeAllRanges();
+      selection?.addRange(range);
+    });
+  await editor.press("ControlOrMeta+k");
+  const input = dialog.getByRole("textbox", { name: "Link URL" });
+  await input.fill("https://example.com");
+  await editor
+    .locator("p")
+    .last()
+    .evaluate((element) => {
+      const range = document.createRange();
+      range.selectNodeContents(element);
+      const selection = window.getSelection();
+      selection?.removeAllRanges();
+      selection?.addRange(range);
+      (element.closest('[contenteditable="true"]') as HTMLElement).focus();
+    });
+  await dialog.getByRole("button", { name: "Apply", exact: true }).click();
+  await expect(
+    editor.getByRole("link", { name: "First", exact: true })
+  ).toHaveAttribute("href", "https://example.com");
+  await expect(
+    editor.getByRole("link", { name: "Second", exact: true })
+  ).toHaveCount(0);
+  await editor.press("ControlOrMeta+Enter");
+  await expect
+    .poll(() => library.read(id))
+    .toBe(original.replace("First", "[First](https://example.com)"));
 });
