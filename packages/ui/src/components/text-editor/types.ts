@@ -12,10 +12,3 @@ export interface MarkdownTextEditorProps {
   value: string;
   variant?: "compact" | "document" | "modal";
 }
-
-export type MarkdownInlineFormat =
-  | "bold"
-  | "code"
-  | "italic"
-  | "link"
-  | "strikethrough";

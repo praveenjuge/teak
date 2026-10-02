@@ -1,6 +1,6 @@
 {
   "name": "teak",
-  "version": "1.0.72",
+  "version": "1.0.73",
   "private": true,
   "workspaces": [
     "apps/*",
@@ -47,7 +47,6 @@
     "pre-commit": "bun run pre-commit"
   },
   "overrides": {
-    "@codemirror/view": "6.43.8",
     "@types/react": "19.2.18",
     "@types/react-dom": "19.2.4",
     "brace-expansion": "5.0.9",

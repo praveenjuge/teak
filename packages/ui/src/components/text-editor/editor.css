@@ -1,0 +1,33 @@
+.teak-markdown-editor .block-editor-content .ProseMirror {
+  min-height: var(--teak-editor-min-height, 8rem);
+  padding: 0.25rem;
+  font-family: var(--font-sans);
+  font-size: var(--teak-editor-font-size, 1rem);
+  line-height: 1.65;
+  overflow-wrap: anywhere;
+}
+
+.teak-markdown-editor .block-editor-content .ProseMirror h1 {
+  font-size: 1.5rem;
+}
+
+.teak-markdown-editor .block-editor-content .ProseMirror h2 {
+  font-size: 1.25rem;
+}
+
+.teak-markdown-editor .block-editor-content .ProseMirror h3 {
+  font-size: 1.125rem;
+}
+
+.teak-markdown-editor .block-editor-content .ProseMirror :is(h4, h5, h6) {
+  font-size: 1rem;
+}
+
+.teak-editor-formatting {
+  max-width: min(28rem, calc(100vw - 2rem));
+}
+
+.teak-markdown-editor [data-literal-markdown] {
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+}

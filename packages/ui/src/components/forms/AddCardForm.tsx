@@ -9,7 +9,10 @@ import {
   TOAST_IDS,
 } from "@teak/ui/constants/toast";
 import { cn } from "@teak/ui/lib/utils";
-import { MarkdownTextEditor } from "@teak/ui/text-editor";
+import {
+  MarkdownTextEditor,
+  shouldSaveAsMarkdownNote,
+} from "@teak/ui/text-editor";
 import type { OptimisticLocalStore } from "convex/browser";
 import { useMutation } from "convex/react";
 import { Maximize2 } from "lucide-react";
@@ -219,11 +222,13 @@ export function AddCardForm({
     });
 
     try {
-      // Intentionally omit `type` so the server auto-classifies the note.
-      // Passing an explicit type skips classification, which would stop colors
-      // from becoming palette cards (and quotes/links from being detected).
+      // Structured notes stay Markdown text; plain URL/color/quote captures
+      // retain the server's existing automatic classification.
       await createCard({
         content: submittedContent,
+        ...(shouldSaveAsMarkdownNote(submittedContent)
+          ? { type: "text" as const }
+          : {}),
       });
 
       onSuccess?.();
@@ -291,7 +296,7 @@ export function AddCardForm({
               ariaLabel="Markdown content"
               autoFocus={autoFocus}
               className={cn(
-                "h-full min-h-20 flex-1 p-4",
+                "h-full min-h-20 flex-1 p-2",
                 hasContent && "pb-12"
               )}
               disabled={!canCreateCard}
