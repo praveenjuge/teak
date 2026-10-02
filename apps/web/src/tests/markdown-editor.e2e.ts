@@ -251,7 +251,14 @@ test("slash commands work by keyboard inside a dialog", async ({ library }) => {
   const blocks = await getBlockEditor(dialog);
   await goToEnd(blocks);
   await blocks.press("Enter");
-  await blocks.pressSequentially("/heading");
+  await blocks.pressSequentially("/zzzzz");
+  await expect(dialog.page().getByRole("listbox")).toHaveCount(0);
+  await expect(blocks).not.toHaveAttribute("aria-controls", /.+/);
+  await expect(blocks).not.toHaveAttribute("aria-activedescendant", /.+/);
+  for (const _character of "zzzzz") {
+    await blocks.press("Backspace");
+  }
+  await blocks.pressSequentially("heading");
   await dialog
     .page()
     .getByRole("option", { name: /Heading 2/ })
@@ -567,7 +574,13 @@ test("a disabled composer restores its draft after a failed save", async ({
   const composer = page.getByRole("group", { name: "Markdown content editor" });
   const editor = await getBlockEditor(composer);
   await editor.fill(marker);
+  await expect
+    .poll(() => statusQuery, { message: "Capture card creation status query" })
+    .toBeDefined();
   await page.getByRole("button", { name: "Save", exact: true }).click();
+  await expect
+    .poll(() => requestId, { message: "Capture card creation mutation" })
+    .toBeDefined();
   await expect(editor).toHaveAttribute("aria-readonly", "true");
   await expect.poll(() => Boolean(pendingFailure)).toBe(true);
   pendingFailure?.();

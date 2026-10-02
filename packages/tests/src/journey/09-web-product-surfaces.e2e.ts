@@ -221,8 +221,11 @@ https://example.com/editor
     "href",
     "https://teakvault.com/docs"
   );
-  await documentLink.click();
-  await editor.press("ControlOrMeta+k");
+  await documentLink.dblclick();
+  await page.evaluate(
+    () => new Promise<void>((resolve) => requestAnimationFrame(() => resolve()))
+  );
+  await page.keyboard.press("ControlOrMeta+k");
   const url = dialog.getByRole("textbox", { name: "Link URL" });
   await expect(url).toHaveValue("https://teakvault.com/docs");
   await url.fill("https://example.com/edited");

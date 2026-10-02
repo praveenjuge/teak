@@ -21,13 +21,15 @@ export function SlashMenu({
   const id = useId();
   useEffect(() => {
     const editor = menu.editor.view.dom;
-    editor.setAttribute("aria-controls", id);
-    editor.setAttribute("aria-activedescendant", `${id}-${selected}`);
+    if (menu.items[selected]) {
+      editor.setAttribute("aria-controls", id);
+      editor.setAttribute("aria-activedescendant", `${id}-${selected}`);
+    }
     return () => {
       editor.removeAttribute("aria-controls");
       editor.removeAttribute("aria-activedescendant");
     };
-  }, [id, menu.editor, selected]);
+  }, [id, menu.editor, menu.items, selected]);
   useEffect(() => {
     const element = ref.current;
     if (!element) {
