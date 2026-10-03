@@ -1,8 +1,9 @@
 # WorkOS migration readiness
 
 Phase R capability checks passed with the approved revisions and recorded workarounds.
-Phase 0 implementation is being verified in dev. Production authentication is unchanged;
-production sign-ups remain open.
+Phase 0 is deployed and its backup/restore gate passed. Development and production
+remain on Better Auth with sign-ups frozen. The current rollout evidence and exact
+post-freeze inventories are recorded in `phase-0.md`.
 The approved migration plan is preserved in the encrypted backup as `approved-plan.txt.gpg`.
 Baseline: `460a7b31a644a39463356b19fb83bd53a1424e9c`, version 1.0.75.
 
@@ -40,7 +41,7 @@ Old Connect refresh tokens were accepted immediately and at 65 seconds after
 rotation; do not claim replay protection. Keep endpoint consent revocation independent
 of the provider's refresh behavior.
 
-## Backup proof
+## Historical Phase R backup proof
 
 Local source history, Convex dev/prod exports, explicit Better Auth models,
 configuration, and all 4,093 production R2 card objects are encrypted.
@@ -65,13 +66,14 @@ Never remove either copy before the approved retention period.
 
 ## Current constraints
 
-No Phase 0 production freeze until the remaining Phase R gates pass or the user
-explicitly revises them. No production deployment has been made for this migration.
+Phase R passed before the Phase 0 production freeze. Phase 0 backend/web code is
+deployed; the production auth provider is still Better Auth. No production WorkOS
+cutover or identity backfill has occurred.
 Card ownership is immutable. Better Auth remains intact until Phase 6.
 The clean shadow week, store-release lead time, notice, rollback window, and stable
 weeks remain required; passing a build does not satisfy those time gates.
 
-## Phase 0 preparation
+## Historical Phase 0 preparation
 
 The Better Auth flag, provider options, creation backstop, public auth-mode query,
 web registration screen, mobile sign-up/welcome screens, and social error copy are
@@ -91,10 +93,14 @@ Checkpoint `readiness-checkpoint-1791031277.tar.gpg` preserves 1,671 source file
 current evidence (101,513,108 bytes); local decryption and remote streamed SHA-256 both verified.
 
 The backup replacement is approved: preserve dated encrypted full Mac/R2 snapshots
-and manual Convex backups. Actual Phase 0 rollout and the post-freeze full
-backup/restore remain outstanding; preparation does not complete Phase 0.
+and manual Convex backups. The preparation copies below were subsequently replaced
+by the full post-freeze backup and canonical restore proof in `phase-0.md`.
 
-The full Phase 0 rollout and remaining gates are recorded in `phase-0.md`.
+The completed Phase 0 record in `phase-0.md` supersedes these preparation counts.
+Its canonical restore verifies password sign-in, all 831 exact active card IDs,
+WebSocket access, live revocation, and the Chrome card grid. The latest encrypted
+Mac/R2 checkpoint `readiness-checkpoint-1791041210.tar.gpg` preserves that evidence;
+local decryption and streamed remote SHA-256 verification passed.
 
 Production scheduled backups require Convex Pro and are currently Never; the user
 approved the manual-backup replacement. Billing is unchanged.
