@@ -37,6 +37,14 @@ test("REST API happy paths and OpenAPI contracts", async () => {
       })
     ).status
   ).toBe(200);
+  const titleUpdate = await apiFetch(cardPath, apiKey, {
+    method: "PATCH",
+    body: JSON.stringify({ metadataTitle: "  Native Mac title  " }),
+  });
+  expect(titleUpdate.status).toBe(200);
+  expect(await titleUpdate.json()).toMatchObject({
+    metadataTitle: "Native Mac title",
+  });
   expect(
     (
       await apiFetch(cardPath, apiKey, {
@@ -45,6 +53,16 @@ test("REST API happy paths and OpenAPI contracts", async () => {
       })
     ).status
   ).toBe(200);
+  expect(await (await apiFetch(cardPath, apiKey)).json()).toMatchObject({
+    metadataTitle: "Native Mac title",
+    notes: "updated by prod e2e",
+  });
+  const clearedTitle = await apiFetch(cardPath, apiKey, {
+    method: "PATCH",
+    body: JSON.stringify({ metadataTitle: null }),
+  });
+  expect(clearedTitle.status).toBe(200);
+  expect(await clearedTitle.json()).toMatchObject({ metadataTitle: null });
   expect(
     (
       await apiFetch("/v1/cards/bulk", apiKey, {
