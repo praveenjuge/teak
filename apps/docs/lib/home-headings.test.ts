@@ -7,13 +7,21 @@ const read = (path: string) =>
 const headingLevels = (source: string) =>
   [...source.matchAll(/<h([1-6])[\s>]/g)].map((match) => Number(match[1]));
 
+const SHOWCASE_TAG = "<HomeFeatureShowcase />";
+const homepageSource = read("../pages/index.astro");
+
 /** Homepage markup in document order, with the showcase expanded in place. */
-const homepage = read("../pages/index.astro").replace(
-  "<HomeFeatureShowcase />",
+const homepage = homepageSource.replace(
+  SHOWCASE_TAG,
   read("../components/HomeFeatureShowcase.astro"),
 );
 
 describe("homepage heading hierarchy", () => {
+  test("renders the showcase on the homepage", () => {
+    // Without this, the checks below could pass without covering the showcase.
+    expect(homepageSource).toContain(SHOWCASE_TAG);
+  });
+
   test("has one H1 and starts with it", () => {
     const levels = headingLevels(homepage);
 
