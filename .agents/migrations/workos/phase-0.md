@@ -33,8 +33,8 @@ proceeding; never combine live pages into a claimed point-in-time backup.
 
 ## Dev evidence
 
-- 1,851 backend unit tests, 147 backend edge integration tests, 194 web tests,
-  172 mobile tests, and 41 targeted error-copy tests passed.
+- 1,851 backend unit tests, 148 backend edge integration tests, 194 web tests,
+  178 mobile tests, and 41 targeted error-copy tests passed.
 - Web, mobile, shared UI, and backend typechecks passed; the production web build passed.
 - Environment audit and web doctor passed; the existing mobile
   `APPLE_API_KEY_PATH` warning remains.

@@ -16,6 +16,22 @@ beforeEach(() => {
 });
 afterEach(() => vi.unstubAllEnvs());
 
+test("dev Connect metadata exposes only the prepared public PKCE client", async () => {
+  const t = convexTest(schema, modules);
+  const response = await t.fetch("/migration/connect-readiness.json");
+  expect(response.status).toBe(200);
+  expect(await response.json()).toEqual({
+    client_id:
+      "https://reminiscent-kangaroo-59.convex.site/migration/connect-readiness.json",
+    client_name: "Teak CIMD readiness",
+    redirect_uris: ["http://127.0.0.1:14210/oauth/callback"],
+    token_endpoint_auth_method: "none",
+    grant_types: ["authorization_code", "refresh_token"],
+    response_types: ["code"],
+    scope: "openid profile email offline_access",
+  });
+});
+
 test.each([
   { disabled: "true", email: "new@example.com", verdict: "Deny" },
   { disabled: "false", email: "new@example.com", verdict: "Allow" },
