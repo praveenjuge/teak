@@ -124,4 +124,33 @@ extension SafariOAuthTests {
                       "pagination keeps order and replaces pending value after confirmation or rollback")
         }
     }
+
+    @MainActor static func failedUnloadedDeleteDuringPagination(cardJSON: String) async throws {
+        let card = try JSONDecoder().decode(LibraryCard.self, from: Data(cardJSON.utf8))
+        let existing = cardJSON.replacingOccurrences(of: "card-1", with: "card-2")
+        let store = LibraryStore(api: LibraryAPI(service: fixture(MemoryCredentials(tokens()))), onAuthenticationRequired: {})
+        MockHTTP.respond = { _ in (200, "{\"items\":[\(existing)],\"pageInfo\":{\"hasMore\":true,\"nextCursor\":\"next\"}}") }
+        await store.loadFirstPage()
+        var deletion: MockHTTP?
+        var deleting: Task<Void, Error>?
+        await withCheckedContinuation { (started: CheckedContinuation<Void, Never>) in
+            MockHTTP.hold = { request in
+                guard request.request.httpMethod == "DELETE" else { return false }
+                deletion = request
+                started.resume()
+                return true
+            }
+            deleting = Task { try await store.delete(card) }
+        }
+        MockHTTP.respond = { _ in (200, "{\"items\":[\(cardJSON)],\"pageInfo\":{\"hasMore\":false,\"nextCursor\":null}}") }
+        await store.loadMore()
+        try check(store.cards.map(\.id) == ["card-2"] && !store.hasMore,
+                  "pagination skips the pending deletion and consumes its last page")
+        MockHTTP.hold = nil
+        MockHTTP.respond = { _ in (200, "{\"items\":[\(existing),\(cardJSON)],\"pageInfo\":{\"hasMore\":false,\"nextCursor\":null}}") }
+        deletion!.complete(status: 503, body: #"{"error":"Please retry"}"#)
+        try await rejectsAsync("unloaded deletion fails after pagination") { try await deleting!.value }
+        try check(store.cards.map(\.id) == ["card-2", "card-1"] && store.mutatingIDs.isEmpty,
+                  "failed deletion recovers the card skipped by the consumed page")
+    }
 }
