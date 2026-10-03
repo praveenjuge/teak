@@ -33,8 +33,8 @@ proceeding; never combine live pages into a claimed point-in-time backup.
 
 ## Dev evidence
 
-- 1,847 backend unit tests, 140 backend edge integration tests, 194 web tests,
-  172 mobile tests, and 39 targeted error-copy tests passed.
+- 1,851 backend unit tests, 147 backend edge integration tests, 194 web tests,
+  172 mobile tests, and 41 targeted error-copy tests passed.
 - Web, mobile, shared UI, and backend typechecks passed; the production web build passed.
 - Environment audit and web doctor passed; the existing mobile
   `APPLE_API_KEY_PATH` warning remains.
@@ -43,6 +43,11 @@ proceeding; never combine live pages into a claimed point-in-time backup.
 - Removing the flag restores registration on the same open page without reload.
 - Freeze-hook inversion and truncated export pages caused the corresponding
   behavior tests to fail; implementations restored afterward.
+- Auth-config regression tests reproduce Convex's unset-variable failure and
+  verify production/local deployments need no WorkOS configuration. Readiness
+  identity/metadata gates and the actual WorkOS registration mutation have
+  regression coverage. Removing the identity gate or freeze enforcement makes
+  the relevant tests fail; implementations restored afterward.
 - Canonical iOS UI check skipped by explicit user request; build stopped.
   Earlier Phase R simulator PKCE/refresh/sign-out proof remains available.
 - The initial rehearsal restored the dev flag unset; after backup approval the dev
