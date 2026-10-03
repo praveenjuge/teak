@@ -101,6 +101,7 @@ import type * as safariAccountSummary from "../safariAccountSummary.js";
 import type * as securitySessions from "../securitySessions.js";
 import type * as shared_apiKeyFormat from "../shared/apiKeyFormat.js";
 import type * as shared_boundedResponse from "../shared/boundedResponse.js";
+import type * as shared_cardTitle from "../shared/cardTitle.js";
 import type * as shared_client_telemetry from "../shared/client_telemetry.js";
 import type * as shared_constants from "../shared/constants.js";
 import type * as shared_dedicatedSessions from "../shared/dedicatedSessions.js";
@@ -288,6 +289,7 @@ declare const fullApi: ApiFromModules<{
   securitySessions: typeof securitySessions;
   "shared/apiKeyFormat": typeof shared_apiKeyFormat;
   "shared/boundedResponse": typeof shared_boundedResponse;
+  "shared/cardTitle": typeof shared_cardTitle;
   "shared/client_telemetry": typeof shared_client_telemetry;
   "shared/constants": typeof shared_constants;
   "shared/dedicatedSessions": typeof shared_dedicatedSessions;

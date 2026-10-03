@@ -420,7 +420,7 @@ describe("publicApiHttp card endpoints", () => {
       thumbnailUrl: undefined,
       screenshotUrl: undefined,
       linkPreviewImageUrl: undefined,
-      metadataTitle: undefined,
+      metadataTitle: "Edited title",
       metadataDescription: undefined,
     });
     const runQuery = mock()
@@ -437,7 +437,11 @@ describe("publicApiHttp card endpoints", () => {
             "Bearer teakapi_secret_live_a1b2c3d4_ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ notes: null, tags: [] }),
+        body: JSON.stringify({
+          notes: null,
+          tags: [],
+          metadataTitle: "Edited title",
+        }),
       })
     );
 
@@ -446,6 +450,14 @@ describe("publicApiHttp card endpoints", () => {
     expect(payload.id).toBe("card_1");
     expect(payload.notes).toBeNull();
     expect(payload.tags).toEqual([]);
+    expect(payload.metadataTitle).toBe("Edited title");
+    expect(runMutation).toHaveBeenCalledWith(expect.anything(), {
+      cardId: "card_1",
+      userId: "user_1",
+      notes: null,
+      tags: [],
+      metadataTitle: "Edited title",
+    });
   });
 
   test("cardByIdV1 forwards raw Markdown updates without normalization", async () => {

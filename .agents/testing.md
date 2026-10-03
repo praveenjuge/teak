@@ -32,7 +32,7 @@ Each workspace script runs only the files it matches. A test file outside these 
 | `apps/desktop`, `apps/raycast` | `src/__tests__/**` |
 | `apps/extension`, `apps/mobile` | `__tests__/**` |
 | `apps/docs` | `lib/**` |
-| `apps/safari-extension` | `tests/*.test.ts`, run by the root `bun run test` |
+| `apps/mac` | `tests/*.test.ts`, run by the root `bun run test` |
 | repo scripts | `scripts/**/*.test.ts`, run by the root `bun run test` |
 
 `bun run test` at the root runs all of it, and the `Unit Tests` workflow runs it on every pull request.

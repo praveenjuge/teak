@@ -124,6 +124,7 @@ export interface CreateCardInput {
 }
 export interface UpdateCardInput {
   content?: string;
+  metadataTitle?: string | null;
   notes?: string | null;
   tags?: string[];
   url?: string;

@@ -258,7 +258,7 @@ export const updateCardMetadataHandler = async (
   const title = nextLinkPreview?.title;
   const description = nextLinkPreview?.description;
 
-  if (title) {
+  if (title && !existingCard.metadataTitleEdited) {
     updateFields.metadataTitle = title;
   }
   if (description) {

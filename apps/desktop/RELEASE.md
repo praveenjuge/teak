@@ -1,6 +1,12 @@
-# Desktop release runbook
+# Desktop release runbook (unshipped)
 
-Teak desktop ships signed and notarized macOS Apple Silicon builds through `.github/workflows/desktop-release.yml`.
+The Electron app is unshipped as of 1.0.74. `apps/mac` is the supported Mac
+app. `bun run dev desktop` still works locally. The historical runbook below
+applies only if the deleted desktop release workflow is restored from git
+history and shipping is explicitly approved.
+
+The historical Desktop Release workflow shipped signed and notarized macOS
+Apple Silicon builds.
 
 ## Canonical release
 

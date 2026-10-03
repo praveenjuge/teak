@@ -66,6 +66,7 @@ const patchCardForUserArgs = {
   userId: v.string(),
   cardId: v.id("cards"),
   content: v.optional(v.string()),
+  metadataTitle: v.optional(v.union(v.string(), v.null())),
   url: v.optional(v.string()),
   notes: v.optional(v.union(v.string(), v.null())),
   tags: v.optional(v.array(v.string())),
@@ -433,7 +434,7 @@ const applyPatchField = (
   args: {
     userId: string;
     cardId: Id<"cards">;
-    field: "content" | "url" | "notes" | "tags";
+    field: "content" | "url" | "notes" | "tags" | "metadataTitle";
     value?: unknown;
   }
 ) =>
@@ -550,7 +551,9 @@ export const patchCardForUser = internalMutation({
   args: patchCardForUserArgs,
   returns: v.union(v.null(), cardReturnValidator),
   handler: async (ctx, args) => {
-    const requestedFields: Array<"content" | "url" | "notes" | "tags"> = [];
+    const requestedFields: Array<
+      "content" | "url" | "notes" | "tags" | "metadataTitle"
+    > = [];
     let shouldSchedulePipeline = false;
 
     if (args.content !== undefined) {
@@ -558,6 +561,9 @@ export const patchCardForUser = internalMutation({
     }
     if (args.url !== undefined) {
       requestedFields.push("url");
+    }
+    if (args.metadataTitle !== undefined) {
+      requestedFields.push("metadataTitle");
     }
     if (args.notes !== undefined) {
       requestedFields.push("notes");
@@ -593,6 +599,14 @@ export const patchCardForUser = internalMutation({
                 value: args.url,
               })
             ).shouldSchedulePipeline || shouldSchedulePipeline;
+          break;
+        case "metadataTitle":
+          await applyPatchField(ctx, {
+            userId: args.userId,
+            cardId: args.cardId,
+            field,
+            value: args.metadataTitle,
+          });
           break;
         case "notes":
           shouldSchedulePipeline =

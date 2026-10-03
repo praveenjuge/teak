@@ -103,10 +103,6 @@ jobs:
             workflow: cli-release.yml
             apple: false
             title_prefix: ""
-          - name: Desktop
-            workflow: desktop-release.yml
-            apple: false
-            title_prefix: ""
           - name: Extension
             workflow: extension-release.yml
             apple: false
@@ -115,10 +111,10 @@ jobs:
             workflow: mobile-release.yml
             apple: true
             title_prefix: iOS
-          - name: Safari macOS
-            workflow: safari-extension-release.yml
+          - name: Mac
+            workflow: mac-release.yml
             apple: true
-            title_prefix: Safari macOS
+            title_prefix: Mac
 
     steps:
       - name: Reuse or dispatch and wait for release workflow

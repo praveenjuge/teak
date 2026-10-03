@@ -20,6 +20,7 @@ import {
   parseStringArray,
   parseTimestampQuery,
 } from "./publicApiHttpShared";
+import { parseCardTitle } from "./shared/cardTitle";
 import { isSafeExternalUrl } from "./shared/utils/safeUrl";
 
 const APP_PROD_URL = "https://app.teakvault.com";
@@ -452,6 +453,7 @@ const validatePatchPayload = (
   payload: unknown
 ): {
   content?: string;
+  metadataTitle?: string | null;
   notes?: string | null;
   tags?: string[];
   url?: string;
@@ -461,7 +463,13 @@ const validatePatchPayload = (
   }
 
   const source = payload as Record<string, unknown>;
-  const allowedKeys = new Set(["content", "notes", "tags", "url"]);
+  const allowedKeys = new Set([
+    "content",
+    "metadataTitle",
+    "notes",
+    "tags",
+    "url",
+  ]);
 
   for (const key of Object.keys(source)) {
     if (!allowedKeys.has(key)) {
@@ -471,6 +479,7 @@ const validatePatchPayload = (
 
   const next: {
     content?: string;
+    metadataTitle?: string | null;
     notes?: string | null;
     tags?: string[];
     url?: string;
@@ -492,6 +501,14 @@ const validatePatchPayload = (
       return null;
     }
     next.url = trimmedUrl;
+  }
+
+  if ("metadataTitle" in source) {
+    const title = parseCardTitle(source.metadataTitle);
+    if (title === undefined) {
+      return null;
+    }
+    next.metadataTitle = title;
   }
 
   if ("notes" in source) {

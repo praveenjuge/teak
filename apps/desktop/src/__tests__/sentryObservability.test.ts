@@ -12,7 +12,6 @@ import {
 } from "../sentry-config";
 
 const desktopRoot = resolve(import.meta.dir, "../..");
-const repoRoot = resolve(desktopRoot, "../..");
 
 describe("desktop Sentry observability", () => {
   test("builds canonical release, environment, and pseudonymous user", async () => {
@@ -119,7 +118,7 @@ describe("desktop Sentry observability", () => {
     );
   });
 
-  test("uploads every desktop source map and strips distributable maps", () => {
+  test("configures hidden desktop source maps for retained local builds", () => {
     for (const config of [
       "vite.main.config.ts",
       "vite.preload.config.ts",
@@ -129,19 +128,6 @@ describe("desktop Sentry observability", () => {
       expect(source).toContain("sentryDesktopPlugins");
       expect(source).toContain('sourcemap: "hidden"');
     }
-
-    const workflow = readFileSync(
-      resolve(repoRoot, ".github/workflows/desktop-release.yml"),
-      "utf8"
-    );
-    expect(workflow).toContain("sentry-dbid-");
-    expect(workflow).toContain("debug-files upload");
-    expect(workflow).toContain("find .vite -name '*.map'");
-    expect(workflow).toContain("SENTRY_ORG: teakvault");
-    expect(workflow).toContain("SENTRY_PROJECT: teak-desktop-prod");
-    expect(workflow).toContain("RELEASE_VERSION:");
-    expect(workflow).toContain("RELEASE_VERSION#v");
-    expect(workflow).toContain('tag_name="v');
   });
 
   test("keeps main-process Sentry instrumentation outside the ESM bundle", () => {

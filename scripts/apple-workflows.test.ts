@@ -18,14 +18,13 @@ const workflowStep = (workflow: string, name: string) => {
 
 describe("Apple release workflows", () => {
   const mobile = read(".github/workflows/mobile-release.yml");
-  const safari = read(".github/workflows/safari-extension-release.yml");
+  const safari = read(".github/workflows/mac-release.yml");
   const status = read(".github/workflows/apple-release-status.yml");
   const issueHelper = read("scripts/apple-release-issue.mjs");
   const latestReview = read("scripts/apple-latest-review.mjs");
   const versionTag = read(".github/workflows/version-tag.yml");
   const productReleases = [
     read(".github/workflows/cli-release.yml"),
-    read(".github/workflows/desktop-release.yml"),
     read(".github/workflows/extension-release.yml"),
   ];
   const setupAscPin =
@@ -148,10 +147,9 @@ describe("Apple release workflows", () => {
     expect(safari).toContain("asc profiles");
     expect(safari).toContain("asc builds upload");
     expect(safari).toContain("--pkg");
-    expect(safari).toContain("teak-safari-$VERSION-mac-app-store.pkg");
+    expect(safari).toContain("teak-mac-$VERSION-mac-app-store.pkg");
     expect(safari).toContain("asc review submissions-submit");
     expect(safari).toContain("--include appStoreVersion");
-    expect(safari).not.toContain("apps/safari-extension/scripts/");
     expect(safari).not.toContain("xcrun altool");
     expect(safari).toContain('[ "$candidate_hash" = "$private_hash" ]');
     expect(safari).not.toContain("EXPECTED_SIGNING_IDENTITY");
@@ -191,10 +189,9 @@ describe("Apple release workflows", () => {
   test("replays or dispatches every release from the one version tag", () => {
     for (const workflow of [
       "cli-release.yml",
-      "desktop-release.yml",
       "extension-release.yml",
       "mobile-release.yml",
-      "safari-extension-release.yml",
+      "mac-release.yml",
     ]) {
       expect(versionTag).toContain(`workflow: ${workflow}`);
     }
@@ -216,9 +213,7 @@ describe("Apple release workflows", () => {
     );
     expect(versionTag).toContain("fail-fast: false");
     expect(mobile).toContain(`run-name: iOS ${expression("inputs.version")}`);
-    expect(safari).toContain(
-      `run-name: Safari macOS ${expression("inputs.version")}`
-    );
+    expect(safari).toContain(`run-name: Mac ${expression("inputs.version")}`);
     expect(versionTag).toContain("release-version.mjs patch");
     expect(versionTag).toContain(
       'if [ "$previous_version" = "$VERSION" ]; then'
@@ -285,7 +280,7 @@ describe("Apple release workflows", () => {
       '.build.id == $id and .build.number == $number and .artifact.sha256 != "" and .sentrySizeAnalysis == "success"'
     );
     expect(safari).toContain(
-      'manifest_name="teak-safari-$VERSION-app-store.json"'
+      'manifest_name="teak-mac-$VERSION-app-store.json"'
     );
     expect(safari).toContain('actual_sha="$(shasum -a 256 "$reusable_pkg"');
     expect(safari).toContain('[ "$actual_sha" != "$expected_sha" ]');

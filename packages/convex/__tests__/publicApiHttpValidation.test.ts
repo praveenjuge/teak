@@ -121,6 +121,35 @@ describe("validateUploadPayload", () => {
 });
 
 describe("validatePatchPayload", () => {
+  test("normalizes editable titles and preserves old patch payloads", () => {
+    expect(validatePatchPayload({ metadataTitle: "  New title  " })).toEqual({
+      metadataTitle: "New title",
+    });
+    expect(validatePatchPayload({ metadataTitle: null })).toEqual({
+      metadataTitle: null,
+    });
+    expect(validatePatchPayload({ metadataTitle: "  " })).toEqual({
+      metadataTitle: null,
+    });
+    expect(validatePatchPayload({ notes: " note " })).toEqual({
+      notes: "note",
+    });
+    expect(
+      validatePatchPayload({ metadataTitle: "x".repeat(512) })?.metadataTitle
+    ).toHaveLength(512);
+  });
+
+  test.each(
+    [42, true, [], {}, "x".repeat(513)].map((metadataTitle) => ({
+      metadataTitle,
+    }))
+  )(
+    "rejects invalid title %j",
+    ({ metadataTitle }: { metadataTitle: unknown }) => {
+      expect(validatePatchPayload({ metadataTitle })).toBeNull();
+    }
+  );
+
   test("trims the url and turns blank notes into a cleared note", () => {
     expect(
       validatePatchPayload({

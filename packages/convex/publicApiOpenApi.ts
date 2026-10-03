@@ -1,6 +1,7 @@
 import { env, httpAction } from "./_generated/server";
 import { resolveTeakDevApiUrl } from "./devUrls";
 import { withPublicApiGatewayHeaders } from "./publicApiMeta";
+import { MAX_CARD_TITLE_LENGTH } from "./shared/cardTitle";
 
 const CARD_TYPES = [
   "text",
@@ -319,6 +320,11 @@ const components = {
           description:
             "Replacement card content. Text-card Markdown is preserved exactly and is limited to 512 KiB measured in UTF-8 bytes.",
           example: "---\r\ntitle: Notes\r\n---\r\n\r\n# Heading  \r\n",
+          type: "string",
+        },
+        metadataTitle: {
+          description: `Replacement title, trimmed to at most ${MAX_CARD_TITLE_LENGTH} characters after trimming. Null or a blank string clears it.`,
+          nullable: true,
           type: "string",
         },
         notes: { nullable: true, type: "string" },

@@ -347,15 +347,6 @@ export const SURFACE_ENTRIES: EnvVarSpec[] = [
     providers: ["github-secrets", "dotenv-local"],
     required: false,
   }),
-  spec("APPLE_API_KEY_PATH", {
-    owners: ["@teak/mobile"],
-    targets: ["mobile", "release"],
-    profiles: ["production"],
-    secret: false,
-    validation: "path",
-    providers: ["github-secrets", "workflow", "dotenv-local"],
-    required: false,
-  }),
   spec("APPLE_API_KEY_P8", {
     owners: ["teak-release"],
     targets: ["release"],

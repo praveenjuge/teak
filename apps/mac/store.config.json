@@ -1,0 +1,16 @@
+{
+  "locale": "en-US",
+  "appInfo": {
+    "name": "Teak for Mac",
+    "subtitle": "Capture and rediscover ideas",
+    "privacyPolicyUrl": "https://teakvault.com/docs/privacy-policy/"
+  },
+  "version": {
+    "description": "Teak for Mac keeps your ideas and inspiration close. Capture notes, quotes, links, files, and audio, then search and organize your library in a native Mac window.\n\nCAPTURE YOUR IDEAS\n\u2022 Save a link, write a note, or keep a quote\n\u2022 Upload images, videos, audio, and documents\n\u2022 Record voice notes with microphone access you control\n\u2022 Save the current page from the included Safari toolbar extension\n\nMAKE YOUR LIBRARY YOURS\n\u2022 Search your cards and combine type filters\n\u2022 Keep favorites within reach\n\u2022 Read content, summaries, notes, tags, and file details\n\u2022 Edit card titles, notes, and tags\n\u2022 Delete cards you no longer need\n\nSTAY CONNECTED\n\u2022 Sync your library with Teak on the web, iPhone, and other integrations\n\u2022 Choose your appearance and enable the optional menu bar item\n\u2022 Manage your account and Safari extension in Settings\n\nTeak for Mac requires an internet connection. API keys, import, export, billing, and connection management are available in the web app.\n\nYour personal knowledge hub for collecting, remembering, and rediscovering ideas.",
+    "keywords": "notes,bookmarks,knowledge,inspiration,quotes,voice,files,library,organize,search,read later,safari",
+    "promotionalText": "Capture notes, quotes, files, and audio on your Mac. Search, edit, and organize your library, with Safari saving included.",
+    "supportUrl": "https://teakvault.com/docs/mac",
+    "marketingUrl": "https://teakvault.com/docs/mac",
+    "whatsNew": "Capture notes, quotes, links, files, and audio on your Mac. Edit cards, organize tags, favorite ideas, and delete cards from your library."
+  }
+}

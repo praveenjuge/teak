@@ -12,7 +12,7 @@ export type NativeAuthSurface = (typeof NATIVE_AUTH_SURFACES)[number];
 
 export const NATIVE_AUTH_SURFACE_LABELS: Record<NativeAuthSurface, string> = {
   desktop: "Teak Desktop",
-  "safari-macos": "Teak Safari (macOS)",
+  "safari-macos": "Teak for Mac",
   "safari-ios": "Teak Safari (iOS)",
   "safari-ipados": "Teak Safari (iPadOS)",
   "browser-extension": "Teak Browser Extension",

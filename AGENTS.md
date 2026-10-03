@@ -43,9 +43,8 @@ For user documentation or changelog changes, follow `apps/docs/AGENTS.md`.
 Before any release, complete the shared preparation in `.agents/releases.md` (one next-patch version change across every manifest, confirmed by the lockstep validator). Then read the relevant product runbook and follow it exactly:
 
 - Mobile: `apps/mobile/release.md`
-- Desktop: `apps/desktop/RELEASE.md`
 - Browser extension: `apps/extension/release.md`
-- Safari extension: `apps/safari-extension/release.md`
+- Mac: `apps/mac/release.md`
 - CLI: `apps/cli/AGENTS.md`
 
 All package versions move in lockstep. Release tasks use the next patch version unless the canonical runbook says otherwise. Use `gh` for GitHub releases, pull requests, issues, and workflow inspection.

@@ -153,7 +153,7 @@ from custom origins, mirror the backend `FILES_BASE` into
 
 ### Client Apps (`apps/mobile`, `apps/extension`, `apps/desktop`)
 
-Mobile, Extension, and Desktop share the same base variables (use `EXPO_PUBLIC_` prefix for mobile, `VITE_PUBLIC_` for extension and desktop):
+Mobile, Extension, and the unshipped Electron reference app share the same base variables (use `EXPO_PUBLIC_` prefix for mobile, `VITE_PUBLIC_` for extension and desktop):
 
 ```bash
 VITE_PUBLIC_CONVEX_URL=https://deployment.convex.cloud
@@ -163,7 +163,7 @@ TEAK_DEV_APP_URL=http://localhost:3000   # Optional local override
 
 #### Desktop-only
 
-The desktop app additionally reads `VITE_WEB_URL` to know where to send sign-in and account links. Mobile and the extension do not use this variable.
+The unshipped Electron reference app remains runnable with `bun run dev desktop` and additionally reads `VITE_WEB_URL` to know where to send sign-in and account links. Mobile and the extension do not use this variable.
 
 ```bash
 VITE_WEB_URL=https://app.yourdomain.com   # Defaults to https://app.teakvault.com
