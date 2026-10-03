@@ -260,6 +260,7 @@ const searchCardsByQuery = async (
         isFavorited: options.favorited,
         type,
         limit: searchLimit,
+        scanBudget: Math.max(1, Math.floor(4096 / typeGroups.length)),
         resultFilter: (card) => matchesStructuredFilters(card, options),
       })
     )
@@ -301,6 +302,7 @@ const searchCardsByTag = async (
         createdAfter: options.createdAfter,
         createdBefore: options.createdBefore,
         limit: searchLimit,
+        scanBudget: Math.max(1, Math.floor(4096 / typeGroups.length)),
         sort: normalizeSort(options.sort),
         resultFilter: (card) => matchesStructuredFilters(card, options),
       })

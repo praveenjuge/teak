@@ -94,7 +94,7 @@ describe("Convex public API metadata", () => {
     expect(await response.json()).toEqual(openApiSpec);
   });
 
-  test("documents metadata fields emitted in list responses", () => {
+  test("documents metadata and processing fields emitted in list responses", () => {
     const card = serializeListCard(
       {
         _id: "card_1",
@@ -105,7 +105,7 @@ describe("Convex public API metadata", () => {
         aiTags: [],
       },
       "https://api.teakvault.com",
-      new Set(["metadata"])
+      new Set(["metadata", "processing"])
     );
     const properties = openApiSpec.components.schemas.CardListItem.properties;
     for (const field of Object.keys(card)) {

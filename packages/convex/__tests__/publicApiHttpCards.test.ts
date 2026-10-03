@@ -69,6 +69,33 @@ describe("publicApiHttp card endpoints", () => {
     }
   );
 
+  test("listCardsV1 reports an over-broad search as invalid input", async () => {
+    const message =
+      "Search is too broad. Add a type, favorite, or date filter.";
+    const response = await runHandler(
+      listCardsV1,
+      {
+        runMutation: buildAuthorizedMutationMock(),
+        runQuery: mock().mockRejectedValue(
+          new ConvexError({
+            code: "INVALID_INPUT",
+            message,
+          })
+        ),
+      },
+      new Request("https://example.com/v1/cards?q=design", {
+        headers: {
+          Authorization: `Bearer teakapi_secret_live_a1b2c3d4_${"f".repeat(64)}`,
+        },
+      })
+    );
+    expect(response.status).toBe(400);
+    expect(await response.json()).toMatchObject({
+      code: "INVALID_INPUT",
+      error: message,
+    });
+  });
+
   test("listCardsV1 rejects partial numeric createdAfter values", async () => {
     const runMutation = buildAuthorizedMutationMock();
 

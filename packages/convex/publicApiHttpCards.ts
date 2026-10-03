@@ -319,8 +319,8 @@ const handleCardsListRequest = async (
       ),
       pageInfo: cardsPage.pageInfo,
     });
-  } catch {
-    return errorResponse(500, "INTERNAL_ERROR", "Failed to fetch cards");
+  } catch (error) {
+    return mapConvexErrorToResponse(error, "Failed to fetch cards");
   }
 };
 

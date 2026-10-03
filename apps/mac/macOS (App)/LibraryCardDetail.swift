@@ -13,6 +13,7 @@ struct LibraryCardDetail: View {
     @State private var error: String?
     @State private var isLoadingDetails = true
     @State private var isDownloading = false
+    @State private var isSaving = false
     @State private var showingInfo = false
     @State private var showingNotes = false
     @State private var showingTags = false
@@ -37,7 +38,7 @@ struct LibraryCardDetail: View {
                     VStack {
                         HStack {
                             Spacer()
-                            Button("Close", action: requestClose).keyboardShortcut(.cancelAction)
+                            Button("Close", action: requestClose).keyboardShortcut(.cancelAction).disabled(isSaving)
                         }.padding([.top, .horizontal])
                         metadataPanel
                     }
@@ -48,7 +49,7 @@ struct LibraryCardDetail: View {
         .padding(.horizontal)
         .background(SheetOutsideClickDismissal(onDismiss: requestClose))
         .frame(minWidth: 840, minHeight: 590)
-        .interactiveDismissDisabled(hasUnsavedChanges)
+        .interactiveDismissDisabled(hasUnsavedChanges || isSaving)
         .confirmationDialog("Discard unsaved changes?", isPresented: $confirmingDiscard, titleVisibility: .visible) {
             Button("Discard Changes", role: .destructive) { dismiss() }
             Button("Cancel", role: .cancel) {}
@@ -127,9 +128,9 @@ struct LibraryCardDetail: View {
             }
             if card.cardType == .quote {
                 TextField("", text: $draft, axis: .vertical)
-                    .font(.body.italic()).multilineTextAlignment(.center).frame(minHeight: 360).disabled(isLoadingDetails || card.isDeleted == true)
+                    .font(.body.italic()).multilineTextAlignment(.center).frame(minHeight: 360).disabled(isLoadingDetails || isSaving || card.isDeleted == true)
             } else {
-                TextEditor(text: $draft).font(.body).frame(minHeight: 360).disabled(isLoadingDetails || card.isDeleted == true)
+                TextEditor(text: $draft).font(.body).frame(minHeight: 360).disabled(isLoadingDetails || isSaving || card.isDeleted == true)
             }
             if card.cardType == .quote {
                 Text("”").font(.title).foregroundStyle(.quaternary).frame(maxWidth: .infinity, alignment: .trailing)
@@ -138,7 +139,7 @@ struct LibraryCardDetail: View {
         .overlay(alignment: .bottomTrailing) {
             if draft != (card.content ?? "") {
                 Button("Save changes", action: saveContent)
-                    .disabled(store.mutatingIDs.contains(card.id) || isLoadingDetails || card.isDeleted == true)
+                    .disabled(isSaving || store.mutatingIDs.contains(card.id) || isLoadingDetails || card.isDeleted == true)
             }
         }
     }
@@ -261,7 +262,7 @@ struct LibraryCardDetail: View {
                     Label("Manage Tags", systemImage: "tag")
                 }
             }
-            .disabled(isLoadingDetails || card.isDeleted == true)
+            .disabled(isLoadingDetails || isSaving || card.isDeleted == true)
         }
     }
 
@@ -296,7 +297,7 @@ struct LibraryCardDetail: View {
                     do { card = try await store.setFavorite(card) }
                     catch { self.error = error.localizedDescription }
                 }
-            }.disabled(isLoadingDetails || card.isDeleted == true).help(card.isFavorited ? "Remove favorite" : "Add favorite")
+            }.disabled(isLoadingDetails || isSaving || card.isDeleted == true).help(card.isFavorited ? "Remove favorite" : "Add favorite")
             if LibraryCard.safeURL(card.fileUrl) != nil {
                 Button("Download", systemImage: "arrow.down.to.line") { Task { await downloadFile() } }
                     .disabled(isDownloading).help("Download file")
@@ -331,14 +332,20 @@ struct LibraryCardDetail: View {
     }
 
     private func requestClose() {
+        guard !isSaving else { return }
         if hasUnsavedChanges { confirmingDiscard = true }
         else { dismiss() }
     }
 
     private func saveContent() {
+        guard !isSaving else { return }
+        isSaving = true
         Task {
-            do { card = try await store.update(card, title: card.metadataTitle ?? "", content: draft, notes: card.notes ?? "", tags: card.tags) }
-            catch { self.error = error.localizedDescription }
+            defer { isSaving = false }
+            do {
+                card = try await store.update(card, title: card.metadataTitle ?? "", content: draft, notes: card.notes ?? "", tags: card.tags)
+                draft = card.content ?? ""
+            } catch { self.error = error.localizedDescription }
         }
     }
 

@@ -5,6 +5,8 @@ import { convexTest } from "convex-test";
 import { describe, expect, test } from "vitest";
 import { internal } from "./_generated/api";
 import {
+  searchCardsByDocument,
+  searchCardsByExactTag,
   syncCardSearchDocumentHandler,
   syncCardSearchTagsBatchHandler,
 } from "./card/searchDocumentHelpers";
@@ -323,4 +325,46 @@ describe("Public API Trash and visual filters", () => {
     });
     expect(await t.run((ctx) => ctx.db.get("cards", cardId))).toBeNull();
   });
+});
+
+describe("Search scan budget", () => {
+  test.each(["tag", "text"])(
+    "%s search allows an exhausted budget and rejects another index row",
+    async (mode) => {
+      const { t, cardId } = await setup();
+      await t.run(async (ctx) => {
+        await syncCardSearchTagsBatchHandler(ctx, cardId);
+        await syncCardSearchDocumentHandler(ctx, cardId);
+      });
+      const search = () =>
+        t.run((ctx) =>
+          (mode === "tag" ? searchCardsByExactTag : searchCardsByDocument)(
+            ctx,
+            {
+              userId: "owner",
+              tag: "original",
+              searchQuery: "Original",
+              limit: 10,
+              sort: "newest",
+              scanBudget: 1,
+              resultFilter: () => false,
+            }
+          )
+        );
+      expect(await search()).toEqual([]);
+      await t.run(async (ctx) => {
+        const second = await ctx.db.insert("cards", {
+          userId: "owner",
+          type: "text",
+          content: "Original second",
+          tags: ["original"],
+          createdAt: 2,
+          updatedAt: 2,
+        });
+        await syncCardSearchTagsBatchHandler(ctx, second);
+        await syncCardSearchDocumentHandler(ctx, second);
+      });
+      await expect(search()).rejects.toThrow("Search is too broad");
+    }
+  );
 });

@@ -188,6 +188,7 @@ const components = {
           nullable: true,
           type: "string",
         },
+        metadataStatus: { nullable: true, type: "string" },
         processingStatus: { nullable: true, type: "string" },
         screenshotUrl: { nullable: true, type: "string" },
         tags: { items: { type: "string" }, type: "array" },
