@@ -192,7 +192,7 @@ final class LibraryStore: ObservableObject {
         }
         do {
             let confirmed = try await operation()
-            if optimistic != nil, let index {
+            if optimistic != nil, let index = cards.firstIndex(where: { $0.id == original.id }) ?? index {
                 optimisticCards[original.id] = confirmed
                 cards.removeAll { $0.id == original.id }
                 if matchesFilters(confirmed) { cards.insert(confirmed, at: min(index, cards.count)) }
@@ -207,9 +207,11 @@ final class LibraryStore: ObservableObject {
             mutationRevision += 1
             if generation != mutationGeneration || !searchText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
                 await loadFirstPage()
-            } else if let index {
+            } else if let index = cards.firstIndex(where: { $0.id == original.id }) ?? index {
                 cards.removeAll { $0.id == original.id }
                 if matchesFilters(original) { cards.insert(original, at: min(index, cards.count)) }
+            } else if optimistic == nil {
+                await loadFirstPage()
             }
             handle(error)
             throw error

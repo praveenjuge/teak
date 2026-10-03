@@ -295,6 +295,7 @@ final class MockHTTP: URLProtocol, @unchecked Sendable {
         try await creationRefreshRace(cardJSON: cardJSON)
         try await unloadedCardMutation(cardJSON: cardJSON)
         try await creationInitialLoadRace(cardJSON: cardJSON)
+        try await paginationMutationRace(cardJSON: cardJSON)
         print("PASS: optimistic mutation rollback, filtered favorites, creation insertion, stale-read safety")
     }
 

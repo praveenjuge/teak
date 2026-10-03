@@ -94,4 +94,34 @@ extension SafariOAuthTests {
         try check(store.cards.map(\.id) == ["card-1", "card-2"] && store.hasMore,
                   "creation during initial load preserves existing cards and pagination")
     }
+
+    @MainActor static func paginationMutationRace(cardJSON: String) async throws {
+        let card = try JSONDecoder().decode(LibraryCard.self, from: Data(cardJSON.utf8))
+        let existing = cardJSON.replacingOccurrences(of: "card-1", with: "card-2")
+        for failure in [false, true] {
+            let store = LibraryStore(api: LibraryAPI(service: fixture(MemoryCredentials(tokens()))), onAuthenticationRequired: {})
+            MockHTTP.respond = { _ in (200, "{\"items\":[\(existing)],\"pageInfo\":{\"hasMore\":true,\"nextCursor\":\"next\"}}") }
+            await store.loadFirstPage()
+            var mutation: MockHTTP?
+            var saving: Task<LibraryCard, Error>?
+            await withCheckedContinuation { (started: CheckedContinuation<Void, Never>) in
+                MockHTTP.hold = { request in
+                    guard request.request.httpMethod == "PATCH" else { return false }
+                    mutation = request
+                    started.resume()
+                    return true
+                }
+                saving = Task { try await store.setFavorite(card) }
+            }
+            MockHTTP.respond = { _ in (200, "{\"items\":[\(cardJSON)],\"pageInfo\":{\"hasMore\":false,\"nextCursor\":null}}") }
+            await store.loadMore()
+            try check(store.cards.last?.isFavorited == !card.isFavorited, "pagination displays pending favorite")
+            MockHTTP.hold = nil
+            mutation!.complete(status: failure ? 503 : 200, body: failure ? #"{"error":"Please retry"}"# : cardJSON)
+            if failure { try await rejectsAsync("pagination mutation fails") { _ = try await saving!.value } }
+            else { _ = try await saving!.value }
+            try check(store.cards.map(\.id) == ["card-2", "card-1"] && store.cards.last?.isFavorited == card.isFavorited,
+                      "pagination keeps order and replaces pending value after confirmation or rollback")
+        }
+    }
 }
