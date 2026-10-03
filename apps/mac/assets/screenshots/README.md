@@ -7,7 +7,7 @@ it does not recreate or retouch the app interface.
 
 `source/wallpaper-background.png` is an image_gen derivative that softens the
 user's current public-domain Van Gogh wallpaper. The original wallpaper is
-`/Users/praveenjuge/Downloads/507513ld.jpg`; it is not duplicated here. AI generation
+omitted from this repository. AI generation
 was used only for the background, never for app captures.
 
 `en-US/` contains the final 2880×1800 App Store images. The HTML/CSS frame is

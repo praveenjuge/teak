@@ -640,7 +640,7 @@ jobs:
         env:
           VERSION_ID: ${{ steps.apple_version.outputs.id }}
         run: |
-          bash apps/mac/scripts/apply-store-metadata.sh
+          bash apps/mac/scripts/apply-store-metadata.sh "$ASC_APP_ID" "$VERSION_ID" "$RELEASE_NOTES"
 
       - name: Complete new Apple age-rating fields without changing the existing declaration
         if: needs.build.outputs.mutate == 'true'

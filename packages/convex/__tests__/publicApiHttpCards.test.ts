@@ -451,6 +451,13 @@ describe("publicApiHttp card endpoints", () => {
     expect(payload.notes).toBeNull();
     expect(payload.tags).toEqual([]);
     expect(payload.metadataTitle).toBe("Edited title");
+    expect(runMutation).toHaveBeenCalledWith(expect.anything(), {
+      cardId: "card_1",
+      userId: "user_1",
+      notes: null,
+      tags: [],
+      metadataTitle: "Edited title",
+    });
   });
 
   test("cardByIdV1 forwards raw Markdown updates without normalization", async () => {

@@ -66,12 +66,11 @@ else process.exit(2);
 `
   );
   chmodSync(asc, 0o755);
-  const result = Bun.spawnSync(["bash", script], {
+  const result = Bun.spawnSync(["bash", script, "version-id"], {
     cwd: root,
     env: {
       ...process.env,
       PATH: `${path.join(root, "bin")}:${process.env.PATH}`,
-      VERSION_ID: "version-id",
       RUNNER_TEMP: root,
       GITHUB_STEP_SUMMARY: path.join(root, "summary"),
     },

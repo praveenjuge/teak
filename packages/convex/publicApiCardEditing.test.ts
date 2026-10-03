@@ -18,7 +18,7 @@ async function setup() {
       type: "link",
       content: "Original content",
       url: "https://example.com",
-      metadataTitle: "Original title",
+      metadataTitle: "Supersededtitle title",
       notes: "Original notes",
       tags: ["original"],
       createdAt: 1,
@@ -55,9 +55,9 @@ describe("Public API card title editing", () => {
     expect(found[0]?._id).toBe(cardId);
     const oldTitle = await t.query(internal.raycast.searchCardsForUser, {
       userId: "owner",
-      searchQuery: "title",
+      searchQuery: "Supersededtitle",
     });
-    expect(oldTitle[0]?.metadataTitle).toBe("Edited title");
+    expect(oldTitle).toHaveLength(0);
   });
 
   test.each([null, "", "  "])(
@@ -133,7 +133,7 @@ describe("Public API card title editing", () => {
       notes: "Updated notes",
     });
     expect(updated?.notes).toBe("Updated notes");
-    expect(updated?.metadataTitle).toBe("Original title");
+    expect(updated?.metadataTitle).toBe("Supersededtitle title");
   });
 
   test("accepts the title length boundary and rejects oversized titles atomically", async () => {
@@ -166,6 +166,6 @@ describe("Public API card title editing", () => {
       })
     ).rejects.toThrow("Not authorized");
     const card = await t.run((ctx) => ctx.db.get("cards", cardId));
-    expect(card?.metadataTitle).toBe("Original title");
+    expect(card?.metadataTitle).toBe("Supersededtitle title");
   });
 });

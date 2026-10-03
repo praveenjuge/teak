@@ -29,7 +29,10 @@ final class AudioCapture: NSObject, ObservableObject, AVAudioRecorderDelegate {
             file = url
             isRecording = true
             error = nil
-        } catch { self.error = error.localizedDescription }
+        } catch {
+            try? FileManager.default.removeItem(at: url)
+            self.error = error.localizedDescription
+        }
     }
 
     func stop() {

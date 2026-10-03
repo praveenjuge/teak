@@ -125,18 +125,20 @@ final class LibraryStore: ObservableObject {
         // Insert directly for the ordinary unfiltered library. When creation
         // leaves a filtered view, reset its query and pagination together.
         let hadFilters = hasFilters
+        let needsReload = hadFilters || isLoading
         searchTask?.cancel()
         generation += 1
+        let insertionGeneration = generation + (needsReload ? 1 : 0)
         if hadFilters {
             searchText = ""
             selectedTypes.removeAll()
             favoritesOnly = false
             nextCursor = nil
             hasMore = false
-            await loadFirstPage()
         }
+        if needsReload { await loadFirstPage() }
         isLoading = false
-        let insertionGeneration = generation
+        guard insertionGeneration == generation else { return }
         do {
             let card = try await api.card(id: id)
             guard insertionGeneration == generation else { return }
@@ -178,7 +180,7 @@ final class LibraryStore: ObservableObject {
         mutatingIDs.insert(original.id)
         mutationRevision += 1
         let mutationGeneration = generation
-        let index = cards.firstIndex { $0.id == original.id } ?? 0
+        let index = cards.firstIndex { $0.id == original.id }
         if let optimistic { optimisticCards[original.id] = optimistic }
         else { deletedIDs.insert(original.id) }
         cards = reconcile(cards)
@@ -190,7 +192,7 @@ final class LibraryStore: ObservableObject {
         }
         do {
             let confirmed = try await operation()
-            if optimistic != nil {
+            if optimistic != nil, let index {
                 optimisticCards[original.id] = confirmed
                 cards.removeAll { $0.id == original.id }
                 if matchesFilters(confirmed) { cards.insert(confirmed, at: min(index, cards.count)) }
@@ -205,7 +207,7 @@ final class LibraryStore: ObservableObject {
             mutationRevision += 1
             if generation != mutationGeneration || !searchText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
                 await loadFirstPage()
-            } else {
+            } else if let index {
                 cards.removeAll { $0.id == original.id }
                 if matchesFilters(original) { cards.insert(original, at: min(index, cards.count)) }
             }

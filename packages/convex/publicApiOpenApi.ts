@@ -323,9 +323,7 @@ const components = {
           type: "string",
         },
         metadataTitle: {
-          description:
-            "Replacement title, trimmed. Null or a blank string clears it.",
-          maxLength: MAX_CARD_TITLE_LENGTH,
+          description: `Replacement title, trimmed to at most ${MAX_CARD_TITLE_LENGTH} characters after trimming. Null or a blank string clears it.`,
           nullable: true,
           type: "string",
         },

@@ -4,7 +4,7 @@ const APP_STORE_URL =
   "https://apps.apple.com/us/app/teak-save-inspirations/id6756574989";
 const CHROME_STORE_URL =
   "https://chromewebstore.google.com/detail/teak/negnmfifahnnagnbnfppmlgfajngdpob";
-const SAFARI_APP_STORE_URL =
+const MAC_APP_STORE_URL =
   "https://apps.apple.com/us/app/teak-for-mac/id6770003409?mt=12";
 const API_DOCS_URL = "/docs/api";
 const MCP_DOCS_URL = "/docs/mcp";
@@ -54,14 +54,26 @@ const platformCards: PlatformCard[] = [
   },
   {
     name: "Mac App",
-    copy: "Capture notes, quotes, files, and audio in your Mac library, or save pages from Safari.",
+    copy: "Capture notes, quotes, files, and audio, and organize your ideas in a native Mac library.",
     iconAlt: "Apple icon",
     iconClass: "dark:invert",
     iconSrc: "/platform-icons/apple.svg",
-    href: SAFARI_APP_STORE_URL,
+    href: MAC_APP_STORE_URL,
     actionType: "badge",
     badgeSrc: "/badges/app-store.svg",
     badgeAlt: "Download Teak for Mac on the Mac App Store",
+    badgeWidth: 140,
+    badgeHeight: 47,
+  },
+  {
+    name: "Safari Extension",
+    copy: "Save pages from Safari in a click. Included with Teak for Mac.",
+    iconAlt: "Safari icon",
+    iconSrc: "/platform-icons/safari.svg",
+    href: MAC_APP_STORE_URL,
+    actionType: "badge",
+    badgeSrc: "/badges/app-store.svg",
+    badgeAlt: "Download Teak for Mac with the Safari extension",
     badgeWidth: 140,
     badgeHeight: 47,
   },

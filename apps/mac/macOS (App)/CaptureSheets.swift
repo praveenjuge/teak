@@ -135,14 +135,14 @@ struct EditCardSheet: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
             Text("Edit card").font(.title3.weight(.semibold))
-            TextField("Title", text: $title).accessibilityLabel("Title")
+            TextField("Title", text: $title).accessibilityLabel("Title").disabled(isSaving)
             if card.cardType == .text || card.cardType == .quote {
                 Text("Content").font(.caption).foregroundStyle(.secondary)
-                TextEditor(text: $content).frame(height: 130).accessibilityLabel("Content")
+                TextEditor(text: $content).frame(height: 130).accessibilityLabel("Content").disabled(isSaving)
             }
             Text("Notes").font(.caption).foregroundStyle(.secondary)
-            TextEditor(text: $notes).frame(height: 80).accessibilityLabel("Notes")
-            TextField("Tags, separated by commas", text: $tags).accessibilityLabel("Tags")
+            TextEditor(text: $notes).frame(height: 80).accessibilityLabel("Notes").disabled(isSaving)
+            TextField("Tags, separated by commas", text: $tags).accessibilityLabel("Tags").disabled(isSaving)
             if let error { Text(error).font(.caption).foregroundStyle(.red) }
             HStack {
                 Spacer()

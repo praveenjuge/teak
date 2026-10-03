@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
 export LC_ALL=C
-: "${VERSION_ID:?}" "${RUNNER_TEMP:?}" "${GITHUB_STEP_SUMMARY:?}"
+VERSION_ID="${1:?Version ID required}"
+: "${RUNNER_TEMP:?}" "${GITHUB_STEP_SUMMARY:?}"
 
 locale="$(jq -er '.locale' apps/mac/store.config.json)"
 directory="apps/mac/assets/screenshots/$locale"
@@ -16,7 +17,8 @@ fi
 expected="$RUNNER_TEMP/mac-screenshots-expected.json"
 printf '[]' > "$expected"
 for file in "${files[@]}"; do
-  checksum="$(openssl dgst -md5 "$file" | awk '{print $NF}')"
+  checksum="$(openssl dgst -md5 "$file")"
+  checksum="${checksum##* }"
   jq --arg name "$(basename "$file")" --arg checksum "$checksum" \
     '. + [{fileName: $name, sourceFileChecksum: $checksum}]' "$expected" > "$expected.next"
   mv "$expected.next" "$expected"
