@@ -136,6 +136,8 @@ describe("Phase 1 identity table", () => {
     );
     const [deleted] = await rows(t);
     expect(deleted.deletedAt).toEqual(expect.any(Number));
+    expect(deleted.email).toBe("");
+    expect(deleted.emailVerified).toBe(false);
     await t.mutation(internal.auth.onUpdate, {
       model: "user",
       oldDoc: user,
@@ -160,9 +162,59 @@ describe("Phase 1 identity table", () => {
     expect(await rows(t)).toEqual([
       expect.objectContaining({
         teakUserId: user._id,
+        email: "",
+        emailVerified: false,
         deletedAt: expect.any(Number),
       }),
     ]);
+  });
+
+  test("the public delete-account flow leaves a redacted tombstone", async () => {
+    const t = setup();
+    vi.stubEnv("SIGNUPS_DISABLED", "false");
+    const password = "Disposable-local-account-123!";
+    const signedUp = await t.fetch("/api/auth/sign-up/email", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Origin: "http://localhost:3000",
+      },
+      body: JSON.stringify({
+        email: "delete-flow@example.com",
+        name: "Disposable fixture",
+        password,
+      }),
+    });
+    expect(signedUp.status).toBe(200);
+    const signedUpBody = await signedUp.json();
+    const cookie = signedUp.headers
+      .getSetCookie()
+      .map((value) => value.split(";")[0])
+      .join("; ");
+    vi.stubEnv("SIGNUPS_DISABLED", "true");
+    const response = await t.fetch("/api/auth/delete-user", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Origin: "http://localhost:3000",
+        Cookie: cookie,
+      },
+      body: JSON.stringify({ password }),
+    });
+    expect(response.status).toBe(200);
+    const [row] = await rows(t);
+    expect(row).toMatchObject({
+      teakUserId: signedUpBody.user.id,
+      email: "",
+      emailVerified: false,
+      deletedAt: expect.any(Number),
+    });
+    expect(
+      await t.query(components.betterAuth.adapter.findOne, {
+        model: "user",
+        where: [{ field: "_id", value: signedUpBody.user.id }],
+      })
+    ).toBeNull();
   });
 
   test("coverage exposes missing mappings, active orphans, and verified-email drift", async () => {

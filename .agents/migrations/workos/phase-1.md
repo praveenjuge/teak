@@ -4,7 +4,7 @@
 
 The `users` table preserves each original Better Auth user ID as `teakUserId`.
 Better Auth create/update/delete triggers mirror normalized email and verification;
-deletion leaves a permanent tombstone. Mirroring never changes a WorkOS link,
+deletion leaves a permanent tombstone with email cleared and verification reset. Mirroring never changes a WorkOS link,
 admin role, or card ownership. The quarantine and event tables are prepared for
 later linking and webhook phases.
 
@@ -32,10 +32,11 @@ owns sign-in and all existing session/authorization behavior.
 - Both coverage directions scanned 283 users with zero missing or mismatched rows.
 - Canonical sign-in still returns all 831 exact active card IDs with their original
   owner. A real WebSocket read and Chrome's restored card grid passed afterward.
-- Eight component/database tests cover pagination, repeat runs, mirroring,
+- Nine component/database tests cover pagination, repeat runs, mirroring,
   link/role preservation, tombstones, coverage drift, and migration guards.
-  Removing tombstone protection causes the deletion test to fail.
-- All 1,851 backend unit tests and 156 edge integration tests passed.
+  The public signup/delete HTTP flow leaves a redacted tombstone. Removing
+  deletion-trigger wiring or tombstone protection causes the relevant test to fail.
+- All 1,851 backend unit tests and 157 edge integration tests passed.
 - The restored backend has no production credentials or scheduled jobs.
   Original snapshots and encrypted Mac/R2 checkpoints remain preserved.
 

@@ -24,8 +24,8 @@ export const mirrorBetterAuthUser = async (
     return existing._id;
   }
   const profile = {
-    email: normalizeIdentityEmail(user.email),
-    emailVerified: user.emailVerified,
+    email: deleted ? "" : normalizeIdentityEmail(user.email),
+    emailVerified: deleted ? false : user.emailVerified,
     ...(deleted ? { deletedAt: Date.now() } : {}),
   };
   if (existing) {
