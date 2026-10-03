@@ -92,8 +92,9 @@ gh workflow run mac-release.yml --ref main -f "version=$version" -f dry_run=true
   issue and closes it only when both ASC states are live and both public
   storefronts report that exact version.
 - `asc release stage --dry-run` is recorded in the release manifest for parity
-  evaluation. asc 3.6.1 does not accept a PKG in `publish appstore`, so the
-  explicit lower-level asc sequence remains canonical for Mac.
+  evaluation. Mac uses asc 5.9.1, including its confirmed screenshot replacement.
+  The explicit lower-level asc sequence remains canonical until a real patch
+  proves the higher-level PKG publishing path equivalent.
 
 App Store Connect app: `6770003409`
 

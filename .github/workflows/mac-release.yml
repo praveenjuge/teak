@@ -33,7 +33,7 @@ env:
   ASC_ISSUER_ID: ${{ secrets.APPLE_API_ISSUER }}
   ASC_KEY_ID: ${{ secrets.APPLE_API_KEY_ID }}
   ASC_NO_UPDATE: "1"
-  ASC_VERSION: "3.6.1"
+  ASC_VERSION: "5.9.1"
   APPLE_TEAM_ID: LW385M78LW
   PLATFORM: MAC_OS
   PROJECT_PATH: apps/mac/teak-mac.xcodeproj
@@ -565,7 +565,7 @@ jobs:
           echo "publish_exit=unsupported_pkg" >> "$GITHUB_OUTPUT"
           {
             echo "- asc release stage dry-run exit: $stage_exit"
-            echo "- asc publish appstore: not used because 3.6.1 has no PKG input"
+            echo "- asc publish appstore: explicit lower-level PKG flow remains canonical"
           } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Find or create the macOS version and preserve release metadata
