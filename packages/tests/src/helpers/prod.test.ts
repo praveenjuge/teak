@@ -148,19 +148,20 @@ describe("production E2E API retries", () => {
 });
 
 describe("production E2E navigation retries", () => {
-  test("retries an aborted navigation", async () => {
+  test.each([
+    "page.goto: NS_BINDING_ABORTED; maybe frame was detached?",
+    "page.goto: net::ERR_ABORTED at https://app.teakvault.com/settings",
+    "page.goto: Navigation failed because frame was detached",
+  ])("retries an aborted navigation: %s", async (message) => {
     const goto = mock(() => Promise.resolve(undefined));
-    goto.mockImplementationOnce(() =>
-      Promise.reject(
-        new Error("page.goto: NS_BINDING_ABORTED; maybe frame was detached?")
-      )
-    );
+    goto.mockImplementationOnce(() => Promise.reject(new Error(message)));
     const wait = mock(() => Promise.resolve(undefined));
 
     await gotoApp({ goto } as unknown as Page, "/settings", wait);
 
     expect(goto).toHaveBeenCalledTimes(2);
     expect(wait).toHaveBeenCalledTimes(1);
+    expect(wait).toHaveBeenCalledWith(1000);
   });
 
   test("does not retry other navigation errors", async () => {
