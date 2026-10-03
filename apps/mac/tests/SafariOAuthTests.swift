@@ -614,6 +614,7 @@ final class MockHTTP: URLProtocol, @unchecked Sendable {
         var listCalls = 0
         MockHTTP.respond = { request in
             try check(request.url?.path == "/v1/cards", "library requests card list")
+            try check(request.cachePolicy == .reloadIgnoringLocalCacheData, "refresh GET bypasses cached library responses")
             try check(request.value(forHTTPHeaderField: "Authorization") == "Bearer access", "library uses Safari OAuth bearer")
             let query = URLComponents(url: request.url!, resolvingAgainstBaseURL: false)!.queryItems ?? []
             try check(query.filter { $0.name == "type" }.map(\.value) == ["link", "palette"], "multiple type filters are repeated in stable order")

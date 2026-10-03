@@ -73,6 +73,6 @@ extension Notification.Name {
 extension AppDelegate: NSMenuItemValidation {
     func validateMenuItem(_ menuItem: NSMenuItem) -> Bool {
         if menuItem.action == #selector(openSettingsFromMenu) { return true }
-        return NSApp.keyWindow?.title == "Teak Library" && NSApp.keyWindow?.attachedSheet == nil
+        return (NSApp.keyWindow?.windowController is LibraryWindowController) && NSApp.keyWindow?.attachedSheet == nil
     }
 }

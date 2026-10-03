@@ -17,6 +17,7 @@ struct LibraryCardDetail: View {
     @State private var showingNotes = false
     @State private var showingTags = false
     @State private var confirmingPermanentDelete = false
+    @State private var confirmingDiscard = false
 
     init(initialCard: LibraryCard, store: LibraryStore, onAuthenticationRequired: @escaping () -> Void) {
         self.initialCard = initialCard
@@ -36,7 +37,7 @@ struct LibraryCardDetail: View {
                     VStack {
                         HStack {
                             Spacer()
-                            Button("Close") { dismiss() }.keyboardShortcut(.cancelAction)
+                            Button("Close", action: requestClose).keyboardShortcut(.cancelAction)
                         }.padding([.top, .horizontal])
                         metadataPanel
                     }
@@ -45,8 +46,13 @@ struct LibraryCardDetail: View {
             if let error { Text(error).font(.caption).foregroundStyle(.red) }
         }
         .padding(.horizontal)
-        .background(SheetOutsideClickDismissal(onDismiss: { dismiss() }))
+        .background(SheetOutsideClickDismissal(onDismiss: requestClose))
         .frame(minWidth: 840, minHeight: 590)
+        .interactiveDismissDisabled(hasUnsavedChanges)
+        .confirmationDialog("Discard unsaved changes?", isPresented: $confirmingDiscard, titleVisibility: .visible) {
+            Button("Discard Changes", role: .destructive) { dismiss() }
+            Button("Cancel", role: .cancel) {}
+        }
         .sheet(isPresented: $showingInfo) { CardInfoSheet(card: card) }
         .sheet(isPresented: $showingNotes) { CardNotesSheet(card: card, store: store) { card = $0 } }
         .sheet(isPresented: $showingTags) { CardTagsSheet(card: card, store: store) { card = $0 } }
@@ -81,7 +87,7 @@ struct LibraryCardDetail: View {
             if let transcript = card.aiTranscript, !transcript.isEmpty {
                 GroupBox("Transcript") { Text(transcript).textSelection(.enabled) }
             }
-        case .document: DocumentDetail(card: card)
+        case .document: DocumentDetail(card: card).padding(12)
         case .palette:
             if let colors = card.colors, !colors.isEmpty {
                 LazyVGrid(columns: [GridItem(.adaptive(minimum: 140), spacing: 16)], spacing: 20) {
@@ -121,9 +127,9 @@ struct LibraryCardDetail: View {
             }
             if card.cardType == .quote {
                 TextField("", text: $draft, axis: .vertical)
-                    .font(.body.italic()).multilineTextAlignment(.center).frame(minHeight: 360).disabled(card.isDeleted == true)
+                    .font(.body.italic()).multilineTextAlignment(.center).frame(minHeight: 360).disabled(isLoadingDetails || card.isDeleted == true)
             } else {
-                TextEditor(text: $draft).font(.body).frame(minHeight: 360).disabled(card.isDeleted == true)
+                TextEditor(text: $draft).font(.body).frame(minHeight: 360).disabled(isLoadingDetails || card.isDeleted == true)
             }
             if card.cardType == .quote {
                 Text("”").font(.title).foregroundStyle(.quaternary).frame(maxWidth: .infinity, alignment: .trailing)
@@ -199,11 +205,7 @@ struct LibraryCardDetail: View {
     }
 
     private var faviconURL: URL? {
-        if let favicon = LibraryCard.safeURL(card.linkFaviconUrl) { return favicon }
-        guard let host = LibraryCard.safeURL(card.url)?.host else { return nil }
-        var components = URLComponents(string: "https://www.google.com/s2/favicons")
-        components?.queryItems = [URLQueryItem(name: "domain", value: host)]
-        return components?.url
+        LibraryCard.safeURL(card.linkFaviconUrl)
     }
 
     private func detailImage(_ url: URL) -> some View {
@@ -259,17 +261,17 @@ struct LibraryCardDetail: View {
                     Label("Manage Tags", systemImage: "tag")
                 }
             }
-            .disabled(card.isDeleted == true)
+            .disabled(isLoadingDetails || card.isDeleted == true)
         }
     }
 
     private var chips: some View {
         CardChipFlow {
             if let type = card.cardType {
-                Button(type.title) { store.toggleType(type); dismiss() }
+                Button(type.title) { store.toggleType(type); requestClose() }
             }
             ForEach(card.tags, id: \.self) { tag in
-                Button(tag) { store.searchText = tag; store.scheduleSearch(); dismiss() }
+                Button(tag) { store.searchText = tag; store.scheduleSearch(); requestClose() }
             }
             ForEach(Array((card.colors ?? []).enumerated()), id: \.offset) { _, color in
                 Button { copyHex(color.hex) } label: {
@@ -277,7 +279,7 @@ struct LibraryCardDetail: View {
                 }.help(color.hex).accessibilityLabel("Copy \(color.hex)")
             }
             ForEach(card.aiTags, id: \.self) { tag in
-                Button { store.searchText = tag; store.scheduleSearch(); dismiss() } label: {
+                Button { store.searchText = tag; store.scheduleSearch(); requestClose() } label: {
                     Label(tag, systemImage: "sparkles")
                 }
             }
@@ -288,19 +290,20 @@ struct LibraryCardDetail: View {
 
     private var quickActions: some View {
         HStack {
-            Button("Info", systemImage: "info.circle") { showingInfo = true }
+            Button("Info", systemImage: "info.circle") { showingInfo = true }.help("Card information")
             Button(card.isFavorited ? "Unfavorite" : "Favorite", systemImage: card.isFavorited ? "heart.fill" : "heart") {
                 Task {
                     do { card = try await store.setFavorite(card) }
                     catch { self.error = error.localizedDescription }
                 }
-            }.disabled(card.isDeleted == true)
+            }.disabled(isLoadingDetails || card.isDeleted == true).help(card.isFavorited ? "Remove favorite" : "Add favorite")
             if LibraryCard.safeURL(card.fileUrl) != nil {
                 Button("Download", systemImage: "arrow.down.to.line") { Task { await downloadFile() } }
-                    .disabled(isDownloading)
+                    .disabled(isDownloading).help("Download file")
             }
         }
         .buttonStyle(.bordered)
+        .labelStyle(.iconOnly)
     }
 
     @ViewBuilder private var deletionActions: some View {
@@ -321,6 +324,15 @@ struct LibraryCardDetail: View {
         NSPasteboard.general.clearContents()
         NSPasteboard.general.setString(hex, forType: .string)
         store.showStatus("Copied \(hex.hasPrefix("#") ? hex : "#" + hex)")
+    }
+
+    private var hasUnsavedChanges: Bool {
+        (card.cardType == .text || card.cardType == .quote) && draft != (card.content ?? "")
+    }
+
+    private func requestClose() {
+        if hasUnsavedChanges { confirmingDiscard = true }
+        else { dismiss() }
     }
 
     private func saveContent() {

@@ -63,7 +63,7 @@ final class LibraryStore: ObservableObject {
     func toggleTrash() {
         let token = LibrarySearchTokens.classify("trash")
         if trashOnly { removeChip(token) }
-        else { chips.append(token); scheduleSearch() }
+        else { chips.append(token); syncChipFilters(); scheduleSearch() }
     }
 
     private func syncChipFilters() {

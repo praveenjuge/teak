@@ -179,7 +179,7 @@ struct CardChipFlow: Layout {
             let size = view.sizeThatFits(.unspecified)
             let gap = index == 0 ? 0 : subviews[index - 1].spacing.distance(to: view.spacing, along: .horizontal)
             if x > 0, x + gap + size.width > width {
-                y += rowHeight + view.spacing.distance(to: view.spacing, along: .vertical)
+                y += rowHeight + subviews[index - 1].spacing.distance(to: view.spacing, along: .vertical)
                 x = 0
                 rowHeight = 0
             } else if x > 0 { x += gap }

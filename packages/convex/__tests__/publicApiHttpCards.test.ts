@@ -41,6 +41,34 @@ describe("publicApiHttp card endpoints", () => {
     }
   });
 
+  test.each([true, false])(
+    "dispatches restore for a card with deleted=%s",
+    async (isDeleted) => {
+      const response = await executePublicApiOperation(
+        {
+          runMutation:
+            buildAuthorizedMutationMock().mockResolvedValueOnce(null),
+          runQuery: mock()
+            .mockResolvedValueOnce("card_1")
+            .mockResolvedValueOnce({
+              _id: "card_1",
+              userId: "user_1",
+              isDeleted,
+            }),
+        },
+        {
+          method: "POST",
+          path: "/v1/cards/card_1/restore",
+          headers: {
+            Authorization: `Bearer teakapi_secret_live_a1b2c3d4_${"f".repeat(64)}`,
+          },
+        }
+      );
+      expect(response.status).toBe(204);
+      expect(await response.text()).toBe("");
+    }
+  );
+
   test("listCardsV1 rejects partial numeric createdAfter values", async () => {
     const runMutation = buildAuthorizedMutationMock();
 

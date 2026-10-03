@@ -233,8 +233,9 @@ Use the returned request ID when contacting [Support](/docs/support). For MCP to
 ### Trash and visual filters
 
 List Trash with `GET /v1/cards?trashed=true`. Repeat `style`, `hue`, or `hex`
-parameters to match any value within each filter, combining different filters.
-Hex colors accept three or six digits with an optional `#` (URL-encode it as `%23`).
+parameters to match any value within each filter, combining different filters. Each dimension accepts up to 24 values; excess values return `400 INVALID_INPUT`.
+Broad searches that exceed the read limit return `400 INVALID_INPUT`; add a type or date filter to narrow them.
+Hex colors accept three, four, six, or eight digits with an optional `#` (URL-encode it as `%23`).
 For example: `GET /v1/cards?type=image&hue=blue&hex=%23112233`.
 
 `DELETE /v1/cards/:cardId` moves a card to Trash. Restore it with

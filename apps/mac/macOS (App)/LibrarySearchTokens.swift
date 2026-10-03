@@ -43,18 +43,51 @@ enum LibrarySearchTokens {
         var tokens: [LibrarySearchToken] = []
         var index = 0
         while index < words.count {
-            if index + 1 < words.count {
-                let pair = classify(words[index] + " " + words[index + 1], now: now, calendar: calendar)
-                if pair.kind == .date { tokens.append(pair); index += 2; continue }
+            var matchedDate: LibrarySearchToken?
+            var consumed = 0
+            // The longest supported expression is “from June 5 2024 to July 6 2025”.
+            for length in stride(from: min(9, words.count - index), through: 1, by: -1) {
+                let phrase = words[index..<(index + length)].joined(separator: " ")
+                if let token = dateToken(phrase.lowercased(), now: now, calendar: calendar) {
+                    matchedDate = token
+                    consumed = length
+                    break
+                }
             }
-            tokens.append(classify(words[index].trimmingCharacters(in: CharacterSet(charactersIn: ",.;:!?()[]{}\"'")), now: now, calendar: calendar))
-            index += 1
+            if let matchedDate {
+                tokens.append(matchedDate)
+                index += consumed
+            } else {
+                tokens.append(classify(words[index].trimmingCharacters(in: CharacterSet(charactersIn: ",.;:!?()[]{}\"'")), now: now, calendar: calendar))
+                index += 1
+            }
         }
+
         return tokens.filter { !$0.value.isEmpty }
     }
 
     private static func dateToken(_ value: String, now: Date, calendar: Calendar) -> LibrarySearchToken? {
-        var cal = calendar
+        let range: Range<Date>?
+        let safeValue = String(value.prefix(200))
+        if let delimiter = safeValue.range(of: " to ") ?? safeValue.range(of: " - ") {
+            var left = String(safeValue[..<delimiter.lowerBound])
+            if left.hasPrefix("from ") { left = String(left.dropFirst(5)) }
+            let right = String(safeValue[delimiter.upperBound...])
+            if let first = singleDateRange(left, now: now, calendar: calendar),
+               let last = singleDateRange(right, now: now, calendar: calendar),
+               first.lowerBound < last.upperBound {
+                range = first.lowerBound..<last.upperBound
+            } else { range = nil }
+        } else {
+            range = singleDateRange(value, now: now, calendar: calendar)
+        }
+        guard let range else { return nil }
+        return .init(kind: .date, value: value, label: value.capitalized, dateRange: range)
+    }
+
+    private static func singleDateRange(_ value: String, now: Date, calendar: Calendar) -> Range<Date>? {
+        var cal = Calendar(identifier: .gregorian)
+        cal.timeZone = calendar.timeZone
         cal.firstWeekday = 1 // Match the web's Sunday-start date ranges.
         let today = cal.startOfDay(for: now)
         let relatives: [String: Calendar.Component] = ["today": .day, "yesterday": .day, "this week": .weekOfYear, "last week": .weekOfYear, "this month": .month, "last month": .month, "this year": .year, "last year": .year]
@@ -64,16 +97,41 @@ enum LibrarySearchTokens {
             component = unit
             start = value == "yesterday" || value.hasPrefix("last ") ? cal.date(byAdding: unit, value: -1, to: interval.start) : interval.start
         } else {
-            let parts = value.split(separator: " ")
-            let months = ["january", "february", "march", "april", "may", "june", "july", "august", "september", "october", "november", "december"]
-            if let first = parts.first, let month = months.firstIndex(where: { $0 == first || $0.prefix(3) == first || ($0 == "september" && first == "sept") }), parts.count <= 2 {
-                let year = parts.count == 2 ? Int(parts[1]) : cal.component(.year, from: now)
-                if let year, (1...9999).contains(year) { start = cal.date(from: DateComponents(year: year, month: month + 1, day: 1)); component = .month }
-            } else if value.count == 4, let year = Int(value), (1...9999).contains(year) {
-                start = cal.date(from: DateComponents(year: year, month: 1, day: 1)); component = .year
+            let weekdays = ["sunday", "monday", "tuesday", "wednesday", "thursday", "friday", "saturday"]
+            let last = value.hasPrefix("last ")
+            let weekday = last ? String(value.dropFirst(5)) : value
+            if let index = weekdays.firstIndex(of: weekday) {
+                let days = (cal.component(.weekday, from: today) - 1 - index + 7) % 7 + (last ? 7 : 0)
+                start = cal.date(byAdding: .day, value: -days, to: today)
+            } else {
+                let parts = value.split(separator: " ")
+                let months = ["january", "february", "march", "april", "may", "june", "july", "august", "september", "october", "november", "december"]
+                let month = parts.first.flatMap { first in months.firstIndex(where: { $0 == first || $0.prefix(3) == first || ($0 == "september" && first == "sept") }) }
+                if let month, parts.count == 3, parts[2].count == 4,
+                   let day = Int(parts[1].trimmingCharacters(in: CharacterSet(charactersIn: ","))), let year = Int(parts[2]) {
+                    start = validDate(year: year, month: month + 1, day: day, calendar: cal)
+                } else if let month, parts.count <= 2 {
+                    let year = parts.count == 2 && parts[1].count == 4 ? Int(parts[1]) : parts.count == 1 ? cal.component(.year, from: now) : nil
+                    if let year { start = validDate(year: year, month: month + 1, day: 1, calendar: cal); component = .month }
+                } else if value.range(of: #"^[0-9]{4}-[0-9]{2}-[0-9]{2}$"#, options: .regularExpression) != nil {
+                    let numbers = value.split(separator: "-").compactMap { Int($0) }
+                    start = validDate(year: numbers[0], month: numbers[1], day: numbers[2], calendar: cal)
+                } else if value.range(of: #"^[0-9]{1,2}/[0-9]{1,2}/[0-9]{4}$"#, options: .regularExpression) != nil {
+                    let numbers = value.split(separator: "/").compactMap { Int($0) }
+                    start = validDate(year: numbers[2], month: numbers[0], day: numbers[1], calendar: cal)
+                } else if value.count == 4, let year = Int(value) {
+                    start = validDate(year: year, month: 1, day: 1, calendar: cal); component = .year
+                }
             }
         }
         guard let start, let end = cal.date(byAdding: component, value: 1, to: start) else { return nil }
-        return .init(kind: .date, value: value, label: value.capitalized, dateRange: start..<end)
+        return start..<end
+    }
+
+    private static func validDate(year: Int, month: Int, day: Int, calendar: Calendar) -> Date? {
+        guard (100...9999).contains(year), (1...12).contains(month), (1...31).contains(day),
+              let date = calendar.date(from: DateComponents(year: year, month: month, day: day)) else { return nil }
+        let components = calendar.dateComponents([.year, .month, .day], from: date)
+        return components.year == year && components.month == month && components.day == day ? date : nil
     }
 }

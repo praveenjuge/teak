@@ -27,6 +27,7 @@ import {
   normalizeColorHueBucket,
   normalizeVisualStyle,
 } from "./shared/constants";
+import { SEARCH_MAX_VISUAL_FILTERS_PER_DIMENSION } from "./shared/search/constants";
 import { isSafeExternalUrl } from "./shared/utils/safeUrl";
 
 const APP_PROD_URL = "https://app.teakvault.com";
@@ -354,6 +355,18 @@ const parseCardsQueryOptions = (
       "INVALID_INPUT",
       "Query parameter `trashed` must be `true` or `false`"
     );
+  }
+  for (const dimension of ["style", "hue", "hex"]) {
+    if (
+      searchParams.getAll(dimension).length >
+      SEARCH_MAX_VISUAL_FILTERS_PER_DIMENSION
+    ) {
+      return errorResponse(
+        400,
+        "INVALID_INPUT",
+        `Query parameter \`${dimension}\` accepts at most ${SEARCH_MAX_VISUAL_FILTERS_PER_DIMENSION} filters`
+      );
+    }
   }
   let visualFilters: ReturnType<typeof normalizeVisualFilterArgs>;
   try {

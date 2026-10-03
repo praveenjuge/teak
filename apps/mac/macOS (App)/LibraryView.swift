@@ -10,6 +10,7 @@ struct LibraryView: View {
     @FocusState private var searchFocused: Bool
     @State private var selectedCard: LibraryCard?
     @State private var tagsCard: LibraryCard?
+    @State private var permanentDeleteCard: LibraryCard?
     @State private var recording = false
     @State private var dropping = false
     @State private var uploadError: String?
@@ -54,6 +55,18 @@ struct LibraryView: View {
         }
         .sheet(isPresented: $recording) {
             AudioCaptureSheet(onCreated: handleCreated, onAuthenticationRequired: onAuthenticationRequired)
+        }
+        .confirmationDialog("Delete this card forever?", isPresented: Binding(
+            get: { permanentDeleteCard != nil },
+            set: { if !$0 { permanentDeleteCard = nil } }
+        ), titleVisibility: .visible, presenting: permanentDeleteCard) { card in
+            Button("Delete Forever", role: .destructive) {
+                Task {
+                    do { try await store.permanentDelete(card) }
+                    catch { uploadError = error.localizedDescription }
+                }
+            }
+            Button("Cancel", role: .cancel) {}
         }
         .onDrop(of: [UTType.fileURL.identifier], isTargeted: $dropping, perform: acceptDrop)
         .overlay {
@@ -114,7 +127,7 @@ struct LibraryView: View {
     }
 
     private var acceptsLibraryCommands: Bool {
-        NSApp.keyWindow?.title == "Teak Library" && selectedCard == nil && tagsCard == nil && !recording && !noteDraft.expanded
+        (NSApp.keyWindow?.windowController is LibraryWindowController) && selectedCard == nil && tagsCard == nil && !recording && !noteDraft.expanded
     }
 
     private var header: some View {
@@ -246,9 +259,14 @@ struct LibraryView: View {
     @ViewBuilder private func cardMenu(_ card: LibraryCard) -> some View {
         if let url = LibraryCard.safeURL(card.url) { Button("Open Link") { NSWorkspace.shared.open(url) } }
         if store.trashOnly {
-            Button("Restore") { Task { try? await store.restore(card) } }
+            Button("Restore") {
+                Task {
+                    do { try await store.restore(card) }
+                    catch { uploadError = error.localizedDescription }
+                }
+            }
             Divider()
-            Button("Delete Forever", role: .destructive) { Task { try? await store.permanentDelete(card) } }
+            Button("Delete Forever", role: .destructive) { permanentDeleteCard = card }
         } else {
             if card.cardType == .text || card.cardType == .link || (card.cardType == .image && card.mimeType != "image/svg+xml") {
                 Button(card.cardType == .image ? "Copy Image" : card.cardType == .link ? "Copy Link" : "Copy Text") { Task { await copy(card) } }

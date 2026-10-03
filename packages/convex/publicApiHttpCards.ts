@@ -412,7 +412,12 @@ const handleCardsByIdV1Request = async (
         },
       });
     } catch (error) {
-      return mapConvexErrorToResponse(error, "Failed to delete card");
+      return mapConvexErrorToResponse(
+        error,
+        route.operation === "restore"
+          ? "Failed to restore card"
+          : "Failed to delete card"
+      );
     }
   }
 

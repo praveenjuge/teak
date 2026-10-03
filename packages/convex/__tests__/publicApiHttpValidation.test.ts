@@ -320,3 +320,21 @@ describe("parseCardRoute", () => {
     expect(parseCardRoute(new Request(`${API}${path}`, { method }))).toBeNull();
   });
 });
+
+test.each(["style", "hue", "hex"])(
+  "rejects excessive %s filters instead of silently truncating",
+  async (dimension: "style" | "hue" | "hex") => {
+    const params = new URLSearchParams();
+    for (let index = 0; index < 25; index += 1) {
+      const value = {
+        style: "minimal",
+        hue: "blue",
+        hex: `#${index.toString(16).padStart(6, "0")}`,
+      }[dimension];
+      params.append(dimension, value ?? "");
+    }
+    expect(
+      await errorOf(parseCardsQueryOptions(get(params.toString())))
+    ).toMatchObject({ status: 400, body: { code: "INVALID_INPUT" } });
+  }
+);

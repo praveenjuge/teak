@@ -1,3 +1,4 @@
+import { ConvexError } from "convex/values";
 import { internal } from "../_generated/api";
 import type { Doc, Id } from "../_generated/dataModel";
 import type { MutationCtx, QueryCtx } from "../_generated/server";
@@ -526,10 +527,10 @@ export const searchCardsByExactTag = async (
     return [];
   }
   const { isFavorited, type } = args;
-  const takeLimit = Math.min(400, Math.max(1, args.limit));
-  let tagDocuments: Doc<"cardSearchTags">[];
+  const matchLimit = Math.min(4096, Math.max(1, args.limit));
+  let tagQuery: AsyncIterable<Doc<"cardSearchTags">>;
   if (type !== undefined && isFavorited !== undefined) {
-    tagDocuments = await ctx.db
+    tagQuery = ctx.db
       .query("cardSearchTags")
       .withIndex("by_user_tag_deleted_type_favorited", (range) =>
         range
@@ -541,10 +542,9 @@ export const searchCardsByExactTag = async (
           .gte("cardCreatedAt", args.createdAfter ?? Number.MIN_SAFE_INTEGER)
           .lte("cardCreatedAt", args.createdBefore ?? Number.MAX_SAFE_INTEGER)
       )
-      .order(args.sort === "oldest" ? "asc" : "desc")
-      .take(takeLimit);
+      .order(args.sort === "oldest" ? "asc" : "desc");
   } else if (type !== undefined) {
-    tagDocuments = await ctx.db
+    tagQuery = ctx.db
       .query("cardSearchTags")
       .withIndex("by_user_tag_deleted_type", (range) =>
         range
@@ -555,10 +555,9 @@ export const searchCardsByExactTag = async (
           .gte("cardCreatedAt", args.createdAfter ?? Number.MIN_SAFE_INTEGER)
           .lte("cardCreatedAt", args.createdBefore ?? Number.MAX_SAFE_INTEGER)
       )
-      .order(args.sort === "oldest" ? "asc" : "desc")
-      .take(takeLimit);
+      .order(args.sort === "oldest" ? "asc" : "desc");
   } else if (isFavorited === undefined) {
-    tagDocuments = await ctx.db
+    tagQuery = ctx.db
       .query("cardSearchTags")
       .withIndex("by_user_tag_deleted_created", (range) =>
         range
@@ -568,10 +567,9 @@ export const searchCardsByExactTag = async (
           .gte("cardCreatedAt", args.createdAfter ?? Number.MIN_SAFE_INTEGER)
           .lte("cardCreatedAt", args.createdBefore ?? Number.MAX_SAFE_INTEGER)
       )
-      .order(args.sort === "oldest" ? "asc" : "desc")
-      .take(takeLimit);
+      .order(args.sort === "oldest" ? "asc" : "desc");
   } else {
-    tagDocuments = await ctx.db
+    tagQuery = ctx.db
       .query("cardSearchTags")
       .withIndex("by_user_tag_deleted_favorited", (range) =>
         range
@@ -582,19 +580,27 @@ export const searchCardsByExactTag = async (
           .gte("cardCreatedAt", args.createdAfter ?? Number.MIN_SAFE_INTEGER)
           .lte("cardCreatedAt", args.createdBefore ?? Number.MAX_SAFE_INTEGER)
       )
-      .order(args.sort === "oldest" ? "asc" : "desc")
-      .take(takeLimit);
+      .order(args.sort === "oldest" ? "asc" : "desc");
   }
-  const cards = await Promise.all(
-    tagDocuments.map((document) => ctx.db.get("cards", document.cardId))
-  );
-  return Array.from(
-    new Map(
-      cards
-        .filter((card): card is Doc<"cards"> => card !== null)
-        .map((card) => [card._id, card] as const)
-    ).values()
-  ).filter(args.resultFilter ?? (() => true));
+  const cardsById = new Map<Id<"cards">, Doc<"cards">>();
+  let scanned = 0;
+  for await (const document of tagQuery) {
+    scanned += 1;
+    const card = await ctx.db.get("cards", document.cardId);
+    if (card && (!args.resultFilter || args.resultFilter(card))) {
+      cardsById.set(card._id, card);
+      if (cardsById.size >= matchLimit) {
+        break;
+      }
+    }
+    if (scanned >= 4096) {
+      throw new ConvexError({
+        code: "INVALID_INPUT",
+        message: "Search is too broad. Add a type or date filter.",
+      });
+    }
+  }
+  return Array.from(cardsById.values());
 };
 
 export const searchCardsByDocument = async (
@@ -646,6 +652,17 @@ export const searchCardsByDocument = async (
       args.resultFilter ?? (() => true)
     );
     const sourceExhausted = derivedDocuments.length < sourceLimit;
+    if (
+      args.resultFilter &&
+      !sourceExhausted &&
+      cards.length < args.limit &&
+      sourceLimit >= maximumSourceLimit
+    ) {
+      throw new ConvexError({
+        code: "INVALID_INPUT",
+        message: "Search is too broad. Add a type or date filter.",
+      });
+    }
     if (
       cards.length >= args.limit ||
       sourceExhausted ||

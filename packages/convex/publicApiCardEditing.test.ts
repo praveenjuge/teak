@@ -4,6 +4,10 @@ import workflowTest from "@convex-dev/workflow/test";
 import { convexTest } from "convex-test";
 import { describe, expect, test } from "vitest";
 import { internal } from "./_generated/api";
+import {
+  syncCardSearchDocumentHandler,
+  syncCardSearchTagsBatchHandler,
+} from "./card/searchDocumentHelpers";
 import schema from "./schema";
 
 const modules = import.meta.glob("./**/*.ts");
@@ -216,6 +220,79 @@ describe("Public API Trash and visual filters", () => {
       scanLimit: 50,
     });
     expect(mismatch.items).toEqual([]);
+  });
+
+  test.each(["text", "tag"])(
+    "finds visual matches beyond initial %s search candidates",
+    async (source) => {
+      const { t } = await setup();
+      const matches = await t.run(async (ctx) => {
+        const ids: string[] = [];
+        for (let index = 0; index < 455; index += 1) {
+          const isMatch = index < 3;
+          const id = await ctx.db.insert("cards", {
+            userId: "owner",
+            type: "image",
+            content: "coastal inspiration",
+            tags: ["coastal"],
+            visualStyles: [isMatch ? "minimal" : "vibrant"],
+            createdAt: index + 2,
+            updatedAt: index + 2,
+          });
+          await syncCardSearchDocumentHandler(ctx, id);
+          await syncCardSearchTagsBatchHandler(ctx, id);
+          if (isMatch) {
+            ids.unshift(id);
+          }
+        }
+        return ids;
+      });
+      const options = {
+        userId: "owner",
+        styleFilters: ["minimal"],
+        limit: 2,
+        ...(source === "text"
+          ? { searchQuery: "coastal" }
+          : { tag: "coastal" }),
+      };
+      const first = await t.query(
+        internal.publicApi.searchCardsPageForUser,
+        options
+      );
+      expect(first.items.map((card: { _id: string }) => card._id)).toEqual(
+        matches.slice(0, 2)
+      );
+      expect(first.pageInfo.hasMore).toBe(true);
+      const second = await t.query(internal.publicApi.searchCardsPageForUser, {
+        ...options,
+        cursor: first.pageInfo.nextCursor ?? undefined,
+      });
+      expect(second.items.map((card: { _id: string }) => card._id)).toEqual(
+        matches.slice(2)
+      );
+      expect(second.pageInfo.hasMore).toBe(false);
+    }
+  );
+
+  test("repeated restore preserves the already active card", async () => {
+    const { t, cardId } = await setup();
+    await t.run((ctx) => ctx.db.patch("cards", cardId, { isDeleted: true }));
+    await t.mutation(internal["card/deleteCard"].restoreCardForUser, {
+      userId: "owner",
+      cardId,
+    });
+    const first = await t.run((ctx) => ctx.db.get("cards", cardId));
+    await t.mutation(internal["card/deleteCard"].restoreCardForUser, {
+      userId: "owner",
+      cardId,
+    });
+    expect(await t.run((ctx) => ctx.db.get("cards", cardId))).toEqual(first);
+    await expect(
+      t.mutation(internal["card/deleteCard"].restoreCardForUser, {
+        userId: "stranger",
+        cardId,
+      })
+    ).rejects.toThrow("Not authorized");
   });
 
   test("restores and permanently deletes only the owner's card", async () => {

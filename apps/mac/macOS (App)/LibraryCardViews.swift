@@ -40,6 +40,9 @@ struct LibraryCardTile: View {
             .allowsHitTesting(!isSaving)
             .contentShape(Rectangle())
             .onTapGesture(perform: onOpen)
+            .accessibilityElement(children: .ignore)
+            .accessibilityLabel("\(card.cardType?.title ?? "Card"): \(card.title)")
+            .accessibilityAddTraits(.isButton)
             .accessibilityAction(named: "Open card", onOpen)
     }
 
@@ -66,9 +69,9 @@ struct LibraryCardTile: View {
                     Divider()
                     Text(card.linkTitle).lineLimit(1).frame(maxWidth: .infinity, alignment: .leading)
                 }
-            } else { Text(card.previewText.isEmpty ? card.linkTitle : card.previewText).lineLimit(1) }
+            } else { Text(card.title).lineLimit(1) }
         case .image:
-            CardImage(url: LibraryCard.safeURL(card.compactUrl ?? card.fileUrl ?? card.thumbnailUrl), ratio: imageRatio)
+            CardImage(url: card.displayImageURL, ratio: imageRatio)
         case .video:
             VideoTile(card: card, ratio: imageRatio)
         case .audio:

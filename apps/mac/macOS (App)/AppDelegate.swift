@@ -254,6 +254,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         syncActivationPolicy()
     }
 
+    /// Keeps the library available as a standard Dock app, independently of the menu bar item.
     private func syncActivationPolicy() {
         NSApp.setActivationPolicy(.regular)
     }

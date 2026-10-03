@@ -28,6 +28,23 @@ extension SafariOAuthTests {
         let now = calendar.date(from: DateComponents(year: 2026, month: 10, day: 3))!
         let week = LibrarySearchTokens.classify("last week", now: now, calendar: calendar)
         try check(week.dateRange?.lowerBound == calendar.date(from: DateComponents(year: 2026, month: 9, day: 20)), "last week starts on the web's Sunday boundary")
+        for (input, start, end) in [
+            ("monday", DateComponents(year: 2026, month: 9, day: 28), DateComponents(year: 2026, month: 9, day: 29)),
+            ("last monday", DateComponents(year: 2026, month: 9, day: 21), DateComponents(year: 2026, month: 9, day: 22)),
+            ("2024-06-05", DateComponents(year: 2024, month: 6, day: 5), DateComponents(year: 2024, month: 6, day: 6)),
+            ("6/5/2024", DateComponents(year: 2024, month: 6, day: 5), DateComponents(year: 2024, month: 6, day: 6)),
+            ("June 5, 2024", DateComponents(year: 2024, month: 6, day: 5), DateComponents(year: 2024, month: 6, day: 6)),
+            ("June 2024 to July 2025", DateComponents(year: 2024, month: 6, day: 1), DateComponents(year: 2025, month: 8, day: 1)),
+            ("from June 5 2024 to July 6 2025", DateComponents(year: 2024, month: 6, day: 5), DateComponents(year: 2025, month: 7, day: 7)),
+            ("2024 - 2025", DateComponents(year: 2024, month: 1, day: 1), DateComponents(year: 2026, month: 1, day: 1))
+        ] {
+            let tokens = LibrarySearchTokens.parse("design \(input) image", now: now, calendar: calendar)
+            try check(tokens.count == 3 && tokens[1].kind == .date, "recognizes complete date phrase \(input) without consuming surrounding filters")
+            try check(tokens[1].dateRange == calendar.date(from: start)!..<calendar.date(from: end)!, "matches web date boundaries for \(input)")
+        }
+        for invalid in ["2024-02-30", "2/30/2024", "June 32 2024", "July 2025 to June 2024"] {
+            try check(LibrarySearchTokens.classify(invalid, now: now, calendar: calendar).kind == .keyword, "invalid date remains text: \(invalid)")
+        }
         let store = LibraryStore(api: LibraryAPI(service: fixture(MemoryCredentials(tokens()))), onAuthenticationRequired: {})
         store.searchText = "trash fav last week minimal #abc"
         store.commitSearchTokens()

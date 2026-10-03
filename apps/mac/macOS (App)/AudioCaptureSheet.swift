@@ -96,7 +96,7 @@ struct AudioCaptureSheet: View {
         }
         .scenePadding()
         .frame(minWidth: 460)
-        .interactiveDismissDisabled(isSaving || isStarting)
+        .interactiveDismissDisabled(isSaving || isStarting || audio.file != nil)
         .task {
             isStarting = true
             await audio.start()
