@@ -12,20 +12,16 @@ import { mcp } from "better-auth/plugins";
 import { v } from "convex/values";
 import { importPKCS8, SignJWT } from "jose";
 import { components, internal } from "./_generated/api";
-import type { DataModel, Id } from "./_generated/dataModel";
+import type { DataModel } from "./_generated/dataModel";
 import {
   env,
   internalAction,
-  internalMutation,
-  internalQuery,
   type MutationCtx,
-  type QueryCtx,
   query,
 } from "./_generated/server";
-import { beginAccountDeletion, finishAccountDeletion } from "./accountDeletion";
 import authConfig from "./auth.config";
 import { polar } from "./billing";
-import { getActiveCardCount, removeCardUsage } from "./card/cardUsage";
+import { getActiveCardCount } from "./card/cardUsage";
 import {
   getAppleCredentials,
   getGoogleCredentials,
@@ -46,14 +42,13 @@ import {
   resolveBackendTelemetryDsn,
 } from "./shared/telemetry";
 import { guardUserCreation } from "./signupFreeze";
-import { cardStorageObjectKeys } from "./storage/r2";
 import { scheduleAuthOutcome, scheduleUserCreated } from "./telemetry/schedule";
 import { buildTrustedOrigins } from "./trustedOrigins";
+import { mirrorBetterAuthUser } from "./userIdentityTable";
 
 const siteUrl = readSiteUrl();
 const usesSecureCookies = new URL(siteUrl).protocol === "https:";
 const APPLE_CLIENT_SECRET_TTL_SECONDS = 180 * 24 * 60 * 60;
-const ACCOUNT_CARD_TAG_DELETE_BATCH_SIZE = 20;
 
 interface AppleClientSecretConfig {
   clientId: string;
@@ -124,12 +119,19 @@ export const authComponent = createClient<DataModel>(components.betterAuth, {
   triggers: {
     user: {
       onCreate: async (ctx, user) => {
+        await mirrorBetterAuthUser(ctx, user);
         await ctx.scheduler.runAfter(
           0,
           internal.card.defaultCards.createDefaultCardsForUser,
           { userId: user._id }
         );
         await scheduleUserCreatedTelemetry(ctx, user._id);
+      },
+      onUpdate: async (ctx, user) => {
+        await mirrorBetterAuthUser(ctx, user);
+      },
+      onDelete: async (ctx, user) => {
+        await mirrorBetterAuthUser(ctx, user, true);
       },
     },
   },
@@ -327,7 +329,7 @@ export const createAuth = (ctx: GenericCtx<DataModel>) => {
         },
         afterDelete: async (user) => {
           await requireActionCtx(ctx).runMutation(
-            internal.auth.finishAccountDataDeletion,
+            internal.accountDeletion.finishAccountDataDeletion,
             { userId: user.id }
           );
         },
@@ -541,201 +543,6 @@ export const getCardCreationStatusHandler = async (ctx: any) => {
 export const getCardCreationStatus = query({
   args: {},
   handler: getCardCreationStatusHandler,
-});
-
-export const getAccountCardDeletionBatchHandler = async (
-  ctx: QueryCtx,
-  userId: string
-) => {
-  const cards = await ctx.db
-    .query("cards")
-    .withIndex("by_user_deleted", (q: any) => q.eq("userId", userId))
-    .take(20);
-  const readyCards: typeof cards = [];
-  for (const card of cards) {
-    const tagDocuments = await ctx.db
-      .query("cardSearchTags")
-      .withIndex("by_cardId", (query) => query.eq("cardId", card._id))
-      .take(ACCOUNT_CARD_TAG_DELETE_BATCH_SIZE + 1);
-    if (tagDocuments.length <= ACCOUNT_CARD_TAG_DELETE_BATCH_SIZE) {
-      readyCards.push(card);
-    }
-  }
-  return {
-    cardIds: cards.map((card) => card._id),
-    objectKeys: Array.from(
-      new Set(readyCards.flatMap((card) => cardStorageObjectKeys(card)))
-    ),
-  };
-};
-
-export const getAccountCardDeletionBatch = internalQuery({
-  args: { userId: v.string() },
-  returns: v.object({
-    cardIds: v.array(v.id("cards")),
-    objectKeys: v.array(v.string()),
-  }),
-  handler: (ctx, { userId }) => getAccountCardDeletionBatchHandler(ctx, userId),
-});
-
-export const deleteAccountDataHandler = async (
-  ctx: MutationCtx,
-  _userId: string,
-  cardIds: Id<"cards">[]
-) => {
-  let deletedCards = 0;
-  for (const cardId of cardIds) {
-    // Deliberately no ctx.db.get("cards", cardId) ownership re-check here:
-    // card ownership is immutable (no code path patches cards.userId) and
-    // the caller derives these IDs from the by_user_deleted index for this
-    // user, so the extra read only widened the mutation's conflict surface.
-    // The writers that raced these batches are fenced off during account
-    // deletion in patchCardWithSearchSync.
-    const tagDocuments = await ctx.db
-      .query("cardSearchTags")
-      .withIndex("by_cardId", (query) => query.eq("cardId", cardId))
-      .take(ACCOUNT_CARD_TAG_DELETE_BATCH_SIZE + 1);
-    for (const tagDocument of tagDocuments.slice(
-      0,
-      ACCOUNT_CARD_TAG_DELETE_BATCH_SIZE
-    )) {
-      await ctx.db.delete("cardSearchTags", tagDocument._id);
-    }
-    if (tagDocuments.length > ACCOUNT_CARD_TAG_DELETE_BATCH_SIZE) {
-      continue;
-    }
-    const searchDocument = await ctx.db
-      .query("cardSearchDocuments")
-      .withIndex("by_cardId", (query) => query.eq("cardId", cardId))
-      .unique();
-    if (searchDocument) {
-      await ctx.db.delete("cardSearchDocuments", searchDocument._id);
-    }
-    const searchTagSyncState = await ctx.db
-      .query("cardSearchTagSyncStates")
-      .withIndex("by_cardId", (query) => query.eq("cardId", cardId))
-      .unique();
-    if (searchTagSyncState) {
-      await ctx.db.delete("cardSearchTagSyncStates", searchTagSyncState._id);
-    }
-    try {
-      await ctx.db.delete("cards", cardId);
-      deletedCards += 1;
-    } catch (error) {
-      // Only the already-deleted race is skippable. Anything else (backend
-      // failure, invalid ID) must surface so the deletion action retries or
-      // fails loudly instead of reporting progress it did not make. The
-      // production backend says "Delete on nonexistent document ID ..."
-      // while convex-test says "Delete on non-existent doc", so match both
-      // spellings.
-      if (
-        !(
-          error instanceof Error &&
-          /non-?existent|not found/i.test(error.message)
-        )
-      ) {
-        throw error;
-      }
-    }
-  }
-  return deletedCards;
-};
-
-export const deleteAccountDataBatch = internalMutation({
-  args: { cardIds: v.array(v.id("cards")), userId: v.string() },
-  returns: v.number(),
-  handler: async (ctx, { cardIds, userId }) =>
-    deleteAccountDataHandler(ctx, userId, cardIds),
-});
-
-export const getAccountImportDeletionBatch = internalQuery({
-  args: { userId: v.string() },
-  returns: v.object({
-    itemIds: v.array(v.id("importJobItems")),
-    jobIds: v.array(v.id("importJobs")),
-    objects: v.array(
-      v.object({
-        reportKey: v.optional(v.string()),
-        sourceKey: v.string(),
-        uploadId: v.optional(v.string()),
-      })
-    ),
-  }),
-  handler: async (ctx, { userId }) => {
-    const jobs = await ctx.db
-      .query("importJobs")
-      .withIndex("by_user_created", (q: any) => q.eq("userId", userId))
-      .take(100);
-    const items = await ctx.db
-      .query("importJobItems")
-      .withIndex("by_user", (q: any) => q.eq("userId", userId))
-      .take(100);
-    return {
-      itemIds: items.map((item) => item._id),
-      jobIds: jobs.map((job) => job._id),
-      objects: jobs.map((job) => ({
-        sourceKey: job.sourceKey,
-        reportKey: job.reportKey,
-        uploadId: job.uploadId,
-      })),
-    };
-  },
-});
-
-export const deleteAccountImportRows = internalMutation({
-  args: {
-    itemIds: v.array(v.id("importJobItems")),
-    jobIds: v.array(v.id("importJobs")),
-    userId: v.string(),
-  },
-  returns: v.null(),
-  handler: async (ctx, { itemIds, jobIds, userId }) => {
-    for (const itemId of itemIds) {
-      const item = await ctx.db.get("importJobItems", itemId);
-      if (item?.userId === userId) {
-        await ctx.db.delete("importJobItems", itemId);
-      }
-    }
-    for (const jobId of jobIds) {
-      const job = await ctx.db.get("importJobs", jobId);
-      if (job?.userId === userId) {
-        await ctx.db.delete("importJobs", jobId);
-      }
-    }
-    return null;
-  },
-});
-
-export const beginAccountDataDeletion = internalMutation({
-  args: { userId: v.string() },
-  returns: v.null(),
-  handler: async (ctx, { userId }) => {
-    await beginAccountDeletion(ctx, userId);
-    return null;
-  },
-});
-
-export const finishAccountDataDeletion = internalMutation({
-  args: { userId: v.string() },
-  returns: v.null(),
-  handler: async (ctx, { userId }) => {
-    await finishAccountDeletion(ctx, userId);
-    return null;
-  },
-});
-
-export const removeAccountCardUsageHandler = async (
-  ctx: MutationCtx,
-  userId: string
-) => {
-  await removeCardUsage(ctx, userId);
-  return null;
-};
-
-export const removeAccountCardUsage = internalMutation({
-  args: { userId: v.string() },
-  returns: v.null(),
-  handler: (ctx, { userId }) => removeAccountCardUsageHandler(ctx, userId),
 });
 
 export const getLatestJwks = internalAction({

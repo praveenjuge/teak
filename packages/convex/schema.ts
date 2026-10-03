@@ -475,6 +475,32 @@ export const cardValidator = v.object({
 });
 
 export default defineSchema({
+  users: defineTable({
+    teakUserId: v.string(),
+    email: v.string(),
+    emailVerified: v.boolean(),
+    workosUserId: v.optional(v.string()),
+    role: v.optional(v.literal("admin")),
+    lastWorkosEventAt: v.optional(v.number()),
+    deletedAt: v.optional(v.number()),
+  })
+    .index("by_teakUserId", ["teakUserId"])
+    .index("by_workosUserId", ["workosUserId"])
+    .index("by_email", ["email"]),
+  migrationQuarantine: defineTable({
+    workosUserId: v.optional(v.string()),
+    teakUserId: v.optional(v.string()),
+    email: v.string(),
+    reason: v.string(),
+    source: v.string(),
+    createdAt: v.number(),
+    resolvedAt: v.optional(v.number()),
+  }).index("by_unresolved", ["resolvedAt"]),
+  workosEvents: defineTable({
+    eventId: v.string(),
+    type: v.string(),
+    createdAt: v.number(),
+  }).index("by_eventId", ["eventId"]),
   cards: defineTable(cardValidator)
     // Note: by_user index removed as redundant - by_user_deleted can serve same purpose
     // with partial index matching (just userId) per Convex best practices
