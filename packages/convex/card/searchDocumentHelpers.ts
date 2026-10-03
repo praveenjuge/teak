@@ -518,7 +518,7 @@ export const searchCardsByExactTag = async (
     createdAfter?: number;
     createdBefore?: number;
     limit: number;
-    scanBudget?: number;
+    scanBudget?: { remaining: number };
     sort: "newest" | "oldest";
     resultFilter?: (card: Doc<"cards">) => boolean;
   }
@@ -584,16 +584,15 @@ export const searchCardsByExactTag = async (
       .order(args.sort === "oldest" ? "asc" : "desc");
   }
   const cardsById = new Map<Id<"cards">, Doc<"cards">>();
-  const scanBudget = Math.max(1, args.scanBudget ?? 4096);
-  let scanned = 0;
+  const scanBudget = args.scanBudget ?? { remaining: 4096 };
   for await (const document of tagQuery) {
-    if (scanned >= scanBudget) {
+    if (scanBudget.remaining <= 0) {
       throw new ConvexError({
         code: "INVALID_INPUT",
         message: "Search is too broad. Add a type or date filter.",
       });
     }
-    scanned += 1;
+    scanBudget.remaining -= 1;
     const card = await ctx.db.get("cards", document.cardId);
     if (card && (!args.resultFilter || args.resultFilter(card))) {
       cardsById.set(card._id, card);
@@ -614,12 +613,11 @@ export const searchCardsByDocument = async (
     isFavorited?: boolean;
     type?: Doc<"cards">["type"];
     limit: number;
-    scanBudget?: number;
+    scanBudget?: { remaining: number };
     resultFilter?: (card: Doc<"cards">) => boolean;
   }
 ): Promise<Doc<"cards">[]> => {
-  const scanBudget = Math.max(1, args.scanBudget ?? 4096);
-  let scanned = 0;
+  const scanBudget = args.scanBudget ?? { remaining: 4096 };
   const cardsById = new Map<Id<"cards">, Doc<"cards">>();
   const documents = ctx.db
     .query("cardSearchDocuments")
@@ -640,13 +638,13 @@ export const searchCardsByDocument = async (
       return filtered;
     });
   for await (const document of documents) {
-    if (scanned >= scanBudget) {
+    if (scanBudget.remaining <= 0) {
       throw new ConvexError({
         code: "INVALID_INPUT",
         message: "Search is too broad. Add a type or date filter.",
       });
     }
-    scanned += 1;
+    scanBudget.remaining -= 1;
     const card = await ctx.db.get("cards", document.cardId);
     if (card && (!args.resultFilter || args.resultFilter(card))) {
       cardsById.set(card._id, card);

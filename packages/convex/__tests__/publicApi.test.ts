@@ -297,11 +297,11 @@ describe("publicApi", () => {
               build(range);
               searchedTypes.push(selectedType ?? "all");
               return {
-                take: mock().mockResolvedValue(
-                  Object.values(cards)
+                async *[Symbol.asyncIterator]() {
+                  yield* Object.values(cards)
                     .filter((card) => card.type === selectedType)
-                    .map((card) => ({ cardId: card._id }))
-                ),
+                    .map((card) => ({ cardId: card._id }));
+                },
               };
             }
           ),
@@ -408,7 +408,7 @@ describe("publicApi", () => {
     const result = await handler(
       {
         db: {
-        ...inlineSearchSyncDb(),
+          ...inlineSearchSyncDb(),
           normalizeId: mock(),
         },
       },
@@ -450,7 +450,7 @@ describe("publicApi", () => {
         {
           runMutation: mock().mockResolvedValue({ ok: true }),
           db: {
-        ...inlineSearchSyncDb(),
+            ...inlineSearchSyncDb(),
             insert,
             patch: mock().mockResolvedValue(null),
             query: (table: string) => ({
@@ -523,7 +523,7 @@ describe("publicApi", () => {
     const result = await handler(
       {
         db: {
-        ...inlineSearchSyncDb(),
+          ...inlineSearchSyncDb(),
           normalizeId: mock().mockReturnValue("card_1"),
         },
       },
@@ -556,7 +556,7 @@ describe("publicApi", () => {
     const result = await handler(
       {
         db: {
-        ...inlineSearchSyncDb(),
+          ...inlineSearchSyncDb(),
           get: mock().mockResolvedValue(
             buildBaseCard({
               _id: "card_1",

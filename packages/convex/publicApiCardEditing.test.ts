@@ -230,7 +230,7 @@ describe("Public API Trash and visual filters", () => {
       const { t } = await setup();
       const matches = await t.run(async (ctx) => {
         const ids: string[] = [];
-        for (let index = 0; index < 455; index += 1) {
+        for (let index = 0; index < 1100; index += 1) {
           const isMatch = index < 3;
           const id = await ctx.db.insert("cards", {
             userId: "owner",
@@ -251,6 +251,12 @@ describe("Public API Trash and visual filters", () => {
       });
       const options = {
         userId: "owner",
+        types: ["image", "video", "audio", "text"] as (
+          | "image"
+          | "video"
+          | "audio"
+          | "text"
+        )[],
         styleFilters: ["minimal"],
         limit: 2,
         ...(source === "text"
@@ -346,7 +352,7 @@ describe("Search scan budget", () => {
               searchQuery: "Original",
               limit: 10,
               sort: "newest",
-              scanBudget: 1,
+              scanBudget: { remaining: 1 },
               resultFilter: () => false,
             }
           )

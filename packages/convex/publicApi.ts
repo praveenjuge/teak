@@ -251,6 +251,7 @@ const searchCardsByQuery = async (
   );
 
   const typeGroups = options.types ?? [options.type];
+  const scanBudget = { remaining: 4096 };
   const found = await Promise.all(
     typeGroups.map((type) =>
       searchCardsByDocument(ctx, {
@@ -260,7 +261,7 @@ const searchCardsByQuery = async (
         isFavorited: options.favorited,
         type,
         limit: searchLimit,
-        scanBudget: Math.max(1, Math.floor(4096 / typeGroups.length)),
+        scanBudget,
         resultFilter: (card) => matchesStructuredFilters(card, options),
       })
     )
@@ -291,6 +292,7 @@ const searchCardsByTag = async (
   );
 
   const typeGroups = options.types ?? [options.type];
+  const scanBudget = { remaining: 4096 };
   const found = await Promise.all(
     typeGroups.map((type) =>
       searchCardsByExactTag(ctx, {
@@ -302,7 +304,7 @@ const searchCardsByTag = async (
         createdAfter: options.createdAfter,
         createdBefore: options.createdBefore,
         limit: searchLimit,
-        scanBudget: Math.max(1, Math.floor(4096 / typeGroups.length)),
+        scanBudget,
         sort: normalizeSort(options.sort),
         resultFilter: (card) => matchesStructuredFilters(card, options),
       })
