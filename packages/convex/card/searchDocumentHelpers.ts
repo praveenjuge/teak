@@ -619,6 +619,7 @@ export const searchCardsByDocument = async (
 ): Promise<Doc<"cards">[]> => {
   const scanBudget = args.scanBudget ?? { remaining: 4096 };
   const cardsById = new Map<Id<"cards">, Doc<"cards">>();
+  const matchLimit = Math.min(1024, Math.max(1, args.limit));
   const sourceLimit = Math.min(1024, scanBudget.remaining);
   if (sourceLimit <= 0) {
     throw new ConvexError({
@@ -650,14 +651,14 @@ export const searchCardsByDocument = async (
     const card = await ctx.db.get("cards", document.cardId);
     if (card && (!args.resultFilter || args.resultFilter(card))) {
       cardsById.set(card._id, card);
-      if (cardsById.size >= args.limit) {
+      if (cardsById.size >= matchLimit) {
         break;
       }
     }
   }
   // Convex checks its 1,024-result cap before probing exhaustion, so a
   // saturated search cannot prove that all post-filter matches were examined.
-  if (documents.length === sourceLimit && cardsById.size < args.limit) {
+  if (documents.length === sourceLimit && cardsById.size < matchLimit) {
     throw new ConvexError({
       code: "INVALID_INPUT",
       message: "Search is too broad. Add a type or date filter.",

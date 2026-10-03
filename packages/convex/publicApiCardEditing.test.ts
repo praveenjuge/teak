@@ -340,6 +340,30 @@ describe("Public API Trash and visual filters", () => {
 });
 
 describe("Search scan budget", () => {
+  test("a saturated text search still serves deep pages without post-filters", async () => {
+    const { t } = await setup();
+    await t.run(async (ctx) => {
+      for (let index = 0; index < 1024; index += 1) {
+        const id = await ctx.db.insert("cards", {
+          userId: "owner",
+          type: "text",
+          content: "deepsearch inspiration",
+          createdAt: index + 2,
+          updatedAt: index + 2,
+        });
+        await syncCardSearchDocumentHandler(ctx, id);
+      }
+    });
+    const found = await t.run((ctx) =>
+      searchCardsByDocument(ctx, {
+        userId: "owner",
+        searchQuery: "deepsearch",
+        limit: 1204,
+      })
+    );
+    expect(found).toHaveLength(1024);
+  });
+
   test.each(["tag", "text"])(
     "%s search allows an exhausted budget and rejects another index row",
     async (mode) => {
