@@ -124,11 +124,11 @@ describe("auth", () => {
     getCurrentUserHandler = authModule.getCurrentUserHandler;
     getAuthUserHandler = authModule.getAuthUserHandler;
     getCardCreationStatusHandler = authModule.getCardCreationStatusHandler;
-    deleteAccountDataHandler = authModule.deleteAccountDataHandler;
+    deleteAccountDataHandler = accountDeletionModule.deleteAccountDataHandler;
     runAccountDataDeletion = accountDeletionModule.runAccountDataDeletion;
     getAccountCardDeletionBatchHandler =
-      authModule.getAccountCardDeletionBatchHandler;
-    removeAccountCardUsageHandler = authModule.removeAccountCardUsageHandler;
+      accountDeletionModule.getAccountCardDeletionBatchHandler;
+    removeAccountCardUsageHandler = accountDeletionModule.removeAccountCardUsageHandler;
     authComponent = authModule.authComponent;
     createAuth = authModule.createAuth;
 
