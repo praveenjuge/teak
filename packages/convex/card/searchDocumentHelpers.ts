@@ -619,7 +619,14 @@ export const searchCardsByDocument = async (
 ): Promise<Doc<"cards">[]> => {
   const scanBudget = args.scanBudget ?? { remaining: 4096 };
   const cardsById = new Map<Id<"cards">, Doc<"cards">>();
-  const documents = ctx.db
+  const sourceLimit = Math.min(1024, scanBudget.remaining);
+  if (sourceLimit <= 0) {
+    throw new ConvexError({
+      code: "INVALID_INPUT",
+      message: "Search is too broad. Add a type or date filter.",
+    });
+  }
+  const documents = await ctx.db
     .query("cardSearchDocuments")
     .withSearchIndex("search_searchableText", (query) => {
       let filtered = query
@@ -636,15 +643,10 @@ export const searchCardsByDocument = async (
         );
       }
       return filtered;
-    });
-  for await (const document of documents) {
-    if (scanBudget.remaining <= 0) {
-      throw new ConvexError({
-        code: "INVALID_INPUT",
-        message: "Search is too broad. Add a type or date filter.",
-      });
-    }
-    scanBudget.remaining -= 1;
+    })
+    .take(sourceLimit);
+  scanBudget.remaining -= documents.length;
+  for (const document of documents) {
     const card = await ctx.db.get("cards", document.cardId);
     if (card && (!args.resultFilter || args.resultFilter(card))) {
       cardsById.set(card._id, card);
@@ -652,6 +654,14 @@ export const searchCardsByDocument = async (
         break;
       }
     }
+  }
+  // Convex checks its 1,024-result cap before probing exhaustion, so a
+  // saturated search cannot prove that all post-filter matches were examined.
+  if (documents.length === sourceLimit && cardsById.size < args.limit) {
+    throw new ConvexError({
+      code: "INVALID_INPUT",
+      message: "Search is too broad. Add a type or date filter.",
+    });
   }
   return Array.from(cardsById.values());
 };

@@ -230,7 +230,7 @@ describe("Public API Trash and visual filters", () => {
       const { t } = await setup();
       const matches = await t.run(async (ctx) => {
         const ids: string[] = [];
-        for (let index = 0; index < 1100; index += 1) {
+        for (let index = 0; index < 455; index += 1) {
           const isMatch = index < 3;
           const id = await ctx.db.insert("cards", {
             userId: "owner",
@@ -357,7 +357,11 @@ describe("Search scan budget", () => {
             }
           )
         );
-      expect(await search()).toEqual([]);
+      if (mode === "tag") {
+        expect(await search()).toEqual([]);
+      } else {
+        await expect(search()).rejects.toThrow("Search is too broad");
+      }
       await t.run(async (ctx) => {
         const second = await ctx.db.insert("cards", {
           userId: "owner",

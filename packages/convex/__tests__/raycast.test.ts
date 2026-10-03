@@ -36,7 +36,7 @@ describe("raycast", () => {
             };
             cb(queryBuilder);
             return {
-              async *[Symbol.asyncIterator]() {},
+              take: async () => [],
             };
           },
         }),

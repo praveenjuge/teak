@@ -252,9 +252,10 @@ const searchCardsByQuery = async (
 
   const typeGroups = options.types ?? [options.type];
   const scanBudget = { remaining: 4096 };
-  const found = await Promise.all(
-    typeGroups.map((type) =>
-      searchCardsByDocument(ctx, {
+  const found: Doc<"cards">[][] = [];
+  for (const type of typeGroups) {
+    found.push(
+      await searchCardsByDocument(ctx, {
         userId,
         searchQuery,
         isDeleted: options.showTrashOnly ? true : undefined,
@@ -264,8 +265,8 @@ const searchCardsByQuery = async (
         scanBudget,
         resultFilter: (card) => matchesStructuredFilters(card, options),
       })
-    )
-  );
+    );
+  }
   const unique = Array.from(
     new Map(found.flat().map((card) => [card._id, card] as const)).values()
   );

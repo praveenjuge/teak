@@ -10,6 +10,8 @@ extension SafariOAuthTests {
             let token = LibrarySearchTokens.classify(input)
             try check(token.kind == kind && token.value == value, "classifies \(input) into its search filter")
         }
+        let punctuated = LibrarySearchTokens.parse("design last week, image")
+        try check(punctuated.map(\.kind) == [.keyword, .date, .type], "punctuation preserves multiword date filters")
         for (markdown, expected) in [
             ("# A **clear** note", "A clear note"),
             ("- [x] Save [this](https://example.com)\n> `idea`", "Save this idea"),

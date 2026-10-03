@@ -39,7 +39,8 @@ enum LibrarySearchTokens {
     }
 
     static func parse(_ input: String, now: Date = Date(), calendar: Calendar = .current) -> [LibrarySearchToken] {
-        let words = input.split(whereSeparator: \.isWhitespace).map(String.init)
+        let punctuation = CharacterSet(charactersIn: ",.;:!?()[]{}\"'")
+        let words = input.split(whereSeparator: \.isWhitespace).map { String($0).trimmingCharacters(in: punctuation) }
         var tokens: [LibrarySearchToken] = []
         var index = 0
         while index < words.count {

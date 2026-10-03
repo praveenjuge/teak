@@ -297,11 +297,11 @@ describe("publicApi", () => {
               build(range);
               searchedTypes.push(selectedType ?? "all");
               return {
-                async *[Symbol.asyncIterator]() {
-                  yield* Object.values(cards)
+                take: mock().mockResolvedValue(
+                  Object.values(cards)
                     .filter((card) => card.type === selectedType)
-                    .map((card) => ({ cardId: card._id }));
-                },
+                    .map((card) => ({ cardId: card._id }))
+                ),
               };
             }
           ),
