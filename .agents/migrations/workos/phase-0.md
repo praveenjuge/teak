@@ -6,10 +6,10 @@
 - The user approved dated encrypted Mac/R2 snapshots plus manual Convex backups
   as the backup replacement. R2 object versioning is unsupported; Convex scheduling
   requires Pro. Neither limitation requires a billing change with this revision.
-- Production continues to use Better Auth with sign-ups open.
+- Development and production continue to use Better Auth with sign-ups frozen.
 - Do not progress to Phase 1 backfills until the freeze and full backup pass.
 
-## Prepared behavior
+## Shipped behavior
 
 `SIGNUPS_DISABLED=true` closes email registration, implicit Google/Apple creation,
 and native/provider creation through the database hook. The configured `e2e-*`
@@ -52,27 +52,56 @@ proceeding; never combine live pages into a claimed point-in-time backup.
   Earlier Phase R simulator PKCE/refresh/sign-out proof remains available.
 - The initial rehearsal restored the dev flag unset; after backup approval the dev
   freeze was enabled for Phase 0. A signed WorkOS Action test denied registration
-  with the canonical pause message. Production remains unchanged.
+  with the canonical pause message. This preceded the production rollout below.
 
-## Remaining rollout
+## Completed rollout: 2026-10-03
 
-1. Verify the preserved encrypted backup copies before rollout.
-2. Review the complete Phase 0 diff and rerun required release checks.
-3. Release 1.0.76 deploys the inert backend and web pause support to production,
-   with the production flag off. Lockstep release preparation passed.
-4. Enable the dev freeze, verify existing sign-ins and creation rejection, then
-   enable the production freeze and verify the same behavior there.
-5. Immediately export fresh dev/prod Convex snapshots including file storage and
-   all eight Better Auth models. Preserve full R2 card objects separately.
-6. Record counts and hashes, encrypt, keep the Mac copy, and stream-verify the
-   separate private R2 copy. Preserve every earlier snapshot.
-7. Restore into an isolated deployment with no production service credentials or
-   scheduled application jobs. Verify manifests and canonical sign-in/card ownership.
-8. Create and record a manual Convex production backup as the short-term second
-   layer. The approved replacement uses dated encrypted Mac/R2 snapshots plus
-   manual Convex backups; Pro-only scheduling remains disabled.
-9. Record the frozen user counts, completed restore evidence, and snapshot IDs before
-   starting Phase 1. A prepared guard or database-only restore does not satisfy this gate.
+- PR #482 merged as `6786b9aad3c3235a5f0005cd143906257cadad02`.
+  Backend Deploy and the Vercel web deployment succeeded; both environments report
+  Better Auth primary, sign-ups disabled, and account changes available.
+- Production Chrome registration displays the pause. Email registration rejects
+  with `EMAIL_PASSWORD_SIGN_UP_DISABLED`; the existing Google account still has
+  its 831 active cards. Provider/native freeze paths have SDK integration coverage.
+- Full post-freeze Convex exports include component tables and file storage.
+  The production snapshot contains 73,944 documents across 50 nonempty data tables.
+  Every Better Auth model was inventoried from the coherent snapshot; paged live
+  inventories remain supplementary. Their user rows match exactly; one live
+  session and Google token updates explain the observed live-export differences.
+- Fresh card-file backup: 4,095 objects, 594,941,047 bytes. Encryption, decryption,
+  every restored object checksum, and the separate R2 archive checksum passed.
+- Dated encrypted Mac and private R2 copies retain all snapshots. The key is
+  stored separately in Keychain. Manual Convex backups `1791035102996` and
+  `1791036477219` completed with file storage; their retention is seven days.
+- The isolated restore exactly matches every source document ID, creation time,
+  and value before test fixtures. It has no production service credentials or
+  restored scheduled jobs. Original snapshot signing keys remain preserved;
+  a new local signing key avoids binding the production auth secret.
+- The user authorized a temporary password only on their isolated restored
+  account. Canonical password sign-in, JWT exchange, all 831 exact active card IDs,
+  ownership, real WebSocket subscription, sign-out, and cached-JWT denial passed.
+  Chrome also signed in and rendered the restored card grid. The test exposed a
+  local CSP omission; configured development loopback HTTP/WS origins now work.
+- Billing and API-key components were deliberately inert in the isolated restore;
+  this gate proves restored auth/cards, not those component interfaces.
+- Release 1.0.76 CLI and extension workflows succeeded. iOS and Mac packages
+  processed successfully and are awaiting App Store review, not live in stores.
+
+Snapshot Better Auth model counts:
+
+| Model | Dev | Production |
+| --- | ---: | ---: |
+| user | 142 | 283 |
+| account | 158 | 286 |
+| session | 388 | 314 |
+| verification | 14 | 1 |
+| oauthApplication | 9 | 103 |
+| oauthAccessToken | 22 | 52 |
+| oauthConsent | 16 | 61 |
+| jwks | 1 | 1 |
+
+Private proofs and manifests live in the approved Mac backup folder and encrypted
+R2 checkpoints. No sensitive dumps or credentials are committed. Phase 0's restore
+and backup gate passed; Phase 1 must retain Better Auth and all existing ownership.
 
 ## Additional preparation evidence
 
@@ -83,6 +112,6 @@ sign-ups open, not the required post-freeze backup. The separate proof records
 142 users, 158 accounts, 388 sessions, 14 verifications, 9 OAuth applications,
 22 OAuth tokens, 16 consents, and one JWKS row.
 
-Production `SIGNUPS_DISABLED` is confirmed unset. Its backup settings show Never,
-Pro-only scheduling, and no existing dashboard backups. No billing or backup settings
-were changed. Keep the encrypted migration snapshots regardless of the dashboard layer.
+Before rollout, production sign-ups were open and manual backups had not been
+created. The completed rollout above supersedes that preparation state. Scheduled
+backups remain Never under the approved manual replacement.
