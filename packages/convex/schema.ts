@@ -456,6 +456,8 @@ export const cardValidator = v.object({
   ),
   // Searchable metadata fields (flattened for search indexes)
   metadataTitle: v.optional(v.string()),
+  // Preserve manual titles, including clears, through link-preview refreshes.
+  metadataTitleEdited: v.optional(v.boolean()),
   metadataDescription: v.optional(v.string()),
   // AI-generated fields
   aiTags: v.optional(v.array(v.string())),

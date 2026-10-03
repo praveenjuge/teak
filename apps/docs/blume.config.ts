@@ -90,7 +90,7 @@ export default defineConfig({
         icon: "puzzle",
       },
       { label: "Mobile", href: "/docs/mobile", icon: "smartphone" },
-      { label: "Desktop", href: "/docs/desktop", icon: "monitor" },
+      { label: "Mac", href: "/docs/mac", icon: "monitor" },
       { label: "Import", href: "/docs/import", icon: "download" },
       { label: "Export", href: "/docs/export", icon: "upload" },
     ],
@@ -108,6 +108,9 @@ export default defineConfig({
   // Mirrored in vercel.json for Vercel Git HTTP redirects; Astro also emits
   // these as soft redirects for non-Vercel previews and link audits.
   redirects: [
+    { from: "/docs/desktop", to: "/docs/mac", status: 301 },
+    { from: "/docs/desktop.md", to: "/docs/mac.md", status: 301 },
+    { from: "/docs/desktop.mdx", to: "/docs/mac.mdx", status: 301 },
     { from: "/sitemap-index.xml", to: "/sitemap.xml", status: 301 },
     { from: "/llms-small.txt", to: "/llms.txt", status: 301 },
     { from: "/docs/index.md", to: "/docs.md", status: 301 },

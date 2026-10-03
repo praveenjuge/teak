@@ -2,7 +2,7 @@
 
 ### Your personal knowledge hub for collecting, remembering, and rediscovering ideas.
 
-Save inspiration in one click and find it in two seconds — no more lost bookmarks or messy folders. Teak runs everywhere you work: web, desktop, mobile, browser, Raycast, and the command line, with real-time sync across all of them.
+Save inspiration in one click and find it in two seconds — no more lost bookmarks or messy folders. Teak runs everywhere you work: web, Mac, mobile, browser, Raycast, and the command line, with real-time sync across all of them.
 
 [![Website](https://img.shields.io/badge/Website-teakvault.com-2563eb?style=for-the-badge)](https://teakvault.com)
 [![Docs](https://img.shields.io/badge/Docs-Read-22c55e?style=for-the-badge)](https://teakvault.com/docs/)
@@ -20,9 +20,9 @@ Save inspiration in one click and find it in two seconds — no more lost bookma
 | Platform | | |
 |----------|---|---|
 | 🌐 **Web** | Full dashboard with real-time sync | [Open app →](https://app.teakvault.com) |
-| 🖥️ **Desktop** | Native macOS app with auto-updates | [Download →](https://github.com/praveenjuge/teak/releases/latest) |
+| 🖥️ **Mac** | Native library, capture, and Safari saves | [Mac App Store →](https://apps.apple.com/us/app/teak-for-mac/id6770003409?mt=12) |
 | 📱 **iOS** | Save from anywhere via the share sheet | [App Store →](https://apps.apple.com/us/app/teak-save-inspirations/id6756574989) |
-| 🧩 **Browser** | One-click saves while you browse | [Chrome →](https://chromewebstore.google.com/detail/teak/negnmfifahnnagnbnfppmlgfajngdpob) · [Safari →](https://apps.apple.com/us/app/teak-for-safari/id6770003409?mt=12) |
+| 🧩 **Browser** | One-click saves while you browse | [Chrome →](https://chromewebstore.google.com/detail/teak/negnmfifahnnagnbnfppmlgfajngdpob) |
 | ⚡ **Raycast** | Save and search from your keyboard | [Install →](https://www.raycast.com/praveenjuge/teak-raycast) |
 | 🧰 **CLI** | Save, search, and manage cards from your terminal | `npm i -g teak-cli` |
 | 🤖 **Agent Skill** | Teach AI agents how to use Teak through CLI, API, MCP, and SDK workflows | [Skills.sh](https://skills.sh/praveenjuge/teak) · `npx skills add praveenjuge/teak --skill teak` |
@@ -35,9 +35,9 @@ teak/
 ├── apps/
 │   ├── web/        # Next.js app
 │   ├── mobile/     # Expo app
-│   ├── desktop/    # Electron desktop app
+│   ├── desktop/    # Electron reference app (unshipped)
 │   ├── extension/  # Browser extension (Wxt)
-│   ├── safari-extension/ # Native macOS Safari extension app
+│   ├── mac/        # Native Mac app and Safari extension
 │   ├── raycast/    # Raycast extension
 │   ├── cli/        # npm command line client
 │   ├── docs/       # Documentation site (Blume)

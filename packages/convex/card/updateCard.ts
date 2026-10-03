@@ -7,6 +7,7 @@ import {
   mutation,
 } from "../_generated/server";
 import { getSessionIdentity } from "../securitySessions";
+import { MAX_CARD_TITLE_LENGTH, parseCardTitle } from "../shared/cardTitle";
 import { CARD_ERROR_CODES, CARD_ERROR_MESSAGES } from "../shared/constants";
 import { rateLimiter } from "../shared/rateLimits";
 import { assertSafeExternalUrl } from "../shared/utils/safeUrl";
@@ -31,6 +32,7 @@ const updateCardFieldValidator = v.union(
   v.literal("content"),
   v.literal("url"),
   v.literal("notes"),
+  v.literal("metadataTitle"),
   v.literal("tags"),
   v.literal("aiSummary"),
   v.literal("isFavorited"),
@@ -45,6 +47,7 @@ interface UpdateCardFieldForUserArgs {
     | "content"
     | "url"
     | "notes"
+    | "metadataTitle"
     | "tags"
     | "aiSummary"
     | "isFavorited"
@@ -273,6 +276,19 @@ export const updateCardFieldForUserHandler = async (
         updateData.metadataStatus = "pending";
       }
       break;
+
+    case "metadataTitle": {
+      const title = parseCardTitle(value);
+      if (title === undefined) {
+        throw new ConvexError({
+          code: "INVALID_INPUT",
+          message: `Title must be a string of at most ${MAX_CARD_TITLE_LENGTH} characters, or null`,
+        });
+      }
+      updateData.metadataTitle = title ?? undefined;
+      updateData.metadataTitleEdited = true;
+      break;
+    }
 
     case "notes":
       if (value === null) {

@@ -5,9 +5,7 @@ const APP_STORE_URL =
 const CHROME_STORE_URL =
   "https://chromewebstore.google.com/detail/teak/negnmfifahnnagnbnfppmlgfajngdpob";
 const SAFARI_APP_STORE_URL =
-  "https://apps.apple.com/us/app/teak-for-safari/id6770003409?mt=12";
-const DESKTOP_DOWNLOAD_URL =
-  "https://github.com/praveenjuge/teak/releases/latest";
+  "https://apps.apple.com/us/app/teak-for-mac/id6770003409?mt=12";
 const API_DOCS_URL = "/docs/api";
 const MCP_DOCS_URL = "/docs/mcp";
 const CLI_DOCS_URL = "/docs/cli";
@@ -35,8 +33,8 @@ const platformCards: PlatformCard[] = [
   {
     name: "Web App",
     copy: "Manage every board, search instantly, and fly with keyboard shortcuts from any desktop browser.",
-    iconAlt: "Safari browser icon",
-    iconSrc: "/platform-icons/safari.svg",
+    iconAlt: "Teak icon",
+    iconSrc: "/icon.png",
     href: WEB_APP_URL,
     actionType: "button",
     label: "Open Web App",
@@ -55,6 +53,19 @@ const platformCards: PlatformCard[] = [
     badgeHeight: 47,
   },
   {
+    name: "Mac App",
+    copy: "Capture notes, quotes, files, and audio in your Mac library, or save pages from Safari.",
+    iconAlt: "Apple icon",
+    iconClass: "dark:invert",
+    iconSrc: "/platform-icons/apple.svg",
+    href: SAFARI_APP_STORE_URL,
+    actionType: "badge",
+    badgeSrc: "/badges/app-store.svg",
+    badgeAlt: "Download Teak for Mac on the Mac App Store",
+    badgeWidth: 140,
+    badgeHeight: 47,
+  },
+  {
     name: "Chrome Extension",
     copy: "Save tabs, screenshots, or selected text in a click and Teak auto-grabs the metadata for you.",
     iconAlt: "Google Chrome icon",
@@ -65,28 +76,6 @@ const platformCards: PlatformCard[] = [
     badgeAlt: "Available in the Chrome Web Store",
     badgeWidth: 160,
     badgeHeight: 45,
-  },
-  {
-    name: "Safari Extension",
-    copy: "Save the page you are viewing to Teak directly from Safari on your Mac.",
-    iconAlt: "Safari browser icon",
-    iconSrc: "/platform-icons/safari.svg",
-    href: SAFARI_APP_STORE_URL,
-    actionType: "badge",
-    badgeSrc: "/badges/app-store.svg",
-    badgeAlt: "Download Teak for Safari on the Mac App Store",
-    badgeWidth: 140,
-    badgeHeight: 47,
-  },
-  {
-    name: "Desktop App (macOS)",
-    copy: "Install the signed native desktop app for Apple Silicon and stay current with built-in auto updates.",
-    iconAlt: "Apple macOS icon",
-    iconClass: "dark:invert",
-    iconSrc: "/platform-icons/apple.svg",
-    href: DESKTOP_DOWNLOAD_URL,
-    actionType: "button",
-    label: "Download for macOS",
   },
   {
     name: "Raycast Extension",

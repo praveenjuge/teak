@@ -152,7 +152,7 @@ function failureBody(values) {
   }
   const workflowUrl = validateWorkflowUrl(values["workflow-url"]);
   const workflowFile =
-    platform === "IOS" ? "mobile-release.yml" : "safari-extension-release.yml";
+    platform === "IOS" ? "mobile-release.yml" : "mac-release.yml";
   const status = readOptional(values["status-file"]);
   const doctor = readOptional(values["doctor-file"]);
   return `<!-- apple-release:v${values.version} -->

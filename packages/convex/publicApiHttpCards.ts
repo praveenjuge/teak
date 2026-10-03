@@ -402,7 +402,7 @@ const handleCardsByIdV1Request = async (
       return errorResponse(
         400,
         "INVALID_INPUT",
-        "Body must include at least one valid field: content, url, notes, tags"
+        "Body must include at least one valid field: content, url, metadataTitle, notes, tags"
       );
     }
     if (

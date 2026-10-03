@@ -95,7 +95,7 @@ describe("updateManifestVersions", () => {
     writeManifest(
       join(
         root,
-        "apps/safari-extension/Shared (Extension)/Resources/manifest.json"
+        "apps/mac/Shared (Extension)/Resources/manifest.json"
       ),
       "1.0.39"
     );
@@ -105,7 +105,7 @@ describe("updateManifestVersions", () => {
     expect(updated).toContain("apps/web/package.json");
     expect(updated).toContain("packages/ui/package.json");
     expect(updated).toContain(
-      "apps/safari-extension/Shared (Extension)/Resources/manifest.json"
+      "apps/mac/Shared (Extension)/Resources/manifest.json"
     );
     expect(updated).toContain(safariXcodeProject);
     expect(readVersion(join(root, "packages/ui/package.json"))).toBe("1.0.66");
@@ -113,7 +113,7 @@ describe("updateManifestVersions", () => {
       readVersion(
         join(
           root,
-          "apps/safari-extension/Shared (Extension)/Resources/manifest.json"
+          "apps/mac/Shared (Extension)/Resources/manifest.json"
         )
       )
     ).toBe("1.0.66");
@@ -133,7 +133,7 @@ describe("updateManifestVersions", () => {
     writeManifest(
       join(
         root,
-        "apps/safari-extension/Shared (Extension)/Resources/manifest.json"
+        "apps/mac/Shared (Extension)/Resources/manifest.json"
       ),
       "1.0.66"
     );
