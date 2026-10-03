@@ -255,14 +255,18 @@ describe("configured local backend security policy", () => {
       }
     }
   };
-  test.each([
-    "http://127.0.0.1:3210",
-    "http://localhost:3210",
-    "http://[::1]:3210",
-  ])(
-    "allows configured loopback HTTP and WebSocket in development: %s",
-    (url) => {
-      const policy = policyFor("development", url, "http://127.0.0.1:8789");
+  test.each(
+    (["development", "test"] as const).flatMap((environment) =>
+      [
+        "http://127.0.0.1:3210",
+        "http://localhost:3210",
+        "http://[::1]:3210",
+      ].map((url) => ({ environment, url }))
+    )
+  )(
+    "allows configured loopback HTTP and WebSocket in $environment: $url",
+    ({ environment, url }) => {
+      const policy = policyFor(environment, url, "http://127.0.0.1:8789");
       const connect = policy
         .split("; ")
         .find((d) => d.startsWith("connect-src "))!;
@@ -309,6 +313,16 @@ describe("configured local backend security policy", () => {
       }
     }
   );
+  test("rejects credential-bearing HTTPS origins in production", () => {
+    const policy = policyFor(
+      "production",
+      "https://user:password@backend.example",
+      "https://user:password@files.example"
+    );
+    expect(policy).not.toContain("https://backend.example");
+    expect(policy).not.toContain("wss://backend.example");
+    expect(policy).not.toContain("https://files.example");
+  });
   test.each([
     "http://evil.example:3210",
     "http://localhost.evil.example:3210",
