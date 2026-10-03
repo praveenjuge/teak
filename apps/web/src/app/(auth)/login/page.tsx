@@ -1,5 +1,7 @@
 "use client";
 
+import { isSignUpDisabledError } from "@teak/convex/shared/authErrors";
+import { SIGNUPS_PAUSED_MESSAGE } from "@teak/convex/shared/constants";
 import {
   AuthDivider,
   SocialAuthButtons,
@@ -142,6 +144,14 @@ function SignInForm() {
   return (
     <>
       <CardTitle className="text-center text-lg">Login to Teak</CardTitle>
+      {isSignUpDisabledError(searchParams.get("error") ?? "") && (
+        <p
+          className="mt-2 text-center text-muted-foreground text-sm"
+          role="status"
+        >
+          {SIGNUPS_PAUSED_MESSAGE}
+        </p>
+      )}
       {isOAuthAuthorize && (
         <p className="mt-2 rounded-2xl bg-muted px-3 py-2 text-center text-muted-foreground text-sm">
           An app is requesting access to your Teak account. Sign in to continue.

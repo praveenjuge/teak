@@ -80,6 +80,11 @@ import type * as linkMetadata_url from "../linkMetadata/url.js";
 import type * as linkMetadata_x from "../linkMetadata/x.js";
 import type * as mcp_httpServer from "../mcp/httpServer.js";
 import type * as mcp_tools from "../mcp/tools.js";
+import type * as migration_connectReadiness from "../migration/connectReadiness.js";
+import type * as migration_exportBetterAuth from "../migration/exportBetterAuth.js";
+import type * as migration_passwordHash from "../migration/passwordHash.js";
+import type * as migration_readiness from "../migration/readiness.js";
+import type * as migration_workosReadiness from "../migration/workosReadiness.js";
 import type * as oauthClients from "../oauthClients.js";
 import type * as oauthRevocation from "../oauthRevocation.js";
 import type * as oauthSecurity from "../oauthSecurity.js";
@@ -100,6 +105,7 @@ import type * as raycast from "../raycast.js";
 import type * as safariAccountSummary from "../safariAccountSummary.js";
 import type * as securitySessions from "../securitySessions.js";
 import type * as shared_apiKeyFormat from "../shared/apiKeyFormat.js";
+import type * as shared_authErrors from "../shared/authErrors.js";
 import type * as shared_boundedResponse from "../shared/boundedResponse.js";
 import type * as shared_cardTitle from "../shared/cardTitle.js";
 import type * as shared_client_telemetry from "../shared/client_telemetry.js";
@@ -123,6 +129,7 @@ import type * as shared_utils_linkCategoryResolver from "../shared/utils/linkCat
 import type * as shared_utils_linkDetection from "../shared/utils/linkDetection.js";
 import type * as shared_utils_safeUrl from "../shared/utils/safeUrl.js";
 import type * as shared_utils_timeSearch from "../shared/utils/timeSearch.js";
+import type * as signupFreeze from "../signupFreeze.js";
 import type * as storage_fileUrls from "../storage/fileUrls.js";
 import type * as storage_filesWorkerClient from "../storage/filesWorkerClient.js";
 import type * as storage_pendingUploadCleanup from "../storage/pendingUploadCleanup.js";
@@ -268,6 +275,11 @@ declare const fullApi: ApiFromModules<{
   "linkMetadata/x": typeof linkMetadata_x;
   "mcp/httpServer": typeof mcp_httpServer;
   "mcp/tools": typeof mcp_tools;
+  "migration/connectReadiness": typeof migration_connectReadiness;
+  "migration/exportBetterAuth": typeof migration_exportBetterAuth;
+  "migration/passwordHash": typeof migration_passwordHash;
+  "migration/readiness": typeof migration_readiness;
+  "migration/workosReadiness": typeof migration_workosReadiness;
   oauthClients: typeof oauthClients;
   oauthRevocation: typeof oauthRevocation;
   oauthSecurity: typeof oauthSecurity;
@@ -288,6 +300,7 @@ declare const fullApi: ApiFromModules<{
   safariAccountSummary: typeof safariAccountSummary;
   securitySessions: typeof securitySessions;
   "shared/apiKeyFormat": typeof shared_apiKeyFormat;
+  "shared/authErrors": typeof shared_authErrors;
   "shared/boundedResponse": typeof shared_boundedResponse;
   "shared/cardTitle": typeof shared_cardTitle;
   "shared/client_telemetry": typeof shared_client_telemetry;
@@ -311,6 +324,7 @@ declare const fullApi: ApiFromModules<{
   "shared/utils/linkDetection": typeof shared_utils_linkDetection;
   "shared/utils/safeUrl": typeof shared_utils_safeUrl;
   "shared/utils/timeSearch": typeof shared_utils_timeSearch;
+  signupFreeze: typeof signupFreeze;
   "storage/fileUrls": typeof storage_fileUrls;
   "storage/filesWorkerClient": typeof storage_filesWorkerClient;
   "storage/pendingUploadCleanup": typeof storage_pendingUploadCleanup;
@@ -406,6 +420,7 @@ export declare const internal: FilterApi<
 
 export declare const components: {
   betterAuth: import("@convex-dev/better-auth/_generated/component.js").ComponentApi<"betterAuth">;
+  workOSAuthKit: import("@convex-dev/workos-authkit/_generated/component.js").ComponentApi<"workOSAuthKit">;
   polar: import("@convex-dev/polar/_generated/component.js").ComponentApi<"polar">;
   workflow: import("@convex-dev/workflow/_generated/component.js").ComponentApi<"workflow">;
   resend: import("@convex-dev/resend/_generated/component.js").ComponentApi<"resend">;

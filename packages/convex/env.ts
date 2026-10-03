@@ -1,5 +1,16 @@
 import { env } from "./_generated/server";
 
+export const readSignupsDisabled = (): boolean => {
+  const value = env.SIGNUPS_DISABLED;
+  if (value === undefined || value === "false") {
+    return false;
+  }
+  if (value === "true") {
+    return true;
+  }
+  throw new Error("SIGNUPS_DISABLED must be true or false.");
+};
+
 /**
  * Typed backend environment resolvers.
  *

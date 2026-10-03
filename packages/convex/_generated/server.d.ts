@@ -35,6 +35,7 @@ type Env = {
   readonly APPLE_KEY_ID: string | undefined;
   readonly APPLE_PRIVATE_KEY: string | undefined;
   readonly APPLE_TEAM_ID: string | undefined;
+  readonly AUTH_PRIMARY: string | undefined;
   readonly CLOUDFLARE_ACCOUNT_ID: string | undefined;
   readonly CLOUDFLARE_API_TOKEN: string | undefined;
   readonly CONVEX_GIT_COMMIT_SHA: string | undefined;
@@ -59,11 +60,15 @@ type Env = {
   readonly SENTRY_DSN: string | undefined;
   readonly SENTRY_ENVIRONMENT: string | undefined;
   readonly SENTRY_RELEASE: string | undefined;
+  readonly SIGNUPS_DISABLED: string | undefined;
   readonly SITE_URL: string;
   readonly TEAK_ADMIN_EMAIL: string | undefined;
   readonly TEAK_DEV_API_URL: string | undefined;
   readonly TEAK_DEV_APP_URL: string | undefined;
   readonly TEAK_DEV_DOCS_URL: string | undefined;
+  readonly WORKOS_ACTION_SECRET: string | undefined;
+  readonly WORKOS_ENVIRONMENT_ID: string | undefined;
+  readonly WORKOS_WEBHOOK_SECRET: string | undefined;
 };
 
 /**

@@ -10,6 +10,9 @@ import {
   padding,
   tint,
 } from "@expo/ui/swift-ui/modifiers";
+import { api } from "@teak/convex";
+import { SIGNUPS_PAUSED_MESSAGE } from "@teak/convex/shared/constants";
+import { useQuery } from "convex-helpers/react/cache/hooks";
 import * as AppleAuthentication from "expo-apple-authentication";
 import { router } from "expo-router";
 import React from "react";
@@ -22,6 +25,7 @@ import { refreshAuthSessionCache } from "@/lib/auth-session-cache";
 import { getAuthErrorMessage } from "@/lib/getAuthErrorMessage";
 
 export default function OnboardingScreen() {
+  const authMode = useQuery(api.auth.getAuthMode, {});
   const [isGoogleLoading, setIsGoogleLoading] = React.useState(false);
   const [isAppleLoading, setIsAppleLoading] = React.useState(false);
   const [isAppleAvailable, setIsAppleAvailable] = React.useState(false);
@@ -172,6 +176,13 @@ export default function OnboardingScreen() {
         </VStack>
 
         <Spacer />
+        {authMode?.signupsDisabled && (
+          <Text
+            modifiers={[font({ design: "rounded" }), padding({ bottom: 16 })]}
+          >
+            {SIGNUPS_PAUSED_MESSAGE}
+          </Text>
+        )}
 
         <VStack spacing={30}>
           <VStack spacing={12}>
@@ -223,25 +234,27 @@ export default function OnboardingScreen() {
               </HStack>
             </Button>
 
-            <Button
-              modifiers={[
-                buttonStyle("bordered"),
-                controlSize("large"),
-                disabled(isGoogleLoading || isAppleLoading),
-                tint(PlatformColor("label")),
-              ]}
-              onPress={() => router.push("/(auth)/sign-up")}
-            >
-              <HStack alignment="center" spacing={10}>
-                <Spacer />
-                <Text
-                  modifiers={[font({ design: "rounded", weight: "medium" })]}
-                >
-                  Register with Email
-                </Text>
-                <Spacer />
-              </HStack>
-            </Button>
+            {authMode?.signupsDisabled === false && (
+              <Button
+                modifiers={[
+                  buttonStyle("bordered"),
+                  controlSize("large"),
+                  disabled(isGoogleLoading || isAppleLoading),
+                  tint(PlatformColor("label")),
+                ]}
+                onPress={() => router.push("/(auth)/sign-up")}
+              >
+                <HStack alignment="center" spacing={10}>
+                  <Spacer />
+                  <Text
+                    modifiers={[font({ design: "rounded", weight: "medium" })]}
+                  >
+                    Register with Email
+                  </Text>
+                  <Spacer />
+                </HStack>
+              </Button>
+            )}
           </VStack>
           <Button
             modifiers={[

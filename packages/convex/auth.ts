@@ -30,6 +30,7 @@ import {
   getAppleCredentials,
   getGoogleCredentials,
   readJwksDocument,
+  readSignupsDisabled,
   readSiteUrl,
 } from "./env";
 
@@ -44,6 +45,7 @@ import {
   normalizeErrorClass,
   resolveBackendTelemetryDsn,
 } from "./shared/telemetry";
+import { guardUserCreation } from "./signupFreeze";
 import { cardStorageObjectKeys } from "./storage/r2";
 import { scheduleAuthOutcome, scheduleUserCreated } from "./telemetry/schedule";
 import { buildTrustedOrigins } from "./trustedOrigins";
@@ -69,6 +71,7 @@ const createGoogleProvider = () => {
     clientId: credentials.clientId,
     clientSecret: credentials.clientSecret,
     prompt: "select_account" as const,
+    disableImplicitSignUp: readSignupsDisabled(),
   };
 };
 
@@ -103,6 +106,7 @@ const createAppleProvider = async () => {
       privateKey: credentials.privateKey,
       teamId: credentials.teamId,
     }),
+    disableImplicitSignUp: readSignupsDisabled(),
     ...(credentials.appBundleIdentifier
       ? { appBundleIdentifier: credentials.appBundleIdentifier }
       : {}),
@@ -174,6 +178,20 @@ export const getAuthUser = query({
   handler: getAuthUserHandler,
 });
 
+export const getAuthMode = query({
+  args: {},
+  returns: v.object({
+    primary: v.literal("betterauth"),
+    signupsDisabled: v.boolean(),
+    accountChangesPaused: v.boolean(),
+  }),
+  handler: () => ({
+    primary: "betterauth" as const,
+    signupsDisabled: readSignupsDisabled(),
+    accountChangesPaused: false,
+  }),
+});
+
 export const { onCreate, onUpdate, onDelete } = authComponent.triggersApi();
 
 export const resend = new Resend(components.resend, {
@@ -185,6 +203,18 @@ export const createAuth = (ctx: GenericCtx<DataModel>) => {
     trustedOrigins,
     baseURL: siteUrl,
     database: authComponent.adapter(ctx),
+    databaseHooks: {
+      user: {
+        create: {
+          before: (user) =>
+            guardUserCreation({
+              email: user.email,
+              disabled: readSignupsDisabled(),
+              e2eEmailDomain: env.E2E_EMAIL_DOMAIN,
+            }),
+        },
+      },
+    },
     rateLimit: {
       enabled: true,
       window: 60,
@@ -260,6 +290,7 @@ export const createAuth = (ctx: GenericCtx<DataModel>) => {
     },
     emailAndPassword: {
       enabled: true,
+      disableSignUp: readSignupsDisabled(),
       // Disable email verification requirement in development for E2E testing
       requireEmailVerification: !isLocalDevelopmentUrl(siteUrl),
       sendResetPassword: async ({ user, url }) => {
@@ -598,8 +629,10 @@ export const deleteAccountDataHandler = async (
       // while convex-test says "Delete on non-existent doc", so match both
       // spellings.
       if (
-        !(error instanceof Error) ||
-        !/non-?existent|not found/i.test(error.message)
+        !(
+          error instanceof Error &&
+          /non-?existent|not found/i.test(error.message)
+        )
       ) {
         throw error;
       }

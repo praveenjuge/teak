@@ -9,6 +9,8 @@ export default defineConfig({
       "./importConsolidation.test.ts",
       "./safariOAuth.test.ts",
       "./securitySessions.test.ts",
+      "./signupFreeze.test.ts",
+      "./workosReadiness.test.ts",
       "./publicApiCardEditing.test.ts",
       "./mcpRevocation.test.ts",
       "./maintenanceQueries.test.ts",

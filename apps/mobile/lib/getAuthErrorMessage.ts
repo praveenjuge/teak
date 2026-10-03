@@ -1,3 +1,6 @@
+import { isSignUpDisabledError } from "@teak/convex/shared/authErrors";
+import { SIGNUPS_PAUSED_MESSAGE } from "@teak/convex/shared/constants";
+
 interface BetterAuthError {
   cause?: string | null;
   error?:
@@ -16,10 +19,7 @@ const isString = (value: unknown): value is string =>
 /**
  * Returns a user-friendly error message coming from Better Auth responses.
  */
-export function getAuthErrorMessage(
-  error: unknown,
-  fallbackMessage: string
-): string {
+function readAuthErrorMessage(error: unknown, fallbackMessage: string): string {
   if (isString(error)) {
     return error;
   }
@@ -58,4 +58,12 @@ export function getAuthErrorMessage(
   }
 
   return fallbackMessage;
+}
+
+export function getAuthErrorMessage(
+  error: unknown,
+  fallbackMessage: string
+): string {
+  const message = readAuthErrorMessage(error, fallbackMessage);
+  return isSignUpDisabledError(message) ? SIGNUPS_PAUSED_MESSAGE : message;
 }

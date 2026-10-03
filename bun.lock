@@ -15,7 +15,7 @@
     },
     "apps/cli": {
       "name": "teak-cli",
-      "version": "1.0.75",
+      "version": "1.0.76",
       "bin": {
         "teak": "./dist/index.js",
       },
@@ -30,7 +30,7 @@
     },
     "apps/desktop": {
       "name": "@teak/desktop",
-      "version": "1.0.75",
+      "version": "1.0.76",
       "dependencies": {
         "@sentry/electron": "7.16.0",
         "@tailwindcss/vite": "^4.3.3",
@@ -64,7 +64,7 @@
     },
     "apps/docs": {
       "name": "@teak/docs",
-      "version": "1.0.75",
+      "version": "1.0.76",
       "dependencies": {
         "@teak/convex": "workspace:*",
         "@vercel/functions": "^3.7.6",
@@ -78,7 +78,7 @@
     },
     "apps/extension": {
       "name": "@teak/extension",
-      "version": "1.0.75",
+      "version": "1.0.76",
       "dependencies": {
         "@convex-dev/better-auth": "0.12.5",
         "@tailwindcss/vite": "^4.3.3",
@@ -101,7 +101,7 @@
     },
     "apps/files-worker": {
       "name": "@teak/files-worker",
-      "version": "1.0.75",
+      "version": "1.0.76",
       "dependencies": {
         "@cf-wasm/photon": "^0.4.0",
         "@resvg/resvg-wasm": "^2.6.2",
@@ -118,7 +118,7 @@
     },
     "apps/mobile": {
       "name": "@teak/mobile",
-      "version": "1.0.75",
+      "version": "1.0.76",
       "dependencies": {
         "@better-auth/expo": "1.6.23",
         "@convex-dev/better-auth": "0.12.5",
@@ -176,7 +176,7 @@
     },
     "apps/raycast": {
       "name": "teak-raycast",
-      "version": "1.0.75",
+      "version": "1.0.76",
       "dependencies": {
         "@raycast/api": "^1.104.24",
         "@raycast/utils": "^2.3.0",
@@ -190,7 +190,7 @@
     },
     "apps/web": {
       "name": "@teak/web",
-      "version": "1.0.75",
+      "version": "1.0.76",
       "dependencies": {
         "@convex-dev/better-auth": "^0.12.5",
         "@polar-sh/checkout": "^0.4.0",
@@ -227,7 +227,7 @@
     },
     "packages/convex": {
       "name": "@teak/convex",
-      "version": "1.0.75",
+      "version": "1.0.76",
       "dependencies": {
         "@ai-sdk/openai-compatible": "^3.0.35",
         "@aws-sdk/client-s3": "3.1106.0",
@@ -239,6 +239,7 @@
         "@convex-dev/rate-limiter": "0.3.2",
         "@convex-dev/resend": "0.2.7",
         "@convex-dev/workflow": "0.4.8",
+        "@convex-dev/workos-authkit": "0.2.10",
         "@convex-dev/workpool": "0.4.12",
         "@onkernel/sdk": "^0.87.0",
         "@opentelemetry/api": "1.9.1",
@@ -272,14 +273,14 @@
     },
     "packages/files-protocol": {
       "name": "@teak/files-protocol",
-      "version": "1.0.75",
+      "version": "1.0.76",
       "devDependencies": {
         "typescript": "^5.9.3",
       },
     },
     "packages/tests": {
       "name": "@teak/tests",
-      "version": "1.0.75",
+      "version": "1.0.76",
       "dependencies": {
         "@axe-core/playwright": "^4.12.1",
         "@modelcontextprotocol/sdk": "^1.30.0",
@@ -298,7 +299,7 @@
     },
     "packages/ui": {
       "name": "@teak/ui",
-      "version": "1.0.75",
+      "version": "1.0.76",
       "dependencies": {
         "@base-ui/react": "1.6.0",
         "@editorcn/block-editor": "0.2.0",
@@ -761,6 +762,10 @@
     "@convex-dev/sharded-counter": ["@convex-dev/sharded-counter@0.2.0", "", { "peerDependencies": { "convex": "^1.24.8" } }, "sha512-Qv1TvFXyQ60rADS1fWH01mnMDNSPfmKKowXva6WxIXGIC2ta5xvohe9TfUhXp4AT1vtOXoFgse3Z9mJB9fJlSQ=="],
 
     "@convex-dev/workflow": ["@convex-dev/workflow@0.4.8", "", { "dependencies": { "async-channel": "^0.2.0" }, "peerDependencies": { "@convex-dev/workpool": "^0.4.4", "convex": "^1.36.1", "convex-helpers": "^0.1.99" } }, "sha512-5TFdzgGOBOLwEArr+bjilK/iTelPQkuMcFAY1QlvFKIdoxYMuLcJrukjVTtgwVyrTAv28+Bm3PWS1ud635rVew=="],
+
+    "@convex-dev/workos": ["@convex-dev/workos@0.0.3", "", { "dependencies": { "@workos-inc/authkit-react": "^0.16.0" }, "peerDependencies": { "convex": "^1.39.1", "react": "^18.0.0 || ^19.0.0-0 || ^19.0.0" } }, "sha512-2gHEm8heSpwDakP+s81tXgHuBDUtUOOvt1RjsoiUJpxUmuF4Ln7mWJt+Dr/I0gCP1wuY2r1N62YIafgOXcbx9Q=="],
+
+    "@convex-dev/workos-authkit": ["@convex-dev/workos-authkit@0.2.10", "", { "dependencies": { "@convex-dev/workflow": "^0.4.0", "@convex-dev/workos": "^0.0.3", "@convex-dev/workpool": "^0.4.4", "convex-helpers": "^0.1.111", "type-fest": "^5.1.0" }, "peerDependencies": { "@workos-inc/authkit-react": "^0.13.0 || ^0.16.0", "@workos-inc/node": "^7.75.1 || ^8.0.0 || ^9.0.0 || ^10.0.0", "convex": "^1.29.3", "react": "^18.3.1 || ^19.0.0" } }, "sha512-zeM32uiRJuBjoJNzVRnGdmJ2D/XuEekoNK+xTjSdenLPeEtxzwuPvJDSp9zqnQcGVvxhClry1L7wg3CoCph72g=="],
 
     "@convex-dev/workpool": ["@convex-dev/workpool@0.4.12", "", { "dependencies": { "@convex-dev/batch-worker": "^0.2.2" }, "peerDependencies": { "convex": "^1.36.1", "convex-helpers": "^0.1.94" } }, "sha512-mJOtVds/vWWVdFUNhveXlQcfPFUmugZbJYjdjblgA2PpfaedtcwqYBVnLXEBI2QlspTR7HfAT3cTxJtdhVPUsg=="],
 
@@ -2167,6 +2172,12 @@
     "@webext-core/match-patterns": ["@webext-core/match-patterns@2.0.0", "", {}, "sha512-EsyMMKfQuSE4rWCjP/TifwvUWlhC/OhiGn5OK3p9F0d57UmtLib0nzguzPKyxM1/kZV7SkE+jYXkE8gsdPRLmw=="],
 
     "@workflow/serde": ["@workflow/serde@4.1.0", "", {}, "sha512-pav4F2BoirECWR7Nf1TKt+2eETcBj7jj4cBefQ8VXQCA6NPkaKeLfj/zMgi+3zYV5ZIBT4GuUiphsj0/b9hPQQ=="],
+
+    "@workos-inc/authkit-js": ["@workos-inc/authkit-js@0.20.4", "", {}, "sha512-hr6umahJXM8bQ+cxC0Li9MIgBlzZCQwWGxINWC1j51Bj/l/6rl0VNnyuTkeHZsKpwk0i0goE128ooAGJ6Y/3OQ=="],
+
+    "@workos-inc/authkit-react": ["@workos-inc/authkit-react@0.16.3", "", { "dependencies": { "@workos-inc/authkit-js": "^0.20.4" }, "peerDependencies": { "react": ">=17" } }, "sha512-0dBvUp/ZEF/yrojfDHK9T/eMmNxMtH7HbWZvA8Aum5wRn874Yr0wraAFr/wAKBRJYoYLCcfYwSEDlYTjKTk2sQ=="],
+
+    "@workos-inc/node": ["@workos-inc/node@10.14.0", "", {}, "sha512-SnY9OHTzTyOmgJQj9+/6x116m+d+zJoQw5e8teNWKUuGe8FOKngVdBXRvZgdFxaL+3UfQbMlp95V67t43VYOWQ=="],
 
     "@wxt-dev/browser": ["@wxt-dev/browser@0.2.5", "", { "dependencies": { "@types/filesystem": "*", "@types/har-format": "*" } }, "sha512-676RhVsOFNSZnisfeM9U40DdYjZmx5whJuBHJ7v4R2sR6e/SYfuIuzmJf3owr2n82d2vCDwGNbvt4nLU14sGZg=="],
 
@@ -4765,6 +4776,8 @@
     "@convex-dev/better-auth/semver": ["semver@7.7.4", "", { "bin": { "semver": "bin/semver.js" } }, "sha512-vFKC2IEtQnVhpT78h1Yp8wzwrf8CM+MzKMHGJZfBtzhZNycRFnXsHk6E5TxIkkMsgNS7mdX3AGB7x2QM2di4lA=="],
 
     "@convex-dev/better-auth/zod": ["zod@4.6.5", "", {}, "sha512-v5l/aFXZQeai4awLbOpSoHecE9UiMrnfx75tEXLjNonXVARxQ5mOeipTjROUchszUNCqnE+hqAMujRsRHsut2Q=="],
+
+    "@convex-dev/workos-authkit/type-fest": ["type-fest@5.8.0", "", { "dependencies": { "tagged-tag": "^1.0.0" } }, "sha512-YGYEVz3Fm5iy/AybuA0oyNFq7H4CgQNfRp/qfe8nurE1kuCeNm3/vfm9X4Mtl+qLyaKJUh5xrFZwogr41SMjYA=="],
 
     "@cspotcode/source-map-support/@jridgewell/trace-mapping": ["@jridgewell/trace-mapping@0.3.9", "", { "dependencies": { "@jridgewell/resolve-uri": "^3.0.3", "@jridgewell/sourcemap-codec": "^1.4.10" } }, "sha512-3Belt6tdc8bPgAtbcmdtNJlirVoTmEb5e2gC94PnkwEW9jI6CAHUeoG85tjWP5WquqfavoMtMwiG4P926ZKKuQ=="],
 
