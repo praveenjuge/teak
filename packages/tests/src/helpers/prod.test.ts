@@ -1,5 +1,6 @@
 import { describe, expect, mock, test } from "bun:test";
-import { createProdE2EFetch } from "./prod";
+import type { Page } from "@playwright/test";
+import { createProdE2EFetch, gotoApp } from "./prod";
 
 describe("production E2E API retries", () => {
   test("retries transient card-create failures with one idempotency key", async () => {
@@ -143,5 +144,43 @@ describe("production E2E API retries", () => {
     ).rejects.toThrow("Overall timeout");
     expect(fetchImpl).toHaveBeenCalledTimes(1);
     expect(wait).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("production E2E navigation retries", () => {
+  test("retries an aborted navigation", async () => {
+    const goto = mock(() => Promise.resolve(undefined));
+    goto.mockImplementationOnce(() =>
+      Promise.reject(
+        new Error("page.goto: NS_BINDING_ABORTED; maybe frame was detached?")
+      )
+    );
+    const wait = mock(() => Promise.resolve(undefined));
+
+    await gotoApp({ goto } as unknown as Page, "/settings", wait);
+
+    expect(goto).toHaveBeenCalledTimes(2);
+    expect(wait).toHaveBeenCalledTimes(1);
+  });
+
+  test("does not retry other navigation errors", async () => {
+    const goto = mock(() =>
+      Promise.reject(new Error("net::ERR_NAME_NOT_RESOLVED"))
+    );
+    const wait = mock(() => Promise.resolve(undefined));
+
+    await expect(
+      gotoApp({ goto } as unknown as Page, "/settings", wait)
+    ).rejects.toThrow("ERR_NAME_NOT_RESOLVED");
+    expect(goto).toHaveBeenCalledTimes(1);
+  });
+
+  test("gives up after three aborted attempts", async () => {
+    const goto = mock(() => Promise.reject(new Error("NS_BINDING_ABORTED")));
+
+    await expect(
+      gotoApp({ goto } as unknown as Page, "/login", () => Promise.resolve())
+    ).rejects.toThrow("NS_BINDING_ABORTED");
+    expect(goto).toHaveBeenCalledTimes(3);
   });
 });
