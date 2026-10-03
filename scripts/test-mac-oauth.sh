@@ -8,6 +8,7 @@ xcrun swiftc -parse-as-library \
   "apps/mac/Shared (App)/Shared (Core)/SafariCredentialStore.swift" \
   "apps/mac/Shared (App)/Shared (Core)/TeakSafariService.swift" \
   "apps/mac/macOS (App)/LibraryModels.swift" \
+  "apps/mac/macOS (App)/LibrarySearchTokens.swift" \
   "apps/mac/macOS (App)/LibraryStore.swift" \
   apps/mac/tests/SafariOAuthTests.swift \
   apps/mac/tests/LibraryStoreRegressionTests.swift \

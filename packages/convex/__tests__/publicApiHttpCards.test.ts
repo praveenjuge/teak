@@ -41,6 +41,61 @@ describe("publicApiHttp card endpoints", () => {
     }
   });
 
+  test.each([true, false])(
+    "dispatches restore for a card with deleted=%s",
+    async (isDeleted) => {
+      const response = await executePublicApiOperation(
+        {
+          runMutation:
+            buildAuthorizedMutationMock().mockResolvedValueOnce(null),
+          runQuery: mock()
+            .mockResolvedValueOnce("card_1")
+            .mockResolvedValueOnce({
+              _id: "card_1",
+              userId: "user_1",
+              isDeleted,
+            }),
+        },
+        {
+          method: "POST",
+          path: "/v1/cards/card_1/restore",
+          headers: {
+            Authorization: `Bearer teakapi_secret_live_a1b2c3d4_${"f".repeat(64)}`,
+          },
+        }
+      );
+      expect(response.status).toBe(204);
+      expect(await response.text()).toBe("");
+    }
+  );
+
+  test("listCardsV1 reports an over-broad search as invalid input", async () => {
+    const message =
+      "Search is too broad. Add a type, favorite, or date filter.";
+    const response = await runHandler(
+      listCardsV1,
+      {
+        runMutation: buildAuthorizedMutationMock(),
+        runQuery: mock().mockRejectedValue(
+          new ConvexError({
+            code: "INVALID_INPUT",
+            message,
+          })
+        ),
+      },
+      new Request("https://example.com/v1/cards?q=design", {
+        headers: {
+          Authorization: `Bearer teakapi_secret_live_a1b2c3d4_${"f".repeat(64)}`,
+        },
+      })
+    );
+    expect(response.status).toBe(400);
+    expect(await response.json()).toMatchObject({
+      code: "INVALID_INPUT",
+      error: message,
+    });
+  });
+
   test("listCardsV1 rejects partial numeric createdAfter values", async () => {
     const runMutation = buildAuthorizedMutationMock();
 
@@ -614,6 +669,38 @@ describe("publicApiHttp card endpoints", () => {
     const payload = await response.json();
     expect(payload.code).toBe("INVALID_INPUT");
   });
+
+  test.each([
+    ["POST", "/restore"],
+    ["DELETE", "?permanent=true"],
+  ])(
+    "%s allows Trash lifecycle operation %s",
+    async (method: string, suffix: string) => {
+      const response = await runHandler(
+        cardByIdV1,
+        {
+          runMutation:
+            buildAuthorizedMutationMock().mockResolvedValueOnce(null),
+          runQuery: mock()
+            .mockResolvedValueOnce("card_1")
+            .mockResolvedValueOnce({
+              _id: "card_1",
+              userId: "user_1",
+              isDeleted: true,
+            }),
+        },
+        new Request(`https://example.com/v1/cards/card_1${suffix}`, {
+          method,
+          headers: {
+            Authorization:
+              "Bearer teakapi_secret_live_a1b2c3d4_ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+          },
+        })
+      );
+      expect(response.status).toBe(204);
+      expect(await response.text()).toBe("");
+    }
+  );
 
   test("cardByIdV1 supports soft delete", async () => {
     const runMutation =

@@ -2,11 +2,23 @@
 import rateLimiterTest from "@convex-dev/rate-limiter/test";
 import workflowTest from "@convex-dev/workflow/test";
 import { convexTest } from "convex-test";
-import { describe, expect, test } from "vitest";
+import { beforeAll, describe, expect, test } from "vitest";
 import { internal } from "./_generated/api";
+import {
+  searchCardsByDocument,
+  searchCardsByExactTag,
+  syncCardSearchDocumentHandler,
+  syncCardSearchTagsBatchHandler,
+} from "./card/searchDocumentHelpers";
 import schema from "./schema";
 
 const modules = import.meta.glob("./**/*.ts");
+
+// Load the storage SDK before timing behavior assertions. Convex-test lazily
+// imports function modules, so the first restore otherwise includes this cost.
+beforeAll(async () => {
+  await import("./card/deleteCard");
+});
 
 async function setup() {
   const t = convexTest(schema, modules);
@@ -168,4 +180,283 @@ describe("Public API card title editing", () => {
     const card = await t.run((ctx) => ctx.db.get("cards", cardId));
     expect(card?.metadataTitle).toBe("Supersededtitle title");
   });
+});
+
+describe("Public API Trash and visual filters", () => {
+  test("filters Trash and image facets without exposing other users", async () => {
+    const { t, cardId } = await setup();
+    await t.run(async (ctx) => {
+      await ctx.db.patch("cards", cardId, {
+        type: "image",
+        isDeleted: true,
+        visualStyles: ["minimal"],
+        colorHues: ["blue"],
+        colorHexes: ["#112233"],
+      });
+      await ctx.db.insert("cards", {
+        userId: "stranger",
+        type: "image",
+        content: "Other user",
+        isDeleted: true,
+        visualStyles: ["minimal"],
+        colorHues: ["blue"],
+        colorHexes: ["#112233"],
+        createdAt: 1,
+        updatedAt: 1,
+      });
+    });
+    const page = await t.query(internal.publicApi.scanCardsPageForUser, {
+      userId: "owner",
+      showTrashOnly: true,
+      styleFilters: ["minimal"],
+      hueFilters: ["blue"],
+      hexFilters: ["#112233"],
+      scanLimit: 50,
+    });
+    expect(page.items.map((card: { _id: string }) => card._id)).toEqual([
+      cardId,
+    ]);
+    const active = await t.query(internal.publicApi.scanCardsPageForUser, {
+      userId: "owner",
+      scanLimit: 50,
+    });
+    expect(active.items).toEqual([]);
+    const mismatch = await t.query(internal.publicApi.scanCardsPageForUser, {
+      userId: "owner",
+      showTrashOnly: true,
+      hueFilters: ["red"],
+      scanLimit: 50,
+    });
+    expect(mismatch.items).toEqual([]);
+  });
+
+  test.each(["text", "tag"])(
+    "finds visual matches beyond initial %s search candidates",
+    async (source) => {
+      const { t } = await setup();
+      const matches = await t.run(async (ctx) => {
+        const ids: string[] = [];
+        for (let index = 0; index < 455; index += 1) {
+          const isMatch = index < 3;
+          const id = await ctx.db.insert("cards", {
+            userId: "owner",
+            type: "image",
+            content: "coastal inspiration",
+            tags: ["coastal"],
+            visualStyles: [isMatch ? "minimal" : "vibrant"],
+            createdAt: index + 2,
+            updatedAt: index + 2,
+          });
+          await syncCardSearchDocumentHandler(ctx, id);
+          await syncCardSearchTagsBatchHandler(ctx, id);
+          if (isMatch) {
+            ids.unshift(id);
+          }
+        }
+        return ids;
+      });
+      const options = {
+        userId: "owner",
+        types: ["image", "video", "audio", "text"] as (
+          | "image"
+          | "video"
+          | "audio"
+          | "text"
+        )[],
+        styleFilters: ["minimal"],
+        limit: 2,
+        ...(source === "text"
+          ? { searchQuery: "coastal" }
+          : { tag: "coastal" }),
+      };
+      const first = await t.query(
+        internal.publicApi.searchCardsPageForUser,
+        options
+      );
+      expect(first.items.map((card: { _id: string }) => card._id)).toEqual(
+        matches.slice(0, 2)
+      );
+      expect(first.pageInfo.hasMore).toBe(true);
+      const second = await t.query(internal.publicApi.searchCardsPageForUser, {
+        ...options,
+        cursor: first.pageInfo.nextCursor ?? undefined,
+      });
+      expect(second.items.map((card: { _id: string }) => card._id)).toEqual(
+        matches.slice(2)
+      );
+      expect(second.pageInfo.hasMore).toBe(false);
+    }
+  );
+
+  test("repeated restore preserves the already active card", async () => {
+    const { t, cardId } = await setup();
+    await t.run((ctx) => ctx.db.patch("cards", cardId, { isDeleted: true }));
+    await t.mutation(internal["card/deleteCard"].restoreCardForUser, {
+      userId: "owner",
+      cardId,
+    });
+    const first = await t.run((ctx) => ctx.db.get("cards", cardId));
+    await t.mutation(internal["card/deleteCard"].restoreCardForUser, {
+      userId: "owner",
+      cardId,
+    });
+    expect(await t.run((ctx) => ctx.db.get("cards", cardId))).toEqual(first);
+    await expect(
+      t.mutation(internal["card/deleteCard"].restoreCardForUser, {
+        userId: "stranger",
+        cardId,
+      })
+    ).rejects.toThrow("Not authorized");
+  });
+
+  test("restores and permanently deletes only the owner's card", async () => {
+    const { t, cardId } = await setup();
+    await t.run((ctx) => ctx.db.patch("cards", cardId, { isDeleted: true }));
+    await expect(
+      t.mutation(internal["card/deleteCard"].restoreCardForUser, {
+        userId: "stranger",
+        cardId,
+      })
+    ).rejects.toThrow("Not authorized");
+    await t.mutation(internal["card/deleteCard"].restoreCardForUser, {
+      userId: "owner",
+      cardId,
+    });
+    expect(
+      (await t.run((ctx) => ctx.db.get("cards", cardId)))?.isDeleted
+    ).toBeUndefined();
+    await expect(
+      t.mutation(internal["card/deleteCard"].permanentDeleteCardForUser, {
+        userId: "stranger",
+        cardId,
+      })
+    ).rejects.toThrow("Not authorized");
+    await t.mutation(internal["card/deleteCard"].permanentDeleteCardForUser, {
+      userId: "owner",
+      cardId,
+    });
+    expect(await t.run((ctx) => ctx.db.get("cards", cardId))).toBeNull();
+  });
+});
+
+describe("Search scan budget", () => {
+  test("multi-type tag search shares the total read budget", async () => {
+    const { t } = await setup();
+    const types = ["text", "image", "video", "audio"] as const;
+    await t.run(async (ctx) => {
+      for (let index = 0; index < 4100; index += 1) {
+        const id = await ctx.db.insert("cards", {
+          userId: "owner",
+          type: types[index % types.length],
+          content: "Shared budget",
+          tags: ["budget"],
+          visualStyles: ["vibrant"],
+          createdAt: index + 2,
+          updatedAt: index + 2,
+        });
+        await ctx.db.insert("cardSearchTags", {
+          cardId: id,
+          userId: "owner",
+          tag: "budget",
+          type: types[index % types.length],
+          cardCreatedAt: index + 2,
+          sourceUpdatedAt: index + 2,
+          syncGeneration: 1,
+        });
+      }
+    });
+    await expect(
+      t.query(internal.publicApi.searchCardsPageForUser, {
+        userId: "owner",
+        tag: "budget",
+        types: [...types],
+        styleFilters: ["minimal"],
+        limit: 1,
+      })
+    ).rejects.toThrow("Search is too broad");
+  }, 30_000);
+
+  test("a saturated text search still serves deep pages without post-filters", async () => {
+    const { t } = await setup();
+    await t.run(async (ctx) => {
+      for (let index = 0; index < 1024; index += 1) {
+        const id = await ctx.db.insert("cards", {
+          userId: "owner",
+          type: "text",
+          content: "deepsearch inspiration",
+          createdAt: index + 2,
+          updatedAt: index + 2,
+        });
+        await syncCardSearchDocumentHandler(ctx, id);
+      }
+    });
+    const found = await t.run((ctx) =>
+      searchCardsByDocument(ctx, {
+        userId: "owner",
+        searchQuery: "deepsearch",
+        limit: 1204,
+      })
+    );
+    expect(found).toHaveLength(1024);
+    const page = await t.query(internal.publicApi.searchCardsPageForUser, {
+      userId: "owner",
+      searchQuery: "deepsearch",
+      limit: 100,
+      cursor: btoa(JSON.stringify({ mode: "offset", offset: 200 })),
+    });
+    expect(page.items).toHaveLength(100);
+    expect(page.pageInfo.hasMore).toBe(true);
+    await expect(
+      t.query(internal.publicApi.searchCardsPageForUser, {
+        userId: "owner",
+        searchQuery: "deepsearch",
+        limit: 100,
+        cursor: btoa(JSON.stringify({ mode: "offset", offset: 1000 })),
+      })
+    ).rejects.toThrow("Search is too broad");
+  });
+
+  test.each(["tag", "text"])(
+    "%s search allows an exhausted budget and rejects another index row",
+    async (mode) => {
+      const { t, cardId } = await setup();
+      await t.run(async (ctx) => {
+        await syncCardSearchTagsBatchHandler(ctx, cardId);
+        await syncCardSearchDocumentHandler(ctx, cardId);
+      });
+      const search = () =>
+        t.run((ctx) =>
+          (mode === "tag" ? searchCardsByExactTag : searchCardsByDocument)(
+            ctx,
+            {
+              userId: "owner",
+              tag: "original",
+              searchQuery: "Original",
+              limit: 10,
+              sort: "newest",
+              scanBudget: { remaining: 1 },
+              resultFilter: () => false,
+            }
+          )
+        );
+      if (mode === "tag") {
+        expect(await search()).toEqual([]);
+      } else {
+        await expect(search()).rejects.toThrow("Search is too broad");
+      }
+      await t.run(async (ctx) => {
+        const second = await ctx.db.insert("cards", {
+          userId: "owner",
+          type: "text",
+          content: "Original second",
+          tags: ["original"],
+          createdAt: 2,
+          updatedAt: 2,
+        });
+        await syncCardSearchTagsBatchHandler(ctx, second);
+        await syncCardSearchDocumentHandler(ctx, second);
+      });
+      await expect(search()).rejects.toThrow("Search is too broad");
+    }
+  );
 });

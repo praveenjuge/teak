@@ -69,6 +69,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         CompanionAppearance.apply(.selected)
         menuBar = MenuBarController()
         configureSettingsWindow()
+        configureKeyboardMenus()
         didFinishLaunching = true
         resolveAndPresentRoute()
     }
@@ -173,7 +174,6 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         controller.renderAccountState(state)
         window.makeKeyAndOrderFront(nil)
         onboardingWindowController?.window?.orderOut(nil)
-        libraryWindowController?.window?.orderOut(nil)
         finishInitialRouteIfNeeded()
     }
 
@@ -254,8 +254,14 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         syncActivationPolicy()
     }
 
+    /// Keeps the library available as a standard Dock app, independently of the menu bar item.
     private func syncActivationPolicy() {
-        NSApp.setActivationPolicy(MenuBarController.isEnabled ? .accessory : .regular)
+        NSApp.setActivationPolicy(.regular)
+    }
+
+    func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
+        if !flag { showLibraryWindow() }
+        return true
     }
 
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {

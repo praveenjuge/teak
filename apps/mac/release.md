@@ -49,7 +49,7 @@ marketing/build versions in lockstep.
 
 The release note is:
 
-> Capture notes, quotes, links, files, and audio on your Mac. Edit cards, organize tags, favorite ideas, and delete cards from your library.
+> A refreshed native library, smarter search, keyboard shortcuts, and easier ways to capture and organize your ideas.
 
 ## Screenshots
 

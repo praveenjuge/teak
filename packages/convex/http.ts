@@ -192,6 +192,12 @@ http.route({
 
 http.route({
   pathPrefix: "/v1/cards/",
+  method: "POST",
+  handler: cardByIdV1,
+});
+
+http.route({
+  pathPrefix: "/v1/cards/",
   method: "DELETE",
   handler: cardByIdV1,
 });

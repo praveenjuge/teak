@@ -6,31 +6,11 @@ const assets = new URL("../assets/screenshots/", import.meta.url);
 const source = new URL("source/", assets);
 const output = new URL("en-US/", assets);
 const shots = [
-  [
-    "01-library",
-    "Keep every spark of inspiration.",
-    "Images, links, notes, and more. Together on your Mac.",
-  ],
-  [
-    "02-detail",
-    "Look closer. Keep what matters.",
-    "Add a thought, edit a title, or save a favorite.",
-  ],
-  [
-    "03-capture",
-    "A thought worth keeping.",
-    "Capture notes, quotes, files, and audio.",
-  ],
-  [
-    "04-settings",
-    "At home on your Mac.",
-    "Your library and Safari, connected.",
-  ],
-  [
-    "05-safari",
-    "Save from Safari. Find it in Teak.",
-    "Keep the good things you discover on the web.",
-  ],
+  ["01-library", "Keep every spark of inspiration."],
+  ["02-detail", "Keep the links worth coming back to."],
+  ["03-capture", "Give your ideas a place to grow."],
+  ["05-safari", "Save from Safari in a click."],
+  ["06-palette", "Keep your favorite colors close."],
 ];
 const imageURI = async (name) => {
   const file = new URL(`${name}.png`, source);
@@ -64,7 +44,7 @@ try {
     await image.decode();
   }, background);
   await mkdir(output, { recursive: true });
-  for (const [index, [name, title, subtitle]] of shots.entries()) {
+  for (const [index, [name, title]] of shots.entries()) {
     await page.setContent(`
       <style>
         * { box-sizing: border-box; }
@@ -72,19 +52,28 @@ try {
           font-family: -apple-system, BlinkMacSystemFont, Arial, sans-serif; background: #e4eadc; }
         body::before { content: ''; position: absolute; inset: 0; background: url(${background}) center/cover; }
         body::after { content: ''; position: absolute; inset: 0; background: rgba(248,250,242,.16); }
-        header { position: absolute; top: 24px; width: 100%; text-align: center; z-index: 1; color: #253529; }
+        header { position: absolute; top: 32px; width: 100%; text-align: center; z-index: 1; color: #253529; }
         h1 { margin: 0; font-size: 34px; font-weight: 600; letter-spacing: -1px; }
-        p { margin: 8px 0 0; font-size: 16px; color: #475249; }
-        .app { position: absolute; z-index: 2; top: 110px; left: 160px; width: 1120px;
-          height: 760px; display: flex; align-items: center; justify-content: center; }
+        .app { position: absolute; z-index: 2; top: 94px; left: 160px; width: 1120px;
+          height: 776px; display: flex; align-items: center; justify-content: center; }
         img { max-width: 100%; max-height: 100%; object-fit: contain;
           filter: drop-shadow(0 18px 30px rgba(25,40,28,.22)); border-radius: 14px; }
       </style>
-      <header><h1>${title}</h1><p>${subtitle}</p></header>
+      <header><h1>${title}</h1></header>
       <div class="app"><img src="${captures[index]}" alt="Teak for Mac"></div>
     `);
     await page.locator("img").evaluate((image) => image.decode());
     await page.evaluate(() => document.fonts.ready);
+    const headline = page.locator("h1");
+    if (
+      await headline.evaluate(
+        (element) =>
+          element.scrollWidth > element.clientWidth ||
+          element.getBoundingClientRect().height > 50
+      )
+    ) {
+      throw new Error(`Headline must fit on one line: ${title}`);
+    }
     await page.screenshot({
       path: fileURLToPath(new URL(`${name}.png`, output)),
     });

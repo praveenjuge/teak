@@ -198,6 +198,8 @@ actor TeakSafariService {
                 && ["GET", "PATCH", "DELETE"].contains(method))
             || (cardRoute && parts.count == 4 && Self.isValidCardID(parts[2])
                 && parts[3] == "favorite" && method == "PATCH")
+            || (cardRoute && parts.count == 4 && Self.isValidCardID(parts[2])
+                && parts[3] == "restore" && method == "POST")
             || (path == "v1/uploads" && method == "POST")
         guard validRoute else { throw SafariServiceError.message("Invalid library request.") }
         var components = URLComponents(url: baseURL.appendingPathComponent(path), resolvingAgainstBaseURL: false)!
@@ -211,6 +213,7 @@ actor TeakSafariService {
         let url = try Self.libraryURL(baseURL: apiURL, method: method, path: path, queryItems: queryItems)
         var request = URLRequest(url: url)
         request.httpMethod = method
+        if method == "GET" { request.cachePolicy = .reloadIgnoringLocalCacheData }
         request.httpBody = body
         if body != nil { request.setValue("application/json", forHTTPHeaderField: "Content-Type") }
         if method == "POST" {

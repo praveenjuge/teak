@@ -370,7 +370,7 @@ final class SettingsViewController: NSViewController {
                 let email = summary.email?.trimmingCharacters(in: .whitespacesAndNewlines)
                 self.emailLabel.stringValue = email.flatMap { $0.isEmpty ? nil : $0 } ?? "Not available"
                 self.emailLabel.toolTip = email
-                let unit = summary.cardCount == 1 ? "card" : "cards"
+                let unit = summary.cardCount == 1 ? "Card" : "Cards"
                 self.usageLabel.stringValue = "\(NumberFormatter.localizedString(from: NSNumber(value: summary.cardCount), number: .decimal)) \(unit)"
             } catch SafariServiceError.unauthenticated {
                 guard generation == self.accountStateGeneration else { return }
@@ -392,7 +392,7 @@ final class SettingsViewController: NSViewController {
                         ? "Enabled in Safari"
                         : "Turn on in Safari Settings"
                 } else {
-                    self.extensionStatusLabel.stringValue = "Couldn’t check the extension state."
+                    self.extensionStatusLabel.stringValue = "Manage the extension in Safari Settings."
                 }
             }
         }

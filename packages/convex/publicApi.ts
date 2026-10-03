@@ -17,6 +17,10 @@ import {
   searchCardsByExactTag,
 } from "./card/searchDocumentHelpers";
 import { updateCardFieldForUserHandler } from "./card/updateCard";
+import {
+  doesCardMatchVisualFilters,
+  normalizeVisualFilterArgs,
+} from "./card/visualFilters";
 import { cardTypes, cardTypeValidator } from "./schema";
 import { isSafeExternalUrl } from "./shared/utils/safeUrl";
 
@@ -77,9 +81,13 @@ interface SearchOptions {
   createdAfter?: number;
   createdBefore?: number;
   favorited?: boolean;
+  hexFilters?: string[];
+  hueFilters?: string[];
   limit?: number;
   searchQuery?: string;
+  showTrashOnly?: boolean;
   sort?: ApiCardSort;
+  styleFilters?: string[];
   tag?: string;
   type?: Doc<"cards">["type"];
   types?: Doc<"cards">["type"][];
@@ -182,7 +190,10 @@ const matchesStructuredFilters = (
     }
   }
 
-  return !card.isDeleted;
+  return (
+    Boolean(card.isDeleted) === Boolean(options.showTrashOnly) &&
+    doesCardMatchVisualFilters(card, normalizeVisualFilterArgs(options))
+  );
 };
 
 const sortCards = (cards: Doc<"cards">[], sort: ApiCardSort): Doc<"cards">[] =>
@@ -226,10 +237,10 @@ const searchCardsByQuery = async (
   userId: string,
   options: SearchOptions,
   offset: number
-): Promise<Doc<"cards">[]> => {
+): Promise<{ cards: Doc<"cards">[]; isComplete: boolean }> => {
   const searchQuery = normalizeSearchText(options.searchQuery);
   if (!searchQuery) {
-    return [];
+    return { cards: [], isComplete: true };
   }
 
   const limit = normalizeLimit(options.limit);
@@ -240,24 +251,30 @@ const searchCardsByQuery = async (
   );
 
   const typeGroups = options.types ?? [options.type];
-  const found = await Promise.all(
-    typeGroups.map((type) =>
-      searchCardsByDocument(ctx, {
+  const scanBudget = { remaining: 4096, hitSearchLimit: false };
+  const found: Doc<"cards">[][] = [];
+  for (const type of typeGroups) {
+    found.push(
+      await searchCardsByDocument(ctx, {
         userId,
         searchQuery,
-        isDeleted: undefined,
+        isDeleted: options.showTrashOnly ? true : undefined,
         isFavorited: options.favorited,
         type,
         limit: searchLimit,
+        scanBudget,
         resultFilter: (card) => matchesStructuredFilters(card, options),
       })
-    )
-  );
+    );
+  }
   const unique = Array.from(
     new Map(found.flat().map((card) => [card._id, card] as const)).values()
   );
 
-  return sortCards(unique, normalizeSort(options.sort));
+  return {
+    cards: sortCards(unique, normalizeSort(options.sort)),
+    isComplete: !scanBudget.hitSearchLimit,
+  };
 };
 
 const searchCardsByTag = async (
@@ -279,17 +296,19 @@ const searchCardsByTag = async (
   );
 
   const typeGroups = options.types ?? [options.type];
+  const scanBudget = { remaining: 4096 };
   const found = await Promise.all(
     typeGroups.map((type) =>
       searchCardsByExactTag(ctx, {
         userId,
         tag,
-        isDeleted: undefined,
+        isDeleted: options.showTrashOnly ? true : undefined,
         isFavorited: options.favorited,
         type,
         createdAfter: options.createdAfter,
         createdBefore: options.createdBefore,
         limit: searchLimit,
+        scanBudget,
         sort: normalizeSort(options.sort),
         resultFilter: (card) => matchesStructuredFilters(card, options),
       })
@@ -319,7 +338,7 @@ const createBaseQuery = (
         query
           .eq("userId", userId)
           .eq("isFavorited", options.favorited ? true : undefined)
-          .eq("isDeleted", undefined)
+          .eq("isDeleted", options.showTrashOnly ? true : undefined)
       );
   }
 
@@ -356,20 +375,20 @@ const createBaseQuery = (
 
   if (options.type) {
     const cardType = options.type;
-    return ctx.db
-      .query("cards")
-      .withIndex("by_user_type_deleted", (query) =>
-        query
-          .eq("userId", userId)
-          .eq("type", cardType)
-          .eq("isDeleted", undefined)
-      );
+    return ctx.db.query("cards").withIndex("by_user_type_deleted", (query) =>
+      query
+        .eq("userId", userId)
+        .eq("type", cardType)
+        .eq("isDeleted", options.showTrashOnly ? true : undefined)
+    );
   }
 
   return ctx.db
     .query("cards")
     .withIndex("by_user_deleted", (query) =>
-      query.eq("userId", userId).eq("isDeleted", undefined)
+      query
+        .eq("userId", userId)
+        .eq("isDeleted", options.showTrashOnly ? true : undefined)
     );
 };
 
@@ -433,6 +452,10 @@ const scanCardsWithBaseQuery = async (
 };
 
 const normalizeCardsQueryOptions = (args: {
+  showTrashOnly?: boolean;
+  styleFilters?: string[];
+  hueFilters?: string[];
+  hexFilters?: string[];
   createdAfter?: number;
   createdBefore?: number;
   favorited?: boolean;
@@ -444,6 +467,8 @@ const normalizeCardsQueryOptions = (args: {
   types?: Doc<"cards">["type"][];
 }): SearchOptions => {
   const normalized: SearchOptions = {
+    showTrashOnly: args.showTrashOnly,
+    ...normalizeVisualFilterArgs(args),
     createdAfter: normalizeCreatedTimestamp(args.createdAfter),
     createdBefore: normalizeCreatedTimestamp(args.createdBefore),
     favorited: args.favorited,
@@ -472,6 +497,10 @@ const normalizeCardsQueryOptions = (args: {
 export const searchCardsPageForUser = internalQuery({
   args: {
     userId: v.string(),
+    showTrashOnly: v.optional(v.boolean()),
+    styleFilters: v.optional(v.array(v.string())),
+    hueFilters: v.optional(v.array(v.string())),
+    hexFilters: v.optional(v.array(v.string())),
     cursor: v.optional(v.string()),
     searchQuery: v.optional(v.string()),
     type: v.optional(cardTypeValidator),
@@ -494,14 +523,21 @@ export const searchCardsPageForUser = internalQuery({
 
     if (options.searchQuery) {
       const offset = decodedCursor.mode === "offset" ? decodedCursor.offset : 0;
-      const sorted = await searchCardsByQuery(
+      const result = await searchCardsByQuery(
         ctx,
         args.userId,
         options,
         offset
       );
+      const sorted = result.cards;
       pageItems = sorted.slice(offset, offset + limit);
       hasMore = sorted.length > offset + limit;
+      if (!(hasMore || result.isComplete)) {
+        throw new ConvexError({
+          code: "INVALID_INPUT",
+          message: "Search is too broad. Add a type or date filter.",
+        });
+      }
       nextCursor = hasMore
         ? encodeCursor({ mode: "offset", offset: offset + limit })
         : null;
@@ -529,6 +565,10 @@ export const searchCardsPageForUser = internalQuery({
 export const scanCardsPageForUser = internalQuery({
   args: {
     userId: v.string(),
+    showTrashOnly: v.optional(v.boolean()),
+    styleFilters: v.optional(v.array(v.string())),
+    hueFilters: v.optional(v.array(v.string())),
+    hexFilters: v.optional(v.array(v.string())),
     cursor: v.optional(v.string()),
     type: v.optional(cardTypeValidator),
     types: v.optional(v.array(cardTypeValidator)),

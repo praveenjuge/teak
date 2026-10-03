@@ -214,6 +214,10 @@ const handleCardsListRequest = async (
 
   try {
     const queryArgs = {
+      showTrashOnly: options.showTrashOnly,
+      styleFilters: options.styleFilters,
+      hueFilters: options.hueFilters,
+      hexFilters: options.hexFilters,
       createdAfter: options.createdAfter,
       createdBefore: options.createdBefore,
       cursor: options.cursor,
@@ -315,8 +319,8 @@ const handleCardsListRequest = async (
       ),
       pageInfo: cardsPage.pageInfo,
     });
-  } catch {
-    return errorResponse(500, "INTERNAL_ERROR", "Failed to fetch cards");
+  } catch (error) {
+    return mapConvexErrorToResponse(error, "Failed to fetch cards");
   }
 };
 
@@ -331,14 +335,17 @@ const resolveCardId = (
 const ensureCardExistsForUser = (
   ctx: ActionCtx,
   userId: string,
-  cardId: string
+  cardId: string,
+  includeDeleted = false
 ): Promise<any | null> =>
   ctx
     .runQuery((internal as any).raycast.getCardForUser, {
       cardId,
       userId,
     })
-    .then((card: any | null) => (card?.isDeleted ? null : card));
+    .then((card: any | null) =>
+      card?.isDeleted && !includeDeleted ? null : card
+    );
 
 const handleCardsByIdV1Request = async (
   ctx: ActionCtx,
@@ -359,10 +366,24 @@ const handleCardsByIdV1Request = async (
     return errorResponse(404, "NOT_FOUND", "Card not found");
   }
 
+  const permanent = new URL(request.url).searchParams.get("permanent");
+  if (
+    route.operation === "delete" &&
+    permanent !== null &&
+    !["true", "false"].includes(permanent)
+  ) {
+    return errorResponse(
+      400,
+      "INVALID_INPUT",
+      "Query parameter `permanent` must be `true` or `false`"
+    );
+  }
   const currentCard = await ensureCardExistsForUser(
     ctx,
     auth.validated.userId,
-    normalizedCardId
+    normalizedCardId,
+    route.operation === "restore" ||
+      (route.operation === "delete" && permanent === "true")
   );
   if (!currentCard) {
     return errorResponse(404, "NOT_FOUND", "Card not found");
@@ -372,9 +393,15 @@ const handleCardsByIdV1Request = async (
     return json(200, serializeCard(currentCard, request.url));
   }
 
-  if (route.operation === "delete") {
+  if (route.operation === "delete" || route.operation === "restore") {
     try {
-      await ctx.runMutation((internal as any).raycast.softDeleteCardForUser, {
+      let mutation = internal.raycast.softDeleteCardForUser;
+      if (route.operation === "restore") {
+        mutation = internal["card/deleteCard"].restoreCardForUser;
+      } else if (permanent === "true") {
+        mutation = internal["card/deleteCard"].permanentDeleteCardForUser;
+      }
+      await ctx.runMutation(mutation, {
         cardId: normalizedCardId,
         userId: auth.validated.userId,
       });
@@ -385,7 +412,12 @@ const handleCardsByIdV1Request = async (
         },
       });
     } catch (error) {
-      return mapConvexErrorToResponse(error, "Failed to delete card");
+      return mapConvexErrorToResponse(
+        error,
+        route.operation === "restore"
+          ? "Failed to restore card"
+          : "Failed to delete card"
+      );
     }
   }
 

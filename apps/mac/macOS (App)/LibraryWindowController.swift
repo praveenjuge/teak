@@ -12,12 +12,14 @@ final class LibraryWindowController: NSWindowController {
         window.title = "Teak Library"
         window.titleVisibility = .hidden
         window.titlebarAppearsTransparent = true
+        window.collectionBehavior = [.fullScreenPrimary]
         window.minSize = NSSize(width: 650, height: 480)
         window.isReleasedWhenClosed = false
         window.contentViewController = NSHostingController(rootView: LibraryView(
             onSettings: onSettings,
             onAuthenticationRequired: onAuthenticationRequired
         ))
+        window.initialFirstResponder = window.contentView
         window.setContentSize(NSSize(width: 1120, height: 760))
         super.init(window: window)
         shouldCascadeWindows = false
@@ -28,7 +30,9 @@ final class LibraryWindowController: NSWindowController {
 
     func present() {
         guard let window else { return }
-        if !window.isVisible { window.center() }
+        let wasVisible = window.isVisible
+        if !wasVisible { window.center() }
         window.makeKeyAndOrderFront(nil)
+        if !wasVisible { window.makeFirstResponder(nil) }
     }
 }

@@ -88,7 +88,9 @@ export const executePublicApiOperation = (
     pathname.startsWith("/v1/cards/") &&
     (request.method === "DELETE" ||
       request.method === "GET" ||
-      request.method === "PATCH")
+      request.method === "PATCH" ||
+      (request.method === "POST" &&
+        /^\/v1\/cards\/[^/]+\/restore$/.test(pathname)))
   ) {
     return handleCardsByIdV1Request(ctx, request);
   }
@@ -138,7 +140,8 @@ export const cardByIdV1 = withGatewayHeaders((ctx, request) => {
     !(
       request.method === "DELETE" ||
       request.method === "GET" ||
-      request.method === "PATCH"
+      request.method === "PATCH" ||
+      request.method === "POST"
     )
   ) {
     return Promise.resolve(

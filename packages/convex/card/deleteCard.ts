@@ -1,5 +1,10 @@
-import { v } from "convex/values";
-import { mutation } from "../_generated/server";
+import { ConvexError, v } from "convex/values";
+import type { Id } from "../_generated/dataModel";
+import {
+  internalMutation,
+  type MutationCtx,
+  mutation,
+} from "../_generated/server";
 import { getSessionIdentity } from "../securitySessions";
 import { cardStorageObjectKeys, deleteObject } from "../storage/r2";
 import {
@@ -7,6 +12,7 @@ import {
   recordActiveCardRemoved,
 } from "./cardUsage";
 import { scheduleCardSearchSync } from "./searchDocumentHelpers";
+import { updateCardFieldForUserHandler } from "./updateCard";
 
 export const permanentDeleteCard = mutation({
   args: {
@@ -19,30 +25,73 @@ export const permanentDeleteCard = mutation({
       throw new Error("User must be authenticated");
     }
 
-    const card = await ctx.db.get("cards", args.id);
+    await permanentDeleteCardForUserHandler(ctx, user.subject, args.id);
 
+    return null;
+  },
+});
+
+const permanentDeleteCardForUserHandler = async (
+  ctx: MutationCtx,
+  userId: string,
+  cardId: Id<"cards">
+) => {
+  const card = await ctx.db.get("cards", cardId);
+
+  if (!card) {
+    throw new ConvexError({ code: "NOT_FOUND", message: "Card not found" });
+  }
+
+  if (card.userId !== userId) {
+    throw new ConvexError({
+      code: "FORBIDDEN",
+      message: "Not authorized to permanently delete this card",
+    });
+  }
+
+  if (!card.isDeleted) {
+    await ensureCardUsageShardsForRemoval(ctx, card.userId);
+  }
+
+  // Permanently remove from database
+  await ctx.db.delete("cards", cardId);
+  if (!card.isDeleted) {
+    await recordActiveCardRemoved(ctx, card.userId, cardId);
+  }
+  await scheduleCardSearchSync(ctx, cardId, card.userId);
+  for (const key of cardStorageObjectKeys(card)) {
+    await deleteObject(ctx, key);
+  }
+};
+
+export const permanentDeleteCardForUser = internalMutation({
+  args: { cardId: v.id("cards"), userId: v.string() },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    await permanentDeleteCardForUserHandler(ctx, args.userId, args.cardId);
+    return null;
+  },
+});
+
+export const restoreCardForUser = internalMutation({
+  args: { cardId: v.id("cards"), userId: v.string() },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    const card = await ctx.db.get("cards", args.cardId);
     if (!card) {
-      throw new Error("Card not found");
+      throw new ConvexError({ code: "NOT_FOUND", message: "Card not found" });
     }
-
-    if (card.userId !== user.subject) {
-      throw new Error("Not authorized to permanently delete this card");
+    if (card.userId !== args.userId) {
+      throw new ConvexError({
+        code: "FORBIDDEN",
+        message: "Not authorized to restore this card",
+      });
     }
-
+    // A lost response can make clients retry a successful restore.
     if (!card.isDeleted) {
-      await ensureCardUsageShardsForRemoval(ctx, card.userId);
+      return null;
     }
-
-    // Permanently remove from database
-    await ctx.db.delete("cards", args.id);
-    if (!card.isDeleted) {
-      await recordActiveCardRemoved(ctx, card.userId, args.id);
-    }
-    await scheduleCardSearchSync(ctx, args.id, card.userId);
-    for (const key of cardStorageObjectKeys(card)) {
-      await deleteObject(ctx, key);
-    }
-
+    await updateCardFieldForUserHandler(ctx, { ...args, field: "restore" });
     return null;
   },
 });

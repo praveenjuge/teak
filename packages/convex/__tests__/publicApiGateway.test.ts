@@ -1,6 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import { readFileSync } from "node:fs";
 import path from "node:path";
+import { serializeListCard } from "../publicApiHttpValidation";
 import { discoveryV1, healthzV1, v1CorsPreflight } from "../publicApiMeta";
 import { openApiSpec, openApiV1 } from "../publicApiOpenApi";
 
@@ -93,6 +94,25 @@ describe("Convex public API metadata", () => {
     expect(await response.json()).toEqual(openApiSpec);
   });
 
+  test("documents metadata and processing fields emitted in list responses", () => {
+    const card = serializeListCard(
+      {
+        _id: "card_1",
+        type: "link",
+        createdAt: 1,
+        updatedAt: 1,
+        tags: [],
+        aiTags: [],
+      },
+      "https://api.teakvault.com",
+      new Set(["metadata", "processing"])
+    );
+    const properties = openApiSpec.components.schemas.CardListItem.properties;
+    for (const field of Object.keys(card)) {
+      expect(properties).toHaveProperty(field);
+    }
+  });
+
   test("uses the Convex dev site URL in the OpenAPI spec", () => {
     expect(openApiSpec.servers).toEqual([
       { url: "https://teakvault.com/api" },
@@ -132,7 +152,7 @@ describe("Convex public API metadata", () => {
       Object.values(path).map((operation) => operation.operationId)
     );
 
-    expect(operationIds).toHaveLength(13);
+    expect(operationIds).toHaveLength(14);
     expect(new Set(operationIds).size).toBe(operationIds.length);
     expect(operationIds.every(Boolean)).toBe(true);
   });

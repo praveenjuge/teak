@@ -31,6 +31,9 @@ afterEach(() => {
 
 const buildQuery = (cards: any[] = []) =>
   ({
+    async *[Symbol.asyncIterator]() {
+      yield* cards;
+    },
     withIndex: mock().mockImplementation(() => buildQuery(cards)),
     withSearchIndex: mock().mockImplementation(() => buildQuery(cards)),
     filter: mock().mockImplementation(() => buildQuery(cards)),

@@ -15,7 +15,7 @@
     },
     "apps/cli": {
       "name": "teak-cli",
-      "version": "1.0.74",
+      "version": "1.0.75",
       "bin": {
         "teak": "./dist/index.js",
       },
@@ -30,7 +30,7 @@
     },
     "apps/desktop": {
       "name": "@teak/desktop",
-      "version": "1.0.74",
+      "version": "1.0.75",
       "dependencies": {
         "@sentry/electron": "7.16.0",
         "@tailwindcss/vite": "^4.3.3",
@@ -64,7 +64,7 @@
     },
     "apps/docs": {
       "name": "@teak/docs",
-      "version": "1.0.74",
+      "version": "1.0.75",
       "dependencies": {
         "@teak/convex": "workspace:*",
         "@vercel/functions": "^3.7.6",
@@ -78,7 +78,7 @@
     },
     "apps/extension": {
       "name": "@teak/extension",
-      "version": "1.0.74",
+      "version": "1.0.75",
       "dependencies": {
         "@convex-dev/better-auth": "0.12.5",
         "@tailwindcss/vite": "^4.3.3",
@@ -101,7 +101,7 @@
     },
     "apps/files-worker": {
       "name": "@teak/files-worker",
-      "version": "1.0.74",
+      "version": "1.0.75",
       "dependencies": {
         "@cf-wasm/photon": "^0.4.0",
         "@resvg/resvg-wasm": "^2.6.2",
@@ -118,7 +118,7 @@
     },
     "apps/mobile": {
       "name": "@teak/mobile",
-      "version": "1.0.74",
+      "version": "1.0.75",
       "dependencies": {
         "@better-auth/expo": "1.6.23",
         "@convex-dev/better-auth": "0.12.5",
@@ -176,7 +176,7 @@
     },
     "apps/raycast": {
       "name": "teak-raycast",
-      "version": "1.0.74",
+      "version": "1.0.75",
       "dependencies": {
         "@raycast/api": "^1.104.24",
         "@raycast/utils": "^2.3.0",
@@ -190,7 +190,7 @@
     },
     "apps/web": {
       "name": "@teak/web",
-      "version": "1.0.74",
+      "version": "1.0.75",
       "dependencies": {
         "@convex-dev/better-auth": "^0.12.5",
         "@polar-sh/checkout": "^0.4.0",
@@ -227,7 +227,7 @@
     },
     "packages/convex": {
       "name": "@teak/convex",
-      "version": "1.0.74",
+      "version": "1.0.75",
       "dependencies": {
         "@ai-sdk/openai-compatible": "^3.0.35",
         "@aws-sdk/client-s3": "3.1106.0",
@@ -272,14 +272,14 @@
     },
     "packages/files-protocol": {
       "name": "@teak/files-protocol",
-      "version": "1.0.74",
+      "version": "1.0.75",
       "devDependencies": {
         "typescript": "^5.9.3",
       },
     },
     "packages/tests": {
       "name": "@teak/tests",
-      "version": "1.0.74",
+      "version": "1.0.75",
       "dependencies": {
         "@axe-core/playwright": "^4.12.1",
         "@modelcontextprotocol/sdk": "^1.30.0",
@@ -298,7 +298,7 @@
     },
     "packages/ui": {
       "name": "@teak/ui",
-      "version": "1.0.74",
+      "version": "1.0.75",
       "dependencies": {
         "@base-ui/react": "1.6.0",
         "@editorcn/block-editor": "0.2.0",
