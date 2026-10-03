@@ -340,6 +340,42 @@ describe("Public API Trash and visual filters", () => {
 });
 
 describe("Search scan budget", () => {
+  test("multi-type tag search shares the total read budget", async () => {
+    const { t } = await setup();
+    const types = ["text", "image", "video", "audio"] as const;
+    await t.run(async (ctx) => {
+      for (let index = 0; index < 4100; index += 1) {
+        const id = await ctx.db.insert("cards", {
+          userId: "owner",
+          type: types[index % types.length],
+          content: "Shared budget",
+          tags: ["budget"],
+          visualStyles: ["vibrant"],
+          createdAt: index + 2,
+          updatedAt: index + 2,
+        });
+        await ctx.db.insert("cardSearchTags", {
+          cardId: id,
+          userId: "owner",
+          tag: "budget",
+          type: types[index % types.length],
+          cardCreatedAt: index + 2,
+          sourceUpdatedAt: index + 2,
+          syncGeneration: 1,
+        });
+      }
+    });
+    await expect(
+      t.query(internal.publicApi.searchCardsPageForUser, {
+        userId: "owner",
+        tag: "budget",
+        types: [...types],
+        styleFilters: ["minimal"],
+        limit: 1,
+      })
+    ).rejects.toThrow("Search is too broad");
+  }, 30_000);
+
   test("a saturated text search still serves deep pages without post-filters", async () => {
     const { t } = await setup();
     await t.run(async (ctx) => {
@@ -362,6 +398,22 @@ describe("Search scan budget", () => {
       })
     );
     expect(found).toHaveLength(1024);
+    const page = await t.query(internal.publicApi.searchCardsPageForUser, {
+      userId: "owner",
+      searchQuery: "deepsearch",
+      limit: 100,
+      cursor: btoa(JSON.stringify({ mode: "offset", offset: 200 })),
+    });
+    expect(page.items).toHaveLength(100);
+    expect(page.pageInfo.hasMore).toBe(true);
+    await expect(
+      t.query(internal.publicApi.searchCardsPageForUser, {
+        userId: "owner",
+        searchQuery: "deepsearch",
+        limit: 100,
+        cursor: btoa(JSON.stringify({ mode: "offset", offset: 1000 })),
+      })
+    ).rejects.toThrow("Search is too broad");
   });
 
   test.each(["tag", "text"])(

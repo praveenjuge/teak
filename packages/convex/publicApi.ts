@@ -237,10 +237,10 @@ const searchCardsByQuery = async (
   userId: string,
   options: SearchOptions,
   offset: number
-): Promise<Doc<"cards">[]> => {
+): Promise<{ cards: Doc<"cards">[]; isComplete: boolean }> => {
   const searchQuery = normalizeSearchText(options.searchQuery);
   if (!searchQuery) {
-    return [];
+    return { cards: [], isComplete: true };
   }
 
   const limit = normalizeLimit(options.limit);
@@ -251,7 +251,7 @@ const searchCardsByQuery = async (
   );
 
   const typeGroups = options.types ?? [options.type];
-  const scanBudget = { remaining: 4096 };
+  const scanBudget = { remaining: 4096, hitSearchLimit: false };
   const found: Doc<"cards">[][] = [];
   for (const type of typeGroups) {
     found.push(
@@ -271,7 +271,10 @@ const searchCardsByQuery = async (
     new Map(found.flat().map((card) => [card._id, card] as const)).values()
   );
 
-  return sortCards(unique, normalizeSort(options.sort));
+  return {
+    cards: sortCards(unique, normalizeSort(options.sort)),
+    isComplete: !scanBudget.hitSearchLimit,
+  };
 };
 
 const searchCardsByTag = async (
@@ -520,14 +523,21 @@ export const searchCardsPageForUser = internalQuery({
 
     if (options.searchQuery) {
       const offset = decodedCursor.mode === "offset" ? decodedCursor.offset : 0;
-      const sorted = await searchCardsByQuery(
+      const result = await searchCardsByQuery(
         ctx,
         args.userId,
         options,
         offset
       );
+      const sorted = result.cards;
       pageItems = sorted.slice(offset, offset + limit);
       hasMore = sorted.length > offset + limit;
+      if (!(hasMore || result.isComplete)) {
+        throw new ConvexError({
+          code: "INVALID_INPUT",
+          message: "Search is too broad. Add a type or date filter.",
+        });
+      }
       nextCursor = hasMore
         ? encodeCursor({ mode: "offset", offset: offset + limit })
         : null;

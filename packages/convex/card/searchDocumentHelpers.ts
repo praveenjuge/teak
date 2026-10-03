@@ -518,7 +518,7 @@ export const searchCardsByExactTag = async (
     createdAfter?: number;
     createdBefore?: number;
     limit: number;
-    scanBudget?: { remaining: number };
+    scanBudget?: { remaining: number; hitSearchLimit?: boolean };
     sort: "newest" | "oldest";
     resultFilter?: (card: Doc<"cards">) => boolean;
   }
@@ -613,7 +613,7 @@ export const searchCardsByDocument = async (
     isFavorited?: boolean;
     type?: Doc<"cards">["type"];
     limit: number;
-    scanBudget?: { remaining: number };
+    scanBudget?: { remaining: number; hitSearchLimit?: boolean };
     resultFilter?: (card: Doc<"cards">) => boolean;
   }
 ): Promise<Doc<"cards">[]> => {
@@ -647,6 +647,9 @@ export const searchCardsByDocument = async (
     })
     .take(sourceLimit);
   scanBudget.remaining -= documents.length;
+  if (documents.length === sourceLimit) {
+    scanBudget.hitSearchLimit = true;
+  }
   for (const document of documents) {
     const card = await ctx.db.get("cards", document.cardId);
     if (card && (!args.resultFilter || args.resultFilter(card))) {
