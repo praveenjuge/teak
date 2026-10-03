@@ -100,7 +100,7 @@ final class MockHTTP: URLProtocol, @unchecked Sendable {
                 try check(request.value(forHTTPHeaderField: "Authorization") == "Bearer access", "capture authenticates")
                 try check(request.value(forHTTPHeaderField: "Idempotency-Key") != nil, "capture is idempotent")
                 let body = try requestJSON(request)
-                try check(body["cardType"] as? String == type && body["content"] as? String == "A thought", "capture preserves the selected type and text")
+                try check((type == "text" ? body["cardType"] == nil : body["cardType"] as? String == type) && body["content"] as? String == "A thought", "capture preserves the selected type and text")
                 return (200, #"{"cardId":"created-card"}"#)
             }
             let id = try await (type == "text" ? library.createText("A thought") : library.createQuote("A thought"))
@@ -291,6 +291,7 @@ final class MockHTTP: URLProtocol, @unchecked Sendable {
         try await rejectsAsync("failed delete rejects after search changes") { try await deleteTask!.value }
         try check(rollbackSearches == 1 && store.cards.isEmpty && store.mutatingIDs.isEmpty,
                   "rollback refetches the changed search without inserting an unrelated card")
+        try await searchTokensAndTrash(cardJSON: cardJSON)
         try await creationSearchRace(cardJSON: cardJSON)
         try await creationRefreshRace(cardJSON: cardJSON)
         try await unloadedCardMutation(cardJSON: cardJSON)

@@ -55,9 +55,13 @@ interface CardsQueryOptions {
   createdBefore?: number;
   cursor?: string;
   favoritesOnly: boolean;
+  hexFilters?: string[];
+  hueFilters?: string[];
   limit: number;
   searchQuery?: string;
+  showTrashOnly?: boolean;
   sort?: "newest" | "oldest";
+  styleFilters?: string[];
   tag?: string;
   type?: string;
   types?: string[];

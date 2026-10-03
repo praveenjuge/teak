@@ -1,9 +1,8 @@
 import AppKit
 import AVKit
-import PDFKit
 import SwiftUI
 
-private extension Color {
+extension Color {
     init?(teakHex: String) {
         let digits = teakHex.trimmingCharacters(in: CharacterSet(charactersIn: "#"))
         let expanded: String
@@ -30,388 +29,150 @@ struct LibraryCardTile: View {
     let card: LibraryCard
     let isSaving: Bool
     let onOpen: () -> Void
-    let onFavorite: () -> Void
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            if card.cardType == .palette, let colors = card.colors, !colors.isEmpty {
-                HStack(spacing: 0) {
-                    ForEach(Array(colors.prefix(8).enumerated()), id: \.offset) { _, color in
-                        (Color(teakHex: color.hex) ?? .gray)
-                    }
-                }
-                .frame(height: 118)
-                .clipShape(RoundedRectangle(cornerRadius: 8))
-            } else if let imageURL = card.displayImageURL {
-                AsyncImage(url: imageURL) { image in
-                    image.resizable().scaledToFit()
-                } placeholder: {
-                    RoundedRectangle(cornerRadius: 8)
-                        .fill(.quaternary)
-                        .overlay { ProgressView() }
-                        .frame(height: 140)
-                }
-                .frame(maxHeight: 220)
-                .clipShape(RoundedRectangle(cornerRadius: 8))
-            } else if let type = card.cardType, [.image, .video, .audio, .document].contains(type) {
-                Image(systemName: type.symbol)
-                    .font(.system(size: 34, weight: .ultraLight))
-                    .foregroundStyle(.secondary)
-                    .frame(maxWidth: .infinity)
-                    .frame(height: 104)
+        tileContent
+            .overlay(alignment: .topTrailing) {
+                if card.isFavorited { Image(systemName: "heart.fill").foregroundStyle(.red) }
             }
-
-            HStack(spacing: 6) {
-                Image(systemName: card.cardType?.symbol ?? "square.stack")
-                Text(card.cardType?.title ?? "Card")
-                Spacer(minLength: 0)
-                Button(action: onFavorite) {
-                    Image(systemName: card.isFavorited ? "heart.fill" : "heart")
-                        .foregroundStyle(card.isFavorited ? Color.red : Color.secondary)
-                }
-                .buttonStyle(.borderless).disabled(isSaving)
-                .accessibilityLabel(card.isFavorited ? "Remove favorite" : "Add favorite")
-            }
-            .font(.caption)
-            .foregroundStyle(.secondary)
-
-            Text(card.title)
-                .font(.headline)
-                .lineLimit(card.cardType == .quote ? 5 : 3)
-                .frame(maxWidth: .infinity, alignment: .leading)
-
-            if let summary = card.aiSummary ?? card.metadataDescription ?? card.content,
-               summary != card.title, !summary.isEmpty {
-                Text(summary)
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
-                    .lineLimit(card.cardType == .text || card.cardType == .quote ? 5 : 3)
-            }
-
-            if !card.tags.isEmpty {
-                Text(card.tags.prefix(3).map { "#\($0)" }.joined(separator: "  "))
-                    .font(.caption)
-                    .foregroundStyle(.tertiary)
-                    .lineLimit(1)
-            }
-        }
-        .padding(14)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 12))
-        .overlay { RoundedRectangle(cornerRadius: 12).stroke(.quaternary) }
-        .contentShape(RoundedRectangle(cornerRadius: 12))
-        .onTapGesture(perform: onOpen)
-        .accessibilityAction(named: "Open card", onOpen)
-        .accessibilityElement(children: .contain)
-        .accessibilityLabel("\(card.cardType?.title ?? "Card"): \(card.title)")
-    }
-}
-
-struct LibraryCardDetail: View {
-    let initialCard: LibraryCard
-    @ObservedObject var store: LibraryStore
-    let onAuthenticationRequired: () -> Void
-
-    @Environment(\.dismiss) private var dismiss
-    @State private var card: LibraryCard
-    @State private var error: String?
-    @State private var isLoadingDetails = true
-    @State private var isDownloading = false
-    @State private var showingEdit = false
-    @State private var confirmingDelete = false
-
-    init(initialCard: LibraryCard, store: LibraryStore, onAuthenticationRequired: @escaping () -> Void) {
-        self.initialCard = initialCard
-        self.store = store
-        self.onAuthenticationRequired = onAuthenticationRequired
-        _card = State(initialValue: initialCard)
+            .overlay { if isSaving { ProgressView() } }
+            .opacity(isSaving ? 0.7 : card.isDeleted == true ? 0.6 : 1)
+            .allowsHitTesting(!isSaving)
+            .contentShape(Rectangle())
+            .onTapGesture(perform: onOpen)
+            .accessibilityAction(named: "Open card", onOpen)
     }
 
-    var body: some View {
-        VStack(spacing: 0) {
-            HStack {
-                Text(card.title).font(.title3.weight(.semibold)).lineLimit(1)
-                Spacer()
-                Button("Done") { dismiss() }
-                    .keyboardShortcut(.cancelAction)
-            }
-            .padding(20)
-            Divider()
-
-            HStack(spacing: 0) {
-                ScrollView {
-                    detailPreview
-                        .frame(maxWidth: .infinity, alignment: .topLeading)
-                        .padding(24)
-                }
-                .frame(maxWidth: .infinity)
-                Divider()
-                ScrollView {
-                    metadataPanel.padding(20)
-                }
-                .frame(width: 290)
-            }
-
-            if let error {
-                Text(error).font(.caption).foregroundStyle(.red).padding(8)
-            }
-        }
-        .frame(minWidth: 840, minHeight: 590)
-        .sheet(isPresented: $showingEdit) {
-            EditCardSheet(card: card, store: store) { card = $0 }
-        }
-        .confirmationDialog("Delete this card?", isPresented: $confirmingDelete, titleVisibility: .visible) {
-            Button("Delete", role: .destructive) {
-                Task {
-                    do { try await store.delete(card); dismiss() }
-                    catch { self.error = error.localizedDescription }
-                }
-            }
-        } message: { Text("This moves the card to Trash. You can restore it in the web app.") }
-        .task(id: initialCard.id) {
-            defer { isLoadingDetails = false }
-            do { card = try await LibraryAPI().card(id: initialCard.id) }
-            catch SafariServiceError.unauthenticated { onAuthenticationRequired() }
-            catch { self.error = "Couldn’t load complete card details. \(error.localizedDescription)" }
+    @ViewBuilder private var tileContent: some View {
+        if card.cardType == .image || card.cardType == .video {
+            preview.frame(maxWidth: .infinity)
+                .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+        } else {
+            GroupBox { preview.frame(maxWidth: .infinity).padding(12) }
         }
     }
 
-    @ViewBuilder
-    private var detailPreview: some View {
+    @ViewBuilder private var preview: some View {
         switch card.cardType {
-        case .text, .quote:
-            Text(card.content ?? "")
-                .font(card.cardType == .quote ? .title2 : .body)
-                .textSelection(.enabled)
+        case .text:
+            Text(card.previewText).font(.body.weight(.medium)).lineLimit(2)
                 .frame(maxWidth: .infinity, alignment: .leading)
+        case .quote:
+            QuoteTile(text: card.previewText)
         case .link:
-            if let image = card.displayImageURL {
-                AsyncImage(url: image) { view in view.resizable().scaledToFit() }
-                    placeholder: { ProgressView().frame(height: 160) }
-                    .frame(maxHeight: 340)
-            }
-            Text(card.metadataTitle ?? card.title).font(.title2.weight(.semibold))
-            if let description = card.metadataDescription {
-                Text(description).foregroundStyle(.secondary).textSelection(.enabled)
-            }
-            if let media = card.linkPreviewMedia {
-                ForEach(Array(media.enumerated()), id: \.offset) { _, item in
-                    if item.type == "image", item.url != card.displayImageURL?.absoluteString,
-                       let url = LibraryCard.safeURL(item.url) {
-                        AsyncImage(url: url) { image in image.resizable().scaledToFit() }
-                            placeholder: { ProgressView().frame(height: 160) }
-                            .frame(maxHeight: 340)
-                    } else if item.type == "video", let url = LibraryCard.safeURL(item.url) {
-                        NativePlayer(url: url).frame(height: 300)
-                    }
+            if let url = card.displayImageURL {
+                VStack {
+                    CardImage(url: url, ratio: imageRatio)
+                    Divider()
+                    Text(card.linkTitle).lineLimit(1).frame(maxWidth: .infinity, alignment: .leading)
                 }
-            }
+            } else { Text(card.previewText.isEmpty ? card.linkTitle : card.previewText).lineLimit(1) }
         case .image:
-            if let url = LibraryCard.safeURL(card.detailUrl ?? card.fileUrl ?? card.thumbnailUrl) {
-                AsyncImage(url: url) { image in image.resizable().scaledToFit() }
-                    placeholder: { ProgressView().frame(height: 240) }
-            } else { missingPreview }
+            CardImage(url: LibraryCard.safeURL(card.compactUrl ?? card.fileUrl ?? card.thumbnailUrl), ratio: imageRatio)
         case .video:
-            if let url = LibraryCard.safeURL(card.fileUrl) {
-                NativePlayer(url: url).frame(height: 380)
-            } else { missingPreview }
+            VideoTile(card: card, ratio: imageRatio)
         case .audio:
-            if let url = LibraryCard.safeURL(card.fileUrl) {
-                NativePlayer(url: url).frame(height: 90)
-            } else { missingPreview }
-            if let transcript = card.aiTranscript, !transcript.isEmpty {
-                Text("Transcript").font(.headline).padding(.top, 16)
-                Text(transcript).textSelection(.enabled)
-            }
+            WaveformTile(id: card.id)
         case .document:
-            DocumentDetail(card: card)
+            VStack {
+                if let url = card.displayImageURL { CardImage(url: url, ratio: imageRatio); Divider() }
+                Label(card.fileName ?? "Document", systemImage: "doc").lineLimit(1)
+            }
         case .palette:
             if let colors = card.colors, !colors.isEmpty {
-                ForEach(Array(colors.enumerated()), id: \.offset) { _, swatch in
-                    Button {
-                        NSPasteboard.general.clearContents()
-                        NSPasteboard.general.setString(swatch.hex, forType: .string)
-                    } label: {
-                        HStack {
-                            (Color(teakHex: swatch.hex) ?? .gray)
-                                .frame(width: 64, height: 52).clipShape(RoundedRectangle(cornerRadius: 6))
-                            Text(swatch.name ?? swatch.hex)
-                            Spacer()
-                            Text(swatch.hex).foregroundStyle(.secondary)
-                            Image(systemName: "doc.on.doc")
-                        }
+                HStack(spacing: 0) {
+                    ForEach(Array(colors.prefix(12).enumerated()), id: \.offset) { _, color in
+                        Rectangle().fill(Color(teakHex: color.hex) ?? .secondary).help(color.hex)
                     }
-                    .buttonStyle(.plain)
-                    .accessibilityLabel("Copy \(swatch.hex)")
-                }
-            } else { missingPreview }
-        case nil:
-            Text(card.content ?? "").textSelection(.enabled)
+                }.frame(height: 120)
+            } else { Text(card.content ?? "") }
+        case nil: Text(card.content ?? "")
         }
     }
 
-    private var missingPreview: some View {
-        ContentUnavailableView("Preview unavailable", systemImage: "eye.slash",
-                               description: Text("You can still view the card details or download the file."))
-    }
-
-    private var metadataPanel: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            Label(card.cardType?.title ?? "Card", systemImage: card.cardType?.symbol ?? "square.stack")
-                .font(.headline)
-            Button(card.isFavorited ? "Remove Favorite" : "Add Favorite",
-                   systemImage: card.isFavorited ? "heart.fill" : "heart") {
-                Task {
-                    do { card = try await store.setFavorite(card) }
-                    catch { self.error = error.localizedDescription }
-                }
-            }
-            .disabled(isLoadingDetails || store.mutatingIDs.contains(card.id))
-            Button("Edit", systemImage: "pencil") { showingEdit = true }
-                .disabled(isLoadingDetails || store.mutatingIDs.contains(card.id))
-            Button("Delete", systemImage: "trash", role: .destructive) { confirmingDelete = true }
-                .disabled(isLoadingDetails || store.mutatingIDs.contains(card.id))
-            if let notes = card.notes, !notes.isEmpty { detailSection("Notes", notes) }
-            if let summary = card.aiSummary, !summary.isEmpty { detailSection("Summary", summary) }
-            if !card.tags.isEmpty { detailSection("Tags", card.tags.joined(separator: ", ")) }
-            if !card.aiTags.isEmpty { detailSection("AI tags", card.aiTags.joined(separator: ", ")) }
-            if let site = card.linkSiteName { detailSection("Site", site) }
-            if let author = card.linkAuthor { detailSection("Author", author) }
-            if let publisher = card.linkPublisher { detailSection("Publisher", publisher) }
-            if let published = card.linkPublishedAt { detailSection("Published", published) }
-            detailSection("Created", Date(timeIntervalSince1970: card.createdAt / 1000).formatted())
-            detailSection("Updated", Date(timeIntervalSince1970: card.updatedAt / 1000).formatted())
-            if let file = card.fileName { detailSection("File", file) }
-            if let fileExtension = card.fileExtension { detailSection("Extension", fileExtension) }
-            if let size = card.fileSize { detailSection("Size", ByteCountFormatter.string(fromByteCount: Int64(size), countStyle: .file)) }
-            if let kind = card.fileKind { detailSection("Kind", kind.capitalized) }
-            if let language = card.fileLanguage { detailSection("Language", language) }
-            Divider()
-            if let url = LibraryCard.safeURL(card.url) {
-                Button("Open Source", systemImage: "arrow.up.right.square") { NSWorkspace.shared.open(url) }
-            }
-            if let text = card.url ?? card.content, !text.isEmpty {
-                Button("Copy", systemImage: "doc.on.doc") {
-                    NSPasteboard.general.clearContents()
-                    NSPasteboard.general.setString(text, forType: .string)
-                }
-            }
-            if LibraryCard.safeURL(card.fileUrl) != nil {
-                Button(isDownloading ? "Downloading…" : "Download", systemImage: "arrow.down.to.line") {
-                    Task { await downloadFile() }
-                }
-                .disabled(isDownloading)
-            }
+    private var imageRatio: CGFloat {
+        if card.cardType != .link, let width = card.fileWidth, let height = card.fileHeight, width > 0, height > 0 {
+            return CGFloat(width) / CGFloat(height)
         }
-        .frame(maxWidth: .infinity, alignment: .leading)
-    }
-
-    private func detailSection(_ title: String, _ value: String) -> some View {
-        VStack(alignment: .leading, spacing: 4) {
-            Text(title).font(.caption).foregroundStyle(.secondary)
-            Text(value).font(.subheadline).textSelection(.enabled)
+        if let media = card.linkPreviewMedia?.first(where: { $0.type == "image" }),
+           let width = media.width, let height = media.height, width > 0, height > 0 {
+            return CGFloat(width) / CGFloat(height)
         }
+        return 4 / 3
     }
+}
 
-    private func downloadFile() async {
-        guard let url = LibraryCard.safeURL(card.fileUrl) else { return }
-        isDownloading = true
-        defer { isDownloading = false }
-        do {
-            let panel = NSSavePanel()
-            panel.nameFieldStringValue = card.fileName ?? "Teak file"
-            guard panel.runModal() == .OK, let destination = panel.url else { return }
-            let (temporary, response) = try await URLSession.shared.download(from: url)
-            defer { try? FileManager.default.removeItem(at: temporary) }
-            guard let http = response as? HTTPURLResponse, (200..<300).contains(http.statusCode) else {
-                throw URLError(.badServerResponse)
-            }
-            if FileManager.default.fileExists(atPath: destination.path) {
-                _ = try FileManager.default.replaceItemAt(destination, withItemAt: temporary)
-            } else {
-                try FileManager.default.moveItem(at: temporary, to: destination)
-            }
-        } catch {
-            self.error = "Couldn’t download this file. \(error.localizedDescription)"
+struct CardImage: View {
+    let url: URL?
+    var ratio: CGFloat = 4 / 3
+    var body: some View {
+        GeometryReader { geometry in
+            AsyncImage(url: url) { phase in
+                if let image = phase.image {
+                    image.resizable().aspectRatio(contentMode: .fill)
+                        .frame(width: geometry.size.width, height: geometry.size.height)
+                } else { Rectangle().fill(.quaternary) }
+            }.clipped()
+        }.aspectRatio(ratio, contentMode: .fit)
+    }
+}
+
+private struct QuoteTile: View {
+    let text: String
+    var body: some View {
+        VStack {
+            Text("“").foregroundStyle(.quaternary).frame(maxWidth: .infinity, alignment: .leading)
+            Text(text).italic().multilineTextAlignment(.center).lineLimit(2)
+            Text("”").foregroundStyle(.quaternary).frame(maxWidth: .infinity, alignment: .trailing)
         }
     }
 }
 
-private struct NativePlayer: NSViewRepresentable {
-    let url: URL
+struct WaveformTile: View {
+    let id: String
+    private var heights: [CGFloat] {
+        var seed = id.utf8.reduce(UInt64(5381)) { ($0 &* 33) &+ UInt64($1) }
+        return (0..<45).map { _ in
+            seed = seed &* 1664525 &+ 1013904223
+            return CGFloat(10 + seed % 60)
+        }
+    }
+    var body: some View {
+        HStack(spacing: 2) {
+            ForEach(Array(heights.enumerated()), id: \.offset) { _, height in
+                Capsule().fill(.secondary).frame(height: height)
+            }
+        }.frame(height: 80)
+    }
+}
 
+private struct VideoTile: View {
+    let card: LibraryCard
+    let ratio: CGFloat
+    @State private var hovering = false
+    var body: some View {
+        ZStack {
+            if hovering, let url = LibraryCard.safeURL(card.fileUrl) {
+                HoverVideo(url: url)
+            } else if let url = card.displayImageURL { CardImage(url: url, ratio: ratio) }
+            else { Rectangle().fill(.black) }
+            if !hovering { Image(systemName: "play.circle.fill").foregroundStyle(.white) }
+        }
+        .aspectRatio(ratio, contentMode: .fit)
+        .onHover { hovering = $0 }
+    }
+}
+
+private struct HoverVideo: NSViewRepresentable {
+    let url: URL
     func makeNSView(context: Context) -> AVPlayerView {
         let view = AVPlayerView()
+        view.controlsStyle = .none
         view.player = AVPlayer(url: url)
-        view.controlsStyle = .inline
+        view.player?.isMuted = true
+        view.player?.play()
         return view
     }
-
-    func updateNSView(_ view: AVPlayerView, context: Context) {
-        if (view.player?.currentItem?.asset as? AVURLAsset)?.url != url {
-            view.player?.pause()
-            view.player = AVPlayer(url: url)
-        }
-    }
-
-    static func dismantleNSView(_ view: AVPlayerView, coordinator: ()) {
-        view.player?.pause()
-        view.player = nil
-    }
-}
-
-private struct DocumentDetail: View {
-    let card: LibraryCard
-    @State private var pdfData: Data?
-    @State private var isLoading = false
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Label(card.fileName ?? "Document", systemImage: "doc.text")
-                .font(.title2.weight(.medium))
-            if let facts = card.filePreview {
-                let details = [
-                    facts.slideCount.map { "\($0) slides" },
-                    facts.wordCount.map { "\($0) words" },
-                    facts.headingCount.map { "\($0) headings" },
-                    facts.lineCount.map { "\($0) lines" },
-                    facts.archiveFileCount.map { "\($0) files" },
-                    facts.archiveDirectoryCount.map { "\($0) folders" },
-                    facts.colorVariableCount.map { "\($0) colors" },
-                ].compactMap { $0 }
-                Text(details.joined(separator: " · ")).foregroundStyle(.secondary)
-            }
-            if let pdfData {
-                PDFPreview(data: pdfData).frame(minHeight: 420)
-            } else if isLoading {
-                ProgressView("Loading preview…").frame(maxWidth: .infinity, minHeight: 240)
-            } else if let content = card.content, !content.isEmpty {
-                Text(content).textSelection(.enabled)
-            }
-        }
-        .task(id: card.fileUrl) {
-            guard card.mimeType == "application/pdf", let size = card.fileSize, size <= 15_000_000,
-                  let url = LibraryCard.safeURL(card.fileUrl) else { return }
-            isLoading = true
-            defer { isLoading = false }
-            if let (data, _) = try? await URLSession.shared.data(from: url), data.count <= 15_000_000 {
-                pdfData = data
-            }
-        }
-    }
-}
-
-private struct PDFPreview: NSViewRepresentable {
-    let data: Data
-
-    func makeNSView(context: Context) -> PDFView {
-        let view = PDFView()
-        view.autoScales = true
-        view.document = PDFDocument(data: data)
-        return view
-    }
-
-    func updateNSView(_ view: PDFView, context: Context) {
-        if view.document == nil { view.document = PDFDocument(data: data) }
-    }
+    func updateNSView(_ view: AVPlayerView, context: Context) {}
+    static func dismantleNSView(_ view: AVPlayerView, coordinator: ()) { view.player?.pause() }
 }

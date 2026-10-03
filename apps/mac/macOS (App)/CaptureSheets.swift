@@ -1,173 +1,95 @@
 import AppKit
+import Combine
 import SwiftUI
-import UniformTypeIdentifiers
 
-enum LibraryCapture: String, Identifiable {
-    case note, quote, file, audio
-    var id: String { rawValue }
-    var title: String {
-        switch self {
-        case .note: "New note"
-        case .quote: "New quote"
-        case .file: "Upload a file"
-        case .audio: "Record audio"
-        }
+/// Owned by the library so filtering never discards an unsaved note.
+@MainActor
+final class LibraryNoteDraft: ObservableObject {
+    @Published var text = "" {
+        didSet { if text != oldValue { key = UUID().uuidString } }
     }
-}
+    @Published var expanded = false
+    @Published var saving = false
+    @Published var error: String?
+    private var key = UUID().uuidString
 
-struct TextCaptureSheet: View {
-    let kind: LibraryCapture
-    let onCreated: (String) -> Void
-    let onAuthenticationRequired: () -> Void
-    @Environment(\.dismiss) private var dismiss
-    @State private var text = ""
-    @State private var idempotencyKey = UUID().uuidString
-    @State private var error: String?
-    @State private var isSaving = false
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            Text(kind.title).font(.title3.weight(.semibold))
-            TextEditor(text: $text).disabled(isSaving)
-                .onChange(of: text) { _, _ in idempotencyKey = UUID().uuidString }
-                .frame(height: 180).accessibilityLabel(kind == .quote ? "Quote" : "Note")
-            if let error { Text(error).font(.caption).foregroundStyle(.red) }
-            HStack {
-                Spacer()
-                Button("Cancel") { dismiss() }.disabled(isSaving)
-                Button(isSaving ? "Saving…" : "Save") { Task { await save() } }
-                    .buttonStyle(.borderedProminent)
-                    .disabled(isSaving || text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
-            }
-        }
-        .padding(24).frame(width: 460)
-        .interactiveDismissDisabled(isSaving)
-    }
-
-    private func save() async {
-        guard !isSaving else { return }
-        isSaving = true
-        defer { isSaving = false }
+    func save(onCreated: (String) -> Void, onAuthenticationRequired: () -> Void) async {
+        guard !saving else { return }
+        saving = true
+        defer { saving = false }
         do {
-            let api = LibraryAPI()
-            let id = try await kind == .quote ? api.createQuote(text, idempotencyKey: idempotencyKey) : api.createText(text, idempotencyKey: idempotencyKey)
+            let id = try await LibraryAPI().createText(text, idempotencyKey: key)
+            text = ""
+            expanded = false
+            error = nil
             onCreated(id)
-            dismiss()
         } catch SafariServiceError.unauthenticated { onAuthenticationRequired() }
         catch { self.error = error.localizedDescription }
     }
 }
 
-struct FileCaptureSheet: View {
+struct NoteComposer: View {
+    @ObservedObject var draft: LibraryNoteDraft
+    var isExpanded = false
     let onCreated: (String) -> Void
     let onAuthenticationRequired: () -> Void
-    @Environment(\.dismiss) private var dismiss
-    @State private var file: URL?
-    @State private var error: String?
-    @State private var isSaving = false
-    @State private var api = LibraryAPI()
-    @State private var idempotencyKey = UUID().uuidString
+    @FocusState private var editorFocused: Bool
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            Text("Upload a file").font(.title3.weight(.semibold))
-            Text(file?.lastPathComponent ?? "Choose an image, video, audio file, or document.")
-                .lineLimit(2).foregroundStyle(.secondary)
-            Button("Choose File…") { choose() }.disabled(isSaving)
-            if let error { Text(error).font(.caption).foregroundStyle(.red) }
-            HStack {
-                Spacer()
-                Button("Cancel") { dismiss() }.disabled(isSaving)
-                Button(isSaving ? "Uploading…" : "Upload") { Task { await save() } }
-                    .buttonStyle(.borderedProminent).disabled(isSaving || file == nil)
+        if isExpanded {
+            VStack {
+                editor
+                HStack {
+                    Button("Close") { draft.expanded = false }.keyboardShortcut(.cancelAction).disabled(draft.saving)
+                    Spacer()
+                    saveButton
+                }
+                errorMessage
             }
+            .scenePadding()
+            .frame(minWidth: 600, minHeight: 400)
+            .interactiveDismissDisabled(draft.saving)
+        } else {
+            GroupBox {
+                VStack {
+                    editor.frame(minHeight: 100, maxHeight: 160).padding(12)
+                    if !draft.text.isEmpty {
+                        HStack {
+                            Button("Open full-screen note", systemImage: "arrow.up.left.and.arrow.down.right") { draft.expanded = true }
+                            Spacer()
+                            saveButton
+                        }
+                    }
+                    errorMessage
+                }
+            }
+            .contentShape(Rectangle())
+            .onTapGesture { editorFocused = true }
+            .overlay { if draft.saving { ProgressView() } }
         }
-        .padding(24).frame(width: 460)
-        .interactiveDismissDisabled(isSaving)
     }
 
-    private func choose() {
-        let panel = NSOpenPanel()
-        panel.canChooseDirectories = false
-        panel.allowsMultipleSelection = false
-        guard panel.runModal() == .OK else { return }
-        file = panel.url
-        error = nil
-        idempotencyKey = UUID().uuidString
-    }
-
-    private func save() async {
-        guard !isSaving, let file else { return }
-        isSaving = true
-        defer { isSaving = false }
-        do {
-            let mime = UTType(filenameExtension: file.pathExtension)?.preferredMIMEType ?? "application/octet-stream"
-            let id = try await api.createFile(file, mimeType: mime, idempotencyKey: idempotencyKey)
-            onCreated(id)
-            dismiss()
-        } catch SafariServiceError.unauthenticated { onAuthenticationRequired() }
-        catch { self.error = error.localizedDescription }
-    }
-}
-
-struct EditCardSheet: View {
-    let card: LibraryCard
-    @ObservedObject var store: LibraryStore
-    let onUpdated: (LibraryCard) -> Void
-    @Environment(\.dismiss) private var dismiss
-    @State private var title: String
-    @State private var content: String
-    @State private var notes: String
-    @State private var tags: String
-    @State private var error: String?
-    @State private var isSaving = false
-
-    init(card: LibraryCard, store: LibraryStore, onUpdated: @escaping (LibraryCard) -> Void) {
-        self.card = card
-        self.store = store
-        self.onUpdated = onUpdated
-        _title = State(initialValue: card.metadataTitle ?? "")
-        _content = State(initialValue: card.content ?? "")
-        _notes = State(initialValue: card.notes ?? "")
-        _tags = State(initialValue: card.tags.joined(separator: ", "))
-    }
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            Text("Edit card").font(.title3.weight(.semibold))
-            TextField("Title", text: $title).accessibilityLabel("Title").disabled(isSaving)
-            if card.cardType == .text || card.cardType == .quote {
-                Text("Content").font(.caption).foregroundStyle(.secondary)
-                TextEditor(text: $content).frame(height: 130).accessibilityLabel("Content").disabled(isSaving)
+    private var editor: some View {
+        TextEditor(text: $draft.text)
+            .font(.body)
+            .scrollContentBackground(.hidden)
+            .focused($editorFocused)
+            .disabled(draft.saving)
+            .accessibilityLabel("Write a note...")
+            .overlay(alignment: .topLeading) {
+                if draft.text.isEmpty {
+                    Text("Write a note...").foregroundStyle(.secondary).allowsHitTesting(false)
+                }
             }
-            Text("Notes").font(.caption).foregroundStyle(.secondary)
-            TextEditor(text: $notes).frame(height: 80).accessibilityLabel("Notes").disabled(isSaving)
-            TextField("Tags, separated by commas", text: $tags).accessibilityLabel("Tags").disabled(isSaving)
-            if let error { Text(error).font(.caption).foregroundStyle(.red) }
-            HStack {
-                Spacer()
-                Button("Cancel") { dismiss() }.disabled(isSaving)
-                Button(isSaving ? "Saving…" : "Save") { Task { await save() } }
-                    .buttonStyle(.borderedProminent).disabled(isSaving || title.count > 512)
-            }
-        }
-        .textFieldStyle(.roundedBorder)
-        .padding(24).frame(width: 480)
-        .interactiveDismissDisabled(isSaving)
     }
 
-    private func save() async {
-        guard !isSaving else { return }
-        isSaving = true
-        defer { isSaving = false }
-        let parsed = Array(NSOrderedSet(array: tags.split(separator: ",").map {
-            $0.trimmingCharacters(in: .whitespacesAndNewlines)
-        }.filter { !$0.isEmpty })) as? [String] ?? []
-        do {
-            let updated = try await store.update(card, title: title, content: [.text, .quote].contains(card.cardType)
-                ? content : nil, notes: notes, tags: parsed)
-            onUpdated(updated)
-            dismiss()
-        } catch { self.error = error.localizedDescription }
+    @ViewBuilder private var errorMessage: some View {
+        if let error = draft.error { Text(error).foregroundStyle(.red) }
+    }
+
+    private var saveButton: some View {
+        Button("Save") { Task { await draft.save(onCreated: onCreated, onAuthenticationRequired: onAuthenticationRequired) } }
+            .keyboardShortcut(.return, modifiers: .command)
+            .disabled(draft.saving || draft.text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
     }
 }

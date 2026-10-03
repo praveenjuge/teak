@@ -615,6 +615,38 @@ describe("publicApiHttp card endpoints", () => {
     expect(payload.code).toBe("INVALID_INPUT");
   });
 
+  test.each([
+    ["POST", "/restore"],
+    ["DELETE", "?permanent=true"],
+  ])(
+    "%s allows Trash lifecycle operation %s",
+    async (method: string, suffix: string) => {
+      const response = await runHandler(
+        cardByIdV1,
+        {
+          runMutation:
+            buildAuthorizedMutationMock().mockResolvedValueOnce(null),
+          runQuery: mock()
+            .mockResolvedValueOnce("card_1")
+            .mockResolvedValueOnce({
+              _id: "card_1",
+              userId: "user_1",
+              isDeleted: true,
+            }),
+        },
+        new Request(`https://example.com/v1/cards/card_1${suffix}`, {
+          method,
+          headers: {
+            Authorization:
+              "Bearer teakapi_secret_live_a1b2c3d4_ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+          },
+        })
+      );
+      expect(response.status).toBe(204);
+      expect(await response.text()).toBe("");
+    }
+  );
+
   test("cardByIdV1 supports soft delete", async () => {
     const runMutation =
       buildAuthorizedMutationMock().mockResolvedValueOnce(null);

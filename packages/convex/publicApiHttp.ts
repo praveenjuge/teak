@@ -138,7 +138,8 @@ export const cardByIdV1 = withGatewayHeaders((ctx, request) => {
     !(
       request.method === "DELETE" ||
       request.method === "GET" ||
-      request.method === "PATCH"
+      request.method === "PATCH" ||
+      request.method === "POST"
     )
   ) {
     return Promise.resolve(

@@ -1,288 +1,334 @@
 import AppKit
 import SwiftUI
+import UniformTypeIdentifiers
 
 struct LibraryView: View {
     let onSettings: () -> Void
     let onAuthenticationRequired: () -> Void
-
     @StateObject private var store: LibraryStore
+    @StateObject private var noteDraft = LibraryNoteDraft()
     @FocusState private var searchFocused: Bool
     @State private var selectedCard: LibraryCard?
-    @State private var pendingCard: LibraryCard?
-    @State private var capture: LibraryCapture?
-    @State private var showingSaveLink = false
-    @State private var paginationFooterVisible = false
+    @State private var tagsCard: LibraryCard?
+    @State private var recording = false
+    @State private var dropping = false
+    @State private var uploadError: String?
+    @State private var uploading = false
+    @State private var refreshing = false
+    @State private var paginationVisible = false
+    @State private var pendingUploads: [PendingLibraryUpload] = []
+    @State private var uploadAPI = LibraryAPI()
 
-    init(onSettings: @escaping () -> Void, onAuthenticationRequired: @escaping () -> Void) {
+    init(api: LibraryAPI? = nil, onSettings: @escaping () -> Void, onAuthenticationRequired: @escaping () -> Void) {
         self.onSettings = onSettings
         self.onAuthenticationRequired = onAuthenticationRequired
-        _store = StateObject(wrappedValue: LibraryStore(onAuthenticationRequired: onAuthenticationRequired))
+        _store = StateObject(wrappedValue: LibraryStore(api: api, onAuthenticationRequired: onAuthenticationRequired))
     }
 
     var body: some View {
-        VStack(spacing: 0) {
-            header
+        VStack {
+            header.padding(.horizontal)
             Divider()
-            if store.isLoading && store.cards.isEmpty {
-                ProgressView("Loading your library…")
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
-            } else if store.cards.isEmpty {
-                VStack(spacing: 12) {
-                    ContentUnavailableView(
-                        emptyStateTitle,
-                        systemImage: store.hasFilters ? "magnifyingglass" : "square.grid.2x2",
-                        description: Text(emptyStateDescription)
-                    )
-                    if store.hasMore {
-                        Button("Keep searching") { Task { await store.loadMore() } }
-                            .disabled(store.isLoadingMore)
-                    }
-                }
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
-            } else {
-                masonry
-            }
-            if let error = store.error {
+            content.frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+            if let message = uploadError ?? store.error {
                 HStack {
-                    Text(error).lineLimit(2)
-                    Spacer()
-                    Button("Retry") { Task { await store.loadFirstPage() } }
+                    Text(message).foregroundStyle(.red)
+                    Button("Retry") { Task {
+                        if !pendingUploads.isEmpty { await processUploads() }
+                        else { await store.loadFirstPage() }
+                    } }
                 }
-                .font(.caption)
-                .padding(10)
-                .background(.red.opacity(0.08))
             }
+            if uploading { ProgressView("Uploading files...") }
         }
         .frame(minWidth: 650, minHeight: 480)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         .sheet(item: $selectedCard) { card in
             LibraryCardDetail(initialCard: card, store: store, onAuthenticationRequired: onAuthenticationRequired)
         }
-        .sheet(isPresented: $showingSaveLink, onDismiss: {
-            selectedCard = pendingCard
-            pendingCard = nil
-        }) {
-            SaveLinkSheet(onComplete: handleSave, onAuthenticationRequired: onAuthenticationRequired)
+        .sheet(item: $tagsCard) { card in
+            CardTagsSheet(card: card, store: store) { _ in }
         }
-        .sheet(item: $capture) { kind in
-            captureSheet(kind)
+        .sheet(isPresented: $noteDraft.expanded) {
+            NoteComposer(draft: noteDraft, isExpanded: true, onCreated: handleCreated, onAuthenticationRequired: onAuthenticationRequired)
+        }
+        .sheet(isPresented: $recording) {
+            AudioCaptureSheet(onCreated: handleCreated, onAuthenticationRequired: onAuthenticationRequired)
+        }
+        .onDrop(of: [UTType.fileURL.identifier], isTargeted: $dropping, perform: acceptDrop)
+        .overlay {
+            if dropping { GroupBox { Label("Drop files to upload", systemImage: "square.and.arrow.up") }.allowsHitTesting(false) }
+        }
+        .overlay(alignment: .bottom) {
+            statusOverlay.padding(.bottom, 20).allowsHitTesting(false)
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .libraryRefresh)) { _ in
+            guard acceptsLibraryCommands else { return }
+            refreshLibrary()
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .librarySearch)) { _ in
+            guard acceptsLibraryCommands else { return }
+            searchFocused = true
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .libraryNewNote)) { _ in
+            guard acceptsLibraryCommands else { return }
+            noteDraft.expanded = true
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .libraryUpload)) { _ in
+            guard acceptsLibraryCommands else { return }
+            chooseFiles()
         }
         .task { await store.loadFirstPage() }
     }
 
-    private var emptyStateTitle: String {
-        if store.hasMore { return "Still searching your library" }
-        return store.hasFilters ? "No matching cards" : "Your library is empty"
+    @ViewBuilder private var statusOverlay: some View {
+        if refreshing || store.statusMessage != nil {
+            HStack(spacing: 8) {
+                if refreshing { ProgressView().controlSize(.small) }
+                else if store.statusMessage == "Library refreshed" {
+                    Image(systemName: "checkmark.circle.fill").foregroundStyle(.secondary)
+                }
+                Text(refreshing ? "Refreshing library…" : store.statusMessage ?? "")
+            }
+            .font(.callout)
+            .padding(.horizontal, 14)
+            .padding(.vertical, 10)
+            .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 10, style: .continuous))
+            .overlay {
+                RoundedRectangle(cornerRadius: 10, style: .continuous)
+                    .strokeBorder(.primary.opacity(0.08))
+            }
+            .accessibilityElement(children: .combine)
+            .accessibilityAddTraits(.updatesFrequently)
+        }
     }
 
-    private var emptyStateDescription: String {
-        if store.hasMore { return "More cards may match these filters." }
-        return store.hasFilters ? "Try another search or clear your filters." : "Save a page from Safari or capture a note, quote, or file here."
+    private func refreshLibrary() {
+        guard !refreshing else { return }
+        refreshing = true
+        Task {
+            await store.loadFirstPage()
+            refreshing = false
+            if store.error == nil { store.showStatus("Library refreshed") }
+        }
+    }
+
+    private var acceptsLibraryCommands: Bool {
+        NSApp.keyWindow?.title == "Teak Library" && selectedCard == nil && tagsCard == nil && !recording && !noteDraft.expanded
     }
 
     private var header: some View {
         VStack(alignment: .leading, spacing: 10) {
-            HStack(spacing: 12) {
-                Image(systemName: "magnifyingglass")
-                    .foregroundStyle(.secondary)
-                TextField("Search for anything…", text: $store.searchText)
-                    .textFieldStyle(.plain)
-                    .font(.body)
+            HStack {
+                HStack(spacing: 6) {
+                    Image(systemName: "magnifyingglass").foregroundStyle(.secondary)
+                    TextField("Search for anything...", text: $store.searchText)
                     .focused($searchFocused)
                     .onChange(of: store.searchText) { _, _ in store.scheduleSearch() }
-                    .accessibilityLabel("Search cards")
-                Menu {
-                    Button("Save Link") { showingSaveLink = true }
-                    Button("New Note") { capture = .note }
-                    Button("New Quote") { capture = .quote }
-                    Button("Upload File…") { capture = .file }
-                    Button("Record Audio…") { capture = .audio }
-                } label: { Label("Capture", systemImage: "plus") }
-                Button(action: onSettings) {
-                    Image(systemName: "gearshape")
+                    .onSubmit { store.commitSearchTokens() }
+                    .onKeyPress(.delete) {
+                        guard store.searchText.isEmpty else { return .ignored }
+                        store.removeLastChip()
+                        return .handled
+                    }
+                    .textFieldStyle(.plain)
                 }
-                .help("Settings")
-                .accessibilityLabel("Settings")
+                .padding(.horizontal, 8)
+                .padding(.vertical, 6)
+                .background(.quaternary.opacity(0.3), in: RoundedRectangle(cornerRadius: 6))
+                .overlay {
+                    RoundedRectangle(cornerRadius: 6)
+                        .strokeBorder(searchFocused ? Color.accentColor : Color.primary.opacity(0.12), lineWidth: searchFocused ? 2 : 1)
+                }
+                Button("Upload files", systemImage: "square.and.arrow.up", action: chooseFiles)
+                    .labelStyle(.iconOnly).help("Upload files").disabled(uploading)
+                Button("Record audio", systemImage: "mic") { recording = true }
+                    .labelStyle(.iconOnly).help("Record audio")
+                Button("Settings", systemImage: "gearshape", action: onSettings)
+                    .labelStyle(.iconOnly).help("Settings")
             }
-            .padding(.vertical, 9)
+            if searchFocused || store.hasFilters { filters }
+        }
+    }
 
-            if searchFocused || store.hasFilters {
-                if store.hasFilters {
-                    HStack(spacing: 7) {
-                        ScrollView(.horizontal) {
-                            HStack(spacing: 7) {
-                                ForEach(LibraryCardType.allCases.filter { store.selectedTypes.contains($0) }) { type in
-                                    Button { store.toggleType(type) } label: {
-                                        Label(type.title, systemImage: type.symbol)
-                                    }
-                                    .buttonStyle(.borderedProminent)
-                                    .accessibilityLabel("Remove \(type.title) filter")
-                                }
-                                if store.favoritesOnly {
-                                    Button { store.toggleFavorites() } label: {
-                                        Label("Favorites", systemImage: "heart")
-                                    }
-                                    .buttonStyle(.borderedProminent)
-                                    .accessibilityLabel("Remove Favorites filter")
-                                }
-                            }
-                        }
-                        .scrollIndicators(.hidden)
-                        Button("Clear All") { store.clearFilters() }
-                            .buttonStyle(.borderless)
-                    }
+    private var filters: some View {
+        ScrollView(.horizontal) {
+            HStack {
+                ForEach(store.activeChips) { chip in
+                    Button(chip.label) { store.removeChip(chip) }.buttonStyle(.borderedProminent)
                 }
-                ScrollView(.horizontal) {
-                    HStack(spacing: 7) {
-                        ForEach(LibraryCardType.allCases.filter { !store.selectedTypes.contains($0) }) { type in
-                            Button {
-                                store.toggleType(type)
-                            } label: {
-                                Label(type.title, systemImage: type.symbol)
-                            }
-                            .buttonStyle(.bordered)
-                            .accessibilityLabel("Filter \(type.title) cards")
-                        }
-                        if !store.favoritesOnly {
-                            Button {
-                                store.toggleFavorites()
-                            } label: {
-                                Label("Favorites", systemImage: "heart")
-                            }
-                            .buttonStyle(.bordered)
-                            .accessibilityLabel("Filter favorite cards")
-                        }
-                    }
+                ForEach(LibraryCardType.allCases.filter { !store.selectedTypes.contains($0) }) { type in
+                    Button(type.title) { store.toggleType(type) }.buttonStyle(.bordered)
                 }
-                .scrollIndicators(.hidden)
-                .padding(.bottom, 7)
+                if !store.favoritesOnly {
+                    Button("Favorites") { store.toggleFavorites() }.buttonStyle(.bordered)
+                }
+                if !store.trashOnly { Button("Trash") { store.toggleTrash() }.buttonStyle(.bordered) }
+                Button("Clear All") { store.clearFilters() }
             }
         }
-        .padding(.horizontal, 20)
+    }
+
+    @ViewBuilder private var content: some View {
+        if store.isLoading && store.cards.isEmpty {
+            loadingGrid
+        } else if store.cards.isEmpty && store.hasFilters {
+            ContentUnavailableView {
+                Text("Nothing found matching your filters")
+            } actions: {
+                Button("Clear filters") { store.clearFilters() }
+                if store.hasMore { Button("Keep searching") { Task { await store.loadMore() } } }
+            }
+        } else if store.cards.isEmpty {
+            VStack {
+                Image(nsImage: NSImage(named: NSImage.applicationIconName) ?? NSImage())
+                composer
+                Text("Let's add your first card!")
+                Text("Start capturing your thoughts, links, and media above").foregroundStyle(.secondary)
+            }.frame(maxWidth: .infinity, maxHeight: .infinity)
+        } else { masonry }
+    }
+
+    private var loadingGrid: some View {
+        GeometryReader { geometry in
+            ScrollView {
+                LibraryMasonryLayout(columns: columnCount(for: geometry.size.width)) {
+                    ForEach(0..<10) { index in
+                        GroupBox {
+                            VStack(alignment: .leading) {
+                                Rectangle().fill(.quaternary)
+                                    .aspectRatio(index.isMultiple(of: 3) ? 1 : 4 / 3, contentMode: .fit)
+                                Text("A saved thought or inspiration").lineLimit(1)
+                                Text("Ready to rediscover").font(.caption)
+                            }.frame(maxWidth: .infinity, alignment: .leading)
+                        }.redacted(reason: .placeholder)
+                    }
+                }.padding()
+            }.allowsHitTesting(false).accessibilityLabel("Loading cards")
+        }
+    }
+
+    private func columnCount(for width: CGFloat) -> Int {
+        width >= 992 ? 5 : width >= 768 ? 3 : width >= 576 ? 2 : 1
+    }
+
+    private var composer: some View {
+        NoteComposer(draft: noteDraft, onCreated: handleCreated, onAuthenticationRequired: onAuthenticationRequired)
     }
 
     private var masonry: some View {
         GeometryReader { geometry in
-            let columnCount = max(1, min(5, Int((geometry.size.width - 40 + 16) / 266)))
-            let layout = distribute(store.cards, across: columnCount)
+            let count = columnCount(for: geometry.size.width)
             ScrollView {
-                HStack(alignment: .top, spacing: 16) {
-                    ForEach(0..<columnCount, id: \.self) { index in
-                        LazyVStack(spacing: 16) {
-                            ForEach(layout.columns[index]) { card in
-                                LibraryCardTile(card: card, isSaving: store.mutatingIDs.contains(card.id),
-                                    onOpen: { selectedCard = card }, onFavorite: {
-                                        Task { _ = try? await store.setFavorite(card) }
-                                    })
-                                .accessibilityLabel("Open \(card.cardType?.title ?? "card") card: \(card.title)")
-                            }
-                            if index == layout.footerColumn && store.hasMore {
-                                ProgressView()
-                                    .frame(maxWidth: .infinity)
-                                    .padding(16)
-                                    .onAppear {
-                                        paginationFooterVisible = true
-                                        Task { await store.loadMore() }
-                                    }
-                                    .onDisappear { paginationFooterVisible = false }
-                                    .onChange(of: store.isLoadingMore) { _, loading in
-                                        guard !loading, paginationFooterVisible, store.hasMore else { return }
-                                        Task {
-                                            try? await Task.sleep(for: .milliseconds(100))
-                                            if paginationFooterVisible { await store.loadMore() }
-                                        }
-                                    }
-                            }
-                        }
-                        .frame(maxWidth: .infinity, alignment: .top)
+                LibraryMasonryLayout(columns: count) {
+                    if !store.trashOnly { composer }
+                    ForEach(store.cards) { card in
+                        LibraryCardTile(card: card, isSaving: store.mutatingIDs.contains(card.id), onOpen: { selectedCard = card })
+                            .contextMenu { cardMenu(card) }
+                    }
+                }.padding()
+                if store.hasMore {
+                    ProgressView()
+                }
+            }
+            .onScrollGeometryChange(for: Bool.self) { geometry in
+                geometry.contentOffset.y + geometry.containerSize.height >= geometry.contentSize.height
+            } action: { _, nearBottom in
+                paginationVisible = nearBottom
+                if nearBottom && store.hasMore { Task { await store.loadMore() } }
+            }
+            .onChange(of: store.isLoadingMore) { _, loading in
+                if !loading && paginationVisible && store.hasMore { Task { await store.loadMore() } }
+            }
+        }
+    }
+
+    @ViewBuilder private func cardMenu(_ card: LibraryCard) -> some View {
+        if let url = LibraryCard.safeURL(card.url) { Button("Open Link") { NSWorkspace.shared.open(url) } }
+        if store.trashOnly {
+            Button("Restore") { Task { try? await store.restore(card) } }
+            Divider()
+            Button("Delete Forever", role: .destructive) { Task { try? await store.permanentDelete(card) } }
+        } else {
+            if card.cardType == .text || card.cardType == .link || (card.cardType == .image && card.mimeType != "image/svg+xml") {
+                Button(card.cardType == .image ? "Copy Image" : card.cardType == .link ? "Copy Link" : "Copy Text") { Task { await copy(card) } }
+            }
+            Button("Add Tags") { tagsCard = card }
+            Button(card.isFavorited ? "Unfavorite" : "Favorite") { Task { _ = try? await store.setFavorite(card) } }
+            Divider()
+            Button("Delete", role: .destructive) { Task { try? await store.delete(card) } }
+        }
+    }
+
+    private func copy(_ card: LibraryCard) async {
+        if card.cardType == .image {
+            guard let url = LibraryCard.safeURL(card.fileUrl ?? card.detailUrl) else { return }
+            do {
+                let (data, response) = try await URLSession.shared.data(from: url)
+                guard let http = response as? HTTPURLResponse, (200..<300).contains(http.statusCode),
+                      let image = NSImage(data: data) else { throw URLError(.cannotDecodeContentData) }
+                NSPasteboard.general.clearContents()
+                NSPasteboard.general.writeObjects([image])
+                store.showStatus("Image copied to clipboard")
+            } catch { store.showStatus("Failed to copy image") }
+        } else {
+            NSPasteboard.general.clearContents()
+            NSPasteboard.general.setString(card.cardType == .link ? card.url ?? "" : card.content ?? "", forType: .string)
+            store.showStatus(card.cardType == .link ? "Link copied to clipboard" : "Text copied to clipboard")
+        }
+    }
+
+    private func chooseFiles() {
+        let panel = NSOpenPanel()
+        panel.canChooseDirectories = false
+        panel.allowsMultipleSelection = true
+        if panel.runModal() == .OK { Task { await upload(panel.urls) } }
+    }
+
+    private func acceptDrop(_ providers: [NSItemProvider]) -> Bool {
+        let files = providers.filter { $0.hasItemConformingToTypeIdentifier(UTType.fileURL.identifier) }
+        guard !files.isEmpty else { return false }
+        Task { @MainActor in
+            var urls: [URL] = []
+            for provider in files {
+                let url: URL? = await withCheckedContinuation { continuation in
+                    provider.loadItem(forTypeIdentifier: UTType.fileURL.identifier, options: nil) { item, _ in
+                        let url = (item as? URL) ?? (item as? Data).flatMap { URL(dataRepresentation: $0, relativeTo: nil) }
+                        continuation.resume(returning: url?.isFileURL == true ? url : nil)
                     }
                 }
-                .padding(20)
+                if let url { urls.append(url) }
             }
+            await upload(urls)
         }
+        return true
     }
 
-    private func distribute(_ cards: [LibraryCard], across count: Int) -> (columns: [[LibraryCard]], footerColumn: Int) {
-        var columns = Array(repeating: [LibraryCard](), count: count)
-        var heights = Array(repeating: Double.zero, count: count)
-        for card in cards {
-            let shortest = heights.enumerated().min { $0.element < $1.element }?.offset ?? 0
-            columns[shortest].append(card)
-            let textLength = Double((card.aiSummary ?? card.metadataDescription ?? card.content ?? "").count)
-            let imageHeight: Double = card.displayImageURL == nil ? 0 : 150
-            let paletteHeight: Double = card.cardType == .palette ? 118 : 0
-            heights[shortest] += 100 + imageHeight + paletteHeight + min(110, textLength * 0.17)
-        }
-        let footerColumn = heights.enumerated().max { $0.element < $1.element }?.offset ?? 0
-        return (columns, footerColumn)
+    private func upload(_ urls: [URL]) async {
+        pendingUploads.append(contentsOf: urls.map { PendingLibraryUpload(url: $0) })
+        await processUploads()
     }
 
-    @ViewBuilder
-    private func captureSheet(_ kind: LibraryCapture) -> some View {
-        switch kind {
-        case .note, .quote:
-            TextCaptureSheet(kind: kind, onCreated: handleCreated, onAuthenticationRequired: onAuthenticationRequired)
-        case .file:
-            FileCaptureSheet(onCreated: handleCreated, onAuthenticationRequired: onAuthenticationRequired)
-        case .audio:
-            AudioCaptureSheet(onCreated: handleCreated, onAuthenticationRequired: onAuthenticationRequired)
-        }
-    }
-
-    private func handleCreated(_ id: String) {
-        Task { await store.insertCreated(id: id) }
-    }
-
-    private func handleSave(_ result: LibrarySaveResult) {
-        Task {
-            switch result {
-            case let .saved(id):
-                showingSaveLink = false
+    private func processUploads() async {
+        guard !uploading else { return }
+        uploading = true
+        defer { uploading = false }
+        while let pending = pendingUploads.first {
+            do {
+                let mime = UTType(filenameExtension: pending.url.pathExtension)?.preferredMIMEType ?? "application/octet-stream"
+                let id = try await uploadAPI.createFile(pending.url, mimeType: mime, idempotencyKey: pending.key)
+                pendingUploads.removeFirst()
                 await store.insertCreated(id: id)
-            case let .duplicate(id):
-                do { pendingCard = try await LibraryAPI().card(id: id) }
-                catch SafariServiceError.unauthenticated { onAuthenticationRequired() }
-                catch { await store.loadFirstPage() }
-                showingSaveLink = false
-            }
+                uploadError = nil
+            } catch SafariServiceError.unauthenticated { onAuthenticationRequired(); return }
+            catch { uploadError = error.localizedDescription; return }
         }
     }
+
+    private func handleCreated(_ id: String) { Task { await store.insertCreated(id: id) } }
 }
 
-private struct SaveLinkSheet: View {
-    let onComplete: (LibrarySaveResult) -> Void
-    let onAuthenticationRequired: () -> Void
-
-    @Environment(\.dismiss) private var dismiss
-    @State private var url = ""
-    @State private var error: String?
-    @State private var isSaving = false
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            Text("Save a link").font(.title3.weight(.semibold))
-            TextField("https://example.com", text: $url)
-                .textFieldStyle(.roundedBorder)
-                .onSubmit { Task { await save() } }
-                .accessibilityLabel("Link URL")
-            if let error { Text(error).font(.caption).foregroundStyle(.red) }
-            HStack {
-                Spacer()
-                Button("Cancel") { dismiss() }
-                Button(isSaving ? "Saving…" : "Save") { Task { await save() } }
-                    .buttonStyle(.borderedProminent)
-                    .disabled(isSaving || url.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
-            }
-        }
-        .padding(24)
-        .frame(width: 430)
-    }
-
-    private func save() async {
-        guard !isSaving else { return }
-        isSaving = true
-        defer { isSaving = false }
-        do { onComplete(try await LibraryAPI().saveLink(url)) }
-        catch SafariServiceError.unauthenticated { onAuthenticationRequired() }
-        catch { self.error = error.localizedDescription }
-    }
+private struct PendingLibraryUpload {
+    let url: URL
+    let key = UUID().uuidString
 }

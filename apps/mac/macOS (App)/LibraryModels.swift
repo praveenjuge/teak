@@ -45,6 +45,11 @@ struct LibraryFilePreview: Decodable, Sendable {
     let colorVariableCount: Int?
 }
 
+struct LibraryLinkFact: Decodable, Sendable {
+    let label: String
+    let value: String
+}
+
 struct LibraryCard: Decodable, Identifiable, Sendable {
     let id: String
     let type: String
@@ -52,6 +57,11 @@ struct LibraryCard: Decodable, Identifiable, Sendable {
     let url: String?
     var metadataTitle: String?
     let metadataDescription: String?
+    let linkPreviewTitle: String?
+    let linkPreviewDescription: String?
+    let linkFacts: [LibraryLinkFact]?
+    let linkFaviconUrl: String?
+    var isDeleted: Bool?
     let linkSiteName: String?
     let linkAuthor: String?
     let linkPublisher: String?
@@ -70,6 +80,8 @@ struct LibraryCard: Decodable, Identifiable, Sendable {
     let fileKind: String?
     let fileLanguage: String?
     let filePreview: LibraryFilePreview?
+    let fileWidth: Int?
+    let fileHeight: Int?
     let fileSize: Int?
     let mimeType: String?
     let fileUrl: String?
@@ -90,11 +102,35 @@ struct LibraryCard: Decodable, Identifiable, Sendable {
         return cardType?.title ?? "Card"
     }
 
+    var linkTitle: String { linkPreviewTitle ?? metadataTitle ?? url ?? "Link" }
+
     var displayImageURL: URL? {
         let mediaImage = linkPreviewMedia?.first(where: { $0.type == "image" })?.url
         let mediaPoster = linkPreviewMedia?.first(where: { $0.type == "video" })?.posterUrl
-        let candidate = compactUrl ?? thumbnailUrl ?? linkPreviewImageUrl ?? mediaImage ?? mediaPoster ?? screenshotUrl
+        let candidate = cardType == .link
+            ? mediaImage ?? mediaPoster ?? linkPreviewImageUrl ?? screenshotUrl
+            : compactUrl ?? thumbnailUrl ?? detailUrl
         return Self.safeURL(candidate)
+    }
+
+    var previewText: String { Self.plainPreview(content ?? fileName ?? "") }
+
+    static func plainPreview(_ content: String) -> String {
+        var text = String(content.prefix(500))
+        let replacements: [(String, String)] = [
+            (#"<!--[\s\S]*?-->"#, " "), (#"(?m)^\s*(?:```|~~~).*$"#, " "),
+            (#"!?\[([^\]]*)\]\([^)]*\)"#, "$1"), (#"\[([^\]]*)\]\[[^\]]*\]"#, "$1"),
+            (#"</?[a-zA-Z][^>]*>"#, " "), (#"(?m)^\s*(?:[-*_]\s*){3,}$"#, " "),
+            (#"(?m)^\s*#{1,6}\s+"#, ""), (#"(?m)^\s*(?:>\s?)+"#, ""),
+            (#"(?m)^\s*[-*+]\s+\[[ xX]\]\s+"#, ""), (#"(?m)^\s*[-*+]\s+"#, ""),
+            (#"(?m)^\s*\d+[.)]\s+"#, ""), (#"`([^`]+)`"#, "$1"),
+            (#"(\*\*|__)(.+?)\1"#, "$2"), (#"(\*|_)(.+?)\1"#, "$2"),
+            (#"~~(.+?)~~"#, "$1"), (#"\s+#{1,6}\s+"#, " "), (#"\s+"#, " "),
+        ]
+        for (pattern, replacement) in replacements {
+            text = text.replacingOccurrences(of: pattern, with: replacement, options: .regularExpression)
+        }
+        return text.trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
     static func safeURL(_ raw: String?) -> URL? {
@@ -133,7 +169,7 @@ struct LibraryAPI {
 
     init(service: TeakSafariService = .shared) { self.service = service }
 
-    func list(query: String, types: Set<LibraryCardType>, favoritesOnly: Bool, cursor: String?) async throws -> LibraryPage {
+    func list(query: String, types: Set<LibraryCardType>, favoritesOnly: Bool, cursor: String?, tokens: [LibrarySearchToken] = []) async throws -> LibraryPage {
         var items = [
             URLQueryItem(name: "limit", value: "40"),
             URLQueryItem(name: "include", value: "content,metadata,processing"),
@@ -144,6 +180,18 @@ struct LibraryAPI {
             items.append(URLQueryItem(name: "type", value: type.rawValue))
         }
         if favoritesOnly { items.append(URLQueryItem(name: "favorited", value: "true")) }
+        for token in tokens {
+            switch token.kind {
+            case .trash: items.append(URLQueryItem(name: "trashed", value: "true"))
+            case .style, .hue, .hex: items.append(URLQueryItem(name: token.kind.rawValue, value: token.value))
+            case .date:
+                if let range = token.dateRange {
+                    items.append(URLQueryItem(name: "createdAfter", value: String(Int(range.lowerBound.timeIntervalSince1970 * 1000))))
+                    items.append(URLQueryItem(name: "createdBefore", value: String(Int(range.upperBound.timeIntervalSince1970 * 1000) - 1)))
+                }
+            default: break
+            }
+        }
         if let cursor { items.append(URLQueryItem(name: "cursor", value: cursor)) }
         let data = try await service.libraryGET(path: "v1/cards", queryItems: items)
         return try JSONDecoder().decode(LibraryPage.self, from: data)
@@ -169,7 +217,7 @@ struct LibraryAPI {
     }
 
     func createText(_ text: String, idempotencyKey: String? = nil) async throws -> String {
-        try await create(["content": text, "cardType": "text"], idempotencyKey: idempotencyKey)
+        try await create(["content": text], idempotencyKey: idempotencyKey)
     }
 
     func createQuote(_ text: String, idempotencyKey: String? = nil) async throws -> String {
@@ -227,9 +275,15 @@ struct LibraryAPI {
         return try JSONDecoder().decode(LibraryCard.self, from: data)
     }
 
-    func delete(id: String) async throws {
+    func restore(id: String) async throws {
         try Self.validateCardID(id)
-        _ = try await service.libraryRequest(method: "DELETE", path: "v1/cards/\(id)")
+        _ = try await service.libraryRequest(method: "POST", path: "v1/cards/\(id)/restore")
+    }
+
+    func delete(id: String, permanent: Bool = false) async throws {
+        try Self.validateCardID(id)
+        _ = try await service.libraryRequest(method: "DELETE", path: "v1/cards/\(id)",
+            queryItems: permanent ? [URLQueryItem(name: "permanent", value: "true")] : [])
     }
 
     func setFavorite(id: String, isFavorited: Bool) async throws -> LibraryCard {

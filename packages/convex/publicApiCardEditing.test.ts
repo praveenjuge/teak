@@ -169,3 +169,81 @@ describe("Public API card title editing", () => {
     expect(card?.metadataTitle).toBe("Supersededtitle title");
   });
 });
+
+describe("Public API Trash and visual filters", () => {
+  test("filters Trash and image facets without exposing other users", async () => {
+    const { t, cardId } = await setup();
+    await t.run(async (ctx) => {
+      await ctx.db.patch("cards", cardId, {
+        type: "image",
+        isDeleted: true,
+        visualStyles: ["minimal"],
+        colorHues: ["blue"],
+        colorHexes: ["#112233"],
+      });
+      await ctx.db.insert("cards", {
+        userId: "stranger",
+        type: "image",
+        content: "Other user",
+        isDeleted: true,
+        visualStyles: ["minimal"],
+        colorHues: ["blue"],
+        colorHexes: ["#112233"],
+        createdAt: 1,
+        updatedAt: 1,
+      });
+    });
+    const page = await t.query(internal.publicApi.scanCardsPageForUser, {
+      userId: "owner",
+      showTrashOnly: true,
+      styleFilters: ["minimal"],
+      hueFilters: ["blue"],
+      hexFilters: ["#112233"],
+      scanLimit: 50,
+    });
+    expect(page.items.map((card: { _id: string }) => card._id)).toEqual([
+      cardId,
+    ]);
+    const active = await t.query(internal.publicApi.scanCardsPageForUser, {
+      userId: "owner",
+      scanLimit: 50,
+    });
+    expect(active.items).toEqual([]);
+    const mismatch = await t.query(internal.publicApi.scanCardsPageForUser, {
+      userId: "owner",
+      showTrashOnly: true,
+      hueFilters: ["red"],
+      scanLimit: 50,
+    });
+    expect(mismatch.items).toEqual([]);
+  });
+
+  test("restores and permanently deletes only the owner's card", async () => {
+    const { t, cardId } = await setup();
+    await t.run((ctx) => ctx.db.patch("cards", cardId, { isDeleted: true }));
+    await expect(
+      t.mutation(internal["card/deleteCard"].restoreCardForUser, {
+        userId: "stranger",
+        cardId,
+      })
+    ).rejects.toThrow("Not authorized");
+    await t.mutation(internal["card/deleteCard"].restoreCardForUser, {
+      userId: "owner",
+      cardId,
+    });
+    expect(
+      (await t.run((ctx) => ctx.db.get("cards", cardId)))?.isDeleted
+    ).toBeUndefined();
+    await expect(
+      t.mutation(internal["card/deleteCard"].permanentDeleteCardForUser, {
+        userId: "stranger",
+        cardId,
+      })
+    ).rejects.toThrow("Not authorized");
+    await t.mutation(internal["card/deleteCard"].permanentDeleteCardForUser, {
+      userId: "owner",
+      cardId,
+    });
+    expect(await t.run((ctx) => ctx.db.get("cards", cardId))).toBeNull();
+  });
+});

@@ -75,32 +75,34 @@ struct AudioCaptureSheet: View {
     @State private var api = LibraryAPI()
     @State private var idempotencyKey = UUID().uuidString
 
+    @State private var startedAt = Date()
+
     var body: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            Text("Record audio").font(.title3.weight(.semibold))
-            Label(audio.isRecording ? "Recording…" : audio.file == nil ? "Ready to record" : "Recording ready",
-                  systemImage: "waveform")
-            Text("Up to 1 hour. Audio is uploaded when you save.").font(.caption).foregroundStyle(.secondary)
-            Button(audio.isRecording ? "Stop Recording" : audio.file == nil ? "Start Recording" : "Record Again") {
-                if audio.isRecording { audio.stop() }
-                else {
-                    isStarting = true
-                    idempotencyKey = UUID().uuidString
-                    Task { await audio.start(); isStarting = false }
-                }
+        VStack {
+            Text("Recording audio").font(.headline)
+            Text("Speak naturally. Teak will save this as an audio card.")
+            TimelineView(.periodic(from: startedAt, by: 1)) { context in
+                let elapsed = max(0, Int(context.date.timeIntervalSince(startedAt)))
+                Text(String(format: "%d:%02d", elapsed / 60, elapsed % 60)).monospacedDigit()
             }
-            .disabled(isSaving || isStarting)
-            if let message = error ?? audio.error { Text(message).font(.caption).foregroundStyle(.red) }
+            if let message = error ?? audio.error { Text(message).foregroundStyle(.red) }
             HStack {
-                Spacer()
                 Button("Cancel") { dismiss() }.disabled(isSaving || isStarting)
-                Button(isSaving ? "Uploading…" : "Save") { Task { await save() } }
-                    .buttonStyle(.borderedProminent)
-                    .disabled(isSaving || isStarting || audio.isRecording || audio.file == nil)
+                Button("Stop and Save") {
+                    audio.stop()
+                    Task { await save() }
+                }.disabled(isSaving || isStarting || audio.file == nil || audio.error != nil)
             }
         }
-        .padding(24).frame(width: 460)
-        .interactiveDismissDisabled(isSaving || isStarting || audio.isRecording)
+        .scenePadding()
+        .frame(minWidth: 460)
+        .interactiveDismissDisabled(isSaving || isStarting)
+        .task {
+            isStarting = true
+            await audio.start()
+            startedAt = Date()
+            isStarting = false
+        }
         .onDisappear { audio.discard() }
     }
 

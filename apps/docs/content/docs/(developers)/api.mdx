@@ -141,6 +141,7 @@ Bulk operations accept up to 100 items. Cursor-based listing and the card change
 | `/v1/cards/changes` | Read incremental card changes |
 | `/v1/tags` | List tags |
 | `/v1/cards/:cardId` | Read, update, or delete one card |
+| `/v1/cards/:cardId/restore` | Restore one card from Trash with POST |
 | `/v1/cards/:cardId/favorite` | Favorite or unfavorite one card |
 
 See `/openapi.json` or the [API Reference](/reference) for methods, parameters, schemas, and response examples.
@@ -228,3 +229,14 @@ Use the returned request ID when contacting [Support](/docs/support). For MCP to
 ## Check for a saved URL
 
 `GET /v1/cards/duplicate?url=<encoded-url>` accepts the same bearer credentials as other card endpoints. It checks the exact URL against your non-deleted cards and returns `{ "cardId": "..." }`, or `{ "cardId": null }` when no match exists. The URL must use HTTP or HTTPS and be at most 8,192 characters. Invalid input returns 400; invalid or revoked credentials return 401.
+
+### Trash and visual filters
+
+List Trash with `GET /v1/cards?trashed=true`. Repeat `style`, `hue`, or `hex`
+parameters to match any value within each filter, combining different filters.
+Hex colors accept three or six digits with an optional `#` (URL-encode it as `%23`).
+For example: `GET /v1/cards?type=image&hue=blue&hex=%23112233`.
+
+`DELETE /v1/cards/:cardId` moves a card to Trash. Restore it with
+`POST /v1/cards/:cardId/restore`. Both return 204 with no body.
+`DELETE /v1/cards/:cardId?permanent=true` permanently removes the card and its files.

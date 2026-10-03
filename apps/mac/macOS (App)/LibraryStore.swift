@@ -13,6 +13,64 @@ final class LibraryStore: ObservableObject {
     @Published private(set) var selectedTypes = Set<LibraryCardType>()
     @Published private(set) var favoritesOnly = false
 
+    @Published private var chips: [LibrarySearchToken] = []
+    @Published private(set) var statusMessage: String?
+    var activeChips: [LibrarySearchToken] {
+        let order: [LibrarySearchToken.Kind] = [.keyword, .date, .type, .style, .hue, .hex, .favorites, .trash]
+        return chips.enumerated().sorted {
+            let left = order.firstIndex(of: $0.element.kind) ?? 0
+            let right = order.firstIndex(of: $1.element.kind) ?? 0
+            return left == right ? $0.offset < $1.offset : left < right
+        }.map(\.element)
+    }
+    var trashOnly: Bool { chips.contains { $0.kind == .trash } }
+    private var statusTask: Task<Void, Never>?
+    private var effectiveQuery: String {
+        (chips.filter { $0.kind == .keyword }.map(\.value) + [searchText]).joined(separator: " ").trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
+    func showStatus(_ message: String) {
+        statusTask?.cancel()
+        statusMessage = message
+        statusTask = Task { [weak self] in
+            try? await Task.sleep(nanoseconds: 3_000_000_000)
+            guard !Task.isCancelled else { return }
+            self?.statusMessage = nil
+        }
+    }
+
+    func commitSearchTokens() {
+        for token in LibrarySearchTokens.parse(searchText) where !chips.contains(where: { $0.id == token.id }) {
+            if token.kind == .date { chips.removeAll { $0.kind == .date } }
+            chips.append(token)
+        }
+        searchText = ""
+        syncChipFilters()
+        scheduleSearch()
+    }
+
+    func removeChip(_ token: LibrarySearchToken) {
+        chips.removeAll { $0.id == token.id }
+        syncChipFilters()
+        scheduleSearch()
+    }
+
+    func removeLastChip() {
+        guard let last = chips.last else { return }
+        removeChip(last)
+    }
+
+    func toggleTrash() {
+        let token = LibrarySearchTokens.classify("trash")
+        if trashOnly { removeChip(token) }
+        else { chips.append(token); scheduleSearch() }
+    }
+
+    private func syncChipFilters() {
+        selectedTypes = Set(chips.filter { $0.kind == .type }.compactMap { LibraryCardType(rawValue: $0.value) })
+        favoritesOnly = chips.contains { $0.kind == .favorites }
+    }
+
     private let api: LibraryAPI
     private let onAuthenticationRequired: () -> Void
     private var optimisticCards: [String: LibraryCard] = [:]
@@ -29,7 +87,7 @@ final class LibraryStore: ObservableObject {
 
     var hasFilters: Bool {
         !searchText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-            || !selectedTypes.isEmpty || favoritesOnly
+            || !chips.isEmpty || !selectedTypes.isEmpty || favoritesOnly
     }
 
     func scheduleSearch() {
@@ -45,16 +103,18 @@ final class LibraryStore: ObservableObject {
     }
 
     func toggleType(_ type: LibraryCardType) {
-        if selectedTypes.contains(type) {
-            selectedTypes.remove(type)
-        } else {
-            selectedTypes.insert(type)
-        }
+        let token = LibrarySearchTokens.classify(type.rawValue)
+        if selectedTypes.contains(type) { chips.removeAll { $0.id == token.id } }
+        else { chips.append(token) }
+        syncChipFilters()
         scheduleSearch()
     }
 
     func toggleFavorites() {
-        favoritesOnly.toggle()
+        let token = LibrarySearchTokens.classify("favorites")
+        if favoritesOnly { chips.removeAll { $0.id == token.id } }
+        else { chips.append(token) }
+        syncChipFilters()
         scheduleSearch()
     }
 
@@ -62,6 +122,7 @@ final class LibraryStore: ObservableObject {
         searchText = ""
         selectedTypes.removeAll()
         favoritesOnly = false
+        chips.removeAll()
         scheduleSearch()
     }
 
@@ -73,7 +134,7 @@ final class LibraryStore: ObservableObject {
         error = nil
         do {
             let page = try await firstNonEmptyPage(
-                query: searchText, types: selectedTypes,
+                query: effectiveQuery, types: selectedTypes,
                 favoritesOnly: favoritesOnly, cursor: nil,
                 currentGeneration: currentGeneration
             )
@@ -102,7 +163,7 @@ final class LibraryStore: ObservableObject {
         defer { isLoadingMore = false }
         do {
             let page = try await firstNonEmptyPage(
-                query: searchText, types: selectedTypes,
+                query: effectiveQuery, types: selectedTypes,
                 favoritesOnly: favoritesOnly, cursor: nextCursor,
                 currentGeneration: currentGeneration
             )
@@ -133,6 +194,7 @@ final class LibraryStore: ObservableObject {
             searchText = ""
             selectedTypes.removeAll()
             favoritesOnly = false
+            chips.removeAll()
             nextCursor = nil
             hasMore = false
         }
@@ -172,6 +234,23 @@ final class LibraryStore: ObservableObject {
             try await self.api.delete(id: card.id)
             return card
         }
+        showStatus("Card deleted. Find it by searching 'trash'")
+    }
+
+    func restore(_ card: LibraryCard) async throws {
+        _ = try await mutate(card, optimistic: nil) {
+            try await self.api.restore(id: card.id)
+            return card
+        }
+        showStatus("Card restored")
+    }
+
+    func permanentDelete(_ card: LibraryCard) async throws {
+        _ = try await mutate(card, optimistic: nil) {
+            try await self.api.delete(id: card.id, permanent: true)
+            return card
+        }
+        showStatus("Card deleted forever")
     }
 
     private func mutate(_ original: LibraryCard, optimistic: LibraryCard?,
@@ -197,7 +276,7 @@ final class LibraryStore: ObservableObject {
                 cards.removeAll { $0.id == original.id }
                 if matchesFilters(confirmed) { cards.insert(confirmed, at: min(index, cards.count)) }
             }
-            if !searchText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            if !effectiveQuery.isEmpty {
                 await loadFirstPage()
             }
             return confirmed
@@ -205,7 +284,7 @@ final class LibraryStore: ObservableObject {
             optimisticCards[original.id] = nil
             deletedIDs.remove(original.id)
             mutationRevision += 1
-            if generation != mutationGeneration || !searchText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            if generation != mutationGeneration || !effectiveQuery.isEmpty {
                 await loadFirstPage()
             } else if let index = cards.firstIndex(where: { $0.id == original.id }) ?? index {
                 cards.removeAll { $0.id == original.id }
@@ -227,7 +306,8 @@ final class LibraryStore: ObservableObject {
     }
 
     private func matchesFilters(_ card: LibraryCard) -> Bool {
-        (selectedTypes.isEmpty || card.cardType.map { selectedTypes.contains($0) } == true)
+        (trashOnly == (card.isDeleted == true))
+            && (selectedTypes.isEmpty || card.cardType.map { selectedTypes.contains($0) } == true)
             && (!favoritesOnly || card.isFavorited)
     }
 
@@ -238,7 +318,7 @@ final class LibraryStore: ObservableObject {
         var currentCursor = cursor
         var page = try await api.list(
             query: query, types: types, favoritesOnly: favoritesOnly,
-            cursor: currentCursor
+            cursor: currentCursor, tokens: chips
         )
         guard currentGeneration == generation else { throw CancellationError() }
         var attempts = 1
@@ -248,7 +328,7 @@ final class LibraryStore: ObservableObject {
             currentCursor = nextCursor
             page = try await api.list(
                 query: query, types: types, favoritesOnly: favoritesOnly,
-                cursor: currentCursor
+                cursor: currentCursor, tokens: chips
             )
             guard currentGeneration == generation else { throw CancellationError() }
             attempts += 1

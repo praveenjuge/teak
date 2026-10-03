@@ -206,6 +206,26 @@ describe("parseIncludeSet", () => {
 });
 
 describe("parseCardsQueryOptions", () => {
+  test("parses Trash and repeated visual filters", () => {
+    expect(
+      parseCardsQueryOptions(
+        get("trashed=true&style=minimal&hue=blue&hex=%23abc&hex=112233")
+      )
+    ).toMatchObject({
+      showTrashOnly: true,
+      styleFilters: ["minimal"],
+      hueFilters: ["blue"],
+      hexFilters: ["#AABBCC", "#112233"],
+    });
+  });
+  test.each(["trashed=yes", "style=unknown", "hue=unknown", "hex=badhex"])(
+    "rejects invalid filter %s",
+    (query: string) => {
+      const result = parseCardsQueryOptions(get(query));
+      expect(result).toBeInstanceOf(Response);
+      expect((result as Response).status).toBe(400);
+    }
+  );
   test("parses filters, favorites and a clamped limit", () => {
     expect(
       parseCardsQueryOptions(
@@ -218,6 +238,10 @@ describe("parseCardsQueryOptions", () => {
       createdBefore: 20,
       cursor: "c1",
       favoritesOnly: true,
+      showTrashOnly: false,
+      styleFilters: undefined,
+      hueFilters: undefined,
+      hexFilters: undefined,
       limit: 100,
       searchQuery: "design",
       sort: "oldest",

@@ -28,6 +28,20 @@ const cardProperties = {
     type: "string",
   },
   content: { type: "string" },
+  isDeleted: { type: "boolean" },
+  linkPreviewDescription: { nullable: true, type: "string" },
+  linkFacts: {
+    type: "array",
+    items: {
+      type: "object",
+      properties: { label: { type: "string" }, value: { type: "string" } },
+      required: ["label", "value"],
+    },
+  },
+  linkPreviewTitle: { nullable: true, type: "string" },
+  linkFaviconUrl: { nullable: true, type: "string" },
+  fileWidth: { nullable: true, type: "number" },
+  fileHeight: { nullable: true, type: "number" },
   colors: {
     items: {
       properties: { hex: { type: "string" }, name: { type: "string" } },
@@ -468,6 +482,21 @@ export const openApiSpec = {
           },
           { in: "query", name: "tag", schema: { type: "string" } },
           { in: "query", name: "favorited", schema: { type: "boolean" } },
+          {
+            in: "query",
+            name: "trashed",
+            schema: { type: "boolean" },
+            description: "List only cards in Trash when true.",
+          },
+          ...["style", "hue", "hex"].map((name) => ({
+            in: "query",
+            name,
+            explode: true,
+            style: "form",
+            schema: { type: "array", items: { type: "string" } },
+            description:
+              "Repeat to match any selected value within this filter.",
+          })),
           { in: "query", name: "createdAfter", schema: { type: "number" } },
           { in: "query", name: "createdBefore", schema: { type: "number" } },
           {
@@ -687,6 +716,13 @@ export const openApiSpec = {
       delete: {
         parameters: [
           {
+            in: "query",
+            name: "permanent",
+            schema: { type: "boolean" },
+            description:
+              "Permanently remove the card and its files when true; otherwise move it to Trash.",
+          },
+          {
             in: "path",
             name: "cardId",
             required: true,
@@ -699,6 +735,22 @@ export const openApiSpec = {
         security: apiKeySecurity,
         operationId: "deleteCard",
         summary: "Delete a card",
+      },
+    },
+    "/v1/cards/{cardId}/restore": {
+      post: {
+        parameters: [
+          {
+            in: "path",
+            name: "cardId",
+            required: true,
+            schema: { type: "string" },
+          },
+        ],
+        responses: { 204: { description: "Card restored" } },
+        security: apiKeySecurity,
+        operationId: "restoreCard",
+        summary: "Restore a card from Trash",
       },
     },
     "/v1/cards/{cardId}/favorite": {

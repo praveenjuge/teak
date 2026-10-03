@@ -17,6 +17,7 @@ export const V1_ENDPOINTS = [
   "GET /v1/cards/:cardId",
   "PATCH /v1/cards/:cardId",
   "DELETE /v1/cards/:cardId",
+  "POST /v1/cards/:cardId/restore",
   "PATCH /v1/cards/:cardId/favorite",
   "GET /v1/tags",
 ] as const;
