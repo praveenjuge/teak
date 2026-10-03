@@ -35,6 +35,21 @@ describe("socialAuthErrors", () => {
     );
   });
 
+  test.each([
+    "signup disabled",
+    "signup_disabled",
+    "SIGN_UP_DISABLED",
+    "Email and password sign up is not enabled",
+    "new_user_signup_disabled",
+  ])("explains the sign-up pause for %s", (message) => {
+    expect(socialSignInErrorMessage("google", message, "fallback")).toBe(
+      "New sign-ups are paused while we upgrade sign-in"
+    );
+    expect(socialSignInErrorMessage("apple", message, "fallback")).toBe(
+      "New sign-ups are paused while we upgrade sign-in"
+    );
+  });
+
   test("passes other failures and fallbacks through", () => {
     expect(socialSignInErrorMessage("google", "boom", "fallback")).toBe("boom");
     expect(socialSignInErrorMessage("google", undefined, "fallback")).toBe(

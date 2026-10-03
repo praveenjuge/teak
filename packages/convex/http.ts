@@ -7,6 +7,8 @@ import {
 import { exchangeNativeAuthOptions, pollNativeAuthCode } from "./authNative";
 import { polar } from "./billing";
 import { mcpV1, oauthProtectedResourceV1 } from "./mcp/httpServer";
+import { clientMetadata } from "./migration/connectReadiness";
+import { readinessAuthKit } from "./migration/workosReadiness";
 import { revokeOAuthToken } from "./oauthRevocation";
 import { oauthUserInfo } from "./oauthUserInfo";
 import { duplicateCardV1 } from "./publicApiDuplicate";
@@ -24,6 +26,18 @@ import { openApiV1 } from "./publicApiOpenApi";
 import { safariAccountSummary } from "./safariAccountSummary";
 
 const http = httpRouter();
+
+if (
+  process.env.WORKOS_ENVIRONMENT_ID === "environment_01KBYSVN9RVQ1JXACG3MDMQZGA"
+) {
+  readinessAuthKit?.registerRoutes(http);
+}
+
+http.route({
+  path: "/migration/connect-readiness.json",
+  method: "GET",
+  handler: clientMetadata,
+});
 
 http.route({
   path: "/api/oauth/userinfo",
