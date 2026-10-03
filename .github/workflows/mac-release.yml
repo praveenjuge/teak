@@ -562,7 +562,7 @@ jobs:
             --dry-run \
             --output json > "$RUNNER_TEMP/safari-release-stage-dry-run.json" || stage_exit=$?
           echo "stage_exit=$stage_exit" >> "$GITHUB_OUTPUT"
-          echo "publish_exit=unsupported_pkg" >> "$GITHUB_OUTPUT"
+          echo "publish_exit=not_run" >> "$GITHUB_OUTPUT"
           {
             echo "- asc release stage dry-run exit: $stage_exit"
             echo "- asc publish appstore: explicit lower-level PKG flow remains canonical"
