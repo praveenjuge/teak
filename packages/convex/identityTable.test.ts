@@ -194,6 +194,7 @@ describe("Phase 1 identity table", () => {
   test.each([
     { SIGNUPS_DISABLED: "false", AUTH_PRIMARY: "betterauth" },
     { SIGNUPS_DISABLED: "true", AUTH_PRIMARY: "workos" },
+    { SIGNUPS_DISABLED: "true", AUTH_PRIMARY: "" },
   ])("refuses backfill outside frozen Better Auth: %j", async (vars) => {
     for (const [key, value] of Object.entries(vars)) {
       vi.stubEnv(key, value);

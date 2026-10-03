@@ -12,7 +12,7 @@ import {
 const assertBetterAuthMigration = () => {
   if (
     !readSignupsDisabled() ||
-    (env.AUTH_PRIMARY && env.AUTH_PRIMARY !== "betterauth")
+    (env.AUTH_PRIMARY !== undefined && env.AUTH_PRIMARY !== "betterauth")
   ) {
     throw new Error("Identity backfill requires frozen Better Auth sign-ups");
   }

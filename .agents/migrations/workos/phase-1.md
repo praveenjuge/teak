@@ -13,8 +13,10 @@ requires frozen sign-ups with Better Auth primary. Start with `{ "cursor": null 
 then persist and pass `continueCursor` until `isDone`. Repeating a page is safe.
 Never change card owner IDs.
 
-`migration/identityTable:coveragePage` scans either `betterauth` or `users` with
-`paginationOpts: { cursor: null, numItems: 100 }`. Follow each cursor and sum
+`migration/identityTable:coveragePage` takes
+`{ "direction": "betterauth", "paginationOpts": { "cursor": null, "numItems": 100 } }`.
+Repeat with `"direction": "users"` for the reverse scan. Pass each returned
+`continueCursor` as `paginationOpts.cursor` until `isDone`. Sum
 `missing` and `mismatched`; both must be zero in both directions. Deleted mirrors
 are reported separately as `tombstones`, not active orphaned accounts. Reports
 contain counts and cursors, not emails or credentials.
@@ -30,10 +32,10 @@ owns sign-in and all existing session/authorization behavior.
 - Both coverage directions scanned 283 users with zero missing or mismatched rows.
 - Canonical sign-in still returns all 831 exact active card IDs with their original
   owner. A real WebSocket read and Chrome's restored card grid passed afterward.
-- Seven component/database tests cover pagination, repeat runs, mirroring,
+- Eight component/database tests cover pagination, repeat runs, mirroring,
   link/role preservation, tombstones, coverage drift, and migration guards.
   Removing tombstone protection causes the deletion test to fail.
-- All 1,851 backend unit tests and 155 edge integration tests passed.
+- All 1,851 backend unit tests and 156 edge integration tests passed.
 - The restored backend has no production credentials or scheduled jobs.
   Original snapshots and encrypted Mac/R2 checkpoints remain preserved.
 
