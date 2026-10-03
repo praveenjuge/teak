@@ -31,8 +31,12 @@ describe("Apple release workflows", () => {
     "rudrankriyam/setup-asc@5358c70a27a3f0d1517604b0f1fdc43e70c1cc4d";
 
   test("pins one explicit asc release and immutable setup action", () => {
-    for (const workflow of [mobile, safari, status]) {
-      expect(workflow).toContain('ASC_VERSION: "3.6.1"');
+    for (const [workflow, version] of [
+      [mobile, "3.6.1"],
+      [safari, "5.9.1"],
+      [status, "3.6.1"],
+    ]) {
+      expect(workflow).toContain(`ASC_VERSION: "${version}"`);
       expect(workflow).toContain(setupAscPin);
       expect(workflow).not.toContain("setup-asc@v");
     }
@@ -268,7 +272,7 @@ describe("Apple release workflows", () => {
     }
     expect(mobile).toContain("asc publish appstore");
     expect(safari).toContain(
-      "asc publish appstore: not used because 3.6.1 has no PKG input"
+      "asc publish appstore: explicit lower-level PKG flow remains canonical"
     );
   });
 
