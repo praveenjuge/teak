@@ -25,6 +25,55 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
+test.each([undefined, "environment_other"])(
+  "readiness endpoints expose nothing outside the managed dev environment (%s)",
+  async (environment) => {
+    vi.stubEnv("WORKOS_ENVIRONMENT_ID", environment);
+    const t = setup().withIdentity({
+      subject: "user_readiness",
+      issuer:
+        "https://api.workos.com/user_management/client_01KBYSVNVDV2G39REZFGF0K7GD",
+      sid: "session_readiness",
+    });
+    expect(await t.query(api.migration.readiness.identity, {})).toBeNull();
+    const response = await t.fetch("/migration/connect-readiness.json");
+    expect(response.status).toBe(404);
+    expect(await response.text()).toBe("Not found");
+  }
+);
+
+test("readiness identity accepts only the dev issuer and an AuthKit session", async () => {
+  vi.stubEnv("WORKOS_ENVIRONMENT_ID", "environment_01KBYSVN9RVQ1JXACG3MDMQZGA");
+  const t = setup();
+  const identity = {
+    subject: "user_readiness",
+    issuer:
+      "https://api.workos.com/user_management/client_01KBYSVNVDV2G39REZFGF0K7GD",
+    sid: "session_readiness",
+    external_id: "original_teak_id",
+    email_verified: true,
+  };
+  expect(await t.query(api.migration.readiness.identity, {})).toBeNull();
+  for (const invalid of [
+    { ...identity, issuer: "https://attacker.example" },
+    { ...identity, sid: "oauth_access_token" },
+    { ...identity, sid: undefined },
+  ]) {
+    expect(
+      await t.withIdentity(invalid).query(api.migration.readiness.identity, {})
+    ).toBeNull();
+  }
+  expect(
+    await t.withIdentity(identity).query(api.migration.readiness.identity, {})
+  ).toEqual({
+    subject: identity.subject,
+    issuer: identity.issuer,
+    sid: identity.sid,
+    externalId: identity.external_id,
+    emailVerified: true,
+  });
+});
+
 test.each([
   "new@example.com",
   "e2e-run@e2e.invalid.attacker.com",

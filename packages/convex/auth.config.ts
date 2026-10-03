@@ -3,7 +3,10 @@ import type { AuthConfig } from "convex/server";
 import { readJwksDocument } from "./env";
 
 const readinessClientId =
-  process.env.WORKOS_ENVIRONMENT_ID === "environment_01KBYSVN9RVQ1JXACG3MDMQZGA"
+  // This built-in variable is always present. Auth config throws on an unset
+  // variable, so read optional WorkOS configuration only in the proven dev deployment.
+  process.env.CONVEX_CLOUD_URL ===
+  "https://reminiscent-kangaroo-59.convex.cloud"
     ? process.env.WORKOS_CLIENT_ID
     : undefined;
 

@@ -25,6 +25,11 @@ callback `signup_disabled` show the same pause message.
 of the eight approved models. Continue with its returned cursor until `isDone`.
 Encrypt all output immediately; account/session/OAuth rows contain credentials.
 Never print their values, commit them, or upload unencrypted copies.
+This paged live export is a supplementary inventory: writes between pages can
+change its contents. The coherent Convex snapshot, including Better Auth component
+tables, is the authoritative restore source. Generate the final model inventory
+from that isolated restored snapshot and reconcile it with the live export before
+proceeding; never combine live pages into a claimed point-in-time backup.
 
 ## Dev evidence
 
@@ -58,7 +63,9 @@ Never print their values, commit them, or upload unencrypted copies.
    separate private R2 copy. Preserve every earlier snapshot.
 7. Restore into an isolated deployment with no production service credentials or
    scheduled application jobs. Verify manifests and canonical sign-in/card ownership.
-8. Enable/check Convex production scheduled backups as the short-term second layer.
+8. Create and record a manual Convex production backup as the short-term second
+   layer. The approved replacement uses dated encrypted Mac/R2 snapshots plus
+   manual Convex backups; Pro-only scheduling remains disabled.
 9. Record the frozen user counts, completed restore evidence, and snapshot IDs before
    starting Phase 1. A prepared guard or database-only restore does not satisfy this gate.
 
