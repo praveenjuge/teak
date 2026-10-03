@@ -2,7 +2,7 @@
 import rateLimiterTest from "@convex-dev/rate-limiter/test";
 import workflowTest from "@convex-dev/workflow/test";
 import { convexTest } from "convex-test";
-import { describe, expect, test } from "vitest";
+import { beforeAll, describe, expect, test } from "vitest";
 import { internal } from "./_generated/api";
 import {
   searchCardsByDocument,
@@ -13,6 +13,12 @@ import {
 import schema from "./schema";
 
 const modules = import.meta.glob("./**/*.ts");
+
+// Load the storage SDK before timing behavior assertions. Convex-test lazily
+// imports function modules, so the first restore otherwise includes this cost.
+beforeAll(async () => {
+  await import("./card/deleteCard");
+});
 
 async function setup() {
   const t = convexTest(schema, modules);
