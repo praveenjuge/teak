@@ -69,12 +69,36 @@ alone does not establish server revocation. The fixture does not prove native UI
 real WorkOS service behavior. No WorkOS production activation or store release has
 occurred.
 
+## CLI discovery preparation
+
+The CLI now discovers authorization, token and revocation endpoints and its client
+ID. WorkOS authorization, code exchange and refresh include the API resource.
+Credential storage is scoped to the API deployment and bound to issuer and client
+ID; existing production Better Auth credentials remain usable. Development cannot
+read or clear the production installation's credentials.
+
+Refresh rotation persists before publishing, shares concurrent requests, and
+discards late responses after a provider change clears the session. Service outages
+retain credentials for retry without returning expired access tokens. Sign-in
+rechecks metadata before exchanging the callback code, validates state as bytes,
+and falls back to the second loopback port when the first is occupied. Logout uses
+the discovered revocation endpoint and retains credentials if the server is offline
+or rejects the request.
+
+All 36 CLI tests pass in randomized order, with typecheck and executable build.
+Subprocess journeys use the real CLI, callback server, discovery and SDK with a
+controlled OAuth/API server and isolated credential-store boundary. Removing the
+late-refresh guard fails its regression. This proves the controlled journeys;
+live Better Auth and WorkOS journeys, server consent revocation, registration and
+publication remain outstanding. No CLI release or provider activation has occurred.
+
 ## Remaining work
 
 - Activate and prove the prepared mobile integration after Phase 3 server
   revocation, deletion, and canonical redirect setup. Preserve Better Auth until
   the flag switches. Electron is skipped.
-- Wire CLI, Raycast, Chrome/Firefox, and Safari to discovery and Teak-owned identity.
+- Prove the prepared CLI against live providers. Wire Raycast, Chrome/Firefox,
+  and Safari to discovery and Teak-owned identity.
 - Configure and prove each WorkOS client registration in dev and prod.
 - Verify both modes and real public/client journeys before releases.
 - Follow lockstep version and store runbooks; record each live release date.

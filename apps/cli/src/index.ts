@@ -205,7 +205,7 @@ program
     let source = "none";
     if (options.apiKey || process.env.TEAK_API_KEY) {
       source = "api-key";
-    } else if (readCredentials()) {
+    } else if (readCredentials(options)) {
       source = process.platform === "darwin" ? "keychain" : "file";
     }
     if (source === "none") {

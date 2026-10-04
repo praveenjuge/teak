@@ -11,11 +11,14 @@ import { createServer } from "node:http";
 import { homedir, platform } from "node:os";
 import path from "node:path";
 import {
+  type AuthDiscovery,
   createTeakClient,
+  discoverAuthServer,
   TeakApiError,
   type TeakClient,
   type TokenProvider,
 } from "@teak/convex/sdk";
+import { readResponseTextWithinLimit } from "@teak/convex/shared/bounded-response";
 import { InvalidArgumentError } from "commander";
 
 const readPackageVersion = () => {
@@ -40,6 +43,7 @@ const ACCOUNT = "default";
 
 interface StoredCredentials {
   accessToken: string;
+  binding?: { apiUrl: string; issuer: string; clientId: string };
   expiresAt: number;
   refreshToken: string;
 }
@@ -67,7 +71,17 @@ const configDir = () =>
     process.env.XDG_CONFIG_HOME || path.join(homedir(), ".config"),
     "teak"
   );
-const credentialsPath = () => path.join(configDir(), "credentials.json");
+const credentialAccount = (options: ClientOptions) =>
+  apiBaseUrl(options) === DEFAULT_API_URL
+    ? ACCOUNT
+    : createHash("sha256").update(apiBaseUrl(options)).digest("hex");
+const credentialsPath = (options: ClientOptions) =>
+  path.join(
+    configDir(),
+    credentialAccount(options) === ACCOUNT
+      ? "credentials.json"
+      : `credentials-${credentialAccount(options)}.json`
+  );
 const ensureConfigDir = () => {
   mkdirSync(configDir(), { mode: 0o700, recursive: true });
   chmodSync(configDir(), 0o700);
@@ -81,24 +95,84 @@ const b64url = (bytes: Buffer | Uint8Array) =>
 const sha256 = (value: string) =>
   b64url(createHash("sha256").update(value).digest());
 
-export const readCredentials = (): StoredCredentials | null => {
+const parseCredentials = (text: string): StoredCredentials | null => {
+  if (text.length > 64 * 1024) {
+    return null;
+  }
+  const raw = readJson<Record<string, unknown>>(text);
+  if (
+    !raw ||
+    Array.isArray(raw) ||
+    typeof raw.accessToken !== "string" ||
+    !raw.accessToken ||
+    (raw.refreshToken !== undefined && typeof raw.refreshToken !== "string") ||
+    (raw.expiresAt !== undefined &&
+      (typeof raw.expiresAt !== "number" ||
+        !Number.isSafeInteger(raw.expiresAt) ||
+        raw.expiresAt < 0))
+  ) {
+    return null;
+  }
+  let savedBinding: StoredCredentials["binding"];
+  if (raw.binding !== undefined) {
+    if (
+      !raw.binding ||
+      typeof raw.binding !== "object" ||
+      Array.isArray(raw.binding)
+    ) {
+      return null;
+    }
+    const value = raw.binding as Record<string, unknown>;
+    if (
+      typeof value.apiUrl !== "string" ||
+      typeof value.issuer !== "string" ||
+      typeof value.clientId !== "string"
+    ) {
+      return null;
+    }
+    savedBinding = {
+      apiUrl: value.apiUrl,
+      issuer: value.issuer,
+      clientId: value.clientId,
+    };
+  }
+  return {
+    accessToken: raw.accessToken,
+    refreshToken: (raw.refreshToken as string) ?? "",
+    expiresAt: (raw.expiresAt as number) ?? 0,
+    ...(savedBinding ? { binding: savedBinding } : {}),
+  };
+};
+export const readCredentials = (
+  options: ClientOptions = {}
+): StoredCredentials | null => {
   if (platform() === "darwin") {
     const found = spawnSync(
       "security",
-      ["find-generic-password", "-a", ACCOUNT, "-s", SERVICE, "-w"],
+      [
+        "find-generic-password",
+        "-a",
+        credentialAccount(options),
+        "-s",
+        SERVICE,
+        "-w",
+      ],
       { encoding: "utf8" }
     );
     if (found.status === 0 && found.stdout.trim()) {
-      return readJson<StoredCredentials>(found.stdout.trim());
+      return parseCredentials(found.stdout.trim());
     }
   }
-  if (!existsSync(credentialsPath())) {
+  if (!existsSync(credentialsPath(options))) {
     return null;
   }
-  return readJson<StoredCredentials>(readFileSync(credentialsPath(), "utf8"));
+  return parseCredentials(readFileSync(credentialsPath(options), "utf8"));
 };
 
-const writeCredentials = (credentials: StoredCredentials) => {
+const writeCredentials = (
+  credentials: StoredCredentials,
+  options: ClientOptions
+) => {
   const payload = JSON.stringify(credentials);
   if (platform() === "darwin") {
     const saved = spawnSync(
@@ -107,7 +181,7 @@ const writeCredentials = (credentials: StoredCredentials) => {
         "add-generic-password",
         "-U",
         "-a",
-        ACCOUNT,
+        credentialAccount(options),
         "-s",
         SERVICE,
         "-w",
@@ -120,22 +194,28 @@ const writeCredentials = (credentials: StoredCredentials) => {
     }
   }
   ensureConfigDir();
-  writeFileSync(credentialsPath(), payload, { mode: 0o600 });
-  chmodSync(credentialsPath(), 0o600);
+  writeFileSync(credentialsPath(options), payload, { mode: 0o600 });
+  chmodSync(credentialsPath(options), 0o600);
 };
 
-export const clearCredentials = () => {
+export const clearCredentials = (options: ClientOptions = {}) => {
   if (platform() === "darwin") {
     spawnSync(
       "security",
-      ["delete-generic-password", "-a", ACCOUNT, "-s", SERVICE],
+      [
+        "delete-generic-password",
+        "-a",
+        credentialAccount(options),
+        "-s",
+        SERVICE,
+      ],
       {
         encoding: "utf8",
       }
     );
   }
-  if (existsSync(credentialsPath())) {
-    writeFileSync(credentialsPath(), "", { mode: 0o600 });
+  if (existsSync(credentialsPath(options))) {
+    writeFileSync(credentialsPath(options), "", { mode: 0o600 });
   }
 };
 
@@ -155,25 +235,73 @@ const apiBaseUrl = (options: ClientOptions) =>
   withoutTrailingSlashes(
     options.apiUrl || process.env.TEAK_API_URL || DEFAULT_API_URL
   );
-const tokenEndpoint = (options: ClientOptions) =>
-  `${authBaseUrl(options)}/api/auth/mcp/token`;
-const authorizeEndpoint = (options: ClientOptions) =>
-  `${authBaseUrl(options)}/api/auth/mcp/authorize`;
-
+const discovery = async (options: ClientOptions, forceRefresh = false) => {
+  const explicitAuth = options.authUrl || process.env.TEAK_AUTH_URL;
+  const authUrl = explicitAuth ? new URL(authBaseUrl(options)) : undefined;
+  const local =
+    authUrl && ["localhost", "127.0.0.1", "[::1]"].includes(authUrl.hostname);
+  const auth = await discoverAuthServer(apiBaseUrl(options), {
+    forceRefresh,
+    ...(local ? { localIssuer: authUrl.href } : {}),
+  });
+  if (
+    authUrl &&
+    withoutTrailingSlashes(authUrl.href) !== withoutTrailingSlashes(auth.issuer)
+  ) {
+    throw new Error(
+      "Discovered authentication server does not match TEAK_AUTH_URL."
+    );
+  }
+  return auth;
+};
+const binding = (options: ClientOptions, auth: AuthDiscovery) => ({
+  apiUrl: apiBaseUrl(options),
+  issuer: auth.issuer,
+  clientId: auth.clients.cli,
+});
+const matchesProvider = (
+  credentials: StoredCredentials,
+  options: ClientOptions,
+  auth: AuthDiscovery
+) => {
+  const saved = credentials.binding;
+  if (!saved) {
+    // Only the original production installation has an unambiguous legacy owner.
+    return (
+      apiBaseUrl(options) === DEFAULT_API_URL &&
+      auth.primary === "betterauth" &&
+      auth.issuer === DEFAULT_AUTH_URL &&
+      auth.clients.cli === "teak-cli"
+    );
+  }
+  const next = binding(options, auth);
+  return (
+    saved.apiUrl === next.apiUrl &&
+    saved.issuer === next.issuer &&
+    saved.clientId === next.clientId
+  );
+};
 export const logout = async (options: ClientOptions = {}) => {
-  const credentials = readCredentials();
+  const credentials = readCredentials(options);
   const token = credentials?.refreshToken || credentials?.accessToken;
-  if (token) {
+  if (token && credentials) {
     try {
-      const response = await fetch(`${apiBaseUrl(options)}/api/oauth/revoke`, {
-        body: new URLSearchParams({ client_id: "teak-cli", token }),
-        headers: { "Content-Type": "application/x-www-form-urlencoded" },
-        method: "POST",
-        redirect: "error",
-        signal: AbortSignal.timeout(10_000),
-      });
-      if (!response.ok) {
-        throw new Error("Revocation failed");
+      const auth = await discovery(options, true);
+      if (matchesProvider(credentials, options, auth)) {
+        if (!auth.revocationEndpoint) {
+          throw new Error("Revocation unavailable");
+        }
+        const response = await fetch(auth.revocationEndpoint, {
+          body: new URLSearchParams({ client_id: auth.clients.cli, token }),
+          headers: { "Content-Type": "application/x-www-form-urlencoded" },
+          method: "POST",
+          credentials: "omit",
+          redirect: "error",
+          signal: AbortSignal.timeout(10_000),
+        });
+        if (!response.ok) {
+          throw new Error("Revocation failed");
+        }
       }
     } catch {
       throw new Error(
@@ -181,26 +309,52 @@ export const logout = async (options: ClientOptions = {}) => {
       );
     }
   }
-  clearCredentials();
+  clearCredentials(options);
 };
-
 const exchangeToken = async (
   options: ClientOptions,
+  auth: AuthDiscovery,
   body: Record<string, string>
 ): Promise<StoredCredentials> => {
-  const response = await fetch(tokenEndpoint(options), {
-    body: new URLSearchParams(body),
+  const response = await fetch(auth.tokenEndpoint, {
+    body: new URLSearchParams({
+      ...body,
+      client_id: auth.clients.cli,
+      ...(auth.primary === "workos"
+        ? { resource: new URL("/api", auth.resource).href }
+        : {}),
+    }),
     headers: { "Content-Type": "application/x-www-form-urlencoded" },
     method: "POST",
+    credentials: "omit",
+    redirect: "error",
+    signal: AbortSignal.timeout(10_000),
   });
-  const payload = (await response.json().catch(() => null)) as Record<
-    string,
-    unknown
-  > | null;
+  const text = await readResponseTextWithinLimit(response, 64 * 1024);
+  const payload =
+    text === null ? null : readJson<Record<string, unknown>>(text);
+  if (
+    !response.ok &&
+    body.grant_type === "refresh_token" &&
+    (response.status === 401 ||
+      payload?.error === "invalid_grant" ||
+      payload?.error === "invalid_refresh_token" ||
+      payload?.code === "invalid_refresh_token")
+  ) {
+    throw new TeakApiError("AUTH_REQUIRED", undefined, {
+      status: response.status,
+    });
+  }
   if (
     !(response.ok && payload) ||
     typeof payload.access_token !== "string" ||
-    typeof payload.refresh_token !== "string"
+    !payload.access_token ||
+    typeof payload.refresh_token !== "string" ||
+    !payload.refresh_token ||
+    typeof payload.expires_in !== "number" ||
+    !Number.isSafeInteger(payload.expires_in) ||
+    payload.expires_in <= 0 ||
+    payload.expires_in > 365 * 24 * 3600
   ) {
     throw new TeakApiError("UNAUTHORIZED", "Could not complete Teak sign-in.", {
       status: response.status,
@@ -208,32 +362,77 @@ const exchangeToken = async (
   }
   return {
     accessToken: payload.access_token,
-    expiresAt:
-      Date.now() + Math.max(60, Number(payload.expires_in) || 3600) * 1000,
     refreshToken: payload.refresh_token,
+    expiresAt: Date.now() + payload.expires_in * 1000,
+    binding: binding(options, auth),
   };
 };
-
 const tokenProvider = (options: ClientOptions): TokenProvider => {
-  let current = readCredentials();
+  let current = readCredentials(options);
+  let pending: Promise<string | null> | undefined;
   const explicit = options.apiKey || process.env.TEAK_API_KEY;
   if (explicit) {
     return { getAccessToken: () => explicit };
   }
-  const refresh = async () => {
-    if (!current?.refreshToken) {
-      return null;
+  const select = async (force = false) => {
+    const auth = await discovery(options, force);
+    if (current && !matchesProvider(current, options, auth)) {
+      clearCredentials(options);
+      current = null;
     }
-    current = await exchangeToken(options, {
-      client_id: "teak-cli",
-      grant_type: "refresh_token",
-      refresh_token: current.refreshToken,
-    });
-    writeCredentials(current);
-    return current.accessToken;
+    return auth;
+  };
+  const refresh = (force = false): Promise<string | null> => {
+    if (pending) {
+      return pending;
+    }
+    const work = (async () => {
+      const auth = await select(force);
+      if (!current?.refreshToken) {
+        return null;
+      }
+      const previous = current;
+      try {
+        const next = await exchangeToken(options, auth, {
+          grant_type: "refresh_token",
+          refresh_token: current.refreshToken,
+        });
+        if (current !== previous) {
+          return null;
+        }
+        writeCredentials(next, options);
+        current = next;
+        return current.accessToken;
+      } catch (error) {
+        if (
+          error instanceof TeakApiError &&
+          error.code === "AUTH_REQUIRED" &&
+          current === previous
+        ) {
+          clearCredentials(options);
+          current = null;
+        }
+        // Renew discovery, but never resend a rotating refresh token blindly.
+        await select(true).catch(() => {});
+        throw error;
+      }
+    })();
+    pending = work;
+    void work
+      .finally(() => {
+        if (pending === work) {
+          pending = undefined;
+        }
+      })
+      .catch(() => {});
+    return work;
   };
   return {
-    getAccessToken: () => {
+    getAccessToken: async () => {
+      if (!current) {
+        return null;
+      }
+      await select();
       if (!current) {
         return null;
       }
@@ -241,7 +440,7 @@ const tokenProvider = (options: ClientOptions): TokenProvider => {
         ? refresh()
         : current.accessToken;
     },
-    onUnauthorized: refresh,
+    onUnauthorized: () => refresh(true),
   };
 };
 
@@ -308,16 +507,19 @@ const openBrowser = (url: string) => {
 };
 
 export const createAuthorizeUrl = (
-  options: ClientOptions,
+  auth: AuthDiscovery,
   params: {
     codeChallenge: string;
     redirectUri: string;
     state: string;
   }
 ) => {
-  const authUrl = new URL(authorizeEndpoint(options));
+  const authUrl = new URL(auth.authorizationEndpoint);
   authUrl.searchParams.set("response_type", "code");
-  authUrl.searchParams.set("client_id", "teak-cli");
+  authUrl.searchParams.set("client_id", auth.clients.cli);
+  if (auth.primary === "workos") {
+    authUrl.searchParams.set("resource", new URL("/api", auth.resource).href);
+  }
   authUrl.searchParams.set("redirect_uri", params.redirectUri);
   authUrl.searchParams.set("code_challenge", params.codeChallenge);
   authUrl.searchParams.set("code_challenge_method", "S256");
@@ -327,6 +529,7 @@ export const createAuthorizeUrl = (
 };
 
 export const login = async (options: ClientOptions & { browser?: boolean }) => {
+  const auth = await discovery(options, true);
   const verifier = b64url(randomBytes(32));
   const state = b64url(randomBytes(24));
   for (const port of [14_210, 24_210]) {
@@ -338,19 +541,43 @@ export const login = async (options: ClientOptions & { browser?: boolean }) => {
             server.close();
             reject(new Error("Timed out waiting for browser sign-in."));
           }, 300_000);
+          let exchanging = false;
           const server = createServer(async (request, response) => {
             const url = new URL(request.url || "/", redirectUri);
             const sameState = url.searchParams.get("state") || "";
+            const receivedState = Buffer.from(sameState);
+            const expectedState = Buffer.from(state);
             const validState =
-              sameState.length === state.length &&
-              timingSafeEqual(Buffer.from(state), Buffer.from(sameState));
+              receivedState.length === expectedState.length &&
+              timingSafeEqual(expectedState, receivedState);
             if (url.pathname !== "/oauth/callback" || !validState) {
               response.writeHead(400).end("Invalid Teak sign-in callback.");
               return;
             }
+            if (exchanging) {
+              response.writeHead(409).end("Sign-in is already completing.");
+              return;
+            }
+            exchanging = true;
             try {
-              const next = await exchangeToken(options, {
-                client_id: "teak-cli",
+              const latest = await discovery(options, true);
+              if (
+                latest.issuer !== auth.issuer ||
+                latest.clients.cli !== auth.clients.cli
+              ) {
+                throw new Error(
+                  "Authentication changed during sign-in. Run teak login again."
+                );
+              }
+              if (
+                !url.searchParams.get("code") ||
+                url.searchParams.has("error")
+              ) {
+                throw new Error(
+                  "Sign-in was not completed. Run teak login again."
+                );
+              }
+              const next = await exchangeToken(options, auth, {
                 code: url.searchParams.get("code") || "",
                 code_verifier: verifier,
                 grant_type: "authorization_code",
@@ -365,13 +592,18 @@ export const login = async (options: ClientOptions & { browser?: boolean }) => {
               server.close();
               resolve(next);
             } catch (error) {
+              response
+                .writeHead(400, { "Content-Type": "text/html" })
+                .end(
+                  "<p>Teak sign-in could not complete. Run teak login again.</p>"
+                );
               clearTimeout(timer);
               server.close();
               reject(error);
             }
           });
           server.listen(port, "127.0.0.1", () => {
-            const authUrl = createAuthorizeUrl(options, {
+            const authUrl = createAuthorizeUrl(auth, {
               codeChallenge: sha256(verifier),
               redirectUri,
               state,
@@ -381,15 +613,20 @@ export const login = async (options: ClientOptions & { browser?: boolean }) => {
               openBrowser(authUrl.toString());
             }
           });
-          server.on("error", reject);
+          server.on("error", (error) => {
+            clearTimeout(timer);
+            server.close();
+            reject(error);
+          });
         }
       );
-      writeCredentials(credentials);
+      writeCredentials(credentials, options);
       return "Logged in to Teak.";
     } catch (error) {
       if ((error as NodeJS.ErrnoException).code === "EADDRINUSE") {
         continue;
       }
+      await discovery(options, true).catch(() => {});
       throw error;
     }
   }
