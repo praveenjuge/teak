@@ -562,3 +562,95 @@ describe("ordered canonical WorkOS lifecycle", () => {
     expect(await snapshot(t)).toEqual(before);
   });
 });
+
+// A created envelope may bootstrap only after unfreeze; updated envelopes stay
+// link-only. Delivery order and repeated events must not create extra owners.
+describe("new WorkOS lifecycle owners", () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+    vi.stubEnv("AUTH_PRIMARY", "workos");
+    vi.stubEnv("SIGNUPS_DISABLED", "false");
+  });
+  afterEach(() => {
+    vi.clearAllTimers();
+    vi.useRealTimers();
+    vi.unstubAllEnvs();
+  });
+  const freshEvent = (
+    id: string,
+    seconds = 1,
+    type: "user.created" | "user.updated" = "user.created"
+  ) => ({
+    ...event(id, seconds, type),
+    data: { id: "user_NEW", email: "new@example.com", emailVerified: true },
+  });
+  test("created event creates once and preserves permanent ownership on replay", async () => {
+    const t = setup();
+    const fresh = freshEvent("new_created");
+    expect(await t.mutation(apply, fresh)).toEqual({ status: "applied" });
+    const before = await snapshot(t);
+    expect(before.users).toHaveLength(1);
+    expect(before.users[0]).toMatchObject({
+      workosUserId: "user_NEW",
+      workosEmail: "new@example.com",
+      workosEmailVerified: true,
+      lastWorkosEventAt: Date.parse(time(1)),
+    });
+    expect(before.users[0].teakUserId).toMatch(/^teak_[a-zA-Z0-9]+$/);
+    expect(before.scheduled).toHaveLength(2);
+    expect(await t.mutation(apply, fresh)).toEqual({ status: "duplicate" });
+    expect(await t.mutation(apply, freshEvent("same_profile", 2))).toEqual({
+      status: "applied",
+    });
+    const after = await snapshot(t);
+    expect(after.users[0].teakUserId).toBe(before.users[0].teakUserId);
+    expect(after.scheduled).toEqual(before.scheduled);
+  });
+  test("updated event never bootstraps an unmatched user", async () => {
+    const t = setup();
+    expect(
+      await t.mutation(apply, freshEvent("unmatched_update", 1, "user.updated"))
+    ).toEqual({ status: "quarantined", reason: "missing_mapping" });
+    expect((await snapshot(t)).users).toEqual([]);
+    expect((await snapshot(t)).scheduled).toEqual([]);
+  });
+  test("frozen create can later bootstrap without duplicating the event", async () => {
+    const t = setup();
+    vi.stubEnv("SIGNUPS_DISABLED", "true");
+    const fresh = freshEvent("frozen_create");
+    expect(await t.mutation(apply, fresh)).toEqual({
+      status: "quarantined",
+      reason: "signups_frozen",
+    });
+    vi.stubEnv("SIGNUPS_DISABLED", "false");
+    expect(
+      await t.mutation(link, {
+        workosUserId: "user_NEW",
+        email: "new@example.com",
+        emailVerified: true,
+        source: "ensureUser",
+        allowCreate: true,
+      })
+    ).toMatchObject({ status: "linked" });
+    const before = await snapshot(t);
+    expect(before.users[0].lastWorkosEventAt).toBe(Date.parse(time(1)));
+    expect(await t.mutation(apply, fresh)).toEqual({ status: "duplicate" });
+    expect(await snapshot(t)).toEqual(before);
+  });
+  test("older created envelope cannot promote a newer unverified update", async () => {
+    const t = setup();
+    await t.mutation(apply, freshEvent("initial_created"));
+    await t.mutation(apply, {
+      ...freshEvent("newer_update", 3, "user.updated"),
+      data: { id: "user_NEW", email: "new@example.com", emailVerified: false },
+    });
+    const before = await snapshot(t);
+    expect(await t.mutation(apply, freshEvent("late_created", 2))).toEqual({
+      status: "stale",
+    });
+    const after = await snapshot(t);
+    expect(after.users).toEqual(before.users);
+    expect(after.users[0].workosEmailVerified).toBe(false);
+    expect(after.scheduled).toEqual(before.scheduled);
+  });
+});

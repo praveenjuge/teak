@@ -12,6 +12,7 @@ export default defineConfig({
       "./securitySessions.test.ts",
       "./workosSessions.test.ts",
       "./workosDevices.test.ts",
+      "./workosBootstrap.test.ts",
       "./identityTable.test.ts",
       "./workosUsers.test.ts",
       "./workosLifecycle.test.ts",

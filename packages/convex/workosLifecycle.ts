@@ -113,6 +113,13 @@ export const applyWorkosEvent = internalMutation({
         workosUserId: userId,
         type: event.event,
         createdAt: time,
+        ...(deleting
+          ? {}
+          : {
+              email,
+              emailVerified: event.data.emailVerified as boolean,
+              externalId: (externalId as string | null | undefined) ?? null,
+            }),
       });
     const quarantine = async (reason: string) => {
       await ctx.db.insert("migrationQuarantine", {
@@ -209,6 +216,7 @@ export const applyWorkosEvent = internalMutation({
         ? {}
         : { externalId: externalId as string }),
       source: "webhook",
+      allowCreate: event.event === "user.created",
     });
     if (linked.status === "quarantined") {
       if (row) {
