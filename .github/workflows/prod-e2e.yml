@@ -10,6 +10,11 @@ on:
         default: false
         required: false
         type: boolean
+      email_delivery:
+        description: Verify email delivery and registration freeze behavior
+        default: false
+        required: false
+        type: boolean
       sweep:
         description: Run orphan account sweep after tests
         default: true
@@ -29,7 +34,7 @@ env:
   E2E_APP_ORIGIN: https://app.teakvault.com
   PROD_E2E_PASSWORD: ${{ secrets.PROD_E2E_PASSWORD }}
   E2E_CLEANUP_TOKEN: ${{ secrets.E2E_CLEANUP_TOKEN }}
-  E2E_EMAIL_DELIVERY_ENABLED: ${{ github.event_name == 'schedule' && 'true' || 'false' }}
+  E2E_EMAIL_DELIVERY_ENABLED: ${{ (github.event_name == 'schedule' || inputs.email_delivery) && 'true' || 'false' }}
   MAILPIT_URL: ${{ secrets.MAILPIT_URL }}
   E2E_EMAIL_DOMAIN: ${{ secrets.E2E_EMAIL_DOMAIN }}
   # Public deployment URLs live in GitHub variables (same values as the
