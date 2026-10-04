@@ -1,4 +1,5 @@
 import { env } from "./_generated/server";
+import { validateOAuthUrl } from "./client/authDiscovery";
 
 export const readSignupsDisabled = (): boolean => {
   const value = env.SIGNUPS_DISABLED;
@@ -146,4 +147,24 @@ export const readAuthPrimary = (): "betterauth" | "workos" => {
     return "workos";
   }
   throw new Error("AUTH_PRIMARY must be betterauth or workos.");
+};
+
+export const readWorkosConnectIssuer = (): string => {
+  const value = env.WORKOS_AUTHKIT_DOMAIN;
+  if (!value) {
+    throw new Error("WORKOS_AUTHKIT_DOMAIN is required in WorkOS mode.");
+  }
+  const url = validateOAuthUrl(value);
+  if (
+    url.protocol !== "https:" ||
+    url.origin !== value ||
+    url.username ||
+    url.password ||
+    url.port
+  ) {
+    throw new Error(
+      "WORKOS_AUTHKIT_DOMAIN must be an HTTPS origin without a port."
+    );
+  }
+  return value;
 };

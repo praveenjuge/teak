@@ -206,6 +206,9 @@ describe("Connect credential validation", () => {
     `${issuer}#fragment`,
     "https://user:password@workos-token-test.authkit.app",
     "https://workos-token-test.authkit.app:8080",
+    "https://localhost",
+    "https://127.0.0.1",
+    "https://10.0.0.1",
   ])(
     "rejects unsafe issuer configuration %s before network access",
     async (value: string) => {
