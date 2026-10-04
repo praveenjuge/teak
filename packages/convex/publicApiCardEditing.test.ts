@@ -2,7 +2,15 @@
 import rateLimiterTest from "@convex-dev/rate-limiter/test";
 import workflowTest from "@convex-dev/workflow/test";
 import { convexTest } from "convex-test";
-import { beforeAll, describe, expect, test } from "vitest";
+import {
+  afterEach,
+  beforeAll,
+  beforeEach,
+  describe,
+  expect,
+  test,
+  vi,
+} from "vitest";
 import { internal } from "./_generated/api";
 import {
   searchCardsByDocument,
@@ -13,6 +21,15 @@ import {
 import schema from "./schema";
 
 const modules = import.meta.glob("./**/*.ts");
+
+// Editing assertions stop at the committed mutation/query boundary. Pipeline
+// execution has its own tests; hold its scheduled timers inside each fixture
+// so they cannot race the next test or the edge VM's teardown.
+beforeEach(() => vi.useFakeTimers());
+afterEach(() => {
+  vi.clearAllTimers();
+  vi.useRealTimers();
+});
 
 // Load the storage SDK before timing behavior assertions. Convex-test lazily
 // imports function modules, so the first restore otherwise includes this cost.
