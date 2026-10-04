@@ -35,7 +35,7 @@ const seed = (t: Backend, fields: Partial<Doc<"users">> = {}) =>
     ctx.db.insert("users", {
       teakUserId: "owner-a",
       email: "owner@example.com",
-      emailVerified: false,
+      emailVerified: true,
       ...fields,
     })
   );
@@ -53,7 +53,11 @@ const snapshot = (t: Backend) =>
 describe("transactional WorkOS identity linking", () => {
   test("external ID links an unverified imported user without rewriting their vault or profile", async () => {
     const t = setup();
-    const id = await seed(t, { role: "admin", lastWorkosEventAt: 123 });
+    const id = await seed(t, {
+      emailVerified: false,
+      role: "admin",
+      lastWorkosEventAt: 123,
+    });
     await t.run((ctx) =>
       ctx.db.insert("cards", {
         userId: "owner-a",
@@ -92,6 +96,22 @@ describe("transactional WorkOS identity linking", () => {
       await t.mutation(link, { ...input, email: " OWNER@EXAMPLE.COM " })
     ).toEqual({ status: "linked", teakUserId: "owner-a", changed: true });
     expect((await snapshot(t)).users[0].workosUserId).toBe(input.workosUserId);
+  });
+
+  test("verified WorkOS email cannot attach to an unverified legacy owner", async () => {
+    const t = setup();
+    await seed(t, { emailVerified: false });
+    const before = await snapshot(t);
+    expect(await t.mutation(link, input)).toEqual({
+      status: "quarantined",
+      reason: "email_unverified",
+    });
+    const after = await snapshot(t);
+    expect(after.users).toEqual(before.users);
+    expect(after.cards).toEqual(before.cards);
+    expect(after.quarantine).toMatchObject([
+      { reason: "email_unverified", teakUserId: "owner-a" },
+    ]);
   });
 
   test("idempotent retries from import, webhook and bootstrap keep the same link", async () => {

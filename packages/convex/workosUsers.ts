@@ -109,6 +109,11 @@ export const linkWorkosUser = internalMutation({
       if (!candidate) {
         return quarantine("missing_mapping");
       }
+      // A verified provider address must not claim a pre-existing unverified
+      // legacy vault with surviving Better Auth credentials.
+      if (!candidate.emailVerified) {
+        return quarantine("email_unverified", candidate.teakUserId);
+      }
     }
     if (candidate.deletedAt !== undefined) {
       return quarantine("deleted_user", candidate.teakUserId);

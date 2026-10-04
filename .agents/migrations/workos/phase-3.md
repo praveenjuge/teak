@@ -8,7 +8,8 @@ adapters will share this boundary. It is not called by production runtime yet.
 
 An external ID must select exactly one owner; a missing or conflicting match never
 falls back to email. Without an external ID or existing provider link, email matching
-requires explicit verification and one matching row. Existing links, deletion
+requires explicit verification on both the WorkOS claim and the existing owner,
+and one matching row. This strengthens the plan against preclaimed legacy accounts. Existing links, deletion
 tombstones and active deletion states cannot be overwritten. Index reads and the
 link write share one transaction. Conflicts return a quarantine result so its insert
 commits. Retries of a successful link are idempotent.
@@ -18,8 +19,8 @@ owner IDs and cards. It creates no new vault, changes no auth mode and runs no i
 or backfill. Quarantine receipts are not event-deduplicated in this foundation.
 
 Real database tests cover malformed inputs, strict matching, competing claims,
-retries, deletion states and persisted quarantine. All 220 backend edge tests pass,
-including 27 new cases. Six isolated guard mutations fail their regressions. These
+retries, deletion states and persisted quarantine. All 221 backend edge tests pass,
+including 28 new cases. Six isolated guard mutations fail their regressions. These
 controlled tests do not prove hosted deployment concurrency.
 
 ## Before runtime activation
