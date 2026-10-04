@@ -279,6 +279,16 @@
         "typescript": "^5.9.3",
       },
     },
+    "packages/sdk": {
+      "name": "teak-sdk",
+      "version": "1.0.76",
+      "devDependencies": {
+        "@teak/convex": "workspace:*",
+        "@types/bun": "^1.4.0",
+        "@types/node": "^26.2.0",
+        "typescript": "^6.0.3",
+      },
+    },
     "packages/tests": {
       "name": "@teak/tests",
       "version": "1.0.76",
@@ -4355,6 +4365,8 @@
     "teak-cli": ["teak-cli@workspace:apps/cli"],
 
     "teak-raycast": ["teak-raycast@workspace:apps/raycast"],
+
+    "teak-sdk": ["teak-sdk@workspace:packages/sdk"],
 
     "temp": ["temp@0.9.4", "", { "dependencies": { "mkdirp": "^0.5.1", "rimraf": "~2.6.2" } }, "sha512-yYrrsWnrXMcdsnu/7YMYAofM1ktpL5By7vZhf15CrXijWWrEYZks5AXBudalfSWJLlnen/QUJUB5aoB0kqZUGA=="],
 
