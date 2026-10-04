@@ -7,7 +7,7 @@ protected-resource document, Teak client IDs, and RFC 8414 server metadata. It
 requires matching issuers, the exact MCP resource, and S256 PKCE; validates URLs
 and bounds each document to 64 KiB. Requests carry no credentials and reject
 redirects. Results are immutable and cached for at most 60 seconds per deployment
-and transport. Auth failures must call it with `forceRefresh: true`.
+and transport. Stale configuration, sign-in, and refresh failures call it with `forceRefresh: true`.
 
 A cloud development deployment can explicitly permit its local sign-in origin
 with `localIssuer`. Untrusted remote metadata cannot permit loopback access, and
@@ -21,7 +21,7 @@ which is separate from the app origin. The public docs gateway forwards client
 metadata to Convex.
 
 Live cloud dev discovery returned the local issuer, cloud dev resource, legacy
-CLI client ID, and the existing revocation endpoint. Seventeen transport-boundary
+CLI client ID, and the existing revocation endpoint. Transport-boundary
 tests cover both provider documents, mismatches, cache expiry/refresh/races,
 timeouts, unsafe URLs, malformed/oversized responses, and loopback development.
 Removing issuer validation causes its regression to fail. Gateway tests and the

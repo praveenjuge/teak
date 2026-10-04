@@ -25,6 +25,32 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
+test("client discovery is registered at the public GET and OPTIONS routes", async () => {
+  const t = setup();
+  const response = await t.fetch("/.well-known/teak-oauth-clients.json");
+  expect(response.status).toBe(200);
+  expect(response.headers.get("Access-Control-Allow-Origin")).toBe("*");
+  expect(await response.json()).toEqual({
+    primary: "betterauth",
+    issuer: "http://localhost:3000",
+    clients: {
+      cli: "teak-cli",
+      raycast: "teak-raycast",
+      chrome: "teak-chrome",
+      firefox: "teak-firefox",
+      safari: "teak-safari",
+    },
+  });
+  const preflight = await t.fetch("/.well-known/teak-oauth-clients.json", {
+    method: "OPTIONS",
+  });
+  expect(preflight.status).toBe(204);
+  expect(preflight.headers.get("Access-Control-Allow-Origin")).toBe("*");
+  expect(preflight.headers.get("Access-Control-Allow-Methods")).toContain(
+    "GET"
+  );
+});
+
 test.each([undefined, "environment_other"])(
   "readiness endpoints expose nothing outside the managed dev environment (%s)",
   async (environment) => {

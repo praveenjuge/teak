@@ -23,7 +23,7 @@ function fixture(
         ])
       ),
     },
-    [`https://auth.example/.well-known/oauth-authorization-server${new URL(issuer).pathname === "/" ? "" : new URL(issuer).pathname}`]:
+    [`https://auth.example/.well-known/oauth-authorization-server${new URL(issuer).pathname.replace(/\/$/, "")}`]:
       {
         issuer,
         authorization_endpoint: "https://auth.example/authorize",
@@ -33,10 +33,10 @@ function fixture(
       },
   };
   const calls: Array<{ url: string; init?: RequestInit }> = [];
-  const transport: typeof fetch = async (url, init) => {
+  const transport: typeof fetch = (url, init) => {
     const key = String(url);
     calls.push({ url: key, init });
-    return Response.json(documents[key]);
+    return Promise.resolve(Response.json(documents[key]));
   };
   return { documents, calls, transport };
 }
@@ -75,17 +75,21 @@ describe("OAuth discovery", () => {
       expect(f.calls).toHaveLength(6);
     }
   );
-  test("inserts the RFC 8414 well-known path before an issuer path", async () => {
-    const f = fixture("workos", "https://auth.example/tenant");
-    await discoverAuthServer("https://teak.example", { fetch: f.transport });
-    expect(f.calls.map((c) => c.url)).toContain(
-      "https://auth.example/.well-known/oauth-authorization-server/tenant"
-    );
-  });
+  test.each(["https://auth.example/tenant", "https://auth.example/tenant/"])(
+    "inserts the RFC 8414 well-known path for %s",
+    async (issuer: string) => {
+      const f = fixture("workos", issuer);
+      await discoverAuthServer("https://teak.example", { fetch: f.transport });
+      expect(f.calls.map((c) => c.url)).toContain(
+        "https://auth.example/.well-known/oauth-authorization-server/tenant"
+      );
+    }
+  );
   test.each([
     ["issuer", { issuer: "https://other.example" }],
     ["PKCE", { code_challenge_methods_supported: ["plain"] }],
     ["unsafe token URL", { token_endpoint: "http://localhost:9999/token" }],
+    ["shared address URL", { token_endpoint: "https://100.64.0.1/token" }],
     [
       "credential URL",
       { authorization_endpoint: "https://user:secret@auth.example/login" },
@@ -143,7 +147,7 @@ describe("OAuth discovery", () => {
       let broken = true;
       const transport: typeof fetch = async (url, init) =>
         broken
-          ? new Response(failure === "oversized" ? "x".repeat(65537) : "{", {
+          ? new Response(failure === "oversized" ? "x".repeat(65_537) : "{", {
               status: failure === "http failure" ? 503 : 200,
             })
           : f.transport(url, init);
@@ -163,7 +167,7 @@ describe("OAuth discovery", () => {
     Date.now = () => now;
     try {
       await discoverAuthServer("https://teak.example", { fetch: f.transport });
-      now += 60001;
+      now += 60_001;
       await discoverAuthServer("https://teak.example", { fetch: f.transport });
       expect(f.calls).toHaveLength(6);
     } finally {
@@ -176,10 +180,11 @@ describe("OAuth discovery", () => {
     let rejectOld!: (error: Error) => void;
     const transport: typeof fetch = (url, init) => {
       calls += 1;
-      if (calls === 1)
+      if (calls === 1) {
         return new Promise((_resolve, reject) => {
           rejectOld = reject;
         });
+      }
       return f.transport(url, init);
     };
     const old = discoverAuthServer("https://teak.example", {
@@ -199,21 +204,61 @@ describe("OAuth discovery", () => {
     expect(calls).toBe(before);
   });
 
-  test("times out discovery and allows another attempt", async () => {
-    const transport: typeof fetch = (_url, init) =>
-      new Promise((_resolve, reject) => {
+  test("failed discovery aborts its stalled sibling and permits retry", async () => {
+    const f = fixture();
+    let broken = true;
+    let aborted = false;
+    const transport: typeof fetch = (url, init) => {
+      if (!broken) {
+        return f.transport(url, init);
+      }
+      if (String(url).includes("oauth-protected-resource")) {
+        return Promise.resolve(new Response(null, { status: 503 }));
+      }
+      return new Promise((_resolve, reject) => {
         init?.signal?.addEventListener(
           "abort",
-          () => reject(new Error("Aborted")),
+          () => {
+            aborted = true;
+            reject(new Error("Aborted sibling"));
+          },
           { once: true }
         );
       });
+    };
+    await expect(
+      discoverAuthServer("https://teak.example", { fetch: transport })
+    ).rejects.toThrow("request failed");
+    expect(aborted).toBe(true);
+    broken = false;
+    expect(
+      await discoverAuthServer("https://teak.example", { fetch: transport })
+    ).toMatchObject({ primary: "betterauth" });
+  });
+
+  test("times out discovery and allows another attempt", async () => {
+    const f = fixture();
+    let stalled = true;
+    const transport: typeof fetch = (url, init) =>
+      stalled
+        ? new Promise((_resolve, reject) => {
+            init?.signal?.addEventListener(
+              "abort",
+              () => reject(new Error("Aborted")),
+              { once: true }
+            );
+          })
+        : f.transport(url, init);
     await expect(
       discoverAuthServer("https://teak.example", {
         fetch: transport,
         timeoutMs: 1,
       })
     ).rejects.toThrow("Aborted");
+    stalled = false;
+    expect(
+      await discoverAuthServer("https://teak.example", { fetch: transport })
+    ).toMatchObject({ primary: "betterauth" });
   });
 
   test("allows explicit loopback development while blocking private remote metadata", async () => {
@@ -226,32 +271,40 @@ describe("OAuth discovery", () => {
     await expect(
       discoverAuthServer("https://teak.example", { fetch: f.transport })
     ).rejects.toThrow("Unsafe");
-    const transport: typeof fetch = async (url) =>
-      Response.json(
-        String(url).endsWith("teak-oauth-clients.json")
-          ? {
-              primary: "betterauth",
-              issuer: "http://127.0.0.1:3000",
-              clients: {
-                cli: "cli",
-                raycast: "raycast",
-                chrome: "chrome",
-                firefox: "firefox",
-                safari: "safari",
-              },
-            }
-          : String(url).includes("oauth-protected-resource")
-            ? {
-                resource: "http://127.0.0.1:3211/mcp",
-                authorization_servers: ["http://127.0.0.1:3000"],
-              }
-            : {
-                issuer: "http://127.0.0.1:3000",
-                authorization_endpoint: "http://127.0.0.1:3000/authorize",
-                token_endpoint: "http://127.0.0.1:3000/token",
-                code_challenge_methods_supported: ["S256"],
-              }
+    const issuer = "http://127.0.0.1:3000";
+    const transport: typeof fetch = (url) => {
+      if (String(url).endsWith("teak-oauth-clients.json")) {
+        return Promise.resolve(
+          Response.json({
+            primary: "betterauth",
+            issuer,
+            clients: {
+              cli: "cli",
+              raycast: "raycast",
+              chrome: "chrome",
+              firefox: "firefox",
+              safari: "safari",
+            },
+          })
+        );
+      }
+      if (String(url).includes("oauth-protected-resource")) {
+        return Promise.resolve(
+          Response.json({
+            resource: "http://127.0.0.1:3211/mcp",
+            authorization_servers: [issuer],
+          })
+        );
+      }
+      return Promise.resolve(
+        Response.json({
+          issuer,
+          authorization_endpoint: `${issuer}/authorize`,
+          token_endpoint: `${issuer}/token`,
+          code_challenge_methods_supported: ["S256"],
+        })
       );
+    };
     expect(
       await discoverAuthServer("http://127.0.0.1:3211", { fetch: transport })
     ).toMatchObject({
@@ -259,12 +312,13 @@ describe("OAuth discovery", () => {
       tokenEndpoint: "http://127.0.0.1:3000/token",
     });
   });
-  test("cloud development requires an explicitly approved loopback issuer and keeps its cache separate", async () => {
-    const issuer = "http://localhost:3000";
-    const transport: typeof fetch = async (url) =>
-      Response.json(
-        String(url).endsWith("teak-oauth-clients.json")
-          ? {
+  test.each(["http://localhost:3000", "http://app.teak.localhost:3000"])(
+    "cloud development requires explicit approval for %s and keeps its cache separate",
+    async (issuer: string) => {
+      const transport: typeof fetch = (url) => {
+        if (String(url).endsWith("teak-oauth-clients.json")) {
+          return Promise.resolve(
+            Response.json({
               primary: "betterauth",
               issuer,
               clients: {
@@ -274,30 +328,49 @@ describe("OAuth discovery", () => {
                 firefox: "firefox",
                 safari: "safari",
               },
-            }
-          : String(url).includes("oauth-protected-resource")
-            ? {
-                resource: "https://dev.example/mcp",
-                authorization_servers: [issuer],
-              }
-            : {
-                issuer,
-                authorization_endpoint: `${issuer}/authorize`,
-                token_endpoint: `${issuer}/token`,
-                code_challenge_methods_supported: ["S256"],
-              }
-      );
-    await expect(
-      discoverAuthServer("https://dev.example", { fetch: transport })
-    ).rejects.toThrow("Unsafe");
-    expect(
-      await discoverAuthServer("https://dev.example", {
-        fetch: transport,
-        localIssuer: issuer,
-      })
-    ).toMatchObject({ issuer });
-    await expect(
-      discoverAuthServer("https://dev.example", { fetch: transport })
-    ).rejects.toThrow("Unsafe");
-  });
+            })
+          );
+        }
+        if (String(url).includes("oauth-protected-resource")) {
+          return Promise.resolve(
+            Response.json({
+              resource: "https://dev.example/mcp",
+              authorization_servers: [issuer],
+            })
+          );
+        }
+        return Promise.resolve(
+          Response.json({
+            issuer,
+            authorization_endpoint: `${issuer}/authorize`,
+            token_endpoint: `${issuer}/token`,
+            code_challenge_methods_supported: ["S256"],
+          })
+        );
+      };
+      await expect(
+        discoverAuthServer("https://dev.example", { fetch: transport })
+      ).rejects.toThrow("Unsafe");
+      expect(
+        await discoverAuthServer("https://dev.example", {
+          fetch: transport,
+          localIssuer: issuer,
+        })
+      ).toMatchObject({ issuer });
+      const localTransport: typeof fetch = async (url, init) => {
+        const response = await transport(url, init);
+        const body = await response.json();
+        if (body.resource) {
+          body.resource = `${issuer}/mcp`;
+        }
+        return Response.json(body);
+      };
+      expect(
+        await discoverAuthServer(issuer, { fetch: localTransport })
+      ).toMatchObject({ issuer });
+      await expect(
+        discoverAuthServer("https://dev.example", { fetch: transport })
+      ).rejects.toThrow("Unsafe");
+    }
+  );
 });

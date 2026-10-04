@@ -5,6 +5,7 @@ import {
   isWellFormedOAuthToken,
   OAUTH_ACCESS_TOKEN_MODEL,
 } from "./oauthTokens";
+import { PUBLIC_API_CORS_HEADERS } from "./publicApiMeta";
 
 // Revoke only the credential pair presented by this client. Settings retains
 // its existing app-wide revocation behavior across all installations.
@@ -40,12 +41,18 @@ export const revokeOAuthToken = httpAction(async (ctx, request) => {
       .get("content-type")
       ?.startsWith("application/x-www-form-urlencoded")
   ) {
-    return Response.json({ error: "invalid_request" }, { status: 400 });
+    return Response.json(
+      { error: "invalid_request" },
+      { status: 400, headers: PUBLIC_API_CORS_HEADERS }
+    );
   }
   // Bound the stream before parsing untrusted form data.
   const reader = request.body?.getReader();
   if (!reader) {
-    return Response.json({ error: "invalid_request" }, { status: 400 });
+    return Response.json(
+      { error: "invalid_request" },
+      { status: 400, headers: PUBLIC_API_CORS_HEADERS }
+    );
   }
   let body = "";
   let size = 0;
@@ -58,7 +65,10 @@ export const revokeOAuthToken = httpAction(async (ctx, request) => {
     size += value.byteLength;
     if (size > 2048) {
       await reader.cancel();
-      return Response.json({ error: "invalid_request" }, { status: 400 });
+      return Response.json(
+        { error: "invalid_request" },
+        { status: 400, headers: PUBLIC_API_CORS_HEADERS }
+      );
     }
     body += decoder.decode(value, { stream: true });
   }
@@ -67,7 +77,10 @@ export const revokeOAuthToken = httpAction(async (ctx, request) => {
   const token = form.get("token") ?? "";
   const clientId = form.get("client_id") ?? "";
   if (!clientId || clientId.length > 256 || !token) {
-    return Response.json({ error: "invalid_request" }, { status: 400 });
+    return Response.json(
+      { error: "invalid_request" },
+      { status: 400, headers: PUBLIC_API_CORS_HEADERS }
+    );
   }
   if (isWellFormedOAuthToken(token)) {
     await ctx.runMutation(internal.oauthRevocation.revokeToken, {
@@ -78,6 +91,6 @@ export const revokeOAuthToken = httpAction(async (ctx, request) => {
   // RFC 7009: unknown, expired, and already revoked tokens all succeed.
   return new Response(null, {
     status: 200,
-    headers: { "Cache-Control": "no-store" },
+    headers: { ...PUBLIC_API_CORS_HEADERS, "Cache-Control": "no-store" },
   });
 });

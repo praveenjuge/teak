@@ -68,6 +68,7 @@ const normalizeAuthorizationServerMetadata = (
         ? metadata.registration_endpoint
         : `${issuer}/api/auth/mcp/register`,
     revocation_endpoint: `${getTrailingSlashFreeSiteUrl()}/api/oauth/revoke`,
+    revocation_endpoint_auth_methods_supported: ["none"],
     userinfo_endpoint: `${issuer}/api/auth/mcp/userinfo`,
     jwks_uri: `${issuer}/api/auth/mcp/jwks`,
     scopes_supported: PUBLIC_SCOPES,

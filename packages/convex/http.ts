@@ -239,6 +239,12 @@ http.route({
 });
 http.route({
   path: "/api/oauth/revoke",
+  method: "OPTIONS",
+  handler: v1CorsPreflight,
+});
+
+http.route({
+  path: "/api/oauth/revoke",
   method: "POST",
   handler: revokeOAuthToken,
 });

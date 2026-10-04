@@ -1,3 +1,4 @@
+import { isLocalDevelopmentHostname } from "../devUrls";
 import { readResponseTextWithinLimit } from "../shared/boundedResponse";
 
 export const OAUTH_SURFACES = [
@@ -9,13 +10,13 @@ export const OAUTH_SURFACES = [
 ] as const;
 export type OAuthSurface = (typeof OAUTH_SURFACES)[number];
 export interface AuthDiscovery {
-  readonly primary: "betterauth" | "workos";
-  readonly issuer: string;
   readonly authorizationEndpoint: string;
-  readonly tokenEndpoint: string;
-  readonly revocationEndpoint?: string;
-  readonly resource: string;
   readonly clients: Readonly<Record<OAuthSurface, string>>;
+  readonly issuer: string;
+  readonly primary: "betterauth" | "workos";
+  readonly resource: string;
+  readonly revocationEndpoint?: string;
+  readonly tokenEndpoint: string;
 }
 
 const caches = new WeakMap<
@@ -35,7 +36,7 @@ const object = (value: unknown): Record<string, unknown> => {
   return value as Record<string, unknown>;
 };
 const loopback = (hostname: string) =>
-  hostname === "localhost" || hostname === "127.0.0.1" || hostname === "[::1]";
+  isLocalDevelopmentHostname(hostname) || hostname === "[::1]";
 
 const privateHost = (hostname: string) => {
   const octets = hostname.split(".").map(Number);
@@ -47,6 +48,7 @@ const privateHost = (hostname: string) => {
       octets.every((n) => Number.isInteger(n) && n >= 0 && n <= 255) &&
       (octets[0] === 0 ||
         octets[0] === 10 ||
+        (octets[0] === 100 && octets[1] >= 64 && octets[1] <= 127) ||
         octets[0] === 127 ||
         (octets[0] === 169 && octets[1] === 254) ||
         (octets[0] === 172 && octets[1] >= 16 && octets[1] <= 31) ||
@@ -55,7 +57,9 @@ const privateHost = (hostname: string) => {
 };
 
 const safeUrl = (raw: unknown, local: boolean): URL => {
-  if (typeof raw !== "string") throw new Error("Missing OAuth discovery URL");
+  if (typeof raw !== "string") {
+    throw new Error("Missing OAuth discovery URL");
+  }
   const url = new URL(raw);
   if (
     url.username ||
@@ -113,8 +117,12 @@ export function discoverAuthServer(
   if (!options.forceRefresh && previous && previous.expiresAt > Date.now()) {
     return previous.pending;
   }
-  if (cache.size >= 16 && !cache.has(cacheKey))
-    cache.delete(cache.keys().next().value!);
+  if (cache.size >= 16 && !cache.has(cacheKey)) {
+    const oldest = cache.keys().next().value;
+    if (oldest !== undefined) {
+      cache.delete(oldest);
+    }
+  }
   const controller = new AbortController();
   const timeout = setTimeout(
     () => controller.abort(),
@@ -128,9 +136,13 @@ export function discoverAuthServer(
       headers: { Accept: "application/json" },
       signal: controller.signal,
     });
-    if (!response.ok) throw new Error("OAuth discovery request failed");
+    if (!response.ok) {
+      throw new Error("OAuth discovery request failed");
+    }
     const text = await readResponseTextWithinLimit(response, 64 * 1024);
-    if (text === null) throw new Error("OAuth discovery document is too large");
+    if (text === null) {
+      throw new Error("OAuth discovery document is too large");
+    }
     return object(JSON.parse(text));
   };
   const pending = (async (): Promise<AuthDiscovery> => {
@@ -147,10 +159,11 @@ export function discoverAuthServer(
       throw new Error("OAuth provider configuration changed; retry discovery");
     }
     const metadataUrl = new URL(issuer.origin);
-    metadataUrl.pathname = `/.well-known/oauth-authorization-server${issuer.pathname === "/" ? "" : issuer.pathname}`;
+    metadataUrl.pathname = `/.well-known/oauth-authorization-server${issuer.pathname.replace(/\/$/, "")}`;
     const metadata = await read(metadataUrl.href);
-    if (metadata.issuer !== servers[0])
+    if (metadata.issuer !== servers[0]) {
       throw new Error("OAuth issuer mismatch");
+    }
     if (
       clientDocument.primary !== "betterauth" &&
       clientDocument.primary !== "workos"
@@ -158,8 +171,10 @@ export function discoverAuthServer(
       throw new Error("Unknown OAuth provider");
     }
     if (
-      !Array.isArray(metadata.code_challenge_methods_supported) ||
-      !metadata.code_challenge_methods_supported.includes("S256")
+      !(
+        Array.isArray(metadata.code_challenge_methods_supported) &&
+        metadata.code_challenge_methods_supported.includes("S256")
+      )
     ) {
       throw new Error("OAuth server does not support S256 PKCE");
     }
@@ -172,8 +187,9 @@ export function discoverAuthServer(
         throw new Error("Missing OAuth client registration");
       }
     }
-    if (resource.resource !== `${site.origin}/mcp`)
+    if (resource.resource !== `${site.origin}/mcp`) {
       throw new Error("OAuth resource mismatch");
+    }
     return Object.freeze({
       primary: clientDocument.primary,
       issuer: servers[0] as string,
@@ -191,12 +207,17 @@ export function discoverAuthServer(
         ) as Record<OAuthSurface, string>
       ),
     });
-  })().finally(() => clearTimeout(timeout));
+  })().finally(() => {
+    controller.abort();
+    clearTimeout(timeout);
+  });
   const entry = { expiresAt: Date.now() + 60_000, pending };
   cache.set(cacheKey, entry);
   void pending.catch(() => {
     // A failed older request must not evict a newer forced refresh.
-    if (cache.get(cacheKey) === entry) cache.delete(cacheKey);
+    if (cache.get(cacheKey) === entry) {
+      cache.delete(cacheKey);
+    }
   });
   return pending;
 }
