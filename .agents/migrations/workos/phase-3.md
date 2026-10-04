@@ -19,8 +19,8 @@ owner IDs and cards. It creates no new vault, changes no auth mode and runs no i
 or backfill. Quarantine receipts are not event-deduplicated in this foundation.
 
 Real database tests cover malformed inputs, strict matching, competing claims,
-retries, deletion states and persisted quarantine. All 221 backend edge tests pass,
-including 28 new cases. Six isolated guard mutations fail their regressions. These
+retries, deletion states and persisted quarantine. All 222 backend edge tests pass,
+including 29 new cases. Six isolated guard mutations fail their regressions. These
 controlled tests do not prove hosted deployment concurrency.
 
 ## Before runtime activation

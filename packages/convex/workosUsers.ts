@@ -21,7 +21,7 @@ type LinkReason = typeof reasonValidator.type;
 export const linkWorkosUser = internalMutation({
   args: {
     workosUserId: v.string(),
-    externalId: v.optional(v.string()),
+    externalId: v.optional(v.union(v.string(), v.null())),
     email: v.string(),
     emailVerified: v.boolean(),
     source: v.union(
@@ -41,6 +41,7 @@ export const linkWorkosUser = internalMutation({
   ),
   handler: async (ctx, args) => {
     const email = normalizeIdentityEmail(args.email);
+    const externalId = args.externalId ?? undefined;
     const hasControls = (value: string) =>
       [...value].some(
         (character) =>
@@ -50,7 +51,7 @@ export const linkWorkosUser = internalMutation({
       id.length > 0 && id.length <= 256 && !/\s/.test(id) && !hasControls(id);
     if (
       !validId(args.workosUserId) ||
-      (args.externalId !== undefined && !validId(args.externalId)) ||
+      (externalId !== undefined && !validId(externalId)) ||
       !email ||
       email.length > 320 ||
       hasControls(email)
@@ -79,18 +80,17 @@ export const linkWorkosUser = internalMutation({
     }
     const linked = providerRows[0];
     let candidate: Doc<"users"> | undefined;
-    if (args.externalId !== undefined) {
-      const externalId = args.externalId;
+    if (externalId !== undefined) {
       const ownerRows = await ctx.db
         .query("users")
         .withIndex("by_teakUserId", (q) => q.eq("teakUserId", externalId))
         .take(2);
       if (ownerRows.length > 1) {
-        return quarantine("duplicate_mapping", args.externalId);
+        return quarantine("duplicate_mapping", externalId);
       }
       candidate = ownerRows[0];
       if (!candidate || (linked && linked._id !== candidate._id)) {
-        return quarantine("external_id_mismatch", args.externalId);
+        return quarantine("external_id_mismatch", externalId);
       }
     } else if (linked) {
       candidate = linked;

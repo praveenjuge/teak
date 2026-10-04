@@ -98,6 +98,16 @@ describe("transactional WorkOS identity linking", () => {
     expect((await snapshot(t)).users[0].workosUserId).toBe(input.workosUserId);
   });
 
+  test("null WorkOS external ID uses verified email fallback", async () => {
+    const t = setup();
+    await seed(t);
+    expect(await t.mutation(link, { ...input, externalId: null })).toEqual({
+      status: "linked",
+      teakUserId: "owner-a",
+      changed: true,
+    });
+  });
+
   test("verified WorkOS email cannot attach to an unverified legacy owner", async () => {
     const t = setup();
     await seed(t, { emailVerified: false });
