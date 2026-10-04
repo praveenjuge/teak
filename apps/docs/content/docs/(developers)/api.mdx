@@ -41,6 +41,13 @@ Native clients using browser sign-in send short-lived OAuth access tokens instea
 
 Browser-based OAuth clients can discover the active server from `/.well-known/oauth-protected-resource/mcp`, then read its `/.well-known/oauth-authorization-server` document. Teak publishes first-party client IDs and the matching issuer at `/.well-known/teak-oauth-clients.json`. The shared SDK's `discoverAuthServer(siteUrl)` caches a validated result for up to 60 seconds; use `{ forceRefresh: true }` after sign-in or refresh failures. Discovery never sends an access token. For a cloud development backend with a local sign-in server, pass its explicit loopback origin as `localIssuer`; remote metadata cannot enable loopback access by itself.
 
+## Read your identity
+
+`GET /v1/me` accepts an API key or OAuth access token and returns
+`{ "data": { "id": "...", "email": "...", "name": "..." } }`. `id` is your stable
+Teak owner ID; `name` is optional. Invalid, expired, revoked, or deleted-account
+credentials return 401. Responses are not cached.
+
 ## Create your first card
 
 <CodeGroup>
@@ -137,6 +144,7 @@ Bulk operations accept up to 100 items. Cursor-based listing and the card change
 
 | Route | Purpose |
 | --- | --- |
+| `/v1/me` | Read your authenticated Teak identity |
 | `/v1/cards` | Create or list cards |
 | `/v1/uploads` | Start a direct file upload |
 | `/v1/cards/bulk` | Create or update multiple cards |

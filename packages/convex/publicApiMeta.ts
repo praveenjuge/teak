@@ -1,15 +1,16 @@
-import { OAUTH_SURFACES } from "./client/authDiscovery";
-import { FIRST_PARTY_OAUTH_CLIENTS } from "./oauthClients";
 import { env, httpAction } from "./_generated/server";
+import { OAUTH_SURFACES } from "./client/authDiscovery";
 import {
   isLocalDevelopmentHostname,
   resolveTeakDevApiUrl,
   resolveTeakDevAppUrl,
 } from "./devUrls";
+import { FIRST_PARTY_OAUTH_CLIENTS } from "./oauthClients";
 
 export const API_VERSION = "v1";
 
 export const V1_ENDPOINTS = [
+  "GET /v1/me",
   "GET /v1/cards",
   "POST /v1/cards",
   "POST /v1/uploads",
@@ -198,7 +199,9 @@ export const teakOAuthClients = httpAction(async (_ctx, request) =>
           const client = FIRST_PARTY_OAUTH_CLIENTS.find(
             (entry) => entry.clientId === `teak-${surface}`
           );
-          if (!client) throw new Error("Missing first-party OAuth client");
+          if (!client) {
+            throw new Error("Missing first-party OAuth client");
+          }
           return [surface, client.clientId];
         })
       ),

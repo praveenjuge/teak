@@ -56,7 +56,7 @@ const privateHost = (hostname: string) => {
   );
 };
 
-const safeUrl = (raw: unknown, local: boolean): URL => {
+export const validateOAuthUrl = (raw: unknown, local = false): URL => {
   if (typeof raw !== "string") {
     throw new Error("Missing OAuth discovery URL");
   }
@@ -67,6 +67,7 @@ const safeUrl = (raw: unknown, local: boolean): URL => {
     url.hash ||
     (url.protocol !== "https:" &&
       !(local && url.protocol === "http:" && loopback(url.hostname))) ||
+    (!local && loopback(url.hostname)) ||
     (privateHost(url.hostname) && !(local && loopback(url.hostname)))
   ) {
     throw new Error("Unsafe OAuth discovery URL");
@@ -85,18 +86,18 @@ export function discoverAuthServer(
     timeoutMs?: number;
   } = {}
 ): Promise<AuthDiscovery> {
-  const site = safeUrl(siteUrl, true);
+  const site = validateOAuthUrl(siteUrl, true);
   const siteIsLocal = loopback(site.hostname);
   const permittedLocalIssuer =
     options.localIssuer === undefined
       ? undefined
-      : safeUrl(options.localIssuer, true);
+      : validateOAuthUrl(options.localIssuer, true);
   if (permittedLocalIssuer && !loopback(permittedLocalIssuer.hostname)) {
     throw new Error("Development issuer must use loopback");
   }
   const local = siteIsLocal || permittedLocalIssuer !== undefined;
   const validateUrl = (raw: unknown) => {
-    const url = safeUrl(raw, local);
+    const url = validateOAuthUrl(raw, local);
     if (
       loopback(url.hostname) &&
       !siteIsLocal &&
