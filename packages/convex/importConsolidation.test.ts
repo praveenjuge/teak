@@ -111,6 +111,7 @@ describe("import orchestration through the worker", () => {
       );
       const orphanKey = "users/import-test/imports/job/orphan.pdf";
       const ownedKey = "users/import-test/imports/job/owned.pdf";
+      const extraKeys: string[] = [];
       await t.run(async (ctx) => {
         await ctx.db.patch(jobId, {
           failedCount: 1,
@@ -132,6 +133,23 @@ describe("import orchestration through the worker", () => {
             createdAt: 0,
             updatedAt: 0,
           });
+        }
+        if (outcome === "completed" && !reportFails) {
+          for (let index = 3; index < 208; index++) {
+            const extractedFileKey = `users/import-test/imports/job/orphan-${index}.pdf`;
+            extraKeys.push(extractedFileKey);
+            await ctx.db.insert("importJobItems", {
+              jobId,
+              userId: "import-test",
+              sourceIndex: index,
+              status: "failed",
+              type: "document",
+              content: "Unclaimed file",
+              extractedFileKey,
+              createdAt: 0,
+              updatedAt: 0,
+            });
+          }
         }
       });
       let releaseReport!: () => void;
@@ -220,6 +238,9 @@ describe("import orchestration through the worker", () => {
       );
       expect(deleted).toContain(sourceKey);
       expect(deleted).toContain(orphanKey);
+      for (const key of extraKeys) {
+        expect(deleted).toContain(key);
+      }
       expect(deleted).not.toContain(ownedKey);
       expect(await t.run((ctx) => ctx.db.query("cards").collect())).toEqual([]);
       const retryId = await t.mutation(internal.dataImport.reserveJob, {
