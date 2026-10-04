@@ -141,6 +141,7 @@ test("rejects symlink and public lock directories", async () => {
   if (process.platform !== "win32") {
     const publicPath = fixture();
     mkdirSync(publicPath, { mode: 0o755 });
+    fs.chmodSync(publicPath, 0o755);
     await expect(
       withCredentialLock(publicPath, async () => "must not execute", 30)
     ).rejects.toThrow("Unsafe");
@@ -392,4 +393,62 @@ test("claim cleanup refuses a replaced inode even when its owner metadata matche
   } finally {
     probe.mockRestore();
   }
+});
+
+test("contenders never parse partial owner metadata during publication", async () => {
+  const path = fixture();
+  const result = fixture();
+  const originalWrite = fs.writeFileSync;
+  let contender: ReturnType<typeof Bun.spawn> | undefined;
+  const publish = spyOn(fs, "writeFileSync").mockImplementation(
+    (file, data, options) => {
+      if (String(file).startsWith(join(path, "owner"))) {
+        // The OS boundary pauses after a partial write, before publication.
+        originalWrite(file, '{"pid":', options);
+        contender = Bun.spawn(
+          [
+            process.execPath,
+            "--no-env-file",
+            "-e",
+            `
+        import {writeFileSync} from "node:fs";
+        const [modulePath,path,result] = process.argv.slice(1);
+        const {withCredentialLock} = await import(modulePath);
+        let message = "unexpected acquisition";
+        try { await withCredentialLock(path, async () => {}, 40); }
+        catch (error) { message = error.message; }
+        writeFileSync(result,message);
+      `,
+            modulePath,
+            path,
+            result,
+          ],
+          { stdout: "pipe", stderr: "pipe" }
+        );
+        const deadline = performance.now() + 1500;
+        while (!fs.existsSync(result) && performance.now() < deadline) {
+          Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 5);
+        }
+        expect(fs.existsSync(result)).toBe(true);
+        expect(readFileSync(result, "utf8")).toContain("Timed out");
+        // Finish the same private file; the canonical code publishes afterward.
+        return originalWrite(file, data, { ...(options as object), flag: "w" });
+      }
+      return originalWrite(file, data, options);
+    }
+  );
+  try {
+    expect(await withCredentialLock(path, async () => "published", 1000)).toBe(
+      "published"
+    );
+  } finally {
+    publish.mockRestore();
+  }
+  expect(contender).toBeDefined();
+  if (contender) {
+    await successful(contender);
+  }
+  expect(await withCredentialLock(path, async () => "reacquired", 1000)).toBe(
+    "reacquired"
+  );
 });

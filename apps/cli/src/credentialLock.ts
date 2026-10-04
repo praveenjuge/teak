@@ -3,6 +3,7 @@ import {
   lstatSync,
   mkdirSync,
   readFileSync,
+  renameSync,
   rmdirSync,
   type Stats,
   unlinkSync,
@@ -85,10 +86,14 @@ export async function withCredentialLock<T>(
     try {
       mkdirSync(path, { mode: 0o700 });
       acquired = inspect(path, true);
-      writeFileSync(join(path, "owner.json"), JSON.stringify(owner), {
+      // Contenders may observe mkdir immediately. Publish only complete JSON;
+      // a crash before publication remains uncertain and is never age-stolen.
+      const temporary = join(path, `owner-${owner.nonce}.tmp`);
+      writeFileSync(temporary, JSON.stringify(owner), {
         flag: "wx",
         mode: 0o600,
       });
+      renameSync(temporary, join(path, "owner.json"));
       break;
     } catch (error) {
       if (code(error) !== "EEXIST") {
