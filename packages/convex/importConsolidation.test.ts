@@ -49,9 +49,16 @@ afterEach(() => {
 });
 
 describe("import orchestration through the worker", () => {
-  test.each([false, true])(
-    "the workflow blocks retries during report persistence and cleans unclaimed files (report failure: %s)",
-    async (reportFails) => {
+  test.each(
+    [false, true].flatMap((reportFails) =>
+      (["identity", "completed", "canceled"] as const).map((outcome) => ({
+        reportFails,
+        outcome,
+      }))
+    )
+  )(
+    "the $outcome workflow preserves its outcome and cleans unclaimed files (report failure: $reportFails)",
+    async ({ reportFails, outcome }) => {
       vi.useFakeTimers();
       vi.stubEnv("IDENTITY_RESOLVER_ENFORCE", "true");
       // Workflow replay disables process globally; load the real step modules
@@ -105,9 +112,12 @@ describe("import orchestration through the worker", () => {
       const orphanKey = "users/import-test/imports/job/orphan.pdf";
       const ownedKey = "users/import-test/imports/job/owned.pdf";
       await t.run(async (ctx) => {
-        await ctx.db.patch(jobId, { failedCount: 1 });
+        await ctx.db.patch(jobId, {
+          failedCount: 1,
+          cancelRequested: outcome === "canceled",
+        });
         for (const [sourceIndex, status, extractedFileKey] of [
-          [0, "pending", orphanKey],
+          [0, outcome === "identity" ? "pending" : "failed", orphanKey],
           [1, "created", ownedKey],
           [2, "failed", undefined],
         ] as const) {
@@ -178,7 +188,7 @@ describe("import orchestration through the worker", () => {
       await reportReached;
       try {
         expect(await t.run((ctx) => ctx.db.get(jobId))).toMatchObject({
-          status: "importing",
+          status: outcome === "canceled" ? "parsing" : "importing",
         });
         await expect(
           t.mutation(internal.dataImport.reserveJob, {
@@ -195,15 +205,19 @@ describe("import orchestration through the worker", () => {
         releaseReport();
         await drained;
       }
-      expect(await t.run((ctx) => ctx.db.get(jobId))).toMatchObject({
-        status: "failed",
-        failureClass: reportFails
-          ? "import_finalization_failed"
-          : "identity_mapping_unavailable",
+      const finalJob = await t.run((ctx) => ctx.db.get(jobId));
+      expect(finalJob).toMatchObject({
+        status: outcome === "identity" ? "failed" : outcome,
         ...(reportFails
           ? {}
           : { reportKey: expect.stringContaining("error-report.txt") }),
       });
+      const reportFailure = reportFails
+        ? "import_finalization_failed"
+        : undefined;
+      expect(finalJob?.failureClass).toBe(
+        outcome === "identity" ? "identity_mapping_unavailable" : reportFailure
+      );
       expect(deleted).toContain(sourceKey);
       expect(deleted).toContain(orphanKey);
       expect(deleted).not.toContain(ownedKey);

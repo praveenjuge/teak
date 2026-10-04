@@ -98,8 +98,11 @@ so a retry cannot delete a job while its workflow is finalizing it. The regressi
 fails against the premature terminal-state transition and passes after correction.
 The real import workflow now queues source and unclaimed extracted-file cleanup
 before uploading its report. Files attached to created cards are preserved.
-Finalization retries three times, then records a terminal failure if it cannot
-finish. Component tests hold report upload pending and prove retries are blocked;
+Finalization retries three times, then records the original terminal outcome and
+cause even when the report cannot be saved. Component tests hold report upload pending and prove retries are blocked;
 both successful and failed uploads subsequently allow another import. Removing
 orphan cleanup, finishing early, or stranding the finalization failure makes the
 corresponding regression fail.
+Completed and canceled outcomes are preserved when report upload fails, preventing
+unnecessary retries of already created cards. The full backend now passes 180
+component integration tests; an outcome/cause inversion fails the regression.

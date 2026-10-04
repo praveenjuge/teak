@@ -14,7 +14,6 @@ async function finalize(
   failureClass?: string
 ) {
   let reportKey: string | undefined;
-  let finalStatus = status;
   let finalFailureClass = failureClass;
   try {
     const objects = await step.runAction(
@@ -24,16 +23,15 @@ async function finalize(
     );
     reportKey = objects.reportKey;
   } catch {
-    finalStatus = "failed";
-    finalFailureClass = "import_finalization_failed";
+    finalFailureClass = failureClass ?? "import_finalization_failed";
   }
   await step.runMutation(internalAny.dataImport.finishJob, {
     jobId,
-    status: finalStatus,
+    status,
     reportKey,
     failureClass: finalFailureClass,
   });
-  return { status: finalStatus };
+  return { status };
 }
 
 export const importWorkflow = workflow.define({
