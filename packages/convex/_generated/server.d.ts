@@ -63,7 +63,6 @@ type Env = {
   readonly SENTRY_RELEASE: string | undefined;
   readonly SIGNUPS_DISABLED: string | undefined;
   readonly SITE_URL: string;
-  readonly TEAK_ADMIN_EMAIL: string | undefined;
   readonly TEAK_DEV_API_URL: string | undefined;
   readonly TEAK_DEV_APP_URL: string | undefined;
   readonly TEAK_DEV_DOCS_URL: string | undefined;

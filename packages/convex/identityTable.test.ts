@@ -3,7 +3,7 @@ import betterAuthTest from "@convex-dev/better-auth/test";
 import { createFunctionHandle } from "convex/server";
 import { convexTest } from "convex-test";
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
-import { components, internal } from "./_generated/api";
+import { api, components, internal } from "./_generated/api";
 import schema from "./schema";
 
 const modules = import.meta.glob("./**/*.ts");
@@ -244,11 +244,12 @@ describe("Phase 1 identity table", () => {
   });
 
   test("admin seeding resolves the configured account once and preserves the role after email changes", async () => {
-    vi.stubEnv("TEAK_ADMIN_EMAIL", " OWNER@EXAMPLE.COM ");
     const t = setup();
     const user = await createUser(t, "owner@example.com", true);
     expect(
-      await t.mutation(internal.migration.identityTable.seedAdmin, {})
+      await t.mutation(internal.migration.identityTable.seedAdmin, {
+        email: " OWNER@EXAMPLE.COM ",
+      })
     ).toEqual({ teakUserId: user._id, role: "admin" });
     await t.mutation(internal.auth.onUpdate, {
       model: "user",
@@ -264,11 +265,80 @@ describe("Phase 1 identity table", () => {
     ]);
   });
 
+  test("admin access follows the permanent role through email changes and revocation", async () => {
+    const t = setup();
+    const user = await createUser(t, "owner@example.com", true);
+    const session = await t.mutation(components.betterAuth.adapter.create, {
+      input: {
+        model: "session",
+        data: {
+          userId: user._id,
+          token: crypto.randomUUID(),
+          expiresAt: Date.now() + 60_000,
+          createdAt: Date.now(),
+          updatedAt: Date.now(),
+        },
+      },
+    });
+    const authenticated = t.withIdentity({
+      subject: user._id,
+      sessionId: session._id,
+    });
+    const [row] = await rows(t);
+    expect(await authenticated.query(api.admin.getAccess, {})).toEqual({
+      allowed: false,
+    });
+    await expect(
+      authenticated.query(api.admin.getOverview, {})
+    ).rejects.toThrow("Unauthorized");
+    await t.run((ctx) => ctx.db.patch("users", row._id, { role: "admin" }));
+    expect(await authenticated.query(api.admin.getAccess, {})).toEqual({
+      allowed: true,
+    });
+    expect(await authenticated.query(api.admin.getOverview, {})).toMatchObject({
+      totals: { totalCards: 0 },
+    });
+    await t.mutation(internal.auth.onUpdate, {
+      model: "user",
+      oldDoc: user,
+      newDoc: { ...user, email: "changed@example.com" },
+    });
+    expect(await authenticated.query(api.admin.getAccess, {})).toEqual({
+      allowed: true,
+    });
+    await t.run((ctx) => ctx.db.patch("users", row._id, { role: undefined }));
+    expect(await authenticated.query(api.admin.getAccess, {})).toEqual({
+      allowed: false,
+    });
+    await t.run((ctx) =>
+      ctx.db.patch("users", row._id, { role: "admin", deletedAt: Date.now() })
+    );
+    expect(await authenticated.query(api.admin.getAccess, {})).toEqual({
+      allowed: false,
+    });
+    await expect(
+      authenticated.query(api.admin.getOverview, {})
+    ).rejects.toThrow("Unauthorized");
+    await t.run((ctx) =>
+      ctx.db.patch("users", row._id, { deletedAt: undefined })
+    );
+    await t.mutation(components.betterAuth.adapter.deleteOne, {
+      input: {
+        model: "session",
+        where: [{ field: "_id", value: session._id }],
+      },
+    });
+    expect(await authenticated.query(api.admin.getAccess, {})).toEqual({
+      allowed: false,
+    });
+  });
+
   test("admin seeding rejects missing or ambiguous mappings without granting a role", async () => {
-    vi.stubEnv("TEAK_ADMIN_EMAIL", "duplicate@example.com");
     const t = setup();
     await expect(
-      t.mutation(internal.migration.identityTable.seedAdmin, {})
+      t.mutation(internal.migration.identityTable.seedAdmin, {
+        email: "duplicate@example.com",
+      })
     ).rejects.toThrow("exactly one active");
     await createUser(t, "duplicate@example.com", true);
     await t.run((ctx) =>
@@ -279,7 +349,9 @@ describe("Phase 1 identity table", () => {
       })
     );
     await expect(
-      t.mutation(internal.migration.identityTable.seedAdmin, {})
+      t.mutation(internal.migration.identityTable.seedAdmin, {
+        email: "duplicate@example.com",
+      })
     ).rejects.toThrow("exactly one active");
     expect((await rows(t)).map((row) => row.role)).toEqual([
       undefined,

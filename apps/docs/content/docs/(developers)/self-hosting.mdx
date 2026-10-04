@@ -41,7 +41,6 @@ public domain at it.
     ```bash
     # Security & Auth
     npx convex env set BETTER_AUTH_SECRET $(openssl rand -base64 32)
-    npx convex env set TEAK_ADMIN_EMAIL you@example.com
 
     # Optional: AI (if you want card processing)
     npx convex env set CLOUDFLARE_ACCOUNT_ID your-account-id
@@ -74,7 +73,14 @@ public domain at it.
 
 <Steps>
   <Step title="Designate the administrator">
-    Set `TEAK_ADMIN_EMAIL` on the production Convex deployment to the normalized email address of the account that should receive administrative access. Teak fails closed when this value is absent or does not match a registered user; account creation order never grants administrative access.
+    Create the intended administrator account first. While Better Auth is primary, pause new sign-ups and grant its stored admin role from `packages/convex`:
+
+    ```bash
+    bunx convex env set --prod SIGNUPS_DISABLED true
+    bunx convex run --prod migration/identityTable:seedAdmin '{"email":"owner@example.com"}'
+    ```
+
+    Replace the example email with your existing account. The command requires exactly one active identity mapping and refuses ambiguous accounts. Admin access follows the stored role through email changes; account creation order never grants access. If you paused sign-ups only for this setup, restore their previous setting afterward.
   </Step>
   <Step title="Update SITE_URL">
     Update `SITE_URL` in Convex to your public domain (e.g., `https://app.yourdomain.com`).
@@ -107,7 +113,6 @@ SITE_URL=http://localhost:3000
 JWKS=null
 PUBLIC_ORIGIN=https://yourdomain.com
 BETTER_AUTH_SECRET=your-secret
-TEAK_ADMIN_EMAIL=you@example.com
 FILES_BASE=https://files.yourdomain.com
 FILES_SIGNING_SECRET=shared-secret
 R2_ACCESS_KEY_ID=access-key
@@ -124,7 +129,7 @@ POLAR_WEBHOOK_SECRET=secret
 RESEND_API_KEY=token
 ```
 
-`SITE_URL` is required to boot; `BETTER_AUTH_SECRET` is required for authentication, while `TEAK_ADMIN_EMAIL` is only needed for admin access. Add the rest for the features you want. See [Where to get the values](#where-to-get-the-values) for sources.
+`SITE_URL` is required to boot; `BETTER_AUTH_SECRET` is required for authentication. Grant admin access through the stored role as described in [Production basics](#production-basics). Add the rest for the features you want. See [Where to get the values](#where-to-get-the-values) for sources.
 
 ### Files Worker (`apps/files-worker/.dev.vars`, wrangler secrets)
 
@@ -184,7 +189,6 @@ Convex serves the REST API at `/api/v1`, the MCP endpoint at `/mcp`, plus `/heal
 - **Better Auth**:
   - `BETTER_AUTH_SECRET`: Generate a random string (e.g., via `openssl rand -base64 32`).
   - `SITE_URL`: This is the URL where your Next.js app is running. Locally, it's `http://localhost:3000`.
-  - `TEAK_ADMIN_EMAIL`: The normalized email address of the one account allowed to use administrative functions. Configure this independently for development and production.
 - **Optional Features**:
   - `R2_*`: Create a private Cloudflare R2 bucket and an API token/S3 credentials with object read, write, and delete access.
   - `FILES_BASE` + `FILES_SIGNING_SECRET`: Deploy the Files Worker (see its section above); card uploads, downloads, thumbnails, and AI analysis all flow through it.

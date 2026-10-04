@@ -13,7 +13,7 @@ const homepageSource = read("../pages/index.astro");
 /** Homepage markup in document order, with the showcase expanded in place. */
 const homepage = homepageSource.replace(
   SHOWCASE_TAG,
-  read("../components/HomeFeatureShowcase.astro"),
+  read("../components/HomeFeatureShowcase.astro")
 );
 
 describe("homepage heading hierarchy", () => {

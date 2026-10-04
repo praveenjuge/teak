@@ -106,3 +106,26 @@ corresponding regression fail.
 Completed and canceled outcomes are preserved when report upload fails, preventing
 unnecessary retries of already created cards. The full backend now passes 180
 component integration tests; an outcome/cause inversion fails the regression.
+
+
+## Production shadow deployment: 2026-10-04
+
+PR #488 merged as `1c2712f06fea487085750800af1ca88802ffdaf4`.
+Backend Deploy run `37172983074` completed successfully at 03:05:19 UTC.
+The shadow observation period starts then; enforcement is no earlier than
+2026-10-11 03:05:19 UTC and still requires a full clean week and zero coverage gaps.
+Both production coverage directions scan 283 users with zero missing/mismatched
+rows. The approved admin role is seeded and verified in both environments.
+Production Chrome loads the existing vault and shows 831 cards with Pro access.
+Enforcement remains unset; Better Auth is primary and sign-ups remain frozen.
+
+## Stable admin authorization candidate
+
+Admin queries and actions check the active mapping's stored role through the
+permanent identity boundary. Missing roles, tombstones, and revoked sessions deny
+access. `TEAK_ADMIN_EMAIL` is removed from the runtime and environment contract.
+The private one-time seed accepts an explicit email and retains its frozen
+Better Auth guard; it does not run automatically. Existing production/dev seeds
+are preserved. The self-hosting guide documents this operator bootstrap.
+Database tests cover grant, email changes, role removal, tombstones, and session
+revocation. This candidate remains pending review and production deployment.
