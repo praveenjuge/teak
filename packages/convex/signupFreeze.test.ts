@@ -130,6 +130,19 @@ test("auth mode reports the active freeze without changing primary provider", as
   expect((await t.query(api.auth.getAuthMode, {})).signupsDisabled).toBe(false);
 });
 
+test("shared auth configuration exposes only the public AuthKit client ID and remains inert", async () => {
+  vi.stubEnv("WORKOS_CLIENT_ID", "client_TEST");
+  vi.stubEnv("WORKOS_API_KEY", "must-not-reach-clients");
+  vi.stubEnv("AUTH_PRIMARY", "workos");
+  const t = setup();
+  expect(await t.query(api.auth.getAuthMode, {})).toEqual({
+    primary: "betterauth",
+    signupsDisabled: true,
+    accountChangesPaused: false,
+    authKitClientId: "client_TEST",
+  });
+});
+
 test("the configured E2E account can still provision during the freeze", async () => {
   const t = setup();
   const user = await t.run(async (ctx) => {

@@ -15,12 +15,15 @@ import {
 import { Stack, useRouter } from "expo-router";
 import React from "react";
 import { Alert, PlatformColor, Pressable } from "react-native";
+import HostedAuthScreen from "@/components/HostedAuthScreen";
 import { IconSymbol } from "@/components/ui/IconSymbol";
 import { authClient } from "@/lib/auth-client";
 import { refreshAuthSessionCache } from "@/lib/auth-session-cache";
 import { getAuthErrorMessage } from "@/lib/getAuthErrorMessage";
+import { useMobileAuth } from "@/lib/mobile-auth-context";
 
 export default function SignInScreen() {
+  const mobileAuth = useMobileAuth();
   const router = useRouter();
   const [isLoading, setIsLoading] = React.useState(false);
   const [emailAddress, setEmailAddress] = React.useState("");
@@ -73,6 +76,9 @@ export default function SignInScreen() {
     }
   };
 
+  if (mobileAuth.mode.primary === "workos") {
+    return <HostedAuthScreen />;
+  }
   return (
     <>
       <Stack.Screen

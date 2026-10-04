@@ -6,63 +6,53 @@ import { trackAuth } from "@teak/convex/shared/metrics";
 import { useConvexAuth } from "convex/react";
 import { useNetworkState } from "expo-network";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Platform } from "react-native";
-import {
-  getAuthRouteState,
-  hasStoredBetterAuthSessionCookie,
-} from "@/lib/auth-bootstrap";
-import { authClient } from "@/lib/auth-client";
-import { refreshAuthSessionCache } from "@/lib/auth-session-cache";
+import { getAuthRouteState } from "@/lib/auth-bootstrap";
+import { useMobileAuth } from "@/lib/mobile-auth-context";
 import { setMobileSentryUser } from "@/lib/sentry";
-
-type AuthClientWithCookie = typeof authClient & {
-  getCookie?: () => string;
-};
-
-function getStoredAuthCookie() {
-  try {
-    return (authClient as AuthClientWithCookie).getCookie?.() ?? null;
-  } catch {
-    return null;
-  }
-}
 
 export function useAuthBootstrap() {
   const { isLoading: isConvexLoading, isAuthenticated: isConvexAuthenticated } =
     useConvexAuth();
   const networkState = useNetworkState();
-  const { data: session, isPending: isBetterAuthPending } =
-    authClient.useSession();
-  const hasBetterAuthSession = Boolean(session?.session?.id);
+  const {
+    user,
+    isPending: isSessionPending,
+    hasStoredSession,
+    refreshSession,
+  } = useMobileAuth();
+  const hasSession = Boolean(user);
   const [hasAttemptedSessionRefresh, setHasAttemptedSessionRefresh] =
     useState(false);
   const [isRefreshingSession, setIsRefreshingSession] = useState(false);
   const diagnosticKeyRef = useRef<string | null>(null);
   const bootstrapStartedAtRef = useRef(Date.now());
   const reportedBootstrapRef = useRef(false);
+  const mountedRef = useRef(true);
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+    };
+  }, []);
 
-  const hasStoredSessionCookie =
-    Platform.OS !== "web" &&
-    hasStoredBetterAuthSessionCookie(getStoredAuthCookie());
   const isOnline =
     networkState.isInternetReachable !== false &&
     networkState.isConnected !== false;
 
   useEffect(() => {
-    void setMobileSentryUser(session?.user?.id);
-  }, [session?.user?.id]);
+    void setMobileSentryUser(user?.teakUserId);
+  }, [user?.teakUserId]);
 
   useEffect(() => {
     if (
-      !hasStoredSessionCookie ||
-      hasBetterAuthSession ||
+      !hasStoredSession ||
+      hasSession ||
       hasAttemptedSessionRefresh ||
       isRefreshingSession
     ) {
       return;
     }
 
-    let isMounted = true;
     setIsRefreshingSession(true);
 
     trackAuth({ outcome: "attempt", stage: "session_refresh" });
@@ -72,10 +62,13 @@ export function useAuthBootstrap() {
         operation: "auth",
         stage: "session_refresh",
       },
-      refreshAuthSessionCache
+      refreshSession
     )
-      .then(() => {
-        trackAuth({ outcome: "success", stage: "session_refresh" });
+      .then((refreshed) => {
+        trackAuth({
+          outcome: refreshed ? "success" : "failure",
+          stage: "session_refresh",
+        });
       })
       .catch((error: unknown) => {
         trackAuth({ outcome: "failure", stage: "session_refresh" });
@@ -89,27 +82,24 @@ export function useAuthBootstrap() {
         });
       })
       .finally(() => {
-        if (!isMounted) {
+        if (!mountedRef.current) {
           return;
         }
         setHasAttemptedSessionRefresh(true);
         setIsRefreshingSession(false);
       });
-
-    return () => {
-      isMounted = false;
-    };
   }, [
-    hasStoredSessionCookie,
-    hasBetterAuthSession,
+    hasStoredSession,
+    hasSession,
     hasAttemptedSessionRefresh,
     isRefreshingSession,
+    refreshSession,
   ]);
 
   const routeState = getAuthRouteState({
-    hasStoredSessionCookie,
-    hasBetterAuthSession,
-    isBetterAuthPending,
+    hasStoredSession,
+    hasSession,
+    isSessionPending,
     hasAttemptedSessionRefresh,
     isRefreshingSession,
     isConvexLoading,
@@ -136,9 +126,9 @@ export function useAuthBootstrap() {
 
     const diagnostics = {
       routeState,
-      hasStoredSessionCookie,
-      hasBetterAuthSession,
-      isBetterAuthPending,
+      hasStoredSession,
+      hasSession,
+      isSessionPending,
       hasAttemptedSessionRefresh,
       isRefreshingSession,
       isConvexLoading,
@@ -153,9 +143,9 @@ export function useAuthBootstrap() {
     console.info("[auth] Bootstrap state", diagnostics);
   }, [
     routeState,
-    hasStoredSessionCookie,
-    hasBetterAuthSession,
-    isBetterAuthPending,
+    hasStoredSession,
+    hasSession,
+    isSessionPending,
     hasAttemptedSessionRefresh,
     isRefreshingSession,
     isConvexLoading,

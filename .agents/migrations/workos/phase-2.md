@@ -27,10 +27,53 @@ timeouts, unsafe URLs, malformed/oversized responses, and loopback development.
 Removing issuer validation causes its regression to fail. Gateway tests and the
 207-test web suite pass. This is a foundation, not a completed client release.
 
+## Mobile session and provider preparation
+
+The canonical mobile source now contains the AuthKit session manager and Expo
+system-browser PKCE flow. Only the public client ID is sent; provider tokens are
+not retained. Secure storage uses a per-environment client key, saves rotated
+credentials before publishing, and serializes writes with sign-out. Expired tokens
+are never returned during an outage; reconnect can retry the retained refresh token.
+A login commits when its validated serialized storage write starts; a later browser
+cancellation cannot leave a rejected login hidden in storage. Queued, invalidated
+logins never publish an unsaved session. Browser cancellation preserves a concurrent
+refresh, while sign-out cancels pending
+callbacks and late refreshes. Callback state and S256 PKCE are checked before exchange.
+The Expo browser supports AuthKit, Google and Apple with `teak://auth/callback`.
+
+The app now selects its provider from a public, reactive configuration query and
+keeps a deployment-scoped cache for offline startup. Delayed cache reads cannot
+override live configuration. Switching away from WorkOS clears its local session.
+The backend query still always selects Better Auth; its optional AuthKit client ID
+is public configuration, and no API key is returned. Email, Google and Apple screens
+use the prepared hosted flow only in WorkOS mode. Registration respects the freeze.
+
+All 230 mobile tests and typecheck pass. Removing sign-out invalidation fails its
+late-refresh regression. A mounted React browser fixture exercises the actual
+bootstrap and provider modules with controlled network/native boundaries: refresh
+completion and failure release loading, stale cache cannot replace live mode,
+configuration failure hides the splash and exposes retry, and expired credentials
+survive an outage and refresh on reconnect. A service outage while connectivity
+stays online retries retained credentials with a one-second initial delay, doubling
+up to one minute; the mounted fixture recovers without a connectivity toggle or
+another sign-in. Failed Keychain reads preserve the credential and signal an
+unresolved stored session; foregrounding after unlocking restores the original
+session without restarting the app. Inverting the completion guard leaves
+the fixture loading, proving that regression is observable. Provider rollback clears
+the stored WorkOS session before selecting Better Auth. Evidence and the repeatable
+fixture are retained with the migration backup checkpoint.
+
+Canonical redirect registration, server revocation and WorkOS account deletion
+remain Phase 3 dependencies before activation or release. The logout browser opener
+alone does not establish server revocation. The fixture does not prove native UI or
+real WorkOS service behavior. No WorkOS production activation or store release has
+occurred.
+
 ## Remaining work
 
-- Mobile AuthKit PKCE, secure refresh rotation, bootstrap/offline recovery, and
-  Convex provider; preserve Better Auth until the flag switches. Electron is skipped.
+- Activate and prove the prepared mobile integration after Phase 3 server
+  revocation, deletion, and canonical redirect setup. Preserve Better Auth until
+  the flag switches. Electron is skipped.
 - Wire CLI, Raycast, Chrome/Firefox, and Safari to discovery and Teak-owned identity.
 - Configure and prove each WorkOS client registration in dev and prod.
 - Verify both modes and real public/client journeys before releases.

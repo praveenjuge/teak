@@ -29,13 +29,14 @@ import { Stack, useRouter } from "expo-router";
 import { useMemo, useState } from "react";
 import { Alert } from "react-native";
 import { authClient } from "@/lib/auth-client";
+import { useMobileAuth } from "@/lib/mobile-auth-context";
 import { useThemePreference } from "@/lib/theme-preference";
 
 const DELETE_CONFIRMATION_PHRASE = "delete account";
 type AppearanceOption = "system" | "light" | "dark";
 
 export default function SettingsScreen() {
-  const { data: session } = authClient.useSession();
+  const mobileAuth = useMobileAuth();
   const { preference, setPreference, isLoaded } = useThemePreference();
   const router = useRouter();
   const currentUser = useQuery(api.auth.getCurrentUser, {});
@@ -80,7 +81,7 @@ export default function SettingsScreen() {
 
   const signOut = async () => {
     try {
-      await authClient.signOut();
+      await mobileAuth.signOut();
       router.replace("/(auth)/welcome");
     } catch (error) {
       console.error(
@@ -216,7 +217,7 @@ export default function SettingsScreen() {
               modifiers={[font({ design: "rounded", weight: "regular" })]}
             >
               <Text modifiers={[font({ design: "rounded" }), lineLimit(1)]}>
-                {session?.user?.email ?? "Not logged in"}
+                {mobileAuth.user?.email ?? "Not logged in"}
               </Text>
             </LabeledContent>
 

@@ -12,18 +12,18 @@ import {
   listStyle,
   scrollDisabled,
 } from "@expo/ui/swift-ui/modifiers";
-import { api } from "@teak/convex";
 import { SIGNUPS_PAUSED_MESSAGE } from "@teak/convex/shared/constants";
-import { useQuery } from "convex-helpers/react/cache/hooks";
 import { Stack, useFocusEffect } from "expo-router";
 import { useCallback, useState } from "react";
 import { Alert, Keyboard, PlatformColor, Pressable } from "react-native";
+import HostedAuthScreen from "@/components/HostedAuthScreen";
 import { IconSymbol } from "@/components/ui/IconSymbol";
 import { authClient } from "@/lib/auth-client";
 import { getAuthErrorMessage } from "@/lib/getAuthErrorMessage";
+import { useMobileAuth } from "@/lib/mobile-auth-context";
 
 export default function SignUpScreen() {
-  const authMode = useQuery(api.auth.getAuthMode, {});
+  const authMode = useMobileAuth().mode;
   const [emailAddress, setEmailAddress] = useState("");
   const [password, setPassword] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -111,6 +111,9 @@ export default function SignUpScreen() {
     }
   };
 
+  if (authMode.primary === "workos") {
+    return <HostedAuthScreen register />;
+  }
   return (
     <>
       <Stack.Screen
