@@ -450,13 +450,8 @@ export const createPendingBatch = internalMutation({
     }
     const userId = await resolveStoredUserId(ctx, job.userId);
     if (!userId) {
-      await ctx.db.patch(jobId, {
-        status: "failed",
-        phase: "Import failed",
-        failureClass: "identity_mapping_unavailable",
-        completedAt: Date.now(),
-        updatedAt: Date.now(),
-      });
+      // Keep the job active until the workflow finishes object cleanup and
+      // stores its report. A retry must not delete this job during finalization.
       return {
         limitReached: false,
         failureClass: "identity_mapping_unavailable" as const,

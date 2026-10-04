@@ -76,7 +76,7 @@ An intentional strict-condition inversion fails both session and bearer tests.
 The isolated restore passes canonical sign-in, all 831 exact card IDs/original
 owners, a real WebSocket subscription, and the Chrome card grid.
 
-Admin seeding is prepared but not yet run live. Email-based admin authorization
+Development admin seeding is verified. Email-based admin authorization
 stays active until both deployment seeds are verified; a following change will
 switch authorization to the stable role. The production shadow week has not
 started. Phase 1b remains a reviewed candidate until its PR/checks/deployments pass.
@@ -93,3 +93,6 @@ Raycast and idempotent restore guards, and terminal import denial. The full back
 passes 1,851 unit and 174 component integration tests. All 29 lint fixtures pass.
 Removing the profile fallback fails its regression test. The import workflow now
 finalizes failed mapping resolution rather than leaving an active job stranded.
+Rejected batches keep the job active until cleanup and report persistence finish,
+so a retry cannot delete a job while its workflow is finalizing it. The regression
+fails against the premature terminal-state transition and passes after correction.

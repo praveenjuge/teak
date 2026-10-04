@@ -42,7 +42,7 @@ afterEach(() => {
 });
 
 describe("import orchestration through the worker", () => {
-  test("an enforced missing mapping stops the pending import batch with a terminal failure and no card or item changes", async () => {
+  test("a rejected import blocks retries until cleanup records its terminal failure", async () => {
     vi.stubEnv("IDENTITY_RESOLVER_ENFORCE", "true");
     const { t, jobId } = await setup();
     const itemId = await t.run((ctx) =>
@@ -67,14 +67,35 @@ describe("import orchestration through the worker", () => {
       failureClass: "identity_mapping_unavailable",
     });
     expect(await t.run((ctx) => ctx.db.get(jobId))).toMatchObject({
-      status: "failed",
-      failureClass: "identity_mapping_unavailable",
-      completedAt: expect.any(Number),
+      status: "parsing",
     });
+    await expect(
+      t.mutation(internal.dataImport.reserveJob, {
+        userId: "import-test",
+        mode: "archive",
+        fileName: "retry.zip",
+        fileSize: 128,
+        fileLastModified: 0,
+        sourceKey,
+        uploadExpiresAt: Date.now() + 60_000,
+      })
+    ).rejects.toThrow("An import is already active");
     expect(await t.run((ctx) => ctx.db.query("cards").collect())).toEqual([]);
     const item = await t.run((ctx) => ctx.db.get(itemId));
     expect(item).toMatchObject({ status: "pending" });
     expect(item?.cardId).toBeUndefined();
+    await t.mutation(internal.dataImport.finishJob, {
+      jobId,
+      status: "failed",
+      reportKey: "users/import-test/imports/job/report.json",
+      failureClass: "identity_mapping_unavailable",
+    });
+    expect(await t.run((ctx) => ctx.db.get(jobId))).toMatchObject({
+      status: "failed",
+      failureClass: "identity_mapping_unavailable",
+      reportKey: "users/import-test/imports/job/report.json",
+      completedAt: expect.any(Number),
+    });
   });
   test("binds a legacy job once and rejects a different version on replay", async () => {
     const { t, jobId } = await setup();
