@@ -5,7 +5,11 @@ import {
   type MutationCtx,
   mutation,
 } from "../_generated/server";
-import { getSessionIdentity } from "../securitySessions";
+import {
+  getSessionUser,
+  requireTeakUserId,
+  type TeakUserId,
+} from "../securitySessions";
 import { cardStorageObjectKeys, deleteObject } from "../storage/r2";
 import {
   ensureCardUsageShardsForRemoval,
@@ -20,12 +24,12 @@ export const permanentDeleteCard = mutation({
   },
   returns: v.null(),
   handler: async (ctx, args) => {
-    const user = await getSessionIdentity(ctx);
+    const user = await getSessionUser(ctx);
     if (!user) {
       throw new Error("User must be authenticated");
     }
 
-    await permanentDeleteCardForUserHandler(ctx, user.subject, args.id);
+    await permanentDeleteCardForUserHandler(ctx, user.teakUserId, args.id);
 
     return null;
   },
@@ -33,7 +37,7 @@ export const permanentDeleteCard = mutation({
 
 const permanentDeleteCardForUserHandler = async (
   ctx: MutationCtx,
-  userId: string,
+  userId: TeakUserId,
   cardId: Id<"cards">
 ) => {
   const card = await ctx.db.get("cards", cardId);
@@ -68,7 +72,11 @@ export const permanentDeleteCardForUser = internalMutation({
   args: { cardId: v.id("cards"), userId: v.string() },
   returns: v.null(),
   handler: async (ctx, args) => {
-    await permanentDeleteCardForUserHandler(ctx, args.userId, args.cardId);
+    await permanentDeleteCardForUserHandler(
+      ctx,
+      await requireTeakUserId(ctx, args.userId),
+      args.cardId
+    );
     return null;
   },
 });
@@ -91,7 +99,11 @@ export const restoreCardForUser = internalMutation({
     if (!card.isDeleted) {
       return null;
     }
-    await updateCardFieldForUserHandler(ctx, { ...args, field: "restore" });
+    await updateCardFieldForUserHandler(ctx, {
+      ...args,
+      userId: await requireTeakUserId(ctx, args.userId),
+      field: "restore",
+    });
     return null;
   },
 });

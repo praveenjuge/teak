@@ -1,13 +1,13 @@
 import { ConvexError, v } from "convex/values";
 import { internal } from "../_generated/api";
 import { action } from "../_generated/server";
-import { getSessionIdentity } from "../securitySessions";
+import { getSessionUser } from "../securitySessions";
 import { CARD_ERROR_CODES, CARD_ERROR_MESSAGES } from "../shared/constants";
 
 export const manuallyGenerateAI = action({
   args: { cardId: v.id("cards") },
   handler: async (ctx, { cardId }) => {
-    const user = await getSessionIdentity(ctx);
+    const user = await getSessionUser(ctx);
     if (!user) {
       throw new Error("Authentication required");
     }
@@ -16,7 +16,7 @@ export const manuallyGenerateAI = action({
       internal.ai.queries.getCardForVerification,
       {
         cardId,
-        userId: user.subject,
+        userId: user.teakUserId,
       }
     );
 
@@ -26,7 +26,7 @@ export const manuallyGenerateAI = action({
 
     const allowed = await ctx.runMutation(
       internal.card.updateCard.consumeCardReprocessLimitForUser,
-      { cardId, userId: user.subject }
+      { cardId, userId: user.teakUserId }
     );
     if (!allowed) {
       throw new ConvexError({

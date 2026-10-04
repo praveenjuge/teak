@@ -243,6 +243,50 @@ describe("Phase 1 identity table", () => {
     });
   });
 
+  test("admin seeding resolves the configured account once and preserves the role after email changes", async () => {
+    vi.stubEnv("TEAK_ADMIN_EMAIL", " OWNER@EXAMPLE.COM ");
+    const t = setup();
+    const user = await createUser(t, "owner@example.com", true);
+    expect(
+      await t.mutation(internal.migration.identityTable.seedAdmin, {})
+    ).toEqual({ teakUserId: user._id, role: "admin" });
+    await t.mutation(internal.auth.onUpdate, {
+      model: "user",
+      oldDoc: user,
+      newDoc: { ...user, email: "changed@example.com" },
+    });
+    expect(await rows(t)).toEqual([
+      expect.objectContaining({
+        teakUserId: user._id,
+        role: "admin",
+        email: "changed@example.com",
+      }),
+    ]);
+  });
+
+  test("admin seeding rejects missing or ambiguous mappings without granting a role", async () => {
+    vi.stubEnv("TEAK_ADMIN_EMAIL", "duplicate@example.com");
+    const t = setup();
+    await expect(
+      t.mutation(internal.migration.identityTable.seedAdmin, {})
+    ).rejects.toThrow("exactly one active");
+    await createUser(t, "duplicate@example.com", true);
+    await t.run((ctx) =>
+      ctx.db.insert("users", {
+        teakUserId: "ambiguous",
+        email: "duplicate@example.com",
+        emailVerified: false,
+      })
+    );
+    await expect(
+      t.mutation(internal.migration.identityTable.seedAdmin, {})
+    ).rejects.toThrow("exactly one active");
+    expect((await rows(t)).map((row) => row.role)).toEqual([
+      undefined,
+      undefined,
+    ]);
+  });
+
   test.each([
     { SIGNUPS_DISABLED: "false", AUTH_PRIMARY: "betterauth" },
     { SIGNUPS_DISABLED: "true", AUTH_PRIMARY: "workos" },

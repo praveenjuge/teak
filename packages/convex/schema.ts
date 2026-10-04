@@ -302,7 +302,9 @@ export const importItemStatusValidator = v.union(
 
 export const fileUploadSessionValidator = v.object({
   userId: v.string(),
-  identityKey: v.string(),
+  // Existing provider-keyed sessions expire through normal cleanup.
+  identityKey: v.optional(v.string()),
+  teakUserId: v.optional(v.string()),
   sourceKey: r2KeyValidator,
   uploadId: v.string(),
   fileName: v.string(),
@@ -687,6 +689,12 @@ export default defineSchema({
     updatedAt: v.number(),
   }).index("by_name", ["name"]),
   fileUploadSessions: defineTable(fileUploadSessionValidator)
+    .index("by_teak_user_file", [
+      "teakUserId",
+      "fileName",
+      "fileSize",
+      "fileLastModified",
+    ])
     .index("by_identity_file", [
       "identityKey",
       "fileName",

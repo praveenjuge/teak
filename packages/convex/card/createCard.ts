@@ -11,7 +11,11 @@ import {
   mutation,
 } from "../_generated/server";
 import { cardTypeValidator, colorValidator } from "../schema";
-import { getSessionIdentity } from "../securitySessions";
+import {
+  getSessionUser,
+  requireTeakUserId,
+  type TeakUserId,
+} from "../securitySessions";
 import type { CardCreationSource } from "../shared/metrics";
 import { normalizeErrorClass } from "../shared/telemetry";
 import { assertSafeExternalUrl } from "../shared/utils/safeUrl";
@@ -74,7 +78,7 @@ interface ImportedVisibleFields {
 
 export const createCardForUserHandler = async (
   ctx: MutationCtx,
-  userId: string,
+  userId: TeakUserId,
   args: CreateCardArgs,
   options: {
     importedVisibleFields?: ImportedVisibleFields;
@@ -249,20 +253,20 @@ export const createCard = mutation({
   args: createCardArgs,
   returns: v.id("cards"),
   handler: async (ctx, args) => {
-    const user = await getSessionIdentity(ctx);
+    const user = await getSessionUser(ctx);
     if (!user) {
       throw new Error("User must be authenticated");
     }
 
     try {
-      return await createCardForUserHandler(ctx, user.subject, args);
+      return await createCardForUserHandler(ctx, user.teakUserId, args);
     } catch (error) {
       await scheduleCardOutcome(ctx, {
         cardType: args.type,
         errorClass: normalizeErrorClass(error),
         outcome: "failure",
         source: "unknown",
-        userId: user.subject,
+        userId: user.teakUserId,
       });
       throw error;
     }
@@ -275,8 +279,12 @@ export const createCardForUser = internalMutation({
     ...createCardArgs,
   },
   returns: v.id("cards"),
-  handler: (ctx, args) => {
+  handler: async (ctx, args) => {
     const { userId, ...createArgs } = args;
-    return createCardForUserHandler(ctx, userId, createArgs);
+    return createCardForUserHandler(
+      ctx,
+      await requireTeakUserId(ctx, userId),
+      createArgs
+    );
   },
 });

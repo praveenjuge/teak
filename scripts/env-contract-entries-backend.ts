@@ -19,6 +19,17 @@ export const BACKEND_ENTRIES: EnvVarSpec[] = [
     required: false,
     note: "Migration sign-up freeze. Unset means sign-ups remain open.",
   }),
+  spec("IDENTITY_RESOLVER_ENFORCE", {
+    owners: ["@teak/convex"],
+    targets: ["convex"],
+    profiles: ["local", "preview", "production"],
+    secret: false,
+    validation: "enum",
+    allowedValues: ["true", "false"],
+    providers: ["convex-dashboard"],
+    required: false,
+    note: "Permanent identity mapping gate. Unset keeps legacy owners in shadow mode.",
+  }),
   spec("AUTH_PRIMARY", {
     owners: ["@teak/convex"],
     targets: ["convex"],

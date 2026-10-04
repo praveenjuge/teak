@@ -7,11 +7,14 @@ import {
   patchCardForUser,
   resolveCardIdForUserRequest,
 } from "../raycast";
-import { inlineSearchSyncDb } from "./helpers/session.test-utils";
+import {
+  inlineSearchSyncDb,
+  withMappedOwner,
+} from "./helpers/session.test-utils";
 
 const runHandler = (fn: any, ctx: any, args: any) => {
   const handler = (fn as any).handler ?? fn;
-  return handler(ctx, args);
+  return handler(withMappedOwner(ctx), args);
 };
 
 describe("raycast", () => {

@@ -17,7 +17,7 @@ import type {
 } from "./card/processingStatus";
 import { stagePending } from "./card/processingStatus";
 import { patchCardWithSearchSync } from "./card/searchDocumentHelpers";
-import { getSessionIdentity } from "./securitySessions";
+import { getSessionUser } from "./securitySessions";
 import { tryResolveObjectUrl } from "./storage/fileUrls";
 import { deleteObject } from "./storage/r2";
 
@@ -81,14 +81,14 @@ const getAdminUserId = async (ctx: AdminCtx) => {
 };
 
 const ensureAdmin = async (ctx: AdminCtx) => {
-  const identity = await getSessionIdentity(ctx);
+  const identity = await getSessionUser(ctx);
   if (!identity) {
     throw new Error("Unauthorized");
   }
 
   const adminUserId = await getAdminUserId(ctx);
 
-  if (!adminUserId || identity.subject !== adminUserId) {
+  if (!adminUserId || identity.teakUserId !== adminUserId) {
     throw new Error("Unauthorized");
   }
 };
@@ -162,13 +162,13 @@ const getActiveCardCountForUser = async (
 export const getAccess = query({
   args: {},
   handler: async (ctx) => {
-    const identity = await getSessionIdentity(ctx);
+    const identity = await getSessionUser(ctx);
     if (!identity) {
       return { allowed: false } as const;
     }
 
     const adminUserId = await getAdminUserId(ctx);
-    const allowed = Boolean(adminUserId && identity.subject === adminUserId);
+    const allowed = Boolean(adminUserId && identity.teakUserId === adminUserId);
 
     return {
       allowed,
@@ -399,14 +399,9 @@ export const listAllCards = query({
 });
 
 const normalizeUserId = (user: Record<string, unknown>) =>
-  (user as { _id?: string; id?: string; userId?: string; subject?: string })
-    ._id ??
-  (user as { _id?: string; id?: string; userId?: string; subject?: string })
-    .id ??
-  (user as { _id?: string; id?: string; userId?: string; subject?: string })
-    .userId ??
-  (user as { _id?: string; id?: string; userId?: string; subject?: string })
-    .subject ??
+  (user as { _id?: string; id?: string; userId?: string })._id ??
+  (user as { _id?: string; id?: string; userId?: string }).id ??
+  (user as { _id?: string; id?: string; userId?: string }).userId ??
   null;
 
 export const listAllUsers = query({

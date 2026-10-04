@@ -46,7 +46,7 @@ interface AuthorizedUser {
   keyId: string;
   rateLimitKey: string;
   source: "component" | "oauth";
-  userId: string;
+  userId: import("./securitySessions").TeakUserId;
 }
 
 type AuthResult = { validated: AuthorizedUser } | { error: Response };

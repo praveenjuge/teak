@@ -1,4 +1,5 @@
 import { mock } from "bun:test";
+import { getFunctionName } from "convex/server";
 
 interface Identity {
   sessionId?: string;
@@ -25,6 +26,13 @@ export function withTestSession<T extends TestContext>(ctx: T): T {
   };
   const sourceRunQuery = ctx.runQuery;
   const runQuery = mock(async (...args: any[]) => {
+    if (
+      typeof args[1]?.teakUserId === "string" &&
+      getFunctionName(args[0]) === "securitySessions:identityMapping"
+    ) {
+      const user = await identity();
+      return user ? { teakUserId: user.subject, emailVerified: false } : null;
+    }
     const queryArgs = args[1] as { model?: string } | undefined;
     if (queryArgs?.model === "session") {
       const originalUser = await auth.getUserIdentity();
@@ -47,6 +55,26 @@ export function withTestSession<T extends TestContext>(ctx: T): T {
     ...ctx,
     auth: { ...auth, getUserIdentity: identity },
     runQuery,
+  };
+}
+
+// A persisted mapping fixture for bearer and internal-job business-logic tests.
+// Missing/tombstoned mappings are exercised against the database in edge tests.
+export function withMappedOwner<
+  T extends { runQuery?: (...args: any[]) => any },
+>(ctx: T): T {
+  const sourceRunQuery = ctx.runQuery;
+  return {
+    ...ctx,
+    runQuery: mock(async (ref: any, args: any) => {
+      if (
+        typeof args?.teakUserId === "string" &&
+        getFunctionName(ref) === "securitySessions:identityMapping"
+      ) {
+        return { teakUserId: args.teakUserId, emailVerified: false };
+      }
+      return await sourceRunQuery?.(ref, args);
+    }),
   };
 }
 

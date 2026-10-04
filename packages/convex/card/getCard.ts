@@ -1,7 +1,11 @@
 import { v } from "convex/values";
 import type { Id } from "../_generated/dataModel";
 import { internalQuery, query } from "../_generated/server";
-import { getSessionIdentity } from "../securitySessions";
+import {
+  getSessionUser,
+  requireTeakUserId,
+  type TeakUserId,
+} from "../securitySessions";
 import { cardReturnValidator } from "./getCards";
 import { attachFileUrls } from "./queryUtils";
 import {
@@ -11,7 +15,7 @@ import {
 
 export const getCardForUserHandler = async (
   ctx: any,
-  userId: string,
+  userId: TeakUserId,
   cardId: Id<"cards">
 ) => {
   const card = await ctx.db.get("cards", cardId);
@@ -28,12 +32,12 @@ export const getCard = query({
   },
   returns: v.union(v.null(), cardReturnValidator),
   handler: async (ctx, { id }) => {
-    const user = await getSessionIdentity(ctx);
+    const user = await getSessionUser(ctx);
     if (!user) {
       return null;
     }
 
-    return getCardForUserHandler(ctx, user.subject, id);
+    return getCardForUserHandler(ctx, user.teakUserId, id);
   },
 });
 
@@ -43,7 +47,7 @@ export const getCardByUrlId = query({
   },
   returns: v.union(v.null(), cardReturnValidator),
   handler: async (ctx, { id }) => {
-    const user = await getSessionIdentity(ctx);
+    const user = await getSessionUser(ctx);
     if (!user) {
       return null;
     }
@@ -56,7 +60,7 @@ export const getCardByUrlId = query({
     try {
       return await getCardForUserHandler(
         ctx,
-        user.subject,
+        user.teakUserId,
         normalizedId as Id<"cards">
       );
     } catch {
@@ -71,7 +75,7 @@ export const getDeletedCards = query({
   },
   returns: v.array(cardReturnValidator),
   handler: async (ctx, args) => {
-    const user = await getSessionIdentity(ctx);
+    const user = await getSessionUser(ctx);
     if (!user) {
       return [];
     }
@@ -79,7 +83,7 @@ export const getDeletedCards = query({
     const cards = await ctx.db
       .query("cards")
       .withIndex("by_user_deleted", (q) =>
-        q.eq("userId", user.subject).eq("isDeleted", true)
+        q.eq("userId", user.teakUserId).eq("isDeleted", true)
       )
       .order("desc")
       .take(args.limit || 50);
@@ -106,5 +110,9 @@ export const getCardForUser = internalQuery({
   },
   returns: v.union(v.null(), cardReturnValidator),
   handler: async (ctx, args) =>
-    getCardForUserHandler(ctx, args.userId, args.cardId),
+    getCardForUserHandler(
+      ctx,
+      await requireTeakUserId(ctx, args.userId),
+      args.cardId
+    ),
 });

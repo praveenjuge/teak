@@ -123,3 +123,26 @@ export const coveragePage = internalQuery({
     };
   },
 });
+
+// Run once before changing admin authorization to the stable role. Keep the
+// existing email contract until both deployments have verified this seed.
+export const seedAdmin = internalMutation({
+  args: {},
+  returns: v.object({ teakUserId: v.string(), role: v.literal("admin") }),
+  handler: async (ctx) => {
+    assertBetterAuthMigration();
+    const email = normalizeIdentityEmail(env.TEAK_ADMIN_EMAIL ?? "");
+    if (!email) {
+      throw new Error("The existing admin email is not configured");
+    }
+    const rows = await ctx.db
+      .query("users")
+      .withIndex("by_email", (q) => q.eq("email", email))
+      .take(2);
+    if (rows.length !== 1 || rows[0].deletedAt !== undefined) {
+      throw new Error("Admin seed requires exactly one active mapped account");
+    }
+    await ctx.db.patch("users", rows[0]._id, { role: "admin" });
+    return { teakUserId: rows[0].teakUserId, role: "admin" as const };
+  },
+});

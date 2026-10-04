@@ -19,6 +19,7 @@ import {
   RATE_LIMITED_ERROR,
   sha256,
 } from "./publicApiHttpShared";
+import { resolveStoredUserId } from "./securitySessions";
 import { isWellFormedApiKey } from "./shared/apiKeyFormat";
 
 const buildIdempotentResponse = (record: {
@@ -239,8 +240,10 @@ const withAuthorizedUser = async (
   // rate limiting lets us key the limiter on a stable identity instead of the
   // attacker-controlled raw token.
   let validated: AuthorizedUser | null = null;
+  let credential: (Omit<AuthorizedUser, "userId"> & { userId: string }) | null =
+    null;
   try {
-    validated = isApiKey
+    credential = isApiKey
       ? await ctx.runMutation((internal as any).apiKeys.validateUserApiKey, {
           token,
         })
@@ -248,6 +251,12 @@ const withAuthorizedUser = async (
           (internal as any).oauthTokens.validateOAuthAccessToken,
           { token }
         );
+    if (credential) {
+      const userId = await resolveStoredUserId(ctx, credential.userId);
+      if (userId) {
+        validated = { ...credential, userId };
+      }
+    }
   } catch {
     return { error: AUTH_INTERNAL_ERROR() };
   }

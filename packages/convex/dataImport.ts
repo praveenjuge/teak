@@ -19,7 +19,11 @@ import {
   colorValidator,
   importModeValidator,
 } from "./schema";
-import { getSessionIdentity } from "./securitySessions";
+import {
+  getSessionUser,
+  requireTeakUserId,
+  type TeakUserId,
+} from "./securitySessions";
 
 const internalAny = internal as Record<string, any>;
 const activeStatuses = new Set<string>(ACTIVE_IMPORT_STATUSES);
@@ -78,12 +82,12 @@ const itemInputValidator = v.object({
   failureReason: v.optional(v.string()),
 });
 
-async function requireUserId(ctx: MutationCtx | QueryCtx) {
-  const identity = await getSessionIdentity(ctx);
+async function requireUserId(ctx: MutationCtx | QueryCtx): Promise<TeakUserId> {
+  const identity = await getSessionUser(ctx);
   if (!identity) {
     throw new Error("User must be authenticated");
   }
-  return identity.subject as string;
+  return identity.teakUserId;
 }
 
 function summarize(job: Doc<"importJobs">) {
@@ -443,6 +447,7 @@ export const createPendingBatch = internalMutation({
     if (job.cancelRequested) {
       return { limitReached: false };
     }
+    const userId = await requireTeakUserId(ctx, job.userId);
     let created = 0,
       skipped = 0,
       failed = 0;
@@ -464,7 +469,7 @@ export const createPendingBatch = internalMutation({
       try {
         const cardId = await createCardForUserHandler(
           ctx,
-          job.userId,
+          userId,
           {
             type: item.type,
             content: item.content,

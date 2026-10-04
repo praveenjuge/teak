@@ -8,7 +8,7 @@ import {
   type QueryCtx,
   query,
 } from "./_generated/server";
-import { currentSession } from "./securitySessions";
+import { getSessionUser, type TeakUserId } from "./securitySessions";
 import { API_KEY_TOKEN_PREFIX, getApiKeyFormat } from "./shared/apiKeyFormat";
 import { rateLimiter } from "./shared/rateLimits";
 
@@ -93,12 +93,12 @@ const getAuthUserById = async (ctx: MutationCtx, userId: string) =>
 
 const getAuthenticatedOwnerId = async (
   ctx: QueryCtx | MutationCtx
-): Promise<string> => {
-  const session = await currentSession(ctx);
+): Promise<TeakUserId> => {
+  const session = await getSessionUser(ctx);
   if (!session) {
     throw new Error("User must be authenticated");
   }
-  return session.userId;
+  return session.teakUserId;
 };
 
 const listComponentKeysByStatus = async (
