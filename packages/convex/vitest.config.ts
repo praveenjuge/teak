@@ -14,6 +14,7 @@ export default defineConfig({
       "./signupFreeze.test.ts",
       "./workosReadiness.test.ts",
       "./publicApiCardEditing.test.ts",
+      "./publicApiMe.test.ts",
       "./mcpRevocation.test.ts",
       "./maintenanceQueries.test.ts",
       "./idempotency.test.ts",

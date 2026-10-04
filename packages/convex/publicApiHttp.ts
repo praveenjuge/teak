@@ -16,6 +16,7 @@ import {
   handleTagsRequest,
 } from "./publicApiHttpCards";
 import { errorResponse, type PublicApiOperation } from "./publicApiHttpShared";
+import { handleMeRequest } from "./publicApiMe";
 import { withPublicApiGatewayHeaders } from "./publicApiMeta";
 
 export {
@@ -66,6 +67,9 @@ export const executePublicApiOperation = (
   const request = toPublicApiRequest(operation);
   const { pathname } = new URL(request.url);
 
+  if (request.method === "GET" && pathname === "/v1/me") {
+    return handleMeRequest(ctx, request);
+  }
   if (request.method === "GET" && pathname === "/v1/cards") {
     return handleCardsListRequest(ctx, request);
   }

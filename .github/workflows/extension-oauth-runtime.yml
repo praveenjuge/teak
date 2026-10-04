@@ -1,0 +1,55 @@
+name: Extension OAuth Runtime
+
+on:
+  pull_request:
+    paths:
+      - apps/extension/**
+      - packages/convex/client/**
+      - packages/convex/shared/boundedResponse.ts
+      - packages/convex/devUrls.ts
+      - packages/tests/src/extension/oauth-runtime.e2e.ts
+      - packages/tests/playwright.oauth-runtime.config.ts
+      - packages/tests/package.json
+      - bun.lock
+      - .github/workflows/extension-oauth-runtime.yml
+  push:
+    branches: [main]
+    paths:
+      - apps/extension/**
+      - packages/convex/client/**
+      - packages/convex/shared/boundedResponse.ts
+      - packages/convex/devUrls.ts
+      - packages/tests/src/extension/oauth-runtime.e2e.ts
+      - packages/tests/playwright.oauth-runtime.config.ts
+      - packages/tests/package.json
+      - bun.lock
+      - .github/workflows/extension-oauth-runtime.yml
+
+permissions:
+  contents: read
+
+concurrency:
+  group: extension-oauth-runtime-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  oauth-runtime:
+    runs-on: ubuntu-latest
+    timeout-minutes: 6
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
+        with:
+          bun-version-file: package.json
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version-file: package.json
+      - run: bun install --frozen-lockfile
+      - run: bun --no-env-file x playwright-core install --with-deps chromium firefox
+      - run: bun --no-env-file run --cwd packages/tests e2e:extension:runtime
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        if: always()
+        with:
+          name: extension-oauth-runtime
+          path: packages/tests/test-results/oauth-runtime
+          retention-days: 14

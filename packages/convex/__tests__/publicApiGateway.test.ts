@@ -44,8 +44,11 @@ describe("Convex public API metadata", () => {
         },
       });
     } finally {
-      if (previous === undefined) delete process.env.SITE_URL;
-      else process.env.SITE_URL = previous;
+      if (previous === undefined) {
+        delete process.env.SITE_URL;
+      } else {
+        process.env.SITE_URL = previous;
+      }
     }
   });
 
@@ -185,7 +188,7 @@ describe("Convex public API metadata", () => {
       Object.values(path).map((operation) => operation.operationId)
     );
 
-    expect(operationIds).toHaveLength(14);
+    expect(operationIds).toHaveLength(15);
     expect(new Set(operationIds).size).toBe(operationIds.length);
     expect(operationIds.every(Boolean)).toBe(true);
   });

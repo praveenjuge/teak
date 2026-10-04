@@ -433,6 +433,45 @@ export const openApiSpec = {
   ],
   components,
   paths: {
+    "/v1/me": {
+      get: {
+        operationId: "getMe",
+        summary: "Get the authenticated Teak identity",
+        security: apiKeySecurity,
+        responses: {
+          200: {
+            description: "Permanent Teak owner ID and current profile",
+            content: {
+              "application/json": {
+                schema: {
+                  type: "object",
+                  required: ["data"],
+                  properties: {
+                    data: {
+                      type: "object",
+                      required: ["id", "email"],
+                      properties: {
+                        id: {
+                          type: "string",
+                          description: "Permanent Teak owner ID",
+                        },
+                        email: { type: "string", format: "email" },
+                        name: { type: "string" },
+                      },
+                    },
+                  },
+                },
+              },
+            },
+          },
+          401: {
+            description: "Missing, invalid, expired, or revoked credential",
+          },
+          429: { description: "Rate limit exceeded" },
+          500: { description: "Profile or authorization service unavailable" },
+        },
+      },
+    },
     "/healthz": {
       get: {
         responses: {
