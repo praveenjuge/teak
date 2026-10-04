@@ -420,6 +420,22 @@ async function queueImportObjectDeletion(
   );
 }
 
+async function queueUnclaimedImportFiles(ctx: ActionCtx, jobId: string) {
+  let fileCursor: string | null = null;
+  do {
+    const files: {
+      keys: string[];
+      isDone: boolean;
+      continueCursor: string;
+    } = await ctx.runQuery(internalAny.dataImport.getUnclaimedFileKeysPage, {
+      jobId,
+      paginationOpts: { cursor: fileCursor, numItems: 200 },
+    });
+    await queueImportObjectDeletion(ctx, files.keys);
+    fileCursor = files.isDone ? null : files.continueCursor;
+  } while (fileCursor);
+}
+
 export const finalizeImportObjects = internalAction({
   args: { jobId: v.id("importJobs") },
   returns: v.object({ reportKey: v.optional(v.string()) }),
@@ -430,6 +446,8 @@ export const finalizeImportObjects = internalAction({
       if (!job) {
         return {};
       }
+      await queueImportObjectDeletion(ctx, [job.sourceKey]);
+      await queueUnclaimedImportFiles(ctx, jobId);
       let reportKey: string | undefined;
       if (job.failedCount > 0) {
         const lines = [
@@ -459,7 +477,6 @@ export const finalizeImportObjects = internalAction({
           contentType: "text/plain; charset=utf-8",
         });
       }
-      await queueImportObjectDeletion(ctx, [job.sourceKey]);
       return { reportKey };
     }
   ),
@@ -477,6 +494,7 @@ export const cleanupImportJob = internalAction({
       }
       await abortImportUpload(job.sourceKey, job.uploadId);
       await queueImportObjectDeletion(ctx, [job.sourceKey, job.reportKey]);
+      await queueUnclaimedImportFiles(ctx, jobId);
       for (;;) {
         const result = await ctx.runMutation(
           internalAny.dataImport.deleteItemsPage,

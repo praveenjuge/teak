@@ -1,3 +1,4 @@
+import { paginationOptsValidator } from "convex/server";
 import { ConvexError, v } from "convex/values";
 import { internal } from "./_generated/api";
 import type { Doc } from "./_generated/dataModel";
@@ -410,6 +411,36 @@ export const getItemsByIds = internalQuery({
       }
     }
     return items;
+  },
+});
+
+export const getUnclaimedFileKeysPage = internalQuery({
+  args: {
+    jobId: v.id("importJobs"),
+    paginationOpts: paginationOptsValidator,
+  },
+  returns: v.object({
+    keys: v.array(v.string()),
+    isDone: v.boolean(),
+    continueCursor: v.string(),
+  }),
+  handler: async (ctx, { jobId, paginationOpts }) => {
+    const page = await ctx.db
+      .query("importJobItems")
+      .withIndex("by_job_source", (q) => q.eq("jobId", jobId))
+      .paginate({
+        ...paginationOpts,
+        numItems: Math.min(paginationOpts.numItems, 200),
+      });
+    return {
+      keys: page.page.flatMap((item) =>
+        item.status !== "created" && item.extractedFileKey
+          ? [item.extractedFileKey]
+          : []
+      ),
+      isDone: page.isDone,
+      continueCursor: page.continueCursor,
+    };
   },
 });
 

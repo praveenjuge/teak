@@ -13,17 +13,27 @@ async function finalize(
   status: "completed" | "failed" | "canceled",
   failureClass?: string
 ) {
-  const objects = await step.runAction(
-    internalAny["import/runImport"].finalizeImportObjects,
-    { jobId }
-  );
+  let reportKey: string | undefined;
+  let finalStatus = status;
+  let finalFailureClass = failureClass;
+  try {
+    const objects = await step.runAction(
+      internalAny["import/runImport"].finalizeImportObjects,
+      { jobId },
+      { retry: { maxAttempts: 3, initialBackoffMs: 500, base: 2 } }
+    );
+    reportKey = objects.reportKey;
+  } catch {
+    finalStatus = "failed";
+    finalFailureClass = "import_finalization_failed";
+  }
   await step.runMutation(internalAny.dataImport.finishJob, {
     jobId,
-    status,
-    reportKey: objects.reportKey,
-    failureClass,
+    status: finalStatus,
+    reportKey,
+    failureClass: finalFailureClass,
   });
-  return { status };
+  return { status: finalStatus };
 }
 
 export const importWorkflow = workflow.define({

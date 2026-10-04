@@ -96,3 +96,10 @@ finalizes failed mapping resolution rather than leaving an active job stranded.
 Rejected batches keep the job active until cleanup and report persistence finish,
 so a retry cannot delete a job while its workflow is finalizing it. The regression
 fails against the premature terminal-state transition and passes after correction.
+The real import workflow now queues source and unclaimed extracted-file cleanup
+before uploading its report. Files attached to created cards are preserved.
+Finalization retries three times, then records a terminal failure if it cannot
+finish. Component tests hold report upload pending and prove retries are blocked;
+both successful and failed uploads subsequently allow another import. Removing
+orphan cleanup, finishing early, or stranding the finalization failure makes the
+corresponding regression fail.
