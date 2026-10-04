@@ -44,7 +44,11 @@ async function setup() {
     current,
     other,
     stranger,
-    authenticated: t.withIdentity({ subject: "owner", sessionId: current._id }),
+    authenticated: t.withIdentity({
+      issuer: process.env.CONVEX_SITE_URL,
+      subject: "owner",
+      sessionId: current._id,
+    }),
   };
 }
 
@@ -61,6 +65,7 @@ describe("Security sessions", () => {
       })
     );
     const otherDevice = t.withIdentity({
+      issuer: process.env.CONVEX_SITE_URL,
       subject: "owner",
       sessionId: other._id,
     });
@@ -84,6 +89,36 @@ describe("Security sessions", () => {
       content: "Private card",
     });
   });
+  test("a live legacy session cannot authorize a foreign provider issuer", async () => {
+    const { t, current } = await setup();
+    const id = await t.run((ctx) =>
+      ctx.db.insert("cards", {
+        userId: "owner",
+        type: "text",
+        content: "Private",
+        createdAt: 1,
+        updatedAt: 1,
+      })
+    );
+    const forged = t.withIdentity({
+      issuer: "https://api.workos.com/user_management/client_FOREIGN",
+      subject: "owner",
+      sessionId: current._id,
+    });
+    expect(await forged.query(api.cards.getCard, { id })).toBeNull();
+    await expect(
+      forged.mutation(api.securitySessions.revokeSession, {
+        sessionId: current._id,
+      })
+    ).rejects.toThrow("sign in");
+    expect(
+      await t.query(components.betterAuth.adapter.findOne, {
+        model: "session",
+        where: [{ field: "_id", value: current._id }],
+      })
+    ).toMatchObject({ _id: current._id });
+  });
+
   test("lists only owned live sessions with safe fields and this device first", async () => {
     const { authenticated, current, other } = await setup();
     const result = await authenticated.query(
@@ -161,6 +196,7 @@ describe("Security sessions", () => {
   test("a forged user/session pairing reveals nothing", async () => {
     const { t, current } = await setup();
     const forged = t.withIdentity({
+      issuer: process.env.CONVEX_SITE_URL,
       subject: "stranger",
       sessionId: current._id,
     });
@@ -323,6 +359,7 @@ describe("Permanent identity shadow boundary", () => {
     );
     for (const tokenIdentifier of ["old-issuer|owner", "new-issuer|owner"]) {
       const client = t.withIdentity({
+        issuer: process.env.CONVEX_SITE_URL,
         subject: "owner",
         sessionId: current._id,
         tokenIdentifier,
@@ -338,7 +375,11 @@ describe("Permanent identity shadow boundary", () => {
     }
     expect(
       await t
-        .withIdentity({ subject: "stranger", sessionId: stranger._id })
+        .withIdentity({
+          issuer: process.env.CONVEX_SITE_URL,
+          subject: "stranger",
+          sessionId: stranger._id,
+        })
         .query(internal.fileUploads.getSessionForUser, { sessionId })
     ).toBeNull();
     const legacyId = await t.run((ctx) => {
@@ -351,6 +392,7 @@ describe("Permanent identity shadow boundary", () => {
     expect(
       await t
         .withIdentity({
+          issuer: process.env.CONVEX_SITE_URL,
           subject: "owner",
           sessionId: current._id,
           tokenIdentifier: "old-issuer|owner",

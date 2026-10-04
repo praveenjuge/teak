@@ -85,7 +85,11 @@ test("disconnect blocks an already initialized MCP client without waiting for a 
   expect((await request("initialize")).status).toBe(200);
   expect((await request("tools/list")).status).toBe(200);
   await t
-    .withIdentity({ subject: user._id, sessionId: session._id })
+    .withIdentity({
+      issuer: process.env.CONVEX_SITE_URL,
+      subject: user._id,
+      sessionId: session._id,
+    })
     .action(api.oauthTokens.revokeOAuthConnection, { clientId: "teak-cli" });
   for (const method of ["tools/list", "ping", "tools/call", "initialize"]) {
     const response = await request(method);

@@ -4,7 +4,7 @@ import { ConvexError, v } from "convex/values";
 import { api, components } from "./_generated/api";
 import { action, env, query } from "./_generated/server";
 import { resolveTeakDevAppUrl } from "./devUrls";
-import { getSessionUser } from "./securitySessions";
+import { getSessionProfile, getSessionUser } from "./securitySessions";
 import { isApprovedPolarProductId } from "./shared/polarPlans";
 import { normalizeErrorClass } from "./shared/telemetry";
 import { scheduleBillingOutcome } from "./telemetry/schedule";
@@ -14,6 +14,13 @@ export const getUserInfoHandler = async (ctx: any) => {
   const user = await getSessionUser(ctx);
   if (!user) {
     throw new ConvexError("User not found");
+  }
+  if (user.provider === "workos") {
+    const profile = await getSessionProfile(ctx);
+    if (!profile) {
+      throw new ConvexError("User not found");
+    }
+    return { teakUserId: profile.teakUserId, email: profile.user.email };
   }
   return { teakUserId: user.teakUserId, email: user.identity.email };
 };

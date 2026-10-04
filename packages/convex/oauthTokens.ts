@@ -324,7 +324,7 @@ export const getOAuthConsentRequest = query({
     // Treat that transient state as no visible request instead of surfacing a
     // production query error; the subscription reruns when auth becomes ready.
     const identity = await getSessionUser(ctx);
-    if (!identity?.teakUserId) {
+    if (identity?.provider !== "betterauth") {
       return null;
     }
     const userId = identity.teakUserId;

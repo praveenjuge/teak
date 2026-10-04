@@ -6,10 +6,10 @@ import {
   env,
   internalQuery,
   mutation,
-  type QueryCtx,
   query,
 } from "./_generated/server";
 
+import { readAuthPrimary } from "./env";
 import { validWorkosExternalId } from "./workosTokens";
 
 // Convex has already verified this JWT through auth.config.ts. These checks bind
@@ -99,7 +99,7 @@ export const identityMapping = internalQuery({
 
 // Provider profile reads stay at the same boundary as provider identities.
 export const readWorkosProfile = (
-  ctx: Pick<QueryCtx, "runQuery">,
+  ctx: Pick<ActionCtx, "runQuery">,
   workosUserId: string
 ) =>
   ctx.runQuery(components.workOSAuthKit.lib.getAuthUser, { id: workosUserId });
@@ -135,6 +135,9 @@ export async function resolveStoredUserId(
   ctx: SessionCtx,
   ownerId: string
 ): Promise<TeakUserId | null> {
+  if (readAuthPrimary() === "workos") {
+    return resolveWorkosApiKeyOwner(ctx, ownerId);
+  }
   const row = await ctx.runQuery(internal.securitySessions.identityMapping, {
     teakUserId: ownerId,
   });
@@ -160,8 +163,38 @@ export async function resolveStoredUserId(
   return ownerId as TeakUserId;
 }
 
-export function resolveTeakUserId(ctx: SessionCtx, identity: UserIdentity) {
-  return resolveStoredUserId(ctx, identity.subject);
+const isBetterAuthIdentity = (identity: UserIdentity) =>
+  Boolean(env.CONVEX_SITE_URL) && identity.issuer === env.CONVEX_SITE_URL;
+
+export async function resolveTeakUserId(
+  ctx: SessionCtx,
+  identity: UserIdentity
+): Promise<TeakUserId | null> {
+  if (readAuthPrimary() === "betterauth") {
+    return isBetterAuthIdentity(identity)
+      ? resolveStoredUserId(ctx, identity.subject)
+      : null;
+  }
+  const principal = readWorkosSessionIdentity(
+    identity,
+    process.env.WORKOS_CLIENT_ID ?? ""
+  );
+  if (!principal) {
+    return null;
+  }
+  const owner:
+    | { status: "ok"; teakUserId: string }
+    | { status: "denied"; reason: string } = await ctx.runQuery(
+    internal.workosIdentity.resolveWorkosOwner,
+    {
+      workosUserId: principal.workosUserId,
+      ...(principal.externalId === undefined
+        ? {}
+        : { externalId: principal.externalId }),
+      verification: { kind: "session", emailVerified: principal.emailVerified },
+    }
+  );
+  return owner.status === "ok" ? (owner.teakUserId as TeakUserId) : null;
 }
 
 // Internal/API jobs carry the permanent ID across a serialization boundary.
@@ -194,9 +227,21 @@ async function liveSession(
   return session && session.expiresAt > Date.now() ? session : null;
 }
 
-// A single raw identity read feeds mapping and live-session validation.
-// Component session reads keep revocation reactive for existing subscriptions.
-export async function getSessionUser(ctx: SessionCtx) {
+type SessionUser = {
+  teakUserId: TeakUserId;
+  identity: UserIdentity;
+  sessionId: string;
+} & (
+  | { provider: "betterauth"; session: SessionRecord }
+  | { provider: "workos" }
+);
+
+// Better Auth component reads keep revocation reactive. AuthKit session tokens
+// are verified by Convex and remain valid until their configured five-minute TTL.
+// WorkOS ownership/deletion checks remain reactive through the canonical resolver.
+export async function getSessionUser(
+  ctx: SessionCtx
+): Promise<SessionUser | null> {
   let identity: UserIdentity | null;
   try {
     identity = await ctx.auth.getUserIdentity();
@@ -209,18 +254,87 @@ export async function getSessionUser(ctx: SessionCtx) {
   if (!identity) {
     return null;
   }
+  if (readAuthPrimary() === "workos") {
+    const principal = readWorkosSessionIdentity(
+      identity,
+      process.env.WORKOS_CLIENT_ID ?? ""
+    );
+    if (!principal) {
+      return null;
+    }
+    const teakUserId = await resolveTeakUserId(ctx, identity);
+    return teakUserId
+      ? {
+          provider: "workos",
+          teakUserId,
+          identity,
+          sessionId: principal.sessionId,
+        }
+      : null;
+  }
+  if (!isBetterAuthIdentity(identity)) {
+    return null;
+  }
   const session = await liveSession(ctx, identity);
   if (!session) {
     return null;
   }
   const teakUserId = await resolveTeakUserId(ctx, identity);
-  return teakUserId ? { teakUserId, identity, session } : null;
+  return teakUserId
+    ? {
+        provider: "betterauth",
+        teakUserId,
+        identity,
+        session,
+        sessionId: session._id,
+      }
+    : null;
 }
 
-export async function getSessionProfile(ctx: SessionCtx) {
+interface SessionProfile {
+  teakUserId: TeakUserId;
+  user: {
+    _id: string;
+    email: string;
+    emailVerified: boolean;
+    name?: string | null;
+    image?: string | null;
+  };
+}
+
+export async function getSessionProfile(
+  ctx: SessionCtx
+): Promise<SessionProfile | null> {
   const sessionUser = await getSessionUser(ctx);
   if (!sessionUser) {
     return null;
+  }
+  if (sessionUser.provider === "workos") {
+    const provider = await readWorkosProfile(ctx, sessionUser.identity.subject);
+    const mirror = await ctx.runQuery(
+      internal.securitySessions.identityMapping,
+      {
+        teakUserId: sessionUser.teakUserId,
+      }
+    );
+    // Match the REST profile policy: email is the WorkOS-synced mirror, while
+    // display fields come from the AuthKit component. Never fall back to BA.
+    if (!provider || typeof mirror?.workosEmail !== "string") {
+      return null;
+    }
+    return {
+      teakUserId: sessionUser.teakUserId,
+      user: {
+        _id: sessionUser.teakUserId,
+        email: mirror.workosEmail,
+        emailVerified: provider.emailVerified,
+        name:
+          provider.name ??
+          ([provider.firstName, provider.lastName].filter(Boolean).join(" ") ||
+            null),
+        image: provider.profilePictureUrl ?? null,
+      },
+    };
   }
   const user = await ctx.runQuery(components.betterAuth.adapter.findOne, {
     model: "user",
@@ -231,7 +345,9 @@ export async function getSessionProfile(ctx: SessionCtx) {
 
 export async function currentSession(ctx: SessionCtx) {
   const user = await getSessionUser(ctx);
-  return user ? { ...user.session, teakUserId: user.teakUserId } : null;
+  return user?.provider === "betterauth"
+    ? { ...user.session, teakUserId: user.teakUserId }
+    : null;
 }
 
 const displayValidator = v.object({

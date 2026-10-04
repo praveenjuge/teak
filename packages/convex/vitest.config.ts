@@ -3,12 +3,14 @@ import { defineConfig } from "vitest/config";
 export default defineConfig({
   test: {
     environment: "edge-runtime",
+    env: { CONVEX_SITE_URL: "https://session-tests.convex.site" },
     include: [
       "./occContention.test.ts",
       "./accountDeletionRetry.test.ts",
       "./importConsolidation.test.ts",
       "./safariOAuth.test.ts",
       "./securitySessions.test.ts",
+      "./workosSessions.test.ts",
       "./identityTable.test.ts",
       "./workosUsers.test.ts",
       "./workosLifecycle.test.ts",

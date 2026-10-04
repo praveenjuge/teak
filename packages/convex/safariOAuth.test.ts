@@ -79,7 +79,11 @@ const revokeRequest = (token: string, clientId = "teak-safari") => ({
 describe("Safari OAuth connection", () => {
   test("appears in Connected apps and app-wide disconnect invalidates its credential", async () => {
     const { t, userId, sessionId } = await setup();
-    const authenticated = t.withIdentity({ subject: userId, sessionId });
+    const authenticated = t.withIdentity({
+      issuer: process.env.CONVEX_SITE_URL,
+      subject: userId,
+      sessionId,
+    });
     expect(
       await authenticated.query(api.oauthTokens.listOAuthConnections, {})
     ).toEqual([
@@ -197,7 +201,11 @@ describe("Safari OAuth connection", () => {
     ).toBe(200);
     expect(
       await t
-        .withIdentity({ subject: userId, sessionId })
+        .withIdentity({
+          issuer: process.env.CONVEX_SITE_URL,
+          subject: userId,
+          sessionId,
+        })
         .query(api.oauthTokens.listOAuthConnections, {})
     ).toEqual([]);
     const save = await t.fetch("/v1/cards", {
@@ -248,7 +256,11 @@ describe("Safari OAuth connection", () => {
     ).toBeNull();
     expect(
       await t
-        .withIdentity({ subject: userId, sessionId })
+        .withIdentity({
+          issuer: process.env.CONVEX_SITE_URL,
+          subject: userId,
+          sessionId,
+        })
         .query(api.oauthTokens.listOAuthConnections, {})
     ).toEqual([]);
     const retry = await t.fetch("/api/auth/mcp/token", {

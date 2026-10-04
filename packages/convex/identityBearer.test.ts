@@ -48,7 +48,11 @@ async function setup(kind: "API key" | "OAuth" = "API key") {
       },
     },
   });
-  const client = t.withIdentity({ subject: user._id, sessionId: session._id });
+  const client = t.withIdentity({
+    issuer: process.env.CONVEX_SITE_URL,
+    subject: user._id,
+    sessionId: session._id,
+  });
   let token: string;
   let revoke: () => Promise<unknown>;
   if (kind === "API key") {
