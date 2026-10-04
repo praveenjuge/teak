@@ -10,6 +10,7 @@ export default defineConfig({
       "./safariOAuth.test.ts",
       "./securitySessions.test.ts",
       "./identityTable.test.ts",
+      "./workosUsers.test.ts",
       "./identityBearer.test.ts",
       "./signupFreeze.test.ts",
       "./workosReadiness.test.ts",
