@@ -139,7 +139,10 @@ void client; void surface;
       const issuer = `${server.url.origin}/${primary}`;
       if (path === "/.well-known/oauth-protected-resource/mcp") {
         return Response.json({
-          resource: `${server.url.origin}/mcp`,
+          resource:
+            primary === "workos"
+              ? "https://teakvault.com/mcp"
+              : `${server.url.origin}/mcp`,
           authorization_servers: [issuer],
         });
       }

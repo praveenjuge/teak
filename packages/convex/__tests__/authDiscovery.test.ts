@@ -6,14 +6,16 @@ import { discoverAuthServer } from "../client/sdk";
 // concurrent discovery, expiry, and a stale failure evicting a newer result.
 function fixture(
   primary: "betterauth" | "workos" = "betterauth",
-  issuer = "https://auth.example"
+  issuer = "https://auth.example",
+  site = "https://teak.example"
 ) {
   const documents: Record<string, unknown> = {
-    "https://teak.example/.well-known/oauth-protected-resource/mcp": {
-      resource: "https://teak.example/mcp",
+    [`${site}/.well-known/oauth-protected-resource/mcp`]: {
+      resource:
+        primary === "workos" ? "https://teakvault.com/mcp" : `${site}/mcp`,
       authorization_servers: [issuer],
     },
-    "https://teak.example/.well-known/teak-oauth-clients.json": {
+    [`${site}/.well-known/teak-oauth-clients.json`]: {
       primary,
       issuer,
       clients: Object.fromEntries(
@@ -42,6 +44,41 @@ function fixture(
 }
 
 describe("OAuth discovery", () => {
+  test.each(["https://dev.convex.site", "https://teakvault.com"])(
+    "keeps WorkOS resources canonical while discovering from %s",
+    async (site: string) => {
+      const f = fixture("workos", "https://auth.example", site);
+      expect(
+        await discoverAuthServer(site, { fetch: f.transport })
+      ).toMatchObject({
+        resource: "https://teakvault.com/mcp",
+        issuer: "https://auth.example",
+        clients: { cli: "workos-cli" },
+      });
+      expect(
+        f.calls.slice(0, 2).map((call) => new URL(call.url).origin)
+      ).toEqual([site, site]);
+    }
+  );
+  test.each([
+    ["betterauth", "https://other.example/mcp"],
+    ["betterauth", "https://teakvault.com/mcp"],
+    ["workos", "https://other.example/mcp"],
+    ["workos", "https://teak.example/mcp"],
+  ] as const)(
+    "rejects resource %s/%s outside its provider binding",
+    async (primary: "betterauth" | "workos", resource: string) => {
+      const f = fixture(primary);
+      (
+        f.documents[
+          "https://teak.example/.well-known/oauth-protected-resource/mcp"
+        ] as Record<string, unknown>
+      ).resource = resource;
+      await expect(
+        discoverAuthServer("https://teak.example", { fetch: f.transport })
+      ).rejects.toThrow("resource mismatch");
+    }
+  );
   test.each(["betterauth", "workos"] as const)(
     "discovers %s, shares concurrent calls, and refreshes on demand",
     async (primary: "betterauth" | "workos") => {
@@ -310,6 +347,7 @@ describe("OAuth discovery", () => {
     ).toMatchObject({
       primary: "betterauth",
       tokenEndpoint: "http://127.0.0.1:3000/token",
+      resource: "http://127.0.0.1:3211/mcp",
     });
   });
   test.each(["http://localhost:3000", "http://app.teak.localhost:3000"])(
