@@ -117,7 +117,7 @@ function renderScreen(screen: ReactNode): string {
     user: null,
     isPending: false,
     hasStoredSession: false,
-    refreshSession: () => Promise.resolve(),
+    refreshSession: () => Promise.resolve(false),
     signIn: () => Promise.resolve(false),
     signOut: () => Promise.resolve(),
   };

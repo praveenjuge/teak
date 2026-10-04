@@ -71,8 +71,9 @@ occurred.
 
 ## Remaining work
 
-- Mobile AuthKit PKCE, secure refresh rotation, bootstrap/offline recovery, and
-  Convex provider; preserve Better Auth until the flag switches. Electron is skipped.
+- Activate and prove the prepared mobile integration after Phase 3 server
+  revocation, deletion, and canonical redirect setup. Preserve Better Auth until
+  the flag switches. Electron is skipped.
 - Wire CLI, Raycast, Chrome/Firefox, and Safari to discovery and Teak-owned identity.
 - Configure and prove each WorkOS client registration in dev and prod.
 - Verify both modes and real public/client journeys before releases.

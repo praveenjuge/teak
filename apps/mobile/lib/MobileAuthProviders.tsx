@@ -154,8 +154,11 @@ export function WorkosAuthProvider({
       isPending: snapshot.isLoading && !hydrationFailed,
       hasStoredSession: snapshot.user !== null || hydrationFailed,
       refreshSession: async () => {
-        await session.fetchAccessToken({ forceRefreshToken: true });
+        const token = await session.fetchAccessToken({
+          forceRefreshToken: true,
+        });
         setHydrationFailed(false);
+        return token !== null;
       },
       signIn: (
         provider?: "authkit" | "GoogleOAuth" | "AppleOAuth",

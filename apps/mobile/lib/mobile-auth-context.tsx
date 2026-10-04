@@ -10,7 +10,7 @@ export interface MobileAuth {
   hasStoredSession: boolean;
   isPending: boolean;
   mode: PublicAuthMode;
-  refreshSession: () => Promise<void>;
+  refreshSession: () => Promise<boolean>;
   signIn: (
     provider?: "authkit" | "GoogleOAuth" | "AppleOAuth",
     screenHint?: "sign-in" | "sign-up"

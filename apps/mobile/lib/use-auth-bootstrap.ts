@@ -64,8 +64,11 @@ export function useAuthBootstrap() {
       },
       refreshSession
     )
-      .then(() => {
-        trackAuth({ outcome: "success", stage: "session_refresh" });
+      .then((refreshed) => {
+        trackAuth({
+          outcome: refreshed ? "success" : "failure",
+          stage: "session_refresh",
+        });
       })
       .catch((error: unknown) => {
         trackAuth({ outcome: "failure", stage: "session_refresh" });

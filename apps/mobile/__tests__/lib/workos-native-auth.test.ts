@@ -17,12 +17,18 @@ mock.module("expo-auth-session", () => ({
     constructor(options: Record<string, unknown>) {
       config = options;
     }
-    makeAuthUrlAsync() {
+    makeAuthUrlAsync(discovery: { authorizationEndpoint: string }) {
+      expect(discovery.authorizationEndpoint).toBe(
+        "https://api.workos.com/user_management/authorize"
+      );
       return Promise.resolve(
         "https://api.workos.com/user_management/authorize"
       );
     }
-    promptAsync() {
+    promptAsync(discovery: { authorizationEndpoint: string }) {
+      expect(discovery.authorizationEndpoint).toBe(
+        "https://api.workos.com/user_management/authorize"
+      );
       return prompt ? prompt() : Promise.resolve(result);
     }
   },
