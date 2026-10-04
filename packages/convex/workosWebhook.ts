@@ -58,7 +58,7 @@ export const workosWebhook = httpAction(async (ctx, request) => {
   if (payload === null) {
     return new Response("Payload too large", { status: 413 });
   }
-  let event;
+  let event: Awaited<ReturnType<typeof kit.workos.webhooks.constructEvent>>;
   try {
     // Verify the exact body with the official SDK before deserialization.
     event = await kit.workos.webhooks.constructEvent({

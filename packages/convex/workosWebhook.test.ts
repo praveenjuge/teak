@@ -141,16 +141,16 @@ describe("signed WorkOS webhook ingress", () => {
       await seed(t);
       const before = await snapshot(t);
       const body = JSON.stringify(fixture());
-      const header =
-        failure === "missing"
-          ? ""
-          : failure === "forged"
-            ? "t=0,v1=forged"
-            : await signature(
-                failure === "tampered" ? `${body} ` : body,
-                failure === "other_secret" ? "different-secret" : secret,
-                failure === "expired" ? Date.now() - 600_000 : Date.now()
-              );
+      let header = "";
+      if (failure === "forged") {
+        header = "t=0,v1=forged";
+      } else if (failure !== "missing") {
+        header = await signature(
+          failure === "tampered" ? `${body} ` : body,
+          failure === "other_secret" ? "different-secret" : secret,
+          failure === "expired" ? Date.now() - 600_000 : Date.now()
+        );
+      }
       expect((await post(t, body, { "workos-signature": header })).status).toBe(
         401
       );
