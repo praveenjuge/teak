@@ -1,4 +1,5 @@
 import { createRemoteJWKSet, jwtVerify } from "jose";
+import { validateOAuthUrl } from "./client/authDiscovery";
 
 export type WorkosResource = "api" | "mcp";
 
@@ -61,7 +62,7 @@ export async function verifyWorkosConnectToken(
   config: { issuer: string; audience: string }
 ): Promise<WorkosConnectPrincipal | null> {
   try {
-    const issuer = new URL(config.issuer);
+    const issuer = validateOAuthUrl(config.issuer);
     if (
       issuer.protocol !== "https:" ||
       issuer.origin !== config.issuer ||

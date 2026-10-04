@@ -74,6 +74,24 @@ export const BACKEND_ENTRIES: EnvVarSpec[] = [
     required: false,
     note: "HTTPS origin of this deployment's WorkOS Connect issuer. No trailing slash or path.",
   }),
+  ...[
+    "WORKOS_CONNECT_CLI_CLIENT_ID",
+    "WORKOS_CONNECT_RAYCAST_CLIENT_ID",
+    "WORKOS_CONNECT_CHROME_CLIENT_ID",
+    "WORKOS_CONNECT_FIREFOX_CLIENT_ID",
+    "WORKOS_CONNECT_SAFARI_CLIENT_ID",
+  ].map((name) =>
+    spec(name, {
+      owners: ["@teak/convex"],
+      targets: ["convex"],
+      profiles: ["local", "preview", "production"],
+      secret: false,
+      validation: "string",
+      providers: ["convex-dashboard"],
+      required: false,
+      note: "Deployment-specific first-party WorkOS Connect public app. Required in WorkOS mode.",
+    })
+  ),
   spec("WORKOS_ENVIRONMENT_ID", {
     owners: ["@teak/convex"],
     targets: ["convex"],
