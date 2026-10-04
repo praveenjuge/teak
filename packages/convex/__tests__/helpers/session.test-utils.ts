@@ -13,7 +13,10 @@ interface TestContext {
 // Business-logic unit tests supply an authenticated identity and its matching
 // live session. Revoked, expired, and forged sessions are covered with the real
 // Better Auth component in securitySessions.test.ts, without this fixture.
-export function withTestSession<T extends TestContext>(ctx: T): T {
+export function withTestSession<T extends TestContext>(
+  ctx: T,
+  mapping: { role?: "admin"; deletedAt?: number } = {}
+): T {
   const auth = ctx.auth;
   if (!auth) {
     return ctx;
@@ -31,7 +34,9 @@ export function withTestSession<T extends TestContext>(ctx: T): T {
       getFunctionName(args[0]) === "securitySessions:identityMapping"
     ) {
       const user = await identity();
-      return user ? { teakUserId: user.subject, emailVerified: false } : null;
+      return user
+        ? { teakUserId: user.subject, emailVerified: false, ...mapping }
+        : null;
     }
     const queryArgs = args[1] as { model?: string } | undefined;
     if (queryArgs?.model === "session") {

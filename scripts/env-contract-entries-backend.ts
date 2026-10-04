@@ -448,16 +448,6 @@ export const BACKEND_ENTRIES: EnvVarSpec[] = [
     implicit: true,
     note: "Consumed by sentry-cli during releases.",
   }),
-  // Administration.
-  spec("TEAK_ADMIN_EMAIL", {
-    owners: ["@teak/convex"],
-    targets: ["convex"],
-    profiles: ["local", "preview", "production"],
-    secret: false,
-    validation: "email",
-    providers: ["convex-dashboard"],
-    required: false,
-  }),
   // E2E backend capability group.
   spec("E2E_CLEANUP_TOKEN", {
     owners: ["@teak/convex", "@teak/tests"],

@@ -124,16 +124,15 @@ export const coveragePage = internalQuery({
   },
 });
 
-// Run once before changing admin authorization to the stable role. Keep the
-// existing email contract until both deployments have verified this seed.
+// Operator-only bootstrap. Runtime authorization always uses the stored role.
 export const seedAdmin = internalMutation({
-  args: {},
+  args: { email: v.string() },
   returns: v.object({ teakUserId: v.string(), role: v.literal("admin") }),
-  handler: async (ctx) => {
+  handler: async (ctx, args) => {
     assertBetterAuthMigration();
-    const email = normalizeIdentityEmail(env.TEAK_ADMIN_EMAIL ?? "");
+    const email = normalizeIdentityEmail(args.email);
     if (!email) {
-      throw new Error("The existing admin email is not configured");
+      throw new Error("The admin email is required");
     }
     const rows = await ctx.db
       .query("users")

@@ -14,7 +14,6 @@ describe("admin.ts", () => {
   let refreshCardProcessing: any;
 
   beforeEach(async () => {
-    process.env.TEAK_ADMIN_EMAIL = "admin@example.com";
     const module = await import("../admin");
     getAccess = module.getAccess;
     getOverview = module.getOverview;
@@ -35,86 +34,56 @@ describe("admin.ts", () => {
         auth: { getUserIdentity: mock().mockResolvedValue(null) },
       } as any);
       const handler = (getAccess as any).handler ?? getAccess;
-      const result = await handler(ctx, {});
-      expect(result).toEqual({ allowed: false });
+      expect(await handler(ctx, {})).toEqual({ allowed: false });
     });
 
-    test("returns not allowed when no configured admin exists", async () => {
-      const ctx = withTestSession({
-        auth: { getUserIdentity: mock().mockResolvedValue({ subject: "u1" }) },
-        runQuery: mock().mockResolvedValue({ page: [] }),
-      } as any);
-      const handler = (getAccess as any).handler ?? getAccess;
-      const result = await handler(ctx, {});
-      expect(result).toEqual({ allowed: false });
-    });
-
-    test("returns allowed when user matches the configured admin", async () => {
-      const ctx = withTestSession({
-        auth: { getUserIdentity: mock().mockResolvedValue({ subject: "u1" }) },
-        runQuery: mock().mockResolvedValue({ page: [{ _id: "u1" }] }),
-      } as any);
-      const handler = (getAccess as any).handler ?? getAccess;
-      const result = await handler(ctx, {});
-      expect(result).toEqual({ allowed: true });
-      expect(ctx.runQuery).toHaveBeenCalledWith(
-        expect.anything(),
-        expect.objectContaining({
-          model: "user",
-          where: [
-            {
-              field: "email",
-              operator: "eq",
-              value: "admin@example.com",
-            },
-          ],
-        })
+    test.each([
+      [{}, false],
+      [{ role: "admin" }, true],
+      [{ role: "admin", deletedAt: 1 }, false],
+    ] as const)("uses the active stored role %j", async (mapping, allowed) => {
+      const ctx = withTestSession(
+        {
+          auth: {
+            getUserIdentity: mock().mockResolvedValue({ subject: "u1" }),
+          },
+        } as any,
+        mapping
       );
-    });
-
-    test("returns not allowed when user is not the configured admin", async () => {
-      const ctx = withTestSession({
-        auth: { getUserIdentity: mock().mockResolvedValue({ subject: "u2" }) },
-        runQuery: mock().mockResolvedValue({ page: [{ _id: "u1" }] }),
-      } as any);
       const handler = (getAccess as any).handler ?? getAccess;
-      const result = await handler(ctx, {});
-      expect(result).toEqual({ allowed: false });
-    });
-
-    test("fails closed when the admin email is not configured", async () => {
-      delete process.env.TEAK_ADMIN_EMAIL;
-      const runQuery = mock();
-      const ctx = withTestSession({
-        auth: { getUserIdentity: mock().mockResolvedValue({ subject: "u1" }) },
-        runQuery,
-      } as any);
-      const handler = (getAccess as any).handler ?? getAccess;
-      const result = await handler(ctx, {});
-      expect(result).toEqual({ allowed: false });
-      expect(runQuery).not.toHaveBeenCalled();
+      expect(await handler(ctx, {})).toEqual({ allowed });
     });
   });
 
   describe("getOverview", () => {
     test("throws when unauthorized", async () => {
-      const ctx = withTestSession({
-        auth: { getUserIdentity: mock().mockResolvedValue(null) },
-        runQuery: mock().mockResolvedValue({ page: [] }),
-      } as any);
+      const ctx = withTestSession(
+        {
+          auth: { getUserIdentity: mock().mockResolvedValue(null) },
+          runQuery: mock().mockResolvedValue({ page: [] }),
+        } as any,
+        { role: "admin" }
+      );
       const handler = (getOverview as any).handler ?? getOverview;
       await expect(handler(ctx, {})).rejects.toThrow("Unauthorized");
     });
 
     test("returns empty overview when no cards", async () => {
-      const ctx = withTestSession({
-        auth: { getUserIdentity: mock().mockResolvedValue({ subject: "u1" }) },
-        runQuery: mock().mockResolvedValue({ page: [{ _id: "u1" }] }),
-        db: {
-        ...inlineSearchSyncDb(),
-          query: mock().mockReturnValue({ take: mock().mockResolvedValue([]) }),
-        },
-      } as any);
+      const ctx = withTestSession(
+        {
+          auth: {
+            getUserIdentity: mock().mockResolvedValue({ subject: "u1" }),
+          },
+          runQuery: mock().mockResolvedValue({ page: [{ _id: "u1" }] }),
+          db: {
+            ...inlineSearchSyncDb(),
+            query: mock().mockReturnValue({
+              take: mock().mockResolvedValue([]),
+            }),
+          },
+        } as any,
+        { role: "admin" }
+      );
       const handler = (getOverview as any).handler ?? getOverview;
       const result = await handler(ctx, {});
 
@@ -150,16 +119,21 @@ describe("admin.ts", () => {
           metadataStatus: "completed",
         },
       ];
-      const ctx = withTestSession({
-        auth: { getUserIdentity: mock().mockResolvedValue({ subject: "u1" }) },
-        runQuery: mock().mockResolvedValue({ page: [{ _id: "u1" }] }),
-        db: {
-        ...inlineSearchSyncDb(),
-          query: mock().mockReturnValue({
-            take: mock().mockResolvedValue(cards),
-          }),
-        },
-      } as any);
+      const ctx = withTestSession(
+        {
+          auth: {
+            getUserIdentity: mock().mockResolvedValue({ subject: "u1" }),
+          },
+          runQuery: mock().mockResolvedValue({ page: [{ _id: "u1" }] }),
+          db: {
+            ...inlineSearchSyncDb(),
+            query: mock().mockReturnValue({
+              take: mock().mockResolvedValue(cards),
+            }),
+          },
+        } as any,
+        { role: "admin" }
+      );
       const handler = (getOverview as any).handler ?? getOverview;
       const result = await handler(ctx, {});
 
@@ -195,16 +169,21 @@ describe("admin.ts", () => {
           createdAt: Date.now(),
         },
       ];
-      const ctx = withTestSession({
-        auth: { getUserIdentity: mock().mockResolvedValue({ subject: "u1" }) },
-        runQuery: mock().mockResolvedValue({ page: [{ _id: "u1" }] }),
-        db: {
-        ...inlineSearchSyncDb(),
-          query: mock().mockReturnValue({
-            take: mock().mockResolvedValue(cards),
-          }),
-        },
-      } as any);
+      const ctx = withTestSession(
+        {
+          auth: {
+            getUserIdentity: mock().mockResolvedValue({ subject: "u1" }),
+          },
+          runQuery: mock().mockResolvedValue({ page: [{ _id: "u1" }] }),
+          db: {
+            ...inlineSearchSyncDb(),
+            query: mock().mockReturnValue({
+              take: mock().mockResolvedValue(cards),
+            }),
+          },
+        } as any,
+        { role: "admin" }
+      );
       const handler = (getOverview as any).handler ?? getOverview;
       const result = await handler(ctx, {});
 
@@ -226,16 +205,21 @@ describe("admin.ts", () => {
           createdAt: Date.now(),
         },
       ];
-      const ctx = withTestSession({
-        auth: { getUserIdentity: mock().mockResolvedValue({ subject: "u1" }) },
-        runQuery: mock().mockResolvedValue({ page: [{ _id: "u1" }] }),
-        db: {
-        ...inlineSearchSyncDb(),
-          query: mock().mockReturnValue({
-            take: mock().mockResolvedValue(cards),
-          }),
-        },
-      } as any);
+      const ctx = withTestSession(
+        {
+          auth: {
+            getUserIdentity: mock().mockResolvedValue({ subject: "u1" }),
+          },
+          runQuery: mock().mockResolvedValue({ page: [{ _id: "u1" }] }),
+          db: {
+            ...inlineSearchSyncDb(),
+            query: mock().mockReturnValue({
+              take: mock().mockResolvedValue(cards),
+            }),
+          },
+        } as any,
+        { role: "admin" }
+      );
       const handler = (getOverview as any).handler ?? getOverview;
       const result = await handler(ctx, {});
 
@@ -251,16 +235,21 @@ describe("admin.ts", () => {
         userId: "u1",
         createdAt: Date.now(),
       }));
-      const ctx = withTestSession({
-        auth: { getUserIdentity: mock().mockResolvedValue({ subject: "u1" }) },
-        runQuery: mock().mockResolvedValue({ page: [{ _id: "u1" }] }),
-        db: {
-        ...inlineSearchSyncDb(),
-          query: mock().mockReturnValue({
-            take: mock().mockResolvedValue(cards),
-          }),
-        },
-      } as any);
+      const ctx = withTestSession(
+        {
+          auth: {
+            getUserIdentity: mock().mockResolvedValue({ subject: "u1" }),
+          },
+          runQuery: mock().mockResolvedValue({ page: [{ _id: "u1" }] }),
+          db: {
+            ...inlineSearchSyncDb(),
+            query: mock().mockReturnValue({
+              take: mock().mockResolvedValue(cards),
+            }),
+          },
+        } as any,
+        { role: "admin" }
+      );
       const handler = (getOverview as any).handler ?? getOverview;
       const result = await handler(ctx, {});
 
@@ -291,16 +280,21 @@ describe("admin.ts", () => {
           createdAt: Date.now(),
         },
       ];
-      const ctx = withTestSession({
-        auth: { getUserIdentity: mock().mockResolvedValue({ subject: "u1" }) },
-        runQuery: mock().mockResolvedValue({ page: [{ _id: "u1" }] }),
-        db: {
-        ...inlineSearchSyncDb(),
-          query: mock().mockReturnValue({
-            take: mock().mockResolvedValue(cards),
-          }),
-        },
-      } as any);
+      const ctx = withTestSession(
+        {
+          auth: {
+            getUserIdentity: mock().mockResolvedValue({ subject: "u1" }),
+          },
+          runQuery: mock().mockResolvedValue({ page: [{ _id: "u1" }] }),
+          db: {
+            ...inlineSearchSyncDb(),
+            query: mock().mockReturnValue({
+              take: mock().mockResolvedValue(cards),
+            }),
+          },
+        } as any,
+        { role: "admin" }
+      );
       const handler = (getOverview as any).handler ?? getOverview;
       const result = await handler(ctx, {});
 
@@ -329,7 +323,7 @@ describe("admin.ts", () => {
       };
       const ctx = {
         db: {
-        ...inlineSearchSyncDb(),
+          ...inlineSearchSyncDb(),
           get: mock().mockResolvedValue(card),
           patch: mock().mockResolvedValue(null),
         },
@@ -360,7 +354,7 @@ describe("admin.ts", () => {
       };
       const ctx = {
         db: {
-        ...inlineSearchSyncDb(),
+          ...inlineSearchSyncDb(),
           get: mock().mockResolvedValue(card),
           patch: mock().mockResolvedValue(null),
         },
@@ -383,7 +377,7 @@ describe("admin.ts", () => {
       };
       const ctx = {
         db: {
-        ...inlineSearchSyncDb(),
+          ...inlineSearchSyncDb(),
           get: mock().mockResolvedValue(card),
           patch: mock().mockResolvedValue(null),
         },
@@ -400,12 +394,15 @@ describe("admin.ts", () => {
 
   describe("refreshCardProcessing", () => {
     test("throws when unauthorized", async () => {
-      const ctx = withTestSession({
-        auth: { getUserIdentity: mock().mockResolvedValue(null) },
-        runQuery: mock().mockResolvedValue({ page: [] }),
-        runMutation: mock(),
-        scheduler: { runAfter: mock() },
-      } as any);
+      const ctx = withTestSession(
+        {
+          auth: { getUserIdentity: mock().mockResolvedValue(null) },
+          runQuery: mock().mockResolvedValue({ page: [] }),
+          runMutation: mock(),
+          scheduler: { runAfter: mock() },
+        } as any,
+        { role: "admin" }
+      );
       const handler =
         (refreshCardProcessing as any).handler ?? refreshCardProcessing;
       await expect(handler(ctx, { cardId: "c1" })).rejects.toThrow(
@@ -414,18 +411,17 @@ describe("admin.ts", () => {
     });
 
     test("returns not_found when card missing", async () => {
-      let callCount = 0;
-      const ctx = withTestSession({
-        auth: { getUserIdentity: mock().mockResolvedValue({ subject: "u1" }) },
-        runQuery: mock().mockImplementation(() => {
-          callCount++;
-          return callCount === 1
-            ? Promise.resolve({ page: [{ _id: "u1" }] })
-            : Promise.resolve(null);
-        }),
-        runMutation: mock(),
-        scheduler: { runAfter: mock() },
-      } as any);
+      const ctx = withTestSession(
+        {
+          auth: {
+            getUserIdentity: mock().mockResolvedValue({ subject: "u1" }),
+          },
+          runQuery: mock().mockResolvedValue(null),
+          runMutation: mock(),
+          scheduler: { runAfter: mock() },
+        } as any,
+        { role: "admin" }
+      );
       const handler =
         (refreshCardProcessing as any).handler ?? refreshCardProcessing;
       const result = await handler(ctx, { cardId: "c1" });
@@ -435,19 +431,18 @@ describe("admin.ts", () => {
     });
 
     test("resets processing and schedules workflow", async () => {
-      let callCount = 0;
       const card = { _id: "c1" };
-      const ctx = withTestSession({
-        auth: { getUserIdentity: mock().mockResolvedValue({ subject: "u1" }) },
-        runQuery: mock().mockImplementation(() => {
-          callCount++;
-          return callCount === 1
-            ? Promise.resolve({ page: [{ _id: "u1" }] })
-            : Promise.resolve(card);
-        }),
-        runMutation: mock().mockResolvedValue({ clearedThumbnail: false }),
-        scheduler: { runAfter: mock().mockResolvedValue(null) },
-      } as any);
+      const ctx = withTestSession(
+        {
+          auth: {
+            getUserIdentity: mock().mockResolvedValue({ subject: "u1" }),
+          },
+          runQuery: mock().mockResolvedValue(card),
+          runMutation: mock().mockResolvedValue({ clearedThumbnail: false }),
+          scheduler: { runAfter: mock().mockResolvedValue(null) },
+        } as any,
+        { role: "admin" }
+      );
       const handler =
         (refreshCardProcessing as any).handler ?? refreshCardProcessing;
       const result = await handler(ctx, { cardId: "c1" });

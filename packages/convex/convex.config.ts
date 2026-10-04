@@ -53,7 +53,6 @@ const app = defineApp({
     SENTRY_DSN: v.optional(v.string()),
     CONVEX_GIT_COMMIT_SHA: v.optional(v.string()),
     // Administration.
-    TEAK_ADMIN_EMAIL: v.optional(v.string()),
     // Staged operational-cost rollout; unset means disabled.
     OPERATIONAL_RETENTION_ENABLED: v.optional(v.string()),
     FILES_TEXT_AI_ENABLED: v.optional(v.string()),
