@@ -92,7 +92,9 @@ The background flow validates PKCE state and the native callback before exchange
 refetches discovery on failures, rejects provider changes, and serializes refresh
 and sign-out. Rotated credentials persist before further network operations.
 Metadata outages retain the replacement refresh token and block API requests.
-Foreign API URLs cannot receive credentials. Chrome retains protected worker
+Configured API origins and every credential request use the same shared URL
+validation policy. Unsafe origins fail before sign-in; loopback is permitted only
+in development. Foreign API URLs cannot receive credentials. Chrome retains protected worker
 storage; Firefox retains extension-origin IndexedDB.
 
 Run the isolated browser proof with:

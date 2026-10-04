@@ -1,5 +1,9 @@
 import { resolveTeakDevAppUrl } from "@teak/convex/dev-urls";
-import { type AuthDiscovery, discoverAuthServer } from "@teak/convex/sdk";
+import {
+  type AuthDiscovery,
+  discoverAuthServer,
+  validateOAuthUrl,
+} from "@teak/convex/sdk";
 import { readResponseTextWithinLimit } from "@teak/convex/shared/bounded-response";
 import { getConvexSiteUrl } from "./env";
 
@@ -8,19 +12,27 @@ const IS_FIREFOX = import.meta.env.BROWSER === "firefox";
 const SURFACE = IS_FIREFOX ? "firefox" : "chrome";
 let selectedSite: string | undefined;
 const site = () => {
-  selectedSite ??= new URL(getConvexSiteUrl()).origin;
+  selectedSite ??= validateOAuthUrl(
+    getConvexSiteUrl(),
+    Boolean(import.meta.env.DEV)
+  ).origin;
   return selectedSite;
 };
 const storageSuffix = () => (import.meta.env.DEV ? `:${site()}` : "");
 const tokenKey = () => `teakOAuthCredentials${storageSuffix()}`;
 const ownerKey = () => `teakOAuthOwner${storageSuffix()}`;
-const discovery = (forceRefresh = false) =>
-  discoverAuthServer(import.meta.env.DEV ? site() : "https://teakvault.com", {
-    forceRefresh,
-    ...(import.meta.env.DEV
-      ? { localIssuer: resolveTeakDevAppUrl(import.meta.env) }
-      : {}),
-  });
+const discovery = (forceRefresh = false) => {
+  site();
+  return discoverAuthServer(
+    import.meta.env.DEV ? site() : "https://teakvault.com",
+    {
+      forceRefresh,
+      ...(import.meta.env.DEV
+        ? { localIssuer: resolveTeakDevAppUrl(import.meta.env) }
+        : {}),
+    }
+  );
+};
 const binding = (auth: AuthDiscovery) => ({
   siteUrl: site(),
   issuer: auth.issuer,
@@ -54,7 +66,7 @@ async function readJson(response: Response) {
   return JSON.parse(text);
 }
 function fetchAuth(url: string, init: RequestInit) {
-  return fetch(url, {
+  return fetch(validateOAuthUrl(url, Boolean(import.meta.env.DEV)).href, {
     ...init,
     credentials: "omit",
     redirect: "error",
@@ -326,7 +338,11 @@ export function beginOAuthSignIn(): Promise<void> {
         }
         credentials.userId = user.id;
       } catch (error) {
-        await revokeCredentials(credentials, current).catch(() => {});
+        try {
+          await revokeCredentials(credentials, current);
+        } catch {
+          /* Preserve the identity verification error. */
+        }
         throw error;
       }
       await navigator.locks.request("teak-oauth-credentials", async () => {

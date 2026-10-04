@@ -134,6 +134,26 @@ const tokenResponse = (access = accessToken, refresh = refreshToken) =>
   });
 
 describe("Chrome OAuth background credentials", () => {
+  test.each([
+    "http://test.convex.site",
+    "https://127.0.0.1",
+    "https://localhost:3211",
+    "https://10.0.0.1",
+    "https://user:password@test.convex.site",
+    "https://test.convex.site/#credentials",
+  ])(
+    "rejects unsafe configured API origin before sign-in: %s",
+    async (origin) => {
+      process.env.VITE_PUBLIC_CONVEX_SITE_URL = origin;
+      const transport = mock(() => Promise.resolve(tokenResponse()));
+      globalThis.fetch = withDiscovery(transport as unknown as typeof fetch);
+      const auth = await load();
+      await expect(auth.beginOAuthSignIn()).rejects.toThrow("Unsafe OAuth");
+      expect(webAuth).not.toHaveBeenCalled();
+      expect(transport).not.toHaveBeenCalled();
+      expect(storage[tokenKey]).toBeUndefined();
+    }
+  );
   test("uses native browser PKCE login, protects storage, and returns only display data", async () => {
     const calls: Array<{ url: string; init?: RequestInit }> = [];
     globalThis.fetch = withDiscovery(
