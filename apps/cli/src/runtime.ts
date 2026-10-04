@@ -577,7 +577,7 @@ export const login = async (options: ClientOptions & { browser?: boolean }) => {
                   "Sign-in was not completed. Run teak login again."
                 );
               }
-              const next = await exchangeToken(options, auth, {
+              const next = await exchangeToken(options, latest, {
                 code: url.searchParams.get("code") || "",
                 code_verifier: verifier,
                 grant_type: "authorization_code",

@@ -85,10 +85,13 @@ and falls back to the second loopback port when the first is occupied. Logout us
 the discovered revocation endpoint and retains credentials if the server is offline
 or rejects the request.
 
-All 36 CLI tests pass in randomized order, with typecheck and executable build.
+All 41 CLI tests pass in randomized order, with typecheck and executable build.
 Subprocess journeys use the real CLI, callback server, discovery and SDK with a
 controlled OAuth/API server and isolated credential-store boundary. Removing the
-late-refresh guard fails its regression. This proves the controlled journeys;
+late-refresh guard fails its regression. Unsafe discovered endpoints are rejected
+before refresh or revocation transmits credentials; an endpoint move during
+browser sign-in uses refreshed metadata. The endpoint regression failed before
+the correction. This proves the controlled journeys;
 live Better Auth and WorkOS journeys, server consent revocation, registration and
 publication remain outstanding. No CLI release or provider activation has occurred.
 

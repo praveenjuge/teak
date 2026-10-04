@@ -24,6 +24,10 @@ let releaseRefresh = () => {};
 let started: Promise<void>;
 let released: Promise<void>;
 let transmitted: URLSearchParams | null = null;
+let unsafeEndpoint: string | undefined;
+let unsafeField: "token_endpoint" | "revocation_endpoint" = "token_endpoint";
+let tokenPath = "/token";
+let moveTokenEndpoint = false;
 const clients = () =>
   Object.fromEntries(
     ["cli", "raycast", "chrome", "firefox", "safari"].map((surface) => [
@@ -57,12 +61,13 @@ const server = serve({
       return Response.json({
         issuer,
         authorization_endpoint: `${issuer}/authorize`,
-        token_endpoint: `${issuer}/token`,
+        token_endpoint: `${issuer}${tokenPath}`,
         revocation_endpoint: `${issuer}/revoke`,
         code_challenge_methods_supported: ["S256"],
+        ...(unsafeEndpoint ? { [unsafeField]: unsafeEndpoint } : {}),
       });
     }
-    if (url.pathname === `/${primary}/token`) {
+    if (url.pathname === `/${primary}${tokenPath}`) {
       const body = new URLSearchParams(await request.text());
       transmitted = body;
       expect(body.get("client_id")).toBe(clients().cli ?? null);
@@ -170,6 +175,9 @@ const login = async (flip = false, invalidState = false) => {
     primary === "workos" ? `${server.url.origin}/api` : null
   );
   const callback = new URL(authorization.searchParams.get("redirect_uri")!);
+  if (moveTokenEndpoint) {
+    tokenPath = "/moved-token";
+  }
   if (invalidState) {
     callback.searchParams.set(
       "state",
@@ -205,6 +213,9 @@ beforeEach(() => {
   exchanges = 0;
   revoked = 0;
   transmitted = null;
+  unsafeEndpoint = undefined;
+  tokenPath = "/token";
+  moveTokenEndpoint = false;
   flipDuringRefresh = false;
   started = new Promise((resolve) => {
     notifyStarted = resolve;
@@ -306,6 +317,12 @@ test("CLI does not resurrect an in-flight refresh after another request observes
   expect(readFileSync(file, "utf8")).toBe("");
 });
 
+test("CLI uses fresh token metadata when an endpoint moves during browser sign-in", async () => {
+  moveTokenEndpoint = true;
+  expect((await login()).code).toBe(0);
+  expect(exchanges).toBe(1);
+});
+
 test("CLI clears a revoked refresh token and asks for a new sign-in", async () => {
   expect((await login()).code).toBe(0);
   const saved = JSON.parse(readFileSync(file, "utf8"));
@@ -317,6 +334,35 @@ test("CLI clears a revoked refresh token and asks for a new sign-in", async () =
   expect(result.code).toBe(3);
   expect(result.stderr).toContain("teak login");
   expect(readFileSync(file, "utf8")).toBe("");
+});
+
+test.each([
+  "https://169.254.169.254/token",
+  "http://untrusted.example/token",
+  "https://user:password@untrusted.example/token",
+])("CLI rejects unsafe token metadata before sending credentials (%s)", async (endpoint) => {
+  expect((await login()).code).toBe(0);
+  const saved = JSON.parse(readFileSync(file, "utf8"));
+  saved.expiresAt = 0;
+  const credentials = JSON.stringify(saved);
+  writeFileSync(file, credentials);
+  unsafeField = "token_endpoint";
+  unsafeEndpoint = endpoint;
+  const result = await run(["tags"]);
+  expect(result.code).toBe(1);
+  expect(result.stderr).toContain("Unsafe OAuth discovery URL");
+  expect(refreshes).toBe(0);
+  expect(readFileSync(file, "utf8")).toBe(credentials);
+});
+
+test("CLI rejects private revocation metadata and keeps credentials for retry", async () => {
+  expect((await login()).code).toBe(0);
+  const credentials = readFileSync(file, "utf8");
+  unsafeField = "revocation_endpoint";
+  unsafeEndpoint = "https://169.254.169.254/revoke";
+  expect((await run(["logout"])).code).toBe(1);
+  expect(revoked).toBe(0);
+  expect(readFileSync(file, "utf8")).toBe(credentials);
 });
 
 test.each([
