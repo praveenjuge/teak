@@ -235,6 +235,16 @@ export const OPS_ENTRIES: EnvVarSpec[] = [
     required: false,
   }),
   // Release secrets (GitHub-hosted, never local defaults).
+  spec("TEAK_SDK_RELEASE_ARTIFACT", {
+    owners: ["teak-release"],
+    targets: ["release"],
+    profiles: ["local", "production"],
+    secret: false,
+    validation: "path",
+    providers: ["workflow", "shell"],
+    required: false,
+    note: "Exact packed SDK tarball exercised by the independent consumer before publication.",
+  }),
   spec("APPLE_CERTIFICATE_PASSWORD", {
     owners: ["teak-release"],
     targets: ["release"],

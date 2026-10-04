@@ -192,6 +192,7 @@ describe("Apple release workflows", () => {
 
   test("replays or dispatches every release from the one version tag", () => {
     for (const workflow of [
+      "sdk-release.yml",
       "cli-release.yml",
       "extension-release.yml",
       "mobile-release.yml",

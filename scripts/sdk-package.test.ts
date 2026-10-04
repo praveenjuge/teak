@@ -1,7 +1,13 @@
 import { expect, test } from "bun:test";
-import { mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
+import {
+  copyFileSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  writeFileSync,
+} from "node:fs";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { serve, spawn } from "bun";
 
@@ -11,13 +17,18 @@ test("packed SDK installs and discovers both providers outside the monorepo", as
   mkdirSync(consumer);
   const config = join(artifact, "empty.npmrc");
   writeFileSync(config, "");
-  const run = async (command: string[], cwd: string) => {
+  const run = async (
+    command: string[],
+    cwd: string,
+    extraEnv: Record<string, string> = {}
+  ) => {
     const child = spawn(command, {
       cwd,
       env: {
         PATH: process.env.PATH,
         HOME: process.env.HOME,
         NPM_CONFIG_USERCONFIG: config,
+        ...extraEnv,
       },
       stdout: "pipe",
       stderr: "pipe",
@@ -36,21 +47,26 @@ test("packed SDK installs and discovers both providers outside the monorepo", as
   };
   const root = fileURLToPath(new URL("..", import.meta.url));
   const workspace = join(root, "packages/sdk");
-  await run([process.execPath, "--no-env-file", "run", "build"], workspace);
-  const packed = JSON.parse(
-    await run(
-      [
-        "npm",
-        "pack",
-        "--json",
-        "--ignore-scripts",
-        "--pack-destination",
-        artifact,
-      ],
-      workspace
-    )
-  );
-  const tarball = join(artifact, packed[0].filename);
+  let tarball = process.env.TEAK_SDK_RELEASE_ARTIFACT;
+  if (tarball) {
+    tarball = resolve(tarball);
+  } else {
+    await run([process.execPath, "--no-env-file", "run", "build"], workspace);
+    const packed = JSON.parse(
+      await run(
+        [
+          "npm",
+          "pack",
+          "--json",
+          "--ignore-scripts",
+          "--pack-destination",
+          artifact,
+        ],
+        workspace
+      )
+    );
+    tarball = join(artifact, packed[0].filename);
+  }
   writeFileSync(
     join(consumer, "package.json"),
     JSON.stringify({
@@ -170,10 +186,41 @@ console.log(JSON.stringify(auth));
       evidence.push(auth);
     }
     writeFileSync(
-      join(artifact, "proof.json"),
+      join(
+        process.env.TEAK_SDK_RELEASE_ARTIFACT
+          ? resolve(tarball, "..")
+          : artifact,
+        "proof.json"
+      ),
       JSON.stringify({ tarball, evidence, typesValidated: true }, null, 2)
     );
   } finally {
     server.stop();
+  }
+  if (!process.env.TEAK_SDK_RELEASE_ARTIFACT) {
+    const providedDirectory = join(artifact, "provided-artifact");
+    mkdirSync(providedDirectory);
+    const providedTarball = join(providedDirectory, "teak-sdk.tgz");
+    copyFileSync(tarball, providedTarball);
+    await run(
+      [
+        process.execPath,
+        "--no-env-file",
+        "test",
+        "scripts/sdk-package.test.ts",
+      ],
+      root,
+      {
+        TEAK_SDK_RELEASE_ARTIFACT: providedTarball,
+      }
+    );
+    const proof = JSON.parse(
+      readFileSync(join(providedDirectory, "proof.json"), "utf8")
+    );
+    expect(proof.tarball).toBe(providedTarball);
+    expect(proof.typesValidated).toBe(true);
+    expect(
+      proof.evidence.map((entry: { primary: string }) => entry.primary)
+    ).toEqual(["betterauth", "workos"]);
   }
 }, 60_000);
