@@ -11,6 +11,8 @@ export default defineConfig({
       "./securitySessions.test.ts",
       "./identityTable.test.ts",
       "./workosUsers.test.ts",
+      "./workosLifecycle.test.ts",
+      "./workosIdentity.test.ts",
       "./identityBearer.test.ts",
       "./signupFreeze.test.ts",
       "./workosReadiness.test.ts",

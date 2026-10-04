@@ -482,6 +482,10 @@ export default defineSchema({
     email: v.string(),
     emailVerified: v.boolean(),
     workosUserId: v.optional(v.string()),
+    // WorkOS shadow state never overwrites the Better Auth profile.
+    workosEmail: v.optional(v.string()),
+    workosEmailVerified: v.optional(v.boolean()),
+    workosDeletedAt: v.optional(v.number()),
     role: v.optional(v.literal("admin")),
     lastWorkosEventAt: v.optional(v.number()),
     deletedAt: v.optional(v.number()),
@@ -500,9 +504,13 @@ export default defineSchema({
   }).index("by_unresolved", ["resolvedAt"]),
   workosEvents: defineTable({
     eventId: v.string(),
+    workosUserId: v.optional(v.string()),
     type: v.string(),
     createdAt: v.number(),
-  }).index("by_eventId", ["eventId"]),
+  })
+    .index("by_eventId", ["eventId"])
+    .index("by_workosUserId_and_type", ["workosUserId", "type"])
+    .index("by_workosUserId_and_createdAt", ["workosUserId", "createdAt"]),
   cards: defineTable(cardValidator)
     // Note: by_user index removed as redundant - by_user_deleted can serve same purpose
     // with partial index matching (just userId) per Convex best practices

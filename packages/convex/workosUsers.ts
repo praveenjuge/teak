@@ -9,6 +9,7 @@ const reasonValidator = v.union(
   v.literal("duplicate_mapping"),
   v.literal("link_conflict"),
   v.literal("deleted_user"),
+  v.literal("workos_deleted_user"),
   v.literal("deleting_user"),
   v.literal("email_unverified"),
   v.literal("ambiguous_email")
@@ -75,10 +76,22 @@ export const linkWorkosUser = internalMutation({
         q.eq("workosUserId", args.workosUserId)
       )
       .take(2);
+    const linked = providerRows[0];
+    const providerDeletion = await ctx.db
+      .query("workosEvents")
+      .withIndex("by_workosUserId_and_type", (q) =>
+        q.eq("workosUserId", args.workosUserId).eq("type", "user.deleted")
+      )
+      .first();
+    if (
+      providerDeletion ||
+      providerRows.some((row) => row.workosDeletedAt !== undefined)
+    ) {
+      return quarantine("workos_deleted_user", linked?.teakUserId);
+    }
     if (providerRows.length > 1) {
       return quarantine("duplicate_mapping");
     }
-    const linked = providerRows[0];
     let candidate: Doc<"users"> | undefined;
     if (externalId !== undefined) {
       const ownerRows = await ctx.db
@@ -117,6 +130,9 @@ export const linkWorkosUser = internalMutation({
     }
     if (candidate.deletedAt !== undefined) {
       return quarantine("deleted_user", candidate.teakUserId);
+    }
+    if (candidate.workosDeletedAt !== undefined) {
+      return quarantine("workos_deleted_user", candidate.teakUserId);
     }
     const deleting = await ctx.db
       .query("accountDeletionStates")

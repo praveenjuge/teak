@@ -23,11 +23,39 @@ retries, deletion states and persisted quarantine. All 222 backend edge tests pa
 including 29 new cases. Six isolated guard mutations fail their regressions. These
 controlled tests do not prove hosted deployment concurrency.
 
+## Ordered lifecycle foundation
+
+`workosLifecycle.applyWorkosEvent` is an internal full-envelope mutation. It is not
+wired to HTTP or WorkOS callbacks yet. Original event IDs and timestamps enter the
+same transaction as linking, provider profile changes and quarantine receipts.
+Duplicate deliveries have no effect; older updates cannot overwrite newer state.
+Equal-time conflicting profiles clear WorkOS verification and quarantine. Provider
+deletion is terminal, including deletion before a mapping exists.
+
+Optional WorkOS email, verification and deletion fields keep provider evidence
+separate from the Better Auth mirror. A WorkOS deletion preserves the provider ID,
+permanent owner, Better Auth access, roles and cards; it schedules no cleanup.
+Provider deletion history also prevents imports or bootstrap from relinking that ID.
+The read-only `workosIdentity.resolveWorkosOwner` boundary rejects duplicate provider
+mappings and checks indexed deletion history, even when a row tombstone is absent.
+Every runtime reader must use this boundary after verifying the token itself.
+Connect requires WorkOS-specific verification; AuthKit sessions require the explicit
+verified claim. Missing mappings, external-ID drift and active Teak deletion deny.
+The ledger is authoritative; bounded row patches are supplementary. Corrupted
+mapping sets must not trigger an unbounded transaction that could roll back it.
+The additive fields and event indexes were explicitly approved; no backfill runs.
+
+The installed AuthKit event callback drops the original ID/time and can suppress or
+rewrite callbacks. The verified webhook adapter must pass the original signed
+envelope directly to this boundary and synchronize the component without letting
+its callback deduplication suppress Teak processing. Database tests do not prove
+HTTP signature verification or hosted concurrency; those remain integration gates.
+
 ## Before runtime activation
 
-- Add ordered, deduplicated lifecycle events and WorkOS-authoritative profile sync.
+- Wire signature-verified lifecycle ingress and WorkOS-authoritative profile sync.
   Imported unverified users may be linked but cannot access their vault. Connect
-  authorization must never trust verification inherited from the Better Auth mirror.
+  authorization must use WorkOS-specific verification, never the Better Auth mirror.
 - Wire the read-only resolver, deliberate bootstrap, REST/MCP audience validation,
   consent/session revocation, account deletion and provider-independent API keys.
 - Complete optional dev/prod environment configuration and the dual web integration.
