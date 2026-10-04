@@ -98,17 +98,7 @@ function ConnectionsPanel(props: SecurityConnectionsProps) {
       setBusy(null);
     }
   };
-  if (props.sessionsError) {
-    return (
-      <div role="alert">
-        <p>{props.sessionsError}</p>
-        <Button onClick={props.onRetrySessions} variant="ghost">
-          Try again
-        </Button>
-      </div>
-    );
-  }
-  if (!(props.connections && props.sessions)) {
+  if (!(props.connections && (props.sessions || props.sessionsError))) {
     return (
       <p className="flex items-center gap-2 py-6 text-muted-foreground text-sm">
         <Spinner />
@@ -117,7 +107,7 @@ function ConnectionsPanel(props: SecurityConnectionsProps) {
     );
   }
   const rows = [
-    ...props.sessions.map((session) => ({
+    ...(props.sessions ?? []).map((session) => ({
       id: `device:${session.id}`,
       name: session.name,
       date: session.signedInAt,
@@ -140,6 +130,14 @@ function ConnectionsPanel(props: SecurityConnectionsProps) {
         Sign out a single device, or disconnect an app across all its
         installations.
       </p>
+      {props.sessionsError ? (
+        <div role="alert">
+          <p>{props.sessionsError}</p>
+          <Button onClick={props.onRetrySessions} variant="ghost">
+            Try again
+          </Button>
+        </div>
+      ) : null}
       {error ? (
         <p className="py-2 text-destructive text-sm" role="alert">
           {error}
@@ -156,7 +154,7 @@ function ConnectionsPanel(props: SecurityConnectionsProps) {
           />
         ))}
       </ul>
-      {rows.length === 0 ? (
+      {rows.length === 0 && !props.sessionsError ? (
         <p className="py-6 text-muted-foreground text-sm">No connections.</p>
       ) : null}
       {props.sessionsHasMore || props.sessionsLoadingMore ? (
