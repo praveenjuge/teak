@@ -36,8 +36,11 @@ Optional WorkOS email, verification and deletion fields keep provider evidence
 separate from the Better Auth mirror. A WorkOS deletion preserves the provider ID,
 permanent owner, Better Auth access, roles and cards; it schedules no cleanup.
 Provider deletion history also prevents imports or bootstrap from relinking that ID.
-Every WorkOS authorization reader must reject duplicate provider mappings and check
-that indexed deletion history, including when a row's optional tombstone is absent.
+The read-only `workosIdentity.resolveWorkosOwner` boundary rejects duplicate provider
+mappings and checks indexed deletion history, even when a row tombstone is absent.
+Every runtime reader must use this boundary after verifying the token itself.
+Connect requires WorkOS-specific verification; AuthKit sessions require the explicit
+verified claim. Missing mappings, external-ID drift and active Teak deletion deny.
 The ledger is authoritative; bounded row patches are supplementary. Corrupted
 mapping sets must not trigger an unbounded transaction that could roll back it.
 The additive fields and event indexes were explicitly approved; no backfill runs.
