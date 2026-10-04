@@ -50,7 +50,10 @@ late-refresh regression. A mounted React browser fixture exercises the actual
 bootstrap and provider modules with controlled network/native boundaries: refresh
 completion and failure release loading, stale cache cannot replace live mode,
 configuration failure hides the splash and exposes retry, and expired credentials
-survive an outage and refresh on reconnect. Inverting the completion guard leaves
+survive an outage and refresh on reconnect. A service outage while connectivity
+stays online retries retained credentials with a one-second initial delay, doubling
+up to one minute; the mounted fixture recovers without a connectivity toggle or
+another sign-in. Inverting the completion guard leaves
 the fixture loading, proving that regression is observable. Provider rollback clears
 the stored WorkOS session before selecting Better Auth. Evidence and the repeatable
 fixture are retained with the migration backup checkpoint.

@@ -7,6 +7,7 @@ import {
   useCallback,
   useEffect,
   useMemo,
+  useRef,
   useState,
   useSyncExternalStore,
 } from "react";
@@ -96,6 +97,23 @@ export function WorkosAuthProvider({
     session.getSnapshot
   );
   const [hydrationFailed, setHydrationFailed] = useState(false);
+  const [retryPending, setRetryPending] = useState(false);
+  const retryDelay = useRef(1000);
+  useEffect(() => {
+    if (!snapshot.user) {
+      retryDelay.current = 1000;
+      if (retryPending) {
+        setRetryPending(false);
+      }
+      return;
+    }
+    if (!(retryPending && online)) {
+      return;
+    }
+    const timer = setTimeout(() => setRetryPending(false), retryDelay.current);
+    retryDelay.current = Math.min(retryDelay.current * 2, 60_000);
+    return () => clearTimeout(timer);
+  }, [retryPending, online, snapshot.user]);
   useEffect(() => {
     let alive = true;
     void session.hydrate().catch(() => {
@@ -151,18 +169,25 @@ export function WorkosAuthProvider({
   );
   const fetchAccessToken = useCallback(
     async (options: { forceRefreshToken: boolean }) => {
-      if (!online) {
+      if (!online || retryPending) {
         return null;
       }
       try {
-        return await session.fetchAccessToken(options);
+        const token = await session.fetchAccessToken(options);
+        retryDelay.current = 1000;
+        return token;
       } catch {
         // Convex pauses its socket while fetching auth. Always settle with null
         // on a transport outage so public queries and reconnect can continue.
+        // Connectivity can stay "online" through DNS, timeout or provider
+        // failures. Retry retained credentials without opening another browser.
+        if (session.getSnapshot().user) {
+          setRetryPending(true);
+        }
         return null;
       }
     },
-    [session, online]
+    [session, online, retryPending]
   );
   const useAuth = useMemo(
     () => () => ({
