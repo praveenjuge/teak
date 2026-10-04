@@ -7,12 +7,14 @@ const originalLocks = Object.getOwnPropertyDescriptor(navigator, "locks");
 const originalEnv = {
   BROWSER: process.env.BROWSER,
   DEV: process.env.DEV,
+  TEAK_DEV_APP_URL: process.env.TEAK_DEV_APP_URL,
   VITE_PUBLIC_CONVEX_SITE_URL: process.env.VITE_PUBLIC_CONVEX_SITE_URL,
 };
 let primary = "betterauth";
 const tokenKey = "teakOAuthCredentials";
 const accessToken = "a".repeat(32);
 const refreshToken = "r".repeat(32);
+const developmentIssuer = "http://app.teak.localhost:7500";
 let storage: Record<string, unknown>;
 let webAuth: ReturnType<typeof mock>;
 let setAccessLevel: ReturnType<typeof mock>;
@@ -20,6 +22,7 @@ let setAccessLevel: ReturnType<typeof mock>;
 beforeEach(() => {
   process.env.BROWSER = "chrome";
   process.env.VITE_PUBLIC_CONVEX_SITE_URL = "https://test.convex.site";
+  process.env.TEAK_DEV_APP_URL = developmentIssuer;
   delete process.env.DEV;
   primary = "betterauth";
   storage = {};
@@ -84,10 +87,13 @@ afterEach(() => {
 const withDiscovery = (handler: typeof fetch): typeof fetch =>
   (async (input, init) => {
     const url = String(input);
+    const betterAuthIssuer = process.env.DEV
+      ? process.env.TEAK_DEV_APP_URL!
+      : "https://app.teakvault.com";
     const issuer =
       primary === "workos"
         ? `https://auth.${process.env.DEV ? "dev." : ""}test.workos.com`
-        : "https://app.teakvault.com";
+        : betterAuthIssuer;
     if (url.endsWith("/.well-known/oauth-protected-resource/mcp")) {
       return Response.json({
         resource:
@@ -186,11 +192,20 @@ describe("Chrome OAuth background credentials", () => {
       });
       expect(storage.teakSessionToken).toBeUndefined();
       const authorize = new URL(webAuth.mock.calls[0]?.[0].url);
-      expect(authorize.origin).toBe("https://app.teakvault.com");
+      expect(authorize.origin).toBe(
+        development ? developmentIssuer : "https://app.teakvault.com"
+      );
       expect(authorize.searchParams.get("scope")).toBe(
         "profile email offline_access"
       );
       expect(authorize.searchParams.get("resource")).toBeNull();
+      expect(
+        storage[development ? `${tokenKey}:https://test.convex.site` : tokenKey]
+      ).toMatchObject({
+        siteUrl: "https://test.convex.site",
+        issuer: development ? developmentIssuer : "https://app.teakvault.com",
+        clientId: "teak-chrome",
+      });
       const token = new URLSearchParams(String(calls[0]?.init?.body));
       const digest = await crypto.subtle.digest(
         "SHA-256",
