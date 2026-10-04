@@ -47,7 +47,10 @@ describe("Phase 1 identity table", () => {
     vi.stubEnv("SIGNUPS_DISABLED", "true");
     vi.stubEnv("AUTH_PRIMARY", "betterauth");
   });
-  afterEach(() => vi.unstubAllEnvs());
+  afterEach(() => {
+    vi.unstubAllEnvs();
+    vi.useRealTimers();
+  });
 
   test("backfill resumes across pages and repeated runs preserve the original IDs", async () => {
     const t = setup();
@@ -266,6 +269,7 @@ describe("Phase 1 identity table", () => {
   });
 
   test("admin access follows the permanent role through email changes and revocation", async () => {
+    vi.useFakeTimers();
     const t = setup();
     const user = await createUser(t, "owner@example.com", true);
     const session = await t.mutation(components.betterAuth.adapter.create, {
@@ -306,10 +310,41 @@ describe("Phase 1 identity table", () => {
     expect(await authenticated.query(api.admin.getAccess, {})).toEqual({
       allowed: true,
     });
+    const cardId = await t.run((ctx) =>
+      ctx.db.insert("cards", {
+        userId: user._id,
+        type: "text",
+        content: "Admin denial fixture",
+        createdAt: Date.now(),
+        updatedAt: Date.now(),
+        aiSummary: "Preserve this summary",
+        processingStatus: {
+          classify: { status: "completed", completedAt: Date.now() },
+        },
+      })
+    );
+    const beforeCard = await t.run((ctx) => ctx.db.get("cards", cardId));
+    const beforeJobs = await t.run((ctx) =>
+      ctx.db.system.query("_scheduled_functions").take(100)
+    );
+    const assertRefreshDenied = async () => {
+      await expect(
+        authenticated.action(api.admin.refreshCardProcessing, { cardId })
+      ).rejects.toThrow("Unauthorized");
+      expect(await t.run((ctx) => ctx.db.get("cards", cardId))).toEqual(
+        beforeCard
+      );
+      expect(
+        await t.run((ctx) =>
+          ctx.db.system.query("_scheduled_functions").take(100)
+        )
+      ).toEqual(beforeJobs);
+    };
     await t.run((ctx) => ctx.db.patch("users", row._id, { role: undefined }));
     expect(await authenticated.query(api.admin.getAccess, {})).toEqual({
       allowed: false,
     });
+    await assertRefreshDenied();
     await t.run((ctx) =>
       ctx.db.patch("users", row._id, { role: "admin", deletedAt: Date.now() })
     );
@@ -319,6 +354,7 @@ describe("Phase 1 identity table", () => {
     await expect(
       authenticated.query(api.admin.getOverview, {})
     ).rejects.toThrow("Unauthorized");
+    await assertRefreshDenied();
     await t.run((ctx) =>
       ctx.db.patch("users", row._id, { deletedAt: undefined })
     );
@@ -331,6 +367,7 @@ describe("Phase 1 identity table", () => {
     expect(await authenticated.query(api.admin.getAccess, {})).toEqual({
       allowed: false,
     });
+    await assertRefreshDenied();
   });
 
   test("admin seeding rejects missing or ambiguous mappings without granting a role", async () => {
