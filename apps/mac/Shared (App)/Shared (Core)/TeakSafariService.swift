@@ -205,7 +205,7 @@ actor TeakSafariService {
 
     func signOut() async -> [String: Any] {
         do {
-            guard let lockURL else { throw SafariServiceError.unauthenticated }
+            guard let lockURL else { throw SafariServiceError.message("Unable to access Teak's shared storage.") }
             // Invalidate callbacks immediately, even if their network request
             // holds the credential lock longer than logout's wait budget.
             try Data(UUID().uuidString.utf8).write(to: lockURL.appendingPathExtension("epoch"), options: .atomic)

@@ -554,6 +554,17 @@ extension SafariOAuthTests {
         discoveryReset()
     }
 
+    static func discoveryMissingSharedStorage() async throws {
+        discoveryReset()
+        let store = MemoryCredentials(tokens())
+        let service = TeakSafariService(credentials: store,
+            apiURL: SafariDiscoveryFixtures.api, lockURL: nil)
+        let result = await service.signOut()
+        try check(result["status"] as? String == "error", "missing shared storage prevents logout")
+        try check(result["authenticated"] as? Bool == true && (try store.load()) != nil,
+                  "storage failure retains stored authentication and retry")
+    }
+
     static func discoveryJourneys() async throws {
         defer { discoveryReset() }
         try await discoveryModeJourney("betterauth")
@@ -574,6 +585,7 @@ extension SafariOAuthTests {
         try await discoveryUntrustedDestinations()
         try discoveryDeploymentPins()
         try await discoveryUnauthorizedDuringMetadataOutage()
+        try await discoveryMissingSharedStorage()
         print("PASS: Safari discovery login, restart, resource grants, provider flip, cancellation, identity cleanup, rotation recovery, safe logout, concurrent refresh")
     }
 }
