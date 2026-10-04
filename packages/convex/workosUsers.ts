@@ -1,11 +1,16 @@
 import { v } from "convex/values";
+import { internal } from "./_generated/api";
 import type { Doc } from "./_generated/dataModel";
 import { internalMutation } from "./_generated/server";
+import { readAuthPrimary, readSignupsDisabled } from "./env";
+import { scheduleUserCreated } from "./telemetry/schedule";
 import { normalizeIdentityEmail } from "./userIdentityTable";
 
 const reasonValidator = v.union(
   v.literal("external_id_mismatch"),
   v.literal("missing_mapping"),
+  v.literal("signups_frozen"),
+  v.literal("equal_timestamp_conflict"),
   v.literal("duplicate_mapping"),
   v.literal("link_conflict"),
   v.literal("deleted_user"),
@@ -17,10 +22,12 @@ const reasonValidator = v.union(
 type LinkReason = typeof reasonValidator.type;
 
 // Only authenticated provider/import adapters may call this internal boundary.
-// It links existing owners, never grants authorization or creates a vault.
+// It links existing owners; only proven bootstrap/created-event adapters may
+// allocate a new permanent owner after the WorkOS sign-up freeze ends.
 // All uniqueness reads and the one link write share the mutation transaction.
 export const linkWorkosUser = internalMutation({
   args: {
+    allowCreate: v.optional(v.boolean()),
     workosUserId: v.string(),
     externalId: v.optional(v.union(v.string(), v.null())),
     email: v.string(),
@@ -120,7 +127,80 @@ export const linkWorkosUser = internalMutation({
       }
       candidate = emailRows[0];
       if (!candidate) {
-        return quarantine("missing_mapping");
+        const canCreate =
+          args.allowCreate === true &&
+          (args.source === "ensureUser" || args.source === "webhook") &&
+          readAuthPrimary() === "workos";
+        if (!canCreate) {
+          return quarantine("missing_mapping");
+        }
+        if (readSignupsDisabled()) {
+          return quarantine("signups_frozen");
+        }
+        if (
+          !(
+            /^user_[A-Za-z0-9]+$/.test(args.workosUserId) &&
+            /^[^\s@]+@[^\s@]+$/.test(email)
+          )
+        ) {
+          throw new Error("Invalid WorkOS creation input");
+        }
+        // An unmapped equal-time conflict has no row to demote. Its durable
+        // quarantine must stay denied even when the component snapshot is true.
+        const conflict = await ctx.db
+          .query("migrationQuarantine")
+          .withIndex("by_workosUserId_and_reason_and_resolvedAt", (q) =>
+            q
+              .eq("workosUserId", args.workosUserId)
+              .eq("reason", "equal_timestamp_conflict")
+              .eq("resolvedAt", undefined)
+          )
+          .first();
+        if (conflict) {
+          return quarantine("equal_timestamp_conflict");
+        }
+        // Convex seeds mutation randomness for deterministic transaction retries.
+        // Owner identifiers are opaque keys, never authorization credentials.
+        let teakUserId: string | undefined;
+        for (let attempt = 0; attempt < 5; attempt++) {
+          const proposed = `teak_${Array.from({ length: 32 }, () =>
+            Math.floor(Math.random() * 16).toString(16)
+          ).join("")}`;
+          const collision = await ctx.db
+            .query("users")
+            .withIndex("by_teakUserId", (q) => q.eq("teakUserId", proposed))
+            .first();
+          if (!collision) {
+            teakUserId = proposed;
+            break;
+          }
+        }
+        if (!teakUserId) {
+          throw new Error("Unable to allocate a permanent Teak owner");
+        }
+        const previous = await ctx.db
+          .query("workosEvents")
+          .withIndex("by_workosUserId_and_createdAt", (q) =>
+            q.eq("workosUserId", args.workosUserId)
+          )
+          .order("desc")
+          .first();
+        await ctx.db.insert("users", {
+          teakUserId,
+          email,
+          emailVerified: true,
+          workosUserId: args.workosUserId,
+          workosEmail: email,
+          workosEmailVerified: true,
+          ...(previous ? { lastWorkosEventAt: previous.createdAt } : {}),
+        });
+        await ctx.scheduler.runAfter(
+          0,
+          internal.card.defaultCards.createDefaultCardsForUser,
+          { userId: teakUserId }
+        );
+        await scheduleUserCreated(ctx, { source: "auth", userId: teakUserId });
+        return { status: "linked" as const, teakUserId, changed: true };
       }
       // A verified provider address must not claim a pre-existing unverified
       // legacy vault with surviving Better Auth credentials.
@@ -159,7 +239,7 @@ export const linkWorkosUser = internalMutation({
     const changed = candidate.workosUserId !== args.workosUserId;
     if (changed) {
       // Ordered WorkOS profile synchronization belongs to the lifecycle handler.
-      // Better Auth remains primary; do not overwrite its mirror in this slice.
+      // Linking must never overwrite either provider profile.
       await ctx.db.patch("users", candidate._id, {
         workosUserId: args.workosUserId,
       });

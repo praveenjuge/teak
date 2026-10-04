@@ -6,7 +6,7 @@ import {
   makeFunctionReference,
 } from "convex/server";
 import { convexTest } from "convex-test";
-import { describe, expect, test } from "vitest";
+import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import type { Doc } from "./_generated/dataModel";
 import schema from "./schema";
 import type { linkWorkosUser } from "./workosUsers";
@@ -403,4 +403,158 @@ describe("transactional WorkOS identity linking", () => {
       expect(await snapshot(t)).toEqual(before);
     }
   );
+});
+
+// Creation failures: disabled primary/freeze, untrusted sources, external-ID
+// conflicts, unverified email, deleted provider, collisions and retry seeding.
+describe("trusted new WorkOS owners", () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+    vi.stubEnv("AUTH_PRIMARY", "workos");
+    vi.stubEnv("SIGNUPS_DISABLED", "false");
+  });
+  afterEach(() => {
+    vi.clearAllTimers();
+    vi.useRealTimers();
+    vi.unstubAllEnvs();
+  });
+  const create = {
+    ...input,
+    workosUserId: "user_NEW",
+    source: "ensureUser" as const,
+    allowCreate: true,
+  };
+  const jobs = (t: Backend) =>
+    t.run((ctx) => ctx.db.system.query("_scheduled_functions").take(10));
+  test("creates one opaque permanent owner and seeds only once across retries", async () => {
+    const t = setup();
+    const result = await t.mutation(link, create);
+    expect(result).toMatchObject({ status: "linked", changed: true });
+    if (result.status !== "linked") {
+      throw new Error("Expected new owner");
+    }
+    expect(result.teakUserId).toMatch(/^teak_[a-f0-9]{32}$/);
+    expect(result.teakUserId).not.toBe(create.workosUserId);
+    expect((await snapshot(t)).users).toMatchObject([
+      {
+        teakUserId: result.teakUserId,
+        workosUserId: create.workosUserId,
+        workosEmail: input.email,
+        workosEmailVerified: true,
+      },
+    ]);
+    const scheduled = await jobs(t);
+    expect(scheduled).toHaveLength(2);
+    expect(
+      scheduled.map((job) => ({ name: job.name, args: job.args }))
+    ).toEqual([
+      {
+        name: "card/defaultCards:createDefaultCardsForUser",
+        args: [{ userId: result.teakUserId }],
+      },
+      {
+        name: "telemetry/events:emitUserCreated",
+        args: [{ userId: result.teakUserId, source: "auth" }],
+      },
+    ]);
+    for (const source of [
+      "ensureUser",
+      "webhook",
+      "import",
+      "reconcile",
+    ] as const) {
+      expect(await t.mutation(link, { ...create, source })).toEqual({
+        ...result,
+        changed: false,
+      });
+    }
+    expect(await jobs(t)).toEqual(scheduled);
+    expect((await snapshot(t)).users).toHaveLength(1);
+  });
+  test("freeze quarantines without creating and allows the same subject after unfreeze", async () => {
+    const t = setup();
+    vi.stubEnv("SIGNUPS_DISABLED", "true");
+    expect(await t.mutation(link, create)).toEqual({
+      status: "quarantined",
+      reason: "signups_frozen",
+    });
+    expect((await snapshot(t)).users).toEqual([]);
+    expect(await jobs(t)).toEqual([]);
+    vi.stubEnv("SIGNUPS_DISABLED", "false");
+    expect(await t.mutation(link, create)).toMatchObject({ status: "linked" });
+    expect((await snapshot(t)).quarantine).toMatchObject([
+      { reason: "signups_frozen" },
+    ]);
+  });
+  test.each(["import", "reconcile"] as const)(
+    "%s cannot create even with the internal discriminator",
+    async (source) => {
+      const t = setup();
+      expect(await t.mutation(link, { ...create, source })).toEqual({
+        status: "quarantined",
+        reason: "missing_mapping",
+      });
+      expect((await snapshot(t)).users).toEqual([]);
+      expect(await jobs(t)).toEqual([]);
+    }
+  );
+  test.each(["betterauth", undefined])(
+    "primary %s cannot create",
+    async (primary) => {
+      const t = setup();
+      vi.stubEnv("AUTH_PRIMARY", primary);
+      expect(await t.mutation(link, create)).toEqual({
+        status: "quarantined",
+        reason: "missing_mapping",
+      });
+      expect((await snapshot(t)).users).toEqual([]);
+    }
+  );
+  test("webhook without explicit created-event permission cannot create", async () => {
+    const t = setup();
+    expect(await t.mutation(link, { ...input, source: "webhook" })).toEqual({
+      status: "quarantined",
+      reason: "missing_mapping",
+    });
+  });
+  test.each([
+    { externalId: "unknown-owner", reason: "external_id_mismatch" },
+    { emailVerified: false, reason: "email_unverified" },
+  ])("creation preserves $reason quarantine", async ({ reason, ...fields }) => {
+    const t = setup();
+    expect(await t.mutation(link, { ...create, ...fields })).toEqual({
+      status: "quarantined",
+      reason,
+    });
+    expect((await snapshot(t)).users).toEqual([]);
+    expect(await jobs(t)).toEqual([]);
+  });
+  test("a terminal provider deletion blocks a fresh owner", async () => {
+    const t = setup();
+    await t.run((ctx) =>
+      ctx.db.insert("workosEvents", {
+        workosUserId: create.workosUserId,
+        eventId: "deleted",
+        type: "user.deleted",
+        createdAt: 1,
+      })
+    );
+    expect(await t.mutation(link, create)).toEqual({
+      status: "quarantined",
+      reason: "workos_deleted_user",
+    });
+    expect((await snapshot(t)).users).toEqual([]);
+  });
+  test("bounded allocation collisions preserve the existing owner", async () => {
+    const t = setup();
+    await seed(t, {
+      teakUserId: `teak_${"0".repeat(32)}`,
+      email: "other@example.com",
+    });
+    vi.spyOn(Math, "random").mockReturnValue(0);
+    await expect(t.mutation(link, create)).rejects.toThrow("allocate");
+    vi.restoreAllMocks();
+    expect((await snapshot(t)).users).toHaveLength(1);
+    expect(await jobs(t)).toEqual([]);
+  });
 });

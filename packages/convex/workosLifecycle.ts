@@ -209,6 +209,7 @@ export const applyWorkosEvent = internalMutation({
         ? {}
         : { externalId: externalId as string }),
       source: "webhook",
+      allowCreate: event.event === "user.created",
     });
     if (linked.status === "quarantined") {
       if (row) {

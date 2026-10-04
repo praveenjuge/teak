@@ -14,34 +14,66 @@ import { validWorkosExternalId } from "./workosTokens";
 
 // Convex has already verified this JWT through auth.config.ts. These checks bind
 // its claims to the session provider; live session revocation is still required.
-export function readWorkosSessionIdentity(
+function readWorkosSessionClaims(
   identity: UserIdentity | null,
   clientId: string
-): {
-  workosUserId: string;
-  externalId?: string | null;
-  sessionId: string;
-  emailVerified: true;
-} | null {
+) {
   if (
     !(/^client_[A-Za-z0-9]+$/.test(clientId) && identity) ||
     identity.issuer !== `https://api.workos.com/user_management/${clientId}` ||
     !/^user_[A-Za-z0-9]+$/.test(identity.subject) ||
     typeof identity.sid !== "string" ||
     !/^session_[A-Za-z0-9]+$/.test(identity.sid) ||
-    identity.emailVerified !== true ||
-    !validWorkosExternalId(identity.external_id)
+    !validWorkosExternalId(identity.external_id) ||
+    (typeof identity.external_id === "string" &&
+      /[\s\p{Cc}]/u.test(identity.external_id))
   ) {
     return null;
   }
   return {
     workosUserId: identity.subject,
     sessionId: identity.sid,
-    emailVerified: true,
     ...(identity.external_id === undefined
       ? {}
       : { externalId: identity.external_id }),
   };
+}
+
+export function readWorkosSessionIdentity(
+  identity: UserIdentity | null,
+  clientId: string
+) {
+  const claims = readWorkosSessionClaims(identity, clientId);
+  return claims && identity?.emailVerified === true
+    ? { ...claims, emailVerified: true as const }
+    : null;
+}
+
+// Bootstrap can return verify_email before a mapping exists. It never grants vault access.
+export async function getWorkosBootstrapIdentity(ctx: Pick<ActionCtx, "auth">) {
+  if (readAuthPrimary() !== "workos") {
+    return null;
+  }
+  let identity: UserIdentity | null;
+  try {
+    identity = await ctx.auth.getUserIdentity();
+  } catch (error) {
+    if (error instanceof Error && error.message === "Unauthenticated") {
+      return null;
+    }
+    throw error;
+  }
+  const claims = readWorkosSessionClaims(
+    identity,
+    process.env.WORKOS_CLIENT_ID ?? ""
+  );
+  return claims
+    ? {
+        ...claims,
+        email: typeof identity?.email === "string" ? identity.email : null,
+        emailVerified: identity?.emailVerified === true,
+      }
+    : null;
 }
 
 interface SessionRecord {
