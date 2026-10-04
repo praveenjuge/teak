@@ -97,7 +97,10 @@ for (const mode of ["production", "development"] as const) {
           url === `${discoveryOrigin}/.well-known/oauth-protected-resource/mcp`
         ) {
           await json({
-            resource: `${discoveryOrigin}/mcp`,
+            resource:
+              primary === "workos"
+                ? "https://teakvault.com/mcp"
+                : `${discoveryOrigin}/mcp`,
             authorization_servers: [issuer],
           });
         } else if (
@@ -126,7 +129,7 @@ for (const mode of ["production", "development"] as const) {
           exchanges.push(body);
           expect(body.get("client_id")).toBe(clientId);
           expect(body.get("resource")).toBe(
-            primary === "workos" ? `${discoveryOrigin}/api` : null
+            primary === "workos" ? "https://teakvault.com/api" : null
           );
           const rotated = exchanges.length > 1;
           if (rotated) {
@@ -221,7 +224,12 @@ for (const mode of ["production", "development"] as const) {
       expect(authUrl.origin).toBe(issuer);
       expect(authUrl.searchParams.get("client_id")).toBe(clientId);
       expect(authUrl.searchParams.get("resource")).toBe(
-        primary === "workos" ? `${discoveryOrigin}/api` : null
+        primary === "workos" ? "https://teakvault.com/api" : null
+      );
+      expect(authUrl.searchParams.get("scope")).toBe(
+        primary === "workos"
+          ? "openid profile email offline_access"
+          : "profile email offline_access"
       );
       expect(authUrl.searchParams.get("code_challenge_method")).toBe("S256");
       expect(await page.evaluate(() => window.auth.getCaptureOwner())).toBe(
