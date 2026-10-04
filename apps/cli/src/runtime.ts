@@ -334,6 +334,10 @@ const revokeCredentials = async (
       clientId = auth.clients.cli;
     }
   }
+  if (!credentials.binding && apiBaseUrl(options) === DEFAULT_API_URL) {
+    endpoint ??= `${DEFAULT_API_URL}/api/oauth/revoke`;
+    clientId ??= "teak-cli";
+  }
   if (!(endpoint && clientId)) {
     throw new Error("Revocation unavailable");
   }

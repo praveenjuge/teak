@@ -107,8 +107,10 @@ endpoint after a provider switch, retains credentials on failure and cancels pen
 browser sign-ins. Reconnect revokes the previous grant before replacing it.
 Uncommitted grants are revoked if storage locking fails. Dead-owner recovery uses
 generation-bound sibling claims; stale contenders cannot wedge replacement locks.
+Unbound production credentials retain their original Teak revocation route after
+a provider switch, including failure retention and retry.
 
-All 66 CLI tests pass, including 44 randomized lifecycle/lock tests, with typecheck
+All 68 CLI tests pass, including 44 randomized lifecycle/lock tests, with typecheck
 and executable build.
 Subprocess journeys use the real CLI, callback server, discovery and SDK with a
 controlled OAuth/API server and isolated credential-store boundary. Bypassing the process lock fails the two-process refresh regression; the same-client
