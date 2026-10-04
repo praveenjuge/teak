@@ -177,7 +177,7 @@ export function WorkosAuthProvider({
         if (!sessionId) {
           throw new Error("Please sign in again");
         }
-        await client.action(api.securitySessions.revokeSession, {
+        await client.action(api.securitySessions.revokeAuthkitSession, {
           sessionId,
         });
         await session.clear();

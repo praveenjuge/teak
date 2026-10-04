@@ -141,6 +141,33 @@ const paginationOpts = { cursor: null, numItems: 25 };
 // Failure modes: provider/owner confusion; invalid/inactive data; foreign target; late-page ownership;
 // unbounded pagination; transport/revoke outage; bootstrap verification and legacy regression.
 describe("owned WorkOS devices", () => {
+  test("Better Auth clients cannot enter WorkOS actions", async () => {
+    const f = await setup();
+    vi.stubEnv("AUTH_PRIMARY", "betterauth");
+    await expect(
+      f.user.action(api.securitySessions.listAuthkitSessions, {
+        paginationOpts,
+      })
+    ).rejects.toThrow("sign in");
+    await expect(
+      f.user.action(api.securitySessions.revokeAuthkitSession, {
+        sessionId: claims.sid,
+      })
+    ).rejects.toThrow("sign in");
+    expect(calls).toEqual([]);
+  });
+  test("WorkOS claims cannot enter shipped Better Auth query and mutation", async () => {
+    const f = await setup();
+    expect(
+      await f.user.query(api.securitySessions.listSessions, { paginationOpts })
+    ).toEqual({ page: [], isDone: true, continueCursor: "" });
+    await expect(
+      f.user.mutation(api.securitySessions.revokeSession, {
+        sessionId: claims.sid,
+      })
+    ).rejects.toThrow("sign in");
+    expect(calls).toEqual([]);
+  });
   test("lists active owned sessions with safe labels and follows provider pagination", async () => {
     const f = await setup();
     pages[""] = [
@@ -152,7 +179,9 @@ describe("owned WorkOS devices", () => {
       session("session_OTHER", { user_agent: "<script>private</script>" }),
     ];
     expect(
-      await f.user.action(api.securitySessions.listSessions, { paginationOpts })
+      await f.user.action(api.securitySessions.listAuthkitSessions, {
+        paginationOpts,
+      })
     ).toEqual({
       page: [
         {
@@ -165,7 +194,7 @@ describe("owned WorkOS devices", () => {
       isDone: false,
       continueCursor: "session_NEXT",
     });
-    const next = await f.user.action(api.securitySessions.listSessions, {
+    const next = await f.user.action(api.securitySessions.listAuthkitSessions, {
       paginationOpts: { cursor: "session_NEXT", numItems: 500 },
     });
     expect(next.page).toMatchObject([
@@ -177,7 +206,7 @@ describe("owned WorkOS devices", () => {
   test("proves target ownership on a later page before provider revoke", async () => {
     const f = await setup();
     pages.session_NEXT = [session("session_OTHER")];
-    await f.user.action(api.securitySessions.revokeSession, {
+    await f.user.action(api.securitySessions.revokeAuthkitSession, {
       sessionId: "session_OTHER",
     });
     expect(revoked).toEqual(["session_OTHER"]);
@@ -187,7 +216,7 @@ describe("owned WorkOS devices", () => {
   });
   test("revokes the real current AuthKit sid", async () => {
     const f = await setup();
-    await f.user.action(api.securitySessions.revokeSession, {
+    await f.user.action(api.securitySessions.revokeAuthkitSession, {
       sessionId: claims.sid,
     });
     expect(revoked).toEqual([claims.sid]);
@@ -197,7 +226,7 @@ describe("owned WorkOS devices", () => {
     async (sessionId) => {
       const f = await setup();
       await expect(
-        f.user.action(api.securitySessions.revokeSession, { sessionId })
+        f.user.action(api.securitySessions.revokeAuthkitSession, { sessionId })
       ).rejects.toThrow();
       expect(revoked).toEqual([]);
     }
@@ -211,7 +240,7 @@ describe("owned WorkOS devices", () => {
     async (overrides) => {
       const f = await setup(overrides);
       await expect(
-        f.user.action(api.securitySessions.revokeSession, {
+        f.user.action(api.securitySessions.revokeAuthkitSession, {
           sessionId: claims.sid,
         })
       ).rejects.toThrow("sign in");
@@ -221,13 +250,15 @@ describe("owned WorkOS devices", () => {
   test("denies anonymous and deleting owners before provider access", async () => {
     const f = await setup();
     await expect(
-      f.t.action(api.securitySessions.revokeSession, { sessionId: claims.sid })
+      f.t.action(api.securitySessions.revokeAuthkitSession, {
+        sessionId: claims.sid,
+      })
     ).rejects.toThrow("sign in");
     await f.t.run((ctx) =>
       ctx.db.insert("accountDeletionStates", { userId: "owner", startedAt: 1 })
     );
     await expect(
-      f.user.action(api.securitySessions.revokeSession, {
+      f.user.action(api.securitySessions.revokeAuthkitSession, {
         sessionId: claims.sid,
       })
     ).rejects.toThrow("sign in");
@@ -242,10 +273,12 @@ describe("owned WorkOS devices", () => {
     const f = await setup();
     pages[""] = [session("session_OTHER", overrides)];
     await expect(
-      f.user.action(api.securitySessions.listSessions, { paginationOpts })
+      f.user.action(api.securitySessions.listAuthkitSessions, {
+        paginationOpts,
+      })
     ).rejects.toThrow("invalid session");
     await expect(
-      f.user.action(api.securitySessions.revokeSession, {
+      f.user.action(api.securitySessions.revokeAuthkitSession, {
         sessionId: "session_OTHER",
       })
     ).rejects.toThrow("invalid session");
@@ -259,7 +292,7 @@ describe("owned WorkOS devices", () => {
     const f = await setup();
     pages[""] = [session("session_OTHER", overrides)];
     expect(
-      await f.user.action(api.securitySessions.revokeSession, {
+      await f.user.action(api.securitySessions.revokeAuthkitSession, {
         sessionId: "session_OTHER",
       })
     ).toBeNull();
@@ -270,13 +303,13 @@ describe("owned WorkOS devices", () => {
     loseRevokeResponse = true;
     omitRevoked = true;
     await expect(
-      f.user.action(api.securitySessions.revokeSession, {
+      f.user.action(api.securitySessions.revokeAuthkitSession, {
         sessionId: claims.sid,
       })
     ).rejects.toThrow();
     expect(revoked).toEqual([claims.sid]);
     expect(
-      await f.user.action(api.securitySessions.revokeSession, {
+      await f.user.action(api.securitySessions.revokeAuthkitSession, {
         sessionId: claims.sid,
       })
     ).toBeNull();
@@ -291,7 +324,7 @@ describe("owned WorkOS devices", () => {
       pages[""] = [];
       revokeStatus = status;
       await expect(
-        f.user.action(api.securitySessions.revokeSession, {
+        f.user.action(api.securitySessions.revokeAuthkitSession, {
           sessionId: claims.sid,
         })
       ).rejects.toThrow();
@@ -303,7 +336,7 @@ describe("owned WorkOS devices", () => {
     pages[""] = [];
     revokeStatus = 404;
     await expect(
-      f.user.action(api.securitySessions.revokeSession, {
+      f.user.action(api.securitySessions.revokeAuthkitSession, {
         sessionId: "session_FOREIGN",
       })
     ).rejects.toThrow("not found");
@@ -318,7 +351,7 @@ describe("owned WorkOS devices", () => {
     repeated = true;
     pages[""] = [];
     await expect(
-      f.user.action(api.securitySessions.revokeSession, {
+      f.user.action(api.securitySessions.revokeAuthkitSession, {
         sessionId: "session_MISSING",
       })
     ).rejects.toThrow("contact support");
@@ -329,17 +362,19 @@ describe("owned WorkOS devices", () => {
     const f = await setup();
     unavailable = true;
     await expect(
-      f.user.action(api.securitySessions.listSessions, { paginationOpts })
+      f.user.action(api.securitySessions.listAuthkitSessions, {
+        paginationOpts,
+      })
     ).rejects.toThrow();
     await expect(
-      f.user.action(api.securitySessions.revokeSession, {
+      f.user.action(api.securitySessions.revokeAuthkitSession, {
         sessionId: claims.sid,
       })
     ).rejects.toThrow();
     unavailable = false;
     failRevoke = true;
     await expect(
-      f.user.action(api.securitySessions.revokeSession, {
+      f.user.action(api.securitySessions.revokeAuthkitSession, {
         sessionId: claims.sid,
       })
     ).rejects.toThrow();
@@ -353,7 +388,7 @@ describe("owned WorkOS devices", () => {
         await f.user.run((ctx) => getWorkosBootstrapIdentity(ctx))
       ).toBeNull();
       await expect(
-        f.user.action(api.securitySessions.revokeSession, {
+        f.user.action(api.securitySessions.revokeAuthkitSession, {
           sessionId: claims.sid,
         })
       ).rejects.toThrow("sign in");

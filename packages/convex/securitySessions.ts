@@ -6,8 +6,9 @@ import {
   type ActionCtx,
   action,
   env,
-  internalMutation,
   internalQuery,
+  mutation,
+  query,
 } from "./_generated/server";
 
 import { readAuthPrimary } from "./env";
@@ -390,7 +391,7 @@ const displayValidator = v.object({
   current: v.boolean(),
 });
 
-export const listBetterAuthSessions = internalQuery({
+export const listSessions = query({
   args: { paginationOpts: paginationOptsValidator },
   returns: v.object({
     page: v.array(displayValidator),
@@ -432,7 +433,7 @@ export const listBetterAuthSessions = internalQuery({
   },
 });
 
-export const revokeBetterAuthSession = internalMutation({
+export const revokeSession = mutation({
   args: { sessionId: v.string() },
   returns: v.null(),
   handler: async (ctx, { sessionId }) => {
@@ -483,7 +484,7 @@ function validateProviderSession(session: Session, userId: string) {
   }
 }
 
-export const listSessions = action({
+export const listAuthkitSessions = action({
   args: { paginationOpts: paginationOptsValidator },
   returns: sessionPageValidator,
   handler: async (
@@ -495,13 +496,8 @@ export const listSessions = action({
     continueCursor: string;
   }> => {
     const user = await getSessionUser(ctx);
-    if (!user) {
-      return { page: [], isDone: true, continueCursor: "" };
-    }
-    if (user.provider === "betterauth") {
-      return ctx.runQuery(internal.securitySessions.listBetterAuthSessions, {
-        paginationOpts,
-      });
+    if (user?.provider !== "workos") {
+      throw new Error("Please sign in again.");
     }
     const cursor = paginationOpts.cursor;
     if (cursor && !/^session_[A-Za-z0-9]+$/.test(cursor)) {
@@ -541,19 +537,13 @@ export const listSessions = action({
   },
 });
 
-export const revokeSession = action({
+export const revokeAuthkitSession = action({
   args: { sessionId: v.string() },
   returns: v.null(),
   handler: async (ctx, { sessionId }) => {
     const user = await getSessionUser(ctx);
-    if (!user) {
+    if (user?.provider !== "workos") {
       throw new Error("Please sign in again.");
-    }
-    if (user.provider === "betterauth") {
-      await ctx.runMutation(internal.securitySessions.revokeBetterAuthSession, {
-        sessionId,
-      });
-      return null;
     }
     if (!/^session_[A-Za-z0-9]+$/.test(sessionId)) {
       throw new Error("Invalid device session.");

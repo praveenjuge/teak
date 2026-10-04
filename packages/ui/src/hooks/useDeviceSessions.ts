@@ -4,10 +4,19 @@ import { api } from "@teak/convex";
 import { useAction } from "convex/react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { DeviceSession } from "../components/settings/SecuritySection";
+import { usePaginatedQuery } from "../convexQueryHooks";
 
 // Actions do not subscribe: keep pages local, discard stale responses on account/mode changes.
-export function useDeviceSessions(identityKey: string | undefined) {
-  const list = useAction(api.securitySessions.listSessions);
+export function useDeviceSessions(
+  identityKey: string | undefined,
+  provider: "betterauth" | "workos" | undefined
+) {
+  const betterAuth = usePaginatedQuery(
+    api.securitySessions.listSessions,
+    identityKey && provider === "betterauth" ? {} : "skip",
+    { initialNumItems: 25 }
+  );
+  const list = useAction(api.securitySessions.listAuthkitSessions);
   const activeIdentity = useRef(identityKey);
   activeIdentity.current = identityKey;
   const generation = useRef(0);
@@ -25,6 +34,7 @@ export function useDeviceSessions(identityKey: string | undefined) {
     async (cursor: string | null = null) => {
       if (
         !identityKey ||
+        provider !== "workos" ||
         identityKey !== activeIdentity.current ||
         inFlight.current
       ) {
@@ -69,7 +79,7 @@ export function useDeviceSessions(identityKey: string | undefined) {
         }
       }
     },
-    [identityKey, list]
+    [identityKey, provider, list]
   );
   useEffect(() => {
     generation.current++;
@@ -88,21 +98,32 @@ export function useDeviceSessions(identityKey: string | undefined) {
     };
   }, [identityKey, load]);
   const visible = state.key === identityKey;
+  const betterAuthRows =
+    betterAuth.status === "LoadingFirstPage" ? undefined : betterAuth.results;
+  const workosRows = visible ? state.rows : undefined;
   return {
-    sessions: visible ? state.rows : undefined,
-    sessionsHasMore: visible && state.hasMore,
-    sessionsLoadingMore: visible && state.loading && state.rows !== undefined,
-    sessionsError: visible ? state.error : null,
+    sessions: provider === "betterauth" ? betterAuthRows : workosRows,
+    sessionsHasMore:
+      provider === "betterauth"
+        ? betterAuth.status === "CanLoadMore"
+        : visible && state.hasMore,
+    sessionsLoadingMore:
+      provider === "betterauth"
+        ? betterAuth.status === "LoadingMore"
+        : visible && state.loading && state.rows !== undefined,
+    sessionsError: provider === "workos" && visible ? state.error : null,
     retrySessions: () => void load(state.failedCursor ?? null),
     loadMoreSessions: () => {
-      if (state.hasMore) {
+      if (provider === "betterauth") {
+        betterAuth.loadMore(25);
+      } else if (state.hasMore) {
         void load(state.cursor);
       }
     },
     isCurrentIdentity: () =>
       Boolean(identityKey && identityKey === activeIdentity.current),
     refreshSessions: () => {
-      if (identityKey !== activeIdentity.current) {
+      if (provider !== "workos" || identityKey !== activeIdentity.current) {
         return Promise.resolve();
       }
       generation.current++;

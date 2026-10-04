@@ -54,11 +54,17 @@ export function useSettingsController({
   const revokeAllKeys = useMutation(api.apiKeys.revokeAllUserApiKeys);
   const authMode = useQuery(api.auth.getAuthMode);
   const devices = useDeviceSessions(
-    user?._id && authMode ? `${authMode.primary}:${user._id}` : undefined
+    user?._id && authMode ? `${authMode.primary}:${user._id}` : undefined,
+    authMode?.primary
   );
-  const revokeSession = useAction(api.securitySessions.revokeSession);
+  const revokeSession = useMutation(api.securitySessions.revokeSession);
+  const revokeAuthkitSession = useAction(
+    api.securitySessions.revokeAuthkitSession
+  );
   const handleRevokeSession = async (sessionId: string, current: boolean) => {
-    await revokeSession({ sessionId });
+    await (authMode?.primary === "workos"
+      ? revokeAuthkitSession({ sessionId })
+      : revokeSession({ sessionId }));
     if (!devices.isCurrentIdentity()) {
       return;
     }
