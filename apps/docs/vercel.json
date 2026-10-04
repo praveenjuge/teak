@@ -105,6 +105,10 @@
       "destination": "https://uncommon-ladybug-882.convex.site/mcp/:path*"
     },
     {
+      "source": "/.well-known/teak-oauth-clients.json",
+      "destination": "https://uncommon-ladybug-882.convex.site/.well-known/teak-oauth-clients.json"
+    },
+    {
       "source": "/.well-known/oauth-protected-resource",
       "destination": "https://uncommon-ladybug-882.convex.site/.well-known/oauth-protected-resource"
     },

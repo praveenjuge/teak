@@ -50,6 +50,9 @@ describe("MCP OAuth metadata and endpoints", () => {
     expect(body.userinfo_endpoint).toBe(
       "https://app.teakvault.com/api/auth/mcp/userinfo"
     );
+    expect(body.revocation_endpoint).toBe(
+      "https://example.convex.site/api/oauth/revoke"
+    );
     expect(body.jwks_uri).toBe("https://app.teakvault.com/api/auth/mcp/jwks");
     expect(body).not.toHaveProperty("id_token_signing_alg_values_supported");
   });
