@@ -100,6 +100,7 @@ import type * as publicApiHttpAuth from "../publicApiHttpAuth.js";
 import type * as publicApiHttpCards from "../publicApiHttpCards.js";
 import type * as publicApiHttpShared from "../publicApiHttpShared.js";
 import type * as publicApiHttpValidation from "../publicApiHttpValidation.js";
+import type * as publicApiMe from "../publicApiMe.js";
 import type * as publicApiMeta from "../publicApiMeta.js";
 import type * as publicApiOpenApi from "../publicApiOpenApi.js";
 import type * as publicApiUploads from "../publicApiUploads.js";
@@ -298,6 +299,7 @@ declare const fullApi: ApiFromModules<{
   publicApiHttpCards: typeof publicApiHttpCards;
   publicApiHttpShared: typeof publicApiHttpShared;
   publicApiHttpValidation: typeof publicApiHttpValidation;
+  publicApiMe: typeof publicApiMe;
   publicApiMeta: typeof publicApiMeta;
   publicApiOpenApi: typeof publicApiOpenApi;
   publicApiUploads: typeof publicApiUploads;

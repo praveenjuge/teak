@@ -27,6 +27,25 @@ timeouts, unsafe URLs, malformed/oversized responses, and loopback development.
 Removing issuer validation causes its regression to fail. Gateway tests and the
 207-test web suite pass. This is a foundation, not a completed client release.
 
+## Standalone SDK distribution preparation
+
+`packages/sdk` builds `teak-sdk` directly from the canonical Convex client SDK.
+It bundles browser-compatible JavaScript and emits the declaration dependency
+tree, with no runtime workspace dependencies. Distribution-only declaration
+transforms add ESM import extensions for NodeNext. Turbo tracks the canonical
+client, shared helpers and development URL source as build inputs.
+
+A packed tarball installs through `npm ci` in a fresh consumer outside the repo.
+Its types compile under both Bundler and NodeNext resolution; the installed
+package discovers both providers through a controlled server under Node.
+Removing the type export fails the consumer check. The NodeNext check reproduced
+extensionless declaration failures before the output transform was added.
+
+This prepares a registry dependency for Raycast's standalone store source tree
+without duplicating discovery logic. npm publisher configuration, lockstep release
+preparation, publication and Raycast consumption remain outstanding. No package
+has been published and no authentication mode has changed.
+
 ## Mobile session and provider preparation
 
 The canonical mobile source now contains the AuthKit session manager and Expo
@@ -95,13 +114,56 @@ the correction. This proves the controlled journeys;
 live Better Auth and WorkOS journeys, server consent revocation, registration and
 publication remain outstanding. No CLI release or provider activation has occurred.
 
+## Chrome and Firefox preparation
+
+The extension reads validated discovery for authorization, token exchange,
+revocation, and surface-specific client IDs. Production discovery uses the public
+Teak origin whose advertised resource is `https://teakvault.com/mcp`; API calls
+retain the configured Convex site. Development discovery uses its selected Convex
+site. WorkOS requests include the API
+resource in authorization and both token grants. Stored credentials bind to the
+selected deployment, issuer, and client; development uses separate keys and cannot
+read or clear production credentials. Only the original production Better Auth
+registration accepts an unbound legacy credential. Pending capture ownership keeps
+its permanent Teak ID when provider changes require reconnect.
+
+`GET /v1/me` returns `{data:{id,email,name?}}` through existing public API bearer
+validation, rate limiting, and CORS. `id` is the permanent owner ID; the mirror owns
+email when present. Revoked, expired, deleted, and unmapped credentials fail closed.
+The optional name still reads the legacy profile. WorkOS JWT validation and the
+final removal of that lookup remain later-phase dependencies.
+
+The background flow validates PKCE state and the native callback before exchange,
+refetches discovery on failures, rejects provider changes, and serializes refresh
+and sign-out. Rotated credentials persist before further network operations.
+Metadata outages retain the replacement refresh token and block API requests.
+Configured API origins and every credential request use the same shared URL
+validation policy. Unsafe origins fail before sign-in; loopback is permitted only
+in development. Foreign API URLs cannot receive credentials. Chrome retains protected worker
+storage; Firefox retains extension-origin IndexedDB.
+
+Run the isolated browser proof with:
+
+```sh
+bun --no-env-file x playwright-core install chromium firefox
+bun --no-env-file run --cwd packages/tests e2e:extension:runtime
+```
+
+It compiles the canonical module and exercises both providers in Chromium and
+Firefox, including native Firefox IndexedDB, module reload, concurrent refresh,
+canonical identity, and logout. Its dedicated CI workflow keeps counts-only proof
+attachments and failure traces. OAuth endpoints and browser identity APIs are
+controlled boundaries; this proves runtime/storage behavior, not real provider
+consent, extension-origin isolation, or production authentication. Chrome Web Store
+and AMO client registrations and real sign-ins must still be verified before release.
+
 ## Remaining work
 
 - Activate and prove the prepared mobile integration after Phase 3 server
   revocation, deletion, and canonical redirect setup. Preserve Better Auth until
   the flag switches. Electron is skipped.
-- Prove the prepared CLI against live providers. Wire Raycast, Chrome/Firefox,
-  and Safari to discovery and Teak-owned identity.
+- Finish CLI service proof, Raycast, and Safari discovery work; validate the
+  prepared Chrome/Firefox flow with real provider registrations.
 - Configure and prove each WorkOS client registration in dev and prod.
 - Verify both modes and real public/client journeys before releases.
 - Follow lockstep version and store runbooks; record each live release date.

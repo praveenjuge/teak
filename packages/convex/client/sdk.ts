@@ -2,7 +2,9 @@ export {
   type AuthDiscovery,
   discoverAuthServer,
   type OAuthSurface,
+  validateOAuthUrl,
 } from "./authDiscovery";
+
 import { type CardType, cardTypes } from "../shared/constants";
 import type { FileKind, FilePreviewFacts } from "../shared/fileFormats";
 

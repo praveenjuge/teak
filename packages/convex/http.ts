@@ -21,6 +21,7 @@ import {
   listCardsV1,
   tagsV1,
 } from "./publicApiHttp";
+import { meV1 } from "./publicApiMe";
 import {
   discoveryV1,
   healthzV1,
@@ -102,6 +103,7 @@ http.route({
 });
 
 // Register public API v1 routes.
+http.route({ path: "/v1/me", method: "GET", handler: meV1 });
 http.route({
   path: "/healthz",
   method: "GET",
@@ -127,6 +129,7 @@ http.route({
 });
 
 for (const path of [
+  "/v1/me",
   "/v1/cards",
   "/v1/uploads",
   "/v1/cards/bulk",
