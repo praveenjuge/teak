@@ -18,6 +18,15 @@ let tokenBody: Record<string, unknown> | undefined;
 let refreshes = 0;
 let exchanges = 0;
 let revoked = 0;
+let revokeStatus = 200;
+let rejectRefreshReplay = false;
+let apiRequests = 0;
+let holdFirstApi = false;
+let rotateAccessToken = false;
+let apiStarted: Promise<void>;
+let apiReleased: Promise<void>;
+let notifyApiStarted = () => {};
+let releaseApi = () => {};
 let flipDuringRefresh = false;
 let notifyStarted = () => {};
 let releaseRefresh = () => {};
@@ -28,6 +37,8 @@ let unsafeEndpoint: string | undefined;
 let unsafeField: "token_endpoint" | "revocation_endpoint" = "token_endpoint";
 let tokenPath = "/token";
 let moveTokenEndpoint = false;
+let metadataApiOrigin: string | undefined;
+let metadataIssuerOrigin: string | undefined;
 const clients = () =>
   Object.fromEntries(
     ["cli", "raycast", "chrome", "firefox", "safari"].map((surface) => [
@@ -39,7 +50,7 @@ const server = serve({
   port: 0,
   async fetch(request) {
     const url = new URL(request.url);
-    const issuer = `${server.url.origin}/${primary}`;
+    const issuer = `${metadataIssuerOrigin ?? server.url.origin}/${primary}`;
     if (url.pathname === "/test/refresh-started") {
       await started;
       return new Response("ready");
@@ -50,7 +61,7 @@ const server = serve({
     }
     if (url.pathname === "/.well-known/oauth-protected-resource/mcp") {
       return Response.json({
-        resource: `${server.url.origin}/mcp`,
+        resource: `${metadataApiOrigin ?? server.url.origin}/mcp`,
         authorization_servers: [issuer],
       });
     }
@@ -75,6 +86,12 @@ const server = serve({
         primary === "workos" ? `${server.url.origin}/api` : null
       );
       if (body.get("grant_type") === "refresh_token") {
+        if (
+          rejectRefreshReplay &&
+          body.get("refresh_token") !== `refresh-${refreshes}`
+        ) {
+          return Response.json({ error: "invalid_grant" }, { status: 400 });
+        }
         refreshes++;
         if (flipDuringRefresh) {
           primary = "betterauth";
@@ -87,19 +104,34 @@ const server = serve({
       }
       return Response.json(
         tokenBody ?? {
-          access_token: "access",
+          access_token: rotateAccessToken ? `access-${refreshes}` : "access",
           refresh_token: `refresh-${refreshes}`,
           expires_in: 3600,
         },
         { status: tokenStatus }
       );
     }
-    if (url.pathname === `/${primary}/revoke`) {
+    if (["/betterauth/revoke", "/workos/revoke"].includes(url.pathname)) {
+      const body = new URLSearchParams(await request.text());
+      expect(body.get("client_id")).toBe(
+        url.pathname.startsWith("/workos/") ? "client-cli" : "teak-cli"
+      );
       revoked++;
-      return new Response(null, { status: 200 });
+      return new Response(null, { status: revokeStatus });
     }
     if (url.pathname === "/v1/tags") {
-      expect(request.headers.get("authorization")).toBe("Bearer access");
+      apiRequests++;
+      if (holdFirstApi && apiRequests === 1) {
+        notifyApiStarted();
+        await apiReleased;
+        return Response.json(
+          { error: { code: "UNAUTHORIZED", message: "Stale response" } },
+          { status: 401 }
+        );
+      }
+      expect(request.headers.get("authorization")).toBe(
+        rotateAccessToken ? `Bearer access-${refreshes}` : "Bearer access"
+      );
       return Response.json({ items: [] });
     }
     return new Response("Not found", { status: 404 });
@@ -137,7 +169,11 @@ const run = async (args: string[]) => {
   ]);
   return { code, stdout, stderr };
 };
-const login = async (flip = false, invalidState = false) => {
+const login = async (
+  flip = false,
+  invalidState = false,
+  signoutBeforeCallback = false
+) => {
   const child = spawn(
     [
       process.execPath,
@@ -175,6 +211,9 @@ const login = async (flip = false, invalidState = false) => {
     primary === "workos" ? `${server.url.origin}/api` : null
   );
   const callback = new URL(authorization.searchParams.get("redirect_uri")!);
+  if (signoutBeforeCallback) {
+    expect((await run(["logout"])).code).toBe(0);
+  }
   if (moveTokenEndpoint) {
     tokenPath = "/moved-token";
   }
@@ -212,10 +251,23 @@ beforeEach(() => {
   refreshes = 0;
   exchanges = 0;
   revoked = 0;
+  revokeStatus = 200;
+  rejectRefreshReplay = false;
+  apiRequests = 0;
+  holdFirstApi = false;
+  rotateAccessToken = false;
+  apiStarted = new Promise((resolve) => {
+    notifyApiStarted = resolve;
+  });
+  apiReleased = new Promise((resolve) => {
+    releaseApi = resolve;
+  });
   transmitted = null;
   unsafeEndpoint = undefined;
   tokenPath = "/token";
   moveTokenEndpoint = false;
+  metadataApiOrigin = undefined;
+  metadataIssuerOrigin = undefined;
   flipDuringRefresh = false;
   started = new Promise((resolve) => {
     notifyStarted = resolve;
@@ -252,12 +304,17 @@ test("CLI rejects Unicode callback state and still accepts the valid callback", 
   expect((await login(false, true)).code).toBe(0);
   expect(exchanges).toBe(1);
 });
-test("CLI discards a previous provider's credentials before calling the new token endpoint", async () => {
+test("CLI retains old-provider credentials for revocation without calling the new provider", async () => {
   expect((await login()).code).toBe(0);
+  const saved = readFileSync(file, "utf8");
   primary = "workos";
   const result = await run(["auth", "status", "--json"]);
   expect(result.code).toBe(3);
   expect(refreshes).toBe(0);
+  expect(apiRequests).toBe(0);
+  expect(readFileSync(file, "utf8")).toBe(saved);
+  expect((await run(["logout"])).code).toBe(0);
+  expect(revoked).toBe(1);
   expect(readFileSync(file, "utf8")).toBe("");
 });
 test("CLI rotates expired credentials once for concurrent API requests", async () => {
@@ -296,7 +353,7 @@ test("CLI preserves expired refresh credentials across a service outage", async 
   expect((await run(["auth", "status"])).code).toBe(0);
 });
 
-test("CLI does not resurrect an in-flight refresh after another request observes a provider flip", async () => {
+test("CLI saves rotation for revocation but never sends it after a provider flip", async () => {
   primary = "workos";
   expect((await login()).code).toBe(0);
   const saved = JSON.parse(readFileSync(file, "utf8"));
@@ -304,7 +361,7 @@ test("CLI does not resurrect an in-flight refresh after another request observes
   writeFileSync(file, JSON.stringify(saved));
   flipDuringRefresh = true;
   const script =
-    'const {client}=await import("./src/runtime.ts");const c=client({});const first=c.tags.list().catch(()=>null);await fetch(process.env.TEAK_API_URL+"/test/refresh-started");const now=Date.now;Date.now=()=>now()+61000;await c.tags.list().catch(()=>null);await fetch(process.env.TEAK_API_URL+"/test/release-refresh");await first;';
+    'const {client}=await import("./src/runtime.ts");const c=client({});const first=c.tags.list().catch(()=>null);await fetch(process.env.TEAK_API_URL+"/test/refresh-started");await fetch(process.env.TEAK_API_URL+"/test/release-refresh");await first;';
   const child = spawn([process.execPath, "--no-env-file", "-e", script], {
     cwd: new URL("..", import.meta.url).pathname,
     env: childEnv(),
@@ -314,6 +371,10 @@ test("CLI does not resurrect an in-flight refresh after another request observes
   });
   expect(await child.exited).toBe(0);
   expect(refreshes).toBe(1);
+  expect(apiRequests).toBe(0);
+  expect(JSON.parse(readFileSync(file, "utf8")).refreshToken).toBe("refresh-1");
+  expect((await run(["logout"])).code).toBe(0);
+  expect(revoked).toBe(1);
   expect(readFileSync(file, "utf8")).toBe("");
 });
 
@@ -340,20 +401,23 @@ test.each([
   "https://169.254.169.254/token",
   "http://untrusted.example/token",
   "https://user:password@untrusted.example/token",
-])("CLI rejects unsafe token metadata before sending credentials (%s)", async (endpoint) => {
-  expect((await login()).code).toBe(0);
-  const saved = JSON.parse(readFileSync(file, "utf8"));
-  saved.expiresAt = 0;
-  const credentials = JSON.stringify(saved);
-  writeFileSync(file, credentials);
-  unsafeField = "token_endpoint";
-  unsafeEndpoint = endpoint;
-  const result = await run(["tags"]);
-  expect(result.code).toBe(1);
-  expect(result.stderr).toContain("Unsafe OAuth discovery URL");
-  expect(refreshes).toBe(0);
-  expect(readFileSync(file, "utf8")).toBe(credentials);
-});
+])(
+  "CLI rejects unsafe token metadata before sending credentials (%s)",
+  async (endpoint) => {
+    expect((await login()).code).toBe(0);
+    const saved = JSON.parse(readFileSync(file, "utf8"));
+    saved.expiresAt = 0;
+    const credentials = JSON.stringify(saved);
+    writeFileSync(file, credentials);
+    unsafeField = "token_endpoint";
+    unsafeEndpoint = endpoint;
+    const result = await run(["tags"]);
+    expect(result.code).toBe(1);
+    expect(result.stderr).toContain("Unsafe OAuth discovery URL");
+    expect(refreshes).toBe(0);
+    expect(readFileSync(file, "utf8")).toBe(credentials);
+  }
+);
 
 test("CLI rejects private revocation metadata and keeps credentials for retry", async () => {
   expect((await login()).code).toBe(0);
@@ -389,15 +453,251 @@ test("CLI local development never uses or clears the legacy production credentia
   expect(refreshes).toBe(0);
 });
 test("CLI falls back to the registered second loopback port without keeping the first timeout alive", async () => {
-  const occupied = serve({
-    hostname: "127.0.0.1",
-    port: 14_210,
-    fetch: () => new Response("occupied"),
-  });
+  let occupied: ReturnType<typeof serve> | undefined;
+  try {
+    occupied = serve({
+      hostname: "127.0.0.1",
+      port: 14_210,
+      fetch: () => new Response("occupied"),
+    });
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code !== "EADDRINUSE") {
+      throw error;
+    }
+  }
   try {
     expect((await login()).code).toBe(0);
     expect(exchanges).toBe(1);
   } finally {
-    occupied.stop();
+    occupied?.stop();
+  }
+});
+
+test("CLI coordinates expired refreshes across separate processes", async () => {
+  primary = "workos";
+  rejectRefreshReplay = true;
+  expect((await login()).code).toBe(0);
+  const saved = JSON.parse(readFileSync(file, "utf8"));
+  saved.expiresAt = 0;
+  writeFileSync(file, JSON.stringify(saved));
+  const results = await Promise.all([run(["tags"]), run(["tags"])]);
+  expect(results.map((result) => result.code)).toEqual([0, 0]);
+  expect(refreshes).toBe(1);
+  expect(JSON.parse(readFileSync(file, "utf8")).refreshToken).toBe("refresh-1");
+});
+test("CLI revokes the saved issuer after a provider switch and retains failed revocations", async () => {
+  expect((await login()).code).toBe(0);
+  const saved = readFileSync(file, "utf8");
+  primary = "workos";
+  revokeStatus = 503;
+  const failed = await run(["logout"]);
+  expect(failed.code).toBe(1);
+  expect(failed.stderr).toContain("credentials are still saved");
+  expect(readFileSync(file, "utf8")).toBe(saved);
+  revokeStatus = 200;
+  expect((await run(["logout"])).code).toBe(0);
+  expect(revoked).toBe(2);
+  expect(readFileSync(file, "utf8")).toBe("");
+});
+
+test("CLI supports an explicit .localhost issuer with a hosted development API", async () => {
+  const apiUrl = `https://${crypto.randomUUID()}.example`;
+  const issuerOrigin = "http://app.localhost:3000";
+  metadataApiOrigin = apiUrl;
+  metadataIssuerOrigin = issuerOrigin;
+  const options = { apiUrl, authUrl: `${issuerOrigin}/betterauth` };
+  const credentials = join(
+    directory,
+    "teak",
+    `credentials-${createHash("sha256").update(apiUrl).digest("hex")}.json`
+  );
+  writeFileSync(
+    credentials,
+    JSON.stringify({
+      accessToken: "access",
+      refreshToken: "refresh",
+      expiresAt: Date.now() + 3_600_000,
+      binding: { apiUrl, issuer: options.authUrl, clientId: "teak-cli" },
+    })
+  );
+  const originalFetch = globalThis.fetch;
+  const originalConfig = env.XDG_CONFIG_HOME;
+  const originalPath = env.PATH;
+  try {
+    env.XDG_CONFIG_HOME = directory;
+    env.PATH = `${directory}:${originalPath}`;
+    globalThis.fetch = (async (input, init) => {
+      const url = new URL(String(input));
+      expect([apiUrl, issuerOrigin]).toContain(url.origin);
+      return await originalFetch(
+        new URL(url.pathname + url.search, server.url),
+        init
+      );
+    }) as typeof fetch;
+    const { client } = await import("./runtime");
+    expect(await client(options).tags.list()).toEqual({ items: [] });
+    expect(apiRequests).toBe(1);
+  } finally {
+    globalThis.fetch = originalFetch;
+    if (originalConfig === undefined) {
+      Reflect.deleteProperty(env, "XDG_CONFIG_HOME");
+    } else {
+      env.XDG_CONFIG_HOME = originalConfig;
+    }
+    env.PATH = originalPath;
+  }
+});
+
+test("CLI does not refresh a newer credential because an older API response returns 401", async () => {
+  expect((await login()).code).toBe(0);
+  holdFirstApi = true;
+  rejectRefreshReplay = true;
+  const first = run(["tags"]);
+  try {
+    await apiStarted;
+    const saved = JSON.parse(readFileSync(file, "utf8"));
+    saved.expiresAt = 0;
+    writeFileSync(file, JSON.stringify(saved));
+    expect((await run(["tags"])).code).toBe(0);
+  } finally {
+    releaseApi();
+  }
+  expect((await first).code).toBe(0);
+  expect(refreshes).toBe(1);
+  expect(JSON.parse(readFileSync(file, "utf8")).refreshToken).toBe("refresh-1");
+});
+test("CLI logout cancels a pending login in another process and revokes its late grant", async () => {
+  const result = await login(false, false, true);
+  expect(result.code).toBe(1);
+  expect(result.stderr).toContain("cancelled by logout");
+  expect(revoked).toBe(1);
+  expect(readFileSync(file, "utf8")).toBe("");
+});
+
+test("CLI reconnect revokes the old provider before replacing its saved credentials", async () => {
+  expect((await login()).code).toBe(0);
+  primary = "workos";
+  expect((await login()).code).toBe(0);
+  expect(revoked).toBe(1);
+  expect(JSON.parse(readFileSync(file, "utf8")).binding.issuer).toBe(
+    `${server.url.origin}/workos`
+  );
+});
+test("CLI reconnect retains the existing session if its revocation fails", async () => {
+  expect((await login()).code).toBe(0);
+  const original = readFileSync(file, "utf8");
+  primary = "workos";
+  revokeStatus = 503;
+  const result = await login();
+  expect(result.code).toBe(1);
+  expect(result.stderr).toContain("existing session is still saved");
+  expect(readFileSync(file, "utf8")).toBe(original);
+  expect(revoked).toBe(2);
+});
+
+test("CLI reuses a same-client refresh when an older concurrent request returns 401", async () => {
+  rotateAccessToken = true;
+  expect((await login()).code).toBe(0);
+  holdFirstApi = true;
+  const originalConfig = env.XDG_CONFIG_HOME;
+  const originalPath = env.PATH;
+  const originalKey = env.TEAK_API_KEY;
+  try {
+    env.XDG_CONFIG_HOME = directory;
+    env.PATH = `${directory}:${originalPath}`;
+    env.TEAK_API_KEY = "";
+    const { client } = await import("./runtime");
+    const api = client({ apiUrl: server.url.origin });
+    const first = api.tags.list();
+    await apiStarted;
+    const saved = JSON.parse(readFileSync(file, "utf8"));
+    saved.expiresAt = 0;
+    writeFileSync(file, JSON.stringify(saved));
+    expect(await api.tags.list()).toEqual({ items: [] });
+    // A second refresh must not be needed, even when the provider is down.
+    tokenStatus = 503;
+    releaseApi();
+    expect(await first).toEqual({ items: [] });
+    expect(refreshes).toBe(1);
+  } finally {
+    releaseApi();
+    for (const [key, value] of Object.entries({
+      XDG_CONFIG_HOME: originalConfig,
+      PATH: originalPath,
+      TEAK_API_KEY: originalKey,
+    })) {
+      if (value === undefined) {
+        Reflect.deleteProperty(env, key);
+      } else {
+        env[key] = value;
+      }
+    }
+  }
+});
+
+test("CLI refreshes a rejected token after joining an overlapping ordinary read", async () => {
+  expect((await login()).code).toBe(0);
+  const previous = {
+    XDG_CONFIG_HOME: env.XDG_CONFIG_HOME,
+    PATH: env.PATH,
+    TEAK_API_KEY: env.TEAK_API_KEY,
+  };
+  const originalFetch = globalThis.fetch;
+  let releaseMetadata = () => {};
+  const metadataGate = new Promise<void>((resolve) => {
+    releaseMetadata = resolve;
+  });
+  let notifyMetadata = () => {};
+  const metadataStarted = new Promise<void>((resolve) => {
+    notifyMetadata = resolve;
+  });
+  let overlapping: Promise<unknown> | undefined;
+  try {
+    env.XDG_CONFIG_HOME = directory;
+    env.PATH = `${directory}:${previous.PATH}`;
+    env.TEAK_API_KEY = "";
+    const { client } = await import("./runtime");
+    let api: ReturnType<typeof client>;
+    let firstApi = true;
+    globalThis.fetch = (async (input, init) => {
+      const response = await originalFetch(input, init);
+      if (String(input).endsWith("/v1/tags") && firstApi) {
+        firstApi = false;
+        // A new transport instance gives the overlapping read uncached metadata.
+        globalThis.fetch = (async (next, nextInit) => {
+          if (String(next).includes("/.well-known/")) {
+            notifyMetadata();
+            await metadataGate;
+          }
+          return await originalFetch(next, nextInit);
+        }) as typeof fetch;
+        overlapping = api.tags.list();
+        await metadataStarted;
+        class RejectedResponse extends Response {
+          override get status() {
+            queueMicrotask(releaseMetadata);
+            return 401;
+          }
+        }
+        return new RejectedResponse(
+          JSON.stringify({ error: "Rejected token" })
+        );
+      }
+      return response;
+    }) as typeof fetch;
+    api = client({ apiUrl: server.url.origin });
+    expect(await api.tags.list()).toEqual({ items: [] });
+    expect(await overlapping).toEqual({ items: [] });
+    expect(refreshes).toBe(1);
+  } finally {
+    releaseMetadata();
+    globalThis.fetch = originalFetch;
+    for (const [key, value] of Object.entries(previous)) {
+      if (value === undefined) {
+        Reflect.deleteProperty(env, key);
+      } else {
+        env[key] = value;
+      }
+    }
   }
 });

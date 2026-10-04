@@ -96,18 +96,21 @@ Credential storage is scoped to the API deployment and bound to issuer and clien
 ID; existing production Better Auth credentials remain usable. Development cannot
 read or clear the production installation's credentials.
 
-Refresh rotation persists before publishing, shares concurrent requests, and
-discards late responses after a provider change clears the session. Service outages
-retain credentials for retry without returning expired access tokens. Sign-in
-rechecks metadata before exchanging the callback code, validates state as bytes,
-and falls back to the second loopback port when the first is occupied. Logout uses
-the discovered revocation endpoint and retains credentials if the server is offline
-or rejects the request.
+Refresh rotation persists before publishing. A private per-account process lock
+coordinates refresh, logout and credential replacement across CLI processes.
+Provider changes retain old credentials for explicit revocation while blocking API
+use. Stale 401 responses reuse a newer credential; the SDK passes the rejected
+request's token to its provider. Service outages retain credentials for retry.
+Sign-in rechecks metadata before code exchange, validates state as bytes and falls
+back when the first loopback port is occupied. Logout revokes at the saved provider
+endpoint after a provider switch, retains credentials on failure and cancels pending
+browser sign-ins. Reconnect revokes the previous grant before replacing it.
 
-All 41 CLI tests pass in randomized order, with typecheck and executable build.
+All 62 CLI tests pass, including 40 randomized lifecycle/lock tests, with typecheck
+and executable build.
 Subprocess journeys use the real CLI, callback server, discovery and SDK with a
-controlled OAuth/API server and isolated credential-store boundary. Removing the
-late-refresh guard fails its regression. Unsafe discovered endpoints are rejected
+controlled OAuth/API server and isolated credential-store boundary. Bypassing the process lock fails the two-process refresh regression; the same-client
+stale-401 and localhost regressions also failed before their corrections. Unsafe discovered endpoints are rejected
 before refresh or revocation transmits credentials; an endpoint move during
 browser sign-in uses refreshed metadata. The endpoint regression failed before
 the correction. This proves the controlled journeys;

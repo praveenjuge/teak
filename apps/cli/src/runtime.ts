@@ -5,11 +5,13 @@ import {
   existsSync,
   mkdirSync,
   readFileSync,
+  renameSync,
   writeFileSync,
 } from "node:fs";
 import { createServer } from "node:http";
 import { homedir, platform } from "node:os";
 import path from "node:path";
+import { isLocalDevelopmentHostname } from "@teak/convex/dev-urls";
 import {
   type AuthDiscovery,
   createTeakClient,
@@ -17,9 +19,11 @@ import {
   TeakApiError,
   type TeakClient,
   type TokenProvider,
+  validateOAuthUrl,
 } from "@teak/convex/sdk";
 import { readResponseTextWithinLimit } from "@teak/convex/shared/bounded-response";
 import { InvalidArgumentError } from "commander";
+import { withCredentialLock } from "./credentialLock";
 
 const readPackageVersion = () => {
   try {
@@ -43,7 +47,12 @@ const ACCOUNT = "default";
 
 interface StoredCredentials {
   accessToken: string;
-  binding?: { apiUrl: string; issuer: string; clientId: string };
+  binding?: {
+    apiUrl: string;
+    issuer: string;
+    clientId: string;
+    revocationEndpoint?: string;
+  };
   expiresAt: number;
   refreshToken: string;
 }
@@ -126,7 +135,9 @@ const parseCredentials = (text: string): StoredCredentials | null => {
     if (
       typeof value.apiUrl !== "string" ||
       typeof value.issuer !== "string" ||
-      typeof value.clientId !== "string"
+      typeof value.clientId !== "string" ||
+      (value.revocationEndpoint !== undefined &&
+        typeof value.revocationEndpoint !== "string")
     ) {
       return null;
     }
@@ -134,6 +145,9 @@ const parseCredentials = (text: string): StoredCredentials | null => {
       apiUrl: value.apiUrl,
       issuer: value.issuer,
       clientId: value.clientId,
+      ...(value.revocationEndpoint
+        ? { revocationEndpoint: value.revocationEndpoint as string }
+        : {}),
     };
   }
   return {
@@ -194,8 +208,10 @@ const writeCredentials = (
     }
   }
   ensureConfigDir();
-  writeFileSync(credentialsPath(options), payload, { mode: 0o600 });
-  chmodSync(credentialsPath(options), 0o600);
+  const destination = credentialsPath(options);
+  const temporary = `${destination}.${randomBytes(16).toString("hex")}.tmp`;
+  writeFileSync(temporary, payload, { mode: 0o600, flag: "wx" });
+  renameSync(temporary, destination);
 };
 
 export const clearCredentials = (options: ClientOptions = {}) => {
@@ -239,7 +255,9 @@ const discovery = async (options: ClientOptions, forceRefresh = false) => {
   const explicitAuth = options.authUrl || process.env.TEAK_AUTH_URL;
   const authUrl = explicitAuth ? new URL(authBaseUrl(options)) : undefined;
   const local =
-    authUrl && ["localhost", "127.0.0.1", "[::1]"].includes(authUrl.hostname);
+    authUrl &&
+    (isLocalDevelopmentHostname(authUrl.hostname) ||
+      authUrl.hostname === "[::1]");
   const auth = await discoverAuthServer(apiBaseUrl(options), {
     forceRefresh,
     ...(local ? { localIssuer: authUrl.href } : {}),
@@ -258,6 +276,9 @@ const binding = (options: ClientOptions, auth: AuthDiscovery) => ({
   apiUrl: apiBaseUrl(options),
   issuer: auth.issuer,
   clientId: auth.clients.cli,
+  ...(auth.revocationEndpoint
+    ? { revocationEndpoint: auth.revocationEndpoint }
+    : {}),
 });
 const matchesProvider = (
   credentials: StoredCredentials,
@@ -281,36 +302,86 @@ const matchesProvider = (
     saved.clientId === next.clientId
   );
 };
-export const logout = async (options: ClientOptions = {}) => {
-  const credentials = readCredentials(options);
-  const token = credentials?.refreshToken || credentials?.accessToken;
-  if (token && credentials) {
-    try {
-      const auth = await discovery(options, true);
-      if (matchesProvider(credentials, options, auth)) {
-        if (!auth.revocationEndpoint) {
-          throw new Error("Revocation unavailable");
-        }
-        const response = await fetch(auth.revocationEndpoint, {
-          body: new URLSearchParams({ client_id: auth.clients.cli, token }),
-          headers: { "Content-Type": "application/x-www-form-urlencoded" },
-          method: "POST",
-          credentials: "omit",
-          redirect: "error",
-          signal: AbortSignal.timeout(10_000),
-        });
-        if (!response.ok) {
-          throw new Error("Revocation failed");
-        }
-      }
-    } catch {
-      throw new Error(
-        "Could not disconnect Teak CLI. Your credentials are still saved. Check your connection and run teak logout again."
-      );
+const credentialOperation = <T>(
+  options: ClientOptions,
+  work: () => Promise<T>
+) => {
+  ensureConfigDir();
+  return withCredentialLock(
+    path.join(configDir(), `credentials-${credentialAccount(options)}.lock`),
+    work
+  );
+};
+const logoutMarker = (options: ClientOptions) =>
+  path.join(configDir(), `logout-${credentialAccount(options)}`);
+const readLogoutMarker = (options: ClientOptions) =>
+  existsSync(logoutMarker(options))
+    ? readFileSync(logoutMarker(options), "utf8")
+    : "";
+const localHostname = (hostname: string) =>
+  isLocalDevelopmentHostname(hostname) || hostname === "[::1]";
+const revokeCredentials = async (
+  credentials: StoredCredentials,
+  options: ClientOptions,
+  useDiscovery = true
+) => {
+  let endpoint = credentials.binding?.revocationEndpoint;
+  let clientId = credentials.binding?.clientId;
+  if (useDiscovery) {
+    const auth = await discovery(options, true);
+    if (matchesProvider(credentials, options, auth)) {
+      endpoint = auth.revocationEndpoint;
+      clientId = auth.clients.cli;
     }
   }
-  clearCredentials(options);
+  if (!(endpoint && clientId)) {
+    throw new Error("Revocation unavailable");
+  }
+  const apiOrigin = new URL(apiBaseUrl(options));
+  const issuer = new URL(credentials.binding?.issuer ?? DEFAULT_AUTH_URL);
+  const url = validateOAuthUrl(
+    endpoint,
+    localHostname(apiOrigin.hostname) || localHostname(issuer.hostname)
+  );
+  if (
+    localHostname(url.hostname) &&
+    url.origin !== apiOrigin.origin &&
+    url.origin !== issuer.origin
+  ) {
+    throw new Error("Unapproved loopback revocation server");
+  }
+  const response = await fetch(url.href, {
+    body: new URLSearchParams({
+      client_id: clientId,
+      token: credentials.refreshToken || credentials.accessToken,
+    }),
+    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    method: "POST",
+    credentials: "omit",
+    redirect: "error",
+    signal: AbortSignal.timeout(10_000),
+  });
+  if (!response.ok) {
+    throw new Error("Revocation failed");
+  }
 };
+export const logout = (options: ClientOptions = {}) =>
+  credentialOperation(options, async () => {
+    writeFileSync(logoutMarker(options), randomBytes(16).toString("hex"), {
+      mode: 0o600,
+    });
+    const credentials = readCredentials(options);
+    if (credentials && (credentials.refreshToken || credentials.accessToken)) {
+      try {
+        await revokeCredentials(credentials, options);
+      } catch {
+        throw new Error(
+          "Could not disconnect Teak CLI. Your credentials are still saved. Check your connection and run teak logout again."
+        );
+      }
+    }
+    clearCredentials(options);
+  });
 const exchangeToken = async (
   options: ClientOptions,
   auth: AuthDiscovery,
@@ -368,55 +439,73 @@ const exchangeToken = async (
   };
 };
 const tokenProvider = (options: ClientOptions): TokenProvider => {
-  let current = readCredentials(options);
   let pending: Promise<string | null> | undefined;
+  const issued = new Map<string, string>();
+  const remember = (value: StoredCredentials) => {
+    if (!issued.has(value.accessToken)) {
+      issued.set(value.accessToken, value.refreshToken);
+      if (issued.size > 2) {
+        const oldest = issued.keys().next().value;
+        if (oldest !== undefined) {
+          issued.delete(oldest);
+        }
+      }
+    }
+    return value.accessToken;
+  };
   const explicit = options.apiKey || process.env.TEAK_API_KEY;
   if (explicit) {
     return { getAccessToken: () => explicit };
   }
-  const select = async (force = false) => {
-    const auth = await discovery(options, force);
-    if (current && !matchesProvider(current, options, auth)) {
-      clearCredentials(options);
-      current = null;
-    }
-    return auth;
-  };
-  const refresh = (force = false): Promise<string | null> => {
+  const resolve = (rejectedToken?: string): Promise<string | null> => {
+    const force = rejectedToken !== undefined;
     if (pending) {
-      return pending;
+      return force ? pending.then(() => resolve(rejectedToken)) : pending;
     }
-    const work = (async () => {
-      const auth = await select(force);
-      if (!current?.refreshToken) {
+    const work = credentialOperation(options, async () => {
+      const current = readCredentials(options);
+      if (!current) {
         return null;
       }
-      const previous = current;
+      const auth = await discovery(options, force);
+      // Keep old-provider credentials for explicit revocation, never use them.
+      if (!matchesProvider(current, options, auth)) {
+        return null;
+      }
+      if (
+        current.expiresAt - Date.now() >= 60_000 &&
+        (!force ||
+          current.accessToken !== rejectedToken ||
+          current.refreshToken !== issued.get(rejectedToken ?? ""))
+      ) {
+        return remember(current);
+      }
+      if (!current.refreshToken) {
+        return null;
+      }
       try {
         const next = await exchangeToken(options, auth, {
           grant_type: "refresh_token",
           refresh_token: current.refreshToken,
         });
-        if (current !== previous) {
+        writeCredentials(next, options);
+        const latest = await discovery(options, true);
+        if (!matchesProvider(next, options, latest)) {
           return null;
         }
-        writeCredentials(next, options);
-        current = next;
-        return current.accessToken;
+        return remember(next);
       } catch (error) {
-        if (
-          error instanceof TeakApiError &&
-          error.code === "AUTH_REQUIRED" &&
-          current === previous
-        ) {
+        if (error instanceof TeakApiError && error.code === "AUTH_REQUIRED") {
           clearCredentials(options);
-          current = null;
         }
-        // Renew discovery, but never resend a rotating refresh token blindly.
-        await select(true).catch(() => {});
+        try {
+          await discovery(options, true);
+        } catch {
+          /* Preserve the original error. */
+        }
         throw error;
       }
-    })();
+    });
     pending = work;
     void work
       .finally(() => {
@@ -428,19 +517,8 @@ const tokenProvider = (options: ClientOptions): TokenProvider => {
     return work;
   };
   return {
-    getAccessToken: async () => {
-      if (!current) {
-        return null;
-      }
-      await select();
-      if (!current) {
-        return null;
-      }
-      return current.expiresAt - Date.now() < 60_000
-        ? refresh()
-        : current.accessToken;
-    },
-    onUnauthorized: () => refresh(true),
+    getAccessToken: () => resolve(),
+    onUnauthorized: (rejectedToken) => resolve(rejectedToken),
   };
 };
 
@@ -529,6 +607,7 @@ export const createAuthorizeUrl = (
 };
 
 export const login = async (options: ClientOptions & { browser?: boolean }) => {
+  const signoutEpoch = readLogoutMarker(options);
   const auth = await discovery(options, true);
   const verifier = b64url(randomBytes(32));
   const state = b64url(randomBytes(24));
@@ -585,9 +664,7 @@ export const login = async (options: ClientOptions & { browser?: boolean }) => {
               });
               response
                 .writeHead(200, { "Content-Type": "text/html" })
-                .end(
-                  "<p>Teak CLI sign-in complete. You can close this tab.</p>"
-                );
+                .end("<p>Return to your terminal to finish signing in.</p>");
               clearTimeout(timer);
               server.close();
               resolve(next);
@@ -620,7 +697,39 @@ export const login = async (options: ClientOptions & { browser?: boolean }) => {
           });
         }
       );
-      writeCredentials(credentials, options);
+      await credentialOperation(options, async () => {
+        try {
+          if (readLogoutMarker(options) !== signoutEpoch) {
+            throw new Error(
+              "Sign-in was cancelled by logout. Run teak login again."
+            );
+          }
+          const latest = await discovery(options, true);
+          if (!matchesProvider(credentials, options, latest)) {
+            throw new Error(
+              "Authentication changed during sign-in. Run teak login again."
+            );
+          }
+          const previous = readCredentials(options);
+          if (previous) {
+            try {
+              await revokeCredentials(previous, options);
+            } catch {
+              throw new Error(
+                "Your existing session is still saved. Run teak logout before signing in again."
+              );
+            }
+          }
+          writeCredentials(credentials, options);
+        } catch (error) {
+          try {
+            await revokeCredentials(credentials, options, false);
+          } catch {
+            /* Preserve the sign-in error. */
+          }
+          throw error;
+        }
+      });
       return "Logged in to Teak.";
     } catch (error) {
       if ((error as NodeJS.ErrnoException).code === "EADDRINUSE") {
