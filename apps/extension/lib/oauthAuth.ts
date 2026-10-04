@@ -15,7 +15,7 @@ const storageSuffix = () => (import.meta.env.DEV ? `:${site()}` : "");
 const tokenKey = () => `teakOAuthCredentials${storageSuffix()}`;
 const ownerKey = () => `teakOAuthOwner${storageSuffix()}`;
 const discovery = (forceRefresh = false) =>
-  discoverAuthServer(site(), {
+  discoverAuthServer(import.meta.env.DEV ? site() : "https://teakvault.com", {
     forceRefresh,
     ...(import.meta.env.DEV
       ? { localIssuer: resolveTeakDevAppUrl(import.meta.env) }
@@ -326,7 +326,7 @@ export function beginOAuthSignIn(): Promise<void> {
         }
         credentials.userId = user.id;
       } catch (error) {
-        await revokeCredentials(credentials, current);
+        await revokeCredentials(credentials, current).catch(() => {});
         throw error;
       }
       await navigator.locks.request("teak-oauth-credentials", async () => {

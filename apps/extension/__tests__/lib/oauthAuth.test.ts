@@ -90,7 +90,9 @@ const withDiscovery = (handler: typeof fetch): typeof fetch =>
         : "https://app.teakvault.com";
     if (url.endsWith("/.well-known/oauth-protected-resource/mcp")) {
       return Response.json({
-        resource: "https://test.convex.site/mcp",
+        resource: process.env.DEV
+          ? "https://test.convex.site/mcp"
+          : "https://teakvault.com/mcp",
         authorization_servers: [issuer],
       });
     }
@@ -352,11 +354,11 @@ test("WorkOS discovery selects the registered client, API audience, and permanen
   expect(authorize.origin).toBe("https://auth.test.workos.com");
   expect(authorize.searchParams.get("client_id")).toBe("client_chrome");
   expect(authorize.searchParams.get("resource")).toBe(
-    "https://test.convex.site/api"
+    "https://teakvault.com/api"
   );
   const exchange = new URLSearchParams(String(calls[0]?.init?.body));
   expect(exchange.get("client_id")).toBe("client_chrome");
-  expect(exchange.get("resource")).toBe("https://test.convex.site/api");
+  expect(exchange.get("resource")).toBe("https://teakvault.com/api");
   expect(await auth.getCaptureOwner()).toBe("permanent-owner");
   expect((await auth.getOAuthState()).user?.id).toBe("permanent-owner");
 });
@@ -606,4 +608,20 @@ test("refresh failures rediscover a provider change before the next request", as
   expect(storage[tokenKey]).toBeDefined();
   expect(await auth.oauthRequest("/v1/cards")).toBeNull();
   expect(attempts).toBe(1);
+});
+
+test("identity verification keeps its error when cleanup revocation is unavailable", async () => {
+  globalThis.fetch = withDiscovery(((input) => {
+    const url = String(input);
+    if (url.endsWith("/mcp/token")) {
+      return Promise.resolve(tokenResponse());
+    }
+    return Promise.resolve(
+      new Response(null, { status: url.endsWith("/revoke") ? 503 : 403 })
+    );
+  }) as typeof fetch);
+  await expect((await load()).beginOAuthSignIn()).rejects.toThrow(
+    "Could not verify your account"
+  );
+  expect(storage[tokenKey]).toBeUndefined();
 });

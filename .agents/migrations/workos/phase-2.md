@@ -72,7 +72,10 @@ occurred.
 ## Chrome and Firefox preparation
 
 The extension reads validated discovery for authorization, token exchange,
-revocation, and surface-specific client IDs. WorkOS requests include the API
+revocation, and surface-specific client IDs. Production discovery uses the public
+Teak origin whose advertised resource is `https://teakvault.com/mcp`; API calls
+retain the configured Convex site. Development discovery uses its selected Convex
+site. WorkOS requests include the API
 resource in authorization and both token grants. Stored credentials bind to the
 selected deployment, issuer, and client; development uses separate keys and cannot
 read or clear production credentials. Only the original production Better Auth
