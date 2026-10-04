@@ -25,8 +25,9 @@ controlled tests do not prove hosted deployment concurrency.
 
 ## Ordered lifecycle foundation
 
-`workosLifecycle.applyWorkosEvent` is an internal full-envelope mutation. It is not
-wired to HTTP or WorkOS callbacks yet. Original event IDs and timestamps enter the
+`workosLifecycle.applyWorkosEvent` is an internal full-envelope mutation. The dev
+readiness webhook now calls it after official SDK signature verification. Production
+HTTP activation still awaits its WorkOS environment configuration. Original event IDs and timestamps enter the
 same transaction as linking, provider profile changes and quarantine receipts.
 Duplicate deliveries have no effect; older updates cannot overwrite newer state.
 Equal-time conflicting profiles clear WorkOS verification and quarantine. Provider
@@ -36,13 +37,34 @@ Optional WorkOS email, verification and deletion fields keep provider evidence
 separate from the Better Auth mirror. A WorkOS deletion preserves the provider ID,
 permanent owner, Better Auth access, roles and cards; it schedules no cleanup.
 Provider deletion history also prevents imports or bootstrap from relinking that ID.
+The read-only `workosIdentity.resolveWorkosOwner` boundary rejects duplicate provider
+mappings and checks indexed deletion history, even when a row tombstone is absent.
+Every runtime reader must use this boundary after verifying the token itself.
+Connect requires WorkOS-specific verification; AuthKit sessions require the explicit
+verified claim. Missing mappings, external-ID drift and active Teak deletion deny.
+The ledger is authoritative; bounded row patches are supplementary. Corrupted
+mapping sets must not trigger an unbounded transaction that could roll back it.
 The additive fields and event indexes were explicitly approved; no backfill runs.
 
 The installed AuthKit event callback drops the original ID/time and can suppress or
 rewrite callbacks. The verified webhook adapter must pass the original signed
 envelope directly to this boundary and synchronize the component without letting
 its callback deduplication suppress Teak processing. Database tests do not prove
-HTTP signature verification or hosted concurrency; those remain integration gates.
+hosted delivery or concurrency; those remain integration gates.
+
+## Signed lifecycle ingress
+
+`workosWebhook` verifies the exact bounded request body with the official WorkOS
+SDK before deserialization. Teak lifecycle processing and AuthKit component sync
+share one transaction: a component failure rolls both back and returns a retryable
+response. Component deduplication cannot suppress Teak receipts. The native signed
+registration Action route remains intact and denies frozen sign-ups.
+
+Thirteen real HTTP/SDK/component tests cover exact-body signatures, forgery,
+tampering, expiry, signing-secret separation, malformed/oversized bodies, retries,
+callback suppression, rollback, deletion-before-creation, and registration denial.
+No live webhook replay, import, mode switch or production WorkOS route activation
+has been performed by this slice.
 
 ## Before runtime activation
 
