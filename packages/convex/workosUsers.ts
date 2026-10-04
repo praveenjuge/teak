@@ -159,25 +159,6 @@ export const linkWorkosUser = internalMutation({
         if (conflict) {
           return quarantine("equal_timestamp_conflict");
         }
-        // Convex seeds mutation randomness for deterministic transaction retries.
-        // Owner identifiers are opaque keys, never authorization credentials.
-        let teakUserId: string | undefined;
-        for (let attempt = 0; attempt < 5; attempt++) {
-          const proposed = `teak_${Array.from({ length: 32 }, () =>
-            Math.floor(Math.random() * 16).toString(16)
-          ).join("")}`;
-          const collision = await ctx.db
-            .query("users")
-            .withIndex("by_teakUserId", (q) => q.eq("teakUserId", proposed))
-            .first();
-          if (!collision) {
-            teakUserId = proposed;
-            break;
-          }
-        }
-        if (!teakUserId) {
-          throw new Error("Unable to allocate a permanent Teak owner");
-        }
         const previous = await ctx.db
           .query("workosEvents")
           .withIndex("by_workosUserId_and_createdAt", (q) =>
@@ -185,8 +166,11 @@ export const linkWorkosUser = internalMutation({
           )
           .order("desc")
           .first();
-        await ctx.db.insert("users", {
-          teakUserId,
+        // Allocate the permanent key from Convex's unique document identifier.
+        // The placeholder and final key commit atomically; no caller can observe
+        // or authorize against the placeholder between these writes.
+        const ownerId = await ctx.db.insert("users", {
+          teakUserId: "",
           email,
           emailVerified: true,
           workosUserId: args.workosUserId,
@@ -194,6 +178,15 @@ export const linkWorkosUser = internalMutation({
           workosEmailVerified: true,
           ...(previous ? { lastWorkosEventAt: previous.createdAt } : {}),
         });
+        const teakUserId = `teak_${ownerId}`;
+        const collision = await ctx.db
+          .query("users")
+          .withIndex("by_teakUserId", (q) => q.eq("teakUserId", teakUserId))
+          .first();
+        if (collision) {
+          throw new Error("Permanent Teak owner collision");
+        }
+        await ctx.db.patch("users", ownerId, { teakUserId });
         await ctx.scheduler.runAfter(
           0,
           internal.card.defaultCards.createDefaultCardsForUser,

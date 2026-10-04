@@ -596,7 +596,7 @@ describe("new WorkOS lifecycle owners", () => {
       workosEmailVerified: true,
       lastWorkosEventAt: Date.parse(time(1)),
     });
-    expect(before.users[0].teakUserId).toMatch(/^teak_[a-f0-9]{32}$/);
+    expect(before.users[0].teakUserId).toMatch(/^teak_[a-zA-Z0-9]+$/);
     expect(before.scheduled).toHaveLength(2);
     expect(await t.mutation(apply, fresh)).toEqual({ status: "duplicate" });
     expect(await t.mutation(apply, freshEvent("same_profile", 2))).toEqual({

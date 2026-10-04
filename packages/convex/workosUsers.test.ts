@@ -433,7 +433,7 @@ describe("trusted new WorkOS owners", () => {
     if (result.status !== "linked") {
       throw new Error("Expected new owner");
     }
-    expect(result.teakUserId).toMatch(/^teak_[a-f0-9]{32}$/);
+    expect(result.teakUserId).toMatch(/^teak_[a-zA-Z0-9]+$/);
     expect(result.teakUserId).not.toBe(create.workosUserId);
     expect((await snapshot(t)).users).toMatchObject([
       {
@@ -545,16 +545,21 @@ describe("trusted new WorkOS owners", () => {
     });
     expect((await snapshot(t)).users).toEqual([]);
   });
-  test("bounded allocation collisions preserve the existing owner", async () => {
+  test("database allocation preserves every existing owner", async () => {
     const t = setup();
-    await seed(t, {
-      teakUserId: `teak_${"0".repeat(32)}`,
-      email: "other@example.com",
-    });
-    vi.spyOn(Math, "random").mockReturnValue(0);
-    await expect(t.mutation(link, create)).rejects.toThrow("allocate");
-    vi.restoreAllMocks();
-    expect((await snapshot(t)).users).toHaveLength(1);
-    expect(await jobs(t)).toEqual([]);
+    await seed(t, { teakUserId: "existing-owner", email: "other@example.com" });
+    const before = (await snapshot(t)).users[0];
+    const result = await t.mutation(link, create);
+    expect(result.status).toBe("linked");
+    const owners = (await snapshot(t)).users;
+    expect(owners).toHaveLength(2);
+    expect(
+      owners.find((owner) => owner.teakUserId === "existing-owner")
+    ).toEqual(before);
+    const created = owners.find(
+      (owner) => owner.workosUserId === create.workosUserId
+    );
+    expect(created?.teakUserId).toBe(`teak_${created?._id}`);
+    expect(await jobs(t)).toHaveLength(2);
   });
 });

@@ -100,7 +100,7 @@ describe("signed WorkOS bootstrap", () => {
     if (result.status !== "ok") {
       throw new Error("Expected bootstrap success");
     }
-    expect(result.teakUserId).toMatch(/^teak_[a-f0-9]{32}$/);
+    expect(result.teakUserId).toMatch(/^teak_[a-zA-Z0-9]+$/);
     expect((await state(t)).users).toMatchObject([
       {
         teakUserId: result.teakUserId,
