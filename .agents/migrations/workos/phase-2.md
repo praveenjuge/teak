@@ -27,6 +27,25 @@ timeouts, unsafe URLs, malformed/oversized responses, and loopback development.
 Removing issuer validation causes its regression to fail. Gateway tests and the
 207-test web suite pass. This is a foundation, not a completed client release.
 
+## Standalone SDK distribution preparation
+
+`packages/sdk` builds `teak-sdk` directly from the canonical Convex client SDK.
+It bundles browser-compatible JavaScript and emits the declaration dependency
+tree, with no runtime workspace dependencies. Distribution-only declaration
+transforms add ESM import extensions for NodeNext. Turbo tracks the canonical
+client, shared helpers and development URL source as build inputs.
+
+A packed tarball installs through `npm ci` in a fresh consumer outside the repo.
+Its types compile under both Bundler and NodeNext resolution; the installed
+package discovers both providers through a controlled server under Node.
+Removing the type export fails the consumer check. The NodeNext check reproduced
+extensionless declaration failures before the output transform was added.
+
+This prepares a registry dependency for Raycast's standalone store source tree
+without duplicating discovery logic. npm publisher configuration, lockstep release
+preparation, publication and Raycast consumption remain outstanding. No package
+has been published and no authentication mode has changed.
+
 ## Mobile session and provider preparation
 
 The canonical mobile source now contains the AuthKit session manager and Expo

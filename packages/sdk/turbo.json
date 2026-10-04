@@ -1,0 +1,21 @@
+{
+  "extends": ["//"],
+  "tasks": {
+    "build": {
+      "inputs": [
+        "$TURBO_DEFAULT$",
+        "$TURBO_ROOT$/packages/convex/client/**",
+        "$TURBO_ROOT$/packages/convex/shared/**",
+        "$TURBO_ROOT$/packages/convex/devUrls.ts"
+      ]
+    },
+    "typecheck": {
+      "inputs": [
+        "$TURBO_DEFAULT$",
+        "$TURBO_ROOT$/packages/convex/client/**",
+        "$TURBO_ROOT$/packages/convex/shared/**",
+        "$TURBO_ROOT$/packages/convex/devUrls.ts"
+      ]
+    }
+  }
+}
