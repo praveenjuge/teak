@@ -513,6 +513,9 @@ export default defineSchema({
     workosUserId: v.optional(v.string()),
     type: v.string(),
     createdAt: v.number(),
+    email: v.optional(v.string()),
+    emailVerified: v.optional(v.boolean()),
+    externalId: v.optional(v.union(v.string(), v.null())),
   })
     .index("by_eventId", ["eventId"])
     .index("by_workosUserId_and_type", ["workosUserId", "type"])

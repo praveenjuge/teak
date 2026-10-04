@@ -17,7 +17,8 @@ const reasonValidator = v.union(
   v.literal("workos_deleted_user"),
   v.literal("deleting_user"),
   v.literal("email_unverified"),
-  v.literal("ambiguous_email")
+  v.literal("ambiguous_email"),
+  v.literal("profile_pending")
 );
 type LinkReason = typeof reasonValidator.type;
 
@@ -145,8 +146,20 @@ export const linkWorkosUser = internalMutation({
         ) {
           throw new Error("Invalid WorkOS creation input");
         }
+        const previous = await ctx.db
+          .query("workosEvents")
+          .withIndex("by_workosUserId_and_createdAt", (q) =>
+            q.eq("workosUserId", args.workosUserId)
+          )
+          .order("desc")
+          .first();
+        const currentVerifiedProfile =
+          previous?.email === email &&
+          previous.emailVerified === true &&
+          previous.externalId === null;
         // An unmapped conflict or unverified event has no mirror to demote.
-        // Keep its durable denial until reconciliation explicitly resolves it.
+        // Equal-time conflicts need explicit resolution. Verification can recover
+        // only with a newer ordered receipt matching the current profile.
         for (const reason of [
           "equal_timestamp_conflict",
           "email_unverified",
@@ -160,17 +173,20 @@ export const linkWorkosUser = internalMutation({
                 .eq("resolvedAt", undefined)
             )
             .first();
-          if (conflict) {
+          if (
+            conflict &&
+            !(reason === "email_unverified" && currentVerifiedProfile)
+          ) {
             return quarantine(reason);
           }
         }
-        const previous = await ctx.db
-          .query("workosEvents")
-          .withIndex("by_workosUserId_and_createdAt", (q) =>
-            q.eq("workosUserId", args.workosUserId)
-          )
-          .order("desc")
-          .first();
+        if (previous?.email !== undefined && !currentVerifiedProfile) {
+          return quarantine(
+            previous.emailVerified === false
+              ? "email_unverified"
+              : "profile_pending"
+          );
+        }
         // Allocate the permanent key from Convex's unique document identifier.
         // The placeholder and final key commit atomically; no caller can observe
         // or authorize against the placeholder between these writes.

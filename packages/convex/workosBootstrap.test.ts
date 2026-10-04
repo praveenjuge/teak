@@ -368,6 +368,59 @@ describe("signed WorkOS bootstrap", () => {
     expect((await state(t)).users).toEqual([]);
     expect((await state(t)).jobs).toEqual([]);
   });
+  test("later ordered verification allows bootstrap after an unverified signup", async () => {
+    const t = setup();
+    await profile(t);
+    await t.mutation(internal.workosLifecycle.applyWorkosEvent, {
+      id: "unverified_signup",
+      event: "user.created",
+      createdAt: "2026-10-01T00:00:00.000Z",
+      data: { id: "user_NEW", email: "new@example.com", emailVerified: false },
+    });
+    expect(await signed(t).mutation(ensure, {})).toEqual({
+      status: "quarantined",
+      reason: "email_unverified",
+    });
+    await t.mutation(internal.workosLifecycle.applyWorkosEvent, {
+      id: "verified_later",
+      event: "user.updated",
+      createdAt: "2026-10-02T00:00:00.000Z",
+      data: { id: "user_NEW", email: "new@example.com", emailVerified: true },
+    });
+    expect(await signed(t).mutation(ensure, {})).toMatchObject({
+      status: "ok",
+    });
+    expect((await state(t)).users).toHaveLength(1);
+    expect((await state(t)).jobs).toHaveLength(2);
+  });
+  test.each([
+    { email: "changed@example.com", externalId: null },
+    { email: "new@example.com", externalId: "unknown-owner" },
+  ])(
+    "ordered profile mismatch cannot allocate from a stale component: %j",
+    async (latest) => {
+      const t = setup();
+      await profile(t);
+      await t.mutation(internal.workosLifecycle.applyWorkosEvent, {
+        id: "newer_profile",
+        event: "user.updated",
+        createdAt: "2026-10-03T00:00:00.000Z",
+        data: { id: "user_NEW", emailVerified: true, ...latest },
+      });
+      await t.mutation(internal.workosLifecycle.applyWorkosEvent, {
+        id: "old_profile",
+        event: "user.updated",
+        createdAt: "2026-10-02T00:00:00.000Z",
+        data: { id: "user_NEW", email: "new@example.com", emailVerified: true },
+      });
+      expect(await signed(t).mutation(ensure, {})).toEqual({
+        status: "quarantined",
+        reason: "profile_pending",
+      });
+      expect((await state(t)).users).toEqual([]);
+      expect((await state(t)).jobs).toEqual([]);
+    }
+  );
   test("bootstrap, created webhook and import converge on one permanent owner", async () => {
     const t = setup();
     await profile(t);
