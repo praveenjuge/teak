@@ -45,6 +45,7 @@ const declarations: ts.TransformerFactory<ts.SourceFile | ts.Bundle> = (
 };
 
 const program = ts.createProgram([source], {
+  strict: true,
   declaration: true,
   emitDeclarationOnly: true,
   noEmitOnError: true,

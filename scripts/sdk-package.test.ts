@@ -87,6 +87,7 @@ void client; void surface;
     [
       join(root, "node_modules/.bin/tsc"),
       "types.ts",
+      "--strict",
       "--noEmit",
       "--moduleResolution",
       "bundler",
@@ -102,6 +103,7 @@ void client; void surface;
     [
       join(root, "node_modules/.bin/tsc"),
       "types.ts",
+      "--strict",
       "--noEmit",
       "--moduleResolution",
       "nodenext",

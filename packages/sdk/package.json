@@ -22,7 +22,7 @@
   "scripts": {
     "build": "bun --no-env-file run build.ts",
     "prepack": "bun run build",
-    "typecheck": "tsc build.ts ../convex/client/sdk.ts --noEmit --moduleResolution bundler --module esnext --target es2022 --skipLibCheck --types bun,node"
+    "typecheck": "tsc build.ts ../convex/client/sdk.ts --strict --noEmit --moduleResolution bundler --module esnext --target es2022 --skipLibCheck --types bun,node"
   },
   "devDependencies": {
     "@teak/convex": "workspace:*",
