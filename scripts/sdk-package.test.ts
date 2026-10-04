@@ -1,5 +1,11 @@
 import { expect, test } from "bun:test";
-import { mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
+import {
+  copyFileSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  writeFileSync,
+} from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -11,13 +17,18 @@ test("packed SDK installs and discovers both providers outside the monorepo", as
   mkdirSync(consumer);
   const config = join(artifact, "empty.npmrc");
   writeFileSync(config, "");
-  const run = async (command: string[], cwd: string) => {
+  const run = async (
+    command: string[],
+    cwd: string,
+    extraEnv: Record<string, string> = {}
+  ) => {
     const child = spawn(command, {
       cwd,
       env: {
         PATH: process.env.PATH,
         HOME: process.env.HOME,
         NPM_CONFIG_USERCONFIG: config,
+        ...extraEnv,
       },
       stdout: "pipe",
       stderr: "pipe",
@@ -185,5 +196,31 @@ console.log(JSON.stringify(auth));
     );
   } finally {
     server.stop();
+  }
+  if (!process.env.TEAK_SDK_RELEASE_ARTIFACT) {
+    const providedDirectory = join(artifact, "provided-artifact");
+    mkdirSync(providedDirectory);
+    const providedTarball = join(providedDirectory, "teak-sdk.tgz");
+    copyFileSync(tarball, providedTarball);
+    await run(
+      [
+        process.execPath,
+        "--no-env-file",
+        "test",
+        "scripts/sdk-package.test.ts",
+      ],
+      root,
+      {
+        TEAK_SDK_RELEASE_ARTIFACT: providedTarball,
+      }
+    );
+    const proof = JSON.parse(
+      readFileSync(join(providedDirectory, "proof.json"), "utf8")
+    );
+    expect(proof.tarball).toBe(providedTarball);
+    expect(proof.typesValidated).toBe(true);
+    expect(
+      proof.evidence.map((entry: { primary: string }) => entry.primary)
+    ).toEqual(["betterauth", "workos"]);
   }
 }, 60_000);

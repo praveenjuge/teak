@@ -41,9 +41,9 @@ jobs:
           version="${GITHUB_REF_NAME#v}"
           node scripts/release-version.mjs lockstep "$version"
 
-      - name: Install current npm with trusted publishing support
+      - name: Install pinned npm with trusted publishing support
         run: |
-          npm install --global npm@latest --registry=https://registry.npmjs.org
+          npm install --global npm@12.2.0 --ignore-scripts --registry=https://registry.npmjs.org
           npm --version
 
       - name: Install frozen dependencies
