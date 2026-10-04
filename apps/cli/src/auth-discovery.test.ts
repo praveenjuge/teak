@@ -1,6 +1,12 @@
 import { afterAll, beforeEach, expect, test } from "bun:test";
 import { createHash } from "node:crypto";
-import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
+import {
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  unlinkSync,
+  writeFileSync,
+} from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { env, serve, spawn } from "bun";
@@ -172,7 +178,8 @@ const run = async (args: string[]) => {
 const login = async (
   flip = false,
   invalidState = false,
-  signoutBeforeCallback = false
+  signoutBeforeCallback = false,
+  unsafeLock = false
 ) => {
   const child = spawn(
     [
@@ -229,6 +236,9 @@ const login = async (
   }
   callback.searchParams.set("state", authorization.searchParams.get("state")!);
   callback.searchParams.set("code", "code");
+  if (unsafeLock) {
+    writeFileSync(file.replace(/\.json$/, ".lock"), "unsafe");
+  }
   const response = await fetch(callback);
   for (;;) {
     const chunk = await reader.read();
@@ -699,5 +709,19 @@ test("CLI refreshes a rejected token after joining an overlapping ordinary read"
         env[key] = value;
       }
     }
+  }
+});
+
+test("CLI revokes a new grant if unsafe storage prevents acquiring its commit lock", async () => {
+  const lock = file.replace(/\.json$/, ".lock");
+  try {
+    const result = await login(false, false, false, true);
+    expect(result.code).toBe(1);
+    expect(result.stderr).toContain("Unsafe credential lock");
+    expect(exchanges).toBe(1);
+    expect(revoked).toBe(1);
+    expect(readFileSync(file, "utf8")).toBe("");
+  } finally {
+    unlinkSync(lock);
   }
 });

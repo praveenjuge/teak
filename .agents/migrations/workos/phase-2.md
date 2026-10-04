@@ -105,8 +105,10 @@ Sign-in rechecks metadata before code exchange, validates state as bytes and fal
 back when the first loopback port is occupied. Logout revokes at the saved provider
 endpoint after a provider switch, retains credentials on failure and cancels pending
 browser sign-ins. Reconnect revokes the previous grant before replacing it.
+Uncommitted grants are revoked if storage locking fails. Dead-owner recovery uses
+generation-bound sibling claims; stale contenders cannot wedge replacement locks.
 
-All 62 CLI tests pass, including 40 randomized lifecycle/lock tests, with typecheck
+All 66 CLI tests pass, including 44 randomized lifecycle/lock tests, with typecheck
 and executable build.
 Subprocess journeys use the real CLI, callback server, discovery and SDK with a
 controlled OAuth/API server and isolated credential-store boundary. Bypassing the process lock fails the two-process refresh regression; the same-client

@@ -697,8 +697,9 @@ export const login = async (options: ClientOptions & { browser?: boolean }) => {
           });
         }
       );
-      await credentialOperation(options, async () => {
-        try {
+      let committed = false;
+      try {
+        await credentialOperation(options, async () => {
           if (readLogoutMarker(options) !== signoutEpoch) {
             throw new Error(
               "Sign-in was cancelled by logout. Run teak login again."
@@ -721,15 +722,18 @@ export const login = async (options: ClientOptions & { browser?: boolean }) => {
             }
           }
           writeCredentials(credentials, options);
-        } catch (error) {
-          try {
+          committed = true;
+        });
+      } catch (error) {
+        try {
+          if (!committed) {
             await revokeCredentials(credentials, options, false);
-          } catch {
-            /* Preserve the sign-in error. */
           }
-          throw error;
+        } catch {
+          /* Preserve the sign-in error. */
         }
-      });
+        throw error;
+      }
       return "Logged in to Teak.";
     } catch (error) {
       if ((error as NodeJS.ErrnoException).code === "EADDRINUSE") {

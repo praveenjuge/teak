@@ -104,7 +104,17 @@ export async function withCredentialLock<T>(
       const before = inspect(path, true);
       const previous = ownerAt(path);
       if (dead(previous.pid)) {
-        const marker = join(path, "reclaim.json");
+        // Claim this exact dead generation outside the lock directory. A stale
+        // contender must never add metadata to a replacement owner's directory.
+        const marker = `${path}.reclaim-${previous.nonce}`;
+        try {
+          lstatSync(join(path, "reclaim.json"));
+          throw uncertain();
+        } catch (error) {
+          if (code(error) !== "ENOENT") {
+            throw error;
+          }
+        }
         try {
           writeFileSync(marker, JSON.stringify(owner), {
             flag: "wx",
@@ -120,18 +130,29 @@ export async function withCredentialLock<T>(
           await setTimeout(25);
           continue;
         }
-        if (
-          !(
+        const claimStat = inspect(marker, false);
+        const releaseClaim = () => {
+          if (!sameDirectory(claimStat, inspect(marker, false))) {
+            throw uncertain();
+          }
+          const claim = JSON.parse(readFileSync(marker, "utf8")) as Owner;
+          if (!sameOwner(owner, claim)) {
+            throw uncertain();
+          }
+          unlinkSync(marker);
+        };
+        try {
+          if (
             sameDirectory(before, inspect(path, true)) &&
             sameOwner(previous, ownerAt(path)) &&
             dead(previous.pid)
-          )
-        ) {
-          throw uncertain();
+          ) {
+            unlinkSync(join(path, "owner.json"));
+            rmdirSync(path);
+          }
+        } finally {
+          releaseClaim();
         }
-        unlinkSync(join(path, "owner.json"));
-        unlinkSync(marker);
-        rmdirSync(path);
         continue;
       }
     } catch (error) {
