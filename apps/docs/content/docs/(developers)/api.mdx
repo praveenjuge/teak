@@ -39,6 +39,8 @@ Authorization: Bearer teakapi_...
 
 Native clients using browser sign-in send short-lived OAuth access tokens instead — see [Development](/docs/development#public-api-and-mcp).
 
+Browser-based OAuth clients can discover the active server from `/.well-known/oauth-protected-resource/mcp`, then read its `/.well-known/oauth-authorization-server` document. Teak publishes first-party client IDs and the matching issuer at `/.well-known/teak-oauth-clients.json`. The shared SDK's `discoverAuthServer(siteUrl)` caches a validated result for up to 60 seconds; use `{ forceRefresh: true }` after sign-in or refresh failures. Discovery never sends an access token. For a cloud development backend with a local sign-in server, pass its explicit loopback origin as `localIssuer`; remote metadata cannot enable loopback access by itself.
+
 ## Create your first card
 
 <CodeGroup>

@@ -1,3 +1,8 @@
+export {
+  type AuthDiscovery,
+  discoverAuthServer,
+  type OAuthSurface,
+} from "./authDiscovery";
 import { type CardType, cardTypes } from "../shared/constants";
 import type { FileKind, FilePreviewFacts } from "../shared/fileFormats";
 

@@ -21,11 +21,27 @@ import {
   listCardsV1,
   tagsV1,
 } from "./publicApiHttp";
-import { discoveryV1, healthzV1, v1CorsPreflight } from "./publicApiMeta";
+import {
+  discoveryV1,
+  healthzV1,
+  teakOAuthClients,
+  v1CorsPreflight,
+} from "./publicApiMeta";
 import { openApiV1 } from "./publicApiOpenApi";
 import { safariAccountSummary } from "./safariAccountSummary";
 
 const http = httpRouter();
+
+http.route({
+  path: "/.well-known/teak-oauth-clients.json",
+  method: "GET",
+  handler: teakOAuthClients,
+});
+http.route({
+  path: "/.well-known/teak-oauth-clients.json",
+  method: "OPTIONS",
+  handler: v1CorsPreflight,
+});
 
 if (
   process.env.WORKOS_ENVIRONMENT_ID === "environment_01KBYSVN9RVQ1JXACG3MDMQZGA"
@@ -221,6 +237,12 @@ http.route({
   method: "GET",
   handler: duplicateCardV1,
 });
+http.route({
+  path: "/api/oauth/revoke",
+  method: "OPTIONS",
+  handler: v1CorsPreflight,
+});
+
 http.route({
   path: "/api/oauth/revoke",
   method: "POST",

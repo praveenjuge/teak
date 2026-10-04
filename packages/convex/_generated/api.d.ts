@@ -44,6 +44,7 @@ import type * as card_uploadCardAction from "../card/uploadCardAction.js";
 import type * as card_validationUtils from "../card/validationUtils.js";
 import type * as card_visualFilters from "../card/visualFilters.js";
 import type * as cards from "../cards.js";
+import type * as client_authDiscovery from "../client/authDiscovery.js";
 import type * as client_sdk from "../client/sdk.js";
 import type * as crons from "../crons.js";
 import type * as dataExport from "../dataExport.js";
@@ -241,6 +242,7 @@ declare const fullApi: ApiFromModules<{
   "card/validationUtils": typeof card_validationUtils;
   "card/visualFilters": typeof card_visualFilters;
   cards: typeof cards;
+  "client/authDiscovery": typeof client_authDiscovery;
   "client/sdk": typeof client_sdk;
   crons: typeof crons;
   dataExport: typeof dataExport;

@@ -263,6 +263,50 @@ describe("Safari OAuth connection", () => {
     expect(retry.status).toBe(401);
   });
 
+  test("browser revocation preflight and responses allow cross-origin sign-out", async () => {
+    const { t } = await setup();
+    const preflight = await t.fetch("/api/oauth/revoke", {
+      method: "OPTIONS",
+      headers: {
+        Origin: "chrome-extension://test",
+        "Access-Control-Request-Method": "POST",
+        "Access-Control-Request-Headers": "content-type",
+      },
+    });
+    expect(preflight.status).toBe(204);
+    expect(preflight.headers.get("Access-Control-Allow-Origin")).toBe("*");
+    expect(preflight.headers.get("Access-Control-Allow-Methods")).toContain(
+      "POST"
+    );
+    expect(preflight.headers.get("Access-Control-Allow-Headers")).toContain(
+      "Content-Type"
+    );
+    const revoked = await t.fetch(
+      "/api/oauth/revoke",
+      revokeRequest(refreshToken)
+    );
+    expect(revoked.status).toBe(200);
+    expect(revoked.headers.get("Access-Control-Allow-Origin")).toBe("*");
+    expect(
+      await t.mutation(internal.oauthTokens.validateOAuthAccessToken, {
+        token: accessToken,
+      })
+    ).toBeNull();
+    for (const request of [
+      { method: "POST", body: "{}" },
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      },
+      revokeRequest(""),
+      revokeRequest("a".repeat(4096)),
+    ]) {
+      const response = await t.fetch("/api/oauth/revoke", request);
+      expect(response.status).toBe(400);
+      expect(response.headers.get("Access-Control-Allow-Origin")).toBe("*");
+    }
+  });
+
   test("rejects invalid or oversized revocation forms", async () => {
     const { t } = await setup();
     expect(

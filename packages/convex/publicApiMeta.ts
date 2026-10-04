@@ -1,3 +1,5 @@
+import { OAUTH_SURFACES } from "./client/authDiscovery";
+import { FIRST_PARTY_OAUTH_CLIENTS } from "./oauthClients";
 import { env, httpAction } from "./_generated/server";
 import {
   isLocalDevelopmentHostname,
@@ -182,4 +184,24 @@ export const discoveryV1 = httpAction((_ctx, request) => {
 
 export const v1CorsPreflight = httpAction(async () =>
   v1CorsPreflightResponse()
+);
+
+// Phase 2 ships on Better Auth. Phase 3 changes this together with the cached
+// public auth mode and protected-resource metadata, never as a separate flag.
+export const teakOAuthClients = httpAction(async (_ctx, request) =>
+  withPublicApiGatewayHeaders(
+    json(200, {
+      primary: "betterauth",
+      issuer: getAuthIssuerUrl(request.url),
+      clients: Object.fromEntries(
+        OAUTH_SURFACES.map((surface) => {
+          const client = FIRST_PARTY_OAUTH_CLIENTS.find(
+            (entry) => entry.clientId === `teak-${surface}`
+          );
+          if (!client) throw new Error("Missing first-party OAuth client");
+          return [surface, client.clientId];
+        })
+      ),
+    })
+  )
 );
