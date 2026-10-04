@@ -2,12 +2,42 @@ import CryptoKit
 import Foundation
 import Security
 
+nonisolated final class SafariSignInCancellation: @unchecked Sendable {
+    private let lock = NSLock()
+    private var cancelled = false
+    private var committing = false
+
+    func cancel() {
+        lock.lock()
+        defer { lock.unlock() }
+        if !committing { cancelled = true }
+    }
+
+    // Once replacement starts revoking the old grant, finish it under the
+    // process lock. Explicit sign-out then revokes the committed replacement.
+    func beginCommit() throws {
+        try whileActive { committing = true }
+    }
+
+    func whileActive<T>(_ operation: () throws -> T) throws -> T {
+        lock.lock()
+        defer { lock.unlock() }
+        guard !cancelled else {
+            throw SafariServiceError.message("Sign-in was cancelled. Please try again.")
+        }
+        return try operation()
+    }
+}
+
 nonisolated struct SafariOAuthRequest: Sendable {
     static let clientID = "teak-safari"
     static let callback = "teak-safari://oauth/callback"
     let verifier: String
     let state: String
     let createdAt: Date
+    var discovery: SafariAuthDiscovery?
+    var logoutEpoch: String?
+    let cancellation = SafariSignInCancellation()
 
     init(verifier: String? = nil, state: String? = nil, createdAt: Date = Date()) throws {
         self.verifier = try verifier ?? Self.randomString(count: 32)
@@ -15,10 +45,12 @@ nonisolated struct SafariOAuthRequest: Sendable {
         self.createdAt = createdAt
     }
 
-    func authorizationURL(baseURL: URL) -> URL {
-        var components = URLComponents(url: baseURL.appendingPathComponent("api/auth/mcp/authorize"), resolvingAgainstBaseURL: false)!
-        components.queryItems = [
-            URLQueryItem(name: "client_id", value: Self.clientID),
+    func authorizationURL() throws -> URL {
+        guard let discovery, var components = URLComponents(url: discovery.authorizationEndpoint, resolvingAgainstBaseURL: false) else {
+            throw SafariServiceError.message("Prepare Teak sign-in before opening your browser.")
+        }
+        let oauthItems = [
+            URLQueryItem(name: "client_id", value: discovery.safariClientID),
             URLQueryItem(name: "redirect_uri", value: Self.callback),
             URLQueryItem(name: "response_type", value: "code"),
             URLQueryItem(name: "scope", value: "profile email offline_access"),
@@ -26,6 +58,11 @@ nonisolated struct SafariOAuthRequest: Sendable {
             URLQueryItem(name: "code_challenge", value: Self.base64URL(Data(SHA256.hash(data: Data(verifier.utf8))))),
             URLQueryItem(name: "state", value: state),
         ]
+        let reserved = Set(oauthItems.map(\.name) + ["resource"])
+        components.queryItems = (components.queryItems ?? []).filter { !reserved.contains($0.name) } + oauthItems
+        if discovery.primary == "workos" {
+            components.queryItems?.append(URLQueryItem(name: "resource", value: discovery.apiResource.absoluteString))
+        }
         return components.url!
     }
 
@@ -73,7 +110,17 @@ nonisolated struct SafariOAuthRequest: Sendable {
     }
 }
 
+nonisolated struct SafariOAuthBinding: Codable, Sendable, Equatable {
+    let apiOrigin: String
+    let primary: String
+    let issuer: URL
+    let clientID: String
+    let revocationEndpoint: URL?
+    let ownerID: String?
+}
+
 nonisolated struct SafariOAuthTokens: Codable, Sendable {
+    var binding: SafariOAuthBinding? = nil
     let accessToken: String
     let refreshToken: String
     let expiresAt: Date
@@ -88,7 +135,7 @@ nonisolated struct SafariOAuthTokens: Codable, Sendable {
         let response = try JSONDecoder().decode(Response.self, from: data)
         guard !response.access_token.isEmpty, !response.refresh_token.isEmpty,
               response.token_type.lowercased() == "bearer", response.expires_in.isFinite,
-              response.expires_in > 0 else {
+              response.expires_in > 0, response.expires_in <= 365 * 24 * 3600 else {
             throw SafariServiceError.message("Teak returned invalid credentials.")
         }
         return Self(accessToken: response.access_token, refreshToken: response.refresh_token,

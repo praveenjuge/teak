@@ -52,6 +52,7 @@
 				Resources/Wordmark.png,
 				"Shared (Core)/TeakSafariService.swift",
 				"Shared (Core)/SafariOAuth.swift",
+				"Shared (Core)/SafariAuthDiscovery.swift",
 				"Shared (Core)/SafariCredentialStore.swift",
 				ViewController.swift,
 			);
@@ -84,6 +85,7 @@
 			membershipExceptions = (
 				"Shared (Core)/TeakSafariService.swift",
 				"Shared (Core)/SafariOAuth.swift",
+				"Shared (Core)/SafariAuthDiscovery.swift",
 				"Shared (Core)/SafariCredentialStore.swift",
 			);
 			target = 206096252FB83FF100B9E2A3 /* teak-mac Extension (macOS) */;

@@ -1,5 +1,4 @@
 import Foundation
-
 final class MemoryCredentials: SafariCredentialStorage, @unchecked Sendable {
     private let lock = NSLock()
     private var tokens: SafariOAuthTokens?
@@ -8,7 +7,6 @@ final class MemoryCredentials: SafariCredentialStorage, @unchecked Sendable {
     func save(_ tokens: SafariOAuthTokens) throws { lock.withLock { self.tokens = tokens } }
     func clear() throws { lock.withLock { tokens = nil } }
 }
-
 final class MockHTTP: URLProtocol, @unchecked Sendable {
     static var hold: ((MockHTTP) -> Bool)?
     static var responseHeaders = ["Content-Type": "application/json"]
@@ -18,7 +16,7 @@ final class MockHTTP: URLProtocol, @unchecked Sendable {
     override func startLoading() {
         if Self.hold?(self) == true { return }
         do {
-            let (status, body) = try Self.respond(request)
+            let (status, body) = try SafariDiscoveryFixtures.metadata(request) ?? Self.respond(request)
             complete(status: status, body: body)
         } catch { client?.urlProtocol(self, didFailWithError: error) }
     }
@@ -30,7 +28,6 @@ final class MockHTTP: URLProtocol, @unchecked Sendable {
     }
     override func stopLoading() {}
 }
-
 @main struct SafariOAuthTests {
     static func check(_ condition: @autoclosure () throws -> Bool, _ message: String) throws {
         if try !condition() { throw SafariServiceError.message("TEST FAILED: \(message)") }
@@ -60,13 +57,13 @@ final class MockHTTP: URLProtocol, @unchecked Sendable {
         }
         return body
     }
-    static let validSession = #"{"userId":"user","clientId":"teak-safari"}"#
+    static let validSession = #"{"data":{"id":"user","email":"hello@example.com"}}"#
     static let tokenResponse = #"{"access_token":"new-access","refresh_token":"new-refresh","expires_in":3600,"token_type":"Bearer"}"#
     static func fixture(_ store: MemoryCredentials, lock: URL? = nil) -> TeakSafariService {
         let configuration = URLSessionConfiguration.ephemeral
         configuration.protocolClasses = [MockHTTP.self]
         return TeakSafariService(session: URLSession(configuration: configuration), credentials: store,
-            apiURL: URL(string: "https://test.teak.invalid")!,
+            apiURL: URL(string: "https://test.teak.invalid")!, trustedOrigins: ["https://test.teak.invalid", "https://auth.teak.invalid"],
             lockURL: lock ?? FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString))
     }
     static func tokens(expired: Bool = false) -> SafariOAuthTokens {
@@ -159,7 +156,6 @@ final class MockHTTP: URLProtocol, @unchecked Sendable {
         }
         print("PASS: library capture, editing, favorites, 204 deletion, unsafe routes, failed writes")
     }
-
     @MainActor static func libraryStoreWrites(cardJSON: String) async throws {
         let original = try JSONDecoder().decode(LibraryCard.self, from: Data(cardJSON.utf8))
         let page = "{\"items\":[\(cardJSON)],\"pageInfo\":{\"hasMore\":false,\"nextCursor\":null}}"
@@ -384,6 +380,7 @@ final class MockHTTP: URLProtocol, @unchecked Sendable {
         print("PASS: file upload sequencing, storage proof, bearer isolation, failed upload safety")
     }
     static func main() async throws {
+        try await discoveryJourneys()
         try check(
             CompanionRoute.resolve(from: ["authenticated": true]) == .library,
             "authenticated accounts route to Library"
@@ -509,8 +506,9 @@ final class MockHTTP: URLProtocol, @unchecked Sendable {
         )
         print("PASS: companion window routing")
 
-        let pending = try SafariOAuthRequest(verifier: "dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk", state: "expected")
-        let authorization = URLComponents(url: pending.authorizationURL(baseURL: URL(string: "https://app.teakvault.com")!), resolvingAgainstBaseURL: false)!
+        var pending = try SafariOAuthRequest(verifier: "dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk", state: "expected")
+        pending.discovery = try await fixture(MemoryCredentials()).prepareSignIn().discovery
+        let authorization = URLComponents(url: try pending.authorizationURL(), resolvingAgainstBaseURL: false)!
         try check(authorization.queryItems?.first { $0.name == "code_challenge" }?.value == "E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM", "PKCE uses RFC 7636 S256 vector")
         try check(try pending.authorizationCode(from: URL(string: "teak-safari://oauth/callback?code=valid&state=expected")!) == "valid", "matching callback succeeds")
         for invalid in [
@@ -534,10 +532,12 @@ final class MockHTTP: URLProtocol, @unchecked Sendable {
         let signedOut = await fresh.authState()
         try check(signedOut["authenticated"] as? Bool == false, "old sessions do not authenticate OAuth")
         MockHTTP.respond = { request in
+            if request.url?.path == "/v1/me" { return (200, validSession) }
             try check(request.url?.path == "/api/auth/mcp/token", "exchanges code at OAuth endpoint")
             return (200, tokenResponse)
         }
-        let connected = await fresh.completeSignIn(pending, callback: URL(string: "teak-safari://oauth/callback?code=valid&state=expected")!)
+        let ready = try await fresh.prepareSignIn()
+        let connected = await fresh.completeSignIn(ready, callback: URL(string: "teak-safari://oauth/callback?code=valid&state=\(ready.state)")!)
         try check(connected["authenticated"] as? Bool == true, "login stores OAuth credentials")
         try check(try freshStore.load()?.refreshToken == "new-refresh", "refresh token persisted")
         MockHTTP.respond = { _ in (200, validSession) }
@@ -697,7 +697,7 @@ final class MockHTTP: URLProtocol, @unchecked Sendable {
         try check(offlineLogout["status"] as? String == "error", "offline logout offers retry")
         try check(offlineLogout["authenticated"] as? Bool == true, "failed sign-out keeps retry available")
         try check(try store.load() != nil, "failed revocation remains retryable")
-        MockHTTP.respond = { _ in (200, "null") }
+        MockHTTP.respond = { _ in (401, #"{"error":"Unauthorized"}"#) }
         let revoked = await service.authState()
         try check(revoked["authenticated"] as? Bool == false, "remote disconnection detected")
         try check(try store.load() == nil, "revoked credentials cleared")

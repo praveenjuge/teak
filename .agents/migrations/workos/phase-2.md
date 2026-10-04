@@ -167,12 +167,48 @@ controlled boundaries; this proves runtime/storage behavior, not real provider
 consent, extension-origin isolation, or production authentication. Chrome Web Store
 and AMO client registrations and real sign-ins must still be verified before release.
 
+## Teak for Mac preparation
+
+Teak for Mac and its bundled Safari extension use one shared discovery and
+credential implementation. Production discovers from `https://teakvault.com`
+while API transport stays on the configured Convex site. Development discovers
+from its development site and explicitly permits the local sign-in origin.
+Debug uses separate Keychain and lock names, preserving production credentials.
+Both builds validate bounded metadata, matching issuer/resource/client IDs,
+S256 PKCE, public HTTPS endpoints, and reject redirects and cookies. Discovered
+issuers and credential endpoints require exact deployment-owned origins, including
+the observed dev AuthKit tenant. Production pins `https://auth.teakvault.com`;
+Phase 4 must provision and verify that owned AuthKit domain before cutover.
+
+Authorization, code exchange, and refresh use the discovered Mac client and
+include the API resource in WorkOS mode. Sign-in validates the permanent owner
+through `/v1/me` before persistence. Provider changes block API access while
+retaining the original revocation binding. Rotated refresh tokens persist before
+further discovery; outages preserve credentials for retry. App and extension
+serialize credential changes with the existing process-shared filesystem lock.
+Failed revocation preserves the connection. Logout invalidates pending callbacks.
+
+Cancellation before replacement commits rejects and revokes the uncommitted grant.
+Once replacement starts revoking an existing grant, it finishes under the shared
+lock; explicit sign-out waits for it and revokes the replacement. If storage fails
+after old-grant revocation, cleanup attempts to clear the revoked credential and
+revoke the new grant. Even if Keychain cleanup fails, the response requires sign-in.
+
+The Swift runtime suite exercises canonical service code with controlled HTTP
+and credential storage, including both providers, restart, identity, refresh,
+provider changes, cancellation, safe logout, and concurrent app/extension service
+instances. `Mac OAuth Runtime` runs Debug and Release and retains logs. Local
+unsigned Debug and Release builds prove both Xcode targets compile. These are
+controlled runtime/build proofs; real provider consent and the signed Mac app
+with its bundled Safari extension still require verification before distribution.
+This is one Mac app integration and release, not a separate Safari release.
+
 ## Remaining work
 
 - Activate and prove the prepared mobile integration after Phase 3 server
   revocation, deletion, and canonical redirect setup. Preserve Better Auth until
   the flag switches. Electron is skipped.
-- Finish CLI service proof, Raycast, and Safari discovery work; validate the
+- Finish CLI service proof, Raycast, and real Mac app verification; validate the
   prepared Chrome/Firefox flow with real provider registrations.
 - Configure and prove each WorkOS client registration in dev and prod.
 - Verify both modes and real public/client journeys before releases.
