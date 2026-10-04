@@ -38,9 +38,11 @@ nonisolated struct SafariAuthDiscovery: Codable, Sendable, Equatable {
         clientData: Data,
         serverData: Data,
         apiURL: URL,
-        localIssuer: URL? = nil
+        localIssuer: URL? = nil,
+        trustedOrigins: Set<String>? = nil
     ) throws -> Self {
         let allowed = try loopbackOrigins(apiURL: apiURL, localIssuer: localIssuer)
+        let trusted = try trustedOrigins ?? self.trustedOrigins(apiURL: apiURL, localIssuer: localIssuer)
         let api = try validateURL(apiURL.absoluteString, allowedLoopbackOrigins: allowed)
         let decoder = JSONDecoder()
         let resource = try decode(ResourceDocument.self, data: resourceData, decoder: decoder)
@@ -56,7 +58,7 @@ nonisolated struct SafariAuthDiscovery: Codable, Sendable, Equatable {
               server.code_challenge_methods_supported.contains("S256") else {
             throw invalid("OAuth provider configuration changed. Please try again.")
         }
-        let issuer = try self.issuer(resourceData: resourceData, clientData: clientData, apiURL: apiURL, localIssuer: localIssuer)
+        let issuer = try self.issuer(resourceData: resourceData, clientData: clientData, apiURL: apiURL, localIssuer: localIssuer, trustedOrigins: trusted)
         guard URLComponents(url: issuer, resolvingAgainstBaseURL: false)?.query == nil else {
             throw invalid("Invalid OAuth issuer.")
         }
@@ -74,10 +76,10 @@ nonisolated struct SafariAuthDiscovery: Codable, Sendable, Equatable {
         return Self(
             primary: clients.primary,
             issuer: issuer,
-            authorizationEndpoint: try validateURL(server.authorization_endpoint, allowedLoopbackOrigins: allowed),
-            tokenEndpoint: try validateURL(server.token_endpoint, allowedLoopbackOrigins: allowed),
+            authorizationEndpoint: try validateTrustedURL(server.authorization_endpoint, trustedOrigins: trusted, allowedLoopbackOrigins: allowed),
+            tokenEndpoint: try validateTrustedURL(server.token_endpoint, trustedOrigins: trusted, allowedLoopbackOrigins: allowed),
             revocationEndpoint: try server.revocation_endpoint.map {
-                try validateURL($0, allowedLoopbackOrigins: allowed)
+                try validateTrustedURL($0, trustedOrigins: trusted, allowedLoopbackOrigins: allowed)
             },
             safariClientID: clients.clients["safari"]!,
             resource: expectedResource
@@ -85,8 +87,9 @@ nonisolated struct SafariAuthDiscovery: Codable, Sendable, Equatable {
     }
 
     /// Validates the two deployment documents before contacting their issuer.
-    static func issuer(resourceData: Data, clientData: Data, apiURL: URL, localIssuer: URL? = nil) throws -> URL {
+    static func issuer(resourceData: Data, clientData: Data, apiURL: URL, localIssuer: URL? = nil, trustedOrigins: Set<String>? = nil) throws -> URL {
         let allowed = try loopbackOrigins(apiURL: apiURL, localIssuer: localIssuer)
+        let trusted = try trustedOrigins ?? self.trustedOrigins(apiURL: apiURL, localIssuer: localIssuer)
         let api = try validateURL(apiURL.absoluteString, allowedLoopbackOrigins: allowed)
         let resource = try decode(ResourceDocument.self, data: resourceData, decoder: JSONDecoder())
         let clients = try decode(ClientDocument.self, data: clientData, decoder: JSONDecoder())
@@ -97,11 +100,43 @@ nonisolated struct SafariAuthDiscovery: Codable, Sendable, Equatable {
               resource.resource == (try origin(api).appendingPathComponent("mcp")).absoluteString else {
             throw invalid("OAuth provider configuration changed. Please try again.")
         }
-        let url = try validateURL(raw, allowedLoopbackOrigins: allowed)
+        let url = try validateTrustedURL(raw, trustedOrigins: trusted, allowedLoopbackOrigins: allowed)
         guard URLComponents(url: url, resolvingAgainstBaseURL: false)?.query == nil else {
             throw invalid("Invalid OAuth issuer.")
         }
         return url
+    }
+
+    /// Deployment configuration establishes trust, never remote metadata or a DNS preflight.
+    static func validateTrustedURL(
+        _ raw: String,
+        trustedOrigins: Set<String>,
+        allowedLoopbackOrigins: Set<String> = []
+    ) throws -> URL {
+        let url = try validateURL(raw, allowedLoopbackOrigins: allowedLoopbackOrigins)
+        guard trustedOrigins.contains(try origin(url).absoluteString) else {
+            throw invalid("Untrusted OAuth destination.")
+        }
+        return url
+    }
+
+    static func trustedOrigins(apiURL: URL, localIssuer: URL? = nil) throws -> Set<String> {
+        let allowed = try loopbackOrigins(apiURL: apiURL, localIssuer: localIssuer)
+        let api = try validateURL(apiURL.absoluteString, allowedLoopbackOrigins: allowed)
+        let apiOrigin = try origin(api).absoluteString
+        var trusted: Set<String> = [apiOrigin]
+        if apiOrigin == "https://teakvault.com" || apiOrigin == "https://uncommon-ladybug-882.convex.site" {
+            // Phase 4 must provision and verify this owned AuthKit domain before cutover.
+            trusted.formUnion(["https://teakvault.com", "https://app.teakvault.com",
+                               "https://uncommon-ladybug-882.convex.site", "https://auth.teakvault.com"])
+        }
+        #if DEBUG
+        trusted.formUnion(allowed)
+        if apiOrigin == "https://reminiscent-kangaroo-59.convex.site" || allowed.contains(apiOrigin) {
+            trusted.insert("https://optimistic-metaphor-12-reminiscent-kangaroo-59.authkit.app")
+        }
+        #endif
+        return trusted
     }
 
     /// RFC 8414 inserts the well-known path before an issuer's path suffix.
@@ -192,8 +227,10 @@ nonisolated struct SafariAuthDiscovery: Codable, Sendable, Equatable {
     private static func isPrivateOrMalformedHost(_ host: String) -> Bool {
         // IPv6 (including mapped IPv4), numeric aliases, and internal names never
         // qualify as a public discovery destination. Canonical public IPv4 does.
+        let privateSuffixes = ["local", "internal", "lan", "home", "home.arpa", "corp", "intranet", "private", "onion"]
         if host.contains(":") || host.contains("[") || host.hasSuffix(".")
-            || host.hasSuffix(".local") || !host.contains(".") { return true }
+            || privateSuffixes.contains(where: { host == $0 || host.hasSuffix("." + $0) })
+            || !host.contains(".") { return true }
         let labels = host.split(separator: ".", omittingEmptySubsequences: false)
         if labels.contains(where: { $0.isEmpty }) { return true }
         let looksNumeric = labels.last.map {

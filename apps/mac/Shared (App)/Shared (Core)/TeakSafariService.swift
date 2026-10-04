@@ -44,6 +44,7 @@ actor TeakSafariService {
     private let discoveryURL: URL
     private let lockURL: URL?
     private let localIssuer: URL?
+    private let trustedOrigins: Set<String>?
     private var authCache: (SafariAuthDiscovery, Date)?
     private let redirectGuard = SafariRedirectGuard()
 
@@ -52,6 +53,7 @@ actor TeakSafariService {
          apiURL: URL = TeakSafariService.siteURL,
          discoveryURL: URL? = nil,
          localIssuer: URL? = nil,
+         trustedOrigins: Set<String>? = nil,
          lockURL: URL? = TeakSafariService.defaultLockURL) {
         self.session = session
         self.credentials = credentials
@@ -62,6 +64,7 @@ actor TeakSafariService {
         self.discoveryURL = discoveryURL ?? (apiURL == productionAPI
             ? URL(string: "https://teakvault.com")! : apiURL)
         self.lockURL = lockURL
+        self.trustedOrigins = trustedOrigins
         #if DEBUG
         self.localIssuer = localIssuer ?? Self.appBaseURL
         #else
@@ -106,7 +109,7 @@ actor TeakSafariService {
                     throw SafariServiceError.message("Teak returned a different account. Please reconnect.")
                 }
             } catch SafariServiceError.unauthenticated {
-                try await clearIfStale(token)
+                try? await clearIfStale(token)
                 throw SafariServiceError.unauthenticated
             }
             return ["authenticated": true]
@@ -126,7 +129,7 @@ actor TeakSafariService {
         request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
         let (data, response) = try await send(request)
         if response.statusCode == 401 {
-            try await clearIfStale(token)
+            try? await clearIfStale(token)
             throw SafariServiceError.unauthenticated
         }
         guard response.statusCode == 200,
@@ -145,12 +148,11 @@ actor TeakSafariService {
     }
 
     func prepareSignIn() async throws -> SafariOAuthRequest {
-        try await withCredentials {
-            var pending = try SafariOAuthRequest()
-            pending.discovery = try await self.discover(force: true)
-            pending.logoutEpoch = try self.logoutEpoch()
-            return pending
-        }
+        var pending = try SafariOAuthRequest()
+        pending.logoutEpoch = try logoutEpoch()
+        pending.discovery = try await discover(force: true)
+        guard pending.logoutEpoch == (try logoutEpoch()) else { throw SafariServiceError.unauthenticated }
+        return pending
     }
 
     func completeSignIn(_ pending: SafariOAuthRequest, callback: URL) async -> [String: Any] {
@@ -172,10 +174,12 @@ actor TeakSafariService {
                 do {
                     let owner = try await self.identity(tokens.accessToken)
                     let latest = try await self.discover(force: true)
-                    guard self.sameProvider(auth, latest) else { throw SafariServiceError.unauthenticated }
+                    guard self.sameProvider(auth, latest), pending.logoutEpoch == (try self.logoutEpoch()) else {
+                        throw SafariServiceError.unauthenticated
+                    }
                     try pending.cancellation.beginCommit()
                     if let previous = try self.credentials.load() {
-                        try await self.revoke(previous)
+                        try await self.revoke(previous, refreshDiscovery: false)
                         previousRevoked = true
                     }
                     tokens.binding = try self.binding(auth, ownerID: owner)
@@ -189,6 +193,7 @@ actor TeakSafariService {
                         if previousRevoked { try? self.credentials.clear() }
                         try? await self.revoke(tokens, refreshDiscovery: false)
                     }
+                    if previousRevoked { throw SafariServiceError.unauthenticated }
                     throw error
                 }
             }
@@ -200,9 +205,11 @@ actor TeakSafariService {
 
     func signOut() async -> [String: Any] {
         do {
+            guard let lockURL else { throw SafariServiceError.unauthenticated }
+            // Invalidate callbacks immediately, even if their network request
+            // holds the credential lock longer than logout's wait budget.
+            try Data(UUID().uuidString.utf8).write(to: lockURL.appendingPathExtension("epoch"), options: .atomic)
             return try await withCredentials {
-                guard let lockURL else { throw SafariServiceError.unauthenticated }
-                try Data(UUID().uuidString.utf8).write(to: lockURL.appendingPathExtension("epoch"), options: .atomic)
                 if let tokens = try self.credentials.load() { try await self.revoke(tokens) }
                 try self.credentials.clear()
                 return ["status": SafariAccountStatus.signedOut.rawValue, "authenticated": false]
@@ -371,7 +378,7 @@ actor TeakSafariService {
             throw SafariServiceError.message("Revocation is unavailable. Your connection is still saved.")
         }
         let allowed = try SafariAuthDiscovery.loopbackOrigins(apiURL: apiURL, localIssuer: localIssuer)
-        let url = try SafariAuthDiscovery.validateURL(target.absoluteString, allowedLoopbackOrigins: allowed)
+        let url = try SafariAuthDiscovery.validateTrustedURL(target.absoluteString, trustedOrigins: trustedAuthOrigins(), allowedLoopbackOrigins: allowed)
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
         request.setValue("application/x-www-form-urlencoded", forHTTPHeaderField: "Content-Type")
@@ -394,6 +401,10 @@ actor TeakSafariService {
         return id
     }
 
+    private func trustedAuthOrigins() throws -> Set<String> {
+        try trustedOrigins ?? SafariAuthDiscovery.trustedOrigins(apiURL: discoveryURL, localIssuer: localIssuer)
+    }
+
     private func discover(force: Bool = false) async throws -> SafariAuthDiscovery {
         if !force, let (auth, expiry) = authCache, expiry > Date() { return auth }
         let origin = try SafariAuthDiscovery.origin(discoveryURL)
@@ -403,15 +414,17 @@ actor TeakSafariService {
         do {
             let resource = try await metadata(origin.appendingPathComponent(".well-known/oauth-protected-resource/mcp"))
             let clients = try await metadata(origin.appendingPathComponent(".well-known/teak-oauth-clients.json"))
-            let issuer = try SafariAuthDiscovery.issuer(resourceData: resource, clientData: clients, apiURL: discoveryURL, localIssuer: localIssuer)
+            let issuer = try SafariAuthDiscovery.issuer(resourceData: resource, clientData: clients, apiURL: discoveryURL, localIssuer: localIssuer, trustedOrigins: trustedAuthOrigins())
             let server = try await metadata(SafariAuthDiscovery.metadataURL(issuer: issuer, allowedLoopbackOrigins: allowed))
-            let auth = try SafariAuthDiscovery.parse(resourceData: resource, clientData: clients, serverData: server, apiURL: discoveryURL, localIssuer: localIssuer)
+            let auth = try SafariAuthDiscovery.parse(resourceData: resource, clientData: clients, serverData: server, apiURL: discoveryURL, localIssuer: localIssuer, trustedOrigins: trustedAuthOrigins())
             authCache = (auth, Date().addingTimeInterval(60))
             return auth
         } catch { authCache = nil; throw error }
     }
 
     private func metadata(_ url: URL) async throws -> Data {
+        let allowed = try SafariAuthDiscovery.loopbackOrigins(apiURL: apiURL, localIssuer: localIssuer)
+        _ = try SafariAuthDiscovery.validateTrustedURL(url.absoluteString, trustedOrigins: trustedAuthOrigins(), allowedLoopbackOrigins: allowed)
         var request = URLRequest(url: url)
         request.timeoutInterval = 15
         request.httpShouldHandleCookies = false
@@ -438,7 +451,7 @@ actor TeakSafariService {
         try await withCredentials {
             let auth = try await discover(force: true)
             if let saved = try credentials.load(), saved.accessToken == token, try matches(saved, auth) {
-                try credentials.clear()
+                do { try credentials.clear() } catch { throw SafariServiceError.unauthenticated }
             }
         }
     }
@@ -448,7 +461,7 @@ actor TeakSafariService {
         request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
         let (data, response) = try await send(request)
         if response.statusCode == 401 {
-            try await clearIfStale(token)
+            try? await clearIfStale(token)
             throw SafariServiceError.unauthenticated
         }
         guard (200..<300).contains(response.statusCode) else {
@@ -459,6 +472,9 @@ actor TeakSafariService {
     }
 
     private func send(_ original: URLRequest) async throws -> (Data, HTTPURLResponse) {
+        let allowed = try SafariAuthDiscovery.loopbackOrigins(apiURL: apiURL, localIssuer: localIssuer)
+        guard let url = original.url else { throw SafariServiceError.unauthenticated }
+        _ = try SafariAuthDiscovery.validateTrustedURL(url.absoluteString, trustedOrigins: trustedAuthOrigins(), allowedLoopbackOrigins: allowed)
         var request = original
         request.timeoutInterval = 15
         request.httpShouldHandleCookies = false
@@ -470,6 +486,9 @@ actor TeakSafariService {
     }
 
     private func errorResponse(_ error: Error) -> [String: Any] {
-        ["status": "error", "authenticated": (try? credentials.load()) != nil, "message": error.localizedDescription]
+        let rejected: Bool
+        if case SafariServiceError.unauthenticated = error { rejected = true } else { rejected = false }
+        return ["status": "error", "authenticated": !rejected && (try? credentials.load()) != nil,
+                "message": error.localizedDescription]
     }
 }

@@ -7,6 +7,7 @@ final class SafariSignInCoordinator: NSObject, ASWebAuthenticationPresentationCo
     private var authenticationSession: ASWebAuthenticationSession?
     private var sessionGeneration = 0
     private var preparing = false
+    private var preparationTask: Task<Void, Never>?
     private var pendingRequest: SafariOAuthRequest?
 
     var isAuthenticating: Bool {
@@ -22,6 +23,8 @@ final class SafariSignInCoordinator: NSObject, ASWebAuthenticationPresentationCo
         pendingRequest?.cancellation.cancel()
         pendingRequest = nil
         preparing = false
+        preparationTask?.cancel()
+        preparationTask = nil
         let session = authenticationSession
         authenticationSession = nil
         anchorWindow = nil
@@ -37,10 +40,11 @@ final class SafariSignInCoordinator: NSObject, ASWebAuthenticationPresentationCo
         preparing = true
         sessionGeneration += 1
         let generation = sessionGeneration
-        Task { @MainActor in
+        preparationTask = Task { @MainActor in
           do {
             let pending = try await TeakSafariService.shared.prepareSignIn()
             guard generation == sessionGeneration else { return }
+            preparationTask = nil
             preparing = false
             pendingRequest = pending
             anchorWindow = window
@@ -93,6 +97,7 @@ final class SafariSignInCoordinator: NSObject, ASWebAuthenticationPresentationCo
             }
         } catch {
             guard generation == sessionGeneration else { return }
+            preparationTask = nil
             preparing = false
             onCompletion([
                 "authenticated": false,

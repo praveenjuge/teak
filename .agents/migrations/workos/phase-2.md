@@ -175,7 +175,10 @@ while API transport stays on the configured Convex site. Development discovers
 from its development site and explicitly permits the local sign-in origin.
 Debug uses separate Keychain and lock names, preserving production credentials.
 Both builds validate bounded metadata, matching issuer/resource/client IDs,
-S256 PKCE, public HTTPS endpoints, and reject redirects and cookies.
+S256 PKCE, public HTTPS endpoints, and reject redirects and cookies. Discovered
+issuers and credential endpoints require exact deployment-owned origins, including
+the observed dev AuthKit tenant. Production pins `https://auth.teakvault.com`;
+Phase 4 must provision and verify that owned AuthKit domain before cutover.
 
 Authorization, code exchange, and refresh use the discovered Mac client and
 include the API resource in WorkOS mode. Sign-in validates the permanent owner
@@ -188,8 +191,8 @@ Failed revocation preserves the connection. Logout invalidates pending callbacks
 Cancellation before replacement commits rejects and revokes the uncommitted grant.
 Once replacement starts revoking an existing grant, it finishes under the shared
 lock; explicit sign-out waits for it and revokes the replacement. If storage fails
-after old-grant revocation, the revoked credential is cleared and the new grant
-receives cleanup. The UI cannot report that old connection as usable.
+after old-grant revocation, cleanup attempts to clear the revoked credential and
+revoke the new grant. Even if Keychain cleanup fails, the response requires sign-in.
 
 The Swift runtime suite exercises canonical service code with controlled HTTP
 and credential storage, including both providers, restart, identity, refresh,

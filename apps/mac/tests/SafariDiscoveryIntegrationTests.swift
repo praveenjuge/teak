@@ -2,9 +2,16 @@ import Foundation
 
 private final class RefusingSafariCredentials: SafariCredentialStorage, @unchecked Sendable {
     let underlying: MemoryCredentials
-    init(_ underlying: MemoryCredentials) { self.underlying = underlying }
+    let refuseClear: Bool
+    init(_ underlying: MemoryCredentials, refuseClear: Bool = false) {
+        self.underlying = underlying
+        self.refuseClear = refuseClear
+    }
     func load() throws -> SafariOAuthTokens? { try underlying.load() }
-    func clear() throws { try underlying.clear() }
+    func clear() throws {
+        if refuseClear { throw SafariServiceError.message("Test storage clear unavailable") }
+        try underlying.clear()
+    }
     func save(_ tokens: SafariOAuthTokens) throws { throw SafariServiceError.message("Test storage unavailable") }
 }
 
@@ -252,6 +259,7 @@ extension SafariOAuthTests {
         let store = MemoryCredentials()
         let service = TeakSafariService(session: URLSession(configuration: configuration), credentials: store,
             apiURL: URL(string: "https://uncommon-ladybug-882.convex.site")!,
+            trustedOrigins: ["https://teakvault.com", "https://uncommon-ladybug-882.convex.site", "https://test.teak.invalid", "https://auth.teak.invalid"],
             lockURL: FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString))
         var deploymentDocuments = 0
         var discoveryHosts: [String] = []
@@ -371,6 +379,7 @@ extension SafariOAuthTests {
         configuration.protocolClasses = [MockHTTP.self]
         let service = TeakSafariService(session: URLSession(configuration: configuration),
             credentials: RefusingSafariCredentials(store), apiURL: SafariDiscoveryFixtures.api,
+            trustedOrigins: ["https://test.teak.invalid", "https://auth.teak.invalid"],
             lockURL: FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString))
         var revoked: [String] = []
         MockHTTP.respond = { request in
@@ -389,6 +398,162 @@ extension SafariOAuthTests {
         try check(revoked == ["new-refresh", "replacement-refresh"], "failed replacement cleans newly issued grant after revoking old grant")
     }
 
+    static func discoveryFixedAuthorizationQuery() async throws {
+        for mode in ["betterauth", "workos"] {
+            discoveryReset(mode)
+            var pending = try await fixture(MemoryCredentials()).prepareSignIn()
+            let auth = pending.discovery!
+            pending.discovery = SafariAuthDiscovery(primary: auth.primary, issuer: auth.issuer,
+                authorizationEndpoint: URL(string: auth.authorizationEndpoint.absoluteString + "?organization=org_one&prompt=login&state=stale&state=duplicate&client_id=wrong&resource=wrong&code_challenge=wrong&scope=wrong")!,
+                tokenEndpoint: auth.tokenEndpoint, revocationEndpoint: auth.revocationEndpoint,
+                safariClientID: auth.safariClientID, resource: auth.resource)
+            let items = URLComponents(url: try pending.authorizationURL(), resolvingAgainstBaseURL: false)!.queryItems!
+            try check(items.contains { $0.name == "organization" && $0.value == "org_one" }
+                && items.contains { $0.name == "prompt" && $0.value == "login" }, "authorization preserves provider fixed query")
+            for name in ["state", "client_id", "code_challenge", "scope"] {
+                try check(items.filter { $0.name == name }.count == 1, "authorization replaces reserved OAuth query without duplicates")
+            }
+            try check(items.first { $0.name == "state" }?.value == pending.state, "authorization replaces stale state")
+            try check(items.filter { $0.name == "resource" }.count == (mode == "workos" ? 1 : 0), "authorization replaces or removes stale resource")
+        }
+    }
+
+    static func discoveryExactFixtureRoutes() throws {
+        discoveryReset()
+        for path in ["/.well-known/oauth-authorization-server", "/.well-known/oauth-authorization-server/workos", "/wrong/.well-known/metadata"] {
+            let response = try SafariDiscoveryFixtures.metadata(URLRequest(url: SafariDiscoveryFixtures.api.appendingPathComponent(path)))
+            try check(response == nil, "fixture refuses unexpected metadata route")
+        }
+        let expected = try SafariDiscoveryFixtures.metadata(URLRequest(url: URL(string: "https://auth.teak.invalid/.well-known/oauth-authorization-server/betterauth")!))
+        try check(expected?.0 == 200, "fixture accepts exact RFC8414 issuer suffix")
+    }
+
+    static func discoveryRevokedClearFailure() async throws {
+        discoveryReset("workos")
+        let store = MemoryCredentials()
+        MockHTTP.respond = { request in request.url?.path == "/v1/me" ? (200, validSession) : (200, tokenResponse) }
+        try await discoveryLogin(fixture(store))
+        let configuration = URLSessionConfiguration.ephemeral
+        configuration.protocolClasses = [MockHTTP.self]
+        let service = TeakSafariService(session: URLSession(configuration: configuration), credentials: RefusingSafariCredentials(store, refuseClear: true),
+            apiURL: SafariDiscoveryFixtures.api, trustedOrigins: ["https://test.teak.invalid", "https://auth.teak.invalid"],
+            lockURL: FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString))
+        var revocations = 0
+        MockHTTP.respond = { request in
+            if request.url?.path == "/api/oauth/revoke" { revocations += 1; return (200, "{}") }
+            return request.url?.path == "/v1/me" ? (200, validSession) : (200, tokenResponse)
+        }
+        let pending = try await service.prepareSignIn()
+        let result = await service.completeSignIn(pending, callback: discoveryCallback(pending))
+        try check(revocations == 2 && (try store.load()) != nil, "clear failure leaves stale storage after both grants revoked")
+        try check(result["authenticated"] as? Bool == false, "revoked credential clear failure reports unauthenticated")
+    }
+
+    static func discoveryLogoutDuringCallback() async throws {
+        discoveryReset("workos")
+        let store = MemoryCredentials()
+        let lock = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        let service = fixture(store, lock: lock)
+        let other = fixture(store, lock: lock)
+        let pending = try await service.prepareSignIn()
+        var held: MockHTTP?
+        var callback: Task<[String: Any], Never>?
+        MockHTTP.respond = { request in request.url?.path == "/v1/me" ? (200, validSession) : (200, "{}") }
+        await withCheckedContinuation { (started: CheckedContinuation<Void, Never>) in
+            MockHTTP.hold = { protocolRequest in
+                guard protocolRequest.request.url?.path == "/api/auth/mcp/token", held == nil else { return false }
+                held = protocolRequest
+                started.resume()
+                return true
+            }
+            callback = Task { await service.completeSignIn(pending, callback: discoveryCallback(pending)) }
+        }
+        let logout = Task { await other.signOut() }
+        let epoch = lock.appendingPathExtension("epoch")
+        let deadline = Date().addingTimeInterval(1)
+        while !FileManager.default.fileExists(atPath: epoch.path), Date() < deadline {
+            try await Task.sleep(nanoseconds: 1_000_000)
+        }
+        let advancedBeforeRelease = FileManager.default.fileExists(atPath: epoch.path)
+        MockHTTP.hold = nil
+        held!.complete(status: 200, body: tokenResponse)
+        let completed = await callback!.value
+        let signedOut = await logout.value
+        try check(advancedBeforeRelease, "cross-service logout advances epoch before callback releases credential lock")
+        try check(completed["status"] as? String == "error" && signedOut["authenticated"] as? Bool == false && (try store.load()) == nil, "logout during callback prevents credential commit")
+    }
+
+    static func discoveryUntrustedDestinations() async throws {
+        for field in ["issuer", "authorization_endpoint", "token_endpoint", "revocation_endpoint"] {
+            discoveryReset("workos")
+            var leakedRequests = 0
+            MockHTTP.hold = { intercepted in
+                let request = intercepted.request
+                if request.url?.host == "other-tenant.authkit.app" { leakedRequests += 1 }
+                guard let path = request.url?.path, path.contains(".well-known") else { return false }
+                do {
+                    guard let response = try SafariDiscoveryFixtures.metadata(request),
+                          var document = try JSONSerialization.jsonObject(with: Data(response.1.utf8)) as? [String: Any] else { return false }
+                    if field == "issuer" {
+                        if document["authorization_servers"] != nil { document["authorization_servers"] = ["https://other-tenant.authkit.app"] }
+                        if document["issuer"] != nil { document["issuer"] = "https://other-tenant.authkit.app" }
+                    } else if path == "/.well-known/oauth-authorization-server/workos" {
+                        document[field] = "https://other-tenant.authkit.app/endpoint"
+                    }
+                    intercepted.complete(status: 200, body: String(data: try JSONSerialization.data(withJSONObject: document), encoding: .utf8)!)
+                } catch { intercepted.client?.urlProtocol(intercepted, didFailWithError: error) }
+                return true
+            }
+            MockHTTP.respond = { _ in leakedRequests += 1; return (500, "{}") }
+            try await rejectsAsync("unpinned issuer or endpoint rejects discovery") { _ = try await fixture(MemoryCredentials()).prepareSignIn() }
+            try check(leakedRequests == 0, "unpinned public-looking tenant receives no metadata or credential request")
+        }
+        discoveryReset()
+    }
+
+    static func discoveryDeploymentPins() throws {
+        let prod = try SafariAuthDiscovery.trustedOrigins(apiURL: URL(string: "https://teakvault.com")!)
+        _ = try SafariAuthDiscovery.validateTrustedURL("https://auth.teakvault.com/oauth/token", trustedOrigins: prod)
+        try rejects("production pins reject other WorkOS tenants") {
+            _ = try SafariAuthDiscovery.validateTrustedURL("https://other-tenant.authkit.app/oauth/token", trustedOrigins: prod)
+        }
+        let devURL = URL(string: "https://reminiscent-kangaroo-59.convex.site")!
+        let dev = try SafariAuthDiscovery.trustedOrigins(apiURL: devURL)
+        let devIssuer = "https://optimistic-metaphor-12-reminiscent-kangaroo-59.authkit.app/oauth/token"
+        #if DEBUG
+        _ = try SafariAuthDiscovery.validateTrustedURL(devIssuer, trustedOrigins: dev)
+        let localhost = URL(string: "http://localhost:3000")!
+        let local = try SafariAuthDiscovery.trustedOrigins(apiURL: devURL, localIssuer: localhost)
+        _ = try SafariAuthDiscovery.validateTrustedURL("http://localhost:3000/token", trustedOrigins: local,
+            allowedLoopbackOrigins: SafariAuthDiscovery.loopbackOrigins(apiURL: devURL, localIssuer: localhost))
+        #else
+        try rejects("release excludes development WorkOS tenant") { _ = try SafariAuthDiscovery.validateTrustedURL(devIssuer, trustedOrigins: dev) }
+        try rejects("release excludes configured local issuer") { _ = try SafariAuthDiscovery.trustedOrigins(apiURL: devURL, localIssuer: URL(string: "http://localhost:3000")!) }
+        #endif
+        try rejects("development pins reject other WorkOS tenants") { _ = try SafariAuthDiscovery.validateTrustedURL("https://other-tenant.authkit.app/token", trustedOrigins: dev) }
+        for suffix in ["internal", "lan", "local", "home", "corp", "intranet", "private", "home.arpa", "onion"] {
+            let origin = "https://auth.\(suffix)"
+            try rejects("private suffix remains rejected despite explicit pin") {
+                _ = try SafariAuthDiscovery.validateTrustedURL(origin + "/token", trustedOrigins: [origin])
+            }
+        }
+    }
+
+    static func discoveryUnauthorizedDuringMetadataOutage() async throws {
+        discoveryReset("workos")
+        let store = MemoryCredentials()
+        MockHTTP.respond = { request in request.url?.path == "/v1/me" ? (200, validSession) : (200, tokenResponse) }
+        try await discoveryLogin(fixture(store))
+        MockHTTP.respond = { _ in
+            SafariDiscoveryFixtures.unavailable = true
+            return (401, "{}")
+        }
+        let state = await fixture(store).authState()
+        try check(state["authenticated"] as? Bool == false, "identity 401 stays unauthenticated when cleanup metadata fails")
+        try check(try store.load()?.refreshToken == "new-refresh", "metadata outage retains rejected credential for safe cleanup retry")
+        discoveryReset()
+    }
+
     static func discoveryJourneys() async throws {
         defer { discoveryReset() }
         try await discoveryModeJourney("betterauth")
@@ -402,6 +567,13 @@ extension SafariOAuthTests {
         try await discoveryCancelledExchange()
         try await discoveryReplacementCommit()
         try await discoveryReplacementStorageFailure()
+        try await discoveryFixedAuthorizationQuery()
+        try discoveryExactFixtureRoutes()
+        try await discoveryRevokedClearFailure()
+        try await discoveryLogoutDuringCallback()
+        try await discoveryUntrustedDestinations()
+        try discoveryDeploymentPins()
+        try await discoveryUnauthorizedDuringMetadataOutage()
         print("PASS: Safari discovery login, restart, resource grants, provider flip, cancellation, identity cleanup, rotation recovery, safe logout, concurrent refresh")
     }
 }

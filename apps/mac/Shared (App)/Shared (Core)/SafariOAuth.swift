@@ -49,7 +49,7 @@ nonisolated struct SafariOAuthRequest: Sendable {
         guard let discovery, var components = URLComponents(url: discovery.authorizationEndpoint, resolvingAgainstBaseURL: false) else {
             throw SafariServiceError.message("Prepare Teak sign-in before opening your browser.")
         }
-        components.queryItems = [
+        let oauthItems = [
             URLQueryItem(name: "client_id", value: discovery.safariClientID),
             URLQueryItem(name: "redirect_uri", value: Self.callback),
             URLQueryItem(name: "response_type", value: "code"),
@@ -58,6 +58,8 @@ nonisolated struct SafariOAuthRequest: Sendable {
             URLQueryItem(name: "code_challenge", value: Self.base64URL(Data(SHA256.hash(data: Data(verifier.utf8))))),
             URLQueryItem(name: "state", value: state),
         ]
+        let reserved = Set(oauthItems.map(\.name) + ["resource"])
+        components.queryItems = (components.queryItems ?? []).filter { !reserved.contains($0.name) } + oauthItems
         if discovery.primary == "workos" {
             components.queryItems?.append(URLQueryItem(name: "resource", value: discovery.apiResource.absoluteString))
         }

@@ -63,7 +63,7 @@ final class MockHTTP: URLProtocol, @unchecked Sendable {
         let configuration = URLSessionConfiguration.ephemeral
         configuration.protocolClasses = [MockHTTP.self]
         return TeakSafariService(session: URLSession(configuration: configuration), credentials: store,
-            apiURL: URL(string: "https://test.teak.invalid")!,
+            apiURL: URL(string: "https://test.teak.invalid")!, trustedOrigins: ["https://test.teak.invalid", "https://auth.teak.invalid"],
             lockURL: lock ?? FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString))
     }
     static func tokens(expired: Bool = false) -> SafariOAuthTokens {

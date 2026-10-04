@@ -9,7 +9,10 @@ enum SafariDiscoveryFixtures {
     static var clientID: String { primary == "betterauth" ? "teak-safari" : "client-safari" }
 
     static func metadata(_ request: URLRequest) throws -> (Int, String)? {
-        guard let path = request.url?.path, path.contains(".well-known") else { return nil }
+        guard let path = request.url?.path,
+              path == "/.well-known/oauth-protected-resource/mcp"
+                || path == "/.well-known/teak-oauth-clients.json"
+                || path == "/.well-known/oauth-authorization-server/\(primary)" else { return nil }
         if unavailable { return (503, "{}") }
         let document: [String: Any]
         switch path {
