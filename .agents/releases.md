@@ -39,31 +39,18 @@ Retries verify both npm metadata and the downloaded tarball against that
 artifact; only an explicit registry version 404 permits publication.
 
 The first SDK release uses the same next-patch lockstep tag. npm requires an
-existing package before configuring trust; staging a new package publishes
-a placeholder, so use the explicit one-time bootstrap instead:
+existing package before configuring trust. With explicit approval, use the
+isolated local npm login to stage the reviewed SDK tarball and reserve its name.
+npm creates a public `0.0.0-stage` placeholder; do not approve the staged SDK
+version. Configure trusted publishing for repository `praveenjuge/teak`, workflow
+`sdk-release.yml`, environment `npm-sdk-release`, allowing direct publication.
+Protect that GitHub environment with human review and version-tag restrictions.
+The first real release and all later releases use OIDC with verified provenance.
+No npm credential is stored in GitHub, and no token fallback is supported.
 
-1. Obtain approval before creating a temporary npm credential or granting
-   GitHub access to it. An unpublished unscoped package may require access
-   to all packages rather than an exact package restriction. Use the
-   shortest expiry, package publish permission with bypass 2FA for the
-   unattended bootstrap step, and no organization access.
-2. Configure GitHub environment `npm-sdk-bootstrap` with required human
-   review and deployment restricted to version tags. Store the approved
-   credential only as its `NPM_SDK_BOOTSTRAP_TOKEN` environment secret.
-3. Manually dispatch `SDK Release` on the immutable release tag with
-   `bootstrap=true`. Bootstrap rejects any existing `teak-sdk` package;
-   the secret is exposed only to its publication step. The canonical
-   publisher keeps it in memory and writes only an environment placeholder.
-4. Verify the published tarball and provenance, then configure npm trust
-   for repository `praveenjuge/teak`, workflow `sdk-release.yml`, environment
-   `npm-sdk-release`, allowing direct `npm publish` through interactive 2FA.
-5. Revoke the temporary npm credential and remove the GitHub bootstrap
-   secret. Subsequent releases use `bootstrap=false` and OIDC; they reject
-   inherited credentials and never fall back to the bootstrap token.
-
-Account setup and credential storage require separate approval. See
-[npm trusted publishing](https://docs.npmjs.com/trusted-publishers/) and
-[provenance publication](https://docs.npmjs.com/generating-provenance-statements/).
+Account setup requires separate approval. See
+[npm trust prerequisites](https://docs.npmjs.com/cli/v11/commands/npm-trust/) and
+[staged publishing](https://docs.npmjs.com/staged-publishing/).
 
 To retry, dispatch `SDK Release` on the existing immutable version tag.
 An already published version passes only when its bytes match. A conflict,

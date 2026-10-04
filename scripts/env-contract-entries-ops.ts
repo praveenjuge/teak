@@ -235,26 +235,6 @@ export const OPS_ENTRIES: EnvVarSpec[] = [
     required: false,
   }),
   // Release secrets (GitHub-hosted, never local defaults).
-  spec("NPM_SDK_BOOTSTRAP_TOKEN", {
-    owners: ["teak-release"],
-    targets: ["release"],
-    profiles: ["production"],
-    secret: true,
-    validation: "string",
-    providers: ["github-secrets"],
-    required: false,
-    note: "Temporary npm-sdk-bootstrap environment credential; only the approved first SDK publication consumes it.",
-  }),
-  spec("SDK_BOOTSTRAP", {
-    owners: ["teak-release"],
-    targets: ["release"],
-    profiles: ["production"],
-    secret: false,
-    validation: "boolean",
-    providers: ["workflow"],
-    required: false,
-    note: "Derived from the SDK Release bootstrap dispatch input; defaults to false.",
-  }),
   spec("TEAK_SDK_RELEASE_ARTIFACT", {
     owners: ["teak-release"],
     targets: ["release"],

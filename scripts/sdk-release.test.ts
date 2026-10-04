@@ -6,7 +6,6 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { serve, spawn } from "bun";
 import {
-  assertInitialPackage,
   inspectPublished,
   provenanceReceipt,
   publicationInvocation,
@@ -41,48 +40,23 @@ const server = serve({
 afterAll(() => server.stop(true));
 const registry = server.url.origin;
 
-test("bootstrap requires explicit manual dispatch on an exact version tag", () => {
-  const context = {
-    bootstrap: "true",
-    event: "workflow_dispatch",
-    refType: "tag",
-    refName: "v1.0.1",
-  };
-  expect(publicationMode(context)).toBe("bootstrap");
-  expect(
-    publicationMode({ ...context, bootstrap: "false", event: "push" })
-  ).toBe("oidc");
-  expect(() => publicationMode({ ...context, event: "push" })).toThrow(
-    "manual tag dispatch"
+test("OIDC publication requires an exact immutable version tag", () => {
+  expect(publicationMode({ refType: "tag", refName: "v1.0.1" })).toBe("oidc");
+  expect(() => publicationMode({ refType: "branch", refName: "main" })).toThrow(
+    "immutable version tag"
   );
   expect(() =>
-    publicationMode({ ...context, refType: "branch", refName: "main" })
-  ).toThrow("immutable version tag");
-  expect(() =>
-    publicationMode({ ...context, refName: "v1.0.1-preview" })
+    publicationMode({ refType: "tag", refName: "v1.0.1-preview" })
   ).toThrow();
-  expect(() => publicationMode({ ...context, bootstrap: "yes" })).toThrow(
-    "explicitly"
-  );
 });
 
-test("ordinary OIDC cannot inherit or fall back to the bootstrap credential", () => {
-  expect(publisherEnvironment("oidc", { PATH: "/bin" })).toEqual({
-    PATH: "/bin",
-  });
-  expect(() =>
-    publisherEnvironment("oidc", { BOOTSTRAP_AUTH_TOKEN: "test-only" })
-  ).toThrow("forbidden outside bootstrap");
-  expect(() =>
-    publisherEnvironment("oidc", { NODE_AUTH_TOKEN: "test-only" })
-  ).toThrow("Inherited npm credentials");
-  expect(() => publisherEnvironment("bootstrap", {})).toThrow("missing");
-  expect(
-    publisherEnvironment("bootstrap", {
-      PATH: "/bin",
-      BOOTSTRAP_AUTH_TOKEN: "test-only",
-    })
-  ).toEqual({ PATH: "/bin", NODE_AUTH_TOKEN: "test-only" });
+test("OIDC cannot inherit or fall back to any npm credential", () => {
+  expect(publisherEnvironment({ PATH: "/bin" })).toEqual({ PATH: "/bin" });
+  for (const name of ["BOOTSTRAP_AUTH_TOKEN", "NODE_AUTH_TOKEN", "NPM_TOKEN"]) {
+    expect(() => publisherEnvironment({ [name]: "test-only" })).toThrow(
+      "Inherited npm credentials"
+    );
+  }
 });
 
 test("publisher rejects alternate npm authentication and config selectors", () => {
@@ -93,27 +67,10 @@ test("publisher rejects alternate npm authentication and config selectors", () =
     "NPM_CONFIG_GLOBALCONFIG",
     "npm_config_//registry.npmjs.org/:_authToken",
   ]) {
-    expect(() => publisherEnvironment("oidc", { [name]: "test-only" })).toThrow(
+    expect(() => publisherEnvironment({ [name]: "test-only" })).toThrow(
       "Inherited npm configuration"
     );
   }
-});
-
-test("bootstrap rejects an existing package even when the intended version is absent", async () => {
-  resetRegistry();
-  await expect(assertInitialPackage(registry)).rejects.toThrow(
-    "unpublished package"
-  );
-  status = 404;
-  metadata = { error: "package not found" };
-  await expect(assertInitialPackage(registry)).resolves.toBeUndefined();
-  status = 503;
-  await expect(assertInitialPackage(registry)).rejects.toThrow("HTTP 503");
-  status = 404;
-  metadata = {};
-  await expect(assertInitialPackage(registry)).rejects.toThrow(
-    "invalid missing-package"
-  );
 });
 
 function resetRegistry() {
@@ -382,12 +339,12 @@ test("publication does not transmit inherited credentials to a local registry", 
       join(poisoned, ".npmrc"),
       `//${host}/:_authToken=test-only-never-transmit\n`
     );
-    const environment = publisherEnvironment("oidc", {
+    const environment = publisherEnvironment({
       PATH: process.env.PATH,
       HOME: poisoned,
     });
     const invoke = async (isolated: boolean) => {
-      const invocation = publicationInvocation("oidc", environment);
+      const invocation = publicationInvocation(environment);
       const flags = isolated
         ? invocation.flags.filter((flag) => !flag.startsWith("--registry="))
         : [];

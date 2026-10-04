@@ -5,12 +5,6 @@ on:
     tags:
       - "v*"
   workflow_dispatch:
-    inputs:
-      bootstrap:
-        description: "First package publication with approved temporary credential"
-        type: boolean
-        required: true
-        default: false
 
 concurrency:
   group: sdk-release-${{ github.ref }}
@@ -24,9 +18,7 @@ jobs:
   publish:
     runs-on: ubuntu-24.04
     timeout-minutes: 15
-    environment: ${{ inputs.bootstrap && 'npm-sdk-bootstrap' || 'npm-sdk-release' }}
-    env:
-      SDK_BOOTSTRAP: ${{ inputs.bootstrap && 'true' || 'false' }}
+    environment: npm-sdk-release
     steps:
       - name: Checkout immutable release
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -75,13 +67,7 @@ jobs:
         run: node scripts/sdk-release.mjs check "$RUNNER_TEMP/sdk-release/pack.json"
 
       - name: Publish exact artifact through npm OIDC
-        if: steps.registry.outputs.should_publish == 'true' && !inputs.bootstrap
-        run: node scripts/sdk-release.mjs publish "$RUNNER_TEMP/sdk-release/pack.json"
-
-      - name: Bootstrap first publication with approved credential
-        if: steps.registry.outputs.should_publish == 'true' && inputs.bootstrap
-        env:
-          BOOTSTRAP_AUTH_TOKEN: ${{ secrets.NPM_SDK_BOOTSTRAP_TOKEN }}
+        if: steps.registry.outputs.should_publish == 'true'
         run: node scripts/sdk-release.mjs publish "$RUNNER_TEMP/sdk-release/pack.json"
 
       - name: Verify published metadata and downloaded tarball

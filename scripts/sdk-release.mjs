@@ -13,63 +13,40 @@ import { assertPatchBump, parseVersion } from "./release-version.mjs";
 
 const registry = "https://registry.npmjs.org";
 const maxTarballBytes = 10 * 1024 * 1024;
-// biome-ignore lint/suspicious/noTemplateCurlyInString: npm interpolates the environment placeholder; never persist the credential.
-const bootstrapNpmrc = "//registry.npmjs.org/:_authToken=${NODE_AUTH_TOKEN}\n";
-
-export function publicationMode({ bootstrap, event, refType, refName }) {
-  if (!["true", "false"].includes(bootstrap)) {
-    throw new Error("SDK_BOOTSTRAP must explicitly be true or false.");
-  }
+export function publicationMode({ refType, refName }) {
   if (refType !== "tag" || !refName?.startsWith("v")) {
     throw new Error("SDK publication requires an immutable version tag.");
   }
   parseVersion(refName.slice(1));
-  if (bootstrap === "true" && event !== "workflow_dispatch") {
-    throw new Error("Bootstrap requires an explicit manual tag dispatch.");
-  }
-  return bootstrap === "true" ? "bootstrap" : "oidc";
+  return "oidc";
 }
 
-export function publisherEnvironment(mode, source) {
-  const {
-    BOOTSTRAP_AUTH_TOKEN: token,
-    NODE_AUTH_TOKEN,
-    NPM_TOKEN,
-    ...environment
-  } = source;
-  for (const [name, value] of Object.entries(environment)) {
+export function publisherEnvironment(source) {
+  for (const [name, value] of Object.entries(source)) {
     if (/^npm_config_/i.test(name) && value) {
       throw new Error(
         "Inherited npm configuration is forbidden for SDK publication."
       );
     }
-  }
-  if (NODE_AUTH_TOKEN || NPM_TOKEN) {
-    throw new Error(
-      "Inherited npm credentials are forbidden for SDK publication."
-    );
-  }
-  if (mode === "bootstrap") {
-    if (!token?.trim()) {
-      throw new Error("Approved bootstrap credential is missing.");
+    if (
+      ["BOOTSTRAP_AUTH_TOKEN", "NODE_AUTH_TOKEN", "NPM_TOKEN"].includes(name) &&
+      value
+    ) {
+      throw new Error(
+        "Inherited npm credentials are forbidden for SDK publication."
+      );
     }
-    return { ...environment, NODE_AUTH_TOKEN: token };
   }
-  if (mode !== "oidc" || token) {
-    throw new Error("Temporary credentials are forbidden outside bootstrap.");
-  }
-  return environment;
+  return { ...source };
 }
 
-export function publicationInvocation(mode, environment) {
+export function publicationInvocation(environment) {
   const directory = mkdtempSync(
     join(environment.RUNNER_TEMP ?? tmpdir(), "sdk-publisher-config-")
   );
   const userConfig = join(directory, "npmrc");
   const globalConfig = join(directory, "global.npmrc");
-  writeFileSync(userConfig, mode === "bootstrap" ? bootstrapNpmrc : "", {
-    mode: 0o600,
-  });
+  writeFileSync(userConfig, "", { mode: 0o600 });
   writeFileSync(globalConfig, "", { mode: 0o600 });
   return {
     cwd: directory,
@@ -80,19 +57,6 @@ export function publicationInvocation(mode, environment) {
       `--globalconfig=${globalConfig}`,
     ],
   };
-}
-
-export async function assertInitialPackage(registryUrl = registry) {
-  const response = await request(`${registryUrl}/teak-sdk`);
-  if (response.status !== 404) {
-    throw new Error(
-      `Bootstrap requires an unpublished package; registry returned HTTP ${response.status}.`
-    );
-  }
-  const missing = await response.json();
-  if (typeof missing.error !== "string") {
-    throw new Error("Registry returned an invalid missing-package response.");
-  }
 }
 
 export function validateRelease(repoRoot, refType, refName) {
@@ -311,7 +275,7 @@ export function verifyProvenance(artifact, metadataPath) {
   );
   const { BOOTSTRAP_AUTH_TOKEN, NODE_AUTH_TOKEN, NPM_TOKEN, ...source } =
     process.env;
-  const environment = publisherEnvironment("oidc", source);
+  const environment = publisherEnvironment(source);
   const flags = [
     `--userconfig=${userConfig}`,
     `--globalconfig=${globalConfig}`,
@@ -360,9 +324,7 @@ export function verifyProvenance(artifact, metadataPath) {
 
 async function main() {
   const [command, metadataPath] = process.argv.slice(2);
-  const mode = publicationMode({
-    bootstrap: process.env.SDK_BOOTSTRAP,
-    event: process.env.GITHUB_EVENT_NAME,
+  publicationMode({
     refType: process.env.GITHUB_REF_TYPE,
     refName: process.env.GITHUB_REF_NAME,
   });
@@ -388,8 +350,6 @@ async function main() {
     const published = await inspectPublished(artifact);
     if (published) {
       verifyProvenance(artifact, metadataPath);
-    } else if (mode === "bootstrap") {
-      await assertInitialPackage();
     }
     if (!process.env.GITHUB_OUTPUT) {
       throw new Error(
@@ -410,7 +370,7 @@ async function main() {
       process.env.GITHUB_REF_TYPE,
       process.env.GITHUB_REF_NAME
     );
-    const environment = publisherEnvironment(mode, process.env);
+    const environment = publisherEnvironment(process.env);
     if (await inspectPublished(artifact)) {
       verifyProvenance(artifact, metadataPath);
       console.log(
@@ -418,10 +378,7 @@ async function main() {
       );
       return;
     }
-    if (mode === "bootstrap") {
-      await assertInitialPackage();
-    }
-    const invocation = publicationInvocation(mode, environment);
+    const invocation = publicationInvocation(environment);
     execFileSync(
       "npm",
       [
