@@ -285,6 +285,7 @@ describe("Phase 1 identity table", () => {
       },
     });
     const authenticated = t.withIdentity({
+      issuer: process.env.CONVEX_SITE_URL,
       subject: user._id,
       sessionId: session._id,
     });

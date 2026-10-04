@@ -1,7 +1,20 @@
-import { mock } from "bun:test";
+import { afterEach, beforeEach, mock } from "bun:test";
 import { getFunctionName } from "convex/server";
 
+const originalConvexSiteUrl = process.env.CONVEX_SITE_URL;
+beforeEach(() => {
+  process.env.CONVEX_SITE_URL ??= "https://session-tests.convex.site";
+});
+afterEach(() => {
+  if (originalConvexSiteUrl === undefined) {
+    delete process.env.CONVEX_SITE_URL;
+  } else {
+    process.env.CONVEX_SITE_URL = originalConvexSiteUrl;
+  }
+});
+
 interface Identity {
+  issuer?: string;
   sessionId?: string;
   subject: string;
 }
@@ -24,7 +37,11 @@ export function withTestSession<T extends TestContext>(
   const identity = async () => {
     const user = await auth.getUserIdentity();
     return user
-      ? { ...user, sessionId: user.sessionId ?? "test-session" }
+      ? {
+          ...user,
+          issuer: user.issuer ?? process.env.CONVEX_SITE_URL,
+          sessionId: user.sessionId ?? "test-session",
+        }
       : null;
   };
   const sourceRunQuery = ctx.runQuery;

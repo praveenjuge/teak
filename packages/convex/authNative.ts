@@ -308,7 +308,8 @@ export const createNativeAuthCode = mutation({
   handler: async (ctx, args) => {
     const user = await getSessionUser(ctx);
     const sessionId =
-      user && typeof user.identity.sessionId === "string"
+      user?.provider === "betterauth" &&
+      typeof user.identity.sessionId === "string"
         ? user.identity.sessionId
         : null;
     if (!(user?.teakUserId && sessionId)) {
