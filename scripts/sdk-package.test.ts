@@ -2,6 +2,7 @@ import { expect, test } from "bun:test";
 import { mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { fileURLToPath } from "node:url";
 import { serve, spawn } from "bun";
 
 test("packed SDK installs and discovers both providers outside the monorepo", async () => {
@@ -33,7 +34,7 @@ test("packed SDK installs and discovers both providers outside the monorepo", as
     });
     return stdout;
   };
-  const root = new URL("..", import.meta.url).pathname;
+  const root = fileURLToPath(new URL("..", import.meta.url));
   const workspace = join(root, "packages/sdk");
   await run([process.execPath, "--no-env-file", "run", "build"], workspace);
   const packed = JSON.parse(
