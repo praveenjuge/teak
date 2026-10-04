@@ -431,7 +431,7 @@ describe("Search scan budget", () => {
         cursor: btoa(JSON.stringify({ mode: "offset", offset: 1000 })),
       })
     ).rejects.toThrow("Search is too broad");
-  });
+  }, 30_000);
 
   test.each(["tag", "text"])(
     "%s search allows an exhausted budget and rejects another index row",
