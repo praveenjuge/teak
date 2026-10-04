@@ -27,6 +27,25 @@ timeouts, unsafe URLs, malformed/oversized responses, and loopback development.
 Removing issuer validation causes its regression to fail. Gateway tests and the
 207-test web suite pass. This is a foundation, not a completed client release.
 
+## Mobile session implementation in progress
+
+The canonical mobile source now contains the AuthKit session manager and Expo
+system-browser PKCE flow. Only the public client ID is sent; provider tokens are
+not retained. Secure storage uses a per-environment client key, saves rotated
+credentials before publishing, and serializes writes with sign-out. Expired tokens
+are never returned during an outage; reconnect can retry the retained refresh token.
+Browser cancellation preserves a concurrent refresh, while sign-out cancels pending
+callbacks and late refreshes. Callback state and S256 PKCE are checked before exchange.
+The Expo browser supports AuthKit, Google and Apple with `teak://auth/callback`.
+
+All 214 mobile tests and typecheck pass. Removing sign-out invalidation fails its
+late-refresh regression. Browser tests mock only Expo hardware boundaries and use
+the real session manager. This source is not yet connected to the app provider or
+UI. Backend mode/config delivery, registration of the canonical redirect, Teak
+server revocation, offline/bootstrap wiring and canonical runtime proof remain.
+The logout browser opener alone does not establish server revocation. No WorkOS
+production activation or store release has occurred.
+
 ## Remaining work
 
 - Mobile AuthKit PKCE, secure refresh rotation, bootstrap/offline recovery, and
