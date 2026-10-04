@@ -1,7 +1,7 @@
 import { expect, test } from "bun:test";
 import { mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { serve, spawn } from "bun";
 
@@ -36,21 +36,26 @@ test("packed SDK installs and discovers both providers outside the monorepo", as
   };
   const root = fileURLToPath(new URL("..", import.meta.url));
   const workspace = join(root, "packages/sdk");
-  await run([process.execPath, "--no-env-file", "run", "build"], workspace);
-  const packed = JSON.parse(
-    await run(
-      [
-        "npm",
-        "pack",
-        "--json",
-        "--ignore-scripts",
-        "--pack-destination",
-        artifact,
-      ],
-      workspace
-    )
-  );
-  const tarball = join(artifact, packed[0].filename);
+  let tarball = process.env.TEAK_SDK_RELEASE_ARTIFACT;
+  if (tarball) {
+    tarball = resolve(tarball);
+  } else {
+    await run([process.execPath, "--no-env-file", "run", "build"], workspace);
+    const packed = JSON.parse(
+      await run(
+        [
+          "npm",
+          "pack",
+          "--json",
+          "--ignore-scripts",
+          "--pack-destination",
+          artifact,
+        ],
+        workspace
+      )
+    );
+    tarball = join(artifact, packed[0].filename);
+  }
   writeFileSync(
     join(consumer, "package.json"),
     JSON.stringify({
@@ -170,7 +175,12 @@ console.log(JSON.stringify(auth));
       evidence.push(auth);
     }
     writeFileSync(
-      join(artifact, "proof.json"),
+      join(
+        process.env.TEAK_SDK_RELEASE_ARTIFACT
+          ? resolve(tarball, "..")
+          : artifact,
+        "proof.json"
+      ),
       JSON.stringify({ tarball, evidence, typesValidated: true }, null, 2)
     );
   } finally {

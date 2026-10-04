@@ -1,0 +1,97 @@
+name: SDK Release
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+    inputs:
+      bootstrap:
+        description: "First package publication with approved temporary credential"
+        type: boolean
+        required: true
+        default: false
+
+concurrency:
+  group: sdk-release-${{ github.ref }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    environment: ${{ inputs.bootstrap && 'npm-sdk-bootstrap' || 'npm-sdk-release' }}
+    env:
+      SDK_BOOTSTRAP: ${{ inputs.bootstrap && 'true' || 'false' }}
+    steps:
+      - name: Checkout immutable release
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version-file: package.json
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+        with:
+          bun-version-file: package.json
+
+      - name: Validate tag and next-patch lockstep release
+        run: |
+          node scripts/sdk-release.mjs validate
+          version="${GITHUB_REF_NAME#v}"
+          node scripts/release-version.mjs lockstep "$version"
+
+      - name: Install current npm with trusted publishing support
+        run: |
+          npm install --global npm@latest --registry=https://registry.npmjs.org
+          npm --version
+
+      - name: Install frozen dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Verify release guards and SDK types
+        run: |
+          bun --no-env-file test scripts/sdk-release.test.ts
+          bun run --filter teak-sdk typecheck
+
+      - name: Pack SDK and exercise exact artifact in independent consumer
+        run: |
+          mkdir -p "$RUNNER_TEMP/sdk-release"
+          bun run --cwd packages/sdk build
+          npm pack ./packages/sdk --ignore-scripts --json --pack-destination "$RUNNER_TEMP/sdk-release" > "$RUNNER_TEMP/sdk-release/pack.json"
+          version="${GITHUB_REF_NAME#v}"
+          TEAK_SDK_RELEASE_ARTIFACT="$RUNNER_TEMP/sdk-release/teak-sdk-${version}.tgz" bun --no-env-file test scripts/sdk-package.test.ts
+
+      - name: Check npm version and verify existing artifact
+        id: registry
+        run: node scripts/sdk-release.mjs check "$RUNNER_TEMP/sdk-release/pack.json"
+
+      - name: Publish exact artifact through npm OIDC
+        if: steps.registry.outputs.should_publish == 'true' && !inputs.bootstrap
+        run: node scripts/sdk-release.mjs publish "$RUNNER_TEMP/sdk-release/pack.json"
+
+      - name: Bootstrap first publication with approved credential
+        if: steps.registry.outputs.should_publish == 'true' && inputs.bootstrap
+        env:
+          BOOTSTRAP_AUTH_TOKEN: ${{ secrets.NPM_SDK_BOOTSTRAP_TOKEN }}
+        run: node scripts/sdk-release.mjs publish "$RUNNER_TEMP/sdk-release/pack.json"
+
+      - name: Verify published metadata and downloaded tarball
+        run: node scripts/sdk-release.mjs verify "$RUNNER_TEMP/sdk-release/pack.json"
+
+      - name: Retain packed artifact and integrity evidence
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: sdk-${{ github.ref_name }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/sdk-release/
+          if-no-files-found: ignore
+          retention-days: 30

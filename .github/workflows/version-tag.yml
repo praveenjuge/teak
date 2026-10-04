@@ -99,6 +99,10 @@ jobs:
       fail-fast: false
       matrix:
         include:
+          - name: SDK
+            workflow: sdk-release.yml
+            apple: false
+            title_prefix: ""
           - name: CLI
             workflow: cli-release.yml
             apple: false
