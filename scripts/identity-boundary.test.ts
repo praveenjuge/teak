@@ -8,8 +8,14 @@ const root = resolve(import.meta.dir, "..");
 const lint = (source: string) => {
   // Keep a repeatable fixture artifact without touching backend source files.
   const directory = mkdtempSync(join(tmpdir(), "teak-identity-lint-"));
-  const config = readFileSync(join(root, "biome.jsonc"), "utf8")
-    .replace("{", '{ "vcs": { "enabled": false },')
+  const sourceConfig = readFileSync(
+    join(root, "biome.jsonc"),
+    "utf8"
+  ).trimStart();
+  if (!sourceConfig.startsWith("{")) {
+    throw new Error("Expected a Biome configuration object");
+  }
+  const config = `{ "vcs": { "enabled": false },${sourceConfig.slice(1)}`
     .replaceAll(/"ultracite\/biome\/(core|react|next)"/g, (value) =>
       JSON.stringify(Bun.resolveSync(JSON.parse(value), root))
     )
