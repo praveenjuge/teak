@@ -116,6 +116,19 @@ describe("durable Connect consent authorization", () => {
     expect(await records(t)).toEqual(before);
   });
 
+  test("a consent cannot switch provider identity while keeping its owner and client", async () => {
+    const t = setup();
+    const owner = await seed(t);
+    await authorize(t);
+    const before = await records(t);
+    await t.run((ctx) => ctx.db.patch(owner, { workosUserId: "user_CHANGED" }));
+    expect(await authorize(t, { workosUserId: "user_CHANGED" })).toEqual({
+      status: "denied",
+      reason: "consent_binding_conflict",
+    });
+    expect(await records(t)).toEqual(before);
+  });
+
   test("different consents remain independently revocable", async () => {
     const t = setup();
     await seed(t);
