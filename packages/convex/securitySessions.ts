@@ -330,7 +330,8 @@ export async function getSessionProfile(
         emailVerified: provider.emailVerified,
         name:
           provider.name ??
-          [provider.firstName, provider.lastName].filter(Boolean).join(" "),
+          ([provider.firstName, provider.lastName].filter(Boolean).join(" ") ||
+            null),
         image: provider.profilePictureUrl ?? null,
       },
     };
