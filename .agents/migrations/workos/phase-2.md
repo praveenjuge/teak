@@ -53,7 +53,9 @@ configuration failure hides the splash and exposes retry, and expired credential
 survive an outage and refresh on reconnect. A service outage while connectivity
 stays online retries retained credentials with a one-second initial delay, doubling
 up to one minute; the mounted fixture recovers without a connectivity toggle or
-another sign-in. Inverting the completion guard leaves
+another sign-in. Failed Keychain reads preserve the credential and signal an
+unresolved stored session; foregrounding after unlocking restores the original
+session without restarting the app. Inverting the completion guard leaves
 the fixture loading, proving that regression is observable. Provider rollback clears
 the stored WorkOS session before selecting Better Auth. Evidence and the repeatable
 fixture are retained with the migration backup checkpoint.

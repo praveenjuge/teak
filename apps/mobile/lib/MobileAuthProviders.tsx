@@ -11,7 +11,7 @@ import {
   useState,
   useSyncExternalStore,
 } from "react";
-import { Platform } from "react-native";
+import { AppState, Platform } from "react-native";
 import { hasStoredBetterAuthSessionCookie } from "./auth-bootstrap";
 import { authClient, convexAuthClient } from "./auth-client";
 import type { PublicAuthMode } from "./auth-mode";
@@ -125,6 +125,22 @@ export function WorkosAuthProvider({
       alive = false;
     };
   }, [session]);
+  useEffect(() => {
+    if (!hydrationFailed) {
+      return;
+    }
+    // Keychain can be unavailable while the device is locked. Retain the cache
+    // and retry when the app returns to the foreground after unlocking.
+    const subscription = AppState.addEventListener("change", (state) => {
+      if (state === "active") {
+        void session
+          .hydrate()
+          .then(() => setHydrationFailed(false))
+          .catch(() => {});
+      }
+    });
+    return () => subscription.remove();
+  }, [hydrationFailed, session]);
   const value = useMemo(
     () => ({
       mode,
@@ -136,7 +152,7 @@ export function WorkosAuthProvider({
           }
         : null,
       isPending: snapshot.isLoading && !hydrationFailed,
-      hasStoredSession: snapshot.user !== null,
+      hasStoredSession: snapshot.user !== null || hydrationFailed,
       refreshSession: async () => {
         await session.fetchAccessToken({ forceRefreshToken: true });
         setHydrationFailed(false);
