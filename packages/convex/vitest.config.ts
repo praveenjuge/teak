@@ -13,6 +13,7 @@ export default defineConfig({
       "./workosUsers.test.ts",
       "./workosLifecycle.test.ts",
       "./workosIdentity.test.ts",
+      "./workosWebhook.test.ts",
       "./identityBearer.test.ts",
       "./signupFreeze.test.ts",
       "./workosReadiness.test.ts",

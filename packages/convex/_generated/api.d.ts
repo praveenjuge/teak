@@ -202,6 +202,7 @@ import type * as workflows_steps_screenshot_retryable from "../workflows/steps/s
 import type * as workosIdentity from "../workosIdentity.js";
 import type * as workosLifecycle from "../workosLifecycle.js";
 import type * as workosUsers from "../workosUsers.js";
+import type * as workosWebhook from "../workosWebhook.js";
 
 import type {
   ApiFromModules,
@@ -404,6 +405,7 @@ declare const fullApi: ApiFromModules<{
   workosIdentity: typeof workosIdentity;
   workosLifecycle: typeof workosLifecycle;
   workosUsers: typeof workosUsers;
+  workosWebhook: typeof workosWebhook;
 }>;
 
 /**
