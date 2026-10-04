@@ -83,7 +83,9 @@ describe("auth profile", () => {
       // subscription re-runs against a just-cleared session, and a thrown
       // result there crashed the page (Minified React error #310). The query
       // must swallow the error and resolve to null instead of rejecting.
-      mockSafeGetAuthUser.mockRejectedValue(new ConvexError("Unauthenticated"));
+      mockSafeGetAuthUser.mockRejectedValue(
+        new ConvexError("Profile lookup failed")
+      );
       const result = await getAuthUserHandler(
         withProfileSession({}, mockSafeGetAuthUser)
       );

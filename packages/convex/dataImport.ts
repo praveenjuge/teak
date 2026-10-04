@@ -21,7 +21,7 @@ import {
 } from "./schema";
 import {
   getSessionUser,
-  requireTeakUserId,
+  resolveStoredUserId,
   type TeakUserId,
 } from "./securitySessions";
 
@@ -438,6 +438,7 @@ export const createPendingBatch = internalMutation({
   returns: v.object({
     retryAt: v.optional(v.number()),
     limitReached: v.boolean(),
+    failureClass: v.optional(v.literal("identity_mapping_unavailable")),
   }),
   handler: async (ctx, { jobId, itemIds }) => {
     const job = await ctx.db.get(jobId);
@@ -447,7 +448,20 @@ export const createPendingBatch = internalMutation({
     if (job.cancelRequested) {
       return { limitReached: false };
     }
-    const userId = await requireTeakUserId(ctx, job.userId);
+    const userId = await resolveStoredUserId(ctx, job.userId);
+    if (!userId) {
+      await ctx.db.patch(jobId, {
+        status: "failed",
+        phase: "Import failed",
+        failureClass: "identity_mapping_unavailable",
+        completedAt: Date.now(),
+        updatedAt: Date.now(),
+      });
+      return {
+        limitReached: false,
+        failureClass: "identity_mapping_unavailable" as const,
+      };
+    }
     let created = 0,
       skipped = 0,
       failed = 0;

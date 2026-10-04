@@ -80,3 +80,16 @@ Admin seeding is prepared but not yet run live. Email-based admin authorization
 stays active until both deployment seeds are verified; a following change will
 switch authorization to the stable role. The production shadow week has not
 started. Phase 1b remains a reviewed candidate until its PR/checks/deployments pass.
+
+Development shadow candidate deployed to `reminiscent-kangaroo-59` on 2026-10-04.
+Both directions still cover all 142 users with zero missing/mismatched rows.
+Real Google sign-in returns the existing 201-card Pro account in Chrome. The user
+approved `hello@praveenjuge.com` as admin in both environments; its dev role is
+seeded. Production admin seeding remains pending the production deployment.
+
+PR #488 review follow-ups cover real OAuth and API-key mapping/revocation,
+upload-action denials, upload URL/finalized owner consistency, internal creation,
+Raycast and idempotent restore guards, and terminal import denial. The full backend
+passes 1,851 unit and 174 component integration tests. All 29 lint fixtures pass.
+Removing the profile fallback fails its regression test. The import workflow now
+finalizes failed mapping resolution rather than leaving an active job stranded.

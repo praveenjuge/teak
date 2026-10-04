@@ -114,6 +114,9 @@ export const importWorkflow = workflow.define({
         internalAny.dataImport.createPendingBatch,
         { jobId, itemIds: items.map((item: any) => item._id) }
       );
+      if (result.failureClass) {
+        return finalize(step, jobId, "failed", result.failureClass);
+      }
       if (result.limitReached) {
         return finalize(
           step,

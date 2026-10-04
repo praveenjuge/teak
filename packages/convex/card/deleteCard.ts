@@ -85,11 +85,12 @@ export const restoreCardForUser = internalMutation({
   args: { cardId: v.id("cards"), userId: v.string() },
   returns: v.null(),
   handler: async (ctx, args) => {
+    const userId = await requireTeakUserId(ctx, args.userId);
     const card = await ctx.db.get("cards", args.cardId);
     if (!card) {
       throw new ConvexError({ code: "NOT_FOUND", message: "Card not found" });
     }
-    if (card.userId !== args.userId) {
+    if (card.userId !== userId) {
       throw new ConvexError({
         code: "FORBIDDEN",
         message: "Not authorized to restore this card",
@@ -101,7 +102,7 @@ export const restoreCardForUser = internalMutation({
     }
     await updateCardFieldForUserHandler(ctx, {
       ...args,
-      userId: await requireTeakUserId(ctx, args.userId),
+      userId,
       field: "restore",
     });
     return null;

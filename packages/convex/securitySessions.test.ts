@@ -182,6 +182,40 @@ describe("Permanent identity shadow boundary", () => {
   beforeEach(() => vi.stubEnv("IDENTITY_RESOLVER_ENFORCE", "false"));
   afterEach(() => vi.unstubAllEnvs());
 
+  test("upload finalization denies revoked sessions and enforced missing mappings before storage work", async () => {
+    const { t, authenticated, current } = await setup();
+    const args = {
+      fileKey: "uncommitted/file.png",
+      fileName: "file.png",
+      fileSize: 128,
+      fileType: "image/png",
+    };
+    vi.stubEnv("IDENTITY_RESOLVER_ENFORCE", "true");
+    expect(
+      await authenticated.action(
+        api["card/uploadCardAction"].finalizeUploadedCard,
+        args
+      )
+    ).toEqual({ success: false, error: "User must be authenticated" });
+    await t.run((ctx) =>
+      ctx.db.insert("users", {
+        teakUserId: "owner",
+        email: "owner@example.com",
+        emailVerified: true,
+      })
+    );
+    await authenticated.mutation(api.securitySessions.revokeSession, {
+      sessionId: current._id,
+    });
+    expect(
+      await authenticated.action(
+        api["card/uploadCardAction"].finalizeUploadedCard,
+        args
+      )
+    ).toEqual({ success: false, error: "User must be authenticated" });
+    expect(await t.run((ctx) => ctx.db.query("cards").collect())).toEqual([]);
+  });
+
   const privateCard = (t: Awaited<ReturnType<typeof setup>>["t"]) =>
     t.run((ctx) =>
       ctx.db.insert("cards", {

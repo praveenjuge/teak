@@ -76,8 +76,6 @@ export async function resolveStoredUserId(
     reason = "missing_mapping";
   } else if (row.deletedAt !== undefined) {
     reason = "deleted_user";
-  } else if (row.teakUserId !== ownerId) {
-    reason = "owner_mismatch";
   }
   if (reason) {
     console.warn("identity_resolver_mismatch", {

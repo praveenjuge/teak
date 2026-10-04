@@ -42,6 +42,40 @@ afterEach(() => {
 });
 
 describe("import orchestration through the worker", () => {
+  test("an enforced missing mapping stops the pending import batch with a terminal failure and no card or item changes", async () => {
+    vi.stubEnv("IDENTITY_RESOLVER_ENFORCE", "true");
+    const { t, jobId } = await setup();
+    const itemId = await t.run((ctx) =>
+      ctx.db.insert("importJobItems", {
+        jobId,
+        userId: "import-test",
+        sourceIndex: 0,
+        status: "pending",
+        type: "text",
+        content: "Must stay pending",
+        createdAt: 0,
+        updatedAt: 0,
+      })
+    );
+    expect(
+      await t.mutation(internal.dataImport.createPendingBatch, {
+        jobId,
+        itemIds: [itemId],
+      })
+    ).toEqual({
+      limitReached: false,
+      failureClass: "identity_mapping_unavailable",
+    });
+    expect(await t.run((ctx) => ctx.db.get(jobId))).toMatchObject({
+      status: "failed",
+      failureClass: "identity_mapping_unavailable",
+      completedAt: expect.any(Number),
+    });
+    expect(await t.run((ctx) => ctx.db.query("cards").collect())).toEqual([]);
+    const item = await t.run((ctx) => ctx.db.get(itemId));
+    expect(item).toMatchObject({ status: "pending" });
+    expect(item?.cardId).toBeUndefined();
+  });
   test("binds a legacy job once and rejects a different version on replay", async () => {
     const { t, jobId } = await setup();
     await t.run((ctx) => ctx.db.patch(jobId, { sourceEtag: undefined }));
