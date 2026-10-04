@@ -37,7 +37,9 @@ export type TeakApiErrorCode = (typeof ERROR_CODES)[number];
 export type FetchLike = typeof fetch;
 export interface TokenProvider {
   getAccessToken: () => Promise<string | null> | string | null;
-  onUnauthorized?: () => Promise<string | null> | string | null;
+  onUnauthorized?: (
+    rejectedToken: string
+  ) => Promise<string | null> | string | null;
 }
 
 export interface Card {
@@ -424,7 +426,7 @@ export const createTeakClient = (options: {
       retry &&
       options.tokenProvider.onUnauthorized
     ) {
-      const next = await options.tokenProvider.onUnauthorized();
+      const next = await options.tokenProvider.onUnauthorized(token);
       if (next) {
         return request(path, init, parser, false, next);
       }

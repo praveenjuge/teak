@@ -32,7 +32,8 @@ After installing globally, the `teak` command is available on your PATH. To try 
 
     Teak opens your browser to authorize the CLI. Approve the request on the
     consent screen, then return to the terminal. Existing CLI credentials stay
-    valid until you sign out or disconnect the app.
+    valid until you sign out or disconnect the app. A change to Teak’s sign-in
+    provider may require reconnecting.
   </Tab>
   <Tab title="API key">
     Set `TEAK_API_KEY` to skip interactive sign-in in scripts and CI:
@@ -50,6 +51,17 @@ teak logout
 ```
 
 `teak logout` revokes this installation's browser sign-in (if Teak is unreachable, credentials stay saved so you can retry). To disconnect every CLI installation at once, use **Settings → Security → Connections**. API keys are unaffected.
+
+The upcoming CLI release stores credentials separately for each API deployment. Local development
+cannot use or clear your production sign-in. If logout fails, retry it before
+signing in again so Teak can revoke the previous session.
+
+## SDK token providers
+
+The upcoming SDK’s `TokenProvider.onUnauthorized(rejectedToken: string)` receives the access token
+used by the request that returned 401. Return a refreshed or newer stored token
+to retry that request once, or `null` to stop. Compare the rejected token with
+the current session before refreshing; a late response may refer to an older token.
 
 ## Commands
 

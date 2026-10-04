@@ -88,6 +88,42 @@ alone does not establish server revocation. The fixture does not prove native UI
 real WorkOS service behavior. No WorkOS production activation or store release has
 occurred.
 
+## CLI discovery preparation
+
+The CLI now discovers authorization, token and revocation endpoints and its client
+ID. WorkOS authorization, code exchange and refresh include the API resource.
+Credential storage is scoped to the API deployment and bound to issuer and client
+ID; existing production Better Auth credentials remain usable. Development cannot
+read or clear the production installation's credentials.
+
+Refresh rotation persists before publishing. A private per-account process lock
+coordinates refresh, logout and credential replacement across CLI processes.
+Provider changes retain old credentials for explicit revocation while blocking API
+use. Stale 401 responses reuse a newer credential; the SDK passes the rejected
+request's token to its provider. Service outages retain credentials for retry.
+Sign-in rechecks metadata before code exchange, validates state as bytes and falls
+back when the first loopback port is occupied. Logout revokes at the saved provider
+endpoint after a provider switch, retains credentials on failure and cancels pending
+browser sign-ins. Reconnect revokes the previous grant before replacing it.
+Uncommitted grants are revoked if storage locking fails. Dead-owner recovery uses
+generation-bound sibling claims; stale contenders cannot wedge replacement locks.
+Unbound production credentials retain their original Teak revocation route after
+a provider switch, including failure retention and retry. Owner metadata publishes
+atomically; restrictive umasks do not weaken the permission regression. Missing or
+corrupt metadata and abandoned reclamation claims require manual inspection;
+uncertain locks are never reclaimed by age.
+
+All 69 CLI tests pass, including 45 randomized lifecycle/lock tests, with typecheck
+and executable build.
+Subprocess journeys use the real CLI, callback server, discovery and SDK with a
+controlled OAuth/API server and isolated credential-store boundary. Bypassing the process lock fails the two-process refresh regression; the same-client
+stale-401 and localhost regressions also failed before their corrections. Unsafe discovered endpoints are rejected
+before refresh or revocation transmits credentials; an endpoint move during
+browser sign-in uses refreshed metadata. The endpoint regression failed before
+the correction. This proves the controlled journeys;
+live Better Auth and WorkOS journeys, server consent revocation, registration and
+publication remain outstanding. No CLI release or provider activation has occurred.
+
 ## Chrome and Firefox preparation
 
 The extension reads validated discovery for authorization, token exchange,

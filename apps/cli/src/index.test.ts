@@ -120,7 +120,21 @@ describe("teak cli formatting", () => {
 
   test("requests refresh-capable OAuth scope during login", () => {
     const url = createAuthorizeUrl(
-      { authUrl: "https://app.teakvault.com" },
+      {
+        primary: "betterauth",
+        issuer: "https://app.teakvault.com",
+        authorizationEndpoint:
+          "https://app.teakvault.com/api/auth/mcp/authorize",
+        tokenEndpoint: "https://app.teakvault.com/api/auth/mcp/token",
+        resource: "https://teakvault.com/mcp",
+        clients: {
+          cli: "teak-cli",
+          raycast: "teak-raycast",
+          chrome: "teak-chrome",
+          firefox: "teak-firefox",
+          safari: "teak-safari",
+        },
+      },
       {
         codeChallenge: "challenge",
         redirectUri: "http://127.0.0.1:14210/oauth/callback",
