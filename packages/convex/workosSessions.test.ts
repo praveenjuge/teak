@@ -225,42 +225,50 @@ describe("WorkOS Convex sessions", () => {
       "User not found"
     );
   });
-  test("profile uses permanent ID, synced WorkOS email and provider name/image", async () => {
-    const t = setup();
-    await seed(t);
-    await t.mutation(components.workOSAuthKit.lib.onWebhookEvent, {
-      event: {
-        id: "evt_profile",
-        event: "user.updated",
-        createdAt: "2026-10-04T00:00:00.000Z",
-        data: {
-          id: "user_PROVIDER",
-          email: "component@example.com",
-          emailVerified: true,
-          firstName: "First",
-          lastName: "Last",
-          profilePictureUrl: "https://images.example.com/avatar.png",
-          externalId: "permanent-owner",
-          metadata: {},
-          createdAt: "2026-10-01T00:00:00.000Z",
-          updatedAt: "2026-10-04T00:00:00.000Z",
+  test.each([
+    { firstName: "First", lastName: "Last", expectedName: "First Last" },
+    { firstName: null, lastName: null, expectedName: null },
+  ])(
+    "profile preserves ownership/email and normalizes display name: $expectedName",
+    async ({ firstName, lastName, expectedName }) => {
+      const t = setup();
+      await seed(t);
+      await t.mutation(components.workOSAuthKit.lib.onWebhookEvent, {
+        event: {
+          id: "evt_profile",
+          event: "user.updated",
+          createdAt: "2026-10-04T00:00:00.000Z",
+          data: {
+            id: "user_PROVIDER",
+            email: "component@example.com",
+            emailVerified: true,
+            firstName,
+            lastName,
+            profilePictureUrl: "https://images.example.com/avatar.png",
+            externalId: "permanent-owner",
+            metadata: {},
+            createdAt: "2026-10-01T00:00:00.000Z",
+            updatedAt: "2026-10-04T00:00:00.000Z",
+          },
         },
-      },
-    });
-    expect(await client(t).run((ctx) => getSessionProfile(ctx))).toMatchObject({
-      teakUserId: "permanent-owner",
-      user: {
-        _id: "permanent-owner",
+      });
+      expect(
+        await client(t).run((ctx) => getSessionProfile(ctx))
+      ).toMatchObject({
+        teakUserId: "permanent-owner",
+        user: {
+          _id: "permanent-owner",
+          email: "workos@example.com",
+          name: expectedName,
+          image: "https://images.example.com/avatar.png",
+        },
+      });
+      expect(await client(t).query(api.billing.getUserInfo, {})).toEqual({
+        teakUserId: "permanent-owner",
         email: "workos@example.com",
-        name: "First Last",
-        image: "https://images.example.com/avatar.png",
-      },
-    });
-    expect(await client(t).query(api.billing.getUserInfo, {})).toEqual({
-      teakUserId: "permanent-owner",
-      email: "workos@example.com",
-    });
-  });
+      });
+    }
+  );
   test("WorkOS cannot enter legacy device, consent or native session paths", async () => {
     const t = setup();
     await seed(t);
