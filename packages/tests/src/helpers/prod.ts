@@ -138,6 +138,32 @@ const isRetryableActionabilityError = (error: unknown) =>
     error.message
   );
 
+// Firefox aborts a navigation when the previous one is still settling, for
+// example the post-login redirect, and page.goto throws NS_BINDING_ABORTED.
+// A second attempt lands normally, so retry only these abort errors.
+const isAbortedNavigationError = (error: unknown) =>
+  error instanceof Error &&
+  /NS_BINDING_ABORTED|net::ERR_ABORTED|frame was detached/.test(error.message);
+
+export const gotoApp = async (
+  page: Page,
+  path: string,
+  wait: (delayMs: number) => Promise<unknown> = sleep
+) => {
+  const maxAttempts = 3;
+  for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+    try {
+      await page.goto(appPath(path));
+      return;
+    } catch (error) {
+      if (attempt === maxAttempts || !isAbortedNavigationError(error)) {
+        throw error;
+      }
+      await wait(1000);
+    }
+  }
+};
+
 export const clickVisibleControl = async (
   locator: Locator,
   options: { timeout?: number } = {}
@@ -245,7 +271,7 @@ export const signIn = async (
   email: string,
   password = requirePassword()
 ) => {
-  await page.goto(appPath("/login"));
+  await gotoApp(page, "/login");
   const emailInput = page.getByLabel("Email");
   const canSignIn = await emailInput
     .waitFor({ state: "visible", timeout: 5000 })
@@ -284,7 +310,7 @@ export const openSecurity = async (
   page: Page,
   tab: "Connections" | "API keys" = "Connections"
 ) => {
-  await page.goto(appPath("/settings"));
+  await gotoApp(page, "/settings");
   const manageButton = settingsRow(page, "Security").getByRole("button", {
     name: "Manage",
   });
@@ -343,7 +369,7 @@ export const deleteAccountViaUi = async (page: Page, account: AccountState) => {
   if (account.deleted) {
     return;
   }
-  await page.goto(appPath("/settings"));
+  await gotoApp(page, "/settings");
   const deleteAccountButton = page.getByRole("button", {
     name: /delete your account/i,
   });
@@ -356,7 +382,7 @@ export const deleteAccountViaUi = async (page: Page, account: AccountState) => {
   if (!canDelete) {
     await signIn(page, account.email, passwordFor(account));
   }
-  await page.goto(appPath("/settings"));
+  await gotoApp(page, "/settings");
   await deleteAccountButton.click();
   await expect(
     page.getByRole("dialog", { name: "Delete Account" })
