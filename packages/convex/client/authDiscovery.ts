@@ -1,5 +1,6 @@
 import { isLocalDevelopmentHostname } from "../devUrls";
 import { readResponseTextWithinLimit } from "../shared/boundedResponse";
+import { WORKOS_RESOURCES } from "../shared/workosResources";
 
 export const OAUTH_SURFACES = [
   "cli",
@@ -188,7 +189,11 @@ export function discoverAuthServer(
         throw new Error("Missing OAuth client registration");
       }
     }
-    if (resource.resource !== `${site.origin}/mcp`) {
+    const expectedResource =
+      clientDocument.primary === "workos"
+        ? WORKOS_RESOURCES.mcp
+        : `${site.origin}/mcp`;
+    if (resource.resource !== expectedResource) {
       throw new Error("OAuth resource mismatch");
     }
     return Object.freeze({

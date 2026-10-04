@@ -67,7 +67,10 @@ const server = serve({
     }
     if (url.pathname === "/.well-known/oauth-protected-resource/mcp") {
       return Response.json({
-        resource: `${metadataApiOrigin ?? server.url.origin}/mcp`,
+        resource:
+          primary === "workos"
+            ? "https://teakvault.com/mcp"
+            : `${metadataApiOrigin ?? server.url.origin}/mcp`,
         authorization_servers: [issuer],
       });
     }
@@ -89,7 +92,7 @@ const server = serve({
       transmitted = body;
       expect(body.get("client_id")).toBe(clients().cli ?? null);
       expect(body.get("resource")).toBe(
-        primary === "workos" ? `${server.url.origin}/api` : null
+        primary === "workos" ? "https://teakvault.com/api" : null
       );
       if (body.get("grant_type") === "refresh_token") {
         if (
@@ -213,9 +216,13 @@ const login = async (
     clients().cli ?? null
   );
   expect(authorization.searchParams.get("code_challenge_method")).toBe("S256");
-  expect(authorization.searchParams.get("scope")).toContain("offline_access");
+  expect(authorization.searchParams.get("scope")).toBe(
+    primary === "workos"
+      ? "openid profile email offline_access"
+      : "profile email offline_access"
+  );
   expect(authorization.searchParams.get("resource")).toBe(
-    primary === "workos" ? `${server.url.origin}/api` : null
+    primary === "workos" ? "https://teakvault.com/api" : null
   );
   const callback = new URL(authorization.searchParams.get("redirect_uri")!);
   if (signoutBeforeCallback) {
@@ -294,9 +301,11 @@ test.each(["betterauth", "workos"] as const)(
     const result = await login();
     expect(result.code).toBe(0);
     expect(result.callbackStatus).toBe(200);
-    expect(JSON.parse(readFileSync(file, "utf8")).binding.issuer).toBe(
-      `${server.url.origin}/${primary}`
-    );
+    expect(JSON.parse(readFileSync(file, "utf8")).binding).toMatchObject({
+      apiUrl: server.url.origin,
+      issuer: `${server.url.origin}/${primary}`,
+      clientId: clients().cli,
+    });
     expect((await run(["auth", "status", "--json"])).code).toBe(0);
     expect((await run(["logout"])).code).toBe(0);
     expect(revoked).toBe(1);
@@ -347,7 +356,7 @@ test("CLI rotates expired credentials once for concurrent API requests", async (
   expect(await child.exited).toBe(0);
   expect(refreshes).toBe(1);
   expect(JSON.parse(readFileSync(file, "utf8")).refreshToken).toBe("refresh-1");
-  expect(transmitted?.get("resource")).toBe(`${server.url.origin}/api`);
+  expect(transmitted?.get("resource")).toBe("https://teakvault.com/api");
 });
 test("CLI preserves expired refresh credentials across a service outage", async () => {
   expect((await login()).code).toBe(0);

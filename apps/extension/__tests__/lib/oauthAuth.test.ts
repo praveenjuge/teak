@@ -86,13 +86,14 @@ const withDiscovery = (handler: typeof fetch): typeof fetch =>
     const url = String(input);
     const issuer =
       primary === "workos"
-        ? "https://auth.test.workos.com"
+        ? `https://auth.${process.env.DEV ? "dev." : ""}test.workos.com`
         : "https://app.teakvault.com";
     if (url.endsWith("/.well-known/oauth-protected-resource/mcp")) {
       return Response.json({
-        resource: process.env.DEV
-          ? "https://test.convex.site/mcp"
-          : "https://teakvault.com/mcp",
+        resource:
+          process.env.DEV && primary === "betterauth"
+            ? "https://test.convex.site/mcp"
+            : "https://teakvault.com/mcp",
         authorization_servers: [issuer],
       });
     }
@@ -103,7 +104,9 @@ const withDiscovery = (handler: typeof fetch): typeof fetch =>
         clients: Object.fromEntries(
           ["cli", "raycast", "chrome", "firefox", "safari"].map((surface) => [
             surface,
-            primary === "workos" ? `client_${surface}` : `teak-${surface}`,
+            primary === "workos"
+              ? `client_${process.env.DEV ? "dev_" : ""}${surface}`
+              : `teak-${surface}`,
           ])
         ),
       });
@@ -154,52 +157,62 @@ describe("Chrome OAuth background credentials", () => {
       expect(storage[tokenKey]).toBeUndefined();
     }
   );
-  test("uses native browser PKCE login, protects storage, and returns only display data", async () => {
-    const calls: Array<{ url: string; init?: RequestInit }> = [];
-    globalThis.fetch = withDiscovery(
-      mock((input, init) => {
-        calls.push({ url: String(input), init });
-        if (String(input).endsWith("/mcp/token")) {
-          return Promise.resolve(tokenResponse());
-        }
-        return Promise.resolve(
-          Response.json({
-            data: { id: "owner", email: "owner@example.com", name: "Owner" },
-          })
-        );
-      }) as unknown as typeof fetch
-    );
-    const auth = await load();
-    storage.teakSessionToken = "old-native-session";
-    await Promise.all([auth.beginOAuthSignIn(), auth.beginOAuthSignIn()]);
-    expect(webAuth).toHaveBeenCalledTimes(1);
-    expect(setAccessLevel).toHaveBeenCalledWith({
-      accessLevel: "TRUSTED_CONTEXTS",
-    });
-    expect(storage.teakSessionToken).toBeUndefined();
-    const authorize = new URL(webAuth.mock.calls[0]?.[0].url);
-    expect(authorize.origin).toBe("https://app.teakvault.com");
-    const token = new URLSearchParams(String(calls[0]?.init?.body));
-    const digest = await crypto.subtle.digest(
-      "SHA-256",
-      new TextEncoder().encode(token.get("code_verifier")!)
-    );
-    const challenge = Buffer.from(digest).toString("base64url");
-    expect(authorize.searchParams.get("code_challenge")).toBe(challenge);
-    expect(authorize.searchParams.get("code_challenge_method")).toBe("S256");
-    expect(token.get("client_id")).toBe("teak-chrome");
-    expect(token.get("redirect_uri")).toBe(
-      "https://extension.chromiumapp.org/oauth/callback"
-    );
-    const state = await auth.getOAuthState();
-    expect(state).toMatchObject({
-      authenticated: true,
-      pending: false,
-      user: { id: "owner" },
-    });
-    expect(JSON.stringify(state)).not.toContain(accessToken);
-    expect(JSON.stringify(state)).not.toContain(refreshToken);
-  });
+  test.each([false, true])(
+    "Better Auth uses native PKCE login and legacy scopes with development=%s",
+    async (development) => {
+      if (development) {
+        process.env.DEV = "true";
+      }
+      const calls: Array<{ url: string; init?: RequestInit }> = [];
+      globalThis.fetch = withDiscovery(
+        mock((input, init) => {
+          calls.push({ url: String(input), init });
+          if (String(input).endsWith("/mcp/token")) {
+            return Promise.resolve(tokenResponse());
+          }
+          return Promise.resolve(
+            Response.json({
+              data: { id: "owner", email: "owner@example.com", name: "Owner" },
+            })
+          );
+        }) as unknown as typeof fetch
+      );
+      const auth = await load();
+      storage.teakSessionToken = "old-native-session";
+      await Promise.all([auth.beginOAuthSignIn(), auth.beginOAuthSignIn()]);
+      expect(webAuth).toHaveBeenCalledTimes(1);
+      expect(setAccessLevel).toHaveBeenCalledWith({
+        accessLevel: "TRUSTED_CONTEXTS",
+      });
+      expect(storage.teakSessionToken).toBeUndefined();
+      const authorize = new URL(webAuth.mock.calls[0]?.[0].url);
+      expect(authorize.origin).toBe("https://app.teakvault.com");
+      expect(authorize.searchParams.get("scope")).toBe(
+        "profile email offline_access"
+      );
+      expect(authorize.searchParams.get("resource")).toBeNull();
+      const token = new URLSearchParams(String(calls[0]?.init?.body));
+      const digest = await crypto.subtle.digest(
+        "SHA-256",
+        new TextEncoder().encode(token.get("code_verifier")!)
+      );
+      const challenge = Buffer.from(digest).toString("base64url");
+      expect(authorize.searchParams.get("code_challenge")).toBe(challenge);
+      expect(authorize.searchParams.get("code_challenge_method")).toBe("S256");
+      expect(token.get("client_id")).toBe("teak-chrome");
+      expect(token.get("redirect_uri")).toBe(
+        "https://extension.chromiumapp.org/oauth/callback"
+      );
+      const state = await auth.getOAuthState();
+      expect(state).toMatchObject({
+        authenticated: true,
+        pending: false,
+        user: { id: "owner" },
+      });
+      expect(JSON.stringify(state)).not.toContain(accessToken);
+      expect(JSON.stringify(state)).not.toContain(refreshToken);
+    }
+  );
   test("Firefox initializes without exposing credentials through unsupported storage access controls", async () => {
     process.env.BROWSER = "firefox";
     Reflect.deleteProperty(chrome.storage.local, "setAccessLevel");
@@ -352,36 +365,59 @@ describe("Chrome OAuth background credentials", () => {
   });
 });
 
-test("WorkOS discovery selects the registered client, API audience, and permanent Teak owner", async () => {
-  primary = "workos";
-  const calls: Array<{ url: string; init?: RequestInit }> = [];
-  globalThis.fetch = withDiscovery((async (input, init) => {
-    const url = String(input);
-    calls.push({ url, init });
-    if (url === "https://auth.test.workos.com/oauth2/token") {
-      return await Promise.resolve(tokenResponse());
+test.each([false, true])(
+  "WorkOS uses canonical audiences and OIDC scopes with development=%s",
+  async (development) => {
+    primary = "workos";
+    if (development) {
+      process.env.DEV = "true";
     }
-    if (url === "https://test.convex.site/v1/me") {
-      return Response.json({
-        data: { id: "permanent-owner", email: "owner@example.com" },
-      });
-    }
-    throw new Error("Unexpected authentication endpoint");
-  }) as typeof fetch);
-  const auth = await load();
-  await auth.beginOAuthSignIn();
-  const authorize = new URL(webAuth.mock.calls[0]?.[0].url);
-  expect(authorize.origin).toBe("https://auth.test.workos.com");
-  expect(authorize.searchParams.get("client_id")).toBe("client_chrome");
-  expect(authorize.searchParams.get("resource")).toBe(
-    "https://teakvault.com/api"
-  );
-  const exchange = new URLSearchParams(String(calls[0]?.init?.body));
-  expect(exchange.get("client_id")).toBe("client_chrome");
-  expect(exchange.get("resource")).toBe("https://teakvault.com/api");
-  expect(await auth.getCaptureOwner()).toBe("permanent-owner");
-  expect((await auth.getOAuthState()).user?.id).toBe("permanent-owner");
-});
+    const issuer = `https://auth.${development ? "dev." : ""}test.workos.com`;
+    const clientId = development ? "client_dev_chrome" : "client_chrome";
+    const credentialsKey = development
+      ? `${tokenKey}:https://test.convex.site`
+      : tokenKey;
+    const calls: Array<{ url: string; init?: RequestInit }> = [];
+    globalThis.fetch = withDiscovery((async (input, init) => {
+      const url = String(input);
+      calls.push({ url, init });
+      if (url === `${issuer}/oauth2/token`) {
+        return await Promise.resolve(tokenResponse());
+      }
+      if (url === "https://test.convex.site/v1/me") {
+        return Response.json({
+          data: { id: "permanent-owner", email: "owner@example.com" },
+        });
+      }
+      throw new Error("Unexpected authentication endpoint");
+    }) as typeof fetch);
+    const auth = await load();
+    await auth.beginOAuthSignIn();
+    const authorize = new URL(webAuth.mock.calls[0]?.[0].url);
+    expect(authorize.origin).toBe(issuer);
+    expect(authorize.searchParams.get("client_id")).toBe(clientId);
+    expect(authorize.searchParams.get("scope")).toBe(
+      "openid profile email offline_access"
+    );
+    expect(authorize.searchParams.get("resource")).toBe(
+      "https://teakvault.com/api"
+    );
+    const exchange = new URLSearchParams(String(calls[0]?.init?.body));
+    expect(exchange.get("client_id")).toBe(clientId);
+    expect(exchange.get("resource")).toBe("https://teakvault.com/api");
+    expect(storage[credentialsKey]).toMatchObject({
+      siteUrl: "https://test.convex.site",
+      issuer,
+      clientId,
+    });
+    (storage[credentialsKey] as { expiresAt: number }).expiresAt = 0;
+    expect(await auth.getCaptureOwner()).toBe("permanent-owner");
+    expect((await auth.getOAuthState()).user?.id).toBe("permanent-owner");
+    const refresh = new URLSearchParams(String(calls[2]?.init?.body));
+    expect(refresh.get("grant_type")).toBe("refresh_token");
+    expect(refresh.get("resource")).toBe("https://teakvault.com/api");
+  }
+);
 
 test("a provider flip during the browser callback never exchanges the old code", async () => {
   const originalFlow = webAuth.getMockImplementation()!;

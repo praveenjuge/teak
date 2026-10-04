@@ -605,7 +605,10 @@ export const createAuthorizeUrl = (
   authUrl.searchParams.set("redirect_uri", params.redirectUri);
   authUrl.searchParams.set("code_challenge", params.codeChallenge);
   authUrl.searchParams.set("code_challenge_method", "S256");
-  authUrl.searchParams.set("scope", CLI_OAUTH_SCOPE);
+  authUrl.searchParams.set(
+    "scope",
+    auth.primary === "workos" ? `openid ${CLI_OAUTH_SCOPE}` : CLI_OAUTH_SCOPE
+  );
   authUrl.searchParams.set("state", params.state);
   return authUrl;
 };
