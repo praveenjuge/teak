@@ -312,6 +312,130 @@ describe("native AuthKit session", () => {
     expect(await pending).toBeNull();
     expect(s.data.has(key)).toBe(false);
   });
+  test("a login already committing stays consistent when a later browser flow is cancelled", async () => {
+    const s = store();
+    const write = deferred<void>();
+    const started = deferred<void>();
+    const storage = {
+      ...s.storage,
+      setItemAsync: async (k: string, value: string) => {
+        started.resolve();
+        await write.promise;
+        await s.storage.setItemAsync(k, value);
+      },
+    };
+    const session = new WorkosSession(clientId, storage, transport);
+    const pending = session.exchangeCode("code", verifier);
+    await started.promise;
+    // Opening and cancelling another browser cannot turn an accepted secure
+    // commit into a hidden session that appears only after restarting.
+    session.beginSignIn();
+    write.resolve();
+    expect(await pending).toBe(response().access_token);
+    const restored = new WorkosSession(clientId, storage, transport);
+    await restored.hydrate();
+    expect(session.getSnapshot().user).toEqual(restored.getSnapshot().user);
+    expect(session.getSnapshot().user?.teakUserId).toBe("permanent-vault");
+  });
+  test.each([false, true])(
+    "a queued newer login respects a later cancellation: %s",
+    async (cancel: boolean) => {
+      const s = store();
+      const write = deferred<void>();
+      const started = deferred<void>();
+      const responseComplete = deferred<void>();
+      let writes = 0;
+      const storage = {
+        ...s.storage,
+        setItemAsync: async (k: string, value: string) => {
+          if (++writes === 1) {
+            started.resolve();
+            await write.promise;
+          }
+          await s.storage.setItemAsync(k, value);
+        },
+      };
+      const http: typeof fetch = (_url, init) => {
+        const code = JSON.parse(String(init?.body)).code;
+        if (code === "second") {
+          init?.signal?.addEventListener(
+            "abort",
+            () => responseComplete.resolve(),
+            {
+              once: true,
+            }
+          );
+        }
+        return Promise.resolve(Response.json(response(code)));
+      };
+      const session = new WorkosSession(clientId, storage, http);
+      const first = session.exchangeCode("first", verifier);
+      await started.promise;
+      const second = session.exchangeCode("second", verifier);
+      await responseComplete.promise;
+      await Promise.resolve(); // The completed response reaches the queued commit.
+      if (cancel) {
+        session.beginSignIn();
+      }
+      write.resolve();
+      await first;
+      expect(await second).toBe(cancel ? null : response().access_token);
+      expect(s.data.get(key)).toContain(cancel ? '"first"' : '"second"');
+      expect(writes).toBe(cancel ? 1 : 2);
+      const restored = new WorkosSession(clientId, storage, transport);
+      await restored.hydrate();
+      expect(session.getSnapshot().user).toEqual(restored.getSnapshot().user);
+    }
+  );
+  test("a login cancelled while queued behind a refresh never publishes unsaved credentials", async () => {
+    const s = store(
+      JSON.stringify({ clientId, response: response("old", Date.now() - 1000) })
+    );
+    const write = deferred<void>();
+    const started = deferred<void>();
+    const responseComplete = deferred<void>();
+    const storage = {
+      ...s.storage,
+      setItemAsync: async (k: string, value: string) => {
+        started.resolve();
+        await write.promise;
+        await s.storage.setItemAsync(k, value);
+      },
+    };
+    const http: typeof fetch = (_url, init) => {
+      const login =
+        JSON.parse(String(init?.body)).grant_type === "authorization_code";
+      if (login) {
+        init?.signal?.addEventListener(
+          "abort",
+          () => responseComplete.resolve(),
+          {
+            once: true,
+          }
+        );
+      }
+      const raw = response(login ? "stale-login" : "rotated");
+      if (login) {
+        raw.user.first_name = "Rejected";
+      }
+      return Promise.resolve(Response.json(raw));
+    };
+    const session = new WorkosSession(clientId, storage, http);
+    const refresh = session.fetchAccessToken();
+    await started.promise;
+    const login = session.exchangeCode("code", verifier);
+    await responseComplete.promise;
+    await Promise.resolve();
+    session.beginSignIn();
+    write.resolve();
+    await refresh;
+    expect(await login).toBeNull();
+    expect(s.data.get(key)).toContain("rotated");
+    expect(session.getSnapshot().user?.name).toBe("Praveen Juge");
+    const restored = new WorkosSession(clientId, storage, transport);
+    await restored.hydrate();
+    expect(session.getSnapshot().user).toEqual(restored.getSnapshot().user);
+  });
   test("failed secure persistence never publishes the unsaved session", async () => {
     const s = store();
     const storage = {

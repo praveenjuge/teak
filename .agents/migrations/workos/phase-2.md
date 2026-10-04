@@ -34,7 +34,10 @@ system-browser PKCE flow. Only the public client ID is sent; provider tokens are
 not retained. Secure storage uses a per-environment client key, saves rotated
 credentials before publishing, and serializes writes with sign-out. Expired tokens
 are never returned during an outage; reconnect can retry the retained refresh token.
-Browser cancellation preserves a concurrent refresh, while sign-out cancels pending
+A login commits when its validated serialized storage write starts; a later browser
+cancellation cannot leave a rejected login hidden in storage. Queued, invalidated
+logins never publish an unsaved session. Browser cancellation preserves a concurrent
+refresh, while sign-out cancels pending
 callbacks and late refreshes. Callback state and S256 PKCE are checked before exchange.
 The Expo browser supports AuthKit, Google and Apple with `teak://auth/callback`.
 
@@ -45,7 +48,7 @@ The backend query still always selects Better Auth; its optional AuthKit client 
 is public configuration, and no API key is returned. Email, Google and Apple screens
 use the prepared hosted flow only in WorkOS mode. Registration respects the freeze.
 
-All 226 mobile tests and typecheck pass. Removing sign-out invalidation fails its
+All 230 mobile tests and typecheck pass. Removing sign-out invalidation fails its
 late-refresh regression. A mounted React browser fixture exercises the actual
 bootstrap and provider modules with controlled network/native boundaries: refresh
 completion and failure release loading, stale cache cannot replace live mode,

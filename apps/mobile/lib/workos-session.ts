@@ -232,20 +232,21 @@ export class WorkosSession {
     if (next.expiresAt <= Date.now()) {
       throw new Error("Expired session token");
     }
-    if (
-      generation !== this.generation ||
-      (attempt !== undefined && attempt !== this.signInAttempt)
-    ) {
+    const eligible = () =>
+      attempt === undefined
+        ? generation === this.generation
+        : attempt === this.signInAttempt;
+    if (!eligible()) {
       return null;
     }
-    let committedGeneration = generation;
+    let committedGeneration: number | undefined;
     await this.write(async () => {
-      if (
-        generation !== this.generation ||
-        (attempt !== undefined && attempt !== this.signInAttempt)
-      ) {
+      if (!eligible()) {
         return;
       }
+      // The validated serialized write is the login's commit point. Opening
+      // another browser keeps this accepted login; clear still cancels it.
+      const writeGeneration = this.generation;
       await this.storage.setItemAsync(
         this.storageKey,
         JSON.stringify({
@@ -266,18 +267,17 @@ export class WorkosSession {
           },
         })
       );
-      if (
-        attempt !== undefined &&
-        generation === this.generation &&
-        attempt === this.signInAttempt
-      ) {
-        committedGeneration = ++this.generation;
-        this.refresh = undefined;
+      if (writeGeneration === this.generation) {
+        committedGeneration = this.generation;
+        if (attempt !== undefined) {
+          committedGeneration = ++this.generation;
+          this.refresh = undefined;
+        }
       }
     });
     if (
-      committedGeneration !== this.generation ||
-      (attempt !== undefined && attempt !== this.signInAttempt)
+      committedGeneration === undefined ||
+      committedGeneration !== this.generation
     ) {
       return null;
     }
