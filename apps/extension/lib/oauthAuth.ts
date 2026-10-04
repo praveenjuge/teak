@@ -278,7 +278,10 @@ export function beginOAuthSignIn(): Promise<void> {
       ...audience(auth),
       response_type: "code",
       redirect_uri: redirectUri,
-      scope: "profile email offline_access",
+      scope:
+        auth.primary === "workos"
+          ? "openid profile email offline_access"
+          : "profile email offline_access",
       state,
       code_challenge: challenge,
       code_challenge_method: "S256",
