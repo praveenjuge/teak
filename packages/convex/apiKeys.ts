@@ -8,7 +8,12 @@ import {
   type QueryCtx,
   query,
 } from "./_generated/server";
-import { getSessionUser, type TeakUserId } from "./securitySessions";
+import { readAuthPrimary } from "./env";
+import {
+  getSessionUser,
+  resolveWorkosApiKeyOwner,
+  type TeakUserId,
+} from "./securitySessions";
 import { API_KEY_TOKEN_PREFIX, getApiKeyFormat } from "./shared/apiKeyFormat";
 import { rateLimiter } from "./shared/rateLimits";
 
@@ -173,13 +178,19 @@ const validateComponentApiKey = async (ctx: MutationCtx, token: string) => {
     return null;
   }
 
-  const authUser = await getAuthUserById(ctx, result.ownerId);
-  if (!authUser) {
-    await componentApiKeys.revoke(ctx, {
-      keyId: result.keyId,
-      ownerId: result.ownerId,
-    });
-    return null;
+  if (readAuthPrimary() === "workos") {
+    if (!(await resolveWorkosApiKeyOwner(ctx, result.ownerId))) {
+      return null;
+    }
+  } else {
+    const authUser = await getAuthUserById(ctx, result.ownerId);
+    if (!authUser) {
+      await componentApiKeys.revoke(ctx, {
+        keyId: result.keyId,
+        ownerId: result.ownerId,
+      });
+      return null;
+    }
   }
 
   return {

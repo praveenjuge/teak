@@ -36,12 +36,14 @@ import {
   validatePatchPayload,
   validateUploadPayload,
 } from "./publicApiHttpValidation";
+import type { WorkosResource } from "./workosTokens";
 
 const handleCreateCardRequest = async (
   ctx: ActionCtx,
-  request: Request
+  request: Request,
+  resource: WorkosResource = "api"
 ): Promise<Response> => {
-  const auth = await withAuthorizedUser(ctx, request);
+  const auth = await withAuthorizedUser(ctx, request, { resource });
   if ("error" in auth) {
     return auth.error;
   }
@@ -150,9 +152,10 @@ const handleCreateCardRequest = async (
 
 const handleCreateUploadRequest = async (
   ctx: ActionCtx,
-  request: Request
+  request: Request,
+  resource: WorkosResource = "api"
 ): Promise<Response> => {
-  const auth = await withAuthorizedUser(ctx, request);
+  const auth = await withAuthorizedUser(ctx, request, { resource });
   if ("error" in auth) {
     return auth.error;
   }
@@ -189,9 +192,10 @@ const handleCreateUploadRequest = async (
 
 const handleCardsListRequest = async (
   ctx: ActionCtx,
-  request: Request
+  request: Request,
+  resource: WorkosResource = "api"
 ): Promise<Response> => {
-  const auth = await withAuthorizedUser(ctx, request);
+  const auth = await withAuthorizedUser(ctx, request, { resource });
   if ("error" in auth) {
     return auth.error;
   }
@@ -349,14 +353,15 @@ const ensureCardExistsForUser = (
 
 const handleCardsByIdV1Request = async (
   ctx: ActionCtx,
-  request: Request
+  request: Request,
+  resource: WorkosResource = "api"
 ): Promise<Response> => {
   const route = parseCardRoute(request);
   if (!route) {
     return errorResponse(404, "NOT_FOUND", "Card route not found");
   }
 
-  const auth = await withAuthorizedUser(ctx, request);
+  const auth = await withAuthorizedUser(ctx, request, { resource });
   if ("error" in auth) {
     return auth.error;
   }
@@ -507,9 +512,10 @@ const handleCardsByIdV1Request = async (
 
 const handleTagsRequest = async (
   ctx: ActionCtx,
-  request: Request
+  request: Request,
+  resource: WorkosResource = "api"
 ): Promise<Response> => {
-  const auth = await withAuthorizedUser(ctx, request);
+  const auth = await withAuthorizedUser(ctx, request, { resource });
   if ("error" in auth) {
     return auth.error;
   }
@@ -529,9 +535,10 @@ const handleTagsRequest = async (
 
 const handleCardChangesRequest = async (
   ctx: ActionCtx,
-  request: Request
+  request: Request,
+  resource: WorkosResource = "api"
 ): Promise<Response> => {
-  const auth = await withAuthorizedUser(ctx, request);
+  const auth = await withAuthorizedUser(ctx, request, { resource });
   if ("error" in auth) {
     return auth.error;
   }
@@ -569,9 +576,10 @@ const handleCardChangesRequest = async (
 
 const handleBulkCardsRequest = async (
   ctx: ActionCtx,
-  request: Request
+  request: Request,
+  resource: WorkosResource = "api"
 ): Promise<Response> => {
-  const auth = await withAuthorizedUser(ctx, request);
+  const auth = await withAuthorizedUser(ctx, request, { resource });
   if ("error" in auth) {
     return auth.error;
   }

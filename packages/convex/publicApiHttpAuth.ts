@@ -4,7 +4,8 @@
  * Split out of `publicApiHttp.ts`, kept behavior-identical.
  */
 import { internal } from "./_generated/api";
-import type { ActionCtx } from "./_generated/server";
+import { type ActionCtx, env } from "./_generated/server";
+import { readAuthPrimary } from "./env";
 import { isWellFormedOAuthToken } from "./oauthTokens";
 import {
   AUTH_INTERNAL_ERROR,
@@ -19,8 +20,13 @@ import {
   RATE_LIMITED_ERROR,
   sha256,
 } from "./publicApiHttpShared";
-import { resolveStoredUserId } from "./securitySessions";
+import {
+  resolveStoredUserId,
+  resolveWorkosApiKeyOwner,
+} from "./securitySessions";
 import { isWellFormedApiKey } from "./shared/apiKeyFormat";
+import { WORKOS_RESOURCES } from "./shared/workosResources";
+import { verifyWorkosConnectToken, type WorkosResource } from "./workosTokens";
 
 const buildIdempotentResponse = (record: {
   responseBody: unknown;
@@ -200,7 +206,7 @@ const enforceInvalidAuthLimit = async (
 const withAuthorizedUser = async (
   ctx: ActionCtx,
   request: Request,
-  options: { chargeRateLimit?: boolean } = {}
+  options: { chargeRateLimit?: boolean; resource?: WorkosResource } = {}
 ): Promise<AuthResult> => {
   const chargeRateLimit = options.chargeRateLimit ?? true;
   const token = parseBearerToken(request);
@@ -214,14 +220,26 @@ const withAuthorizedUser = async (
     };
   }
 
-  // Two bearer credential shapes are accepted: `teakapi_` API keys and opaque
-  // 32-char OAuth access tokens. Discriminate on shape before any DB read so
+  let primary: ReturnType<typeof readAuthPrimary>;
+  try {
+    primary = readAuthPrimary();
+  } catch {
+    return { error: AUTH_INTERNAL_ERROR() };
+  }
+  // Bearer credentials are discriminated before any DB read: `teakapi_` API keys and opaque
+  // 32-char Better Auth tokens, or bounded WorkOS JWTs. This ensures
   // the cheapest abuse vector (spraying random tokens) is rejected without a
   // write, and so failures can return the right error code per credential type.
   const isApiKey = isWellFormedApiKey(token);
-  const isOAuthToken = !isApiKey && isWellFormedOAuthToken(token);
+  const isOAuthToken =
+    !isApiKey && primary === "betterauth" && isWellFormedOAuthToken(token);
+  const isConnectToken =
+    !isApiKey &&
+    primary === "workos" &&
+    token.length <= 16_384 &&
+    token.split(".").length === 3;
 
-  if (!(isApiKey || isOAuthToken)) {
+  if (!(isApiKey || isOAuthToken || isConnectToken)) {
     const limited = await enforceInvalidAuthLimit(ctx);
     if (limited) {
       return { error: limited };
@@ -243,18 +261,47 @@ const withAuthorizedUser = async (
   let credential: (Omit<AuthorizedUser, "userId"> & { userId: string }) | null =
     null;
   try {
-    credential = isApiKey
-      ? await ctx.runMutation((internal as any).apiKeys.validateUserApiKey, {
-          token,
-        })
-      : await ctx.runMutation(
-          (internal as any).oauthTokens.validateOAuthAccessToken,
-          { token }
+    if (isConnectToken) {
+      const issuer = env.WORKOS_AUTHKIT_DOMAIN;
+      if (!issuer) {
+        return { error: AUTH_INTERNAL_ERROR() };
+      }
+      const principal = await verifyWorkosConnectToken(token, {
+        issuer,
+        audience: WORKOS_RESOURCES[options.resource ?? "api"],
+      });
+      if (principal) {
+        const owner = await ctx.runMutation(
+          internal.workosConsents.authorizeConnectConsent,
+          principal
         );
-    if (credential) {
-      const userId = await resolveStoredUserId(ctx, credential.userId);
-      if (userId) {
-        validated = { ...credential, userId };
+        if (owner.status === "ok") {
+          validated = {
+            userId: owner.teakUserId as import("./securitySessions").TeakUserId,
+            access: "full_access",
+            source: "oauth",
+            keyId: principal.consentId,
+            rateLimitKey: `workos:${principal.clientId}:${owner.teakUserId}`,
+          };
+        }
+      }
+    } else {
+      credential = isApiKey
+        ? await ctx.runMutation((internal as any).apiKeys.validateUserApiKey, {
+            token,
+          })
+        : await ctx.runMutation(
+            (internal as any).oauthTokens.validateOAuthAccessToken,
+            { token }
+          );
+      if (credential) {
+        const userId =
+          primary === "workos"
+            ? await resolveWorkosApiKeyOwner(ctx, credential.userId)
+            : await resolveStoredUserId(ctx, credential.userId);
+        if (userId) {
+          validated = { ...credential, userId };
+        }
       }
     }
   } catch {
@@ -267,9 +314,14 @@ const withAuthorizedUser = async (
       return { error: limited };
     }
     return {
-      error: isOAuthToken
-        ? errorResponse(401, "UNAUTHORIZED", "Invalid or expired access token")
-        : errorResponse(401, "INVALID_API_KEY", "Invalid or revoked API key"),
+      error:
+        isOAuthToken || isConnectToken
+          ? errorResponse(
+              401,
+              "UNAUTHORIZED",
+              "Invalid or expired access token"
+            )
+          : errorResponse(401, "INVALID_API_KEY", "Invalid or revoked API key"),
     };
   }
 
@@ -303,10 +355,12 @@ const withAuthorizedUser = async (
 
 const validatePublicApiBearer = async (
   ctx: ActionCtx,
-  request: Request
+  request: Request,
+  resource: WorkosResource = "api"
 ): Promise<Response | null> => {
   const auth = await withAuthorizedUser(ctx, request, {
     chargeRateLimit: false,
+    resource,
   });
   return "error" in auth ? auth.error : null;
 };

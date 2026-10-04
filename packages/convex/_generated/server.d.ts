@@ -67,6 +67,12 @@ type Env = {
   readonly TEAK_DEV_APP_URL: string | undefined;
   readonly TEAK_DEV_DOCS_URL: string | undefined;
   readonly WORKOS_ACTION_SECRET: string | undefined;
+  readonly WORKOS_AUTHKIT_DOMAIN: string | undefined;
+  readonly WORKOS_CONNECT_CHROME_CLIENT_ID: string | undefined;
+  readonly WORKOS_CONNECT_CLI_CLIENT_ID: string | undefined;
+  readonly WORKOS_CONNECT_FIREFOX_CLIENT_ID: string | undefined;
+  readonly WORKOS_CONNECT_RAYCAST_CLIENT_ID: string | undefined;
+  readonly WORKOS_CONNECT_SAFARI_CLIENT_ID: string | undefined;
   readonly WORKOS_ENVIRONMENT_ID: string | undefined;
   readonly WORKOS_WEBHOOK_SECRET: string | undefined;
 };
