@@ -511,6 +511,17 @@ export default defineSchema({
     .index("by_eventId", ["eventId"])
     .index("by_workosUserId_and_type", ["workosUserId", "type"])
     .index("by_workosUserId_and_createdAt", ["workosUserId", "createdAt"]),
+  workosConsents: defineTable({
+    consentId: v.string(),
+    userId: v.string(),
+    workosUserId: v.string(),
+    clientId: v.string(),
+    firstSeenAt: v.number(),
+    lastSeenAt: v.number(),
+    revokedAt: v.optional(v.number()),
+  })
+    .index("by_consentId", ["consentId"])
+    .index("by_userId_and_firstSeenAt", ["userId", "firstSeenAt"]),
   cards: defineTable(cardValidator)
     // Note: by_user index removed as redundant - by_user_deleted can serve same purpose
     // with partial index matching (just userId) per Convex best practices
