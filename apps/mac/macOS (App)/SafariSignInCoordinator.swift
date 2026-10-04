@@ -6,9 +6,11 @@ final class SafariSignInCoordinator: NSObject, ASWebAuthenticationPresentationCo
     private weak var anchorWindow: NSWindow?
     private var authenticationSession: ASWebAuthenticationSession?
     private var sessionGeneration = 0
+    private var preparing = false
+    private var pendingRequest: SafariOAuthRequest?
 
     var isAuthenticating: Bool {
-        authenticationSession != nil
+        preparing || authenticationSession != nil
     }
 
     var presentingWindow: NSWindow? {
@@ -17,6 +19,9 @@ final class SafariSignInCoordinator: NSObject, ASWebAuthenticationPresentationCo
 
     func cancel() {
         sessionGeneration += 1
+        pendingRequest?.cancellation.cancel()
+        pendingRequest = nil
+        preparing = false
         let session = authenticationSession
         authenticationSession = nil
         anchorWindow = nil
@@ -28,21 +33,27 @@ final class SafariSignInCoordinator: NSObject, ASWebAuthenticationPresentationCo
         onStateChange: @escaping ([String: Any]) -> Void,
         onCompletion: @escaping ([String: Any]) -> Void
     ) {
-        guard authenticationSession == nil else { return }
-
-        do {
-            let pending = try SafariOAuthRequest()
-            sessionGeneration += 1
-            let generation = sessionGeneration
+        guard !isAuthenticating else { return }
+        preparing = true
+        sessionGeneration += 1
+        let generation = sessionGeneration
+        Task { @MainActor in
+          do {
+            let pending = try await TeakSafariService.shared.prepareSignIn()
+            guard generation == sessionGeneration else { return }
+            preparing = false
+            pendingRequest = pending
             anchorWindow = window
             let session = ASWebAuthenticationSession(
-                url: pending.authorizationURL(baseURL: TeakSafariService.appBaseURL),
+                url: try pending.authorizationURL(),
                 callback: .customScheme("teak-safari")
             ) { [weak self] callback, error in
                 Task { @MainActor in
                     guard let self else { return }
                     guard generation == self.sessionGeneration else { return }
                     guard let callback, error == nil else {
+                        pending.cancellation.cancel()
+                        self.pendingRequest = nil
                         self.authenticationSession = nil
                         self.anchorWindow = nil
                         let wasCancelled = (error as? ASWebAuthenticationSessionError)?.code == .canceledLogin
@@ -56,6 +67,8 @@ final class SafariSignInCoordinator: NSObject, ASWebAuthenticationPresentationCo
                     }
 
                     let state = await TeakSafariService.shared.completeSignIn(pending, callback: callback)
+                    guard generation == self.sessionGeneration else { return }
+                    self.pendingRequest = nil
                     self.authenticationSession = nil
                     self.anchorWindow = nil
                     onCompletion(state)
@@ -69,6 +82,8 @@ final class SafariSignInCoordinator: NSObject, ASWebAuthenticationPresentationCo
                 "message": "Approve Teak for Mac in your browser.",
             ])
             if !session.start() {
+                pending.cancellation.cancel()
+                pendingRequest = nil
                 authenticationSession = nil
                 anchorWindow = nil
                 onCompletion([
@@ -77,10 +92,13 @@ final class SafariSignInCoordinator: NSObject, ASWebAuthenticationPresentationCo
                 ])
             }
         } catch {
+            guard generation == sessionGeneration else { return }
+            preparing = false
             onCompletion([
                 "authenticated": false,
                 "message": error.localizedDescription,
             ])
+          }
         }
     }
 

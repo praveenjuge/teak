@@ -23,7 +23,11 @@ nonisolated struct SafariCredentialStore: SafariCredentialStorage {
         }
         return "LW385M78LW.com.praveenjuge.teak-safari"
     }
+    #if DEBUG
+    private let account = "oauth-tokens-development-v1"
+    #else
     private let account = Self.keychainAccount
+    #endif
 
     private var query: [String: Any] {
         [
