@@ -3,7 +3,7 @@ import { type Infer, v } from "convex/values";
 import type { Doc } from "../_generated/dataModel";
 import { type QueryCtx, query } from "../_generated/server";
 import { cardTypeValidator, cardValidator } from "../schema";
-import { getSessionIdentity } from "../securitySessions";
+import { getSessionUser } from "../securitySessions";
 import {
   clampPageSize,
   clampSearchLimit,
@@ -83,7 +83,7 @@ export const getCards = query({
   },
   returns: v.array(cardReturnValidator),
   handler: async (ctx, args) => {
-    const user = await getSessionIdentity(ctx);
+    const user = await getSessionUser(ctx);
     if (!user) {
       return [];
     }
@@ -91,7 +91,7 @@ export const getCards = query({
     let query = ctx.db
       .query("cards")
       .withIndex("by_user_deleted", (q) =>
-        q.eq("userId", user.subject).eq("isDeleted", undefined)
+        q.eq("userId", user.teakUserId).eq("isDeleted", undefined)
       );
 
     if (args.type) {
@@ -101,7 +101,7 @@ export const getCards = query({
         .query("cards")
         .withIndex("by_user_type_deleted", (q) =>
           q
-            .eq("userId", user.subject)
+            .eq("userId", user.teakUserId)
             .eq("type", cardType)
             .eq("isDeleted", undefined)
         );
@@ -113,7 +113,7 @@ export const getCards = query({
         .query("cards")
         .withIndex("by_user_favorites_deleted", (q) =>
           q
-            .eq("userId", user.subject)
+            .eq("userId", user.teakUserId)
             .eq("isFavorited", true)
             .eq("isDeleted", undefined)
         );
@@ -141,7 +141,7 @@ export const searchCards = query({
   },
   returns: v.array(cardReturnValidator),
   handler: async (ctx, args) => {
-    const user = await getSessionIdentity(ctx);
+    const user = await getSessionUser(ctx);
     if (!user) {
       return [];
     }
@@ -177,7 +177,7 @@ export const searchCards = query({
           .query("cards")
           .withIndex("by_user_favorites_deleted", (q) =>
             q
-              .eq("userId", user.subject)
+              .eq("userId", user.teakUserId)
               .eq("isFavorited", true)
               .eq("isDeleted", undefined)
           )
@@ -197,7 +197,7 @@ export const searchCards = query({
         const trashed = await ctx.db
           .query("cards")
           .withIndex("by_user_deleted", (q) =>
-            q.eq("userId", user.subject).eq("isDeleted", true)
+            q.eq("userId", user.teakUserId).eq("isDeleted", true)
           )
           .order("desc")
           .take(limit);
@@ -212,7 +212,7 @@ export const searchCards = query({
       }
 
       const uniqueResults = await searchCardsByDocument(ctx, {
-        userId: user.subject,
+        userId: user.teakUserId,
         searchQuery,
         isDeleted: showTrashOnly ? true : undefined,
         isFavorited: favoritesOnly ? true : undefined,
@@ -247,7 +247,7 @@ export const searchCards = query({
     // No search query - use visual facet indexes when requested.
     if (visualFilters.hasVisualFilters) {
       const visualResults = await runVisualFacetQueries(ctx, {
-        userId: user.subject,
+        userId: user.teakUserId,
         showTrashOnly,
         types,
         favoritesOnly,
@@ -268,7 +268,7 @@ export const searchCards = query({
       .query("cards")
       .withIndex("by_user_deleted", (q) =>
         q
-          .eq("userId", user.subject)
+          .eq("userId", user.teakUserId)
           .eq("isDeleted", showTrashOnly ? true : undefined)
       );
 
@@ -277,7 +277,7 @@ export const searchCards = query({
         .query("cards")
         .withIndex("by_created", (q) =>
           q
-            .eq("userId", user.subject)
+            .eq("userId", user.teakUserId)
             .gte("createdAt", createdAtRange.start)
             .lt("createdAt", createdAtRange.end)
         );
@@ -310,7 +310,7 @@ export const searchCards = query({
       // Use compound index by_user_type_deleted to avoid post-index .filter()
       query = ctx.db.query("cards").withIndex("by_user_type_deleted", (q) =>
         q
-          .eq("userId", user.subject)
+          .eq("userId", user.teakUserId)
           .eq("type", types[0])
           .eq("isDeleted", showTrashOnly ? true : undefined)
       );
@@ -359,7 +359,7 @@ export const searchCardsPaginatedHandler = async (
   } else if (options.gridOnly) {
     attachListUrls = attachGridFileUrls;
   }
-  const user = await getSessionIdentity(ctx);
+  const user = await getSessionUser(ctx);
   if (!user) {
     return { page: [], isDone: true, continueCursor: null };
   }
@@ -399,7 +399,7 @@ export const searchCardsPaginatedHandler = async (
         .query("cards")
         .withIndex("by_user_favorites_deleted", (q) =>
           q
-            .eq("userId", user.subject)
+            .eq("userId", user.teakUserId)
             .eq("isFavorited", true)
             .eq("isDeleted", undefined)
         )
@@ -422,7 +422,7 @@ export const searchCardsPaginatedHandler = async (
       const trashed = await ctx.db
         .query("cards")
         .withIndex("by_user_deleted", (q) =>
-          q.eq("userId", user.subject).eq("isDeleted", true)
+          q.eq("userId", user.teakUserId).eq("isDeleted", true)
         )
         .order("desc")
         .paginate(paginationOpts);
@@ -451,7 +451,7 @@ export const searchCardsPaginatedHandler = async (
     const typesSet = new Set(types || []);
     const hasMultiTypeFilter = typesSet.size > 1;
     const searchResults = await searchCardsByDocument(ctx, {
-      userId: user.subject,
+      userId: user.teakUserId,
       searchQuery,
       isDeleted: showTrashOnly ? true : undefined,
       isFavorited: favoritesOnly ? true : undefined,
@@ -501,7 +501,7 @@ export const searchCardsPaginatedHandler = async (
     const desiredLimit = offset + pageSize + 1;
 
     const visualResults = await runVisualFacetQueries(ctx, {
-      userId: user.subject,
+      userId: user.teakUserId,
       showTrashOnly,
       types,
       favoritesOnly,
@@ -526,7 +526,7 @@ export const searchCardsPaginatedHandler = async (
     .query("cards")
     .withIndex("by_user_deleted", (q) =>
       q
-        .eq("userId", user.subject)
+        .eq("userId", user.teakUserId)
         .eq("isDeleted", showTrashOnly ? true : undefined)
     );
 
@@ -535,7 +535,7 @@ export const searchCardsPaginatedHandler = async (
       .query("cards")
       .withIndex("by_created", (q) =>
         q
-          .eq("userId", user.subject)
+          .eq("userId", user.teakUserId)
           .gte("createdAt", createdAtRange.start)
           .lt("createdAt", createdAtRange.end)
       );
@@ -566,7 +566,7 @@ export const searchCardsPaginatedHandler = async (
   if (types && types.length === 1) {
     query = ctx.db.query("cards").withIndex("by_user_type_deleted", (q) =>
       q
-        .eq("userId", user.subject)
+        .eq("userId", user.teakUserId)
         .eq("type", types[0])
         .eq("isDeleted", showTrashOnly ? true : undefined)
     );

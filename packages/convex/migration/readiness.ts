@@ -1,5 +1,6 @@
 import { v } from "convex/values";
 import { env, internalQuery, query } from "../_generated/server";
+import { getReadinessIdentity } from "../securitySessions";
 
 // Internal, read-only Phase R probe. It does not change the active provider.
 export const authPrimary = internalQuery({
@@ -28,29 +29,5 @@ export const identity = query({
       sid: v.string(),
     })
   ),
-  handler: async (ctx) => {
-    if (
-      env.WORKOS_ENVIRONMENT_ID !== "environment_01KBYSVN9RVQ1JXACG3MDMQZGA"
-    ) {
-      return null;
-    }
-    const user = await ctx.auth.getUserIdentity();
-    if (
-      !user ||
-      typeof user.sid !== "string" ||
-      !user.sid.startsWith("session_") ||
-      user.issuer !==
-        "https://api.workos.com/user_management/client_01KBYSVNVDV2G39REZFGF0K7GD"
-    ) {
-      return null;
-    }
-    return {
-      subject: user.subject,
-      issuer: user.issuer,
-      externalId:
-        typeof user.external_id === "string" ? user.external_id : null,
-      emailVerified: user.email_verified === true,
-      sid: user.sid,
-    };
-  },
+  handler: getReadinessIdentity,
 });

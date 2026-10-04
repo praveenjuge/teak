@@ -1,0 +1,34 @@
+engine biome(1.0)
+language js(typescript, jsx)
+
+or {
+  `$user.subject` as $match,
+  `$user?.subject` as $match,
+  `$user["subject"]` as $match,
+  `$user?.["subject"]` as $match,
+  `$user.tokenIdentifier` as $match,
+  `$user?.tokenIdentifier` as $match,
+  `$user["tokenIdentifier"]` as $match,
+  `$user?.["tokenIdentifier"]` as $match,
+  `$auth.getUserIdentity` as $match,
+  `$auth?.getUserIdentity` as $match,
+  `$auth["getUserIdentity"]` as $match,
+  `$auth?.["getUserIdentity"]` as $match,
+  `$component.getAuthUser` as $match,
+  `$component.safeGetAuthUser` as $match,
+  `$component?.getAuthUser` as $match,
+  `$component?.safeGetAuthUser` as $match,
+  `$component["getAuthUser"]` as $match,
+  `$component["safeGetAuthUser"]` as $match,
+  `$component?.["getAuthUser"]` as $match,
+  `$component?.["safeGetAuthUser"]` as $match,
+  JsObjectBindingPattern() as $match where {
+    $match <: r"(?s).*\b(?:subject|tokenIdentifier|getUserIdentity|getAuthUser|safeGetAuthUser)\b.*"
+  }
+} where {
+  register_diagnostic(
+    span = $match,
+    message = "Read authentication identities only in securitySessions.ts; use getSessionUser and teakUserId.",
+    severity = "error"
+  )
+}

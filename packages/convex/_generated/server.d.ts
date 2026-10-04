@@ -46,6 +46,7 @@ type Env = {
   readonly FILES_TEXT_AI_ENABLED: string | undefined;
   readonly GOOGLE_CLIENT_ID: string | undefined;
   readonly GOOGLE_CLIENT_SECRET: string | undefined;
+  readonly IDENTITY_RESOLVER_ENFORCE: string | undefined;
   readonly JWKS: string | undefined;
   readonly OPERATIONAL_RETENTION_ENABLED: string | undefined;
   readonly POLAR_ACCESS_TOKEN: string | undefined;

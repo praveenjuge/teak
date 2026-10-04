@@ -3,7 +3,7 @@ import { internal } from "../_generated/api";
 import { type MutationCtx, mutation } from "../_generated/server";
 import { ensureCardCreationAllowed } from "../auth";
 import { type CardType, cardTypeValidator } from "../schema";
-import { getSessionIdentity } from "../securitySessions";
+import { getSessionUser, type TeakUserId } from "../securitySessions";
 import {
   type FileFormat,
   FileFormatValidationError,
@@ -84,7 +84,7 @@ export const uploadAndCreateCard = mutation({
     errorCode: v.optional(v.string()),
   }),
   handler: async (ctx, _args) => {
-    const user = await getSessionIdentity(ctx);
+    const user = await getSessionUser(ctx);
     if (!user) {
       return { success: false, error: "User must be authenticated" };
     }
@@ -103,10 +103,10 @@ export const uploadAndCreateCard = mutation({
       }
 
       // Check rate limit and card count limit
-      await ensureCardCreationAllowed(ctx, user.subject);
+      await ensureCardCreationAllowed(ctx, user.teakUserId);
 
       const key = buildR2ObjectKey({
-        userId: user.subject,
+        userId: user.teakUserId,
         cardId: PENDING_UPLOAD_CARD_ID,
         role: "file",
         fileName: _args.fileName,
@@ -164,7 +164,7 @@ export const createUploadedCardForUser = async (
     storedFileType?: string;
     notes?: string | null;
     tags?: string[];
-    userId: string;
+    userId: TeakUserId;
   }
 ) => {
   const now = Date.now();

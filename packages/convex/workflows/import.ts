@@ -13,15 +13,23 @@ async function finalize(
   status: "completed" | "failed" | "canceled",
   failureClass?: string
 ) {
-  const objects = await step.runAction(
-    internalAny["import/runImport"].finalizeImportObjects,
-    { jobId }
-  );
+  let reportKey: string | undefined;
+  let finalFailureClass = failureClass;
+  try {
+    const objects = await step.runAction(
+      internalAny["import/runImport"].finalizeImportObjects,
+      { jobId },
+      { retry: { maxAttempts: 3, initialBackoffMs: 500, base: 2 } }
+    );
+    reportKey = objects.reportKey;
+  } catch {
+    finalFailureClass = failureClass ?? "import_finalization_failed";
+  }
   await step.runMutation(internalAny.dataImport.finishJob, {
     jobId,
     status,
-    reportKey: objects.reportKey,
-    failureClass,
+    reportKey,
+    failureClass: finalFailureClass,
   });
   return { status };
 }
@@ -114,6 +122,9 @@ export const importWorkflow = workflow.define({
         internalAny.dataImport.createPendingBatch,
         { jobId, itemIds: items.map((item: any) => item._id) }
       );
+      if (result.failureClass) {
+        return finalize(step, jobId, "failed", result.failureClass);
+      }
       if (result.limitReached) {
         return finalize(
           step,

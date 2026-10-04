@@ -4,18 +4,18 @@ import { ConvexError, v } from "convex/values";
 import { api, components } from "./_generated/api";
 import { action, env, query } from "./_generated/server";
 import { resolveTeakDevAppUrl } from "./devUrls";
-import { getSessionIdentity } from "./securitySessions";
+import { getSessionUser } from "./securitySessions";
 import { isApprovedPolarProductId } from "./shared/polarPlans";
 import { normalizeErrorClass } from "./shared/telemetry";
 import { scheduleBillingOutcome } from "./telemetry/schedule";
 
 // User query to use in the Polar component
 export const getUserInfoHandler = async (ctx: any) => {
-  const user = await getSessionIdentity(ctx);
+  const user = await getSessionUser(ctx);
   if (!user) {
     throw new ConvexError("User not found");
   }
-  return user;
+  return { teakUserId: user.teakUserId, email: user.identity.email };
 };
 
 export const getUserInfo = query({
@@ -32,7 +32,7 @@ export const polarUserInfoProvider = async (
   }
 
   return {
-    userId: user.subject,
+    userId: user.teakUserId,
     email: user.email,
   };
 };
@@ -46,7 +46,7 @@ export const createCheckoutLinkHandler = async (ctx: any, args: any) => {
   try {
     const devAppUrl = resolveTeakDevAppUrl(env);
     const user = await ctx.runQuery(api.billing.getUserInfo);
-    userId = user.subject;
+    userId = user.teakUserId;
     if (!isApprovedPolarProductId(args.productId)) {
       throw new ConvexError("Invalid product");
     }
@@ -64,14 +64,14 @@ export const createCheckoutLinkHandler = async (ctx: any, args: any) => {
     const dbCustomer = await ctx.runQuery(
       components.polar.lib.getCustomerByUserId,
       {
-        userId: user.subject,
+        userId: user.teakUserId,
       }
     );
     const createCustomer = async () => {
       const customer = await polar.customers.create({
         email: user.email as string,
         metadata: {
-          userId: user.subject,
+          userId: user.teakUserId,
         },
       });
       if (!customer.id) {
@@ -84,7 +84,7 @@ export const createCheckoutLinkHandler = async (ctx: any, args: any) => {
     if (!dbCustomer) {
       await ctx.runMutation(components.polar.lib.insertCustomer, {
         id: customerId,
-        userId: user.subject,
+        userId: user.teakUserId,
       });
     }
 
@@ -125,7 +125,7 @@ export const createCustomerPortalHandler = async (ctx: any) => {
   let userId: string | undefined;
   try {
     const user = await ctx.runQuery(api.billing.getUserInfo);
-    userId = user.subject;
+    userId = user.teakUserId;
     await scheduleBillingOutcome(ctx, {
       flow: "portal",
       outcome: "attempt",
@@ -133,7 +133,7 @@ export const createCustomerPortalHandler = async (ctx: any) => {
     });
 
     const subscription = await polar.getCurrentSubscription(ctx, {
-      userId: user.subject,
+      userId: user.teakUserId,
     });
     if (!subscription?.customerId) {
       throw new ConvexError("No active subscription found");

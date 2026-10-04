@@ -35,6 +35,7 @@ export { ensureCardCreationAllowed } from "./card/quota";
 import { isLocalDevelopmentUrl } from "./devUrls";
 import { e2eCleanupPlugin } from "./e2eCleanup";
 import { teakOAuthSecurity } from "./oauthSecurity";
+import { getSessionProfile } from "./securitySessions";
 import { FREE_TIER_LIMIT } from "./shared/constants";
 import { isApprovedActiveSubscription } from "./shared/polarPlans";
 import {
@@ -169,7 +170,7 @@ const hasScheduler = (
 // app's explicit post-sign-out navigation.
 export const getAuthUserHandler = async (ctx: any) => {
   try {
-    return (await authComponent.safeGetAuthUser(ctx)) ?? null;
+    return (await getSessionProfile(ctx))?.user ?? null;
   } catch {
     return null;
   }
@@ -456,20 +457,11 @@ export const createAuth = (ctx: GenericCtx<DataModel>) => {
 export const getCurrentUserHandler = async (ctx: any) => {
   // After sign-out the client may still briefly call this query; treat missing
   // session as a non-error so we don't spam Convex logs with "Unauthenticated".
-  let user: Awaited<ReturnType<typeof authComponent.getAuthUser>> | undefined;
-  try {
-    user = await authComponent.getAuthUser(ctx);
-  } catch (error) {
-    if (error instanceof Error && error.message === "Unauthenticated") {
-      return null;
-    }
-    throw error;
-  }
-  if (!user) {
+  const profile = await getSessionProfile(ctx);
+  if (!profile) {
     return null;
   }
-
-  const userId = (user as any).id ?? (user as any)._id ?? (user as any).subject;
+  const { user, teakUserId: userId } = profile;
 
   let hasPremium = false;
   try {
@@ -500,20 +492,11 @@ export const getCurrentUser = query({
 export const getCardCreationStatusHandler = async (ctx: any) => {
   // After sign-out the client may still briefly call this query; treat missing
   // session as a non-error so we don't spam Convex logs with "Unauthenticated".
-  let user: Awaited<ReturnType<typeof authComponent.getAuthUser>> | undefined;
-  try {
-    user = await authComponent.getAuthUser(ctx);
-  } catch (error) {
-    if (error instanceof Error && error.message === "Unauthenticated") {
-      return null;
-    }
-    throw error;
-  }
-  if (!user) {
+  const profile = await getSessionProfile(ctx);
+  if (!profile) {
     return null;
   }
-
-  const userId = (user as any).id ?? (user as any)._id ?? (user as any).subject;
+  const { teakUserId: userId } = profile;
 
   let hasPremium = false;
   try {

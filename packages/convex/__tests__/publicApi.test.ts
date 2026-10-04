@@ -3,7 +3,10 @@
 import { beforeEach, describe, expect, mock, test } from "bun:test";
 import { ConvexError } from "convex/values";
 import { r2MockModuleFactory } from "./helpers/r2Mock.test-utils";
-import { inlineSearchSyncDb } from "./helpers/session.test-utils";
+import {
+  inlineSearchSyncDb,
+  withMappedOwner,
+} from "./helpers/session.test-utils";
 
 mock.module("../storage/r2", r2MockModuleFactory);
 
@@ -73,7 +76,7 @@ const buildSinglePaginateContext = (page: unknown) => {
     beginInvocation: () => {
       invocationPaginateCalls = 0;
     },
-    ctx: { db: { query } } as any,
+    ctx: withMappedOwner({ db: { query } }) as any,
     getInvocationPaginateCalls: () => invocationPaginateCalls,
     query,
     requestedCursors,
@@ -86,7 +89,11 @@ describe("publicApi", () => {
 
   beforeEach(async () => {
     const module = await import("../publicApi");
-    executeBulkCardsForUser = module.executeBulkCardsForUser;
+    const bulk = module.executeBulkCardsForUser;
+    executeBulkCardsForUser = {
+      handler: (ctx: any, args: any) =>
+        (bulk.handler ?? bulk)(withMappedOwner(ctx), args),
+    };
     scanCardsPageForUser = module.scanCardsPageForUser;
   });
 
@@ -185,14 +192,14 @@ describe("publicApi", () => {
       (scanCardsPageForUser as any).handler ?? scanCardsPageForUser;
 
     invocationPaginateCalls = 0;
-    const firstScan = await handler(ctx, {
+    const firstScan = await handler(withMappedOwner(ctx), {
       scanLimit: 100,
       userId: "user_1",
     });
     expect(invocationPaginateCalls).toBe(1);
 
     invocationPaginateCalls = 0;
-    const secondScan = await handler(ctx, {
+    const secondScan = await handler(withMappedOwner(ctx), {
       cursor: firstScan.nextCursor,
       scanLimit: 100,
       userId: "user_1",
@@ -314,8 +321,8 @@ describe("publicApi", () => {
       types: ["quote", "palette"],
       userId: "user_1",
     };
-    const first = await handler(ctx, args);
-    const second = await handler(ctx, {
+    const first = await handler(withMappedOwner(ctx), args);
+    const second = await handler(withMappedOwner(ctx), {
       ...args,
       cursor: first.pageInfo.nextCursor,
     });
@@ -359,7 +366,7 @@ describe("publicApi", () => {
       },
     } as any;
 
-    const result = await handler(ctx, {
+    const result = await handler(withMappedOwner(ctx), {
       limit: 50,
       since: 0,
       userId: "user_1",

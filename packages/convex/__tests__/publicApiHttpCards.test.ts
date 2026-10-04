@@ -15,6 +15,7 @@ import {
   buildAuthorizedMutationMockWithIdempotencySkip,
   runHandler,
 } from "./helpers/publicApiHttp.test-utils";
+import { withMappedOwner } from "./helpers/session.test-utils";
 
 describe("publicApiHttp card endpoints", () => {
   test("removed search and favorites routes no longer serve card queries", async () => {
@@ -22,10 +23,10 @@ describe("publicApiHttp card endpoints", () => {
 
     for (const path of ["/v1/cards/search", "/v1/cards/favorites"]) {
       const response = await executePublicApiOperation(
-        {
+        withMappedOwner({
           runMutation: buildAuthorizedMutationMock(),
           runQuery: mock().mockResolvedValue(null),
-        } as any,
+        } as any),
         {
           method: "GET",
           path,
@@ -45,7 +46,7 @@ describe("publicApiHttp card endpoints", () => {
     "dispatches restore for a card with deleted=%s",
     async (isDeleted) => {
       const response = await executePublicApiOperation(
-        {
+        withMappedOwner({
           runMutation:
             buildAuthorizedMutationMock().mockResolvedValueOnce(null),
           runQuery: mock()
@@ -55,7 +56,7 @@ describe("publicApiHttp card endpoints", () => {
               userId: "user_1",
               isDeleted,
             }),
-        },
+        }),
         {
           method: "POST",
           path: "/v1/cards/card_1/restore",

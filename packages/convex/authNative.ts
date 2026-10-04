@@ -9,7 +9,7 @@ import {
   mutation,
 } from "./_generated/server";
 import { resolveTeakDevAppUrl } from "./devUrls";
-import { getSessionIdentity } from "./securitySessions";
+import { getSessionUser } from "./securitySessions";
 import { mintDedicatedSession } from "./shared/dedicatedSessions";
 import { rateLimiter } from "./shared/rateLimits";
 
@@ -306,10 +306,12 @@ export const createNativeAuthCode = mutation({
   },
   returns: createNativeAuthCodeResultValidator,
   handler: async (ctx, args) => {
-    const user = await getSessionIdentity(ctx);
+    const user = await getSessionUser(ctx);
     const sessionId =
-      user && typeof user.sessionId === "string" ? user.sessionId : null;
-    if (!(user?.subject && sessionId)) {
+      user && typeof user.identity.sessionId === "string"
+        ? user.identity.sessionId
+        : null;
+    if (!(user?.teakUserId && sessionId)) {
       throw new ConvexError({
         code: "UNAUTHENTICATED",
         message: "User must be authenticated",
@@ -346,7 +348,7 @@ export const createNativeAuthCode = mutation({
 
     await ctx.db.insert("nativeAuthCodes", {
       sessionId,
-      userId: user.subject,
+      userId: user.teakUserId,
       deviceId: args.deviceId,
       codeChallenge: args.codeChallenge,
       state: args.state,

@@ -23,7 +23,7 @@ import {
 } from "./import/constants";
 import { createImportS3Client, getImportR2Config } from "./import/r2Client";
 import { importModeValidator } from "./schema";
-import { getSessionIdentity } from "./securitySessions";
+import { getSessionUser, type TeakUserId } from "./securitySessions";
 import { buildR2ObjectKey } from "./storage/r2";
 
 const internalAny = internal as Record<string, any>;
@@ -37,12 +37,12 @@ const uploadResultValidator = v.object({
   parts: v.array(partValidator),
 });
 
-async function requireUserId(ctx: ActionCtx) {
-  const identity = await getSessionIdentity(ctx);
+async function requireUserId(ctx: ActionCtx): Promise<TeakUserId> {
+  const identity = await getSessionUser(ctx);
   if (!identity) {
     throw new Error("User must be authenticated");
   }
-  return identity.subject as string;
+  return identity.teakUserId;
 }
 
 function validateSource(

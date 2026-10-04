@@ -1,4 +1,4 @@
-import { getSessionIdentity } from "./securitySessions";
+import { getSessionUser, type TeakUserId } from "./securitySessions";
 /**
  * Export feature Convex functions.
  *
@@ -88,12 +88,12 @@ const startResultValidator = v.object({
 // Helpers
 // ---------------------------------------------------------------------------
 
-async function requireUserId(ctx: QueryCtx | MutationCtx): Promise<string> {
-  const user = await getSessionIdentity(ctx);
+async function requireUserId(ctx: QueryCtx | MutationCtx): Promise<TeakUserId> {
+  const user = await getSessionUser(ctx);
   if (!user) {
     throw new Error("User must be authenticated");
   }
-  return user.subject;
+  return user.teakUserId;
 }
 
 interface ExportJobDoc {
@@ -295,7 +295,7 @@ export const getExportDownloadUrl = action({
     ctx,
     { jobId }
   ): Promise<{ url: string; expiresInSeconds: number } | null> => {
-    const user = await getSessionIdentity(ctx);
+    const user = await getSessionUser(ctx);
     if (!user) {
       throw new Error("User must be authenticated");
     }
@@ -304,7 +304,7 @@ export const getExportDownloadUrl = action({
       jobId,
     })) as ExportJobDoc | null;
 
-    if (!job || job.userId !== user.subject) {
+    if (!job || job.userId !== user.teakUserId) {
       throw new Error("Export job not found");
     }
 

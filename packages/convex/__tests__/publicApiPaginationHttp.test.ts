@@ -2,6 +2,7 @@
 
 import { describe, expect, mock, test } from "bun:test";
 import { listCardsV1 } from "../publicApiHttp";
+import { withMappedOwner } from "./helpers/session.test-utils";
 
 const authorize = () =>
   mock()
@@ -40,7 +41,7 @@ const requestPage = async (
   }
 
   const response = await handler(
-    { runMutation: authorize(), runQuery },
+    withMappedOwner({ runMutation: authorize(), runQuery }),
     new Request(url, {
       headers: {
         Authorization:

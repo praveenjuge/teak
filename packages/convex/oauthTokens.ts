@@ -11,7 +11,11 @@ import {
 } from "./_generated/server";
 import { getActiveCardCount } from "./card/cardUsage";
 import { isFirstPartyOAuthClientId } from "./oauthClients";
-import { currentSession, getSessionIdentity } from "./securitySessions";
+import {
+  currentSession,
+  getSessionUser,
+  type TeakUserId,
+} from "./securitySessions";
 
 // Better Auth's `mcp`/oidc authorization server mints opaque access and refresh
 // tokens with `generateRandomString(32, ...)`. Today the mcp plugin uses the
@@ -304,12 +308,12 @@ const oauthConsentRequestValidator = v.union(
 
 const requireAuthenticatedUserId = async (
   ctx: ActionCtx | MutationCtx | QueryCtx
-): Promise<string> => {
+): Promise<TeakUserId> => {
   const session = await currentSession(ctx);
   if (!session) {
     throw new Error("User must be authenticated");
   }
-  return session.userId;
+  return session.teakUserId;
 };
 
 export const getOAuthConsentRequest = query({
@@ -319,11 +323,11 @@ export const getOAuthConsentRequest = query({
     // The client can subscribe before its session token finishes hydrating.
     // Treat that transient state as no visible request instead of surfacing a
     // production query error; the subscription reruns when auth becomes ready.
-    const identity = await getSessionIdentity(ctx);
-    if (!identity?.subject) {
+    const identity = await getSessionUser(ctx);
+    if (!identity?.teakUserId) {
       return null;
     }
-    const userId = identity.subject;
+    const userId = identity.teakUserId;
     const consentCode = args.consentCode.trim();
     if (!consentCode) {
       return null;
@@ -395,7 +399,7 @@ export const listOAuthConnections = query({
     if (!session) {
       return [];
     }
-    const userId = session.userId;
+    const userId = session.teakUserId;
     const tokens: OAuthAccessTokenRecord[] = [];
     let cursor: string | null = null;
     let isDone = false;

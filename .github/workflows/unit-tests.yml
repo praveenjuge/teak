@@ -28,5 +28,7 @@ jobs:
           node-version-file: package.json
       - name: Install dependencies
         run: bun install --frozen-lockfile
+      - name: Lint backend identity boundary
+        run: bun run --cwd packages/convex lint
       - name: Run unit tests
         run: bun run test

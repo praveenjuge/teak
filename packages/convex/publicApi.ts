@@ -22,6 +22,7 @@ import {
   normalizeVisualFilterArgs,
 } from "./card/visualFilters";
 import { cardTypes, cardTypeValidator } from "./schema";
+import { requireTeakUserId, type TeakUserId } from "./securitySessions";
 import { isSafeExternalUrl } from "./shared/utils/safeUrl";
 
 const DEFAULT_LIMIT = 50;
@@ -234,7 +235,7 @@ const decodeCursor = (cursor?: string): ApiCursor => {
 
 const searchCardsByQuery = async (
   ctx: QueryCtx,
-  userId: string,
+  userId: TeakUserId,
   options: SearchOptions,
   offset: number
 ): Promise<{ cards: Doc<"cards">[]; isComplete: boolean }> => {
@@ -279,7 +280,7 @@ const searchCardsByQuery = async (
 
 const searchCardsByTag = async (
   ctx: QueryCtx,
-  userId: string,
+  userId: TeakUserId,
   options: SearchOptions,
   offset: number
 ): Promise<Doc<"cards">[]> => {
@@ -323,7 +324,7 @@ const searchCardsByTag = async (
 
 const createBaseQuery = (
   ctx: QueryCtx,
-  userId: string,
+  userId: TeakUserId,
   options: SearchOptions
 ) => {
   if (
@@ -394,7 +395,7 @@ const createBaseQuery = (
 
 const scanCardsWithBaseQuery = async (
   ctx: QueryCtx,
-  userId: string,
+  userId: TeakUserId,
   options: SearchOptions,
   decodedCursor: ApiCursor,
   scanLimit: number
@@ -514,6 +515,7 @@ export const searchCardsPageForUser = internalQuery({
   },
   returns: paginatedCardsResultValidator,
   handler: async (ctx, args) => {
+    const userId = await requireTeakUserId(ctx, args.userId);
     const options = normalizeCardsQueryOptions(args);
     const limit = normalizeLimit(options.limit);
     const decodedCursor = decodeCursor(args.cursor);
@@ -523,12 +525,7 @@ export const searchCardsPageForUser = internalQuery({
 
     if (options.searchQuery) {
       const offset = decodedCursor.mode === "offset" ? decodedCursor.offset : 0;
-      const result = await searchCardsByQuery(
-        ctx,
-        args.userId,
-        options,
-        offset
-      );
+      const result = await searchCardsByQuery(ctx, userId, options, offset);
       const sorted = result.cards;
       pageItems = sorted.slice(offset, offset + limit);
       hasMore = sorted.length > offset + limit;
@@ -543,7 +540,7 @@ export const searchCardsPageForUser = internalQuery({
         : null;
     } else {
       const offset = decodedCursor.mode === "offset" ? decodedCursor.offset : 0;
-      const sorted = await searchCardsByTag(ctx, args.userId, options, offset);
+      const sorted = await searchCardsByTag(ctx, userId, options, offset);
       pageItems = sorted.slice(offset, offset + limit);
       hasMore = sorted.length > offset + limit;
       nextCursor = hasMore
@@ -580,11 +577,12 @@ export const scanCardsPageForUser = internalQuery({
   },
   returns: scannedCardsResultValidator,
   handler: async (ctx, args) => {
+    const userId = await requireTeakUserId(ctx, args.userId);
     const options = normalizeCardsQueryOptions(args);
     const scanLimit = normalizeLimit(args.scanLimit);
     const page = await scanCardsWithBaseQuery(
       ctx,
-      args.userId,
+      userId,
       options,
       decodeCursor(args.cursor),
       scanLimit
@@ -606,10 +604,11 @@ export const listTagsForUser = internalQuery({
   },
   returns: v.array(tagSummaryValidator),
   handler: async (ctx, args) => {
+    const userId = await requireTeakUserId(ctx, args.userId);
     const cards = await ctx.db
       .query("cards")
       .withIndex("by_user_deleted", (query) =>
-        query.eq("userId", args.userId).eq("isDeleted", undefined)
+        query.eq("userId", userId).eq("isDeleted", undefined)
       )
       .collect();
 
@@ -645,11 +644,12 @@ export const listCardChangesForUser = internalQuery({
   },
   returns: changesResultValidator,
   handler: async (ctx, args) => {
+    const userId = await requireTeakUserId(ctx, args.userId);
     const limit = normalizeLimit(args.limit);
     const page = await ctx.db
       .query("cards")
       .withIndex("by_updated", (query) =>
-        query.eq("userId", args.userId).gte("updatedAt", args.since)
+        query.eq("userId", userId).gte("updatedAt", args.since)
       )
       .order("asc")
       .paginate({
@@ -677,7 +677,7 @@ type BulkOperation = "create" | "update" | "favorite" | "delete";
 const performBulkUpdate = async (
   ctx: MutationCtx,
   args: {
-    userId: string;
+    userId: TeakUserId;
     cardId: Id<"cards">;
     content?: string;
     url?: string;
@@ -791,6 +791,7 @@ export const executeBulkCardsForUser = internalMutation({
   },
   returns: bulkResultValidator,
   handler: async (ctx, args) => {
+    const userId = await requireTeakUserId(ctx, args.userId);
     if (args.items.length > MAX_BULK_ITEMS) {
       throw new ConvexError({
         code: "INVALID_INPUT",
@@ -823,7 +824,7 @@ export const executeBulkCardsForUser = internalMutation({
             }
             const cardId = await createCardForUserHandler(
               ctx,
-              args.userId,
+              userId,
               {
                 content:
                   typeof payload.content === "string" ? payload.content : "",
@@ -860,7 +861,7 @@ export const executeBulkCardsForUser = internalMutation({
             }
 
             const shouldSchedulePipeline = await performBulkUpdate(ctx, {
-              userId: args.userId,
+              userId,
               cardId,
               content:
                 typeof payload.content === "string"
@@ -911,14 +912,14 @@ export const executeBulkCardsForUser = internalMutation({
             if (args.operation === "favorite") {
               assertBulkFavoritePayload(payload);
               await updateCardFieldForUserHandler(ctx, {
-                userId: args.userId,
+                userId,
                 cardId,
                 field: "isFavorited",
                 value: payload.isFavorited,
               });
             } else {
               await updateCardFieldForUserHandler(ctx, {
-                userId: args.userId,
+                userId,
                 cardId,
                 field: "delete",
               });

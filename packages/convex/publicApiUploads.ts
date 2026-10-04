@@ -3,6 +3,7 @@ import { internalMutation } from "./_generated/server";
 import { ensureCardCreationAllowed } from "./auth";
 import { createUploadedCardForUser } from "./card/uploadCard";
 import { type CardType, cardTypeValidator } from "./schema";
+import { requireTeakUserId } from "./securitySessions";
 import {
   FileFormatValidationError,
   fileUploadErrorCode,
@@ -78,7 +79,7 @@ export const generateUploadUrlForUser = internalMutation({
     const { fileName } = validateUploadRequest(args);
     await ensureCardCreationAllowed(ctx, args.userId);
     const key = buildR2ObjectKey({
-      userId: args.userId,
+      userId: await requireTeakUserId(ctx, args.userId),
       cardId: PENDING_UPLOAD_CARD_ID,
       role: "file",
       fileName,
@@ -133,7 +134,7 @@ export const finalizeUploadedCardForUser = internalMutation({
       storedFileSize: args.storedFileSize,
       storedFileType: args.storedMimeType,
       tags: args.tags,
-      userId: args.userId,
+      userId: await requireTeakUserId(ctx, args.userId),
     });
     return { cardId, status: "created" as const };
   },

@@ -1,7 +1,13 @@
-import { paginationOptsValidator } from "convex/server";
+import { paginationOptsValidator, type UserIdentity } from "convex/server";
 import { v } from "convex/values";
-import { components } from "./_generated/api";
-import { type ActionCtx, mutation, query } from "./_generated/server";
+import { components, internal } from "./_generated/api";
+import {
+  type ActionCtx,
+  env,
+  internalQuery,
+  mutation,
+  query,
+} from "./_generated/server";
 
 interface SessionRecord {
   _id: string;
@@ -44,13 +50,71 @@ export function sessionDisplayName(agent: string | null | undefined): string {
   return platform ? `${browser} on ${platform}` : browser;
 }
 
-// Check the live session as well as the signed JWT. A revoked session must not
-// use a cached JWT to inspect or revoke other credentials.
-export async function currentSession(
-  ctx: Pick<ActionCtx, "auth" | "runQuery">
-) {
-  const identity = await ctx.auth.getUserIdentity();
-  if (!identity || typeof identity.sessionId !== "string") {
+export type TeakUserId = string & { readonly __brand: "TeakUserId" };
+type SessionCtx = Pick<ActionCtx, "auth" | "runQuery">;
+
+export const identityMapping = internalQuery({
+  args: { teakUserId: v.string() },
+  handler: (ctx, { teakUserId }) =>
+    ctx.db
+      .query("users")
+      .withIndex("by_teakUserId", (q) => q.eq("teakUserId", teakUserId))
+      .unique(),
+});
+
+// Read-only in queries and actions. Shadow mode retains the legacy owner;
+// enforcement is a separate operator gate after one clean production week.
+export async function resolveStoredUserId(
+  ctx: SessionCtx,
+  ownerId: string
+): Promise<TeakUserId | null> {
+  const row = await ctx.runQuery(internal.securitySessions.identityMapping, {
+    teakUserId: ownerId,
+  });
+  let reason: string | null = null;
+  if (!row) {
+    reason = "missing_mapping";
+  } else if (row.deletedAt !== undefined) {
+    reason = "deleted_user";
+  }
+  if (reason) {
+    console.warn("identity_resolver_mismatch", {
+      provider: "betterauth",
+      reason,
+    });
+  }
+  const enforce = env.IDENTITY_RESOLVER_ENFORCE;
+  if (enforce !== undefined && enforce !== "false" && enforce !== "true") {
+    throw new Error("IDENTITY_RESOLVER_ENFORCE must be true or false.");
+  }
+  if (enforce === "true" && reason) {
+    return null;
+  }
+  return ownerId as TeakUserId;
+}
+
+export function resolveTeakUserId(ctx: SessionCtx, identity: UserIdentity) {
+  return resolveStoredUserId(ctx, identity.subject);
+}
+
+// Internal/API jobs carry the permanent ID across a serialization boundary.
+// Revalidate and brand it here before invoking ownership helpers.
+export async function requireTeakUserId(
+  ctx: SessionCtx,
+  ownerId: string
+): Promise<TeakUserId> {
+  const resolved = await resolveStoredUserId(ctx, ownerId);
+  if (!resolved) {
+    throw new Error("User identity mapping unavailable");
+  }
+  return resolved;
+}
+
+async function liveSession(
+  ctx: SessionCtx,
+  identity: UserIdentity
+): Promise<SessionRecord | null> {
+  if (typeof identity.sessionId !== "string") {
     return null;
   }
   const session = (await ctx.runQuery(components.betterAuth.adapter.findOne, {
@@ -63,16 +127,44 @@ export async function currentSession(
   return session && session.expiresAt > Date.now() ? session : null;
 }
 
-// Reuse the same live-session check for all device-authenticated data APIs.
-// Query callers also subscribe to the session row, so revocation invalidates
-// their existing subscriptions without waiting for the signed JWT to expire.
-export async function getSessionIdentity(
-  ctx: Pick<ActionCtx, "auth" | "runQuery">
-) {
-  if (!(await currentSession(ctx))) {
+// A single raw identity read feeds mapping and live-session validation.
+// Component session reads keep revocation reactive for existing subscriptions.
+export async function getSessionUser(ctx: SessionCtx) {
+  let identity: UserIdentity | null;
+  try {
+    identity = await ctx.auth.getUserIdentity();
+  } catch (error) {
+    if (error instanceof Error && error.message === "Unauthenticated") {
+      return null;
+    }
+    throw error;
+  }
+  if (!identity) {
     return null;
   }
-  return ctx.auth.getUserIdentity();
+  const session = await liveSession(ctx, identity);
+  if (!session) {
+    return null;
+  }
+  const teakUserId = await resolveTeakUserId(ctx, identity);
+  return teakUserId ? { teakUserId, identity, session } : null;
+}
+
+export async function getSessionProfile(ctx: SessionCtx) {
+  const sessionUser = await getSessionUser(ctx);
+  if (!sessionUser) {
+    return null;
+  }
+  const user = await ctx.runQuery(components.betterAuth.adapter.findOne, {
+    model: "user",
+    where: [{ field: "_id", value: sessionUser.teakUserId }],
+  });
+  return user ? { user, teakUserId: sessionUser.teakUserId } : null;
+}
+
+export async function currentSession(ctx: SessionCtx) {
+  const user = await getSessionUser(ctx);
+  return user ? { ...user.session, teakUserId: user.teakUserId } : null;
 }
 
 const displayValidator = v.object({
@@ -144,3 +236,27 @@ export const revokeSession = mutation({
     return null;
   },
 });
+
+// Phase R transport probe: exposes no vault or mapping access.
+export async function getReadinessIdentity(ctx: Pick<ActionCtx, "auth">) {
+  if (env.WORKOS_ENVIRONMENT_ID !== "environment_01KBYSVN9RVQ1JXACG3MDMQZGA") {
+    return null;
+  }
+  const user = await ctx.auth.getUserIdentity();
+  if (
+    !user ||
+    typeof user.sid !== "string" ||
+    !user.sid.startsWith("session_") ||
+    user.issuer !==
+      "https://api.workos.com/user_management/client_01KBYSVNVDV2G39REZFGF0K7GD"
+  ) {
+    return null;
+  }
+  return {
+    subject: user.subject,
+    issuer: user.issuer,
+    externalId: typeof user.external_id === "string" ? user.external_id : null,
+    emailVerified: user.email_verified === true,
+    sid: user.sid,
+  };
+}

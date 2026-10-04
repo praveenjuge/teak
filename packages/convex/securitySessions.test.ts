@@ -1,8 +1,8 @@
 /// <reference types="vite/client" />
 import betterAuthTest from "@convex-dev/better-auth/test";
 import { convexTest } from "convex-test";
-import { describe, expect, test } from "vitest";
-import { api, components } from "./_generated/api";
+import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
+import { api, components, internal } from "./_generated/api";
 import schema from "./schema";
 
 const modules = import.meta.glob("./**/*.ts");
@@ -171,5 +171,191 @@ describe("Security sessions", () => {
         })
       ).page
     ).toEqual([]);
+  });
+});
+
+// Failure modes: shadow mode denies a missing/deleted mapping or changes owners;
+// enforcement accepts an unmapped/tombstoned account; resolution writes data;
+// issuer-derived upload keys strand an existing upload after token changes;
+// another owner reads it; old provider-keyed sessions remain reusable.
+describe("Permanent identity shadow boundary", () => {
+  beforeEach(() => vi.stubEnv("IDENTITY_RESOLVER_ENFORCE", "false"));
+  afterEach(() => vi.unstubAllEnvs());
+
+  test("upload finalization denies revoked sessions and enforced missing mappings before storage work", async () => {
+    const { t, authenticated, current } = await setup();
+    const args = {
+      fileKey: "uncommitted/file.png",
+      fileName: "file.png",
+      fileSize: 128,
+      fileType: "image/png",
+    };
+    vi.stubEnv("IDENTITY_RESOLVER_ENFORCE", "true");
+    expect(
+      await authenticated.action(
+        api["card/uploadCardAction"].finalizeUploadedCard,
+        args
+      )
+    ).toEqual({ success: false, error: "User must be authenticated" });
+    await t.run((ctx) =>
+      ctx.db.insert("users", {
+        teakUserId: "owner",
+        email: "owner@example.com",
+        emailVerified: true,
+      })
+    );
+    await authenticated.mutation(api.securitySessions.revokeSession, {
+      sessionId: current._id,
+    });
+    expect(
+      await authenticated.action(
+        api["card/uploadCardAction"].finalizeUploadedCard,
+        args
+      )
+    ).toEqual({ success: false, error: "User must be authenticated" });
+    expect(await t.run((ctx) => ctx.db.query("cards").collect())).toEqual([]);
+  });
+
+  const privateCard = (t: Awaited<ReturnType<typeof setup>>["t"]) =>
+    t.run((ctx) =>
+      ctx.db.insert("cards", {
+        userId: "owner",
+        type: "text",
+        content: "Original owner vault",
+        createdAt: Date.now(),
+        updatedAt: Date.now(),
+      })
+    );
+
+  test("shadow reads preserve the legacy owner without creating a missing mapping", async () => {
+    const { t, authenticated } = await setup();
+    const id = await privateCard(t);
+    expect(await authenticated.query(api.cards.getCard, { id })).toMatchObject({
+      userId: "owner",
+      content: "Original owner vault",
+    });
+    expect(await t.run((ctx) => ctx.db.query("users").collect())).toEqual([]);
+  });
+
+  test("shadow mode retains existing access while reporting a tombstoned mapping", async () => {
+    const { t, authenticated } = await setup();
+    const id = await privateCard(t);
+    const row = await t.run((ctx) =>
+      ctx.db.insert("users", {
+        teakUserId: "owner",
+        email: "",
+        emailVerified: false,
+        deletedAt: Date.now(),
+      })
+    );
+    expect(await authenticated.query(api.cards.getCard, { id })).toMatchObject({
+      userId: "owner",
+    });
+    expect(await t.run((ctx) => ctx.db.get(row))).toMatchObject({
+      email: "",
+      deletedAt: expect.any(Number),
+    });
+  });
+
+  test("enforcement denies missing mappings and a tombstone, then accepts an active original mapping", async () => {
+    vi.stubEnv("IDENTITY_RESOLVER_ENFORCE", "true");
+    const { t, authenticated } = await setup();
+    const id = await privateCard(t);
+    expect(await authenticated.query(api.cards.getCard, { id })).toBeNull();
+    const row = await t.run((ctx) =>
+      ctx.db.insert("users", {
+        teakUserId: "owner",
+        email: "owner@example.com",
+        emailVerified: false,
+      })
+    );
+    expect(await authenticated.query(api.cards.getCard, { id })).toMatchObject({
+      userId: "owner",
+    });
+    await t.run((ctx) =>
+      ctx.db.patch("users", row, {
+        deletedAt: Date.now(),
+        email: "",
+        emailVerified: false,
+      })
+    );
+    expect(await authenticated.query(api.cards.getCard, { id })).toBeNull();
+    await expect(
+      authenticated.mutation(api.cards.createCard, {
+        type: "text",
+        content: "Denied tombstone write",
+      })
+    ).rejects.toThrow("authenticated");
+  });
+
+  test("an invalid enforcement flag fails rather than silently enabling shadow mode", async () => {
+    vi.stubEnv("IDENTITY_RESOLVER_ENFORCE", "invalid");
+    const { t, authenticated } = await setup();
+    const id = await privateCard(t);
+    await expect(
+      authenticated.query(api.cards.getCard, { id })
+    ).rejects.toThrow("must be true or false");
+  });
+
+  test("uploads keep their owner across token-identifier changes and reject other owners and legacy sessions", async () => {
+    const { t, current, stranger } = await setup();
+    const args = {
+      fileName: "same-video.mp4",
+      fileSize: 100_000_000,
+      fileLastModified: 123,
+    };
+    const upload = {
+      ...args,
+      userId: "owner",
+      teakUserId: "owner",
+      sourceKey: "test-upload/video.mp4",
+      uploadId: "multipart-1",
+      fileType: "video/mp4",
+      partSize: 8 * 1024 * 1024,
+      parts: [],
+      status: "uploading" as const,
+      createdAt: Date.now(),
+      updatedAt: Date.now(),
+      expiresAt: Date.now() + 60_000,
+    };
+    const sessionId = await t.run((ctx) =>
+      ctx.db.insert("fileUploadSessions", upload)
+    );
+    for (const tokenIdentifier of ["old-issuer|owner", "new-issuer|owner"]) {
+      const client = t.withIdentity({
+        subject: "owner",
+        sessionId: current._id,
+        tokenIdentifier,
+      });
+      expect(
+        await client.query(internal.fileUploads.getSessionForUser, {
+          sessionId,
+        })
+      ).toMatchObject({ _id: sessionId, userId: "owner" });
+      expect(
+        await client.query(internal.fileUploads.findActiveSession, args)
+      ).toMatchObject({ _id: sessionId });
+    }
+    expect(
+      await t
+        .withIdentity({ subject: "stranger", sessionId: stranger._id })
+        .query(internal.fileUploads.getSessionForUser, { sessionId })
+    ).toBeNull();
+    const legacyId = await t.run((ctx) => {
+      const { teakUserId: _owner, ...legacy } = upload;
+      return ctx.db.insert("fileUploadSessions", {
+        ...legacy,
+        identityKey: "old-issuer|owner",
+      });
+    });
+    expect(
+      await t
+        .withIdentity({
+          subject: "owner",
+          sessionId: current._id,
+          tokenIdentifier: "old-issuer|owner",
+        })
+        .query(internal.fileUploads.getSessionForUser, { sessionId: legacyId })
+    ).toBeNull();
   });
 });

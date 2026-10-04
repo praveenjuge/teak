@@ -2,7 +2,7 @@ import { v } from "convex/values";
 import { internal } from "../_generated/api";
 import type { ActionCtx, MutationCtx } from "../_generated/server";
 import { mutation, query } from "../_generated/server";
-import { getSessionIdentity } from "../securitySessions";
+import { getSessionUser } from "../securitySessions";
 import {
   buildSignedWorkerUploadUrl,
   putObjectViaFilesWorker,
@@ -151,12 +151,12 @@ export const generateUploadUrl = mutation({
     url: v.string(),
   }),
   handler: async (ctx, args) => {
-    const user = await getSessionIdentity(ctx);
+    const user = await getSessionUser(ctx);
     if (!user) {
       throw new Error("User must be authenticated");
     }
     const key = buildR2ObjectKey({
-      userId: user.subject,
+      userId: user.teakUserId,
       cardId: args.cardId,
       role: args.role ?? "file",
       fileName: args.fileName,
@@ -178,7 +178,7 @@ export const getFileUrl = query({
   },
   returns: v.union(v.string(), v.null()),
   handler: async (ctx, args) => {
-    const user = await getSessionIdentity(ctx);
+    const user = await getSessionUser(ctx);
     if (!user) {
       throw new Error("Unauthenticated call to getFileUrl");
     }
@@ -187,7 +187,7 @@ export const getFileUrl = query({
     if (!card) {
       throw new Error("Card not found");
     }
-    if (card.userId !== user.subject) {
+    if (card.userId !== user.teakUserId) {
       throw new Error("Unauthorized access to file");
     }
 
