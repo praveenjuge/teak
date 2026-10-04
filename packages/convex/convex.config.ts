@@ -19,6 +19,7 @@ const app = defineApp({
     AUTH_PRIMARY: v.optional(v.string()),
     IDENTITY_RESOLVER_ENFORCE: v.optional(v.string()),
     SIGNUPS_DISABLED: v.optional(v.string()),
+    WORKOS_AUTHKIT_DOMAIN: v.optional(v.string()),
     WORKOS_ENVIRONMENT_ID: v.optional(v.string()),
     WORKOS_WEBHOOK_SECRET: v.optional(v.string()),
     WORKOS_ACTION_SECRET: v.optional(v.string()),

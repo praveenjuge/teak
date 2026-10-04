@@ -18,6 +18,7 @@ import {
 import { errorResponse, type PublicApiOperation } from "./publicApiHttpShared";
 import { handleMeRequest } from "./publicApiMe";
 import { withPublicApiGatewayHeaders } from "./publicApiMeta";
+import type { WorkosResource } from "./workosTokens";
 
 export {
   validatePublicApiBearer,
@@ -62,31 +63,32 @@ const toPublicApiRequest = (operation: PublicApiOperation): Request => {
 
 export const executePublicApiOperation = (
   ctx: ActionCtx,
-  operation: PublicApiOperation
+  operation: PublicApiOperation,
+  resource: WorkosResource = "api"
 ): Promise<Response> => {
   const request = toPublicApiRequest(operation);
   const { pathname } = new URL(request.url);
 
   if (request.method === "GET" && pathname === "/v1/me") {
-    return handleMeRequest(ctx, request);
+    return handleMeRequest(ctx, request, resource);
   }
   if (request.method === "GET" && pathname === "/v1/cards") {
-    return handleCardsListRequest(ctx, request);
+    return handleCardsListRequest(ctx, request, resource);
   }
   if (request.method === "POST" && pathname === "/v1/cards") {
-    return handleCreateCardRequest(ctx, request);
+    return handleCreateCardRequest(ctx, request, resource);
   }
   if (request.method === "POST" && pathname === "/v1/uploads") {
-    return handleCreateUploadRequest(ctx, request);
+    return handleCreateUploadRequest(ctx, request, resource);
   }
   if (request.method === "POST" && pathname === "/v1/cards/bulk") {
-    return handleBulkCardsRequest(ctx, request);
+    return handleBulkCardsRequest(ctx, request, resource);
   }
   if (request.method === "GET" && pathname === "/v1/cards/changes") {
-    return handleCardChangesRequest(ctx, request);
+    return handleCardChangesRequest(ctx, request, resource);
   }
   if (request.method === "GET" && pathname === "/v1/tags") {
-    return handleTagsRequest(ctx, request);
+    return handleTagsRequest(ctx, request, resource);
   }
   if (
     pathname.startsWith("/v1/cards/") &&
@@ -96,7 +98,7 @@ export const executePublicApiOperation = (
       (request.method === "POST" &&
         /^\/v1\/cards\/[^/]+\/restore$/.test(pathname)))
   ) {
-    return handleCardsByIdV1Request(ctx, request);
+    return handleCardsByIdV1Request(ctx, request, resource);
   }
 
   return Promise.resolve(errorResponse(404, "NOT_FOUND", "Route not found"));

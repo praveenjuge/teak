@@ -135,3 +135,15 @@ export const getAppleCredentials = (): AppleCredentials | undefined => {
       "Set the full Apple group, or none of it."
   );
 };
+
+// Unset retains Better Auth. This server-owned flag never comes from a request.
+export const readAuthPrimary = (): "betterauth" | "workos" => {
+  const value = env.AUTH_PRIMARY;
+  if (value === undefined || value === "betterauth") {
+    return "betterauth";
+  }
+  if (value === "workos") {
+    return "workos";
+  }
+  throw new Error("AUTH_PRIMARY must be betterauth or workos.");
+};

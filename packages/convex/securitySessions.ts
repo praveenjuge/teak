@@ -6,6 +6,7 @@ import {
   env,
   internalQuery,
   mutation,
+  type QueryCtx,
   query,
 } from "./_generated/server";
 
@@ -95,6 +96,38 @@ export const identityMapping = internalQuery({
       .withIndex("by_teakUserId", (q) => q.eq("teakUserId", teakUserId))
       .unique(),
 });
+
+// Provider profile reads stay at the same boundary as provider identities.
+export const readWorkosProfile = (
+  ctx: Pick<QueryCtx, "runQuery">,
+  workosUserId: string
+) =>
+  ctx.runQuery(components.workOSAuthKit.lib.getAuthUser, { id: workosUserId });
+
+// API keys keep their permanent Teak owner in both modes. Under WorkOS they
+// still require the same mapped, verified and undeleted vault boundary.
+export async function resolveWorkosApiKeyOwner(
+  ctx: Pick<ActionCtx, "runQuery">,
+  ownerId: string
+): Promise<TeakUserId | null> {
+  const row = await ctx.runQuery(internal.securitySessions.identityMapping, {
+    teakUserId: ownerId,
+  });
+  if (!row?.workosUserId) {
+    return null;
+  }
+  const owner:
+    | { status: "ok"; teakUserId: string }
+    | { status: "denied"; reason: string } = await ctx.runQuery(
+    internal.workosIdentity.resolveWorkosOwner,
+    {
+      workosUserId: row.workosUserId,
+      externalId: ownerId,
+      verification: { kind: "connect" },
+    }
+  );
+  return owner.status === "ok" ? (owner.teakUserId as TeakUserId) : null;
+}
 
 // Read-only in queries and actions. Shadow mode retains the legacy owner;
 // enforcement is a separate operator gate after one clean production week.

@@ -64,6 +64,16 @@ export const BACKEND_ENTRIES: EnvVarSpec[] = [
     implicit: true,
     note: "Convex-managed WorkOS credential. Never expose in a client bundle.",
   }),
+  spec("WORKOS_AUTHKIT_DOMAIN", {
+    owners: ["@teak/convex"],
+    targets: ["convex"],
+    profiles: ["local", "preview", "production"],
+    secret: false,
+    validation: "url",
+    providers: ["convex-dashboard"],
+    required: false,
+    note: "HTTPS origin of this deployment's WorkOS Connect issuer. No trailing slash or path.",
+  }),
   spec("WORKOS_ENVIRONMENT_ID", {
     owners: ["@teak/convex"],
     targets: ["convex"],
