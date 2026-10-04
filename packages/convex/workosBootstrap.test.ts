@@ -1,20 +1,14 @@
 /// <reference types="vite/client" />
 import workosTest from "@convex-dev/workos-authkit/test";
-import { makeFunctionReference, type UserIdentity } from "convex/server";
+import type { UserIdentity } from "convex/server";
 import { convexTest } from "convex-test";
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
-import { components, internal } from "./_generated/api";
+import { api, components, internal } from "./_generated/api";
 import type { Doc } from "./_generated/dataModel";
 import schema from "./schema";
 
 const modules = import.meta.glob("./**/*.ts");
-const ensure = makeFunctionReference<
-  "mutation",
-  Record<string, never>,
-  | { status: "ok"; teakUserId: string }
-  | { status: "verify_email" | "frozen" }
-  | { status: "quarantined"; reason: string }
->("workosBootstrap:ensureUser");
+const ensure = api.workosBootstrap.ensureUser;
 const clientId = "client_BOOTSTRAP";
 const claims = {
   issuer: `https://api.workos.com/user_management/${clientId}`,
