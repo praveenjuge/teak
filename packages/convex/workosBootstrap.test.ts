@@ -334,10 +334,44 @@ describe("signed WorkOS bootstrap", () => {
     expect((await state(t)).users).toEqual([]);
     expect((await state(t)).jobs).toEqual([]);
   });
+  test("newer unverified event blocks stale verified component bootstrap", async () => {
+    const t = setup();
+    await profile(t);
+    vi.stubEnv("SIGNUPS_DISABLED", "true");
+    const event = {
+      id: "initial_verified",
+      event: "user.created" as const,
+      createdAt: "2026-10-01T00:00:00.000Z",
+      data: { id: "user_NEW", email: "new@example.com", emailVerified: true },
+    };
+    await t.mutation(internal.workosLifecycle.applyWorkosEvent, event);
+    await t.mutation(internal.workosLifecycle.applyWorkosEvent, {
+      ...event,
+      id: "latest_unverified",
+      event: "user.updated",
+      createdAt: "2026-10-03T00:00:00.000Z",
+      data: { ...event.data, emailVerified: false },
+    });
+    expect(
+      await t.mutation(internal.workosLifecycle.applyWorkosEvent, {
+        ...event,
+        id: "stale_verified",
+        event: "user.updated",
+        createdAt: "2026-10-02T00:00:00.000Z",
+      })
+    ).toEqual({ status: "stale" });
+    vi.stubEnv("SIGNUPS_DISABLED", "false");
+    expect(await signed(t).mutation(ensure, {})).toEqual({
+      status: "quarantined",
+      reason: "email_unverified",
+    });
+    expect((await state(t)).users).toEqual([]);
+    expect((await state(t)).jobs).toEqual([]);
+  });
   test("bootstrap, created webhook and import converge on one permanent owner", async () => {
     const t = setup();
     await profile(t);
-    await Promise.all([
+    const [bootstrapResult, webhookResult, importResult] = await Promise.all([
       signed(t).mutation(ensure, {}),
       t.mutation(internal.workosLifecycle.applyWorkosEvent, {
         id: "racing_created",
@@ -351,6 +385,31 @@ describe("signed WorkOS bootstrap", () => {
         emailVerified: true,
         source: "import",
       }),
+    ]);
+    expect(bootstrapResult).toMatchObject({ status: "ok" });
+    expect(webhookResult).toEqual({ status: "applied" });
+    if (importResult.status === "quarantined") {
+      expect(importResult.reason).toBe("missing_mapping");
+      expect(
+        await t.mutation(internal.workosUsers.linkWorkosUser, {
+          workosUserId: "user_NEW",
+          email: "new@example.com",
+          emailVerified: true,
+          source: "import",
+        })
+      ).toMatchObject({ status: "linked", changed: false });
+    } else {
+      expect(importResult).toMatchObject({ status: "linked", changed: false });
+    }
+    const receipts = await t.run((ctx) =>
+      ctx.db.query("workosEvents").take(10)
+    );
+    expect(receipts).toMatchObject([
+      {
+        eventId: "racing_created",
+        workosUserId: "user_NEW",
+        type: "user.created",
+      },
     ]);
     const after = await state(t);
     expect(after.users).toHaveLength(1);

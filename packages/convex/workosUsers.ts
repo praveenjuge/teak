@@ -145,19 +145,24 @@ export const linkWorkosUser = internalMutation({
         ) {
           throw new Error("Invalid WorkOS creation input");
         }
-        // An unmapped equal-time conflict has no row to demote. Its durable
-        // quarantine must stay denied even when the component snapshot is true.
-        const conflict = await ctx.db
-          .query("migrationQuarantine")
-          .withIndex("by_workosUserId_and_reason_and_resolvedAt", (q) =>
-            q
-              .eq("workosUserId", args.workosUserId)
-              .eq("reason", "equal_timestamp_conflict")
-              .eq("resolvedAt", undefined)
-          )
-          .first();
-        if (conflict) {
-          return quarantine("equal_timestamp_conflict");
+        // An unmapped conflict or unverified event has no mirror to demote.
+        // Keep its durable denial until reconciliation explicitly resolves it.
+        for (const reason of [
+          "equal_timestamp_conflict",
+          "email_unverified",
+        ] as const) {
+          const conflict = await ctx.db
+            .query("migrationQuarantine")
+            .withIndex("by_workosUserId_and_reason_and_resolvedAt", (q) =>
+              q
+                .eq("workosUserId", args.workosUserId)
+                .eq("reason", reason)
+                .eq("resolvedAt", undefined)
+            )
+            .first();
+          if (conflict) {
+            return quarantine(reason);
+          }
         }
         const previous = await ctx.db
           .query("workosEvents")
