@@ -279,7 +279,10 @@ describe("Convex session claims", () => {
     ).toBeNull();
     expect(
       readWorkosSessionIdentity(session({ external_id: undefined }), clientId)
-        ?.externalId
-    ).toBeUndefined();
+    ).toEqual({
+      workosUserId: userId,
+      sessionId: "session_TEST123",
+      emailVerified: true,
+    });
   });
 });
