@@ -72,7 +72,7 @@ describe("Security sessions", () => {
     expect(await authenticated.query(api.cards.getCard, { id })).toMatchObject({
       content: "Private card",
     });
-    await otherDevice.mutation(api.securitySessions.revokeSession, {
+    await otherDevice.action(api.securitySessions.revokeSession, {
       sessionId: current._id,
     });
     expect(await authenticated.query(api.cards.getCard, { id })).toBeNull();
@@ -107,7 +107,7 @@ describe("Security sessions", () => {
     });
     expect(await forged.query(api.cards.getCard, { id })).toBeNull();
     await expect(
-      forged.mutation(api.securitySessions.revokeSession, {
+      forged.action(api.securitySessions.revokeSession, {
         sessionId: current._id,
       })
     ).rejects.toThrow("sign in");
@@ -121,7 +121,7 @@ describe("Security sessions", () => {
 
   test("lists only owned live sessions with safe fields and this device first", async () => {
     const { authenticated, current, other } = await setup();
-    const result = await authenticated.query(
+    const result = await authenticated.action(
       api.securitySessions.listSessions,
       { paginationOpts }
     );
@@ -144,7 +144,7 @@ describe("Security sessions", () => {
   });
   test("cannot revoke another account and revokes only the requested device", async () => {
     const { t, authenticated, other, stranger } = await setup();
-    await authenticated.mutation(api.securitySessions.revokeSession, {
+    await authenticated.action(api.securitySessions.revokeSession, {
       sessionId: stranger._id,
     });
     const read = (id: string) =>
@@ -153,13 +153,13 @@ describe("Security sessions", () => {
         where: [{ field: "_id", value: id }],
       });
     expect(await read(stranger._id)).not.toBeNull();
-    await authenticated.mutation(api.securitySessions.revokeSession, {
+    await authenticated.action(api.securitySessions.revokeSession, {
       sessionId: other._id,
     });
     expect(await read(other._id)).toBeNull();
     expect(
       (
-        await authenticated.query(api.securitySessions.listSessions, {
+        await authenticated.action(api.securitySessions.listSessions, {
           paginationOpts,
         })
       ).page
@@ -167,12 +167,12 @@ describe("Security sessions", () => {
   });
   test("revoked session cannot use its still-signed cached JWT to manage sessions", async () => {
     const { authenticated, current, other } = await setup();
-    await authenticated.mutation(api.securitySessions.revokeSession, {
+    await authenticated.action(api.securitySessions.revokeSession, {
       sessionId: current._id,
     });
     expect(
       (
-        await authenticated.query(api.securitySessions.listSessions, {
+        await authenticated.action(api.securitySessions.listSessions, {
           paginationOpts,
         })
       ).page
@@ -188,7 +188,7 @@ describe("Security sessions", () => {
       })
     ).rejects.toThrow("User must be authenticated");
     await expect(
-      authenticated.mutation(api.securitySessions.revokeSession, {
+      authenticated.action(api.securitySessions.revokeSession, {
         sessionId: other._id,
       })
     ).rejects.toThrow("Please sign in again");
@@ -202,7 +202,7 @@ describe("Security sessions", () => {
     });
     expect(
       (
-        await forged.query(api.securitySessions.listSessions, {
+        await forged.action(api.securitySessions.listSessions, {
           paginationOpts,
         })
       ).page
@@ -240,7 +240,7 @@ describe("Permanent identity shadow boundary", () => {
         emailVerified: true,
       })
     );
-    await authenticated.mutation(api.securitySessions.revokeSession, {
+    await authenticated.action(api.securitySessions.revokeSession, {
       sessionId: current._id,
     });
     expect(

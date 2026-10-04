@@ -266,20 +266,12 @@ describe("WorkOS Convex sessions", () => {
     await seed(t);
     const c = client(t);
     expect(await c.run((ctx) => currentSession(ctx))).toBeNull();
-    expect(
-      await c.query(api.securitySessions.listSessions, {
-        paginationOpts: { cursor: null, numItems: 25 },
-      })
-    ).toMatchObject({ page: [] });
     expect(await c.query(api.oauthTokens.listOAuthConnections, {})).toEqual([]);
     expect(
       await c.query(api.oauthTokens.getOAuthConsentRequest, {
         consentCode: "pending",
       })
     ).toBeNull();
-    await expect(
-      c.mutation(api.securitySessions.revokeSession, { sessionId: claims.sid })
-    ).rejects.toThrow("sign in");
     await expect(
       c.mutation(api.authNative.createNativeAuthCode, {
         deviceId: "device-test",

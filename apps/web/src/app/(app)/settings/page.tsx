@@ -183,6 +183,7 @@ export default function ProfileSettingsPage() {
       onDeleteDialogOpenChange={settings.setDeleteDialogOpen}
       onDownloadExport={settings.handleDownloadExport}
       onLoadMoreSessions={settings.loadMoreSessions}
+      onRetrySessions={settings.retrySessions}
       onRevokeAllApiKeys={settings.handleRevokeAllApiKeys}
       onRevokeApiKey={settings.handleRevokeApiKey}
       onRevokeOAuthConnection={settings.handleRevokeOAuthConnection}
@@ -194,6 +195,7 @@ export default function ProfileSettingsPage() {
         setSubscriptionOpen(true);
       }}
       sessions={settings.sessions}
+      sessionsError={settings.sessionsError}
       sessionsHasMore={settings.sessionsHasMore}
       sessionsLoadingMore={settings.sessionsLoadingMore}
       signOutLoading={settings.signOutLoading}

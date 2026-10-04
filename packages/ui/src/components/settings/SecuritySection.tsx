@@ -26,9 +26,11 @@ export interface DeviceSession {
 export interface SecurityConnectionsProps {
   connections: OAuthConnection[] | undefined;
   onLoadMoreSessions: () => void;
+  onRetrySessions?: () => void;
   onRevokeConnection: (clientId: string) => Promise<void>;
   onRevokeSession: (sessionId: string, current: boolean) => Promise<void>;
   sessions: DeviceSession[] | undefined;
+  sessionsError?: string | null;
   sessionsHasMore: boolean;
   sessionsLoadingMore: boolean;
 }
@@ -96,6 +98,16 @@ function ConnectionsPanel(props: SecurityConnectionsProps) {
       setBusy(null);
     }
   };
+  if (props.sessionsError) {
+    return (
+      <div role="alert">
+        <p>{props.sessionsError}</p>
+        <Button onClick={props.onRetrySessions} variant="ghost">
+          Try again
+        </Button>
+      </div>
+    );
+  }
   if (!(props.connections && props.sessions)) {
     return (
       <p className="flex items-center gap-2 py-6 text-muted-foreground text-sm">

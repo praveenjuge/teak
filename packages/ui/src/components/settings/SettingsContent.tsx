@@ -35,6 +35,7 @@ interface SettingsContentProps {
   onDeleteDialogOpenChange: (open: boolean) => void;
   onDownloadExport: (jobId: string) => Promise<void>;
   onLoadMoreSessions: () => void;
+  onRetrySessions?: () => void;
   onRevokeAllApiKeys: () => Promise<{ hasMore: boolean; revokedCount: number }>;
   onRevokeApiKey: (keyId: string) => Promise<void>;
   onRevokeOAuthConnection: (clientId: string) => Promise<void>;
@@ -45,6 +46,7 @@ interface SettingsContentProps {
   onThemeChange?: (value: string) => void;
   onUpgrade: () => void;
   sessions: DeviceSession[] | undefined;
+  sessionsError?: string | null;
   sessionsHasMore: boolean;
   sessionsLoadingMore: boolean;
   signOutLoading: boolean;
@@ -64,6 +66,8 @@ export function SettingsContent({
   keys,
   oauthConnections,
   sessions,
+  sessionsError,
+  onRetrySessions,
   sessionsHasMore,
   sessionsLoadingMore,
   onLoadMoreSessions,
@@ -136,9 +140,11 @@ export function SettingsContent({
         }}
         connections={oauthConnections}
         onLoadMoreSessions={onLoadMoreSessions}
+        onRetrySessions={onRetrySessions}
         onRevokeConnection={onRevokeOAuthConnection}
         onRevokeSession={onRevokeSession}
         sessions={sessions}
+        sessionsError={sessionsError}
         sessionsHasMore={sessionsHasMore}
         sessionsLoadingMore={sessionsLoadingMore}
       />

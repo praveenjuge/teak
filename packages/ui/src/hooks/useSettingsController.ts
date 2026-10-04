@@ -10,8 +10,9 @@ import { useAction, useMutation } from "convex/react";
 import { useState } from "react";
 import { toast } from "sonner";
 import { TOAST_IDS } from "../constants/toast";
-import { usePaginatedQuery, useQuery } from "../convexQueryHooks";
+import { useQuery } from "../convexQueryHooks";
 import { openCustomerPortal } from "../lib/customerPortal";
+import { useDeviceSessions } from "./useDeviceSessions";
 
 interface UseSettingsControllerOptions {
   onDeleteAccount: () => Promise<void>;
@@ -51,16 +52,20 @@ export function useSettingsController({
   const revokeKey = useMutation(api.apiKeys.revokeUserApiKey);
   const rotateKey = useMutation(api.apiKeys.rotateUserApiKey);
   const revokeAllKeys = useMutation(api.apiKeys.revokeAllUserApiKeys);
-  const sessions = usePaginatedQuery(
-    api.securitySessions.listSessions,
-    {},
-    { initialNumItems: 25 }
+  const authMode = useQuery(api.auth.getAuthMode);
+  const devices = useDeviceSessions(
+    user?._id && authMode ? `${authMode.primary}:${user._id}` : undefined
   );
-  const revokeSession = useMutation(api.securitySessions.revokeSession);
+  const revokeSession = useAction(api.securitySessions.revokeSession);
   const handleRevokeSession = async (sessionId: string, current: boolean) => {
     await revokeSession({ sessionId });
+    if (!devices.isCurrentIdentity()) {
+      return;
+    }
     if (current) {
       await onSignOut();
+    } else {
+      await devices.refreshSessions();
     }
   };
   const oauthConnections = useQuery(api.oauthTokens.listOAuthConnections, {});
@@ -263,11 +268,7 @@ export function useSettingsController({
     accountLoading: user === undefined,
     keys,
     oauthConnections,
-    sessions:
-      sessions.status === "LoadingFirstPage" ? undefined : sessions.results,
-    sessionsHasMore: sessions.status === "CanLoadMore",
-    sessionsLoadingMore: sessions.status === "LoadingMore",
-    loadMoreSessions: () => sessions.loadMore(25),
+    ...devices,
     handleRevokeSession,
     setDeleteDialogOpen,
     setDeleteError,
