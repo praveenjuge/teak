@@ -501,12 +501,21 @@ export default defineSchema({
     source: v.string(),
     createdAt: v.number(),
     resolvedAt: v.optional(v.number()),
-  }).index("by_unresolved", ["resolvedAt"]),
+  })
+    .index("by_unresolved", ["resolvedAt"])
+    .index("by_workosUserId_and_reason_and_resolvedAt", [
+      "workosUserId",
+      "reason",
+      "resolvedAt",
+    ]),
   workosEvents: defineTable({
     eventId: v.string(),
     workosUserId: v.optional(v.string()),
     type: v.string(),
     createdAt: v.number(),
+    email: v.optional(v.string()),
+    emailVerified: v.optional(v.boolean()),
+    externalId: v.optional(v.union(v.string(), v.null())),
   })
     .index("by_eventId", ["eventId"])
     .index("by_workosUserId_and_type", ["workosUserId", "type"])
