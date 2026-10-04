@@ -199,6 +199,8 @@ import type * as workflows_steps_renderables_generateVideoThumbnail from "../wor
 import type * as workflows_steps_renderables_mutations from "../workflows/steps/renderables/mutations.js";
 import type * as workflows_steps_screenshot_captureScreenshot from "../workflows/steps/screenshot/captureScreenshot.js";
 import type * as workflows_steps_screenshot_retryable from "../workflows/steps/screenshot/retryable.js";
+import type * as workosLifecycle from "../workosLifecycle.js";
+import type * as workosUsers from "../workosUsers.js";
 
 import type {
   ApiFromModules,
@@ -398,6 +400,8 @@ declare const fullApi: ApiFromModules<{
   "workflows/steps/renderables/mutations": typeof workflows_steps_renderables_mutations;
   "workflows/steps/screenshot/captureScreenshot": typeof workflows_steps_screenshot_captureScreenshot;
   "workflows/steps/screenshot/retryable": typeof workflows_steps_screenshot_retryable;
+  workosLifecycle: typeof workosLifecycle;
+  workosUsers: typeof workosUsers;
 }>;
 
 /**
