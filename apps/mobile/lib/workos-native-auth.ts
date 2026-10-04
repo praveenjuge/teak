@@ -3,8 +3,19 @@ import {
   CodeChallengeMethod,
   ResponseType,
 } from "expo-auth-session";
+import * as SecureStore from "expo-secure-store";
 import * as WebBrowser from "expo-web-browser";
-import type { WorkosSession } from "./workos-session";
+import { WorkosSession } from "./workos-session";
+
+const sessions = new Map<string, WorkosSession>();
+export function getWorkosSession(clientId: string): WorkosSession {
+  let session = sessions.get(clientId);
+  if (!session) {
+    session = new WorkosSession(clientId, SecureStore);
+    sessions.set(clientId, session);
+  }
+  return session;
+}
 
 const discovery = {
   authorizationEndpoint: "https://api.workos.com/user_management/authorize",
@@ -16,7 +27,8 @@ WebBrowser.maybeCompleteAuthSession();
 // and the S256 verifier/challenge; the system browser handles every provider.
 export async function signInWithWorkos(
   session: WorkosSession,
-  provider: "authkit" | "GoogleOAuth" | "AppleOAuth" = "authkit"
+  provider: "authkit" | "GoogleOAuth" | "AppleOAuth" = "authkit",
+  screenHint?: "sign-in" | "sign-up"
 ): Promise<boolean> {
   await session.hydrate();
   const attempt = session.beginSignIn();
@@ -26,7 +38,10 @@ export async function signInWithWorkos(
     responseType: ResponseType.Code,
     usePKCE: true,
     codeChallengeMethod: CodeChallengeMethod.S256,
-    extraParams: { provider },
+    extraParams: {
+      provider,
+      ...(screenHint ? { screen_hint: screenHint } : {}),
+    },
   });
   await request.makeAuthUrlAsync(discovery);
   const result = await request.promptAsync(discovery);

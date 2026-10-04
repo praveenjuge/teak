@@ -27,6 +27,7 @@ mock.module("expo-auth-session", () => ({
     }
   },
 }));
+mock.module("expo-secure-store", () => ({}));
 mock.module("expo-web-browser", () => ({
   maybeCompleteAuthSession: () => {},
   openBrowserAsync: (url: string) => {

@@ -123,6 +123,7 @@ export class WorkosSession {
     this.storageKey = `teak.authkit.${clientId}`;
   }
 
+  getSessionId = (): string | null => this.session?.sessionId ?? null;
   getSnapshot = (): WorkosSessionSnapshot => this.snapshot;
   subscribe = (listener: () => void): (() => void) => {
     this.listeners.add(listener);

@@ -181,17 +181,30 @@ export const getAuthUser = query({
   handler: getAuthUserHandler,
 });
 
+export interface PublicAuthMode {
+  accountChangesPaused: boolean;
+  authKitClientId?: string;
+  primary: "betterauth" | "workos";
+  signupsDisabled: boolean;
+}
+
 export const getAuthMode = query({
   args: {},
   returns: v.object({
-    primary: v.literal("betterauth"),
+    primary: v.union(v.literal("betterauth"), v.literal("workos")),
     signupsDisabled: v.boolean(),
     accountChangesPaused: v.boolean(),
+    authKitClientId: v.optional(v.string()),
   }),
-  handler: () => ({
-    primary: "betterauth" as const,
+  // Phase 2 prepares clients; Phase 3 activates the mode only with its complete
+  // backend identity, revocation and lifecycle implementation.
+  handler: (): PublicAuthMode => ({
+    primary: "betterauth",
     signupsDisabled: readSignupsDisabled(),
     accountChangesPaused: false,
+    ...(process.env.WORKOS_CLIENT_ID
+      ? { authKitClientId: process.env.WORKOS_CLIENT_ID }
+      : {}),
   }),
 });
 

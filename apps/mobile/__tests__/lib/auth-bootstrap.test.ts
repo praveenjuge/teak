@@ -23,9 +23,9 @@ describe("auth bootstrap", () => {
   test("keeps loading when a stored cookie exists before session resolves", () => {
     expect(
       getAuthRouteState({
-        hasStoredSessionCookie: true,
-        hasBetterAuthSession: false,
-        isBetterAuthPending: false,
+        hasStoredSession: true,
+        hasSession: false,
+        isSessionPending: false,
         hasAttemptedSessionRefresh: false,
         isRefreshingSession: false,
         isConvexLoading: false,
@@ -38,9 +38,9 @@ describe("auth bootstrap", () => {
   test("allows auth routes when no cookie or session exists", () => {
     expect(
       getAuthRouteState({
-        hasStoredSessionCookie: false,
-        hasBetterAuthSession: false,
-        isBetterAuthPending: false,
+        hasStoredSession: false,
+        hasSession: false,
+        isSessionPending: false,
         hasAttemptedSessionRefresh: false,
         isRefreshingSession: false,
         isConvexLoading: false,
@@ -53,9 +53,9 @@ describe("auth bootstrap", () => {
   test("keeps loading while Convex warms up after Better Auth resolves", () => {
     expect(
       getAuthRouteState({
-        hasStoredSessionCookie: true,
-        hasBetterAuthSession: true,
-        isBetterAuthPending: false,
+        hasStoredSession: true,
+        hasSession: true,
+        isSessionPending: false,
         hasAttemptedSessionRefresh: true,
         isRefreshingSession: false,
         isConvexLoading: true,
@@ -68,9 +68,9 @@ describe("auth bootstrap", () => {
   test("allows protected routes after Convex authenticates", () => {
     expect(
       getAuthRouteState({
-        hasStoredSessionCookie: true,
-        hasBetterAuthSession: true,
-        isBetterAuthPending: false,
+        hasStoredSession: true,
+        hasSession: true,
+        isSessionPending: false,
         hasAttemptedSessionRefresh: true,
         isRefreshingSession: false,
         isConvexLoading: false,
@@ -83,9 +83,9 @@ describe("auth bootstrap", () => {
   test("allows welcome after explicit sign-out clears session state", () => {
     expect(
       getAuthRouteState({
-        hasStoredSessionCookie: false,
-        hasBetterAuthSession: false,
-        isBetterAuthPending: false,
+        hasStoredSession: false,
+        hasSession: false,
+        isSessionPending: false,
         hasAttemptedSessionRefresh: true,
         isRefreshingSession: false,
         isConvexLoading: false,
@@ -98,9 +98,9 @@ describe("auth bootstrap", () => {
   test("shows offline when the device has no internet", () => {
     expect(
       getAuthRouteState({
-        hasStoredSessionCookie: false,
-        hasBetterAuthSession: false,
-        isBetterAuthPending: false,
+        hasStoredSession: false,
+        hasSession: false,
+        isSessionPending: false,
         hasAttemptedSessionRefresh: true,
         isRefreshingSession: false,
         isConvexLoading: false,

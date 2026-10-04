@@ -27,7 +27,7 @@ timeouts, unsafe URLs, malformed/oversized responses, and loopback development.
 Removing issuer validation causes its regression to fail. Gateway tests and the
 207-test web suite pass. This is a foundation, not a completed client release.
 
-## Mobile session implementation in progress
+## Mobile session and provider preparation
 
 The canonical mobile source now contains the AuthKit session manager and Expo
 system-browser PKCE flow. Only the public client ID is sent; provider tokens are
@@ -38,13 +38,28 @@ Browser cancellation preserves a concurrent refresh, while sign-out cancels pend
 callbacks and late refreshes. Callback state and S256 PKCE are checked before exchange.
 The Expo browser supports AuthKit, Google and Apple with `teak://auth/callback`.
 
-All 214 mobile tests and typecheck pass. Removing sign-out invalidation fails its
-late-refresh regression. Browser tests mock only Expo hardware boundaries and use
-the real session manager. This source is not yet connected to the app provider or
-UI. Backend mode/config delivery, registration of the canonical redirect, Teak
-server revocation, offline/bootstrap wiring and canonical runtime proof remain.
-The logout browser opener alone does not establish server revocation. No WorkOS
-production activation or store release has occurred.
+The app now selects its provider from a public, reactive configuration query and
+keeps a deployment-scoped cache for offline startup. Delayed cache reads cannot
+override live configuration. Switching away from WorkOS clears its local session.
+The backend query still always selects Better Auth; its optional AuthKit client ID
+is public configuration, and no API key is returned. Email, Google and Apple screens
+use the prepared hosted flow only in WorkOS mode. Registration respects the freeze.
+
+All 226 mobile tests and typecheck pass. Removing sign-out invalidation fails its
+late-refresh regression. A mounted React browser fixture exercises the actual
+bootstrap and provider modules with controlled network/native boundaries: refresh
+completion and failure release loading, stale cache cannot replace live mode,
+configuration failure hides the splash and exposes retry, and expired credentials
+survive an outage and refresh on reconnect. Inverting the completion guard leaves
+the fixture loading, proving that regression is observable. Provider rollback clears
+the stored WorkOS session before selecting Better Auth. Evidence and the repeatable
+fixture are retained with the migration backup checkpoint.
+
+Canonical redirect registration, server revocation and WorkOS account deletion
+remain Phase 3 dependencies before activation or release. The logout browser opener
+alone does not establish server revocation. The fixture does not prove native UI or
+real WorkOS service behavior. No WorkOS production activation or store release has
+occurred.
 
 ## Remaining work
 
