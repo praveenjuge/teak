@@ -190,7 +190,10 @@ export function WorkosAuthProvider({
       }
       try {
         const token = await session.fetchAccessToken(options);
-        retryDelay.current = 1000;
+        // A cached access token does not prove that the refresh service recovered.
+        if (token && options.forceRefreshToken) {
+          retryDelay.current = 1000;
+        }
         return token;
       } catch {
         // Convex pauses its socket while fetching auth. Always settle with null
