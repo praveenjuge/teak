@@ -125,7 +125,10 @@ function buttons(name: string, parent = region("Connected apps")) {
 async function click(name: string, parent?: Element) {
   const button = buttons(name, parent)[0];
   expect(button).toBeDefined();
-  await act(() => button.click());
+  await act(async () => {
+    button.click();
+    await Promise.resolve();
+  });
 }
 
 // Failure modes: retained cached read errors, empty revoked pages, duplicate clients,
@@ -174,8 +177,17 @@ test("cached app retry retains devices and pages separate same-client grants", a
   expect(buttons("Disconnect Teak for Mac")).toHaveLength(2);
   expect(region("Connected apps").textContent).not.toContain("Full access");
   expect(region("Connected apps").textContent).not.toContain("app_consent_");
-  transport.onCall(() => Promise.reject(new Error("Mutation outage")));
+  let failDisconnect!: (error: Error) => void;
+  const rejectedDisconnect = new Promise<null>((_resolve, reject) => {
+    failDisconnect = reject;
+  });
+  transport.onCall(() => rejectedDisconnect);
   await click("Disconnect Teak for Mac");
+  expect(buttons("Disconnect Teak for Mac")[0].disabled).toBe(true);
+  await act(async () => {
+    failDisconnect(new Error("Mutation outage"));
+    await rejectedDisconnect.catch(() => {});
+  });
   expect(region("Connected apps").textContent).toContain("Could not update");
   expect(buttons("Disconnect Teak for Mac")).toHaveLength(2);
   transport.onCall(async (call) =>

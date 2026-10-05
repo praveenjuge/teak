@@ -344,6 +344,10 @@ describe("WorkOS REST and MCP token boundary", () => {
     const f = await setup();
     const api = await token();
     const mcp = await token(mcpAudience);
+    const siblingApi = await token(apiAudience, { sid: "app_consent_SIBLING" });
+    const siblingMcp = await token(mcpAudience, { sid: "app_consent_SIBLING" });
+    expect((await f.read(siblingApi)).status).toBe(200);
+    expect((await f.mcp(siblingMcp, "ping")).status).toBe(200);
     expect((await f.mcp(mcp)).status).toBe(200);
     vi.stubEnv("WORKOS_CLIENT_ID", "client_SESSION");
     expect(
@@ -365,25 +369,8 @@ describe("WorkOS REST and MCP token boundary", () => {
       expect((await f.mcp(mcp, method)).status).toBe(401);
       expect((await f.mcp(await token(mcpAudience), method)).status).toBe(401);
     }
-    expect(
-      (
-        await f.read(
-          await token(apiAudience, {
-            sid: "app_consent_SIBLING",
-          })
-        )
-      ).status
-    ).toBe(200);
-    expect(
-      (
-        await f.mcp(
-          await token(mcpAudience, {
-            sid: "app_consent_SIBLING",
-          }),
-          "ping"
-        )
-      ).status
-    ).toBe(200);
+    expect((await f.read(siblingApi)).status).toBe(200);
+    expect((await f.mcp(siblingMcp, "ping")).status).toBe(200);
   });
 
   test("mapping verification and global deletion are rechecked after consent exists", async () => {
