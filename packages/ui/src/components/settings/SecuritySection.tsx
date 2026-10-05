@@ -177,9 +177,12 @@ function ConnectionsPanel(props: SecurityConnectionsProps) {
 // biome-ignore lint/style/useReactFunctionComponents: React error boundaries require a class lifecycle.
 class BetterAuthConnectionsBoundary extends Component<
   SecurityConnectionsProps,
-  { failed: boolean; attempt: number }
+  { failed: boolean; retryKey: string | undefined }
 > {
-  state = { failed: false, attempt: 0 };
+  state: { failed: boolean; retryKey: string | undefined } = {
+    failed: false,
+    retryKey: undefined,
+  };
   static getDerivedStateFromError() {
     return { failed: true };
   }
@@ -189,10 +192,7 @@ class BetterAuthConnectionsBoundary extends Component<
         <ConnectionsPanel
           {...this.props}
           onRetrySessions={() =>
-            this.setState(({ attempt }) => ({
-              failed: false,
-              attempt: attempt + 1,
-            }))
+            this.setState({ failed: false, retryKey: crypto.randomUUID() })
           }
           sessions={undefined}
           sessionsError="Could not load devices. Please try again."
@@ -200,15 +200,20 @@ class BetterAuthConnectionsBoundary extends Component<
       );
     }
     return (
-      <BetterAuthConnectionsPanel {...this.props} key={this.state.attempt} />
+      <BetterAuthConnectionsPanel
+        {...this.props}
+        retryKey={this.state.retryKey}
+      />
     );
   }
 }
 
-function BetterAuthConnectionsPanel(props: SecurityConnectionsProps) {
+function BetterAuthConnectionsPanel(
+  props: SecurityConnectionsProps & { retryKey?: string }
+) {
   const sessions = usePaginatedQuery(
     api.securitySessions.listSessions,
-    {},
+    props.retryKey ? { retryKey: props.retryKey } : {},
     { initialNumItems: 25 }
   );
   return (

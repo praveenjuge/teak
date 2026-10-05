@@ -392,7 +392,11 @@ const displayValidator = v.object({
 });
 
 export const listSessions = query({
-  args: { paginationOpts: paginationOptsValidator },
+  args: {
+    paginationOpts: paginationOptsValidator,
+    // Operational cache key only; ownership always comes from the live session.
+    retryKey: v.optional(v.string()),
+  },
   returns: v.object({
     page: v.array(displayValidator),
     isDone: v.boolean(),
