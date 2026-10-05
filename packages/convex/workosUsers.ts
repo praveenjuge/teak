@@ -3,6 +3,7 @@ import { internal } from "./_generated/api";
 import type { Doc } from "./_generated/dataModel";
 import { internalMutation } from "./_generated/server";
 import { readAuthPrimary, readSignupsDisabled } from "./env";
+import { guardUserCreation } from "./signupFreeze";
 import { scheduleUserCreated } from "./telemetry/schedule";
 import { normalizeIdentityEmail } from "./userIdentityTable";
 
@@ -24,7 +25,7 @@ type LinkReason = typeof reasonValidator.type;
 
 // Only authenticated provider/import adapters may call this internal boundary.
 // It links existing owners; only proven bootstrap/created-event adapters may
-// allocate a new permanent owner after the WorkOS sign-up freeze ends.
+// allocate a new permanent owner when the shared signup policy permits it.
 // All uniqueness reads and the one link write share the mutation transaction.
 export const linkWorkosUser = internalMutation({
   args: {
@@ -145,7 +146,13 @@ export const linkWorkosUser = internalMutation({
         if (!canCreate) {
           return quarantine("missing_mapping");
         }
-        if (readSignupsDisabled()) {
+        try {
+          await guardUserCreation({
+            email,
+            disabled: readSignupsDisabled(),
+            e2eEmailDomain: process.env.E2E_EMAIL_DOMAIN,
+          });
+        } catch {
           return quarantine("signups_frozen");
         }
         if (

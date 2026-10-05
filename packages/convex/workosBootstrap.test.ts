@@ -128,6 +128,52 @@ describe("signed WorkOS bootstrap", () => {
       status: "ok",
     });
   });
+  test.each([
+    {
+      email: "e2e-bootstrap@tests.example.com",
+      domain: "tests.example.com",
+      allowed: true,
+    },
+    {
+      email: "e2e-bootstrap@tests.example.com",
+      domain: "TESTS.EXAMPLE.COM",
+      allowed: true,
+    },
+    {
+      email: "person@tests.example.com",
+      domain: "tests.example.com",
+      allowed: false,
+    },
+    {
+      email: "e2e-bootstrap@other.example.com",
+      domain: "tests.example.com",
+      allowed: false,
+    },
+    { email: "e2e-bootstrap@tests.example.com", domain: "", allowed: false },
+    {
+      email: "e2e-bootstrap@tests.example.com",
+      domain: "@tests.example.com",
+      allowed: false,
+    },
+  ])(
+    "signup freeze namespace: $email / $domain",
+    async ({ email, domain, allowed }) => {
+      const t = setup();
+      await profile(t, { email });
+      vi.stubEnv("SIGNUPS_DISABLED", "true");
+      vi.stubEnv("E2E_EMAIL_DOMAIN", domain);
+      const result = await signed(t).mutation(ensure, {});
+      expect(result.status).toBe(allowed ? "ok" : "frozen");
+      const after = await state(t);
+      expect(after.users).toHaveLength(allowed ? 1 : 0);
+      expect(after.jobs).toHaveLength(allowed ? 2 : 0);
+      if (allowed) {
+        expect(after.users[0]?.email).toBe(email);
+        expect(await signed(t).mutation(ensure, {})).toEqual(result);
+        expect(await state(t)).toEqual(after);
+      }
+    }
+  );
   test("unsigned bootstrap creates nothing", async () => {
     const t = setup();
     await profile(t);
