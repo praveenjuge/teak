@@ -1,4 +1,6 @@
 "use node";
+import { ensureObjectOwnership } from "../storage/ownership";
+
 
 import { ConvexError, v } from "convex/values";
 import { internal } from "../_generated/api";
@@ -165,6 +167,7 @@ const finalizeForUser = async (
     role: "file",
     fileName: validated.fileName,
   });
+  await ensureObjectOwnership(ctx, userId, destinationKey);
   const outcome = await callFilesWorkerJson<
     FinalizedUpload | FilesWorkerFinalizeImageResult
   >({

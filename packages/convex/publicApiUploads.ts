@@ -1,3 +1,4 @@
+import { ensureObjectOwnership } from "./storage/ownership";
 import { ConvexError, v } from "convex/values";
 import { internalMutation } from "./_generated/server";
 import { ensureCardCreationAllowed } from "./auth";
@@ -84,6 +85,7 @@ export const generateUploadUrlForUser = internalMutation({
       role: "file",
       fileName,
     });
+  await ensureObjectOwnership(ctx, args.userId, key);
     const signed = await buildSignedWorkerUploadUrl({
       contentType: args.mimeType || "application/octet-stream",
       key,

@@ -187,12 +187,14 @@ const storeRemoteAsset = async (
     allowedContentTypePrefixes,
     fallbackContentType,
     key,
+    userId,
     maxBytes,
     validateBytes,
   }: {
     allowedContentTypePrefixes: readonly string[];
     fallbackContentType?: string;
     key: string;
+    userId: string;
     maxBytes: number;
     validateBytes?: (bytes: Uint8Array) => boolean;
   }
@@ -254,6 +256,7 @@ const storeRemoteAsset = async (
       new Blob([Uint8Array.from(bytes)]),
       {
         key,
+        userId,
         type: contentType,
       }
     );
@@ -276,6 +279,7 @@ const storeLinkPreviewImage = async (
   keyBase: { cardId: string; userId: string }
 ): Promise<StoredLinkImage | null> => {
   const storedAsset = await storeRemoteAsset(ctx, imageUrl, {
+    userId: keyBase.userId,
     allowedContentTypePrefixes: ["image/"],
     fallbackContentType: resolveImageContentType(null, imageUrl) ?? undefined,
     key: buildR2ObjectKey({ ...keyBase, role: "link-preview-image" }),
@@ -306,6 +310,7 @@ const storeLinkPreviewMediaItem = async (
   keyBase: { cardId: string; userId: string }
 ): Promise<LinkPreviewMediaItem | null> => {
   const storedMedia = await storeRemoteAsset(ctx, media.url, {
+    userId: keyBase.userId,
     allowedContentTypePrefixes:
       media.type === "image" ? ["image/"] : ["video/"],
     fallbackContentType: media.contentType,
@@ -330,6 +335,7 @@ const storeLinkPreviewMediaItem = async (
 
   if (media.type === "video" && media.posterUrl) {
     const storedPoster = await storeRemoteAsset(ctx, media.posterUrl, {
+      userId: keyBase.userId,
       allowedContentTypePrefixes: ["image/"],
       fallbackContentType: media.posterContentType,
       key: buildR2ObjectKey({ ...keyBase, role: "link-media-poster" }),

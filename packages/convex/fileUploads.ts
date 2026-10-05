@@ -1,3 +1,4 @@
+import { ensureObjectOwnership } from "./storage/ownership";
 import { ConvexError, v } from "convex/values";
 import { internal } from "./_generated/api";
 import type { Doc, Id } from "./_generated/dataModel";
@@ -182,6 +183,7 @@ export const prepareMultipartUpload = action({
       role: "file",
       fileName: `${crypto.randomUUID()}-${args.fileName}`,
     });
+  await ensureObjectOwnership(ctx, identity.teakUserId, sourceKey);
     const created = await callFilesWorkerJson<{
       key: string;
       uploadId: string;

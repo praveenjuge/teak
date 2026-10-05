@@ -379,7 +379,9 @@ test("failed verification keeps private copies tracked and teardown racing PUT q
     scheduler,
   } as any;
   ctx.runMutation.mockImplementation((_ref: unknown, args: any) =>
-    registerArtifactHandler(registerCtx, args.reference)
+    args.reference
+      ? registerArtifactHandler(registerCtx, args.reference)
+      : Promise.resolve(true)
   );
   globalThis.fetch = mock((_: any, init?: RequestInit) =>
     Promise.resolve(
@@ -456,9 +458,10 @@ test("retained raw archives do not consume workflow slots, but real artifacts st
   const runAfter = mock().mockResolvedValue("job");
   const registerCtx = {
     db: {
-      get: async () => data,
-      patch: async (_table: string, _id: string, fields: any) => {
+      get: () => Promise.resolve(data),
+      patch: (_table: string, _id: string, fields: any) => {
         Object.assign(data, fields);
+        return Promise.resolve();
       },
     },
     runQuery: ctx.runQuery,

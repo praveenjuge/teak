@@ -7,6 +7,8 @@ export default defineConfig({
     include: [
       "./occContention.test.ts",
       "./accountDeletionRetry.test.ts",
+      "./accountDeletionStorage.test.ts",
+      "./accountDeletionWorkflow.test.ts",
       "./importConsolidation.test.ts",
       "./safariOAuth.test.ts",
       "./securitySessions.test.ts",

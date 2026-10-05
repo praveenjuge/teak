@@ -1,3 +1,7 @@
+import { gatedBucket, objectIsFrozen } from "./deletionGate";
+
+export { ObjectDeletionGate } from "./deletionGate";
+
 import { withSentry } from "@sentry/cloudflare";
 import {
   buildMultipartPartSigningPayload,
@@ -27,6 +31,7 @@ export interface Env {
   FILES_SIGNING_SECRET: string;
   /** Cloudflare Images binding; used for free metadata inspection of eligible rasters. */
   IMAGES?: ImagesBinding;
+  OBJECT_GATES?: DurableObjectNamespace;
   /** Wrangler secret; error reporting stays disabled until it is set. */
   SENTRY_DSN?: string;
   /** Optional overrides, normally left unset. */
@@ -289,7 +294,7 @@ const edgeCache: Cache | null =
   typeof caches === "undefined" ? null : caches.default;
 
 const handler = {
-  async fetch(request, env, ctx): Promise<Response> {
+  async fetch(request, bindings, ctx): Promise<Response> {
     const requestMethod = request.method.toUpperCase();
     const url = new URL(request.url);
 
@@ -304,6 +309,11 @@ const handler = {
       }
       return json({ ok: true });
     }
+
+    if (!bindings.OBJECT_GATES) {
+      return json({ error: "object_gate_not_configured" }, 503);
+    }
+    const env = { ...bindings, BUCKET: gatedBucket(bindings) };
 
     if (url.pathname === "/__ops/v1") {
       if (requestMethod !== "POST") {
@@ -368,6 +378,10 @@ const handler = {
     );
     if (!verification.ok) {
       return new Response(null, { status: verification.status });
+    }
+
+    if (await objectIsFrozen(env, key)) {
+      return new Response(null, { status: 404 });
     }
 
     // Only full-object responses are served from (and written to) the edge

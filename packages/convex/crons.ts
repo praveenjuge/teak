@@ -108,4 +108,11 @@ crons.cron(
   {}
 );
 
+crons.cron(
+  "redrive-account-deletion",
+  "*/5 * * * *",
+  internal.telemetry.crons.redriveAccountDeletion,
+  {}
+);
+
 export default crons;

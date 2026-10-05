@@ -95,6 +95,11 @@ describe("Sentry cron monitoring", () => {
         schedule: "0 1 * * *",
         slug: "ensure-oauth-clients",
       }),
+      expect.objectContaining({
+        schedule: "*/5 * * * *",
+        slug: "redrive-account-deletion",
+        failureIssueThreshold: 2,
+      }),
     ]);
   });
 
@@ -113,17 +118,17 @@ describe("Sentry cron monitoring", () => {
     const subHourly = monitors
       .filter((monitor) => runsMoreThanHourly(monitor.schedule))
       .map((monitor) => monitor.slug);
-    expect(subHourly).toEqual([]);
+    expect(subHourly).toEqual(["redrive-account-deletion"]);
     expect(tolerant).toEqual(subHourly);
   });
 
-  test("routes all eleven schedules through monitored Node actions", () => {
+  test("routes all twelve schedules through monitored Node actions", () => {
     const source = readFileSync(
       resolve(import.meta.dir, "../../crons.ts"),
       "utf8"
     );
-    expect(source.match(/crons\.cron\(/gu)).toHaveLength(11);
-    expect(source.match(/telemetry\.crons\./gu)).toHaveLength(11);
+    expect(source.match(/crons\.cron\(/gu)).toHaveLength(12);
+    expect(source.match(/telemetry\.crons\./gu)).toHaveLength(12);
     expect(source).not.toContain("crons.daily(");
     expect(source).not.toContain("crons.interval(");
   });

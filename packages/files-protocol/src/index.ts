@@ -38,6 +38,7 @@ export const FILES_OPS = [
   "cleanup-stale-pending-uploads",
   "complete-multipart",
   "create-multipart",
+  "freeze-object",
   "delete-object",
   "delete-objects",
   "extract-import-files",

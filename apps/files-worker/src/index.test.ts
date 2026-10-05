@@ -6,12 +6,17 @@ import {
 } from "@teak/files-protocol";
 import worker, { type Env } from "./index";
 import { buildSigningPayload, hmacSha256Hex, sha256Hex } from "./lib";
-import { FakeBucket, fakeHttpEtag, makePng } from "./testsupport";
+import {
+  FakeBucket,
+  fakeHttpEtag,
+  makePng,
+  withObjectGates,
+} from "./testsupport";
 
 const SECRET = "test-secret";
 
 const env = (): Env =>
-  ({
+  withObjectGates({
     BUCKET: new FakeBucket() as unknown as R2Bucket,
     FILES_SIGNING_SECRET: SECRET,
   }) as Env;
@@ -95,6 +100,42 @@ describe("files worker handler", () => {
     expect(response.headers.get("cache-control")).toBe("no-store");
   });
 
+  test("missing gate binding keeps health and preflight available but refuses storage", async () => {
+    const missing = {
+      BUCKET: new FakeBucket(),
+      FILES_SIGNING_SECRET: SECRET,
+    } as unknown as Env;
+    const ctx = { waitUntil: () => undefined } as never;
+    expect(
+      (
+        await worker.fetch(
+          new Request("https://files.teakvault.com/__health"),
+          missing,
+          ctx
+        )
+      ).status
+    ).toBe(200);
+    expect(
+      (
+        await worker.fetch(
+          new Request("https://files.teakvault.com/users/u1/file", {
+            method: "OPTIONS",
+          }),
+          missing,
+          ctx
+        )
+      ).status
+    ).toBe(204);
+    const response = await worker.fetch(
+      new Request(await signedUrl("/users/u1/file")),
+      missing,
+      ctx
+    );
+    expect(response.status).toBe(503);
+    expect(await response.json()).toEqual({
+      error: "object_gate_not_configured",
+    });
+  });
   test("rejects non-GET/HEAD methods and answers OPTIONS preflights", async () => {
     const ctx = { waitUntil: () => undefined } as never;
     const post = await worker.fetch(
@@ -166,10 +207,10 @@ describe("files worker handler", () => {
 
   test("lists objects under a prefix with pagination", async () => {
     const bucket = new FakeBucket();
-    const envWithBucket = {
+    const envWithBucket = withObjectGates({
       BUCKET: bucket,
       FILES_SIGNING_SECRET: SECRET,
-    } as Env;
+    }) as Env;
     for (const key of [
       "users/u1/cards/a/one",
       "users/u1/cards/b/two",

@@ -1,3 +1,4 @@
+import { ensureObjectOwnership } from "../storage/ownership";
 import { v } from "convex/values";
 import { internal } from "../_generated/api";
 import type { ActionCtx, MutationCtx } from "../_generated/server";
@@ -121,13 +122,15 @@ export const deleteObject = async (ctx: MutationCtx, key?: string) => {
 };
 
 export const storeObject = async (
-  _ctx: ActionCtx,
+  ctx: ActionCtx,
   blob: Blob,
   opts: {
     key: string;
+    userId: string;
     type?: string;
   }
 ) => {
+  await ensureObjectOwnership(ctx, opts.userId, opts.key);
   assertR2KeyInNamespace(opts.key);
   await putObjectViaFilesWorker({
     body: blob,
@@ -162,6 +165,7 @@ export const generateUploadUrl = mutation({
       fileName: args.fileName,
     });
     const contentType = args.fileType ?? "application/octet-stream";
+  await ensureObjectOwnership(ctx, user.teakUserId, key);
     const signed = await buildSignedWorkerUploadUrl({
       contentType,
       key,

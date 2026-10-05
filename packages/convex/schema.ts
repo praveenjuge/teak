@@ -616,7 +616,30 @@ export default defineSchema({
   accountDeletionStates: defineTable({
     userId: v.string(),
     startedAt: v.number(),
-  }).index("by_userId", ["userId"]),
+    initiationProvider: v.optional(v.union(v.literal("betterauth"), v.literal("workos"))),
+    betterAuthUserId: v.optional(v.string()),
+    workosUserId: v.optional(v.string()),
+    workosTarget: v.optional(v.object({ environmentId: v.string(), clientId: v.string(), issuer: v.string(), credentialFingerprint: v.string() })),
+    stage: v.optional(v.number()),
+    providerSessionCursor: v.optional(v.string()),
+    localConsentCursor: v.optional(v.string()),
+    writerTable: v.optional(v.union(v.literal("importJobs"), v.literal("exportJobs"))),
+    writerCursor: v.optional(v.string()),
+    writersPrepared: v.optional(v.boolean()),
+    storageProgress: v.optional(v.object({ kind: v.union(v.literal("cards"), v.literal("imports"), v.literal("exports"), v.literal("uploads"), v.literal("objects")), fingerprint: v.string(), offset: v.number() })),
+    workflowId: v.optional(v.string()),
+    generation: v.optional(v.number()),
+    nextAttemptAt: v.optional(v.number()),
+    failureCode: v.optional(v.string()),
+  }).index("by_userId", ["userId"])
+    .index("by_nextAttemptAt", ["nextAttemptAt"]),
+  accountStorageObjects: defineTable({
+    userId: v.string(),
+    key: v.string(),
+    exportJobId: v.optional(v.id("exportJobs")),
+  }).index("by_userId_and_key", ["userId", "key"])
+    .index("by_key", ["key"])
+    .index("by_exportJobId", ["exportJobId"]),
   cardSearchDocuments: defineTable({
     cardId: v.id("cards"),
     userId: v.string(),

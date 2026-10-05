@@ -59,6 +59,18 @@ export const OPS_ENTRIES: EnvVarSpec[] = [
     kind: "binding",
     note: "R2 bucket binding backing file storage.",
   }),
+  spec("OBJECT_GATES", {
+    owners: ["@teak/files-worker"],
+    targets: ["files-worker"],
+    profiles: ["local", "preview", "production"],
+    secret: false,
+    validation: "string",
+    providers: ["cloudflare"],
+    required: true,
+    requiredIn: ["local", "preview", "production"],
+    kind: "binding",
+    note: "Durable exact-key write fencing for safe account deletion.",
+  }),
   spec("AI", {
     owners: ["@teak/files-worker"],
     targets: ["files-worker"],

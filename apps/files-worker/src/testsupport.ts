@@ -2,6 +2,7 @@
 // the deployed worker bundle.
 
 import { crc32, deflateSync } from "node:zlib";
+import { ObjectDeletionGate } from "./deletionGate";
 
 /* ------------------------------------------------------------------ *
  * Minimal PNG encoder (truecolor + alpha) so image tests can build
@@ -302,4 +303,66 @@ export class FakeBucket {
   storedBytes(key: string): Uint8Array | null {
     return this.objects.get(key)?.bytes ?? null;
   }
+}
+
+/** Execute the production gate; only Cloudflare storage/namespace are mocked. */
+export function withObjectGates<T extends { BUCKET: unknown }>(
+  env: T
+): T & { OBJECT_GATES: DurableObjectNamespace } {
+  const instances = new Map<string, ObjectDeletionGate>();
+  const namespace = {
+    idFromName: (key: string) => key,
+    get(key: string) {
+      let gate = instances.get(key);
+      if (!gate) {
+        const values = new Map<string, unknown>();
+        let previous = Promise.resolve();
+        const storage = {
+          get(name: string) {
+            return Promise.resolve(values.get(name));
+          },
+          put(name: string | Record<string, unknown>, value?: unknown) {
+            if (typeof name === "string") {
+              values.set(name, value);
+            } else {
+              for (const [entry, item] of Object.entries(name)) {
+                values.set(entry, item);
+              }
+            }
+            return Promise.resolve();
+          },
+          delete(names: string | string[]) {
+            for (const name of typeof names === "string" ? [names] : names) {
+              values.delete(name);
+            }
+            return Promise.resolve();
+          },
+          transaction<R>(
+            callback: (store: typeof storage) => Promise<R>
+          ): Promise<R> {
+            const result = previous.then(() => callback(storage));
+            previous = result.then(
+              () => undefined,
+              () => undefined
+            );
+            return result;
+          },
+        };
+        gate = new ObjectDeletionGate(
+          { storage } as unknown as DurableObjectState,
+          { BUCKET: env.BUCKET as R2Bucket }
+        );
+        instances.set(key, gate);
+      }
+      const instance = gate;
+      return {
+        fetch: (input: RequestInfo, init?: RequestInit) =>
+          instance.fetch(new Request(input, init)),
+      };
+    },
+  };
+  return {
+    ...env,
+    OBJECT_GATES: namespace as unknown as DurableObjectNamespace,
+  };
 }

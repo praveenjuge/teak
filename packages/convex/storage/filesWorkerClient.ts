@@ -244,7 +244,10 @@ export const callFilesWorkerJson = async <T>(spec: {
           response = await fetch(signed.url, {
             ...signed,
             ...(spec.op === "generate-text-metadata" ||
-            spec.op === "generate-link-metadata"
+            spec.op === "generate-link-metadata" ||
+            spec.op === "freeze-object" ||
+            spec.op === "abort-multipart" ||
+            spec.op === "delete-objects"
               ? {
                   signal: AbortSignal.timeout(90_000),
                   redirect: "error" as const,

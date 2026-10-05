@@ -1,4 +1,7 @@
 "use node";
+import { ensureObjectOwnership } from "../../../storage/ownership";
+import type { ActionCtx } from "../../../_generated/server";
+
 
 import { lookup } from "node:dns/promises";
 import Kernel from "@onkernel/sdk";
@@ -84,7 +87,7 @@ export const buildGenericScreenshotCode = (
   return JSON.stringify({ etag: uploadResponse.headers()['etag'] || null, ok: true, status: uploadResponse.status() });
 `;
 
-const captureScreenshotWithKernel = async ({
+const captureScreenshotWithKernel = async (ctx: ActionCtx, {
   cardId,
   html,
   url,
@@ -111,6 +114,7 @@ const captureScreenshotWithKernel = async ({
     cardId,
     role: "screenshot",
   });
+  await ensureObjectOwnership(ctx, userId, screenshotKey);
   let uploadUrl: string;
   try {
     uploadUrl = (
@@ -321,7 +325,7 @@ export const captureScreenshot = internalAction({
       throw error;
     }
 
-    const screenshotResult = await captureScreenshotWithKernel({
+    const screenshotResult = await captureScreenshotWithKernel(ctx, {
       cardId,
       html,
       url: normalizedUrl,

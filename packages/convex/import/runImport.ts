@@ -1,4 +1,5 @@
 "use node";
+import { ensureObjectOwnership } from "../storage/ownership";
 
 import { v } from "convex/values";
 import { internal } from "../_generated/api";
@@ -354,6 +355,7 @@ export const extractImportFiles = internalAction({
           ),
           path: item.filePath,
         }));
+        for (const entry of entries) await ensureObjectOwnership(ctx, job.userId, entry.destinationKey);
         const outcome = await callFilesWorkerJson<
           Array<{ destinationKey: string; path: string }>
         >({
@@ -471,6 +473,7 @@ export const finalizeImportObjects = internalAction({
           cursor = page.isDone ? null : page.continueCursor;
         } while (cursor);
         reportKey = `${buildR2UserPrefix(job.userId)}/imports/${jobId}/error-report.txt`;
+        await ensureObjectOwnership(ctx, job.userId, reportKey);
         await putObjectViaFilesWorker({
           key: reportKey,
           body: new TextEncoder().encode(lines.join("\n")),

@@ -9,6 +9,10 @@
  */
 
 import type * as accountDeletion from "../accountDeletion.js";
+import type * as accountDeletionActions from "../accountDeletionActions.js";
+import type * as accountDeletionBatch from "../accountDeletionBatch.js";
+import type * as accountDeletionData from "../accountDeletionData.js";
+import type * as accountDeletionJobs from "../accountDeletionJobs.js";
 import type * as admin from "../admin.js";
 import type * as ai_actions from "../ai/actions.js";
 import type * as ai_models from "../ai/models.js";
@@ -136,6 +140,7 @@ import type * as shared_workosResources from "../shared/workosResources.js";
 import type * as signupFreeze from "../signupFreeze.js";
 import type * as storage_fileUrls from "../storage/fileUrls.js";
 import type * as storage_filesWorkerClient from "../storage/filesWorkerClient.js";
+import type * as storage_ownership from "../storage/ownership.js";
 import type * as storage_pendingUploadCleanup from "../storage/pendingUploadCleanup.js";
 import type * as storage_pendingUploadCleanupState from "../storage/pendingUploadCleanupState.js";
 import type * as storage_r2 from "../storage/r2.js";
@@ -151,6 +156,7 @@ import type * as telemetry_schedule from "../telemetry/schedule.js";
 import type * as telemetry_sentry from "../telemetry/sentry.js";
 import type * as trustedOrigins from "../trustedOrigins.js";
 import type * as userIdentityTable from "../userIdentityTable.js";
+import type * as workflows_accountDeletion from "../workflows/accountDeletion.js";
 import type * as workflows_aiBackfill from "../workflows/aiBackfill.js";
 import type * as workflows_aiMetadata_generators from "../workflows/aiMetadata/generators.js";
 import type * as workflows_aiMetadata_index from "../workflows/aiMetadata/index.js";
@@ -224,6 +230,10 @@ import type {
 
 declare const fullApi: ApiFromModules<{
   accountDeletion: typeof accountDeletion;
+  accountDeletionActions: typeof accountDeletionActions;
+  accountDeletionBatch: typeof accountDeletionBatch;
+  accountDeletionData: typeof accountDeletionData;
+  accountDeletionJobs: typeof accountDeletionJobs;
   admin: typeof admin;
   "ai/actions": typeof ai_actions;
   "ai/models": typeof ai_models;
@@ -351,6 +361,7 @@ declare const fullApi: ApiFromModules<{
   signupFreeze: typeof signupFreeze;
   "storage/fileUrls": typeof storage_fileUrls;
   "storage/filesWorkerClient": typeof storage_filesWorkerClient;
+  "storage/ownership": typeof storage_ownership;
   "storage/pendingUploadCleanup": typeof storage_pendingUploadCleanup;
   "storage/pendingUploadCleanupState": typeof storage_pendingUploadCleanupState;
   "storage/r2": typeof storage_r2;
@@ -366,6 +377,7 @@ declare const fullApi: ApiFromModules<{
   "telemetry/sentry": typeof telemetry_sentry;
   trustedOrigins: typeof trustedOrigins;
   userIdentityTable: typeof userIdentityTable;
+  "workflows/accountDeletion": typeof workflows_accountDeletion;
   "workflows/aiBackfill": typeof workflows_aiBackfill;
   "workflows/aiMetadata/generators": typeof workflows_aiMetadata_generators;
   "workflows/aiMetadata/index": typeof workflows_aiMetadata_index;

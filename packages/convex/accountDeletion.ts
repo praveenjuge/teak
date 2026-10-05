@@ -1,16 +1,20 @@
 import { ConvexError, v } from "convex/values";
-import { internal } from "./_generated/api";
-import type { Id } from "./_generated/dataModel";
+import { components, internal } from "./_generated/api";
+import type { Doc, Id } from "./_generated/dataModel";
 import {
   type ActionCtx,
   internalMutation,
   internalQuery,
   type MutationCtx,
+  mutation,
   type QueryCtx,
 } from "./_generated/server";
 import { removeCardUsage } from "./card/cardUsage";
+import { readAccountChangesPaused } from "./env";
+import { getDeletionRetryPrincipal, getSessionUser } from "./securitySessions";
 import { TELEMETRY_OPERATIONS } from "./shared/telemetry";
 import { cardStorageObjectKeys } from "./storage/r2";
+import { startWorkflow } from "./workflows/manager";
 
 const ACCOUNT_CARD_TAG_DELETE_BATCH_SIZE = 20;
 
@@ -64,7 +68,8 @@ export const finishAccountDeletion = async (
   userId: string
 ) => {
   const existing = await getAccountDeletionState(ctx, userId);
-  if (existing) {
+  // Old Better Auth afterDelete hooks must not finish a workflow-owned state.
+  if (existing && existing.generation === undefined) {
     await ctx.db.delete("accountDeletionStates", existing._id);
   }
 };
@@ -121,6 +126,10 @@ export interface AccountImportDeletionObject {
 }
 
 interface AccountDataDeletionOptions {
+  boundedDeletion?: {
+    stateId: Id<"accountDeletionStates">;
+    generation: number;
+  };
   deleteImportObjects: (
     objects: AccountImportDeletionObject[]
   ) => Promise<unknown>;
@@ -138,7 +147,7 @@ interface AccountDataDeletionOptions {
 export const runAccountDataDeletion = (
   ctx: ActionCtx,
   userId: string,
-  { deleteImportObjects, observe }: AccountDataDeletionOptions
+  { deleteImportObjects, observe, boundedDeletion }: AccountDataDeletionOptions
 ) =>
   observe(
     {
@@ -151,6 +160,25 @@ export const runAccountDataDeletion = (
       await ctx.runMutation(internal.accountDeletion.beginAccountDataDeletion, {
         userId,
       });
+      if (boundedDeletion) {
+        for (const kind of ["cards", "imports"] as const) {
+          const empty: boolean = await ctx.runAction(
+            internal.accountDeletionData.drainStorageBatch,
+            { ...boundedDeletion, kind }
+          );
+          if (!empty) {
+            return {
+              done: false,
+              deletedCards: 0,
+              deletedStorageObjectCount: 0,
+            };
+          }
+        }
+        await ctx.runMutation(internal.accountDeletion.removeAccountCardUsage, {
+          userId,
+        });
+        return { done: true, deletedCards: 0, deletedStorageObjectCount: 0 };
+      }
       let deletedCards = 0;
       let deletedStorageObjectCount = 0;
       while (true) {
@@ -162,10 +190,9 @@ export const runAccountDataDeletion = (
           break;
         }
         if (batch.objectKeys.length > 0) {
-          await ctx.runAction(
-            (internal as any)["workflows/objectCleanup"].deleteObjectsAction,
-            { keys: batch.objectKeys }
-          );
+          await ctx.runAction(internal.accountDeletionData.deleteKeys, {
+            keys: batch.objectKeys,
+          });
         }
         deletedCards += await withOptimisticConcurrencyRetry(() =>
           ctx.runMutation(internal.accountDeletion.deleteAccountDataBatch, {
@@ -346,11 +373,16 @@ export const getAccountImportDeletionBatch = internalQuery({
     return {
       itemIds: items.map((item) => item._id),
       jobIds: jobs.map((job) => job._id),
-      objects: jobs.map((job) => ({
-        sourceKey: job.sourceKey,
-        reportKey: job.reportKey,
-        uploadId: job.uploadId,
-      })),
+      objects: [
+        ...jobs.map((job) => ({
+          sourceKey: job.sourceKey,
+          reportKey: job.reportKey,
+          uploadId: job.uploadId,
+        })),
+        ...items.flatMap((item) =>
+          item.extractedFileKey ? [{ sourceKey: item.extractedFileKey }] : []
+        ),
+      ],
     };
   },
 });
@@ -409,4 +441,129 @@ export const removeAccountCardUsage = internalMutation({
   args: { userId: v.string() },
   returns: v.null(),
   handler: (ctx, { userId }) => removeAccountCardUsageHandler(ctx, userId),
+});
+
+export const isDeleting = internalQuery({
+  args: { userId: v.string() },
+  returns: v.boolean(),
+  handler: async (ctx, { userId }) =>
+    Boolean(await getAccountDeletionState(ctx, userId)),
+});
+
+export const initiateAccountDeletion = async (
+  ctx: MutationCtx,
+  owner: Doc<"users">,
+  provider: "betterauth" | "workos"
+): Promise<null> => {
+  const existing = await getAccountDeletionState(ctx, owner.teakUserId);
+  if (existing) {
+    if (existing.workosUserId !== owner.workosUserId) {
+      throw new ConvexError("Account binding unavailable");
+    }
+    return null;
+  }
+  if (owner.deletedAt !== undefined) {
+    return null;
+  }
+  if (readAccountChangesPaused()) {
+    throw new ConvexError(
+      "Account changes are paused while we upgrade sign-in"
+    );
+  }
+  const legacy =
+    provider === "betterauth"
+      ? { _id: owner.teakUserId }
+      : await ctx.runQuery(components.betterAuth.adapter.findOne, {
+          model: "user",
+          where: [{ field: "_id", value: owner.teakUserId }],
+        });
+  const clientId = process.env.WORKOS_CLIENT_ID;
+  const environmentId = process.env.WORKOS_ENVIRONMENT_ID;
+  const apiKey = process.env.WORKOS_API_KEY;
+  const credentialFingerprint = apiKey
+    ? Array.from(
+        new Uint8Array(
+          await crypto.subtle.digest(
+            "SHA-256",
+            new TextEncoder().encode(apiKey)
+          )
+        ),
+        (byte) => byte.toString(16).padStart(2, "0")
+      ).join("")
+    : undefined;
+  const target =
+    clientId && environmentId && credentialFingerprint
+      ? {
+          clientId,
+          environmentId,
+          issuer: `https://api.workos.com/user_management/${clientId}`,
+          credentialFingerprint,
+        }
+      : undefined;
+  const stateId = await ctx.db.insert("accountDeletionStates", {
+    userId: owner.teakUserId,
+    startedAt: Date.now(),
+    initiationProvider: provider,
+    ...(legacy ? { betterAuthUserId: legacy._id } : {}),
+    ...(owner.workosUserId ? { workosUserId: owner.workosUserId } : {}),
+    ...(target ? { workosTarget: target } : {}),
+    stage: 0,
+    generation: 1,
+    nextAttemptAt: Date.now() + 60_000,
+  });
+  const workflowId = await startWorkflow(
+    ctx,
+    internal["workflows/accountDeletion"].accountDeletionWorkflow,
+    { stateId, generation: 1 },
+    { startAsync: true }
+  );
+  await ctx.db.patch("accountDeletionStates", stateId, { workflowId });
+  return null;
+};
+
+export const deleteMyAccount = mutation({
+  args: {},
+  returns: v.null(),
+  handler: async (ctx) => {
+    const session = await getSessionUser(ctx);
+    if (!session) {
+      const retry = await getDeletionRetryPrincipal(ctx);
+      if (retry) {
+        const rows = await ctx.db
+          .query("users")
+          .withIndex(
+            retry.provider === "workos" ? "by_workosUserId" : "by_teakUserId",
+            (q) =>
+              retry.provider === "workos"
+                ? q.eq("workosUserId", retry.providerUserId)
+                : q.eq("teakUserId", retry.providerUserId)
+          )
+          .take(2);
+        if (rows.length === 1) {
+          const state = await getAccountDeletionState(ctx, rows[0].teakUserId);
+          if (
+            state &&
+            (retry.provider === "betterauth"
+              ? state.betterAuthUserId === retry.providerUserId
+              : state.workosUserId === retry.providerUserId &&
+                (retry.externalId === null ||
+                  retry.externalId === undefined ||
+                  retry.externalId === state.userId))
+          ) {
+            return null;
+          }
+        }
+      }
+      throw new ConvexError("User must be authenticated");
+    }
+    const rows = await ctx.db
+      .query("users")
+      .withIndex("by_teakUserId", (q) => q.eq("teakUserId", session.teakUserId))
+      .take(2);
+    if (rows.length !== 1 || rows[0].deletedAt !== undefined) {
+      throw new ConvexError("Account binding unavailable");
+    }
+    const owner = rows[0];
+    return initiateAccountDeletion(ctx, owner, session.provider);
+  },
 });
