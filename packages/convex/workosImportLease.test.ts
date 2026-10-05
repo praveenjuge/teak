@@ -175,6 +175,7 @@ test("unacknowledged provider loss stays denied permanently; old holder cannot r
     ready: false,
     pendingRemote: true,
     generation: writer.generation,
+    barrierHeld: false,
   });
 });
 test("source and credential drift stop authorization before a provider dispatch", async () => {
@@ -229,6 +230,153 @@ test("ambiguous lease rows cannot authorize a new holder or a clear cutover barr
 test("concurrent admissions for the same journal authorize exactly one invocation", async () => {
   const t = setup();
   const results = await Promise.allSettled([acquire(t), acquire(t)]);
+  expect(
+    results.filter((result) => result.status === "fulfilled")
+  ).toHaveLength(1);
+  expect(results.filter((result) => result.status === "rejected")).toHaveLength(
+    1
+  );
+  expect(
+    await t.run((ctx) => ctx.db.query("workosImportLeases").take(2))
+  ).toHaveLength(1);
+});
+
+test("durable quiescence closes the query-to-flag race and survives a primary-mode flip", async () => {
+  const t = setup();
+  const request = {
+    ...pins,
+    holder: crypto.randomUUID(),
+    runId: "b".repeat(64),
+  };
+  await expect(
+    t.mutation(
+      internal.migration.workosImportLease.establishQuiescence,
+      request
+    )
+  ).rejects.toThrow("paused");
+  vi.stubEnv("ACCOUNT_CHANGES_PAUSED", "true");
+  const held = await t.mutation(
+    internal.migration.workosImportLease.establishQuiescence,
+    request
+  );
+  expect(
+    await t.mutation(
+      internal.migration.workosImportLease.establishQuiescence,
+      request
+    )
+  ).toEqual(held);
+  expect(
+    await t.query(internal.migration.workosImportLease.quiescence, pins)
+  ).toMatchObject({ barrierHeld: true, pendingRemote: false });
+  await expect(acquire(t)).rejects.toThrow("already active");
+  await expect(
+    t.mutation(internal.migration.workosImportLease.releaseQuiescence, {
+      ...pins,
+      ...held,
+      holder: crypto.randomUUID(),
+    })
+  ).rejects.toThrow("not held");
+  vi.stubEnv("AUTH_PRIMARY", "workos");
+  expect(
+    await t.query(internal.migration.workosImportLease.verifyQuiescence, {
+      ...pins,
+      ...held,
+    })
+  ).toBeNull();
+  await t.mutation(internal.migration.workosImportLease.releaseQuiescence, {
+    ...pins,
+    ...held,
+  });
+  await expect(
+    t.query(internal.migration.workosImportLease.verifyQuiescence, {
+      ...pins,
+      ...held,
+    })
+  ).rejects.toThrow("not held");
+});
+test("barrier cannot replace active or uncertain writer intent", async () => {
+  const t = setup(),
+    owner = await seed(t),
+    writer = await acquire(t);
+  vi.stubEnv("ACCOUNT_CHANGES_PAUSED", "true");
+  const request = {
+    ...pins,
+    holder: crypto.randomUUID(),
+    runId: "b".repeat(64),
+  };
+  await expect(
+    t.mutation(
+      internal.migration.workosImportLease.establishQuiescence,
+      request
+    )
+  ).rejects.toThrow("cannot drain");
+  await t.mutation(internal.migration.workosImportLease.beginRemote, {
+    ...pins,
+    ...writer,
+    ...owner,
+    kind: "create",
+  });
+  await t.mutation(internal.migration.workosImportLease.markUncertain, {
+    ...pins,
+    ...writer,
+  });
+  await expect(
+    t.mutation(
+      internal.migration.workosImportLease.establishQuiescence,
+      request
+    )
+  ).rejects.toThrow("cannot drain");
+});
+
+test("barrier ownership, credential pins and pause cannot drift before release", async () => {
+  const t = setup();
+  vi.stubEnv("ACCOUNT_CHANGES_PAUSED", "true");
+  const held = await t.mutation(
+    internal.migration.workosImportLease.establishQuiescence,
+    {
+      ...pins,
+      holder: crypto.randomUUID(),
+      runId: "c".repeat(64),
+    }
+  );
+  await expect(
+    t.mutation(internal.migration.workosImportLease.releaseQuiescence, {
+      ...pins,
+      ...held,
+      generation: held.generation + 1,
+    })
+  ).rejects.toThrow("not held");
+  vi.stubEnv("SIGNUPS_DISABLED", "false");
+  await expect(
+    t.mutation(internal.migration.workosImportLease.releaseQuiescence, {
+      ...pins,
+      ...held,
+    })
+  ).rejects.toThrow("frozen signups");
+  vi.stubEnv("SIGNUPS_DISABLED", "true");
+  vi.stubEnv("WORKOS_API_KEY", crypto.randomUUID());
+  await expect(
+    t.query(internal.migration.workosImportLease.verifyQuiescence, {
+      ...pins,
+      ...held,
+    })
+  ).rejects.toThrow("credential binding");
+  expect(
+    await t.run((ctx) => ctx.db.query("workosImportLeases").first())
+  ).toMatchObject({ status: "quiesced", generation: held.generation });
+});
+
+test("a simultaneous writer and barrier cannot both receive authority", async () => {
+  const t = setup();
+  vi.stubEnv("ACCOUNT_CHANGES_PAUSED", "true");
+  const results = await Promise.allSettled([
+    acquire(t),
+    t.mutation(internal.migration.workosImportLease.establishQuiescence, {
+      ...pins,
+      holder: crypto.randomUUID(),
+      runId: "d".repeat(64),
+    }),
+  ]);
   expect(
     results.filter((result) => result.status === "fulfilled")
   ).toHaveLength(1);
