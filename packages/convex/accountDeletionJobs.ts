@@ -3,6 +3,10 @@ import { internal } from "./_generated/api";
 import type { Doc } from "./_generated/dataModel";
 import { internalMutation, internalQuery } from "./_generated/server";
 import { workflow } from "./workflows/manager";
+import {
+  expectedWorkosDeletionResolution,
+  sameWorkosDeletionTarget,
+} from "./workosDeletionCompletion";
 
 const bindingArgs = {
   stateId: v.id("accountDeletionStates"),
@@ -125,9 +129,96 @@ export const finalize = internalMutation({
     if (owners.length !== 1 || owners[0].workosUserId !== state.workosUserId) {
       throw new Error("deletion_binding_changed");
     }
-    await ctx.db.patch("users", owners[0]._id, {
-      deletedAt: owners[0].deletedAt ?? Date.now(),
-    });
+    if (
+      !Number.isInteger(generation) ||
+      generation < 1 ||
+      !Number.isFinite(state.startedAt) ||
+      state.startedAt < 0 ||
+      state.startedAt > Date.now()
+    ) {
+      throw new Error("deletion_completion_invalid");
+    }
+    const owner = owners[0];
+    if (state.workosUserId) {
+      const providers = await ctx.db
+        .query("users")
+        .withIndex("by_workosUserId", (q) =>
+          q.eq("workosUserId", state.workosUserId)
+        )
+        .take(2);
+      if (
+        providers.length !== 1 ||
+        providers[0]._id !== owner._id ||
+        !state.workosTarget
+      ) {
+        throw new Error("deletion_workos_target_unavailable");
+      }
+      const previous = owner.workosDeletionCompletion;
+      if (
+        previous &&
+        (previous.stateId !== stateId ||
+          previous.generation !== generation ||
+          previous.workosUserId !== state.workosUserId ||
+          previous.startedAt !== state.startedAt ||
+          !Number.isFinite(previous.completedAt) ||
+          previous.completedAt < state.startedAt ||
+          !sameWorkosDeletionTarget(previous.target, state.workosTarget))
+      ) {
+        throw new Error("deletion_completion_conflict");
+      }
+      // Stage six durably confirms storage and both providers finished under
+      // the state's pinned target. Credential rotation cannot undo completion;
+      // current target pins are checked separately before settling any receipt.
+      // Commit the retained proof with the owner tombstone, before bounded
+      // receipt settlement; retries cannot mint a different completion.
+      const completedAt = previous?.completedAt ?? Date.now();
+      await ctx.db.patch("users", owner._id, {
+        deletedAt: owner.deletedAt ?? completedAt,
+        workosDeletionCompletion: previous ?? {
+          version: 1,
+          stateId,
+          generation,
+          workosUserId: state.workosUserId,
+          startedAt: state.startedAt,
+          completedAt,
+          target: state.workosTarget,
+        },
+      });
+      const page = await ctx.db
+        .query("migrationQuarantine")
+        .withIndex("by_workosUserId_and_reason_and_resolvedAt", (q) =>
+          q
+            .eq("workosUserId", state.workosUserId)
+            .eq("reason", "workos_user_deleted")
+            .eq("resolvedAt", undefined)
+        )
+        .paginate({
+          numItems: 100,
+          cursor: state.deletionReceiptCursor ?? null,
+        });
+      for (const receipt of page.page) {
+        const resolvedAt = await expectedWorkosDeletionResolution(ctx, receipt);
+        if (resolvedAt !== undefined) {
+          await ctx.db.patch("migrationQuarantine", receipt._id, {
+            resolvedAt,
+          });
+        }
+      }
+      if (!page.isDone) {
+        await ctx.db.patch("accountDeletionStates", stateId, {
+          deletionReceiptCursor: page.continueCursor,
+        });
+        await ctx.scheduler.runAfter(0, internal.accountDeletionJobs.finalize, {
+          stateId,
+          generation,
+        });
+        return null;
+      }
+    } else {
+      await ctx.db.patch("users", owner._id, {
+        deletedAt: owner.deletedAt ?? Date.now(),
+      });
+    }
     await ctx.db.delete("accountDeletionStates", stateId);
     return null;
   },
@@ -191,6 +282,19 @@ export const redrive = internalMutation({
       .take(20);
     for (const state of states) {
       if (!state.workflowId || state.generation === undefined) {
+        continue;
+      }
+      if (state.stage === 6) {
+        // Cleanup is already terminal; receipt pagination runs outside the
+        // original workflow. Resume its fenced transaction even if that
+        // workflow completed or its retained journal was later cleaned up.
+        await ctx.scheduler.runAfter(0, internal.accountDeletionJobs.finalize, {
+          stateId: state._id,
+          generation: state.generation,
+        });
+        await ctx.db.patch("accountDeletionStates", state._id, {
+          nextAttemptAt: Date.now() + 300_000,
+        });
         continue;
       }
       const status = await workflow.status(

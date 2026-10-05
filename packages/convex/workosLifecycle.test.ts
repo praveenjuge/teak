@@ -11,6 +11,7 @@ import type { Doc } from "./_generated/dataModel";
 import schema from "./schema";
 import { mirrorBetterAuthUser } from "./userIdentityTable";
 import type { applyWorkosEvent } from "./workosLifecycle";
+import { readCanonicalWorkosProfile } from "./workosProfileRead";
 import type { linkWorkosUser } from "./workosUsers";
 
 const modules = import.meta.glob("./**/*.ts");
@@ -444,6 +445,129 @@ describe("ordered canonical WorkOS lifecycle", () => {
       "owner-b",
       "owner-c",
     ]);
+  });
+
+  // Optional deletion metadata is evidence only; it must never prevent a
+  // terminal denial or promote a minimally evidenced receipt into repair proof.
+  test("deletion stores normalized valid identity evidence while keeping access denied", async () => {
+    const t = setup();
+    await seed(t, { workosUserId: "user_provider" });
+    await t.mutation(apply, event("evt_before_delete_identity", 0));
+    expect(
+      await t.run((ctx) => readCanonicalWorkosProfile(ctx, "user_provider"))
+    ).toMatchObject({
+      profile: { email: "provider@example.com", externalId: "owner-a" },
+    });
+    expect(
+      await t.mutation(apply, {
+        ...event("evt_delete_identity", 1, "user.deleted"),
+        data: {
+          id: "user_provider",
+          email: " Provider@Example.com ",
+          emailVerified: false,
+          externalId: "owner-a",
+        },
+      })
+    ).toEqual({ status: "deleted" });
+    const after = await snapshot(t);
+    expect(
+      after.events.find((receipt) => receipt.eventId === "evt_delete_identity")
+    ).toMatchObject({
+      type: "user.deleted",
+      workosUserId: "user_provider",
+      email: "provider@example.com",
+      emailVerified: false,
+      externalId: "owner-a",
+    });
+    expect(after.quarantine[0].resolvedAt).toBeUndefined();
+    expect(after.users[0].workosDeletedAt).toBe(Date.parse(time(1)));
+    expect(
+      await t.run((ctx) => readCanonicalWorkosProfile(ctx, "user_provider"))
+    ).toBeNull();
+  });
+
+  test("metadata-free deletion retains minimal evidence and unresolved quarantine with terminal denial", async () => {
+    const t = setup();
+    await t.mutation(apply, event("evt_delete_minimal", 1, "user.deleted"));
+    const after = await snapshot(t);
+    expect(after.events[0].email).toBeUndefined();
+    expect(after.events[0].emailVerified).toBeUndefined();
+    expect(after.events[0].externalId).toBeNull();
+    expect(after.quarantine[0]).toMatchObject({
+      reason: "workos_user_deleted",
+      source: "webhook",
+      email: "",
+    });
+    expect(after.quarantine[0].resolvedAt).toBeUndefined();
+    expect(
+      await t.run((ctx) => readCanonicalWorkosProfile(ctx, "user_provider"))
+    ).toBeNull();
+    expect(await t.mutation(apply, event("evt_after_minimal", 2))).toEqual({
+      status: "ignored_deleted",
+    });
+  });
+
+  test.each([
+    {
+      email: "not-an-email",
+      externalId: "invalid marker",
+      emailVerified: "true",
+    },
+    { email: "x".repeat(321), externalId: 123, emailVerified: 1 },
+    {
+      email: "provider\u0000@example.com",
+      externalId: {},
+      emailVerified: null,
+    },
+    {
+      email: { unexpected: true },
+      externalId: "x".repeat(257),
+      emailVerified: [],
+    },
+  ])(
+    "deletion omits malformed optional identity evidence without blocking its tombstone %#",
+    async (metadata) => {
+      const t = setup();
+      expect(
+        await t.mutation(apply, {
+          ...event("evt_delete_malformed", 1, "user.deleted"),
+          data: { id: "user_provider", ...metadata },
+        })
+      ).toEqual({ status: "deleted" });
+      const after = await snapshot(t);
+      expect(after.events[0].email).toBeUndefined();
+      expect(after.events[0].emailVerified).toBeUndefined();
+      expect(after.events[0].externalId).toBeUndefined();
+      expect(after.quarantine[0].resolvedAt).toBeUndefined();
+      expect(
+        await t.run((ctx) => readCanonicalWorkosProfile(ctx, "user_provider"))
+      ).toBeNull();
+      expect(await t.mutation(apply, event("evt_after_malformed", 2))).toEqual({
+        status: "ignored_deleted",
+      });
+    }
+  );
+
+  test("malformed optional display metadata cannot block a terminal provider deletion", async () => {
+    const t = setup();
+    await seed(t, { workosUserId: "user_provider" });
+    expect(
+      await t.mutation(apply, {
+        ...event("evt_delete_display", 1, "user.deleted"),
+        data: {
+          id: "user_provider",
+          firstName: {},
+          lastName: 42,
+          profilePictureUrl: [],
+        },
+      })
+    ).toEqual({ status: "deleted" });
+    expect((await snapshot(t)).users[0].workosDeletedAt).toBe(
+      Date.parse(time(1))
+    );
+    expect(
+      await t.run((ctx) => readCanonicalWorkosProfile(ctx, "user_provider"))
+    ).toBeNull();
   });
 
   test("deletion discards invalid optional email rather than storing unbounded or malformed data", async () => {

@@ -349,6 +349,17 @@ export const OPS_ENTRIES: EnvVarSpec[] = [
     note: "Optional browser executable override for the Mac screenshot renderer.",
   }),
   // Repo tooling and smoke scripts.
+  spec("CONVEX_AGENT_MODE", {
+    owners: ["teak-repo"],
+    targets: ["repo"],
+    profiles: ["local", "e2e"],
+    secret: false,
+    validation: "enum",
+    allowedValues: ["anonymous"],
+    providers: ["shell", "workflow"],
+    required: false,
+    note: "Explicit Convex CLI mode for isolated anonymous local development and smoke checks.",
+  }),
   spec("TURBO_TOKEN", {
     owners: ["teak-repo"],
     targets: ["repo"],

@@ -3,6 +3,10 @@ import { v } from "convex/values";
 import { FILE_KINDS } from "./shared/fileFormats";
 import { LINK_CATEGORIES } from "./shared/linkCategories";
 import {
+  workosDeletionCompletionValidator,
+  workosDeletionTargetValidator,
+} from "./workosDeletionCompletion";
+import {
   workosProfileFields,
   workosReconciliationRunFields,
 } from "./workosProfileFields";
@@ -491,6 +495,7 @@ export default defineSchema({
     workosEmail: v.optional(v.string()),
     workosEmailVerified: v.optional(v.boolean()),
     workosDeletedAt: v.optional(v.number()),
+    workosDeletionCompletion: v.optional(workosDeletionCompletionValidator),
     role: v.optional(v.literal("admin")),
     lastWorkosEventAt: v.optional(v.number()),
     deletedAt: v.optional(v.number()),
@@ -506,6 +511,8 @@ export default defineSchema({
     source: v.string(),
     createdAt: v.number(),
     resolvedAt: v.optional(v.number()),
+    workosDeletionEventAt: v.optional(v.number()),
+    workosDeletionTarget: v.optional(workosDeletionTargetValidator),
   })
     .index("by_unresolved", ["resolvedAt"])
     .index("by_workosUserId_and_reason_and_resolvedAt", [
@@ -662,6 +669,7 @@ export default defineSchema({
     stage: v.optional(v.number()),
     providerSessionCursor: v.optional(v.string()),
     localConsentCursor: v.optional(v.string()),
+    deletionReceiptCursor: v.optional(v.string()),
     writerTable: v.optional(
       v.union(v.literal("importJobs"), v.literal("exportJobs"))
     ),

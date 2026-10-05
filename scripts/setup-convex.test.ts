@@ -213,3 +213,327 @@ describe("convexDevOnce retry", () => {
     expect(calls).toHaveLength(3);
   });
 });
+
+describe("selected anonymous backend shutdown recovery", () => {
+  const collision =
+    "A local backend is still running on port 3210. Please stop it and run this command again.";
+  const withSelection = async (
+    deployment: string,
+    operation: (cwd: string) => Promise<void>
+  ) => {
+    const priorMode = process.env.CONVEX_AGENT_MODE;
+    const priorSelection = process.env.CONVEX_DEPLOYMENT;
+    const priorKey = process.env.CONVEX_DEPLOY_KEY;
+    const cwd = mkdtempSync(join(tmpdir(), "teak-local-shutdown-"));
+    writeFileSync(join(cwd, ".env.local"), `CONVEX_DEPLOYMENT=${deployment}\n`);
+    process.env.CONVEX_AGENT_MODE = "anonymous";
+    delete process.env.CONVEX_DEPLOYMENT;
+    delete process.env.CONVEX_DEPLOY_KEY;
+    try {
+      await operation(cwd);
+    } finally {
+      for (const [key, prior] of [
+        ["CONVEX_AGENT_MODE", priorMode],
+        ["CONVEX_DEPLOYMENT", priorSelection],
+        ["CONVEX_DEPLOY_KEY", priorKey],
+      ]) {
+        if (prior === undefined) {
+          delete process.env[key!];
+        } else {
+          process.env[key!] = prior;
+        }
+      }
+    }
+  };
+  const boundary = (name: string) =>
+    Object.assign(
+      (input: RequestInfo | URL, init?: RequestInit) => {
+        expect(String(input)).toBe("http://127.0.0.1:3210/instance_name");
+        expect(init?.redirect).toBe("error");
+        return Promise.resolve(new Response(name));
+      },
+      { preconnect: fetch.preconnect }
+    );
+  test("retries only the matching selected anonymous backend until push succeeds", async () => {
+    await withSelection("anonymous:anonymous-agent", async (cwd) => {
+      let calls = 0;
+      const sleeps: number[] = [];
+      const result = await convexDevOnce(cwd, {
+        run: async () => ({
+          exitCode: ++calls === 1 ? 1 : 0,
+          stderr: calls === 1 ? collision : "",
+          stdout: "",
+          timedOut: false,
+          pid: 1,
+        }),
+        fetch: boundary("anonymous-agent"),
+        sleepMs: (ms) => {
+          sleeps.push(ms);
+          return Promise.resolve();
+        },
+      });
+      expect(result.ok).toBe(true);
+      expect(calls).toBe(2);
+      expect(sleeps).toEqual([2000]);
+    });
+  });
+  test.each([
+    { name: "file-based anonymous mode", fileMode: "anonymous", retry: true },
+    {
+      name: "blank shell mode falls back to anonymous file",
+      fileMode: "anonymous",
+      shellMode: "  ",
+      retry: true,
+    },
+    {
+      name: "blank shell key does not bypass file deploy key",
+      fileMode: "anonymous",
+      shellMode: "anonymous",
+      fileKey: "test-only-key",
+      shellKey: "  ",
+      retry: false,
+    },
+    {
+      name: "shell anonymous overrides file mode",
+      fileMode: "disabled",
+      shellMode: "anonymous",
+      retry: true,
+    },
+    {
+      name: "shell mode overrides file anonymous",
+      fileMode: "anonymous",
+      shellMode: "disabled",
+      retry: false,
+    },
+    {
+      name: "file deploy key blocks local probing",
+      fileMode: "anonymous",
+      fileKey: "test-only-key",
+      retry: false,
+    },
+    {
+      name: "file deploy key blocks shell anonymous",
+      fileMode: "anonymous",
+      shellMode: "anonymous",
+      fileKey: "test-only-key",
+      retry: false,
+    },
+    {
+      name: "shell deploy key overrides empty file key",
+      fileMode: "anonymous",
+      fileKey: "",
+      shellKey: "test-only-key",
+      retry: false,
+    },
+    {
+      name: "shell selection overrides anonymous file",
+      fileMode: "anonymous",
+      shellSelection: "dev:other",
+      retry: false,
+    },
+  ])("uses declared authority for $name", async (authority) => {
+    await withSelection("anonymous:anonymous-agent", async (cwd) => {
+      writeFileSync(
+        join(cwd, ".env.local"),
+        `CONVEX_DEPLOYMENT=anonymous:anonymous-agent\nCONVEX_AGENT_MODE=${authority.fileMode}\nCONVEX_DEPLOY_KEY=${authority.fileKey ?? ""}\n`
+      );
+      if (authority.shellMode === undefined) {
+        delete process.env.CONVEX_AGENT_MODE;
+      } else {
+        process.env.CONVEX_AGENT_MODE = authority.shellMode;
+      }
+      if (authority.shellKey !== undefined) {
+        process.env.CONVEX_DEPLOY_KEY = authority.shellKey;
+      }
+      if (authority.shellSelection !== undefined) {
+        process.env.CONVEX_DEPLOYMENT = authority.shellSelection;
+      }
+      let calls = 0;
+      let probes = 0;
+      const sleeps: number[] = [];
+      const result = await convexDevOnce(cwd, {
+        run: async () => ({
+          exitCode: ++calls === 1 ? 1 : 0,
+          stderr: calls === 1 ? collision : "",
+          stdout: "",
+          timedOut: false,
+          pid: 1,
+        }),
+        fetch: Object.assign(
+          () => {
+            probes++;
+            return Promise.resolve(new Response("anonymous-agent"));
+          },
+          { preconnect: fetch.preconnect }
+        ),
+        sleepMs: (ms) => {
+          sleeps.push(ms);
+          return Promise.resolve();
+        },
+      });
+      expect(result.ok).toBe(authority.retry);
+      expect(calls).toBe(authority.retry ? 2 : 1);
+      expect(probes).toBe(authority.retry ? 1 : 0);
+      expect(sleeps).toEqual(authority.retry ? [2000] : []);
+    });
+  });
+  test.each(["other-project", "<html>unrelated service</html>"])(
+    "refuses unrelated occupied process %s",
+    async (instance) => {
+      await withSelection("anonymous:anonymous-agent", async (cwd) => {
+        let calls = 0;
+        const result = await convexDevOnce(cwd, {
+          run: async () => ({
+            exitCode: 1,
+            stderr: collision,
+            stdout: "",
+            timedOut: false,
+            pid: ++calls,
+          }),
+          fetch: boundary(instance),
+          sleepMs: () => {
+            throw new Error("Unexpected retry");
+          },
+        });
+        expect(result.ok).toBe(false);
+        expect(calls).toBe(1);
+      });
+    }
+  );
+  test.each(["prod:anonymous-agent", "dev:anonymous-agent"])(
+    "refuses nonlocal selection %s",
+    async (selection) => {
+      await withSelection(selection, async (cwd) => {
+        let calls = 0;
+        let probes = 0;
+        const result = await convexDevOnce(cwd, {
+          run: async () => ({
+            exitCode: 1,
+            stderr: collision,
+            stdout: "",
+            timedOut: false,
+            pid: ++calls,
+          }),
+          fetch: Object.assign(
+            () => {
+              probes++;
+              throw new Error("Unexpected local probe");
+            },
+            { preconnect: fetch.preconnect }
+          ),
+          sleepMs: () => {
+            throw new Error("Unexpected retry");
+          },
+        });
+        expect(result.ok).toBe(false);
+        expect(calls).toBe(1);
+        expect(probes).toBe(0);
+      });
+    }
+  );
+  test.each(["other-port", "no-agent-mode", "deploy-key", "unselected"])(
+    "refuses shutdown recovery with %s authority",
+    async (failure) => {
+      await withSelection("anonymous:anonymous-agent", async (cwd) => {
+        let calls = 0;
+        let probes = 0;
+        if (failure === "no-agent-mode") {
+          delete process.env.CONVEX_AGENT_MODE;
+        }
+        if (failure === "deploy-key") {
+          process.env.CONVEX_DEPLOY_KEY = "test-only-blocked-key";
+        }
+        if (failure === "unselected") {
+          process.env.CONVEX_DEPLOYMENT = "unselected";
+        }
+        const result = await convexDevOnce(cwd, {
+          run: async () => ({
+            exitCode: 1,
+            stderr:
+              failure === "other-port"
+                ? collision.replace("3210", "9999")
+                : collision,
+            stdout: "",
+            timedOut: false,
+            pid: ++calls,
+          }),
+          fetch: Object.assign(
+            () => {
+              probes++;
+              return Promise.resolve(new Response("anonymous-agent"));
+            },
+            { preconnect: fetch.preconnect }
+          ),
+          sleepMs: () => {
+            throw new Error("Unexpected retry");
+          },
+        });
+        expect(result.ok).toBe(false);
+        expect(calls).toBe(1);
+        expect(probes).toBe(0);
+      });
+    }
+  );
+  test.each(["unreachable", "status", "oversized"])(
+    "refuses an uncertain %s instance response",
+    async (failure) => {
+      await withSelection("anonymous:anonymous-agent", async (cwd) => {
+        let calls = 0;
+        let probes = 0;
+        const result = await convexDevOnce(cwd, {
+          run: async () => ({
+            exitCode: 1,
+            stderr: collision,
+            stdout: "",
+            timedOut: false,
+            pid: ++calls,
+          }),
+          fetch: Object.assign(
+            () => {
+              probes++;
+              if (failure === "unreachable") {
+                return Promise.reject(new Error("connection refused"));
+              }
+              return Promise.resolve(
+                new Response(
+                  failure === "oversized" ? "x".repeat(129) : "anonymous-agent",
+                  { status: failure === "status" ? 503 : 200 }
+                )
+              );
+            },
+            { preconnect: fetch.preconnect }
+          ),
+          sleepMs: () => {
+            throw new Error("Unexpected retry");
+          },
+        });
+        expect(result.ok).toBe(false);
+        expect(calls).toBe(1);
+        expect(probes).toBe(1);
+      });
+    }
+  );
+  test("persistent matching shutdown collisions stop after three attempts", async () => {
+    await withSelection("anonymous:anonymous-agent", async (cwd) => {
+      let calls = 0;
+      const sleeps: number[] = [];
+      const result = await convexDevOnce(cwd, {
+        run: async () => ({
+          exitCode: 1,
+          stderr: collision,
+          stdout: "",
+          timedOut: false,
+          pid: ++calls,
+        }),
+        fetch: boundary("anonymous-agent"),
+        sleepMs: (ms) => {
+          sleeps.push(ms);
+          return Promise.resolve();
+        },
+      });
+      expect(result.ok).toBe(false);
+      expect(calls).toBe(3);
+      expect(sleeps).toEqual([2000, 4000]);
+    });
+  });
+});

@@ -8,8 +8,10 @@
 
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
+import { readResponseTextWithinLimit } from "../packages/convex/shared/boundedResponse";
+import { readConvexSelection } from "./capabilities.ts";
 import { parseConvexEnvOutput } from "./check-cloudflare.ts";
-import { parseDotenvValue } from "./env-loader.ts";
+import { parseDotenvValue, readDotenvFile } from "./env-loader.ts";
 import { runCommand } from "./proc.ts";
 
 const ROOT = join(import.meta.dir, "..");
@@ -117,10 +119,58 @@ export const summarizePushFailure = (stderr: string): string => {
 export interface ConvexDevOnceOptions {
   /** Total attempts; transient failures retry with backoff. Defaults to 3. */
   attempts?: number;
+  /** Local backend identity HTTP boundary; defaults to fetch. */
+  fetch?: typeof fetch;
   /** Subprocess runner; defaults to runCommand. */
   run?: typeof runCommand;
   /** Backoff sleeper; defaults to Bun.sleep. */
   sleepMs?: (ms: number) => Promise<void>;
+}
+
+// A port collision is not enough to classify shutdown as transient. Confirm
+// the selected anonymous backend's identity before retrying; never stop it.
+async function selectedBackendIsShuttingDown(
+  output: string,
+  cwd: string,
+  fetchImpl: typeof fetch
+): Promise<boolean> {
+  if (
+    !output.includes(
+      "A local backend is still running on port 3210. Please stop it and run this command again."
+    )
+  ) {
+    return false;
+  }
+  const dotenvPath = join(cwd, ".env.local");
+  const fileValues = readDotenvFile(dotenvPath)?.values;
+  const mode =
+    process.env.CONVEX_AGENT_MODE?.trim() ||
+    fileValues?.get("CONVEX_AGENT_MODE")?.trim();
+  const deployKey =
+    process.env.CONVEX_DEPLOY_KEY?.trim() ||
+    fileValues?.get("CONVEX_DEPLOY_KEY")?.trim();
+  if (mode !== "anonymous" || deployKey) {
+    return false;
+  }
+  const selected = readConvexSelection(process.env, dotenvPath).deployment;
+  const match = selected?.match(/^anonymous:(anonymous-[A-Za-z0-9_-]+)$/);
+  if (!match) {
+    return false;
+  }
+  try {
+    const response = await fetchImpl("http://127.0.0.1:3210/instance_name", {
+      redirect: "error",
+      credentials: "omit",
+      signal: AbortSignal.timeout(1000),
+    });
+    if (!response.ok) {
+      return false;
+    }
+    const instance = await readResponseTextWithinLimit(response, 128);
+    return instance === match[1];
+  } catch {
+    return false;
+  }
 }
 
 export const convexDevOnce = async (
@@ -144,7 +194,14 @@ export const convexDevOnce = async (
     }
     const output = `${result.stderr}\n${result.stdout}`;
     detail = summarizePushFailure(output);
-    const transient = isTransientPushFailure(output);
+    const transient =
+      isTransientPushFailure(output) ||
+      (attempt < attempts &&
+        (await selectedBackendIsShuttingDown(
+          output,
+          cwd,
+          opts?.fetch ?? fetch
+        )));
     if (!(transient && attempt < attempts)) {
       break;
     }

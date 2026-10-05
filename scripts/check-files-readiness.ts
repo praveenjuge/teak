@@ -11,6 +11,7 @@ const required = [
   "extract-import-files",
   "abort-multipart",
   "delete-objects",
+  "freeze-object",
 ];
 
 async function productionEnv(name: string): Promise<string> {
