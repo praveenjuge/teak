@@ -277,6 +277,106 @@ describe("selected anonymous backend shutdown recovery", () => {
       expect(sleeps).toEqual([2000]);
     });
   });
+  test.each([
+    { name: "file-based anonymous mode", fileMode: "anonymous", retry: true },
+    {
+      name: "blank shell mode falls back to anonymous file",
+      fileMode: "anonymous",
+      shellMode: "  ",
+      retry: true,
+    },
+    {
+      name: "blank shell key does not bypass file deploy key",
+      fileMode: "anonymous",
+      shellMode: "anonymous",
+      fileKey: "test-only-key",
+      shellKey: "  ",
+      retry: false,
+    },
+    {
+      name: "shell anonymous overrides file mode",
+      fileMode: "disabled",
+      shellMode: "anonymous",
+      retry: true,
+    },
+    {
+      name: "shell mode overrides file anonymous",
+      fileMode: "anonymous",
+      shellMode: "disabled",
+      retry: false,
+    },
+    {
+      name: "file deploy key blocks local probing",
+      fileMode: "anonymous",
+      fileKey: "test-only-key",
+      retry: false,
+    },
+    {
+      name: "file deploy key blocks shell anonymous",
+      fileMode: "anonymous",
+      shellMode: "anonymous",
+      fileKey: "test-only-key",
+      retry: false,
+    },
+    {
+      name: "shell deploy key overrides empty file key",
+      fileMode: "anonymous",
+      fileKey: "",
+      shellKey: "test-only-key",
+      retry: false,
+    },
+    {
+      name: "shell selection overrides anonymous file",
+      fileMode: "anonymous",
+      shellSelection: "dev:other",
+      retry: false,
+    },
+  ])("uses declared authority for $name", async (authority) => {
+    await withSelection("anonymous:anonymous-agent", async (cwd) => {
+      writeFileSync(
+        join(cwd, ".env.local"),
+        `CONVEX_DEPLOYMENT=anonymous:anonymous-agent\nCONVEX_AGENT_MODE=${authority.fileMode}\nCONVEX_DEPLOY_KEY=${authority.fileKey ?? ""}\n`
+      );
+      if (authority.shellMode === undefined) {
+        delete process.env.CONVEX_AGENT_MODE;
+      } else {
+        process.env.CONVEX_AGENT_MODE = authority.shellMode;
+      }
+      if (authority.shellKey !== undefined) {
+        process.env.CONVEX_DEPLOY_KEY = authority.shellKey;
+      }
+      if (authority.shellSelection !== undefined) {
+        process.env.CONVEX_DEPLOYMENT = authority.shellSelection;
+      }
+      let calls = 0;
+      let probes = 0;
+      const sleeps: number[] = [];
+      const result = await convexDevOnce(cwd, {
+        run: async () => ({
+          exitCode: ++calls === 1 ? 1 : 0,
+          stderr: calls === 1 ? collision : "",
+          stdout: "",
+          timedOut: false,
+          pid: 1,
+        }),
+        fetch: Object.assign(
+          () => {
+            probes++;
+            return Promise.resolve(new Response("anonymous-agent"));
+          },
+          { preconnect: fetch.preconnect }
+        ),
+        sleepMs: (ms) => {
+          sleeps.push(ms);
+          return Promise.resolve();
+        },
+      });
+      expect(result.ok).toBe(authority.retry);
+      expect(calls).toBe(authority.retry ? 2 : 1);
+      expect(probes).toBe(authority.retry ? 1 : 0);
+      expect(sleeps).toEqual(authority.retry ? [2000] : []);
+    });
+  });
   test.each(["other-project", "<html>unrelated service</html>"])(
     "refuses unrelated occupied process %s",
     async (instance) => {
@@ -305,6 +405,7 @@ describe("selected anonymous backend shutdown recovery", () => {
     async (selection) => {
       await withSelection(selection, async (cwd) => {
         let calls = 0;
+        let probes = 0;
         const result = await convexDevOnce(cwd, {
           run: async () => ({
             exitCode: 1,
@@ -315,6 +416,7 @@ describe("selected anonymous backend shutdown recovery", () => {
           }),
           fetch: Object.assign(
             () => {
+              probes++;
               throw new Error("Unexpected local probe");
             },
             { preconnect: fetch.preconnect }
@@ -325,6 +427,7 @@ describe("selected anonymous backend shutdown recovery", () => {
         });
         expect(result.ok).toBe(false);
         expect(calls).toBe(1);
+        expect(probes).toBe(0);
       });
     }
   );

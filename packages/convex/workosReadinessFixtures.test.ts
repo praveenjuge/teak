@@ -74,6 +74,14 @@ async function setup() {
       deletionSource: "event",
       deletedAt: deletedEventAt,
       lastEventAt: deletedEventAt,
+      profile: {
+        email,
+        emailVerified: true,
+        externalId: fixture.marker,
+        firstName: null,
+        lastName: null,
+        profilePictureUrl: null,
+      },
     });
     const auditId = await ctx.db.insert("migrationQuarantine", {
       workosUserId: fixture.workosUserId,
@@ -288,6 +296,8 @@ test.each([
   "duplicate-profile",
   "reconciliation-tombstone",
   "profile-event-time",
+  "profile-email",
+  "profile-marker",
   "quarantine-time",
   "quarantine-marker",
   "quarantine-email",
@@ -349,6 +359,17 @@ test.each([
     if (failure === "profile-event-time") {
       await ctx.db.patch(rows.profileId, { lastEventAt: deletedEventAt + 1 });
     }
+    if (failure === "profile-email" || failure === "profile-marker") {
+      const profile = await ctx.db.get(rows.profileId);
+      await ctx.db.patch(rows.profileId, {
+        profile: {
+          ...profile!.profile!,
+          ...(failure === "profile-email"
+            ? { email: "other@example.test" }
+            : { externalId: "another-marker" }),
+        },
+      });
+    }
     if (failure === "quarantine-time") {
       await ctx.db.patch(rows.quarantineId, {
         createdAt: fixture.quarantineAt + 1,
@@ -364,7 +385,17 @@ test.each([
       await ctx.db.patch(rows.quarantineId, { resolvedAt: 1 });
     }
   });
+  const before = await t.run(async (ctx) => [
+    await ctx.db.get(rows.quarantineId),
+    await ctx.db.get(rows.auditId),
+  ]);
   await expect(t.mutation(resolve, args)).rejects.toThrow();
+  expect(
+    await t.run(async (ctx) => [
+      await ctx.db.get(rows.quarantineId),
+      await ctx.db.get(rows.auditId),
+    ])
+  ).toEqual(before);
 });
 test("refuses uncertain canonical coverage at the bounded scan cap", async () => {
   const { t, rows, args } = await setup();
@@ -413,6 +444,9 @@ test("refuses uncertain legacy coverage at the bounded component scan cap", asyn
       });
     }
   });
+  // Component adapter writes are isolated here and do not invoke Teak mirrors.
+  // Keep the canonical cap out of the refusal so this proves legacy coverage.
+  expect(await t.run((ctx) => ctx.db.query("users").take(1000))).toEqual([]);
   await expect(t.mutation(resolve, args)).rejects.toThrow();
   expect(
     (await t.run((ctx) => ctx.db.get(rows.quarantineId)))?.resolvedAt

@@ -11,7 +11,7 @@ import { join } from "node:path";
 import { readResponseTextWithinLimit } from "../packages/convex/shared/boundedResponse";
 import { readConvexSelection } from "./capabilities.ts";
 import { parseConvexEnvOutput } from "./check-cloudflare.ts";
-import { parseDotenvValue } from "./env-loader.ts";
+import { parseDotenvValue, readDotenvFile } from "./env-loader.ts";
 import { runCommand } from "./proc.ts";
 
 const ROOT = join(import.meta.dir, "..");
@@ -137,16 +137,22 @@ async function selectedBackendIsShuttingDown(
   if (
     !output.includes(
       "A local backend is still running on port 3210. Please stop it and run this command again."
-    ) ||
-    process.env.CONVEX_AGENT_MODE !== "anonymous" ||
-    process.env.CONVEX_DEPLOY_KEY
+    )
   ) {
     return false;
   }
-  const selected = readConvexSelection(
-    process.env,
-    join(cwd, ".env.local")
-  ).deployment;
+  const dotenvPath = join(cwd, ".env.local");
+  const fileValues = readDotenvFile(dotenvPath)?.values;
+  const mode =
+    process.env.CONVEX_AGENT_MODE?.trim() ||
+    fileValues?.get("CONVEX_AGENT_MODE")?.trim();
+  const deployKey =
+    process.env.CONVEX_DEPLOY_KEY?.trim() ||
+    fileValues?.get("CONVEX_DEPLOY_KEY")?.trim();
+  if (mode !== "anonymous" || deployKey) {
+    return false;
+  }
+  const selected = readConvexSelection(process.env, dotenvPath).deployment;
   const match = selected?.match(/^anonymous:(anonymous-[A-Za-z0-9_-]+)$/);
   if (!match) {
     return false;

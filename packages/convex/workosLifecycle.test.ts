@@ -452,6 +452,12 @@ describe("ordered canonical WorkOS lifecycle", () => {
   test("deletion stores normalized valid identity evidence while keeping access denied", async () => {
     const t = setup();
     await seed(t, { workosUserId: "user_provider" });
+    await t.mutation(apply, event("evt_before_delete_identity", 0));
+    expect(
+      await t.run((ctx) => readCanonicalWorkosProfile(ctx, "user_provider"))
+    ).toMatchObject({
+      profile: { email: "provider@example.com", externalId: "owner-a" },
+    });
     expect(
       await t.mutation(apply, {
         ...event("evt_delete_identity", 1, "user.deleted"),
@@ -464,7 +470,9 @@ describe("ordered canonical WorkOS lifecycle", () => {
       })
     ).toEqual({ status: "deleted" });
     const after = await snapshot(t);
-    expect(after.events[0]).toMatchObject({
+    expect(
+      after.events.find((receipt) => receipt.eventId === "evt_delete_identity")
+    ).toMatchObject({
       type: "user.deleted",
       workosUserId: "user_provider",
       email: "provider@example.com",
