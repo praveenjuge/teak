@@ -158,6 +158,37 @@ test("local packed metadata is bound to the exact tarball bytes", () => {
   );
 });
 
+test("npm 12 pack metadata resolves the single SDK artifact and verifies its bytes", () => {
+  const directory = mkdtempSync(join(tmpdir(), "teak-sdk-npm12-"));
+  const metadataPath = join(directory, "pack.json");
+  writeFileSync(metadataPath, JSON.stringify({ "teak-sdk": artifact }));
+  writeFileSync(join(directory, artifact.filename), bytes);
+  expect(readArtifact(metadataPath)).toEqual(artifact);
+  writeFileSync(join(directory, artifact.filename), "tampered");
+  expect(() => readArtifact(metadataPath)).toThrow("recorded integrity");
+});
+
+test.each(
+  [
+    {},
+    [],
+    [artifact, artifact],
+    { "teak-sdk": artifact, other: artifact },
+    { other: artifact },
+    { "teak-sdk": null },
+    { "teak-sdk": [artifact] },
+    null,
+  ].map((packed) => ({ packed }))
+)(
+  "pack metadata cannot select an ambiguous or malformed artifact (%j)",
+  ({ packed }) => {
+    const directory = mkdtempSync(join(tmpdir(), "teak-sdk-invalid-pack-"));
+    const metadataPath = join(directory, "pack.json");
+    writeFileSync(metadataPath, JSON.stringify(packed));
+    expect(() => readArtifact(metadataPath)).toThrow();
+  }
+);
+
 function releaseRepo(next = "1.0.1") {
   const directory = mkdtempSync(join(tmpdir(), "teak-sdk-tag-"));
   const git = (...args: string[]) =>

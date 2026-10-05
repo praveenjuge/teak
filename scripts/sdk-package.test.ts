@@ -10,6 +10,7 @@ import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { serve, spawn } from "bun";
+import { readArtifact } from "./sdk-release.mjs";
 
 test("packed SDK installs and discovers both providers outside the monorepo", async () => {
   const artifact = mkdtempSync(join(tmpdir(), "teak-sdk-package-"));
@@ -52,20 +53,20 @@ test("packed SDK installs and discovers both providers outside the monorepo", as
     tarball = resolve(tarball);
   } else {
     await run([process.execPath, "--no-env-file", "run", "build"], workspace);
-    const packed = JSON.parse(
-      await run(
-        [
-          "npm",
-          "pack",
-          "--json",
-          "--ignore-scripts",
-          "--pack-destination",
-          artifact,
-        ],
-        workspace
-      )
+    const packed = await run(
+      [
+        "npm",
+        "pack",
+        "--json",
+        "--ignore-scripts",
+        "--pack-destination",
+        artifact,
+      ],
+      workspace
     );
-    tarball = join(artifact, packed[0].filename);
+    const metadataPath = join(artifact, "pack.json");
+    writeFileSync(metadataPath, packed);
+    tarball = join(artifact, readArtifact(metadataPath).filename);
   }
   writeFileSync(
     join(consumer, "package.json"),

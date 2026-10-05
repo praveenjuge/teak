@@ -1,6 +1,6 @@
 {
   "name": "@teak/files-protocol",
-  "version": "1.0.77",
+  "version": "1.0.78",
   "private": true,
   "type": "module",
   "exports": {

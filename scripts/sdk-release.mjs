@@ -95,11 +95,26 @@ export function validateRelease(repoRoot, refType, refName) {
 }
 
 export function readArtifact(metadataPath) {
-  const entries = JSON.parse(readFileSync(metadataPath, "utf8"));
-  if (!Array.isArray(entries) || entries.length !== 1) {
+  const packed = JSON.parse(readFileSync(metadataPath, "utf8"));
+  // npm 12 keys pack output by package name; npm 11 returns an array.
+  let entries = [];
+  if (Array.isArray(packed)) {
+    entries = packed;
+  } else if (
+    packed &&
+    typeof packed === "object" &&
+    Object.keys(packed).length === 1 &&
+    Object.hasOwn(packed, "teak-sdk")
+  ) {
+    entries = [packed["teak-sdk"]];
+  }
+  if (entries.length !== 1) {
     throw new Error("Expected exactly one packed SDK artifact.");
   }
   const artifact = entries[0];
+  if (!artifact || typeof artifact !== "object" || Array.isArray(artifact)) {
+    throw new Error("Invalid packed SDK metadata.");
+  }
   parseVersion(artifact.version);
   if (
     artifact.name !== "teak-sdk" ||
