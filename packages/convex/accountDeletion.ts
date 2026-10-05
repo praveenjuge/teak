@@ -10,7 +10,7 @@ import {
   type QueryCtx,
 } from "./_generated/server";
 import { removeCardUsage } from "./card/cardUsage";
-import { readAccountChangesPaused } from "./env";
+import { readAccountChangesPaused, readAuthPrimary } from "./env";
 import { getDeletionRetryPrincipal, getSessionUser } from "./securitySessions";
 import { TELEMETRY_OPERATIONS } from "./shared/telemetry";
 import { cardStorageObjectKeys } from "./storage/r2";
@@ -555,6 +555,9 @@ export const deleteMyAccount = mutation({
         }
       }
       throw new ConvexError("User must be authenticated");
+    }
+    if (readAuthPrimary() !== "workos") {
+      throw new ConvexError("WorkOS account deletion is not enabled");
     }
     const rows = await ctx.db
       .query("users")

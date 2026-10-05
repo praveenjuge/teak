@@ -80,7 +80,7 @@ function setup() {
     return Promise.resolve(
       Response.json({
         access_token: `header.${btoa(JSON.stringify(claims))}.signature`,
-        refresh_token: "refresh",
+        refresh_token: crypto.randomUUID(),
         user: {
           id: "user_ONE",
           email: "hello@example.com",
@@ -171,13 +171,15 @@ describe("native AuthKit browser flow", () => {
 });
 
 let bootstrapFixture = 0;
-test.each(["ok", "verify_email", "frozen", "quarantined"])(
+test.each(["ok", "verify_email", "frozen", "quarantined", "invalid_origin"])(
   "native session factory accepts vault bootstrap only for %s",
   async (status) => {
     const previousUrl = process.env.EXPO_PUBLIC_CONVEX_URL;
     const originalFetch = globalThis.fetch;
     process.env.EXPO_PUBLIC_CONVEX_URL =
-      "https://native-bootstrap.convex.cloud";
+      status === "invalid_origin"
+        ? "https://untrusted.example"
+        : "https://native-bootstrap.convex.cloud";
     const id = `client_BOOTSTRAP${++bootstrapFixture}`;
     const claims = {
       iss: `https://api.workos.com/user_management/${id}`,
@@ -194,7 +196,7 @@ test.each(["ok", "verify_email", "frozen", "quarantined"])(
         return Promise.resolve(
           Response.json({
             access_token: token,
-            refresh_token: "refresh",
+            refresh_token: crypto.randomUUID(),
             user: {
               id: "user_NATIVE",
               email: "test@example.com",
@@ -227,7 +229,11 @@ test.each(["ok", "verify_email", "frozen", "quarantined"])(
       );
       const session = nativeSession(id);
       const login = session.exchangeCode("code", "v".repeat(43));
-      if (status === "ok") {
+      if (status === "invalid_origin") {
+        await expect(login).rejects.toThrow("Invalid EXPO_PUBLIC_CONVEX_URL");
+        expect(nativeCredentials.has(`teak.authkit.${id}`)).toBe(false);
+        expect(session.getSnapshot().user).toBeNull();
+      } else if (status === "ok") {
         expect(await login).toBe(token);
         expect(nativeCredentials.has(`teak.authkit.${id}`)).toBe(true);
       } else {
@@ -235,7 +241,7 @@ test.each(["ok", "verify_email", "frozen", "quarantined"])(
         expect(nativeCredentials.has(`teak.authkit.${id}`)).toBe(false);
         expect(session.getSnapshot().user).toBeNull();
       }
-      expect(bootstrapped).toBe(true);
+      expect(bootstrapped).toBe(status !== "invalid_origin");
     } finally {
       globalThis.fetch = originalFetch;
       if (previousUrl === undefined) {

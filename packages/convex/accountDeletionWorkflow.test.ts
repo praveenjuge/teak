@@ -16,14 +16,29 @@ const claims = {
   emailVerified: true,
   external_id: "permanent-owner",
 };
-const fixture = async () => {
+const fixture = async (legacy = false) => {
   const t = convexTest(schema, modules);
   betterAuthTest.register(t);
   workflowTest.register(t);
   apiKeysTest.register(t);
+  const legacyUser = legacy
+    ? await t.mutation(components.betterAuth.adapter.create, {
+        input: {
+          model: "user",
+          data: {
+            name: "Disposable owner",
+            email: "legacy@example.com",
+            emailVerified: true,
+            createdAt: Date.now(),
+            updatedAt: Date.now(),
+          },
+        },
+      })
+    : null;
+  const ownerId = legacyUser?._id ?? "permanent-owner";
   await t.run((ctx) =>
     ctx.db.insert("users", {
-      teakUserId: "permanent-owner",
+      teakUserId: ownerId,
       workosUserId: "user_DELETE",
       email: "legacy@example.com",
       emailVerified: true,
@@ -31,16 +46,37 @@ const fixture = async () => {
       workosEmailVerified: true,
     })
   );
+  await t.run((ctx) =>
+    ctx.db.insert("workosProfiles", {
+      workosUserId: "user_DELETE",
+      revision: 1,
+      source: "event",
+      providerUpdatedAt: "2026-10-01T00:00:00Z",
+      profile: {
+        email: "provider@example.com",
+        emailVerified: true,
+        externalId: ownerId,
+        firstName: null,
+        lastName: null,
+        profilePictureUrl: null,
+      },
+    })
+  );
   const card = await t.run((ctx) =>
     ctx.db.insert("cards", {
-      userId: "permanent-owner",
+      userId: ownerId,
       content: "private",
       type: "text",
       createdAt: 1,
       updatedAt: 1,
     })
   );
-  return { t, card, signed: t.withIdentity(claims) };
+  return {
+    t,
+    card,
+    ownerId,
+    signed: t.withIdentity({ ...claims, external_id: ownerId }),
+  };
 };
 beforeEach(() => {
   vi.useFakeTimers();
@@ -489,13 +525,12 @@ describe("durable deletion admission and tombstones", () => {
     ).toMatchObject([{ key }]);
   });
   test("Better Auth denial is immediate even in shadow mode", async () => {
-    vi.stubEnv("AUTH_PRIMARY", "betterauth");
-    const { t, card } = await fixture();
+    const { t, card, ownerId, signed: workos } = await fixture(true);
     const session = await t.mutation(components.betterAuth.adapter.create, {
       input: {
         model: "session",
         data: {
-          userId: "permanent-owner",
+          userId: ownerId,
           token: "token",
           expiresAt: Date.now() + 60_000,
           createdAt: Date.now(),
@@ -504,11 +539,12 @@ describe("durable deletion admission and tombstones", () => {
       },
     });
     const signed = t.withIdentity({
-      subject: "permanent-owner",
+      subject: ownerId,
       issuer: process.env.CONVEX_SITE_URL!,
       sessionId: session._id,
     });
-    await signed.mutation(api.accountDeletion.deleteMyAccount, {});
+    await workos.mutation(api.accountDeletion.deleteMyAccount, {});
+    vi.stubEnv("AUTH_PRIMARY", "betterauth");
     expect(await signed.query(api.cards.getCard, { id: card })).toBeNull();
     expect(
       await signed.mutation(api.accountDeletion.deleteMyAccount, {})
@@ -763,4 +799,50 @@ test("account-change pause denies fresh deletion and acknowledges an existing du
   expect(
     await t.run((ctx) => ctx.db.query("accountDeletionStates").collect())
   ).toHaveLength(1);
+});
+
+test("Better Auth primary denies fresh WorkOS deletion while rollback acknowledges an admitted request", async () => {
+  const { t, signed, ownerId } = await fixture(true);
+  const session = await t.mutation(components.betterAuth.adapter.create, {
+    input: {
+      model: "session",
+      data: {
+        userId: ownerId,
+        expiresAt: Date.now() + 60_000,
+        createdAt: Date.now(),
+        updatedAt: Date.now(),
+        token: crypto.randomUUID(),
+      },
+    },
+  });
+  vi.stubEnv("AUTH_PRIMARY", "betterauth");
+  const legacy = t.withIdentity({
+    issuer: process.env.CONVEX_SITE_URL,
+    subject: ownerId,
+    sessionId: session._id,
+  });
+  const before = await t.run((ctx) =>
+    ctx.db.system.query("_scheduled_functions").collect()
+  );
+  await expect(
+    legacy.mutation(api.accountDeletion.deleteMyAccount, {})
+  ).rejects.toThrow("WorkOS account deletion is not enabled");
+  expect(
+    await t.run((ctx) => ctx.db.query("accountDeletionStates").collect())
+  ).toEqual([]);
+  expect(
+    await t.run((ctx) => ctx.db.system.query("_scheduled_functions").collect())
+  ).toEqual(before);
+  vi.stubEnv("AUTH_PRIMARY", "workos");
+  await signed.mutation(api.accountDeletion.deleteMyAccount, {});
+  const state = await t.run((ctx) =>
+    ctx.db.query("accountDeletionStates").unique()
+  );
+  vi.stubEnv("AUTH_PRIMARY", "betterauth");
+  await expect(
+    legacy.mutation(api.accountDeletion.deleteMyAccount, {})
+  ).resolves.toBeNull();
+  expect(
+    await t.run((ctx) => ctx.db.query("accountDeletionStates").unique())
+  ).toEqual(state);
 });

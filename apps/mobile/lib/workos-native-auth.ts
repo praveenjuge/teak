@@ -21,9 +21,10 @@ export function getWorkosSession(clientId: string): WorkosSession {
       fetch,
       10_000,
       async (accessToken) => {
+        const convexUrl = getConvexUrl();
         const controller = new AbortController();
         const timer = setTimeout(() => controller.abort(), 10_000);
-        const client = new ConvexHttpClient(getConvexUrl(), {
+        const client = new ConvexHttpClient(convexUrl, {
           fetch: (input, init) =>
             fetch(input, {
               ...init,

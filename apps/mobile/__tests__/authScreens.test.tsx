@@ -6,7 +6,8 @@ import { secureStoreMock } from "./secureStoreMock";
 
 let mode: MobileAuth["mode"] | undefined;
 const siteUrl = process.env.EXPO_PUBLIC_CONVEX_SITE_URL;
-process.env.EXPO_PUBLIC_CONVEX_SITE_URL = "http://127.0.0.1:3211";
+process.env.EXPO_PUBLIC_CONVEX_SITE_URL =
+  "https://mobile-auth-fixture.convex.site";
 afterAll(() => {
   if (siteUrl === undefined) {
     delete process.env.EXPO_PUBLIC_CONVEX_SITE_URL;
