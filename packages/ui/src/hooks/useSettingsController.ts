@@ -275,6 +275,8 @@ export function useSettingsController({
     keys,
     oauthConnections,
     ...devices,
+    betterAuthIdentityKey:
+      authMode?.primary === "betterauth" ? user?._id : undefined,
     handleRevokeSession,
     setDeleteDialogOpen,
     setDeleteError,

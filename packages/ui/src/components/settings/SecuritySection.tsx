@@ -1,7 +1,8 @@
 "use client";
 
-import type { ComponentProps } from "react";
-import { useState } from "react";
+import { api } from "@teak/convex";
+import { Component, type ComponentProps, useState } from "react";
+import { usePaginatedQuery } from "../../convexQueryHooks";
 import { Button } from "../ui/button";
 import {
   Dialog,
@@ -24,6 +25,7 @@ export interface DeviceSession {
 }
 
 export interface SecurityConnectionsProps {
+  betterAuthIdentityKey?: string;
   connections: OAuthConnection[] | undefined;
   onLoadMoreSessions: () => void;
   onRetrySessions?: () => void;
@@ -171,6 +173,58 @@ function ConnectionsPanel(props: SecurityConnectionsProps) {
   );
 }
 
+// Cached queries throw during render; contain only device reads, preserving app access.
+// biome-ignore lint/style/useReactFunctionComponents: React error boundaries require a class lifecycle.
+class BetterAuthConnectionsBoundary extends Component<
+  SecurityConnectionsProps,
+  { failed: boolean; attempt: number }
+> {
+  state = { failed: false, attempt: 0 };
+  static getDerivedStateFromError() {
+    return { failed: true };
+  }
+  render() {
+    if (this.state.failed) {
+      return (
+        <ConnectionsPanel
+          {...this.props}
+          onRetrySessions={() =>
+            this.setState(({ attempt }) => ({
+              failed: false,
+              attempt: attempt + 1,
+            }))
+          }
+          sessions={undefined}
+          sessionsError="Could not load devices. Please try again."
+        />
+      );
+    }
+    return (
+      <BetterAuthConnectionsPanel {...this.props} key={this.state.attempt} />
+    );
+  }
+}
+
+function BetterAuthConnectionsPanel(props: SecurityConnectionsProps) {
+  const sessions = usePaginatedQuery(
+    api.securitySessions.listSessions,
+    {},
+    { initialNumItems: 25 }
+  );
+  return (
+    <ConnectionsPanel
+      {...props}
+      onLoadMoreSessions={() => sessions.loadMore(25)}
+      sessions={
+        sessions.status === "LoadingFirstPage" ? undefined : sessions.results
+      }
+      sessionsError={null}
+      sessionsHasMore={sessions.status === "CanLoadMore"}
+      sessionsLoadingMore={sessions.status === "LoadingMore"}
+    />
+  );
+}
+
 export function SecuritySection({
   apiKeys,
   ...connections
@@ -213,7 +267,14 @@ function SecurityTabs({
         <TabsTrigger value="keys">API keys</TabsTrigger>
       </TabsList>
       <TabsContent value="connections">
-        <ConnectionsPanel {...connections} />
+        {connections.betterAuthIdentityKey ? (
+          <BetterAuthConnectionsBoundary
+            {...connections}
+            key={connections.betterAuthIdentityKey}
+          />
+        ) : (
+          <ConnectionsPanel {...connections} />
+        )}
       </TabsContent>
       <TabsContent value="keys">
         <ApiKeysPanel {...apiKeys} />

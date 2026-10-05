@@ -4,18 +4,12 @@ import { api } from "@teak/convex";
 import { useAction } from "convex/react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { DeviceSession } from "../components/settings/SecuritySection";
-import { usePaginatedQuery } from "../convexQueryHooks";
 
 // Actions do not subscribe: keep pages local, discard stale responses on account/mode changes.
 export function useDeviceSessions(
   identityKey: string | undefined,
   provider: "betterauth" | "workos" | undefined
 ) {
-  const betterAuth = usePaginatedQuery(
-    api.securitySessions.listSessions,
-    identityKey && provider === "betterauth" ? {} : "skip",
-    { initialNumItems: 25 }
-  );
   const list = useAction(api.securitySessions.listAuthkitSessions);
   const activeIdentity = useRef(identityKey);
   activeIdentity.current = identityKey;
@@ -98,25 +92,14 @@ export function useDeviceSessions(
     };
   }, [identityKey, load]);
   const visible = state.key === identityKey;
-  const betterAuthRows =
-    betterAuth.status === "LoadingFirstPage" ? undefined : betterAuth.results;
-  const workosRows = visible ? state.rows : undefined;
   return {
-    sessions: provider === "betterauth" ? betterAuthRows : workosRows,
-    sessionsHasMore:
-      provider === "betterauth"
-        ? betterAuth.status === "CanLoadMore"
-        : visible && state.hasMore,
-    sessionsLoadingMore:
-      provider === "betterauth"
-        ? betterAuth.status === "LoadingMore"
-        : visible && state.loading && state.rows !== undefined,
+    sessions: visible ? state.rows : undefined,
+    sessionsHasMore: visible && state.hasMore,
+    sessionsLoadingMore: visible && state.loading && state.rows !== undefined,
     sessionsError: provider === "workos" && visible ? state.error : null,
     retrySessions: () => void load(state.failedCursor ?? null),
     loadMoreSessions: () => {
-      if (provider === "betterauth") {
-        betterAuth.loadMore(25);
-      } else if (state.hasMore) {
+      if (state.hasMore) {
         void load(state.cursor);
       }
     },

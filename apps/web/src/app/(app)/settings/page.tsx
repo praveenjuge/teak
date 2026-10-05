@@ -167,6 +167,7 @@ export default function ProfileSettingsPage() {
   return (
     <SettingsContent
       accountLoading={settings.accountLoading}
+      betterAuthIdentityKey={settings.betterAuthIdentityKey}
       cardCount={settings.cardCount}
       deleteDialogError={settings.deleteDialogError}
       deleteDialogOpen={settings.deleteDialogOpen}
