@@ -1,8 +1,10 @@
+import { NotFoundException, type Session, WorkOS } from "@workos-inc/node";
 import { paginationOptsValidator, type UserIdentity } from "convex/server";
 import { v } from "convex/values";
 import { components, internal } from "./_generated/api";
 import {
   type ActionCtx,
+  action,
   env,
   internalQuery,
   mutation,
@@ -391,7 +393,11 @@ const displayValidator = v.object({
 });
 
 export const listSessions = query({
-  args: { paginationOpts: paginationOptsValidator },
+  args: {
+    paginationOpts: paginationOptsValidator,
+    // Operational cache key only; ownership always comes from the live session.
+    retryKey: v.optional(v.string()),
+  },
   returns: v.object({
     page: v.array(displayValidator),
     isDone: v.boolean(),
@@ -450,6 +456,148 @@ export const revokeSession = mutation({
       },
     });
     return null;
+  },
+});
+
+const sessionPageValidator = v.object({
+  page: v.array(displayValidator),
+  isDone: v.boolean(),
+  continueCursor: v.string(),
+});
+
+function workosSessionClient() {
+  const apiKey = process.env.WORKOS_API_KEY;
+  if (!apiKey) {
+    throw new Error("Device service is unavailable. Please try again.");
+  }
+  return new WorkOS(apiKey, {
+    clientId: process.env.WORKOS_CLIENT_ID,
+    maxRetries: 0,
+    timeout: 10_000,
+  }).userManagement;
+}
+
+function validateProviderSession(session: Session, userId: string) {
+  if (
+    session.userId !== userId ||
+    !/^session_[A-Za-z0-9]+$/.test(session.id) ||
+    !["active", "expired", "revoked"].includes(session.status) ||
+    !Number.isFinite(Date.parse(session.createdAt)) ||
+    !Number.isFinite(Date.parse(session.expiresAt))
+  ) {
+    throw new Error("Device service returned an invalid session.");
+  }
+}
+
+export const listAuthkitSessions = action({
+  args: { paginationOpts: paginationOptsValidator },
+  returns: sessionPageValidator,
+  handler: async (
+    ctx,
+    { paginationOpts }
+  ): Promise<{
+    page: { id: string; name: string; signedInAt: number; current: boolean }[];
+    isDone: boolean;
+    continueCursor: string;
+  }> => {
+    const user = await getSessionUser(ctx);
+    if (user?.provider !== "workos") {
+      throw new Error("Please sign in again.");
+    }
+    const cursor = paginationOpts.cursor;
+    if (cursor && !/^session_[A-Za-z0-9]+$/.test(cursor)) {
+      throw new Error("Invalid device page. Please refresh.");
+    }
+    const result = await workosSessionClient().listSessions(
+      user.identity.subject,
+      {
+        limit: Math.max(1, Math.min(Math.floor(paginationOpts.numItems), 100)),
+        after: cursor,
+        order: "desc",
+      }
+    );
+    for (const session of result.data) {
+      validateProviderSession(session, user.identity.subject);
+    }
+    const next = result.listMetadata.after ?? "";
+    if (next && (!/^session_[A-Za-z0-9]+$/.test(next) || next === cursor)) {
+      throw new Error("Device service returned an invalid page.");
+    }
+    return {
+      page: result.data
+        .filter(
+          (session) =>
+            session.status === "active" &&
+            Date.parse(session.expiresAt) > Date.now()
+        )
+        .map((session) => ({
+          id: session.id,
+          name: sessionDisplayName(session.userAgent),
+          signedInAt: Date.parse(session.createdAt),
+          current: session.id === user.sessionId,
+        })),
+      isDone: !next,
+      continueCursor: next,
+    };
+  },
+});
+
+export const revokeAuthkitSession = action({
+  args: { sessionId: v.string() },
+  returns: v.null(),
+  handler: async (ctx, { sessionId }) => {
+    const user = await getSessionUser(ctx);
+    if (user?.provider !== "workos") {
+      throw new Error("Please sign in again.");
+    }
+    if (!/^session_[A-Za-z0-9]+$/.test(sessionId)) {
+      throw new Error("Invalid device session.");
+    }
+    const client = workosSessionClient();
+    if (sessionId === user.sessionId) {
+      // The exact verified AuthKit sid proves ownership even after active-only listing omits it.
+      try {
+        await client.revokeSession({ sessionId });
+      } catch (error) {
+        if (!(error instanceof NotFoundException)) {
+          throw error;
+        }
+      }
+      return null;
+    }
+    let after: string | undefined;
+    const seen = new Set<string>();
+    for (let page = 0; page < 20; page++) {
+      const result = await client.listSessions(user.identity.subject, {
+        limit: 100,
+        after,
+      });
+      for (const session of result.data) {
+        validateProviderSession(session, user.identity.subject);
+      }
+      const target = result.data.find((session) => session.id === sessionId);
+      if (target) {
+        if (
+          target.status !== "active" ||
+          Date.parse(target.expiresAt) <= Date.now()
+        ) {
+          // Ownership is proven above. A retry after a lost response must finish sign-out.
+          return null;
+        }
+        await client.revokeSession({ sessionId });
+        return null;
+      }
+      const next = result.listMetadata.after;
+      if (!next) {
+        throw new Error("Device session was not found.");
+      }
+      if (!/^session_[A-Za-z0-9]+$/.test(next) || seen.has(next)) {
+        throw new Error("Device service returned an invalid page.");
+      }
+      seen.add(next);
+      after = next;
+    }
+    throw new Error("Could not verify this device. Please contact support.");
   },
 });
 
