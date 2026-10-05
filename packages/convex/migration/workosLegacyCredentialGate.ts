@@ -1,5 +1,6 @@
 import type { MutationCtx } from "../_generated/server";
 import { readAccountChangesPaused, readAuthPrimary } from "../env";
+import { classifyLegacyGrant } from "./workosLegacyGrants";
 
 // Called from component triggers in the credential write transaction. An HTTP
 // action's earlier environment snapshot cannot authorize a post-barrier write.
@@ -67,5 +68,22 @@ export async function assertLegacyAccountUpdate(
     throw new Error(
       "Legacy account changes are paused for the auth transition"
     );
+  }
+}
+
+export async function assertLegacyVerificationWrite(
+  ctx: MutationCtx,
+  next: { identifier: string; value: string },
+  previous?: { identifier: string; value: string }
+) {
+  const classifications = [
+    classifyLegacyGrant(next),
+    ...(previous ? [classifyLegacyGrant(previous)] : []),
+  ];
+  if (classifications.includes("ambiguous")) {
+    throw new Error("Ambiguous legacy grant requires operator review");
+  }
+  if (classifications.includes("grant")) {
+    await assertLegacyCredentialWrite(ctx);
   }
 }

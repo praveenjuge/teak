@@ -3,7 +3,23 @@ import { createHash } from "node:crypto";
 import { writeFile } from "node:fs/promises";
 import { resolve } from "node:path";
 import { parseArgs, promisify } from "node:util";
+import { z } from "zod";
 import { readPrivate } from "./quiesce-importer";
+
+const grantPage = z
+  .strictObject({
+    deleted: z.number().int().min(0).max(20),
+    scanned: z.number().int().min(0).max(20),
+    done: z.boolean(),
+    cursor: z.string().min(1).max(8192).nullable(),
+    blockedIds: z.array(z.string().min(1).max(128)).max(20),
+  })
+  .refine(
+    (page) =>
+      page.deleted <= page.scanned &&
+      page.blockedIds.length <= page.scanned &&
+      page.done === (page.cursor === null)
+  );
 
 // This command performs Phase 5 step 5 only. It never flips primary, clears the
 // barrier, unpauses writes, imports users or claims the full cutover is complete.
@@ -88,7 +104,12 @@ export async function main(
     );
     return;
   }
-  const counts = { session: 0, oauthAccessToken: 0 };
+  const counts = {
+    session: 0,
+    oauthAccessToken: 0,
+    nativeAuthCodes: 0,
+    pendingGrants: 0,
+  };
   for (const model of ["session", "oauthAccessToken"] as const) {
     let done = false;
     for (let page = 0; page < 10_000; page++) {
@@ -123,6 +144,90 @@ export async function main(
       );
     }
   }
+  let nativeDone = false;
+  for (let page = 0; page < 10_000; page++) {
+    const result = await run(
+      "migration/workosCutover:revokeNativeCodesPage",
+      pins
+    );
+    if (
+      typeof result !== "object" ||
+      result === null ||
+      !("deleted" in result) ||
+      !("done" in result) ||
+      !Number.isSafeInteger(result.deleted) ||
+      Number(result.deleted) < 0 ||
+      Number(result.deleted) > 20 ||
+      result.done !== (result.deleted === 0)
+    ) {
+      throw new Error("Malformed native grant revocation acknowledgment");
+    }
+    counts.nativeAuthCodes += Number(result.deleted);
+    if (result.done) {
+      nativeDone = true;
+      break;
+    }
+  }
+  if (!nativeDone) {
+    throw new Error(
+      "Native grant revocation bounded stop; retain pause and barrier"
+    );
+  }
+  let cursor: string | null = null,
+    grantsDone = false;
+  const seen = new Set<string>();
+  for (let page = 0; page < 10_000; page++) {
+    const result = grantPage.parse(
+      await run("migration/workosCutover:revokePendingGrantsPage", {
+        ...pins,
+        cursor,
+      })
+    );
+    counts.pendingGrants += result.deleted;
+    if (result.blockedIds.length > 0) {
+      const blockedArtifact = `${path}.legacy-grants-blocked.${crypto.randomUUID()}.json`;
+      await writeFile(
+        blockedArtifact,
+        JSON.stringify(
+          {
+            deployment: receipt.deployment,
+            holder: receipt.holder,
+            generation: receipt.generation,
+            blockedIds: result.blockedIds,
+            barrierHeld: true,
+            completed: false,
+          },
+          null,
+          2
+        ),
+        { flag: "wx", mode: 0o600 }
+      );
+      throw new Error(
+        "Ambiguous pending grants require separate operator review; retain pause and barrier"
+      );
+    }
+    if (result.done) {
+      grantsDone = true;
+      break;
+    }
+    if (
+      result.scanned === 0 ||
+      result.cursor === cursor ||
+      !result.cursor ||
+      seen.has(result.cursor)
+    ) {
+      throw new Error(
+        "Pending grant scan did not advance; retain pause and barrier"
+      );
+    }
+    cursor = result.cursor;
+    seen.add(cursor);
+  }
+  if (!grantsDone) {
+    throw new Error(
+      "Pending grant scan bounded stop; retain pause and barrier"
+    );
+  }
   await run("migration/workosImportLease:verifyQuiescence", pins);
   const artifact = `${path}.legacy-revoked.${crypto.randomUUID()}.json`;
   await writeFile(
@@ -133,7 +238,7 @@ export async function main(
         approvalReference: values["approval-reference"],
         counts,
         finishedAt: new Date().toISOString(),
-        step: "legacy-session-and-oauth-revocation",
+        step: "legacy-session-token-and-pending-grant-revocation",
         barrierHeld: true,
         accountWritesRemainPaused: true,
       },

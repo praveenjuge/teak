@@ -41,6 +41,7 @@ import {
   assertLegacyAccountWrite,
   assertLegacyCredentialWrite,
   assertLegacyProtectedProfileWrite,
+  assertLegacyVerificationWrite,
 } from "./migration/workosLegacyCredentialGate";
 import { teakOAuthSecurity } from "./oauthSecurity";
 import { getSessionProfile } from "./securitySessions";
@@ -133,6 +134,10 @@ export const authComponent = createClient<DataModel>(components.betterAuth, {
     oauthAccessToken: {
       onCreate: assertLegacyCredentialWrite,
       onUpdate: assertLegacyCredentialWrite,
+    },
+    verification: {
+      onCreate: assertLegacyVerificationWrite,
+      onUpdate: assertLegacyVerificationWrite,
     },
     account: {
       onCreate: assertLegacyAccountWrite,

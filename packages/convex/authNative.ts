@@ -9,6 +9,7 @@ import {
   mutation,
 } from "./_generated/server";
 import { resolveTeakDevAppUrl } from "./devUrls";
+import { assertLegacyCredentialWrite } from "./migration/workosLegacyCredentialGate";
 import { getSessionUser } from "./securitySessions";
 import { mintDedicatedSession } from "./shared/dedicatedSessions";
 import { rateLimiter } from "./shared/rateLimits";
@@ -344,6 +345,7 @@ export const createNativeAuthCode = mutation({
       });
     }
 
+    await assertLegacyCredentialWrite(ctx);
     const now = Date.now();
     const expiresAt = now + NATIVE_AUTH_CODE_TTL_MS;
 
