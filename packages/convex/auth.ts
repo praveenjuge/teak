@@ -139,6 +139,7 @@ export const authComponent = createClient<DataModel>(components.betterAuth, {
     },
     user: {
       onCreate: async (ctx, user) => {
+        await assertLegacyAccountWrite(ctx);
         await mirrorBetterAuthUser(ctx, user);
         await ctx.scheduler.runAfter(
           0,

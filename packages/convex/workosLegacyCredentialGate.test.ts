@@ -486,3 +486,86 @@ test.each([
     });
   }
 );
+
+test("user provisioning admitted before pause/barrier cannot create legacy owner, mirror or scheduled defaults", async () => {
+  vi.useFakeTimers();
+  try {
+    const t = setup();
+    vi.stubEnv("ACCOUNT_CHANGES_PAUSED", "false");
+    let admitted:
+      | ReturnType<ReturnType<typeof authComponent.adapter>>
+      | undefined;
+    await t.run((ctx) => {
+      admitted = authComponent.adapter(ctx)(createAuth(ctx).options);
+      return Promise.resolve(null);
+    });
+    const getAdmitted = () => {
+      if (!admitted) {
+        throw new Error("Missing admitted adapter");
+      }
+      return admitted;
+    };
+    const data = (email: string) => ({
+      name: "E2E Owner",
+      email,
+      emailVerified: true,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    });
+    const owner = await t.run(() =>
+      getAdmitted().create({
+        model: "user",
+        data: data("e2e-normal@example.com"),
+      })
+    );
+    expect(
+      await t.run((ctx) =>
+        ctx.db
+          .query("users")
+          .withIndex("by_teakUserId", (q) => q.eq("teakUserId", owner.id))
+          .unique()
+      )
+    ).toMatchObject({ email: "e2e-normal@example.com", emailVerified: true });
+    const scheduled = await t.run((ctx) =>
+      ctx.db.system.query("_scheduled_functions").take(10)
+    );
+    expect(scheduled.length).toBeGreaterThan(0);
+    vi.stubEnv("ACCOUNT_CHANGES_PAUSED", "true");
+    await expect(
+      t.run(() =>
+        getAdmitted().create({
+          model: "user",
+          data: data("e2e-paused@example.com"),
+        })
+      )
+    ).rejects.toThrow("account changes are paused");
+    await barrier(t);
+    vi.stubEnv("ACCOUNT_CHANGES_PAUSED", "false");
+    await expect(
+      t.run(() =>
+        getAdmitted().create({
+          model: "user",
+          data: data("e2e-barrier@example.com"),
+        })
+      )
+    ).rejects.toThrow("credential writes are stopped");
+    expect(
+      (
+        await t.run((ctx) =>
+          ctx.runQuery(components.betterAuth.adapter.findMany, {
+            model: "user",
+            paginationOpts: { cursor: null, numItems: 20 },
+          })
+        )
+      ).page
+    ).toHaveLength(1);
+    expect(await t.run((ctx) => ctx.db.query("users").take(20))).toHaveLength(
+      1
+    );
+    expect(
+      await t.run((ctx) => ctx.db.system.query("_scheduled_functions").take(10))
+    ).toEqual(scheduled);
+  } finally {
+    vi.useRealTimers();
+  }
+});
