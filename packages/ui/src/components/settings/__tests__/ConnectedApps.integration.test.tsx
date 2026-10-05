@@ -174,9 +174,7 @@ test("cached app retry retains devices and pages separate same-client grants", a
   expect(buttons("Disconnect Teak for Mac")).toHaveLength(2);
   expect(region("Connected apps").textContent).not.toContain("Full access");
   expect(region("Connected apps").textContent).not.toContain("app_consent_");
-  transport.onCall(async () => {
-    throw new Error("Mutation outage");
-  });
+  transport.onCall(() => Promise.reject(new Error("Mutation outage")));
   await click("Disconnect Teak for Mac");
   expect(region("Connected apps").textContent).toContain("Could not update");
   expect(buttons("Disconnect Teak for Mac")).toHaveLength(2);
