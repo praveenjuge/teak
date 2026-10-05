@@ -15,6 +15,7 @@ const requests: Array<{
 let browserCount = 0;
 let mode: "betterauth" | "workos" = "betterauth";
 let tokenFailure = false;
+let malformedToken = false;
 let revocationFailure = false;
 const posts: Array<{
   url: string;
@@ -115,6 +116,11 @@ const transport = ((input: RequestInfo | URL, init?: RequestInit) => {
   if (url.endsWith("/revoke")) {
     return Promise.resolve(json({}, revocationFailure ? 503 : 200));
   }
+  if (malformedToken) {
+    return Promise.resolve(
+      new Response("invalid provider response", { status: 200 }),
+    );
+  }
   return Promise.resolve(
     json(
       {
@@ -133,6 +139,7 @@ beforeEach(() => {
   browserCount = 0;
   mode = "betterauth";
   tokenFailure = false;
+  malformedToken = false;
   revocationFailure = false;
   // A fresh transport identity gives each scenario a fresh canonical SDK cache.
   globalThis.fetch = ((input, init) => transport(input, init)) as typeof fetch;
@@ -238,5 +245,13 @@ test("sign out revokes the rotated credential and retains it on provider failure
   await oauth.signOutTeak();
   expect(posts.at(-1)?.body.get("token")).toBe("refresh-new");
   expect(posts.at(-1)?.body.get("client_id")).toBe("client_raycast_dev");
+  expect(stores.size).toBe(0);
+});
+
+test("non-JSON token replies produce the sign-in error and store no credentials", async () => {
+  malformedToken = true;
+  await expect(oauth.authorizeTeak()).rejects.toThrow(
+    "Invalid Teak sign-in response.",
+  );
   expect(stores.size).toBe(0);
 });

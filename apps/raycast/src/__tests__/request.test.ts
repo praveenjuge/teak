@@ -498,6 +498,31 @@ describe("raycast request handling", () => {
     expect(removeTokensMock).not.toHaveBeenCalled();
   });
 
+  test("reauthorization discovery outage keeps credentials and reports a network failure", async () => {
+    getPreferenceValuesMock.mockImplementation(() => ({ apiKey: "" }));
+    let discoveryReads = 0;
+    let apiCalls = 0;
+    const discovered = withDiscovery(
+      mock(() => {
+        apiCalls += 1;
+        return createCardsResponse(401);
+      }) as unknown as typeof fetch,
+    );
+    globalThis.fetch = ((input, init) => {
+      if (String(input).includes("oauth-protected-resource"))
+        discoveryReads += 1;
+      if (discoveryReads >= 3 && String(input).includes(".well-known")) {
+        return Promise.resolve(new Response(null, { status: 503 }));
+      }
+      return discovered(input, init);
+    }) as typeof fetch;
+    await expect(searchCards({ limit: 1 })).rejects.toMatchObject({
+      code: "NETWORK_ERROR",
+    });
+    expect(apiCalls).toBe(1);
+    expect(removeTokensMock).not.toHaveBeenCalled();
+  });
+
   test("refreshes the OAuth token once after a 401", async () => {
     getPreferenceValuesMock.mockImplementation(() => ({ apiKey: "" }));
     authorizeMock.mockReset();

@@ -265,7 +265,15 @@ export const request = async <T>(
     bearer.source === "oauth" &&
     options?.interactive !== false
   ) {
-    const refreshedToken = await reauthorizeTeak();
+    let refreshedToken: string;
+    try {
+      refreshedToken = await reauthorizeTeak();
+    } catch (error) {
+      if (error instanceof TeakDiscoveryError) {
+        throw new RaycastApiError("NETWORK_ERROR");
+      }
+      throw error;
+    }
     ({ requestUrl, response } = await executeHttpRequest(
       path,
       refreshedToken,

@@ -110,7 +110,12 @@ async function exchange(
   } finally {
     reader.releaseLock();
   }
-  const raw: unknown = JSON.parse(text + decoder.decode());
+  let raw: unknown;
+  try {
+    raw = JSON.parse(text + decoder.decode());
+  } catch {
+    throw new Error("Invalid Teak sign-in response.");
+  }
   if (
     !raw ||
     typeof raw !== "object" ||
@@ -195,8 +200,8 @@ export function reauthorizeTeak(): Promise<string> {
     inFlightReauthorize = (async () => {
       await Promise.allSettled([inFlightAuthorize, inFlightStoredToken]);
       const provider = await getProvider();
+      await getProvider(true);
       await provider.client.removeTokens();
-      await discovery(true);
       return authorizeTeak();
     })().finally(() => {
       inFlightReauthorize = null;
