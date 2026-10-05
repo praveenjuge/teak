@@ -10,8 +10,12 @@ import { CustomerPortalButton } from "./CustomerPortalButton";
 import { DeleteAccountDialog } from "./DeleteAccountDialog";
 import type { ExportState } from "./ExportPanel";
 import { ImportExportSection } from "./ImportExportSection";
-import type { OAuthConnection } from "./OAuthConnectionsSection";
-import { type DeviceSession, SecuritySection } from "./SecuritySection";
+import {
+  type ConnectionIdentity,
+  type ConnectionTarget,
+  type DeviceSession,
+  SecuritySection,
+} from "./SecuritySection";
 import { SettingRow } from "./SettingRow";
 import { SettingsFooter } from "./SettingsFooter";
 import { ThemeToggle } from "./ThemeToggle";
@@ -20,6 +24,7 @@ interface SettingsContentProps {
   accountLoading: boolean;
   betterAuthIdentityKey?: string;
   cardCount: number;
+  connectionIdentity?: ConnectionIdentity;
   deleteDialogError: string | null;
   deleteDialogOpen: boolean;
   deleteLoading: boolean;
@@ -28,7 +33,6 @@ interface SettingsContentProps {
   exportState?: ExportState | null;
   hasPremium?: boolean;
   keys: ApiKeyListItem[] | undefined;
-  oauthConnections: OAuthConnection[] | undefined;
   onCancelExport: (jobId: string) => Promise<void>;
   onCreateApiKey: () => Promise<{ key: string }>;
   onCreateCustomerPortal: () => Promise<void>;
@@ -39,7 +43,7 @@ interface SettingsContentProps {
   onRetrySessions?: () => void;
   onRevokeAllApiKeys: () => Promise<{ hasMore: boolean; revokedCount: number }>;
   onRevokeApiKey: (keyId: string) => Promise<void>;
-  onRevokeOAuthConnection: (clientId: string) => Promise<void>;
+  onRevokeOAuthConnection: (target: ConnectionTarget) => Promise<void>;
   onRevokeSession: (sessionId: string, current: boolean) => Promise<void>;
   onRotateApiKey: (keyId: string) => Promise<{ key: string }>;
   onSignOut: () => Promise<void> | void;
@@ -66,7 +70,7 @@ export function SettingsContent({
   hasPremium,
   accountLoading,
   keys,
-  oauthConnections,
+  connectionIdentity,
   sessions,
   sessionsError,
   onRetrySessions,
@@ -141,7 +145,7 @@ export function SettingsContent({
           onRotateKey: onRotateApiKey,
         }}
         betterAuthIdentityKey={betterAuthIdentityKey}
-        connections={oauthConnections}
+        connectionIdentity={connectionIdentity}
         onLoadMoreSessions={onLoadMoreSessions}
         onRetrySessions={onRetrySessions}
         onRevokeConnection={onRevokeOAuthConnection}

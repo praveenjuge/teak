@@ -7,8 +7,9 @@ import {
 } from "@teak/convex/shared/client-telemetry";
 import { trackAuth, trackLifecycle } from "@teak/convex/shared/metrics";
 import { useAction, useMutation } from "convex/react";
-import { useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
+import type { ConnectionTarget } from "../components/settings/SecuritySection";
 import { TOAST_IDS } from "../constants/toast";
 import { useQuery } from "../convexQueryHooks";
 import { openCustomerPortal } from "../lib/customerPortal";
@@ -74,7 +75,24 @@ export function useSettingsController({
       await devices.refreshSessions();
     }
   };
-  const oauthConnections = useQuery(api.oauthTokens.listOAuthConnections, {});
+  const connectionProvider = authMode?.primary;
+  const connectionUserId = user?._id;
+  const connectionIdentity = useMemo(
+    () =>
+      connectionUserId && connectionProvider
+        ? {
+            key: `${connectionProvider}:${connectionUserId}`,
+            provider: connectionProvider,
+            cacheKey: crypto.randomUUID(),
+          }
+        : undefined,
+    [connectionUserId, connectionProvider]
+  );
+  const activeConnectionIdentity = useRef(connectionIdentity?.cacheKey);
+  activeConnectionIdentity.current = connectionIdentity?.cacheKey;
+  const disconnectConsent = useMutation(
+    api.workosConsents.disconnectConnection
+  );
   const revokeOAuthConnection = useAction(
     api.oauthTokens.revokeOAuthConnection
   );
@@ -184,8 +202,19 @@ export function useSettingsController({
   const handleRotateApiKey = async (keyId: string) =>
     (await rotateKey({ keyId })) as { key: string };
 
-  const handleRevokeOAuthConnection = async (clientId: string) => {
-    await revokeOAuthConnection({ clientId });
+  const handleRevokeOAuthConnection = async (target: ConnectionTarget) => {
+    if (
+      !connectionIdentity ||
+      connectionIdentity.cacheKey !== activeConnectionIdentity.current ||
+      target.provider !== connectionIdentity.provider
+    ) {
+      throw new Error("This account changed. Please try again.");
+    }
+    if (target.provider === "workos") {
+      await disconnectConsent({ consentId: target.consentId });
+    } else {
+      await revokeOAuthConnection({ clientId: target.clientId });
+    }
   };
 
   const handleCreateCustomerPortal = async () => {
@@ -273,7 +302,7 @@ export function useSettingsController({
     hasPremium: user?.hasPremium,
     accountLoading: user === undefined,
     keys,
-    oauthConnections,
+    connectionIdentity,
     ...devices,
     betterAuthIdentityKey:
       authMode?.primary === "betterauth" ? user?._id : undefined,
