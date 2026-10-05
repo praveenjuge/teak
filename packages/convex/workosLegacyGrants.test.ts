@@ -60,7 +60,7 @@ const codeValue = (requireConsent = false) => ({
   requireConsent,
   state: null,
   codeChallenge: "a".repeat(43),
-  codeChallengeMethod: "S256",
+  codeChallengeMethod: "s256",
 });
 const codeId = () => crypto.randomUUID().replaceAll("-", "");
 const row = (identifier: string, value: unknown) => ({
@@ -102,7 +102,7 @@ test("selective cursor scan deletes consent/code/social grants beyond unrelated 
   for (let index = 0; index < 25; index++) {
     await insert(t, row(codeId(), codeValue(index % 2 === 0)));
   }
-  const socialId = codeId();
+  const socialId = `-${"a".repeat(30)}_`;
   await insert(
     t,
     row(socialId, {
@@ -160,6 +160,7 @@ test("ambiguous grant payloads remain untouched and block completion without exp
     { ...codeValue(), authTime: -1 },
     { ...codeValue(), userId: 7 },
     { ...codeValue(), codeChallengeMethod: "unsafe" },
+    { ...codeValue(), codeChallengeMethod: "S256" },
     {
       callbackURL: "http://localhost:3000",
       codeVerifier: "a".repeat(128),
@@ -172,14 +173,24 @@ test("ambiguous grant payloads remain untouched and block completion without exp
     await insert(t, row(codeId(), value));
   }
   await insert(t, row("invalid-identifier", codeValue()));
+  await insert(t, row(`-${"o".repeat(30)}_`, codeValue()));
+  await insert(
+    t,
+    row(`_${"s".repeat(30)}-`, {
+      callbackURL: "http://localhost:3000",
+      codeVerifier: "v".repeat(128),
+      expiresAt: Date.now() + 600_000,
+      oauthState: `-${"s".repeat(30)}_`,
+    })
+  );
   await insert(t, row(codeId(), codeValue()));
   const held = { ...pins, ...(await hold(t)) };
   vi.stubEnv("AUTH_PRIMARY", "workos");
   const result = await t.mutation(scan, { ...held, cursor: null });
   expect(result.deleted).toBe(1);
-  expect(result.blockedIds).toHaveLength(9);
+  expect(result.blockedIds).toHaveLength(12);
   expect(JSON.stringify(result)).not.toContain("codeVerifier");
-  expect((await rows(t)).page).toHaveLength(9);
+  expect((await rows(t)).page).toHaveLength(12);
 });
 test("verification triggers deny late consent/code/social insertion and conversion after held barrier while unrelated records work", async () => {
   const t = setup();
@@ -214,7 +225,7 @@ test("verification triggers deny late consent/code/social insertion and conversi
   await expect(create(codeId(), codeValue())).rejects.toThrow(
     "credential writes are stopped"
   );
-  const id = codeId();
+  const id = `_${"b".repeat(30)}-`;
   await expect(
     create(id, {
       callbackURL: "http://localhost:3000",
@@ -354,4 +365,53 @@ test("native creation rolls back at the barrier and drained codes cannot mint af
       codeVerifier: verifier,
     })
   ).toBeNull();
+});
+
+test("installed social-state alphabets and lowercase PKCE codes remain admitted before the barrier and drain afterward", async () => {
+  const t = setup();
+  const identifiers = [`-${"g".repeat(30)}_`, `_${"a".repeat(30)}-`];
+  for (const identifier of identifiers) {
+    await t.run(async (ctx) => {
+      const adapter = authComponent.adapter(ctx)(createAuth(ctx).options);
+      return await adapter.create({
+        model: "verification",
+        data: {
+          identifier,
+          value: JSON.stringify({
+            callbackURL: "http://localhost:3000",
+            codeVerifier: "v".repeat(128),
+            expiresAt: Date.now() + 600_000,
+            oauthState: identifier,
+            errorURL: "http://localhost:3000/error",
+            newUserURL: "http://localhost:3000/welcome",
+            requestSignUp: false,
+          }),
+          expiresAt: new Date(Date.now() + 600_000),
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        },
+      });
+    });
+  }
+  await t.run(async (ctx) => {
+    const adapter = authComponent.adapter(ctx)(createAuth(ctx).options);
+    return await adapter.create({
+      model: "verification",
+      data: {
+        identifier: codeId(),
+        value: JSON.stringify(codeValue()),
+        expiresAt: new Date(Date.now() + 600_000),
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      },
+    });
+  });
+  expect((await rows(t)).page).toHaveLength(3);
+  const held = { ...pins, ...(await hold(t)) };
+  vi.stubEnv("AUTH_PRIMARY", "workos");
+  const drained = await t.mutation(scan, { ...held, cursor: null });
+  expect(drained.blockedIds).toEqual([]);
+  expect(drained.deleted).toBe(3);
+  expect(drained.done).toBe(true);
+  expect((await rows(t)).page).toHaveLength(0);
 });
