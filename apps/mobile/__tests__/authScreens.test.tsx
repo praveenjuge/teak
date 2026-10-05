@@ -2,6 +2,7 @@ import { afterAll, expect, mock, test } from "bun:test";
 import type { ReactNode } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { type MobileAuth, MobileAuthContext } from "../lib/mobile-auth-context";
+import { secureStoreMock } from "./secureStoreMock";
 
 let mode: MobileAuth["mode"] | undefined;
 const siteUrl = process.env.EXPO_PUBLIC_CONVEX_SITE_URL;
@@ -88,10 +89,7 @@ mock.module("expo-apple-authentication", () => ({
 mock.module("expo-constants", () => ({
   default: { expoConfig: { scheme: "teak" } },
 }));
-mock.module("expo-secure-store", () => ({
-  getItem: () => null,
-  setItem: () => {},
-}));
+mock.module("expo-secure-store", () => secureStoreMock);
 mock.module("@better-auth/expo/client", () => ({
   expoClient: () => ({ id: "expo" }),
 }));

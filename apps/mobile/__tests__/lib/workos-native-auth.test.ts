@@ -1,5 +1,9 @@
 import { beforeEach, describe, expect, mock, test } from "bun:test";
 import { type SessionStorage, WorkosSession } from "../../lib/workos-session";
+import {
+  secureStoreData as nativeCredentials,
+  secureStoreMock,
+} from "../secureStoreMock";
 
 // Expo AuthSession and the system browser are hardware boundaries. The actual
 // session manager and exchange are exercised; state mismatch/cancel/error must
@@ -33,19 +37,7 @@ mock.module("expo-auth-session", () => ({
     }
   },
 }));
-const nativeCredentials = new Map<string, string>();
-mock.module("expo-secure-store", () => ({
-  getItemAsync: (key: string) =>
-    Promise.resolve(nativeCredentials.get(key) ?? null),
-  setItemAsync: (key: string, value: string) => {
-    nativeCredentials.set(key, value);
-    return Promise.resolve();
-  },
-  deleteItemAsync: (key: string) => {
-    nativeCredentials.delete(key);
-    return Promise.resolve();
-  },
-}));
+mock.module("expo-secure-store", () => secureStoreMock);
 mock.module("expo-web-browser", () => ({
   maybeCompleteAuthSession: () => {},
   openBrowserAsync: (url: string) => {
@@ -53,12 +45,8 @@ mock.module("expo-web-browser", () => ({
     return Promise.resolve({ type: "dismiss" });
   },
 }));
-const {
-  signInWithWorkos,
-  openWorkosLogout,
-  WORKOS_REDIRECT_URI,
-  getWorkosSession,
-} = await import("../../lib/workos-native-auth");
+const { signInWithWorkos, openWorkosLogout, WORKOS_REDIRECT_URI } =
+  await import("../../lib/workos-native-auth");
 const clientId = "client_TEST";
 const expiry = Math.floor(Date.now() / 1000) + 120;
 function setup() {
@@ -109,6 +97,8 @@ function setup() {
   };
 }
 beforeEach(() => {
+  nativeCredentials.clear();
+  mock.module("expo-secure-store", () => secureStoreMock);
   result = {
     type: "success",
     params: { state: "expected-state", code: "code" },
@@ -230,7 +220,10 @@ test.each(["ok", "verify_email", "frozen", "quarantined"])(
       return Promise.resolve(Response.json({ status: "success", value }));
     }) as typeof fetch;
     try {
-      const session = getWorkosSession(id);
+      const { getWorkosSession: nativeSession } = await import(
+        `../../lib/workos-native-auth?bootstrap=${crypto.randomUUID()}`
+      );
+      const session = nativeSession(id);
       const login = session.exchangeCode("code", "v".repeat(43));
       if (status === "ok") {
         expect(await login).toBe(token);
