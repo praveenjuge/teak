@@ -1,30 +1,38 @@
 import { rewrite } from "@vercel/functions";
-import {
-  markdownMirrorPath,
-  prefersMarkdown,
-} from "./lib/markdown-negotiation";
+import { resolveMarkdownRequest } from "./lib/markdown-not-found";
 
+// Everything except build output and static files. Requests that do not ask
+// for Markdown return immediately, so ordinary traffic is unaffected.
 export const config = {
   matcher: [
-    "/",
-    "/docs",
-    "/docs/:path*",
-    "/changelog/:path*",
-    "/reference/operations/:path*",
+    "/((?!_next/|_vercel/|.*\\.(?:avif|css|gif|ico|jpe?g|js|json|png|svg|txt|webp|woff2?|xml)$).*)",
   ],
 };
 
-export default function middleware(request: Request) {
-  if (!prefersMarkdown(request.headers.get("accept"))) {
+/** HEAD request without a Markdown Accept header, so it skips this middleware. */
+async function probeStatus(url: URL): Promise<number | null> {
+  try {
+    const response = await fetch(url, {
+      headers: { accept: "text/html" },
+      method: "HEAD",
+      redirect: "manual",
+    });
+    return response.status;
+  } catch {
+    return null;
+  }
+}
+
+export default async function middleware(request: Request) {
+  const resolution = await resolveMarkdownRequest(request, probeStatus);
+
+  if (!resolution) {
     return;
   }
 
-  const { pathname } = new URL(request.url);
-  const mirrorPath = markdownMirrorPath(pathname);
-
-  if (!mirrorPath) {
-    return;
+  if (resolution.kind === "not-found") {
+    return resolution.response;
   }
 
-  return rewrite(new URL(mirrorPath, request.url));
+  return rewrite(new URL(resolution.path, request.url));
 }
