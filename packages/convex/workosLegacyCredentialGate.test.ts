@@ -218,7 +218,10 @@ test("an adapter admitted before quiescence cannot commit a credential after the
   }
 });
 
-async function seedLegacyAccount(t: ReturnType<typeof setup>) {
+async function seedLegacyAccount(
+  t: ReturnType<typeof setup>,
+  providerId = "credential"
+) {
   return await t.run(async (ctx) => {
     const user = await ctx.runMutation(components.betterAuth.adapter.create, {
       input: {
@@ -248,9 +251,11 @@ async function seedLegacyAccount(t: ReturnType<typeof setup>) {
           model: "account",
           data: {
             accountId: userId,
-            providerId: "credential",
+            providerId,
             userId,
-            password: "original-legacy-hash",
+            ...(providerId === "credential"
+              ? { password: "original-legacy-hash" }
+              : {}),
             createdAt: 1,
             updatedAt: 1,
           },
@@ -569,3 +574,73 @@ test("user provisioning admitted before pause/barrier cannot create legacy owner
     vi.useRealTimers();
   }
 });
+
+test.each(["google", "apple"])(
+  "existing %s credential refresh works during pause while authority changes and post-barrier refresh stay denied",
+  async (providerId) => {
+    const t = setup(),
+      owner = await seedLegacyAccount(t, providerId);
+    const update = (changes: Record<string, string | Date>) =>
+      t.run((ctx) =>
+        authComponent
+          .adapter(ctx)(createAuth(ctx).options)
+          .update({
+            model: "account",
+            where: [{ field: "id", value: owner.accountId }],
+            update: changes,
+          })
+      );
+    expect(
+      await update({
+        accessToken: "rotated-access",
+        refreshToken: "rotated-refresh",
+        idToken: "rotated-id",
+        scope: "openid email",
+        accessTokenExpiresAt: new Date(Date.now() + 60_000),
+        refreshTokenExpiresAt: new Date(Date.now() + 120_000),
+        updatedAt: new Date(),
+      })
+    ).toMatchObject({
+      accessToken: "rotated-access",
+      refreshToken: "rotated-refresh",
+      idToken: "rotated-id",
+    });
+    const protectedChanges: Record<string, string>[] = [
+      { password: "changed-password" },
+      { providerId: "other-provider" },
+      { accountId: "other-provider-account" },
+      { userId: "other-owner" },
+    ];
+    for (const changes of protectedChanges) {
+      await expect(update(changes)).rejects.toThrow(
+        "account changes are paused"
+      );
+    }
+    expect(
+      await t.run((ctx) =>
+        ctx.runQuery(components.betterAuth.adapter.findOne, {
+          model: "account",
+          where: [{ field: "_id", value: owner.accountId }],
+        })
+      )
+    ).toMatchObject({
+      providerId,
+      accountId: owner.userId,
+      userId: owner.userId,
+      accessToken: "rotated-access",
+      refreshToken: "rotated-refresh",
+    });
+    await barrier(t);
+    await expect(
+      update({ accessToken: "post-barrier-access" })
+    ).rejects.toThrow("credential writes are stopped");
+    expect(
+      await t.run((ctx) =>
+        ctx.runQuery(components.betterAuth.adapter.findOne, {
+          model: "account",
+          where: [{ field: "_id", value: owner.accountId }],
+        })
+      )
+    ).toMatchObject({ accessToken: "rotated-access" });
+  }
+);

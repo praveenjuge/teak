@@ -37,6 +37,7 @@ export { ensureCardCreationAllowed } from "./card/quota";
 import { isLocalDevelopmentUrl } from "./devUrls";
 import { e2eCleanupPlugin } from "./e2eCleanup";
 import {
+  assertLegacyAccountUpdate,
   assertLegacyAccountWrite,
   assertLegacyCredentialWrite,
   assertLegacyProtectedProfileWrite,
@@ -135,7 +136,7 @@ export const authComponent = createClient<DataModel>(components.betterAuth, {
     },
     account: {
       onCreate: assertLegacyAccountWrite,
-      onUpdate: assertLegacyAccountWrite,
+      onUpdate: assertLegacyAccountUpdate,
     },
     user: {
       onCreate: async (ctx, user) => {

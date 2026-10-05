@@ -42,3 +42,30 @@ export async function assertLegacyProtectedProfileWrite(
     await assertLegacyAccountWrite(ctx);
   }
 }
+
+interface LegacyAccountAuthority {
+  accountId: string;
+  password?: string | null;
+  providerId: string;
+  userId: string;
+}
+export async function assertLegacyAccountUpdate(
+  ctx: MutationCtx,
+  next: LegacyAccountAuthority,
+  previous: LegacyAccountAuthority
+) {
+  // Existing social sign-in rotates provider credentials while account changes
+  // are paused. Only identity/password changes are frozen before the barrier.
+  await assertLegacyCredentialWrite(ctx);
+  if (
+    readAccountChangesPaused() &&
+    (next.password !== previous.password ||
+      next.providerId !== previous.providerId ||
+      next.accountId !== previous.accountId ||
+      next.userId !== previous.userId)
+  ) {
+    throw new Error(
+      "Legacy account changes are paused for the auth transition"
+    );
+  }
+}
