@@ -44,8 +44,8 @@ isolated local npm login to stage the reviewed SDK tarball and reserve its name.
 npm creates a public `0.0.0-stage` placeholder; do not approve the staged SDK
 version. Configure trusted publishing for repository `praveenjuge/teak`, workflow
 `sdk-release.yml`, environment `npm-sdk-release`, allowing direct publication.
-Protect that GitHub environment with human review and version-tag restrictions.
-The first real release and all later releases use OIDC with verified provenance.
+Restrict that GitHub environment to version tags without required human review.
+The first real release and all later releases publish automatically through OIDC with verified provenance.
 No npm credential is stored in GitHub, and no token fallback is supported.
 
 Account setup requires separate approval. See
