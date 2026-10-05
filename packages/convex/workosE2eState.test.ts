@@ -11,6 +11,11 @@ const read = internal.workosE2eState.readiness;
 const begin = internal.workosE2eState.beginCleanup;
 const email = "e2e-harness-proof@tests.example.com";
 const binding = { email, workosUserId: "user_E2EPROOF" };
+const pins = {
+  clientId: "client_e2e",
+  environmentId: "environment_e2e",
+  credentialFingerprint: "",
+};
 async function fixture() {
   const t = convexTest(schema, modules);
   betterAuthTest.register(t);
@@ -45,7 +50,20 @@ async function fixture() {
   );
   return { t, owner, profile };
 }
-beforeEach(() => {
+beforeEach(async () => {
+  vi.stubEnv("WORKOS_API_KEY", "original-test-key");
+  vi.stubEnv("WORKOS_CLIENT_ID", pins.clientId);
+  vi.stubEnv("WORKOS_ENVIRONMENT_ID", pins.environmentId);
+  vi.stubEnv("WORKOS_RECONCILIATION_WITNESS_ID", "user_WITNESS");
+  pins.credentialFingerprint = Array.from(
+    new Uint8Array(
+      await crypto.subtle.digest(
+        "SHA-256",
+        new TextEncoder().encode("original-test-key")
+      )
+    ),
+    (byte) => byte.toString(16).padStart(2, "0")
+  ).join("");
   vi.useFakeTimers();
   vi.stubEnv("AUTH_PRIMARY", "workos");
   vi.stubEnv("E2E_EMAIL_DOMAIN", "tests.example.com");
@@ -89,6 +107,7 @@ test.each([
   await expect(
     t.mutation(begin, {
       ...binding,
+      ...pins,
       email: failure === "wrong_email" ? "hello@example.com" : email,
       providerCreatedAt:
         Date.now() - (failure === "too_old" ? 26 * 60 * 60 * 1000 : 1000),
@@ -101,7 +120,12 @@ test.each([
 });
 test("cleanup starts the canonical durable workflow once and pending retries stay acknowledged", async () => {
   const { t } = await fixture();
-  const args = { ...binding, providerCreatedAt: Date.now(), orphan: false };
+  const args = {
+    ...binding,
+    ...pins,
+    providerCreatedAt: Date.now(),
+    orphan: false,
+  };
   await t.mutation(begin, args);
   const state = await t.run((ctx) =>
     ctx.db.query("accountDeletionStates").unique()
@@ -119,4 +143,20 @@ test("cleanup starts the canonical durable workflow once and pending retries sta
     await t.run((ctx) => ctx.db.query("accountDeletionStates").unique())
   ).toEqual(state);
   expect(await t.query(read, binding)).toBeNull();
+});
+
+test("cleanup rejects credential rotation after action admission without starting deletion", async () => {
+  const { t } = await fixture();
+  vi.stubEnv("WORKOS_API_KEY", "rotated-test-key");
+  await expect(
+    t.mutation(begin, {
+      ...binding,
+      ...pins,
+      providerCreatedAt: Date.now(),
+      orphan: false,
+    })
+  ).rejects.toThrow();
+  expect(
+    await t.run((ctx) => ctx.db.query("accountDeletionStates").collect())
+  ).toEqual([]);
 });

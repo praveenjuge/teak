@@ -37,7 +37,7 @@ async function target(ctx: ActionCtx) {
     throw new Error("E2E witness mismatch");
   }
   await validate();
-  return { workos, domain, validate, clientId, environmentId };
+  return { workos, domain, validate, clientId, environmentId, pins };
 }
 
 function eligible(user: User, email: string, domain: string, orphan: boolean) {
@@ -126,7 +126,7 @@ export const cleanup = internalAction({
     cursor: v.optional(v.string()),
   },
   handler: async (ctx, { emails, cursor }) => {
-    const { workos, domain, validate, clientId, environmentId } =
+    const { workos, domain, validate, clientId, environmentId, pins } =
       await target(ctx);
     const result: E2ECleanupResult = {
       alreadyDeleted: [],
@@ -263,6 +263,7 @@ export const cleanup = internalAction({
           throw new Error("E2E immutable binding conflict");
         }
         await ctx.runMutation(internal.workosE2eState.beginCleanup, {
+          ...pins,
           email,
           workosUserId: user.id,
           providerCreatedAt: Date.parse(user.createdAt),

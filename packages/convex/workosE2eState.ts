@@ -1,4 +1,5 @@
 import { v } from "convex/values";
+import { internal } from "./_generated/api";
 import { internalMutation, internalQuery } from "./_generated/server";
 import { initiateAccountDeletion } from "./accountDeletion";
 import { isE2EEmail, normalizeE2EEmailDomain } from "./e2eAccounts";
@@ -153,9 +154,21 @@ export const readiness = internalQuery({
 // Only the protected Management API adapter supplies provider creation evidence.
 // The mutation independently rechecks namespace, immutable binding and authority.
 export const beginCleanup = internalMutation({
-  args: { ...binding, providerCreatedAt: v.number(), orphan: v.boolean() },
+  args: {
+    ...binding,
+    providerCreatedAt: v.number(),
+    orphan: v.boolean(),
+    clientId: v.string(),
+    environmentId: v.string(),
+    credentialFingerprint: v.string(),
+  },
   returns: v.null(),
-  handler: async (ctx, { email, workosUserId, providerCreatedAt, orphan }) => {
+  handler: async (
+    ctx,
+    { email, workosUserId, providerCreatedAt, orphan, ...pins }
+  ) => {
+    // Nested query shares this mutation transaction: rotated credentials cannot admit deletion.
+    await ctx.runQuery(internal.workosE2eState.admission, pins);
     assertNamespace(email);
     const age = Date.now() - providerCreatedAt;
     const maximum = orphan ? 90 * 24 * 60 * 60 * 1000 : 24 * 60 * 60 * 1000;

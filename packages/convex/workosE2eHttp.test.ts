@@ -10,6 +10,8 @@ const modules = import.meta.glob("./**/*.ts");
 let token: string;
 beforeEach(() => {
   vi.useFakeTimers();
+  vi.stubEnv("SITE_URL", "http://localhost:3000");
+  vi.stubEnv("CONVEX_SITE_URL", "https://example.convex.site");
   token = crypto.randomUUID();
   vi.stubEnv("AUTH_PRIMARY", "workos");
   vi.stubEnv("E2E_CLEANUP_TOKEN", token);

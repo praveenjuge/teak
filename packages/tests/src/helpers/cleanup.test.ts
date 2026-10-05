@@ -239,6 +239,26 @@ describe("production E2E cleanup helpers", () => {
     expect(fetchMock).toHaveBeenCalledTimes(2);
   });
 
+  test("provisioning rejects an explicit WorkOS account conflict after a lost response", async () => {
+    env.cleanupToken = "test-token";
+    env.convexSiteUrl = "https://example.convex.site";
+    env.emailDomain = "tests.example.com";
+    let attempts = 0;
+    globalThis.fetch = mock(() => {
+      if (++attempts === 1) {
+        throw new TypeError("fetch failed");
+      }
+      return Response.json({ code: "E2E_ACCOUNT_CONFLICT" }, { status: 409 });
+    }) as unknown as typeof fetch;
+    await expect(
+      provisionE2EAccount(
+        "e2e-primary@tests.example.com",
+        "safe-password",
+        noOpSleep
+      )
+    ).rejects.toThrow("Production E2E provisioning failed (409)");
+  });
+
   test("provisioning reports network failure after exhausting retries", async () => {
     env.cleanupToken = "test-token";
     env.convexSiteUrl = "https://example.convex.site";

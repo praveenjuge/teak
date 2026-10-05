@@ -32,8 +32,10 @@ const readConvexOrigin = (
   ) {
     throw invalid();
   }
-  const hosted = new RegExp(
-    `^[a-z0-9][a-z0-9-]*\\.${hostedDomain.replace(".", "\\.")}$`
+  const hosted = (
+    hostedDomain === "convex.cloud"
+      ? /^[a-z0-9][a-z0-9-]*\.convex\.cloud$/
+      : /^[a-z0-9][a-z0-9-]*\.convex\.site$/
   ).test(url.hostname);
   if (hosted && url.protocol === "https:" && !url.port) {
     return url.origin;

@@ -208,6 +208,11 @@ export const provisionE2EAccount = async (
     }
     if (
       response.status === 409 &&
+      !(
+        payload &&
+        typeof payload === "object" &&
+        (payload as { code?: unknown }).code === "E2E_ACCOUNT_CONFLICT"
+      ) &&
       (sawLostResponse ||
         (admittedPending &&
           payload &&
