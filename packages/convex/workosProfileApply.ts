@@ -486,6 +486,24 @@ export async function applyWorkosProfileInTransaction(
       reason: state.conflict?.reason ?? "profile_pending",
     };
   }
+  // A unique, accepted owner proves that this mapping-only observation has
+  // recovered. Identity conflicts and ambiguous profiles return above and stay
+  // quarantined. Bound each transaction; subsequent accepted observations drain
+  // any remaining receipts without changing their historical contents.
+  const missingMappings = await ctx.db
+    .query("migrationQuarantine")
+    .withIndex("by_workosUserId_and_reason_and_resolvedAt", (q) =>
+      q
+        .eq("workosUserId", args.workosUserId)
+        .eq("reason", "missing_mapping")
+        .eq("resolvedAt", undefined)
+    )
+    .take(100);
+  for (const receipt of missingMappings) {
+    await ctx.db.patch("migrationQuarantine", receipt._id, {
+      resolvedAt: Date.now(),
+    });
+  }
   return {
     status:
       profileChanged || mirrorChanged || linked.changed

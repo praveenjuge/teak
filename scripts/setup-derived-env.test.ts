@@ -72,6 +72,8 @@ describe("ensureFile", () => {
     const path = join(dir, "nested", ".env.local");
     expect(ensureFile(path, "A=1\n")).toBe("created");
     expect(readFileSync(path, "utf-8")).toBe("A=1\n");
+    // biome-ignore lint/suspicious/noBitwiseOperators: POSIX file permission bits.
+    expect(statSync(path).mode & 0o777).toBe(0o600);
     expect(ensureFile(path, "B=2\n")).toBe("exists");
     expect(readFileSync(path, "utf-8")).toBe("A=1\n");
   });

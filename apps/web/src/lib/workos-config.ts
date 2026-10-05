@@ -20,7 +20,12 @@ export function readWorkosWebConfig(
   ) {
     throw new Error("Sign-in is not configured for this environment.");
   }
-  const redirect = new URL(rawRedirect);
+  let redirect: URL;
+  try {
+    redirect = new URL(rawRedirect);
+  } catch {
+    throw new Error("Invalid sign-in callback configuration.");
+  }
   const local = isLocalDevelopmentHostname(redirect.hostname);
   if (
     redirect.username ||

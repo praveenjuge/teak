@@ -56,8 +56,16 @@ describe("AuthKit web configuration", () => {
     ]) {
       expect(() =>
         assertWorkosCallbackBinding(invalid, mode, mode.authKitClientId)
-      ).toThrow();
+      ).toThrow("Sign-in changed. Please start again.");
     }
+  });
+  test("reports malformed callback configuration consistently", () => {
+    expect(() =>
+      readWorkosWebConfig(mode, {
+        ...environment,
+        NEXT_PUBLIC_WORKOS_REDIRECT_URI: "not-a-url",
+      })
+    ).toThrow("Invalid sign-in callback configuration.");
   });
   test("keeps local callback transport and registered client bound", () => {
     expect(readWorkosWebConfig(mode, environment)).toEqual({

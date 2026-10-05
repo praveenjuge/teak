@@ -595,6 +595,13 @@ describe("new WorkOS lifecycle owners", () => {
     const fresh = freshEvent("new_created");
     expect(await t.mutation(apply, fresh)).toEqual({ status: "applied" });
     const before = await snapshot(t);
+    expect(
+      before.quarantine.filter(
+        (receipt) =>
+          receipt.reason === "missing_mapping" &&
+          receipt.resolvedAt === undefined
+      )
+    ).toEqual([]);
     expect(before.users).toHaveLength(1);
     expect(before.users[0]).toMatchObject({
       workosUserId: "user_NEW",
@@ -612,6 +619,74 @@ describe("new WorkOS lifecycle owners", () => {
     expect(after.users[0].teakUserId).toBe(before.users[0].teakUserId);
     expect(after.scheduled).toEqual(before.scheduled);
   });
+  test("a proven mapping drains bounded missing receipts without resolving identity conflicts", async () => {
+    const t = setup();
+    await t.mutation(apply, freshEvent("unmapped", 1, "user.updated"));
+    await t.run(async (ctx) => {
+      for (let index = 0; index < 100; index++) {
+        await ctx.db.insert("migrationQuarantine", {
+          workosUserId: "user_NEW",
+          email: "new@example.com",
+          reason: "missing_mapping",
+          source: "reconcile",
+          createdAt: index,
+        });
+      }
+    });
+    expect(await t.mutation(apply, freshEvent("new_mapping", 2))).toEqual({
+      status: "applied",
+    });
+    const unresolved = () =>
+      t.run((ctx) =>
+        ctx.db
+          .query("migrationQuarantine")
+          .withIndex("by_workosUserId_and_reason_and_resolvedAt", (q) =>
+            q
+              .eq("workosUserId", "user_NEW")
+              .eq("reason", "missing_mapping")
+              .eq("resolvedAt", undefined)
+          )
+          .take(200)
+      );
+    // Two observations precede creation, so the bounded transaction leaves two.
+    expect(await unresolved()).toHaveLength(2);
+    await t.mutation(apply, freshEvent("drain_remaining", 3));
+    expect(await unresolved()).toEqual([]);
+    await t.run((ctx) =>
+      ctx.db.insert("migrationQuarantine", {
+        workosUserId: "user_NEW",
+        email: "new@example.com",
+        reason: "link_conflict",
+        source: "webhook",
+        createdAt: 0,
+      })
+    );
+    await t.run((ctx) =>
+      ctx.db.insert("migrationQuarantine", {
+        workosUserId: "user_NEW",
+        email: "new@example.com",
+        reason: "missing_mapping",
+        source: "reconcile",
+        createdAt: 0,
+      })
+    );
+    expect(await t.mutation(apply, freshEvent("conflicted", 4))).toEqual({
+      status: "quarantined",
+      reason: "link_conflict",
+    });
+    expect(await unresolved()).toHaveLength(1);
+    const conflicts = await t.run((ctx) =>
+      ctx.db
+        .query("migrationQuarantine")
+        .withIndex("by_workosUserId_and_reason_and_resolvedAt", (q) =>
+          q.eq("workosUserId", "user_NEW").eq("reason", "link_conflict")
+        )
+        .take(10)
+    );
+    expect(conflicts.every((receipt) => receipt.resolvedAt === undefined)).toBe(
+      true
+    );
+  });
   test("updated event never bootstraps an unmatched user", async () => {
     const t = setup();
     expect(
@@ -628,6 +703,13 @@ describe("new WorkOS lifecycle owners", () => {
       status: "quarantined",
       reason: "signups_frozen",
     });
+    expect(
+      (await snapshot(t)).quarantine.some(
+        (receipt) =>
+          receipt.reason === "missing_mapping" &&
+          receipt.resolvedAt === undefined
+      )
+    ).toBe(true);
     vi.stubEnv("SIGNUPS_DISABLED", "false");
     expect(
       await t.mutation(link, {

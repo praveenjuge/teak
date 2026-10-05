@@ -33,7 +33,12 @@ export function assertWorkosCallbackBinding(
   current: PublicAuthMode,
   clientId: string
 ): void {
-  const binding: unknown = state ? JSON.parse(state) : null;
+  let binding: unknown = null;
+  try {
+    binding = state ? JSON.parse(state) : null;
+  } catch {
+    binding = null;
+  }
   if (
     current.primary !== "workos" ||
     current.authKitClientId !== clientId ||

@@ -79,7 +79,7 @@ export const ensureFile = (
     return "exists";
   }
   mkdirSync(dirname(path), { recursive: true });
-  writeFileSync(path, contents);
+  writeFileSync(path, contents, { mode: 0o600 });
   return "created";
 };
 
@@ -116,6 +116,10 @@ export const ensureWebEnv = (
   path: string,
   defaults?: { convexUrl?: string; convexSiteUrl?: string; siteUrl?: string }
 ): "created" | "exists" | "repaired" => {
+  // Tighten existing permissions before a repair can append a session seal.
+  if (existsSync(path)) {
+    chmodSync(path, 0o600);
+  }
   const result = ensureDerivedEnv(path, {
     NEXT_PUBLIC_CONVEX_URL: defaults?.convexUrl ?? LOCAL_CONVEX_URL,
     NEXT_PUBLIC_CONVEX_SITE_URL:
