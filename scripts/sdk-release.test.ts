@@ -27,6 +27,7 @@ const artifact = {
 };
 let status = 200;
 let metadata: Record<string, unknown>;
+let missingVersionBody: string | undefined;
 let servedBytes = bytes;
 const server = serve({
   port: 0,
@@ -34,7 +35,7 @@ const server = serve({
     if (new URL(request.url).pathname.endsWith(".tgz")) {
       return new Response(servedBytes);
     }
-    return Response.json(metadata, { status });
+    return Response.json(missingVersionBody ?? metadata, { status });
   },
 });
 afterAll(() => server.stop(true));
@@ -75,6 +76,7 @@ test("publisher rejects alternate npm authentication and config selectors", () =
 
 function resetRegistry() {
   status = 200;
+  missingVersionBody = undefined;
   servedBytes = bytes;
   metadata = {
     name: artifact.name,
@@ -91,6 +93,15 @@ test("registry absence is explicit, outages and invalid 404s fail closed", async
   status = 404;
   metadata = { error: "version not found" };
   expect(await inspectPublished(artifact, registry)).toBe(false);
+  missingVersionBody = `version not found: ${artifact.version}`;
+  expect(await inspectPublished(artifact, registry)).toBe(false);
+  for (const body of ["Not found", "version not found: 9.9.9"]) {
+    missingVersionBody = body;
+    await expect(inspectPublished(artifact, registry)).rejects.toThrow(
+      "invalid missing-version"
+    );
+  }
+  missingVersionBody = undefined;
   status = 503;
   await expect(inspectPublished(artifact, registry)).rejects.toThrow(
     "HTTP 503"

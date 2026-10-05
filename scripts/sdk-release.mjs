@@ -148,7 +148,15 @@ export async function inspectPublished(artifact, registryUrl = registry) {
   const response = await request(`${registryUrl}/teak-sdk/${artifact.version}`);
   if (response.status === 404) {
     const missing = await response.json();
-    if (typeof missing.error !== "string") {
+    if (
+      missing !== `version not found: ${artifact.version}` &&
+      !(
+        missing !== null &&
+        typeof missing === "object" &&
+        !Array.isArray(missing) &&
+        typeof missing.error === "string"
+      )
+    ) {
       throw new Error("Registry returned an invalid missing-version response.");
     }
     return false;
