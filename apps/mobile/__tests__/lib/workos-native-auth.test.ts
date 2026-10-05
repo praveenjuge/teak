@@ -188,7 +188,9 @@ test.each(["ok", "verify_email", "frozen", "quarantined"])(
     const token = `header.${btoa(JSON.stringify(claims))}.signature`;
     let bootstrapped = false;
     globalThis.fetch = ((input, init) => {
-      if (String(input).includes("api.workos.com")) {
+      if (
+        String(input) === "https://api.workos.com/user_management/authenticate"
+      ) {
         return Promise.resolve(
           Response.json({
             access_token: token,
