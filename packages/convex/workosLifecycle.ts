@@ -2,6 +2,10 @@ import { v } from "convex/values";
 import { internal } from "./_generated/api";
 import { internalMutation } from "./_generated/server";
 import { normalizeIdentityEmail } from "./userIdentityTable";
+import {
+  currentWorkosDeletionTarget,
+  expectedWorkosDeletionResolution,
+} from "./workosDeletionCompletion";
 import { applyWorkosProfileInTransaction } from "./workosProfileApply";
 
 const validId = (value: unknown): value is string =>
@@ -110,7 +114,7 @@ export const applyWorkosEvent = internalMutation({
       profile.lastName,
       profile.profilePictureUrl,
     ]) {
-      if (value !== null && typeof value !== "string") {
+      if (!deleting && value !== null && typeof value !== "string") {
         throw new Error("Invalid WorkOS event profile");
       }
     }
@@ -156,7 +160,8 @@ export const applyWorkosEvent = internalMutation({
         .query("users")
         .withIndex("by_workosUserId", (q) => q.eq("workosUserId", workosUserId))
         .take(2);
-      await ctx.db.insert("migrationQuarantine", {
+      const target = await currentWorkosDeletionTarget();
+      const receipt = {
         workosUserId,
         ...(rows.length === 1 ? { teakUserId: rows[0].teakUserId } : {}),
         email:
@@ -168,6 +173,13 @@ export const applyWorkosEvent = internalMutation({
         reason: "workos_user_deleted",
         source: "webhook",
         createdAt: Date.now(),
+        workosDeletionEventAt: time,
+        ...(target ? { workosDeletionTarget: target } : {}),
+      };
+      const resolvedAt = await expectedWorkosDeletionResolution(ctx, receipt);
+      await ctx.db.insert("migrationQuarantine", {
+        ...receipt,
+        ...(resolvedAt === undefined ? {} : { resolvedAt }),
       });
     }
     await ctx.db.insert("workosEvents", {
@@ -176,7 +188,20 @@ export const applyWorkosEvent = internalMutation({
       type: event.event,
       createdAt: time,
       ...(deleting
-        ? {}
+        ? {
+            ...(email &&
+            email.length <= 320 &&
+            /^[^\s@]+@[^\s@]+$/.test(email) &&
+            !/\p{Cc}/u.test(email)
+              ? { email }
+              : {}),
+            ...(typeof event.data.emailVerified === "boolean"
+              ? { emailVerified: event.data.emailVerified }
+              : {}),
+            ...(externalId === null || validId(externalId)
+              ? { externalId }
+              : {}),
+          }
         : {
             email,
             emailVerified: profile.emailVerified,

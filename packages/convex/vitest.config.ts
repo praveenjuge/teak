@@ -39,6 +39,8 @@ export default defineConfig({
       "./identityBearer.test.ts",
       "./signupFreeze.test.ts",
       "./workosReadiness.test.ts",
+      "./workosReadinessFixtures.test.ts",
+      "./workosDeletionCompletion.test.ts",
       "./publicApiCardEditing.test.ts",
       "./publicApiMe.test.ts",
       "./mcpRevocation.test.ts",
