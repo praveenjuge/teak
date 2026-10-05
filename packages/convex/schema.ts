@@ -482,7 +482,6 @@ export const cardValidator = v.object({
 
 export default defineSchema({
   users: defineTable({
-    identityOrigin: v.optional(v.literal("workos")),
     teakUserId: v.string(),
     identityOrigin: v.optional(v.literal("workos")),
     email: v.string(),
