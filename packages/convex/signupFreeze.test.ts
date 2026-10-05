@@ -130,11 +130,24 @@ test("auth mode reports the active freeze without changing primary provider", as
   expect((await t.query(api.auth.getAuthMode, {})).signupsDisabled).toBe(false);
 });
 
-test("shared auth configuration exposes only the public AuthKit client ID and remains inert", async () => {
+test("public auth mode follows the primary and pause flags without exposing credentials", async () => {
   vi.stubEnv("WORKOS_CLIENT_ID", "client_TEST");
   vi.stubEnv("WORKOS_API_KEY", "must-not-reach-clients");
   vi.stubEnv("AUTH_PRIMARY", "workos");
+  vi.stubEnv("ACCOUNT_CHANGES_PAUSED", "true");
   const t = setup();
+  expect(await t.query(api.auth.getAuthMode, {})).toEqual({
+    primary: "workos",
+    signupsDisabled: true,
+    accountChangesPaused: true,
+    authKitClientId: "client_TEST",
+  });
+  vi.stubEnv("ACCOUNT_CHANGES_PAUSED", "false");
+  expect((await t.query(api.auth.getAuthMode, {})).accountChangesPaused).toBe(
+    false
+  );
+  vi.stubEnv("AUTH_PRIMARY", undefined);
+  vi.stubEnv("ACCOUNT_CHANGES_PAUSED", undefined);
   expect(await t.query(api.auth.getAuthMode, {})).toEqual({
     primary: "betterauth",
     signupsDisabled: true,
@@ -142,6 +155,14 @@ test("shared auth configuration exposes only the public AuthKit client ID and re
     authKitClientId: "client_TEST",
   });
 });
+
+test.each(["AUTH_PRIMARY", "ACCOUNT_CHANGES_PAUSED"])(
+  "public auth mode fails closed on malformed %s",
+  async (name) => {
+    vi.stubEnv(name, "invalid");
+    await expect(setup().query(api.auth.getAuthMode, {})).rejects.toThrow(name);
+  }
+);
 
 test("the configured E2E account can still provision during the freeze", async () => {
   const t = setup();

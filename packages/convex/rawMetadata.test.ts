@@ -24,6 +24,7 @@ afterEach(() => {
 
 const setup = async () => {
   const t = convexTest(schema, modules);
+  await t.run(ctx => ctx.db.insert("users", { teakUserId: "archive-test-user", email: "archive@example.com", emailVerified: true }));
   const cardId = await t.run((ctx) =>
     ctx.db.insert("cards", {
       userId: "archive-test-user",
@@ -188,7 +189,7 @@ describe("raw metadata archival", () => {
       args
     );
     expect(fetchMock).toHaveBeenCalledTimes(4); // both kinds uploaded/verified once, no recopy
-    expect(ctx.runMutation).toHaveBeenCalledTimes(2);
+    expect(ctx.runMutation).toHaveBeenCalledTimes(4);
     // The durable retry carries the key even after the owning card disappears.
     await t.run((dbCtx) => dbCtx.db.delete("cards", cardId));
     expect(

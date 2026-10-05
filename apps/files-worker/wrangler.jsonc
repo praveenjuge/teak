@@ -17,6 +17,8 @@
       "bucket_name": "teak-files-prod"
     }
   ],
+  "durable_objects": { "bindings": [{ "name": "OBJECT_GATES", "class_name": "ObjectDeletionGate" }] },
+  "migrations": [{ "tag": "object-deletion-gates-v1", "new_sqlite_classes": ["ObjectDeletionGate"] }],
   "ai": {
     "binding": "AI",
     // AI bindings always access remote resources, even in local dev.

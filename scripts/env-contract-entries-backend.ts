@@ -19,6 +19,17 @@ export const BACKEND_ENTRIES: EnvVarSpec[] = [
     required: false,
     note: "Migration sign-up freeze. Unset means sign-ups remain open.",
   }),
+  spec("ACCOUNT_CHANGES_PAUSED", {
+    owners: ["@teak/convex"],
+    targets: ["convex"],
+    profiles: ["local", "preview", "production"],
+    secret: false,
+    validation: "enum",
+    allowedValues: ["true", "false"],
+    providers: ["convex-dashboard"],
+    required: false,
+    note: "Migration account-change pause. Unset means account changes remain available.",
+  }),
   spec("IDENTITY_RESOLVER_ENFORCE", {
     owners: ["@teak/convex"],
     targets: ["convex"],
@@ -43,26 +54,26 @@ export const BACKEND_ENTRIES: EnvVarSpec[] = [
   }),
   // Convex-managed AuthKit credentials; optional during the readiness phase.
   spec("WORKOS_CLIENT_ID", {
-    owners: ["@teak/convex"],
-    targets: ["convex"],
+    owners: ["@teak/convex", "@teak/web"],
+    targets: ["convex", "web"],
     profiles: ["local", "preview", "production"],
     secret: false,
     validation: "string",
-    providers: ["convex-dashboard"],
+    providers: ["convex-dashboard", "dotenv-local", "vercel"],
     required: false,
     implicit: true,
-    note: "Provisioned by Convex's WorkOS integration. Separate per deployment.",
+    note: "Convex-managed source, explicitly synced to web server dotenv/Vercel for the same deployment. Development and production stay separate.",
   }),
   spec("WORKOS_API_KEY", {
-    owners: ["@teak/convex"],
-    targets: ["convex"],
+    owners: ["@teak/convex", "@teak/web"],
+    targets: ["convex", "web"],
     profiles: ["local", "preview", "production"],
     secret: true,
     validation: "string",
-    providers: ["convex-dashboard"],
+    providers: ["convex-dashboard", "dotenv-local", "vercel"],
     required: false,
     implicit: true,
-    note: "Convex-managed WorkOS credential. Never expose in a client bundle.",
+    note: "Convex-managed source, explicitly synced to web server dotenv/Vercel for the same deployment. Never expose in a client bundle or copy production credentials locally.",
   }),
   spec("WORKOS_AUTHKIT_DOMAIN", {
     owners: ["@teak/convex"],
@@ -91,6 +102,19 @@ export const BACKEND_ENTRIES: EnvVarSpec[] = [
       required: false,
       note: "Deployment-specific first-party WorkOS Connect public app. Required in WorkOS mode.",
     })
+  ),
+  ...["WORKOS_RECONCILIATION_MODE", "WORKOS_RECONCILIATION_WITNESS_ID"].map(
+    (name) =>
+      spec(name, {
+        owners: ["@teak/convex"],
+        targets: ["convex"],
+        profiles: ["local", "preview", "production"],
+        secret: false,
+        validation: "string",
+        providers: ["convex-dashboard"],
+        required: false,
+        note: "Daily reconciliation audit controls. Mode unset/off is inert; audit and pinned provider witness require separate operator activation. No scheduled repair.",
+      })
   ),
   spec("WORKOS_ENVIRONMENT_ID", {
     owners: ["@teak/convex"],

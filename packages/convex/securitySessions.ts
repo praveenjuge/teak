@@ -136,7 +136,7 @@ export const readWorkosProfile = (
   ctx: Pick<ActionCtx, "runQuery">,
   workosUserId: string
 ) =>
-  ctx.runQuery(components.workOSAuthKit.lib.getAuthUser, { id: workosUserId });
+  ctx.runQuery(internal.workosProfileRead.getProfile, { workosUserId });
 
 // API keys keep their permanent Teak owner in both modes. Under WorkOS they
 // still require the same mapped, verified and undeleted vault boundary.
@@ -175,6 +175,12 @@ export async function resolveStoredUserId(
   const row = await ctx.runQuery(internal.securitySessions.identityMapping, {
     teakUserId: ownerId,
   });
+  // Deletion is a hard authorization fence in both modes, even while mapping
+  // enforcement remains in shadow mode.
+  const deleting = await ctx.runQuery(internal.accountDeletion.isDeleting, { userId: ownerId });
+  if (deleting === true || row?.deletedAt !== undefined) {
+    return null;
+  }
   let reason: string | null = null;
   if (!row) {
     reason = "missing_mapping";
@@ -353,7 +359,7 @@ export async function getSessionProfile(
       }
     );
     // Match the REST profile policy: email is the WorkOS-synced mirror, while
-    // display fields come from the AuthKit component. Never fall back to BA.
+    // display fields come from the canonical provider profile. Never fall back to BA.
     if (!provider || typeof mirror?.workosEmail !== "string") {
       return null;
     }
@@ -623,4 +629,17 @@ export async function getReadinessIdentity(ctx: Pick<ActionCtx, "auth">) {
     emailVerified: user.email_verified === true,
     sid: user.sid,
   };
+}
+
+// This proves only that the caller may acknowledge an existing deletion. It is
+// never used to admit a new request or authorize vault access.
+export async function getDeletionRetryPrincipal(ctx: SessionCtx) {
+  const identity = await ctx.auth.getUserIdentity();
+  if (!identity) return null;
+  if (readAuthPrimary() === "workos") {
+    const claims = readWorkosSessionIdentity(identity, process.env.WORKOS_CLIENT_ID ?? "");
+    return claims ? { provider: "workos" as const, providerUserId: claims.workosUserId, externalId: claims.externalId } : null;
+  }
+  if (!isBetterAuthIdentity(identity) || !(await liveSession(ctx, identity))) return null;
+  return { provider: "betterauth" as const, providerUserId: identity.subject };
 }

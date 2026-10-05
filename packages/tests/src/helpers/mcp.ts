@@ -7,6 +7,11 @@ export const connectMcp = async (apiKey: string) => {
   const transport = new StreamableHTTPClientTransport(new URL(env.mcpUrl), {
     requestInit: { headers: { Authorization: `Bearer ${apiKey}` } },
   });
-  await client.connect(transport);
+  try {
+    await client.connect(transport);
+  } catch (error) {
+    await client.close().catch(() => undefined);
+    throw error;
+  }
   return client;
 };

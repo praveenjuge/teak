@@ -81,6 +81,7 @@ function ConnectionList({
         {rows.map((row) => (
           <li
             className="flex items-center justify-between gap-3 py-3"
+            data-testid={`connection-${row.id}`}
             key={row.id}
           >
             <div className="min-w-0 space-y-1">

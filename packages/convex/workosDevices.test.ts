@@ -136,6 +136,27 @@ async function setup(overrides = {}, owner = {}) {
       ...owner,
     })
   );
+  await t.run(async (ctx) => {
+    const current = await ctx.db.get(row);
+    if (!current) {
+      throw new Error("Missing device fixture owner");
+    }
+    await ctx.db.insert("workosProfiles", {
+      workosUserId: "user_OWNER",
+      teakUserId: "owner",
+      revision: 1,
+      source: "reconciliation",
+      providerUpdatedAt: "2026-01-01T00:00:00Z",
+      profile: {
+        email: current.workosEmail ?? current.email,
+        emailVerified: current.workosEmailVerified === true,
+        externalId: "owner",
+        firstName: null,
+        lastName: null,
+        profilePictureUrl: null,
+      },
+    });
+  });
   return { t, row, user: t.withIdentity({ ...claims, ...overrides }) };
 }
 const paginationOpts = { cursor: null, numItems: 25 };

@@ -4,6 +4,7 @@
   "private": true,
   "type": "module",
   "scripts": {
+    "e2e:auth:runtime": "playwright test --config=playwright.auth-runtime.config.ts",
     "e2e:extension:runtime": "playwright test --config=playwright.oauth-runtime.config.ts",
     "e2e:prod:docs": "playwright test --project=docs",
     "e2e:prod:extension": "playwright test --project=extension",

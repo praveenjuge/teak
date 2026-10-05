@@ -16,18 +16,50 @@ const principal = {
   consentId: "app_consent_CONSENT",
   clientId: "client_CLIENT",
 };
-const seed = (t: Backend, fields: Partial<Doc<"users">> = {}) =>
-  t.run((ctx) =>
-    ctx.db.insert("users", {
+const seed = (
+  t: Backend,
+  fields: Partial<Doc<"users">> = {},
+  profile: Partial<NonNullable<Doc<"workosProfiles">["profile"]>> | null = {}
+) =>
+  t.run(async (ctx) => {
+    const owner = await ctx.db.insert("users", {
       teakUserId: "legacy-owner",
-      workosUserId: principal.workosUserId,
+      workosUserId: "user_PROVIDER",
       email: "legacy@example.test",
       emailVerified: true,
       workosEmail: "provider@example.test",
       workosEmailVerified: true,
       ...fields,
-    })
-  );
+    });
+    const user = await ctx.db.get("users", owner);
+    const workosUserId = user?.workosUserId;
+    if (profile !== null && workosUserId) {
+      const existing = await ctx.db
+        .query("workosProfiles")
+        .withIndex("by_workosUserId", (q) => q.eq("workosUserId", workosUserId))
+        .first();
+      if (!existing) {
+        await ctx.db.insert("workosProfiles", {
+          workosUserId,
+          teakUserId: user.teakUserId,
+          providerUpdatedAt: "2026-10-04T00:00:00Z",
+          revision: 1,
+          source: "event",
+          profile: {
+            email: user.workosEmail ?? "provider@example.test",
+            emailVerified: true,
+            externalId: user.teakUserId,
+            firstName: null,
+            lastName: null,
+            profilePictureUrl: null,
+            ...profile,
+          },
+        });
+      }
+    }
+    return owner;
+  });
+
 const authorize = (t: Backend, fields: Partial<typeof principal> = {}) =>
   t.mutation(internal.workosConsents.authorizeConnectConsent, {
     ...principal,
@@ -351,7 +383,24 @@ describe("durable Connect consent authorization", () => {
     const owner = await seed(t);
     await authorize(t);
     const before = await records(t);
-    await t.run((ctx) => ctx.db.patch(owner, { workosUserId: "user_CHANGED" }));
+    await t.run(async (ctx) => {
+      await ctx.db.patch(owner, { workosUserId: "user_CHANGED" });
+      await ctx.db.insert("workosProfiles", {
+        workosUserId: "user_CHANGED",
+        teakUserId: principal.externalId,
+        providerUpdatedAt: "2026-10-04T00:00:00Z",
+        revision: 1,
+        source: "event",
+        profile: {
+          email: "provider@example.test",
+          emailVerified: true,
+          externalId: principal.externalId,
+          firstName: null,
+          lastName: null,
+          profilePictureUrl: null,
+        },
+      });
+    });
     expect(await authorize(t, { workosUserId: "user_CHANGED" })).toEqual({
       status: "denied",
       reason: "consent_binding_conflict",

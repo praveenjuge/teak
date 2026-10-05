@@ -20,6 +20,8 @@
     "@teak/ui": "workspace:*",
     "@vercel/analytics": "^2.0.1",
     "@vercel/og": "^1.0.1",
+    "@workos-inc/authkit-nextjs": "4.4.0",
+    "@workos-inc/node": "10.14.0",
     "better-auth": "1.6.26",
     "convex": "^1.46.0",
     "convex-helpers": "^0.1.122",

@@ -149,7 +149,15 @@ export const buildSignedMultipartPartUrl = async (
     key,
     partNumber,
     uploadId,
-  }: { key: string; partNumber: number; uploadId: string },
+    size = null,
+    ttlSeconds = 60 * 60,
+  }: {
+    key: string;
+    partNumber: number;
+    uploadId: string;
+    size?: number | null;
+    ttlSeconds?: number;
+  },
   nowSeconds = Math.floor(Date.now() / 1000)
 ): Promise<string> => {
   const base = env.FILES_BASE;
@@ -158,7 +166,16 @@ export const buildSignedMultipartPartUrl = async (
     throw new Error("files_worker_not_configured");
   }
   assertR2KeyInNamespace(key);
-  const expiresAt = String(nowSeconds + 60 * 60);
+  if (
+    !Number.isSafeInteger(ttlSeconds) ||
+    ttlSeconds <= 0 ||
+    ttlSeconds > (size === null ? 3600 : 86_400) ||
+    (size !== null &&
+      (!Number.isSafeInteger(size) || size <= 0 || size > 64 * 1024 * 1024))
+  ) {
+    throw new Error("invalid_multipart_capability");
+  }
+  const expiresAt = String(nowSeconds + ttlSeconds);
   const signature = await hmacSha256Hex(
     secret,
     buildMultipartPartSigningPayload({
@@ -166,11 +183,15 @@ export const buildSignedMultipartPartUrl = async (
       key,
       partNumber,
       uploadId,
+      size,
     })
   );
   const url = new URL(
     `${base.replace(/\/+$/, "")}/__uploads/v1/${encodeURIComponent(uploadId)}/${String(partNumber)}`
   );
+  if (size !== null) {
+    url.searchParams.set("sz", String(size));
+  }
   url.searchParams.set("key", key);
   url.searchParams.set("exp", expiresAt);
   url.searchParams.set("sig", signature);
@@ -244,7 +265,10 @@ export const callFilesWorkerJson = async <T>(spec: {
           response = await fetch(signed.url, {
             ...signed,
             ...(spec.op === "generate-text-metadata" ||
-            spec.op === "generate-link-metadata"
+            spec.op === "generate-link-metadata" ||
+            spec.op === "freeze-object" ||
+            spec.op === "abort-multipart" ||
+            spec.op === "delete-objects"
               ? {
                   signal: AbortSignal.timeout(90_000),
                   redirect: "error" as const,

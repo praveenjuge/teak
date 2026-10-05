@@ -25,6 +25,8 @@ import { getActiveCardCount } from "./card/cardUsage";
 import {
   getAppleCredentials,
   getGoogleCredentials,
+  readAccountChangesPaused,
+  readAuthPrimary,
   readJwksDocument,
   readSignupsDisabled,
   readSiteUrl,
@@ -34,6 +36,13 @@ export { ensureCardCreationAllowed } from "./card/quota";
 
 import { isLocalDevelopmentUrl } from "./devUrls";
 import { e2eCleanupPlugin } from "./e2eCleanup";
+import {
+  assertLegacyAccountUpdate,
+  assertLegacyAccountWrite,
+  assertLegacyCredentialWrite,
+  assertLegacyProtectedProfileWrite,
+  assertLegacyVerificationWrite,
+} from "./migration/workosLegacyCredentialGate";
 import { teakOAuthSecurity } from "./oauthSecurity";
 import { getSessionProfile } from "./securitySessions";
 import { FREE_TIER_LIMIT } from "./shared/constants";
@@ -118,8 +127,25 @@ const authFunctions = (internal as any).auth as AuthFunctions;
 export const authComponent = createClient<DataModel>(components.betterAuth, {
   authFunctions,
   triggers: {
+    session: {
+      onCreate: assertLegacyCredentialWrite,
+      onUpdate: assertLegacyCredentialWrite,
+    },
+    oauthAccessToken: {
+      onCreate: assertLegacyCredentialWrite,
+      onUpdate: assertLegacyCredentialWrite,
+    },
+    verification: {
+      onCreate: assertLegacyVerificationWrite,
+      onUpdate: assertLegacyVerificationWrite,
+    },
+    account: {
+      onCreate: assertLegacyAccountWrite,
+      onUpdate: assertLegacyAccountUpdate,
+    },
     user: {
       onCreate: async (ctx, user) => {
+        await assertLegacyAccountWrite(ctx);
         await mirrorBetterAuthUser(ctx, user);
         await ctx.scheduler.runAfter(
           0,
@@ -128,7 +154,8 @@ export const authComponent = createClient<DataModel>(components.betterAuth, {
         );
         await scheduleUserCreatedTelemetry(ctx, user._id);
       },
-      onUpdate: async (ctx, user) => {
+      onUpdate: async (ctx, user, previous) => {
+        await assertLegacyProtectedProfileWrite(ctx, user, previous);
         await mirrorBetterAuthUser(ctx, user);
       },
       onDelete: async (ctx, user) => {
@@ -196,12 +223,11 @@ export const getAuthMode = query({
     accountChangesPaused: v.boolean(),
     authKitClientId: v.optional(v.string()),
   }),
-  // Phase 2 prepares clients; Phase 3 activates the mode only with its complete
-  // backend identity, revocation and lifecycle implementation.
+  // The operator flag is the sole authority. Unset preserves Better Auth.
   handler: (): PublicAuthMode => ({
-    primary: "betterauth",
+    primary: readAuthPrimary(),
     signupsDisabled: readSignupsDisabled(),
-    accountChangesPaused: false,
+    accountChangesPaused: readAccountChangesPaused(),
     ...(process.env.WORKOS_CLIENT_ID
       ? { authKitClientId: process.env.WORKOS_CLIENT_ID }
       : {}),

@@ -1,6 +1,9 @@
+import { authkit, handleAuthkitProxy } from "@workos-inc/authkit-nextjs";
 import { getSessionCookie } from "better-auth/cookies";
 import { type NextRequest, NextResponse } from "next/server";
+import { readAuthMode, readProxyAuthMode } from "@/lib/auth-mode-server";
 import { buildPublicAppUrl } from "@/lib/public-app-url";
+import { readWorkosWebConfig } from "@/lib/workos-config";
 
 const signInRoutes = [
   "/login",
@@ -20,7 +23,7 @@ const MCP_OAUTH_CORS_HEADERS = {
   "Access-Control-Max-Age": "86400",
 };
 
-export default function middleware(request: NextRequest) {
+export default async function middleware(request: NextRequest) {
   // MCP OAuth endpoints: answer CORS preflight here; pass everything else
   // (authorize redirects, token POSTs) straight through to the auth handler.
   if (request.nextUrl.pathname.startsWith("/api/auth/mcp/")) {
@@ -45,18 +48,59 @@ export default function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
+  try {
+    const routing = await readProxyAuthMode();
+    // A cached mode may route optimistically. Refresh before reading or
+    // refreshing any provider credential, and before auth entry/callbacks.
+    const mode =
+      routing.primary === "workos" ||
+      isSignInRoute ||
+      request.nextUrl.pathname === "/callback"
+        ? await readAuthMode()
+        : routing;
+    if (request.nextUrl.pathname === "/callback") {
+      return handleAuthkitProxy(request, new Headers());
+    }
+    if (mode.primary === "workos") {
+      const config = readWorkosWebConfig(mode);
+      if (request.nextUrl.origin !== config.origin) {
+        return new NextResponse("Invalid sign-in origin.", { status: 400 });
+      }
+      const { session, headers } = await authkit(request, {
+        redirectUri: config.redirectUri,
+      });
+      if (!(session.user || isSignInRoute)) {
+        const login = new URL("/login", config.origin);
+        login.searchParams.set(
+          "next",
+          `${request.nextUrl.pathname}${request.nextUrl.search}`
+        );
+        return handleAuthkitProxy(request, headers, { redirect: login });
+      }
+      return handleAuthkitProxy(request, headers);
+    }
+  } catch {
+    return new NextResponse(
+      "Sign-in is temporarily unavailable. Please reload to try again.",
+      {
+        status: 503,
+        headers: { "Cache-Control": "no-store" },
+      }
+    );
+  }
+
   // Auth routes must remain reachable when a stale session cookie is present.
   // The auth route guard validates the session before redirecting signed-in
   // users; cookie presence alone cannot distinguish an expired session.
   if (isSignInRoute) {
-    return NextResponse.next();
+    return handleAuthkitProxy(request, new Headers());
   }
 
   if (!(isSignInRoute || sessionCookie)) {
     return NextResponse.redirect(buildPublicAppUrl("/login", request.nextUrl));
   }
 
-  return NextResponse.next();
+  return handleAuthkitProxy(request, new Headers());
 }
 
 export const config = {

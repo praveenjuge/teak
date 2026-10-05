@@ -3,6 +3,14 @@ import { internal } from "./_generated/api";
 
 const crons = cronJobs();
 
+// Inert unless the deployment explicitly enables audit and pins a witness.
+crons.cron(
+  "workos-daily-reconciliation-audit",
+  "30 4 * * *",
+  internal.telemetry.crons.workosDailyReconciliationAudit,
+  {}
+);
+
 crons.cron(
   "cleanup-expired-idempotency",
   "10 * * * *",
@@ -97,6 +105,13 @@ crons.cron(
   "cleanup-resend-emails",
   "0 6 * * *",
   (internal as any).telemetry.crons.cleanupResendEmails,
+  {}
+);
+
+crons.cron(
+  "redrive-account-deletion",
+  "*/5 * * * *",
+  internal.telemetry.crons.redriveAccountDeletion,
   {}
 );
 

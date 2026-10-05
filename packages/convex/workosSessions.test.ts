@@ -30,9 +30,13 @@ const setup = () => {
   return t;
 };
 type Backend = ReturnType<typeof setup>;
-const seed = (t: Backend, fields: Partial<Doc<"users">> = {}) =>
-  t.run((ctx) =>
-    ctx.db.insert("users", {
+const seed = (
+  t: Backend,
+  fields: Partial<Doc<"users">> = {},
+  profile: Partial<NonNullable<Doc<"workosProfiles">["profile"]>> | null = {}
+) =>
+  t.run(async (ctx) => {
+    const owner = await ctx.db.insert("users", {
       teakUserId: "permanent-owner",
       workosUserId: "user_PROVIDER",
       email: "legacy@example.com",
@@ -40,8 +44,36 @@ const seed = (t: Backend, fields: Partial<Doc<"users">> = {}) =>
       workosEmail: "workos@example.com",
       workosEmailVerified: true,
       ...fields,
-    })
-  );
+    });
+    const user = await ctx.db.get("users", owner);
+    const workosUserId = user?.workosUserId;
+    if (profile !== null && workosUserId) {
+      const existing = await ctx.db
+        .query("workosProfiles")
+        .withIndex("by_workosUserId", (q) => q.eq("workosUserId", workosUserId))
+        .first();
+      if (!existing) {
+        await ctx.db.insert("workosProfiles", {
+          workosUserId,
+          teakUserId: user.teakUserId,
+          providerUpdatedAt: "2026-10-04T00:00:00Z",
+          revision: 1,
+          source: "event",
+          profile: {
+            email: user.workosEmail ?? "workos@example.com",
+            emailVerified: true,
+            externalId: user.teakUserId,
+            firstName: null,
+            lastName: null,
+            profilePictureUrl: null,
+            ...profile,
+          },
+        });
+      }
+    }
+    return owner;
+  });
+
 const card = (t: Backend, userId = "permanent-owner") =>
   t.run((ctx) =>
     ctx.db.insert("cards", {
@@ -59,6 +91,7 @@ const snapshot = (t: Backend) =>
     users: await ctx.db.query("users").take(10),
     events: await ctx.db.query("workosEvents").take(10),
     deletions: await ctx.db.query("accountDeletionStates").take(10),
+    profiles: await ctx.db.query("workosProfiles").take(10),
   }));
 beforeEach(() => {
   vi.stubEnv("AUTH_PRIMARY", "workos");
@@ -219,7 +252,7 @@ describe("WorkOS Convex sessions", () => {
   );
   test("missing WorkOS profile returns null with no legacy fallback", async () => {
     const t = setup();
-    await seed(t);
+    await seed(t, {}, null);
     expect(await client(t).run((ctx) => getSessionProfile(ctx))).toBeNull();
     await expect(client(t).query(api.billing.getUserInfo, {})).rejects.toThrow(
       "User not found"
@@ -232,7 +265,15 @@ describe("WorkOS Convex sessions", () => {
     "profile preserves ownership/email and normalizes display name: $expectedName",
     async ({ firstName, lastName, expectedName }) => {
       const t = setup();
-      await seed(t);
+      await seed(
+        t,
+        {},
+        {
+          firstName,
+          lastName,
+          profilePictureUrl: "https://images.example.com/avatar.png",
+        }
+      );
       await t.mutation(components.workOSAuthKit.lib.onWebhookEvent, {
         event: {
           id: "evt_profile",
@@ -242,9 +283,9 @@ describe("WorkOS Convex sessions", () => {
             id: "user_PROVIDER",
             email: "component@example.com",
             emailVerified: true,
-            firstName,
-            lastName,
-            profilePictureUrl: "https://images.example.com/avatar.png",
+            firstName: "Stale component",
+            lastName: "Cache",
+            profilePictureUrl: "https://images.example.com/stale.png",
             externalId: "permanent-owner",
             metadata: {},
             createdAt: "2026-10-01T00:00:00.000Z",

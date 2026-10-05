@@ -1,5 +1,9 @@
 import { beforeEach, describe, expect, mock, test } from "bun:test";
 import { type SessionStorage, WorkosSession } from "../../lib/workos-session";
+import {
+  secureStoreData as nativeCredentials,
+  secureStoreMock,
+} from "../secureStoreMock";
 
 // Expo AuthSession and the system browser are hardware boundaries. The actual
 // session manager and exchange are exercised; state mismatch/cancel/error must
@@ -33,7 +37,7 @@ mock.module("expo-auth-session", () => ({
     }
   },
 }));
-mock.module("expo-secure-store", () => ({}));
+mock.module("expo-secure-store", () => secureStoreMock);
 mock.module("expo-web-browser", () => ({
   maybeCompleteAuthSession: () => {},
   openBrowserAsync: (url: string) => {
@@ -76,7 +80,7 @@ function setup() {
     return Promise.resolve(
       Response.json({
         access_token: `header.${btoa(JSON.stringify(claims))}.signature`,
-        refresh_token: "refresh",
+        refresh_token: crypto.randomUUID(),
         user: {
           id: "user_ONE",
           email: "hello@example.com",
@@ -93,6 +97,8 @@ function setup() {
   };
 }
 beforeEach(() => {
+  nativeCredentials.clear();
+  mock.module("expo-secure-store", () => secureStoreMock);
   result = {
     type: "success",
     params: { state: "expected-state", code: "code" },
@@ -163,3 +169,86 @@ describe("native AuthKit browser flow", () => {
     ).rejects.toThrow("Invalid session");
   });
 });
+
+let bootstrapFixture = 0;
+test.each(["ok", "verify_email", "frozen", "quarantined", "invalid_origin"])(
+  "native session factory accepts vault bootstrap only for %s",
+  async (status) => {
+    const previousUrl = process.env.EXPO_PUBLIC_CONVEX_URL;
+    const originalFetch = globalThis.fetch;
+    process.env.EXPO_PUBLIC_CONVEX_URL =
+      status === "invalid_origin"
+        ? "https://untrusted.example"
+        : "https://native-bootstrap.convex.cloud";
+    const id = `client_BOOTSTRAP${++bootstrapFixture}`;
+    const claims = {
+      iss: `https://api.workos.com/user_management/${id}`,
+      sub: "user_NATIVE",
+      sid: "session_NATIVE",
+      exp: Math.floor(Date.now() / 1000) + 300,
+    };
+    const token = `header.${btoa(JSON.stringify(claims))}.signature`;
+    let bootstrapped = false;
+    globalThis.fetch = ((input, init) => {
+      if (
+        String(input) === "https://api.workos.com/user_management/authenticate"
+      ) {
+        return Promise.resolve(
+          Response.json({
+            access_token: token,
+            refresh_token: crypto.randomUUID(),
+            user: {
+              id: "user_NATIVE",
+              email: "test@example.com",
+              email_verified: true,
+              external_id: null,
+            },
+          })
+        );
+      }
+      expect(String(input)).toBe(
+        "https://native-bootstrap.convex.cloud/api/mutation"
+      );
+      expect(new Headers(init?.headers).get("Authorization")).toBe(
+        `Bearer ${token}`
+      );
+      expect(JSON.parse(String(init?.body)).path).toBe(
+        "workosBootstrap:ensureUser"
+      );
+      expect(nativeCredentials.has(`teak.authkit.${id}`)).toBe(false);
+      bootstrapped = true;
+      const value =
+        status === "ok"
+          ? { status, teakUserId: "permanent-vault" }
+          : { status, reason: "identity_conflict" };
+      return Promise.resolve(Response.json({ status: "success", value }));
+    }) as typeof fetch;
+    try {
+      const { getWorkosSession: nativeSession } = await import(
+        `../../lib/workos-native-auth?bootstrap=${crypto.randomUUID()}`
+      );
+      const session = nativeSession(id);
+      const login = session.exchangeCode("code", "v".repeat(43));
+      if (status === "invalid_origin") {
+        await expect(login).rejects.toThrow("Invalid EXPO_PUBLIC_CONVEX_URL");
+        expect(nativeCredentials.has(`teak.authkit.${id}`)).toBe(false);
+        expect(session.getSnapshot().user).toBeNull();
+      } else if (status === "ok") {
+        expect(await login).toBe(token);
+        expect(nativeCredentials.has(`teak.authkit.${id}`)).toBe(true);
+      } else {
+        await expect(login).rejects.toThrow();
+        expect(nativeCredentials.has(`teak.authkit.${id}`)).toBe(false);
+        expect(session.getSnapshot().user).toBeNull();
+      }
+      expect(bootstrapped).toBe(status !== "invalid_origin");
+    } finally {
+      globalThis.fetch = originalFetch;
+      if (previousUrl === undefined) {
+        delete process.env.EXPO_PUBLIC_CONVEX_URL;
+      } else {
+        process.env.EXPO_PUBLIC_CONVEX_URL = previousUrl;
+      }
+    }
+  }
+);

@@ -424,10 +424,107 @@ describe("trusted new WorkOS owners", () => {
     source: "ensureUser" as const,
     allowCreate: true,
   };
+  const seedProvider = (
+    t: Backend,
+    fields: Partial<Doc<"workosProfiles">> = {}
+  ) =>
+    t.run((ctx) =>
+      ctx.db.insert("workosProfiles", {
+        workosUserId: create.workosUserId,
+        providerUpdatedAt: "2026-10-04T00:00:00Z",
+        revision: 1,
+        source: "event",
+        profile: {
+          email: create.email,
+          emailVerified: true,
+          externalId: null,
+          firstName: "New",
+          lastName: "Owner",
+          profilePictureUrl: null,
+        },
+        ...fields,
+      })
+    );
   const jobs = (t: Backend) =>
     t.run((ctx) => ctx.db.system.query("_scheduled_functions").take(10));
+  test("creation waits for canonical provider evidence even with a verified caller", async () => {
+    const t = setup();
+    expect(await t.mutation(link, create)).toEqual({
+      status: "quarantined",
+      reason: "profile_pending",
+    });
+    expect((await snapshot(t)).users).toEqual([]);
+    expect(await jobs(t)).toEqual([]);
+  });
+  test.each([
+    { fields: { providerUpdatedAt: undefined }, reason: "profile_pending" },
+    { fields: { deletedAt: 1 }, reason: "workos_deleted_user" },
+    { fields: { profile: undefined }, reason: "profile_pending" },
+  ])(
+    "incomplete or deleted canonical state refuses creation: %j",
+    async ({ fields, reason }) => {
+      const t = setup();
+      await seedProvider(t, fields);
+      expect(await t.mutation(link, create)).toEqual({
+        status: "quarantined",
+        reason,
+      });
+      expect((await snapshot(t)).users).toEqual([]);
+      expect(await jobs(t)).toEqual([]);
+    }
+  );
+  test("duplicate canonical profiles cannot allocate an owner", async () => {
+    const t = setup();
+    await seedProvider(t);
+    await seedProvider(t);
+    expect(await t.mutation(link, create)).toEqual({
+      status: "quarantined",
+      reason: "duplicate_mapping",
+    });
+    expect((await snapshot(t)).users).toEqual([]);
+    expect(await jobs(t)).toEqual([]);
+  });
+  test("an unresolved provider conflict cannot allocate an owner", async () => {
+    const t = setup();
+    await seedProvider(t);
+    await t.run((ctx) =>
+      ctx.db.insert("migrationQuarantine", {
+        workosUserId: create.workosUserId,
+        reason: "equal_timestamp_conflict",
+        email: create.email,
+        source: "webhook",
+        createdAt: 1,
+      })
+    );
+    expect(await t.mutation(link, create)).toEqual({
+      status: "quarantined",
+      reason: "equal_timestamp_conflict",
+    });
+    expect((await snapshot(t)).users).toEqual([]);
+    expect(await jobs(t)).toEqual([]);
+  });
+  test("unverified canonical email cannot be promoted by the caller", async () => {
+    const t = setup();
+    await seedProvider(t, {
+      profile: {
+        email: create.email,
+        emailVerified: false,
+        externalId: null,
+        firstName: null,
+        lastName: null,
+        profilePictureUrl: null,
+      },
+    });
+    expect(await t.mutation(link, create)).toEqual({
+      status: "quarantined",
+      reason: "email_unverified",
+    });
+    expect((await snapshot(t)).users).toEqual([]);
+    expect(await jobs(t)).toEqual([]);
+  });
   test("creates one opaque permanent owner and seeds only once across retries", async () => {
     const t = setup();
+    await seedProvider(t);
     const result = await t.mutation(link, create);
     expect(result).toMatchObject({ status: "linked", changed: true });
     if (result.status !== "linked") {
@@ -473,6 +570,7 @@ describe("trusted new WorkOS owners", () => {
   });
   test("freeze quarantines without creating and allows the same subject after unfreeze", async () => {
     const t = setup();
+    await seedProvider(t);
     vi.stubEnv("SIGNUPS_DISABLED", "true");
     expect(await t.mutation(link, create)).toEqual({
       status: "quarantined",
@@ -547,6 +645,7 @@ describe("trusted new WorkOS owners", () => {
   });
   test("database allocation preserves every existing owner", async () => {
     const t = setup();
+    await seedProvider(t);
     await seed(t, { teakUserId: "existing-owner", email: "other@example.com" });
     const before = (await snapshot(t)).users[0];
     const result = await t.mutation(link, create);

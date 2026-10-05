@@ -4,6 +4,14 @@ import crons from "../crons";
 import { cleanupResendEmails } from "../telemetry/crons";
 
 const EXPECTED_CRONS: Record<string, { cron: string; handler: string }> = {
+  "workos-daily-reconciliation-audit": {
+    cron: "30 4 * * *",
+    handler: "workosDailyReconciliationAudit",
+  },
+  "redrive-account-deletion": {
+    cron: "*/5 * * * *",
+    handler: "redriveAccountDeletion",
+  },
   "cleanup-expired-idempotency": {
     cron: "10 * * * *",
     handler: "cleanupExpiredIdempotency",

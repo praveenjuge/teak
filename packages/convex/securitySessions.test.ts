@@ -293,7 +293,7 @@ describe("Permanent identity shadow boundary", () => {
     expect(await t.run((ctx) => ctx.db.query("users").collect())).toEqual([]);
   });
 
-  test("shadow mode retains existing access while reporting a tombstoned mapping", async () => {
+  test("shadow mode denies a tombstoned mapping", async () => {
     const { t, authenticated } = await setup();
     const id = await privateCard(t);
     const row = await t.run((ctx) =>
@@ -304,9 +304,7 @@ describe("Permanent identity shadow boundary", () => {
         deletedAt: Date.now(),
       })
     );
-    expect(await authenticated.query(api.cards.getCard, { id })).toMatchObject({
-      userId: "owner",
-    });
+    expect(await authenticated.query(api.cards.getCard, { id })).toBeNull();
     expect(await t.run((ctx) => ctx.db.get(row))).toMatchObject({
       email: "",
       deletedAt: expect.any(Number),

@@ -1,8 +1,8 @@
-import type { FunctionReturnType } from "convex/server";
 import { v } from "convex/values";
 import { internal } from "./_generated/api";
 import { internalMutation } from "./_generated/server";
 import { normalizeIdentityEmail } from "./userIdentityTable";
+import { applyWorkosProfileInTransaction } from "./workosProfileApply";
 
 const validId = (value: unknown): value is string =>
   typeof value === "string" && /^[A-Za-z0-9_-]{1,256}$/.test(value);
@@ -39,9 +39,8 @@ const eventTime = (raw: string): number => {
   return time;
 };
 
-// Not an HTTP/signature boundary. Only a future verified webhook adapter or
-// trusted reconciliation path may supply this original event envelope.
-// Unlike AuthKit.events(), retain the original event ID, type and timestamp.
+// Only verified webhook and admitted reconciliation adapters supply original
+// provider envelopes. Replay records real receipts without new-user side effects.
 export const applyWorkosEvent = internalMutation({
   args: {
     id: v.string(),
@@ -52,6 +51,7 @@ export const applyWorkosEvent = internalMutation({
       v.literal("user.deleted")
     ),
     data: v.record(v.string(), v.any()),
+    replay: v.optional(v.boolean()),
   },
   returns: v.object({
     status: v.union(
@@ -66,34 +66,13 @@ export const applyWorkosEvent = internalMutation({
   }),
   handler: async (ctx, event) => {
     const time = eventTime(event.createdAt);
-    const userId = event.data.id;
+    const workosUserId = event.data.id;
     if (
-      !(validId(event.id) && validId(userId)) ||
+      !(validId(event.id) && validId(workosUserId)) ||
       Object.keys(event.data).length > 64 ||
       JSON.stringify(event.data).length > 64 * 1024
     ) {
       throw new Error("Invalid WorkOS event input");
-    }
-    const deleting = event.event === "user.deleted";
-    const rawEmail = event.data.email;
-    const normalizedEmail =
-      typeof rawEmail === "string" ? normalizeIdentityEmail(rawEmail) : "";
-    const email =
-      normalizedEmail.length <= 320 &&
-      /^[^\s@]+@[^\s@]+$/.test(normalizedEmail) &&
-      !/\p{Cc}/u.test(normalizedEmail)
-        ? normalizedEmail
-        : "";
-    const externalId = event.data.externalId;
-    if (
-      !deleting &&
-      (!email ||
-        typeof event.data.emailVerified !== "boolean" ||
-        (externalId !== undefined &&
-          externalId !== null &&
-          !validId(externalId)))
-    ) {
-      throw new Error("Invalid WorkOS event user");
     }
     const duplicate = await ctx.db
       .query("workosEvents")
@@ -102,145 +81,116 @@ export const applyWorkosEvent = internalMutation({
     if (duplicate) {
       return { status: "duplicate" as const };
     }
-    const rows = await ctx.db
-      .query("users")
-      .withIndex("by_workosUserId", (q) => q.eq("workosUserId", userId))
-      .take(2);
-    const row = rows.length === 1 ? rows[0] : undefined;
-    const receipt = () =>
-      ctx.db.insert("workosEvents", {
-        eventId: event.id,
-        workosUserId: userId,
-        type: event.event,
-        createdAt: time,
-        ...(deleting
-          ? {}
-          : {
-              email,
-              emailVerified: event.data.emailVerified as boolean,
-              externalId: (externalId as string | null | undefined) ?? null,
-            }),
-      });
-    const quarantine = async (reason: string) => {
-      await ctx.db.insert("migrationQuarantine", {
-        workosUserId: userId,
-        ...(row ? { teakUserId: row.teakUserId } : {}),
-        email,
-        reason,
-        source: "webhook",
-        createdAt: Date.now(),
-      });
-      await receipt();
-      return { status: "quarantined" as const, reason };
-    };
-    const tombstone = await ctx.db
-      .query("workosEvents")
-      .withIndex("by_workosUserId_and_type", (q) =>
-        q.eq("workosUserId", userId).eq("type", "user.deleted")
-      )
-      .first();
+    const deleting = event.event === "user.deleted";
+    const email =
+      typeof event.data.email === "string"
+        ? normalizeIdentityEmail(event.data.email)
+        : "";
+    const externalId = event.data.externalId ?? null;
     if (
-      tombstone ||
-      rows.some((mapped) => mapped.workosDeletedAt !== undefined)
+      !deleting &&
+      (!email ||
+        typeof event.data.emailVerified !== "boolean" ||
+        (externalId !== null && !validId(externalId)) ||
+        (event.data.updatedAt !== undefined &&
+          typeof event.data.updatedAt !== "string"))
     ) {
-      await receipt();
-      return { status: "ignored_deleted" as const };
+      throw new Error("Invalid WorkOS event user");
     }
-    const previous = await ctx.db
-      .query("workosEvents")
-      .withIndex("by_workosUserId_and_createdAt", (q) =>
-        q.eq("workosUserId", userId)
-      )
-      .order("desc")
-      .first();
-    const lastTime = Math.max(
-      previous?.createdAt ?? -1,
-      row?.lastWorkosEventAt ?? -1
-    );
-    if (deleting) {
-      // Provider deletion is terminal, even if its delivery arrives late. Never
-      // clear the provider ID, global tombstone, Better Auth profile or vault.
-      for (const mapped of rows) {
-        await ctx.db.patch("users", mapped._id, {
-          workosDeletedAt: time,
-          workosEmailVerified: false,
-          lastWorkosEventAt: Math.max(
-            time,
-            lastTime,
-            mapped.lastWorkosEventAt ?? -1
-          ),
-        });
+    const profile = {
+      email,
+      emailVerified: event.data.emailVerified as boolean,
+      externalId: externalId as string | null,
+      firstName: event.data.firstName ?? null,
+      lastName: event.data.lastName ?? null,
+      profilePictureUrl: event.data.profilePictureUrl ?? null,
+    };
+    for (const value of [
+      profile.firstName,
+      profile.lastName,
+      profile.profilePictureUrl,
+    ]) {
+      if (value !== null && typeof value !== "string") {
+        throw new Error("Invalid WorkOS event profile");
       }
+    }
+    const args = {
+      workosUserId,
+      source: { kind: "event" as const, createdAt: event.createdAt },
+      state: deleting
+        ? { kind: "deleted" as const }
+        : {
+            kind: "active" as const,
+            profile,
+            ...(event.data.updatedAt === undefined
+              ? {}
+              : { providerUpdatedAt: event.data.updatedAt as string }),
+          },
+    };
+    let result = await applyWorkosProfileInTransaction(ctx, args);
+    if (
+      !deleting &&
+      event.event === "user.created" &&
+      event.replay !== true &&
+      result.status === "quarantined" &&
+      result.reason === "missing_mapping"
+    ) {
+      const linked = await ctx.runMutation(
+        internal.workosUsers.linkWorkosUser,
+        {
+          workosUserId,
+          email,
+          emailVerified: profile.emailVerified,
+          externalId: profile.externalId,
+          source: "webhook",
+          allowCreate: true,
+        }
+      );
+      result =
+        linked.status === "linked"
+          ? await applyWorkosProfileInTransaction(ctx, args)
+          : linked;
+    }
+    if (deleting) {
+      const rows = await ctx.db
+        .query("users")
+        .withIndex("by_workosUserId", (q) => q.eq("workosUserId", workosUserId))
+        .take(2);
       await ctx.db.insert("migrationQuarantine", {
-        workosUserId: userId,
-        ...(row ? { teakUserId: row.teakUserId } : {}),
-        email,
+        workosUserId,
+        ...(rows.length === 1 ? { teakUserId: rows[0].teakUserId } : {}),
+        email:
+          email.length <= 320 &&
+          /^[^\s@]+@[^\s@]+$/.test(email) &&
+          !/\p{Cc}/u.test(email)
+            ? email
+            : "",
         reason: "workos_user_deleted",
         source: "webhook",
         createdAt: Date.now(),
       });
-      await receipt();
-      return { status: "deleted" as const };
     }
-    if (rows.length > 1) {
-      return quarantine("duplicate_mapping");
+    await ctx.db.insert("workosEvents", {
+      eventId: event.id,
+      workosUserId,
+      type: event.event,
+      createdAt: time,
+      ...(deleting
+        ? {}
+        : {
+            email,
+            emailVerified: profile.emailVerified,
+            externalId: profile.externalId,
+          }),
+    });
+    if (result.status === "rejected") {
+      throw new Error("Invalid event reconciliation state");
     }
-    if (time < lastTime) {
-      await receipt();
+    if (result.status === "unchanged") {
       return { status: "stale" as const };
     }
-    if (time === lastTime) {
-      const sameProfile =
-        row &&
-        row.workosEmail === email &&
-        row.workosEmailVerified === event.data.emailVerified &&
-        (externalId === undefined ||
-          externalId === null ||
-          externalId === row.teakUserId);
-      if (sameProfile) {
-        await receipt();
-        return { status: "stale" as const };
-      }
-      if (row) {
-        await ctx.db.patch("users", row._id, { workosEmailVerified: false });
-      }
-      return quarantine("equal_timestamp_conflict");
-    }
-    const linked: FunctionReturnType<
-      typeof internal.workosUsers.linkWorkosUser
-    > = await ctx.runMutation(internal.workosUsers.linkWorkosUser, {
-      workosUserId: userId,
-      email,
-      emailVerified: event.data.emailVerified as boolean,
-      ...(externalId === undefined || externalId === null
-        ? {}
-        : { externalId: externalId as string }),
-      source: "webhook",
-      allowCreate: event.event === "user.created",
-    });
-    if (linked.status === "quarantined") {
-      if (row) {
-        await ctx.db.patch("users", row._id, {
-          workosEmailVerified: false,
-          lastWorkosEventAt: time,
-        });
-      }
-      await receipt();
-      return { status: "quarantined" as const, reason: linked.reason };
-    }
-    const owner = await ctx.db
-      .query("users")
-      .withIndex("by_teakUserId", (q) => q.eq("teakUserId", linked.teakUserId))
-      .unique();
-    if (!owner) {
-      throw new Error("Linked WorkOS owner unavailable");
-    }
-    await ctx.db.patch("users", owner._id, {
-      workosEmail: email,
-      workosEmailVerified: event.data.emailVerified as boolean,
-      lastWorkosEventAt: time,
-    });
-    await receipt();
-    return { status: "applied" as const };
+    return result.status === "quarantined"
+      ? { status: result.status, reason: result.reason }
+      : { status: result.status };
   },
 });

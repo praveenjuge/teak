@@ -9,6 +9,10 @@
  */
 
 import type * as accountDeletion from "../accountDeletion.js";
+import type * as accountDeletionActions from "../accountDeletionActions.js";
+import type * as accountDeletionBatch from "../accountDeletionBatch.js";
+import type * as accountDeletionData from "../accountDeletionData.js";
+import type * as accountDeletionJobs from "../accountDeletionJobs.js";
 import type * as admin from "../admin.js";
 import type * as ai_actions from "../ai/actions.js";
 import type * as ai_models from "../ai/models.js";
@@ -86,6 +90,10 @@ import type * as migration_exportBetterAuth from "../migration/exportBetterAuth.
 import type * as migration_identityTable from "../migration/identityTable.js";
 import type * as migration_passwordHash from "../migration/passwordHash.js";
 import type * as migration_readiness from "../migration/readiness.js";
+import type * as migration_workosImportLease from "../migration/workosImportLease.js";
+import type * as migration_workosCutover from "../migration/workosCutover.js";
+import type * as migration_workosImportSource from "../migration/workosImportSource.js";
+import type * as migration_workosRollbackPlan from "../migration/workosRollbackPlan.js";
 import type * as migration_workosReadiness from "../migration/workosReadiness.js";
 import type * as oauthClients from "../oauthClients.js";
 import type * as oauthRevocation from "../oauthRevocation.js";
@@ -136,6 +144,7 @@ import type * as shared_workosResources from "../shared/workosResources.js";
 import type * as signupFreeze from "../signupFreeze.js";
 import type * as storage_fileUrls from "../storage/fileUrls.js";
 import type * as storage_filesWorkerClient from "../storage/filesWorkerClient.js";
+import type * as storage_ownership from "../storage/ownership.js";
 import type * as storage_pendingUploadCleanup from "../storage/pendingUploadCleanup.js";
 import type * as storage_pendingUploadCleanupState from "../storage/pendingUploadCleanupState.js";
 import type * as storage_r2 from "../storage/r2.js";
@@ -151,6 +160,7 @@ import type * as telemetry_schedule from "../telemetry/schedule.js";
 import type * as telemetry_sentry from "../telemetry/sentry.js";
 import type * as trustedOrigins from "../trustedOrigins.js";
 import type * as userIdentityTable from "../userIdentityTable.js";
+import type * as workflows_accountDeletion from "../workflows/accountDeletion.js";
 import type * as workflows_aiBackfill from "../workflows/aiBackfill.js";
 import type * as workflows_aiMetadata_generators from "../workflows/aiMetadata/generators.js";
 import type * as workflows_aiMetadata_index from "../workflows/aiMetadata/index.js";
@@ -204,6 +214,17 @@ import type * as workosBootstrap from "../workosBootstrap.js";
 import type * as workosConsents from "../workosConsents.js";
 import type * as workosIdentity from "../workosIdentity.js";
 import type * as workosLifecycle from "../workosLifecycle.js";
+import type * as workosProfileApply from "../workosProfileApply.js";
+import type * as workosProfileFields from "../workosProfileFields.js";
+import type * as workosE2eActions from "../workosE2eActions.js";
+import type * as workosE2eHttp from "../workosE2eHttp.js";
+import type * as workosE2eState from "../workosE2eState.js";
+import type * as workosProfileRead from "../workosProfileRead.js";
+import type * as workosProfileVersion from "../workosProfileVersion.js";
+import type * as workosReconciliation from "../workosReconciliation.js";
+import type * as workosReconciliationActions from "../workosReconciliationActions.js";
+import type * as workosReconciliationCensus from "../workosReconciliationCensus.js";
+import type * as workosReconciliationSchedule from "../workosReconciliationSchedule.js";
 import type * as workosTokens from "../workosTokens.js";
 import type * as workosUsers from "../workosUsers.js";
 import type * as workosWebhook from "../workosWebhook.js";
@@ -216,6 +237,10 @@ import type {
 
 declare const fullApi: ApiFromModules<{
   accountDeletion: typeof accountDeletion;
+  accountDeletionActions: typeof accountDeletionActions;
+  accountDeletionBatch: typeof accountDeletionBatch;
+  accountDeletionData: typeof accountDeletionData;
+  accountDeletionJobs: typeof accountDeletionJobs;
   admin: typeof admin;
   "ai/actions": typeof ai_actions;
   "ai/models": typeof ai_models;
@@ -293,6 +318,10 @@ declare const fullApi: ApiFromModules<{
   "migration/identityTable": typeof migration_identityTable;
   "migration/passwordHash": typeof migration_passwordHash;
   "migration/readiness": typeof migration_readiness;
+  "migration/workosImportLease": typeof migration_workosImportLease;
+  "migration/workosCutover": typeof migration_workosCutover;
+  "migration/workosImportSource": typeof migration_workosImportSource;
+  "migration/workosRollbackPlan": typeof migration_workosRollbackPlan;
   "migration/workosReadiness": typeof migration_workosReadiness;
   oauthClients: typeof oauthClients;
   oauthRevocation: typeof oauthRevocation;
@@ -343,6 +372,7 @@ declare const fullApi: ApiFromModules<{
   signupFreeze: typeof signupFreeze;
   "storage/fileUrls": typeof storage_fileUrls;
   "storage/filesWorkerClient": typeof storage_filesWorkerClient;
+  "storage/ownership": typeof storage_ownership;
   "storage/pendingUploadCleanup": typeof storage_pendingUploadCleanup;
   "storage/pendingUploadCleanupState": typeof storage_pendingUploadCleanupState;
   "storage/r2": typeof storage_r2;
@@ -358,6 +388,7 @@ declare const fullApi: ApiFromModules<{
   "telemetry/sentry": typeof telemetry_sentry;
   trustedOrigins: typeof trustedOrigins;
   userIdentityTable: typeof userIdentityTable;
+  "workflows/accountDeletion": typeof workflows_accountDeletion;
   "workflows/aiBackfill": typeof workflows_aiBackfill;
   "workflows/aiMetadata/generators": typeof workflows_aiMetadata_generators;
   "workflows/aiMetadata/index": typeof workflows_aiMetadata_index;
@@ -411,6 +442,17 @@ declare const fullApi: ApiFromModules<{
   workosConsents: typeof workosConsents;
   workosIdentity: typeof workosIdentity;
   workosLifecycle: typeof workosLifecycle;
+  workosProfileApply: typeof workosProfileApply;
+  workosProfileFields: typeof workosProfileFields;
+  workosProfileRead: typeof workosProfileRead;
+  workosE2eState: typeof workosE2eState;
+  workosE2eActions: typeof workosE2eActions;
+  workosE2eHttp: typeof workosE2eHttp;
+  workosProfileVersion: typeof workosProfileVersion;
+  workosReconciliation: typeof workosReconciliation;
+  workosReconciliationActions: typeof workosReconciliationActions;
+  workosReconciliationCensus: typeof workosReconciliationCensus;
+  workosReconciliationSchedule: typeof workosReconciliationSchedule;
   workosTokens: typeof workosTokens;
   workosUsers: typeof workosUsers;
   workosWebhook: typeof workosWebhook;

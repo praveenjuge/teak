@@ -15,7 +15,7 @@ export interface MobileAuth {
     provider?: "authkit" | "GoogleOAuth" | "AppleOAuth",
     screenHint?: "sign-in" | "sign-up"
   ) => Promise<boolean>;
-  signOut: () => Promise<void>;
+  signOut: (options?: { accountDeletionAccepted?: boolean }) => Promise<void>;
   user: MobileAuthUser | null;
 }
 export const MobileAuthContext = createContext<MobileAuth | null>(null);

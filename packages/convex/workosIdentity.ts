@@ -1,5 +1,6 @@
 import { v } from "convex/values";
 import { internalQuery } from "./_generated/server";
+import { readCanonicalWorkosProfile } from "./workosProfileRead";
 
 // Only callers that have verified the token's issuer, signature, audience,
 // user subject and session/consent may use this read-only ownership boundary.
@@ -95,6 +96,14 @@ export const resolveWorkosOwner = internalQuery({
         status: "denied" as const,
         reason: "external_id_mismatch" as const,
       };
+    }
+    const canonical = await readCanonicalWorkosProfile(ctx, args.workosUserId);
+    if (
+      canonical?.profile?.emailVerified !== true ||
+      (canonical.teakUserId !== undefined &&
+        canonical.teakUserId !== row.teakUserId)
+    ) {
+      return { status: "denied" as const, reason: "verify_email" as const };
     }
     const verified =
       args.verification.kind === "session"

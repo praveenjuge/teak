@@ -22,6 +22,7 @@ import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { Suspense, useState } from "react";
 import { toast } from "sonner";
+import { AuthPageMode } from "@/components/AuthPageMode";
 import { authClient } from "@/lib/auth-client";
 import { resolveAuthRedirect } from "@/lib/auth-redirect";
 import { AuthCardLoading } from "../AuthCardLoading";
@@ -49,7 +50,9 @@ function showSignInError(message: string) {
 export default function SignIn() {
   return (
     <Suspense fallback={<AuthCardLoading />}>
-      <SignInForm />
+      <AuthPageMode flow="signin">
+        <SignInForm />
+      </AuthPageMode>
     </Suspense>
   );
 }

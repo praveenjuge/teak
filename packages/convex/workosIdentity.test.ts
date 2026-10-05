@@ -12,9 +12,13 @@ const input = {
   workosUserId: "user_provider",
   verification: { kind: "connect" as const },
 };
-const seed = (t: Backend, fields: Partial<Doc<"users">> = {}) =>
-  t.run((ctx) =>
-    ctx.db.insert("users", {
+const seed = (
+  t: Backend,
+  fields: Partial<Doc<"users">> = {},
+  profile: Partial<NonNullable<Doc<"workosProfiles">["profile"]>> | null = {}
+) =>
+  t.run(async (ctx) => {
+    const owner = await ctx.db.insert("users", {
       teakUserId: "permanent-owner",
       workosUserId: "user_provider",
       email: "legacy@example.com",
@@ -22,8 +26,36 @@ const seed = (t: Backend, fields: Partial<Doc<"users">> = {}) =>
       workosEmail: "provider@example.com",
       workosEmailVerified: true,
       ...fields,
-    })
-  );
+    });
+    const user = await ctx.db.get("users", owner);
+    const workosUserId = user?.workosUserId;
+    if (profile !== null && workosUserId) {
+      const existing = await ctx.db
+        .query("workosProfiles")
+        .withIndex("by_workosUserId", (q) => q.eq("workosUserId", workosUserId))
+        .first();
+      if (!existing) {
+        await ctx.db.insert("workosProfiles", {
+          workosUserId,
+          teakUserId: user.teakUserId,
+          providerUpdatedAt: "2026-10-04T00:00:00Z",
+          revision: 1,
+          source: "event",
+          profile: {
+            email: user.workosEmail ?? "provider@example.com",
+            emailVerified: true,
+            externalId: user.teakUserId,
+            firstName: null,
+            lastName: null,
+            profilePictureUrl: null,
+            ...profile,
+          },
+        });
+      }
+    }
+    return owner;
+  });
+
 const resolve = (t: Backend) =>
   t.query(internal.workosIdentity.resolveWorkosOwner, input);
 const snapshot = (t: Backend) =>
@@ -31,6 +63,7 @@ const snapshot = (t: Backend) =>
     users: await ctx.db.query("users").take(10),
     events: await ctx.db.query("workosEvents").take(10),
     quarantine: await ctx.db.query("migrationQuarantine").take(10),
+    profiles: await ctx.db.query("workosProfiles").take(10),
   }));
 
 // Failures: provider subjects become vault owners; legacy verification promotes
@@ -171,9 +204,14 @@ describe("read-only canonical WorkOS owner resolution", () => {
     ).toEqual({ status: "denied", reason: "deleting_user" });
   });
 
-  test("provider deletion ledger denies all duplicate rows, including an unpatched third row", async () => {
+  test("provider deletion ledger denies all duplicate rows, including an unpatched fourth row", async () => {
     const t = setup();
-    for (const teakUserId of ["permanent-owner", "owner-two", "owner-three"]) {
+    for (const teakUserId of [
+      "permanent-owner",
+      "owner-two",
+      "owner-three",
+      "owner-four",
+    ]) {
       await seed(t, { teakUserId });
     }
     await t.mutation(internal.workosLifecycle.applyWorkosEvent, {
@@ -183,8 +221,8 @@ describe("read-only canonical WorkOS owner resolution", () => {
       data: { id: "user_provider" },
     });
     const before = await snapshot(t);
-    expect(before.users[2].workosDeletedAt).toBeUndefined();
-    expect(before.users[2].workosEmailVerified).toBe(true);
+    expect(before.users[3].workosDeletedAt).toBeUndefined();
+    expect(before.users[3].workosEmailVerified).toBe(true);
     for (const verification of [
       { kind: "connect" as const },
       { kind: "session" as const, emailVerified: true },

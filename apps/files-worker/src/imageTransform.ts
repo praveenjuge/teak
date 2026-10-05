@@ -1,3 +1,4 @@
+import { objectIsFrozen } from "./deletionGate";
 import {
   buildImageSigningPayload,
   buildImageSourceSigningPayload,
@@ -338,6 +339,7 @@ export const handleImageSourceRequest = async (
     buildImageSourceSigningPayload({ expiresAt, key }),
     signature
   );
+  if (valid && await objectIsFrozen(env, key)) return new Response(null, { status: 404 });
   return valid
     ? await serveR2Object(env, key, request.method.toUpperCase())
     : new Response(null, { status: 403 });
@@ -367,6 +369,7 @@ export const handleImageRequest = async (
     return new Response(null, { status: invalidStatus });
   }
 
+  if (await objectIsFrozen(env, parsed.key)) return new Response(null, { status: 404 });
   const metadata = await env.BUCKET.head(parsed.key);
   if (!metadata) {
     return new Response(null, { status: 404 });

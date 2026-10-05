@@ -31,7 +31,10 @@ const ctx = {
       ? card
       : { workflow: { args: { cardId: "card1" }, generationNumber: 3 } },
   runMutation: (ref: Parameters<typeof getFunctionName>[0], args: any) => {
-    if (getFunctionName(ref).endsWith(":registerArtifact")) {
+    if (
+      getFunctionName(ref).endsWith(":registerArtifact") ||
+      getFunctionName(ref) === "storage/ownership:registerObject"
+    ) {
       return Promise.resolve(true);
     }
     persisted.push(args.metadata);

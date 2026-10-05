@@ -1,3 +1,4 @@
+import { ensureObjectOwnership } from "../storage/ownership";
 import { ConvexError, v } from "convex/values";
 import { internal } from "../_generated/api";
 import { type MutationCtx, mutation } from "../_generated/server";
@@ -111,6 +112,7 @@ export const uploadAndCreateCard = mutation({
         role: "file",
         fileName: _args.fileName,
       });
+  await ensureObjectOwnership(ctx, user.teakUserId, key);
       const signed = await buildSignedWorkerUploadUrl({
         contentType: _args.fileType || "application/octet-stream",
         key,

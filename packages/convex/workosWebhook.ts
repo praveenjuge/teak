@@ -19,6 +19,7 @@ export const syncVerifiedEvent = internalMutation({
     ),
     data: v.record(v.string(), v.any()),
     context: v.optional(v.record(v.string(), v.any())),
+    replay: v.optional(v.boolean()),
   },
   returns: v.null(),
   handler: async (ctx, event) => {
@@ -27,9 +28,16 @@ export const syncVerifiedEvent = internalMutation({
       createdAt: event.createdAt,
       event: event.event,
       data: event.data,
+      ...(event.replay === undefined ? {} : { replay: event.replay }),
     });
     await ctx.runMutation(components.workOSAuthKit.lib.onWebhookEvent, {
-      event,
+      event: {
+        id: event.id,
+        createdAt: event.createdAt,
+        event: event.event,
+        data: event.data,
+        ...(event.context === undefined ? {} : { context: event.context }),
+      },
     });
     return null;
   },

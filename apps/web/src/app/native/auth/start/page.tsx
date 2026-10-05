@@ -9,6 +9,8 @@ import { AuthScreenShell } from "@teak/ui/screens";
 import { headers } from "next/headers";
 import Link from "next/link";
 import { redirect } from "next/navigation";
+import { connection } from "next/server";
+import { readAuthMode } from "@/lib/auth-mode-server";
 import { isAuthenticated } from "@/lib/auth-server";
 import {
   NATIVE_AUTH_SURFACE_LABELS,
@@ -36,6 +38,18 @@ const requestUrlFromHeaders = async (
 export default async function NativeAuthStartPage({
   searchParams,
 }: NativeAuthStartPageProps) {
+  await connection();
+  if ((await readAuthMode()).primary !== "betterauth") {
+    return (
+      <AuthScreenShell logo={<Logo variant="primary" />}>
+        <CardTitle>Reconnect your device</CardTitle>
+        <CardContent>
+          This device sign-in is no longer active. Start again from your Teak
+          app.
+        </CardContent>
+      </AuthScreenShell>
+    );
+  }
   const params = await searchParams;
   const parsed = parseNativeAuthRequest({
     codeChallenge: params.code_challenge,

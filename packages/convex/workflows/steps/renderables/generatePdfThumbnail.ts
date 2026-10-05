@@ -1,4 +1,6 @@
 "use node";
+import { ensureObjectOwnership } from "../../../storage/ownership";
+
 
 import Kernel from "@onkernel/sdk";
 import { v } from "convex/values";
@@ -115,6 +117,7 @@ export const generatePdfThumbnail = internalAction({
         cardId: args.cardId,
         role: "thumbnail",
       });
+  await ensureObjectOwnership(ctx, card.userId, thumbnailKey);
       const uploadUrl = (
         await buildSignedWorkerUploadUrl({
           contentType: "image/png",

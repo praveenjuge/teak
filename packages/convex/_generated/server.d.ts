@@ -30,6 +30,7 @@ import type { DataModel } from "./dataModel.js";
 type Env = {
   readonly CONVEX_CLOUD_URL: string;
   readonly CONVEX_SITE_URL: string;
+  readonly ACCOUNT_CHANGES_PAUSED: string | undefined;
   readonly APPLE_APP_BUNDLE_IDENTIFIER: string | undefined;
   readonly APPLE_CLIENT_ID: string | undefined;
   readonly APPLE_KEY_ID: string | undefined;
@@ -74,6 +75,8 @@ type Env = {
   readonly WORKOS_CONNECT_RAYCAST_CLIENT_ID: string | undefined;
   readonly WORKOS_CONNECT_SAFARI_CLIENT_ID: string | undefined;
   readonly WORKOS_ENVIRONMENT_ID: string | undefined;
+  readonly WORKOS_RECONCILIATION_MODE: "off" | "audit" | undefined;
+  readonly WORKOS_RECONCILIATION_WITNESS_ID: string | undefined;
   readonly WORKOS_WEBHOOK_SECRET: string | undefined;
 };
 

@@ -37,7 +37,7 @@ export const ALIAS_DERIVATIONS: Record<string, readonly string[]> = {
     "VITE_PUBLIC_CONVEX_SITE_URL",
     "EXPO_PUBLIC_CONVEX_SITE_URL",
   ],
-  [CANONICAL_SITE_URL]: ["VITE_WEB_URL"],
+  [CANONICAL_SITE_URL]: ["VITE_WEB_URL", "NEXT_PUBLIC_WORKOS_REDIRECT_URI"],
 };
 
 const ALIAS_TO_CANONICAL = new Map<string, string>(
@@ -73,7 +73,10 @@ export const generateAliasValues = (
   }
   if (canonical.siteUrl) {
     for (const alias of ALIAS_DERIVATIONS[CANONICAL_SITE_URL] ?? []) {
-      values[alias] = canonical.siteUrl;
+      values[alias] =
+        alias === "NEXT_PUBLIC_WORKOS_REDIRECT_URI"
+          ? new URL("/callback", canonical.siteUrl).toString()
+          : canonical.siteUrl;
     }
   }
   return values;

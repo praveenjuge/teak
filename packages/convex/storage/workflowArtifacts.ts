@@ -1,3 +1,4 @@
+import { ensureObjectOwnership } from "./ownership";
 import { convexToJson, jsonToConvex, v } from "convex/values";
 import { components, internal } from "../_generated/api";
 import type { Id } from "../_generated/dataModel";
@@ -189,6 +190,7 @@ export const archiveWorkflowValue = async (
   if (!(await register())) {
     throw new Error("workflow_artifact_registration_failed");
   }
+  await ensureObjectOwnership(ctx, card.userId, ref.key);
   let registeredAfterCopy = false;
   try {
     await putObjectViaFilesWorker({

@@ -519,3 +519,61 @@ describe("native AuthKit session", () => {
     expect(session.getSnapshot().user).toBeNull();
   });
 });
+
+describe("native vault bootstrap before sign-in commit", () => {
+  // Failures: unverified email, frozen registration, quarantined identity,
+  // network error, and logout while the owner mapping request is in flight.
+  test.each(["verify_email", "frozen", "quarantined", "offline"])(
+    "never publishes or persists credentials when bootstrap denies %s",
+    async (reason) => {
+      const cache = store();
+      const session = new WorkosSession(
+        clientId,
+        cache.storage,
+        transport,
+        10_000,
+        (token) => {
+          expect(token).toBe(response().access_token);
+          return Promise.reject(new Error(reason));
+        }
+      );
+      await expect(session.exchangeCode("code", verifier)).rejects.toThrow(
+        reason
+      );
+      expect(cache.data.size).toBe(0);
+      expect(session.getSnapshot().user).toBeNull();
+      expect(await session.fetchAccessToken()).toBeNull();
+    }
+  );
+  test.each([false, true])(
+    "waits for owner mapping and honors logout during bootstrap: %s",
+    async (logout) => {
+      const cache = store();
+      const owner = deferred<void>();
+      const reached = deferred<void>();
+      const session = new WorkosSession(
+        clientId,
+        cache.storage,
+        transport,
+        10_000,
+        () => {
+          reached.resolve();
+          return owner.promise;
+        }
+      );
+      const login = session.exchangeCode("code", verifier);
+      await reached.promise;
+      expect(cache.data.size).toBe(0);
+      expect(session.getSnapshot().user).toBeNull();
+      if (logout) {
+        await session.clear();
+      }
+      owner.resolve();
+      expect(await login).toBe(logout ? null : response().access_token);
+      expect(cache.data.size).toBe(logout ? 0 : 1);
+      expect(session.getSnapshot().user?.id ?? null).toBe(
+        logout ? null : "user_ONE"
+      );
+    }
+  );
+});

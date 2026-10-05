@@ -7,8 +7,23 @@ import { isAuthError } from "@teak/ui/lib/utils";
 import { type ReactNode, useEffect, useRef } from "react";
 import Loading from "@/app/loading";
 import { authClient, convexAuthClient } from "@/lib/auth-client";
+import { WorkosAuthBoundary } from "./WorkosAuthBoundary";
 
-export function ClientAuthBoundary({ children }: { children: ReactNode }) {
+export function ClientAuthBoundary({
+  children,
+  primary,
+}: {
+  children: ReactNode;
+  primary: "betterauth" | "workos";
+}) {
+  return primary === "workos" ? (
+    <WorkosAuthBoundary>{children}</WorkosAuthBoundary>
+  ) : (
+    <BetterAuthBoundary>{children}</BetterAuthBoundary>
+  );
+}
+
+function BetterAuthBoundary({ children }: { children: ReactNode }) {
   const { data: session } = authClient.useSession();
   const userId = session?.user.id ?? null;
   const establishedUserId = useRef(userId);

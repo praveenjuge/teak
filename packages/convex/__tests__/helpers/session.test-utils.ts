@@ -46,6 +46,13 @@ export function withTestSession<T extends TestContext>(
   };
   const sourceRunQuery = ctx.runQuery;
   const runQuery = mock(async (...args: any[]) => {
+    // Deletion admission is covered with the real database in workflow tests.
+    if (
+      typeof args[1]?.userId === "string" &&
+      getFunctionName(args[0]) === "accountDeletion:isDeleting"
+    ) {
+      return false;
+    }
     if (
       typeof args[1]?.teakUserId === "string" &&
       getFunctionName(args[0]) === "securitySessions:identityMapping"
@@ -89,6 +96,12 @@ export function withMappedOwner<
   return {
     ...ctx,
     runQuery: mock(async (ref: any, args: any) => {
+      if (
+        typeof args?.userId === "string" &&
+        getFunctionName(ref) === "accountDeletion:isDeleting"
+      ) {
+        return false;
+      }
       if (
         typeof args?.teakUserId === "string" &&
         getFunctionName(ref) === "securitySessions:identityMapping"

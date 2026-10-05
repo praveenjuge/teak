@@ -14,17 +14,21 @@ import { getPolarPlanIds } from "@teak/ui/constants/billing";
 import { TOAST_IDS } from "@teak/ui/constants/toast";
 import { useSettingsController } from "@teak/ui/hooks";
 import { SettingsContent, SubscriptionSection } from "@teak/ui/settings";
-import { useAction } from "convex/react";
+import { useAction, useMutation } from "convex/react";
 import { useTheme } from "next-themes";
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
+import { signOutWorkos } from "@/app/(auth)/actions";
+import { useAuthMode } from "@/components/AuthModeProvider";
 import { authClient } from "@/lib/auth-client";
 
 export default function ProfileSettingsPage() {
+  const mode = useAuthMode();
   const [subscriptionOpen, setSubscriptionOpen] = useState(false);
   const [loadingPlanId, setLoadingPlanId] = useState<string | null>(null);
   const checkoutInstanceRef = useRef<PolarEmbedCheckout | null>(null);
   const createCheckoutLink = useAction(api.billing.createCheckoutLink);
+  const deleteMyAccount = useMutation(api.accountDeletion.deleteMyAccount);
   const { theme } = useTheme();
 
   useEffect(
@@ -36,6 +40,15 @@ export default function ProfileSettingsPage() {
 
   const settings = useSettingsController({
     onDeleteAccount: async () => {
+      if (mode?.accountChangesPaused) {
+        throw new Error("Account changes are paused. Please try again later.");
+      }
+      if (mode?.primary === "workos") {
+        await deleteMyAccount({});
+        toast.success("Account deletion requested. You’re being signed out.");
+        await signOutWorkos();
+        return;
+      }
       let deleteError: Error | null = null;
       // The awaited call's onError callback assigns `deleteError`; the guard
       // below reads that side effect, so this await cannot be deferred past it.
@@ -76,6 +89,10 @@ export default function ProfileSettingsPage() {
       anchor.remove();
     },
     onSignOut: async () => {
+      if (mode?.primary === "workos") {
+        await signOutWorkos();
+        return;
+      }
       await authClient.signOut({
         fetchOptions: {
           onSuccess: () => {
