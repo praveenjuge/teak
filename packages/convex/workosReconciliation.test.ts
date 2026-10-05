@@ -19,7 +19,7 @@ const admission = {
   environmentId,
   clientId,
   apiKeyFingerprint:
-    "42f0311968fe4d35b1926e47d30a9397c9d709d3b70330697b67ac9f5d9079b1",
+    "0cd3cf5f74c92c94559c4397065417ee80f45c5115d28889b9872049ea5533aa",
   runKey: "run_one",
   providerWitnessUserId: "user_witness",
   mode: "repair" as const,
@@ -84,7 +84,7 @@ beforeEach(() => {
   vi.useFakeTimers();
   vi.stubEnv("WORKOS_ENVIRONMENT_ID", environmentId);
   vi.stubEnv("WORKOS_CLIENT_ID", clientId);
-  vi.stubEnv("WORKOS_API_KEY", "sk_test_reconciliation");
+  vi.stubEnv("WORKOS_API_KEY", "test-workos-reconciliation-key");
 });
 afterEach(() => {
   vi.clearAllTimers();
@@ -280,7 +280,7 @@ async function sdkOwnerRun(
   witnessStatus = 200,
   rotateCredentials = false
 ) {
-  vi.stubEnv("WORKOS_API_KEY", "sk_test_reconciliation");
+  vi.stubEnv("WORKOS_API_KEY", "test-workos-reconciliation-key");
   let ownerRequested = false;
   vi.stubGlobal("fetch", (input: string | URL) =>
     Promise.resolve().then(() => {
@@ -288,7 +288,7 @@ async function sdkOwnerRun(
       if (path === `/user_management/users/${userId}`) {
         ownerRequested = true;
         if (rotateCredentials) {
-          vi.stubEnv("WORKOS_API_KEY", "sk_rotated");
+          vi.stubEnv("WORKOS_API_KEY", "test-workos-rotated-key");
         }
         return new Response(JSON.stringify({ message: "Provider error" }), {
           status: missingStatus,
@@ -546,7 +546,7 @@ describe("reconciliation failure boundaries", () => {
       internal.workosProfileApply.captureWorkosProfileState,
       { workosUserId: userId }
     );
-    vi.stubEnv("WORKOS_API_KEY", "sk_rotated");
+    vi.stubEnv("WORKOS_API_KEY", "test-workos-rotated-key");
     await expect(
       t.mutation(internal.workosReconciliation.checkpoint, {
         ...page(run),
@@ -647,7 +647,7 @@ describe("reconciliation failure boundaries", () => {
   });
   test("provider traversal captures an unmapped external owner before the direct GET", async () => {
     const t = setup();
-    vi.stubEnv("WORKOS_API_KEY", "sk_test_reconciliation");
+    vi.stubEnv("WORKOS_API_KEY", "test-workos-reconciliation-key");
     await t.run((ctx) =>
       ctx.db.insert("users", {
         teakUserId: "owner",
