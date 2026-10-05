@@ -541,7 +541,8 @@ export default defineSchema({
     status: v.union(
       v.literal("active"),
       v.literal("uncertain"),
-      v.literal("released")
+      v.literal("released"),
+      v.literal("quiesced")
     ),
     remoteIntent: v.optional(
       v.object({

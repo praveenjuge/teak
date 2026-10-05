@@ -165,6 +165,7 @@ export const markCancelRequested = internalMutation({
     active: v.boolean(),
   }),
   handler: async (ctx, { jobId, userId }) => {
+    await assertAccountNotDeleting(ctx, userId);
     const job = await ctx.db.get(jobId);
     if (!job || job.userId !== userId) {
       throw new Error("Import job not found");
@@ -279,6 +280,7 @@ export const markQueued = internalMutation({
     if (!job || job.cancelRequested) {
       throw new Error("Import was canceled");
     }
+    await assertAccountNotDeleting(ctx, job.userId);
     await ctx.db.patch(jobId, {
       status: "queued",
       phase: "Waiting to parse",
@@ -690,6 +692,11 @@ export const finishJob = internalMutation({
   },
   returns: v.null(),
   handler: async (ctx, { jobId, status, reportKey, failureClass }) => {
+    const job = await ctx.db.get(jobId);
+    if (!job) {
+      throw new Error("Import job not found");
+    }
+    await assertAccountNotDeleting(ctx, job.userId);
     let phase = "Import failed";
     if (status === "completed") {
       phase = "Import complete";
@@ -742,11 +749,16 @@ export const deleteItemsPage = internalMutation({
   args: { jobId: v.id("importJobs"), limit: v.number() },
   returns: v.object({ count: v.number() }),
   handler: async (ctx, { jobId, limit }) => {
+    const job = await ctx.db.get(jobId);
+    if (job) {
+      await assertAccountNotDeleting(ctx, job.userId);
+    }
     const items = await ctx.db
       .query("importJobItems")
       .withIndex("by_job_source", (q) => q.eq("jobId", jobId))
       .take(limit);
     for (const item of items) {
+      await assertAccountNotDeleting(ctx, item.userId);
       await ctx.db.delete(item._id);
     }
     return { count: items.length };
@@ -757,7 +769,9 @@ export const deleteJob = internalMutation({
   args: { jobId: v.id("importJobs") },
   returns: v.null(),
   handler: async (ctx, { jobId }) => {
-    if (await ctx.db.get(jobId)) {
+    const job = await ctx.db.get(jobId);
+    if (job) {
+      await assertAccountNotDeleting(ctx, job.userId);
       await ctx.db.delete(jobId);
     }
     return null;

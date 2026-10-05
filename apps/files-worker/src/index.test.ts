@@ -53,6 +53,7 @@ const signedOpRequest = async (
   op:
     | "analyze-image"
     | "complete-multipart"
+    | "freeze-object"
     | "create-multipart"
     | "finalize-upload"
     | "list-objects",
@@ -434,6 +435,57 @@ describe("files worker handler", () => {
       data: { key, size: 5 },
       ok: true,
     });
+  });
+
+  test("size-bound import capabilities preserve 64 MiB parts and 24-hour expiry while rejecting tampering and post-freeze writes", async () => {
+    const env_ = env();
+    const bucket = env_.BUCKET as unknown as FakeBucket;
+    const key = "users/u1/imports/proof/source.zip";
+    const multipart = bucket.createMultipartUpload(key);
+    const bytes = new Uint8Array(64 * 1024 * 1024);
+    const size = bytes.byteLength;
+    const expiresAt = String(Math.floor(Date.now() / 1000) + 86_400);
+    const url = new URL(
+      `https://files.teakvault.com/__uploads/v1/${multipart.uploadId}/1`
+    );
+    url.searchParams.set("key", key);
+    url.searchParams.set("exp", expiresAt);
+    url.searchParams.set("sz", String(size));
+    url.searchParams.set(
+      "sig",
+      await hmacSha256Hex(
+        SECRET,
+        buildMultipartPartSigningPayload({
+          key,
+          uploadId: multipart.uploadId,
+          partNumber: 1,
+          expiresAt,
+          size,
+        })
+      )
+    );
+    const put = (target: URL, bodySize: number) =>
+      worker.fetch(
+        new Request(target, {
+          method: "PUT",
+          body: new Blob([bytes.subarray(0, bodySize)]),
+          headers: { "content-length": String(bodySize) },
+        }),
+        env_,
+        { waitUntil: () => undefined } as never
+      );
+    const tampered = new URL(url);
+    tampered.searchParams.set("sz", String(size - 1));
+    expect((await put(tampered, 1)).status).toBe(403);
+    expect((await put(url, 1)).status).toBe(413);
+    expect((await put(url, size)).status).toBe(204);
+    const frozen = await worker.fetch(
+      await signedOpRequest("freeze-object", { key }),
+      env_,
+      { waitUntil: () => undefined } as never
+    );
+    expect(frozen.status).toBe(200);
+    expect((await put(url, size)).status).toBe(409);
   });
 
   test("returns a versioned error envelope for multipart failures", async () => {

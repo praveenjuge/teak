@@ -1,4 +1,8 @@
-import { gatedBucket, objectIsFrozen } from "./deletionGate";
+import {
+  gatedBucket,
+  ObjectWriteBlockedError,
+  objectIsFrozen,
+} from "./deletionGate";
 
 export { ObjectDeletionGate } from "./deletionGate";
 
@@ -128,6 +132,8 @@ const handleMultipartPart = async (
   const key = url.searchParams.get("key");
   const expiresAt = url.searchParams.get("exp");
   const signature = url.searchParams.get("sig");
+  const boundSizeText = url.searchParams.get("sz");
+  const boundSize = boundSizeText === null ? null : Number(boundSizeText);
   if (!(match && key && expiresAt && signature)) {
     return multipartError(
       requestId,
@@ -147,7 +153,12 @@ const handleMultipartPart = async (
     !Number.isSafeInteger(expiry) ||
     String(expiry) !== expiresAt ||
     expiry < now ||
-    expiry > now + MULTIPART_URL_MAX_TTL_SECONDS
+    (boundSize !== null &&
+      (!Number.isSafeInteger(boundSize) ||
+        boundSize <= 0 ||
+        boundSize > 64 * 1024 * 1024 ||
+        String(boundSize) !== boundSizeText)) ||
+    expiry > now + (boundSize === null ? MULTIPART_URL_MAX_TTL_SECONDS : 86_400)
   ) {
     return multipartError(
       requestId,
@@ -163,6 +174,7 @@ const handleMultipartPart = async (
       key,
       partNumber,
       uploadId,
+      size: boundSize,
     }),
     signature
   );
@@ -186,7 +198,12 @@ const handleMultipartPart = async (
       411
     );
   }
-  if (contentLength <= 0 || contentLength > MULTIPART_MAX_PART_BYTES) {
+  if (
+    contentLength <= 0 ||
+    contentLength >
+      (boundSize === null ? MULTIPART_MAX_PART_BYTES : boundSize) ||
+    (boundSize !== null && contentLength !== boundSize)
+  ) {
     return multipartError(
       requestId,
       "PAYLOAD_TOO_LARGE",
@@ -206,6 +223,14 @@ const handleMultipartPart = async (
     withCorsHeaders(headers);
     return new Response(null, { status: 204, headers });
   } catch (error) {
+    if (error instanceof ObjectWriteBlockedError) {
+      return multipartError(
+        requestId,
+        "CONFLICT",
+        "Object writes are blocked",
+        409
+      );
+    }
     console.error("[files-worker] multipart part upload failed", {
       error: error instanceof Error ? error.message : String(error),
       partNumber,

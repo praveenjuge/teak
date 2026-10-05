@@ -14,7 +14,7 @@ import { getPolarPlanIds } from "@teak/ui/constants/billing";
 import { TOAST_IDS } from "@teak/ui/constants/toast";
 import { useSettingsController } from "@teak/ui/hooks";
 import { SettingsContent, SubscriptionSection } from "@teak/ui/settings";
-import { useAction } from "convex/react";
+import { useAction, useMutation } from "convex/react";
 import { useTheme } from "next-themes";
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
@@ -28,6 +28,7 @@ export default function ProfileSettingsPage() {
   const [loadingPlanId, setLoadingPlanId] = useState<string | null>(null);
   const checkoutInstanceRef = useRef<PolarEmbedCheckout | null>(null);
   const createCheckoutLink = useAction(api.billing.createCheckoutLink);
+  const deleteMyAccount = useMutation(api.accountDeletion.deleteMyAccount);
   const { theme } = useTheme();
 
   useEffect(
@@ -43,9 +44,10 @@ export default function ProfileSettingsPage() {
         throw new Error("Account changes are paused. Please try again later.");
       }
       if (mode?.primary === "workos") {
-        throw new Error(
-          "Account deletion is temporarily unavailable. Please try again later."
-        );
+        await deleteMyAccount({});
+        toast.success("Account deletion requested. You’re being signed out.");
+        await signOutWorkos();
+        return;
       }
       let deleteError: Error | null = null;
       // The awaited call's onError callback assigns `deleteError`; the guard

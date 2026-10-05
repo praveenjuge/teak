@@ -5,7 +5,7 @@ import {
   type Page,
 } from "@playwright/test";
 import { createTeakClient } from "@teak/convex/sdk";
-import { provisionE2EAccount } from "./e2e-cleanup";
+import { cleanupE2EAccounts, provisionE2EAccount } from "./e2e-cleanup";
 import { env, requirePassword, uniqueEmail } from "./env";
 import { waitForEmail } from "./mailpit";
 import { type AccountState, rememberAccount, updateState } from "./run-state";
@@ -269,23 +269,46 @@ const expectComposer = async (page: Page) => {
 export const signIn = async (
   page: Page,
   email: string,
-  password = requirePassword()
+  password = requirePassword(),
+  options: { failure?: RegExp } = {}
 ) => {
   await gotoApp(page, "/login");
-  const emailInput = page.getByLabel("Email");
-  const canSignIn = await emailInput
-    .waitFor({ state: "visible", timeout: 5000 })
-    .then(
-      () => true,
-      () => false
-    );
-  if (!canSignIn) {
+  const emailInput = page.getByLabel("Email", { exact: true });
+  const entry = page.getByRole("button", { name: "Continue", exact: true });
+  const composer = page.getByRole("textbox", {
+    name: "Markdown content",
+    exact: true,
+  });
+  await expect(emailInput.or(entry).or(composer)).toBeVisible({
+    timeout: 30_000,
+  });
+  if (await composer.isVisible()) {
+    expect(
+      options.failure,
+      "Rejected sign-in must not retain vault access"
+    ).toBeUndefined();
     await expectComposer(page);
     return;
   }
+  if (await entry.isVisible()) {
+    await entry.click();
+  }
+  await expect(emailInput).toBeVisible({ timeout: 30_000 });
   await emailInput.fill(email);
-  await page.getByLabel("Password").fill(password);
-  await page.getByRole("button", { name: /login|sign in/i }).click();
+  const continueEmail = page.getByRole("button", {
+    name: "Continue with email",
+    exact: false,
+  });
+  if (await continueEmail.isVisible()) {
+    await continueEmail.click();
+  }
+  await page.getByLabel("Password", { exact: true }).fill(password);
+  await page.getByRole("button", { name: /^(login|sign in)$/i }).click();
+  if (options.failure) {
+    await expect(page.getByText(options.failure)).toBeVisible();
+    await expect(composer).toHaveCount(0);
+    return;
+  }
   await expectComposer(page);
 };
 
@@ -389,9 +412,8 @@ export const deleteAccountViaUi = async (page: Page, account: AccountState) => {
   ).toBeVisible();
   await page.locator("#deleteConfirm").fill("delete account");
   await page.getByRole("button", { name: "Delete account" }).click();
-  // Batched account-data cleanup runs before the session is dropped, so
-  // deleting a data-heavy account can take minutes: wait for the app to
-  // return to /login before asserting that the API key is revoked.
+  // WorkOS signs out at durable admission; redirect proves access closed,
+  // while the protected cleanup endpoint proves eventual storage completion.
   await page.waitForURL(/\/login/, { timeout: 180_000 });
   if (account.apiKey) {
     await expect
@@ -406,6 +428,11 @@ export const deleteAccountViaUi = async (page: Page, account: AccountState) => {
       )
       .toBe(401);
   }
+  const completion = await cleanupE2EAccounts([account.email]);
+  expect(completion.failures).toEqual([]);
+  expect([...completion.deleted, ...completion.alreadyDeleted]).toContain(
+    account.email
+  );
   updateState((state) => {
     for (const saved of state.accounts) {
       if (saved.email === account.email) {

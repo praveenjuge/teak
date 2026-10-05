@@ -1,5 +1,6 @@
 "use server";
 
+import { SIGNUPS_PAUSED_MESSAGE } from "@teak/convex/shared/constants";
 import {
   getSignInUrl,
   getSignUpUrl,
@@ -20,7 +21,7 @@ export async function startWorkosAuth(
     return { error: "Account changes are paused. Please try again later." };
   }
   if (signup && mode.signupsDisabled) {
-    return { error: "Signups are paused. You can still sign in." };
+    return { error: SIGNUPS_PAUSED_MESSAGE };
   }
   const options = {
     returnTo: getSafeNextPath(next) ?? "/",

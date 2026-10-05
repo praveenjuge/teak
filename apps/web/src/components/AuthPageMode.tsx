@@ -1,5 +1,6 @@
 "use client";
 
+import { SIGNUPS_PAUSED_MESSAGE } from "@teak/convex/shared/constants";
 import { Button } from "@teak/ui/components/ui/button";
 import { CardContent, CardTitle } from "@teak/ui/components/ui/card";
 import Link from "next/link";
@@ -37,7 +38,7 @@ export function AuthPageMode({
   if (flow === "signup" && mode.signupsDisabled) {
     return (
       <CardContent>
-        <p role="status">Signups are paused. You can still sign in.</p>
+        <p role="status">{SIGNUPS_PAUSED_MESSAGE}</p>
         <Link href="/login">Sign in</Link>
       </CardContent>
     );
