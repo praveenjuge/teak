@@ -1,5 +1,6 @@
 import { createHash, randomBytes } from "node:crypto";
 import { expect, request as playwrightRequest, test } from "@playwright/test";
+import { discoverAuthServer } from "@teak/convex/sdk";
 import { apiFetch } from "../helpers/api";
 import { cleanupE2EAccounts } from "../helpers/e2e-cleanup";
 import { env } from "../helpers/env";
@@ -14,7 +15,7 @@ import {
 } from "../helpers/prod";
 import { readState } from "../helpers/run-state";
 
-test("native pairing shows an approve step instead of minting on GET", async ({
+test("legacy native pairing requires approval or refuses retired sign-in", async ({
   page,
 }) => {
   const start = new URL("/native/auth/start", env.appUrl);
@@ -27,9 +28,16 @@ test("native pairing shows an approve step instead of minting on GET", async ({
   }).toString();
 
   await page.goto(start.toString());
-  await expect(
-    page.getByRole("button", { name: "Approve device" })
-  ).toBeVisible();
+  const mode = await discoverAuthServer(env.siteUrl, { forceRefresh: true });
+  const approve = page.getByRole("button", { name: "Approve device" });
+  if (mode.primary === "workos") {
+    await expect(
+      page.getByText("Reconnect your device", { exact: true })
+    ).toBeVisible();
+    await expect(approve).toHaveCount(0);
+  } else {
+    await expect(approve).toBeVisible();
+  }
   await expect(page).not.toHaveURL(/\/native\/auth\/complete/);
 });
 
