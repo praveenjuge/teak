@@ -36,6 +36,23 @@ describe("resolveMarkdownRequest", () => {
     expect(probed).toBe(false);
   });
 
+  test("leaves non-GET requests alone without probing", async () => {
+    let probed = false;
+    const result = await resolveMarkdownRequest(
+      new Request("https://teakvault.com/docs/mac", {
+        headers: { accept: MARKDOWN },
+        method: "POST",
+      }),
+      async () => {
+        probed = true;
+        return 404;
+      }
+    );
+
+    expect(result).toBeNull();
+    expect(probed).toBe(false);
+  });
+
   test("answers an unknown path with a Markdown 404", async () => {
     const result = await resolveMarkdownRequest(
       request("/nope", MARKDOWN),
