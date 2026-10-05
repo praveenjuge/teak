@@ -217,3 +217,272 @@ test("an adapter admitted before quiescence cannot commit a credential after the
     ).toHaveLength(0);
   }
 });
+
+async function seedLegacyAccount(t: ReturnType<typeof setup>) {
+  return await t.run(async (ctx) => {
+    const user = await ctx.runMutation(components.betterAuth.adapter.create, {
+      input: {
+        model: "user",
+        data: {
+          name: "Profile Owner",
+          email: "profile@example.com",
+          emailVerified: false,
+          createdAt: 1,
+          updatedAt: 1,
+        },
+      },
+    });
+    if (!("_id" in user)) {
+      throw new Error("Missing legacy owner");
+    }
+    const userId = String(user._id);
+    await ctx.db.insert("users", {
+      teakUserId: userId,
+      email: "profile@example.com",
+      emailVerified: false,
+    });
+    const account = await ctx.runMutation(
+      components.betterAuth.adapter.create,
+      {
+        input: {
+          model: "account",
+          data: {
+            accountId: userId,
+            providerId: "credential",
+            userId,
+            password: "original-legacy-hash",
+            createdAt: 1,
+            updatedAt: 1,
+          },
+        },
+      }
+    );
+    if (!("_id" in account)) {
+      throw new Error("Missing credential");
+    }
+    return { userId, accountId: String(account._id) };
+  });
+}
+
+test("password reset admitted before pause cannot update the account or link another provider", async () => {
+  const t = setup(),
+    owner = await seedLegacyAccount(t);
+  vi.stubEnv("ACCOUNT_CHANGES_PAUSED", "false");
+  let admitted:
+    | ReturnType<ReturnType<typeof authComponent.adapter>>
+    | undefined;
+  await t.run((ctx) => {
+    admitted = authComponent.adapter(ctx)(createAuth(ctx).options);
+    return Promise.resolve(null);
+  });
+  const getAdmitted = () => {
+    if (!admitted) {
+      throw new Error("Missing admitted adapter");
+    }
+    return admitted;
+  };
+  await t.run(() =>
+    getAdmitted().update({
+      model: "account",
+      where: [{ field: "id", value: owner.accountId }],
+      update: { password: "latest-approved-hash" },
+    })
+  );
+  expect(
+    await t.run(() =>
+      getAdmitted().create({
+        model: "account",
+        data: {
+          accountId: "existing-google",
+          providerId: "google",
+          userId: owner.userId,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        },
+      })
+    )
+  ).toHaveProperty("id");
+  vi.stubEnv("ACCOUNT_CHANGES_PAUSED", "true");
+  await expect(
+    t.run(() =>
+      getAdmitted().update({
+        model: "account",
+        where: [{ field: "id", value: owner.accountId }],
+        update: { password: "late-reset-hash" },
+      })
+    )
+  ).rejects.toThrow("account changes are paused");
+  await expect(
+    t.run(() =>
+      getAdmitted().create({
+        model: "account",
+        data: {
+          accountId: "google-account",
+          providerId: "google",
+          userId: owner.userId,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        },
+      })
+    )
+  ).rejects.toThrow("account changes are paused");
+  const account = await t.run((ctx) =>
+    ctx.runQuery(components.betterAuth.adapter.findOne, {
+      model: "account",
+      where: [{ field: "_id", value: owner.accountId }],
+    })
+  );
+  expect(account).toMatchObject({
+    password: "latest-approved-hash",
+    providerId: "credential",
+  });
+  expect(
+    (
+      await t.run((ctx) =>
+        ctx.runQuery(components.betterAuth.adapter.findMany, {
+          model: "account",
+          paginationOpts: { cursor: null, numItems: 20 },
+        })
+      )
+    ).page
+  ).toHaveLength(2);
+  await barrier(t);
+  vi.stubEnv("ACCOUNT_CHANGES_PAUSED", "false");
+  await expect(
+    t.run(() =>
+      getAdmitted().update({
+        model: "account",
+        where: [{ field: "id", value: owner.accountId }],
+        update: { password: "late-reset-hash" },
+      })
+    )
+  ).rejects.toThrow("credential writes are stopped");
+  vi.stubEnv("AUTH_PRIMARY", "workos");
+  await expect(
+    t.run(() =>
+      getAdmitted().create({
+        model: "account",
+        data: {
+          accountId: "google-account",
+          providerId: "google",
+          userId: owner.userId,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        },
+      })
+    )
+  ).rejects.toThrow("credential writes are stopped");
+});
+
+test.each([
+  { email: "changed@example.com" },
+  { emailVerified: false },
+  { emailVerified: true },
+])(
+  "protected profile update %j rolls back across pause while harmless login updates still mirror",
+  async (update) => {
+    const t = setup(),
+      owner = await seedLegacyAccount(t);
+    const verified = !(
+      "emailVerified" in update && update.emailVerified === true
+    );
+    vi.stubEnv("ACCOUNT_CHANGES_PAUSED", "false");
+    let admitted:
+      | ReturnType<ReturnType<typeof authComponent.adapter>>
+      | undefined;
+    await t.run((ctx) => {
+      admitted = authComponent.adapter(ctx)(createAuth(ctx).options);
+      return Promise.resolve(null);
+    });
+    const getAdmitted = () => {
+      if (!admitted) {
+        throw new Error("Missing admitted adapter");
+      }
+      return admitted;
+    };
+    await t.run(() =>
+      getAdmitted().update({
+        model: "user",
+        where: [{ field: "id", value: owner.userId }],
+        update: { emailVerified: verified },
+      })
+    );
+    vi.stubEnv("ACCOUNT_CHANGES_PAUSED", "true");
+    await expect(
+      t.run(() =>
+        getAdmitted().update({
+          model: "user",
+          where: [{ field: "id", value: owner.userId }],
+          update,
+        })
+      )
+    ).rejects.toThrow("account changes are paused");
+    await expect(
+      t.run(() =>
+        getAdmitted().updateMany({
+          model: "user",
+          where: [{ field: "id", value: owner.userId }],
+          update,
+        })
+      )
+    ).rejects.toThrow("account changes are paused");
+    await t.run(() =>
+      getAdmitted().update({
+        model: "user",
+        where: [{ field: "id", value: owner.userId }],
+        update: { name: "Login refreshed", updatedAt: new Date() },
+      })
+    );
+    expect(
+      await t.run((ctx) =>
+        ctx.runQuery(components.betterAuth.adapter.findOne, {
+          model: "user",
+          where: [{ field: "_id", value: owner.userId }],
+        })
+      )
+    ).toMatchObject({
+      email: "profile@example.com",
+      emailVerified: verified,
+      name: "Login refreshed",
+    });
+    expect(
+      await t.run((ctx) =>
+        ctx.db
+          .query("users")
+          .withIndex("by_teakUserId", (q) => q.eq("teakUserId", owner.userId))
+          .unique()
+      )
+    ).toMatchObject({ email: "profile@example.com", emailVerified: verified });
+    await barrier(t);
+    vi.stubEnv("ACCOUNT_CHANGES_PAUSED", "false");
+    await expect(
+      t.run(() =>
+        getAdmitted().update({
+          model: "user",
+          where: [{ field: "id", value: owner.userId }],
+          update,
+        })
+      )
+    ).rejects.toThrow("credential writes are stopped");
+    // Deletion remains the canonical workflow's authority, not a blanket trigger
+    // denial: its existing user-delete trigger preserves a durable tombstone.
+    await t.run(() =>
+      getAdmitted().delete({
+        model: "user",
+        where: [{ field: "id", value: owner.userId }],
+      })
+    );
+    expect(
+      await t.run((ctx) =>
+        ctx.db
+          .query("users")
+          .withIndex("by_teakUserId", (q) => q.eq("teakUserId", owner.userId))
+          .unique()
+      )
+    ).toMatchObject({
+      deletedAt: expect.any(Number),
+      email: "",
+      emailVerified: false,
+    });
+  }
+);

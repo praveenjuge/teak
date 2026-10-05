@@ -36,7 +36,11 @@ export { ensureCardCreationAllowed } from "./card/quota";
 
 import { isLocalDevelopmentUrl } from "./devUrls";
 import { e2eCleanupPlugin } from "./e2eCleanup";
-import { assertLegacyCredentialWrite } from "./migration/workosLegacyCredentialGate";
+import {
+  assertLegacyAccountWrite,
+  assertLegacyCredentialWrite,
+  assertLegacyProtectedProfileWrite,
+} from "./migration/workosLegacyCredentialGate";
 import { teakOAuthSecurity } from "./oauthSecurity";
 import { getSessionProfile } from "./securitySessions";
 import { FREE_TIER_LIMIT } from "./shared/constants";
@@ -129,6 +133,10 @@ export const authComponent = createClient<DataModel>(components.betterAuth, {
       onCreate: assertLegacyCredentialWrite,
       onUpdate: assertLegacyCredentialWrite,
     },
+    account: {
+      onCreate: assertLegacyAccountWrite,
+      onUpdate: assertLegacyAccountWrite,
+    },
     user: {
       onCreate: async (ctx, user) => {
         await mirrorBetterAuthUser(ctx, user);
@@ -139,7 +147,8 @@ export const authComponent = createClient<DataModel>(components.betterAuth, {
         );
         await scheduleUserCreatedTelemetry(ctx, user._id);
       },
-      onUpdate: async (ctx, user) => {
+      onUpdate: async (ctx, user, previous) => {
+        await assertLegacyProtectedProfileWrite(ctx, user, previous);
         await mirrorBetterAuthUser(ctx, user);
       },
       onDelete: async (ctx, user) => {
