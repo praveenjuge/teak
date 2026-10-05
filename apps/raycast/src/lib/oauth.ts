@@ -2,6 +2,13 @@ import { environment, OAuth } from "@raycast/api";
 import { type AuthDiscovery, discoverAuthServer } from "teak-sdk";
 import { getApiBaseUrl, getAppBaseUrl } from "./constants";
 
+export class TeakDiscoveryError extends Error {
+  constructor() {
+    super("Unable to reach Teak. Check your connection and retry.");
+    this.name = "TeakDiscoveryError";
+  }
+}
+
 interface Provider {
   auth: AuthDiscovery;
   client: OAuth.PKCEClient;
@@ -20,7 +27,12 @@ const audience = (auth: AuthDiscovery): Record<string, string> =>
     : {};
 
 async function getProvider(forceRefresh = false): Promise<Provider> {
-  const auth = await discovery(forceRefresh);
+  let auth: AuthDiscovery;
+  try {
+    auth = await discovery(forceRefresh);
+  } catch {
+    throw new TeakDiscoveryError();
+  }
   const key = providerKey(auth);
   const cached = providers.get(key);
   if (cached) {

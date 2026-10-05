@@ -219,6 +219,16 @@ test("failed refresh refetches mode and never sends the old token to a new issue
 test("sign out revokes the rotated credential and retains it on provider failure", async () => {
   mode = "workos";
   await oauth.authorizeTeak();
+  const key = Array.from(stores.keys())[0];
+  stores.set(key, {
+    accessToken: "expired",
+    refreshToken: "refresh-before-rotation",
+    isExpired: () => true,
+  });
+  posts.length = 0;
+  expect(await oauth.getStoredTeakAccessToken()).toBe("access-new");
+  expect(posts[0].body.get("grant_type")).toBe("refresh_token");
+  expect(posts[0].body.get("refresh_token")).toBe("refresh-before-rotation");
   revocationFailure = true;
   await expect(oauth.signOutTeak()).rejects.toThrow(
     "credentials are still saved",

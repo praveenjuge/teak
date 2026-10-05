@@ -15,7 +15,7 @@
     "lint": "ray lint",
     "lint:fix": "ray lint --fix",
     "publish": "ray publish",
-    "test": "bun test src/__tests__ --coverage --dots",
+    "test": "bun test src/__tests__ --isolate --coverage --dots",
     "typecheck": "tsc --noEmit"
   },
   "overrides": {

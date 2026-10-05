@@ -485,6 +485,19 @@ describe("raycast request handling", () => {
     );
   });
 
+  test("discovery outage remains a connection failure without opening sign-in", async () => {
+    getPreferenceValuesMock.mockImplementation(() => ({ apiKey: "" }));
+    getTokensMock.mockResolvedValue({ accessToken: "saved" });
+    globalThis.fetch = mock(() =>
+      Promise.resolve(new Response(null, { status: 503 })),
+    ) as unknown as typeof fetch;
+    await expect(searchCards({ limit: 1 })).rejects.toMatchObject({
+      code: "NETWORK_ERROR",
+    });
+    expect(authorizeMock).not.toHaveBeenCalled();
+    expect(removeTokensMock).not.toHaveBeenCalled();
+  });
+
   test("refreshes the OAuth token once after a 401", async () => {
     getPreferenceValuesMock.mockImplementation(() => ({ apiKey: "" }));
     authorizeMock.mockReset();
