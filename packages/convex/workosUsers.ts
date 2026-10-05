@@ -207,6 +207,7 @@ export const linkWorkosUser = internalMutation({
         // or authorize against the placeholder between these writes.
         const ownerId = await ctx.db.insert("users", {
           teakUserId: "",
+          identityOrigin: "workos",
           email,
           emailVerified: true,
           workosUserId: args.workosUserId,

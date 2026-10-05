@@ -105,6 +105,7 @@ describe("signed WorkOS bootstrap", () => {
       {
         teakUserId: result.teakUserId,
         email: "new@example.com",
+        identityOrigin: "workos",
         workosEmail: "new@example.com",
       },
     ]);
@@ -112,6 +113,20 @@ describe("signed WorkOS bootstrap", () => {
     expect(before.jobs).toHaveLength(2);
     expect(await signed(t).mutation(ensure, {})).toEqual(result);
     expect(await state(t)).toEqual(before);
+  });
+  test("linking an existing owner preserves its legacy provenance", async () => {
+    const t = setup();
+    await profile(t);
+    await seed(t, { workosUserId: undefined });
+    expect(await signed(t).mutation(ensure, {})).toEqual({
+      status: "ok",
+      teakUserId: "permanent-owner",
+    });
+    const after = await state(t);
+    expect(after.users).toHaveLength(1);
+    expect(after.users[0]?.workosUserId).toBe("user_NEW");
+    expect(after.users[0]?.identityOrigin).toBeUndefined();
+    expect(after.jobs).toHaveLength(0);
   });
   test("frozen user returns a committed quarantine and retries after unfreeze", async () => {
     const t = setup();
