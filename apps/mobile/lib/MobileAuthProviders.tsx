@@ -164,7 +164,13 @@ export function WorkosAuthProvider({
         provider?: "authkit" | "GoogleOAuth" | "AppleOAuth",
         screenHint?: "sign-in" | "sign-up"
       ) => signInWithWorkos(session, provider, screenHint),
-      signOut: async () => {
+      signOut: async (options?: { accountDeletionAccepted?: boolean }) => {
+        // Accepted deletion locks the account immediately; its server workflow
+        // owns revocation, so protected revocation actions are no longer usable.
+        if (options?.accountDeletionAccepted) {
+          await session.clear();
+          return;
+        }
         // Revoke on the server before clearing secure storage.
         // Keep credentials if the request fails.
         const token = await session.fetchAccessToken();
