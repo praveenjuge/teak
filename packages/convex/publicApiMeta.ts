@@ -199,7 +199,7 @@ export const v1CorsPreflight = httpAction(async () =>
   v1CorsPreflightResponse()
 );
 
-const readWorkosConnectClients = () => {
+export const readWorkosConnectClients = () => {
   const configured = {
     cli: env.WORKOS_CONNECT_CLI_CLIENT_ID,
     raycast: env.WORKOS_CONNECT_RAYCAST_CLIENT_ID,

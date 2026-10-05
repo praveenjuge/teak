@@ -3,13 +3,14 @@ import { GlobalRegistrator } from "@happy-dom/global-registrator";
 
 GlobalRegistrator.register({ url: "http://localhost:3000" });
 Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
-const { act, useState } = await import("react");
+const { act } = await import("react");
 const { createRoot } = await import("react-dom/client");
 const { ConvexProvider } = await import("convex/react");
 const { ConvexQueryCacheProvider } = await import(
   "convex-helpers/react/cache/provider"
 );
 const { SecuritySection } = await import("../SecuritySection");
+const { api } = await import("@teak/convex");
 const { createConvexTransport } = await import("./helpers/convexTransport");
 
 afterAll(async () => GlobalRegistrator.unregister());
@@ -18,13 +19,17 @@ afterAll(async () => GlobalRegistrator.unregister());
 // subscription; retry never renders devices; recovered app disconnect is unusable.
 test("device retry escapes a retained cached failure while apps remain usable", async () => {
   const transport = createConvexTransport();
+  transport.seed("oauthTokens:listOAuthConnections", [
+    { clientId: "fixture_app", name: "Fixture app", connectedAt: 1 },
+  ]);
+  transport.onCall(() => {
+    transport.reply("oauthTokens:listOAuthConnections", []);
+    return Promise.resolve(null);
+  });
   const container = document.createElement("div");
   document.body.append(container);
   const root = createRoot(container);
   function Fixture() {
-    const [connections, setConnections] = useState([
-      { clientId: "fixture_app", name: "Fixture app", connectedAt: 1 },
-    ]);
     return (
       <SecuritySection
         apiKeys={{
@@ -35,9 +40,17 @@ test("device retry escapes a retained cached failure while apps remain usable", 
           onRotateKey: async () => null,
         }}
         betterAuthIdentityKey="owner"
-        connections={connections}
+        connectionIdentity={{
+          provider: "betterauth",
+          key: "owner",
+          cacheKey: "fixture_apps",
+        }}
         onLoadMoreSessions={() => {}}
-        onRevokeConnection={async () => setConnections([])}
+        onRevokeConnection={async (target) =>
+          transport.client.action(api.oauthTokens.revokeOAuthConnection, {
+            clientId: target.provider === "betterauth" ? target.clientId : "",
+          })
+        }
         onRevokeSession={async () => {}}
         sessions={undefined}
         sessionsHasMore={false}

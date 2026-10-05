@@ -169,6 +169,7 @@ export default function ProfileSettingsPage() {
       accountLoading={settings.accountLoading}
       betterAuthIdentityKey={settings.betterAuthIdentityKey}
       cardCount={settings.cardCount}
+      connectionIdentity={settings.connectionIdentity}
       deleteDialogError={settings.deleteDialogError}
       deleteDialogOpen={settings.deleteDialogOpen}
       deleteLoading={settings.deleteLoading}
@@ -176,7 +177,6 @@ export default function ProfileSettingsPage() {
       exportState={settings.exportState}
       hasPremium={settings.hasPremium}
       keys={settings.keys}
-      oauthConnections={settings.oauthConnections}
       onCancelExport={settings.handleCancelExport}
       onCreateApiKey={settings.handleCreateApiKey}
       onCreateCustomerPortal={settings.handleCreateCustomerPortal}

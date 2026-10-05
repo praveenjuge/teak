@@ -389,7 +389,7 @@ export const getOAuthConsentRequest = query({
 });
 
 export const listOAuthConnections = query({
-  args: {},
+  args: { retryKey: v.optional(v.string()) },
   returns: v.array(oauthConnectionValidator),
   handler: async (ctx) => {
     // Settings can subscribe before the session token finishes hydrating.
