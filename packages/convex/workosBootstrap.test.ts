@@ -3,7 +3,7 @@ import workosTest from "@convex-dev/workos-authkit/test";
 import type { UserIdentity } from "convex/server";
 import { convexTest } from "convex-test";
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
-import { api, components, internal } from "./_generated/api";
+import { api, internal } from "./_generated/api";
 import type { Doc } from "./_generated/dataModel";
 import schema from "./schema";
 
@@ -25,7 +25,7 @@ const setup = () => {
 type Backend = ReturnType<typeof setup>;
 const signed = (t: Backend, overrides: Partial<UserIdentity> = {}) =>
   t.withIdentity({ ...claims, ...overrides });
-const profile = (
+const profile = async (
   t: Backend,
   overrides: {
     emailVerified?: boolean;
@@ -33,25 +33,31 @@ const profile = (
     email?: string;
   } = {}
 ) =>
-  t.mutation(components.workOSAuthKit.lib.onWebhookEvent, {
-    event: {
-      id: "component_profile",
-      event: "user.created",
-      createdAt: "2026-10-01T00:00:00.000Z",
-      data: {
-        id: "user_NEW",
+  t.run(async (ctx) => {
+    const rows = await ctx.db
+      .query("workosProfiles")
+      .withIndex("by_workosUserId", (q) => q.eq("workosUserId", "user_NEW"))
+      .take(2);
+    const fields = {
+      workosUserId: "user_NEW",
+      revision: (rows[0]?.revision ?? 0) + 1,
+      source: "event" as const,
+      providerUpdatedAt: "2026-10-01T00:00:00Z",
+      profile: {
         email: "new@example.com",
         emailVerified: true,
+        externalId: null,
         firstName: null,
         lastName: null,
         profilePictureUrl: null,
-        externalId: null,
-        createdAt: "2026-10-01T00:00:00.000Z",
-        updatedAt: "2026-10-01T00:00:00.000Z",
-        metadata: {},
         ...overrides,
       },
-    },
+    };
+    if (rows[0]) {
+      await ctx.db.patch(rows[0]._id, fields);
+    } else {
+      await ctx.db.insert("workosProfiles", fields);
+    }
   });
 const seed = (t: Backend, overrides: Partial<Doc<"users">> = {}) =>
   t.run((ctx) =>
@@ -267,7 +273,7 @@ describe("signed WorkOS bootstrap", () => {
     );
     expect(await signed(t).mutation(ensure, {})).toEqual({
       status: "quarantined",
-      reason: "workos_deleted_user",
+      reason: "profile_pending",
     });
     expect((await state(t)).users).toEqual([]);
     expect((await state(t)).jobs).toEqual([]);
@@ -281,7 +287,12 @@ describe("signed WorkOS bootstrap", () => {
       id: "ordered",
       event: "user.updated" as const,
       createdAt,
-      data: { id: "user_NEW", email: "new@example.com", emailVerified: true },
+      data: {
+        id: "user_NEW",
+        email: "new@example.com",
+        emailVerified: true,
+        updatedAt: "2026-10-01T00:00:00.000Z",
+      },
     };
     await t.mutation(internal.workosLifecycle.applyWorkosEvent, event);
     await t.mutation(internal.workosLifecycle.applyWorkosEvent, {
@@ -306,7 +317,12 @@ describe("signed WorkOS bootstrap", () => {
       id: "frozen_created",
       event: "user.created" as const,
       createdAt,
-      data: { id: "user_NEW", email: "new@example.com", emailVerified: true },
+      data: {
+        id: "user_NEW",
+        email: "new@example.com",
+        emailVerified: true,
+        updatedAt: "2026-10-01T00:00:00.000Z",
+      },
     };
     await t.mutation(internal.workosLifecycle.applyWorkosEvent, event);
     await t.mutation(internal.workosLifecycle.applyWorkosEvent, {
@@ -323,7 +339,7 @@ describe("signed WorkOS bootstrap", () => {
     vi.stubEnv("SIGNUPS_DISABLED", "false");
     expect(await signed(t).mutation(ensure, {})).toEqual({
       status: "quarantined",
-      reason: "equal_timestamp_conflict",
+      reason: "profile_pending",
     });
     expect((await state(t)).users).toEqual([]);
     expect((await state(t)).jobs).toEqual([]);
@@ -336,7 +352,12 @@ describe("signed WorkOS bootstrap", () => {
       id: "initial_verified",
       event: "user.created" as const,
       createdAt: "2026-10-01T00:00:00.000Z",
-      data: { id: "user_NEW", email: "new@example.com", emailVerified: true },
+      data: {
+        id: "user_NEW",
+        email: "new@example.com",
+        emailVerified: true,
+        updatedAt: "2026-10-01T00:00:00.000Z",
+      },
     };
     await t.mutation(internal.workosLifecycle.applyWorkosEvent, event);
     await t.mutation(internal.workosLifecycle.applyWorkosEvent, {
@@ -344,7 +365,11 @@ describe("signed WorkOS bootstrap", () => {
       id: "latest_unverified",
       event: "user.updated",
       createdAt: "2026-10-03T00:00:00.000Z",
-      data: { ...event.data, emailVerified: false },
+      data: {
+        ...event.data,
+        emailVerified: false,
+        updatedAt: "2026-10-03T00:00:00.000Z",
+      },
     });
     expect(
       await t.mutation(internal.workosLifecycle.applyWorkosEvent, {
@@ -352,12 +377,12 @@ describe("signed WorkOS bootstrap", () => {
         id: "stale_verified",
         event: "user.updated",
         createdAt: "2026-10-02T00:00:00.000Z",
+        data: { ...event.data, updatedAt: "2026-10-02T00:00:00.000Z" },
       })
     ).toEqual({ status: "stale" });
     vi.stubEnv("SIGNUPS_DISABLED", "false");
     expect(await signed(t).mutation(ensure, {})).toEqual({
-      status: "quarantined",
-      reason: "email_unverified",
+      status: "verify_email",
     });
     expect((await state(t)).users).toEqual([]);
     expect((await state(t)).jobs).toEqual([]);
@@ -369,17 +394,26 @@ describe("signed WorkOS bootstrap", () => {
       id: "unverified_signup",
       event: "user.created",
       createdAt: "2026-10-01T00:00:00.000Z",
-      data: { id: "user_NEW", email: "new@example.com", emailVerified: false },
+      data: {
+        id: "user_NEW",
+        email: "new@example.com",
+        emailVerified: false,
+        updatedAt: "2026-10-02T00:00:00.000Z",
+      },
     });
     expect(await signed(t).mutation(ensure, {})).toEqual({
-      status: "quarantined",
-      reason: "email_unverified",
+      status: "verify_email",
     });
     await t.mutation(internal.workosLifecycle.applyWorkosEvent, {
       id: "verified_later",
       event: "user.updated",
-      createdAt: "2026-10-02T00:00:00.000Z",
-      data: { id: "user_NEW", email: "new@example.com", emailVerified: true },
+      createdAt: "2026-10-03T00:00:00.000Z",
+      data: {
+        id: "user_NEW",
+        email: "new@example.com",
+        emailVerified: true,
+        updatedAt: "2026-10-03T00:00:00.000Z",
+      },
     });
     expect(await signed(t).mutation(ensure, {})).toMatchObject({
       status: "ok",
@@ -391,7 +425,7 @@ describe("signed WorkOS bootstrap", () => {
     { email: "changed@example.com", externalId: null },
     { email: "new@example.com", externalId: "unknown-owner" },
   ])(
-    "ordered profile mismatch cannot allocate from a stale component: %j",
+    "bootstrap uses current canonical email and rejects mismatched external binding: %j",
     async (latest) => {
       const t = setup();
       await profile(t);
@@ -399,20 +433,40 @@ describe("signed WorkOS bootstrap", () => {
         id: "newer_profile",
         event: "user.updated",
         createdAt: "2026-10-03T00:00:00.000Z",
-        data: { id: "user_NEW", emailVerified: true, ...latest },
+        data: {
+          id: "user_NEW",
+          emailVerified: true,
+          updatedAt: "2026-10-03T00:00:00.000Z",
+          ...latest,
+        },
       });
       await t.mutation(internal.workosLifecycle.applyWorkosEvent, {
         id: "old_profile",
         event: "user.updated",
         createdAt: "2026-10-02T00:00:00.000Z",
-        data: { id: "user_NEW", email: "new@example.com", emailVerified: true },
+        data: {
+          id: "user_NEW",
+          email: "new@example.com",
+          emailVerified: true,
+          updatedAt: "2026-10-02T00:00:00.000Z",
+        },
       });
-      expect(await signed(t).mutation(ensure, {})).toEqual({
-        status: "quarantined",
-        reason: "profile_pending",
-      });
-      expect((await state(t)).users).toEqual([]);
-      expect((await state(t)).jobs).toEqual([]);
+      const result = await signed(t).mutation(ensure, {});
+      if (latest.externalId === null) {
+        expect(result).toMatchObject({ status: "ok" });
+        expect((await state(t)).users).toMatchObject([
+          { email: "changed@example.com", workosEmail: "changed@example.com" },
+        ]);
+        expect((await state(t)).users).toHaveLength(1);
+        expect((await state(t)).jobs).toHaveLength(2);
+      } else {
+        expect(result).toEqual({
+          status: "quarantined",
+          reason: "profile_pending",
+        });
+        expect((await state(t)).users).toEqual([]);
+        expect((await state(t)).jobs).toEqual([]);
+      }
     }
   );
   test("bootstrap, created webhook and import converge on one permanent owner", async () => {
@@ -424,7 +478,12 @@ describe("signed WorkOS bootstrap", () => {
         id: "racing_created",
         event: "user.created",
         createdAt: "2026-10-01T00:00:00.000Z",
-        data: { id: "user_NEW", email: "new@example.com", emailVerified: true },
+        data: {
+          id: "user_NEW",
+          email: "new@example.com",
+          emailVerified: true,
+          updatedAt: "2026-10-01T00:00:00.000Z",
+        },
       }),
       t.mutation(internal.workosUsers.linkWorkosUser, {
         workosUserId: "user_NEW",

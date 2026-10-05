@@ -91,7 +91,17 @@ export const linkWorkosUser = internalMutation({
         q.eq("workosUserId", args.workosUserId).eq("type", "user.deleted")
       )
       .first();
+    const providerStates = await ctx.db
+      .query("workosProfiles")
+      .withIndex("by_workosUserId", (q) =>
+        q.eq("workosUserId", args.workosUserId)
+      )
+      .take(2);
+    if (providerStates.length > 1) {
+      return quarantine("duplicate_mapping");
+    }
     if (
+      providerStates[0]?.deletedAt !== undefined ||
       providerDeletion ||
       providerRows.some((row) => row.workosDeletedAt !== undefined)
     ) {
@@ -146,23 +156,24 @@ export const linkWorkosUser = internalMutation({
         ) {
           throw new Error("Invalid WorkOS creation input");
         }
-        const previous = await ctx.db
-          .query("workosEvents")
-          .withIndex("by_workosUserId_and_createdAt", (q) =>
+        const canonical = await ctx.db
+          .query("workosProfiles")
+          .withIndex("by_workosUserId", (q) =>
             q.eq("workosUserId", args.workosUserId)
           )
-          .order("desc")
-          .first();
+          .take(2);
+        const provider = canonical.length === 1 ? canonical[0] : undefined;
         const currentVerifiedProfile =
-          previous?.email === email &&
-          previous.emailVerified === true &&
-          previous.externalId === null;
-        // An unmapped conflict or unverified event has no mirror to demote.
-        // Equal-time conflicts need explicit resolution. Verification can recover
-        // only with a newer ordered receipt matching the current profile.
+          provider?.deletedAt === undefined &&
+          provider?.providerUpdatedAt !== undefined &&
+          provider.profile?.email === email &&
+          provider.profile.emailVerified === true &&
+          provider.profile.externalId === null;
         for (const reason of [
           "equal_timestamp_conflict",
-          "email_unverified",
+          "duplicate_mapping",
+          "external_id_mismatch",
+          "link_conflict",
         ] as const) {
           const conflict = await ctx.db
             .query("migrationQuarantine")
@@ -173,16 +184,13 @@ export const linkWorkosUser = internalMutation({
                 .eq("resolvedAt", undefined)
             )
             .first();
-          if (
-            conflict &&
-            !(reason === "email_unverified" && currentVerifiedProfile)
-          ) {
+          if (conflict) {
             return quarantine(reason);
           }
         }
-        if (previous?.email !== undefined && !currentVerifiedProfile) {
+        if (!currentVerifiedProfile) {
           return quarantine(
-            previous.emailVerified === false
+            provider?.profile?.emailVerified === false
               ? "email_unverified"
               : "profile_pending"
           );
@@ -197,7 +205,9 @@ export const linkWorkosUser = internalMutation({
           workosUserId: args.workosUserId,
           workosEmail: email,
           workosEmailVerified: true,
-          ...(previous ? { lastWorkosEventAt: previous.createdAt } : {}),
+          ...(provider?.lastEventAt === undefined
+            ? {}
+            : { lastWorkosEventAt: provider.lastEventAt }),
         });
         const teakUserId = `teak_${ownerId}`;
         const collision = await ctx.db

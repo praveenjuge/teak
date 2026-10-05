@@ -90,6 +90,23 @@ async function setup() {
       workosEmailVerified: true,
     })
   );
+  await t.run((ctx) =>
+    ctx.db.insert("workosProfiles", {
+      workosUserId: userId,
+      teakUserId: ownerId,
+      providerUpdatedAt: "2026-10-04T00:00:00Z",
+      revision: 1,
+      source: "event",
+      profile: {
+        email: "provider@example.test",
+        emailVerified: true,
+        externalId: ownerId,
+        firstName: "Current",
+        lastName: "Profile",
+        profilePictureUrl: null,
+      },
+    })
+  );
   const own = await t.run((ctx) =>
     ctx.db.insert("cards", {
       userId: ownerId,
@@ -224,8 +241,8 @@ describe("WorkOS REST and MCP token boundary", () => {
           id: userId,
           email: "provider@example.test",
           emailVerified: true,
-          firstName: "Current",
-          lastName: "Profile",
+          firstName: "Stale component",
+          lastName: "Cache",
           metadata: {},
           createdAt: "2026-10-04T00:00:00.000Z",
           updatedAt: "2026-10-04T00:00:00.000Z",

@@ -136,7 +136,7 @@ export const readWorkosProfile = (
   ctx: Pick<ActionCtx, "runQuery">,
   workosUserId: string
 ) =>
-  ctx.runQuery(components.workOSAuthKit.lib.getAuthUser, { id: workosUserId });
+  ctx.runQuery(internal.workosProfileRead.getProfile, { workosUserId });
 
 // API keys keep their permanent Teak owner in both modes. Under WorkOS they
 // still require the same mapped, verified and undeleted vault boundary.
@@ -353,7 +353,7 @@ export async function getSessionProfile(
       }
     );
     // Match the REST profile policy: email is the WorkOS-synced mirror, while
-    // display fields come from the AuthKit component. Never fall back to BA.
+    // display fields come from the canonical provider profile. Never fall back to BA.
     if (!provider || typeof mirror?.workosEmail !== "string") {
       return null;
     }

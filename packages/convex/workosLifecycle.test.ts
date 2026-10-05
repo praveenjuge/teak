@@ -206,7 +206,8 @@ describe("ordered canonical WorkOS lifecycle", () => {
       lastWorkosEventAt: Date.parse(time(3)),
     });
     expect(await t.mutation(apply, event("evt_old", 2))).toEqual({
-      status: "stale",
+      status: "quarantined",
+      reason: "profile_pending",
     });
     expect((await snapshot(t)).users[0].workosEmailVerified).toBe(false);
   });
@@ -297,7 +298,7 @@ describe("ordered canonical WorkOS lifecycle", () => {
     await seed(t);
     expect(await t.mutation(apply, event("evt_equal", 2))).toEqual({
       status: "quarantined",
-      reason: "equal_timestamp_conflict",
+      reason: "external_id_mismatch",
     });
     expect((await snapshot(t)).users[0].workosUserId).toBeUndefined();
   });
@@ -424,7 +425,7 @@ describe("ordered canonical WorkOS lifecycle", () => {
     ]);
     expect(
       after.users.filter((row) => row.workosDeletedAt !== undefined)
-    ).toHaveLength(2);
+    ).toHaveLength(3);
     expect(after.scheduled).toEqual([]);
     expect(await t.mutation(apply, event("evt_after_duplicates", 2))).toEqual({
       status: "ignored_deleted",
@@ -582,7 +583,12 @@ describe("new WorkOS lifecycle owners", () => {
     type: "user.created" | "user.updated" = "user.created"
   ) => ({
     ...event(id, seconds, type),
-    data: { id: "user_NEW", email: "new@example.com", emailVerified: true },
+    data: {
+      id: "user_NEW",
+      email: "new@example.com",
+      emailVerified: true,
+      updatedAt: time(seconds),
+    },
   });
   test("created event creates once and preserves permanent ownership on replay", async () => {
     const t = setup();
@@ -642,7 +648,12 @@ describe("new WorkOS lifecycle owners", () => {
     await t.mutation(apply, freshEvent("initial_created"));
     await t.mutation(apply, {
       ...freshEvent("newer_update", 3, "user.updated"),
-      data: { id: "user_NEW", email: "new@example.com", emailVerified: false },
+      data: {
+        id: "user_NEW",
+        email: "new@example.com",
+        emailVerified: false,
+        updatedAt: time(3),
+      },
     });
     const before = await snapshot(t);
     expect(await t.mutation(apply, freshEvent("late_created", 2))).toEqual({

@@ -2,6 +2,10 @@ import { defineSchema, defineTable } from "convex/server";
 import { v } from "convex/values";
 import { FILE_KINDS } from "./shared/fileFormats";
 import { LINK_CATEGORIES } from "./shared/linkCategories";
+import {
+  workosProfileFields,
+  workosReconciliationRunFields,
+} from "./workosProfileFields";
 
 // Card types as literals for validator
 export const cardTypes = [
@@ -520,6 +524,22 @@ export default defineSchema({
     .index("by_eventId", ["eventId"])
     .index("by_workosUserId_and_type", ["workosUserId", "type"])
     .index("by_workosUserId_and_createdAt", ["workosUserId", "createdAt"]),
+  workosProfiles: defineTable(workosProfileFields).index("by_workosUserId", [
+    "workosUserId",
+  ]),
+  workosReconciliationRuns: defineTable(workosReconciliationRunFields)
+    .index("by_runId", ["runId"])
+    .index("by_environmentId_and_updatedAt", ["environmentId", "updatedAt"])
+    .index("by_nextAttemptAt", ["nextAttemptAt"]),
+  workosReconciliationCursors: defineTable({
+    runId: v.id("workosReconciliationRuns"),
+    phase: v.union(
+      v.literal("events"),
+      v.literal("provider"),
+      v.literal("owners")
+    ),
+    cursor: v.string(),
+  }).index("by_runId_and_phase_and_cursor", ["runId", "phase", "cursor"]),
   workosConsents: defineTable({
     consentId: v.string(),
     userId: v.string(),
