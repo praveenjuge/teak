@@ -4,7 +4,6 @@ import type { Doc } from "./_generated/dataModel";
 import { internalMutation, internalQuery } from "./_generated/server";
 import { workflow } from "./workflows/manager";
 import {
-  currentWorkosDeletionTarget,
   expectedWorkosDeletionResolution,
   sameWorkosDeletionTarget,
 } from "./workosDeletionCompletion";
@@ -147,13 +146,10 @@ export const finalize = internalMutation({
           q.eq("workosUserId", state.workosUserId)
         )
         .take(2);
-      const target = await currentWorkosDeletionTarget();
       if (
         providers.length !== 1 ||
         providers[0]._id !== owner._id ||
-        !state.workosTarget ||
-        !target ||
-        !sameWorkosDeletionTarget(state.workosTarget, target)
+        !state.workosTarget
       ) {
         throw new Error("deletion_workos_target_unavailable");
       }
@@ -170,7 +166,9 @@ export const finalize = internalMutation({
       ) {
         throw new Error("deletion_completion_conflict");
       }
-      // Stage six is reached only after storage and both providers finish.
+      // Stage six durably confirms storage and both providers finished under
+      // the state's pinned target. Credential rotation cannot undo completion;
+      // current target pins are checked separately before settling any receipt.
       // Commit the retained proof with the owner tombstone, before bounded
       // receipt settlement; retries cannot mint a different completion.
       const completedAt = previous?.completedAt ?? Date.now();

@@ -59,7 +59,7 @@ export const resolveRetiredFixture = internalMutation({
     ) {
       throw refused();
     }
-    await assertImportBinding(args, false);
+    await assertImportBinding(args);
     if (
       !(
         /^event_[A-Z0-9]{26}$/.test(args.deletedEventId) &&

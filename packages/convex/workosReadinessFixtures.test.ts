@@ -31,6 +31,8 @@ const resolve = makeFunctionReference<
   { resolvedAt: number; alreadyResolved: boolean }
 >("migration/workosReadinessFixtures:resolveRetiredFixture");
 beforeEach(() => {
+  vi.stubEnv("AUTH_PRIMARY", "betterauth");
+  vi.stubEnv("SIGNUPS_DISABLED", "true");
   vi.stubEnv("CONVEX_CLOUD_URL", fixture.cloudUrl);
   vi.stubEnv("CONVEX_SITE_URL", fixture.siteUrl);
   vi.stubEnv("WORKOS_ENVIRONMENT_ID", fixture.environmentId);
@@ -556,3 +558,21 @@ test("strict retry revalidates the deletion audit rather than trusting paired re
   );
   await expect(t.mutation(resolve, args)).rejects.toThrow();
 });
+
+test.each([
+  { key: "AUTH_PRIMARY", value: "workos" },
+  { key: "SIGNUPS_DISABLED", value: "false" },
+])(
+  "refuses fixture fence resolution when writer admission $key=$value",
+  async ({ key, value }) => {
+    const { t, rows, args } = await setup();
+    vi.stubEnv(key, value);
+    await expect(t.mutation(resolve, args)).rejects.toThrow();
+    expect(
+      (await t.run((ctx) => ctx.db.get(rows.quarantineId)))?.resolvedAt
+    ).toBeUndefined();
+    expect(
+      (await t.run((ctx) => ctx.db.get(rows.auditId)))?.resolvedAt
+    ).toBeUndefined();
+  }
+);

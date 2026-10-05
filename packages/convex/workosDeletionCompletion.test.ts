@@ -138,12 +138,17 @@ test.each([
   expect((await t.run((ctx) => ctx.db.get(id)))?.resolvedAt).toBeUndefined();
 });
 test("key rotation blocks new receipt settlement without erasing completed proof", async () => {
-  const { t, receipt, binding } = await fixture();
+  const { t, receipt, binding, ownerId } = await fixture();
   await t.mutation(internal.accountDeletionJobs.finalize, binding);
+  const proof = (await t.run((ctx) => ctx.db.get(ownerId)))
+    ?.workosDeletionCompletion;
   vi.stubEnv("WORKOS_API_KEY", "rotated-key");
   expect(
     await t.run((ctx) => expectedWorkosDeletionResolution(ctx, receipt))
   ).toBeNull();
+  expect(
+    (await t.run((ctx) => ctx.db.get(ownerId)))?.workosDeletionCompletion
+  ).toEqual(proof);
 });
 test.each([0, 3, 4, 5])(
   "unfinished cleanup stage %s cannot mint completion",
@@ -299,18 +304,26 @@ test.each([
   "issuer",
   "credentialFingerprint",
 ] as const)(
-  "finalize refuses changed workflow %s binding without minting proof",
+  "finalize refuses %s conflict with already retained completion proof",
   async (pin) => {
-    const { t, binding, target, stateId, ownerId } = await fixture();
+    const { t, binding, target, stateId, ownerId, receipt } = await fixture();
+    await t.run(async (ctx) => {
+      for (let i = 0; i < 101; i++) {
+        await ctx.db.insert("migrationQuarantine", receipt);
+      }
+    });
+    await t.mutation(internal.accountDeletionJobs.finalize, binding);
+    const proof = (await t.run((ctx) => ctx.db.get(ownerId)))
+      ?.workosDeletionCompletion;
     await t.run((ctx) =>
       ctx.db.patch(stateId, { workosTarget: { ...target, [pin]: "wrong" } })
     );
     await expect(
       t.mutation(internal.accountDeletionJobs.finalize, binding)
-    ).rejects.toThrow("deletion_workos_target_unavailable");
+    ).rejects.toThrow("deletion_completion_conflict");
     expect(
       (await t.run((ctx) => ctx.db.get(ownerId)))?.workosDeletionCompletion
-    ).toBeUndefined();
+    ).toEqual(proof);
     expect(await t.run((ctx) => ctx.db.get(stateId))).not.toBeNull();
   }
 );
@@ -359,10 +372,17 @@ test("redrive resumes failed detached settlement after the workflow completed", 
   await t.mutation(internal.accountDeletionJobs.finalize, binding);
   const proof = (await t.run((ctx) => ctx.db.get(ownerId)))
     ?.workosDeletionCompletion;
-  vi.stubEnv("WORKOS_API_KEY", "temporarily-changed-key");
+  const conflictingOwner = await t.run((ctx) =>
+    ctx.db.insert("users", {
+      teakUserId: "conflicting-owner",
+      workosUserId: "user_DELETE",
+      email: "conflict@example.com",
+      emailVerified: true,
+    })
+  );
   await t.finishAllScheduledFunctions(() => vi.runAllTimers());
   expect(await t.run((ctx) => ctx.db.get(stateId))).not.toBeNull();
-  vi.stubEnv("WORKOS_API_KEY", "test-key");
+  await t.run((ctx) => ctx.db.delete(conflictingOwner));
   await t.mutation(internal.accountDeletionJobs.redrive, {});
   await t.finishAllScheduledFunctions(() => vi.runAllTimers());
   expect(await t.run((ctx) => ctx.db.get(stateId))).toBeNull();
@@ -377,4 +397,45 @@ test("redrive resumes failed detached settlement after the workflow completed", 
         .take(10)
     )
   ).toMatchObject([{ _id: unrelated, reason: "verification_conflict" }]);
+});
+
+test("credential rotation after provider cleanup cannot block terminal completion", async () => {
+  const { t, receipt, binding, stateId, ownerId, target } = await fixture(5);
+  const receiptId = await t.run(async (ctx) => {
+    await ctx.db.patch(stateId, { stage: 6 });
+    return await ctx.db.insert("migrationQuarantine", receipt);
+  });
+  vi.stubEnv("WORKOS_API_KEY", "rotated-after-provider-cleanup");
+  await t.mutation(internal.accountDeletionJobs.finalize, binding);
+  expect(await t.run((ctx) => ctx.db.get(stateId))).toBeNull();
+  expect(await t.run((ctx) => ctx.db.get(ownerId))).toMatchObject({
+    deletedAt: expect.any(Number),
+    workosDeletionCompletion: { version: 1, stateId, generation: 1, target },
+  });
+  expect(
+    (await t.run((ctx) => ctx.db.get(receiptId)))?.resolvedAt
+  ).toBeUndefined();
+  expect(
+    await t.run((ctx) => expectedWorkosDeletionResolution(ctx, receipt))
+  ).toBeNull();
+});
+
+test("retained completion rejects changed workflow start time across receipt pages", async () => {
+  const { t, receipt, binding, stateId, ownerId } = await fixture();
+  await t.run(async (ctx) => {
+    for (let i = 0; i < 101; i++) {
+      await ctx.db.insert("migrationQuarantine", receipt);
+    }
+  });
+  await t.mutation(internal.accountDeletionJobs.finalize, binding);
+  const proof = (await t.run((ctx) => ctx.db.get(ownerId)))
+    ?.workosDeletionCompletion;
+  await t.run((ctx) => ctx.db.patch(stateId, { startedAt: 1001 }));
+  await expect(
+    t.mutation(internal.accountDeletionJobs.finalize, binding)
+  ).rejects.toThrow("deletion_completion_conflict");
+  expect(
+    (await t.run((ctx) => ctx.db.get(ownerId)))?.workosDeletionCompletion
+  ).toEqual(proof);
+  expect(await t.run((ctx) => ctx.db.get(stateId))).not.toBeNull();
 });
