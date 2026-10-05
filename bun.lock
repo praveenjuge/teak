@@ -184,8 +184,11 @@
         "teak-sdk": "1.0.79",
       },
       "devDependencies": {
+        "@happy-dom/global-registrator": "20.14.5",
         "@types/node": "^26.2.0",
         "@types/react": "19.2.18",
+        "react": "19.2.8",
+        "react-dom": "19.2.8",
         "typescript": "^6.0.3",
         "typescript-eslint": "^8.66.0",
       },

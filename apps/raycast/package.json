@@ -31,7 +31,10 @@
     "@types/node": "^26.2.0",
     "@types/react": "19.2.18",
     "typescript": "^6.0.3",
-    "typescript-eslint": "^8.66.0"
+    "typescript-eslint": "^8.66.0",
+    "@happy-dom/global-registrator": "20.14.5",
+    "react-dom": "19.2.8",
+    "react": "19.2.8"
   },
   "icon": "icon.png",
   "ai": {
