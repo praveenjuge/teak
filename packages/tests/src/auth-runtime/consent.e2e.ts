@@ -110,9 +110,9 @@ for (const failure of [
               ).toBe(registered.challenge);
             } else {
               expect(form.get("grant_type")).toBe("refresh_token");
-              expect(form.get("refresh_token")).toMatch(
-                new RegExp(`^${id}:refresh:`)
-              );
+              expect(
+                form.get("refresh_token")?.startsWith(`${id}:refresh:`)
+              ).toBe(true);
             }
             observation.resource = registered.resource;
             return json(grant(id, registered));

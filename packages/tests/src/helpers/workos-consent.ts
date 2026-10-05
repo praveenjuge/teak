@@ -16,7 +16,7 @@ interface Grant {
 }
 
 async function readJson(url: string, init?: RequestInit) {
-  const response = await fetch(url, {
+  const response = await fetch(validateOAuthUrl(url).href, {
     ...init,
     redirect: "error",
     signal: AbortSignal.timeout(15_000),
