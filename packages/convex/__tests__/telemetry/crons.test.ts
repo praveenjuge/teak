@@ -7,6 +7,7 @@ import {
   CRON_MONITORS,
   cleanupExpiredIdempotency,
   cleanupExpiredNativeAuthCodes,
+  workosDailyReconciliationAudit,
 } from "../../telemetry/crons";
 
 describe("Sentry cron monitoring", () => {
@@ -100,6 +101,10 @@ describe("Sentry cron monitoring", () => {
         slug: "redrive-account-deletion",
         failureIssueThreshold: 2,
       }),
+      expect.objectContaining({
+        schedule: "30 4 * * *",
+        slug: "workos-daily-reconciliation-audit",
+      }),
     ]);
   });
 
@@ -122,14 +127,39 @@ describe("Sentry cron monitoring", () => {
     expect(tolerant).toEqual(subHourly);
   });
 
-  test("routes all twelve schedules through monitored Node actions", () => {
+  test("routes all thirteen schedules through monitored Node actions", () => {
     const source = readFileSync(
       resolve(import.meta.dir, "../../crons.ts"),
       "utf8"
     );
-    expect(source.match(/crons\.cron\(/gu)).toHaveLength(12);
-    expect(source.match(/telemetry\.crons\./gu)).toHaveLength(12);
+    expect(source.match(/crons\.cron\(/gu)).toHaveLength(13);
+    expect(source.match(/telemetry\.crons\./gu)).toHaveLength(13);
     expect(source).not.toContain("crons.daily(");
     expect(source).not.toContain("crons.interval(");
   });
 });
+
+test.each([
+  "failed_requires_operator",
+  "repair_active_requires_operator",
+  "event_retention_gap_requires_operator",
+])("daily audit monitoring reports %s as a failure", async (status) => {
+  await expect(
+    workosDailyReconciliationAudit._handler(
+      { runAction: async () => ({ status }) },
+      {}
+    )
+  ).rejects.toThrow(status);
+});
+
+test.each(["disabled", "resumed", "already_dispatched", "admitted"])(
+  "daily audit monitoring accepts scheduler status %s",
+  async (status) => {
+    expect(
+      await workosDailyReconciliationAudit._handler(
+        { runAction: async () => ({ status }) },
+        {}
+      )
+    ).toBeNull();
+  }
+);

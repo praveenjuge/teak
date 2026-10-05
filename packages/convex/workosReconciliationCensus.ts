@@ -164,11 +164,12 @@ export const checkpoint = internalMutation({
     }
     const counts = { ...(run.censusCounts ?? {}) };
     const section = run.censusSection ?? "users";
-    const page = await { users, betterauth, quarantine }[section](
-      ctx,
-      run,
-      counts
-    );
+    const page =
+      section === "users"
+        ? await users(ctx, run, counts)
+        : section === "betterauth"
+          ? await betterauth(ctx, run, counts)
+          : await quarantine(ctx, run, counts);
     if (
       !page.isDone &&
       (!page.continueCursor || page.continueCursor === run.censusCursor)

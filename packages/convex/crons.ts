@@ -7,7 +7,7 @@ const crons = cronJobs();
 crons.cron(
   "workos-daily-reconciliation-audit",
   "30 4 * * *",
-  internal.workosReconciliationSchedule.dailyAudit,
+  internal.telemetry.crons.workosDailyReconciliationAudit,
   {}
 );
 
