@@ -219,6 +219,43 @@ describe("durable deletion admission and tombstones", () => {
       });
     }
   );
+  test.each([
+    "..",
+    "user_../OTHER",
+    "user_A%2F..",
+    "https://attacker.invalid/",
+  ])(
+    "application revocation rejects malformed user ID %s before network access",
+    async (workosUserId) => {
+      const { t, signed } = await fixture();
+      await signed.mutation(api.accountDeletion.deleteMyAccount, {});
+      const state = await t.run((ctx) =>
+        ctx.db.query("accountDeletionStates").unique()
+      );
+      await t.run(async (ctx) => {
+        const owner = await ctx.db.query("users").unique();
+        await ctx.db.patch(owner!._id, { workosUserId });
+        await ctx.db.patch(state!._id, { stage: 2, workosUserId });
+      });
+      const requests: string[] = [];
+      vi.stubGlobal("fetch", (input: string | URL | Request) => {
+        requests.push(input instanceof Request ? input.url : String(input));
+        return Response.json({ data: [] });
+      });
+      await expect(
+        t.action(internal.accountDeletionActions.runStage, {
+          stateId: state!._id,
+          generation: 1,
+          stage: 2,
+        })
+      ).rejects.toThrow("deletion_workos_user_id_invalid");
+      expect(requests).toEqual([]);
+      expect(await t.run((ctx) => ctx.db.get(state!._id))).toMatchObject({
+        stage: 2,
+        workosUserId,
+      });
+    }
+  );
   test("application revocation yields between bounded provider pages", async () => {
     const { t, signed } = await fixture();
     await signed.mutation(api.accountDeletion.deleteMyAccount, {});

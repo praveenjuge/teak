@@ -15,6 +15,9 @@ import { withBackendSpan } from "./telemetry/sentry";
 const PROVIDER_DELETE_PAGE_SIZE = 10;
 
 const boundWorkos = (state: Doc<"accountDeletionStates">) => {
+  if (!(state.workosUserId && /^user_[A-Za-z0-9]+$/.test(state.workosUserId))) {
+    throw new Error("deletion_workos_user_id_invalid");
+  }
   const target = state.workosTarget;
   if (
     !target ||

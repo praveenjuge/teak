@@ -528,6 +528,35 @@ export default defineSchema({
   workosProfiles: defineTable(workosProfileFields).index("by_workosUserId", [
     "workosUserId",
   ]),
+  workosImportLeases: defineTable({
+    scope: v.literal("management_import"),
+    generation: v.number(),
+    holder: v.string(),
+    runId: v.string(),
+    environmentId: v.string(),
+    clientId: v.string(),
+    apiKeyFingerprint: v.string(),
+    admittedAt: v.number(),
+    heartbeatAt: v.number(),
+    status: v.union(
+      v.literal("active"),
+      v.literal("uncertain"),
+      v.literal("released")
+    ),
+    remoteIntent: v.optional(
+      v.object({
+        kind: v.union(
+          v.literal("create"),
+          v.literal("update"),
+          v.literal("delete")
+        ),
+        teakUserId: v.string(),
+        sourceVersion: v.string(),
+        startedAt: v.number(),
+      })
+    ),
+    lastAcknowledgedAt: v.optional(v.number()),
+  }).index("by_scope", ["scope"]),
   workosReconciliationRuns: defineTable(workosReconciliationRunFields)
     .index("by_runId", ["runId"])
     .index("by_environmentId_and_updatedAt", ["environmentId", "updatedAt"])
@@ -616,28 +645,53 @@ export default defineSchema({
   accountDeletionStates: defineTable({
     userId: v.string(),
     startedAt: v.number(),
-    initiationProvider: v.optional(v.union(v.literal("betterauth"), v.literal("workos"))),
+    initiationProvider: v.optional(
+      v.union(v.literal("betterauth"), v.literal("workos"))
+    ),
     betterAuthUserId: v.optional(v.string()),
     workosUserId: v.optional(v.string()),
-    workosTarget: v.optional(v.object({ environmentId: v.string(), clientId: v.string(), issuer: v.string(), credentialFingerprint: v.string() })),
+    workosTarget: v.optional(
+      v.object({
+        environmentId: v.string(),
+        clientId: v.string(),
+        issuer: v.string(),
+        credentialFingerprint: v.string(),
+      })
+    ),
     stage: v.optional(v.number()),
     providerSessionCursor: v.optional(v.string()),
     localConsentCursor: v.optional(v.string()),
-    writerTable: v.optional(v.union(v.literal("importJobs"), v.literal("exportJobs"))),
+    writerTable: v.optional(
+      v.union(v.literal("importJobs"), v.literal("exportJobs"))
+    ),
     writerCursor: v.optional(v.string()),
     writersPrepared: v.optional(v.boolean()),
-    storageProgress: v.optional(v.object({ kind: v.union(v.literal("cards"), v.literal("imports"), v.literal("exports"), v.literal("uploads"), v.literal("objects")), fingerprint: v.string(), offset: v.number() })),
+    storageProgress: v.optional(
+      v.object({
+        kind: v.union(
+          v.literal("cards"),
+          v.literal("imports"),
+          v.literal("exports"),
+          v.literal("uploads"),
+          v.literal("objects")
+        ),
+        fingerprint: v.string(),
+        offset: v.number(),
+      })
+    ),
     workflowId: v.optional(v.string()),
     generation: v.optional(v.number()),
     nextAttemptAt: v.optional(v.number()),
     failureCode: v.optional(v.string()),
-  }).index("by_userId", ["userId"])
+  })
+    .index("by_userId", ["userId"])
     .index("by_nextAttemptAt", ["nextAttemptAt"]),
   accountStorageObjects: defineTable({
     userId: v.string(),
     key: v.string(),
     exportJobId: v.optional(v.id("exportJobs")),
-  }).index("by_userId_and_key", ["userId", "key"])
+  })
+    .index("by_userId_and_key", ["userId", "key"])
     .index("by_key", ["key"])
     .index("by_exportJobId", ["exportJobId"]),
   cardSearchDocuments: defineTable({

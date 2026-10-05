@@ -21,6 +21,8 @@ export default defineConfig({
       "./workosProfileApply.test.ts",
       "./workosProfileRead.test.ts",
       "./workosE2eState.test.ts",
+      "./workosImportSource.test.ts",
+      "./workosRollbackPlan.test.ts",
       "./workosE2eHttp.test.ts",
       "./workosReconciliation.test.ts",
       "./workosReconciliationCensus.test.ts",

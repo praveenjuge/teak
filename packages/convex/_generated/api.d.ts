@@ -90,6 +90,8 @@ import type * as migration_exportBetterAuth from "../migration/exportBetterAuth.
 import type * as migration_identityTable from "../migration/identityTable.js";
 import type * as migration_passwordHash from "../migration/passwordHash.js";
 import type * as migration_readiness from "../migration/readiness.js";
+import type * as migration_workosImportSource from "../migration/workosImportSource.js";
+import type * as migration_workosRollbackPlan from "../migration/workosRollbackPlan.js";
 import type * as migration_workosReadiness from "../migration/workosReadiness.js";
 import type * as oauthClients from "../oauthClients.js";
 import type * as oauthRevocation from "../oauthRevocation.js";
@@ -314,6 +316,8 @@ declare const fullApi: ApiFromModules<{
   "migration/identityTable": typeof migration_identityTable;
   "migration/passwordHash": typeof migration_passwordHash;
   "migration/readiness": typeof migration_readiness;
+  "migration/workosImportSource": typeof migration_workosImportSource;
+  "migration/workosRollbackPlan": typeof migration_workosRollbackPlan;
   "migration/workosReadiness": typeof migration_workosReadiness;
   oauthClients: typeof oauthClients;
   oauthRevocation: typeof oauthRevocation;
