@@ -5,13 +5,20 @@ import { type PublicAuthMode, validateAuthMode } from "./auth-mode";
 import { getConvexUrl } from "./public-env";
 
 export async function readAuthMode(): Promise<PublicAuthMode> {
-  const client = new ConvexHttpClient(getConvexUrl(), {
-    fetch: ((input, init) =>
-      fetch(input, {
+  const backend = getConvexUrl();
+  const endpoint = new URL("/api/query", backend).toString();
+  const client = new ConvexHttpClient(backend, {
+    fetch: ((input, init) => {
+      if (typeof input !== "string" || input !== endpoint) {
+        throw new Error("Unexpected authentication configuration endpoint.");
+      }
+      return fetch(endpoint, {
         ...init,
         cache: "no-store",
+        redirect: "error",
         signal: AbortSignal.timeout(10_000),
-      })) as typeof fetch,
+      });
+    }) as typeof fetch,
   });
   return validateAuthMode(await client.query(api.auth.getAuthMode, {}));
 }

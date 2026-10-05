@@ -22,7 +22,7 @@ async function activeHandler(request: Request, method: "GET" | "POST") {
       { status: 403, headers: { "Cache-Control": "no-store" } }
     );
   }
-  return handler[method](request);
+  return method === "GET" ? handler.GET(request) : handler.POST(request);
 }
 
 export function GET(request: Request) {
