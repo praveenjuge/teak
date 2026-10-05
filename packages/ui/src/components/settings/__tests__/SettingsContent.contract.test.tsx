@@ -34,7 +34,6 @@ const baseProps = {
   exportState: { job: null, canStartNew: true, quotaResetMs: 0 },
   hasPremium: false,
   keys: [],
-  oauthConnections: [],
   sessions: [],
   sessionsHasMore: false,
   sessionsLoadingMore: false,
@@ -80,9 +79,9 @@ describe("SettingsContent", () => {
       <SettingsContent
         {...baseProps}
         accountLoading={false}
+        connectionIdentity={undefined}
         exportState={undefined}
         keys={undefined}
-        oauthConnections={undefined}
       />
     );
 

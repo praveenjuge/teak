@@ -127,7 +127,10 @@ const connectionNames: Record<string, string> = {
 
 // Pagination preserves empty pages of revoked records; clients must honor isDone.
 export const listConnections = query({
-  args: { paginationOpts: paginationOptsValidator },
+  args: {
+    paginationOpts: paginationOptsValidator,
+    retryKey: v.optional(v.string()),
+  },
   returns: v.object({
     page: v.array(connectionValidator),
     isDone: v.boolean(),

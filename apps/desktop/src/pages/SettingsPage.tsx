@@ -36,6 +36,7 @@ export function SettingsPage({ onNavigateBack }: SettingsPageProps) {
         accountLoading={settings.accountLoading}
         betterAuthIdentityKey={settings.betterAuthIdentityKey}
         cardCount={settings.cardCount}
+        connectionIdentity={settings.connectionIdentity}
         deleteDialogError={settings.deleteDialogError}
         deleteDialogOpen={settings.deleteDialogOpen}
         deleteLoading={settings.deleteLoading}
@@ -43,7 +44,6 @@ export function SettingsPage({ onNavigateBack }: SettingsPageProps) {
         exportState={settings.exportState}
         hasPremium={settings.hasPremium}
         keys={settings.keys}
-        oauthConnections={settings.oauthConnections}
         onCancelExport={settings.handleCancelExport}
         onCreateApiKey={settings.handleCreateApiKey}
         onCreateCustomerPortal={settings.handleCreateCustomerPortal}
