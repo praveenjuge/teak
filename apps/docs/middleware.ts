@@ -1,11 +1,12 @@
 import { rewrite } from "@vercel/functions";
 import { resolveMarkdownRequest } from "./lib/markdown-not-found";
 
-// Everything except build output and static files. Requests that do not ask
-// for Markdown return immediately, so ordinary traffic is unaffected.
+// Everything except build output, static files, and the /api, /mcp and
+// /.well-known routes that vercel.json proxies to Convex. Requests that do
+// not ask for Markdown return immediately, so ordinary traffic is unaffected.
 export const config = {
   matcher: [
-    "/((?!_next/|_vercel/|.*\\.(?:avif|css|gif|ico|jpe?g|js|json|png|svg|txt|webp|woff2?|xml)$).*)",
+    "/((?!_next/|_vercel/|api(?:/|$)|mcp(?:/|$)|\\.well-known/|.*\\.(?:avif|css|gif|ico|jpe?g|js|json|png|svg|txt|webp|woff2?|xml)$).*)",
   ],
 };
 
