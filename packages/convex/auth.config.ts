@@ -2,24 +2,31 @@ import { getAuthConfigProvider } from "@convex-dev/better-auth/auth-config";
 import type { AuthConfig } from "convex/server";
 import { readJwksDocument } from "./env";
 
-const readinessClientId =
-  // This built-in variable is always present. Auth config throws on an unset
-  // variable, so read optional WorkOS configuration only in the proven dev deployment.
-  process.env.CONVEX_CLOUD_URL ===
-  "https://reminiscent-kangaroo-59.convex.cloud"
-    ? process.env.WORKOS_CLIENT_ID
-    : undefined;
+// Only these provisioned deployments may add WorkOS session JWT trust.
+// Unknown/local deployments never read optional WorkOS configuration.
+const deployment = process.env.CONVEX_CLOUD_URL;
+let clientId: string | undefined;
+if (deployment === "https://reminiscent-kangaroo-59.convex.cloud") {
+  clientId = "client_01KBYSVNVDV2G39REZFGF0K7GD";
+} else if (deployment === "https://uncommon-ladybug-882.convex.cloud") {
+  clientId = "client_01M46HC8K0DD50SC59QX9DV3MX";
+}
+if (clientId && process.env.WORKOS_CLIENT_ID !== clientId) {
+  throw new Error(
+    "WorkOS AuthKit client does not match the provisioned deployment"
+  );
+}
 
 export default {
   providers: [
     getAuthConfigProvider({ jwks: readJwksDocument() }),
-    ...(readinessClientId
+    ...(clientId
       ? [
           {
             type: "customJwt" as const,
-            issuer: `https://api.workos.com/user_management/${readinessClientId}`,
+            issuer: `https://api.workos.com/user_management/${clientId}`,
             algorithm: "RS256" as const,
-            jwks: `https://api.workos.com/sso/jwks/${readinessClientId}`,
+            jwks: `https://api.workos.com/sso/jwks/${clientId}`,
           },
         ]
       : []),

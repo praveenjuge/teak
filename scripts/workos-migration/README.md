@@ -16,7 +16,9 @@ Rehearsal remains required: a throwaway Convex deployment, empty private R2 buck
 
 Rollback password policy is pending a separate decision: conservatively invalidate every mapped legacy password because the current provider payload does not expose a complete credential revision. The prepared proposal is in the encrypted migration-backup directory. The read-only rollback plan also exposes unavailable canonical profiles, email conflicts, verification downgrades and new owners without legacy accounts; each blocks a safe flip until resolved. Do not invalidate credentials or execute rollback without its explicit activation approval.
 
-The clean shadow week, every-store live date plus three weeks, seven-day notice, at least 48-hour rollback window and later retirement/backup-retention gates remain elapsed calendar time. No waived native test is counted as passed.
+The user explicitly waived the resolver's clean shadow week on 2026-10-05; strict enforcement followed fresh zero-coverage checks. Preserve the remaining calendar gates, including seven-day notice, at least 48-hour rollback and later retirement/backup retention, unless separately waived. No waived native test is counted as passed.
+
+`bind-dev-social-owners.ts` prepares only the two reviewed Google/Apple owner pairs in the pinned development environment. Its default dry run reads complete bounded provider and legacy social-subject proofs without acquiring a lease or changing configuration. `--apply --approval-reference <separate-repair-approval>` additionally requires account changes already paused, atomically records the canonical mapping and durable update intent, and changes only the provider external ID. Uncertain replies stop without automatic retries. Real authenticated webhook delivery must establish canonical profiles; successful provider updates alone are not migration readiness proof. The exact Phase R and Phase 3 fixture retirement guards likewise remain inactive until separately approved deletion and authenticated receipt verification.
 
 Prepared Phase 5 operator controls:
 

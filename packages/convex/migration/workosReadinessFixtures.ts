@@ -256,3 +256,193 @@ export const resolveRetiredFixture = internalMutation({
     return { resolvedAt, alreadyResolved: false };
   },
 });
+
+// Retained Phase R provenance came from the spike endpoint, not this ledger.
+// Only a future authenticated deletion receipt can authorize its retirement.
+export const phaseRReadinessFixture = {
+  environmentId: readinessFixture.environmentId,
+  clientId: readinessFixture.clientId,
+  cloudUrl: readinessFixture.cloudUrl,
+  siteUrl: readinessFixture.siteUrl,
+  workosUserId: "user_01M40QWRH0HE1NQPSV4R6XEQR3",
+  marker: "phase-r-webhook-1791026422012",
+  lastObservedAt: 1_791_218_518_224,
+  emailSha256:
+    "dc99956b113ac7da1ad5e162e28b06da1071934b5663e8b4fdc8e4f4aea5ac59",
+} as const;
+
+// Inactive internal operator entry point. No provider deletion or data import.
+// Separate approval is required before settling this exact fixture's audit.
+export const resolveRetiredPhaseRFixture = internalMutation({
+  args: {
+    ...importLeasePins,
+    deletedQuarantineId: v.id("migrationQuarantine"),
+    deletedQuarantineCreatedAt: v.number(),
+    deletedEventId: v.string(),
+    deletedEventAt: v.number(),
+  },
+  returns: v.object({ resolvedAt: v.number(), alreadyResolved: v.boolean() }),
+  handler: async (ctx, args) => {
+    const fixture = phaseRReadinessFixture;
+    await assertImportBinding(args);
+    if (
+      process.env.CONVEX_CLOUD_URL !== fixture.cloudUrl ||
+      process.env.CONVEX_SITE_URL !== fixture.siteUrl ||
+      args.environmentId !== fixture.environmentId ||
+      args.clientId !== fixture.clientId ||
+      !/^event_[A-Z0-9]{26}$/.test(args.deletedEventId) ||
+      !Number.isSafeInteger(args.deletedEventAt) ||
+      args.deletedEventAt <= fixture.lastObservedAt ||
+      args.deletedEventAt > Date.now() ||
+      !Number.isSafeInteger(args.deletedQuarantineCreatedAt) ||
+      args.deletedQuarantineCreatedAt < args.deletedEventAt ||
+      args.deletedQuarantineCreatedAt > Date.now()
+    ) {
+      throw refused();
+    }
+    // Complete bounded scans also reject unexpected historical conflicts,
+    // duplicate receipts, and another provider claiming this marker/email.
+    const [owners, profiles, audits, events, legacyUsers, legacyAccounts] =
+      await Promise.all([
+        ctx.db.query("users").take(1000),
+        ctx.db.query("workosProfiles").take(1000),
+        ctx.db.query("migrationQuarantine").take(1000),
+        ctx.db.query("workosEvents").take(1000),
+        ctx.runQuery(components.betterAuth.adapter.findMany, {
+          model: "user",
+          paginationOpts: { cursor: null, numItems: 1000 },
+        }),
+        ctx.runQuery(components.betterAuth.adapter.findMany, {
+          model: "account",
+          paginationOpts: { cursor: null, numItems: 1000 },
+        }),
+      ]);
+    if (
+      [owners, profiles, audits, events].some((rows) => rows.length === 1000) ||
+      !legacyUsers.isDone ||
+      !legacyAccounts.isDone
+    ) {
+      throw refused();
+    }
+    const exactAudits = audits.filter(
+      (row) => row.workosUserId === fixture.workosUserId
+    );
+    const audit = exactAudits[0];
+    const target = await currentWorkosDeletionTarget();
+    if (
+      exactAudits.length !== 1 ||
+      !audit ||
+      audit._id !== args.deletedQuarantineId ||
+      audit.reason !== "workos_user_deleted" ||
+      audit.source !== "webhook" ||
+      audit.teakUserId !== undefined ||
+      audit.createdAt !== args.deletedQuarantineCreatedAt ||
+      audit.workosDeletionEventAt !== args.deletedEventAt ||
+      (await emailHash(audit.email)) !== fixture.emailSha256 ||
+      !target ||
+      !audit.workosDeletionTarget ||
+      !sameWorkosDeletionTarget(target, audit.workosDeletionTarget)
+    ) {
+      throw refused();
+    }
+    const exactEvents = events.filter(
+      (row) => row.workosUserId === fixture.workosUserId
+    );
+    const event = exactEvents[0];
+    if (
+      exactEvents.length !== 1 ||
+      !event ||
+      event.eventId !== args.deletedEventId ||
+      events.some(
+        (other) => other._id !== event._id && other.eventId === event.eventId
+      ) ||
+      event.type !== "user.deleted" ||
+      event.createdAt !== args.deletedEventAt ||
+      event.externalId !== fixture.marker ||
+      typeof event.email !== "string" ||
+      (await emailHash(event.email)) !== fixture.emailSha256
+    ) {
+      throw refused();
+    }
+    const exactProfiles = profiles.filter(
+      (row) => row.workosUserId === fixture.workosUserId
+    );
+    const profile = exactProfiles[0];
+    if (
+      exactProfiles.length !== 1 ||
+      !profile ||
+      profile.teakUserId !== undefined ||
+      profile.source !== "event" ||
+      profile.deletionSource !== "event" ||
+      profile.deletedAt !== args.deletedEventAt ||
+      profile.lastEventAt !== args.deletedEventAt ||
+      (profile.profile !== undefined &&
+        (profile.profile.externalId !== fixture.marker ||
+          (await emailHash(profile.profile.email)) !== fixture.emailSha256))
+    ) {
+      throw refused();
+    }
+    const normalizedEmail = audit.email.trim().toLowerCase();
+    const hasOwner = owners.some(
+      (owner) =>
+        owner.teakUserId === fixture.marker ||
+        owner.teakUserId === fixture.workosUserId ||
+        owner.workosUserId === fixture.workosUserId ||
+        owner.email.trim().toLowerCase() === normalizedEmail
+    );
+    if (
+      hasOwner ||
+      audits.some(
+        (other) =>
+          other._id !== audit._id &&
+          (other.teakUserId === fixture.marker ||
+            other.teakUserId === fixture.workosUserId ||
+            other.email.trim().toLowerCase() === normalizedEmail)
+      ) ||
+      profiles.some(
+        (other) =>
+          other._id !== profile._id &&
+          (other.teakUserId === fixture.marker ||
+            other.teakUserId === fixture.workosUserId ||
+            other.profile?.externalId === fixture.marker ||
+            other.profile?.email.trim().toLowerCase() === normalizedEmail)
+      ) ||
+      legacyUsers.page.some(
+        (owner: { _id: string; email: string }) =>
+          owner._id === fixture.marker ||
+          owner._id === fixture.workosUserId ||
+          owner.email.trim().toLowerCase() === normalizedEmail
+      ) ||
+      legacyAccounts.page.some(
+        (account: { userId: string }) =>
+          account.userId === fixture.marker ||
+          account.userId === fixture.workosUserId
+      )
+    ) {
+      throw refused();
+    }
+    for (const ownerId of [fixture.marker, fixture.workosUserId]) {
+      const cards = await ctx.db
+        .query("cards")
+        .withIndex("by_created", (q) => q.eq("userId", ownerId))
+        .take(1);
+      if (cards.length > 0) {
+        throw refused();
+      }
+    }
+    if (audit.resolvedAt !== undefined) {
+      if (
+        !Number.isSafeInteger(audit.resolvedAt) ||
+        audit.resolvedAt < args.deletedEventAt ||
+        audit.resolvedAt < audit.createdAt ||
+        audit.resolvedAt > Date.now()
+      ) {
+        throw refused();
+      }
+      return { resolvedAt: audit.resolvedAt, alreadyResolved: true };
+    }
+    const resolvedAt = Date.now();
+    await ctx.db.patch(audit._id, { resolvedAt });
+    return { resolvedAt, alreadyResolved: false };
+  },
+});
