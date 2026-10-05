@@ -26,6 +26,7 @@ export default defineConfig({
       "./workosImportLease.test.ts",
       "./workosCutover.test.ts",
       "./workosLegacyCredentialGate.test.ts",
+      "./workosLegacyGrants.test.ts",
       "./workosRollbackPlan.test.ts",
       "./workosE2eHttp.test.ts",
       "./workosReconciliation.test.ts",
