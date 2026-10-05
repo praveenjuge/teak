@@ -1,3 +1,6 @@
+import { api } from "@teak/convex";
+import { ConvexHttpClient } from "convex/browser";
+import type { FunctionReturnType } from "convex/server";
 import {
   AuthRequest,
   CodeChallengeMethod,
@@ -5,13 +8,53 @@ import {
 } from "expo-auth-session";
 import * as SecureStore from "expo-secure-store";
 import * as WebBrowser from "expo-web-browser";
+import { getConvexUrl } from "./public-env";
 import { WorkosSession } from "./workos-session";
 
 const sessions = new Map<string, WorkosSession>();
 export function getWorkosSession(clientId: string): WorkosSession {
   let session = sessions.get(clientId);
   if (!session) {
-    session = new WorkosSession(clientId, SecureStore);
+    session = new WorkosSession(
+      clientId,
+      SecureStore,
+      fetch,
+      10_000,
+      async (accessToken) => {
+        const controller = new AbortController();
+        const timer = setTimeout(() => controller.abort(), 10_000);
+        const client = new ConvexHttpClient(getConvexUrl(), {
+          fetch: (input, init) =>
+            fetch(input, {
+              ...init,
+              credentials: "omit",
+              redirect: "error",
+              signal: controller.signal,
+            }),
+        });
+        client.setAuth(accessToken);
+        let result: FunctionReturnType<typeof api.workosBootstrap.ensureUser>;
+        try {
+          result = await client.mutation(api.workosBootstrap.ensureUser, {});
+        } finally {
+          clearTimeout(timer);
+          controller.abort();
+        }
+        if (result.status !== "ok") {
+          if (result.status === "verify_email") {
+            throw new Error("Verify your email before opening your vault.");
+          }
+          if (result.status === "frozen") {
+            throw new Error(
+              "New sign-ups are paused while we upgrade sign-in."
+            );
+          }
+          throw new Error(
+            "Unable to open your vault. Please try again or contact support."
+          );
+        }
+      }
+    );
     sessions.set(clientId, session);
   }
   return session;

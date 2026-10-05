@@ -33,7 +33,19 @@ mock.module("expo-auth-session", () => ({
     }
   },
 }));
-mock.module("expo-secure-store", () => ({}));
+const nativeCredentials = new Map<string, string>();
+mock.module("expo-secure-store", () => ({
+  getItemAsync: (key: string) =>
+    Promise.resolve(nativeCredentials.get(key) ?? null),
+  setItemAsync: (key: string, value: string) => {
+    nativeCredentials.set(key, value);
+    return Promise.resolve();
+  },
+  deleteItemAsync: (key: string) => {
+    nativeCredentials.delete(key);
+    return Promise.resolve();
+  },
+}));
 mock.module("expo-web-browser", () => ({
   maybeCompleteAuthSession: () => {},
   openBrowserAsync: (url: string) => {
@@ -41,8 +53,12 @@ mock.module("expo-web-browser", () => ({
     return Promise.resolve({ type: "dismiss" });
   },
 }));
-const { signInWithWorkos, openWorkosLogout, WORKOS_REDIRECT_URI } =
-  await import("../../lib/workos-native-auth");
+const {
+  signInWithWorkos,
+  openWorkosLogout,
+  WORKOS_REDIRECT_URI,
+  getWorkosSession,
+} = await import("../../lib/workos-native-auth");
 const clientId = "client_TEST";
 const expiry = Math.floor(Date.now() / 1000) + 120;
 function setup() {
@@ -163,3 +179,75 @@ describe("native AuthKit browser flow", () => {
     ).rejects.toThrow("Invalid session");
   });
 });
+
+let bootstrapFixture = 0;
+test.each(["ok", "verify_email", "frozen", "quarantined"])(
+  "native session factory accepts vault bootstrap only for %s",
+  async (status) => {
+    const previousUrl = process.env.EXPO_PUBLIC_CONVEX_URL;
+    const originalFetch = globalThis.fetch;
+    process.env.EXPO_PUBLIC_CONVEX_URL =
+      "https://native-bootstrap.convex.cloud";
+    const id = `client_BOOTSTRAP${++bootstrapFixture}`;
+    const claims = {
+      iss: `https://api.workos.com/user_management/${id}`,
+      sub: "user_NATIVE",
+      sid: "session_NATIVE",
+      exp: Math.floor(Date.now() / 1000) + 300,
+    };
+    const token = `header.${btoa(JSON.stringify(claims))}.signature`;
+    let bootstrapped = false;
+    globalThis.fetch = ((input, init) => {
+      if (String(input).includes("api.workos.com")) {
+        return Promise.resolve(
+          Response.json({
+            access_token: token,
+            refresh_token: "refresh",
+            user: {
+              id: "user_NATIVE",
+              email: "test@example.com",
+              email_verified: true,
+              external_id: null,
+            },
+          })
+        );
+      }
+      expect(String(input)).toBe(
+        "https://native-bootstrap.convex.cloud/api/mutation"
+      );
+      expect(new Headers(init?.headers).get("Authorization")).toBe(
+        `Bearer ${token}`
+      );
+      expect(JSON.parse(String(init?.body)).path).toBe(
+        "workosBootstrap:ensureUser"
+      );
+      expect(nativeCredentials.has(`teak.authkit.${id}`)).toBe(false);
+      bootstrapped = true;
+      const value =
+        status === "ok"
+          ? { status, teakUserId: "permanent-vault" }
+          : { status, reason: "identity_conflict" };
+      return Promise.resolve(Response.json({ status: "success", value }));
+    }) as typeof fetch;
+    try {
+      const session = getWorkosSession(id);
+      const login = session.exchangeCode("code", "v".repeat(43));
+      if (status === "ok") {
+        expect(await login).toBe(token);
+        expect(nativeCredentials.has(`teak.authkit.${id}`)).toBe(true);
+      } else {
+        await expect(login).rejects.toThrow();
+        expect(nativeCredentials.has(`teak.authkit.${id}`)).toBe(false);
+        expect(session.getSnapshot().user).toBeNull();
+      }
+      expect(bootstrapped).toBe(true);
+    } finally {
+      globalThis.fetch = originalFetch;
+      if (previousUrl === undefined) {
+        delete process.env.EXPO_PUBLIC_CONVEX_URL;
+      } else {
+        process.env.EXPO_PUBLIC_CONVEX_URL = previousUrl;
+      }
+    }
+  }
+);

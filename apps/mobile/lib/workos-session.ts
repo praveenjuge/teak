@@ -107,16 +107,21 @@ export class WorkosSession {
   private readonly storage: SessionStorage;
   private readonly transport: typeof fetch;
   private readonly timeoutMs: number;
+  private readonly bootstrap:
+    | ((accessToken: string) => Promise<void>)
+    | undefined;
   constructor(
     clientId: string,
     storage: SessionStorage,
     transport: typeof fetch = fetch,
-    timeoutMs = 10_000
+    timeoutMs = 10_000,
+    bootstrap?: (accessToken: string) => Promise<void>
   ) {
     this.clientId = clientId;
     this.storage = storage;
     this.transport = transport;
     this.timeoutMs = timeoutMs;
+    this.bootstrap = bootstrap;
     if (!/^client_[A-Za-z0-9]{1,128}$/.test(clientId)) {
       throw new Error("Invalid WorkOS client configuration");
     }
@@ -238,6 +243,12 @@ export class WorkosSession {
         : attempt === this.signInAttempt;
     if (!eligible()) {
       return null;
+    }
+    if (attempt !== undefined) {
+      await this.bootstrap?.(next.accessToken);
+      if (!eligible()) {
+        return null;
+      }
     }
     let committedGeneration: number | undefined;
     await this.write(async () => {
