@@ -210,6 +210,8 @@ import type * as workosProfileRead from "../workosProfileRead.js";
 import type * as workosProfileVersion from "../workosProfileVersion.js";
 import type * as workosReconciliation from "../workosReconciliation.js";
 import type * as workosReconciliationActions from "../workosReconciliationActions.js";
+import type * as workosReconciliationCensus from "../workosReconciliationCensus.js";
+import type * as workosReconciliationSchedule from "../workosReconciliationSchedule.js";
 import type * as workosTokens from "../workosTokens.js";
 import type * as workosUsers from "../workosUsers.js";
 import type * as workosWebhook from "../workosWebhook.js";
@@ -423,6 +425,8 @@ declare const fullApi: ApiFromModules<{
   workosProfileVersion: typeof workosProfileVersion;
   workosReconciliation: typeof workosReconciliation;
   workosReconciliationActions: typeof workosReconciliationActions;
+  workosReconciliationCensus: typeof workosReconciliationCensus;
+  workosReconciliationSchedule: typeof workosReconciliationSchedule;
   workosTokens: typeof workosTokens;
   workosUsers: typeof workosUsers;
   workosWebhook: typeof workosWebhook;

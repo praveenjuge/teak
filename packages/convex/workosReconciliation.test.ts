@@ -115,7 +115,7 @@ describe("durable reconciliation", () => {
     expect(state.users[0].workosEmailVerified).toBe(false);
     expect(state.users[0].workosDeletedAt).toBeTypeOf("number");
     expect(state.profiles[0].deletionSource).toBe("reconciliation_not_found");
-    expect(state.runs[0].phase).toBe("complete");
+    expect(state.runs[0].phase).toBe("census");
     expect(state.cards).toHaveLength(1);
     expect(state.events).toEqual([]);
   });
@@ -703,7 +703,7 @@ describe("reconciliation failure boundaries", () => {
     const t = setup();
     await seed(t);
     const state = await sdkOwnerRun(t, 404);
-    expect(state.runs[0].phase).toBe("complete");
+    expect(state.runs[0].phase).toBe("census");
     expect(state.runs[0].deleted).toBe(1);
     expect(state.profiles[0].deletionSource).toBe("reconciliation_not_found");
     expect(state.users[0].workosEmailVerified).toBe(false);

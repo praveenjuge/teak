@@ -87,6 +87,13 @@ async function runPage(ctx: ActionCtx, runId: Id<"workosReconciliationRuns">) {
   }
   try {
     await witness(workos, run.providerWitnessUserId);
+    if (run.phase === "census") {
+      await ctx.runMutation(internal.workosReconciliationCensus.checkpoint, {
+        runId,
+        generation: run.generation,
+      });
+      return null;
+    }
     const base = {
       ...identity,
       runId,

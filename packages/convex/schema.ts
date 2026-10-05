@@ -482,6 +482,7 @@ export const cardValidator = v.object({
 
 export default defineSchema({
   users: defineTable({
+    identityOrigin: v.optional(v.literal("workos")),
     teakUserId: v.string(),
     identityOrigin: v.optional(v.literal("workos")),
     email: v.string(),
@@ -531,13 +532,19 @@ export default defineSchema({
   workosReconciliationRuns: defineTable(workosReconciliationRunFields)
     .index("by_runId", ["runId"])
     .index("by_environmentId_and_updatedAt", ["environmentId", "updatedAt"])
+    .index("by_environmentId_and_mode_and_updatedAt", [
+      "environmentId",
+      "mode",
+      "updatedAt",
+    ])
     .index("by_nextAttemptAt", ["nextAttemptAt"]),
   workosReconciliationCursors: defineTable({
     runId: v.id("workosReconciliationRuns"),
     phase: v.union(
       v.literal("events"),
       v.literal("provider"),
-      v.literal("owners")
+      v.literal("owners"),
+      v.literal("census")
     ),
     cursor: v.string(),
   }).index("by_runId_and_phase_and_cursor", ["runId", "phase", "cursor"]),

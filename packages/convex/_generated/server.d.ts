@@ -75,6 +75,8 @@ type Env = {
   readonly WORKOS_CONNECT_RAYCAST_CLIENT_ID: string | undefined;
   readonly WORKOS_CONNECT_SAFARI_CLIENT_ID: string | undefined;
   readonly WORKOS_ENVIRONMENT_ID: string | undefined;
+  readonly WORKOS_RECONCILIATION_MODE: "off" | "audit" | undefined;
+  readonly WORKOS_RECONCILIATION_WITNESS_ID: string | undefined;
   readonly WORKOS_WEBHOOK_SECRET: string | undefined;
 };
 

@@ -28,6 +28,7 @@ const phaseValidator = v.union(
   v.literal("events"),
   v.literal("provider"),
   v.literal("owners"),
+  v.literal("census"),
   v.literal("complete")
 );
 const token = {
@@ -157,6 +158,7 @@ export const admit = internalMutation({
       startedAt: Date.now(),
       updatedAt: Date.now(),
       retryCount: 0,
+      censusVersion: 1,
     });
   },
 });
@@ -485,7 +487,7 @@ export const checkpoint = internalMutation({
     const nextPhase = {
       events: "provider",
       provider: "owners",
-      owners: "complete",
+      owners: run.censusVersion === 1 ? "census" : "complete",
     } as const;
     const phase = args.done ? nextPhase[args.phase] : args.phase;
     await ctx.db.patch("workosReconciliationRuns", run._id, {
@@ -580,4 +582,30 @@ export const cleanupCursors = internalMutation({
     }
     return null;
   },
+});
+
+export const latest = internalQuery({
+  args: { environmentId: v.string() },
+  returns: v.union(runValidator, v.null()),
+  handler: (ctx, args) =>
+    ctx.db
+      .query("workosReconciliationRuns")
+      .withIndex("by_environmentId_and_updatedAt", (q) =>
+        q.eq("environmentId", args.environmentId)
+      )
+      .order("desc")
+      .first(),
+});
+
+export const latestAudit = internalQuery({
+  args: { environmentId: v.string() },
+  returns: v.union(runValidator, v.null()),
+  handler: (ctx, args) =>
+    ctx.db
+      .query("workosReconciliationRuns")
+      .withIndex("by_environmentId_and_mode_and_updatedAt", (q) =>
+        q.eq("environmentId", args.environmentId).eq("mode", "audit")
+      )
+      .order("desc")
+      .first(),
 });

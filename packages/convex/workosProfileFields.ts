@@ -39,6 +39,7 @@ export const workosReconciliationRunFields = {
     v.literal("events"),
     v.literal("provider"),
     v.literal("owners"),
+    v.literal("census"),
     v.literal("complete"),
     v.literal("failed")
   ),
@@ -47,9 +48,24 @@ export const workosReconciliationRunFields = {
   rangeEnd: v.string(),
   providerCursor: v.optional(v.string()),
   ownerCursor: v.optional(v.string()),
+  censusVersion: v.optional(v.number()),
+  censusCursor: v.optional(v.string()),
+  censusSection: v.optional(
+    v.union(
+      v.literal("users"),
+      v.literal("betterauth"),
+      v.literal("quarantine")
+    )
+  ),
+  censusCounts: v.optional(v.record(v.string(), v.number())),
+  censusComplete: v.optional(v.boolean()),
   scanned: v.number(),
   drifted: v.optional(v.number()),
-  auditEvidence: v.optional(v.array(v.object({ workosUserId: v.string(), reasons: v.array(v.string()) }))),
+  auditEvidence: v.optional(
+    v.array(
+      v.object({ workosUserId: v.string(), reasons: v.array(v.string()) })
+    )
+  ),
   repaired: v.number(),
   quarantined: v.number(),
   deleted: v.number(),

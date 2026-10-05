@@ -19,6 +19,7 @@ export default defineConfig({
       "./workosProfileApply.test.ts",
       "./workosProfileRead.test.ts",
       "./workosReconciliation.test.ts",
+      "./workosReconciliationCensus.test.ts",
       "./workosIdentity.test.ts",
       "./workosConsents.test.ts",
       "./workosBearer.test.ts",
