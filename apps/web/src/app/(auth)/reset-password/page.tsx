@@ -20,6 +20,7 @@ import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useState } from "react";
 import { toast } from "sonner";
+import { AuthPageMode } from "@/components/AuthPageMode";
 import { authClient } from "@/lib/auth-client";
 import { AuthCardLoading } from "../AuthCardLoading";
 
@@ -34,7 +35,9 @@ const errorMessages: Record<string, string> = {
 export default function ResetPassword() {
   return (
     <Suspense fallback={<AuthCardLoading />}>
-      <ResetPasswordForm />
+      <AuthPageMode flow="recovery">
+        <ResetPasswordForm />
+      </AuthPageMode>
     </Suspense>
   );
 }

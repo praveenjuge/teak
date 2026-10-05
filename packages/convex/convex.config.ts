@@ -19,6 +19,7 @@ const app = defineApp({
     AUTH_PRIMARY: v.optional(v.string()),
     IDENTITY_RESOLVER_ENFORCE: v.optional(v.string()),
     SIGNUPS_DISABLED: v.optional(v.string()),
+    ACCOUNT_CHANGES_PAUSED: v.optional(v.string()),
     WORKOS_AUTHKIT_DOMAIN: v.optional(v.string()),
     WORKOS_CONNECT_CLI_CLIENT_ID: v.optional(v.string()),
     WORKOS_CONNECT_RAYCAST_CLIENT_ID: v.optional(v.string()),

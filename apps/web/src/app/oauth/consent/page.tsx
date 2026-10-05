@@ -15,6 +15,8 @@ import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { Suspense, useState } from "react";
 
+import { useAuthMode } from "@/components/AuthModeProvider";
+
 const SCOPE_LABELS: Record<string, string> = {
   email: "View your account email",
   offline_access: "Stay connected until you revoke access",
@@ -136,10 +138,29 @@ function ConsentContent() {
   );
 }
 
+function SelectedConsent() {
+  const mode = useAuthMode();
+  if (!mode) {
+    return <Loader2 className="animate-spin" />;
+  }
+  if (mode.primary === "workos") {
+    return (
+      <AuthScreenShell logo={<Logo variant="primary" />}>
+        <CardTitle>Reconnect your app</CardTitle>
+        <CardContent>
+          This request has expired. Start a new connection from your app to
+          continue with secure sign-in.
+        </CardContent>
+      </AuthScreenShell>
+    );
+  }
+  return <ConsentContent />;
+}
+
 export default function OAuthConsentPage() {
   return (
     <Suspense>
-      <ConsentContent />
+      <SelectedConsent />
     </Suspense>
   );
 }

@@ -14,11 +14,23 @@ import { AUTH_STICKY_TOAST_OPTIONS } from "@teak/ui/constants/toast";
 import { cn } from "@teak/ui/lib/utils";
 import { Loader2 } from "lucide-react";
 import Link from "next/link";
-import { useState } from "react";
+import { Suspense, useState } from "react";
 import { toast } from "sonner";
+import { AuthPageMode } from "@/components/AuthPageMode";
 import { authClient } from "@/lib/auth-client";
+import { AuthCardLoading } from "../AuthCardLoading";
 
 export default function ForgotPassword() {
+  return (
+    <Suspense fallback={<AuthCardLoading />}>
+      <AuthPageMode flow="recovery">
+        <ForgotPasswordForm />
+      </AuthPageMode>
+    </Suspense>
+  );
+}
+
+function ForgotPasswordForm() {
   const [email, setEmail] = useState("");
   const [loading, setLoading] = useState(false);
   const [sent, setSent] = useState(false);

@@ -1,8 +1,9 @@
 "use client";
 
 import * as Sentry from "@sentry/nextjs";
+import { api } from "@teak/convex";
+import { useQuery } from "@teak/ui/convex-query-hooks";
 import { useEffect } from "react";
-import { authClient } from "@/lib/auth-client";
 import {
   buildPseudonymousSentryUser,
   SENTRY_USER_SEGMENT_TAG,
@@ -10,15 +11,15 @@ import {
 
 /**
  * Component that syncs a pseudonymous authenticated user id to Sentry.
- * Must be rendered within the ConvexBetterAuthProvider tree.
+ * Render only after the selected provider's permanent owner gate succeeds.
  */
 export function SentryUserManager() {
-  const { data: session } = authClient.useSession();
+  const user = useQuery(api.auth.getAuthUser, {});
 
   useEffect(() => {
     let cancelled = false;
 
-    void buildPseudonymousSentryUser(session?.user.id, session?.user.email)
+    void buildPseudonymousSentryUser(user?._id, user?.email)
       .then((user) => {
         if (!cancelled) {
           Sentry.setTag(SENTRY_USER_SEGMENT_TAG, user?.segment);
@@ -35,7 +36,7 @@ export function SentryUserManager() {
     return () => {
       cancelled = true;
     };
-  }, [session?.user.email, session?.user.id]);
+  }, [user?.email, user?._id]);
 
   return null;
 }

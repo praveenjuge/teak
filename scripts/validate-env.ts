@@ -9,6 +9,7 @@
 
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
+import { readWorkosWebConfig } from "../apps/web/src/lib/workos-config";
 
 const ROOT = join(import.meta.dir, "..");
 const WEB_ENV_PATH = join(ROOT, "apps/web/.env.local");
@@ -21,7 +22,7 @@ export const REQUIRED_WEB_ENV_KEYS = [
 export interface EnvIssue {
   hint: string;
   key: string;
-  problem: "missing" | "invalid-url";
+  problem: "missing" | "invalid-url" | "invalid-auth-config";
 }
 
 const parseDotenv = (content: string): Map<string, string> => {
@@ -95,6 +96,40 @@ export const validateWebEnvContent = (
         key,
         problem: "invalid-url",
         hint: `${key} must be an http(s) URL (received "${value}"). Expected local defaults http://127.0.0.1:3210 / http://127.0.0.1:3211.`,
+      });
+    }
+  }
+  const credentialKeys = [
+    "WORKOS_CLIENT_ID",
+    "WORKOS_API_KEY",
+    "WORKOS_COOKIE_PASSWORD",
+    "WORKOS_ISSUER",
+  ];
+  if (
+    credentialKeys
+      .filter((key) => key !== "WORKOS_COOKIE_PASSWORD")
+      .some((key) => lookup(key))
+  ) {
+    const authEnvironment = Object.fromEntries(
+      [...credentialKeys, "NEXT_PUBLIC_WORKOS_REDIRECT_URI", "NODE_ENV"].map(
+        (key) => [key, expandEnvReferences(lookup(key) ?? "", lookup)]
+      )
+    );
+    try {
+      readWorkosWebConfig(
+        {
+          primary: "workos",
+          authKitClientId: authEnvironment.WORKOS_CLIENT_ID,
+          signupsDisabled: false,
+          accountChangesPaused: false,
+        },
+        authEnvironment
+      );
+    } catch {
+      issues.push({
+        key: "WORKOS_CLIENT_ID",
+        problem: "invalid-auth-config",
+        hint: "Configure the same development WorkOS client/API key, a cookie password of at least 32 characters, and the app origin + /callback. An issuer override must match the client ID. Never use production credentials locally.",
       });
     }
   }

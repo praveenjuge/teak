@@ -6,7 +6,14 @@
  * overwritten: existing custom values win, missing keys are appended.
  */
 
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { randomBytes } from "node:crypto";
+import {
+  chmodSync,
+  existsSync,
+  mkdirSync,
+  readFileSync,
+  writeFileSync,
+} from "node:fs";
 import { dirname } from "node:path";
 
 export const LOCAL_CONVEX_URL = "http://127.0.0.1:3210";
@@ -23,11 +30,16 @@ export const derivedEnvTemplate = (entries: Record<string, string>): string =>
 export const webEnvTemplate = (overrides?: {
   convexUrl?: string;
   convexSiteUrl?: string;
+  siteUrl?: string;
 }): string =>
   derivedEnvTemplate({
     NEXT_PUBLIC_CONVEX_URL: overrides?.convexUrl ?? LOCAL_CONVEX_URL,
     NEXT_PUBLIC_CONVEX_SITE_URL:
       overrides?.convexSiteUrl ?? LOCAL_CONVEX_SITE_URL,
+    NEXT_PUBLIC_WORKOS_REDIRECT_URI: new URL(
+      "/callback",
+      overrides?.siteUrl ?? "http://localhost:3000"
+    ).toString(),
   });
 
 export const desktopEnvTemplate = (values: {
@@ -102,10 +114,19 @@ export const ensureDerivedEnv = (
 
 export const ensureWebEnv = (
   path: string,
-  defaults?: { convexUrl?: string; convexSiteUrl?: string }
-): "created" | "exists" | "repaired" =>
-  ensureDerivedEnv(path, {
+  defaults?: { convexUrl?: string; convexSiteUrl?: string; siteUrl?: string }
+): "created" | "exists" | "repaired" => {
+  const result = ensureDerivedEnv(path, {
     NEXT_PUBLIC_CONVEX_URL: defaults?.convexUrl ?? LOCAL_CONVEX_URL,
     NEXT_PUBLIC_CONVEX_SITE_URL:
       defaults?.convexSiteUrl ?? LOCAL_CONVEX_SITE_URL,
+    NEXT_PUBLIC_WORKOS_REDIRECT_URI: new URL(
+      "/callback",
+      defaults?.siteUrl ?? "http://localhost:3000"
+    ).toString(),
+    WORKOS_COOKIE_PASSWORD: randomBytes(32).toString("base64url"),
   });
+  // This file now contains an AuthKit session seal, even before activation.
+  chmodSync(path, 0o600);
+  return result;
+};

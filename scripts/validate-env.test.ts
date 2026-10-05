@@ -54,3 +54,31 @@ describe("validateWebEnvContent", () => {
     expect(expandEnvReferences("a/\\$b", () => "X")).toBe("a/$b");
   });
 });
+
+describe("AuthKit readiness", () => {
+  const publicInputs =
+    "NEXT_PUBLIC_CONVEX_URL=http://127.0.0.1:3210\nNEXT_PUBLIC_CONVEX_SITE_URL=http://127.0.0.1:3211\nNEXT_PUBLIC_WORKOS_REDIRECT_URI=http://localhost:3142/callback\n";
+  const credentials =
+    "WORKOS_CLIENT_ID=client_dev123\nWORKOS_API_KEY=sk_test_fixture\nWORKOS_COOKIE_PASSWORD=test-session-password-for-fixtures-only\n";
+  test("keeps Better Auth ready before WorkOS credentials are configured", () => {
+    expect(
+      validateWebEnvContent(
+        `${publicInputs}WORKOS_COOKIE_PASSWORD=test-session-password-for-fixtures-only`,
+        {}
+      )
+    ).toEqual([]);
+  });
+  test("accepts complete isolated development AuthKit inputs", () => {
+    expect(validateWebEnvContent(publicInputs + credentials, {})).toEqual([]);
+  });
+  test("denies partial credentials and never prints the credential value", () => {
+    const issues = validateWebEnvContent(
+      `${publicInputs}WORKOS_API_KEY=private-test-value`,
+      {}
+    );
+    expect(
+      issues.some((issue) => issue.problem === "invalid-auth-config")
+    ).toBe(true);
+    expect(JSON.stringify(issues)).not.toContain("private-test-value");
+  });
+});

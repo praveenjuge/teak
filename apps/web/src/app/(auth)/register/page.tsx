@@ -26,6 +26,7 @@ import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useState } from "react";
 import { toast } from "sonner";
+import { AuthPageMode } from "@/components/AuthPageMode";
 import { authClient } from "@/lib/auth-client";
 import { resolveAuthRedirect } from "@/lib/auth-redirect";
 import { AuthCardLoading } from "../AuthCardLoading";
@@ -36,7 +37,9 @@ type PendingProvider = "email" | "google" | "apple" | null;
 export default function SignUp() {
   return (
     <Suspense fallback={<AuthCardLoading />}>
-      <SignUpForm />
+      <AuthPageMode flow="signup">
+        <SignUpForm />
+      </AuthPageMode>
     </Suspense>
   );
 }

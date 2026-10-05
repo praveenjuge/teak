@@ -49,6 +49,7 @@ import {
 } from "./setup-convex.ts";
 import {
   ensureDerivedEnv,
+  ensureWebEnv,
   LOCAL_CONVEX_SITE_URL,
   LOCAL_CONVEX_URL,
 } from "./setup-derived-env.ts";
@@ -193,7 +194,11 @@ const DERIVED_FILE_PLANS: Record<SupportedTarget, DerivedFilePlan[]> = {
   web: [
     {
       path: WEB_ENV_PATH,
-      keys: ["NEXT_PUBLIC_CONVEX_URL", "NEXT_PUBLIC_CONVEX_SITE_URL"],
+      keys: [
+        "NEXT_PUBLIC_CONVEX_URL",
+        "NEXT_PUBLIC_CONVEX_SITE_URL",
+        "NEXT_PUBLIC_WORKOS_REDIRECT_URI",
+      ],
     },
   ],
   docs: [],
@@ -563,6 +568,14 @@ export const runSetup = async (
       siteUrl: worktree.siteUrl,
     });
     const outcomes = plans.map((plan) => {
+      if (target === "web") {
+        const result = ensureWebEnv(plan.path, {
+          convexUrl: derived.convexUrl ?? LOCAL_CONVEX_URL,
+          convexSiteUrl: derived.convexSiteUrl ?? LOCAL_CONVEX_SITE_URL,
+          siteUrl: worktree.siteUrl,
+        });
+        return `${plan.path.replace(`${root}/`, "")}: ${result}`;
+      }
       const entries = Object.fromEntries(
         plan.keys.map((key) => [key, aliases[key] ?? ""])
       );

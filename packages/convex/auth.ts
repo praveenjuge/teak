@@ -25,6 +25,8 @@ import { getActiveCardCount } from "./card/cardUsage";
 import {
   getAppleCredentials,
   getGoogleCredentials,
+  readAccountChangesPaused,
+  readAuthPrimary,
   readJwksDocument,
   readSignupsDisabled,
   readSiteUrl,
@@ -196,12 +198,11 @@ export const getAuthMode = query({
     accountChangesPaused: v.boolean(),
     authKitClientId: v.optional(v.string()),
   }),
-  // Phase 2 prepares clients; Phase 3 activates the mode only with its complete
-  // backend identity, revocation and lifecycle implementation.
+  // The operator flag is the sole authority. Unset preserves Better Auth.
   handler: (): PublicAuthMode => ({
-    primary: "betterauth",
+    primary: readAuthPrimary(),
     signupsDisabled: readSignupsDisabled(),
-    accountChangesPaused: false,
+    accountChangesPaused: readAccountChangesPaused(),
     ...(process.env.WORKOS_CLIENT_ID
       ? { authKitClientId: process.env.WORKOS_CLIENT_ID }
       : {}),
