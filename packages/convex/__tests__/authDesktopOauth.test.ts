@@ -23,7 +23,17 @@ describe("consumeOAuthTokenForSession", () => {
 
     const result = await runHandler(
       consumeOAuthTokenForSession,
-      { runMutation, runQuery },
+      {
+        runMutation,
+        runQuery,
+        db: {
+          query: mock().mockReturnValue({
+            withIndex: mock().mockReturnValue({
+              take: mock().mockResolvedValue([]),
+            }),
+          }),
+        },
+      },
       { accessToken }
     );
 

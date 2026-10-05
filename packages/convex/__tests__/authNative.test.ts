@@ -169,7 +169,7 @@ describe("authNative.ts", () => {
         query: mock().mockReturnValue({
           withIndex: mock((_index, buildQuery) => {
             buildQuery(queryBuilder);
-            return { collect };
+            return { collect, take: mock().mockResolvedValue([]) };
           }),
         }),
       },

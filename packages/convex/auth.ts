@@ -36,6 +36,7 @@ export { ensureCardCreationAllowed } from "./card/quota";
 
 import { isLocalDevelopmentUrl } from "./devUrls";
 import { e2eCleanupPlugin } from "./e2eCleanup";
+import { assertLegacyCredentialWrite } from "./migration/workosLegacyCredentialGate";
 import { teakOAuthSecurity } from "./oauthSecurity";
 import { getSessionProfile } from "./securitySessions";
 import { FREE_TIER_LIMIT } from "./shared/constants";
@@ -120,6 +121,14 @@ const authFunctions = (internal as any).auth as AuthFunctions;
 export const authComponent = createClient<DataModel>(components.betterAuth, {
   authFunctions,
   triggers: {
+    session: {
+      onCreate: assertLegacyCredentialWrite,
+      onUpdate: assertLegacyCredentialWrite,
+    },
+    oauthAccessToken: {
+      onCreate: assertLegacyCredentialWrite,
+      onUpdate: assertLegacyCredentialWrite,
+    },
     user: {
       onCreate: async (ctx, user) => {
         await mirrorBetterAuthUser(ctx, user);
