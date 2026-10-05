@@ -121,6 +121,9 @@ jobs:
             title_prefix: Mac
 
     steps:
+      - name: Checkout release orchestration
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
       - name: Reuse or dispatch and wait for release workflow
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -155,7 +158,7 @@ jobs:
           active="$(jq -r '[.[] | select(.status == "queued" or .status == "in_progress" or .status == "waiting" or .status == "pending")][0].id // empty' <<< "$runs")"
           if [ -n "$active" ]; then
             echo "Waiting for existing $WORKFLOW run $active."
-            gh run watch "$active" --repo "$GITHUB_REPOSITORY" --exit-status
+            node scripts/watch-release-run.mjs "$GITHUB_REPOSITORY" "$active"
             echo "- ${{ matrix.name }}: https://github.com/$GITHUB_REPOSITORY/actions/runs/$active" >> "$GITHUB_STEP_SUMMARY"
             exit 0
           fi
@@ -180,5 +183,5 @@ jobs:
             echo "Could not resolve the dispatched $WORKFLOW run." >&2
             exit 1
           fi
-          gh run watch "$run_id" --repo "$GITHUB_REPOSITORY" --exit-status
+          node scripts/watch-release-run.mjs "$GITHUB_REPOSITORY" "$run_id"
           echo "- ${{ matrix.name }}: https://github.com/$GITHUB_REPOSITORY/actions/runs/$run_id" >> "$GITHUB_STEP_SUMMARY"
