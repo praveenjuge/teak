@@ -13,8 +13,10 @@ for (const scenario of [
   "authenticated",
   "betterauth-rejected",
   "workos-rejected",
+  "workos-email-rejected",
 ] as const) {
-  const provider = scenario.replace("-rejected", "");
+  const provider = scenario.split("-")[0];
+  const emailRejected = scenario === "workos-email-rejected";
   const rejected = scenario.endsWith("-rejected");
   test(`sign-in helper follows ${scenario} browser behavior`, async ({
     page,
@@ -40,7 +42,9 @@ for (const scenario of [
         submissions.push(route.request().postData() ?? "");
         await route.fulfill({
           contentType: "text/html",
-          body: '<form method="post" action="/accepted"><label>Password<input name="password" type="password"></label><button>Sign in</button></form>',
+          body: emailRejected
+            ? '<p role="alert">Invalid credentials</p>'
+            : '<form method="post" action="/accepted"><label>Password<input name="password" type="password"></label><button>Sign in</button></form>',
         });
       } else if (url.pathname === "/accepted") {
         submissions.push(route.request().postData() ?? "");
@@ -74,9 +78,11 @@ for (const scenario of [
       expect(submissions.join("&")).toContain(
         new URLSearchParams({ email }).toString()
       );
-      expect(submissions.join("&")).toContain(
-        new URLSearchParams({ password }).toString()
-      );
+      if (!emailRejected) {
+        expect(submissions.join("&")).toContain(
+          new URLSearchParams({ password }).toString()
+        );
+      }
     }
   });
 }

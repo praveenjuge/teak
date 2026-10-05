@@ -302,7 +302,16 @@ export const signIn = async (
   if (await continueEmail.isVisible()) {
     await continueEmail.click();
   }
-  await page.getByLabel("Password", { exact: true }).fill(password);
+  const passwordInput = page.getByLabel("Password", { exact: true });
+  if (options.failure) {
+    const failure = page.getByText(options.failure);
+    await expect(passwordInput.or(failure)).toBeVisible();
+    if (await failure.isVisible()) {
+      await expect(composer).toHaveCount(0);
+      return;
+    }
+  }
+  await passwordInput.fill(password);
   await page.getByRole("button", { name: /^(login|sign in)$/i }).click();
   if (options.failure) {
     await expect(page.getByText(options.failure)).toBeVisible();
