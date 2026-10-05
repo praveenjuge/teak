@@ -9,6 +9,7 @@ import {
 } from "../_generated/server";
 import { readAuthPrimary, readSignupsDisabled } from "../env";
 import type { BetterAuthUserSource } from "../userIdentityTable";
+import { assertImportLease, importLeaseOwner } from "./workosImportLease";
 
 const pins = { environmentId: v.string(), clientId: v.string() };
 const ownerValidator = v.object({
@@ -174,6 +175,7 @@ export const page = internalQuery({
 export const link = internalMutation({
   args: {
     ...pins,
+    ...importLeaseOwner,
     teakUserId: v.string(),
     sourceVersion: v.string(),
     apiKeyFingerprint: v.string(),
@@ -186,11 +188,7 @@ export const link = internalMutation({
   },
   returns: v.union(v.literal("linked"), v.literal("quarantined")),
   handler: async (ctx, args) => {
-    assertPins(args);
-    const apiKey = process.env.WORKOS_API_KEY;
-    if (!apiKey || (await digest(apiKey)) !== args.apiKeyFingerprint) {
-      throw new Error("Importer credential changed");
-    }
+    await assertImportLease(ctx, args);
     const row = await ctx.db
       .query("users")
       .withIndex("by_teakUserId", (q) => q.eq("teakUserId", args.teakUserId))
@@ -219,6 +217,7 @@ export const link = internalMutation({
 export const quarantine = internalMutation({
   args: {
     ...pins,
+    ...importLeaseOwner,
     apiKeyFingerprint: v.string(),
     teakUserId: v.string(),
     sourceVersion: v.string(),
@@ -232,11 +231,7 @@ export const quarantine = internalMutation({
   },
   returns: v.null(),
   handler: async (ctx, args) => {
-    assertPins(args);
-    const apiKey = process.env.WORKOS_API_KEY;
-    if (!apiKey || (await digest(apiKey)) !== args.apiKeyFingerprint) {
-      throw new Error("Importer credential changed");
-    }
+    await assertImportLease(ctx, args);
     const row = await ctx.db
       .query("users")
       .withIndex("by_teakUserId", (q) => q.eq("teakUserId", args.teakUserId))
@@ -326,6 +321,7 @@ export const preflightPage = internalQuery({
 export const quarantinePreflight = internalMutation({
   args: {
     ...pins,
+    ...importLeaseOwner,
     apiKeyFingerprint: v.string(),
     receipts: v.array(
       v.object({
@@ -348,11 +344,7 @@ export const quarantinePreflight = internalMutation({
   },
   returns: v.number(),
   handler: async (ctx, args) => {
-    assertPins(args);
-    const apiKey = process.env.WORKOS_API_KEY;
-    if (!apiKey || (await digest(apiKey)) !== args.apiKeyFingerprint) {
-      throw new Error("Importer credential changed");
-    }
+    await assertImportLease(ctx, args);
     if (
       args.receipts.length === 0 ||
       args.receipts.length > 20 ||
@@ -381,5 +373,25 @@ export const quarantinePreflight = internalMutation({
       });
     }
     return args.receipts.length;
+  },
+});
+
+export const version = internalQuery({
+  args: { ...pins, apiKeyFingerprint: v.string(), teakUserId: v.string() },
+  returns: v.string(),
+  handler: async (ctx, args) => {
+    assertPins(args);
+    const key = process.env.WORKOS_API_KEY;
+    if (!key || (await digest(key)) !== args.apiKeyFingerprint) {
+      throw new Error("Importer credential changed");
+    }
+    const row = await ctx.db
+      .query("users")
+      .withIndex("by_teakUserId", (q) => q.eq("teakUserId", args.teakUserId))
+      .unique();
+    if (!row) {
+      throw new Error("Importer owner missing");
+    }
+    return (await source(ctx, row)).sourceVersion;
   },
 });

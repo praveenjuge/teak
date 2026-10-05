@@ -108,8 +108,14 @@ test("CLI admission, real SDK parsing and filesystem resume recover a first-page
     },
     { preconnect: () => undefined }
   );
-  const transport = (name: string) =>
+  const transport = (name: string, args: unknown) =>
     Promise.resolve().then(() => {
+      if (name.endsWith(":acquire")) {
+        return { holder: (args as { holder: string }).holder, generation: 1 };
+      }
+      if (name.startsWith("migration/workosImportLease:")) {
+        return null;
+      }
       if (name.endsWith(":admission")) {
         return { witnessUserId: pins.witnessUserId };
       }
@@ -247,6 +253,12 @@ test("CLI witness mismatch and later-page normalized collision deny every source
   );
   const transport = (name: string, args: unknown) =>
     Promise.resolve().then(() => {
+      if (name.endsWith(":acquire")) {
+        return { holder: (args as { holder: string }).holder, generation: 1 };
+      }
+      if (name.startsWith("migration/workosImportLease:")) {
+        return null;
+      }
       if (name.endsWith(":admission")) {
         return { witnessUserId: "user_witness" };
       }
@@ -406,8 +418,14 @@ test.each(["email", "delete"] as const)(
         }),
       { preconnect: () => undefined }
     );
-    const transport = (name: string) =>
+    const transport = (name: string, args: unknown) =>
       Promise.resolve().then(() => {
+        if (name.endsWith(":acquire")) {
+          return { holder: (args as { holder: string }).holder, generation: 1 };
+        }
+        if (name.startsWith("migration/workosImportLease:")) {
+          return null;
+        }
         if (name.endsWith(":admission")) {
           return { witnessUserId: pins.witnessUserId };
         }

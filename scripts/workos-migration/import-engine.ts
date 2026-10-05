@@ -41,7 +41,7 @@ export interface ImportPorts {
       | "duplicate_email"
       | "missing_mapping"
   ) => Promise<void>;
-  remove: (user: ImportedUser) => Promise<void>;
+  remove: (user: ImportedUser, owner: ImportOwner) => Promise<void>;
   sleep: (milliseconds: number) => Promise<void>;
   source: (cursor: string | null) => Promise<{
     owners: ImportOwner[];
@@ -239,7 +239,7 @@ export async function importOwners(
         if (user) {
           if (!options.dryRun) {
             const deletedUser = user;
-            await retry(ports, () => ports.remove(deletedUser));
+            await retry(ports, () => ports.remove(deletedUser, owner));
           }
           report.deleted++;
         }

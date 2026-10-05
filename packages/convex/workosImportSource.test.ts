@@ -53,6 +53,13 @@ async function seed(t: ReturnType<typeof setup>) {
   );
   return id;
 }
+async function writer(t: ReturnType<typeof setup>) {
+  return await t.mutation(internal.migration.workosImportLease.acquire, {
+    ...pins,
+    holder: crypto.randomUUID(),
+    runId: "a".repeat(64),
+  });
+}
 // Failure modes: wrong environment/key; unpaused/WorkOS source; missing explicit
 // verification; unresolved quarantine; immutable source changes before mapping.
 test("pages exact unverified Better Auth source and links a proven external owner without rewriting the vault", async () => {
@@ -74,6 +81,7 @@ test("pages exact unverified Better Auth source and links a proven external owne
   expect(
     await t.mutation(internal.migration.workosImportSource.link, {
       ...pins,
+      ...(await writer(t)),
       teakUserId: id,
       sourceVersion: owner.sourceVersion,
       user: {
@@ -144,6 +152,7 @@ test("owner deletion after reading a page prevents its later mapping", async () 
   await expect(
     t.mutation(internal.migration.workosImportSource.link, {
       ...pins,
+      ...(await writer(t)),
       teakUserId: id,
       sourceVersion: page.owners[0].sourceVersion,
       user: {
@@ -181,6 +190,7 @@ test("source admission requires configured witness and rejects credential drift 
 test("bounded preflight receipts persist collision fences once and stop later import pages", async () => {
   const t = setup();
   await seed(t);
+  const lease = await writer(t);
   const receipts = [
     {
       email: "import@example.com",
@@ -191,6 +201,7 @@ test("bounded preflight receipts persist collision fences once and stop later im
   await expect(
     t.mutation(internal.migration.workosImportSource.quarantinePreflight, {
       ...pins,
+      ...lease,
       apiKeyFingerprint: "wrong",
       receipts,
     })
@@ -198,6 +209,7 @@ test("bounded preflight receipts persist collision fences once and stop later im
   await expect(
     t.mutation(internal.migration.workosImportSource.quarantinePreflight, {
       ...pins,
+      ...lease,
       receipts: Array.from({ length: 21 }, () => receipts[0]),
     })
   ).rejects.toThrow("receipt budget");
@@ -207,13 +219,13 @@ test("bounded preflight receipts persist collision fences once and stop later im
   expect(
     await t.mutation(
       internal.migration.workosImportSource.quarantinePreflight,
-      { ...pins, receipts }
+      { ...pins, ...lease, receipts }
     )
   ).toBe(1);
   expect(
     await t.mutation(
       internal.migration.workosImportSource.quarantinePreflight,
-      { ...pins, receipts }
+      { ...pins, ...lease, receipts }
     )
   ).toBe(0);
   expect(

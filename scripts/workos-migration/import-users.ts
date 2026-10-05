@@ -6,6 +6,7 @@ import { promisify } from "node:util";
 import { NotFoundException, WorkOS } from "@workos-inc/node";
 import {
   type ImportedUser,
+  type ImportOwner,
   type ImportPorts,
   importOwners,
 } from "./import-engine";
@@ -208,223 +209,307 @@ export async function main(
     email: remote.email,
     emailVerified: remote.emailVerified,
   });
-  if (selected.has("--preflight") || selected.has("--apply")) {
-    if (selected.has("--preflight") && selected.has("--apply")) {
-      throw new Error("Preflight is read-only");
-    }
-    const owners: PreflightOwner[] = [],
-      providers: PreflightProvider[] = [];
-    let cursor: string | null = null;
-    let done = false;
-    const seen = new Set<string>();
-    do {
-      const page: {
-        owners: PreflightOwner[];
-        done: boolean;
-        cursor: string | null;
-      } = await run("migration/workosImportSource:preflightPage", {
-        environmentId,
-        clientId,
-        apiKeyFingerprint,
-        cursor,
+  let writer: { holder: string; generation: number } | null = null;
+  let remoteOpen = false;
+  const leaseArgs = () => ({
+    environmentId,
+    clientId,
+    apiKeyFingerprint,
+    ...writer,
+  });
+  if (!dryRun) {
+    writer = await run("migration/workosImportLease:acquire", {
+      environmentId,
+      clientId,
+      apiKeyFingerprint,
+      holder: crypto.randomUUID(),
+      runId: createHash("sha256")
+        .update(`${journalPath}:${journal.startedAt}`)
+        .digest("hex"),
+    });
+  }
+  async function remote<T>(
+    kind: "create" | "update" | "delete",
+    owner: ImportOwner,
+    operation: () => Promise<T>
+  ): Promise<T> {
+    await run("migration/workosImportLease:beginRemote", {
+      ...leaseArgs(),
+      kind,
+      teakUserId: owner.teakUserId,
+      sourceVersion: owner.sourceVersion,
+    });
+    remoteOpen = true;
+    const acknowledge = () =>
+      run("migration/workosImportLease:acknowledgeRemote", {
+        ...leaseArgs(),
+        teakUserId: owner.teakUserId,
+        sourceVersion: owner.sourceVersion,
       });
-      owners.push(...page.owners);
-      if (owners.length > 100_000) {
-        throw new Error(
-          "Preflight process budget exceeded; no partial clear result"
-        );
+    let result: T;
+    try {
+      result = await operation();
+    } catch (error) {
+      const status =
+        error instanceof Error && "status" in error
+          ? Number(error.status)
+          : null;
+      // An acknowledged client rejection did not authorize a provider write.
+      // Transport failures and server errors leave intent sticky, even on timeout.
+      if (status !== null && status >= 400 && status < 500 && status !== 408) {
+        await acknowledge();
+        remoteOpen = false;
       }
-      done = page.done;
-      if (done) {
-        break;
-      }
-      if (!page.cursor || seen.has(page.cursor)) {
-        throw new Error("Preflight cursor cycle");
-      }
-      seen.add(page.cursor);
-      cursor = page.cursor;
-    } while (!done);
-    let after: string | undefined;
-    const providerCursors = new Set<string>();
-    do {
-      const page = await workos.userManagement.listUsers({
-        limit: 100,
-        after,
-        order: "asc",
-      });
-      providers.push(
-        ...page.data.map((remote) => ({
-          id: remote.id,
-          email: remote.email,
-          externalId: remote.externalId ?? null,
-        }))
-      );
-      if (providers.length > 100_000) {
-        throw new Error(
-          "Preflight provider budget exceeded; no partial clear result"
-        );
-      }
-      after = page.listMetadata.after ?? undefined;
-      if (after && providerCursors.has(after)) {
-        throw new Error("Preflight provider cursor cycle");
-      }
-      if (after) {
-        providerCursors.add(after);
-      }
-    } while (after);
-    const result = preflight(owners, providers, journal.mode === "delta");
-    if (selected.has("--preflight") || !result.clear) {
-      await writeFile(
-        selected.has("--preflight")
-          ? `${journalPath}.preflight.json`
-          : `${journalPath}.collision.${crypto.randomUUID()}.json`,
-        JSON.stringify(
-          {
-            deployment,
-            environmentId,
-            clientId,
-            observedAt: new Date().toISOString(),
-            ...result,
-          },
-          null,
-          2
-        ),
-        { flag: "wx", mode: 0o600 }
-      );
+      throw error;
     }
-    console.log(
-      JSON.stringify({
-        deployment,
-        environmentId,
-        clientId,
-        ownerRows: result.ownerRows,
-        providerRows: result.providerRows,
-        passwords: result.passwords,
-        issues: result.issues.length,
-        clear: result.clear,
-      })
-    );
-    if (!result.clear) {
-      if (!dryRun) {
-        const receipts = result.issues
-          .flatMap((issue) =>
-            (issue.teakUserIds.length ? issue.teakUserIds : [undefined]).map(
-              (teakUserId) => ({
-                email: issue.email,
-                reason: issue.reason,
-                ...(teakUserId ? { teakUserId } : {}),
-                ...(issue.workosUserId
-                  ? { workosUserId: issue.workosUserId }
-                  : {}),
-              })
-            )
-          )
-          .slice(0, 20);
-        await run("migration/workosImportSource:quarantinePreflight", {
+    await acknowledge();
+    remoteOpen = false;
+    return result;
+  }
+  try {
+    if (selected.has("--preflight") || selected.has("--apply")) {
+      if (selected.has("--preflight") && selected.has("--apply")) {
+        throw new Error("Preflight is read-only");
+      }
+      const owners: PreflightOwner[] = [],
+        providers: PreflightProvider[] = [];
+      let cursor: string | null = null;
+      let done = false;
+      const seen = new Set<string>();
+      do {
+        const page: {
+          owners: PreflightOwner[];
+          done: boolean;
+          cursor: string | null;
+        } = await run("migration/workosImportSource:preflightPage", {
           environmentId,
           clientId,
           apiKeyFingerprint,
-          receipts,
+          cursor,
         });
-      }
-      throw new Error("Global normalized-email preflight blocks import");
-    }
-    if (selected.has("--preflight")) {
-      return;
-    }
-  }
-  const ports: ImportPorts = {
-    quarantine: (owner, remote, reason) =>
-      run("migration/workosImportSource:quarantine", {
-        environmentId,
-        clientId,
-        apiKeyFingerprint,
-        teakUserId: owner.teakUserId,
-        sourceVersion: owner.sourceVersion,
-        workosUserId: remote?.id ?? owner.workosUserId,
-        reason,
-      }),
-    source: (cursor) =>
-      run("migration/workosImportSource:page", {
-        environmentId,
-        clientId,
-        apiKeyFingerprint,
-        cursor,
-      }),
-    lookup: async (externalId) => {
-      try {
-        return user(
-          await workos.userManagement.getUserByExternalId(externalId)
-        );
-      } catch (error) {
-        if (error instanceof NotFoundException) {
-          return null;
+        owners.push(...page.owners);
+        if (owners.length > 100_000) {
+          throw new Error(
+            "Preflight process budget exceeded; no partial clear result"
+          );
         }
-        throw error;
+        done = page.done;
+        if (done) {
+          break;
+        }
+        if (!page.cursor || seen.has(page.cursor)) {
+          throw new Error("Preflight cursor cycle");
+        }
+        seen.add(page.cursor);
+        cursor = page.cursor;
+      } while (!done);
+      let after: string | undefined;
+      const providerCursors = new Set<string>();
+      do {
+        const page = await workos.userManagement.listUsers({
+          limit: 100,
+          after,
+          order: "asc",
+        });
+        providers.push(
+          ...page.data.map((remote) => ({
+            id: remote.id,
+            email: remote.email,
+            externalId: remote.externalId ?? null,
+          }))
+        );
+        if (providers.length > 100_000) {
+          throw new Error(
+            "Preflight provider budget exceeded; no partial clear result"
+          );
+        }
+        after = page.listMetadata.after ?? undefined;
+        if (after && providerCursors.has(after)) {
+          throw new Error("Preflight provider cursor cycle");
+        }
+        if (after) {
+          providerCursors.add(after);
+        }
+      } while (after);
+      const result = preflight(owners, providers, journal.mode === "delta");
+      if (selected.has("--preflight") || !result.clear) {
+        await writeFile(
+          selected.has("--preflight")
+            ? `${journalPath}.preflight.json`
+            : `${journalPath}.collision.${crypto.randomUUID()}.json`,
+          JSON.stringify(
+            {
+              deployment,
+              environmentId,
+              clientId,
+              observedAt: new Date().toISOString(),
+              ...result,
+            },
+            null,
+            2
+          ),
+          { flag: "wx", mode: 0o600 }
+        );
       }
-    },
-    create: async (owner, passwordHash) =>
-      user(
-        await workos.userManagement.createUser({
-          email: owner.email,
-          name: owner.name ?? undefined,
-          emailVerified: owner.emailVerified,
-          externalId: owner.teakUserId,
-          ...(passwordHash
-            ? { passwordHash, passwordHashType: "scrypt" as const }
-            : {}),
+      console.log(
+        JSON.stringify({
+          deployment,
+          environmentId,
+          clientId,
+          ownerRows: result.ownerRows,
+          providerRows: result.providerRows,
+          passwords: result.passwords,
+          issues: result.issues.length,
+          clear: result.clear,
         })
-      ),
-    update: async (remote, owner, passwordHash) =>
-      user(
-        await workos.userManagement.updateUser({
-          userId: remote.id,
-          email: owner.email,
-          name: owner.name ?? undefined,
-          emailVerified: owner.emailVerified,
-          ...(passwordHash
-            ? { passwordHash, passwordHashType: "scrypt" as const }
-            : {}),
-        })
-      ),
-    remove: (remote) => workos.userManagement.deleteUser(remote.id),
-    link: (owner, remote) =>
-      run("migration/workosImportSource:link", {
-        environmentId,
-        clientId,
-        apiKeyFingerprint,
-        teakUserId: owner.teakUserId,
-        sourceVersion: owner.sourceVersion,
-        user: remote,
-      }),
-    checkpoint: async (cursor, completed, watermark) => {
-      journal = {
-        ...journal,
-        cursor,
-        completed,
-        watermark: completed ? watermark : journal.watermark,
-      };
-      await writeJournal(journalPath, journal, false);
-    },
-    sleep: (milliseconds) =>
-      new Promise((resolveDelay) => setTimeout(resolveDelay, milliseconds)),
-  };
-  // Persist admission before the first source/provider mutation, including page1.
-  if (!dryRun && mode !== "resume") {
-    await writeJournal(journalPath, journal, previous === null);
+      );
+      if (!result.clear) {
+        if (!dryRun) {
+          const receipts = result.issues
+            .flatMap((issue) =>
+              (issue.teakUserIds.length ? issue.teakUserIds : [undefined]).map(
+                (teakUserId) => ({
+                  email: issue.email,
+                  reason: issue.reason,
+                  ...(teakUserId ? { teakUserId } : {}),
+                  ...(issue.workosUserId
+                    ? { workosUserId: issue.workosUserId }
+                    : {}),
+                })
+              )
+            )
+            .slice(0, 20);
+          await run("migration/workosImportSource:quarantinePreflight", {
+            environmentId,
+            clientId,
+            apiKeyFingerprint,
+            ...writer,
+            receipts,
+          });
+        }
+        throw new Error("Global normalized-email preflight blocks import");
+      }
+      if (selected.has("--preflight")) {
+        return;
+      }
+    }
+    const ports: ImportPorts = {
+      quarantine: (owner, remote, reason) =>
+        run("migration/workosImportSource:quarantine", {
+          environmentId,
+          clientId,
+          apiKeyFingerprint,
+          ...writer,
+          teakUserId: owner.teakUserId,
+          sourceVersion: owner.sourceVersion,
+          workosUserId: remote?.id ?? owner.workosUserId,
+          reason,
+        }),
+      source: (cursor) =>
+        run("migration/workosImportSource:page", {
+          environmentId,
+          clientId,
+          apiKeyFingerprint,
+          cursor,
+        }),
+      lookup: async (externalId) => {
+        if (remoteOpen) {
+          throw new Error(
+            "Uncertain importer remote intent; no automatic retry"
+          );
+        }
+        try {
+          return user(
+            await workos.userManagement.getUserByExternalId(externalId)
+          );
+        } catch (error) {
+          if (error instanceof NotFoundException) {
+            return null;
+          }
+          throw error;
+        }
+      },
+      create: (owner, passwordHash) =>
+        remote("create", owner, async () =>
+          user(
+            await workos.userManagement.createUser({
+              email: owner.email,
+              name: owner.name ?? undefined,
+              emailVerified: owner.emailVerified,
+              externalId: owner.teakUserId,
+              ...(passwordHash
+                ? { passwordHash, passwordHashType: "scrypt" as const }
+                : {}),
+            })
+          )
+        ),
+      update: (existing, owner, passwordHash) =>
+        remote("update", owner, async () =>
+          user(
+            await workos.userManagement.updateUser({
+              userId: existing.id,
+              email: owner.email,
+              name: owner.name ?? undefined,
+              emailVerified: owner.emailVerified,
+              ...(passwordHash
+                ? { passwordHash, passwordHashType: "scrypt" as const }
+                : {}),
+            })
+          )
+        ),
+      remove: (existing, owner) =>
+        remote("delete", owner, () =>
+          workos.userManagement.deleteUser(existing.id)
+        ),
+      link: (owner, remote) =>
+        run("migration/workosImportSource:link", {
+          environmentId,
+          clientId,
+          apiKeyFingerprint,
+          ...writer,
+          teakUserId: owner.teakUserId,
+          sourceVersion: owner.sourceVersion,
+          user: remote,
+        }),
+      checkpoint: async (cursor, completed, watermark) => {
+        await run("migration/workosImportLease:verify", leaseArgs());
+        journal = {
+          ...journal,
+          cursor,
+          completed,
+          watermark: completed ? watermark : journal.watermark,
+        };
+        await writeJournal(journalPath, journal, false);
+      },
+      sleep: (milliseconds) =>
+        new Promise((resolveDelay) => setTimeout(resolveDelay, milliseconds)),
+    };
+    // Persist admission before the first source/provider mutation, including page1.
+    if (!dryRun && mode !== "resume") {
+      await writeJournal(journalPath, journal, previous === null);
+    }
+    const report = await importOwners(ports, {
+      dryRun,
+      mutationApproved: selected.has("--apply"),
+      hashesProven: selected.has("--hashes-proven"),
+      delta: journal.mode === "delta",
+      changedSince: journal.mode === "delta" ? journal.watermark : 0,
+      cursor: journal.cursor,
+      startedAt: journal.startedAt,
+    });
+    console.log(
+      JSON.stringify({ deployment, environmentId, clientId, ...report })
+    );
+  } finally {
+    if (writer) {
+      await run(
+        remoteOpen
+          ? "migration/workosImportLease:markUncertain"
+          : "migration/workosImportLease:release",
+        leaseArgs()
+      );
+    }
   }
-  const report = await importOwners(ports, {
-    dryRun,
-    mutationApproved: selected.has("--apply"),
-    hashesProven: selected.has("--hashes-proven"),
-    delta: journal.mode === "delta",
-    changedSince: journal.mode === "delta" ? journal.watermark : 0,
-    cursor: journal.cursor,
-    startedAt: journal.startedAt,
-  });
-  console.log(
-    JSON.stringify({ deployment, environmentId, clientId, ...report })
-  );
 }
 if (import.meta.main) {
   main(process.argv.slice(2)).catch(() => {
