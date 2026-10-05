@@ -53,6 +53,26 @@ async function setup() {
 }
 
 describe("Security sessions", () => {
+  test("retry cache keys preserve the shipped query results and ownership", async () => {
+    const { t, authenticated } = await setup();
+    const original = await authenticated.query(
+      api.securitySessions.listSessions,
+      { paginationOpts }
+    );
+    expect(
+      await authenticated.query(api.securitySessions.listSessions, {
+        paginationOpts,
+        retryKey: crypto.randomUUID(),
+      })
+    ).toEqual(original);
+    expect(
+      await t.query(api.securitySessions.listSessions, {
+        paginationOpts,
+        retryKey: "owner",
+      })
+    ).toEqual({ page: [], isDone: true, continueCursor: "" });
+  });
+
   test("revoking a device blocks cached-token card reads and writes", async () => {
     const { t, authenticated, current, other } = await setup();
     const id = await t.run((ctx) =>
