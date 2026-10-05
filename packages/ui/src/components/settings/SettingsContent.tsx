@@ -18,6 +18,7 @@ import { ThemeToggle } from "./ThemeToggle";
 
 interface SettingsContentProps {
   accountLoading: boolean;
+  betterAuthIdentityKey?: string;
   cardCount: number;
   deleteDialogError: string | null;
   deleteDialogOpen: boolean;
@@ -35,6 +36,7 @@ interface SettingsContentProps {
   onDeleteDialogOpenChange: (open: boolean) => void;
   onDownloadExport: (jobId: string) => Promise<void>;
   onLoadMoreSessions: () => void;
+  onRetrySessions?: () => void;
   onRevokeAllApiKeys: () => Promise<{ hasMore: boolean; revokedCount: number }>;
   onRevokeApiKey: (keyId: string) => Promise<void>;
   onRevokeOAuthConnection: (clientId: string) => Promise<void>;
@@ -45,6 +47,7 @@ interface SettingsContentProps {
   onThemeChange?: (value: string) => void;
   onUpgrade: () => void;
   sessions: DeviceSession[] | undefined;
+  sessionsError?: string | null;
   sessionsHasMore: boolean;
   sessionsLoadingMore: boolean;
   signOutLoading: boolean;
@@ -52,6 +55,7 @@ interface SettingsContentProps {
 }
 
 export function SettingsContent({
+  betterAuthIdentityKey,
   cardCount,
   deleteDialogError,
   deleteDialogOpen,
@@ -64,6 +68,8 @@ export function SettingsContent({
   keys,
   oauthConnections,
   sessions,
+  sessionsError,
+  onRetrySessions,
   sessionsHasMore,
   sessionsLoadingMore,
   onLoadMoreSessions,
@@ -134,11 +140,14 @@ export function SettingsContent({
           onRevokeKey: onRevokeApiKey,
           onRotateKey: onRotateApiKey,
         }}
+        betterAuthIdentityKey={betterAuthIdentityKey}
         connections={oauthConnections}
         onLoadMoreSessions={onLoadMoreSessions}
+        onRetrySessions={onRetrySessions}
         onRevokeConnection={onRevokeOAuthConnection}
         onRevokeSession={onRevokeSession}
         sessions={sessions}
+        sessionsError={sessionsError}
         sessionsHasMore={sessionsHasMore}
         sessionsLoadingMore={sessionsLoadingMore}
       />

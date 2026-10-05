@@ -165,8 +165,8 @@ export function WorkosAuthProvider({
         screenHint?: "sign-in" | "sign-up"
       ) => signInWithWorkos(session, provider, screenHint),
       signOut: async () => {
-        // Phase 3 makes this existing mutation revoke WorkOS sessions as well as
-        // deny them reactively in Teak. Do not claim sign-out if the server fails.
+        // Revoke on the server before clearing secure storage.
+        // Keep credentials if the request fails.
         const token = await session.fetchAccessToken();
         if (!token) {
           await session.clear();
@@ -177,7 +177,7 @@ export function WorkosAuthProvider({
         if (!sessionId) {
           throw new Error("Please sign in again");
         }
-        await client.mutation(api.securitySessions.revokeSession, {
+        await client.action(api.securitySessions.revokeAuthkitSession, {
           sessionId,
         });
         await session.clear();
