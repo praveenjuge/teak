@@ -13,6 +13,7 @@ import {
   publisherEnvironment,
   readArtifact,
   validateRelease,
+  waitForPublished,
 } from "./sdk-release.mjs";
 
 // Release risks: wrong ref/commit/version, off-main tag, non-patch bump,
@@ -114,6 +115,75 @@ test("registry absence is explicit, outages and invalid 404s fail closed", async
   await expect(
     inspectPublished(artifact, "http://127.0.0.1:1")
   ).rejects.toThrow();
+});
+
+test("registry processing becomes ready only after exact metadata and bytes appear", async () => {
+  resetRegistry();
+  status = 404;
+  metadata = { error: "version not found" };
+  expect(
+    await waitForPublished(artifact, {
+      registryUrl: registry,
+      attempts: 3,
+      intervalMs: 0,
+      wait: () => {
+        resetRegistry();
+        return Promise.resolve();
+      },
+    })
+  ).toBe(true);
+});
+
+test("registry visibility polling is bounded and never retries malformed absence or outages", async () => {
+  resetRegistry();
+  status = 404;
+  metadata = { error: "version not found" };
+  expect(
+    await waitForPublished(artifact, {
+      registryUrl: registry,
+      attempts: 2,
+      intervalMs: 0,
+    })
+  ).toBe(false);
+  metadata = {};
+  await expect(
+    waitForPublished(artifact, {
+      registryUrl: registry,
+      attempts: 2,
+      intervalMs: 0,
+    })
+  ).rejects.toThrow("invalid missing-version");
+  status = 503;
+  await expect(
+    waitForPublished(artifact, {
+      registryUrl: registry,
+      attempts: 2,
+      intervalMs: 0,
+    })
+  ).rejects.toThrow("HTTP 503");
+  await expect(waitForPublished(artifact, { attempts: 61 })).rejects.toThrow(
+    "Invalid SDK registry visibility"
+  );
+});
+
+test("registry processing stops at its elapsed-time deadline", async () => {
+  resetRegistry();
+  status = 404;
+  metadata = { error: "version not found" };
+  let elapsed = 0;
+  expect(
+    await waitForPublished(artifact, {
+      registryUrl: registry,
+      now: () => elapsed,
+      wait: () => {
+        if (elapsed) {
+          throw new Error("retry past deadline");
+        }
+        elapsed = 300_001;
+        return Promise.resolve();
+      },
+    })
+  ).toBe(false);
 });
 
 test("repeat publication accepts only identical registry metadata and bytes", async () => {
@@ -311,6 +381,23 @@ test("verified provenance must bind package bytes, repository, workflow, tag and
     provenanceReceipt(reportFor(statement), artifact, commit)
       .cryptographicallyVerified
   ).toBe(true);
+  const slashRegistry = reportFor(statement);
+  slashRegistry.verified[0].registry = "https://registry.npmjs.org/";
+  expect(
+    provenanceReceipt(slashRegistry, artifact, commit).cryptographicallyVerified
+  ).toBe(true);
+  for (const registryValue of [
+    "https://registry.npmjs.org.evil.example/",
+    "https://registry.npmjs.org/private",
+    "https://registry.npmjs.org/?x=1",
+    "http://registry.npmjs.org/",
+  ]) {
+    const otherRegistry = reportFor(statement);
+    otherRegistry.verified[0].registry = registryValue;
+    expect(() => provenanceReceipt(otherRegistry, artifact, commit)).toThrow(
+      "Missing verified"
+    );
+  }
   expect(() =>
     provenanceReceipt(
       { ...reportFor(statement), invalid: [{}] },

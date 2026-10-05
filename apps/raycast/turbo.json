@@ -1,0 +1,12 @@
+{
+  "extends": ["//"],
+  "tags": ["app"],
+  "tasks": {
+    "test": {
+      "dependsOn": ["^test", "teak-sdk#build"]
+    },
+    "typecheck": {
+      "dependsOn": ["^typecheck", "teak-sdk#build"]
+    }
+  }
+}

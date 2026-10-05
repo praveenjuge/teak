@@ -137,15 +137,23 @@ function integrity(bytes) {
   return `sha512-${createHash("sha512").update(bytes).digest("base64")}`;
 }
 
-async function request(url) {
+async function request(url, signal) {
   return await fetch(url, {
     redirect: "error",
-    signal: AbortSignal.timeout(30_000),
+    signal,
   });
 }
 
-export async function inspectPublished(artifact, registryUrl = registry) {
-  const response = await request(`${registryUrl}/teak-sdk/${artifact.version}`);
+export async function inspectPublished(
+  artifact,
+  registryUrl = registry,
+  timeoutMs = 30_000
+) {
+  const signal = AbortSignal.timeout(timeoutMs);
+  const response = await request(
+    `${registryUrl}/teak-sdk/${artifact.version}`,
+    signal
+  );
   if (response.status === 404) {
     const missing = await response.json();
     if (
@@ -185,7 +193,7 @@ export async function inspectPublished(artifact, registryUrl = registry) {
   ) {
     throw new Error("Published SDK tarball has an unexpected registry URL.");
   }
-  const tarball = await request(url);
+  const tarball = await request(url, signal);
   if (!(tarball.ok && tarball.body)) {
     throw new Error(
       `Registry tarball download failed: HTTP ${tarball.status}.`
@@ -222,7 +230,7 @@ export function provenanceReceipt(report, artifact, commit) {
     (entry) =>
       entry.name === artifact.name &&
       entry.version === artifact.version &&
-      entry.registry === registry
+      (entry.registry === registry || entry.registry === `${registry}/`)
   );
   if (entries.length !== 1) {
     throw new Error("Missing verified SDK attestation.");
@@ -416,17 +424,58 @@ async function main() {
     );
     return;
   }
-  for (let attempt = 0; attempt < 12; attempt++) {
-    if (await inspectPublished(artifact)) {
-      verifyProvenance(artifact, metadataPath);
-      console.log(
-        "Published SDK metadata, tarball integrity and provenance verified."
-      );
-      return;
-    }
-    await new Promise((done) => setTimeout(done, 5000));
+  if (await waitForPublished(artifact)) {
+    verifyProvenance(artifact, metadataPath);
+    console.log(
+      "Published SDK metadata, tarball integrity and provenance verified."
+    );
+    return;
   }
-  throw new Error("Published SDK version did not become visible in npm.");
+  throw new Error(
+    "Published SDK version did not become visible within the npm processing window."
+  );
+}
+
+export async function waitForPublished(
+  artifact,
+  {
+    registryUrl = registry,
+    attempts = 60,
+    intervalMs = 5000,
+    timeoutMs = 300_000,
+    now = Date.now,
+    wait = (ms) => new Promise((done) => setTimeout(done, ms)),
+  } = {}
+) {
+  if (
+    !Number.isInteger(attempts) ||
+    attempts < 1 ||
+    attempts > 60 ||
+    !Number.isInteger(intervalMs) ||
+    intervalMs < 0 ||
+    intervalMs > 5000 ||
+    !Number.isInteger(timeoutMs) ||
+    timeoutMs < 1 ||
+    timeoutMs > 300_000
+  ) {
+    throw new Error("Invalid SDK registry visibility window.");
+  }
+  const deadline = now() + timeoutMs;
+  for (let attempt = 0; attempt < attempts; attempt++) {
+    const remaining = deadline - now();
+    if (remaining <= 0) {
+      return false;
+    }
+    if (
+      await inspectPublished(artifact, registryUrl, Math.min(30_000, remaining))
+    ) {
+      return true;
+    }
+    if (attempt + 1 < attempts) {
+      await wait(Math.max(0, Math.min(intervalMs, deadline - now())));
+    }
+  }
+  return false;
 }
 
 if (process.argv[1] === fileURLToPath(import.meta.url)) {
