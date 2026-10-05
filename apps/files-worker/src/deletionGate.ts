@@ -8,6 +8,13 @@ export interface DeletionGateEnv {
   OBJECT_GATES?: DurableObjectNamespace;
 }
 
+export class ObjectWriteBlockedError extends Error {
+  constructor() {
+    super("Object writes are blocked.");
+    this.name = "ObjectWriteBlockedError";
+  }
+}
+
 // Every container has a wire tag, so arbitrary metadata cannot masquerade as
 // a Date, Headers, or checksum. This contract covers the native R2 option and
 // result values used here; unsupported values fail before dispatch to R2.
@@ -203,6 +210,7 @@ export class ObjectDeletionGate {
       return true;
     });
     if (!admitted) {
+      await request.body?.cancel();
       return new Response("object_write_fenced_or_busy", { status: 409 });
     }
     let completed = false;
@@ -319,6 +327,10 @@ export function gatedBucket(env: DeletionGateEnv): R2Bucket {
         body,
         headers: { "x-key": key, ...headers },
       });
+    if (response.status === 409) {
+      await response.body?.cancel();
+      throw new ObjectWriteBlockedError();
+    }
     if (!response.ok) {
       throw new Error(`object_gate_write_${response.status}`);
     }

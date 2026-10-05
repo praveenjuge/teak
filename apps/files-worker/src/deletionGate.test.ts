@@ -332,3 +332,24 @@ describe("exact object deletion fence", () => {
     ).rejects.toThrow("not_configured");
   });
 });
+
+test("rejected frozen writes cancel their request stream before responding", async () => {
+  const t = fixture();
+  await t.request("freeze");
+  let cancelled = false;
+  const body = new ReadableStream({
+    cancel() {
+      cancelled = true;
+    },
+  });
+  const response = await t.gate.fetch(
+    new Request("https://gate/put", {
+      method: "POST",
+      headers: { "x-key": "users/exact/file" },
+      body,
+    })
+  );
+  expect(response.status).toBe(409);
+  expect(cancelled).toBe(true);
+  expect(t.values.has("active")).toBe(false);
+});

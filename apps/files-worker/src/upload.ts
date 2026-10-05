@@ -4,6 +4,7 @@ import {
   FILES_UPLOAD_MAX_TTL_SECONDS,
   type FilesErrorCode,
 } from "@teak/files-protocol";
+import { ObjectWriteBlockedError } from "./deletionGate";
 import { verifyHmacPayload } from "./lib";
 
 /**
@@ -213,6 +214,14 @@ export const handleSignedUpload = async (
     );
     return response;
   } catch (error) {
+    if (error instanceof ObjectWriteBlockedError) {
+      return uploadError(
+        requestId,
+        "CONFLICT",
+        "Object writes are blocked",
+        409
+      );
+    }
     console.error("[files-worker] upload failed", {
       error: error instanceof Error ? error.message : String(error),
       key,

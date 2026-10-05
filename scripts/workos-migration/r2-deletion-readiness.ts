@@ -149,7 +149,7 @@ if (values.execute) {
       if (
         !(
           error instanceof Error &&
-          error.message === "files_worker_upload_error:403"
+          error.message === "files_worker_upload_error:409"
         )
       ) {
         throw error;

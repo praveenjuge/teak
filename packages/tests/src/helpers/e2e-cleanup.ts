@@ -57,33 +57,88 @@ export const isConfiguredE2EEmail = (
 };
 
 export const cleanupE2EAccounts = async (
-  emails?: string[]
+  emails?: string[],
+  sleep: () => Promise<void> = () =>
+    new Promise((resolve) => setTimeout(resolve, 1500))
 ): Promise<E2ECleanupResult> => {
   requireE2ECleanup();
-  const response = await fetch(
-    `${env.convexSiteUrl}/api/auth/internal/e2e/cleanup`,
-    {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${env.cleanupToken}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(emails ? { emails } : {}),
+  const deadline = Date.now() + 120_000;
+  const deleted = new Set<string>(),
+    alreadyDeleted = new Set<string>();
+  const cursors = new Set<string>();
+  let cursor: string | undefined;
+  for (let attempt = 0; attempt < 200 && Date.now() < deadline; attempt++) {
+    const sweepBody = cursor ? { cursor } : {};
+    const response = await fetch(
+      `${env.convexSiteUrl}/api/auth/internal/e2e/cleanup`,
+      {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${env.cleanupToken}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(emails ? { emails } : sweepBody),
+        signal: AbortSignal.timeout(Math.min(15_000, deadline - Date.now())),
+      }
+    );
+    const payload: unknown = await response.json().catch(() => null);
+    if (!isE2ECleanupResult(payload)) {
+      throw new Error(
+        `Production E2E cleanup returned an invalid response (${response.status})`
+      );
     }
+    if (
+      !response.ok ||
+      payload.ignoredOutOfRange.length > 0 ||
+      payload.failures.some(
+        (failure) => failure.reason !== "account cleanup pending"
+      ) ||
+      (response.status !== 202 && payload.failures.length > 0)
+    ) {
+      throw new Error(
+        `Production E2E cleanup failed (${response.status}): ${summarizeE2ECleanup(payload)}`
+      );
+    }
+    for (const email of payload.deleted) {
+      deleted.add(email);
+    }
+    for (const email of payload.alreadyDeleted) {
+      alreadyDeleted.add(email);
+    }
+    if (deleted.size + alreadyDeleted.size > 200) {
+      throw new Error("E2E cleanup candidate budget exceeded");
+    }
+    if (response.status === 202) {
+      if (!payload.failures.length) {
+        throw new Error("E2E cleanup pending without evidence");
+      }
+      await sleep();
+      continue;
+    }
+    if (!payload.remainingEligible) {
+      return {
+        ...payload,
+        deleted: [...deleted],
+        alreadyDeleted: [...alreadyDeleted],
+      };
+    }
+    const next = (payload as E2ECleanupResult & { nextCursor?: unknown })
+      .nextCursor;
+    if (
+      emails ||
+      typeof next !== "string" ||
+      !next.length ||
+      next.length > 8192 ||
+      cursors.has(next)
+    ) {
+      throw new Error("Invalid or non-progressing E2E sweep cursor");
+    }
+    cursors.add(next);
+    cursor = next;
+  }
+  throw new Error(
+    "E2E cleanup deadline or page budget exceeded; cleanup remains unproven"
   );
-  const payload: unknown = await response.json().catch(() => null);
-  if (!isE2ECleanupResult(payload)) {
-    throw new Error(
-      `Production E2E cleanup returned an invalid response (${response.status})`
-    );
-  }
-  const result = payload;
-  if (!response.ok) {
-    throw new Error(
-      `Production E2E cleanup failed (${response.status}): ${summarizeE2ECleanup(result)}`
-    );
-  }
-  return result;
 };
 
 const PROVISION_MAX_ATTEMPTS = 4;
@@ -114,6 +169,7 @@ export const provisionE2EAccount = async (
   // status means the server rejected the request, so it cannot prove the
   // account was created.
   let sawLostResponse = false;
+  let admittedPending = false;
   for (let attempt = 1; attempt <= PROVISION_MAX_ATTEMPTS; attempt += 1) {
     let response: Response;
     try {
@@ -142,7 +198,22 @@ export const provisionE2EAccount = async (
     ) {
       return;
     }
-    if (response.status === 409 && sawLostResponse) {
+    if (
+      response.status === 503 &&
+      payload &&
+      typeof payload === "object" &&
+      (payload as { code?: unknown }).code === "E2E_PROVISION_PENDING"
+    ) {
+      admittedPending = true;
+    }
+    if (
+      response.status === 409 &&
+      (sawLostResponse ||
+        (admittedPending &&
+          payload &&
+          typeof payload === "object" &&
+          (payload as { email?: unknown }).email === email.toLowerCase()))
+    ) {
       // The retried request raced an earlier attempt whose response was
       // lost: the account now exists, which is the goal of this helper.
       return;

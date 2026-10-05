@@ -294,3 +294,94 @@ describe("production E2E cleanup helpers", () => {
     expect(cleanupAttempts).toBe(2);
   });
 });
+
+test("cleanup waits for durable completion and never treats accepted deletion as finished", async () => {
+  env.cleanupToken = crypto.randomUUID();
+  env.convexSiteUrl = "https://example.convex.site";
+  const email = "e2e-durable@tests.example.com";
+  let calls = 0;
+  let waits = 0;
+  globalThis.fetch = mock(() => {
+    calls++;
+    return Response.json(
+      {
+        alreadyDeleted: calls === 1 ? [] : [email],
+        deleted: [],
+        failures:
+          calls === 1 ? [{ email, reason: "account cleanup pending" }] : [],
+        ignoredOutOfRange: [],
+        remainingEligible: false,
+      },
+      { status: calls === 1 ? 202 : 200 }
+    );
+  }) as unknown as typeof fetch;
+  const result = await cleanupE2EAccounts([email], () => {
+    waits++;
+    return Promise.resolve();
+  });
+  expect(result.alreadyDeleted).toEqual([email]);
+  expect(calls).toBe(2);
+  expect(waits).toBe(1);
+});
+
+test("orphan cleanup traverses bounded provider and owner pages", async () => {
+  env.cleanupToken = crypto.randomUUID();
+  env.convexSiteUrl = "https://example.convex.site";
+  const bodies: unknown[] = [];
+  globalThis.fetch = mock((_input: RequestInfo | URL, init?: RequestInit) => {
+    bodies.push(JSON.parse(String(init?.body)));
+    return Response.json({
+      alreadyDeleted: [],
+      deleted: [`e2e-${bodies.length}@tests.example.com`],
+      failures: [],
+      ignoredOutOfRange: [],
+      remainingEligible: bodies.length === 1,
+      nextCursor: bodies.length === 1 ? "bounded-next-page" : null,
+    });
+  }) as unknown as typeof fetch;
+  const result = await cleanupE2EAccounts(undefined, noOpSleep);
+  expect(bodies).toEqual([{}, { cursor: "bounded-next-page" }]);
+  expect(result.deleted).toEqual([
+    "e2e-1@tests.example.com",
+    "e2e-2@tests.example.com",
+  ]);
+});
+
+test("orphan cleanup fails closed when a sweep cursor repeats", async () => {
+  env.cleanupToken = crypto.randomUUID();
+  env.convexSiteUrl = "https://example.convex.site";
+  globalThis.fetch = mock(async () =>
+    Response.json({
+      alreadyDeleted: [],
+      deleted: [],
+      failures: [],
+      ignoredOutOfRange: [],
+      remainingEligible: true,
+      nextCursor: "same-page",
+    })
+  ) as unknown as typeof fetch;
+  await expect(cleanupE2EAccounts(undefined, noOpSleep)).rejects.toThrow(
+    "non-progressing"
+  );
+});
+
+test("provisioning retries an admitted pending account only after canonical readiness", async () => {
+  env.cleanupToken = crypto.randomUUID();
+  env.convexSiteUrl = "https://example.convex.site";
+  env.emailDomain = "tests.example.com";
+  let calls = 0;
+  globalThis.fetch = mock(async () =>
+    ++calls === 1
+      ? Response.json({ code: "E2E_PROVISION_PENDING" }, { status: 503 })
+      : Response.json(
+          { email: "e2e-pending@tests.example.com" },
+          { status: 409 }
+        )
+  ) as unknown as typeof fetch;
+  await provisionE2EAccount(
+    "e2e-pending@tests.example.com",
+    crypto.randomUUID(),
+    noOpSleep
+  );
+  expect(calls).toBe(2);
+});

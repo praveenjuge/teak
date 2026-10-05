@@ -4,6 +4,7 @@ import {
   buildUploadSigningPayload,
   FILES_PROTOCOL_VERSION,
 } from "@teak/files-protocol";
+import { freezeObject } from "./deletionGate";
 import worker, { type Env } from "./index";
 import { hmacSha256Hex, sha256Hex } from "./lib";
 import { FakeBucket, withObjectGates } from "./testsupport";
@@ -596,4 +597,54 @@ describe("additive files ops", () => {
     });
     expect(calls).toBe(2);
   });
+});
+
+test("frozen signed upload returns a conflict without replacing stored bytes", async () => {
+  const testEnv = env();
+  const key = "users/u1/cards/file/frozen.txt";
+  const original = new TextEncoder().encode("keep these bytes");
+  expect(
+    (
+      await worker.fetch(
+        await signedUploadRequest(original, { key }),
+        testEnv,
+        { waitUntil: () => undefined } as never
+      )
+    ).status
+  ).toBe(200);
+  expect(await freezeObject(testEnv, key)).toBe(true);
+  const response = await worker.fetch(
+    await signedUploadRequest(new TextEncoder().encode("late replacement"), {
+      key,
+    }),
+    testEnv,
+    { waitUntil: () => undefined } as never
+  );
+  expect(response.status).toBe(409);
+  expect(await response.json()).toMatchObject({
+    ok: false,
+    error: { code: "CONFLICT" },
+  });
+  expect(
+    (testEnv.BUCKET as unknown as FakeBucket).objects.get(key)?.bytes
+  ).toEqual(original);
+});
+
+test("unexpected storage failures remain internal errors and retain the pending write fence", async () => {
+  const testEnv = env();
+  const key = "users/u1/cards/file/unknown-write.txt";
+  testEnv.BUCKET.put = () => Promise.reject(new Error("object_gate_write_409"));
+  const response = await worker.fetch(
+    await signedUploadRequest(new TextEncoder().encode("unknown outcome"), {
+      key,
+    }),
+    testEnv,
+    { waitUntil: () => undefined } as never
+  );
+  expect(response.status).toBe(500);
+  expect(await response.json()).toMatchObject({
+    ok: false,
+    error: { code: "INTERNAL" },
+  });
+  expect(await freezeObject(testEnv, key)).toBe(false);
 });
