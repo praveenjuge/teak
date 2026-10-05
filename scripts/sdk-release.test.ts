@@ -27,6 +27,7 @@ const artifact = {
 };
 let status = 200;
 let metadata: Record<string, unknown>;
+let missingVersionBody: string | undefined;
 let servedBytes = bytes;
 const server = serve({
   port: 0,
@@ -34,7 +35,7 @@ const server = serve({
     if (new URL(request.url).pathname.endsWith(".tgz")) {
       return new Response(servedBytes);
     }
-    return Response.json(metadata, { status });
+    return Response.json(missingVersionBody ?? metadata, { status });
   },
 });
 afterAll(() => server.stop(true));
@@ -75,6 +76,7 @@ test("publisher rejects alternate npm authentication and config selectors", () =
 
 function resetRegistry() {
   status = 200;
+  missingVersionBody = undefined;
   servedBytes = bytes;
   metadata = {
     name: artifact.name,
@@ -91,6 +93,15 @@ test("registry absence is explicit, outages and invalid 404s fail closed", async
   status = 404;
   metadata = { error: "version not found" };
   expect(await inspectPublished(artifact, registry)).toBe(false);
+  missingVersionBody = `version not found: ${artifact.version}`;
+  expect(await inspectPublished(artifact, registry)).toBe(false);
+  for (const body of ["Not found", "version not found: 9.9.9"]) {
+    missingVersionBody = body;
+    await expect(inspectPublished(artifact, registry)).rejects.toThrow(
+      "invalid missing-version"
+    );
+  }
+  missingVersionBody = undefined;
   status = 503;
   await expect(inspectPublished(artifact, registry)).rejects.toThrow(
     "HTTP 503"
@@ -157,6 +168,37 @@ test("local packed metadata is bound to the exact tarball bytes", () => {
     "Invalid packed SDK metadata"
   );
 });
+
+test("npm 12 pack metadata resolves the single SDK artifact and verifies its bytes", () => {
+  const directory = mkdtempSync(join(tmpdir(), "teak-sdk-npm12-"));
+  const metadataPath = join(directory, "pack.json");
+  writeFileSync(metadataPath, JSON.stringify({ "teak-sdk": artifact }));
+  writeFileSync(join(directory, artifact.filename), bytes);
+  expect(readArtifact(metadataPath)).toEqual(artifact);
+  writeFileSync(join(directory, artifact.filename), "tampered");
+  expect(() => readArtifact(metadataPath)).toThrow("recorded integrity");
+});
+
+test.each(
+  [
+    {},
+    [],
+    [artifact, artifact],
+    { "teak-sdk": artifact, other: artifact },
+    { other: artifact },
+    { "teak-sdk": null },
+    { "teak-sdk": [artifact] },
+    null,
+  ].map((packed) => ({ packed }))
+)(
+  "pack metadata cannot select an ambiguous or malformed artifact (%j)",
+  ({ packed }) => {
+    const directory = mkdtempSync(join(tmpdir(), "teak-sdk-invalid-pack-"));
+    const metadataPath = join(directory, "pack.json");
+    writeFileSync(metadataPath, JSON.stringify(packed));
+    expect(() => readArtifact(metadataPath)).toThrow();
+  }
+);
 
 function releaseRepo(next = "1.0.1") {
   const directory = mkdtempSync(join(tmpdir(), "teak-sdk-tag-"));
