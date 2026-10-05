@@ -181,6 +181,7 @@
       "dependencies": {
         "@raycast/api": "^1.104.24",
         "@raycast/utils": "^2.3.0",
+        "teak-sdk": "1.0.79",
       },
       "devDependencies": {
         "@types/node": "^26.2.0",

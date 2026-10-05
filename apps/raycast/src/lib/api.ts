@@ -21,6 +21,7 @@ import {
   authorizeTeak,
   getStoredTeakAccessToken,
   reauthorizeTeak,
+  refreshTeakAuthConfiguration,
 } from "./oauth";
 import { getPreferences } from "./preferences";
 import type { RaycastCardType, RaycastSort } from "./searchFilters";
@@ -250,6 +251,9 @@ export const request = async <T>(
   // callers drop the cached tokens, re-authorize once, and retry. Non-interactive
   // callers (no-view commands) must not open the sign-in overlay, so they
   // surface the error instead of re-authorizing.
+  if (response.status === 401 && bearer.source === "oauth") {
+    await refreshTeakAuthConfiguration();
+  }
   if (
     response.status === 401 &&
     bearer.source === "oauth" &&
