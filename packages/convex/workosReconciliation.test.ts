@@ -18,7 +18,8 @@ const environmentId = "environment_expected",
 const admission = {
   environmentId,
   clientId,
-  apiKeyFingerprint: "fingerprint",
+  apiKeyFingerprint:
+    "42f0311968fe4d35b1926e47d30a9397c9d709d3b70330697b67ac9f5d9079b1",
   runKey: "run_one",
   providerWitnessUserId: "user_witness",
   mode: "repair" as const,
@@ -83,6 +84,7 @@ beforeEach(() => {
   vi.useFakeTimers();
   vi.stubEnv("WORKOS_ENVIRONMENT_ID", environmentId);
   vi.stubEnv("WORKOS_CLIENT_ID", clientId);
+  vi.stubEnv("WORKOS_API_KEY", "sk_test_reconciliation");
 });
 afterEach(() => {
   vi.clearAllTimers();
@@ -532,6 +534,35 @@ describe("reconciliation failure boundaries", () => {
       })
     ).rejects.toThrow("credential mismatch");
     expect((await read(t)).runs[0].scanned).toBe(0);
+  });
+  test("backend API key rotation rejects a previously admitted absence checkpoint", async () => {
+    const t = setup();
+    await seed(t);
+    const run = await claim(t);
+    await t.run((ctx) =>
+      ctx.db.patch("workosReconciliationRuns", run._id, { phase: "owners" })
+    );
+    const expectedState = await t.query(
+      internal.workosProfileApply.captureWorkosProfileState,
+      { workosUserId: userId }
+    );
+    vi.stubEnv("WORKOS_API_KEY", "sk_rotated");
+    await expect(
+      t.mutation(internal.workosReconciliation.checkpoint, {
+        ...page(run),
+        phase: "owners",
+        observations: [
+          { workosUserId: userId, expectedState, state: { kind: "deleted" } },
+        ],
+      })
+    ).rejects.toThrow("credential mismatch");
+    const state = await read(t);
+    expect(state.runs[0].phase).toBe("owners");
+    expect(state.runs[0].scanned).toBe(0);
+    expect(state.profiles).toEqual([]);
+    expect(state.users[0].workosDeletedAt).toBeUndefined();
+    expect(state.users[0].workosEmailVerified).toBe(true);
+    expect(state.cards).toHaveLength(1);
   });
   test("lease expiry alone blocks a page even without a successor generation", async () => {
     const t = setup();

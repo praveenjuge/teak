@@ -238,7 +238,21 @@ export const checkpoint = internalMutation({
   returns: phaseValidator,
   handler: async (ctx, args) => {
     const run = await leased(ctx, args);
+    const apiKey = process.env.WORKOS_API_KEY;
+    if (!apiKey) {
+      throw new Error("Reconciliation credential mismatch");
+    }
+    // Actions retain their invocation environment. Verify the current mutation
+    // environment independently before committing a remotely observed page.
+    const digest = await crypto.subtle.digest(
+      "SHA-256",
+      new TextEncoder().encode(apiKey)
+    );
+    const currentFingerprint = [...new Uint8Array(digest)]
+      .map((byte) => byte.toString(16).padStart(2, "0"))
+      .join("");
     if (
+      run.apiKeyFingerprint !== currentFingerprint ||
       run.environmentId !== args.environmentId ||
       run.clientId !== args.clientId ||
       run.apiKeyFingerprint !== args.apiKeyFingerprint
