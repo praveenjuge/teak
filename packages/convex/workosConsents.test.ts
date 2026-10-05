@@ -1,7 +1,9 @@
 /// <reference types="vite/client" />
+
+import type { FunctionReturnType } from "convex/server";
 import { convexTest } from "convex-test";
-import { afterEach, describe, expect, test, vi } from "vitest";
-import { internal } from "./_generated/api";
+import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
+import { api, internal } from "./_generated/api";
 import type { Doc } from "./_generated/dataModel";
 import schema from "./schema";
 
@@ -38,6 +40,234 @@ const revoke = (t: Backend, teakUserId = "legacy-owner") =>
   });
 const records = (t: Backend) =>
   t.run((ctx) => ctx.db.query("workosConsents").take(10));
+
+const sessionClient = (t: Backend) =>
+  t.withIdentity({
+    issuer: "https://api.workos.com/user_management/client_SESSION",
+    subject: principal.workosUserId,
+    sid: "session_SIGNEDIN",
+    emailVerified: true,
+    external_id: "legacy-owner",
+  });
+
+// Public failure modes: wrong provider/owner, unverified or deleting identity,
+// foreign/duplicate/malformed grants, empty revoked pages, sibling revocation,
+// retry timestamps and refreshed credentials resurrecting a disconnected grant.
+describe("signed-in Connect management", () => {
+  beforeEach(() => {
+    vi.stubEnv("AUTH_PRIMARY", "workos");
+    vi.stubEnv("WORKOS_CLIENT_ID", "client_SESSION");
+    for (const surface of ["CLI", "RAYCAST", "CHROME", "FIREFOX", "SAFARI"]) {
+      vi.stubEnv(`WORKOS_CONNECT_${surface}_CLIENT_ID`, `client_${surface}`);
+    }
+  });
+  afterEach(() => vi.unstubAllEnvs());
+
+  test("paginates through an empty revoked page without exposing another owner", async () => {
+    const t = setup();
+    await seed(t);
+    await authorize(t, { clientId: "client_CLI" });
+    await t.run(async (ctx) => {
+      await ctx.db.insert("workosConsents", {
+        workosUserId: principal.workosUserId,
+        clientId: principal.clientId,
+        userId: "legacy-owner",
+        consentId: "app_consent_REVOKED",
+        firstSeenAt: Date.now() + 10,
+        lastSeenAt: Date.now(),
+        revokedAt: Date.now(),
+      });
+      await ctx.db.insert("workosConsents", {
+        workosUserId: principal.workosUserId,
+        clientId: principal.clientId,
+        userId: "foreign-owner",
+        consentId: "app_consent_FOREIGN",
+        firstSeenAt: Date.now() + 20,
+        lastSeenAt: Date.now(),
+      });
+    });
+    const client = sessionClient(t);
+    const first = await client.query(api.workosConsents.listConnections, {
+      paginationOpts: { numItems: 1, cursor: null },
+    });
+    expect(first.page).toEqual([]);
+    expect(first.isDone).toBe(false);
+    const second = await client.query(api.workosConsents.listConnections, {
+      paginationOpts: { numItems: 1, cursor: first.continueCursor },
+    });
+    expect(second.isDone).toBe(true);
+    expect(second.page).toEqual([
+      expect.objectContaining({
+        consentId: principal.consentId,
+        name: "Teak CLI",
+        clientId: "client_CLI",
+      }),
+    ]);
+    expect(second.page[0]).not.toHaveProperty("expiresAt");
+    await expect(
+      client.query(api.workosConsents.listConnections, {
+        paginationOpts: { numItems: 101, cursor: null },
+      })
+    ).rejects.toThrow("Invalid page size");
+  });
+
+  test("disconnects one grant permanently while preserving its sibling", async () => {
+    const t = setup();
+    await seed(t);
+    await authorize(t);
+    const sibling = { consentId: "app_consent_SIBLING" };
+    await authorize(t, sibling);
+    const client = sessionClient(t);
+    expect(
+      await client.mutation(api.workosConsents.disconnectConnection, {
+        consentId: principal.consentId,
+      })
+    ).toBeNull();
+    const beforeRetry = await records(t);
+    await client.mutation(api.workosConsents.disconnectConnection, {
+      consentId: principal.consentId,
+    });
+    expect(await records(t)).toEqual(beforeRetry);
+    expect(await authorize(t)).toEqual({
+      status: "denied",
+      reason: "revoked_consent",
+    });
+    expect(await authorize(t, sibling)).toEqual({
+      status: "ok",
+      teakUserId: "legacy-owner",
+    });
+  });
+
+  test.each(["foreign", "wrong-provider-owner", "duplicate", "malformed"])(
+    "%s target cannot revoke a grant",
+    async (failure) => {
+      const t = setup();
+      await seed(t);
+      await authorize(t);
+      await t.run(async (ctx) => {
+        const row = (await ctx.db.query("workosConsents").take(1))[0];
+        if (failure === "foreign") {
+          await ctx.db.patch(row._id, { userId: "foreign-owner" });
+        } else if (failure === "wrong-provider-owner") {
+          await ctx.db.patch(row._id, { workosUserId: "user_FOREIGN" });
+        } else if (failure === "duplicate") {
+          await ctx.db.insert("workosConsents", {
+            consentId: row.consentId,
+            userId: row.userId,
+            workosUserId: row.workosUserId,
+            clientId: row.clientId,
+            firstSeenAt: row.firstSeenAt,
+            lastSeenAt: row.lastSeenAt,
+          });
+        }
+      });
+      const before = await records(t);
+      await expect(
+        sessionClient(t).mutation(api.workosConsents.disconnectConnection, {
+          consentId:
+            failure === "malformed" ? "session_DEVICE" : principal.consentId,
+        })
+      ).rejects.toThrow();
+      expect(await records(t)).toEqual(before);
+    }
+  );
+
+  test("equal connection timestamps paginate exactly once per grant", async () => {
+    const t = setup();
+    await seed(t);
+    await t.run(async (ctx) => {
+      for (const suffix of ["FIRST", "SECOND", "THIRD"]) {
+        await ctx.db.insert("workosConsents", {
+          consentId: `app_consent_${suffix}`,
+          userId: "legacy-owner",
+          workosUserId: principal.workosUserId,
+          clientId: principal.clientId,
+          firstSeenAt: 100,
+          lastSeenAt: 100,
+        });
+      }
+    });
+    const ids: string[] = [];
+    let cursor: string | null = null;
+    for (let page = 0; page < 3; page++) {
+      const result: FunctionReturnType<
+        typeof api.workosConsents.listConnections
+      > = await sessionClient(t).query(api.workosConsents.listConnections, {
+        paginationOpts: { numItems: 1, cursor },
+      });
+      for (const row of result.page) {
+        ids.push(row.consentId);
+      }
+      expect(result.isDone).toBe(page === 2);
+      cursor = result.continueCursor;
+    }
+    expect(new Set(ids)).toEqual(
+      new Set(["app_consent_FIRST", "app_consent_SECOND", "app_consent_THIRD"])
+    );
+  });
+
+  test("concurrent usage cannot resurrect a disconnected consent", async () => {
+    const t = setup();
+    await seed(t);
+    await authorize(t);
+    const [disconnect] = await Promise.all([
+      sessionClient(t).mutation(api.workosConsents.disconnectConnection, {
+        consentId: principal.consentId,
+      }),
+      authorize(t),
+    ]);
+    expect(disconnect).toBeNull();
+    expect(await authorize(t)).toEqual({
+      status: "denied",
+      reason: "revoked_consent",
+    });
+    const rows = await records(t);
+    expect(rows).toHaveLength(1);
+    expect(rows[0].revokedAt).toEqual(expect.any(Number));
+  });
+
+  test.each(["anonymous", "unverified", "deleted", "deleting", "wrong-mode"])(
+    "%s cannot list or disconnect connections",
+    async (failure) => {
+      const t = setup();
+      await seed(t, failure === "deleted" ? { deletedAt: Date.now() } : {});
+      await authorize(t);
+      if (failure === "deleting") {
+        await t.run((ctx) =>
+          ctx.db.insert("accountDeletionStates", {
+            userId: "legacy-owner",
+            startedAt: Date.now(),
+          })
+        );
+      }
+      if (failure === "wrong-mode") {
+        vi.stubEnv("AUTH_PRIMARY", "betterauth");
+      }
+      const client = failure === "anonymous" ? t : sessionClient(t);
+      const actor =
+        failure === "unverified"
+          ? t.withIdentity({
+              issuer: "https://api.workos.com/user_management/client_SESSION",
+              subject: principal.workosUserId,
+              sid: "session_SIGNEDIN",
+              emailVerified: false,
+            })
+          : client;
+      const before = await records(t);
+      await expect(
+        actor.query(api.workosConsents.listConnections, {
+          paginationOpts: { numItems: 25, cursor: null },
+        })
+      ).rejects.toThrow();
+      await expect(
+        actor.mutation(api.workosConsents.disconnectConnection, {
+          consentId: principal.consentId,
+        })
+      ).rejects.toThrow();
+      expect(await records(t)).toEqual(before);
+    }
+  );
+});
 
 afterEach(() => vi.useRealTimers());
 

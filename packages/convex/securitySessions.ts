@@ -265,7 +265,7 @@ type SessionUser = {
   sessionId: string;
 } & (
   | { provider: "betterauth"; session: SessionRecord }
-  | { provider: "workos" }
+  | { provider: "workos"; workosUserId: string }
 );
 
 // Better Auth component reads keep revocation reactive. AuthKit session tokens
@@ -298,6 +298,7 @@ export async function getSessionUser(
     return teakUserId
       ? {
           provider: "workos",
+          workosUserId: principal.workosUserId,
           teakUserId,
           identity,
           sessionId: principal.sessionId,

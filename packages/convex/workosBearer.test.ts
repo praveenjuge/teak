@@ -17,7 +17,7 @@ import {
   test,
   vi,
 } from "vitest";
-import { components, internal } from "./_generated/api";
+import { api as backendApi, components } from "./_generated/api";
 import schema from "./schema";
 import { API_KEY_TOKEN_PREFIX } from "./shared/apiKeyFormat";
 
@@ -345,18 +345,45 @@ describe("WorkOS REST and MCP token boundary", () => {
     const api = await token();
     const mcp = await token(mcpAudience);
     expect((await f.mcp(mcp)).status).toBe(200);
+    vi.stubEnv("WORKOS_CLIENT_ID", "client_SESSION");
     expect(
-      await f.t.mutation(internal.workosConsents.revokeConnectConsent, {
-        consentId,
-        teakUserId: ownerId,
-      })
-    ).toBe(true);
+      await f.t
+        .withIdentity({
+          issuer: "https://api.workos.com/user_management/client_SESSION",
+          subject: userId,
+          sid: "session_SETTINGS",
+          emailVerified: true,
+          external_id: ownerId,
+        })
+        .mutation(backendApi.workosConsents.disconnectConnection, {
+          consentId,
+        })
+    ).toBeNull();
     expect((await f.read(api)).status).toBe(401);
     expect((await f.read(await token())).status).toBe(401);
     for (const method of ["initialize", "tools/list", "ping", "tools/call"]) {
       expect((await f.mcp(mcp, method)).status).toBe(401);
       expect((await f.mcp(await token(mcpAudience), method)).status).toBe(401);
     }
+    expect(
+      (
+        await f.read(
+          await token(apiAudience, {
+            sid: "app_consent_SIBLING",
+          })
+        )
+      ).status
+    ).toBe(200);
+    expect(
+      (
+        await f.mcp(
+          await token(mcpAudience, {
+            sid: "app_consent_SIBLING",
+          }),
+          "ping"
+        )
+      ).status
+    ).toBe(200);
   });
 
   test("mapping verification and global deletion are rechecked after consent exists", async () => {

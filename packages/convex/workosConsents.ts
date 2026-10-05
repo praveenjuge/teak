@@ -1,6 +1,9 @@
-import { v } from "convex/values";
+import { paginationOptsValidator } from "convex/server";
+import { type Infer, v } from "convex/values";
 import { internal } from "./_generated/api";
-import { internalMutation } from "./_generated/server";
+import { internalMutation, mutation, query } from "./_generated/server";
+import { readWorkosConnectClients } from "./publicApiMeta";
+import { getSessionUser } from "./securitySessions";
 
 const LAST_SEEN_INTERVAL_MS = 5 * 60 * 1000;
 type ConsentAuthorization =
@@ -99,5 +102,116 @@ export const revokeConnectConsent = internalMutation({
       await ctx.db.patch(consent._id, { revokedAt: Date.now() });
     }
     return true;
+  },
+});
+
+const connectionValidator = v.object({
+  consentId: v.string(),
+  clientId: v.string(),
+  name: v.string(),
+  connectedAt: v.number(),
+  lastUsedAt: v.number(),
+});
+interface ConnectionPage {
+  continueCursor: string;
+  isDone: boolean;
+  page: Infer<typeof connectionValidator>[];
+}
+const connectionNames: Record<string, string> = {
+  cli: "Teak CLI",
+  raycast: "Raycast",
+  chrome: "Chrome extension",
+  firefox: "Firefox extension",
+  safari: "Teak for Mac",
+};
+
+// Pagination preserves empty pages of revoked records; clients must honor isDone.
+export const listConnections = query({
+  args: { paginationOpts: paginationOptsValidator },
+  returns: v.object({
+    page: v.array(connectionValidator),
+    isDone: v.boolean(),
+    continueCursor: v.string(),
+  }),
+  handler: async (ctx, { paginationOpts }): Promise<ConnectionPage> => {
+    const session = await getSessionUser(ctx);
+    if (session?.provider !== "workos") {
+      throw new Error("WorkOS sign-in required");
+    }
+    if (
+      !Number.isInteger(paginationOpts.numItems) ||
+      paginationOpts.numItems < 1 ||
+      paginationOpts.numItems > 100
+    ) {
+      throw new Error("Invalid page size");
+    }
+    const labels = new Map(
+      Object.entries(readWorkosConnectClients()).map(([surface, clientId]) => [
+        clientId,
+        connectionNames[surface],
+      ])
+    );
+    const result = await ctx.db
+      .query("workosConsents")
+      .withIndex("by_userId_and_firstSeenAt", (q) =>
+        q.eq("userId", session.teakUserId)
+      )
+      .order("desc")
+      .paginate(paginationOpts);
+    return {
+      isDone: result.isDone,
+      continueCursor: result.continueCursor,
+      page: result.page
+        .filter(
+          (row) =>
+            row.revokedAt === undefined &&
+            row.workosUserId === session.workosUserId &&
+            /^app_consent_[A-Za-z0-9]+$/.test(row.consentId) &&
+            row.clientId.length > 0 &&
+            row.clientId.length <= 2048
+        )
+        .map((row) => ({
+          consentId: row.consentId,
+          clientId: row.clientId,
+          name: labels.get(row.clientId) ?? "External app",
+          connectedAt: row.firstSeenAt,
+          lastUsedAt: row.lastSeenAt,
+        })),
+    };
+  },
+});
+
+// Authentication and revocation share one transaction, including deletion guards.
+// Disconnect affects this consent only; other grants for the same app survive.
+export const disconnectConnection = mutation({
+  args: { consentId: v.string() },
+  returns: v.null(),
+  handler: async (ctx, { consentId }) => {
+    const session = await getSessionUser(ctx);
+    if (
+      session?.provider !== "workos" ||
+      !/^app_consent_[A-Za-z0-9]+$/.test(consentId)
+    ) {
+      throw new Error("WorkOS sign-in required");
+    }
+    const rows = await ctx.db
+      .query("workosConsents")
+      .withIndex("by_consentId", (q) => q.eq("consentId", consentId))
+      .take(2);
+    if (
+      rows.length !== 1 ||
+      rows[0].userId !== session.teakUserId ||
+      rows[0].workosUserId !== session.workosUserId
+    ) {
+      throw new Error("Connection unavailable");
+    }
+    const revoked: boolean = await ctx.runMutation(
+      internal.workosConsents.revokeConnectConsent,
+      { consentId, teakUserId: session.teakUserId }
+    );
+    if (!revoked) {
+      throw new Error("Connection unavailable");
+    }
+    return null;
   },
 });
