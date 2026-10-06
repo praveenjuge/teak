@@ -325,6 +325,12 @@ describe.each([
         ? "Deny"
         : "Allow"
     );
-    expect((await snapshot(t)).users).toEqual([]);
+    expect(await snapshot(t)).toEqual({
+      users: [],
+      events: [],
+      quarantine: [],
+      cards: [],
+      scheduled: [],
+    });
   });
 });
