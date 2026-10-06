@@ -26,9 +26,9 @@ describe("resolveMarkdownRequest", () => {
     let probed = false;
     const result = await resolveMarkdownRequest(
       request("/nope", "text/html,*/*;q=0.8"),
-      async () => {
+      () => {
         probed = true;
-        return 404;
+        return Promise.resolve(404);
       }
     );
 
@@ -43,9 +43,9 @@ describe("resolveMarkdownRequest", () => {
         headers: { accept: MARKDOWN },
         method: "POST",
       }),
-      async () => {
+      () => {
         probed = true;
-        return 404;
+        return Promise.resolve(404);
       }
     );
 
@@ -73,9 +73,9 @@ describe("resolveMarkdownRequest", () => {
     const probed: string[] = [];
     const result = await resolveMarkdownRequest(
       request("/docs/missing", MARKDOWN),
-      async (url) => {
+      (url) => {
         probed.push(url.pathname);
-        return 404;
+        return Promise.resolve(404);
       }
     );
 
