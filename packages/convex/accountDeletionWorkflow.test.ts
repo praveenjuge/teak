@@ -256,6 +256,78 @@ describe("durable deletion admission and tombstones", () => {
       });
     }
   );
+  test.each(["conn_app_TEST", "connect_app_01M40P8YVQV6ED9DCMYM0BYZG0"])(
+    "application revocation deletes the exact supported provider ID %s",
+    async (applicationId) => {
+      const { t, signed } = await fixture();
+      await signed.mutation(api.accountDeletion.deleteMyAccount, {});
+      const state = await t.run((ctx) =>
+        ctx.db.query("accountDeletionStates").unique()
+      );
+      await t.run((ctx) => ctx.db.patch(state!._id, { stage: 2 }));
+      const deleted: string[] = [];
+      vi.stubGlobal(
+        "fetch",
+        (input: string | URL | Request, options?: RequestInit) => {
+          const url = new URL(
+            input instanceof Request ? input.url : String(input)
+          );
+          if (options?.method === "DELETE") {
+            deleted.push(url.href);
+            return new Response(null, { status: 204 });
+          }
+          return Response.json({
+            data: [{ application: { id: applicationId } }],
+          });
+        }
+      );
+      expect(
+        await t.action(internal.accountDeletionActions.runStage, {
+          stateId: state!._id,
+          generation: 1,
+          stage: 2,
+        })
+      ).toBe(false);
+      expect(deleted).toEqual([
+        `https://api.workos.com/user_management/users/user_DELETE/authorized_applications/${applicationId}`,
+      ]);
+    }
+  );
+  test.each([
+    "connect_app_",
+    "connect_app_TEST/OTHER",
+    "connect_app_TEST%2fOTHER",
+    "authorized_connect_app_TEST",
+    "client_TEST",
+  ])(
+    "application revocation rejects malformed or wrong-kind provider ID %s",
+    async (applicationId) => {
+      const { t, signed } = await fixture();
+      await signed.mutation(api.accountDeletion.deleteMyAccount, {});
+      const state = await t.run((ctx) =>
+        ctx.db.query("accountDeletionStates").unique()
+      );
+      await t.run((ctx) => ctx.db.patch(state!._id, { stage: 2 }));
+      let deletes = 0;
+      vi.stubGlobal(
+        "fetch",
+        (_input: string | URL | Request, options?: RequestInit) => {
+          if (options?.method === "DELETE") deletes++;
+          return Response.json({
+            data: [{ application: { id: applicationId } }],
+          });
+        }
+      );
+      await expect(
+        t.action(internal.accountDeletionActions.runStage, {
+          stateId: state!._id,
+          generation: 1,
+          stage: 2,
+        })
+      ).rejects.toThrow("deletion_workos_apps_invalid");
+      expect(deletes).toBe(0);
+    }
+  );
   test("application revocation yields between bounded provider pages", async () => {
     const { t, signed } = await fixture();
     await signed.mutation(api.accountDeletion.deleteMyAccount, {});
