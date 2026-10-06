@@ -32,6 +32,7 @@ const resolve = makeFunctionReference<
 beforeEach(() => {
   vi.stubEnv("AUTH_PRIMARY", "betterauth");
   vi.stubEnv("SIGNUPS_DISABLED", "true");
+  vi.stubEnv("ACCOUNT_CHANGES_PAUSED", "true");
   vi.stubEnv("CONVEX_CLOUD_URL", fixture.cloudUrl);
   vi.stubEnv("CONVEX_SITE_URL", fixture.siteUrl);
   vi.stubEnv("WORKOS_ENVIRONMENT_ID", fixture.environmentId);
@@ -117,6 +118,9 @@ test("settles only the exact Phase R deletion audit without fabricating an origi
 test.each([
   ["AUTH_PRIMARY", "workos"],
   ["SIGNUPS_DISABLED", "false"],
+  ["ACCOUNT_CHANGES_PAUSED", "false"],
+  ["ACCOUNT_CHANGES_PAUSED", ""],
+  ["ACCOUNT_CHANGES_PAUSED", undefined],
   ["CONVEX_CLOUD_URL", "https://other.convex.cloud"],
   ["CONVEX_SITE_URL", "https://other.convex.site"],
   ["WORKOS_ENVIRONMENT_ID", "environment_other"],
@@ -507,6 +511,46 @@ test.each(["marker", "email"])(
     ).toBeUndefined();
   }
 );
+test.each(["marker", "provider-marker", "email"])(
+  "refuses another provider's %s event claim",
+  async (claim) => {
+    const { t, rows, args } = await setup();
+    await t.run((ctx) =>
+      ctx.db.insert("workosEvents", {
+        workosUserId: "user_other",
+        eventId: "event_01M43GS9THTK7FTPPGWJNDRRTZ",
+        type: "user.updated",
+        createdAt: eventAt - 1,
+        ...(claim === "marker" ? { externalId: fixture.marker } : {}),
+        ...(claim === "provider-marker"
+          ? { externalId: fixture.workosUserId }
+          : {}),
+        ...(claim === "email" ? { email: ` ${email.toUpperCase()} ` } : {}),
+      })
+    );
+    const before = await t.run((ctx) => ctx.db.get(rows.audit));
+    await expect(t.mutation(resolve, args)).rejects.toThrow();
+    expect(await t.run((ctx) => ctx.db.get(rows.audit))).toEqual(before);
+  }
+);
+test("allows an unrelated historical event without optional identity fields", async () => {
+  const { t, rows, args } = await setup();
+  const unrelated = await t.run((ctx) =>
+    ctx.db.insert("workosEvents", {
+      workosUserId: "user_other",
+      eventId: "event_01M43GS9THTK7FTPPGWJNDRRTZ",
+      type: "user.updated",
+      createdAt: eventAt - 1,
+    })
+  );
+  const before = await t.run((ctx) => ctx.db.get(unrelated));
+  const result = await t.mutation(resolve, args);
+  expect(result.alreadyResolved).toBe(false);
+  expect((await t.run((ctx) => ctx.db.get(rows.audit)))?.resolvedAt).toBe(
+    result.resolvedAt
+  );
+  expect(await t.run((ctx) => ctx.db.get(unrelated))).toEqual(before);
+});
 test.each(["user", "account"] as const)(
   "refuses incomplete legacy %s census",
   async (model) => {

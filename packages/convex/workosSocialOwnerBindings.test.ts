@@ -288,6 +288,37 @@ test("mapping and durable intent commit together and retain permanent ownership 
     )
   ).rejects.toThrow("uncertain");
 });
+test("a parent mutation failure rolls back the nested mapping and durable intent", async () => {
+  const { t, pair, observed, owner } = await setup();
+  const lease = await t.mutation(internal.migration.workosImportLease.acquire, {
+    ...pins,
+    holder: crypto.randomUUID(),
+    runId: await hash(JSON.stringify(socialOwnerPairs)),
+  });
+  const sourceVersion = await t.query(
+    internal.migration.workosImportSource.version,
+    { ...pins, teakUserId: pair.ownerId }
+  );
+  await expect(
+    t.run(async (ctx) => {
+      await prepareSocialOwnerBinding(ctx, pair, {
+        ...pins,
+        ...lease,
+        observed,
+        sourceVersion,
+      });
+      // Both nested mutations succeeded, but neither may outlive its parent.
+      throw new Error("Parent mutation aborted");
+    })
+  ).rejects.toThrow("Parent mutation aborted");
+  expect(
+    (await t.run((ctx) => ctx.db.get(owner)))?.workosUserId
+  ).toBeUndefined();
+  expect(
+    (await t.run((ctx) => ctx.db.query("workosImportLeases").first()))
+      ?.remoteIntent
+  ).toBeUndefined();
+});
 test.each(["source-version", "unrelated-lease"])(
   "refused %s rolls back mapping and intent",
   async (failure) => {

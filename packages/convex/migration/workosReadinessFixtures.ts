@@ -1,6 +1,7 @@
 import { v } from "convex/values";
 import { components } from "../_generated/api";
 import { internalMutation } from "../_generated/server";
+import { readAccountChangesPaused } from "../env";
 import {
   currentWorkosDeletionTarget,
   sameWorkosDeletionTarget,
@@ -286,6 +287,7 @@ export const resolveRetiredPhaseRFixture = internalMutation({
     const fixture = phaseRReadinessFixture;
     await assertImportBinding(args);
     if (
+      !readAccountChangesPaused() ||
       process.env.CONVEX_CLOUD_URL !== fixture.cloudUrl ||
       process.env.CONVEX_SITE_URL !== fixture.siteUrl ||
       args.environmentId !== fixture.environmentId ||
@@ -392,6 +394,13 @@ export const resolveRetiredPhaseRFixture = internalMutation({
     );
     if (
       hasOwner ||
+      events.some(
+        (other) =>
+          other._id !== event._id &&
+          (other.externalId === fixture.marker ||
+            other.externalId === fixture.workosUserId ||
+            other.email?.trim().toLowerCase() === normalizedEmail)
+      ) ||
       audits.some(
         (other) =>
           other._id !== audit._id &&
