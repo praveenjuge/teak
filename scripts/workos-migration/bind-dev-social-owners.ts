@@ -239,6 +239,16 @@ async function recoverSocialBindingLeases(
   if (unmatchedActiveLease) {
     throw new Error("No invocation receipt owns the active lease");
   }
+  // A different invocation may acquire during the final release response.
+  // This is an observed recovery result, not a held transition barrier.
+  const finalState = await run<{
+    ready: boolean;
+    pendingRemote: boolean;
+    barrierHeld: boolean;
+  }>("migration/workosImportLease:quiescence", pins);
+  if (!finalState.ready || finalState.pendingRemote || finalState.barrierHeld) {
+    throw new Error("Lease recovery is not quiescent");
+  }
   return { mode: "lease-recovery", pairs };
 }
 async function census(ports: SocialBindingPorts) {
