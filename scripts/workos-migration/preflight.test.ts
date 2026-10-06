@@ -46,6 +46,28 @@ test("deleted owners with retained emails still block collisions and malformed a
     preflight([{ ...owner("deleted", "malformed"), deleted: true }], []).issues
   ).toMatchObject([{ reason: "invalid_email" }]);
 });
+test.each([false, true])(
+  "erased tombstones require an exact pinned provider in delta=%s",
+  (delta) => {
+    const erased = {
+      ...owner("deleted", ""),
+      deleted: true,
+      workosUserId: "user_pinned",
+    };
+    const remote = {
+      id: "user_pinned",
+      externalId: "deleted",
+      email: "retained@example.com",
+    };
+    expect(preflight([erased], [remote], delta).clear).toBe(true);
+    expect(
+      preflight([erased], [{ ...remote, id: "user_wrong" }], delta).clear
+    ).toBe(false);
+    expect(
+      preflight([erased, owner("active", remote.email)], [remote], delta).clear
+    ).toBe(false);
+  }
+);
 test("normalizes case and surrounding spaces while preserving Gmail dots and plus aliases", () => {
   const result = preflight(
     [

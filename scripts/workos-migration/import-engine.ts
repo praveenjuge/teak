@@ -139,6 +139,13 @@ function assertProvider(
     throw new Error("Provider mapping conflict; quarantine before continuing");
   }
   if (
+    owner.deletedAt !== null &&
+    email(owner.email) === "" &&
+    owner.workosUserId === user.id
+  ) {
+    return;
+  }
+  if (
     email(owner.email) === "" ||
     (!delta && email(user.email) !== email(owner.email))
   ) {
@@ -164,6 +171,7 @@ async function validateRemote(
       if (user.externalId !== owner.teakUserId) {
         reason = "external_id_mismatch";
       } else if (
+        email(owner.email) === "" ||
         (owner.workosUserId && owner.workosUserId !== user.id) ||
         (exactVerification && user.emailVerified !== owner.emailVerified)
       ) {

@@ -40,6 +40,30 @@ test("erased deleted owners absent at the provider are skipped without recreatio
   expect(f.mappings.size).toBe(0);
 });
 test.each([false, true])(
+  "erased tombstones delete only their exact pinned provider in delta=%s",
+  async (delta) => {
+    const f = fixture();
+    f.ports.source = async () => ({
+      owners: [
+        { ...owner, email: "", deletedAt: 5, workosUserId: "user_pinned" },
+      ],
+      done: true,
+      cursor: null,
+      unresolvedQuarantine: false,
+    });
+    f.users.set(owner.teakUserId, {
+      id: "user_pinned",
+      externalId: owner.teakUserId,
+      email: owner.email,
+      emailVerified: true,
+    });
+    const report = await importOwners(f.ports, { ...options, delta });
+    expect(report.deleted).toBe(1);
+    expect(f.users.size).toBe(0);
+    expect(f.mappings.size).toBe(0);
+  }
+);
+test.each([false, true])(
   "erased tombstones cannot delete an unproven provider address in delta=%s",
   async (delta) => {
     const f = fixture();
@@ -55,11 +79,17 @@ test.each([false, true])(
       email: owner.email,
       emailVerified: true,
     });
+    const reasons: string[] = [];
+    f.ports.quarantine = (_owner, _user, reason) => {
+      reasons.push(reason);
+      return Promise.resolve();
+    };
     await expect(
       importOwners(f.ports, { ...options, delta })
     ).rejects.toThrow();
     expect(f.users.size).toBe(1);
     expect(f.mappings.size).toBe(0);
+    expect(reasons).toEqual(["link_conflict"]);
   }
 );
 test.each([

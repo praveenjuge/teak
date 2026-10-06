@@ -141,8 +141,11 @@ export function preflight(
       externalOwner &&
         (!externalOwner.workosUserId ||
           externalOwner.workosUserId === provider.id) &&
-        normalized(externalOwner.email) !== "" &&
-        (delta || normalized(externalOwner.email) === email) &&
+        ((externalOwner.deleted &&
+          normalized(externalOwner.email) === "" &&
+          externalOwner.workosUserId === provider.id) ||
+          (normalized(externalOwner.email) !== "" &&
+            (delta || normalized(externalOwner.email) === email))) &&
         (matches.length === 0 ||
           (matches.length === 1 &&
             matches[0].teakUserId === externalOwner.teakUserId))
