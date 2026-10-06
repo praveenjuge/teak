@@ -24,9 +24,12 @@ enum SafariDiscoveryFixtures {
         default:
             document = ["issuer": issuer, "authorization_endpoint": "\(issuer)/authorize",
                         "token_endpoint": invalidEndpoint ?? "https://test.teak.invalid/api/auth/mcp/token",
-                        "revocation_endpoint": "https://test.teak.invalid/api/oauth/revoke",
                         "code_challenge_methods_supported": ["S256"]]
         }
-        return (200, String(data: try JSONSerialization.data(withJSONObject: document), encoding: .utf8)!)
+        var resolved = document
+        if primary == "betterauth", path.hasPrefix("/.well-known/oauth-authorization-server") {
+            resolved["revocation_endpoint"] = "https://test.teak.invalid/api/oauth/revoke"
+        }
+        return (200, String(data: try JSONSerialization.data(withJSONObject: resolved), encoding: .utf8)!)
     }
 }

@@ -409,6 +409,13 @@ const components = {
     },
   },
   securitySchemes: {
+    connectRevocation: {
+      bearerFormat: "WorkOS Connect API access JWT",
+      description:
+        "Signed Connect token for https://teakvault.com/api. Expired tokens are accepted only to permanently disconnect their own consent; API keys, refresh tokens and session tokens are rejected.",
+      scheme: "bearer",
+      type: "http",
+    },
     bearerAuth: {
       bearerFormat: "OAuth access token or teakapi_ API key",
       description:
@@ -433,6 +440,22 @@ export const openApiSpec = {
   ],
   components,
   paths: {
+    "/v1/oauth/disconnect": {
+      post: {
+        operationId: "disconnectOAuthConsent",
+        summary: "Disconnect this WorkOS Connect consent",
+        description:
+          "No request body. Permanently denies this consent, including refreshed tokens, without affecting sibling grants. Works after authentication rollback. Repeating a successful disconnect returns 204. Preserve local credentials unless 204 is returned.",
+        security: [{ connectRevocation: [] }],
+        responses: {
+          204: { description: "Consent permanently disconnected" },
+          401: { description: "Invalid token or conflicting consent binding" },
+          503: {
+            description: "Verification or persistence unavailable; retry",
+          },
+        },
+      },
+    },
     "/v1/me": {
       get: {
         operationId: "getMe",

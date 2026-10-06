@@ -33,6 +33,7 @@ export default defineConfig({
       "./workosReconciliationCensus.test.ts",
       "./workosIdentity.test.ts",
       "./workosConsents.test.ts",
+      "./workosConnectRevocation.test.ts",
       "./workosBearer.test.ts",
       "./workosDiscovery.test.ts",
       "./workosWebhook.test.ts",

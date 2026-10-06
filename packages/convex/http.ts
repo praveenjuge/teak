@@ -29,6 +29,7 @@ import {
 } from "./publicApiMeta";
 import { openApiV1 } from "./publicApiOpenApi";
 import { safariAccountSummary } from "./safariAccountSummary";
+import { disconnectWorkosConsent } from "./workosConnectRevocation";
 import { cleanupE2e, provisionE2e } from "./workosE2eHttp";
 import { registerWorkosRoutes } from "./workosWebhook";
 
@@ -258,6 +259,17 @@ http.route({
   path: "/api/oauth/revoke",
   method: "POST",
   handler: revokeOAuthToken,
+});
+
+http.route({
+  path: "/v1/oauth/disconnect",
+  method: "POST",
+  handler: disconnectWorkosConsent,
+});
+http.route({
+  path: "/v1/oauth/disconnect",
+  method: "OPTIONS",
+  handler: v1CorsPreflight,
 });
 
 export default http;

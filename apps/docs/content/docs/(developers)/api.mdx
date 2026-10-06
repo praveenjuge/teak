@@ -43,6 +43,12 @@ Browser-based OAuth clients can discover the active server from `/.well-known/oa
 
 When a deployment uses WorkOS, request `https://teakvault.com/api` as the OAuth resource. REST requests require a Connect user access token with that exact audience, including in local development. AuthKit session tokens and tokens issued for `https://teakvault.com/mcp` are rejected. Teak API keys remain supported.
 
+### Disconnect an OAuth connection
+
+On WorkOS deployments, send `POST /v1/oauth/disconnect` with your Connect API access token as the bearer credential and no body. A `204` confirms that this grant is permanently disconnected; other grants for the same app stay connected. Repeating the request succeeds. Keep saved credentials until you receive `204`.
+
+An expired, correctly signed access token can disconnect its own grant, but cannot access cards. Invalid credentials return `401`; temporary verification or storage failures return `503`. API keys, refresh tokens, AuthKit sessions, and MCP-audience tokens cannot use this endpoint.
+
 ## Read your identity
 
 `GET /v1/me` accepts an API key or OAuth access token and returns

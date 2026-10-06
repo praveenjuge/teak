@@ -45,6 +45,15 @@ extension SafariOAuthTests {
         return Dictionary(uniqueKeysWithValues: items.map { ($0.name, $0.value ?? "") })
     }
 
+    static func discoveryDisconnectProof(_ request: URLRequest) throws -> String {
+        try check(request.url?.path == "/v1/oauth/disconnect", "exact consent disconnect route")
+        try check(try discoveryForm(request).isEmpty, "disconnect never sends a refresh secret")
+        guard let header = request.value(forHTTPHeaderField: "Authorization"), header.hasPrefix("Bearer ") else {
+            throw SafariServiceError.message("Missing disconnect proof")
+        }
+        return String(header.dropFirst(7))
+    }
+
     static func discoveryCallback(_ pending: SafariOAuthRequest) -> URL {
         URL(string: "\(SafariOAuthRequest.callback)?code=discovery-code&state=\(pending.state)")!
     }
@@ -81,6 +90,10 @@ extension SafariOAuthTests {
             case "/v1/cards":
                 try check(request.value(forHTTPHeaderField: "Authorization") == "Bearer new-access", "restarted client uses stored bearer")
                 return (200, #"{"data":[]}"#)
+            case "/v1/oauth/disconnect":
+                try check(primary == "workos" && request.value(forHTTPHeaderField: "Authorization") == "Bearer new-access", "WorkOS logout uses signed access proof")
+                try check(try discoveryForm(request).isEmpty, "WorkOS logout never exposes refresh secret")
+                return (204, "")
             case "/api/oauth/revoke":
                 let form = try discoveryForm(request)
                 try check(form["client_id"] == SafariDiscoveryFixtures.clientID && form["token"] == "new-refresh", "logout revokes bound refresh token")
@@ -154,7 +167,7 @@ extension SafariOAuthTests {
             switch request.url?.path {
             case "/api/auth/mcp/token": exchanges += 1; return (200, tokenResponse)
             case "/v1/me": return (401, "{}")
-            case "/api/oauth/revoke": revoked += 1; return (200, "{}")
+            case "/v1/oauth/disconnect": revoked += 1; return (204, "")
             default: throw SafariServiceError.message("Unexpected cancellation request")
             }
         }
@@ -173,7 +186,7 @@ extension SafariOAuthTests {
         try check(try store.load() == nil, "refused identity is never stored")
         MockHTTP.respond = { request in
             if request.url?.path == "/v1/me" { return (200, #"{"data":{"id":"user"}}"#) }
-            if request.url?.path == "/api/oauth/revoke" { revoked += 1; return (200, "{}") }
+            if request.url?.path == "/v1/oauth/disconnect" { revoked += 1; return (204, "") }
             return (200, tokenResponse)
         }
         let malformed = try await browser.prepareSignIn()
@@ -306,10 +319,10 @@ extension SafariOAuthTests {
         var completion: Task<[String: Any], Never>?
         var revoked = 0
         MockHTTP.respond = { request in
-            if request.url?.path == "/api/oauth/revoke" {
+            if request.url?.path == "/v1/oauth/disconnect" {
                 revoked += 1
-                try check(try discoveryForm(request)["token"] == "new-refresh", "cancelled exchange revokes newly issued grant")
-                return (200, "{}")
+                try check(try discoveryDisconnectProof(request) == "new-access", "cancelled exchange revokes newly issued grant")
+                return (204, "")
             }
             return (200, validSession)
         }
@@ -344,30 +357,30 @@ extension SafariOAuthTests {
             if request.url?.path == "/api/auth/mcp/token" {
                 return (200, #"{"access_token":"replacement-access","refresh_token":"replacement-refresh","expires_in":3600,"token_type":"Bearer"}"#)
             }
-            if request.url?.path == "/api/oauth/revoke" {
-                revoked.append(try discoveryForm(request)["token"] ?? "")
-                return (200, "{}")
+            if request.url?.path == "/v1/oauth/disconnect" {
+                revoked.append(try discoveryDisconnectProof(request))
+                return (204, "")
             }
             return (200, validSession)
         }
         await withCheckedContinuation { (started: CheckedContinuation<Void, Never>) in
             MockHTTP.hold = { protocolRequest in
-                guard protocolRequest.request.url?.path == "/api/oauth/revoke", held == nil else { return false }
+                guard protocolRequest.request.url?.path == "/v1/oauth/disconnect", held == nil else { return false }
                 held = protocolRequest
                 started.resume()
                 return true
             }
             completion = Task { await service.completeSignIn(pending, callback: discoveryCallback(pending)) }
         }
-        try check(try discoveryForm(held!.request)["token"] == "new-refresh", "replacement revokes previous grant first")
+        try check(try discoveryDisconnectProof(held!.request) == "new-access", "replacement revokes previous grant first")
         pending.cancellation.cancel()
         MockHTTP.hold = nil
-        held!.complete(status: 200, body: "{}")
+        held!.complete(status: 204, body: "")
         let committed = await completion!.value
         try check(committed["status"] as? String == "connected" && (try store.load()?.refreshToken) == "replacement-refresh", "replacement finishes after old revocation begins despite browser cancellation")
         let logout = await service.signOut()
         try check(logout["status"] as? String == "signed-out" && (try store.load()) == nil, "explicit logout clears committed replacement")
-        try check(revoked == ["replacement-refresh"], "explicit logout revokes replacement grant")
+        try check(revoked == ["replacement-access"], "explicit logout revokes replacement grant")
     }
 
     static func discoveryReplacementStorageFailure() async throws {
@@ -386,16 +399,16 @@ extension SafariOAuthTests {
             if request.url?.path == "/api/auth/mcp/token" {
                 return (200, #"{"access_token":"replacement-access","refresh_token":"replacement-refresh","expires_in":3600,"token_type":"Bearer"}"#)
             }
-            if request.url?.path == "/api/oauth/revoke" {
-                revoked.append(try discoveryForm(request)["token"] ?? "")
-                return (200, "{}")
+            if request.url?.path == "/v1/oauth/disconnect" {
+                revoked.append(try discoveryDisconnectProof(request))
+                return (204, "")
             }
             return (200, validSession)
         }
         let pending = try await service.prepareSignIn()
         let result = await service.completeSignIn(pending, callback: discoveryCallback(pending))
         try check(result["status"] as? String == "error" && (try store.load()) == nil, "failed replacement storage clears already revoked previous credential")
-        try check(revoked == ["new-refresh", "replacement-refresh"], "failed replacement cleans newly issued grant after revoking old grant")
+        try check(revoked == ["new-access", "replacement-access"], "failed replacement cleans newly issued grant after revoking old grant")
     }
 
     static func discoveryFixedAuthorizationQuery() async throws {
@@ -440,7 +453,7 @@ extension SafariOAuthTests {
             lockURL: FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString))
         var revocations = 0
         MockHTTP.respond = { request in
-            if request.url?.path == "/api/oauth/revoke" { revocations += 1; return (200, "{}") }
+            if request.url?.path == "/v1/oauth/disconnect" { revocations += 1; return (204, "") }
             return request.url?.path == "/v1/me" ? (200, validSession) : (200, tokenResponse)
         }
         let pending = try await service.prepareSignIn()
@@ -458,7 +471,7 @@ extension SafariOAuthTests {
         let pending = try await service.prepareSignIn()
         var held: MockHTTP?
         var callback: Task<[String: Any], Never>?
-        MockHTTP.respond = { request in request.url?.path == "/v1/me" ? (200, validSession) : (200, "{}") }
+        MockHTTP.respond = { request in request.url?.path == "/v1/me" ? (200, validSession) : (204, "") }
         await withCheckedContinuation { (started: CheckedContinuation<Void, Never>) in
             MockHTTP.hold = { protocolRequest in
                 guard protocolRequest.request.url?.path == "/api/auth/mcp/token", held == nil else { return false }
@@ -565,10 +578,32 @@ extension SafariOAuthTests {
                   "storage failure retains stored authentication and retry")
     }
 
+    static func discoveryExpiredDisconnect() async throws {
+        for status in [204, 401, 503, 200] {
+            discoveryReset("workos")
+            let store = MemoryCredentials()
+            MockHTTP.respond = { request in request.url?.path == "/v1/me" ? (200, validSession) : (200, tokenResponse) }
+            try await discoveryLogin(fixture(store))
+            try discoveryExpire(store)
+            SafariDiscoveryFixtures.primary = "betterauth"
+            var disconnects = 0
+            MockHTTP.respond = { request in
+                try check(try discoveryDisconnectProof(request) == "new-access", "expired historical JWT is revocation proof")
+                disconnects += 1
+                return (status, "")
+            }
+            let result = await fixture(store).signOut()
+            try check(disconnects == 1, "logout sends only one disconnect, no token refresh")
+            try check((result["status"] as? String == "signed-out") == (status == 204), "only exact204 confirms disconnect")
+            try check((try store.load() == nil) == (status == 204), "unconfirmed disconnect retains stored credentials")
+        }
+    }
+
     static func discoveryJourneys() async throws {
         defer { discoveryReset() }
         try await discoveryModeJourney("betterauth")
         try await discoveryModeJourney("workos")
+        try await discoveryExpiredDisconnect()
         try await discoveryProviderFlip()
         try await discoveryCancelledAndRefused()
         try await discoveryRotationFailures()

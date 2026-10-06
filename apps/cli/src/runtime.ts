@@ -325,6 +325,29 @@ const revokeCredentials = async (
   options: ClientOptions,
   useDiscovery = true
 ) => {
+  if (credentials.binding?.clientId.startsWith("client_")) {
+    if (credentials.binding.apiUrl !== apiBaseUrl(options)) {
+      throw new Error("Saved connection belongs to another deployment");
+    }
+    const api = validateOAuthUrl(
+      apiBaseUrl(options),
+      localHostname(new URL(apiBaseUrl(options)).hostname)
+    );
+    const response = await fetch(
+      `${withoutTrailingSlashes(api.href).replace(/\/v1$/, "")}/v1/oauth/disconnect`,
+      {
+        method: "POST",
+        headers: { Authorization: `Bearer ${credentials.accessToken}` },
+        credentials: "omit",
+        redirect: "error",
+        signal: AbortSignal.timeout(10_000),
+      }
+    );
+    if (response.status !== 204) {
+      throw new Error("Disconnect was not confirmed");
+    }
+    return;
+  }
   let endpoint = credentials.binding?.revocationEndpoint;
   let clientId = credentials.binding?.clientId;
   if (useDiscovery) {

@@ -1,4 +1,4 @@
-import { createRemoteJWKSet, jwtVerify } from "jose";
+import { createRemoteJWKSet, customFetch, errors, jwtVerify } from "jose";
 import { validateOAuthUrl } from "./client/authDiscovery";
 
 export type WorkosResource = "api" | "mcp";
@@ -16,6 +16,8 @@ export interface WorkosConnectPrincipal extends WorkosPrincipal {
 const USER_ID = /^user_[A-Za-z0-9]+$/;
 const CONSENT_ID = /^app_consent_[A-Za-z0-9]+$/;
 const CLIENT_ID = /^client_[A-Za-z0-9]+$/;
+class WorkosJwksUnavailableError extends Error {}
+
 const REQUIRED_SCOPES = ["openid", "profile", "email"];
 let cachedJwks:
   | { issuer: string; keys: ReturnType<typeof createRemoteJWKSet> }
@@ -59,7 +61,12 @@ function validClientId(value: unknown): value is string {
 // canonical owner mapping, verified email, deletion state and authorization.
 export async function verifyWorkosConnectToken(
   token: string,
-  config: { issuer: string; audience: string }
+  config: {
+    issuer: string;
+    audience: string;
+    revocationOnly?: boolean;
+    onUnavailable?: () => void;
+  }
 ): Promise<WorkosConnectPrincipal | null> {
   try {
     const issuer = validateOAuthUrl(config.issuer);
@@ -77,10 +84,23 @@ export async function verifyWorkosConnectToken(
     if (cachedJwks?.issuer !== config.issuer) {
       cachedJwks = {
         issuer: config.issuer,
-        keys: createRemoteJWKSet(new URL("/oauth2/jwks", issuer)),
+        keys: createRemoteJWKSet(new URL("/oauth2/jwks", issuer), {
+          [customFetch]: async (url, options) => {
+            let response: Response;
+            try {
+              response = await fetch(url, options);
+            } catch {
+              throw new WorkosJwksUnavailableError();
+            }
+            if (!response.ok) {
+              throw new WorkosJwksUnavailableError();
+            }
+            return response;
+          },
+        }),
       };
     }
-    const { payload } = await jwtVerify(token, cachedJwks.keys, {
+    const options = {
       issuer: config.issuer,
       audience: config.audience,
       algorithms: ["RS256"],
@@ -94,7 +114,26 @@ export async function verifyWorkosConnectToken(
         "client_id",
         "scope",
       ],
-    });
+    };
+    let verified: Awaited<ReturnType<typeof jwtVerify>>;
+    try {
+      verified = await jwtVerify(token, cachedJwks.keys, options);
+    } catch (error) {
+      if (!(config.revocationOnly && error instanceof errors.JWTExpired)) {
+        throw error;
+      }
+      // Reverify every claim and the signature at the expiry boundary. This is
+      // permitted only for permanent revocation, never for vault authorization.
+      const expiry = error.payload.exp;
+      if (typeof expiry !== "number" || !Number.isFinite(expiry)) {
+        return null;
+      }
+      verified = await jwtVerify(token, cachedJwks.keys, {
+        ...options,
+        currentDate: new Date((expiry - 1) * 1000),
+      });
+    }
+    const { payload } = verified;
     const scopes =
       typeof payload.scope === "string" ? payload.scope.split(" ") : [];
     if (
@@ -120,7 +159,13 @@ export async function verifyWorkosConnectToken(
         ? {}
         : { externalId: payload.external_id }),
     };
-  } catch {
+  } catch (error) {
+    if (
+      error instanceof errors.JWKSTimeout ||
+      error instanceof WorkosJwksUnavailableError
+    ) {
+      config.onUnavailable?.();
+    }
     // Invalid signatures, claims, configuration and unavailable JWKS fail closed.
     return null;
   }

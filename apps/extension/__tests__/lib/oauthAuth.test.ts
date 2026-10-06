@@ -125,7 +125,9 @@ const withDiscovery = (handler: typeof fetch): typeof fetch =>
           primary === "workos"
             ? `${issuer}/oauth2/token`
             : "https://test.convex.site/api/auth/mcp/token",
-        revocation_endpoint: "https://test.convex.site/api/oauth/revoke",
+        ...(primary === "betterauth"
+          ? { revocation_endpoint: "https://test.convex.site/api/oauth/revoke" }
+          : {}),
         code_challenge_methods_supported: ["S256"],
       });
     }
@@ -696,3 +698,43 @@ test("identity verification keeps its error when cleanup revocation is unavailab
   );
   expect(storage[tokenKey]).toBeUndefined();
 });
+
+test.each([204, 401, 503, 200, 302])(
+  "WorkOS logout without a provider revoke endpoint requires exact disconnect204 (HTTP%i)",
+  async (status) => {
+    primary = "workos";
+    storage[tokenKey] = {
+      accessToken,
+      refreshToken,
+      expiresAt: Date.now() - 1000,
+      siteUrl: "https://test.convex.site",
+      issuer: "https://auth.test.workos.com",
+      clientId: "client_chrome",
+    };
+    const network = mock((input, init) => {
+      expect(String(input)).toBe(
+        "https://test.convex.site/v1/oauth/disconnect"
+      );
+      expect(new Headers(init?.headers).get("Authorization")).toBe(
+        `Bearer ${accessToken}`
+      );
+      expect(init?.body).toBeUndefined();
+      expect(init?.redirect).toBe("error");
+      return Promise.resolve(new Response(null, { status }));
+    });
+    globalThis.fetch = withDiscovery(network as unknown as typeof fetch);
+    if (status === 204) {
+      primary = "betterauth";
+    }
+    const auth = await load();
+    if (status === 204) {
+      await auth.signOutOAuth();
+      expect(storage[tokenKey]).toBeUndefined();
+    } else {
+      await expect(auth.signOutOAuth()).rejects.toThrow("Could not sign out");
+      expect(storage[tokenKey]).toBeDefined();
+    }
+    expect(network).toHaveBeenCalledTimes(1);
+    expect(webAuth).not.toHaveBeenCalled();
+  }
+);

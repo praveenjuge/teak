@@ -238,20 +238,33 @@ async function revokeCredentials(
   credentials: Credentials,
   auth: AuthDiscovery
 ) {
-  if (!(matches(credentials, auth) && auth.revocationEndpoint)) {
+  const workos =
+    credentials.siteUrl === site() &&
+    credentials.clientId?.startsWith("client_") &&
+    Boolean(credentials.issuer);
+  const endpoint = workos
+    ? `${site()}/v1/oauth/disconnect`
+    : auth.revocationEndpoint;
+  if (!(endpoint && (workos || matches(credentials, auth)))) {
     throw new Error("Sign-in provider changed. Please reconnect to Teak.");
   }
-  const response = await fetchAuth(auth.revocationEndpoint, {
+  const response = await fetchAuth(endpoint, {
     method: "POST",
     credentials: "omit",
     redirect: "error",
-    headers: { "Content-Type": "application/x-www-form-urlencoded" },
-    body: new URLSearchParams({
-      client_id: auth.clients[SURFACE],
-      token: credentials.refreshToken,
-    }),
+    headers: workos
+      ? { Authorization: `Bearer ${credentials.accessToken}` }
+      : { "Content-Type": "application/x-www-form-urlencoded" },
+    ...(workos
+      ? {}
+      : {
+          body: new URLSearchParams({
+            client_id: auth.clients[SURFACE],
+            token: credentials.refreshToken,
+          }),
+        }),
   });
-  if (!response.ok) {
+  if (workos ? response.status !== 204 : !response.ok) {
     throw new Error("Could not sign out. Please try again.");
   }
 }

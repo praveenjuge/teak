@@ -365,6 +365,19 @@ actor TeakSafariService {
 
     private func revoke(_ tokens: SafariOAuthTokens, refreshDiscovery: Bool = true) async throws {
         let auth = refreshDiscovery ? try await discover(force: true) : nil
+        if let saved = tokens.binding, saved.primary == "workos" {
+            guard saved.apiOrigin == (try SafariAuthDiscovery.origin(apiURL).absoluteString) else {
+                throw SafariServiceError.message("Your connection belongs to another Teak environment.")
+            }
+            var request = URLRequest(url: apiURL.appendingPathComponent("v1/oauth/disconnect"))
+            request.httpMethod = "POST"
+            request.setValue("Bearer \(tokens.accessToken)", forHTTPHeaderField: "Authorization")
+            let (_, response) = try await send(request)
+            guard response.statusCode == 204 else {
+                throw SafariServiceError.message("Could not disconnect Teak. Please try again.")
+            }
+            return
+        }
         let endpoint: URL?
         let clientID: String
         if let auth, try matches(tokens, auth) {
