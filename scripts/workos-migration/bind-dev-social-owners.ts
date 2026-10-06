@@ -128,7 +128,7 @@ export async function runSocialBindings(
   apiKey: string,
   ports: SocialBindingPorts
 ) {
-  const { apply } = argumentsFor(argv);
+  const { apply, approval } = argumentsFor(argv);
   if (!apiKey) {
     throw new Error("Explicit WorkOS credential required; dotenv is ignored");
   }
@@ -236,6 +236,7 @@ export async function runSocialBindings(
   }
   return {
     mode: "provider-bindings-written",
+    approvalReference: approval,
     profileProof: "pending-authenticated-webhook-verification",
   };
 }
