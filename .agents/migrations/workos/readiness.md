@@ -1,11 +1,23 @@
 # WorkOS migration readiness
 
-Phase R capability checks passed with the approved revisions and recorded workarounds.
+Historical Phase R capability checks passed with the approved revisions and recorded workarounds. The Connect logout/reconnect gate is reopened by the live findings below.
 Phase 0 is deployed and its backup/restore gate passed. Development and production
 remain on Better Auth with sign-ups frozen. The current rollout evidence and exact
 post-freeze inventories are recorded in `phase-0.md`.
 The approved migration plan is preserved in the encrypted backup as `approved-plan.txt.gpg`.
 Baseline: `460a7b31a644a39463356b19fb83bd53a1424e9c`, version 1.0.75.
+
+## Current Connect runtime correction (6 October 2026)
+
+Live dev and production discovery omit `revocation_endpoint`. Two fresh,
+signature/nonce-verified dev CIMD authorizations reused the same consent ID.
+Permanent local consent denial therefore blocks reconnecting to that grant.
+The earlier denylist proof establishes denial, not a working logout/reconnect
+journey. PR521 remains draft until a separately approved provider-revocation
+experiment and corrected client/backend behavior prove both outcomes.
+WorkOS's supported provider revocation targets the user's entire application,
+across its resources/installations; the previously approved per-consent contract
+must not silently broaden. No production authentication switch is approved here.
 
 ## User-approved revisions
 
@@ -16,8 +28,10 @@ Baseline: `460a7b31a644a39463356b19fb83bd53a1424e9c`, version 1.0.75.
 - Replace the physical iPhone readiness check with an iOS simulator check.
 - Use dated encrypted full Mac/R2 snapshots plus manual Convex backups instead of
   unsupported R2 versioning and Pro-only Convex scheduling (approved by the user).
-- Verify the custom email domain in Phase 4 before cutover: WorkOS custom domains
-  are only available in production environments.
+- Use the default WorkOS email domain instead of the paid custom domain.
+- The shadow week, additional Mac/iOS/Electron/Raycast runtime checks and Mac/iOS
+  release waiting were waived; those waivers are not runtime proof. Firefox is
+  excluded because it is not published.
 
 ## Gates
 
@@ -70,8 +84,9 @@ Phase R passed before the Phase 0 production freeze. Phase 0 backend/web code is
 deployed; the production auth provider is still Better Auth. No production WorkOS
 cutover or identity backfill has occurred.
 Card ownership is immutable. Better Auth remains intact until Phase 6.
-The clean shadow week, store-release lead time, notice, rollback window, and stable
-weeks remain required; passing a build does not satisfy those time gates.
+The shadow week was waived by the user. Store-release lead time, notice, rollback
+window and stable weeks remain required; passing a build does not satisfy those
+time gates.
 
 ## Historical Phase 0 preparation
 
