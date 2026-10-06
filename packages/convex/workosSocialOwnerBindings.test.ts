@@ -552,7 +552,7 @@ test.each(["email", "externalId", "emailVerified", "reassigned-email"])(
     };
     const listed = {
       ...user,
-      ...(field === "email" || field === "reassigned-email"
+      ...(field === "email"
         ? { email: "changed@example.test" }
         : {}),
       ...(field === "externalId"
