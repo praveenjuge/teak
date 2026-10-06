@@ -1,6 +1,6 @@
 import { describe, expect, mock, test } from "bun:test";
 import type { Page } from "@playwright/test";
-import { createProdE2EFetch, gotoApp } from "./prod";
+import { createProdE2EFetch, gotoApp, retryClickUntil } from "./prod";
 
 describe("production E2E API retries", () => {
   test("retries transient card-create failures with one idempotency key", async () => {
@@ -183,5 +183,38 @@ describe("production E2E navigation retries", () => {
       gotoApp({ goto } as unknown as Page, "/login", () => Promise.resolve())
     ).rejects.toThrow("NS_BINDING_ABORTED");
     expect(goto).toHaveBeenCalledTimes(3);
+  });
+});
+
+describe("retryClickUntil", () => {
+  test("does not click when the condition already holds", async () => {
+    const attempt = mock(() => Promise.resolve(undefined));
+
+    await expect(
+      retryClickUntil(() => Promise.resolve(true), attempt)
+    ).resolves.toBe(true);
+    expect(attempt).not.toHaveBeenCalled();
+  });
+
+  test("retries the click until the condition holds", async () => {
+    let clicks = 0;
+    const attempt = mock(() => {
+      clicks += 1;
+      return Promise.resolve(undefined);
+    });
+
+    await expect(
+      retryClickUntil(() => Promise.resolve(clicks >= 2), attempt)
+    ).resolves.toBe(true);
+    expect(attempt).toHaveBeenCalledTimes(2);
+  });
+
+  test("stops after the attempt limit and reports failure", async () => {
+    const attempt = mock(() => Promise.resolve(undefined));
+
+    await expect(
+      retryClickUntil(() => Promise.resolve(false), attempt)
+    ).resolves.toBe(false);
+    expect(attempt).toHaveBeenCalledTimes(3);
   });
 });
