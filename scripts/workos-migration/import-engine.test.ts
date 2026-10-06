@@ -57,10 +57,11 @@ test.each([false, true])(
       email: owner.email,
       emailVerified: true,
     });
+    f.mappings.set(owner.teakUserId, "user_pinned");
     const report = await importOwners(f.ports, { ...options, delta });
     expect(report.deleted).toBe(1);
     expect(f.users.size).toBe(0);
-    expect(f.mappings.size).toBe(0);
+    expect(f.mappings.get(owner.teakUserId)).toBe("user_pinned");
   }
 );
 test.each([false, true])(
@@ -79,6 +80,7 @@ test.each([false, true])(
       email: owner.email,
       emailVerified: true,
     });
+    f.mappings.set(owner.teakUserId, "user_retained");
     const reasons: string[] = [];
     f.ports.quarantine = (_owner, _user, reason) => {
       reasons.push(reason);
@@ -88,7 +90,7 @@ test.each([false, true])(
       importOwners(f.ports, { ...options, delta })
     ).rejects.toThrow();
     expect(f.users.size).toBe(1);
-    expect(f.mappings.size).toBe(0);
+    expect(f.mappings.get(owner.teakUserId)).toBe("user_retained");
     expect(reasons).toEqual(["link_conflict"]);
   }
 );
