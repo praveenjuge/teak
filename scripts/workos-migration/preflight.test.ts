@@ -68,6 +68,24 @@ test.each([false, true])(
     ).toBe(false);
   }
 );
+test.each([null, "wrong_owner"])(
+  "pinned providers require the permanent external owner: %s",
+  (externalId) => {
+    const erased = {
+      ...owner("deleted", ""),
+      deleted: true,
+      workosUserId: "user_pinned",
+    };
+    expect(
+      preflight(
+        [erased],
+        [{ id: "user_pinned", externalId, email: "retained@example.com" }]
+      ).issues
+    ).toMatchObject([
+      { reason: "external_id_mismatch", teakUserIds: ["deleted"] },
+    ]);
+  }
+);
 test("normalizes case and surrounding spaces while preserving Gmail dots and plus aliases", () => {
   const result = preflight(
     [

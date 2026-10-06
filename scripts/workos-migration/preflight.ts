@@ -132,6 +132,18 @@ export function preflight(
   for (const provider of providers) {
     const email = normalized(provider.email),
       matches = emails.get(email) ?? [];
+    const pinnedOwners = providerIds.get(provider.id) ?? [];
+    if (
+      pinnedOwners.length === 1 &&
+      provider.externalId !== pinnedOwners[0].teakUserId
+    ) {
+      issues.push({
+        reason: "external_id_mismatch",
+        email,
+        teakUserIds: [pinnedOwners[0].teakUserId],
+        workosUserId: provider.id,
+      });
+    }
     const externalOwners = provider.externalId
       ? (ownerRows.get(provider.externalId) ?? [])
       : [];
