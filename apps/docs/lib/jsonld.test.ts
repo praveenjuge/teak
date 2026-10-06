@@ -1,7 +1,10 @@
 import { describe, expect, test } from "bun:test";
 import { buildPageSchemas, SITE_DESCRIPTION, SITE_URL } from "./jsonld";
 
-type SchemaNode = { "@type": string; [key: string]: unknown };
+interface SchemaNode {
+  "@type": string;
+  [key: string]: unknown;
+}
 
 const organization = (schemas: object[]) =>
   (schemas as SchemaNode[]).find((node) => node["@type"] === "Organization");
