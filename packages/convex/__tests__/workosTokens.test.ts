@@ -173,10 +173,6 @@ describe("Connect credential validation", () => {
     ["owner claim type", { external_id: 12 }],
     ["empty owner claim", { external_id: "" }],
     ["expired", { exp: 1 }],
-    [
-      "token lifetime exceeds five minutes",
-      { exp: Math.floor(Date.now() / 1000) + 301 },
-    ],
     ["missing expiry", { exp: undefined }],
     ["missing issue time", { iat: undefined }],
     ["future issue time", { iat: Math.floor(Date.now() / 1000) + 3600 }],
@@ -189,6 +185,25 @@ describe("Connect credential validation", () => {
       ).toBeNull();
     }
   );
+
+  test("enforces the signed five-minute lifetime across a clock-second boundary", async () => {
+    // The issue time belongs to the previous second, while token() constructs
+    // the signature now. Pair both claims so elapsed time cannot shorten the
+    // intended lifetime, as it did when exp was set at test registration.
+    const issuedAt = Math.floor(Date.now() / 1000) - 1;
+    expect(
+      await verifyWorkosConnectToken(
+        await token({ iat: issuedAt, exp: issuedAt + 300 }),
+        config
+      )
+    ).not.toBeNull();
+    expect(
+      await verifyWorkosConnectToken(
+        await token({ iat: issuedAt, exp: issuedAt + 301 }),
+        config
+      )
+    ).toBeNull();
+  });
 
   test("rejects forged and malformed tokens", async () => {
     expect(

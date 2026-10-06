@@ -20,7 +20,7 @@ beforeEach(async () => {
   vi.stubEnv("SITE_URL", "https://app.teakvault.com");
   vi.stubEnv("WORKOS_AUTHKIT_DOMAIN", issuer);
   vi.stubEnv("AUTH_PRIMARY", "betterauth");
-  vi.stubEnv("WORKOS_API_KEY", "sk_test_disconnect");
+  vi.stubEnv("WORKOS_API_KEY", "non-secret-disconnect-test-fixture");
   vi.stubEnv("WORKOS_ENVIRONMENT_ID", "environment_TEST");
   vi.stubEnv("WORKOS_CLIENT_ID", "client_AUTHKIT");
   const jwk = await exportJWK(keys.publicKey);

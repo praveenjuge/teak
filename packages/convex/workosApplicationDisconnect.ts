@@ -398,6 +398,9 @@ async function providerApplication(
     if (after) {
       url.searchParams.set("after", after);
     }
+    // The origin is literal; encoded path IDs and URLSearchParams cannot change it.
+    // Redirects are rejected, so neither IDs nor cursors can redirect credentials.
+    // nosemgrep: rules_lgpl_javascript_ssrf_rule-node-ssrf
     const response = await fetch(url, {
       headers: { Authorization: `Bearer ${key}` },
       redirect: "error",
@@ -559,6 +562,8 @@ export const run = internalAction({
     }
     try {
       if (applicationId) {
+        // Fixed WorkOS origin; both path IDs are encoded and redirects are rejected.
+        // nosemgrep: rules_lgpl_javascript_ssrf_rule-node-ssrf
         const result = await fetch(
           `https://api.workos.com/user_management/users/${encodeURIComponent(row.workosUserId)}/authorized_applications/${encodeURIComponent(applicationId)}`,
           {

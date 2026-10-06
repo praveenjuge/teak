@@ -38,7 +38,7 @@ beforeEach(async () => {
   vi.useFakeTimers();
   vi.stubEnv("AUTH_PRIMARY", "workos");
   vi.stubEnv("WORKOS_AUTHKIT_DOMAIN", issuer);
-  vi.stubEnv("WORKOS_API_KEY", "sk_test_disconnect");
+  vi.stubEnv("WORKOS_API_KEY", "non-secret-disconnect-test-fixture");
   vi.stubEnv("WORKOS_ENVIRONMENT_ID", "environment_TEST");
   const jwk = await exportJWK(keys.publicKey);
   // Provider JWKS is the only mocked boundary; signatures and database auth are real.

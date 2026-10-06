@@ -441,6 +441,8 @@ async function revokeStoredSession(): Promise<void> {
           const renewed = await exchange(
             provider,
             {
+              // OAuth grant identifier, not a stored or hard-coded credential.
+              // nosemgrep: codacy.yaml.security.hard-coded-tokens
               grant_type: "refresh_token",
               refresh_token: tokens.refreshToken,
             },
