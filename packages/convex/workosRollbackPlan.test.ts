@@ -185,3 +185,265 @@ test("active pending profiles and verification downgrades remain explicit rollba
     },
   ]);
 });
+
+// Failure modes: missing approvals or barrier; credential resurrection; deletion
+// only in WorkOS shadow; unrelated verification; interrupted page replay.
+async function barrier(t: ReturnType<typeof setup>) {
+  vi.stubEnv("WORKOS_API_KEY", "rollback-test-key");
+  const bytes = await crypto.subtle.digest(
+    "SHA-256",
+    new TextEncoder().encode("rollback-test-key")
+  );
+  const apiKeyFingerprint = [...new Uint8Array(bytes)]
+    .map((byte) => byte.toString(16).padStart(2, "0"))
+    .join("");
+  await t.run((ctx) =>
+    ctx.db.insert("workosImportLeases", {
+      scope: "management_import",
+      environmentId: pins.environmentId,
+      clientId: pins.clientId,
+      apiKeyFingerprint,
+      holder: "11111111-1111-1111-1111-111111111111",
+      generation: 1,
+      runId: "a".repeat(64),
+      admittedAt: 1,
+      heartbeatAt: 1,
+      status: "quiesced",
+    })
+  );
+  return {
+    ...pins,
+    apiKeyFingerprint,
+    holder: "11111111-1111-1111-1111-111111111111",
+    generation: 1,
+    passwordPolicy: "invalidate-all-mapped-legacy-passwords" as const,
+    policyApprovalReference: "controlled-test-policy",
+    activationApprovalReference: "controlled-test-activation",
+  };
+}
+const applyRollback = (
+  await import("convex/server")
+).makeFunctionReference<"mutation">("migration/workosRollback:applyPage");
+test("rollback invalidates passwords and mirrors same-address verification idempotently", async () => {
+  const t = setup();
+  const id = await seed(t),
+    args = await barrier(t);
+  expect(await t.mutation(applyRollback, args)).toMatchObject({
+    invalidated: 1,
+    verified: 1,
+    done: true,
+  });
+  expect(await t.mutation(applyRollback, args)).toMatchObject({
+    invalidated: 0,
+    verified: 0,
+    done: true,
+  });
+  const state = await t.run(async (ctx) => ({
+    account: await ctx.runQuery(components.betterAuth.adapter.findOne, {
+      model: "account",
+      where: [{ field: "userId", value: id }],
+    }),
+    user: await ctx.runQuery(components.betterAuth.adapter.findOne, {
+      model: "user",
+      where: [{ field: "_id", value: id }],
+    }),
+    owner: await ctx.db.query("users").first(),
+  }));
+  expect(state.account).toMatchObject({ password: null, userId: id });
+  expect(state.user).toMatchObject({ emailVerified: true, _id: id });
+  expect(state.owner).toMatchObject({
+    teakUserId: id,
+    emailVerified: true,
+    workosUserId: "user_owner",
+  });
+});
+test("provider deletion becomes a both-mode fence without verification grant", async () => {
+  const t = setup();
+  await seed(t);
+  const args = await barrier(t);
+  await t.run(async (ctx) => {
+    const row = await ctx.db.query("users").first();
+    if (!row) {
+      throw new Error("Missing fixture");
+    }
+    await ctx.db.patch("users", row._id, { workosDeletedAt: 42 });
+  });
+  expect(
+    (await t.query(internal.migration.workosRollbackPlan.page, pins)).owners
+  ).toMatchObject([
+    {
+      deniedDeleted: true,
+      promoteDeletion: true,
+      markSameEmailVerified: false,
+    },
+  ]);
+  expect(await t.mutation(applyRollback, args)).toMatchObject({
+    deletionFences: 1,
+    verified: 0,
+  });
+  expect(await t.run((ctx) => ctx.db.query("users").first())).toMatchObject({
+    deletedAt: 42,
+    emailVerified: false,
+  });
+});
+test.each(["approvals", "generation", "client", "unpaused", "released"])(
+  "rollback rejects %s without changing credentials",
+  async (failure) => {
+    const t = setup();
+    await seed(t);
+    const args = await barrier(t);
+    if (failure === "approvals") {
+      args.policyApprovalReference = "";
+    }
+    if (failure === "generation") {
+      args.generation = 2;
+    }
+    if (failure === "client") {
+      args.clientId = "client_wrong";
+    }
+    if (failure === "unpaused") {
+      vi.stubEnv("ACCOUNT_CHANGES_PAUSED", "false");
+    }
+    if (failure === "released") {
+      await t.run(async (ctx) => {
+        const row = await ctx.db.query("workosImportLeases").first();
+        if (!row) {
+          throw new Error("Missing fixture");
+        }
+        await ctx.db.patch("workosImportLeases", row._id, {
+          status: "released",
+        });
+      });
+    }
+    await expect(t.mutation(applyRollback, args)).rejects.toThrow();
+    expect(
+      await t.run((ctx) =>
+        ctx.runQuery(components.betterAuth.adapter.findOne, {
+          model: "account",
+        })
+      )
+    ).toMatchObject({ password: "unchanged-legacy-test-hash" });
+  }
+);
+test.each(["email", "external", "profile_owner", "pending", "downgrade"])(
+  "rollback blocks %s before changing any owner",
+  async (failure) => {
+    const t = setup();
+    const id = await seed(t),
+      args = await barrier(t);
+    await t.run(async (ctx) => {
+      const row = await ctx.db.query("workosProfiles").first();
+      if (!row?.profile) {
+        throw new Error("Missing fixture");
+      }
+      if (failure === "email") {
+        await ctx.db.patch("workosProfiles", row._id, {
+          profile: { ...row.profile, email: "other@example.com" },
+        });
+      }
+      if (failure === "external") {
+        await ctx.db.patch("workosProfiles", row._id, {
+          profile: { ...row.profile, externalId: "other" },
+        });
+      }
+      if (failure === "profile_owner") {
+        await ctx.db.patch("workosProfiles", row._id, { teakUserId: "other" });
+      }
+      if (failure === "pending") {
+        await ctx.db.insert("migrationQuarantine", {
+          workosUserId: "user_owner",
+          email: "owner@example.com",
+          reason: "profile_pending",
+          source: "webhook",
+          createdAt: 1,
+        });
+      }
+      if (failure === "downgrade") {
+        await ctx.db.patch("workosProfiles", row._id, {
+          profile: { ...row.profile, emailVerified: false },
+        });
+        await ctx.runMutation(components.betterAuth.adapter.updateOne, {
+          input: {
+            model: "user",
+            where: [{ field: "_id", value: id }],
+            update: { emailVerified: true },
+          },
+        });
+      }
+    });
+    await expect(t.mutation(applyRollback, args)).rejects.toThrow("blockers");
+    expect(
+      await t.run((ctx) =>
+        ctx.runQuery(components.betterAuth.adapter.findOne, {
+          model: "account",
+        })
+      )
+    ).toMatchObject({ password: "unchanged-legacy-test-hash" });
+  }
+);
+
+test.each([
+  "raw_external_id",
+  "receipt_external_id",
+  "external_id_mismatch",
+  "link_conflict",
+  "duplicate_mapping",
+])(
+  "provider deletion with %s cannot become a permanent tombstone",
+  async (failure) => {
+    const t = setup();
+    await seed(t);
+    const args = await barrier(t);
+    await t.run(async (ctx) => {
+      const row = await ctx.db.query("users").first();
+      const profile = await ctx.db.query("workosProfiles").first();
+      if (!(row && profile?.profile)) {
+        throw new Error("Missing fixture");
+      }
+      await ctx.db.patch("users", row._id, { workosDeletedAt: 42 });
+      await ctx.db.patch("workosProfiles", profile._id, {
+        deletedAt: 42,
+        profile: {
+          ...profile.profile,
+          externalId:
+            failure === "raw_external_id"
+              ? "other_owner"
+              : profile.profile.externalId,
+        },
+      });
+      if (failure === "receipt_external_id") {
+        await ctx.db.insert("workosEvents", {
+          workosUserId: "user_owner",
+          eventId: "evt_delete",
+          type: "user.deleted",
+          createdAt: 42,
+          externalId: "other_owner",
+        });
+      }
+      if (
+        failure === "external_id_mismatch" ||
+        failure === "link_conflict" ||
+        failure === "duplicate_mapping"
+      ) {
+        await ctx.db.insert("migrationQuarantine", {
+          workosUserId: "user_owner",
+          email: "owner@example.com",
+          reason: failure,
+          source: "webhook",
+          createdAt: 1,
+        });
+      }
+    });
+    await expect(t.mutation(applyRollback, args)).rejects.toThrow("blockers");
+    expect(
+      await t.run((ctx) => ctx.db.query("users").first())
+    ).not.toHaveProperty("deletedAt");
+    expect(
+      await t.run((ctx) =>
+        ctx.runQuery(components.betterAuth.adapter.findOne, {
+          model: "account",
+        })
+      )
+    ).toMatchObject({ password: "unchanged-legacy-test-hash" });
+  }
+);
