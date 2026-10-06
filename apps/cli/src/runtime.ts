@@ -51,6 +51,7 @@ interface StoredCredentials {
     apiUrl: string;
     issuer: string;
     clientId: string;
+    ownerId?: string;
     revocationEndpoint?: string;
   };
   expiresAt: number;
@@ -136,6 +137,8 @@ const parseCredentials = (text: string): StoredCredentials | null => {
       typeof value.apiUrl !== "string" ||
       typeof value.issuer !== "string" ||
       typeof value.clientId !== "string" ||
+      (value.ownerId !== undefined &&
+        (typeof value.ownerId !== "string" || !value.ownerId)) ||
       (value.revocationEndpoint !== undefined &&
         typeof value.revocationEndpoint !== "string")
     ) {
@@ -145,6 +148,7 @@ const parseCredentials = (text: string): StoredCredentials | null => {
       apiUrl: value.apiUrl,
       issuer: value.issuer,
       clientId: value.clientId,
+      ...(typeof value.ownerId === "string" ? { ownerId: value.ownerId } : {}),
       ...(value.revocationEndpoint
         ? { revocationEndpoint: value.revocationEndpoint as string }
         : {}),
@@ -371,6 +375,9 @@ const revokeCredentials = async (
       });
       // The caller holds the credential lock. Rotation must survive a failed
       // disconnect; never restore the now invalid previous refresh token.
+      if (renewed.binding && credentials.binding?.ownerId) {
+        renewed.binding.ownerId = credentials.binding.ownerId;
+      }
       writeCredentials(renewed, options);
       response = await disconnect(renewed.accessToken);
     }
@@ -546,6 +553,9 @@ const tokenProvider = (options: ClientOptions): TokenProvider => {
           grant_type: "refresh_token",
           refresh_token: current.refreshToken,
         });
+        if (next.binding && current.binding?.ownerId) {
+          next.binding.ownerId = current.binding.ownerId;
+        }
         writeCredentials(next, options);
         const latest = await discovery(options, true);
         if (!matchesProvider(next, options, latest)) {
@@ -670,6 +680,17 @@ export const createAuthorizeUrl = (
 export const login = async (options: ClientOptions & { browser?: boolean }) => {
   const signoutEpoch = readLogoutMarker(options);
   const auth = await discovery(options, true);
+  const saved = readCredentials(options);
+  if (
+    auth.primary === "workos" &&
+    saved &&
+    matchesProvider(saved, options, auth) &&
+    !saved.binding?.ownerId
+  ) {
+    throw new Error(
+      "Run teak logout before signing in again, then wait five minutes for disconnect to finish."
+    );
+  }
   const verifier = b64url(randomBytes(32));
   const state = b64url(randomBytes(24));
   for (const port of [14_210, 24_210]) {
@@ -723,6 +744,33 @@ export const login = async (options: ClientOptions & { browser?: boolean }) => {
                 grant_type: "authorization_code",
                 redirect_uri: redirectUri,
               });
+              if (latest.primary === "workos") {
+                const info = await fetch(
+                  `${withoutTrailingSlashes(apiBaseUrl(options)).replace(/\/v1$/, "")}/v1/me`,
+                  {
+                    headers: { Authorization: `Bearer ${next.accessToken}` },
+                    credentials: "omit",
+                    redirect: "error",
+                    signal: AbortSignal.timeout(10_000),
+                  }
+                );
+                const text = await readResponseTextWithinLimit(info, 64 * 1024);
+                const payload =
+                  text === null
+                    ? null
+                    : readJson<{ data?: { id?: unknown } }>(text);
+                if (
+                  !info.ok ||
+                  typeof payload?.data?.id !== "string" ||
+                  !payload.data.id ||
+                  !next.binding
+                ) {
+                  throw new Error(
+                    "Could not verify your account. Run teak login again."
+                  );
+                }
+                next.binding.ownerId = payload.data.id;
+              }
               response
                 .writeHead(200, { "Content-Type": "text/html" })
                 .end("<p>Return to your terminal to finish signing in.</p>");
@@ -773,7 +821,20 @@ export const login = async (options: ClientOptions & { browser?: boolean }) => {
             );
           }
           const previous = readCredentials(options);
-          if (previous) {
+          const sameWorkosOwner =
+            latest.primary === "workos" &&
+            previous &&
+            matchesProvider(previous, options, latest) &&
+            Boolean(previous.binding?.ownerId) &&
+            previous.binding?.ownerId === credentials.binding?.ownerId;
+          if (previous && !sameWorkosOwner) {
+            if (
+              latest.primary === "workos" &&
+              matchesProvider(previous, options, latest) &&
+              !previous.binding?.ownerId
+            ) {
+              throw new Error("Run teak logout before signing in again.");
+            }
             try {
               await revokeCredentials(previous, options);
             } catch {
@@ -787,7 +848,9 @@ export const login = async (options: ClientOptions & { browser?: boolean }) => {
         });
       } catch (error) {
         try {
-          if (!committed) {
+          // Discarding a failed Connect login must not revoke the same app on
+          // other installations. Only explicit logout owns that access change.
+          if (!committed && auth.primary !== "workos") {
             await revokeCredentials(credentials, options, false);
           }
         } catch {

@@ -295,6 +295,17 @@ export function beginOAuthSignIn(): Promise<void> {
     await initializeAuth();
     const attempt = generation;
     const auth = await discovery(true);
+    const saved = auth.primary === "workos" ? await readCredentials() : null;
+    if (
+      auth.primary === "workos" &&
+      saved &&
+      matches(saved, auth) &&
+      !saved.userId
+    ) {
+      throw new Error(
+        "Sign out before reconnecting, then wait five minutes for disconnect to finish."
+      );
+    }
     const state = random();
     const verifier = random();
     const challenge = base64url(
@@ -376,7 +387,9 @@ export function beginOAuthSignIn(): Promise<void> {
         credentials.userId = user.id;
       } catch (error) {
         try {
-          await revokeCredentials(credentials, current);
+          if (current.primary !== "workos") {
+            await revokeCredentials(credentials, current);
+          }
         } catch {
           /* Preserve the identity verification error. */
         }
@@ -384,7 +397,9 @@ export function beginOAuthSignIn(): Promise<void> {
       }
       await navigator.locks.request("teak-oauth-credentials", async () => {
         if (attempt !== generation) {
-          await revokeCredentials(credentials, current);
+          if (current.primary !== "workos") {
+            await revokeCredentials(credentials, current);
+          }
           return;
         }
         await writeCredentials(credentials);

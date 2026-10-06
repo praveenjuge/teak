@@ -266,6 +266,7 @@ export function authorizeTeak(): Promise<string> {
       new Error("Teak sign-out is in progress. Try again."),
     );
   }
+  if (inFlightReauthorize) return inFlightReauthorize;
   if (!inFlightAuthorize) {
     inFlightAuthorize = authorize().finally(() => {
       inFlightAuthorize = null;
@@ -280,7 +281,10 @@ async function authorize(): Promise<string> {
   if (stored) {
     return stored;
   }
-  const provider = await getProvider();
+  return authorizeProvider(await getProvider());
+}
+
+async function authorizeProvider(provider: Provider): Promise<string> {
   try {
     const request = await provider.client.authorizationRequest({
       endpoint: provider.auth.authorizationEndpoint,
@@ -313,10 +317,32 @@ export function reauthorizeTeak(): Promise<string> {
   if (!inFlightReauthorize) {
     inFlightReauthorize = (async () => {
       await Promise.allSettled([inFlightAuthorize, inFlightStoredToken]);
-      const provider = await getProvider();
-      await getProvider(true);
+      const provider = await getProvider(true);
+      if (provider.auth.primary === "workos") {
+        const tokens = await provider.client.getTokens();
+        if (tokens?.refreshToken) {
+          const renewed = exchange(
+            provider,
+            { grant_type: "refresh_token", refresh_token: tokens.refreshToken },
+            tokens.refreshToken,
+          );
+          // Background readers join this rotation instead of replaying the old
+          // refresh token while reauthorization is in flight.
+          inFlightStoredToken = renewed;
+          try {
+            return await renewed;
+          } finally {
+            if (inFlightStoredToken === renewed) inFlightStoredToken = null;
+          }
+        }
+        if (tokens) {
+          throw new Error(
+            "Sign Out before reconnecting, then wait five minutes for disconnect to finish.",
+          );
+        }
+      }
       await provider.client.removeTokens();
-      return authorizeTeak();
+      return authorizeProvider(provider);
     })().finally(() => {
       inFlightReauthorize = null;
     });
@@ -453,6 +479,7 @@ export function getStoredTeakAccessToken(): Promise<string | null> {
   if (inFlightSignOut) {
     return Promise.resolve(null);
   }
+  if (inFlightReauthorize) return inFlightReauthorize;
   if (!inFlightStoredToken) {
     inFlightStoredToken = resolveStoredTeakAccessToken().finally(() => {
       inFlightStoredToken = null;

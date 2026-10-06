@@ -790,3 +790,41 @@ test.each([204, 503])(
     expect(webAuth).not.toHaveBeenCalled();
   }
 );
+
+test("failed WorkOS identity verification never disconnects other installations", async () => {
+  primary = "workos";
+  let disconnects = 0;
+  globalThis.fetch = withDiscovery((async (input) => {
+    if (String(input).endsWith("/oauth2/token")) {
+      return await Promise.resolve(tokenResponse());
+    }
+    if (String(input).endsWith("/v1/me")) {
+      return new Response(null, { status: 401 });
+    }
+    disconnects++;
+    return new Response(null, { status: 204 });
+  }) as typeof fetch);
+  await expect((await load()).beginOAuthSignIn()).rejects.toThrow(
+    "verify your account"
+  );
+  expect(disconnects).toBe(0);
+  expect(storage[tokenKey]).toBeUndefined();
+});
+test("unknown-owner WorkOS reconnect stops before opening a browser", async () => {
+  primary = "workos";
+  storage[tokenKey] = {
+    accessToken,
+    refreshToken,
+    expiresAt: 0,
+    siteUrl: "https://test.convex.site",
+    issuer: "https://auth.test.workos.com",
+    clientId: "client_chrome",
+  };
+  globalThis.fetch = withDiscovery((async () =>
+    tokenResponse()) as unknown as typeof fetch);
+  await expect((await load()).beginOAuthSignIn()).rejects.toThrow(
+    "Sign out before reconnecting"
+  );
+  expect(webAuth).not.toHaveBeenCalled();
+  expect(storage[tokenKey]).toBeDefined();
+});

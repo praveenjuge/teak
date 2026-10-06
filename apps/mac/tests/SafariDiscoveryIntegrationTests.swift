@@ -182,7 +182,7 @@ extension SafariOAuthTests {
         try check(stale["status"] as? String == "error" && exchanges == 0, "expired login never exchanges code")
         let fresh = try await browser.prepareSignIn()
         let refused = await browser.completeSignIn(fresh, callback: discoveryCallback(fresh))
-        try check(refused["status"] as? String == "error" && revoked == 1, "refused identity revokes newly issued grant")
+        try check(refused["status"] as? String == "error" && revoked == 0, "refused identity cannot disconnect the application on other installations")
         try check(try store.load() == nil, "refused identity is never stored")
         MockHTTP.respond = { request in
             if request.url?.path == "/v1/me" { return (200, #"{"data":{"id":"user"}}"#) }
@@ -191,7 +191,7 @@ extension SafariOAuthTests {
         }
         let malformed = try await browser.prepareSignIn()
         let malformedResult = await browser.completeSignIn(malformed, callback: discoveryCallback(malformed))
-        try check(malformedResult["status"] as? String == "error" && revoked == 2 && (try store.load()) == nil, "missing identity email rejects and cleans grant")
+        try check(malformedResult["status"] as? String == "error" && revoked == 0 && (try store.load()) == nil, "missing identity email rejects without global disconnect")
     }
 
     static func discoveryRotationFailures() async throws {
@@ -339,7 +339,7 @@ extension SafariOAuthTests {
         MockHTTP.hold = nil
         held!.complete(status: 200, body: tokenResponse)
         let result = await completion!.value
-        try check(result["status"] as? String == "error" && revoked == 1, "cancellation during exchange cleans the returned grant")
+        try check(result["status"] as? String == "error" && revoked == 0, "cancellation discards local tokens without global disconnect")
         try check(try store.load() == nil, "cancelled exchange never commits credentials")
     }
 
@@ -350,37 +350,28 @@ extension SafariOAuthTests {
         let service = fixture(store)
         try await discoveryLogin(service)
         let pending = try await service.prepareSignIn()
-        var held: MockHTTP?
-        var completion: Task<[String: Any], Never>?
         var revoked: [String] = []
+        var applicationRevoked = false
         MockHTTP.respond = { request in
             if request.url?.path == "/api/auth/mcp/token" {
                 return (200, #"{"access_token":"replacement-access","refresh_token":"replacement-refresh","expires_in":3600,"token_type":"Bearer"}"#)
             }
             if request.url?.path == "/v1/oauth/disconnect" {
                 revoked.append(try discoveryDisconnectProof(request))
+                applicationRevoked = true
                 return (204, "")
             }
+            if applicationRevoked { return (401, "{}") }
+            if request.url?.path == "/v1/cards" { return (200, #"{"data":[]}"#) }
             return (200, validSession)
         }
-        await withCheckedContinuation { (started: CheckedContinuation<Void, Never>) in
-            MockHTTP.hold = { protocolRequest in
-                guard protocolRequest.request.url?.path == "/v1/oauth/disconnect", held == nil else { return false }
-                held = protocolRequest
-                started.resume()
-                return true
-            }
-            completion = Task { await service.completeSignIn(pending, callback: discoveryCallback(pending)) }
-        }
-        try check(try discoveryDisconnectProof(held!.request) == "new-access", "replacement revokes previous grant first")
-        pending.cancellation.cancel()
-        MockHTTP.hold = nil
-        held!.complete(status: 204, body: "")
-        let committed = await completion!.value
-        try check(committed["status"] as? String == "connected" && (try store.load()?.refreshToken) == "replacement-refresh", "replacement finishes after old revocation begins despite browser cancellation")
+        let committed = await service.completeSignIn(pending, callback: discoveryCallback(pending))
+        try check(committed["status"] as? String == "connected" && (try store.load()?.refreshToken) == "replacement-refresh", "verified same-owner replacement commits")
+        let state = await service.authState()
+        try check(state["authenticated"] as? Bool == true && revoked.isEmpty, "replacement bearer remains usable without global disconnect")
         let logout = await service.signOut()
         try check(logout["status"] as? String == "signed-out" && (try store.load()) == nil, "explicit logout clears committed replacement")
-        try check(revoked == ["replacement-access"], "explicit logout revokes replacement grant")
+        try check(revoked == ["replacement-access"], "explicit logout owns application-wide disconnect")
     }
 
     static func discoveryReplacementStorageFailure() async throws {
@@ -407,8 +398,8 @@ extension SafariOAuthTests {
         }
         let pending = try await service.prepareSignIn()
         let result = await service.completeSignIn(pending, callback: discoveryCallback(pending))
-        try check(result["status"] as? String == "error" && (try store.load()) == nil, "failed replacement storage clears already revoked previous credential")
-        try check(revoked == ["new-access", "replacement-access"], "failed replacement cleans newly issued grant after revoking old grant")
+        try check(result["status"] as? String == "error" && (try store.load()?.refreshToken) == "new-refresh", "failed replacement storage preserves previous credential")
+        try check(revoked.isEmpty, "failed replacement never disconnects existing application grants")
     }
 
     static func discoveryFixedAuthorizationQuery() async throws {
@@ -458,8 +449,8 @@ extension SafariOAuthTests {
         }
         let pending = try await service.prepareSignIn()
         let result = await service.completeSignIn(pending, callback: discoveryCallback(pending))
-        try check(revocations == 2 && (try store.load()) != nil, "clear failure leaves stale storage after both grants revoked")
-        try check(result["authenticated"] as? Bool == false, "revoked credential clear failure reports unauthenticated")
+        try check(revocations == 0 && (try store.load()) != nil, "replacement storage failure preserves existing grants")
+        try check(result["status"] as? String == "error", "replacement storage failure reports an error")
     }
 
     static func discoveryLogoutDuringCallback() async throws {

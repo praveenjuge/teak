@@ -457,3 +457,66 @@ test.each([204, 503])(
     expect(browserCount).toBe(0);
   },
 );
+
+test("WorkOS reauthorization refreshes its saved grant without browser replacement", async () => {
+  mode = "workos";
+  await oauth.authorizeTeak();
+  browserCount = 0;
+  posts.length = 0;
+  expect(await oauth.reauthorizeTeak()).toBe("access-new");
+  expect(
+    posts.filter((post) => post.body.get("grant_type") === "refresh_token"),
+  ).toHaveLength(1);
+  expect(
+    posts.filter((post) => post.url.endsWith("/oauth/disconnect")),
+  ).toHaveLength(0);
+  expect(browserCount).toBe(0);
+});
+test("WorkOS reauthorization without refresh preserves the grant and requests explicit logout", async () => {
+  mode = "workos";
+  await oauth.authorizeTeak();
+  const key = Array.from(stores.keys())[0];
+  stores.set(key, { accessToken: "saved-access", isExpired: () => false });
+  browserCount = 0;
+  await expect(oauth.reauthorizeTeak()).rejects.toThrow(
+    "Sign Out before reconnecting",
+  );
+  expect(stores.get(key)?.accessToken).toBe("saved-access");
+  expect(browserCount).toBe(0);
+});
+
+test("background reads join WorkOS reauthorization rotation", async () => {
+  mode = "workos";
+  await oauth.authorizeTeak();
+  const key = Array.from(stores.keys())[0];
+  stores.set(key, {
+    accessToken: "prior-access",
+    refreshToken: "prior-refresh",
+    isExpired: () => false,
+  });
+  let notify = () => {};
+  let release = () => {};
+  const started = new Promise<void>((resolve) => {
+    notify = resolve;
+  });
+  const held = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  posts.length = 0;
+  globalThis.fetch = (async (input, init) => {
+    if (String(input).includes("teak-oauth-clients")) {
+      notify();
+      await held;
+    }
+    return transport(input, init);
+  }) as typeof fetch;
+  const renewal = oauth.reauthorizeTeak();
+  await started;
+  const background = oauth.getStoredTeakAccessToken();
+  release();
+  expect(await renewal).toBe("access-new");
+  expect(await background).toBe("access-new");
+  expect(
+    posts.filter((post) => post.body.get("grant_type") === "refresh_token"),
+  ).toHaveLength(1);
+});

@@ -151,6 +151,10 @@ actor TeakSafariService {
         var pending = try SafariOAuthRequest()
         pending.logoutEpoch = try logoutEpoch()
         pending.discovery = try await discover(force: true)
+        if let auth = pending.discovery, auth.primary == "workos", let saved = try credentials.load(),
+           try matches(saved, auth), saved.binding?.ownerID == nil {
+            throw SafariServiceError.message("Sign out before reconnecting, then wait five minutes for disconnect to finish.")
+        }
         guard pending.logoutEpoch == (try logoutEpoch()) else { throw SafariServiceError.unauthenticated }
         return pending
     }
@@ -177,12 +181,19 @@ actor TeakSafariService {
                     guard self.sameProvider(auth, latest), pending.logoutEpoch == (try self.logoutEpoch()) else {
                         throw SafariServiceError.unauthenticated
                     }
+                    tokens.binding = try self.binding(auth, ownerID: owner)
                     try pending.cancellation.beginCommit()
                     if let previous = try self.credentials.load() {
-                        try await self.revoke(previous, refreshDiscovery: false)
-                        previousRevoked = true
+                        let matchesProvider = try self.matches(previous, auth)
+                        let sameOwner = auth.primary == "workos" && matchesProvider && previous.binding?.ownerID == owner
+                        if !sameOwner {
+                            guard auth.primary != "workos" || !matchesProvider || previous.binding?.ownerID != nil else {
+                                throw SafariServiceError.message("Sign out before reconnecting.")
+                            }
+                            try await self.revoke(previous, refreshDiscovery: false)
+                            previousRevoked = true
+                        }
                     }
-                    tokens.binding = try self.binding(auth, ownerID: owner)
                     try pending.cancellation.whileActive {
                         try self.credentials.save(tokens)
                         committed = true
@@ -191,7 +202,9 @@ actor TeakSafariService {
                 } catch {
                     if !committed {
                         if previousRevoked { try? self.credentials.clear() }
-                        try? await self.revoke(tokens, refreshDiscovery: false)
+                        // A failed Connect login must not disconnect other
+                        // installations of this application.
+                        if auth.primary != "workos" { try? await self.revoke(tokens, refreshDiscovery: false) }
                     }
                     if previousRevoked { throw SafariServiceError.unauthenticated }
                     throw error
