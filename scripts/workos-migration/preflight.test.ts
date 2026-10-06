@@ -8,6 +8,44 @@ const owner = (teakUserId: string, email: string): PreflightOwner => ({
   deleted: false,
   passwordFormat: "compatible",
 });
+test("erased tombstones retain identity fences without occupying an email", () => {
+  const erased = { ...owner("deleted", ""), deleted: true };
+  expect(
+    preflight([erased, { ...erased, teakUserId: "other" }], []).clear
+  ).toBe(true);
+  expect(preflight([erased, erased], []).issues).toMatchObject([
+    { reason: "duplicate_owner" },
+  ]);
+  expect(preflight([owner("active", "")], []).issues).toMatchObject([
+    { reason: "invalid_email" },
+  ]);
+  expect(
+    preflight(
+      [erased],
+      [
+        {
+          id: "user_remote",
+          externalId: "deleted",
+          email: "retained@example.com",
+        },
+      ]
+    ).issues
+  ).toMatchObject([{ reason: "external_id_mismatch" }]);
+});
+test("deleted owners with retained emails still block collisions and malformed addresses", () => {
+  expect(
+    preflight(
+      [
+        { ...owner("deleted", "owner@example.com"), deleted: true },
+        owner("active", " OWNER@example.com "),
+      ],
+      []
+    ).issues
+  ).toMatchObject([{ reason: "duplicate_email" }]);
+  expect(
+    preflight([{ ...owner("deleted", "malformed"), deleted: true }], []).issues
+  ).toMatchObject([{ reason: "invalid_email" }]);
+});
 test("normalizes case and surrounding spaces while preserving Gmail dots and plus aliases", () => {
   const result = preflight(
     [

@@ -26,6 +26,68 @@ const options = {
   cursor: null,
   startedAt: 2,
 };
+test("erased deleted owners absent at the provider are skipped without recreation", async () => {
+  const f = fixture();
+  f.ports.source = async () => ({
+    owners: [{ ...owner, email: "", deletedAt: 5 }],
+    done: true,
+    cursor: null,
+    unresolvedQuarantine: false,
+  });
+  const report = await importOwners(f.ports, options);
+  expect(report.scanned).toBe(1);
+  expect(f.users.size).toBe(0);
+  expect(f.mappings.size).toBe(0);
+});
+test.each([false, true])(
+  "erased tombstones cannot delete an unproven provider address in delta=%s",
+  async (delta) => {
+    const f = fixture();
+    f.ports.source = async () => ({
+      owners: [{ ...owner, email: "", deletedAt: 5 }],
+      done: true,
+      cursor: null,
+      unresolvedQuarantine: false,
+    });
+    f.users.set(owner.teakUserId, {
+      id: "user_retained",
+      externalId: owner.teakUserId,
+      email: owner.email,
+      emailVerified: true,
+    });
+    await expect(
+      importOwners(f.ports, { ...options, delta })
+    ).rejects.toThrow();
+    expect(f.users.size).toBe(1);
+    expect(f.mappings.size).toBe(0);
+  }
+);
+test.each([
+  { email: "", deletedAt: null },
+  { email: "malformed", deletedAt: null },
+  { email: "malformed", deletedAt: 5 },
+  { email: "", deletedAt: Number.NaN },
+])(
+  "invalid source addresses fail before provider access: %j",
+  async (input) => {
+    const f = fixture();
+    let providerReads = 0;
+    f.ports.source = async () => ({
+      owners: [{ ...owner, ...input }],
+      done: true,
+      cursor: null,
+      unresolvedQuarantine: false,
+    });
+    f.ports.lookup = () => {
+      providerReads++;
+      return Promise.resolve(null);
+    };
+    await expect(importOwners(f.ports, options)).rejects.toThrow();
+    expect(providerReads).toBe(0);
+    expect(f.users.size).toBe(0);
+    expect(f.mappings.size).toBe(0);
+  }
+);
 function fixture() {
   const users = new Map<string, ImportedUser>(),
     mappings = new Map<string, string>(),
