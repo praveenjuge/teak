@@ -562,9 +562,9 @@ export const run = internalAction({
     }
     try {
       if (applicationId) {
-        // Fixed WorkOS origin; both path IDs are encoded and redirects are rejected.
-        // nosemgrep: rules_lgpl_javascript_ssrf_rule-node-ssrf
         const result = await fetch(
+          // Fixed WorkOS origin; encoded path IDs and rejected redirects prevent SSRF.
+          // nosemgrep: rules_lgpl_javascript_ssrf_rule-node-ssrf
           `https://api.workos.com/user_management/users/${encodeURIComponent(row.workosUserId)}/authorized_applications/${encodeURIComponent(applicationId)}`,
           {
             method: "DELETE",

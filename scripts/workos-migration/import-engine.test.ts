@@ -475,7 +475,7 @@ test("reset-only delta invalidates a removed source password and dry-run sends n
 test("fresh reset-only creates omit hashes without an unnecessary credential update", async () => {
   const f = fixture();
   f.ports.source = async () => ({
-    owners: [{ ...owner, passwordHash: "unsupported" }],
+    owners: [{ ...owner, passwordHash: "non-secret-unsupported-hash-fixture" }],
     done: true,
     cursor: null,
     unresolvedQuarantine: false,
@@ -497,7 +497,7 @@ test("fresh reset-only creates omit hashes without an unnecessary credential upd
 test("raced existing credentials remain denied without reset-only admission", async () => {
   const f = fixture();
   f.ports.source = async () => ({
-    owners: [{ ...owner, passwordHash: "unsupported" }],
+    owners: [{ ...owner, passwordHash: "non-secret-unsupported-hash-fixture" }],
     done: true,
     cursor: null,
     unresolvedQuarantine: false,

@@ -370,9 +370,9 @@ const revokeCredentials = async (
         throw new Error("Saved connection belongs to another provider");
       }
       const renewed = await exchangeToken(options, auth, {
-        // OAuth grant identifier, not a stored or hard-coded credential.
-        // nosemgrep: codacy.yaml.security.hard-coded-tokens
         grant_type: "refresh_token",
+        // Runtime credential from secure storage, not a hard-coded token.
+        // nosemgrep: codacy.yaml.security.hard-coded-tokens
         refresh_token: credentials.refreshToken,
       });
       // The caller holds the credential lock. Rotation must survive a failed
