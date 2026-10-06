@@ -495,7 +495,8 @@ if (import.meta.main) {
             maxBuffer: 1024 * 1024,
           }
         );
-        return JSON.parse(result.stdout.trim()) as T;
+        const output = result.stdout.trim();
+        return (output ? JSON.parse(output) : null) as T;
       } catch {
         throw new Error(
           "Pinned Convex operation failed; raw provider output suppressed"
