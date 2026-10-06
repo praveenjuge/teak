@@ -187,6 +187,25 @@ export const clickVisibleControl = async (
   }
 };
 
+/**
+ * Repeatedly runs an attempt until isDone reports the click took effect, then
+ * returns whether it succeeded. Clicks against production can land before the
+ * page has hydrated and silently no-op, so single-click flows need retries.
+ */
+export const retryClickUntil = async (
+  isDone: () => Promise<boolean>,
+  attempt: () => Promise<void>,
+  maxAttempts = 3
+): Promise<boolean> => {
+  for (let index = 0; index < maxAttempts; index += 1) {
+    if (await isDone()) {
+      return true;
+    }
+    await attempt();
+  }
+  return isDone();
+};
+
 export const fillAndSubmitTextCard = async (page: Page, content: string) => {
   const creationForm = page.locator("form[data-card-creation-status]");
   const readyCreationForm = page.locator(
@@ -361,7 +380,21 @@ export const openSecurity = async (
       .catch(() => undefined);
   }
   await expect(dialog).toBeVisible();
-  await dialog.getByRole("tab", { name: tab, exact: true }).click();
+  // The tab click can land before the page has hydrated and silently no-op,
+  // just like the Manage click above. Radix only mounts the active tab panel,
+  // so a missed click leaves the panel's controls (for example "Create key")
+  // permanently absent. Retry until the tab reports itself selected.
+  const tabTrigger = dialog.getByRole("tab", { name: tab, exact: true });
+  const tabSelected = async () =>
+    (await tabTrigger.getAttribute("aria-selected").catch(() => null)) ===
+    "true";
+  await retryClickUntil(tabSelected, async () => {
+    await clickVisibleControl(tabTrigger);
+    await expect(tabTrigger)
+      .toHaveAttribute("aria-selected", "true", { timeout: 5000 })
+      .catch(() => undefined);
+  });
+  await expect(tabTrigger).toHaveAttribute("aria-selected", "true");
   return dialog;
 };
 
