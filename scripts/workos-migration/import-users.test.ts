@@ -43,3 +43,9 @@ test("actual writes require their own approval reference and cannot masquerade a
     ])
   ).rejects.toThrow("Choose dry-run or apply");
 });
+
+test("reset-only policy cannot be combined with proven password hashes", async () => {
+  await expect(
+    main([...pinned, "--reset-passwords", "--hashes-proven"])
+  ).rejects.toThrow("Choose proven hashes or reset-only passwords");
+});

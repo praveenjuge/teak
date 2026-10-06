@@ -1,5 +1,5 @@
 import { execFile } from "node:child_process";
-import { createHash } from "node:crypto";
+import { createHash, randomBytes } from "node:crypto";
 import { stat, writeFile } from "node:fs/promises";
 import { resolve } from "node:path";
 import { promisify } from "node:util";
@@ -40,6 +40,7 @@ function argumentsFor(argv: string[]) {
     "--delta",
     "--apply",
     "--hashes-proven",
+    "--reset-passwords",
     "--preflight",
   ]);
   const values: Record<string, string> = {};
@@ -80,6 +81,9 @@ function argumentsFor(argv: string[]) {
     )
   ) {
     throw new Error("Invalid explicit deployment pins");
+  }
+  if (selected.has("--hashes-proven") && selected.has("--reset-passwords")) {
+    throw new Error("Choose proven hashes or reset-only passwords");
   }
   if (selected.has("--apply") && selected.has("--dry-run")) {
     throw new Error("Choose dry-run or apply");
@@ -138,6 +142,7 @@ export async function main(
     clientId,
     apiKeyFingerprint,
     hashesProven: selected.has("--hashes-proven"),
+    resetPasswords: selected.has("--reset-passwords"),
   };
   let previous: ImportJournal | null = null;
   if (selected.has("--resume") || selected.has("--delta")) {
@@ -444,7 +449,7 @@ export async function main(
             })
           )
         ),
-      update: (existing, owner, passwordHash) =>
+      update: (existing, owner, passwordHash, resetPassword) =>
         remote("update", owner, async () =>
           user(
             await workos.userManagement.updateUser({
@@ -452,7 +457,12 @@ export async function main(
               email: owner.email,
               name: owner.name ?? undefined,
               emailVerified: owner.emailVerified,
-              ...(passwordHash
+              ...(resetPassword
+                ? // This value replaces any old credential; it is never disclosed
+                  // or persisted. The owner chooses a password through AuthKit reset.
+                  { password: randomBytes(48).toString("base64url") }
+                : {}),
+              ...(!resetPassword && passwordHash
                 ? { passwordHash, passwordHashType: "scrypt" as const }
                 : {}),
             })
@@ -493,6 +503,7 @@ export async function main(
       dryRun,
       mutationApproved: selected.has("--apply"),
       hashesProven: selected.has("--hashes-proven"),
+      resetPasswords: selected.has("--reset-passwords"),
       delta: journal.mode === "delta",
       changedSince: journal.mode === "delta" ? journal.watermark : 0,
       cursor: journal.cursor,

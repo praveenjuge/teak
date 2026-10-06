@@ -52,7 +52,8 @@ export interface ImportPorts {
   update: (
     user: ImportedUser,
     owner: ImportOwner,
-    passwordHash: string | null
+    passwordHash: string | null,
+    resetPassword?: boolean
   ) => Promise<ImportedUser>;
 }
 export interface ImportOptions {
@@ -62,6 +63,7 @@ export interface ImportOptions {
   dryRun: boolean;
   hashesProven: boolean;
   mutationApproved: boolean;
+  resetPasswords?: boolean;
   startedAt: number;
 }
 export interface ImportReport {
@@ -186,6 +188,9 @@ export async function importOwners(
   ports: ImportPorts,
   options: ImportOptions
 ): Promise<ImportReport> {
+  if (options.hashesProven && options.resetPasswords) {
+    throw new Error("Choose proven hashes or reset-only passwords");
+  }
   if (!(options.dryRun || options.mutationApproved)) {
     throw new Error("Import mutations require separate approval");
   }
@@ -240,6 +245,7 @@ export async function importOwners(
         owner.deletedAt === null &&
         owner.passwordHash &&
         !hash &&
+        !options.resetPasswords &&
         !options.dryRun
       ) {
         throw new Error(
@@ -264,7 +270,12 @@ export async function importOwners(
         continue;
       }
       if (user) {
-        if (owner.passwordHash && !hash && !options.dryRun) {
+        if (
+          owner.passwordHash &&
+          !hash &&
+          !options.resetPasswords &&
+          !options.dryRun
+        ) {
           throw new Error(
             "Resumed credential cannot be proven; password reset must be prepared before import resumes"
           );
@@ -275,6 +286,7 @@ export async function importOwners(
         // that owner while leaving the provider's earlier password active.
         if (
           options.delta ||
+          options.resetPasswords ||
           hash !== null ||
           user.emailVerified !== owner.emailVerified
         ) {
@@ -282,7 +294,12 @@ export async function importOwners(
           if (!options.dryRun) {
             const existingUser = user;
             user = await retry(ports, () =>
-              ports.update(existingUser, owner, hash)
+              ports.update(
+                existingUser,
+                owner,
+                hash,
+                options.resetPasswords === true
+              )
             );
             await validateRemote(ports, owner, user, options, true);
           }
@@ -301,12 +318,45 @@ export async function importOwners(
           continue;
         }
         try {
-          user = await retry(
-            ports,
-            async () =>
-              (await ports.lookup(owner.teakUserId)) ??
-              (await ports.create(owner, hash))
-          );
+          const result = await retry(ports, async () => {
+            const recovered = await ports.lookup(owner.teakUserId);
+            if (recovered) {
+              return { user: recovered, created: false };
+            }
+            return { user: await ports.create(owner, hash), created: true };
+          });
+          user = result.user;
+          if (
+            !result.created &&
+            owner.passwordHash &&
+            !hash &&
+            !options.resetPasswords
+          ) {
+            throw new Error(
+              "Resumed credential cannot be proven; password reset must be prepared before import resumes"
+            );
+          }
+          await validateRemote(ports, owner, user, options, result.created);
+          // Another writer or a previous create may become visible between the
+          // two lookups. Treat that credential exactly like any resumed user.
+          if (
+            !result.created &&
+            (options.resetPasswords ||
+              options.delta ||
+              hash !== null ||
+              user.emailVerified !== owner.emailVerified)
+          ) {
+            report.updated++;
+            const recovered = user;
+            user = await retry(ports, () =>
+              ports.update(
+                recovered,
+                owner,
+                hash,
+                options.resetPasswords === true
+              )
+            );
+          }
         } catch (error) {
           // Conflict/validation errors require an operator decision. Persist a
           // receipt without assuming the provider's message proves an email collision.

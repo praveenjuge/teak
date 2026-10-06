@@ -1,188 +1,218 @@
 import { expect, test } from "bun:test";
 import { createHash } from "node:crypto";
-import { mkdtemp } from "node:fs/promises";
+import { mkdtemp, readFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { admission, readJournal, writeJournal } from "./import-journal";
 import { main } from "./import-users";
 
-test("CLI admission, real SDK parsing and filesystem resume recover a first-page crash after create", async () => {
-  const directory = await mkdtemp(join(tmpdir(), "teak-import-cli-")),
-    journal = join(directory, "journal.json");
-  const key = "test-cli-import-transport-key",
-    savedKey = process.env.WORKOS_API_KEY,
-    savedFetch = globalThis.fetch;
-  const pins = {
-    deployment: "isolated-rehearsal",
-    environmentId: "environment_test",
-    clientId: "client_test",
-    apiKeyFingerprint: createHash("sha256").update(key).digest("hex"),
-    hashesProven: false,
-    witnessUserId: "user_witness",
-    witnessEmail: "witness@example.com",
-    witnessExternalId: null,
-  };
-  const argv = [
-    "--deployment",
-    pins.deployment,
-    "--environment-id",
-    pins.environmentId,
-    "--client-id",
-    pins.clientId,
-    "--witness-email",
-    pins.witnessEmail,
-    "--witness-external-id",
-    "none",
-    "--journal",
-    journal,
-    "--apply",
-    "--approval-reference",
-    "synthetic-test-approval",
-  ];
-  let provider: Record<string, unknown> | null = null,
-    crash = true,
-    mapped = false;
-  process.env.WORKOS_API_KEY = key;
-  globalThis.fetch = Object.assign(
-    async (input: RequestInfo | URL, init?: RequestInit) => {
-      const path = new URL(input instanceof Request ? input.url : String(input))
-        .pathname;
-      if (path === "/user_management/users/user_witness") {
-        return Response.json({
-          object: "user",
-          id: pins.witnessUserId,
-          email: pins.witnessEmail,
-          email_verified: true,
-          external_id: null,
-          first_name: null,
-          last_name: null,
-          profile_picture_url: null,
-          locale: null,
-          metadata: {},
-          created_at: "2026-10-01T00:00:00Z",
-          updated_at: "2026-10-01T00:00:00Z",
-          last_sign_in_at: null,
-        });
-      }
-      if (
-        path === "/user_management/users" &&
-        (init?.method ?? (input instanceof Request ? input.method : "GET")) ===
-          "GET"
-      ) {
-        return Response.json({
-          object: "list",
-          data: provider ? [provider] : [],
-          list_metadata: { before: null, after: null },
-        });
-      }
-      // Journal admission precedes all provider creation and page linking.
-      expect((await readJournal(journal, pins)).completed).toBe(false);
-      if (path === "/user_management/users/external_id/permanent_owner") {
-        return provider
-          ? Response.json(provider)
-          : Response.json({ message: "Not found" }, { status: 404 });
-      }
-      if (path === "/user_management/users") {
-        if (provider) {
-          throw new Error("Duplicate provider creation");
+test.each([false, true])(
+  "CLI admission and real SDK resume recover a first-page crash with reset-only=%s",
+  async (resetPasswords) => {
+    const directory = await mkdtemp(join(tmpdir(), "teak-import-cli-")),
+      journal = join(directory, "journal.json");
+    const key = "test-cli-import-transport-key",
+      savedKey = process.env.WORKOS_API_KEY,
+      savedFetch = globalThis.fetch;
+    const pins = {
+      deployment: "isolated-rehearsal",
+      environmentId: "environment_test",
+      clientId: "client_test",
+      apiKeyFingerprint: createHash("sha256").update(key).digest("hex"),
+      hashesProven: false,
+      resetPasswords,
+      witnessUserId: "user_witness",
+      witnessEmail: "witness@example.com",
+      witnessExternalId: null,
+    };
+    const argv = [
+      "--deployment",
+      pins.deployment,
+      "--environment-id",
+      pins.environmentId,
+      "--client-id",
+      pins.clientId,
+      "--witness-email",
+      pins.witnessEmail,
+      "--witness-external-id",
+      "none",
+      "--journal",
+      journal,
+      "--apply",
+      "--approval-reference",
+      "synthetic-test-approval",
+    ];
+    if (resetPasswords) {
+      argv.push("--reset-passwords");
+    }
+    let invalidationPassword: string | null = null;
+    let credentialIntent = false;
+    let provider: Record<string, unknown> | null = null,
+      crash = true,
+      mapped = false;
+    process.env.WORKOS_API_KEY = key;
+    globalThis.fetch = Object.assign(
+      async (input: RequestInfo | URL, init?: RequestInit) => {
+        const path = new URL(
+          input instanceof Request ? input.url : String(input)
+        ).pathname;
+        if (path === "/user_management/users/user_witness") {
+          return Response.json({
+            object: "user",
+            id: pins.witnessUserId,
+            email: pins.witnessEmail,
+            email_verified: true,
+            external_id: null,
+            first_name: null,
+            last_name: null,
+            profile_picture_url: null,
+            locale: null,
+            metadata: {},
+            created_at: "2026-10-01T00:00:00Z",
+            updated_at: "2026-10-01T00:00:00Z",
+            last_sign_in_at: null,
+          });
         }
-        provider = {
-          object: "user",
-          id: "user_cliintegration",
-          email: "owner@example.com",
-          email_verified: false,
-          external_id: "permanent_owner",
-          name: "Owner",
-          first_name: null,
-          last_name: null,
-          profile_picture_url: null,
-          locale: null,
-          metadata: {},
-          created_at: "2026-10-01T00:00:00Z",
-          updated_at: "2026-10-01T00:00:00Z",
-          last_sign_in_at: null,
-        };
-        return Response.json(provider);
-      }
-      throw new Error(`Unexpected mocked provider endpoint ${path}`);
-    },
-    { preconnect: () => undefined }
-  );
-  const transport = (name: string, args: unknown) =>
-    Promise.resolve().then(() => {
-      if (name.endsWith(":acquire")) {
-        return { holder: (args as { holder: string }).holder, generation: 1 };
-      }
-      if (name.startsWith("migration/workosImportLease:")) {
-        return null;
-      }
-      if (name.endsWith(":admission")) {
-        return { witnessUserId: pins.witnessUserId };
-      }
-      if (name.endsWith(":preflightPage")) {
-        return {
-          owners: [
-            {
-              teakUserId: "permanent_owner",
-              email: "owner@example.com",
-              workosUserId: null,
-              deleted: false,
-              passwordFormat: "none",
-            },
-          ],
-          done: true,
-          cursor: null,
-        };
-      }
-      if (name.endsWith(":page")) {
-        return {
-          owners: [
-            {
-              teakUserId: "permanent_owner",
-              email: "owner@example.com",
-              emailVerified: false,
-              name: "Owner",
-              passwordHash: null,
-              changedAt: 1,
-              deletedAt: null,
-              workosUserId: null,
-              sourceVersion: "synthetic-version",
-            },
-          ],
-          done: true,
-          cursor: null,
-          unresolvedQuarantine: false,
-        };
-      }
-      if (name.endsWith(":link")) {
-        if (crash) {
-          throw new Error("Crash before local mapping");
+        if (
+          path === "/user_management/users" &&
+          (init?.method ??
+            (input instanceof Request ? input.method : "GET")) === "GET"
+        ) {
+          return Response.json({
+            object: "list",
+            data: provider ? [provider] : [],
+            list_metadata: { before: null, after: null },
+          });
         }
-        mapped = true;
-        return "linked";
-      }
-      throw new Error("Unexpected mocked Convex boundary");
-    });
-  try {
-    await expect(main(argv, transport)).rejects.toThrow(
-      "Crash before local mapping"
+        // Journal admission precedes all provider creation and page linking.
+        expect((await readJournal(journal, pins)).completed).toBe(false);
+        if (path === "/user_management/users/external_id/permanent_owner") {
+          return provider
+            ? Response.json(provider)
+            : Response.json({ message: "Not found" }, { status: 404 });
+        }
+        if (path === "/user_management/users") {
+          if (provider) {
+            throw new Error("Duplicate provider creation");
+          }
+          provider = {
+            object: "user",
+            id: "user_cliintegration",
+            email: "owner@example.com",
+            email_verified: false,
+            external_id: "permanent_owner",
+            name: "Owner",
+            first_name: null,
+            last_name: null,
+            profile_picture_url: null,
+            locale: null,
+            metadata: {},
+            created_at: "2026-10-01T00:00:00Z",
+            updated_at: "2026-10-01T00:00:00Z",
+            last_sign_in_at: null,
+          };
+          return Response.json(provider);
+        }
+        if (
+          path === "/user_management/users/user_cliintegration" &&
+          init?.method === "PUT"
+        ) {
+          expect(credentialIntent).toBe(true);
+          const body = JSON.parse(String(init.body));
+          expect(body.password).toHaveLength(64);
+          expect(body.password_hash).toBeUndefined();
+          expect(body.password_hash_type).toBeUndefined();
+          invalidationPassword = body.password;
+          expect(
+            (await readFile(journal, "utf8")).includes(body.password)
+          ).toBe(false);
+          return Response.json(provider);
+        }
+        throw new Error(`Unexpected mocked provider endpoint ${path}`);
+      },
+      { preconnect: () => undefined }
     );
-    expect(provider).not.toBeNull();
-    expect(mapped).toBe(false);
-    expect((await readJournal(journal, pins)).completed).toBe(false);
-    crash = false;
-    await main([...argv, "--resume"], transport);
-    expect(mapped).toBe(true);
-    expect((await readJournal(journal, pins)).completed).toBe(true);
-  } finally {
-    globalThis.fetch = savedFetch;
-    if (savedKey === undefined) {
-      delete process.env.WORKOS_API_KEY;
-    } else {
-      process.env.WORKOS_API_KEY = savedKey;
+    const transport = (name: string, args: unknown) =>
+      Promise.resolve().then(() => {
+        if (name.endsWith(":acquire")) {
+          return { holder: (args as { holder: string }).holder, generation: 1 };
+        }
+        if (name.endsWith(":beginRemote")) {
+          credentialIntent = (args as { kind: string }).kind === "update";
+          return null;
+        }
+        if (name.startsWith("migration/workosImportLease:")) {
+          return null;
+        }
+        if (name.endsWith(":admission")) {
+          return { witnessUserId: pins.witnessUserId };
+        }
+        if (name.endsWith(":preflightPage")) {
+          return {
+            owners: [
+              {
+                teakUserId: "permanent_owner",
+                email: "owner@example.com",
+                workosUserId: null,
+                deleted: false,
+                passwordFormat: "none",
+              },
+            ],
+            done: true,
+            cursor: null,
+          };
+        }
+        if (name.endsWith(":page")) {
+          return {
+            owners: [
+              {
+                teakUserId: "permanent_owner",
+                email: "owner@example.com",
+                emailVerified: false,
+                name: "Owner",
+                passwordHash: null,
+                changedAt: 1,
+                deletedAt: null,
+                workosUserId: null,
+                sourceVersion: "synthetic-version",
+              },
+            ],
+            done: true,
+            cursor: null,
+            unresolvedQuarantine: false,
+          };
+        }
+        if (name.endsWith(":link")) {
+          if (crash) {
+            throw new Error("Crash before local mapping");
+          }
+          mapped = true;
+          return "linked";
+        }
+        throw new Error("Unexpected mocked Convex boundary");
+      });
+    try {
+      await expect(main(argv, transport)).rejects.toThrow(
+        "Crash before local mapping"
+      );
+      expect(provider).not.toBeNull();
+      expect(mapped).toBe(false);
+      expect((await readJournal(journal, pins)).completed).toBe(false);
+      crash = false;
+      await main([...argv, "--resume"], transport);
+      expect(mapped).toBe(true);
+      expect(invalidationPassword !== null).toBe(resetPasswords);
+      expect((await readJournal(journal, pins)).completed).toBe(true);
+    } finally {
+      globalThis.fetch = savedFetch;
+      if (savedKey === undefined) {
+        delete process.env.WORKOS_API_KEY;
+      } else {
+        process.env.WORKOS_API_KEY = savedKey;
+      }
     }
   }
-});
+);
 
 // Admission failure modes: the configured key belongs to another environment,
 // or a later-page case/space collision would otherwise permit early creations.
