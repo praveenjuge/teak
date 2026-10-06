@@ -121,7 +121,9 @@ for (const mode of ["production", "development"] as const) {
             issuer,
             authorization_endpoint: authorize,
             token_endpoint: tokenEndpoint,
-            revocation_endpoint: revoke,
+            ...(primary === "betterauth"
+              ? { revocation_endpoint: revoke }
+              : {}),
             code_challenge_methods_supported: ["S256"],
           });
         } else if (url === tokenEndpoint) {
@@ -150,6 +152,17 @@ for (const mode of ["production", "development"] as const) {
               email: "owner@example.test",
               name: "Fixture owner",
             },
+          });
+        } else if (url === `${site}/v1/oauth/disconnect`) {
+          expect(primary).toBe("workos");
+          expect(request.headers().authorization).toBe(
+            `Bearer ${rotatedAccess}`
+          );
+          expect(request.postData()).toBeNull();
+          revoked.push(rotatedAccess);
+          await route.fulfill({
+            status: 204,
+            headers: { "Access-Control-Allow-Origin": "*" },
           });
         } else if (url === revoke) {
           const body = new URLSearchParams(request.postData() ?? "");
@@ -259,7 +272,9 @@ for (const mode of ["production", "development"] as const) {
       expect(exchanges).toHaveLength(2);
       expect(exchanges[1].get("grant_type")).toBe("refresh_token");
       await page.evaluate(() => window.auth.signOutOAuth());
-      expect(revoked).toEqual([rotatedRefresh]);
+      expect(revoked).toEqual([
+        primary === "workos" ? rotatedAccess : rotatedRefresh,
+      ]);
       await page.reload();
       await page.waitForFunction(() => Boolean(window.auth));
       expect(
