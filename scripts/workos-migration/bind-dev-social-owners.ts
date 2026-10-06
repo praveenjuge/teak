@@ -146,8 +146,9 @@ async function recoverSocialBindingLeases(
 ) {
   const pairs: {
     pair: keyof typeof socialOwnerPairs;
-    status: "released" | "already-quiescent";
+    status: "released" | "already-quiescent" | "not-current";
   }[] = [];
+  let unmatchedActiveLease = false;
   for (const pair of ["google", "apple"] as const) {
     let file: FileHandle;
     try {
@@ -193,6 +194,7 @@ async function recoverSocialBindingLeases(
     const state = await run<{
       ready: boolean;
       generation: number | null;
+      holder: string | null;
       pendingRemote: boolean;
       barrierHeld: boolean;
     }>("migration/workosImportLease:quiescence", pins);
@@ -205,7 +207,13 @@ async function recoverSocialBindingLeases(
       throw new Error("Lease recovery cannot release a quiescence barrier");
     }
     if (state.ready) {
+      unmatchedActiveLease = false;
       pairs.push({ pair, status: "already-quiescent" });
+      continue;
+    }
+    if (state.holder !== receipt.holder) {
+      unmatchedActiveLease = true;
+      pairs.push({ pair, status: "not-current" });
       continue;
     }
     if (
@@ -222,10 +230,14 @@ async function recoverSocialBindingLeases(
     };
     await run("migration/workosImportLease:verify", authority);
     await run("migration/workosImportLease:release", authority);
+    unmatchedActiveLease = false;
     pairs.push({ pair, status: "released" });
   }
   if (pairs.length === 0) {
     throw new Error("Existing invocation receipt required for recovery");
+  }
+  if (unmatchedActiveLease) {
+    throw new Error("No invocation receipt owns the active lease");
   }
   return { mode: "lease-recovery", pairs };
 }

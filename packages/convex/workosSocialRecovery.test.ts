@@ -94,15 +94,68 @@ async function setup() {
       key,
       ports
     );
-  const loseReply = async () => {
+  const loseReply = async (pair: "google" | "apple" = "google") => {
+    loseAcquireReply = true;
     await expect(
-      acquireSocialBindingLease(base, "google", pins, approval, run)
+      acquireSocialBindingLease(base, pair, pins, approval, run)
     ).rejects.toThrow();
     loseAcquireReply = false;
     calls.length = 0;
   };
-  return { t, base, calls, recover, loseReply };
+  return { t, base, calls, recover, loseReply, ports };
 }
+
+test("recovery rejects a competing lease acquired after releasing its first receipt", async () => {
+  const { t, recover, loseReply, ports } = await setup();
+  await loseReply("apple");
+  await recover();
+  await loseReply("google");
+  const original = ports.run;
+  ports.run = async <T>(name: string, args: unknown) => {
+    const result = await original<T>(name, args);
+    if (name.endsWith(":release")) {
+      await t.mutation(
+        makeFunctionReference<"mutation">(
+          "migration/workosImportLease:acquire"
+        ),
+        {
+          ...pins,
+          holder: crypto.randomUUID(),
+          runId: "d".repeat(64),
+        }
+      );
+    }
+    return result;
+  };
+  await expect(recover()).rejects.toThrow(
+    "No invocation receipt owns the active lease"
+  );
+  expect(
+    await t.run((ctx) => ctx.db.query("workosImportLeases").first())
+  ).toMatchObject({
+    status: "active",
+    runId: "d".repeat(64),
+  });
+});
+
+test("a lost Apple acquisition is recovered after Google's earlier lease released", async () => {
+  const { t, recover, loseReply, calls } = await setup();
+  await loseReply("google");
+  await recover();
+  await loseReply("apple");
+  expect(await recover()).toMatchObject({
+    mode: "lease-recovery",
+    pairs: [
+      { pair: "google", status: "not-current" },
+      { pair: "apple", status: "released" },
+    ],
+  });
+  expect(
+    (await t.run((ctx) => ctx.db.query("workosImportLeases").first()))?.status
+  ).toBe("released");
+  expect(calls.filter((name) => name.endsWith(":release"))).toHaveLength(1);
+  expect(calls.includes("provider-call")).toBe(false);
+});
 
 test("a lost acquisition reply retains private authority and recovers only its exact lease without provider writes", async () => {
   const { t, base, calls, recover, loseReply } = await setup();
