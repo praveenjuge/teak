@@ -6,6 +6,8 @@
 // supports for the opaque-token MCP/API flow.
 
 import { getConvexSiteUrl } from "@/lib/public-env";
+import { inactiveAuthProvider } from "./auth-mode";
+import { readAuthMode } from "./auth-mode-server";
 
 const CORS_HEADERS: Record<string, string> = {
   "Access-Control-Allow-Origin": "*",
@@ -67,6 +69,8 @@ const normalizeAuthorizationServerMetadata = (
       typeof metadata.registration_endpoint === "string"
         ? metadata.registration_endpoint
         : `${issuer}/api/auth/mcp/register`,
+    revocation_endpoint: `${getTrailingSlashFreeSiteUrl()}/api/oauth/revoke`,
+    revocation_endpoint_auth_methods_supported: ["none"],
     userinfo_endpoint: `${issuer}/api/auth/mcp/userinfo`,
     jwks_uri: `${issuer}/api/auth/mcp/jwks`,
     scopes_supported: PUBLIC_SCOPES,
@@ -90,6 +94,9 @@ const normalizeAuthorizationServerMetadata = (
 };
 
 export async function proxyAuthorizationServerMetadata(): Promise<Response> {
+  if ((await readAuthMode()).primary !== "betterauth") {
+    return inactiveAuthProvider();
+  }
   let upstream: Response;
   try {
     upstream = await fetch(`${getTrailingSlashFreeSiteUrl()}${UPSTREAM_PATH}`, {
@@ -128,7 +135,7 @@ export async function proxyAuthorizationServerMetadata(): Promise<Response> {
     });
   }
 
-  return jsonResponse(200, normalized);
+  return jsonResponse(200, normalized, { "Cache-Control": "no-store" });
 }
 
 export function oauthMetadataPreflight(): Response {

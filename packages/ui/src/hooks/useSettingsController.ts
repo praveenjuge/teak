@@ -7,11 +7,13 @@ import {
 } from "@teak/convex/shared/client-telemetry";
 import { trackAuth, trackLifecycle } from "@teak/convex/shared/metrics";
 import { useAction, useMutation } from "convex/react";
-import { useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
+import type { ConnectionTarget } from "../components/settings/SecuritySection";
 import { TOAST_IDS } from "../constants/toast";
-import { usePaginatedQuery, useQuery } from "../convexQueryHooks";
+import { useQuery } from "../convexQueryHooks";
 import { openCustomerPortal } from "../lib/customerPortal";
+import { useDeviceSessions } from "./useDeviceSessions";
 
 interface UseSettingsControllerOptions {
   onDeleteAccount: () => Promise<void>;
@@ -51,19 +53,46 @@ export function useSettingsController({
   const revokeKey = useMutation(api.apiKeys.revokeUserApiKey);
   const rotateKey = useMutation(api.apiKeys.rotateUserApiKey);
   const revokeAllKeys = useMutation(api.apiKeys.revokeAllUserApiKeys);
-  const sessions = usePaginatedQuery(
-    api.securitySessions.listSessions,
-    {},
-    { initialNumItems: 25 }
+  const authMode = useQuery(api.auth.getAuthMode);
+  const devices = useDeviceSessions(
+    user?._id && authMode ? `${authMode.primary}:${user._id}` : undefined,
+    authMode?.primary
   );
   const revokeSession = useMutation(api.securitySessions.revokeSession);
+  const revokeAuthkitSession = useAction(
+    api.securitySessions.revokeAuthkitSession
+  );
   const handleRevokeSession = async (sessionId: string, current: boolean) => {
-    await revokeSession({ sessionId });
+    await (authMode?.primary === "workos"
+      ? revokeAuthkitSession({ sessionId })
+      : revokeSession({ sessionId }));
+    if (!devices.isCurrentIdentity()) {
+      return;
+    }
     if (current) {
       await onSignOut();
+    } else {
+      await devices.refreshSessions();
     }
   };
-  const oauthConnections = useQuery(api.oauthTokens.listOAuthConnections, {});
+  const connectionProvider = authMode?.primary;
+  const connectionUserId = user?._id;
+  const connectionIdentity = useMemo(
+    () =>
+      connectionUserId && connectionProvider
+        ? {
+            key: `${connectionProvider}:${connectionUserId}`,
+            provider: connectionProvider,
+            cacheKey: crypto.randomUUID(),
+          }
+        : undefined,
+    [connectionUserId, connectionProvider]
+  );
+  const activeConnectionIdentity = useRef(connectionIdentity?.cacheKey);
+  activeConnectionIdentity.current = connectionIdentity?.cacheKey;
+  const disconnectConsent = useMutation(
+    api.workosConsents.disconnectConnection
+  );
   const revokeOAuthConnection = useAction(
     api.oauthTokens.revokeOAuthConnection
   );
@@ -173,8 +202,19 @@ export function useSettingsController({
   const handleRotateApiKey = async (keyId: string) =>
     (await rotateKey({ keyId })) as { key: string };
 
-  const handleRevokeOAuthConnection = async (clientId: string) => {
-    await revokeOAuthConnection({ clientId });
+  const handleRevokeOAuthConnection = async (target: ConnectionTarget) => {
+    if (
+      !connectionIdentity ||
+      connectionIdentity.cacheKey !== activeConnectionIdentity.current ||
+      target.provider !== connectionIdentity.provider
+    ) {
+      throw new Error("This account changed. Please try again.");
+    }
+    if (target.provider === "workos") {
+      await disconnectConsent({ consentId: target.consentId });
+    } else {
+      await revokeOAuthConnection({ clientId: target.clientId });
+    }
   };
 
   const handleCreateCustomerPortal = async () => {
@@ -262,12 +302,10 @@ export function useSettingsController({
     hasPremium: user?.hasPremium,
     accountLoading: user === undefined,
     keys,
-    oauthConnections,
-    sessions:
-      sessions.status === "LoadingFirstPage" ? undefined : sessions.results,
-    sessionsHasMore: sessions.status === "CanLoadMore",
-    sessionsLoadingMore: sessions.status === "LoadingMore",
-    loadMoreSessions: () => sessions.loadMore(25),
+    connectionIdentity,
+    ...devices,
+    betterAuthIdentityKey:
+      authMode?.primary === "betterauth" ? user?._id : undefined,
     handleRevokeSession,
     setDeleteDialogOpen,
     setDeleteError,

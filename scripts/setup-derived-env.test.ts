@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { mkdtempSync, readFileSync, writeFileSync } from "node:fs";
+import { mkdtempSync, readFileSync, statSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import {
@@ -72,6 +72,8 @@ describe("ensureFile", () => {
     const path = join(dir, "nested", ".env.local");
     expect(ensureFile(path, "A=1\n")).toBe("created");
     expect(readFileSync(path, "utf-8")).toBe("A=1\n");
+    // biome-ignore lint/suspicious/noBitwiseOperators: POSIX file permission bits.
+    expect(statSync(path).mode & 0o777).toBe(0o600);
     expect(ensureFile(path, "B=2\n")).toBe("exists");
     expect(readFileSync(path, "utf-8")).toBe("A=1\n");
   });
@@ -120,5 +122,44 @@ describe("ensureDerivedEnv", () => {
     const content = readFileSync(path, "utf-8");
     expect(content).toContain("VITE_PUBLIC_CONVEX_URL=https://c.example");
     expect(content).toContain("VITE_WEB_URL=http://localhost:3000");
+  });
+});
+
+describe("local AuthKit environment writer", () => {
+  test("derives callback from the worktree origin and keeps one session seal across repairs", () => {
+    const dir = mkdtempSync(join(tmpdir(), "teak-authkit-"));
+    const path = join(dir, ".env.local");
+    expect(ensureWebEnv(path, { siteUrl: "http://localhost:3142" })).toBe(
+      "created"
+    );
+    const first = readFileSync(path, "utf-8");
+    // biome-ignore lint/suspicious/noBitwiseOperators: POSIX permissions exclude the file type bits.
+    expect(statSync(path).mode & 0o777).toBe(0o600);
+    expect(first).toContain(
+      "NEXT_PUBLIC_WORKOS_REDIRECT_URI=http://localhost:3142/callback"
+    );
+    const seal = first
+      .split("\n")
+      .find((line) => line.startsWith("WORKOS_COOKIE_PASSWORD="))
+      ?.split("=")[1];
+    expect(seal?.length).toBeGreaterThanOrEqual(32);
+    expect(ensureWebEnv(path, { siteUrl: "http://localhost:3142" })).toBe(
+      "exists"
+    );
+    expect(readFileSync(path, "utf-8")).toBe(first);
+    writeFileSync(
+      path,
+      "WORKOS_COOKIE_PASSWORD=human-set-password-preserved\nNEXT_PUBLIC_WORKOS_REDIRECT_URI=http://localhost:3999/callback\n"
+    );
+    expect(ensureWebEnv(path, { siteUrl: "http://localhost:3142" })).toBe(
+      "repaired"
+    );
+    const repaired = readFileSync(path, "utf-8");
+    expect(repaired).toContain(
+      "WORKOS_COOKIE_PASSWORD=human-set-password-preserved"
+    );
+    expect(repaired).toContain(
+      "NEXT_PUBLIC_WORKOS_REDIRECT_URI=http://localhost:3999/callback"
+    );
   });
 });

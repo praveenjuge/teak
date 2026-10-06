@@ -80,10 +80,14 @@ const executeToolOperation = (
   request: Request,
   operation: PublicApiOperation
 ): Promise<Response> =>
-  executePublicApiOperation(ctx, {
-    ...operation,
-    origin: new URL(request.url).origin,
-  });
+  executePublicApiOperation(
+    ctx,
+    {
+      ...operation,
+      origin: new URL(request.url).origin,
+    },
+    "mcp"
+  );
 
 const jsonRpcResponse = (id: unknown, result: unknown): JsonObject => ({
   jsonrpc: "2.0",
@@ -277,7 +281,7 @@ const validateMcpBearer = async (
 ): Promise<Response | null> => {
   // Validate even protocol-only requests against live credentials. A previous
   // successful request must not keep a disconnected app or revoked key usable.
-  const authError = await validatePublicApiBearer(ctx, request);
+  const authError = await validatePublicApiBearer(ctx, request, "mcp");
   if (authError) {
     return authError.status === 401
       ? withAuthChallenge(authError, request.url)

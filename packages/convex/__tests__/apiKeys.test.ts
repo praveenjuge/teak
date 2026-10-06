@@ -11,6 +11,7 @@ import {
   validateUserApiKey,
 } from "../apiKeys";
 import { rateLimiter } from "../shared/rateLimits";
+import { withTestSession } from "./helpers/session.test-utils";
 
 const originalRateLimiterLimit = rateLimiter.limit;
 
@@ -34,12 +35,15 @@ const componentKey = {
   type: "secret",
 };
 
-const buildAuth = (subject = "user_1") => ({
-  getUserIdentity: mock().mockResolvedValue({
-    subject,
-    sessionId: "session_1",
-  }),
-});
+const buildAuth = (subject = "user_1") =>
+  withTestSession({
+    auth: {
+      getUserIdentity: mock().mockResolvedValue({
+        subject,
+        sessionId: "session_1",
+      }),
+    },
+  }).auth;
 
 const listActiveKeys = (keys: unknown[]) =>
   mock().mockImplementation((_ref, args) => {

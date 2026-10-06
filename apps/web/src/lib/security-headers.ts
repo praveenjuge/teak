@@ -1,3 +1,5 @@
+import { readConvexUrl } from "./public-env";
+
 const TEAK_R2_STORAGE_ORIGIN =
   "https://teak-files-prod.dd19e45b8f2f3cc0393cc2deb51fa27d.r2.cloudflarestorage.com";
 const TEAK_R2_UPLOAD_ORIGIN =
@@ -10,10 +12,26 @@ const R2_FRAME_SOURCES = [
   "https://*.r2.dev",
 ] as const;
 
-const normalizeHttpsOrigin = (value: string): string | null => {
+type PolicyEnvironment = "development" | "production" | "test" | undefined;
+
+const normalizeConfiguredOrigin = (
+  value: string,
+  environment: PolicyEnvironment
+): string | null => {
   try {
     const url = new URL(value);
-    return url.protocol === "https:" ? url.origin : null;
+    if (url.username || url.password) {
+      return null;
+    }
+    if (url.protocol === "https:") {
+      return url.origin;
+    }
+    const local = ["localhost", "127.0.0.1", "[::1]"].includes(url.hostname);
+    return (environment === "development" || environment === "test") &&
+      url.protocol === "http:" &&
+      local
+      ? url.origin
+      : null;
   } catch {
     return null;
   }
@@ -24,7 +42,7 @@ const normalizeHttpsOrigin = (value: string): string | null => {
  * NEXT_PUBLIC_FILES_BASE at web build time so signed file URLs stay
  * loadable; static Teak origins always apply.
  */
-const customFilesOrigins = (): string[] => {
+const customFilesOrigins = (environment: PolicyEnvironment): string[] => {
   const values = [process.env.NEXT_PUBLIC_FILES_BASE];
   return Array.from(
     new Set(
@@ -32,7 +50,7 @@ const customFilesOrigins = (): string[] => {
         if (!value) {
           return [];
         }
-        const origin = normalizeHttpsOrigin(value.trim());
+        const origin = normalizeConfiguredOrigin(value.trim(), environment);
         return origin ? [origin] : [];
       })
     )
@@ -40,10 +58,16 @@ const customFilesOrigins = (): string[] => {
 };
 
 export const buildContentSecurityPolicy = (
-  environment: "development" | "production" | "test" | undefined = process.env
-    .NODE_ENV
+  environment: PolicyEnvironment = process.env.NODE_ENV
 ) => {
-  const customOrigins = customFilesOrigins();
+  const customOrigins = customFilesOrigins(environment);
+  const convexUrl = readConvexUrl();
+  const convexOrigin = convexUrl
+    ? normalizeConfiguredOrigin(convexUrl, environment)
+    : null;
+  const convexOrigins = convexOrigin
+    ? [convexOrigin, convexOrigin.replace(/^http/, "ws")]
+    : [];
   return [
     "default-src 'self'",
     "base-uri 'self'",
@@ -72,6 +96,7 @@ export const buildContentSecurityPolicy = (
     ].join(" "),
     [
       "connect-src 'self'",
+      ...convexOrigins,
       "https://*.convex.cloud",
       "wss://*.convex.cloud",
       "https://*.convex.site",

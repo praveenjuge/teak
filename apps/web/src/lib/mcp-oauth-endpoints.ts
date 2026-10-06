@@ -1,6 +1,8 @@
 import { ConvexHttpClient } from "convex/browser";
 import { makeFunctionReference } from "convex/server";
 import { getConvexSiteUrl, getConvexUrl } from "@/lib/public-env";
+import { inactiveAuthProvider } from "./auth-mode";
+import { readAuthMode } from "./auth-mode-server";
 
 const CORS_HEADERS: Record<string, string> = {
   "Access-Control-Allow-Origin": "*",
@@ -87,6 +89,9 @@ export async function mcpUserInfo(request: Request): Promise<Response> {
   if (!token) {
     return unauthorized();
   }
+  if ((await readAuthMode()).primary !== "betterauth") {
+    return inactiveAuthProvider();
+  }
 
   const client = new ConvexHttpClient(getConvexUrl());
   const userInfo = await client.query(getOAuthUserInfo, { token });
@@ -98,6 +103,9 @@ export async function mcpUserInfo(request: Request): Promise<Response> {
 }
 
 export async function mcpJwks(): Promise<Response> {
+  if ((await readAuthMode()).primary !== "betterauth") {
+    return inactiveAuthProvider();
+  }
   const response = await fetch(
     `${getTrailingSlashFreeSiteUrl()}/api/auth/convex/jwks`,
     {

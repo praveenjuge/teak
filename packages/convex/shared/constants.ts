@@ -1,3 +1,6 @@
+export const SIGNUPS_PAUSED_MESSAGE =
+  "New sign-ups are paused while we upgrade sign-in";
+
 import {
   MARKDOWN_CONTENT_TOO_LARGE_MESSAGE,
   MARKDOWN_INVALID_UTF8_MESSAGE,

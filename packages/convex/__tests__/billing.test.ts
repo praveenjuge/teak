@@ -25,7 +25,7 @@ describe("billing.ts", () => {
     const ctx = {
       runQuery: mock()
         .mockResolvedValueOnce({
-          subject: "user_1",
+          teakUserId: "user_1",
           email: "user@example.com",
         })
         .mockResolvedValueOnce(null),
@@ -49,7 +49,7 @@ describe("billing.ts", () => {
     const module = await import("../billing");
     const ctx = {
       runQuery: mock().mockResolvedValue({
-        subject: "user_1",
+        teakUserId: "user_1",
         email: "user@example.com",
       }),
       runMutation: mock().mockResolvedValue(null),
@@ -70,7 +70,7 @@ describe("billing.ts", () => {
 
     const ctx = {
       runQuery: mock().mockResolvedValue({
-        subject: "user_1",
+        teakUserId: "user_1",
         email: "user@example.com",
       }),
     } as any;

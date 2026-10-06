@@ -9,6 +9,10 @@
  */
 
 import type * as accountDeletion from "../accountDeletion.js";
+import type * as accountDeletionActions from "../accountDeletionActions.js";
+import type * as accountDeletionBatch from "../accountDeletionBatch.js";
+import type * as accountDeletionData from "../accountDeletionData.js";
+import type * as accountDeletionJobs from "../accountDeletionJobs.js";
 import type * as admin from "../admin.js";
 import type * as ai_actions from "../ai/actions.js";
 import type * as ai_models from "../ai/models.js";
@@ -44,6 +48,7 @@ import type * as card_uploadCardAction from "../card/uploadCardAction.js";
 import type * as card_validationUtils from "../card/validationUtils.js";
 import type * as card_visualFilters from "../card/visualFilters.js";
 import type * as cards from "../cards.js";
+import type * as client_authDiscovery from "../client/authDiscovery.js";
 import type * as client_sdk from "../client/sdk.js";
 import type * as crons from "../crons.js";
 import type * as dataExport from "../dataExport.js";
@@ -80,6 +85,20 @@ import type * as linkMetadata_url from "../linkMetadata/url.js";
 import type * as linkMetadata_x from "../linkMetadata/x.js";
 import type * as mcp_httpServer from "../mcp/httpServer.js";
 import type * as mcp_tools from "../mcp/tools.js";
+import type * as migration_connectReadiness from "../migration/connectReadiness.js";
+import type * as migration_exportBetterAuth from "../migration/exportBetterAuth.js";
+import type * as migration_identityTable from "../migration/identityTable.js";
+import type * as migration_passwordHash from "../migration/passwordHash.js";
+import type * as migration_readiness from "../migration/readiness.js";
+import type * as migration_workosCutover from "../migration/workosCutover.js";
+import type * as migration_workosImportLease from "../migration/workosImportLease.js";
+import type * as migration_workosImportSource from "../migration/workosImportSource.js";
+import type * as migration_workosLegacyCredentialGate from "../migration/workosLegacyCredentialGate.js";
+import type * as migration_workosLegacyGrants from "../migration/workosLegacyGrants.js";
+import type * as migration_workosReadiness from "../migration/workosReadiness.js";
+import type * as migration_workosReadinessFixtures from "../migration/workosReadinessFixtures.js";
+import type * as migration_workosRollbackPlan from "../migration/workosRollbackPlan.js";
+import type * as migration_workosSocialOwnerBindings from "../migration/workosSocialOwnerBindings.js";
 import type * as oauthClients from "../oauthClients.js";
 import type * as oauthRevocation from "../oauthRevocation.js";
 import type * as oauthSecurity from "../oauthSecurity.js";
@@ -93,6 +112,7 @@ import type * as publicApiHttpAuth from "../publicApiHttpAuth.js";
 import type * as publicApiHttpCards from "../publicApiHttpCards.js";
 import type * as publicApiHttpShared from "../publicApiHttpShared.js";
 import type * as publicApiHttpValidation from "../publicApiHttpValidation.js";
+import type * as publicApiMe from "../publicApiMe.js";
 import type * as publicApiMeta from "../publicApiMeta.js";
 import type * as publicApiOpenApi from "../publicApiOpenApi.js";
 import type * as publicApiUploads from "../publicApiUploads.js";
@@ -100,7 +120,9 @@ import type * as raycast from "../raycast.js";
 import type * as safariAccountSummary from "../safariAccountSummary.js";
 import type * as securitySessions from "../securitySessions.js";
 import type * as shared_apiKeyFormat from "../shared/apiKeyFormat.js";
+import type * as shared_authErrors from "../shared/authErrors.js";
 import type * as shared_boundedResponse from "../shared/boundedResponse.js";
+import type * as shared_cardTitle from "../shared/cardTitle.js";
 import type * as shared_client_telemetry from "../shared/client_telemetry.js";
 import type * as shared_constants from "../shared/constants.js";
 import type * as shared_dedicatedSessions from "../shared/dedicatedSessions.js";
@@ -122,8 +144,11 @@ import type * as shared_utils_linkCategoryResolver from "../shared/utils/linkCat
 import type * as shared_utils_linkDetection from "../shared/utils/linkDetection.js";
 import type * as shared_utils_safeUrl from "../shared/utils/safeUrl.js";
 import type * as shared_utils_timeSearch from "../shared/utils/timeSearch.js";
+import type * as shared_workosResources from "../shared/workosResources.js";
+import type * as signupFreeze from "../signupFreeze.js";
 import type * as storage_fileUrls from "../storage/fileUrls.js";
 import type * as storage_filesWorkerClient from "../storage/filesWorkerClient.js";
+import type * as storage_ownership from "../storage/ownership.js";
 import type * as storage_pendingUploadCleanup from "../storage/pendingUploadCleanup.js";
 import type * as storage_pendingUploadCleanupState from "../storage/pendingUploadCleanupState.js";
 import type * as storage_r2 from "../storage/r2.js";
@@ -138,6 +163,8 @@ import type * as telemetry_sampling from "../telemetry/sampling.js";
 import type * as telemetry_schedule from "../telemetry/schedule.js";
 import type * as telemetry_sentry from "../telemetry/sentry.js";
 import type * as trustedOrigins from "../trustedOrigins.js";
+import type * as userIdentityTable from "../userIdentityTable.js";
+import type * as workflows_accountDeletion from "../workflows/accountDeletion.js";
 import type * as workflows_aiBackfill from "../workflows/aiBackfill.js";
 import type * as workflows_aiMetadata_generators from "../workflows/aiMetadata/generators.js";
 import type * as workflows_aiMetadata_index from "../workflows/aiMetadata/index.js";
@@ -187,6 +214,25 @@ import type * as workflows_steps_renderables_generateVideoThumbnail from "../wor
 import type * as workflows_steps_renderables_mutations from "../workflows/steps/renderables/mutations.js";
 import type * as workflows_steps_screenshot_captureScreenshot from "../workflows/steps/screenshot/captureScreenshot.js";
 import type * as workflows_steps_screenshot_retryable from "../workflows/steps/screenshot/retryable.js";
+import type * as workosBootstrap from "../workosBootstrap.js";
+import type * as workosConsents from "../workosConsents.js";
+import type * as workosDeletionCompletion from "../workosDeletionCompletion.js";
+import type * as workosE2eActions from "../workosE2eActions.js";
+import type * as workosE2eHttp from "../workosE2eHttp.js";
+import type * as workosE2eState from "../workosE2eState.js";
+import type * as workosIdentity from "../workosIdentity.js";
+import type * as workosLifecycle from "../workosLifecycle.js";
+import type * as workosProfileApply from "../workosProfileApply.js";
+import type * as workosProfileFields from "../workosProfileFields.js";
+import type * as workosProfileRead from "../workosProfileRead.js";
+import type * as workosProfileVersion from "../workosProfileVersion.js";
+import type * as workosReconciliation from "../workosReconciliation.js";
+import type * as workosReconciliationActions from "../workosReconciliationActions.js";
+import type * as workosReconciliationCensus from "../workosReconciliationCensus.js";
+import type * as workosReconciliationSchedule from "../workosReconciliationSchedule.js";
+import type * as workosTokens from "../workosTokens.js";
+import type * as workosUsers from "../workosUsers.js";
+import type * as workosWebhook from "../workosWebhook.js";
 
 import type {
   ApiFromModules,
@@ -196,6 +242,10 @@ import type {
 
 declare const fullApi: ApiFromModules<{
   accountDeletion: typeof accountDeletion;
+  accountDeletionActions: typeof accountDeletionActions;
+  accountDeletionBatch: typeof accountDeletionBatch;
+  accountDeletionData: typeof accountDeletionData;
+  accountDeletionJobs: typeof accountDeletionJobs;
   admin: typeof admin;
   "ai/actions": typeof ai_actions;
   "ai/models": typeof ai_models;
@@ -231,6 +281,7 @@ declare const fullApi: ApiFromModules<{
   "card/validationUtils": typeof card_validationUtils;
   "card/visualFilters": typeof card_visualFilters;
   cards: typeof cards;
+  "client/authDiscovery": typeof client_authDiscovery;
   "client/sdk": typeof client_sdk;
   crons: typeof crons;
   dataExport: typeof dataExport;
@@ -267,6 +318,20 @@ declare const fullApi: ApiFromModules<{
   "linkMetadata/x": typeof linkMetadata_x;
   "mcp/httpServer": typeof mcp_httpServer;
   "mcp/tools": typeof mcp_tools;
+  "migration/connectReadiness": typeof migration_connectReadiness;
+  "migration/exportBetterAuth": typeof migration_exportBetterAuth;
+  "migration/identityTable": typeof migration_identityTable;
+  "migration/passwordHash": typeof migration_passwordHash;
+  "migration/readiness": typeof migration_readiness;
+  "migration/workosCutover": typeof migration_workosCutover;
+  "migration/workosImportLease": typeof migration_workosImportLease;
+  "migration/workosImportSource": typeof migration_workosImportSource;
+  "migration/workosLegacyCredentialGate": typeof migration_workosLegacyCredentialGate;
+  "migration/workosLegacyGrants": typeof migration_workosLegacyGrants;
+  "migration/workosReadiness": typeof migration_workosReadiness;
+  "migration/workosReadinessFixtures": typeof migration_workosReadinessFixtures;
+  "migration/workosRollbackPlan": typeof migration_workosRollbackPlan;
+  "migration/workosSocialOwnerBindings": typeof migration_workosSocialOwnerBindings;
   oauthClients: typeof oauthClients;
   oauthRevocation: typeof oauthRevocation;
   oauthSecurity: typeof oauthSecurity;
@@ -280,6 +345,7 @@ declare const fullApi: ApiFromModules<{
   publicApiHttpCards: typeof publicApiHttpCards;
   publicApiHttpShared: typeof publicApiHttpShared;
   publicApiHttpValidation: typeof publicApiHttpValidation;
+  publicApiMe: typeof publicApiMe;
   publicApiMeta: typeof publicApiMeta;
   publicApiOpenApi: typeof publicApiOpenApi;
   publicApiUploads: typeof publicApiUploads;
@@ -287,7 +353,9 @@ declare const fullApi: ApiFromModules<{
   safariAccountSummary: typeof safariAccountSummary;
   securitySessions: typeof securitySessions;
   "shared/apiKeyFormat": typeof shared_apiKeyFormat;
+  "shared/authErrors": typeof shared_authErrors;
   "shared/boundedResponse": typeof shared_boundedResponse;
+  "shared/cardTitle": typeof shared_cardTitle;
   "shared/client_telemetry": typeof shared_client_telemetry;
   "shared/constants": typeof shared_constants;
   "shared/dedicatedSessions": typeof shared_dedicatedSessions;
@@ -309,8 +377,11 @@ declare const fullApi: ApiFromModules<{
   "shared/utils/linkDetection": typeof shared_utils_linkDetection;
   "shared/utils/safeUrl": typeof shared_utils_safeUrl;
   "shared/utils/timeSearch": typeof shared_utils_timeSearch;
+  "shared/workosResources": typeof shared_workosResources;
+  signupFreeze: typeof signupFreeze;
   "storage/fileUrls": typeof storage_fileUrls;
   "storage/filesWorkerClient": typeof storage_filesWorkerClient;
+  "storage/ownership": typeof storage_ownership;
   "storage/pendingUploadCleanup": typeof storage_pendingUploadCleanup;
   "storage/pendingUploadCleanupState": typeof storage_pendingUploadCleanupState;
   "storage/r2": typeof storage_r2;
@@ -325,6 +396,8 @@ declare const fullApi: ApiFromModules<{
   "telemetry/schedule": typeof telemetry_schedule;
   "telemetry/sentry": typeof telemetry_sentry;
   trustedOrigins: typeof trustedOrigins;
+  userIdentityTable: typeof userIdentityTable;
+  "workflows/accountDeletion": typeof workflows_accountDeletion;
   "workflows/aiBackfill": typeof workflows_aiBackfill;
   "workflows/aiMetadata/generators": typeof workflows_aiMetadata_generators;
   "workflows/aiMetadata/index": typeof workflows_aiMetadata_index;
@@ -374,6 +447,25 @@ declare const fullApi: ApiFromModules<{
   "workflows/steps/renderables/mutations": typeof workflows_steps_renderables_mutations;
   "workflows/steps/screenshot/captureScreenshot": typeof workflows_steps_screenshot_captureScreenshot;
   "workflows/steps/screenshot/retryable": typeof workflows_steps_screenshot_retryable;
+  workosBootstrap: typeof workosBootstrap;
+  workosConsents: typeof workosConsents;
+  workosDeletionCompletion: typeof workosDeletionCompletion;
+  workosE2eActions: typeof workosE2eActions;
+  workosE2eHttp: typeof workosE2eHttp;
+  workosE2eState: typeof workosE2eState;
+  workosIdentity: typeof workosIdentity;
+  workosLifecycle: typeof workosLifecycle;
+  workosProfileApply: typeof workosProfileApply;
+  workosProfileFields: typeof workosProfileFields;
+  workosProfileRead: typeof workosProfileRead;
+  workosProfileVersion: typeof workosProfileVersion;
+  workosReconciliation: typeof workosReconciliation;
+  workosReconciliationActions: typeof workosReconciliationActions;
+  workosReconciliationCensus: typeof workosReconciliationCensus;
+  workosReconciliationSchedule: typeof workosReconciliationSchedule;
+  workosTokens: typeof workosTokens;
+  workosUsers: typeof workosUsers;
+  workosWebhook: typeof workosWebhook;
 }>;
 
 /**
@@ -404,6 +496,7 @@ export declare const internal: FilterApi<
 
 export declare const components: {
   betterAuth: import("@convex-dev/better-auth/_generated/component.js").ComponentApi<"betterAuth">;
+  workOSAuthKit: import("@convex-dev/workos-authkit/_generated/component.js").ComponentApi<"workOSAuthKit">;
   polar: import("@convex-dev/polar/_generated/component.js").ComponentApi<"polar">;
   workflow: import("@convex-dev/workflow/_generated/component.js").ComponentApi<"workflow">;
   resend: import("@convex-dev/resend/_generated/component.js").ComponentApi<"resend">;

@@ -1,9 +1,14 @@
-import { describe, expect, test } from "bun:test";
+import { beforeAll, describe, expect, test } from "bun:test";
 import { validateFinalizeUpload } from "../../card/uploadCardAction";
+import { requireTeakUserId, type TeakUserId } from "../../securitySessions";
 import { buildR2ObjectKey } from "../../storage/r2";
+import { withMappedOwner } from "../helpers/session.test-utils";
 
 describe("worker-backed card upload finalization", () => {
-  const userId = "user-1";
+  let userId: TeakUserId;
+  beforeAll(async () => {
+    userId = await requireTeakUserId(withMappedOwner({}) as any, "user-1");
+  });
 
   test("accepts a valid user-scoped key including consecutive dots", () => {
     const fileKey = buildR2ObjectKey({

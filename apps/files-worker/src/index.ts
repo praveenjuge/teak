@@ -1,3 +1,11 @@
+import {
+  gatedBucket,
+  ObjectWriteBlockedError,
+  objectIsFrozen,
+} from "./deletionGate";
+
+export { ObjectDeletionGate } from "./deletionGate";
+
 import { withSentry } from "@sentry/cloudflare";
 import {
   buildMultipartPartSigningPayload,
@@ -27,6 +35,7 @@ export interface Env {
   FILES_SIGNING_SECRET: string;
   /** Cloudflare Images binding; used for free metadata inspection of eligible rasters. */
   IMAGES?: ImagesBinding;
+  OBJECT_GATES?: DurableObjectNamespace;
   /** Wrangler secret; error reporting stays disabled until it is set. */
   SENTRY_DSN?: string;
   /** Optional overrides, normally left unset. */
@@ -123,6 +132,8 @@ const handleMultipartPart = async (
   const key = url.searchParams.get("key");
   const expiresAt = url.searchParams.get("exp");
   const signature = url.searchParams.get("sig");
+  const boundSizeText = url.searchParams.get("sz");
+  const boundSize = boundSizeText === null ? null : Number(boundSizeText);
   if (!(match && key && expiresAt && signature)) {
     return multipartError(
       requestId,
@@ -142,7 +153,12 @@ const handleMultipartPart = async (
     !Number.isSafeInteger(expiry) ||
     String(expiry) !== expiresAt ||
     expiry < now ||
-    expiry > now + MULTIPART_URL_MAX_TTL_SECONDS
+    (boundSize !== null &&
+      (!Number.isSafeInteger(boundSize) ||
+        boundSize <= 0 ||
+        boundSize > 64 * 1024 * 1024 ||
+        String(boundSize) !== boundSizeText)) ||
+    expiry > now + (boundSize === null ? MULTIPART_URL_MAX_TTL_SECONDS : 86_400)
   ) {
     return multipartError(
       requestId,
@@ -158,6 +174,7 @@ const handleMultipartPart = async (
       key,
       partNumber,
       uploadId,
+      size: boundSize,
     }),
     signature
   );
@@ -181,7 +198,12 @@ const handleMultipartPart = async (
       411
     );
   }
-  if (contentLength <= 0 || contentLength > MULTIPART_MAX_PART_BYTES) {
+  if (
+    contentLength <= 0 ||
+    contentLength >
+      (boundSize === null ? MULTIPART_MAX_PART_BYTES : boundSize) ||
+    (boundSize !== null && contentLength !== boundSize)
+  ) {
     return multipartError(
       requestId,
       "PAYLOAD_TOO_LARGE",
@@ -201,6 +223,14 @@ const handleMultipartPart = async (
     withCorsHeaders(headers);
     return new Response(null, { status: 204, headers });
   } catch (error) {
+    if (error instanceof ObjectWriteBlockedError) {
+      return multipartError(
+        requestId,
+        "CONFLICT",
+        "Object writes are blocked",
+        409
+      );
+    }
     console.error("[files-worker] multipart part upload failed", {
       error: error instanceof Error ? error.message : String(error),
       partNumber,
@@ -289,7 +319,7 @@ const edgeCache: Cache | null =
   typeof caches === "undefined" ? null : caches.default;
 
 const handler = {
-  async fetch(request, env, ctx): Promise<Response> {
+  async fetch(request, bindings, ctx): Promise<Response> {
     const requestMethod = request.method.toUpperCase();
     const url = new URL(request.url);
 
@@ -304,6 +334,11 @@ const handler = {
       }
       return json({ ok: true });
     }
+
+    if (!bindings.OBJECT_GATES) {
+      return json({ error: "object_gate_not_configured" }, 503);
+    }
+    const env = { ...bindings, BUCKET: gatedBucket(bindings) };
 
     if (url.pathname === "/__ops/v1") {
       if (requestMethod !== "POST") {
@@ -368,6 +403,10 @@ const handler = {
     );
     if (!verification.ok) {
       return new Response(null, { status: verification.status });
+    }
+
+    if (await objectIsFrozen(env, key)) {
+      return new Response(null, { status: 404 });
     }
 
     // Only full-object responses are served from (and written to) the edge

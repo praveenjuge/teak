@@ -11,12 +11,10 @@ import type { MutationCtx } from "./_generated/server";
 import {
   assertAccountNotDeleting,
   beginAccountDeletion,
-  finishAccountDeletion,
-} from "./accountDeletion";
-import {
   deleteAccountDataHandler,
+  finishAccountDeletion,
   getAccountCardDeletionBatchHandler,
-} from "./auth";
+} from "./accountDeletion";
 import {
   CARD_USAGE_BASE_SHARDS,
   CARD_USAGE_SCAN_LIMIT,

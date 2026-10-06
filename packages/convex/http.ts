@@ -7,6 +7,7 @@ import {
 import { exchangeNativeAuthOptions, pollNativeAuthCode } from "./authNative";
 import { polar } from "./billing";
 import { mcpV1, oauthProtectedResourceV1 } from "./mcp/httpServer";
+import { clientMetadata } from "./migration/connectReadiness";
 import { revokeOAuthToken } from "./oauthRevocation";
 import { oauthUserInfo } from "./oauthUserInfo";
 import { duplicateCardV1 } from "./publicApiDuplicate";
@@ -19,11 +20,49 @@ import {
   listCardsV1,
   tagsV1,
 } from "./publicApiHttp";
-import { discoveryV1, healthzV1, v1CorsPreflight } from "./publicApiMeta";
+import { meV1 } from "./publicApiMe";
+import {
+  discoveryV1,
+  healthzV1,
+  teakOAuthClients,
+  v1CorsPreflight,
+} from "./publicApiMeta";
 import { openApiV1 } from "./publicApiOpenApi";
 import { safariAccountSummary } from "./safariAccountSummary";
+import { cleanupE2e, provisionE2e } from "./workosE2eHttp";
+import { registerWorkosRoutes } from "./workosWebhook";
 
 const http = httpRouter();
+
+http.route({
+  path: "/api/auth/internal/e2e/provision",
+  method: "POST",
+  handler: provisionE2e,
+});
+http.route({
+  path: "/api/auth/internal/e2e/cleanup",
+  method: "POST",
+  handler: cleanupE2e,
+});
+
+http.route({
+  path: "/.well-known/teak-oauth-clients.json",
+  method: "GET",
+  handler: teakOAuthClients,
+});
+http.route({
+  path: "/.well-known/teak-oauth-clients.json",
+  method: "OPTIONS",
+  handler: v1CorsPreflight,
+});
+
+registerWorkosRoutes(http);
+
+http.route({
+  path: "/migration/connect-readiness.json",
+  method: "GET",
+  handler: clientMetadata,
+});
 
 http.route({
   path: "/api/oauth/userinfo",
@@ -72,6 +111,7 @@ http.route({
 });
 
 // Register public API v1 routes.
+http.route({ path: "/v1/me", method: "GET", handler: meV1 });
 http.route({
   path: "/healthz",
   method: "GET",
@@ -97,6 +137,7 @@ http.route({
 });
 
 for (const path of [
+  "/v1/me",
   "/v1/cards",
   "/v1/uploads",
   "/v1/cards/bulk",
@@ -192,6 +233,12 @@ http.route({
 
 http.route({
   pathPrefix: "/v1/cards/",
+  method: "POST",
+  handler: cardByIdV1,
+});
+
+http.route({
+  pathPrefix: "/v1/cards/",
   method: "DELETE",
   handler: cardByIdV1,
 });
@@ -201,6 +248,12 @@ http.route({
   method: "GET",
   handler: duplicateCardV1,
 });
+http.route({
+  path: "/api/oauth/revoke",
+  method: "OPTIONS",
+  handler: v1CorsPreflight,
+});
+
 http.route({
   path: "/api/oauth/revoke",
   method: "POST",

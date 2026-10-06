@@ -9,6 +9,7 @@ import {
   type FilesOpRequest,
   isFilesOp,
 } from "@teak/files-protocol";
+import { freezeObject } from "./deletionGate";
 import {
   buildExportIntoBucket,
   ExportManifestInvalid,
@@ -25,6 +26,7 @@ import {
   runInspect,
 } from "./inspect";
 import { sha256Hex, verifyBodySignature } from "./lib";
+import { isMissingMultipartUpload } from "./missingMultipartUpload";
 import { reportFilesOpFailure } from "./sentry";
 import {
   generateTextMetadataForOp,
@@ -66,6 +68,7 @@ export interface FilesOpsEnv {
   FILES_SIGNING_SECRET: string;
   /** Images binding; used by finalize-image-upload for decode verification. */
   IMAGES?: ImagesBinding;
+  OBJECT_GATES?: DurableObjectNamespace;
 }
 
 const json = (data: unknown, status = 200): Response =>
@@ -322,6 +325,13 @@ const dispatch = async (
         size: object.size,
       });
     }
+    case "freeze-object": {
+      const key = requiredString(params, "key");
+      if (!isValidUploadKey(key)) {
+        throw new Error("invalid_storage_key");
+      }
+      return success(requestId, { frozen: await freezeObject(env, key) });
+    }
     case "abort-multipart": {
       const key = requiredString(params, "key");
       if (!isValidUploadKey(key)) {
@@ -335,12 +345,7 @@ const dispatch = async (
       } catch (error) {
         // R2 NoSuchUpload means this idempotent cleanup has already completed.
         // All other errors must propagate to durable workflow/cron retries.
-        if (
-          !(
-            error instanceof Error &&
-            /\b10024\b|NoSuchUpload/u.test(error.message)
-          )
-        ) {
+        if (!isMissingMultipartUpload(error)) {
           throw error;
         }
       }

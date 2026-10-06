@@ -259,3 +259,9 @@ describe("getAuthErrorMessage", () => {
     });
   });
 });
+
+test("explains a paused social registration", () => {
+  expect(getAuthErrorMessage({ message: "signup disabled" }, "fallback")).toBe(
+    "New sign-ups are paused while we upgrade sign-in"
+  );
+});

@@ -1,11 +1,17 @@
 "use node";
+import { ensureObjectOwnership } from "../storage/ownership";
+
 
 import { ConvexError, v } from "convex/values";
 import { internal } from "../_generated/api";
 import type { Id } from "../_generated/dataModel";
 import { type ActionCtx, action, internalAction } from "../_generated/server";
 import { cardTypeValidator } from "../schema";
-import { getSessionIdentity } from "../securitySessions";
+import {
+  getSessionUser,
+  requireTeakUserId,
+  type TeakUserId,
+} from "../securitySessions";
 import {
   FileFormatValidationError,
   fileUploadErrorCode,
@@ -85,7 +91,7 @@ const normalizeMimeType = (value?: string): string | undefined => {
 };
 
 export const validateFinalizeUpload = (
-  userId: string,
+  userId: TeakUserId,
   args: FinalizeArgs
 ): {
   fileEtag?: string;
@@ -144,7 +150,7 @@ export const validateFinalizeUpload = (
 
 const finalizeForUser = async (
   ctx: ActionCtx,
-  userId: string,
+  userId: TeakUserId,
   args: FinalizeArgs
 ): Promise<{ success: true; cardId: Id<"cards"> }> => {
   if (!isFilesWorkerConfigured()) {
@@ -161,6 +167,7 @@ const finalizeForUser = async (
     role: "file",
     fileName: validated.fileName,
   });
+  await ensureObjectOwnership(ctx, userId, destinationKey);
   const outcome = await callFilesWorkerJson<
     FinalizedUpload | FilesWorkerFinalizeImageResult
   >({
@@ -289,19 +296,20 @@ const finalizeForUser = async (
 export const finalizeUploadedCardForUser = internalAction({
   args: { ...finalizeArgs, userId: v.string() },
   returns: finalizeResult,
-  handler: (ctx, { userId, ...args }) => finalizeForUser(ctx, userId, args),
+  handler: async (ctx, { userId, ...args }) =>
+    finalizeForUser(ctx, await requireTeakUserId(ctx, userId), args),
 });
 
 export const finalizeUploadedCard = action({
   args: finalizeArgs,
   returns: finalizeResult,
   handler: async (ctx, args) => {
-    const user = await getSessionIdentity(ctx);
+    const user = await getSessionUser(ctx);
     if (!user) {
       return { success: false, error: "User must be authenticated" };
     }
     try {
-      return await finalizeForUser(ctx, user.subject, args);
+      return await finalizeForUser(ctx, user.teakUserId, args);
     } catch (error) {
       if (error instanceof ConvexError && error.data) {
         const data = error.data as { code?: string; message?: string };

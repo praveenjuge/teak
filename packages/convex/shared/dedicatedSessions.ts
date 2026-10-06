@@ -1,5 +1,6 @@
 import { components } from "../_generated/api";
 import type { MutationCtx } from "../_generated/server";
+import { assertLegacyCredentialWrite } from "../migration/workosLegacyCredentialGate";
 
 // 30 days, matching `session.expiresIn` in auth.ts.
 const SESSION_TTL_MS = 60 * 60 * 24 * 30 * 1000;
@@ -46,6 +47,7 @@ export const mintDedicatedSession = async (
   ctx: MutationCtx,
   { userId, userAgent }: MintDedicatedSessionArgs
 ): Promise<DedicatedSession> => {
+  await assertLegacyCredentialWrite(ctx);
   const now = Date.now();
   const expiresAt = now + SESSION_TTL_MS;
   const sessionToken = generateSessionToken();

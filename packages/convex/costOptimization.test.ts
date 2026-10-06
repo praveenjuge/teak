@@ -12,6 +12,7 @@ import {
 } from "./card/searchDocumentHelpers";
 import { updateCardFieldForUserHandler } from "./card/updateCard";
 import schema from "./schema";
+import type { TeakUserId } from "./securitySessions";
 
 const modules = import.meta.glob("./**/*.ts");
 
@@ -254,7 +255,7 @@ test("field updates avoid tag progress reads and still repair a missing state on
       }),
     } as MutationCtx;
     await updateCardFieldForUserHandler(guarded, {
-      userId: "field-occ",
+      userId: "field-occ" as TeakUserId,
       cardId: id,
       field: "notes",
       value: "a note",

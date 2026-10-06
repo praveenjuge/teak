@@ -19,6 +19,7 @@ import {
 } from "./card/searchDocumentHelpers";
 import { updateCardFieldForUserHandler } from "./card/updateCard";
 import { cardTypeValidator } from "./schema";
+import { requireTeakUserId, type TeakUserId } from "./securitySessions";
 import { rateLimiter } from "./shared/rateLimits";
 
 const DEFAULT_LIMIT = 50;
@@ -66,6 +67,7 @@ const patchCardForUserArgs = {
   userId: v.string(),
   cardId: v.id("cards"),
   content: v.optional(v.string()),
+  metadataTitle: v.optional(v.union(v.string(), v.null())),
   url: v.optional(v.string()),
   notes: v.optional(v.union(v.string(), v.null())),
   tags: v.optional(v.array(v.string())),
@@ -260,7 +262,7 @@ const collectFromBaseQuery = async (
 
 const searchCardsByQuery = async (
   ctx: QueryCtx,
-  userId: string,
+  userId: TeakUserId,
   options: SearchOptions
 ): Promise<Doc<"cards">[]> => {
   const trimmedQuery = normalizeSearchText(options.searchQuery);
@@ -290,7 +292,7 @@ const searchCardsByQuery = async (
 
 const searchCardsByTag = async (
   ctx: QueryCtx,
-  userId: string,
+  userId: TeakUserId,
   options: SearchOptions
 ): Promise<Doc<"cards">[]> => {
   const normalizedTag = normalizeTag(options.tag);
@@ -323,7 +325,7 @@ const searchCardsByTag = async (
 
 const getCardsForUser = async (
   ctx: QueryCtx,
-  userId: string,
+  userId: TeakUserId,
   options: SearchOptions
 ) => {
   const normalizedOptions: SearchOptions = {
@@ -431,9 +433,9 @@ const getCardsForUser = async (
 const applyPatchField = (
   ctx: MutationCtx,
   args: {
-    userId: string;
+    userId: TeakUserId;
     cardId: Id<"cards">;
-    field: "content" | "url" | "notes" | "tags";
+    field: "content" | "url" | "notes" | "tags" | "metadataTitle";
     value?: unknown;
   }
 ) =>
@@ -452,6 +454,7 @@ export const quickSaveForUser = internalMutation({
   args: createCardForUserArgs,
   returns: quickSaveResultValidator,
   handler: async (ctx, args) => {
+    const userId = await requireTeakUserId(ctx, args.userId);
     const submittedContent = args.content;
     const normalizedUrl = args.url?.trim();
     const normalizedNotes =
@@ -482,15 +485,10 @@ export const quickSaveForUser = internalMutation({
       url: normalizedUrl,
     };
 
-    const cardId = await createCardForUserHandler(
-      ctx,
-      args.userId,
-      createArgs,
-      {
-        source: "raycast",
-      }
-    );
-    const card = await getCardForUserHandler(ctx, args.userId, cardId);
+    const cardId = await createCardForUserHandler(ctx, userId, createArgs, {
+      source: "raycast",
+    });
+    const card = await getCardForUserHandler(ctx, userId, cardId);
 
     return {
       status: "created" as const,
@@ -503,8 +501,8 @@ export const quickSaveForUser = internalMutation({
 export const searchCardsForUser = internalQuery({
   args: searchArgs,
   returns: v.array(cardReturnValidator),
-  handler: (ctx, args) =>
-    getCardsForUser(ctx, args.userId, {
+  handler: async (ctx, args) =>
+    getCardsForUser(ctx, await requireTeakUserId(ctx, args.userId), {
       createdAfter: args.createdAfter,
       createdBefore: args.createdBefore,
       favoritesOnly: Boolean(args.favoritesOnly),
@@ -519,8 +517,8 @@ export const searchCardsForUser = internalQuery({
 export const favoriteCardsForUser = internalQuery({
   args: searchArgs,
   returns: v.array(cardReturnValidator),
-  handler: (ctx, args) =>
-    getCardsForUser(ctx, args.userId, {
+  handler: async (ctx, args) =>
+    getCardsForUser(ctx, await requireTeakUserId(ctx, args.userId), {
       createdAfter: args.createdAfter,
       createdBefore: args.createdBefore,
       favoritesOnly: true,
@@ -543,14 +541,22 @@ export const resolveCardIdForUserRequest = internalQuery({
 export const getCardForUser = internalQuery({
   args: cardReferenceArgs,
   returns: v.union(v.null(), cardReturnValidator),
-  handler: (ctx, args) => getCardForUserHandler(ctx, args.userId, args.cardId),
+  handler: async (ctx, args) =>
+    getCardForUserHandler(
+      ctx,
+      await requireTeakUserId(ctx, args.userId),
+      args.cardId
+    ),
 });
 
 export const patchCardForUser = internalMutation({
   args: patchCardForUserArgs,
   returns: v.union(v.null(), cardReturnValidator),
   handler: async (ctx, args) => {
-    const requestedFields: Array<"content" | "url" | "notes" | "tags"> = [];
+    const userId = await requireTeakUserId(ctx, args.userId);
+    const requestedFields: Array<
+      "content" | "url" | "notes" | "tags" | "metadataTitle"
+    > = [];
     let shouldSchedulePipeline = false;
 
     if (args.content !== undefined) {
@@ -558,6 +564,9 @@ export const patchCardForUser = internalMutation({
     }
     if (args.url !== undefined) {
       requestedFields.push("url");
+    }
+    if (args.metadataTitle !== undefined) {
+      requestedFields.push("metadataTitle");
     }
     if (args.notes !== undefined) {
       requestedFields.push("notes");
@@ -567,7 +576,7 @@ export const patchCardForUser = internalMutation({
     }
 
     if (requestedFields.length === 0) {
-      return getCardForUserHandler(ctx, args.userId, args.cardId);
+      return getCardForUserHandler(ctx, userId, args.cardId);
     }
 
     const previousCard = await ctx.db.get("cards", args.cardId);
@@ -578,7 +587,7 @@ export const patchCardForUser = internalMutation({
           shouldSchedulePipeline =
             (
               await applyPatchField(ctx, {
-                userId: args.userId,
+                userId,
                 cardId: args.cardId,
                 field,
                 value: args.content,
@@ -589,18 +598,26 @@ export const patchCardForUser = internalMutation({
           shouldSchedulePipeline =
             (
               await applyPatchField(ctx, {
-                userId: args.userId,
+                userId,
                 cardId: args.cardId,
                 field,
                 value: args.url,
               })
             ).shouldSchedulePipeline || shouldSchedulePipeline;
           break;
+        case "metadataTitle":
+          await applyPatchField(ctx, {
+            userId,
+            cardId: args.cardId,
+            field,
+            value: args.metadataTitle,
+          });
+          break;
         case "notes":
           shouldSchedulePipeline =
             (
               await applyPatchField(ctx, {
-                userId: args.userId,
+                userId,
                 cardId: args.cardId,
                 field,
                 value: args.notes,
@@ -611,7 +628,7 @@ export const patchCardForUser = internalMutation({
           shouldSchedulePipeline =
             (
               await applyPatchField(ctx, {
-                userId: args.userId,
+                userId,
                 cardId: args.cardId,
                 field,
                 value: args.tags,
@@ -635,11 +652,11 @@ export const patchCardForUser = internalMutation({
     await scheduleCardSearchSync(
       ctx,
       args.cardId,
-      args.userId,
+      userId,
       previousCard ?? undefined
     );
 
-    return getCardForUserHandler(ctx, args.userId, args.cardId);
+    return getCardForUserHandler(ctx, userId, args.cardId);
   },
 });
 
@@ -647,8 +664,9 @@ export const softDeleteCardForUser = internalMutation({
   args: cardReferenceArgs,
   returns: v.null(),
   handler: async (ctx, args) => {
+    const userId = await requireTeakUserId(ctx, args.userId);
     await updateCardFieldForUserHandler(ctx, {
-      userId: args.userId,
+      userId,
       cardId: args.cardId,
       field: "delete",
     });
@@ -660,13 +678,14 @@ export const setCardFavoriteForUser = internalMutation({
   args: setCardFavoriteForUserArgs,
   returns: v.union(v.null(), cardReturnValidator),
   handler: async (ctx, args) => {
+    const userId = await requireTeakUserId(ctx, args.userId);
     await updateCardFieldForUserHandler(ctx, {
-      userId: args.userId,
+      userId,
       cardId: args.cardId,
       field: "isFavorited",
       value: args.isFavorited,
     });
-    return getCardForUserHandler(ctx, args.userId, args.cardId);
+    return getCardForUserHandler(ctx, userId, args.cardId);
   },
 });
 

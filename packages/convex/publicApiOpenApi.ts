@@ -1,6 +1,7 @@
 import { env, httpAction } from "./_generated/server";
 import { resolveTeakDevApiUrl } from "./devUrls";
 import { withPublicApiGatewayHeaders } from "./publicApiMeta";
+import { MAX_CARD_TITLE_LENGTH } from "./shared/cardTitle";
 
 const CARD_TYPES = [
   "text",
@@ -27,6 +28,20 @@ const cardProperties = {
     type: "string",
   },
   content: { type: "string" },
+  isDeleted: { type: "boolean" },
+  linkPreviewDescription: { nullable: true, type: "string" },
+  linkFacts: {
+    type: "array",
+    items: {
+      type: "object",
+      properties: { label: { type: "string" }, value: { type: "string" } },
+      required: ["label", "value"],
+    },
+  },
+  linkPreviewTitle: { nullable: true, type: "string" },
+  linkFaviconUrl: { nullable: true, type: "string" },
+  fileWidth: { nullable: true, type: "number" },
+  fileHeight: { nullable: true, type: "number" },
   colors: {
     items: {
       properties: { hex: { type: "string" }, name: { type: "string" } },
@@ -148,10 +163,17 @@ const components = {
           nullable: true,
           type: "object",
         },
+        fileHeight: cardProperties.fileHeight,
+        fileWidth: cardProperties.fileWidth,
         fileUrl: { nullable: true, type: "string" },
         id: { type: "string" },
+        isDeleted: cardProperties.isDeleted,
         isFavorited: { type: "boolean" },
         linkPreviewImageUrl: { nullable: true, type: "string" },
+        linkPreviewDescription: cardProperties.linkPreviewDescription,
+        linkFacts: cardProperties.linkFacts,
+        linkFaviconUrl: cardProperties.linkFaviconUrl,
+        linkPreviewTitle: cardProperties.linkPreviewTitle,
         linkPreviewMedia: cardProperties.linkPreviewMedia,
         linkSiteName: cardProperties.linkSiteName,
         linkAuthor: cardProperties.linkAuthor,
@@ -166,6 +188,7 @@ const components = {
           nullable: true,
           type: "string",
         },
+        metadataStatus: { nullable: true, type: "string" },
         processingStatus: { nullable: true, type: "string" },
         screenshotUrl: { nullable: true, type: "string" },
         tags: { items: { type: "string" }, type: "array" },
@@ -321,6 +344,11 @@ const components = {
           example: "---\r\ntitle: Notes\r\n---\r\n\r\n# Heading  \r\n",
           type: "string",
         },
+        metadataTitle: {
+          description: `Replacement title, trimmed to at most ${MAX_CARD_TITLE_LENGTH} characters after trimming. Null or a blank string clears it.`,
+          nullable: true,
+          type: "string",
+        },
         notes: { nullable: true, type: "string" },
         tags: { items: { type: "string" }, type: "array" },
         url: { type: "string" },
@@ -405,6 +433,45 @@ export const openApiSpec = {
   ],
   components,
   paths: {
+    "/v1/me": {
+      get: {
+        operationId: "getMe",
+        summary: "Get the authenticated Teak identity",
+        security: apiKeySecurity,
+        responses: {
+          200: {
+            description: "Permanent Teak owner ID and current profile",
+            content: {
+              "application/json": {
+                schema: {
+                  type: "object",
+                  required: ["data"],
+                  properties: {
+                    data: {
+                      type: "object",
+                      required: ["id", "email"],
+                      properties: {
+                        id: {
+                          type: "string",
+                          description: "Permanent Teak owner ID",
+                        },
+                        email: { type: "string", format: "email" },
+                        name: { type: "string" },
+                      },
+                    },
+                  },
+                },
+              },
+            },
+          },
+          401: {
+            description: "Missing, invalid, expired, or revoked credential",
+          },
+          429: { description: "Rate limit exceeded" },
+          500: { description: "Profile or authorization service unavailable" },
+        },
+      },
+    },
     "/healthz": {
       get: {
         responses: {
@@ -462,6 +529,21 @@ export const openApiSpec = {
           },
           { in: "query", name: "tag", schema: { type: "string" } },
           { in: "query", name: "favorited", schema: { type: "boolean" } },
+          {
+            in: "query",
+            name: "trashed",
+            schema: { type: "boolean" },
+            description: "List only cards in Trash when true.",
+          },
+          ...["style", "hue", "hex"].map((name) => ({
+            in: "query",
+            name,
+            explode: true,
+            style: "form",
+            schema: { type: "array", items: { type: "string" } },
+            description:
+              "Repeat to match any selected value within this filter.",
+          })),
           { in: "query", name: "createdAfter", schema: { type: "number" } },
           { in: "query", name: "createdBefore", schema: { type: "number" } },
           {
@@ -681,6 +763,13 @@ export const openApiSpec = {
       delete: {
         parameters: [
           {
+            in: "query",
+            name: "permanent",
+            schema: { type: "boolean" },
+            description:
+              "Permanently remove the card and its files when true; otherwise move it to Trash.",
+          },
+          {
             in: "path",
             name: "cardId",
             required: true,
@@ -693,6 +782,22 @@ export const openApiSpec = {
         security: apiKeySecurity,
         operationId: "deleteCard",
         summary: "Delete a card",
+      },
+    },
+    "/v1/cards/{cardId}/restore": {
+      post: {
+        parameters: [
+          {
+            in: "path",
+            name: "cardId",
+            required: true,
+            schema: { type: "string" },
+          },
+        ],
+        responses: { 204: { description: "Card restored" } },
+        security: apiKeySecurity,
+        operationId: "restoreCard",
+        summary: "Restore a card from Trash",
       },
     },
     "/v1/cards/{cardId}/favorite": {

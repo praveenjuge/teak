@@ -6,7 +6,12 @@ import {
   type MutationCtx,
   mutation,
 } from "../_generated/server";
-import { getSessionIdentity } from "../securitySessions";
+import {
+  getSessionUser,
+  requireTeakUserId,
+  type TeakUserId,
+} from "../securitySessions";
+import { MAX_CARD_TITLE_LENGTH, parseCardTitle } from "../shared/cardTitle";
 import { CARD_ERROR_CODES, CARD_ERROR_MESSAGES } from "../shared/constants";
 import { rateLimiter } from "../shared/rateLimits";
 import { assertSafeExternalUrl } from "../shared/utils/safeUrl";
@@ -31,6 +36,7 @@ const updateCardFieldValidator = v.union(
   v.literal("content"),
   v.literal("url"),
   v.literal("notes"),
+  v.literal("metadataTitle"),
   v.literal("tags"),
   v.literal("aiSummary"),
   v.literal("isFavorited"),
@@ -45,6 +51,7 @@ interface UpdateCardFieldForUserArgs {
     | "content"
     | "url"
     | "notes"
+    | "metadataTitle"
     | "tags"
     | "aiSummary"
     | "isFavorited"
@@ -52,7 +59,7 @@ interface UpdateCardFieldForUserArgs {
     | "delete"
     | "restore";
   tagToRemove?: string;
-  userId: string;
+  userId: TeakUserId;
   value?: unknown;
 }
 
@@ -108,7 +115,7 @@ export const updateCard = mutation({
   },
   returns: v.null(), // db.patch returns void/null
   handler: async (ctx, args) => {
-    const user = await getSessionIdentity(ctx);
+    const user = await getSessionUser(ctx);
     if (!user) {
       throw new Error("User must be authenticated");
     }
@@ -120,7 +127,7 @@ export const updateCard = mutation({
       throw new Error("Card not found");
     }
 
-    if (card.userId !== user.subject) {
+    if (card.userId !== user.teakUserId) {
       throw new Error("Not authorized to update this card");
     }
 
@@ -161,7 +168,7 @@ export const updateCard = mutation({
     }
 
     if (contentChanged) {
-      await consumeCardReprocessLimit(ctx, user.subject, id);
+      await consumeCardReprocessLimit(ctx, user.teakUserId, id);
     }
 
     await ctx.db.patch("cards", id, {
@@ -274,6 +281,19 @@ export const updateCardFieldForUserHandler = async (
       }
       break;
 
+    case "metadataTitle": {
+      const title = parseCardTitle(value);
+      if (title === undefined) {
+        throw new ConvexError({
+          code: "INVALID_INPUT",
+          message: `Title must be a string of at most ${MAX_CARD_TITLE_LENGTH} characters, or null`,
+        });
+      }
+      updateData.metadataTitle = title ?? undefined;
+      updateData.metadataTitleEdited = true;
+      break;
+    }
+
     case "notes":
       if (value === null) {
         updateData.notes = undefined;
@@ -383,13 +403,13 @@ export const updateCardField = mutation({
   },
   returns: v.null(),
   handler: async (ctx, { cardId, field, value, tagToRemove }) => {
-    const user = await getSessionIdentity(ctx);
+    const user = await getSessionUser(ctx);
     if (!user) {
       throw new Error("User must be authenticated");
     }
 
     await updateCardFieldForUserHandler(ctx, {
-      userId: user.subject,
+      userId: user.teakUserId,
       cardId,
       field,
       value,
@@ -410,7 +430,10 @@ export const updateCardFieldForUser = internalMutation({
   },
   returns: v.null(),
   handler: async (ctx, args) => {
-    await updateCardFieldForUserHandler(ctx, args);
+    await updateCardFieldForUserHandler(ctx, {
+      ...args,
+      userId: await requireTeakUserId(ctx, args.userId),
+    });
     return null;
   },
 });

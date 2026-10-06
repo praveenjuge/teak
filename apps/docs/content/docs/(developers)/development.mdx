@@ -43,7 +43,7 @@ description: Setup and development workflow for Teak
 
 - Web app: http://localhost:3000
 - Docs (proxies local `/api` and `/mcp`): http://localhost:3001
-- Mobile: Expo Go or a simulator; Safari extension: Xcode
+- Mobile: Expo Go or a simulator; Mac app and Safari extension: Xcode
 
 See the repository README for the monorepo layout.
 
@@ -51,7 +51,7 @@ See the repository README for the monorepo layout.
 
 ```bash
 bun run setup            # First run: install deps + provision Convex + write local env
-bun run setup --target desktop --convex local --json  # Per-target setup with a machine-readable report
+bun run setup --target desktop --convex local --json  # Set up the unshipped Electron reference app
 bun run doctor           # Validate the environment (--json --target --profile for agents)
 bun run dev              # Web + Convex backend (bun run dev --help for targets)
 bun run dev web --headless  # Non-interactive output for agents and CI
@@ -62,9 +62,9 @@ bun run audit:env        # Environment contract + local dotenv audit
 bun run dev convex       # Convex backend only
 bun run dev web          # Next.js web
 bun run dev mobile       # Expo mobile
-bun run dev desktop      # Electron desktop
+bun run dev desktop      # Unshipped Electron reference app
 bun run dev extension    # Chrome extension
-open apps/safari-extension/teak-safari.xcodeproj # Safari extension
+open apps/mac/teak-mac.xcodeproj # Mac app and Safari extension
 bun run dev raycast      # Raycast extension
 bun run dev docs         # Docs site
 
@@ -93,7 +93,7 @@ works with zero copied credentials.
 | --- | --- | --- |
 | `web` | Convex deployment | None; the default path |
 | `docs`, `cli` | Nothing beyond install | No Convex provisioning |
-| `desktop`, `extension` | Convex deployment | Env files derive `VITE_*` aliases automatically |
+| `desktop`, `extension` | Convex deployment | Env files derive `VITE_*` aliases automatically; Electron is unshipped |
 | `mobile-simulator` | Convex deployment | iOS simulator uses loopback; Android emulators need `10.0.2.2` instead of `localhost` |
 | `mobile-device` | Convex deployment, LAN | The host must be LAN-reachable; doctor reports the address or an actionable diagnostic |
 | `files-worker` | `bun run sync:cloudflare-dev` afterwards | Worker secrets are owned by the sync command, not setup |
@@ -101,7 +101,7 @@ works with zero copied credentials.
 
 Linked git worktrees get deterministic ports and a namespace; pair them with
 `--convex cloud` for an isolated cloud development deployment so two
-checkouts never collide. iOS simulators, device builds, Xcode, and Safari
+checkouts never collide. iOS simulators, device builds, the Mac app, Xcode, and Safari
 stay on macOS.
 
 ## Reporting Setup Problems

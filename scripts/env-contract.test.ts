@@ -86,8 +86,8 @@ describe("env-contract", () => {
     expect(getEnvSpec("DOES_NOT_EXIST")).toBeUndefined();
   });
 
-  test("preserved compatibility entries exist", () => {
-    expect(getEnvSpec("TEAK_ADMIN_EMAIL")).toBeDefined();
+  test("admin authorization has no email configuration contract", () => {
+    expect(getEnvSpec("TEAK_ADMIN_EMAIL")).toBeUndefined();
   });
 
   test("multi-provider credentials document their single writer", () => {

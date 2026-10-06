@@ -34,7 +34,9 @@ export function SettingsPage({ onNavigateBack }: SettingsPageProps) {
     >
       <SettingsContent
         accountLoading={settings.accountLoading}
+        betterAuthIdentityKey={settings.betterAuthIdentityKey}
         cardCount={settings.cardCount}
+        connectionIdentity={settings.connectionIdentity}
         deleteDialogError={settings.deleteDialogError}
         deleteDialogOpen={settings.deleteDialogOpen}
         deleteLoading={settings.deleteLoading}
@@ -42,7 +44,6 @@ export function SettingsPage({ onNavigateBack }: SettingsPageProps) {
         exportState={settings.exportState}
         hasPremium={settings.hasPremium}
         keys={settings.keys}
-        oauthConnections={settings.oauthConnections}
         onCancelExport={settings.handleCancelExport}
         onCreateApiKey={settings.handleCreateApiKey}
         onCreateCustomerPortal={settings.handleCreateCustomerPortal}
@@ -50,6 +51,7 @@ export function SettingsPage({ onNavigateBack }: SettingsPageProps) {
         onDeleteDialogOpenChange={settings.setDeleteDialogOpen}
         onDownloadExport={settings.handleDownloadExport}
         onLoadMoreSessions={settings.loadMoreSessions}
+        onRetrySessions={settings.retrySessions}
         onRevokeAllApiKeys={settings.handleRevokeAllApiKeys}
         onRevokeApiKey={settings.handleRevokeApiKey}
         onRevokeOAuthConnection={settings.handleRevokeOAuthConnection}
@@ -61,6 +63,7 @@ export function SettingsPage({ onNavigateBack }: SettingsPageProps) {
           void handleUpgradeClick();
         }}
         sessions={settings.sessions}
+        sessionsError={settings.sessionsError}
         sessionsHasMore={settings.sessionsHasMore}
         sessionsLoadingMore={settings.sessionsLoadingMore}
         signOutLoading={settings.signOutLoading}

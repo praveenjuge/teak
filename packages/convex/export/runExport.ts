@@ -1,3 +1,5 @@
+"use node";
+import { ensureObjectOwnership } from "../storage/ownership";
 /**
  * Node action that performs the heavy export work:
  *   1. pages the start-time snapshot (joined to active card docs)
@@ -8,10 +10,11 @@
  * Runs in the Convex Node runtime so it can use `archiver` and `@aws-sdk/client-s3`.
  */
 
-"use node";
+
 
 import { createHash } from "node:crypto";
 import { v } from "convex/values";
+import type { Id } from "../_generated/dataModel";
 import { internal } from "../_generated/api";
 import { type ActionCtx, internalAction } from "../_generated/server";
 import { TELEMETRY_OPERATIONS } from "../shared/telemetry";
@@ -117,6 +120,7 @@ async function runExportArchiveViaFilesWorker(
 
     const { userId, jobId, inputs, createdAtMs, expiresAtMs } = args;
     const artifactKey = buildArtifactKey(userId, jobId);
+    for (const key of [artifactKey, `${artifactKey}.checkpoint.json`, `${artifactKey}.result.json`]) await ensureObjectOwnership(ctx, userId, key, jobId as Id<"exportJobs">);
     const downloadName = `teak-export-${new Date().toISOString().slice(0, 10)}.zip`;
 
     // Path of each file entry → card id, so omissions can be attributed.
@@ -189,6 +193,7 @@ async function runExportArchiveViaFilesWorker(
         role: "export-manifest",
       });
       await storeObject(ctx, new Blob([manifestJson]), {
+        userId,
         key: manifestKey,
         type: "application/json",
       });

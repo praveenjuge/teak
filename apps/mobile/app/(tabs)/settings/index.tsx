@@ -24,21 +24,24 @@ import {
   captureClientException,
   createClientRequestErrorFromContext,
 } from "@teak/convex/shared/client-telemetry";
+import { useMutation } from "convex/react";
 import { useQuery } from "convex-helpers/react/cache/hooks";
 import { Stack, useRouter } from "expo-router";
 import { useMemo, useState } from "react";
 import { Alert } from "react-native";
 import { authClient } from "@/lib/auth-client";
+import { useMobileAuth } from "@/lib/mobile-auth-context";
 import { useThemePreference } from "@/lib/theme-preference";
 
 const DELETE_CONFIRMATION_PHRASE = "delete account";
 type AppearanceOption = "system" | "light" | "dark";
 
 export default function SettingsScreen() {
-  const { data: session } = authClient.useSession();
+  const mobileAuth = useMobileAuth();
   const { preference, setPreference, isLoaded } = useThemePreference();
   const router = useRouter();
   const currentUser = useQuery(api.auth.getCurrentUser, {});
+  const deleteMyAccount = useMutation(api.accountDeletion.deleteMyAccount);
 
   const [deleteError, setDeleteError] = useState<string | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
@@ -80,7 +83,7 @@ export default function SettingsScreen() {
 
   const signOut = async () => {
     try {
-      await authClient.signOut();
+      await mobileAuth.signOut();
       router.replace("/(auth)/welcome");
     } catch (error) {
       console.error(
@@ -104,6 +107,11 @@ export default function SettingsScreen() {
 
     setDeleteError(null);
 
+    if (mobileAuth.mode.accountChangesPaused) {
+      setDeleteError("Account changes are paused while we upgrade sign-in.");
+      return;
+    }
+
     if (confirmation.trim().toLowerCase() !== DELETE_CONFIRMATION_PHRASE) {
       setDeleteError(`Type "${DELETE_CONFIRMATION_PHRASE}" to confirm.`);
       return;
@@ -112,6 +120,12 @@ export default function SettingsScreen() {
     setIsDeleting(true);
 
     try {
+      if (mobileAuth.mode.primary === "workos") {
+        await deleteMyAccount({});
+        await mobileAuth.signOut({ accountDeletionAccepted: true });
+        router.replace("/(auth)/welcome");
+        return;
+      }
       await authClient.deleteUser(undefined, {
         onError: (ctx) => {
           const error = createClientRequestErrorFromContext(
@@ -137,6 +151,10 @@ export default function SettingsScreen() {
   };
 
   const handleDeleteAlert = () => {
+    if (mobileAuth.mode.accountChangesPaused) {
+      setDeleteError("Account changes are paused while we upgrade sign-in.");
+      return;
+    }
     Alert.alert(
       "Delete Account",
       "This will permanently remove your account, cards, tags, and uploaded files. Are you sure?",
@@ -157,11 +175,10 @@ export default function SettingsScreen() {
                 {
                   text: "Delete",
                   style: "destructive",
-                  onPress: (typedConfirmation: string | undefined) => {
+                  onPress: (typedConfirmation: string | undefined) =>
                     handleDeleteAccount(typedConfirmation ?? "").catch(
                       console.error
-                    );
-                  },
+                    ),
                 },
               ],
               "plain-text"
@@ -216,7 +233,7 @@ export default function SettingsScreen() {
               modifiers={[font({ design: "rounded", weight: "regular" })]}
             >
               <Text modifiers={[font({ design: "rounded" }), lineLimit(1)]}>
-                {session?.user?.email ?? "Not logged in"}
+                {mobileAuth.user?.email ?? "Not logged in"}
               </Text>
             </LabeledContent>
 
@@ -234,7 +251,9 @@ export default function SettingsScreen() {
             </LabeledContent>
 
             <Button
-              modifiers={[disabled(isDeleting)]}
+              modifiers={[
+                disabled(isDeleting || mobileAuth.mode.accountChangesPaused),
+              ]}
               onPress={handleDeleteAlert}
             >
               <HStack spacing={8}>

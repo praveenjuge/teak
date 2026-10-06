@@ -1,3 +1,4 @@
+import { paginationOptsValidator } from "convex/server";
 import { ConvexError, v } from "convex/values";
 import { internal } from "./_generated/api";
 import type { Doc } from "./_generated/dataModel";
@@ -19,7 +20,11 @@ import {
   colorValidator,
   importModeValidator,
 } from "./schema";
-import { getSessionIdentity } from "./securitySessions";
+import {
+  getSessionUser,
+  resolveStoredUserId,
+  type TeakUserId,
+} from "./securitySessions";
 
 const internalAny = internal as Record<string, any>;
 const activeStatuses = new Set<string>(ACTIVE_IMPORT_STATUSES);
@@ -78,12 +83,12 @@ const itemInputValidator = v.object({
   failureReason: v.optional(v.string()),
 });
 
-async function requireUserId(ctx: MutationCtx | QueryCtx) {
-  const identity = await getSessionIdentity(ctx);
+async function requireUserId(ctx: MutationCtx | QueryCtx): Promise<TeakUserId> {
+  const identity = await getSessionUser(ctx);
   if (!identity) {
     throw new Error("User must be authenticated");
   }
-  return identity.subject as string;
+  return identity.teakUserId;
 }
 
 function summarize(job: Doc<"importJobs">) {
@@ -160,6 +165,7 @@ export const markCancelRequested = internalMutation({
     active: v.boolean(),
   }),
   handler: async (ctx, { jobId, userId }) => {
+    await assertAccountNotDeleting(ctx, userId);
     const job = await ctx.db.get(jobId);
     if (!job || job.userId !== userId) {
       throw new Error("Import job not found");
@@ -274,6 +280,7 @@ export const markQueued = internalMutation({
     if (!job || job.cancelRequested) {
       throw new Error("Import was canceled");
     }
+    await assertAccountNotDeleting(ctx, job.userId);
     await ctx.db.patch(jobId, {
       status: "queued",
       phase: "Waiting to parse",
@@ -409,6 +416,36 @@ export const getItemsByIds = internalQuery({
   },
 });
 
+export const getUnclaimedFileKeysPage = internalQuery({
+  args: {
+    jobId: v.id("importJobs"),
+    paginationOpts: paginationOptsValidator,
+  },
+  returns: v.object({
+    keys: v.array(v.string()),
+    isDone: v.boolean(),
+    continueCursor: v.string(),
+  }),
+  handler: async (ctx, { jobId, paginationOpts }) => {
+    const page = await ctx.db
+      .query("importJobItems")
+      .withIndex("by_job_source", (q) => q.eq("jobId", jobId))
+      .paginate({
+        ...paginationOpts,
+        numItems: Math.min(paginationOpts.numItems, 200),
+      });
+    return {
+      keys: page.page.flatMap((item) =>
+        item.status !== "created" && item.extractedFileKey
+          ? [item.extractedFileKey]
+          : []
+      ),
+      isDone: page.isDone,
+      continueCursor: page.continueCursor,
+    };
+  },
+});
+
 function errorData(error: unknown) {
   if (
     error instanceof ConvexError &&
@@ -434,6 +471,7 @@ export const createPendingBatch = internalMutation({
   returns: v.object({
     retryAt: v.optional(v.number()),
     limitReached: v.boolean(),
+    failureClass: v.optional(v.literal("identity_mapping_unavailable")),
   }),
   handler: async (ctx, { jobId, itemIds }) => {
     const job = await ctx.db.get(jobId);
@@ -442,6 +480,15 @@ export const createPendingBatch = internalMutation({
     }
     if (job.cancelRequested) {
       return { limitReached: false };
+    }
+    const userId = await resolveStoredUserId(ctx, job.userId);
+    if (!userId) {
+      // Keep the job active until the workflow finishes object cleanup and
+      // stores its report. A retry must not delete this job during finalization.
+      return {
+        limitReached: false,
+        failureClass: "identity_mapping_unavailable" as const,
+      };
     }
     let created = 0,
       skipped = 0,
@@ -464,7 +511,7 @@ export const createPendingBatch = internalMutation({
       try {
         const cardId = await createCardForUserHandler(
           ctx,
-          job.userId,
+          userId,
           {
             type: item.type,
             content: item.content,
@@ -645,6 +692,11 @@ export const finishJob = internalMutation({
   },
   returns: v.null(),
   handler: async (ctx, { jobId, status, reportKey, failureClass }) => {
+    const job = await ctx.db.get(jobId);
+    if (!job) {
+      throw new Error("Import job not found");
+    }
+    await assertAccountNotDeleting(ctx, job.userId);
     let phase = "Import failed";
     if (status === "completed") {
       phase = "Import complete";
@@ -697,11 +749,16 @@ export const deleteItemsPage = internalMutation({
   args: { jobId: v.id("importJobs"), limit: v.number() },
   returns: v.object({ count: v.number() }),
   handler: async (ctx, { jobId, limit }) => {
+    const job = await ctx.db.get(jobId);
+    if (job) {
+      await assertAccountNotDeleting(ctx, job.userId);
+    }
     const items = await ctx.db
       .query("importJobItems")
       .withIndex("by_job_source", (q) => q.eq("jobId", jobId))
       .take(limit);
     for (const item of items) {
+      await assertAccountNotDeleting(ctx, item.userId);
       await ctx.db.delete(item._id);
     }
     return { count: items.length };
@@ -712,7 +769,9 @@ export const deleteJob = internalMutation({
   args: { jobId: v.id("importJobs") },
   returns: v.null(),
   handler: async (ctx, { jobId }) => {
-    if (await ctx.db.get(jobId)) {
+    const job = await ctx.db.get(jobId);
+    if (job) {
+      await assertAccountNotDeleting(ctx, job.userId);
       await ctx.db.delete(jobId);
     }
     return null;

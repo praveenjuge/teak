@@ -12,6 +12,7 @@ import {
   resolveWorkerEnvironment,
   WORKER_RELEASE,
 } from "./sentry";
+import { withObjectGates } from "./testsupport";
 
 const SECRET = "test-secret";
 
@@ -140,12 +141,12 @@ describe("reportFilesOpFailure", () => {
 
 describe("files worker error reporting", () => {
   test("unexpected op failures still return the handled 500 with Sentry wired", async () => {
-    const env_ = {
+    const env_ = withObjectGates({
       // Image analysis's first R2 read rejects; nothing classifies this error,
       // so it lands on the console.error + captureException + 500 path.
       BUCKET: { get: () => Promise.reject(new Error("r2_unavailable")) },
       FILES_SIGNING_SECRET: SECRET,
-    } as unknown as Env;
+    }) as unknown as Env;
     const response = await worker.fetch(
       await signedOpRequest("users/9f8a/cards/c123/file/photo.png"),
       env_,
@@ -159,10 +160,10 @@ describe("files worker error reporting", () => {
   });
 
   test("expected op rejections stay unreported client-style statuses", async () => {
-    const env_ = {
+    const env_ = withObjectGates({
       BUCKET: { head: () => Promise.resolve(null) },
       FILES_SIGNING_SECRET: SECRET,
-    } as unknown as Env;
+    }) as unknown as Env;
     const response = await worker.fetch(
       await signedOpRequest("users/9f8a/cards/c123/file/gone.png"),
       env_,

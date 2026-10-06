@@ -1,6 +1,6 @@
 {
   "name": "@teak/mobile",
-  "version": "1.0.72",
+  "version": "1.0.79",
   "main": "expo-router/entry",
   "scripts": {
     "android": "expo run:android",
@@ -10,7 +10,7 @@
     "eas-build-pre-install": "node scripts/verify-sentry-build-env.mjs",
     "ios": "expo run:ios",
     "lint": "biome check .",
-    "test": "bun test __tests__ --coverage --dots",
+    "test": "bun test __tests__ --isolate --coverage --dots",
     "typecheck": "tsc --noEmit",
     "web": "expo start --web"
   },
@@ -30,6 +30,7 @@
     "expo-apple-authentication": "~57.0.1",
     "expo-application": "~57.0.2",
     "expo-audio": "~57.0.3",
+    "expo-auth-session": "~57.0.13",
     "expo-build-properties": "~57.0.9",
     "expo-clipboard": "~57.0.1",
     "expo-constants": "~57.0.9",
@@ -64,6 +65,7 @@
     "sf-symbols-typescript": "^2.2.0"
   },
   "devDependencies": {
+    "@happy-dom/global-registrator": "20.14.5",
     "@sentry/cli": "3.6.2",
     "@types/react": "~19.2.18",
     "typescript": "~6.0.3"

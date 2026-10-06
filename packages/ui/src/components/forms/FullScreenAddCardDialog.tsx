@@ -72,7 +72,7 @@ export function FullScreenAddCardDialog({
           <MarkdownTextEditor
             ariaLabel="Markdown content"
             autoFocus
-            className="mx-auto h-full w-full max-w-3xl overflow-y-auto px-4 py-6 sm:px-7 sm:py-8"
+            className="mx-auto h-full w-full max-w-3xl overflow-y-auto px-2 py-3 sm:px-3 sm:py-4"
             disabled={!canCreateCard}
             minHeight="60vh"
             onChange={onContentChange}

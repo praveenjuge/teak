@@ -38,6 +38,7 @@ export const FILES_OPS = [
   "cleanup-stale-pending-uploads",
   "complete-multipart",
   "create-multipart",
+  "freeze-object",
   "delete-object",
   "delete-objects",
   "extract-import-files",
@@ -140,7 +141,9 @@ export const buildMultipartPartSigningPayload = ({
   key,
   partNumber,
   uploadId,
+  size = null,
 }: {
+  size?: number | null;
   expiresAt: string;
   key: string;
   partNumber: number;
@@ -153,6 +156,7 @@ export const buildMultipartPartSigningPayload = ({
     uploadId,
     String(partNumber),
     expiresAt,
+    ...(size === null ? [] : [String(size)]),
   ].join("\n");
 
 export const buildImageSigningPayload = ({

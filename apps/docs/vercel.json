@@ -2,6 +2,21 @@
   "buildCommand": "bun run build",
   "redirects": [
     {
+      "source": "/docs/desktop",
+      "destination": "/docs/mac",
+      "permanent": true
+    },
+    {
+      "source": "/docs/desktop.md",
+      "destination": "/docs/mac.md",
+      "permanent": true
+    },
+    {
+      "source": "/docs/desktop.mdx",
+      "destination": "/docs/mac.mdx",
+      "permanent": true
+    },
+    {
       "source": "/sitemap-index.xml",
       "destination": "/sitemap.xml",
       "permanent": true
@@ -88,6 +103,10 @@
     {
       "source": "/mcp/:path*",
       "destination": "https://uncommon-ladybug-882.convex.site/mcp/:path*"
+    },
+    {
+      "source": "/.well-known/teak-oauth-clients.json",
+      "destination": "https://uncommon-ladybug-882.convex.site/.well-known/teak-oauth-clients.json"
     },
     {
       "source": "/.well-known/oauth-protected-resource",

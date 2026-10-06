@@ -5,6 +5,7 @@ import type { ReactNode } from "react";
 import { useEffect } from "react";
 import { authClient } from "@/lib/auth-client";
 import { getSafeNextPath } from "@/lib/safe-next-path";
+import { useAuthMode } from "./AuthModeProvider";
 
 export function AuthRouteGuard({
   children,
@@ -12,6 +13,25 @@ export function AuthRouteGuard({
 }: {
   children: ReactNode;
   fallback?: ReactNode;
+}) {
+  const mode = useAuthMode();
+  if (!mode) {
+    return fallback;
+  }
+  if (mode.primary === "workos") {
+    return children;
+  }
+  return (
+    <BetterAuthRouteGuard fallback={fallback}>{children}</BetterAuthRouteGuard>
+  );
+}
+
+function BetterAuthRouteGuard({
+  children,
+  fallback,
+}: {
+  children: ReactNode;
+  fallback: ReactNode;
 }) {
   const searchParams = useSearchParams();
   const { data: session } = authClient.useSession();

@@ -1,7 +1,13 @@
 import { describe, expect, test } from "bun:test";
 import { readFileSync } from "node:fs";
 import path from "node:path";
-import { discoveryV1, healthzV1, v1CorsPreflight } from "../publicApiMeta";
+import { serializeListCard } from "../publicApiHttpValidation";
+import {
+  discoveryV1,
+  healthzV1,
+  teakOAuthClients,
+  v1CorsPreflight,
+} from "../publicApiMeta";
 import { openApiSpec, openApiV1 } from "../publicApiOpenApi";
 
 const runHandler = (fn: any, ctx: any, request: Request) => {
@@ -15,6 +21,37 @@ const docsPath = path.resolve(
 );
 
 describe("Convex public API metadata", () => {
+  test("publishes the seeded legacy client IDs with the active issuer", async () => {
+    const previous = process.env.SITE_URL;
+    process.env.SITE_URL = "http://localhost:3000";
+    try {
+      const response = await runHandler(
+        teakOAuthClients,
+        {},
+        new Request("http://127.0.0.1:3211/.well-known/teak-oauth-clients.json")
+      );
+      expect(response.status).toBe(200);
+      expect(response.headers.get("Access-Control-Allow-Origin")).toBe("*");
+      expect(await response.json()).toEqual({
+        primary: "betterauth",
+        issuer: "http://localhost:3000",
+        clients: {
+          cli: "teak-cli",
+          raycast: "teak-raycast",
+          chrome: "teak-chrome",
+          firefox: "teak-firefox",
+          safari: "teak-safari",
+        },
+      });
+    } finally {
+      if (previous === undefined) {
+        delete process.env.SITE_URL;
+      } else {
+        process.env.SITE_URL = previous;
+      }
+    }
+  });
+
   test("returns health status with gateway headers", async () => {
     const response = await runHandler(
       healthzV1,
@@ -93,6 +130,25 @@ describe("Convex public API metadata", () => {
     expect(await response.json()).toEqual(openApiSpec);
   });
 
+  test("documents metadata and processing fields emitted in list responses", () => {
+    const card = serializeListCard(
+      {
+        _id: "card_1",
+        type: "link",
+        createdAt: 1,
+        updatedAt: 1,
+        tags: [],
+        aiTags: [],
+      },
+      "https://api.teakvault.com",
+      new Set(["metadata", "processing"])
+    );
+    const properties = openApiSpec.components.schemas.CardListItem.properties;
+    for (const field of Object.keys(card)) {
+      expect(properties).toHaveProperty(field);
+    }
+  });
+
   test("uses the Convex dev site URL in the OpenAPI spec", () => {
     expect(openApiSpec.servers).toEqual([
       { url: "https://teakvault.com/api" },
@@ -132,7 +188,7 @@ describe("Convex public API metadata", () => {
       Object.values(path).map((operation) => operation.operationId)
     );
 
-    expect(operationIds).toHaveLength(13);
+    expect(operationIds).toHaveLength(15);
     expect(new Set(operationIds).size).toBe(operationIds.length);
     expect(operationIds.every(Boolean)).toBe(true);
   });

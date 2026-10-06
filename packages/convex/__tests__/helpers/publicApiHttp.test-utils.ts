@@ -4,6 +4,7 @@
  * authorized-mutation mock builders every split test file uses.
  */
 import { mock } from "bun:test";
+import { withMappedOwner } from "./session.test-utils";
 
 process.env.R2_ACCESS_KEY_ID = "test-r2-access-key";
 process.env.R2_BUCKET = "test-r2-bucket";
@@ -12,7 +13,7 @@ process.env.R2_SECRET_ACCESS_KEY = "test-r2-secret";
 
 export const runHandler = (fn: any, ctx: any, request: Request) => {
   const handler = (fn as any).handler ?? fn;
-  return handler(ctx, request);
+  return handler(withMappedOwner(ctx), request);
 };
 
 export const buildAuthorizedMutationMock = () =>

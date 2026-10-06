@@ -1,5 +1,6 @@
 import { createHash, randomBytes } from "node:crypto";
 import { expect, request as playwrightRequest, test } from "@playwright/test";
+import { discoverAuthServer } from "@teak/convex/sdk";
 import { apiFetch } from "../helpers/api";
 import { cleanupE2EAccounts } from "../helpers/e2e-cleanup";
 import { env } from "../helpers/env";
@@ -13,8 +14,9 @@ import {
   revokeVisibleKey,
 } from "../helpers/prod";
 import { readState } from "../helpers/run-state";
+import { verifyWorkosConsentJourney } from "../helpers/workos-consent";
 
-test("native pairing shows an approve step instead of minting on GET", async ({
+test("legacy native pairing requires approval or refuses retired sign-in", async ({
   page,
 }) => {
   const start = new URL("/native/auth/start", env.appUrl);
@@ -27,15 +29,33 @@ test("native pairing shows an approve step instead of minting on GET", async ({
   }).toString();
 
   await page.goto(start.toString());
-  await expect(
-    page.getByRole("button", { name: "Approve device" })
-  ).toBeVisible();
+  const mode = await discoverAuthServer(env.siteUrl, { forceRefresh: true });
+  const approve = page.getByRole("button", { name: "Approve device" });
+  if (mode.primary === "workos") {
+    await expect(
+      page.getByText("Reconnect your device", { exact: true })
+    ).toBeVisible();
+    await expect(approve).toHaveCount(0);
+  } else {
+    await expect(approve).toBeVisible();
+  }
   await expect(page).not.toHaveURL(/\/native\/auth\/complete/);
 });
 
 test("external OAuth requires explicit full-vault consent and can be revoked", async ({
   page,
 }) => {
+  const provider = await discoverAuthServer(env.siteUrl, {
+    forceRefresh: true,
+  });
+  if (provider.primary === "workos") {
+    await verifyWorkosConsentJourney(
+      page,
+      provider,
+      await generateApiKey(page)
+    );
+    return;
+  }
   const verifier = randomBytes(48).toString("base64url");
   const challenge = createHash("sha256").update(verifier).digest("base64url");
   const redirectUri = "https://oauth-e2e.invalid/callback";

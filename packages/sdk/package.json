@@ -1,0 +1,37 @@
+{
+  "name": "teak-sdk",
+  "version": "1.0.79",
+  "description": "Teak API client and OAuth discovery for browser and Node applications.",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/praveenjuge/teak.git",
+    "directory": "packages/sdk"
+  },
+  "license": "MIT",
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./dist/types/client/sdk.d.ts",
+      "import": "./dist/sdk.js"
+    }
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "scripts": {
+    "build": "bun --no-env-file run build.ts",
+    "prepack": "bun run build",
+    "typecheck": "tsc build.ts ../convex/client/sdk.ts --strict --noEmit --moduleResolution bundler --module esnext --target es2022 --skipLibCheck --types bun,node"
+  },
+  "devDependencies": {
+    "@teak/convex": "workspace:*",
+    "@types/bun": "^1.4.0",
+    "@types/node": "^26.2.0",
+    "typescript": "^6.0.3"
+  },
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  }
+}

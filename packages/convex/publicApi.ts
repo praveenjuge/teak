@@ -17,7 +17,12 @@ import {
   searchCardsByExactTag,
 } from "./card/searchDocumentHelpers";
 import { updateCardFieldForUserHandler } from "./card/updateCard";
+import {
+  doesCardMatchVisualFilters,
+  normalizeVisualFilterArgs,
+} from "./card/visualFilters";
 import { cardTypes, cardTypeValidator } from "./schema";
+import { requireTeakUserId, type TeakUserId } from "./securitySessions";
 import { isSafeExternalUrl } from "./shared/utils/safeUrl";
 
 const DEFAULT_LIMIT = 50;
@@ -77,9 +82,13 @@ interface SearchOptions {
   createdAfter?: number;
   createdBefore?: number;
   favorited?: boolean;
+  hexFilters?: string[];
+  hueFilters?: string[];
   limit?: number;
   searchQuery?: string;
+  showTrashOnly?: boolean;
   sort?: ApiCardSort;
+  styleFilters?: string[];
   tag?: string;
   type?: Doc<"cards">["type"];
   types?: Doc<"cards">["type"][];
@@ -182,7 +191,10 @@ const matchesStructuredFilters = (
     }
   }
 
-  return !card.isDeleted;
+  return (
+    Boolean(card.isDeleted) === Boolean(options.showTrashOnly) &&
+    doesCardMatchVisualFilters(card, normalizeVisualFilterArgs(options))
+  );
 };
 
 const sortCards = (cards: Doc<"cards">[], sort: ApiCardSort): Doc<"cards">[] =>
@@ -223,13 +235,13 @@ const decodeCursor = (cursor?: string): ApiCursor => {
 
 const searchCardsByQuery = async (
   ctx: QueryCtx,
-  userId: string,
+  userId: TeakUserId,
   options: SearchOptions,
   offset: number
-): Promise<Doc<"cards">[]> => {
+): Promise<{ cards: Doc<"cards">[]; isComplete: boolean }> => {
   const searchQuery = normalizeSearchText(options.searchQuery);
   if (!searchQuery) {
-    return [];
+    return { cards: [], isComplete: true };
   }
 
   const limit = normalizeLimit(options.limit);
@@ -240,29 +252,35 @@ const searchCardsByQuery = async (
   );
 
   const typeGroups = options.types ?? [options.type];
-  const found = await Promise.all(
-    typeGroups.map((type) =>
-      searchCardsByDocument(ctx, {
+  const scanBudget = { remaining: 4096, hitSearchLimit: false };
+  const found: Doc<"cards">[][] = [];
+  for (const type of typeGroups) {
+    found.push(
+      await searchCardsByDocument(ctx, {
         userId,
         searchQuery,
-        isDeleted: undefined,
+        isDeleted: options.showTrashOnly ? true : undefined,
         isFavorited: options.favorited,
         type,
         limit: searchLimit,
+        scanBudget,
         resultFilter: (card) => matchesStructuredFilters(card, options),
       })
-    )
-  );
+    );
+  }
   const unique = Array.from(
     new Map(found.flat().map((card) => [card._id, card] as const)).values()
   );
 
-  return sortCards(unique, normalizeSort(options.sort));
+  return {
+    cards: sortCards(unique, normalizeSort(options.sort)),
+    isComplete: !scanBudget.hitSearchLimit,
+  };
 };
 
 const searchCardsByTag = async (
   ctx: QueryCtx,
-  userId: string,
+  userId: TeakUserId,
   options: SearchOptions,
   offset: number
 ): Promise<Doc<"cards">[]> => {
@@ -279,17 +297,19 @@ const searchCardsByTag = async (
   );
 
   const typeGroups = options.types ?? [options.type];
+  const scanBudget = { remaining: 4096 };
   const found = await Promise.all(
     typeGroups.map((type) =>
       searchCardsByExactTag(ctx, {
         userId,
         tag,
-        isDeleted: undefined,
+        isDeleted: options.showTrashOnly ? true : undefined,
         isFavorited: options.favorited,
         type,
         createdAfter: options.createdAfter,
         createdBefore: options.createdBefore,
         limit: searchLimit,
+        scanBudget,
         sort: normalizeSort(options.sort),
         resultFilter: (card) => matchesStructuredFilters(card, options),
       })
@@ -304,7 +324,7 @@ const searchCardsByTag = async (
 
 const createBaseQuery = (
   ctx: QueryCtx,
-  userId: string,
+  userId: TeakUserId,
   options: SearchOptions
 ) => {
   if (
@@ -319,7 +339,7 @@ const createBaseQuery = (
         query
           .eq("userId", userId)
           .eq("isFavorited", options.favorited ? true : undefined)
-          .eq("isDeleted", undefined)
+          .eq("isDeleted", options.showTrashOnly ? true : undefined)
       );
   }
 
@@ -356,26 +376,26 @@ const createBaseQuery = (
 
   if (options.type) {
     const cardType = options.type;
-    return ctx.db
-      .query("cards")
-      .withIndex("by_user_type_deleted", (query) =>
-        query
-          .eq("userId", userId)
-          .eq("type", cardType)
-          .eq("isDeleted", undefined)
-      );
+    return ctx.db.query("cards").withIndex("by_user_type_deleted", (query) =>
+      query
+        .eq("userId", userId)
+        .eq("type", cardType)
+        .eq("isDeleted", options.showTrashOnly ? true : undefined)
+    );
   }
 
   return ctx.db
     .query("cards")
     .withIndex("by_user_deleted", (query) =>
-      query.eq("userId", userId).eq("isDeleted", undefined)
+      query
+        .eq("userId", userId)
+        .eq("isDeleted", options.showTrashOnly ? true : undefined)
     );
 };
 
 const scanCardsWithBaseQuery = async (
   ctx: QueryCtx,
-  userId: string,
+  userId: TeakUserId,
   options: SearchOptions,
   decodedCursor: ApiCursor,
   scanLimit: number
@@ -433,6 +453,10 @@ const scanCardsWithBaseQuery = async (
 };
 
 const normalizeCardsQueryOptions = (args: {
+  showTrashOnly?: boolean;
+  styleFilters?: string[];
+  hueFilters?: string[];
+  hexFilters?: string[];
   createdAfter?: number;
   createdBefore?: number;
   favorited?: boolean;
@@ -444,6 +468,8 @@ const normalizeCardsQueryOptions = (args: {
   types?: Doc<"cards">["type"][];
 }): SearchOptions => {
   const normalized: SearchOptions = {
+    showTrashOnly: args.showTrashOnly,
+    ...normalizeVisualFilterArgs(args),
     createdAfter: normalizeCreatedTimestamp(args.createdAfter),
     createdBefore: normalizeCreatedTimestamp(args.createdBefore),
     favorited: args.favorited,
@@ -472,6 +498,10 @@ const normalizeCardsQueryOptions = (args: {
 export const searchCardsPageForUser = internalQuery({
   args: {
     userId: v.string(),
+    showTrashOnly: v.optional(v.boolean()),
+    styleFilters: v.optional(v.array(v.string())),
+    hueFilters: v.optional(v.array(v.string())),
+    hexFilters: v.optional(v.array(v.string())),
     cursor: v.optional(v.string()),
     searchQuery: v.optional(v.string()),
     type: v.optional(cardTypeValidator),
@@ -485,6 +515,7 @@ export const searchCardsPageForUser = internalQuery({
   },
   returns: paginatedCardsResultValidator,
   handler: async (ctx, args) => {
+    const userId = await requireTeakUserId(ctx, args.userId);
     const options = normalizeCardsQueryOptions(args);
     const limit = normalizeLimit(options.limit);
     const decodedCursor = decodeCursor(args.cursor);
@@ -494,20 +525,22 @@ export const searchCardsPageForUser = internalQuery({
 
     if (options.searchQuery) {
       const offset = decodedCursor.mode === "offset" ? decodedCursor.offset : 0;
-      const sorted = await searchCardsByQuery(
-        ctx,
-        args.userId,
-        options,
-        offset
-      );
+      const result = await searchCardsByQuery(ctx, userId, options, offset);
+      const sorted = result.cards;
       pageItems = sorted.slice(offset, offset + limit);
       hasMore = sorted.length > offset + limit;
+      if (!(hasMore || result.isComplete)) {
+        throw new ConvexError({
+          code: "INVALID_INPUT",
+          message: "Search is too broad. Add a type or date filter.",
+        });
+      }
       nextCursor = hasMore
         ? encodeCursor({ mode: "offset", offset: offset + limit })
         : null;
     } else {
       const offset = decodedCursor.mode === "offset" ? decodedCursor.offset : 0;
-      const sorted = await searchCardsByTag(ctx, args.userId, options, offset);
+      const sorted = await searchCardsByTag(ctx, userId, options, offset);
       pageItems = sorted.slice(offset, offset + limit);
       hasMore = sorted.length > offset + limit;
       nextCursor = hasMore
@@ -529,6 +562,10 @@ export const searchCardsPageForUser = internalQuery({
 export const scanCardsPageForUser = internalQuery({
   args: {
     userId: v.string(),
+    showTrashOnly: v.optional(v.boolean()),
+    styleFilters: v.optional(v.array(v.string())),
+    hueFilters: v.optional(v.array(v.string())),
+    hexFilters: v.optional(v.array(v.string())),
     cursor: v.optional(v.string()),
     type: v.optional(cardTypeValidator),
     types: v.optional(v.array(cardTypeValidator)),
@@ -540,11 +577,12 @@ export const scanCardsPageForUser = internalQuery({
   },
   returns: scannedCardsResultValidator,
   handler: async (ctx, args) => {
+    const userId = await requireTeakUserId(ctx, args.userId);
     const options = normalizeCardsQueryOptions(args);
     const scanLimit = normalizeLimit(args.scanLimit);
     const page = await scanCardsWithBaseQuery(
       ctx,
-      args.userId,
+      userId,
       options,
       decodeCursor(args.cursor),
       scanLimit
@@ -566,10 +604,11 @@ export const listTagsForUser = internalQuery({
   },
   returns: v.array(tagSummaryValidator),
   handler: async (ctx, args) => {
+    const userId = await requireTeakUserId(ctx, args.userId);
     const cards = await ctx.db
       .query("cards")
       .withIndex("by_user_deleted", (query) =>
-        query.eq("userId", args.userId).eq("isDeleted", undefined)
+        query.eq("userId", userId).eq("isDeleted", undefined)
       )
       .collect();
 
@@ -605,11 +644,12 @@ export const listCardChangesForUser = internalQuery({
   },
   returns: changesResultValidator,
   handler: async (ctx, args) => {
+    const userId = await requireTeakUserId(ctx, args.userId);
     const limit = normalizeLimit(args.limit);
     const page = await ctx.db
       .query("cards")
       .withIndex("by_updated", (query) =>
-        query.eq("userId", args.userId).gte("updatedAt", args.since)
+        query.eq("userId", userId).gte("updatedAt", args.since)
       )
       .order("asc")
       .paginate({
@@ -637,7 +677,7 @@ type BulkOperation = "create" | "update" | "favorite" | "delete";
 const performBulkUpdate = async (
   ctx: MutationCtx,
   args: {
-    userId: string;
+    userId: TeakUserId;
     cardId: Id<"cards">;
     content?: string;
     url?: string;
@@ -760,6 +800,7 @@ export const executeBulkCardsForUser = internalMutation({
   },
   returns: bulkResultValidator,
   handler: async (ctx, args) => {
+    const userId = await requireTeakUserId(ctx, args.userId);
     if (args.items.length > MAX_BULK_ITEMS) {
       throw new ConvexError({
         code: "INVALID_INPUT",
@@ -792,7 +833,7 @@ export const executeBulkCardsForUser = internalMutation({
             }
             const cardId = await createCardForUserHandler(
               ctx,
-              args.userId,
+              userId,
               {
                 content:
                   typeof payload.content === "string" ? payload.content : "",
@@ -829,7 +870,7 @@ export const executeBulkCardsForUser = internalMutation({
             }
 
             const shouldSchedulePipeline = await performBulkUpdate(ctx, {
-              userId: args.userId,
+              userId,
               cardId,
               content:
                 typeof payload.content === "string"
@@ -880,14 +921,14 @@ export const executeBulkCardsForUser = internalMutation({
             if (args.operation === "favorite") {
               assertBulkFavoritePayload(payload);
               await updateCardFieldForUserHandler(ctx, {
-                userId: args.userId,
+                userId,
                 cardId,
                 field: "isFavorited",
                 value: payload.isFavorited,
               });
             } else {
               await updateCardFieldForUserHandler(ctx, {
-                userId: args.userId,
+                userId,
                 cardId,
                 field: "delete",
               });

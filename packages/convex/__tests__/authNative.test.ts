@@ -34,7 +34,12 @@ describe("authNative.ts", () => {
           sessionId: "session_123",
         }),
       },
-      db: { insert },
+      db: {
+        insert,
+        query: () => ({
+          withIndex: () => ({ take: mock().mockResolvedValue([]) }),
+        }),
+      },
     });
 
     const result = await getHandler(createNativeAuthCode)(ctx, {
@@ -67,7 +72,12 @@ describe("authNative.ts", () => {
           sessionId: "session_123",
         }),
       },
-      db: { insert },
+      db: {
+        insert,
+        query: () => ({
+          withIndex: () => ({ take: mock().mockResolvedValue([]) }),
+        }),
+      },
     });
 
     const result = await getHandler(createNativeAuthCode)(ctx, {
@@ -169,7 +179,7 @@ describe("authNative.ts", () => {
         query: mock().mockReturnValue({
           withIndex: mock((_index, buildQuery) => {
             buildQuery(queryBuilder);
-            return { collect };
+            return { collect, take: mock().mockResolvedValue([]) };
           }),
         }),
       },

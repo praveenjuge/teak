@@ -1,12 +1,16 @@
 import { v } from "convex/values";
 import { internalQuery, query } from "../_generated/server";
-import { getSessionIdentity } from "../securitySessions";
+import {
+  getSessionUser,
+  requireTeakUserId,
+  type TeakUserId,
+} from "../securitySessions";
 import { cardReturnValidator } from "./getCards";
 import { attachFileUrls } from "./queryUtils";
 
 export const findDuplicateCardForUserHandler = async (
   ctx: any,
-  userId: string,
+  userId: TeakUserId,
   url: string
 ) => {
   // Find the most recent non-deleted card with the same URL
@@ -32,12 +36,12 @@ export const findDuplicateCard = query({
   },
   returns: v.union(cardReturnValidator, v.null()),
   handler: async (ctx, args) => {
-    const user = await getSessionIdentity(ctx);
+    const user = await getSessionUser(ctx);
     if (!user) {
       return null;
     }
 
-    return findDuplicateCardForUserHandler(ctx, user.subject, args.url);
+    return findDuplicateCardForUserHandler(ctx, user.teakUserId, args.url);
   },
 });
 
@@ -47,6 +51,10 @@ export const findDuplicateCardForUser = internalQuery({
     url: v.string(),
   },
   returns: v.union(cardReturnValidator, v.null()),
-  handler: (ctx, args) =>
-    findDuplicateCardForUserHandler(ctx, args.userId, args.url),
+  handler: async (ctx, args) =>
+    findDuplicateCardForUserHandler(
+      ctx,
+      await requireTeakUserId(ctx, args.userId),
+      args.url
+    ),
 });

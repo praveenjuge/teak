@@ -35,8 +35,30 @@ describe("socialAuthErrors", () => {
     );
   });
 
+  test.each([
+    "signup disabled",
+    "signup_disabled",
+    "SIGN_UP_DISABLED",
+    "Email and password sign up is not enabled",
+    "new_user_signup_disabled",
+    "registration disabled",
+    "registration is disabled",
+  ])("explains the sign-up pause for %s", (message) => {
+    expect(socialSignInErrorMessage("google", message, "fallback")).toBe(
+      "New sign-ups are paused while we upgrade sign-in"
+    );
+    expect(socialSignInErrorMessage("apple", message, "fallback")).toBe(
+      "New sign-ups are paused while we upgrade sign-in"
+    );
+  });
+
   test("passes other failures and fallbacks through", () => {
     expect(socialSignInErrorMessage("google", "boom", "fallback")).toBe("boom");
+    const unrelated =
+      "registration provider configuration failed: connection disabled";
+    expect(socialSignInErrorMessage("google", unrelated, "fallback")).toBe(
+      unrelated
+    );
     expect(socialSignInErrorMessage("google", undefined, "fallback")).toBe(
       "fallback"
     );

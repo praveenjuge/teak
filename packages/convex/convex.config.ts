@@ -3,6 +3,7 @@ import polar from "@convex-dev/polar/convex.config";
 import rateLimiter from "@convex-dev/rate-limiter/convex.config";
 import resend from "@convex-dev/resend/convex.config";
 import workflow from "@convex-dev/workflow/convex.config";
+import workOSAuthKit from "@convex-dev/workos-authkit/convex.config";
 import apiKeys from "@vllnt/convex-api-keys/convex.config";
 import { defineApp } from "convex/server";
 import { v } from "convex/values";
@@ -14,6 +15,24 @@ const app = defineApp({
     SITE_URL: v.string(),
     PUBLIC_ORIGIN: v.optional(v.string()),
     JWKS: v.optional(v.string()),
+    // Phase R probes reactivity before this flag controls authentication.
+    AUTH_PRIMARY: v.optional(v.string()),
+    IDENTITY_RESOLVER_ENFORCE: v.optional(v.string()),
+    SIGNUPS_DISABLED: v.optional(v.string()),
+    ACCOUNT_CHANGES_PAUSED: v.optional(v.string()),
+    WORKOS_AUTHKIT_DOMAIN: v.optional(v.string()),
+    WORKOS_CONNECT_CLI_CLIENT_ID: v.optional(v.string()),
+    WORKOS_CONNECT_RAYCAST_CLIENT_ID: v.optional(v.string()),
+    WORKOS_CONNECT_CHROME_CLIENT_ID: v.optional(v.string()),
+    WORKOS_CONNECT_FIREFOX_CLIENT_ID: v.optional(v.string()),
+    WORKOS_CONNECT_SAFARI_CLIENT_ID: v.optional(v.string()),
+    WORKOS_ENVIRONMENT_ID: v.optional(v.string()),
+    WORKOS_RECONCILIATION_MODE: v.optional(
+      v.union(v.literal("off"), v.literal("audit"))
+    ),
+    WORKOS_RECONCILIATION_WITNESS_ID: v.optional(v.string()),
+    WORKOS_WEBHOOK_SECRET: v.optional(v.string()),
+    WORKOS_ACTION_SECRET: v.optional(v.string()),
     // Google capability group. Optional as a whole; ID and secret are
     // required atomically (see ./env.ts).
     GOOGLE_CLIENT_ID: v.optional(v.string()),
@@ -45,7 +64,6 @@ const app = defineApp({
     SENTRY_DSN: v.optional(v.string()),
     CONVEX_GIT_COMMIT_SHA: v.optional(v.string()),
     // Administration.
-    TEAK_ADMIN_EMAIL: v.optional(v.string()),
     // Staged operational-cost rollout; unset means disabled.
     OPERATIONAL_RETENTION_ENABLED: v.optional(v.string()),
     FILES_TEXT_AI_ENABLED: v.optional(v.string()),
@@ -59,6 +77,7 @@ const app = defineApp({
   },
 });
 app.use(betterAuth);
+app.use(workOSAuthKit);
 app.use(polar);
 app.use(workflow);
 app.use(resend);

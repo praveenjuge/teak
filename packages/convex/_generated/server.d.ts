@@ -30,11 +30,13 @@ import type { DataModel } from "./dataModel.js";
 type Env = {
   readonly CONVEX_CLOUD_URL: string;
   readonly CONVEX_SITE_URL: string;
+  readonly ACCOUNT_CHANGES_PAUSED: string | undefined;
   readonly APPLE_APP_BUNDLE_IDENTIFIER: string | undefined;
   readonly APPLE_CLIENT_ID: string | undefined;
   readonly APPLE_KEY_ID: string | undefined;
   readonly APPLE_PRIVATE_KEY: string | undefined;
   readonly APPLE_TEAM_ID: string | undefined;
+  readonly AUTH_PRIMARY: string | undefined;
   readonly CLOUDFLARE_ACCOUNT_ID: string | undefined;
   readonly CLOUDFLARE_API_TOKEN: string | undefined;
   readonly CONVEX_GIT_COMMIT_SHA: string | undefined;
@@ -45,6 +47,7 @@ type Env = {
   readonly FILES_TEXT_AI_ENABLED: string | undefined;
   readonly GOOGLE_CLIENT_ID: string | undefined;
   readonly GOOGLE_CLIENT_SECRET: string | undefined;
+  readonly IDENTITY_RESOLVER_ENFORCE: string | undefined;
   readonly JWKS: string | undefined;
   readonly OPERATIONAL_RETENTION_ENABLED: string | undefined;
   readonly POLAR_ACCESS_TOKEN: string | undefined;
@@ -59,11 +62,22 @@ type Env = {
   readonly SENTRY_DSN: string | undefined;
   readonly SENTRY_ENVIRONMENT: string | undefined;
   readonly SENTRY_RELEASE: string | undefined;
+  readonly SIGNUPS_DISABLED: string | undefined;
   readonly SITE_URL: string;
-  readonly TEAK_ADMIN_EMAIL: string | undefined;
   readonly TEAK_DEV_API_URL: string | undefined;
   readonly TEAK_DEV_APP_URL: string | undefined;
   readonly TEAK_DEV_DOCS_URL: string | undefined;
+  readonly WORKOS_ACTION_SECRET: string | undefined;
+  readonly WORKOS_AUTHKIT_DOMAIN: string | undefined;
+  readonly WORKOS_CONNECT_CHROME_CLIENT_ID: string | undefined;
+  readonly WORKOS_CONNECT_CLI_CLIENT_ID: string | undefined;
+  readonly WORKOS_CONNECT_FIREFOX_CLIENT_ID: string | undefined;
+  readonly WORKOS_CONNECT_RAYCAST_CLIENT_ID: string | undefined;
+  readonly WORKOS_CONNECT_SAFARI_CLIENT_ID: string | undefined;
+  readonly WORKOS_ENVIRONMENT_ID: string | undefined;
+  readonly WORKOS_RECONCILIATION_MODE: "off" | "audit" | undefined;
+  readonly WORKOS_RECONCILIATION_WITNESS_ID: string | undefined;
+  readonly WORKOS_WEBHOOK_SECRET: string | undefined;
 };
 
 /**

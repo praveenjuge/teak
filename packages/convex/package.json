@@ -1,6 +1,6 @@
 {
   "name": "@teak/convex",
-  "version": "1.0.72",
+  "version": "1.0.79",
   "type": "module",
   "exports": {
     ".": "./index.ts",
@@ -27,6 +27,7 @@
   "types": "./index.ts",
   "scripts": {
     "dev": "convex dev",
+    "lint": "biome lint --only=plugin .",
     "test": "bun run test:unit && bun run test:edge",
     "test:edge": "SITE_URL=http://localhost:3000 vitest run --config vitest.config.ts",
     "test:unit": "SITE_URL=http://localhost:3000 bun test __tests__ --coverage --dots --isolate",
@@ -43,6 +44,7 @@
     "@convex-dev/rate-limiter": "0.3.2",
     "@convex-dev/resend": "0.2.7",
     "@convex-dev/workflow": "0.4.8",
+    "@convex-dev/workos-authkit": "0.2.10",
     "@convex-dev/workpool": "0.4.12",
     "@onkernel/sdk": "^0.87.0",
     "@opentelemetry/api": "1.9.1",
@@ -51,6 +53,7 @@
     "@sentry/opentelemetry": "10.69.0",
     "@teak/files-protocol": "workspace:*",
     "@vllnt/convex-api-keys": "0.2.0",
+    "@workos-inc/node": "11.0.0",
     "ai": "^7.0.58",
     "better-auth": "1.6.26",
     "convex": "^1.46.0",

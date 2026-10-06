@@ -12,24 +12,23 @@ import { mcp } from "better-auth/plugins";
 import { v } from "convex/values";
 import { importPKCS8, SignJWT } from "jose";
 import { components, internal } from "./_generated/api";
-import type { DataModel, Id } from "./_generated/dataModel";
+import type { DataModel } from "./_generated/dataModel";
 import {
   env,
   internalAction,
-  internalMutation,
-  internalQuery,
   type MutationCtx,
-  type QueryCtx,
   query,
 } from "./_generated/server";
-import { beginAccountDeletion, finishAccountDeletion } from "./accountDeletion";
 import authConfig from "./auth.config";
 import { polar } from "./billing";
-import { getActiveCardCount, removeCardUsage } from "./card/cardUsage";
+import { getActiveCardCount } from "./card/cardUsage";
 import {
   getAppleCredentials,
   getGoogleCredentials,
+  readAccountChangesPaused,
+  readAuthPrimary,
   readJwksDocument,
+  readSignupsDisabled,
   readSiteUrl,
 } from "./env";
 
@@ -37,21 +36,29 @@ export { ensureCardCreationAllowed } from "./card/quota";
 
 import { isLocalDevelopmentUrl } from "./devUrls";
 import { e2eCleanupPlugin } from "./e2eCleanup";
+import {
+  assertLegacyAccountUpdate,
+  assertLegacyAccountWrite,
+  assertLegacyCredentialWrite,
+  assertLegacyProtectedProfileWrite,
+  assertLegacyVerificationWrite,
+} from "./migration/workosLegacyCredentialGate";
 import { teakOAuthSecurity } from "./oauthSecurity";
+import { getSessionProfile } from "./securitySessions";
 import { FREE_TIER_LIMIT } from "./shared/constants";
 import { isApprovedActiveSubscription } from "./shared/polarPlans";
 import {
   normalizeErrorClass,
   resolveBackendTelemetryDsn,
 } from "./shared/telemetry";
-import { cardStorageObjectKeys } from "./storage/r2";
+import { guardUserCreation } from "./signupFreeze";
 import { scheduleAuthOutcome, scheduleUserCreated } from "./telemetry/schedule";
 import { buildTrustedOrigins } from "./trustedOrigins";
+import { mirrorBetterAuthUser } from "./userIdentityTable";
 
 const siteUrl = readSiteUrl();
 const usesSecureCookies = new URL(siteUrl).protocol === "https:";
 const APPLE_CLIENT_SECRET_TTL_SECONDS = 180 * 24 * 60 * 60;
-const ACCOUNT_CARD_TAG_DELETE_BATCH_SIZE = 20;
 
 interface AppleClientSecretConfig {
   clientId: string;
@@ -69,6 +76,7 @@ const createGoogleProvider = () => {
     clientId: credentials.clientId,
     clientSecret: credentials.clientSecret,
     prompt: "select_account" as const,
+    disableImplicitSignUp: readSignupsDisabled(),
   };
 };
 
@@ -103,6 +111,7 @@ const createAppleProvider = async () => {
       privateKey: credentials.privateKey,
       teamId: credentials.teamId,
     }),
+    disableImplicitSignUp: readSignupsDisabled(),
     ...(credentials.appBundleIdentifier
       ? { appBundleIdentifier: credentials.appBundleIdentifier }
       : {}),
@@ -118,14 +127,39 @@ const authFunctions = (internal as any).auth as AuthFunctions;
 export const authComponent = createClient<DataModel>(components.betterAuth, {
   authFunctions,
   triggers: {
+    session: {
+      onCreate: assertLegacyCredentialWrite,
+      onUpdate: assertLegacyCredentialWrite,
+    },
+    oauthAccessToken: {
+      onCreate: assertLegacyCredentialWrite,
+      onUpdate: assertLegacyCredentialWrite,
+    },
+    verification: {
+      onCreate: assertLegacyVerificationWrite,
+      onUpdate: assertLegacyVerificationWrite,
+    },
+    account: {
+      onCreate: assertLegacyAccountWrite,
+      onUpdate: assertLegacyAccountUpdate,
+    },
     user: {
       onCreate: async (ctx, user) => {
+        await assertLegacyAccountWrite(ctx);
+        await mirrorBetterAuthUser(ctx, user);
         await ctx.scheduler.runAfter(
           0,
           internal.card.defaultCards.createDefaultCardsForUser,
           { userId: user._id }
         );
         await scheduleUserCreatedTelemetry(ctx, user._id);
+      },
+      onUpdate: async (ctx, user, previous) => {
+        await assertLegacyProtectedProfileWrite(ctx, user, previous);
+        await mirrorBetterAuthUser(ctx, user);
+      },
+      onDelete: async (ctx, user) => {
+        await mirrorBetterAuthUser(ctx, user, true);
       },
     },
   },
@@ -163,7 +197,7 @@ const hasScheduler = (
 // app's explicit post-sign-out navigation.
 export const getAuthUserHandler = async (ctx: any) => {
   try {
-    return (await authComponent.safeGetAuthUser(ctx)) ?? null;
+    return (await getSessionProfile(ctx))?.user ?? null;
   } catch {
     return null;
   }
@@ -172,6 +206,32 @@ export const getAuthUserHandler = async (ctx: any) => {
 export const getAuthUser = query({
   args: {},
   handler: getAuthUserHandler,
+});
+
+export interface PublicAuthMode {
+  accountChangesPaused: boolean;
+  authKitClientId?: string;
+  primary: "betterauth" | "workos";
+  signupsDisabled: boolean;
+}
+
+export const getAuthMode = query({
+  args: {},
+  returns: v.object({
+    primary: v.union(v.literal("betterauth"), v.literal("workos")),
+    signupsDisabled: v.boolean(),
+    accountChangesPaused: v.boolean(),
+    authKitClientId: v.optional(v.string()),
+  }),
+  // The operator flag is the sole authority. Unset preserves Better Auth.
+  handler: (): PublicAuthMode => ({
+    primary: readAuthPrimary(),
+    signupsDisabled: readSignupsDisabled(),
+    accountChangesPaused: readAccountChangesPaused(),
+    ...(process.env.WORKOS_CLIENT_ID
+      ? { authKitClientId: process.env.WORKOS_CLIENT_ID }
+      : {}),
+  }),
 });
 
 export const { onCreate, onUpdate, onDelete } = authComponent.triggersApi();
@@ -185,6 +245,18 @@ export const createAuth = (ctx: GenericCtx<DataModel>) => {
     trustedOrigins,
     baseURL: siteUrl,
     database: authComponent.adapter(ctx),
+    databaseHooks: {
+      user: {
+        create: {
+          before: (user) =>
+            guardUserCreation({
+              email: user.email,
+              disabled: readSignupsDisabled(),
+              e2eEmailDomain: env.E2E_EMAIL_DOMAIN,
+            }),
+        },
+      },
+    },
     rateLimit: {
       enabled: true,
       window: 60,
@@ -260,6 +332,7 @@ export const createAuth = (ctx: GenericCtx<DataModel>) => {
     },
     emailAndPassword: {
       enabled: true,
+      disableSignUp: readSignupsDisabled(),
       // Disable email verification requirement in development for E2E testing
       requireEmailVerification: !isLocalDevelopmentUrl(siteUrl),
       sendResetPassword: async ({ user, url }) => {
@@ -296,7 +369,7 @@ export const createAuth = (ctx: GenericCtx<DataModel>) => {
         },
         afterDelete: async (user) => {
           await requireActionCtx(ctx).runMutation(
-            internal.auth.finishAccountDataDeletion,
+            internal.accountDeletion.finishAccountDataDeletion,
             { userId: user.id }
           );
         },
@@ -423,20 +496,11 @@ export const createAuth = (ctx: GenericCtx<DataModel>) => {
 export const getCurrentUserHandler = async (ctx: any) => {
   // After sign-out the client may still briefly call this query; treat missing
   // session as a non-error so we don't spam Convex logs with "Unauthenticated".
-  let user: Awaited<ReturnType<typeof authComponent.getAuthUser>> | undefined;
-  try {
-    user = await authComponent.getAuthUser(ctx);
-  } catch (error) {
-    if (error instanceof Error && error.message === "Unauthenticated") {
-      return null;
-    }
-    throw error;
-  }
-  if (!user) {
+  const profile = await getSessionProfile(ctx);
+  if (!profile) {
     return null;
   }
-
-  const userId = (user as any).id ?? (user as any)._id ?? (user as any).subject;
+  const { user, teakUserId: userId } = profile;
 
   let hasPremium = false;
   try {
@@ -467,20 +531,11 @@ export const getCurrentUser = query({
 export const getCardCreationStatusHandler = async (ctx: any) => {
   // After sign-out the client may still briefly call this query; treat missing
   // session as a non-error so we don't spam Convex logs with "Unauthenticated".
-  let user: Awaited<ReturnType<typeof authComponent.getAuthUser>> | undefined;
-  try {
-    user = await authComponent.getAuthUser(ctx);
-  } catch (error) {
-    if (error instanceof Error && error.message === "Unauthenticated") {
-      return null;
-    }
-    throw error;
-  }
-  if (!user) {
+  const profile = await getSessionProfile(ctx);
+  if (!profile) {
     return null;
   }
-
-  const userId = (user as any).id ?? (user as any)._id ?? (user as any).subject;
+  const { teakUserId: userId } = profile;
 
   let hasPremium = false;
   try {
@@ -510,199 +565,6 @@ export const getCardCreationStatusHandler = async (ctx: any) => {
 export const getCardCreationStatus = query({
   args: {},
   handler: getCardCreationStatusHandler,
-});
-
-export const getAccountCardDeletionBatchHandler = async (
-  ctx: QueryCtx,
-  userId: string
-) => {
-  const cards = await ctx.db
-    .query("cards")
-    .withIndex("by_user_deleted", (q: any) => q.eq("userId", userId))
-    .take(20);
-  const readyCards: typeof cards = [];
-  for (const card of cards) {
-    const tagDocuments = await ctx.db
-      .query("cardSearchTags")
-      .withIndex("by_cardId", (query) => query.eq("cardId", card._id))
-      .take(ACCOUNT_CARD_TAG_DELETE_BATCH_SIZE + 1);
-    if (tagDocuments.length <= ACCOUNT_CARD_TAG_DELETE_BATCH_SIZE) {
-      readyCards.push(card);
-    }
-  }
-  return {
-    cardIds: cards.map((card) => card._id),
-    objectKeys: Array.from(
-      new Set(readyCards.flatMap((card) => cardStorageObjectKeys(card)))
-    ),
-  };
-};
-
-export const getAccountCardDeletionBatch = internalQuery({
-  args: { userId: v.string() },
-  returns: v.object({
-    cardIds: v.array(v.id("cards")),
-    objectKeys: v.array(v.string()),
-  }),
-  handler: (ctx, { userId }) => getAccountCardDeletionBatchHandler(ctx, userId),
-});
-
-export const deleteAccountDataHandler = async (
-  ctx: MutationCtx,
-  _userId: string,
-  cardIds: Id<"cards">[]
-) => {
-  let deletedCards = 0;
-  for (const cardId of cardIds) {
-    // Deliberately no ctx.db.get("cards", cardId) ownership re-check here:
-    // card ownership is immutable (no code path patches cards.userId) and
-    // the caller derives these IDs from the by_user_deleted index for this
-    // user, so the extra read only widened the mutation's conflict surface.
-    // The writers that raced these batches are fenced off during account
-    // deletion in patchCardWithSearchSync.
-    const tagDocuments = await ctx.db
-      .query("cardSearchTags")
-      .withIndex("by_cardId", (query) => query.eq("cardId", cardId))
-      .take(ACCOUNT_CARD_TAG_DELETE_BATCH_SIZE + 1);
-    for (const tagDocument of tagDocuments.slice(
-      0,
-      ACCOUNT_CARD_TAG_DELETE_BATCH_SIZE
-    )) {
-      await ctx.db.delete("cardSearchTags", tagDocument._id);
-    }
-    if (tagDocuments.length > ACCOUNT_CARD_TAG_DELETE_BATCH_SIZE) {
-      continue;
-    }
-    const searchDocument = await ctx.db
-      .query("cardSearchDocuments")
-      .withIndex("by_cardId", (query) => query.eq("cardId", cardId))
-      .unique();
-    if (searchDocument) {
-      await ctx.db.delete("cardSearchDocuments", searchDocument._id);
-    }
-    const searchTagSyncState = await ctx.db
-      .query("cardSearchTagSyncStates")
-      .withIndex("by_cardId", (query) => query.eq("cardId", cardId))
-      .unique();
-    if (searchTagSyncState) {
-      await ctx.db.delete("cardSearchTagSyncStates", searchTagSyncState._id);
-    }
-    try {
-      await ctx.db.delete("cards", cardId);
-      deletedCards += 1;
-    } catch (error) {
-      // Only the already-deleted race is skippable. Anything else (backend
-      // failure, invalid ID) must surface so the deletion action retries or
-      // fails loudly instead of reporting progress it did not make. The
-      // production backend says "Delete on nonexistent document ID ..."
-      // while convex-test says "Delete on non-existent doc", so match both
-      // spellings.
-      if (
-        !(error instanceof Error) ||
-        !/non-?existent|not found/i.test(error.message)
-      ) {
-        throw error;
-      }
-    }
-  }
-  return deletedCards;
-};
-
-export const deleteAccountDataBatch = internalMutation({
-  args: { cardIds: v.array(v.id("cards")), userId: v.string() },
-  returns: v.number(),
-  handler: async (ctx, { cardIds, userId }) =>
-    deleteAccountDataHandler(ctx, userId, cardIds),
-});
-
-export const getAccountImportDeletionBatch = internalQuery({
-  args: { userId: v.string() },
-  returns: v.object({
-    itemIds: v.array(v.id("importJobItems")),
-    jobIds: v.array(v.id("importJobs")),
-    objects: v.array(
-      v.object({
-        reportKey: v.optional(v.string()),
-        sourceKey: v.string(),
-        uploadId: v.optional(v.string()),
-      })
-    ),
-  }),
-  handler: async (ctx, { userId }) => {
-    const jobs = await ctx.db
-      .query("importJobs")
-      .withIndex("by_user_created", (q: any) => q.eq("userId", userId))
-      .take(100);
-    const items = await ctx.db
-      .query("importJobItems")
-      .withIndex("by_user", (q: any) => q.eq("userId", userId))
-      .take(100);
-    return {
-      itemIds: items.map((item) => item._id),
-      jobIds: jobs.map((job) => job._id),
-      objects: jobs.map((job) => ({
-        sourceKey: job.sourceKey,
-        reportKey: job.reportKey,
-        uploadId: job.uploadId,
-      })),
-    };
-  },
-});
-
-export const deleteAccountImportRows = internalMutation({
-  args: {
-    itemIds: v.array(v.id("importJobItems")),
-    jobIds: v.array(v.id("importJobs")),
-    userId: v.string(),
-  },
-  returns: v.null(),
-  handler: async (ctx, { itemIds, jobIds, userId }) => {
-    for (const itemId of itemIds) {
-      const item = await ctx.db.get("importJobItems", itemId);
-      if (item?.userId === userId) {
-        await ctx.db.delete("importJobItems", itemId);
-      }
-    }
-    for (const jobId of jobIds) {
-      const job = await ctx.db.get("importJobs", jobId);
-      if (job?.userId === userId) {
-        await ctx.db.delete("importJobs", jobId);
-      }
-    }
-    return null;
-  },
-});
-
-export const beginAccountDataDeletion = internalMutation({
-  args: { userId: v.string() },
-  returns: v.null(),
-  handler: async (ctx, { userId }) => {
-    await beginAccountDeletion(ctx, userId);
-    return null;
-  },
-});
-
-export const finishAccountDataDeletion = internalMutation({
-  args: { userId: v.string() },
-  returns: v.null(),
-  handler: async (ctx, { userId }) => {
-    await finishAccountDeletion(ctx, userId);
-    return null;
-  },
-});
-
-export const removeAccountCardUsageHandler = async (
-  ctx: MutationCtx,
-  userId: string
-) => {
-  await removeCardUsage(ctx, userId);
-  return null;
-};
-
-export const removeAccountCardUsage = internalMutation({
-  args: { userId: v.string() },
-  returns: v.null(),
-  handler: (ctx, { userId }) => removeAccountCardUsageHandler(ctx, userId),
 });
 
 export const getLatestJwks = internalAction({

@@ -1,4 +1,27 @@
 import { env } from "./_generated/server";
+import { validateOAuthUrl } from "./client/authDiscovery";
+
+export const readSignupsDisabled = (): boolean => {
+  const value = env.SIGNUPS_DISABLED;
+  if (value === undefined || value === "false") {
+    return false;
+  }
+  if (value === "true") {
+    return true;
+  }
+  throw new Error("SIGNUPS_DISABLED must be true or false.");
+};
+
+export const readAccountChangesPaused = (): boolean => {
+  const value = env.ACCOUNT_CHANGES_PAUSED;
+  if (value === undefined || value === "false") {
+    return false;
+  }
+  if (value === "true") {
+    return true;
+  }
+  throw new Error("ACCOUNT_CHANGES_PAUSED must be true or false.");
+};
 
 /**
  * Typed backend environment resolvers.
@@ -123,4 +146,36 @@ export const getAppleCredentials = (): AppleCredentials | undefined => {
     `${missing.join(", ")} ${missing.length === 1 ? "is" : "are"} required for Apple sign-in. ` +
       "Set the full Apple group, or none of it."
   );
+};
+
+// Unset retains Better Auth. This server-owned flag never comes from a request.
+export const readAuthPrimary = (): "betterauth" | "workos" => {
+  const value = env.AUTH_PRIMARY;
+  if (value === undefined || value === "betterauth") {
+    return "betterauth";
+  }
+  if (value === "workos") {
+    return "workos";
+  }
+  throw new Error("AUTH_PRIMARY must be betterauth or workos.");
+};
+
+export const readWorkosConnectIssuer = (): string => {
+  const value = env.WORKOS_AUTHKIT_DOMAIN;
+  if (!value) {
+    throw new Error("WORKOS_AUTHKIT_DOMAIN is required in WorkOS mode.");
+  }
+  const url = validateOAuthUrl(value);
+  if (
+    url.protocol !== "https:" ||
+    url.origin !== value ||
+    url.username ||
+    url.password ||
+    url.port
+  ) {
+    throw new Error(
+      "WORKOS_AUTHKIT_DOMAIN must be an HTTPS origin without a port."
+    );
+  }
+  return value;
 };

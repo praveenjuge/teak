@@ -225,3 +225,112 @@ describe("web security headers", () => {
     expect(headers.get("X-Frame-Options")).toBe("DENY");
   });
 });
+
+describe("configured local backend security policy", () => {
+  const policyFor = (
+    environment: "development" | "production" | "test",
+    convexUrl: string,
+    filesBase?: string
+  ) => {
+    const previousConvex = process.env.NEXT_PUBLIC_CONVEX_URL;
+    const previousFiles = process.env.NEXT_PUBLIC_FILES_BASE;
+    process.env.NEXT_PUBLIC_CONVEX_URL = convexUrl;
+    if (filesBase === undefined) {
+      delete process.env.NEXT_PUBLIC_FILES_BASE;
+    } else {
+      process.env.NEXT_PUBLIC_FILES_BASE = filesBase;
+    }
+    try {
+      return buildContentSecurityPolicy(environment);
+    } finally {
+      if (previousConvex === undefined) {
+        delete process.env.NEXT_PUBLIC_CONVEX_URL;
+      } else {
+        process.env.NEXT_PUBLIC_CONVEX_URL = previousConvex;
+      }
+      if (previousFiles === undefined) {
+        delete process.env.NEXT_PUBLIC_FILES_BASE;
+      } else {
+        process.env.NEXT_PUBLIC_FILES_BASE = previousFiles;
+      }
+    }
+  };
+  test.each(
+    (["development", "test"] as const).flatMap((environment) =>
+      [
+        "http://127.0.0.1:3210",
+        "http://localhost:3210",
+        "http://[::1]:3210",
+      ].map((url) => ({ environment, url }))
+    )
+  )(
+    "allows configured loopback HTTP and WebSocket in $environment: $url",
+    ({ environment, url }) => {
+      const policy = policyFor(environment, url, "http://127.0.0.1:8789");
+      const connect = policy
+        .split("; ")
+        .find((d) => d.startsWith("connect-src "))!;
+      expect(connect.split(" ")).toContain(url);
+      expect(connect.split(" ")).toContain(url.replace("http:", "ws:"));
+      for (const directive of [
+        "img-src",
+        "media-src",
+        "connect-src",
+        "frame-src",
+      ]) {
+        expect(
+          policy
+            .split("; ")
+            .find((d) => d.startsWith(`${directive} `))!
+            .split(" ")
+        ).toContain("http://127.0.0.1:8789");
+      }
+      expect(connect.split(" ")).not.toContain("http:"); // no scheme-wide permission
+    }
+  );
+  test.each(["production", undefined] as const)(
+    "never admits insecure local origins in %s",
+    (environment) => {
+      const previous = process.env.NODE_ENV;
+      if (environment === undefined) {
+        delete process.env.NODE_ENV;
+      }
+      try {
+        const policy = policyFor(
+          environment as "production",
+          "http://127.0.0.1:3210",
+          "http://localhost:8789"
+        );
+        expect(policy).not.toContain("127.0.0.1:3210");
+        expect(policy).not.toContain("localhost:8789");
+        expect(policy).toContain("upgrade-insecure-requests");
+      } finally {
+        if (previous === undefined) {
+          delete process.env.NODE_ENV;
+        } else {
+          process.env.NODE_ENV = previous;
+        }
+      }
+    }
+  );
+  test("rejects credential-bearing HTTPS origins in production", () => {
+    const policy = policyFor(
+      "production",
+      "https://user:password@backend.example",
+      "https://user:password@files.example"
+    );
+    expect(policy).not.toContain("https://backend.example");
+    expect(policy).not.toContain("wss://backend.example");
+    expect(policy).not.toContain("https://files.example");
+  });
+  test.each([
+    "http://evil.example:3210",
+    "http://localhost.evil.example:3210",
+    "http://user:password@localhost:3210",
+    "javascript:alert(1)",
+  ])("rejects unsafe development origin %s", (url) => {
+    const policy = policyFor("development", url, url);
+    expect(policy).not.toContain(url);
+    expect(policy).not.toContain(`${new URL(url).origin} `);
+  });
+});

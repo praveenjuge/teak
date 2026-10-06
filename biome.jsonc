@@ -5,6 +5,19 @@
     "ultracite/biome/react",
     "ultracite/biome/next"
   ],
+  "plugins": [
+    {
+      "path": "./scripts/lint/no-raw-identity.grit",
+      "includes": [
+        "**/packages/convex/**/*.ts",
+        "!**/packages/convex/_generated/**",
+        "!**/packages/convex/__tests__/**",
+        "!**/packages/convex/**/*.test.ts",
+        "!**/packages/convex/securitySessions.ts",
+        "!**/packages/convex/ensureUser.ts"
+      ]
+    }
+  ],
   "javascript": {
     "globals": [
       "Bun",

@@ -121,6 +121,35 @@ describe("validateUploadPayload", () => {
 });
 
 describe("validatePatchPayload", () => {
+  test("normalizes editable titles and preserves old patch payloads", () => {
+    expect(validatePatchPayload({ metadataTitle: "  New title  " })).toEqual({
+      metadataTitle: "New title",
+    });
+    expect(validatePatchPayload({ metadataTitle: null })).toEqual({
+      metadataTitle: null,
+    });
+    expect(validatePatchPayload({ metadataTitle: "  " })).toEqual({
+      metadataTitle: null,
+    });
+    expect(validatePatchPayload({ notes: " note " })).toEqual({
+      notes: "note",
+    });
+    expect(
+      validatePatchPayload({ metadataTitle: "x".repeat(512) })?.metadataTitle
+    ).toHaveLength(512);
+  });
+
+  test.each(
+    [42, true, [], {}, "x".repeat(513)].map((metadataTitle) => ({
+      metadataTitle,
+    }))
+  )(
+    "rejects invalid title %j",
+    ({ metadataTitle }: { metadataTitle: unknown }) => {
+      expect(validatePatchPayload({ metadataTitle })).toBeNull();
+    }
+  );
+
   test("trims the url and turns blank notes into a cleared note", () => {
     expect(
       validatePatchPayload({
@@ -177,6 +206,26 @@ describe("parseIncludeSet", () => {
 });
 
 describe("parseCardsQueryOptions", () => {
+  test("parses Trash and repeated visual filters", () => {
+    expect(
+      parseCardsQueryOptions(
+        get("trashed=true&style=minimal&hue=blue&hex=%23abc&hex=112233")
+      )
+    ).toMatchObject({
+      showTrashOnly: true,
+      styleFilters: ["minimal"],
+      hueFilters: ["blue"],
+      hexFilters: ["#AABBCC", "#112233"],
+    });
+  });
+  test.each(["trashed=yes", "style=unknown", "hue=unknown", "hex=badhex"])(
+    "rejects invalid filter %s",
+    (query: string) => {
+      const result = parseCardsQueryOptions(get(query));
+      expect(result).toBeInstanceOf(Response);
+      expect((result as Response).status).toBe(400);
+    }
+  );
   test("parses filters, favorites and a clamped limit", () => {
     expect(
       parseCardsQueryOptions(
@@ -189,6 +238,10 @@ describe("parseCardsQueryOptions", () => {
       createdBefore: 20,
       cursor: "c1",
       favoritesOnly: true,
+      showTrashOnly: false,
+      styleFilters: undefined,
+      hueFilters: undefined,
+      hexFilters: undefined,
       limit: 100,
       searchQuery: "design",
       sort: "oldest",
@@ -267,3 +320,21 @@ describe("parseCardRoute", () => {
     expect(parseCardRoute(new Request(`${API}${path}`, { method }))).toBeNull();
   });
 });
+
+test.each(["style", "hue", "hex"])(
+  "rejects excessive %s filters instead of silently truncating",
+  async (dimension: "style" | "hue" | "hex") => {
+    const params = new URLSearchParams();
+    for (let index = 0; index < 25; index += 1) {
+      const value = {
+        style: "minimal",
+        hue: "blue",
+        hex: `#${index.toString(16).padStart(6, "0")}`,
+      }[dimension];
+      params.append(dimension, value ?? "");
+    }
+    expect(
+      await errorOf(parseCardsQueryOptions(get(params.toString())))
+    ).toMatchObject({ status: 400, body: { code: "INVALID_INPUT" } });
+  }
+);

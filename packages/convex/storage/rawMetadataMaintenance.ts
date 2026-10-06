@@ -1,3 +1,4 @@
+import { ensureObjectOwnership } from "./ownership";
 import { v } from "convex/values";
 import { internal } from "../_generated/api";
 import { getAccountDeletionState } from "../accountDeletion";
@@ -144,6 +145,7 @@ export const archiveCardHandler = async (
       }
       const digest = await hashRawMetadata(json);
       const key = rawMetadataKey(card, kind, digest);
+      await ensureObjectOwnership(ctx, card.userId, key);
       await copyAndVerifyRaw(card, kind, json, digest);
       const commitArgs = { cardId, kind, expectedJson: json, key, digest };
       let committed: boolean;

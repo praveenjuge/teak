@@ -3,7 +3,9 @@
  * validators, query-option parsing, and card serializers.
  * Split out of `publicApiHttp.ts`, kept behavior-identical.
  */
+
 import { env } from "./_generated/server";
+import { normalizeVisualFilterArgs } from "./card/visualFilters";
 import { isLocalDevelopmentHostname, resolveTeakDevAppUrl } from "./devUrls";
 import {
   CARD_SORTS,
@@ -20,6 +22,12 @@ import {
   parseStringArray,
   parseTimestampQuery,
 } from "./publicApiHttpShared";
+import { parseCardTitle } from "./shared/cardTitle";
+import {
+  normalizeColorHueBucket,
+  normalizeVisualStyle,
+} from "./shared/constants";
+import { SEARCH_MAX_VISUAL_FILTERS_PER_DIMENSION } from "./shared/search/constants";
 import { isSafeExternalUrl } from "./shared/utils/safeUrl";
 
 const APP_PROD_URL = "https://app.teakvault.com";
@@ -37,6 +45,19 @@ const getCardAppUrl = (requestUrl: string, cardId: string): string => {
 };
 
 const serializeDisplayMetadata = (card: any) => ({
+  isDeleted: Boolean(card.isDeleted),
+  linkPreviewDescription: card.metadata?.linkPreview?.description ?? null,
+  linkFacts:
+    card.metadata?.linkCategory?.facts?.map(
+      (fact: { label: string; value: string }) => ({
+        label: fact.label,
+        value: fact.value,
+      })
+    ) ?? [],
+  linkPreviewTitle: card.metadata?.linkPreview?.title ?? null,
+  linkFaviconUrl: card.metadata?.linkPreview?.faviconUrl ?? null,
+  fileWidth: card.fileMetadata?.width ?? null,
+  fileHeight: card.fileMetadata?.height ?? null,
   colors:
     card.colors?.map((color: { hex: string; name?: string }) => ({
       hex: color.hex,
@@ -327,6 +348,52 @@ const parseCardsQueryOptions = (
   const createdAfter = parseTimestampQuery(searchParams.get("createdAfter"));
   const createdBefore = parseTimestampQuery(searchParams.get("createdBefore"));
   const favorited = parseBooleanQuery(searchParams.get("favorited"));
+  const trashed = parseBooleanQuery(searchParams.get("trashed"));
+  if (searchParams.has("trashed") && trashed === undefined) {
+    return errorResponse(
+      400,
+      "INVALID_INPUT",
+      "Query parameter `trashed` must be `true` or `false`"
+    );
+  }
+  for (const dimension of ["style", "hue", "hex"]) {
+    if (
+      searchParams.getAll(dimension).length >
+      SEARCH_MAX_VISUAL_FILTERS_PER_DIMENSION
+    ) {
+      return errorResponse(
+        400,
+        "INVALID_INPUT",
+        `Query parameter \`${dimension}\` accepts at most ${SEARCH_MAX_VISUAL_FILTERS_PER_DIMENSION} filters`
+      );
+    }
+  }
+  let visualFilters: ReturnType<typeof normalizeVisualFilterArgs>;
+  try {
+    visualFilters = normalizeVisualFilterArgs({
+      styleFilters: searchParams.getAll("style"),
+      hueFilters: searchParams.getAll("hue"),
+      hexFilters: searchParams.getAll("hex"),
+    });
+    for (const [name, normalize] of [
+      ["style", normalizeVisualStyle],
+      ["hue", normalizeColorHueBucket],
+    ] as const) {
+      if (searchParams.getAll(name).some((value) => !normalize(value))) {
+        return errorResponse(
+          400,
+          "INVALID_INPUT",
+          `Query parameter \`${name}\` is invalid`
+        );
+      }
+    }
+  } catch {
+    return errorResponse(
+      400,
+      "INVALID_INPUT",
+      "Query parameter `hex` is invalid"
+    );
+  }
 
   if (uniqueTypes.some((type) => !CARD_TYPES.has(type))) {
     return errorResponse(
@@ -385,6 +452,10 @@ const parseCardsQueryOptions = (
     createdBefore,
     cursor: parseOptionalString(searchParams.get("cursor")),
     favoritesOnly: favorited === true,
+    showTrashOnly: trashed === true,
+    styleFilters: visualFilters.styleFilters,
+    hueFilters: visualFilters.hueFilters,
+    hexFilters: visualFilters.hexFilters,
     limit: parseLimit(searchParams.get("limit")),
     searchQuery: query,
     sort: sort as CardsQueryOptions["sort"] | undefined,
@@ -411,7 +482,7 @@ const parseCardRoute = (
   request: Request
 ): {
   cardId: string;
-  operation: "delete" | "favorite" | "get" | "patch";
+  operation: "delete" | "favorite" | "get" | "patch" | "restore";
 } | null => {
   const { pathname } = new URL(request.url);
   const segments = pathname.split("/").filter(Boolean);
@@ -433,6 +504,14 @@ const parseCardRoute = (
     return { cardId, operation: "delete" };
   }
 
+  if (
+    request.method === "POST" &&
+    segments.length === 4 &&
+    segments[3] === "restore"
+  ) {
+    return { cardId, operation: "restore" };
+  }
+
   if (request.method !== "PATCH") {
     return null;
   }
@@ -452,6 +531,7 @@ const validatePatchPayload = (
   payload: unknown
 ): {
   content?: string;
+  metadataTitle?: string | null;
   notes?: string | null;
   tags?: string[];
   url?: string;
@@ -461,7 +541,13 @@ const validatePatchPayload = (
   }
 
   const source = payload as Record<string, unknown>;
-  const allowedKeys = new Set(["content", "notes", "tags", "url"]);
+  const allowedKeys = new Set([
+    "content",
+    "metadataTitle",
+    "notes",
+    "tags",
+    "url",
+  ]);
 
   for (const key of Object.keys(source)) {
     if (!allowedKeys.has(key)) {
@@ -471,6 +557,7 @@ const validatePatchPayload = (
 
   const next: {
     content?: string;
+    metadataTitle?: string | null;
     notes?: string | null;
     tags?: string[];
     url?: string;
@@ -492,6 +579,14 @@ const validatePatchPayload = (
       return null;
     }
     next.url = trimmedUrl;
+  }
+
+  if ("metadataTitle" in source) {
+    const title = parseCardTitle(source.metadataTitle);
+    if (title === undefined) {
+      return null;
+    }
+    next.metadataTitle = title;
   }
 
   if ("notes" in source) {

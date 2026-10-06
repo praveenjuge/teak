@@ -1,3 +1,10 @@
+export {
+  type AuthDiscovery,
+  discoverAuthServer,
+  type OAuthSurface,
+  validateOAuthUrl,
+} from "./authDiscovery";
+
 import { type CardType, cardTypes } from "../shared/constants";
 import type { FileKind, FilePreviewFacts } from "../shared/fileFormats";
 
@@ -30,7 +37,9 @@ export type TeakApiErrorCode = (typeof ERROR_CODES)[number];
 export type FetchLike = typeof fetch;
 export interface TokenProvider {
   getAccessToken: () => Promise<string | null> | string | null;
-  onUnauthorized?: () => Promise<string | null> | string | null;
+  onUnauthorized?: (
+    rejectedToken: string
+  ) => Promise<string | null> | string | null;
 }
 
 export interface Card {
@@ -124,6 +133,7 @@ export interface CreateCardInput {
 }
 export interface UpdateCardInput {
   content?: string;
+  metadataTitle?: string | null;
   notes?: string | null;
   tags?: string[];
   url?: string;
@@ -416,7 +426,7 @@ export const createTeakClient = (options: {
       retry &&
       options.tokenProvider.onUnauthorized
     ) {
-      const next = await options.tokenProvider.onUnauthorized();
+      const next = await options.tokenProvider.onUnauthorized(token);
       if (next) {
         return request(path, init, parser, false, next);
       }

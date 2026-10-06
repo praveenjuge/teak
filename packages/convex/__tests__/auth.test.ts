@@ -70,14 +70,10 @@ mock.module("../storage/r2", r2MockModuleFactory);
 
 // We will dynamically import these
 let ensureCardCreationAllowed: any;
-let getCurrentUserHandler: any;
-let getAuthUserHandler: any;
-let getCardCreationStatusHandler: any;
 let deleteAccountDataHandler: any;
 let runAccountDataDeletion: any;
 let getAccountCardDeletionBatchHandler: any;
 let removeAccountCardUsageHandler: any;
-let authComponent: any;
 let createAuth: any;
 let polar: any;
 let rateLimiter: any;
@@ -121,15 +117,12 @@ describe("auth", () => {
     const authModule = await import("../auth");
     const accountDeletionModule = await import("../accountDeletion");
     ensureCardCreationAllowed = authModule.ensureCardCreationAllowed;
-    getCurrentUserHandler = authModule.getCurrentUserHandler;
-    getAuthUserHandler = authModule.getAuthUserHandler;
-    getCardCreationStatusHandler = authModule.getCardCreationStatusHandler;
-    deleteAccountDataHandler = authModule.deleteAccountDataHandler;
+    deleteAccountDataHandler = accountDeletionModule.deleteAccountDataHandler;
     runAccountDataDeletion = accountDeletionModule.runAccountDataDeletion;
     getAccountCardDeletionBatchHandler =
-      authModule.getAccountCardDeletionBatchHandler;
-    removeAccountCardUsageHandler = authModule.removeAccountCardUsageHandler;
-    authComponent = authModule.authComponent;
+      accountDeletionModule.getAccountCardDeletionBatchHandler;
+    removeAccountCardUsageHandler =
+      accountDeletionModule.removeAccountCardUsageHandler;
     createAuth = authModule.createAuth;
 
     const constantsModule = await import("../shared/constants");
@@ -393,314 +386,6 @@ describe("auth", () => {
     });
   });
 
-  describe("getAuthUser", () => {
-    const mockSafeGetAuthUser = mock();
-
-    beforeEach(() => {
-      authComponent.safeGetAuthUser = mockSafeGetAuthUser;
-      mockSafeGetAuthUser.mockReset();
-    });
-
-    it("returns the user when authenticated", async () => {
-      const user = { _id: "u1", email: "a@b.com" };
-      mockSafeGetAuthUser.mockResolvedValue(user);
-      const result = await getAuthUserHandler({} as any);
-      expect(result).toEqual(user);
-    });
-
-    it("returns null when there is no session (does not throw)", async () => {
-      mockSafeGetAuthUser.mockResolvedValue(undefined);
-      const result = await getAuthUserHandler({} as any);
-      expect(result).toBeNull();
-    });
-
-    it("returns null instead of throwing when the lookup errors", async () => {
-      // Regression guard for the production sign-out crash: the provider-level
-      // subscription re-runs against a just-cleared session, and a thrown
-      // result there crashed the page (Minified React error #310). The query
-      // must swallow the error and resolve to null instead of rejecting.
-      mockSafeGetAuthUser.mockRejectedValue(new ConvexError("Unauthenticated"));
-      const result = await getAuthUserHandler({} as any);
-      expect(result).toBeNull();
-    });
-  });
-
-  describe("getCurrentUser", () => {
-    const mockGetAuthUser = mock();
-    const mockGetCurrentSubscription = mock();
-
-    beforeEach(() => {
-      authComponent.getAuthUser = mockGetAuthUser;
-      polar.getCurrentSubscription = mockGetCurrentSubscription;
-      mockGetAuthUser.mockReset();
-      mockGetCurrentSubscription.mockReset();
-    });
-
-    it("returns null if not authenticated", async () => {
-      mockGetAuthUser.mockResolvedValue(null);
-      const ctx = {} as any;
-      const result = await getCurrentUserHandler(ctx);
-      expect(result).toBeNull();
-    });
-
-    it("handles Unauthenticated error as null", async () => {
-      mockGetAuthUser.mockRejectedValue(new Error("Unauthenticated"));
-      const ctx = {} as any;
-      const result = await getCurrentUserHandler(ctx);
-      expect(result).toBeNull();
-    });
-
-    it("re-throws other errors", async () => {
-      mockGetAuthUser.mockRejectedValue(new Error("Other error"));
-      const ctx = {} as any;
-      await expect(getCurrentUserHandler(ctx)).rejects.toThrow("Other error");
-    });
-
-    it("handles subscription check error", async () => {
-      const user = { subject: "u1" };
-      mockGetAuthUser.mockResolvedValue(user);
-      mockGetCurrentSubscription.mockRejectedValue(new Error("Polar error"));
-
-      const ctx = {
-        db: {
-          query: () => ({
-            withIndex: (_name: any, cb: any) => {
-              if (cb) {
-                cb({
-                  eq: () => ({
-                    eq: () => {
-                      // noop
-                    },
-                  }),
-                });
-              }
-              return {
-                collect: async () => [],
-                take: async () => [],
-              };
-            },
-          }),
-        },
-      } as any;
-
-      addUsageRecord(ctx, 0);
-      const result = await getCurrentUserHandler(ctx);
-      expect(result).not.toBeNull();
-      expect(result!.hasPremium).toBe(false);
-    });
-
-    it("returns user info with free tier status", async () => {
-      const user = { subject: "u1" };
-      mockGetAuthUser.mockResolvedValue(user);
-      mockGetCurrentSubscription.mockResolvedValue(null);
-
-      const ctx = {
-        db: {
-          query: () => ({
-            withIndex: (_name: any, cb: any) => {
-              if (cb) {
-                cb({
-                  eq: () => ({
-                    eq: () => {
-                      // noop
-                    },
-                  }),
-                });
-              }
-              return {
-                collect: async () => [],
-                take: async () => [],
-              };
-            },
-          }),
-        },
-      } as any;
-
-      addUsageRecord(ctx, 0);
-      const result = await getCurrentUserHandler(ctx);
-      expect(result).toEqual({
-        ...user,
-        hasPremium: false,
-        cardCount: 0,
-        canCreateCard: true,
-      });
-    });
-
-    it("returns user info with premium status", async () => {
-      const user = { subject: "u1" };
-      mockGetAuthUser.mockResolvedValue(user);
-      mockGetCurrentSubscription.mockResolvedValue({
-        productId: POLAR_PLAN_IDS.production.monthly,
-        status: "active",
-      });
-
-      const ctx = {
-        db: {
-          query: () => ({
-            withIndex: (_name: any, cb: any) => {
-              if (cb) {
-                cb({
-                  eq: () => ({
-                    eq: () => {
-                      // noop
-                    },
-                  }),
-                });
-              }
-              return {
-                collect: async () => Array.from({ length: 100 }),
-                take: async (limit: number) =>
-                  Array.from({ length: Math.min(limit, 100) }),
-              };
-            },
-          }),
-        },
-      } as any;
-
-      addUsageRecord(ctx, 3);
-      const result = await getCurrentUserHandler(ctx);
-      expect(result).not.toBeNull();
-      expect(result!.hasPremium).toBe(true);
-      expect(result!.canCreateCard).toBe(true);
-      expect(result!.cardCount).toBe(3);
-    });
-
-    it("bounds premium card counting while usage backfill is incomplete", async () => {
-      const user = { subject: "u1" };
-      mockGetAuthUser.mockResolvedValue(user);
-      mockGetCurrentSubscription.mockResolvedValue({
-        productId: POLAR_PLAN_IDS.production.monthly,
-        status: "active",
-      });
-
-      const take = mock(async (limit: number) => Array.from({ length: limit }));
-      const ctx = {
-        db: {
-          query: () => ({
-            withIndex: (_name: any, cb: any) => {
-              cb?.({
-                eq: () => ({
-                  eq: () => undefined,
-                }),
-              });
-              return { take };
-            },
-          }),
-        },
-      } as any;
-
-      addUsageRecord(ctx, 0, false);
-      const result = await getCurrentUserHandler(ctx);
-      expect(take).toHaveBeenCalledWith(FREE_TIER_LIMIT + 1);
-      expect(result).toMatchObject({
-        hasPremium: true,
-        cardCount: FREE_TIER_LIMIT + 1,
-        canCreateCard: true,
-      });
-    });
-
-    it("does not grant premium for an unapproved Polar product", async () => {
-      const user = { subject: "u1" };
-      mockGetAuthUser.mockResolvedValue(user);
-      mockGetCurrentSubscription.mockResolvedValue({
-        productId: "prod_attacker",
-        status: "active",
-      });
-
-      const ctx = {
-        db: {
-          query: () => ({
-            withIndex: (_name: any, cb: any) => {
-              if (cb) {
-                cb({
-                  eq: () => ({
-                    eq: () => {
-                      // noop
-                    },
-                  }),
-                });
-              }
-              return {
-                collect: async () => Array.from({ length: 100 }),
-                take: async (limit: number) =>
-                  Array.from({ length: Math.min(limit, 3) }),
-              };
-            },
-          }),
-        },
-      } as any;
-
-      addUsageRecord(ctx, 3);
-      const result = await getCurrentUserHandler(ctx);
-      expect(result!.hasPremium).toBe(false);
-    });
-
-    it("returns lightweight card creation status for AddCardForm gating", async () => {
-      const user = { subject: "u1" };
-      mockGetAuthUser.mockResolvedValue(user);
-      mockGetCurrentSubscription.mockResolvedValue(null);
-
-      const ctx = {
-        db: {
-          query: () => ({
-            withIndex: (_name: any, cb: any) => {
-              if (cb) {
-                cb({
-                  eq: () => ({
-                    eq: () => {
-                      // noop
-                    },
-                  }),
-                });
-              }
-              return {
-                take: async (limit: number) =>
-                  Array.from({ length: Math.min(limit, FREE_TIER_LIMIT) }),
-              };
-            },
-          }),
-        },
-      } as any;
-
-      addUsageRecord(ctx, FREE_TIER_LIMIT);
-      const result = await getCardCreationStatusHandler(ctx);
-      expect(result).toEqual({
-        hasPremium: false,
-        canCreateCard: false,
-      });
-    });
-
-    it("ignores partial usage while gating free-tier card creation", async () => {
-      const user = { subject: "u1" };
-      mockGetAuthUser.mockResolvedValue(user);
-      mockGetCurrentSubscription.mockResolvedValue(null);
-
-      const take = mock(async () => Array.from({ length: FREE_TIER_LIMIT }));
-      const ctx = {
-        db: {
-          query: () => ({
-            withIndex: (_name: any, cb: any) => {
-              cb?.({
-                eq: () => ({
-                  eq: () => undefined,
-                }),
-              });
-              return { take };
-            },
-          }),
-        },
-      } as any;
-
-      addUsageRecord(ctx, 0, false);
-      const result = await getCardCreationStatusHandler(ctx);
-      expect(take).toHaveBeenCalledWith(FREE_TIER_LIMIT + 1);
-      expect(result).toEqual({
-        hasPremium: false,
-        canCreateCard: false,
-      });
-    });
-  });
-
   describe("deleteAccountData", () => {
     it("deletes bounded card and search rows", async () => {
       const ctx = {
@@ -710,11 +395,11 @@ describe("auth", () => {
           ),
           query: (table: string) => ({
             withIndex: (_name: any, cb: any) => {
-              let cardId: string | undefined;
+              let _cardId: string | undefined;
               if (cb) {
                 cb({
                   eq: (_field: string, value: string) => {
-                    cardId = value;
+                    _cardId = value;
                   },
                 });
               }
@@ -726,12 +411,12 @@ describe("auth", () => {
                   : {}),
                 ...(table === "cardSearchTags"
                   ? {
-                      take: async () => [{ _id: `tag_${cardId}` }],
+                      take: async () => [{ _id: `tag_${_cardId}` }],
                     }
                   : {}),
                 ...(table === "cardSearchTagSyncStates"
                   ? {
-                      unique: async () => ({ _id: `tag_state_${cardId}` }),
+                      unique: async () => ({ _id: `tag_state_${_cardId}` }),
                     }
                   : {}),
               };
@@ -762,11 +447,11 @@ describe("auth", () => {
           }),
           query: (table: string) => ({
             withIndex: (_name: any, cb: any) => {
-              let cardId: string | undefined;
+              let _cardId: string | undefined;
               if (cb) {
                 cb({
                   eq: (_field: string, value: string) => {
-                    cardId = value;
+                    _cardId = value;
                   },
                 });
               }
@@ -775,10 +460,10 @@ describe("auth", () => {
                   ? { unique: async () => ({ _id: "search_c1" }) }
                   : {}),
                 ...(table === "cardSearchTags"
-                  ? { take: async () => [{ _id: `tag_${cardId}` }] }
+                  ? { take: async () => [{ _id: `tag_${_cardId}` }] }
                   : {}),
                 ...(table === "cardSearchTagSyncStates"
-                  ? { unique: async () => ({ _id: `tag_state_${cardId}` }) }
+                  ? { unique: async () => ({ _id: `tag_state_${_cardId}` }) }
                   : {}),
               };
             },
@@ -804,11 +489,11 @@ describe("auth", () => {
           }),
           query: (table: string) => ({
             withIndex: (_name: any, cb: any) => {
-              let cardId: string | undefined;
+              let _cardId: string | undefined;
               if (cb) {
                 cb({
                   eq: (_field: string, value: string) => {
-                    cardId = value;
+                    _cardId = value;
                   },
                 });
               }
@@ -816,9 +501,7 @@ describe("auth", () => {
                 ...(table === "cardSearchDocuments"
                   ? { unique: async () => null }
                   : {}),
-                ...(table === "cardSearchTags"
-                  ? { take: async () => [] }
-                  : {}),
+                ...(table === "cardSearchTags" ? { take: async () => [] } : {}),
                 ...(table === "cardSearchTagSyncStates"
                   ? { unique: async () => null }
                   : {}),
@@ -848,11 +531,11 @@ describe("auth", () => {
           }),
           query: (table: string) => ({
             withIndex: (_name: any, cb: any) => {
-              let cardId: string | undefined;
+              let _cardId: string | undefined;
               if (cb) {
                 cb({
                   eq: (_field: string, value: string) => {
-                    cardId = value;
+                    _cardId = value;
                   },
                 });
               }
@@ -860,9 +543,7 @@ describe("auth", () => {
                 ...(table === "cardSearchDocuments"
                   ? { unique: async () => null }
                   : {}),
-                ...(table === "cardSearchTags"
-                  ? { take: async () => [] }
-                  : {}),
+                ...(table === "cardSearchTags" ? { take: async () => [] } : {}),
                 ...(table === "cardSearchTagSyncStates"
                   ? { unique: async () => null }
                   : {}),
@@ -911,9 +592,9 @@ describe("auth", () => {
         },
       } as any;
 
-      await expect(
-        deleteAccountDataHandler(ctx, "u1", ["c1"])
-      ).rejects.toThrow("Connection lost to backend");
+      await expect(deleteAccountDataHandler(ctx, "u1", ["c1"])).rejects.toThrow(
+        "Connection lost to backend"
+      );
     });
 
     it("collects storage keys before deleting their owning rows", async () => {

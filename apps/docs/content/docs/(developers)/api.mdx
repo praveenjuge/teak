@@ -39,6 +39,17 @@ Authorization: Bearer teakapi_...
 
 Native clients using browser sign-in send short-lived OAuth access tokens instead — see [Development](/docs/development#public-api-and-mcp).
 
+Browser-based OAuth clients can discover the active server from `/.well-known/oauth-protected-resource/mcp`, then read its `/.well-known/oauth-authorization-server` document. Teak publishes first-party client IDs and the matching issuer at `/.well-known/teak-oauth-clients.json`. The shared SDK's `discoverAuthServer(siteUrl)` caches a validated result for up to 60 seconds; use `{ forceRefresh: true }` after sign-in or refresh failures. Discovery never sends an access token. For a cloud development backend with a local sign-in server, pass its explicit loopback origin as `localIssuer`; remote metadata cannot enable loopback access by itself.
+
+When a deployment uses WorkOS, request `https://teakvault.com/api` as the OAuth resource. REST requests require a Connect user access token with that exact audience, including in local development. AuthKit session tokens and tokens issued for `https://teakvault.com/mcp` are rejected. Teak API keys remain supported.
+
+## Read your identity
+
+`GET /v1/me` accepts an API key or OAuth access token and returns
+`{ "data": { "id": "...", "email": "...", "name": "..." } }`. `id` is your stable
+Teak owner ID; `name` is optional. Invalid, expired, revoked, or deleted-account
+credentials return 401. Responses are not cached.
+
 ## Create your first card
 
 <CodeGroup>
@@ -79,6 +90,14 @@ const response = await fetch("https://teakvault.com/api/v1/cards", {
 <AutoTypeTable path="types/create-card.ts" name="CreateCardBody" />
 
 A create response includes the new `cardId` and its Teak app URL. See **Create Card** in the [API Reference](/reference) for the complete request and response schemas.
+
+## Edit a card
+
+Send changed fields to `PATCH /v1/cards/:cardId`: `content`, `notes`, `tags`,
+`url`, or `metadataTitle`. Titles work for every card type, are trimmed, and
+can contain up to 512 characters. Send `null` or a blank title to clear it.
+Omit `metadataTitle` to preserve the existing title. Metadata processing
+preserves titles you edit or clear.
 
 ## Upload files
 
@@ -127,12 +146,14 @@ Bulk operations accept up to 100 items. Cursor-based listing and the card change
 
 | Route | Purpose |
 | --- | --- |
+| `/v1/me` | Read your authenticated Teak identity |
 | `/v1/cards` | Create or list cards |
 | `/v1/uploads` | Start a direct file upload |
 | `/v1/cards/bulk` | Create or update multiple cards |
 | `/v1/cards/changes` | Read incremental card changes |
 | `/v1/tags` | List tags |
 | `/v1/cards/:cardId` | Read, update, or delete one card |
+| `/v1/cards/:cardId/restore` | Restore one card from Trash with POST |
 | `/v1/cards/:cardId/favorite` | Favorite or unfavorite one card |
 
 See `/openapi.json` or the [API Reference](/reference) for methods, parameters, schemas, and response examples.
@@ -220,3 +241,15 @@ Use the returned request ID when contacting [Support](/docs/support). For MCP to
 ## Check for a saved URL
 
 `GET /v1/cards/duplicate?url=<encoded-url>` accepts the same bearer credentials as other card endpoints. It checks the exact URL against your non-deleted cards and returns `{ "cardId": "..." }`, or `{ "cardId": null }` when no match exists. The URL must use HTTP or HTTPS and be at most 8,192 characters. Invalid input returns 400; invalid or revoked credentials return 401.
+
+### Trash and visual filters
+
+List Trash with `GET /v1/cards?trashed=true`. Repeat `style`, `hue`, or `hex`
+parameters to match any value within each filter, combining different filters. Each dimension accepts up to 24 values; excess values return `400 INVALID_INPUT`.
+Broad searches that exceed the read limit return `400 INVALID_INPUT`; add a type or date filter to narrow them.
+Hex colors accept three, four, six, or eight digits with an optional `#` (URL-encode it as `%23`).
+For example: `GET /v1/cards?type=image&hue=blue&hex=%23112233`.
+
+`DELETE /v1/cards/:cardId` moves a card to Trash. Restore it with
+`POST /v1/cards/:cardId/restore`. Both return 204 with no body.
+`DELETE /v1/cards/:cardId?permanent=true` permanently removes the card and its files.

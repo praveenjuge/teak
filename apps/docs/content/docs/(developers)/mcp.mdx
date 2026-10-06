@@ -22,6 +22,8 @@ Teak's MCP server supports two authentication methods.
   <Tab title="Browser sign-in">
     Spec-compliant MCP clients discover Teak's authorization server, open your browser to sign in, and store the resulting access token automatically. External clients show an approval screen with the requested access before Teak connects them. Access tokens are short-lived and refresh automatically.
 
+    When a deployment uses WorkOS, request `https://teakvault.com/mcp` as the OAuth resource. The Connect access token must have that exact audience, including in local development. MCP rejects tokens issued for `https://teakvault.com/api`. Teak API keys remain supported.
+
     For example, with Claude:
 
     ```bash

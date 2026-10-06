@@ -2,7 +2,7 @@ import type { FilesImageRendition } from "@teak/files-protocol";
 import { v } from "convex/values";
 import { internal } from "../_generated/api";
 import { action, internalQuery, query } from "../_generated/server";
-import { getSessionIdentity } from "../securitySessions";
+import { getSessionUser } from "../securitySessions";
 import { tryResolveImageUrl, tryResolveObjectUrl } from "../storage/fileUrls";
 
 const mediaRenditionValidator = v.union(
@@ -43,7 +43,7 @@ export const getFileUrl = query({
   },
   returns: v.union(v.string(), v.null()),
   handler: async (ctx, args) => {
-    const user = await getSessionIdentity(ctx);
+    const user = await getSessionUser(ctx);
     if (!user) {
       throw new Error("Unauthenticated call to getFileUrl");
     }
@@ -53,7 +53,7 @@ export const getFileUrl = query({
       throw new Error("Card not found");
     }
 
-    if (card.userId !== user.subject) {
+    if (card.userId !== user.teakUserId) {
       throw new Error("Unauthorized access to file");
     }
 
@@ -77,12 +77,12 @@ export const getAuthorizedMedia = internalQuery({
     v.null()
   ),
   handler: async (ctx, args) => {
-    const user = await getSessionIdentity(ctx);
+    const user = await getSessionUser(ctx);
     if (!user) {
       throw new Error("Unauthenticated media refresh");
     }
     const card = await ctx.db.get("cards", args.cardId);
-    if (!(card && card.userId === user.subject)) {
+    if (!(card && card.userId === user.teakUserId)) {
       return null;
     }
     if (!cardOwnsMediaKey(card, args.key)) {

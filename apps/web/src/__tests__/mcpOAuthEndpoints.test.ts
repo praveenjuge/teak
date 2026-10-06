@@ -1,10 +1,13 @@
-import { afterEach, describe, expect, mock, test } from "bun:test";
-import {
-  mcpJwks,
-  mcpOAuthPreflight,
-  mcpUserInfo,
-} from "@/lib/mcp-oauth-endpoints";
-import { proxyAuthorizationServerMetadata } from "@/lib/oauth-metadata-proxy";
+import { afterEach, beforeEach, describe, expect, mock, test } from "bun:test";
+import { withAuthModeFetch } from "./authModeNetworkFixture";
+
+mock.module("server-only", () => ({}));
+const { mcpJwks, mcpOAuthPreflight, mcpUserInfo } = await import(
+  "@/lib/mcp-oauth-endpoints"
+);
+const { proxyAuthorizationServerMetadata } = await import(
+  "@/lib/oauth-metadata-proxy"
+);
 
 const originalFetch = globalThis.fetch;
 const originalConvexUrl = process.env.NEXT_PUBLIC_CONVEX_URL;
@@ -17,26 +20,31 @@ afterEach(() => {
 });
 
 describe("MCP OAuth metadata and endpoints", () => {
+  beforeEach(() => {
+    process.env.NEXT_PUBLIC_CONVEX_URL = "https://example.convex.cloud";
+  });
   test("normalizes authorization-server metadata to supported OAuth scopes and live routes", async () => {
     process.env.NEXT_PUBLIC_CONVEX_SITE_URL = "https://example.convex.site";
-    globalThis.fetch = mock(() =>
-      Response.json({
-        issuer: "https://app.teakvault.com",
-        authorization_endpoint:
-          "https://app.teakvault.com/api/auth/mcp/authorize",
-        token_endpoint: "https://app.teakvault.com/api/auth/mcp/token",
-        registration_endpoint:
-          "https://app.teakvault.com/api/auth/mcp/register",
-        userinfo_endpoint: "https://app.teakvault.com/api/auth/mcp/userinfo",
-        jwks_uri: "https://app.teakvault.com/api/auth/mcp/jwks",
-        scopes_supported: ["openid", "profile", "email", "offline_access"],
-        id_token_signing_alg_values_supported: ["RS256"],
-        response_types_supported: ["code"],
-        grant_types_supported: ["authorization_code", "refresh_token"],
-        token_endpoint_auth_methods_supported: ["none"],
-        code_challenge_methods_supported: ["S256"],
-      })
-    ) as unknown as typeof fetch;
+    globalThis.fetch = withAuthModeFetch(
+      mock(() =>
+        Response.json({
+          issuer: "https://app.teakvault.com",
+          authorization_endpoint:
+            "https://app.teakvault.com/api/auth/mcp/authorize",
+          token_endpoint: "https://app.teakvault.com/api/auth/mcp/token",
+          registration_endpoint:
+            "https://app.teakvault.com/api/auth/mcp/register",
+          userinfo_endpoint: "https://app.teakvault.com/api/auth/mcp/userinfo",
+          jwks_uri: "https://app.teakvault.com/api/auth/mcp/jwks",
+          scopes_supported: ["openid", "profile", "email", "offline_access"],
+          id_token_signing_alg_values_supported: ["RS256"],
+          response_types_supported: ["code"],
+          grant_types_supported: ["authorization_code", "refresh_token"],
+          token_endpoint_auth_methods_supported: ["none"],
+          code_challenge_methods_supported: ["S256"],
+        })
+      ) as unknown as typeof fetch
+    );
 
     const response = await proxyAuthorizationServerMetadata();
 
@@ -50,24 +58,30 @@ describe("MCP OAuth metadata and endpoints", () => {
     expect(body.userinfo_endpoint).toBe(
       "https://app.teakvault.com/api/auth/mcp/userinfo"
     );
+    expect(body.revocation_endpoint).toBe(
+      "https://example.convex.site/api/oauth/revoke"
+    );
+    expect(body.revocation_endpoint_auth_methods_supported).toEqual(["none"]);
     expect(body.jwks_uri).toBe("https://app.teakvault.com/api/auth/mcp/jwks");
     expect(body).not.toHaveProperty("id_token_signing_alg_values_supported");
   });
 
   test("serves MCP userinfo from a valid bearer token", async () => {
     process.env.NEXT_PUBLIC_CONVEX_URL = "https://example.convex.cloud";
-    globalThis.fetch = mock((input: RequestInfo | URL) => {
-      expect(String(input)).toBe("https://example.convex.cloud/api/query");
-      return Response.json({
-        status: "success",
-        value: {
-          sub: "user_1",
-          email: "hello@example.com",
-          email_verified: true,
-          name: "Ada Lovelace",
-        },
-      });
-    }) as unknown as typeof fetch;
+    globalThis.fetch = withAuthModeFetch(
+      mock((input: RequestInfo | URL) => {
+        expect(String(input)).toBe("https://example.convex.cloud/api/query");
+        return Response.json({
+          status: "success",
+          value: {
+            sub: "user_1",
+            email: "hello@example.com",
+            email_verified: true,
+            name: "Ada Lovelace",
+          },
+        });
+      }) as unknown as typeof fetch
+    );
 
     const response = await mcpUserInfo(
       new Request("https://app.teakvault.com/api/auth/mcp/userinfo", {
@@ -98,12 +112,14 @@ describe("MCP OAuth metadata and endpoints", () => {
 
   test("serves MCP JWKS from the Convex auth JWKS source", async () => {
     process.env.NEXT_PUBLIC_CONVEX_SITE_URL = "https://example.convex.site/";
-    globalThis.fetch = mock((input: RequestInfo | URL) => {
-      expect(String(input)).toBe(
-        "https://example.convex.site/api/auth/convex/jwks"
-      );
-      return Response.json({ keys: [{ kid: "key_1" }] });
-    }) as unknown as typeof fetch;
+    globalThis.fetch = withAuthModeFetch(
+      mock((input: RequestInfo | URL) => {
+        expect(String(input)).toBe(
+          "https://example.convex.site/api/auth/convex/jwks"
+        );
+        return Response.json({ keys: [{ kid: "key_1" }] });
+      }) as unknown as typeof fetch
+    );
 
     const response = await mcpJwks();
 

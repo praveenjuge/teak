@@ -12,19 +12,24 @@ import {
   listStyle,
   scrollDisabled,
 } from "@expo/ui/swift-ui/modifiers";
+import { SIGNUPS_PAUSED_MESSAGE } from "@teak/convex/shared/constants";
 import { Stack, useFocusEffect } from "expo-router";
 import { useCallback, useState } from "react";
 import { Alert, Keyboard, PlatformColor, Pressable } from "react-native";
+import HostedAuthScreen from "@/components/HostedAuthScreen";
 import { IconSymbol } from "@/components/ui/IconSymbol";
 import { authClient } from "@/lib/auth-client";
 import { getAuthErrorMessage } from "@/lib/getAuthErrorMessage";
+import { useMobileAuth } from "@/lib/mobile-auth-context";
 
 export default function SignUpScreen() {
+  const authMode = useMobileAuth().mode;
   const [emailAddress, setEmailAddress] = useState("");
   const [password, setPassword] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const canSubmit =
+    authMode?.signupsDisabled === false &&
     !isSubmitting &&
     emailAddress.trim().length > 0 &&
     password.trim().length > 0;
@@ -47,7 +52,7 @@ export default function SignUpScreen() {
   );
 
   const onSignUpPress = async () => {
-    if (isSubmitting) {
+    if (!canSubmit) {
       return;
     }
 
@@ -106,55 +111,71 @@ export default function SignUpScreen() {
     }
   };
 
+  if (authMode.primary === "workos") {
+    return <HostedAuthScreen register />;
+  }
   return (
     <>
       <Stack.Screen
         options={{
-          headerRight: () => (
-            <Pressable
-              accessibilityHint="Creates your account with the entered credentials."
-              accessibilityLabel={
-                isSubmitting ? "Creating account" : "Create account"
-              }
-              accessibilityRole="button"
-              disabled={!canSubmit}
-              hitSlop={8}
-              onPress={() => void onSignUpPress()}
-            >
-              <IconSymbol
-                animationSpec={
-                  canSubmit
-                    ? {
-                        effect: {
-                          type: "bounce",
-                          direction: "up",
-                        },
+          headerRight:
+            authMode?.signupsDisabled === false
+              ? () => (
+                  <Pressable
+                    accessibilityHint="Creates your account with the entered credentials."
+                    accessibilityLabel={
+                      isSubmitting ? "Creating account" : "Create account"
+                    }
+                    accessibilityRole="button"
+                    disabled={!canSubmit}
+                    hitSlop={8}
+                    onPress={() => void onSignUpPress()}
+                  >
+                    <IconSymbol
+                      animationSpec={
+                        canSubmit
+                          ? {
+                              effect: {
+                                type: "bounce",
+                                direction: "up",
+                              },
+                            }
+                          : undefined
                       }
-                    : undefined
-                }
-                color={PlatformColor(canSubmit ? "label" : "tertiaryLabel")}
-                name={isSubmitting ? "hourglass" : "checkmark"}
-                weight={isSubmitting ? "regular" : "semibold"}
-              />
-            </Pressable>
-          ),
+                      color={PlatformColor(
+                        canSubmit ? "label" : "tertiaryLabel"
+                      )}
+                      name={isSubmitting ? "hourglass" : "checkmark"}
+                      weight={isSubmitting ? "regular" : "semibold"}
+                    />
+                  </Pressable>
+                )
+              : undefined,
         }}
       />
       <Host style={{ flex: 1 }} useViewportSizeMeasurement>
         <List modifiers={[listStyle("plain"), scrollDisabled()]}>
-          <LabeledContent label="Email">
-            <TextField
-              onTextChange={setEmailAddress}
-              placeholder="Enter your email"
-            />
-          </LabeledContent>
+          {authMode?.signupsDisabled === false ? (
+            <>
+              <LabeledContent label="Email">
+                <TextField
+                  onTextChange={setEmailAddress}
+                  placeholder="Enter your email"
+                />
+              </LabeledContent>
 
-          <LabeledContent label="Password">
-            <SecureField
-              onTextChange={setPassword}
-              placeholder="Enter your password (min. 8 characters)"
-            />
-          </LabeledContent>
+              <LabeledContent label="Password">
+                <SecureField
+                  onTextChange={setPassword}
+                  placeholder="Enter your password (min. 8 characters)"
+                />
+              </LabeledContent>
+            </>
+          ) : (
+            <Text modifiers={[font({ design: "rounded" })]}>
+              {authMode ? SIGNUPS_PAUSED_MESSAGE : "Loading…"}
+            </Text>
+          )}
 
           {errorMessage ? (
             <Text

@@ -6,13 +6,13 @@ export type AuthRouteState =
 
 export interface AuthBootstrapInput {
   hasAttemptedSessionRefresh: boolean;
-  hasBetterAuthSession: boolean;
-  hasStoredSessionCookie: boolean;
-  isBetterAuthPending: boolean;
+  hasSession: boolean;
+  hasStoredSession: boolean;
   isConvexAuthenticated: boolean;
   isConvexLoading: boolean;
   isOnline: boolean;
   isRefreshingSession: boolean;
+  isSessionPending: boolean;
 }
 
 export function hasStoredBetterAuthSessionCookie(cookie: string | null) {
@@ -22,9 +22,9 @@ export function hasStoredBetterAuthSessionCookie(cookie: string | null) {
 }
 
 export function getAuthRouteState({
-  hasStoredSessionCookie,
-  hasBetterAuthSession,
-  isBetterAuthPending,
+  hasStoredSession,
+  hasSession,
+  isSessionPending,
   hasAttemptedSessionRefresh,
   isRefreshingSession,
   isConvexLoading,
@@ -32,9 +32,9 @@ export function getAuthRouteState({
   isOnline,
 }: AuthBootstrapInput): AuthRouteState {
   if (
-    hasStoredSessionCookie &&
-    !hasBetterAuthSession &&
-    (isBetterAuthPending || isRefreshingSession || !hasAttemptedSessionRefresh)
+    hasStoredSession &&
+    !hasSession &&
+    (isSessionPending || isRefreshingSession || !hasAttemptedSessionRefresh)
   ) {
     return "loading";
   }

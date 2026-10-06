@@ -1,3 +1,4 @@
+import { ConvexError } from "convex/values";
 import { internal } from "../_generated/api";
 import type { Doc, Id } from "../_generated/dataModel";
 import type { MutationCtx, QueryCtx } from "../_generated/server";
@@ -545,6 +546,7 @@ export const searchCardsByExactTag = async (
     createdAfter?: number;
     createdBefore?: number;
     limit: number;
+    scanBudget?: { remaining: number; hitSearchLimit?: boolean };
     sort: "newest" | "oldest";
     resultFilter?: (card: Doc<"cards">) => boolean;
   }
@@ -554,10 +556,10 @@ export const searchCardsByExactTag = async (
     return [];
   }
   const { isFavorited, type } = args;
-  const takeLimit = Math.min(400, Math.max(1, args.limit));
-  let tagDocuments: Doc<"cardSearchTags">[];
+  const matchLimit = Math.min(4096, Math.max(1, args.limit));
+  let tagQuery: AsyncIterable<Doc<"cardSearchTags">>;
   if (type !== undefined && isFavorited !== undefined) {
-    tagDocuments = await ctx.db
+    tagQuery = ctx.db
       .query("cardSearchTags")
       .withIndex("by_user_tag_deleted_type_favorited", (range) =>
         range
@@ -569,10 +571,9 @@ export const searchCardsByExactTag = async (
           .gte("cardCreatedAt", args.createdAfter ?? Number.MIN_SAFE_INTEGER)
           .lte("cardCreatedAt", args.createdBefore ?? Number.MAX_SAFE_INTEGER)
       )
-      .order(args.sort === "oldest" ? "asc" : "desc")
-      .take(takeLimit);
+      .order(args.sort === "oldest" ? "asc" : "desc");
   } else if (type !== undefined) {
-    tagDocuments = await ctx.db
+    tagQuery = ctx.db
       .query("cardSearchTags")
       .withIndex("by_user_tag_deleted_type", (range) =>
         range
@@ -583,10 +584,9 @@ export const searchCardsByExactTag = async (
           .gte("cardCreatedAt", args.createdAfter ?? Number.MIN_SAFE_INTEGER)
           .lte("cardCreatedAt", args.createdBefore ?? Number.MAX_SAFE_INTEGER)
       )
-      .order(args.sort === "oldest" ? "asc" : "desc")
-      .take(takeLimit);
+      .order(args.sort === "oldest" ? "asc" : "desc");
   } else if (isFavorited === undefined) {
-    tagDocuments = await ctx.db
+    tagQuery = ctx.db
       .query("cardSearchTags")
       .withIndex("by_user_tag_deleted_created", (range) =>
         range
@@ -596,10 +596,9 @@ export const searchCardsByExactTag = async (
           .gte("cardCreatedAt", args.createdAfter ?? Number.MIN_SAFE_INTEGER)
           .lte("cardCreatedAt", args.createdBefore ?? Number.MAX_SAFE_INTEGER)
       )
-      .order(args.sort === "oldest" ? "asc" : "desc")
-      .take(takeLimit);
+      .order(args.sort === "oldest" ? "asc" : "desc");
   } else {
-    tagDocuments = await ctx.db
+    tagQuery = ctx.db
       .query("cardSearchTags")
       .withIndex("by_user_tag_deleted_favorited", (range) =>
         range
@@ -610,19 +609,27 @@ export const searchCardsByExactTag = async (
           .gte("cardCreatedAt", args.createdAfter ?? Number.MIN_SAFE_INTEGER)
           .lte("cardCreatedAt", args.createdBefore ?? Number.MAX_SAFE_INTEGER)
       )
-      .order(args.sort === "oldest" ? "asc" : "desc")
-      .take(takeLimit);
+      .order(args.sort === "oldest" ? "asc" : "desc");
   }
-  const cards = await Promise.all(
-    tagDocuments.map((document) => ctx.db.get("cards", document.cardId))
-  );
-  return Array.from(
-    new Map(
-      cards
-        .filter((card): card is Doc<"cards"> => card !== null)
-        .map((card) => [card._id, card] as const)
-    ).values()
-  ).filter(args.resultFilter ?? (() => true));
+  const cardsById = new Map<Id<"cards">, Doc<"cards">>();
+  const scanBudget = args.scanBudget ?? { remaining: 4096 };
+  for await (const document of tagQuery) {
+    if (scanBudget.remaining <= 0) {
+      throw new ConvexError({
+        code: "INVALID_INPUT",
+        message: "Search is too broad. Add a type or date filter.",
+      });
+    }
+    scanBudget.remaining -= 1;
+    const card = await ctx.db.get("cards", document.cardId);
+    if (card && (!args.resultFilter || args.resultFilter(card))) {
+      cardsById.set(card._id, card);
+      if (cardsById.size >= matchLimit) {
+        break;
+      }
+    }
+  }
+  return Array.from(cardsById.values());
 };
 
 export const searchCardsByDocument = async (
@@ -634,53 +641,59 @@ export const searchCardsByDocument = async (
     isFavorited?: boolean;
     type?: Doc<"cards">["type"];
     limit: number;
+    scanBudget?: { remaining: number; hitSearchLimit?: boolean };
     resultFilter?: (card: Doc<"cards">) => boolean;
   }
 ): Promise<Doc<"cards">[]> => {
-  // Convex permits at most 4,096 documents in a single query result. Grow to
-  // that platform bound only when overlap or post-index filters require it.
-  const maximumSourceLimit = 4096;
-  let sourceLimit = Math.min(100, Math.max(1, args.limit));
-  while (true) {
-    const derivedDocuments = await ctx.db
-      .query("cardSearchDocuments")
-      .withSearchIndex("search_searchableText", (query) => {
-        let filtered = query
-          .search("searchableText", args.searchQuery)
-          .eq("userId", args.userId)
-          .eq("isDeleted", args.isDeleted);
-        if (args.type !== undefined) {
-          filtered = filtered.eq("type", args.type);
-        }
-        if (args.isFavorited !== undefined) {
-          filtered = filtered.eq(
-            "isFavorited",
-            args.isFavorited ? true : undefined
-          );
-        }
-        return filtered;
-      })
-      .take(sourceLimit);
-    const cardsById = new Map<Id<"cards">, Doc<"cards">>();
-    const derivedCards = await Promise.all(
-      derivedDocuments.map((document) => ctx.db.get("cards", document.cardId))
-    );
-    for (const card of derivedCards) {
-      if (card) {
-        cardsById.set(card._id, card);
+  const scanBudget = args.scanBudget ?? { remaining: 4096 };
+  const cardsById = new Map<Id<"cards">, Doc<"cards">>();
+  const matchLimit = Math.min(1024, Math.max(1, args.limit));
+  const sourceLimit = Math.min(1024, scanBudget.remaining);
+  if (sourceLimit <= 0) {
+    throw new ConvexError({
+      code: "INVALID_INPUT",
+      message: "Search is too broad. Add a type or date filter.",
+    });
+  }
+  const documents = await ctx.db
+    .query("cardSearchDocuments")
+    .withSearchIndex("search_searchableText", (query) => {
+      let filtered = query
+        .search("searchableText", args.searchQuery)
+        .eq("userId", args.userId)
+        .eq("isDeleted", args.isDeleted);
+      if (args.type !== undefined) {
+        filtered = filtered.eq("type", args.type);
+      }
+      if (args.isFavorited !== undefined) {
+        filtered = filtered.eq(
+          "isFavorited",
+          args.isFavorited ? true : undefined
+        );
+      }
+      return filtered;
+    })
+    .take(sourceLimit);
+  scanBudget.remaining -= documents.length;
+  if (documents.length === sourceLimit) {
+    scanBudget.hitSearchLimit = true;
+  }
+  for (const document of documents) {
+    const card = await ctx.db.get("cards", document.cardId);
+    if (card && (!args.resultFilter || args.resultFilter(card))) {
+      cardsById.set(card._id, card);
+      if (cardsById.size >= matchLimit) {
+        break;
       }
     }
-    const cards = Array.from(cardsById.values()).filter(
-      args.resultFilter ?? (() => true)
-    );
-    const sourceExhausted = derivedDocuments.length < sourceLimit;
-    if (
-      cards.length >= args.limit ||
-      sourceExhausted ||
-      sourceLimit >= maximumSourceLimit
-    ) {
-      return cards;
-    }
-    sourceLimit = Math.min(sourceLimit * 2, maximumSourceLimit);
   }
+  // Convex checks its 1,024-result cap before probing exhaustion, so a
+  // saturated search cannot prove that all post-filter matches were examined.
+  if (documents.length === sourceLimit && cardsById.size < matchLimit) {
+    throw new ConvexError({
+      code: "INVALID_INPUT",
+      message: "Search is too broad. Add a type or date filter.",
+    });
+  }
+  return Array.from(cardsById.values());
 };

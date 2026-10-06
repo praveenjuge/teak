@@ -45,11 +45,9 @@ test("scheduled email canary resets the password", async ({ browser }) => {
         }
       }
     });
-    await page.goto(appPath("/login"));
-    await page.getByLabel("Email").fill(primary.email);
-    await page.getByLabel("Password").fill(requirePassword());
-    await page.getByRole("button", { name: /login|sign in/i }).click();
-    await expect(page.getByText(/invalid|incorrect/i)).toBeVisible();
+    await signIn(page, primary.email, requirePassword(), {
+      failure: /invalid|incorrect/i,
+    });
     await signIn(page, primary.email, nextPassword);
   } finally {
     await context.close();
@@ -91,7 +89,11 @@ test("signing out from settings returns to login without crashing", async ({
     await page.getByRole("button", { name: "Sign out", exact: true }).click();
 
     await page.waitForURL(/\/login/, { timeout: 15_000 });
-    await expect(page.getByLabel("Email")).toBeVisible();
+    await expect(
+      page
+        .getByLabel("Email", { exact: true })
+        .or(page.getByRole("button", { name: "Continue", exact: true }))
+    ).toBeVisible();
     await expect(page.getByText(/couldn't load/i)).toHaveCount(0);
   } finally {
     await context.close();

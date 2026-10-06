@@ -2,6 +2,8 @@
 
 export const SITE_URL = "https://teakvault.com";
 export const SITE_NAME = "Teak";
+export const SITE_DESCRIPTION =
+  "Teak is a personal knowledge hub for saving, finding, and syncing cards across web, desktop, mobile, and agents.";
 
 /**
  * FAQ / WebPage graph for marketing pages. Docs pages rely on Blume's built-in
@@ -21,6 +23,7 @@ export function buildPageSchemas(opts: {
       "@id": `${SITE_URL}/#organization`,
       name: SITE_NAME,
       url: SITE_URL,
+      description: SITE_DESCRIPTION,
       logo: {
         "@type": "ImageObject",
         url: `${SITE_URL}/icon.png`,

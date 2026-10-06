@@ -6,6 +6,7 @@ Keep user documentation synchronized in the same change:
 
 - Public API contracts in `packages/convex/http.ts`, `publicApiHttp.ts`, `publicApiMeta.ts`, or `publicApiOpenApi.ts` -> `content/docs/(developers)/api.mdx`
 - MCP behavior under `packages/convex/mcp` -> `content/docs/(developers)/mcp.mdx`
+- Mac app behavior under `apps/mac` -> `content/docs/(apps)/mac.mdx`
 - Raycast commands or authentication -> `content/docs/(apps)/raycast.mdx`
 - CLI or public SDK behavior under `apps/cli` or `packages/convex/client/sdk.ts` -> `content/docs/(apps)/cli.mdx`
 - Public skills under `.agents/skills` -> `content/docs/(developers)/ai-agents.mdx` and `pages/apps.astro` (`/docs/skills` redirects to `/docs/ai-agents`)

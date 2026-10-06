@@ -5,9 +5,9 @@ import { fileURLToPath } from "node:url";
 
 const semverPattern = /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$/;
 const safariManifest =
-  "apps/safari-extension/Shared (Extension)/Resources/manifest.json";
+  "apps/mac/Shared (Extension)/Resources/manifest.json";
 export const safariXcodeProject =
-  "apps/safari-extension/teak-safari.xcodeproj/project.pbxproj";
+  "apps/mac/teak-mac.xcodeproj/project.pbxproj";
 
 export function parseVersion(value) {
   const match = semverPattern.exec(value);
@@ -79,7 +79,7 @@ function defaultSafariXcodeSource(repoRoot) {
   try {
     process.chdir(repoRoot);
     return fs.readFileSync(
-      "apps/safari-extension/teak-safari.xcodeproj/project.pbxproj",
+      "apps/mac/teak-mac.xcodeproj/project.pbxproj",
       "utf8"
     );
   } catch (error) {

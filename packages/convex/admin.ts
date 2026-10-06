@@ -5,7 +5,6 @@ import type { Doc, Id } from "./_generated/dataModel";
 import {
   type ActionCtx,
   action,
-  env,
   internalMutation,
   type QueryCtx,
   query,
@@ -17,7 +16,7 @@ import type {
 } from "./card/processingStatus";
 import { stagePending } from "./card/processingStatus";
 import { patchCardWithSearchSync } from "./card/searchDocumentHelpers";
-import { getSessionIdentity } from "./securitySessions";
+import { getSessionUser } from "./securitySessions";
 import { tryResolveObjectUrl } from "./storage/fileUrls";
 import { deleteObject } from "./storage/r2";
 
@@ -59,36 +58,22 @@ const isOnboardingCard = (card: { content: string }): boolean =>
 
 type AdminCtx = QueryCtx | ActionCtx;
 
-const SINGLE_RESULT_PAGE = {
-  cursor: null,
-  numItems: 1,
-} as const;
-
-const getAdminUserId = async (ctx: AdminCtx) => {
-  const adminEmail = env.TEAK_ADMIN_EMAIL?.trim().toLowerCase();
-  if (!adminEmail) {
-    return null;
+const hasAdminAccess = async (ctx: AdminCtx): Promise<boolean> => {
+  const user = await getSessionUser(ctx);
+  if (!user) {
+    return false;
   }
-
-  const result = (await ctx.runQuery(components.betterAuth.adapter.findMany, {
-    model: "user",
-    where: [{ field: "email", operator: "eq", value: adminEmail }],
-    limit: 1,
-    paginationOpts: SINGLE_RESULT_PAGE,
-  })) as { page?: Array<{ _id: string }> };
-
-  return result?.page?.[0]?._id ?? null;
+  const mapping = await ctx.runQuery(
+    internal.securitySessions.identityMapping,
+    {
+      teakUserId: user.teakUserId,
+    }
+  );
+  return mapping?.role === "admin" && mapping.deletedAt === undefined;
 };
 
 const ensureAdmin = async (ctx: AdminCtx) => {
-  const identity = await getSessionIdentity(ctx);
-  if (!identity) {
-    throw new Error("Unauthorized");
-  }
-
-  const adminUserId = await getAdminUserId(ctx);
-
-  if (!adminUserId || identity.subject !== adminUserId) {
+  if (!(await hasAdminAccess(ctx))) {
     throw new Error("Unauthorized");
   }
 };
@@ -161,19 +146,8 @@ const getActiveCardCountForUser = async (
 
 export const getAccess = query({
   args: {},
-  handler: async (ctx) => {
-    const identity = await getSessionIdentity(ctx);
-    if (!identity) {
-      return { allowed: false } as const;
-    }
-
-    const adminUserId = await getAdminUserId(ctx);
-    const allowed = Boolean(adminUserId && identity.subject === adminUserId);
-
-    return {
-      allowed,
-    };
-  },
+  returns: v.object({ allowed: v.boolean() }),
+  handler: async (ctx) => ({ allowed: await hasAdminAccess(ctx) }),
 });
 
 export const getOverview = query({
@@ -399,14 +373,9 @@ export const listAllCards = query({
 });
 
 const normalizeUserId = (user: Record<string, unknown>) =>
-  (user as { _id?: string; id?: string; userId?: string; subject?: string })
-    ._id ??
-  (user as { _id?: string; id?: string; userId?: string; subject?: string })
-    .id ??
-  (user as { _id?: string; id?: string; userId?: string; subject?: string })
-    .userId ??
-  (user as { _id?: string; id?: string; userId?: string; subject?: string })
-    .subject ??
+  (user as { _id?: string; id?: string; userId?: string })._id ??
+  (user as { _id?: string; id?: string; userId?: string }).id ??
+  (user as { _id?: string; id?: string; userId?: string }).userId ??
   null;
 
 export const listAllUsers = query({

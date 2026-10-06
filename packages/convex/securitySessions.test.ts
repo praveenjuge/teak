@@ -1,8 +1,8 @@
 /// <reference types="vite/client" />
 import betterAuthTest from "@convex-dev/better-auth/test";
 import { convexTest } from "convex-test";
-import { describe, expect, test } from "vitest";
-import { api, components } from "./_generated/api";
+import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
+import { api, components, internal } from "./_generated/api";
 import schema from "./schema";
 
 const modules = import.meta.glob("./**/*.ts");
@@ -44,11 +44,35 @@ async function setup() {
     current,
     other,
     stranger,
-    authenticated: t.withIdentity({ subject: "owner", sessionId: current._id }),
+    authenticated: t.withIdentity({
+      issuer: process.env.CONVEX_SITE_URL,
+      subject: "owner",
+      sessionId: current._id,
+    }),
   };
 }
 
 describe("Security sessions", () => {
+  test("retry cache keys preserve the shipped query results and ownership", async () => {
+    const { t, authenticated } = await setup();
+    const original = await authenticated.query(
+      api.securitySessions.listSessions,
+      { paginationOpts }
+    );
+    expect(
+      await authenticated.query(api.securitySessions.listSessions, {
+        paginationOpts,
+        retryKey: crypto.randomUUID(),
+      })
+    ).toEqual(original);
+    expect(
+      await t.query(api.securitySessions.listSessions, {
+        paginationOpts,
+        retryKey: "owner",
+      })
+    ).toEqual({ page: [], isDone: true, continueCursor: "" });
+  });
+
   test("revoking a device blocks cached-token card reads and writes", async () => {
     const { t, authenticated, current, other } = await setup();
     const id = await t.run((ctx) =>
@@ -61,6 +85,7 @@ describe("Security sessions", () => {
       })
     );
     const otherDevice = t.withIdentity({
+      issuer: process.env.CONVEX_SITE_URL,
       subject: "owner",
       sessionId: other._id,
     });
@@ -84,6 +109,36 @@ describe("Security sessions", () => {
       content: "Private card",
     });
   });
+  test("a live legacy session cannot authorize a foreign provider issuer", async () => {
+    const { t, current } = await setup();
+    const id = await t.run((ctx) =>
+      ctx.db.insert("cards", {
+        userId: "owner",
+        type: "text",
+        content: "Private",
+        createdAt: 1,
+        updatedAt: 1,
+      })
+    );
+    const forged = t.withIdentity({
+      issuer: "https://api.workos.com/user_management/client_FOREIGN",
+      subject: "owner",
+      sessionId: current._id,
+    });
+    expect(await forged.query(api.cards.getCard, { id })).toBeNull();
+    await expect(
+      forged.mutation(api.securitySessions.revokeSession, {
+        sessionId: current._id,
+      })
+    ).rejects.toThrow("sign in");
+    expect(
+      await t.query(components.betterAuth.adapter.findOne, {
+        model: "session",
+        where: [{ field: "_id", value: current._id }],
+      })
+    ).toMatchObject({ _id: current._id });
+  });
+
   test("lists only owned live sessions with safe fields and this device first", async () => {
     const { authenticated, current, other } = await setup();
     const result = await authenticated.query(
@@ -161,6 +216,7 @@ describe("Security sessions", () => {
   test("a forged user/session pairing reveals nothing", async () => {
     const { t, current } = await setup();
     const forged = t.withIdentity({
+      issuer: process.env.CONVEX_SITE_URL,
       subject: "stranger",
       sessionId: current._id,
     });
@@ -171,5 +227,195 @@ describe("Security sessions", () => {
         })
       ).page
     ).toEqual([]);
+  });
+});
+
+// Failure modes: shadow mode denies a missing/deleted mapping or changes owners;
+// enforcement accepts an unmapped/tombstoned account; resolution writes data;
+// issuer-derived upload keys strand an existing upload after token changes;
+// another owner reads it; old provider-keyed sessions remain reusable.
+describe("Permanent identity shadow boundary", () => {
+  beforeEach(() => vi.stubEnv("IDENTITY_RESOLVER_ENFORCE", "false"));
+  afterEach(() => vi.unstubAllEnvs());
+
+  test("upload finalization denies revoked sessions and enforced missing mappings before storage work", async () => {
+    const { t, authenticated, current } = await setup();
+    const args = {
+      fileKey: "uncommitted/file.png",
+      fileName: "file.png",
+      fileSize: 128,
+      fileType: "image/png",
+    };
+    vi.stubEnv("IDENTITY_RESOLVER_ENFORCE", "true");
+    expect(
+      await authenticated.action(
+        api["card/uploadCardAction"].finalizeUploadedCard,
+        args
+      )
+    ).toEqual({ success: false, error: "User must be authenticated" });
+    await t.run((ctx) =>
+      ctx.db.insert("users", {
+        teakUserId: "owner",
+        email: "owner@example.com",
+        emailVerified: true,
+      })
+    );
+    await authenticated.mutation(api.securitySessions.revokeSession, {
+      sessionId: current._id,
+    });
+    expect(
+      await authenticated.action(
+        api["card/uploadCardAction"].finalizeUploadedCard,
+        args
+      )
+    ).toEqual({ success: false, error: "User must be authenticated" });
+    expect(await t.run((ctx) => ctx.db.query("cards").collect())).toEqual([]);
+  });
+
+  const privateCard = (t: Awaited<ReturnType<typeof setup>>["t"]) =>
+    t.run((ctx) =>
+      ctx.db.insert("cards", {
+        userId: "owner",
+        type: "text",
+        content: "Original owner vault",
+        createdAt: Date.now(),
+        updatedAt: Date.now(),
+      })
+    );
+
+  test("shadow reads preserve the legacy owner without creating a missing mapping", async () => {
+    const { t, authenticated } = await setup();
+    const id = await privateCard(t);
+    expect(await authenticated.query(api.cards.getCard, { id })).toMatchObject({
+      userId: "owner",
+      content: "Original owner vault",
+    });
+    expect(await t.run((ctx) => ctx.db.query("users").collect())).toEqual([]);
+  });
+
+  test("shadow mode denies a tombstoned mapping", async () => {
+    const { t, authenticated } = await setup();
+    const id = await privateCard(t);
+    const row = await t.run((ctx) =>
+      ctx.db.insert("users", {
+        teakUserId: "owner",
+        email: "",
+        emailVerified: false,
+        deletedAt: Date.now(),
+      })
+    );
+    expect(await authenticated.query(api.cards.getCard, { id })).toBeNull();
+    expect(await t.run((ctx) => ctx.db.get(row))).toMatchObject({
+      email: "",
+      deletedAt: expect.any(Number),
+    });
+  });
+
+  test("enforcement denies missing mappings and a tombstone, then accepts an active original mapping", async () => {
+    vi.stubEnv("IDENTITY_RESOLVER_ENFORCE", "true");
+    const { t, authenticated } = await setup();
+    const id = await privateCard(t);
+    expect(await authenticated.query(api.cards.getCard, { id })).toBeNull();
+    const row = await t.run((ctx) =>
+      ctx.db.insert("users", {
+        teakUserId: "owner",
+        email: "owner@example.com",
+        emailVerified: false,
+      })
+    );
+    expect(await authenticated.query(api.cards.getCard, { id })).toMatchObject({
+      userId: "owner",
+    });
+    await t.run((ctx) =>
+      ctx.db.patch("users", row, {
+        deletedAt: Date.now(),
+        email: "",
+        emailVerified: false,
+      })
+    );
+    expect(await authenticated.query(api.cards.getCard, { id })).toBeNull();
+    await expect(
+      authenticated.mutation(api.cards.createCard, {
+        type: "text",
+        content: "Denied tombstone write",
+      })
+    ).rejects.toThrow("authenticated");
+  });
+
+  test("an invalid enforcement flag fails rather than silently enabling shadow mode", async () => {
+    vi.stubEnv("IDENTITY_RESOLVER_ENFORCE", "invalid");
+    const { t, authenticated } = await setup();
+    const id = await privateCard(t);
+    await expect(
+      authenticated.query(api.cards.getCard, { id })
+    ).rejects.toThrow("must be true or false");
+  });
+
+  test("uploads keep their owner across token-identifier changes and reject other owners and legacy sessions", async () => {
+    const { t, current, stranger } = await setup();
+    const args = {
+      fileName: "same-video.mp4",
+      fileSize: 100_000_000,
+      fileLastModified: 123,
+    };
+    const upload = {
+      ...args,
+      userId: "owner",
+      teakUserId: "owner",
+      sourceKey: "test-upload/video.mp4",
+      uploadId: "multipart-1",
+      fileType: "video/mp4",
+      partSize: 8 * 1024 * 1024,
+      parts: [],
+      status: "uploading" as const,
+      createdAt: Date.now(),
+      updatedAt: Date.now(),
+      expiresAt: Date.now() + 60_000,
+    };
+    const sessionId = await t.run((ctx) =>
+      ctx.db.insert("fileUploadSessions", upload)
+    );
+    for (const tokenIdentifier of ["old-issuer|owner", "new-issuer|owner"]) {
+      const client = t.withIdentity({
+        issuer: process.env.CONVEX_SITE_URL,
+        subject: "owner",
+        sessionId: current._id,
+        tokenIdentifier,
+      });
+      expect(
+        await client.query(internal.fileUploads.getSessionForUser, {
+          sessionId,
+        })
+      ).toMatchObject({ _id: sessionId, userId: "owner" });
+      expect(
+        await client.query(internal.fileUploads.findActiveSession, args)
+      ).toMatchObject({ _id: sessionId });
+    }
+    expect(
+      await t
+        .withIdentity({
+          issuer: process.env.CONVEX_SITE_URL,
+          subject: "stranger",
+          sessionId: stranger._id,
+        })
+        .query(internal.fileUploads.getSessionForUser, { sessionId })
+    ).toBeNull();
+    const legacyId = await t.run((ctx) => {
+      const { teakUserId: _owner, ...legacy } = upload;
+      return ctx.db.insert("fileUploadSessions", {
+        ...legacy,
+        identityKey: "old-issuer|owner",
+      });
+    });
+    expect(
+      await t
+        .withIdentity({
+          issuer: process.env.CONVEX_SITE_URL,
+          subject: "owner",
+          sessionId: current._id,
+          tokenIdentifier: "old-issuer|owner",
+        })
+        .query(internal.fileUploads.getSessionForUser, { sessionId: legacyId })
+    ).toBeNull();
   });
 });

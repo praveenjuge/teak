@@ -1,3 +1,6 @@
+import { isSignUpDisabledError } from "@teak/convex/shared/authErrors";
+import { SIGNUPS_PAUSED_MESSAGE } from "@teak/convex/shared/constants";
+
 export type SocialProvider = "google" | "apple";
 
 const PROVIDER_LABEL: Record<SocialProvider, string> = {
@@ -25,6 +28,9 @@ export const socialSignInErrorMessage = (
   message: string | undefined,
   fallback: string
 ): string => {
+  if (message && isSignUpDisabledError(message)) {
+    return SIGNUPS_PAUSED_MESSAGE;
+  }
   if (message && isProviderNotConfiguredMessage(message)) {
     return (
       `${PROVIDER_LABEL[provider]} sign-in isn't available on this server ` +

@@ -43,8 +43,10 @@ jobs:
         run: bun run setup --target web --convex local
       - name: Doctor JSON must pass
         run: |
-          bun run --silent doctor --target web --profile local --json > /tmp/doctor.json
+          doctor_exit=0
+          bun run --silent doctor --target web --profile local --json > /tmp/doctor.json || doctor_exit=$?
           cat /tmp/doctor.json
+          test "$doctor_exit" -eq 0
           test "$(jq -r .ok /tmp/doctor.json)" = "true"
       - name: Authenticated journey smoke
         run: |

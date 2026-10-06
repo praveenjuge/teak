@@ -1,6 +1,20 @@
-import { beforeEach, describe, expect, mock, test } from "bun:test";
+import { afterEach, beforeEach, describe, expect, mock, test } from "bun:test";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
+
+import { withAuthModeFetch } from "./authModeNetworkFixture";
+
+mock.module("server-only", () => ({}));
+const originalFetch = globalThis.fetch;
+const originalConvexUrl = process.env.NEXT_PUBLIC_CONVEX_URL;
+afterEach(() => {
+  globalThis.fetch = originalFetch;
+  if (originalConvexUrl === undefined) {
+    delete process.env.NEXT_PUBLIC_CONVEX_URL;
+  } else {
+    process.env.NEXT_PUBLIC_CONVEX_URL = originalConvexUrl;
+  }
+});
 
 const fetchAuthMutation = mock();
 const isAuthenticated = mock();
@@ -43,6 +57,8 @@ const postApprove = (init?: {
 
 describe("native auth routes", () => {
   beforeEach(() => {
+    process.env.NEXT_PUBLIC_CONVEX_URL = "https://example.convex.cloud";
+    globalThis.fetch = withAuthModeFetch(originalFetch);
     fetchAuthMutation.mockReset();
     isAuthenticated.mockReset();
   });

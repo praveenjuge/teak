@@ -4,14 +4,15 @@ import {
   buildUploadSigningPayload,
   FILES_PROTOCOL_VERSION,
 } from "@teak/files-protocol";
+import { freezeObject } from "./deletionGate";
 import worker, { type Env } from "./index";
 import { hmacSha256Hex, sha256Hex } from "./lib";
-import { FakeBucket } from "./testsupport";
+import { FakeBucket, withObjectGates } from "./testsupport";
 
 const SECRET = "test-secret";
 
 const env = (): Env =>
-  ({
+  withObjectGates({
     BUCKET: new FakeBucket() as unknown as R2Bucket,
     FILES_SIGNING_SECRET: SECRET,
   }) as Env;
@@ -99,10 +100,10 @@ const signedOpRequest = async (
 describe("signed single-file uploads", () => {
   test("accepts a valid upload and stores the object with signed metadata", async () => {
     const bucket = new FakeBucket();
-    const envWithBucket = {
+    const envWithBucket = withObjectGates({
       BUCKET: bucket,
       FILES_SIGNING_SECRET: SECRET,
-    } as Env;
+    }) as Env;
     const bytes = new TextEncoder().encode("hello teak");
     const response = await worker.fetch(
       await signedUploadRequest(bytes, { boundSize: bytes.byteLength }),
@@ -128,10 +129,10 @@ describe("signed single-file uploads", () => {
 
   test("accepts an unbound content type and stores the request header", async () => {
     const bucket = new FakeBucket();
-    const envWithBucket = {
+    const envWithBucket = withObjectGates({
       BUCKET: bucket,
       FILES_SIGNING_SECRET: SECRET,
-    } as Env;
+    }) as Env;
     // Signature is minted with an empty content type (no ct param); the
     // request's own validated Content-Type is stored verbatim.
     const key = "users/u1/cards/thumbnail/frame";
@@ -310,7 +311,7 @@ describe("additive files ops", () => {
       await signedOpRequest("cleanup-stale-pending-uploads", {
         prefix: "users/",
       }),
-      { BUCKET: bucket, FILES_SIGNING_SECRET: SECRET } as Env,
+      withObjectGates({ BUCKET: bucket, FILES_SIGNING_SECRET: SECRET }) as Env,
       { waitUntil: () => undefined } as never
     );
     expect(response.status).toBe(200);
@@ -345,7 +346,7 @@ describe("additive files ops", () => {
       await signedOpRequest("cleanup-stale-pending-uploads", {
         prefix: "users/",
       }),
-      { BUCKET: bucket, FILES_SIGNING_SECRET: SECRET } as Env,
+      withObjectGates({ BUCKET: bucket, FILES_SIGNING_SECRET: SECRET }) as Env,
       { waitUntil: () => undefined } as never
     );
     expect(response.status).toBe(200);
@@ -383,7 +384,7 @@ describe("additive files ops", () => {
       await signedOpRequest("delete-objects", {
         keys: ["users/u1/a.txt", "users/u1/missing.bin"],
       }),
-      { BUCKET: bucket, FILES_SIGNING_SECRET: SECRET } as Env,
+      withObjectGates({ BUCKET: bucket, FILES_SIGNING_SECRET: SECRET }) as Env,
       { waitUntil: () => undefined } as never
     );
     expect(response.status).toBe(200);
@@ -422,7 +423,7 @@ describe("additive files ops", () => {
     });
     const present = await worker.fetch(
       await signedOpRequest("head-object", { key: "users/u1/img.png" }),
-      { BUCKET: bucket, FILES_SIGNING_SECRET: SECRET } as Env,
+      withObjectGates({ BUCKET: bucket, FILES_SIGNING_SECRET: SECRET }) as Env,
       { waitUntil: () => undefined } as never
     );
     const payload = (await present.json()) as {
@@ -434,7 +435,7 @@ describe("additive files ops", () => {
 
     const missing = await worker.fetch(
       await signedOpRequest("head-object", { key: "users/u1/nope.png" }),
-      { BUCKET: bucket, FILES_SIGNING_SECRET: SECRET } as Env,
+      withObjectGates({ BUCKET: bucket, FILES_SIGNING_SECRET: SECRET }) as Env,
       { waitUntil: () => undefined } as never
     );
     const missingPayload = (await missing.json()) as {
@@ -457,7 +458,7 @@ describe("additive files ops", () => {
   test("generate-image-metadata validates AI output with bounded retries", async () => {
     let calls = 0;
     let capturedImageUrl: unknown;
-    const aiEnv = {
+    const aiEnv = withObjectGates({
       AI: {
         run: (_model: string, args: Record<string, unknown>) => {
           calls += 1;
@@ -489,7 +490,7 @@ describe("additive files ops", () => {
       },
       BUCKET: new FakeBucket(),
       FILES_SIGNING_SECRET: SECRET,
-    } as unknown as Env;
+    }) as unknown as Env;
 
     // Seed a tiny PNG source so the detail rendition transform can be faked.
     const bucket = aiEnv.BUCKET as unknown as FakeBucket;
@@ -540,7 +541,7 @@ describe("additive files ops", () => {
 
   test("generate-image-metadata retries transient Workers AI capacity errors", async () => {
     let calls = 0;
-    const aiEnv = {
+    const aiEnv = withObjectGates({
       AI: {
         run: () => {
           calls += 1;
@@ -565,7 +566,7 @@ describe("additive files ops", () => {
       },
       BUCKET: new FakeBucket(),
       FILES_SIGNING_SECRET: SECRET,
-    } as unknown as Env;
+    }) as unknown as Env;
     const bucket = aiEnv.BUCKET as unknown as FakeBucket;
     bucket.objects.set("users/u1/retry.png", {
       bytes: new Uint8Array([1]),
@@ -596,4 +597,54 @@ describe("additive files ops", () => {
     });
     expect(calls).toBe(2);
   });
+});
+
+test("frozen signed upload returns a conflict without replacing stored bytes", async () => {
+  const testEnv = env();
+  const key = "users/u1/cards/file/frozen.txt";
+  const original = new TextEncoder().encode("keep these bytes");
+  expect(
+    (
+      await worker.fetch(
+        await signedUploadRequest(original, { key }),
+        testEnv,
+        { waitUntil: () => undefined } as never
+      )
+    ).status
+  ).toBe(200);
+  expect(await freezeObject(testEnv, key)).toBe(true);
+  const response = await worker.fetch(
+    await signedUploadRequest(new TextEncoder().encode("late replacement"), {
+      key,
+    }),
+    testEnv,
+    { waitUntil: () => undefined } as never
+  );
+  expect(response.status).toBe(409);
+  expect(await response.json()).toMatchObject({
+    ok: false,
+    error: { code: "CONFLICT" },
+  });
+  expect(
+    (testEnv.BUCKET as unknown as FakeBucket).objects.get(key)?.bytes
+  ).toEqual(original);
+});
+
+test("unexpected storage failures remain internal errors and retain the pending write fence", async () => {
+  const testEnv = env();
+  const key = "users/u1/cards/file/unknown-write.txt";
+  testEnv.BUCKET.put = () => Promise.reject(new Error("object_gate_write_409"));
+  const response = await worker.fetch(
+    await signedUploadRequest(new TextEncoder().encode("unknown outcome"), {
+      key,
+    }),
+    testEnv,
+    { waitUntil: () => undefined } as never
+  );
+  expect(response.status).toBe(500);
+  expect(await response.json()).toMatchObject({
+    ok: false,
+    error: { code: "INTERNAL" },
+  });
+  expect(await freezeObject(testEnv, key)).toBe(false);
 });

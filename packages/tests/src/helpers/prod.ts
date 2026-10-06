@@ -5,7 +5,7 @@ import {
   type Page,
 } from "@playwright/test";
 import { createTeakClient } from "@teak/convex/sdk";
-import { provisionE2EAccount } from "./e2e-cleanup";
+import { cleanupE2EAccounts, provisionE2EAccount } from "./e2e-cleanup";
 import { env, requirePassword, uniqueEmail } from "./env";
 import { waitForEmail } from "./mailpit";
 import { type AccountState, rememberAccount, updateState } from "./run-state";
@@ -138,6 +138,32 @@ const isRetryableActionabilityError = (error: unknown) =>
     error.message
   );
 
+// Firefox aborts a navigation when the previous one is still settling, for
+// example the post-login redirect, and page.goto throws NS_BINDING_ABORTED.
+// A second attempt lands normally, so retry only these abort errors.
+const isAbortedNavigationError = (error: unknown) =>
+  error instanceof Error &&
+  /NS_BINDING_ABORTED|net::ERR_ABORTED|frame was detached/.test(error.message);
+
+export const gotoApp = async (
+  page: Page,
+  path: string,
+  wait: (delayMs: number) => Promise<unknown> = sleep
+) => {
+  const maxAttempts = 3;
+  for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+    try {
+      await page.goto(appPath(path));
+      return;
+    } catch (error) {
+      if (attempt === maxAttempts || !isAbortedNavigationError(error)) {
+        throw error;
+      }
+      await wait(1000);
+    }
+  }
+};
+
 export const clickVisibleControl = async (
   locator: Locator,
   options: { timeout?: number } = {}
@@ -224,7 +250,10 @@ const settingsRow = (page: Page, label: string) =>
 // render can outlast the default 15s expect timeout. Give it a longer
 // budget, then reload once in case the session was set but the page stalled.
 const expectComposer = async (page: Page) => {
-  const composer = page.getByPlaceholder(/Write a note/i);
+  const composer = page.getByRole("textbox", {
+    name: "Markdown content",
+    exact: true,
+  });
   const ready = await composer
     .waitFor({ state: "visible", timeout: 20_000 })
     .then(
@@ -240,23 +269,55 @@ const expectComposer = async (page: Page) => {
 export const signIn = async (
   page: Page,
   email: string,
-  password = requirePassword()
+  password = requirePassword(),
+  options: { failure?: RegExp } = {}
 ) => {
-  await page.goto(appPath("/login"));
-  const emailInput = page.getByLabel("Email");
-  const canSignIn = await emailInput
-    .waitFor({ state: "visible", timeout: 5000 })
-    .then(
-      () => true,
-      () => false
-    );
-  if (!canSignIn) {
+  await gotoApp(page, "/login");
+  const emailInput = page.getByLabel("Email", { exact: true });
+  const entry = page.getByRole("button", { name: "Continue", exact: true });
+  const composer = page.getByRole("textbox", {
+    name: "Markdown content",
+    exact: true,
+  });
+  await expect(emailInput.or(entry).or(composer)).toBeVisible({
+    timeout: 30_000,
+  });
+  if (await composer.isVisible()) {
+    expect(
+      options.failure,
+      "Rejected sign-in must not retain vault access"
+    ).toBeUndefined();
     await expectComposer(page);
     return;
   }
+  if (await entry.isVisible()) {
+    await entry.click();
+  }
+  await expect(emailInput).toBeVisible({ timeout: 30_000 });
   await emailInput.fill(email);
-  await page.getByLabel("Password").fill(password);
-  await page.getByRole("button", { name: /login|sign in/i }).click();
+  const continueEmail = page.getByRole("button", {
+    name: "Continue with email",
+    exact: false,
+  });
+  if (await continueEmail.isVisible()) {
+    await continueEmail.click();
+  }
+  const passwordInput = page.getByLabel("Password", { exact: true });
+  if (options.failure) {
+    const failure = page.getByText(options.failure);
+    await expect(passwordInput.or(failure)).toBeVisible();
+    if (await failure.isVisible()) {
+      await expect(composer).toHaveCount(0);
+      return;
+    }
+  }
+  await passwordInput.fill(password);
+  await page.getByRole("button", { name: /^(login|sign in)$/i }).click();
+  if (options.failure) {
+    await expect(page.getByText(options.failure)).toBeVisible();
+    await expect(composer).toHaveCount(0);
+    return;
+  }
   await expectComposer(page);
 };
 
@@ -271,7 +332,9 @@ export const signUp = async (page: Page, email = uniqueEmail()) => {
     .getByRole("button", { name: /create an account|sign up/i })
     .click();
   await page.goto(await waitForEmail(email, "Verify your email address"));
-  await expect(page.getByPlaceholder(/Write a note/i)).toBeVisible();
+  await expect(
+    page.getByRole("textbox", { name: "Markdown content", exact: true })
+  ).toBeVisible();
   return email;
 };
 
@@ -279,7 +342,7 @@ export const openSecurity = async (
   page: Page,
   tab: "Connections" | "API keys" = "Connections"
 ) => {
-  await page.goto(appPath("/settings"));
+  await gotoApp(page, "/settings");
   const manageButton = settingsRow(page, "Security").getByRole("button", {
     name: "Manage",
   });
@@ -338,7 +401,7 @@ export const deleteAccountViaUi = async (page: Page, account: AccountState) => {
   if (account.deleted) {
     return;
   }
-  await page.goto(appPath("/settings"));
+  await gotoApp(page, "/settings");
   const deleteAccountButton = page.getByRole("button", {
     name: /delete your account/i,
   });
@@ -351,16 +414,15 @@ export const deleteAccountViaUi = async (page: Page, account: AccountState) => {
   if (!canDelete) {
     await signIn(page, account.email, passwordFor(account));
   }
-  await page.goto(appPath("/settings"));
+  await gotoApp(page, "/settings");
   await deleteAccountButton.click();
   await expect(
     page.getByRole("dialog", { name: "Delete Account" })
   ).toBeVisible();
   await page.locator("#deleteConfirm").fill("delete account");
   await page.getByRole("button", { name: "Delete account" }).click();
-  // Batched account-data cleanup runs before the session is dropped, so
-  // deleting a data-heavy account can take minutes: wait for the app to
-  // return to /login before asserting that the API key is revoked.
+  // WorkOS signs out at durable admission; redirect proves access closed,
+  // while the protected cleanup endpoint proves eventual storage completion.
   await page.waitForURL(/\/login/, { timeout: 180_000 });
   if (account.apiKey) {
     await expect
@@ -375,6 +437,11 @@ export const deleteAccountViaUi = async (page: Page, account: AccountState) => {
       )
       .toBe(401);
   }
+  const completion = await cleanupE2EAccounts([account.email]);
+  expect(completion.failures).toEqual([]);
+  expect([...completion.deleted, ...completion.alreadyDeleted]).toContain(
+    account.email
+  );
   updateState((state) => {
     for (const saved of state.accounts) {
       if (saved.email === account.email) {

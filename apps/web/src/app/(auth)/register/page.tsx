@@ -1,5 +1,7 @@
 "use client";
 
+import { api } from "@teak/convex";
+import { SIGNUPS_PAUSED_MESSAGE } from "@teak/convex/shared/constants";
 import {
   AuthDivider,
   SocialAuthButtons,
@@ -18,11 +20,13 @@ import {
   AUTH_STICKY_TOAST_OPTIONS,
   MANUAL_CLOSE_TOAST_OPTIONS,
 } from "@teak/ui/constants/toast";
+import { useQuery } from "@teak/ui/convex-query-hooks";
 import { cn } from "@teak/ui/lib/utils";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useState } from "react";
 import { toast } from "sonner";
+import { AuthPageMode } from "@/components/AuthPageMode";
 import { authClient } from "@/lib/auth-client";
 import { resolveAuthRedirect } from "@/lib/auth-redirect";
 import { AuthCardLoading } from "../AuthCardLoading";
@@ -33,13 +37,16 @@ type PendingProvider = "email" | "google" | "apple" | null;
 export default function SignUp() {
   return (
     <Suspense fallback={<AuthCardLoading />}>
-      <SignUpForm />
+      <AuthPageMode flow="signup">
+        <SignUpForm />
+      </AuthPageMode>
     </Suspense>
   );
 }
 
 function SignUpForm() {
   const searchParams = useSearchParams();
+  const authMode = useQuery(api.auth.getAuthMode, {});
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [passwordTouched, setPasswordTouched] = useState(false);
@@ -169,6 +176,27 @@ function SignUpForm() {
     passwordTouched &&
     password.length > 0 &&
     password.length < MIN_PASSWORD_LENGTH;
+
+  if (!authMode) {
+    return <AuthCardLoading />;
+  }
+  if (authMode.signupsDisabled) {
+    return (
+      <CardContent className="grid gap-4 text-center">
+        <p role="status">{SIGNUPS_PAUSED_MESSAGE}</p>
+        <Link
+          className={buttonVariants()}
+          href={
+            nextPath === "/"
+              ? "/login"
+              : `/login?next=${encodeURIComponent(nextPath)}`
+          }
+        >
+          Sign in to your account
+        </Link>
+      </CardContent>
+    );
+  }
 
   return (
     <>

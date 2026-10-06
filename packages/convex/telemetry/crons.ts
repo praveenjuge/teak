@@ -76,6 +76,19 @@ export const CRON_MONITORS = {
     schedule: "0 1 * * *",
     slug: "ensure-oauth-clients",
   },
+  redriveAccountDeletion: {
+    checkinMarginMinutes: 5,
+    maxRuntimeMinutes: 5,
+    failureIssueThreshold: 2,
+    schedule: "*/5 * * * *",
+    slug: "redrive-account-deletion",
+  },
+  workosDailyReconciliationAudit: {
+    checkinMarginMinutes: 15,
+    maxRuntimeMinutes: 10,
+    schedule: "30 4 * * *",
+    slug: "workos-daily-reconciliation-audit",
+  },
 } as const satisfies Record<string, CronCheckInConfig>;
 
 export const cleanupExpiredIdempotency = internalAction({
@@ -227,5 +240,29 @@ export const cleanupResendEmails = internalAction({
       await ctx.runMutation(components.resend.lib.cleanupAbandonedEmails, {
         olderThan: 4 * oneWeekMs,
       });
+    }),
+});
+
+export const redriveAccountDeletion = internalAction({
+  args: {},
+  returns: v.null(),
+  handler: (ctx: ActionCtx) =>
+    monitored(CRON_MONITORS.redriveAccountDeletion, () =>
+      ctx.runMutation(internal.accountDeletionJobs.redrive, {})
+    ),
+});
+
+export const workosDailyReconciliationAudit = internalAction({
+  args: {},
+  returns: v.null(),
+  handler: (ctx: ActionCtx) =>
+    monitored(CRON_MONITORS.workosDailyReconciliationAudit, async () => {
+      const result = await ctx.runAction(
+        internal.workosReconciliationSchedule.dailyAudit,
+        {}
+      );
+      if (result.status.endsWith("_requires_operator")) {
+        throw new Error(result.status);
+      }
     }),
 });

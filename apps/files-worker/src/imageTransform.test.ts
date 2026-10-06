@@ -6,7 +6,7 @@ import {
 import { handleImageRequest, handleImageSourceRequest } from "./imageTransform";
 import type { Env } from "./index";
 import { hmacSha256Hex } from "./lib";
-import { FakeBucket, makePng } from "./testsupport";
+import { FakeBucket, makePng, withObjectGates } from "./testsupport";
 
 const SECRET = "image-test-secret";
 const NOW = 1_800_000_000;
@@ -20,10 +20,10 @@ const makeEnv = (contentType = "image/png"): Env => {
     bytes: makePng(32, 24),
     httpMetadata: { contentType },
   });
-  return {
+  return withObjectGates({
     BUCKET: bucket as unknown as R2Bucket,
     FILES_SIGNING_SECRET: SECRET,
-  };
+  });
 };
 
 const makeSvgEnv = (): Env => {
@@ -32,10 +32,10 @@ const makeSvgEnv = (): Env => {
     bytes: new TextEncoder().encode(SVG),
     httpMetadata: { contentType: "text/xml" },
   });
-  return {
+  return withObjectGates({
     BUCKET: bucket as unknown as R2Bucket,
     FILES_SIGNING_SECRET: SECRET,
-  };
+  });
 };
 
 const signedImageRequest = async (
@@ -235,10 +235,10 @@ describe("Cloudflare image transformations", () => {
     const request = await signedImageRequest("detail", "image/webp", SVG_KEY);
     const response = await handleImageRequest(
       request,
-      {
+      withObjectGates({
         BUCKET: bucket as unknown as R2Bucket,
         FILES_SIGNING_SECRET: SECRET,
-      },
+      }),
       undefined,
       NOW
     );

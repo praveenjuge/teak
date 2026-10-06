@@ -8,7 +8,13 @@ import {
   type QueryCtx,
   query,
 } from "./_generated/server";
-import { currentSession } from "./securitySessions";
+import { readAuthPrimary } from "./env";
+import {
+  resolveStoredUserId,
+  getSessionUser,
+  resolveWorkosApiKeyOwner,
+  type TeakUserId,
+} from "./securitySessions";
 import { API_KEY_TOKEN_PREFIX, getApiKeyFormat } from "./shared/apiKeyFormat";
 import { rateLimiter } from "./shared/rateLimits";
 
@@ -93,12 +99,12 @@ const getAuthUserById = async (ctx: MutationCtx, userId: string) =>
 
 const getAuthenticatedOwnerId = async (
   ctx: QueryCtx | MutationCtx
-): Promise<string> => {
-  const session = await currentSession(ctx);
+): Promise<TeakUserId> => {
+  const session = await getSessionUser(ctx);
   if (!session) {
     throw new Error("User must be authenticated");
   }
-  return session.userId;
+  return session.teakUserId;
 };
 
 const listComponentKeysByStatus = async (
@@ -173,13 +179,20 @@ const validateComponentApiKey = async (ctx: MutationCtx, token: string) => {
     return null;
   }
 
-  const authUser = await getAuthUserById(ctx, result.ownerId);
-  if (!authUser) {
-    await componentApiKeys.revoke(ctx, {
-      keyId: result.keyId,
-      ownerId: result.ownerId,
-    });
-    return null;
+  if (readAuthPrimary() === "workos") {
+    if (!(await resolveWorkosApiKeyOwner(ctx, result.ownerId))) {
+      return null;
+    }
+  } else {
+    if (!(await resolveStoredUserId(ctx, result.ownerId))) return null;
+    const authUser = await getAuthUserById(ctx, result.ownerId);
+    if (!authUser) {
+      await componentApiKeys.revoke(ctx, {
+        keyId: result.keyId,
+        ownerId: result.ownerId,
+      });
+      return null;
+    }
   }
 
   return {
@@ -363,5 +376,16 @@ export const validateUserApiKey = internalMutation({
 
     const validated = await validateComponentApiKey(ctx, token);
     return validated;
+  },
+});
+
+
+// Workflow-controlled drain: no detached successor that could outlive a stage.
+export const revokeDeletionKeysPage = internalMutation({
+  args: { ownerId: v.string() }, returns: v.boolean(),
+  handler: async (ctx, { ownerId }) => {
+    const keys = await listComponentKeysByStatus(ctx, ownerId, "active");
+    for (const key of keys) await componentApiKeys.revoke(ctx, { keyId: key.keyId, ownerId });
+    return keys.length === LIST_LIMIT;
   },
 });

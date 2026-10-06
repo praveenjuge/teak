@@ -1,3 +1,4 @@
+import { ensureObjectOwnership } from "./storage/ownership";
 import { ConvexError, v } from "convex/values";
 import { internal } from "./_generated/api";
 import type { Doc, Id } from "./_generated/dataModel";
@@ -11,7 +12,7 @@ import {
 } from "./_generated/server";
 import { ensureCardCreationAllowed } from "./auth";
 import { validateDirectUploadRequest } from "./card/uploadCard";
-import { getSessionIdentity } from "./securitySessions";
+import { getSessionUser } from "./securitySessions";
 import { MULTIPART_UPLOAD_THRESHOLD } from "./shared/constants";
 import {
   buildSignedMultipartPartUrl,
@@ -42,7 +43,7 @@ interface SessionResponse {
 }
 
 const requireIdentity = async (ctx: Pick<ActionCtx, "auth" | "runQuery">) => {
-  const identity = await getSessionIdentity(ctx);
+  const identity = await getSessionUser(ctx);
   if (!identity) {
     throw new ConvexError({
       code: "UNAUTHENTICATED",
@@ -87,12 +88,12 @@ export const insertSession = internalMutation({
   returns: v.id("fileUploadSessions"),
   handler: async (ctx, args): Promise<Id<"fileUploadSessions">> => {
     const identity = await requireIdentity(ctx);
-    await ensureCardCreationAllowed(ctx, identity.subject);
+    await ensureCardCreationAllowed(ctx, identity.teakUserId);
     const now = Date.now();
     return await ctx.db.insert("fileUploadSessions", {
       ...args,
-      identityKey: identity.tokenIdentifier,
-      userId: identity.subject,
+      teakUserId: identity.teakUserId,
+      userId: identity.teakUserId,
       createdAt: now,
       expiresAt: now + SESSION_TTL_MS,
       partSize: MULTIPART_PART_SIZE,
@@ -108,7 +109,7 @@ export const getSessionForUser = internalQuery({
   handler: async (ctx, { sessionId }) => {
     const identity = await requireIdentity(ctx);
     const session = await ctx.db.get(sessionId);
-    return session?.identityKey === identity.tokenIdentifier ? session : null;
+    return session?.teakUserId === identity.teakUserId ? session : null;
   },
 });
 
@@ -122,9 +123,9 @@ export const findActiveSession = internalQuery({
     const identity = await requireIdentity(ctx);
     const session = await ctx.db
       .query("fileUploadSessions")
-      .withIndex("by_identity_file", (query) =>
+      .withIndex("by_teak_user_file", (query) =>
         query
-          .eq("identityKey", identity.tokenIdentifier)
+          .eq("teakUserId", identity.teakUserId)
           .eq("fileName", args.fileName)
           .eq("fileSize", args.fileSize)
           .eq("fileLastModified", args.fileLastModified)
@@ -177,11 +178,12 @@ export const prepareMultipartUpload = action({
       };
     }
     const sourceKey = buildR2ObjectKey({
-      userId: identity.subject,
+      userId: identity.teakUserId,
       cardId: PENDING_UPLOAD_CARD_ID,
       role: "file",
       fileName: `${crypto.randomUUID()}-${args.fileName}`,
     });
+  await ensureObjectOwnership(ctx, identity.teakUserId, sourceKey);
     const created = await callFilesWorkerJson<{
       key: string;
       uploadId: string;
@@ -236,7 +238,7 @@ export const recordMultipartPart = mutation({
     const session = await ctx.db.get(args.sessionId);
     if (
       !session ||
-      session.identityKey !== identity.tokenIdentifier ||
+      session.teakUserId !== identity.teakUserId ||
       session.status !== "uploading" ||
       session.expiresAt <= Date.now()
     ) {

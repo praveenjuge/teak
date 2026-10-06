@@ -1,5 +1,7 @@
 import { api } from "@teak/convex";
 import { NextResponse } from "next/server";
+import { inactiveAuthProvider } from "@/lib/auth-mode";
+import { readAuthMode } from "@/lib/auth-mode-server";
 import { fetchAuthMutation, isAuthenticated } from "@/lib/auth-server";
 import type { NativeAuthRequest } from "@/lib/native-auth-request";
 import {
@@ -40,6 +42,9 @@ const pairingStartUrl = (requestUrl: URL, parsed: NativeAuthRequest): URL => {
 };
 
 export async function POST(request: Request): Promise<Response> {
+  if ((await readAuthMode()).primary !== "betterauth") {
+    return inactiveAuthProvider();
+  }
   const requestUrl = new URL(request.url);
   if (!isSameOriginPost(request, requestUrl)) {
     return NextResponse.json(

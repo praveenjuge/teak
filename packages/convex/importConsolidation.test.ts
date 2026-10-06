@@ -1,5 +1,8 @@
 /// <reference types="vite/client" />
 
+import batchWorkerTest from "@convex-dev/batch-worker/test";
+import workflowTest from "@convex-dev/workflow/test";
+import workpoolTest from "@convex-dev/workpool/test";
 import { convexTest } from "convex-test";
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import { internal } from "./_generated/api";
@@ -7,8 +10,11 @@ import schema from "./schema";
 
 const modules = import.meta.glob("./**/*.ts");
 const sourceKey = "users/import-test/imports/job/source.zip";
-const setup = async (mode: "archive" | "bookmarks" = "archive") => {
-  const t = convexTest(schema, modules);
+const setup = async (
+  mode: "archive" | "bookmarks" = "archive",
+  testModules = modules
+) => {
+  const t = convexTest(schema, testModules);
   const jobId = await t.run((ctx) =>
     ctx.db.insert("importJobs", {
       userId: "import-test",
@@ -39,9 +45,271 @@ beforeEach(() => {
 afterEach(() => {
   vi.unstubAllGlobals();
   vi.unstubAllEnvs();
+  vi.useRealTimers();
 });
 
 describe("import orchestration through the worker", () => {
+  test.each(
+    [false, true].flatMap((reportFails) =>
+      (["identity", "completed", "canceled"] as const).map((outcome) => ({
+        reportFails,
+        outcome,
+      }))
+    )
+  )(
+    "the $outcome workflow preserves its outcome and cleans unclaimed files (report failure: $reportFails)",
+    async ({ reportFails, outcome }) => {
+      vi.useFakeTimers();
+      vi.stubEnv("IDENTITY_RESOLVER_ENFORCE", "true");
+      // Workflow replay disables process globally; load the real step modules
+      // into plain module callbacks before replay enters that environment.
+      const cacheModules = async (
+        sources: Record<string, () => Promise<unknown>>
+      ) =>
+        Object.fromEntries(
+          await Promise.all(
+            Object.entries(sources)
+              .filter(
+                ([path]) =>
+                  !(
+                    path.endsWith(".test.ts") ||
+                    path.endsWith("convex.config.ts")
+                  )
+              )
+              .map(async ([path, load]) => {
+                const loaded = await load();
+                return [path, () => Promise.resolve(loaded)] as const;
+              })
+          )
+        );
+      const rootModules = { ...modules };
+      for (const path of [
+        "./dataImport.ts",
+        "./import/runImport.ts",
+        "./workflows/import.ts",
+        "./workflows/objectCleanup.ts",
+        "./workflows/manager.ts",
+      ]) {
+        const loaded = await modules[path]();
+        rootModules[path] = () => Promise.resolve(loaded);
+      }
+      const { t, jobId } = await setup("archive", rootModules);
+      t.registerComponent(
+        "workflow",
+        workflowTest.schema,
+        await cacheModules(workflowTest.modules)
+      );
+      t.registerComponent(
+        "workflow/workpool",
+        workpoolTest.schema,
+        await cacheModules(workpoolTest.modules)
+      );
+      t.registerComponent(
+        "workflow/workpool/batchWorker",
+        batchWorkerTest.schema,
+        await cacheModules(batchWorkerTest.modules)
+      );
+      const orphanKey = "users/import-test/imports/job/orphan.pdf";
+      const ownedKey = "users/import-test/imports/job/owned.pdf";
+      const extraKeys: string[] = [];
+      await t.run(async (ctx) => {
+        await ctx.db.patch(jobId, {
+          failedCount: 1,
+          cancelRequested: outcome === "canceled",
+        });
+        for (const [sourceIndex, status, extractedFileKey] of [
+          [0, outcome === "identity" ? "pending" : "failed", orphanKey],
+          [1, "created", ownedKey],
+          [2, "failed", undefined],
+        ] as const) {
+          await ctx.db.insert("importJobItems", {
+            jobId,
+            userId: "import-test",
+            sourceIndex,
+            status,
+            type: "document",
+            content: "Extracted file",
+            extractedFileKey,
+            createdAt: 0,
+            updatedAt: 0,
+          });
+        }
+        if (outcome === "completed" && !reportFails) {
+          for (let index = 3; index < 208; index++) {
+            const extractedFileKey = `users/import-test/imports/job/orphan-${index}.pdf`;
+            extraKeys.push(extractedFileKey);
+            await ctx.db.insert("importJobItems", {
+              jobId,
+              userId: "import-test",
+              sourceIndex: index,
+              status: "failed",
+              type: "document",
+              content: "Unclaimed file",
+              extractedFileKey,
+              createdAt: 0,
+              updatedAt: 0,
+            });
+          }
+        }
+      });
+      let releaseReport!: () => void;
+      let reportStarted!: () => void;
+      const reportPending = new Promise<void>((resolve) => {
+        releaseReport = resolve;
+      });
+      const reportReached = new Promise<void>((resolve) => {
+        reportStarted = resolve;
+      });
+      const deleted: string[] = [];
+      vi.stubGlobal("fetch", async (_url: string, request: RequestInit) => {
+        if (request.method === "PUT") {
+          reportStarted();
+          await reportPending;
+          if (reportFails) {
+            return Response.json(
+              {
+                ok: false,
+                error: { code: "INTERNAL", requestId: "report-failure" },
+              },
+              { status: 503 }
+            );
+          }
+          return Response.json({ ok: true, data: { etag: "report" } });
+        }
+        const body = JSON.parse(String(request.body));
+        if (body.op === "index-import-source") {
+          return Response.json({
+            ok: true,
+            data: {
+              sourceEtag: '"stable"',
+              total: 0,
+              nextCursor: null,
+              items: [],
+            },
+          });
+        }
+        if (body.op === "delete-objects") {
+          deleted.push(...body.params.keys);
+          return Response.json({
+            ok: true,
+            data: { deleted: body.params.keys.length },
+          });
+        }
+        throw new Error(`Unexpected worker operation: ${body.op}`);
+      });
+      await t.mutation(internal["workflows/import"].startImportWorkflow, {
+        jobId,
+      });
+      const drained = t.finishAllScheduledFunctions(() =>
+        vi.advanceTimersByTime(100)
+      );
+      await reportReached;
+      try {
+        expect(await t.run((ctx) => ctx.db.get(jobId))).toMatchObject({
+          status: outcome === "canceled" ? "parsing" : "importing",
+        });
+        await expect(
+          t.mutation(internal.dataImport.reserveJob, {
+            userId: "import-test",
+            mode: "archive",
+            fileName: "retry.zip",
+            fileSize: 128,
+            fileLastModified: 0,
+            sourceKey,
+            uploadExpiresAt: Date.now() + 60_000,
+          })
+        ).rejects.toThrow("An import is already active");
+      } finally {
+        releaseReport();
+        await drained;
+      }
+      const finalJob = await t.run((ctx) => ctx.db.get(jobId));
+      expect(finalJob).toMatchObject({
+        status: outcome === "identity" ? "failed" : outcome,
+        ...(reportFails
+          ? {}
+          : { reportKey: expect.stringContaining("error-report.txt") }),
+      });
+      const reportFailure = reportFails
+        ? "import_finalization_failed"
+        : undefined;
+      expect(finalJob?.failureClass).toBe(
+        outcome === "identity" ? "identity_mapping_unavailable" : reportFailure
+      );
+      expect(deleted).toContain(sourceKey);
+      expect(deleted).toContain(orphanKey);
+      for (const key of extraKeys) {
+        expect(deleted).toContain(key);
+      }
+      expect(deleted).not.toContain(ownedKey);
+      expect(await t.run((ctx) => ctx.db.query("cards").collect())).toEqual([]);
+      const retryId = await t.mutation(internal.dataImport.reserveJob, {
+        userId: "import-test",
+        mode: "archive",
+        fileName: "retry.zip",
+        fileSize: 128,
+        fileLastModified: 0,
+        sourceKey,
+        uploadExpiresAt: Date.now() + 60_000,
+      });
+      expect(retryId).not.toBe(jobId);
+    }
+  );
+  test("a rejected import blocks retries until cleanup records its terminal failure", async () => {
+    vi.stubEnv("IDENTITY_RESOLVER_ENFORCE", "true");
+    const { t, jobId } = await setup();
+    const itemId = await t.run((ctx) =>
+      ctx.db.insert("importJobItems", {
+        jobId,
+        userId: "import-test",
+        sourceIndex: 0,
+        status: "pending",
+        type: "text",
+        content: "Must stay pending",
+        createdAt: 0,
+        updatedAt: 0,
+      })
+    );
+    expect(
+      await t.mutation(internal.dataImport.createPendingBatch, {
+        jobId,
+        itemIds: [itemId],
+      })
+    ).toEqual({
+      limitReached: false,
+      failureClass: "identity_mapping_unavailable",
+    });
+    expect(await t.run((ctx) => ctx.db.get(jobId))).toMatchObject({
+      status: "parsing",
+    });
+    await expect(
+      t.mutation(internal.dataImport.reserveJob, {
+        userId: "import-test",
+        mode: "archive",
+        fileName: "retry.zip",
+        fileSize: 128,
+        fileLastModified: 0,
+        sourceKey,
+        uploadExpiresAt: Date.now() + 60_000,
+      })
+    ).rejects.toThrow("An import is already active");
+    expect(await t.run((ctx) => ctx.db.query("cards").collect())).toEqual([]);
+    const item = await t.run((ctx) => ctx.db.get(itemId));
+    expect(item).toMatchObject({ status: "pending" });
+    expect(item?.cardId).toBeUndefined();
+    await t.mutation(internal.dataImport.finishJob, {
+      jobId,
+      status: "failed",
+      reportKey: "users/import-test/imports/job/report.json",
+      failureClass: "identity_mapping_unavailable",
+    });
+    expect(await t.run((ctx) => ctx.db.get(jobId))).toMatchObject({
+      status: "failed",
+      failureClass: "identity_mapping_unavailable",
+      reportKey: "users/import-test/imports/job/report.json",
+      completedAt: expect.any(Number),
+    });
+  });
   test("binds a legacy job once and rejects a different version on replay", async () => {
     const { t, jobId } = await setup();
     await t.run((ctx) => ctx.db.patch(jobId, { sourceEtag: undefined }));

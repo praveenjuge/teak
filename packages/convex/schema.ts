@@ -2,6 +2,14 @@ import { defineSchema, defineTable } from "convex/server";
 import { v } from "convex/values";
 import { FILE_KINDS } from "./shared/fileFormats";
 import { LINK_CATEGORIES } from "./shared/linkCategories";
+import {
+  workosDeletionCompletionValidator,
+  workosDeletionTargetValidator,
+} from "./workosDeletionCompletion";
+import {
+  workosProfileFields,
+  workosReconciliationRunFields,
+} from "./workosProfileFields";
 
 // Card types as literals for validator
 export const cardTypes = [
@@ -302,7 +310,9 @@ export const importItemStatusValidator = v.union(
 
 export const fileUploadSessionValidator = v.object({
   userId: v.string(),
-  identityKey: v.string(),
+  // Existing provider-keyed sessions expire through normal cleanup.
+  identityKey: v.optional(v.string()),
+  teakUserId: v.optional(v.string()),
   sourceKey: r2KeyValidator,
   uploadId: v.string(),
   fileName: v.string(),
@@ -456,6 +466,8 @@ export const cardValidator = v.object({
   ),
   // Searchable metadata fields (flattened for search indexes)
   metadataTitle: v.optional(v.string()),
+  // Preserve manual titles, including clears, through link-preview refreshes.
+  metadataTitleEdited: v.optional(v.boolean()),
   metadataDescription: v.optional(v.string()),
   // AI-generated fields
   aiTags: v.optional(v.array(v.string())),
@@ -473,6 +485,116 @@ export const cardValidator = v.object({
 });
 
 export default defineSchema({
+  users: defineTable({
+    teakUserId: v.string(),
+    identityOrigin: v.optional(v.literal("workos")),
+    email: v.string(),
+    emailVerified: v.boolean(),
+    workosUserId: v.optional(v.string()),
+    // WorkOS shadow state never overwrites the Better Auth profile.
+    workosEmail: v.optional(v.string()),
+    workosEmailVerified: v.optional(v.boolean()),
+    workosDeletedAt: v.optional(v.number()),
+    workosDeletionCompletion: v.optional(workosDeletionCompletionValidator),
+    role: v.optional(v.literal("admin")),
+    lastWorkosEventAt: v.optional(v.number()),
+    deletedAt: v.optional(v.number()),
+  })
+    .index("by_teakUserId", ["teakUserId"])
+    .index("by_workosUserId", ["workosUserId"])
+    .index("by_email", ["email"]),
+  migrationQuarantine: defineTable({
+    workosUserId: v.optional(v.string()),
+    teakUserId: v.optional(v.string()),
+    email: v.string(),
+    reason: v.string(),
+    source: v.string(),
+    createdAt: v.number(),
+    resolvedAt: v.optional(v.number()),
+    workosDeletionEventAt: v.optional(v.number()),
+    workosDeletionTarget: v.optional(workosDeletionTargetValidator),
+  })
+    .index("by_unresolved", ["resolvedAt"])
+    .index("by_workosUserId_and_reason_and_resolvedAt", [
+      "workosUserId",
+      "reason",
+      "resolvedAt",
+    ]),
+  workosEvents: defineTable({
+    eventId: v.string(),
+    workosUserId: v.optional(v.string()),
+    type: v.string(),
+    createdAt: v.number(),
+    email: v.optional(v.string()),
+    emailVerified: v.optional(v.boolean()),
+    externalId: v.optional(v.union(v.string(), v.null())),
+  })
+    .index("by_eventId", ["eventId"])
+    .index("by_workosUserId_and_type", ["workosUserId", "type"])
+    .index("by_workosUserId_and_createdAt", ["workosUserId", "createdAt"]),
+  workosProfiles: defineTable(workosProfileFields).index("by_workosUserId", [
+    "workosUserId",
+  ]),
+  workosImportLeases: defineTable({
+    scope: v.literal("management_import"),
+    generation: v.number(),
+    holder: v.string(),
+    runId: v.string(),
+    environmentId: v.string(),
+    clientId: v.string(),
+    apiKeyFingerprint: v.string(),
+    admittedAt: v.number(),
+    heartbeatAt: v.number(),
+    status: v.union(
+      v.literal("active"),
+      v.literal("uncertain"),
+      v.literal("released"),
+      v.literal("quiesced")
+    ),
+    remoteIntent: v.optional(
+      v.object({
+        kind: v.union(
+          v.literal("create"),
+          v.literal("update"),
+          v.literal("delete")
+        ),
+        teakUserId: v.string(),
+        sourceVersion: v.string(),
+        startedAt: v.number(),
+      })
+    ),
+    lastAcknowledgedAt: v.optional(v.number()),
+  }).index("by_scope", ["scope"]),
+  workosReconciliationRuns: defineTable(workosReconciliationRunFields)
+    .index("by_runId", ["runId"])
+    .index("by_environmentId_and_updatedAt", ["environmentId", "updatedAt"])
+    .index("by_environmentId_and_mode_and_updatedAt", [
+      "environmentId",
+      "mode",
+      "updatedAt",
+    ])
+    .index("by_nextAttemptAt", ["nextAttemptAt"]),
+  workosReconciliationCursors: defineTable({
+    runId: v.id("workosReconciliationRuns"),
+    phase: v.union(
+      v.literal("events"),
+      v.literal("provider"),
+      v.literal("owners"),
+      v.literal("census")
+    ),
+    cursor: v.string(),
+  }).index("by_runId_and_phase_and_cursor", ["runId", "phase", "cursor"]),
+  workosConsents: defineTable({
+    consentId: v.string(),
+    userId: v.string(),
+    workosUserId: v.string(),
+    clientId: v.string(),
+    firstSeenAt: v.number(),
+    lastSeenAt: v.number(),
+    revokedAt: v.optional(v.number()),
+  })
+    .index("by_consentId", ["consentId"])
+    .index("by_userId_and_firstSeenAt", ["userId", "firstSeenAt"]),
   cards: defineTable(cardValidator)
     // Note: by_user index removed as redundant - by_user_deleted can serve same purpose
     // with partial index matching (just userId) per Convex best practices
@@ -531,7 +653,56 @@ export default defineSchema({
   accountDeletionStates: defineTable({
     userId: v.string(),
     startedAt: v.number(),
-  }).index("by_userId", ["userId"]),
+    initiationProvider: v.optional(
+      v.union(v.literal("betterauth"), v.literal("workos"))
+    ),
+    betterAuthUserId: v.optional(v.string()),
+    workosUserId: v.optional(v.string()),
+    workosTarget: v.optional(
+      v.object({
+        environmentId: v.string(),
+        clientId: v.string(),
+        issuer: v.string(),
+        credentialFingerprint: v.string(),
+      })
+    ),
+    stage: v.optional(v.number()),
+    providerSessionCursor: v.optional(v.string()),
+    localConsentCursor: v.optional(v.string()),
+    deletionReceiptCursor: v.optional(v.string()),
+    writerTable: v.optional(
+      v.union(v.literal("importJobs"), v.literal("exportJobs"))
+    ),
+    writerCursor: v.optional(v.string()),
+    writersPrepared: v.optional(v.boolean()),
+    storageProgress: v.optional(
+      v.object({
+        kind: v.union(
+          v.literal("cards"),
+          v.literal("imports"),
+          v.literal("exports"),
+          v.literal("uploads"),
+          v.literal("objects")
+        ),
+        fingerprint: v.string(),
+        offset: v.number(),
+      })
+    ),
+    workflowId: v.optional(v.string()),
+    generation: v.optional(v.number()),
+    nextAttemptAt: v.optional(v.number()),
+    failureCode: v.optional(v.string()),
+  })
+    .index("by_userId", ["userId"])
+    .index("by_nextAttemptAt", ["nextAttemptAt"]),
+  accountStorageObjects: defineTable({
+    userId: v.string(),
+    key: v.string(),
+    exportJobId: v.optional(v.id("exportJobs")),
+  })
+    .index("by_userId_and_key", ["userId", "key"])
+    .index("by_key", ["key"])
+    .index("by_exportJobId", ["exportJobId"]),
   cardSearchDocuments: defineTable({
     cardId: v.id("cards"),
     userId: v.string(),
@@ -659,6 +830,12 @@ export default defineSchema({
     updatedAt: v.number(),
   }).index("by_name", ["name"]),
   fileUploadSessions: defineTable(fileUploadSessionValidator)
+    .index("by_teak_user_file", [
+      "teakUserId",
+      "fileName",
+      "fileSize",
+      "fileLastModified",
+    ])
     .index("by_identity_file", [
       "identityKey",
       "fileName",

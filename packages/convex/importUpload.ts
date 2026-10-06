@@ -1,15 +1,6 @@
 "use node";
 
-import {
-  AbortMultipartUploadCommand,
-  CompleteMultipartUploadCommand,
-  CreateMultipartUploadCommand,
-  DeleteObjectCommand,
-  GetObjectCommand,
-  HeadObjectCommand,
-  ListPartsCommand,
-  UploadPartCommand,
-} from "@aws-sdk/client-s3";
+import { GetObjectCommand, ListPartsCommand } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import { ConvexError, v } from "convex/values";
 import { internal } from "./_generated/api";
@@ -23,7 +14,11 @@ import {
 } from "./import/constants";
 import { createImportS3Client, getImportR2Config } from "./import/r2Client";
 import { importModeValidator } from "./schema";
-import { getSessionIdentity } from "./securitySessions";
+import { getSessionUser, type TeakUserId } from "./securitySessions";
+import {
+  buildSignedMultipartPartUrl,
+  callFilesWorkerJson,
+} from "./storage/filesWorkerClient";
 import { buildR2ObjectKey } from "./storage/r2";
 
 const internalAny = internal as Record<string, any>;
@@ -37,12 +32,12 @@ const uploadResultValidator = v.object({
   parts: v.array(partValidator),
 });
 
-async function requireUserId(ctx: ActionCtx) {
-  const identity = await getSessionIdentity(ctx);
+async function requireUserId(ctx: ActionCtx): Promise<TeakUserId> {
+  const identity = await getSessionUser(ctx);
   if (!identity) {
     throw new Error("User must be authenticated");
   }
-  return identity.subject as string;
+  return identity.teakUserId;
 }
 
 function validateSource(
@@ -138,7 +133,7 @@ async function listAllParts(
       if (part.PartNumber && part.ETag && typeof part.Size === "number") {
         result.push({
           PartNumber: part.PartNumber,
-          ETag: part.ETag,
+          ETag: part.ETag.replace(/^"(.*)"$/u, "$1"),
           Size: part.Size,
         });
       }
@@ -149,8 +144,6 @@ async function listAllParts(
 }
 
 async function signMissingParts(args: {
-  client: ReturnType<typeof createImportS3Client>;
-  bucket: string;
   key: string;
   uploadId: string;
   fileSize: number;
@@ -166,16 +159,16 @@ async function signMissingParts(args: {
     if (uploaded.has(partNumber)) {
       continue;
     }
-    const url = await getSignedUrl(
-      args.client,
-      new UploadPartCommand({
-        Bucket: args.bucket,
-        Key: args.key,
-        UploadId: args.uploadId,
-        PartNumber: partNumber,
-      }),
-      { expiresIn: URL_TTL_SECONDS }
-    );
+    const url = await buildSignedMultipartPartUrl({
+      key: args.key,
+      uploadId: args.uploadId,
+      partNumber,
+      size: Math.min(
+        IMPORT_PART_BYTES,
+        args.fileSize - (partNumber - 1) * IMPORT_PART_BYTES
+      ),
+      ttlSeconds: URL_TTL_SECONDS,
+    });
     parts.push({ partNumber, url });
   }
   return parts;
@@ -192,8 +185,6 @@ export const createImportUpload = action({
   handler: async (ctx, args) => {
     const userId = await requireUserId(ctx);
     validateSource(args.mode, args.fileName, args.fileSize);
-    const config = getImportR2Config();
-    const client = createImportS3Client(config);
     const sourceKey = buildR2ObjectKey({
       userId,
       role: "import-source",
@@ -206,23 +197,19 @@ export const createImportUpload = action({
       uploadExpiresAt: Date.now() + IMPORT_UPLOAD_TTL_MS,
     });
     try {
-      const created = await client.send(
-        new CreateMultipartUploadCommand({
-          Bucket: config.bucket,
-          Key: sourceKey,
-          ContentType: contentTypeForMode(args.mode),
-        })
-      );
-      if (!created.UploadId) {
+      const creation = await callFilesWorkerJson<{ uploadId: string }>({
+        op: "create-multipart",
+        params: { key: sourceKey, contentType: contentTypeForMode(args.mode) },
+      });
+      if (creation.kind !== "ok" || !creation.data.uploadId) {
         throw new Error("R2 did not return an upload ID");
       }
+      const created = { UploadId: creation.data.uploadId };
       await ctx.runMutation(internalAny.dataImport.attachMultipart, {
         jobId,
         uploadId: created.UploadId,
       });
       const parts = await signMissingParts({
-        client,
-        bucket: config.bucket,
         key: sourceKey,
         uploadId: created.UploadId,
         fileSize: args.fileSize,
@@ -284,8 +271,6 @@ export const resumeImportUpload = action({
     );
     const uploadedParts = listed.map((part) => part.PartNumber);
     const parts = await signMissingParts({
-      client,
-      bucket: config.bucket,
       key: job.sourceKey,
       uploadId: job.uploadId,
       fileSize: job.fileSize,
@@ -342,23 +327,23 @@ export const completeImportUpload = action({
         message: "Uploaded part sizes do not match the selected file",
       });
     }
-    await client.send(
-      new CompleteMultipartUploadCommand({
-        Bucket: config.bucket,
-        Key: job.sourceKey,
-        UploadId: job.uploadId,
-        MultipartUpload: {
-          Parts: parts.map(({ PartNumber, ETag }) => ({ PartNumber, ETag })),
-        },
-      })
-    );
-    const head = await client.send(
-      new HeadObjectCommand({ Bucket: config.bucket, Key: job.sourceKey })
-    );
-    if (head.ContentLength !== job.fileSize) {
-      await client.send(
-        new DeleteObjectCommand({ Bucket: config.bucket, Key: job.sourceKey })
-      );
+    const completion = await callFilesWorkerJson<{ size: number }>({
+      op: "complete-multipart",
+      params: {
+        key: job.sourceKey,
+        uploadId: job.uploadId,
+        expectedSize: job.fileSize,
+        parts: parts.map(({ PartNumber, ETag }) => ({
+          partNumber: PartNumber,
+          etag: ETag,
+        })),
+      },
+    });
+    if (completion.kind !== "ok" || completion.data.size !== job.fileSize) {
+      await callFilesWorkerJson({
+        op: "delete-objects",
+        params: { keys: [job.sourceKey] },
+      });
       throw new ConvexError({
         code: "INVALID_UPLOAD",
         message: "Completed upload size is invalid",
@@ -382,17 +367,13 @@ export const cancelImport = action({
       return { canceled: false };
     }
     if (state.uploadId) {
-      const config = getImportR2Config();
-      const client = createImportS3Client(config);
-      await client
-        .send(
-          new AbortMultipartUploadCommand({
-            Bucket: config.bucket,
-            Key: state.sourceKey,
-            UploadId: state.uploadId,
-          })
-        )
-        .catch(() => undefined);
+      const result = await callFilesWorkerJson({
+        op: "abort-multipart",
+        params: { key: state.sourceKey, uploadId: state.uploadId },
+      });
+      if (result.kind !== "ok") {
+        throw new Error("import_abort_unconfirmed");
+      }
       await ctx.runMutation(internalAny.dataImport.finishJob, {
         jobId,
         status: "canceled",

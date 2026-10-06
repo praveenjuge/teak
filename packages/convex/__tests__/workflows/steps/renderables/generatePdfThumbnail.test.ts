@@ -1,6 +1,7 @@
 // @ts-nocheck
 import { afterAll, beforeAll, describe, expect, mock, test } from "bun:test";
 import { crc32, deflateSync, inflateSync } from "node:zlib";
+import { getFunctionName } from "convex/server";
 
 // The step resolves the source PDF through the real (unmocked)
 // `storage/fileUrls` leaf, so tests configure signing env and assert the
@@ -295,7 +296,9 @@ beforeAll(async () => {
   // Source-PDF URL resolution goes through the real (unmocked)
   // `storage/fileUrls` leaf, configured via env above.
   const r2Path = import.meta.resolve("../../../../storage/r2");
+  const actualR2 = await import(r2Path);
   mock.module(r2Path, () => ({
+    ...actualR2,
     buildR2ObjectKey: () => "users/u/cards/c/thumbnail/generated",
     hmacSha256Hex: async () => "fake-hex-signature",
     resolveObjectUrl: (key?: string) =>
@@ -307,6 +310,7 @@ beforeAll(async () => {
   mock.module(
     import.meta.resolve("../../../../storage/filesWorkerClient"),
     () => ({
+      putObjectViaFilesWorker: () => { throw new Error("Unexpected indirect Worker PUT"); },
       buildSignedWorkerUploadUrl: async ({ key }: { key: string }) => ({
         expiresAt: 123,
         key,
@@ -349,7 +353,8 @@ const createCtx = (card: unknown) => {
   return {
     ctx: {
       runQuery: () => Promise.resolve(card),
-      runMutation: (ref: unknown, args: any) => {
+      runMutation: (ref: any, args: any) => {
+        if (getFunctionName(ref) === "storage/ownership:registerObject") return Promise.resolve(true);
         mutationCalls.push({ ref, args });
         return Promise.resolve(null);
       },

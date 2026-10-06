@@ -34,8 +34,8 @@ describe("release versions", () => {
       for (const directory of [
         "apps/web",
         "packages/ui",
-        "apps/safari-extension/Shared (Extension)/Resources",
-        "apps/safari-extension/teak-safari.xcodeproj",
+        "apps/mac/Shared (Extension)/Resources",
+        "apps/mac/teak-mac.xcodeproj",
       ]) {
         fs.mkdirSync(path.join(root, directory), { recursive: true });
       }
@@ -51,7 +51,7 @@ describe("release versions", () => {
       }
 
       expect(() => assertLockstep(root, "1.0.60")).toThrow(
-        "apps/safari-extension/Shared (Extension)/Resources/manifest.json: missing"
+        "apps/mac/Shared (Extension)/Resources/manifest.json: missing"
       );
 
       expect(packageFiles(root)).toEqual([
@@ -62,7 +62,7 @@ describe("release versions", () => {
       fs.writeFileSync(
         path.join(
           root,
-          "apps/safari-extension/Shared (Extension)/Resources/manifest.json"
+          "apps/mac/Shared (Extension)/Resources/manifest.json"
         ),
         `${JSON.stringify({ version: "1.0.60" })}\n`
       );
@@ -72,7 +72,7 @@ describe("release versions", () => {
       const validXcodeSource =
         "MARKETING_VERSION = 1.0.60;\nCURRENT_PROJECT_VERSION = 60;\n";
       expect(releaseManifestFiles(root)).toEqual([
-        "apps/safari-extension/Shared (Extension)/Resources/manifest.json",
+        "apps/mac/Shared (Extension)/Resources/manifest.json",
         "apps/web/package.json",
         "package.json",
         "packages/ui/package.json",
@@ -91,17 +91,17 @@ describe("release versions", () => {
       fs.writeFileSync(
         path.join(
           root,
-          "apps/safari-extension/Shared (Extension)/Resources/manifest.json"
+          "apps/mac/Shared (Extension)/Resources/manifest.json"
         ),
         `${JSON.stringify({ version: "1.0.59" })}\n`
       );
       expect(() => assertLockstep(root, "1.0.60", validXcodeSource)).toThrow(
-        "apps/safari-extension/Shared (Extension)/Resources/manifest.json: 1.0.59"
+        "apps/mac/Shared (Extension)/Resources/manifest.json: 1.0.59"
       );
       fs.writeFileSync(
         path.join(
           root,
-          "apps/safari-extension/Shared (Extension)/Resources/manifest.json"
+          "apps/mac/Shared (Extension)/Resources/manifest.json"
         ),
         `${JSON.stringify({ version: "1.0.60" })}\n`
       );
