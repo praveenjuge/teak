@@ -176,7 +176,7 @@ export const updateCard = mutation({
       ...(processingStatus ? { processingStatus } : {}),
       updatedAt: now,
     });
-    await scheduleCardSearchSync(ctx, id, card.userId);
+    await scheduleCardSearchSync(ctx, id, card.userId, card);
 
     // If content was updated, regenerate AI metadata
     if (contentChanged) {
@@ -377,7 +377,7 @@ export const updateCardFieldForUserHandler = async (
     await recordActiveCardCreated(ctx, userId, cardId, { hasPremium });
   }
   if (!options.deferSearchSync) {
-    await scheduleCardSearchSync(ctx, cardId, userId);
+    await scheduleCardSearchSync(ctx, cardId, userId, card);
   }
 
   if (shouldSchedulePipeline && !options.deferPipelineSchedule) {

@@ -579,6 +579,8 @@ export const patchCardForUser = internalMutation({
       return getCardForUserHandler(ctx, userId, args.cardId);
     }
 
+    const previousCard = await ctx.db.get("cards", args.cardId);
+
     for (const field of requestedFields) {
       switch (field) {
         case "content":
@@ -647,7 +649,12 @@ export const patchCardForUser = internalMutation({
         }
       );
     }
-    await scheduleCardSearchSync(ctx, args.cardId, userId);
+    await scheduleCardSearchSync(
+      ctx,
+      args.cardId,
+      userId,
+      previousCard ?? undefined
+    );
 
     return getCardForUserHandler(ctx, userId, args.cardId);
   },
