@@ -111,8 +111,15 @@ async function retry<T>(
   }
 }
 function assertOwner(owner: ImportOwner) {
+  const address = email(owner.email);
   if (
-    !(owner.teakUserId && /^[^\s@]+@[^\s@]+$/.test(email(owner.email))) ||
+    !(
+      owner.teakUserId &&
+      (/^[^\s@]+@[^\s@]+$/.test(address) ||
+        (owner.deletedAt !== null &&
+          Number.isFinite(owner.deletedAt) &&
+          address === ""))
+    ) ||
     typeof owner.emailVerified !== "boolean" ||
     !Number.isFinite(owner.changedAt)
   ) {
@@ -131,7 +138,17 @@ function assertProvider(
   ) {
     throw new Error("Provider mapping conflict; quarantine before continuing");
   }
-  if (!delta && email(user.email) !== email(owner.email)) {
+  if (
+    owner.deletedAt !== null &&
+    email(owner.email) === "" &&
+    owner.workosUserId === user.id
+  ) {
+    return;
+  }
+  if (
+    email(owner.email) === "" ||
+    (!delta && email(user.email) !== email(owner.email))
+  ) {
     throw new Error("External ID email conflict; quarantine before continuing");
   }
 }
@@ -154,6 +171,7 @@ async function validateRemote(
       if (user.externalId !== owner.teakUserId) {
         reason = "external_id_mismatch";
       } else if (
+        email(owner.email) === "" ||
         (owner.workosUserId && owner.workosUserId !== user.id) ||
         (exactVerification && user.emailVerified !== owner.emailVerified)
       ) {
