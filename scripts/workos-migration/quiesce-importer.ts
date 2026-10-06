@@ -3,6 +3,7 @@ import { createHash } from "node:crypto";
 import { lstat, readFile, writeFile } from "node:fs/promises";
 import { resolve } from "node:path";
 import { promisify } from "node:util";
+import { parseConvexCliResponse } from "./convex-cli-response";
 
 export interface BarrierReceipt {
   apiKeyFingerprint: string;
@@ -105,7 +106,7 @@ export async function main(
         maxBuffer: 64 * 1024,
       }
     );
-    return JSON.parse(stdout);
+    return parseConvexCliResponse(stdout);
   };
   if (operation === "status" || (!apply && operation !== "verify")) {
     console.log(

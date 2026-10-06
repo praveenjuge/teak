@@ -4,6 +4,7 @@ import { stat, writeFile } from "node:fs/promises";
 import { resolve } from "node:path";
 import { promisify } from "node:util";
 import { NotFoundException, WorkOS } from "@workos-inc/node";
+import { parseConvexCliResponse } from "./convex-cli-response";
 import {
   type ImportedUser,
   type ImportOwner,
@@ -196,7 +197,7 @@ export async function main(
         maxBuffer: 2 * 1024 * 1024,
       }
     );
-    return JSON.parse(stdout);
+    return parseConvexCliResponse(stdout) as T;
   }
   const user = (remote: {
     id: string;
