@@ -39,9 +39,13 @@ export function preflight(
   const passwords = { none: 0, compatible: 0, unsupported: 0 };
   for (const owner of owners) {
     const email = normalized(owner.email);
-    const group = emails.get(email) ?? [];
-    group.push(owner);
-    emails.set(email, group);
+    // Deleted owners erase their address. Keep their owner/mapping fences,
+    // but an erased address cannot occupy the live email namespace.
+    if (!(owner.deleted && email === "")) {
+      const group = emails.get(email) ?? [];
+      group.push(owner);
+      emails.set(email, group);
+    }
     ownerIds.set(owner.teakUserId, (ownerIds.get(owner.teakUserId) ?? 0) + 1);
     ownerRows.set(owner.teakUserId, [
       ...(ownerRows.get(owner.teakUserId) ?? []),
@@ -128,6 +132,18 @@ export function preflight(
   for (const provider of providers) {
     const email = normalized(provider.email),
       matches = emails.get(email) ?? [];
+    const pinnedOwners = providerIds.get(provider.id) ?? [];
+    if (
+      pinnedOwners.length === 1 &&
+      provider.externalId !== pinnedOwners[0].teakUserId
+    ) {
+      issues.push({
+        reason: "external_id_mismatch",
+        email,
+        teakUserIds: [pinnedOwners[0].teakUserId],
+        workosUserId: provider.id,
+      });
+    }
     const externalOwners = provider.externalId
       ? (ownerRows.get(provider.externalId) ?? [])
       : [];
@@ -137,7 +153,11 @@ export function preflight(
       externalOwner &&
         (!externalOwner.workosUserId ||
           externalOwner.workosUserId === provider.id) &&
-        (delta || normalized(externalOwner.email) === email) &&
+        ((externalOwner.deleted &&
+          normalized(externalOwner.email) === "" &&
+          externalOwner.workosUserId === provider.id) ||
+          (normalized(externalOwner.email) !== "" &&
+            (delta || normalized(externalOwner.email) === email))) &&
         (matches.length === 0 ||
           (matches.length === 1 &&
             matches[0].teakUserId === externalOwner.teakUserId))

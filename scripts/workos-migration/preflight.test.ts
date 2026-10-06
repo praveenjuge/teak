@@ -8,6 +8,84 @@ const owner = (teakUserId: string, email: string): PreflightOwner => ({
   deleted: false,
   passwordFormat: "compatible",
 });
+test("erased tombstones retain identity fences without occupying an email", () => {
+  const erased = { ...owner("deleted", ""), deleted: true };
+  expect(
+    preflight([erased, { ...erased, teakUserId: "other" }], []).clear
+  ).toBe(true);
+  expect(preflight([erased, erased], []).issues).toMatchObject([
+    { reason: "duplicate_owner" },
+  ]);
+  expect(preflight([owner("active", "")], []).issues).toMatchObject([
+    { reason: "invalid_email" },
+  ]);
+  expect(
+    preflight(
+      [erased],
+      [
+        {
+          id: "user_remote",
+          externalId: "deleted",
+          email: "retained@example.com",
+        },
+      ]
+    ).issues
+  ).toMatchObject([{ reason: "external_id_mismatch" }]);
+});
+test("deleted owners with retained emails still block collisions and malformed addresses", () => {
+  expect(
+    preflight(
+      [
+        { ...owner("deleted", "owner@example.com"), deleted: true },
+        owner("active", " OWNER@example.com "),
+      ],
+      []
+    ).issues
+  ).toMatchObject([{ reason: "duplicate_email" }]);
+  expect(
+    preflight([{ ...owner("deleted", "malformed"), deleted: true }], []).issues
+  ).toMatchObject([{ reason: "invalid_email" }]);
+});
+test.each([false, true])(
+  "erased tombstones require an exact pinned provider in delta=%s",
+  (delta) => {
+    const erased = {
+      ...owner("deleted", ""),
+      deleted: true,
+      workosUserId: "user_pinned",
+    };
+    const remote = {
+      id: "user_pinned",
+      externalId: "deleted",
+      email: "retained@example.com",
+    };
+    expect(preflight([erased], [remote], delta).clear).toBe(true);
+    expect(
+      preflight([erased], [{ ...remote, id: "user_wrong" }], delta).clear
+    ).toBe(false);
+    expect(
+      preflight([erased, owner("active", remote.email)], [remote], delta).clear
+    ).toBe(false);
+  }
+);
+test.each([null, "wrong_owner"])(
+  "pinned providers require the permanent external owner: %s",
+  (externalId) => {
+    const erased = {
+      ...owner("deleted", ""),
+      deleted: true,
+      workosUserId: "user_pinned",
+    };
+    expect(
+      preflight(
+        [erased],
+        [{ id: "user_pinned", externalId, email: "retained@example.com" }]
+      ).issues
+    ).toMatchObject([
+      { reason: "external_id_mismatch", teakUserIds: ["deleted"] },
+    ]);
+  }
+);
 test("normalizes case and surrounding spaces while preserving Gmail dots and plus aliases", () => {
   const result = preflight(
     [
