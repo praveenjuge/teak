@@ -89,6 +89,26 @@ describe("signed-in Connect management", () => {
   beforeEach(() => {
     vi.stubEnv("AUTH_PRIMARY", "workos");
     vi.stubEnv("WORKOS_CLIENT_ID", "client_SESSION");
+    vi.stubEnv("WORKOS_API_KEY", "sk_test_disconnect");
+    vi.stubEnv("WORKOS_ENVIRONMENT_ID", "environment_TEST");
+    vi.stubEnv("WORKOS_AUTHKIT_DOMAIN", "https://consent-tests.authkit.app");
+    vi.stubGlobal("fetch", (_url: unknown, options?: RequestInit) =>
+      Promise.resolve(
+        options?.method === "DELETE"
+          ? new Response(null, { status: 204 })
+          : Response.json({
+              data: [
+                {
+                  application: {
+                    id: "connect_app_TEST",
+                    client_id: principal.clientId,
+                  },
+                },
+              ],
+              list_metadata: {},
+            })
+      )
+    );
     for (const surface of ["CLI", "RAYCAST", "CHROME", "FIREFOX", "SAFARI"]) {
       vi.stubEnv(`WORKOS_CONNECT_${surface}_CLIENT_ID`, `client_${surface}`);
     }
@@ -143,28 +163,34 @@ describe("signed-in Connect management", () => {
     ).rejects.toThrow("Invalid page size");
   });
 
-  test("disconnects one grant permanently while preserving its sibling", async () => {
+  test("disconnects the application while preserving unrelated clients", async () => {
     const t = setup();
     await seed(t);
     await authorize(t);
     const sibling = { consentId: "app_consent_SIBLING" };
+    const other = { consentId: "app_consent_OTHER", clientId: "client_OTHER" };
+    await authorize(t, other);
     await authorize(t, sibling);
     const client = sessionClient(t);
     expect(
-      await client.mutation(api.workosConsents.disconnectConnection, {
+      await client.action(api.workosConsents.disconnectConnection, {
         consentId: principal.consentId,
       })
     ).toBeNull();
     const beforeRetry = await records(t);
-    await client.mutation(api.workosConsents.disconnectConnection, {
+    await client.action(api.workosConsents.disconnectConnection, {
       consentId: principal.consentId,
     });
     expect(await records(t)).toEqual(beforeRetry);
     expect(await authorize(t)).toEqual({
       status: "denied",
-      reason: "revoked_consent",
+      reason: "application_disconnected",
     });
     expect(await authorize(t, sibling)).toEqual({
+      status: "denied",
+      reason: "application_disconnected",
+    });
+    expect(await authorize(t, other)).toEqual({
       status: "ok",
       teakUserId: "legacy-owner",
     });
@@ -195,7 +221,7 @@ describe("signed-in Connect management", () => {
       });
       const before = await records(t);
       await expect(
-        sessionClient(t).mutation(api.workosConsents.disconnectConnection, {
+        sessionClient(t).action(api.workosConsents.disconnectConnection, {
           consentId:
             failure === "malformed" ? "session_DEVICE" : principal.consentId,
         })
@@ -243,7 +269,7 @@ describe("signed-in Connect management", () => {
     await seed(t);
     await authorize(t);
     const [disconnect] = await Promise.all([
-      sessionClient(t).mutation(api.workosConsents.disconnectConnection, {
+      sessionClient(t).action(api.workosConsents.disconnectConnection, {
         consentId: principal.consentId,
       }),
       authorize(t),
@@ -251,7 +277,7 @@ describe("signed-in Connect management", () => {
     expect(disconnect).toBeNull();
     expect(await authorize(t)).toEqual({
       status: "denied",
-      reason: "revoked_consent",
+      reason: "application_disconnected",
     });
     const rows = await records(t);
     expect(rows).toHaveLength(1);
@@ -292,7 +318,7 @@ describe("signed-in Connect management", () => {
         })
       ).rejects.toThrow();
       await expect(
-        actor.mutation(api.workosConsents.disconnectConnection, {
+        actor.action(api.workosConsents.disconnectConnection, {
           consentId: principal.consentId,
         })
       ).rejects.toThrow();

@@ -599,11 +599,43 @@ extension SafariOAuthTests {
         }
     }
 
+    static func discoveryFreshDisconnect() async throws {
+        for status in [204, 503] {
+            discoveryReset("workos")
+            let store = MemoryCredentials()
+            MockHTTP.respond = { request in request.url?.path == "/v1/me" ? (200, validSession) : (200, tokenResponse) }
+            try await discoveryLogin(fixture(store))
+            try discoveryExpire(store)
+            var disconnects = 0
+            var refreshes = 0
+            MockHTTP.respond = { request in
+                if request.url?.path == "/api/auth/mcp/token" {
+                    refreshes += 1
+                    let form = try discoveryForm(request)
+                    try check(form["grant_type"] == "refresh_token" && form["refresh_token"] == "new-refresh", "logout refresh spends stored token")
+                    try check(form["client_id"] == "client-safari" && form["resource"] == "https://test.teak.invalid/api", "logout refresh preserves client and resource namespace")
+                    return (200, #"{"access_token":"logout-access","refresh_token":"logout-refresh","expires_in":300,"token_type":"Bearer"}"#)
+                }
+                let proof = try discoveryDisconnectProof(request)
+                disconnects += 1
+                if proof == "new-access" { return (401, "") }
+                try check(proof == "logout-access", "logout retries using fresh signed proof")
+                return (status, "")
+            }
+            let result = await fixture(store).signOut()
+            try check(disconnects == 2 && refreshes == 1, "expired first logout refreshes and retries exactly once")
+            try check((result["status"] as? String == "signed-out") == (status == 204), "fresh disconnect still requires exact204")
+            if status == 204 { try check(try store.load() == nil, "confirmed disconnect clears rotation") }
+            else { try check(try store.load()?.refreshToken == "logout-refresh", "unconfirmed disconnect retains rotated credential") }
+        }
+    }
+
     static func discoveryJourneys() async throws {
         defer { discoveryReset() }
         try await discoveryModeJourney("betterauth")
         try await discoveryModeJourney("workos")
         try await discoveryExpiredDisconnect()
+        try await discoveryFreshDisconnect()
         try await discoveryProviderFlip()
         try await discoveryCancelledAndRefused()
         try await discoveryRotationFailures()

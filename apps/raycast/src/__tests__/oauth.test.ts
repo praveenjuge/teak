@@ -409,3 +409,51 @@ test.each([401, 503, 200])(
     expect(browserCount).toBe(0);
   },
 );
+
+test.each([204, 503])(
+  "expired first logout refreshes its exact namespace once and retains rotation on failure (%i)",
+  async (status) => {
+    mode = "workos";
+    await oauth.authorizeTeak();
+    const key = Array.from(stores.keys())[0];
+    stores.set(key, {
+      accessToken: "signed-expired-access",
+      refreshToken: "saved-refresh",
+      isExpired: () => true,
+    });
+    posts.length = 0;
+    browserCount = 0;
+    globalThis.fetch = (async (input, init) => {
+      if (String(input).endsWith("/oauth/disconnect")) {
+        return new Response(null, {
+          status:
+            new Headers(init?.headers).get("Authorization") ===
+            "Bearer signed-expired-access"
+              ? 401
+              : status,
+        });
+      }
+      return transport(input, init);
+    }) as typeof fetch;
+    if (status === 204) {
+      await oauth.signOutTeak();
+      expect(stores.size).toBe(0);
+    } else {
+      await expect(oauth.signOutTeak()).rejects.toThrow(
+        "credentials are still saved",
+      );
+      expect(stores.get(key)?.refreshToken).toBe("refresh-new");
+    }
+    const refreshes = posts.filter(
+      (post) => post.body.get("grant_type") === "refresh_token",
+    );
+    expect(refreshes).toHaveLength(1);
+    expect(refreshes[0].url).toBe(
+      "https://scholarly-hay-77.authkit.app/oauth2/token",
+    );
+    expect(refreshes[0].body.get("client_id")).toBe("client_raycast_dev");
+    expect(refreshes[0].body.get("refresh_token")).toBe("saved-refresh");
+    expect(refreshes[0].body.get("resource")).toBe("https://teakvault.com/api");
+    expect(browserCount).toBe(0);
+  },
+);

@@ -90,7 +90,7 @@ export function useSettingsController({
   );
   const activeConnectionIdentity = useRef(connectionIdentity?.cacheKey);
   activeConnectionIdentity.current = connectionIdentity?.cacheKey;
-  const disconnectConsent = useMutation(
+  const disconnectConsent = useAction(
     api.workosConsents.disconnectConnection
   );
   const revokeOAuthConnection = useAction(

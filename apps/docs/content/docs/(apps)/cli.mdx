@@ -50,7 +50,7 @@ After installing globally, the `teak` command is available on your PATH. To try 
 teak logout
 ```
 
-`teak logout` revokes this installation's browser sign-in (if Teak is unreachable, credentials stay saved so you can retry). To disconnect every CLI installation at once, use **Settings → Security → Connections**. API keys are unaffected.
+`teak logout` revokes browser sign-in. When Teak uses WorkOS, this signs out every CLI installation; reconnecting can take about five minutes. If Teak is unreachable, credentials stay saved so you can retry. You can also disconnect the CLI in **Settings → Security → Connected apps**. API keys are unaffected.
 
 The upcoming CLI release stores credentials separately for each API deployment. Local development
 cannot use or clear your production sign-in. If logout fails, retry it before

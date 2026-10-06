@@ -236,7 +236,8 @@ async function tokenRequest(
 
 async function revokeCredentials(
   credentials: Credentials,
-  auth: AuthDiscovery
+  auth: AuthDiscovery,
+  refreshSaved = false
 ) {
   const workos =
     credentials.siteUrl === site() &&
@@ -248,22 +249,42 @@ async function revokeCredentials(
   if (!(endpoint && (workos || matches(credentials, auth)))) {
     throw new Error("Sign-in provider changed. Please reconnect to Teak.");
   }
-  const response = await fetchAuth(endpoint, {
-    method: "POST",
-    credentials: "omit",
-    redirect: "error",
-    headers: workos
-      ? { Authorization: `Bearer ${credentials.accessToken}` }
-      : { "Content-Type": "application/x-www-form-urlencoded" },
-    ...(workos
-      ? {}
-      : {
-          body: new URLSearchParams({
-            client_id: auth.clients[SURFACE],
-            token: credentials.refreshToken,
+  const disconnect = (accessToken: string) =>
+    fetchAuth(endpoint, {
+      method: "POST",
+      credentials: "omit",
+      redirect: "error",
+      headers: workos
+        ? { Authorization: `Bearer ${accessToken}` }
+        : { "Content-Type": "application/x-www-form-urlencoded" },
+      ...(workos
+        ? {}
+        : {
+            body: new URLSearchParams({
+              client_id: auth.clients[SURFACE],
+              token: credentials.refreshToken,
+            }),
           }),
-        }),
-  });
+    });
+  let response = await disconnect(credentials.accessToken);
+  if (
+    workos &&
+    response.status === 401 &&
+    refreshSaved &&
+    matches(credentials, auth)
+  ) {
+    const renewed = await tokenRequest(auth, {
+      grant_type: "refresh_token",
+      refresh_token: credentials.refreshToken,
+    });
+    if (!renewed) {
+      throw new Error("Could not sign out. Please try again.");
+    }
+    renewed.userId = credentials.userId;
+    // signOutOAuth holds the same lock as request refreshes.
+    await writeCredentials(renewed);
+    response = await disconnect(renewed.accessToken);
+  }
   if (workos ? response.status !== 204 : !response.ok) {
     throw new Error("Could not sign out. Please try again.");
   }
@@ -493,7 +514,7 @@ export async function signOutOAuth() {
   await navigator.locks.request("teak-oauth-credentials", async () => {
     const credentials = await readCredentials();
     if (credentials) {
-      await revokeCredentials(credentials, await discovery(true));
+      await revokeCredentials(credentials, await discovery(true), true);
     }
     await writeCredentials(null);
     await chrome.storage.local.remove(ownerKey());

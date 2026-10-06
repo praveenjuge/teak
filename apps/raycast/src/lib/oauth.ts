@@ -378,30 +378,52 @@ async function revokeStoredSession(): Promise<void> {
     }
     if (token) {
       try {
-        // The disconnect endpoint accepts signed expired access JWTs only for
-        // revocation. It never grants access, and refresh secrets stay local.
+        // Try an old token first so a completed disconnect can recover without
+        // refreshing a grant the provider has already revoked.
         const endpoint = workos
           ? `${getApiBaseUrl()}/oauth/disconnect`
           : record.revocationEndpoint;
         if (!endpoint) {
           throw new Error("Revocation is unavailable");
         }
-        const response = await fetch(endpoint, {
-          method: "POST",
-          headers: workos
-            ? { Authorization: `Bearer ${token}` }
-            : { "Content-Type": "application/x-www-form-urlencoded" },
-          ...(workos
-            ? {}
-            : {
-                body: new URLSearchParams({
-                  client_id: record.clientId,
-                  token,
+        const disconnect = (accessToken: string) =>
+          fetch(endpoint, {
+            method: "POST",
+            headers: workos
+              ? { Authorization: `Bearer ${accessToken}` }
+              : { "Content-Type": "application/x-www-form-urlencoded" },
+            ...(workos
+              ? {}
+              : {
+                  body: new URLSearchParams({
+                    client_id: record.clientId,
+                    token,
+                  }),
                 }),
-              }),
-          redirect: "error",
-          signal: AbortSignal.timeout(10_000),
-        });
+            redirect: "error",
+            signal: AbortSignal.timeout(10_000),
+          });
+        let response = await disconnect(token);
+        if (workos && response.status === 401 && tokens?.refreshToken) {
+          const provider = await getProvider(true);
+          if (
+            providerKey(provider.auth) !==
+            `${record.apiBaseUrl}|${record.issuer}|${record.clientId}`
+          ) {
+            throw new Error("Saved connection belongs to another provider");
+          }
+          const renewed = await exchange(
+            provider,
+            {
+              grant_type: "refresh_token",
+              refresh_token: tokens.refreshToken,
+            },
+            tokens.refreshToken,
+          );
+          // exchange atomically stores rotated tokens before retrying. Sign-out
+          // blocks new readers and has drained all in-flight refreshes.
+          response = await disconnect(renewed);
+        }
         if (workos ? response.status !== 204 : !response.ok) {
           throw new Error("Revocation failed");
         }

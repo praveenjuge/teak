@@ -412,7 +412,7 @@ const components = {
     connectRevocation: {
       bearerFormat: "WorkOS Connect API access JWT",
       description:
-        "Signed Connect token for https://teakvault.com/api. Expired tokens are accepted only to permanently disconnect their own consent; API keys, refresh tokens and session tokens are rejected.",
+        "Signed Connect token for https://teakvault.com/api. New application-wide disconnects require a live access token. Expired tokens can replay a completed receipt or resume an already acknowledged operation; API keys, refresh tokens and session tokens are rejected.",
       scheme: "bearer",
       type: "http",
     },
@@ -443,15 +443,22 @@ export const openApiSpec = {
     "/v1/oauth/disconnect": {
       post: {
         operationId: "disconnectOAuthConsent",
-        summary: "Disconnect this WorkOS Connect consent",
+        summary: "Disconnect this WorkOS Connect application",
         description:
-          "No request body. Permanently denies this consent, including refreshed tokens, without affecting sibling grants. Works after authentication rollback. Repeating a successful disconnect returns 204. Preserve local credentials unless 204 is returned.",
+          "No request body. Revokes this application on all installations for the signed-in user, while other applications stay connected. Old consent receipts remain permanently denied and successful retries return 204 without revoking a later grant. Works after authentication rollback. Reconnect may wait up to 305 seconds while old access tokens expire. Preserve local credentials unless 204 is returned; refresh an expired access token after 401 and retry.",
         security: [{ connectRevocation: [] }],
         responses: {
-          204: { description: "Consent permanently disconnected" },
-          401: { description: "Invalid token or conflicting consent binding" },
+          204: {
+            description:
+              "Application disconnected or completed old receipt replayed",
+          },
+          401: {
+            description:
+              "Invalid or expired token, or conflicting consent binding",
+          },
           503: {
-            description: "Verification or persistence unavailable; retry",
+            description:
+              "Disconnect pending or unavailable; preserve credentials and retry",
           },
         },
       },

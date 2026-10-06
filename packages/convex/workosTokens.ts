@@ -11,6 +11,7 @@ interface WorkosPrincipal {
 export interface WorkosConnectPrincipal extends WorkosPrincipal {
   clientId: string;
   consentId: string;
+  tokenExpiresAt?: number;
 }
 
 const USER_ID = /^user_[A-Za-z0-9]+$/;
@@ -144,6 +145,9 @@ export async function verifyWorkosConnectToken(
       !CONSENT_ID.test(payload.sid) ||
       !validClientId(payload.client_id) ||
       typeof payload.iat !== "number" ||
+      typeof payload.exp !== "number" ||
+      payload.exp <= payload.iat ||
+      payload.exp - payload.iat > 300 ||
       payload.iat > Math.floor(Date.now() / 1000) ||
       typeof payload.scope !== "string" ||
       !REQUIRED_SCOPES.every((scope) => scopes.includes(scope)) ||
@@ -152,6 +156,7 @@ export async function verifyWorkosConnectToken(
       return null;
     }
     return {
+      ...(config.revocationOnly ? { tokenExpiresAt: payload.exp } : {}),
       workosUserId: payload.sub,
       consentId: payload.sid,
       clientId: payload.client_id,

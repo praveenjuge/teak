@@ -173,6 +173,10 @@ describe("Connect credential validation", () => {
     ["owner claim type", { external_id: 12 }],
     ["empty owner claim", { external_id: "" }],
     ["expired", { exp: 1 }],
+    [
+      "token lifetime exceeds five minutes",
+      { exp: Math.floor(Date.now() / 1000) + 301 },
+    ],
     ["missing expiry", { exp: undefined }],
     ["missing issue time", { iat: undefined }],
     ["future issue time", { iat: Math.floor(Date.now() / 1000) + 3600 }],

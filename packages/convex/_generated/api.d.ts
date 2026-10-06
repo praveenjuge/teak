@@ -217,6 +217,7 @@ import type * as workflows_steps_screenshot_captureScreenshot from "../workflows
 import type * as workflows_steps_screenshot_retryable from "../workflows/steps/screenshot/retryable.js";
 import type * as workosBootstrap from "../workosBootstrap.js";
 import type * as workosConnectRevocation from "../workosConnectRevocation.js";
+import type * as workosApplicationDisconnect from "../workosApplicationDisconnect.js";
 import type * as workosConsents from "../workosConsents.js";
 import type * as workosDeletionCompletion from "../workosDeletionCompletion.js";
 import type * as workosE2eActions from "../workosE2eActions.js";
@@ -452,6 +453,7 @@ declare const fullApi: ApiFromModules<{
   "workflows/steps/screenshot/retryable": typeof workflows_steps_screenshot_retryable;
   workosBootstrap: typeof workosBootstrap;
   workosConnectRevocation: typeof workosConnectRevocation;
+  workosApplicationDisconnect: typeof workosApplicationDisconnect;
   workosConsents: typeof workosConsents;
   workosDeletionCompletion: typeof workosDeletionCompletion;
   workosE2eActions: typeof workosE2eActions;

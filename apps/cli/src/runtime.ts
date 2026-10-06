@@ -160,6 +160,13 @@ const parseCredentials = (text: string): StoredCredentials | null => {
 export const readCredentials = (
   options: ClientOptions = {}
 ): StoredCredentials | null => {
+  const file = credentialsPath(options);
+  const fallback = existsSync(file) ? readFileSync(file, "utf8") : "";
+  // Only new fallback writes claim precedence. Older files may be stale after
+  // a successful Keychain update and retain their original read ordering.
+  if (readJson<Record<string, unknown>>(fallback)?.fallbackAuthority === true) {
+    return parseCredentials(fallback);
+  }
   if (platform() === "darwin") {
     const found = spawnSync(
       "security",
@@ -188,6 +195,11 @@ const writeCredentials = (
   options: ClientOptions
 ) => {
   const payload = JSON.stringify(credentials);
+  const destination = credentialsPath(options);
+  const authoritativeFallback =
+    existsSync(destination) &&
+    readJson<Record<string, unknown>>(readFileSync(destination, "utf8"))
+      ?.fallbackAuthority === true;
   if (platform() === "darwin") {
     const saved = spawnSync(
       "security",
@@ -203,14 +215,17 @@ const writeCredentials = (
       ],
       { encoding: "utf8" }
     );
-    if (saved.status === 0) {
+    if (saved.status === 0 && !authoritativeFallback) {
       return;
     }
   }
   ensureConfigDir();
-  const destination = credentialsPath(options);
   const temporary = `${destination}.${randomBytes(16).toString("hex")}.tmp`;
-  writeFileSync(temporary, payload, { mode: 0o600, flag: "wx" });
+  writeFileSync(
+    temporary,
+    JSON.stringify({ ...credentials, fallbackAuthority: true }),
+    { mode: 0o600, flag: "wx" }
+  );
   renameSync(temporary, destination);
 };
 
@@ -333,16 +348,32 @@ const revokeCredentials = async (
       apiBaseUrl(options),
       localHostname(new URL(apiBaseUrl(options)).hostname)
     );
-    const response = await fetch(
-      `${withoutTrailingSlashes(api.href).replace(/\/v1$/, "")}/v1/oauth/disconnect`,
-      {
+    const endpoint = `${withoutTrailingSlashes(api.href).replace(/\/v1$/, "")}/v1/oauth/disconnect`;
+    const disconnect = (accessToken: string) =>
+      fetch(endpoint, {
         method: "POST",
-        headers: { Authorization: `Bearer ${credentials.accessToken}` },
+        headers: { Authorization: `Bearer ${accessToken}` },
         credentials: "omit",
         redirect: "error",
         signal: AbortSignal.timeout(10_000),
+      });
+    let response = await disconnect(credentials.accessToken);
+    // A completed receipt can accept the old token without refreshing a
+    // provider grant that has already been revoked.
+    if (response.status === 401 && useDiscovery && credentials.refreshToken) {
+      const auth = await discovery(options, true);
+      if (!matchesProvider(credentials, options, auth)) {
+        throw new Error("Saved connection belongs to another provider");
       }
-    );
+      const renewed = await exchangeToken(options, auth, {
+        grant_type: "refresh_token",
+        refresh_token: credentials.refreshToken,
+      });
+      // The caller holds the credential lock. Rotation must survive a failed
+      // disconnect; never restore the now invalid previous refresh token.
+      writeCredentials(renewed, options);
+      response = await disconnect(renewed.accessToken);
+    }
     if (response.status !== 204) {
       throw new Error("Disconnect was not confirmed");
     }

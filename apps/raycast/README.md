@@ -43,3 +43,4 @@ Prefer an API key? Open the extension preferences and paste a key from **Teak Se
 - **Network errors**: verify connectivity to `app.teakvault.com` and `teakvault.com/api`.
 
 To disconnect a connection from Teak, open **Settings → Security → Connected apps**.
+When Teak uses WorkOS, signing out disconnects Raycast across all its installations. Reconnecting can take about five minutes.

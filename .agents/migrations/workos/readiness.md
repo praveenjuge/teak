@@ -13,11 +13,28 @@ Live dev and production discovery omit `revocation_endpoint`. Two fresh,
 signature/nonce-verified dev CIMD authorizations reused the same consent ID.
 Permanent local consent denial therefore blocks reconnecting to that grant.
 The earlier denylist proof establishes denial, not a working logout/reconnect
-journey. PR521 remains draft until a separately approved provider-revocation
-experiment and corrected client/backend behavior prove both outcomes.
-WorkOS's supported provider revocation targets the user's entire application,
-across its resources/installations; the previously approved per-consent contract
-must not silently broaden. No production authentication switch is approved here.
+journey. The user approved application-wide disconnect on 6 October.
+The exact dev CIMD experiment then received provider DELETE 204, rejected the
+retained old refresh token with 400 invalid_grant before and after reenrollment,
+and verified a distinct signed replacement consent ID. Its hash-chained private
+transcript is retained. A separately held, 7.864-second-old authorization code
+also returned invalid_grant after provider deletion. No other application grants
+existed in that fixture, so this is not a live sibling-client control.
+The grouped backend/client correction passed independent review and local tests;
+deployment and the migrated application journey remain unproven.
+WorkOS's provider revocation applies across the same user's application resources
+and installations. No production authentication switch is approved here.
+
+## Approved development repair (6 October 2026)
+
+The user separately approved the two exact social owner bindings and retirement
+of two unowned test fixtures. A fresh encrypted dev snapshot/configuration passed
+local decryption and private R2 GET checksum before writes. Both social mappings
+now have real signed updated-event profiles, and both fixture deletions received
+provider acknowledgements and signed deletion receipts. Audit settlement found
+an invalid Convex ID lookup; the grouped fix retains complete bounded ownership
+checks. Development account changes remain paused until settlement and final
+ownership/quiescence verification. No user import or production change occurred.
 
 ## User-approved revisions
 
@@ -30,7 +47,8 @@ must not silently broaden. No production authentication switch is approved here.
   unsupported R2 versioning and Pro-only Convex scheduling (approved by the user).
 - Use the default WorkOS email domain instead of the paid custom domain.
 - The shadow week, additional Mac/iOS/Electron/Raycast runtime checks and Mac/iOS
-  release waiting were waived; those waivers are not runtime proof. Firefox is
+  release waiting and remaining isolated production-copy rehearsal were waived;
+  those waivers are not runtime proof. Firefox is
   excluded because it is not published.
 
 ## Gates
@@ -65,7 +83,8 @@ All expected card files restored locally with matching SHA-256 and total size
 and 74,100 documents with exact normalized document hashes, IDs, and creation times.
 Authenticated ownership checks matched 835 and 200 exact card IDs for two accounts;
 anonymous and cleared-auth reads were denied. This uses an isolated local JWT issuer,
-so canonical application sign-in and the Phase 4 rehearsal remain required.
+so it does not prove canonical application sign-in. The remaining Phase 4
+rehearsal was subsequently waived by the user on 6 October.
 
 A fresh encrypted source/configuration/evidence checkpoint preserves 1,531 source
 files and the dev runtime configuration. Local decryption and remote R2 SHA-256

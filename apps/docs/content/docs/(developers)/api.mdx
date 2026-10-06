@@ -45,9 +45,9 @@ When a deployment uses WorkOS, request `https://teakvault.com/api` as the OAuth 
 
 ### Disconnect an OAuth connection
 
-On WorkOS deployments, send `POST /v1/oauth/disconnect` with your Connect API access token as the bearer credential and no body. A `204` confirms that this grant is permanently disconnected; other grants for the same app stay connected. Repeating the request succeeds. Keep saved credentials until you receive `204`.
+On WorkOS deployments, send `POST /v1/oauth/disconnect` with your Connect API access token as the bearer credential and no body. A `204` confirms that this app is disconnected across all its installations and resources. Other apps stay connected. Repeating a completed request succeeds. Keep saved credentials until you receive `204`. Reconnecting can take about five minutes while previously issued access tokens expire.
 
-An expired, correctly signed access token can disconnect its own grant, but cannot access cards. Invalid credentials return `401`; temporary verification or storage failures return `503`. API keys, refresh tokens, AuthKit sessions, and MCP-audience tokens cannot use this endpoint.
+A new disconnect requires a current access token. A correctly signed expired token can retry a completed disconnect or resume its acknowledged cleanup, but cannot access cards. On `401`, refresh using the same issuer, client and resource, save the rotated credentials, then retry once. Temporary verification, provider or storage failures return `503`; preserve credentials for retry. API keys, refresh tokens, AuthKit sessions, and MCP-audience tokens cannot use this endpoint.
 
 ## Read your identity
 

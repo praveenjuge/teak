@@ -20,12 +20,27 @@ beforeEach(async () => {
   vi.stubEnv("SITE_URL", "https://app.teakvault.com");
   vi.stubEnv("WORKOS_AUTHKIT_DOMAIN", issuer);
   vi.stubEnv("AUTH_PRIMARY", "betterauth");
+  vi.stubEnv("WORKOS_API_KEY", "sk_test_disconnect");
+  vi.stubEnv("WORKOS_ENVIRONMENT_ID", "environment_TEST");
+  vi.stubEnv("WORKOS_CLIENT_ID", "client_AUTHKIT");
   const jwk = await exportJWK(keys.publicKey);
-  vi.stubGlobal("fetch", () =>
-    Promise.resolve(
-      Response.json({ keys: [{ ...jwk, kid: "logout-key", alg: "RS256" }] })
-    )
-  );
+  vi.stubGlobal("fetch", (input: RequestInfo | URL, init?: RequestInit) => {
+    const url = new URL(String(input));
+    if (url.pathname.endsWith("/oauth2/jwks")) {
+      return Promise.resolve(
+        Response.json({ keys: [{ ...jwk, kid: "logout-key", alg: "RS256" }] })
+      );
+    }
+    if (init?.method === "DELETE") {
+      return Promise.resolve(new Response(null, { status: 204 }));
+    }
+    return Promise.resolve(
+      Response.json({
+        data: [{ application: { id: "connect_app_TEST", client_id: client } }],
+        list_metadata: {},
+      })
+    );
+  });
 });
 afterEach(() => {
   vi.unstubAllEnvs();
@@ -103,7 +118,7 @@ async function setup(existing = true) {
 // Failure modes: signature/expiry/audience/session confusion; conflicting subject,
 // client/owner/consent; duplicate/missing ownership; unseen consent; auth rollback;
 // repeated logout or refresh resurrecting credentials; sibling grants and outages.
-test("disconnect survives auth rollback, is permanent and preserves sibling grants", async () => {
+test("disconnect survives auth rollback and permanently denies the application", async () => {
   const f = await setup();
   const access = await token();
   expect((await f.disconnect(access)).status).toBe(204);
@@ -114,7 +129,7 @@ test("disconnect survives auth rollback, is permanent and preserves sibling gran
       clientId: client,
       externalId: owner,
     })
-  ).toMatchObject({ status: "denied", reason: "revoked_consent" });
+  ).toMatchObject({ status: "denied", reason: "application_disconnected" });
   const first = (await f.rows()).find(
     (r) => r.consentId === consent
   )?.revokedAt;
@@ -126,7 +141,11 @@ test("disconnect survives auth rollback, is permanent and preserves sibling gran
   expect(
     (await f.rows()).find((r) => r.consentId === "app_consent_SIBLING")
       ?.revokedAt
-  ).toBeUndefined();
+  ).toBeTypeOf("number");
+  expect(
+    (await f.rows()).find((r) => r.consentId === "app_consent_SIBLING")
+      ?.disconnectCompletedAt
+  ).toBeTypeOf("number");
 });
 test("logout before first request creates an already revoked canonical consent", async () => {
   const f = await setup(false);
@@ -195,7 +214,7 @@ test("missing issuer reports unavailable without writes", async () => {
   expect((await f.rows()).every((r) => r.revokedAt === undefined)).toBe(true);
 });
 
-test("expired signed access token can only permanently revoke its grant", async () => {
+test("expired signed access token replays only a completed receipt", async () => {
   const f = await setup();
   const expired = await token({
     exp: Math.floor(Date.now() / 1000) - 10,
@@ -207,6 +226,9 @@ test("expired signed access token can only permanently revoke its grant", async 
       audience: "https://teakvault.com/api",
     })
   ).toBeNull();
+  expect((await f.disconnect(expired)).status).toBe(401);
+  expect((await f.rows()).every((r) => r.revokedAt === undefined)).toBe(true);
+  expect((await f.disconnect(await token())).status).toBe(204);
   expect((await f.disconnect(expired)).status).toBe(204);
   expect(
     (await f.rows()).find((r) => r.consentId === consent)?.revokedAt

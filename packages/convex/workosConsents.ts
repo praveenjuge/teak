@@ -1,7 +1,7 @@
 import { paginationOptsValidator } from "convex/server";
 import { type Infer, v } from "convex/values";
 import { internal } from "./_generated/api";
-import { internalMutation, mutation, query } from "./_generated/server";
+import { action, internalMutation, query } from "./_generated/server";
 import { readWorkosConnectClients } from "./publicApiMeta";
 import { getSessionUser } from "./securitySessions";
 
@@ -48,6 +48,22 @@ export const authorizeConnectConsent = internalMutation({
     if (owner.status !== "ok") {
       return owner;
     }
+    const fences = await ctx.db
+      .query("workosApplicationDisconnects")
+      .withIndex("by_workosUserId_and_clientId", (q) =>
+        q.eq("workosUserId", args.workosUserId).eq("clientId", args.clientId)
+      )
+      .take(2);
+    const fence = fences[0];
+    if (
+      fences.length > 1 ||
+      (fence &&
+        (fence.state !== "completed" ||
+          fence.releaseAfter === undefined ||
+          Date.now() < fence.releaseAfter))
+    ) {
+      return { status: "denied" as const, reason: "application_disconnected" };
+    }
     const matches = await ctx.db
       .query("workosConsents")
       .withIndex("by_consentId", (q) => q.eq("consentId", args.consentId))
@@ -56,6 +72,12 @@ export const authorizeConnectConsent = internalMutation({
       return { status: "denied" as const, reason: "duplicate_consent" };
     }
     const existing = matches[0];
+    if (existing && fence && existing.firstSeenAt <= fence.startedAt) {
+      if (existing.revokedAt === undefined) {
+        await ctx.db.patch(existing._id, { revokedAt: fence.startedAt });
+      }
+      return { status: "denied" as const, reason: "revoked_consent" };
+    }
     if (existing?.revokedAt !== undefined) {
       return { status: "denied" as const, reason: "revoked_consent" };
     }
@@ -184,9 +206,8 @@ export const listConnections = query({
   },
 });
 
-// Authentication and revocation share one transaction, including deletion guards.
-// Disconnect affects this consent only; other grants for the same app survive.
-export const disconnectConnection = mutation({
+// Settings and signed-token logout share the same durable provider operation.
+export const disconnectConnection = action({
   args: { consentId: v.string() },
   returns: v.null(),
   handler: async (ctx, { consentId }) => {
@@ -197,23 +218,26 @@ export const disconnectConnection = mutation({
     ) {
       throw new Error("WorkOS sign-in required");
     }
-    const rows = await ctx.db
-      .query("workosConsents")
-      .withIndex("by_consentId", (q) => q.eq("consentId", consentId))
-      .take(2);
-    if (
-      rows.length !== 1 ||
-      rows[0].userId !== session.teakUserId ||
-      rows[0].workosUserId !== session.workosUserId
-    ) {
+    const row: { workosUserId: string; clientId: string } | null =
+      await ctx.runQuery(internal.workosApplicationDisconnect.sessionConsent, {
+        consentId,
+        userId: session.teakUserId,
+        workosUserId: session.workosUserId,
+      });
+    if (!row) {
       throw new Error("Connection unavailable");
     }
-    const revoked: boolean = await ctx.runMutation(
-      internal.workosConsents.revokeConnectConsent,
-      { consentId, teakUserId: session.teakUserId }
+    const result: number = await ctx.runAction(
+      internal.workosApplicationDisconnect.run,
+      {
+        workosUserId: row.workosUserId,
+        clientId: row.clientId,
+        consentId,
+        externalId: session.teakUserId,
+      }
     );
-    if (!revoked) {
-      throw new Error("Connection unavailable");
+    if (result !== 204) {
+      throw new Error("Connection unavailable. Please try again.");
     }
     return null;
   },

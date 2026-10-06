@@ -216,14 +216,17 @@ export const resolveRetiredFixture = internalMutation({
         (owner) => owner.email.trim().toLowerCase() === normalizedEmail
       ) ||
       legacyUsers.page.some(
-        (owner: { email: string }) =>
+        (owner: { _id: string; email: string }) =>
+          owner._id === fixture.marker ||
           owner.email.trim().toLowerCase() === normalizedEmail
       )
     ) {
       throw refused();
     }
+    // The fixture marker is an external ID, not a Convex document ID. Its
+    // absence is proved by the complete legacy census above; an _id predicate
+    // would make Better Auth call db.get with an invalid base32 ID.
     for (const lookup of [
-      { model: "user" as const, field: "_id", value: fixture.marker },
       { model: "user" as const, field: "email", value: row.email },
       { model: "account" as const, field: "userId", value: fixture.marker },
     ]) {

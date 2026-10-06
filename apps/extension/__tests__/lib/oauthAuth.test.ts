@@ -723,7 +723,7 @@ test.each([204, 401, 503, 200, 302])(
       return Promise.resolve(new Response(null, { status }));
     });
     globalThis.fetch = withDiscovery(network as unknown as typeof fetch);
-    if (status === 204) {
+    if (status === 204 || status === 401) {
       primary = "betterauth";
     }
     const auth = await load();
@@ -735,6 +735,58 @@ test.each([204, 401, 503, 200, 302])(
       expect(storage[tokenKey]).toBeDefined();
     }
     expect(network).toHaveBeenCalledTimes(1);
+    expect(webAuth).not.toHaveBeenCalled();
+  }
+);
+
+test.each([204, 503])(
+  "expired first WorkOS logout refreshes once and retains rotation on failure (%i)",
+  async (status) => {
+    primary = "workos";
+    storage[tokenKey] = {
+      accessToken,
+      refreshToken,
+      expiresAt: 0,
+      siteUrl: "https://test.convex.site",
+      issuer: "https://auth.test.workos.com",
+      clientId: "client_chrome",
+    };
+    const calls: string[] = [];
+    globalThis.fetch = withDiscovery((async (input, init) => {
+      calls.push(String(input));
+      if (String(input).endsWith("/oauth2/token")) {
+        const body = new URLSearchParams(String(init?.body));
+        expect(body.get("client_id")).toBe("client_chrome");
+        expect(body.get("refresh_token")).toBe(refreshToken);
+        expect(body.get("resource")).toBe("https://teakvault.com/api");
+        return await Promise.resolve(
+          tokenResponse("rotated-access", "rotated-refresh")
+        );
+      }
+      return new Response(null, {
+        status:
+          new Headers(init?.headers).get("Authorization") ===
+          `Bearer ${accessToken}`
+            ? 401
+            : status,
+      });
+    }) as typeof fetch);
+    const auth = await load();
+    if (status === 204) {
+      await auth.signOutOAuth();
+      expect(storage[tokenKey]).toBeUndefined();
+    } else {
+      await expect(auth.signOutOAuth()).rejects.toThrow("Could not sign out");
+      expect(storage[tokenKey]).toMatchObject({
+        refreshToken: "rotated-refresh",
+      });
+    }
+    expect(calls.filter((url) => url.endsWith("/oauth2/token"))).toHaveLength(
+      1
+    );
+    expect(
+      calls.filter((url) => url.endsWith("/oauth/disconnect"))
+    ).toHaveLength(2);
     expect(webAuth).not.toHaveBeenCalled();
   }
 );

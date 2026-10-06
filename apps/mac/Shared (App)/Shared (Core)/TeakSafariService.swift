@@ -372,7 +372,18 @@ actor TeakSafariService {
             var request = URLRequest(url: apiURL.appendingPathComponent("v1/oauth/disconnect"))
             request.httpMethod = "POST"
             request.setValue("Bearer \(tokens.accessToken)", forHTTPHeaderField: "Authorization")
-            let (_, response) = try await send(request)
+            var (_, response) = try await send(request)
+            // Completed receipts accept the saved proof without refreshing a
+            // provider grant that has already been disconnected.
+            if response.statusCode == 401, let auth, try matches(tokens, auth) {
+                let renewed = try await exchange(["grant_type": "refresh_token", "refresh_token": tokens.refreshToken],
+                                                 auth: auth, ownerID: saved.ownerID)
+                // Callers hold the shared app/extension credential lock. Store
+                // rotation before retrying so network failures cannot lose it.
+                try credentials.save(renewed)
+                request.setValue("Bearer \(renewed.accessToken)", forHTTPHeaderField: "Authorization")
+                (_, response) = try await send(request)
+            }
             guard response.statusCode == 204 else {
                 throw SafariServiceError.message("Could not disconnect Teak. Please try again.")
             }

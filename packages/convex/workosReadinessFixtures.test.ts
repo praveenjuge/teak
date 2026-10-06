@@ -1,6 +1,11 @@
 /// <reference types="vite/client" />
+import * as betterAuthAdapter from "@convex-dev/better-auth/adapter";
 import betterAuthTest from "@convex-dev/better-auth/test";
-import { makeFunctionReference } from "convex/server";
+import {
+  type GenericDataModel,
+  type GenericQueryCtx,
+  makeFunctionReference,
+} from "convex/server";
 import { convexTest } from "convex-test";
 import { afterEach, beforeEach, expect, test, vi } from "vitest";
 import { components } from "./_generated/api";
@@ -40,9 +45,61 @@ beforeEach(() => {
   vi.stubEnv("WORKOS_API_KEY", "test-workos-reconciliation-key");
 });
 afterEach(() => vi.unstubAllEnvs());
-async function setup() {
+async function setup(strictLegacyIds = false) {
   const t = convexTest(schema, modules);
-  betterAuthTest.register(t);
+  if (strictLegacyIds) {
+    const adapterPath = Object.keys(betterAuthTest.modules).find((path) =>
+      path.endsWith("/adapter.ts")
+    );
+    if (!adapterPath) {
+      throw new Error("Better Auth component adapter is missing");
+    }
+    const registered = betterAuthAdapter.findMany;
+    if (
+      !("_handler" in registered) ||
+      typeof registered._handler !== "function"
+    ) {
+      throw new Error("Better Auth adapter handler is missing");
+    }
+    const originalHandler = registered._handler;
+    t.registerComponent("betterAuth", betterAuthTest.schema, {
+      ...betterAuthTest.modules,
+      [adapterPath]: async () => ({
+        ...betterAuthAdapter,
+        findMany: {
+          ...betterAuthAdapter.findMany,
+          _handler: (
+            ctx: GenericQueryCtx<GenericDataModel>,
+            args: Record<string, unknown>
+          ) => {
+            // convex-test permits arbitrary IDs. Enforce the production database
+            // boundary while executing the actual installed component handler.
+            const db = new Proxy(ctx.db, {
+              get(target, property, receiver) {
+                if (property !== "get") {
+                  return Reflect.get(target, property, receiver);
+                }
+                return (...ids: Parameters<typeof target.get>) => {
+                  if (ids.some((id) => id === fixture.marker)) {
+                    throw new Error(
+                      "Invalid argument to db.get: ID was not valid base32"
+                    );
+                  }
+                  return Reflect.apply(target.get, target, ids);
+                };
+              },
+            });
+            return Reflect.apply(originalHandler, undefined, [
+              { ...ctx, db },
+              args,
+            ]);
+          },
+        },
+      }),
+    });
+  } else {
+    betterAuthTest.register(t);
+  }
   const target = (await currentWorkosDeletionTarget())!;
   const rows = await t.run(async (ctx) => {
     const quarantineId = await ctx.db.insert("migrationQuarantine", {
@@ -610,3 +667,24 @@ test.each([
     ).toBeUndefined();
   }
 );
+
+test("retires non-ID fixture marker through complete legacy scan with production ID validation", async () => {
+  const { t, rows, args } = await setup(true);
+  // The real adapter optimizes _id equality into db.get. This demonstrates the
+  // exact failing production boundary before exercising the operator mutation.
+  await expect(
+    t.query(components.betterAuth.adapter.findMany, {
+      model: "user",
+      where: [{ field: "_id", value: fixture.marker }],
+      paginationOpts: { cursor: null, numItems: 1 },
+    })
+  ).rejects.toThrow("ID was not valid base32");
+  const result = await t.mutation(resolve, args);
+  expect(result.alreadyResolved).toBe(false);
+  expect(
+    (await t.run((ctx) => ctx.db.get(rows.quarantineId)))?.resolvedAt
+  ).toBe(result.resolvedAt);
+  expect((await t.run((ctx) => ctx.db.get(rows.auditId)))?.resolvedAt).toBe(
+    result.resolvedAt
+  );
+});
