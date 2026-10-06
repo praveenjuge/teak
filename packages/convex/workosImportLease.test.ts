@@ -175,6 +175,7 @@ test("unacknowledged provider loss stays denied permanently; old holder cannot r
     ready: false,
     pendingRemote: true,
     generation: writer.generation,
+    holder: writer.holder,
     barrierHeld: false,
   });
 });

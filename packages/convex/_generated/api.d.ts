@@ -98,6 +98,7 @@ import type * as migration_workosLegacyGrants from "../migration/workosLegacyGra
 import type * as migration_workosReadiness from "../migration/workosReadiness.js";
 import type * as migration_workosReadinessFixtures from "../migration/workosReadinessFixtures.js";
 import type * as migration_workosRollbackPlan from "../migration/workosRollbackPlan.js";
+import type * as migration_workosSocialOwnerBindings from "../migration/workosSocialOwnerBindings.js";
 import type * as oauthClients from "../oauthClients.js";
 import type * as oauthRevocation from "../oauthRevocation.js";
 import type * as oauthSecurity from "../oauthSecurity.js";
@@ -330,6 +331,7 @@ declare const fullApi: ApiFromModules<{
   "migration/workosReadiness": typeof migration_workosReadiness;
   "migration/workosReadinessFixtures": typeof migration_workosReadinessFixtures;
   "migration/workosRollbackPlan": typeof migration_workosRollbackPlan;
+  "migration/workosSocialOwnerBindings": typeof migration_workosSocialOwnerBindings;
   oauthClients: typeof oauthClients;
   oauthRevocation: typeof oauthRevocation;
   oauthSecurity: typeof oauthSecurity;

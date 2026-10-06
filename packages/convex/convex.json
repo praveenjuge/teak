@@ -96,6 +96,17 @@
         ]
       },
       "localEnvVars": false
+    },
+    "prod": {
+      "configure": {
+        "redirectUris": [
+          "https://app.teakvault.com/callback",
+          "teak://auth/callback"
+        ],
+        "appHomepageUrl": "https://app.teakvault.com",
+        "corsOrigins": ["https://app.teakvault.com"]
+      },
+      "localEnvVars": false
     }
   },
   "node": {

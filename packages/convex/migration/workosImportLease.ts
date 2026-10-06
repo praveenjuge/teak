@@ -217,6 +217,7 @@ export const quiescence = internalQuery({
   returns: v.object({
     ready: v.boolean(),
     generation: v.union(v.number(), v.null()),
+    holder: v.union(v.string(), v.null()),
     pendingRemote: v.boolean(),
     barrierHeld: v.boolean(),
   }),
@@ -229,6 +230,7 @@ export const quiescence = internalQuery({
         ((row.status === "released" || row.status === "quiesced") &&
           !row.remoteIntent),
       generation: row?.generation ?? null,
+      holder: row?.holder ?? null,
       pendingRemote: Boolean(row?.remoteIntent),
       barrierHeld: row?.status === "quiesced" && !row.remoteIntent,
     };

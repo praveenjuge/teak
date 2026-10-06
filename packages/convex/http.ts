@@ -29,8 +29,8 @@ import {
 } from "./publicApiMeta";
 import { openApiV1 } from "./publicApiOpenApi";
 import { safariAccountSummary } from "./safariAccountSummary";
-import { registerWorkosRoutes } from "./workosWebhook";
 import { cleanupE2e, provisionE2e } from "./workosE2eHttp";
+import { registerWorkosRoutes } from "./workosWebhook";
 
 const http = httpRouter();
 
@@ -56,11 +56,7 @@ http.route({
   handler: v1CorsPreflight,
 });
 
-if (
-  process.env.WORKOS_ENVIRONMENT_ID === "environment_01KBYSVN9RVQ1JXACG3MDMQZGA"
-) {
-  registerWorkosRoutes(http);
-}
+registerWorkosRoutes(http);
 
 http.route({
   path: "/migration/connect-readiness.json",

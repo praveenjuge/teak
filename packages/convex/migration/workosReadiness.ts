@@ -8,7 +8,9 @@ import { guardUserCreation } from "../signupFreeze";
 
 const authFunctions: AuthFunctions = internal.migration.workosReadiness;
 export const readinessAuthKit =
-  process.env.WORKOS_ENVIRONMENT_ID === "environment_01KBYSVN9RVQ1JXACG3MDMQZGA"
+  process.env.WORKOS_ENVIRONMENT_ID ===
+    "environment_01KBYSVN9RVQ1JXACG3MDMQZGA" ||
+  process.env.WORKOS_ENVIRONMENT_ID === "environment_01M46HC8CJ5D0THX3EP6WVDKMM"
     ? new AuthKit<DataModel>(components.workOSAuthKit, {
         authFunctions,
         webhookSecret: process.env.WORKOS_WEBHOOK_SECRET,
@@ -16,8 +18,8 @@ export const readinessAuthKit =
       })
     : undefined;
 
-// Phase R callbacks only sync the isolated AuthKit component and log receipts.
-// A WorkOS deletion cannot reach any Teak data-deletion path.
+// Canonical lifecycle processing runs in the signed webhook transaction.
+// Component callbacks log receipts without granting deletion authority.
 export const authKitEvent = readinessAuthKit?.events({
   "user.created": (_ctx, event) => {
     console.info("workos-readiness-receipt", event.event, event.data.id);
@@ -45,7 +47,9 @@ export const authKitAction = readinessAuthKit?.actions({
     } catch {
       return response.deny(SIGNUPS_PAUSED_MESSAGE);
     }
-    return action.userData.email.startsWith("phase-r-deny-")
+    return process.env.WORKOS_ENVIRONMENT_ID ===
+      "environment_01KBYSVN9RVQ1JXACG3MDMQZGA" &&
+      action.userData.email.startsWith("phase-r-deny-")
       ? response.deny("Readiness registration denied")
       : response.allow();
   },

@@ -52,11 +52,12 @@ test.each([
   }
 );
 
-test("trusts the configured AuthKit issuer only on the readiness deployment", async () => {
-  const config = await loadConfig(devUrl, "client_readiness");
+test("trusts the exact provisioned AuthKit client on the readiness deployment", async () => {
+  const client = "client_01KBYSVNVDV2G39REZFGF0K7GD";
+  const config = await loadConfig(devUrl, client);
   expect(config.providers).toHaveLength(2);
   expect(config.providers[1]).toMatchObject({
-    issuer: "https://api.workos.com/user_management/client_readiness",
-    jwks: "https://api.workos.com/sso/jwks/client_readiness",
+    issuer: `https://api.workos.com/user_management/${client}`,
+    jwks: `https://api.workos.com/sso/jwks/${client}`,
   });
 });
