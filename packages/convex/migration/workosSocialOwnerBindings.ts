@@ -96,6 +96,15 @@ export const admission = internalQuery({
     return null;
   },
 });
+export const recoveryAdmission = internalQuery({
+  args: importLeasePins,
+  returns: v.null(),
+  handler: async (_ctx, input) => {
+    // Recovery must inspect the existing lease, including an active one.
+    await binding(input);
+    return null;
+  },
+});
 
 // This core is exercised against real component rows. Only the registered
 // boundaries select authority, from the fixed two-pair approval manifest.

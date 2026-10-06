@@ -1,6 +1,8 @@
 import { execFile } from "node:child_process";
 import { createHash } from "node:crypto";
-import { resolve } from "node:path";
+import { constants } from "node:fs";
+import { type FileHandle, open } from "node:fs/promises";
+import { dirname, resolve } from "node:path";
 import { promisify } from "node:util";
 import { WorkOS } from "@workos-inc/node";
 import {
@@ -35,10 +37,21 @@ export interface SocialBindingPorts {
 }
 function argumentsFor(argv: string[]) {
   let apply = false;
+  let recover = false;
   let approval: string | undefined;
+  let receipt: string | undefined;
   for (let i = 0; i < argv.length; i++) {
     if (argv[i] === "--apply" && !apply) {
       apply = true;
+    } else if (argv[i] === "--recover" && !recover) {
+      recover = true;
+    } else if (
+      argv[i] === "--receipt" &&
+      !receipt &&
+      argv[i + 1] &&
+      !argv[i + 1].startsWith("--")
+    ) {
+      receipt = argv[++i];
     } else if (
       argv[i] === "--approval-reference" &&
       !approval &&
@@ -50,12 +63,171 @@ function argumentsFor(argv: string[]) {
       throw new Error("Only the fixed development social pairs are supported");
     }
   }
-  if ((apply && argv.includes("--dry-run")) || (apply && !approval)) {
+  if (
+    (apply && recover) ||
+    ((apply || recover) && argv.includes("--dry-run")) ||
+    ((apply || recover) && !approval)
+  ) {
     throw new Error(
       "Applying both exact social repairs requires their separate approval reference"
     );
   }
-  return { apply, approval };
+  if ((apply || recover) && !receipt) {
+    throw new Error("Private invocation receipt path required");
+  }
+  return { apply, recover, approval, receipt };
+}
+interface BindingPins {
+  apiKeyFingerprint: string;
+  clientId: string;
+  environmentId: string;
+}
+interface InvocationReceipt extends BindingPins {
+  approvalReference: string;
+  holder: string;
+  pair: keyof typeof socialOwnerPairs;
+  runId: string;
+  version: 1;
+}
+const bindingRunId = () => digest(JSON.stringify(socialOwnerPairs));
+const receiptPath = (base: string, pair: keyof typeof socialOwnerPairs) =>
+  resolve(`${base}.${pair}.json`);
+
+export async function acquireSocialBindingLease(
+  receiptBase: string,
+  pair: keyof typeof socialOwnerPairs,
+  pins: BindingPins,
+  approvalReference: string,
+  run: SocialBindingPorts["run"]
+) {
+  const receipt: InvocationReceipt = {
+    version: 1,
+    pair,
+    ...pins,
+    holder: crypto.randomUUID(),
+    runId: bindingRunId(),
+    approvalReference,
+  };
+  const path = receiptPath(receiptBase, pair);
+  const file = await open(path, "wx", 0o600);
+  try {
+    await file.writeFile(JSON.stringify(receipt));
+    await file.sync();
+  } finally {
+    await file.close();
+  }
+  const directory = await open(dirname(path), "r");
+  try {
+    await directory.sync();
+  } finally {
+    await directory.close();
+  }
+  // A committed-but-lost response retains the holder on disk. Never acquire
+  // again automatically; explicit recovery verifies and releases only it.
+  const held = await run<{ holder: string; generation: number }>(
+    "migration/workosImportLease:acquire",
+    { ...pins, holder: receipt.holder, runId: receipt.runId }
+  );
+  if (
+    held.holder !== receipt.holder ||
+    !Number.isSafeInteger(held.generation) ||
+    held.generation < 1
+  ) {
+    throw new Error("Lease acknowledgment changed; retain invocation receipt");
+  }
+  return held;
+}
+
+async function recoverSocialBindingLeases(
+  receiptBase: string,
+  pins: BindingPins,
+  approval: string,
+  run: SocialBindingPorts["run"]
+) {
+  const pairs: {
+    pair: keyof typeof socialOwnerPairs;
+    status: "released" | "already-quiescent";
+  }[] = [];
+  for (const pair of ["google", "apple"] as const) {
+    let file: FileHandle;
+    try {
+      file = await open(
+        receiptPath(receiptBase, pair),
+        constants.O_RDONLY + constants.O_NOFOLLOW
+      );
+    } catch (error) {
+      if (
+        typeof error === "object" &&
+        error !== null &&
+        "code" in error &&
+        error.code === "ENOENT"
+      ) {
+        continue;
+      }
+      throw error;
+    }
+    let receipt: InvocationReceipt;
+    try {
+      const info = await file.stat();
+      if (!info.isFile() || info.size > 4096 || info.mode % 0o100 !== 0) {
+        throw new Error(
+          "Invocation receipt must be an owner-only regular file"
+        );
+      }
+      receipt = JSON.parse(await file.readFile("utf8"));
+    } finally {
+      await file.close();
+    }
+    if (
+      receipt?.version !== 1 ||
+      receipt.pair !== pair ||
+      receipt.environmentId !== pins.environmentId ||
+      receipt.clientId !== pins.clientId ||
+      receipt.apiKeyFingerprint !== pins.apiKeyFingerprint ||
+      receipt.approvalReference !== approval ||
+      receipt.runId !== bindingRunId() ||
+      !/^[0-9a-f-]{36}$/.test(receipt.holder)
+    ) {
+      throw new Error("Invocation receipt pins or approval changed");
+    }
+    const state = await run<{
+      ready: boolean;
+      generation: number | null;
+      pendingRemote: boolean;
+      barrierHeld: boolean;
+    }>("migration/workosImportLease:quiescence", pins);
+    if (state.pendingRemote) {
+      throw new Error(
+        "Pending remote intent requires separate operator resolution"
+      );
+    }
+    if (state.barrierHeld) {
+      throw new Error("Lease recovery cannot release a quiescence barrier");
+    }
+    if (state.ready) {
+      pairs.push({ pair, status: "already-quiescent" });
+      continue;
+    }
+    if (
+      state.barrierHeld ||
+      !Number.isSafeInteger(state.generation) ||
+      (state.generation ?? 0) < 1
+    ) {
+      throw new Error("Lease recovery authority unavailable");
+    }
+    const authority = {
+      ...pins,
+      holder: receipt.holder,
+      generation: state.generation as number,
+    };
+    await run("migration/workosImportLease:verify", authority);
+    await run("migration/workosImportLease:release", authority);
+    pairs.push({ pair, status: "released" });
+  }
+  if (pairs.length === 0) {
+    throw new Error("Existing invocation receipt required for recovery");
+  }
+  return { mode: "lease-recovery", pairs };
 }
 async function census(ports: SocialBindingPorts) {
   const rows: Provider[] = [];
@@ -139,7 +311,7 @@ export async function runSocialBindings(
   apiKey: string,
   ports: SocialBindingPorts
 ) {
-  const { apply, approval } = argumentsFor(argv);
+  const { apply, recover, approval, receipt } = argumentsFor(argv);
   if (!apiKey) {
     throw new Error("Explicit WorkOS credential required; dotenv is ignored");
   }
@@ -148,6 +320,16 @@ export async function runSocialBindings(
     clientId: socialOwnerBindingPins.clientId,
     apiKeyFingerprint: digest(apiKey),
   };
+  if ((apply || recover) && !(receipt && approval)) {
+    throw new Error("Private receipt and approval reference required");
+  }
+  if (recover && receipt && approval) {
+    await ports.run(
+      "migration/workosSocialOwnerBindings:recoveryAdmission",
+      pins
+    );
+    return recoverSocialBindingLeases(receipt, pins, approval, ports.run);
+  }
   await ports.run("migration/workosSocialOwnerBindings:admission", pins);
   const all = await census(ports);
   const inspected: {
@@ -173,11 +355,16 @@ export async function runSocialBindings(
       })),
     };
   }
+  if (!(receipt && approval)) {
+    throw new Error("Private receipt and approval reference required");
+  }
   for (const row of inspected) {
-    const holder = crypto.randomUUID();
-    const lease = await ports.run<{ holder: string; generation: number }>(
-      "migration/workosImportLease:acquire",
-      { ...pins, holder, runId: digest(JSON.stringify(socialOwnerPairs)) }
+    const lease = await acquireSocialBindingLease(
+      receipt,
+      row.key,
+      pins,
+      approval,
+      ports.run
     );
     const authority = { ...pins, ...lease };
     let pending = false;

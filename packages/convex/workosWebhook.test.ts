@@ -92,12 +92,14 @@ const snapshot = (t: Backend) =>
 // bytes; callback suppression loses canonical receipts; component failure commits
 // only one store; retries duplicate quarantine; trimmed deletion revives a vault;
 // body limits or registration routing regress when replacing webhook ingress.
-describe("signed WorkOS webhook ingress", () => {
+describe.each([
+  "environment_01KBYSVN9RVQ1JXACG3MDMQZGA",
+  "environment_01M46HC8CJ5D0THX3EP6WVDKMM",
+])("signed WorkOS webhook ingress for %s", (environmentId) => {
   beforeEach(() => {
-    vi.stubEnv(
-      "WORKOS_ENVIRONMENT_ID",
-      "environment_01KBYSVN9RVQ1JXACG3MDMQZGA"
-    );
+    vi.resetModules();
+    vi.stubEnv("SITE_URL", "http://localhost:3000");
+    vi.stubEnv("WORKOS_ENVIRONMENT_ID", environmentId);
     vi.stubEnv("WORKOS_CLIENT_ID", "client_readiness_test");
     vi.stubEnv("WORKOS_API_KEY", "sk_test_readiness");
     vi.stubEnv("WORKOS_WEBHOOK_SECRET", secret);
@@ -293,5 +295,36 @@ describe("signed WorkOS webhook ingress", () => {
     const t = setup();
     expect((await post(t, "{broken")).status).toBe(401);
     expect((await snapshot(t)).events).toEqual([]);
+  });
+
+  test("readiness-only denial stays in development when registrations reopen", async () => {
+    vi.stubEnv("SIGNUPS_DISABLED", "false");
+    const t = setup();
+    const body = JSON.stringify({
+      id: "action_readiness_prefix",
+      object: "user_registration_action_context",
+      user_data: {
+        object: "user_data",
+        email: "phase-r-deny-person@example.com",
+      },
+    });
+    const response = await t.fetch("/workos/action", {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        "workos-signature": await signature(
+          body,
+          "isolated-action-signing-fixture"
+        ),
+      },
+      body,
+    });
+    expect(response.status).toBe(200);
+    expect((await response.json()).payload.verdict).toBe(
+      environmentId === "environment_01KBYSVN9RVQ1JXACG3MDMQZGA"
+        ? "Deny"
+        : "Allow"
+    );
+    expect((await snapshot(t)).users).toEqual([]);
   });
 });

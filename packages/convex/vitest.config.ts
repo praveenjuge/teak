@@ -43,6 +43,7 @@ export default defineConfig({
       "./authConfig.test.ts",
       "./workosPhaseRFixture.test.ts",
       "./workosSocialOwnerBindings.test.ts",
+      "./workosSocialRecovery.test.ts",
       "./workosDeletionCompletion.test.ts",
       "./publicApiCardEditing.test.ts",
       "./publicApiMe.test.ts",
