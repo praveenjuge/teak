@@ -91,6 +91,21 @@ async function observation(
 ) {
   const pair = socialOwnerPairs[key];
   const user = await ports.getUser(pair.providerId);
+  const targetRows = all.filter((row) => row.id === pair.providerId);
+  const emailOwners = all.filter(
+    (row) => digest(row.email.trim().toLowerCase()) === pair.emailHash
+  );
+  if (
+    user.id !== pair.providerId ||
+    targetRows.length !== 1 ||
+    targetRows[0].email !== user.email ||
+    targetRows[0].externalId !== user.externalId ||
+    targetRows[0].emailVerified !== user.emailVerified ||
+    emailOwners.length !== 1 ||
+    emailOwners[0].id !== pair.providerId
+  ) {
+    throw new Error("Provider census disagrees with current user");
+  }
   const identities = await ports.getIdentities(pair.providerId);
   const identity = identities.filter(
     (row) => row.provider === (key === "google" ? "GoogleOAuth" : "AppleOAuth")
@@ -103,10 +118,6 @@ async function observation(
     identity.length !== 1 ||
     digest(identity[0].idpId) !== pair.subjectHash ||
     (user.externalId !== null && user.externalId !== pair.ownerId) ||
-    all.filter((row) => row.id === user.id).length !== 1 ||
-    all.filter(
-      (row) => digest(row.email.trim().toLowerCase()) === pair.emailHash
-    ).length !== 1 ||
     all.some(
       (row) => row.externalId === pair.ownerId && row.id !== pair.providerId
     )

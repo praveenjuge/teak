@@ -456,33 +456,60 @@ test.each([
     );
   }
 );
-test.each([
-  "production",
-  "key",
-  "workos-primary",
-  "unfrozen",
-  "arbitrary-pair",
-])("registered boundary denies %s", async (failure) => {
-  const { t, observed } = await setup();
-  if (failure === "production") {
-    vi.stubEnv("CONVEX_CLOUD_URL", "https://production.convex.cloud");
-  }
-  if (failure === "key") {
-    vi.stubEnv("WORKOS_API_KEY", "changed-key");
-  }
-  if (failure === "workos-primary") {
-    vi.stubEnv("AUTH_PRIMARY", "workos");
-  }
-  if (failure === "unfrozen") {
-    vi.stubEnv("SIGNUPS_DISABLED", "false");
-  }
-  const input = { ...pins, pair: "google" as const, observed };
+test("registered admission accepts its pinned frozen development environment", async () => {
+  const { t } = await setup();
   await expect(
-    t.query(
-      inspect,
-      failure === "arbitrary-pair" ? { ...input, pair: "arbitrary" } : input
-    )
-  ).rejects.toThrow();
+    t.query(internal.migration.workosSocialOwnerBindings.admission, pins)
+  ).resolves.toBeNull();
+});
+test.each([
+  [
+    "production",
+    "CONVEX_CLOUD_URL",
+    "https://production.convex.cloud",
+    "pinned paused development",
+  ],
+  [
+    "site",
+    "CONVEX_SITE_URL",
+    "https://other.convex.site",
+    "pinned paused development",
+  ],
+  [
+    "environment",
+    "WORKOS_ENVIRONMENT_ID",
+    "environment_other",
+    "credential binding",
+  ],
+  ["client", "WORKOS_CLIENT_ID", "client_other", "credential binding"],
+  ["key", "WORKOS_API_KEY", "changed-key", "credential binding"],
+  [
+    "workos-primary",
+    "AUTH_PRIMARY",
+    "workos",
+    "frozen Better Auth deployment changed",
+  ],
+  [
+    "unfrozen",
+    "SIGNUPS_DISABLED",
+    "false",
+    "frozen Better Auth deployment changed",
+  ],
+])(
+  "registered admission denies %s at its environment gate",
+  async (_, env, value, error) => {
+    const { t } = await setup();
+    vi.stubEnv(env, value);
+    await expect(
+      t.query(internal.migration.workosSocialOwnerBindings.admission, pins)
+    ).rejects.toThrow(error);
+  }
+);
+test("registered inspection rejects an arbitrary pair before source inspection", async () => {
+  const { t, observed } = await setup();
+  await expect(
+    t.query(inspect, { ...pins, pair: "arbitrary", observed })
+  ).rejects.toThrow("Validator error");
 });
 test("operator refuses production selector and missing repair approval before any network or database call", async () => {
   const calls: string[] = [];
@@ -513,6 +540,58 @@ test("operator refuses production selector and missing repair approval before an
   );
   expect(calls).toEqual([]);
 });
+test.each(["email", "externalId", "emailVerified", "reassigned-email"])(
+  "operator refuses a census whose %s disagrees with the current provider user",
+  async (field) => {
+    const calls: string[] = [];
+    const user = {
+      id: socialOwnerPairs.google.providerId,
+      email: "hello@praveenjuge.com",
+      externalId: null,
+      emailVerified: true,
+    };
+    const listed = {
+      ...user,
+      ...(field === "email" || field === "reassigned-email"
+        ? { email: "changed@example.test" }
+        : {}),
+      ...(field === "externalId"
+        ? { externalId: socialOwnerPairs.google.ownerId }
+        : {}),
+      ...(field === "emailVerified" ? { emailVerified: false } : {}),
+    };
+    const ports: SocialBindingPorts = {
+      run: <T>() => {
+        calls.push("admission");
+        return Promise.resolve(null as T);
+      },
+      getUser: () => {
+        calls.push("get-user");
+        return Promise.resolve(user);
+      },
+      getIdentities: () => {
+        calls.push("identities");
+        return Promise.resolve([]);
+      },
+      listUsers: () =>
+        Promise.resolve({
+          data:
+            field === "reassigned-email"
+              ? [listed, { ...user, id: "user_other" }]
+              : [listed],
+          after: null,
+        }),
+      updateUser: () => {
+        calls.push("provider-write");
+        return Promise.reject(new Error("unexpected"));
+      },
+    };
+    await expect(runSocialBindings([], key, ports)).rejects.toThrow(
+      "Provider census disagrees with current user"
+    );
+    expect(calls).toEqual(["admission", "get-user"]);
+  }
+);
 test("backend credential refusal happens before WorkOS enumeration in default dry-run", async () => {
   const calls: string[] = [];
   const ports: SocialBindingPorts = {

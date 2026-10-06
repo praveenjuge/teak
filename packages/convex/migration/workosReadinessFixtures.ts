@@ -423,9 +423,11 @@ export const resolveRetiredPhaseRFixture = internalMutation({
           owner.email.trim().toLowerCase() === normalizedEmail
       ) ||
       legacyAccounts.page.some(
-        (account: { userId: string }) =>
+        (account: { userId: string; accountId: string }) =>
           account.userId === fixture.marker ||
-          account.userId === fixture.workosUserId
+          account.userId === fixture.workosUserId ||
+          account.accountId === fixture.marker ||
+          account.accountId === fixture.workosUserId
       )
     ) {
       throw refused();

@@ -593,3 +593,26 @@ test.each(["user", "account"] as const)(
     ).toBeUndefined();
   }
 );
+test.each([fixture.marker, fixture.workosUserId])(
+  "refuses another legacy owner's account claiming %s",
+  async (accountId) => {
+    const { t, rows, args } = await setup();
+    await t.run((ctx) =>
+      ctx.runMutation(components.betterAuth.adapter.create, {
+        input: {
+          model: "account",
+          data: {
+            accountId,
+            providerId: "google",
+            userId: "other-owner",
+            createdAt: 1,
+            updatedAt: 1,
+          },
+        },
+      })
+    );
+    const before = await t.run((ctx) => ctx.db.get(rows.audit));
+    await expect(t.mutation(resolve, args)).rejects.toThrow();
+    expect(await t.run((ctx) => ctx.db.get(rows.audit))).toEqual(before);
+  }
+);
