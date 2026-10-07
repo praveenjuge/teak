@@ -87,7 +87,7 @@ test("API key creation reloads a settings page that never renders its rows", asy
       contentType: "text/html",
       body:
         load === 1
-          ? `<html><body>Application error: a client-side exception has occurred</body></html>`
+          ? "<html><body>Application error: a client-side exception has occurred</body></html>"
           : workingFixture,
     });
   });
