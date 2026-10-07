@@ -8,6 +8,8 @@
  * failures and nothing here writes to the database.
  */
 
+import { SIGNUPS_PAUSED_MESSAGE } from "./shared/constants";
+
 const REASON_PATTERN = /[^a-z0-9_]+/gu;
 
 export const normalizeMonitoringReason = (value: unknown): string => {
@@ -138,7 +140,7 @@ export interface BetterAuthSignInAttempt {
 }
 
 interface HookResult {
-  body?: { code?: unknown };
+  body?: { code?: unknown; message?: unknown };
   headers?: { get?: (name: string) => string | null };
   statusCode?: unknown;
 }
@@ -162,8 +164,52 @@ const redirectError = (error: HookResult): string | null | undefined => {
   }
 };
 
-// Better Auth reports frozen social sign-ups through the sign-in callback.
-const SIGN_UP_REASONS = new Set(["sign_up_disabled", "signup_disabled"]);
+// The social providers createAuth registers. Other callback ids are not a
+// sign-in for this deployment and must not mint metric dimensions.
+const SOCIAL_PROVIDERS = new Set(["google", "apple"]);
+
+// Social failures can carry a provider- or caller-supplied `error`, so only
+// known Better Auth and OAuth codes survive; anything else is `other`.
+const SOCIAL_FAILURE_REASONS = new Set([
+  "access_denied",
+  "account_not_linked",
+  "email_not_found",
+  "internal_server_error",
+  "invalid_callback_request",
+  "invalid_code",
+  "invalid_request",
+  "invalid_token",
+  "no_callback_url",
+  "no_code",
+  "oauth_provider_not_found",
+  "server_error",
+  "state_generation_error",
+  "state_invalid",
+  "state_mismatch",
+  "state_not_found",
+  "temporarily_unavailable",
+  "unable_to_create_session",
+  "unable_to_get_user_info",
+  "unable_to_link_account",
+  "user_cancelled_authorize",
+]);
+
+// The account did not exist: a sign-up, not a sign-in. Better Auth reports
+// these as `signup disabled`, a failed user creation, or the freeze message
+// from guardUserCreation (as a redirect `error` or OAUTH_LINK_ERROR message).
+const SIGN_UP_REASONS = new Set([
+  "sign_up_disabled",
+  "signup_disabled",
+  "unable_to_create_user",
+  normalizeMonitoringReason(SIGNUPS_PAUSED_MESSAGE),
+]);
+
+// Failures that only the explicit account-linking flow produces.
+const LINK_ONLY_REASONS = new Set([
+  "account_already_linked_to_different_user",
+  "email_doesn_t_match",
+]);
+
 const NEW_USER_WINDOW_MS = 60_000;
 
 const isNewUserSession = (session: unknown): boolean => {
@@ -182,12 +228,30 @@ const isNewUserSession = (session: unknown): boolean => {
   );
 };
 
+const socialFailureReason = (error: HookResult): string | null => {
+  const redirected = redirectError(error);
+  if (redirected === null) {
+    // A redirect without `error`: account linking or a provider bounce.
+    return null;
+  }
+  // The native id-token path wraps user-creation errors in OAUTH_LINK_ERROR.
+  const raw =
+    redirected ??
+    (error.body?.code === "OAUTH_LINK_ERROR"
+      ? error.body.message
+      : error.body?.code) ??
+    "error";
+  return normalizeMonitoringReason(raw);
+};
+
 /**
  * One Better Auth sign-in attempt, or null when the request is not a sign-in
- * outcome: refreshes, sign-ups, sign-outs, account linking, the redirect that
- * starts a social sign-in and Apple's form-post bounce all return null.
+ * outcome: refreshes, sign-ups (including frozen ones), sign-outs, account
+ * linking, the redirect that starts a social sign-in, Apple's form-post bounce
+ * and callbacks for providers this deployment does not register.
  */
 export const classifyBetterAuthSignIn = (input: {
+  httpMethod?: string;
   newSession: unknown;
   path: string | undefined;
   providerId?: unknown;
@@ -210,11 +274,18 @@ export const classifyBetterAuthSignIn = (input: {
   if (input.path !== "/sign-in/social" && input.path !== "/callback/:id") {
     return null;
   }
-  const provider =
-    typeof input.providerId === "string" &&
-    /^[a-z0-9-]{1,32}$/u.test(input.providerId)
-      ? input.providerId
-      : undefined;
+  // Apple posts its result, which Better Auth re-issues as a GET; only the
+  // GET is the outcome, so each attempt counts once.
+  if (input.path === "/callback/:id" && input.httpMethod === "POST") {
+    return null;
+  }
+  if (
+    typeof input.providerId !== "string" ||
+    !SOCIAL_PROVIDERS.has(input.providerId)
+  ) {
+    return null;
+  }
+  const provider = input.providerId;
   if (hasSession) {
     return isNewUserSession(input.newSession)
       ? null
@@ -223,14 +294,18 @@ export const classifyBetterAuthSignIn = (input: {
   if (!error) {
     return null;
   }
-  const redirected = redirectError(error);
-  if (redirected === null) {
+  const reason = socialFailureReason(error);
+  if (
+    reason === null ||
+    SIGN_UP_REASONS.has(reason) ||
+    LINK_ONLY_REASONS.has(reason)
+  ) {
     return null;
   }
-  const reason = normalizeMonitoringReason(
-    redirected ?? error.body?.code ?? "error"
-  );
-  return SIGN_UP_REASONS.has(reason)
-    ? null
-    : { method: "social", outcome: "failure", provider, reason };
+  return {
+    method: "social",
+    outcome: "failure",
+    provider,
+    reason: SOCIAL_FAILURE_REASONS.has(reason) ? reason : "other",
+  };
 };

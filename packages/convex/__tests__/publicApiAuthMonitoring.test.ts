@@ -47,9 +47,12 @@ const backend = (answers: Record<string, unknown>) =>
   withMappedOwner({
     runMutation: mock((ref) => {
       const name = getFunctionName(ref);
-      return name in answers
-        ? Promise.resolve(answers[name])
-        : Promise.reject(new Error(`unexpected mutation ${name}`));
+      if (!(name in answers)) {
+        return Promise.reject(new Error(`unexpected mutation ${name}`));
+      }
+      const answer = answers[name];
+      // Failures are thunks so no rejected promise exists before it is awaited.
+      return typeof answer === "function" ? answer() : Promise.resolve(answer);
     }),
     runQuery: mock(async () => null),
   });
@@ -235,6 +238,88 @@ describe("public API auth outcomes", () => {
       }
     }
   );
+
+  test.each([
+    [
+      "an unreadable primary",
+      () => {
+        process.env.AUTH_PRIMARY = "bogus";
+      },
+      {},
+      API_KEY,
+      500,
+      "primary_unreadable",
+    ],
+    [
+      "a missing AuthKit issuer",
+      () => {
+        process.env.AUTH_PRIMARY = "workos";
+        delete process.env.WORKOS_AUTHKIT_DOMAIN;
+      },
+      {},
+      connectToken(Math.floor(Date.now() / 1000) + 60),
+      500,
+      "issuer_unconfigured",
+    ],
+    [
+      "a validator that throws",
+      () => undefined,
+      {
+        "apiKeys:validateUserApiKey": () =>
+          Promise.reject(new Error("db down")),
+      },
+      API_KEY,
+      500,
+      "internal_error",
+    ],
+    [
+      "per-key limiter contention",
+      () => undefined,
+      {
+        "apiKeys:validateUserApiKey": VALID_KEY,
+        "raycast:checkApiRateLimit": () =>
+          Promise.reject(
+            new Error(
+              'Documents read from or written to the "rateLimits" table changed while this mutation was being run and on every subsequent retry'
+            )
+          ),
+      },
+      API_KEY,
+      429,
+      "rate_limit_contention",
+    ],
+  ])(
+    "%s keeps its response and names the reason",
+    async (_name, setup, answers, token, status, reason) => {
+      setup();
+      const auth = await withAuthorizedUser(backend(answers), request(token));
+      expect(auth.error.status).toBe(status);
+      expect(outcomes()[0]).toMatchObject({ status, reason });
+    }
+  );
+
+  test("a valid key whose owner is being deleted is owner_unresolved", async () => {
+    const ctx = {
+      runMutation: mock((ref) =>
+        Promise.resolve(
+          getFunctionName(ref) === "apiKeys:validateUserApiKey"
+            ? VALID_KEY
+            : { ok: true }
+        )
+      ),
+      runQuery: mock((ref) =>
+        Promise.resolve(
+          getFunctionName(ref) === "accountDeletion:isDeleting" ? true : null
+        )
+      ),
+    };
+    const auth = await withAuthorizedUser(ctx, request(API_KEY));
+    expect(auth.error.status).toBe(401);
+    expect(outcomes()[0]).toMatchObject({
+      credential: "api_key",
+      reason: "owner_unresolved",
+    });
+  });
 
   test("a legitimate REST request is unchanged and logs no credential", async () => {
     const query = mock().mockResolvedValue({

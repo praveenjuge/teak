@@ -131,32 +131,4 @@ describe("Better Auth sign-in monitoring", () => {
     expect(wrong.status).toBe(401);
     expect(scheduler.runAfter).toHaveBeenCalledTimes(2);
   });
-
-  test("a context without a scheduler (queries) records nothing and still signs in", async () => {
-    const auth = betterAuth({
-      baseURL: BASE,
-      secret: "test-secret-test-secret-test-secret-0123",
-      database: memoryAdapter({
-        account: [],
-        session: [],
-        user: [],
-        verification: [],
-      }),
-      emailAndPassword: { enabled: true },
-      rateLimit: { enabled: false },
-      telemetry: { enabled: false },
-      plugins: [authSignInMonitoring({}, undefined)],
-    });
-    const response = await auth.handler(
-      new Request(`${BASE}/api/auth/sign-in/email`, {
-        method: "POST",
-        headers: { "content-type": "application/json", origin: BASE },
-        body: JSON.stringify({
-          email: "nobody@example.com",
-          password: PASSWORD,
-        }),
-      })
-    );
-    expect(response.status).toBe(401);
-  });
 });

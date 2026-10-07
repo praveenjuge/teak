@@ -52,6 +52,7 @@ export const authSignInMonitoring = (
               | undefined;
             const newSession = context.context.newSession;
             const attempt = classifyBetterAuthSignIn({
+              httpMethod: context.request?.method,
               newSession,
               path: context.path,
               providerId: context.params?.id ?? body?.provider,

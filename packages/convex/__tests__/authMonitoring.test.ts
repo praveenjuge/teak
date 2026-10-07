@@ -8,6 +8,7 @@ import {
   logPublicApiAuthOutcome,
   logResolverDenial,
 } from "../authMonitoring";
+import { SIGNUPS_PAUSED_MESSAGE } from "../shared/constants";
 
 type SignInInput = Partial<Parameters<typeof classifyBetterAuthSignIn>[0]> & {
   path: string;
@@ -138,10 +139,60 @@ describe("Better Auth sign-in classification", () => {
       { path: "/callback/:id", newSession: newUserSession },
     ],
     [
-      "social sign-up blocked by the freeze",
+      "social sign-up blocked by implicit sign-up being disabled",
       {
         path: "/callback/:id",
-        returned: redirect("/login?error=SIGN_UP_DISABLED&error_description=x"),
+        providerId: "google",
+        returned: redirect("/login?error=signup_disabled"),
+      },
+    ],
+    [
+      "social sign-up blocked by the freeze guard",
+      {
+        path: "/callback/:id",
+        providerId: "google",
+        // Better Auth turns the guard's message into the redirect error.
+        returned: redirect(
+          `/login?error=${SIGNUPS_PAUSED_MESSAGE.split(" ").join("_")}`
+        ),
+      },
+    ],
+    [
+      "native Apple sign-up during the freeze",
+      {
+        path: "/sign-in/social",
+        providerId: "apple",
+        returned: new APIError("UNAUTHORIZED", {
+          code: "OAUTH_LINK_ERROR",
+          message: "signup disabled",
+        }),
+      },
+    ],
+    [
+      "Apple's form-post carrying an error",
+      {
+        httpMethod: "POST",
+        path: "/callback/:id",
+        providerId: "apple",
+        returned: redirect(
+          "/api/auth/callback/apple?error=user_cancelled_authorize"
+        ),
+      },
+    ],
+    [
+      "a callback for a provider this deployment does not register",
+      {
+        path: "/callback/:id",
+        providerId: "zz-attacker-chosen",
+        returned: redirect("/login?error=anything"),
+      },
+    ],
+    [
+      "a failed explicit account link",
+      {
+        path: "/callback/:id",
+        providerId: "google",
+        returned: redirect("/settings?error=email_doesn't_match"),
       },
     ],
     [
@@ -175,14 +226,31 @@ describe("Better Auth sign-in classification", () => {
     ).toBeNull();
   });
 
-  test("never carries an unbounded provider id", () => {
-    const attempt = classifyBetterAuthSignIn({
-      newSession: existingUserSession,
-      path: "/callback/:id",
-      providerId: "user@example.com",
-      returned: undefined,
+  test("the GET after Apple's form-post is the one counted failure", () => {
+    expect(
+      classifyBetterAuthSignIn({
+        httpMethod: "GET",
+        newSession: null,
+        path: "/callback/:id",
+        providerId: "apple",
+        returned: redirect("/login?error=user_cancelled_authorize"),
+      })
+    ).toEqual({
+      method: "social",
+      outcome: "failure",
+      provider: "apple",
+      reason: "user_cancelled_authorize",
     });
-    expect(attempt?.provider).toBeUndefined();
+  });
+
+  test("caller-supplied callback errors cannot mint new reasons", () => {
+    const attempt = classifyBetterAuthSignIn({
+      newSession: null,
+      path: "/callback/:id",
+      providerId: "google",
+      returned: redirect(`/login?error=anything_${crypto.randomUUID()}`),
+    });
+    expect(attempt?.reason).toBe("other");
   });
 });
 
