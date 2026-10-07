@@ -420,10 +420,148 @@ test("refuses while any data, billing or credential remnant of the fixture remai
         userId: fixture.teakUserId,
         startedAt: 1,
       }),
+    (ctx) =>
+      ctx.db.insert("workosConsents", {
+        consentId: "consent_fixture",
+        userId: fixture.teakUserId,
+        workosUserId: fixture.workosUserId,
+        clientId: "client_connected_app",
+        firstSeenAt: 1,
+        lastSeenAt: 1,
+      }),
+    (ctx) =>
+      ctx.runMutation(components.betterAuth.adapter.create, {
+        input: {
+          model: "session",
+          data: {
+            token: "fixture-session",
+            userId: fixture.teakUserId,
+            expiresAt: Date.now() + 60_000,
+            createdAt: 1,
+            updatedAt: 1,
+          },
+        },
+      }),
+    (ctx) =>
+      ctx.runMutation(components.betterAuth.adapter.create, {
+        input: {
+          model: "oauthAccessToken",
+          data: {
+            accessToken: "fixture-access",
+            refreshToken: "fixture-refresh",
+            clientId: "client_raycast",
+            userId: fixture.teakUserId,
+            scopes: "openid",
+            createdAt: 1,
+            updatedAt: 1,
+          },
+        },
+      }),
+    (ctx) =>
+      ctx.runMutation(components.betterAuth.adapter.create, {
+        input: {
+          model: "oauthConsent",
+          data: {
+            clientId: "client_raycast",
+            userId: fixture.teakUserId,
+            scopes: "openid",
+            consentGiven: true,
+            createdAt: 1,
+            updatedAt: 1,
+          },
+        },
+      }),
   ];
   for (const change of cases) {
-    const { t, resolve } = await setup();
+    const { t, ids, resolve } = await setup();
     await t.run(change);
     await expect(resolve()).rejects.toThrow(/remnants/);
+    const receipt = await t.run((ctx) =>
+      ctx.db.get("migrationQuarantine", ids.receiptId)
+    );
+    expect(receipt?.resolvedAt).toBeUndefined();
   }
+});
+
+// The network is the only mocked boundary: the installed WorkOS SDK parses the
+// real HTTP responses, including its NotFoundException semantics.
+async function settleThroughAction(status: number | "network") {
+  const harness = await setup();
+  const { providerAbsentCheckedAt: _, ...actionArgs } = harness.args;
+  const requests: string[] = [];
+  vi.stubGlobal("fetch", (input: string | URL) => {
+    requests.push(new URL(String(input)).pathname);
+    if (status === "network") {
+      return Promise.reject(new TypeError("fetch failed"));
+    }
+    const body =
+      status === 200
+        ? {
+            object: "user",
+            id: fixture.workosUserId,
+            email,
+            email_verified: true,
+            external_id: fixture.teakUserId,
+            first_name: null,
+            last_name: null,
+            profile_picture_url: null,
+            created_at: "2026-10-07T11:06:18.910Z",
+            updated_at: "2026-10-07T11:06:18.910Z",
+            last_sign_in_at: null,
+          }
+        : { message: "Provider response" };
+    return Promise.resolve(
+      new Response(JSON.stringify(body), {
+        status,
+        headers: { "Content-Type": "application/json" },
+      })
+    );
+  });
+  const run = (overrides: Partial<typeof actionArgs> = {}) =>
+    harness.t.action(
+      internal.migration.workosImportedFixtureRetirementActions
+        .settleRetiredImportedFixture,
+      { ...actionArgs, ...overrides }
+    );
+  const receipt = () =>
+    harness.t.run((ctx) =>
+      ctx.db.get("migrationQuarantine", harness.ids.receiptId)
+    );
+  return { run, receipt, requests };
+}
+
+test("action settles only after one canonical SDK GET answers 404", async () => {
+  const { run, receipt, requests } = await settleThroughAction(404);
+  const result = await run();
+  expect(result.alreadyResolved).toBe(false);
+  expect((await receipt())?.resolvedAt).toBe(result.resolvedAt);
+  expect(requests).toEqual([`/user_management/users/${fixture.workosUserId}`]);
+  vi.unstubAllGlobals();
+});
+
+test("action refuses an existing user, provider errors and network failure without retrying", async () => {
+  for (const [status, message] of [
+    [200, /still exists/],
+    [500, /could not be verified/],
+    [401, /could not be verified/],
+    [429, /could not be verified/],
+    ["network", /could not be verified/],
+  ] as const) {
+    const { run, receipt, requests } = await settleThroughAction(status);
+    await expect(run()).rejects.toThrow(message);
+    expect((await receipt())?.resolvedAt).toBeUndefined();
+    expect(requests.length).toBe(1);
+    vi.unstubAllGlobals();
+  }
+});
+
+test("action refuses a non-allowlisted pair before contacting WorkOS", async () => {
+  const { run, receipt, requests } = await settleThroughAction(404);
+  await expect(run({ teakUserId: other.teakUserId })).rejects.toThrow(/pair/);
+  await expect(run({ apiKeyFingerprint: "0".repeat(64) })).rejects.toThrow(
+    /binding/
+  );
+  expect(requests).toEqual([]);
+  expect((await receipt())?.resolvedAt).toBeUndefined();
+  vi.unstubAllGlobals();
 });
