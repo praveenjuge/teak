@@ -49,17 +49,12 @@ test.each([
   }
 );
 test("pinned Convex child targets only the named deployment", async () => {
-  const names = [
-    ...convexDeploymentSelectors,
-    "WORKOS_API_KEY",
-    "TEAK_UNRELATED",
-  ];
+  const names = [...convexDeploymentSelectors, "WORKOS_API_KEY"];
   const saved = names.map((name) => [name, process.env[name]] as const);
   for (const selector of convexDeploymentSelectors) {
     process.env[selector] = `ambient-${selector}`;
   }
   process.env.WORKOS_API_KEY = "operator-key";
-  process.env.TEAK_UNRELATED = "kept";
   const seen: { args: string[]; cwd: string; env: NodeJS.ProcessEnv }[] = [];
   try {
     const result = await runConvexFunction(
@@ -97,7 +92,9 @@ test("pinned Convex child targets only the named deployment", async () => {
     expect(seen[0].env[selector]).toBe("");
   }
   expect("WORKOS_API_KEY" in seen[0].env).toBe(false);
-  expect(seen[0].env.TEAK_UNRELATED).toBe("kept");
+  // Everything else is inherited: `bun x` still needs the caller's PATH.
+  expect(seen[0].env.PATH).toBe(process.env.PATH);
+  expect(process.env.PATH).toBeTruthy();
 });
 test("nonzero CLI exit never reaches the null parser", async () => {
   await expect(
