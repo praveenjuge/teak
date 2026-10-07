@@ -195,20 +195,21 @@ test("cached app retry retains devices and pages separate same-client grants", a
   );
   await click("Disconnect Teak for Mac");
   expect(transport.calls.at(-1)).toEqual({
-    kind: "mutation",
+    kind: "action",
     path: "workosConsents:disconnectConnection",
     args: { consentId: "app_consent_A" },
   });
   await act(() =>
     transport.reply(
       "workosConsents:listConnections",
-      page([grants[1]]),
+      page([{ ...grants[1], clientId: "client_OTHER", name: "Other app" }]),
       (args) =>
         (args.paginationOpts as { cursor: string | null }).cursor ===
         "afterRevoked"
     )
   );
-  expect(buttons("Disconnect Teak for Mac")).toHaveLength(1);
+  expect(buttons("Disconnect Teak for Mac")).toHaveLength(0);
+  expect(buttons("Disconnect Other app")).toHaveLength(1);
 });
 
 test("an account switch discards pending disconnect UI and rejects a stale callback", async () => {

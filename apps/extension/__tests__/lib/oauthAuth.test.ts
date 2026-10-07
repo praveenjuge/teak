@@ -125,7 +125,9 @@ const withDiscovery = (handler: typeof fetch): typeof fetch =>
           primary === "workos"
             ? `${issuer}/oauth2/token`
             : "https://test.convex.site/api/auth/mcp/token",
-        revocation_endpoint: "https://test.convex.site/api/oauth/revoke",
+        ...(primary === "betterauth"
+          ? { revocation_endpoint: "https://test.convex.site/api/oauth/revoke" }
+          : {}),
         code_challenge_methods_supported: ["S256"],
       });
     }
@@ -696,3 +698,182 @@ test("identity verification keeps its error when cleanup revocation is unavailab
   );
   expect(storage[tokenKey]).toBeUndefined();
 });
+
+test.each([204, 401, 503, 200, 302])(
+  "WorkOS logout without a provider revoke endpoint requires exact disconnect204 (HTTP%i)",
+  async (status) => {
+    primary = "workos";
+    storage[tokenKey] = {
+      accessToken,
+      refreshToken,
+      expiresAt: Date.now() - 1000,
+      siteUrl: "https://test.convex.site",
+      issuer: "https://auth.test.workos.com",
+      clientId: "client_chrome",
+    };
+    const network = mock((input, init) => {
+      expect(String(input)).toBe(
+        "https://test.convex.site/v1/oauth/disconnect"
+      );
+      expect(new Headers(init?.headers).get("Authorization")).toBe(
+        `Bearer ${accessToken}`
+      );
+      expect(init?.body).toBeUndefined();
+      expect(init?.redirect).toBe("error");
+      return Promise.resolve(new Response(null, { status }));
+    });
+    globalThis.fetch = withDiscovery(network as unknown as typeof fetch);
+    if (status === 204 || status === 401) {
+      primary = "betterauth";
+    }
+    const auth = await load();
+    if (status === 204) {
+      await auth.signOutOAuth();
+      expect(storage[tokenKey]).toBeUndefined();
+    } else {
+      await expect(auth.signOutOAuth()).rejects.toThrow("Could not sign out");
+      expect(storage[tokenKey]).toBeDefined();
+    }
+    expect(network).toHaveBeenCalledTimes(1);
+    expect(webAuth).not.toHaveBeenCalled();
+  }
+);
+
+test.each([204, 503])(
+  "expired first WorkOS logout refreshes once and retains rotation on failure (%i)",
+  async (status) => {
+    primary = "workos";
+    storage[tokenKey] = {
+      accessToken,
+      refreshToken,
+      expiresAt: 0,
+      siteUrl: "https://test.convex.site",
+      issuer: "https://auth.test.workos.com",
+      clientId: "client_chrome",
+    };
+    const calls: string[] = [];
+    globalThis.fetch = withDiscovery((async (input, init) => {
+      calls.push(String(input));
+      if (String(input).endsWith("/oauth2/token")) {
+        const body = new URLSearchParams(String(init?.body));
+        expect(body.get("client_id")).toBe("client_chrome");
+        expect(body.get("refresh_token")).toBe(refreshToken);
+        expect(body.get("resource")).toBe("https://teakvault.com/api");
+        return await Promise.resolve(
+          tokenResponse("rotated-access", "rotated-refresh")
+        );
+      }
+      return new Response(null, {
+        status:
+          new Headers(init?.headers).get("Authorization") ===
+          `Bearer ${accessToken}`
+            ? 401
+            : status,
+      });
+    }) as typeof fetch);
+    const auth = await load();
+    if (status === 204) {
+      await auth.signOutOAuth();
+      expect(storage[tokenKey]).toBeUndefined();
+    } else {
+      await expect(auth.signOutOAuth()).rejects.toThrow("Could not sign out");
+      expect(storage[tokenKey]).toMatchObject({
+        refreshToken: "rotated-refresh",
+      });
+    }
+    expect(calls.filter((url) => url.endsWith("/oauth2/token"))).toHaveLength(
+      1
+    );
+    expect(
+      calls.filter((url) => url.endsWith("/oauth/disconnect"))
+    ).toHaveLength(2);
+    expect(webAuth).not.toHaveBeenCalled();
+  }
+);
+
+test("failed WorkOS identity verification never disconnects other installations", async () => {
+  primary = "workos";
+  let disconnects = 0;
+  globalThis.fetch = withDiscovery((async (input) => {
+    if (String(input).endsWith("/oauth2/token")) {
+      return await Promise.resolve(tokenResponse());
+    }
+    if (String(input).endsWith("/v1/me")) {
+      return new Response(null, { status: 401 });
+    }
+    disconnects++;
+    return new Response(null, { status: 204 });
+  }) as typeof fetch);
+  await expect((await load()).beginOAuthSignIn()).rejects.toThrow(
+    "verify your account"
+  );
+  expect(disconnects).toBe(0);
+  expect(storage[tokenKey]).toBeUndefined();
+});
+test("unknown-owner WorkOS reconnect stops before opening a browser", async () => {
+  primary = "workos";
+  storage[tokenKey] = {
+    accessToken,
+    refreshToken,
+    expiresAt: 0,
+    siteUrl: "https://test.convex.site",
+    issuer: "https://auth.test.workos.com",
+    clientId: "client_chrome",
+  };
+  globalThis.fetch = withDiscovery((async () =>
+    tokenResponse()) as unknown as typeof fetch);
+  await expect((await load()).beginOAuthSignIn()).rejects.toThrow(
+    "Sign out before reconnecting"
+  );
+  expect(webAuth).not.toHaveBeenCalled();
+  expect(storage[tokenKey]).toBeDefined();
+});
+
+test.each([
+  [400, '{"error":"invalid_grant"}', true],
+  [401, '{"error":"invalid_refresh_token"}', true],
+  [401, '{"error":"invalid_client"}', false],
+  [401, "", false],
+  [400, "not-json", false],
+  [503, '{"error":"invalid_grant"}', false],
+  [0, "network failure", false],
+] as const)(
+  "dead WorkOS logout refresh HTTP%i forgets only proven invalid grants",
+  async (status, body, clear) => {
+    primary = "workos";
+    const saved = {
+      accessToken,
+      refreshToken,
+      expiresAt: 0,
+      siteUrl: "https://test.convex.site",
+      issuer: "https://auth.test.workos.com",
+      clientId: "client_chrome",
+    };
+    storage[tokenKey] = saved;
+    let disconnects = 0;
+    globalThis.fetch = withDiscovery((async (input) => {
+      if (String(input).endsWith("/oauth2/token")) {
+        if (!status) {
+          throw new Error(body);
+        }
+        return await Promise.resolve(new Response(body, { status }));
+      }
+      disconnects++;
+      return new Response(null, { status: 401 });
+    }) as typeof fetch);
+    const auth = await load();
+    if (clear) {
+      expect(await auth.signOutOAuth()).toContain("other installations");
+      expect(storage[tokenKey]).toBeUndefined();
+      const state = await auth.getOAuthState();
+      expect("notice" in state ? state.notice : undefined).toContain(
+        "other installations"
+      );
+    } else {
+      await expect(auth.signOutOAuth()).rejects.toThrow();
+      expect(storage[tokenKey]).toEqual(saved);
+    }
+    expect(disconnects).toBe(1);
+    expect(webAuth).not.toHaveBeenCalled();
+  }
+);

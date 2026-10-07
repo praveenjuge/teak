@@ -1,11 +1,81 @@
 # WorkOS migration readiness
 
-Phase R capability checks passed with the approved revisions and recorded workarounds.
+Historical Phase R capability checks passed with the approved revisions and recorded workarounds. The Connect logout/reconnect gate is reopened by the live findings below.
 Phase 0 is deployed and its backup/restore gate passed. Development and production
 remain on Better Auth with sign-ups frozen. The current rollout evidence and exact
 post-freeze inventories are recorded in `phase-0.md`.
 The approved migration plan is preserved in the encrypted backup as `approved-plan.txt.gpg`.
 Baseline: `460a7b31a644a39463356b19fb83bd53a1424e9c`, version 1.0.75.
+
+## Current Connect runtime correction (6 October 2026)
+
+Live dev and production discovery omit `revocation_endpoint`. Two fresh,
+signature/nonce-verified dev CIMD authorizations reused the same consent ID.
+Permanent local consent denial therefore blocks reconnecting to that grant.
+The earlier denylist proof establishes denial, not a working logout/reconnect
+journey. The user approved application-wide disconnect on 6 October.
+The exact dev CIMD experiment then received provider DELETE 204, rejected the
+retained old refresh token with 400 invalid_grant before and after reenrollment,
+and verified a distinct signed replacement consent ID. Its hash-chained private
+transcript is retained. A separately held, 7.864-second-old authorization code
+also returned invalid_grant after provider deletion. No other application grants
+existed in that fixture, so this is not a live sibling-client control.
+The grouped backend/client correction passed independent review and local tests;
+deployment and the migrated application journey remain unproven.
+WorkOS's provider revocation applies across the same user's application resources
+and installations. No production authentication switch is approved here.
+
+## Recovering an uncertain Connect disconnect
+
+An `unknown` or stale `dispatched` operation stays denied. An HTTP rejection,
+missing provider listing, or elapsed time cannot prove that the original DELETE
+finished. Never retry that DELETE or clear its fence to permit reconnect.
+
+Recovery is internal-only and needs a separately approved exact operation:
+
+1. Preserve the fence, trigger-consent row and provider request evidence in the
+   encrypted Mac/R2 backup. Read the target's runtime pins without logging its key.
+2. Run `workosDisconnectRecovery:inspect` against the explicit deployment with
+   `fenceId`, `cloudUrl`, `siteUrl`, `environmentId`, `authKitClientId`,
+   `authKitDomain` and `credentialFingerprint` (SHA-256 of the API key).
+   Stop if inspection returns null or any target differs.
+3. Obtain positive evidence for the original request: a preserved successful
+   204, or written provider confirmation that deletion completed and no original
+   request remains pending. Record its private reference and original request ID.
+   The operator must review this evidence; the recovery API validates an
+   attestation, not the provider's evidence itself.
+4. Prepare a private JSON proposal from the inspection output, omitting `state`.
+   Retain every operation field and `snapshotDigest` unchanged. Add the separate
+   `approvalReference` and `evidence` containing `kind` (`preserved-204` or
+   `provider-written-confirmation`), `reference`, `originalRequestId`,
+   `originalDeletionCompleted: true` and `noPendingOriginalRequest: true`.
+   Obtain human approval for this proposal before executing it.
+5. Run `workosDisconnectRecovery:recover` with that exact proposal and explicit
+   deployment selector. It sends no provider requests. It records the receipt on
+   the fence and permanent consent tombstone, denies all recorded sibling grants,
+   and retains the 305-second reconnect fence. A 503 is not completion; resume
+   only the identical approved operation. Changed pins, generation, evidence or
+   snapshot require a new inspection and decision.
+6. Verify the matching operation is completed, its permanent receipt is retained,
+   old grants remain denied and reconnect succeeds only after the fence expires.
+   Preserve the result in the encrypted evidence checkpoint.
+
+Deployment of these functions does not approve or execute recovery. No recovery
+activation has been performed as part of this preparation.
+
+## Approved development repair (6 October 2026)
+
+The user separately approved the two exact social owner bindings and retirement
+of two unowned test fixtures. A fresh encrypted dev snapshot/configuration passed
+local decryption and private R2 GET checksum before writes. Both social mappings
+now have real signed updated-event profiles, and both fixture deletions received
+provider acknowledgements and signed deletion receipts. Audit settlement found
+an invalid Convex ID lookup; the grouped fix retains complete bounded ownership
+checks. Settlement and final verification passed: all 142 permanent owners and all
+1,295 card-to-owner pairs are unchanged, with zero unresolved quarantine.
+The original absent account-change pause setting was restored. The fresh
+7 October preflight found six provider users and no collisions. No bulk user
+import occurred.
 
 ## User-approved revisions
 
@@ -16,8 +86,11 @@ Baseline: `460a7b31a644a39463356b19fb83bd53a1424e9c`, version 1.0.75.
 - Replace the physical iPhone readiness check with an iOS simulator check.
 - Use dated encrypted full Mac/R2 snapshots plus manual Convex backups instead of
   unsupported R2 versioning and Pro-only Convex scheduling (approved by the user).
-- Verify the custom email domain in Phase 4 before cutover: WorkOS custom domains
-  are only available in production environments.
+- Use the default WorkOS email domain instead of the paid custom domain.
+- The shadow week, additional Mac/iOS/Electron/Raycast runtime checks and Mac/iOS
+  release waiting and remaining isolated production-copy rehearsal were waived;
+  those waivers are not runtime proof. Firefox is
+  excluded because it is not published.
 
 ## Gates
 
@@ -51,7 +124,8 @@ All expected card files restored locally with matching SHA-256 and total size
 and 74,100 documents with exact normalized document hashes, IDs, and creation times.
 Authenticated ownership checks matched 835 and 200 exact card IDs for two accounts;
 anonymous and cleared-auth reads were denied. This uses an isolated local JWT issuer,
-so canonical application sign-in and the Phase 4 rehearsal remain required.
+so it does not prove canonical application sign-in. The remaining Phase 4
+rehearsal was subsequently waived by the user on 6 October.
 
 A fresh encrypted source/configuration/evidence checkpoint preserves 1,531 source
 files and the dev runtime configuration. Local decryption and remote R2 SHA-256
@@ -70,8 +144,9 @@ Phase R passed before the Phase 0 production freeze. Phase 0 backend/web code is
 deployed; the production auth provider is still Better Auth. No production WorkOS
 cutover or identity backfill has occurred.
 Card ownership is immutable. Better Auth remains intact until Phase 6.
-The clean shadow week, store-release lead time, notice, rollback window, and stable
-weeks remain required; passing a build does not satisfy those time gates.
+The shadow week was waived by the user. Store-release lead time, notice, rollback
+window and stable weeks remain required; passing a build does not satisfy those
+time gates.
 
 ## Historical Phase 0 preparation
 

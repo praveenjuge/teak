@@ -73,3 +73,20 @@ test("pin changes and readable-by-others journals fail closed", async () => {
   await chmod(file, 0o644);
   await expect(readJournal(file, pins)).rejects.toThrow("owner-only");
 });
+
+test("reset-only password policy is pinned across resume and delta", async () => {
+  const file = await path();
+  const admitted = { ...pins, resetPasswords: true };
+  await writeJournal(
+    file,
+    admission(admitted, null, "initial", "synthetic-reset-approval"),
+    true
+  );
+  expect((await readJournal(file, admitted)).resetPasswords).toBe(true);
+  await expect(readJournal(file, pins)).rejects.toThrow(
+    "password policy changed"
+  );
+  await expect(
+    readJournal(file, { ...admitted, resetPasswords: false })
+  ).rejects.toThrow("password policy changed");
+});

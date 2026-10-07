@@ -5,6 +5,7 @@ export interface ImportPins {
   deployment: string;
   environmentId: string;
   hashesProven: boolean;
+  resetPasswords?: boolean;
   witnessEmail: string;
   witnessExternalId: string | null;
   witnessUserId: string;
@@ -39,6 +40,15 @@ export async function readJournal(
     journal.startedAt > Date.now()
   ) {
     throw new Error("Invalid importer journal");
+  }
+  if ((journal.resetPasswords ?? false) !== (pins.resetPasswords ?? false)) {
+    throw new Error("Importer journal password policy changed");
+  }
+  if (
+    journal.resetPasswords !== undefined &&
+    typeof journal.resetPasswords !== "boolean"
+  ) {
+    throw new Error("Invalid importer password policy");
   }
   for (const key of [
     "deployment",

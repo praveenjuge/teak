@@ -137,7 +137,7 @@ final class OnboardingViewController: NSViewController {
         }
 
         let message = state["message"] as? String ?? ""
-        statusLabel.stringValue = accountStatus == .signedOut ? "" : message
+        statusLabel.stringValue = accountStatus == .signedOut && state["localOnly"] as? Bool != true ? "" : message
         statusLabel.isHidden = statusLabel.stringValue.isEmpty
     }
 

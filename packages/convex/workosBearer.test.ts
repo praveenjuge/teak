@@ -38,16 +38,32 @@ beforeEach(async () => {
   vi.useFakeTimers();
   vi.stubEnv("AUTH_PRIMARY", "workos");
   vi.stubEnv("WORKOS_AUTHKIT_DOMAIN", issuer);
+  vi.stubEnv("WORKOS_API_KEY", "non-secret-disconnect-test-fixture");
+  vi.stubEnv("WORKOS_ENVIRONMENT_ID", "environment_TEST");
   const jwk = await exportJWK(keys.publicKey);
   // Provider JWKS is the only mocked boundary; signatures and database auth are real.
-  vi.stubGlobal("fetch", (input: string | URL | Request) => {
-    const url = input instanceof Request ? input.url : String(input);
-    return Promise.resolve(
-      url === `${issuer}/oauth2/jwks`
-        ? Response.json({ keys: [{ ...jwk, kid: "test-key", alg: "RS256" }] })
-        : new Response(null, { status: 404 })
-    );
-  });
+  vi.stubGlobal(
+    "fetch",
+    (input: string | URL | Request, options?: RequestInit) => {
+      const url = input instanceof Request ? input.url : String(input);
+      if (url === `${issuer}/oauth2/jwks`) {
+        return Promise.resolve(
+          Response.json({ keys: [{ ...jwk, kid: "test-key", alg: "RS256" }] })
+        );
+      }
+      if (options?.method === "DELETE") {
+        return Promise.resolve(new Response(null, { status: 204 }));
+      }
+      return Promise.resolve(
+        Response.json({
+          data: [
+            { application: { id: "connect_app_TEST", client_id: clientId } },
+          ],
+          list_metadata: {},
+        })
+      );
+    }
+  );
 });
 afterEach(() => {
   vi.clearAllTimers();
@@ -376,7 +392,7 @@ describe("WorkOS REST and MCP token boundary", () => {
           emailVerified: true,
           external_id: ownerId,
         })
-        .mutation(backendApi.workosConsents.disconnectConnection, {
+        .action(backendApi.workosConsents.disconnectConnection, {
           consentId,
         })
     ).toBeNull();
@@ -386,8 +402,18 @@ describe("WorkOS REST and MCP token boundary", () => {
       expect((await f.mcp(mcp, method)).status).toBe(401);
       expect((await f.mcp(await token(mcpAudience), method)).status).toBe(401);
     }
-    expect((await f.read(siblingApi)).status).toBe(200);
-    expect((await f.mcp(siblingMcp, "ping")).status).toBe(200);
+    expect((await f.read(siblingApi)).status).toBe(401);
+    expect((await f.mcp(siblingMcp, "ping")).status).toBe(401);
+    expect(
+      (
+        await f.read(
+          await token(apiAudience, {
+            client_id: "client_OTHER",
+            sid: "app_consent_OTHER",
+          })
+        )
+      ).status
+    ).toBe(200);
   });
 
   test("mapping verification and global deletion are rechecked after consent exists", async () => {

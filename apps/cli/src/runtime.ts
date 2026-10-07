@@ -51,6 +51,7 @@ interface StoredCredentials {
     apiUrl: string;
     issuer: string;
     clientId: string;
+    ownerId?: string;
     revocationEndpoint?: string;
   };
   expiresAt: number;
@@ -136,6 +137,8 @@ const parseCredentials = (text: string): StoredCredentials | null => {
       typeof value.apiUrl !== "string" ||
       typeof value.issuer !== "string" ||
       typeof value.clientId !== "string" ||
+      (value.ownerId !== undefined &&
+        (typeof value.ownerId !== "string" || !value.ownerId)) ||
       (value.revocationEndpoint !== undefined &&
         typeof value.revocationEndpoint !== "string")
     ) {
@@ -145,6 +148,7 @@ const parseCredentials = (text: string): StoredCredentials | null => {
       apiUrl: value.apiUrl,
       issuer: value.issuer,
       clientId: value.clientId,
+      ...(typeof value.ownerId === "string" ? { ownerId: value.ownerId } : {}),
       ...(value.revocationEndpoint
         ? { revocationEndpoint: value.revocationEndpoint as string }
         : {}),
@@ -160,6 +164,13 @@ const parseCredentials = (text: string): StoredCredentials | null => {
 export const readCredentials = (
   options: ClientOptions = {}
 ): StoredCredentials | null => {
+  const file = credentialsPath(options);
+  const fallback = existsSync(file) ? readFileSync(file, "utf8") : "";
+  // Only new fallback writes claim precedence. Older files may be stale after
+  // a successful Keychain update and retain their original read ordering.
+  if (readJson<Record<string, unknown>>(fallback)?.fallbackAuthority === true) {
+    return parseCredentials(fallback);
+  }
   if (platform() === "darwin") {
     const found = spawnSync(
       "security",
@@ -188,6 +199,11 @@ const writeCredentials = (
   options: ClientOptions
 ) => {
   const payload = JSON.stringify(credentials);
+  const destination = credentialsPath(options);
+  const authoritativeFallback =
+    existsSync(destination) &&
+    readJson<Record<string, unknown>>(readFileSync(destination, "utf8"))
+      ?.fallbackAuthority === true;
   if (platform() === "darwin") {
     const saved = spawnSync(
       "security",
@@ -203,14 +219,17 @@ const writeCredentials = (
       ],
       { encoding: "utf8" }
     );
-    if (saved.status === 0) {
+    if (saved.status === 0 && !authoritativeFallback) {
       return;
     }
   }
   ensureConfigDir();
-  const destination = credentialsPath(options);
   const temporary = `${destination}.${randomBytes(16).toString("hex")}.tmp`;
-  writeFileSync(temporary, payload, { mode: 0o600, flag: "wx" });
+  writeFileSync(
+    temporary,
+    JSON.stringify({ ...credentials, fallbackAuthority: true }),
+    { mode: 0o600, flag: "wx" }
+  );
   renameSync(temporary, destination);
 };
 
@@ -325,6 +344,50 @@ const revokeCredentials = async (
   options: ClientOptions,
   useDiscovery = true
 ) => {
+  if (credentials.binding?.clientId.startsWith("client_")) {
+    if (credentials.binding.apiUrl !== apiBaseUrl(options)) {
+      throw new Error("Saved connection belongs to another deployment");
+    }
+    const api = validateOAuthUrl(
+      apiBaseUrl(options),
+      localHostname(new URL(apiBaseUrl(options)).hostname)
+    );
+    const endpoint = `${withoutTrailingSlashes(api.href).replace(/\/v1$/, "")}/v1/oauth/disconnect`;
+    const disconnect = (accessToken: string) =>
+      fetch(endpoint, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${accessToken}` },
+        credentials: "omit",
+        redirect: "error",
+        signal: AbortSignal.timeout(10_000),
+      });
+    let response = await disconnect(credentials.accessToken);
+    // A completed receipt can accept the old token without refreshing a
+    // provider grant that has already been revoked.
+    if (response.status === 401 && useDiscovery && credentials.refreshToken) {
+      const auth = await discovery(options, true);
+      if (!matchesProvider(credentials, options, auth)) {
+        throw new Error("Saved connection belongs to another provider");
+      }
+      const renewed = await exchangeToken(options, auth, {
+        grant_type: "refresh_token",
+        // Runtime credential from secure storage, not a hard-coded token.
+        // nosemgrep: codacy.yaml.security.hard-coded-tokens
+        refresh_token: credentials.refreshToken,
+      });
+      // The caller holds the credential lock. Rotation must survive a failed
+      // disconnect; never restore the now invalid previous refresh token.
+      if (renewed.binding && credentials.binding?.ownerId) {
+        renewed.binding.ownerId = credentials.binding.ownerId;
+      }
+      writeCredentials(renewed, options);
+      response = await disconnect(renewed.accessToken);
+    }
+    if (response.status !== 204) {
+      throw new Error("Disconnect was not confirmed");
+    }
+    return;
+  }
   let endpoint = credentials.binding?.revocationEndpoint;
   let clientId = credentials.binding?.clientId;
   if (useDiscovery) {
@@ -378,7 +441,11 @@ export const logout = (options: ClientOptions = {}) =>
     if (credentials && (credentials.refreshToken || credentials.accessToken)) {
       try {
         await revokeCredentials(credentials, options);
-      } catch {
+      } catch (error) {
+        if (error instanceof TeakApiError && error.code === "AUTH_REQUIRED") {
+          clearCredentials(options);
+          return "Signed out on this device. To disconnect other installations, use Settings → Connected apps.";
+        }
         throw new Error(
           "Could not disconnect Teak CLI. Your credentials are still saved. Check your connection and run teak logout again."
         );
@@ -411,8 +478,8 @@ const exchangeToken = async (
   if (
     !response.ok &&
     body.grant_type === "refresh_token" &&
-    (response.status === 401 ||
-      payload?.error === "invalid_grant" ||
+    (response.status === 400 || response.status === 401) &&
+    (payload?.error === "invalid_grant" ||
       payload?.error === "invalid_refresh_token" ||
       payload?.code === "invalid_refresh_token")
   ) {
@@ -492,6 +559,9 @@ const tokenProvider = (options: ClientOptions): TokenProvider => {
           grant_type: "refresh_token",
           refresh_token: current.refreshToken,
         });
+        if (next.binding && current.binding?.ownerId) {
+          next.binding.ownerId = current.binding.ownerId;
+        }
         writeCredentials(next, options);
         const latest = await discovery(options, true);
         if (!matchesProvider(next, options, latest)) {
@@ -616,6 +686,17 @@ export const createAuthorizeUrl = (
 export const login = async (options: ClientOptions & { browser?: boolean }) => {
   const signoutEpoch = readLogoutMarker(options);
   const auth = await discovery(options, true);
+  const saved = readCredentials(options);
+  if (
+    auth.primary === "workos" &&
+    saved &&
+    matchesProvider(saved, options, auth) &&
+    !saved.binding?.ownerId
+  ) {
+    throw new Error(
+      "Run teak logout before signing in again, then wait five minutes for disconnect to finish."
+    );
+  }
   const verifier = b64url(randomBytes(32));
   const state = b64url(randomBytes(24));
   for (const port of [14_210, 24_210]) {
@@ -669,6 +750,33 @@ export const login = async (options: ClientOptions & { browser?: boolean }) => {
                 grant_type: "authorization_code",
                 redirect_uri: redirectUri,
               });
+              if (latest.primary === "workos") {
+                const info = await fetch(
+                  `${withoutTrailingSlashes(apiBaseUrl(options)).replace(/\/v1$/, "")}/v1/me`,
+                  {
+                    headers: { Authorization: `Bearer ${next.accessToken}` },
+                    credentials: "omit",
+                    redirect: "error",
+                    signal: AbortSignal.timeout(10_000),
+                  }
+                );
+                const text = await readResponseTextWithinLimit(info, 64 * 1024);
+                const payload =
+                  text === null
+                    ? null
+                    : readJson<{ data?: { id?: unknown } }>(text);
+                if (
+                  !info.ok ||
+                  typeof payload?.data?.id !== "string" ||
+                  !payload.data.id ||
+                  !next.binding
+                ) {
+                  throw new Error(
+                    "Could not verify your account. Run teak login again."
+                  );
+                }
+                next.binding.ownerId = payload.data.id;
+              }
               response
                 .writeHead(200, { "Content-Type": "text/html" })
                 .end("<p>Return to your terminal to finish signing in.</p>");
@@ -719,7 +827,20 @@ export const login = async (options: ClientOptions & { browser?: boolean }) => {
             );
           }
           const previous = readCredentials(options);
-          if (previous) {
+          const sameWorkosOwner =
+            latest.primary === "workos" &&
+            previous &&
+            matchesProvider(previous, options, latest) &&
+            Boolean(previous.binding?.ownerId) &&
+            previous.binding?.ownerId === credentials.binding?.ownerId;
+          if (previous && !sameWorkosOwner) {
+            if (
+              latest.primary === "workos" &&
+              matchesProvider(previous, options, latest) &&
+              !previous.binding?.ownerId
+            ) {
+              throw new Error("Run teak logout before signing in again.");
+            }
             try {
               await revokeCredentials(previous, options);
             } catch {
@@ -733,7 +854,9 @@ export const login = async (options: ClientOptions & { browser?: boolean }) => {
         });
       } catch (error) {
         try {
-          if (!committed) {
+          // Discarding a failed Connect login must not revoke the same app on
+          // other installations. Only explicit logout owns that access change.
+          if (!committed && auth.primary !== "workos") {
             await revokeCredentials(credentials, options, false);
           }
         } catch {

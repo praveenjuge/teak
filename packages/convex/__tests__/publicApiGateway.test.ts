@@ -183,12 +183,21 @@ describe("Convex public API metadata", () => {
     expect(openApiSpec.paths).toHaveProperty("/v1/cards/{cardId}/favorite");
   });
 
+  test("documents revocation-only Connect authentication without a request body", () => {
+    const operation = openApiSpec.paths["/v1/oauth/disconnect"].post;
+    expect(operation.security).toEqual([{ connectRevocation: [] }]);
+    expect(operation).not.toHaveProperty("requestBody");
+    expect(operation.responses).toHaveProperty("204");
+    expect(operation.responses).toHaveProperty("401");
+    expect(operation.responses).toHaveProperty("503");
+  });
+
   test("gives every OpenAPI operation a unique operationId", () => {
     const operationIds = Object.values(openApiSpec.paths).flatMap((path) =>
       Object.values(path).map((operation) => operation.operationId)
     );
 
-    expect(operationIds).toHaveLength(15);
+    expect(operationIds).toHaveLength(16);
     expect(new Set(operationIds).size).toBe(operationIds.length);
     expect(operationIds.every(Boolean)).toBe(true);
   });

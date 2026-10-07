@@ -484,6 +484,26 @@ export const cardValidator = v.object({
   updatedAt: v.number(),
 });
 
+const disconnectRecoveryReceipt = v.object({
+  operationId: v.string(),
+  snapshotDigest: v.string(),
+  approvalReference: v.string(),
+  evidenceKind: v.union(
+    v.literal("preserved-204"),
+    v.literal("provider-written-confirmation")
+  ),
+  evidenceReference: v.string(),
+  originalRequestId: v.string(),
+  cloudUrl: v.string(),
+  siteUrl: v.string(),
+  environmentId: v.string(),
+  authKitClientId: v.string(),
+  authKitDomain: v.string(),
+  credentialFingerprint: v.string(),
+  applicationId: v.string(),
+  recordedAt: v.number(),
+});
+
 export default defineSchema({
   users: defineTable({
     teakUserId: v.string(),
@@ -584,7 +604,34 @@ export default defineSchema({
     ),
     cursor: v.string(),
   }).index("by_runId_and_phase_and_cursor", ["runId", "phase", "cursor"]),
+  workosApplicationDisconnects: defineTable({
+    recoveryReceipt: v.optional(disconnectRecoveryReceipt),
+    operationId: v.string(),
+    userId: v.string(),
+    workosUserId: v.string(),
+    clientId: v.string(),
+    triggerConsentId: v.string(),
+    tokenExpiresAt: v.optional(v.number()),
+    environmentId: v.string(),
+    authKitClientId: v.string(),
+    authKitDomain: v.string(),
+    credentialFingerprint: v.string(),
+    applicationId: v.optional(v.string()),
+    state: v.union(
+      v.literal("prepared"),
+      v.literal("dispatched"),
+      v.literal("acknowledged"),
+      v.literal("unknown"),
+      v.literal("completed")
+    ),
+    startedAt: v.number(),
+    dispatchedAt: v.optional(v.number()),
+    providerAcknowledgedAt: v.optional(v.number()),
+    completedAt: v.optional(v.number()),
+    releaseAfter: v.optional(v.number()),
+  }).index("by_workosUserId_and_clientId", ["workosUserId", "clientId"]),
   workosConsents: defineTable({
+    recoveryReceipt: v.optional(disconnectRecoveryReceipt),
     consentId: v.string(),
     userId: v.string(),
     workosUserId: v.string(),
@@ -592,8 +639,19 @@ export default defineSchema({
     firstSeenAt: v.number(),
     lastSeenAt: v.number(),
     revokedAt: v.optional(v.number()),
+    disconnectCompletedAt: v.optional(v.number()),
   })
     .index("by_consentId", ["consentId"])
+    .index("by_workosUserId_and_clientId_and_revokedAt", [
+      "workosUserId",
+      "clientId",
+      "revokedAt",
+    ])
+    .index("by_workosUserId_and_clientId_and_disconnectCompletedAt", [
+      "workosUserId",
+      "clientId",
+      "disconnectCompletedAt",
+    ])
     .index("by_userId_and_firstSeenAt", ["userId", "firstSeenAt"]),
   cards: defineTable(cardValidator)
     // Note: by_user index removed as redundant - by_user_deleted can serve same purpose

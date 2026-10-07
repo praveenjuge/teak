@@ -383,3 +383,138 @@ test("initial resume updates a changed proven password and denies an unproven st
   ).rejects.toThrow("Resumed credential cannot be proven");
   expect(f.checkpoints()).toBe(2);
 });
+
+// Reset-only import must erase any previous provider credential before linking.
+test.each([null, "unproven-source-password"])(
+  "reset-only import invalidates existing credentials even with source password %s",
+  async (passwordHash) => {
+    const f = fixture();
+    await importOwners(f.ports, options);
+    f.mappings.clear();
+    f.ports.source = async () => ({
+      owners: [{ ...owner, passwordHash }],
+      done: true,
+      cursor: null,
+      unresolvedQuarantine: false,
+    });
+    let invalidated = false;
+    const update = f.ports.update;
+    f.ports.update = (user, source, hash, resetPassword) => {
+      expect(hash).toBeNull();
+      expect(resetPassword).toBe(true);
+      expect(f.mappings.size).toBe(0);
+      invalidated = true;
+      return update(user, source, hash);
+    };
+    await importOwners(f.ports, { ...options, resetPasswords: true });
+    expect(invalidated).toBe(true);
+    expect(f.mappings.get(owner.teakUserId)).toBe("user_created");
+  }
+);
+test("reset-only import handles an existing user recovered by the create lookup", async () => {
+  const f = fixture();
+  let reads = 0,
+    resets = 0;
+  f.ports.lookup = async () =>
+    ++reads === 1
+      ? null
+      : {
+          id: "user_raced",
+          externalId: owner.teakUserId,
+          email: owner.email,
+          emailVerified: owner.emailVerified,
+        };
+  const update = f.ports.update;
+  f.ports.update = (user, source, hash, resetPassword) => {
+    if (resetPassword) {
+      resets++;
+    }
+    return update(user, source, hash);
+  };
+  await importOwners(f.ports, { ...options, resetPasswords: true });
+  expect(resets).toBe(1);
+  expect(f.mappings.get(owner.teakUserId)).toBe("user_raced");
+});
+test("failed reset-only invalidation cannot link or checkpoint", async () => {
+  const f = fixture();
+  await importOwners(f.ports, options);
+  f.mappings.clear();
+  f.ports.update = () =>
+    Promise.reject(new Error("uncertain credential write"));
+  await expect(
+    importOwners(f.ports, { ...options, resetPasswords: true })
+  ).rejects.toThrow("uncertain credential write");
+  expect(f.mappings.size).toBe(0);
+  expect(f.checkpoints()).toBe(1);
+});
+test("reset-only delta invalidates a removed source password and dry-run sends no writes", async () => {
+  const f = fixture();
+  await importOwners(f.ports, options);
+  let resets = 0;
+  const update = f.ports.update;
+  f.ports.update = (user, source, hash, resetPassword) => {
+    if (resetPassword) {
+      resets++;
+    }
+    return update(user, source, hash);
+  };
+  await importOwners(f.ports, {
+    ...options,
+    delta: true,
+    resetPasswords: true,
+  });
+  expect(resets).toBe(1);
+  await importOwners(f.ports, {
+    ...options,
+    resetPasswords: true,
+    dryRun: true,
+  });
+  expect(resets).toBe(1);
+});
+
+test("fresh reset-only creates omit hashes without an unnecessary credential update", async () => {
+  const f = fixture();
+  f.ports.source = async () => ({
+    owners: [{ ...owner, passwordHash: "non-secret-unsupported-hash-fixture" }],
+    done: true,
+    cursor: null,
+    unresolvedQuarantine: false,
+  });
+  const create = f.ports.create;
+  f.ports.create = (source, hash) => {
+    expect(hash).toBeNull();
+    return create(source, hash);
+  };
+  f.ports.update = () =>
+    Promise.reject(new Error("Fresh create must not update"));
+  const report = await importOwners(f.ports, {
+    ...options,
+    resetPasswords: true,
+  });
+  expect(report.needsPasswordReset).toBe(1);
+  expect(f.mappings.size).toBe(1);
+});
+test("raced existing credentials remain denied without reset-only admission", async () => {
+  const f = fixture();
+  f.ports.source = async () => ({
+    owners: [{ ...owner, passwordHash: "non-secret-unsupported-hash-fixture" }],
+    done: true,
+    cursor: null,
+    unresolvedQuarantine: false,
+  });
+  let reads = 0;
+  f.ports.lookup = async () =>
+    ++reads === 1
+      ? null
+      : {
+          id: "user_raced",
+          externalId: owner.teakUserId,
+          email: owner.email,
+          emailVerified: owner.emailVerified,
+        };
+  await expect(importOwners(f.ports, options)).rejects.toThrow(
+    "Resumed credential cannot be proven"
+  );
+  expect(f.mappings.size).toBe(0);
+  expect(f.checkpoints()).toBe(0);
+});

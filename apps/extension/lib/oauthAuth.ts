@@ -204,6 +204,20 @@ async function tokenRequest(
       }),
     });
     if (response.status === 400 || response.status === 401) {
+      if (params.grant_type === "refresh_token" && auth.primary === "workos") {
+        const rejection = await readJson(response);
+        if (
+          !(
+            rejection.error === "invalid_grant" ||
+            rejection.error === "invalid_refresh_token" ||
+            rejection.code === "invalid_refresh_token"
+          )
+        ) {
+          throw new Error(
+            "Could not verify your connection. Please try again."
+          );
+        }
+      }
       await refreshDiscoveryAfterFailure();
       return null;
     }
@@ -236,22 +250,56 @@ async function tokenRequest(
 
 async function revokeCredentials(
   credentials: Credentials,
-  auth: AuthDiscovery
+  auth: AuthDiscovery,
+  refreshSaved = false
 ) {
-  if (!(matches(credentials, auth) && auth.revocationEndpoint)) {
+  const workos =
+    credentials.siteUrl === site() &&
+    credentials.clientId?.startsWith("client_") &&
+    Boolean(credentials.issuer);
+  const endpoint = workos
+    ? `${site()}/v1/oauth/disconnect`
+    : auth.revocationEndpoint;
+  if (!(endpoint && (workos || matches(credentials, auth)))) {
     throw new Error("Sign-in provider changed. Please reconnect to Teak.");
   }
-  const response = await fetchAuth(auth.revocationEndpoint, {
-    method: "POST",
-    credentials: "omit",
-    redirect: "error",
-    headers: { "Content-Type": "application/x-www-form-urlencoded" },
-    body: new URLSearchParams({
-      client_id: auth.clients[SURFACE],
-      token: credentials.refreshToken,
-    }),
-  });
-  if (!response.ok) {
+  const disconnect = (accessToken: string) =>
+    fetchAuth(endpoint, {
+      method: "POST",
+      credentials: "omit",
+      redirect: "error",
+      headers: workos
+        ? { Authorization: `Bearer ${accessToken}` }
+        : { "Content-Type": "application/x-www-form-urlencoded" },
+      ...(workos
+        ? {}
+        : {
+            body: new URLSearchParams({
+              client_id: auth.clients[SURFACE],
+              token: credentials.refreshToken,
+            }),
+          }),
+    });
+  let response = await disconnect(credentials.accessToken);
+  if (
+    workos &&
+    response.status === 401 &&
+    refreshSaved &&
+    matches(credentials, auth)
+  ) {
+    const renewed = await tokenRequest(auth, {
+      grant_type: "refresh_token",
+      refresh_token: credentials.refreshToken,
+    });
+    if (!renewed) {
+      return "Signed out on this device. To disconnect other installations, use Settings → Connected apps.";
+    }
+    renewed.userId = credentials.userId;
+    // signOutOAuth holds the same lock as request refreshes.
+    await writeCredentials(renewed);
+    response = await disconnect(renewed.accessToken);
+  }
+  if (workos ? response.status !== 204 : !response.ok) {
     throw new Error("Could not sign out. Please try again.");
   }
 }
@@ -261,6 +309,17 @@ export function beginOAuthSignIn(): Promise<void> {
     await initializeAuth();
     const attempt = generation;
     const auth = await discovery(true);
+    const saved = auth.primary === "workos" ? await readCredentials() : null;
+    if (
+      auth.primary === "workos" &&
+      saved &&
+      matches(saved, auth) &&
+      !saved.userId
+    ) {
+      throw new Error(
+        "Sign out before reconnecting, then wait five minutes for disconnect to finish."
+      );
+    }
     const state = random();
     const verifier = random();
     const challenge = base64url(
@@ -342,7 +401,9 @@ export function beginOAuthSignIn(): Promise<void> {
         credentials.userId = user.id;
       } catch (error) {
         try {
-          await revokeCredentials(credentials, current);
+          if (current.primary !== "workos") {
+            await revokeCredentials(credentials, current);
+          }
         } catch {
           /* Preserve the identity verification error. */
         }
@@ -350,7 +411,9 @@ export function beginOAuthSignIn(): Promise<void> {
       }
       await navigator.locks.request("teak-oauth-credentials", async () => {
         if (attempt !== generation) {
-          await revokeCredentials(credentials, current);
+          if (current.primary !== "workos") {
+            await revokeCredentials(credentials, current);
+          }
           return;
         }
         await writeCredentials(credentials);
@@ -455,7 +518,21 @@ export async function oauthRequest(
 export async function getOAuthState() {
   const response = await oauthRequest("/v1/me");
   if (!response) {
-    return { authenticated: false, pending: Boolean(login) };
+    const state = (await chrome.storage.local.get(AUTH_STATE_KEY))[
+      AUTH_STATE_KEY
+    ];
+    const notice =
+      typeof state === "object" &&
+      state !== null &&
+      "notice" in state &&
+      typeof state.notice === "string"
+        ? state.notice
+        : undefined;
+    return {
+      authenticated: false,
+      pending: Boolean(login),
+      ...(notice ? { notice } : {}),
+    };
   }
   if (!response.ok) {
     throw new Error("Could not load your account.");
@@ -477,13 +554,19 @@ export async function getOAuthState() {
 
 export async function signOutOAuth() {
   generation += 1;
-  await navigator.locks.request("teak-oauth-credentials", async () => {
+  return await navigator.locks.request("teak-oauth-credentials", async () => {
     const credentials = await readCredentials();
-    if (credentials) {
-      await revokeCredentials(credentials, await discovery(true));
-    }
+    const notice = credentials
+      ? await revokeCredentials(credentials, await discovery(true), true)
+      : undefined;
     await writeCredentials(null);
     await chrome.storage.local.remove(ownerKey());
+    if (notice) {
+      await chrome.storage.local.set({
+        [AUTH_STATE_KEY]: { pending: false, changedAt: Date.now(), notice },
+      });
+    }
+    return notice;
   });
 }
 

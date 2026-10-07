@@ -293,8 +293,7 @@ function WorkosApps({
   return (
     <>
       <p className="py-2 text-muted-foreground text-sm">
-        Each connection is separate. Disconnect blocks this connection’s access
-        to Teak.
+        Disconnect signs out this app across all its installations.
       </p>
       <ConnectionList rows={rows} verb="Disconnect" />
       {rows.length === 0 && connections.status === "Exhausted" ? (

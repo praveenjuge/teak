@@ -151,6 +151,10 @@ actor TeakSafariService {
         var pending = try SafariOAuthRequest()
         pending.logoutEpoch = try logoutEpoch()
         pending.discovery = try await discover(force: true)
+        if let auth = pending.discovery, auth.primary == "workos", let saved = try credentials.load(),
+           try matches(saved, auth), saved.binding?.ownerID == nil {
+            throw SafariServiceError.message("Sign out before reconnecting, then wait five minutes for disconnect to finish.")
+        }
         guard pending.logoutEpoch == (try logoutEpoch()) else { throw SafariServiceError.unauthenticated }
         return pending
     }
@@ -177,12 +181,19 @@ actor TeakSafariService {
                     guard self.sameProvider(auth, latest), pending.logoutEpoch == (try self.logoutEpoch()) else {
                         throw SafariServiceError.unauthenticated
                     }
+                    tokens.binding = try self.binding(auth, ownerID: owner)
                     try pending.cancellation.beginCommit()
                     if let previous = try self.credentials.load() {
-                        try await self.revoke(previous, refreshDiscovery: false)
-                        previousRevoked = true
+                        let matchesProvider = try self.matches(previous, auth)
+                        let sameOwner = auth.primary == "workos" && matchesProvider && previous.binding?.ownerID == owner
+                        if !sameOwner {
+                            guard auth.primary != "workos" || !matchesProvider || previous.binding?.ownerID != nil else {
+                                throw SafariServiceError.message("Sign out before reconnecting.")
+                            }
+                            try await self.revoke(previous, refreshDiscovery: false)
+                            previousRevoked = true
+                        }
                     }
-                    tokens.binding = try self.binding(auth, ownerID: owner)
                     try pending.cancellation.whileActive {
                         try self.credentials.save(tokens)
                         committed = true
@@ -191,7 +202,9 @@ actor TeakSafariService {
                 } catch {
                     if !committed {
                         if previousRevoked { try? self.credentials.clear() }
-                        try? await self.revoke(tokens, refreshDiscovery: false)
+                        // A failed Connect login must not disconnect other
+                        // installations of this application.
+                        if auth.primary != "workos" { try? await self.revoke(tokens, refreshDiscovery: false) }
                     }
                     if previousRevoked { throw SafariServiceError.unauthenticated }
                     throw error
@@ -210,9 +223,15 @@ actor TeakSafariService {
             // holds the credential lock longer than logout's wait budget.
             try Data(UUID().uuidString.utf8).write(to: lockURL.appendingPathExtension("epoch"), options: .atomic)
             return try await withCredentials {
-                if let tokens = try self.credentials.load() { try await self.revoke(tokens) }
+                var localOnly = false
+                if let tokens = try self.credentials.load() {
+                    do { try await self.revoke(tokens) }
+                    catch SafariServiceError.invalidRefreshCredential { localOnly = true }
+                }
                 try self.credentials.clear()
-                return ["status": SafariAccountStatus.signedOut.rawValue, "authenticated": false]
+                var result: [String: Any] = ["status": SafariAccountStatus.signedOut.rawValue, "authenticated": false]
+                if localOnly { result["localOnly"] = true; result["message"] = "Signed out on this device. To disconnect other installations, use Settings → Connected apps." }
+                return result
             }
         } catch { return errorResponse(error) }
     }
@@ -319,9 +338,10 @@ actor TeakSafariService {
                 guard sameProvider(auth, latest) else { throw SafariServiceError.unauthenticated }
                 return refreshed.accessToken
             } catch {
-                if case SafariServiceError.unauthenticated = error {
+                if case SafariServiceError.invalidRefreshCredential = error {
                     // Clear only the rejected pair; post-exchange failures must keep its rotation.
                     if try credentials.load()?.refreshToken == tokens.refreshToken { try credentials.clear() }
+                    throw SafariServiceError.unauthenticated
                 }
                 _ = try? await discover(force: true)
                 throw error
@@ -340,7 +360,10 @@ actor TeakSafariService {
         let (data, response) = try await send(request)
         if response.statusCode == 400 || response.statusCode == 401 {
             let body = try? JSONSerialization.jsonObject(with: data) as? [String: Any]
-            if body?["error"] as? String == "invalid_grant" { throw SafariServiceError.unauthenticated }
+            if values["grant_type"] == "refresh_token",
+               body?["error"] as? String == "invalid_grant" || body?["error"] as? String == "invalid_refresh_token" || body?["code"] as? String == "invalid_refresh_token" {
+                throw SafariServiceError.invalidRefreshCredential
+            }
         }
         guard response.statusCode == 200 else { throw SafariServiceError.message("Unable to connect to Teak. Please try again.") }
         var tokens = try SafariOAuthTokens.decode(data)
@@ -365,6 +388,30 @@ actor TeakSafariService {
 
     private func revoke(_ tokens: SafariOAuthTokens, refreshDiscovery: Bool = true) async throws {
         let auth = refreshDiscovery ? try await discover(force: true) : nil
+        if let saved = tokens.binding, saved.primary == "workos" {
+            guard saved.apiOrigin == (try SafariAuthDiscovery.origin(apiURL).absoluteString) else {
+                throw SafariServiceError.message("Your connection belongs to another Teak environment.")
+            }
+            var request = URLRequest(url: apiURL.appendingPathComponent("v1/oauth/disconnect"))
+            request.httpMethod = "POST"
+            request.setValue("Bearer \(tokens.accessToken)", forHTTPHeaderField: "Authorization")
+            var (_, response) = try await send(request)
+            // Completed receipts accept the saved proof without refreshing a
+            // provider grant that has already been disconnected.
+            if response.statusCode == 401, let auth, try matches(tokens, auth) {
+                let renewed = try await exchange(["grant_type": "refresh_token", "refresh_token": tokens.refreshToken],
+                                                 auth: auth, ownerID: saved.ownerID)
+                // Callers hold the shared app/extension credential lock. Store
+                // rotation before retrying so network failures cannot lose it.
+                try credentials.save(renewed)
+                request.setValue("Bearer \(renewed.accessToken)", forHTTPHeaderField: "Authorization")
+                (_, response) = try await send(request)
+            }
+            guard response.statusCode == 204 else {
+                throw SafariServiceError.message("Could not disconnect Teak. Please try again.")
+            }
+            return
+        }
         let endpoint: URL?
         let clientID: String
         if let auth, try matches(tokens, auth) {

@@ -80,7 +80,8 @@ async function authorizedApps(state: Doc<"accountDeletionStates">) {
   }
   for (const entry of payload.data) {
     const id = entry.application?.id;
-    if (!(id && /^conn_app_[A-Za-z0-9]+$/.test(id))) {
+    // WorkOS currently returns connect_app_; its API reference also documents conn_app_.
+    if (!(id && /^(?:connect_app_|conn_app_)[A-Za-z0-9]+$/.test(id))) {
       throw new Error("deletion_workos_apps_invalid");
     }
     const result = await fetch(`${url}/${encodeURIComponent(id)}`, {

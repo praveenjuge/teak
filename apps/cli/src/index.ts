@@ -193,8 +193,8 @@ program
   );
 
 program.command("logout").action(async () => {
-  await logout(program.opts());
-  write("Logged out of Teak.", program.opts());
+  const notice = await logout(program.opts());
+  write(notice ?? "Logged out of Teak.", program.opts());
 });
 
 program

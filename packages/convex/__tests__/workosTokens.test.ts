@@ -186,6 +186,25 @@ describe("Connect credential validation", () => {
     }
   );
 
+  test("enforces the signed five-minute lifetime across a clock-second boundary", async () => {
+    // The issue time belongs to the previous second, while token() constructs
+    // the signature now. Pair both claims so elapsed time cannot shorten the
+    // intended lifetime, as it did when exp was set at test registration.
+    const issuedAt = Math.floor(Date.now() / 1000) - 1;
+    expect(
+      await verifyWorkosConnectToken(
+        await token({ iat: issuedAt, exp: issuedAt + 300 }),
+        config
+      )
+    ).not.toBeNull();
+    expect(
+      await verifyWorkosConnectToken(
+        await token({ iat: issuedAt, exp: issuedAt + 301 }),
+        config
+      )
+    ).toBeNull();
+  });
+
   test("rejects forged and malformed tokens", async () => {
     expect(
       await verifyWorkosConnectToken(

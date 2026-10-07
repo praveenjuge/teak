@@ -120,7 +120,16 @@ const signOut = async () => {
       response.message || "Could not sign out. Please try again."
     );
   }
-  setState("signed-out", "Signed out", "Sign in to save pages.");
+  const localOnly = response.localOnly === true;
+  const notice =
+    typeof response.message === "string" && response.message.trim()
+      ? response.message
+      : "To disconnect other installations, use Settings → Connected apps.";
+  setState(
+    "signed-out",
+    localOnly ? "Signed out on this device" : "Signed out",
+    localOnly ? notice : "Sign in to save pages."
+  );
 };
 
 const run = async () => {

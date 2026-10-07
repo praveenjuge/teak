@@ -97,6 +97,7 @@ import type * as migration_workosLegacyCredentialGate from "../migration/workosL
 import type * as migration_workosLegacyGrants from "../migration/workosLegacyGrants.js";
 import type * as migration_workosReadiness from "../migration/workosReadiness.js";
 import type * as migration_workosReadinessFixtures from "../migration/workosReadinessFixtures.js";
+import type * as migration_workosRollback from "../migration/workosRollback.js";
 import type * as migration_workosRollbackPlan from "../migration/workosRollbackPlan.js";
 import type * as migration_workosSocialOwnerBindings from "../migration/workosSocialOwnerBindings.js";
 import type * as oauthClients from "../oauthClients.js";
@@ -215,6 +216,9 @@ import type * as workflows_steps_renderables_mutations from "../workflows/steps/
 import type * as workflows_steps_screenshot_captureScreenshot from "../workflows/steps/screenshot/captureScreenshot.js";
 import type * as workflows_steps_screenshot_retryable from "../workflows/steps/screenshot/retryable.js";
 import type * as workosBootstrap from "../workosBootstrap.js";
+import type * as workosConnectRevocation from "../workosConnectRevocation.js";
+import type * as workosApplicationDisconnect from "../workosApplicationDisconnect.js";
+import type * as workosDisconnectRecovery from "../workosDisconnectRecovery.js";
 import type * as workosConsents from "../workosConsents.js";
 import type * as workosDeletionCompletion from "../workosDeletionCompletion.js";
 import type * as workosE2eActions from "../workosE2eActions.js";
@@ -330,6 +334,7 @@ declare const fullApi: ApiFromModules<{
   "migration/workosLegacyGrants": typeof migration_workosLegacyGrants;
   "migration/workosReadiness": typeof migration_workosReadiness;
   "migration/workosReadinessFixtures": typeof migration_workosReadinessFixtures;
+  "migration/workosRollback": typeof migration_workosRollback;
   "migration/workosRollbackPlan": typeof migration_workosRollbackPlan;
   "migration/workosSocialOwnerBindings": typeof migration_workosSocialOwnerBindings;
   oauthClients: typeof oauthClients;
@@ -448,6 +453,9 @@ declare const fullApi: ApiFromModules<{
   "workflows/steps/screenshot/captureScreenshot": typeof workflows_steps_screenshot_captureScreenshot;
   "workflows/steps/screenshot/retryable": typeof workflows_steps_screenshot_retryable;
   workosBootstrap: typeof workosBootstrap;
+  workosConnectRevocation: typeof workosConnectRevocation;
+  workosApplicationDisconnect: typeof workosApplicationDisconnect;
+  workosDisconnectRecovery: typeof workosDisconnectRecovery;
   workosConsents: typeof workosConsents;
   workosDeletionCompletion: typeof workosDeletionCompletion;
   workosE2eActions: typeof workosE2eActions;

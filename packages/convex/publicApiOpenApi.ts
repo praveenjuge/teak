@@ -409,6 +409,13 @@ const components = {
     },
   },
   securitySchemes: {
+    connectRevocation: {
+      bearerFormat: "WorkOS Connect API access JWT",
+      description:
+        "Signed Connect token for https://teakvault.com/api. New application-wide disconnects require a live access token. Expired tokens can replay a completed receipt or resume an already acknowledged operation; API keys, refresh tokens and session tokens are rejected.",
+      scheme: "bearer",
+      type: "http",
+    },
     bearerAuth: {
       bearerFormat: "OAuth access token or teakapi_ API key",
       description:
@@ -433,6 +440,29 @@ export const openApiSpec = {
   ],
   components,
   paths: {
+    "/v1/oauth/disconnect": {
+      post: {
+        operationId: "disconnectOAuthConsent",
+        summary: "Disconnect this WorkOS Connect application",
+        description:
+          "No request body. Revokes this application on all installations for the signed-in user, while other applications stay connected. Old consent receipts remain permanently denied and successful retries return 204 without revoking a later grant. Works after authentication rollback. Reconnect may wait up to 305 seconds while old access tokens expire. Preserve local credentials unless 204 is returned; refresh an expired access token after 401 and retry.",
+        security: [{ connectRevocation: [] }],
+        responses: {
+          204: {
+            description:
+              "Application disconnected or completed old receipt replayed",
+          },
+          401: {
+            description:
+              "Invalid or expired token, or conflicting consent binding",
+          },
+          503: {
+            description:
+              "Disconnect pending or unavailable; preserve credentials and retry",
+          },
+        },
+      },
+    },
     "/v1/me": {
       get: {
         operationId: "getMe",

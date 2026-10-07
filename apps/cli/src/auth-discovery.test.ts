@@ -24,6 +24,7 @@ let tokenBody: Record<string, unknown> | undefined;
 let refreshes = 0;
 let exchanges = 0;
 let revoked = 0;
+let applicationRevoked = false;
 let revokeStatus = 200;
 let rejectRefreshReplay = false;
 let apiRequests = 0;
@@ -126,9 +127,20 @@ const server = serve({
         url.pathname.startsWith("/workos/") ? "client-cli" : "teak-cli"
       );
       revoked++;
+      if (primary === "workos") {
+        applicationRevoked = true;
+      }
       return new Response(null, { status: revokeStatus });
     }
+    if (url.pathname === "/v1/me") {
+      return Response.json({
+        data: { id: "verified-owner", email: "fixture@example.com" },
+      });
+    }
     if (url.pathname === "/v1/tags") {
+      if (applicationRevoked) {
+        return new Response(null, { status: 401 });
+      }
       apiRequests++;
       if (holdFirstApi && apiRequests === 1) {
         notifyApiStarted();
@@ -268,6 +280,7 @@ beforeEach(() => {
   refreshes = 0;
   exchanges = 0;
   revoked = 0;
+  applicationRevoked = false;
   revokeStatus = 200;
   rejectRefreshReplay = false;
   apiRequests = 0;
@@ -611,7 +624,7 @@ test("CLI reconnect retains the existing session if its revocation fails", async
   expect(result.code).toBe(1);
   expect(result.stderr).toContain("existing session is still saved");
   expect(readFileSync(file, "utf8")).toBe(original);
-  expect(revoked).toBe(2);
+  expect(revoked).toBe(1); // Failed Connect login never globally disconnects another installation.
 });
 
 test("CLI reuses a same-client refresh when an older concurrent request returns 401", async () => {
@@ -733,4 +746,27 @@ test("CLI revokes a new grant if unsafe storage prevents acquiring its commit lo
   } finally {
     unlinkSync(lock);
   }
+});
+
+test("verified same-owner WorkOS reconnect keeps the new application grant usable", async () => {
+  primary = "workos";
+  expect((await login()).code).toBe(0);
+  expect(JSON.parse(readFileSync(file, "utf8")).binding.ownerId).toBe(
+    "verified-owner"
+  );
+  expect((await login()).code).toBe(0);
+  expect(revoked).toBe(0);
+  expect((await run(["tags", "list"])).code).toBe(0);
+});
+test("unknown-owner saved WorkOS login stops before issuing another grant", async () => {
+  primary = "workos";
+  expect((await login()).code).toBe(0);
+  const saved = JSON.parse(readFileSync(file, "utf8"));
+  saved.binding.ownerId = undefined;
+  writeFileSync(file, JSON.stringify(saved));
+  const before = exchanges;
+  const result = await run(["login", "--no-browser"]);
+  expect(result.code).not.toBe(0);
+  expect(result.stderr).toContain("logout");
+  expect(exchanges).toBe(before);
 });

@@ -4,6 +4,7 @@ import { writeFile } from "node:fs/promises";
 import { resolve } from "node:path";
 import { parseArgs, promisify } from "node:util";
 import { z } from "zod";
+import { parseConvexCliResponse } from "./convex-cli-response";
 import { readPrivate } from "./quiesce-importer";
 
 const grantPage = z
@@ -91,7 +92,7 @@ export async function main(
         maxBuffer: 64 * 1024,
       }
     );
-    return JSON.parse(stdout);
+    return parseConvexCliResponse(stdout);
   };
   await run("migration/workosImportLease:verifyQuiescence", pins);
   if (!values.apply) {
