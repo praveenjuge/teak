@@ -130,12 +130,16 @@ state it also blocks a dev signing key or S3 credential equal to production.
 Run it without `--only` to compare credentials. Distinct values do not prove
 provider permission scope.
 
-Source changes activate nothing. The approved switch changes the dev Convex
-`FILES_BASE`, `FILES_SIGNING_SECRET`, `R2_BUCKET`, `R2_ACCESS_KEY_ID` and
-`R2_SECRET_ACCESS_KEY` together, and mirrors `FILES_BASE` into the dev web
-build's `NEXT_PUBLIC_FILES_BASE`. Only after that do
-`bun run sync:cloudflare-dev --isolated` (writes the ignored
-`apps/files-worker/development/.dev.vars`) and
+Source changes activate nothing. `deploy:development` bootstraps the
+development Worker before the switch. It is unguarded by Convex state, and its
+config can only reach the development bucket, namespace and workers.dev. The
+approved switch then changes the dev Convex `FILES_BASE`,
+`FILES_SIGNING_SECRET`, `R2_BUCKET`, `R2_ACCESS_KEY_ID` and
+`R2_SECRET_ACCESS_KEY` together. Web, packaged desktop and shared media
+recovery already trust exactly `https://teak-files-development.praveenjuge.workers.dev`
+when built for the dev deployment, so no `NEXT_PUBLIC_FILES_BASE` is needed.
+Only after the switch do `bun run sync:cloudflare-dev --isolated` (writes the
+ignored `apps/files-worker/development/.dev.vars`) and
 `bun run --cwd apps/files-worker dev:development` run. Both read the pinned dev
-deployment and refuse the shared state. Never copy production credentials into
-isolated development.
+deployment by name, with every ambient Convex selector blanked, and refuse the
+shared state. Never copy production credentials into isolated development.

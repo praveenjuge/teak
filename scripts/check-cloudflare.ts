@@ -95,25 +95,16 @@ export const PRODUCTION_FILES_BASE = "https://files.teakvault.com";
 export const DEVELOPMENT_STORAGE_BUCKET = "teak-files-development-20261006";
 export const DEVELOPMENT_KEY_PREFIX = "dev/";
 
-/** Exact HTTPS origin of the dedicated `teak-files-development` workers.dev Worker. */
-export const isDevelopmentFilesOrigin = (
-  value: string | undefined
-): boolean => {
-  if (!value) {
-    return false;
-  }
-  try {
-    const url = new URL(value);
-    return (
-      value === url.origin &&
-      url.protocol === "https:" &&
-      !url.port &&
-      /^teak-files-development\.[a-z0-9-]+\.workers\.dev$/.test(url.hostname)
-    );
-  } catch {
-    return false;
-  }
-};
+/**
+ * workers.dev origin of the dedicated `teak-files-development` Worker on the
+ * Teak account's `praveenjuge` subdomain. Web, desktop and shared UI trust
+ * exactly this origin for the dev deployment; keep them in step.
+ */
+export const DEVELOPMENT_FILES_ORIGIN =
+  "https://teak-files-development.praveenjuge.workers.dev";
+
+export const isDevelopmentFilesOrigin = (value: string | undefined): boolean =>
+  value === DEVELOPMENT_FILES_ORIGIN;
 
 /**
  * `shared`: the current state. Development uses the production Worker and
@@ -324,7 +315,7 @@ const checkConvexEnv = async (only: DeploymentScope | null) => {
   console.log(`  Expected prod vars: ${expectedProdVars.join(", ")}`);
   console.log(`  Expected dev vars: ${expectedDevVars.join(", ")}`);
   console.log(
-    `  Dev storage: current shared routing (R2_BUCKET=${PRODUCTION_STORAGE_BUCKET}, FILES_BASE=${PRODUCTION_FILES_BASE}) or isolated target (R2_BUCKET=${DEVELOPMENT_STORAGE_BUCKET}, FILES_BASE=https://teak-files-development.<subdomain>.workers.dev); R2_KEY_PREFIX=dev/ in both`
+    `  Dev storage: current shared routing (R2_BUCKET=${PRODUCTION_STORAGE_BUCKET}, FILES_BASE=${PRODUCTION_FILES_BASE}) or isolated target (R2_BUCKET=${DEVELOPMENT_STORAGE_BUCKET}, FILES_BASE=${DEVELOPMENT_FILES_ORIGIN}); R2_KEY_PREFIX=dev/ in both`
   );
 
   const getDeploymentValue = async (

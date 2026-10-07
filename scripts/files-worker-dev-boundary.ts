@@ -7,6 +7,7 @@ import {
 
 // Pinned like packages/convex/devUrls.ts: `--deployment dev` follows the
 // caller's personal selection, which differs per checkout and worktree.
+// `--deployment-name` selects exactly this deployment.
 export const DEVELOPMENT_DEPLOYMENT = "reminiscent-kangaroo-59";
 export const DEVELOPMENT_FILES_WORKER = "teak-files-development";
 const CLOUDFLARE_ACCOUNT_ID = "dd19e45b8f2f3cc0393cc2deb51fa27d";
@@ -45,48 +46,74 @@ export const assertIsolatedDevelopmentFiles = (
   return secret;
 };
 
-export const readDevelopmentFilesRouting = async (
-  root: string
-): Promise<DevelopmentFilesRouting> => {
-  // Deploy keys and self-hosted overrides take precedence over --deployment.
-  const overrides = new Set([
-    "CONVEX_DEPLOY_KEY",
-    "CONVEX_SELF_HOSTED_URL",
-    "CONVEX_SELF_HOSTED_ADMIN_KEY",
+export interface CommandResult {
+  exitCode: number;
+  stderr: string;
+  stdout: string;
+}
+export type RunCommand = (
+  argv: string[],
+  options: { cwd: string; env: Record<string, string | undefined> }
+) => Promise<CommandResult>;
+
+const runCommand: RunCommand = async (argv, { cwd, env }) => {
+  const proc = Bun.spawn(argv, { cwd, env, stdout: "pipe", stderr: "pipe" });
+  const [exitCode, stdout, stderr] = await Promise.all([
+    proc.exited,
+    new Response(proc.stdout).text(),
+    new Response(proc.stderr).text(),
   ]);
-  const env = Object.fromEntries(
-    Object.entries(process.env).filter(([name]) => !overrides.has(name))
-  );
+  return { exitCode, stdout, stderr };
+};
+
+// Same set as scripts/workos-migration/bootstrap-witness.ts. Deploy keys or
+// tokens and self-hosted pairs outrank --deployment-name in the Convex CLI,
+// which also loads packages/convex/.env.local and .env itself. Empty values
+// read as unset there and stop dotenv from refilling them.
+export const CONVEX_SELECTOR_VARIABLES = [
+  "CONVEX_DEPLOYMENT",
+  "CONVEX_DEPLOY_KEY",
+  "CONVEX_DEPLOYMENT_TOKEN",
+  "CONVEX_SELF_HOSTED_URL",
+  "CONVEX_SELF_HOSTED_ADMIN_KEY",
+  "CONVEX_URL",
+  "CONVEX_SITE_URL",
+  "NEXT_PUBLIC_CONVEX_URL",
+] as const;
+
+export const readDevelopmentFilesRouting = async (
+  root: string,
+  run: RunCommand = runCommand,
+  ambient: Record<string, string | undefined> = process.env
+): Promise<DevelopmentFilesRouting> => {
+  const env = { ...ambient };
+  for (const name of CONVEX_SELECTOR_VARIABLES) {
+    env[name] = "";
+  }
   const read = async (name: string) => {
-    const proc = Bun.spawn(
+    const result = await run(
       [
-        "bun",
+        process.execPath,
         "--no-env-file",
         "x",
         "convex",
         "env",
         "get",
         name,
-        "--deployment",
+        "--deployment-name",
         DEVELOPMENT_DEPLOYMENT,
       ],
-      {
-        cwd: join(root, "packages/convex"),
-        env,
-        stdout: "pipe",
-        stderr: "pipe",
-      }
+      { cwd: join(root, "packages/convex"), env }
     );
-    const [exitCode, out, err] = await Promise.all([
-      proc.exited,
-      new Response(proc.stdout).text(),
-      new Response(proc.stderr).text(),
-    ]);
-    const result = parseConvexEnvOutput(out, err, exitCode);
-    if (result.status === "unavailable") {
+    const parsed = parseConvexEnvOutput(
+      result.stdout,
+      result.stderr,
+      result.exitCode
+    );
+    if (parsed.status === "unavailable") {
       throw new Error(`Cannot read Convex dev ${name}; nothing was changed.`);
     }
-    return result.status === "found" ? result.value : undefined;
+    return parsed.status === "found" ? parsed.value : undefined;
   };
   const [bucket, prefix, filesBase, signingSecret] = await Promise.all([
     read("R2_BUCKET"),

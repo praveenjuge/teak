@@ -212,11 +212,22 @@ bun run dev:files:local  # same as above, isolated
 bun run check:cloudflare   # reports Convex prod/dev parity and dev storage state without printing values
 bun run sync:cloudflare-dev # securely writes the dev signing secret to ignored .dev.vars
 
-# Isolated development Worker (only after the approved storage switch)
-bun run deploy:development           # dedicated workers.dev Worker, no production route
-bun run sync:cloudflare-dev --isolated  # from repo root; writes development/.dev.vars
-bun run dev:development              # local code, remote development bucket/AI/Images
+# Isolated development Worker
+bun run deploy:development           # bootstrap, BEFORE the switch: workers.dev only, no route
+bun run sync:cloudflare-dev --isolated  # from repo root, AFTER the switch; writes development/.dev.vars
+bun run dev:development              # AFTER the switch; local code, remote development bucket/AI/Images
 ```
+
+`deploy:development` is a plain `wrangler deploy --config
+development/wrangler.jsonc` with no Convex check: the Worker must exist and be
+verified before Convex dev can switch to it. The committed config can only
+bind the development bucket, its own Durable Object namespace and workers.dev,
+with no route (tests in `src/deployment.test.ts` and
+`scripts/files-worker-dev-boundary.test.ts` enforce that). It sets no secret.
+Its `FILES_SIGNING_SECRET` is put separately and proven by a signed
+`capabilities` request before the switch, and by `check:cloudflare` (distinct
+from production) after it. Only the sync and `dev:development` refuse until
+Convex dev uses the isolated Worker.
 
 ## Secrets and local vars
 
@@ -263,7 +274,7 @@ There is no rollback path to the legacy bucket; never reuse `teak-files-dev`.
 `bun run check:cloudflare` accepts two dev states: the current shared routing
 (`teak-files-prod`, `https://files.teakvault.com`, production signing key and
 S3 credentials) and the isolated target (`teak-files-development-20261006`,
-`https://teak-files-development.<subdomain>.workers.dev`, its own key and
+`https://teak-files-development.praveenjuge.workers.dev`, its own key and
 bucket-scoped credentials). Both keep `R2_KEY_PREFIX=dev/` and exact object
 keys. Any mix of the two blocks, and isolated dev must never reuse a production
 credential.
@@ -277,9 +288,23 @@ import parts), and an admitted request can outlive its expiry, so a timer alone
 does not prove quiescence. After the switch, freeze every old `dev/` key through the
 production Worker's `freeze-object` operation. `frozen: false` means a write
 is still active or ended ambiguously; the key stays in the drain list until it
-freezes. Copy the final delta only after every key is frozen. Freezing is
-permanent and makes those keys unreadable through the production Worker, so
-rolling back after that point needs a reverse-copy plan.
+freezes. Copy the final delta only after every key is frozen.
+
+Freezing is irreversible: frozen keys stay unreadable and unwritable through
+the production Worker. Restoring the old dev routing after a freeze is
+therefore not a rollback; it would point dev at objects it can no longer read.
+Rollback by restoring the backed-up old dev values exists only before the first
+freeze. After it, recovery is forward on the isolated Worker: its copies are
+the readable data. The old `teak-files-prod` `dev/` objects stay
+byte-preserved as the recovery source, readable only through the S3 API, for
+re-copying missing or damaged objects into the development bucket with SHA
+verification.
+
+Builds for the dev deployment (`reminiscent-kangaroo-59`) allow exactly this
+origin: the web CSP, the packaged desktop CSP and shared media recovery. No
+`NEXT_PUBLIC_FILES_BASE` is needed for it. Production builds never allow it. If
+the deployed workers.dev origin differs, change `DEVELOPMENT_FILES_ORIGIN` and
+its client copies together (a drift test checks them).
 
 ## Local development experience
 

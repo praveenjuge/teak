@@ -43,7 +43,7 @@ describe("isBlockingFinding", () => {
   });
 });
 
-const DEV_ORIGIN = "https://teak-files-development.teak.workers.dev";
+const DEV_ORIGIN = "https://teak-files-development.praveenjuge.workers.dev";
 const shared = {
   bucket: PRODUCTION_STORAGE_BUCKET,
   prefix: "dev/",
@@ -88,10 +88,12 @@ describe("isDevelopmentFilesOrigin", () => {
     `${DEV_ORIGIN}/path`,
     `${DEV_ORIGIN}?x=1`,
     `${DEV_ORIGIN}:8443`,
-    "http://teak-files-development.teak.workers.dev",
-    "https://user:pass@teak-files-development.teak.workers.dev",
-    "https://teak-files-development.teak.workers.dev.evil.test",
+    "http://teak-files-development.praveenjuge.workers.dev",
+    "https://user:pass@teak-files-development.praveenjuge.workers.dev",
+    "https://teak-files-development.praveenjuge.workers.dev.evil.test",
     "https://other.teak.workers.dev",
+    "https://teak-files-development.other-account.workers.dev",
+    "https://other.praveenjuge.workers.dev",
     PRODUCTION_FILES_BASE,
     "not a url",
     undefined,

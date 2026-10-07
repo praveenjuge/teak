@@ -30,7 +30,7 @@ const local = await readFile(
 ).catch(() => "");
 if (parseDotenvContent(local).values.get("FILES_SIGNING_SECRET") !== secret) {
   throw new Error(
-    "development/.dev.vars does not hold the Convex dev signing key; run `bun run sync:cloudflare-dev -- --isolated`."
+    "development/.dev.vars does not hold the Convex dev signing key; run `bun run sync:cloudflare-dev --isolated`."
   );
 }
 const env = {
