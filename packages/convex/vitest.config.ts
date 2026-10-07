@@ -43,6 +43,7 @@ export default defineConfig({
       "./signupFreeze.test.ts",
       "./workosReadiness.test.ts",
       "./workosReadinessFixtures.test.ts",
+      "./workosImportedFixtureRetirement.test.ts",
       "./authConfig.test.ts",
       "./workosPhaseRFixture.test.ts",
       "./workosSocialOwnerBindings.test.ts",
