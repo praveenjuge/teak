@@ -1,11 +1,10 @@
-import { execFile } from "node:child_process";
 import { createHash } from "node:crypto";
-import { lstat, open, writeFile } from "node:fs/promises";
+import { lstat, open, readFile, writeFile } from "node:fs/promises";
 import { dirname, resolve } from "node:path";
-import { parseArgs, promisify } from "node:util";
+import { parseArgs } from "node:util";
 import { z } from "zod";
-import { parseConvexCliResponse } from "./convex-cli-response";
-import { readPrivate } from "./quiesce-importer";
+import { runConvexFunction } from "./convex-cli-response";
+import { type BarrierReceipt, readPrivate } from "./quiesce-importer";
 
 const owner = z.object({
   teakUserId: z.string(),
@@ -29,6 +28,91 @@ const applyPage = z.strictObject({
   done: z.boolean(),
   cursor: z.string().min(1).max(8192).nullable(),
 });
+type OwnerRow = z.infer<typeof owner>;
+const planClasses = ["invalidate", "verify", "fences"] as const;
+type PlanClass = (typeof planClasses)[number];
+// Owners the writer would change, by class, exactly as the plan query reports.
+const selected = (rows: OwnerRow[]): Record<PlanClass, string[]> => ({
+  invalidate: rows
+    .filter((row) => row.invalidateLegacyPassword)
+    .map((row) => row.teakUserId),
+  verify: rows
+    .filter((row) => row.markSameEmailVerified)
+    .map((row) => row.teakUserId),
+  fences: rows
+    .filter((row) => row.promoteDeletion)
+    .map((row) => row.teakUserId),
+});
+const ownerSet = z.strictObject({
+  count: z.number().int().min(0),
+  sha256: z.string().regex(/^[0-9a-f]{64}$/),
+  teakUserIds: z.array(z.string()),
+});
+const reviewedReport = z.object({
+  operation: z.literal("rollback-lifecycle"),
+  mutationExecuted: z.literal(false),
+  deployment: z.string(),
+  environmentId: z.string(),
+  clientId: z.string(),
+  apiKeyFingerprint: z.string(),
+  holder: z.string(),
+  generation: z.number(),
+  plan: z.object({
+    mappingSha256: z.string().regex(/^[0-9a-f]{64}$/),
+    deniedDeleted: ownerSet,
+    invalidate: ownerSet,
+    verify: ownerSet,
+    fences: ownerSet,
+  }),
+});
+// Sorted, newline-joined permanent owner IDs: the fingerprint an approval quotes.
+const ownerDigest = (ids: string[]) =>
+  createHash("sha256")
+    .update([...ids].sort().join("\n"))
+    .digest("hex");
+const describe = (ids: string[]) => ({
+  count: ids.length,
+  sha256: ownerDigest(ids),
+  teakUserIds: [...ids].sort(),
+});
+// Owner-to-provider links and tombstones must not move under a held barrier.
+const mappingDigest = (rows: OwnerRow[]) =>
+  ownerDigest(
+    rows
+      .filter((row) => row.workosUserId)
+      .map((row) => `${row.teakUserId}\t${row.workosUserId}`)
+  );
+const deniedOwners = (rows: OwnerRow[]) =>
+  rows.filter((row) => row.deniedDeleted).map((row) => row.teakUserId);
+// Apply admits only the owners a reviewed dry run under this same held barrier
+// listed. Provider events still arrive while paused, so a fresh plan may shrink
+// (resume) but never grow beyond what was reviewed and approved.
+async function readReviewedPlan(path: string, receipt: BarrierReceipt) {
+  const info = await lstat(path);
+  if (!info.isFile() || info.mode % 0o100 !== 0) {
+    throw new Error("Reviewed dry-run report must be an owner-only file");
+  }
+  const reviewed = reviewedReport.parse(
+    JSON.parse(await readFile(path, "utf8"))
+  );
+  if (
+    reviewed.deployment !== receipt.deployment ||
+    reviewed.environmentId !== receipt.environmentId ||
+    reviewed.clientId !== receipt.clientId ||
+    reviewed.apiKeyFingerprint !== receipt.apiKeyFingerprint ||
+    reviewed.holder !== receipt.holder ||
+    reviewed.generation !== receipt.generation ||
+    ([...planClasses, "deniedDeleted"] as const).some(
+      (name) =>
+        reviewed.plan[name].count !== reviewed.plan[name].teakUserIds.length ||
+        reviewed.plan[name].sha256 !==
+          ownerDigest(reviewed.plan[name].teakUserIds)
+    )
+  ) {
+    throw new Error("Reviewed dry-run report is not for this held barrier");
+  }
+  return reviewed.plan;
+}
 // Deliberately never flips primary or releases the barrier. A lost acknowledgment
 // resumes from the first page; guarded idempotent mutations avoid stale cursors.
 export async function main(
@@ -47,6 +131,7 @@ export async function main(
       "password-policy": { type: "string" },
       "policy-approval-reference": { type: "string" },
       "activation-approval-reference": { type: "string" },
+      "reviewed-dry-run": { type: "string" },
     },
   });
   if (
@@ -64,10 +149,11 @@ export async function main(
     values.apply &&
     (values["password-policy"] !== "invalidate-all-mapped-legacy-passwords" ||
       !values["policy-approval-reference"]?.trim() ||
-      !values["activation-approval-reference"]?.trim())
+      !values["activation-approval-reference"]?.trim() ||
+      !values["reviewed-dry-run"])
   ) {
     throw new Error(
-      "Separate named password policy and rollback activation approvals required"
+      "Separate named password policy and rollback activation approvals required, with the reviewed dry-run report"
     );
   }
   const reportPath = resolve(values.report);
@@ -108,6 +194,9 @@ export async function main(
   ) {
     throw new Error("Rollback barrier pins or credentials changed");
   }
+  const reviewed = values["reviewed-dry-run"]
+    ? await readReviewedPlan(resolve(values["reviewed-dry-run"]), receipt)
+    : null;
   const pins = {
     environmentId: receipt.environmentId,
     clientId: receipt.clientId,
@@ -147,65 +236,49 @@ export async function main(
   };
   try {
     await record("admitted");
-    const execute = promisify(execFile);
-    const run = async (name: string, args: unknown) => {
-      if (transport) {
-        return await transport(name, args);
-      }
-      const { stdout } = await execute(
-        process.execPath,
-        [
-          "--no-env-file",
-          "x",
-          "convex",
-          "run",
-          "--deployment-name",
-          receipt.deployment,
-          name,
-          JSON.stringify(args),
-        ],
-        {
-          cwd: resolve(import.meta.dir, "../../packages/convex"),
-          maxBuffer: 128 * 1024,
-        }
-      );
-      return parseConvexCliResponse(stdout);
-    };
+    const run = async (name: string, args: unknown) =>
+      transport
+        ? await transport(name, args)
+        : await runConvexFunction(receipt.deployment, name, args, 128 * 1024);
     const verify = () =>
       run("migration/workosImportLease:verifyQuiescence", pins);
+    const readPage = async (cursor: string | null, requireApplied: boolean) => {
+      await verify();
+      const result = planPage.parse(
+        await run("migration/workosRollbackPlan:page", {
+          environmentId: pins.environmentId,
+          clientId: pins.clientId,
+          cursor,
+        })
+      );
+      if (
+        result.owners.some(
+          (row) =>
+            row.blockers.length ||
+            (requireApplied &&
+              (row.invalidateLegacyPassword ||
+                row.markSameEmailVerified ||
+                row.promoteDeletion))
+        )
+      ) {
+        throw new Error(
+          "Rollback lifecycle is not ready; keep account changes paused and barrier held"
+        );
+      }
+      if (result.done !== (result.cursor === null)) {
+        throw new Error("Malformed rollback audit completion");
+      }
+      return result;
+    };
     const inspect = async (requireApplied: boolean) => {
-      let cursor: string | null = null,
-        scanned = 0;
+      let cursor: string | null = null;
+      const rows: OwnerRow[] = [];
       const seen = new Set<string>();
       for (let index = 0; index < 10_000; index++) {
-        await verify();
-        const result = planPage.parse(
-          await run("migration/workosRollbackPlan:page", {
-            environmentId: pins.environmentId,
-            clientId: pins.clientId,
-            cursor,
-          })
-        );
-        if (
-          result.owners.some(
-            (row) =>
-              row.blockers.length ||
-              (requireApplied &&
-                (row.invalidateLegacyPassword ||
-                  row.markSameEmailVerified ||
-                  row.promoteDeletion))
-          )
-        ) {
-          throw new Error(
-            "Rollback lifecycle is not ready; keep account changes paused and barrier held"
-          );
-        }
-        scanned += result.owners.length;
-        if (result.done !== (result.cursor === null)) {
-          throw new Error("Malformed rollback audit completion");
-        }
+        const result = await readPage(cursor, requireApplied);
+        rows.push(...result.owners);
         if (result.done) {
-          return scanned;
+          return rows;
         }
         if (
           !result.owners.length ||
@@ -222,8 +295,34 @@ export async function main(
         "Rollback audit budget exceeded; no partial clear result"
       );
     };
+    const outsideReviewed = (plan: Record<PlanClass, string[]>) =>
+      reviewed !== null &&
+      planClasses.some((name) =>
+        plan[name].some((id) => !reviewed[name].teakUserIds.includes(id))
+      );
+    // A run that stopped on an out-of-scope write must not be absorbed by a
+    // resume: links and tombstones are compared with the reviewed dry run.
+    const stateOutsideReviewed = (rows: OwnerRow[]) => {
+      if (reviewed === null) {
+        return false;
+      }
+      const allowed = new Set([
+        ...reviewed.deniedDeleted.teakUserIds,
+        ...reviewed.fences.teakUserIds,
+      ]);
+      return (
+        mappingDigest(rows) !== reviewed.mappingSha256 ||
+        deniedOwners(rows).some((id) => !allowed.has(id))
+      );
+    };
     await verify();
-    const beforeScanned = await inspect(false);
+    const before = await inspect(false);
+    const plan = selected(before);
+    if (outsideReviewed(plan) || stateOutsideReviewed(before)) {
+      throw new Error(
+        "Fresh rollback plan exceeds the reviewed dry run; nothing was written"
+      );
+    }
     const counts = {
       scanned: 0,
       invalidated: 0,
@@ -235,6 +334,16 @@ export async function main(
         complete = false;
       const seen = new Set<string>();
       for (let index = 0; index < 10_000; index++) {
+        // Bind each write to a preflight of the same page taken just before it:
+        // provider events keep arriving while paused, so the start-of-run plan
+        // alone cannot stop an owner swapped in on a later page.
+        const preflight = await readPage(cursor, false);
+        const expected = selected(preflight.owners);
+        if (outsideReviewed(expected)) {
+          throw new Error(
+            "Fresh rollback plan exceeds the reviewed dry run; this page was not written"
+          );
+        }
         await record("dispatching_page", cursor);
         const result = applyPage.parse(
           await run("migration/workosRollback:applyPage", {
@@ -264,6 +373,17 @@ export async function main(
         ] as const) {
           counts[field] += result[field];
         }
+        if (
+          result.scanned !== preflight.owners.length ||
+          result.done !== preflight.done ||
+          result.invalidated !== expected.invalidate.length ||
+          result.verified !== expected.verify.length ||
+          result.deletionFences !== expected.fences.length
+        ) {
+          throw new Error(
+            "Rollback writer page differs from its preflight; retain pause and barrier"
+          );
+        }
         if (result.done) {
           complete = true;
           break;
@@ -284,7 +404,14 @@ export async function main(
         );
       }
     }
-    const afterScanned = values.apply ? await inspect(true) : beforeScanned;
+    const after = values.apply ? await inspect(true) : before;
+    if (stateOutsideReviewed(after)) {
+      throw new Error(
+        "Owner mapping or deletion state changed outside the reviewed dry run; retain pause and barrier"
+      );
+    }
+    const beforeScanned = before.length;
+    const afterScanned = after.length;
     await verify();
     // A paged audit is not an atomic flip authorization. Delayed lifecycle events
     // still require a fresh final operator audit immediately before the flag change.
@@ -300,6 +427,17 @@ export async function main(
       beforeScanned,
       afterScanned,
       counts,
+      // The plan observed before any write. A dry run's plan is what an
+      // activation approval reviews and what --reviewed-dry-run admits.
+      plan: {
+        owners: before.length,
+        mapped: before.filter((row) => row.workosUserId).length,
+        mappingSha256: mappingDigest(before),
+        deniedDeleted: describe(deniedOwners(before)),
+        invalidate: describe(plan.invalidate),
+        verify: describe(plan.verify),
+        fences: describe(plan.fences),
+      },
       barrierHeld: true,
       primaryChanged: false,
       accountsUnpaused: false,

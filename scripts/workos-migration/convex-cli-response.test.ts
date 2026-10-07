@@ -1,7 +1,11 @@
 import { expect, test } from "bun:test";
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
-import { parseConvexCliResponse } from "./convex-cli-response";
+import {
+  convexDeploymentSelectors,
+  parseConvexCliResponse,
+  runConvexFunction,
+} from "./convex-cli-response";
 
 const execute = promisify(execFile);
 
@@ -44,6 +48,57 @@ test.each([
     }
   }
 );
+test("pinned Convex child targets only the named deployment", async () => {
+  const names = [
+    ...convexDeploymentSelectors,
+    "WORKOS_API_KEY",
+    "TEAK_UNRELATED",
+  ];
+  const saved = names.map((name) => [name, process.env[name]] as const);
+  for (const selector of convexDeploymentSelectors) {
+    process.env[selector] = `ambient-${selector}`;
+  }
+  process.env.WORKOS_API_KEY = "operator-key";
+  process.env.TEAK_UNRELATED = "kept";
+  const seen: { args: string[]; cwd: string; env: NodeJS.ProcessEnv }[] = [];
+  try {
+    const result = await runConvexFunction(
+      "exact-target",
+      "module:query",
+      { cursor: null },
+      1024,
+      (_file, args, options) => {
+        seen.push({ args, cwd: options.cwd, env: options.env });
+        return Promise.resolve({ stdout: '{"ok":true}\n' });
+      }
+    );
+    expect(result).toEqual({ ok: true });
+  } finally {
+    for (const [name, value] of saved) {
+      if (value === undefined) {
+        delete process.env[name];
+      } else {
+        process.env[name] = value;
+      }
+    }
+  }
+  expect(seen[0].args).toEqual([
+    "--no-env-file",
+    "x",
+    "convex",
+    "run",
+    "--deployment-name",
+    "exact-target",
+    "module:query",
+    '{"cursor":null}',
+  ]);
+  expect(seen[0].cwd.endsWith("packages/convex")).toBe(true);
+  for (const selector of convexDeploymentSelectors) {
+    expect(seen[0].env[selector]).toBe("");
+  }
+  expect("WORKOS_API_KEY" in seen[0].env).toBe(false);
+  expect(seen[0].env.TEAK_UNRELATED).toBe("kept");
+});
 test("nonzero CLI exit never reaches the null parser", async () => {
   await expect(
     execute(process.execPath, ["-e", "process.exit(1)"])
