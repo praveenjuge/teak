@@ -405,3 +405,69 @@ test("provisioning retries an admitted pending account only after canonical read
   );
   expect(calls).toBe(2);
 });
+
+test("cleanup retries a lost timeout response for the exact admitted accounts", async () => {
+  env.cleanupToken = "test-token";
+  env.convexSiteUrl = "https://example.convex.site";
+  const email = "e2e-timeout@tests.example.com";
+  const bodies: string[] = [];
+  globalThis.fetch = mock((_input: RequestInfo | URL, init?: RequestInit) => {
+    bodies.push(String(init?.body));
+    if (bodies.length === 1) {
+      return Promise.reject(new DOMException("Lost response", "TimeoutError"));
+    }
+    return Promise.resolve(
+      Response.json({
+        alreadyDeleted: [email],
+        deleted: [],
+        failures: [],
+        ignoredOutOfRange: [],
+        remainingEligible: false,
+      })
+    );
+  }) as unknown as typeof fetch;
+  const result = await cleanupE2EAccounts([email], noOpSleep);
+  expect(result.alreadyDeleted).toEqual([email]);
+  expect(bodies).toEqual([
+    JSON.stringify({ emails: [email] }),
+    JSON.stringify({ emails: [email] }),
+  ]);
+});
+
+test("cleanup timeout retries stop at the existing overall deadline", async () => {
+  env.cleanupToken = "test-token";
+  env.convexSiteUrl = "https://example.convex.site";
+  const originalNow = Date.now;
+  let now = originalNow();
+  let calls = 0;
+  Date.now = () => now;
+  globalThis.fetch = mock(() => {
+    calls++;
+    return Promise.reject(new DOMException("Lost response", "TimeoutError"));
+  }) as unknown as typeof fetch;
+  try {
+    await expect(
+      cleanupE2EAccounts(["e2e-timeout@tests.example.com"], () => {
+        now += 120_001;
+        return Promise.resolve();
+      })
+    ).rejects.toThrow("cleanup remains unproven");
+    expect(calls).toBe(1);
+  } finally {
+    Date.now = originalNow;
+  }
+});
+
+test("cleanup does not retry unexpected request errors", async () => {
+  env.cleanupToken = "test-token";
+  env.convexSiteUrl = "https://example.convex.site";
+  let calls = 0;
+  globalThis.fetch = mock(() => {
+    calls++;
+    return Promise.reject(new Error("Unexpected failure"));
+  }) as unknown as typeof fetch;
+  await expect(
+    cleanupE2EAccounts(["e2e-timeout@tests.example.com"], noOpSleep)
+  ).rejects.toThrow("Unexpected failure");
+  expect(calls).toBe(1);
+});

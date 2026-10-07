@@ -69,18 +69,31 @@ export const cleanupE2EAccounts = async (
   let cursor: string | undefined;
   for (let attempt = 0; attempt < 200 && Date.now() < deadline; attempt++) {
     const sweepBody = cursor ? { cursor } : {};
-    const response = await fetch(
-      `${env.convexSiteUrl}/api/auth/internal/e2e/cleanup`,
-      {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${env.cleanupToken}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(emails ? { emails } : sweepBody),
-        signal: AbortSignal.timeout(Math.min(15_000, deadline - Date.now())),
+    let response: Response;
+    try {
+      response = await fetch(
+        `${env.convexSiteUrl}/api/auth/internal/e2e/cleanup`,
+        {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${env.cleanupToken}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(emails ? { emails } : sweepBody),
+          signal: AbortSignal.timeout(Math.min(15_000, deadline - Date.now())),
+        }
+      );
+    } catch (error) {
+      if (!(error instanceof DOMException && error.name === "TimeoutError")) {
+        throw error;
       }
-    );
+      // Cleanup is idempotent. A timed-out request may already have deleted
+      // these accounts, so retry the same emails/cursor and require a receipt.
+      if (Date.now() < deadline) {
+        await sleep();
+      }
+      continue;
+    }
     const payload: unknown = await response.json().catch(() => null);
     if (!isE2ECleanupResult(payload)) {
       throw new Error(
