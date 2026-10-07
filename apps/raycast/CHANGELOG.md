@@ -1,5 +1,10 @@
 # Changelog
 
+## [Safer sign-in recovery] - {PR_MERGE_DATE}
+
+- Keep saved sign-ins when a connection or sign-in response is uncertain
+- Support provider changes and clearly show when Sign Out only clears this Mac
+
 ## [Reliable search and favorites] - {PR_MERGE_DATE}
 
 - Search, favorites, and AI tools now use Teak's current card listing API
