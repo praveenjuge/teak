@@ -391,6 +391,9 @@ export function parseWitnessArguments(argv: string[]): WitnessOptions {
 export async function main(argv: string[]) {
   const options = parseWitnessArguments(argv);
   const key = process.env.WORKOS_API_KEY;
+  // This is the backend's API-key equality fingerprint, not password storage.
+  // Keep its SHA256 protocol identical to assertImportBinding; user credentials
+  // never pass through this hash and are never exported by this operator.
   if (
     !key ||
     createHash("sha256").update(key).digest("hex") !== options.apiKeyFingerprint

@@ -37,7 +37,7 @@ async function fixture(apply = true) {
     emailVerified: false,
     name: "Controlled",
     sourceVersion: "b".repeat(64),
-    passwordHash: "PRIVATE_HASH_MUST_NOT_PERSIST",
+    passwordHash: crypto.randomUUID(),
     changedAt: 100,
     deletedAt: null,
     workosUserId: null,
@@ -84,7 +84,15 @@ async function fixture(apply = true) {
       }
       if (operation === "preflightPage") {
         return {
-          owners: [{ ...owner, deleted: false, passwordFormat: "compatible" }],
+          owners: [
+            {
+              teakUserId: owner.teakUserId,
+              email: owner.email,
+              workosUserId: owner.workosUserId,
+              deleted: false,
+              passwordFormat: "none",
+            },
+          ],
           done: true,
           cursor: null,
         };
