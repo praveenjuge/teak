@@ -8,6 +8,7 @@ import type {
   OnHeadersReceivedListenerDetails,
 } from "electron";
 import electronUpdater from "electron-updater";
+import { getDesktopConfig } from "../lib/desktop-config";
 import { OAUTH_CALLBACK_CHANNEL } from "./channels";
 import { buildRendererContentSecurityPolicy } from "./contentSecurityPolicy";
 import { isMicrophoneCheck, isMicrophoneOnlyRequest } from "./mediaPermissions";
@@ -235,6 +236,16 @@ function createMainWindow(): BrowserWindowInstance {
   //
   //  2. CSP for the renderer, applied only in production (the Vite dev server
   //     needs inline scripts for HMR).
+  // Build-time configuration only; an unresolvable config keeps the
+  // production policy instead of throwing inside header handling.
+  let convexUrl: string | undefined;
+  try {
+    convexUrl = getDesktopConfig().convexUrl;
+  } catch {
+    convexUrl = undefined;
+  }
+  const rendererContentSecurityPolicy =
+    buildRendererContentSecurityPolicy(convexUrl);
   mainWindow.webContents.session.webRequest.onHeadersReceived(
     (
       details: OnHeadersReceivedListenerDetails,
@@ -264,9 +275,7 @@ function createMainWindow(): BrowserWindowInstance {
 
       if (!isDevServer) {
         responseHeaders["Content-Security-Policy"] = [
-          buildRendererContentSecurityPolicy(
-            import.meta.env.VITE_PUBLIC_CONVEX_URL
-          ),
+          rendererContentSecurityPolicy,
         ];
       }
 

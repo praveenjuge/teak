@@ -17,7 +17,7 @@ describe("electron main process wiring", () => {
 
     // CSP headers (policy content: contentSecurityPolicy.test.ts)
     expect(source).toContain("Content-Security-Policy");
-    expect(source).toContain("buildRendererContentSecurityPolicy(");
+    expect(source).toContain("buildRendererContentSecurityPolicy(convexUrl)");
 
     // URL validation
     expect(source).toContain("isValidExternalUrl");

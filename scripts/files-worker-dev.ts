@@ -5,6 +5,7 @@
  * it never writes to the new bucket before the approved storage switch.
  * `bun run dev:files` keeps today's shared production routing.
  */
+import { timingSafeEqual } from "node:crypto";
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
 import config from "../apps/files-worker/development/wrangler.jsonc";
@@ -28,7 +29,14 @@ const local = await readFile(
   join(worker, "development/.dev.vars"),
   "utf8"
 ).catch(() => "");
-if (parseDotenvContent(local).values.get("FILES_SIGNING_SECRET") !== secret) {
+const localSecret = Buffer.from(
+  parseDotenvContent(local).values.get("FILES_SIGNING_SECRET") ?? ""
+);
+const convexSecret = Buffer.from(secret);
+if (
+  localSecret.length !== convexSecret.length ||
+  !timingSafeEqual(localSecret, convexSecret)
+) {
   throw new Error(
     "development/.dev.vars does not hold the Convex dev signing key; run `bun run sync:cloudflare-dev --isolated`."
   );
