@@ -49,6 +49,24 @@ describe("getSafeNextPath", () => {
     expect(getSafeNextPath("/login?next=%2Fsettings")).toBeNull();
   });
 
+  test.each([
+    "/sign-in/",
+    "/sign-in//",
+    "/sign-in/?next=%2Fsettings",
+    "/login/",
+    "/reset-password/#token",
+  ])(
+    "rejects trailing-slash auth route %s that Next redirects back to auth",
+    (next) => {
+      expect(getSafeNextPath(next)).toBeNull();
+    }
+  );
+
+  test("keeps non-auth paths that only share an auth prefix", () => {
+    expect(getSafeNextPath("/sign-in-help")).toBe("/sign-in-help");
+    expect(getSafeNextPath("/settings/")).toBe("/settings/");
+  });
+
   test("rejects values that do not start with a slash", () => {
     expect(getSafeNextPath("settings")).toBeNull();
     expect(getSafeNextPath("javascript:alert(1)")).toBeNull();
