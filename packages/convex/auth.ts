@@ -34,6 +34,7 @@ import {
 
 export { ensureCardCreationAllowed } from "./card/quota";
 
+import { authSignInMonitoring } from "./authSignInMonitoring";
 import { isLocalDevelopmentUrl } from "./devUrls";
 import { e2eCleanupPlugin } from "./e2eCleanup";
 import {
@@ -384,6 +385,7 @@ export const createAuth = (ctx: GenericCtx<DataModel>) => {
         jwks: readJwksDocument(),
       }),
       teakOAuthSecurity(),
+      authSignInMonitoring(ctx, env.E2E_EMAIL_DOMAIN),
       // OAuth 2.1 authorization server for browser-login clients (Raycast,
       // desktop, MCP). Access/refresh tokens are opaque strings stored in the
       // component's oauthAccessToken table; PKCE S256 is enforced.

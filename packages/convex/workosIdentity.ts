@@ -1,6 +1,13 @@
 import { v } from "convex/values";
-import { internalQuery } from "./_generated/server";
+import { internalQuery, type QueryCtx } from "./_generated/server";
+import { logResolverDenial, type ResolverVerification } from "./authMonitoring";
 import { readCanonicalWorkosProfile } from "./workosProfileRead";
+
+interface ResolveArgs {
+  externalId?: string | null;
+  verification: ResolverVerification;
+  workosUserId: string;
+}
 
 // Only callers that have verified the token's issuer, signature, audience,
 // user subject and session/consent may use this read-only ownership boundary.
@@ -30,88 +37,101 @@ export const resolveWorkosOwner = internalQuery({
     })
   ),
   handler: async (ctx, args) => {
-    const deleted = await ctx.db
-      .query("workosEvents")
-      .withIndex("by_workosUserId_and_type", (q) =>
-        q.eq("workosUserId", args.workosUserId).eq("type", "user.deleted")
-      )
-      .first();
-    if (deleted) {
-      return {
-        status: "denied" as const,
-        reason: "workos_deleted_user" as const,
-      };
-    }
-    const rows = await ctx.db
-      .query("users")
-      .withIndex("by_workosUserId", (q) =>
-        q.eq("workosUserId", args.workosUserId)
-      )
-      .take(2);
-    if (rows.length !== 1) {
-      return {
-        status: "denied" as const,
-        reason: rows.length
-          ? ("duplicate_mapping" as const)
-          : ("missing_mapping" as const),
-      };
-    }
-    const row = rows[0];
-    if (row.deletedAt !== undefined || row.workosDeletedAt !== undefined) {
-      return {
-        status: "denied" as const,
-        reason:
-          row.deletedAt === undefined
-            ? ("workos_deleted_user" as const)
-            : ("deleted_user" as const),
-      };
-    }
-    const deletion = await ctx.db
-      .query("accountDeletionStates")
-      .withIndex("by_userId", (q) => q.eq("userId", row.teakUserId))
-      .first();
-    if (deletion) {
-      return { status: "denied" as const, reason: "deleting_user" as const };
-    }
-    const owners = await ctx.db
-      .query("users")
-      .withIndex("by_teakUserId", (q) => q.eq("teakUserId", row.teakUserId))
-      .take(2);
-    if (owners.length !== 1) {
-      return {
-        status: "denied" as const,
-        reason: "duplicate_mapping" as const,
-      };
-    }
-    if (
-      args.externalId !== undefined &&
-      args.externalId !== null &&
-      args.externalId !== row.teakUserId
-    ) {
-      console.warn("identity_resolver_mismatch", {
-        provider: "workos",
-        reason: "external_id_mismatch",
+    const result = await resolveOwner(ctx, args);
+    if (result.status === "denied") {
+      // One hashed line per denial; the decision above is never changed by it.
+      await logResolverDenial({
+        reason: result.reason,
+        verification: args.verification,
+        workosUserId: args.workosUserId,
       });
-      return {
-        status: "denied" as const,
-        reason: "external_id_mismatch" as const,
-      };
     }
-    const canonical = await readCanonicalWorkosProfile(ctx, args.workosUserId);
-    if (
-      canonical?.profile?.emailVerified !== true ||
-      (canonical.teakUserId !== undefined &&
-        canonical.teakUserId !== row.teakUserId)
-    ) {
-      return { status: "denied" as const, reason: "verify_email" as const };
-    }
-    const verified =
-      args.verification.kind === "session"
-        ? args.verification.emailVerified === true
-        : row.workosEmailVerified === true;
-    if (!verified) {
-      return { status: "denied" as const, reason: "verify_email" as const };
-    }
-    return { status: "ok" as const, teakUserId: row.teakUserId };
+    return result;
   },
 });
+
+const resolveOwner = async (ctx: QueryCtx, args: ResolveArgs) => {
+  const deleted = await ctx.db
+    .query("workosEvents")
+    .withIndex("by_workosUserId_and_type", (q) =>
+      q.eq("workosUserId", args.workosUserId).eq("type", "user.deleted")
+    )
+    .first();
+  if (deleted) {
+    return {
+      status: "denied" as const,
+      reason: "workos_deleted_user" as const,
+    };
+  }
+  const rows = await ctx.db
+    .query("users")
+    .withIndex("by_workosUserId", (q) =>
+      q.eq("workosUserId", args.workosUserId)
+    )
+    .take(2);
+  if (rows.length !== 1) {
+    return {
+      status: "denied" as const,
+      reason: rows.length
+        ? ("duplicate_mapping" as const)
+        : ("missing_mapping" as const),
+    };
+  }
+  const row = rows[0];
+  if (row.deletedAt !== undefined || row.workosDeletedAt !== undefined) {
+    return {
+      status: "denied" as const,
+      reason:
+        row.deletedAt === undefined
+          ? ("workos_deleted_user" as const)
+          : ("deleted_user" as const),
+    };
+  }
+  const deletion = await ctx.db
+    .query("accountDeletionStates")
+    .withIndex("by_userId", (q) => q.eq("userId", row.teakUserId))
+    .first();
+  if (deletion) {
+    return { status: "denied" as const, reason: "deleting_user" as const };
+  }
+  const owners = await ctx.db
+    .query("users")
+    .withIndex("by_teakUserId", (q) => q.eq("teakUserId", row.teakUserId))
+    .take(2);
+  if (owners.length !== 1) {
+    return {
+      status: "denied" as const,
+      reason: "duplicate_mapping" as const,
+    };
+  }
+  if (
+    args.externalId !== undefined &&
+    args.externalId !== null &&
+    args.externalId !== row.teakUserId
+  ) {
+    console.warn("identity_resolver_mismatch", {
+      provider: "workos",
+      reason: "external_id_mismatch",
+    });
+    return {
+      status: "denied" as const,
+      reason: "external_id_mismatch" as const,
+    };
+  }
+  const canonical = await readCanonicalWorkosProfile(ctx, args.workosUserId);
+  if (
+    canonical?.profile?.emailVerified !== true ||
+    (canonical.teakUserId !== undefined &&
+      canonical.teakUserId !== row.teakUserId)
+  ) {
+    return { status: "denied" as const, reason: "verify_email" as const };
+  }
+  const verified =
+    args.verification.kind === "session"
+      ? args.verification.emailVerified === true
+      : row.workosEmailVerified === true;
+  if (!verified) {
+    return { status: "denied" as const, reason: "verify_email" as const };
+  }
+  return { status: "ok" as const, teakUserId: row.teakUserId };
+};
