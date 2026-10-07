@@ -11,8 +11,15 @@ export class TeakDiscoveryError extends Error {
 
 class TeakSessionExpiredError extends Error {}
 class TeakRefreshRevokedError extends TeakSessionExpiredError {}
-class TeakHistoricalConnectionError extends Error {}
+class TeakLocalSignOutError extends Error {}
 class TeakRefreshClientRejectedError extends Error {}
+const reconnectAfterSignOut =
+  "Sign Out before reconnecting, then wait five minutes for disconnect to finish.";
+export class TeakSignOutRequiredError extends Error {
+  constructor() {
+    super(reconnectAfterSignOut);
+  }
+}
 
 interface Provider {
   auth: AuthDiscovery;
@@ -389,9 +396,7 @@ export function reauthorizeTeak(): Promise<string> {
           }
         }
         if (tokens) {
-          throw new Error(
-            "Sign Out before reconnecting, then wait five minutes for disconnect to finish.",
-          );
+          throw new TeakSignOutRequiredError();
         }
       }
       await provider.client.removeTokens();
@@ -464,10 +469,10 @@ async function revokeStoredSession(): Promise<SignOutResult> {
     const token = workos
       ? tokens?.accessToken
       : tokens?.refreshToken || tokens?.accessToken;
-    if (tokens && !token) {
+    if (tokens && !token && !workos) {
       throw new Error("Your credentials are still saved. Try Sign Out again.");
     }
-    if (token) {
+    if (token || (workos && tokens)) {
       try {
         // Try an old token first so a completed disconnect can recover without
         // refreshing a grant the provider has already revoked.
@@ -488,14 +493,14 @@ async function revokeStoredSession(): Promise<SignOutResult> {
               : {
                   body: new URLSearchParams({
                     client_id: record.clientId,
-                    token,
+                    token: token ?? "",
                   }),
                 }),
             redirect: "error",
             signal: AbortSignal.timeout(10_000),
           });
-        let response = await disconnect(token);
-        if (workos && response.status === 401) {
+        let response = token ? await disconnect(token) : undefined;
+        if (workos && (!token || response?.status === 401)) {
           const provider = await getProvider(true);
           if (
             providerKey(provider.auth) !==
@@ -504,10 +509,12 @@ async function revokeStoredSession(): Promise<SignOutResult> {
             // This exact historical namespace is trusted, but refreshing it via
             // the new provider would disclose credentials. Explicit Sign Out
             // may clear it locally without claiming provider revocation.
-            throw new TeakHistoricalConnectionError();
+            throw new TeakLocalSignOutError();
           }
           if (!tokens?.refreshToken) {
-            throw new Error("Refresh credential is unavailable");
+            // No refresh credential can recover this rejected or absent access
+            // token. Explicit Sign Out may forget this Mac, not the remote grant.
+            throw new TeakLocalSignOutError();
           }
           const renewed = await exchange(
             provider,
@@ -523,18 +530,18 @@ async function revokeStoredSession(): Promise<SignOutResult> {
           // blocks new readers and has drained all in-flight refreshes.
           response = await disconnect(renewed);
         }
-        if (workos ? response.status !== 204 : !response.ok) {
+        if (workos ? response?.status !== 204 : !response?.ok) {
           throw new Error("Revocation failed");
         }
       } catch (error) {
-        // A dead refresh grant, rejected client or historical-provider mismatch
+        // A dead grant, rejected client or unusable local connection
         // permits explicit local clearing. None claims remote revocation;
         // uncertain failures retain their credentials.
         if (
           !(
             workos &&
             (error instanceof TeakRefreshRevokedError ||
-              error instanceof TeakHistoricalConnectionError ||
+              error instanceof TeakLocalSignOutError ||
               error instanceof TeakRefreshClientRejectedError)
           )
         ) {
@@ -562,6 +569,10 @@ export async function hasStoredTeakSession(): Promise<boolean> {
   }
   const provider = await getProvider();
   const tokens = await provider.client.getTokens();
+  if (provider.auth.primary === "workos") {
+    // Even an unusable saved credential needs an explicit Sign Out action.
+    return Boolean(tokens);
+  }
   return Boolean(
     tokens?.accessToken && (!tokens.isExpired() || tokens.refreshToken),
   );
@@ -583,13 +594,16 @@ export function getStoredTeakAccessToken(): Promise<string | null> {
 async function resolveStoredTeakAccessToken(): Promise<string | null> {
   const provider = await getProvider();
   const tokens = await provider.client.getTokens();
-  if (!tokens?.accessToken) {
+  if (!tokens || (!tokens.accessToken && provider.auth.primary !== "workos")) {
     return null;
   }
-  if (!tokens.isExpired()) {
+  if (tokens.accessToken && !tokens.isExpired()) {
     return tokens.accessToken;
   }
   if (!tokens.refreshToken) {
+    if (provider.auth.primary === "workos") {
+      throw new TeakSignOutRequiredError();
+    }
     return null;
   }
   try {
@@ -600,6 +614,13 @@ async function resolveStoredTeakAccessToken(): Promise<string | null> {
     );
   } catch (error) {
     await refetchAfterFailure();
+    if (
+      provider.auth.primary === "workos" &&
+      !tokens.accessToken &&
+      error instanceof TeakRefreshRevokedError
+    ) {
+      throw new TeakSignOutRequiredError();
+    }
     if (error instanceof TeakSessionExpiredError) {
       return null;
     }
