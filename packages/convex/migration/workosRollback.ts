@@ -9,9 +9,10 @@ import {
 } from "./workosImportLease";
 import { assertRollbackMode, inspectRollbackOwner } from "./workosRollbackPlan";
 
-// The activation-reviewed dry run: exact owners per class, every
-// owner-to-provider link, and every denied owner. Arrays hold at most 8192
-// values, which bounds a single rollback to that many owners per class.
+// The activation-reviewed dry run's entries for this page's owners: class
+// membership, owner-to-provider link and denial. An owner without entries
+// counts as unmapped, unselected and undenied, so any owner that matters and
+// was not reviewed fails the page.
 const reviewedScope = v.object({
   invalidate: v.array(v.string()),
   verify: v.array(v.string()),

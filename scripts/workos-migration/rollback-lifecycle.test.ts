@@ -548,19 +548,50 @@ test("every writer page receives the exact reviewed scope, and a lost acknowledg
       mutationExecuted: true,
       counts: { scanned: 3, invalidated: 0, verified: 0, deletionFences: 1 },
     });
-    expect(target.scopes).toHaveLength(4);
-    for (const scope of target.scopes) {
-      expect(scope).toEqual({
-        invalidate: ["a"],
-        verify: ["a"],
+    // Each call carries only the reviewed entries for the owners on its page.
+    const scopeA = {
+      invalidate: ["a"],
+      verify: ["a"],
+      fences: [],
+      denied: [],
+      mappings: [{ teakUserId: "a", workosUserId: "user_a" }],
+    };
+    expect(target.scopes).toEqual([
+      scopeA,
+      scopeA,
+      {
+        invalidate: [],
+        verify: [],
         fences: ["b"],
-        denied: ["b", "c"],
-        mappings: [
-          { teakUserId: "a", workosUserId: "user_a" },
-          { teakUserId: "b", workosUserId: "user_b" },
-        ],
-      });
-    }
+        denied: ["b"],
+        mappings: [{ teakUserId: "b", workosUserId: "user_b" }],
+      },
+      { invalidate: [], verify: [], fences: [], denied: ["c"], mappings: [] },
+    ]);
+  });
+});
+test("writer calls stay page-sized however many owners were reviewed", async () => {
+  await withKey(async () => {
+    const f = await fixture();
+    const target = deployment(
+      Object.fromEntries(
+        Array.from({ length: 2000 }, (_, index) => [
+          `owner${index}`,
+          { invalidateLegacyPassword: true },
+        ])
+      )
+    );
+    const reviewed = await reviewedDryRun(f, target.transport);
+    const sizes: number[] = [];
+    await main([...f.args, ...reviewed, ...policy], (name, args) => {
+      if (name.endsWith(":applyPage")) {
+        sizes.push(JSON.stringify(args).length);
+      }
+      return target.transport(name, args);
+    });
+    expect(sizes).toHaveLength(2000);
+    // The whole scope would be about 200 KB, past Linux's 128 KiB argv limit.
+    expect(Math.max(...sizes)).toBeLessThan(2048);
   });
 });
 test("a writer refusal stops the run with earlier pages kept and no completion report", async () => {

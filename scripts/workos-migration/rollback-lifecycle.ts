@@ -249,19 +249,22 @@ export async function main(
         : await runConvexFunction(receipt.deployment, name, args, 128 * 1024);
     const verify = () =>
       run("migration/workosImportLease:verifyQuiescence", pins);
+    const planAt = async (cursor: string | null) => {
+      await verify();
+      return planPage.parse(
+        await run("migration/workosRollbackPlan:page", {
+          environmentId: pins.environmentId,
+          clientId: pins.clientId,
+          cursor,
+        })
+      );
+    };
     const inspect = async (requireApplied: boolean) => {
       let cursor: string | null = null;
       const rows: OwnerRow[] = [];
       const seen = new Set<string>();
       for (let index = 0; index < 10_000; index++) {
-        await verify();
-        const result = planPage.parse(
-          await run("migration/workosRollbackPlan:page", {
-            environmentId: pins.environmentId,
-            clientId: pins.clientId,
-            cursor,
-          })
-        );
+        const result = await planAt(cursor);
         if (
           result.owners.some(
             (row) =>
@@ -333,20 +336,33 @@ export async function main(
     if (values.apply) {
       // The writer refuses, in the same transaction as its writes, any page
       // that strays from this scope: provider events keep landing while paused.
-      const scope = reviewed && {
-        invalidate: reviewed.invalidate.teakUserIds,
-        verify: reviewed.verify.teakUserIds,
-        fences: reviewed.fences.teakUserIds,
-        denied: reviewed.deniedDeleted.teakUserIds,
-        mappings: reviewed.mapping.pairs.map((pair) => {
-          const [teakUserId, workosUserId] = pair.split("\t");
-          return { teakUserId, workosUserId };
-        }),
-      };
+      // Only the reviewed entries for the owners at this cursor are sent, so a
+      // call stays page-sized. An owner without entries counts as unmapped,
+      // unselected and undenied there, so a row that appears before the write
+      // fails closed.
+      const mappings = (reviewed?.mapping.pairs ?? []).map((pair) => {
+        const [teakUserId, workosUserId] = pair.split("\t");
+        return { teakUserId, workosUserId };
+      });
+      const scopeFor = (ids: Set<string>) =>
+        reviewed && {
+          invalidate: reviewed.invalidate.teakUserIds.filter((id) =>
+            ids.has(id)
+          ),
+          verify: reviewed.verify.teakUserIds.filter((id) => ids.has(id)),
+          fences: reviewed.fences.teakUserIds.filter((id) => ids.has(id)),
+          denied: reviewed.deniedDeleted.teakUserIds.filter((id) =>
+            ids.has(id)
+          ),
+          mappings: mappings.filter((link) => ids.has(link.teakUserId)),
+        };
       let cursor: string | null = null,
         complete = false;
       const seen = new Set<string>();
       for (let index = 0; index < 10_000; index++) {
+        const scope = scopeFor(
+          new Set((await planAt(cursor)).owners.map((row) => row.teakUserId))
+        );
         await record("dispatching_page", cursor);
         const result = applyPage.parse(
           await run("migration/workosRollback:applyPage", {

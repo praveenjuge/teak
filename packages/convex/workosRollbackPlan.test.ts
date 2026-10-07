@@ -376,6 +376,29 @@ test("the writer has no path without a reviewed scope", async () => {
   );
   expect(await passwords(t)).toEqual(["unchanged-legacy-test-hash"]);
 });
+test("a mapped owner without reviewed entries fails the page with nothing written", async () => {
+  const t = setup();
+  const first = await seed(t);
+  await seed(t, "second");
+  const args = { ...(await barrier(t)), reviewed: await review(t) };
+  const only = (ids: string[]) => ids.filter((id) => id === first);
+  const firstOnly = {
+    invalidate: only(args.reviewed.invalidate),
+    verify: only(args.reviewed.verify),
+    fences: only(args.reviewed.fences),
+    denied: only(args.reviewed.denied),
+    mappings: args.reviewed.mappings.filter(
+      (link) => link.teakUserId === first
+    ),
+  };
+  await expect(
+    t.mutation(applyRollback, { ...args, reviewed: firstOnly })
+  ).rejects.toThrow("outside the reviewed dry run");
+  expect(await passwords(t)).toEqual([
+    "unchanged-legacy-test-hash",
+    "unchanged-legacy-test-hash",
+  ]);
+});
 async function patchProfile(
   t: ReturnType<typeof setup>,
   workosUserId: string,
