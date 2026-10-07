@@ -349,6 +349,20 @@ export const openSecurity = async (
   const dialog = page.getByRole("dialog", { name: "Security", exact: true });
   const tabTrigger = dialog.getByRole("tab", { name: tab, exact: true });
   const tabPanel = dialog.getByRole("tabpanel", { name: tab, exact: true });
+  // A mid-navigation deploy or a failed chunk can leave /settings without
+  // its rows at all, and no amount of clicking recovers that page. Give a
+  // healthy page a bounded window to render first, then reload exactly once.
+  // A signed-out visitor still lands on /login and fails below.
+  const rowReady = await manageButton
+    .first()
+    .waitFor({ state: "visible", timeout: 10_000 })
+    .then(
+      () => true,
+      () => false
+    );
+  if (!rowReady) {
+    await page.reload();
+  }
   // A click can fail to select its tab, or the dialog can disappear afterward.
   // Retry the complete read-only navigation, verifying the mounted panel.
   await expect(async () => {
