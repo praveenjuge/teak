@@ -104,10 +104,22 @@ test("API key creation does not reload a settings page that renders late", async
   page,
 }) => {
   // A healthy page can render its rows after the load event; that alone must
-  // not spend the single reload.
+  // not spend the single reload. The rows arrive client-side after load, not
+  // in a delayed response, so the helper's bounded wait is what sees them.
+  const fixtureMarkup = workingFixture.slice(
+    0,
+    workingFixture.indexOf("<script>")
+  );
+  const fixtureScript = workingFixture.slice(
+    workingFixture.indexOf("<script>")
+  );
   const loads = await routeSettings(page, async (route) => {
-    await new Promise((resolve) => setTimeout(resolve, 2000));
-    await route.fulfill({ contentType: "text/html", body: workingFixture });
+    await route.fulfill({
+      contentType: "text/html",
+      body: `<div id="root"></div>${fixtureScript}<script>window.addEventListener("load",()=>setTimeout(()=>{document.getElementById("root").outerHTML=${JSON.stringify(
+        fixtureMarkup
+      )};},3000));</script>`,
+    });
   });
   expect(await generateApiKey(page)).toBe("teakapi_fixture");
   expect(loads()).toBe(1);
