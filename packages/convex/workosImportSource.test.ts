@@ -245,3 +245,153 @@ test("bounded preflight receipts persist collision fences once and stop later im
     })
   ).toMatchObject({ owners: [], unresolvedQuarantine: true });
 });
+
+// A signed create webhook can win the race to map an imported owner. Only that
+// exact mapping change may satisfy the original source compare-and-swap.
+test.each(["none", "email", "verification", "name", "credential", "mapping"])(
+  "concurrent provider link preserves the source guard with %s drift",
+  async (drift) => {
+    const t = setup(),
+      id = await seed(t);
+    const cardId = await t.run((ctx) =>
+      ctx.db.insert("cards", {
+        userId: id,
+        type: "text",
+        content: "Preserved vault",
+        createdAt: 1,
+        updatedAt: 1,
+      })
+    );
+    const page = await t.query(internal.migration.workosImportSource.page, {
+      ...pins,
+      cursor: null,
+    });
+    const owner = page.owners[0];
+    await t.mutation(internal.workosUsers.linkWorkosUser, {
+      workosUserId: "user_imported",
+      externalId: id,
+      email: owner.email,
+      emailVerified: owner.emailVerified,
+      source: "webhook",
+    });
+    await t.run(async (ctx) => {
+      if (drift === "credential") {
+        await ctx.runMutation(components.betterAuth.adapter.create, {
+          input: {
+            model: "account",
+            data: {
+              accountId: id,
+              userId: id,
+              providerId: "credential",
+              password: "new-hash",
+              createdAt: Date.now(),
+              updatedAt: Date.now() + 1,
+            },
+          },
+        });
+      } else if (drift === "mapping") {
+        const row = await ctx.db.query("users").first();
+        if (!row) {
+          throw new Error("Missing owner");
+        }
+        await ctx.db.patch("users", row._id, { workosUserId: "user_other" });
+      } else if (drift !== "none") {
+        let update: { email?: string; emailVerified?: boolean; name?: string } =
+          {
+            name: "Changed",
+          };
+        if (drift === "email") {
+          update = { email: "changed@example.com" };
+        } else if (drift === "verification") {
+          update = { emailVerified: true };
+        }
+        await ctx.runMutation(components.betterAuth.adapter.updateOne, {
+          input: {
+            model: "user",
+            where: [{ field: "_id", value: id }],
+            update,
+          },
+        });
+      }
+    });
+    const result = t.mutation(internal.migration.workosImportSource.link, {
+      ...pins,
+      ...(await writer(t)),
+      teakUserId: id,
+      sourceVersion: owner.sourceVersion,
+      user: {
+        id: "user_imported",
+        externalId: id,
+        email: owner.email,
+        emailVerified: owner.emailVerified,
+      },
+    });
+    if (drift === "none") {
+      await expect(result).resolves.toBe("linked");
+      expect(await t.run((ctx) => ctx.db.query("users").first())).toMatchObject(
+        {
+          teakUserId: id,
+          workosUserId: "user_imported",
+        }
+      );
+    } else {
+      await expect(result).rejects.toThrow("source changed");
+    }
+    expect((await t.run((ctx) => ctx.db.get(cardId)))?.userId).toBe(id);
+  }
+);
+
+test.each(["deleted", "duplicate"])(
+  "webhook-first mapping still quarantines %s provider state",
+  async (state) => {
+    const t = setup(),
+      id = await seed(t);
+    const page = await t.query(internal.migration.workosImportSource.page, {
+      ...pins,
+      cursor: null,
+    });
+    const owner = page.owners[0];
+    await t.mutation(internal.workosUsers.linkWorkosUser, {
+      workosUserId: "user_imported",
+      externalId: id,
+      email: owner.email,
+      emailVerified: false,
+      source: "webhook",
+    });
+    await t.run(async (ctx) => {
+      const row = await ctx.db.query("users").first();
+      if (!row) {
+        throw new Error("Missing owner");
+      }
+      if (state === "deleted") {
+        await ctx.db.patch("users", row._id, { workosDeletedAt: Date.now() });
+      } else {
+        await ctx.db.insert("users", {
+          teakUserId: "other-owner",
+          email: "other@example.com",
+          emailVerified: true,
+          workosUserId: "user_imported",
+        });
+      }
+    });
+    await expect(
+      t.mutation(internal.migration.workosImportSource.link, {
+        ...pins,
+        ...(await writer(t)),
+        teakUserId: id,
+        sourceVersion: owner.sourceVersion,
+        user: {
+          id: "user_imported",
+          externalId: id,
+          email: owner.email,
+          emailVerified: false,
+        },
+      })
+    ).resolves.toBe("quarantined");
+    expect(
+      await t.run((ctx) => ctx.db.query("migrationQuarantine").first())
+    ).toMatchObject({
+      reason: state === "deleted" ? "workos_deleted_user" : "duplicate_mapping",
+    });
+  }
+);
