@@ -210,6 +210,16 @@ export const OPS_ENTRIES: EnvVarSpec[] = [
     providers: ["dotenv-local"],
     required: false,
   }),
+  spec("E2E_BETTER_AUTH_USER_ID", {
+    owners: ["@teak/web"],
+    targets: ["web", "e2e"],
+    profiles: ["local", "e2e"],
+    secret: false,
+    validation: "string",
+    providers: ["dotenv-local", "shell"],
+    required: false,
+    note: "Expected permanent owner of the existing controlled local E2E account.",
+  }),
   spec("E2E_BETTER_AUTH_USER_PASSWORD", {
     owners: ["@teak/web"],
     targets: ["web", "e2e"],

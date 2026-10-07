@@ -44,6 +44,7 @@ export default function ConvexClientProvider({
     <SelectedProvider
       initialAuth={initialAuth}
       initialToken={initialToken}
+      key={`${initialMode.primary}:${initialMode.authKitClientId ?? ""}`}
       primary={initialMode.primary}
     >
       {children}
@@ -62,15 +63,21 @@ function SelectedProvider({
   initialToken?: string | null;
   initialAuth?: Omit<UserInfo | NoUserInfo, "accessToken">;
 }) {
-  const [convex] = useState(
-    () => new ConvexReactClient(convexUrl, { expectAuth: true })
-  );
-  useEffect(
-    () => () => {
-      void convex.close();
-    },
-    [convex]
-  );
+  const [convex, setConvex] = useState<ConvexReactClient | null>(null);
+  useEffect(() => {
+    const client = new ConvexReactClient(convexUrl, { expectAuth: true });
+    setConvex(client);
+    return () => {
+      // Auth and subscription effects must detach before the client closes.
+      // Each effect setup owns a fresh client, including development replay.
+      queueMicrotask(() => {
+        void client.close();
+      });
+    };
+  }, []);
+  if (!convex) {
+    return <Loading />;
+  }
   if (primary === "workos") {
     return (
       <AuthKitProvider initialAuth={initialAuth}>
