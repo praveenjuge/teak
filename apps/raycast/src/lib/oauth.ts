@@ -15,6 +15,11 @@ class TeakLocalSignOutError extends Error {}
 class TeakRefreshClientRejectedError extends Error {}
 const reconnectAfterSignOut =
   "Sign Out before reconnecting, then wait five minutes for disconnect to finish.";
+export class TeakSignOutRequiredError extends Error {
+  constructor() {
+    super(reconnectAfterSignOut);
+  }
+}
 
 interface Provider {
   auth: AuthDiscovery;
@@ -391,7 +396,7 @@ export function reauthorizeTeak(): Promise<string> {
           }
         }
         if (tokens) {
-          throw new Error(reconnectAfterSignOut);
+          throw new TeakSignOutRequiredError();
         }
       }
       await provider.client.removeTokens();
@@ -597,7 +602,7 @@ async function resolveStoredTeakAccessToken(): Promise<string | null> {
   }
   if (!tokens.refreshToken) {
     if (provider.auth.primary === "workos") {
-      throw new Error(reconnectAfterSignOut);
+      throw new TeakSignOutRequiredError();
     }
     return null;
   }
