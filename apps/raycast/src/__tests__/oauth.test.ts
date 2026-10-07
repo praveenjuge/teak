@@ -634,3 +634,41 @@ test("local-only Sign Out action warns that other installations may remain conne
   expect(signedOut).toBe(true);
   expect(stores.size).toBe(0);
 });
+
+test.each([400, 401])(
+  "malformed HTTP %i refresh replies request sign-in without forgetting credentials",
+  async (status) => {
+    mode = "workos";
+    await oauth.authorizeTeak();
+    const key = Array.from(stores.keys())[0];
+    const saved = {
+      accessToken: "expired",
+      refreshToken: "saved-refresh",
+      isExpired: () => true,
+    };
+    stores.set(key, saved);
+    for (const body of [null, "", "not-json", "x".repeat(70 * 1024)]) {
+      globalThis.fetch = (async (input, init) => {
+        if (
+          String(input).endsWith("/oauth2/token") &&
+          new URLSearchParams(String(init?.body)).get("grant_type") ===
+            "refresh_token"
+        )
+          return new Response(body, { status });
+        if (String(input).endsWith("/oauth/disconnect"))
+          return new Response(null, { status: 401 });
+        return transport(input, init);
+      }) as typeof fetch;
+      expect(await oauth.getStoredTeakAccessToken()).toBeNull();
+      expect(stores.get(key)).toBe(saved);
+      expect(browserCount).toBe(1);
+      await expect(oauth.signOutTeak()).rejects.toThrow(
+        "credentials are still saved",
+      );
+      expect(stores.get(key)).toBe(saved);
+    }
+    expect(await oauth.authorizeTeak()).toBe("access-new");
+    expect(browserCount).toBe(2);
+    expect(stores.get(key)?.refreshToken).toBe("refresh-new");
+  },
+);

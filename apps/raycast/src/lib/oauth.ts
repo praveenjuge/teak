@@ -199,9 +199,15 @@ async function exchange(
   if (response.status === 429 || response.status >= 500) {
     throw new TeakDiscoveryError();
   }
+  // An HTTP rejection still requires sign-in even when its error body is
+  // unreadable. This does not prove revocation or permit local token deletion.
+  const bodyError = (message: string) =>
+    response.ok
+      ? new Error(message)
+      : new TeakSessionExpiredError("Teak sign-in expired. Sign in again.");
   const reader = response.body?.getReader();
   if (!reader) {
-    throw new Error("Invalid Teak sign-in response.");
+    throw bodyError("Invalid Teak sign-in response.");
   }
   const decoder = new TextDecoder();
   let text = "";
@@ -215,7 +221,7 @@ async function exchange(
       bytes += chunk.value.byteLength;
       if (bytes > 64 * 1024) {
         await reader.cancel();
-        throw new Error("Teak sign-in response is too large.");
+        throw bodyError("Teak sign-in response is too large.");
       }
       text += decoder.decode(chunk.value, { stream: true });
     }
@@ -226,7 +232,7 @@ async function exchange(
   try {
     raw = JSON.parse(text + decoder.decode());
   } catch {
-    throw new Error("Invalid Teak sign-in response.");
+    throw bodyError("Invalid Teak sign-in response.");
   }
   if (!response.ok) {
     if (

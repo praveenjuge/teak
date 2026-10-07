@@ -25,6 +25,44 @@ deployment and the migrated application journey remain unproven.
 WorkOS's provider revocation applies across the same user's application resources
 and installations. No production authentication switch is approved here.
 
+## Recovering an uncertain Connect disconnect
+
+An `unknown` or stale `dispatched` operation stays denied. An HTTP rejection,
+missing provider listing, or elapsed time cannot prove that the original DELETE
+finished. Never retry that DELETE or clear its fence to permit reconnect.
+
+Recovery is internal-only and needs a separately approved exact operation:
+
+1. Preserve the fence, trigger-consent row and provider request evidence in the
+   encrypted Mac/R2 backup. Read the target's runtime pins without logging its key.
+2. Run `workosDisconnectRecovery:inspect` against the explicit deployment with
+   `fenceId`, `cloudUrl`, `siteUrl`, `environmentId`, `authKitClientId`,
+   `authKitDomain` and `credentialFingerprint` (SHA-256 of the API key).
+   Stop if inspection returns null or any target differs.
+3. Obtain positive evidence for the original request: a preserved successful
+   204, or written provider confirmation that deletion completed and no original
+   request remains pending. Record its private reference and original request ID.
+   The operator must review this evidence; the recovery API validates an
+   attestation, not the provider's evidence itself.
+4. Prepare a private JSON proposal from the inspection output, omitting `state`.
+   Retain every operation field and `snapshotDigest` unchanged. Add the separate
+   `approvalReference` and `evidence` containing `kind` (`preserved-204` or
+   `provider-written-confirmation`), `reference`, `originalRequestId`,
+   `originalDeletionCompleted: true` and `noPendingOriginalRequest: true`.
+   Obtain human approval for this proposal before executing it.
+5. Run `workosDisconnectRecovery:recover` with that exact proposal and explicit
+   deployment selector. It sends no provider requests. It records the receipt on
+   the fence and permanent consent tombstone, denies all recorded sibling grants,
+   and retains the 305-second reconnect fence. A 503 is not completion; resume
+   only the identical approved operation. Changed pins, generation, evidence or
+   snapshot require a new inspection and decision.
+6. Verify the matching operation is completed, its permanent receipt is retained,
+   old grants remain denied and reconnect succeeds only after the fence expires.
+   Preserve the result in the encrypted evidence checkpoint.
+
+Deployment of these functions does not approve or execute recovery. No recovery
+activation has been performed as part of this preparation.
+
 ## Approved development repair (6 October 2026)
 
 The user separately approved the two exact social owner bindings and retirement
@@ -33,8 +71,11 @@ local decryption and private R2 GET checksum before writes. Both social mappings
 now have real signed updated-event profiles, and both fixture deletions received
 provider acknowledgements and signed deletion receipts. Audit settlement found
 an invalid Convex ID lookup; the grouped fix retains complete bounded ownership
-checks. Development account changes remain paused until settlement and final
-ownership/quiescence verification. No user import or production change occurred.
+checks. Settlement and final verification passed: all 142 permanent owners and all
+1,295 card-to-owner pairs are unchanged, with zero unresolved quarantine.
+The original absent account-change pause setting was restored. The fresh
+7 October preflight found six provider users and no collisions. No bulk user
+import occurred.
 
 ## User-approved revisions
 
