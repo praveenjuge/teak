@@ -5,6 +5,12 @@
  */
 import { internal } from "./_generated/api";
 import { type ActionCtx, env } from "./_generated/server";
+import {
+  type BearerCredentialClass,
+  isExpiredJwt,
+  logPublicApiAuthOutcome,
+  type PublicApiAuthReason,
+} from "./authMonitoring";
 import { readAuthPrimary } from "./env";
 import { isWellFormedOAuthToken } from "./oauthTokens";
 import {
@@ -176,12 +182,26 @@ const releaseIdempotencyResponse = async (
   );
 };
 
+interface AuthOptions {
+  chargeRateLimit?: boolean;
+  resource?: WorkosResource;
+}
+interface Decision {
+  reason: PublicApiAuthReason;
+  result: AuthResult;
+}
+
+const decide = (result: AuthResult, reason: PublicApiAuthReason): Decision => ({
+  result,
+  reason,
+});
+
 // Throttle well-formed-but-invalid API keys via a single shared bucket so an
 // attacker rotating random bearer tokens cannot mint a fresh limit per token.
-// Returns a 429 Response when the shared bucket is exhausted, otherwise null.
+// Returns a 429 decision when the shared bucket is exhausted, otherwise null.
 const enforceInvalidAuthLimit = async (
   ctx: ActionCtx
-): Promise<Response | null> => {
+): Promise<Decision | null> => {
   let limit: { ok?: boolean; retryAt?: number } | null = null;
   try {
     limit = await ctx.runMutation(
@@ -190,41 +210,117 @@ const enforceInvalidAuthLimit = async (
     );
   } catch (error) {
     if (isRateLimitContentionError(error)) {
-      return RATE_LIMIT_CONTENTION_ERROR();
+      return decide(
+        { error: RATE_LIMIT_CONTENTION_ERROR() },
+        "rate_limit_contention"
+      );
     }
     // Never fail open on the invalid-auth path: surface a generic auth error.
-    return AUTH_INTERNAL_ERROR();
+    return decide({ error: AUTH_INTERNAL_ERROR() }, "internal_error");
   }
 
   if (!limit?.ok) {
-    return RATE_LIMITED_ERROR(limit?.retryAt);
+    return decide(
+      { error: RATE_LIMITED_ERROR(limit?.retryAt) },
+      "invalid_auth_rate_limited"
+    );
   }
 
   return null;
 };
 
+// The same shape checks the boundary uses below, independent of the primary,
+// so a credential from the other auth system (an old build) is visible.
+const classifyBearerCredential = (
+  token: string | null
+): BearerCredentialClass => {
+  if (!token) {
+    return "missing";
+  }
+  if (isWellFormedApiKey(token)) {
+    return "api_key";
+  }
+  if (isWellFormedOAuthToken(token)) {
+    return "betterauth_oauth";
+  }
+  return token.length <= 16_384 && token.split(".").length === 3
+    ? "workos_connect"
+    : "malformed";
+};
+
+// One log line per boundary decision. It never touches the response.
+const recordAuthOutcome = (
+  request: Request,
+  options: AuthOptions,
+  reason: PublicApiAuthReason,
+  status: number
+): void => {
+  try {
+    let primary: "betterauth" | "workos" | "unknown" = "unknown";
+    try {
+      primary = readAuthPrimary();
+    } catch {
+      // An unreadable primary is itself the outcome being recorded.
+    }
+    logPublicApiAuthOutcome({
+      check: options.chargeRateLimit === false ? "gate" : "request",
+      credential: classifyBearerCredential(parseBearerToken(request)),
+      primary,
+      reason,
+      status,
+      surface: options.resource === "mcp" ? "mcp" : "rest",
+    });
+  } catch {
+    // Monitoring must never alter authentication.
+  }
+};
+
 const withAuthorizedUser = async (
   ctx: ActionCtx,
   request: Request,
-  options: { chargeRateLimit?: boolean; resource?: WorkosResource } = {}
+  options: AuthOptions = {}
 ): Promise<AuthResult> => {
+  let decision: Decision;
+  try {
+    decision = await authorizeBearer(ctx, request, options);
+  } catch (error) {
+    recordAuthOutcome(request, options, "internal_error", 500);
+    throw error;
+  }
+  recordAuthOutcome(
+    request,
+    options,
+    decision.reason,
+    "error" in decision.result ? decision.result.error.status : 200
+  );
+  return decision.result;
+};
+
+const authorizeBearer = async (
+  ctx: ActionCtx,
+  request: Request,
+  options: AuthOptions
+): Promise<Decision> => {
   const chargeRateLimit = options.chargeRateLimit ?? true;
   const token = parseBearerToken(request);
   if (!token) {
-    return {
-      error: errorResponse(
-        401,
-        "UNAUTHORIZED",
-        "Missing or invalid Authorization header"
-      ),
-    };
+    return decide(
+      {
+        error: errorResponse(
+          401,
+          "UNAUTHORIZED",
+          "Missing or invalid Authorization header"
+        ),
+      },
+      "missing_bearer"
+    );
   }
 
   let primary: ReturnType<typeof readAuthPrimary>;
   try {
     primary = readAuthPrimary();
   } catch {
-    return { error: AUTH_INTERNAL_ERROR() };
+    return decide({ error: AUTH_INTERNAL_ERROR() }, "primary_unreadable");
   }
   // Bearer credentials are discriminated before any DB read: `teakapi_` API keys and opaque
   // 32-char Better Auth tokens, or bounded WorkOS JWTs. This ensures
@@ -242,15 +338,20 @@ const withAuthorizedUser = async (
   if (!(isApiKey || isOAuthToken || isConnectToken)) {
     const limited = await enforceInvalidAuthLimit(ctx);
     if (limited) {
-      return { error: limited };
+      return limited;
     }
-    return {
-      error: errorResponse(
-        401,
-        "INVALID_API_KEY",
-        "Invalid or revoked API key"
-      ),
-    };
+    return decide(
+      {
+        error: errorResponse(
+          401,
+          "INVALID_API_KEY",
+          "Invalid or revoked API key"
+        ),
+      },
+      classifyBearerCredential(token) === "malformed"
+        ? "malformed_credential"
+        : "nonprimary_credential"
+    );
   }
 
   // Validate first. Both validators are effectively read-only on the hot path
@@ -260,15 +361,20 @@ const withAuthorizedUser = async (
   let validated: AuthorizedUser | null = null;
   let credential: (Omit<AuthorizedUser, "userId"> & { userId: string }) | null =
     null;
+  let rejection: PublicApiAuthReason = "invalid_credential";
   try {
     if (isConnectToken) {
       const issuer = env.WORKOS_AUTHKIT_DOMAIN;
       if (!issuer) {
-        return { error: AUTH_INTERNAL_ERROR() };
+        return decide({ error: AUTH_INTERNAL_ERROR() }, "issuer_unconfigured");
       }
+      let jwksUnavailable = false;
       const principal = await verifyWorkosConnectToken(token, {
         issuer,
         audience: WORKOS_RESOURCES[options.resource ?? "api"],
+        onUnavailable: () => {
+          jwksUnavailable = true;
+        },
       });
       if (principal) {
         const owner = await ctx.runMutation(
@@ -283,7 +389,13 @@ const withAuthorizedUser = async (
             keyId: principal.consentId,
             rateLimitKey: `workos:${principal.clientId}:${owner.teakUserId}`,
           };
+        } else {
+          rejection = `owner_${owner.reason}`;
         }
+      } else if (jwksUnavailable) {
+        rejection = "jwks_unavailable";
+      } else {
+        rejection = isExpiredJwt(token) ? "expired_token" : "invalid_token";
       }
     } else {
       credential = isApiKey
@@ -301,32 +413,41 @@ const withAuthorizedUser = async (
             : await resolveStoredUserId(ctx, credential.userId);
         if (userId) {
           validated = { ...credential, userId };
+        } else {
+          rejection = "owner_unresolved";
         }
       }
     }
   } catch {
-    return { error: AUTH_INTERNAL_ERROR() };
+    return decide({ error: AUTH_INTERNAL_ERROR() }, "internal_error");
   }
 
   if (!validated) {
     const limited = await enforceInvalidAuthLimit(ctx);
     if (limited) {
-      return { error: limited };
+      return limited;
     }
-    return {
-      error:
-        isOAuthToken || isConnectToken
-          ? errorResponse(
-              401,
-              "UNAUTHORIZED",
-              "Invalid or expired access token"
-            )
-          : errorResponse(401, "INVALID_API_KEY", "Invalid or revoked API key"),
-    };
+    return decide(
+      {
+        error:
+          isOAuthToken || isConnectToken
+            ? errorResponse(
+                401,
+                "UNAUTHORIZED",
+                "Invalid or expired access token"
+              )
+            : errorResponse(
+                401,
+                "INVALID_API_KEY",
+                "Invalid or revoked API key"
+              ),
+      },
+      rejection
+    );
   }
 
   if (!chargeRateLimit) {
-    return { validated };
+    return decide({ validated }, "ok");
   }
 
   // Rate limit successful auth per validated identity, so the limit follows the
@@ -341,16 +462,22 @@ const withAuthorizedUser = async (
     );
   } catch (error) {
     if (isRateLimitContentionError(error)) {
-      return { error: RATE_LIMIT_CONTENTION_ERROR() };
+      return decide(
+        { error: RATE_LIMIT_CONTENTION_ERROR() },
+        "rate_limit_contention"
+      );
     }
-    return { error: AUTH_INTERNAL_ERROR() };
+    return decide({ error: AUTH_INTERNAL_ERROR() }, "internal_error");
   }
 
   if (!rateLimit?.ok) {
-    return { error: RATE_LIMITED_ERROR(rateLimit?.retryAt) };
+    return decide(
+      { error: RATE_LIMITED_ERROR(rateLimit?.retryAt) },
+      "rate_limited"
+    );
   }
 
-  return { validated };
+  return decide({ validated }, "ok");
 };
 
 const validatePublicApiBearer = async (
@@ -366,6 +493,7 @@ const validatePublicApiBearer = async (
 };
 
 export {
+  classifyBearerCredential,
   completeIdempotencyResponse,
   type IdempotencyState,
   maybeHandleIdempotency,

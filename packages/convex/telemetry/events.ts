@@ -106,12 +106,16 @@ export const emitUserCreated = internalAction({
 export const emitAuthOutcome = internalAction({
   args: {
     errorClass: v.optional(v.string()),
+    method: v.optional(v.union(v.literal("email"), v.literal("social"))),
     outcome: businessOutcomeValidator,
+    provider: v.optional(v.string()),
+    reason: v.optional(v.string()),
     stage: v.union(
       v.literal("auth_bootstrap"),
       v.literal("session_refresh"),
       v.literal("sign_in")
     ),
+    synthetic: v.optional(v.boolean()),
     userId: v.optional(v.string()),
   },
   returns: v.object({ sent: v.boolean() }),
@@ -123,7 +127,13 @@ export const emitAuthOutcome = internalAction({
         sign_in: TELEMETRY_METRICS.authSignIn,
       }[args.stage];
       const sent = await recordBackendOutcome({
-        attributes: { "error.class": args.errorClass },
+        attributes: {
+          "auth.e2e": args.synthetic,
+          "auth.method": args.method,
+          "auth.provider": args.provider,
+          "auth.reason": args.reason,
+          "error.class": args.errorClass,
+        },
         metric,
         operation: "auth",
         outcome: args.outcome,

@@ -51,8 +51,13 @@ export const scheduleAuthOutcome = async (
   ctx: Pick<MutationCtx, "scheduler">,
   args: {
     errorClass?: string;
+    // Set only by per-attempt sign-in monitoring (see authSignInMonitoring.ts).
+    method?: "email" | "social";
     outcome: "attempt" | "success" | "failure";
+    provider?: string;
+    reason?: string;
     stage: "auth_bootstrap" | "session_refresh" | "sign_in";
+    synthetic?: boolean;
     userId?: string;
   }
 ): Promise<boolean> => {

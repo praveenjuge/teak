@@ -1,6 +1,6 @@
 /// <reference types="vite/client" />
 import { convexTest } from "convex-test";
-import { describe, expect, test } from "vitest";
+import { describe, expect, test, vi } from "vitest";
 import { internal } from "./_generated/api";
 import type { Doc } from "./_generated/dataModel";
 import schema from "./schema";
@@ -90,6 +90,39 @@ describe("read-only canonical WorkOS owner resolution", () => {
       reason: "missing_mapping",
     });
     expect(await snapshot(t)).toEqual(before);
+  });
+
+  test("each denial logs its exact reason with a hashed subject and nothing else", async () => {
+    const t = setup();
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => undefined);
+    try {
+      await t.query(internal.workosIdentity.resolveWorkosOwner, {
+        workosUserId: "user_provider",
+        verification: { kind: "session", emailVerified: true },
+      });
+      await seed(t);
+      expect((await resolve(t)).status).toBe("ok");
+      const lines = warn.mock.calls.filter(
+        (call) => call[0] === "identity_resolver_denial"
+      );
+      expect(lines).toEqual([
+        [
+          "identity_resolver_denial",
+          {
+            provider: "workos",
+            reason: "missing_mapping",
+            verification: "session",
+            emailVerified: true,
+            subject: expect.stringMatching(/^s_[0-9a-f]{16}$/),
+          },
+        ],
+      ]);
+      expect(JSON.stringify(warn.mock.calls)).not.toMatch(
+        /user_provider|@example\.com|permanent-owner/
+      );
+    } finally {
+      warn.mockRestore();
+    }
   });
 
   test.each([false, undefined])(
