@@ -15,35 +15,13 @@ describe("electron main process wiring", () => {
     expect(source).toContain("contextIsolation: true");
     expect(source).toContain("sandbox: true");
 
-    // CSP headers
+    // CSP headers (policy content: contentSecurityPolicy.test.ts)
     expect(source).toContain("Content-Security-Policy");
-    expect(source).toContain("default-src 'self'");
+    expect(source).toContain("buildRendererContentSecurityPolicy(convexUrl)");
 
     // URL validation
     expect(source).toContain("isValidExternalUrl");
     expect(source).toContain("ALLOWED_URL_PROTOCOLS");
-  });
-
-  it("allows R2 uploads and downloads through the CSP", () => {
-    // File uploads PUT directly to R2 and the PDF preview embeds a signed R2
-    // URL. Both are blocked in packaged builds unless the R2 host is allowed
-    // in connect-src (uploads) and frame-src (PDF iframe).
-    const source = readFileSync(
-      resolve(import.meta.dir, "../main/index.ts"),
-      "utf8"
-    );
-
-    const connectSrc = source
-      .split("\n")
-      .find((line) => line.includes("connect-src"));
-    expect(connectSrc).toBeDefined();
-    expect(connectSrc).toContain("https://*.r2.cloudflarestorage.com");
-
-    const frameSrc = source
-      .split("\n")
-      .find((line) => line.includes('"frame-src'));
-    expect(frameSrc).toBeDefined();
-    expect(frameSrc).toContain("https://*.r2.cloudflarestorage.com");
   });
 
   it("injects CORS headers on R2 responses so uploads and downloads work", () => {

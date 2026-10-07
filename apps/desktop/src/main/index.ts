@@ -8,7 +8,9 @@ import type {
   OnHeadersReceivedListenerDetails,
 } from "electron";
 import electronUpdater from "electron-updater";
+import { getDesktopConfig } from "../lib/desktop-config";
 import { OAUTH_CALLBACK_CHANNEL } from "./channels";
+import { buildRendererContentSecurityPolicy } from "./contentSecurityPolicy";
 import { isMicrophoneCheck, isMicrophoneOnlyRequest } from "./mediaPermissions";
 import {
   captureDesktopMainException,
@@ -234,6 +236,16 @@ function createMainWindow(): BrowserWindowInstance {
   //
   //  2. CSP for the renderer, applied only in production (the Vite dev server
   //     needs inline scripts for HMR).
+  // Build-time configuration only; an unresolvable config keeps the
+  // production policy instead of throwing inside header handling.
+  let convexUrl: string | undefined;
+  try {
+    convexUrl = getDesktopConfig().convexUrl;
+  } catch {
+    convexUrl = undefined;
+  }
+  const rendererContentSecurityPolicy =
+    buildRendererContentSecurityPolicy(convexUrl);
   mainWindow.webContents.session.webRequest.onHeadersReceived(
     (
       details: OnHeadersReceivedListenerDetails,
@@ -263,23 +275,7 @@ function createMainWindow(): BrowserWindowInstance {
 
       if (!isDevServer) {
         responseHeaders["Content-Security-Policy"] = [
-          [
-            "default-src 'self'",
-            // `https://*.r2.cloudflarestorage.com` is required for the direct
-            // file-upload PUT against R2. `https://files.teakvault.com` serves
-            // worker-gated signed downloads.
-            "connect-src 'self' https://*.convex.cloud https://*.convex.site wss://*.convex.cloud wss://*.convex.site https://app.teakvault.com https://teakvault.com https://files.teakvault.com https://*.r2.cloudflarestorage.com",
-            "img-src 'self' data: blob: https:",
-            "media-src 'self' data: blob: https:",
-            // `frame-src` covers the PDF preview iframe, which points at a
-            // signed cross-origin URL.
-            "frame-src 'self' blob: https://files.teakvault.com https://*.r2.cloudflarestorage.com",
-            "style-src 'self' 'unsafe-inline'",
-            "font-src 'self' data:",
-            "script-src 'self'",
-            "object-src 'none'",
-            "base-uri 'none'",
-          ].join("; "),
+          rendererContentSecurityPolicy,
         ];
       }
 

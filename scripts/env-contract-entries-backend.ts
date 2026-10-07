@@ -311,7 +311,7 @@ export const BACKEND_ENTRIES: EnvVarSpec[] = [
     validation: "string",
     providers: ["convex-dashboard", "wrangler-secret", "dotenv-local"],
     required: false,
-    note: "Shared HMAC secret. Convex dashboard value syncs to files-worker .dev.vars locally.",
+    note: "HMAC secret shared by Convex and its Files Worker. Shared dev routing reuses the production value; isolated dev routing requires its own. Convex dev syncs to files-worker .dev.vars (or development/.dev.vars with --isolated).",
   }),
   spec("R2_BUCKET", {
     owners: ["@teak/convex"],

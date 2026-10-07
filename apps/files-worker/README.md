@@ -2,10 +2,16 @@
 
 The Cloudflare Worker for Teak file delivery, uploads, processing, imports,
 and exports. Production serves `files.teakvault.com` from `teak-files-prod`
-(the canonical bucket for both environments). Development objects live under
-`dev/users/...` in the same `teak-files-prod` bucket. The pre-convergence
-`files-dev` Worker/domain and `teak-files-dev` bucket were retired after the
-legacy dev references reached zero; `wrangler.jsonc` is prod-only.
+through `wrangler.jsonc`. Development currently shares that Worker and bucket
+under `dev/users/...`, separated only by the key prefix and with shared
+credentials. The pre-convergence `files-dev` Worker/domain and `teak-files-dev`
+bucket were retired after the legacy dev references reached zero.
+
+`development/wrangler.jsonc` prepares the isolated target: the
+`teak-files-development` workers.dev Worker on the private
+`teak-files-development-20261006` bucket, with its own Durable Object namespace
+and signing key, running this same source. It is inactive until the approved
+storage switch points Convex dev at it; see "Development storage isolation".
 
 The Convex backend mints long-lived HMAC-signed URLs
 (`packages/convex/storage/r2.ts` → `buildSignedWorkerFileUrl`). This worker
@@ -203,19 +209,25 @@ bun run dev:files        # same as above, remote bindings
 bun run dev:files:local  # same as above, isolated
 
 # Config parity (read-only, never prints secrets)
-bun run check:cloudflare   # reports actual Convex prod/dev parity without printing values
+bun run check:cloudflare   # reports Convex prod/dev parity and dev storage state without printing values
 bun run sync:cloudflare-dev # securely writes the dev signing secret to ignored .dev.vars
 
-# One-time Convex convergence (copy prod -> dev without logging values):
-#   bunx convex env get CLOUDFLARE_ACCOUNT_ID --prod   # read prod (no print in CI)
-#   bunx convex env set CLOUDFLARE_ACCOUNT_ID <value> --deployment dev  # set dev
-# Repeat for CLOUDFLARE_API_TOKEN, FILES_SIGNING_SECRET, R2_ACCESS_KEY_ID,
-# R2_ENDPOINT, R2_SECRET_ACCESS_KEY, then:
-#   bunx convex env set R2_BUCKET teak-files-prod --deployment dev
-#   bunx convex env set R2_KEY_PREFIX dev/ --deployment dev
-#   bunx convex env set FILES_BASE https://files.teakvault.com --deployment dev
-# (During pre-merge, point FILES_BASE to `wrangler dev --remote` preview URL.)
+# Isolated development Worker
+bun run deploy:development           # bootstrap, BEFORE the switch: workers.dev only, no route
+bun run sync:cloudflare-dev --isolated  # from repo root, AFTER the switch; writes development/.dev.vars
+bun run dev:development              # AFTER the switch; local code, remote development bucket/AI/Images
 ```
+
+`deploy:development` is a plain `wrangler deploy --config
+development/wrangler.jsonc` with no Convex check: the Worker must exist and be
+verified before Convex dev can switch to it. The committed config can only
+bind the development bucket, its own Durable Object namespace and workers.dev,
+with no route (tests in `src/deployment.test.ts` and
+`scripts/files-worker-dev-boundary.test.ts` enforce that). It sets no secret.
+Its `FILES_SIGNING_SECRET` is put separately and proven by a signed
+`capabilities` request before the switch, and by `check:cloudflare` (distinct
+from production) after it. Only the sync and `dev:development` refuse until
+Convex dev uses the isolated Worker.
 
 ## Secrets and local vars
 
@@ -229,9 +241,13 @@ bun run sync:cloudflare-dev # securely writes the dev signing secret to ignored 
   `wrangler dev`. Example: `FILES_SIGNING_SECRET=...`. Do not commit. The
   canonical dev routing (`R2_BUCKET`, `R2_KEY_PREFIX`, `FILES_BASE`) lives in
   Convex env, not `.dev.vars`.
-  Production-data warning: dev writes share the
+  Production-data warning: until isolation is active, dev writes share the
   prod bucket (`teak-files-prod`) and are isolated only by `dev/` prefix;
   credentials retain bucket-wide authority.
+- `apps/files-worker/development/.dev.vars` (ignored) — the isolated
+  development Worker's local key. `sync:cloudflare-dev --isolated` and
+  `dev:development` refuse to run until Convex dev uses the isolated Worker,
+  bucket and its own signing key. Keep the older `.dev.vars` for recovery.
 
 Handled op failures (the 500 path) are reported explicitly with op/route,
 HTTP method + path, and card/role identifiers parsed from the object key
@@ -251,8 +267,44 @@ Deploys automatically via Cloudflare Workers Builds (main branch).
 references reached zero and the dual-read branch was removed. The
 `teak-files-dev` bucket (≃1 000 objects / 370 MB of dev-only data) is
 draining via a lifecycle expiration rule and will be deleted once empty.
-There is no rollback path to the legacy bucket; dev objects live under
-`dev/users/...` in `teak-files-prod`.
+There is no rollback path to the legacy bucket; never reuse `teak-files-dev`.
+
+## Development storage isolation
+
+`bun run check:cloudflare` accepts two dev states: the current shared routing
+(`teak-files-prod`, `https://files.teakvault.com`, production signing key and
+S3 credentials) and the isolated target (`teak-files-development-20261006`,
+`https://teak-files-development.praveenjuge.workers.dev`, its own key and
+bucket-scoped credentials). Both keep `R2_KEY_PREFIX=dev/` and exact object
+keys. Any mix of the two blocks, and isolated dev must never reuse a production
+credential.
+
+These source changes activate nothing. The switch is a separate, approved
+operation: deploy and verify the development Worker, copy referenced objects
+byte-for-byte, then change the Convex dev variables together. Old dev
+credentials keep working on the production Worker until they expire (15 minutes
+for single uploads and operations, 1 hour for multipart parts, 24 hours for
+import parts), and an admitted request can outlive its expiry, so a timer alone
+does not prove quiescence. After the switch, freeze every old `dev/` key through the
+production Worker's `freeze-object` operation. `frozen: false` means a write
+is still active or ended ambiguously; the key stays in the drain list until it
+freezes. Copy the final delta only after every key is frozen.
+
+Freezing is irreversible: frozen keys stay unreadable and unwritable through
+the production Worker. Restoring the old dev routing after a freeze is
+therefore not a rollback; it would point dev at objects it can no longer read.
+Rollback by restoring the backed-up old dev values exists only before the first
+freeze. After it, recovery is forward on the isolated Worker: its copies are
+the readable data. The old `teak-files-prod` `dev/` objects stay
+byte-preserved as the recovery source, readable only through the S3 API, for
+re-copying missing or damaged objects into the development bucket with SHA
+verification.
+
+Builds for the dev deployment (`reminiscent-kangaroo-59`) allow exactly this
+origin: the web CSP, the packaged desktop CSP and shared media recovery. No
+`NEXT_PUBLIC_FILES_BASE` is needed for it. Production builds never allow it. If
+the deployed workers.dev origin differs, change `DEVELOPMENT_FILES_ORIGIN` and
+its client copies together (a drift test checks them).
 
 ## Local development experience
 
@@ -261,7 +313,8 @@ There is no rollback path to the legacy bucket; dev objects live under
   raycast, docs, extension).
 - `bun run dev:files` — local Worker with remote Cloudflare R2/Images/AI
   bindings (code local, bucket remote). Use for real image transforms and
-  prod-data dev isolation (`dev/users/...`).
+  prod-data dev isolation (`dev/users/...`). After the storage switch, use
+  `bun run --cwd apps/files-worker dev:development` instead.
 - `bun run dev:files:local` — isolated Miniflare storage with low-fidelity
   Images emulation; no remote credentials needed.
 - `bun run check:cloudflare` — read-only names/parity check without exposing

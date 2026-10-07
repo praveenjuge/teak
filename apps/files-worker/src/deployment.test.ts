@@ -16,6 +16,33 @@ test("the deployed files worker reports production failures as production", () =
   expect(options?.environment).toBe("production");
 });
 
+test("the development worker resolves to its own bucket, gates and telemetry", () => {
+  const config = unstable_readConfig({
+    config: resolve(import.meta.dir, "../development/wrangler.jsonc"),
+  });
+  expect(config.main).toBe(resolve(import.meta.dir, "index.ts"));
+  expect(config.name).toBe("teak-files-development");
+  expect(config.routes).toEqual([]);
+  expect(config.r2_buckets).toEqual([
+    {
+      binding: "BUCKET",
+      bucket_name: "teak-files-development-20261006",
+      preview_bucket_name: "teak-files-development-20261006",
+    },
+  ]);
+  expect(config.durable_objects.bindings).toEqual([
+    { name: "OBJECT_GATES", class_name: "ObjectDeletionGate" },
+  ]);
+  expect(config.ai?.binding).toBe("AI");
+  expect(config.images?.binding).toBe("IMAGES");
+  expect(
+    resolveSentryOptions({
+      SENTRY_DSN: "https://k@example.invalid/1",
+      SENTRY_ENVIRONMENT: config.vars.SENTRY_ENVIRONMENT as string | undefined,
+    })?.environment
+  ).toBe("development");
+});
+
 // Resolve only configuration, without starting runtimes or connecting bindings.
 // Wrangler's CLI converts --var values to plain_text bindings before this step.
 test.each(["dev", "dev:local"] as const)(

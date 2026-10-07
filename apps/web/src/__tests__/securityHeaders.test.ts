@@ -333,4 +333,44 @@ describe("configured local backend security policy", () => {
     expect(policy).not.toContain(url);
     expect(policy).not.toContain(`${new URL(url).origin} `);
   });
+  const devFilesOrigin =
+    "https://teak-files-development.praveenjuge.workers.dev";
+  const fileDirectives = ["img-src", "connect-src", "media-src", "frame-src"];
+  const directive = (policy: string, name: string) =>
+    policy
+      .split("; ")
+      .find((d) => d.startsWith(`${name} `))!
+      .split(" ");
+
+  test.each(["production", "development"] as const)(
+    "a %s build for the dev deployment loads its isolated Files Worker",
+    (environment) => {
+      const policy = policyFor(
+        environment,
+        "https://reminiscent-kangaroo-59.convex.cloud"
+      );
+      for (const name of fileDirectives) {
+        expect(directive(policy, name)).toContain(devFilesOrigin);
+        expect(directive(policy, name)).not.toContain("https://*.workers.dev");
+      }
+    }
+  );
+
+  test.each([
+    "https://uncommon-ladybug-882.convex.cloud",
+    "https://reminiscent-kangaroo-59.convex.cloud.evil.example",
+    "https://other-deployment-1.convex.cloud",
+    "http://reminiscent-kangaroo-59.convex.cloud",
+    "http://127.0.0.1:3210",
+  ])("other backends never allow the dev Files Worker: %s", (convexUrl) => {
+    for (const environment of ["production", "development"] as const) {
+      const policy = policyFor(environment, convexUrl);
+      expect(policy).not.toContain("workers.dev");
+      for (const name of ["connect-src", "media-src", "frame-src"]) {
+        expect(directive(policy, name)).toContain(
+          "https://files.teakvault.com"
+        );
+      }
+    }
+  });
 });

@@ -3,10 +3,30 @@
 import { chmod, readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { parseConvexEnvOutput } from "./check-cloudflare";
+import {
+  assertIsolatedDevelopmentFiles,
+  readDevelopmentFilesRouting,
+} from "./files-worker-dev-boundary";
 
 const root = join(import.meta.dir, "..");
 const convexPath = join(root, "packages/convex");
 const devVarsPath = join(root, "apps/files-worker/.dev.vars");
+const isolatedDevVarsPath = join(
+  root,
+  "apps/files-worker/development/.dev.vars"
+);
+
+/** Default: today's shared Worker. `--isolated`: the development Worker. */
+export const parseSyncArgs = (argv: string[]): { isolated: boolean } => {
+  const args = argv.filter((arg) => arg !== "--");
+  if (args.length === 0) {
+    return { isolated: false };
+  }
+  if (args.length === 1 && args[0] === "--isolated") {
+    return { isolated: true };
+  }
+  throw new Error("Usage: bun run sync:cloudflare-dev [--isolated]");
+};
 
 export const mergeDotenvValue = (
   content: string,
@@ -33,7 +53,28 @@ export const mergeDotenvValue = (
   return `${retained.join("\n")}\n`;
 };
 
+const syncIsolated = async () => {
+  // Refuses until Convex dev uses the isolated development Worker and bucket.
+  const secret = assertIsolatedDevelopmentFiles(
+    await readDevelopmentFilesRouting(root)
+  );
+  const existing = await readFile(isolatedDevVarsPath, "utf8").catch(() => "");
+  await writeFile(
+    isolatedDevVarsPath,
+    mergeDotenvValue(existing, "FILES_SIGNING_SECRET", secret),
+    { mode: 0o600 }
+  );
+  await chmod(isolatedDevVarsPath, 0o600);
+  console.log(
+    "Synced Convex dev FILES_SIGNING_SECRET to ignored apps/files-worker/development/.dev.vars"
+  );
+};
+
 const main = async () => {
+  if (parseSyncArgs(process.argv.slice(2)).isolated) {
+    await syncIsolated();
+    return;
+  }
   const proc = Bun.spawn(
     [
       "bunx",

@@ -34,4 +34,26 @@ describe("media recovery", () => {
       getMediaRenditionFromUrl("https://example.com/__images/v1/grid/key")
     ).toBeUndefined();
   });
+
+  test.each([
+    "https://teak-files-development.praveenjuge.workers.dev/__images/v1/grid/user/card/file.jpg?exp=1&sig=x",
+    "https://files.teakvault.com/__images/v1/grid/user/card/file.jpg?exp=1&sig=x",
+  ])(
+    "recovers media from the production and isolated development Workers: %s",
+    (url) => {
+      expect(canRetryMedia(url, 0)).toBe(true);
+      expect(getMediaRenditionFromUrl(url)).toBe("grid");
+    }
+  );
+
+  test.each([
+    "https://other.praveenjuge.workers.dev/__images/v1/grid/key?sig=x",
+    "https://teak-files-development.other.workers.dev/__images/v1/grid/key?sig=x",
+    "https://teak-files-development.praveenjuge.workers.dev.evil.test/__images/v1/grid/key",
+    "http://files.teakvault.com/__images/v1/grid/key?sig=x",
+    "http://teak-files-development.praveenjuge.workers.dev/__images/v1/grid/key",
+  ])("never treats lookalike or insecure origins as Teak media: %s", (url) => {
+    expect(canRetryMedia(url, 0)).toBe(false);
+    expect(getMediaRenditionFromUrl(url)).toBeUndefined();
+  });
 });
