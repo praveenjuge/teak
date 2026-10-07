@@ -95,6 +95,8 @@ import type * as migration_readiness from "../migration/readiness.js";
 import type * as migration_workosCutover from "../migration/workosCutover.js";
 import type * as migration_workosImportLease from "../migration/workosImportLease.js";
 import type * as migration_workosImportSource from "../migration/workosImportSource.js";
+import type * as migration_workosImportedFixtureRetirement from "../migration/workosImportedFixtureRetirement.js";
+import type * as migration_workosImportedFixtureRetirementActions from "../migration/workosImportedFixtureRetirementActions.js";
 import type * as migration_workosLegacyCredentialGate from "../migration/workosLegacyCredentialGate.js";
 import type * as migration_workosLegacyGrants from "../migration/workosLegacyGrants.js";
 import type * as migration_workosReadiness from "../migration/workosReadiness.js";
@@ -334,6 +336,8 @@ declare const fullApi: ApiFromModules<{
   "migration/workosCutover": typeof migration_workosCutover;
   "migration/workosImportLease": typeof migration_workosImportLease;
   "migration/workosImportSource": typeof migration_workosImportSource;
+  "migration/workosImportedFixtureRetirement": typeof migration_workosImportedFixtureRetirement;
+  "migration/workosImportedFixtureRetirementActions": typeof migration_workosImportedFixtureRetirementActions;
   "migration/workosLegacyCredentialGate": typeof migration_workosLegacyCredentialGate;
   "migration/workosLegacyGrants": typeof migration_workosLegacyGrants;
   "migration/workosReadiness": typeof migration_workosReadiness;
