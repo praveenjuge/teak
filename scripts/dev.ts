@@ -110,10 +110,14 @@ export const buildDevCommand = (
   opts?: { all?: boolean; headless?: boolean }
 ): string[] => {
   // Dev tasks are persistent but never interactive (no stdin), so stream
-  // mode runs the same servers headlessly for agents and CI.
-  const ui = opts?.headless ? "--ui=stream" : "--ui=tui";
+  // mode runs the same servers headlessly for agents and CI. Turbo's `auto`
+  // log order groups output on GitHub Actions, which holds persistent task
+  // logs until exit, so headless output pins `stream`.
+  const ui = opts?.headless
+    ? ["--ui=stream", "--log-order=stream"]
+    : ["--ui=tui"];
   if (opts?.all) {
-    return ["turbo", "watch", "dev", ui];
+    return ["turbo", "watch", "dev", ...ui];
   }
   if (target === "files") {
     return ["bun", "run", "--filter", "@teak/files-worker", "dev"];
@@ -126,7 +130,7 @@ export const buildDevCommand = (
     "turbo",
     "watch",
     "dev",
-    ui,
+    ...ui,
     ...filters.flatMap((filter) => ["--filter", filter]),
   ];
 };

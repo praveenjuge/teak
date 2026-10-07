@@ -108,6 +108,7 @@ describe("web provider routing", () => {
       "/register",
       "/forgot-password",
       "/reset-password",
+      "/sign-in",
       "/monitoring",
       "/opengraph-image",
     ]) {
@@ -150,6 +151,14 @@ describe("web provider routing", () => {
     );
     expect(response.headers.get("x-workos-session")).toBeNull();
   });
+  test("lets signed-out WorkOS email returns reach the sign-in route", async () => {
+    globalThis.fetch = withAuthModeFetch(originalFetch, workosMode);
+    const response = await proxy(
+      new NextRequest("http://localhost:3142/sign-in")
+    );
+    expect(response.status).toBe(200);
+    expect(response.headers.get("location")).toBeNull();
+  });
   test("fresh auth entry observes a cutover even when the proxy cached Better Auth", async () => {
     await proxy(new NextRequest("http://localhost:3142/login"));
     globalThis.fetch = withAuthModeFetch(originalFetch, workosMode);
@@ -173,6 +182,81 @@ describe("web provider routing", () => {
       ).status
     ).toBe(400);
   });
+  // Production 2026-10-07: a password reset email returned `code` without
+  // `state`, and the SDK's cache headers threw on an immutable redirect (500).
+  // Node follows the Fetch spec (`Response.redirect` headers are immutable);
+  // Bun does not, so the spec guard is restored for this boundary only.
+  class ImmutableHeaders extends Headers {
+    override append(): never {
+      throw new TypeError("immutable");
+    }
+    override delete(): never {
+      throw new TypeError("immutable");
+    }
+    override set(): never {
+      throw new TypeError("immutable");
+    }
+  }
+  const nativeRedirect = Response.redirect.bind(Response);
+  test.each([
+    ["no state (reset email return)", "?code=reset", undefined],
+    ["no PKCE cookie", "?code=reset&state=sealed", undefined],
+    [
+      "state not bound to the PKCE cookie",
+      "?code=reset&state=forged",
+      "wos-auth-verifier=other",
+    ],
+  ])(
+    "restarts sign-in without redeeming the code: %s",
+    async (_name, query, cookie) => {
+      // The SDK catches upstream failures, so record calls instead of
+      // relying on a throw: no code exchange may reach WorkOS.
+      const reached: string[] = [];
+      const unexpected = ((input: RequestInfo | URL) => {
+        reached.push(String(input));
+        throw new Error(`Callback must not reach ${String(input)}`);
+      }) as typeof fetch;
+      globalThis.fetch = withAuthModeFetch(unexpected, workosMode);
+      const error = spyOn(console, "error").mockImplementation(() => undefined);
+      const redirect = spyOn(Response, "redirect").mockImplementation(
+        (url, status) => {
+          const response = nativeRedirect(url, status);
+          const headers = new ImmutableHeaders(response.headers);
+          Object.defineProperty(response, "headers", { value: headers });
+          return response;
+        }
+      );
+      try {
+        const response = await callback(
+          new NextRequest(`http://localhost:3142/callback${query}`, {
+            headers: cookie ? { cookie } : {},
+          })
+        );
+        expect(reached).toEqual([]);
+        expect(response.status).toBe(303);
+        expect(response.headers.get("location")).toBe(
+          "http://localhost:3142/login?error=sign_in_restart"
+        );
+        expect(response.headers.get("cache-control")).toContain("no-store");
+        const setCookies = response.headers.getSetCookie();
+        expect(
+          setCookies.some((value) => value.startsWith("wos-session="))
+        ).toBe(false);
+        if (query.includes("state=")) {
+          expect(
+            setCookies.some(
+              (value) =>
+                value.startsWith("wos-auth-verifier-") &&
+                value.includes("Max-Age=0")
+            )
+          ).toBe(true);
+        }
+      } finally {
+        redirect.mockRestore();
+        error.mockRestore();
+      }
+    }
+  );
   test("never returns legacy issuer metadata or userinfo in WorkOS mode", async () => {
     const unexpected = (() => {
       throw new Error("Legacy upstream must not be reached");

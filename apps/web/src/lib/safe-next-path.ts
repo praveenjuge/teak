@@ -5,6 +5,7 @@ const AUTH_ROUTES = new Set([
   "/register",
   "/reset-password",
   "/forgot-password",
+  "/sign-in",
 ]);
 
 // Control characters (including tab/newline) and backslashes can be normalized
@@ -54,7 +55,9 @@ export function getSafeNextPath(
     return null;
   }
 
-  if (AUTH_ROUTES.has(parsed.pathname)) {
+  // With the default `trailingSlash: false`, Next redirects `/sign-in/` (and
+  // `/sign-in//`) to `/sign-in`, so compare without trailing slashes.
+  if (AUTH_ROUTES.has(parsed.pathname.replace(/\/+$/, ""))) {
     return null;
   }
 

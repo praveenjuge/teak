@@ -44,8 +44,27 @@ describe("getSafeNextPath", () => {
     expect(getSafeNextPath("/register")).toBeNull();
     expect(getSafeNextPath("/reset-password")).toBeNull();
     expect(getSafeNextPath("/forgot-password")).toBeNull();
+    expect(getSafeNextPath("/sign-in")).toBeNull();
     // With query string the path is still an auth route and must be rejected.
     expect(getSafeNextPath("/login?next=%2Fsettings")).toBeNull();
+  });
+
+  test.each([
+    "/sign-in/",
+    "/sign-in//",
+    "/sign-in/?next=%2Fsettings",
+    "/login/",
+    "/reset-password/#token",
+  ])(
+    "rejects trailing-slash auth route %s that Next redirects back to auth",
+    (next) => {
+      expect(getSafeNextPath(next)).toBeNull();
+    }
+  );
+
+  test("keeps non-auth paths that only share an auth prefix", () => {
+    expect(getSafeNextPath("/sign-in-help")).toBe("/sign-in-help");
+    expect(getSafeNextPath("/settings/")).toBe("/settings/");
   });
 
   test("rejects values that do not start with a slash", () => {
