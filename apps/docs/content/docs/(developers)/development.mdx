@@ -115,9 +115,15 @@ bun run doctor --target web --profile local --json
 
 ## Setup Checklist
 
-### Convex + Better Auth
+### Convex and sign-in
 
-Follow the [self-hosting quickstart](/docs/self-hosting) for `bun run setup`, `BETTER_AUTH_SECRET`, and `bunx convex dev` — it provisions the same isolated Convex deployment local development uses. Google and Apple sign-in are optional locally: without their credentials, email sign-in works normally and the social buttons report that the provider isn't configured.
+Follow the [self-hosting quickstart](/docs/self-hosting) for `bun run setup`, `BETTER_AUTH_SECRET`, and `bunx convex dev` — it provisions the same isolated Convex deployment local development uses.
+
+Hosted Teak signs in with WorkOS AuthKit. The Convex `AUTH_PRIMARY` setting selects the provider (`workos` or `betterauth`); unset means Better Auth. The backend trusts WorkOS sessions only on Teak's own development and production deployments, so a fresh isolated or local deployment from setup uses Better Auth. Leave `AUTH_PRIMARY` unset there.
+
+Setup also prepares the web app for AuthKit: it writes `NEXT_PUBLIC_WORKOS_REDIRECT_URI` (the app origin plus `/callback`) and a local `WORKOS_COOKIE_PASSWORD` to `apps/web/.env.local`. `convex.json` declares the AuthKit redirect URIs and CORS origins, including every worktree web port, and Convex applies them to the deployment's WorkOS environment. Convex does not write WorkOS credentials to local files. When you work against Teak's development deployment, copy its `WORKOS_CLIENT_ID` and `WORKOS_API_KEY` into `apps/web/.env.local`; `bun run doctor` checks that the client, key, cookie password, and callback fit together. Never use production credentials locally.
+
+Google and Apple sign-in are optional locally: without their credentials, email sign-in works normally and the social buttons report that the provider isn't configured.
 
 ### Public API and MCP
 

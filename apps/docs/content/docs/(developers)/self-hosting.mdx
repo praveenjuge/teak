@@ -34,6 +34,8 @@ public domain at it.
     ```
 
     This keeps the dev deployment in sync and prints the `CONVEX_SITE_URL` and `CONVEX_URL`. It does not configure Better Auth — that's the next step.
+
+    Hosted Teak signs in with WorkOS, but the backend trusts WorkOS sessions only on Teak's own deployments. Self-hosted deployments sign in with Better Auth, so leave `AUTH_PRIMARY` unset.
   </Step>
   <Step title="Configure essential secrets">
     Run these commands to set the minimum required secrets in your Convex dashboard (`SITE_URL` is already set by setup):
@@ -73,7 +75,7 @@ public domain at it.
 
 <Steps>
   <Step title="Designate the administrator">
-    Create the intended administrator account first. While Better Auth is primary, pause new sign-ups and grant its stored admin role from `packages/convex`:
+    Create the intended administrator account first. Then pause new sign-ups and grant its stored admin role from `packages/convex`:
 
     ```bash
     bunx convex env set --prod SIGNUPS_DISABLED true
@@ -129,7 +131,7 @@ POLAR_WEBHOOK_SECRET=secret
 RESEND_API_KEY=token
 ```
 
-`SITE_URL` is required to boot; `BETTER_AUTH_SECRET` is required for authentication. Grant admin access through the stored role as described in [Production basics](#production-basics). Add the rest for the features you want. See [Where to get the values](#where-to-get-the-values) for sources.
+`SITE_URL` is required to boot; `BETTER_AUTH_SECRET` is required for Better Auth sign-in, which self-hosted deployments use. Grant admin access through the stored role as described in [Production basics](#production-basics). Add the rest for the features you want. See [Where to get the values](#where-to-get-the-values) for sources.
 
 ### Files Worker (`apps/files-worker/.dev.vars`, wrangler secrets)
 
@@ -181,7 +183,7 @@ PUBLIC_ORIGIN=https://yourdomain.com            # Required to expose self-hosted
 TEAK_DEV_API_URL=https://deployment.convex.site # Optional local override
 ```
 
-Convex serves the REST API at `/api/v1`, the MCP endpoint at `/mcp`, plus `/healthz`, `/openapi.json`, and OAuth protected-resource metadata. In production, Teak exposes these through apex path rewrites (e.g. `https://teakvault.com/api` and `https://teakvault.com/mcp`). For self-hosted setups, configure your reverse proxy or DNS to route `/api` and `/mcp` to the Convex deployment's `.convex.site` domain. `SITE_URL` is the Better Auth application origin and the OAuth issuer; there is no separate issuer override.
+Convex serves the REST API at `/api/v1`, the MCP endpoint at `/mcp`, plus `/healthz`, `/openapi.json`, and OAuth protected-resource metadata. In production, Teak exposes these through apex path rewrites (e.g. `https://teakvault.com/api` and `https://teakvault.com/mcp`). For self-hosted setups, configure your reverse proxy or DNS to route `/api` and `/mcp` to the Convex deployment's `.convex.site` domain. With Better Auth, `SITE_URL` is the application origin and the OAuth issuer; there is no separate issuer override. Hosted Teak advertises its WorkOS sign-in domain as the issuer instead.
 
 ## Where to get the values
 
