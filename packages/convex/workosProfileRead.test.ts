@@ -63,7 +63,7 @@ async function fixture() {
     subject: "user_READ",
     issuer: "https://api.workos.com/user_management/client_READ",
     sid: "session_READ",
-    emailVerified: true,
+    email_verified: true,
     external_id: "owner-a",
   });
   return { t, signed, ...ids };

@@ -104,7 +104,7 @@ test("deletion retains its source and state while an authenticated import comple
     issuer: "https://api.workos.com/user_management/client_IMPORT",
     subject: "user_IMPORT",
     sid: "session_IMPORT",
-    emailVerified: true,
+    email_verified: true,
     external_id: ownerId,
   });
   const bucket = new FakeBucket();
@@ -245,7 +245,7 @@ async function importSession() {
     issuer: "https://api.workos.com/user_management/client_IMPORT",
     subject: "user_IMPORT",
     sid: "session_IMPORT",
-    emailVerified: true,
+    email_verified: true,
     external_id: ownerId,
   });
 
