@@ -4,6 +4,7 @@ import { internal } from "./_generated/api";
 import { action, internalMutation, query } from "./_generated/server";
 import { readWorkosConnectClients } from "./publicApiMeta";
 import { getSessionUser } from "./securitySessions";
+import { disconnectApplication } from "./workosApplicationDisconnect";
 
 const LAST_SEEN_INTERVAL_MS = 5 * 60 * 1000;
 type ConsentAuthorization =
@@ -227,15 +228,12 @@ export const disconnectConnection = action({
     if (!row) {
       throw new Error("Connection unavailable");
     }
-    const result: number = await ctx.runAction(
-      internal.workosApplicationDisconnect.run,
-      {
-        workosUserId: row.workosUserId,
-        clientId: row.clientId,
-        consentId,
-        externalId: session.teakUserId,
-      }
-    );
+    const result = await disconnectApplication(ctx, {
+      workosUserId: row.workosUserId,
+      clientId: row.clientId,
+      consentId,
+      externalId: session.teakUserId,
+    });
     if (result !== 204) {
       throw new Error("Connection unavailable. Please try again.");
     }

@@ -828,3 +828,52 @@ test("unknown-owner WorkOS reconnect stops before opening a browser", async () =
   expect(webAuth).not.toHaveBeenCalled();
   expect(storage[tokenKey]).toBeDefined();
 });
+
+test.each([
+  [400, '{"error":"invalid_grant"}', true],
+  [401, '{"error":"invalid_refresh_token"}', true],
+  [401, '{"error":"invalid_client"}', false],
+  [401, "", false],
+  [400, "not-json", false],
+  [503, '{"error":"invalid_grant"}', false],
+  [0, "network failure", false],
+] as const)(
+  "dead WorkOS logout refresh HTTP%i forgets only proven invalid grants",
+  async (status, body, clear) => {
+    primary = "workos";
+    const saved = {
+      accessToken,
+      refreshToken,
+      expiresAt: 0,
+      siteUrl: "https://test.convex.site",
+      issuer: "https://auth.test.workos.com",
+      clientId: "client_chrome",
+    };
+    storage[tokenKey] = saved;
+    let disconnects = 0;
+    globalThis.fetch = withDiscovery((async (input) => {
+      if (String(input).endsWith("/oauth2/token")) {
+        if (!status) {
+          throw new Error(body);
+        }
+        return await Promise.resolve(new Response(body, { status }));
+      }
+      disconnects++;
+      return new Response(null, { status: 401 });
+    }) as typeof fetch);
+    const auth = await load();
+    if (clear) {
+      expect(await auth.signOutOAuth()).toContain("other installations");
+      expect(storage[tokenKey]).toBeUndefined();
+      const state = await auth.getOAuthState();
+      expect("notice" in state ? state.notice : undefined).toContain(
+        "other installations"
+      );
+    } else {
+      await expect(auth.signOutOAuth()).rejects.toThrow();
+      expect(storage[tokenKey]).toEqual(saved);
+    }
+    expect(disconnects).toBe(1);
+    expect(webAuth).not.toHaveBeenCalled();
+  }
+);

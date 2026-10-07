@@ -35,6 +35,7 @@ export default defineConfig({
       "./workosConsents.test.ts",
       "./workosConnectRevocation.test.ts",
       "./workosApplicationDisconnect.test.ts",
+      "./workosDisconnectRecovery.test.ts",
       "./workosBearer.test.ts",
       "./workosDiscovery.test.ts",
       "./workosWebhook.test.ts",

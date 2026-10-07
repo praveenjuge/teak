@@ -4,6 +4,7 @@ import { lstat, open, writeFile } from "node:fs/promises";
 import { dirname, resolve } from "node:path";
 import { parseArgs, promisify } from "node:util";
 import { z } from "zod";
+import { parseConvexCliResponse } from "./convex-cli-response";
 import { readPrivate } from "./quiesce-importer";
 
 const owner = z.object({
@@ -168,7 +169,7 @@ export async function main(
           maxBuffer: 128 * 1024,
         }
       );
-      return JSON.parse(stdout);
+      return parseConvexCliResponse(stdout);
     };
     const verify = () =>
       run("migration/workosImportLease:verifyQuiescence", pins);

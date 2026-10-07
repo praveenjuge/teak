@@ -1,4 +1,6 @@
 /// <reference types="vite/client" />
+
+import { makeFunctionReference } from "convex/server";
 import { convexTest } from "convex-test";
 import { afterEach, beforeEach, expect, test, vi } from "vitest";
 import { internal } from "./_generated/api";
@@ -536,4 +538,107 @@ test("concurrent logout requests dispatch only one provider DELETE", async () =>
       await t.run((ctx) => ctx.db.query("workosApplicationDisconnects").take(1))
     )[0].state
   ).toBe("completed");
+});
+
+test.each([400, 401, 403, 404, 422, 429, 500, 503])(
+  "provider %s does not prove a completed disconnect or permit repeated DELETE",
+  async (status) => {
+    const t = await setup();
+    const fetcher = provider(async () => new Response(null, { status }));
+    vi.stubGlobal("fetch", fetcher);
+    expect(
+      await t.action(internal.workosApplicationDisconnect.run, principal)
+    ).toBe(503);
+    expect(
+      await t.action(internal.workosApplicationDisconnect.run, principal)
+    ).toBe(503);
+    expect(
+      fetcher.mock.calls.filter(([, options]) => options?.method === "DELETE")
+    ).toHaveLength(1);
+    const rows = await t.run((ctx) =>
+      ctx.db.query("workosApplicationDisconnects").take(1)
+    );
+    expect(rows[0].state).toBe("unknown");
+  }
+);
+
+test("stale dispatched operations retain denial without redispatch after a restart", async () => {
+  const t = await setup();
+  const started = await t.mutation(internal.workosApplicationDisconnect.begin, {
+    ...principal,
+    environmentId: "environment_TEST",
+    authKitClientId: "client_ENV",
+    authKitDomain: "https://disconnect-tests.authkit.app",
+    credentialFingerprint: await crypto.subtle
+      .digest("SHA-256", new TextEncoder().encode("sk_test"))
+      .then((value) =>
+        Array.from(new Uint8Array(value), (byte) =>
+          byte.toString(16).padStart(2, "0")
+        ).join("")
+      ),
+    operationId: "interrupted-operation",
+  });
+  if (started.status !== "pending") {
+    throw new Error("Expected prepared operation");
+  }
+  expect(
+    await t.mutation(internal.workosApplicationDisconnect.dispatch, {
+      fenceId: started.fenceId,
+      operationId: started.operationId,
+      applicationId: "connect_app_ONE",
+    })
+  ).toBe(true);
+  await t.run((ctx) => ctx.db.patch(started.fenceId, { dispatchedAt: 1 }));
+  const fetcher = vi.fn();
+  vi.stubGlobal("fetch", fetcher);
+  expect(
+    await t.action(internal.workosApplicationDisconnect.run, principal)
+  ).toBe(503);
+  expect(fetcher).not.toHaveBeenCalled();
+  const row = await t.run((ctx) =>
+    ctx.db.get("workosApplicationDisconnects", started.fenceId)
+  );
+  expect(row?.state).toBe("dispatched");
+});
+
+test("dispatch refuses absent or invalid application IDs before tombstoning consent", async () => {
+  const t = await setup();
+  const fingerprint = await crypto.subtle
+    .digest("SHA-256", new TextEncoder().encode("sk_test"))
+    .then((value) =>
+      Array.from(new Uint8Array(value), (byte) =>
+        byte.toString(16).padStart(2, "0")
+      ).join("")
+    );
+  const started = await t.mutation(internal.workosApplicationDisconnect.begin, {
+    ...principal,
+    environmentId: "environment_TEST",
+    authKitClientId: "client_ENV",
+    authKitDomain: "https://disconnect-tests.authkit.app",
+    credentialFingerprint: fingerprint,
+    operationId: "missing-app-test",
+  });
+  if (started.status !== "pending") {
+    throw new Error("Expected prepared operation");
+  }
+  const dispatch = makeFunctionReference<
+    "mutation",
+    Record<string, unknown>,
+    boolean
+  >("workosApplicationDisconnect:dispatch");
+  const args = { fenceId: started.fenceId, operationId: started.operationId };
+  await expect(t.mutation(dispatch, args)).rejects.toThrow();
+  for (const applicationId of [
+    "",
+    "https://other.example/app",
+    "connect_app_/../OTHER",
+  ]) {
+    expect(await t.mutation(dispatch, { ...args, applicationId })).toBe(false);
+  }
+  const row = await t.run((ctx) =>
+    ctx.db.get("workosApplicationDisconnects", started.fenceId)
+  );
+  expect(row?.state).toBe("prepared");
+  const consents = await t.run((ctx) => ctx.db.query("workosConsents").take(1));
+  expect(consents[0].revokedAt).toBeUndefined();
 });

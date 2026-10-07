@@ -210,7 +210,7 @@ export const dispatch = internalMutation({
   args: {
     fenceId: v.id("workosApplicationDisconnects"),
     operationId: v.string(),
-    applicationId: v.optional(v.string()),
+    applicationId: v.string(),
   },
   returns: v.boolean(),
   handler: async (ctx, args) => {
@@ -218,7 +218,8 @@ export const dispatch = internalMutation({
     if (
       !row ||
       row.operationId !== args.operationId ||
-      row.state !== "prepared"
+      row.state !== "prepared" ||
+      !/^(?:connect_app_|conn_app_)[A-Za-z0-9]+$/.test(args.applicationId)
     ) {
       return false;
     }
@@ -259,7 +260,7 @@ export const dispatch = internalMutation({
     await ctx.db.patch(row._id, {
       state: "dispatched",
       dispatchedAt: Date.now(),
-      ...(args.applicationId ? { applicationId: args.applicationId } : {}),
+      applicationId: args.applicationId,
     });
     return true;
   },
@@ -458,7 +459,7 @@ async function providerApplication(
   }
   throw new Error("Provider application pagination limit");
 }
-async function completeAcknowledged(
+export async function completeAcknowledged(
   ctx: ActionCtx,
   row: Fence
 ): Promise<number> {
@@ -483,119 +484,127 @@ async function completeAcknowledged(
   }
   return 503; // A subsequent request resumes cleanup without provider dispatch.
 }
+export async function disconnectApplication(
+  ctx: ActionCtx,
+  principal: {
+    workosUserId: string;
+    consentId: string;
+    clientId: string;
+    externalId?: string | null;
+    tokenExpiresAt?: number;
+  }
+): Promise<number> {
+  const apiKey = process.env.WORKOS_API_KEY;
+  const environmentId = process.env.WORKOS_ENVIRONMENT_ID;
+  const authKitClientId = process.env.WORKOS_CLIENT_ID;
+  const authKitDomain = process.env.WORKOS_AUTHKIT_DOMAIN;
+  if (!(apiKey && environmentId && authKitClientId && authKitDomain)) {
+    return 503;
+  }
+  const target = {
+    environmentId,
+    authKitClientId,
+    authKitDomain,
+    credentialFingerprint: await sha256(apiKey),
+  };
+  const started: Start = await ctx.runMutation(
+    internal.workosApplicationDisconnect.begin,
+    { ...principal, ...target, operationId: crypto.randomUUID() }
+  );
+  if (started.status === "denied") {
+    return 401;
+  }
+  if (started.status === "completed") {
+    return 204;
+  }
+  const row: Fence | null = await ctx.runQuery(
+    internal.workosApplicationDisconnect.read,
+    { fenceId: started.fenceId }
+  );
+  if (!row || row.operationId !== started.operationId) {
+    return 503;
+  }
+  if (row.state === "acknowledged") {
+    return completeAcknowledged(ctx, row);
+  }
+  if (row.state !== "prepared") {
+    return 503;
+  }
+  let applicationId: string | undefined;
+  try {
+    applicationId = await providerApplication(
+      row.workosUserId,
+      row.clientId,
+      apiKey
+    );
+  } catch {
+    await ctx.runMutation(internal.workosApplicationDisconnect.cancelPrepared, {
+      fenceId: row._id,
+      operationId: row.operationId,
+    });
+    return 503;
+  }
+  // An absent listing cannot prove deletion and races provider reenrollment.
+  if (!applicationId) {
+    await ctx.runMutation(internal.workosApplicationDisconnect.cancelPrepared, {
+      fenceId: row._id,
+      operationId: row.operationId,
+    });
+    return 503;
+  }
+  const dispatched: boolean = await ctx.runMutation(
+    internal.workosApplicationDisconnect.dispatch,
+    {
+      fenceId: row._id,
+      operationId: row.operationId,
+      applicationId,
+    }
+  );
+  if (!dispatched) {
+    await ctx.runMutation(internal.workosApplicationDisconnect.cancelPrepared, {
+      fenceId: row._id,
+      operationId: row.operationId,
+    });
+    return 503;
+  }
+  try {
+    const result = await fetch(
+      // Fixed WorkOS origin; encoded path IDs and rejected redirects prevent SSRF.
+      // nosemgrep: rules_lgpl_javascript_ssrf_rule-node-ssrf
+      `https://api.workos.com/user_management/users/${encodeURIComponent(row.workosUserId)}/authorized_applications/${encodeURIComponent(applicationId)}`,
+      {
+        method: "DELETE",
+        headers: { Authorization: `Bearer ${apiKey}` },
+        redirect: "error",
+        signal: AbortSignal.timeout(10_000),
+      }
+    );
+    if (result.status !== 204) {
+      throw new Error("Provider disconnect outcome uncertain");
+    }
+    const acknowledged: boolean = await ctx.runMutation(
+      internal.workosApplicationDisconnect.acknowledge,
+      { fenceId: row._id, operationId: row.operationId }
+    );
+    if (!acknowledged) {
+      return 503;
+    }
+    return await completeAcknowledged(ctx, row);
+  } catch {
+    try {
+      await ctx.runMutation(internal.workosApplicationDisconnect.finish, {
+        fenceId: row._id,
+        operationId: row.operationId,
+        success: false,
+      });
+    } catch {
+      /* dispatched remains denied */
+    }
+    return 503;
+  }
+}
 export const run = internalAction({
   args: principalValidator,
   returns: v.number(),
-  handler: async (ctx, principal): Promise<number> => {
-    const apiKey = process.env.WORKOS_API_KEY;
-    const environmentId = process.env.WORKOS_ENVIRONMENT_ID;
-    const authKitClientId = process.env.WORKOS_CLIENT_ID;
-    const authKitDomain = process.env.WORKOS_AUTHKIT_DOMAIN;
-    if (!(apiKey && environmentId && authKitClientId && authKitDomain)) {
-      return 503;
-    }
-    const target = {
-      environmentId,
-      authKitClientId,
-      authKitDomain,
-      credentialFingerprint: await sha256(apiKey),
-    };
-    const started: Start = await ctx.runMutation(
-      internal.workosApplicationDisconnect.begin,
-      { ...principal, ...target, operationId: crypto.randomUUID() }
-    );
-    if (started.status === "denied") {
-      return 401;
-    }
-    if (started.status === "completed") {
-      return 204;
-    }
-    const row: Fence | null = await ctx.runQuery(
-      internal.workosApplicationDisconnect.read,
-      { fenceId: started.fenceId }
-    );
-    if (!row || row.operationId !== started.operationId) {
-      return 503;
-    }
-    if (row.state === "acknowledged") {
-      return completeAcknowledged(ctx, row);
-    }
-    if (row.state !== "prepared") {
-      return 503;
-    }
-    let applicationId: string | undefined;
-    try {
-      applicationId = await providerApplication(
-        row.workosUserId,
-        row.clientId,
-        apiKey
-      );
-    } catch {
-      await ctx.runMutation(
-        internal.workosApplicationDisconnect.cancelPrepared,
-        { fenceId: row._id, operationId: row.operationId }
-      );
-      return 503;
-    }
-    // An absent listing cannot prove deletion and races provider reenrollment.
-    if (!applicationId) {
-      await ctx.runMutation(
-        internal.workosApplicationDisconnect.cancelPrepared,
-        { fenceId: row._id, operationId: row.operationId }
-      );
-      return 503;
-    }
-    const dispatched: boolean = await ctx.runMutation(
-      internal.workosApplicationDisconnect.dispatch,
-      {
-        fenceId: row._id,
-        operationId: row.operationId,
-        ...(applicationId ? { applicationId } : {}),
-      }
-    );
-    if (!dispatched) {
-      await ctx.runMutation(
-        internal.workosApplicationDisconnect.cancelPrepared,
-        { fenceId: row._id, operationId: row.operationId }
-      );
-      return 503;
-    }
-    try {
-      if (applicationId) {
-        const result = await fetch(
-          // Fixed WorkOS origin; encoded path IDs and rejected redirects prevent SSRF.
-          // nosemgrep: rules_lgpl_javascript_ssrf_rule-node-ssrf
-          `https://api.workos.com/user_management/users/${encodeURIComponent(row.workosUserId)}/authorized_applications/${encodeURIComponent(applicationId)}`,
-          {
-            method: "DELETE",
-            headers: { Authorization: `Bearer ${apiKey}` },
-            redirect: "error",
-            signal: AbortSignal.timeout(10_000),
-          }
-        );
-        if (result.status !== 204) {
-          throw new Error("Provider disconnect outcome uncertain");
-        }
-      }
-      const acknowledged: boolean = await ctx.runMutation(
-        internal.workosApplicationDisconnect.acknowledge,
-        { fenceId: row._id, operationId: row.operationId }
-      );
-      if (!acknowledged) {
-        return 503;
-      }
-      return await completeAcknowledged(ctx, row);
-    } catch {
-      try {
-        await ctx.runMutation(internal.workosApplicationDisconnect.finish, {
-          fenceId: row._id,
-          operationId: row.operationId,
-          success: false,
-        });
-      } catch {
-        /* dispatched remains denied */
-      }
-      return 503;
-    }
-  },
+  handler: disconnectApplication,
 });

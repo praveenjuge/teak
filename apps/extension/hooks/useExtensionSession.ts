@@ -17,6 +17,7 @@ interface UseExtensionSessionResult {
   error: Error | null;
   hasPendingFlow: boolean;
   isPending: boolean;
+  notice?: string;
   pendingCount: number;
   refetch: () => void;
 }
@@ -27,6 +28,7 @@ export function useExtensionSession(): UseExtensionSessionResult {
   const [error, setError] = useState<Error | null>(null);
   const [pendingCount, setPendingCount] = useState(0);
   const [hasPendingFlow, setHasPendingFlow] = useState(false);
+  const [notice, setNotice] = useState<string>();
 
   const fetchSession = useCallback(async () => {
     setError(null);
@@ -34,10 +36,15 @@ export function useExtensionSession(): UseExtensionSessionResult {
     try {
       const state = (await chrome.runtime.sendMessage({
         type: MESSAGE_TYPES.GET_AUTH_STATE,
-      })) as AuthStateResponse & { message?: string; status?: string };
+      })) as AuthStateResponse & {
+        message?: string;
+        status?: string;
+        notice?: string;
+      };
       if (state.status === "error") {
         throw new Error(state.message || "Could not load your account.");
       }
+      setNotice(typeof state.notice === "string" ? state.notice : undefined);
       setHasPendingFlow(Boolean(state.pending));
       setPendingCount(state.pendingCount ?? 0);
       setData(state.authenticated && state.user ? { user: state.user } : null);
@@ -75,6 +82,7 @@ export function useExtensionSession(): UseExtensionSessionResult {
     data,
     error,
     hasPendingFlow,
+    notice,
     pendingCount,
     isPending,
     refetch: fetchSession,

@@ -484,6 +484,26 @@ export const cardValidator = v.object({
   updatedAt: v.number(),
 });
 
+const disconnectRecoveryReceipt = v.object({
+  operationId: v.string(),
+  snapshotDigest: v.string(),
+  approvalReference: v.string(),
+  evidenceKind: v.union(
+    v.literal("preserved-204"),
+    v.literal("provider-written-confirmation")
+  ),
+  evidenceReference: v.string(),
+  originalRequestId: v.string(),
+  cloudUrl: v.string(),
+  siteUrl: v.string(),
+  environmentId: v.string(),
+  authKitClientId: v.string(),
+  authKitDomain: v.string(),
+  credentialFingerprint: v.string(),
+  applicationId: v.string(),
+  recordedAt: v.number(),
+});
+
 export default defineSchema({
   users: defineTable({
     teakUserId: v.string(),
@@ -585,6 +605,7 @@ export default defineSchema({
     cursor: v.string(),
   }).index("by_runId_and_phase_and_cursor", ["runId", "phase", "cursor"]),
   workosApplicationDisconnects: defineTable({
+    recoveryReceipt: v.optional(disconnectRecoveryReceipt),
     operationId: v.string(),
     userId: v.string(),
     workosUserId: v.string(),
@@ -610,6 +631,7 @@ export default defineSchema({
     releaseAfter: v.optional(v.number()),
   }).index("by_workosUserId_and_clientId", ["workosUserId", "clientId"]),
   workosConsents: defineTable({
+    recoveryReceipt: v.optional(disconnectRecoveryReceipt),
     consentId: v.string(),
     userId: v.string(),
     workosUserId: v.string(),

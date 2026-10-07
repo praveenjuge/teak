@@ -27,9 +27,18 @@ const posts: Array<{
   authorization: string | null;
 }> = [];
 const originalFetch = globalThis.fetch;
+const toasts: Array<{ title: string; message?: string }> = [];
 
 mock.module("@raycast/api", () => ({
   environment: { isDevelopment: false },
+  getPreferenceValues: () => ({ apiKey: "" }),
+  Action: Object.assign(() => null, { Style: { Destructive: "destructive" } }),
+  Icon: { Logout: "logout" },
+  Toast: { Style: { Failure: "failure", Success: "success" } },
+  showToast: (toast: { title: string; message?: string }) => {
+    toasts.push(toast);
+    return Promise.resolve();
+  },
   LocalStorage: raycastLocalStorageMock,
   OAuth: {
     RedirectMethod: { Web: "web" },
@@ -157,6 +166,7 @@ beforeEach(async () => {
   }
   stores.clear();
   requests.length = 0;
+  toasts.length = 0;
   posts.length = 0;
   browserCount = 0;
   mode = "betterauth";
@@ -340,7 +350,7 @@ test("tampered historical endpoints never receive saved credentials", async () =
   globalThis.fetch = ((input, init) => transport(input, init)) as typeof fetch;
   const restarted = await import(`../lib/oauth?tamper=${crypto.randomUUID()}`);
   try {
-    await expect(restarted.signOutTeak()).rejects.toThrow("deployment");
+    await expect(restarted.signOutTeak()).rejects.toThrow("metadata");
     expect(posts.length).toBe(0);
     expect(stores.size).toBe(1);
   } finally {
@@ -519,4 +529,108 @@ test("background reads join WorkOS reauthorization rotation", async () => {
   expect(
     posts.filter((post) => post.body.get("grant_type") === "refresh_token"),
   ).toHaveLength(1);
+});
+
+test("corrupt registry metadata cannot block valid logout or clear foreign tokens", async () => {
+  mode = "workos";
+  await oauth.authorizeTeak();
+  const key = Array.from(stores.keys())[0];
+  const prefix =
+    "teak.oauth.provider:" +
+    encodeURIComponent("https://teakvault.com/api/v1") +
+    ":";
+  const corruptKey = prefix + "corrupt";
+  await raycastLocalStorageMock.setItem(corruptKey, "{invalid");
+  stores.set("foreign-provider", {
+    accessToken: "foreign-secret",
+    isExpired: () => false,
+  });
+  posts.length = 0;
+  await expect(oauth.signOutTeak()).rejects.toThrow("metadata");
+  expect(stores.has(key)).toBe(false);
+  expect(stores.has("foreign-provider")).toBe(true);
+  expect(await raycastLocalStorageMock.getItem(corruptKey)).toBeUndefined();
+  expect(
+    posts.filter((post) => post.url.endsWith("/oauth/disconnect")),
+  ).toHaveLength(1);
+});
+test.each([
+  "invalid_grant",
+  "invalid_client",
+  "unknown",
+  "malformed",
+  "outage",
+  "network",
+  "oversized",
+])(
+  "logout clears only definitive refresh invalid_grant (%s)",
+  async (failure) => {
+    mode = "workos";
+    await oauth.authorizeTeak();
+    const key = Array.from(stores.keys())[0];
+    stores.set("foreign-provider", {
+      accessToken: "foreign-secret",
+      isExpired: () => false,
+    });
+    globalThis.fetch = (async (input, init) => {
+      if (String(input).endsWith("/oauth/disconnect"))
+        return new Response(null, { status: 401 });
+      if (String(input).endsWith("/oauth2/token")) {
+        if (failure === "network") throw new Error("Network unavailable");
+        if (failure === "oversized")
+          return json(
+            { error: "invalid_grant", extra: "x".repeat(70 * 1024) },
+            400,
+          );
+        if (failure === "malformed") return new Response("{", { status: 400 });
+        if (failure === "outage") return json({ error: "invalid_grant" }, 503);
+        return json({ error: failure }, 400);
+      }
+      return transport(input, init);
+    }) as typeof fetch;
+    if (failure === "invalid_grant") {
+      expect(await oauth.signOutTeak()).toBe("local-only");
+      expect(stores.has(key)).toBe(false);
+      globalThis.fetch = transport;
+      browserCount = 0;
+      await oauth.authorizeTeak();
+      expect(browserCount).toBe(1);
+    } else {
+      await expect(oauth.signOutTeak()).rejects.toThrow(
+        "credentials are still saved",
+      );
+      expect(stores.has(key)).toBe(true);
+    }
+    expect(stores.has("foreign-provider")).toBe(true);
+  },
+);
+
+test("local-only Sign Out action warns that other installations may remain connected", async () => {
+  mode = "workos";
+  await oauth.authorizeTeak();
+  globalThis.fetch = (async (input, init) => {
+    if (String(input).endsWith("/oauth/disconnect"))
+      return new Response(null, { status: 401 });
+    if (String(input).endsWith("/oauth2/token"))
+      return json({ error: "invalid_grant" }, 400);
+    return transport(input, init);
+  }) as typeof fetch;
+  const { SignOutAction } = await import("../components/SignOutAction");
+  let signedOut = false;
+  const action = SignOutAction({
+    onSignedOut: () => {
+      signedOut = true;
+    },
+  });
+  if (!action) throw new Error("Missing Sign Out action");
+  await action.props.onAction();
+  expect(toasts).toEqual([
+    {
+      style: "success",
+      title: "Signed out on this Mac",
+      message: "Other installations may still be connected.",
+    },
+  ]);
+  expect(signedOut).toBe(true);
+  expect(stores.size).toBe(0);
 });

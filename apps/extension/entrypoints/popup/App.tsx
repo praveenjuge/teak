@@ -81,6 +81,7 @@ function App() {
     refetch,
     hasPendingFlow,
     pendingCount,
+    notice,
   } = useExtensionSession();
 
   if (isPending) {
@@ -107,6 +108,7 @@ function App() {
     return (
       <AuthPanel
         isFinishingSignIn={hasPendingFlow}
+        notice={notice}
         pendingCount={pendingCount}
       />
     );
@@ -199,9 +201,11 @@ function PendingSavesNotice({ count }: { count: number }) {
 function AuthPanel({
   isFinishingSignIn,
   pendingCount,
+  notice,
 }: {
   isFinishingSignIn: boolean;
   pendingCount: number;
+  notice?: string;
 }) {
   const [error, setError] = useState<string | null>(null);
   const handleSignIn = async () => {
@@ -227,6 +231,11 @@ function AuthPanel({
       </div>
 
       <PendingSavesNotice count={pendingCount} />
+      {notice ? (
+        <p className="text-gray-600 text-sm" role="status">
+          {notice}
+        </p>
+      ) : null}
       {error ? (
         <p className="text-red-600 text-sm" role="alert">
           {error}

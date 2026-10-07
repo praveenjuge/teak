@@ -10,6 +10,7 @@ export class TeakDiscoveryError extends Error {
 }
 
 class TeakSessionExpiredError extends Error {}
+class TeakRefreshRevokedError extends TeakSessionExpiredError {}
 
 interface Provider {
   auth: AuthDiscovery;
@@ -195,11 +196,8 @@ async function exchange(
     redirect: "error",
     signal: AbortSignal.timeout(10_000),
   });
-  if (!response.ok) {
-    if (response.status === 429 || response.status >= 500) {
-      throw new TeakDiscoveryError();
-    }
-    throw new TeakSessionExpiredError("Teak sign-in expired. Sign in again.");
+  if (response.status === 429 || response.status >= 500) {
+    throw new TeakDiscoveryError();
   }
   const reader = response.body?.getReader();
   if (!reader) {
@@ -230,6 +228,19 @@ async function exchange(
   } catch {
     throw new Error("Invalid Teak sign-in response.");
   }
+  if (!response.ok) {
+    if (
+      params.grant_type === "refresh_token" &&
+      (response.status === 400 || response.status === 401) &&
+      raw !== null &&
+      typeof raw === "object" &&
+      "error" in raw &&
+      raw.error === "invalid_grant"
+    ) {
+      throw new TeakRefreshRevokedError("Teak refresh credential was revoked.");
+    }
+    throw new TeakSessionExpiredError("Teak sign-in expired. Sign in again.");
+  }
   if (
     !raw ||
     typeof raw !== "object" ||
@@ -257,7 +268,8 @@ async function exchange(
 
 let inFlightAuthorize: Promise<string> | null = null;
 let inFlightStoredToken: Promise<string | null> | null = null;
-let inFlightSignOut: Promise<void> | null = null;
+export type SignOutResult = "disconnected" | "local-only";
+let inFlightSignOut: Promise<SignOutResult> | null = null;
 let inFlightReauthorize: Promise<string> | null = null;
 
 export function authorizeTeak(): Promise<string> {
@@ -350,7 +362,7 @@ export function reauthorizeTeak(): Promise<string> {
   return inFlightReauthorize;
 }
 
-export function signOutTeak(): Promise<void> {
+export function signOutTeak(): Promise<SignOutResult> {
   if (!inFlightSignOut) {
     inFlightSignOut = revokeStoredSession().finally(() => {
       inFlightSignOut = null;
@@ -359,7 +371,7 @@ export function signOutTeak(): Promise<void> {
   return inFlightSignOut;
 }
 
-async function revokeStoredSession(): Promise<void> {
+async function revokeStoredSession(): Promise<SignOutResult> {
   await Promise.allSettled([
     inFlightAuthorize,
     inFlightStoredToken,
@@ -385,12 +397,24 @@ async function revokeStoredSession(): Promise<void> {
       "Too many saved Teak connections; Sign Out could not finish.",
     );
   }
-  for (const [, value] of entries) {
-    if (typeof value !== "string" || value.length > 8192) {
-      throw new Error("Invalid saved Teak connection");
+  let invalidMetadata = false;
+  let localOnly = false;
+  for (const [key, value] of entries) {
+    try {
+      if (typeof value !== "string" || value.length > 8192) {
+        throw new Error("Invalid saved Teak connection");
+      }
+      const record = validateSavedProvider(JSON.parse(value));
+      if (key !== `${registryPrefix()}${record.providerId}`) {
+        throw new Error("Saved connection namespace mismatch");
+      }
+      records.set(record.providerId, record);
+    } catch {
+      // Only discard the corrupt metadata. Never trust its namespace or endpoint
+      // enough to read/delete Keychain credentials or contact a remote server.
+      await LocalStorage.removeItem(key);
+      invalidMetadata = true;
     }
-    const record = validateSavedProvider(JSON.parse(value));
-    records.set(record.providerId, record);
   }
   for (const record of records.values()) {
     const client = nativeClient(record.providerId);
@@ -455,15 +479,27 @@ async function revokeStoredSession(): Promise<void> {
         if (workos ? response.status !== 204 : !response.ok) {
           throw new Error("Revocation failed");
         }
-      } catch {
-        throw new Error(
-          "Your credentials are still saved. Check your connection and try Sign Out again.",
-        );
+      } catch (error) {
+        // The exact validated issuer rejected this refresh grant definitively.
+        // Clearing this namespace lets the person authorize again; other failures
+        // retain credentials because they do not prove remote invalidation.
+        if (!(workos && error instanceof TeakRefreshRevokedError)) {
+          throw new Error(
+            "Your credentials are still saved. Check your connection and try Sign Out again.",
+          );
+        }
+        localOnly = true;
       }
     }
     await client.removeTokens();
     await LocalStorage.removeItem(`${registryPrefix()}${record.providerId}`);
   }
+  if (invalidMetadata) {
+    throw new Error(
+      "Invalid connection metadata was removed. Known local credentials were cleared; unknown credentials were kept.",
+    );
+  }
+  return localOnly ? "local-only" : "disconnected";
 }
 
 export async function hasStoredTeakSession(): Promise<boolean> {

@@ -204,6 +204,20 @@ async function tokenRequest(
       }),
     });
     if (response.status === 400 || response.status === 401) {
+      if (params.grant_type === "refresh_token" && auth.primary === "workos") {
+        const rejection = await readJson(response);
+        if (
+          !(
+            rejection.error === "invalid_grant" ||
+            rejection.error === "invalid_refresh_token" ||
+            rejection.code === "invalid_refresh_token"
+          )
+        ) {
+          throw new Error(
+            "Could not verify your connection. Please try again."
+          );
+        }
+      }
       await refreshDiscoveryAfterFailure();
       return null;
     }
@@ -278,7 +292,7 @@ async function revokeCredentials(
       refresh_token: credentials.refreshToken,
     });
     if (!renewed) {
-      throw new Error("Could not sign out. Please try again.");
+      return "Signed out on this device. To disconnect other installations, use Settings → Connected apps.";
     }
     renewed.userId = credentials.userId;
     // signOutOAuth holds the same lock as request refreshes.
@@ -504,7 +518,21 @@ export async function oauthRequest(
 export async function getOAuthState() {
   const response = await oauthRequest("/v1/me");
   if (!response) {
-    return { authenticated: false, pending: Boolean(login) };
+    const state = (await chrome.storage.local.get(AUTH_STATE_KEY))[
+      AUTH_STATE_KEY
+    ];
+    const notice =
+      typeof state === "object" &&
+      state !== null &&
+      "notice" in state &&
+      typeof state.notice === "string"
+        ? state.notice
+        : undefined;
+    return {
+      authenticated: false,
+      pending: Boolean(login),
+      ...(notice ? { notice } : {}),
+    };
   }
   if (!response.ok) {
     throw new Error("Could not load your account.");
@@ -526,13 +554,19 @@ export async function getOAuthState() {
 
 export async function signOutOAuth() {
   generation += 1;
-  await navigator.locks.request("teak-oauth-credentials", async () => {
+  return await navigator.locks.request("teak-oauth-credentials", async () => {
     const credentials = await readCredentials();
-    if (credentials) {
-      await revokeCredentials(credentials, await discovery(true), true);
-    }
+    const notice = credentials
+      ? await revokeCredentials(credentials, await discovery(true), true)
+      : undefined;
     await writeCredentials(null);
     await chrome.storage.local.remove(ownerKey());
+    if (notice) {
+      await chrome.storage.local.set({
+        [AUTH_STATE_KEY]: { pending: false, changedAt: Date.now(), notice },
+      });
+    }
+    return notice;
   });
 }
 

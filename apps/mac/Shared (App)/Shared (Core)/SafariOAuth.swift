@@ -145,11 +145,12 @@ nonisolated struct SafariOAuthTokens: Codable, Sendable {
 
 nonisolated enum SafariServiceError: LocalizedError {
     case unauthenticated
+    case invalidRefreshCredential
     case message(String)
 
     var errorDescription: String? {
         switch self {
-        case .unauthenticated: return "Sign in to Teak to save pages."
+        case .unauthenticated, .invalidRefreshCredential: return "Sign in to Teak to save pages."
         case .message(let message): return message
         }
     }

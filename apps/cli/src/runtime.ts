@@ -441,7 +441,11 @@ export const logout = (options: ClientOptions = {}) =>
     if (credentials && (credentials.refreshToken || credentials.accessToken)) {
       try {
         await revokeCredentials(credentials, options);
-      } catch {
+      } catch (error) {
+        if (error instanceof TeakApiError && error.code === "AUTH_REQUIRED") {
+          clearCredentials(options);
+          return "Signed out on this device. To disconnect other installations, use Settings → Connected apps.";
+        }
         throw new Error(
           "Could not disconnect Teak CLI. Your credentials are still saved. Check your connection and run teak logout again."
         );
@@ -474,8 +478,8 @@ const exchangeToken = async (
   if (
     !response.ok &&
     body.grant_type === "refresh_token" &&
-    (response.status === 401 ||
-      payload?.error === "invalid_grant" ||
+    (response.status === 400 || response.status === 401) &&
+    (payload?.error === "invalid_grant" ||
       payload?.error === "invalid_refresh_token" ||
       payload?.code === "invalid_refresh_token")
   ) {

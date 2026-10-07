@@ -621,12 +621,42 @@ extension SafariOAuthTests {
         }
     }
 
+    static func discoveryDeadDisconnect() async throws {
+        for (status, body, clear) in [(400, #"{"error":"invalid_grant"}"#, true),
+                                      (401, #"{"error":"invalid_refresh_token"}"#, true),
+                                      (401, #"{"error":"invalid_client"}"#, false),
+                                      (401, "", false), (400, "not-json", false),
+                                      (503, #"{"error":"invalid_grant"}"#, false), (0, "network", false)] {
+            discoveryReset("workos")
+            let store = MemoryCredentials()
+            MockHTTP.respond = { request in request.url?.path == "/v1/me" ? (200, validSession) : (200, tokenResponse) }
+            try await discoveryLogin(fixture(store))
+            try discoveryExpire(store)
+            var disconnects = 0
+            MockHTTP.respond = { request in
+                if request.url?.path == "/api/auth/mcp/token" {
+                    if status == 0 { throw SafariServiceError.message("Network failed") }
+                    return (status, body)
+                }
+                _ = try discoveryDisconnectProof(request)
+                disconnects += 1
+                return (401, "")
+            }
+            let result = await fixture(store).signOut()
+            try check((try store.load() == nil) == clear, "only proven rejected refresh clears local credentials")
+            try check((result["status"] as? String == "signed-out") == clear, "local signout is available after invalid grant")
+            try check(disconnects == 1, "local forget never claims a new remote disconnect")
+            if clear { try check((result["message"] as? String)?.contains("other installations") == true, "local signout explains other installations remain") }
+        }
+    }
+
     static func discoveryJourneys() async throws {
         defer { discoveryReset() }
         try await discoveryModeJourney("betterauth")
         try await discoveryModeJourney("workos")
         try await discoveryExpiredDisconnect()
         try await discoveryFreshDisconnect()
+        try await discoveryDeadDisconnect()
         try await discoveryProviderFlip()
         try await discoveryCancelledAndRefused()
         try await discoveryRotationFailures()

@@ -223,9 +223,15 @@ actor TeakSafariService {
             // holds the credential lock longer than logout's wait budget.
             try Data(UUID().uuidString.utf8).write(to: lockURL.appendingPathExtension("epoch"), options: .atomic)
             return try await withCredentials {
-                if let tokens = try self.credentials.load() { try await self.revoke(tokens) }
+                var localOnly = false
+                if let tokens = try self.credentials.load() {
+                    do { try await self.revoke(tokens) }
+                    catch SafariServiceError.invalidRefreshCredential { localOnly = true }
+                }
                 try self.credentials.clear()
-                return ["status": SafariAccountStatus.signedOut.rawValue, "authenticated": false]
+                var result: [String: Any] = ["status": SafariAccountStatus.signedOut.rawValue, "authenticated": false]
+                if localOnly { result["localOnly"] = true; result["message"] = "Signed out on this device. To disconnect other installations, use Settings → Connected apps." }
+                return result
             }
         } catch { return errorResponse(error) }
     }
@@ -332,9 +338,10 @@ actor TeakSafariService {
                 guard sameProvider(auth, latest) else { throw SafariServiceError.unauthenticated }
                 return refreshed.accessToken
             } catch {
-                if case SafariServiceError.unauthenticated = error {
+                if case SafariServiceError.invalidRefreshCredential = error {
                     // Clear only the rejected pair; post-exchange failures must keep its rotation.
                     if try credentials.load()?.refreshToken == tokens.refreshToken { try credentials.clear() }
+                    throw SafariServiceError.unauthenticated
                 }
                 _ = try? await discover(force: true)
                 throw error
@@ -353,7 +360,10 @@ actor TeakSafariService {
         let (data, response) = try await send(request)
         if response.statusCode == 400 || response.statusCode == 401 {
             let body = try? JSONSerialization.jsonObject(with: data) as? [String: Any]
-            if body?["error"] as? String == "invalid_grant" { throw SafariServiceError.unauthenticated }
+            if values["grant_type"] == "refresh_token",
+               body?["error"] as? String == "invalid_grant" || body?["error"] as? String == "invalid_refresh_token" || body?["code"] as? String == "invalid_refresh_token" {
+                throw SafariServiceError.invalidRefreshCredential
+            }
         }
         guard response.statusCode == 200 else { throw SafariServiceError.message("Unable to connect to Teak. Please try again.") }
         var tokens = try SafariOAuthTokens.decode(data)

@@ -17,6 +17,7 @@ let responseStatus = 204;
 let disconnects = 0;
 let refreshes = 0;
 let refreshAllowed = false;
+let refreshFailure: { status: number; body: string } | null = null;
 let refreshedDisconnectStatus = 204;
 const server = serve({
   port: 0,
@@ -44,6 +45,11 @@ const server = serve({
       expect(body.get("client_id")).toBe("client_cli");
       expect(body.get("refresh_token")).toBe("saved-refresh");
       expect(body.get("resource")).toBe("https://teakvault.com/api");
+      if (refreshFailure) {
+        return new Response(refreshFailure.body, {
+          status: refreshFailure.status,
+        });
+      }
       return refreshAllowed
         ? Response.json({
             access_token: "renewed-access",
@@ -244,6 +250,62 @@ test.each([0, 1])(
       writeFileSync(join(directory, "security"), "#!/bin/sh\nexit 1\n", {
         mode: 0o700,
       });
+    }
+  }
+);
+
+test.each([
+  [400, '{"error":"invalid_grant"}', true],
+  [401, '{"error":"invalid_refresh_token"}', true],
+  [401, '{"error":"invalid_client"}', false],
+  [401, "", false],
+  [400, "not-json", false],
+  [503, '{"error":"invalid_grant"}', false],
+] as const)(
+  "dead logout refresh HTTP%i clears only proven invalid grants",
+  async (status, body, clear) => {
+    responseStatus = 401;
+    refreshFailure = { status, body };
+    const file = join(
+      directory,
+      "teak",
+      `credentials-${createHash("sha256").update(server.url.origin).digest("hex")}.json`
+    );
+    const original = JSON.stringify({
+      accessToken: "signed-access",
+      refreshToken: "saved-refresh",
+      expiresAt: 0,
+      binding: {
+        apiUrl: server.url.origin,
+        issuer: server.url.origin,
+        clientId: "client_cli",
+      },
+    });
+    writeFileSync(file, original, { mode: 0o600 });
+    const before = disconnects;
+    try {
+      const child = spawn([process.execPath, "run", "src/index.ts", "logout"], {
+        cwd: new URL("..", import.meta.url).pathname,
+        env: {
+          ...process.env,
+          PATH: `${directory}:${process.env.PATH}`,
+          XDG_CONFIG_HOME: directory,
+          TEAK_API_URL: server.url.origin,
+          TEAK_AUTH_URL: server.url.origin,
+        },
+        stdout: "pipe",
+        stderr: "pipe",
+      });
+      expect(await child.exited).toBe(clear ? 0 : 1);
+      expect(readFileSync(file, "utf8")).toBe(clear ? "" : original);
+      expect(disconnects - before).toBe(1);
+      if (clear) {
+        expect(await new Response(child.stdout).text()).toContain(
+          "other installations"
+        );
+      }
+    } finally {
+      refreshFailure = null;
     }
   }
 );
