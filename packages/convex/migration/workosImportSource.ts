@@ -151,13 +151,18 @@ export const page = internalQuery({
         .withIndex("by_teakUserId", (q) => q.eq("teakUserId", row.teakUserId))
         .take(2);
       const normalizedEmail = row.email.trim().toLowerCase();
-      const sameEmail = await ctx.db
-        .query("users")
-        .withIndex("by_email", (q) => q.eq("email", normalizedEmail))
-        .take(2);
+      // Deleted owners erase their addresses. Empty tombstones retain the
+      // permanent-owner fence but do not occupy the live email namespace.
+      const erasedTombstone = row.deletedAt !== undefined && row.email === "";
+      const sameEmail = erasedTombstone
+        ? []
+        : await ctx.db
+            .query("users")
+            .withIndex("by_email", (q) => q.eq("email", normalizedEmail))
+            .take(2);
       if (
         sameOwner.length !== 1 ||
-        sameEmail.length !== 1 ||
+        (!erasedTombstone && sameEmail.length !== 1) ||
         normalizedEmail !== row.email
       ) {
         throw new Error("Preflight identity collision requires quarantine");
