@@ -51,8 +51,10 @@ const backend = (answers: Record<string, unknown>) =>
         return Promise.reject(new Error(`unexpected mutation ${name}`));
       }
       const answer = answers[name];
-      // Failures are thunks so no rejected promise exists before it is awaited.
-      return typeof answer === "function" ? answer() : Promise.resolve(answer);
+      // An Error answer is a rejection, created only when the call happens.
+      return answer instanceof Error
+        ? Promise.reject(answer)
+        : Promise.resolve(answer);
     }),
     runQuery: mock(async () => null),
   });
@@ -265,8 +267,7 @@ describe("public API auth outcomes", () => {
       "a validator that throws",
       () => undefined,
       {
-        "apiKeys:validateUserApiKey": () =>
-          Promise.reject(new Error("db down")),
+        "apiKeys:validateUserApiKey": new Error("db down"),
       },
       API_KEY,
       500,
@@ -277,12 +278,9 @@ describe("public API auth outcomes", () => {
       () => undefined,
       {
         "apiKeys:validateUserApiKey": VALID_KEY,
-        "raycast:checkApiRateLimit": () =>
-          Promise.reject(
-            new Error(
-              'Documents read from or written to the "rateLimits" table changed while this mutation was being run and on every subsequent retry'
-            )
-          ),
+        "raycast:checkApiRateLimit": new Error(
+          'Documents read from or written to the "rateLimits" table changed while this mutation was being run and on every subsequent retry'
+        ),
       },
       API_KEY,
       429,
