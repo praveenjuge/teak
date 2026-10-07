@@ -72,12 +72,13 @@ describe("buildDevCommand", () => {
     ]);
   });
 
-  test("headless uses stream output", () => {
+  test("headless streams task output as it arrives", () => {
     expect(buildDevCommand("web", { headless: true })).toEqual([
       "turbo",
       "watch",
       "dev",
       "--ui=stream",
+      "--log-order=stream",
       "--filter",
       "@teak/web",
       "--filter",

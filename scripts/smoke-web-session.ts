@@ -53,6 +53,23 @@ export const cookiesFrom = (headers: Headers): string =>
     .filter(Boolean)
     .join("; ");
 
+/**
+ * Status plus Better Auth's error code, e.g. `422 (FAILED_TO_CREATE_USER)`.
+ * Only an uppercase enum-shaped code is reported, so request values and
+ * message text never reach the log.
+ */
+export const describeAuthFailure = (status: number, body: string): string => {
+  let code: unknown;
+  try {
+    code = (JSON.parse(body) as { code?: unknown } | null)?.code;
+  } catch {
+    // Non-JSON bodies are reported by status alone.
+  }
+  return typeof code === "string" && /^[A-Z][A-Z0-9_]{0,63}$/.test(code)
+    ? `${status} (${code})`
+    : `${status}`;
+};
+
 export const runSmoke = async (baseUrl: string): Promise<SmokeReport> => {
   const steps: SmokeStep[] = [];
   const fail = (id: string, detail: string): SmokeReport => {
@@ -104,7 +121,10 @@ export const runSmoke = async (baseUrl: string): Promise<SmokeReport> => {
     method: "POST",
   });
   if (!(signUp.status === 200 || signUp.status === 201)) {
-    return fail("smoke-sign-up", `sign-up returned ${signUp.status}`);
+    return fail(
+      "smoke-sign-up",
+      `sign-up returned ${describeAuthFailure(signUp.status, signUp.body)}`
+    );
   }
   steps.push({
     id: "smoke-sign-up",
@@ -119,7 +139,10 @@ export const runSmoke = async (baseUrl: string): Promise<SmokeReport> => {
   });
   const cookies = cookiesFrom(signIn.headers);
   if (signIn.status !== 200) {
-    return fail("smoke-sign-in", `sign-in returned ${signIn.status}`);
+    return fail(
+      "smoke-sign-in",
+      `sign-in returned ${describeAuthFailure(signIn.status, signIn.body)}`
+    );
   }
   if (!cookies) {
     return fail("smoke-sign-in", "sign-in issued no session cookie");
