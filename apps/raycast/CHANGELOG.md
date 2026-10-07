@@ -4,6 +4,7 @@
 
 - Keep saved sign-ins when a connection or sign-in response is uncertain
 - Support provider changes and clearly show when Sign Out only clears this Mac
+- Recover saved connections that can no longer refresh or reconnect
 
 ## [Reliable search and favorites] - {PR_MERGE_DATE}
 
