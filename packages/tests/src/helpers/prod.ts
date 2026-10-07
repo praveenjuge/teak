@@ -187,25 +187,6 @@ export const clickVisibleControl = async (
   }
 };
 
-/**
- * Repeatedly runs an attempt until isDone reports the click took effect, then
- * returns whether it succeeded. Clicks against production can land before the
- * page has hydrated and silently no-op, so single-click flows need retries.
- */
-export const retryClickUntil = async (
-  isDone: () => Promise<boolean>,
-  attempt: () => Promise<void>,
-  maxAttempts = 3
-): Promise<boolean> => {
-  for (let index = 0; index < maxAttempts; index += 1) {
-    if (await isDone()) {
-      return true;
-    }
-    await attempt();
-  }
-  return isDone();
-};
-
 export const fillAndSubmitTextCard = async (page: Page, content: string) => {
   const creationForm = page.locator("form[data-card-creation-status]");
   const readyCreationForm = page.locator(
@@ -366,35 +347,26 @@ export const openSecurity = async (
     name: "Manage",
   });
   const dialog = page.getByRole("dialog", { name: "Security", exact: true });
-  // On slow production loads the first click can land before the settings
-  // page has hydrated, silently no-oping. Retry opening the dialog instead of
-  // assuming the first attempt took.
-  for (
-    let attempt = 0;
-    attempt < 3 && !(await dialog.isVisible());
-    attempt += 1
-  ) {
-    await clickVisibleControl(manageButton);
-    await dialog
-      .waitFor({ state: "visible", timeout: 15_000 })
-      .catch(() => undefined);
-  }
-  await expect(dialog).toBeVisible();
-  // The tab click can land before the page has hydrated and silently no-op,
-  // just like the Manage click above. Radix only mounts the active tab panel,
-  // so a missed click leaves the panel's controls (for example "Create key")
-  // permanently absent. Retry until the tab reports itself selected.
   const tabTrigger = dialog.getByRole("tab", { name: tab, exact: true });
-  const tabSelected = async () =>
-    (await tabTrigger.getAttribute("aria-selected").catch(() => null)) ===
-    "true";
-  await retryClickUntil(tabSelected, async () => {
-    await clickVisibleControl(tabTrigger);
-    await expect(tabTrigger)
-      .toHaveAttribute("aria-selected", "true", { timeout: 5000 })
-      .catch(() => undefined);
-  });
-  await expect(tabTrigger).toHaveAttribute("aria-selected", "true");
+  const tabPanel = dialog.getByRole("tabpanel", { name: tab, exact: true });
+  // A click can fail to select its tab, or the dialog can disappear afterward.
+  // Retry the complete read-only navigation, verifying the mounted panel.
+  await expect(async () => {
+    if (!(await dialog.isVisible())) {
+      await clickVisibleControl(manageButton, { timeout: 2500 });
+    }
+    await expect(dialog).toBeVisible({ timeout: 2500 });
+    if (
+      (await tabTrigger.getAttribute("aria-selected", { timeout: 2500 })) !==
+      "true"
+    ) {
+      await clickVisibleControl(tabTrigger, { timeout: 2500 });
+    }
+    await expect(tabTrigger).toHaveAttribute("aria-selected", "true", {
+      timeout: 2500,
+    });
+    await expect(tabPanel).toBeVisible({ timeout: 2500 });
+  }).toPass({ intervals: [250, 500, 1000], timeout: 20_000 });
   return dialog;
 };
 

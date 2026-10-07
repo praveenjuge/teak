@@ -246,7 +246,7 @@ for (const failure of [
             .join("");
           await route.fulfill({
             contentType: "text/html",
-            body: `<div><span>Security</span><button onclick="document.querySelector('[role=dialog]').hidden=false">Manage</button></div><div role="dialog" aria-label="Security" hidden><button role="tab" aria-selected="true">Connections</button>${rows}</div><script>async function disconnect(button,id){await fetch('/fixture/disconnect/'+id,{method:'POST'});button.parentElement.remove()}</script>`,
+            body: `<div><span>Security</span><button onclick="document.querySelector('[role=dialog]').hidden=false">Manage</button></div><div role="dialog" aria-label="Security" hidden><button id="connections" role="tab" aria-selected="true">Connections</button><div role="tabpanel" aria-labelledby="connections">${rows}</div></div><script>async function disconnect(button,id){await fetch('/fixture/disconnect/'+id,{method:'POST'});button.parentElement.remove()}</script>`,
           });
         });
         await page.route(
