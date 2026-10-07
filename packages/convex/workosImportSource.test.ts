@@ -395,3 +395,70 @@ test.each(["deleted", "duplicate"])(
     });
   }
 );
+
+test("source pages preserve distinct deleted owners sharing an erased email beside an active owner", async () => {
+  const t = setup();
+  const activeId = await seed(t);
+  await t.run(async (ctx) => {
+    for (const teakUserId of ["erased-owner-one", "erased-owner-two"]) {
+      await ctx.db.insert("users", {
+        teakUserId,
+        email: "",
+        emailVerified: false,
+        deletedAt: 123,
+      });
+    }
+  });
+  const page = await t.query(internal.migration.workosImportSource.page, {
+    ...pins,
+    cursor: null,
+  });
+  expect(page.done).toBe(true);
+  expect(page.unresolvedQuarantine).toBe(false);
+  expect(page.owners).toHaveLength(3);
+  expect(
+    page.owners.find(
+      (owner: { teakUserId: string }) => owner.teakUserId === activeId
+    )
+  ).toMatchObject({
+    email: "import@example.com",
+    deletedAt: null,
+  });
+  for (const teakUserId of ["erased-owner-one", "erased-owner-two"]) {
+    expect(
+      page.owners.find(
+        (owner: { teakUserId: string }) => owner.teakUserId === teakUserId
+      )
+    ).toMatchObject({
+      email: "",
+      deletedAt: 123,
+      passwordHash: null,
+      workosUserId: null,
+    });
+  }
+});
+test.each(["duplicate-owner", "active-erased", "retained-email"])(
+  "source pages retain collision fences for %s while allowing erased tombstones",
+  async (state) => {
+    const t = setup();
+    await t.run(async (ctx) => {
+      for (let index = 0; index < 2; index++) {
+        await ctx.db.insert("users", {
+          teakUserId:
+            state === "duplicate-owner" ? "same-owner" : `owner-${index}`,
+          email: state === "retained-email" ? "retained@example.com" : "",
+          emailVerified: false,
+          ...(state === "active-erased" && index === 1
+            ? {}
+            : { deletedAt: 123 }),
+        });
+      }
+    });
+    await expect(
+      t.query(internal.migration.workosImportSource.page, {
+        ...pins,
+        cursor: null,
+      })
+    ).rejects.toThrow("identity collision");
+  }
+);
