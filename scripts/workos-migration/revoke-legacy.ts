@@ -1,10 +1,9 @@
-import { execFile } from "node:child_process";
 import { createHash } from "node:crypto";
 import { writeFile } from "node:fs/promises";
 import { resolve } from "node:path";
-import { parseArgs, promisify } from "node:util";
+import { parseArgs } from "node:util";
 import { z } from "zod";
-import { parseConvexCliResponse } from "./convex-cli-response";
+import { runConvexFunction } from "./convex-cli-response";
 import { readPrivate } from "./quiesce-importer";
 
 const grantPage = z
@@ -71,29 +70,10 @@ export async function main(
     holder: receipt.holder,
     generation: receipt.generation,
   };
-  const execute = promisify(execFile);
-  const run = async (name: string, input: unknown) => {
-    if (transport) {
-      return await transport(name, input);
-    }
-    const { stdout } = await execute(
-      process.execPath,
-      [
-        "x",
-        "convex",
-        "run",
-        "--deployment-name",
-        receipt.deployment,
-        name,
-        JSON.stringify(input),
-      ],
-      {
-        cwd: resolve(import.meta.dir, "../../packages/convex"),
-        maxBuffer: 64 * 1024,
-      }
-    );
-    return parseConvexCliResponse(stdout);
-  };
+  const run = async (name: string, input: unknown) =>
+    transport
+      ? await transport(name, input)
+      : await runConvexFunction(receipt.deployment, name, input, 64 * 1024);
   await run("migration/workosImportLease:verifyQuiescence", pins);
   if (!values.apply) {
     console.log(

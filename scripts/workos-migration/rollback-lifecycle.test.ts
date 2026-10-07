@@ -2,7 +2,7 @@ import { expect, test } from "bun:test";
 import { createHash } from "node:crypto";
 import { mkdtemp, readFile, stat, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
 import { main } from "./rollback-lifecycle";
 
 // Operator failure modes: missing independent approvals, malformed page/cursor,
@@ -61,6 +61,20 @@ async function withKey(operation: () => Promise<void>) {
     }
   }
 }
+// A dry run under the same held barrier: the plan an activation approval reviews.
+async function reviewedDryRun(
+  f: { report: string; args: string[] },
+  transport: (name: string, args: unknown) => Promise<unknown> = (name) =>
+    Promise.resolve(
+      name.endsWith(":page")
+        ? { owners: [row], done: true, cursor: null }
+        : null
+    ) as Promise<unknown>
+) {
+  const path = join(dirname(f.report), "reviewed-dry-run.json");
+  await main([...f.args.slice(0, -1), path], transport);
+  return ["--reviewed-dry-run", path];
+}
 test("operator dry-run produces private evidence without mutation or flag change", async () => {
   await withKey(async () => {
     const f = await fixture(),
@@ -102,6 +116,7 @@ test("operator apply verifies the final lifecycle and leaves primary/barrier unc
     let applied = false;
     const args = [
       ...f.args,
+      ...(await reviewedDryRun(f)),
       "--apply",
       "--password-policy",
       "invalidate-all-mapped-legacy-passwords",
@@ -219,6 +234,7 @@ test("a lost writer acknowledgment stays uncertain and explicit rerun starts fro
     let applied = false,
       loseAcknowledgment = true;
     const approvals = [
+      ...(await reviewedDryRun(f)),
       "--apply",
       "--password-policy",
       "invalidate-all-mapped-legacy-passwords",
@@ -283,5 +299,340 @@ test("a lost writer acknowledgment stays uncertain and explicit rerun starts fro
       counts: { invalidated: 0, verified: 0 },
       primaryChanged: false,
     });
+  });
+});
+
+const policy = [
+  "--apply",
+  "--password-policy",
+  "invalidate-all-mapped-legacy-passwords",
+  "--policy-approval-reference",
+  "test-policy",
+  "--activation-approval-reference",
+  "test-activation",
+];
+const digest = (ids: string[]) =>
+  createHash("sha256").update(ids.sort().join("\n")).digest("hex");
+test("a dry run records the exact owner plan an approval can quote", async () => {
+  await withKey(async () => {
+    const f = await fixture();
+    const [, path] = await reviewedDryRun(f);
+    expect(JSON.parse(await readFile(path, "utf8")).plan).toEqual({
+      owners: 1,
+      mapped: 1,
+      mapping: {
+        count: 1,
+        sha256: digest(["permanent\tuser_test"]),
+        pairs: ["permanent\tuser_test"],
+      },
+      deniedDeleted: { count: 0, sha256: digest([]), teakUserIds: [] },
+      invalidate: {
+        count: 1,
+        sha256: digest(["permanent"]),
+        teakUserIds: ["permanent"],
+      },
+      verify: {
+        count: 1,
+        sha256: digest(["permanent"]),
+        teakUserIds: ["permanent"],
+      },
+      fences: { count: 0, sha256: digest([]), teakUserIds: [] },
+    });
+  });
+});
+test("apply without a reviewed dry run is refused before any backend call", async () => {
+  await withKey(async () => {
+    const f = await fixture();
+    let calls = 0;
+    await expect(
+      main([...f.args, ...policy], () => {
+        calls++;
+        return Promise.resolve(null);
+      })
+    ).rejects.toThrow("reviewed dry-run report");
+    expect(calls).toBe(0);
+  });
+});
+test.each([
+  ["another barrier generation", { generation: 2 }],
+  ["an edited owner list", { listEdited: true }],
+  ["an edited provider mapping", { mappingEdited: true }],
+  ["an applied report", { mutationExecuted: true }],
+])(
+  "a reviewed dry run from %s is refused before any backend call",
+  async (_label, change) => {
+    await withKey(async () => {
+      const f = await fixture();
+      const [flag, path] = await reviewedDryRun(f);
+      const reviewed = JSON.parse(await readFile(path, "utf8"));
+      if ("listEdited" in change) {
+        reviewed.plan.invalidate.teakUserIds.push("someone-else");
+        reviewed.plan.invalidate.count = 2;
+      } else if ("mappingEdited" in change) {
+        reviewed.plan.mapping.pairs = ["permanent\tuser_other"];
+      } else {
+        Object.assign(reviewed, change);
+      }
+      const edited = join(dirname(path), "edited-dry-run.json");
+      await writeFile(edited, JSON.stringify(reviewed), {
+        flag: "wx",
+        mode: 0o600,
+      });
+      let calls = 0;
+      await expect(
+        main([...f.args, flag, edited, ...policy], () => {
+          calls++;
+          return Promise.resolve(null);
+        })
+      ).rejects.toThrow();
+      expect(calls).toBe(0);
+      await expect(stat(`${f.report}.invocation.jsonl`)).rejects.toThrow();
+    });
+  }
+);
+type Owner = Omit<typeof row, "workosUserId"> & {
+  workosUserId: string | null;
+};
+// A pinned deployment for the CLI's own checks. Each owner carries the flags
+// the plan query reports; the writer applies one page per call and records the
+// scope it was handed. Its in-transaction scope check is covered against the
+// real mutation in packages/convex/workosRollbackPlan.test.ts.
+function deployment(
+  states: Record<string, Partial<Owner>>,
+  events: {
+    afterWrite?: (cursor: string | null) => void;
+    refuse?: (cursor: string | null) => boolean;
+  } = {}
+) {
+  const ids = Object.keys(states);
+  const owners: Record<string, Owner> = Object.fromEntries(
+    ids.map((id) => [
+      id,
+      {
+        ...row,
+        teakUserId: id,
+        workosUserId: `user_${id}`,
+        invalidateLegacyPassword: false,
+        markSameEmailVerified: false,
+        ...states[id],
+      },
+    ])
+  );
+  const writes: string[] = [],
+    scopes: unknown[] = [];
+  const page = (cursor: string | null) => {
+    const start = Number(cursor ?? 0);
+    return {
+      slice: ids.slice(start, start + 1),
+      next: start + 1 < ids.length ? String(start + 1) : null,
+    };
+  };
+  const transport = (name: string, args: unknown) => {
+    const input = (args ?? {}) as {
+      cursor?: string | null;
+      reviewed?: unknown;
+    };
+    const cursor = input.cursor ?? null;
+    if (name.endsWith(":page")) {
+      const { slice, next } = page(cursor);
+      return Promise.resolve({
+        owners: slice.map((id) => ({ ...owners[id] })),
+        done: next === null,
+        cursor: next,
+      });
+    }
+    if (name.endsWith(":applyPage")) {
+      scopes.push(input.reviewed);
+      if (events.refuse?.(cursor)) {
+        return Promise.reject(new Error("outside the reviewed dry run"));
+      }
+      const { slice, next } = page(cursor);
+      const result = {
+        scanned: slice.length,
+        invalidated: 0,
+        verified: 0,
+        deletionFences: 0,
+        done: next === null,
+        cursor: next,
+      };
+      for (const id of slice) {
+        const owner = owners[id];
+        if (owner.invalidateLegacyPassword) {
+          owner.invalidateLegacyPassword = false;
+          result.invalidated++;
+          writes.push(`invalidate:${id}`);
+        }
+        if (owner.markSameEmailVerified) {
+          owner.markSameEmailVerified = false;
+          result.verified++;
+          writes.push(`verify:${id}`);
+        }
+        if (owner.promoteDeletion) {
+          owner.promoteDeletion = false;
+          owner.deniedDeleted = true;
+          result.deletionFences++;
+          writes.push(`fence:${id}`);
+        }
+      }
+      events.afterWrite?.(cursor);
+      return Promise.resolve(result);
+    }
+    return Promise.resolve(null);
+  };
+  return { owners, writes, scopes, transport };
+}
+
+test.each([
+  [
+    "selected to invalidate",
+    (o: Owner) => Object.assign(o, { invalidateLegacyPassword: true }),
+  ],
+  [
+    "selected to verify",
+    (o: Owner) => Object.assign(o, { markSameEmailVerified: true }),
+  ],
+  [
+    "selected to fence",
+    (o: Owner) =>
+      Object.assign(o, { promoteDeletion: true, deniedDeleted: true }),
+  ],
+  ["newly denied", (o: Owner) => Object.assign(o, { deniedDeleted: true })],
+  ["relinked", (o: Owner) => Object.assign(o, { workosUserId: "user_other" })],
+])(
+  "an owner %s since the reviewed dry run stops the run before any dispatch",
+  async (_label, change) => {
+    await withKey(async () => {
+      const f = await fixture();
+      const target = deployment({ permanent: {}, late: {} });
+      const reviewed = await reviewedDryRun(f, target.transport);
+      change(target.owners.late);
+      await expect(
+        main([...f.args, ...reviewed, ...policy], target.transport)
+      ).rejects.toThrow("nothing was written");
+      expect(target.scopes).toEqual([]);
+      const journal = await readFile(`${f.report}.invocation.jsonl`, "utf8");
+      expect(journal).not.toContain("dispatching_page");
+      await expect(stat(f.report)).rejects.toThrow();
+    });
+  }
+);
+test("every writer page receives the exact reviewed scope, and a lost acknowledgment resumes to the same result", async () => {
+  await withKey(async () => {
+    const f = await fixture();
+    let lose = true;
+    const target = deployment({
+      a: { invalidateLegacyPassword: true, markSameEmailVerified: true },
+      // The plan reports a provider-deleted owner as denied and to be fenced.
+      b: { promoteDeletion: true, deniedDeleted: true },
+      c: { deniedDeleted: true, workosUserId: null },
+    });
+    const reviewed = await reviewedDryRun(f, target.transport);
+    const losing = (name: string, args: unknown) =>
+      target.transport(name, args).then((result) => {
+        if (name.endsWith(":applyPage") && lose) {
+          lose = false;
+          throw new Error("Lost acknowledgment");
+        }
+        return result;
+      });
+    await expect(
+      main([...f.args, ...reviewed, ...policy], losing)
+    ).rejects.toThrow("Lost acknowledgment");
+    const resumed = join(dirname(f.report), "resumed-report.json");
+    await main(
+      [...f.args.slice(0, -1), resumed, ...reviewed, ...policy],
+      losing
+    );
+    expect(target.writes).toEqual(["invalidate:a", "verify:a", "fence:b"]);
+    expect(JSON.parse(await readFile(resumed, "utf8"))).toMatchObject({
+      mutationExecuted: true,
+      counts: { scanned: 3, invalidated: 0, verified: 0, deletionFences: 1 },
+    });
+    // Each call carries only the reviewed entries for the owners on its page.
+    const scopeA = {
+      invalidate: ["a"],
+      verify: ["a"],
+      fences: [],
+      denied: [],
+      mappings: [{ teakUserId: "a", workosUserId: "user_a" }],
+    };
+    expect(target.scopes).toEqual([
+      scopeA,
+      scopeA,
+      {
+        invalidate: [],
+        verify: [],
+        fences: ["b"],
+        denied: ["b"],
+        mappings: [{ teakUserId: "b", workosUserId: "user_b" }],
+      },
+      { invalidate: [], verify: [], fences: [], denied: ["c"], mappings: [] },
+    ]);
+  });
+});
+test("writer calls stay page-sized however many owners were reviewed", async () => {
+  await withKey(async () => {
+    const f = await fixture();
+    const target = deployment(
+      Object.fromEntries(
+        Array.from({ length: 2000 }, (_, index) => [
+          `owner${index}`,
+          { invalidateLegacyPassword: true },
+        ])
+      )
+    );
+    const reviewed = await reviewedDryRun(f, target.transport);
+    const sizes: number[] = [];
+    await main([...f.args, ...reviewed, ...policy], (name, args) => {
+      if (name.endsWith(":applyPage")) {
+        sizes.push(JSON.stringify(args).length);
+      }
+      return target.transport(name, args);
+    });
+    expect(sizes).toHaveLength(2000);
+    // The whole scope would be about 200 KB, past Linux's 128 KiB argv limit.
+    expect(Math.max(...sizes)).toBeLessThan(2048);
+  });
+});
+test("a writer refusal stops the run with earlier pages kept and no completion report", async () => {
+  await withKey(async () => {
+    const f = await fixture();
+    const target = deployment(
+      { a: { invalidateLegacyPassword: true }, b: {} },
+      { refuse: (cursor) => cursor !== null }
+    );
+    const reviewed = await reviewedDryRun(f, target.transport);
+    await expect(
+      main([...f.args, ...reviewed, ...policy], target.transport)
+    ).rejects.toThrow("outside the reviewed dry run");
+    expect(target.writes).toEqual(["invalidate:a"]);
+    const lines = (await readFile(`${f.report}.invocation.jsonl`, "utf8"))
+      .trim()
+      .split("\n");
+    expect(JSON.parse(lines[lines.length - 1])).toMatchObject({
+      stage: "dispatching_page",
+      cursor: "1",
+    });
+    await expect(stat(f.report)).rejects.toThrow();
+  });
+});
+test("an owner relinked after its page was written fails the end-of-run check", async () => {
+  await withKey(async () => {
+    const f = await fixture();
+    const target = deployment(
+      { a: { invalidateLegacyPassword: true }, b: {} },
+      {
+        afterWrite: (cursor) => {
+          if (cursor === "1") {
+            target.owners.a.workosUserId = "user_other";
+          }
+        },
+      }
+    );
+    const reviewed = await reviewedDryRun(f, target.transport);
+    await expect(
+      main([...f.args, ...reviewed, ...policy], target.transport)
+    ).rejects.toThrow("changed outside the reviewed dry run");
+    await expect(stat(f.report)).rejects.toThrow();
   });
 });

@@ -1,9 +1,7 @@
-import { execFile } from "node:child_process";
 import { createHash } from "node:crypto";
 import { lstat, readFile, writeFile } from "node:fs/promises";
 import { resolve } from "node:path";
-import { promisify } from "node:util";
-import { parseConvexCliResponse } from "./convex-cli-response";
+import { runConvexFunction } from "./convex-cli-response";
 
 export interface BarrierReceipt {
   apiKeyFingerprint: string;
@@ -16,7 +14,6 @@ export interface BarrierReceipt {
   runId: string;
   version: 1;
 }
-const execute = promisify(execFile);
 export async function readPrivate(path: string): Promise<BarrierReceipt> {
   const info = await lstat(path);
   if (!info.isFile() || info.mode % 0o100 !== 0) {
@@ -86,28 +83,10 @@ export async function main(
   }
   const apiKeyFingerprint = createHash("sha256").update(key).digest("hex"),
     pins = { environmentId, clientId, apiKeyFingerprint };
-  const run = async (name: string, input: unknown) => {
-    if (transport) {
-      return await transport(name, input);
-    }
-    const { stdout } = await execute(
-      process.execPath,
-      [
-        "x",
-        "convex",
-        "run",
-        "--deployment-name",
-        deployment,
-        name,
-        JSON.stringify(input),
-      ],
-      {
-        cwd: resolve(import.meta.dir, "../../packages/convex"),
-        maxBuffer: 64 * 1024,
-      }
-    );
-    return parseConvexCliResponse(stdout);
-  };
+  const run = async (name: string, input: unknown) =>
+    transport
+      ? await transport(name, input)
+      : await runConvexFunction(deployment, name, input, 64 * 1024);
   if (operation === "status" || (!apply && operation !== "verify")) {
     console.log(
       JSON.stringify({

@@ -1,10 +1,8 @@
-import { execFile } from "node:child_process";
 import { createHash, randomBytes } from "node:crypto";
 import { stat, writeFile } from "node:fs/promises";
 import { resolve } from "node:path";
-import { promisify } from "node:util";
 import { NotFoundException, WorkOS } from "@workos-inc/node";
-import { parseConvexCliResponse } from "./convex-cli-response";
+import { runConvexFunction } from "./convex-cli-response";
 import {
   type ImportedUser,
   type ImportOwner,
@@ -23,7 +21,6 @@ import {
   preflight,
 } from "./preflight";
 
-const execute = promisify(execFile);
 function argumentsFor(argv: string[]) {
   const known = new Set([
     "--deployment",
@@ -186,23 +183,12 @@ export async function main(
       return (await convexTransport(name, args)) as T;
     }
     // argv avoids shell substitution; secrets are returned only in captured stdout.
-    const { stdout } = await execute(
-      process.execPath,
-      [
-        "x",
-        "convex",
-        "run",
-        "--deployment-name",
-        deployment,
-        name,
-        JSON.stringify(args),
-      ],
-      {
-        cwd: resolve(import.meta.dir, "../../packages/convex"),
-        maxBuffer: 2 * 1024 * 1024,
-      }
-    );
-    return parseConvexCliResponse(stdout) as T;
+    return (await runConvexFunction(
+      deployment,
+      name,
+      args,
+      2 * 1024 * 1024
+    )) as T;
   }
   const user = (remote: {
     id: string;
