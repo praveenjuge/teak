@@ -361,10 +361,12 @@ export const checkpoint = internalMutation({
             }
             if (
               !current.profile ||
+              (current.profile.name ?? null) !== (remote.name ?? null) ||
               Object.keys(remote).some(
                 (key) =>
+                  key !== "name" &&
                   current.profile?.[key as keyof typeof remote] !==
-                  remote[key as keyof typeof remote]
+                    remote[key as keyof typeof remote]
               )
             ) {
               reasons.push("profile_difference");

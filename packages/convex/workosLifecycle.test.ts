@@ -871,3 +871,52 @@ describe("new WorkOS lifecycle owners", () => {
     expect(after.scheduled).toEqual(before.scheduled);
   });
 });
+
+test("signed lifecycle ingestion preserves a provider full name without fabricated split names", async () => {
+  const t = setup();
+  await seed(t);
+  const envelope = event("evt_full_name", 1, "user.created");
+  expect(
+    await t.mutation(apply, {
+      ...envelope,
+      data: { ...envelope.data, name: "Imported Full Name" },
+    })
+  ).toEqual({ status: "applied" });
+  expect(
+    await t.run((ctx) => readCanonicalWorkosProfile(ctx, "user_provider"))
+  ).toMatchObject({
+    teakUserId: "owner-a",
+    profile: { name: "Imported Full Name", firstName: null, lastName: null },
+  });
+});
+
+test("historical same-version full-name replay records its receipt without quarantining or hydrating", async () => {
+  const t = setup();
+  await seed(t);
+  await t.mutation(apply, event("evt_before_name", 1, "user.created"));
+  await t.run(async (ctx) => {
+    const record = await ctx.db.query("workosProfiles").first();
+    if (!record?.profile) {
+      throw new Error("Missing fixture profile");
+    }
+    const { name: _uncaptured, ...profile } = record.profile;
+    await ctx.db.patch("workosProfiles", record._id, { profile });
+  });
+  const before = await snapshot(t);
+  const envelope = event("evt_replayed_name", 1);
+  expect(
+    await t.mutation(apply, {
+      ...envelope,
+      data: { ...envelope.data, name: "Imported Full Name" },
+    })
+  ).toEqual({ status: "stale" });
+  const after = await snapshot(t);
+  expect(after.events).toHaveLength(2);
+  expect(after.events[1].eventId).toBe("evt_replayed_name");
+  expect(after.quarantine).toEqual([]);
+  expect(after.users).toEqual(before.users);
+  expect(
+    (await t.run((ctx) => readCanonicalWorkosProfile(ctx, "user_provider")))
+      ?.profile?.name
+  ).toBeUndefined();
+});

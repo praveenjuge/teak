@@ -105,11 +105,13 @@ export const applyWorkosEvent = internalMutation({
       email,
       emailVerified: event.data.emailVerified as boolean,
       externalId: externalId as string | null,
+      name: event.data.name ?? null,
       firstName: event.data.firstName ?? null,
       lastName: event.data.lastName ?? null,
       profilePictureUrl: event.data.profilePictureUrl ?? null,
     };
     for (const value of [
+      profile.name,
       profile.firstName,
       profile.lastName,
       profile.profilePictureUrl,

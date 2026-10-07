@@ -748,3 +748,119 @@ describe("canonical WorkOS provider profile application", () => {
     }
   );
 });
+
+describe("independent provider full names", () => {
+  test("hydrates only a missing full name from a fenced current provider GET at the same version", async () => {
+    const t = setup();
+    await seed(t);
+    await active(t);
+    const before = await snapshot(t);
+    expect(
+      await t.mutation(apply, {
+        workosUserId: userId,
+        state: {
+          kind: "active",
+          providerUpdatedAt: earlier,
+          profile: { ...profile, name: "Imported Full Name" },
+        },
+        source: await repairSource(t),
+      })
+    ).toEqual({ status: "applied", teakUserId: "owner-a" });
+    const after = await snapshot(t);
+    expect(after.profiles[0].profile).toEqual({
+      ...profile,
+      name: "Imported Full Name",
+    });
+    expect(after.users).toEqual(before.users);
+    expect(after.cards).toEqual(before.cards);
+    expect(after.quarantine).toEqual([]);
+  });
+  test("full-name differences preserve stale and equal-version conflict fences", async () => {
+    const t = setup();
+    await seed(t);
+    await active(t, later, { name: "Current Name" });
+    expect(await active(t, earlier, { name: "Stale Name" })).toEqual({
+      status: "stale",
+    });
+    expect(await active(t, later, { name: "Conflicting Name" })).toEqual({
+      status: "quarantined",
+      reason: "equal_timestamp_conflict",
+    });
+    expect((await snapshot(t)).profiles[0].profile?.name).toBe("Current Name");
+  });
+  test("name hydration cannot disguise equal-version identity changes", async () => {
+    const t = setup();
+    await seed(t);
+    await active(t);
+    expect(
+      await t.mutation(apply, {
+        workosUserId: userId,
+        state: {
+          kind: "active",
+          providerUpdatedAt: earlier,
+          profile: { ...profile, name: "Imported Name", emailVerified: false },
+        },
+        source: await repairSource(t),
+      })
+    ).toEqual({ status: "quarantined", reason: "equal_timestamp_conflict" });
+    expect((await snapshot(t)).profiles[0].profile).toEqual(profile);
+  });
+});
+
+test.each(["omitted", "explicit_null"])(
+  "equal-version name recovery rejects %s ambiguity",
+  async (kind) => {
+    const t = setup();
+    await seed(t);
+    const fields: Partial<NonNullable<Doc<"workosProfiles">["profile"]>> = {};
+    if (kind === "omitted") {
+      fields.name = "Captured Name";
+    }
+    if (kind === "explicit_null") {
+      fields.name = null;
+    }
+    await active(t, earlier, fields);
+    const incoming =
+      kind === "omitted" ? profile : { ...profile, name: "New Name" };
+    expect(
+      await t.mutation(apply, {
+        workosUserId: userId,
+        state: {
+          kind: "active",
+          providerUpdatedAt: earlier,
+          profile: incoming,
+        },
+        source: await repairSource(t),
+      })
+    ).toEqual({ status: "quarantined", reason: "equal_timestamp_conflict" });
+  }
+);
+
+test("historical full-name-only events do not quarantine or backfill before a fenced GET", async () => {
+  const t = setup();
+  await seed(t);
+  await active(t);
+  expect(await active(t, earlier, { name: "Imported Full Name" })).toEqual({
+    status: "unchanged",
+    teakUserId: "owner-a",
+  });
+  const held = await snapshot(t);
+  expect(held.quarantine).toEqual([]);
+  expect(held.profiles[0].profile?.name).toBeUndefined();
+  expect(
+    await t.mutation(apply, {
+      workosUserId: userId,
+      state: {
+        kind: "active",
+        providerUpdatedAt: earlier,
+        profile: { ...profile, name: "Imported Full Name" },
+      },
+      source: await repairSource(t),
+    })
+  ).toEqual({ status: "applied", teakUserId: "owner-a" });
+  const after = await snapshot(t);
+  expect(after.profiles[0].profile?.name).toBe("Imported Full Name");
+  expect(after.users[0].workosEmailVerified).toBe(true);
+  expect(after.users).toEqual(held.users);
+  expect(after.cards).toEqual(held.cards);
+});

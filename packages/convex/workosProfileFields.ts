@@ -6,6 +6,8 @@ export const workosProfileValidator = v.object({
   email: v.string(),
   emailVerified: v.boolean(),
   externalId: v.union(v.string(), v.null()),
+  // Optional for profiles captured before WorkOS added independent full names.
+  name: v.optional(v.union(v.string(), v.null())),
   firstName: v.union(v.string(), v.null()),
   lastName: v.union(v.string(), v.null()),
   profilePictureUrl: v.union(v.string(), v.null()),

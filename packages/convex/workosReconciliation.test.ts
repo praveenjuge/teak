@@ -671,7 +671,11 @@ describe("reconciliation failure boundaries", () => {
           });
         }
         if (path === `/user_management/users/${userId}`) {
-          return Response.json(remoteUser(userId));
+          return Response.json({
+            ...remoteUser(userId),
+            name: "Independent Full Name",
+            first_name: null,
+          });
         }
         if (path === "/user_management/users/user_witness") {
           return Response.json(remoteUser("user_witness"));
@@ -695,7 +699,11 @@ describe("reconciliation failure boundaries", () => {
     });
     expect(state.profiles[0]).toMatchObject({
       teakUserId: "owner",
-      profile: { externalId: "owner" },
+      profile: {
+        externalId: "owner",
+        name: "Independent Full Name",
+        firstName: null,
+      },
     });
     expect(state.events).toEqual([]);
   });
@@ -742,3 +750,118 @@ describe("reconciliation failure boundaries", () => {
     expect(state.users[0].workosDeletedAt).toBeUndefined();
   });
 });
+
+test("events audit continues with a cursor instead of range_start, retaining the fixed range_end", async () => {
+  const t = setup();
+  const requests: URL[] = [];
+  vi.stubGlobal("fetch", (input: string | URL) => {
+    const url = new URL(String(input));
+    if (url.pathname === "/user_management/users/user_witness") {
+      return Promise.resolve(Response.json(remoteUser("user_witness")));
+    }
+    if (url.pathname !== "/events") {
+      throw new Error(`Unexpected provider path ${url.pathname}`);
+    }
+    requests.push(url);
+    if (url.searchParams.has("after") && url.searchParams.has("range_start")) {
+      return Promise.resolve(
+        Response.json(
+          {
+            message: "Only one of range_start and after may be provided.",
+            code: "invalid_events_request",
+          },
+          { status: 400 }
+        )
+      );
+    }
+    return Promise.resolve(
+      Response.json({
+        data: [],
+        list_metadata: {
+          before: null,
+          after: url.searchParams.has("after") ? null : "event_next",
+        },
+      })
+    );
+  });
+  const { apiKeyFingerprint: _fingerprint, ...args } = admission;
+  const runId = await t.action(internal.workosReconciliationActions.start, {
+    ...args,
+    mode: "audit",
+  });
+  await t.action(internal.workosReconciliationActions.resume, { runId });
+  expect(requests).toHaveLength(2);
+  expect(requests[0].searchParams.get("range_start")).toBe(
+    admission.rangeStart
+  );
+  expect(requests[0].searchParams.has("after")).toBe(false);
+  expect(requests[1].searchParams.get("after")).toBe("event_next");
+  expect(requests[1].searchParams.has("range_start")).toBe(false);
+  expect(requests.map((url) => url.searchParams.get("range_end"))).toEqual([
+    admission.rangeEnd,
+    admission.rangeEnd,
+  ]);
+  expect((await read(t)).runs[0]).toMatchObject({
+    phase: "provider",
+    retryCount: 0,
+  });
+});
+
+test.each([null, "Imported Full Name"])(
+  "audit treats old omitted names as absent and detects provider name enrichment (%s)",
+  async (name) => {
+    const t = setup();
+    await seed(t);
+    const profile = {
+      email: "provider@example.com",
+      emailVerified: true,
+      externalId: "owner",
+      firstName: null,
+      lastName: null,
+      profilePictureUrl: null,
+    };
+    await t.run((ctx) =>
+      ctx.db.insert("workosProfiles", {
+        workosUserId: userId,
+        teakUserId: "owner",
+        profile,
+        providerUpdatedAt: admission.rangeEnd,
+        revision: 1,
+        source: "event",
+      })
+    );
+    const before = await read(t);
+    const run = await claim(t, { mode: "audit" as never });
+    await t.run((ctx) =>
+      ctx.db.patch("workosReconciliationRuns", run._id, { phase: "provider" })
+    );
+    const expectedState = await t.query(
+      internal.workosProfileApply.captureWorkosProfileState,
+      { workosUserId: userId }
+    );
+    await t.mutation(internal.workosReconciliation.checkpoint, {
+      ...page(run),
+      phase: "provider",
+      observations: [
+        {
+          workosUserId: userId,
+          expectedState,
+          state: {
+            kind: "active",
+            providerUpdatedAt: admission.rangeEnd,
+            profile: { ...profile, name },
+          },
+        },
+      ],
+    });
+    const after = await read(t);
+    expect(after.runs[0].drifted).toBe(name === null ? 0 : 1);
+    expect(after.runs[0].auditEvidence).toEqual(
+      name === null
+        ? []
+        : [{ workosUserId: userId, reasons: ["profile_difference"] }]
+    );
+    expect(after.profiles).toEqual(before.profiles);
+    expect(after.users).toEqual(before.users);
+  }
+);
