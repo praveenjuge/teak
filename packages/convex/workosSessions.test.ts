@@ -15,13 +15,18 @@ import {
 
 const modules = import.meta.glob("./**/*.ts");
 const clientId = "client_SESSION";
+// The identity Convex exposes for a hosted AuthKit access token through the
+// customJwt provider: claims stay raw (`email_verified`, not `emailVerified`).
 const claims = {
   issuer: `https://api.workos.com/user_management/${clientId}`,
   subject: "user_PROVIDER",
   sid: "session_DEVICE",
-  emailVerified: true,
+  email_verified: true,
   email: "jwt@example.com",
   external_id: "permanent-owner",
+  client_id: clientId,
+  jti: "01JWTID",
+  auth_time: 1,
 };
 const setup = () => {
   const t = convexTest(schema, modules);
@@ -121,6 +126,30 @@ describe("WorkOS Convex sessions", () => {
     expect(session).not.toHaveProperty("session");
     expect(await snapshot(t)).toEqual(before);
   });
+  test("hosted AuthKit sign-in loads the permanent owner's current user", async () => {
+    const t = setup();
+    await seed(t);
+    await card(t);
+    expect(await client(t).query(api.auth.getCurrentUser, {})).toMatchObject({
+      _id: "permanent-owner",
+      email: "workos@example.com",
+      emailVerified: true,
+      cardCount: 1,
+    });
+    expect(
+      await client(t, { email_verified: false }).query(
+        api.auth.getCurrentUser,
+        {}
+      )
+    ).toBeNull();
+    await t.run((ctx) =>
+      ctx.db.insert("accountDeletionStates", {
+        userId: "permanent-owner",
+        startedAt: 1,
+      })
+    );
+    expect(await client(t).query(api.auth.getCurrentUser, {})).toBeNull();
+  });
   test.each([
     { issuer: "https://session-tests.convex.site", sessionId: "legacy" },
     { issuer: "https://api.workos.com/" },
@@ -131,8 +160,10 @@ describe("WorkOS Convex sessions", () => {
     { sid: undefined },
     { sid: "app_consent_CONNECT" },
     { sid: "session_bad/id" },
-    { emailVerified: false },
-    { emailVerified: undefined, email_verified: true },
+    { email_verified: false },
+    { email_verified: undefined },
+    { email_verified: "true" },
+    { email_verified: undefined, emailVerified: true },
     { external_id: "other-owner" },
     { external_id: "" },
   ])("denies invalid session claims %j", async (override) => {

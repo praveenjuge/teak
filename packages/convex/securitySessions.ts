@@ -41,12 +41,17 @@ function readWorkosSessionClaims(
   };
 }
 
+// Convex passes customJwt claims through raw, so AuthKit's verification claim
+// arrives as `email_verified`; the OIDC-normalized `emailVerified` is never set.
+const workosEmailVerified = (identity: UserIdentity | null) =>
+  identity?.email_verified === true;
+
 export function readWorkosSessionIdentity(
   identity: UserIdentity | null,
   clientId: string
 ) {
   const claims = readWorkosSessionClaims(identity, clientId);
-  return claims && identity?.emailVerified === true
+  return claims && workosEmailVerified(identity)
     ? { ...claims, emailVerified: true as const }
     : null;
 }
@@ -73,7 +78,7 @@ export async function getWorkosBootstrapIdentity(ctx: Pick<ActionCtx, "auth">) {
     ? {
         ...claims,
         email: typeof identity?.email === "string" ? identity.email : null,
-        emailVerified: identity?.emailVerified === true,
+        emailVerified: workosEmailVerified(identity),
       }
     : null;
 }

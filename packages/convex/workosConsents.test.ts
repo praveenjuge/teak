@@ -78,7 +78,7 @@ const sessionClient = (t: Backend) =>
     issuer: "https://api.workos.com/user_management/client_SESSION",
     subject: principal.workosUserId,
     sid: "session_SIGNEDIN",
-    emailVerified: true,
+    email_verified: true,
     external_id: "legacy-owner",
   });
 
@@ -308,7 +308,7 @@ describe("signed-in Connect management", () => {
               issuer: "https://api.workos.com/user_management/client_SESSION",
               subject: principal.workosUserId,
               sid: "session_SIGNEDIN",
-              emailVerified: false,
+              email_verified: false,
             })
           : client;
       const before = await records(t);

@@ -389,7 +389,7 @@ describe("WorkOS REST and MCP token boundary", () => {
           issuer: "https://api.workos.com/user_management/client_SESSION",
           subject: userId,
           sid: "session_SETTINGS",
-          emailVerified: true,
+          email_verified: true,
           external_id: ownerId,
         })
         .action(backendApi.workosConsents.disconnectConnection, {

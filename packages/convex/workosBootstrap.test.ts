@@ -14,7 +14,7 @@ const claims = {
   issuer: `https://api.workos.com/user_management/${clientId}`,
   subject: "user_NEW",
   sid: "session_NEW",
-  emailVerified: true,
+  email_verified: true,
   email: "untrusted-jwt-profile@example.com",
 };
 const setup = () => {
@@ -88,8 +88,8 @@ afterEach(() => {
   vi.useRealTimers();
   vi.unstubAllEnvs();
 });
-// Failures: unsigned/wrong-provider/malformed sessions; missing normalized
-// verification; missing/false component proof; conflicting external IDs; freeze;
+// Failures: unsigned/wrong-provider/malformed sessions; missing raw
+// email_verified; missing/false component proof; conflicting external IDs; freeze;
 // existing mirror promotion, deletion resurrection and duplicate sign-up seeds.
 describe("signed WorkOS bootstrap", () => {
   test("fresh verified user gets a permanent owner from provider data and retries do not seed", async () => {
@@ -220,18 +220,20 @@ describe("signed WorkOS bootstrap", () => {
       expect(await state(t)).toEqual({ users: [], jobs: [], quarantine: [] });
     }
   );
-  test.each([false, undefined])(
-    "normalized verification %s cannot be replaced by raw email_verified",
-    async (emailVerified) => {
+  test.each([
+    { email_verified: false },
+    { email_verified: undefined },
+    { email_verified: "true" },
+    { email_verified: undefined, emailVerified: true },
+  ])(
+    "session without a true email_verified claim %j waits for verification",
+    async (overrides) => {
       const t = setup();
       await profile(t);
-      expect(
-        await signed(t, { emailVerified, email_verified: true }).mutation(
-          ensure,
-          {}
-        )
-      ).toEqual({ status: "verify_email" });
-      expect((await state(t)).users).toEqual([]);
+      expect(await signed(t, overrides).mutation(ensure, {})).toEqual({
+        status: "verify_email",
+      });
+      expect(await state(t)).toEqual({ users: [], jobs: [], quarantine: [] });
     }
   );
   test("unverified provider profile cannot be promoted by a verified session", async () => {

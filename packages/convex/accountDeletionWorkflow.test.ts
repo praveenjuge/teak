@@ -13,7 +13,7 @@ const claims = {
   issuer: "https://api.workos.com/user_management/client_DELETE",
   subject: "user_DELETE",
   sid: "session_DELETE",
-  emailVerified: true,
+  email_verified: true,
   external_id: "permanent-owner",
 };
 const fixture = async (legacy = false) => {
@@ -534,7 +534,7 @@ describe("durable deletion admission and tombstones", () => {
     });
   });
   test.each([
-    { emailVerified: false },
+    { email_verified: false },
     { sid: "app_consent_WRONG" },
     { issuer: "https://convex.test" },
     { external_id: "another-owner" },

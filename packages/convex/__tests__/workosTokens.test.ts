@@ -258,7 +258,7 @@ function session(overrides: Partial<UserIdentity> = {}): UserIdentity {
     issuer: `https://api.workos.com/user_management/${clientId}`,
     subject: userId,
     sid: "session_TEST123",
-    emailVerified: true,
+    email_verified: true,
     external_id: "legacy-owner",
     ...overrides,
   };
@@ -281,8 +281,10 @@ describe("Convex session claims", () => {
     { sid: consentId },
     { sid: undefined },
     { sid: 12 },
-    { emailVerified: false },
-    { emailVerified: undefined },
+    { email_verified: false },
+    { email_verified: undefined },
+    { email_verified: "true" },
+    { email_verified: undefined, emailVerified: true },
     { external_id: 12 },
     { external_id: "" },
   ] satisfies Partial<UserIdentity>[])(

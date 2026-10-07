@@ -15,7 +15,7 @@ const claims = {
   subject: "user_OWNER",
   issuer: "https://api.workos.com/user_management/client_DEVICES",
   sid: "session_CURRENT",
-  emailVerified: true,
+  email_verified: true,
   email: "owner@example.test",
   external_id: "owner",
 };
@@ -278,7 +278,7 @@ describe("owned WorkOS devices", () => {
   test.each([
     { issuer: "https://api.workos.com/user_management/client_OTHER" },
     { sid: "app_consent_GRANT" },
-    { emailVerified: false },
+    { email_verified: false },
   ])(
     "denies invalid authenticated claims %j before provider access",
     async (overrides) => {
@@ -441,8 +441,8 @@ describe("owned WorkOS devices", () => {
   );
   test.each([false, undefined])(
     "bootstrap preserves unverified %s evidence without granting access",
-    async (emailVerified) => {
-      const f = await setup({ emailVerified });
+    async (email_verified) => {
+      const f = await setup({ email_verified });
       const bootstrap = await f.user.run((ctx) =>
         getWorkosBootstrapIdentity(ctx)
       );
@@ -454,7 +454,7 @@ describe("owned WorkOS devices", () => {
       });
       expect(
         readWorkosSessionIdentity(
-          { ...claims, emailVerified, tokenIdentifier: "test" },
+          { ...claims, email_verified, tokenIdentifier: "test" },
           "client_DEVICES"
         )
       ).toBeNull();
