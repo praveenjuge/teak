@@ -144,6 +144,8 @@ async function request(url, signal) {
   });
 }
 
+class PendingRegistryTarball extends Error {}
+
 export async function inspectPublished(
   artifact,
   registryUrl = registry,
@@ -194,6 +196,13 @@ export async function inspectPublished(
     throw new Error("Published SDK tarball has an unexpected registry URL.");
   }
   const tarball = await request(url, signal);
+  if (tarball.status === 404) {
+    // Matching metadata exists, so this is never permission to publish again.
+    // Only post-publication visibility polling may wait for its bytes.
+    throw new PendingRegistryTarball(
+      "Registry tarball download failed: HTTP 404."
+    );
+  }
   if (!(tarball.ok && tarball.body)) {
     throw new Error(
       `Registry tarball download failed: HTTP ${tarball.status}.`
@@ -466,10 +475,20 @@ export async function waitForPublished(
     if (remaining <= 0) {
       return false;
     }
-    if (
-      await inspectPublished(artifact, registryUrl, Math.min(30_000, remaining))
-    ) {
-      return true;
+    try {
+      if (
+        await inspectPublished(
+          artifact,
+          registryUrl,
+          Math.min(30_000, remaining)
+        )
+      ) {
+        return true;
+      }
+    } catch (error) {
+      if (!(error instanceof PendingRegistryTarball)) {
+        throw error;
+      }
     }
     if (attempt + 1 < attempts) {
       await wait(Math.max(0, Math.min(intervalMs, deadline - now())));

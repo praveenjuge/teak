@@ -30,11 +30,12 @@ let status = 200;
 let metadata: Record<string, unknown>;
 let missingVersionBody: string | undefined;
 let servedBytes = bytes;
+let tarballStatus = 200;
 const server = serve({
   port: 0,
   fetch(request) {
     if (new URL(request.url).pathname.endsWith(".tgz")) {
-      return new Response(servedBytes);
+      return new Response(servedBytes, { status: tarballStatus });
     }
     return Response.json(missingVersionBody ?? metadata, { status });
   },
@@ -79,6 +80,7 @@ function resetRegistry() {
   status = 200;
   missingVersionBody = undefined;
   servedBytes = bytes;
+  tarballStatus = 200;
   metadata = {
     name: artifact.name,
     version: artifact.version,
@@ -132,6 +134,63 @@ test("registry processing becomes ready only after exact metadata and bytes appe
       },
     })
   ).toBe(true);
+});
+
+test("post-publish polling waits for tarball propagation without admitting republish", async () => {
+  resetRegistry();
+  tarballStatus = 404;
+  await expect(inspectPublished(artifact, registry)).rejects.toThrow(
+    "HTTP 404"
+  );
+  let retries = 0;
+  expect(
+    await waitForPublished(artifact, {
+      registryUrl: registry,
+      attempts: 3,
+      intervalMs: 0,
+      wait: () => {
+        retries++;
+        tarballStatus = 200;
+        return Promise.resolve();
+      },
+    })
+  ).toBe(true);
+  expect(retries).toBe(1);
+  tarballStatus = 404;
+  expect(
+    await waitForPublished(artifact, {
+      registryUrl: registry,
+      attempts: 2,
+      intervalMs: 0,
+    })
+  ).toBe(false);
+});
+
+test("tarball propagation polling rejects outages and changed artifact bytes", async () => {
+  resetRegistry();
+  for (const code of [401, 403, 429, 500, 503]) {
+    tarballStatus = code;
+    await expect(
+      waitForPublished(artifact, {
+        registryUrl: registry,
+        attempts: 2,
+        intervalMs: 0,
+      })
+    ).rejects.toThrow(`HTTP ${code}`);
+  }
+  tarballStatus = 404;
+  await expect(
+    waitForPublished(artifact, {
+      registryUrl: registry,
+      attempts: 2,
+      intervalMs: 0,
+      wait: () => {
+        tarballStatus = 200;
+        servedBytes = Buffer.from("tampered");
+        return Promise.resolve();
+      },
+    })
+  ).rejects.toThrow("tarball bytes differ");
 });
 
 test("registry visibility polling is bounded and never retries malformed absence or outages", async () => {
