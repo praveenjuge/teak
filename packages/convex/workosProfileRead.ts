@@ -76,7 +76,9 @@ export const getProfile = internalQuery({
       id: workosUserId,
       ...profile,
       name:
-        [profile.firstName, profile.lastName].filter(Boolean).join(" ") || null,
+        profile.name ??
+        ([profile.firstName, profile.lastName].filter(Boolean).join(" ") ||
+          null),
     };
   },
 });

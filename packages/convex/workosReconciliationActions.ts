@@ -26,6 +26,7 @@ function profile(user: User) {
     email: user.email,
     emailVerified: user.emailVerified,
     externalId: user.externalId ?? null,
+    name: user.name ?? null,
     firstName: user.firstName ?? null,
     lastName: user.lastName ?? null,
     profilePictureUrl: user.profilePictureUrl ?? null,
@@ -104,7 +105,7 @@ async function runPage(ctx: ActionCtx, runId: Id<"workosReconciliationRuns">) {
       const page = await workos.events.listEvents({
         events: ["user.created", "user.updated", "user.deleted"],
         after: run.eventCursor,
-        rangeStart: run.rangeStart,
+        rangeStart: run.eventCursor ? undefined : run.rangeStart,
         rangeEnd: run.rangeEnd,
         limit: 100,
         order: "asc",

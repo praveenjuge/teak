@@ -303,3 +303,36 @@ test("a repeated versionless event invalidates an in-flight provider observation
   expect(after.fingerprint).not.toBe(before.fingerprint);
   expect(await signed.query(api.cards.getCard, { id: own })).toBeNull();
 });
+
+test.each([
+  {
+    name: "Imported Full Name",
+    firstName: null,
+    lastName: null,
+    expected: "Imported Full Name",
+  },
+  {
+    name: "Preferred Name",
+    firstName: "Split",
+    lastName: "Name",
+    expected: "Preferred Name",
+  },
+  { name: null, firstName: "Split", lastName: "Name", expected: "Split Name" },
+])(
+  "canonical full name takes precedence, retaining split-name fallback ($expected)",
+  async ({ name, firstName, lastName, expected }) => {
+    const { t, profileId } = await fixture();
+    await t.run(async (ctx) => {
+      const record = await ctx.db.get("workosProfiles", profileId);
+      if (!record?.profile) {
+        throw new Error("Missing fixture profile");
+      }
+      await ctx.db.patch("workosProfiles", profileId, {
+        profile: { ...record.profile, name, firstName, lastName },
+      });
+    });
+    expect(
+      await t.query(getProfile, { workosUserId: "user_READ" })
+    ).toMatchObject({ name: expected, externalId: "owner-a" });
+  }
+);

@@ -166,8 +166,12 @@ function validateProfile(profile: Profile): Profile {
   ) {
     throw new Error("Invalid WorkOS profile");
   }
-  for (const name of [profile.firstName, profile.lastName]) {
-    if (name !== null && (name.length > 1024 || /\p{Cc}/u.test(name))) {
+  for (const name of [profile.name, profile.firstName, profile.lastName]) {
+    if (
+      name !== null &&
+      name !== undefined &&
+      (name.length > 1024 || /\p{Cc}/u.test(name))
+    ) {
       throw new Error("Invalid WorkOS profile name");
     }
   }
@@ -186,8 +190,11 @@ function validateProfile(profile: Profile): Profile {
 }
 const sameProfile = (left: Profile | undefined, right: Profile) =>
   left !== undefined &&
+  (left.name ?? null) === (right.name ?? null) &&
   Object.keys(right).every(
-    (key) => left[key as keyof Profile] === right[key as keyof Profile]
+    (key) =>
+      key === "name" ||
+      left[key as keyof Profile] === right[key as keyof Profile]
   );
 
 // This helper is the only profile write path. Adapters own authentication and
@@ -390,7 +397,22 @@ export async function applyWorkosProfileInTransaction(
   ) {
     return quarantine("external_id_mismatch", profile.email);
   }
-  if (order === 0 && !sameProfile(current?.profile, profile)) {
+  // Older canonical records never captured the independent full-name field.
+  // Historical events can acknowledge the same unchanged profile without
+  // inventing a conflict. Only a fenced current GET may store the missing name.
+  // Every already-captured field must still match exactly.
+  const missingNameOnly =
+    order === 0 &&
+    current?.profile?.name === undefined &&
+    profile.name !== null &&
+    profile.name !== undefined &&
+    sameProfile(current.profile, { ...profile, name: undefined });
+  const hydrateName = source.kind === "reconciliation" && missingNameOnly;
+  if (
+    order === 0 &&
+    !missingNameOnly &&
+    !sameProfile(current?.profile, profile)
+  ) {
     return quarantine("equal_timestamp_conflict", profile.email);
   }
   if (
@@ -464,7 +486,7 @@ export async function applyWorkosProfileInTransaction(
     owner.workosEmailVerified !== verified ||
     (envelopeAt >= 0 && owner.lastWorkosEventAt !== envelopeAt);
   const profileChanged =
-    order !== 0 || current?.teakUserId !== linked.teakUserId;
+    hydrateName || order !== 0 || current?.teakUserId !== linked.teakUserId;
   if (profileChanged) {
     await store({
       ...sourceFields,
