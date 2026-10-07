@@ -614,6 +614,13 @@ async function resolveStoredTeakAccessToken(): Promise<string | null> {
     );
   } catch (error) {
     await refetchAfterFailure();
+    if (
+      provider.auth.primary === "workos" &&
+      !tokens.accessToken &&
+      error instanceof TeakRefreshRevokedError
+    ) {
+      throw new TeakSignOutRequiredError();
+    }
     if (error instanceof TeakSessionExpiredError) {
       return null;
     }

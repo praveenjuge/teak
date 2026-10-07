@@ -2,7 +2,9 @@ import { afterEach, beforeEach, expect, mock, test } from "bun:test";
 import { createRaycastApiMock } from "./raycastApiMock";
 
 const toasts: Array<{ title: string; message?: string }> = [];
-let savedTokens: { accessToken: string; isExpired: () => boolean } | undefined;
+let savedTokens:
+  | { accessToken: string; refreshToken?: string; isExpired: () => boolean }
+  | undefined;
 mock.module("@raycast/api", () => ({
   ...createRaycastApiMock(false, {
     oauthClient: class {
@@ -28,7 +30,7 @@ afterEach(() => {
   globalThis.fetch = originalFetch;
 });
 
-test.each(["expired", "empty"])(
+test.each(["expired", "empty", "revoked-refresh-only"])(
   "no-view %s WorkOS credential shows Sign Out recovery and stops",
   async (state) => {
     const issuer = "https://scholarly-hay-77.authkit.app";
@@ -66,12 +68,19 @@ test.each(["expired", "empty"])(
           }),
         );
       }
+      if (url.endsWith("/oauth2/token") && state === "revoked-refresh-only") {
+        return Promise.resolve(
+          Response.json({ error: "invalid_grant" }, { status: 400 }),
+        );
+      }
       throw new Error(
         "Background capture must not contact authentication or card endpoints",
       );
     }) as typeof fetch;
     const saved = {
       accessToken: state === "expired" ? "expired-access" : "",
+      refreshToken:
+        state === "revoked-refresh-only" ? "revoked-refresh" : undefined,
       isExpired: () => true,
     };
     savedTokens = saved;
