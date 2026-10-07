@@ -400,20 +400,33 @@ export async function main(argv: string[]) {
   ) {
     throw new Error("Runtime WorkOS key fingerprint mismatch");
   }
+  // Deploy keys/tokens and self-hosted pairs outrank --deployment-name in the
+  // Convex CLI, which also loads packages/convex/.env.local and .env itself.
+  // Empty values read as unset there and stop dotenv from refilling them.
   const environment = { ...process.env };
   for (const name of [
     "CONVEX_DEPLOYMENT",
     "CONVEX_DEPLOY_KEY",
+    "CONVEX_DEPLOYMENT_TOKEN",
+    "CONVEX_SELF_HOSTED_URL",
+    "CONVEX_SELF_HOSTED_ADMIN_KEY",
     "CONVEX_URL",
     "CONVEX_SITE_URL",
     "NEXT_PUBLIC_CONVEX_URL",
   ]) {
-    delete environment[name];
+    environment[name] = "";
   }
   const cli = async (args: string[]) => {
     const { stdout } = await execute(
       process.execPath,
-      ["x", "convex", ...args, "--deployment-name", options.deployment],
+      [
+        "--no-env-file",
+        "x",
+        "convex",
+        ...args,
+        "--deployment-name",
+        options.deployment,
+      ],
       {
         cwd: resolve(import.meta.dir, "../../packages/convex"),
         env: environment,
