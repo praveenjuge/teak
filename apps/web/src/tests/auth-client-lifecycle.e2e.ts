@@ -17,12 +17,23 @@ test("keeps the authenticated vault usable during development effect replay", as
     "Requires an existing controlled dev account."
   );
   const convexUrl = process.env.NEXT_PUBLIC_CONVEX_URL;
+  const deployment =
+    process.env.CONVEX_DEPLOYMENT?.match(/^dev:([a-z0-9-]+)$/)?.[1];
+  const backend = convexUrl ? new URL(convexUrl) : null;
   if (
     !(
       baseURL &&
       ["localhost", "127.0.0.1"].includes(new URL(baseURL).hostname) &&
       convexUrl &&
-      process.env.CONVEX_DEPLOYMENT?.startsWith("dev:")
+      deployment &&
+      backend?.protocol === "https:" &&
+      backend.hostname === `${deployment}.convex.cloud` &&
+      !backend.username &&
+      !backend.password &&
+      !backend.port &&
+      !backend.search &&
+      !backend.hash &&
+      backend.pathname === "/"
     )
   ) {
     throw new Error("Requires a local app against its development backend.");
@@ -57,9 +68,10 @@ test("keeps the authenticated vault usable during development effect replay", as
     ).toBeVisible();
     expect(closedClientErrors).toEqual([]);
   } finally {
-    await page.request.post("/api/auth/sign-out", {
+    const signOut = await page.request.post("/api/auth/sign-out", {
       data: {},
       headers: { Origin: baseURL },
     });
+    expect(signOut.ok()).toBe(true);
   }
 });
