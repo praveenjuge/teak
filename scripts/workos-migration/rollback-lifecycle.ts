@@ -58,7 +58,11 @@ const reviewedReport = z.object({
   holder: z.string(),
   generation: z.number(),
   plan: z.object({
-    mappingSha256: z.string().regex(/^[0-9a-f]{64}$/),
+    mapping: z.strictObject({
+      count: z.number().int().min(0),
+      sha256: z.string().regex(/^[0-9a-f]{64}$/),
+      pairs: z.array(z.string().regex(/^[^\t]+\t[^\t]+$/)),
+    }),
     deniedDeleted: ownerSet,
     invalidate: ownerSet,
     verify: ownerSet,
@@ -76,12 +80,13 @@ const describe = (ids: string[]) => ({
   teakUserIds: [...ids].sort(),
 });
 // Owner-to-provider links and tombstones must not move under a held barrier.
-const mappingDigest = (rows: OwnerRow[]) =>
-  ownerDigest(
-    rows
-      .filter((row) => row.workosUserId)
-      .map((row) => `${row.teakUserId}\t${row.workosUserId}`)
-  );
+const describeMapping = (rows: OwnerRow[]) => {
+  const pairs = rows
+    .filter((row) => row.workosUserId)
+    .map((row) => `${row.teakUserId}\t${row.workosUserId}`)
+    .sort();
+  return { count: pairs.length, sha256: ownerDigest(pairs), pairs };
+};
 const deniedOwners = (rows: OwnerRow[]) =>
   rows.filter((row) => row.deniedDeleted).map((row) => row.teakUserId);
 // Apply admits only the owners a reviewed dry run under this same held barrier
@@ -102,6 +107,8 @@ async function readReviewedPlan(path: string, receipt: BarrierReceipt) {
     reviewed.apiKeyFingerprint !== receipt.apiKeyFingerprint ||
     reviewed.holder !== receipt.holder ||
     reviewed.generation !== receipt.generation ||
+    reviewed.plan.mapping.count !== reviewed.plan.mapping.pairs.length ||
+    reviewed.plan.mapping.sha256 !== ownerDigest(reviewed.plan.mapping.pairs) ||
     ([...planClasses, "deniedDeleted"] as const).some(
       (name) =>
         reviewed.plan[name].count !== reviewed.plan[name].teakUserIds.length ||
@@ -242,41 +249,37 @@ export async function main(
         : await runConvexFunction(receipt.deployment, name, args, 128 * 1024);
     const verify = () =>
       run("migration/workosImportLease:verifyQuiescence", pins);
-    const readPage = async (cursor: string | null, requireApplied: boolean) => {
-      await verify();
-      const result = planPage.parse(
-        await run("migration/workosRollbackPlan:page", {
-          environmentId: pins.environmentId,
-          clientId: pins.clientId,
-          cursor,
-        })
-      );
-      if (
-        result.owners.some(
-          (row) =>
-            row.blockers.length ||
-            (requireApplied &&
-              (row.invalidateLegacyPassword ||
-                row.markSameEmailVerified ||
-                row.promoteDeletion))
-        )
-      ) {
-        throw new Error(
-          "Rollback lifecycle is not ready; keep account changes paused and barrier held"
-        );
-      }
-      if (result.done !== (result.cursor === null)) {
-        throw new Error("Malformed rollback audit completion");
-      }
-      return result;
-    };
     const inspect = async (requireApplied: boolean) => {
       let cursor: string | null = null;
       const rows: OwnerRow[] = [];
       const seen = new Set<string>();
       for (let index = 0; index < 10_000; index++) {
-        const result = await readPage(cursor, requireApplied);
+        await verify();
+        const result = planPage.parse(
+          await run("migration/workosRollbackPlan:page", {
+            environmentId: pins.environmentId,
+            clientId: pins.clientId,
+            cursor,
+          })
+        );
+        if (
+          result.owners.some(
+            (row) =>
+              row.blockers.length ||
+              (requireApplied &&
+                (row.invalidateLegacyPassword ||
+                  row.markSameEmailVerified ||
+                  row.promoteDeletion))
+          )
+        ) {
+          throw new Error(
+            "Rollback lifecycle is not ready; keep account changes paused and barrier held"
+          );
+        }
         rows.push(...result.owners);
+        if (result.done !== (result.cursor === null)) {
+          throw new Error("Malformed rollback audit completion");
+        }
         if (result.done) {
           return rows;
         }
@@ -300,18 +303,16 @@ export async function main(
       planClasses.some((name) =>
         plan[name].some((id) => !reviewed[name].teakUserIds.includes(id))
       );
-    // A run that stopped on an out-of-scope write must not be absorbed by a
-    // resume: links and tombstones are compared with the reviewed dry run.
+    // Fail before any dispatch when links or tombstones already drifted; the
+    // writer re-checks every page in its own transaction.
     const stateOutsideReviewed = (rows: OwnerRow[]) => {
       if (reviewed === null) {
         return false;
       }
-      const allowed = new Set([
-        ...reviewed.deniedDeleted.teakUserIds,
-        ...reviewed.fences.teakUserIds,
-      ]);
+      // A reviewed fence was already denied at review time, so this includes it.
+      const allowed = new Set(reviewed.deniedDeleted.teakUserIds);
       return (
-        mappingDigest(rows) !== reviewed.mappingSha256 ||
+        describeMapping(rows).sha256 !== reviewed.mapping.sha256 ||
         deniedOwners(rows).some((id) => !allowed.has(id))
       );
     };
@@ -330,20 +331,22 @@ export async function main(
       deletionFences: 0,
     };
     if (values.apply) {
+      // The writer refuses, in the same transaction as its writes, any page
+      // that strays from this scope: provider events keep landing while paused.
+      const scope = reviewed && {
+        invalidate: reviewed.invalidate.teakUserIds,
+        verify: reviewed.verify.teakUserIds,
+        fences: reviewed.fences.teakUserIds,
+        denied: reviewed.deniedDeleted.teakUserIds,
+        mappings: reviewed.mapping.pairs.map((pair) => {
+          const [teakUserId, workosUserId] = pair.split("\t");
+          return { teakUserId, workosUserId };
+        }),
+      };
       let cursor: string | null = null,
         complete = false;
       const seen = new Set<string>();
       for (let index = 0; index < 10_000; index++) {
-        // Bind each write to a preflight of the same page taken just before it:
-        // provider events keep arriving while paused, so the start-of-run plan
-        // alone cannot stop an owner swapped in on a later page.
-        const preflight = await readPage(cursor, false);
-        const expected = selected(preflight.owners);
-        if (outsideReviewed(expected)) {
-          throw new Error(
-            "Fresh rollback plan exceeds the reviewed dry run; this page was not written"
-          );
-        }
         await record("dispatching_page", cursor);
         const result = applyPage.parse(
           await run("migration/workosRollback:applyPage", {
@@ -353,6 +356,7 @@ export async function main(
             policyApprovalReference: values["policy-approval-reference"],
             activationApprovalReference:
               values["activation-approval-reference"],
+            reviewed: scope,
           })
         );
         if (
@@ -372,17 +376,6 @@ export async function main(
           "deletionFences",
         ] as const) {
           counts[field] += result[field];
-        }
-        if (
-          result.scanned !== preflight.owners.length ||
-          result.done !== preflight.done ||
-          result.invalidated !== expected.invalidate.length ||
-          result.verified !== expected.verify.length ||
-          result.deletionFences !== expected.fences.length
-        ) {
-          throw new Error(
-            "Rollback writer page differs from its preflight; retain pause and barrier"
-          );
         }
         if (result.done) {
           complete = true;
@@ -432,7 +425,7 @@ export async function main(
       plan: {
         owners: before.length,
         mapped: before.filter((row) => row.workosUserId).length,
-        mappingSha256: mappingDigest(before),
+        mapping: describeMapping(before),
         deniedDeleted: describe(deniedOwners(before)),
         invalidate: describe(plan.invalidate),
         verify: describe(plan.verify),

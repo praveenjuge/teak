@@ -1,8 +1,10 @@
 /// <reference types="vite/client" />
 import betterAuthTest from "@convex-dev/better-auth/test";
+import type { Infer } from "convex/values";
 import { convexTest } from "convex-test";
 import { afterEach, beforeEach, expect, test, vi } from "vitest";
 import { components, internal } from "./_generated/api";
+import type { rollbackSummary } from "./migration/workosRollbackPlan";
 import schema from "./schema";
 
 const modules = import.meta.glob("./**/*.ts");
@@ -24,14 +26,14 @@ beforeEach(() => {
   vi.stubEnv("ACCOUNT_CHANGES_PAUSED", "true");
 });
 afterEach(() => vi.unstubAllEnvs());
-async function seed(t: ReturnType<typeof setup>) {
+async function seed(t: ReturnType<typeof setup>, label = "owner") {
   const user = await t.run((ctx) =>
     ctx.runMutation(components.betterAuth.adapter.create, {
       input: {
         model: "user",
         data: {
-          email: "owner@example.com",
-          name: "Owner",
+          email: `${label}@example.com`,
+          name: label,
           emailVerified: false,
           createdAt: 1,
           updatedAt: 1,
@@ -59,18 +61,18 @@ async function seed(t: ReturnType<typeof setup>) {
     });
     await ctx.db.insert("users", {
       teakUserId: id,
-      email: "owner@example.com",
+      email: `${label}@example.com`,
       emailVerified: false,
-      workosUserId: "user_owner",
+      workosUserId: `user_${label}`,
     });
     await ctx.db.insert("workosProfiles", {
-      workosUserId: "user_owner",
+      workosUserId: `user_${label}`,
       teakUserId: id,
       revision: 1,
       source: "event",
       providerUpdatedAt: "2026-10-01T00:00:00Z",
       profile: {
-        email: "owner@example.com",
+        email: `${label}@example.com`,
         emailVerified: true,
         externalId: id,
         firstName: null,
@@ -224,10 +226,29 @@ async function barrier(t: ReturnType<typeof setup>) {
 const applyRollback = (
   await import("convex/server")
 ).makeFunctionReference<"mutation">("migration/workosRollback:applyPage");
+// What an activation-reviewed dry run hands the writer, read from the real plan.
+async function review(t: ReturnType<typeof setup>) {
+  type Owner = Infer<typeof rollbackSummary>;
+  const { owners }: { owners: Owner[] } = await t.query(
+    internal.migration.workosRollbackPlan.page,
+    pins
+  );
+  const ids = (selected: (owner: Owner) => boolean) =>
+    owners.filter(selected).map((owner) => owner.teakUserId);
+  return {
+    invalidate: ids((owner) => owner.invalidateLegacyPassword),
+    verify: ids((owner) => owner.markSameEmailVerified),
+    fences: ids((owner) => owner.promoteDeletion),
+    denied: ids((owner) => owner.deniedDeleted),
+    mappings: owners.flatMap(({ teakUserId, workosUserId }) =>
+      workosUserId ? [{ teakUserId, workosUserId }] : []
+    ),
+  };
+}
 test("rollback invalidates passwords and mirrors same-address verification idempotently", async () => {
   const t = setup();
   const id = await seed(t),
-    args = await barrier(t);
+    args = { ...(await barrier(t)), reviewed: await review(t) };
   expect(await t.mutation(applyRollback, args)).toMatchObject({
     invalidated: 1,
     verified: 1,
@@ -277,7 +298,8 @@ test("provider deletion becomes a both-mode fence without verification grant", a
       markSameEmailVerified: false,
     },
   ]);
-  expect(await t.mutation(applyRollback, args)).toMatchObject({
+  const reviewed = { ...args, reviewed: await review(t) };
+  expect(await t.mutation(applyRollback, reviewed)).toMatchObject({
     deletionFences: 1,
     verified: 0,
   });
@@ -285,13 +307,17 @@ test("provider deletion becomes a both-mode fence without verification grant", a
     deletedAt: 42,
     emailVerified: false,
   });
+  // A resume sees the reviewed fence as denied and stays in scope.
+  expect(await t.mutation(applyRollback, reviewed)).toMatchObject({
+    deletionFences: 0,
+  });
 });
 test.each(["approvals", "generation", "client", "unpaused", "released"])(
   "rollback rejects %s without changing credentials",
   async (failure) => {
     const t = setup();
     await seed(t);
-    const args = await barrier(t);
+    const args = { ...(await barrier(t)), reviewed: await review(t) };
     if (failure === "approvals") {
       args.policyApprovalReference = "";
     }
@@ -325,12 +351,169 @@ test.each(["approvals", "generation", "client", "unpaused", "released"])(
     ).toMatchObject({ password: "unchanged-legacy-test-hash" });
   }
 );
+
+// Provider events land while account changes are paused, between the reviewed
+// dry run and a page's write. The writer must refuse the whole page.
+const passwords = (t: ReturnType<typeof setup>) =>
+  t.run(async (ctx) => {
+    const page = await ctx.runQuery(components.betterAuth.adapter.findMany, {
+      model: "account",
+      paginationOpts: { cursor: null, numItems: 10 },
+    });
+    return (page.page as { password?: string | null }[]).map(
+      (account) => account.password
+    );
+  });
+test("the writer has no path without a reviewed scope", async () => {
+  const t = setup();
+  await seed(t);
+  const { reviewed: _scope, ...unreviewed } = {
+    ...(await barrier(t)),
+    reviewed: await review(t),
+  };
+  await expect(t.mutation(applyRollback, unreviewed)).rejects.toThrow(
+    "Missing required field `reviewed`"
+  );
+  expect(await passwords(t)).toEqual(["unchanged-legacy-test-hash"]);
+});
+async function patchProfile(
+  t: ReturnType<typeof setup>,
+  workosUserId: string,
+  emailVerified: boolean
+) {
+  await t.run(async (ctx) => {
+    const row = await ctx.db
+      .query("workosProfiles")
+      .withIndex("by_workosUserId", (q) => q.eq("workosUserId", workosUserId))
+      .unique();
+    if (!row?.profile) {
+      throw new Error("Missing fixture");
+    }
+    await ctx.db.patch("workosProfiles", row._id, {
+      profile: { ...row.profile, emailVerified },
+    });
+  });
+}
+const secondPassword = (t: ReturnType<typeof setup>, password: string | null) =>
+  t.run((ctx) =>
+    ctx.runMutation(components.betterAuth.adapter.updateOne, {
+      input: {
+        model: "account",
+        where: [{ field: "accountId", value: "second-account" }],
+        update: { password },
+      },
+    })
+  );
+test.each([
+  "same-count swap",
+  "relink",
+  "provider deletion",
+  "restored password",
+  "started deletion",
+  "provider deletion of a deleting owner",
+])(
+  "a %s after the reviewed dry run fails the page with nothing written",
+  async (change) => {
+    const t = setup();
+    await seed(t);
+    const second = await seed(t, "second");
+    await patchProfile(t, "user_second", false);
+    await t.run(async (ctx) => {
+      const account = await ctx.runQuery(
+        components.betterAuth.adapter.findOne,
+        { model: "account", where: [{ field: "userId", value: second }] }
+      );
+      if (!account) {
+        throw new Error("Missing fixture");
+      }
+      await ctx.runMutation(components.betterAuth.adapter.updateOne, {
+        input: {
+          model: "account",
+          where: [{ field: "userId", value: second }],
+          update: { accountId: "second-account" },
+        },
+      });
+    });
+    if (change === "restored password") {
+      await secondPassword(t, null);
+    }
+    if (change === "provider deletion of a deleting owner") {
+      await t.run((ctx) =>
+        ctx.db.insert("accountDeletionStates", { userId: second, startedAt: 1 })
+      );
+    }
+    const args = { ...(await barrier(t)), reviewed: await review(t) };
+    expect(args.reviewed.verify).toHaveLength(1);
+    await t.run(async (ctx) => {
+      const row = await ctx.db
+        .query("users")
+        .withIndex("by_teakUserId", (q) => q.eq("teakUserId", second))
+        .unique();
+      if (!row) {
+        throw new Error("Missing fixture");
+      }
+      if (change === "started deletion") {
+        await ctx.db.insert("accountDeletionStates", {
+          userId: second,
+          startedAt: 1,
+        });
+      }
+      if (change === "relink") {
+        await ctx.db.patch("users", row._id, { workosUserId: "user_relinked" });
+        await ctx.db.insert("workosProfiles", {
+          workosUserId: "user_relinked",
+          teakUserId: second,
+          revision: 1,
+          source: "event",
+          providerUpdatedAt: "2026-10-02T00:00:00Z",
+          profile: {
+            email: "second@example.com",
+            emailVerified: false,
+            externalId: second,
+            firstName: null,
+            lastName: null,
+            profilePictureUrl: null,
+          },
+        });
+      }
+      if (change.startsWith("provider deletion")) {
+        await ctx.db.patch("users", row._id, { workosDeletedAt: 42 });
+      }
+    });
+    if (change === "restored password") {
+      // An out-of-band credential write: invalidation grows past the review.
+      await secondPassword(t, "unchanged-legacy-test-hash");
+    }
+    if (change === "same-count swap") {
+      // One owner's verification drops while another's lands: same size.
+      await patchProfile(t, "user_owner", false);
+      await patchProfile(t, "user_second", true);
+      expect((await review(t)).verify).toEqual([second]);
+    }
+    await expect(t.mutation(applyRollback, args)).rejects.toThrow(
+      "outside the reviewed dry run"
+    );
+    expect(await passwords(t)).toEqual([
+      "unchanged-legacy-test-hash",
+      "unchanged-legacy-test-hash",
+    ]);
+    const state = await t.run(async (ctx) => ({
+      owners: await ctx.db.query("users").collect(),
+      verified: await ctx.runQuery(components.betterAuth.adapter.findOne, {
+        model: "user",
+        where: [{ field: "_id", value: second }],
+      }),
+    }));
+    expect(state.owners.every((row) => row.deletedAt === undefined)).toBe(true);
+    expect(state.verified).toMatchObject({ emailVerified: false });
+  }
+);
 test.each(["email", "external", "profile_owner", "pending", "downgrade"])(
   "rollback blocks %s before changing any owner",
   async (failure) => {
     const t = setup();
     const id = await seed(t),
-      args = await barrier(t);
+      args = { ...(await barrier(t)), reviewed: await review(t) };
     await t.run(async (ctx) => {
       const row = await ctx.db.query("workosProfiles").first();
       if (!row?.profile) {
@@ -393,7 +576,7 @@ test.each([
   async (failure) => {
     const t = setup();
     await seed(t);
-    const args = await barrier(t);
+    const args = { ...(await barrier(t)), reviewed: await review(t) };
     await t.run(async (ctx) => {
       const row = await ctx.db.query("users").first();
       const profile = await ctx.db.query("workosProfiles").first();
