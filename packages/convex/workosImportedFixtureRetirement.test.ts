@@ -26,6 +26,7 @@ const fingerprint = async (value: string) =>
 const fixture = importedFixtures[0]!;
 const other = importedFixtures[1]!;
 const pinnedSha = fixture.emailSha256;
+const pinnedMarker = { ...fixture.legacyMarker };
 const email = "e2e-service-api-1791288365274-ab12cd@fixtures.example.test";
 const createdEventId = "event_01M4B0NX0000000000000000AA";
 const deletedEventId = "event_01M4B0NX0000000000000000BB";
@@ -44,7 +45,10 @@ beforeEach(async () => {
   vi.stubEnv("WORKOS_API_KEY", KEY);
 });
 afterEach(() => {
-  Object.assign(fixture, { emailSha256: pinnedSha });
+  Object.assign(fixture, {
+    emailSha256: pinnedSha,
+    legacyMarker: { ...pinnedMarker },
+  });
   vi.unstubAllEnvs();
 });
 
@@ -123,7 +127,21 @@ async function setup() {
       workosDeletionEventAt: deletedEventAt + 8000,
       workosDeletionTarget: target,
     });
-    return { ownerId, profileId, receiptId, otherReceiptId };
+    // The bare legacy marker `beginAccountDeletion` left behind. convex-test
+    // mints its own ID and creation time, so the pin follows them here.
+    const markerId = await ctx.db.insert("accountDeletionStates", {
+      userId: fixture.teakUserId,
+      startedAt: pinnedMarker.startedAt,
+    });
+    const markerRow = (await ctx.db.get("accountDeletionStates", markerId))!;
+    Object.assign(fixture, {
+      legacyMarker: {
+        stateId: markerId,
+        startedAt: pinnedMarker.startedAt,
+        creationTime: markerRow._creationTime,
+      },
+    });
+    return { ownerId, profileId, receiptId, otherReceiptId, markerId };
   });
   const args = {
     environmentId: deployment.environmentId as string,
@@ -153,6 +171,7 @@ const snapshot = (t: Awaited<ReturnType<typeof setup>>["t"]) =>
     profiles: await ctx.db.query("workosProfiles").collect(),
     events: await ctx.db.query("workosEvents").collect(),
     receipts: await ctx.db.query("migrationQuarantine").collect(),
+    markers: await ctx.db.query("accountDeletionStates").collect(),
   }));
 
 test("settles only the exact retired fixture receipt, idempotently, keeping terminal denial", async () => {
@@ -164,6 +183,8 @@ test("settles only the exact retired fixture receipt, idempotently, keeping term
   expect(after.users).toEqual(before.users);
   expect(after.profiles).toEqual(before.profiles);
   expect(after.events).toEqual(before.events);
+  expect(after.markers).toEqual(before.markers);
+  expect(after.markers.length).toBe(1);
   const receipt = after.receipts.find((row) => row._id === ids.receiptId)!;
   expect(receipt.resolvedAt).toBe(first.resolvedAt);
   expect(
@@ -416,11 +437,6 @@ test("refuses while any data, billing or credential remnant of the fixture remai
         createdAt: 1,
       }),
     (ctx) =>
-      ctx.db.insert("accountDeletionStates", {
-        userId: fixture.teakUserId,
-        startedAt: 1,
-      }),
-    (ctx) =>
       ctx.db.insert("workosConsents", {
         consentId: "consent_fixture",
         userId: fixture.teakUserId,
@@ -564,4 +580,97 @@ test("action refuses a non-allowlisted pair before contacting WorkOS", async () 
   expect(requests).toEqual([]);
   expect((await receipt())?.resolvedAt).toBeUndefined();
   vi.unstubAllGlobals();
+});
+
+test("requires exactly the one pinned, unchanged legacy deletion marker", async () => {
+  const cases: ((ctx: any, ids: any) => Promise<unknown>)[] = [
+    (ctx, ids) => ctx.db.delete("accountDeletionStates", ids.markerId),
+    (ctx, ids) =>
+      ctx.db.patch("accountDeletionStates", ids.markerId, {
+        startedAt: pinnedMarker.startedAt + 1,
+      }),
+    (ctx, ids) =>
+      ctx.db.patch("accountDeletionStates", ids.markerId, {
+        userId: other.teakUserId,
+      }),
+    (ctx, ids) =>
+      ctx.db.patch("accountDeletionStates", ids.markerId, { generation: 1 }),
+    (ctx, ids) =>
+      ctx.db.patch("accountDeletionStates", ids.markerId, {
+        workflowId: "workflow_resumed",
+      }),
+    (ctx, ids) =>
+      ctx.db.patch("accountDeletionStates", ids.markerId, {
+        workosUserId: fixture.workosUserId,
+      }),
+    (ctx) =>
+      ctx.db.insert("accountDeletionStates", {
+        userId: fixture.teakUserId,
+        startedAt: pinnedMarker.startedAt,
+      }),
+    // Same content under a new row: a different ID and creation time.
+    async (ctx, ids) => {
+      await ctx.db.delete("accountDeletionStates", ids.markerId);
+      await ctx.db.insert("accountDeletionStates", {
+        userId: fixture.teakUserId,
+        startedAt: pinnedMarker.startedAt,
+      });
+    },
+  ];
+  for (const change of cases) {
+    const { t, ids, resolve } = await setup();
+    await t.run((ctx) => change(ctx, ids));
+    await expect(resolve()).rejects.toThrow(/legacy deletion marker/);
+    const receipt = await t.run((ctx) =>
+      ctx.db.get("migrationQuarantine", ids.receiptId)
+    );
+    expect(receipt?.resolvedAt).toBeUndefined();
+  }
+  // A pinned row ID that names a different document refuses on its own.
+  {
+    const { ids, resolve } = await setup();
+    Object.assign(fixture.legacyMarker, { stateId: ids.receiptId });
+    await expect(resolve()).rejects.toThrow(/legacy deletion marker/);
+  }
+  // A row and pin that agree but fall outside the sweep correlation refuse:
+  // before the import finished, after the owner tombstone, or too early.
+  for (const startedAt of [
+    deployment.importCompletedAt - 1,
+    fixture.ownerDeletedAt + 1,
+    fixture.ownerDeletedAt - 60_001,
+  ]) {
+    const { t, ids, resolve } = await setup();
+    await t.run((ctx) =>
+      ctx.db.patch("accountDeletionStates", ids.markerId, { startedAt })
+    );
+    Object.assign(fixture.legacyMarker, { startedAt });
+    await expect(resolve()).rejects.toThrow(/legacy deletion marker/);
+  }
+  // A pinned creation time or start time that disagrees with the row refuses.
+  for (const drift of [
+    { creationTime: Number.NaN },
+    { startedAt: pinnedMarker.startedAt - 1 },
+    { startedAt: deployment.importCompletedAt - 1 },
+  ]) {
+    const { resolve } = await setup();
+    Object.assign(fixture.legacyMarker, drift);
+    await expect(resolve()).rejects.toThrow(/legacy deletion marker/);
+  }
+});
+
+test("the committed markers match the post-delete snapshot shape and timing", () => {
+  for (const row of importedFixtures) {
+    const marker = row.legacyMarker;
+    expect(marker.stateId).toMatch(/^[a-z0-9]{32}$/);
+    expect(Number.isSafeInteger(marker.startedAt)).toBe(true);
+    expect(Math.floor(marker.creationTime)).toBe(marker.startedAt);
+    expect(marker.startedAt).toBeGreaterThanOrEqual(
+      deployment.importCompletedAt
+    );
+    expect(row.ownerDeletedAt - marker.startedAt).toBeGreaterThan(0);
+    expect(row.ownerDeletedAt - marker.startedAt).toBeLessThanOrEqual(60_000);
+  }
+  expect(
+    new Set(importedFixtures.map((row) => row.legacyMarker.stateId)).size
+  ).toBe(10);
 });

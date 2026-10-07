@@ -33,14 +33,89 @@ export const importedFixtureDeployment = {
   providerCheckMaxAgeMs: 5 * 60_000,
 } as const;
 
+/**
+ * The legacy Better Auth E2E sweep called `internalAdapter.deleteUser`
+ * directly, which skips the `deleteUser.afterDelete` hook that would run
+ * `finishAccountDeletion`. Each fixture therefore keeps the bare legacy
+ * `accountDeletionStates` row written by `beginAccountDeletion` (no
+ * generation, workflow, target or cursor). No job reads such a row, and every
+ * resolver denies its owner (`deleting_user`), so it is a permanent deny
+ * marker. It is pinned exactly from the post-delete production snapshot
+ * `phase-4-prod-postdelete-observation-1791379438918042000` and must stay
+ * byte-for-byte unchanged; this module never writes it.
+ */
+export interface LegacyDeletionMarker {
+  creationTime: number;
+  startedAt: number;
+  stateId: string;
+}
+
 export interface ImportedFixture {
   deletionIntentAt: number;
   deletionResultAt: number;
   emailSha256: string;
+  legacyMarker: LegacyDeletionMarker;
   ownerDeletedAt: number;
   teakUserId: string;
   workosUserId: string;
 }
+
+const legacyDeletionMarkers: Record<string, LegacyDeletionMarker> = {
+  k97bje3jkesd0xqdjac2xws9sd8frnjt: {
+    stateId: "m172cdxm1dre3pc3mdg67rfxb58fv8bs",
+    startedAt: 1_791_373_833_958,
+    creationTime: 1_791_373_833_958.4814,
+  },
+  k97adb6xxzgj6kek07z6x9g0s98frmzf: {
+    stateId: "m17e00sxfkpqw145j3jj8fs1418fvs7f",
+    startedAt: 1_791_373_831_200,
+    creationTime: 1_791_373_831_200.3936,
+  },
+  k977rbxxzvv3jhra00c6z41kxd8frkrn: {
+    stateId: "m17112h5tqghzzv6bs42vhp3f98ft2nk",
+    startedAt: 1_791_373_833_877,
+    creationTime: 1_791_373_833_877.0967,
+  },
+  k9704r04f8azmty29qt6fztz298frt5d: {
+    stateId: "m17fbapza70mqpd3sszwb5pdvd8fvrjm",
+    startedAt: 1_791_373_838_574,
+    creationTime: 1_791_373_838_574.6873,
+  },
+  k977xpww85xnqvan5twyt6w3258fr1f7: {
+    stateId: "m171fjcxw29nsgqnnsv2jvxd4h8fvjsc",
+    startedAt: 1_791_373_835_890,
+    creationTime: 1_791_373_835_890.6565,
+  },
+  k972a2jatc02tc4ve4vkfqy2rn8fsfce: {
+    stateId: "m1782ketrny8dg2p15391c4dg98ftqjz",
+    startedAt: 1_791_373_835_923,
+    creationTime: 1_791_373_835_923.3633,
+  },
+  k976mejp0zecyckehvrgk0vnz18fsy22: {
+    stateId: "m17c3z9kdqxrcpxgnbrgsndh3s8ftw7v",
+    startedAt: 1_791_373_840_121,
+    creationTime: 1_791_373_840_121.2876,
+  },
+  k97ac03t8z0wva1yv05vtbcfas8fsgbr: {
+    stateId: "m17amyytpk91f0xa0e1amdy7q98fvtyw",
+    startedAt: 1_791_373_842_784,
+    creationTime: 1_791_373_842_784.7124,
+  },
+  k977krqnhdp9jmbxb10dhczx8x8frjfb: {
+    stateId: "m1716zp9rfwjyzccppfgwd05ch8fv24t",
+    startedAt: 1_791_373_840_242,
+    creationTime: 1_791_373_840_242.4902,
+  },
+  k9703ysg7e69qkm7rw2jxmqe958fr6h2: {
+    stateId: "m17eb1xfvwzpcp280v6gkjk6258fv5sn",
+    startedAt: 1_791_373_844_467,
+    creationTime: 1_791_373_844_467.733,
+  },
+};
+// The legacy marker is written once, before data deletion, and the owner
+// tombstone follows within the same sweep request.
+const legacyMarkerLeadMaxMs = 60_000;
+const legacyMarkerFields = ["_creationTime", "_id", "startedAt", "userId"];
 
 export const importedFixtures: readonly ImportedFixture[] = [
   [
@@ -139,6 +214,7 @@ export const importedFixtures: readonly ImportedFixture[] = [
       emailSha256,
       deletionIntentAt,
       deletionResultAt,
+      legacyMarker: legacyDeletionMarkers[teakUserId],
     }) as ImportedFixture
 );
 
@@ -373,33 +449,51 @@ export const resolveRetiredImportedFixtureReceipt = internalMutation({
       throw refused("receipt");
     }
 
+    // Exactly the one pinned, unchanged legacy deletion marker: its bare
+    // legacy shape proves no durable deletion job owns it, and it keeps
+    // denying the owner. It is read only; this module never writes it.
+    const marker = fixture.legacyMarker;
+    const markers = await ctx.db
+      .query("accountDeletionStates")
+      .withIndex("by_userId", (q) => q.eq("userId", fixture.teakUserId))
+      .take(2);
+    const markerRow = markers[0];
+    if (
+      markers.length !== 1 ||
+      !markerRow ||
+      markerRow._id !== marker.stateId ||
+      markerRow._creationTime !== marker.creationTime ||
+      markerRow.startedAt !== marker.startedAt ||
+      markerRow.userId !== fixture.teakUserId ||
+      JSON.stringify(Object.keys(markerRow).sort()) !==
+        JSON.stringify(legacyMarkerFields) ||
+      marker.startedAt > fixture.ownerDeletedAt ||
+      fixture.ownerDeletedAt - marker.startedAt > legacyMarkerLeadMaxMs
+    ) {
+      throw refused("legacy deletion marker");
+    }
+
     // No live data or credential remains for the retired fixture anywhere.
-    const [byEmail, deleting, cards, nativeCodes, consents] = await Promise.all(
-      [
-        ctx.db
-          .query("users")
-          .withIndex("by_email", (q) => q.eq("email", receipt.email))
-          .take(1),
-        ctx.db
-          .query("accountDeletionStates")
-          .withIndex("by_userId", (q) => q.eq("userId", fixture.teakUserId))
-          .take(1),
-        ctx.db
-          .query("cards")
-          .withIndex("by_created", (q) => q.eq("userId", fixture.teakUserId))
-          .take(1),
-        ctx.db
-          .query("nativeAuthCodes")
-          .withIndex("by_user", (q) => q.eq("userId", fixture.teakUserId))
-          .take(1),
-        ctx.db
-          .query("workosConsents")
-          .withIndex("by_workosUserId_and_clientId_and_revokedAt", (q) =>
-            q.eq("workosUserId", fixture.workosUserId)
-          )
-          .take(1),
-      ]
-    );
+    const [byEmail, cards, nativeCodes, consents] = await Promise.all([
+      ctx.db
+        .query("users")
+        .withIndex("by_email", (q) => q.eq("email", receipt.email))
+        .take(1),
+      ctx.db
+        .query("cards")
+        .withIndex("by_created", (q) => q.eq("userId", fixture.teakUserId))
+        .take(1),
+      ctx.db
+        .query("nativeAuthCodes")
+        .withIndex("by_user", (q) => q.eq("userId", fixture.teakUserId))
+        .take(1),
+      ctx.db
+        .query("workosConsents")
+        .withIndex("by_workosUserId_and_clientId_and_revokedAt", (q) =>
+          q.eq("workosUserId", fixture.workosUserId)
+        )
+        .take(1),
+    ]);
     const customer = await ctx.runQuery(
       components.polar.lib.getCustomerByUserId,
       { userId: fixture.teakUserId }
@@ -409,9 +503,7 @@ export const resolveRetiredImportedFixtureReceipt = internalMutation({
       { model: "user", where: [{ field: "_id", value: fixture.teakUserId }] }
     );
     if (
-      [byEmail, deleting, cards, nativeCodes, consents].some(
-        (rows) => rows.length > 0
-      ) ||
+      [byEmail, cards, nativeCodes, consents].some((rows) => rows.length > 0) ||
       customer !== null ||
       legacyUser !== null
     ) {
