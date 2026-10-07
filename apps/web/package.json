@@ -7,7 +7,7 @@
     "dev": "next dev --port 3000",
     "lint": "biome check .",
     "start": "next start",
-    "test": "CLAUDECODE=1 AGENT=1 bun test src/__tests__ --coverage --dots",
+    "test": "CLAUDECODE=1 AGENT=1 bun test --preload next/dist/server/node-environment-baseline src/__tests__ --coverage --dots",
     "test:e2e": "playwright test",
     "test:webmcp-eval": "bun src/tests/webmcp-eval.ts",
     "typecheck": "tsc --noEmit"

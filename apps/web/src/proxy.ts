@@ -10,6 +10,7 @@ const signInRoutes = [
   "/register",
   "/reset-password",
   "/forgot-password",
+  "/sign-in",
 ];
 const publicInfrastructureRoutes = new Set(["/monitoring", "/opengraph-image"]);
 

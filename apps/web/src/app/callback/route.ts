@@ -1,5 +1,5 @@
 import { handleAuth } from "@workos-inc/authkit-nextjs";
-import type { NextRequest } from "next/server";
+import { type NextRequest, NextResponse } from "next/server";
 import {
   assertWorkosCallbackBinding,
   inactiveAuthProvider,
@@ -22,7 +22,12 @@ export async function GET(request: NextRequest): Promise<Response> {
       const current = await readAuthMode();
       assertWorkosCallbackBinding(state, current, config.clientId);
     },
+    // The SDK adds cache and PKCE-expiry headers to this response, so it must
+    // be mutable. `Response.redirect` headers are immutable in Node.
     onError: () =>
-      Response.redirect(`${config.origin}/login?error=sign_in_restart`, 303),
+      NextResponse.redirect(
+        `${config.origin}/login?error=sign_in_restart`,
+        303
+      ),
   })(request);
 }

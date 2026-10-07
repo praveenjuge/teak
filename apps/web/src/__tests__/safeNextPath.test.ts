@@ -44,6 +44,7 @@ describe("getSafeNextPath", () => {
     expect(getSafeNextPath("/register")).toBeNull();
     expect(getSafeNextPath("/reset-password")).toBeNull();
     expect(getSafeNextPath("/forgot-password")).toBeNull();
+    expect(getSafeNextPath("/sign-in")).toBeNull();
     // With query string the path is still an auth route and must be rejected.
     expect(getSafeNextPath("/login?next=%2Fsettings")).toBeNull();
   });
