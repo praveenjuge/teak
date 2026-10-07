@@ -7,6 +7,9 @@
  * - Wrangler top-level bindings (R2, Images, AI) and removal of development env
  * - Local .dev.vars presence (ignored, per-surface; never blocks)
  * - Expected Convex env names and their parity if deployments are reachable
+ * - Development storage state: the current shared production Worker/bucket
+ *   (prefix-only separation) or the isolated development target. Credential
+ *   parity follows that state; a mix of both blocks.
  *
  * Exit code is 1 when a blocking finding exists (missing or mismatched
  * repository or deployment configuration). Warnings for unreachable
@@ -26,8 +29,12 @@ const ROOT = join(import.meta.dir, "..");
 const CONVEX_PATH = join(ROOT, "packages/convex");
 const WRANGLER_PATH = join(ROOT, "apps/files-worker/wrangler.jsonc");
 const DEV_VARS_PATH = join(ROOT, "apps/files-worker/.dev.vars");
+const ISOLATED_DEV_VARS_PATH = join(
+  ROOT,
+  "apps/files-worker/development/.dev.vars"
+);
 
-type Status = "same" | "different" | "missing" | "ok" | "warn";
+export type Status = "same" | "different" | "missing" | "ok" | "warn";
 
 let failureCount = 0;
 
@@ -83,6 +90,111 @@ export const parseConvexEnvOutput = (
     : { status: "unavailable", reason: "command_failed" };
 };
 
+export const PRODUCTION_STORAGE_BUCKET = "teak-files-prod";
+export const PRODUCTION_FILES_BASE = "https://files.teakvault.com";
+export const DEVELOPMENT_STORAGE_BUCKET = "teak-files-development-20261006";
+export const DEVELOPMENT_KEY_PREFIX = "dev/";
+
+/** Exact HTTPS origin of the dedicated `teak-files-development` workers.dev Worker. */
+export const isDevelopmentFilesOrigin = (
+  value: string | undefined
+): boolean => {
+  if (!value) {
+    return false;
+  }
+  try {
+    const url = new URL(value);
+    return (
+      value === url.origin &&
+      url.protocol === "https:" &&
+      !url.port &&
+      /^teak-files-development\.[a-z0-9-]+\.workers\.dev$/.test(url.hostname)
+    );
+  } catch {
+    return false;
+  }
+};
+
+/**
+ * `shared`: the current state. Development uses the production Worker and
+ * bucket, separated only by the `dev/` key prefix and sharing credentials.
+ * `isolated`: the target. Development uses its own Worker and bucket.
+ * Anything else, including a partial switch, is `invalid`.
+ */
+export type DevStorageState = "shared" | "isolated" | "invalid";
+
+export const classifyDevStorage = (routing: {
+  bucket: string | undefined;
+  prefix: string | undefined;
+  filesBase: string | undefined;
+}): DevStorageState => {
+  if (routing.prefix !== DEVELOPMENT_KEY_PREFIX) {
+    return "invalid";
+  }
+  if (
+    routing.bucket === PRODUCTION_STORAGE_BUCKET &&
+    routing.filesBase === PRODUCTION_FILES_BASE
+  ) {
+    return "shared";
+  }
+  if (
+    routing.bucket === DEVELOPMENT_STORAGE_BUCKET &&
+    isDevelopmentFilesOrigin(routing.filesBase)
+  ) {
+    return "isolated";
+  }
+  return "invalid";
+};
+
+const STORAGE_CREDENTIALS = new Set([
+  "FILES_SIGNING_SECRET",
+  "R2_ACCESS_KEY_ID",
+  "R2_SECRET_ACCESS_KEY",
+]);
+
+export interface Finding {
+  blocking?: boolean;
+  detail: string;
+  status: Status;
+}
+
+/**
+ * Shared storage needs the production signing key and S3 credentials; isolated
+ * storage must never reuse them. Account, endpoint and AI token stay identical.
+ * Unknown dev routing (skipped/unavailable) keeps the shared expectations.
+ */
+export const credentialParityFinding = (
+  name: string,
+  devState: DevStorageState | null,
+  same: boolean
+): Finding => {
+  if (devState === "invalid") {
+    // The dev storage routing finding already blocks.
+    return {
+      status: "warn",
+      detail: "not compared while dev storage routing is invalid",
+    };
+  }
+  const expectSame = !(
+    devState === "isolated" && STORAGE_CREDENTIALS.has(name)
+  );
+  if (same) {
+    return expectSame
+      ? { status: "same", detail: "prod == dev" }
+      : {
+          status: "same",
+          detail: "isolated dev must not reuse the production value",
+          blocking: true,
+        };
+  }
+  return expectSame
+    ? { status: "different", detail: "prod != dev (content not shown)" }
+    : {
+        status: "ok",
+        detail: "isolated dev uses its own value (content not shown)",
+      };
+};
+
 const expectedProdVars = [
   "CLOUDFLARE_ACCOUNT_ID",
   "CLOUDFLARE_API_TOKEN",
@@ -105,16 +217,17 @@ const log = (
   detail?: string,
   opts?: { blocking?: boolean }
 ) => {
+  const blocking = isBlockingFinding(status, opts);
   let icon: string;
-  if (status === "same" || status === "ok") {
-    icon = "✓";
-  } else if (status === "missing") {
+  if (blocking || status === "missing") {
     icon = "✗";
+  } else if (status === "same" || status === "ok") {
+    icon = "✓";
   } else {
     icon = "•";
   }
   console.log(`${icon} ${label}: ${status}${detail ? ` (${detail})` : ""}`);
-  if (isBlockingFinding(status, opts)) {
+  if (blocking) {
     failureCount += 1;
   }
 };
@@ -133,11 +246,15 @@ const checkWrangler = () => {
       .replace(/\/\*[\s\S]*?\*\//g, "");
     const cfg = JSON.parse(stripped);
     const hasEnvDev = Boolean(cfg.env?.development);
-    log(
-      "top-level bucket",
-      cfg.r2_buckets?.[0]?.bucket_name ? "ok" : "missing",
-      cfg.r2_buckets?.[0]?.bucket_name ?? "no bucket"
-    );
+    const bucketName = cfg.r2_buckets?.[0]?.bucket_name;
+    let bucketStatus: Status = "missing";
+    if (bucketName) {
+      bucketStatus =
+        cfg.r2_buckets.length === 1 && bucketName === PRODUCTION_STORAGE_BUCKET
+          ? "ok"
+          : "different";
+    }
+    log("top-level bucket", bucketStatus, bucketName ?? "no bucket");
     log(
       "top-level binding BUCKET",
       cfg.r2_buckets?.[0]?.binding === "BUCKET" ? "ok" : "missing"
@@ -189,8 +306,13 @@ const checkDevVars = () => {
       blocking: false,
     });
   }
-  console.log(
-    "  Production-data warning: dev bucket is prod (teak-files-prod + dev/ prefix). Writes are isolated by prefix but share credentials bucket-wide."
+  log(
+    "development/.dev.vars",
+    existsSync(ISOLATED_DEV_VARS_PATH) ? "ok" : "warn",
+    existsSync(ISOLATED_DEV_VARS_PATH)
+      ? "present for the isolated development Worker"
+      : "not needed until isolated development storage is active",
+    { blocking: false }
   );
 };
 
@@ -202,7 +324,7 @@ const checkConvexEnv = async (only: DeploymentScope | null) => {
   console.log(`  Expected prod vars: ${expectedProdVars.join(", ")}`);
   console.log(`  Expected dev vars: ${expectedDevVars.join(", ")}`);
   console.log(
-    "  Dev-specific routing: R2_BUCKET=teak-files-prod, R2_KEY_PREFIX=dev/, FILES_BASE=https://files.teakvault.com"
+    `  Dev storage: current shared routing (R2_BUCKET=${PRODUCTION_STORAGE_BUCKET}, FILES_BASE=${PRODUCTION_FILES_BASE}) or isolated target (R2_BUCKET=${DEVELOPMENT_STORAGE_BUCKET}, FILES_BASE=https://teak-files-development.<subdomain>.workers.dev); R2_KEY_PREFIX=dev/ in both`
   );
 
   const getDeploymentValue = async (
@@ -238,6 +360,25 @@ const checkConvexEnv = async (only: DeploymentScope | null) => {
       })
     )
   );
+  const deploymentValue = (
+    name: (typeof routingVars)[number],
+    side: "dev" | "prod"
+  ) => {
+    const result = deploymentValues.get(name)?.[side];
+    return result?.status === "found" ? result.value : undefined;
+  };
+  const devRouting = routingVars.map(
+    (name) => deploymentValues.get(name)?.dev.status
+  );
+  const devState: DevStorageState | null = devRouting.every(
+    (status) => status === "found" || status === "missing"
+  )
+    ? classifyDevStorage({
+        bucket: deploymentValue("R2_BUCKET", "dev"),
+        prefix: deploymentValue("R2_KEY_PREFIX", "dev"),
+        filesBase: deploymentValue("FILES_BASE", "dev"),
+      })
+    : null;
 
   for (const name of expectedProdVars) {
     const values = deploymentValues.get(name);
@@ -268,69 +409,89 @@ const checkConvexEnv = async (only: DeploymentScope | null) => {
       log(name, "missing", "prod missing");
     } else if (dev.status === "missing") {
       log(name, "missing", "dev missing");
-    } else if (prod.value === dev.value) {
-      log(name, "same", "prod == dev");
     } else {
-      log(name, "different", "prod != dev (content not shown)");
+      const finding = credentialParityFinding(
+        name,
+        devState,
+        prod.value === dev.value
+      );
+      log(name, finding.status, finding.detail, {
+        blocking: finding.blocking,
+      });
     }
   }
-  for (const name of routingVars) {
-    const values = deploymentValues.get(name);
-    if (!values) {
-      log(name, "warn", "parity result unavailable");
+
+  const routingResults = (side: "dev" | "prod") =>
+    routingVars.map((name) => deploymentValues.get(name)?.[side]);
+  const scopeNote = only ? ` (--only ${only})` : "";
+  for (const side of ["prod", "dev"] as const) {
+    const results = routingResults(side);
+    if (results.every((result) => result?.status === "skipped")) {
       continue;
     }
-    const { dev, prod } = values;
-    if (dev.status === "unavailable" || prod.status === "unavailable") {
-      log(name, "warn", "Convex deployment unavailable", {
+    if (
+      results.some(
+        (result) => result?.status !== "found" && result?.status !== "missing"
+      )
+    ) {
+      log(`${side} storage routing`, "warn", "Convex deployment unavailable", {
         blocking: only !== null,
       });
       continue;
     }
-    if (name === "R2_KEY_PREFIX") {
-      if (dev.status !== "skipped") {
-        if (dev.status === "missing") {
-          log(name, "missing", "dev should be dev/");
-        } else if (dev.value === "dev/") {
-          log(name, "same", "dev prefix ok");
-        } else {
-          log(name, "different", "dev prefix is set incorrectly");
-        }
-      }
-      if (prod.status !== "skipped") {
-        if (prod.status === "found") {
-          log(`${name} (prod)`, "different", "prod should be unset");
-        } else {
-          log(`${name} (prod)`, "same", "prod prefix unset");
-        }
-      }
+    if (side === "prod") {
+      log(
+        "R2_BUCKET (prod)",
+        deploymentValue("R2_BUCKET", "prod") === PRODUCTION_STORAGE_BUCKET
+          ? "same"
+          : "different",
+        `must be ${PRODUCTION_STORAGE_BUCKET}${scopeNote}`
+      );
+      log(
+        "FILES_BASE (prod)",
+        deploymentValue("FILES_BASE", "prod") === PRODUCTION_FILES_BASE
+          ? "same"
+          : "different",
+        `must be ${PRODUCTION_FILES_BASE}${scopeNote}`
+      );
+      log(
+        "R2_KEY_PREFIX (prod)",
+        deploymentValue("R2_KEY_PREFIX", "prod") === undefined
+          ? "same"
+          : "different",
+        `must be unset${scopeNote}`
+      );
       continue;
     }
-    const expected =
-      name === "R2_BUCKET" ? "teak-files-prod" : "https://files.teakvault.com";
-    const sides = [
-      { result: dev, sideName: "dev" },
-      { result: prod, sideName: "prod" },
-    ].filter(({ result }) => result.status !== "skipped");
-    const scopeNote = only ? ` (--only ${only})` : "";
-    if (sides.some(({ result }) => result.status === "missing")) {
-      log(name, "missing", `required${scopeNote}`);
-    } else if (
-      sides.every(
-        ({ result }) => result.status === "found" && result.value === expected
-      )
-    ) {
-      log(name, "same", `canonical value${scopeNote}`);
+    if (devState === "shared") {
+      log(
+        "dev storage routing",
+        "ok",
+        `current shared production Worker and bucket, dev/ prefix${scopeNote}`
+      );
+      console.log(
+        "  Isolation is not active: dev still shares production storage credentials bucket-wide. The prefix is routine-mistake protection, not a security boundary."
+      );
+    } else if (devState === "isolated") {
+      log(
+        "dev storage routing",
+        "ok",
+        `isolated development Worker and bucket, dev/ prefix${scopeNote}`
+      );
     } else {
-      log(name, "different", `differs from the canonical value${scopeNote}`);
+      log(
+        "dev storage routing",
+        "different",
+        `matches neither the current shared routing nor the isolated target${scopeNote}`
+      );
     }
   }
 
   console.log(
-    "\n  Convergence: read prod values (CLOUDFLARE_* etc.) and set in Convex dev via `bunx convex env set --deployment dev NAME` without logging; report only same/different/missing."
+    "\n  Shared dev storage requires the production signing key and S3 credentials; isolated dev storage requires its own. Never copy production credentials into isolated development."
   );
   console.log(
-    "  Prefix is routine-mistake protection, not a hard security boundary; shared credentials retain bucket-wide authority."
+    "  Distinct values do not prove bucket-scoped provider permissions; verify those with the provider. --only skips the credential comparison."
   );
 };
 
@@ -347,10 +508,10 @@ const main = async () => {
     "  • Keep `bun run dev:all` for all-surface stack; use `bun run dev:files` (remote bindings) vs `bun run dev:files:local` (Miniflare, low-fidelity Images)."
   );
   console.log(
-    "  • One-time Convex convergence required; .dev.vars is ignored and per-developer; prod-data warning applies (shared bucket + prefix)."
+    "  • .dev.vars is ignored and per-developer; sync it only from Convex dev (`bun run sync:cloudflare-dev`, or `bun run sync:cloudflare-dev --isolated` once isolation is active)."
   );
   console.log(
-    "  • Single files Worker and bucket: wrangler.jsonc is prod-only, the files-dev Worker/domain are deleted, and teak-files-dev is draining via lifecycle expiration before bucket deletion."
+    "  • wrangler.jsonc is prod-only. development/wrangler.jsonc is the prepared isolated development Worker; never reuse the retired teak-files-dev bucket."
   );
   if (failureCount > 0) {
     console.log(

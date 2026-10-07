@@ -113,3 +113,29 @@ for a value that is constant across deployments.
   check IDs, remediations, and redacted output safe to attach to bug reports.
 - `bun run scripts/env-contract-report.ts [--json]`: baseline metrics and
   per-target manual-supply counts.
+
+## Files storage: current shared state and isolated target
+
+Convex dev currently shares the production Files Worker, `teak-files-prod`
+bucket, signing key and S3 credentials, separated only by
+`R2_KEY_PREFIX=dev/`. The prefix protects canonical paths; it does not limit
+credential authority. The prepared target is the `teak-files-development`
+Worker (`apps/files-worker/development/wrangler.jsonc`) on
+`teak-files-development-20261006`, with its own signing key, bucket-scoped
+credentials and the same `dev/` prefix and exact keys. Production values never
+change.
+
+`check:cloudflare` recognizes both states and blocks any mix. In the isolated
+state it also blocks a dev signing key or S3 credential equal to production.
+Run it without `--only` to compare credentials. Distinct values do not prove
+provider permission scope.
+
+Source changes activate nothing. The approved switch changes the dev Convex
+`FILES_BASE`, `FILES_SIGNING_SECRET`, `R2_BUCKET`, `R2_ACCESS_KEY_ID` and
+`R2_SECRET_ACCESS_KEY` together, and mirrors `FILES_BASE` into the dev web
+build's `NEXT_PUBLIC_FILES_BASE`. Only after that do
+`bun run sync:cloudflare-dev --isolated` (writes the ignored
+`apps/files-worker/development/.dev.vars`) and
+`bun run --cwd apps/files-worker dev:development` run. Both read the pinned dev
+deployment and refuse the shared state. Never copy production credentials into
+isolated development.

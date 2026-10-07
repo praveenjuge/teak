@@ -1,0 +1,45 @@
+{
+  "$schema": "../node_modules/wrangler/config-schema.json",
+  // Isolated development Worker. Prepared only: Convex dev keeps the shared
+  // production routing until the approved storage switch. Deploy with
+  // `bun run deploy:development`; never add the production custom domain.
+  "name": "teak-files-development",
+  "account_id": "dd19e45b8f2f3cc0393cc2deb51fa27d",
+  "main": "../src/index.ts",
+  "compatibility_date": "2026-08-01",
+  "compatibility_flags": ["nodejs_compat"],
+  "workers_dev": true,
+  "preview_urls": false,
+  "routes": [],
+  "r2_buckets": [
+    {
+      "binding": "BUCKET",
+      "bucket_name": "teak-files-development-20261006",
+      "preview_bucket_name": "teak-files-development-20261006"
+    }
+  ],
+  // Its own SQLite namespace; never reference the production script's gates.
+  "durable_objects": {
+    "bindings": [{ "name": "OBJECT_GATES", "class_name": "ObjectDeletionGate" }]
+  },
+  "migrations": [
+    {
+      "tag": "development-object-deletion-gates-v1",
+      "new_sqlite_classes": ["ObjectDeletionGate"]
+    }
+  ],
+  "ai": {
+    "binding": "AI",
+    "remote": true
+  },
+  "images": {
+    "binding": "IMAGES"
+  },
+  "vars": {
+    "SENTRY_ENVIRONMENT": "development"
+  },
+  "observability": {
+    "enabled": true,
+    "head_sampling_rate": 1
+  }
+}

@@ -95,10 +95,13 @@ export const TARGET_SPECS: Record<SupportedTarget, TargetSpec> = {
   "files-worker": {
     target: "files-worker",
     profiles: ["local", "preview", "production"],
-    dotenvFiles: ["apps/files-worker/.dev.vars"],
+    dotenvFiles: [
+      "apps/files-worker/.dev.vars",
+      "apps/files-worker/development/.dev.vars",
+    ],
     needsConvex: false,
     defaultConvex: "skip",
-    note: "Cloudflare Worker. Local secrets live in .dev.vars, synced from Convex locally.",
+    note: "Cloudflare Worker. Local secrets live in .dev.vars (shared production Worker) or development/.dev.vars (isolated development Worker), synced from Convex dev.",
   },
   e2e: {
     target: "e2e",

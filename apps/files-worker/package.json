@@ -6,7 +6,9 @@
     "cf-typegen": "wrangler types",
     "check": "bun run ../../scripts/check-cloudflare.ts",
     "deploy": "wrangler deploy",
+    "deploy:development": "wrangler deploy --config development/wrangler.jsonc",
     "dev": "wrangler dev --remote --var SENTRY_ENVIRONMENT:development",
+    "dev:development": "bun --no-env-file run ../../scripts/files-worker-dev.ts",
     "dev:local": "wrangler dev --var SENTRY_ENVIRONMENT:development",
     "test": "bun test src",
     "typecheck": "tsc --noEmit"
