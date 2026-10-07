@@ -200,9 +200,20 @@ export const link = internalMutation({
     ) {
       throw new Error("Importer owner changed");
     }
-    if ((await source(ctx, row)).sourceVersion !== args.sourceVersion) {
+    const { sourceVersion, ...currentOwner } = await source(ctx, row);
+    if (
+      sourceVersion !== args.sourceVersion &&
+      !(
+        row.workosUserId === args.user.id &&
+        (await digest(
+          JSON.stringify({ ...currentOwner, workosUserId: null })
+        )) === args.sourceVersion
+      )
+    ) {
       throw new Error("Importer source changed; resume with a fresh page");
     }
+    // A signed webhook may already have installed this exact mapping. Only an
+    // otherwise unchanged, previously unmapped source can take that path.
     const result = await ctx.runMutation(internal.workosUsers.linkWorkosUser, {
       workosUserId: args.user.id,
       externalId: args.user.externalId,
