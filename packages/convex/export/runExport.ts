@@ -24,6 +24,7 @@ import {
   isFilesWorkerConfigured,
 } from "../storage/filesWorkerClient";
 import { buildR2ObjectKey, storeObject } from "../storage/r2";
+import { getR2KeyPrefix } from "../storage/r2Keys";
 import { withBackendSpan } from "../telemetry/sentry";
 import {
   CARDS_ENTRY_NAME,
@@ -70,13 +71,18 @@ interface ArchiveCardInput {
   fileKey?: string;
 }
 
-function buildArtifactKey(userId: string, jobId: string): string {
+export function buildArtifactKey(userId: string, jobId: string): string {
   const hashUserId = createHash("sha256")
     .update(userId)
     .digest("hex")
     .slice(0, 16);
   const stamp = new Date().toISOString().slice(0, 10);
-  return ["users", hashUserId, "exports", `${jobId}-${stamp}.zip`].join("/");
+  return [
+    `${getR2KeyPrefix()}users`,
+    hashUserId,
+    "exports",
+    `${jobId}-${stamp}.zip`,
+  ].join("/");
 }
 
 const EXPORT_MANIFEST_VERSION = 1;
