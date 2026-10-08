@@ -182,16 +182,19 @@ async function tokenRequest(
       local: LOCAL,
     });
     if (result.ok) {
-      return { ...binding(auth), ...result.tokens };
+      const { accessToken, expiresAt, refreshToken } = result.tokens;
+      return { ...binding(auth), accessToken, expiresAt, refreshToken };
     }
+    const rejected =
+      result.reason === "rejected" || result.reason === "client_rejected";
     if (
       result.reason === "refresh_token_rejected" ||
-      (result.reason === "rejected" && params.grant_type !== "refresh_token")
+      (rejected && params.grant_type !== "refresh_token")
     ) {
       await refreshDiscoveryAfterFailure();
       return null;
     }
-    if (result.reason === "rejected") {
+    if (rejected) {
       throw new Error("Could not verify your connection. Please try again.");
     }
     throw new Error(
