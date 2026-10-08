@@ -285,6 +285,8 @@ export function reauthorizeTeak(): Promise<string> {
       if (tokens?.refreshToken) {
         const renewed = exchange(provider, {
           grant_type: "refresh_token",
+          // Runtime credential from secure storage, not a hard-coded token.
+          // nosemgrep: codacy.yaml.security.hard-coded-tokens
           refresh_token: tokens.refreshToken,
         });
         // Background readers join this rotation instead of replaying the old
@@ -475,6 +477,8 @@ async function resolveStoredTeakAccessToken(): Promise<string | null> {
   try {
     return await exchange(provider, {
       grant_type: "refresh_token",
+      // Runtime credential from secure storage, not a hard-coded token.
+      // nosemgrep: codacy.yaml.security.hard-coded-tokens
       refresh_token: tokens.refreshToken,
     });
   } catch (error) {
