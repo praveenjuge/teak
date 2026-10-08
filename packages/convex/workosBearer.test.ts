@@ -1,5 +1,4 @@
 /// <reference types="vite/client" />
-import betterAuthTest from "@convex-dev/better-auth/test";
 import rateLimiterTest from "@convex-dev/rate-limiter/test";
 import counterTest from "@convex-dev/sharded-counter/test";
 import workflowTest from "@convex-dev/workflow/test";
@@ -95,7 +94,6 @@ async function token(audience = apiAudience, overrides: JWTPayload = {}) {
 
 async function setup() {
   const t = convexTest(schema, modules);
-  betterAuthTest.register(t);
   authKitTest.register(t);
   workflowTest.register(t);
   rateLimiterTest.register(t, "rateLimiterV2");

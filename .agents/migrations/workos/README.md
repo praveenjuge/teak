@@ -7,9 +7,16 @@ exist. The full phase plans and evidence are in git history before this file.
 
 ## Retained data and backups
 
-- The Better Auth Convex component stays mounted and
-  `packages/convex/migration/exportBetterAuth.ts` stays, so legacy data remains
-  readable. Deleting Better Auth or customer data needs explicit owner approval.
+- The Better Auth Convex component stays mounted only for retained data. No
+  Better Auth runtime code remains: no client, triggers or sign-in. Its only
+  uses are account deletion cleanup (`packages/convex/legacyBetterAuth.ts`,
+  which removes a legacy owner's rows; finalization redacts the owner's
+  address) and the backup exporter
+  (`packages/convex/migration/exportBetterAuth.ts`, nine models including
+  `twoFactor`). `@convex-dev/better-auth` and its `better-auth` peer stay
+  installed for the mount.
+- Removing the retained Better Auth data, unmounting the component, or deleting
+  customer data needs separate explicit owner approval.
 - Encrypted local evidence: `/Users/praveenjuge/Documents/TeakMigrationBackups/2026-10-03-phase-r`.
 - Encrypted remote copy: private R2 bucket `teak-workos-migration-backup-20261003`
   (APAC Standard). The approved migration plan is in it as `approved-plan.txt.gpg`.

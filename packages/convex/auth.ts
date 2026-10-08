@@ -1,7 +1,4 @@
-import { type AuthFunctions, createClient } from "@convex-dev/better-auth";
 import { v } from "convex/values";
-import { components, internal } from "./_generated/api";
-import type { DataModel } from "./_generated/dataModel";
 import { query } from "./_generated/server";
 import { polar } from "./billing";
 import { getActiveCardCount } from "./card/cardUsage";
@@ -12,34 +9,6 @@ export { ensureCardCreationAllowed } from "./card/quota";
 import { getSessionProfile } from "./securitySessions";
 import { FREE_TIER_LIMIT } from "./shared/constants";
 import { isApprovedActiveSubscription } from "./shared/polarPlans";
-import { mirrorBetterAuthUser } from "./userIdentityTable";
-
-const authFunctions = (internal as any).auth as AuthFunctions;
-
-// Sign-in is WorkOS AuthKit. The Better Auth component stays mounted only so
-// accounts from before WorkOS keep their retained rows, which account deletion
-// still removes. Those rows are read-only: nothing may create or update them.
-const rejectLegacyWrite = () =>
-  Promise.reject(new Error("Better Auth data is read-only"));
-const readOnly = { onCreate: rejectLegacyWrite, onUpdate: rejectLegacyWrite };
-
-export const authComponent = createClient<DataModel>(components.betterAuth, {
-  authFunctions,
-  triggers: {
-    session: readOnly,
-    oauthAccessToken: readOnly,
-    verification: readOnly,
-    account: readOnly,
-    user: {
-      ...readOnly,
-      onDelete: async (ctx, user) => {
-        await mirrorBetterAuthUser(ctx, user, true);
-      },
-    },
-  },
-});
-
-export const { onCreate, onUpdate, onDelete } = authComponent.triggersApi();
 
 // The web auth boundary subscribes to this at the provider level. During
 // sign-out the browser still holds a briefly valid token, so the subscription

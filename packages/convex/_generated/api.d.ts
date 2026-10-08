@@ -72,6 +72,7 @@ import type * as import_sourceVersion from "../import/sourceVersion.js";
 import type * as import_validate from "../import/validate.js";
 import type * as importUpload from "../importUpload.js";
 import type * as index from "../index.js";
+import type * as legacyBetterAuth from "../legacyBetterAuth.js";
 import type * as linkMetadata from "../linkMetadata.js";
 import type * as linkMetadata_instagram from "../linkMetadata/instagram.js";
 import type * as linkMetadata_parsing from "../linkMetadata/parsing.js";
@@ -278,6 +279,7 @@ declare const fullApi: ApiFromModules<{
   "import/validate": typeof import_validate;
   importUpload: typeof importUpload;
   index: typeof index;
+  legacyBetterAuth: typeof legacyBetterAuth;
   linkMetadata: typeof linkMetadata;
   "linkMetadata/instagram": typeof linkMetadata_instagram;
   "linkMetadata/parsing": typeof linkMetadata_parsing;

@@ -1,88 +1,17 @@
 /// <reference types="vite/client" />
-import betterAuthTest from "@convex-dev/better-auth/test";
-import { createFunctionHandle } from "convex/server";
 import { convexTest } from "convex-test";
 import { describe, expect, test } from "vitest";
-import { components, internal } from "./_generated/api";
+import { internal } from "./_generated/api";
 import schema from "./schema";
 
 const modules = import.meta.glob("./**/*.ts");
-const setup = () => {
-  const t = convexTest(schema, modules);
-  betterAuthTest.register(t);
-  return t;
-};
+const setup = () => convexTest(schema, modules);
 type TestBackend = ReturnType<typeof setup>;
-// Seeds a retained Better Auth row the way pre-WorkOS sign-ups left them.
-const retainedUser = (t: TestBackend, email: string) =>
-  t.run((ctx) =>
-    ctx.runMutation(components.betterAuth.adapter.create, {
-      input: {
-        model: "user",
-        data: {
-          name: "Retained fixture",
-          email,
-          emailVerified: true,
-          createdAt: Date.now(),
-          updatedAt: Date.now(),
-        },
-      },
-    })
-  );
 const rows = (t: TestBackend) =>
   t.run((ctx) => ctx.db.query("users").take(200));
 
-// Failure modes: account deletion leaving the email readable; new writes to
-// retained Better Auth data; admin role granted to the wrong or no account.
+// Failure mode: admin role granted to the wrong or no account.
 describe("identity table", () => {
-  test("deleting a retained Better Auth user records a redacted tombstone", async () => {
-    const t = setup();
-    const user = await retainedUser(t, "retained@example.com");
-    await t.run(async (ctx) =>
-      ctx.runMutation(components.betterAuth.adapter.deleteOne, {
-        input: { model: "user", where: [{ field: "_id", value: user._id }] },
-        onDeleteHandle: await createFunctionHandle(internal.auth.onDelete),
-      })
-    );
-    expect(await rows(t)).toEqual([
-      expect.objectContaining({
-        teakUserId: user._id,
-        email: "",
-        emailVerified: false,
-        deletedAt: expect.any(Number),
-      }),
-    ]);
-  });
-
-  test("retained Better Auth data rejects new and updated rows", async () => {
-    const t = setup();
-    const user = await retainedUser(t, "retained@example.com");
-    await expect(
-      t.run(async (ctx) =>
-        ctx.runMutation(components.betterAuth.adapter.create, {
-          input: {
-            model: "session",
-            data: {
-              userId: user._id,
-              token: crypto.randomUUID(),
-              expiresAt: Date.now() + 60_000,
-              createdAt: Date.now(),
-              updatedAt: Date.now(),
-            },
-          },
-          onCreateHandle: await createFunctionHandle(internal.auth.onCreate),
-        })
-      )
-    ).rejects.toThrow("Better Auth data is read-only");
-    await expect(
-      t.mutation(internal.auth.onUpdate, {
-        model: "user",
-        oldDoc: user,
-        newDoc: { ...user, email: "changed@example.com" },
-      })
-    ).rejects.toThrow("Better Auth data is read-only");
-  });
-
   test("admin seeding grants the role to exactly one active account", async () => {
     const t = setup();
     await t.run((ctx) =>

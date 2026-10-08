@@ -110,7 +110,6 @@
     "nodeVersion": "24",
     "externalPackages": [
       "react",
-      "@better-auth/expo",
       "@cf-wasm/photon",
       "hono"
     ]
