@@ -1,7 +1,24 @@
 import { instant } from "@next/playwright";
-import { expect, test } from "@playwright/test";
+import { type APIRequestContext, expect, test } from "@playwright/test";
 import { api } from "@teak/convex";
 import { ConvexHttpClient } from "convex/browser";
+
+const readMode = () => {
+  const convexUrl = process.env.NEXT_PUBLIC_CONVEX_URL;
+  if (!convexUrl) {
+    throw new Error(
+      "Configure the isolated development backend before this test."
+    );
+  }
+  return new ConvexHttpClient(convexUrl).query(api.auth.getAuthMode, {});
+};
+
+const redirectTarget = async (request: APIRequestContext, path: string) => {
+  const response = await request.get(path, { maxRedirects: 0 });
+  expect(response.status()).toBe(307);
+  const location = new URL(response.headers().location ?? "", response.url());
+  return `${location.pathname}${location.search}`;
+};
 
 // Uses the running backend's public authority without creating accounts or
 // changing the auth mode. The outage case closes only the browser network.
@@ -9,24 +26,16 @@ test.describe("Selected web authentication", () => {
   test("keeps selected sign-in, freeze, and recovery behavior visible", async ({
     page,
     request,
+    baseURL,
   }, testInfo) => {
-    const convexUrl = process.env.NEXT_PUBLIC_CONVEX_URL;
-    if (!convexUrl) {
-      throw new Error(
-        "Configure the isolated development backend before this test."
-      );
-    }
-    const mode = await new ConvexHttpClient(convexUrl).query(
-      api.auth.getAuthMode,
-      {}
-    );
+    const mode = await readMode();
     const pageErrors: string[] = [];
     page.on("pageerror", (error) => pageErrors.push(error.message));
-    await page.goto("/login?next=%2Fsettings");
-    await expect(
-      page.getByText("Login to Teak", { exact: true })
-    ).toBeVisible();
     if (mode.primary === "betterauth") {
+      await page.goto("/login?next=%2Fsettings");
+      await expect(
+        page.getByText("Login to Teak", { exact: true })
+      ).toBeVisible();
       await expect(page.getByLabel("Email", { exact: true })).toBeVisible();
       await expect(page.getByLabel("Password", { exact: true })).toBeVisible();
       await expect(
@@ -48,46 +57,57 @@ test.describe("Selected web authentication", () => {
       const callback = await request.get("/callback?code=expired");
       expect(callback.status()).toBe(409);
       expect(callback.headers()["cache-control"]).toBe("no-store");
-    } else {
+      await page.goto("/register");
       await expect(
-        page.getByRole("button", { name: "Continue", exact: true })
+        mode.signupsDisabled
+          ? page
+              .getByRole("status")
+              .filter({ hasText: /sign.?ups are paused/i })
+          : page.getByLabel("Email", { exact: true })
       ).toBeVisible();
-      await expect(
-        page.getByLabel("Password", { exact: true }).filter({ visible: true })
-      ).toHaveCount(0);
-    }
-    await page.goto("/register");
-    if (mode.signupsDisabled) {
-      await expect(
-        page.getByRole("status").filter({ hasText: /sign.?ups are paused/i })
-      ).toContainText(/sign.?ups are paused/i);
-      await expect(
-        page.getByLabel("Email", { exact: true }).filter({ visible: true })
-      ).toHaveCount(0);
-    } else if (mode.primary === "betterauth") {
+    } else {
+      // WorkOS hosts every entry: Teak redirects without a page of its own.
+      expect(await redirectTarget(request, "/login?next=%2Fsettings")).toBe(
+        "/sign-in?next=%2Fsettings"
+      );
+      expect(await redirectTarget(request, "/forgot-password")).toBe(
+        "/sign-in"
+      );
+      expect(await redirectTarget(request, "/register")).toBe("/sign-up");
+      await page.goto("/login?next=%2Fsettings");
       await expect(page.getByLabel("Email", { exact: true })).toBeVisible();
-    } else {
-      await expect(
-        page.getByRole("button", { name: "Continue", exact: true })
-      ).toBeVisible();
+      expect(new URL(page.url()).origin).not.toBe(
+        new URL(baseURL ?? "").origin
+      );
     }
     await testInfo.attach("selected-provider", {
       body: JSON.stringify(mode),
       contentType: "application/json",
     });
-    await testInfo.attach("signup-state", {
+    await testInfo.attach("entry-state", {
       body: await page.screenshot({ fullPage: true }),
       contentType: "image/png",
     });
     expect(pageErrors).toEqual([]);
   });
-  test("shows a retry when the public session authority is unreachable", async ({
+  test("survives an unreachable public session authority", async ({
     page,
+    baseURL,
   }, testInfo) => {
+    const mode = await readMode();
     await page.routeWebSocket("**/*.convex.cloud/**", (socket) =>
       socket.close()
     );
     await page.goto("/login");
+    if (mode.primary === "workos") {
+      // The proxy reads the authority server-side, so a browser outage can't
+      // stop the hand-off to hosted sign-in.
+      await expect(page.getByLabel("Email", { exact: true })).toBeVisible();
+      expect(new URL(page.url()).origin).not.toBe(
+        new URL(baseURL ?? "").origin
+      );
+      return;
+    }
     await expect(
       page
         .getByRole("alert")

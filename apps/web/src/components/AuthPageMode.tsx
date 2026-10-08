@@ -1,18 +1,19 @@
 "use client";
 
-import { SIGNUPS_PAUSED_MESSAGE } from "@teak/convex/shared/constants";
-import { Button } from "@teak/ui/components/ui/button";
-import { CardContent, CardTitle } from "@teak/ui/components/ui/card";
+import { CardContent } from "@teak/ui/components/ui/card";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { type ReactNode, useCallback, useEffect, useState } from "react";
+import { type ReactNode, useEffect } from "react";
 import { AuthCardLoading } from "@/app/(auth)/AuthCardLoading";
-import { startWorkosAuth } from "@/app/(auth)/actions";
+import { workosStartUrl } from "@/lib/auth-entry";
 import { getSafeNextPath } from "@/lib/safe-next-path";
 import { useAuthMode } from "./AuthModeProvider";
 
 type Flow = "signin" | "signup" | "recovery";
 
+// These pages are Better Auth forms. Under WorkOS the proxy redirects them to
+// hosted AuthKit before they render; this hand-off only covers navigations
+// that skip it.
 export function AuthPageMode({
   children,
   flow,
@@ -24,6 +25,9 @@ export function AuthPageMode({
   if (!mode) {
     return <AuthCardLoading />;
   }
+  if (mode.primary === "workos") {
+    return <WorkosHandoff signup={flow === "signup"} />;
+  }
   if (flow === "recovery" && mode.accountChangesPaused) {
     return (
       <CardContent>
@@ -32,85 +36,15 @@ export function AuthPageMode({
       </CardContent>
     );
   }
-  if (mode.primary === "betterauth") {
-    return children;
-  }
-  if (flow === "signup" && mode.signupsDisabled) {
-    return (
-      <CardContent>
-        <p role="status">{SIGNUPS_PAUSED_MESSAGE}</p>
-        <Link href="/login">Sign in</Link>
-      </CardContent>
-    );
-  }
-  return <WorkosEntry flow={flow} />;
+  return children;
 }
 
-function WorkosEntry({ flow }: { flow: Flow }) {
-  const params = useSearchParams();
-  const next = params.get("next");
-  const safeNext = getSafeNextPath(next);
-  const alternatePath = flow === "signup" ? "/login" : "/register";
-  const alternateHref =
-    safeNext && safeNext !== "/"
-      ? `${alternatePath}?next=${encodeURIComponent(safeNext)}`
-      : alternatePath;
-  const [pending, setPending] = useState(false);
-  const [error, setError] = useState<string | null>(
-    params.get("error") ? "Sign-in changed. Please start again." : null
-  );
-  const start = useCallback(async () => {
-    setPending(true);
-    setError(null);
-    try {
-      const result = await startWorkosAuth(
-        next,
-        flow === "signup",
-        flow === "recovery"
-      );
-      if (!result.url) {
-        setError(
-          result.error ?? "We couldn't start sign-in. Please try again."
-        );
-        setPending(false);
-        return;
-      }
-      window.location.assign(result.url);
-    } catch {
-      setError("We couldn't start sign-in. Please try again.");
-      setPending(false);
-    }
-  }, [flow, next]);
+function WorkosHandoff({ signup }: { signup: boolean }) {
+  const next = getSafeNextPath(useSearchParams().get("next"));
   useEffect(() => {
-    if (flow === "recovery") {
-      void start();
-    }
-  }, [flow, start]);
-  const title = {
-    signup: "Create your Teak account",
-    recovery: "Reset your password",
-    signin: "Login to Teak",
-  }[flow];
-  const buttonLabel = error ? "Try again" : "Continue";
-  return (
-    <>
-      <CardTitle className="text-center text-lg">{title}</CardTitle>
-      <CardContent className="grid gap-4">
-        <p className="text-muted-foreground text-sm">
-          {flow === "recovery"
-            ? "Continue to secure sign-in, then choose Forgot password."
-            : "Continue to secure sign-in with your email, Google, or Apple."}
-        </p>
-        {error && <p role="alert">{error}</p>}
-        <Button disabled={pending} onClick={() => void start()}>
-          {pending ? "Opening sign-in…" : buttonLabel}
-        </Button>
-        <Link className="text-center text-sm" href={alternateHref}>
-          {flow === "signup"
-            ? "Already have an account? Sign in"
-            : "New user? Register"}
-        </Link>
-      </CardContent>
-    </>
-  );
+    window.location.replace(
+      workosStartUrl(window.location.origin, signup, next).toString()
+    );
+  }, [next, signup]);
+  return <AuthCardLoading />;
 }

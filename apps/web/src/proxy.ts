@@ -1,6 +1,7 @@
 import { authkit, handleAuthkitProxy } from "@workos-inc/authkit-nextjs";
 import { getSessionCookie } from "better-auth/cookies";
 import { type NextRequest, NextResponse } from "next/server";
+import { workosEntryRedirect } from "@/lib/auth-entry";
 import { readAuthMode, readProxyAuthMode } from "@/lib/auth-mode-server";
 import { buildPublicAppUrl } from "@/lib/public-app-url";
 import { readWorkosWebConfig } from "@/lib/workos-config";
@@ -11,6 +12,7 @@ const signInRoutes = [
   "/reset-password",
   "/forgot-password",
   "/sign-in",
+  "/sign-up",
 ];
 const publicInfrastructureRoutes = new Set(["/monitoring", "/opengraph-image"]);
 
@@ -70,13 +72,17 @@ export default async function middleware(request: NextRequest) {
       const { session, headers } = await authkit(request, {
         redirectUri: config.redirectUri,
       });
+      const entry = workosEntryRedirect(request.nextUrl, Boolean(session.user));
+      if (entry) {
+        return handleAuthkitProxy(request, headers, { redirect: entry });
+      }
       if (!(session.user || isSignInRoute)) {
-        const login = new URL("/login", config.origin);
-        login.searchParams.set(
+        const signIn = new URL("/sign-in", config.origin);
+        signIn.searchParams.set(
           "next",
           `${request.nextUrl.pathname}${request.nextUrl.search}`
         );
-        return handleAuthkitProxy(request, headers, { redirect: login });
+        return handleAuthkitProxy(request, headers, { redirect: signIn });
       }
       return handleAuthkitProxy(request, headers);
     }
