@@ -74,4 +74,6 @@ Mailpit preflight:
 3. Point MX for the private test email domain at the Mailpit host.
 4. Send a probe email from Resend to `probe@<E2E_EMAIL_DOMAIN>` and confirm it appears in the Mailpit UI/API.
 
+To check the Mailpit API, MX record and SMTP port without sending email or touching accounts, manually dispatch the Production Email Readiness workflow (`prod-email-readiness.yml`). It doesn't prove delivery.
+
 Mailpit is public and unauthenticated over HTTP. That is acceptable here because these are throwaway accounts, API keys are not uploaded as artifacts, and the test password is never emailed.

@@ -1,0 +1,62 @@
+# Read-only check of the hosted test email infrastructure: Mailpit API, MX and
+# SMTP reachability. Sends no email and runs no auth, provisioning or cleanup.
+name: Production Email Readiness
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  readiness:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      MAILPIT_URL: ${{ secrets.MAILPIT_URL }}
+      E2E_EMAIL_DOMAIN: ${{ secrets.E2E_EMAIL_DOMAIN }}
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
+        with:
+          bun-version-file: package.json
+
+      - name: Check Mailpit API
+        run: |
+          bun --no-env-file -e '
+            const { requireMailpit } = await import("./packages/tests/src/helpers/env.ts");
+            const { assertMailpitReady } = await import("./packages/tests/src/helpers/mailpit.ts");
+            try {
+              requireMailpit();
+            } catch {
+              console.error("::error::MAILPIT_URL and E2E_EMAIL_DOMAIN secrets are required");
+              process.exit(1);
+            }
+            try {
+              await assertMailpitReady();
+            } catch {
+              console.error("::error::Mailpit API is not ready");
+              process.exit(1);
+            }
+            console.log("Mailpit API is ready");
+          '
+
+      - name: Check MX and SMTP reachability
+        shell: bash
+        run: |
+          mx=$(dig +short +time=5 +tries=2 MX "$E2E_EMAIL_DOMAIN" 2>/dev/null \
+            | awk '$1 ~ /^[0-9]+$/ && NF == 2 { print $1, $2 }' \
+            | sort -n | awk 'NR == 1 { sub(/\.$/, "", $2); print $2 }')
+          if [ -z "$mx" ]; then
+            echo "::error::No MX record found for the test email domain"
+            exit 1
+          fi
+          echo "MX record found"
+          # shellcheck disable=SC2016 # $0 expands inside the probe shell
+          if ! timeout 10 bash -c 'exec 3<>"/dev/tcp/$0/25"' "$mx" 2>/dev/null; then
+            echo "::error::SMTP port 25 is unreachable on the primary MX host"
+            exit 1
+          fi
+          echo "SMTP port 25 is reachable"
