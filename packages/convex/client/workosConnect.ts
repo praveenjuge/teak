@@ -88,10 +88,13 @@ const readObject = async (
 export interface ConnectTokens {
   accessToken: string;
   expiresAt: number;
+  // Seconds, as issued; expiresAt is derived from it at receipt.
+  expiresIn: number;
   refreshToken: string;
 }
 
 // refresh_token_rejected: WorkOS proved the refresh credential is dead.
+// client_rejected: WorkOS rejected this client, not necessarily its grant.
 // rejected: any other 400/401. failed: any other non-2xx response.
 // invalid_response: a 2xx response without a usable token set.
 export type ConnectTokenResult =
@@ -100,6 +103,7 @@ export type ConnectTokenResult =
       ok: false;
       reason:
         | "refresh_token_rejected"
+        | "client_rejected"
         | "rejected"
         | "failed"
         | "invalid_response";
@@ -138,18 +142,33 @@ export const requestConnectTokens = async (
       (payload?.error === "invalid_grant" ||
         payload?.error === "invalid_refresh_token" ||
         payload?.code === "invalid_refresh_token");
+    if (refreshTokenRejected) {
+      return { ok: false, reason: "refresh_token_rejected", status };
+    }
+    const clientRejected =
+      payload?.error === "invalid_client" ||
+      payload?.error === "unauthorized_client";
     return {
       ok: false,
-      reason: refreshTokenRejected ? "refresh_token_rejected" : "rejected",
+      reason: clientRejected ? "client_rejected" : "rejected",
       status,
     };
   }
   const expiresIn = payload?.expires_in;
+  // RFC 6749 section 6: a refresh response may omit refresh_token, and the
+  // client keeps the one it sent.
+  const keepsRefreshToken =
+    options.grant.grant_type === "refresh_token" &&
+    payload !== null &&
+    !("refresh_token" in payload);
+  const refreshToken = keepsRefreshToken
+    ? options.grant.refresh_token
+    : payload?.refresh_token;
   if (
     typeof payload?.access_token !== "string" ||
     !payload.access_token ||
-    typeof payload.refresh_token !== "string" ||
-    !payload.refresh_token ||
+    typeof refreshToken !== "string" ||
+    !refreshToken ||
     typeof expiresIn !== "number" ||
     !Number.isSafeInteger(expiresIn) ||
     expiresIn <= 0 ||
@@ -161,8 +180,9 @@ export const requestConnectTokens = async (
     ok: true,
     tokens: {
       accessToken: payload.access_token,
-      refreshToken: payload.refresh_token,
+      refreshToken,
       expiresAt: Date.now() + expiresIn * 1000,
+      expiresIn,
     },
   };
 };

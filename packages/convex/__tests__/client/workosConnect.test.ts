@@ -97,6 +97,7 @@ describe("token requests", () => {
     expect(result.ok && result.tokens).toMatchObject({
       accessToken: "access",
       refreshToken: "rotated",
+      expiresIn: 300,
     });
     const expiresAt = result.ok ? result.tokens.expiresAt : 0;
     expect(expiresAt).toBeGreaterThanOrEqual(before + 300_000);
@@ -137,7 +138,14 @@ describe("token requests", () => {
       refreshGrant,
       "refresh_token_rejected",
     ],
-    [401, '{"error":"invalid_client"}', refreshGrant, "rejected"],
+    [401, '{"error":"invalid_client"}', refreshGrant, "client_rejected"],
+    [400, '{"error":"unauthorized_client"}', refreshGrant, "client_rejected"],
+    [
+      401,
+      '{"error":"invalid_client"}',
+      { grant_type: "authorization_code" },
+      "client_rejected",
+    ],
     [401, "", refreshGrant, "rejected"],
     [400, "not-json", refreshGrant, "rejected"],
     [
@@ -160,6 +168,29 @@ describe("token requests", () => {
       ).toEqual({ ok: false, reason, status });
     }
   );
+
+  test("keeps the sent refresh token when a refresh response omits it", async () => {
+    transport(() => Response.json({ access_token: "access", expires_in: 60 }));
+    const result = await requestConnectTokens(auth, {
+      clientId: "client_CLI",
+      grant: refreshGrant,
+    });
+    expect(result.ok && result.tokens).toMatchObject({
+      accessToken: "access",
+      refreshToken: "refresh",
+      expiresIn: 60,
+    });
+  });
+
+  test("requires a refresh token from an authorization code exchange", async () => {
+    transport(() => Response.json({ access_token: "access", expires_in: 60 }));
+    expect(
+      await requestConnectTokens(auth, {
+        clientId: "client_CLI",
+        grant: { grant_type: "authorization_code", code: "code" },
+      })
+    ).toEqual({ ok: false, reason: "invalid_response", status: 200 });
+  });
 
   test.each([
     ["missing access token", { refresh_token: "r", expires_in: 60 }],

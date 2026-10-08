@@ -398,7 +398,13 @@ const exchangeToken = async (
           status: result.status,
         });
   }
-  return { ...result.tokens, binding: binding(options, auth) };
+  const { accessToken, expiresAt, refreshToken } = result.tokens;
+  return {
+    accessToken,
+    expiresAt,
+    refreshToken,
+    binding: binding(options, auth),
+  };
 };
 const tokenProvider = (options: ClientOptions): TokenProvider => {
   let pending: Promise<string | null> | undefined;
