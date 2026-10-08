@@ -1,5 +1,5 @@
 import { defineConfig, devices } from "@playwright/test";
-import { env } from "./src/helpers/env";
+import { env, published } from "./src/helpers/env";
 import type { AccountKey } from "./src/helpers/run-state";
 import type { JourneyOptions } from "./src/helpers/test";
 
@@ -98,13 +98,13 @@ export default defineConfig<JourneyOptions>({
       ],
     })),
     {
-      // Read-only checks of the published docs site; no stack needed.
+      // Read-only checks of the published site; no stack needed.
       name: "docs",
       fullyParallel: true,
       testMatch: "docs/**/*.e2e.ts",
       retries: 1,
       workers: 4,
-      use: { ...chrome, baseURL: env.siteUrl },
+      use: { ...chrome, baseURL: published.siteUrl },
     },
   ],
   outputDir: "test-results",

@@ -7,14 +7,22 @@ import {
 } from "../emulator/config";
 
 // The suite always runs against the fixed local stack; see
-// src/scripts/run-local-suite.ts. Only the docs checks read a hosted site.
+// src/scripts/run-local-suite.ts.
 export const env = {
   appUrl: LOCAL_APP_ORIGIN,
   apiUrl: LOCAL_API_ORIGIN,
   convexUrl: LOCAL_CONVEX_URL,
   mcpUrl: `${LOCAL_API_ORIGIN}/mcp`,
   emulatorUrl: EMULATOR_ORIGIN,
+};
+
+// The docs checks read the published site and Teak's public production
+// endpoints with unauthenticated GETs, and never the local stack.
+export const published = {
   siteUrl: "https://teakvault.com",
+  appUrl: "https://app.teakvault.com",
+  apiUrl: "https://teakvault.com/api",
+  mcpUrl: "https://teakvault.com/mcp",
 };
 
 // Emulator accounts exist only in its memory, so one known password is fine.
