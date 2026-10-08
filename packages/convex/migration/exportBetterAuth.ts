@@ -3,7 +3,7 @@ import { components } from "../_generated/api";
 import { internalAction } from "../_generated/server";
 
 // Operator-only backup interface. Callers encrypt each page immediately and keep
-// the eight models separate; never write these sensitive rows to application storage.
+// the nine models separate; never write these sensitive rows to application storage.
 export const page = internalAction({
   args: {
     model: v.union(
@@ -11,6 +11,7 @@ export const page = internalAction({
       v.literal("account"),
       v.literal("session"),
       v.literal("verification"),
+      v.literal("twoFactor"),
       v.literal("oauthApplication"),
       v.literal("oauthAccessToken"),
       v.literal("oauthConsent"),

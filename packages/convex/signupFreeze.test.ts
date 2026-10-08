@@ -85,11 +85,25 @@ test("the backup exports retained Better Auth rows unchanged", async () => {
       },
     })
   );
+  const retainedSecret = "retained-totp-secret-fixture";
+  await t.run((ctx) =>
+    ctx.runMutation(components.betterAuth.adapter.create, {
+      input: {
+        model: "twoFactor",
+        data: {
+          userId: user._id,
+          secret: retainedSecret,
+          backupCodes: "retained-backup-codes-fixture",
+        },
+      },
+    })
+  );
   for (const model of [
     "user",
     "account",
     "session",
     "verification",
+    "twoFactor",
     "oauthApplication",
     "oauthAccessToken",
     "oauthConsent",
@@ -112,6 +126,13 @@ test("the backup exports retained Better Auth rows unchanged", async () => {
   });
   expect(accounts.page).toEqual([
     expect.objectContaining({ userId: user._id, password: retainedCredential }),
+  ]);
+  const secrets = await t.action(internal.migration.exportBetterAuth.page, {
+    model: "twoFactor",
+    cursor: null,
+  });
+  expect(secrets.page).toEqual([
+    expect.objectContaining({ userId: user._id, secret: retainedSecret }),
   ]);
 });
 
