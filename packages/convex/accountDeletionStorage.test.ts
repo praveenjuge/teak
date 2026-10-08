@@ -359,7 +359,7 @@ test("durable status remains pending until local cleanup finishes and rejects mi
     }
     await ctx.db.patch(owner._id, {
       workosUserId: "user_e2e",
-      workosEmail: "e2e-primary-123-abc@tests.example.com",
+      email: "e2e-primary-123-abc@tests.example.com",
     });
     await ctx.db.patch(stateId, { workosUserId: "user_e2e", stage: 5 });
     return owner._id;

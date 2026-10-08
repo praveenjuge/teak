@@ -4,10 +4,9 @@ import { internalQuery } from "./_generated/server";
 import { readComponentUser } from "./securitySessions";
 import { normalizeIdentityEmail } from "./userIdentityTable";
 
-// Read-only parity check before the WorkOS AuthKit component becomes the
-// profile source. It compares each linked owner with the component's user row
-// and Teak's own profile copy, and reports only IDs and mismatch kinds: never
-// an email, name or token. Run it page by page with `bunx convex run`. Pages
+// Read-only parity check between each linked owner and the WorkOS AuthKit
+// component's user row. It reports only IDs and mismatch kinds: never an
+// email, name or token. Run it page by page with `bunx convex run`. Pages
 // are separate snapshots, so a clean pass is evidence only when nothing
 // changed during it; repeat the full pass and compare before relying on it.
 
@@ -15,16 +14,8 @@ const issueKind = v.union(
   v.literal("missing_component_user"),
   v.literal("deleted_but_component_user_present"),
   v.literal("email_mismatch"),
-  v.literal("email_verified_mismatch"),
-  v.literal("missing_profile_copy"),
-  v.literal("duplicate_profile_copies"),
-  v.literal("profile_mismatch")
+  v.literal("email_verified_mismatch")
 );
-
-const sameName = (
-  left: string | null | undefined,
-  right: string | null | undefined
-) => (left ?? null) === (right ?? null);
 
 export const page = internalQuery({
   args: { paginationOpts: paginationOptsValidator },
@@ -65,39 +56,12 @@ export const page = internalQuery({
       } else if (component) {
         if (
           normalizeIdentityEmail(component.email) !==
-          normalizeIdentityEmail(owner.workosEmail ?? owner.email)
+          normalizeIdentityEmail(owner.email)
         ) {
           kinds.push("email_mismatch");
         }
-        if (
-          component.emailVerified !==
-          (owner.workosEmailVerified ?? owner.emailVerified)
-        ) {
+        if (component.emailVerified !== owner.emailVerified) {
           kinds.push("email_verified_mismatch");
-        }
-        const copies = await ctx.db
-          .query("workosProfiles")
-          .withIndex("by_workosUserId", (q) =>
-            q.eq("workosUserId", owner.workosUserId as string)
-          )
-          .take(2);
-        const copy = copies[0]?.profile;
-        if (copies.length > 1) {
-          kinds.push("duplicate_profile_copies");
-        } else if (!copy) {
-          kinds.push("missing_profile_copy");
-        } else if (
-          !(
-            normalizeIdentityEmail(copy.email) ===
-              normalizeIdentityEmail(component.email) &&
-            copy.emailVerified === component.emailVerified &&
-            sameName(copy.firstName, component.firstName) &&
-            sameName(copy.lastName, component.lastName) &&
-            sameName(copy.profilePictureUrl, component.profilePictureUrl) &&
-            (copy.name === undefined || sameName(copy.name, component.name))
-          )
-        ) {
-          kinds.push("profile_mismatch");
         }
       } else {
         kinds.push("missing_component_user");

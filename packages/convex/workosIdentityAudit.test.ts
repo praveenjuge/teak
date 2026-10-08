@@ -16,7 +16,7 @@ type Backend = ReturnType<typeof setup>;
 const componentUser = (
   t: Backend,
   id: string,
-  data: { email: string; emailVerified: boolean; firstName?: string }
+  data: { email: string; emailVerified: boolean }
 ) =>
   t.mutation(components.workOSAuthKit.lib.onWebhookEvent, {
     event: {
@@ -40,8 +40,7 @@ const owner = (
   fields: {
     workosUserId?: string;
     email?: string;
-    workosEmail?: string;
-    workosEmailVerified?: boolean;
+    emailVerified?: boolean;
     deletedAt?: number;
   }
 ) =>
@@ -51,28 +50,6 @@ const owner = (
       email: fields.email ?? `${teakUserId}@example.com`,
       emailVerified: true,
       ...fields,
-    })
-  );
-
-const profileCopy = (
-  t: Backend,
-  workosUserId: string,
-  profile: { email: string; firstName?: string | null; name?: string | null }
-) =>
-  t.run((ctx) =>
-    ctx.db.insert("workosProfiles", {
-      workosUserId,
-      revision: 1,
-      source: "event",
-      providerUpdatedAt: "2026-10-04T00:00:00Z",
-      profile: {
-        emailVerified: true,
-        externalId: null,
-        lastName: null,
-        profilePictureUrl: null,
-        firstName: null,
-        ...profile,
-      },
     })
   );
 
@@ -86,14 +63,12 @@ describe("WorkOS identity parity audit", () => {
     const t = setup();
     await owner(t, "teak_match", {
       workosUserId: "user_MATCH",
-      workosEmail: "Match@Example.com",
-      workosEmailVerified: true,
+      email: "Match@Example.com",
     });
     await componentUser(t, "user_MATCH", {
       email: "match@example.com",
       emailVerified: true,
     });
-    await profileCopy(t, "user_MATCH", { email: "match@example.com" });
     expect(await audit(t)).toMatchObject({
       checked: 1,
       unlinked: 0,
@@ -107,8 +82,7 @@ describe("WorkOS identity parity audit", () => {
     await owner(t, "teak_missing", { workosUserId: "user_MISSING" });
     await owner(t, "teak_drift", {
       workosUserId: "user_DRIFT",
-      workosEmail: "old@example.com",
-      workosEmailVerified: true,
+      email: "old@example.com",
     });
     await componentUser(t, "user_DRIFT", {
       email: "new@example.com",
@@ -134,11 +108,7 @@ describe("WorkOS identity parity audit", () => {
       {
         teakUserId: "teak_drift",
         workosUserId: "user_DRIFT",
-        kinds: [
-          "email_mismatch",
-          "email_verified_mismatch",
-          "missing_profile_copy",
-        ],
+        kinds: ["email_mismatch", "email_verified_mismatch"],
       },
       {
         teakUserId: "teak_deleted",
@@ -147,64 +117,6 @@ describe("WorkOS identity parity audit", () => {
       },
     ]);
     expect(JSON.stringify(report)).not.toContain("@example.com");
-  });
-
-  test("compares Teak's profile copy with the component user", async () => {
-    const t = setup();
-    await owner(t, "teak_profile", {
-      workosUserId: "user_PROFILE",
-      workosEmail: "same@example.com",
-      workosEmailVerified: true,
-    });
-    await componentUser(t, "user_PROFILE", {
-      email: "same@example.com",
-      emailVerified: true,
-      firstName: "Component",
-    });
-    await profileCopy(t, "user_PROFILE", {
-      email: "same@example.com",
-      firstName: "Teak copy",
-    });
-    expect((await audit(t)).issues).toEqual([
-      {
-        teakUserId: "teak_profile",
-        workosUserId: "user_PROFILE",
-        kinds: ["profile_mismatch"],
-      },
-    ]);
-  });
-
-  test("reports duplicate copies and full-name drift", async () => {
-    const t = setup();
-    for (const id of ["DUPE", "NAME"]) {
-      await owner(t, `teak_${id.toLowerCase()}`, {
-        workosUserId: `user_${id}`,
-        workosEmail: "same@example.com",
-        workosEmailVerified: true,
-      });
-      await componentUser(t, `user_${id}`, {
-        email: "same@example.com",
-        emailVerified: true,
-      });
-    }
-    await profileCopy(t, "user_DUPE", { email: "same@example.com" });
-    await profileCopy(t, "user_DUPE", { email: "same@example.com" });
-    await profileCopy(t, "user_NAME", {
-      email: "same@example.com",
-      name: "Old Name",
-    });
-    expect((await audit(t)).issues).toEqual([
-      {
-        teakUserId: "teak_dupe",
-        workosUserId: "user_DUPE",
-        kinds: ["duplicate_profile_copies"],
-      },
-      {
-        teakUserId: "teak_name",
-        workosUserId: "user_NAME",
-        kinds: ["profile_mismatch"],
-      },
-    ]);
   });
 
   test("counts open quarantine receipts by reason", async () => {
