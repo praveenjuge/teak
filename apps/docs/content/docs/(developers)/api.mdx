@@ -5,9 +5,12 @@ description: Authenticate, create cards, upload files, and build reliable Teak i
 
 Teak provides a public REST API for saving, querying, and syncing cards. Use this guide for integration decisions and the generated reference for every operation, field, schema, and code sample.
 
-<CardGroup cols={2}>
+<CardGroup cols={3}>
+  <Card title="Quickstart" href="/docs/api-quickstart" icon="rocket">
+    Check your key and save a first card with a live request form.
+  </Card>
   <Card title="API Reference" href="/reference" icon="code">
-    Explore the complete OpenAPI contract and samples in curl, JavaScript, and Python.
+    Explore the complete OpenAPI contract with samples in curl, JavaScript, TypeScript, Python, Go, and more.
   </Card>
   <Card title="MCP" href="/docs/mcp" icon="bot">
     Connect an AI client to Teak through its remote MCP server.
@@ -16,7 +19,7 @@ Teak provides a public REST API for saving, querying, and syncing cards. Use thi
 
 ## Base URL
 
-Production: `https://teakvault.com/api/v1`
+Production: `{{api-url}}`
 
 The machine-readable OpenAPI document is available at `https://teakvault.com/api/openapi.json`. Local development URLs are in the [Development guide](/docs/development).
 
@@ -41,7 +44,7 @@ Native clients using browser sign-in send short-lived OAuth access tokens instea
 
 Browser-based OAuth clients can discover the active server from `/.well-known/oauth-protected-resource/mcp`, then read its `/.well-known/oauth-authorization-server` document. Teak publishes first-party client IDs and the matching issuer at `/.well-known/teak-oauth-clients.json`. The shared SDK's `discoverAuthServer(siteUrl)` caches a validated result for up to 60 seconds; use `{ forceRefresh: true }` after sign-in or refresh failures. Discovery never sends an access token. For a cloud development backend with a local sign-in server, pass its explicit loopback origin as `localIssuer`; remote metadata cannot enable loopback access by itself.
 
-Request `https://teakvault.com/api` as the OAuth resource. REST requests require a Connect user access token with that exact audience, including in local development. AuthKit session tokens and tokens issued for `https://teakvault.com/mcp` are rejected. Teak API keys remain supported.
+Request `https://teakvault.com/api` as the OAuth resource. REST requests require a Connect user access token with that exact audience, including in local development. AuthKit session tokens and tokens issued for `{{mcp-url}}` are rejected. Teak API keys remain supported.
 
 ### Disconnect an OAuth connection
 
@@ -51,16 +54,30 @@ A new disconnect requires a current access token. A correctly signed expired tok
 
 ## Read your identity
 
-`GET /v1/me` accepts an API key or OAuth access token and returns
-`{ "data": { "id": "...", "email": "...", "name": "..." } }`. `id` is your stable
-Teak owner ID; `name` is optional. Invalid, expired, revoked, or deleted-account
-credentials return 401. Responses are not cached.
+`GET /v1/me` accepts an API key or OAuth access token. Invalid, expired,
+revoked, or deleted-account credentials return 401. Responses are not cached.
+
+<ResponseField name="data" type="object" required>
+  The authenticated account.
+
+  <Expandable title="properties">
+    <ResponseField name="id" type="string" required>
+      Your stable Teak owner ID.
+    </ResponseField>
+    <ResponseField name="email" type="string" required>
+      The account's email address.
+    </ResponseField>
+    <ResponseField name="name" type="string">
+      The account's display name, when set.
+    </ResponseField>
+  </Expandable>
+</ResponseField>
 
 ## Create your first card
 
 <CodeGroup>
 ```bash curl
-curl https://teakvault.com/api/v1/cards \
+curl {{api-url}}/cards \
   --request POST \
   --header "Authorization: Bearer $TEAK_API_KEY" \
   --header "Content-Type: application/json" \
@@ -73,7 +90,7 @@ curl https://teakvault.com/api/v1/cards \
 ```
 
 ```js JavaScript
-const response = await fetch("https://teakvault.com/api/v1/cards", {
+const response = await fetch("{{api-url}}/cards", {
   method: "POST",
   headers: {
     Authorization: `Bearer ${process.env.TEAK_API_KEY}`,
@@ -127,24 +144,17 @@ Supported uploads include common image, audio, video, source, design-token, docu
 
 ## Reliable requests
 
-<TypeTable
-  type={{
-    "X-Request-Id": {
-      type: "response header",
-      description: "Returned for support and log correlation.",
-    },
-    "Idempotency-Key": {
-      type: "request header",
-      description:
-        "Safely retries card creation and bulk operations without duplicating work.",
-    },
-    "RateLimit-Limit": {
-      type: "response header",
-      description:
-        "Appears with Remaining, Reset, and Retry-After rate-limit headers.",
-    },
-  }}
-/>
+<ParamField header="Idempotency-Key" type="string">
+  Safely retries card creation and bulk operations without duplicating work.
+</ParamField>
+
+<ResponseField name="X-Request-Id" type="string" pre={["response header"]}>
+  Returned for support and log correlation.
+</ResponseField>
+
+<ResponseField name="RateLimit-Limit" type="string" pre={["response header"]}>
+  Appears with `RateLimit-Remaining`, `RateLimit-Reset`, and `Retry-After`.
+</ResponseField>
 
 Bulk operations accept up to 100 items. Cursor-based listing and the card changes endpoint are available for integrations that need complete pagination or incremental sync.
 
@@ -169,50 +179,45 @@ See `/openapi.json` or the [API Reference](/reference) for methods, parameters, 
 Search and favorites are filtered card listings. `GET /v1/cards` supports
 these query parameters:
 
-<TypeTable
-  type={{
-    q: {
-      type: "string",
-      description: "Full-text search query.",
-    },
-    type: {
-      type: "string",
-      description: "Card type filter. Repeat for an OR filter.",
-    },
-    tag: {
-      type: "string",
-      description: "Filter cards by tag.",
-    },
-    sort: {
-      type: '"newest" | "oldest"',
-      description: "Result sort order.",
-    },
-    createdAfter: {
-      type: "number",
-      description: "Only cards created after this timestamp.",
-    },
-    createdBefore: {
-      type: "number",
-      description: "Only cards created before this timestamp.",
-    },
-    limit: {
-      type: "number",
-      description: "Page size.",
-    },
-    cursor: {
-      type: "string",
-      description: "Pagination cursor from a previous pageInfo.nextCursor.",
-    },
-    favorited: {
-      type: "boolean",
-      description: "Set to true to list favorites.",
-    },
-    include: {
-      type: "string",
-      description: "Extra field sets: content, metadata, processing.",
-    },
-  }}
-/>
+<ParamField query="q" type="string">
+  Full-text search query.
+</ParamField>
+
+<ParamField query="type" type="string">
+  Card type filter. Repeat for an OR filter.
+</ParamField>
+
+<ParamField query="tag" type="string">
+  Filter cards by tag.
+</ParamField>
+
+<ParamField query="sort" type="string">
+  Result sort order: `newest` or `oldest`.
+</ParamField>
+
+<ParamField query="createdAfter" type="number">
+  Only cards created after this timestamp.
+</ParamField>
+
+<ParamField query="createdBefore" type="number">
+  Only cards created before this timestamp.
+</ParamField>
+
+<ParamField query="limit" type="number">
+  Page size.
+</ParamField>
+
+<ParamField query="cursor" type="string">
+  Pagination cursor from a previous `pageInfo.nextCursor`.
+</ParamField>
+
+<ParamField query="favorited" type="boolean">
+  Set to `true` to list favorites.
+</ParamField>
+
+<ParamField query="include" type="string">
+  Extra field sets: `content`, `metadata`, `processing`.
+</ParamField>
 
 - Search: `GET /v1/cards?q=design&include=content,metadata`
 - Favorites: `GET /v1/cards?favorited=true&include=content,metadata`
@@ -231,9 +236,37 @@ preview media contains temporary resolved URLs, never storage keys.
 
 Image card responses include intentionally different URLs: `thumbnailUrl` is the optimized grid rendition, `compactUrl` is a smaller rendition for compact lists, `placeholderUrl` is a tiny loading placeholder, `detailUrl` is the optimized full-card rendition, and `fileUrl` remains the signed original used for downloads. These URLs are temporary, signed credentials — consume them as returned instead of storing or modifying them. See the [API Reference](/reference) for field details.
 
+### Visual filters
+
+Repeat `style`, `hue`, or `hex`
+parameters to match any value within each filter, combining different filters. Each dimension accepts up to 24 values; excess values return `400 INVALID_INPUT`.
+Broad searches that exceed the read limit return `400 INVALID_INPUT`; add a type or date filter to narrow them.
+Hex colors accept three, four, six, or eight digits with an optional `#` (URL-encode it as `%23`).
+For example: `GET /v1/cards?type=image&hue=blue&hex=%23112233`.
+
 ## Errors
 
-Errors keep a stable `{ code, error }` shape and can also include `requestId`, `details`, or `retryAt`.
+Errors keep a stable `{ code, error }` shape:
+
+<ResponseField name="code" type="string" required>
+  A stable, machine-readable error code such as `INVALID_INPUT` or `RATE_LIMITED`.
+</ResponseField>
+
+<ResponseField name="error" type="string" required>
+  A human-readable message.
+</ResponseField>
+
+<ResponseField name="requestId" type="string">
+  The request ID to include when you contact support.
+</ResponseField>
+
+<ResponseField name="details" type="object">
+  Additional machine-readable context, when the error has any.
+</ResponseField>
+
+<ResponseField name="retryAt" type="number">
+  For `RATE_LIMITED` errors, when to retry, as a Unix timestamp in milliseconds.
+</ResponseField>
 
 ```json
 {
@@ -248,14 +281,12 @@ Use the returned request ID when contacting [Support](/docs/support). For MCP to
 
 `GET /v1/cards/duplicate?url=<encoded-url>` accepts the same bearer credentials as other card endpoints. It checks the exact URL against your non-deleted cards and returns `{ "cardId": "..." }`, or `{ "cardId": null }` when no match exists. The URL must use HTTP or HTTPS and be at most 8,192 characters. Invalid input returns 400; invalid or revoked credentials return 401.
 
-### Trash and visual filters
-
-List Trash with `GET /v1/cards?trashed=true`. Repeat `style`, `hue`, or `hex`
-parameters to match any value within each filter, combining different filters. Each dimension accepts up to 24 values; excess values return `400 INVALID_INPUT`.
-Broad searches that exceed the read limit return `400 INVALID_INPUT`; add a type or date filter to narrow them.
-Hex colors accept three, four, six, or eight digits with an optional `#` (URL-encode it as `%23`).
-For example: `GET /v1/cards?type=image&hue=blue&hex=%23112233`.
+## Delete and restore cards
 
 `DELETE /v1/cards/:cardId` moves a card to Trash. Restore it with
-`POST /v1/cards/:cardId/restore`. Both return 204 with no body.
-`DELETE /v1/cards/:cardId?permanent=true` permanently removes the card and its files.
+`POST /v1/cards/:cardId/restore`. Both return 204 with no body. List Trash with
+`GET /v1/cards?trashed=true`.
+
+:::danger[Permanent deletes can't be undone]
+`DELETE /v1/cards/:cardId?permanent=true` removes the card and its files immediately. It skips Trash, so there is nothing to restore.
+:::

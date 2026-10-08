@@ -4,7 +4,12 @@
   "tasks": {
     "build": {
       "env": ["TEAK_DEV_API_URL"],
-      "inputs": ["$TURBO_DEFAULT$", ".env", ".env.local"],
+      "inputs": [
+        "$TURBO_DEFAULT$",
+        ".env",
+        ".env.local",
+        "../../.agents/skills/teak/**"
+      ],
       "outputs": ["dist/**"]
     }
   }

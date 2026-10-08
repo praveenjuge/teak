@@ -1,0 +1,47 @@
+---
+title: API Quickstart
+description: Check your Teak API key and save your first card right from the docs, with a live Try it form and copyable samples in curl, JavaScript, Python, and more
+mode: wide
+sidebar:
+  badge: "New"
+---
+
+Make your first two Teak API calls without leaving this page. Each request below has a **Try it** panel that sends a real request to your library, plus copyable samples in several languages.
+
+## 1. Create an API key
+
+In Teak, open **Settings → Security → API keys** and create a key. Keys start with `teakapi_`. Paste it into the **Authorization** field of a Try it panel below, or export it for the code samples:
+
+```bash
+export TEAK_API_KEY=teakapi_...
+```
+
+:::warning[Keep secrets out of logs]
+Never commit `teakapi_` keys or paste them into public issue trackers. Rotate a key immediately if it leaks.
+:::
+
+## 2. Check your key
+
+`GET /v1/me` returns the account the key belongs to. A `401` means the key is invalid or revoked.
+
+<Operation source="reference" id="get-me" />
+
+## 3. Save your first card
+
+`POST /v1/cards` saves text or a URL. Teak detects links, quotes, and palettes automatically, then tags and summarizes the card in the background.
+
+<Operation source="reference" id="create-card" />
+
+## Next steps
+
+<CardGroup cols={3}>
+  <Card title="API guide" href="/docs/api" icon="book-open">
+    Authentication, uploads, search, pagination, and errors.
+  </Card>
+  <Card title="API Reference" href="/reference" icon="code">
+    Every operation, field, and schema.
+  </Card>
+  <Card title="MCP" href="/docs/mcp" icon="bot">
+    Give an AI client the same card operations.
+  </Card>
+</CardGroup>

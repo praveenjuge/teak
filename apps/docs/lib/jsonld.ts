@@ -4,6 +4,16 @@ export const SITE_URL = "https://teakvault.com";
 export const SITE_NAME = "Teak";
 export const SITE_DESCRIPTION =
   "Teak is a personal knowledge hub for saving, finding, and syncing cards across web, desktop, mobile, and agents.";
+export const ORGANIZATION_LOGO = "/icon.png";
+export const ORGANIZATION_SAME_AS = [
+  "https://github.com/praveenjuge/teak",
+  "https://x.com/praveenjuge",
+];
+
+// Blume's seo.organization and WebSite nodes use these ids on docs pages, so
+// marketing pages reference the same entities instead of duplicating them.
+export const ORGANIZATION_ID = `${SITE_URL}#organization`;
+const WEBSITE_ID = `${SITE_URL}#website`;
 
 /**
  * FAQ / WebPage graph for marketing pages. Docs pages rely on Blume's built-in
@@ -20,18 +30,15 @@ export function buildPageSchemas(opts: {
     {
       "@context": "https://schema.org",
       "@type": "Organization",
-      "@id": `${SITE_URL}/#organization`,
+      "@id": ORGANIZATION_ID,
       name: SITE_NAME,
       url: SITE_URL,
       description: SITE_DESCRIPTION,
       logo: {
         "@type": "ImageObject",
-        url: `${SITE_URL}/icon.png`,
+        url: `${SITE_URL}${ORGANIZATION_LOGO}`,
       },
-      sameAs: [
-        "https://github.com/praveenjuge/teak",
-        "https://x.com/praveenjuge",
-      ],
+      sameAs: ORGANIZATION_SAME_AS,
     },
     {
       "@context": "https://schema.org",
@@ -40,8 +47,8 @@ export function buildPageSchemas(opts: {
       url: opts.url,
       name: opts.title,
       description: opts.description,
-      isPartOf: { "@id": `${SITE_URL}/#website` },
-      about: { "@id": `${SITE_URL}/#organization` },
+      isPartOf: { "@id": WEBSITE_ID },
+      about: { "@id": ORGANIZATION_ID },
     },
   ];
 

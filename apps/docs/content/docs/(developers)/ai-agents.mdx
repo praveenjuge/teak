@@ -3,7 +3,7 @@ title: Teak for AI Agents
 description: Connect AI agents to Teak with MCP, ChatGPT connectors, REST, CLI, and llms.txt
 ---
 
-Teak gives AI agents a private memory layer for saved links, notes, files, tags, and design references. Agents can use the hosted MCP server at `https://teakvault.com/mcp`, the REST API at `https://teakvault.com/api/v1`, or the command-line app, with browser OAuth or `teakapi_` API keys for authentication.
+Teak gives AI agents a private memory layer for saved links, notes, files, tags, and design references. Agents can use the hosted MCP server at `{{mcp-url}}`, the REST API at `{{api-url}}`, or the command-line app, with browser OAuth or `teakapi_` API keys for authentication.
 
 ## When to use Teak
 
@@ -16,18 +16,20 @@ Agents can save, search, read, update, favorite, delete, and sync cards through 
 ## How do I connect Claude?
 
 ```bash
-claude mcp add --transport http teak https://teakvault.com/mcp
+claude mcp add --transport http teak {{mcp-url}}
 ```
 
 Start the MCP connection in Claude and complete browser sign-in when prompted. API keys also work for clients that let you set an `Authorization: Bearer <token>` header.
 
+Setup for Codex, Cursor, VS Code, and ChatGPT is in [Connect your client](/docs/mcp#connect-your-client).
+
 ## How do I connect ChatGPT or Deep Research?
 
-Use `https://teakvault.com/mcp` as the remote MCP server URL. Teak exposes the plain `search` and `fetch` tools ChatGPT connectors expect — see [MCP](/docs/mcp) for the tool contracts.
+Use `{{mcp-url}}` as the remote MCP server URL. Teak exposes the plain `search` and `fetch` tools ChatGPT connectors expect — see [MCP](/docs/mcp) for the tool contracts.
 
 ## How do I use the REST API?
 
-Use the production base URL `https://teakvault.com/api/v1`. See the [API docs](/docs/api) for the full base URL list, authentication, endpoints, and error format — that page is the source of truth for the REST contract.
+Use the production base URL `{{api-url}}`. See the [API docs](/docs/api) for the full base URL list, authentication, endpoints, and error format — that page is the source of truth for the REST contract.
 
 ## What should coding agents read first?
 
@@ -52,6 +54,7 @@ you need the full page body without HTML chrome.
 - `https://teakvault.com/docs/webmcp.md` for in-browser WebMCP tools
 - `https://teakvault.com/.well-known/mcp.json` for remote MCP discovery metadata
 - `https://teakvault.com/agent-readability.json` for the machine-readable docs surface map
+- `https://teakvault.com/.well-known/agent-skills/index.json` for the Teak Agent Skill
 
 ## Can agents use the command line?
 
@@ -87,7 +90,7 @@ Install it from [Skills.sh](https://skills.sh/praveenjuge/teak):
 npx skills add praveenjuge/teak --skill teak
 ```
 
-Works with Codex, Claude Code, Cursor, GitHub Copilot, Windsurf, and other skills-compatible agents. The skill covers when to use CLI vs API vs MCP vs SDK, browser sign-in or API key auth, and never printing, persisting, or committing secrets.
+Works with Codex, Claude Code, Cursor, GitHub Copilot, Windsurf, and other skills-compatible agents. Agents that discover skills from websites can also find it at `https://teakvault.com/.well-known/agent-skills/index.json`. The skill covers when to use CLI vs API vs MCP vs SDK, browser sign-in or API key auth, and never printing, persisting, or committing secrets.
 
 <Prompt
   description="Ask the agent to use the Teak skill."

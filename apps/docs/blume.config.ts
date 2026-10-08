@@ -1,5 +1,6 @@
 import { defineConfig } from "blume";
 import { openapi } from "blume/reference";
+import { ORGANIZATION_LOGO, ORGANIZATION_SAME_AS } from "./lib/jsonld";
 
 const devConvexSite =
   process.env.TEAK_DEV_API_URL?.trim() ||
@@ -41,6 +42,22 @@ function teakDevProxy() {
   };
 }
 
+const SN_PRO = {
+  name: "SN Pro",
+  variants: [
+    {
+      src: "./public/fonts/SNPro-VariableRegular.woff2",
+      weight: "200..900",
+      style: "normal",
+    },
+    {
+      src: "./public/fonts/SNPro-VariableItalic.woff2",
+      weight: "200..900",
+      style: "italic",
+    },
+  ],
+} as const;
+
 export default defineConfig({
   title: "Teak",
   description:
@@ -68,6 +85,11 @@ export default defineConfig({
   lastModified: "git",
   theme: {
     accent: "oklch(0.58 0.22 27)",
+    // Local files also give the generated Open Graph cards the brand font.
+    fonts: {
+      display: SN_PRO,
+      body: SN_PRO,
+    },
   },
   navigation: {
     tabs: [
@@ -78,8 +100,17 @@ export default defineConfig({
     ],
   },
   export: true,
+  // Written as {{name}} in content; values must stay one plain-text line.
+  variables: {
+    "api-url": "https://teakvault.com/api/v1",
+    "mcp-url": "https://teakvault.com/mcp",
+  },
   reference: [
-    openapi({ route: "/reference", spec: "./.generated/openapi.json" }),
+    openapi({
+      route: "/reference",
+      spec: "./.generated/openapi.json",
+      codeSamples: ["curl", "js", "typescript", "python", "go", "ruby", "php"],
+    }),
   ],
   search: {
     popular: [
@@ -104,31 +135,31 @@ export default defineConfig({
     sitemap: true,
     robots: true,
     structuredData: true,
+    organization: {
+      logo: ORGANIZATION_LOGO,
+      sameAs: ORGANIZATION_SAME_AS,
+    },
   },
   // Mirrored in vercel.json for Vercel Git HTTP redirects; Astro also emits
   // these as soft redirects for non-Vercel previews and link audits.
+  // Blume moves a page's .md and .mdx mirrors with each page redirect.
   redirects: [
     { from: "/docs/desktop", to: "/docs/mac", status: 301 },
-    { from: "/docs/desktop.md", to: "/docs/mac.md", status: 301 },
-    { from: "/docs/desktop.mdx", to: "/docs/mac.mdx", status: 301 },
     { from: "/sitemap-index.xml", to: "/sitemap.xml", status: 301 },
     { from: "/llms-small.txt", to: "/llms.txt", status: 301 },
     { from: "/docs/index.md", to: "/docs.md", status: 301 },
-    { from: "/docs/skills/", to: "/docs/ai-agents", status: 301 },
-    { from: "/docs/skills.md", to: "/docs/ai-agents.md", status: 301 },
-    { from: "/docs/skills.mdx", to: "/docs/ai-agents.mdx", status: 301 },
-    { from: "/changelog/09-05", to: "/changelog/september-2026", status: 301 },
-    { from: "/changelog/09-07", to: "/changelog/september-2026", status: 301 },
-    { from: "/changelog/09-08", to: "/changelog/september-2026", status: 301 },
-    { from: "/changelog/09-12", to: "/changelog/september-2026", status: 301 },
-    { from: "/changelog/09-14", to: "/changelog/september-2026", status: 301 },
-    { from: "/changelog/09-16", to: "/changelog/september-2026", status: 301 },
-    { from: "/changelog/09-17", to: "/changelog/september-2026", status: 301 },
+    { from: "/docs/skills", to: "/docs/ai-agents", status: 301 },
+    { from: "/changelog/09-*", to: "/changelog/september-2026", status: 301 },
   ],
   markdown: {
     externalLinks: true,
   },
+  ai: {
+    openInChat: ["claude", "chatgpt", "cursor"],
+  },
   agents: {
+    // Public skills copied by scripts/generate-skills.ts.
+    skills: "./.generated/agent-skills",
     llmsTxt: {
       details: [
         "## When to use Teak",

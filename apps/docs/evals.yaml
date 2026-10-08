@@ -1,0 +1,81 @@
+# Questions Teak users and their agents ask. `bun run eval` has an agent answer
+# each one from these docs alone, then a judge checks the expected facts.
+# Facts must stay true to the shipped product; never weaken one to get green.
+questions:
+  - id: install-cli
+    question: How do I install the Teak command-line app?
+    expected:
+      - Install the teak-cli package globally, for example npm install -g teak-cli
+    routes: /docs/cli
+
+  - id: mcp-server-url
+    question: What URL do I give my AI client to use Teak's MCP server?
+    expected:
+      - https://teakvault.com/mcp
+    routes: /docs/mcp
+
+  - id: connect-claude-code
+    question: How do I connect Claude Code to my Teak library?
+    expected:
+      - claude mcp add --transport http teak https://teakvault.com/mcp
+      - Complete browser sign-in when prompted
+    routes: /docs/mcp
+
+  - id: reconnect-after-sign-in-change
+    question: My MCP client stopped working with Teak after October 7, 2026. How do I fix it?
+    expected:
+      - Remove Teak from the MCP client, add it again, and sign in
+      - Connections that use an API key keep working without changes
+    routes: /docs/mcp
+
+  - id: create-api-key
+    question: Where do I create a Teak API key, and how many can I have?
+    expected:
+      - Settings → Security → API keys
+      - Up to 10 active keys per account
+    routes: /docs/api
+
+  - id: api-authentication
+    question: How do I authenticate requests to the Teak REST API?
+    expected:
+      - Send a bearer token in the Authorization header
+      - The token is a teakapi_ API key or an OAuth access token
+    routes: /docs/api
+
+  - id: list-favorites-api
+    question: How do I list my favorite cards with the REST API?
+    expected:
+      - GET /v1/cards with favorited=true
+    routes: /docs/api
+
+  - id: permanent-delete-api
+    question: How do I permanently delete a card with the API, and can I undo it?
+    expected:
+      - DELETE /v1/cards/:cardId?permanent=true
+      - It skips Trash and cannot be restored
+    routes: /docs/api
+
+  - id: upload-size-limit
+    question: What is the largest file I can upload to Teak?
+    expected:
+      - 100 MB for ordinary file uploads
+    routes: /docs/features
+
+  - id: card-types
+    question: What kinds of things can I save in Teak?
+    expected:
+      - Text, link, image, video, audio, document, palette, and quote cards
+    routes: /docs/features
+
+  - id: free-plan-limit
+    question: How many cards can I save on the free plan, and what happens when I hit the limit in the Chrome extension?
+    expected:
+      - The free plan includes 200 cards
+      - The extension popup shows an upgrade prompt instead of saving
+    routes: /docs/extension
+
+  - id: install-agent-skill
+    question: How do I install the Teak agent skill?
+    expected:
+      - npx skills add praveenjuge/teak --skill teak
+    routes: /docs/ai-agents
