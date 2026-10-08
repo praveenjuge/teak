@@ -23,7 +23,7 @@ export const seedComponentUser = (
   t.run((ctx) =>
     ctx.runMutation(components.workOSAuthKit.lib.onWebhookEvent, {
       event: {
-        id: `event_seed_${user.id}_${Math.random().toString(36).slice(2)}`,
+        id: `event_seed_${user.id}_${crypto.randomUUID()}`,
         event: "user.created",
         createdAt: "2026-10-08T00:00:00.000Z",
         data: {
@@ -64,7 +64,7 @@ export const updateComponentUser = (
     const updatedAt = new Date(Date.parse(current.updatedAt) + 1000);
     await ctx.runMutation(components.workOSAuthKit.lib.onWebhookEvent, {
       event: {
-        id: `event_update_${id}_${Math.random().toString(36).slice(2)}`,
+        id: `event_update_${id}_${crypto.randomUUID()}`,
         event: "user.updated",
         createdAt: updatedAt.toISOString(),
         data: {
