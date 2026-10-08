@@ -181,6 +181,12 @@ extension SafariOAuthTests {
         try check(try replacedStore.load()?.refreshToken == "new-refresh"
             && (try replacedStore.load()?.binding?.primary) == "workos", "replacement stores WorkOS-bound credential")
         try check(legacyRevocations == 0, "retired revocation route is never contacted")
+        SafariDiscoveryFixtures.unavailable = true
+        let offlineStore = MemoryCredentials(legacy)
+        let offline = await fixture(offlineStore).signOut()
+        try check(offline["status"] as? String == "signed-out" && (try offlineStore.load()) == nil,
+                  "legacy credential signs out locally when discovery is unavailable")
+        discoveryReset()
     }
 
     static func discoveryCancelledAndRefused() async throws {

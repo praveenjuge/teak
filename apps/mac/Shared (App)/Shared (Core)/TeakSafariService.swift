@@ -390,7 +390,19 @@ actor TeakSafariService {
     /// Throws `invalidRefreshCredential` when the grant can only be cleared locally.
     private func revoke(_ tokens: SafariOAuthTokens, refreshDiscovery: Bool = true,
                         current: SafariAuthDiscovery? = nil) async throws {
-        let auth = refreshDiscovery ? try await discover(force: true) : nil
+        let auth: SafariAuthDiscovery?
+        if !refreshDiscovery {
+            auth = nil
+        } else if tokens.binding?.primary == "workos" {
+            auth = try await discover(force: true)
+        } else {
+            // A credential from before WorkOS has nothing left to revoke it, so
+            // sign-out clears it locally even when discovery is unavailable.
+            guard let discovered = try? await discover(force: true) else {
+                throw SafariServiceError.invalidRefreshCredential
+            }
+            auth = discovered
+        }
         if let saved = tokens.binding, saved.primary == "workos" {
             guard saved.apiOrigin == (try SafariAuthDiscovery.origin(apiURL).absoluteString) else {
                 throw SafariServiceError.message("Your connection belongs to another Teak environment.")
