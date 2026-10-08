@@ -6,10 +6,6 @@ import {
   workosDeletionCompletionValidator,
   workosDeletionTargetValidator,
 } from "./workosDeletionCompletion";
-import {
-  workosProfileFields,
-  workosReconciliationRunFields,
-} from "./workosProfileFields";
 
 // Card types as literals for validator
 export const cardTypes = [
@@ -491,15 +487,9 @@ export default defineSchema({
     email: v.string(),
     emailVerified: v.boolean(),
     workosUserId: v.optional(v.string()),
-    // Deprecated: Teak's old copy of the WorkOS profile. The WorkOS AuthKit
-    // component holds the profile now; existing values are kept, not written.
-    workosEmail: v.optional(v.string()),
-    workosEmailVerified: v.optional(v.boolean()),
     workosDeletedAt: v.optional(v.number()),
     workosDeletionCompletion: v.optional(workosDeletionCompletionValidator),
     role: v.optional(v.literal("admin")),
-    // Deprecated with workosEmail; kept, not written.
-    lastWorkosEventAt: v.optional(v.number()),
     deletedAt: v.optional(v.number()),
   })
     .index("by_teakUserId", ["teakUserId"])
@@ -548,92 +538,6 @@ export default defineSchema({
     .index("by_eventId", ["eventId"])
     .index("by_workosUserId_and_type", ["workosUserId", "type"])
     .index("by_workosUserId_and_createdAt", ["workosUserId", "createdAt"]),
-  // Deprecated: Teak's old canonical copy of WorkOS profiles, replaced by the
-  // WorkOS AuthKit component. Rows are kept read-only; dropping needs approval.
-  workosProfiles: defineTable(workosProfileFields).index("by_workosUserId", [
-    "workosUserId",
-  ]),
-  // Deprecated: written by the retired hosted production E2E suite, which the
-  // WorkOS emulator suite replaced. No code reads or writes it. Kept because
-  // it may still hold rows; dropping it needs an approved migration.
-  e2eSignupReservations: defineTable({
-    requestId: v.string(),
-    email: v.string(),
-    state: v.union(
-      v.literal("pending"),
-      v.literal("reserved"),
-      v.literal("bound"),
-      v.literal("closed")
-    ),
-    reservedAt: v.number(),
-    expiresAt: v.number(),
-    clientId: v.string(),
-    environmentId: v.string(),
-    credentialFingerprint: v.string(),
-    clearedAt: v.optional(v.number()),
-    workosUserId: v.optional(v.string()),
-    providerCreatedAt: v.optional(v.number()),
-    qualifiedAt: v.optional(v.number()),
-    ownerlessDeletionAt: v.optional(v.number()),
-    closedAt: v.optional(v.number()),
-    closedReason: v.optional(
-      v.union(v.literal("provider_deleted"), v.literal("absent_past_window"))
-    ),
-  })
-    .index("by_requestId", ["requestId"])
-    .index("by_email", ["email"])
-    .index("by_workosUserId", ["workosUserId"])
-    .index("by_closedAt_and_expiresAt", ["closedAt", "expiresAt"]),
-  workosImportLeases: defineTable({
-    scope: v.literal("management_import"),
-    generation: v.number(),
-    holder: v.string(),
-    runId: v.string(),
-    environmentId: v.string(),
-    clientId: v.string(),
-    apiKeyFingerprint: v.string(),
-    admittedAt: v.number(),
-    heartbeatAt: v.number(),
-    status: v.union(
-      v.literal("active"),
-      v.literal("uncertain"),
-      v.literal("released"),
-      v.literal("quiesced")
-    ),
-    remoteIntent: v.optional(
-      v.object({
-        kind: v.union(
-          v.literal("create"),
-          v.literal("update"),
-          v.literal("delete")
-        ),
-        teakUserId: v.string(),
-        sourceVersion: v.string(),
-        startedAt: v.number(),
-      })
-    ),
-    lastAcknowledgedAt: v.optional(v.number()),
-  }).index("by_scope", ["scope"]),
-  // Deprecated: the retired reconciliation audit's history, kept read-only.
-  workosReconciliationRuns: defineTable(workosReconciliationRunFields)
-    .index("by_runId", ["runId"])
-    .index("by_environmentId_and_updatedAt", ["environmentId", "updatedAt"])
-    .index("by_environmentId_and_mode_and_updatedAt", [
-      "environmentId",
-      "mode",
-      "updatedAt",
-    ])
-    .index("by_nextAttemptAt", ["nextAttemptAt"]),
-  workosReconciliationCursors: defineTable({
-    runId: v.id("workosReconciliationRuns"),
-    phase: v.union(
-      v.literal("events"),
-      v.literal("provider"),
-      v.literal("owners"),
-      v.literal("census")
-    ),
-    cursor: v.string(),
-  }).index("by_runId_and_phase_and_cursor", ["runId", "phase", "cursor"]),
   workosApplicationDisconnects: defineTable({
     recoveryReceipt: v.optional(disconnectRecoveryReceipt),
     operationId: v.string(),

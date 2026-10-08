@@ -123,8 +123,6 @@ describe.each([
       role: "admin",
       workosUserId: "user_signed",
     });
-    // The component holds the provider profile; Teak keeps no copy.
-    expect(result.users[0].workosEmail).toBeUndefined();
     expect(result.events).toMatchObject([
       { eventId: "evt_signed", createdAt: Date.parse(timestamp) },
     ]);
