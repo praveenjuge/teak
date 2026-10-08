@@ -53,7 +53,9 @@ nonisolated struct SafariOAuthRequest: Sendable {
             URLQueryItem(name: "client_id", value: discovery.safariClientID),
             URLQueryItem(name: "redirect_uri", value: Self.callback),
             URLQueryItem(name: "response_type", value: "code"),
-            URLQueryItem(name: "scope", value: "profile email offline_access"),
+            // WorkOS Connect requires OpenID scopes; Better Auth keeps its original set.
+            URLQueryItem(name: "scope", value: discovery.primary == "workos"
+                ? "openid profile email offline_access" : "profile email offline_access"),
             URLQueryItem(name: "code_challenge_method", value: "S256"),
             URLQueryItem(name: "code_challenge", value: Self.base64URL(Data(SHA256.hash(data: Data(verifier.utf8))))),
             URLQueryItem(name: "state", value: state),

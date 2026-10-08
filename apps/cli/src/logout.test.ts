@@ -102,7 +102,7 @@ describe("CLI logout", () => {
     expect(readFileSync(credentialsPath(), "utf8")).toBe("");
   });
 
-  test("keeps credentials for retry after a server failure", async () => {
+  test("signs out of a retired provider after a server failure", async () => {
     const credentials = JSON.stringify({
       accessToken: "access",
       refreshToken: "refresh",
@@ -113,12 +113,11 @@ describe("CLI logout", () => {
     responseStatus = 503;
     const result = await runLogout();
     responseStatus = 200;
-    expect(result.code).toBe(1);
-    expect(result.stderr).toContain("run teak logout again");
-    expect(readFileSync(credentialsPath(), "utf8")).toBe(credentials);
+    expect(result.code).toBe(0);
+    expect(readFileSync(credentialsPath(), "utf8")).toBe("");
   });
 
-  test("keeps credentials for retry when offline", async () => {
+  test("signs out of a retired provider when offline", async () => {
     const credentials = JSON.stringify({
       accessToken: "offline-access",
       refreshToken: "offline-refresh",
@@ -136,9 +135,8 @@ describe("CLI logout", () => {
     );
     writeFileSync(otherPath, credentials);
     const result = await runLogout("http://127.0.0.1:1");
-    expect(result.code).toBe(1);
-    expect(result.stderr).toContain("credentials are still saved");
-    expect(readFileSync(otherPath, "utf8")).toBe(credentials);
+    expect(result.code).toBe(0);
+    expect(readFileSync(otherPath, "utf8")).toBe("");
   });
 
   test("supports access-token-only and already disconnected sessions", async () => {

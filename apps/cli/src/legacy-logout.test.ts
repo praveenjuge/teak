@@ -6,8 +6,8 @@ import { logout } from "./runtime";
 
 // Exercise the real credential store/discovery/logout. Network and native
 // Keychain commands are isolated boundaries; no production request is sent.
-test.each([200, 503])(
-  "legacy production logout uses its original provider after switching to WorkOS (%i)",
+test.each([200, 404, 503])(
+  "legacy production logout tries its original provider, then signs out locally (%i)",
   async (status) => {
     const directory = mkdtempSync(join(tmpdir(), "teak-legacy-logout-"));
     mkdirSync(join(directory, "teak"), { mode: 0o700 });
@@ -74,14 +74,9 @@ test.each([200, 503])(
           code_challenge_methods_supported: ["S256"],
         });
       }) as typeof fetch;
-      const result = logout({ apiUrl: "https://teakvault.com/api" });
-      if (status === 200) {
-        await result;
-        expect(readFileSync(file, "utf8")).toBe("");
-      } else {
-        await expect(result).rejects.toThrow("credentials are still saved");
-        expect(readFileSync(file, "utf8")).toBe(original);
-      }
+      // The retired route now answers 404; sign-out must still finish.
+      await logout({ apiUrl: "https://teakvault.com/api" });
+      expect(readFileSync(file, "utf8")).toBe("");
       expect(revocations).toBe(1);
     } finally {
       globalThis.fetch = originalFetch;

@@ -1,7 +1,7 @@
 import { v } from "convex/values";
 import { internal } from "./_generated/api";
 import type { Doc } from "./_generated/dataModel";
-import { internalMutation } from "./_generated/server";
+import { internalMutation, type MutationCtx } from "./_generated/server";
 import { readSignupsDisabled } from "./env";
 import { guardUserCreation } from "./signupFreeze";
 import { scheduleUserCreated } from "./telemetry/schedule";
@@ -22,6 +22,35 @@ const reasonValidator = v.union(
   v.literal("profile_pending")
 );
 type LinkReason = typeof reasonValidator.type;
+
+// One open receipt per WorkOS user and reason. Resolution matches on that pair,
+// so repeated denials (a client retrying ensureUser) add nothing new.
+export const recordQuarantine = async (
+  ctx: MutationCtx,
+  row: {
+    workosUserId: string;
+    teakUserId?: string;
+    email: string;
+    reason: string;
+    source: string;
+  }
+) => {
+  const open = await ctx.db
+    .query("migrationQuarantine")
+    .withIndex("by_workosUserId_and_reason_and_resolvedAt", (q) =>
+      q
+        .eq("workosUserId", row.workosUserId)
+        .eq("reason", row.reason)
+        .eq("resolvedAt", undefined)
+    )
+    .first();
+  if (!open) {
+    await ctx.db.insert("migrationQuarantine", {
+      ...row,
+      createdAt: Date.now(),
+    });
+  }
+};
 
 // Only authenticated provider/import adapters may call this internal boundary.
 // It links existing owners; only proven bootstrap/created-event adapters may
@@ -69,13 +98,12 @@ export const linkWorkosUser = internalMutation({
       throw new Error("Invalid WorkOS linking input");
     }
     const quarantine = async (reason: LinkReason, teakUserId?: string) => {
-      await ctx.db.insert("migrationQuarantine", {
+      await recordQuarantine(ctx, {
         workosUserId: args.workosUserId,
         ...(teakUserId === undefined ? {} : { teakUserId }),
         email,
         reason,
         source: args.source,
-        createdAt: Date.now(),
       });
       return { status: "quarantined" as const, reason };
     };

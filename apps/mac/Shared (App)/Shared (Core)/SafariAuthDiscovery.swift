@@ -69,7 +69,7 @@ nonisolated struct SafariAuthDiscovery: Codable, Sendable, Equatable {
                 throw invalid("Missing OAuth client registration.")
             }
         }
-        let expectedResource = try origin(api).appendingPathComponent("mcp")
+        let expectedResource = try self.expectedResource(primary: clients.primary, api: api)
         guard resource.resource == expectedResource.absoluteString else {
             throw invalid("OAuth resource mismatch.")
         }
@@ -97,7 +97,7 @@ nonisolated struct SafariAuthDiscovery: Codable, Sendable, Equatable {
               let raw = resource.authorization_servers.first,
               clients.issuer == raw,
               clients.primary == "betterauth" || clients.primary == "workos",
-              resource.resource == (try origin(api).appendingPathComponent("mcp")).absoluteString else {
+              resource.resource == (try expectedResource(primary: clients.primary, api: api)).absoluteString else {
             throw invalid("OAuth provider configuration changed. Please try again.")
         }
         let url = try validateTrustedURL(raw, trustedOrigins: trusted, allowedLoopbackOrigins: allowed)
@@ -105,6 +105,14 @@ nonisolated struct SafariAuthDiscovery: Codable, Sendable, Equatable {
             throw invalid("Invalid OAuth issuer.")
         }
         return url
+    }
+
+    /// WorkOS resources name token audiences, independently of deployment URLs,
+    /// matching `WORKOS_RESOURCES.mcp` in `packages/convex/shared/workosResources.ts`.
+    private static let workosMCPResource = URL(string: "https://teakvault.com/mcp")!
+
+    private static func expectedResource(primary: String, api: URL) throws -> URL {
+        primary == "workos" ? workosMCPResource : try origin(api).appendingPathComponent("mcp")
     }
 
     /// Deployment configuration establishes trust, never remote metadata or a DNS preflight.

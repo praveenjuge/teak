@@ -269,9 +269,7 @@ describe("metadata handler", () => {
           content: "content",
           userId: "e2e-user",
         })
-        .mockResolvedValueOnce({
-          email: "e2e-primary-123@tests.example.com",
-        });
+        .mockResolvedValueOnce("e2e-primary-123@tests.example.com");
 
       try {
         const result = await generateHandler(ctx, {
@@ -280,6 +278,10 @@ describe("metadata handler", () => {
         });
 
         expect(result.mode).toBe("skipped");
+        expect(mockRunQuery).toHaveBeenCalledWith(
+          internal.e2eAccounts.ownerEmail,
+          { teakUserId: "e2e-user" }
+        );
         expect(aiMocks.generateText).not.toHaveBeenCalled();
         expect(mockRunMutation).toHaveBeenCalledWith(
           expect.anything(),
@@ -309,9 +311,7 @@ describe("metadata handler", () => {
           source: "prod-e2e-cloudflare-image-ai",
           userId: "e2e-user",
         })
-        .mockResolvedValueOnce({
-          email: "e2e-primary-123@tests.example.com",
-        });
+        .mockResolvedValueOnce("e2e-primary-123@tests.example.com");
 
       try {
         const result = await generateHandler(ctx, {

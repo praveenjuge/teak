@@ -205,20 +205,12 @@ const writeCredentials = (
     readJson<Record<string, unknown>>(readFileSync(destination, "utf8"))
       ?.fallbackAuthority === true;
   if (platform() === "darwin") {
-    const saved = spawnSync(
-      "security",
-      [
-        "add-generic-password",
-        "-U",
-        "-a",
-        credentialAccount(options),
-        "-s",
-        SERVICE,
-        "-w",
-        payload,
-      ],
-      { encoding: "utf8" }
-    );
+    // The command goes over stdin as hex so the tokens never appear in the
+    // process list. The account is a fixed name or a hash; neither needs quoting.
+    const saved = spawnSync("security", ["-i"], {
+      encoding: "utf8",
+      input: `add-generic-password -U -a ${credentialAccount(options)} -s ${SERVICE} -X ${Buffer.from(payload, "utf8").toString("hex")}\n`,
+    });
     if (saved.status === 0 && !authoritativeFallback) {
       return;
     }
@@ -388,48 +380,54 @@ const revokeCredentials = async (
     }
     return;
   }
-  let endpoint = credentials.binding?.revocationEndpoint;
-  let clientId = credentials.binding?.clientId;
-  if (useDiscovery) {
-    const auth = await discovery(options, true);
-    if (matchesProvider(credentials, options, auth)) {
-      endpoint = auth.revocationEndpoint;
-      clientId = auth.clients.cli;
+  // Anything else predates WorkOS. That provider is retired and no Teak service
+  // accepts its tokens, so revoking is best effort and never keeps them saved.
+  try {
+    let endpoint = credentials.binding?.revocationEndpoint;
+    let clientId = credentials.binding?.clientId;
+    if (useDiscovery) {
+      const auth = await discovery(options, true);
+      if (matchesProvider(credentials, options, auth)) {
+        endpoint = auth.revocationEndpoint;
+        clientId = auth.clients.cli;
+      }
     }
-  }
-  if (!credentials.binding && apiBaseUrl(options) === DEFAULT_API_URL) {
-    endpoint ??= `${DEFAULT_API_URL}/api/oauth/revoke`;
-    clientId ??= "teak-cli";
-  }
-  if (!(endpoint && clientId)) {
-    throw new Error("Revocation unavailable");
-  }
-  const apiOrigin = new URL(apiBaseUrl(options));
-  const issuer = new URL(credentials.binding?.issuer ?? DEFAULT_AUTH_URL);
-  const url = validateOAuthUrl(
-    endpoint,
-    localHostname(apiOrigin.hostname) || localHostname(issuer.hostname)
-  );
-  if (
-    localHostname(url.hostname) &&
-    url.origin !== apiOrigin.origin &&
-    url.origin !== issuer.origin
-  ) {
-    throw new Error("Unapproved loopback revocation server");
-  }
-  const response = await fetch(url.href, {
-    body: new URLSearchParams({
-      client_id: clientId,
-      token: credentials.refreshToken || credentials.accessToken,
-    }),
-    headers: { "Content-Type": "application/x-www-form-urlencoded" },
-    method: "POST",
-    credentials: "omit",
-    redirect: "error",
-    signal: AbortSignal.timeout(10_000),
-  });
-  if (!response.ok) {
-    throw new Error("Revocation failed");
+    if (!credentials.binding && apiBaseUrl(options) === DEFAULT_API_URL) {
+      endpoint ??= `${DEFAULT_API_URL}/api/oauth/revoke`;
+      clientId ??= "teak-cli";
+    }
+    if (!(endpoint && clientId)) {
+      throw new Error("Revocation unavailable");
+    }
+    const apiOrigin = new URL(apiBaseUrl(options));
+    const issuer = new URL(credentials.binding?.issuer ?? DEFAULT_AUTH_URL);
+    const url = validateOAuthUrl(
+      endpoint,
+      localHostname(apiOrigin.hostname) || localHostname(issuer.hostname)
+    );
+    if (
+      localHostname(url.hostname) &&
+      url.origin !== apiOrigin.origin &&
+      url.origin !== issuer.origin
+    ) {
+      throw new Error("Unapproved loopback revocation server");
+    }
+    const response = await fetch(url.href, {
+      body: new URLSearchParams({
+        client_id: clientId,
+        token: credentials.refreshToken || credentials.accessToken,
+      }),
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      method: "POST",
+      credentials: "omit",
+      redirect: "error",
+      signal: AbortSignal.timeout(10_000),
+    });
+    if (!response.ok) {
+      throw new Error("Revocation failed");
+    }
+  } catch {
+    // The caller clears the retired credentials locally.
   }
 };
 export const logout = (options: ClientOptions = {}) =>

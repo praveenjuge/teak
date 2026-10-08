@@ -220,6 +220,29 @@ describe("transactional WorkOS identity linking", () => {
     });
   });
 
+  test("repeated denials keep one open receipt until it is resolved", async () => {
+    const t = setup();
+    for (let attempt = 0; attempt < 3; attempt += 1) {
+      expect(await t.mutation(link, input)).toEqual({
+        status: "quarantined",
+        reason: "missing_mapping",
+      });
+    }
+    expect((await snapshot(t)).quarantine).toHaveLength(1);
+    await t.run(async (ctx) => {
+      const [receipt] = await ctx.db.query("migrationQuarantine").take(1);
+      await ctx.db.patch("migrationQuarantine", receipt._id, {
+        resolvedAt: Date.now(),
+      });
+    });
+    await t.mutation(link, input);
+    const receipts = (await snapshot(t)).quarantine;
+    expect(receipts).toHaveLength(2);
+    expect(receipts.filter((row) => row.resolvedAt === undefined)).toHaveLength(
+      1
+    );
+  });
+
   test("email fallback cannot ignore a deleted or already linked duplicate", async () => {
     for (const fields of [{ deletedAt: 1 }, { workosUserId: "user_other" }]) {
       const t = setup();

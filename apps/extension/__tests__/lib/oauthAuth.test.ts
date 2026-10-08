@@ -472,6 +472,38 @@ test("a stored credential is never sent to a different provider", async () => {
   expect(await auth.getCaptureOwner()).toBe("original-owner");
 });
 
+test.each([
+  ["unbound", {}],
+  [
+    "Better Auth bound",
+    {
+      siteUrl: "https://test.convex.site",
+      issuer: "https://app.teakvault.com",
+      clientId: "teak-chrome",
+    },
+  ],
+])(
+  "WorkOS sign-out clears %s legacy credentials locally without contacting the removed revoke route",
+  async (_label, bindingFields) => {
+    primary = "workos";
+    storage[tokenKey] = {
+      accessToken,
+      refreshToken,
+      expiresAt: Date.now() + 60_000,
+      ...bindingFields,
+    };
+    storage.teakOAuthOwner = "legacy-owner";
+    const network = mock(async () => new Response(null, { status: 404 }));
+    globalThis.fetch = withDiscovery(network as unknown as typeof fetch);
+    const auth = await load();
+    expect(await auth.signOutOAuth()).toBeUndefined();
+    expect(network).not.toHaveBeenCalled();
+    expect(storage[tokenKey]).toBeUndefined();
+    expect(storage.teakOAuthOwner).toBeUndefined();
+    expect(storage.teakOAuthState).toMatchObject({ authenticated: false });
+  }
+);
+
 test("development cannot read or clear production credentials", async () => {
   process.env.DEV = "true";
   const production = {

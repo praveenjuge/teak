@@ -186,6 +186,16 @@ describe("Connect credential validation", () => {
     }
   );
 
+  test("accepts a token issued slightly ahead of this deployment's clock", async () => {
+    const issuedAt = Math.floor(Date.now() / 1000) + 30;
+    expect(
+      await verifyWorkosConnectToken(
+        await token({ iat: issuedAt, exp: issuedAt + 300 }),
+        config
+      )
+    ).not.toBeNull();
+  });
+
   test("enforces the signed five-minute lifetime across a clock-second boundary", async () => {
     // The issue time belongs to the previous second, while token() constructs
     // the signature now. Pair both claims so elapsed time cannot shorten the

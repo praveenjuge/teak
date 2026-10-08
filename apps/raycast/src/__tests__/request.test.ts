@@ -575,7 +575,7 @@ describe("Raycast sign out", () => {
   });
 
   test.each(["offline", "server"])(
-    "preserves tokens on %s failure",
+    "clears legacy tokens locally on %s revoke failure",
     async (failure) => {
       getTokensMock.mockResolvedValueOnce({
         accessToken: "access",
@@ -589,8 +589,8 @@ describe("Raycast sign out", () => {
           return Promise.resolve(new Response(null, { status: 503 }));
         }) as unknown as typeof fetch,
       );
-      await expect(signOutTeak()).rejects.toThrow("try Sign Out again");
-      expect(removeTokensMock).not.toHaveBeenCalled();
+      expect(await signOutTeak()).toBe("disconnected");
+      expect(removeTokensMock).toHaveBeenCalledTimes(1);
     },
   );
 
