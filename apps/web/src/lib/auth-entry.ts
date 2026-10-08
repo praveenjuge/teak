@@ -22,15 +22,10 @@ export function workosEntryRedirect(
   if (signedIn) {
     return new URL(next ?? "/", url.origin);
   }
-  return workosStartUrl(url.origin, flow === "signup", next);
-}
-
-export function workosStartUrl(
-  origin: string,
-  signup: boolean,
-  next: string | null
-): URL {
-  const target = new URL(signup ? "/sign-up" : "/sign-in", origin);
+  const target = new URL(
+    flow === "signup" ? "/sign-up" : "/sign-in",
+    url.origin
+  );
   if (next) {
     target.searchParams.set("next", next);
   }
