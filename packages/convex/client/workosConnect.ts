@@ -59,6 +59,8 @@ export const createConnectAuthorizeUrl = (
 };
 
 const send = (url: string, init: RequestInit, local: boolean) =>
+  // validateOAuthUrl allows only HTTPS or approved loopback, and redirects fail.
+  // nosemgrep: rules_lgpl_javascript_ssrf_rule-node-ssrf
   fetch(validateOAuthUrl(url, local).href, {
     ...init,
     credentials: "omit",

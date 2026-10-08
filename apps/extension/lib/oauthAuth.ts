@@ -55,6 +55,8 @@ async function readJson(response: Response) {
   return JSON.parse(text);
 }
 function fetchAuth(url: string, init: RequestInit) {
+  // validateOAuthUrl allows only HTTPS or approved loopback, and redirects fail.
+  // nosemgrep: rules_lgpl_javascript_ssrf_rule-node-ssrf
   return fetch(validateOAuthUrl(url, LOCAL).href, {
     ...init,
     credentials: "omit",
