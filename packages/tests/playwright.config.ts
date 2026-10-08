@@ -21,7 +21,9 @@ const journey = (
 export default defineConfig<JourneyOptions>({
   testDir: "./src",
   timeout: 120_000,
-  workers: 4,
+  // GitHub's standard runner shares 4 cores between the browsers, the
+  // backend and the dev server; more browsers than this starve the backend.
+  workers: process.env.CI ? 2 : 4,
   expect: { timeout: 15_000 },
   reporter: process.env.CI
     ? [["list"], ["html", { open: "never" }]]
@@ -34,7 +36,14 @@ export default defineConfig<JourneyOptions>({
   },
   projects: [
     {
+      // Everything that uses the stack starts after this warms it.
+      name: "warmup",
+      testMatch: "warmup.setup.ts",
+      use: chrome,
+    },
+    {
       name: "journey-setup",
+      dependencies: ["warmup"],
       testMatch: "journey/01-signup.setup.ts",
       use: chrome,
     },
@@ -70,12 +79,14 @@ export default defineConfig<JourneyOptions>({
     {
       // Web surface specs; each worker signs up its own account.
       name: "web",
+      dependencies: ["warmup"],
       testMatch: "web/**/*.e2e.ts",
       workers: 2,
       use: chrome,
     },
     ...(["chromium", "firefox", "webkit"] as const).map((browser) => ({
       name: `matrix-${browser}`,
+      dependencies: ["warmup"],
       testMatch: "matrix/journey-lite.e2e.ts",
       workers: 1,
       use: devices[

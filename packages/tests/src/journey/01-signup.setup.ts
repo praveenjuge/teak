@@ -1,6 +1,6 @@
 import { test } from "@playwright/test";
 import { createAccount } from "../helpers/app";
-import { writeState } from "../helpers/run-state";
+import { type AccountState, writeState } from "../helpers/run-state";
 
 test.setTimeout(240_000);
 
@@ -22,19 +22,22 @@ test("new WorkOS users get isolated Teak vaults and API keys", async ({
       await context.close();
     }
   };
+  // One at a time: parallel sign-ups starve a small CI runner's backend.
+  const accounts: AccountState[] = [];
+  for (const label of [
+    "web-core",
+    "web-surfaces",
+    "web-filters",
+    "account-lifecycle",
+    "security",
+    "service-api",
+    "service-cli",
+    "service-mcp",
+  ]) {
+    accounts.push(await createIsolatedAccount(label));
+  }
   const [webCore, webSurfaces, webFilters, account, security, api, cli, mcp] =
-    await Promise.all(
-      [
-        "web-core",
-        "web-surfaces",
-        "web-filters",
-        "account-lifecycle",
-        "security",
-        "service-api",
-        "service-cli",
-        "service-mcp",
-      ].map(createIsolatedAccount)
-    );
+    accounts;
   // Each run starts a fresh emulator, so earlier accounts no longer exist.
   writeState({
     account,
