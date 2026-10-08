@@ -49,22 +49,7 @@ jobs:
           test ! -e apps/files-worker/.dev.vars
           test ! -e packages/convex/.env.local
       - name: Setup web target
-        run: |
-          # TEMPORARY diagnostics for the port 3210 race; removed before merge.
-          (while :; do
-            procs=$(ps -eo pid=,ppid=,pgid=,stat=,comm=,args= | grep -E "convex|MainThread" | grep -v -E "grep|setup.ts" | awk '{a=""; for(i=6;i<=NF&&i<=9;i++) a=a" "$i; printf "[%s<%s g%s %s %s%s] ", $1,$2,$3,$4,$5,a}')
-            echo "$(date +%T.%N | cut -c1-12) http=$(curl -s -m 0.5 http://127.0.0.1:3210/instance_name || echo none) $procs"
-            sleep 0.5
-          done) > /tmp/diag.log 2>&1 &
-          sampler=$!
-          setup_exit=0
-          bun run setup --target web --convex local || setup_exit=$?
-          sleep 3
-          kill "$sampler"
-          echo "setup exit: $setup_exit"
-          cut -c1-900 /tmp/diag.log
-          ps -eo pid,ppid,pgid,etimes,stat,comm,args | grep -E "convex|MainThread" | grep -v grep | sed -E "s/(--instance-secret) [0-9a-f]+/\1 X/" | cut -c1-300
-          exit "$setup_exit"
+        run: bun run setup --target web --convex local
       - name: Doctor JSON must pass
         run: |
           doctor_exit=0
