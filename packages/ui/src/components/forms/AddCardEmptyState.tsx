@@ -20,10 +20,10 @@ export function AddCardEmptyState({
   ...addCardFormProps
 }: AddCardEmptyStateProps) {
   return (
-    <div className="mx-auto flex max-w-xs flex-col items-center gap-5 py-20 text-center">
+    <div className="mx-auto flex max-w-xs flex-col items-center gap-5 py-20">
       <Logo variant="current" />
       <AddCardForm autoFocus={autoFocus} {...addCardFormProps} />
-      <div className="space-y-1">
+      <div className="space-y-1 text-center">
         <h3 className="font-medium">{title}</h3>
         <p className="text-balance text-muted-foreground">{description}</p>
       </div>
