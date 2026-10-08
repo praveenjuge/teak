@@ -7,13 +7,17 @@ import { normalizeIdentityEmail } from "./userIdentityTable";
 // Read-only parity check before the WorkOS AuthKit component becomes the
 // profile source. It compares each linked owner with the component's user row
 // and Teak's own profile copy, and reports only IDs and mismatch kinds: never
-// an email, name or token. Run it page by page with `bunx convex run`.
+// an email, name or token. Run it page by page with `bunx convex run`. Pages
+// are separate snapshots, so a clean pass is evidence only when nothing
+// changed during it; repeat the full pass and compare before relying on it.
 
 const issueKind = v.union(
   v.literal("missing_component_user"),
   v.literal("deleted_but_component_user_present"),
   v.literal("email_mismatch"),
   v.literal("email_verified_mismatch"),
+  v.literal("missing_profile_copy"),
+  v.literal("duplicate_profile_copies"),
   v.literal("profile_mismatch")
 );
 
@@ -71,23 +75,26 @@ export const page = internalQuery({
         ) {
           kinds.push("email_verified_mismatch");
         }
-        const copy = (
-          await ctx.db
-            .query("workosProfiles")
-            .withIndex("by_workosUserId", (q) =>
-              q.eq("workosUserId", owner.workosUserId as string)
-            )
-            .take(1)
-        )[0]?.profile;
-        if (
-          copy &&
+        const copies = await ctx.db
+          .query("workosProfiles")
+          .withIndex("by_workosUserId", (q) =>
+            q.eq("workosUserId", owner.workosUserId as string)
+          )
+          .take(2);
+        const copy = copies[0]?.profile;
+        if (copies.length > 1) {
+          kinds.push("duplicate_profile_copies");
+        } else if (!copy) {
+          kinds.push("missing_profile_copy");
+        } else if (
           !(
             normalizeIdentityEmail(copy.email) ===
               normalizeIdentityEmail(component.email) &&
             copy.emailVerified === component.emailVerified &&
             sameName(copy.firstName, component.firstName) &&
             sameName(copy.lastName, component.lastName) &&
-            sameName(copy.profilePictureUrl, component.profilePictureUrl)
+            sameName(copy.profilePictureUrl, component.profilePictureUrl) &&
+            (copy.name === undefined || sameName(copy.name, component.name))
           )
         ) {
           kinds.push("profile_mismatch");
