@@ -117,9 +117,16 @@ test("parallel card operations stay coherent under contention", async ({
   );
   expect(deletions.every((response) => response.status === 204)).toBe(true);
 
+  // Card creation is a 30-per-minute token bucket. Keep creating in batches
+  // until it refuses, so a slow runner that lets the bucket refill between
+  // requests still reaches the limit; four bucket capacities is the cap.
   const rateChecks: Response[] = [];
   const rateCheckConcurrency = 8;
-  for (let offset = 0; offset < 40; offset += rateCheckConcurrency) {
+  for (
+    let offset = 0;
+    offset < 120 && !rateChecks.some((response) => response.status === 429);
+    offset += rateCheckConcurrency
+  ) {
     // Keep the harness parallel within the limiter's supported
     // eight-request contention envelope.
     const batch = await Promise.all(

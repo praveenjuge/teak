@@ -28,7 +28,7 @@ const stackOnly = process.argv[2] === "stack";
 const playwrightArgs =
   process.argv.length > 2 && !stackOnly
     ? process.argv.slice(2)
-    : ["--project=journey-*", "--project=matrix-*"];
+    : ["--project=journey-*", "--project=web", "--project=matrix-*"];
 
 const portIsFree = (port: number) =>
   new Promise<boolean>((resolve) => {
@@ -55,10 +55,10 @@ const waitFor = async (url: string, dev: ChildProcess, timeoutMs: number) => {
       throw new Error(`The dev stack exited before ${url} came up`);
     }
     try {
-      // Only the stack's own fixed loopback URLs are polled.
-      // nosemgrep: rules_lgpl_javascript_ssrf_rule-node-ssrf
       // The web app redirects to hosted sign-in, so follow redirects and
-      // require the final page (or the API health check) to succeed.
+      // require the final page (or the API health check) to succeed. Only the
+      // stack's own fixed loopback URLs are polled.
+      // nosemgrep: rules_lgpl_javascript_ssrf_rule-node-ssrf
       const response = await fetch(url);
       await response.body?.cancel();
       if (response.ok) {
@@ -72,17 +72,27 @@ const waitFor = async (url: string, dev: ChildProcess, timeoutMs: number) => {
   throw new Error(`${url} did not come up within ${timeoutMs / 1000}s`);
 };
 
-const stopGroup = (child: ChildProcess) => {
-  if (child.pid && child.exitCode === null) {
-    try {
-      process.kill(-child.pid, "SIGTERM");
-    } catch {
-      // Already gone.
-    }
+const signalGroup = (child: ChildProcess, signal: NodeJS.Signals) => {
+  try {
+    process.kill(-(child.pid ?? 0), signal);
+  } catch {
+    // Already gone.
   }
 };
 
-for (const port of [EMULATOR_PORT, 3000, 3210, 3211]) {
+// `convex dev` runs the web server in its own process group and stops it
+// only on SIGINT, so interrupt first and force-stop whatever remains.
+const stopStack = async (child: ChildProcess) => {
+  if (!child.pid || child.exitCode !== null) {
+    return;
+  }
+  const exited = new Promise((resolve) => child.once("exit", resolve));
+  signalGroup(child, "SIGINT");
+  await Promise.race([exited, Bun.sleep(15_000)]);
+  signalGroup(child, "SIGKILL");
+};
+
+for (const port of [EMULATOR_PORT, EMULATOR_PORT + 1, 3000, 3210, 3211]) {
   if (!(await portIsFree(port))) {
     throw new Error(
       `Port ${port} is in use. Stop the running stack first; the e2e stack needs ports 3000, 3210, 3211 and ${EMULATOR_PORT}.`
@@ -129,7 +139,7 @@ dev.stderr?.pipe(log);
 
 let exitCode = 1;
 const teardown = async () => {
-  stopGroup(dev);
+  await stopStack(dev);
   await emulator.close();
 };
 process.once("SIGINT", () => {
