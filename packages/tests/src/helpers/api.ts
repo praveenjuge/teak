@@ -7,6 +7,8 @@ export const apiFetch = (
   apiKey: string,
   init: RequestInit = {}
 ) =>
+  // The origin is the fixed local API; tests pass only literal paths.
+  // nosemgrep: rules_lgpl_javascript_ssrf_rule-node-ssrf
   fetch(`${env.apiUrl}${path}`, {
     ...init,
     headers: {

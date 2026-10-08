@@ -12,6 +12,8 @@ export interface EmulatorUser {
 }
 
 const emulatorFetch = async (path: string, init: RequestInit = {}) => {
+  // The origin is the fixed local emulator; tests pass only literal paths.
+  // nosemgrep: rules_lgpl_javascript_ssrf_rule-node-ssrf
   const response = await fetch(new URL(path, env.emulatorUrl), {
     ...init,
     headers: {
@@ -93,6 +95,8 @@ export const resetPasswordThroughEmail = async (
     method: "POST",
     body: JSON.stringify({ email }),
   });
+  // A one-time code the emulator minted for this run, not a hard-coded token.
+  // nosemgrep: codacy.yaml.security.hard-coded-tokens
   const { password_reset_token: token } = await waitForEmailedEvent<{
     email: string;
     password_reset_token: string;

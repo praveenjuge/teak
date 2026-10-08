@@ -7,9 +7,7 @@ test.setTimeout(240_000);
 test("parallel card operations stay coherent under contention", async ({
   page,
 }) => {
-  const account = await createAccount(page, "occ-concurrency", {
-    remember: false,
-  });
+  const account = await createAccount(page, "occ-concurrency");
   const apiKey = account.apiKey!;
   const marker = `occ-concurrency-${Date.now()}`;
   const creates = await Promise.all(

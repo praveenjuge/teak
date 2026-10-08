@@ -12,7 +12,6 @@ import { type ChildProcess, spawn } from "node:child_process";
 import { createWriteStream, mkdirSync } from "node:fs";
 import { createServer } from "node:net";
 import { join } from "node:path";
-import { DEV_TARGETS } from "../../../../scripts/dev";
 import {
   EMULATOR_PORT,
   LOCAL_API_ORIGIN,
@@ -56,8 +55,13 @@ const waitFor = async (url: string, dev: ChildProcess, timeoutMs: number) => {
       throw new Error(`The dev stack exited before ${url} came up`);
     }
     try {
-      const response = await fetch(url, { redirect: "manual" });
-      if (response.status < 500) {
+      // Only the stack's own fixed loopback URLs are polled.
+      // nosemgrep: rules_lgpl_javascript_ssrf_rule-node-ssrf
+      // The web app redirects to hosted sign-in, so follow redirects and
+      // require the final page (or the API health check) to succeed.
+      const response = await fetch(url);
+      await response.body?.cancel();
+      if (response.ok) {
         return;
       }
     } catch {
@@ -87,7 +91,6 @@ for (const port of [EMULATOR_PORT, 3000, 3210, 3211]) {
 }
 
 process.env.CONVEX_AGENT_MODE ||= "anonymous";
-process.env.TURBO_UI = "false";
 if ((await run(["bun", "run", "setup", "--target", "e2e"], ROOT)) !== 0) {
   throw new Error("bun run setup --target e2e failed");
 }
@@ -95,20 +98,26 @@ if ((await run(["bun", "run", "setup", "--target", "e2e"], ROOT)) !== 0) {
 const emulator = await startEmulator();
 mkdirSync(LOG_DIR, { recursive: true });
 const devLog = join(LOG_DIR, "dev-stack.log");
-// The web dev tasks without `turbo watch`: the suite writes traces and state
-// files fast enough to overflow its watcher, which then restarts every task.
+// Setup already pushed the backend. Watching would loop: the functions
+// directory holds the anonymous backend's own state, which every push
+// rewrites. `--once --start` keeps the backend up exactly as long as the web
+// dev server runs, and `turbo watch` is avoided because the suite's trace and
+// state writes overflow its watcher, which then restarts every task.
 const dev = spawn(
   "bunx",
   [
-    "turbo",
-    "run",
+    "convex",
     "dev",
-    "--ui=stream",
-    "--log-order=stream",
-    ...(DEV_TARGETS.web ?? []).flatMap((filter) => ["--filter", filter]),
+    "--once",
+    "--codegen",
+    "disable",
+    "--typecheck",
+    "disable",
+    "--start",
+    "bun run --cwd ../../apps/web dev",
   ],
   {
-    cwd: ROOT,
+    cwd: join(ROOT, "packages/convex"),
     detached: true,
     env: process.env,
     stdio: ["ignore", "pipe", "pipe"],

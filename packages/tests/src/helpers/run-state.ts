@@ -11,24 +11,29 @@ import { pathToFileURL } from "node:url";
 
 export interface AccountState {
   apiKey?: string;
-  deleted?: boolean;
   email: string;
   password?: string;
 }
 
 export interface RunState {
   account?: AccountState;
-  accounts: AccountState[];
   createdCardIds: string[];
-  importExport?: AccountState;
   primary?: AccountState;
   revokedKey?: string;
+  security?: AccountState;
   serviceAccounts?: Partial<Record<ServiceAccountSurface, AccountState>>;
   webCore?: AccountState;
-  webFiles?: AccountState;
   webFilters?: AccountState;
   webSurfaces?: AccountState;
 }
+
+export type AccountKey =
+  | "account"
+  | "primary"
+  | "security"
+  | "webCore"
+  | "webFilters"
+  | "webSurfaces";
 
 export type ServiceAccountSurface = "api" | "cli" | "mcp";
 
@@ -38,20 +43,11 @@ const file = process.env.TEAK_E2E_RUN_STATE_FILE
 const lockDirectory = new URL("run-state.lock/", file);
 const lockWaitArray = new Int32Array(new SharedArrayBuffer(4));
 const LOCK_TIMEOUT_MS = 5000;
-export const accountStorageStateFile = ".state/account.json";
-export const importExportStorageStateFile = ".state/import-export.json";
-export const securityStorageStateFile = ".state/security.json";
-export const storageStateFile = ".state/user.json";
-export const webCoreStorageStateFile = ".state/web-core.json";
-export const webFilesStorageStateFile = ".state/web-files.json";
-export const webFiltersStorageStateFile = ".state/web-filters.json";
-export const webSurfacesStorageStateFile = ".state/web-surfaces.json";
-
 export const readState = (): RunState => {
   try {
     return JSON.parse(readFileSync(file, "utf8")) as RunState;
   } catch {
-    return { accounts: [], createdCardIds: [] };
+    return { createdCardIds: [] };
   }
 };
 
@@ -112,51 +108,10 @@ export const requireServiceApiKey = (
   return apiKey;
 };
 
-export const requireAccount = (
-  key:
-    | "primary"
-    | "webCore"
-    | "webSurfaces"
-    | "webFiles"
-    | "webFilters"
-    | "account"
-    | "importExport"
-): AccountState => {
+export const requireAccount = (key: AccountKey): AccountState => {
   const account = readState()[key];
   if (!account?.email) {
     throw new Error(`Missing ${key} account`);
   }
   return account;
 };
-
-export const requireAccountApiKey = (
-  key:
-    | "primary"
-    | "webCore"
-    | "webSurfaces"
-    | "webFiles"
-    | "webFilters"
-    | "account"
-    | "importExport"
-): string => {
-  const apiKey = readState()[key]?.apiKey;
-  if (!apiKey) {
-    throw new Error(`Missing ${key} account API key`);
-  }
-  return apiKey;
-};
-
-export const rememberAccount = (account: AccountState, primary = false) =>
-  updateState((state) => {
-    const index = state.accounts.findIndex(
-      (item) => item.email === account.email
-    );
-    if (index >= 0) {
-      state.accounts[index] = { ...state.accounts[index], ...account };
-    } else {
-      state.accounts.push(account);
-    }
-    if (primary) {
-      state.primary = { ...(state.primary ?? account), ...account };
-    }
-  });

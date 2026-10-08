@@ -22,10 +22,7 @@ test("sitemap pages and internal links resolve", async () => {
         )
       ).flat();
   expect(pages.length).toBeGreaterThan(0);
-  for (const url of pages.slice(
-    0,
-    Number(process.env.PROD_E2E_DOCS_PAGE_LIMIT ?? 80)
-  )) {
+  for (const url of pages.slice(0, 80)) {
     const response = await fetch(url);
     expect(response.status, url).toBeLessThan(400);
     const html = await response.text();

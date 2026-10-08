@@ -10,8 +10,7 @@ test.setTimeout(180_000);
 test("signup, create, and search", async ({ page }) => {
   const account = await createAccount(
     page,
-    `matrix-${test.info().project.name}`,
-    { remember: false }
+    `matrix-${test.info().project.name}`
   );
   const marker = `matrix-${Date.now()}`;
   await page.goto("/");

@@ -402,29 +402,6 @@ export const BACKEND_ENTRIES: EnvVarSpec[] = [
     implicit: true,
     note: "Consumed by sentry-cli during releases.",
   }),
-  // E2E backend capability group.
-  spec("E2E_CLEANUP_TOKEN", {
-    owners: ["@teak/convex", "@teak/tests"],
-    targets: ["convex", "e2e"],
-    profiles: ["e2e"],
-    secret: true,
-    validation: "string",
-    providers: ["convex-dashboard", "github-secrets", "dotenv-local"],
-    required: true,
-    requiredIn: ["e2e"],
-    note: "Single writer is the operator: the same Bearer [REDACTED] is stored in the Convex dashboard and the GitHub secret, and must match.",
-  }),
-  spec("E2E_EMAIL_DOMAIN", {
-    owners: ["@teak/convex", "@teak/tests"],
-    targets: ["convex", "e2e"],
-    profiles: ["e2e"],
-    secret: false,
-    validation: "string",
-    providers: ["convex-dashboard", "github-secrets", "dotenv-local"],
-    required: true,
-    requiredIn: ["e2e"],
-    note: "Single writer is the operator: the private MX domain is mirrored in the Convex dashboard and CI, and must match.",
-  }),
   // Convex deployment plumbing.
   spec("CONVEX_DEPLOY_KEY", {
     owners: ["@teak/convex"],

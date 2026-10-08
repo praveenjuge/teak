@@ -1,22 +1,24 @@
 import { defineConfig, devices } from "@playwright/test";
 import { env } from "./src/helpers/env";
+import type { AccountKey } from "./src/helpers/run-state";
+import type { JourneyOptions } from "./src/helpers/test";
 
 // Runs against the local stack started by src/scripts/run-local-suite.ts.
 const chrome = devices["Desktop Chrome"];
 const journey = (
   name: string,
   testMatch: string | string[],
-  storageState?: string,
+  account?: AccountKey,
   dependencies = ["journey-setup"]
 ) => ({
   name: `journey-${name}`,
   dependencies,
   testMatch,
   workers: 1,
-  use: { ...chrome, ...(storageState ? { storageState } : {}) },
+  use: { ...chrome, account },
 });
 
-export default defineConfig({
+export default defineConfig<JourneyOptions>({
   testDir: "./src",
   timeout: 120_000,
   workers: 4,
@@ -36,20 +38,16 @@ export default defineConfig({
       testMatch: "journey/01-signup.setup.ts",
       use: chrome,
     },
-    journey(
-      "web-core",
-      "journey/02-web-journey.e2e.ts",
-      ".state/web-core.json"
-    ),
+    journey("web-core", "journey/02-web-journey.e2e.ts", "webCore"),
     journey(
       "web-surfaces",
       "journey/09-web-product-surfaces.e2e.ts",
-      ".state/web-surfaces.json"
+      "webSurfaces"
     ),
     journey(
       "web-filters",
       "journey/11-quote-favorites-filters.e2e.ts",
-      ".state/web-filters.json"
+      "webFilters"
     ),
     journey("api", [
       "journey/03-api.e2e.ts",
@@ -57,16 +55,12 @@ export default defineConfig({
     ]),
     journey("cli", "journey/04-cli.e2e.ts"),
     journey("mcp", "journey/05-mcp.e2e.ts"),
-    journey("a11y", "journey/08-a11y.e2e.ts", ".state/user.json"),
-    journey("security", "journey/06-security.e2e.ts", ".state/security.json", [
+    journey("a11y", "journey/08-a11y.e2e.ts", "primary"),
+    journey("security", "journey/06-security.e2e.ts", "security", [
       "journey-setup",
       "journey-web-core",
     ]),
-    journey(
-      "account",
-      "journey/07-account-flows.e2e.ts",
-      ".state/account.json"
-    ),
+    journey("account", "journey/07-account-flows.e2e.ts"),
     journey("delete", "journey/99-delete-account.e2e.ts", undefined, [
       "journey-account",
     ]),

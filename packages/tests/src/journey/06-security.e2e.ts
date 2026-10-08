@@ -18,9 +18,7 @@ test("cross-tenant, revoked-key, hostile input, headers, and cookie security", a
   const securityApiKey = await generateApiKey(page);
   const secondContext = await newAnonymousContext(browser);
   const secondPage = await secondContext.newPage();
-  const second = await createAccount(secondPage, "tenant-b", {
-    remember: false,
-  });
+  const second = await createAccount(secondPage, "tenant-b");
   try {
     const targetCard = state.createdCardIds[0];
     expect(
@@ -39,13 +37,22 @@ test("cross-tenant, revoked-key, hostile input, headers, and cookie security", a
       tags: ["xss"],
     });
     await page.goto("/");
-    await expect
-      .poll(() => page.evaluate(() => (window as any).__teakXss))
-      .toBeUndefined();
+    // The hostile card has rendered, and its markup did not run.
+    await expect(
+      page
+        .getByRole("main")
+        .getByText(/javascript:alert\(1\)/)
+        .first()
+    ).toBeVisible();
+    expect(
+      await page.evaluate(() => (window as any).__teakXss)
+    ).toBeUndefined();
+    // Headers come from plain requests: navigating away while the page is
+    // still refreshing its session would race the rotated refresh token.
     for (const url of ["/login", "/settings"]) {
-      const response = await page.goto(url);
-      expect(response?.headers()["strict-transport-security"]).toBeTruthy();
-      const csp = response?.headers()["content-security-policy"] ?? "";
+      const response = await context.request.get(url);
+      expect(response.headers()["strict-transport-security"]).toBeTruthy();
+      const csp = response.headers()["content-security-policy"] ?? "";
       expect(csp).toBeTruthy();
       // Regression: images (link previews, PDF thumbnails) are served from R2.
       // The CSP img-src must allow that origin or they are blocked outright.

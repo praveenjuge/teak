@@ -11,7 +11,7 @@ import {
   waitForEmailedEvent,
 } from "./emulator";
 import { E2E_PASSWORD, env, uniqueEmail } from "./env";
-import { type AccountState, rememberAccount, updateState } from "./run-state";
+import type { AccountState } from "./run-state";
 
 export const clientFor = (apiKey: string) =>
   createTeakClient({
@@ -267,7 +267,7 @@ export const revokeVisibleKey = async (page: Page, rawKey: string) => {
 export const createAccount = async (
   page: Page,
   label = "acct",
-  options: { emailVerified?: boolean; remember?: boolean } = {}
+  options: { emailVerified?: boolean } = {}
 ): Promise<AccountState> => {
   const email = uniqueEmail(label);
   await createEmulatorUser({
@@ -276,11 +276,7 @@ export const createAccount = async (
     password: E2E_PASSWORD,
   });
   await signIn(page, email);
-  const account = { email, apiKey: await generateApiKey(page) };
-  if (options.remember !== false) {
-    rememberAccount(account);
-  }
-  return account;
+  return { email, apiKey: await generateApiKey(page) };
 };
 
 export const deleteAccountViaUi = async (page: Page, account: AccountState) => {
@@ -301,11 +297,4 @@ export const deleteAccountViaUi = async (page: Page, account: AccountState) => {
   await expect
     .poll(() => findEmulatorUser(account.email), { timeout: 60_000 })
     .toBeNull();
-  updateState((state) => {
-    for (const saved of [state.account, state.primary, ...state.accounts]) {
-      if (saved?.email === account.email) {
-        saved.deleted = true;
-      }
-    }
-  });
 };

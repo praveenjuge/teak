@@ -41,6 +41,7 @@ import {
   readPinnedVersions,
 } from "./capabilities.ts";
 import { generateAliasValues } from "./env-aliases.ts";
+import { readDotenvFile } from "./env-loader.ts";
 import {
   type ConvexMode,
   getTargetSpec,
@@ -276,7 +277,19 @@ const ensureEmulatorWebhookVars = async (
       };
     }
     if (current.status === "missing") {
-      await setDeploymentVar(name, expected, convexDir);
+      try {
+        await setDeploymentVar(name, expected, convexDir);
+      } catch (error) {
+        return {
+          id: "setup-e2e-emulator",
+          ok: false,
+          severity: "error",
+          detail: error instanceof Error ? error.message : String(error),
+          remediation: [
+            "Export CONVEX_AGENT_MODE=anonymous and re-run bun run setup --target e2e",
+          ],
+        };
+      }
       configured.push(name);
     }
   }
@@ -637,6 +650,28 @@ export const runSetup = async (
       detail: `would derive ${rel.join(", ")} from the active Convex deployment without overwriting custom values`,
     });
   } else {
+    // Setup keeps custom web values, so an e2e web env must not already point
+    // authkit-nextjs at a WorkOS host other than the emulator.
+    const webValues =
+      e2e && webEnvPath ? readDotenvFile(webEnvPath)?.values : undefined;
+    const conflicting = Object.entries(EMULATOR_WEB_ENV).flatMap(
+      ([name, value]) =>
+        webValues?.has(name) && webValues.get(name) !== value ? [name] : []
+    );
+    if (conflicting.length > 0) {
+      return fail([
+        ...checks,
+        {
+          id: "setup-e2e-emulator",
+          ok: false,
+          severity: "error",
+          detail: `apps/web/.env.local sets ${conflicting.join(", ")} to a WorkOS host other than the emulator`,
+          remediation: [
+            `Remove ${conflicting.join(", ")} from apps/web/.env.local and re-run bun run setup --target e2e`,
+          ],
+        },
+      ]);
+    }
     const derived = readConvexDotenvUrls(
       join(root, "packages/convex/.env.local")
     );

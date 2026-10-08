@@ -17,6 +17,10 @@
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import {
+  EMULATOR_CLIENT_ID,
+  EMULATOR_WEB_ENV,
+} from "../packages/tests/src/emulator/config.ts";
+import {
   checkBunVersion,
   checkNodeVersion,
   inferLanHost,
@@ -27,6 +31,7 @@ import {
 import { parseConvexEnvOutput } from "./check-cloudflare.ts";
 import { auditDotenv } from "./dotenv-audit.ts";
 import { auditFiles, listScannedFiles } from "./env-audit.ts";
+import { readDotenvFile } from "./env-loader.ts";
 import { runCommand } from "./proc.ts";
 import { validateWebEnvContent } from "./validate-env.ts";
 import { resolveWorktree } from "./worktree-env.ts";
@@ -417,33 +422,29 @@ export const checkPorts = async (): Promise<DoctorCheck> => {
       };
 };
 
-const E2E_REQUIRED = [
-  "E2E_CONVEX_URL",
-  "E2E_CONVEX_SITE_URL",
-  "E2E_CLEANUP_TOKEN",
-  "PROD_E2E_PASSWORD",
-  "MAILPIT_URL",
-  "E2E_EMAIL_DOMAIN",
-];
-
-export const checkE2EVars = (
-  env: NodeJS.ProcessEnv = process.env
+// The e2e stack is the web app wired to the WorkOS emulator by setup.
+export const checkE2EStack = (
+  web: ReadonlyMap<string, string> | undefined
 ): DoctorCheck => {
-  const missing = E2E_REQUIRED.filter((name) => !env[name]?.trim());
-  return missing.length === 0
+  const expected: Record<string, string> = {
+    WORKOS_CLIENT_ID: EMULATOR_CLIENT_ID,
+    ...EMULATOR_WEB_ENV,
+  };
+  const wrong = Object.keys(expected).filter(
+    (name) => web?.get(name) !== expected[name]
+  );
+  return wrong.length === 0
     ? {
-        detail: "required E2E variables are present",
-        id: "e2e-vars",
+        detail: "apps/web/.env.local points at the WorkOS emulator",
+        id: "e2e-stack",
         ok: true,
         severity: "error",
       }
     : {
-        detail: `missing E2E variables: ${missing.join(", ")}`,
-        id: "e2e-vars",
+        detail: `apps/web/.env.local is not wired to the WorkOS emulator: ${wrong.join(", ")}`,
+        id: "e2e-stack",
         ok: false,
-        remediation: [
-          "Export the missing E2E_* variables or create .env.production-e2e.local",
-        ],
+        remediation: ["Run bun run setup --target e2e"],
         severity: "error",
       };
 };
@@ -605,7 +606,13 @@ export const runDoctor = async (
     checkEnvAudit(),
     checkDotenvHygiene(),
     checkTargetReadiness(target),
-    ...(profile === "e2e" ? [checkE2EVars()] : []),
+    ...(profile === "e2e"
+      ? [
+          checkE2EStack(
+            readDotenvFile(join(ROOT, "apps/web/.env.local"))?.values
+          ),
+        ]
+      : []),
     ...(siteUrlCheck ? [siteUrlCheck] : []),
     ...(workosCheck ? [workosCheck] : []),
     await checkPorts(),
