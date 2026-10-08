@@ -6,6 +6,7 @@ const AUTH_ROUTES = new Set([
   "/reset-password",
   "/forgot-password",
   "/sign-in",
+  "/sign-up",
 ]);
 
 // Control characters (including tab/newline) and backslashes can be normalized

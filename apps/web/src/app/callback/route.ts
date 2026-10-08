@@ -25,9 +25,6 @@ export async function GET(request: NextRequest): Promise<Response> {
     // The SDK adds cache and PKCE-expiry headers to this response, so it must
     // be mutable. `Response.redirect` headers are immutable in Node.
     onError: () =>
-      NextResponse.redirect(
-        `${config.origin}/login?error=sign_in_restart`,
-        303
-      ),
+      NextResponse.redirect(`${config.origin}/sign-in?reauth=1`, 303),
   })(request);
 }

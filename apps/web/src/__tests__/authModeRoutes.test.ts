@@ -147,10 +147,51 @@ describe("web provider routing", () => {
     );
     expect(response.status).toBe(307);
     expect(response.headers.get("location")).toBe(
-      "http://localhost:3142/login?next=%2Fsettings%3Ftab%3Daccount"
+      "http://localhost:3142/sign-in?next=%2Fsettings%3Ftab%3Daccount"
     );
     expect(response.headers.get("x-workos-session")).toBeNull();
   });
+  test.each([
+    ["/login?next=%2Fsettings", "/sign-in?next=%2Fsettings"],
+    ["/login?next=https%3A%2F%2Fevil.example", "/sign-in"],
+    ["/register", "/sign-up"],
+    ["/forgot-password", "/sign-in"],
+    ["/reset-password?token=old", "/sign-in"],
+  ])("sends WorkOS entry page %s straight to %s", async (path, target) => {
+    globalThis.fetch = withAuthModeFetch(originalFetch, workosMode);
+    const response = await proxy(
+      new NextRequest(`http://localhost:3142${path}`)
+    );
+    expect(response.status).toBe(307);
+    expect(response.headers.get("location")).toBe(
+      `http://localhost:3142${target}`
+    );
+  });
+  test.each([
+    ["an old error link", "/login?error=sign_in_restart", {}, "/sign-in"],
+    ["paused sign-ups", "/register", { signupsDisabled: true }, "/sign-up"],
+    [
+      "paused account changes",
+      "/forgot-password",
+      { accountChangesPaused: true },
+      "/sign-in",
+    ],
+  ])(
+    "never renders a WorkOS entry page, even for %s",
+    async (_name, path, flags, target) => {
+      globalThis.fetch = withAuthModeFetch(originalFetch, {
+        ...workosMode,
+        ...flags,
+      });
+      const response = await proxy(
+        new NextRequest(`http://localhost:3142${path}`)
+      );
+      expect(response.status).toBe(307);
+      expect(response.headers.get("location")).toBe(
+        `http://localhost:3142${target}`
+      );
+    }
+  );
   test("lets signed-out WorkOS email returns reach the sign-in route", async () => {
     globalThis.fetch = withAuthModeFetch(originalFetch, workosMode);
     const response = await proxy(
@@ -235,7 +276,7 @@ describe("web provider routing", () => {
         expect(reached).toEqual([]);
         expect(response.status).toBe(303);
         expect(response.headers.get("location")).toBe(
-          "http://localhost:3142/login?error=sign_in_restart"
+          "http://localhost:3142/sign-in?reauth=1"
         );
         expect(response.headers.get("cache-control")).toContain("no-store");
         const setCookies = response.headers.getSetCookie();

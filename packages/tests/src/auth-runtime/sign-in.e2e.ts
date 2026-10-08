@@ -24,14 +24,16 @@ for (const scenario of [
     const submissions: string[] = [];
     await page.route(`${env.appUrl}/**`, async (route) => {
       const url = new URL(route.request().url());
-      if (url.pathname === "/login") {
-        let html = editor;
-        if (provider === "betterauth") {
-          html = `<form method="post" action="/accepted">${fields}</form>`;
-        }
-        if (provider === "workos") {
-          html = '<a role="button" href="/provider">Continue</a>';
-        }
+      if (url.pathname === "/login" && provider === "workos") {
+        await route.fulfill({
+          contentType: "text/html",
+          body: '<script>location.replace("/provider")</script>',
+        });
+      } else if (url.pathname === "/login") {
+        const html =
+          provider === "betterauth"
+            ? `<form method="post" action="/accepted">${fields}</form>`
+            : editor;
         await route.fulfill({ contentType: "text/html", body: html });
       } else if (url.pathname === "/provider") {
         await route.fulfill({

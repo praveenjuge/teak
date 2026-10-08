@@ -3,6 +3,7 @@ import { env, requirePassword } from "../helpers/env";
 import { waitForEmail } from "../helpers/mailpit";
 import {
   appPath,
+  expectAuthEntry,
   newAnonymousContext,
   passwordFor,
   signIn,
@@ -74,7 +75,7 @@ test("Polar checkout entry stays usable", async ({ browser }) => {
   }
 });
 
-test("signing out from settings returns to login without crashing", async ({
+test("signing out from settings returns to hosted sign-in without crashing", async ({
   browser,
 }) => {
   const primary = requireAccount("account");
@@ -88,12 +89,7 @@ test("signing out from settings returns to login without crashing", async ({
     // ("This page couldn't load") instead of returning the user to login.
     await page.getByRole("button", { name: "Sign out", exact: true }).click();
 
-    await page.waitForURL(/\/login/, { timeout: 15_000 });
-    await expect(
-      page
-        .getByLabel("Email", { exact: true })
-        .or(page.getByRole("button", { name: "Continue", exact: true }))
-    ).toBeVisible();
+    expect(await expectAuthEntry(page, "signin")).toBe("workos");
     await expect(page.getByText(/couldn't load/i)).toHaveCount(0);
   } finally {
     await context.close();

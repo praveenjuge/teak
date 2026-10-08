@@ -1,5 +1,4 @@
 import { expect, type Page, test } from "@playwright/test";
-import { SIGNUPS_PAUSED_MESSAGE } from "@teak/convex/shared/constants";
 import { env } from "../helpers/env";
 import {
   expectAuthEntry,
@@ -7,90 +6,104 @@ import {
   WORKOS_SIGNUP_CANARY_UNSUPPORTED,
 } from "../helpers/prod";
 
+const hosted = "https://hosted-auth.example";
 const betterAuthForm =
   '<div>Login to Teak</div><button>Continue with Google</button><form><label for="email">Email</label><input id="email" type="email"><label for="password">Password</label><input id="password" type="password"><button>Login</button></form>';
-const workosEntry = (title: string, alternate: string, button = "Continue") =>
-  `<div>${title}</div><p>Continue to secure sign-in with your email, Google, or Apple.</p><button>${button}</button><a href="/elsewhere">${alternate}</a>`;
-const workosSignin = workosEntry("Login to Teak", "New user? Register");
-const workosSignup = workosEntry(
-  "Create your Teak account",
-  "Already have an account? Sign in"
-);
-const paused = `<p role="status">${SIGNUPS_PAUSED_MESSAGE}</p><a href="/login">Sign in</a>`;
+const hostedPage =
+  '<label for="email">Email</label><input id="email" type="email"><button>Continue with email</button>';
 
-const serve = async (page: Page, path: string, body: string) => {
+type Entry = { form: string } | { hosted: "/" | "/sign-up" };
+
+// Fulfilled 3xx responses make Chromium resolve the real host, so the hop to
+// the hosted page is an immediate client redirect instead.
+const redirectTo = (url: string) =>
+  `<script>location.replace(${JSON.stringify(url)})</script>`;
+
+// Serves a Teak entry path as a Better Auth form or as a redirect to a
+// synthetic hosted page at `/` (sign-in) or `/sign-up`.
+const serve = async (page: Page, path: string, entry: Entry) => {
   const requested: string[] = [];
-  await page.route(`${env.appUrl}/**`, async (route) => {
+  const app = new URL(env.appUrl).origin;
+  await page.route("**/*", async (route) => {
     const url = new URL(route.request().url());
-    requested.push(`${route.request().method()} ${url.pathname}`);
-    await route.fulfill(
-      url.pathname === path
-        ? { contentType: "text/html", body: `<main>${body}</main>` }
-        : { status: 404, body: "" }
-    );
+    requested.push(`${route.request().method()} ${url.origin}${url.pathname}`);
+    if (url.origin === app && url.pathname === path) {
+      await route.fulfill(
+        "form" in entry
+          ? { contentType: "text/html", body: `<main>${entry.form}</main>` }
+          : {
+              contentType: "text/html",
+              body: redirectTo(`${hosted}${entry.hosted}`),
+            }
+      );
+    } else if (
+      url.origin === hosted &&
+      "hosted" in entry &&
+      url.pathname === entry.hosted
+    ) {
+      await route.fulfill({
+        contentType: "text/html",
+        body: `<main>${hostedPage}</main>`,
+      });
+    } else {
+      await route.fulfill({ status: 404, body: "" });
+    }
   });
   return requested;
 };
 
-for (const [flow, path, body, expected] of [
-  ["signin", "/login", betterAuthForm, "betterauth"],
-  ["signin", "/login", workosSignin, "workos"],
-  ["signup", "/register", betterAuthForm, "betterauth"],
-  ["signup", "/register", workosSignup, "workos"],
-  ["signup", "/register", paused, "paused"],
+for (const [flow, path, entry, expected] of [
+  ["signin", "/login", { form: betterAuthForm }, "betterauth"],
+  ["signin", "/login", { hosted: "/" }, "workos"],
+  ["signup", "/register", { form: betterAuthForm }, "betterauth"],
+  ["signup", "/register", { hosted: "/sign-up" }, "workos"],
+  ["signup", "/register", { hosted: "/" }, "paused"],
 ] as const) {
   test(`${path} entry reads as ${expected}`, async ({ page }) => {
-    await serve(page, path, body);
+    await serve(page, path, entry);
     await page.goto(`${env.appUrl}${path}`);
     expect(await expectAuthEntry(page, flow)).toBe(expected);
   });
 }
 
-test("WorkOS error state is not a ready entry", async ({ page }) => {
-  await serve(
-    page,
-    "/login",
-    `<p role="alert">Sign-in changed. Please start again.</p>${workosEntry("Login to Teak", "New user? Register", "Try again")}`
-  );
+test("a Teak page between the app and hosted sign-in is not an entry", async ({
+  page,
+}) => {
+  await serve(page, "/login", {
+    form: '<p role="alert">Sign-in didn\'t finish.</p><a href="/sign-in">Try again</a>',
+  });
   await page.goto(`${env.appUrl}/login`);
   await expect(
     expectAuthEntry(page, "signin", { timeout: 1000 })
   ).rejects.toThrow();
 });
 
-test("a sign-in entry does not pass as the sign-up entry", async ({ page }) => {
-  await serve(page, "/register", workosSignin);
-  await page.goto(`${env.appUrl}/register`);
-  await expect(expectAuthEntry(page, "signup")).rejects.toThrow();
-});
-
-test("paused status is only accepted on sign-up", async ({ page }) => {
-  await serve(page, "/login", paused);
+test("hosted sign-up does not pass as the sign-in entry", async ({ page }) => {
+  await serve(page, "/login", { hosted: "/sign-up" });
   await page.goto(`${env.appUrl}/login`);
-  await expect(
-    expectAuthEntry(page, "signin", { timeout: 1000 })
-  ).rejects.toThrow();
+  await expect(expectAuthEntry(page, "signin")).rejects.toThrow();
 });
 
 test("sign-up email canary fails closed on hosted WorkOS sign-up", async ({
   page,
 }) => {
-  const requested = await serve(page, "/register", workosSignup);
+  const requested = await serve(page, "/register", { hosted: "/sign-up" });
   await expect(readSignupCanaryEntry(page)).rejects.toThrow(
     WORKOS_SIGNUP_CANARY_UNSUPPORTED
   );
-  // Nothing past the entry page: no Continue click, no hosted sign-up.
-  expect(requested.filter((entry) => entry !== "GET /favicon.ico")).toEqual([
-    "GET /register",
+  // Only the redirect and the hosted page load: nothing is submitted.
+  expect(requested.filter((entry) => !entry.endsWith("/favicon.ico"))).toEqual([
+    `GET ${new URL(env.appUrl).origin}/register`,
+    `GET ${hosted}/sign-up`,
   ]);
 });
 
-for (const [body, expected] of [
-  [betterAuthForm, "betterauth"],
-  [paused, "paused"],
+for (const [entry, expected] of [
+  [{ form: betterAuthForm }, "betterauth"],
+  [{ hosted: "/" }, "paused"],
 ] as const) {
   test(`sign-up email canary uses the ${expected} entry`, async ({ page }) => {
-    await serve(page, "/register", body);
+    await serve(page, "/register", entry);
     expect(await readSignupCanaryEntry(page)).toBe(expected);
   });
 }

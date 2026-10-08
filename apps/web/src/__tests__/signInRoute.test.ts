@@ -34,6 +34,7 @@ const { AppRouteRouteModule } = await import(
   "next/dist/server/route-modules/app-route/module.js"
 );
 const signInRoute = await import("../app/sign-in/route");
+const signUpRoute = await import("../app/sign-up/route");
 const { assertWorkosCallbackBinding } = await import("@/lib/auth-mode");
 const workosMode = {
   ...legacyMode,
@@ -43,26 +44,29 @@ const workosMode = {
 
 // Serves the route the way Next does, so `cookies()` writes reach the response.
 // Needs Next's AsyncLocalStorage global, preloaded by the `test` script.
-const signInModule = new AppRouteRouteModule({
-  userland: () => signInRoute,
-  definition: {
-    kind: "APP_ROUTE",
-    page: "/sign-in/route",
-    pathname: "/sign-in",
-    filename: "route",
-    bundlePath: "app/sign-in/route",
-  },
-  distDir: ".next",
-  relativeProjectDir: "",
-  resolvedPagePath: "",
-  nextConfigOutput: undefined,
-} as never);
-function signIn(url: string) {
-  return signInModule.handle(new NextRequest(url), {
-    renderOpts: { experimental: {}, supportsDynamicResponse: true },
-    sharedContext: { buildId: "test" },
+function serveRoute(userland: unknown, pathname: string) {
+  const module = new AppRouteRouteModule({
+    userland: () => userland,
+    definition: {
+      kind: "APP_ROUTE",
+      page: `${pathname}/route`,
+      pathname,
+      filename: "route",
+      bundlePath: `app${pathname}/route`,
+    },
+    distDir: ".next",
+    relativeProjectDir: "",
+    resolvedPagePath: "",
+    nextConfigOutput: undefined,
   } as never);
+  return (url: string) =>
+    module.handle(new NextRequest(url), {
+      renderOpts: { experimental: {}, supportsDynamicResponse: true },
+      sharedContext: { buildId: "test" },
+    } as never);
 }
+const signIn = serveRoute(signInRoute, "/sign-in");
+const signUp = serveRoute(signUpRoute, "/sign-up");
 
 // Only the Convex auth-mode query is answered; any other upstream fails.
 const offline = ((input: RequestInfo | URL) => {
@@ -158,6 +162,45 @@ describe("WorkOS Initiate login URI", () => {
     expect(response.status).toBe(400);
     expect(response.headers.get("location")).toBeNull();
     expect(pkceCookies(response)).toEqual([]);
+  });
+});
+
+describe("WorkOS sign-up route", () => {
+  test("starts AuthKit on the sign-up screen", async () => {
+    const response = await signUp(
+      "http://localhost:3142/sign-up?next=%2Fsettings"
+    );
+    expect(response.status).toBe(303);
+    const authorize = new URL(response.headers.get("location") ?? "");
+    expect(authorize.searchParams.get("screen_hint")).toBe("sign-up");
+    expect(authorize.searchParams.get("client_id")).toBe("client_web123");
+    expect(pkceCookies(response)).toHaveLength(1);
+  });
+  test("opens the sign-in screen while sign-ups are paused", async () => {
+    globalThis.fetch = withAuthModeFetch(offline, {
+      ...workosMode,
+      signupsDisabled: true,
+    });
+    const response = await signUp("http://localhost:3142/sign-up");
+    expect(response.status).toBe(303);
+    const authorize = new URL(response.headers.get("location") ?? "");
+    expect(authorize.searchParams.get("screen_hint")).toBe("sign-in");
+    expect(pkceCookies(response)).toHaveLength(1);
+  });
+});
+
+// A failed callback returns here with `reauth`. Forcing fresh credentials
+// stops an existing AuthKit session from bouncing straight back into it.
+describe("sign-in after a failed callback", () => {
+  test("asks for credentials again", async () => {
+    const response = await signIn("http://localhost:3142/sign-in?reauth=1");
+    const authorize = new URL(response.headers.get("location") ?? "");
+    expect(authorize.searchParams.get("max_age")).toBe("0");
+  });
+  test("ordinary sign-ins reuse the AuthKit session", async () => {
+    const response = await signIn("http://localhost:3142/sign-in");
+    const authorize = new URL(response.headers.get("location") ?? "");
+    expect(authorize.searchParams.has("max_age")).toBe(false);
   });
 });
 
