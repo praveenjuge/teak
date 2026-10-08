@@ -142,7 +142,7 @@
       "dependencies": {
         "@raycast/api": "^1.104.24",
         "@raycast/utils": "^2.3.0",
-        "teak-sdk": "1.0.79",
+        "teak-sdk": "1.0.81",
       },
       "devDependencies": {
         "@happy-dom/global-registrator": "20.14.5",
@@ -4840,8 +4840,6 @@
     "svgo/sax": ["sax@1.6.1", "", {}, "sha512-42tBVwLWnaQvW5zc4HbZrTuWccECCZfBi92FDuwtqxasH+JbPB3/FOKb1m222K42R4WxuxzzMsTswfzgtSu64Q=="],
 
     "tar/yallist": ["yallist@5.0.0", "", {}, "sha512-YgvUTfwqyc7UXVMrB+SImsVYSmTS8X/tSrtdNZMImM+n7+QTriRXyXim0mBrTXNeqzVF0KWGgHPeiyViFFrNDw=="],
-
-    "teak-raycast/teak-sdk": ["teak-sdk@1.0.79", "", {}, "sha512-3bft7xBvJQEDVLWjCa3Ypp+kicdcB5rF5CF8QoTeJqJO64SDycM1avCHY14ZLlvy0Cp5041UZMfhcbAAN/mGtA=="],
 
     "tempy/is-stream": ["is-stream@3.0.0", "", {}, "sha512-LnQR4bZ9IADDRSkvpqMGvt/tEJWclzklNgSw48V5EAaAeDd6qGvN8ei6k5p0tvxSR171VmGyHuTiAOfxAbr8kA=="],
 

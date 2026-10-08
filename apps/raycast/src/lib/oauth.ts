@@ -1,5 +1,12 @@
 import { environment, LocalStorage, OAuth } from "@raycast/api";
-import { type AuthDiscovery, discoverAuthServer } from "teak-sdk";
+import {
+  type AuthDiscovery,
+  createConnectAuthorizeUrl,
+  disconnectConnectGrant,
+  discoverAuthServer,
+  requestConnectTokens,
+  WORKOS_CONNECT_SCOPE,
+} from "teak-sdk";
 import { getApiBaseUrl } from "./constants";
 
 export class TeakDiscoveryError extends Error {
@@ -30,9 +37,6 @@ const discovery = (forceRefresh = false) =>
   discoverAuthServer(getApiBaseUrl(), { forceRefresh });
 const providerKey = (auth: AuthDiscovery) =>
   `${getApiBaseUrl()}|${auth.issuer}|${auth.clients.raycast}`;
-const audience = (auth: AuthDiscovery) => ({
-  resource: new URL("/api", auth.resource).href,
-});
 // Keychain namespace that held pre-WorkOS (Better Auth) credentials.
 const legacyProviderId = "teak";
 
@@ -175,107 +179,38 @@ async function refetchAfterFailure() {
 
 async function exchange(
   provider: Provider,
-  params: Record<string, string>,
-  previousRefresh?: string,
-) {
-  const response = await fetch(provider.auth.tokenEndpoint, {
-    method: "POST",
-    headers: { "Content-Type": "application/x-www-form-urlencoded" },
-    body: new URLSearchParams({
-      client_id: provider.auth.clients.raycast,
-      ...audience(provider.auth),
-      ...params,
-    }),
-    redirect: "error",
-    signal: AbortSignal.timeout(10_000),
+  grant: Record<string, string>,
+): Promise<string> {
+  const result = await requestConnectTokens(provider.auth, {
+    clientId: provider.auth.clients.raycast,
+    grant,
+    local: environment.isDevelopment,
   });
-  if (response.status === 429 || response.status >= 500) {
+  if (result.ok) {
+    const { accessToken, expiresIn, refreshToken } = result.tokens;
+    await provider.client.setTokens({ accessToken, expiresIn, refreshToken });
+    return accessToken;
+  }
+  const { reason, status } = result;
+  if (reason === "failed" && (status === 429 || status >= 500)) {
     throw new TeakDiscoveryError();
   }
-  // Uncertain refresh failures must not trigger browser auth over saved tokens.
-  const bodyError = (message: string) =>
-    !response.ok && params.grant_type !== "refresh_token"
-      ? new TeakSessionExpiredError("Teak sign-in expired. Sign in again.")
-      : new Error(message);
-  const reader = response.body?.getReader();
-  if (!reader) {
-    throw bodyError("Invalid Teak sign-in response.");
-  }
-  const decoder = new TextDecoder();
-  let text = "";
-  let bytes = 0;
-  try {
-    for (;;) {
-      const chunk = await reader.read();
-      if (chunk.done) {
-        break;
-      }
-      bytes += chunk.value.byteLength;
-      if (bytes > 64 * 1024) {
-        await reader.cancel();
-        throw bodyError("Teak sign-in response is too large.");
-      }
-      text += decoder.decode(chunk.value, { stream: true });
-    }
-  } finally {
-    reader.releaseLock();
-  }
-  let raw: unknown;
-  try {
-    raw = JSON.parse(text + decoder.decode());
-  } catch {
-    throw bodyError("Invalid Teak sign-in response.");
-  }
-  if (!response.ok) {
-    if (
-      params.grant_type === "refresh_token" &&
-      (response.status === 400 || response.status === 401) &&
-      raw !== null &&
-      typeof raw === "object" &&
-      "error" in raw
-    ) {
-      if (
-        raw.error === "invalid_grant" ||
-        raw.error === "invalid_refresh_token"
-      ) {
-        throw new TeakRefreshRevokedError(
-          "Teak refresh credential was revoked.",
-        );
-      }
-      if (
-        raw.error === "invalid_client" ||
-        raw.error === "unauthorized_client"
-      ) {
-        // The client was rejected, not necessarily its remote grant revoked.
-        // Only explicit Sign Out may forget this local credential.
-        throw new TeakRefreshClientRejectedError("Teak client was rejected.");
-      }
-    }
-    throw bodyError("Teak token request was rejected. Try again.");
-  }
-  if (
-    !raw ||
-    typeof raw !== "object" ||
-    !("access_token" in raw) ||
-    typeof raw.access_token !== "string" ||
-    !raw.access_token ||
-    !("expires_in" in raw) ||
-    typeof raw.expires_in !== "number" ||
-    !Number.isFinite(raw.expires_in) ||
-    raw.expires_in <= 0 ||
-    ("refresh_token" in raw &&
-      (typeof raw.refresh_token !== "string" || !raw.refresh_token))
-  ) {
+  if (reason === "invalid_response") {
     throw new Error("Invalid Teak sign-in response.");
   }
-  const refreshToken =
-    "refresh_token" in raw ? String(raw.refresh_token) : previousRefresh;
-  await provider.client.setTokens({
-    accessToken: raw.access_token,
-    expiresIn: raw.expires_in,
-    refreshToken,
-  });
-  return raw.access_token;
+  // Uncertain refresh failures must not trigger browser auth over saved tokens.
+  if (grant.grant_type !== "refresh_token") {
+    throw new TeakSessionExpiredError("Teak sign-in expired. Sign in again.");
+  }
+  if (reason === "refresh_token_rejected") {
+    throw new TeakRefreshRevokedError("Teak refresh credential was revoked.");
+  }
+  if (reason === "client_rejected") {
+    // The client was rejected, not necessarily its remote grant revoked.
+    // Only explicit Sign Out may forget this local credential.
+    throw new TeakRefreshClientRejectedError("Teak client was rejected.");
+  }
+  throw new Error("Teak token request was rejected. Try again.");
 }
 
 let inFlightAuthorize: Promise<string> | null = null;
@@ -313,10 +248,17 @@ async function authorizeProvider(provider: Provider): Promise<string> {
     const request = await provider.client.authorizationRequest({
       endpoint: provider.auth.authorizationEndpoint,
       clientId: provider.auth.clients.raycast,
-      scope: "openid profile email offline_access",
-      extraParameters: audience(provider.auth),
+      scope: WORKOS_CONNECT_SCOPE,
     });
-    const { authorizationCode } = await provider.client.authorize(request);
+    const url = createConnectAuthorizeUrl(provider.auth, {
+      clientId: provider.auth.clients.raycast,
+      codeChallenge: request.codeChallenge,
+      redirectUri: request.redirectURI,
+      state: request.state,
+    });
+    const { authorizationCode } = await provider.client.authorize({
+      url: url.href,
+    });
     return await exchange(provider, {
       grant_type: "authorization_code",
       code: authorizationCode,
@@ -341,11 +283,12 @@ export function reauthorizeTeak(): Promise<string> {
       const provider = await getProvider(true);
       const tokens = await provider.client.getTokens();
       if (tokens?.refreshToken) {
-        const renewed = exchange(
-          provider,
-          { grant_type: "refresh_token", refresh_token: tokens.refreshToken },
-          tokens.refreshToken,
-        );
+        const renewed = exchange(provider, {
+          grant_type: "refresh_token",
+          // Runtime credential from secure storage, not a hard-coded token.
+          // nosemgrep: codacy.yaml.security.hard-coded-tokens
+          refresh_token: tokens.refreshToken,
+        });
         // Background readers join this rotation instead of replaying the old
         // refresh token while reauthorization is in flight.
         inFlightStoredToken = renewed;
@@ -423,19 +366,7 @@ async function revokeStoredSession(): Promise<SignOutResult> {
     const tokens = await client.getTokens();
     if (tokens) {
       try {
-        const disconnect = (accessToken: string) =>
-          fetch(`${getApiBaseUrl()}/oauth/disconnect`, {
-            method: "POST",
-            headers: { Authorization: `Bearer ${accessToken}` },
-            redirect: "error",
-            signal: AbortSignal.timeout(10_000),
-          });
-        // Try an old token first so a completed disconnect can recover without
-        // refreshing a grant the provider has already revoked.
-        let response = tokens.accessToken
-          ? await disconnect(tokens.accessToken)
-          : undefined;
-        if (!response || response.status === 401) {
+        const refreshAccessToken = async () => {
           const provider = await getProvider(true);
           if (
             providerKey(provider.auth) !==
@@ -451,21 +382,29 @@ async function revokeStoredSession(): Promise<SignOutResult> {
             // token. Explicit Sign Out may forget this Mac, not the remote grant.
             throw new TeakLocalSignOutError();
           }
-          const renewed = await exchange(
-            provider,
-            {
-              grant_type: "refresh_token",
-              // Runtime credential from secure storage, not a hard-coded token.
-              // nosemgrep: codacy.yaml.security.hard-coded-tokens
-              refresh_token: tokens.refreshToken,
-            },
-            tokens.refreshToken,
-          );
-          // exchange atomically stores rotated tokens before retrying. Sign-out
-          // blocks new readers and has drained all in-flight refreshes.
-          response = await disconnect(renewed);
-        }
-        if (response.status !== 204) {
+          // exchange stores rotated tokens before the retry. Sign-out blocks
+          // new readers and has drained all in-flight refreshes.
+          return exchange(provider, {
+            grant_type: "refresh_token",
+            // Runtime credential from secure storage, not a hard-coded token.
+            // nosemgrep: codacy.yaml.security.hard-coded-tokens
+            refresh_token: tokens.refreshToken,
+          });
+        };
+        const local = environment.isDevelopment;
+        // Try an old token first so a completed disconnect can recover without
+        // refreshing a grant the provider has already revoked.
+        const result = tokens.accessToken
+          ? await disconnectConnectGrant(getApiBaseUrl(), tokens.accessToken, {
+              local,
+              refreshAccessToken,
+            })
+          : await disconnectConnectGrant(
+              getApiBaseUrl(),
+              await refreshAccessToken(),
+              { local },
+            );
+        if (result !== "disconnected") {
           throw new Error("Disconnect failed");
         }
       } catch (error) {
@@ -536,11 +475,12 @@ async function resolveStoredTeakAccessToken(): Promise<string | null> {
     throw new TeakSignOutRequiredError();
   }
   try {
-    return await exchange(
-      provider,
-      { grant_type: "refresh_token", refresh_token: tokens.refreshToken },
-      tokens.refreshToken,
-    );
+    return await exchange(provider, {
+      grant_type: "refresh_token",
+      // Runtime credential from secure storage, not a hard-coded token.
+      // nosemgrep: codacy.yaml.security.hard-coded-tokens
+      refresh_token: tokens.refreshToken,
+    });
   } catch (error) {
     await refetchAfterFailure();
     if (!tokens.accessToken && error instanceof TeakRefreshRevokedError) {

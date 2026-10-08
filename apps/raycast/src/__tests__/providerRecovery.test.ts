@@ -23,8 +23,10 @@ mock.module("@raycast/api", () =>
       }
       authorizationRequest() {
         return Promise.resolve({
+          codeChallenge: "challenge",
           codeVerifier: "verifier",
           redirectURI: "https://raycast.com/redirect",
+          state: "state",
         });
       }
       async authorize() {
