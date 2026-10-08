@@ -46,10 +46,14 @@ export const syncVerifiedEvent = internalMutation({
 
 // The mutation's argument validators would reject these before Teak's own
 // checks run, so the envelope is checked here and dead-lettered the same way.
+const isRecord = (value: unknown) =>
+  typeof value === "object" && value !== null && !Array.isArray(value);
+
 const envelopeProblem = (event: {
   id: unknown;
   createdAt: unknown;
   data: unknown;
+  context?: unknown;
 }): string | undefined => {
   if (
     typeof event.id !== "string" ||
@@ -61,12 +65,12 @@ const envelopeProblem = (event: {
   if (typeof event.createdAt !== "string") {
     return "Invalid WorkOS event timestamp";
   }
-  if (
-    typeof event.data !== "object" ||
-    event.data === null ||
-    Array.isArray(event.data)
-  ) {
+  if (!isRecord(event.data)) {
     return "Invalid WorkOS event data";
+  }
+  // Only a truthy context is forwarded to the mutation.
+  if (event.context && !isRecord(event.context)) {
+    return "Invalid WorkOS event context";
   }
   return undefined;
 };
