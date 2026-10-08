@@ -8,10 +8,11 @@ import {
 } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { createConnectAuthorizeUrl } from "@teak/convex/sdk";
 import { inferFileFormat } from "@teak/convex/shared/file-formats";
 import { formatCardLine, getUploadFileInfo, mimeFor, parseSort } from ".";
 import { resolveAddInput } from "./files";
-import { createAuthorizeUrl, VERSION } from "./runtime";
+import { VERSION } from "./runtime";
 
 const fixtureDirectory = mkdtempSync(join(tmpdir(), "teak-cli-files-"));
 
@@ -119,7 +120,7 @@ describe("teak cli formatting", () => {
   });
 
   test("requests refresh-capable OAuth scope during login", () => {
-    const url = createAuthorizeUrl(
+    const url = createConnectAuthorizeUrl(
       {
         primary: "workos",
         issuer: "https://auth.teakvault.com",
@@ -135,6 +136,7 @@ describe("teak cli formatting", () => {
         },
       },
       {
+        clientId: "client_01CLI",
         codeChallenge: "challenge",
         redirectUri: "http://127.0.0.1:14210/oauth/callback",
         state: "state",

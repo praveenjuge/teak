@@ -14,14 +14,18 @@ import path from "node:path";
 import { isLocalDevelopmentHostname } from "@teak/convex/dev-urls";
 import {
   type AuthDiscovery,
+  createConnectAuthorizeUrl,
+  createPkceChallenge,
   createTeakClient,
+  disconnectConnectGrant,
   discoverAuthServer,
+  fetchConnectOwnerId,
+  randomBase64Url,
+  requestConnectTokens,
   TeakApiError,
   type TeakClient,
   type TokenProvider,
-  validateOAuthUrl,
 } from "@teak/convex/sdk";
-import { readResponseTextWithinLimit } from "@teak/convex/shared/bounded-response";
 import { InvalidArgumentError } from "commander";
 import { withCredentialLock } from "./credentialLock";
 
@@ -41,7 +45,6 @@ export const EXIT = { api: 1, auth: 3, notFound: 4, rateLimited: 5, usage: 2 };
 
 const DEFAULT_API_URL = "https://teakvault.com/api";
 const DEFAULT_AUTH_URL = "https://app.teakvault.com";
-export const CLI_OAUTH_SCOPE = "openid profile email offline_access";
 const SERVICE = "com.teakvault.cli";
 const ACCOUNT = "default";
 
@@ -95,14 +98,6 @@ const ensureConfigDir = () => {
   mkdirSync(configDir(), { mode: 0o700, recursive: true });
   chmodSync(configDir(), 0o700);
 };
-const b64url = (bytes: Buffer | Uint8Array) =>
-  Buffer.from(bytes)
-    .toString("base64")
-    .replace(/\+/g, "-")
-    .replace(/\//g, "_")
-    .replace(/[=]+$/g, "");
-const sha256 = (value: string) =>
-  b64url(createHash("sha256").update(value).digest());
 
 const parseCredentials = (text: string): StoredCredentials | null => {
   if (text.length > 64 * 1024) {
@@ -315,56 +310,53 @@ const readLogoutMarker = (options: ClientOptions) =>
   existsSync(logoutMarker(options))
     ? readFileSync(logoutMarker(options), "utf8")
     : "";
-const localHostname = (hostname: string) =>
-  isLocalDevelopmentHostname(hostname) || hostname === "[::1]";
+// Discovery already limits loopback endpoints to local deployments and an
+// approved development issuer, so protocol requests accept loopback hosts.
+const LOCAL_ENDPOINTS = true;
 const revokeCredentials = async (
   credentials: StoredCredentials,
   options: ClientOptions
 ) => {
   // Anything not bound to a WorkOS client predates WorkOS. No Teak service
   // accepts those tokens, so the caller only clears them locally.
-  if (!credentials.binding?.clientId.startsWith("client_")) {
+  const saved = credentials.binding;
+  if (!saved?.clientId.startsWith("client_")) {
     return;
   }
-  if (credentials.binding.apiUrl !== apiBaseUrl(options)) {
+  if (saved.apiUrl !== apiBaseUrl(options)) {
     throw new Error("Saved connection belongs to another deployment");
   }
-  const api = validateOAuthUrl(
+  const result = await disconnectConnectGrant(
     apiBaseUrl(options),
-    localHostname(new URL(apiBaseUrl(options)).hostname)
+    credentials.accessToken,
+    {
+      local: LOCAL_ENDPOINTS,
+      // A completed receipt can accept the old token without refreshing a
+      // provider grant that has already been revoked.
+      refreshAccessToken: credentials.refreshToken
+        ? async () => {
+            const auth = await discovery(options, true);
+            if (!matchesProvider(credentials, options, auth)) {
+              throw new Error("Saved connection belongs to another provider");
+            }
+            const renewed = await exchangeToken(options, auth, {
+              grant_type: "refresh_token",
+              // Runtime credential from secure storage, not a hard-coded token.
+              // nosemgrep: codacy.yaml.security.hard-coded-tokens
+              refresh_token: credentials.refreshToken,
+            });
+            // The caller holds the credential lock. Rotation must survive a
+            // failed disconnect; never restore the now invalid refresh token.
+            if (renewed.binding && saved.ownerId) {
+              renewed.binding.ownerId = saved.ownerId;
+            }
+            writeCredentials(renewed, options);
+            return renewed.accessToken;
+          }
+        : undefined,
+    }
   );
-  const endpoint = `${withoutTrailingSlashes(api.href).replace(/\/v1$/, "")}/v1/oauth/disconnect`;
-  const disconnect = (accessToken: string) =>
-    fetch(endpoint, {
-      method: "POST",
-      headers: { Authorization: `Bearer ${accessToken}` },
-      credentials: "omit",
-      redirect: "error",
-      signal: AbortSignal.timeout(10_000),
-    });
-  let response = await disconnect(credentials.accessToken);
-  // A completed receipt can accept the old token without refreshing a
-  // provider grant that has already been revoked.
-  if (response.status === 401 && credentials.refreshToken) {
-    const auth = await discovery(options, true);
-    if (!matchesProvider(credentials, options, auth)) {
-      throw new Error("Saved connection belongs to another provider");
-    }
-    const renewed = await exchangeToken(options, auth, {
-      grant_type: "refresh_token",
-      // Runtime credential from secure storage, not a hard-coded token.
-      // nosemgrep: codacy.yaml.security.hard-coded-tokens
-      refresh_token: credentials.refreshToken,
-    });
-    // The caller holds the credential lock. Rotation must survive a failed
-    // disconnect; never restore the now invalid previous refresh token.
-    if (renewed.binding && credentials.binding.ownerId) {
-      renewed.binding.ownerId = credentials.binding.ownerId;
-    }
-    writeCredentials(renewed, options);
-    response = await disconnect(renewed.accessToken);
-  }
-  if (response.status !== 204) {
+  if (result !== "disconnected") {
     throw new Error("Disconnect was not confirmed");
   }
 };
@@ -394,54 +386,19 @@ const exchangeToken = async (
   auth: AuthDiscovery,
   body: Record<string, string>
 ): Promise<StoredCredentials> => {
-  const response = await fetch(auth.tokenEndpoint, {
-    body: new URLSearchParams({
-      ...body,
-      client_id: auth.clients.cli,
-      resource: new URL("/api", auth.resource).href,
-    }),
-    headers: { "Content-Type": "application/x-www-form-urlencoded" },
-    method: "POST",
-    credentials: "omit",
-    redirect: "error",
-    signal: AbortSignal.timeout(10_000),
+  const result = await requestConnectTokens(auth, {
+    clientId: auth.clients.cli,
+    grant: body,
+    local: LOCAL_ENDPOINTS,
   });
-  const text = await readResponseTextWithinLimit(response, 64 * 1024);
-  const payload =
-    text === null ? null : readJson<Record<string, unknown>>(text);
-  if (
-    !response.ok &&
-    body.grant_type === "refresh_token" &&
-    (response.status === 400 || response.status === 401) &&
-    (payload?.error === "invalid_grant" ||
-      payload?.error === "invalid_refresh_token" ||
-      payload?.code === "invalid_refresh_token")
-  ) {
-    throw new TeakApiError("AUTH_REQUIRED", undefined, {
-      status: response.status,
-    });
+  if (!result.ok) {
+    throw result.reason === "refresh_token_rejected"
+      ? new TeakApiError("AUTH_REQUIRED", undefined, { status: result.status })
+      : new TeakApiError("UNAUTHORIZED", "Could not complete Teak sign-in.", {
+          status: result.status,
+        });
   }
-  if (
-    !(response.ok && payload) ||
-    typeof payload.access_token !== "string" ||
-    !payload.access_token ||
-    typeof payload.refresh_token !== "string" ||
-    !payload.refresh_token ||
-    typeof payload.expires_in !== "number" ||
-    !Number.isSafeInteger(payload.expires_in) ||
-    payload.expires_in <= 0 ||
-    payload.expires_in > 365 * 24 * 3600
-  ) {
-    throw new TeakApiError("UNAUTHORIZED", "Could not complete Teak sign-in.", {
-      status: response.status,
-    });
-  }
-  return {
-    accessToken: payload.access_token,
-    refreshToken: payload.refresh_token,
-    expiresAt: Date.now() + payload.expires_in * 1000,
-    binding: binding(options, auth),
-  };
+  return { ...result.tokens, binding: binding(options, auth) };
 };
 const tokenProvider = (options: ClientOptions): TokenProvider => {
   let pending: Promise<string | null> | undefined;
@@ -592,26 +549,6 @@ const openBrowser = (url: string) => {
   spawn(command, args, { detached: true, stdio: "ignore" }).unref();
 };
 
-export const createAuthorizeUrl = (
-  auth: AuthDiscovery,
-  params: {
-    codeChallenge: string;
-    redirectUri: string;
-    state: string;
-  }
-) => {
-  const authUrl = new URL(auth.authorizationEndpoint);
-  authUrl.searchParams.set("response_type", "code");
-  authUrl.searchParams.set("client_id", auth.clients.cli);
-  authUrl.searchParams.set("resource", new URL("/api", auth.resource).href);
-  authUrl.searchParams.set("redirect_uri", params.redirectUri);
-  authUrl.searchParams.set("code_challenge", params.codeChallenge);
-  authUrl.searchParams.set("code_challenge_method", "S256");
-  authUrl.searchParams.set("scope", CLI_OAUTH_SCOPE);
-  authUrl.searchParams.set("state", params.state);
-  return authUrl;
-};
-
 export const login = async (options: ClientOptions & { browser?: boolean }) => {
   const signoutEpoch = readLogoutMarker(options);
   const auth = await discovery(options, true);
@@ -625,8 +562,9 @@ export const login = async (options: ClientOptions & { browser?: boolean }) => {
       "Run teak logout before signing in again, then wait five minutes for disconnect to finish."
     );
   }
-  const verifier = b64url(randomBytes(32));
-  const state = b64url(randomBytes(24));
+  const verifier = randomBase64Url(32);
+  const state = randomBase64Url(24);
+  const codeChallenge = await createPkceChallenge(verifier);
   for (const port of [14_210, 24_210]) {
     const redirectUri = `http://127.0.0.1:${port}/oauth/callback`;
     try {
@@ -678,31 +616,17 @@ export const login = async (options: ClientOptions & { browser?: boolean }) => {
                 grant_type: "authorization_code",
                 redirect_uri: redirectUri,
               });
-              const info = await fetch(
-                `${withoutTrailingSlashes(apiBaseUrl(options)).replace(/\/v1$/, "")}/v1/me`,
-                {
-                  headers: { Authorization: `Bearer ${next.accessToken}` },
-                  credentials: "omit",
-                  redirect: "error",
-                  signal: AbortSignal.timeout(10_000),
-                }
+              const ownerId = await fetchConnectOwnerId(
+                apiBaseUrl(options),
+                next.accessToken,
+                { local: LOCAL_ENDPOINTS }
               );
-              const text = await readResponseTextWithinLimit(info, 64 * 1024);
-              const payload =
-                text === null
-                  ? null
-                  : readJson<{ data?: { id?: unknown } }>(text);
-              if (
-                !info.ok ||
-                typeof payload?.data?.id !== "string" ||
-                !payload.data.id ||
-                !next.binding
-              ) {
+              if (!(ownerId && next.binding)) {
                 throw new Error(
                   "Could not verify your account. Run teak login again."
                 );
               }
-              next.binding.ownerId = payload.data.id;
+              next.binding.ownerId = ownerId;
               response
                 .writeHead(200, { "Content-Type": "text/html" })
                 .end("<p>Return to your terminal to finish signing in.</p>");
@@ -721,8 +645,9 @@ export const login = async (options: ClientOptions & { browser?: boolean }) => {
             }
           });
           server.listen(port, "127.0.0.1", () => {
-            const authUrl = createAuthorizeUrl(auth, {
-              codeChallenge: sha256(verifier),
+            const authUrl = createConnectAuthorizeUrl(auth, {
+              clientId: auth.clients.cli,
+              codeChallenge,
               redirectUri,
               state,
             });
