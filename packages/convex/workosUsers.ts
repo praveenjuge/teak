@@ -3,7 +3,6 @@ import { internal } from "./_generated/api";
 import type { Doc } from "./_generated/dataModel";
 import { internalMutation, type MutationCtx } from "./_generated/server";
 import { readSignupsDisabled } from "./env";
-import { userCreationAllowed } from "./signupFreeze";
 import { scheduleUserCreated } from "./telemetry/schedule";
 import { normalizeIdentityEmail } from "./userIdentityTable";
 
@@ -107,18 +106,6 @@ export const linkWorkosUser = internalMutation({
       });
       return { status: "quarantined" as const, reason };
     };
-    // A reserved E2E provider identity stamped for ownerless deletion never
-    // gains a Teak owner. Reading the lease in this transaction serializes
-    // owner creation and linking with the cleanup stamp.
-    const reserved = await ctx.db
-      .query("e2eSignupReservations")
-      .withIndex("by_workosUserId", (q) =>
-        q.eq("workosUserId", args.workosUserId)
-      )
-      .take(2);
-    if (reserved.some((row) => row.ownerlessDeletionAt !== undefined)) {
-      return quarantine("deleting_user");
-    }
     const providerRows = await ctx.db
       .query("users")
       .withIndex("by_workosUserId", (q) =>
@@ -185,13 +172,7 @@ export const linkWorkosUser = internalMutation({
         if (!canCreate) {
           return quarantine("missing_mapping");
         }
-        if (
-          !userCreationAllowed({
-            email,
-            disabled: readSignupsDisabled(),
-            e2eEmailDomain: process.env.E2E_EMAIL_DOMAIN,
-          })
-        ) {
+        if (readSignupsDisabled()) {
           return quarantine("signups_frozen");
         }
         if (

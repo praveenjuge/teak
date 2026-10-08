@@ -1,6 +1,7 @@
-import { expect, type Page, test } from "@playwright/test";
-import { clickVisibleControl, clientFor } from "../helpers/prod";
+import type { Page } from "@playwright/test";
+import { clickVisibleControl, clientFor } from "../helpers/app";
 import { readState, updateState } from "../helpers/run-state";
+import { expect, test } from "../helpers/test";
 
 const primaryContext = () => {
   const state = readState();
@@ -14,8 +15,7 @@ const primaryContext = () => {
   };
 };
 
-const markerFor = (label: string) =>
-  `prod-e2e-${label}-${Date.now().toString(36)}`;
+const markerFor = (label: string) => `e2e-${label}-${Date.now().toString(36)}`;
 
 const cardText = (page: Page, text: string | RegExp) =>
   page.getByRole("main").getByText(text).first();
@@ -40,8 +40,8 @@ test("quote cards open in the modal and stay searchable", async ({ page }) => {
   const quoteBody = `${marker} be curious always`;
   const created = await api.cards.create({
     content: `"${quoteBody}"`,
-    tags: ["prod-e2e", "quote"],
-    source: "prod-e2e",
+    tags: ["e2e", "quote"],
+    source: "e2e",
   });
   updateState((state) => state.createdCardIds.push(created.cardId));
 
@@ -75,13 +75,13 @@ test("favorites filter and unfavorite stay coherent", async ({ page }) => {
   const marker = markerFor("fav");
   const favorited = await api.cards.create({
     content: `${marker} keep-me`,
-    tags: ["prod-e2e"],
-    source: "prod-e2e",
+    tags: ["e2e"],
+    source: "e2e",
   });
   const other = await api.cards.create({
     content: `${marker} hide-me`,
-    tags: ["prod-e2e"],
-    source: "prod-e2e",
+    tags: ["e2e"],
+    source: "e2e",
   });
   updateState((state) =>
     state.createdCardIds.push(favorited.cardId, other.cardId)
@@ -118,18 +118,18 @@ test("type filters for quote and palette isolate matching cards", async ({
   const marker = markerFor("type");
   const quote = await api.cards.create({
     content: `"${marker} quoted line"`,
-    tags: ["prod-e2e"],
-    source: "prod-e2e",
+    tags: ["e2e"],
+    source: "e2e",
   });
   const palette = await api.cards.create({
     content: `#AABBCC ${marker}`,
-    tags: ["prod-e2e"],
-    source: "prod-e2e",
+    tags: ["e2e"],
+    source: "e2e",
   });
   const text = await api.cards.create({
     content: `${marker} plain note`,
-    tags: ["prod-e2e"],
-    source: "prod-e2e",
+    tags: ["e2e"],
+    source: "e2e",
   });
   updateState((state) =>
     state.createdCardIds.push(quote.cardId, palette.cardId, text.cardId)

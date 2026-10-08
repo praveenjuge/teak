@@ -1,87 +1,9 @@
-import { type BrowserContext, test as base, expect } from "@playwright/test";
 import { api } from "@teak/convex";
 import { Marked } from "marked";
-import {
-  EditorLibrary,
-  getBlockEditor,
-  goToEnd,
-  pasteMarkdown,
-} from "./editor-library";
-import { AuthHelper, generateTestContent } from "./test-helpers";
-
-let session: Awaited<ReturnType<BrowserContext["storageState"]>>;
-const test = base.extend<{ library: EditorLibrary }>({
-  storageState: async ({ baseURL }, use) => {
-    if (!baseURL) {
-      throw new Error("Missing local base URL");
-    }
-    await use(session);
-  },
-  library: [
-    async ({ page, baseURL }, use) => {
-      if (
-        !(
-          baseURL &&
-          ["localhost", "127.0.0.1"].includes(new URL(baseURL).hostname)
-        )
-      ) {
-        throw new Error(
-          "Editor tests require a local app and an isolated development backend"
-        );
-      }
-      await page.goto("/");
-      await expect(
-        page.getByRole("textbox", { name: "Markdown content" })
-      ).toBeVisible();
-      const response = await page.request.get("/api/auth/convex/token");
-      expect(response.ok()).toBe(true);
-      const { token } = await response.json();
-      const url = process.env.NEXT_PUBLIC_CONVEX_URL;
-      if (
-        !(url && token && process.env.CONVEX_DEPLOYMENT?.startsWith("dev:"))
-      ) {
-        throw new Error(
-          "Editor tests require an authenticated development deployment"
-        );
-      }
-      const library = new EditorLibrary(page, url, token);
-      await use(library);
-      await library.cleanup();
-    },
-    { auto: true },
-  ],
-});
+import { getBlockEditor, goToEnd, pasteMarkdown } from "./editor-library";
+import { convexSocket, expect, generateTestContent, test } from "./fixtures";
 
 test.use({ trace: "on", video: "retain-on-failure" });
-
-test.beforeAll(async ({ browser, baseURL }) => {
-  if (
-    !(baseURL && ["localhost", "127.0.0.1"].includes(new URL(baseURL).hostname))
-  ) {
-    throw new Error("Editor tests must not run against production");
-  }
-  const context = await browser.newContext({ baseURL });
-  const page = await context.newPage();
-  await new AuthHelper(page).signUpWithEmailAndPassword(
-    `e2e-editor-${Date.now()}@example.com`,
-    `Editor-${crypto.randomUUID()}!`
-  );
-  session = await context.storageState();
-  await context.close();
-});
-
-test.afterAll(async ({ browser, baseURL }) => {
-  if (!session) {
-    return;
-  }
-  const context = await browser.newContext({ baseURL, storageState: session });
-  const response = await context.request.post("/api/auth/delete-user", {
-    data: {},
-    headers: { Origin: baseURL ?? "http://localhost:3000" },
-  });
-  expect(response.ok(), await response.text()).toBe(true);
-  await context.close();
-});
 
 test("creates, saves, and reopens every supported Markdown block", async ({
   page,
@@ -386,7 +308,7 @@ test("a failed save keeps the draft and can be retried", async ({
   await page.reload();
   // Inject one server failure at the network boundary; the retry reaches Convex.
   let failed = false;
-  await page.routeWebSocket(/convex\.cloud/, (socket) => {
+  await page.routeWebSocket(convexSocket, (socket) => {
     const server = socket.connectToServer();
     socket.onMessage((message) => {
       const data = JSON.parse(message.toString());
@@ -491,6 +413,7 @@ test("existing tables remain editable as literal Markdown without table controls
   ).toHaveCount(0);
   await goToEnd(editor);
   await editor.pressSequentially(" edited");
+  await expect(editor).toHaveText(`${original} edited`);
   await editor.press("ControlOrMeta+Enter");
   await expect.poll(() => library.read(id)).toBe(`${original} edited`);
   await expect(await getBlockEditor(await library.open(id))).toHaveText(
@@ -518,7 +441,7 @@ test("a disabled composer restores its draft after a failed save", async ({
   let lastStatus: Record<string, unknown> | undefined;
   let requestId: number | undefined;
   let pendingFailure: (() => void) | undefined;
-  await page.routeWebSocket(/convex\.cloud/, (socket) => {
+  await page.routeWebSocket(convexSocket, (socket) => {
     const server = socket.connectToServer();
     socket.onMessage((message) => {
       const data = JSON.parse(message.toString());

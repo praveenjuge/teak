@@ -4,8 +4,8 @@ import { type AuthDiscovery, validateOAuthUrl } from "@teak/convex/sdk";
 import { readResponseTextWithinLimit } from "@teak/convex/shared/boundedResponse";
 import { WORKOS_RESOURCES } from "@teak/convex/shared/workosResources";
 import { apiFetch } from "./api";
+import { openSecurity } from "./app";
 import { connectMcp } from "./mcp";
-import { openSecurity } from "./prod";
 
 interface Grant {
   accessToken: string;

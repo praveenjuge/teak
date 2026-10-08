@@ -4,17 +4,12 @@
   "private": true,
   "type": "module",
   "scripts": {
+    "e2e": "bun --no-env-file src/scripts/run-local-suite.ts",
     "e2e:auth:runtime": "playwright test --config=playwright.auth-runtime.config.ts",
+    "e2e:docs": "playwright test --project=docs",
     "e2e:extension:runtime": "playwright test --config=playwright.oauth-runtime.config.ts",
-    "e2e:prod:docs": "playwright test --project=docs",
-    "e2e:prod:extension": "playwright test --project=extension",
-    "e2e:prod:journey": "playwright test --project=journey-setup --project=journey-web-core --project=journey-web-surfaces --project=journey-web-files --project=journey-web-filters --project=journey-import-export --project=journey-api --project=journey-cli --project=journey-mcp --project=journey-a11y --project=journey-security --project=journey-account --project=journey-delete --project=journey-post-delete",
-    "e2e:prod:local": "tsx src/scripts/run-prod-suite.ts",
-    "e2e:prod:matrix": "playwright test --project=matrix-chromium --project=matrix-firefox --project=matrix-webkit",
+    "e2e:stack": "bun --no-env-file src/scripts/run-local-suite.ts stack",
     "lint": "biome check .",
-    "preflight": "tsx src/scripts/preflight.ts",
-    "sweep": "tsx src/scripts/sweep.ts",
-    "teardown": "tsx src/scripts/teardown.ts",
     "test": "bun test",
     "typecheck": "tsc --noEmit"
   },
@@ -30,6 +25,9 @@
   "devDependencies": {
     "@playwright/test": "^1.62.1",
     "@types/bun": "^1.4.0",
+    "@workos/emulate": "0.14.0",
+    "convex": "^1.46.0",
+    "marked": "17.0.5",
     "tsx": "^4.23.11",
     "typescript": "^6.0.3"
   }

@@ -19,8 +19,8 @@ export const WORKOS_SESSION_COOKIE_NAME = "wos-session";
 /**
  * RFC 2606 reserves example.org, so no real person can own these addresses.
  * Not example.com: WorkOS's default test organization claims it and requires
- * SSO, which refuses password sign-in. The `e2e-` prefix matches the backend's
- * E2E email shape.
+ * SSO, which refuses password sign-in. The `e2e-` prefix marks the address as
+ * a test account.
  */
 export const TEST_SESSION_EMAIL_DOMAIN = "example.org";
 

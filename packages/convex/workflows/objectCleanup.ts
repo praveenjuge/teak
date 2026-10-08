@@ -31,33 +31,40 @@ export const OBJECT_DELETION_STEP_RETRY: RetryBehavior = {
 // The Files Worker accepts at most 100 keys per delete-objects call.
 const DELETE_BATCH_SIZE = 100;
 
+// Deleting nothing needs no Files Worker, so accounts without stored files
+// can be deleted on a deployment that has no file storage configured.
+export const deleteStorageObjects = async (keys: string[]) => {
+  const usable = keys.filter((key) => key.length > 0);
+  if (usable.length === 0) {
+    return { deleted: 0 };
+  }
+  if (!isFilesWorkerConfigured()) {
+    throw new Error("files_worker_not_configured");
+  }
+  if (usable.some((key) => !isR2KeyInNamespace(key))) {
+    throw new Error("invalid_storage_key_namespace");
+  }
+  const unique = Array.from(new Set(usable));
+  let deleted = 0;
+  for (let index = 0; index < unique.length; index += DELETE_BATCH_SIZE) {
+    const outcome = await callFilesWorkerJson<{ deleted: number }>({
+      op: "delete-objects",
+      params: { keys: unique.slice(index, index + DELETE_BATCH_SIZE) },
+    });
+    // NOT_FOUND-style fallbacks cannot occur: batch deletes treat missing
+    // objects as success on the worker.
+    if (outcome.kind !== "ok") {
+      throw new Error("files_worker_delete_objects_unavailable");
+    }
+    deleted += outcome.data.deleted;
+  }
+  return { deleted };
+};
+
 export const deleteObjectsAction = internalAction({
   args: { keys: v.array(v.string()) },
   returns: v.object({ deleted: v.number() }),
-  handler: async (_ctx, { keys }) => {
-    if (!isFilesWorkerConfigured()) {
-      throw new Error("files_worker_not_configured");
-    }
-    const usable = keys.filter((key) => key.length > 0);
-    if (usable.some((key) => !isR2KeyInNamespace(key))) {
-      throw new Error("invalid_storage_key_namespace");
-    }
-    const unique = Array.from(new Set(usable));
-    let deleted = 0;
-    for (let index = 0; index < unique.length; index += DELETE_BATCH_SIZE) {
-      const outcome = await callFilesWorkerJson<{ deleted: number }>({
-        op: "delete-objects",
-        params: { keys: unique.slice(index, index + DELETE_BATCH_SIZE) },
-      });
-      // NOT_FOUND-style fallbacks cannot occur: batch deletes treat missing
-      // objects as success on the worker.
-      if (outcome.kind !== "ok") {
-        throw new Error("files_worker_delete_objects_unavailable");
-      }
-      deleted += outcome.data.deleted;
-    }
-    return { deleted };
-  },
+  handler: (_ctx, { keys }) => deleteStorageObjects(keys),
 });
 
 export const recordObjectDeletionFailure = internalMutation({

@@ -1,11 +1,24 @@
 import { defineConfig, devices } from "@playwright/test";
 import { env } from "./src/helpers/env";
+import type { AccountKey } from "./src/helpers/run-state";
+import type { JourneyOptions } from "./src/helpers/test";
 
-const deleteAccount = "journey/99-delete-account.e2e.ts";
-const postDelete = "journey/100-post-delete.e2e.ts";
-const importExportTest = /settings import and export surface terminal states/;
+// Runs against the local stack started by src/scripts/run-local-suite.ts.
+const chrome = devices["Desktop Chrome"];
+const journey = (
+  name: string,
+  testMatch: string | string[],
+  account?: AccountKey,
+  dependencies = ["journey-setup"]
+) => ({
+  name: `journey-${name}`,
+  dependencies,
+  testMatch,
+  workers: 1,
+  use: { ...chrome, account },
+});
 
-export default defineConfig({
+export default defineConfig<JourneyOptions>({
   testDir: "./src",
   timeout: 120_000,
   workers: 4,
@@ -23,171 +36,64 @@ export default defineConfig({
     {
       name: "journey-setup",
       testMatch: "journey/01-signup.setup.ts",
-      use: { ...devices["Desktop Chrome"] },
+      use: chrome,
     },
+    journey("web-core", "journey/02-web-journey.e2e.ts", "webCore"),
+    journey(
+      "web-surfaces",
+      "journey/09-web-product-surfaces.e2e.ts",
+      "webSurfaces"
+    ),
+    journey(
+      "web-filters",
+      "journey/11-quote-favorites-filters.e2e.ts",
+      "webFilters"
+    ),
+    journey("api", [
+      "journey/03-api.e2e.ts",
+      "journey/13-occ-concurrency.e2e.ts",
+    ]),
+    journey("cli", "journey/04-cli.e2e.ts"),
+    journey("mcp", "journey/05-mcp.e2e.ts"),
+    journey("a11y", "journey/08-a11y.e2e.ts", "primary"),
+    journey("security", "journey/06-security.e2e.ts", "security", [
+      "journey-setup",
+      "journey-web-core",
+    ]),
+    journey("account", "journey/07-account-flows.e2e.ts"),
+    journey("delete", "journey/99-delete-account.e2e.ts", undefined, [
+      "journey-account",
+    ]),
+    journey("post-delete", "journey/100-post-delete.e2e.ts", undefined, [
+      "journey-delete",
+    ]),
     {
-      name: "journey-web-core",
-      dependencies: ["journey-setup"],
-      testMatch: "journey/02-web-journey.e2e.ts",
-      workers: 1,
-      use: {
-        ...devices["Desktop Chrome"],
-        storageState: ".state/web-core.json",
-        launchOptions: {
-          args: [
-            "--use-fake-device-for-media-stream",
-            "--use-fake-ui-for-media-stream",
-          ],
-        },
-      },
+      // Web surface specs; each worker signs up its own account.
+      name: "web",
+      testMatch: "web/**/*.e2e.ts",
+      workers: 2,
+      use: chrome,
     },
-    {
-      name: "journey-web-surfaces",
-      dependencies: ["journey-setup"],
-      testMatch: "journey/09-web-product-surfaces.e2e.ts",
-      grepInvert: importExportTest,
+    ...(["chromium", "firefox", "webkit"] as const).map((browser) => ({
+      name: `matrix-${browser}`,
+      testMatch: "matrix/journey-lite.e2e.ts",
       workers: 1,
-      use: {
-        ...devices["Desktop Chrome"],
-        storageState: ".state/web-surfaces.json",
-      },
-    },
-    {
-      name: "journey-web-files",
-      dependencies: ["journey-setup"],
-      testMatch: "journey/10-file-format-ui.e2e.ts",
-      workers: 1,
-      use: {
-        ...devices["Desktop Chrome"],
-        storageState: ".state/web-files.json",
-      },
-    },
-    {
-      name: "journey-web-filters",
-      dependencies: ["journey-setup"],
-      testMatch: "journey/11-quote-favorites-filters.e2e.ts",
-      workers: 1,
-      use: {
-        ...devices["Desktop Chrome"],
-        storageState: ".state/web-filters.json",
-      },
-    },
-    {
-      name: "journey-import-export",
-      dependencies: ["journey-setup"],
-      grep: importExportTest,
-      testMatch: "journey/09-web-product-surfaces.e2e.ts",
-      workers: 1,
-      use: {
-        ...devices["Desktop Chrome"],
-        storageState: ".state/import-export.json",
-      },
-    },
-    ...(
-      [
-        [
-          "api",
-          [
-            "journey/03-api.e2e.ts",
-            "journey/12-file-roundtrip.e2e.ts",
-            "journey/13-occ-concurrency.e2e.ts",
-          ],
-        ],
-        ["cli", "journey/04-cli.e2e.ts"],
-        ["mcp", "journey/05-mcp.e2e.ts"],
-      ] satisfies [string, string | string[]][]
-    ).map(([surface, testMatch]) => ({
-      name: `journey-${surface}`,
-      dependencies: ["journey-setup"],
-      testMatch,
-      workers: 1,
-      use: {
-        ...devices["Desktop Chrome"],
-        storageState: ".state/user.json",
-      },
+      use: devices[
+        {
+          chromium: "Desktop Chrome",
+          firefox: "Desktop Firefox",
+          webkit: "Desktop Safari",
+        }[browser]
+      ],
     })),
     {
-      name: "journey-a11y",
-      dependencies: ["journey-setup"],
-      fullyParallel: true,
-      testMatch: "journey/08-a11y.e2e.ts",
-      workers: 4,
-      use: {
-        ...devices["Desktop Chrome"],
-        storageState: ".state/user.json",
-      },
-    },
-    {
-      name: "journey-security",
-      dependencies: ["journey-setup", "journey-web-core"],
-      testMatch: "journey/06-security.e2e.ts",
-      workers: 1,
-      use: {
-        ...devices["Desktop Chrome"],
-        storageState: ".state/security.json",
-      },
-    },
-    {
-      name: "journey-account",
-      dependencies: ["journey-setup"],
-      testMatch: "journey/07-account-flows.e2e.ts",
-      workers: 1,
-      use: {
-        ...devices["Desktop Chrome"],
-        storageState: ".state/account.json",
-      },
-    },
-    {
-      name: "journey-delete",
-      dependencies: ["journey-account"],
-      testMatch: deleteAccount,
-      workers: 1,
-      use: {
-        ...devices["Desktop Chrome"],
-        storageState: ".state/account.json",
-      },
-    },
-    {
-      name: "journey-post-delete",
-      dependencies: ["journey-delete"],
-      testMatch: postDelete,
-      workers: 1,
-      use: { ...devices["Desktop Chrome"] },
-    },
-    {
+      // Read-only checks of the published docs site; no stack needed.
       name: "docs",
       fullyParallel: true,
       testMatch: "docs/**/*.e2e.ts",
       retries: 1,
       workers: 4,
-      use: { ...devices["Desktop Chrome"], baseURL: env.siteUrl },
-    },
-    {
-      name: "matrix-chromium",
-      fullyParallel: true,
-      testMatch: "matrix/journey-lite.e2e.ts",
-      workers: 1,
-      use: { ...devices["Desktop Chrome"] },
-    },
-    {
-      name: "matrix-firefox",
-      fullyParallel: true,
-      testMatch: "matrix/journey-lite.e2e.ts",
-      workers: 1,
-      use: { ...devices["Desktop Firefox"] },
-    },
-    {
-      name: "matrix-webkit",
-      fullyParallel: true,
-      testMatch: "matrix/journey-lite.e2e.ts",
-      workers: 1,
-      use: { ...devices["Desktop Safari"] },
-    },
-    {
-      name: "extension",
-      testMatch: "extension/save-page.e2e.ts",
-      workers: 1,
-      use: { ...devices["Desktop Chrome"], channel: "chromium" },
+      use: { ...chrome, baseURL: env.siteUrl },
     },
   ],
   outputDir: "test-results",

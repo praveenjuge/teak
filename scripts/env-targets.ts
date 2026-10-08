@@ -42,7 +42,7 @@ export const TARGET_SPECS: Record<SupportedTarget, TargetSpec> = {
     dotenvFiles: ["apps/web/.env.local"],
     needsConvex: true,
     defaultConvex: "local",
-    note: "Next.js app plus Convex backend. Local E2E credentials live in apps/web/.env.e2e.local, never in the build input.",
+    note: "Next.js app plus Convex backend.",
   },
   docs: {
     target: "docs",
@@ -106,14 +106,10 @@ export const TARGET_SPECS: Record<SupportedTarget, TargetSpec> = {
   e2e: {
     target: "e2e",
     profiles: ["e2e"],
-    dotenvFiles: [
-      ".env.e2e.local",
-      "apps/web/.env.e2e.local",
-      ".env.production-e2e.local",
-    ],
+    dotenvFiles: ["apps/web/.env.local"],
     needsConvex: true,
-    defaultConvex: "cloud",
-    note: "Test-only scope. Production-suite file is .env.production-e2e.local; local web E2E uses apps/web/.env.e2e.local.",
+    defaultConvex: "local",
+    note: "The web stack on a local backend wired to the WorkOS emulator. Every emulator value is a test-only constant in packages/tests/src/emulator/config.ts.",
   },
 };
 

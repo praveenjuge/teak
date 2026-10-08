@@ -8,7 +8,6 @@
     "lint": "biome check .",
     "start": "next start",
     "test": "CLAUDECODE=1 AGENT=1 bun test --preload next/dist/server/node-environment-baseline src/__tests__ --coverage --dots",
-    "test:e2e": "playwright test",
     "test:webmcp-eval": "bun src/tests/webmcp-eval.ts",
     "typecheck": "tsc --noEmit"
   },
@@ -33,13 +32,10 @@
     "zod": "^4.4.3"
   },
   "devDependencies": {
-    "@next/playwright": "16.3.0",
-    "@playwright/test": "^1.62.1",
     "@tailwindcss/postcss": "^4.3.3",
     "@types/node": "^26.2.0",
     "@types/react": "19.2.18",
     "@types/react-dom": "19.2.4",
-    "dotenv": "^17.4.2",
     "iron-session": "8.0.4",
     "open-cli": "9.0.0",
     "tailwindcss": "^4.3.3",

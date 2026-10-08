@@ -1,105 +1,49 @@
 import { test } from "@playwright/test";
-import { env } from "../helpers/env";
-import { createAccount, readSignupCanaryEntry } from "../helpers/prod";
-import {
-  accountStorageStateFile,
-  importExportStorageStateFile,
-  securityStorageStateFile,
-  storageStateFile,
-  updateState,
-  webCoreStorageStateFile,
-  webFilesStorageStateFile,
-  webFiltersStorageStateFile,
-  webSurfacesStorageStateFile,
-} from "../helpers/run-state";
+import { createAccount } from "../helpers/app";
+import { writeState } from "../helpers/run-state";
 
 test.setTimeout(240_000);
 
-test("create isolated verified production accounts and API keys", async ({
+test("new WorkOS users get isolated Teak vaults and API keys", async ({
   browser,
   page,
-}, testInfo) => {
-  // With email delivery on, check the sign-up entry first. Hosted WorkOS
-  // sign-up fails in readSignupCanaryEntry before any account exists; paused
-  // sign-ups are recorded and the account comes from the protected endpoint.
-  if (env.emailDeliveryEnabled) {
-    await readSignupCanaryEntry(page);
-    await testInfo.attach("registration-freeze", {
-      body: await page.screenshot(),
-      contentType: "image/png",
-    });
-    testInfo.annotations.push({
-      type: "migration",
-      description:
-        "Registration freeze verified; account provisioned through the protected E2E endpoint. Signup email canary deferred until unfreeze.",
-    });
-  }
-  const account = await createAccount(page, "primary");
-  updateState((state) => {
-    state.primary = account;
+}) => {
+  // The primary account signs up unverified, so its first sign-in goes
+  // through the emailed verification code before the vault opens.
+  const primary = await createAccount(page, "primary", {
+    emailVerified: false,
   });
-  await page.context().storageState({ path: storageStateFile });
 
-  const createIsolatedAccount = async (
-    label: string,
-    storageStatePath?: string
-  ) => {
+  const createIsolatedAccount = async (label: string) => {
     const context = await browser.newContext();
     try {
-      const account = await createAccount(await context.newPage(), label, {
-        remember: false,
-      });
-      if (storageStatePath) {
-        await context.storageState({ path: storageStatePath });
-      }
-      return account;
+      return await createAccount(await context.newPage(), label);
     } finally {
       await context.close();
     }
   };
-
-  const [
-    webCore,
-    webSurfaces,
-    webFiles,
-    webFilters,
-    lifecycleAccount,
-    api,
-    cli,
-    mcp,
-    importExport,
-    security,
-  ] = await Promise.all([
-    createIsolatedAccount("web-core", webCoreStorageStateFile),
-    createIsolatedAccount("web-surfaces", webSurfacesStorageStateFile),
-    createIsolatedAccount("web-files", webFilesStorageStateFile),
-    createIsolatedAccount("web-filters", webFiltersStorageStateFile),
-    createIsolatedAccount("account-lifecycle", accountStorageStateFile),
-    createIsolatedAccount("service-api"),
-    createIsolatedAccount("service-cli"),
-    createIsolatedAccount("service-mcp"),
-    createIsolatedAccount("import-export", importExportStorageStateFile),
-    createIsolatedAccount("security", securityStorageStateFile),
-  ]);
-  updateState((state) => {
-    state.accounts.push(
-      webCore,
-      webSurfaces,
-      webFiles,
-      webFilters,
-      lifecycleAccount,
-      api,
-      cli,
-      mcp,
-      importExport,
-      security
+  const [webCore, webSurfaces, webFilters, account, security, api, cli, mcp] =
+    await Promise.all(
+      [
+        "web-core",
+        "web-surfaces",
+        "web-filters",
+        "account-lifecycle",
+        "security",
+        "service-api",
+        "service-cli",
+        "service-mcp",
+      ].map(createIsolatedAccount)
     );
-    state.webCore = webCore;
-    state.webSurfaces = webSurfaces;
-    state.webFiles = webFiles;
-    state.webFilters = webFilters;
-    state.account = lifecycleAccount;
-    state.importExport = importExport;
-    state.serviceAccounts = { api, cli, mcp };
+  // Each run starts a fresh emulator, so earlier accounts no longer exist.
+  writeState({
+    account,
+    createdCardIds: [],
+    primary,
+    security,
+    serviceAccounts: { api, cli, mcp },
+    webCore,
+    webFilters,
+    webSurfaces,
   });
 });

@@ -30,7 +30,6 @@ human set.
 | GitHub variables | Non-secret CI values | release SHAs, origins |
 | GitHub environment secrets | CI credentials | `CONVEX_DEPLOY_KEY` |
 | Target dotenv file | Local-only development values | `apps/web/.env.local` |
-| Test scope files | E2E credentials, never build inputs | `.env.e2e.local`, `apps/web/.env.e2e.local`, `.env.production-e2e.local` |
 
 One credential, one writer. Entries that appear in several providers (for
 example the shared files signing secret) document the sync direction in the
@@ -96,9 +95,9 @@ variable, re-run `bun run setup`; it names the bad value and the fix.
 
 Values that do not vary by deployment are typed code with an environment
 override, not required inputs. The pattern is a code default plus an optional
-override: `packages/tests/src/helpers/env.ts` defaults `E2E_PUBLIC_ORIGIN` to
-the production origin, and `scripts/build-metadata.ts` derives release IDs
-from provider metadata with a `GIT_SHA` override. Do not add a contract entry
+override: `scripts/build-metadata.ts` derives release IDs from provider
+metadata with a `GIT_SHA` override. The E2E stack's ports and WorkOS emulator
+values are plain constants in `packages/tests/src/emulator/config.ts`. Do not add a contract entry
 for a value that is constant across deployments.
 
 ## Cloud credentials and OIDC (evaluated 2026-09)

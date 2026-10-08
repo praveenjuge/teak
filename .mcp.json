@@ -3,7 +3,7 @@
     "playwright-test": {
       "command": "bun",
       "args": [
-        "--cwd=apps/web",
+        "--cwd=packages/tests",
         "x",
         "playwright",
         "run-test-mcp-server",

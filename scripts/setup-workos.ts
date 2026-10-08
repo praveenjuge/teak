@@ -183,7 +183,10 @@ const failure = (detail: string, remediation: string[]) => ({
 export const ensureWorkosCredentials = async (
   convexDir: string,
   webEnvPath: string | undefined,
-  localBackend: boolean
+  localBackend: boolean,
+  // Explicit values win over the deployment and the web dotenv file: shell
+  // exports by default, or the e2e stack's WorkOS emulator settings.
+  explicit: Partial<Record<string, string>> = process.env
 ): Promise<{
   check: WorkosSetupCheck;
   values: Partial<Record<WorkosCredentialName, string>>;
@@ -200,7 +203,7 @@ export const ensureWorkosCredentials = async (
     }
     plans.push(
       planWorkosCredential(name, {
-        explicit: process.env[name],
+        explicit: explicit[name],
         deployment:
           deployment.status === "found" ? deployment.value : undefined,
         web: web?.get(name),
@@ -247,7 +250,7 @@ export const ensureWorkosCredentials = async (
     );
   }
   const base = planWorkosApiBase({
-    explicit: process.env.WORKOS_API_BASE_URL,
+    explicit: explicit.WORKOS_API_BASE_URL,
     deployment: baseVar.status === "found" ? baseVar.value : undefined,
     localBackend,
   });

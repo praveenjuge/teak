@@ -120,6 +120,8 @@ export const ensureWebEnv = (
     siteUrl?: string;
     /** WorkOS client ID and API key, synced from the Convex deployment. */
     workos?: Partial<Record<"WORKOS_CLIENT_ID" | "WORKOS_API_KEY", string>>;
+    /** Target-specific entries, e.g. the e2e stack's WorkOS emulator host. */
+    extra?: Record<string, string>;
   }
 ): "created" | "exists" | "repaired" => {
   // Tighten existing permissions before a repair can append secrets.
@@ -136,6 +138,7 @@ export const ensureWebEnv = (
       defaults?.siteUrl ?? "http://localhost:3000"
     ).toString(),
     WORKOS_COOKIE_PASSWORD: randomBytes(32).toString("base64url"),
+    ...defaults?.extra,
   });
   // This file holds the WorkOS API key and the AuthKit session seal.
   chmodSync(path, 0o600);

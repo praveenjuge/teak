@@ -34,8 +34,6 @@ type Env = {
   readonly CLOUDFLARE_ACCOUNT_ID: string | undefined;
   readonly CLOUDFLARE_API_TOKEN: string | undefined;
   readonly CONVEX_GIT_COMMIT_SHA: string | undefined;
-  readonly E2E_CLEANUP_TOKEN: string | undefined;
-  readonly E2E_EMAIL_DOMAIN: string | undefined;
   readonly FILES_BASE: string | undefined;
   readonly FILES_SIGNING_SECRET: string | undefined;
   readonly FILES_TEXT_AI_ENABLED: string | undefined;
@@ -57,6 +55,7 @@ type Env = {
   readonly TEAK_DEV_APP_URL: string | undefined;
   readonly TEAK_DEV_DOCS_URL: string | undefined;
   readonly WORKOS_ACTION_SECRET: string | undefined;
+  readonly WORKOS_API_BASE_URL: string | undefined;
   readonly WORKOS_AUTHKIT_DOMAIN: string | undefined;
   readonly WORKOS_CONNECT_CHROME_CLIENT_ID: string | undefined;
   readonly WORKOS_CONNECT_CLI_CLIENT_ID: string | undefined;

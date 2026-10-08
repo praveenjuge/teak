@@ -100,13 +100,13 @@ describe("env-audit extractors", () => {
     const flagged = findSecretDiagnostics(
       "scripts/doctor.ts",
       // biome-ignore lint/suspicious/noTemplateCurlyInString: fixture intentionally contains interpolation syntax
-      "console.log(`token ${process.env.E2E_CLEANUP_TOKEN}`);"
+      "console.log(`token ${process.env.WORKOS_WEBHOOK_SECRET}`);"
     );
     expect(flagged).toHaveLength(1);
     expect(flagged[0].kind).toBe("secret-in-diagnostics");
     const clean = findSecretDiagnostics(
       "scripts/doctor.ts",
-      "const present = Boolean(process.env.E2E_CLEANUP_TOKEN);\nconsole.log('checked');"
+      "const present = Boolean(process.env.WORKOS_WEBHOOK_SECRET);\nconsole.log('checked');"
     );
     expect(clean).toHaveLength(0);
   });
@@ -114,16 +114,16 @@ describe("env-audit extractors", () => {
   test("secret diagnostics flag aliased secrets", () => {
     const flagged = findSecretDiagnostics(
       "scripts/doctor.ts",
-      "const token = process.env.E2E_CLEANUP_TOKEN;\nconsole.log(token);"
+      "const token = process.env.WORKOS_WEBHOOK_SECRET;\nconsole.log(token);"
     );
     expect(flagged).toHaveLength(1);
     expect(flagged[0]).toMatchObject({
       kind: "secret-in-diagnostics",
-      name: "E2E_CLEANUP_TOKEN",
+      name: "WORKOS_WEBHOOK_SECRET",
     });
     const unlogged = findSecretDiagnostics(
       "scripts/doctor.ts",
-      "const token = process.env.E2E_CLEANUP_TOKEN;\nconsole.log('checked');"
+      "const token = process.env.WORKOS_WEBHOOK_SECRET;\nconsole.log('checked');"
     );
     expect(unlogged).toHaveLength(0);
   });
@@ -290,16 +290,6 @@ describe("turbo env scoping", () => {
     for (const name of ["test", "test:unit", "test:edge"]) {
       expect(config.tasks?.[name]?.env).toEqual(["SITE_URL"]);
     }
-  });
-
-  test("web build inputs exclude e2e scope; test:e2e owns it", () => {
-    const config = load("apps/web/turbo.json");
-    const buildInputs = config.tasks?.build?.inputs ?? [];
-    expect(buildInputs).toContain(".env.local");
-    expect(buildInputs.filter((input) => input.includes("e2e"))).toEqual([]);
-    expect(config.tasks?.["test:e2e"]?.inputs ?? []).toContain(
-      ".env.e2e.local"
-    );
   });
 
   test("no turbo config declares wildcards", () => {
