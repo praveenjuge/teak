@@ -9,9 +9,8 @@
 
 import { v } from "convex/values";
 import { internal } from "../../_generated/api";
-import { env, internalAction } from "../../_generated/server";
+import { internalAction } from "../../_generated/server";
 import { stageCompleted } from "../../card/processingStatus";
-import { isE2EEmail, normalizeE2EEmailDomain } from "../../e2eAccounts";
 import type { CardType } from "../../schema";
 import { extractVisualStylesFromTags } from "../../shared/constants";
 import { inferFileFormat } from "../../shared/fileFormats";
@@ -53,8 +52,6 @@ interface ImageAnalysisCard {
   fileMetadata?: { height?: number; width?: number };
   thumbnailKey?: string;
 }
-
-export const PRODUCTION_E2E_IMAGE_AI_SOURCE = "prod-e2e-cloudflare-image-ai";
 
 export const resolveImageAnalysisKey = (
   card: ImageAnalysisCard
@@ -186,33 +183,6 @@ export async function generateHandler(
       mode: "skipped" as const,
     };
   };
-
-  let configuredE2EDomain: string | undefined;
-  try {
-    configuredE2EDomain = env.E2E_EMAIL_DOMAIN
-      ? normalizeE2EEmailDomain(env.E2E_EMAIL_DOMAIN)
-      : undefined;
-  } catch (error) {
-    console.warn("[workflow/metadata] Ignoring invalid E2E email domain", {
-      error: error instanceof Error ? error.message : String(error),
-    });
-  }
-  const ownerEmail =
-    configuredE2EDomain && card.userId
-      ? await ctx.runQuery(internal.e2eAccounts.ownerEmail, {
-          teakUserId: card.userId,
-        })
-      : null;
-  const isProductionE2EUser = Boolean(
-    ownerEmail &&
-      configuredE2EDomain &&
-      isE2EEmail(ownerEmail, configuredE2EDomain)
-  );
-  const isProductionImageAiCanary =
-    cardType === "image" && card.source === PRODUCTION_E2E_IMAGE_AI_SOURCE;
-  if (isProductionE2EUser && !isProductionImageAiCanary) {
-    return await completeWithoutAi();
-  }
 
   let aiTags: string[] = [];
   let aiSummary = "";

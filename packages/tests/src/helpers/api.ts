@@ -1,22 +1,15 @@
-import { appendFileSync } from "node:fs";
 import Ajv from "ajv";
 import addFormats from "ajv-formats";
 import { env } from "./env";
 
-interface Perf {
-  endpoint: string;
-  ms: number;
-  status: number;
-}
-const perf: Perf[] = [];
-
-export const apiFetch = async (
+export const apiFetch = (
   path: string,
   apiKey: string,
   init: RequestInit = {}
-) => {
-  const start = performance.now();
-  const response = await fetch(`${env.apiUrl}${path}`, {
+) =>
+  // The origin is the fixed local API; tests pass only literal paths.
+  // nosemgrep: rules_lgpl_javascript_ssrf_rule-node-ssrf
+  fetch(`${env.apiUrl}${path}`, {
     ...init,
     headers: {
       Authorization: `Bearer ${apiKey}`,
@@ -24,13 +17,6 @@ export const apiFetch = async (
       ...(init.headers ?? {}),
     },
   });
-  perf.push({
-    endpoint: path,
-    ms: Math.round(performance.now() - start),
-    status: response.status,
-  });
-  return response;
-};
 
 export const loadOpenApi = async () => {
   const response = await fetch(`${env.apiUrl}/openapi.json`);
@@ -56,27 +42,4 @@ export const loadOpenApi = async () => {
       }
     },
   };
-};
-
-export const perfSummary = () => {
-  const rows = perf.map((p) => `| ${p.endpoint} | ${p.status} | ${p.ms}ms |`);
-  const table = [
-    "| Endpoint | Status | Latency |",
-    "| --- | ---: | ---: |",
-    ...rows,
-  ].join("\n");
-  if (process.env.GITHUB_STEP_SUMMARY) {
-    appendFileSync(
-      process.env.GITHUB_STEP_SUMMARY,
-      `\n### Production API latency\n\n${table}\n`
-    );
-  }
-  const slow = perf.filter(
-    (p) => p.ms > Number(process.env.PROD_E2E_API_BUDGET_MS ?? 5000)
-  );
-  if (slow.length) {
-    throw new Error(
-      `API latency budget exceeded: ${slow.map((p) => p.endpoint).join(", ")}`
-    );
-  }
 };

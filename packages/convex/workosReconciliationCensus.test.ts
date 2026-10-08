@@ -2,7 +2,7 @@
 import betterAuthTest from "@convex-dev/better-auth/test";
 import { convexTest } from "convex-test";
 import { afterEach, beforeEach, expect, test, vi } from "vitest";
-import { internal } from "./_generated/api";
+import { components, internal } from "./_generated/api";
 import schema from "./schema";
 
 const modules = import.meta.glob("./**/*.ts");
@@ -288,4 +288,50 @@ test("explicit WorkOS-origin owners are distinguished from unproven missing Bett
     (await t.query(internal.workosReconciliationCensus.readiness, { runId }))
       .counts
   ).toMatchObject({ workosOriginOwners: 1, missingBetterAuthOwner: 1 });
+});
+
+// WorkOS-created owners carry a `teak_` key that a real backend rejects as a
+// Better Auth document ID, which convex-test does not check. Giving one a key
+// that does resolve shows the census never looks those owners up.
+test("WorkOS-origin owners are counted without a Better Auth lookup", async () => {
+  const t = setup();
+  const legacy = await t.mutation(components.betterAuth.adapter.create, {
+    input: {
+      model: "user",
+      data: {
+        name: "Legacy owner",
+        email: "native@example.com",
+        emailVerified: true,
+        createdAt: Date.now(),
+        updatedAt: Date.now(),
+      },
+    },
+  });
+  await t.run((ctx) =>
+    ctx.db.insert("users", {
+      identityOrigin: "workos",
+      teakUserId: legacy._id,
+      email: "native@example.com",
+      emailVerified: false,
+      workosUserId: "user_native",
+    })
+  );
+  const runId = await start(t),
+    run = await t.mutation(internal.workosReconciliation.claim, {
+      ...identity,
+      runId,
+    });
+  if (!run) {
+    throw new Error("Run not claimed");
+  }
+  await t.mutation(internal.workosReconciliationCensus.checkpoint, {
+    runId,
+    generation: run.generation,
+  });
+  const { counts } = await t.query(
+    internal.workosReconciliationCensus.readiness,
+    { runId }
+  );
+  expect(counts).toMatchObject({ workosOriginOwners: 1 });
+  expect(counts.betterAuthMirrorDrift ?? 0).toBe(0);
 });

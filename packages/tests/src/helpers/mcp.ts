@@ -3,7 +3,7 @@ import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/
 import { env } from "./env";
 
 export const connectMcp = async (apiKey: string) => {
-  const client = new Client({ name: "teak-prod-e2e", version: "1.0.0" });
+  const client = new Client({ name: "teak-e2e", version: "1.0.0" });
   const transport = new StreamableHTTPClientTransport(new URL(env.mcpUrl), {
     requestInit: { headers: { Authorization: `Bearer ${apiKey}` } },
   });

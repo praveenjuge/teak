@@ -10,11 +10,8 @@
  * imperative tools plus the declarative search form. Secure-context
  * requirements follow spec section 4; plain `http://localhost` qualifies.
  */
-import { expect, type Page, test } from "@playwright/test";
-import { AuthHelper, generateTestContent } from "./test-helpers";
-
-const TEST_EMAIL = process.env.E2E_BETTER_AUTH_USER_EMAIL;
-const TEST_PASSWORD = process.env.E2E_BETTER_AUTH_USER_PASSWORD;
+import type { Page } from "@playwright/test";
+import { expect, generateTestContent, test } from "./fixtures";
 
 declare global {
   interface Window {
@@ -80,11 +77,6 @@ test.describe("WebMCP", () => {
   });
 
   test.describe("authenticated tools", () => {
-    test.skip(
-      !(TEST_EMAIL && TEST_PASSWORD),
-      "Set E2E_BETTER_AUTH_USER_EMAIL and E2E_BETTER_AUTH_USER_PASSWORD to run WebMCP tests."
-    );
-
     test.beforeEach(async ({ page }) => {
       await page.addInitScript(() => {
         window.__webmcpRegistered = [];
@@ -117,13 +109,11 @@ test.describe("WebMCP", () => {
           },
         };
       });
-      const authHelper = new AuthHelper(page);
-      await authHelper.signUpWithEmailAndPassword(
-        TEST_EMAIL!,
-        TEST_PASSWORD!,
-        "E2E Test User"
-      );
-      await page.waitForLoadState("networkidle");
+      // The fixture signed in already; reload so the mock is in place.
+      await page.reload();
+      await expect(
+        page.getByRole("textbox", { name: "Markdown content" })
+      ).toBeVisible();
     });
 
     test("annotates the search box as a declarative WebMCP form", async ({

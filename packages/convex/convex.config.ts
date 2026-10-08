@@ -53,9 +53,6 @@ const app = defineApp({
     // Staged operational-cost rollout; unset means disabled.
     OPERATIONAL_RETENTION_ENABLED: v.optional(v.string()),
     FILES_TEXT_AI_ENABLED: v.optional(v.string()),
-    // E2E capability group.
-    E2E_CLEANUP_TOKEN: v.optional(v.string()),
-    E2E_EMAIL_DOMAIN: v.optional(v.string()),
     // Local dev-URL overrides.
     TEAK_DEV_APP_URL: v.optional(v.string()),
     TEAK_DEV_API_URL: v.optional(v.string()),

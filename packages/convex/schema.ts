@@ -535,8 +535,9 @@ export default defineSchema({
   workosProfiles: defineTable(workosProfileFields).index("by_workosUserId", [
     "workosUserId",
   ]),
-  // Server-generated recipients for hosted WorkOS signup canaries. Rows are
-  // never deleted; `closedAt` is set only with positive provider evidence.
+  // Deprecated: written by the retired hosted production E2E suite, which the
+  // WorkOS emulator suite replaced. No code reads or writes it. Kept because
+  // it may still hold rows; dropping it needs an approved migration.
   e2eSignupReservations: defineTable({
     requestId: v.string(),
     email: v.string(),

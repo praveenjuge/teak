@@ -53,9 +53,8 @@ describe("env-targets", () => {
     expect(CONVEX_DOTENV_FILE).toBe("packages/convex/.env.local");
   });
 
-  test("e2e scope owns its own files, separate from web build inputs", () => {
-    expect(TARGET_SPECS.e2e.dotenvFiles).toContain(".env.e2e.local");
-    expect(TARGET_SPECS.e2e.dotenvFiles).toContain("apps/web/.env.e2e.local");
-    expect(TARGET_SPECS.web.dotenvFiles).toEqual(["apps/web/.env.local"]);
+  test("the e2e stack is the web stack on a local backend", () => {
+    expect(TARGET_SPECS.e2e.dotenvFiles).toEqual(TARGET_SPECS.web.dotenvFiles);
+    expect(TARGET_SPECS.e2e.defaultConvex).toBe("local");
   });
 });
