@@ -147,6 +147,8 @@ export const parseWorkosEvent = (event: {
 // that still read it (admin seeding, the admin user list and email linking).
 // The values come from the component's stored profile rather than the event,
 // so an out-of-order delivery the component ignored can't roll them back.
+// A new address is copied only once WorkOS has verified it and no other owner
+// holds it, so an unverified change can't claim someone else's address.
 const syncOwnerEmail = async (ctx: MutationCtx, workosUserId: string) => {
   const provider = await readComponentUser(ctx, workosUserId);
   if (!provider) {
@@ -168,16 +170,28 @@ const syncOwnerEmail = async (ctx: MutationCtx, workosUserId: string) => {
       .query("accountDeletionStates")
       .withIndex("by_userId", (q) => q.eq("userId", row.teakUserId))
       .first();
-    if (
-      deleting ||
-      (row.email === email && row.emailVerified === provider.emailVerified)
-    ) {
+    if (deleting) {
       continue;
     }
-    await ctx.db.patch("users", row._id, {
-      email,
-      emailVerified: provider.emailVerified,
-    });
+    if (row.email === email) {
+      if (row.emailVerified !== provider.emailVerified) {
+        await ctx.db.patch("users", row._id, {
+          emailVerified: provider.emailVerified,
+        });
+      }
+      continue;
+    }
+    if (!provider.emailVerified) {
+      continue;
+    }
+    const holders = await ctx.db
+      .query("users")
+      .withIndex("by_email", (q) => q.eq("email", email))
+      .take(1);
+    if (holders.length > 0) {
+      continue;
+    }
+    await ctx.db.patch("users", row._id, { email, emailVerified: true });
   }
 };
 

@@ -709,6 +709,34 @@ describe("new WorkOS lifecycle owners", () => {
     });
     expect((await snapshot(t)).users).toEqual([owner]);
   });
+  test("an unverified provider address is not copied onto the owner", async () => {
+    const t = setup();
+    await t.mutation(sync, freshEvent("before_unverified"));
+    const [owner] = (await snapshot(t)).users;
+    const changed = freshEvent("unverified_change", 2, "user.updated", false);
+    await t.mutation(sync, {
+      ...changed,
+      data: { ...changed.data, email: "someone-else@example.com" },
+    });
+    expect((await snapshot(t)).users).toEqual([owner]);
+    await expect(
+      t.mutation(internal.admin.seedAdmin, {
+        email: "someone-else@example.com",
+      })
+    ).rejects.toThrow("exactly one active mapped account");
+  });
+  test("a provider address another owner holds is not copied", async () => {
+    const t = setup();
+    await seed(t, { email: "taken@example.com" });
+    await t.mutation(sync, freshEvent("before_taken"));
+    const before = (await snapshot(t)).users;
+    const changed = freshEvent("taken_change", 2, "user.updated");
+    await t.mutation(sync, {
+      ...changed,
+      data: { ...changed.data, email: "taken@example.com" },
+    });
+    expect((await snapshot(t)).users).toEqual(before);
+  });
   test("a late created envelope cannot re-verify a newer unverified profile", async () => {
     const t = setup();
     await t.mutation(sync, freshEvent("initial_created"));
