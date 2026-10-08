@@ -125,7 +125,9 @@ Use a WorkOS staging or development environment locally, never production. Teak 
 
 Export `WORKOS_CLIENT_ID` and `WORKOS_API_KEY` before `bun run setup`. Setup sets them on the Convex deployment and copies them into `apps/web/.env.local`, alongside `NEXT_PUBLIC_WORKOS_REDIRECT_URI` (the app origin plus `/callback`) and a generated `WORKOS_COOKIE_PASSWORD`. It never overwrites a value that is already set, and it stops if the shell, the deployment, and `apps/web/.env.local` disagree. Later runs read the values from the deployment, so the exports are only needed once.
 
-`convex.json` declares the AuthKit redirect URIs and CORS origins, including every worktree web port. For cloud development deployments, Convex applies them to the deployment's WorkOS environment.
+`convex.json` declares the AuthKit redirect URIs, CORS origins, and homepage URL, including every worktree web port. For cloud development deployments, Convex applies them to the deployment's WorkOS environment. The sign-out redirect, JWT template, and webhook are not in `convex.json`; set them once per environment as in [Set up WorkOS](/docs/self-hosting#set-up-workos), which also lists the [WorkOS CLI](/docs/self-hosting#use-the-workos-cli) commands for them.
+
+The CLI, browser extensions, Mac app, Raycast, and MCP sign in through WorkOS Connect. To sign them in against your development deployment, configure Connect and set `WORKOS_AUTHKIT_DOMAIN` and the `WORKOS_CONNECT_*_CLIENT_ID` values as in [Connect](/docs/self-hosting#connect-cli-browser-extensions-mac-app-raycast-and-mcp).
 
 `bun run doctor` fails until the deployment and the web app both have the client ID and API key, and checks that the client, key, cookie password, and callback fit together.
 
