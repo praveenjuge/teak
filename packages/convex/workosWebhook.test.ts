@@ -348,6 +348,22 @@ describe.each([
     expect(
       letters.every((row) => row.reason === "Invalid WorkOS event id")
     ).toBe(true);
+    const context = await post(
+      t,
+      JSON.stringify({
+        ...fixture("evt_context"),
+        context: ["not", "a", "record"],
+      })
+    );
+    expect(context.status).toBe(200);
+    expect(
+      await t.run((ctx) =>
+        ctx.db
+          .query("workosWebhookDeadLetters")
+          .withIndex("by_eventId", (q) => q.eq("eventId", "evt_context"))
+          .unique()
+      )
+    ).toMatchObject({ reason: "Invalid WorkOS event context" });
   });
 
   test("the registration Action verifies the exact signed body, not re-serialized JSON", async () => {
