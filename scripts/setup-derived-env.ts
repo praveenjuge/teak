@@ -2,7 +2,7 @@
  * Derived local dotenv files for setup (issue #407, Phase 4).
  *
  * One template and one create-or-repair helper for every setup-generated
- * file (web, desktop, extension, mobile). Generated files are never
+ * file (web, extension, mobile). Generated files are never
  * overwritten: existing custom values win, missing keys are appended.
  */
 
@@ -40,17 +40,6 @@ export const webEnvTemplate = (overrides?: {
       "/callback",
       overrides?.siteUrl ?? "http://localhost:3000"
     ).toString(),
-  });
-
-export const desktopEnvTemplate = (values: {
-  convexUrl: string;
-  convexSiteUrl: string;
-  webUrl: string;
-}): string =>
-  derivedEnvTemplate({
-    VITE_PUBLIC_CONVEX_URL: values.convexUrl,
-    VITE_PUBLIC_CONVEX_SITE_URL: values.convexSiteUrl,
-    VITE_WEB_URL: values.webUrl,
   });
 
 export const extensionEnvTemplate = (values: {

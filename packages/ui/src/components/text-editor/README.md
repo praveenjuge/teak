@@ -1,6 +1,6 @@
 # Markdown editor
 
-Web and desktop use the published editorcn block editor and Tiptap's Markdown
+Web uses the published editorcn block editor and Tiptap's Markdown
 extension. The public component still accepts and emits Markdown strings. Mobile,
 extensions, storage, APIs, and previews keep their existing contracts.
 
@@ -40,15 +40,6 @@ bun test packages/ui/src/components/text-editor/__tests__
 PLAYWRIGHT_SKIP_WEBSERVER=1 bun run --cwd apps/web test:e2e markdown-editor.e2e.ts --reporter=list,html
 ```
 
-The optional macOS native journey builds and launches Electron with a separate
-temporary profile. Both app builds must point at the same development backend:
-
-```sh
-bun run --cwd apps/desktop build
-PLAYWRIGHT_DESKTOP_EDITOR=1 PLAYWRIGHT_SKIP_WEBSERVER=1 bun run --cwd apps/web test:e2e desktop-markdown-editor.e2e.ts --reporter=list,html
-```
-
 Reports live in `apps/web/playwright-report`; traces and representative screenshots
-live in `apps/web/test-results`. The desktop journey saves its own native trace,
-including on failure. Shipping is blocked by silent loss, unexpected writes,
+live in `apps/web/test-results`. Shipping is blocked by silent loss, unexpected writes,
 unsafe execution, or a failed required journey.

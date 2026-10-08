@@ -76,7 +76,6 @@ import { resolveWorktree, type WorktreePorts } from "./worktree-env.ts";
 const ROOT = join(import.meta.dir, "..");
 const CONVEX_DIR = (root: string): string => join(root, "packages/convex");
 const WEB_ENV_PATH = join(ROOT, "apps/web/.env.local");
-const DESKTOP_ENV_PATH = join(ROOT, "apps/desktop/.env.local");
 const EXTENSION_ENV_PATH = join(ROOT, "apps/extension/.env.local");
 const MOBILE_ENV_PATH = join(ROOT, "apps/mobile/.env.local");
 
@@ -150,7 +149,7 @@ export interface SetupReport {
 }
 
 export const SETUP_USAGE =
-  "Usage: bun run setup [--target web|docs|cli|desktop|extension|mobile-simulator|mobile-device|files-worker|e2e] [--convex local|cloud|skip] [--check] [--json]";
+  "Usage: bun run setup [--target web|docs|cli|extension|mobile-simulator|mobile-device|files-worker|e2e] [--convex local|cloud|skip] [--check] [--json]";
 
 const CONVEX_MODES: readonly string[] = ["local", "cloud", "skip"];
 
@@ -214,16 +213,6 @@ const DERIVED_FILE_PLANS: Record<SupportedTarget, DerivedFilePlan[]> = {
   web: [WEB_PLAN],
   docs: [],
   cli: [],
-  desktop: [
-    {
-      path: DESKTOP_ENV_PATH,
-      keys: [
-        "VITE_PUBLIC_CONVEX_URL",
-        "VITE_PUBLIC_CONVEX_SITE_URL",
-        "VITE_WEB_URL",
-      ],
-    },
-  ],
   extension: [
     {
       path: EXTENSION_ENV_PATH,

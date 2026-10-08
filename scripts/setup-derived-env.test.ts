@@ -3,7 +3,6 @@ import { mkdtempSync, readFileSync, statSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import {
-  desktopEnvTemplate,
   ensureDerivedEnv,
   ensureFile,
   ensureWebEnv,
@@ -37,17 +36,7 @@ describe("framework templates", () => {
   const values = {
     convexUrl: "https://cloud.example",
     convexSiteUrl: "https://site.example",
-    webUrl: "http://localhost:3000",
   };
-
-  test("desktop template carries vite aliases and the web origin", () => {
-    const template = desktopEnvTemplate(values);
-    expect(template).toContain("VITE_PUBLIC_CONVEX_URL=https://cloud.example");
-    expect(template).toContain(
-      "VITE_PUBLIC_CONVEX_SITE_URL=https://site.example"
-    );
-    expect(template).toContain("VITE_WEB_URL=http://localhost:3000");
-  });
 
   test("extension template carries vite aliases", () => {
     const template = extensionEnvTemplate(values);
@@ -116,12 +105,12 @@ describe("ensureDerivedEnv", () => {
     expect(
       ensureDerivedEnv(path, {
         VITE_PUBLIC_CONVEX_URL: "https://other.example",
-        VITE_WEB_URL: "http://localhost:3000",
+        VITE_PUBLIC_CONVEX_SITE_URL: "https://s.example",
       })
     ).toBe("repaired");
     const content = readFileSync(path, "utf-8");
     expect(content).toContain("VITE_PUBLIC_CONVEX_URL=https://c.example");
-    expect(content).toContain("VITE_WEB_URL=http://localhost:3000");
+    expect(content).toContain("VITE_PUBLIC_CONVEX_SITE_URL=https://s.example");
   });
 });
 

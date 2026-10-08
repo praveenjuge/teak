@@ -69,11 +69,11 @@ The webhook and Action routes exist only when `WORKOS_ENVIRONMENT_ID` is set on 
   <Step title="Create local env files">
     Copy the Convex URLs from your dashboard into each app's `.env.local`. Each app uses a framework-specific prefix for the same two vars:
 
-    | App                              | Prefix         |
-    | -------------------------------- | -------------- |
-    | `apps/web`                       | `NEXT_PUBLIC_` |
-    | `apps/mobile`                    | `EXPO_PUBLIC_` |
-    | `apps/extension`, `apps/desktop` | `VITE_PUBLIC_` |
+    | App              | Prefix         |
+    | ---------------- | -------------- |
+    | `apps/web`       | `NEXT_PUBLIC_` |
+    | `apps/mobile`    | `EXPO_PUBLIC_` |
+    | `apps/extension` | `VITE_PUBLIC_` |
 
     Setup writes these for the target you set up. See [Detailed Environment Reference](#detailed-environment-reference) for the full variable list.
   </Step>
@@ -182,22 +182,14 @@ The web Content-Security-Policy always allows the canonical file origins
 from custom origins, mirror the backend `FILES_BASE` into
 `NEXT_PUBLIC_FILES_BASE` at web build time.
 
-### Client Apps (`apps/mobile`, `apps/extension`, `apps/desktop`)
+### Client Apps (`apps/mobile`, `apps/extension`)
 
-Mobile, Extension, and the unshipped Electron reference app share the same base variables (use `EXPO_PUBLIC_` prefix for mobile, `VITE_PUBLIC_` for extension and desktop):
+Mobile and Extension share the same base variables (use `EXPO_PUBLIC_` prefix for mobile, `VITE_PUBLIC_` for extension):
 
 ```bash
 VITE_PUBLIC_CONVEX_URL=https://deployment.convex.cloud
 VITE_PUBLIC_CONVEX_SITE_URL=https://deployment.convex.site
 TEAK_DEV_APP_URL=http://localhost:3000   # Optional local override
-```
-
-#### Desktop-only
-
-The unshipped Electron reference app remains runnable with `bun run dev desktop` and additionally reads `VITE_WEB_URL` to know where to send sign-in and account links. Mobile and the extension do not use this variable.
-
-```bash
-VITE_WEB_URL=https://app.yourdomain.com   # Defaults to https://app.teakvault.com
 ```
 
 ### Public API and MCP

@@ -244,10 +244,6 @@ describe("env-audit auditFiles", () => {
           "const url = import.meta.env.VITE_PUBLIC_CONVEX_SITE_URL;\n",
         ],
         [
-          "apps/desktop/src/lib/desktop-config.ts",
-          "const url = import.meta.env.VITE_PUBLIC_CONVEX_URL;\n",
-        ],
-        [
           "apps/web/src/tests/setup.ts",
           "const url = process.env.NEXT_PUBLIC_CONVEX_URL;\n",
         ],
@@ -298,7 +294,6 @@ describe("turbo env scoping", () => {
       "apps/web/turbo.json",
       "apps/docs/turbo.json",
       "apps/extension/turbo.json",
-      "apps/desktop/turbo.json",
       "apps/mobile/turbo.json",
       "packages/convex/turbo.json",
       "packages/ui/turbo.json",

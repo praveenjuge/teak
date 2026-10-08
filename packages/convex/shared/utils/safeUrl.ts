@@ -2,7 +2,7 @@
  * Shared safe-external-URL policy for card URLs.
  *
  * Card URLs are user-controlled and end up in browser navigation sinks
- * (`window.open`, `<a href>`, `Linking.openURL`, Electron `shell.openExternal`).
+ * (`window.open`, `<a href>`, `Linking.openURL`).
  * A stored `javascript:`, `data:`, `vbscript:`, or `file:` URL can execute
  * script or trigger dangerous local navigation when a user opens a card.
  *

@@ -9,7 +9,6 @@ export type EnvTarget =
   | "web"
   | "convex"
   | "files-worker"
-  | "desktop"
   | "mobile"
   | "extension"
   | "cli"

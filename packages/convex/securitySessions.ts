@@ -82,9 +82,6 @@ export function sessionDisplayName(agent: string | null | undefined): string {
   if (!agent) {
     return "Unknown device";
   }
-  if (agent.startsWith("Teak Desktop")) {
-    return "Teak Desktop";
-  }
   if (agent.startsWith("Teak Safari")) {
     return "Teak Safari";
   }

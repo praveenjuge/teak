@@ -9,7 +9,7 @@ import {
  * Shared metrics helpers for Teak.
  *
  * This module exposes a small, SDK-agnostic surface that any app (web, mobile,
- * desktop, extension, API, Convex actions) can call. Host apps wire in a
+ * extension, API, Convex actions) can call. Host apps wire in a
  * concrete recorder via `configureMetrics` at startup. Sentry's Application
  * Metrics API is the intended primary backend, but anything implementing the
  * `MetricsRecorder` interface works (datadog, statsd, otel, custom log
@@ -59,7 +59,6 @@ export type MetricUnit =
 export type TeakApp =
   | "web"
   | "mobile"
-  | "desktop"
   | "extension"
   | "raycast"
   | "api"
@@ -248,7 +247,6 @@ function nowMs(): number {
 export type CardCreationSource =
   | "web"
   | "mobile"
-  | "desktop"
   | "extension"
   | "raycast"
   | "api"
@@ -264,9 +262,7 @@ export function trackCardCreateAttempt(params: {
   source: CardCreationSource;
   via?: string;
 }): void {
-  const configuredSource = ["web", "mobile", "desktop"].includes(
-    activeConfig.app
-  )
+  const configuredSource = ["web", "mobile"].includes(activeConfig.app)
     ? activeConfig.app
     : params.source;
   counter(TELEMETRY_METRICS.cardAttempt, 1, {
@@ -361,9 +357,9 @@ export function trackUpload(params: {
 export function trackSearch(params: {
   durationMs: number;
   resultCount: number;
-  surface?: "web" | "mobile" | "desktop";
+  surface?: "web" | "mobile";
 }): void {
-  const surface = ["web", "mobile", "desktop"].includes(activeConfig.app)
+  const surface = ["web", "mobile"].includes(activeConfig.app)
     ? activeConfig.app
     : (params.surface ?? "web");
   const attributes = { surface };

@@ -13,7 +13,6 @@ export const SUPPORTED_TARGETS = [
   "web",
   "docs",
   "cli",
-  "desktop",
   "extension",
   "mobile-simulator",
   "mobile-device",
@@ -59,14 +58,6 @@ export const TARGET_SPECS: Record<SupportedTarget, TargetSpec> = {
     needsConvex: false,
     defaultConvex: "skip",
     note: "CLI reads TEAK_* overrides from the shell; no local dotenv file.",
-  },
-  desktop: {
-    target: "desktop",
-    profiles: ["local", "preview", "production"],
-    dotenvFiles: ["apps/desktop/.env.local"],
-    needsConvex: true,
-    defaultConvex: "local",
-    note: "Electron app. Setup derives VITE_PUBLIC_CONVEX_* from the canonical deployment pair.",
   },
   extension: {
     target: "extension",

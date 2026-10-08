@@ -29,7 +29,7 @@ Each workspace script runs only the files it matches. A test file outside these 
 | `apps/web` | `src/__tests__/**` (Bun) |
 | `packages/tests` | `src/**/*.e2e.ts` and `src/journey/*.setup.ts` (Playwright), `src/**/*.test.ts` (Bun) |
 | `apps/cli`, `apps/files-worker`, `packages/files-protocol` | `src/**` |
-| `apps/desktop`, `apps/raycast` | `src/__tests__/**` |
+| `apps/raycast` | `src/__tests__/**` |
 | `apps/extension`, `apps/mobile` | `__tests__/**` |
 | `apps/docs` | `lib/**` |
 | `apps/mac` | `tests/*.test.ts`, run by the root `bun run test` |

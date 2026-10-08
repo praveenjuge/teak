@@ -141,7 +141,7 @@ development Worker before the switch. It is unguarded by Convex state, and its
 config can only reach the development bucket, namespace and workers.dev. The
 approved switch then changes the dev Convex `FILES_BASE`,
 `FILES_SIGNING_SECRET`, `R2_BUCKET`, `R2_ACCESS_KEY_ID` and
-`R2_SECRET_ACCESS_KEY` together. Web, packaged desktop and shared media
+`R2_SECRET_ACCESS_KEY` together. Web and shared media
 recovery already trust exactly `https://teak-files-development.praveenjuge.workers.dev`
 when built for the dev deployment, so no `NEXT_PUBLIC_FILES_BASE` is needed.
 Only after the switch do `bun run sync:cloudflare-dev --isolated` (writes the

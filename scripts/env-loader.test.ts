@@ -46,9 +46,9 @@ describe("env-loader", () => {
 
   test("loadTargetEnv reports missing files without values", () => {
     const root = mkdtempSync(join(tmpdir(), "teak-loader-"));
-    const loaded = loadTargetEnv("desktop", "local", root);
+    const loaded = loadTargetEnv("extension", "local", root);
     expect(loaded.files).toEqual([
-      { path: "apps/desktop/.env.local", exists: false, names: [] },
+      { path: "apps/extension/.env.local", exists: false, names: [] },
     ]);
     expect(loaded.values.size).toBe(0);
   });
