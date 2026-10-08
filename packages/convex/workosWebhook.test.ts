@@ -122,9 +122,9 @@ describe.each([
       emailVerified: true,
       role: "admin",
       workosUserId: "user_signed",
-      workosEmail: "provider@example.com",
-      workosEmailVerified: true,
     });
+    // The component holds the provider profile; Teak keeps no copy.
+    expect(result.users[0].workosEmail).toBeUndefined();
     expect(result.events).toMatchObject([
       { eventId: "evt_signed", createdAt: Date.parse(timestamp) },
     ]);
@@ -134,6 +134,52 @@ describe.each([
       })
     ).toMatchObject({ id: "user_signed", emailVerified: true });
   });
+
+  test.each([true, false])(
+    "an open-signup created webhook with email_verified=%s creates an owner only when verified",
+    async (verified) => {
+      vi.stubEnv("SIGNUPS_DISABLED", "false");
+      const t = setup();
+      const created = fixture("evt_new_owner");
+      const response = await post(
+        t,
+        JSON.stringify({
+          ...created,
+          data: {
+            ...created.data,
+            external_id: null,
+            email_verified: verified,
+          },
+        })
+      );
+      expect(response.status).toBe(200);
+      const result = await snapshot(t);
+      expect(
+        await t.query(components.workOSAuthKit.lib.getAuthUser, {
+          id: "user_signed",
+        })
+      ).toMatchObject({ emailVerified: verified });
+      expect(result.events).toMatchObject([{ eventId: "evt_new_owner" }]);
+      if (verified) {
+        expect(result.users).toMatchObject([
+          {
+            identityOrigin: "workos",
+            workosUserId: "user_signed",
+            email: "provider@example.com",
+            emailVerified: true,
+          },
+        ]);
+        expect(result.users[0].teakUserId).toMatch(/^teak_[a-zA-Z0-9]+$/);
+        expect(result.scheduled).toHaveLength(2);
+      } else {
+        expect(result.users).toEqual([]);
+        expect(result.scheduled).toEqual([]);
+        expect(result.quarantine).toMatchObject([
+          { reason: "email_unverified" },
+        ]);
+      }
+    }
+  );
 
   test.each(["missing", "forged", "tampered", "expired", "other_secret"])(
     "%s signature performs no writes",

@@ -16,7 +16,7 @@ import type {
 } from "./card/processingStatus";
 import { stagePending } from "./card/processingStatus";
 import { patchCardWithSearchSync } from "./card/searchDocumentHelpers";
-import { getSessionUser } from "./securitySessions";
+import { getSessionUser, readComponentUser } from "./securitySessions";
 import { tryResolveObjectUrl } from "./storage/fileUrls";
 import { deleteObject } from "./storage/r2";
 import { normalizeIdentityEmail } from "./userIdentityTable";
@@ -387,13 +387,18 @@ export const listAllUsers = query({
     const page = await Promise.all(
       result.page
         .filter((user) => user.deletedAt === undefined)
-        .map(async (user) => ({
-          id: user.teakUserId,
-          email: user.workosEmail ?? user.email,
-          emailVerified: user.workosEmailVerified ?? user.emailVerified,
-          createdAt: user._creationTime,
-          cardsCount: await getActiveCardCountForUser(ctx, user.teakUserId),
-        }))
+        .map(async (user) => {
+          const profile = user.workosUserId
+            ? await readComponentUser(ctx, user.workosUserId)
+            : null;
+          return {
+            id: user.teakUserId,
+            email: profile?.email ?? user.email,
+            emailVerified: profile?.emailVerified ?? user.emailVerified,
+            createdAt: user._creationTime,
+            cardsCount: await getActiveCardCountForUser(ctx, user.teakUserId),
+          };
+        })
     );
     return { ...result, page };
   },

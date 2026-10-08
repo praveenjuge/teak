@@ -3,7 +3,11 @@ import workosTest from "@convex-dev/workos-authkit/test";
 import type { UserIdentity } from "convex/server";
 import { convexTest } from "convex-test";
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
-import { api, components } from "./_generated/api";
+import {
+  seedComponentUser,
+  updateComponentUser,
+} from "./__tests__/helpers/workosOwner.test-utils";
+import { api } from "./_generated/api";
 import type { Doc } from "./_generated/dataModel";
 import schema from "./schema";
 import {
@@ -34,49 +38,31 @@ const setup = () => {
   return t;
 };
 type Backend = ReturnType<typeof setup>;
-const seed = (
+const seed = async (
   t: Backend,
   fields: Partial<Doc<"users">> = {},
-  profile: Partial<NonNullable<Doc<"workosProfiles">["profile"]>> | null = {}
-) =>
-  t.run(async (ctx) => {
-    const owner = await ctx.db.insert("users", {
+  profile: Partial<Parameters<typeof seedComponentUser>[1]> | null = {}
+) => {
+  const owner = await t.run((ctx) =>
+    ctx.db.insert("users", {
       teakUserId: "permanent-owner",
       workosUserId: "user_PROVIDER",
       email: "legacy@example.com",
       emailVerified: true,
-      workosEmail: "workos@example.com",
-      workosEmailVerified: true,
       ...fields,
+    })
+  );
+  const user = await t.run((ctx) => ctx.db.get("users", owner));
+  if (profile !== null && user?.workosUserId) {
+    await seedComponentUser(t, {
+      id: user.workosUserId,
+      email: "workos@example.com",
+      externalId: user.teakUserId,
+      ...profile,
     });
-    const user = await ctx.db.get("users", owner);
-    const workosUserId = user?.workosUserId;
-    if (profile !== null && workosUserId) {
-      const existing = await ctx.db
-        .query("workosProfiles")
-        .withIndex("by_workosUserId", (q) => q.eq("workosUserId", workosUserId))
-        .first();
-      if (!existing) {
-        await ctx.db.insert("workosProfiles", {
-          workosUserId,
-          teakUserId: user.teakUserId,
-          providerUpdatedAt: "2026-10-04T00:00:00Z",
-          revision: 1,
-          source: "event",
-          profile: {
-            email: user.workosEmail ?? "workos@example.com",
-            emailVerified: true,
-            externalId: user.teakUserId,
-            firstName: null,
-            lastName: null,
-            profilePictureUrl: null,
-            ...profile,
-          },
-        });
-      }
-    }
-    return owner;
-  });
+  }
+  return owner;
+};
 
 const card = (t: Backend, userId = "permanent-owner") =>
   t.run((ctx) =>
@@ -95,7 +81,6 @@ const snapshot = (t: Backend) =>
     users: await ctx.db.query("users").take(10),
     events: await ctx.db.query("workosEvents").take(10),
     deletions: await ctx.db.query("accountDeletionStates").take(10),
-    profiles: await ctx.db.query("workosProfiles").take(10),
   }));
 beforeEach(() => {
   vi.stubEnv("WORKOS_CLIENT_ID", clientId);
@@ -226,21 +211,23 @@ describe("WorkOS Convex sessions", () => {
     ).rejects.toThrow();
     expect(await snapshot(t)).toEqual(before);
   });
-  test("background owners use synced verification, without fabricated token evidence", async () => {
+  test("background owners and sessions both follow the WorkOS profile's verification", async () => {
     const t = setup();
-    const row = await seed(t);
+    await seed(t);
+    const id = await card(t);
     expect(
       await t.run((ctx) => requireTeakUserId(ctx, "permanent-owner"))
     ).toBe("permanent-owner");
-    await t.run((ctx) =>
-      ctx.db.patch("users", row, { workosEmailVerified: false })
-    );
+    await updateComponentUser(t, "user_PROVIDER", { emailVerified: false });
     await expect(
       t.run((ctx) => requireTeakUserId(ctx, "permanent-owner"))
     ).rejects.toThrow();
-    expect(
-      await client(t).query(api.cards.getCard, { id: await card(t) })
-    ).toMatchObject({ userId: "permanent-owner" });
+    // A verified token claim cannot stand in for the provider profile.
+    expect(await client(t).query(api.cards.getCard, { id })).toBeNull();
+    await updateComponentUser(t, "user_PROVIDER", { emailVerified: true });
+    expect(await client(t).query(api.cards.getCard, { id })).toMatchObject({
+      userId: "permanent-owner",
+    });
   });
   test.each([undefined, "", "client_bad/id"])(
     "missing or malformed application ID %s denies a session",
@@ -291,25 +278,6 @@ describe("WorkOS Convex sessions", () => {
           profilePictureUrl: "https://images.example.com/avatar.png",
         }
       );
-      await t.mutation(components.workOSAuthKit.lib.onWebhookEvent, {
-        event: {
-          id: "evt_profile",
-          event: "user.updated",
-          createdAt: "2026-10-04T00:00:00.000Z",
-          data: {
-            id: "user_PROVIDER",
-            email: "component@example.com",
-            emailVerified: true,
-            firstName: "Stale component",
-            lastName: "Cache",
-            profilePictureUrl: "https://images.example.com/stale.png",
-            externalId: "permanent-owner",
-            metadata: {},
-            createdAt: "2026-10-01T00:00:00.000Z",
-            updatedAt: "2026-10-04T00:00:00.000Z",
-          },
-        },
-      });
       expect(
         await client(t).run((ctx) => getSessionProfile(ctx))
       ).toMatchObject({

@@ -263,19 +263,14 @@ export async function getSessionProfile(
     return null;
   }
   const provider = await readWorkosProfile(ctx, sessionUser.identity.subject);
-  const mirror = await ctx.runQuery(internal.securitySessions.identityMapping, {
-    teakUserId: sessionUser.teakUserId,
-  });
-  // Match the REST profile policy: email is the WorkOS-synced mirror, while
-  // display fields come from the canonical provider profile.
-  if (!provider || typeof mirror?.workosEmail !== "string") {
+  if (!provider) {
     return null;
   }
   return {
     teakUserId: sessionUser.teakUserId,
     user: {
       _id: sessionUser.teakUserId,
-      email: mirror.workosEmail,
+      email: provider.email,
       emailVerified: provider.emailVerified,
       name:
         provider.name ??

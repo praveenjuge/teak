@@ -78,9 +78,18 @@ export const answerIdentityQuery = (
     };
   }
   if (name === "workosProfileRead:getProfile") {
+    const teakUserId = Buffer.from(
+      String(args?.workosUserId ?? "").replace(/^user_/, ""),
+      "hex"
+    ).toString();
     return {
       handled: true,
-      value: { emailVerified: true, name: null, profilePictureUrl: null },
+      value: {
+        email: email ?? `${teakUserId}@example.com`,
+        emailVerified: true,
+        name: null,
+        profilePictureUrl: null,
+      },
     };
   }
   return { handled: false };

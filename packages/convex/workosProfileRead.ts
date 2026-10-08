@@ -1,54 +1,24 @@
 import { v } from "convex/values";
 import { internalQuery, type QueryCtx } from "./_generated/server";
+import { readComponentUser } from "./securitySessions";
 
-// Provider state and unresolved conflicts are authoritative. A cached component
-// profile cannot restore access after a deletion or conflicting provider update.
+// The WorkOS AuthKit component holds the provider profile. Teak's own deletion
+// tombstone still wins: a deleted WorkOS user never regains a profile, even if
+// a stale component row or a late event says otherwise.
 export async function readCanonicalWorkosProfile(
-  ctx: Pick<QueryCtx, "db">,
+  ctx: Pick<QueryCtx, "db" | "runQuery">,
   workosUserId: string
 ) {
-  const profiles = await ctx.db
-    .query("workosProfiles")
-    .withIndex("by_workosUserId", (q) => q.eq("workosUserId", workosUserId))
-    .take(2);
-  if (profiles.length !== 1) {
-    return null;
-  }
-  const record = profiles[0];
-  if (
-    record.deletedAt !== undefined ||
-    !record.profile ||
-    !record.providerUpdatedAt
-  ) {
-    return null;
-  }
-  for (const reason of [
-    "profile_pending",
-    "equal_timestamp_conflict",
-    "duplicate_mapping",
-    "external_id_mismatch",
-    "link_conflict",
-  ] as const) {
-    const conflict = await ctx.db
-      .query("migrationQuarantine")
-      .withIndex("by_workosUserId_and_reason_and_resolvedAt", (q) =>
-        q
-          .eq("workosUserId", workosUserId)
-          .eq("reason", reason)
-          .eq("resolvedAt", undefined)
-      )
-      .first();
-    if (conflict) {
-      return null;
-    }
-  }
   const deleted = await ctx.db
     .query("workosEvents")
     .withIndex("by_workosUserId_and_type", (q) =>
       q.eq("workosUserId", workosUserId).eq("type", "user.deleted")
     )
     .first();
-  return deleted ? null : record;
+  if (deleted) {
+    return null;
+  }
+  return await readComponentUser(ctx, workosUserId);
 }
 
 export const getProfile = internalQuery({
@@ -67,18 +37,22 @@ export const getProfile = internalQuery({
     })
   ),
   handler: async (ctx, { workosUserId }) => {
-    const record = await readCanonicalWorkosProfile(ctx, workosUserId);
-    if (!record?.profile) {
+    const user = await readCanonicalWorkosProfile(ctx, workosUserId);
+    if (!user) {
       return null;
     }
-    const profile = record.profile;
+    const firstName = user.firstName ?? null;
+    const lastName = user.lastName ?? null;
     return {
       id: workosUserId,
-      ...profile,
+      email: user.email,
+      emailVerified: user.emailVerified,
+      externalId: user.externalId ?? null,
+      firstName,
+      lastName,
+      profilePictureUrl: user.profilePictureUrl ?? null,
       name:
-        profile.name ??
-        ([profile.firstName, profile.lastName].filter(Boolean).join(" ") ||
-          null),
+        user.name ?? ([firstName, lastName].filter(Boolean).join(" ") || null),
     };
   },
 });

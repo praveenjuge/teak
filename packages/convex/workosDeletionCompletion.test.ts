@@ -1,13 +1,17 @@
 /// <reference types="vite/client" />
+
 import workflowTest from "@convex-dev/workflow/test";
+import workosTest from "@convex-dev/workos-authkit/test";
 import { convexTest } from "convex-test";
 import { afterEach, beforeEach, expect, test, vi } from "vitest";
+import { seedComponentUser } from "./__tests__/helpers/workosOwner.test-utils";
 import { components, internal } from "./_generated/api";
 import schema from "./schema";
 import {
   currentWorkosDeletionTarget,
   expectedWorkosDeletionResolution,
 } from "./workosDeletionCompletion";
+import { readCanonicalWorkosProfile } from "./workosProfileRead";
 
 const modules = import.meta.glob("./**/*.ts");
 beforeEach(() => {
@@ -22,6 +26,7 @@ afterEach(() => {
 });
 async function fixture(stage = 6) {
   const t = convexTest(schema, modules);
+  workosTest.register(t);
   const target = (await currentWorkosDeletionTarget())!;
   const ids = await t.run(async (ctx) => {
     const ownerId = await ctx.db.insert("users", {
@@ -40,6 +45,12 @@ async function fixture(stage = 6) {
       workosTarget: target,
     });
     return { ownerId, stateId };
+  });
+  // The component's row can outlive Teak's tombstone; it must never revive.
+  await seedComponentUser(t, {
+    id: "user_DELETE",
+    email: "owner@example.com",
+    externalId: "owner",
   });
   const receipt = {
     workosUserId: "user_DELETE",
@@ -251,8 +262,8 @@ test.each(["before", "after"] as const)(
       expect.any(Number)
     );
     expect(
-      (await t.run((ctx) => ctx.db.query("workosProfiles").unique()))?.deletedAt
-    ).toEqual(expect.any(Number));
+      await t.run((ctx) => readCanonicalWorkosProfile(ctx, "user_DELETE"))
+    ).toBeNull();
     expect(
       (await t.run((ctx) => ctx.db.query("workosEvents").unique()))?.type
     ).toBe("user.deleted");
@@ -294,8 +305,14 @@ test("unexpected metadata-free provider deletion stays blocked despite an owner 
       ?.resolvedAt
   ).toBeUndefined();
   expect(
-    (await t.run((ctx) => ctx.db.query("workosProfiles").unique()))?.deletedAt
-  ).toEqual(expect.any(Number));
+    await t.run((ctx) => readCanonicalWorkosProfile(ctx, "user_DELETE"))
+  ).toBeNull();
+  expect(
+    await t.query(internal.workosIdentity.resolveWorkosOwner, {
+      workosUserId: "user_DELETE",
+      verification: { kind: "connect" },
+    })
+  ).toEqual({ status: "denied", reason: "workos_deleted_user" });
 });
 
 test.each([

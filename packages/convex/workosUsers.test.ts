@@ -1,4 +1,5 @@
 /// <reference types="vite/client" />
+import workosTest from "@convex-dev/workos-authkit/test";
 import {
   type ApiFromModules,
   type FunctionArgs,
@@ -7,6 +8,7 @@ import {
 } from "convex/server";
 import { convexTest } from "convex-test";
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
+import { seedComponentUser } from "./__tests__/helpers/workosOwner.test-utils";
 import type { Doc } from "./_generated/dataModel";
 import schema from "./schema";
 import type { linkWorkosUser } from "./workosUsers";
@@ -22,13 +24,17 @@ const link = makeFunctionReference<
   FunctionArgs<Link>,
   FunctionReturnType<Link>
 >("workosUsers:linkWorkosUser");
-const setup = () => convexTest(schema, modules);
+const setup = () => {
+  const t = convexTest(schema, modules);
+  workosTest.register(t);
+  return t;
+};
 type Backend = ReturnType<typeof setup>;
 const input = {
   workosUserId: "user_workos_a",
   email: "owner@example.com",
   emailVerified: true,
-  source: "import" as const,
+  source: "webhook" as const,
 };
 const seed = (t: Backend, fields: Partial<Doc<"users">> = {}) =>
   t.run((ctx) =>
@@ -51,13 +57,9 @@ const snapshot = (t: Backend) =>
 // deletion resurrection; retry profile/role/card changes; concurrent duplicate
 // linking; quarantine writes rolled back by throws; malformed provider inputs.
 describe("transactional WorkOS identity linking", () => {
-  test("external ID links an unverified imported user without rewriting their vault or profile", async () => {
+  test("external ID links an unverified legacy user without rewriting their vault or profile", async () => {
     const t = setup();
-    const id = await seed(t, {
-      emailVerified: false,
-      role: "admin",
-      lastWorkosEventAt: 123,
-    });
+    const id = await seed(t, { emailVerified: false, role: "admin" });
     await t.run((ctx) =>
       ctx.db.insert("cards", {
         userId: "owner-a",
@@ -124,17 +126,12 @@ describe("transactional WorkOS identity linking", () => {
     ]);
   });
 
-  test("idempotent retries from import, webhook and bootstrap keep the same link", async () => {
+  test("idempotent retries from webhook and bootstrap keep the same link", async () => {
     const t = setup();
     await seed(t);
     await t.mutation(link, { ...input, externalId: "owner-a" });
     const before = await snapshot(t);
-    for (const source of [
-      "import",
-      "webhook",
-      "ensureUser",
-      "reconcile",
-    ] as const) {
+    for (const source of ["webhook", "ensureUser"] as const) {
       expect(
         await t.mutation(link, {
           ...input,
@@ -167,7 +164,7 @@ describe("transactional WorkOS identity linking", () => {
           teakUserId: externalId,
           workosUserId: input.workosUserId,
           reason: "external_id_mismatch",
-          source: "import",
+          source: "webhook",
         },
       ]);
     }
@@ -218,6 +215,29 @@ describe("transactional WorkOS identity linking", () => {
       cards: [],
       quarantine: [{ reason: "missing_mapping" }],
     });
+  });
+
+  test("a later successful link closes earlier pending receipts but not conflicts", async () => {
+    const t = setup();
+    expect(await t.mutation(link, input)).toMatchObject({
+      status: "quarantined",
+      reason: "missing_mapping",
+    });
+    await t.run((ctx) =>
+      ctx.db.insert("migrationQuarantine", {
+        workosUserId: input.workosUserId,
+        email: input.email,
+        reason: "link_conflict",
+        source: "webhook",
+        createdAt: 0,
+      })
+    );
+    await seed(t);
+    expect(await t.mutation(link, input)).toMatchObject({ status: "linked" });
+    const open = (await snapshot(t)).quarantine.filter(
+      (row) => row.resolvedAt === undefined
+    );
+    expect(open.map((row) => row.reason)).toEqual(["link_conflict"]);
   });
 
   test("repeated denials keep one open receipt until it is resolved", async () => {
@@ -341,11 +361,11 @@ describe("transactional WorkOS identity linking", () => {
     }
   );
 
-  test("concurrent import, webhook and bootstrap converge on one provider link", async () => {
+  test("concurrent webhook and bootstrap deliveries converge on one provider link", async () => {
     const t = setup();
     await seed(t);
     const results = await Promise.all(
-      (["import", "webhook", "ensureUser"] as const).map((source) =>
+      (["webhook", "ensureUser", "webhook"] as const).map((source) =>
         t.mutation(link, { ...input, externalId: "owner-a", source })
       )
     );
@@ -428,8 +448,9 @@ describe("transactional WorkOS identity linking", () => {
   );
 });
 
-// Creation failures: disabled primary/freeze, untrusted sources, external-ID
-// conflicts, unverified email, deleted provider, collisions and retry seeding.
+// Creation failures: disabled primary/freeze, callers without creation
+// permission, external-ID conflicts, unverified or mismatched component
+// profiles, deleted provider, collisions and retry seeding.
 describe("trusted new WorkOS owners", () => {
   beforeEach(() => {
     vi.useFakeTimers();
@@ -446,30 +467,22 @@ describe("trusted new WorkOS owners", () => {
     source: "ensureUser" as const,
     allowCreate: true,
   };
+  // The WorkOS component's profile is the provider evidence creation requires.
   const seedProvider = (
     t: Backend,
-    fields: Partial<Doc<"workosProfiles">> = {}
+    fields: Partial<Parameters<typeof seedComponentUser>[1]> = {}
   ) =>
-    t.run((ctx) =>
-      ctx.db.insert("workosProfiles", {
-        workosUserId: create.workosUserId,
-        providerUpdatedAt: "2026-10-04T00:00:00Z",
-        revision: 1,
-        source: "event",
-        profile: {
-          email: create.email,
-          emailVerified: true,
-          externalId: null,
-          firstName: "New",
-          lastName: "Owner",
-          profilePictureUrl: null,
-        },
-        ...fields,
-      })
-    );
+    seedComponentUser(t, {
+      id: create.workosUserId,
+      email: create.email,
+      externalId: null,
+      firstName: "New",
+      lastName: "Owner",
+      ...fields,
+    });
   const jobs = (t: Backend) =>
     t.run((ctx) => ctx.db.system.query("_scheduled_functions").take(10));
-  test("creation waits for canonical provider evidence even with a verified caller", async () => {
+  test("creation waits for the component profile even with a verified caller", async () => {
     const t = setup();
     expect(await t.mutation(link, create)).toEqual({
       status: "quarantined",
@@ -479,32 +492,28 @@ describe("trusted new WorkOS owners", () => {
     expect(await jobs(t)).toEqual([]);
   });
   test.each([
-    { fields: { providerUpdatedAt: undefined }, reason: "profile_pending" },
-    { fields: { deletedAt: 1 }, reason: "workos_deleted_user" },
-    { fields: { profile: undefined }, reason: "profile_pending" },
+    { email: "someone-else@example.com" },
+    { externalId: "teak_bound_elsewhere" },
   ])(
-    "incomplete or deleted canonical state refuses creation: %j",
-    async ({ fields, reason }) => {
+    "a component profile for another address or owner refuses creation: %j",
+    async (fields) => {
       const t = setup();
       await seedProvider(t, fields);
       expect(await t.mutation(link, create)).toEqual({
         status: "quarantined",
-        reason,
+        reason: "profile_pending",
       });
       expect((await snapshot(t)).users).toEqual([]);
       expect(await jobs(t)).toEqual([]);
     }
   );
-  test("duplicate canonical profiles cannot allocate an owner", async () => {
+  test("a component profile matches the caller's address after normalization", async () => {
     const t = setup();
-    await seedProvider(t);
-    await seedProvider(t);
-    expect(await t.mutation(link, create)).toEqual({
-      status: "quarantined",
-      reason: "duplicate_mapping",
+    await seedProvider(t, { email: " Owner@Example.COM " });
+    expect(await t.mutation(link, create)).toMatchObject({
+      status: "linked",
+      changed: true,
     });
-    expect((await snapshot(t)).users).toEqual([]);
-    expect(await jobs(t)).toEqual([]);
   });
   test("an unresolved provider conflict cannot allocate an owner", async () => {
     const t = setup();
@@ -525,18 +534,9 @@ describe("trusted new WorkOS owners", () => {
     expect((await snapshot(t)).users).toEqual([]);
     expect(await jobs(t)).toEqual([]);
   });
-  test("unverified canonical email cannot be promoted by the caller", async () => {
+  test("an unverified component email cannot be promoted by the caller", async () => {
     const t = setup();
-    await seedProvider(t, {
-      profile: {
-        email: create.email,
-        emailVerified: false,
-        externalId: null,
-        firstName: null,
-        lastName: null,
-        profilePictureUrl: null,
-      },
-    });
+    await seedProvider(t, { emailVerified: false });
     expect(await t.mutation(link, create)).toEqual({
       status: "quarantined",
       reason: "email_unverified",
@@ -554,14 +554,17 @@ describe("trusted new WorkOS owners", () => {
     }
     expect(result.teakUserId).toMatch(/^teak_[a-zA-Z0-9]+$/);
     expect(result.teakUserId).not.toBe(create.workosUserId);
-    expect((await snapshot(t)).users).toMatchObject([
-      {
-        teakUserId: result.teakUserId,
-        workosUserId: create.workosUserId,
-        workosEmail: input.email,
-        workosEmailVerified: true,
-      },
-    ]);
+    const [owner] = (await snapshot(t)).users;
+    expect(owner).toMatchObject({
+      teakUserId: result.teakUserId,
+      identityOrigin: "workos",
+      workosUserId: create.workosUserId,
+      email: input.email,
+      emailVerified: true,
+    });
+    // The component holds the provider profile; Teak keeps no copy.
+    expect(owner.workosEmail).toBeUndefined();
+    expect(owner.workosEmailVerified).toBeUndefined();
     const scheduled = await jobs(t);
     expect(scheduled).toHaveLength(2);
     expect(
@@ -576,12 +579,7 @@ describe("trusted new WorkOS owners", () => {
         args: [{ userId: result.teakUserId, source: "auth" }],
       },
     ]);
-    for (const source of [
-      "ensureUser",
-      "webhook",
-      "import",
-      "reconcile",
-    ] as const) {
+    for (const source of ["ensureUser", "webhook"] as const) {
       expect(await t.mutation(link, { ...create, source })).toEqual({
         ...result,
         changed: false,
@@ -606,11 +604,12 @@ describe("trusted new WorkOS owners", () => {
       { reason: "signups_frozen" },
     ]);
   });
-  test.each(["import", "reconcile"] as const)(
-    "%s cannot create even with the internal discriminator",
+  test.each(["webhook", "ensureUser"] as const)(
+    "%s without explicit creation permission cannot create",
     async (source) => {
       const t = setup();
-      expect(await t.mutation(link, { ...create, source })).toEqual({
+      await seedProvider(t);
+      expect(await t.mutation(link, { ...input, source })).toEqual({
         status: "quarantined",
         reason: "missing_mapping",
       });
@@ -618,18 +617,12 @@ describe("trusted new WorkOS owners", () => {
       expect(await jobs(t)).toEqual([]);
     }
   );
-  test("webhook without explicit created-event permission cannot create", async () => {
-    const t = setup();
-    expect(await t.mutation(link, { ...input, source: "webhook" })).toEqual({
-      status: "quarantined",
-      reason: "missing_mapping",
-    });
-  });
   test.each([
     { externalId: "unknown-owner", reason: "external_id_mismatch" },
     { emailVerified: false, reason: "email_unverified" },
   ])("creation preserves $reason quarantine", async ({ reason, ...fields }) => {
     const t = setup();
+    await seedProvider(t);
     expect(await t.mutation(link, { ...create, ...fields })).toEqual({
       status: "quarantined",
       reason,
@@ -637,8 +630,9 @@ describe("trusted new WorkOS owners", () => {
     expect((await snapshot(t)).users).toEqual([]);
     expect(await jobs(t)).toEqual([]);
   });
-  test("a terminal provider deletion blocks a fresh owner", async () => {
+  test("a terminal provider deletion blocks a fresh owner despite a verified component profile", async () => {
     const t = setup();
+    await seedProvider(t);
     await t.run((ctx) =>
       ctx.db.insert("workosEvents", {
         workosUserId: create.workosUserId,
@@ -652,6 +646,7 @@ describe("trusted new WorkOS owners", () => {
       reason: "workos_deleted_user",
     });
     expect((await snapshot(t)).users).toEqual([]);
+    expect(await jobs(t)).toEqual([]);
   });
   test("database allocation preserves every existing owner", async () => {
     const t = setup();

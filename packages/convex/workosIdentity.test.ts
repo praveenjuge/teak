@@ -1,60 +1,50 @@
 /// <reference types="vite/client" />
+import workosTest from "@convex-dev/workos-authkit/test";
 import { convexTest } from "convex-test";
 import { describe, expect, test, vi } from "vitest";
-import { internal } from "./_generated/api";
+import { seedComponentUser } from "./__tests__/helpers/workosOwner.test-utils";
+import { components, internal } from "./_generated/api";
 import type { Doc } from "./_generated/dataModel";
 import schema from "./schema";
 
 const modules = import.meta.glob("./**/*.ts");
-const setup = () => convexTest(schema, modules);
+const setup = () => {
+  const t = convexTest(schema, modules);
+  workosTest.register(t);
+  return t;
+};
 type Backend = ReturnType<typeof setup>;
 const input = {
   workosUserId: "user_provider",
   verification: { kind: "connect" as const },
 };
-const seed = (
+// An owner row plus the component's provider profile for its WorkOS user. The
+// component keeps the first profile it stores, so repeat seeds keep it too.
+const seed = async (
   t: Backend,
   fields: Partial<Doc<"users">> = {},
-  profile: Partial<NonNullable<Doc<"workosProfiles">["profile"]>> | null = {}
-) =>
-  t.run(async (ctx) => {
-    const owner = await ctx.db.insert("users", {
+  profile: { emailVerified?: boolean; externalId?: string | null } | null = {}
+) => {
+  const owner = await t.run((ctx) =>
+    ctx.db.insert("users", {
       teakUserId: "permanent-owner",
       workosUserId: "user_provider",
       email: "legacy@example.com",
       emailVerified: true,
-      workosEmail: "provider@example.com",
-      workosEmailVerified: true,
       ...fields,
+    })
+  );
+  const user = await t.run((ctx) => ctx.db.get("users", owner));
+  if (profile !== null && user?.workosUserId) {
+    await seedComponentUser(t, {
+      id: user.workosUserId,
+      email: "provider@example.com",
+      externalId: user.teakUserId,
+      ...profile,
     });
-    const user = await ctx.db.get("users", owner);
-    const workosUserId = user?.workosUserId;
-    if (profile !== null && workosUserId) {
-      const existing = await ctx.db
-        .query("workosProfiles")
-        .withIndex("by_workosUserId", (q) => q.eq("workosUserId", workosUserId))
-        .first();
-      if (!existing) {
-        await ctx.db.insert("workosProfiles", {
-          workosUserId,
-          teakUserId: user.teakUserId,
-          providerUpdatedAt: "2026-10-04T00:00:00Z",
-          revision: 1,
-          source: "event",
-          profile: {
-            email: user.workosEmail ?? "provider@example.com",
-            emailVerified: true,
-            externalId: user.teakUserId,
-            firstName: null,
-            lastName: null,
-            profilePictureUrl: null,
-            ...profile,
-          },
-        });
-      }
-    }
-    return owner;
-  });
+  }
+  return owner;
+};
 
 const resolve = (t: Backend) =>
   t.query(internal.workosIdentity.resolveWorkosOwner, input);
@@ -63,11 +53,13 @@ const snapshot = (t: Backend) =>
     users: await ctx.db.query("users").take(10),
     events: await ctx.db.query("workosEvents").take(10),
     quarantine: await ctx.db.query("migrationQuarantine").take(10),
-    profiles: await ctx.db.query("workosProfiles").take(10),
+    provider: await ctx.runQuery(components.workOSAuthKit.lib.getAuthUser, {
+      id: "user_provider",
+    }),
   }));
 
 // Failures: provider subjects become vault owners; legacy verification promotes
-// Connect access; missing session evidence passes; duplicate owner/provider rows
+// access; missing session evidence passes; duplicate owner/provider rows
 // resolve; global deletion does not cover an unpatched third row; external IDs
 // drift; active deletion is ignored; a resolver writes or creates mappings.
 describe("read-only canonical WorkOS owner resolution", () => {
@@ -125,15 +117,25 @@ describe("read-only canonical WorkOS owner resolution", () => {
     }
   });
 
-  test.each([false, undefined])(
-    "Connect ignores legacy verification when provider evidence is %s",
-    async (workosEmailVerified) => {
+  test.each([
+    ["unverified", { emailVerified: false }],
+    ["missing", null],
+  ] as const)(
+    "a %s component profile denies both token kinds despite a verified Teak row",
+    async (_label, profile) => {
       const t = setup();
-      await seed(t, { emailVerified: true, workosEmailVerified });
-      expect(await resolve(t)).toEqual({
-        status: "denied",
-        reason: "verify_email",
-      });
+      await seed(t, { emailVerified: true }, profile);
+      for (const verification of [
+        { kind: "connect" as const },
+        { kind: "session" as const, emailVerified: true },
+      ]) {
+        expect(
+          await t.query(internal.workosIdentity.resolveWorkosOwner, {
+            ...input,
+            verification,
+          })
+        ).toEqual({ status: "denied", reason: "verify_email" });
+      }
     }
   );
 
@@ -150,7 +152,7 @@ describe("read-only canonical WorkOS owner resolution", () => {
     "session verification claim %s is authoritative",
     async (emailVerified) => {
       const t = setup();
-      await seed(t, { workosEmailVerified: !emailVerified });
+      await seed(t);
       const result = await t.query(internal.workosIdentity.resolveWorkosOwner, {
         ...input,
         verification: { kind: "session", emailVerified },
@@ -180,6 +182,29 @@ describe("read-only canonical WorkOS owner resolution", () => {
           : { status: "ok", teakUserId: "permanent-owner" }
       );
       expect(await snapshot(t)).toEqual(before);
+    }
+  );
+
+  test.each([
+    ["someone-else", { status: "denied", reason: "external_id_mismatch" }],
+    ["permanent-owner", { status: "ok", teakUserId: "permanent-owner" }],
+    [null, { status: "ok", teakUserId: "permanent-owner" }],
+  ] as const)(
+    "component external ID %s is checked against the mapped owner",
+    async (externalId, expected) => {
+      const t = setup();
+      await seed(t, {}, { externalId });
+      for (const verification of [
+        { kind: "connect" as const },
+        { kind: "session" as const, emailVerified: true },
+      ]) {
+        expect(
+          await t.query(internal.workosIdentity.resolveWorkosOwner, {
+            ...input,
+            verification,
+          })
+        ).toEqual(expected);
+      }
     }
   );
 
@@ -255,7 +280,6 @@ describe("read-only canonical WorkOS owner resolution", () => {
     });
     const before = await snapshot(t);
     expect(before.users[3].workosDeletedAt).toBeUndefined();
-    expect(before.users[3].workosEmailVerified).toBe(true);
     for (const verification of [
       { kind: "connect" as const },
       { kind: "session" as const, emailVerified: true },
@@ -270,7 +294,7 @@ describe("read-only canonical WorkOS owner resolution", () => {
     expect(await snapshot(t)).toEqual(before);
   });
 
-  test("provider deletion ledger denies a unique row without supplementary flags", async () => {
+  test("the Teak deletion tombstone denies even while a verified component profile remains", async () => {
     const t = setup();
     await seed(t);
     await t.run((ctx) =>
@@ -283,6 +307,7 @@ describe("read-only canonical WorkOS owner resolution", () => {
     );
     const before = await snapshot(t);
     expect(before.users[0].workosDeletedAt).toBeUndefined();
+    expect(before.provider).toMatchObject({ emailVerified: true });
     expect(await resolve(t)).toEqual({
       status: "denied",
       reason: "workos_deleted_user",

@@ -1,9 +1,11 @@
 /// <reference types="vite/client" />
 import betterAuthTest from "@convex-dev/better-auth/test";
 import workflowTest from "@convex-dev/workflow/test";
+import workosTest from "@convex-dev/workos-authkit/test";
 import apiKeysTest from "@vllnt/convex-api-keys/test";
 import { convexTest } from "convex-test";
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
+import { seedComponentUser } from "./__tests__/helpers/workosOwner.test-utils";
 import { api, components, internal } from "./_generated/api";
 import { finishAccountDeletion } from "./accountDeletion";
 import schema from "./schema";
@@ -21,6 +23,7 @@ const fixture = async (legacy = false) => {
   betterAuthTest.register(t);
   workflowTest.register(t);
   apiKeysTest.register(t);
+  workosTest.register(t);
   const legacyUser = legacy
     ? await t.mutation(components.betterAuth.adapter.create, {
         input: {
@@ -42,26 +45,13 @@ const fixture = async (legacy = false) => {
       workosUserId: "user_DELETE",
       email: "legacy@example.com",
       emailVerified: true,
-      workosEmail: "provider@example.com",
-      workosEmailVerified: true,
     })
   );
-  await t.run((ctx) =>
-    ctx.db.insert("workosProfiles", {
-      workosUserId: "user_DELETE",
-      revision: 1,
-      source: "event",
-      providerUpdatedAt: "2026-10-01T00:00:00Z",
-      profile: {
-        email: "provider@example.com",
-        emailVerified: true,
-        externalId: ownerId,
-        firstName: null,
-        lastName: null,
-        profilePictureUrl: null,
-      },
-    })
-  );
+  await seedComponentUser(t, {
+    id: "user_DELETE",
+    email: "provider@example.com",
+    externalId: ownerId,
+  });
   const card = await t.run((ctx) =>
     ctx.db.insert("cards", {
       userId: ownerId,

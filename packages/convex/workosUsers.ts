@@ -3,6 +3,7 @@ import { internal } from "./_generated/api";
 import type { Doc } from "./_generated/dataModel";
 import { internalMutation, type MutationCtx } from "./_generated/server";
 import { readSignupsDisabled } from "./env";
+import { readComponentUser } from "./securitySessions";
 import { scheduleUserCreated } from "./telemetry/schedule";
 import { normalizeIdentityEmail } from "./userIdentityTable";
 
@@ -51,7 +52,37 @@ export const recordQuarantine = async (
   }
 };
 
-// Only authenticated provider/import adapters may call this internal boundary.
+// A successful link answers the earlier "not yet" receipts for this WorkOS user.
+// Conflict receipts stay open for an operator.
+const PENDING_REASONS = [
+  "missing_mapping",
+  "signups_frozen",
+  "email_unverified",
+  "profile_pending",
+] as const;
+const resolvePendingReceipts = async (
+  ctx: MutationCtx,
+  workosUserId: string
+) => {
+  for (const reason of PENDING_REASONS) {
+    const open = await ctx.db
+      .query("migrationQuarantine")
+      .withIndex("by_workosUserId_and_reason_and_resolvedAt", (q) =>
+        q
+          .eq("workosUserId", workosUserId)
+          .eq("reason", reason)
+          .eq("resolvedAt", undefined)
+      )
+      .take(100);
+    for (const receipt of open) {
+      await ctx.db.patch("migrationQuarantine", receipt._id, {
+        resolvedAt: Date.now(),
+      });
+    }
+  }
+};
+
+// Only authenticated provider adapters may call this internal boundary.
 // It links existing owners; only proven bootstrap/created-event adapters may
 // allocate a new permanent owner when the shared signup policy permits it.
 // All uniqueness reads and the one link write share the mutation transaction.
@@ -62,12 +93,7 @@ export const linkWorkosUser = internalMutation({
     externalId: v.optional(v.union(v.string(), v.null())),
     email: v.string(),
     emailVerified: v.boolean(),
-    source: v.union(
-      v.literal("import"),
-      v.literal("webhook"),
-      v.literal("ensureUser"),
-      v.literal("reconcile")
-    ),
+    source: v.union(v.literal("webhook"), v.literal("ensureUser")),
   },
   returns: v.union(
     v.object({
@@ -119,17 +145,7 @@ export const linkWorkosUser = internalMutation({
         q.eq("workosUserId", args.workosUserId).eq("type", "user.deleted")
       )
       .first();
-    const providerStates = await ctx.db
-      .query("workosProfiles")
-      .withIndex("by_workosUserId", (q) =>
-        q.eq("workosUserId", args.workosUserId)
-      )
-      .take(2);
-    if (providerStates.length > 1) {
-      return quarantine("duplicate_mapping");
-    }
     if (
-      providerStates[0]?.deletedAt !== undefined ||
       providerDeletion ||
       providerRows.some((row) => row.workosDeletedAt !== undefined)
     ) {
@@ -183,19 +199,14 @@ export const linkWorkosUser = internalMutation({
         ) {
           throw new Error("Invalid WorkOS creation input");
         }
-        const canonical = await ctx.db
-          .query("workosProfiles")
-          .withIndex("by_workosUserId", (q) =>
-            q.eq("workosUserId", args.workosUserId)
-          )
-          .take(2);
-        const provider = canonical.length === 1 ? canonical[0] : undefined;
+        // A new owner needs the component's current, verified profile for this
+        // exact address, not yet bound to another owner.
+        const provider = await readComponentUser(ctx, args.workosUserId);
         const currentVerifiedProfile =
-          provider?.deletedAt === undefined &&
-          provider?.providerUpdatedAt !== undefined &&
-          provider.profile?.email === email &&
-          provider.profile.emailVerified === true &&
-          provider.profile.externalId === null;
+          provider !== null &&
+          normalizeIdentityEmail(provider.email) === email &&
+          provider.emailVerified === true &&
+          (provider.externalId ?? null) === null;
         for (const reason of [
           "equal_timestamp_conflict",
           "duplicate_mapping",
@@ -217,7 +228,7 @@ export const linkWorkosUser = internalMutation({
         }
         if (!currentVerifiedProfile) {
           return quarantine(
-            provider?.profile?.emailVerified === false
+            provider?.emailVerified === false
               ? "email_unverified"
               : "profile_pending"
           );
@@ -231,11 +242,6 @@ export const linkWorkosUser = internalMutation({
           email,
           emailVerified: true,
           workosUserId: args.workosUserId,
-          workosEmail: email,
-          workosEmailVerified: true,
-          ...(provider?.lastEventAt === undefined
-            ? {}
-            : { lastWorkosEventAt: provider.lastEventAt }),
         });
         const teakUserId = `teak_${ownerId}`;
         const collision = await ctx.db
@@ -252,6 +258,7 @@ export const linkWorkosUser = internalMutation({
           { userId: teakUserId }
         );
         await scheduleUserCreated(ctx, { source: "auth", userId: teakUserId });
+        await resolvePendingReceipts(ctx, args.workosUserId);
         return { status: "linked" as const, teakUserId, changed: true };
       }
       // A verified provider address must not claim a pre-existing unverified
@@ -290,12 +297,12 @@ export const linkWorkosUser = internalMutation({
     }
     const changed = candidate.workosUserId !== args.workosUserId;
     if (changed) {
-      // Ordered WorkOS profile synchronization belongs to the lifecycle handler.
-      // Linking must never overwrite either provider profile.
+      // The WorkOS component holds the profile; linking only binds the owner.
       await ctx.db.patch("users", candidate._id, {
         workosUserId: args.workosUserId,
       });
     }
+    await resolvePendingReceipts(ctx, args.workosUserId);
     return {
       status: "linked" as const,
       teakUserId: candidate.teakUserId,

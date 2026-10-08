@@ -23,10 +23,6 @@ const app = defineApp({
     WORKOS_CONNECT_FIREFOX_CLIENT_ID: v.optional(v.string()),
     WORKOS_CONNECT_SAFARI_CLIENT_ID: v.optional(v.string()),
     WORKOS_ENVIRONMENT_ID: v.optional(v.string()),
-    WORKOS_RECONCILIATION_MODE: v.optional(
-      v.union(v.literal("off"), v.literal("audit"))
-    ),
-    WORKOS_RECONCILIATION_WITNESS_ID: v.optional(v.string()),
     WORKOS_WEBHOOK_SECRET: v.optional(v.string()),
     WORKOS_ACTION_SECRET: v.optional(v.string()),
     // Files / R2 capability group.

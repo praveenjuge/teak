@@ -3,10 +3,14 @@ import polarTest from "@convex-dev/polar/test";
 import rateLimiterTest from "@convex-dev/rate-limiter/test";
 import counterTest from "@convex-dev/sharded-counter/test";
 import workflowTest from "@convex-dev/workflow/test";
+import workosTest from "@convex-dev/workos-authkit/test";
 import apiKeysTest from "@vllnt/convex-api-keys/test";
 import { convexTest } from "convex-test";
 import { expect, test } from "vitest";
-import { seedWorkosOwner } from "./__tests__/helpers/workosOwner.test-utils";
+import {
+  seedWorkosOwner,
+  updateComponentUser,
+} from "./__tests__/helpers/workosOwner.test-utils";
 import { api } from "./_generated/api";
 import schema from "./schema";
 
@@ -17,6 +21,7 @@ async function setup() {
   const t = convexTest(schema, modules);
   polarTest.register(t);
   workflowTest.register(t);
+  workosTest.register(t);
   rateLimiterTest.register(t, "rateLimiterV2");
   apiKeysTest.register(t);
   counterTest.register(t, "apiKeys/shardedCounter");
@@ -69,33 +74,12 @@ test("me returns the permanent owner for an API key and rejects it once revoked"
   expect((await request()).status).toBe(401);
 });
 
-test("me reads the WorkOS-synced email and profile name without exposing provider IDs", async () => {
+test("me reads the email and name from the WorkOS profile without exposing provider IDs", async () => {
   const { t, workosUserId, request } = await setup();
-  await t.run(async (ctx) => {
-    const owner = await ctx.db
-      .query("users")
-      .withIndex("by_teakUserId", (q) => q.eq("teakUserId", OWNER))
-      .unique();
-    const profile = await ctx.db
-      .query("workosProfiles")
-      .withIndex("by_workosUserId", (q) => q.eq("workosUserId", workosUserId))
-      .unique();
-    if (!(owner && profile)) {
-      throw new Error("Missing owner fixture");
-    }
-    await ctx.db.patch("users", owner._id, {
-      workosEmail: "updated@example.test",
-    });
-    await ctx.db.patch("workosProfiles", profile._id, {
-      profile: {
-        email: `${OWNER}@example.test`,
-        emailVerified: true,
-        externalId: OWNER,
-        firstName: "Identity",
-        lastName: "Boundary",
-        profilePictureUrl: null,
-      },
-    });
+  await updateComponentUser(t, workosUserId, {
+    email: "updated@example.test",
+    firstName: "Identity",
+    lastName: "Boundary",
   });
   const response = await request();
   expect(response.status).toBe(200);

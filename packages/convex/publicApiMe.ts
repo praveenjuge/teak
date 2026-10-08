@@ -32,16 +32,19 @@ export const profileForOwner = internalQuery({
     const count = includeCardCount
       ? { cardCount: await getActiveCardCount(ctx, teakUserId) }
       : {};
-    if (!mirror?.workosUserId || typeof mirror.workosEmail !== "string") {
+    if (!mirror?.workosUserId) {
       return null;
     }
     const provider = await readWorkosProfile(ctx, mirror.workosUserId);
+    if (!provider) {
+      return null;
+    }
     const name =
-      provider?.name ??
-      [provider?.firstName, provider?.lastName].filter(Boolean).join(" ");
+      provider.name ??
+      [provider.firstName, provider.lastName].filter(Boolean).join(" ");
     return {
       id: teakUserId,
-      email: mirror.workosEmail,
+      email: provider.email,
       ...(name ? { name } : {}),
       ...count,
     };

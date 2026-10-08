@@ -491,12 +491,14 @@ export default defineSchema({
     email: v.string(),
     emailVerified: v.boolean(),
     workosUserId: v.optional(v.string()),
-    // Current WorkOS profile state, kept apart from the original email fields.
+    // Deprecated: Teak's old copy of the WorkOS profile. The WorkOS AuthKit
+    // component holds the profile now; existing values are kept, not written.
     workosEmail: v.optional(v.string()),
     workosEmailVerified: v.optional(v.boolean()),
     workosDeletedAt: v.optional(v.number()),
     workosDeletionCompletion: v.optional(workosDeletionCompletionValidator),
     role: v.optional(v.literal("admin")),
+    // Deprecated with workosEmail; kept, not written.
     lastWorkosEventAt: v.optional(v.number()),
     deletedAt: v.optional(v.number()),
   })
@@ -528,6 +530,12 @@ export default defineSchema({
     reason: v.string(),
     receivedAt: v.number(),
   }).index("by_eventId", ["eventId"]),
+  // Where the WorkOS Events API catch-up continues from.
+  workosEventCursors: defineTable({
+    name: v.string(),
+    after: v.string(),
+    updatedAt: v.number(),
+  }).index("by_name", ["name"]),
   workosEvents: defineTable({
     eventId: v.string(),
     workosUserId: v.optional(v.string()),
@@ -540,6 +548,8 @@ export default defineSchema({
     .index("by_eventId", ["eventId"])
     .index("by_workosUserId_and_type", ["workosUserId", "type"])
     .index("by_workosUserId_and_createdAt", ["workosUserId", "createdAt"]),
+  // Deprecated: Teak's old canonical copy of WorkOS profiles, replaced by the
+  // WorkOS AuthKit component. Rows are kept read-only; dropping needs approval.
   workosProfiles: defineTable(workosProfileFields).index("by_workosUserId", [
     "workosUserId",
   ]),
@@ -604,6 +614,7 @@ export default defineSchema({
     ),
     lastAcknowledgedAt: v.optional(v.number()),
   }).index("by_scope", ["scope"]),
+  // Deprecated: the retired reconciliation audit's history, kept read-only.
   workosReconciliationRuns: defineTable(workosReconciliationRunFields)
     .index("by_runId", ["runId"])
     .index("by_environmentId_and_updatedAt", ["environmentId", "updatedAt"])
