@@ -34,7 +34,6 @@ export function SettingsPage({ onNavigateBack }: SettingsPageProps) {
     >
       <SettingsContent
         accountLoading={settings.accountLoading}
-        betterAuthIdentityKey={settings.betterAuthIdentityKey}
         cardCount={settings.cardCount}
         connectionIdentity={settings.connectionIdentity}
         deleteDialogError={settings.deleteDialogError}

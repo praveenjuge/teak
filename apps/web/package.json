@@ -13,7 +13,6 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@convex-dev/better-auth": "^0.12.5",
     "@polar-sh/checkout": "^0.4.0",
     "@sentry/nextjs": "10.69.0",
     "@teak/convex": "workspace:*",
@@ -22,7 +21,6 @@
     "@vercel/og": "^1.0.1",
     "@workos-inc/authkit-nextjs": "4.4.0",
     "@workos-inc/node": "10.14.0",
-    "better-auth": "1.6.26",
     "convex": "^1.46.0",
     "convex-helpers": "^0.1.122",
     "lucide-react": "^1.30.0",

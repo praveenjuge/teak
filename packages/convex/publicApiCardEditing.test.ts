@@ -11,6 +11,7 @@ import {
   test,
   vi,
 } from "vitest";
+import { seedWorkosOwner } from "./__tests__/helpers/workosOwner.test-utils";
 import { internal } from "./_generated/api";
 import {
   searchCardsByDocument,
@@ -41,6 +42,8 @@ async function setup() {
   const t = convexTest(schema, modules);
   rateLimiterTest.register(t, "rateLimiterV2");
   workflowTest.register(t);
+  await seedWorkosOwner(t, "owner");
+  await seedWorkosOwner(t, "stranger");
   const cardId = await t.run((ctx) =>
     ctx.db.insert("cards", {
       userId: "owner",

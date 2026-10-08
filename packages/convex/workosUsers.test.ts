@@ -410,7 +410,6 @@ describe("transactional WorkOS identity linking", () => {
 describe("trusted new WorkOS owners", () => {
   beforeEach(() => {
     vi.useFakeTimers();
-    vi.stubEnv("AUTH_PRIMARY", "workos");
     vi.stubEnv("SIGNUPS_DISABLED", "false");
   });
   afterEach(() => {
@@ -594,18 +593,6 @@ describe("trusted new WorkOS owners", () => {
       });
       expect((await snapshot(t)).users).toEqual([]);
       expect(await jobs(t)).toEqual([]);
-    }
-  );
-  test.each(["betterauth", undefined])(
-    "primary %s cannot create",
-    async (primary) => {
-      const t = setup();
-      vi.stubEnv("AUTH_PRIMARY", primary);
-      expect(await t.mutation(link, create)).toEqual({
-        status: "quarantined",
-        reason: "missing_mapping",
-      });
-      expect((await snapshot(t)).users).toEqual([]);
     }
   );
   test("webhook without explicit created-event permission cannot create", async () => {

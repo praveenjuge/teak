@@ -3,10 +3,7 @@
 import type { PolarEmbedCheckout } from "@polar-sh/checkout/embed";
 import * as Sentry from "@sentry/nextjs";
 import { api } from "@teak/convex";
-import {
-  createClientRequestErrorFromContext,
-  runClientSpan,
-} from "@teak/convex/shared/client-telemetry";
+import { runClientSpan } from "@teak/convex/shared/client-telemetry";
 import { trackCheckout } from "@teak/convex/shared/metrics";
 import { sanitizeExternalUrl } from "@teak/convex/shared/utils/safeUrl";
 import { Dialog, DialogContent } from "@teak/ui/components/ui/dialog";
@@ -18,12 +15,9 @@ import { useAction, useMutation } from "convex/react";
 import { useTheme } from "next-themes";
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
-import { signOutWorkos } from "@/app/(auth)/actions";
-import { useAuthMode } from "@/components/AuthModeProvider";
-import { authClient } from "@/lib/auth-client";
+import { signOutWorkos } from "@/lib/sign-out";
 
 export default function ProfileSettingsPage() {
-  const mode = useAuthMode();
   const [subscriptionOpen, setSubscriptionOpen] = useState(false);
   const [loadingPlanId, setLoadingPlanId] = useState<string | null>(null);
   const checkoutInstanceRef = useRef<PolarEmbedCheckout | null>(null);
@@ -40,34 +34,9 @@ export default function ProfileSettingsPage() {
 
   const settings = useSettingsController({
     onDeleteAccount: async () => {
-      if (mode?.accountChangesPaused) {
-        throw new Error("Account changes are paused. Please try again later.");
-      }
-      if (mode?.primary === "workos") {
-        await deleteMyAccount({});
-        toast.success("Account deletion requested. You’re being signed out.");
-        await signOutWorkos();
-        return;
-      }
-      let deleteError: Error | null = null;
-      // The awaited call's onError callback assigns `deleteError`; the guard
-      // below reads that side effect, so this await cannot be deferred past it.
-      // react-doctor-disable-next-line react-doctor/async-defer-await
-      await authClient.deleteUser(undefined, {
-        onSuccess: async () => {
-          window.location.replace("/login");
-        },
-        onError: (ctx) => {
-          deleteError = createClientRequestErrorFromContext(
-            ctx,
-            "Failed to delete account."
-          );
-        },
-      });
-
-      if (deleteError) {
-        throw deleteError;
-      }
+      await deleteMyAccount({});
+      toast.success("Account deletion requested. You’re being signed out.");
+      await signOutWorkos();
     },
     onOpenExternal: (url) => {
       const safeUrl = sanitizeExternalUrl(url);
@@ -88,19 +57,7 @@ export default function ProfileSettingsPage() {
       anchor.click();
       anchor.remove();
     },
-    onSignOut: async () => {
-      if (mode?.primary === "workos") {
-        await signOutWorkos();
-        return;
-      }
-      await authClient.signOut({
-        fetchOptions: {
-          onSuccess: () => {
-            window.location.replace("/login");
-          },
-        },
-      });
-    },
+    onSignOut: signOutWorkos,
   });
 
   const handleCheckout = async (planId: string) => {
@@ -184,7 +141,6 @@ export default function ProfileSettingsPage() {
   return (
     <SettingsContent
       accountLoading={settings.accountLoading}
-      betterAuthIdentityKey={settings.betterAuthIdentityKey}
       cardCount={settings.cardCount}
       connectionIdentity={settings.connectionIdentity}
       deleteDialogError={settings.deleteDialogError}

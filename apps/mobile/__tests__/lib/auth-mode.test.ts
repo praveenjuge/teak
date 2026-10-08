@@ -1,33 +1,28 @@
 import { describe, expect, test } from "bun:test";
 import { parseAuthMode } from "../../lib/auth-mode";
 
-const legacy = {
-  primary: "betterauth",
+const workos = {
+  primary: "workos",
   signupsDisabled: true,
   accountChangesPaused: false,
+  authKitClientId: "client_TEST",
 };
 describe("mobile public auth configuration", () => {
-  test("accepts both providers and retains only public fields", () => {
-    expect(parseAuthMode({ ...legacy, apiKey: "discard" })).toEqual(legacy);
-    expect(
-      parseAuthMode({
-        ...legacy,
-        primary: "workos",
-        authKitClientId: "client_TEST",
-      })
-    ).toEqual({ ...legacy, primary: "workos", authKitClientId: "client_TEST" });
+  test("accepts WorkOS and retains only public fields", () => {
+    expect(parseAuthMode({ ...workos, apiKey: "discard" })).toEqual(workos);
   });
   test.each(
     [
       null,
       [],
       {},
-      { ...legacy, primary: "unknown" },
-      { ...legacy, signupsDisabled: "true" },
-      { ...legacy, accountChangesPaused: null },
-      { ...legacy, authKitClientId: "client_TEST&client_secret=secret" },
-      { ...legacy, primary: "workos" },
-      { ...legacy, authKitClientId: `client_${"x".repeat(129)}` },
+      { ...workos, primary: "betterauth" },
+      { ...workos, primary: "unknown" },
+      { ...workos, signupsDisabled: "true" },
+      { ...workos, accountChangesPaused: null },
+      { ...workos, authKitClientId: "client_TEST&client_secret=secret" },
+      { ...workos, authKitClientId: undefined },
+      { ...workos, authKitClientId: `client_${"x".repeat(129)}` },
     ].map((value) => [value])
   )("rejects malformed or incomplete configuration", (value: unknown) => {
     expect(() => parseAuthMode(value)).toThrow(

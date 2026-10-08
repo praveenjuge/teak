@@ -11,7 +11,10 @@ import {
   validateUserApiKey,
 } from "../apiKeys";
 import { rateLimiter } from "../shared/rateLimits";
-import { withTestSession } from "./helpers/session.test-utils";
+import {
+  answerIdentityQuery,
+  withTestSession,
+} from "./helpers/session.test-utils";
 
 const originalRateLimiterLimit = rateLimiter.limit;
 
@@ -46,13 +49,10 @@ const buildAuth = (subject = "user_1") =>
   }).auth;
 
 const listActiveKeys = (keys: unknown[]) =>
-  mock().mockImplementation((_ref, args) => {
-    if (args?.model === "session") {
-      return {
-        _id: "session_1",
-        userId: "user_1",
-        expiresAt: Date.now() + 60_000,
-      };
+  mock().mockImplementation((ref, args) => {
+    const identity = answerIdentityQuery(ref, args, {});
+    if (identity.handled) {
+      return identity.value;
     }
     if (args?.status && args.status !== "active") {
       return [];
@@ -268,13 +268,10 @@ describe("apiKeys", () => {
     const ctx = {
       auth: buildAuth(),
       runMutation: mock(),
-      runQuery: mock().mockImplementation((_ref, args) => {
-        if (args?.model === "session") {
-          return {
-            _id: "session_1",
-            userId: "user_1",
-            expiresAt: Date.now() + 60_000,
-          };
+      runQuery: mock().mockImplementation((ref, args) => {
+        const identity = answerIdentityQuery(ref, args, {});
+        if (identity.handled) {
+          return identity.value;
         }
         if (args?.status === "exhausted") {
           return [
@@ -309,7 +306,9 @@ describe("apiKeys", () => {
         type: "secret",
         valid: true,
       }),
-      runQuery: mock().mockResolvedValue({ _id: "user_1" }),
+      runQuery: mock().mockImplementation(
+        (ref, args) => answerIdentityQuery(ref, args, {}).value
+      ),
     };
 
     const result = await runHandler(validateUserApiKey, ctx, { token });

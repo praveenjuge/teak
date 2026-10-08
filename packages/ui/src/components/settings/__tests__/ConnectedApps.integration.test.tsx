@@ -60,7 +60,6 @@ async function mount() {
     _id: "A",
     email: "fixture@example.test",
   });
-  transport.seed("auth:getAuthMode", { primary: "workos" });
   transport.seed("apiKeys:listUserApiKeys", []);
   transport.seed("dataExport:getLatestExport", null);
   transport.onCall(async (call) =>
@@ -86,7 +85,6 @@ async function mount() {
     });
     return (
       <SecurityConnections
-        betterAuthIdentityKey={latest.betterAuthIdentityKey}
         connectionIdentity={latest.connectionIdentity}
         onLoadMoreSessions={latest.loadMoreSessions}
         onRetrySessions={latest.retrySessions}
@@ -132,7 +130,7 @@ async function click(name: string, parent?: Element) {
 }
 
 // Failure modes: retained cached read errors, empty revoked pages, duplicate clients,
-// failed disconnects, reactive removal, stale account callbacks and provider changes.
+// failed disconnects, reactive removal and stale account callbacks.
 test("cached app retry retains devices and pages separate same-client grants", async () => {
   await mount();
   expect(region("Connected apps").textContent).toContain("Loading apps");
@@ -246,60 +244,17 @@ test("an account switch discards pending disconnect UI and rejects a stale callb
   );
   expect(buttons("Disconnect B fixture app")[0].disabled).toBe(false);
   const before = transport.calls.length;
-  await expect(
-    oldRevoke({ provider: "workos", consentId: "app_consent_A" })
-  ).rejects.toThrow("account changed");
+  await expect(oldRevoke({ consentId: "app_consent_A" })).rejects.toThrow(
+    "account changed"
+  );
   expect(transport.calls).toHaveLength(before);
   transport.onCall(async (call) =>
     call.path === "securitySessions:listAuthkitSessions" ? page([]) : null
   );
   await act(() => transport.reply("auth:getCurrentUser", { _id: "A" }));
   const returnedAccountCalls = transport.calls.length;
-  await expect(
-    oldRevoke({ provider: "workos", consentId: "app_consent_A" })
-  ).rejects.toThrow("account changed");
+  await expect(oldRevoke({ consentId: "app_consent_A" })).rejects.toThrow(
+    "account changed"
+  );
   expect(transport.calls).toHaveLength(returnedAccountCalls);
-});
-
-test("provider changes keep BA app-wide dispatch and device cached retry independent", async () => {
-  await mount();
-  await act(() =>
-    transport.reply("auth:getAuthMode", { primary: "betterauth" })
-  );
-  await act(() =>
-    transport.reply("oauthTokens:listOAuthConnections", [
-      { clientId: "client_BA", name: "BA fixture app", connectedAt: 1 },
-    ])
-  );
-  await act(() =>
-    transport.reply("securitySessions:listSessions", new Error("Device outage"))
-  );
-  expect(region("Devices").textContent).toContain("Could not load devices");
-  expect(region("Connected apps").textContent).toContain("BA fixture app");
-  await click("Try again", region("Devices"));
-  const requests = transport.requests.filter(
-    (entry) => entry.path === "securitySessions:listSessions"
-  );
-  expect(requests).toHaveLength(2);
-  expect(requests[0].callbacks.size).toBeGreaterThan(0);
-  await act(() =>
-    transport.reply(
-      "securitySessions:listSessions",
-      page([
-        { id: "session_BA", name: "BA device", signedInAt: 1, current: false },
-      ]),
-      (args) => args.retryKey === requests[1].args.retryKey
-    )
-  );
-  expect(region("Devices").textContent).toContain("BA device");
-  await click("Disconnect BA fixture app");
-  expect(transport.calls.at(-1)).toEqual({
-    kind: "action",
-    path: "oauthTokens:revokeOAuthConnection",
-    args: { clientId: "client_BA" },
-  });
-  await act(() => transport.reply("oauthTokens:listOAuthConnections", []));
-  expect(region("Connected apps").textContent).toContain(
-    "No apps are connected"
-  );
 });

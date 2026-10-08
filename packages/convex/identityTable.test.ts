@@ -2,8 +2,8 @@
 import betterAuthTest from "@convex-dev/better-auth/test";
 import { createFunctionHandle } from "convex/server";
 import { convexTest } from "convex-test";
-import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
-import { api, components, internal } from "./_generated/api";
+import { describe, expect, test } from "vitest";
+import { components, internal } from "./_generated/api";
 import schema from "./schema";
 
 const modules = import.meta.glob("./**/*.ts");
@@ -13,149 +13,31 @@ const setup = () => {
   return t;
 };
 type TestBackend = ReturnType<typeof setup>;
-const createUser = (t: TestBackend, email: string, trigger = false) =>
-  t.run(async (ctx) =>
+// Seeds a retained Better Auth row the way pre-WorkOS sign-ups left them.
+const retainedUser = (t: TestBackend, email: string) =>
+  t.run((ctx) =>
     ctx.runMutation(components.betterAuth.adapter.create, {
       input: {
         model: "user",
         data: {
-          name: "Migration fixture",
+          name: "Retained fixture",
           email,
-          emailVerified: false,
+          emailVerified: true,
           createdAt: Date.now(),
           updatedAt: Date.now(),
         },
       },
-      ...(trigger
-        ? { onCreateHandle: await createFunctionHandle(internal.auth.onCreate) }
-        : {}),
     })
   );
 const rows = (t: TestBackend) =>
   t.run((ctx) => ctx.db.query("users").take(200));
-const coverage = (t: TestBackend, direction: "betterauth" | "users") =>
-  t.query(internal.migration.identityTable.coveragePage, {
-    direction,
-    paginationOpts: { cursor: null, numItems: 100 },
-  });
 
-// Failure modes: skipped cursor pages; duplicate resume writes; profile drift;
-// overwritten provider/admin links; deleted users resurrected by a late update;
-// orphaned or missing mappings hidden by coverage; backfill in the wrong mode.
-describe("Phase 1 identity table", () => {
-  beforeEach(() => {
-    vi.stubEnv("SIGNUPS_DISABLED", "true");
-    vi.stubEnv("AUTH_PRIMARY", "betterauth");
-  });
-  afterEach(() => {
-    vi.unstubAllEnvs();
-    vi.useRealTimers();
-  });
-
-  test("backfill resumes across pages and repeated runs preserve the original IDs", async () => {
+// Failure modes: account deletion leaving the email readable; new writes to
+// retained Better Auth data; admin role granted to the wrong or no account.
+describe("identity table", () => {
+  test("deleting a retained Better Auth user records a redacted tombstone", async () => {
     const t = setup();
-    const users: Awaited<ReturnType<typeof createUser>>[] = [];
-    for (let i = 0; i < 102; i++) {
-      users.push(await createUser(t, `user-${i}@example.com`));
-    }
-    const first = await t.mutation(internal.migration.identityTable.backfill, {
-      cursor: null,
-    });
-    expect(first.processed).toBe(100);
-    expect(first.isDone).toBe(false);
-    const last = await t.mutation(internal.migration.identityTable.backfill, {
-      cursor: first.continueCursor,
-    });
-    expect(last.processed).toBe(2);
-    expect(last.isDone).toBe(true);
-    const before = await rows(t);
-    await t.mutation(internal.migration.identityTable.backfill, {
-      cursor: null,
-    });
-    await t.mutation(internal.migration.identityTable.backfill, {
-      cursor: first.continueCursor,
-    });
-    expect((await rows(t)).map((row) => [row._id, row.teakUserId])).toEqual(
-      before.map((row) => [row._id, row.teakUserId])
-    );
-    expect(before.map((row) => row.teakUserId).sort()).toEqual(
-      users.map((user) => user._id).sort()
-    );
-  });
-
-  test("actual component lifecycle triggers mirror profile fields without replacing links or roles", async () => {
-    const t = setup();
-    const user = await createUser(t, "  Person@Example.COM  ", true);
-    const [row] = await rows(t);
-    expect(row).toMatchObject({
-      teakUserId: user._id,
-      email: "person@example.com",
-      emailVerified: false,
-    });
-    await t.run((ctx) =>
-      ctx.db.patch("users", row._id, {
-        workosUserId: "user_workos",
-        role: "admin",
-      })
-    );
-    await t.run(async (ctx) =>
-      ctx.runMutation(components.betterAuth.adapter.updateOne, {
-        input: {
-          model: "user",
-          where: [{ field: "_id", value: user._id }],
-          update: { email: "Verified@Example.com", emailVerified: true },
-        },
-        onUpdateHandle: await createFunctionHandle(internal.auth.onUpdate),
-      })
-    );
-    expect(await rows(t)).toEqual([
-      expect.objectContaining({
-        _id: row._id,
-        teakUserId: user._id,
-        email: "verified@example.com",
-        emailVerified: true,
-        workosUserId: "user_workos",
-        role: "admin",
-      }),
-    ]);
-    expect(await coverage(t, "betterauth")).toMatchObject({
-      missing: 0,
-      mismatched: 0,
-    });
-    expect(await coverage(t, "users")).toMatchObject({
-      missing: 0,
-      mismatched: 0,
-    });
-  });
-
-  test("delete creates a permanent tombstone and a late update cannot resurrect it", async () => {
-    const t = setup();
-    const user = await createUser(t, "deleted@example.com", true);
-    await t.run(async (ctx) =>
-      ctx.runMutation(components.betterAuth.adapter.deleteOne, {
-        input: { model: "user", where: [{ field: "_id", value: user._id }] },
-        onDeleteHandle: await createFunctionHandle(internal.auth.onDelete),
-      })
-    );
-    const [deleted] = await rows(t);
-    expect(deleted.deletedAt).toEqual(expect.any(Number));
-    expect(deleted.email).toBe("");
-    expect(deleted.emailVerified).toBe(false);
-    await t.mutation(internal.auth.onUpdate, {
-      model: "user",
-      oldDoc: user,
-      newDoc: { ...user, email: "changed@example.com", emailVerified: true },
-    });
-    expect(await rows(t)).toEqual([deleted]);
-    expect(await coverage(t, "users")).toMatchObject({
-      missing: 0,
-      tombstones: 1,
-    });
-  });
-
-  test("deleting an unbackfilled user still records a tombstone", async () => {
-    const t = setup();
-    const user = await createUser(t, "unbackfilled@example.com");
+    const user = await retainedUser(t, "retained@example.com");
     await t.run(async (ctx) =>
       ctx.runMutation(components.betterAuth.adapter.deleteOne, {
         input: { model: "user", where: [{ field: "_id", value: user._id }] },
@@ -172,244 +54,85 @@ describe("Phase 1 identity table", () => {
     ]);
   });
 
-  test("the public delete-account flow leaves a redacted tombstone", async () => {
+  test("retained Better Auth data rejects new and updated rows", async () => {
     const t = setup();
-    vi.stubEnv("SIGNUPS_DISABLED", "false");
-    const password = "Disposable-local-account-123!";
-    const signedUp = await t.fetch("/api/auth/sign-up/email", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Origin: "http://localhost:3000",
-      },
-      body: JSON.stringify({
-        email: "delete-flow@example.com",
-        name: "Disposable fixture",
-        password,
-      }),
-    });
-    expect(signedUp.status).toBe(200);
-    const signedUpBody = await signedUp.json();
-    const cookie = signedUp.headers
-      .getSetCookie()
-      .map((value) => value.split(";")[0])
-      .join("; ");
-    vi.stubEnv("SIGNUPS_DISABLED", "true");
-    const response = await t.fetch("/api/auth/delete-user", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Origin: "http://localhost:3000",
-        Cookie: cookie,
-      },
-      body: JSON.stringify({ password }),
-    });
-    expect(response.status).toBe(200);
-    const [row] = await rows(t);
-    expect(row).toMatchObject({
-      teakUserId: signedUpBody.user.id,
-      email: "",
-      emailVerified: false,
-      deletedAt: expect.any(Number),
-    });
-    expect(
-      await t.query(components.betterAuth.adapter.findOne, {
+    const user = await retainedUser(t, "retained@example.com");
+    await expect(
+      t.run(async (ctx) =>
+        ctx.runMutation(components.betterAuth.adapter.create, {
+          input: {
+            model: "session",
+            data: {
+              userId: user._id,
+              token: crypto.randomUUID(),
+              expiresAt: Date.now() + 60_000,
+              createdAt: Date.now(),
+              updatedAt: Date.now(),
+            },
+          },
+          onCreateHandle: await createFunctionHandle(internal.auth.onCreate),
+        })
+      )
+    ).rejects.toThrow("Better Auth data is read-only");
+    await expect(
+      t.mutation(internal.auth.onUpdate, {
         model: "user",
-        where: [{ field: "_id", value: signedUpBody.user.id }],
+        oldDoc: user,
+        newDoc: { ...user, email: "changed@example.com" },
       })
-    ).toBeNull();
+    ).rejects.toThrow("Better Auth data is read-only");
   });
 
-  test("coverage exposes missing mappings, active orphans, and verified-email drift", async () => {
+  test("admin seeding grants the role to exactly one active account", async () => {
     const t = setup();
-    await createUser(t, "missing@example.com");
-    expect(await coverage(t, "betterauth")).toMatchObject({ missing: 1 });
-    await t.mutation(internal.migration.identityTable.backfill, {
-      cursor: null,
-    });
-    const [row] = await rows(t);
-    await t.run(async (ctx) => {
-      await ctx.db.patch("users", row._id, { emailVerified: true });
-      await ctx.db.insert("users", {
-        teakUserId: "orphan",
-        email: "orphan@example.com",
-        emailVerified: false,
-      });
-    });
-    expect(await coverage(t, "betterauth")).toMatchObject({
-      missing: 0,
-      mismatched: 1,
-    });
-    expect(await coverage(t, "users")).toMatchObject({
-      missing: 1,
-      mismatched: 1,
-    });
-  });
-
-  test("admin seeding resolves the configured account once and preserves the role after email changes", async () => {
-    const t = setup();
-    const user = await createUser(t, "owner@example.com", true);
+    await t.run((ctx) =>
+      ctx.db.insert("users", {
+        teakUserId: "owner",
+        identityOrigin: "workos",
+        workosUserId: "user_owner",
+        email: "owner@example.com",
+        emailVerified: true,
+      })
+    );
     expect(
-      await t.mutation(internal.migration.identityTable.seedAdmin, {
+      await t.mutation(internal.admin.seedAdmin, {
         email: " OWNER@EXAMPLE.COM ",
       })
-    ).toEqual({ teakUserId: user._id, role: "admin" });
-    await t.mutation(internal.auth.onUpdate, {
-      model: "user",
-      oldDoc: user,
-      newDoc: { ...user, email: "changed@example.com" },
-    });
+    ).toEqual({ teakUserId: "owner", role: "admin" });
     expect(await rows(t)).toEqual([
-      expect.objectContaining({
-        teakUserId: user._id,
-        role: "admin",
-        email: "changed@example.com",
-      }),
+      expect.objectContaining({ teakUserId: "owner", role: "admin" }),
     ]);
   });
 
-  test("admin access follows the permanent role through email changes and revocation", async () => {
-    vi.useFakeTimers();
+  test("admin seeding rejects missing, ambiguous or deleted accounts without granting a role", async () => {
     const t = setup();
-    const user = await createUser(t, "owner@example.com", true);
-    const session = await t.mutation(components.betterAuth.adapter.create, {
-      input: {
-        model: "session",
-        data: {
-          userId: user._id,
-          token: crypto.randomUUID(),
-          expiresAt: Date.now() + 60_000,
-          createdAt: Date.now(),
-          updatedAt: Date.now(),
-        },
-      },
-    });
-    const authenticated = t.withIdentity({
-      issuer: process.env.CONVEX_SITE_URL,
-      subject: user._id,
-      sessionId: session._id,
-    });
-    const [row] = await rows(t);
-    expect(await authenticated.query(api.admin.getAccess, {})).toEqual({
-      allowed: false,
-    });
     await expect(
-      authenticated.query(api.admin.getOverview, {})
-    ).rejects.toThrow("Unauthorized");
-    await t.run((ctx) => ctx.db.patch("users", row._id, { role: "admin" }));
-    expect(await authenticated.query(api.admin.getAccess, {})).toEqual({
-      allowed: true,
+      t.mutation(internal.admin.seedAdmin, { email: "duplicate@example.com" })
+    ).rejects.toThrow("exactly one active");
+    await t.run(async (ctx) => {
+      for (const teakUserId of ["first", "second"]) {
+        await ctx.db.insert("users", {
+          teakUserId,
+          email: "duplicate@example.com",
+          emailVerified: true,
+        });
+      }
+      await ctx.db.insert("users", {
+        teakUserId: "deleted",
+        email: "deleted@example.com",
+        emailVerified: true,
+        deletedAt: Date.now(),
+      });
     });
-    expect(await authenticated.query(api.admin.getOverview, {})).toMatchObject({
-      totals: { totalCards: 0 },
-    });
-    await t.mutation(internal.auth.onUpdate, {
-      model: "user",
-      oldDoc: user,
-      newDoc: { ...user, email: "changed@example.com" },
-    });
-    expect(await authenticated.query(api.admin.getAccess, {})).toEqual({
-      allowed: true,
-    });
-    const cardId = await t.run((ctx) =>
-      ctx.db.insert("cards", {
-        userId: user._id,
-        type: "text",
-        content: "Admin denial fixture",
-        createdAt: Date.now(),
-        updatedAt: Date.now(),
-        aiSummary: "Preserve this summary",
-        processingStatus: {
-          classify: { status: "completed", completedAt: Date.now() },
-        },
-      })
-    );
-    const beforeCard = await t.run((ctx) => ctx.db.get("cards", cardId));
-    const beforeJobs = await t.run((ctx) =>
-      ctx.db.system.query("_scheduled_functions").take(100)
-    );
-    const assertRefreshDenied = async () => {
+    for (const email of ["duplicate@example.com", "deleted@example.com"]) {
       await expect(
-        authenticated.action(api.admin.refreshCardProcessing, { cardId })
-      ).rejects.toThrow("Unauthorized");
-      expect(await t.run((ctx) => ctx.db.get("cards", cardId))).toEqual(
-        beforeCard
-      );
-      expect(
-        await t.run((ctx) =>
-          ctx.db.system.query("_scheduled_functions").take(100)
-        )
-      ).toEqual(beforeJobs);
-    };
-    await t.run((ctx) => ctx.db.patch("users", row._id, { role: undefined }));
-    expect(await authenticated.query(api.admin.getAccess, {})).toEqual({
-      allowed: false,
-    });
-    await assertRefreshDenied();
-    await t.run((ctx) =>
-      ctx.db.patch("users", row._id, { role: "admin", deletedAt: Date.now() })
-    );
-    expect(await authenticated.query(api.admin.getAccess, {})).toEqual({
-      allowed: false,
-    });
-    await expect(
-      authenticated.query(api.admin.getOverview, {})
-    ).rejects.toThrow("Unauthorized");
-    await assertRefreshDenied();
-    await t.run((ctx) =>
-      ctx.db.patch("users", row._id, { deletedAt: undefined })
-    );
-    await t.mutation(components.betterAuth.adapter.deleteOne, {
-      input: {
-        model: "session",
-        where: [{ field: "_id", value: session._id }],
-      },
-    });
-    expect(await authenticated.query(api.admin.getAccess, {})).toEqual({
-      allowed: false,
-    });
-    await assertRefreshDenied();
-  });
-
-  test("admin seeding rejects missing or ambiguous mappings without granting a role", async () => {
-    const t = setup();
-    await expect(
-      t.mutation(internal.migration.identityTable.seedAdmin, {
-        email: "duplicate@example.com",
-      })
-    ).rejects.toThrow("exactly one active");
-    await createUser(t, "duplicate@example.com", true);
-    await t.run((ctx) =>
-      ctx.db.insert("users", {
-        teakUserId: "ambiguous",
-        email: "duplicate@example.com",
-        emailVerified: false,
-      })
-    );
-    await expect(
-      t.mutation(internal.migration.identityTable.seedAdmin, {
-        email: "duplicate@example.com",
-      })
-    ).rejects.toThrow("exactly one active");
+        t.mutation(internal.admin.seedAdmin, { email })
+      ).rejects.toThrow("exactly one active");
+    }
     expect((await rows(t)).map((row) => row.role)).toEqual([
       undefined,
       undefined,
+      undefined,
     ]);
-  });
-
-  test.each([
-    { SIGNUPS_DISABLED: "false", AUTH_PRIMARY: "betterauth" },
-    { SIGNUPS_DISABLED: "true", AUTH_PRIMARY: "workos" },
-    { SIGNUPS_DISABLED: "true", AUTH_PRIMARY: "" },
-  ])("refuses backfill outside frozen Better Auth: %j", async (vars) => {
-    for (const [key, value] of Object.entries(vars)) {
-      vi.stubEnv(key, value);
-    }
-    const t = setup();
-    await createUser(t, "frozen@example.com");
-    await expect(
-      t.mutation(internal.migration.identityTable.backfill, { cursor: null })
-    ).rejects.toThrow("frozen Better Auth");
-    expect(await rows(t)).toEqual([]);
   });
 });

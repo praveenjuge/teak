@@ -1,9 +1,7 @@
-/// <reference types="vite/client" />
-import betterAuthTest from "@convex-dev/better-auth/test";
 import workosTest from "@convex-dev/workos-authkit/test";
 import { convexTest } from "convex-test";
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
-import { api, components } from "./_generated/api";
+import { api } from "./_generated/api";
 import schema from "./schema";
 import {
   getWorkosBootstrapIdentity,
@@ -45,7 +43,6 @@ function session(id: string, overrides = {}) {
   };
 }
 beforeEach(() => {
-  vi.stubEnv("AUTH_PRIMARY", "workos");
   vi.stubEnv("WORKOS_CLIENT_ID", "client_DEVICES");
   vi.stubEnv("WORKOS_API_KEY", "sk_test_devices");
   calls = [];
@@ -163,55 +160,6 @@ const paginationOpts = { cursor: null, numItems: 25 };
 // Failure modes: provider/owner confusion; invalid/inactive data; foreign target; late-page ownership;
 // unbounded pagination; transport/revoke outage; bootstrap verification and legacy regression.
 describe("owned WorkOS devices", () => {
-  test("Better Auth clients cannot enter WorkOS actions", async () => {
-    vi.stubEnv("AUTH_PRIMARY", "betterauth");
-    const t = convexTest(schema, modules);
-    betterAuthTest.register(t);
-    const current = await t.mutation(components.betterAuth.adapter.create, {
-      input: {
-        model: "session",
-        data: {
-          userId: "owner",
-          token: "live-better-auth-session",
-          createdAt: Date.now(),
-          updatedAt: Date.now(),
-          expiresAt: Date.now() + 60_000,
-        },
-      },
-    });
-    const user = t.withIdentity({
-      issuer: process.env.CONVEX_SITE_URL,
-      subject: "owner",
-      sessionId: current._id,
-    });
-    expect(
-      (await user.query(api.securitySessions.listSessions, { paginationOpts }))
-        .page
-    ).toMatchObject([{ id: current._id, current: true }]);
-    await expect(
-      user.action(api.securitySessions.listAuthkitSessions, {
-        paginationOpts,
-      })
-    ).rejects.toThrow("sign in");
-    await expect(
-      user.action(api.securitySessions.revokeAuthkitSession, {
-        sessionId: claims.sid,
-      })
-    ).rejects.toThrow("sign in");
-    expect(calls).toEqual([]);
-  });
-  test("WorkOS claims cannot enter shipped Better Auth query and mutation", async () => {
-    const f = await setup();
-    expect(
-      await f.user.query(api.securitySessions.listSessions, { paginationOpts })
-    ).toEqual({ page: [], isDone: true, continueCursor: "" });
-    await expect(
-      f.user.mutation(api.securitySessions.revokeSession, {
-        sessionId: claims.sid,
-      })
-    ).rejects.toThrow("sign in");
-    expect(calls).toEqual([]);
-  });
   test("lists active owned sessions with safe labels and follows provider pagination", async () => {
     const f = await setup();
     pages[""] = [

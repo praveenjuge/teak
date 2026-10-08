@@ -1,46 +1,17 @@
-import { createHash, randomBytes } from "node:crypto";
-import { expect, request as playwrightRequest, test } from "@playwright/test";
+import { expect, test } from "@playwright/test";
 import { discoverAuthServer } from "@teak/convex/sdk";
 import { apiFetch } from "../helpers/api";
 import { cleanupE2EAccounts } from "../helpers/e2e-cleanup";
 import { env } from "../helpers/env";
-import { connectMcp } from "../helpers/mcp";
 import {
   clientFor,
   createAccount,
   generateApiKey,
   newAnonymousContext,
-  openSecurity,
   revokeVisibleKey,
 } from "../helpers/prod";
 import { readState } from "../helpers/run-state";
 import { verifyWorkosConsentJourney } from "../helpers/workos-consent";
-
-test("legacy native pairing requires approval or refuses retired sign-in", async ({
-  page,
-}) => {
-  const start = new URL("/native/auth/start", env.appUrl);
-  start.search = new URLSearchParams({
-    code_challenge: "a".repeat(43),
-    device_id: "e2e-device-1234567",
-    redirect_uri: `${env.appUrl.replace(/\/$/, "")}/native/auth/complete`,
-    state: "state_e2e_pairing_ok",
-    surface: "desktop",
-  }).toString();
-
-  await page.goto(start.toString());
-  const mode = await discoverAuthServer(env.siteUrl, { forceRefresh: true });
-  const approve = page.getByRole("button", { name: "Approve device" });
-  if (mode.primary === "workos") {
-    await expect(
-      page.getByText("Reconnect your device", { exact: true })
-    ).toBeVisible();
-    await expect(approve).toHaveCount(0);
-  } else {
-    await expect(approve).toBeVisible();
-  }
-  await expect(page).not.toHaveURL(/\/native\/auth\/complete/);
-});
 
 test("external OAuth requires explicit full-vault consent and can be revoked", async ({
   page,
@@ -48,118 +19,8 @@ test("external OAuth requires explicit full-vault consent and can be revoked", a
   const provider = await discoverAuthServer(env.siteUrl, {
     forceRefresh: true,
   });
-  if (provider.primary === "workos") {
-    await verifyWorkosConsentJourney(
-      page,
-      provider,
-      await generateApiKey(page)
-    );
-    return;
-  }
-  const verifier = randomBytes(48).toString("base64url");
-  const challenge = createHash("sha256").update(verifier).digest("base64url");
-  const redirectUri = "https://oauth-e2e.invalid/callback";
-  const clientName = `OAuth security e2e ${Date.now()}`;
-  // This project uses an authenticated storage state for the whole journey.
-  // Dynamic client registration is anonymous, so create a truly empty request
-  // context instead of inheriting those cookies and triggering the CSRF guard.
-  const anonymousRequest = await playwrightRequest.newContext({
-    baseURL: env.appUrl,
-    storageState: { cookies: [], origins: [] },
-  });
-  let clientId = "";
-  try {
-    const registration = await anonymousRequest.post("/api/auth/mcp/register", {
-      data: {
-        client_name: clientName,
-        grant_types: ["authorization_code", "refresh_token"],
-        redirect_uris: [redirectUri],
-        response_types: ["code"],
-        token_endpoint_auth_method: "none",
-      },
-    });
-    const registrationBody = (await registration.json()) as {
-      client_id?: string;
-      message?: string;
-    };
-    expect(registration.status(), registrationBody.message).toBe(201);
-    clientId = registrationBody.client_id ?? "";
-    expect(clientId).toBeTruthy();
-  } finally {
-    await anonymousRequest.dispose();
-  }
-
-  let callbackUrl = "";
-  await page.route("https://oauth-e2e.invalid/**", async (route) => {
-    callbackUrl = route.request().url();
-    await route.fulfill({ body: "OAuth callback received", status: 200 });
-  });
-  const authorize = new URL("/api/auth/mcp/authorize", env.appUrl);
-  authorize.search = new URLSearchParams({
-    client_id: clientId,
-    code_challenge: challenge,
-    code_challenge_method: "S256",
-    redirect_uri: redirectUri,
-    response_type: "code",
-    scope: "openid profile email offline_access",
-    state: "oauth-security-e2e",
-  }).toString();
-  await page.goto(authorize.toString());
-  await expect(async () => {
-    await page.reload();
-    await expect(page.getByText(clientName)).toBeVisible({ timeout: 5000 });
-  }).toPass({ intervals: [500, 1000, 2000], timeout: 15_000 });
-  await expect(
-    page.getByText(/read, create, edit, and delete your cards/i)
-  ).toBeVisible();
-  await page.getByRole("button", { name: "Allow" }).click();
-  await expect.poll(() => callbackUrl).toContain("code=");
-
-  const code = new URL(callbackUrl).searchParams.get("code");
-  expect(code).toBeTruthy();
-  const tokenRequest = await playwrightRequest.newContext({
-    baseURL: env.appUrl,
-    storageState: { cookies: [], origins: [] },
-  });
-  let tokens: { access_token: string };
-  try {
-    const tokenResponse = await tokenRequest.post("/api/auth/mcp/token", {
-      form: {
-        client_id: clientId,
-        code: code!,
-        code_verifier: verifier,
-        grant_type: "authorization_code",
-        redirect_uri: redirectUri,
-      },
-    });
-    const tokenBody = (await tokenResponse.json()) as {
-      access_token?: string;
-      error_description?: string;
-    };
-    expect(tokenResponse.ok(), tokenBody.error_description).toBe(true);
-    expect(tokenBody.access_token).toBeTruthy();
-    tokens = { access_token: tokenBody.access_token! };
-  } finally {
-    await tokenRequest.dispose();
-  }
-  expect((await apiFetch("/v1/tags", tokens.access_token)).status).toBe(200);
-
-  const mcp = await connectMcp(tokens.access_token);
-  try {
-    expect((await mcp.listTools()).tools.length).toBeGreaterThan(0);
-    const dialog = await openSecurity(page);
-    await expect(dialog.getByText(clientName, { exact: true })).toBeVisible();
-    await dialog
-      .getByRole("button", { name: `Disconnect ${clientName}`, exact: true })
-      .click();
-    await expect(
-      dialog.getByText(clientName, { exact: true })
-    ).not.toBeVisible();
-    expect((await apiFetch("/v1/tags", tokens.access_token)).status).toBe(401);
-    await expect(mcp.listTools()).rejects.toThrow(/401|unauthorized/i);
-  } finally {
-    await mcp.close();
-  }
+  expect(provider.primary).toBe("workos");
+  await verifyWorkosConsentJourney(page, provider, await generateApiKey(page));
 });
 
 test("cross-tenant, revoked-key, hostile input, headers, and cookie security", async ({

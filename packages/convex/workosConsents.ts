@@ -161,7 +161,7 @@ export const listConnections = query({
   }),
   handler: async (ctx, { paginationOpts }): Promise<ConnectionPage> => {
     const session = await getSessionUser(ctx);
-    if (session?.provider !== "workos") {
+    if (!session) {
       throw new Error("WorkOS sign-in required");
     }
     if (
@@ -213,10 +213,7 @@ export const disconnectConnection = action({
   returns: v.null(),
   handler: async (ctx, { consentId }) => {
     const session = await getSessionUser(ctx);
-    if (
-      session?.provider !== "workos" ||
-      !/^app_consent_[A-Za-z0-9]+$/.test(consentId)
-    ) {
+    if (!(session && /^app_consent_[A-Za-z0-9]+$/.test(consentId))) {
       throw new Error("WorkOS sign-in required");
     }
     const row: { workosUserId: string; clientId: string } | null =

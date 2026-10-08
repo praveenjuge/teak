@@ -2,7 +2,7 @@ import { v } from "convex/values";
 import { internal } from "./_generated/api";
 import type { Doc } from "./_generated/dataModel";
 import { internalMutation } from "./_generated/server";
-import { readAuthPrimary, readSignupsDisabled } from "./env";
+import { readSignupsDisabled } from "./env";
 import { guardUserCreation } from "./signupFreeze";
 import { scheduleUserCreated } from "./telemetry/schedule";
 import { normalizeIdentityEmail } from "./userIdentityTable";
@@ -153,8 +153,7 @@ export const linkWorkosUser = internalMutation({
       if (!candidate) {
         const canCreate =
           args.allowCreate === true &&
-          (args.source === "ensureUser" || args.source === "webhook") &&
-          readAuthPrimary() === "workos";
+          (args.source === "ensureUser" || args.source === "webhook");
         if (!canCreate) {
           return quarantine("missing_mapping");
         }

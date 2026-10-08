@@ -257,7 +257,6 @@ test("completed repairs do not advance the audit watermark; repeated dispatch re
 
 test("explicit WorkOS-origin owners are distinguished from unproven missing Better Auth owners", async () => {
   const t = setup();
-  vi.stubEnv("AUTH_PRIMARY", "workos");
   await t.run(async (ctx) => {
     await ctx.db.insert("users", {
       identityOrigin: "workos",

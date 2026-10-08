@@ -4,7 +4,7 @@
  * Environment readiness checks for local development.
  *
  * Validates Bun, dependency lock consistency, Convex isolation, generated
- * files, capability groups, ports, and selected-target readiness. Reports
+ * files, WorkOS sign-in credentials, ports, and selected-target readiness. Reports
  * variable names and remediation only, never values.
  *
  * Usage: bun run doctor [--json] [--target <target>] [--profile <profile>]
@@ -335,63 +335,31 @@ export const checkConvexSiteUrl = async (): Promise<DoctorCheck> => {
   };
 };
 
-const CAPABILITY_GROUPS: { label: string; names: string[] }[] = [
-  { label: "Google", names: ["GOOGLE_CLIENT_ID", "GOOGLE_CLIENT_SECRET"] },
-  {
-    label: "Apple",
-    names: [
-      "APPLE_CLIENT_ID",
-      "APPLE_KEY_ID",
-      "APPLE_PRIVATE_KEY",
-      "APPLE_TEAM_ID",
-    ],
-  },
-];
+const WORKOS_DEPLOYMENT_VARS = ["WORKOS_CLIENT_ID", "WORKOS_API_KEY"];
 
-export const evaluateCapabilityGroups = (
+/** WorkOS AuthKit is the only sign-in provider, so its credentials are required. */
+export const evaluateWorkosPresence = (
   presence: Map<string, EnvPresence>
-): { broken: string[]; unknown: boolean } => {
-  const broken: string[] = [];
-  let unknown = false;
-  for (const group of CAPABILITY_GROUPS) {
-    const states = group.names.map((name) => presence.get(name));
-    if (states.some((state) => state === "unavailable" || !state)) {
-      unknown = true;
-      continue;
-    }
-    const found = group.names.filter((name) => presence.get(name) === "found");
-    if (found.length > 0 && found.length < group.names.length) {
-      const missing = group.names.filter((name) => !found.includes(name));
-      broken.push(`${group.label} is partial (missing ${missing.join(", ")})`);
-    }
-  }
-  return { broken, unknown };
-};
-
-export const checkCapabilityGroups = async (): Promise<DoctorCheck> => {
-  const names = CAPABILITY_GROUPS.flatMap((group) => group.names);
-  const presence = new Map<string, EnvPresence>(
-    await Promise.all(
-      names.map(async (name) => [name, await convexEnvPresence(name)] as const)
-    )
+): DoctorCheck => {
+  const missing = WORKOS_DEPLOYMENT_VARS.filter(
+    (name) => presence.get(name) === "missing"
   );
-  const { broken, unknown } = evaluateCapabilityGroups(presence);
-  if (broken.length > 0) {
+  if (missing.length > 0) {
     return {
-      detail: broken.join("; "),
-      id: "capability-groups",
+      detail: `sign-in is not configured: ${missing.join(", ")} missing on the selected deployment`,
+      id: "convex-workos",
       ok: false,
       remediation: [
-        "Set the full group or remove it entirely; partial groups are invalid",
+        "Export WORKOS_CLIENT_ID and WORKOS_API_KEY from a WorkOS staging or development environment (never production) and re-run bun run setup",
       ],
       severity: "error",
     };
   }
-  if (unknown) {
+  if (WORKOS_DEPLOYMENT_VARS.some((name) => presence.get(name) !== "found")) {
     return {
       detail:
-        "Convex deployment is unreachable; capability groups could not be verified",
-      id: "capability-groups",
+        "Convex deployment is unreachable; WorkOS credentials could not be verified",
+      id: "convex-workos",
       ok: true,
       remediation: [
         "Run bunx convex login (or export CONVEX_AGENT_MODE=anonymous) and re-run",
@@ -400,12 +368,24 @@ export const checkCapabilityGroups = async (): Promise<DoctorCheck> => {
     };
   }
   return {
-    detail: "Google and Apple capability groups are whole or absent",
-    id: "capability-groups",
+    detail:
+      "WORKOS_CLIENT_ID and WORKOS_API_KEY are set on the selected deployment",
+    id: "convex-workos",
     ok: true,
     severity: "error",
   };
 };
+
+export const checkConvexWorkos = async (): Promise<DoctorCheck> =>
+  evaluateWorkosPresence(
+    new Map(
+      await Promise.all(
+        WORKOS_DEPLOYMENT_VARS.map(
+          async (name) => [name, await convexEnvPresence(name)] as const
+        )
+      )
+    )
+  );
 
 export const checkPorts = async (): Promise<DoctorCheck> => {
   const worktree = await resolveWorktree(ROOT);
@@ -494,7 +474,7 @@ export const checkTargetReadiness = (target: DoctorTarget): DoctorCheck => {
       };
     }
     return {
-      detail: "web Convex configuration is present and valid",
+      detail: "web Convex and WorkOS configuration is present and valid",
       id,
       ok: true,
       severity: "error",
@@ -614,8 +594,8 @@ export const runDoctor = async (
   profile: DoctorProfile
 ): Promise<DoctorReport> => {
   const needsConvex = needsConvexChecks(target);
-  const [siteUrlCheck, capabilityCheck] = needsConvex
-    ? await Promise.all([checkConvexSiteUrl(), checkCapabilityGroups()])
+  const [siteUrlCheck, workosCheck] = needsConvex
+    ? await Promise.all([checkConvexSiteUrl(), checkConvexWorkos()])
     : [null, null];
   const checks: DoctorCheck[] = [
     checkBunVersion(),
@@ -627,7 +607,7 @@ export const runDoctor = async (
     checkTargetReadiness(target),
     ...(profile === "e2e" ? [checkE2EVars()] : []),
     ...(siteUrlCheck ? [siteUrlCheck] : []),
-    ...(capabilityCheck ? [capabilityCheck] : []),
+    ...(workosCheck ? [workosCheck] : []),
     await checkPorts(),
   ];
   return {

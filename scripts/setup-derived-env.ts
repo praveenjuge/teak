@@ -114,13 +114,20 @@ export const ensureDerivedEnv = (
 
 export const ensureWebEnv = (
   path: string,
-  defaults?: { convexUrl?: string; convexSiteUrl?: string; siteUrl?: string }
+  defaults?: {
+    convexUrl?: string;
+    convexSiteUrl?: string;
+    siteUrl?: string;
+    /** WorkOS client ID and API key, synced from the Convex deployment. */
+    workos?: Partial<Record<"WORKOS_CLIENT_ID" | "WORKOS_API_KEY", string>>;
+  }
 ): "created" | "exists" | "repaired" => {
-  // Tighten existing permissions before a repair can append a session seal.
+  // Tighten existing permissions before a repair can append secrets.
   if (existsSync(path)) {
     chmodSync(path, 0o600);
   }
   const result = ensureDerivedEnv(path, {
+    ...defaults?.workos,
     NEXT_PUBLIC_CONVEX_URL: defaults?.convexUrl ?? LOCAL_CONVEX_URL,
     NEXT_PUBLIC_CONVEX_SITE_URL:
       defaults?.convexSiteUrl ?? LOCAL_CONVEX_SITE_URL,
@@ -130,7 +137,7 @@ export const ensureWebEnv = (
     ).toString(),
     WORKOS_COOKIE_PASSWORD: randomBytes(32).toString("base64url"),
   });
-  // This file now contains an AuthKit session seal, even before activation.
+  // This file holds the WorkOS API key and the AuthKit session seal.
   chmodSync(path, 0o600);
   return result;
 };

@@ -1,8 +1,7 @@
 import { v } from "convex/values";
-import { components, internal } from "./_generated/api";
+import { internal } from "./_generated/api";
 import { type ActionCtx, httpAction, internalQuery } from "./_generated/server";
 import { getActiveCardCount } from "./card/cardUsage";
-import { readAuthPrimary } from "./env";
 import { withAuthorizedUser } from "./publicApiHttpAuth";
 import { errorResponse, json } from "./publicApiHttpShared";
 import { withPublicApiGatewayHeaders } from "./publicApiMeta";
@@ -33,34 +32,18 @@ export const profileForOwner = internalQuery({
     const count = includeCardCount
       ? { cardCount: await getActiveCardCount(ctx, teakUserId) }
       : {};
-    if (readAuthPrimary() === "workos") {
-      if (!mirror?.workosUserId || typeof mirror.workosEmail !== "string") {
-        return null;
-      }
-      const provider = await readWorkosProfile(ctx, mirror.workosUserId);
-      const name =
-        provider?.name ??
-        [provider?.firstName, provider?.lastName].filter(Boolean).join(" ");
-      return {
-        id: teakUserId,
-        email: mirror.workosEmail,
-        ...(name ? { name } : {}),
-        ...count,
-      };
-    }
-    const legacy = await ctx.runQuery(components.betterAuth.adapter.findOne, {
-      model: "user",
-      where: [{ field: "_id", operator: "eq", value: teakUserId }],
-    });
-    const email = mirror?.email ?? legacy?.email;
-    if (typeof email !== "string") {
+    if (!mirror?.workosUserId || typeof mirror.workosEmail !== "string") {
       return null;
     }
+    const provider = await readWorkosProfile(ctx, mirror.workosUserId);
+    const name =
+      provider?.name ??
+      [provider?.firstName, provider?.lastName].filter(Boolean).join(" ");
     return {
       id: teakUserId,
-      email,
+      email: mirror.workosEmail,
+      ...(name ? { name } : {}),
       ...count,
-      ...(typeof legacy?.name === "string" ? { name: legacy.name } : {}),
     };
   },
 });

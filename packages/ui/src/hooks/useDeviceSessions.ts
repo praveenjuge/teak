@@ -5,11 +5,8 @@ import { useAction } from "convex/react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { DeviceSession } from "../components/settings/SecuritySection";
 
-// Actions do not subscribe: keep pages local, discard stale responses on account/mode changes.
-export function useDeviceSessions(
-  identityKey: string | undefined,
-  provider: "betterauth" | "workos" | undefined
-) {
+// Actions do not subscribe: keep pages local, discard stale responses on account changes.
+export function useDeviceSessions(identityKey: string | undefined) {
   const list = useAction(api.securitySessions.listAuthkitSessions);
   const activeIdentity = useRef(identityKey);
   activeIdentity.current = identityKey;
@@ -28,7 +25,6 @@ export function useDeviceSessions(
     async (cursor: string | null = null) => {
       if (
         !identityKey ||
-        provider !== "workos" ||
         identityKey !== activeIdentity.current ||
         inFlight.current
       ) {
@@ -73,7 +69,7 @@ export function useDeviceSessions(
         }
       }
     },
-    [identityKey, provider, list]
+    [identityKey, list]
   );
   useEffect(() => {
     generation.current++;
@@ -96,7 +92,7 @@ export function useDeviceSessions(
     sessions: visible ? state.rows : undefined,
     sessionsHasMore: visible && state.hasMore,
     sessionsLoadingMore: visible && state.loading && state.rows !== undefined,
-    sessionsError: provider === "workos" && visible ? state.error : null,
+    sessionsError: visible ? state.error : null,
     retrySessions: () => void load(state.failedCursor ?? null),
     loadMoreSessions: () => {
       if (state.hasMore) {
@@ -106,7 +102,7 @@ export function useDeviceSessions(
     isCurrentIdentity: () =>
       Boolean(identityKey && identityKey === activeIdentity.current),
     refreshSessions: () => {
-      if (provider !== "workos" || identityKey !== activeIdentity.current) {
+      if (identityKey !== activeIdentity.current) {
         return Promise.resolve();
       }
       generation.current++;

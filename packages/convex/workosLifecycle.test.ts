@@ -83,7 +83,6 @@ const snapshot = (t: Backend) =>
 // quarantine retry duplicating effects; vault deletion or scheduled cleanup.
 describe("ordered canonical WorkOS lifecycle", () => {
   beforeEach(() => {
-    vi.stubEnv("AUTH_PRIMARY", "betterauth");
     vi.stubEnv("SIGNUPS_DISABLED", "true");
   });
   afterEach(() => vi.unstubAllEnvs());
@@ -693,7 +692,6 @@ describe("ordered canonical WorkOS lifecycle", () => {
 describe("new WorkOS lifecycle owners", () => {
   beforeEach(() => {
     vi.useFakeTimers();
-    vi.stubEnv("AUTH_PRIMARY", "workos");
     vi.stubEnv("SIGNUPS_DISABLED", "false");
   });
   afterEach(() => {

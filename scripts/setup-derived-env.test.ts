@@ -162,4 +162,24 @@ describe("local AuthKit environment writer", () => {
       "NEXT_PUBLIC_WORKOS_REDIRECT_URI=http://localhost:3999/callback"
     );
   });
+
+  test("adds missing WorkOS credentials without replacing a set client ID", () => {
+    const dir = mkdtempSync(join(tmpdir(), "teak-authkit-"));
+    const path = join(dir, ".env.local");
+    writeFileSync(path, "WORKOS_CLIENT_ID=client_human\n");
+    expect(
+      ensureWebEnv(path, {
+        workos: {
+          WORKOS_CLIENT_ID: "client_synced",
+          WORKOS_API_KEY: "sk_test_synced",
+        },
+      })
+    ).toBe("repaired");
+    const content = readFileSync(path, "utf-8");
+    expect(content).toContain("WORKOS_CLIENT_ID=client_human");
+    expect(content).not.toContain("client_synced");
+    expect(content).toContain("WORKOS_API_KEY=sk_test_synced");
+    // biome-ignore lint/suspicious/noBitwiseOperators: POSIX permissions exclude the file type bits.
+    expect(statSync(path).mode & 0o777).toBe(0o600);
+  });
 });

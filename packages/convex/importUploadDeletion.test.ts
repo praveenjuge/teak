@@ -46,7 +46,6 @@ beforeEach(() => {
       }
     }
   );
-  vi.stubEnv("AUTH_PRIMARY", "workos");
   vi.stubEnv("WORKOS_CLIENT_ID", "client_IMPORT");
   vi.stubEnv("WORKOS_ENVIRONMENT_ID", "environment_IMPORT");
   vi.stubEnv("WORKOS_API_KEY", "test-import-deletion-key");

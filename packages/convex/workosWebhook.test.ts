@@ -105,7 +105,6 @@ describe.each([
     vi.stubEnv("WORKOS_WEBHOOK_SECRET", secret);
     vi.stubEnv("WORKOS_ACTION_SECRET", "isolated-action-signing-fixture");
     vi.stubEnv("SIGNUPS_DISABLED", "true");
-    vi.stubEnv("AUTH_PRIMARY", "betterauth");
   });
   afterEach(() => vi.unstubAllEnvs());
 

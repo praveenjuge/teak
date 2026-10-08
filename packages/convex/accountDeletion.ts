@@ -10,7 +10,7 @@ import {
   type QueryCtx,
 } from "./_generated/server";
 import { removeCardUsage } from "./card/cardUsage";
-import { readAccountChangesPaused, readAuthPrimary } from "./env";
+import { readAccountChangesPaused } from "./env";
 import { getDeletionRetryPrincipal, getSessionUser } from "./securitySessions";
 import { TELEMETRY_OPERATIONS } from "./shared/telemetry";
 import { cardStorageObjectKeys } from "./storage/r2";
@@ -452,8 +452,7 @@ export const isDeleting = internalQuery({
 
 export const initiateAccountDeletion = async (
   ctx: MutationCtx,
-  owner: Doc<"users">,
-  provider: "betterauth" | "workos"
+  owner: Doc<"users">
 ): Promise<null> => {
   const existing = await getAccountDeletionState(ctx, owner.teakUserId);
   if (existing) {
@@ -470,13 +469,12 @@ export const initiateAccountDeletion = async (
       "Account changes are paused while we upgrade sign-in"
     );
   }
-  const legacy =
-    provider === "betterauth"
-      ? { _id: owner.teakUserId }
-      : await ctx.runQuery(components.betterAuth.adapter.findOne, {
-          model: "user",
-          where: [{ field: "_id", value: owner.teakUserId }],
-        });
+  // Accounts that existed before WorkOS also have retained Better Auth rows,
+  // which deletion removes too.
+  const legacy = await ctx.runQuery(components.betterAuth.adapter.findOne, {
+    model: "user",
+    where: [{ field: "_id", value: owner.teakUserId }],
+  });
   const clientId = process.env.WORKOS_CLIENT_ID;
   const environmentId = process.env.WORKOS_ENVIRONMENT_ID;
   const apiKey = process.env.WORKOS_API_KEY;
@@ -503,7 +501,7 @@ export const initiateAccountDeletion = async (
   const stateId = await ctx.db.insert("accountDeletionStates", {
     userId: owner.teakUserId,
     startedAt: Date.now(),
-    initiationProvider: provider,
+    initiationProvider: "workos",
     ...(legacy ? { betterAuthUserId: legacy._id } : {}),
     ...(owner.workosUserId ? { workosUserId: owner.workosUserId } : {}),
     ...(target ? { workosTarget: target } : {}),
@@ -531,33 +529,24 @@ export const deleteMyAccount = mutation({
       if (retry) {
         const rows = await ctx.db
           .query("users")
-          .withIndex(
-            retry.provider === "workos" ? "by_workosUserId" : "by_teakUserId",
-            (q) =>
-              retry.provider === "workos"
-                ? q.eq("workosUserId", retry.providerUserId)
-                : q.eq("teakUserId", retry.providerUserId)
+          .withIndex("by_workosUserId", (q) =>
+            q.eq("workosUserId", retry.workosUserId)
           )
           .take(2);
         if (rows.length === 1) {
           const state = await getAccountDeletionState(ctx, rows[0].teakUserId);
           if (
             state &&
-            (retry.provider === "betterauth"
-              ? state.betterAuthUserId === retry.providerUserId
-              : state.workosUserId === retry.providerUserId &&
-                (retry.externalId === null ||
-                  retry.externalId === undefined ||
-                  retry.externalId === state.userId))
+            state.workosUserId === retry.workosUserId &&
+            (retry.externalId === null ||
+              retry.externalId === undefined ||
+              retry.externalId === state.userId)
           ) {
             return null;
           }
         }
       }
       throw new ConvexError("User must be authenticated");
-    }
-    if (readAuthPrimary() !== "workos") {
-      throw new ConvexError("WorkOS account deletion is not enabled");
     }
     const rows = await ctx.db
       .query("users")
@@ -567,6 +556,6 @@ export const deleteMyAccount = mutation({
       throw new ConvexError("Account binding unavailable");
     }
     const owner = rows[0];
-    return initiateAccountDeletion(ctx, owner, session.provider);
+    return initiateAccountDeletion(ctx, owner);
   },
 });

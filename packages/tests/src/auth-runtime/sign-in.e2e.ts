@@ -5,13 +5,9 @@ import { signIn } from "../helpers/prod";
 const email = "e2e-runtime@tests.example.com";
 const password = "test-only-password";
 const editor = '<textarea aria-label="Markdown content"></textarea>';
-const fields =
-  '<label>Email<input name="email"></label><label>Password<input name="password" type="password"></label><button>Login</button>';
 for (const scenario of [
-  "betterauth",
   "workos",
   "authenticated",
-  "betterauth-rejected",
   "workos-rejected",
   "workos-email-rejected",
 ] as const) {
@@ -30,11 +26,7 @@ for (const scenario of [
           body: '<script>location.replace("/provider")</script>',
         });
       } else if (url.pathname === "/login") {
-        const html =
-          provider === "betterauth"
-            ? `<form method="post" action="/accepted">${fields}</form>`
-            : editor;
-        await route.fulfill({ contentType: "text/html", body: html });
+        await route.fulfill({ contentType: "text/html", body: editor });
       } else if (url.pathname === "/provider") {
         await route.fulfill({
           contentType: "text/html",

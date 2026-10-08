@@ -7,7 +7,6 @@ import { api, components } from "./_generated/api";
 import type { Doc } from "./_generated/dataModel";
 import schema from "./schema";
 import {
-  currentSession,
   getSessionProfile,
   getSessionUser,
   requireTeakUserId,
@@ -99,7 +98,6 @@ const snapshot = (t: Backend) =>
     profiles: await ctx.db.query("workosProfiles").take(10),
   }));
 beforeEach(() => {
-  vi.stubEnv("AUTH_PRIMARY", "workos");
   vi.stubEnv("WORKOS_CLIENT_ID", clientId);
   vi.stubEnv("CONVEX_SITE_URL", "https://session-tests.convex.site");
 });
@@ -119,7 +117,6 @@ describe("WorkOS Convex sessions", () => {
     expect(await client(t).query(api.cards.getCard, { id: other })).toBeNull();
     const session = await client(t).run((ctx) => getSessionUser(ctx));
     expect(session).toMatchObject({
-      provider: "workos",
       teakUserId: "permanent-owner",
       sessionId: "session_DEVICE",
     });
@@ -176,17 +173,6 @@ describe("WorkOS Convex sessions", () => {
     ).toBeNull();
     expect(await snapshot(t)).toEqual(before);
   });
-  test.each([undefined, "betterauth"])(
-    "mode %s rejects WorkOS without reading legacy storage",
-    async (mode) => {
-      vi.stubEnv("AUTH_PRIMARY", mode);
-      const t = setup();
-      await seed(t);
-      expect(
-        await client(t).query(api.cards.getCard, { id: await card(t) })
-      ).toBeNull();
-    }
-  );
   test.each([
     "missing",
     "duplicate_provider",
@@ -341,24 +327,4 @@ describe("WorkOS Convex sessions", () => {
       });
     }
   );
-  test("WorkOS cannot enter legacy device, consent or native session paths", async () => {
-    const t = setup();
-    await seed(t);
-    const c = client(t);
-    expect(await c.run((ctx) => currentSession(ctx))).toBeNull();
-    expect(await c.query(api.oauthTokens.listOAuthConnections, {})).toEqual([]);
-    expect(
-      await c.query(api.oauthTokens.getOAuthConsentRequest, {
-        consentCode: "pending",
-      })
-    ).toBeNull();
-    await expect(
-      c.mutation(api.authNative.createNativeAuthCode, {
-        deviceId: "device-test",
-        codeChallenge: "a".repeat(43),
-        state: "a".repeat(43),
-        surface: "desktop",
-      })
-    ).rejects.toThrow("authenticated");
-  });
 });

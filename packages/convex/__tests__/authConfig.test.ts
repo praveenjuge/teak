@@ -2,16 +2,11 @@ import { expect, test } from "bun:test";
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 
-const devUrl = "https://reminiscent-kangaroo-59.convex.cloud";
-
-async function loadConfig(cloudUrl: string, clientId?: string) {
+async function loadConfig(clientId?: string) {
   // Convex auth configuration throws when it reads an unset variable, unlike
   // ordinary Node environment access. Exercise that boundary in a fresh process.
   const script = `
     const values = {
-      CONVEX_CLOUD_URL: ${JSON.stringify(cloudUrl)},
-      CONVEX_SITE_URL: "https://isolated-test.convex.site",
-      JWKS: "null",
       ${clientId ? `WORKOS_CLIENT_ID: ${JSON.stringify(clientId)},` : ""}
     };
     process.env = new Proxy(values, {
@@ -37,27 +32,25 @@ async function loadConfig(cloudUrl: string, clientId?: string) {
   };
 }
 
-test.each([
-  "https://production.convex.cloud",
-  "http://127.0.0.1:3210",
-  "https://another-dev.convex.cloud",
-])(
-  "deploys Better Auth without WorkOS configuration on %s",
-  async (url: string) => {
-    const config = await loadConfig(url);
-    expect(config.providers).toHaveLength(1);
-    expect(config.providers[0]?.issuer).toBe(
-      "https://isolated-test.convex.site"
-    );
-  }
-);
-
-test("trusts the exact provisioned AuthKit client on the readiness deployment", async () => {
+test("trusts only the configured AuthKit client", async () => {
   const client = "client_01KBYSVNVDV2G39REZFGF0K7GD";
-  const config = await loadConfig(devUrl, client);
-  expect(config.providers).toHaveLength(2);
-  expect(config.providers[1]).toMatchObject({
-    issuer: `https://api.workos.com/user_management/${client}`,
-    jwks: `https://api.workos.com/sso/jwks/${client}`,
-  });
+  const config = await loadConfig(client);
+  expect(config.providers).toEqual([
+    {
+      type: "customJwt",
+      issuer: `https://api.workos.com/user_management/${client}`,
+      algorithm: "RS256",
+      jwks: `https://api.workos.com/sso/jwks/${client}`,
+    },
+  ]);
+});
+
+test("a deployment without a WorkOS client fails to load", async () => {
+  await expect(loadConfig()).rejects.toThrow("WORKOS_CLIENT_ID");
+});
+
+test("rejects a value that is not a WorkOS client ID", async () => {
+  await expect(loadConfig("https://evil.example")).rejects.toThrow(
+    "must be a WorkOS client ID"
+  );
 });

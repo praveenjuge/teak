@@ -87,7 +87,6 @@ const sessionClient = (t: Backend) =>
 // retry timestamps and refreshed credentials resurrecting a disconnected grant.
 describe("signed-in Connect management", () => {
   beforeEach(() => {
-    vi.stubEnv("AUTH_PRIMARY", "workos");
     vi.stubEnv("WORKOS_CLIENT_ID", "client_SESSION");
     vi.stubEnv("WORKOS_API_KEY", "non-secret-disconnect-test-fixture");
     vi.stubEnv("WORKOS_ENVIRONMENT_ID", "environment_TEST");
@@ -284,7 +283,7 @@ describe("signed-in Connect management", () => {
     expect(rows[0].revokedAt).toEqual(expect.any(Number));
   });
 
-  test.each(["anonymous", "unverified", "deleted", "deleting", "wrong-mode"])(
+  test.each(["anonymous", "unverified", "deleted", "deleting"])(
     "%s cannot list or disconnect connections",
     async (failure) => {
       const t = setup();
@@ -297,9 +296,6 @@ describe("signed-in Connect management", () => {
             startedAt: Date.now(),
           })
         );
-      }
-      if (failure === "wrong-mode") {
-        vi.stubEnv("AUTH_PRIMARY", "betterauth");
       }
       const client = failure === "anonymous" ? t : sessionClient(t);
       const actor =

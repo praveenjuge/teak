@@ -1,34 +1,24 @@
-import { getAuthConfigProvider } from "@convex-dev/better-auth/auth-config";
 import type { AuthConfig } from "convex/server";
-import { readJwksDocument } from "./env";
 
-// Only these provisioned deployments may add WorkOS session JWT trust.
-// Unknown/local deployments never read optional WorkOS configuration.
-const deployment = process.env.CONVEX_CLOUD_URL;
-let clientId: string | undefined;
-if (deployment === "https://reminiscent-kangaroo-59.convex.cloud") {
-  clientId = "client_01KBYSVNVDV2G39REZFGF0K7GD";
-} else if (deployment === "https://uncommon-ladybug-882.convex.cloud") {
-  clientId = "client_01M46HC8K0DD50SC59QX9DV3MX";
-}
-if (clientId && process.env.WORKOS_CLIENT_ID !== clientId) {
+// Convex trusts AuthKit session tokens for this deployment's WorkOS client.
+// WorkOS is the only sign-in provider, so a deployment without one fails here.
+const clientId = process.env.WORKOS_CLIENT_ID;
+if (!clientId) {
   throw new Error(
-    "WorkOS AuthKit client does not match the provisioned deployment"
+    "WORKOS_CLIENT_ID is required: WorkOS is the only sign-in provider."
   );
+}
+if (!/^client_[A-Za-z0-9]+$/.test(clientId)) {
+  throw new Error("WORKOS_CLIENT_ID must be a WorkOS client ID.");
 }
 
 export default {
   providers: [
-    getAuthConfigProvider({ jwks: readJwksDocument() }),
-    ...(clientId
-      ? [
-          {
-            type: "customJwt" as const,
-            issuer: `https://api.workos.com/user_management/${clientId}`,
-            algorithm: "RS256" as const,
-            jwks: `https://api.workos.com/sso/jwks/${clientId}`,
-          },
-        ]
-      : []),
+    {
+      type: "customJwt" as const,
+      issuer: `https://api.workos.com/user_management/${clientId}`,
+      algorithm: "RS256" as const,
+      jwks: `https://api.workos.com/sso/jwks/${clientId}`,
+    },
   ],
 } satisfies AuthConfig;

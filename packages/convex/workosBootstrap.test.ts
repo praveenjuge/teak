@@ -79,7 +79,6 @@ const state = (t: Backend) =>
   }));
 beforeEach(() => {
   vi.useFakeTimers();
-  vi.stubEnv("AUTH_PRIMARY", "workos");
   vi.stubEnv("WORKOS_CLIENT_ID", clientId);
   vi.stubEnv("SIGNUPS_DISABLED", "false");
 });
@@ -606,15 +605,5 @@ describe("signed WorkOS bootstrap", () => {
       { teakUserId: "permanent-owner", workosUserId: "user_NEW" },
     ]);
     expect((await state(t)).jobs).toEqual([]);
-  });
-  test("legacy mode does not admit WorkOS bootstrap", async () => {
-    const t = setup();
-    await profile(t);
-    vi.stubEnv("AUTH_PRIMARY", "betterauth");
-    expect(await signed(t).mutation(ensure, {})).toEqual({
-      status: "quarantined",
-      reason: "invalid_session",
-    });
-    expect((await state(t)).users).toEqual([]);
   });
 });

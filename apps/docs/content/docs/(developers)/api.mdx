@@ -41,11 +41,11 @@ Native clients using browser sign-in send short-lived OAuth access tokens instea
 
 Browser-based OAuth clients can discover the active server from `/.well-known/oauth-protected-resource/mcp`, then read its `/.well-known/oauth-authorization-server` document. Teak publishes first-party client IDs and the matching issuer at `/.well-known/teak-oauth-clients.json`. The shared SDK's `discoverAuthServer(siteUrl)` caches a validated result for up to 60 seconds; use `{ forceRefresh: true }` after sign-in or refresh failures. Discovery never sends an access token. For a cloud development backend with a local sign-in server, pass its explicit loopback origin as `localIssuer`; remote metadata cannot enable loopback access by itself.
 
-When a deployment uses WorkOS, request `https://teakvault.com/api` as the OAuth resource. REST requests require a Connect user access token with that exact audience, including in local development. AuthKit session tokens and tokens issued for `https://teakvault.com/mcp` are rejected. Teak API keys remain supported.
+Request `https://teakvault.com/api` as the OAuth resource. REST requests require a Connect user access token with that exact audience, including in local development. AuthKit session tokens and tokens issued for `https://teakvault.com/mcp` are rejected. Teak API keys remain supported.
 
 ### Disconnect an OAuth connection
 
-On WorkOS deployments, send `POST /v1/oauth/disconnect` with your Connect API access token as the bearer credential and no body. A `204` confirms that this app is disconnected across all its installations and resources. Other apps stay connected. Repeating a completed request succeeds. Keep saved credentials until you receive `204`. Reconnecting can take about five minutes while previously issued access tokens expire.
+Send `POST /v1/oauth/disconnect` with your Connect API access token as the bearer credential and no body. A `204` confirms that this app is disconnected across all its installations and resources. Other apps stay connected. Repeating a completed request succeeds. Keep saved credentials until you receive `204`. Reconnecting can take about five minutes while previously issued access tokens expire.
 
 A new disconnect requires a current access token. A correctly signed expired token can retry a completed disconnect or resume its acknowledged cleanup, but cannot access cards. On `401`, refresh using the same issuer, client and resource, save the rotated credentials, then retry once. Temporary verification, provider or storage failures return `503`; preserve credentials for retry. API keys, refresh tokens, AuthKit sessions, and MCP-audience tokens cannot use this endpoint.
 

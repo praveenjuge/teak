@@ -1,97 +1,47 @@
 /// <reference types="vite/client" />
-import betterAuthTest from "@convex-dev/better-auth/test";
 import polarTest from "@convex-dev/polar/test";
 import rateLimiterTest from "@convex-dev/rate-limiter/test";
 import counterTest from "@convex-dev/sharded-counter/test";
 import workflowTest from "@convex-dev/workflow/test";
 import apiKeysTest from "@vllnt/convex-api-keys/test";
 import { convexTest } from "convex-test";
-import { afterEach, beforeEach, expect, test, vi } from "vitest";
-import { api, components, internal } from "./_generated/api";
+import { expect, test } from "vitest";
+import { seedWorkosOwner } from "./__tests__/helpers/workosOwner.test-utils";
+import { api } from "./_generated/api";
 import schema from "./schema";
 
 const modules = import.meta.glob("./**/*.ts");
-beforeEach(() => vi.stubEnv("IDENTITY_RESOLVER_ENFORCE", "false"));
-afterEach(() => vi.unstubAllEnvs());
+const OWNER = "permanent-owner";
 
-async function setup(kind: "API key" | "OAuth" = "API key") {
+async function setup() {
   const t = convexTest(schema, modules);
-  betterAuthTest.register(t);
   polarTest.register(t);
   workflowTest.register(t);
   rateLimiterTest.register(t, "rateLimiterV2");
   apiKeysTest.register(t);
   counterTest.register(t, "apiKeys/shardedCounter");
-  const now = Date.now();
-  const user = await t.mutation(components.betterAuth.adapter.create, {
-    input: {
-      model: "user",
-      data: {
-        name: "Identity boundary",
-        email: "identity-bearer@example.com",
-        emailVerified: true,
-        createdAt: now,
-        updatedAt: now,
-      },
-    },
-  });
-  const session = await t.mutation(components.betterAuth.adapter.create, {
-    input: {
-      model: "session",
-      data: {
-        userId: user._id,
-        token: crypto.randomUUID(),
-        createdAt: now,
-        updatedAt: now,
-        expiresAt: now + 3_600_000,
-      },
-    },
-  });
+  const workosUserId = await seedWorkosOwner(t, OWNER);
   const client = t.withIdentity({
-    issuer: process.env.CONVEX_SITE_URL,
-    subject: user._id,
-    sessionId: session._id,
+    issuer: `https://api.workos.com/user_management/${process.env.WORKOS_CLIENT_ID}`,
+    subject: workosUserId,
+    sid: "session_boundary",
+    email_verified: true,
+    external_id: OWNER,
   });
-  let token: string;
-  let revoke: () => Promise<unknown>;
-  if (kind === "API key") {
-    const key = await client.mutation(api.apiKeys.createUserApiKey, {
-      name: "Boundary proof",
-    });
-    token = key.key;
-    revoke = () =>
-      client.mutation(api.apiKeys.revokeUserApiKey, { keyId: key.id });
-  } else {
-    await t.mutation(internal.oauthClients.ensureOAuthClients, {});
-    token = "o".repeat(32);
-    await t.mutation(components.betterAuth.adapter.create, {
-      input: {
-        model: "oauthAccessToken",
-        data: {
-          clientId: "teak-cli",
-          userId: user._id,
-          accessToken: token,
-          refreshToken: "r".repeat(32),
-          accessTokenExpiresAt: now + 3_600_000,
-          refreshTokenExpiresAt: now + 86_400_000,
-          createdAt: now,
-          updatedAt: now,
-          scopes: "profile email offline_access",
-        },
-      },
-    });
-    revoke = () =>
-      client.action(api.oauthTokens.revokeOAuthConnection, {
-        clientId: "teak-cli",
-      });
-  }
-  return { t, user, revoke, token };
+  const key = await client.mutation(api.apiKeys.createUserApiKey, {
+    name: "Boundary proof",
+  });
+  const request = (path = "/v1/me") =>
+    t.fetch(path, { headers: { Authorization: `Bearer ${key.key}` } });
+  const revoke = () =>
+    client.mutation(api.apiKeys.revokeUserApiKey, { keyId: key.id });
+  return { t, workosUserId, request, revoke };
 }
 
 // Failure modes: unauthenticated access, wrong owner selected from input,
-// revoked/expired bearer reuse, stale legacy email overriding the mirror,
-// deleted identities, and missing profiles. These exercise the real HTTP router,
-// credential components, rate limiter, and database rather than mocked helpers.
+// revoked bearer reuse, provider IDs or rows leaking into the profile, and
+// deleted identities. These exercise the real HTTP router, credential
+// components, rate limiter, and database rather than mocked helpers.
 test("me rejects missing credentials and provides the public API preflight", async () => {
   const { t } = await setup();
   const denied = await t.fetch("/v1/me");
@@ -105,113 +55,70 @@ test("me rejects missing credentials and provides the public API preflight", asy
   );
 });
 
-test.each(["API key", "OAuth"] as const)(
-  "me returns the permanent owner for %s and rejects revoked credentials",
-  async (kind) => {
-    const { t, user, token, revoke } = await setup(kind);
-    const request = () =>
-      t.fetch("/v1/me?userId=foreign-owner", {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-    const response = await request();
-    expect(response.status).toBe(200);
-    expect(await response.json()).toEqual({
-      data: {
-        id: user._id,
-        email: "identity-bearer@example.com",
-        name: "Identity boundary",
+test("me returns the permanent owner for an API key and rejects it once revoked", async () => {
+  const { request, revoke } = await setup();
+  const response = await request("/v1/me?userId=foreign-owner");
+  expect(response.status).toBe(200);
+  expect(await response.json()).toEqual({
+    data: { id: OWNER, email: `${OWNER}@example.test` },
+  });
+  expect(response.headers.get("Cache-Control")).toBe("no-store");
+  expect(response.headers.get("Access-Control-Allow-Origin")).toBe("*");
+  expect(response.headers.get("X-Request-Id")).toBeTruthy();
+  await revoke();
+  expect((await request()).status).toBe(401);
+});
+
+test("me reads the WorkOS-synced email and profile name without exposing provider IDs", async () => {
+  const { t, workosUserId, request } = await setup();
+  await t.run(async (ctx) => {
+    const owner = await ctx.db
+      .query("users")
+      .withIndex("by_teakUserId", (q) => q.eq("teakUserId", OWNER))
+      .unique();
+    const profile = await ctx.db
+      .query("workosProfiles")
+      .withIndex("by_workosUserId", (q) => q.eq("workosUserId", workosUserId))
+      .unique();
+    if (!(owner && profile)) {
+      throw new Error("Missing owner fixture");
+    }
+    await ctx.db.patch("users", owner._id, {
+      workosEmail: "updated@example.test",
+    });
+    await ctx.db.patch("workosProfiles", profile._id, {
+      profile: {
+        email: `${OWNER}@example.test`,
+        emailVerified: true,
+        externalId: OWNER,
+        firstName: "Identity",
+        lastName: "Boundary",
+        profilePictureUrl: null,
       },
     });
-    expect(response.headers.get("Cache-Control")).toBe("no-store");
-    expect(response.headers.get("Access-Control-Allow-Origin")).toBe("*");
-    expect(response.headers.get("X-Request-Id")).toBeTruthy();
-    await revoke();
-    expect((await request()).status).toBe(401);
-  }
-);
-
-test("me reads the real mirror profile without exposing its row or WorkOS ID", async () => {
-  const { t, user, token } = await setup("OAuth");
-  await t.run(async (ctx) => {
-    await ctx.db.insert("users", {
-      teakUserId: "foreign-owner",
-      email: "foreign@example.com",
-      emailVerified: true,
-    });
-    await ctx.db.insert("users", {
-      teakUserId: user._id,
-      email: "updated@example.com",
-      emailVerified: true,
-      workosUserId: "user_workos_is_not_the_owner",
-    });
   });
-  vi.stubEnv("IDENTITY_RESOLVER_ENFORCE", "true");
-  const response = await t.fetch("/v1/me", {
-    headers: { Authorization: `Bearer ${token}` },
-  });
+  const response = await request();
   expect(response.status).toBe(200);
   expect(await response.json()).toEqual({
     data: {
-      id: user._id,
-      email: "updated@example.com",
-      name: "Identity boundary",
+      id: OWNER,
+      email: "updated@example.test",
+      name: "Identity Boundary",
     },
   });
 });
 
-test("me fails closed for tombstoned identities even in shadow mode", async () => {
-  const { t, user, token } = await setup("OAuth");
-  await t.run((ctx) =>
-    ctx.db.insert("users", {
-      teakUserId: user._id,
-      email: "deleted@example.com",
-      emailVerified: true,
-      deletedAt: Date.now(),
-    })
-  );
-  expect(
-    (await t.fetch("/v1/me", { headers: { Authorization: `Bearer ${token}` } }))
-      .status
-  ).toBe(401);
-});
-
-test("me rejects expired OAuth credentials", async () => {
-  const { t, token } = await setup("OAuth");
-  await t.mutation(components.betterAuth.adapter.updateOne, {
-    input: {
-      model: "oauthAccessToken",
-      where: [{ field: "accessToken", operator: "eq", value: token }],
-      update: { accessTokenExpiresAt: Date.now() - 1 },
-    },
+test("me denies an API key once its account is deleted", async () => {
+  const { t, request } = await setup();
+  await t.run(async (ctx) => {
+    const owner = await ctx.db
+      .query("users")
+      .withIndex("by_teakUserId", (q) => q.eq("teakUserId", OWNER))
+      .unique();
+    if (!owner) {
+      throw new Error("Missing owner fixture");
+    }
+    await ctx.db.patch("users", owner._id, { deletedAt: Date.now() });
   });
-  expect(
-    (await t.fetch("/v1/me", { headers: { Authorization: `Bearer ${token}` } }))
-      .status
-  ).toBe(401);
+  expect((await request()).status).toBe(401);
 });
-
-test("me requires a canonical mapping when enforcement is enabled", async () => {
-  const { t, token } = await setup("OAuth");
-  vi.stubEnv("IDENTITY_RESOLVER_ENFORCE", "true");
-  const response = await t.fetch("/v1/me", {
-    headers: { Authorization: `Bearer ${token}` },
-  });
-  expect(response.status).toBe(401);
-});
-
-test.each(["API key", "OAuth"] as const)(
-  "me denies %s credentials after their legacy account is deleted",
-  async (kind) => {
-    const { t, user, token } = await setup(kind);
-    await t.mutation(components.betterAuth.adapter.deleteOne, {
-      input: {
-        model: "user",
-        where: [{ field: "_id", operator: "eq", value: user._id }],
-      },
-    });
-    const response = await t.fetch("/v1/me", {
-      headers: { Authorization: `Bearer ${token}` },
-    });
-    expect(response.status).toBe(401);
-  }
-);

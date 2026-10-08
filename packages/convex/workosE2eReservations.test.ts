@@ -105,7 +105,6 @@ beforeEach(() => {
   token = crypto.randomUUID();
   vi.stubEnv("SITE_URL", "http://localhost:3000");
   vi.stubEnv("CONVEX_SITE_URL", "https://example.convex.site");
-  vi.stubEnv("AUTH_PRIMARY", "workos");
   vi.stubEnv("E2E_CLEANUP_TOKEN", token);
   vi.stubEnv("E2E_EMAIL_DOMAIN", domain);
   vi.stubEnv("WORKOS_CLIENT_ID", "client_E2EPROOF");

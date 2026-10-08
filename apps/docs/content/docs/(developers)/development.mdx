@@ -19,11 +19,15 @@ description: Setup and development workflow for Teak
     ```
   </Step>
   <Step title="Provision the local stack">
+    Teak signs in with WorkOS AuthKit only, so setup needs a client ID and API key from a WorkOS staging or development environment (see [Convex and sign-in](#convex-and-sign-in)):
+
     ```bash
+    export WORKOS_CLIENT_ID=client_...
+    export WORKOS_API_KEY=sk_test_...
     bun run setup
     ```
 
-    Setup installs dependencies, provisions an isolated Convex development deployment, and derives the local env files. It needs no production credentials. For another surface, pass `--target` (see below).
+    Setup installs dependencies, provisions an isolated Convex development deployment, sets the WorkOS credentials on it, and derives the local env files. It never needs production credentials. For another surface, pass `--target` (see below).
   </Step>
   <Step title="Verify readiness">
     ```bash
@@ -56,7 +60,7 @@ bun run doctor           # Validate the environment (--json --target --profile f
 bun run dev              # Web + Convex backend (bun run dev --help for targets)
 bun run dev web --headless  # Non-interactive output for agents and CI
 bun run dev --all        # All services
-bun run smoke:web        # End-to-end local session check (needs the stack running)
+bun run smoke:web        # WorkOS session check against the running stack (creates and deletes a test user)
 bun run audit:env        # Environment contract + local dotenv audit
 
 bun run dev convex       # Convex backend only
@@ -86,16 +90,16 @@ bun run clean            # Clear Turborepo caches
 
 ## Supported Targets and Limitations
 
-`bun run setup --target <name>` provisions one surface. Every target except `e2e`
-works with zero copied credentials.
+`bun run setup --target <name>` provisions one surface. Every target that uses
+Convex needs WorkOS staging or development credentials; nothing else is copied.
 
 | Target | Needs | Limitations |
 | --- | --- | --- |
-| `web` | Convex deployment | None; the default path |
+| `web` | Convex deployment, WorkOS credentials | None; the default path |
 | `docs`, `cli` | Nothing beyond install | No Convex provisioning |
-| `desktop`, `extension` | Convex deployment | Env files derive `VITE_*` aliases automatically; Electron is unshipped |
-| `mobile-simulator` | Convex deployment | iOS simulator uses loopback; Android emulators need `10.0.2.2` instead of `localhost` |
-| `mobile-device` | Convex deployment, LAN | The host must be LAN-reachable; doctor reports the address or an actionable diagnostic |
+| `desktop`, `extension` | Convex deployment, WorkOS credentials | Env files derive `VITE_*` aliases automatically; Electron is unshipped |
+| `mobile-simulator` | Convex deployment, WorkOS credentials | iOS simulator uses loopback; Android emulators need `10.0.2.2` instead of `localhost` |
+| `mobile-device` | Convex deployment, WorkOS credentials, LAN | The host must be LAN-reachable; doctor reports the address or an actionable diagnostic |
 | `files-worker` | `bun run sync:cloudflare-dev` afterwards | Worker secrets are owned by the sync command, not setup |
 | `e2e` | Production credentials | Not provisioned by setup; see `packages/tests/README.md` |
 
@@ -117,13 +121,17 @@ bun run doctor --target web --profile local --json
 
 ### Convex and sign-in
 
-Follow the [self-hosting quickstart](/docs/self-hosting) for `bun run setup`, `BETTER_AUTH_SECRET`, and `bunx convex dev` — it provisions the same isolated Convex deployment local development uses.
+Teak signs in with WorkOS AuthKit everywhere: production, local development, CI, and self-hosted deployments. There is no other provider and no switch.
 
-Hosted Teak signs in with WorkOS AuthKit. The Convex `AUTH_PRIMARY` setting selects the provider (`workos` or `betterauth`); unset means Better Auth. The backend trusts WorkOS sessions only on Teak's own development and production deployments, so a fresh isolated or local deployment from setup uses Better Auth. Leave `AUTH_PRIMARY` unset there.
+Use a WorkOS staging or development environment locally, never production. Teak maintainers use the staging environment that the Convex development deployment uses. Anyone else can create their own environment by following [Set up WorkOS](/docs/self-hosting#set-up-workos) with `http://localhost:3000` as the origin.
 
-Setup also prepares the web app for AuthKit: it writes `NEXT_PUBLIC_WORKOS_REDIRECT_URI` (the app origin plus `/callback`) and a local `WORKOS_COOKIE_PASSWORD` to `apps/web/.env.local`. `convex.json` declares the AuthKit redirect URIs and CORS origins, including every worktree web port, and Convex applies them to the deployment's WorkOS environment. Convex does not write WorkOS credentials to local files. When you work against Teak's development deployment, copy its `WORKOS_CLIENT_ID` and `WORKOS_API_KEY` into `apps/web/.env.local`; `bun run doctor` checks that the client, key, cookie password, and callback fit together. Never use production credentials locally.
+Export `WORKOS_CLIENT_ID` and `WORKOS_API_KEY` before `bun run setup`. Setup sets them on the Convex deployment and copies them into `apps/web/.env.local`, alongside `NEXT_PUBLIC_WORKOS_REDIRECT_URI` (the app origin plus `/callback`) and a generated `WORKOS_COOKIE_PASSWORD`. It never overwrites a value that is already set, and it stops if the shell, the deployment, and `apps/web/.env.local` disagree. Later runs read the values from the deployment, so the exports are only needed once.
 
-Google and Apple sign-in are optional locally: without their credentials, email sign-in works normally and the social buttons report that the provider isn't configured.
+`convex.json` declares the AuthKit redirect URIs and CORS origins, including every worktree web port. For cloud development deployments, Convex applies them to the deployment's WorkOS environment.
+
+`bun run doctor` fails until the deployment and the web app both have the client ID and API key, and checks that the client, key, cookie password, and callback fit together.
+
+Social sign-in, such as Google or Apple, is configured inside WorkOS, not in Teak.
 
 ### Public API and MCP
 
@@ -137,7 +145,7 @@ bun run dev:convex
 
 The docs dev server proxies `/api`, `/mcp`, and OAuth protected-resource metadata to the Convex dev deployment. That gives local docs, examples, and smoke tests the same path shape as production: `/api/v1` and `/mcp`.
 
-Native OAuth clients revoke credentials with a form-encoded `POST` to `/api/oauth/revoke` and read the account with `GET /api/oauth/userinfo` on the Convex site origin; both accept OAuth tokens only, never API keys.
+Native OAuth clients sign in through WorkOS AuthKit and disconnect with `POST /v1/oauth/disconnect` (see [Disconnect an OAuth connection](/docs/api#disconnect-an-oauth-connection)).
 
 ### MCP Registry
 

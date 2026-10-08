@@ -1,34 +1,98 @@
 import { afterEach, beforeEach, mock } from "bun:test";
 import { getFunctionName } from "convex/server";
 
-const originalConvexSiteUrl = process.env.CONVEX_SITE_URL;
+const TEST_CLIENT_ID = "client_sessiontests";
+const originalClientId = process.env.WORKOS_CLIENT_ID;
 beforeEach(() => {
-  process.env.CONVEX_SITE_URL ??= "https://session-tests.convex.site";
+  process.env.WORKOS_CLIENT_ID ??= TEST_CLIENT_ID;
 });
 afterEach(() => {
-  if (originalConvexSiteUrl === undefined) {
-    delete process.env.CONVEX_SITE_URL;
+  if (originalClientId === undefined) {
+    delete process.env.WORKOS_CLIENT_ID;
   } else {
-    process.env.CONVEX_SITE_URL = originalConvexSiteUrl;
+    process.env.WORKOS_CLIENT_ID = originalClientId;
   }
 });
 
 interface Identity {
-  issuer?: string;
-  sessionId?: string;
+  email?: string;
   subject: string;
 }
 interface TestContext {
   auth?: { getUserIdentity: () => Promise<Identity | null> };
   runQuery?: (...args: any[]) => any;
 }
+interface Mapping {
+  deletedAt?: number;
+  role?: "admin";
+}
 
-// Business-logic unit tests supply an authenticated identity and its matching
-// live session. Revoked, expired, and forged sessions are covered with the real
-// Better Auth component in securitySessions.test.ts, without this fixture.
+const workosUserIdFor = (teakUserId: string) =>
+  `user_${Buffer.from(teakUserId).toString("hex")}`;
+
+// The WorkOS owner resolver and profile read, answered from a mapping fixture
+// keyed by the permanent Teak user id. Deletion denies the owner.
+export const answerIdentityQuery = (
+  ref: any,
+  args: any,
+  mapping: Mapping,
+  email?: string
+): { handled: true; value: unknown } | { handled: false } => {
+  let name: string;
+  try {
+    name = getFunctionName(ref);
+  } catch {
+    // Component references (e.g. the API key component) are not identity reads.
+    return { handled: false };
+  }
+  if (
+    name === "accountDeletion:isDeleting" &&
+    typeof args?.userId === "string"
+  ) {
+    return { handled: true, value: false };
+  }
+  if (
+    name === "securitySessions:identityMapping" &&
+    typeof args?.teakUserId === "string"
+  ) {
+    return {
+      handled: true,
+      value: {
+        teakUserId: args.teakUserId,
+        email: email ?? "",
+        emailVerified: true,
+        workosUserId: workosUserIdFor(args.teakUserId),
+        workosEmail: email ?? `${args.teakUserId}@example.com`,
+        workosEmailVerified: true,
+        ...mapping,
+      },
+    };
+  }
+  if (name === "workosIdentity:resolveWorkosOwner") {
+    return {
+      handled: true,
+      value:
+        mapping.deletedAt === undefined && typeof args?.externalId === "string"
+          ? { status: "ok", teakUserId: args.externalId }
+          : { status: "denied", reason: "deleted_user" },
+    };
+  }
+  if (name === "workosProfileRead:getProfile") {
+    return {
+      handled: true,
+      value: { emailVerified: true, name: null, profilePictureUrl: null },
+    };
+  }
+  return { handled: false };
+};
+
+// Business-logic unit tests supply an authenticated identity. This turns it
+// into a verified AuthKit session whose external id is the test's permanent
+// Teak user id. Forged and revoked sessions are covered against the real
+// resolver in the edge tests, without this fixture.
 export function withTestSession<T extends TestContext>(
   ctx: T,
-  mapping: { role?: "admin"; deletedAt?: number } = {}
+  mapping: Mapping = {}
 ): T {
   const auth = ctx.auth;
   if (!auth) {
@@ -39,46 +103,19 @@ export function withTestSession<T extends TestContext>(
     return user
       ? {
           ...user,
-          issuer: user.issuer ?? process.env.CONVEX_SITE_URL,
-          sessionId: user.sessionId ?? "test-session",
+          issuer: `https://api.workos.com/user_management/${process.env.WORKOS_CLIENT_ID}`,
+          subject: workosUserIdFor(user.subject),
+          sid: "session_test",
+          email_verified: true,
+          external_id: user.subject,
         }
       : null;
   };
   const sourceRunQuery = ctx.runQuery;
-  const runQuery = mock(async (...args: any[]) => {
-    // Deletion admission is covered with the real database in workflow tests.
-    if (
-      typeof args[1]?.userId === "string" &&
-      getFunctionName(args[0]) === "accountDeletion:isDeleting"
-    ) {
-      return false;
-    }
-    if (
-      typeof args[1]?.teakUserId === "string" &&
-      getFunctionName(args[0]) === "securitySessions:identityMapping"
-    ) {
-      const user = await identity();
-      return user
-        ? { teakUserId: user.subject, emailVerified: false, ...mapping }
-        : null;
-    }
-    const queryArgs = args[1] as { model?: string } | undefined;
-    if (queryArgs?.model === "session") {
-      const originalUser = await auth.getUserIdentity();
-      if (originalUser?.sessionId && sourceRunQuery) {
-        return sourceRunQuery(...args);
-      }
-      const user = await identity();
-      return user
-        ? {
-            _id: user.sessionId,
-            userId: user.subject,
-            createdAt: Date.now(),
-            expiresAt: Date.now() + 60_000,
-          }
-        : null;
-    }
-    return sourceRunQuery?.(...args);
+  const runQuery = mock(async (ref: any, args: any) => {
+    const user = await auth.getUserIdentity();
+    const answer = answerIdentityQuery(ref, args, mapping, user?.email);
+    return answer.handled ? answer.value : sourceRunQuery?.(ref, args);
   });
   return {
     ...ctx,
@@ -96,19 +133,8 @@ export function withMappedOwner<
   return {
     ...ctx,
     runQuery: mock(async (ref: any, args: any) => {
-      if (
-        typeof args?.userId === "string" &&
-        getFunctionName(ref) === "accountDeletion:isDeleting"
-      ) {
-        return false;
-      }
-      if (
-        typeof args?.teakUserId === "string" &&
-        getFunctionName(ref) === "securitySessions:identityMapping"
-      ) {
-        return { teakUserId: args.teakUserId, emailVerified: false };
-      }
-      return await sourceRunQuery?.(ref, args);
+      const answer = answerIdentityQuery(ref, args, {});
+      return answer.handled ? answer.value : await sourceRunQuery?.(ref, args);
     }),
   };
 }

@@ -28,15 +28,15 @@ describe("readConvexDotenvUrls", () => {
 describe("summarizePushFailure", () => {
   test("keeps the signal line even when it precedes the tail", () => {
     const stderr = [
-      "Environment variable JWKS is used in auth config file but its value was not set.",
+      "Environment variable WORKOS_CLIENT_ID is used in auth config file but its value was not set.",
       "Go to:",
       "",
-      "    https://dashboard.convex.dev/d/acme/settings/environment-variables?var=JWKS",
+      "    https://dashboard.convex.dev/d/acme/settings/environment-variables?var=WORKOS_CLIENT_ID",
       "",
       "  to set it up.",
     ].join("\n");
     const summary = summarizePushFailure(stderr);
-    expect(summary).toContain("Environment variable JWKS");
+    expect(summary).toContain("Environment variable WORKOS_CLIENT_ID");
     expect(summary).toContain("to set it up.");
   });
 
@@ -75,7 +75,7 @@ describe("isTransientPushFailure", () => {
     ).toBe(false);
     expect(
       isTransientPushFailure(
-        "Environment variable JWKS is used in auth config file but its value was not set."
+        "Environment variable WORKOS_CLIENT_ID is used in auth config file but its value was not set."
       )
     ).toBe(false);
     expect(isTransientPushFailure("")).toBe(false);

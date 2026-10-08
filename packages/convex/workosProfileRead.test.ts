@@ -13,7 +13,6 @@ const getProfile = makeFunctionReference<"query", { workosUserId: string }>(
   "workosProfileRead:getProfile"
 );
 beforeEach(() => {
-  vi.stubEnv("AUTH_PRIMARY", "workos");
   vi.stubEnv("WORKOS_CLIENT_ID", "client_READ");
 });
 afterEach(() => vi.unstubAllEnvs());

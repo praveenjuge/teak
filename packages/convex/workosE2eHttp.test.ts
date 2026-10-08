@@ -3,7 +3,7 @@ import betterAuthTest from "@convex-dev/better-auth/test";
 import workflowTest from "@convex-dev/workflow/test";
 import { convexTest } from "convex-test";
 import { afterEach, beforeEach, expect, test, vi } from "vitest";
-import { components, internal } from "./_generated/api";
+import { internal } from "./_generated/api";
 import schema from "./schema";
 
 const modules = import.meta.glob("./**/*.ts");
@@ -13,7 +13,6 @@ beforeEach(() => {
   vi.stubEnv("SITE_URL", "http://localhost:3000");
   vi.stubEnv("CONVEX_SITE_URL", "https://example.convex.site");
   token = crypto.randomUUID();
-  vi.stubEnv("AUTH_PRIMARY", "workos");
   vi.stubEnv("E2E_CLEANUP_TOKEN", token);
   vi.stubEnv("E2E_EMAIL_DOMAIN", "tests.example.com");
   vi.stubEnv("WORKOS_CLIENT_ID", "client_E2EPROOF");
@@ -80,28 +79,6 @@ test("provision rejects oversized bodies before forwarding password", async () =
   );
   expect(response.status).toBe(413);
 });
-test("Better Auth mode preserves real plugin provisioning without WorkOS traffic", async () => {
-  vi.stubEnv("AUTH_PRIMARY", "betterauth");
-  let providerCalls = 0;
-  vi.stubGlobal("fetch", () => {
-    providerCalls++;
-    throw new Error("Unexpected provider traffic");
-  });
-  const t = setup();
-  const email = "e2e-preserved-ba@tests.example.com";
-  const response = await t.fetch(
-    "/api/auth/internal/e2e/provision",
-    request(JSON.stringify({ email, password: crypto.randomUUID() }))
-  );
-  expect(response.status).toBe(200);
-  const user = await t.query(components.betterAuth.adapter.findOne, {
-    model: "user",
-    where: [{ field: "email", value: email }],
-  });
-  expect(user).toMatchObject({ email, emailVerified: true });
-  expect(providerCalls).toBe(0);
-});
-
 test("WorkOS provisioning waits for real lifecycle authority and cleanup admits the durable workflow", async () => {
   const t = setup();
   const email = "e2e-real-adapter@tests.example.com";

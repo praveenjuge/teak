@@ -3,7 +3,12 @@ import { defineConfig } from "vitest/config";
 export default defineConfig({
   test: {
     environment: "edge-runtime",
-    env: { CONVEX_SITE_URL: "https://session-tests.convex.site" },
+    // A complete WorkOS configuration; tests stub specific values as needed.
+    env: {
+      CONVEX_SITE_URL: "https://session-tests.convex.site",
+      WORKOS_CLIENT_ID: "client_edgetests",
+      WORKOS_WEBHOOK_SECRET: "edge-test-webhook-secret",
+    },
     include: [
       "./occContention.test.ts",
       "./accountDeletionRetry.test.ts",
@@ -11,8 +16,6 @@ export default defineConfig({
       "./accountDeletionWorkflow.test.ts",
       "./importConsolidation.test.ts",
       "./importUploadDeletion.test.ts",
-      "./safariOAuth.test.ts",
-      "./securitySessions.test.ts",
       "./workosSessions.test.ts",
       "./workosDevices.test.ts",
       "./workosBootstrap.test.ts",
@@ -22,8 +25,6 @@ export default defineConfig({
       "./workosProfileApply.test.ts",
       "./workosProfileRead.test.ts",
       "./workosE2eState.test.ts",
-      "./workosLegacyCredentialGate.test.ts",
-      "./workosLegacyGrants.test.ts",
       "./workosE2eHttp.test.ts",
       "./workosE2eReservations.test.ts",
       "./workosReconciliation.test.ts",
@@ -36,14 +37,11 @@ export default defineConfig({
       "./workosBearer.test.ts",
       "./workosDiscovery.test.ts",
       "./workosWebhook.test.ts",
-      "./identityBearer.test.ts",
       "./signupFreeze.test.ts",
       "./workosAuthKit.test.ts",
-      "./authConfig.test.ts",
       "./workosDeletionCompletion.test.ts",
       "./publicApiCardEditing.test.ts",
       "./publicApiMe.test.ts",
-      "./mcpRevocation.test.ts",
       "./maintenanceQueries.test.ts",
       "./idempotency.test.ts",
       "./operationalRetention.test.ts",

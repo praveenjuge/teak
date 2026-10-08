@@ -39,14 +39,15 @@ const readStream = async (
 
 export const runCommand = async (
   command: string[],
-  opts?: { cwd?: string; timeoutMs?: number }
+  opts?: { cwd?: string; stdin?: string; timeoutMs?: number }
 ): Promise<RunCommandResult> => {
   const timeoutMs = opts?.timeoutMs ?? 180_000;
   const proc = Bun.spawn(command, {
     cwd: opts?.cwd,
     detached: true,
     stderr: "pipe",
-    stdin: "ignore",
+    // Secrets go through stdin so they never appear in the process list.
+    stdin: opts?.stdin === undefined ? "ignore" : Buffer.from(opts.stdin),
     stdout: "pipe",
   });
   const stdoutReader = proc.stdout.getReader();

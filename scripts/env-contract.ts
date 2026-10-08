@@ -25,9 +25,22 @@ export const ENV_CONTRACT: EnvVarSpec[] = [
   ...OPS_ENTRIES,
 ];
 
-/** Names removed by the typed-env cleanup. The audit fails if they return. */
+/**
+ * Names removed by the typed-env cleanup and the Better Auth removal (WorkOS
+ * AuthKit is the only sign-in provider). The audit fails if they return.
+ */
 export const DELETED_ALIASES = [
+  "APPLE_APP_BUNDLE_IDENTIFIER",
+  "APPLE_CLIENT_ID",
+  "APPLE_KEY_ID",
+  "APPLE_PRIVATE_KEY",
   "AUTH_ISSUER_URL",
+  "AUTH_PRIMARY",
+  "BETTER_AUTH_SECRET",
+  "GOOGLE_CLIENT_ID",
+  "GOOGLE_CLIENT_SECRET",
+  "IDENTITY_RESOLVER_ENFORCE",
+  "JWKS",
   "NEXT_PUBLIC_R2_PUBLIC_ORIGIN",
   "NEXT_PUBLIC_R2_PUBLIC_URL",
   "NEXT_PUBLIC_R2_STORAGE_ORIGIN",

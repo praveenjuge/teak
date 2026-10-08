@@ -19,6 +19,15 @@ jobs:
     env:
       CONVEX_AGENT_MODE: anonymous
       TURBO_UI: "false"
+      # WorkOS AuthKit is the only sign-in provider, so setup needs a client ID
+      # and API key. CI reuses the WorkOS staging environment (the one the dev
+      # deployment uses). Without the secrets (fork pull requests, or before
+      # they are added), inert placeholders still let setup and the web boot so
+      # the anonymous /sign-in gate is checked; the smoke never signs in with
+      # them and reports why the authenticated check did not run.
+      WORKOS_CLIENT_ID: ${{ secrets.WORKOS_STAGING_CLIENT_ID || 'client_00000000000000000000000000' }}
+      WORKOS_API_KEY: ${{ secrets.WORKOS_STAGING_API_KEY || 'placeholder-without-workos-access' }}
+      SMOKE_WORKOS_CREDENTIALS: ${{ (secrets.WORKOS_STAGING_CLIENT_ID != '' && secrets.WORKOS_STAGING_API_KEY != '') && 'present' || ((github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name != github.repository) && 'fork' || 'missing') }}
     steps:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
@@ -54,7 +63,7 @@ jobs:
           dev_pid=$!
           trap 'kill "$dev_pid" 2> /dev/null || true' EXIT
           for _ in $(seq 1 60); do
-            if curl -fsS http://localhost:3000/login > /dev/null 2>&1; then
+            if curl -fsS -o /dev/null http://localhost:3000/ 2> /dev/null; then
               break
             fi
             if ! kill -0 "$dev_pid" 2> /dev/null; then
@@ -62,7 +71,7 @@ jobs:
             fi
             sleep 5
           done
-          if ! curl -fsS http://localhost:3000/login > /dev/null; then
+          if ! curl -fsS -o /dev/null http://localhost:3000/; then
             tail -80 /tmp/dev.log
             exit 1
           fi
