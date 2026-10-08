@@ -24,9 +24,8 @@ After installing globally, the `teak` command is available on your PATH. To try 
     ```
 
     Teak opens your browser to authorize the CLI. Approve the request on the
-    consent screen, then return to the terminal. Existing CLI credentials stay
-    valid until you sign out or disconnect the app. A change to Teak’s sign-in
-    provider may require reconnecting.
+    consent screen, then return to the terminal. You stay signed in until you
+    run `teak logout` or disconnect the app in Settings.
   </Tab>
   <Tab title="API key">
     Set `TEAK_API_KEY` to skip interactive sign-in in scripts and CI:
@@ -39,24 +38,24 @@ After installing globally, the `teak` command is available on your PATH. To try 
   </Tab>
 </Tabs>
 
+Check which credential the CLI is using with `teak auth status`.
+
 ```bash
 teak logout
 ```
 
-`teak logout` revokes browser sign-in. With WorkOS, a confirmed disconnect signs out every CLI installation; reconnecting can take about five minutes. If this device still has a sign-in from before the October 7 sign-in update, or WorkOS already rejects your refresh credential, logout clears only this device’s saved sign-in and tells you that other installations may remain connected. Disconnect those in **Settings → Security → Connected apps**. Connection failures keep credentials saved for retry. API keys are unaffected.
+`teak logout` revokes browser sign-in and disconnects every CLI installation; reconnecting can take about five minutes. If the saved sign-in has already expired, logout clears only this device and says so — disconnect other installations in **Settings → Security → Connected apps**. If the network fails, credentials stay saved; run `teak logout` again before signing in so Teak can revoke the previous session. API keys are unaffected.
 
-The upcoming CLI release stores credentials separately for each API deployment. Local development
-cannot use or clear your production sign-in. If logout fails, retry it before
-signing in again so Teak can revoke the previous session.
+Credentials are stored separately for each API deployment, so local development cannot use or clear your production sign-in.
 
 ## SDK token providers
 
-The upcoming SDK’s `TokenProvider.onUnauthorized(rejectedToken: string)` receives the access token
+The `teak-sdk` package's `TokenProvider.onUnauthorized(rejectedToken: string)` receives the access token
 used by the request that returned 401. Return a refreshed or newer stored token
 to retry that request once, or `null` to stop. Compare the rejected token with
 the current session before refreshing; a late response may refer to an older token.
 
-The upcoming SDK also includes the WorkOS Connect sign-in steps that the CLI and
+The SDK also includes the WorkOS Connect sign-in steps that the CLI, Raycast, and
 browser extension use: `randomBase64Url` and `createPkceChallenge` for PKCE,
 `createConnectAuthorizeUrl`, `requestConnectTokens` for code and refresh grants,
 `fetchConnectOwnerId`, and `disconnectConnectGrant`. Use the client ID that
