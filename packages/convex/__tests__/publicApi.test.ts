@@ -599,3 +599,97 @@ describe("publicApi", () => {
     expect(scheduler.runAfter).toHaveBeenCalledTimes(2);
   });
 });
+
+describe("public API rate limits", () => {
+  const runHandler = async (name: string, ctx: any, args: any) => {
+    const fn = (await import("../publicApi"))[name];
+    return (fn.handler ?? fn)(ctx, args);
+  };
+
+  test("checkApiRateLimit returns rate-limited result on contention errors", async () => {
+    const runMutation = mock().mockRejectedValue(
+      new Error(
+        'Documents read from or written to the "rateLimits" table changed while this mutation was being run and on every subsequent retry.'
+      )
+    );
+
+    const result = await runHandler(
+      "checkApiRateLimit",
+      { runMutation } as any,
+      {
+        rateLimitKey: "key:key_1",
+      }
+    );
+
+    expect(result.ok).toBe(false);
+    expect(typeof result.retryAt).toBe("number");
+  });
+
+  test("checkApiRateLimit rejects an empty rate limit key without calling the limiter", async () => {
+    const runMutation = mock();
+
+    const result = await runHandler(
+      "checkApiRateLimit",
+      { runMutation } as any,
+      {
+        rateLimitKey: "   ",
+      }
+    );
+
+    expect(result.ok).toBe(false);
+    expect(runMutation).not.toHaveBeenCalled();
+  });
+
+  test("checkApiRateLimit keys the limiter on the provided identity", async () => {
+    const runMutation = mock().mockResolvedValue({ ok: true });
+
+    const result = await runHandler(
+      "checkApiRateLimit",
+      { runMutation } as any,
+      {
+        rateLimitKey: "key:key_42",
+      }
+    );
+
+    expect(result.ok).toBe(true);
+    expect(runMutation).toHaveBeenCalledTimes(1);
+    expect(runMutation.mock.calls[0][1]).toMatchObject({
+      key: "key:key_42",
+      name: "publicApiRequests",
+    });
+  });
+
+  test("consumeInvalidApiAuthLimit uses a single shared bucket key", async () => {
+    const runMutation = mock().mockResolvedValue({ ok: true });
+
+    const result = await runHandler(
+      "consumeInvalidApiAuthLimit",
+      { runMutation } as any,
+      {}
+    );
+
+    expect(result.ok).toBe(true);
+    expect(runMutation).toHaveBeenCalledTimes(1);
+    expect(runMutation.mock.calls[0][1]).toMatchObject({
+      key: "public-api-invalid-auth",
+      name: "invalidApiAuth",
+    });
+  });
+
+  test("consumeInvalidApiAuthLimit maps contention errors to a retryable result", async () => {
+    const runMutation = mock().mockRejectedValue(
+      new Error(
+        'Documents read from or written to the "rateLimits" table changed while this mutation was being run and on every subsequent retry.'
+      )
+    );
+
+    const result = await runHandler(
+      "consumeInvalidApiAuthLimit",
+      { runMutation } as any,
+      {}
+    );
+
+    expect(result.ok).toBe(false);
+    expect(typeof result.retryAt).toBe("number");
+  });
+});

@@ -56,10 +56,16 @@ const authorize = (t: Backend, fields: Partial<typeof principal> = {}) =>
     ...principal,
     ...fields,
   });
-const revoke = (t: Backend, teakUserId = "legacy-owner") =>
-  t.mutation(internal.workosConsents.revokeConnectConsent, {
-    consentId: principal.consentId,
-    teakUserId,
+// Marks the principal's grant revoked, as a completed disconnect leaves it.
+const revoke = (t: Backend) =>
+  t.run(async (ctx) => {
+    const consent = await ctx.db
+      .query("workosConsents")
+      .withIndex("by_consentId", (q) => q.eq("consentId", principal.consentId))
+      .unique();
+    if (consent) {
+      await ctx.db.patch(consent._id, { revokedAt: Date.now() });
+    }
   });
 const records = (t: Backend) =>
   t.run((ctx) => ctx.db.query("workosConsents").take(10));
@@ -346,7 +352,7 @@ describe("durable Connect consent authorization", () => {
     const t = setup();
     await seed(t);
     await authorize(t);
-    expect(await revoke(t)).toBe(true);
+    await revoke(t);
     const revoked = await records(t);
     expect(revoked[0].revokedAt).toEqual(expect.any(Number));
     for (let attempt = 0; attempt < 3; attempt++) {
@@ -355,16 +361,14 @@ describe("durable Connect consent authorization", () => {
         reason: "revoked_consent",
       });
     }
-    expect(await revoke(t)).toBe(true);
     expect(await records(t)).toEqual(revoked);
   });
 
-  test("another owner cannot revoke or take over a consent", async () => {
+  test("another owner cannot take over a consent", async () => {
     const t = setup();
     await seed(t);
     await authorize(t);
     const before = await records(t);
-    expect(await revoke(t, "other-owner")).toBe(false);
     await seed(
       t,
       { teakUserId: "other-owner", workosUserId: "user_OTHER" },
@@ -425,13 +429,12 @@ describe("durable Connect consent authorization", () => {
     });
   });
 
-  test("missing mapping and unknown revocation create nothing", async () => {
+  test("missing mapping creates nothing", async () => {
     const t = setup();
     expect(await authorize(t)).toEqual({
       status: "denied",
       reason: "missing_mapping",
     });
-    expect(await revoke(t)).toBe(false);
     expect(await records(t)).toEqual([]);
     expect(await t.run((ctx) => ctx.db.query("users").take(10))).toEqual([]);
   });
@@ -509,7 +512,7 @@ describe("durable Connect consent authorization", () => {
     expect(await records(t)).toEqual([]);
   });
 
-  test("duplicate consent records deny authorization and owner revocation", async () => {
+  test("duplicate consent records deny authorization", async () => {
     const t = setup();
     await seed(t);
     await authorize(t);
@@ -529,7 +532,6 @@ describe("durable Connect consent authorization", () => {
       status: "denied",
       reason: "duplicate_consent",
     });
-    expect(await revoke(t)).toBe(false);
     expect(await records(t)).toEqual(before);
   });
 

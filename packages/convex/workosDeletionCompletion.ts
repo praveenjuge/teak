@@ -1,6 +1,7 @@
 import { v } from "convex/values";
 import type { Doc } from "./_generated/dataModel";
 import type { MutationCtx, QueryCtx } from "./_generated/server";
+import { sha256 } from "./publicApiHttpShared";
 import { workosIssuer } from "./shared/workosApi";
 
 export const workosDeletionTargetValidator = v.object({
@@ -26,6 +27,11 @@ export interface WorkosDeletionTarget {
   issuer: string;
 }
 
+// Binds stored provider work to the API key that started it without keeping
+// the key: the hex SHA-256 of WORKOS_API_KEY.
+export const workosCredentialFingerprint = (apiKey: string): Promise<string> =>
+  sha256(apiKey);
+
 export async function currentWorkosDeletionTarget(): Promise<
   WorkosDeletionTarget | undefined
 > {
@@ -37,17 +43,11 @@ export async function currentWorkosDeletionTarget(): Promise<
   if (!(environmentId && clientId && apiKey)) {
     return undefined;
   }
-  const digest = await crypto.subtle.digest(
-    "SHA-256",
-    new TextEncoder().encode(apiKey)
-  );
   return {
     environmentId,
     clientId,
     issuer: workosIssuer(clientId),
-    credentialFingerprint: Array.from(new Uint8Array(digest), (byte) =>
-      byte.toString(16).padStart(2, "0")
-    ).join(""),
+    credentialFingerprint: await workosCredentialFingerprint(apiKey),
   };
 }
 

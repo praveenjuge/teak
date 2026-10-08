@@ -4,13 +4,14 @@
  * Split out of `publicApiHttp.ts`, kept behavior-identical.
  */
 import { internal } from "./_generated/api";
-import { type ActionCtx, env } from "./_generated/server";
+import type { ActionCtx } from "./_generated/server";
 import {
   type BearerCredentialClass,
   isExpiredJwt,
   logPublicApiAuthOutcome,
   type PublicApiAuthReason,
 } from "./authMonitoring";
+import { findWorkosConnectIssuer } from "./env";
 import {
   AUTH_INTERNAL_ERROR,
   type AuthorizedUser,
@@ -200,7 +201,7 @@ const enforceInvalidAuthLimit = async (
   let limit: { ok?: boolean; retryAt?: number } | null = null;
   try {
     limit = await ctx.runMutation(
-      (internal as any).raycast.consumeInvalidApiAuthLimit,
+      internal.publicApi.consumeInvalidApiAuthLimit,
       {}
     );
   } catch (error) {
@@ -343,7 +344,7 @@ const authorizeBearer = async (
   let rejection: PublicApiAuthReason = "invalid_credential";
   try {
     if (isConnectToken) {
-      const issuer = env.WORKOS_AUTHKIT_DOMAIN;
+      const issuer = findWorkosConnectIssuer();
       if (!issuer) {
         return decide({ error: AUTH_INTERNAL_ERROR() }, "issuer_unconfigured");
       }
@@ -421,12 +422,9 @@ const authorizeBearer = async (
   // real key / OAuth app+user rather than whatever token string the caller sent.
   let rateLimit: { ok?: boolean; retryAt?: number } | null = null;
   try {
-    rateLimit = await ctx.runMutation(
-      (internal as any).raycast.checkApiRateLimit,
-      {
-        rateLimitKey: `key:${validated.rateLimitKey}`,
-      }
-    );
+    rateLimit = await ctx.runMutation(internal.publicApi.checkApiRateLimit, {
+      rateLimitKey: `key:${validated.rateLimitKey}`,
+    });
   } catch (error) {
     if (isRateLimitContentionError(error)) {
       return decide(

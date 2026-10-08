@@ -20,7 +20,6 @@ import {
 import { updateCardFieldForUserHandler } from "./card/updateCard";
 import { cardTypeValidator } from "./schema";
 import { requireTeakUserId, type TeakUserId } from "./securitySessions";
-import { rateLimiter } from "./shared/rateLimits";
 
 const DEFAULT_LIMIT = 50;
 const MAX_LIMIT = 100;
@@ -46,11 +45,6 @@ const quickSaveResultValidator = v.object({
   status: v.literal("created"),
   cardId: v.id("cards"),
   card: v.optional(cardReturnValidator),
-});
-
-const raycastRateLimitResultValidator = v.object({
-  ok: v.boolean(),
-  retryAt: v.optional(v.number()),
 });
 
 const createCardForUserArgs = {
@@ -94,24 +88,6 @@ interface SearchOptions {
   tag?: string;
   type?: Doc<"cards">["type"];
 }
-
-// Single shared bucket key for all failed public-API auth attempts. Keeping it
-// constant (rather than per-token) means rotating bearer tokens can no longer
-// spawn fresh rate-limit documents, so invalid auth is bounded globally.
-const INVALID_API_AUTH_BUCKET_KEY = "public-api-invalid-auth";
-
-const isRateLimitContentionError = (error: unknown): boolean => {
-  if (!(error instanceof Error)) {
-    return false;
-  }
-
-  return (
-    error.message.includes('"rateLimits" table') &&
-    error.message.includes(
-      "changed while this mutation was being run and on every subsequent retry"
-    )
-  );
-};
 
 const normalizeLimit = (limit?: number): number => {
   if (!limit || Number.isNaN(limit)) {
@@ -686,74 +662,5 @@ export const setCardFavoriteForUser = internalMutation({
       value: args.isFavorited,
     });
     return getCardForUserHandler(ctx, userId, args.cardId);
-  },
-});
-
-const toRateLimitResult = (
-  result: Awaited<ReturnType<typeof rateLimiter.limit>>
-): { ok: boolean; retryAt?: number } => ({
-  ok: result.ok,
-  retryAt:
-    typeof result.retryAfter === "number"
-      ? Date.now() + result.retryAfter
-      : undefined,
-});
-
-export const checkApiRateLimit = internalMutation({
-  args: {
-    // A stable, trusted identifier for the caller (e.g. the validated API key
-    // id). Never pass a raw bearer token here: rotating tokens would otherwise
-    // mint a fresh bucket per request and defeat the limit.
-    rateLimitKey: v.string(),
-  },
-  returns: raycastRateLimitResultValidator,
-  handler: async (ctx, args) => {
-    const key = args.rateLimitKey.trim();
-    if (!key) {
-      return { ok: false };
-    }
-
-    try {
-      const result = await rateLimiter.limit(ctx, "raycastApiRequests", {
-        key,
-        throws: false,
-      });
-      return toRateLimitResult(result);
-    } catch (error) {
-      if (isRateLimitContentionError(error)) {
-        return {
-          ok: false,
-          retryAt: Date.now() + 1000,
-        };
-      }
-
-      throw error;
-    }
-  },
-});
-
-// Consumes one token from the shared invalid-auth bucket. Called only when a
-// public-API request presents a well-formed but unrecognized API key, so that
-// repeated invalid attempts are throttled globally instead of per token.
-export const consumeInvalidApiAuthLimit = internalMutation({
-  args: {},
-  returns: raycastRateLimitResultValidator,
-  handler: async (ctx) => {
-    try {
-      const result = await rateLimiter.limit(ctx, "invalidApiAuth", {
-        key: INVALID_API_AUTH_BUCKET_KEY,
-        throws: false,
-      });
-      return toRateLimitResult(result);
-    } catch (error) {
-      if (isRateLimitContentionError(error)) {
-        return {
-          ok: false,
-          retryAt: Date.now() + 1000,
-        };
-      }
-
-      throw error;
-    }
   },
 });

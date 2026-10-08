@@ -107,27 +107,6 @@ export const authorizeConnectConsent = internalMutation({
   },
 });
 
-// The owner argument must be derived from the caller's authenticated Teak
-// session. This internal primitive never grants access or clears a revocation.
-export const revokeConnectConsent = internalMutation({
-  args: { consentId: v.string(), teakUserId: v.string() },
-  returns: v.boolean(),
-  handler: async (ctx, args) => {
-    const matches = await ctx.db
-      .query("workosConsents")
-      .withIndex("by_consentId", (q) => q.eq("consentId", args.consentId))
-      .take(2);
-    if (matches.length !== 1 || matches[0].userId !== args.teakUserId) {
-      return false;
-    }
-    const consent = matches[0];
-    if (consent.revokedAt === undefined) {
-      await ctx.db.patch(consent._id, { revokedAt: Date.now() });
-    }
-    return true;
-  },
-});
-
 const connectionValidator = v.object({
   consentId: v.string(),
   clientId: v.string(),

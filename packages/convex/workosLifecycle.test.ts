@@ -668,6 +668,75 @@ describe("new WorkOS lifecycle owners", () => {
     expect(await t.mutation(apply, fresh)).toEqual({ status: "duplicate" });
     expect(await snapshot(t)).toEqual(before);
   });
+  test("a provider email change moves admin seeding to the new address", async () => {
+    const t = setup();
+    await t.mutation(sync, freshEvent("before_change"));
+    const changed = freshEvent("email_changed", 2, "user.updated");
+    await t.mutation(sync, {
+      ...changed,
+      data: { ...changed.data, email: "Changed@Example.com" },
+    });
+    // An older delivery the component ignores must not roll the address back.
+    await t.mutation(sync, freshEvent("late_update", 1, "user.updated"));
+    const [owner] = (await snapshot(t)).users;
+    expect(owner).toMatchObject({
+      email: "changed@example.com",
+      emailVerified: true,
+    });
+    await expect(
+      t.mutation(internal.admin.seedAdmin, { email: "new@example.com" })
+    ).rejects.toThrow("exactly one active mapped account");
+    expect(
+      await t.mutation(internal.admin.seedAdmin, {
+        email: "changed@example.com",
+      })
+    ).toEqual({ teakUserId: owner.teakUserId, role: "admin" });
+  });
+  test("a provider email change leaves a deleting owner's address alone", async () => {
+    const t = setup();
+    await t.mutation(sync, freshEvent("before_deleting"));
+    const [owner] = (await snapshot(t)).users;
+    await t.run((ctx) =>
+      ctx.db.insert("accountDeletionStates", {
+        userId: owner.teakUserId,
+        startedAt: Date.now(),
+      })
+    );
+    const changed = freshEvent("deleting_changed", 2, "user.updated");
+    await t.mutation(sync, {
+      ...changed,
+      data: { ...changed.data, email: "changed@example.com" },
+    });
+    expect((await snapshot(t)).users).toEqual([owner]);
+  });
+  test("an unverified provider address is not copied onto the owner", async () => {
+    const t = setup();
+    await t.mutation(sync, freshEvent("before_unverified"));
+    const [owner] = (await snapshot(t)).users;
+    const changed = freshEvent("unverified_change", 2, "user.updated", false);
+    await t.mutation(sync, {
+      ...changed,
+      data: { ...changed.data, email: "someone-else@example.com" },
+    });
+    expect((await snapshot(t)).users).toEqual([owner]);
+    await expect(
+      t.mutation(internal.admin.seedAdmin, {
+        email: "someone-else@example.com",
+      })
+    ).rejects.toThrow("exactly one active mapped account");
+  });
+  test("a provider address another owner holds is not copied", async () => {
+    const t = setup();
+    await seed(t, { email: "taken@example.com" });
+    await t.mutation(sync, freshEvent("before_taken"));
+    const before = (await snapshot(t)).users;
+    const changed = freshEvent("taken_change", 2, "user.updated");
+    await t.mutation(sync, {
+      ...changed,
+      data: { ...changed.data, email: "taken@example.com" },
+    });
+    expect((await snapshot(t)).users).toEqual(before);
+  });
   test("a late created envelope cannot re-verify a newer unverified profile", async () => {
     const t = setup();
     await t.mutation(sync, freshEvent("initial_created"));

@@ -177,7 +177,6 @@ Bulk-action toolbar shown when multiple cards are selected.
 
 ```tsx
 import {
-  ApiKeysSection,
   CustomerPortalButton,
   DeleteAccountDialog,
   ErrorAlert,

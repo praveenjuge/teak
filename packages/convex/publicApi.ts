@@ -23,6 +23,7 @@ import {
 } from "./card/visualFilters";
 import { cardTypes, cardTypeValidator } from "./schema";
 import { requireTeakUserId, type TeakUserId } from "./securitySessions";
+import { rateLimiter } from "./shared/rateLimits";
 import { isSafeExternalUrl } from "./shared/utils/safeUrl";
 
 const DEFAULT_LIMIT = 50;
@@ -981,5 +982,99 @@ export const executeBulkCardsForUser = internalMutation({
         failed: args.items.length - succeeded,
       },
     };
+  },
+});
+
+// Public API rate limits. Both answer { ok, retryAt } instead of throwing so
+// the HTTP layer can map a limit or table contention to its own response.
+const rateLimitResultValidator = v.object({
+  ok: v.boolean(),
+  retryAt: v.optional(v.number()),
+});
+
+// Single shared bucket key for all failed public-API auth attempts. Keeping it
+// constant (rather than per-token) means rotating bearer tokens can no longer
+// spawn fresh rate-limit documents, so invalid auth is bounded globally.
+const INVALID_API_AUTH_BUCKET_KEY = "public-api-invalid-auth";
+
+const isRateLimitContentionError = (error: unknown): boolean => {
+  if (!(error instanceof Error)) {
+    return false;
+  }
+
+  return (
+    error.message.includes('"rateLimits" table') &&
+    error.message.includes(
+      "changed while this mutation was being run and on every subsequent retry"
+    )
+  );
+};
+
+const toRateLimitResult = (
+  result: Awaited<ReturnType<typeof rateLimiter.limit>>
+): { ok: boolean; retryAt?: number } => ({
+  ok: result.ok,
+  retryAt:
+    typeof result.retryAfter === "number"
+      ? Date.now() + result.retryAfter
+      : undefined,
+});
+
+export const checkApiRateLimit = internalMutation({
+  args: {
+    // A stable, trusted identifier for the caller (e.g. the validated API key
+    // id). Never pass a raw bearer token here: rotating tokens would otherwise
+    // mint a fresh bucket per request and defeat the limit.
+    rateLimitKey: v.string(),
+  },
+  returns: rateLimitResultValidator,
+  handler: async (ctx, args) => {
+    const key = args.rateLimitKey.trim();
+    if (!key) {
+      return { ok: false };
+    }
+
+    try {
+      const result = await rateLimiter.limit(ctx, "publicApiRequests", {
+        key,
+        throws: false,
+      });
+      return toRateLimitResult(result);
+    } catch (error) {
+      if (isRateLimitContentionError(error)) {
+        return {
+          ok: false,
+          retryAt: Date.now() + 1000,
+        };
+      }
+
+      throw error;
+    }
+  },
+});
+
+// Consumes one token from the shared invalid-auth bucket. Called only when a
+// public-API request presents a well-formed but unrecognized API key, so that
+// repeated invalid attempts are throttled globally instead of per token.
+export const consumeInvalidApiAuthLimit = internalMutation({
+  args: {},
+  returns: rateLimitResultValidator,
+  handler: async (ctx) => {
+    try {
+      const result = await rateLimiter.limit(ctx, "invalidApiAuth", {
+        key: INVALID_API_AUTH_BUCKET_KEY,
+        throws: false,
+      });
+      return toRateLimitResult(result);
+    } catch (error) {
+      if (isRateLimitContentionError(error)) {
+        return {
+          ok: false,
+          retryAt: Date.now() + 1000,
+        };
+      }
+
+      throw error;
+    }
   },
 });

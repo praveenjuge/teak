@@ -57,12 +57,8 @@ export const nextConfig: NextConfig = {
     turbopackFileSystemCacheForBuild: true,
     turbopackRustReactCompiler: true,
   },
-  allowedDevOrigins: [],
   turbopack: {
     resolveAlias: turbopackSingletonAliases,
-  },
-  async rewrites() {
-    return [];
   },
   async headers() {
     return [

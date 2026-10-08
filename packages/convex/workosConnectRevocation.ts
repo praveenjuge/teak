@@ -1,5 +1,6 @@
 import { internal } from "./_generated/api";
 import { httpAction } from "./_generated/server";
+import { findWorkosConnectIssuer } from "./env";
 import { PUBLIC_API_CORS_HEADERS } from "./publicApiMeta";
 import { WORKOS_RESOURCES } from "./shared/workosResources";
 import { verifyWorkosConnectToken } from "./workosTokens";
@@ -12,7 +13,7 @@ export const disconnectWorkosConsent = httpAction(async (ctx, request) => {
   if (!match || match[1].length > 16_384) {
     return response(401);
   }
-  const issuer = process.env.WORKOS_AUTHKIT_DOMAIN;
+  const issuer = findWorkosConnectIssuer();
   if (!issuer) {
     return response(503);
   }

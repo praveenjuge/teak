@@ -31,7 +31,7 @@ export const RATE_LIMIT_CONFIG = {
     period: MINUTE,
     capacity: 1,
   },
-  raycastApiRequests: {
+  publicApiRequests: {
     kind: "token bucket",
     rate: 120,
     period: MINUTE,
@@ -47,15 +47,6 @@ export const RATE_LIMIT_CONFIG = {
     period: MINUTE,
     capacity: 60,
     shards: 6,
-  },
-  // Native auth device-poll endpoint. Keyed per client IP so a single host
-  // cannot spam single-use code redemption attempts while a device polls.
-  nativeAuthPoll: {
-    kind: "token bucket",
-    rate: 20,
-    period: MINUTE,
-    capacity: 20,
-    shards: 2,
   },
   apiKeyCreation: {
     kind: "token bucket",

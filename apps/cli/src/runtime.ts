@@ -372,7 +372,7 @@ export const logout = (options: ClientOptions = {}) =>
       } catch (error) {
         if (error instanceof TeakApiError && error.code === "AUTH_REQUIRED") {
           clearCredentials(options);
-          return "Signed out on this device. To disconnect other installations, use Settings → Connected apps.";
+          return "Signed out on this device. To disconnect other installations, use Settings → Security → Connected apps.";
         }
         throw new Error(
           "Could not disconnect Teak CLI. Your credentials are still saved. Check your connection and run teak logout again."
