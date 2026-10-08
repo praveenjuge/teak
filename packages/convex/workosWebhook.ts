@@ -1,9 +1,10 @@
 import { type HttpRouter, httpRouter } from "convex/server";
-import { v } from "convex/values";
+import { ConvexError, v } from "convex/values";
 import { components, internal } from "./_generated/api";
 import { env, httpAction, internalMutation } from "./_generated/server";
 import { readResponseTextWithinLimit } from "./shared/boundedResponse";
 import { authKit } from "./workosAuthKit";
+import { INVALID_WORKOS_EVENT } from "./workosLifecycle";
 
 // This transaction preserves Teak processing even when component synchronization
 // deduplicates, rewrites or suppresses its own callback. Either both commit or
@@ -92,13 +93,101 @@ export const workosWebhook = httpAction(async (ctx, request) => {
       data: event.data,
       ...(event.context ? { context: event.context } : {}),
     });
-  } catch {
-    // A retryable response preserves delivery until both stores have committed.
+  } catch (error) {
+    // Neither store committed. A payload Teak can never apply is recorded and
+    // acknowledged so WorkOS stops retrying it; anything else stays retryable.
     // Do not expose provider data, signing material or mutation error details.
+    if (
+      error instanceof ConvexError &&
+      (error.data as { code?: unknown })?.code === INVALID_WORKOS_EVENT
+    ) {
+      await ctx.runMutation(internal.workosWebhook.recordDeadLetter, {
+        eventId: String(event.id).slice(0, 256),
+        event: event.event,
+        reason: String(
+          (error.data as { message?: unknown }).message ?? INVALID_WORKOS_EVENT
+        ).slice(0, 128),
+      });
+      return new Response("Rejected", { status: 200 });
+    }
     return new Response("Webhook processing failed", { status: 500 });
   }
   return new Response("OK", { status: 200 });
 });
+
+export const recordDeadLetter = internalMutation({
+  args: { eventId: v.string(), event: v.string(), reason: v.string() },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    const existing = await ctx.db
+      .query("workosWebhookDeadLetters")
+      .withIndex("by_eventId", (q) => q.eq("eventId", args.eventId))
+      .first();
+    if (!existing) {
+      await ctx.db.insert("workosWebhookDeadLetters", {
+        ...args,
+        receivedAt: Date.now(),
+      });
+    }
+    return null;
+  },
+});
+
+// The registration Action (signup freeze), verified on the exact body like the
+// webhook. The component's own route checks re-serialized JSON instead.
+export const workosAction = httpAction(async (ctx, request) => {
+  const kit = authKit;
+  const secret = env.WORKOS_ACTION_SECRET;
+  if (!(kit && secret)) {
+    return new Response("Action unavailable", { status: 503 });
+  }
+  const signature = request.headers.get("workos-signature");
+  if (!signature || signature.length > 1024) {
+    return new Response("Invalid signature", { status: 401 });
+  }
+  if (
+    request.headers.get("content-type")?.split(";", 1)[0].trim() !==
+    "application/json"
+  ) {
+    return new Response("Expected JSON", { status: 415 });
+  }
+  const payload = await readResponseTextWithinLimit(
+    new Response(request.body),
+    64 * 1024
+  );
+  if (payload === null) {
+    return new Response("Payload too large", { status: 413 });
+  }
+  let action: Awaited<ReturnType<typeof kit.workos.actions.constructAction>>;
+  try {
+    action = await kit.workos.actions.constructAction({
+      payload,
+      sigHeader: signature,
+      secret,
+    });
+  } catch {
+    return new Response("Invalid action", { status: 401 });
+  }
+  const verdict = await ctx.runMutation(internal.workosAuthKit.authKitAction, {
+    action,
+  });
+  const signed = await kit.workos.actions.signResponse(verdict, secret);
+  return new Response(JSON.stringify(signed), {
+    status: 200,
+    headers: { "content-type": "application/json" },
+  });
+});
+
+// Teak verifies both provider routes on the exact request body.
+const providerHandler = <T>(path: string, componentHandler: T) => {
+  if (path === "/workos/webhook") {
+    return workosWebhook;
+  }
+  if (path === "/workos/action") {
+    return workosAction;
+  }
+  return componentHandler;
+};
 
 export const registerWorkosRoutes = (http: HttpRouter) => {
   if (!authKit) {
@@ -110,8 +199,7 @@ export const registerWorkosRoutes = (http: HttpRouter) => {
     http.route({
       path,
       method,
-      // Keep the component's signed registration Action route intact.
-      handler: path === "/workos/webhook" ? workosWebhook : handler,
+      handler: providerHandler(path, handler),
     });
   }
 };

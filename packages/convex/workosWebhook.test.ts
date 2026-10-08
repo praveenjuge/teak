@@ -290,6 +290,80 @@ describe.each([
     expect(await snapshot(t)).toEqual(before);
   });
 
+  test("a signed payload Teak can never apply is dead-lettered once and acknowledged", async () => {
+    const t = setup();
+    await seed(t);
+    const before = await snapshot(t);
+    const bad = fixture("evt_bad_profile");
+    const body = JSON.stringify({
+      ...bad,
+      data: { ...bad.data, email_verified: "yes" },
+    });
+    for (let attempt = 0; attempt < 2; attempt += 1) {
+      const response = await post(t, body);
+      expect(response.status).toBe(200);
+      expect(await response.text()).toBe("Rejected");
+    }
+    expect(await snapshot(t)).toEqual(before);
+    expect(
+      await t.query(components.workOSAuthKit.lib.getAuthUser, {
+        id: "user_signed",
+      })
+    ).toBeNull();
+    const letters = await t.run((ctx) =>
+      ctx.db.query("workosWebhookDeadLetters").take(10)
+    );
+    expect(letters).toMatchObject([
+      {
+        eventId: "evt_bad_profile",
+        event: "user.created",
+        reason: "Invalid WorkOS event user",
+      },
+    ]);
+    expect(JSON.stringify(letters)).not.toContain("provider@example.com");
+  });
+
+  test("the registration Action verifies the exact signed body, not re-serialized JSON", async () => {
+    const t = setup();
+    const body = JSON.stringify(
+      {
+        id: "action_pretty",
+        object: "user_registration_action_context",
+        user_data: {
+          object: "user_data",
+          email: "new-person@example.com",
+          name: null,
+          first_name: "New",
+          last_name: "Person",
+        },
+      },
+      null,
+      2
+    );
+    const response = await t.fetch("/workos/action", {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        "workos-signature": await signature(
+          body,
+          "isolated-action-signing-fixture"
+        ),
+      },
+      body,
+    });
+    expect(response.status).toBe(200);
+    expect((await response.json()).payload.verdict).toBe("Deny");
+    const forged = await t.fetch("/workos/action", {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        "workos-signature": await signature(body, "wrong-secret"),
+      },
+      body,
+    });
+    expect(forged.status).toBe(401);
+  });
+
   test("malformed signed JSON writes nothing", async () => {
     const t = setup();
     expect((await post(t, "{broken")).status).toBe(401);
