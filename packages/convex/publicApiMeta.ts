@@ -1,12 +1,7 @@
 import { env, httpAction } from "./_generated/server";
 import { OAUTH_SURFACES } from "./client/authDiscovery";
-import {
-  isLocalDevelopmentHostname,
-  resolveTeakDevApiUrl,
-  resolveTeakDevAppUrl,
-} from "./devUrls";
-import { readAuthPrimary, readWorkosConnectIssuer } from "./env";
-import { FIRST_PARTY_OAUTH_CLIENTS } from "./oauthClients";
+import { isLocalDevelopmentHostname, resolveTeakDevApiUrl } from "./devUrls";
+import { readWorkosConnectIssuer } from "./env";
 import { WORKOS_RESOURCES } from "./shared/workosResources";
 
 export const API_VERSION = "v1";
@@ -43,10 +38,7 @@ export const PUBLIC_API_CORS_HEADERS: Record<string, string> = {
 
 const PROD_PUBLIC_API_URL = "https://teakvault.com/api";
 const PROD_PUBLIC_MCP_URL = "https://teakvault.com/mcp";
-const PROD_AUTH_ISSUER_URL = "https://app.teakvault.com";
 const OAUTH_SCOPES_SUPPORTED = ["profile", "email", "offline_access"];
-
-const normalizeBaseUrl = (raw: string): string => raw.replace(/\/+$/, "");
 
 const readPublicOrigin = (): string | undefined => {
   const raw = env.PUBLIC_ORIGIN?.trim();
@@ -97,40 +89,18 @@ export const getPublicMcpUrl = (requestUrl: string): string => {
     : PROD_PUBLIC_MCP_URL;
 };
 
-const getAuthIssuerUrl = (requestUrl: string): string => {
-  if (readAuthPrimary() === "workos") {
-    return readWorkosConnectIssuer();
-  }
-  const fromEnv = env.SITE_URL?.trim();
-  if (fromEnv) {
-    return normalizeBaseUrl(fromEnv);
-  }
-
-  const { hostname } = new URL(requestUrl);
-  return isLocalApiHost(hostname)
-    ? resolveTeakDevAppUrl(env)
-    : PROD_AUTH_ISSUER_URL;
-};
-
 export const getProtectedResourceUrl = (requestUrl: string): string => {
   const mcpUrl = new URL(getPublicMcpUrl(requestUrl));
   return `${mcpUrl.origin}/.well-known/oauth-protected-resource${mcpUrl.pathname}`;
 };
 
-export const buildProtectedResourceMetadata = (requestUrl: string) => {
-  const primary = readAuthPrimary();
-  return {
-    resource:
-      primary === "workos" ? WORKOS_RESOURCES.mcp : getPublicMcpUrl(requestUrl),
-    authorization_servers: [getAuthIssuerUrl(requestUrl)],
-    bearer_methods_supported: ["header"],
-    scopes_supported:
-      primary === "workos"
-        ? ["openid", ...OAUTH_SCOPES_SUPPORTED]
-        : OAUTH_SCOPES_SUPPORTED,
-    resource_name: "Teak",
-  };
-};
+export const buildProtectedResourceMetadata = () => ({
+  resource: WORKOS_RESOURCES.mcp,
+  authorization_servers: [readWorkosConnectIssuer()],
+  bearer_methods_supported: ["header"],
+  scopes_supported: ["openid", ...OAUTH_SCOPES_SUPPORTED],
+  resource_name: "Teak",
+});
 
 export const json = (
   status: number,
@@ -220,28 +190,15 @@ export const readWorkosConnectClients = () => {
   );
 };
 
-export const teakOAuthClients = httpAction((_ctx, request) => {
-  const primary = readAuthPrimary();
-  return Promise.resolve(
+// Published clients still read `primary` from this document.
+export const teakOAuthClients = httpAction(() =>
+  Promise.resolve(
     withPublicApiGatewayHeaders(
       json(200, {
-        primary,
-        issuer: getAuthIssuerUrl(request.url),
-        clients:
-          primary === "workos"
-            ? readWorkosConnectClients()
-            : Object.fromEntries(
-                OAUTH_SURFACES.map((surface) => {
-                  const client = FIRST_PARTY_OAUTH_CLIENTS.find(
-                    (entry) => entry.clientId === `teak-${surface}`
-                  );
-                  if (!client) {
-                    throw new Error("Missing first-party OAuth client");
-                  }
-                  return [surface, client.clientId];
-                })
-              ),
+        primary: "workos",
+        issuer: readWorkosConnectIssuer(),
+        clients: readWorkosConnectClients(),
       })
     )
-  );
-});
+  )
+);

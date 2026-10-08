@@ -59,8 +59,8 @@ const withAuthChallenge = (
 const corsPreflight = (): Response =>
   withMcpCors(new Response(null, { status: 204 }));
 
-const metadataResponse = (request: Request): Response =>
-  withMcpCors(json(200, buildProtectedResourceMetadata(request.url)));
+const metadataResponse = (): Response =>
+  withMcpCors(json(200, buildProtectedResourceMetadata()));
 
 export const handleOauthProtectedResourceV1Request = (
   request: Request
@@ -68,7 +68,7 @@ export const handleOauthProtectedResourceV1Request = (
   if (request.method === "OPTIONS") {
     return corsPreflight();
   }
-  return metadataResponse(request);
+  return metadataResponse();
 };
 
 export const oauthProtectedResourceV1 = httpAction(async (_ctx, request) =>

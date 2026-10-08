@@ -6,14 +6,15 @@
  * 2. Run `bun ci` when node_modules is stale.
  * 3. Refuse an implicitly selected production Convex deployment.
  * 4. Preserve an existing isolated development deployment or provision one.
- * 5. Configure local SITE_URL and JWKS defaults (never overwrites a set
- *    value).
+ * 5. Configure the local SITE_URL default and the WorkOS client ID and API
+ *    key (never overwrites a set value).
  * 6. Run `bunx convex dev --once` for push and code generation.
  * 7. Derive the target's ignored local Convex configuration from canonical
  *    facts without overwriting custom values.
  *
- * Requires no production, OAuth, Apple, Cloudflare, billing, or release
- * credentials. Every step is check-then-act, so re-running setup changes
+ * Requires WorkOS staging or development credentials (WORKOS_CLIENT_ID and
+ * WORKOS_API_KEY) for any target that uses Convex, and no production, Apple,
+ * Cloudflare, billing, or release credentials. Every step is check-then-act, so re-running setup changes
  * nothing once the tree is ready. `--check` reports without changing state;
  * `--json` emits a stable machine-readable report with capabilities.
  *
@@ -53,6 +54,11 @@ import {
   LOCAL_CONVEX_SITE_URL,
   LOCAL_CONVEX_URL,
 } from "./setup-derived-env.ts";
+import {
+  ensureWorkosCredentials,
+  WORKOS_CREDENTIAL_NAMES,
+  type WorkosCredentialName,
+} from "./setup-workos.ts";
 import { resolveWorktree, type WorktreePorts } from "./worktree-env.ts";
 
 const ROOT = join(import.meta.dir, "..");
@@ -63,13 +69,6 @@ const EXTENSION_ENV_PATH = join(ROOT, "apps/extension/.env.local");
 const MOBILE_ENV_PATH = join(ROOT, "apps/mobile/.env.local");
 
 export const LOCAL_SITE_URL = "http://localhost:3000";
-/**
- * Sentinel meaning "no static keys". Convex requires every variable
- * referenced by auth.config.ts to be set, so fresh deployments set JWKS to
- * JSON null and token verification uses the live endpoint instead (see
- * readJwksDocument in packages/convex/env.ts).
- */
-const LOCAL_JWKS_ABSENT = "null";
 
 export const requiredBunVersion = (packageManager: string): string => {
   const match = /^bun@(\d+\.\d+\.\d+)$/.exec(packageManager.trim());
@@ -280,6 +279,14 @@ export const runSetup = async (
   }
 
   const checks: SetupCheck[] = [];
+  // Without a deployment step (--convex skip), only explicit exports apply.
+  let workosValues: Partial<Record<WorkosCredentialName, string>> =
+    Object.fromEntries(
+      WORKOS_CREDENTIAL_NAMES.flatMap((name) => {
+        const value = process.env[name]?.trim();
+        return value ? [[name, value]] : [];
+      })
+    );
   let pinned: { bun: string; node: string };
   try {
     pinned = readPinnedVersions(root);
@@ -479,7 +486,7 @@ export const runSetup = async (
         ok: true,
         severity: "error",
         detail:
-          "would verify SITE_URL and JWKS with `convex env get` and set local defaults when missing",
+          "would verify SITE_URL, WORKOS_CLIENT_ID and WORKOS_API_KEY with `convex env get` and set them when missing",
       });
       checks.push({
         id: "setup-convex-push",
@@ -495,16 +502,11 @@ export const runSetup = async (
           worktree.siteUrl,
           convexDir
         );
-        const jwks = await ensureDeploymentVar(
-          "JWKS",
-          LOCAL_JWKS_ABSENT,
-          convexDir
-        );
         checks.push({
           id: "setup-convex-deploy-vars",
           ok: true,
           severity: "error",
-          detail: `SITE_URL ${site}, JWKS ${jwks}`,
+          detail: `SITE_URL ${site}`,
         });
       } catch (error) {
         return fail([
@@ -520,6 +522,16 @@ export const runSetup = async (
           },
         ]);
       }
+      // auth.config.ts reads WORKOS_CLIENT_ID, so it must be set before the push.
+      const workos = await ensureWorkosCredentials(
+        CONVEX_DIR(root),
+        target === "web" ? join(root, "apps/web/.env.local") : undefined
+      );
+      checks.push(workos.check);
+      if (!workos.check.ok) {
+        return fail(checks);
+      }
+      workosValues = workos.values;
       const push = await convexDevOnce(CONVEX_DIR(root));
       if (!push.ok) {
         return fail([
@@ -573,6 +585,7 @@ export const runSetup = async (
           convexUrl: derived.convexUrl ?? LOCAL_CONVEX_URL,
           convexSiteUrl: derived.convexSiteUrl ?? LOCAL_CONVEX_SITE_URL,
           siteUrl: worktree.siteUrl,
+          workos: workosValues,
         });
         return `${plan.path.replace(`${root}/`, "")}: ${result}`;
       }

@@ -1,19 +1,9 @@
 // @ts-nocheck
-import { withTestSession } from "../helpers/session.test-utils";
-
-// Set environment variables BEFORE any imports that might load auth.ts
-process.env.SITE_URL = "https://teakvault.com";
-process.env.GOOGLE_CLIENT_ID = "test-google-client-id";
-process.env.GOOGLE_CLIENT_SECRET = "test-google-client-secret";
-process.env.APPLE_CLIENT_ID = "test-apple-client-id";
-process.env.APPLE_KEY_ID = "test-apple-key-id";
-process.env.APPLE_PRIVATE_KEY = TEST_APPLE_PRIVATE_KEY;
-process.env.APPLE_TEAM_ID = "test-apple-team-id";
 
 import { afterEach, beforeEach, describe, expect, mock, test } from "bun:test";
 import { CARD_USAGE_SHARD_VERSION } from "../../card/cardUsage";
 import { buildR2UserPrefix } from "../../storage/r2";
-import { TEST_APPLE_PRIVATE_KEY } from "../helpers/appleAuth.test-utils";
+import { withTestSession } from "../helpers/session.test-utils";
 
 describe("card/createCard.ts", () => {
   let createCard: any;

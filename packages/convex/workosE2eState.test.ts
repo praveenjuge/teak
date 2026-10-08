@@ -65,7 +65,6 @@ beforeEach(async () => {
     (byte) => byte.toString(16).padStart(2, "0")
   ).join("");
   vi.useFakeTimers();
-  vi.stubEnv("AUTH_PRIMARY", "workos");
   vi.stubEnv("E2E_EMAIL_DOMAIN", "tests.example.com");
   vi.stubEnv("ACCOUNT_CHANGES_PAUSED", "false");
 });
@@ -86,7 +85,6 @@ test.each([
   "legacy",
   "profile_pending",
   "wrong_email",
-  "inactive",
   "too_old",
   "too_young_orphan",
   "paused",
@@ -97,9 +95,6 @@ test.each([
   }
   if (failure === "profile_pending") {
     await t.run((ctx) => ctx.db.delete(profile));
-  }
-  if (failure === "inactive") {
-    vi.stubEnv("AUTH_PRIMARY", "betterauth");
   }
   if (failure === "paused") {
     vi.stubEnv("ACCOUNT_CHANGES_PAUSED", "true");

@@ -24,10 +24,6 @@ const EXPECTED_CRONS: Record<string, { cron: string; handler: string }> = {
     cron: "0 6 * * *",
     handler: "cleanupResendEmails",
   },
-  "ensure-oauth-clients": {
-    cron: "0 1 * * *",
-    handler: "ensureOauthClients",
-  },
   "cleanup-old-deleted-cards": {
     cron: "0 2 * * *",
     handler: "cleanupOldDeletedCards",

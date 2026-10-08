@@ -1,6 +1,6 @@
 import { paginationOptsValidator } from "convex/server";
 import { v } from "convex/values";
-import { components, internal } from "./_generated/api";
+import { internal } from "./_generated/api";
 import type { Doc, Id } from "./_generated/dataModel";
 import {
   type ActionCtx,
@@ -19,6 +19,7 @@ import { patchCardWithSearchSync } from "./card/searchDocumentHelpers";
 import { getSessionUser } from "./securitySessions";
 import { tryResolveObjectUrl } from "./storage/fileUrls";
 import { deleteObject } from "./storage/r2";
+import { normalizeIdentityEmail } from "./userIdentityTable";
 
 interface StageSummary {
   failed: number;
@@ -372,67 +373,51 @@ export const listAllCards = query({
   },
 });
 
-const normalizeUserId = (user: Record<string, unknown>) =>
-  (user as { _id?: string; id?: string; userId?: string })._id ??
-  (user as { _id?: string; id?: string; userId?: string }).id ??
-  (user as { _id?: string; id?: string; userId?: string }).userId ??
-  null;
-
+// Teak's own identity table covers accounts from before and after WorkOS.
 export const listAllUsers = query({
   args: {
     paginationOpts: paginationOptsValidator,
   },
   handler: async (ctx, { paginationOpts }) => {
     await ensureAdmin(ctx);
-
-    const safePagination = clampPagination(paginationOpts);
-
-    const result = (await ctx.runQuery(components.betterAuth.adapter.findMany, {
-      model: "user",
-      sortBy: { field: "createdAt", direction: "desc" },
-      limit: safePagination.numItems,
-      paginationOpts: safePagination,
-    })) as {
-      page?: Record<string, unknown>[];
-      continueCursor?: string | null;
-      isDone?: boolean;
-    };
-
+    const result = await ctx.db
+      .query("users")
+      .order("desc")
+      .paginate(clampPagination(paginationOpts));
     const page = await Promise.all(
-      (result.page ?? []).map(async (user) => {
-        const id = normalizeUserId(user);
-        const cardsCount = id ? await getActiveCardCountForUser(ctx, id) : 0;
-
-        return {
-          id,
-          email: (user as { email?: string }).email ?? null,
-          name: (user as { name?: string }).name ?? null,
-          image: (user as { image?: string | null }).image ?? null,
-          createdAt: (user as { createdAt?: number }).createdAt ?? null,
-          updatedAt: (user as { updatedAt?: number }).updatedAt ?? null,
-          emailVerified:
-            (user as { emailVerified?: boolean }).emailVerified ?? null,
-          isAnonymous: (user as { isAnonymous?: boolean }).isAnonymous ?? null,
-          displayUsername:
-            (user as { displayUsername?: string | null }).displayUsername ??
-            null,
-          username: (user as { username?: string | null }).username ?? null,
-          phoneNumber:
-            (user as { phoneNumber?: string | null }).phoneNumber ?? null,
-          phoneNumberVerified:
-            (user as { phoneNumberVerified?: boolean }).phoneNumberVerified ??
-            null,
-          twoFactorEnabled:
-            (user as { twoFactorEnabled?: boolean }).twoFactorEnabled ?? null,
-          cardsCount,
-        };
-      })
+      result.page
+        .filter((user) => user.deletedAt === undefined)
+        .map(async (user) => ({
+          id: user.teakUserId,
+          email: user.workosEmail ?? user.email,
+          emailVerified: user.workosEmailVerified ?? user.emailVerified,
+          createdAt: user._creationTime,
+          cardsCount: await getActiveCardCountForUser(ctx, user.teakUserId),
+        }))
     );
+    return { ...result, page };
+  },
+});
 
-    return {
-      ...result,
-      page,
-    };
+// Operator-only bootstrap, e.g. for a new self-hosted deployment. Runtime
+// authorization always uses the stored role.
+export const seedAdmin = internalMutation({
+  args: { email: v.string() },
+  returns: v.object({ teakUserId: v.string(), role: v.literal("admin") }),
+  handler: async (ctx, args) => {
+    const email = normalizeIdentityEmail(args.email);
+    if (!email) {
+      throw new Error("The admin email is required");
+    }
+    const rows = await ctx.db
+      .query("users")
+      .withIndex("by_email", (q) => q.eq("email", email))
+      .take(2);
+    if (rows.length !== 1 || rows[0].deletedAt !== undefined) {
+      throw new Error("Admin seed requires exactly one active mapped account");
+    }
+    await ctx.db.patch("users", rows[0]._id, { role: "admin" });
+    return { teakUserId: rows[0].teakUserId, role: "admin" as const };
   },
 });
 

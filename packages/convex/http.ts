@@ -1,14 +1,6 @@
 import { httpRouter } from "convex/server";
-import { authComponent, createAuth, trustedOrigins } from "./auth";
-import {
-  oauthSessionExchange,
-  oauthSessionExchangeOptions,
-} from "./authDesktopOauth";
-import { exchangeNativeAuthOptions, pollNativeAuthCode } from "./authNative";
 import { polar } from "./billing";
 import { mcpV1, oauthProtectedResourceV1 } from "./mcp/httpServer";
-import { revokeOAuthToken } from "./oauthRevocation";
-import { oauthUserInfo } from "./oauthUserInfo";
 import { duplicateCardV1 } from "./publicApiDuplicate";
 import {
   bulkCardsV1,
@@ -74,12 +66,6 @@ http.route({
 registerWorkosRoutes(http);
 
 http.route({
-  path: "/api/oauth/userinfo",
-  method: "GET",
-  handler: oauthUserInfo,
-});
-
-http.route({
   path: "/api/safari/account-summary",
   method: "GET",
   handler: safariAccountSummary,
@@ -87,37 +73,6 @@ http.route({
 
 // Register the webhook handler at /polar/events
 polar.registerRoutes(http as any);
-
-// Register authentication routes with CORS for cross-origin native auth requests.
-authComponent.registerRoutesLazy(http, createAuth, {
-  cors: true,
-  trustedOrigins,
-});
-
-http.route({
-  path: "/api/native/auth/poll",
-  method: "OPTIONS",
-  handler: exchangeNativeAuthOptions,
-});
-
-http.route({
-  path: "/api/native/auth/poll",
-  method: "POST",
-  handler: pollNativeAuthCode,
-});
-
-// Desktop OAuth -> dedicated session exchange (single-use access token).
-http.route({
-  path: "/api/native/auth/oauth-exchange",
-  method: "OPTIONS",
-  handler: oauthSessionExchangeOptions,
-});
-
-http.route({
-  path: "/api/native/auth/oauth-exchange",
-  method: "POST",
-  handler: oauthSessionExchange,
-});
 
 // Register public API v1 routes.
 http.route({ path: "/v1/me", method: "GET", handler: meV1 });
@@ -257,18 +212,6 @@ http.route({
   method: "GET",
   handler: duplicateCardV1,
 });
-http.route({
-  path: "/api/oauth/revoke",
-  method: "OPTIONS",
-  handler: v1CorsPreflight,
-});
-
-http.route({
-  path: "/api/oauth/revoke",
-  method: "POST",
-  handler: revokeOAuthToken,
-});
-
 http.route({
   path: "/v1/oauth/disconnect",
   method: "POST",

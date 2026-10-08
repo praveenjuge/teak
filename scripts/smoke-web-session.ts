@@ -2,20 +2,31 @@
 /**
  * Clean-container web session smoke (issue #407, Phase 5).
  *
- * Proves a local authenticated journey without production secrets: sign up
- * a random local user, sign in, and show the session reaches `/` while
- * anonymous requests redirect to `/login`. Local sign-in does not require
- * verified email, so no verification step is needed. Reads ONLY the web
- * target's declared dotenv file explicitly. Reports status and names;
- * credentials are random per run and never printed.
+ * Proves the WorkOS AuthKit gate of a locally running web app: anonymous
+ * requests to `/` redirect to `/sign-in`, and a real WorkOS session reaches
+ * `/`. The session comes from the headless flow in
+ * ./lib/workos-test-session.ts: a throwaway verified WorkOS user signs in
+ * with a random password and its tokens are sealed into the AuthKit cookie.
+ * The user is always deleted afterwards. Reads ONLY the web target's declared
+ * dotenv file. Reports status and names; emails, passwords, tokens and
+ * cookies are never printed.
+ *
+ * SMOKE_WORKOS_CREDENTIALS says whether the WorkOS credentials in that file
+ * are real: `present` (default) runs the authenticated check, `fork` skips it
+ * because fork pull requests get no secrets, and `missing` fails it because
+ * the repository secrets are expected but not set.
  *
  * Usage: bun run smoke:web [--base-url <url>] [--json]
  */
 
-import { randomUUID } from "node:crypto";
 import { loadTargetEnv } from "./env-loader.ts";
+import {
+  cookieHeader,
+  createWorkosTestSession,
+  describeWorkosError,
+} from "./lib/workos-test-session.ts";
 
-export const SMOKE_VERSION = 1;
+export const SMOKE_VERSION = 2;
 
 export interface SmokeStep {
   detail: string;
@@ -30,145 +41,192 @@ export interface SmokeReport {
   version: number;
 }
 
-const fetchText = async (
+export type SmokeCredentials = "present" | "fork" | "missing";
+
+export const parseSmokeCredentials = (
+  value: string | undefined
+): SmokeCredentials => {
+  if (value === undefined || value === "" || value === "present") {
+    return "present";
+  }
+  if (value === "fork" || value === "missing") {
+    return value;
+  }
+  throw new Error(
+    `SMOKE_WORKOS_CREDENTIALS must be present, fork or missing (received "${value}")`
+  );
+};
+
+const REDIRECT_STATUSES = new Set([301, 302, 303, 307, 308]);
+
+/** True when a response redirects to `path` on the app's own origin. */
+export const redirectsTo = (
+  status: number,
+  location: string | null,
+  baseUrl: string,
+  path: string
+): boolean => {
+  if (!(REDIRECT_STATUSES.has(status) && location)) {
+    return false;
+  }
+  const target = new URL(location, baseUrl);
+  return target.origin === new URL(baseUrl).origin && target.pathname === path;
+};
+
+const fetchStatus = async (
   url: string,
   init: RequestInit = {}
-): Promise<{ body: string; headers: Headers; status: number }> => {
+): Promise<{ location: string | null; status: number }> => {
   const response = await fetch(url, {
     ...init,
-    signal: AbortSignal.timeout(20_000),
+    redirect: "manual",
+    signal: AbortSignal.timeout(60_000),
   });
+  await response.body?.cancel();
   return {
-    body: await response.text(),
-    headers: response.headers,
+    location: response.headers.get("location"),
     status: response.status,
   };
 };
 
-/** Cookie header from every Set-Cookie pair, values never logged. */
-export const cookiesFrom = (headers: Headers): string =>
-  headers
-    .getSetCookie()
-    .map((pair) => pair.split(";", 1)[0]?.trim() ?? "")
-    .filter(Boolean)
-    .join("; ");
-
-/**
- * Status plus Better Auth's error code, e.g. `422 (FAILED_TO_CREATE_USER)`.
- * Only an uppercase enum-shaped code is reported, so request values and
- * message text never reach the log.
- */
-export const describeAuthFailure = (status: number, body: string): string => {
-  let code: unknown;
-  try {
-    code = (JSON.parse(body) as { code?: unknown } | null)?.code;
-  } catch {
-    // Non-JSON bodies are reported by status alone.
+const authenticatedStep = async (
+  baseUrl: string,
+  config: {
+    apiKey: string;
+    clientId: string;
+    cookiePassword: string;
+    redirectUri: string;
   }
-  return typeof code === "string" && /^[A-Z][A-Z0-9_]{0,63}$/.test(code)
-    ? `${status} (${code})`
-    : `${status}`;
+): Promise<SmokeStep[]> => {
+  let session: Awaited<ReturnType<typeof createWorkosTestSession>>;
+  try {
+    session = await createWorkosTestSession({ ...config, label: "smoke" });
+  } catch (error) {
+    return [
+      {
+        id: "smoke-workos-session",
+        ok: false,
+        detail: `creating the WorkOS user or signing in failed: ${describeWorkosError(error)}`,
+      },
+    ];
+  }
+  const steps: SmokeStep[] = [
+    {
+      id: "smoke-workos-session",
+      ok: true,
+      detail: "throwaway WorkOS user signed in with a password",
+    },
+  ];
+  try {
+    const authed = await fetchStatus(`${baseUrl}/`, {
+      headers: { Cookie: cookieHeader(session.cookie) },
+    });
+    steps.push(
+      authed.status === 200
+        ? {
+            id: "smoke-session",
+            ok: true,
+            detail: "session reaches / with 200",
+          }
+        : {
+            id: "smoke-session",
+            ok: false,
+            detail: `authenticated GET / returned ${authed.status}${redirectsTo(authed.status, authed.location, baseUrl, "/sign-in") ? " (redirect to /sign-in: the session was rejected)" : ""}`,
+          }
+    );
+  } catch (error) {
+    steps.push({
+      id: "smoke-session",
+      ok: false,
+      detail: `authenticated GET / failed: ${error instanceof Error ? error.name : "unknown error"}`,
+    });
+  } finally {
+    try {
+      await session.cleanup();
+      steps.push({
+        id: "smoke-workos-cleanup",
+        ok: true,
+        detail: "throwaway WorkOS user deleted",
+      });
+    } catch (error) {
+      steps.push({
+        id: "smoke-workos-cleanup",
+        ok: false,
+        detail: `deleting the throwaway WorkOS user failed: ${describeWorkosError(error)}`,
+      });
+    }
+  }
+  return steps;
 };
 
-export const runSmoke = async (baseUrl: string): Promise<SmokeReport> => {
+export const runSmoke = async (
+  baseUrl: string,
+  credentials: SmokeCredentials = "present"
+): Promise<SmokeReport> => {
   const steps: SmokeStep[] = [];
-  const fail = (id: string, detail: string): SmokeReport => {
-    steps.push({ id, ok: false, detail });
-    return { version: SMOKE_VERSION, baseUrl, ok: false, steps };
-  };
+  const report = (): SmokeReport => ({
+    version: SMOKE_VERSION,
+    baseUrl,
+    ok: steps.every((step) => step.ok),
+    steps,
+  });
 
   const loaded = loadTargetEnv("web", "local");
-  const convexUrl = loaded.values.get("NEXT_PUBLIC_CONVEX_URL");
-  const convexSiteUrl = loaded.values.get("NEXT_PUBLIC_CONVEX_SITE_URL");
-  if (!(convexUrl && convexSiteUrl)) {
-    return fail(
-      "smoke-config",
-      "apps/web/.env.local is missing NEXT_PUBLIC_CONVEX_* (run bun run setup --target web)"
-    );
-  }
-  steps.push({ id: "smoke-config", ok: true, detail: "convex origins loaded" });
-
-  const login = await fetchText(`${baseUrl}/login`);
-  if (login.status !== 200) {
-    return fail("smoke-login-page", `GET /login returned ${login.status}`);
-  }
-  steps.push({ id: "smoke-login-page", ok: true, detail: "GET /login is 200" });
-
-  const anonymous = await fetchText(`${baseUrl}/`, { redirect: "manual" });
-  const location = anonymous.headers.get("location") ?? "";
-  if (
-    !(
-      [301, 302, 303, 307, 308].includes(anonymous.status) &&
-      location.includes("/login")
-    )
-  ) {
-    return fail(
-      "smoke-auth-gate",
-      `anonymous GET / returned ${anonymous.status} (expected a /login redirect)`
-    );
+  const config = {
+    apiKey: loaded.values.get("WORKOS_API_KEY") ?? "",
+    clientId: loaded.values.get("WORKOS_CLIENT_ID") ?? "",
+    cookiePassword: loaded.values.get("WORKOS_COOKIE_PASSWORD") ?? "",
+    redirectUri: loaded.values.get("NEXT_PUBLIC_WORKOS_REDIRECT_URI") ?? "",
+  };
+  if (!Object.values(config).every(Boolean)) {
+    steps.push({
+      id: "smoke-config",
+      ok: false,
+      detail:
+        "apps/web/.env.local is missing WorkOS sign-in values (run bun run setup --target web)",
+    });
+    return report();
   }
   steps.push({
-    id: "smoke-auth-gate",
+    id: "smoke-config",
     ok: true,
-    detail: "anonymous / redirects to /login",
+    detail: "web sign-in config loaded",
   });
 
-  const email = `smoke-${Date.now()}-${randomUUID().slice(0, 8)}@teakvault.local`;
-  const password = `${randomUUID()}${randomUUID()}!aA`;
-  const signUp = await fetchText(`${convexSiteUrl}/api/auth/sign-up/email`, {
-    body: JSON.stringify({ email, password, name: "Smoke User" }),
-    headers: { "Content-Type": "application/json" },
-    method: "POST",
-  });
-  if (!(signUp.status === 200 || signUp.status === 201)) {
-    return fail(
-      "smoke-sign-up",
-      `sign-up returned ${describeAuthFailure(signUp.status, signUp.body)}`
-    );
-  }
-  steps.push({
-    id: "smoke-sign-up",
-    ok: true,
-    detail: "random user signed up",
-  });
+  const anonymous = await fetchStatus(`${baseUrl}/`);
+  steps.push(
+    redirectsTo(anonymous.status, anonymous.location, baseUrl, "/sign-in")
+      ? {
+          id: "smoke-auth-gate",
+          ok: true,
+          detail: "anonymous / redirects to /sign-in",
+        }
+      : {
+          id: "smoke-auth-gate",
+          ok: false,
+          detail: `anonymous GET / returned ${anonymous.status} (expected a /sign-in redirect)`,
+        }
+  );
 
-  const signIn = await fetchText(`${convexSiteUrl}/api/auth/sign-in/email`, {
-    body: JSON.stringify({ email, password }),
-    headers: { "Content-Type": "application/json" },
-    method: "POST",
-  });
-  const cookies = cookiesFrom(signIn.headers);
-  if (signIn.status !== 200) {
-    return fail(
-      "smoke-sign-in",
-      `sign-in returned ${describeAuthFailure(signIn.status, signIn.body)}`
-    );
+  if (credentials === "fork") {
+    steps.push({
+      id: "smoke-session",
+      ok: true,
+      detail: "skipped: fork pull requests get no WorkOS staging credentials",
+    });
+    return report();
   }
-  if (!cookies) {
-    return fail("smoke-sign-in", "sign-in issued no session cookie");
+  if (credentials === "missing") {
+    steps.push({
+      id: "smoke-session",
+      ok: false,
+      detail:
+        "WorkOS staging credentials are not configured: set the WORKOS_STAGING_CLIENT_ID and WORKOS_STAGING_API_KEY repository secrets",
+    });
+    return report();
   }
-  steps.push({
-    id: "smoke-sign-in",
-    ok: true,
-    detail: "sign-in issued a session cookie",
-  });
-
-  const authed = await fetchText(`${baseUrl}/`, {
-    headers: { Cookie: cookies },
-    redirect: "manual",
-  });
-  if (authed.status !== 200) {
-    return fail(
-      "smoke-session",
-      `authenticated GET / returned ${authed.status}`
-    );
-  }
-  steps.push({
-    id: "smoke-session",
-    ok: true,
-    detail: "session reaches / with 200",
-  });
-  return { version: SMOKE_VERSION, baseUrl, ok: true, steps };
+  steps.push(...(await authenticatedStep(baseUrl, config)));
+  return report();
 };
 
 const main = async (): Promise<void> => {
@@ -177,7 +235,10 @@ const main = async (): Promise<void> => {
     ? (args[args.indexOf("--base-url") + 1] ?? "http://localhost:3000")
     : "http://localhost:3000";
   const json = args.includes("--json");
-  const report = await runSmoke(baseUrl);
+  const report = await runSmoke(
+    baseUrl,
+    parseSmokeCredentials(process.env.SMOKE_WORKOS_CREDENTIALS)
+  );
   if (json) {
     console.log(JSON.stringify(report, null, 2));
   } else {

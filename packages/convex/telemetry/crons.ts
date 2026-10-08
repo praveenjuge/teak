@@ -69,13 +69,6 @@ export const CRON_MONITORS = {
     schedule: "0 6 * * *",
     slug: "cleanup-resend-emails",
   },
-  ensureOauthClients: {
-    checkinMarginMinutes: 15,
-    failureIssueThreshold: 1,
-    maxRuntimeMinutes: 5,
-    schedule: "0 1 * * *",
-    slug: "ensure-oauth-clients",
-  },
   redriveAccountDeletion: {
     checkinMarginMinutes: 5,
     maxRuntimeMinutes: 5,
@@ -134,15 +127,6 @@ const monitored = async (
   await withCronCheckIn(config, callback);
   return null;
 };
-
-export const ensureOauthClients = internalAction({
-  args: {},
-  returns: v.null(),
-  handler: (ctx: ActionCtx) =>
-    monitored(CRON_MONITORS.ensureOauthClients, () =>
-      ctx.runMutation(internalAny.oauthClients.ensureOAuthClients, {})
-    ),
-});
 
 export const cleanupOldDeletedCards = internalAction({
   args: {},

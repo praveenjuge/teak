@@ -7,13 +7,13 @@ export function parseAuthMode(value: unknown): PublicAuthMode {
   }
   const mode = value as Record<string, unknown>;
   if (
-    (mode.primary !== "betterauth" && mode.primary !== "workos") ||
+    mode.primary !== "workos" ||
     typeof mode.signupsDisabled !== "boolean" ||
     typeof mode.accountChangesPaused !== "boolean" ||
     (mode.authKitClientId !== undefined &&
       (typeof mode.authKitClientId !== "string" ||
         !/^client_[A-Za-z0-9]{1,128}$/.test(mode.authKitClientId))) ||
-    (mode.primary === "workos" && !mode.authKitClientId)
+    !mode.authKitClientId
   ) {
     throw new Error("Unable to load sign-in configuration");
   }

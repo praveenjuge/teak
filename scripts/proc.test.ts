@@ -9,6 +9,12 @@ describe("runCommand", () => {
     expect(result.timedOut).toBe(false);
   });
 
+  test("passes stdin to the child instead of argv", async () => {
+    const result = await runCommand(["cat"], { stdin: "piped-value" });
+    expect(result.exitCode).toBe(0);
+    expect(result.stdout).toBe("piped-value");
+  });
+
   test("reports nonzero exits without throwing", async () => {
     const result = await runCommand(["sh", "-c", "echo oops >&2; exit 3"]);
     expect(result.exitCode).toBe(3);

@@ -133,14 +133,6 @@ const isExternalDomMutation = (event: ErrorEvent) =>
     );
   }) ?? false;
 
-const isBetterAuthSessionFrame = (filename?: string) =>
-  Boolean(
-    filename &&
-      (filename.includes("node_modules/@convex-dev/better-auth/") ||
-        filename.includes("node_modules/better-auth/") ||
-        filename.includes("node_modules/@better-fetch/fetch/"))
-  );
-
 const isBundledNextFrame = (filename?: string) =>
   Boolean(
     filename &&
@@ -148,24 +140,20 @@ const isBundledNextFrame = (filename?: string) =>
         filename.includes("/_next/static/immutable/chunks/"))
   );
 
-const isSafariBetterAuthLoadFailure = (event: ErrorEvent) =>
+// Production E2E browsers abort in-flight Safari requests when a journey ends.
+const isSafariE2eLoadFailure = (event: ErrorEvent) =>
   event.exception?.values?.some((exception) => {
     const isWebkitLoadFailure =
       exception.type === "TypeError" &&
       exception.value === "Load failed (app.teakvault.com)";
-
+    const isProductionE2e =
+      event.tags?.[SENTRY_USER_SEGMENT_TAG] === "production_e2e" ||
+      event.user?.segment === "production_e2e";
     const frames = exception.stacktrace?.frames ?? [];
-    const hasExplicitBetterAuthFrame = frames.some((frame) =>
-      isBetterAuthSessionFrame(frame.filename)
-    );
-    const isKnownE2eBundleAbort =
-      (event.tags?.[SENTRY_USER_SEGMENT_TAG] === "production_e2e" ||
-        event.user?.segment === "production_e2e") &&
-      frames.some((frame) => isBundledNextFrame(frame.filename));
-
     return (
       isWebkitLoadFailure &&
-      (hasExplicitBetterAuthFrame || isKnownE2eBundleAbort)
+      isProductionE2e &&
+      frames.some((frame) => isBundledNextFrame(frame.filename))
     );
   }) ?? false;
 
@@ -173,7 +161,7 @@ export function filterClientSentryEvent(event: ErrorEvent, _hint?: EventHint) {
   if (
     isInjectedError(event) ||
     isExternalDomMutation(event) ||
-    isSafariBetterAuthLoadFailure(event)
+    isSafariE2eLoadFailure(event)
   ) {
     return null;
   }

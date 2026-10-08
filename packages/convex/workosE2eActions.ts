@@ -8,7 +8,14 @@ import { internal } from "./_generated/api";
 import type { Doc } from "./_generated/dataModel";
 import { type ActionCtx, internalAction } from "./_generated/server";
 import { isE2EEmail } from "./e2eAccounts";
-import type { E2ECleanupResult } from "./e2eCleanup";
+
+interface E2ECleanupResult {
+  alreadyDeleted: string[];
+  deleted: string[];
+  failures: { email: string; reason: string }[];
+  ignoredOutOfRange: string[];
+  remainingEligible: boolean;
+}
 
 const clockSkew = 5 * 60 * 1000;
 const exactMaximum = 24 * 60 * 60 * 1000;

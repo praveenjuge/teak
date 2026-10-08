@@ -1,69 +1,7 @@
 // @ts-nocheck
 
-// Set environment variables BEFORE any imports that might load auth.ts
-const _originalSiteUrl = process.env.SITE_URL;
-const _originalGoogleClientId = process.env.GOOGLE_CLIENT_ID;
-const _originalGoogleClientSecret = process.env.GOOGLE_CLIENT_SECRET;
-const _originalAppleClientId = process.env.APPLE_CLIENT_ID;
-const _originalAppleKeyId = process.env.APPLE_KEY_ID;
-const _originalApplePrivateKey = process.env.APPLE_PRIVATE_KEY;
-const _originalAppleTeamId = process.env.APPLE_TEAM_ID;
-
-process.env.SITE_URL = "https://teakvault.com";
-process.env.GOOGLE_CLIENT_ID = "test-google-client-id";
-process.env.GOOGLE_CLIENT_SECRET = "test-google-client-secret";
-process.env.APPLE_CLIENT_ID = "test-apple-client-id";
-process.env.APPLE_KEY_ID = "test-apple-key-id";
-process.env.APPLE_PRIVATE_KEY = TEST_APPLE_PRIVATE_KEY;
-process.env.APPLE_TEAM_ID = "test-apple-team-id";
-
-import {
-  afterAll,
-  beforeAll,
-  beforeEach,
-  describe,
-  expect,
-  it,
-  mock,
-} from "bun:test";
-import { TEST_APPLE_PRIVATE_KEY } from "./helpers/appleAuth.test-utils";
+import { beforeAll, describe, expect, it, mock } from "bun:test";
 import { r2MockModuleFactory } from "./helpers/r2Mock.test-utils";
-
-// Restore the environment this file overrides for auth.ts once it finishes.
-afterAll(() => {
-  const originals: Record<string, string | undefined> = {
-    APPLE_CLIENT_ID: _originalAppleClientId,
-    APPLE_KEY_ID: _originalAppleKeyId,
-    APPLE_PRIVATE_KEY: _originalApplePrivateKey,
-    APPLE_TEAM_ID: _originalAppleTeamId,
-    GOOGLE_CLIENT_ID: _originalGoogleClientId,
-    GOOGLE_CLIENT_SECRET: _originalGoogleClientSecret,
-    SITE_URL: _originalSiteUrl,
-  };
-  for (const [name, value] of Object.entries(originals)) {
-    if (value === undefined) {
-      delete process.env[name];
-    } else {
-      process.env[name] = value;
-    }
-  }
-});
-
-const mockSendEmail = mock().mockResolvedValue({ id: "m1" });
-
-// Mock dependencies BEFORE importing auth.ts
-mock.module("@convex-dev/resend", () => ({
-  Resend: class {
-    sendEmail = mockSendEmail;
-  },
-}));
-
-mock.module("@convex-dev/better-auth/utils", () => ({
-  requireActionCtx: (ctx: any) => ctx,
-  isRunMutationCtx: () => true,
-  isRunQueryCtx: () => true,
-  isActionCtx: () => true,
-}));
 
 // Keep storage helpers isolated from the auth unit suite.
 mock.module("../storage/r2", r2MockModuleFactory);
@@ -74,14 +12,12 @@ let deleteAccountDataHandler: any;
 let runAccountDataDeletion: any;
 let getAccountCardDeletionBatchHandler: any;
 let removeAccountCardUsageHandler: any;
-let createAuth: any;
 let polar: any;
 let rateLimiter: any;
 let CARD_ERROR_CODES: any;
 let FREE_TIER_LIMIT: any;
 
 import { ConvexError } from "convex/values";
-import { internal } from "../_generated/api";
 import { POLAR_PLAN_IDS } from "../shared/polarPlans";
 
 const addUsageRecord = (
@@ -123,7 +59,6 @@ describe("auth", () => {
       accountDeletionModule.getAccountCardDeletionBatchHandler;
     removeAccountCardUsageHandler =
       accountDeletionModule.removeAccountCardUsageHandler;
-    createAuth = authModule.createAuth;
 
     const constantsModule = await import("../shared/constants");
     CARD_ERROR_CODES = constantsModule.CARD_ERROR_CODES;
@@ -134,10 +69,6 @@ describe("auth", () => {
 
     const rateLimitsModule = await import("../shared/rateLimits");
     rateLimiter = rateLimitsModule.rateLimiter;
-  });
-
-  beforeEach(() => {
-    mockSendEmail.mockClear();
   });
 
   describe("ensureCardCreationAllowed", () => {
@@ -767,108 +698,6 @@ describe("auth", () => {
         },
         expect.any(Function)
       );
-    });
-  });
-
-  describe("createAuth", () => {
-    it("returns betterAuth instance and covers callbacks", async () => {
-      const originalSiteUrl = process.env.SITE_URL;
-      const originalGoogleClientId = process.env.GOOGLE_CLIENT_ID;
-      const originalGoogleClientSecret = process.env.GOOGLE_CLIENT_SECRET;
-      const originalAppleClientId = process.env.APPLE_CLIENT_ID;
-      const originalAppleKeyId = process.env.APPLE_KEY_ID;
-      const originalApplePrivateKey = process.env.APPLE_PRIVATE_KEY;
-      const originalAppleTeamId = process.env.APPLE_TEAM_ID;
-
-      try {
-        const ctx = {
-          runAction: mock(),
-          runQuery: mock(),
-          runMutation: mock(),
-        } as any;
-        const auth = createAuth(ctx) as any;
-        expect(auth).toBeDefined();
-
-        // Test development origins branch
-        const originalNodeEnv = process.env.NODE_ENV;
-        try {
-          process.env.NODE_ENV = "development";
-          const authDev = createAuth(ctx) as any;
-          expect(Array.isArray(authDev.options.trustedOrigins)).toBe(true);
-          expect(authDev.options.trustedOrigins).toContain(
-            "https://app.teakvault.com"
-          );
-        } finally {
-          process.env.NODE_ENV = originalNodeEnv;
-        }
-
-        // Test callbacks
-        // We need to mock resend.sendEmail which is used in callbacks
-        // But it's a global export in auth.ts.
-        // Actually BetterAuth might hide these in its internal structure.
-        // Let's check where they are: auth.options.emailAndPassword.sendResetPassword
-        const options = auth.options;
-        expect(options.emailAndPassword?.sendResetPassword).toBeFunction();
-        expect(options.emailVerification?.sendVerificationEmail).toBeFunction();
-        await options.user.deleteUser.beforeDelete({ id: "u1" });
-        expect(ctx.runAction).toHaveBeenCalledWith(
-          internal.authActions.deleteAccountData,
-          { userId: "u1" }
-        );
-
-        const originalBackendDsn = process.env.SENTRY_BACKEND_DSN;
-        const originalConsoleError = console.error;
-        const consoleError = mock();
-        const scheduler = { runAfter: mock().mockResolvedValue(null) };
-        try {
-          process.env.SENTRY_BACKEND_DSN = "";
-          console.error = consoleError;
-          const authWithScheduler = createAuth({ ...ctx, scheduler }) as any;
-          authWithScheduler.options.onAPIError.onError(
-            new Error("Invalid session")
-          );
-          expect(consoleError).toHaveBeenCalledWith("[auth] Request failed", {
-            errorClass: "AuthError",
-          });
-          expect(scheduler.runAfter).toHaveBeenCalledWith(
-            0,
-            expect.anything(),
-            expect.objectContaining({
-              errorClass: "AuthError",
-              outcome: "failure",
-              stage: "sign_in",
-            })
-          );
-
-          process.env.SENTRY_BACKEND_DSN = "https://public@example.invalid/1";
-          consoleError.mockClear();
-          scheduler.runAfter.mockRejectedValueOnce(
-            new Error("Scheduler unavailable")
-          );
-          authWithScheduler.options.onAPIError.onError(
-            new Error("Invalid session")
-          );
-          await new Promise((resolve) => setTimeout(resolve, 0));
-          expect(consoleError).toHaveBeenCalledWith("[auth] Request failed", {
-            errorClass: "AuthError",
-          });
-        } finally {
-          if (originalBackendDsn === undefined) {
-            delete process.env.SENTRY_BACKEND_DSN;
-          } else {
-            process.env.SENTRY_BACKEND_DSN = originalBackendDsn;
-          }
-          console.error = originalConsoleError;
-        }
-      } finally {
-        process.env.SITE_URL = originalSiteUrl;
-        process.env.GOOGLE_CLIENT_ID = originalGoogleClientId;
-        process.env.GOOGLE_CLIENT_SECRET = originalGoogleClientSecret;
-        process.env.APPLE_CLIENT_ID = originalAppleClientId;
-        process.env.APPLE_KEY_ID = originalAppleKeyId;
-        process.env.APPLE_PRIVATE_KEY = originalApplePrivateKey;
-        process.env.APPLE_TEAM_ID = originalAppleTeamId;
-      }
     });
   });
 });

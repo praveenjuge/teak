@@ -3,7 +3,6 @@ import { internal } from "./_generated/api";
 import { internalMutation, internalQuery } from "./_generated/server";
 import { initiateAccountDeletion } from "./accountDeletion";
 import { isE2EEmail, normalizeE2EEmailDomain } from "./e2eAccounts";
-import { readAuthPrimary } from "./env";
 import { readCanonicalWorkosProfile } from "./workosProfileRead";
 
 const binding = { email: v.string(), workosUserId: v.string() };
@@ -12,9 +11,6 @@ export const orphanOwners = internalQuery({
   args: { cursor: v.union(v.string(), v.null()) },
   handler: async (ctx, { cursor }) => {
     const domain = normalizeE2EEmailDomain(process.env.E2E_EMAIL_DOMAIN ?? "");
-    if (readAuthPrimary() !== "workos") {
-      throw new Error("Inactive E2E provider");
-    }
     const page = await ctx.db
       .query("users")
       .withIndex("by_email", (q) => q.gte("email", "e2e-").lt("email", "e2e."))
@@ -50,7 +46,6 @@ export const admission = internalQuery({
     const domain = normalizeE2EEmailDomain(process.env.E2E_EMAIL_DOMAIN ?? "");
     if (
       !(apiKey && witness) ||
-      readAuthPrimary() !== "workos" ||
       args.clientId !== process.env.WORKOS_CLIENT_ID ||
       args.environmentId !== process.env.WORKOS_ENVIRONMENT_ID
     ) {
@@ -111,12 +106,8 @@ export const ownerByEmail = internalQuery({
 });
 export function assertNamespace(email: string) {
   const domain = normalizeE2EEmailDomain(process.env.E2E_EMAIL_DOMAIN ?? "");
-  if (
-    readAuthPrimary() !== "workos" ||
-    email !== email.trim().toLowerCase() ||
-    !isE2EEmail(email, domain)
-  ) {
-    throw new Error("Invalid WorkOS E2E namespace or inactive provider");
+  if (email !== email.trim().toLowerCase() || !isE2EEmail(email, domain)) {
+    throw new Error("Invalid WorkOS E2E namespace");
   }
 }
 
@@ -215,6 +206,6 @@ export const beginCleanup = internalMutation({
     ) {
       throw new Error("E2E canonical authority unavailable");
     }
-    return initiateAccountDeletion(ctx, owner, "workos");
+    return initiateAccountDeletion(ctx, owner);
   },
 });

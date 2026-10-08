@@ -7,7 +7,8 @@ import {
 } from "../helpers/prod";
 
 const hosted = "https://hosted-auth.example";
-const betterAuthForm =
+// Teak's retired email form. Under WorkOS-only sign-in it is never an entry.
+const teakForm =
   '<div>Login to Teak</div><button>Continue with Google</button><form><label for="email">Email</label><input id="email" type="email"><label for="password">Password</label><input id="password" type="password"><button>Login</button></form>';
 const hostedPage =
   '<label for="email">Email</label><input id="email" type="email"><button>Continue with email</button>';
@@ -19,7 +20,7 @@ type Entry = { form: string } | { hosted: "/" | "/sign-up" };
 const redirectTo = (url: string) =>
   `<script>location.replace(${JSON.stringify(url)})</script>`;
 
-// Serves a Teak entry path as a Better Auth form or as a redirect to a
+// Serves a Teak entry path as a Teak-hosted page or as a redirect to a
 // synthetic hosted page at `/` (sign-in) or `/sign-up`.
 const serve = async (page: Page, path: string, entry: Entry) => {
   const requested: string[] = [];
@@ -53,9 +54,7 @@ const serve = async (page: Page, path: string, entry: Entry) => {
 };
 
 for (const [flow, path, entry, expected] of [
-  ["signin", "/login", { form: betterAuthForm }, "betterauth"],
   ["signin", "/login", { hosted: "/" }, "workos"],
-  ["signup", "/register", { form: betterAuthForm }, "betterauth"],
   ["signup", "/register", { hosted: "/sign-up" }, "workos"],
   ["signup", "/register", { hosted: "/" }, "paused"],
 ] as const) {
@@ -78,6 +77,17 @@ test("a Teak page between the app and hosted sign-in is not an entry", async ({
   ).rejects.toThrow();
 });
 
+for (const [flow, path] of [
+  ["signin", "/login"],
+  ["signup", "/register"],
+] as const) {
+  test(`a Teak email form at ${path} is not an entry`, async ({ page }) => {
+    await serve(page, path, { form: teakForm });
+    await page.goto(`${env.appUrl}${path}`);
+    await expect(expectAuthEntry(page, flow)).rejects.toThrow("hosted AuthKit");
+  });
+}
+
 test("hosted sign-up does not pass as the sign-in entry", async ({ page }) => {
   await serve(page, "/login", { hosted: "/sign-up" });
   await page.goto(`${env.appUrl}/login`);
@@ -98,12 +108,7 @@ test("sign-up email canary fails closed on hosted WorkOS sign-up", async ({
   ]);
 });
 
-for (const [entry, expected] of [
-  [{ form: betterAuthForm }, "betterauth"],
-  [{ hosted: "/" }, "paused"],
-] as const) {
-  test(`sign-up email canary uses the ${expected} entry`, async ({ page }) => {
-    await serve(page, "/register", entry);
-    expect(await readSignupCanaryEntry(page)).toBe(expected);
-  });
-}
+test("sign-up email canary uses the paused entry", async ({ page }) => {
+  await serve(page, "/register", { hosted: "/" });
+  expect(await readSignupCanaryEntry(page)).toBe("paused");
+});

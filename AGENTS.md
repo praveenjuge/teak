@@ -14,7 +14,7 @@ Teak is a personal knowledge hub for collecting, remembering, and rediscovering 
 ## Architecture invariants
 
 - This is a Turborepo monorepo. Applications live in `apps/*`; shared backend and UI code live in `packages/convex` and `packages/ui`.
-- Client reads use the cached Convex query hooks. Writes use Convex mutations or actions. Better Auth sessions provide Convex identity.
+- Client reads use the cached Convex query hooks. Writes use Convex mutations or actions. WorkOS AuthKit sessions provide Convex identity; WorkOS is the only sign-in provider in every environment.
 - Import backend APIs from `@teak/convex`, generated data types from `@teak/convex/_generated/dataModel`, and shared constants from `@teak/convex/shared/constants`.
 - Shared web, desktop, and extension UI belongs in `packages/ui` unless the behavior is surface-specific.
 - Card processing is orchestrated by `packages/convex/workflows/cardProcessing.ts`. Preserve workflow retries and `processingStatus` consistency.

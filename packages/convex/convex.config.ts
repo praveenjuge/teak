@@ -10,16 +10,11 @@ import { v } from "convex/values";
 
 const app = defineApp({
   env: {
-    // Core. SITE_URL is the only required backend variable; setup always
-    // configures it locally before the first push.
-    SITE_URL: v.string(),
+    // Core.
     PUBLIC_ORIGIN: v.optional(v.string()),
-    JWKS: v.optional(v.string()),
-    // Sign-in provider: "workos" on Teak's deployments; unset means Better Auth.
-    AUTH_PRIMARY: v.optional(v.string()),
-    IDENTITY_RESOLVER_ENFORCE: v.optional(v.string()),
     SIGNUPS_DISABLED: v.optional(v.string()),
     ACCOUNT_CHANGES_PAUSED: v.optional(v.string()),
+    // WorkOS AuthKit: the only sign-in provider.
     WORKOS_AUTHKIT_DOMAIN: v.optional(v.string()),
     WORKOS_CONNECT_CLI_CLIENT_ID: v.optional(v.string()),
     WORKOS_CONNECT_RAYCAST_CLIENT_ID: v.optional(v.string()),
@@ -33,16 +28,6 @@ const app = defineApp({
     WORKOS_RECONCILIATION_WITNESS_ID: v.optional(v.string()),
     WORKOS_WEBHOOK_SECRET: v.optional(v.string()),
     WORKOS_ACTION_SECRET: v.optional(v.string()),
-    // Google capability group. Optional as a whole; ID and secret are
-    // required atomically (see ./env.ts).
-    GOOGLE_CLIENT_ID: v.optional(v.string()),
-    GOOGLE_CLIENT_SECRET: v.optional(v.string()),
-    // Apple capability group. Optional as a whole; validated at use time.
-    APPLE_CLIENT_ID: v.optional(v.string()),
-    APPLE_KEY_ID: v.optional(v.string()),
-    APPLE_PRIVATE_KEY: v.optional(v.string()),
-    APPLE_TEAM_ID: v.optional(v.string()),
-    APPLE_APP_BUNDLE_IDENTIFIER: v.optional(v.string()),
     // Files / R2 capability group.
     FILES_BASE: v.optional(v.string()),
     FILES_SIGNING_SECRET: v.optional(v.string()),

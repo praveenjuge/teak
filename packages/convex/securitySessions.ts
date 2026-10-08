@@ -1,17 +1,8 @@
 import { NotFoundException, type Session, WorkOS } from "@workos-inc/node";
 import { paginationOptsValidator, type UserIdentity } from "convex/server";
 import { v } from "convex/values";
-import { components, internal } from "./_generated/api";
-import {
-  type ActionCtx,
-  action,
-  env,
-  internalQuery,
-  mutation,
-  query,
-} from "./_generated/server";
-
-import { readAuthPrimary } from "./env";
+import { internal } from "./_generated/api";
+import { type ActionCtx, action, internalQuery } from "./_generated/server";
 import { validWorkosExternalId } from "./workosTokens";
 
 // Convex has already verified this JWT through auth.config.ts. These checks bind
@@ -58,9 +49,6 @@ export function readWorkosSessionIdentity(
 
 // Bootstrap can return verify_email before a mapping exists. It never grants vault access.
 export async function getWorkosBootstrapIdentity(ctx: Pick<ActionCtx, "auth">) {
-  if (readAuthPrimary() !== "workos") {
-    return null;
-  }
   let identity: UserIdentity | null;
   try {
     identity = await ctx.auth.getUserIdentity();
@@ -81,14 +69,6 @@ export async function getWorkosBootstrapIdentity(ctx: Pick<ActionCtx, "auth">) {
         emailVerified: workosEmailVerified(identity),
       }
     : null;
-}
-
-interface SessionRecord {
-  _id: string;
-  createdAt: number;
-  expiresAt: number;
-  userAgent?: string | null;
-  userId: string;
 }
 
 export function sessionDisplayName(agent: string | null | undefined): string {
@@ -140,13 +120,12 @@ export const identityMapping = internalQuery({
 export const readWorkosProfile = (
   ctx: Pick<ActionCtx, "runQuery">,
   workosUserId: string
-) =>
-  ctx.runQuery(internal.workosProfileRead.getProfile, { workosUserId });
+) => ctx.runQuery(internal.workosProfileRead.getProfile, { workosUserId });
 
-// API keys keep their permanent Teak owner in both modes. Under WorkOS they
-// still require the same mapped, verified and undeleted vault boundary.
-export async function resolveWorkosApiKeyOwner(
-  ctx: Pick<ActionCtx, "runQuery">,
+// API keys and internal jobs carry the permanent Teak owner. It still has to
+// map to a verified, undeleted WorkOS user.
+export async function resolveStoredUserId(
+  ctx: SessionCtx,
   ownerId: string
 ): Promise<TeakUserId | null> {
   const row = await ctx.runQuery(internal.securitySessions.identityMapping, {
@@ -168,58 +147,10 @@ export async function resolveWorkosApiKeyOwner(
   return owner.status === "ok" ? (owner.teakUserId as TeakUserId) : null;
 }
 
-// Read-only in queries and actions. Shadow mode retains the legacy owner;
-// enforcement is a separate operator gate after one clean production week.
-export async function resolveStoredUserId(
-  ctx: SessionCtx,
-  ownerId: string
-): Promise<TeakUserId | null> {
-  if (readAuthPrimary() === "workos") {
-    return resolveWorkosApiKeyOwner(ctx, ownerId);
-  }
-  const row = await ctx.runQuery(internal.securitySessions.identityMapping, {
-    teakUserId: ownerId,
-  });
-  // Deletion is a hard authorization fence in both modes, even while mapping
-  // enforcement remains in shadow mode.
-  const deleting = await ctx.runQuery(internal.accountDeletion.isDeleting, { userId: ownerId });
-  if (deleting === true || row?.deletedAt !== undefined) {
-    return null;
-  }
-  let reason: string | null = null;
-  if (!row) {
-    reason = "missing_mapping";
-  } else if (row.deletedAt !== undefined) {
-    reason = "deleted_user";
-  }
-  if (reason) {
-    console.warn("identity_resolver_mismatch", {
-      provider: "betterauth",
-      reason,
-    });
-  }
-  const enforce = env.IDENTITY_RESOLVER_ENFORCE;
-  if (enforce !== undefined && enforce !== "false" && enforce !== "true") {
-    throw new Error("IDENTITY_RESOLVER_ENFORCE must be true or false.");
-  }
-  if (enforce === "true" && reason) {
-    return null;
-  }
-  return ownerId as TeakUserId;
-}
-
-const isBetterAuthIdentity = (identity: UserIdentity) =>
-  Boolean(env.CONVEX_SITE_URL) && identity.issuer === env.CONVEX_SITE_URL;
-
 export async function resolveTeakUserId(
   ctx: SessionCtx,
   identity: UserIdentity
 ): Promise<TeakUserId | null> {
-  if (readAuthPrimary() === "betterauth") {
-    return isBetterAuthIdentity(identity)
-      ? resolveStoredUserId(ctx, identity.subject)
-      : null;
-  }
   const principal = readWorkosSessionIdentity(
     identity,
     process.env.WORKOS_CLIENT_ID ?? ""
@@ -255,35 +186,16 @@ export async function requireTeakUserId(
   return resolved;
 }
 
-async function liveSession(
-  ctx: SessionCtx,
-  identity: UserIdentity
-): Promise<SessionRecord | null> {
-  if (typeof identity.sessionId !== "string") {
-    return null;
-  }
-  const session = (await ctx.runQuery(components.betterAuth.adapter.findOne, {
-    model: "session",
-    where: [
-      { field: "_id", value: identity.sessionId },
-      { field: "userId", value: identity.subject },
-    ],
-  })) as SessionRecord | null;
-  return session && session.expiresAt > Date.now() ? session : null;
-}
-
-type SessionUser = {
-  teakUserId: TeakUserId;
+interface SessionUser {
   identity: UserIdentity;
   sessionId: string;
-} & (
-  | { provider: "betterauth"; session: SessionRecord }
-  | { provider: "workos"; workosUserId: string }
-);
+  teakUserId: TeakUserId;
+  workosUserId: string;
+}
 
-// Better Auth component reads keep revocation reactive. AuthKit session tokens
-// are verified by Convex and remain valid until their configured five-minute TTL.
-// WorkOS ownership/deletion checks remain reactive through the canonical resolver.
+// AuthKit session tokens are verified by Convex and stay valid until their
+// five-minute TTL. Ownership and deletion checks stay reactive through the
+// canonical resolver.
 export async function getSessionUser(
   ctx: SessionCtx
 ): Promise<SessionUser | null> {
@@ -299,40 +211,20 @@ export async function getSessionUser(
   if (!identity) {
     return null;
   }
-  if (readAuthPrimary() === "workos") {
-    const principal = readWorkosSessionIdentity(
-      identity,
-      process.env.WORKOS_CLIENT_ID ?? ""
-    );
-    if (!principal) {
-      return null;
-    }
-    const teakUserId = await resolveTeakUserId(ctx, identity);
-    return teakUserId
-      ? {
-          provider: "workos",
-          workosUserId: principal.workosUserId,
-          teakUserId,
-          identity,
-          sessionId: principal.sessionId,
-        }
-      : null;
-  }
-  if (!isBetterAuthIdentity(identity)) {
-    return null;
-  }
-  const session = await liveSession(ctx, identity);
-  if (!session) {
+  const principal = readWorkosSessionIdentity(
+    identity,
+    process.env.WORKOS_CLIENT_ID ?? ""
+  );
+  if (!principal) {
     return null;
   }
   const teakUserId = await resolveTeakUserId(ctx, identity);
   return teakUserId
     ? {
-        provider: "betterauth",
+        workosUserId: principal.workosUserId,
         teakUserId,
         identity,
-        session,
-        sessionId: session._id,
+        sessionId: principal.sessionId,
       }
     : null;
 }
@@ -355,45 +247,28 @@ export async function getSessionProfile(
   if (!sessionUser) {
     return null;
   }
-  if (sessionUser.provider === "workos") {
-    const provider = await readWorkosProfile(ctx, sessionUser.identity.subject);
-    const mirror = await ctx.runQuery(
-      internal.securitySessions.identityMapping,
-      {
-        teakUserId: sessionUser.teakUserId,
-      }
-    );
-    // Match the REST profile policy: email is the WorkOS-synced mirror, while
-    // display fields come from the canonical provider profile. Never fall back to BA.
-    if (!provider || typeof mirror?.workosEmail !== "string") {
-      return null;
-    }
-    return {
-      teakUserId: sessionUser.teakUserId,
-      user: {
-        _id: sessionUser.teakUserId,
-        email: mirror.workosEmail,
-        emailVerified: provider.emailVerified,
-        name:
-          provider.name ??
-          ([provider.firstName, provider.lastName].filter(Boolean).join(" ") ||
-            null),
-        image: provider.profilePictureUrl ?? null,
-      },
-    };
-  }
-  const user = await ctx.runQuery(components.betterAuth.adapter.findOne, {
-    model: "user",
-    where: [{ field: "_id", value: sessionUser.teakUserId }],
+  const provider = await readWorkosProfile(ctx, sessionUser.identity.subject);
+  const mirror = await ctx.runQuery(internal.securitySessions.identityMapping, {
+    teakUserId: sessionUser.teakUserId,
   });
-  return user ? { user, teakUserId: sessionUser.teakUserId } : null;
-}
-
-export async function currentSession(ctx: SessionCtx) {
-  const user = await getSessionUser(ctx);
-  return user?.provider === "betterauth"
-    ? { ...user.session, teakUserId: user.teakUserId }
-    : null;
+  // Match the REST profile policy: email is the WorkOS-synced mirror, while
+  // display fields come from the canonical provider profile.
+  if (!provider || typeof mirror?.workosEmail !== "string") {
+    return null;
+  }
+  return {
+    teakUserId: sessionUser.teakUserId,
+    user: {
+      _id: sessionUser.teakUserId,
+      email: mirror.workosEmail,
+      emailVerified: provider.emailVerified,
+      name:
+        provider.name ??
+        ([provider.firstName, provider.lastName].filter(Boolean).join(" ") ||
+          null),
+      image: provider.profilePictureUrl ?? null,
+    },
+  };
 }
 
 const displayValidator = v.object({
@@ -401,73 +276,6 @@ const displayValidator = v.object({
   name: v.string(),
   signedInAt: v.number(),
   current: v.boolean(),
-});
-
-export const listSessions = query({
-  args: {
-    paginationOpts: paginationOptsValidator,
-    // Operational cache key only; ownership always comes from the live session.
-    retryKey: v.optional(v.string()),
-  },
-  returns: v.object({
-    page: v.array(displayValidator),
-    isDone: v.boolean(),
-    continueCursor: v.string(),
-  }),
-  handler: async (ctx, { paginationOpts }) => {
-    const current = await currentSession(ctx);
-    if (!current) {
-      return { page: [], isDone: true, continueCursor: "" };
-    }
-    const result = await ctx.runQuery(components.betterAuth.adapter.findMany, {
-      model: "session",
-      where: [{ field: "userId", value: current.userId }],
-      paginationOpts: {
-        ...paginationOpts,
-        numItems: Math.min(paginationOpts.numItems, 100),
-      },
-    });
-    const display = (session: SessionRecord) => ({
-      id: session._id,
-      name: sessionDisplayName(session.userAgent),
-      signedInAt: session.createdAt,
-      current: session._id === current._id,
-    });
-    return {
-      page: [
-        ...(paginationOpts.cursor ? [] : [display(current)]),
-        ...(result.page as SessionRecord[])
-          .filter(
-            (session) =>
-              session.expiresAt > Date.now() && session._id !== current._id
-          )
-          .map(display),
-      ],
-      isDone: result.isDone,
-      continueCursor: result.continueCursor,
-    };
-  },
-});
-
-export const revokeSession = mutation({
-  args: { sessionId: v.string() },
-  returns: v.null(),
-  handler: async (ctx, { sessionId }) => {
-    const current = await currentSession(ctx);
-    if (!current) {
-      throw new Error("Please sign in again.");
-    }
-    await ctx.runMutation(components.betterAuth.adapter.deleteOne, {
-      input: {
-        model: "session",
-        where: [
-          { field: "_id", value: sessionId },
-          { field: "userId", value: current.userId },
-        ],
-      },
-    });
-    return null;
-  },
 });
 
 const sessionPageValidator = v.object({
@@ -512,7 +320,7 @@ export const listAuthkitSessions = action({
     continueCursor: string;
   }> => {
     const user = await getSessionUser(ctx);
-    if (user?.provider !== "workos") {
+    if (!user) {
       throw new Error("Please sign in again.");
     }
     const cursor = paginationOpts.cursor;
@@ -558,7 +366,7 @@ export const revokeAuthkitSession = action({
   returns: v.null(),
   handler: async (ctx, { sessionId }) => {
     const user = await getSessionUser(ctx);
-    if (user?.provider !== "workos") {
+    if (!user) {
       throw new Error("Please sign in again.");
     }
     if (!/^session_[A-Za-z0-9]+$/.test(sessionId)) {
@@ -616,11 +424,14 @@ export const revokeAuthkitSession = action({
 // never used to admit a new request or authorize vault access.
 export async function getDeletionRetryPrincipal(ctx: SessionCtx) {
   const identity = await ctx.auth.getUserIdentity();
-  if (!identity) return null;
-  if (readAuthPrimary() === "workos") {
-    const claims = readWorkosSessionIdentity(identity, process.env.WORKOS_CLIENT_ID ?? "");
-    return claims ? { provider: "workos" as const, providerUserId: claims.workosUserId, externalId: claims.externalId } : null;
+  if (!identity) {
+    return null;
   }
-  if (!isBetterAuthIdentity(identity) || !(await liveSession(ctx, identity))) return null;
-  return { provider: "betterauth" as const, providerUserId: identity.subject };
+  const claims = readWorkosSessionIdentity(
+    identity,
+    process.env.WORKOS_CLIENT_ID ?? ""
+  );
+  return claims
+    ? { workosUserId: claims.workosUserId, externalId: claims.externalId }
+    : null;
 }

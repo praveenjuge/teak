@@ -8,11 +8,9 @@ import {
   type QueryCtx,
   query,
 } from "./_generated/server";
-import { readAuthPrimary } from "./env";
 import {
-  resolveStoredUserId,
   getSessionUser,
-  resolveWorkosApiKeyOwner,
+  resolveStoredUserId,
   type TeakUserId,
 } from "./securitySessions";
 import { API_KEY_TOKEN_PREFIX, getApiKeyFormat } from "./shared/apiKeyFormat";
@@ -90,12 +88,6 @@ const validateApiKeyArgsValidator = v.object({
 const revokeKeyArgsValidator = v.object({
   keyId: v.string(),
 });
-
-const getAuthUserById = async (ctx: MutationCtx, userId: string) =>
-  ctx.runQuery(components.betterAuth.adapter.findOne, {
-    model: "user",
-    where: [{ field: "_id", operator: "eq", value: userId }],
-  });
 
 const getAuthenticatedOwnerId = async (
   ctx: QueryCtx | MutationCtx
@@ -179,20 +171,8 @@ const validateComponentApiKey = async (ctx: MutationCtx, token: string) => {
     return null;
   }
 
-  if (readAuthPrimary() === "workos") {
-    if (!(await resolveWorkosApiKeyOwner(ctx, result.ownerId))) {
-      return null;
-    }
-  } else {
-    if (!(await resolveStoredUserId(ctx, result.ownerId))) return null;
-    const authUser = await getAuthUserById(ctx, result.ownerId);
-    if (!authUser) {
-      await componentApiKeys.revoke(ctx, {
-        keyId: result.keyId,
-        ownerId: result.ownerId,
-      });
-      return null;
-    }
+  if (!(await resolveStoredUserId(ctx, result.ownerId))) {
+    return null;
   }
 
   return {
@@ -379,13 +359,15 @@ export const validateUserApiKey = internalMutation({
   },
 });
 
-
 // Workflow-controlled drain: no detached successor that could outlive a stage.
 export const revokeDeletionKeysPage = internalMutation({
-  args: { ownerId: v.string() }, returns: v.boolean(),
+  args: { ownerId: v.string() },
+  returns: v.boolean(),
   handler: async (ctx, { ownerId }) => {
     const keys = await listComponentKeysByStatus(ctx, ownerId, "active");
-    for (const key of keys) await componentApiKeys.revoke(ctx, { keyId: key.keyId, ownerId });
+    for (const key of keys) {
+      await componentApiKeys.revoke(ctx, { keyId: key.keyId, ownerId });
+    }
     return keys.length === LIST_LIMIT;
   },
 });

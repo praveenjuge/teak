@@ -36,7 +36,6 @@ beforeAll(async () => {
 });
 beforeEach(async () => {
   vi.useFakeTimers();
-  vi.stubEnv("AUTH_PRIMARY", "workos");
   vi.stubEnv("WORKOS_AUTHKIT_DOMAIN", issuer);
   vi.stubEnv("WORKOS_API_KEY", "non-secret-disconnect-test-fixture");
   vi.stubEnv("WORKOS_ENVIRONMENT_ID", "environment_TEST");
@@ -486,12 +485,4 @@ describe("WorkOS REST and MCP token boundary", () => {
     expect((await f.mcp(key.key, "ping")).status).toBe(401);
   });
 
-  test("Better Auth mode denies Connect and unknown mode fails closed", async () => {
-    const f = await setup();
-    const access = await token();
-    vi.stubEnv("AUTH_PRIMARY", "betterauth");
-    expect((await f.read(access)).status).toBe(401);
-    vi.stubEnv("AUTH_PRIMARY", "invalid");
-    expect((await f.read(access)).status).toBe(500);
-  });
 });

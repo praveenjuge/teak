@@ -19,10 +19,11 @@ test("create isolated verified production accounts and API keys", async ({
   browser,
   page,
 }, testInfo) => {
-  let viaEmail = env.emailDeliveryEnabled;
-  // Hosted WorkOS sign-up fails in readSignupCanaryEntry, before any account
-  // exists, so the email canary never passes without sending email.
-  if (viaEmail && (await readSignupCanaryEntry(page)) === "paused") {
+  // With email delivery on, check the sign-up entry first. Hosted WorkOS
+  // sign-up fails in readSignupCanaryEntry before any account exists; paused
+  // sign-ups are recorded and the account comes from the protected endpoint.
+  if (env.emailDeliveryEnabled) {
+    await readSignupCanaryEntry(page);
     await testInfo.attach("registration-freeze", {
       body: await page.screenshot(),
       contentType: "image/png",
@@ -32,11 +33,8 @@ test("create isolated verified production accounts and API keys", async ({
       description:
         "Registration freeze verified; account provisioned through the protected E2E endpoint. Signup email canary deferred until unfreeze.",
     });
-    viaEmail = false;
   }
-  const account = await createAccount(page, "primary", {
-    viaEmail,
-  });
+  const account = await createAccount(page, "primary");
   updateState((state) => {
     state.primary = account;
   });

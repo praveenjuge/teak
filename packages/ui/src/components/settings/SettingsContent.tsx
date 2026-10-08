@@ -22,7 +22,6 @@ import { ThemeToggle } from "./ThemeToggle";
 
 interface SettingsContentProps {
   accountLoading: boolean;
-  betterAuthIdentityKey?: string;
   cardCount: number;
   connectionIdentity?: ConnectionIdentity;
   deleteDialogError: string | null;
@@ -59,7 +58,6 @@ interface SettingsContentProps {
 }
 
 export function SettingsContent({
-  betterAuthIdentityKey,
   cardCount,
   deleteDialogError,
   deleteDialogOpen,
@@ -144,7 +142,6 @@ export function SettingsContent({
           onRevokeKey: onRevokeApiKey,
           onRotateKey: onRotateApiKey,
         }}
-        betterAuthIdentityKey={betterAuthIdentityKey}
         connectionIdentity={connectionIdentity}
         onLoadMoreSessions={onLoadMoreSessions}
         onRetrySessions={onRetrySessions}

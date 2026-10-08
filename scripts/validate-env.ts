@@ -19,6 +19,13 @@ export const REQUIRED_WEB_ENV_KEYS = [
   "NEXT_PUBLIC_CONVEX_SITE_URL",
 ] as const;
 
+export const REQUIRED_WEB_AUTH_KEYS = [
+  "WORKOS_CLIENT_ID",
+  "WORKOS_API_KEY",
+  "WORKOS_COOKIE_PASSWORD",
+  "NEXT_PUBLIC_WORKOS_REDIRECT_URI",
+] as const;
+
 export interface EnvIssue {
   hint: string;
   key: string;
@@ -99,39 +106,33 @@ export const validateWebEnvContent = (
       });
     }
   }
-  const credentialKeys = [
-    "WORKOS_CLIENT_ID",
-    "WORKOS_API_KEY",
-    "WORKOS_COOKIE_PASSWORD",
-    "WORKOS_ISSUER",
-  ];
-  if (
-    credentialKeys
-      .filter((key) => key !== "WORKOS_COOKIE_PASSWORD")
-      .some((key) => lookup(key))
-  ) {
-    const authEnvironment = Object.fromEntries(
-      [...credentialKeys, "NEXT_PUBLIC_WORKOS_REDIRECT_URI", "NODE_ENV"].map(
-        (key) => [key, expandEnvReferences(lookup(key) ?? "", lookup)]
-      )
-    );
-    try {
-      readWorkosWebConfig(
-        {
-          primary: "workos",
-          authKitClientId: authEnvironment.WORKOS_CLIENT_ID,
-          signupsDisabled: false,
-          accountChangesPaused: false,
-        },
-        authEnvironment
-      );
-    } catch {
-      issues.push({
-        key: "WORKOS_CLIENT_ID",
-        problem: "invalid-auth-config",
-        hint: "Configure the same development WorkOS client/API key, a cookie password of at least 32 characters, and the app origin + /callback. An issuer override must match the client ID. Never use production credentials locally.",
-      });
-    }
+  // WorkOS AuthKit is the only sign-in provider, so the web server always
+  // needs its credentials. The web reader is the single source of the rules.
+  const missingAuth = REQUIRED_WEB_AUTH_KEYS.filter((key) => !lookup(key));
+  for (const key of missingAuth) {
+    issues.push({
+      hint: `Add ${key} to apps/web/.env.local (bun run setup writes it from your WorkOS staging or development environment).`,
+      key,
+      problem: "missing",
+    });
+  }
+  if (missingAuth.length > 0) {
+    return issues;
+  }
+  const authEnvironment = Object.fromEntries(
+    [...REQUIRED_WEB_AUTH_KEYS, "WORKOS_ISSUER", "NODE_ENV"].map((key) => [
+      key,
+      expandEnvReferences(lookup(key) ?? "", lookup),
+    ])
+  );
+  try {
+    readWorkosWebConfig(authEnvironment);
+  } catch {
+    issues.push({
+      key: "WORKOS_CLIENT_ID",
+      problem: "invalid-auth-config",
+      hint: "Configure the same development WorkOS client/API key as the Convex deployment, a cookie password of at least 32 characters, and the app origin + /callback. An issuer override must match the client ID. Never use production credentials locally.",
+    });
   }
   return issues;
 };
@@ -153,7 +154,7 @@ const main = (): void => {
     process.exitCode = 1;
     return;
   }
-  console.log("✓ web env: Convex URLs present and valid.");
+  console.log("✓ web env: Convex URLs and WorkOS sign-in present and valid.");
 };
 
 if (import.meta.main) {

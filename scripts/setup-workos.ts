@@ -1,0 +1,187 @@
+/**
+ * WorkOS credentials for setup.
+ *
+ * WorkOS AuthKit is Teak's only sign-in provider, so every Convex deployment
+ * and the web server need the same WorkOS client ID and API key. Setup takes
+ * them from an explicit shell export, the selected deployment, or the web
+ * dotenv file, and never overwrites a value that is already set. Values are
+ * compared but never logged.
+ */
+
+import { readDotenvFile } from "./env-loader.ts";
+import { readDeploymentVar, setDeploymentVar } from "./setup-convex.ts";
+
+export const WORKOS_CREDENTIAL_NAMES = [
+  "WORKOS_CLIENT_ID",
+  "WORKOS_API_KEY",
+] as const;
+export type WorkosCredentialName = (typeof WORKOS_CREDENTIAL_NAMES)[number];
+
+export interface WorkosCredentialSources {
+  deployment?: string;
+  explicit?: string;
+  web?: string;
+}
+
+export type WorkosCredentialPlan =
+  | { name: WorkosCredentialName; status: "missing" }
+  | { detail: string; name: WorkosCredentialName; status: "conflict" }
+  | {
+      name: WorkosCredentialName;
+      setDeployment: boolean;
+      status: "ready";
+      value: string;
+    };
+
+const SOURCE_LABELS: Record<keyof WorkosCredentialSources, string> = {
+  deployment: "the Convex deployment",
+  explicit: "the shell export",
+  web: "apps/web/.env.local",
+};
+
+const present = (value: string | undefined): string | undefined =>
+  value?.trim() || undefined;
+
+/**
+ * Precedence follows .agents/environment.md: an explicit export wins, then the
+ * deployment, then the web dotenv file. Every source that is set must agree,
+ * because setup never overwrites a value and a split client breaks sign-in.
+ */
+export const planWorkosCredential = (
+  name: WorkosCredentialName,
+  sources: WorkosCredentialSources
+): WorkosCredentialPlan => {
+  const set = (
+    Object.keys(SOURCE_LABELS) as (keyof WorkosCredentialSources)[]
+  ).flatMap((source) => {
+    const value = present(sources[source]);
+    return value ? [{ source, value }] : [];
+  });
+  const chosen = set[0];
+  if (!chosen) {
+    return { name, status: "missing" };
+  }
+  const disagreeing = set.find((entry) => entry.value !== chosen.value);
+  if (disagreeing) {
+    return {
+      name,
+      status: "conflict",
+      detail: `${name} differs between ${SOURCE_LABELS[chosen.source]} and ${SOURCE_LABELS[disagreeing.source]}`,
+    };
+  }
+  return {
+    name,
+    status: "ready",
+    value: chosen.value,
+    setDeployment: present(sources.deployment) === undefined,
+  };
+};
+
+export const WORKOS_SETUP_REMEDIATION = [
+  "Export WORKOS_CLIENT_ID and WORKOS_API_KEY from a WorkOS staging or development environment (never production), then re-run bun run setup",
+  "See the Development guide in the docs for the WorkOS environment settings Teak needs",
+];
+
+export const WORKOS_CONFLICT_REMEDIATION = [
+  "Setup never overwrites a set value: update it with `bunx convex env set <NAME>` in packages/convex and in apps/web/.env.local, or unset the conflicting shell export",
+];
+
+/** Same shape as setup's SetupCheck; declared here to avoid an import cycle. */
+export interface WorkosSetupCheck {
+  detail: string;
+  id: "setup-workos";
+  ok: boolean;
+  remediation?: string[];
+  severity: "error";
+}
+
+/**
+ * Resolve the WorkOS client ID and API key, set missing deployment values, and
+ * return them for the web dotenv file. Values are compared, never reported.
+ */
+const LOGIN_REMEDIATION = [
+  "Run `bunx convex login` (or export CONVEX_AGENT_MODE=anonymous) and re-run",
+];
+
+const failure = (detail: string, remediation: string[]) => ({
+  check: {
+    id: "setup-workos" as const,
+    ok: false,
+    severity: "error" as const,
+    detail,
+    remediation,
+  },
+  values: {},
+});
+
+export const ensureWorkosCredentials = async (
+  convexDir: string,
+  webEnvPath: string | undefined
+): Promise<{
+  check: WorkosSetupCheck;
+  values: Partial<Record<WorkosCredentialName, string>>;
+}> => {
+  const web = webEnvPath ? readDotenvFile(webEnvPath)?.values : undefined;
+  const plans: WorkosCredentialPlan[] = [];
+  for (const name of WORKOS_CREDENTIAL_NAMES) {
+    const deployment = await readDeploymentVar(name, convexDir);
+    if (deployment.status === "unavailable") {
+      return failure(
+        `could not read ${name} from the selected deployment: ${deployment.detail}`,
+        LOGIN_REMEDIATION
+      );
+    }
+    plans.push(
+      planWorkosCredential(name, {
+        explicit: process.env[name],
+        deployment:
+          deployment.status === "found" ? deployment.value : undefined,
+        web: web?.get(name),
+      })
+    );
+  }
+  const missing = plans.filter((plan) => plan.status === "missing");
+  if (missing.length > 0) {
+    return failure(
+      `WorkOS sign-in is not configured: ${missing.map((plan) => plan.name).join(", ")} missing`,
+      WORKOS_SETUP_REMEDIATION
+    );
+  }
+  const conflicts = plans.flatMap((plan) =>
+    plan.status === "conflict" ? [plan.detail] : []
+  );
+  if (conflicts.length > 0) {
+    return failure(conflicts.join("; "), WORKOS_CONFLICT_REMEDIATION);
+  }
+  const values: Partial<Record<WorkosCredentialName, string>> = {};
+  const configured: string[] = [];
+  for (const plan of plans) {
+    if (plan.status !== "ready") {
+      continue;
+    }
+    values[plan.name] = plan.value;
+    if (plan.setDeployment) {
+      try {
+        await setDeploymentVar(plan.name, plan.value, convexDir);
+      } catch (error) {
+        return failure(
+          error instanceof Error ? error.message : String(error),
+          LOGIN_REMEDIATION
+        );
+      }
+      configured.push(plan.name);
+    }
+  }
+  return {
+    check: {
+      id: "setup-workos",
+      ok: true,
+      severity: "error",
+      detail:
+        configured.length > 0
+          ? `configured ${configured.join(", ")} on the deployment`
+          : "WORKOS_CLIENT_ID and WORKOS_API_KEY already set on the deployment",
+    },
+    values,
+  };
+};

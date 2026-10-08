@@ -6,7 +6,6 @@ import {
   internalQuery,
   type MutationCtx,
 } from "./_generated/server";
-import { readAuthPrimary } from "./env";
 import type { BetterAuthUserSource } from "./userIdentityTable";
 
 const pageSize = 20;
@@ -58,14 +57,6 @@ async function users(
           q.eq("workosUserId", row.workosUserId)
         )
         .take(2);
-      if (readAuthPrimary() === "betterauth") {
-        if (row.workosEmail !== row.email) {
-          increment(counts, "migrationEmailDrift");
-        }
-        if (row.workosEmailVerified !== row.emailVerified) {
-          increment(counts, "migrationVerificationDrift");
-        }
-      }
       if (mappings.length > 1) {
         increment(counts, "duplicateWorkosMappingRows");
       }
@@ -76,9 +67,7 @@ async function users(
     })) as BetterAuthUserSource | null;
     if (!source) {
       const provenWorkosOwner =
-        row.identityOrigin === "workos" &&
-        Boolean(row.workosUserId) &&
-        readAuthPrimary() === "workos";
+        row.identityOrigin === "workos" && Boolean(row.workosUserId);
       increment(
         counts,
         provenWorkosOwner ? "workosOriginOwners" : "missingBetterAuthOwner"

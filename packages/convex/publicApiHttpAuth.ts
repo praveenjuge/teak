@@ -11,8 +11,6 @@ import {
   logPublicApiAuthOutcome,
   type PublicApiAuthReason,
 } from "./authMonitoring";
-import { readAuthPrimary } from "./env";
-import { isWellFormedOAuthToken } from "./oauthTokens";
 import {
   AUTH_INTERNAL_ERROR,
   type AuthorizedUser,
@@ -26,10 +24,7 @@ import {
   RATE_LIMITED_ERROR,
   sha256,
 } from "./publicApiHttpShared";
-import {
-  resolveStoredUserId,
-  resolveWorkosApiKeyOwner,
-} from "./securitySessions";
+import { resolveStoredUserId } from "./securitySessions";
 import { isWellFormedApiKey } from "./shared/apiKeyFormat";
 import { WORKOS_RESOURCES } from "./shared/workosResources";
 import { verifyWorkosConnectToken, type WorkosResource } from "./workosTokens";
@@ -240,7 +235,9 @@ const classifyBearerCredential = (
   if (isWellFormedApiKey(token)) {
     return "api_key";
   }
-  if (isWellFormedOAuthToken(token)) {
+  // Retired Better Auth access tokens: opaque 32 characters. Still classified
+  // so monitoring shows old clients that keep sending them.
+  if (/^[A-Za-z0-9]{32}$/.test(token)) {
     return "betterauth_oauth";
   }
   return token.length <= 16_384 && token.split(".").length === 3
@@ -256,16 +253,9 @@ const recordAuthOutcome = (
   status: number
 ): void => {
   try {
-    let primary: "betterauth" | "workos" | "unknown" = "unknown";
-    try {
-      primary = readAuthPrimary();
-    } catch {
-      // An unreadable primary is itself the outcome being recorded.
-    }
     logPublicApiAuthOutcome({
       check: options.chargeRateLimit === false ? "gate" : "request",
       credential: classifyBearerCredential(parseBearerToken(request)),
-      primary,
       reason,
       status,
       surface: options.resource === "mcp" ? "mcp" : "rest",
@@ -316,26 +306,15 @@ const authorizeBearer = async (
     );
   }
 
-  let primary: ReturnType<typeof readAuthPrimary>;
-  try {
-    primary = readAuthPrimary();
-  } catch {
-    return decide({ error: AUTH_INTERNAL_ERROR() }, "primary_unreadable");
-  }
-  // Bearer credentials are discriminated before any DB read: `teakapi_` API keys and opaque
-  // 32-char Better Auth tokens, or bounded WorkOS JWTs. This ensures
-  // the cheapest abuse vector (spraying random tokens) is rejected without a
-  // write, and so failures can return the right error code per credential type.
+  // Bearer credentials are discriminated before any DB read: `teakapi_` API
+  // keys or bounded WorkOS JWTs. This ensures the cheapest abuse vector
+  // (spraying random tokens) is rejected without a write, and so failures can
+  // return the right error code per credential type.
   const isApiKey = isWellFormedApiKey(token);
-  const isOAuthToken =
-    !isApiKey && primary === "betterauth" && isWellFormedOAuthToken(token);
   const isConnectToken =
-    !isApiKey &&
-    primary === "workos" &&
-    token.length <= 16_384 &&
-    token.split(".").length === 3;
+    !isApiKey && token.length <= 16_384 && token.split(".").length === 3;
 
-  if (!(isApiKey || isOAuthToken || isConnectToken)) {
+  if (!(isApiKey || isConnectToken)) {
     const limited = await enforceInvalidAuthLimit(ctx);
     if (limited) {
       return limited;
@@ -398,19 +377,12 @@ const authorizeBearer = async (
         rejection = isExpiredJwt(token) ? "expired_token" : "invalid_token";
       }
     } else {
-      credential = isApiKey
-        ? await ctx.runMutation((internal as any).apiKeys.validateUserApiKey, {
-            token,
-          })
-        : await ctx.runMutation(
-            (internal as any).oauthTokens.validateOAuthAccessToken,
-            { token }
-          );
+      credential = await ctx.runMutation(
+        (internal as any).apiKeys.validateUserApiKey,
+        { token }
+      );
       if (credential) {
-        const userId =
-          primary === "workos"
-            ? await resolveWorkosApiKeyOwner(ctx, credential.userId)
-            : await resolveStoredUserId(ctx, credential.userId);
+        const userId = await resolveStoredUserId(ctx, credential.userId);
         if (userId) {
           validated = { ...credential, userId };
         } else {
@@ -429,18 +401,13 @@ const authorizeBearer = async (
     }
     return decide(
       {
-        error:
-          isOAuthToken || isConnectToken
-            ? errorResponse(
-                401,
-                "UNAUTHORIZED",
-                "Invalid or expired access token"
-              )
-            : errorResponse(
-                401,
-                "INVALID_API_KEY",
-                "Invalid or revoked API key"
-              ),
+        error: isConnectToken
+          ? errorResponse(
+              401,
+              "UNAUTHORIZED",
+              "Invalid or expired access token"
+            )
+          : errorResponse(401, "INVALID_API_KEY", "Invalid or revoked API key"),
       },
       rejection
     );

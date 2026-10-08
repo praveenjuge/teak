@@ -1,18 +1,11 @@
 import { describe, expect, mock, test } from "bun:test";
 import { createHash } from "node:crypto";
-import { APIError } from "better-auth/api";
 import {
-  classifyBetterAuthSignIn,
   hashMonitoringSubject,
   isExpiredJwt,
   logPublicApiAuthOutcome,
   logResolverDenial,
 } from "../authMonitoring";
-import { SIGNUPS_PAUSED_MESSAGE } from "../shared/constants";
-
-type SignInInput = Partial<Parameters<typeof classifyBetterAuthSignIn>[0]> & {
-  path: string;
-};
 
 const captureConsole = (
   method: "warn" | "log",
@@ -28,231 +21,6 @@ const captureConsole = (
     },
   };
 };
-
-const redirect = (location: string) =>
-  new APIError("FOUND", undefined, new Headers({ location }));
-const existingUserSession = {
-  session: { createdAt: new Date("2026-10-07T10:00:00Z") },
-  user: { createdAt: new Date("2025-01-01T00:00:00Z"), email: "a@b.co" },
-};
-const newUserSession = {
-  session: { createdAt: new Date("2026-10-07T10:00:01Z") },
-  user: { createdAt: new Date("2026-10-07T10:00:00Z") },
-};
-
-describe("Better Auth sign-in classification", () => {
-  test.each([
-    [
-      "email success",
-      { path: "/sign-in/email", newSession: existingUserSession },
-      { method: "email", outcome: "success", reason: "ok" },
-    ],
-    [
-      "email wrong password",
-      {
-        path: "/sign-in/email",
-        returned: new APIError("UNAUTHORIZED", {
-          code: "INVALID_EMAIL_OR_PASSWORD",
-        }),
-      },
-      {
-        method: "email",
-        outcome: "failure",
-        reason: "invalid_email_or_password",
-      },
-    ],
-    [
-      "email unverified",
-      {
-        path: "/sign-in/email",
-        returned: new APIError("FORBIDDEN", { code: "EMAIL_NOT_VERIFIED" }),
-      },
-      { method: "email", outcome: "failure", reason: "email_not_verified" },
-    ],
-    [
-      "social callback for an existing user",
-      {
-        path: "/callback/:id",
-        providerId: "google",
-        newSession: existingUserSession,
-      },
-      {
-        method: "social",
-        outcome: "success",
-        provider: "google",
-        reason: "ok",
-      },
-    ],
-    [
-      "social callback error redirect",
-      {
-        path: "/callback/:id",
-        providerId: "apple",
-        returned: redirect(
-          "https://app.teakvault.com/login?error=invalid_code"
-        ),
-      },
-      {
-        method: "social",
-        outcome: "failure",
-        provider: "apple",
-        reason: "invalid_code",
-      },
-    ],
-    [
-      "native id-token sign-in rejected",
-      {
-        path: "/sign-in/social",
-        providerId: "apple",
-        returned: new APIError("UNAUTHORIZED", { code: "INVALID_TOKEN" }),
-      },
-      {
-        method: "social",
-        outcome: "failure",
-        provider: "apple",
-        reason: "invalid_token",
-      },
-    ],
-  ])(
-    "counts %s as one attempt",
-    (_name: string, input: SignInInput, expected: unknown) => {
-      expect(
-        classifyBetterAuthSignIn({
-          newSession: null,
-          returned: undefined,
-          ...input,
-        })
-      ).toEqual(expected);
-    }
-  );
-
-  test.each([
-    [
-      "session refresh",
-      { path: "/get-session", newSession: existingUserSession },
-    ],
-    ["token refresh", { path: "/token" }],
-    ["email sign-up", { path: "/sign-up/email", newSession: newUserSession }],
-    ["sign-out", { path: "/sign-out" }],
-    [
-      "social sign-up that created the user",
-      { path: "/callback/:id", newSession: newUserSession },
-    ],
-    [
-      "social sign-up blocked by implicit sign-up being disabled",
-      {
-        path: "/callback/:id",
-        providerId: "google",
-        returned: redirect("/login?error=signup_disabled"),
-      },
-    ],
-    [
-      "social sign-up blocked by the freeze guard",
-      {
-        path: "/callback/:id",
-        providerId: "google",
-        // Better Auth turns the guard's message into the redirect error.
-        returned: redirect(
-          `/login?error=${SIGNUPS_PAUSED_MESSAGE.split(" ").join("_")}`
-        ),
-      },
-    ],
-    [
-      "native Apple sign-up during the freeze",
-      {
-        path: "/sign-in/social",
-        providerId: "apple",
-        returned: new APIError("UNAUTHORIZED", {
-          code: "OAUTH_LINK_ERROR",
-          message: "signup disabled",
-        }),
-      },
-    ],
-    [
-      "Apple's form-post carrying an error",
-      {
-        httpMethod: "POST",
-        path: "/callback/:id",
-        providerId: "apple",
-        returned: redirect(
-          "/api/auth/callback/apple?error=user_cancelled_authorize"
-        ),
-      },
-    ],
-    [
-      "a callback for a provider this deployment does not register",
-      {
-        path: "/callback/:id",
-        providerId: "zz-attacker-chosen",
-        returned: redirect("/login?error=anything"),
-      },
-    ],
-    [
-      "a failed explicit account link",
-      {
-        path: "/callback/:id",
-        providerId: "google",
-        returned: redirect("/settings?error=email_doesn't_match"),
-      },
-    ],
-    [
-      "account linking callback",
-      {
-        path: "/callback/:id",
-        returned: redirect("https://app.teakvault.com/settings"),
-      },
-    ],
-    [
-      "Apple form-post bounce",
-      {
-        path: "/callback/:id",
-        returned: redirect("/api/auth/callback/apple?code=c&state=s"),
-      },
-    ],
-    [
-      "the redirect that starts a social sign-in",
-      {
-        path: "/sign-in/social",
-        returned: { url: "https://accounts.google.com", redirect: true },
-      },
-    ],
-  ])("ignores %s", (_name: string, input: SignInInput) => {
-    expect(
-      classifyBetterAuthSignIn({
-        newSession: null,
-        returned: undefined,
-        ...input,
-      })
-    ).toBeNull();
-  });
-
-  test("the GET after Apple's form-post is the one counted failure", () => {
-    expect(
-      classifyBetterAuthSignIn({
-        httpMethod: "GET",
-        newSession: null,
-        path: "/callback/:id",
-        providerId: "apple",
-        returned: redirect("/login?error=user_cancelled_authorize"),
-      })
-    ).toEqual({
-      method: "social",
-      outcome: "failure",
-      provider: "apple",
-      reason: "user_cancelled_authorize",
-    });
-  });
-
-  test("caller-supplied callback errors cannot mint new reasons", () => {
-    const attempt = classifyBetterAuthSignIn({
-      newSession: null,
-      path: "/callback/:id",
-      providerId: "google",
-      returned: redirect(`/login?error=anything_${crypto.randomUUID()}`),
-    });
-    expect(attempt?.reason).toBe("other");
-  });
-});
 
 describe("resolver denial log", () => {
   test("hashes the subject server-side before logging", async () => {
@@ -313,7 +81,6 @@ describe("public API auth outcome log", () => {
         logPublicApiAuthOutcome({
           check: "request",
           credential: "api_key",
-          primary: "betterauth",
           reason: "ok",
           status: 200,
           surface: "rest",

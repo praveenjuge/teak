@@ -27,7 +27,6 @@ const clientsPath = "/.well-known/teak-oauth-clients.json";
 
 beforeEach(() => {
   vi.resetModules();
-  vi.stubEnv("AUTH_PRIMARY", "workos");
   vi.stubEnv("WORKOS_AUTHKIT_DOMAIN", workosIssuer);
   vi.stubEnv("SITE_URL", "http://localhost:3000");
   vi.stubEnv("TEAK_DEV_APP_URL", "http://localhost:3000");
@@ -134,101 +133,45 @@ describe("provider-aware OAuth HTTP discovery", () => {
   );
 
   for (const origin of ["http://127.0.0.1:3211", "https://teakvault.com"]) {
-    test.each([undefined, "betterauth"])(
-      `Better Auth mode %s keeps legacy metadata and clients on ${origin}`,
-      async (primary) => {
-        vi.stubEnv("AUTH_PRIMARY", primary);
-        vi.stubEnv("WORKOS_AUTHKIT_DOMAIN", undefined);
-        for (const key of Object.values(clientEnv)) {
-          vi.stubEnv(key, undefined);
-        }
-        const issuer = configureTransport(origin);
-        const t = setup();
-        const resource = await t.fetch(resourcePath);
-        expect(resource.status).toBe(200);
-        expect(await resource.json()).toMatchObject({
-          resource: `${origin}/mcp`,
-          authorization_servers: [issuer],
-          scopes_supported: ["profile", "email", "offline_access"],
-        });
-        const clients = await t.fetch(clientsPath);
-        expect(clients.status).toBe(200);
-        expect(await clients.json()).toEqual({
-          primary: "betterauth",
-          issuer,
-          clients: {
-            cli: "teak-cli",
-            raycast: "teak-raycast",
-            chrome: "teak-chrome",
-            firefox: "teak-firefox",
-            safari: "teak-safari",
-          },
-        });
-      }
-    );
-    test.each(["betterauth", "workos"] as const)(
-      `SDK discovers %s through the HTTP routes on ${origin}`,
-      async (primary) => {
-        vi.stubEnv("AUTH_PRIMARY", primary);
-        const legacyIssuer = configureTransport(origin);
-        const t = setup();
-        const f = sdkTransport(t, origin, legacyIssuer);
-        const auth = await discoverAuthServer(origin, {
-          fetch: f.transport,
-          ...(origin.startsWith("http:") ? { localIssuer: legacyIssuer } : {}),
-        });
-        expect(auth).toMatchObject(
-          primary === "workos"
-            ? {
-                primary,
-                issuer: workosIssuer,
-                resource: "https://teakvault.com/mcp",
-                clients: clientIds,
-                authorizationEndpoint: `${workosIssuer}/oauth2/authorize`,
-                tokenEndpoint: `${workosIssuer}/oauth2/token`,
-              }
-            : {
-                primary,
-                issuer: legacyIssuer,
-                resource: `${origin}/mcp`,
-                clients: { cli: "teak-cli" },
-              }
-        );
-        expect(f.external).toHaveLength(primary === "workos" ? 1 : 0);
-      }
-    );
-    test.each(["betterauth", "workos"] as const)(
-      `MCP %s challenge points at metadata transport on ${origin}`,
-      async (primary) => {
-        vi.stubEnv("AUTH_PRIMARY", primary);
-        configureTransport(origin);
-        const response = await setup().fetch("/mcp", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Accept: "application/json, text/event-stream",
-          },
-          body: JSON.stringify({
-            jsonrpc: "2.0",
-            id: 1,
-            method: "initialize",
-            params: { protocolVersion: "2025-06-18" },
-          }),
-        });
-        expect(response.status).toBe(401);
-        expect(response.headers.get("WWW-Authenticate")).toBe(
-          `Bearer resource_metadata="${origin}${resourcePath}"`
-        );
-      }
-    );
+    test(`SDK discovers WorkOS through the HTTP routes on ${origin}`, async () => {
+      const legacyIssuer = configureTransport(origin);
+      const t = setup();
+      const f = sdkTransport(t, origin, legacyIssuer);
+      const auth = await discoverAuthServer(origin, {
+        fetch: f.transport,
+        ...(origin.startsWith("http:") ? { localIssuer: legacyIssuer } : {}),
+      });
+      expect(auth).toMatchObject({
+        primary: "workos",
+        issuer: workosIssuer,
+        resource: "https://teakvault.com/mcp",
+        clients: clientIds,
+        authorizationEndpoint: `${workosIssuer}/oauth2/authorize`,
+        tokenEndpoint: `${workosIssuer}/oauth2/token`,
+      });
+      expect(f.external).toHaveLength(1);
+    });
+    test(`MCP challenge points at metadata transport on ${origin}`, async () => {
+      configureTransport(origin);
+      const response = await setup().fetch("/mcp", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Accept: "application/json, text/event-stream",
+        },
+        body: JSON.stringify({
+          jsonrpc: "2.0",
+          id: 1,
+          method: "initialize",
+          params: { protocolVersion: "2025-06-18" },
+        }),
+      });
+      expect(response.status).toBe(401);
+      expect(response.headers.get("WWW-Authenticate")).toBe(
+        `Bearer resource_metadata="${origin}${resourcePath}"`
+      );
+    });
   }
-
-  test("unknown auth mode fails discovery closed instead of advertising Better Auth", async () => {
-    vi.stubEnv("AUTH_PRIMARY", "unknown");
-    const t = setup();
-    await expectUnavailable(t, resourcePath);
-    await expectUnavailable(t, clientsPath);
-  });
 
   test.each([
     undefined,

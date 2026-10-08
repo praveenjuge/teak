@@ -7,7 +7,6 @@ import {
 import { createTeakClient } from "@teak/convex/sdk";
 import { cleanupE2EAccounts, provisionE2EAccount } from "./e2e-cleanup";
 import { env, requirePassword, uniqueEmail } from "./env";
-import { waitForEmail } from "./mailpit";
 import { type AccountState, rememberAccount, updateState } from "./run-state";
 
 const TRANSIENT_API_STATUSES = new Set([429, 500, 502, 503, 504]);
@@ -314,12 +313,13 @@ export const signIn = async (
   await expectComposer(page);
 };
 
-export type AuthEntry = "betterauth" | "workos" | "paused";
+export type AuthEntry = "workos" | "paused";
 
-// Reads which entry /login or /register opens: Teak's Better Auth form, or
-// hosted WorkOS, which Teak redirects to without a page of its own. Hosted
-// sign-up lives at /sign-up, so a sign-up entry that lands on hosted sign-in
-// means sign-ups are paused.
+// Reads which hosted WorkOS entry /login or /register opens. Teak has no
+// sign-in pages of its own and redirects straight to hosted AuthKit, so an
+// email field on the app's origin is never an entry. Hosted sign-up lives at
+// /sign-up, so a sign-up entry that lands on hosted sign-in means sign-ups
+// are paused.
 export const expectAuthEntry = async (
   page: Page,
   flow: "signin" | "signup",
@@ -330,12 +330,10 @@ export const expectAuthEntry = async (
     timeout,
   });
   const url = new URL(page.url());
-  if (url.origin === new URL(env.appUrl).origin) {
-    await expect(
-      page.locator("form").getByLabel("Email", { exact: true })
-    ).toBeVisible();
-    return "betterauth";
-  }
+  expect(
+    url.origin,
+    "Sign-in must happen on hosted AuthKit, not a Teak page"
+  ).not.toBe(new URL(env.appUrl).origin);
   const hostedSignUp = url.pathname === "/sign-up";
   if (flow === "signup") {
     return hostedSignUp ? "workos" : "paused";
@@ -347,9 +345,9 @@ export const expectAuthEntry = async (
 export const WORKOS_SIGNUP_CANARY_UNSUPPORTED =
   "The sign-up email canary can't run on hosted WorkOS sign-up yet: it would create a WorkOS user without the teak_e2e flag, which exact cleanup and the sweep can't delete. No account was created. Run with E2E_EMAIL_DELIVERY_ENABLED=false until a reviewed sign-up canary exists.";
 
-// Decides how the email canary creates the primary account. A Better Auth
-// form signs up through real email, paused sign-ups fall back to the
-// protected endpoint, and hosted WorkOS sign-up fails before anything is created.
+// The email canary can only run while sign-ups are paused, where it falls
+// back to the protected endpoint. Hosted WorkOS sign-up fails before anything
+// is created.
 export const readSignupCanaryEntry = async (page: Page) => {
   await gotoApp(page, "/register");
   const entry = await expectAuthEntry(page, "signup");
@@ -361,20 +359,6 @@ export const readSignupCanaryEntry = async (page: Page) => {
 
 export const passwordFor = (account: AccountState) =>
   account.passwordReset ? `${requirePassword()}Reset1!` : requirePassword();
-
-export const signUp = async (page: Page, email = uniqueEmail()) => {
-  await page.goto(appPath("/register"));
-  await page.getByLabel("Email").fill(email);
-  await page.getByLabel("Password").fill(requirePassword());
-  await page
-    .getByRole("button", { name: /create an account|sign up/i })
-    .click();
-  await page.goto(await waitForEmail(email, "Verify your email address"));
-  await expect(
-    page.getByRole("textbox", { name: "Markdown content", exact: true })
-  ).toBeVisible();
-  return email;
-};
 
 export const openSecurity = async (
   page: Page,
@@ -437,15 +421,11 @@ export const generateApiKey = async (page: Page) => {
 export const createAccount = async (
   page: Page,
   label = "acct",
-  options: { remember?: boolean; viaEmail?: boolean } = {}
+  options: { remember?: boolean } = {}
 ) => {
-  const email = options.viaEmail
-    ? await signUp(page, uniqueEmail(label))
-    : uniqueEmail(label);
-  if (!options.viaEmail) {
-    await provisionE2EAccount(email, requirePassword());
-    await signIn(page, email);
-  }
+  const email = uniqueEmail(label);
+  await provisionE2EAccount(email, requirePassword());
+  await signIn(page, email);
   const apiKey = await generateApiKey(page);
   const account = { email, apiKey };
   if (options.remember !== false) {

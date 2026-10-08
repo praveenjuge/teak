@@ -26,11 +26,11 @@ Useful variables:
 - `E2E_CONVEX_URL` and `E2E_CONVEX_SITE_URL` are required. The runner exports them to the Vite-prefixed names the extension build consumes.
 - `E2E_EMAIL_DELIVERY_ENABLED=true` opts into the two real email-delivery canaries. Scheduled GitHub runs enable it; manual runs leave it disabled.
 
-Most test accounts are provisioned as already-verified users through the token-protected backend endpoint, so manual runs send no email. With email delivery enabled, setup reads the `/register` entry first:
+Test accounts are provisioned as already-verified users through the token-protected backend endpoint, so manual runs send no email. With email delivery enabled, setup reads the `/register` entry first:
 
-- Better Auth form: sends one real signup verification email.
 - Paused registration (`/register` lands on hosted sign-in instead of hosted `/sign-up`): preserves a screenshot and provisions the primary account through the protected endpoint.
 - Hosted WorkOS sign-up (`/register` lands on hosted `/sign-up`): fails before creating any account. Hosted sign-up would create a WorkOS user without the `teak_e2e` flag, which cleanup and the sweep can't delete. Email-delivery runs stay red until a reviewed WorkOS signup canary exists; run with email delivery off meanwhile.
+- An email form on Teak's own origin is never a valid entry: Teak signs in through hosted AuthKit only.
 
 The backend for a real hosted WorkOS signup canary is in place, but no journey uses it yet. The hosted signup labels, sender, subject and code format still need live proof first.
 
@@ -56,7 +56,7 @@ How cleanup reports unresolved rows:
 
 `waitForEmail` and `waitForEmailCode` take a `fresh: { from, sentAfter }` option. A matching message must have exactly one `To`, no `Cc` or `Bcc`, the proven sender, and a `Created` time no earlier than 60s before the request. Two such messages, two distinct matching links, or two distinct codes fail closed. `exactLinkPredicate` admits only the proven https origin and path with exactly one non-empty token parameter. Errors never include the code or the link.
 
-The password-reset canary still drives the Better Auth `/forgot-password` form and Teak's reset email. On WorkOS, `/forgot-password` hands off to hosted AuthKit, so this canary fails there until it's rewritten against hosted reset. Teak redirects `/login` and `/register` straight to hosted AuthKit, so the accessibility scan covers `/` and `/settings`. Cleanup is browserless. Exact accounts created by a test are removed during teardown, while the scheduled sweep discovers orphan accounts directly from the production auth database. The backend accepts only the configured `e2e-*` email namespace, enforces account-age bounds, caps each sweep, and reuses the same Teak data-deletion path as user-initiated account deletion. Mailpit messages are deleted separately by exact message ID.
+The password-reset canary still drives Teak's retired `/forgot-password` form and reset email. `/forgot-password` now hands off to hosted AuthKit, so this canary fails until it's rewritten against hosted reset. Teak redirects `/login` and `/register` straight to hosted AuthKit, so the accessibility scan covers `/` and `/settings`. Cleanup is browserless. Exact accounts created by a test are removed during teardown, while the scheduled sweep discovers orphan accounts directly from the production auth database. The backend accepts only the configured `e2e-*` email namespace, enforces account-age bounds, caps each sweep, and reuses the same Teak data-deletion path as user-initiated account deletion. Mailpit messages are deleted separately by exact message ID.
 
 Manual full-suite runs can opt into email delivery with the `email_delivery` input to check the signup entry and password-reset canary before the next nightly run.
 

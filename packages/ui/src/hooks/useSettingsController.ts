@@ -53,19 +53,13 @@ export function useSettingsController({
   const revokeKey = useMutation(api.apiKeys.revokeUserApiKey);
   const rotateKey = useMutation(api.apiKeys.rotateUserApiKey);
   const revokeAllKeys = useMutation(api.apiKeys.revokeAllUserApiKeys);
-  const authMode = useQuery(api.auth.getAuthMode);
-  const devices = useDeviceSessions(
-    user?._id && authMode ? `${authMode.primary}:${user._id}` : undefined,
-    authMode?.primary
-  );
-  const revokeSession = useMutation(api.securitySessions.revokeSession);
+  const connectionUserId = user?._id;
+  const devices = useDeviceSessions(connectionUserId);
   const revokeAuthkitSession = useAction(
     api.securitySessions.revokeAuthkitSession
   );
   const handleRevokeSession = async (sessionId: string, current: boolean) => {
-    await (authMode?.primary === "workos"
-      ? revokeAuthkitSession({ sessionId })
-      : revokeSession({ sessionId }));
+    await revokeAuthkitSession({ sessionId });
     if (!devices.isCurrentIdentity()) {
       return;
     }
@@ -75,27 +69,16 @@ export function useSettingsController({
       await devices.refreshSessions();
     }
   };
-  const connectionProvider = authMode?.primary;
-  const connectionUserId = user?._id;
   const connectionIdentity = useMemo(
     () =>
-      connectionUserId && connectionProvider
-        ? {
-            key: `${connectionProvider}:${connectionUserId}`,
-            provider: connectionProvider,
-            cacheKey: crypto.randomUUID(),
-          }
+      connectionUserId
+        ? { key: connectionUserId, cacheKey: crypto.randomUUID() }
         : undefined,
-    [connectionUserId, connectionProvider]
+    [connectionUserId]
   );
   const activeConnectionIdentity = useRef(connectionIdentity?.cacheKey);
   activeConnectionIdentity.current = connectionIdentity?.cacheKey;
-  const disconnectConsent = useAction(
-    api.workosConsents.disconnectConnection
-  );
-  const revokeOAuthConnection = useAction(
-    api.oauthTokens.revokeOAuthConnection
-  );
+  const disconnectConsent = useAction(api.workosConsents.disconnectConnection);
 
   const exportState = useQuery(api.dataExport.getLatestExport, {}) as
     | {
@@ -205,16 +188,11 @@ export function useSettingsController({
   const handleRevokeOAuthConnection = async (target: ConnectionTarget) => {
     if (
       !connectionIdentity ||
-      connectionIdentity.cacheKey !== activeConnectionIdentity.current ||
-      target.provider !== connectionIdentity.provider
+      connectionIdentity.cacheKey !== activeConnectionIdentity.current
     ) {
       throw new Error("This account changed. Please try again.");
     }
-    if (target.provider === "workos") {
-      await disconnectConsent({ consentId: target.consentId });
-    } else {
-      await revokeOAuthConnection({ clientId: target.clientId });
-    }
+    await disconnectConsent({ consentId: target.consentId });
   };
 
   const handleCreateCustomerPortal = async () => {
@@ -304,8 +282,6 @@ export function useSettingsController({
     keys,
     connectionIdentity,
     ...devices,
-    betterAuthIdentityKey:
-      authMode?.primary === "betterauth" ? user?._id : undefined,
     handleRevokeSession,
     setDeleteDialogOpen,
     setDeleteError,

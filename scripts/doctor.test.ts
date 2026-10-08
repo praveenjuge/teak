@@ -4,7 +4,7 @@ import { isPortOccupied } from "./capabilities.ts";
 import {
   checkE2EVars,
   checkTargetReadiness,
-  evaluateCapabilityGroups,
+  evaluateWorkosPresence,
   findMissingKeys,
   needsConvexChecks,
   parseDoctorArgs,
@@ -78,46 +78,31 @@ describe("parseDoctorArgs", () => {
   });
 });
 
-describe("evaluateCapabilityGroups", () => {
-  const names = [
-    "GOOGLE_CLIENT_ID",
-    "GOOGLE_CLIENT_SECRET",
-    "APPLE_CLIENT_ID",
-    "APPLE_KEY_ID",
-    "APPLE_PRIVATE_KEY",
-    "APPLE_TEAM_ID",
-  ];
+describe("evaluateWorkosPresence", () => {
+  const presence = (clientId: string, apiKey: string) =>
+    new Map([
+      ["WORKOS_CLIENT_ID", clientId as "found" | "missing" | "unavailable"],
+      ["WORKOS_API_KEY", apiKey as "found" | "missing" | "unavailable"],
+    ]);
 
-  test("whole and absent groups pass", () => {
-    const whole = new Map(names.map((name) => [name, "found" as const]));
-    expect(evaluateCapabilityGroups(whole)).toEqual({
-      broken: [],
-      unknown: false,
-    });
-    const absent = new Map(names.map((name) => [name, "missing" as const]));
-    expect(evaluateCapabilityGroups(absent)).toEqual({
-      broken: [],
-      unknown: false,
-    });
+  test("passes when both credentials are set", () => {
+    const check = evaluateWorkosPresence(presence("found", "found"));
+    expect(check.ok).toBe(true);
+    expect(check.severity).toBe("error");
   });
 
-  test("partial groups name the missing variables", () => {
-    const presence = new Map(names.map((name) => [name, "missing" as const]));
-    presence.set("GOOGLE_CLIENT_ID", "found");
-    const { broken, unknown } = evaluateCapabilityGroups(presence);
-    expect(unknown).toBe(false);
-    expect(broken).toHaveLength(1);
-    expect(broken[0]).toContain("GOOGLE_CLIENT_SECRET");
+  test("fails naming the missing credential with a setup remediation", () => {
+    const check = evaluateWorkosPresence(presence("found", "missing"));
+    expect(check.ok).toBe(false);
+    expect(check.detail).toContain("WORKOS_API_KEY");
+    expect(check.detail).not.toContain("WORKOS_CLIENT_ID");
+    expect(check.remediation?.join(" ")).toContain("bun run setup");
   });
 
-  test("unreachable deployments report unknown", () => {
-    const presence = new Map(
-      names.map((name) => [name, "unavailable" as const])
-    );
-    expect(evaluateCapabilityGroups(presence)).toEqual({
-      broken: [],
-      unknown: true,
-    });
+  test("warns when the deployment is unreachable", () => {
+    const check = evaluateWorkosPresence(presence("unavailable", "found"));
+    expect(check.ok).toBe(true);
+    expect(check.severity).toBe("warn");
   });
 });
 

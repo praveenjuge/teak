@@ -68,11 +68,10 @@ const outcomes = () =>
 
 beforeEach(() => {
   log = spyOn(console, "log").mockImplementation(() => undefined);
-  process.env.AUTH_PRIMARY = "betterauth";
 });
 afterEach(() => {
   log.mockRestore();
-  for (const key of ["AUTH_PRIMARY", "WORKOS_AUTHKIT_DOMAIN"]) {
+  for (const key of ["WORKOS_AUTHKIT_DOMAIN"]) {
     if (env[key] === undefined) {
       delete process.env[key];
     } else {
@@ -93,7 +92,6 @@ describe("public API auth outcomes", () => {
         status: 401,
         credential: "missing",
         reason: "missing_bearer",
-        primary: "betterauth",
       },
     ]);
   });
@@ -109,8 +107,7 @@ describe("public API auth outcomes", () => {
     });
   });
 
-  test("an old-build Better Auth token under WorkOS is separated from other 401s", async () => {
-    process.env.AUTH_PRIMARY = "workos";
+  test("an old-build Better Auth token is separated from other 401s", async () => {
     const auth = await withAuthorizedUser(
       backend({ "raycast:consumeInvalidApiAuthLimit": { ok: true } }),
       request(LEGACY_TOKEN),
@@ -125,7 +122,6 @@ describe("public API auth outcomes", () => {
         status: 401,
         credential: "betterauth_oauth",
         reason: "nonprimary_credential",
-        primary: "workos",
       },
     ]);
   });
@@ -192,7 +188,6 @@ describe("public API auth outcomes", () => {
         status: 200,
         credential: "api_key",
         reason: "ok",
-        primary: "betterauth",
       },
     ]);
   });
@@ -219,7 +214,6 @@ describe("public API auth outcomes", () => {
   ])(
     "a Connect token rejected for %s keeps the same 401",
     async (_name, fetchImpl, exp, reason) => {
-      process.env.AUTH_PRIMARY = "workos";
       process.env.WORKOS_AUTHKIT_DOMAIN = `https://${reason.replace(/_/gu, "-")}.auth.example.com`;
       const fetchSpy = spyOn(globalThis, "fetch").mockImplementation(fetchImpl);
       try {
@@ -243,19 +237,8 @@ describe("public API auth outcomes", () => {
 
   test.each([
     [
-      "an unreadable primary",
-      () => {
-        process.env.AUTH_PRIMARY = "bogus";
-      },
-      {},
-      API_KEY,
-      500,
-      "primary_unreadable",
-    ],
-    [
       "a missing AuthKit issuer",
       () => {
-        process.env.AUTH_PRIMARY = "workos";
         delete process.env.WORKOS_AUTHKIT_DOMAIN;
       },
       {},
@@ -344,7 +327,6 @@ describe("public API auth outcomes", () => {
         status: 200,
         credential: "api_key",
         reason: "ok",
-        primary: "betterauth",
       },
     ]);
     expect(JSON.stringify(log.mock.calls)).not.toContain("teakapi_");

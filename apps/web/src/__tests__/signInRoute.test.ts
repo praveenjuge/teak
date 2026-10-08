@@ -8,12 +8,10 @@ import {
   test,
 } from "bun:test";
 import { unsealData } from "iron-session";
-import { legacyMode, withAuthModeFetch } from "./authModeNetworkFixture";
 
 mock.module("server-only", () => ({}));
 const originalFetch = globalThis.fetch;
 const keys = [
-  "NEXT_PUBLIC_CONVEX_URL",
   "WORKOS_CLIENT_ID",
   "WORKOS_API_KEY",
   "WORKOS_COOKIE_PASSWORD",
@@ -35,12 +33,7 @@ const { AppRouteRouteModule } = await import(
 );
 const signInRoute = await import("../app/sign-in/route");
 const signUpRoute = await import("../app/sign-up/route");
-const { assertWorkosCallbackBinding } = await import("@/lib/auth-mode");
-const workosMode = {
-  ...legacyMode,
-  primary: "workos",
-  authKitClientId: "client_web123",
-} as const;
+const { assertWorkosCallbackBinding } = await import("@/lib/workos-config");
 
 // Serves the route the way Next does, so `cookies()` writes reach the response.
 // Needs Next's AsyncLocalStorage global, preloaded by the `test` script.
@@ -68,7 +61,7 @@ function serveRoute(userland: unknown, pathname: string) {
 const signIn = serveRoute(signInRoute, "/sign-in");
 const signUp = serveRoute(signUpRoute, "/sign-up");
 
-// Only the Convex auth-mode query is answered; any other upstream fails.
+// Starting sign-in is local: any upstream request fails the test.
 const offline = ((input: RequestInfo | URL) => {
   throw new Error(`Sign-in must not reach ${String(input)}`);
 }) as typeof fetch;
@@ -88,16 +81,15 @@ async function s256(verifier: string) {
 }
 
 beforeEach(() => {
-  process.env.NEXT_PUBLIC_CONVEX_URL = `https://case${crypto.randomUUID().replaceAll("-", "")}.convex.cloud`;
-  globalThis.fetch = withAuthModeFetch(offline, workosMode);
+  globalThis.fetch = offline;
 });
 afterEach(() => {
   globalThis.fetch = originalFetch;
 });
 
 // Failure modes: an email-originated sign-in the callback cannot redeem (no
-// PKCE cookie, or state not bound to it or to this provider), open redirects
-// through `next`, and starting WorkOS sign-in for another provider or origin.
+// PKCE cookie, or state not bound to it or to this client), open redirects
+// through `next`, and starting WorkOS sign-in for another origin.
 describe("WorkOS Initiate login URI", () => {
   test.each([
     ["/settings?tab=account", "/settings?tab=account"],
@@ -142,20 +134,11 @@ describe("WorkOS Initiate login URI", () => {
     );
     expect(sealed.returnPathname).toBe(returnTo);
     expect(() =>
-      assertWorkosCallbackBinding(
-        sealed.customState,
-        workosMode,
-        "client_web123"
-      )
+      assertWorkosCallbackBinding(sealed.customState, "client_web123")
     ).not.toThrow();
-  });
-  test("denies sign-in while Better Auth is selected", async () => {
-    globalThis.fetch = withAuthModeFetch(offline);
-    const response = await signIn("http://localhost:3142/sign-in");
-    expect(response.status).toBe(409);
-    expect(response.headers.get("cache-control")).toBe("no-store");
-    expect(response.headers.get("location")).toBeNull();
-    expect(pkceCookies(response)).toEqual([]);
+    expect(() =>
+      assertWorkosCallbackBinding(sealed.customState, "client_other")
+    ).toThrow("Sign-in changed. Please start again.");
   });
   test("denies sign-in outside the configured callback origin", async () => {
     const response = await signIn("https://evil.example/sign-in");
@@ -174,17 +157,6 @@ describe("WorkOS sign-up route", () => {
     const authorize = new URL(response.headers.get("location") ?? "");
     expect(authorize.searchParams.get("screen_hint")).toBe("sign-up");
     expect(authorize.searchParams.get("client_id")).toBe("client_web123");
-    expect(pkceCookies(response)).toHaveLength(1);
-  });
-  test("opens the sign-in screen while sign-ups are paused", async () => {
-    globalThis.fetch = withAuthModeFetch(offline, {
-      ...workosMode,
-      signupsDisabled: true,
-    });
-    const response = await signUp("http://localhost:3142/sign-up");
-    expect(response.status).toBe(303);
-    const authorize = new URL(response.headers.get("location") ?? "");
-    expect(authorize.searchParams.get("screen_hint")).toBe("sign-in");
     expect(pkceCookies(response)).toHaveLength(1);
   });
 });

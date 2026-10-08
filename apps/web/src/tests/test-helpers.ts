@@ -3,9 +3,11 @@ import type { Locator, Page } from "@playwright/test";
 const DEFAULT_TIMEOUT = 30_000;
 
 /**
- * Better Auth Test Helper for E2E testing
+ * Authentication helper for E2E tests.
  *
- * Provides helper methods for authentication flows in Playwright tests.
+ * Drives Teak's former email/password forms on /login and /register. Those
+ * pages now redirect to hosted WorkOS AuthKit, so these sign-in methods no
+ * longer complete a sign-in.
  */
 export class AuthHelper {
   private readonly page: Page;
@@ -191,25 +193,6 @@ export class AuthHelper {
     const emailButton = this.page.getByRole("button", { name: /@/ });
     await emailButton.waitFor({ state: "visible", timeout: DEFAULT_TIMEOUT });
     return (await emailButton.textContent()) || "";
-  }
-
-  /**
-   * Set session cookie directly (for faster tests without going through UI)
-   * This is useful when you want to skip the login flow in tests
-   */
-  async setSessionCookie(sessionToken: string): Promise<void> {
-    const cookies = [
-      {
-        name: "better-auth.session_token",
-        value: sessionToken,
-        domain: "localhost",
-        path: "/",
-        httpOnly: true,
-        secure: false,
-        sameSite: "Lax" as const,
-      },
-    ];
-    await this.page.context().addCookies(cookies);
   }
 }
 

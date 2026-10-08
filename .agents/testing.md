@@ -81,8 +81,8 @@ Each workspace script runs only the files it matches. A test file outside these 
 - Convex:
   - `packages/convex/__tests__/helpers/` provides `withTestSession`, R2 mocks and public API HTTP helpers.
   - `packages/convex/occContention.test.ts` has `insertCard` and search sync fixtures.
-  - `packages/convex/securitySessions.test.ts` shows real Better Auth sessions with `t.withIdentity`.
-- Web e2e: `AuthHelper` and `UiHelper` in `apps/web/src/tests/test-helpers.ts`.
+  - `packages/convex/workosSessions.test.ts` shows WorkOS-backed sessions with `t.withIdentity`.
+- Web e2e: `AuthHelper` and `UiHelper` in `apps/web/src/tests/test-helpers.ts`. Headless WorkOS sessions: `scripts/lib/workos-test-session.ts`.
 - Production e2e: `packages/tests/src/helpers/`, covering accounts, the API client, the CLI runner, MCP, Mailpit and file fixtures.
 - Raycast: `createRaycastApiMock` in `apps/raycast/src/__tests__/raycastApiMock.ts`.
 

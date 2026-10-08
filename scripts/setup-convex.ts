@@ -36,11 +36,12 @@ export const readConvexDotenvUrls = (
   };
 };
 
-const convexEnvGet = async (
+/** Reads one deployment variable. The value is returned, never logged. */
+export const readDeploymentVar = async (
   name: string,
-  cwd: string
+  cwd: string = convexProjectDir()
 ): Promise<
-  | { status: "found" }
+  | { status: "found"; value: string }
   | { status: "missing" }
   | { status: "unavailable"; detail: string }
 > => {
@@ -55,7 +56,7 @@ const convexEnvGet = async (
       result.exitCode
     );
     if (parsed.status === "found") {
-      return { status: "found" };
+      return { status: "found", value: parsed.value };
     }
     if (parsed.status === "missing") {
       return { status: "missing" };
@@ -70,15 +71,18 @@ const convexEnvGet = async (
   }
 };
 
+// The value goes through stdin (`convex env set NAME` reads it when stdin is
+// not a TTY), so secrets never reach argv or the process list.
 const convexEnvSet = async (
   name: string,
   value: string,
   cwd: string
 ): Promise<{ ok: boolean; detail: string }> => {
-  const result = await runCommand(
-    ["bunx", "convex", "env", "set", name, value],
-    { cwd, timeoutMs: 60_000 }
-  );
+  const result = await runCommand(["bunx", "convex", "env", "set", name], {
+    cwd,
+    stdin: value,
+    timeoutMs: 60_000,
+  });
   return {
     detail:
       result.exitCode === 0
@@ -210,22 +214,30 @@ export const convexDevOnce = async (
   return { detail, ok: false };
 };
 
+export const setDeploymentVar = async (
+  name: string,
+  value: string,
+  cwd: string = convexProjectDir()
+): Promise<void> => {
+  const set = await convexEnvSet(name, value, cwd);
+  if (!set.ok) {
+    throw new Error(
+      `Could not set ${name}: ${set.detail}. Run \`bunx convex login\` (or export CONVEX_AGENT_MODE=anonymous for a local anonymous deployment) and re-run bun run setup.`
+    );
+  }
+};
+
 export const ensureDeploymentVar = async (
   name: string,
   localValue: string,
   cwd: string = convexProjectDir()
 ): Promise<"already-set" | "configured"> => {
-  const current = await convexEnvGet(name, cwd);
+  const current = await readDeploymentVar(name, cwd);
   if (current.status === "found") {
     return "already-set";
   }
   if (current.status === "missing") {
-    const set = await convexEnvSet(name, localValue, cwd);
-    if (!set.ok) {
-      throw new Error(
-        `Could not set ${name}: ${set.detail}. Run \`bunx convex login\` (or export CONVEX_AGENT_MODE=anonymous for a local anonymous deployment) and re-run bun run setup.`
-      );
-    }
+    await setDeploymentVar(name, localValue, cwd);
     return "configured";
   }
   throw new Error(

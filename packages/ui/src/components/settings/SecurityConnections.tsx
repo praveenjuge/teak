@@ -2,10 +2,9 @@
 
 import { api } from "@teak/convex";
 import { Component, type ReactNode, useState } from "react";
-import { usePaginatedQuery, useQuery } from "../../convexQueryHooks";
+import { usePaginatedQuery } from "../../convexQueryHooks";
 import { Button } from "../ui/button";
 import { Spinner } from "../ui/spinner";
-import type { OAuthConnection } from "./OAuthConnectionsSection";
 
 export interface DeviceSession {
   current: boolean;
@@ -14,18 +13,16 @@ export interface DeviceSession {
   signedInAt: number;
 }
 
-export type ConnectionTarget =
-  | { provider: "betterauth"; clientId: string }
-  | { provider: "workos"; consentId: string };
+export interface ConnectionTarget {
+  consentId: string;
+}
 
 export interface ConnectionIdentity {
   cacheKey: string;
   key: string;
-  provider: "betterauth" | "workos";
 }
 
 export interface SecurityConnectionsProps {
-  betterAuthIdentityKey?: string;
   connectionIdentity?: ConnectionIdentity;
   onLoadMoreSessions: () => void;
   onRetrySessions?: () => void;
@@ -195,71 +192,6 @@ function DeviceList(props: SecurityConnectionsProps) {
   );
 }
 
-function BetterAuthDevices(
-  props: SecurityConnectionsProps & { retryKey?: string }
-) {
-  const sessions = usePaginatedQuery(
-    api.securitySessions.listSessions,
-    props.retryKey ? { retryKey: props.retryKey } : {},
-    { initialNumItems: 25 }
-  );
-  return (
-    <DeviceList
-      {...props}
-      onLoadMoreSessions={() => sessions.loadMore(25)}
-      sessions={
-        sessions.status === "LoadingFirstPage" ? undefined : sessions.results
-      }
-      sessionsError={null}
-      sessionsHasMore={sessions.status === "CanLoadMore"}
-      sessionsLoadingMore={sessions.status === "LoadingMore"}
-    />
-  );
-}
-
-function BetterAuthApps({
-  onRevokeConnection,
-  retryKey,
-}: Pick<SecurityConnectionsProps, "onRevokeConnection"> & {
-  retryKey?: string;
-}) {
-  const connections: OAuthConnection[] | undefined = useQuery(
-    api.oauthTokens.listOAuthConnections,
-    retryKey ? { retryKey } : {}
-  );
-  if (!connections) {
-    return (
-      <p className="py-6 text-muted-foreground text-sm">
-        <Spinner /> Loading apps…
-      </p>
-    );
-  }
-  const rows = connections.map((connection) => ({
-    id: connection.clientId,
-    name: connection.name,
-    date: connection.connectedAt,
-    detail: "Connected",
-    action: () =>
-      onRevokeConnection({
-        provider: "betterauth",
-        clientId: connection.clientId,
-      }),
-  }));
-  return (
-    <>
-      <p className="py-2 text-muted-foreground text-sm">
-        Disconnect an app across all its installations.
-      </p>
-      <ConnectionList rows={rows} verb="Disconnect" />
-      {rows.length === 0 ? (
-        <p className="py-6 text-muted-foreground text-sm">
-          No apps are connected.
-        </p>
-      ) : null}
-    </>
-  );
-}
-
 function WorkosApps({
   onRevokeConnection,
   retryKey,
@@ -284,11 +216,7 @@ function WorkosApps({
     date: connection.connectedAt,
     detail: "Connected",
     lastUsedAt: connection.lastUsedAt,
-    action: () =>
-      onRevokeConnection({
-        provider: "workos",
-        consentId: connection.consentId,
-      }),
+    action: () => onRevokeConnection({ consentId: connection.consentId }),
   }));
   return (
     <>
@@ -325,16 +253,7 @@ export function SecurityConnections(props: SecurityConnectionsProps) {
     <div className="space-y-5" key={identity?.key}>
       <section aria-label="Devices">
         <h3 className="font-medium text-sm">Devices</h3>
-        {props.betterAuthIdentityKey ? (
-          <ConnectionReadBoundary
-            key={props.betterAuthIdentityKey}
-            label="devices"
-          >
-            {(retryKey) => <BetterAuthDevices {...props} retryKey={retryKey} />}
-          </ConnectionReadBoundary>
-        ) : (
-          <DeviceList {...props} />
-        )}
+        <DeviceList {...props} />
       </section>
       <section aria-label="Connected apps">
         <h3 className="font-medium text-sm">Connected apps</h3>
@@ -344,19 +263,12 @@ export function SecurityConnections(props: SecurityConnectionsProps) {
             key={identity.key}
             label="apps"
           >
-            {(retryKey) =>
-              identity.provider === "workos" ? (
-                <WorkosApps
-                  onRevokeConnection={props.onRevokeConnection}
-                  retryKey={retryKey}
-                />
-              ) : (
-                <BetterAuthApps
-                  onRevokeConnection={props.onRevokeConnection}
-                  retryKey={retryKey}
-                />
-              )
-            }
+            {(retryKey) => (
+              <WorkosApps
+                onRevokeConnection={props.onRevokeConnection}
+                retryKey={retryKey}
+              />
+            )}
           </ConnectionReadBoundary>
         ) : (
           <p className="py-6 text-muted-foreground text-sm">

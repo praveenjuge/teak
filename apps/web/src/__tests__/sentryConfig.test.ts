@@ -286,31 +286,6 @@ describe("filterClientSentryEvent", () => {
     expect(filterClientSentryEvent(event)).toEqual(event);
   });
 
-  test("drops Safari Better Auth session fetch aborts for pseudonymous users", () => {
-    const event = {
-      exception: {
-        values: [
-          {
-            type: "TypeError",
-            value: "Load failed (app.teakvault.com)",
-            stacktrace: {
-              frames: [
-                {
-                  filename:
-                    "node_modules/@convex-dev/better-auth/src/react/index.tsx",
-                },
-                { filename: "node_modules/@better-fetch/fetch/dist/index.js" },
-              ],
-            },
-          },
-        ],
-      },
-      user: { id: "pseudonymous-user-id" },
-    } satisfies ErrorEvent;
-
-    expect(filterClientSentryEvent(event)).toBeNull();
-  });
-
   test("drops pre-symbolicated Safari e2e session fetch aborts", () => {
     const event = {
       exception: {

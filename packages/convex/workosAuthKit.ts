@@ -10,17 +10,14 @@ import { guardUserCreation } from "./signupFreeze";
 // so the component only needs the registration Action.
 const authFunctions: AuthFunctions = internal.workosAuthKit;
 
-// Only Teak's provisioned WorkOS environments get the AuthKit routes.
-export const authKit =
-  process.env.WORKOS_ENVIRONMENT_ID ===
-    "environment_01KBYSVN9RVQ1JXACG3MDMQZGA" ||
-  process.env.WORKOS_ENVIRONMENT_ID === "environment_01M46HC8CJ5D0THX3EP6WVDKMM"
-    ? new AuthKit<DataModel>(components.workOSAuthKit, {
-        authFunctions,
-        webhookSecret: process.env.WORKOS_WEBHOOK_SECRET,
-        actionSecret: process.env.WORKOS_ACTION_SECRET,
-      })
-    : undefined;
+// A deployment with a WorkOS environment gets the AuthKit routes.
+export const authKit = process.env.WORKOS_ENVIRONMENT_ID
+  ? new AuthKit<DataModel>(components.workOSAuthKit, {
+      authFunctions,
+      webhookSecret: process.env.WORKOS_WEBHOOK_SECRET,
+      actionSecret: process.env.WORKOS_ACTION_SECRET,
+    })
+  : undefined;
 
 export const authKitAction = authKit?.actions({
   userRegistration: async (_ctx, action, response) => {

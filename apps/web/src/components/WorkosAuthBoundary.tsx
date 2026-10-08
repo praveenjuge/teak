@@ -7,8 +7,8 @@ import { useQuery } from "@teak/ui/convex-query-hooks";
 import { useAccessToken, useAuth } from "@workos-inc/authkit-nextjs/components";
 import { useConvexAuth, useMutation } from "convex/react";
 import { type ReactNode, useEffect, useRef, useState } from "react";
-import { signOutWorkos } from "@/app/(auth)/actions";
 import Loading from "@/app/loading";
+import { signOutWorkos } from "@/lib/sign-out";
 import { AuthUnavailable } from "./AuthUnavailable";
 
 type Bootstrap =

@@ -135,9 +135,10 @@ https://teakvault.com/mcp
 OAuth metadata:
 
 ```text
-https://app.teakvault.com/.well-known/oauth-authorization-server
 https://teakvault.com/.well-known/oauth-protected-resource/mcp
 ```
+
+Its `authorization_servers` entry names the WorkOS AuthKit issuer; read that issuer's own `/.well-known/oauth-authorization-server` document for the authorize and token endpoints.
 
 Use MCP for agents that can connect to streamable HTTP MCP servers. The server supports OAuth bearer tokens and Teak API keys. Confirm the tool list in the client before assuming a tool name; typical operations map to creating, searching, listing, updating, favoriting, and deleting cards.
 

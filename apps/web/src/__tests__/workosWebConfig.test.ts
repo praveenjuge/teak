@@ -1,80 +1,61 @@
 import { describe, expect, test } from "bun:test";
 import {
   assertWorkosCallbackBinding,
-  sameAuthProvider,
-  validateAuthMode,
-} from "@/lib/auth-mode";
-import { readWorkosWebConfig } from "@/lib/workos-config";
+  readWorkosWebConfig,
+  workosCallbackState,
+} from "@/lib/workos-config";
 
-const mode = {
-  primary: "workos",
-  authKitClientId: "client_web123",
-  signupsDisabled: false,
-  accountChangesPaused: false,
-} as const;
+const clientId = "client_web123";
 const environment = {
-  WORKOS_CLIENT_ID: mode.authKitClientId,
+  WORKOS_CLIENT_ID: clientId,
   WORKOS_API_KEY: "sk_test_fixture",
   WORKOS_COOKIE_PASSWORD: "test-session-password-for-fixtures-only",
   NEXT_PUBLIC_WORKOS_REDIRECT_URI: "http://localhost:3142/callback",
   NODE_ENV: "development",
 };
 
-// Failure modes: malformed public authority; mixed deployment credentials;
-// missing/weak seal; unsafe callback origin/path; mismatched JWT issuer.
+// Failure modes: callbacks for another client; missing/weak seal; malformed
+// client IDs; unsafe callback origin/path; mismatched JWT issuer.
 describe("AuthKit web configuration", () => {
-  test("accepts callbacks only while sealed primary and client bindings remain active", () => {
-    const state = JSON.stringify({
-      primary: mode.primary,
-      clientId: mode.authKitClientId,
-    });
+  test("accepts callbacks only for sign-ins started with this client", () => {
+    const state = workosCallbackState(clientId);
+    expect(() => assertWorkosCallbackBinding(state, clientId)).not.toThrow();
+    // Sign-ins started before the provider switch was removed still complete.
     expect(() =>
-      assertWorkosCallbackBinding(state, mode, mode.authKitClientId)
+      assertWorkosCallbackBinding(
+        JSON.stringify({ primary: "workos", clientId }),
+        clientId
+      )
     ).not.toThrow();
-    expect(() =>
-      assertWorkosCallbackBinding(
-        state,
-        { ...mode, primary: "betterauth" },
-        mode.authKitClientId
-      )
-    ).toThrow();
-    expect(() =>
-      assertWorkosCallbackBinding(
-        state,
-        { ...mode, authKitClientId: "client_other" },
-        mode.authKitClientId
-      )
-    ).toThrow();
     for (const invalid of [
       undefined,
       "not-json",
       "null",
       "[]",
       "{}",
-      JSON.stringify({ primary: "betterauth", clientId: mode.authKitClientId }),
-      JSON.stringify({ primary: "workos", clientId: "client_other" }),
+      workosCallbackState("client_other"),
     ]) {
-      expect(() =>
-        assertWorkosCallbackBinding(invalid, mode, mode.authKitClientId)
-      ).toThrow("Sign-in changed. Please start again.");
+      expect(() => assertWorkosCallbackBinding(invalid, clientId)).toThrow(
+        "Sign-in changed. Please start again."
+      );
     }
   });
   test("reports malformed callback configuration consistently", () => {
     expect(() =>
-      readWorkosWebConfig(mode, {
+      readWorkosWebConfig({
         ...environment,
         NEXT_PUBLIC_WORKOS_REDIRECT_URI: "not-a-url",
       })
     ).toThrow("Invalid sign-in callback configuration.");
   });
   test("keeps local callback transport and registered client bound", () => {
-    expect(readWorkosWebConfig(mode, environment)).toEqual({
-      clientId: mode.authKitClientId,
+    expect(readWorkosWebConfig(environment)).toEqual({
+      clientId,
       origin: "http://localhost:3142",
       redirectUri: environment.NEXT_PUBLIC_WORKOS_REDIRECT_URI,
     });
     expect(
-      readWorkosWebConfig(mode, {
+      readWorkosWebConfig({
         ...environment,
         NODE_ENV: "production",
         NEXT_PUBLIC_WORKOS_REDIRECT_URI: "https://app.teakvault.com/callback",
@@ -86,10 +67,10 @@ describe("AuthKit web configuration", () => {
     "WORKOS_API_KEY",
     "WORKOS_COOKIE_PASSWORD",
     "NEXT_PUBLIC_WORKOS_REDIRECT_URI",
-  ])("denies absent %s without legacy fallback", (key) => {
+  ])("denies absent %s", (key) => {
     expect(() =>
-      readWorkosWebConfig(mode, { ...environment, [key]: undefined })
-    ).toThrow();
+      readWorkosWebConfig({ ...environment, [key]: undefined })
+    ).toThrow("Sign-in is not configured for this environment.");
   });
   test.each([
     "http://evil.example/callback",
@@ -99,58 +80,24 @@ describe("AuthKit web configuration", () => {
     "https://app.teakvault.com/callback#token",
   ])("denies unsafe callback %s", (url) => {
     expect(() =>
-      readWorkosWebConfig(mode, {
+      readWorkosWebConfig({
         ...environment,
         NEXT_PUBLIC_WORKOS_REDIRECT_URI: url,
       })
-    ).toThrow();
-  });
-  test("denies mixed client IDs and session issuers", () => {
-    expect(() =>
-      readWorkosWebConfig(mode, {
-        ...environment,
-        WORKOS_CLIENT_ID: "client_other",
-      })
-    ).toThrow();
-    expect(() =>
-      readWorkosWebConfig(mode, {
-        ...environment,
-        WORKOS_ISSUER: "https://api.workos.com/user_management/client_other",
-      })
-    ).toThrow();
-    expect(() =>
-      readWorkosWebConfig(mode, {
-        ...environment,
-        WORKOS_COOKIE_PASSWORD: "short",
-      })
-    ).toThrow();
-    expect(() =>
-      readWorkosWebConfig({ ...mode, primary: "betterauth" }, environment)
-    ).toThrow();
+    ).toThrow("Invalid sign-in callback configuration.");
   });
   test.each([
-    null,
-    {},
-    { ...mode, primary: "unknown" },
-    { ...mode, authKitClientId: undefined },
-    { ...mode, signupsDisabled: "false" },
-    { ...mode, authKitClientId: "client_bad/path" },
-  ])("denies invalid public authority %#", (value) => {
-    expect(() => validateAuthMode(value)).toThrow();
-  });
-  test("keeps Better Auth optional credentials and observes provider/client changes", () => {
-    const legacy = {
-      primary: "betterauth",
-      signupsDisabled: false,
-      accountChangesPaused: false,
-    } as const;
-    expect(validateAuthMode(legacy)).toEqual(legacy);
-    expect(sameAuthProvider(mode, { ...mode, signupsDisabled: true })).toBe(
-      true
-    );
-    expect(
-      sameAuthProvider(mode, { ...mode, authKitClientId: "client_other" })
-    ).toBe(false);
-    expect(sameAuthProvider(mode, legacy)).toBe(false);
+    ["a malformed client ID", { WORKOS_CLIENT_ID: "client_bad/path" }],
+    ["a weak cookie password", { WORKOS_COOKIE_PASSWORD: "short" }],
+    [
+      "another client's session issuer",
+      {
+        WORKOS_ISSUER: "https://api.workos.com/user_management/client_other",
+      },
+    ],
+  ])("denies %s", (_name, override) => {
+    expect(() =>
+      readWorkosWebConfig({ ...environment, ...override })
+    ).toThrow();
   });
 });

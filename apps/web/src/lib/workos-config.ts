@@ -1,20 +1,18 @@
 import { isLocalDevelopmentHostname } from "@teak/convex/dev-urls";
-import type { PublicAuthMode } from "./auth-mode";
 
 export function readWorkosWebConfig(
-  mode: PublicAuthMode,
   environment: NodeJS.ProcessEnv = process.env
 ) {
   const clientId = environment.WORKOS_CLIENT_ID;
   const rawRedirect = environment.NEXT_PUBLIC_WORKOS_REDIRECT_URI;
   const cookiePassword = environment.WORKOS_COOKIE_PASSWORD;
   if (
-    mode.primary !== "workos" ||
-    !clientId ||
-    clientId !== mode.authKitClientId ||
-    !/^client_[A-Za-z0-9]+$/.test(clientId) ||
-    !environment.WORKOS_API_KEY ||
-    !cookiePassword ||
+    !(
+      clientId &&
+      /^client_[A-Za-z0-9]+$/.test(clientId) &&
+      environment.WORKOS_API_KEY &&
+      cookiePassword
+    ) ||
     cookiePassword.length < 32 ||
     !rawRedirect
   ) {
@@ -51,4 +49,29 @@ export function readWorkosWebConfig(
     origin: redirect.origin,
     redirectUri: redirect.toString(),
   };
+}
+
+// Sign-ins carry the client they started with in AuthKit's sealed state, so a
+// callback can't complete against a different WorkOS client.
+export function workosCallbackState(clientId: string): string {
+  return JSON.stringify({ clientId });
+}
+
+export function assertWorkosCallbackBinding(
+  state: string | undefined,
+  clientId: string
+): void {
+  let binding: unknown = null;
+  try {
+    binding = state ? JSON.parse(state) : null;
+  } catch {
+    binding = null;
+  }
+  if (
+    !binding ||
+    typeof binding !== "object" ||
+    !("clientId" in binding && binding.clientId === clientId)
+  ) {
+    throw new Error("Sign-in changed. Please start again.");
+  }
 }

@@ -4,25 +4,18 @@ import { ConvexError, v } from "convex/values";
 import { api, components } from "./_generated/api";
 import { action, env, query } from "./_generated/server";
 import { resolveTeakDevAppUrl } from "./devUrls";
-import { getSessionProfile, getSessionUser } from "./securitySessions";
+import { getSessionProfile } from "./securitySessions";
 import { isApprovedPolarProductId } from "./shared/polarPlans";
 import { normalizeErrorClass } from "./shared/telemetry";
 import { scheduleBillingOutcome } from "./telemetry/schedule";
 
 // User query to use in the Polar component
 export const getUserInfoHandler = async (ctx: any) => {
-  const user = await getSessionUser(ctx);
-  if (!user) {
+  const profile = await getSessionProfile(ctx);
+  if (!profile) {
     throw new ConvexError("User not found");
   }
-  if (user.provider === "workos") {
-    const profile = await getSessionProfile(ctx);
-    if (!profile) {
-      throw new ConvexError("User not found");
-    }
-    return { teakUserId: profile.teakUserId, email: profile.user.email };
-  }
-  return { teakUserId: user.teakUserId, email: user.identity.email };
+  return { teakUserId: profile.teakUserId, email: profile.user.email };
 };
 
 export const getUserInfo = query({

@@ -12,18 +12,28 @@ import { POLAR_PLAN_IDS } from "../shared/polarPlans";
 import { withTestSession } from "./helpers/session.test-utils";
 
 // Fixtures for the real identity/session boundary; only provider data is mocked.
+// The profile email is the WorkOS-synced mirror; display fields come from the
+// WorkOS profile, which this fixture leaves empty.
 const withProfileSession = (ctx: any, readUser: () => Promise<any>) =>
   withTestSession({
     ...ctx,
     auth: {
       getUserIdentity: async () => {
         const user = await readUser();
-        return user ? { subject: user._id ?? user.subject } : null;
+        return user
+          ? { subject: user._id ?? user.subject, email: user.email }
+          : null;
       },
     },
-    runQuery: async (ref: any, args: any) =>
-      args?.model === "user" ? readUser() : ctx.runQuery?.(ref, args),
   });
+
+const workosProfile = (id: string, email = `${id}@example.com`) => ({
+  _id: id,
+  email,
+  emailVerified: true,
+  name: null,
+  image: null,
+});
 
 const addUsageRecord = (
   ctx: any,
@@ -67,7 +77,7 @@ describe("auth profile", () => {
       const result = await getAuthUserHandler(
         withProfileSession({}, mockSafeGetAuthUser)
       );
-      expect(result).toEqual(user);
+      expect(result).toEqual(workosProfile("u1", "a@b.com"));
     });
 
     it("returns null when there is no session (does not throw)", async () => {
@@ -196,7 +206,7 @@ describe("auth profile", () => {
         withProfileSession(ctx, mockGetAuthUser)
       );
       expect(result).toEqual({
-        ...user,
+        ...workosProfile("u1"),
         hasPremium: false,
         cardCount: 0,
         canCreateCard: true,

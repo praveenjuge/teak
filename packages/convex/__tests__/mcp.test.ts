@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, mock, test } from "bun:test";
+import { afterEach, beforeEach, describe, expect, mock, test } from "bun:test";
 import type { ActionCtx } from "../_generated/server";
 import {
   handleMcpV1Request,
@@ -10,6 +10,7 @@ import {
   type PublicApiToolExecutor,
   TEAK_V1_TOOLS,
 } from "../mcp/tools";
+import { withMappedOwner } from "./helpers/session.test-utils";
 
 interface JsonRpcSuccess {
   id: number;
@@ -24,8 +25,9 @@ interface JsonRpcSuccess {
 
 const TEST_AUTHORIZATION = `Bearer teakapi_secret_live_a1b2c3d4_${"f".repeat(64)}`;
 
+const AUTHKIT_DOMAIN = "https://auth.teakvault.example";
 const originalPublicOrigin = process.env.PUBLIC_ORIGIN;
-const originalSiteUrl = process.env.SITE_URL;
+const originalAuthkitDomain = process.env.WORKOS_AUTHKIT_DOMAIN;
 const EXPECTED_TOOL_NAMES = [
   "fetch",
   "search",
@@ -43,16 +45,19 @@ const EXPECTED_TOOL_NAMES = [
   "teak_v1_update_card",
 ];
 
+beforeEach(() => {
+  process.env.WORKOS_AUTHKIT_DOMAIN = AUTHKIT_DOMAIN;
+});
 afterEach(() => {
   if (originalPublicOrigin === undefined) {
     delete process.env.PUBLIC_ORIGIN;
   } else {
     process.env.PUBLIC_ORIGIN = originalPublicOrigin;
   }
-  if (originalSiteUrl === undefined) {
-    delete process.env.SITE_URL;
+  if (originalAuthkitDomain === undefined) {
+    delete process.env.WORKOS_AUTHKIT_DOMAIN;
   } else {
-    process.env.SITE_URL = originalSiteUrl;
+    process.env.WORKOS_AUTHKIT_DOMAIN = originalAuthkitDomain;
   }
 });
 
@@ -114,65 +119,32 @@ describe("Convex MCP endpoint", () => {
     expect(response.headers.get("Access-Control-Allow-Origin")).toBe("*");
   });
 
-  test("serves OAuth protected-resource metadata with CORS", async () => {
-    process.env.SITE_URL = "https://app.teakvault.com";
+  // The resource is the WorkOS token audience on every deployment.
+  test.each([
+    "https://api.teakvault.com",
+    "https://uncommon-ladybug-882.convex.site",
+    "https://reminiscent-kangaroo-59.convex.site",
+  ])(
+    "serves WorkOS protected-resource metadata with CORS on %s",
+    async (origin: string) => {
+      const response = await handleOauthProtectedResourceV1Request(
+        new Request(`${origin}/.well-known/oauth-protected-resource`)
+      );
 
-    const response = await handleOauthProtectedResourceV1Request(
-      new Request(
-        "https://api.teakvault.com/.well-known/oauth-protected-resource"
-      )
-    );
+      expect(response.status).toBe(200);
+      expect(response.headers.get("Access-Control-Allow-Origin")).toBe("*");
+      expect(await response.json()).toEqual({
+        resource: "https://teakvault.com/mcp",
+        authorization_servers: [AUTHKIT_DOMAIN],
+        bearer_methods_supported: ["header"],
+        scopes_supported: ["openid", "profile", "email", "offline_access"],
+        resource_name: "Teak",
+      });
+    }
+  );
 
-    expect(response.status).toBe(200);
-    expect(response.headers.get("Access-Control-Allow-Origin")).toBe("*");
-    expect(await response.json()).toEqual({
-      resource: "https://teakvault.com/mcp",
-      authorization_servers: ["https://app.teakvault.com"],
-      bearer_methods_supported: ["header"],
-      scopes_supported: ["profile", "email", "offline_access"],
-      resource_name: "Teak",
-    });
-  });
-
-  test("uses the incoming Convex site origin for dev protected-resource metadata", async () => {
-    const response = await handleOauthProtectedResourceV1Request(
-      new Request(
-        "https://reminiscent-kangaroo-59.convex.site/.well-known/oauth-protected-resource"
-      )
-    );
-
-    expect(response.status).toBe(200);
-    expect(await response.json()).toMatchObject({
-      resource: "https://reminiscent-kangaroo-59.convex.site/mcp",
-    });
-  });
-
-  test("uses the public API origin for production Convex metadata", async () => {
-    const response = await handleOauthProtectedResourceV1Request(
-      new Request(
-        "https://uncommon-ladybug-882.convex.site/.well-known/oauth-protected-resource"
-      )
-    );
-
-    expect(response.status).toBe(200);
-    expect(await response.json()).toMatchObject({
-      resource: "https://teakvault.com/mcp",
-    });
-  });
-
-  test("derives self-hosted MCP metadata from PUBLIC_ORIGIN", async () => {
+  test("derives the self-hosted MCP challenge from PUBLIC_ORIGIN", async () => {
     process.env.PUBLIC_ORIGIN = "https://api.selfhost.example";
-
-    const response = await handleOauthProtectedResourceV1Request(
-      new Request(
-        "https://api.selfhost.example/.well-known/oauth-protected-resource"
-      )
-    );
-
-    expect(response.status).toBe(200);
-    expect(await response.json()).toMatchObject({
-      resource: "https://api.selfhost.example/mcp",
-    });
 
     const challenge = await handleMcpV1Request(
       { runMutation: mock(), runQuery: mock() } as unknown as ActionCtx,
@@ -227,7 +199,10 @@ describe("Convex MCP endpoint", () => {
       source: "component",
       rateLimitKey: "component:key_1",
     });
-    const ctx = { runMutation, runQuery: mock() } as unknown as ActionCtx;
+    const ctx = withMappedOwner({
+      runMutation,
+      runQuery: mock(),
+    }) as unknown as ActionCtx;
     expect((await initializeMcp(ctx)).status).toBe(200);
 
     const listResponse = await handleMcpV1Request(
@@ -253,7 +228,10 @@ describe("Convex MCP endpoint", () => {
       source: "component",
       rateLimitKey: "component:key_2",
     });
-    const ctx = { runMutation, runQuery: mock() } as unknown as ActionCtx;
+    const ctx = withMappedOwner({
+      runMutation,
+      runQuery: mock(),
+    }) as unknown as ActionCtx;
 
     const firstResponse = await handleMcpV1Request(
       ctx,
@@ -287,7 +265,6 @@ describe("Convex MCP endpoint", () => {
 
   for (const [kind, authorization] of [
     ["API key", `Bearer teakapi_secret_live_c1d2e3f4_${"b".repeat(64)}`],
-    ["OAuth token", `Bearer ${"r".repeat(32)}`],
   ] as const) {
     test(`immediately rejects a revoked ${kind} after initialize`, async () => {
       let revoked = false;
@@ -309,7 +286,10 @@ describe("Convex MCP endpoint", () => {
           );
         }
       );
-      const ctx = { runMutation, runQuery: mock() } as unknown as ActionCtx;
+      const ctx = withMappedOwner({
+        runMutation,
+        runQuery: mock(),
+      }) as unknown as ActionCtx;
       const initialize = await handleMcpV1Request(
         ctx,
         mcpRequest(
@@ -657,7 +637,10 @@ describe("Convex MCP endpoint", () => {
       source: "component",
       rateLimitKey: "component:key_1",
     });
-    const ctx = { runMutation, runQuery: mock() } as unknown as ActionCtx;
+    const ctx = withMappedOwner({
+      runMutation,
+      runQuery: mock(),
+    }) as unknown as ActionCtx;
     const batch = Array.from({ length: 100 }, (_, index) => ({
       jsonrpc: "2.0",
       id: index + 1,
@@ -690,7 +673,10 @@ describe("Convex MCP endpoint", () => {
       source: "component",
       rateLimitKey: "component:key_1",
     });
-    const ctx = { runMutation, runQuery: mock() } as unknown as ActionCtx;
+    const ctx = withMappedOwner({
+      runMutation,
+      runQuery: mock(),
+    }) as unknown as ActionCtx;
     const batch = Array.from({ length: 101 }, (_, index) => ({
       jsonrpc: "2.0",
       id: index + 1,

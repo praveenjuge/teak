@@ -1,7 +1,5 @@
 import { internal } from "./_generated/api";
 import { httpAction } from "./_generated/server";
-import { createAuth } from "./auth";
-import { readAuthPrimary } from "./env";
 import { readResponseTextWithinLimit } from "./shared/boundedResponse";
 import { reservationRequestId } from "./workosE2eReservations";
 
@@ -27,9 +25,6 @@ async function authorized(value: string) {
 
 function endpoint(operation: "provision" | "cleanup" | "reserve" | "adopt") {
   return httpAction(async (ctx, request) => {
-    if (readAuthPrimary() === "betterauth") {
-      return createAuth(ctx).handler(request);
-    }
     if (
       request.headers.get("content-type")?.split(";", 1)[0].trim() !==
       "application/json"

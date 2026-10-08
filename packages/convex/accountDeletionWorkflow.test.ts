@@ -80,7 +80,6 @@ const fixture = async (legacy = false) => {
 };
 beforeEach(() => {
   vi.useFakeTimers();
-  vi.stubEnv("AUTH_PRIMARY", "workos");
   vi.stubEnv("WORKOS_CLIENT_ID", "client_DELETE");
   vi.stubEnv("WORKOS_ENVIRONMENT_ID", "environment_DELETE");
   vi.stubEnv("WORKOS_API_KEY", "test-workos-account-deletion-key");
@@ -633,32 +632,6 @@ describe("durable deletion admission and tombstones", () => {
       })
     ).toMatchObject([{ key }]);
   });
-  test("Better Auth denial is immediate even in shadow mode", async () => {
-    const { t, card, ownerId, signed: workos } = await fixture(true);
-    const session = await t.mutation(components.betterAuth.adapter.create, {
-      input: {
-        model: "session",
-        data: {
-          userId: ownerId,
-          token: "token",
-          expiresAt: Date.now() + 60_000,
-          createdAt: Date.now(),
-          updatedAt: Date.now(),
-        },
-      },
-    });
-    const signed = t.withIdentity({
-      subject: ownerId,
-      issuer: process.env.CONVEX_SITE_URL!,
-      sessionId: session._id,
-    });
-    await workos.mutation(api.accountDeletion.deleteMyAccount, {});
-    vi.stubEnv("AUTH_PRIMARY", "betterauth");
-    expect(await signed.query(api.cards.getCard, { id: card })).toBeNull();
-    expect(
-      await signed.mutation(api.accountDeletion.deleteMyAccount, {})
-    ).toBeNull();
-  });
   test("complete stages erase populated disposable data and revoke every provider grant", async () => {
     const { t, signed, card } = await fixture();
     vi.stubEnv("WORKOS_API_KEY", "test-workos-account-deletion-key");
@@ -910,48 +883,3 @@ test("account-change pause denies fresh deletion and acknowledges an existing du
   ).toHaveLength(1);
 });
 
-test("Better Auth primary denies fresh WorkOS deletion while rollback acknowledges an admitted request", async () => {
-  const { t, signed, ownerId } = await fixture(true);
-  const session = await t.mutation(components.betterAuth.adapter.create, {
-    input: {
-      model: "session",
-      data: {
-        userId: ownerId,
-        expiresAt: Date.now() + 60_000,
-        createdAt: Date.now(),
-        updatedAt: Date.now(),
-        token: crypto.randomUUID(),
-      },
-    },
-  });
-  vi.stubEnv("AUTH_PRIMARY", "betterauth");
-  const legacy = t.withIdentity({
-    issuer: process.env.CONVEX_SITE_URL,
-    subject: ownerId,
-    sessionId: session._id,
-  });
-  const before = await t.run((ctx) =>
-    ctx.db.system.query("_scheduled_functions").collect()
-  );
-  await expect(
-    legacy.mutation(api.accountDeletion.deleteMyAccount, {})
-  ).rejects.toThrow("WorkOS account deletion is not enabled");
-  expect(
-    await t.run((ctx) => ctx.db.query("accountDeletionStates").collect())
-  ).toEqual([]);
-  expect(
-    await t.run((ctx) => ctx.db.system.query("_scheduled_functions").collect())
-  ).toEqual(before);
-  vi.stubEnv("AUTH_PRIMARY", "workos");
-  await signed.mutation(api.accountDeletion.deleteMyAccount, {});
-  const state = await t.run((ctx) =>
-    ctx.db.query("accountDeletionStates").unique()
-  );
-  vi.stubEnv("AUTH_PRIMARY", "betterauth");
-  await expect(
-    legacy.mutation(api.accountDeletion.deleteMyAccount, {})
-  ).resolves.toBeNull();
-  expect(
-    await t.run((ctx) => ctx.db.query("accountDeletionStates").unique())
-  ).toEqual(state);
-});
