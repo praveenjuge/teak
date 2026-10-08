@@ -1,6 +1,8 @@
 import { type AuthFunctions, AuthKit } from "@convex-dev/workos-authkit";
+import { v } from "convex/values";
 import { components, internal } from "./_generated/api";
 import type { DataModel } from "./_generated/dataModel";
+import { internalMutation } from "./_generated/server";
 import { readSignupsDisabled } from "./env";
 import { SIGNUPS_PAUSED_MESSAGE } from "./shared/constants";
 
@@ -29,4 +31,24 @@ export const authKitAction = authKit?.actions({
 // accounts imported before its webhook was wired) into its own users table.
 // It only inserts missing users and fires no Teak callbacks, so it can't
 // create or change a Teak owner. Production runs need explicit approval.
-export const backfillUsers = authKit?.utils().backfillUsers;
+// The component's own utils().backfillUsers can't be used: `authFunctions` is
+// the generated `internal` proxy, where the unexported `authKitEvent` still
+// looks defined, so it asks for a function handle that doesn't exist.
+export const backfillUsers = internalMutation({
+  args: {},
+  returns: v.null(),
+  handler: async (ctx) => {
+    const apiKey = process.env.WORKOS_API_KEY;
+    // Same gate as `authKit`: a deployment without AuthKit has no component
+    // users to keep in sync.
+    if (!(authKit && apiKey)) {
+      throw new Error(
+        "WorkOS AuthKit isn't configured on this deployment (WORKOS_ENVIRONMENT_ID and WORKOS_API_KEY)."
+      );
+    }
+    await ctx.runMutation(components.workOSAuthKit.backfill.startBackfill, {
+      apiKey,
+    });
+    return null;
+  },
+});
