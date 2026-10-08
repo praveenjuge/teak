@@ -80,6 +80,7 @@ export const cleanupE2EAccounts = async (
             "Content-Type": "application/json",
           },
           body: JSON.stringify(emails ? { emails } : sweepBody),
+          redirect: "error",
           signal: AbortSignal.timeout(Math.min(15_000, deadline - Date.now())),
         }
       );
@@ -176,6 +177,7 @@ export const provisionE2EAccount = async (
       "Content-Type": "application/json",
     },
     body: JSON.stringify({ email, password }),
+    redirect: "error",
   };
   // Only a network-level failure is ambiguous: the request may have
   // reached the server while its response was lost. An explicit error
@@ -263,10 +265,18 @@ const serverCode = (payload: unknown) => {
     : "";
 };
 
+// Fixed endpoint paths: the request URL is the configured Convex site origin
+// plus one of these literals, never caller input.
+const SIGNUP_ENDPOINTS = {
+  reserve: "/api/auth/internal/e2e/signup/reserve",
+  adopt: "/api/auth/internal/e2e/signup/adopt",
+} as const;
+
 // The protected endpoints share one bounded retry policy: a lost response or a
-// 5xx retries the identical body, every other status is final.
+// 5xx retries the identical body, every other status is final. Like every
+// bearer-carrying call here, redirects are refused so the token never follows.
 const postSignup = async (
-  path: "reserve" | "adopt",
+  path: keyof typeof SIGNUP_ENDPOINTS,
   body: string,
   sleep: (attempt: number) => Promise<void>,
   done: (status: number, payload: unknown) => boolean
@@ -276,18 +286,16 @@ const postSignup = async (
   for (let attempt = 1; attempt <= PROVISION_MAX_ATTEMPTS; attempt += 1) {
     let response: Response;
     try {
-      response = await fetch(
-        `${env.convexSiteUrl}/api/auth/internal/e2e/signup/${path}`,
-        {
-          method: "POST",
-          headers: {
-            Authorization: `Bearer ${env.cleanupToken}`,
-            "Content-Type": "application/json",
-          },
-          body,
-          signal: AbortSignal.timeout(30_000),
-        }
-      );
+      response = await fetch(`${env.convexSiteUrl}${SIGNUP_ENDPOINTS[path]}`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${env.cleanupToken}`,
+          "Content-Type": "application/json",
+        },
+        body,
+        redirect: "error",
+        signal: AbortSignal.timeout(30_000),
+      });
     } catch {
       if (attempt === PROVISION_MAX_ATTEMPTS) {
         throw new Error(`Production E2E signup ${path} failed (network)`);

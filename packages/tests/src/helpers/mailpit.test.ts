@@ -252,7 +252,7 @@ const mailbox = (
     return Promise.resolve(response(detail));
   }) as unknown as typeof fetch;
 };
-const code = /\b(\d{6})\b/;
+const code = /\b(\d{6})\b/g;
 const limits = { timeoutMs: 10, pollIntervalMs: 1 };
 
 test("reads the code from the single fresh message and returns its exact ID", async () => {
@@ -388,5 +388,23 @@ test.each(["http://auth.example.com", "https://auth.example.com/path"])(
         param: "token",
       })
     ).toThrow("Invalid proven link shape");
+  }
+);
+
+test.each([
+  ["non-global", /\b(\d{6})\b/],
+  ["sticky", /\b(\d{6})\b/gy],
+])(
+  "refuses a %s code pattern before reading any mail",
+  async (_name, pattern) => {
+    let requests = 0;
+    globalThis.fetch = (() => {
+      requests++;
+      return Promise.resolve(response({ messages: [] }));
+    }) as unknown as typeof fetch;
+    await expect(
+      waitForEmailCode(recipient, subject, pattern, { fresh, ...limits })
+    ).rejects.toThrow("global, non-sticky");
+    expect(requests).toBe(0);
   }
 );

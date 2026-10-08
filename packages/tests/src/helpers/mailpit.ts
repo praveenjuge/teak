@@ -382,8 +382,10 @@ export const exactLinkPredicate = (proof: {
 };
 
 // Reads a one-time code that must appear exactly once (as one distinct value)
-// in the fresh message. The code pattern comes from root proof. The code is
-// never placed in an error; the message ID lets teardown delete it exactly.
+// in the fresh message. The code pattern is a repository literal from root
+// proof (never message or config input) and must carry the `g` flag, so it is
+// used as-is. The code is never placed in an error; the message ID lets
+// teardown delete it exactly.
 export const waitForEmailCode = async (
   to: string,
   subject: string,
@@ -392,16 +394,15 @@ export const waitForEmailCode = async (
     fresh: NonNullable<WaitForEmailOptions["fresh"]>;
   }
 ) => {
+  if (!codePattern.global || codePattern.sticky) {
+    throw new Error("Email code pattern must be a global, non-sticky RegExp");
+  }
   const { id, html, text } = await readEmail(to, subject, options);
   const content =
     text ||
     decodeAmpersands(html.replace(/<[^>]*>/g, " ").replace(/&nbsp;/gi, " "));
-  const pattern = new RegExp(
-    codePattern.source,
-    `${codePattern.flags.replace("g", "")}g`
-  );
   const codes = new Set(
-    [...content.matchAll(pattern)].map((match) => match[1] ?? match[0])
+    [...content.matchAll(codePattern)].map((match) => match[1] ?? match[0])
   );
   const [code] = codes;
   if (codes.size !== 1 || !code || code.length > 64) {

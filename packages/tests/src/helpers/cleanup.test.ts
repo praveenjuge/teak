@@ -567,3 +567,37 @@ test("signup adoption treats a refused reservation as final", async () => {
   );
   expect(calls).toBe(1);
 });
+
+// The cleanup bearer must never follow a redirect to another origin.
+test.each([
+  [
+    "cleanup",
+    () => cleanupE2EAccounts(["e2e-redirect@tests.example.com"], noOpSleep),
+  ],
+  [
+    "provision",
+    () =>
+      provisionE2EAccount(
+        "e2e-redirect@tests.example.com",
+        "safe-password",
+        noOpSleep
+      ),
+  ],
+  ["signup reserve", () => reserveE2ESignup(noOpSleep)],
+  ["signup adopt", () => adoptE2ESignup(reservation, noOpSleep)],
+])("%s refuses redirects on bearer requests", async (_name, call) => {
+  signupEnv();
+  const requests: { url: string; redirect?: RequestRedirect }[] = [];
+  globalThis.fetch = mock((input: RequestInfo | URL, init?: RequestInit) => {
+    requests.push({ url: String(input), redirect: init?.redirect });
+    return Promise.reject(new TypeError("redirect refused"));
+  }) as unknown as typeof fetch;
+  await call().catch(() => undefined);
+  expect(requests.length).toBeGreaterThan(0);
+  for (const request of requests) {
+    expect(
+      request.url.startsWith(`${env.convexSiteUrl}/api/auth/internal/e2e/`)
+    ).toBe(true);
+    expect(request.redirect).toBe("error");
+  }
+});
