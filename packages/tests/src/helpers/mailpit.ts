@@ -1,6 +1,10 @@
 import { env, requireMailpit } from "./env";
 
 export interface MailpitMessage {
+  Bcc?: Array<{ Address: string }> | null;
+  Cc?: Array<{ Address: string }> | null;
+  Created?: string;
+  From?: { Address: string } | null;
   ID: string;
   Subject: string;
   To?: Array<{ Address: string }> | null;
@@ -55,6 +59,10 @@ export const assertMailpitReady = async () => {
 
 export interface WaitForEmailOptions {
   excludeMessageIds?: ReadonlySet<string> | readonly string[];
+  // Proven sender and request time. When set, only a message addressed solely
+  // to the recipient, from that sender and created after the request counts,
+  // and two such messages, or two distinct matching links, fail closed.
+  fresh?: { from: string; sentAfter: number };
   linkPredicate?: (url: URL) => boolean;
   pollIntervalMs?: number;
   timeoutMs?: number;
@@ -110,6 +118,18 @@ const readJson = async (
   }
 };
 
+const addresses = (value: unknown) =>
+  value === null ||
+  value === undefined ||
+  (Array.isArray(value) &&
+    value.every(
+      (item: unknown) =>
+        typeof item === "object" &&
+        item !== null &&
+        "Address" in item &&
+        typeof item.Address === "string"
+    ));
+
 const readMessages = async (path: string, deadline: number) => {
   const data = await readJson(
     await mailpitFetch(path, undefined, deadline),
@@ -130,16 +150,15 @@ const readMessages = async (path: string, deadline: number) => {
       message === null ||
       typeof message.ID !== "string" ||
       typeof message.Subject !== "string" ||
-      (message.To !== null &&
-        message.To !== undefined &&
-        (!Array.isArray(message.To) ||
-          message.To.some(
-            (to: unknown) =>
-              typeof to !== "object" ||
-              to === null ||
-              !("Address" in to) ||
-              typeof to.Address !== "string"
-          )))
+      !addresses(message.To) ||
+      !addresses(message.Cc) ||
+      !addresses(message.Bcc) ||
+      !(
+        message.From === null ||
+        message.From === undefined ||
+        addresses([message.From])
+      ) ||
+      !(message.Created === undefined || typeof message.Created === "string")
     ) {
       throw new Error("Malformed Mailpit message summary");
     }
@@ -196,19 +215,23 @@ export const captureMailpitMessageIds = async (
   throw new Error("Mailpit snapshot incomplete");
 };
 
+const LINK_PATTERN = /https?:\/\/[^"' <\s]+/g;
+
+const decodeAmpersands = (value: string) =>
+  value.replace(/&amp;|&#38;|&#x26;/gi, "&");
+
 const emailLink = (
   html: string,
   text: string,
-  predicate?: (url: URL) => boolean
+  predicate?: (url: URL) => boolean,
+  unique = false
 ) => {
   const content = predicate ? `${html}\n${text}` : html || text;
-  const links =
-    content
-      .replace(/&amp;|&#38;|&#x26;/gi, "&")
-      .match(/https?:\/\/[^"' <\s]+/g) ?? [];
+  const links = decodeAmpersands(content).match(LINK_PATTERN) ?? [];
   if (!predicate) {
     return links[0];
   }
+  const matches = new Set<string>();
   for (const link of links) {
     let url: URL;
     try {
@@ -217,15 +240,40 @@ const emailLink = (
       continue;
     }
     if (!(url.username || url.password) && predicate(url)) {
-      return url.href;
+      if (!unique) {
+        return url.href;
+      }
+      matches.add(url.href);
     }
   }
+  return matches.size === 1 ? [...matches][0] : undefined;
 };
 
-export const waitForEmail = async (
+const MAILPIT_CLOCK_SKEW_MS = 60_000;
+
+const isFresh = (
+  message: MailpitMessage,
+  to: string,
+  fresh: NonNullable<WaitForEmailOptions["fresh"]>
+) => {
+  const created = Date.parse(message.Created ?? "");
+  return (
+    message.To?.length === 1 &&
+    message.To[0].Address.toLowerCase() === to &&
+    !message.Cc?.length &&
+    !message.Bcc?.length &&
+    message.From?.Address.toLowerCase() === fresh.from.toLowerCase() &&
+    Number.isFinite(created) &&
+    created >= fresh.sentAfter - MAILPIT_CLOCK_SKEW_MS
+  );
+};
+
+// Polls for one matching message and returns its parts. Callers must keep the
+// body out of errors, logs and artifacts: it may hold a link token or a code.
+const readEmail = async (
   to: string,
   subject: string,
-  options: WaitForEmailOptions = {}
+  options: WaitForEmailOptions
 ) => {
   const timeoutMs = options.timeoutMs ?? 180_000;
   const pollIntervalMs = options.pollIntervalMs ?? 5000;
@@ -235,20 +283,32 @@ export const waitForEmail = async (
     timeoutMs > 180_000 ||
     !Number.isSafeInteger(pollIntervalMs) ||
     pollIntervalMs < 1 ||
-    pollIntervalMs > 5000
+    pollIntervalMs > 5000 ||
+    (options.fresh &&
+      !(
+        options.fresh.from.includes("@") &&
+        Number.isSafeInteger(options.fresh.sentAfter) &&
+        options.fresh.sentAfter > 0
+      ))
   ) {
     throw new Error("Invalid Mailpit polling limits");
   }
+  const recipient = to.toLowerCase();
   const excluded = new Set(options.excludeMessageIds);
   const deadline = Date.now() + timeoutMs;
   while (Date.now() < deadline) {
     const { messages } = await readMessages("/messages?limit=50", deadline);
-    const hit = messages.find(
+    const hits = messages.filter(
       (message) =>
         message.Subject === subject &&
-        hasRecipient(message, to.toLowerCase()) &&
-        !excluded.has(message.ID)
+        hasRecipient(message, recipient) &&
+        !excluded.has(message.ID) &&
+        (!options.fresh || isFresh(message, recipient, options.fresh))
     );
+    if (options.fresh && hits.length > 1) {
+      throw new Error(`Ambiguous fresh ${subject} email for ${to}`);
+    }
+    const hit = hits[0];
     if (hit) {
       const body = await readJson(
         await mailpitFetch(
@@ -266,17 +326,89 @@ export const waitForEmail = async (
       ) {
         throw new Error("Malformed Mailpit message body");
       }
-      const html = "HTML" in body ? String(body.HTML) : "";
-      const text = "Text" in body ? String(body.Text) : "";
-      const link = emailLink(html, text, options.linkPredicate);
-      if (!link) {
-        throw new Error(`Email ${subject} for ${to} had no matching link`);
-      }
-      return link;
+      return {
+        id: hit.ID,
+        html: "HTML" in body ? String(body.HTML) : "",
+        text: "Text" in body ? String(body.Text) : "",
+      };
     }
     await sleep(Math.min(pollIntervalMs, Math.max(0, deadline - Date.now())));
   }
   throw new Error(`Timed out waiting for ${subject} email to ${to}`);
+};
+
+export const waitForEmail = async (
+  to: string,
+  subject: string,
+  options: WaitForEmailOptions = {}
+) => {
+  const { html, text } = await readEmail(to, subject, options);
+  const link = emailLink(
+    html,
+    text,
+    options.linkPredicate,
+    options.fresh !== undefined
+  );
+  if (!link) {
+    throw new Error(`Email ${subject} for ${to} had no matching link`);
+  }
+  return link;
+};
+
+// Accepts only an https link on the exact proven origin and path with exactly
+// one non-empty token parameter. Origin, path and parameter come from root
+// proof, never from the message.
+export const exactLinkPredicate = (proof: {
+  origin: string;
+  param: string;
+  pathname: string;
+}) => {
+  const origin = new URL(proof.origin);
+  if (
+    origin.protocol !== "https:" ||
+    origin.origin !== proof.origin ||
+    !proof.pathname.startsWith("/") ||
+    !proof.param
+  ) {
+    throw new Error("Invalid proven link shape");
+  }
+  // Exact origin equality also pins the https scheme checked above.
+  return (url: URL) =>
+    url.origin === proof.origin &&
+    url.pathname === proof.pathname &&
+    !(url.username || url.password) &&
+    url.searchParams.getAll(proof.param).length === 1 &&
+    url.searchParams.get(proof.param) !== "";
+};
+
+// Reads a one-time code that must appear exactly once (as one distinct value)
+// in the fresh message. The code pattern is a repository literal from root
+// proof (never message or config input) and must carry the `g` flag, so it is
+// used as-is. The code is never placed in an error; the message ID lets
+// teardown delete it exactly.
+export const waitForEmailCode = async (
+  to: string,
+  subject: string,
+  codePattern: RegExp,
+  options: WaitForEmailOptions & {
+    fresh: NonNullable<WaitForEmailOptions["fresh"]>;
+  }
+) => {
+  if (!codePattern.global || codePattern.sticky) {
+    throw new Error("Email code pattern must be a global, non-sticky RegExp");
+  }
+  const { id, html, text } = await readEmail(to, subject, options);
+  const content =
+    text ||
+    decodeAmpersands(html.replace(/<[^>]*>/g, " ").replace(/&nbsp;/gi, " "));
+  const codes = new Set(
+    [...content.matchAll(codePattern)].map((match) => match[1] ?? match[0])
+  );
+  const [code] = codes;
+  if (codes.size !== 1 || !code || code.length > 64) {
+    throw new Error(`Email ${subject} for ${to} had no single matching code`);
+  }
+  return { code, messageId: id };
 };
 
 export const deleteMailpitMessages = async (messageIds: string[]) => {

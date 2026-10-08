@@ -555,6 +555,36 @@ export default defineSchema({
   workosProfiles: defineTable(workosProfileFields).index("by_workosUserId", [
     "workosUserId",
   ]),
+  // Server-generated recipients for hosted WorkOS signup canaries. Rows are
+  // never deleted; `closedAt` is set only with positive provider evidence.
+  e2eSignupReservations: defineTable({
+    requestId: v.string(),
+    email: v.string(),
+    state: v.union(
+      v.literal("pending"),
+      v.literal("reserved"),
+      v.literal("bound"),
+      v.literal("closed")
+    ),
+    reservedAt: v.number(),
+    expiresAt: v.number(),
+    clientId: v.string(),
+    environmentId: v.string(),
+    credentialFingerprint: v.string(),
+    clearedAt: v.optional(v.number()),
+    workosUserId: v.optional(v.string()),
+    providerCreatedAt: v.optional(v.number()),
+    qualifiedAt: v.optional(v.number()),
+    ownerlessDeletionAt: v.optional(v.number()),
+    closedAt: v.optional(v.number()),
+    closedReason: v.optional(
+      v.union(v.literal("provider_deleted"), v.literal("absent_past_window"))
+    ),
+  })
+    .index("by_requestId", ["requestId"])
+    .index("by_email", ["email"])
+    .index("by_workosUserId", ["workosUserId"])
+    .index("by_closedAt_and_expiresAt", ["closedAt", "expiresAt"]),
   workosImportLeases: defineTable({
     scope: v.literal("management_import"),
     generation: v.number(),

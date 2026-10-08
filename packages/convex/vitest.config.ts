@@ -29,6 +29,7 @@ export default defineConfig({
       "./workosLegacyGrants.test.ts",
       "./workosRollbackPlan.test.ts",
       "./workosE2eHttp.test.ts",
+      "./workosE2eReservations.test.ts",
       "./workosReconciliation.test.ts",
       "./workosReconciliationCensus.test.ts",
       "./workosIdentity.test.ts",

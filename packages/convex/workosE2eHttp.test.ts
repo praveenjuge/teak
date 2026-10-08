@@ -43,7 +43,7 @@ const request = (body: string, bearer = token) => ({
   body,
 });
 
-test.each(["provision", "cleanup"])(
+test.each(["provision", "cleanup", "signup/reserve", "signup/adopt"])(
   "protected %s rejects a wrong token before any provider traffic",
   async (operation) => {
     let externalRequests = 0;

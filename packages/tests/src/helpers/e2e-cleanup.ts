@@ -56,6 +56,14 @@ export const isConfiguredE2EEmail = (
   );
 };
 
+const PENDING = "account cleanup pending";
+
+// Exact cleanup retries the same emails until every account is gone or the
+// deadline passes. A sweep walks every page of a pass even when a page is
+// pending (202) or failed (500), so one unresolved row never hides the pages
+// after it. A pass with only pending rows is repeated from the start while
+// time and page budget remain. Any failure, out-of-range account, or row still
+// pending when the budget ends is a thrown, final failure, never a success.
 export const cleanupE2EAccounts = async (
   emails?: string[],
   sleep: () => Promise<void> = () =>
@@ -65,8 +73,22 @@ export const cleanupE2EAccounts = async (
   const deadline = Date.now() + 120_000;
   const deleted = new Set<string>(),
     alreadyDeleted = new Set<string>();
-  const cursors = new Set<string>();
+  // Unresolved outcomes of the current sweep pass, plus the pending rows of
+  // the last complete pass that this pass has not revisited yet.
+  let failures = new Map<string, string>(),
+    outOfRange = new Set<string>(),
+    carried = new Map<string, string>();
+  let cursors = new Set<string>();
   let cursor: string | undefined;
+  const outcome = (): E2ECleanupResult => ({
+    alreadyDeleted: [...alreadyDeleted],
+    deleted: [...deleted],
+    failures: [...new Map([...carried, ...failures])]
+      .filter(([email]) => !(deleted.has(email) || alreadyDeleted.has(email)))
+      .map(([email, reason]) => ({ email, reason })),
+    ignoredOutOfRange: [...outOfRange],
+    remainingEligible: false,
+  });
   for (let attempt = 0; attempt < 200 && Date.now() < deadline; attempt++) {
     const sweepBody = cursor ? { cursor } : {};
     let response: Response;
@@ -80,6 +102,7 @@ export const cleanupE2EAccounts = async (
             "Content-Type": "application/json",
           },
           body: JSON.stringify(emails ? { emails } : sweepBody),
+          redirect: "error",
           signal: AbortSignal.timeout(Math.min(15_000, deadline - Date.now())),
         }
       );
@@ -100,14 +123,18 @@ export const cleanupE2EAccounts = async (
         `Production E2E cleanup returned an invalid response (${response.status})`
       );
     }
-    if (
-      !response.ok ||
-      payload.ignoredOutOfRange.length > 0 ||
-      payload.failures.some(
-        (failure) => failure.reason !== "account cleanup pending"
-      ) ||
-      (response.status !== 202 && payload.failures.length > 0)
-    ) {
+    const unresolved =
+      payload.failures.length > 0 || payload.ignoredOutOfRange.length > 0;
+    const onlyPending =
+      payload.ignoredOutOfRange.length === 0 &&
+      payload.failures.every((failure) => failure.reason === PENDING);
+    // 200 is clean, 202 carries only pending evidence, 500 carries failures.
+    // Anything else, including a 500 without evidence, stops the run.
+    const consistent =
+      (response.status === 200 && !unresolved) ||
+      (response.status === 202 && unresolved && onlyPending) ||
+      (response.status === 500 && unresolved && !onlyPending);
+    if (!consistent || (emails && response.status === 500)) {
       throw new Error(
         `Production E2E cleanup failed (${response.status}): ${summarizeE2ECleanup(payload)}`
       );
@@ -118,39 +145,71 @@ export const cleanupE2EAccounts = async (
     for (const email of payload.alreadyDeleted) {
       alreadyDeleted.add(email);
     }
-    if (deleted.size + alreadyDeleted.size > 200) {
+    if (emails) {
+      if (response.status === 202) {
+        // Kept so a deadline still reports which exact accounts were pending.
+        failures = new Map(
+          payload.failures.map((failure) => [failure.email, failure.reason])
+        );
+        await sleep();
+        continue;
+      }
+      return { ...payload, ...outcome() };
+    }
+    for (const failure of payload.failures) {
+      failures.set(failure.email, failure.reason);
+    }
+    for (const email of payload.ignoredOutOfRange) {
+      outOfRange.add(email);
+    }
+    if (
+      new Set([
+        ...deleted,
+        ...alreadyDeleted,
+        ...failures.keys(),
+        ...outOfRange,
+      ]).size > 200
+    ) {
       throw new Error("E2E cleanup candidate budget exceeded");
     }
-    if (response.status === 202) {
-      if (!payload.failures.length) {
-        throw new Error("E2E cleanup pending without evidence");
+    if (payload.remainingEligible) {
+      const next = (payload as E2ECleanupResult & { nextCursor?: unknown })
+        .nextCursor;
+      if (
+        typeof next !== "string" ||
+        !next.length ||
+        next.length > 8192 ||
+        cursors.has(next)
+      ) {
+        throw new Error("Invalid or non-progressing E2E sweep cursor");
       }
-      await sleep();
+      cursors.add(next);
+      cursor = next;
       continue;
     }
-    if (!payload.remainingEligible) {
-      return {
-        ...payload,
-        deleted: [...deleted],
-        alreadyDeleted: [...alreadyDeleted],
-      };
+    // A full pass ended and revisited every row, so it alone is authoritative.
+    carried = new Map();
+    if (!(failures.size || outOfRange.size)) {
+      return outcome();
     }
-    const next = (payload as E2ECleanupResult & { nextCursor?: unknown })
-      .nextCursor;
-    if (
-      emails ||
-      typeof next !== "string" ||
-      !next.length ||
-      next.length > 8192 ||
-      cursors.has(next)
-    ) {
-      throw new Error("Invalid or non-progressing E2E sweep cursor");
+    if (outOfRange.size || [...failures.values()].some((r) => r !== PENDING)) {
+      throw new Error(
+        `Production E2E sweep left unresolved accounts: ${summarizeE2ECleanup(outcome())}`
+      );
     }
-    cursors.add(next);
-    cursor = next;
+    // Only pending rows: wait, then census again from the first page.
+    if (Date.now() >= deadline) {
+      break;
+    }
+    carried = failures;
+    failures = new Map();
+    outOfRange = new Set();
+    cursors = new Set();
+    cursor = undefined;
+    await sleep();
   }
   throw new Error(
-    "E2E cleanup deadline or page budget exceeded; cleanup remains unproven"
+    `E2E cleanup deadline or page budget exceeded; cleanup remains unproven: ${summarizeE2ECleanup(outcome())}`
   );
 };
 
@@ -176,6 +235,7 @@ export const provisionE2EAccount = async (
       "Content-Type": "application/json",
     },
     body: JSON.stringify({ email, password }),
+    redirect: "error",
   };
   // Only a network-level failure is ambiguous: the request may have
   // reached the server while its response was lost. An explicit error
@@ -245,6 +305,143 @@ export const provisionE2EAccount = async (
     }
     throw new Error(`Production E2E provisioning failed (${response.status})`);
   }
+};
+
+export interface E2ESignupReservation {
+  email: string;
+  expiresAt: number;
+  reservationId: string;
+}
+
+const serverCode = (payload: unknown) => {
+  const code =
+    payload && typeof payload === "object"
+      ? (payload as { code?: unknown }).code
+      : undefined;
+  return typeof code === "string" && /^E2E_[A-Z_]{1,64}$/.test(code)
+    ? ` ${code}`
+    : "";
+};
+
+// Every bearer-carrying request here refuses redirects so the token never
+// follows one. A fresh timeout is created per attempt.
+const signupRequest = (body: string): RequestInit => ({
+  method: "POST",
+  headers: {
+    Authorization: `Bearer ${env.cleanupToken}`,
+    "Content-Type": "application/json",
+  },
+  body,
+  redirect: "error",
+  signal: AbortSignal.timeout(30_000),
+});
+
+// The protected endpoints share one bounded retry policy: a lost response or a
+// 5xx retries the identical request, every other status is final. Callers
+// send to a fixed URL (configured Convex site origin plus a literal path).
+const postSignup = async (
+  endpoint: "reserve" | "adopt",
+  send: () => Promise<Response>,
+  sleep: (attempt: number) => Promise<void>,
+  done: (status: number, payload: unknown) => boolean
+): Promise<unknown> => {
+  requireE2ECleanup();
+  requireE2ENamespace();
+  for (let attempt = 1; attempt <= PROVISION_MAX_ATTEMPTS; attempt += 1) {
+    let response: Response;
+    try {
+      response = await send();
+    } catch {
+      if (attempt === PROVISION_MAX_ATTEMPTS) {
+        throw new Error(`Production E2E signup ${endpoint} failed (network)`);
+      }
+      await sleep(attempt);
+      continue;
+    }
+    const payload: unknown = await response.json().catch(() => null);
+    if (done(response.status, payload)) {
+      return payload;
+    }
+    if (response.status >= 500 && attempt < PROVISION_MAX_ATTEMPTS) {
+      await sleep(attempt);
+      continue;
+    }
+    throw new Error(
+      `Production E2E signup ${endpoint} failed (${response.status})${serverCode(payload)}`
+    );
+  }
+  throw new Error(`Production E2E signup ${endpoint} failed`);
+};
+
+// Reserves a server-generated recipient for one hosted signup. The request ID
+// is fixed before the first attempt, so a retry after a lost response returns
+// the same recipient instead of allocating another.
+export const reserveE2ESignup = async (
+  sleep: (attempt: number) => Promise<void> = waitForProvisionRetry
+): Promise<E2ESignupReservation> => {
+  // Exact domain equality plus the server's fixed local-part shape; no
+  // pattern is built from configuration.
+  const isReservedRecipient = (email: string) => {
+    const suffix = `@${env.emailDomain.toLowerCase()}`;
+    return (
+      email.endsWith(suffix) &&
+      /^e2e-signup-[0-9a-f]{32}$/.test(email.slice(0, -suffix.length))
+    );
+  };
+  const body = JSON.stringify({ requestId: crypto.randomUUID() });
+  const payload = (await postSignup(
+    "reserve",
+    () =>
+      fetch(
+        `${env.convexSiteUrl}/api/auth/internal/e2e/signup/reserve`,
+        signupRequest(body)
+      ),
+    sleep,
+    (status) => status === 200
+  )) as Partial<E2ESignupReservation> | null;
+  if (
+    typeof payload?.reservationId !== "string" ||
+    !payload.reservationId.length ||
+    payload.reservationId.length > 128 ||
+    typeof payload.email !== "string" ||
+    !isReservedRecipient(payload.email) ||
+    typeof payload.expiresAt !== "number" ||
+    !(payload.expiresAt > Date.now())
+  ) {
+    throw new Error("Production E2E signup reservation response is invalid");
+  }
+  return {
+    reservationId: payload.reservationId,
+    email: payload.email,
+    expiresAt: payload.expiresAt,
+  };
+};
+
+// Qualifies a hosted signup after verification. Adoption is idempotent, and
+// the server reports E2E_ADOPT_PENDING until the real webhook owner exists.
+export const adoptE2ESignup = async (
+  reservation: E2ESignupReservation,
+  sleep: (attempt: number) => Promise<void> = waitForProvisionRetry
+): Promise<void> => {
+  if (!isConfiguredE2EEmail(reservation.email)) {
+    throw new Error("Production E2E signup adoption email is invalid");
+  }
+  const body = JSON.stringify({
+    reservationId: reservation.reservationId,
+    email: reservation.email,
+  });
+  await postSignup(
+    "adopt",
+    () =>
+      fetch(
+        `${env.convexSiteUrl}/api/auth/internal/e2e/signup/adopt`,
+        signupRequest(body)
+      ),
+    sleep,
+    (status, payload) =>
+      status === 200 &&
+      (payload as { email?: unknown } | null)?.email === reservation.email
+  );
 };
 
 export const assertE2ECleanupReady = async (): Promise<void> => {
