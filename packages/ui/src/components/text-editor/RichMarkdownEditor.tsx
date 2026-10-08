@@ -5,7 +5,7 @@ import {
   type SlashCommandSuggestionItem,
 } from "@editorcn/block-editor";
 import { isSafeExternalUrl } from "@teak/convex/shared/utils/safeUrl";
-import { Extension } from "@tiptap/core";
+import { type Editor, Extension } from "@tiptap/core";
 import Placeholder from "@tiptap/extension-placeholder";
 import { Markdown } from "@tiptap/markdown";
 import { Plugin, PluginKey } from "@tiptap/pm/state";
@@ -40,9 +40,11 @@ export function RichMarkdownEditor(props: MarkdownTextEditorProps) {
     return {
       ...prepared,
       serialized: markdownManager.serialize(prepared.document),
+      value: props.value,
     };
   });
   const lastSerialized = useRef(initial.serialized);
+  const syncedEditor = useRef<Editor | null>(null);
   const [menu, setMenu] =
     useState<SuggestionProps<SlashCommandSuggestionItem> | null>(null);
   const selectedCommand = useRef(0);
@@ -255,7 +257,19 @@ export function RichMarkdownEditor(props: MarkdownTextEditorProps) {
   });
 
   useEffect(() => {
-    if (!editor || props.value === lastValue.current) {
+    if (!editor) {
+      return;
+    }
+    if (syncedEditor.current !== editor) {
+      // Every editor instance starts from `initial`. React destroys and
+      // recreates the editor while keeping this component's state when a
+      // hidden <Activity> is shown again, as Next.js does for a route it
+      // keeps for back navigation, so sync the current value into it.
+      syncedEditor.current = editor;
+      lastValue.current = initial.value;
+      lastSerialized.current = initial.serialized;
+    }
+    if (props.value === lastValue.current) {
       return;
     }
     const prepared = prepareMarkdownDocument(props.value);
@@ -266,7 +280,7 @@ export function RichMarkdownEditor(props: MarkdownTextEditorProps) {
       .run();
     lastValue.current = props.value;
     lastSerialized.current = markdownManager.serialize(prepared.document);
-  }, [editor, props.value]);
+  }, [editor, initial, props.value]);
 
   useEffect(() => {
     if (editor) {

@@ -8,6 +8,11 @@ on:
   schedule:
     - cron: "23 4 * * *"
   workflow_dispatch:
+    inputs:
+      playwright_args:
+        description: Playwright arguments, such as --project=web. Empty runs the journeys and the browser matrix.
+        required: false
+        default: ""
 
 concurrency:
   group: e2e-${{ github.ref }}
@@ -36,7 +41,13 @@ jobs:
         working-directory: packages/tests
         run: bunx playwright install --with-deps chromium firefox webkit
       - name: Run the E2E suite
-        run: bun run --cwd packages/tests e2e
+        env:
+          PLAYWRIGHT_ARGS: ${{ inputs.playwright_args }}
+        # Split the arguments on spaces without expanding globs such as
+        # --project=journey-*.
+        run: |
+          set -f
+          bun run --cwd packages/tests e2e $PLAYWRIGHT_ARGS
       - if: failure()
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
         with:

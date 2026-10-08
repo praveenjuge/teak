@@ -29,7 +29,7 @@ cd packages/tests && bunx playwright test --project=web
 
 The dev stack's output goes to `.state/dev-stack.log`.
 
-The `E2E` workflow (`.github/workflows/e2e.yml`) runs the same command daily and on demand (not on pull requests or pushes), and uploads the report, traces and stack log when it fails.
+The `E2E` workflow (`.github/workflows/e2e.yml`) runs the same command daily and on demand (not on pull requests or pushes), and uploads the report, traces and stack log when it fails. An on-demand run takes Playwright arguments, for example `gh workflow run e2e.yml -f playwright_args='--project=web'`.
 
 ## How the stack is wired
 
