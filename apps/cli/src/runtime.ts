@@ -41,7 +41,7 @@ export const EXIT = { api: 1, auth: 3, notFound: 4, rateLimited: 5, usage: 2 };
 
 const DEFAULT_API_URL = "https://teakvault.com/api";
 const DEFAULT_AUTH_URL = "https://app.teakvault.com";
-export const CLI_OAUTH_SCOPE = "profile email offline_access";
+export const CLI_OAUTH_SCOPE = "openid profile email offline_access";
 const SERVICE = "com.teakvault.cli";
 const ACCOUNT = "default";
 
@@ -52,7 +52,6 @@ interface StoredCredentials {
     issuer: string;
     clientId: string;
     ownerId?: string;
-    revocationEndpoint?: string;
   };
   expiresAt: number;
   refreshToken: string;
@@ -138,9 +137,7 @@ const parseCredentials = (text: string): StoredCredentials | null => {
       typeof value.issuer !== "string" ||
       typeof value.clientId !== "string" ||
       (value.ownerId !== undefined &&
-        (typeof value.ownerId !== "string" || !value.ownerId)) ||
-      (value.revocationEndpoint !== undefined &&
-        typeof value.revocationEndpoint !== "string")
+        (typeof value.ownerId !== "string" || !value.ownerId))
     ) {
       return null;
     }
@@ -149,9 +146,6 @@ const parseCredentials = (text: string): StoredCredentials | null => {
       issuer: value.issuer,
       clientId: value.clientId,
       ...(typeof value.ownerId === "string" ? { ownerId: value.ownerId } : {}),
-      ...(value.revocationEndpoint
-        ? { revocationEndpoint: value.revocationEndpoint as string }
-        : {}),
     };
   }
   return {
@@ -287,10 +281,8 @@ const binding = (options: ClientOptions, auth: AuthDiscovery) => ({
   apiUrl: apiBaseUrl(options),
   issuer: auth.issuer,
   clientId: auth.clients.cli,
-  ...(auth.revocationEndpoint
-    ? { revocationEndpoint: auth.revocationEndpoint }
-    : {}),
 });
+// Unbound credentials predate WorkOS and never match the current provider.
 const matchesProvider = (
   credentials: StoredCredentials,
   options: ClientOptions,
@@ -298,13 +290,7 @@ const matchesProvider = (
 ) => {
   const saved = credentials.binding;
   if (!saved) {
-    // Only the original production installation has an unambiguous legacy owner.
-    return (
-      apiBaseUrl(options) === DEFAULT_API_URL &&
-      auth.primary === "betterauth" &&
-      auth.issuer === DEFAULT_AUTH_URL &&
-      auth.clients.cli === "teak-cli"
-    );
+    return false;
   }
   const next = binding(options, auth);
   return (
@@ -333,101 +319,53 @@ const localHostname = (hostname: string) =>
   isLocalDevelopmentHostname(hostname) || hostname === "[::1]";
 const revokeCredentials = async (
   credentials: StoredCredentials,
-  options: ClientOptions,
-  useDiscovery = true
+  options: ClientOptions
 ) => {
-  if (credentials.binding?.clientId.startsWith("client_")) {
-    if (credentials.binding.apiUrl !== apiBaseUrl(options)) {
-      throw new Error("Saved connection belongs to another deployment");
-    }
-    const api = validateOAuthUrl(
-      apiBaseUrl(options),
-      localHostname(new URL(apiBaseUrl(options)).hostname)
-    );
-    const endpoint = `${withoutTrailingSlashes(api.href).replace(/\/v1$/, "")}/v1/oauth/disconnect`;
-    const disconnect = (accessToken: string) =>
-      fetch(endpoint, {
-        method: "POST",
-        headers: { Authorization: `Bearer ${accessToken}` },
-        credentials: "omit",
-        redirect: "error",
-        signal: AbortSignal.timeout(10_000),
-      });
-    let response = await disconnect(credentials.accessToken);
-    // A completed receipt can accept the old token without refreshing a
-    // provider grant that has already been revoked.
-    if (response.status === 401 && useDiscovery && credentials.refreshToken) {
-      const auth = await discovery(options, true);
-      if (!matchesProvider(credentials, options, auth)) {
-        throw new Error("Saved connection belongs to another provider");
-      }
-      const renewed = await exchangeToken(options, auth, {
-        grant_type: "refresh_token",
-        // Runtime credential from secure storage, not a hard-coded token.
-        // nosemgrep: codacy.yaml.security.hard-coded-tokens
-        refresh_token: credentials.refreshToken,
-      });
-      // The caller holds the credential lock. Rotation must survive a failed
-      // disconnect; never restore the now invalid previous refresh token.
-      if (renewed.binding && credentials.binding?.ownerId) {
-        renewed.binding.ownerId = credentials.binding.ownerId;
-      }
-      writeCredentials(renewed, options);
-      response = await disconnect(renewed.accessToken);
-    }
-    if (response.status !== 204) {
-      throw new Error("Disconnect was not confirmed");
-    }
+  // Anything not bound to a WorkOS client predates WorkOS. No Teak service
+  // accepts those tokens, so the caller only clears them locally.
+  if (!credentials.binding?.clientId.startsWith("client_")) {
     return;
   }
-  // Anything else predates WorkOS. That provider is retired and no Teak service
-  // accepts its tokens, so revoking is best effort and never keeps them saved.
-  try {
-    let endpoint = credentials.binding?.revocationEndpoint;
-    let clientId = credentials.binding?.clientId;
-    if (useDiscovery) {
-      const auth = await discovery(options, true);
-      if (matchesProvider(credentials, options, auth)) {
-        endpoint = auth.revocationEndpoint;
-        clientId = auth.clients.cli;
-      }
-    }
-    if (!credentials.binding && apiBaseUrl(options) === DEFAULT_API_URL) {
-      endpoint ??= `${DEFAULT_API_URL}/api/oauth/revoke`;
-      clientId ??= "teak-cli";
-    }
-    if (!(endpoint && clientId)) {
-      throw new Error("Revocation unavailable");
-    }
-    const apiOrigin = new URL(apiBaseUrl(options));
-    const issuer = new URL(credentials.binding?.issuer ?? DEFAULT_AUTH_URL);
-    const url = validateOAuthUrl(
-      endpoint,
-      localHostname(apiOrigin.hostname) || localHostname(issuer.hostname)
-    );
-    if (
-      localHostname(url.hostname) &&
-      url.origin !== apiOrigin.origin &&
-      url.origin !== issuer.origin
-    ) {
-      throw new Error("Unapproved loopback revocation server");
-    }
-    const response = await fetch(url.href, {
-      body: new URLSearchParams({
-        client_id: clientId,
-        token: credentials.refreshToken || credentials.accessToken,
-      }),
-      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+  if (credentials.binding.apiUrl !== apiBaseUrl(options)) {
+    throw new Error("Saved connection belongs to another deployment");
+  }
+  const api = validateOAuthUrl(
+    apiBaseUrl(options),
+    localHostname(new URL(apiBaseUrl(options)).hostname)
+  );
+  const endpoint = `${withoutTrailingSlashes(api.href).replace(/\/v1$/, "")}/v1/oauth/disconnect`;
+  const disconnect = (accessToken: string) =>
+    fetch(endpoint, {
       method: "POST",
+      headers: { Authorization: `Bearer ${accessToken}` },
       credentials: "omit",
       redirect: "error",
       signal: AbortSignal.timeout(10_000),
     });
-    if (!response.ok) {
-      throw new Error("Revocation failed");
+  let response = await disconnect(credentials.accessToken);
+  // A completed receipt can accept the old token without refreshing a
+  // provider grant that has already been revoked.
+  if (response.status === 401 && credentials.refreshToken) {
+    const auth = await discovery(options, true);
+    if (!matchesProvider(credentials, options, auth)) {
+      throw new Error("Saved connection belongs to another provider");
     }
-  } catch {
-    // The caller clears the retired credentials locally.
+    const renewed = await exchangeToken(options, auth, {
+      grant_type: "refresh_token",
+      // Runtime credential from secure storage, not a hard-coded token.
+      // nosemgrep: codacy.yaml.security.hard-coded-tokens
+      refresh_token: credentials.refreshToken,
+    });
+    // The caller holds the credential lock. Rotation must survive a failed
+    // disconnect; never restore the now invalid previous refresh token.
+    if (renewed.binding && credentials.binding.ownerId) {
+      renewed.binding.ownerId = credentials.binding.ownerId;
+    }
+    writeCredentials(renewed, options);
+    response = await disconnect(renewed.accessToken);
+  }
+  if (response.status !== 204) {
+    throw new Error("Disconnect was not confirmed");
   }
 };
 export const logout = (options: ClientOptions = {}) =>
@@ -460,9 +398,7 @@ const exchangeToken = async (
     body: new URLSearchParams({
       ...body,
       client_id: auth.clients.cli,
-      ...(auth.primary === "workos"
-        ? { resource: new URL("/api", auth.resource).href }
-        : {}),
+      resource: new URL("/api", auth.resource).href,
     }),
     headers: { "Content-Type": "application/x-www-form-urlencoded" },
     method: "POST",
@@ -537,7 +473,7 @@ const tokenProvider = (options: ClientOptions): TokenProvider => {
         return null;
       }
       const auth = await discovery(options, force);
-      // Keep old-provider credentials for explicit revocation, never use them.
+      // Credentials for another provider stay saved until logout, never used.
       if (!matchesProvider(current, options, auth)) {
         return null;
       }
@@ -667,16 +603,11 @@ export const createAuthorizeUrl = (
   const authUrl = new URL(auth.authorizationEndpoint);
   authUrl.searchParams.set("response_type", "code");
   authUrl.searchParams.set("client_id", auth.clients.cli);
-  if (auth.primary === "workos") {
-    authUrl.searchParams.set("resource", new URL("/api", auth.resource).href);
-  }
+  authUrl.searchParams.set("resource", new URL("/api", auth.resource).href);
   authUrl.searchParams.set("redirect_uri", params.redirectUri);
   authUrl.searchParams.set("code_challenge", params.codeChallenge);
   authUrl.searchParams.set("code_challenge_method", "S256");
-  authUrl.searchParams.set(
-    "scope",
-    auth.primary === "workos" ? `openid ${CLI_OAUTH_SCOPE}` : CLI_OAUTH_SCOPE
-  );
+  authUrl.searchParams.set("scope", CLI_OAUTH_SCOPE);
   authUrl.searchParams.set("state", params.state);
   return authUrl;
 };
@@ -686,7 +617,6 @@ export const login = async (options: ClientOptions & { browser?: boolean }) => {
   const auth = await discovery(options, true);
   const saved = readCredentials(options);
   if (
-    auth.primary === "workos" &&
     saved &&
     matchesProvider(saved, options, auth) &&
     !saved.binding?.ownerId
@@ -748,33 +678,31 @@ export const login = async (options: ClientOptions & { browser?: boolean }) => {
                 grant_type: "authorization_code",
                 redirect_uri: redirectUri,
               });
-              if (latest.primary === "workos") {
-                const info = await fetch(
-                  `${withoutTrailingSlashes(apiBaseUrl(options)).replace(/\/v1$/, "")}/v1/me`,
-                  {
-                    headers: { Authorization: `Bearer ${next.accessToken}` },
-                    credentials: "omit",
-                    redirect: "error",
-                    signal: AbortSignal.timeout(10_000),
-                  }
-                );
-                const text = await readResponseTextWithinLimit(info, 64 * 1024);
-                const payload =
-                  text === null
-                    ? null
-                    : readJson<{ data?: { id?: unknown } }>(text);
-                if (
-                  !info.ok ||
-                  typeof payload?.data?.id !== "string" ||
-                  !payload.data.id ||
-                  !next.binding
-                ) {
-                  throw new Error(
-                    "Could not verify your account. Run teak login again."
-                  );
+              const info = await fetch(
+                `${withoutTrailingSlashes(apiBaseUrl(options)).replace(/\/v1$/, "")}/v1/me`,
+                {
+                  headers: { Authorization: `Bearer ${next.accessToken}` },
+                  credentials: "omit",
+                  redirect: "error",
+                  signal: AbortSignal.timeout(10_000),
                 }
-                next.binding.ownerId = payload.data.id;
+              );
+              const text = await readResponseTextWithinLimit(info, 64 * 1024);
+              const payload =
+                text === null
+                  ? null
+                  : readJson<{ data?: { id?: unknown } }>(text);
+              if (
+                !info.ok ||
+                typeof payload?.data?.id !== "string" ||
+                !payload.data.id ||
+                !next.binding
+              ) {
+                throw new Error(
+                  "Could not verify your account. Run teak login again."
+                );
               }
+              next.binding.ownerId = payload.data.id;
               response
                 .writeHead(200, { "Content-Type": "text/html" })
                 .end("<p>Return to your terminal to finish signing in.</p>");
@@ -810,58 +738,43 @@ export const login = async (options: ClientOptions & { browser?: boolean }) => {
           });
         }
       );
-      let committed = false;
-      try {
-        await credentialOperation(options, async () => {
-          if (readLogoutMarker(options) !== signoutEpoch) {
-            throw new Error(
-              "Sign-in was cancelled by logout. Run teak login again."
-            );
-          }
-          const latest = await discovery(options, true);
-          if (!matchesProvider(credentials, options, latest)) {
-            throw new Error(
-              "Authentication changed during sign-in. Run teak login again."
-            );
-          }
-          const previous = readCredentials(options);
-          const sameWorkosOwner =
-            latest.primary === "workos" &&
-            previous &&
-            matchesProvider(previous, options, latest) &&
-            Boolean(previous.binding?.ownerId) &&
-            previous.binding?.ownerId === credentials.binding?.ownerId;
-          if (previous && !sameWorkosOwner) {
-            if (
-              latest.primary === "workos" &&
-              matchesProvider(previous, options, latest) &&
-              !previous.binding?.ownerId
-            ) {
-              throw new Error("Run teak logout before signing in again.");
-            }
-            try {
-              await revokeCredentials(previous, options);
-            } catch {
-              throw new Error(
-                "Your existing session is still saved. Run teak logout before signing in again."
-              );
-            }
-          }
-          writeCredentials(credentials, options);
-          committed = true;
-        });
-      } catch (error) {
-        try {
-          // Discarding a failed Connect login must not revoke the same app on
-          // other installations. Only explicit logout owns that access change.
-          if (!committed && auth.primary !== "workos") {
-            await revokeCredentials(credentials, options, false);
-          }
-        } catch {
-          /* Preserve the sign-in error. */
+      // Discarding a failed sign-in must not revoke the same app on other
+      // installations. Only explicit logout owns that access change.
+      await credentialOperation(options, async () => {
+        if (readLogoutMarker(options) !== signoutEpoch) {
+          throw new Error(
+            "Sign-in was cancelled by logout. Run teak login again."
+          );
         }
-        throw error;
-      }
+        const latest = await discovery(options, true);
+        if (!matchesProvider(credentials, options, latest)) {
+          throw new Error(
+            "Authentication changed during sign-in. Run teak login again."
+          );
+        }
+        const previous = readCredentials(options);
+        const sameOwner =
+          previous &&
+          matchesProvider(previous, options, latest) &&
+          Boolean(previous.binding?.ownerId) &&
+          previous.binding?.ownerId === credentials.binding?.ownerId;
+        if (previous && !sameOwner) {
+          if (
+            matchesProvider(previous, options, latest) &&
+            !previous.binding?.ownerId
+          ) {
+            throw new Error("Run teak logout before signing in again.");
+          }
+          try {
+            await revokeCredentials(previous, options);
+          } catch {
+            throw new Error(
+              "Your existing session is still saved. Run teak logout before signing in again."
+            );
+          }
+        }
+        writeCredentials(credentials, options);
+      });
       return "Logged in to Teak.";
     } catch (error) {
       if ((error as NodeJS.ErrnoException).code === "EADDRINUSE") {

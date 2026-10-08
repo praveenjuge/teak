@@ -311,7 +311,9 @@ describe("durable deletion admission and tombstones", () => {
       vi.stubGlobal(
         "fetch",
         (_input: string | URL | Request, options?: RequestInit) => {
-          if (options?.method === "DELETE") deletes++;
+          if (options?.method === "DELETE") {
+            deletes++;
+          }
           return Response.json({
             data: [{ application: { id: applicationId } }],
           });
@@ -883,3 +885,39 @@ test("account-change pause denies fresh deletion and acknowledges an existing du
   ).toHaveLength(1);
 });
 
+test("legacy deletion removes that user's retained Better Auth grants and keeps others", async () => {
+  const { t, signed, ownerId } = await fixture(true);
+  const seed = (model: string, data: Record<string, unknown>) =>
+    t.mutation(components.betterAuth.adapter.create, {
+      input: { model, data },
+    } as never);
+  for (const userId of [ownerId, "sibling-user"]) {
+    await seed("oauthAccessToken", {
+      accessToken: `access-${userId}`,
+      clientId: "teak-cli",
+      userId,
+    });
+    await seed("oauthConsent", { clientId: "teak-cli", userId });
+    await seed("twoFactor", { secret: "s", backupCodes: "b", userId });
+  }
+  await signed.mutation(api.accountDeletion.deleteMyAccount, {});
+  const state = await t.run((ctx) =>
+    ctx.db.query("accountDeletionStates").unique()
+  );
+  expect(state?.betterAuthUserId).toBe(ownerId);
+  await t.run((ctx) => ctx.db.patch(state!._id, { stage: 5 }));
+  expect(
+    await t.action(internal.accountDeletionActions.runStage, {
+      stateId: state!._id,
+      generation: 1,
+      stage: 5,
+    })
+  ).toBe(true);
+  for (const model of ["oauthAccessToken", "oauthConsent", "twoFactor"]) {
+    const remaining = (await t.query(components.betterAuth.adapter.findMany, {
+      model,
+      paginationOpts: { cursor: null, numItems: 10 },
+    } as never)) as { page: { userId: string }[] };
+    expect(remaining.page.map((row) => row.userId)).toEqual(["sibling-user"]);
+  }
+});

@@ -11,148 +11,50 @@ import {
   tint,
 } from "@expo/ui/swift-ui/modifiers";
 import { SIGNUPS_PAUSED_MESSAGE } from "@teak/convex/shared/constants";
-import * as AppleAuthentication from "expo-apple-authentication";
 import { router } from "expo-router";
 import React from "react";
-import { Alert, Platform, PlatformColor, useColorScheme } from "react-native";
+import { Alert, PlatformColor, useColorScheme } from "react-native";
 import AppleLogo from "@/components/AppleLogo";
 import GoogleLogo from "@/components/GoogleLogo";
 import Logo from "@/components/Logo";
-import { authClient } from "@/lib/auth-client";
-import { refreshAuthSessionCache } from "@/lib/auth-session-cache";
-import { getAuthErrorMessage } from "@/lib/getAuthErrorMessage";
 import { useMobileAuth } from "@/lib/mobile-auth-context";
+
+const PROVIDER_LABELS = { AppleOAuth: "Apple", GoogleOAuth: "Google" };
 
 export default function OnboardingScreen() {
   const mobileAuth = useMobileAuth();
   const authMode = mobileAuth.mode;
   const [isGoogleLoading, setIsGoogleLoading] = React.useState(false);
   const [isAppleLoading, setIsAppleLoading] = React.useState(false);
-  const [isAppleAvailable, setIsAppleAvailable] = React.useState(false);
   const colorScheme = useColorScheme();
   const appleIconColor = colorScheme === "dark" ? "#FFFFFF" : "#000000";
 
-  React.useEffect(() => {
-    // Check if Apple Authentication is available (iOS only)
-    if (Platform.OS === "ios") {
-      AppleAuthentication.isAvailableAsync().then(setIsAppleAvailable);
-    }
-  }, []);
-
-  const onGoogleSignInPress = async () => {
-    if (isGoogleLoading) {
+  const signIn = async (
+    provider: keyof typeof PROVIDER_LABELS,
+    setLoading: (loading: boolean) => void
+  ) => {
+    if (isGoogleLoading || isAppleLoading) {
       return;
     }
-    setIsGoogleLoading(true);
-
+    setLoading(true);
+    const label = PROVIDER_LABELS[provider];
     try {
-      if (authMode.primary === "workos") {
-        if (await mobileAuth.signIn("GoogleOAuth")) {
-          router.replace("/(tabs)/(home)");
-        }
-        return;
-      }
-      const response = await authClient.signIn.social({
-        provider: "google",
-        callbackURL: "teak://",
-      });
-      if (response.error) {
-        Alert.alert(
-          "Google Sign In Failed",
-          getAuthErrorMessage(
-            response.error,
-            "Failed to sign in with Google. Please try again."
-          )
-        );
-      } else {
-        await refreshAuthSessionCache();
+      if (await mobileAuth.signIn(provider)) {
         router.replace("/(tabs)/(home)");
       }
     } catch (error) {
       console.error(
-        "Google sign in error:",
+        `${label} sign in error:`,
         error instanceof Error ? error.message : error
       );
       Alert.alert(
-        "Google Sign In Failed",
-        getAuthErrorMessage(
-          error,
-          "Failed to sign in with Google. Please try again."
-        )
+        `${label} Sign In Failed`,
+        error instanceof Error && error.message
+          ? error.message
+          : `Failed to sign in with ${label}. Please try again.`
       );
     } finally {
-      setIsGoogleLoading(false);
-    }
-  };
-
-  const onAppleSignInPress = async () => {
-    if (isAppleLoading) {
-      return;
-    }
-    setIsAppleLoading(true);
-
-    try {
-      if (authMode.primary === "workos") {
-        if (await mobileAuth.signIn("AppleOAuth")) {
-          router.replace("/(tabs)/(home)");
-        }
-        return;
-      }
-      // Use native Apple Authentication
-      const credential = await AppleAuthentication.signInAsync({
-        requestedScopes: [
-          AppleAuthentication.AppleAuthenticationScope.FULL_NAME,
-          AppleAuthentication.AppleAuthenticationScope.EMAIL,
-        ],
-      });
-
-      if (!credential.identityToken) {
-        throw new Error("No identity token received from Apple");
-      }
-
-      // Use the ID token flow with Better Auth
-      const response = await authClient.signIn.social({
-        provider: "apple",
-        idToken: {
-          token: credential.identityToken,
-        },
-      });
-
-      if (response.error) {
-        Alert.alert(
-          "Apple Sign In Failed",
-          getAuthErrorMessage(
-            response.error,
-            "Failed to sign in with Apple. Please try again."
-          )
-        );
-      } else {
-        await refreshAuthSessionCache();
-        router.replace("/(tabs)/(home)");
-      }
-    } catch (error: unknown) {
-      // Don't show error if user cancelled
-      if (
-        error &&
-        typeof error === "object" &&
-        "code" in error &&
-        error.code === "ERR_REQUEST_CANCELED"
-      ) {
-        return;
-      }
-      console.error(
-        "Apple sign in error:",
-        error instanceof Error ? error.message : error
-      );
-      Alert.alert(
-        "Apple Sign In Failed",
-        getAuthErrorMessage(
-          error,
-          "Failed to sign in with Apple. Please try again."
-        )
-      );
-    } finally {
-      setIsAppleLoading(false);
+      setLoading(false);
     }
   };
 
@@ -198,30 +100,28 @@ export default function OnboardingScreen() {
 
         <VStack spacing={30}>
           <VStack spacing={12}>
-            {(isAppleAvailable || authMode.primary === "workos") && (
-              <Button
-                modifiers={[
-                  buttonStyle("bordered"),
-                  controlSize("large"),
-                  disabled(isGoogleLoading || isAppleLoading),
-                  tint(PlatformColor("label")),
-                ]}
-                onPress={onAppleSignInPress}
-              >
-                <HStack alignment="center" spacing={10}>
-                  <Spacer />
-                  <HStack modifiers={[frame({ width: 20, height: 20 })]}>
-                    <AppleLogo color={appleIconColor} />
-                  </HStack>
-                  <Text
-                    modifiers={[font({ design: "rounded", weight: "medium" })]}
-                  >
-                    {isAppleLoading ? "Signing in..." : "Continue with Apple"}
-                  </Text>
-                  <Spacer />
+            <Button
+              modifiers={[
+                buttonStyle("bordered"),
+                controlSize("large"),
+                disabled(isGoogleLoading || isAppleLoading),
+                tint(PlatformColor("label")),
+              ]}
+              onPress={() => void signIn("AppleOAuth", setIsAppleLoading)}
+            >
+              <HStack alignment="center" spacing={10}>
+                <Spacer />
+                <HStack modifiers={[frame({ width: 20, height: 20 })]}>
+                  <AppleLogo color={appleIconColor} />
                 </HStack>
-              </Button>
-            )}
+                <Text
+                  modifiers={[font({ design: "rounded", weight: "medium" })]}
+                >
+                  {isAppleLoading ? "Signing in..." : "Continue with Apple"}
+                </Text>
+                <Spacer />
+              </HStack>
+            </Button>
 
             <Button
               modifiers={[
@@ -230,7 +130,7 @@ export default function OnboardingScreen() {
                 disabled(isGoogleLoading || isAppleLoading),
                 tint(PlatformColor("label")),
               ]}
-              onPress={onGoogleSignInPress}
+              onPress={() => void signIn("GoogleOAuth", setIsGoogleLoading)}
             >
               <HStack alignment="center" spacing={10}>
                 <Spacer />

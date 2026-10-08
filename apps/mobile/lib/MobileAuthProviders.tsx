@@ -1,4 +1,3 @@
-import { ConvexBetterAuthProvider } from "@convex-dev/better-auth/react";
 import { api } from "@teak/convex";
 import { ConvexProviderWithAuth, type ConvexReactClient } from "convex/react";
 import { useNetworkState } from "expo-network";
@@ -11,11 +10,8 @@ import {
   useState,
   useSyncExternalStore,
 } from "react";
-import { AppState, Platform } from "react-native";
-import { hasStoredBetterAuthSessionCookie } from "./auth-bootstrap";
-import { authClient, convexAuthClient } from "./auth-client";
+import { AppState } from "react-native";
 import type { PublicAuthMode } from "./auth-mode";
-import { refreshAuthSessionCache } from "./auth-session-cache";
 import { MobileAuthContext } from "./mobile-auth-context";
 import {
   getWorkosSession,
@@ -23,58 +19,6 @@ import {
   signInWithWorkos,
 } from "./workos-native-auth";
 
-function storedCookie() {
-  try {
-    const client = authClient as typeof authClient & {
-      getCookie?: () => string;
-    };
-    return (
-      Platform.OS !== "web" &&
-      hasStoredBetterAuthSessionCookie(client.getCookie?.() ?? null)
-    );
-  } catch {
-    return false;
-  }
-}
-export function BetterAuthProvider({
-  client,
-  mode,
-  children,
-}: {
-  client: ConvexReactClient;
-  mode: PublicAuthMode;
-  children: ReactNode;
-}) {
-  const { data, isPending } = authClient.useSession();
-  const value = useMemo(
-    () => ({
-      mode,
-      isPending,
-      hasStoredSession: storedCookie(),
-      user: data?.user
-        ? {
-            email: data.user.email,
-            name: data.user.name,
-            teakUserId: data.user.id,
-          }
-        : null,
-      refreshSession: refreshAuthSessionCache,
-      signIn: () =>
-        Promise.reject(new Error("Use the Better Auth sign-in flow")),
-      signOut: async () => {
-        await authClient.signOut();
-      },
-    }),
-    [mode, data, isPending]
-  );
-  return (
-    <ConvexBetterAuthProvider authClient={convexAuthClient} client={client}>
-      <MobileAuthContext.Provider value={value}>
-        {children}
-      </MobileAuthContext.Provider>
-    </ConvexBetterAuthProvider>
-  );
-}
 export function WorkosAuthProvider({
   client,
   mode,

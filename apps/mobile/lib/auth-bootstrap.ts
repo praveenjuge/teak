@@ -15,12 +15,6 @@ export interface AuthBootstrapInput {
   isSessionPending: boolean;
 }
 
-export function hasStoredBetterAuthSessionCookie(cookie: string | null) {
-  return Boolean(
-    cookie?.split(";").some((part) => part.includes("session_token="))
-  );
-}
-
 export function getAuthRouteState({
   hasStoredSession,
   hasSession,

@@ -1,5 +1,7 @@
 export const SIGNUPS_PAUSED_MESSAGE =
-  "New sign-ups are paused while we upgrade sign-in";
+  "New sign-ups are paused right now. Please try again later.";
+export const ACCOUNT_CHANGES_PAUSED_MESSAGE =
+  "Account changes are paused right now. Please try again later.";
 
 import {
   MARKDOWN_CONTENT_TOO_LARGE_MESSAGE,

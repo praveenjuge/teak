@@ -20,7 +20,6 @@ import {
   shouldAutoClosePopup,
 } from "../../lib/popupAutoClose";
 import { MESSAGE_TYPES, type TeakSaveResponse } from "../../types/messages";
-import { getAuthErrorMessage } from "../../utils/getAuthErrorMessage";
 
 // Error code constant for card limit - should match convex/shared/constants.ts
 const CARD_LIMIT_REACHED_CODE = "CARD_LIMIT_REACHED";
@@ -95,10 +94,7 @@ function App() {
   if (sessionError) {
     return (
       <SessionErrorState
-        message={getAuthErrorMessage(
-          sessionError,
-          "We couldn't load your session."
-        )}
+        message={sessionError.message || "We couldn't load your session."}
         onRetry={() => refetch()}
       />
     );

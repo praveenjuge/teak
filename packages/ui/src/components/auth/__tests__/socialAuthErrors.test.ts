@@ -1,4 +1,5 @@
 import { describe, expect, test } from "bun:test";
+import { SIGNUPS_PAUSED_MESSAGE } from "@teak/convex/shared/constants";
 import {
   isProviderNotConfiguredMessage,
   socialSignInErrorMessage,
@@ -45,10 +46,10 @@ describe("socialAuthErrors", () => {
     "registration is disabled",
   ])("explains the sign-up pause for %s", (message) => {
     expect(socialSignInErrorMessage("google", message, "fallback")).toBe(
-      "New sign-ups are paused while we upgrade sign-in"
+      SIGNUPS_PAUSED_MESSAGE
     );
     expect(socialSignInErrorMessage("apple", message, "fallback")).toBe(
-      "New sign-ups are paused while we upgrade sign-in"
+      SIGNUPS_PAUSED_MESSAGE
     );
   });
 

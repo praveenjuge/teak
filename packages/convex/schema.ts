@@ -248,26 +248,6 @@ export const apiIdempotencyAnalyticsValidator = v.object({
   errors: v.number(),
 });
 
-export const nativeAuthSurfaceValidator = v.union(
-  v.literal("desktop"),
-  v.literal("safari-macos"),
-  v.literal("safari-ios"),
-  v.literal("safari-ipados"),
-  v.literal("browser-extension")
-);
-
-export const nativeAuthCodeValidator = v.object({
-  sessionId: v.string(),
-  userId: v.string(),
-  deviceId: v.string(),
-  codeChallenge: v.string(),
-  state: v.string(),
-  surface: nativeAuthSurfaceValidator,
-  expiresAt: v.number(),
-  consumedAt: v.optional(v.number()),
-  createdAt: v.number(),
-});
-
 export const exportStatusValidator = v.union(
   v.literal("pending"),
   v.literal("running"),
@@ -511,7 +491,7 @@ export default defineSchema({
     email: v.string(),
     emailVerified: v.boolean(),
     workosUserId: v.optional(v.string()),
-    // WorkOS shadow state never overwrites the Better Auth profile.
+    // Current WorkOS profile state, kept apart from the original email fields.
     workosEmail: v.optional(v.string()),
     workosEmailVerified: v.optional(v.boolean()),
     workosDeletedAt: v.optional(v.number()),
@@ -878,7 +858,7 @@ export default defineSchema({
     .index("by_cardId", ["cardId"])
     .index("by_pending", ["pending"]),
   operationalRetentionStates: defineTable({
-    kind: v.union(v.literal("idempotency"), v.literal("nativeAuthCodes")),
+    kind: v.literal("idempotency"),
     cutoff: v.number(),
     cursor: v.union(v.string(), v.null()),
     updatedAt: v.number(),
@@ -889,11 +869,6 @@ export default defineSchema({
   apiIdempotencyAnalytics: defineTable(apiIdempotencyAnalyticsValidator)
     .index("by_date_endpoint", ["date", "endpoint"])
     .index("by_date_endpoint_shard", ["date", "endpoint", "shard"]),
-  nativeAuthCodes: defineTable(nativeAuthCodeValidator)
-    .index("by_expires_at", ["expiresAt"])
-    .index("by_device_state_consumed", ["deviceId", "state", "consumedAt"])
-    .index("by_surface", ["surface"])
-    .index("by_user", ["userId"]),
   exportJobs: defineTable(exportJobValidator)
     // Latest job per user + active-job lookups.
     .index("by_user_created", ["userId", "createdAt"])

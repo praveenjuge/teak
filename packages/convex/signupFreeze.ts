@@ -1,10 +1,7 @@
-import { APIError } from "better-auth/api";
 import { isE2EEmail, normalizeE2EEmailDomain } from "./e2eAccounts";
 
-import { SIGNUPS_PAUSED_MESSAGE } from "./shared/constants";
-
 // This guard also covers native provider flows that bypass sign-up options.
-export const guardUserCreation = ({
+export const userCreationAllowed = ({
   email,
   disabled,
   e2eEmailDomain,
@@ -12,21 +9,16 @@ export const guardUserCreation = ({
   email: string;
   disabled: boolean;
   e2eEmailDomain?: string;
-}): Promise<void> => {
+}): boolean => {
   if (!disabled) {
-    return Promise.resolve();
+    return true;
   }
   if (e2eEmailDomain) {
     try {
-      if (isE2EEmail(email, normalizeE2EEmailDomain(e2eEmailDomain))) {
-        return Promise.resolve();
-      }
+      return isE2EEmail(email, normalizeE2EEmailDomain(e2eEmailDomain));
     } catch {
       // Invalid automation configuration must never reopen public sign-ups.
     }
   }
-  throw new APIError("FORBIDDEN", {
-    code: "SIGN_UP_DISABLED",
-    message: SIGNUPS_PAUSED_MESSAGE,
-  });
+  return false;
 };

@@ -2,10 +2,7 @@
 import { convexTest } from "convex-test";
 import { afterEach, beforeEach, expect, test, vi } from "vitest";
 import { internal } from "./_generated/api";
-import {
-  AUTH_CODE_RETENTION_GRACE_MS,
-  RETENTION_SCAN_LEASE_MS,
-} from "./operationalRetention";
+import { RETENTION_SCAN_LEASE_MS } from "./operationalRetention";
 import schema from "./schema";
 
 const modules = import.meta.glob("./**/*.ts");
@@ -120,40 +117,6 @@ test("renewing an expired request before cleanup preserves its reservation", asy
   ).toBe(4);
 });
 
-test("native code cleanup preserves expiry boundary and its full 24-hour grace", async () => {
-  const t = convexTest(schema, modules);
-  const cutoff = now - AUTH_CODE_RETENTION_GRACE_MS;
-  await t.run(async (ctx) => {
-    for (const [deviceId, expiresAt] of [
-      ["old", cutoff - 1],
-      ["boundary", cutoff],
-      ["recent", now - 1],
-      ["live", now + 1000],
-    ] as const) {
-      await ctx.db.insert("nativeAuthCodes", {
-        deviceId,
-        expiresAt,
-        sessionId: "live-session",
-        userId: "customer",
-        codeChallenge: "challenge",
-        state: "state",
-        surface: "desktop",
-        createdAt: now - 1000,
-      });
-    }
-  });
-  const report = await t.mutation(
-    internal.operationalRetention.cleanupExpiredRecords,
-    { kind: "nativeAuthCodes", dryRun: false }
-  );
-  expect(report.deleted).toBe(1);
-  expect(
-    (await t.run((ctx) => ctx.db.query("nativeAuthCodes").collect()))
-      .map((r) => r.deviceId)
-      .sort()
-  ).toEqual(["boundary", "live", "recent"]);
-});
-
 test("activation and cutoff guards reject unsafe cleanup", async () => {
   const t = convexTest(schema, modules);
   await seedRequests(t);
@@ -166,8 +129,8 @@ test("activation and cutoff guards reject unsafe cleanup", async () => {
   ).rejects.toThrow("not enabled");
   await expect(
     t.mutation(internal.operationalRetention.cleanupExpiredRecords, {
-      kind: "nativeAuthCodes",
-      cutoff: now,
+      kind: "idempotency",
+      cutoff: now + 60_000,
     })
   ).rejects.toThrow("unexpired");
   expect(
@@ -260,10 +223,6 @@ test("operational cleanup leaves complete customer cards unchanged", async () =>
   const before = await t.run((ctx) => ctx.db.query("cards").collect());
   await t.mutation(internal.operationalRetention.cleanupExpiredRecords, {
     kind: "idempotency",
-    dryRun: false,
-  });
-  await t.mutation(internal.operationalRetention.cleanupExpiredRecords, {
-    kind: "nativeAuthCodes",
     dryRun: false,
   });
   expect(await t.run((ctx) => ctx.db.query("cards").collect())).toEqual(before);

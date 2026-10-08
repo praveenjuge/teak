@@ -38,26 +38,11 @@ const binding = (auth: AuthDiscovery) => ({
   issuer: auth.issuer,
   clientId: auth.clients[SURFACE],
 });
-const matches = (credentials: Credentials, auth: AuthDiscovery) => {
-  if (credentials.siteUrl || credentials.issuer || credentials.clientId) {
-    return (
-      credentials.siteUrl === site() &&
-      credentials.issuer === auth.issuer &&
-      credentials.clientId === auth.clients[SURFACE]
-    );
-  }
-  // Only the pre-migration production Better Auth installation has unbound credentials.
-  return (
-    !import.meta.env.DEV &&
-    auth.primary === "betterauth" &&
-    auth.issuer === "https://app.teakvault.com" &&
-    auth.clients[SURFACE] === `teak-${SURFACE}`
-  );
-};
-const audience = (auth: AuthDiscovery): Record<string, string> =>
-  auth.primary === "workos"
-    ? { resource: new URL("/api", auth.resource).href }
-    : {};
+// Unbound credentials predate WorkOS and never match the current provider.
+const matches = (credentials: Credentials, auth: AuthDiscovery) =>
+  credentials.siteUrl === site() &&
+  credentials.issuer === auth.issuer &&
+  credentials.clientId === auth.clients[SURFACE];
 async function readJson(response: Response) {
   const text = await readResponseTextWithinLimit(response, 64 * 1024);
   if (text === null) {
@@ -199,12 +184,12 @@ async function tokenRequest(
       headers: { "Content-Type": "application/x-www-form-urlencoded" },
       body: new URLSearchParams({
         client_id: auth.clients[SURFACE],
-        ...audience(auth),
+        resource: new URL("/api", auth.resource).href,
         ...params,
       }),
     });
     if (response.status === 400 || response.status === 401) {
-      if (params.grant_type === "refresh_token" && auth.primary === "workos") {
+      if (params.grant_type === "refresh_token") {
         const rejection = await readJson(response);
         if (
           !(
@@ -253,42 +238,26 @@ async function revokeCredentials(
   auth: AuthDiscovery,
   refreshSaved = false
 ) {
-  const workos =
-    credentials.siteUrl === site() &&
-    credentials.clientId?.startsWith("client_") &&
-    Boolean(credentials.issuer);
-  const endpoint = workos
-    ? `${site()}/v1/oauth/disconnect`
-    : auth.revocationEndpoint;
-  if (!(endpoint && (workos || matches(credentials, auth)))) {
-    // Legacy or other-provider credentials have no revocation route on this
-    // deployment and cannot authenticate here, so callers clear them locally.
+  if (
+    !(
+      credentials.siteUrl === site() &&
+      credentials.clientId?.startsWith("client_") &&
+      credentials.issuer
+    )
+  ) {
+    // Credentials that predate WorkOS cannot authenticate with any Teak
+    // service, so callers clear them locally.
     return;
   }
   const disconnect = (accessToken: string) =>
-    fetchAuth(endpoint, {
+    fetchAuth(`${site()}/v1/oauth/disconnect`, {
       method: "POST",
       credentials: "omit",
       redirect: "error",
-      headers: workos
-        ? { Authorization: `Bearer ${accessToken}` }
-        : { "Content-Type": "application/x-www-form-urlencoded" },
-      ...(workos
-        ? {}
-        : {
-            body: new URLSearchParams({
-              client_id: auth.clients[SURFACE],
-              token: credentials.refreshToken,
-            }),
-          }),
+      headers: { Authorization: `Bearer ${accessToken}` },
     });
   let response = await disconnect(credentials.accessToken);
-  if (
-    workos &&
-    response.status === 401 &&
-    refreshSaved &&
-    matches(credentials, auth)
-  ) {
+  if (response.status === 401 && refreshSaved && matches(credentials, auth)) {
     const renewed = await tokenRequest(auth, {
       grant_type: "refresh_token",
       refresh_token: credentials.refreshToken,
@@ -301,7 +270,7 @@ async function revokeCredentials(
     await writeCredentials(renewed);
     response = await disconnect(renewed.accessToken);
   }
-  if (workos ? response.status !== 204 : !response.ok) {
+  if (response.status !== 204) {
     throw new Error("Could not sign out. Please try again.");
   }
 }
@@ -311,13 +280,8 @@ export function beginOAuthSignIn(): Promise<void> {
     await initializeAuth();
     const attempt = generation;
     const auth = await discovery(true);
-    const saved = auth.primary === "workos" ? await readCredentials() : null;
-    if (
-      auth.primary === "workos" &&
-      saved &&
-      matches(saved, auth) &&
-      !saved.userId
-    ) {
+    const saved = await readCredentials();
+    if (saved && matches(saved, auth) && !saved.userId) {
       throw new Error(
         "Sign out before reconnecting, then wait five minutes for disconnect to finish."
       );
@@ -336,13 +300,10 @@ export function beginOAuthSignIn(): Promise<void> {
     const url = new URL(auth.authorizationEndpoint);
     url.search = new URLSearchParams({
       client_id: auth.clients[SURFACE],
-      ...audience(auth),
+      resource: new URL("/api", auth.resource).href,
       response_type: "code",
       redirect_uri: redirectUri,
-      scope:
-        auth.primary === "workos"
-          ? "openid profile email offline_access"
-          : "profile email offline_access",
+      scope: "openid profile email offline_access",
       state,
       code_challenge: challenge,
       code_challenge_method: "S256",
@@ -385,40 +346,25 @@ export function beginOAuthSignIn(): Promise<void> {
       if (!credentials) {
         throw new Error("Sign-in expired. Please try again.");
       }
-      try {
-        const info = await fetchAuth(`${site()}/v1/me`, {
-          headers: { Authorization: `Bearer ${credentials.accessToken}` },
-          credentials: "omit",
-          redirect: "error",
-        });
-        if (!info.ok) {
-          throw new Error(
-            "Could not verify your account. Please sign in again."
-          );
-        }
-        const user = (await readJson(info)).data;
-        if (!user || typeof user.id !== "string" || !user.id) {
-          throw new Error("Invalid account response.");
-        }
-        credentials.userId = user.id;
-      } catch (error) {
-        try {
-          if (current.primary !== "workos") {
-            await revokeCredentials(credentials, current);
-          }
-        } catch {
-          /* Preserve the identity verification error. */
-        }
-        throw error;
+      const info = await fetchAuth(`${site()}/v1/me`, {
+        headers: { Authorization: `Bearer ${credentials.accessToken}` },
+        credentials: "omit",
+        redirect: "error",
+      });
+      if (!info.ok) {
+        throw new Error("Could not verify your account. Please sign in again.");
       }
+      const user = (await readJson(info)).data;
+      if (!user || typeof user.id !== "string" || !user.id) {
+        throw new Error("Invalid account response.");
+      }
+      credentials.userId = user.id;
       await navigator.locks.request("teak-oauth-credentials", async () => {
-        if (attempt !== generation) {
-          if (current.primary !== "workos") {
-            await revokeCredentials(credentials, current);
-          }
-          return;
+        // A sign-out during sign-in discards this grant without revoking the
+        // same app on other installations.
+        if (attempt === generation) {
+          await writeCredentials(credentials);
         }
-        await writeCredentials(credentials);
       });
     }
   })()

@@ -10,11 +10,17 @@ const originalEnv = {
   TEAK_DEV_APP_URL: process.env.TEAK_DEV_APP_URL,
   VITE_PUBLIC_CONVEX_SITE_URL: process.env.VITE_PUBLIC_CONVEX_SITE_URL,
 };
-let primary = "betterauth";
+// Two WorkOS environments model a client registration change on the server.
+let environment: "alpha" | "beta" = "alpha";
 const tokenKey = "teakOAuthCredentials";
 const accessToken = "a".repeat(32);
 const refreshToken = "r".repeat(32);
 const developmentIssuer = "http://app.teak.localhost:7500";
+const workosBinding = {
+  siteUrl: "https://test.convex.site",
+  issuer: "https://auth.test.workos.com",
+  clientId: "client_chrome",
+};
 let storage: Record<string, unknown>;
 let webAuth: ReturnType<typeof mock>;
 let setAccessLevel: ReturnType<typeof mock>;
@@ -24,7 +30,7 @@ beforeEach(() => {
   process.env.VITE_PUBLIC_CONVEX_SITE_URL = "https://test.convex.site";
   process.env.TEAK_DEV_APP_URL = developmentIssuer;
   delete process.env.DEV;
-  primary = "betterauth";
+  environment = "alpha";
   storage = {};
   let tail: Promise<unknown> = Promise.resolve();
   Object.defineProperty(navigator, "locks", {
@@ -87,32 +93,22 @@ afterEach(() => {
 const withDiscovery = (handler: typeof fetch): typeof fetch =>
   (async (input, init) => {
     const url = String(input);
-    const betterAuthIssuer = process.env.DEV
-      ? process.env.TEAK_DEV_APP_URL!
-      : "https://app.teakvault.com";
-    const issuer =
-      primary === "workos"
-        ? `https://auth.${process.env.DEV ? "dev." : ""}test.workos.com`
-        : betterAuthIssuer;
+    const prefix = `${process.env.DEV ? "dev." : ""}${environment === "beta" ? "beta." : ""}`;
+    const issuer = `https://auth.${prefix}test.workos.com`;
     if (url.endsWith("/.well-known/oauth-protected-resource/mcp")) {
       return Response.json({
-        resource:
-          process.env.DEV && primary === "betterauth"
-            ? "https://test.convex.site/mcp"
-            : "https://teakvault.com/mcp",
+        resource: "https://teakvault.com/mcp",
         authorization_servers: [issuer],
       });
     }
     if (url.endsWith("/.well-known/teak-oauth-clients.json")) {
       return Response.json({
-        primary,
+        primary: "workos",
         issuer,
         clients: Object.fromEntries(
           ["cli", "raycast", "chrome", "firefox", "safari"].map((surface) => [
             surface,
-            primary === "workos"
-              ? `client_${process.env.DEV ? "dev_" : ""}${surface}`
-              : `teak-${surface}`,
+            `client_${process.env.DEV ? "dev_" : ""}${environment === "beta" ? "beta_" : ""}${surface}`,
           ])
         ),
       });
@@ -120,14 +116,8 @@ const withDiscovery = (handler: typeof fetch): typeof fetch =>
     if (url.includes("/.well-known/oauth-authorization-server")) {
       return Response.json({
         issuer,
-        authorization_endpoint: `${issuer}${primary === "workos" ? "/oauth2/authorize" : "/api/auth/mcp/authorize"}`,
-        token_endpoint:
-          primary === "workos"
-            ? `${issuer}/oauth2/token`
-            : "https://test.convex.site/api/auth/mcp/token",
-        ...(primary === "betterauth"
-          ? { revocation_endpoint: "https://test.convex.site/api/oauth/revoke" }
-          : {}),
+        authorization_endpoint: `${issuer}/oauth2/authorize`,
+        token_endpoint: `${issuer}/oauth2/token`,
         code_challenge_methods_supported: ["S256"],
       });
     }
@@ -166,7 +156,7 @@ describe("Chrome OAuth background credentials", () => {
     }
   );
   test.each([false, true])(
-    "Better Auth uses native PKCE login and legacy scopes with development=%s",
+    "WorkOS sign-in uses native PKCE once for concurrent requests with development=%s",
     async (development) => {
       if (development) {
         process.env.DEV = "true";
@@ -175,7 +165,7 @@ describe("Chrome OAuth background credentials", () => {
       globalThis.fetch = withDiscovery(
         mock((input, init) => {
           calls.push({ url: String(input), init });
-          if (String(input).endsWith("/mcp/token")) {
+          if (String(input).endsWith("/oauth2/token")) {
             return Promise.resolve(tokenResponse());
           }
           return Promise.resolve(
@@ -193,20 +183,17 @@ describe("Chrome OAuth background credentials", () => {
         accessLevel: "TRUSTED_CONTEXTS",
       });
       expect(storage.teakSessionToken).toBeUndefined();
+      const issuer = `https://auth.${development ? "dev." : ""}test.workos.com`;
+      const clientId = development ? "client_dev_chrome" : "client_chrome";
       const authorize = new URL(webAuth.mock.calls[0]?.[0].url);
-      expect(authorize.origin).toBe(
-        development ? developmentIssuer : "https://app.teakvault.com"
-      );
-      expect(authorize.searchParams.get("scope")).toBe(
-        "profile email offline_access"
-      );
-      expect(authorize.searchParams.get("resource")).toBeNull();
+      expect(authorize.origin).toBe(issuer);
       expect(
         storage[development ? `${tokenKey}:https://test.convex.site` : tokenKey]
       ).toMatchObject({
         siteUrl: "https://test.convex.site",
-        issuer: development ? developmentIssuer : "https://app.teakvault.com",
-        clientId: "teak-chrome",
+        issuer,
+        clientId,
+        userId: "owner",
       });
       const token = new URLSearchParams(String(calls[0]?.init?.body));
       const digest = await crypto.subtle.digest(
@@ -216,7 +203,7 @@ describe("Chrome OAuth background credentials", () => {
       const challenge = Buffer.from(digest).toString("base64url");
       expect(authorize.searchParams.get("code_challenge")).toBe(challenge);
       expect(authorize.searchParams.get("code_challenge_method")).toBe("S256");
-      expect(token.get("client_id")).toBe("teak-chrome");
+      expect(token.get("client_id")).toBe(clientId);
       expect(token.get("redirect_uri")).toBe(
         "https://extension.chromiumapp.org/oauth/callback"
       );
@@ -245,13 +232,43 @@ describe("Chrome OAuth background credentials", () => {
     chrome.identity.getRedirectURL = () => redirect;
     webAuth.mockImplementation(({ url }: { url: string }) => {
       const authorize = new URL(url);
-      expect(authorize.searchParams.get("client_id")).toBe("teak-firefox");
+      expect(authorize.searchParams.get("client_id")).toBe("client_firefox");
       expect(authorize.searchParams.get("redirect_uri")).toBe(redirect);
       return Promise.resolve(`${redirect}?state=wrong&code=code`);
     });
+    // An empty IndexedDB: Firefox keeps credentials there, and Bun has none.
+    const emptyDatabase = {
+      close: () => {},
+      transaction: () => {
+        const transaction: { oncomplete?: () => void; objectStore: unknown } = {
+          objectStore: () => ({ get: () => ({ result: undefined }) }),
+        };
+        queueMicrotask(() => transaction.oncomplete?.());
+        return transaction;
+      },
+    };
+    Object.defineProperty(globalThis, "indexedDB", {
+      configurable: true,
+      value: {
+        open: () => {
+          const request: { onsuccess?: () => void; result?: unknown } = {};
+          queueMicrotask(() => {
+            request.result = emptyDatabase;
+            request.onsuccess?.();
+          });
+          return request;
+        },
+      },
+    });
     const fetchMock = mock(async () => tokenResponse());
     globalThis.fetch = withDiscovery(fetchMock as unknown as typeof fetch);
-    await expect((await load()).beginOAuthSignIn()).rejects.toThrow("verified");
+    try {
+      await expect((await load()).beginOAuthSignIn()).rejects.toThrow(
+        "verified"
+      );
+    } finally {
+      Reflect.deleteProperty(globalThis, "indexedDB");
+    }
     expect(webAuth).toHaveBeenCalledTimes(1);
     expect(fetchMock).not.toHaveBeenCalled();
   });
@@ -270,11 +287,12 @@ describe("Chrome OAuth background credentials", () => {
       accessToken,
       refreshToken,
       expiresAt: Date.now() - 1,
+      ...workosBinding,
     };
     let refreshes = 0;
     globalThis.fetch = withDiscovery(
       mock((input, init) => {
-        if (String(input).endsWith("/mcp/token")) {
+        if (String(input).endsWith("/oauth2/token")) {
           refreshes += 1;
           expect(
             new URLSearchParams(String(init?.body)).get("refresh_token")
@@ -304,6 +322,7 @@ describe("Chrome OAuth background credentials", () => {
       accessToken,
       refreshToken,
       expiresAt: Date.now() - 1,
+      ...workosBinding,
     };
     globalThis.fetch = withDiscovery(
       mock(
@@ -314,8 +333,8 @@ describe("Chrome OAuth background credentials", () => {
     await expect(auth.oauthRequest("/v1/cards")).rejects.toThrow("try again");
     expect(storage[tokenKey]).toBeDefined();
     globalThis.fetch = withDiscovery(
-      mock(
-        async () => new Response(null, { status: 400 })
+      mock(async () =>
+        Response.json({ error: "invalid_grant" }, { status: 400 })
       ) as unknown as typeof fetch
     );
     expect(await auth.oauthRequest("/v1/cards")).toBeNull();
@@ -326,6 +345,7 @@ describe("Chrome OAuth background credentials", () => {
       accessToken,
       refreshToken,
       expiresAt: Date.now() + 60_000,
+      ...workosBinding,
     };
     let finish: ((response: Response) => void) | undefined;
     let started: (() => void) | undefined;
@@ -347,45 +367,17 @@ describe("Chrome OAuth background credentials", () => {
       accessToken: "b".repeat(32),
       refreshToken: "s".repeat(32),
       expiresAt: Date.now() + 60_000,
+      ...workosBinding,
     };
     finish?.(new Response(null, { status: 401 }));
     expect(await request).toBeNull();
     expect(storage[tokenKey]).toMatchObject({ accessToken: "b".repeat(32) });
-  });
-  test("local sign-out revokes only its installation credential and waits for success", async () => {
-    storage[tokenKey] = {
-      accessToken,
-      refreshToken,
-      expiresAt: Date.now() + 60_000,
-    };
-    const auth = await load();
-    globalThis.fetch = withDiscovery(
-      mock(
-        async () => new Response(null, { status: 503 })
-      ) as unknown as typeof fetch
-    );
-    await expect(auth.signOutOAuth()).rejects.toThrow("Could not sign out");
-    expect(storage[tokenKey]).toBeDefined();
-    const revoke = mock((_input, init) => {
-      expect(new URLSearchParams(String(init?.body)).get("token")).toBe(
-        refreshToken
-      );
-      expect(new URLSearchParams(String(init?.body)).get("client_id")).toBe(
-        "teak-chrome"
-      );
-      return Promise.resolve(new Response(null, { status: 200 }));
-    });
-    globalThis.fetch = withDiscovery(revoke as unknown as typeof fetch);
-    await auth.signOutOAuth();
-    expect(revoke).toHaveBeenCalledTimes(1);
-    expect(storage[tokenKey]).toBeUndefined();
   });
 });
 
 test.each([false, true])(
   "WorkOS uses canonical audiences and OIDC scopes with development=%s",
   async (development) => {
-    primary = "workos";
     if (development) {
       process.env.DEV = "true";
     }
@@ -436,11 +428,11 @@ test.each([false, true])(
   }
 );
 
-test("a provider flip during the browser callback never exchanges the old code", async () => {
+test("a client registration change during the browser callback never exchanges the old code", async () => {
   const originalFlow = webAuth.getMockImplementation()!;
   webAuth.mockImplementation(async (options) => {
     const callback = await originalFlow(options);
-    primary = "workos";
+    environment = "beta";
     return callback;
   });
   const network = mock(async () => tokenResponse());
@@ -452,15 +444,14 @@ test("a provider flip during the browser callback never exchanges the old code",
   expect(storage[tokenKey]).toBeUndefined();
 });
 
-test("a stored credential is never sent to a different provider", async () => {
-  primary = "workos";
+test("a credential from another client registration is never sent", async () => {
   storage[tokenKey] = {
     accessToken,
     refreshToken,
     expiresAt: Date.now() + 60_000,
     siteUrl: "https://test.convex.site",
-    issuer: "https://app.teakvault.com",
-    clientId: "teak-chrome",
+    issuer: "https://auth.beta.test.workos.com",
+    clientId: "client_beta_chrome",
   };
   storage.teakOAuthOwner = "original-owner";
   const network = mock(async () => tokenResponse());
@@ -483,9 +474,8 @@ test.each([
     },
   ],
 ])(
-  "WorkOS sign-out clears %s legacy credentials locally without contacting the removed revoke route",
+  "sign-out clears %s legacy credentials locally without a network call",
   async (_label, bindingFields) => {
-    primary = "workos";
     storage[tokenKey] = {
       accessToken,
       refreshToken,
@@ -521,11 +511,16 @@ test("development cannot read or clear production credentials", async () => {
   expect(storage.teakOAuthOwner).toBe("production-owner");
 });
 
-test("a provider flip while refreshing cannot publish or send the old-provider token", async () => {
-  storage[tokenKey] = { accessToken, refreshToken, expiresAt: Date.now() - 1 };
+test("a client registration change while refreshing cannot publish or send the old token", async () => {
+  storage[tokenKey] = {
+    accessToken,
+    refreshToken,
+    expiresAt: Date.now() - 1,
+    ...workosBinding,
+  };
   const network = mock(async (input) => {
-    if (String(input).endsWith("/mcp/token")) {
-      primary = "workos";
+    if (String(input).endsWith("/oauth2/token")) {
+      environment = "beta";
       return await Promise.resolve(tokenResponse("new-access", "new-refresh"));
     }
     throw new Error("Old provider token escaped");
@@ -564,8 +559,8 @@ test("unsafe discovery stops before the browser flow or token transmission", asy
   globalThis.fetch = (async (input, init) => {
     if (String(input).includes("/.well-known/oauth-authorization-server")) {
       return Response.json({
-        issuer: "https://app.teakvault.com",
-        authorization_endpoint: "https://app.teakvault.com/authorize",
+        issuer: "https://auth.test.workos.com",
+        authorization_endpoint: "https://auth.test.workos.com/oauth2/authorize",
         token_endpoint: "http://10.0.0.1/token",
         code_challenge_methods_supported: ["S256"],
       });
@@ -579,43 +574,52 @@ test("unsafe discovery stops before the browser flow or token transmission", asy
   expect(storage[tokenKey]).toBeUndefined();
 });
 
-test("a malformed identity response revokes the new credential without saving it", async () => {
-  let revoked = false;
+test("a malformed identity response saves nothing and never disconnects", async () => {
+  let disconnected = false;
   globalThis.fetch = withDiscovery((async (input) => {
     const url = String(input);
-    if (url.endsWith("/mcp/token")) {
+    if (url.endsWith("/oauth2/token")) {
       return tokenResponse();
     }
-    if (url.endsWith("/revoke")) {
-      revoked = true;
-      return new Response(null, { status: 200 });
+    if (url.endsWith("/v1/oauth/disconnect")) {
+      disconnected = true;
+      return new Response(null, { status: 204 });
     }
     return await Promise.resolve(new Response("not json"));
   }) as typeof fetch);
   await expect((await load()).beginOAuthSignIn()).rejects.toThrow();
-  expect(revoked).toBe(true);
+  expect(disconnected).toBe(false);
   expect(storage[tokenKey]).toBeUndefined();
 });
 
-test("sign-out during refresh revokes the rotated credential and never sends it to the API", async () => {
-  storage[tokenKey] = { accessToken, refreshToken, expiresAt: Date.now() - 1 };
+test("sign-out during refresh disconnects the rotated credential and never sends it to the API", async () => {
+  storage[tokenKey] = {
+    accessToken,
+    refreshToken,
+    expiresAt: Date.now() - 1,
+    ...workosBinding,
+  };
   let finishRefresh: ((value: Response) => void) | undefined;
   let startedRefresh: (() => void) | undefined;
   const started = new Promise<void>((resolve) => {
     startedRefresh = resolve;
   });
-  const revocation: { token: string | null } = { token: null };
+  const disconnection: { authorization: string | null } = {
+    authorization: null,
+  };
   globalThis.fetch = withDiscovery(((input, init) => {
     const url = String(input);
-    if (url.endsWith("/mcp/token")) {
+    if (url.endsWith("/oauth2/token")) {
       startedRefresh?.();
       return new Promise<Response>((resolve) => {
         finishRefresh = resolve;
       });
     }
-    if (url.endsWith("/revoke")) {
-      revocation.token = new URLSearchParams(String(init?.body)).get("token");
-      return Promise.resolve(new Response(null, { status: 200 }));
+    if (url.endsWith("/v1/oauth/disconnect")) {
+      disconnection.authorization = new Headers(init?.headers).get(
+        "Authorization"
+      );
+      return Promise.resolve(new Response(null, { status: 204 }));
     }
     return Promise.reject(new Error("Credential escaped after sign-out"));
   }) as typeof fetch);
@@ -626,15 +630,20 @@ test("sign-out during refresh revokes the rotated credential and never sends it 
   finishRefresh?.(tokenResponse("rotated-access", "rotated-refresh"));
   expect(await request).toBeNull();
   await signOut;
-  expect(revocation.token).toBe("rotated-refresh");
+  expect(disconnection.authorization).toBe("Bearer rotated-access");
   expect(storage[tokenKey]).toBeUndefined();
 });
 
 test("a discovery outage after rotation preserves the new refresh credential without sending it", async () => {
-  storage[tokenKey] = { accessToken, refreshToken, expiresAt: Date.now() - 1 };
+  storage[tokenKey] = {
+    accessToken,
+    refreshToken,
+    expiresAt: Date.now() - 1,
+    ...workosBinding,
+  };
   let rotated = false;
   const network = withDiscovery(((input) => {
-    if (String(input).endsWith("/mcp/token")) {
+    if (String(input).endsWith("/oauth2/token")) {
       rotated = true;
       return Promise.resolve(
         tokenResponse("rotated-access", "rotated-refresh")
@@ -663,6 +672,7 @@ test("sign-out during discovery prevents a nonexpired token from reaching the AP
     accessToken,
     refreshToken,
     expiresAt: Date.now() + 60_000,
+    ...workosBinding,
   };
   let release: (() => void) | undefined;
   let notify: (() => void) | undefined;
@@ -674,7 +684,7 @@ test("sign-out during discovery prevents a nonexpired token from reaching the AP
   });
   let first = true;
   const network = mock((_input: RequestInfo | URL, _init?: RequestInit) =>
-    Promise.resolve(new Response(null, { status: 200 }))
+    Promise.resolve(new Response(null, { status: 204 }))
   );
   const metadata = withDiscovery(network as unknown as typeof fetch);
   globalThis.fetch = (async (input, init) => {
@@ -693,19 +703,26 @@ test("sign-out during discovery prevents a nonexpired token from reaching the AP
   expect(await request).toBeNull();
   await signOut;
   expect(network).toHaveBeenCalledTimes(1);
-  expect(String(network.mock.calls[0]?.[0])).toEndWith("/revoke");
+  expect(String(network.mock.calls[0]?.[0])).toBe(
+    "https://test.convex.site/v1/oauth/disconnect"
+  );
   expect(storage[tokenKey]).toBeUndefined();
 });
 
-test("refresh failures rediscover a provider change before the next request", async () => {
-  storage[tokenKey] = { accessToken, refreshToken, expiresAt: Date.now() - 1 };
+test("refresh failures rediscover a client registration change before the next request", async () => {
+  storage[tokenKey] = {
+    accessToken,
+    refreshToken,
+    expiresAt: Date.now() - 1,
+    ...workosBinding,
+  };
   let attempts = 0;
   globalThis.fetch = withDiscovery(((input) => {
-    if (!String(input).endsWith("/mcp/token")) {
+    if (!String(input).endsWith("/oauth2/token")) {
       return Promise.reject(new Error("Unexpected credential transmission"));
     }
     attempts += 1;
-    primary = "workos";
+    environment = "beta";
     return Promise.resolve(new Response(null, { status: 503 }));
   }) as typeof fetch);
   const auth = await load();
@@ -715,33 +732,14 @@ test("refresh failures rediscover a provider change before the next request", as
   expect(attempts).toBe(1);
 });
 
-test("identity verification keeps its error when cleanup revocation is unavailable", async () => {
-  globalThis.fetch = withDiscovery(((input) => {
-    const url = String(input);
-    if (url.endsWith("/mcp/token")) {
-      return Promise.resolve(tokenResponse());
-    }
-    return Promise.resolve(
-      new Response(null, { status: url.endsWith("/revoke") ? 503 : 403 })
-    );
-  }) as typeof fetch);
-  await expect((await load()).beginOAuthSignIn()).rejects.toThrow(
-    "Could not verify your account"
-  );
-  expect(storage[tokenKey]).toBeUndefined();
-});
-
-test.each([204, 401, 503, 200, 302])(
-  "WorkOS logout without a provider revoke endpoint requires exact disconnect204 (HTTP%i)",
+test.each([204, 503, 200, 302])(
+  "WorkOS logout requires an exact disconnect 204 (HTTP%i)",
   async (status) => {
-    primary = "workos";
     storage[tokenKey] = {
       accessToken,
       refreshToken,
       expiresAt: Date.now() - 1000,
-      siteUrl: "https://test.convex.site",
-      issuer: "https://auth.test.workos.com",
-      clientId: "client_chrome",
+      ...workosBinding,
     };
     const network = mock((input, init) => {
       expect(String(input)).toBe(
@@ -755,9 +753,6 @@ test.each([204, 401, 503, 200, 302])(
       return Promise.resolve(new Response(null, { status }));
     });
     globalThis.fetch = withDiscovery(network as unknown as typeof fetch);
-    if (status === 204 || status === 401) {
-      primary = "betterauth";
-    }
     const auth = await load();
     if (status === 204) {
       await auth.signOutOAuth();
@@ -774,7 +769,6 @@ test.each([204, 401, 503, 200, 302])(
 test.each([204, 503])(
   "expired first WorkOS logout refreshes once and retains rotation on failure (%i)",
   async (status) => {
-    primary = "workos";
     storage[tokenKey] = {
       accessToken,
       refreshToken,
@@ -824,7 +818,6 @@ test.each([204, 503])(
 );
 
 test("failed WorkOS identity verification never disconnects other installations", async () => {
-  primary = "workos";
   let disconnects = 0;
   globalThis.fetch = withDiscovery((async (input) => {
     if (String(input).endsWith("/oauth2/token")) {
@@ -843,7 +836,6 @@ test("failed WorkOS identity verification never disconnects other installations"
   expect(storage[tokenKey]).toBeUndefined();
 });
 test("unknown-owner WorkOS reconnect stops before opening a browser", async () => {
-  primary = "workos";
   storage[tokenKey] = {
     accessToken,
     refreshToken,
@@ -872,7 +864,6 @@ test.each([
 ] as const)(
   "dead WorkOS logout refresh HTTP%i forgets only proven invalid grants",
   async (status, body, clear) => {
-    primary = "workos";
     const saved = {
       accessToken,
       refreshToken,

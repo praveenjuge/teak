@@ -1,4 +1,5 @@
 import { api } from "@teak/convex";
+import { SIGNUPS_PAUSED_MESSAGE } from "@teak/convex/shared/constants";
 import { ConvexHttpClient } from "convex/browser";
 import type { FunctionReturnType } from "convex/server";
 import {
@@ -46,9 +47,7 @@ export function getWorkosSession(clientId: string): WorkosSession {
             throw new Error("Verify your email before opening your vault.");
           }
           if (result.status === "frozen") {
-            throw new Error(
-              "New sign-ups are paused while we upgrade sign-in."
-            );
+            throw new Error(SIGNUPS_PAUSED_MESSAGE);
           }
           throw new Error(
             "Unable to open your vault. Please try again or contact support."

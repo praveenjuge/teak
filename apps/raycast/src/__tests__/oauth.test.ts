@@ -15,8 +15,8 @@ const requests: Array<{
   extraParameters: Record<string, string>;
 }> = [];
 let browserCount = 0;
-let mode: "betterauth" | "workos" = "betterauth";
 let workosIssuer = "https://scholarly-hay-77.authkit.app";
+let primary = "workos";
 let tokenFailure = false;
 let tokenOutage = false;
 let malformedToken = false;
@@ -85,14 +85,11 @@ mock.module("@raycast/api", () => ({
 const oauth = await import(`../lib/oauth?oauth-tests=${crypto.randomUUID()}`);
 const json = (value: unknown, status = 200) =>
   new Response(JSON.stringify(value), { status });
+const replacementIssuer = "https://replacement-teak.authkit.app";
 const transport = ((input: RequestInfo | URL, init?: RequestInit) => {
   const url = String(input);
-  const issuer =
-    mode === "betterauth" ? "https://app.teakvault.com" : workosIssuer;
-  const client =
-    mode === "betterauth"
-      ? "teak-raycast"
-      : "client_01M47GV3CYKFW0H78W0XYKGTM5";
+  const issuer = workosIssuer;
+  const client = "client_01M47GV3CYKFW0H78W0XYKGTM5";
   if (url.includes("oauth-protected-resource")) {
     return Promise.resolve(
       json({
@@ -105,7 +102,7 @@ const transport = ((input: RequestInfo | URL, init?: RequestInit) => {
     return Promise.resolve(
       json({
         issuer,
-        primary: mode,
+        primary,
         clients: Object.fromEntries(
           ["cli", "raycast", "chrome", "firefox", "safari"].map((surface) => [
             surface,
@@ -121,13 +118,7 @@ const transport = ((input: RequestInfo | URL, init?: RequestInit) => {
         issuer,
         code_challenge_methods_supported: ["S256"],
         authorization_endpoint: `${issuer}/authorize`,
-        token_endpoint:
-          mode === "workos" ? `${issuer}/oauth2/token` : `${issuer}/token`,
-        ...(mode === "betterauth"
-          ? {
-              revocation_endpoint: "https://teakvault.com/api/api/oauth/revoke",
-            }
-          : {}),
+        token_endpoint: `${issuer}/oauth2/token`,
       }),
     );
   }
@@ -143,9 +134,6 @@ const transport = ((input: RequestInfo | URL, init?: RequestInit) => {
         status: revocationFailure ? 503 : disconnectStatus,
       }),
     );
-  }
-  if (url.endsWith("/revoke")) {
-    return Promise.resolve(json({}, revocationFailure ? 503 : 200));
   }
   if (malformedToken) {
     return Promise.resolve(
@@ -174,8 +162,8 @@ beforeEach(async () => {
   toasts.length = 0;
   posts.length = 0;
   browserCount = 0;
-  mode = "betterauth";
   workosIssuer = "https://scholarly-hay-77.authkit.app";
+  primary = "workos";
   tokenFailure = false;
   tokenOutage = false;
   malformedToken = false;
@@ -188,18 +176,31 @@ afterEach(() => {
   globalThis.fetch = originalFetch;
 });
 
-test("Better Auth discovers browser endpoints and preserves production native credentials", async () => {
+test("pre-WorkOS credentials neither sign in nor block a fresh WorkOS sign-in", async () => {
   stores.set("teak", {
     accessToken: "legacy",
-    refreshToken: "refresh",
+    refreshToken: "legacy-refresh",
     isExpired: () => false,
   });
-  expect(await oauth.authorizeTeak()).toBe("legacy");
+  expect(await oauth.hasStoredTeakSession()).toBe(false);
+  expect(await oauth.authorizeTeak()).toBe("access-new");
+  expect(browserCount).toBe(1);
+  expect(posts.map((post) => post.url)).toEqual([
+    "https://scholarly-hay-77.authkit.app/oauth2/token",
+  ]);
+  expect(posts[0].body.get("refresh_token")).toBeNull();
+});
+
+test("a server that does not advertise WorkOS is refused before browser sign-in", async () => {
+  primary = "betterauth";
+  await expect(oauth.authorizeTeak()).rejects.toThrow(
+    "unsupported sign-in provider",
+  );
   expect(browserCount).toBe(0);
+  expect(posts).toHaveLength(0);
 });
 
 test("WorkOS binds PKCE and token exchange to the REST resource and dynamic client", async () => {
-  mode = "workos";
   expect(await oauth.authorizeTeak()).toBe("access-new");
   expect(requests[0].endpoint).toBe(
     "https://scholarly-hay-77.authkit.app/authorize",
@@ -219,7 +220,6 @@ test("WorkOS binds PKCE and token exchange to the REST resource and dynamic clie
 });
 
 test("concurrent commands rotate a refresh token once without opening the browser", async () => {
-  mode = "workos";
   await oauth.authorizeTeak();
   const key = Array.from(stores.keys())[0];
   stores.set(key, {
@@ -243,16 +243,20 @@ test("concurrent commands rotate a refresh token once without opening the browse
   expect(browserCount).toBe(0);
 });
 
-test("failed refresh refetches mode and never sends the old token to a new issuer", async () => {
-  stores.set("teak", {
+test("failed refresh refetches discovery and never sends the old token to a new issuer", async () => {
+  await oauth.authorizeTeak();
+  const key = Array.from(stores.keys())[0];
+  stores.set(key, {
     accessToken: "expired",
     refreshToken: "old-provider",
     isExpired: () => true,
   });
+  posts.length = 0;
+  browserCount = 0;
   const firstTransport = globalThis.fetch;
   globalThis.fetch = ((input, init) => {
-    if (String(input).endsWith("/token")) {
-      mode = "workos";
+    if (String(input).endsWith("/oauth2/token")) {
+      workosIssuer = replacementIssuer;
       tokenFailure = true;
     }
     return firstTransport(input, init);
@@ -260,13 +264,12 @@ test("failed refresh refetches mode and never sends the old token to a new issue
   await expect(oauth.getStoredTeakAccessToken()).rejects.toThrow();
   expect(await oauth.hasStoredTeakSession()).toBe(false);
   expect(posts.map((post) => post.url)).toEqual([
-    "https://app.teakvault.com/token",
+    "https://scholarly-hay-77.authkit.app/oauth2/token",
   ]);
   expect(browserCount).toBe(0);
 });
 
 test("sign out revokes the rotated credential and retains it on provider failure", async () => {
-  mode = "workos";
   await oauth.authorizeTeak();
   const key = Array.from(stores.keys())[0];
   stores.set(key, {
@@ -302,87 +305,74 @@ test("non-JSON token replies produce the sign-in error and store no credentials"
 });
 
 test("temporary refresh outage preserves credentials and never opens browser sign-in", async () => {
-  stores.set("teak", {
+  await oauth.authorizeTeak();
+  const key = Array.from(stores.keys())[0];
+  stores.set(key, {
     accessToken: "expired",
     refreshToken: "still-valid",
     isExpired: () => true,
   });
+  browserCount = 0;
   tokenOutage = true;
   await expect(oauth.authorizeTeak()).rejects.toThrow("connection");
   expect(browserCount).toBe(0);
-  expect(stores.get("teak")?.refreshToken).toBe("still-valid");
+  expect(stores.get(key)?.refreshToken).toBe("still-valid");
 });
 
-test("sign out after process restart revokes stored legacy and prior WorkOS namespaces", async () => {
-  mode = "workos";
+test("sign out after restart disconnects WorkOS and clears pre-WorkOS credentials locally", async () => {
   await oauth.authorizeTeak();
+  const workosKey = Array.from(stores.keys())[0];
+  // Records an older build saved for its Better Auth connections.
+  const apiBaseUrl = "https://teakvault.com/api/v1";
+  const legacyIssuer = "https://app.teakvault.com";
+  const legacyClient = "teak-raycast";
+  const scopedLegacyId = `teak:${apiBaseUrl}|${legacyIssuer}|${legacyClient}`;
+  for (const providerId of ["teak", scopedLegacyId]) {
+    await raycastLocalStorageMock.setItem(
+      `teak.oauth.provider:${encodeURIComponent(apiBaseUrl)}:${providerId}`,
+      JSON.stringify({
+        apiBaseUrl,
+        providerId,
+        issuer: legacyIssuer,
+        clientId: legacyClient,
+        revocationEndpoint: "https://teakvault.com/api/api/oauth/revoke",
+      }),
+    );
+  }
   stores.set("teak", {
     accessToken: "old-legacy",
     refreshToken: "old-legacy-refresh",
     isExpired: () => false,
   });
-  mode = "betterauth";
+  stores.set(scopedLegacyId, { accessToken: "", isExpired: () => true });
+  posts.length = 0;
   globalThis.fetch = ((input, init) => transport(input, init)) as typeof fetch;
   const restarted = await import(`../lib/oauth?restart=${crypto.randomUUID()}`);
-  await restarted.signOutTeak();
-  expect(stores.size).toBe(0);
-  expect(
-    posts
-      .filter((post) => post.url.endsWith("/revoke"))
-      .map((post) => post.body.get("token")),
-  ).toContain("old-legacy-refresh");
-});
-
-test.each([404, 401])(
-  "legacy credentials whose removed revoke route returns %i still sign out and clear WorkOS",
-  async (status) => {
-    mode = "workos";
-    await oauth.authorizeTeak();
-    const workosKey = Array.from(stores.keys())[0];
-    stores.set("teak", {
-      accessToken: "old-legacy",
-      refreshToken: "old-legacy-refresh",
-      isExpired: () => false,
-    });
-    posts.length = 0;
-    globalThis.fetch = ((input, init) => {
-      if (String(input).endsWith("/api/oauth/revoke")) {
-        posts.push({
-          url: String(input),
-          body: new URLSearchParams(String(init?.body)),
-          redirect: init?.redirect,
-          authorization: null,
-        });
-        return Promise.resolve(json({}, status));
-      }
-      return transport(input, init);
-    }) as typeof fetch;
-    expect(await oauth.signOutTeak()).toBe("disconnected");
-    expect(stores.has("teak")).toBe(false);
-    expect(stores.has(workosKey)).toBe(false);
-    expect(posts.map((post) => post.url)).toEqual([
-      "https://teakvault.com/api/api/oauth/revoke",
-      "https://teakvault.com/api/v1/oauth/disconnect",
-    ]);
-    expect(posts[1].authorization).toBe("Bearer access-new");
-    expect(Object.keys(await raycastLocalStorageMock.allItems())).toEqual([]);
-  },
-);
-
-test("unusable legacy credentials are cleared locally without blocking sign out", async () => {
-  mode = "workos";
-  await oauth.authorizeTeak();
-  stores.set("teak", { accessToken: "", isExpired: () => true });
-  posts.length = 0;
-  expect(await oauth.signOutTeak()).toBe("disconnected");
-  expect(stores.size).toBe(0);
+  expect(await restarted.signOutTeak()).toBe("disconnected");
+  expect(stores.has("teak")).toBe(false);
+  expect(stores.has(scopedLegacyId)).toBe(false);
+  expect(stores.has(workosKey)).toBe(false);
   expect(posts.map((post) => post.url)).toEqual([
     "https://teakvault.com/api/v1/oauth/disconnect",
   ]);
+  expect(posts[0].authorization).toBe("Bearer access-new");
+  expect(Object.keys(await raycastLocalStorageMock.allItems())).toEqual([]);
+});
+
+test("pre-WorkOS-only sign out clears locally and then signs in with WorkOS", async () => {
+  stores.set("teak", {
+    accessToken: "old-legacy",
+    refreshToken: "old-legacy-refresh",
+    isExpired: () => false,
+  });
+  expect(await oauth.signOutTeak()).toBe("disconnected");
+  expect(stores.size).toBe(0);
+  expect(posts).toHaveLength(0);
+  expect(await oauth.authorizeTeak()).toBe("access-new");
+  expect(browserCount).toBe(1);
 });
 
 test("tampered historical endpoints never receive saved credentials", async () => {
-  mode = "workos";
   await oauth.authorizeTeak();
   const registry = await raycastLocalStorageMock.allItems();
   const entry = Object.entries(registry).find(([, value]) =>
@@ -400,7 +390,7 @@ test("tampered historical endpoints never receive saved credentials", async () =
     }),
   );
   posts.length = 0;
-  mode = "betterauth";
+  workosIssuer = replacementIssuer;
   globalThis.fetch = ((input, init) => transport(input, init)) as typeof fetch;
   const restarted = await import(`../lib/oauth?tamper=${crypto.randomUUID()}`);
   try {
@@ -413,6 +403,8 @@ test("tampered historical endpoints never receive saved credentials", async () =
 });
 
 test("sign out scopes persisted connections to its deployment", async () => {
+  await oauth.authorizeTeak();
+  const key = Array.from(stores.keys())[0];
   const foreignKey =
     "teak.oauth.provider:" +
     encodeURIComponent("https://other-dev.convex.site/v1") +
@@ -421,13 +413,8 @@ test("sign out scopes persisted connections to its deployment", async () => {
     foreignKey,
     "untrusted foreign deployment metadata",
   );
-  stores.set("teak", {
-    accessToken: "current",
-    refreshToken: "current-refresh",
-    isExpired: () => false,
-  });
   await oauth.signOutTeak();
-  expect(stores.has("teak")).toBe(false);
+  expect(stores.has(key)).toBe(false);
   expect(await raycastLocalStorageMock.getItem(foreignKey)).toBe(
     "untrusted foreign deployment metadata",
   );
@@ -435,7 +422,6 @@ test("sign out scopes persisted connections to its deployment", async () => {
 });
 
 test("historical expired WorkOS access disconnects without browser or refresh token exposure", async () => {
-  mode = "workos";
   await oauth.authorizeTeak();
   const key = Array.from(stores.keys())[0];
   stores.set(key, {
@@ -443,7 +429,7 @@ test("historical expired WorkOS access disconnects without browser or refresh to
     refreshToken: "secret-refresh",
     isExpired: () => true,
   });
-  mode = "betterauth";
+  workosIssuer = replacementIssuer;
   globalThis.fetch = ((input, init) => transport(input, init)) as typeof fetch;
   browserCount = 0;
   posts.length = 0;
@@ -461,7 +447,6 @@ test("historical expired WorkOS access disconnects without browser or refresh to
 test.each([401, 503, 200])(
   "disconnect HTTP %i retains credentials instead of claiming revocation",
   async (status) => {
-    mode = "workos";
     await oauth.authorizeTeak();
     const key = Array.from(stores.keys())[0];
     disconnectStatus = status;
@@ -477,7 +462,6 @@ test.each([401, 503, 200])(
 test.each([204, 503])(
   "expired first logout refreshes its exact namespace once and retains rotation on failure (%i)",
   async (status) => {
-    mode = "workos";
     await oauth.authorizeTeak();
     const key = Array.from(stores.keys())[0];
     stores.set(key, {
@@ -525,7 +509,6 @@ test.each([204, 503])(
 );
 
 test("WorkOS reauthorization refreshes its saved grant without browser replacement", async () => {
-  mode = "workos";
   await oauth.authorizeTeak();
   browserCount = 0;
   posts.length = 0;
@@ -539,7 +522,6 @@ test("WorkOS reauthorization refreshes its saved grant without browser replaceme
   expect(browserCount).toBe(0);
 });
 test("WorkOS reauthorization without refresh preserves the grant and requests explicit logout", async () => {
-  mode = "workos";
   await oauth.authorizeTeak();
   const key = Array.from(stores.keys())[0];
   stores.set(key, { accessToken: "saved-access", isExpired: () => false });
@@ -554,7 +536,6 @@ test("WorkOS reauthorization without refresh preserves the grant and requests ex
 test.each([false, true])(
   "access-only WorkOS token (expired=%s) requires Sign Out before fresh browser auth",
   async (expired) => {
-    mode = "workos";
     await oauth.authorizeTeak();
     const key = Array.from(stores.keys())[0];
     const saved = {
@@ -602,7 +583,6 @@ test.each([false, true])(
 test.each(["success", "server", "network"])(
   "access-only WorkOS Sign Out handles %s disconnect without refresh",
   async (outcome) => {
-    mode = "workos";
     await oauth.authorizeTeak();
     const key = Array.from(stores.keys())[0];
     const saved = { accessToken: "access-only", isExpired: () => false };
@@ -637,7 +617,6 @@ test.each(["success", "server", "network"])(
 test.each([false, true])(
   "refresh-only WorkOS credential renews and disconnects (read first=%s)",
   async (readFirst) => {
-    mode = "workos";
     await oauth.authorizeTeak();
     const key = Array.from(stores.keys())[0];
     stores.set(key, {
@@ -666,7 +645,6 @@ test.each([false, true])(
 );
 
 test("refresh-only historical WorkOS credential clears locally without sending its refresh token", async () => {
-  mode = "workos";
   await oauth.authorizeTeak();
   const key = Array.from(stores.keys())[0];
   stores.set(key, {
@@ -674,7 +652,7 @@ test("refresh-only historical WorkOS credential clears locally without sending i
     refreshToken: "historical-refresh-only",
     isExpired: () => true,
   });
-  mode = "betterauth";
+  workosIssuer = replacementIssuer;
   globalThis.fetch = ((input, init) => transport(input, init)) as typeof fetch;
   const restarted = await import(
     `../lib/oauth?historical-refresh-only=${crypto.randomUUID()}`
@@ -690,7 +668,6 @@ test("refresh-only historical WorkOS credential clears locally without sending i
 test.each(["unknown", "malformed", "network", "server"])(
   "refresh-only WorkOS Sign Out retains credentials on %s refresh failure",
   async (failure) => {
-    mode = "workos";
     await oauth.authorizeTeak();
     const key = Array.from(stores.keys())[0];
     const saved = {
@@ -726,7 +703,6 @@ test.each(["unknown", "malformed", "network", "server"])(
 );
 
 test("empty WorkOS token state requires explicit local Sign Out before browser auth", async () => {
-  mode = "workos";
   await oauth.authorizeTeak();
   const key = Array.from(stores.keys())[0];
   stores.set(key, { accessToken: "", isExpired: () => true });
@@ -743,7 +719,6 @@ test("empty WorkOS token state requires explicit local Sign Out before browser a
 });
 
 test("background reads join WorkOS reauthorization rotation", async () => {
-  mode = "workos";
   await oauth.authorizeTeak();
   const key = Array.from(stores.keys())[0];
   stores.set(key, {
@@ -779,7 +754,6 @@ test("background reads join WorkOS reauthorization rotation", async () => {
 });
 
 test("corrupt registry metadata cannot block valid logout or clear foreign tokens", async () => {
-  mode = "workos";
   await oauth.authorizeTeak();
   const key = Array.from(stores.keys())[0];
   const prefix =
@@ -812,7 +786,6 @@ test.each([
 ])(
   "logout clears definitive grant/client rejection and retains uncertain failures (%s)",
   async (failure) => {
-    mode = "workos";
     await oauth.authorizeTeak();
     const key = Array.from(stores.keys())[0];
     stores.set("foreign-provider", {
@@ -855,7 +828,6 @@ test.each([
 test.each(["invalid_grant", "invalid_refresh_token"])(
   "local-only Sign Out action after %s warns that other installations may remain connected",
   async (refreshError) => {
-    mode = "workos";
     await oauth.authorizeTeak();
     globalThis.fetch = (async (input, init) => {
       if (String(input).endsWith("/oauth/disconnect"))
@@ -888,7 +860,6 @@ test.each(["invalid_grant", "invalid_refresh_token"])(
 test.each([400, 401])(
   "malformed HTTP %i refresh replies preserve credentials without browser replacement",
   async (status) => {
-    mode = "workos";
     await oauth.authorizeTeak();
     const key = Array.from(stores.keys())[0];
     const saved = {
@@ -931,7 +902,6 @@ test.each([400, 401])(
 );
 
 test("current discovered replacement WorkOS issuer signs out its exact saved namespace", async () => {
-  mode = "workos";
   workosIssuer = "https://replacement-teak.authkit.app";
   await oauth.authorizeTeak();
   const key = Array.from(stores.keys())[0];
@@ -945,7 +915,6 @@ test("current discovered replacement WorkOS issuer signs out its exact saved nam
 });
 
 test("trusted historical WorkOS 401 clears locally without refreshing against the replacement provider", async () => {
-  mode = "workos";
   await oauth.authorizeTeak();
   const key = Array.from(stores.keys())[0];
   stores.set(key, {
@@ -953,7 +922,7 @@ test("trusted historical WorkOS 401 clears locally without refreshing against th
     refreshToken: "historical-refresh",
     isExpired: () => true,
   });
-  mode = "betterauth";
+  workosIssuer = replacementIssuer;
   disconnectStatus = 401;
   globalThis.fetch = ((input, init) => transport(input, init)) as typeof fetch;
   const restarted = await import(
@@ -1004,7 +973,6 @@ test.each([
 ])(
   "refresh HTTP %i %s requires explicit local-only Sign Out",
   async (status, error) => {
-    mode = "workos";
     await oauth.authorizeTeak();
     const key = Array.from(stores.keys())[0];
     const saved = {

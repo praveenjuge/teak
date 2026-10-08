@@ -11,7 +11,7 @@ import { join } from "node:path";
 import { inferFileFormat } from "@teak/convex/shared/file-formats";
 import { formatCardLine, getUploadFileInfo, mimeFor, parseSort } from ".";
 import { resolveAddInput } from "./files";
-import { CLI_OAUTH_SCOPE, createAuthorizeUrl, VERSION } from "./runtime";
+import { createAuthorizeUrl, VERSION } from "./runtime";
 
 const fixtureDirectory = mkdtempSync(join(tmpdir(), "teak-cli-files-"));
 
@@ -121,18 +121,17 @@ describe("teak cli formatting", () => {
   test("requests refresh-capable OAuth scope during login", () => {
     const url = createAuthorizeUrl(
       {
-        primary: "betterauth",
-        issuer: "https://app.teakvault.com",
-        authorizationEndpoint:
-          "https://app.teakvault.com/api/auth/mcp/authorize",
-        tokenEndpoint: "https://app.teakvault.com/api/auth/mcp/token",
+        primary: "workos",
+        issuer: "https://auth.teakvault.com",
+        authorizationEndpoint: "https://auth.teakvault.com/oauth2/authorize",
+        tokenEndpoint: "https://auth.teakvault.com/oauth2/token",
         resource: "https://teakvault.com/mcp",
         clients: {
-          cli: "teak-cli",
-          raycast: "teak-raycast",
-          chrome: "teak-chrome",
-          firefox: "teak-firefox",
-          safari: "teak-safari",
+          cli: "client_01CLI",
+          raycast: "client_01RAYCAST",
+          chrome: "client_01CHROME",
+          firefox: "client_01FIREFOX",
+          safari: "client_01SAFARI",
         },
       },
       {
@@ -142,8 +141,10 @@ describe("teak cli formatting", () => {
       }
     );
 
-    expect(url.searchParams.get("client_id")).toBe("teak-cli");
-    expect(url.searchParams.get("scope")).toBe(CLI_OAUTH_SCOPE);
-    expect(url.searchParams.get("scope")).toContain("offline_access");
+    expect(url.searchParams.get("client_id")).toBe("client_01CLI");
+    expect(url.searchParams.get("resource")).toBe("https://teakvault.com/api");
+    expect(url.searchParams.get("scope")).toBe(
+      "openid profile email offline_access"
+    );
   });
 });

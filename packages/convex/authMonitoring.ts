@@ -1,5 +1,5 @@
 /**
- * Auth monitoring signals for the WorkOS cutover rollback triggers.
+ * Auth monitoring signals for WorkOS sign-in and the public API boundary.
  *
  * Every signal is a structured log line or an existing telemetry metric. None
  * carries an email, raw user ID, token, URL, request body or profile field;

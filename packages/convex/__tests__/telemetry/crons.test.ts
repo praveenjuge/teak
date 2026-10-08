@@ -6,15 +6,11 @@ import { getFunctionName } from "convex/server";
 import {
   CRON_MONITORS,
   cleanupExpiredIdempotency,
-  cleanupExpiredNativeAuthCodes,
   workosDailyReconciliationAudit,
 } from "../../telemetry/crons";
 
 describe("Sentry cron monitoring", () => {
-  test.each([
-    ["idempotency", cleanupExpiredIdempotency],
-    ["nativeAuthCodes", cleanupExpiredNativeAuthCodes],
-  ])(
+  test.each([["idempotency", cleanupExpiredIdempotency]])(
     "retention cron %s runs only with explicit activation",
     async (kind, action) => {
       const previous = process.env.OPERATIONAL_RETENTION_ENABLED;
@@ -52,10 +48,6 @@ describe("Sentry cron monitoring", () => {
       expect.objectContaining({
         schedule: "10 * * * *",
         slug: "cleanup-expired-idempotency",
-      }),
-      expect.objectContaining({
-        schedule: "30 6 * * *",
-        slug: "cleanup-expired-native-auth-codes",
       }),
       expect.objectContaining({
         schedule: "0 */6 * * *",
@@ -121,13 +113,13 @@ describe("Sentry cron monitoring", () => {
     expect(tolerant).toEqual(subHourly);
   });
 
-  test("routes all twelve schedules through monitored Node actions", () => {
+  test("routes all eleven schedules through monitored Node actions", () => {
     const source = readFileSync(
       resolve(import.meta.dir, "../../crons.ts"),
       "utf8"
     );
-    expect(source.match(/crons\.cron\(/gu)).toHaveLength(12);
-    expect(source.match(/telemetry\.crons\./gu)).toHaveLength(12);
+    expect(source.match(/crons\.cron\(/gu)).toHaveLength(11);
+    expect(source.match(/telemetry\.crons\./gu)).toHaveLength(11);
     expect(source).not.toContain("crons.daily(");
     expect(source).not.toContain("crons.interval(");
   });

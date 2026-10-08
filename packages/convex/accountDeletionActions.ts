@@ -12,13 +12,20 @@ import { callFilesWorkerJson } from "./storage/filesWorkerClient";
 import { withBackendSpan } from "./telemetry/sentry";
 
 // Accounts from before WorkOS keep retained Better Auth rows. Deletion removes
-// the same rows Better Auth's own deleteUser did: sessions, accounts, user.
-// The delete trigger handle keeps the user tombstone and email redaction.
+// every row keyed to that user: sessions, accounts, OAuth grants and consents,
+// two-factor secrets, then the user. The delete trigger handle keeps the user
+// tombstone and email redaction. Verification rows are keyed by email or token,
+// not user, and expire on their own.
 const legacyDeleteTrigger = () => createFunctionHandle(internal.auth.onDelete);
 
 async function deleteLegacyRows(
   ctx: Pick<ActionCtx, "runMutation">,
-  model: "session" | "account",
+  model:
+    | "session"
+    | "account"
+    | "oauthAccessToken"
+    | "oauthConsent"
+    | "twoFactor",
   userId: string
 ) {
   const onDeleteHandle = await legacyDeleteTrigger();
@@ -275,8 +282,15 @@ export const runStage = internalAction({
       }
     } else if (stage === 5) {
       if (state.betterAuthUserId) {
-        await deleteLegacyRows(ctx, "session", state.betterAuthUserId);
-        await deleteLegacyRows(ctx, "account", state.betterAuthUserId);
+        for (const model of [
+          "session",
+          "account",
+          "oauthAccessToken",
+          "oauthConsent",
+          "twoFactor",
+        ] as const) {
+          await deleteLegacyRows(ctx, model, state.betterAuthUserId);
+        }
         await ctx.runMutation(components.betterAuth.adapter.deleteOne, {
           input: {
             model: "user",

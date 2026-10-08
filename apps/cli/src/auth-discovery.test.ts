@@ -18,14 +18,14 @@ mkdirSync(join(directory, "teak"));
 writeFileSync(join(directory, "security"), "#!/bin/sh\nexit 1\n", {
   mode: 0o700,
 });
-let primary: "betterauth" | "workos" = "betterauth";
+// Two WorkOS environments model a client registration change on the server.
+let environment: "alpha" | "beta" = "alpha";
 let tokenStatus = 200;
 let tokenBody: Record<string, unknown> | undefined;
 let refreshes = 0;
 let exchanges = 0;
-let revoked = 0;
+let disconnects = 0;
 let applicationRevoked = false;
-let revokeStatus = 200;
 let rejectRefreshReplay = false;
 let apiRequests = 0;
 let holdFirstApi = false;
@@ -40,24 +40,22 @@ let releaseRefresh = () => {};
 let started: Promise<void>;
 let released: Promise<void>;
 let transmitted: URLSearchParams | null = null;
-let unsafeEndpoint: string | undefined;
-let unsafeField: "token_endpoint" | "revocation_endpoint" = "token_endpoint";
-let tokenPath = "/token";
+let unsafeTokenEndpoint: string | undefined;
+let tokenPath = "/oauth2/token";
 let moveTokenEndpoint = false;
-let metadataApiOrigin: string | undefined;
 let metadataIssuerOrigin: string | undefined;
 const clients = () =>
   Object.fromEntries(
     ["cli", "raycast", "chrome", "firefox", "safari"].map((surface) => [
       surface,
-      `${primary === "workos" ? "client" : "teak"}-${surface}`,
+      `client_01${environment.toUpperCase()}${surface.toUpperCase()}`,
     ])
   );
 const server = serve({
   port: 0,
   async fetch(request) {
     const url = new URL(request.url);
-    const issuer = `${metadataIssuerOrigin ?? server.url.origin}/${primary}`;
+    const issuer = `${metadataIssuerOrigin ?? server.url.origin}/${environment}`;
     if (url.pathname === "/test/refresh-started") {
       await started;
       return new Response("ready");
@@ -68,33 +66,28 @@ const server = serve({
     }
     if (url.pathname === "/.well-known/oauth-protected-resource/mcp") {
       return Response.json({
-        resource:
-          primary === "workos"
-            ? "https://teakvault.com/mcp"
-            : `${metadataApiOrigin ?? server.url.origin}/mcp`,
+        resource: "https://teakvault.com/mcp",
         authorization_servers: [issuer],
       });
     }
     if (url.pathname === "/.well-known/teak-oauth-clients.json") {
-      return Response.json({ primary, issuer, clients: clients() });
+      return Response.json({ primary: "workos", issuer, clients: clients() });
     }
-    if (url.pathname === `/.well-known/oauth-authorization-server/${primary}`) {
+    if (
+      url.pathname === `/.well-known/oauth-authorization-server/${environment}`
+    ) {
       return Response.json({
         issuer,
-        authorization_endpoint: `${issuer}/authorize`,
-        token_endpoint: `${issuer}${tokenPath}`,
-        revocation_endpoint: `${issuer}/revoke`,
+        authorization_endpoint: `${issuer}/oauth2/authorize`,
+        token_endpoint: unsafeTokenEndpoint ?? `${issuer}${tokenPath}`,
         code_challenge_methods_supported: ["S256"],
-        ...(unsafeEndpoint ? { [unsafeField]: unsafeEndpoint } : {}),
       });
     }
-    if (url.pathname === `/${primary}${tokenPath}`) {
+    if (url.pathname === `/${environment}${tokenPath}`) {
       const body = new URLSearchParams(await request.text());
       transmitted = body;
       expect(body.get("client_id")).toBe(clients().cli ?? null);
-      expect(body.get("resource")).toBe(
-        primary === "workos" ? "https://teakvault.com/api" : null
-      );
+      expect(body.get("resource")).toBe("https://teakvault.com/api");
       if (body.get("grant_type") === "refresh_token") {
         if (
           rejectRefreshReplay &&
@@ -104,7 +97,7 @@ const server = serve({
         }
         refreshes++;
         if (flipDuringRefresh) {
-          primary = "betterauth";
+          environment = "beta";
           notifyStarted();
           await released;
         }
@@ -121,16 +114,11 @@ const server = serve({
         { status: tokenStatus }
       );
     }
-    if (["/betterauth/revoke", "/workos/revoke"].includes(url.pathname)) {
-      const body = new URLSearchParams(await request.text());
-      expect(body.get("client_id")).toBe(
-        url.pathname.startsWith("/workos/") ? "client-cli" : "teak-cli"
-      );
-      revoked++;
-      if (primary === "workos") {
-        applicationRevoked = true;
-      }
-      return new Response(null, { status: revokeStatus });
+    if (url.pathname === "/v1/oauth/disconnect") {
+      expect(request.method).toBe("POST");
+      disconnects++;
+      applicationRevoked = true;
+      return new Response(null, { status: 204 });
     }
     if (url.pathname === "/v1/me") {
       return Response.json({
@@ -223,18 +211,16 @@ const login = async (
     stdout += new TextDecoder().decode(chunk.value);
   }
   const authorization = new URL(stdout.split("\n")[0]!);
-  expect(authorization.pathname).toBe(`/${primary}/authorize`);
+  expect(authorization.pathname).toBe(`/${environment}/oauth2/authorize`);
   expect(authorization.searchParams.get("client_id")).toBe(
     clients().cli ?? null
   );
   expect(authorization.searchParams.get("code_challenge_method")).toBe("S256");
   expect(authorization.searchParams.get("scope")).toBe(
-    primary === "workos"
-      ? "openid profile email offline_access"
-      : "profile email offline_access"
+    "openid profile email offline_access"
   );
   expect(authorization.searchParams.get("resource")).toBe(
-    primary === "workos" ? "https://teakvault.com/api" : null
+    "https://teakvault.com/api"
   );
   const callback = new URL(authorization.searchParams.get("redirect_uri")!);
   if (signoutBeforeCallback) {
@@ -251,7 +237,7 @@ const login = async (
     expect((await fetch(callback)).status).toBe(400);
   }
   if (flip) {
-    primary = primary === "workos" ? "betterauth" : "workos";
+    environment = environment === "alpha" ? "beta" : "alpha";
   }
   callback.searchParams.set("state", authorization.searchParams.get("state")!);
   callback.searchParams.set("code", "code");
@@ -274,14 +260,13 @@ const login = async (
   };
 };
 beforeEach(() => {
-  primary = "betterauth";
+  environment = "alpha";
   tokenStatus = 200;
   tokenBody = undefined;
   refreshes = 0;
   exchanges = 0;
-  revoked = 0;
+  disconnects = 0;
   applicationRevoked = false;
-  revokeStatus = 200;
   rejectRefreshReplay = false;
   apiRequests = 0;
   holdFirstApi = false;
@@ -293,10 +278,9 @@ beforeEach(() => {
     releaseApi = resolve;
   });
   transmitted = null;
-  unsafeEndpoint = undefined;
-  tokenPath = "/token";
+  unsafeTokenEndpoint = undefined;
+  tokenPath = "/oauth2/token";
   moveTokenEndpoint = false;
-  metadataApiOrigin = undefined;
   metadataIssuerOrigin = undefined;
   flipDuringRefresh = false;
   started = new Promise((resolve) => {
@@ -307,22 +291,51 @@ beforeEach(() => {
   });
   writeFileSync(file, "", { mode: 0o600 });
 });
-test.each(["betterauth", "workos"] as const)(
-  "CLI signs in and disconnects using %s discovery",
-  async (mode) => {
-    primary = mode;
-    const result = await login();
-    expect(result.code).toBe(0);
-    expect(result.callbackStatus).toBe(200);
-    expect(JSON.parse(readFileSync(file, "utf8")).binding).toMatchObject({
-      apiUrl: server.url.origin,
-      issuer: `${server.url.origin}/${primary}`,
-      clientId: clients().cli,
+test("CLI signs in with WorkOS and disconnects on logout", async () => {
+  const result = await login();
+  expect(result.code).toBe(0);
+  expect(result.callbackStatus).toBe(200);
+  expect(JSON.parse(readFileSync(file, "utf8")).binding).toEqual({
+    apiUrl: server.url.origin,
+    issuer: `${server.url.origin}/alpha`,
+    clientId: "client_01ALPHACLI",
+    ownerId: "verified-owner",
+  });
+  expect((await run(["auth", "status", "--json"])).code).toBe(0);
+  expect((await run(["logout"])).code).toBe(0);
+  expect(disconnects).toBe(1);
+  expect(readFileSync(file, "utf8")).toBe("");
+});
+test.each([
+  ["unbound", undefined],
+  [
+    "Better Auth bound",
+    {
+      issuer: "https://app.teakvault.com",
+      clientId: "teak-cli",
+      revocationEndpoint: "https://teakvault.com/api/api/oauth/revoke",
+    },
+  ],
+])(
+  "CLI never uses %s pre-WorkOS credentials and replaces them on sign-in",
+  async (_name, binding) => {
+    const legacy = JSON.stringify({
+      accessToken: "access",
+      refreshToken: "refresh",
+      expiresAt: Date.now() + 3_600_000,
+      ...(binding
+        ? { binding: { apiUrl: server.url.origin, ...binding } }
+        : {}),
     });
-    expect((await run(["auth", "status", "--json"])).code).toBe(0);
-    expect((await run(["logout"])).code).toBe(0);
-    expect(revoked).toBe(1);
-    expect(readFileSync(file, "utf8")).toBe("");
+    writeFileSync(file, legacy);
+    expect((await run(["auth", "status"])).code).toBe(3);
+    expect(apiRequests).toBe(0);
+    expect(readFileSync(file, "utf8")).toBe(legacy);
+    expect((await login()).code).toBe(0);
+    expect(disconnects).toBe(0);
+    expect(JSON.parse(readFileSync(file, "utf8")).binding.clientId).toBe(
+      "client_01ALPHACLI"
+    );
   }
 );
 test.if(platform() === "darwin")(
@@ -336,7 +349,6 @@ test.if(platform() === "darwin")(
       { mode: 0o700 }
     );
     try {
-      primary = "workos";
       expect((await login()).code).toBe(0);
       const saved = JSON.parse(readFileSync(file, "utf8"));
       expect(readFileSync(args, "utf8").trim()).toBe("-i");
@@ -356,7 +368,7 @@ test.if(platform() === "darwin")(
     }
   }
 );
-test("CLI rejects a provider flip during browser login without exchanging the old code", async () => {
+test("CLI rejects a client registration change during browser login without exchanging the old code", async () => {
   const result = await login(true);
   expect(result.code).toBe(1);
   expect(result.stderr).toContain("Authentication changed");
@@ -367,21 +379,20 @@ test("CLI rejects Unicode callback state and still accepts the valid callback", 
   expect((await login(false, true)).code).toBe(0);
   expect(exchanges).toBe(1);
 });
-test("CLI retains old-provider credentials for revocation without calling the new provider", async () => {
+test("CLI keeps credentials from a previous client registration unused until logout", async () => {
   expect((await login()).code).toBe(0);
   const saved = readFileSync(file, "utf8");
-  primary = "workos";
+  environment = "beta";
   const result = await run(["auth", "status", "--json"]);
   expect(result.code).toBe(3);
   expect(refreshes).toBe(0);
   expect(apiRequests).toBe(0);
   expect(readFileSync(file, "utf8")).toBe(saved);
   expect((await run(["logout"])).code).toBe(0);
-  expect(revoked).toBe(1);
+  expect(disconnects).toBe(1);
   expect(readFileSync(file, "utf8")).toBe("");
 });
 test("CLI rotates expired credentials once for concurrent API requests", async () => {
-  primary = "workos";
   expect((await login()).code).toBe(0);
   const saved = JSON.parse(readFileSync(file, "utf8"));
   saved.expiresAt = 0;
@@ -416,8 +427,7 @@ test("CLI preserves expired refresh credentials across a service outage", async 
   expect((await run(["auth", "status"])).code).toBe(0);
 });
 
-test("CLI saves rotation for revocation but never sends it after a provider flip", async () => {
-  primary = "workos";
+test("CLI saves rotation but never sends it after a client registration change", async () => {
   expect((await login()).code).toBe(0);
   const saved = JSON.parse(readFileSync(file, "utf8"));
   saved.expiresAt = 0;
@@ -437,7 +447,7 @@ test("CLI saves rotation for revocation but never sends it after a provider flip
   expect(apiRequests).toBe(0);
   expect(JSON.parse(readFileSync(file, "utf8")).refreshToken).toBe("refresh-1");
   expect((await run(["logout"])).code).toBe(0);
-  expect(revoked).toBe(1);
+  expect(disconnects).toBe(1);
   expect(readFileSync(file, "utf8")).toBe("");
 });
 
@@ -472,8 +482,7 @@ test.each([
     saved.expiresAt = 0;
     const credentials = JSON.stringify(saved);
     writeFileSync(file, credentials);
-    unsafeField = "token_endpoint";
-    unsafeEndpoint = endpoint;
+    unsafeTokenEndpoint = endpoint;
     const result = await run(["tags"]);
     expect(result.code).toBe(1);
     expect(result.stderr).toContain("Unsafe OAuth discovery URL");
@@ -481,15 +490,6 @@ test.each([
     expect(readFileSync(file, "utf8")).toBe(credentials);
   }
 );
-
-test("CLI never calls private revocation metadata and still signs out of a retired provider", async () => {
-  expect((await login()).code).toBe(0);
-  unsafeField = "revocation_endpoint";
-  unsafeEndpoint = "https://169.254.169.254/revoke";
-  expect((await run(["logout"])).code).toBe(0);
-  expect(revoked).toBe(0);
-  expect(readFileSync(file, "utf8")).toBe("");
-});
 
 test.each([
   '"wrong"',
@@ -536,7 +536,6 @@ test("CLI falls back to the registered second loopback port without keeping the 
 });
 
 test("CLI coordinates expired refreshes across separate processes", async () => {
-  primary = "workos";
   rejectRefreshReplay = true;
   expect((await login()).code).toBe(0);
   const saved = JSON.parse(readFileSync(file, "utf8"));
@@ -547,21 +546,11 @@ test("CLI coordinates expired refreshes across separate processes", async () => 
   expect(refreshes).toBe(1);
   expect(JSON.parse(readFileSync(file, "utf8")).refreshToken).toBe("refresh-1");
 });
-test("CLI signs out of a retired provider even when its revocation fails", async () => {
-  expect((await login()).code).toBe(0);
-  primary = "workos";
-  revokeStatus = 503;
-  expect((await run(["logout"])).code).toBe(0);
-  expect(revoked).toBe(1);
-  expect(readFileSync(file, "utf8")).toBe("");
-});
-
 test("CLI supports an explicit .localhost issuer with a hosted development API", async () => {
   const apiUrl = `https://${crypto.randomUUID()}.example`;
   const issuerOrigin = "http://app.localhost:3000";
-  metadataApiOrigin = apiUrl;
   metadataIssuerOrigin = issuerOrigin;
-  const options = { apiUrl, authUrl: `${issuerOrigin}/betterauth` };
+  const options = { apiUrl, authUrl: `${issuerOrigin}/alpha` };
   const credentials = join(
     directory,
     "teak",
@@ -573,7 +562,7 @@ test("CLI supports an explicit .localhost issuer with a hosted development API",
       accessToken: "access",
       refreshToken: "refresh",
       expiresAt: Date.now() + 3_600_000,
-      binding: { apiUrl, issuer: options.authUrl, clientId: "teak-cli" },
+      binding: { apiUrl, issuer: options.authUrl, clientId: clients().cli },
     })
   );
   const originalFetch = globalThis.fetch;
@@ -622,31 +611,22 @@ test("CLI does not refresh a newer credential because an older API response retu
   expect(refreshes).toBe(1);
   expect(JSON.parse(readFileSync(file, "utf8")).refreshToken).toBe("refresh-1");
 });
-test("CLI logout cancels a pending login in another process and revokes its late grant", async () => {
+test("CLI logout cancels a pending login in another process and discards its late grant", async () => {
   const result = await login(false, false, true);
   expect(result.code).toBe(1);
   expect(result.stderr).toContain("cancelled by logout");
-  expect(revoked).toBe(1);
+  expect(disconnects).toBe(0);
   expect(readFileSync(file, "utf8")).toBe("");
 });
 
-test("CLI reconnect revokes the old provider before replacing its saved credentials", async () => {
+test("CLI reconnect disconnects a previous client registration before replacing it", async () => {
   expect((await login()).code).toBe(0);
-  primary = "workos";
+  environment = "beta";
   expect((await login()).code).toBe(0);
-  expect(revoked).toBe(1);
+  expect(disconnects).toBe(1);
   expect(JSON.parse(readFileSync(file, "utf8")).binding.issuer).toBe(
-    `${server.url.origin}/workos`
+    `${server.url.origin}/beta`
   );
-});
-test("CLI reconnect replaces a retired-provider session whose revocation fails", async () => {
-  expect((await login()).code).toBe(0);
-  const original = readFileSync(file, "utf8");
-  primary = "workos";
-  revokeStatus = 503;
-  expect((await login()).code).toBe(0);
-  expect(readFileSync(file, "utf8")).not.toBe(original);
-  expect(revoked).toBe(1);
 });
 
 test("CLI reuses a same-client refresh when an older concurrent request returns 401", async () => {
@@ -756,14 +736,14 @@ test("CLI refreshes a rejected token after joining an overlapping ordinary read"
   }
 });
 
-test("CLI revokes a new grant if unsafe storage prevents acquiring its commit lock", async () => {
+test("CLI discards a new grant if unsafe storage prevents acquiring its commit lock", async () => {
   const lock = file.replace(/\.json$/, ".lock");
   try {
     const result = await login(false, false, false, true);
     expect(result.code).toBe(1);
     expect(result.stderr).toContain("Unsafe credential lock");
     expect(exchanges).toBe(1);
-    expect(revoked).toBe(1);
+    expect(disconnects).toBe(0);
     expect(readFileSync(file, "utf8")).toBe("");
   } finally {
     unlinkSync(lock);
@@ -771,17 +751,15 @@ test("CLI revokes a new grant if unsafe storage prevents acquiring its commit lo
 });
 
 test("verified same-owner WorkOS reconnect keeps the new application grant usable", async () => {
-  primary = "workos";
   expect((await login()).code).toBe(0);
   expect(JSON.parse(readFileSync(file, "utf8")).binding.ownerId).toBe(
     "verified-owner"
   );
   expect((await login()).code).toBe(0);
-  expect(revoked).toBe(0);
+  expect(disconnects).toBe(0);
   expect((await run(["tags", "list"])).code).toBe(0);
 });
 test("unknown-owner saved WorkOS login stops before issuing another grant", async () => {
-  primary = "workos";
   expect((await login()).code).toBe(0);
   const saved = JSON.parse(readFileSync(file, "utf8"));
   saved.binding.ownerId = undefined;

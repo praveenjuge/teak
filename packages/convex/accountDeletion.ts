@@ -12,6 +12,7 @@ import {
 import { removeCardUsage } from "./card/cardUsage";
 import { readAccountChangesPaused } from "./env";
 import { getDeletionRetryPrincipal, getSessionUser } from "./securitySessions";
+import { ACCOUNT_CHANGES_PAUSED_MESSAGE } from "./shared/constants";
 import { TELEMETRY_OPERATIONS } from "./shared/telemetry";
 import { cardStorageObjectKeys } from "./storage/r2";
 import { startWorkflow } from "./workflows/manager";
@@ -465,9 +466,7 @@ export const initiateAccountDeletion = async (
     return null;
   }
   if (readAccountChangesPaused()) {
-    throw new ConvexError(
-      "Account changes are paused while we upgrade sign-in"
-    );
+    throw new ConvexError(ACCOUNT_CHANGES_PAUSED_MESSAGE);
   }
   // Accounts that existed before WorkOS also have retained Better Auth rows,
   // which deletion removes too.
