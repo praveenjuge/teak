@@ -420,7 +420,10 @@ export const cleanup = internalAction({
     ) {
       throw new Error("Invalid E2E cleanup request");
     }
-    const candidates = new Map<string, User | null>();
+    // `undefined` marks a reservation email whose provider user is looked up
+    // inside the per-candidate failure boundary, so one bad lease cannot
+    // abort the page for every other candidate.
+    const candidates = new Map<string, User | null | undefined>();
     if (emails) {
       for (const email of new Set(emails)) {
         await validate();
@@ -500,7 +503,7 @@ export const cleanup = internalAction({
         );
         for (const email of page.emails) {
           if (!candidates.has(email)) {
-            candidates.set(email, await providerUser(t, email));
+            candidates.set(email, undefined);
           }
         }
         if (
@@ -516,7 +519,8 @@ export const cleanup = internalAction({
     let pending = false;
     for (const [email, candidate] of candidates) {
       try {
-        let user = candidate;
+        let user =
+          candidate === undefined ? await providerUser(t, email) : candidate;
         await validate();
         const reservation = await ctx.runQuery(
           internal.workosE2eReservations.byEmail,
@@ -575,6 +579,23 @@ export const cleanup = internalAction({
           }
         );
         if (status.status === "completed") {
+          // A reserved fixture is cleaned only once its exact provider user
+          // is gone too; then its lease closes in this same call.
+          if (reservation && reservation.state !== "closed") {
+            if (!(await providerAbsent(t, user.id))) {
+              pending = true;
+              result.failures.push({
+                email,
+                reason: "account cleanup pending",
+              });
+              continue;
+            }
+            await ctx.runMutation(internal.workosE2eReservations.close, {
+              ...pins,
+              id: reservation._id,
+              reason: "provider_deleted",
+            });
+          }
           result.deleted.push(email);
         } else if (status.status === "pending") {
           pending = true;

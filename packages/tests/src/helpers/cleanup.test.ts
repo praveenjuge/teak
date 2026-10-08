@@ -601,3 +601,214 @@ test.each([
     expect(request.redirect).toBe("error");
   }
 });
+
+// Sweep census: one unresolved row never hides later pages, and nothing
+// unresolved ends green. Each page is keyed by the cursor that requests it.
+interface Page {
+  body: Record<string, unknown>;
+  status: number;
+}
+const page = (
+  status: number,
+  outcome: Partial<{
+    alreadyDeleted: string[];
+    deleted: string[];
+    failures: Array<{ email: string; reason: string }>;
+    ignoredOutOfRange: string[];
+  }>,
+  nextCursor: string | null = null
+): Page => ({
+  status,
+  body: {
+    alreadyDeleted: [],
+    deleted: [],
+    failures: [],
+    ignoredOutOfRange: [],
+    ...outcome,
+    remainingEligible: nextCursor !== null,
+    nextCursor,
+  },
+});
+const sweepServer = (
+  pass: (cursor: string | undefined, run: number) => Page
+) => {
+  env.cleanupToken = crypto.randomUUID();
+  env.convexSiteUrl = "https://example.convex.site";
+  const cursors: Array<string | undefined> = [];
+  let run = 0;
+  globalThis.fetch = mock((_input: RequestInfo | URL, init?: RequestInit) => {
+    const cursor = JSON.parse(String(init?.body)).cursor as string | undefined;
+    if (cursor === undefined) {
+      run++;
+    }
+    cursors.push(cursor);
+    const { status, body } = pass(cursor, run);
+    return Promise.resolve(Response.json(body, { status }));
+  }) as unknown as typeof fetch;
+  return cursors;
+};
+const stuck = "e2e-signup-stuck@tests.example.com";
+const orphan = "e2e-orphan@tests.example.com";
+const pendingStuck = {
+  failures: [{ email: stuck, reason: "account cleanup pending" }],
+};
+
+test("a pending first page still lets the sweep clean later pages, then fails unresolved", async () => {
+  const cursors = sweepServer((cursor) =>
+    cursor === undefined
+      ? page(202, pendingStuck, "page-2")
+      : page(200, { deleted: [orphan] })
+  );
+  const originalNow = Date.now;
+  let now = originalNow();
+  Date.now = () => now;
+  try {
+    const failure = await cleanupE2EAccounts(undefined, () => {
+      now += 50_000;
+      return Promise.resolve();
+    }).catch((error: Error) => error.message);
+    expect(failure).toContain("cleanup remains unproven");
+    expect(failure).toContain("deleted=1 alreadyDeleted=0 failed=1");
+  } finally {
+    Date.now = originalNow;
+  }
+  expect(cursors.slice(0, 2)).toEqual([undefined, "page-2"]);
+});
+
+test("a failed first page does not skip the rest of the census and fails the sweep", async () => {
+  const cursors = sweepServer((cursor) =>
+    cursor === undefined
+      ? page(
+          500,
+          { failures: [{ email: stuck, reason: "account cleanup failed" }] },
+          "page-2"
+        )
+      : page(200, { deleted: [orphan] })
+  );
+  await expect(cleanupE2EAccounts(undefined, noOpSleep)).rejects.toThrow(
+    "left unresolved accounts: deleted=1 alreadyDeleted=0 failed=1"
+  );
+  expect(cursors).toEqual([undefined, "page-2"]);
+});
+
+test("an out-of-range account is a final sweep failure after the full pass", async () => {
+  const cursors = sweepServer((cursor) =>
+    cursor === undefined
+      ? page(500, { ignoredOutOfRange: [stuck] }, "page-2")
+      : page(200, {})
+  );
+  await expect(cleanupE2EAccounts(undefined, noOpSleep)).rejects.toThrow(
+    "outOfRange=1"
+  );
+  expect(cursors).toEqual([undefined, "page-2"]);
+});
+
+test("pending rows that resolve on a later full pass end green", async () => {
+  const cursors = sweepServer((cursor, run) => {
+    if (cursor === undefined) {
+      return run === 1
+        ? page(202, pendingStuck, "page-2")
+        : page(200, { alreadyDeleted: [stuck] }, "page-2");
+    }
+    return page(200, run === 1 ? { deleted: [orphan] } : {});
+  });
+  const result = await cleanupE2EAccounts(undefined, noOpSleep);
+  expect(result.failures).toEqual([]);
+  expect(result.deleted).toEqual([orphan]);
+  expect(result.alreadyDeleted).toEqual([stuck]);
+  expect(cursors).toEqual([undefined, "page-2", undefined, "page-2"]);
+});
+
+test.each([
+  ["a 500 without failure evidence", page(500, {}, "page-2")],
+  ["a 200 that carries failures", page(200, pendingStuck, "page-2")],
+  [
+    "a 202 that carries a hard failure",
+    page(
+      202,
+      { failures: [{ email: stuck, reason: "account cleanup failed" }] },
+      "page-2"
+    ),
+  ],
+])("the sweep stops at %s", async (_name, response) => {
+  const cursors = sweepServer(() => response);
+  await expect(cleanupE2EAccounts(undefined, noOpSleep)).rejects.toThrow(
+    "Production E2E cleanup failed"
+  );
+  expect(cursors).toEqual([undefined]);
+});
+
+test("exact cleanup treats a failure as final without retrying", async () => {
+  env.cleanupToken = crypto.randomUUID();
+  env.convexSiteUrl = "https://example.convex.site";
+  let calls = 0;
+  globalThis.fetch = mock(() => {
+    calls++;
+    return Promise.resolve(
+      Response.json(
+        page(500, {
+          failures: [{ email: stuck, reason: "account cleanup failed" }],
+        }).body,
+        { status: 500 }
+      )
+    );
+  }) as unknown as typeof fetch;
+  await expect(cleanupE2EAccounts([stuck], noOpSleep)).rejects.toThrow(
+    "Production E2E cleanup failed (500)"
+  );
+  expect(calls).toBe(1);
+});
+
+test("the sweep enforces its distinct candidate budget across pages", async () => {
+  sweepServer((cursor) => {
+    const index = Number(cursor ?? 0);
+    return page(
+      200,
+      {
+        deleted: Array.from(
+          { length: 20 },
+          (_, i) => `e2e-${index}-${i}@tests.example.com`
+        ),
+      },
+      String(index + 1)
+    );
+  });
+  await expect(cleanupE2EAccounts(undefined, noOpSleep)).rejects.toThrow(
+    "candidate budget exceeded"
+  );
+});
+
+test("the sweep refuses an oversized cursor before requesting it", async () => {
+  const cursors = sweepServer((cursor) =>
+    page(200, {}, `${cursor ?? ""}${"x".repeat(8193)}`)
+  );
+  await expect(cleanupE2EAccounts(undefined, noOpSleep)).rejects.toThrow(
+    "non-progressing"
+  );
+  expect(cursors).toEqual([undefined]);
+});
+
+test("exact cleanup that stays pending reports the pending accounts at its deadline", async () => {
+  env.cleanupToken = crypto.randomUUID();
+  env.convexSiteUrl = "https://example.convex.site";
+  globalThis.fetch = mock(() =>
+    Promise.resolve(
+      Response.json(page(202, pendingStuck).body, { status: 202 })
+    )
+  ) as unknown as typeof fetch;
+  const originalNow = Date.now;
+  let now = originalNow();
+  Date.now = () => now;
+  try {
+    await expect(
+      cleanupE2EAccounts([stuck], () => {
+        now += 60_001;
+        return Promise.resolve();
+      })
+    ).rejects.toThrow(
+      "cleanup remains unproven: deleted=0 alreadyDeleted=0 failed=1"
+    );
+  } finally {
+    Date.now = originalNow;
+  }
+});

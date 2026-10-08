@@ -619,3 +619,70 @@ test("a partially stored flag on the bound user is completed on retry", async ()
     teak_e2e_reservation: reservationId,
   });
 });
+
+test("a broken lease on the reservation page does not stop other leases being settled", async () => {
+  const users = new Map<string, FakeUser>();
+  const writes = workos(users);
+  const { post, reserve, rows } = setup();
+  const broken = await reserve();
+  const healthy = await reserve();
+  // Two provider users for one recipient is a provider conflict for that lease.
+  users.set("user_DUPA", signup(broken.email, { id: "user_DUPA" }));
+  users.set("user_DUPB", signup(broken.email, { id: "user_DUPB" }));
+  users.set("user_SIGNUP", signup(healthy.email));
+  vi.setSystemTime(healthy.expiresAt + 40 * 60 * 1000);
+  const sweep = await post("cleanup", {});
+  expect(sweep).toMatchObject({
+    status: 500,
+    body: {
+      deleted: [healthy.email],
+      failures: [{ email: broken.email, reason: "account cleanup failed" }],
+      remainingEligible: false,
+    },
+  });
+  expect(writes.filter((write) => write.method === "DELETE")).toEqual([
+    { method: "DELETE", id: "user_SIGNUP" },
+  ]);
+  const states = Object.fromEntries(
+    (await rows()).map((row) => [row.email, row.state])
+  );
+  expect(states).toEqual({
+    [broken.email]: "reserved",
+    [healthy.email]: "closed",
+  });
+});
+
+test("an adopted fixture's lease closes in the same run once owner deletion completes", async () => {
+  const users = new Map<string, FakeUser>();
+  workos(users);
+  const { t, post, reserve, rows } = setup();
+  const { reservationId, email } = await reserve();
+  users.set("user_SIGNUP", signup(email, { email_verified: true }));
+  await ready(t, email);
+  expect((await post("signup/adopt", { reservationId, email })).status).toBe(
+    200
+  );
+  expect((await post("cleanup", { emails: [email] })).status).toBe(202);
+  expect((await rows())[0].state).toBe("bound");
+  // The durable workflow deletes the provider user and finishes locally.
+  users.delete("user_SIGNUP");
+  await t.run(async (ctx) => {
+    const state = await ctx.db.query("accountDeletionStates").unique();
+    if (state) {
+      await ctx.db.delete(state._id);
+    }
+    const owner = await ctx.db.query("users").unique();
+    if (owner) {
+      await ctx.db.patch(owner._id, { deletedAt: Date.now() });
+    }
+  });
+  // Exact cleanup's next retry in the same run proves absence and closes.
+  expect(await post("cleanup", { emails: [email] })).toMatchObject({
+    status: 200,
+    body: { alreadyDeleted: [email], failures: [] },
+  });
+  expect((await rows())[0]).toMatchObject({
+    state: "closed",
+    closedReason: "provider_deleted",
+  });
+});

@@ -56,6 +56,14 @@ export const isConfiguredE2EEmail = (
   );
 };
 
+const PENDING = "account cleanup pending";
+
+// Exact cleanup retries the same emails until every account is gone or the
+// deadline passes. A sweep walks every page of a pass even when a page is
+// pending (202) or failed (500), so one unresolved row never hides the pages
+// after it. A pass with only pending rows is repeated from the start while
+// time and page budget remain. Any failure, out-of-range account, or row still
+// pending when the budget ends is a thrown, final failure, never a success.
 export const cleanupE2EAccounts = async (
   emails?: string[],
   sleep: () => Promise<void> = () =>
@@ -65,8 +73,22 @@ export const cleanupE2EAccounts = async (
   const deadline = Date.now() + 120_000;
   const deleted = new Set<string>(),
     alreadyDeleted = new Set<string>();
-  const cursors = new Set<string>();
+  // Unresolved outcomes of the current sweep pass, plus the pending rows of
+  // the last complete pass that this pass has not revisited yet.
+  let failures = new Map<string, string>(),
+    outOfRange = new Set<string>(),
+    carried = new Map<string, string>();
+  let cursors = new Set<string>();
   let cursor: string | undefined;
+  const outcome = (): E2ECleanupResult => ({
+    alreadyDeleted: [...alreadyDeleted],
+    deleted: [...deleted],
+    failures: [...new Map([...carried, ...failures])]
+      .filter(([email]) => !(deleted.has(email) || alreadyDeleted.has(email)))
+      .map(([email, reason]) => ({ email, reason })),
+    ignoredOutOfRange: [...outOfRange],
+    remainingEligible: false,
+  });
   for (let attempt = 0; attempt < 200 && Date.now() < deadline; attempt++) {
     const sweepBody = cursor ? { cursor } : {};
     let response: Response;
@@ -101,14 +123,18 @@ export const cleanupE2EAccounts = async (
         `Production E2E cleanup returned an invalid response (${response.status})`
       );
     }
-    if (
-      !response.ok ||
-      payload.ignoredOutOfRange.length > 0 ||
-      payload.failures.some(
-        (failure) => failure.reason !== "account cleanup pending"
-      ) ||
-      (response.status !== 202 && payload.failures.length > 0)
-    ) {
+    const unresolved =
+      payload.failures.length > 0 || payload.ignoredOutOfRange.length > 0;
+    const onlyPending =
+      payload.ignoredOutOfRange.length === 0 &&
+      payload.failures.every((failure) => failure.reason === PENDING);
+    // 200 is clean, 202 carries only pending evidence, 500 carries failures.
+    // Anything else, including a 500 without evidence, stops the run.
+    const consistent =
+      (response.status === 200 && !unresolved) ||
+      (response.status === 202 && unresolved && onlyPending) ||
+      (response.status === 500 && unresolved && !onlyPending);
+    if (!consistent || (emails && response.status === 500)) {
       throw new Error(
         `Production E2E cleanup failed (${response.status}): ${summarizeE2ECleanup(payload)}`
       );
@@ -119,39 +145,71 @@ export const cleanupE2EAccounts = async (
     for (const email of payload.alreadyDeleted) {
       alreadyDeleted.add(email);
     }
-    if (deleted.size + alreadyDeleted.size > 200) {
+    if (emails) {
+      if (response.status === 202) {
+        // Kept so a deadline still reports which exact accounts were pending.
+        failures = new Map(
+          payload.failures.map((failure) => [failure.email, failure.reason])
+        );
+        await sleep();
+        continue;
+      }
+      return { ...payload, ...outcome() };
+    }
+    for (const failure of payload.failures) {
+      failures.set(failure.email, failure.reason);
+    }
+    for (const email of payload.ignoredOutOfRange) {
+      outOfRange.add(email);
+    }
+    if (
+      new Set([
+        ...deleted,
+        ...alreadyDeleted,
+        ...failures.keys(),
+        ...outOfRange,
+      ]).size > 200
+    ) {
       throw new Error("E2E cleanup candidate budget exceeded");
     }
-    if (response.status === 202) {
-      if (!payload.failures.length) {
-        throw new Error("E2E cleanup pending without evidence");
+    if (payload.remainingEligible) {
+      const next = (payload as E2ECleanupResult & { nextCursor?: unknown })
+        .nextCursor;
+      if (
+        typeof next !== "string" ||
+        !next.length ||
+        next.length > 8192 ||
+        cursors.has(next)
+      ) {
+        throw new Error("Invalid or non-progressing E2E sweep cursor");
       }
-      await sleep();
+      cursors.add(next);
+      cursor = next;
       continue;
     }
-    if (!payload.remainingEligible) {
-      return {
-        ...payload,
-        deleted: [...deleted],
-        alreadyDeleted: [...alreadyDeleted],
-      };
+    // A full pass ended and revisited every row, so it alone is authoritative.
+    carried = new Map();
+    if (!(failures.size || outOfRange.size)) {
+      return outcome();
     }
-    const next = (payload as E2ECleanupResult & { nextCursor?: unknown })
-      .nextCursor;
-    if (
-      emails ||
-      typeof next !== "string" ||
-      !next.length ||
-      next.length > 8192 ||
-      cursors.has(next)
-    ) {
-      throw new Error("Invalid or non-progressing E2E sweep cursor");
+    if (outOfRange.size || [...failures.values()].some((r) => r !== PENDING)) {
+      throw new Error(
+        `Production E2E sweep left unresolved accounts: ${summarizeE2ECleanup(outcome())}`
+      );
     }
-    cursors.add(next);
-    cursor = next;
+    // Only pending rows: wait, then census again from the first page.
+    if (Date.now() >= deadline) {
+      break;
+    }
+    carried = failures;
+    failures = new Map();
+    outOfRange = new Set();
+    cursors = new Set();
+    cursor = undefined;
+    await sleep();
   }
   throw new Error(
-    "E2E cleanup deadline or page budget exceeded; cleanup remains unproven"
+    `E2E cleanup deadline or page budget exceeded; cleanup remains unproven: ${summarizeE2ECleanup(outcome())}`
   );
 };
 
