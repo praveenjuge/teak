@@ -1,79 +1,75 @@
-# Teak Production E2E Tests
+# Teak E2E tests
 
-This private workspace package tests the live Teak production surfaces: web signup and account deletion, REST API, CLI, MCP, docs, browser matrix coverage, accessibility, security headers, credential lifecycle, and the Chrome extension build.
+Playwright journeys across Teak's web app, REST API, CLI and MCP server, run against a local stack:
 
-Run from the repo root:
+- the official WorkOS emulator ([`@workos/emulate`](https://www.npmjs.com/package/@workos/emulate)) on `http://localhost:4100`, standing in for hosted AuthKit,
+- a local Convex backend on `http://127.0.0.1:3210` (API and webhooks on `:3211`),
+- the web app on `http://localhost:3000`.
+
+It needs no secrets. Every WorkOS value is a test-only constant in `src/emulator/config.ts`, and the emulator keeps all of it in memory.
+
+## Run it
+
+From the repo root, on the main checkout with ports 3000, 3210, 3211, 4100 and 4101 free:
 
 ```bash
 bun install
-bun run --cwd packages/tests e2e:prod:local
-bun run --cwd packages/tests e2e:prod:docs
-bun run --cwd packages/tests e2e:prod:journey
-bun run --cwd packages/tests teardown
+(cd packages/tests && bunx playwright install chromium firefox webkit)   # once
+bun run --cwd packages/tests e2e
 ```
 
-Required secret:
+`e2e` runs `bun run setup --target e2e`, starts the emulator, runs the backend and the web dev server, runs the journey, web and browser-matrix projects, and stops everything. Pass Playwright arguments to narrow it, for example `bun run --cwd packages/tests e2e --project=journey-api`.
 
-- `PROD_E2E_PASSWORD`: strong password used only for throwaway `e2e-*` production accounts. The password is never written to `.state`.
-- `E2E_CLEANUP_TOKEN`: bearer token shared only by GitHub Actions and the production backend. It authorizes server-side E2E account provisioning and cleanup.
-- `MAILPIT_URL`: private Mailpit HTTP origin used by the nightly signup and password-reset email canaries.
-- `E2E_EMAIL_DOMAIN`: private MX-routed domain used for throwaway account inboxes.
+To iterate, keep the stack up in one terminal and run Playwright in another:
 
-Useful variables:
+```bash
+bun run --cwd packages/tests e2e:stack
+cd packages/tests && bunx playwright test --project=web
+```
 
-- `E2E_PUBLIC_ORIGIN` defaults to `https://teakvault.com`. The `/api` and `/mcp` paths derive from it.
-- `E2E_APP_ORIGIN` defaults to `https://app.teakvault.com`
-- `E2E_CONVEX_URL` and `E2E_CONVEX_SITE_URL` are required. The runner exports them to the Vite-prefixed names the extension build consumes.
-- `E2E_EMAIL_DELIVERY_ENABLED=true` opts into the two real email-delivery canaries. Scheduled GitHub runs enable it; manual runs leave it disabled.
+The dev stack's output goes to `.state/dev-stack.log`.
 
-Test accounts are provisioned as already-verified users through the token-protected backend endpoint, so manual runs send no email. With email delivery enabled, setup reads the `/register` entry first:
+The `E2E` workflow (`.github/workflows/e2e.yml`) runs the same command on pull requests, on `main`, daily and on demand, and uploads the report, traces and stack log when it fails.
 
-- Paused registration (`/register` lands on hosted sign-in instead of hosted `/sign-up`): preserves a screenshot and provisions the primary account through the protected endpoint.
-- Hosted WorkOS sign-up (`/register` lands on hosted `/sign-up`): fails before creating any account. Hosted sign-up would create a WorkOS user without the `teak_e2e` flag, which cleanup and the sweep can't delete. Email-delivery runs stay red until a reviewed WorkOS signup canary exists; run with email delivery off meanwhile.
-- An email form on Teak's own origin is never a valid entry: Teak signs in through hosted AuthKit only.
+## How the stack is wired
 
-The backend for a real hosted WorkOS signup canary is in place, but no journey uses it yet. The hosted signup labels, sender, subject and code format still need live proof first.
+`bun run setup --target e2e` is the web target on a local backend pointed at the emulator. It sets `WORKOS_CLIENT_ID`, `WORKOS_API_KEY`, `WORKOS_API_BASE_URL`, `WORKOS_ENVIRONMENT_ID` and `WORKOS_WEBHOOK_SECRET` on the deployment, and adds `WORKOS_API_HOSTNAME`, `WORKOS_API_PORT` and `WORKOS_API_HTTPS` to `apps/web/.env.local` so authkit-nextjs talks to the emulator. Setup never overwrites a set value, so it fails with a remediation if this checkout is already wired to a different WorkOS environment. `bun run doctor --target web --profile e2e` checks the web side.
 
-1. `reserveE2ESignup()` calls `/api/auth/internal/e2e/signup/reserve`. The server generates an `e2e-signup-<32 hex>` recipient, records the lease, and only then checks that WorkOS has no user for it. A retry after a lost response sends the same request ID and gets the same recipient back. At most 3 leases can be live at once.
-2. After hosted signup and verification, `adoptE2ESignup()` calls `/signup/adopt`.
-   - The server binds the exact WorkOS user to the lease and only then sets `teak_e2e=v1` plus `teak_e2e_reservation`. It re-reads the user and qualifies the lease once the real webhook owner exists.
-   - The user must have been created no earlier than 5 minutes before the empty check and no later than 5 minutes after the lease ends. That rejects an older account renamed to the address.
-   - Foreign metadata or a different user for the same lease fail closed. A partly written flag on the already-bound user is completed on retry.
-3. Flagged accounts with a Teak owner still go through the normal owner-bound deletion. Once that deletion completes and WorkOS returns 404 for the bound user, the same teardown run closes the lease. For an open lease, cleanup handles interruptions:
-   - It adopts an in-window user.
-   - A user created outside the window is refused every time, and cleanup stays red until someone reviews it.
-   - A bound, unverified user with no Teak owner and no owned or verified profile is stamped for deletion first. The stamp is permanent. From then on, `linkWorkosUser`, which is the only path that creates or links a WorkOS owner (webhook, bootstrap, profile apply, import), denies that identity with `deleting_user`. Cleanup re-reads the user right before deleting and refuses if it is now verified.
-   - A verified ownerless user is reported as pending.
-   - An open lease with no WorkOS user is also pending (HTTP 202), never `alreadyDeleted`. A submitted signup could still land, so teardown and the sweep stay unresolved until the user appears and is cleaned up, or the lease is past the 90-day orphan window.
+The emulator is started with:
 
-How cleanup reports unresolved rows:
+- the interactive login pages, with the password step, like hosted AuthKit,
+- `https://api.workos.com` as the token issuer, which the backend requires,
+- a JWT template that adds `email` and `email_verified` to session tokens, like Teak's WorkOS environment,
+- a webhook endpoint for `user.*` events at the backend's `/workos/webhook`, signed with the pinned test secret.
 
-- **Exact teardown** retries the same emails while any are pending (202), until its 120s deadline. Any failure (500) stops it at once.
-- **The sweep** walks every page of a pass, even when a page is pending (202) or failed (500), so a stuck lease never stops later reservation, provider or owner pages from being cleaned. A pass whose only unresolved rows are pending repeats from the first page while time remains, so normal in-flight deletions can finish.
-- The sweep fails, never succeeds, when a full pass ends with any failure or out-of-range account, or when the 120s deadline or 200-page budget ends with rows still pending. Its error lists the counts, including rows from the last full pass that the final partial pass hadn't revisited.
-- Every cursor is checked for length (8 KiB), repeats within a pass, and the 200 distinct-account budget.
-- An abandoned lease therefore keeps the nightly sweep red for up to 90 days, but no longer blocks other cleanup.
+A small proxy in front of the emulator adds hosted AuthKit's 30-second refresh-token grace window ([session resilience](https://workos.com/docs/authkit/session-resilience)). The web client refreshes its session on every page load, and without the window a navigation that interrupts that refresh would end the session.
 
-`waitForEmail` and `waitForEmailCode` take a `fresh: { from, sentAfter }` option. A matching message must have exactly one `To`, no `Cc` or `Bcc`, the proven sender, and a `Created` time no earlier than 60s before the request. Two such messages, two distinct matching links, or two distinct codes fail closed. `exactLinkPredicate` admits only the proven https origin and path with exactly one non-empty token parameter. Errors never include the code or the link.
+The backend runs with `convex dev --once --start`: watching would loop, because the functions directory holds the anonymous backend's own state and every push rewrites it.
 
-The password-reset canary still drives Teak's retired `/forgot-password` form and reset email. `/forgot-password` now hands off to hosted AuthKit, so this canary fails until it's rewritten against hosted reset. Teak redirects `/login` and `/register` straight to hosted AuthKit, so the accessibility scan covers `/` and `/settings`. Cleanup is browserless. Exact accounts created by a test are removed during teardown, while the scheduled sweep discovers orphan accounts directly from the production auth database. The backend accepts only the configured `e2e-*` email namespace, enforces account-age bounds, caps each sweep, and reuses the same Teak data-deletion path as user-initiated account deletion. Mailpit messages are deleted separately by exact message ID.
+## Accounts
 
-Manual full-suite runs can opt into email delivery with the `email_delivery` input to check the signup entry and password-reset canary before the next nightly run.
+Accounts are real WorkOS users in the emulator. Creating one through the emulator API sends a signed `user.created` webhook, which gives the address a Teak vault, and the test then signs in through the hosted login page (`src/helpers/app.ts`). The primary setup account starts unverified, so its first sign-in goes through the emailed verification code. The emulator never sends email: codes and reset tokens are read from its `/events` API (`src/helpers/emulator.ts`). API keys come from Settings, the way people create them.
 
-The hosted auth helpers (`signIn`, `expectAuthEntry`, the signup canary guard) have hermetic browser checks: `bun run --cwd packages/tests e2e:auth:runtime`. They use synthetic pages, not live AuthKit. `expectAuthEntry` treats a `/register` that lands on hosted sign-in instead of hosted `/sign-up` as paused sign-ups.
+Each project's tests sign in fresh instead of reusing saved cookies, which go stale once the client refreshes its session.
 
-For a zero-email health check without the browser suites, manually dispatch the
-Production E2E workflow with `preflight_only` enabled.
+## Projects
 
-For local parity with GitHub Actions, put the required values in `.env.production-e2e.local` at the repo root and run `bun run --cwd packages/tests e2e:prod:local`. The local runner installs Playwright browsers, executes preflight, docs, journey, browser matrix, extension, and teardown steps, then preserves separate reports under `packages/tests/playwright-report`.
+| Project | Covers |
+| --- | --- |
+| `journey-setup` | Sign-up through webhooks and the verification code; one account and API key per surface |
+| `journey-web-core`, `journey-web-surfaces`, `journey-web-filters` | Cards, search, filters, favorites, tags, trash and restore, bulk actions, the editor, deep links, link metadata |
+| `journey-api`, `journey-cli`, `journey-mcp` | REST API with OpenAPI checks, the CLI from this checkout, every public MCP tool, contention and rate limits |
+| `journey-security` | Cross-tenant access, revoked keys, hostile input, security headers, session cookie |
+| `journey-a11y` | axe scans of `/` and `/settings` |
+| `journey-account`, `journey-delete`, `journey-post-delete` | Password reset from the emailed token, sign-out, account deletion through Settings, dead credentials afterward |
+| `web` | Markdown editor, WebMCP, sign-in entry routing, settings navigation, composer save shortcut |
+| `matrix-chromium`, `matrix-firefox`, `matrix-webkit` | Sign-up, create and search in each engine |
+| `docs` | Read-only checks of the published docs site (`bun run --cwd packages/tests e2e:docs`); the workflow runs it daily, not on pull requests |
 
-Mailpit preflight:
+## What the local stack doesn't cover
 
-1. Expose host port 25 to Mailpit's internal SMTP port 1025 on `coolify.yogeshdesign.com`.
-2. Allow port 25 in the Hetzner firewall.
-3. Point MX for the private test email domain at the Mailpit host.
-4. Send a probe email from Resend to `probe@<E2E_EMAIL_DOMAIN>` and confirm it appears in the Mailpit UI/API.
-
-To check the Mailpit API, MX record and SMTP port without sending email or touching accounts, manually dispatch the Production Email Readiness workflow (`prod-email-readiness.yml`). It doesn't prove delivery.
-
-Mailpit is public and unauthenticated over HTTP. That is acceptable here because these are throwaway accounts, API keys are not uploaded as artifacts, and the test password is never emailed.
+- **File uploads, previews, renditions, import/export and AI metadata.** They need the Files Worker, R2 and Workers AI, which the local stack doesn't run. Card metadata stays `pending`, and the specs don't depend on it.
+- **AuthKit Actions** (the sign-up freeze registration action). The emulator doesn't run Actions; `packages/convex/workosAuthKit.test.ts` covers it.
+- **WorkOS Connect OAuth** for the CLI, extensions, Raycast and MCP. The emulator's Connect flow has no PKCE or refresh tokens. The API, CLI and MCP journeys use Teak API keys, and the browser OAuth flows have hermetic checks: `bun run --cwd packages/tests e2e:auth:runtime`, `e2e:extension:runtime`, and the `extension-oauth-runtime.yml` and `mac-oauth-runtime.yml` workflows.
+- **Billing.** Polar checkout needs Polar credentials.
+- **The browser extension and desktop app.** They sign in with WorkOS Connect.

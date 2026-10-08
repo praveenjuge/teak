@@ -42,7 +42,7 @@ export const TARGET_SPECS: Record<SupportedTarget, TargetSpec> = {
     dotenvFiles: ["apps/web/.env.local"],
     needsConvex: true,
     defaultConvex: "local",
-    note: "Next.js app plus Convex backend. Local E2E credentials live in apps/web/.env.e2e.local, never in the build input.",
+    note: "Next.js app plus Convex backend.",
   },
   docs: {
     target: "docs",

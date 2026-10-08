@@ -12,8 +12,12 @@
  * 7. Derive the target's ignored local Convex configuration from canonical
  *    facts without overwriting custom values.
  *
+ * The e2e target needs no credentials: it wires a local backend and the web
+ * app to the WorkOS emulator with the test-only values in
+ * packages/tests/src/emulator/config.ts.
+ *
  * Requires WorkOS staging or development credentials (WORKOS_CLIENT_ID and
- * WORKOS_API_KEY) for any target that uses Convex, and no production, Apple,
+ * WORKOS_API_KEY) for any other target that uses Convex, and no production, Apple,
  * Cloudflare, billing, or release credentials. Every step is check-then-act, so re-running setup changes
  * nothing once the tree is ready. `--check` reports without changing state;
  * `--json` emits a stable machine-readable report with capabilities.

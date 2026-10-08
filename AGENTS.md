@@ -29,10 +29,10 @@ Read `packages/convex/AGENTS.md` before editing backend code.
 - Read `.agents/testing.md` before adding, changing, or deleting tests. It covers where tests go, which layer to use, and what makes a test worth keeping.
 - Add or update deterministic tests for changed behavior. Run the narrowest relevant checks first, then the repository checks warranted by the change.
 - Test user-observable behavior rather than implementation details.
-- Cross-surface production journeys belong in `packages/tests`; read `packages/tests/README.md` before changing or running them.
+- End-to-end tests (web, API, CLI, MCP) belong in `packages/tests` and run against a local stack with the WorkOS emulator; read `packages/tests/README.md` before changing or running them.
 - Never bypass git hooks with `--no-verify`. Fix the failing check.
 - Verify user-facing work in the real interface when practical. A passing build alone is not proof of the experience.
-- The `playwright` MCP server in `.mcp.json` drives a real browser against the local app, and `playwright-test` runs the web e2e specs.
+- The `playwright` MCP server in `.mcp.json` drives a real browser against the local app, and `playwright-test` runs the `packages/tests` specs.
 
 ## Documentation contract
 
