@@ -29,8 +29,8 @@ Useful variables:
 Most test accounts are provisioned as already-verified users through the token-protected backend endpoint, so manual runs send no email. With email delivery enabled, setup reads the `/register` entry first:
 
 - Better Auth form: sends one real signup verification email.
-- Paused registration: asserts the exact paused UI, preserves a screenshot, and provisions the primary account through the protected endpoint.
-- Hosted WorkOS entry (`Continue`, no form): fails before creating any account. Hosted sign-up would create a WorkOS user without the `teak_e2e` flag, which cleanup and the sweep can't delete. Email-delivery runs stay red until a reviewed WorkOS signup canary exists; run with email delivery off meanwhile.
+- Paused registration (`/register` lands on hosted sign-in instead of hosted `/sign-up`): preserves a screenshot and provisions the primary account through the protected endpoint.
+- Hosted WorkOS sign-up (`/register` lands on hosted `/sign-up`): fails before creating any account. Hosted sign-up would create a WorkOS user without the `teak_e2e` flag, which cleanup and the sweep can't delete. Email-delivery runs stay red until a reviewed WorkOS signup canary exists; run with email delivery off meanwhile.
 
 The backend for a real hosted WorkOS signup canary is in place, but no journey uses it yet. The hosted signup labels, sender, subject and code format still need live proof first.
 
