@@ -7,7 +7,45 @@
  * so a killed tree cannot hang output collection. Timeouts resolve (never
  * throw) with a nonzero exit and the timeout recorded on stderr so existing
  * tail-extraction surfaces it. Spawn failures propagate to the caller.
+ *
+ * A normal exit ends the tree too. The Convex CLI signals the local backend
+ * it started and exits without waiting, so a backend that does not stop
+ * keeps the fixed port bound and the next `convex dev` refuses to start.
+ * Only the process group created here is signalled, so a process some other
+ * command started is never touched.
  */
+
+// Matches the window `convex dev` gives a previous backend to stop.
+const GROUP_EXIT_GRACE_MS = 5000;
+
+const groupAlive = (pgid: number): boolean => {
+  try {
+    process.kill(-pgid, 0);
+    return true;
+  } catch {
+    return false;
+  }
+};
+
+const settleGroup = async (pgid: number): Promise<void> => {
+  if (!groupAlive(pgid)) {
+    return;
+  }
+  try {
+    process.kill(-pgid, "SIGTERM");
+  } catch {
+    return;
+  }
+  const deadline = Date.now() + GROUP_EXIT_GRACE_MS;
+  while (groupAlive(pgid) && Date.now() < deadline) {
+    await Bun.sleep(100);
+  }
+  try {
+    process.kill(-pgid, "SIGKILL");
+  } catch {
+    // The group exited within the grace period.
+  }
+};
 
 export interface RunCommandResult {
   exitCode: number;
@@ -104,6 +142,8 @@ export const runCommand = async (
         timedOut,
       };
     }
+    clearTimeout(timer);
+    await settleGroup(proc.pid);
     return { exitCode: exitCode ?? 1, pid: proc.pid, stderr, stdout, timedOut };
   } catch {
     return {
