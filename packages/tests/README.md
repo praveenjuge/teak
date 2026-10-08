@@ -29,7 +29,7 @@ cd packages/tests && bunx playwright test --project=web
 
 The dev stack's output goes to `.state/dev-stack.log`.
 
-The `E2E` workflow (`.github/workflows/e2e.yml`) runs the same command on pull requests, on `main`, daily and on demand, and uploads the report, traces and stack log when it fails.
+The `E2E` workflow (`.github/workflows/e2e.yml`) runs the same command daily and on demand (not on pull requests or pushes), and uploads the report, traces and stack log when it fails.
 
 ## How the stack is wired
 
@@ -64,7 +64,7 @@ Each project's tests sign in fresh instead of reusing saved cookies, which go st
 | `journey-account`, `journey-delete`, `journey-post-delete` | Password reset from the emailed token, sign-out, account deletion through Settings, dead credentials afterward |
 | `web` | Markdown editor, WebMCP, sign-in entry routing, settings navigation, composer save shortcut |
 | `matrix-chromium`, `matrix-firefox`, `matrix-webkit` | Sign-up, create and search in each engine |
-| `docs` | Read-only checks of the published docs site (`bun run --cwd packages/tests e2e:docs`); the workflow runs it daily, not on pull requests |
+| `docs` | Read-only checks of the published docs site (`bun run --cwd packages/tests e2e:docs`); the workflow runs it daily |
 
 ## What the local stack doesn't cover
 
