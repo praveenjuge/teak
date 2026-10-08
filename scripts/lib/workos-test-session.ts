@@ -29,7 +29,7 @@ export interface WorkosTestSessionOptions {
   clientId: string;
   /** The web server's WORKOS_COOKIE_PASSWORD (at least 32 characters). */
   cookiePassword: string;
-  /** Short label for the address, e.g. "smoke" -> e2e-smoke-…@example.com. */
+  /** Short label for the address, e.g. "smoke" -> e2e-smoke-…@example.org. */
   label?: string;
   /** The web's NEXT_PUBLIC_WORKOS_REDIRECT_URI; decides the Secure flag. */
   redirectUri: string;

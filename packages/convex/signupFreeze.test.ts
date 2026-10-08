@@ -68,6 +68,7 @@ test.each(["SIGNUPS_DISABLED", "ACCOUNT_CHANGES_PAUSED"])(
 
 test("the backup exports retained Better Auth rows unchanged", async () => {
   const t = setup();
+  const retainedCredential = "retained-credential-fixture";
   const user = await retainedUser(t, "backup-proof@example.com");
   await t.run((ctx) =>
     ctx.runMutation(components.betterAuth.adapter.create, {
@@ -77,7 +78,7 @@ test("the backup exports retained Better Auth rows unchanged", async () => {
           accountId: user._id,
           providerId: "credential",
           userId: user._id,
-          password: "retained-hash",
+          password: retainedCredential,
           createdAt: Date.now(),
           updatedAt: Date.now(),
         },
@@ -110,7 +111,7 @@ test("the backup exports retained Better Auth rows unchanged", async () => {
     cursor: null,
   });
   expect(accounts.page).toEqual([
-    expect.objectContaining({ userId: user._id, password: "retained-hash" }),
+    expect.objectContaining({ userId: user._id, password: retainedCredential }),
   ]);
 });
 
