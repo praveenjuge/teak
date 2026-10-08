@@ -4,6 +4,7 @@ import { v } from "convex/values";
 import { components, internal } from "../_generated/api";
 import { type ActionCtx, env, internalAction } from "../_generated/server";
 import { sweepStalePendingUploadsHandler } from "../storage/pendingUploadCleanup";
+import { catchUpHandler } from "../workosEventCatchUp";
 import { type CronCheckInConfig, withCronCheckIn } from "./sentry";
 
 const internalAny = internal as Record<string, any>;
@@ -70,11 +71,11 @@ export const CRON_MONITORS = {
     schedule: "*/5 * * * *",
     slug: "redrive-account-deletion",
   },
-  workosDailyReconciliationAudit: {
+  workosEventCatchUp: {
     checkinMarginMinutes: 15,
     maxRuntimeMinutes: 10,
-    schedule: "30 4 * * *",
-    slug: "workos-daily-reconciliation-audit",
+    schedule: "15 * * * *",
+    slug: "workos-event-catch-up",
   },
 } as const satisfies Record<string, CronCheckInConfig>;
 
@@ -212,17 +213,11 @@ export const redriveAccountDeletion = internalAction({
     ),
 });
 
-export const workosDailyReconciliationAudit = internalAction({
+export const workosEventCatchUp = internalAction({
   args: {},
   returns: v.null(),
   handler: (ctx: ActionCtx) =>
-    monitored(CRON_MONITORS.workosDailyReconciliationAudit, async () => {
-      const result = await ctx.runAction(
-        internal.workosReconciliationSchedule.dailyAudit,
-        {}
-      );
-      if (result.status.endsWith("_requires_operator")) {
-        throw new Error(result.status);
-      }
+    monitored(CRON_MONITORS.workosEventCatchUp, async () => {
+      await catchUpHandler(ctx);
     }),
 });

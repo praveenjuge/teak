@@ -1,14 +1,23 @@
 /// <reference types="vite/client" />
 
+import workosTest from "@convex-dev/workos-authkit/test";
 import type { FunctionReturnType } from "convex/server";
 import { convexTest } from "convex-test";
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
+import {
+  seedComponentUser,
+  updateComponentUser,
+} from "./__tests__/helpers/workosOwner.test-utils";
 import { api, internal } from "./_generated/api";
 import type { Doc } from "./_generated/dataModel";
 import schema from "./schema";
 
 const modules = import.meta.glob("./**/*.ts");
-const setup = () => convexTest(schema, modules);
+const setup = () => {
+  const t = convexTest(schema, modules);
+  workosTest.register(t);
+  return t;
+};
 type Backend = ReturnType<typeof setup>;
 const principal = {
   workosUserId: "user_PROVIDER",
@@ -16,49 +25,31 @@ const principal = {
   consentId: "app_consent_CONSENT",
   clientId: "client_CLIENT",
 };
-const seed = (
+const seed = async (
   t: Backend,
   fields: Partial<Doc<"users">> = {},
-  profile: Partial<NonNullable<Doc<"workosProfiles">["profile"]>> | null = {}
-) =>
-  t.run(async (ctx) => {
-    const owner = await ctx.db.insert("users", {
+  profile: Partial<Parameters<typeof seedComponentUser>[1]> | null = {}
+) => {
+  const owner = await t.run((ctx) =>
+    ctx.db.insert("users", {
       teakUserId: "legacy-owner",
       workosUserId: "user_PROVIDER",
       email: "legacy@example.test",
       emailVerified: true,
-      workosEmail: "provider@example.test",
-      workosEmailVerified: true,
       ...fields,
+    })
+  );
+  const user = await t.run((ctx) => ctx.db.get("users", owner));
+  if (profile !== null && user?.workosUserId) {
+    await seedComponentUser(t, {
+      id: user.workosUserId,
+      email: "provider@example.test",
+      externalId: user.teakUserId,
+      ...profile,
     });
-    const user = await ctx.db.get("users", owner);
-    const workosUserId = user?.workosUserId;
-    if (profile !== null && workosUserId) {
-      const existing = await ctx.db
-        .query("workosProfiles")
-        .withIndex("by_workosUserId", (q) => q.eq("workosUserId", workosUserId))
-        .first();
-      if (!existing) {
-        await ctx.db.insert("workosProfiles", {
-          workosUserId,
-          teakUserId: user.teakUserId,
-          providerUpdatedAt: "2026-10-04T00:00:00Z",
-          revision: 1,
-          source: "event",
-          profile: {
-            email: user.workosEmail ?? "provider@example.test",
-            emailVerified: true,
-            externalId: user.teakUserId,
-            firstName: null,
-            lastName: null,
-            profilePictureUrl: null,
-            ...profile,
-          },
-        });
-      }
-    }
-    return owner;
-  });
+  }
+  return owner;
+};
 
 const authorize = (t: Backend, fields: Partial<typeof principal> = {}) =>
   t.mutation(internal.workosConsents.authorizeConnectConsent, {
@@ -374,11 +365,11 @@ describe("durable Connect consent authorization", () => {
     await authorize(t);
     const before = await records(t);
     expect(await revoke(t, "other-owner")).toBe(false);
-    await seed(t, {
-      teakUserId: "other-owner",
-      workosUserId: "user_OTHER",
-      workosEmail: "other@example.test",
-    });
+    await seed(
+      t,
+      { teakUserId: "other-owner", workosUserId: "user_OTHER" },
+      { email: "other@example.test" }
+    );
     expect(
       await authorize(t, {
         workosUserId: "user_OTHER",
@@ -405,23 +396,11 @@ describe("durable Connect consent authorization", () => {
     const owner = await seed(t);
     await authorize(t);
     const before = await records(t);
-    await t.run(async (ctx) => {
-      await ctx.db.patch(owner, { workosUserId: "user_CHANGED" });
-      await ctx.db.insert("workosProfiles", {
-        workosUserId: "user_CHANGED",
-        teakUserId: principal.externalId,
-        providerUpdatedAt: "2026-10-04T00:00:00Z",
-        revision: 1,
-        source: "event",
-        profile: {
-          email: "provider@example.test",
-          emailVerified: true,
-          externalId: principal.externalId,
-          firstName: null,
-          lastName: null,
-          profilePictureUrl: null,
-        },
-      });
+    await t.run((ctx) => ctx.db.patch(owner, { workosUserId: "user_CHANGED" }));
+    await seedComponentUser(t, {
+      id: "user_CHANGED",
+      email: "provider@example.test",
+      externalId: principal.externalId,
     });
     expect(await authorize(t, { workosUserId: "user_CHANGED" })).toEqual({
       status: "denied",
@@ -458,15 +437,15 @@ describe("durable Connect consent authorization", () => {
   });
 
   test.each([
-    [{ workosEmailVerified: false }, "verify_email"],
-    [{ workosEmailVerified: undefined }, "verify_email"],
-    [{ deletedAt: 1 }, "deleted_user"],
-    [{ workosDeletedAt: 1 }, "workos_deleted_user"],
-  ] satisfies [Partial<Doc<"users">>, string][])(
-    "mapping state %j denies without recording",
-    async (fields, reason) => {
+    [{}, { emailVerified: false }, "verify_email"],
+    [{}, null, "verify_email"],
+    [{ deletedAt: 1 }, {}, "deleted_user"],
+    [{ workosDeletedAt: 1 }, {}, "workos_deleted_user"],
+  ] satisfies [Partial<Doc<"users">>, Parameters<typeof seed>[2], string][])(
+    "mapping %j with WorkOS profile %j denies without recording",
+    async (fields, profile, reason) => {
       const t = setup();
-      await seed(t, fields);
+      await seed(t, fields, profile);
       expect(await authorize(t)).toEqual({ status: "denied", reason });
       expect(await records(t)).toEqual([]);
     }
@@ -474,21 +453,25 @@ describe("durable Connect consent authorization", () => {
 
   test("existing consent does not bypass a changed verification or deletion state", async () => {
     const t = setup();
-    const owner = await seed(t);
+    await seed(t);
     await authorize(t);
     const before = await records(t);
-    await t.run((ctx) => ctx.db.patch(owner, { workosEmailVerified: false }));
+    await updateComponentUser(t, principal.workosUserId, {
+      emailVerified: false,
+    });
     expect(await authorize(t)).toEqual({
       status: "denied",
       reason: "verify_email",
     });
-    await t.run(async (ctx) => {
-      await ctx.db.patch(owner, { workosEmailVerified: true });
-      await ctx.db.insert("accountDeletionStates", {
+    await updateComponentUser(t, principal.workosUserId, {
+      emailVerified: true,
+    });
+    await t.run((ctx) =>
+      ctx.db.insert("accountDeletionStates", {
         userId: "legacy-owner",
         startedAt: Date.now(),
-      });
-    });
+      })
+    );
     expect(await authorize(t)).toEqual({
       status: "denied",
       reason: "deleting_user",

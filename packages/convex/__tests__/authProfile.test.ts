@@ -12,8 +12,8 @@ import { POLAR_PLAN_IDS } from "../shared/polarPlans";
 import { withTestSession } from "./helpers/session.test-utils";
 
 // Fixtures for the real identity/session boundary; only provider data is mocked.
-// The profile email is the WorkOS-synced mirror; display fields come from the
-// WorkOS profile, which this fixture leaves empty.
+// Email and display fields come from the WorkOS profile; this fixture gives it
+// an email and leaves the display fields empty.
 const withProfileSession = (ctx: any, readUser: () => Promise<any>) =>
   withTestSession({
     ...ctx,

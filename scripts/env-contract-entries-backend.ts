@@ -83,19 +83,6 @@ export const BACKEND_ENTRIES: EnvVarSpec[] = [
       note: "Deployment-specific first-party WorkOS Connect public app for that surface's sign-in.",
     })
   ),
-  ...["WORKOS_RECONCILIATION_MODE", "WORKOS_RECONCILIATION_WITNESS_ID"].map(
-    (name) =>
-      spec(name, {
-        owners: ["@teak/convex"],
-        targets: ["convex"],
-        profiles: ["local", "preview", "production"],
-        secret: false,
-        validation: "string",
-        providers: ["convex-dashboard"],
-        required: false,
-        note: "Daily reconciliation audit controls. Mode unset/off is inert; audit and pinned provider witness require separate operator activation. No scheduled repair.",
-      })
-  ),
   spec("WORKOS_API_BASE_URL", {
     owners: ["@teak/convex"],
     targets: ["convex"],

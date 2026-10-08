@@ -118,19 +118,25 @@ const resolveOwner = async (ctx: QueryCtx, args: ResolveArgs) => {
       reason: "external_id_mismatch" as const,
     };
   }
-  const canonical = await readCanonicalWorkosProfile(ctx, args.workosUserId);
+  const profile = await readCanonicalWorkosProfile(ctx, args.workosUserId);
+  // A provider profile bound to a different Teak owner never opens this vault.
   if (
-    canonical?.profile?.emailVerified !== true ||
-    (canonical.teakUserId !== undefined &&
-      canonical.teakUserId !== row.teakUserId)
+    profile?.externalId !== undefined &&
+    profile.externalId !== null &&
+    profile.externalId !== row.teakUserId
   ) {
-    return { status: "denied" as const, reason: "verify_email" as const };
+    return {
+      status: "denied" as const,
+      reason: "external_id_mismatch" as const,
+    };
   }
-  const verified =
-    args.verification.kind === "session"
-      ? args.verification.emailVerified === true
-      : row.workosEmailVerified === true;
-  if (!verified) {
+  // The provider profile must exist and be verified; a session token must
+  // also carry its own verified claim. Connect tokens carry none.
+  if (
+    profile?.emailVerified !== true ||
+    (args.verification.kind === "session" &&
+      args.verification.emailVerified !== true)
+  ) {
     return { status: "denied" as const, reason: "verify_email" as const };
   }
   return { status: "ok" as const, teakUserId: row.teakUserId };

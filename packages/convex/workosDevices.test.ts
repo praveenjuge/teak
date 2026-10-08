@@ -1,6 +1,7 @@
 import workosTest from "@convex-dev/workos-authkit/test";
 import { convexTest } from "convex-test";
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
+import { seedComponentUser } from "./__tests__/helpers/workosOwner.test-utils";
 import { api } from "./_generated/api";
 import schema from "./schema";
 import {
@@ -128,31 +129,13 @@ async function setup(overrides = {}, owner = {}) {
       email: "legacy@example.test",
       emailVerified: true,
       workosUserId: "user_OWNER",
-      workosEmail: "owner@example.test",
-      workosEmailVerified: true,
       ...owner,
     })
   );
-  await t.run(async (ctx) => {
-    const current = await ctx.db.get(row);
-    if (!current) {
-      throw new Error("Missing device fixture owner");
-    }
-    await ctx.db.insert("workosProfiles", {
-      workosUserId: "user_OWNER",
-      teakUserId: "owner",
-      revision: 1,
-      source: "reconciliation",
-      providerUpdatedAt: "2026-01-01T00:00:00Z",
-      profile: {
-        email: current.workosEmail ?? current.email,
-        emailVerified: current.workosEmailVerified === true,
-        externalId: "owner",
-        firstName: null,
-        lastName: null,
-        profilePictureUrl: null,
-      },
-    });
+  await seedComponentUser(t, {
+    id: "user_OWNER",
+    email: "owner@example.test",
+    externalId: "owner",
   });
   return { t, row, user: t.withIdentity({ ...claims, ...overrides }) };
 }

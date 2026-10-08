@@ -1,9 +1,11 @@
 /// <reference types="vite/client" />
 import betterAuthTest from "@convex-dev/better-auth/test";
 import workflowTest from "@convex-dev/workflow/test";
+import workosTest from "@convex-dev/workos-authkit/test";
 import apiKeysTest from "@vllnt/convex-api-keys/test";
 import { convexTest } from "convex-test";
 import { afterEach, beforeEach, expect, test, vi } from "vitest";
+import { seedComponentUser } from "./__tests__/helpers/workosOwner.test-utils";
 import { api, internal } from "./_generated/api";
 import schema from "./schema";
 
@@ -73,31 +75,19 @@ test("deletion retains its source and state while an authenticated import comple
   betterAuthTest.register(t);
   workflowTest.register(t);
   apiKeysTest.register(t);
-  const now = new Date().toISOString();
-  await t.run(async (ctx) => {
-    await ctx.db.insert("users", {
+  workosTest.register(t);
+  await t.run((ctx) =>
+    ctx.db.insert("users", {
       teakUserId: ownerId,
       workosUserId: "user_IMPORT",
       email: "import@example.com",
       emailVerified: true,
-      workosEmail: "import@example.com",
-      workosEmailVerified: true,
-    });
-    await ctx.db.insert("workosProfiles", {
-      workosUserId: "user_IMPORT",
-      teakUserId: ownerId,
-      revision: 1,
-      source: "event",
-      providerUpdatedAt: now,
-      profile: {
-        email: "import@example.com",
-        emailVerified: true,
-        externalId: ownerId,
-        firstName: null,
-        lastName: null,
-        profilePictureUrl: null,
-      },
-    });
+    })
+  );
+  await seedComponentUser(t, {
+    id: "user_IMPORT",
+    email: "import@example.com",
+    externalId: ownerId,
   });
   const signed = t.withIdentity({
     issuer: "https://api.workos.com/user_management/client_IMPORT",
@@ -214,31 +204,19 @@ async function importSession() {
   betterAuthTest.register(t);
   workflowTest.register(t);
   apiKeysTest.register(t);
-  const now = new Date().toISOString();
-  await t.run(async (ctx) => {
-    await ctx.db.insert("users", {
+  workosTest.register(t);
+  await t.run((ctx) =>
+    ctx.db.insert("users", {
       teakUserId: ownerId,
       workosUserId: "user_IMPORT",
       email: "import@example.com",
       emailVerified: true,
-      workosEmail: "import@example.com",
-      workosEmailVerified: true,
-    });
-    await ctx.db.insert("workosProfiles", {
-      workosUserId: "user_IMPORT",
-      teakUserId: ownerId,
-      revision: 1,
-      source: "event",
-      providerUpdatedAt: now,
-      profile: {
-        email: "import@example.com",
-        emailVerified: true,
-        externalId: ownerId,
-        firstName: null,
-        lastName: null,
-        profilePictureUrl: null,
-      },
-    });
+    })
+  );
+  await seedComponentUser(t, {
+    id: "user_IMPORT",
+    email: "import@example.com",
+    externalId: ownerId,
   });
   const signed = t.withIdentity({
     issuer: "https://api.workos.com/user_management/client_IMPORT",

@@ -3,11 +3,11 @@ import { internal } from "./_generated/api";
 
 const crons = cronJobs();
 
-// Inert unless the deployment explicitly enables audit and pins a witness.
+// Replays WorkOS user events a webhook may have missed (Events API).
 crons.cron(
-  "workos-daily-reconciliation-audit",
-  "30 4 * * *",
-  internal.telemetry.crons.workosDailyReconciliationAudit,
+  "workos-event-catch-up",
+  "15 * * * *",
+  internal.telemetry.crons.workosEventCatchUp,
   {}
 );
 

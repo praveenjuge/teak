@@ -6,7 +6,6 @@ import {
   currentWorkosDeletionTarget,
   expectedWorkosDeletionResolution,
 } from "./workosDeletionCompletion";
-import { applyWorkosProfileInTransaction } from "./workosProfileApply";
 
 // A payload Teak can never apply, however often WorkOS retries it. The webhook
 // records it as a dead letter and acknowledges it instead of failing forever.
@@ -52,8 +51,98 @@ const eventTime = (raw: string): number => {
   return time;
 };
 
-// Only verified webhook and admitted reconciliation adapters supply original
-// provider envelopes. Replay records real receipts without new-user side effects.
+// Every check Teak needs before any store sees the event. It throws the
+// INVALID_WORKOS_EVENT ConvexError for payloads Teak can never apply, so the
+// webhook dead-letters them before the component's own validators run.
+export const parseWorkosEvent = (event: {
+  id: string;
+  createdAt: string;
+  event: "user.created" | "user.updated" | "user.deleted";
+  data: Record<string, unknown>;
+}) => {
+  const time = eventTime(event.createdAt);
+  const workosUserId = event.data.id;
+  if (
+    !(validId(event.id) && validId(workosUserId)) ||
+    Object.keys(event.data).length > 64 ||
+    JSON.stringify(event.data).length > 64 * 1024
+  ) {
+    throw invalid("Invalid WorkOS event input");
+  }
+  const deleting = event.event === "user.deleted";
+  const email =
+    typeof event.data.email === "string"
+      ? normalizeIdentityEmail(event.data.email)
+      : "";
+  const externalId = event.data.externalId ?? null;
+  if (
+    !deleting &&
+    (!email ||
+      typeof event.data.emailVerified !== "boolean" ||
+      (externalId !== null && !validId(externalId)) ||
+      (event.data.updatedAt !== undefined &&
+        typeof event.data.updatedAt !== "string"))
+  ) {
+    throw invalid("Invalid WorkOS event user");
+  }
+  const profile = {
+    email,
+    emailVerified: event.data.emailVerified as boolean,
+    externalId: externalId as string | null,
+    name: event.data.name ?? null,
+    firstName: event.data.firstName ?? null,
+    lastName: event.data.lastName ?? null,
+    profilePictureUrl: event.data.profilePictureUrl ?? null,
+  };
+  for (const value of [
+    profile.name,
+    profile.firstName,
+    profile.lastName,
+    profile.profilePictureUrl,
+  ]) {
+    if (!deleting && value !== null && typeof value !== "string") {
+      throw invalid("Invalid WorkOS event profile");
+    }
+  }
+  if (!deleting) {
+    // Shapes the component would store as is: reject them before either store.
+    if (
+      !/^[^\s@]+@[^\s@]+$/.test(email) ||
+      email.length > 320 ||
+      /\p{Cc}/u.test(email)
+    ) {
+      throw invalid("Invalid WorkOS event email");
+    }
+    for (const name of [profile.name, profile.firstName, profile.lastName]) {
+      if (
+        typeof name === "string" &&
+        (name.length > 1024 || /\p{Cc}/u.test(name))
+      ) {
+        throw invalid("Invalid WorkOS event name");
+      }
+    }
+    if (typeof profile.profilePictureUrl === "string") {
+      let url: URL | undefined;
+      try {
+        url = new URL(profile.profilePictureUrl);
+      } catch {
+        url = undefined;
+      }
+      if (
+        !url ||
+        url.protocol !== "https:" ||
+        url.username ||
+        url.password ||
+        profile.profilePictureUrl.length > 4096
+      ) {
+        throw invalid("Invalid WorkOS event image");
+      }
+    }
+  }
+  return { time, workosUserId, deleting, email, externalId, profile };
+};
+
+// Only the verified webhook and the Events API catch-up supply provider events.
 export const applyWorkosEvent = internalMutation({
   args: {
     id: v.string(),
@@ -64,29 +153,19 @@ export const applyWorkosEvent = internalMutation({
       v.literal("user.deleted")
     ),
     data: v.record(v.string(), v.any()),
-    replay: v.optional(v.boolean()),
   },
   returns: v.object({
     status: v.union(
       v.literal("applied"),
       v.literal("duplicate"),
-      v.literal("stale"),
       v.literal("deleted"),
-      v.literal("ignored_deleted"),
       v.literal("quarantined")
     ),
     reason: v.optional(v.string()),
   }),
   handler: async (ctx, event) => {
-    const time = eventTime(event.createdAt);
-    const workosUserId = event.data.id;
-    if (
-      !(validId(event.id) && validId(workosUserId)) ||
-      Object.keys(event.data).length > 64 ||
-      JSON.stringify(event.data).length > 64 * 1024
-    ) {
-      throw invalid("Invalid WorkOS event input");
-    }
+    const { time, workosUserId, deleting, email, externalId, profile } =
+      parseWorkosEvent(event);
     const duplicate = await ctx.db
       .query("workosEvents")
       .withIndex("by_eventId", (q) => q.eq("eventId", event.id))
@@ -94,62 +173,14 @@ export const applyWorkosEvent = internalMutation({
     if (duplicate) {
       return { status: "duplicate" as const };
     }
-    const deleting = event.event === "user.deleted";
-    const email =
-      typeof event.data.email === "string"
-        ? normalizeIdentityEmail(event.data.email)
-        : "";
-    const externalId = event.data.externalId ?? null;
-    if (
-      !deleting &&
-      (!email ||
-        typeof event.data.emailVerified !== "boolean" ||
-        (externalId !== null && !validId(externalId)) ||
-        (event.data.updatedAt !== undefined &&
-          typeof event.data.updatedAt !== "string"))
-    ) {
-      throw invalid("Invalid WorkOS event user");
-    }
-    const profile = {
-      email,
-      emailVerified: event.data.emailVerified as boolean,
-      externalId: externalId as string | null,
-      name: event.data.name ?? null,
-      firstName: event.data.firstName ?? null,
-      lastName: event.data.lastName ?? null,
-      profilePictureUrl: event.data.profilePictureUrl ?? null,
+    // The WorkOS component stores the profile in the same transaction. Teak
+    // keeps only what the component can't: owner linking and deletion proof.
+    let result:
+      | { status: "applied" | "deleted" }
+      | { status: "quarantined"; reason: string } = {
+      status: deleting ? "deleted" : "applied",
     };
-    for (const value of [
-      profile.name,
-      profile.firstName,
-      profile.lastName,
-      profile.profilePictureUrl,
-    ]) {
-      if (!deleting && value !== null && typeof value !== "string") {
-        throw invalid("Invalid WorkOS event profile");
-      }
-    }
-    const args = {
-      workosUserId,
-      source: { kind: "event" as const, createdAt: event.createdAt },
-      state: deleting
-        ? { kind: "deleted" as const }
-        : {
-            kind: "active" as const,
-            profile,
-            ...(event.data.updatedAt === undefined
-              ? {}
-              : { providerUpdatedAt: event.data.updatedAt as string }),
-          },
-    };
-    let result = await applyWorkosProfileInTransaction(ctx, args);
-    if (
-      !deleting &&
-      event.event === "user.created" &&
-      event.replay !== true &&
-      result.status === "quarantined" &&
-      result.reason === "missing_mapping"
-    ) {
+    if (event.event === "user.created") {
       const linked = await ctx.runMutation(
         internal.workosUsers.linkWorkosUser,
         {
@@ -161,16 +192,21 @@ export const applyWorkosEvent = internalMutation({
           allowCreate: true,
         }
       );
-      result =
-        linked.status === "linked"
-          ? await applyWorkosProfileInTransaction(ctx, args)
-          : linked;
+      if (linked.status === "quarantined") {
+        result = { status: "quarantined", reason: linked.reason };
+      }
     }
     if (deleting) {
       const rows = await ctx.db
         .query("users")
         .withIndex("by_workosUserId", (q) => q.eq("workosUserId", workosUserId))
         .take(2);
+      // A permanent tombstone: these owners never sign in through WorkOS again.
+      for (const row of rows) {
+        if (row.workosDeletedAt === undefined) {
+          await ctx.db.patch("users", row._id, { workosDeletedAt: time });
+        }
+      }
       const target = await currentWorkosDeletionTarget();
       const receipt = {
         workosUserId,
@@ -219,14 +255,6 @@ export const applyWorkosEvent = internalMutation({
             externalId: profile.externalId,
           }),
     });
-    if (result.status === "rejected") {
-      throw new Error("Invalid event reconciliation state");
-    }
-    if (result.status === "unchanged") {
-      return { status: "stale" as const };
-    }
-    return result.status === "quarantined"
-      ? { status: result.status, reason: result.reason }
-      : { status: result.status };
+    return result;
   },
 });

@@ -1,14 +1,19 @@
 import { type HttpRouter, httpRouter } from "convex/server";
 import { ConvexError, v } from "convex/values";
 import { components, internal } from "./_generated/api";
-import { env, httpAction, internalMutation } from "./_generated/server";
+import {
+  type ActionCtx,
+  env,
+  httpAction,
+  internalMutation,
+} from "./_generated/server";
 import { readResponseTextWithinLimit } from "./shared/boundedResponse";
 import { authKit } from "./workosAuthKit";
-import { INVALID_WORKOS_EVENT } from "./workosLifecycle";
+import { INVALID_WORKOS_EVENT, parseWorkosEvent } from "./workosLifecycle";
 
-// This transaction preserves Teak processing even when component synchronization
-// deduplicates, rewrites or suppresses its own callback. Either both commit or
-// neither commits, so WorkOS can safely retry a failed delivery.
+// One transaction: the component stores the provider profile and Teak links
+// owners and records deletions. Either both commit or neither does, so WorkOS
+// (or the Events API catch-up) can safely retry.
 export const syncVerifiedEvent = internalMutation({
   args: {
     id: v.string(),
@@ -20,17 +25,13 @@ export const syncVerifiedEvent = internalMutation({
     ),
     data: v.record(v.string(), v.any()),
     context: v.optional(v.record(v.string(), v.any())),
-    replay: v.optional(v.boolean()),
   },
   returns: v.null(),
   handler: async (ctx, event) => {
-    await ctx.runMutation(internal.workosLifecycle.applyWorkosEvent, {
-      id: event.id,
-      createdAt: event.createdAt,
-      event: event.event,
-      data: event.data,
-      ...(event.replay === undefined ? {} : { replay: event.replay }),
-    });
+    // Teak's checks run first, so a payload it can never apply is dead-lettered
+    // instead of failing in the component's validators. The component then
+    // stores the profile, so Teak's linking reads this same event's state.
+    parseWorkosEvent(event);
     await ctx.runMutation(components.workOSAuthKit.lib.onWebhookEvent, {
       event: {
         id: event.id,
@@ -39,6 +40,12 @@ export const syncVerifiedEvent = internalMutation({
         data: event.data,
         ...(event.context === undefined ? {} : { context: event.context }),
       },
+    });
+    await ctx.runMutation(internal.workosLifecycle.applyWorkosEvent, {
+      id: event.id,
+      createdAt: event.createdAt,
+      event: event.event,
+      data: event.data,
     });
     return null;
   },
@@ -91,6 +98,57 @@ const deadLetterKey = async (id: unknown) => {
   return `sha256:${hex}`;
 };
 
+// The one way a verified provider event reaches Teak, used by the webhook and
+// the Events API catch-up. A payload Teak can never apply is dead-lettered and
+// reported as "rejected"; any other failure throws and stays retryable.
+export const ingestWorkosEvent = async (
+  ctx: Pick<ActionCtx, "runMutation">,
+  event: {
+    id: unknown;
+    createdAt: unknown;
+    event: "user.created" | "user.updated" | "user.deleted";
+    data: unknown;
+    context?: unknown;
+  }
+): Promise<"applied" | "rejected"> => {
+  const problem = envelopeProblem(event);
+  if (problem) {
+    await ctx.runMutation(internal.workosWebhook.recordDeadLetter, {
+      eventId: await deadLetterKey(event.id),
+      event: event.event,
+      reason: problem,
+    });
+    return "rejected";
+  }
+  try {
+    await ctx.runMutation(internal.workosWebhook.syncVerifiedEvent, {
+      id: event.id as string,
+      createdAt: event.createdAt as string,
+      event: event.event,
+      data: event.data as Record<string, unknown>,
+      ...(event.context
+        ? { context: event.context as Record<string, unknown> }
+        : {}),
+    });
+    return "applied";
+  } catch (error) {
+    if (
+      error instanceof ConvexError &&
+      (error.data as { code?: unknown })?.code === INVALID_WORKOS_EVENT
+    ) {
+      await ctx.runMutation(internal.workosWebhook.recordDeadLetter, {
+        eventId: await deadLetterKey(event.id),
+        event: event.event,
+        reason: String(
+          (error.data as { message?: unknown }).message ?? INVALID_WORKOS_EVENT
+        ).slice(0, 128),
+      });
+      return "rejected";
+    }
+    throw error;
+  }
+};
+
 export const workosWebhook = httpAction(async (ctx, request) => {
   const kit = authKit;
   const secret = env.WORKOS_WEBHOOK_SECRET;
@@ -132,43 +190,16 @@ export const workosWebhook = httpAction(async (ctx, request) => {
   ) {
     return new Response("Ignored", { status: 200 });
   }
-  const problem = envelopeProblem(event);
-  if (problem) {
-    await ctx.runMutation(internal.workosWebhook.recordDeadLetter, {
-      eventId: await deadLetterKey(event.id),
-      event: event.event,
-      reason: problem,
-    });
-    return new Response("Rejected", { status: 200 });
-  }
   try {
-    await ctx.runMutation(internal.workosWebhook.syncVerifiedEvent, {
-      id: event.id,
-      createdAt: event.createdAt,
-      event: event.event,
-      data: event.data,
-      ...(event.context ? { context: event.context } : {}),
+    const outcome = await ingestWorkosEvent(ctx, event);
+    return new Response(outcome === "rejected" ? "Rejected" : "OK", {
+      status: 200,
     });
-  } catch (error) {
-    // Neither store committed. A payload Teak can never apply is recorded and
-    // acknowledged so WorkOS stops retrying it; anything else stays retryable.
-    // Do not expose provider data, signing material or mutation error details.
-    if (
-      error instanceof ConvexError &&
-      (error.data as { code?: unknown })?.code === INVALID_WORKOS_EVENT
-    ) {
-      await ctx.runMutation(internal.workosWebhook.recordDeadLetter, {
-        eventId: await deadLetterKey(event.id),
-        event: event.event,
-        reason: String(
-          (error.data as { message?: unknown }).message ?? INVALID_WORKOS_EVENT
-        ).slice(0, 128),
-      });
-      return new Response("Rejected", { status: 200 });
-    }
+  } catch {
+    // Neither store committed, so WorkOS retries. Never expose provider data,
+    // signing material or mutation error details.
     return new Response("Webhook processing failed", { status: 500 });
   }
-  return new Response("OK", { status: 200 });
 });
 
 export const recordDeadLetter = internalMutation({

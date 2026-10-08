@@ -1,8 +1,10 @@
 /// <reference types="vite/client" />
 
+import workosTest from "@convex-dev/workos-authkit/test";
 import { makeFunctionReference } from "convex/server";
 import { convexTest } from "convex-test";
 import { afterEach, beforeEach, expect, test, vi } from "vitest";
+import { seedComponentUser } from "./__tests__/helpers/workosOwner.test-utils";
 import { internal } from "./_generated/api";
 import schema from "./schema";
 
@@ -27,28 +29,18 @@ afterEach(() => {
 });
 async function setup() {
   const t = convexTest(schema, modules);
+  workosTest.register(t);
+  await seedComponentUser(t, {
+    id: principal.workosUserId,
+    email: "owner@example.test",
+    externalId: "owner",
+  });
   await t.run(async (ctx) => {
     await ctx.db.insert("users", {
       teakUserId: "owner",
       workosUserId: principal.workosUserId,
       email: "owner@example.test",
       emailVerified: true,
-      workosEmailVerified: true,
-    });
-    await ctx.db.insert("workosProfiles", {
-      workosUserId: principal.workosUserId,
-      teakUserId: "owner",
-      providerUpdatedAt: "2026-10-04T00:00:00Z",
-      revision: 1,
-      source: "event",
-      profile: {
-        email: "owner@example.test",
-        emailVerified: true,
-        externalId: "owner",
-        firstName: null,
-        lastName: null,
-        profilePictureUrl: null,
-      },
     });
     await ctx.db.insert("workosConsents", {
       workosUserId: principal.workosUserId,

@@ -6,7 +6,6 @@ import { getFunctionName } from "convex/server";
 import {
   CRON_MONITORS,
   cleanupExpiredIdempotency,
-  workosDailyReconciliationAudit,
 } from "../../telemetry/crons";
 
 describe("Sentry cron monitoring", () => {
@@ -88,8 +87,8 @@ describe("Sentry cron monitoring", () => {
         failureIssueThreshold: 2,
       }),
       expect.objectContaining({
-        schedule: "30 4 * * *",
-        slug: "workos-daily-reconciliation-audit",
+        schedule: "15 * * * *",
+        slug: "workos-event-catch-up",
       }),
     ]);
   });
@@ -124,28 +123,3 @@ describe("Sentry cron monitoring", () => {
     expect(source).not.toContain("crons.interval(");
   });
 });
-
-test.each([
-  "failed_requires_operator",
-  "repair_active_requires_operator",
-  "event_retention_gap_requires_operator",
-])("daily audit monitoring reports %s as a failure", async (status) => {
-  await expect(
-    workosDailyReconciliationAudit._handler(
-      { runAction: async () => ({ status }) },
-      {}
-    )
-  ).rejects.toThrow(status);
-});
-
-test.each(["disabled", "resumed", "already_dispatched", "admitted"])(
-  "daily audit monitoring accepts scheduler status %s",
-  async (status) => {
-    expect(
-      await workosDailyReconciliationAudit._handler(
-        { runAction: async () => ({ status }) },
-        {}
-      )
-    ).toBeNull();
-  }
-);

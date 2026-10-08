@@ -3,7 +3,8 @@ import workosTest from "@convex-dev/workos-authkit/test";
 import type { UserIdentity } from "convex/server";
 import { convexTest } from "convex-test";
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
-import { api, internal } from "./_generated/api";
+import { seedComponentUser } from "./__tests__/helpers/workosOwner.test-utils";
+import { api, components, internal } from "./_generated/api";
 import type { Doc } from "./_generated/dataModel";
 import schema from "./schema";
 
@@ -25,7 +26,8 @@ const setup = () => {
 type Backend = ReturnType<typeof setup>;
 const signed = (t: Backend, overrides: Partial<UserIdentity> = {}) =>
   t.withIdentity({ ...claims, ...overrides });
-const profile = async (
+// The WorkOS component's provider profile for the signed-in user.
+const profile = (
   t: Backend,
   overrides: {
     emailVerified?: boolean;
@@ -33,32 +35,43 @@ const profile = async (
     email?: string;
   } = {}
 ) =>
-  t.run(async (ctx) => {
-    const rows = await ctx.db
-      .query("workosProfiles")
-      .withIndex("by_workosUserId", (q) => q.eq("workosUserId", "user_NEW"))
-      .take(2);
-    const fields = {
-      workosUserId: "user_NEW",
-      revision: (rows[0]?.revision ?? 0) + 1,
-      source: "event" as const,
-      providerUpdatedAt: "2026-10-01T00:00:00Z",
-      profile: {
-        email: "new@example.com",
-        emailVerified: true,
-        externalId: null,
-        firstName: null,
-        lastName: null,
-        profilePictureUrl: null,
-        ...overrides,
-      },
-    };
-    if (rows[0]) {
-      await ctx.db.patch(rows[0]._id, fields);
-    } else {
-      await ctx.db.insert("workosProfiles", fields);
-    }
+  seedComponentUser(t, {
+    id: "user_NEW",
+    email: "new@example.com",
+    externalId: null,
+    ...overrides,
   });
+// A later provider update as the component applies it: newest updatedAt wins.
+const updateProfile = (
+  t: Backend,
+  id: string,
+  updatedAt: string,
+  overrides: {
+    emailVerified?: boolean;
+    externalId?: string | null;
+    email?: string;
+  }
+) =>
+  t.run((ctx) =>
+    ctx.runMutation(components.workOSAuthKit.lib.onWebhookEvent, {
+      event: {
+        id,
+        event: "user.updated",
+        createdAt: updatedAt,
+        data: {
+          object: "user",
+          metadata: {},
+          id: "user_NEW",
+          email: "new@example.com",
+          emailVerified: true,
+          externalId: null,
+          createdAt: "2026-10-08T00:00:00.000Z",
+          updatedAt,
+          ...overrides,
+        },
+      },
+    })
+  );
 const seed = (t: Backend, overrides: Partial<Doc<"users">> = {}) =>
   t.run((ctx) =>
     ctx.db.insert("users", {
@@ -66,8 +79,6 @@ const seed = (t: Backend, overrides: Partial<Doc<"users">> = {}) =>
       email: "new@example.com",
       emailVerified: true,
       workosUserId: "user_NEW",
-      workosEmail: "new@example.com",
-      workosEmailVerified: true,
       ...overrides,
     })
   );
@@ -89,7 +100,7 @@ afterEach(() => {
 });
 // Failures: unsigned/wrong-provider/malformed sessions; missing raw
 // email_verified; missing/false component proof; conflicting external IDs; freeze;
-// existing mirror promotion, deletion resurrection and duplicate sign-up seeds.
+// deletion resurrection; stale provider snapshots and duplicate sign-up seeds.
 describe("signed WorkOS bootstrap", () => {
   test("fresh verified user gets a permanent owner from provider data and retries do not seed", async () => {
     const t = setup();
@@ -105,7 +116,6 @@ describe("signed WorkOS bootstrap", () => {
         teakUserId: result.teakUserId,
         email: "new@example.com",
         identityOrigin: "workos",
-        workosEmail: "new@example.com",
       },
     ]);
     const before = await state(t);
@@ -243,25 +253,6 @@ describe("signed WorkOS bootstrap", () => {
       { reason: "external_id_mismatch" },
     ]);
   });
-  test.each([
-    { workosEmailVerified: false },
-    { workosEmailVerified: undefined },
-    { workosEmail: undefined },
-    { workosEmail: "previous@example.com" },
-  ])(
-    "component snapshot cannot replace existing ordered mirror $workosEmail $workosEmailVerified",
-    async (overrides) => {
-      const t = setup();
-      await seed(t, overrides);
-      await profile(t);
-      const before = await state(t);
-      expect(await signed(t).mutation(ensure, {})).toEqual({
-        status: "quarantined",
-        reason: "profile_pending",
-      });
-      expect(await state(t)).toEqual(before);
-    }
-  );
   test.each([{ deletedAt: 1 }, { workosDeletedAt: 1 }])(
     "deleted owner remains closed",
     async (fields) => {
@@ -276,160 +267,53 @@ describe("signed WorkOS bootstrap", () => {
       expect((await state(t)).jobs).toEqual([]);
     }
   );
-  test("terminal unmapped provider deletion prevents creation", async () => {
+  test.each(["unmapped", "mapped"])(
+    "a %s provider deletion tombstone denies bootstrap while the component row remains",
+    async (kind) => {
+      const t = setup();
+      if (kind === "mapped") {
+        await seed(t);
+      }
+      await profile(t);
+      await t.run((ctx) =>
+        ctx.db.insert("workosEvents", {
+          workosUserId: "user_NEW",
+          type: "user.deleted",
+          createdAt: 1,
+          eventId: "terminal",
+        })
+      );
+      const before = await state(t);
+      expect(await signed(t).mutation(ensure, {})).toEqual({
+        status: "quarantined",
+        reason: "profile_pending",
+      });
+      expect(await state(t)).toEqual(before);
+    }
+  );
+  test("a stale verified snapshot cannot override a newer unverified profile", async () => {
     const t = setup();
     await profile(t);
-    await t.run((ctx) =>
-      ctx.db.insert("workosEvents", {
-        workosUserId: "user_NEW",
-        type: "user.deleted",
-        createdAt: 1,
-        eventId: "terminal",
-      })
-    );
-    expect(await signed(t).mutation(ensure, {})).toEqual({
-      status: "quarantined",
-      reason: "profile_pending",
+    await updateProfile(t, "latest_unverified", "2026-10-08T00:00:03.000Z", {
+      emailVerified: false,
     });
-    expect((await state(t)).users).toEqual([]);
-    expect((await state(t)).jobs).toEqual([]);
-  });
-  test("an equal-time conflict stays demoted after sign-in", async () => {
-    const t = setup();
-    await seed(t);
-    await profile(t);
-    const createdAt = "2026-10-01T00:00:00.000Z";
-    const event = {
-      id: "ordered",
-      event: "user.updated" as const,
-      createdAt,
-      data: {
-        id: "user_NEW",
-        email: "new@example.com",
-        emailVerified: true,
-        updatedAt: "2026-10-01T00:00:00.000Z",
-      },
-    };
-    await t.mutation(internal.workosLifecycle.applyWorkosEvent, event);
-    await t.mutation(internal.workosLifecycle.applyWorkosEvent, {
-      ...event,
-      id: "conflict",
-      data: { ...event.data, email: "conflict@example.com" },
+    await updateProfile(t, "stale_verified", "2026-10-08T00:00:02.000Z", {
+      emailVerified: true,
     });
-    const before = await state(t);
-    expect(before.users[0].workosEmailVerified).toBe(false);
-    expect(await signed(t).mutation(ensure, {})).toEqual({
-      status: "quarantined",
-      reason: "profile_pending",
-    });
-    expect(await state(t)).toEqual(before);
-  });
-  test("unmapped equal-time conflict cannot be cleared by a stale verified component snapshot", async () => {
-    const t = setup();
-    await profile(t);
-    vi.stubEnv("SIGNUPS_DISABLED", "true");
-    const createdAt = "2026-10-01T00:00:00.000Z";
-    const event = {
-      id: "frozen_created",
-      event: "user.created" as const,
-      createdAt,
-      data: {
-        id: "user_NEW",
-        email: "new@example.com",
-        emailVerified: true,
-        updatedAt: "2026-10-01T00:00:00.000Z",
-      },
-    };
-    await t.mutation(internal.workosLifecycle.applyWorkosEvent, event);
-    await t.mutation(internal.workosLifecycle.applyWorkosEvent, {
-      ...event,
-      id: "unmapped_conflict",
-      event: "user.updated",
-      data: {
-        ...event.data,
-        email: "conflict@example.com",
-        emailVerified: false,
-      },
-    });
-    expect((await state(t)).users).toEqual([]);
-    vi.stubEnv("SIGNUPS_DISABLED", "false");
-    expect(await signed(t).mutation(ensure, {})).toEqual({
-      status: "quarantined",
-      reason: "profile_pending",
-    });
-    expect((await state(t)).users).toEqual([]);
-    expect((await state(t)).jobs).toEqual([]);
-  });
-  test("newer unverified event blocks stale verified component bootstrap", async () => {
-    const t = setup();
-    await profile(t);
-    vi.stubEnv("SIGNUPS_DISABLED", "true");
-    const event = {
-      id: "initial_verified",
-      event: "user.created" as const,
-      createdAt: "2026-10-01T00:00:00.000Z",
-      data: {
-        id: "user_NEW",
-        email: "new@example.com",
-        emailVerified: true,
-        updatedAt: "2026-10-01T00:00:00.000Z",
-      },
-    };
-    await t.mutation(internal.workosLifecycle.applyWorkosEvent, event);
-    await t.mutation(internal.workosLifecycle.applyWorkosEvent, {
-      ...event,
-      id: "latest_unverified",
-      event: "user.updated",
-      createdAt: "2026-10-03T00:00:00.000Z",
-      data: {
-        ...event.data,
-        emailVerified: false,
-        updatedAt: "2026-10-03T00:00:00.000Z",
-      },
-    });
-    expect(
-      await t.mutation(internal.workosLifecycle.applyWorkosEvent, {
-        ...event,
-        id: "stale_verified",
-        event: "user.updated",
-        createdAt: "2026-10-02T00:00:00.000Z",
-        data: { ...event.data, updatedAt: "2026-10-02T00:00:00.000Z" },
-      })
-    ).toEqual({ status: "stale" });
-    vi.stubEnv("SIGNUPS_DISABLED", "false");
     expect(await signed(t).mutation(ensure, {})).toEqual({
       status: "verify_email",
     });
     expect((await state(t)).users).toEqual([]);
     expect((await state(t)).jobs).toEqual([]);
   });
-  test("later ordered verification allows bootstrap after an unverified signup", async () => {
+  test("later verification allows bootstrap after an unverified signup", async () => {
     const t = setup();
-    await profile(t);
-    await t.mutation(internal.workosLifecycle.applyWorkosEvent, {
-      id: "unverified_signup",
-      event: "user.created",
-      createdAt: "2026-10-01T00:00:00.000Z",
-      data: {
-        id: "user_NEW",
-        email: "new@example.com",
-        emailVerified: false,
-        updatedAt: "2026-10-02T00:00:00.000Z",
-      },
-    });
+    await profile(t, { emailVerified: false });
     expect(await signed(t).mutation(ensure, {})).toEqual({
       status: "verify_email",
     });
-    await t.mutation(internal.workosLifecycle.applyWorkosEvent, {
-      id: "verified_later",
-      event: "user.updated",
-      createdAt: "2026-10-03T00:00:00.000Z",
-      data: {
-        id: "user_NEW",
-        email: "new@example.com",
-        emailVerified: true,
-        updatedAt: "2026-10-03T00:00:00.000Z",
-      },
+    await updateProfile(t, "verified_later", "2026-10-08T00:00:03.000Z", {
+      emailVerified: true,
     });
     expect(await signed(t).mutation(ensure, {})).toMatchObject({
       status: "ok",
@@ -441,54 +325,42 @@ describe("signed WorkOS bootstrap", () => {
     { email: "changed@example.com", externalId: null },
     { email: "new@example.com", externalId: "unknown-owner" },
   ])(
-    "bootstrap uses current canonical email and rejects mismatched external binding: %j",
+    "bootstrap uses the newest component email and rejects mismatched external binding: %j",
     async (latest) => {
       const t = setup();
       await profile(t);
-      await t.mutation(internal.workosLifecycle.applyWorkosEvent, {
-        id: "newer_profile",
-        event: "user.updated",
-        createdAt: "2026-10-03T00:00:00.000Z",
-        data: {
-          id: "user_NEW",
-          emailVerified: true,
-          updatedAt: "2026-10-03T00:00:00.000Z",
-          ...latest,
-        },
-      });
-      await t.mutation(internal.workosLifecycle.applyWorkosEvent, {
-        id: "old_profile",
-        event: "user.updated",
-        createdAt: "2026-10-02T00:00:00.000Z",
-        data: {
-          id: "user_NEW",
-          email: "new@example.com",
-          emailVerified: true,
-          updatedAt: "2026-10-02T00:00:00.000Z",
-        },
-      });
+      await updateProfile(
+        t,
+        "newer_profile",
+        "2026-10-08T00:00:03.000Z",
+        latest
+      );
+      await updateProfile(t, "old_profile", "2026-10-08T00:00:02.000Z", {});
       const result = await signed(t).mutation(ensure, {});
       if (latest.externalId === null) {
         expect(result).toMatchObject({ status: "ok" });
         expect((await state(t)).users).toMatchObject([
-          { email: "changed@example.com", workosEmail: "changed@example.com" },
+          { email: "changed@example.com", workosUserId: "user_NEW" },
         ]);
         expect((await state(t)).users).toHaveLength(1);
         expect((await state(t)).jobs).toHaveLength(2);
       } else {
         expect(result).toEqual({
           status: "quarantined",
-          reason: "profile_pending",
+          reason: "external_id_mismatch",
         });
-        expect((await state(t)).users).toEqual([]);
-        expect((await state(t)).jobs).toEqual([]);
+        expect(await state(t)).toMatchObject({
+          users: [],
+          jobs: [],
+          quarantine: [{ reason: "external_id_mismatch" }],
+        });
       }
     }
   );
-  test("bootstrap, created webhook and import converge on one permanent owner", async () => {
+  test("bootstrap and the created webhook converge on one permanent owner", async () => {
     const t = setup();
     await profile(t);
-    const [bootstrapResult, webhookResult, importResult] = await Promise.all([
+    const [bootstrapResult, webhookResult] = await Promise.all([
       signed(t).mutation(ensure, {}),
       t.mutation(internal.workosLifecycle.applyWorkosEvent, {
         id: "racing_created",
@@ -501,28 +373,9 @@ describe("signed WorkOS bootstrap", () => {
           updatedAt: "2026-10-01T00:00:00.000Z",
         },
       }),
-      t.mutation(internal.workosUsers.linkWorkosUser, {
-        workosUserId: "user_NEW",
-        email: "new@example.com",
-        emailVerified: true,
-        source: "import",
-      }),
     ]);
     expect(bootstrapResult).toMatchObject({ status: "ok" });
     expect(webhookResult).toEqual({ status: "applied" });
-    if (importResult.status === "quarantined") {
-      expect(importResult.reason).toBe("missing_mapping");
-      expect(
-        await t.mutation(internal.workosUsers.linkWorkosUser, {
-          workosUserId: "user_NEW",
-          email: "new@example.com",
-          emailVerified: true,
-          source: "import",
-        })
-      ).toMatchObject({ status: "linked", changed: false });
-    } else {
-      expect(importResult).toMatchObject({ status: "linked", changed: false });
-    }
     const receipts = await t.run((ctx) =>
       ctx.db.query("workosEvents").take(10)
     );
@@ -542,22 +395,5 @@ describe("signed WorkOS bootstrap", () => {
       teakUserId: after.users[0].teakUserId,
     });
     expect((await state(t)).jobs).toEqual(after.jobs);
-  });
-  test("linking a migrated owner waits for ordered profile synchronization without seeding", async () => {
-    const t = setup();
-    await profile(t);
-    await seed(t, {
-      workosUserId: undefined,
-      workosEmail: undefined,
-      workosEmailVerified: undefined,
-    });
-    expect(await signed(t).mutation(ensure, {})).toEqual({
-      status: "quarantined",
-      reason: "profile_pending",
-    });
-    expect((await state(t)).users).toMatchObject([
-      { teakUserId: "permanent-owner", workosUserId: "user_NEW" },
-    ]);
-    expect((await state(t)).jobs).toEqual([]);
   });
 });

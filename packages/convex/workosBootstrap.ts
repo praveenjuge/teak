@@ -80,19 +80,6 @@ export const ensureUser = mutation({
         ? { status: "frozen" as const }
         : linked;
     }
-    const mirror = await ctx.db
-      .query("users")
-      .withIndex("by_teakUserId", (q) => q.eq("teakUserId", linked.teakUserId))
-      .unique();
-    // Existing profiles advance only through ordered events/reconciliation.
-    // A component snapshot cannot undo an equal-time conflict demotion.
-    if (
-      typeof mirror?.workosEmail !== "string" ||
-      mirror.workosEmailVerified !== true ||
-      mirror.workosEmail !== email
-    ) {
-      return { status: "quarantined" as const, reason: "profile_pending" };
-    }
     const resolved: FunctionReturnType<
       typeof internal.workosIdentity.resolveWorkosOwner
     > = await ctx.runQuery(internal.workosIdentity.resolveWorkosOwner, {

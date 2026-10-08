@@ -1,7 +1,12 @@
 /// <reference types="vite/client" />
+import workosTest from "@convex-dev/workos-authkit/test";
 import { convexTest } from "convex-test";
 import { exportJWK, generateKeyPair, type JWTPayload, SignJWT } from "jose";
 import { afterEach, beforeAll, beforeEach, expect, test, vi } from "vitest";
+import {
+  seedComponentUser,
+  updateComponentUser,
+} from "./__tests__/helpers/workosOwner.test-utils";
 import { internal } from "./_generated/api";
 import schema from "./schema";
 import { verifyWorkosConnectToken } from "./workosTokens";
@@ -64,28 +69,18 @@ function token(overrides: JWTPayload = {}) {
 }
 async function setup(existing = true) {
   const t = convexTest(schema, modules);
+  workosTest.register(t);
+  await seedComponentUser(t, {
+    id: user,
+    email: "owner@example.test",
+    externalId: owner,
+  });
   await t.run(async (ctx) => {
     await ctx.db.insert("users", {
       teakUserId: owner,
       workosUserId: user,
       email: "owner@example.test",
       emailVerified: true,
-      workosEmailVerified: true,
-    });
-    await ctx.db.insert("workosProfiles", {
-      workosUserId: user,
-      teakUserId: owner,
-      providerUpdatedAt: "2026-10-06T00:00:00Z",
-      revision: 1,
-      source: "event",
-      profile: {
-        email: "owner@example.test",
-        emailVerified: true,
-        externalId: owner,
-        firstName: null,
-        lastName: null,
-        profilePictureUrl: null,
-      },
     });
     if (existing) {
       await ctx.db.insert("workosConsents", {
@@ -281,16 +276,9 @@ test("historical consent can be revoked during account deletion without granting
     (await f.rows()).find((r) => r.consentId === consent)?.revokedAt
   ).toBeTypeOf("number");
 });
-test("unseen consent with an unverified canonical profile cannot be inserted", async () => {
+test("unseen consent with an unverified WorkOS profile cannot be inserted", async () => {
   const f = await setup(false);
-  await f.t.run(async (ctx) => {
-    const row = await ctx.db.query("workosProfiles").first();
-    if (row?.profile) {
-      await ctx.db.patch(row._id, {
-        profile: { ...row.profile, emailVerified: false },
-      });
-    }
-  });
+  await updateComponentUser(f.t, user, { emailVerified: false });
   expect((await f.disconnect(await token())).status).toBe(401);
   expect((await f.rows()).some((r) => r.consentId === consent)).toBe(false);
 });

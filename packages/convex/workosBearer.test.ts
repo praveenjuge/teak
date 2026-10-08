@@ -17,6 +17,10 @@ import {
   test,
   vi,
 } from "vitest";
+import {
+  seedComponentUser,
+  updateComponentUser,
+} from "./__tests__/helpers/workosOwner.test-utils";
 import { api as backendApi, components } from "./_generated/api";
 import schema from "./schema";
 import { API_KEY_TOKEN_PREFIX } from "./shared/apiKeyFormat";
@@ -101,27 +105,15 @@ async function setup() {
       email: "legacy@example.test",
       emailVerified: true,
       workosUserId: userId,
-      workosEmail: "provider@example.test",
-      workosEmailVerified: true,
     })
   );
-  await t.run((ctx) =>
-    ctx.db.insert("workosProfiles", {
-      workosUserId: userId,
-      teakUserId: ownerId,
-      providerUpdatedAt: "2026-10-04T00:00:00Z",
-      revision: 1,
-      source: "event",
-      profile: {
-        email: "provider@example.test",
-        emailVerified: true,
-        externalId: ownerId,
-        firstName: "Current",
-        lastName: "Profile",
-        profilePictureUrl: null,
-      },
-    })
-  );
+  await seedComponentUser(t, {
+    id: userId,
+    email: "provider@example.test",
+    externalId: ownerId,
+    firstName: "Current",
+    lastName: "Profile",
+  });
   const own = await t.run((ctx) =>
     ctx.db.insert("cards", {
       userId: ownerId,
@@ -246,24 +238,6 @@ describe("WorkOS REST and MCP token boundary", () => {
   test("profile and Mac account summary use the WorkOS email and permanent vault", async () => {
     const f = await setup();
     const access = await token();
-    await f.t.mutation(components.workOSAuthKit.lib.onWebhookEvent, {
-      event: {
-        id: "event_profile",
-        event: "user.created",
-        createdAt: "2026-10-04T00:00:00.000Z",
-        data: {
-          object: "user",
-          id: userId,
-          email: "provider@example.test",
-          emailVerified: true,
-          firstName: "Stale component",
-          lastName: "Cache",
-          metadata: {},
-          createdAt: "2026-10-04T00:00:00.000Z",
-          updatedAt: "2026-10-04T00:00:00.000Z",
-        },
-      },
-    });
     const profile = await f.read(access, "/v1/me");
     expect(profile.status).toBe(200);
     expect(await profile.json()).toEqual({
@@ -419,17 +393,16 @@ describe("WorkOS REST and MCP token boundary", () => {
     const f = await setup();
     const access = await token();
     expect((await f.read(access)).status).toBe(200);
-    await f.t.run((ctx) =>
-      ctx.db.patch(f.owner, { workosEmailVerified: false })
-    );
+    await updateComponentUser(f.t, userId, { emailVerified: false });
     expect((await f.read(access)).status).toBe(401);
-    await f.t.run(async (ctx) => {
-      await ctx.db.patch(f.owner, { workosEmailVerified: true });
-      await ctx.db.insert("accountDeletionStates", {
+    await updateComponentUser(f.t, userId, { emailVerified: true });
+    expect((await f.read(access)).status).toBe(200);
+    await f.t.run((ctx) =>
+      ctx.db.insert("accountDeletionStates", {
         userId: ownerId,
         startedAt: Date.now(),
-      });
-    });
+      })
+    );
     expect((await f.read(access)).status).toBe(401);
   });
 
@@ -472,17 +445,12 @@ describe("WorkOS REST and MCP token boundary", () => {
     );
     expect((await f.read(key.key)).status).toBe(200);
     expect((await f.mcp(key.key)).status).toBe(200);
-    await f.t.run((ctx) =>
-      ctx.db.patch(f.owner, { workosEmailVerified: false })
-    );
+    await updateComponentUser(f.t, userId, { emailVerified: false });
     expect((await f.read(key.key)).status).toBe(401);
-    await f.t.run((ctx) =>
-      ctx.db.patch(f.owner, { workosEmailVerified: true })
-    );
+    await updateComponentUser(f.t, userId, { emailVerified: true });
     expect((await f.read(key.key)).status).toBe(200);
     await f.t.run((ctx) => apiKeys.revoke(ctx, { keyId: key.keyId, ownerId }));
     expect((await f.read(key.key)).status).toBe(401);
     expect((await f.mcp(key.key, "ping")).status).toBe(401);
   });
-
 });
