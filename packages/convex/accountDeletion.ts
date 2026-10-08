@@ -470,11 +470,15 @@ export const initiateAccountDeletion = async (
     throw new ConvexError(ACCOUNT_CHANGES_PAUSED_MESSAGE);
   }
   // Accounts that existed before WorkOS also have retained Better Auth rows,
-  // which deletion removes too.
-  const legacy = await ctx.runQuery(components.betterAuth.adapter.findOne, {
-    model: "user",
-    where: [{ field: "_id", value: owner.teakUserId }],
-  });
+  // which deletion removes too. Owners WorkOS created have a `teak_` key that
+  // is no Better Auth document ID, so looking one up would throw.
+  const legacy =
+    owner.identityOrigin === "workos"
+      ? null
+      : await ctx.runQuery(components.betterAuth.adapter.findOne, {
+          model: "user",
+          where: [{ field: "_id", value: owner.teakUserId }],
+        });
   const clientId = process.env.WORKOS_CLIENT_ID;
   const environmentId = process.env.WORKOS_ENVIRONMENT_ID;
   const apiKey = process.env.WORKOS_API_KEY;

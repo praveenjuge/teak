@@ -122,6 +122,8 @@ import type * as shared_utils_linkCategoryResolver from "../shared/utils/linkCat
 import type * as shared_utils_linkDetection from "../shared/utils/linkDetection.js";
 import type * as shared_utils_safeUrl from "../shared/utils/safeUrl.js";
 import type * as shared_utils_timeSearch from "../shared/utils/timeSearch.js";
+import type * as shared_workosApi from "../shared/workosApi.js";
+import type * as shared_workosClient from "../shared/workosClient.js";
 import type * as shared_workosResources from "../shared/workosResources.js";
 import type * as signupFreeze from "../signupFreeze.js";
 import type * as storage_fileUrls from "../storage/fileUrls.js";
@@ -337,6 +339,8 @@ declare const fullApi: ApiFromModules<{
   "shared/utils/linkDetection": typeof shared_utils_linkDetection;
   "shared/utils/safeUrl": typeof shared_utils_safeUrl;
   "shared/utils/timeSearch": typeof shared_utils_timeSearch;
+  "shared/workosApi": typeof shared_workosApi;
+  "shared/workosClient": typeof shared_workosClient;
   "shared/workosResources": typeof shared_workosResources;
   signupFreeze: typeof signupFreeze;
   "storage/fileUrls": typeof storage_fileUrls;
