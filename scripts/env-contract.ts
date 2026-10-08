@@ -60,6 +60,7 @@ export const DELETED_ALIASES = [
   "R2_STORAGE_URL",
   "R2_UPLOAD_ORIGIN",
   "R2_UPLOAD_URL",
+  "RESEND_API_KEY",
 ] as const;
 
 /**
@@ -101,7 +102,6 @@ export const PLATFORM_EXACT = [
   "PATH",
   "PROD",
   "PWD",
-  "RESEND_API_KEY",
   "RUNNER_ARCH",
   "RUNNER_OS",
   "RUNNER_TEMP",
