@@ -48,6 +48,7 @@ import type * as card_visualFilters from "../card/visualFilters.js";
 import type * as cards from "../cards.js";
 import type * as client_authDiscovery from "../client/authDiscovery.js";
 import type * as client_sdk from "../client/sdk.js";
+import type * as client_workosConnect from "../client/workosConnect.js";
 import type * as crons from "../crons.js";
 import type * as dataExport from "../dataExport.js";
 import type * as dataImport from "../dataImport.js";
@@ -256,6 +257,7 @@ declare const fullApi: ApiFromModules<{
   cards: typeof cards;
   "client/authDiscovery": typeof client_authDiscovery;
   "client/sdk": typeof client_sdk;
+  "client/workosConnect": typeof client_workosConnect;
   crons: typeof crons;
   dataExport: typeof dataExport;
   dataImport: typeof dataImport;
