@@ -26,6 +26,10 @@ After installing globally, the `teak` command is available on your PATH. To try 
     Teak opens your browser to authorize the CLI. Approve the request on the
     consent screen, then return to the terminal. You stay signed in until you
     run `teak logout` or disconnect the app in Settings.
+
+    `teak login --no-browser` prints the sign-in URL instead of opening it.
+    Open it in a browser on the same computer, because sign-in finishes on a
+    local callback.
   </Tab>
   <Tab title="API key">
     Set `TEAK_API_KEY` to skip interactive sign-in in scripts and CI:
@@ -87,6 +91,32 @@ scripting.
 File uploads support the same formats as the web app (source files, Markdown and MDX, ZIP archives, documents, images, audio, and video — see [Features](/docs/features)), up to 100 MB. `.md` and `.markdown` files become editable text cards, must be valid UTF-8, and are limited to 512 KiB; `.mdx` remains a document.
 
 Text passed to `teak add`, including standard input, is stored as raw Markdown exactly as submitted. Text cards have a 512 KiB UTF-8 limit.
+
+### Filter and page through cards
+
+`teak ls`, `teak search`, and `teak cards favorites` accept `--type`, `--tag`, `--favorited`, `--sort newest|oldest`, `--created-after` and `--created-before` (millisecond timestamps), `--limit`, `--cursor`, and `--include content,metadata,processing`. Add `--all` to `teak ls` to fetch every page.
+
+```bash
+teak ls --type link --tag design --limit 20
+teak ls --all --json > cards.json
+```
+
+### Sync and bulk edits
+
+```bash
+teak cards changes --since 1767225600000 --json
+teak cards bulk update --input updates.json
+```
+
+`teak cards changes` returns cards changed since a millisecond timestamp, plus the IDs of deleted cards with `--json`. `teak cards bulk` runs `create`, `update`, `favorite`, or `delete` on a JSON array of up to 100 items, read from `--input` or standard input. Items use the same shape as the [API's bulk endpoint](/docs/api#reliable-requests).
+
+### Global options
+
+| Option | Purpose |
+| --- | --- |
+| `--json` | Machine-readable output |
+| `--api-key <key>` | Use an API key for this command (same as `TEAK_API_KEY`) |
+| `--api-url <url>` | Point at another API, such as a self-hosted or development deployment (same as `TEAK_API_URL`) |
 
 ### Getting help
 
