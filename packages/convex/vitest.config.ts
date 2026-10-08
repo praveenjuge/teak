@@ -27,6 +27,7 @@ export default defineConfig({
       "./workosReconciliation.test.ts",
       "./workosReconciliationCensus.test.ts",
       "./workosIdentity.test.ts",
+      "./workosIdentityAudit.test.ts",
       "./workosConsents.test.ts",
       "./workosConnectRevocation.test.ts",
       "./workosApplicationDisconnect.test.ts",
