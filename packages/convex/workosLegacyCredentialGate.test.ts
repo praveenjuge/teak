@@ -2,7 +2,7 @@
 import betterAuthTest from "@convex-dev/better-auth/test";
 import { convexTest } from "convex-test";
 import { afterEach, beforeEach, expect, test, vi } from "vitest";
-import { components, internal } from "./_generated/api";
+import { components } from "./_generated/api";
 import { authComponent, createAuth } from "./auth";
 import schema from "./schema";
 import { mintDedicatedSession } from "./shared/dedicatedSessions";
@@ -28,12 +28,8 @@ function setup() {
   betterAuthTest.register(t);
   return t;
 }
-const barrier = (t: ReturnType<typeof setup>) =>
-  t.mutation(internal.migration.workosImportLease.establishQuiescence, {
-    ...pins,
-    holder: crypto.randomUUID(),
-    runId: "b".repeat(64),
-  });
+// Under WorkOS the gate stops every Better Auth credential write.
+const selectWorkos = () => vi.stubEnv("AUTH_PRIMARY", "workos");
 const write = (
   t: ReturnType<typeof setup>,
   model: "session" | "oauthAccessToken"
@@ -82,7 +78,7 @@ test.each(["session", "oauthAccessToken"] as const)(
         where: [{ field: "_id", value: created.id }],
       })
     );
-    const held = await barrier(t);
+    selectWorkos();
     await expect(write(t, model)).rejects.toThrow(
       "credential writes are stopped"
     );
@@ -124,10 +120,7 @@ test.each(["session", "oauthAccessToken"] as const)(
         )
       ).page
     ).toHaveLength(1);
-    await t.mutation(internal.migration.workosImportLease.releaseQuiescence, {
-      ...pins,
-      ...held,
-    });
+    vi.stubEnv("AUTH_PRIMARY", "betterauth");
     expect(await write(t, model)).toHaveProperty("id");
     vi.stubEnv("AUTH_PRIMARY", "workos");
     await expect(write(t, model)).rejects.toThrow(
@@ -142,7 +135,7 @@ test("direct dedicated session mint joins the same durable barrier transaction",
       mintDedicatedSession(ctx, { userId: "permanent", userAgent: "Teak Test" })
     )
   ).toHaveProperty("sessionToken");
-  await barrier(t);
+  selectWorkos();
   await expect(
     t.run((ctx) =>
       mintDedicatedSession(ctx, { userId: "permanent", userAgent: "Teak Test" })
@@ -175,7 +168,7 @@ test("an adapter admitted before quiescence cannot commit a credential after the
     }
     return admitted;
   };
-  await barrier(t);
+  selectWorkos();
   await expect(
     t.run(() =>
       getAdmitted().create({
@@ -351,7 +344,7 @@ test("password reset admitted before pause cannot update the account or link ano
       )
     ).page
   ).toHaveLength(2);
-  await barrier(t);
+  selectWorkos();
   vi.stubEnv("ACCOUNT_CHANGES_PAUSED", "false");
   await expect(
     t.run(() =>
@@ -458,7 +451,7 @@ test.each([
           .unique()
       )
     ).toMatchObject({ email: "profile@example.com", emailVerified: verified });
-    await barrier(t);
+    selectWorkos();
     vi.stubEnv("ACCOUNT_CHANGES_PAUSED", "false");
     await expect(
       t.run(() =>
@@ -544,7 +537,7 @@ test("user provisioning admitted before pause/barrier cannot create legacy owner
         })
       )
     ).rejects.toThrow("account changes are paused");
-    await barrier(t);
+    selectWorkos();
     vi.stubEnv("ACCOUNT_CHANGES_PAUSED", "false");
     await expect(
       t.run(() =>
@@ -630,7 +623,7 @@ test.each(["google", "apple"])(
       accessToken: "rotated-access",
       refreshToken: "rotated-refresh",
     });
-    await barrier(t);
+    selectWorkos();
     await expect(
       update({ accessToken: "post-barrier-access" })
     ).rejects.toThrow("credential writes are stopped");
