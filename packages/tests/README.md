@@ -26,9 +26,17 @@ Useful variables:
 - `E2E_CONVEX_URL` and `E2E_CONVEX_SITE_URL` are required. The runner exports them to the Vite-prefixed names the extension build consumes.
 - `E2E_EMAIL_DELIVERY_ENABLED=true` opts into the two real email-delivery canaries. Scheduled GitHub runs enable it; manual runs leave it disabled.
 
-Most test accounts are provisioned as already-verified users through the token-protected backend endpoint, so manual runs send no email. The nightly run sends one signup verification and one password-reset message to preserve real delivery coverage. During the migration signup freeze, the nightly setup asserts the exact paused registration UI, preserves a screenshot, and provisions the primary account through the protected endpoint instead. The signup email canary resumes automatically when registration reopens; password-reset delivery coverage continues. Cleanup is browserless. Exact accounts created by a test are removed during teardown, while the scheduled sweep discovers orphan accounts directly from the production auth database. The backend accepts only the configured `e2e-*` email namespace, enforces account-age bounds, caps each sweep, and reuses the same Teak data-deletion path as user-initiated account deletion. Mailpit messages are deleted separately by exact message ID.
+Most test accounts are provisioned as already-verified users through the token-protected backend endpoint, so manual runs send no email. With email delivery enabled, setup reads the `/register` entry first:
 
-Manual full-suite runs can opt into email delivery with the `email_delivery` input to verify the signup freeze and password-reset canary before the next nightly run.
+- Better Auth form: sends one real signup verification email.
+- Paused registration: asserts the exact paused UI, preserves a screenshot, and provisions the primary account through the protected endpoint.
+- Hosted WorkOS entry (`Continue`, no form): fails before creating any account. Hosted sign-up would create a WorkOS user without the `teak_e2e` flag, which cleanup and the sweep can't delete. Email-delivery runs stay red until a reviewed WorkOS signup canary exists; run with email delivery off meanwhile.
+
+The password-reset canary still drives the Better Auth `/forgot-password` form and Teak's reset email. On WorkOS, `/forgot-password` hands off to hosted AuthKit, so this canary fails there until it's rewritten against hosted reset. The accessibility scan accepts the Better Auth form or the WorkOS entry on `/login` and `/register`, plus the paused status on `/register`. Cleanup is browserless. Exact accounts created by a test are removed during teardown, while the scheduled sweep discovers orphan accounts directly from the production auth database. The backend accepts only the configured `e2e-*` email namespace, enforces account-age bounds, caps each sweep, and reuses the same Teak data-deletion path as user-initiated account deletion. Mailpit messages are deleted separately by exact message ID.
+
+Manual full-suite runs can opt into email delivery with the `email_delivery` input to check the signup entry and password-reset canary before the next nightly run.
+
+The hosted auth helpers (`signIn`, `expectAuthEntry`, the signup canary guard) have hermetic browser checks: `bun run --cwd packages/tests e2e:auth:runtime`. They use synthetic pages, not live AuthKit.
 
 For a zero-email health check without the browser suites, manually dispatch the
 Production E2E workflow with `preflight_only` enabled.
