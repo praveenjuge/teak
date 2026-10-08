@@ -39,8 +39,12 @@ export const backfillUsers = internalMutation({
   returns: v.null(),
   handler: async (ctx) => {
     const apiKey = process.env.WORKOS_API_KEY;
-    if (!apiKey) {
-      throw new Error("WORKOS_API_KEY is required for the component backfill.");
+    // Same gate as `authKit`: a deployment without AuthKit has no component
+    // users to keep in sync.
+    if (!(authKit && apiKey)) {
+      throw new Error(
+        "WorkOS AuthKit isn't configured on this deployment (WORKOS_ENVIRONMENT_ID and WORKOS_API_KEY)."
+      );
     }
     await ctx.runMutation(components.workOSAuthKit.backfill.startBackfill, {
       apiKey,
