@@ -199,7 +199,7 @@ PUBLIC_ORIGIN=https://yourdomain.com            # Required to expose self-hosted
 TEAK_DEV_API_URL=https://deployment.convex.site # Optional local override
 ```
 
-Convex serves the REST API at `/api/v1`, the MCP endpoint at `/mcp`, plus `/healthz`, `/openapi.json`, and OAuth protected-resource metadata. In production, Teak exposes these through apex path rewrites (e.g. `https://teakvault.com/api` and `https://teakvault.com/mcp`). For self-hosted setups, configure your reverse proxy or DNS to route `/api` and `/mcp` to the Convex deployment's `.convex.site` domain. The protected-resource metadata advertises your `WORKOS_AUTHKIT_DOMAIN` as the OAuth issuer.
+Convex serves the REST API at `/api/v1`, the MCP endpoint at `/mcp`, plus `/healthz`, `/openapi.json`, and OAuth protected-resource metadata. In production, Teak exposes these through apex path rewrites (e.g. `https://teakvault.com/api` and `{{mcp-url}}`). For self-hosted setups, configure your reverse proxy or DNS to route `/api` and `/mcp` to the Convex deployment's `.convex.site` domain. The protected-resource metadata advertises your `WORKOS_AUTHKIT_DOMAIN` as the OAuth issuer.
 
 ## Where to get the values
 

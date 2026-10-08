@@ -1,5 +1,10 @@
 import { describe, expect, test } from "bun:test";
-import { buildPageSchemas, SITE_DESCRIPTION, SITE_URL } from "./jsonld";
+import {
+  buildPageSchemas,
+  ORGANIZATION_ID,
+  SITE_DESCRIPTION,
+  SITE_URL,
+} from "./jsonld";
 
 interface SchemaNode {
   "@type": string;
@@ -17,7 +22,7 @@ describe("marketing structured data", () => {
 
   test("Organization carries identity fields agents read", () => {
     expect(organization(schemas)).toMatchObject({
-      "@id": `${SITE_URL}/#organization`,
+      "@id": ORGANIZATION_ID,
       name: "Teak",
       url: SITE_URL,
       description: SITE_DESCRIPTION,
@@ -34,6 +39,6 @@ describe("marketing structured data", () => {
       (node) => node["@type"] === "WebPage"
     );
 
-    expect(page?.about).toEqual({ "@id": `${SITE_URL}/#organization` });
+    expect(page?.about).toEqual({ "@id": ORGANIZATION_ID });
   });
 });

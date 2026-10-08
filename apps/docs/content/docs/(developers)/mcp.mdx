@@ -3,16 +3,62 @@ title: MCP
 description: Remote MCP server for Teak card operations
 ---
 
-Teak provides a remote MCP server at `https://teakvault.com/mcp`.
+Teak provides a remote MCP server at `{{mcp-url}}`.
 
 For agents running inside the signed-in Teak web app, [WebMCP](/docs/webmcp)
 offers read-only card tools with no extra authentication.
 
 ## Base URLs
 
-- Production: `https://teakvault.com/mcp`
+- Production: `{{mcp-url}}`
 - Local development: `http://localhost:3001/mcp`
 - Discovery manifest: `https://teakvault.com/.well-known/mcp.json`
+
+## Connect your client
+
+Pick your client. Each tab has its own link, so you can share the setup for one client.
+
+<Tabs param="client">
+  <Tab title="Claude Code" icon="terminal">
+    ```bash
+    claude mcp add --transport http teak {{mcp-url}}
+    ```
+
+    Run `/mcp` in Claude Code, choose **teak**, and complete browser sign-in.
+  </Tab>
+  <Tab title="Codex" icon="terminal">
+    ```bash
+    codex mcp add teak --url {{mcp-url}}
+    ```
+
+    Complete browser sign-in when Codex prompts you.
+  </Tab>
+  <Tab title="Cursor" icon="mouse-pointer-click">
+    [Add Teak to Cursor](cursor://anysphere.cursor-deeplink/mcp/install?name=teak&config=eyJ1cmwiOiJodHRwczovL3RlYWt2YXVsdC5jb20vbWNwIn0%3D), or add it to `~/.cursor/mcp.json` yourself:
+
+    ```json
+    {
+      "mcpServers": {
+        "teak": { "url": "{{mcp-url}}" }
+      }
+    }
+    ```
+  </Tab>
+  <Tab title="VS Code" icon="code">
+    [Add Teak to VS Code](vscode:mcp/install?%7B%22name%22%3A%22teak%22%2C%22type%22%3A%22http%22%2C%22url%22%3A%22https%3A%2F%2Fteakvault.com%2Fmcp%22%7D), or add it to `.vscode/mcp.json` in your workspace:
+
+    ```json
+    {
+      "servers": {
+        "teak": { "type": "http", "url": "{{mcp-url}}" }
+      }
+    }
+    ```
+  </Tab>
+  <Tab title="ChatGPT" icon="message-circle">
+    Add a custom connector with `{{mcp-url}}` as the remote MCP server URL, then sign in when ChatGPT asks. Teak exposes the `search` and `fetch` tools that ChatGPT connectors and Deep Research expect. See [ChatGPT connector tools](#chatgpt-connector-tools).
+  </Tab>
+</Tabs>
 
 ## Authentication
 
@@ -22,17 +68,19 @@ Teak's MCP server supports two authentication methods.
   <Tab title="Browser sign-in">
     Spec-compliant MCP clients discover Teak's authorization server from `https://teakvault.com/.well-known/oauth-protected-resource/mcp`, open your browser to sign in, and store the resulting access token automatically. Teak's sign-in supports clients that identify themselves with a Client ID Metadata Document or register through dynamic client registration, and requires PKCE (S256). External clients show an approval screen with the requested access before Teak connects them. Access tokens are short-lived and refresh automatically.
 
-    When a deployment uses WorkOS, request `https://teakvault.com/mcp` as the OAuth resource. The Connect access token must have that exact audience, including in local development. MCP rejects tokens issued for `https://teakvault.com/api`. Teak API keys remain supported.
+    When a deployment uses WorkOS, request `{{mcp-url}}` as the OAuth resource. The Connect access token must have that exact audience, including in local development. MCP rejects tokens issued for `https://teakvault.com/api`. Teak API keys remain supported.
 
     For example, with Claude:
 
     ```bash
-    claude mcp add --transport http teak https://teakvault.com/mcp
+    claude mcp add --transport http teak {{mcp-url}}
     ```
 
     Start the MCP connection, then complete the browser sign-in when prompted.
 
-    Connected with browser sign-in before October 7, 2026? Teak's sign-in moved to a new provider, so those connections no longer work. Remove Teak from your MCP client, add it again with the URL above, and sign in. Connections that use an API key keep working without changes.
+    :::warning[Connected before October 7, 2026?]
+    Teak's sign-in moved to a new provider, so browser sign-in connections made before then no longer work. Remove Teak from your MCP client, add it again with the URL above, and sign in. Connections that use an API key keep working without changes.
+    :::
 
     You can revoke a connection at any time from Teak Settings → **Security** → **Connections**. Disconnecting an app revokes its access across all installations, including its refresh credentials. Every subsequent MCP request checks access again, even in an already-open client. API-key connections are managed under **Security** → **API keys**.
 
@@ -78,7 +126,7 @@ MCP Streamable HTTP at `/mcp` (a trailing slash also works), answered in statele
 - `teak_v1_get_card_changes`
   - Input: `{ since: number, cursor?: string, limit?: number }`
   - Output: `{ items: Card[], deletedIds: string[], pageInfo: { hasMore: boolean, nextCursor: string | null } }`
-- `teak_v1_bulk_cards`
+- `teak_v1_bulk_cards` <Badge variant="warning">Delete needs confirm</Badge>
   - Input: `{ operation: "create" | "update" | "favorite" | "delete", items: object[], confirm?: true }`
   - Output: bulk operation results; delete batches require `confirm: true`
 - `teak_v1_create_upload`
@@ -98,7 +146,7 @@ MCP Streamable HTTP at `/mcp` (a trailing slash also works), answered in statele
 - `teak_v1_set_card_favorite`
   - Input: `{ cardId: string, isFavorited: boolean }`
   - Output: updated card object
-- `teak_v1_delete_card`
+- `teak_v1_delete_card` <Badge variant="danger">Needs confirm</Badge>
   - Input: `{ cardId: string, confirm: true }`
   - Output: `{ status: "deleted", cardId: string }`
 

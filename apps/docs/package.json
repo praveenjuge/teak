@@ -3,21 +3,25 @@
   "version": "1.0.81",
   "scripts": {
     "audit": "bun run build:site && blume audit --fail-on error",
+    "audit:live": "blume audit --url https://teakvault.com --fail-on error",
     "build": "bun run build:site && blume audit --fail-on error",
-    "build:site": "bun run generate:openapi && blume build",
-    "dev": "bun run generate:openapi && blume dev --port 3001 --host 127.0.0.1",
+    "build:site": "bun run generate && blume build --budget-js=850 --budget-css=220",
+    "dev": "bun run generate && blume dev --port 3001 --host 127.0.0.1",
+    "eval": "bun run generate && blume eval --agent claude",
+    "generate": "bun run generate:openapi && bun run generate:skills",
     "generate:openapi": "bun run scripts/generate-openapi.ts",
+    "generate:skills": "bun run scripts/generate-skills.ts",
     "lint": "biome check blume.config.ts lib middleware.ts scripts styles vercel.json package.json turbo.json tsconfig.json tsconfig.typecheck.json",
     "preview": "blume preview",
     "start": "blume preview",
     "test": "bun test lib --coverage --dots",
-    "typecheck": "bun run generate:openapi && blume check --strict",
-    "validate": "bun run generate:openapi && blume validate --strict"
+    "typecheck": "bun run generate && blume check --strict",
+    "validate": "bun run generate && blume validate --strict"
   },
   "dependencies": {
     "@teak/convex": "workspace:*",
     "@vercel/functions": "^3.7.6",
-    "blume": "^2.0.1"
+    "blume": "^2.2.1"
   },
   "devDependencies": {
     "@types/bun": "^1.4.0",
@@ -25,6 +29,6 @@
     "typescript": "^6.0.3"
   },
   "engines": {
-    "node": ">=22.12.0"
+    "node": ">=22.19.0"
   }
 }

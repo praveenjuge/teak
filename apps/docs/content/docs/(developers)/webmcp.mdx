@@ -1,6 +1,8 @@
 ---
 title: WebMCP
 description: In-browser WebMCP tools for the signed-in Teak web app
+sidebar:
+  badge: "Preview"
 ---
 
 Teak's web app exposes [WebMCP](https://webmachinelearning.github.io/webmcp/)
@@ -20,12 +22,12 @@ API key.
 
 ### Imperative tools
 
-- `teak_search_cards`
+- `teak_search_cards` <Badge variant="success">Read-only</Badge>
   - Input: `{ q?: string, limit?: number, type?: string, favorited?: boolean }`
   - Output: `{ items: CardSummary[], total: number }`. Omit `q` to list
     recent cards. `type` accepts `text`, `link`, `image`, `video`, `audio`,
     `document`, `palette`, or `quote`.
-- `teak_get_card`
+- `teak_get_card` <Badge variant="success">Read-only</Badge>
   - Input: `{ cardId: string }`
   - Output: the card detail, or `null` when the ID does not exist.
 
