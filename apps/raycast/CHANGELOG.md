@@ -1,5 +1,9 @@
 # Changelog
 
+## [Shared Teak sign-in] - {PR_MERGE_DATE}
+
+- Sign-in, token renewal, and Sign Out now use the same Teak sign-in library as the CLI and browser extension
+
 ## [Safer sign-in recovery] - {PR_MERGE_DATE}
 
 - Keep saved sign-ins when a connection or sign-in response is uncertain
