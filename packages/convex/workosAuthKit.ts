@@ -1,0 +1,38 @@
+import { type AuthFunctions, AuthKit } from "@convex-dev/workos-authkit";
+import { components, internal } from "./_generated/api";
+import type { DataModel } from "./_generated/dataModel";
+import { env } from "./_generated/server";
+import { readSignupsDisabled } from "./env";
+import { SIGNUPS_PAUSED_MESSAGE } from "./shared/constants";
+import { guardUserCreation } from "./signupFreeze";
+
+// User lifecycle events go through Teak's own signed webhook (workosWebhook.ts),
+// so the component only needs the registration Action.
+const authFunctions: AuthFunctions = internal.workosAuthKit;
+
+// Only Teak's provisioned WorkOS environments get the AuthKit routes.
+export const authKit =
+  process.env.WORKOS_ENVIRONMENT_ID ===
+    "environment_01KBYSVN9RVQ1JXACG3MDMQZGA" ||
+  process.env.WORKOS_ENVIRONMENT_ID === "environment_01M46HC8CJ5D0THX3EP6WVDKMM"
+    ? new AuthKit<DataModel>(components.workOSAuthKit, {
+        authFunctions,
+        webhookSecret: process.env.WORKOS_WEBHOOK_SECRET,
+        actionSecret: process.env.WORKOS_ACTION_SECRET,
+      })
+    : undefined;
+
+export const authKitAction = authKit?.actions({
+  userRegistration: async (_ctx, action, response) => {
+    try {
+      await guardUserCreation({
+        email: action.userData.email,
+        disabled: readSignupsDisabled(),
+        e2eEmailDomain: env.E2E_EMAIL_DOMAIN,
+      });
+    } catch {
+      return response.deny(SIGNUPS_PAUSED_MESSAGE);
+    }
+    return response.allow();
+  },
+}).authKitAction;

@@ -66,7 +66,7 @@ const runCommand: RunCommand = async (argv, { cwd, env }) => {
   return { exitCode, stdout, stderr };
 };
 
-// Same set as scripts/workos-migration/bootstrap-witness.ts. Deploy keys or
+// Same set as scripts/workos-migration/convex-cli-response.ts. Deploy keys or
 // tokens and self-hosted pairs outrank --deployment-name in the Convex CLI,
 // which also loads packages/convex/.env.local and .env itself. Empty values
 // read as unset there and stop dotenv from refilling them.

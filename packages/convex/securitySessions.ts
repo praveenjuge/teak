@@ -612,30 +612,6 @@ export const revokeAuthkitSession = action({
   },
 });
 
-// Phase R transport probe: exposes no vault or mapping access.
-export async function getReadinessIdentity(ctx: Pick<ActionCtx, "auth">) {
-  if (env.WORKOS_ENVIRONMENT_ID !== "environment_01KBYSVN9RVQ1JXACG3MDMQZGA") {
-    return null;
-  }
-  const user = await ctx.auth.getUserIdentity();
-  if (
-    !user ||
-    typeof user.sid !== "string" ||
-    !user.sid.startsWith("session_") ||
-    user.issuer !==
-      "https://api.workos.com/user_management/client_01KBYSVNVDV2G39REZFGF0K7GD"
-  ) {
-    return null;
-  }
-  return {
-    subject: user.subject,
-    issuer: user.issuer,
-    externalId: typeof user.external_id === "string" ? user.external_id : null,
-    emailVerified: user.email_verified === true,
-    sid: user.sid,
-  };
-}
-
 // This proves only that the caller may acknowledge an existing deletion. It is
 // never used to admit a new request or authorize vault access.
 export async function getDeletionRetryPrincipal(ctx: SessionCtx) {
