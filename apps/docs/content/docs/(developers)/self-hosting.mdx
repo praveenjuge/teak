@@ -23,11 +23,54 @@ Create one WorkOS environment per deployment: a staging environment for local de
 
 1. In AuthKit, enable email and password sign-in. Add Google or Apple there too if you want them; Teak needs no extra settings for social sign-in.
 2. Under Redirects, add `<origin>/callback` as a redirect URI, set the sign-in endpoint (initiate login URL) to `<origin>/sign-in`, and set the sign-out redirect to `<origin>/login`. Add `<origin>` as an allowed CORS origin.
-3. Add a webhook endpoint at `<convex-site>/workos/webhook` for the `user.created`, `user.updated`, and `user.deleted` events. Copy its signing secret into `WORKOS_WEBHOOK_SECRET`.
-4. Optional: add a user registration Action at `<convex-site>/workos/action` so Teak can pause sign-ups (`SIGNUPS_DISABLED`). Copy its secret into `WORKOS_ACTION_SECRET`.
-5. From API Keys, copy the client ID and API key into `WORKOS_CLIENT_ID` and `WORKOS_API_KEY`, and note the environment ID for `WORKOS_ENVIRONMENT_ID`.
+3. Add a JWT template so session tokens carry the claims Teak checks. The backend requires `email_verified: true` and matches `external_id` against the account it belongs to. Keys whose value is null are left out, so new users without an external ID still sign in:
+
+   ```json
+   {"email": {{ user.email }}, "email_verified": {{ user.email_verified }}, "external_id": {{ user.external_id }}}
+   ```
+
+4. Add a webhook endpoint at `<convex-site>/workos/webhook` for the `user.created`, `user.updated`, and `user.deleted` events. Copy its signing secret into `WORKOS_WEBHOOK_SECRET`.
+5. Optional: add a user registration Action at `<convex-site>/workos/action` so Teak can pause sign-ups (`SIGNUPS_DISABLED`). Copy its secret into `WORKOS_ACTION_SECRET`.
+6. From API Keys, copy the client ID and API key into `WORKOS_CLIENT_ID` and `WORKOS_API_KEY`, and note the environment ID for `WORKOS_ENVIRONMENT_ID`.
 
 The webhook and Action routes exist only when `WORKOS_ENVIRONMENT_ID` is set on the Convex deployment. Without the webhook, new WorkOS users never get a Teak account.
+
+`convex.json` declares AuthKit redirect URIs, CORS origins, and the app homepage URL under `authKit.dev` and `authKit.prod`, and Convex applies them to the deployment's WorkOS environment. Teak's own origins are listed there, so edit `authKit.prod` to your domain before deploying.
+
+### Use the WorkOS CLI
+
+The [WorkOS CLI](https://www.npmjs.com/package/workos) can set two of the steps above. Sign in with `workos auth login` and select the environment first:
+
+```bash
+# Sign-out redirect (step 2)
+workos authkit logout-uris set --uri <origin>/login --default <origin>/login
+
+# Webhook (step 4); the signing secret is shown only in the WorkOS dashboard
+workos webhook create --url <convex-site>/workos/webhook \
+  --events user.created,user.updated,user.deleted
+```
+
+`logout-uris set` replaces the environment's whole list of sign-out URIs.
+
+### Connect: CLI, browser extensions, Mac app, Raycast, and MCP
+
+The CLI, browser extensions, Mac app, Raycast, and MCP clients sign in through WorkOS Connect. They need a few more settings.
+
+1. Turn on Client ID Metadata Document (CIMD) support, and dynamic client registration for MCP clients that don't support CIMD yet.
+2. Add the resource indicators `https://teakvault.com/api` and `https://teakvault.com/mcp`. These are fixed token audiences (`packages/convex/shared/workosResources.ts`), not your own domain, and Teak rejects any other audience.
+3. Create one public OAuth application for each first-party surface, and set its client ID on the Convex deployment:
+
+   | Surface | Convex variable | Redirect URIs |
+   | --- | --- | --- |
+   | CLI | `WORKOS_CONNECT_CLI_CLIENT_ID` | `http://127.0.0.1:14210/oauth/callback`, `http://127.0.0.1:24210/oauth/callback` |
+   | Raycast | `WORKOS_CONNECT_RAYCAST_CLIENT_ID` | `https://raycast.com/redirect?packageName=Extension` |
+   | Chrome extension | `WORKOS_CONNECT_CHROME_CLIENT_ID` | `https://<extension-id>.chromiumapp.org/oauth/callback` |
+   | Firefox extension | `WORKOS_CONNECT_FIREFOX_CLIENT_ID` | `https://<hash>.extensions.allizom.org/oauth/callback`, from `browser.identity.getRedirectURL()` for the add-on ID |
+   | Mac app (Safari) | `WORKOS_CONNECT_SAFARI_CLIENT_ID` | `teak-safari://oauth/callback` |
+
+4. Set `WORKOS_AUTHKIT_DOMAIN` to the environment's AuthKit domain, an HTTPS origin such as `https://your-domain.authkit.app` with no path or port.
+
+Sign-in discovery needs `WORKOS_AUTHKIT_DOMAIN` and all five client IDs. If any of them is missing or malformed, discovery fails and none of these clients can sign in, so set all five even if you only use one.
 
 ## Quickstart (local)
 
