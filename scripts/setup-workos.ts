@@ -8,6 +8,10 @@
  * compared but never logged.
  */
 
+import {
+  isWorkosProductionApi,
+  parseWorkosApiBase,
+} from "../packages/convex/shared/workosApi";
 import { readDotenvFile } from "./env-loader.ts";
 import { readDeploymentVar, setDeploymentVar } from "./setup-convex.ts";
 
@@ -79,25 +83,65 @@ export const planWorkosCredential = (
 
 export const WORKOS_PRODUCTION_API = "https://api.workos.com";
 
+export type WorkosApiBasePlan =
+  | { setDeployment: boolean; status: "ready"; value: string }
+  | { detail: string; status: "invalid" };
+
+const apiBaseProblem = (
+  value: string,
+  localBackend: boolean
+): string | undefined => {
+  let base: URL;
+  try {
+    base = parseWorkosApiBase(value);
+  } catch (error) {
+    return error instanceof Error ? error.message : String(error);
+  }
+  return localBackend || isWorkosProductionApi(base)
+    ? undefined
+    : "the WorkOS emulator only works with a local backend (--convex local)";
+};
+
 /**
  * Local backends read WORKOS_API_BASE_URL in their auth config, and Convex
  * rejects an auth config that reads an unset variable, so every deployment gets
  * one. An existing value wins; otherwise an export (the WorkOS emulator) or
- * production WorkOS.
+ * production WorkOS. Both are checked with the backend's own parser, and a
+ * cloud deployment never gets a loopback origin it can't reach.
  */
 export const planWorkosApiBase = (sources: {
   deployment?: string;
   explicit?: string;
-}): { setDeployment: boolean; value: string } => {
+  localBackend: boolean;
+}): WorkosApiBasePlan => {
   const deployment = present(sources.deployment);
   if (deployment) {
-    return { value: deployment, setDeployment: false };
+    const problem = apiBaseProblem(deployment, sources.localBackend);
+    return problem
+      ? {
+          status: "invalid",
+          detail: `WORKOS_API_BASE_URL on the deployment is invalid: ${problem}`,
+        }
+      : { status: "ready", value: deployment, setDeployment: false };
+  }
+  const explicit = present(sources.explicit);
+  const problem = explicit && apiBaseProblem(explicit, sources.localBackend);
+  if (problem) {
+    return {
+      status: "invalid",
+      detail: `exported WORKOS_API_BASE_URL is invalid: ${problem}`,
+    };
   }
   return {
-    value: present(sources.explicit) ?? WORKOS_PRODUCTION_API,
+    status: "ready",
+    value: explicit ?? WORKOS_PRODUCTION_API,
     setDeployment: true,
   };
 };
+
+const API_BASE_REMEDIATION = [
+  "Run `bunx convex env set WORKOS_API_BASE_URL https://api.workos.com` in packages/convex, or the WorkOS emulator origin on a local backend, then re-run bun run setup",
+];
 
 export const WORKOS_SETUP_REMEDIATION = [
   "Export WORKOS_CLIENT_ID and WORKOS_API_KEY from a WorkOS staging or development environment (never production), then re-run bun run setup",
@@ -138,7 +182,8 @@ const failure = (detail: string, remediation: string[]) => ({
 
 export const ensureWorkosCredentials = async (
   convexDir: string,
-  webEnvPath: string | undefined
+  webEnvPath: string | undefined,
+  localBackend: boolean
 ): Promise<{
   check: WorkosSetupCheck;
   values: Partial<Record<WorkosCredentialName, string>>;
@@ -204,7 +249,11 @@ export const ensureWorkosCredentials = async (
   const base = planWorkosApiBase({
     explicit: process.env.WORKOS_API_BASE_URL,
     deployment: baseVar.status === "found" ? baseVar.value : undefined,
+    localBackend,
   });
+  if (base.status === "invalid") {
+    return failure(base.detail, API_BASE_REMEDIATION);
+  }
   if (base.setDeployment) {
     try {
       await setDeploymentVar("WORKOS_API_BASE_URL", base.value, convexDir);

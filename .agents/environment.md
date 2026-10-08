@@ -88,8 +88,9 @@ local selection when the fixed ports are occupied, with a remediation.
 A local backend's auth config reads `WORKOS_API_BASE_URL`, and Convex refuses
 an auth config that reads an unset variable, so setup always sets it:
 production WorkOS by default, or the WorkOS emulator's loopback origin when
-exported. Hosted deployments never read it. If a push fails on this variable,
-re-run `bun run setup`.
+exported. Setup checks both values and never puts a loopback origin on a
+cloud deployment. Hosted deployments never read it. If a push fails on this
+variable, re-run `bun run setup`; it names the bad value and the fix.
 
 ## Stable values live in code, not configuration
 

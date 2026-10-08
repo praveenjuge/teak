@@ -525,7 +525,8 @@ export const runSetup = async (
       // auth.config.ts reads WORKOS_CLIENT_ID, so it must be set before the push.
       const workos = await ensureWorkosCredentials(
         CONVEX_DIR(root),
-        target === "web" ? join(root, "apps/web/.env.local") : undefined
+        target === "web" ? join(root, "apps/web/.env.local") : undefined,
+        convex === "local"
       );
       checks.push(workos.check);
       if (!workos.check.ok) {
