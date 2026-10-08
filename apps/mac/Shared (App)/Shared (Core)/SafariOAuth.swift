@@ -30,7 +30,6 @@ nonisolated final class SafariSignInCancellation: @unchecked Sendable {
 }
 
 nonisolated struct SafariOAuthRequest: Sendable {
-    static let clientID = "teak-safari"
     static let callback = "teak-safari://oauth/callback"
     let verifier: String
     let state: String
@@ -53,18 +52,14 @@ nonisolated struct SafariOAuthRequest: Sendable {
             URLQueryItem(name: "client_id", value: discovery.safariClientID),
             URLQueryItem(name: "redirect_uri", value: Self.callback),
             URLQueryItem(name: "response_type", value: "code"),
-            // WorkOS Connect requires OpenID scopes; Better Auth keeps its original set.
-            URLQueryItem(name: "scope", value: discovery.primary == "workos"
-                ? "openid profile email offline_access" : "profile email offline_access"),
+            URLQueryItem(name: "scope", value: "openid profile email offline_access"),
             URLQueryItem(name: "code_challenge_method", value: "S256"),
             URLQueryItem(name: "code_challenge", value: Self.base64URL(Data(SHA256.hash(data: Data(verifier.utf8))))),
             URLQueryItem(name: "state", value: state),
+            URLQueryItem(name: "resource", value: discovery.apiResource.absoluteString),
         ]
-        let reserved = Set(oauthItems.map(\.name) + ["resource"])
+        let reserved = Set(oauthItems.map(\.name))
         components.queryItems = (components.queryItems ?? []).filter { !reserved.contains($0.name) } + oauthItems
-        if discovery.primary == "workos" {
-            components.queryItems?.append(URLQueryItem(name: "resource", value: discovery.apiResource.absoluteString))
-        }
         return components.url!
     }
 
@@ -112,12 +107,13 @@ nonisolated struct SafariOAuthRequest: Sendable {
     }
 }
 
+/// Credentials saved before the WorkOS cutover have no binding or a non-WorkOS
+/// `primary`; they still decode so sign-out and sign-in can clear them locally.
 nonisolated struct SafariOAuthBinding: Codable, Sendable, Equatable {
     let apiOrigin: String
     let primary: String
     let issuer: URL
     let clientID: String
-    let revocationEndpoint: URL?
     let ownerID: String?
 }
 

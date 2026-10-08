@@ -4,7 +4,7 @@ import type { DataModel } from "./_generated/dataModel";
 import { env } from "./_generated/server";
 import { readSignupsDisabled } from "./env";
 import { SIGNUPS_PAUSED_MESSAGE } from "./shared/constants";
-import { guardUserCreation } from "./signupFreeze";
+import { userCreationAllowed } from "./signupFreeze";
 
 // User lifecycle events go through Teak's own signed webhook (workosWebhook.ts),
 // so the component only needs the registration Action.
@@ -20,16 +20,12 @@ export const authKit = process.env.WORKOS_ENVIRONMENT_ID
   : undefined;
 
 export const authKitAction = authKit?.actions({
-  userRegistration: async (_ctx, action, response) => {
-    try {
-      await guardUserCreation({
-        email: action.userData.email,
-        disabled: readSignupsDisabled(),
-        e2eEmailDomain: env.E2E_EMAIL_DOMAIN,
-      });
-    } catch {
-      return response.deny(SIGNUPS_PAUSED_MESSAGE);
-    }
-    return response.allow();
-  },
+  userRegistration: async (_ctx, action, response) =>
+    userCreationAllowed({
+      email: action.userData.email,
+      disabled: readSignupsDisabled(),
+      e2eEmailDomain: env.E2E_EMAIL_DOMAIN,
+    })
+      ? response.allow()
+      : response.deny(SIGNUPS_PAUSED_MESSAGE),
 }).authKitAction;

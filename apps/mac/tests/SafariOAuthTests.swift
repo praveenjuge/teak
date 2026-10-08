@@ -66,8 +66,12 @@ final class MockHTTP: URLProtocol, @unchecked Sendable {
             apiURL: URL(string: "https://test.teak.invalid")!, trustedOrigins: ["https://test.teak.invalid", "https://auth.teak.invalid"],
             lockURL: lock ?? FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString))
     }
-    static func tokens(expired: Bool = false) -> SafariOAuthTokens {
-        SafariOAuthTokens(accessToken: "access", refreshToken: "refresh", expiresAt: Date().addingTimeInterval(expired ? -1 : 3600))
+    /// A credential saved by a WorkOS sign-in against the test deployment.
+    static func tokens(expired: Bool = false, access: String = "access", refresh: String = "refresh") -> SafariOAuthTokens {
+        var tokens = SafariOAuthTokens(accessToken: access, refreshToken: refresh, expiresAt: Date().addingTimeInterval(expired ? -1 : 3600))
+        tokens.binding = SafariOAuthBinding(apiOrigin: SafariDiscoveryFixtures.api.absoluteString, primary: "workos",
+            issuer: URL(string: SafariDiscoveryFixtures.issuer)!, clientID: SafariDiscoveryFixtures.clientID, ownerID: "user")
+        return tokens
     }
     static func libraryWrites(cardJSON: String) async throws {
         let store = MemoryCredentials(tokens())
@@ -533,7 +537,7 @@ final class MockHTTP: URLProtocol, @unchecked Sendable {
         try check(signedOut["authenticated"] as? Bool == false, "old sessions do not authenticate OAuth")
         MockHTTP.respond = { request in
             if request.url?.path == "/v1/me" { return (200, validSession) }
-            try check(request.url?.path == "/api/auth/mcp/token", "exchanges code at OAuth endpoint")
+            try check(request.url?.path == "/oauth2/token", "exchanges code at OAuth endpoint")
             return (200, tokenResponse)
         }
         let ready = try await fresh.prepareSignIn()
@@ -597,7 +601,7 @@ final class MockHTTP: URLProtocol, @unchecked Sendable {
         let first = fixture(rotating, lock: sharedLock), second = fixture(rotating, lock: sharedLock)
         var refreshes = 0
         MockHTTP.respond = { request in
-            if request.url?.path == "/api/auth/mcp/token" { refreshes += 1; return (200, tokenResponse) }
+            if request.url?.path == "/oauth2/token" { refreshes += 1; return (200, tokenResponse) }
             return (200, validSession)
         }
         async let firstState = first.authState()
@@ -653,7 +657,7 @@ final class MockHTTP: URLProtocol, @unchecked Sendable {
         let refreshingStore = MemoryCredentials(tokens(expired: true))
         let refreshingLibrary = LibraryAPI(service: fixture(refreshingStore))
         MockHTTP.respond = { request in
-            if request.url?.path == "/api/auth/mcp/token" { return (200, tokenResponse) }
+            if request.url?.path == "/oauth2/token" { return (200, tokenResponse) }
             try check(request.value(forHTTPHeaderField: "Authorization") == "Bearer new-access", "library uses refreshed access token")
             return (200, #"{"items":[],"pageInfo":{"hasMore":false,"nextCursor":null}}"#)
         }
@@ -696,7 +700,7 @@ final class MockHTTP: URLProtocol, @unchecked Sendable {
         let offlineLogout = await service.signOut()
         try check(offlineLogout["status"] as? String == "error", "offline logout offers retry")
         try check(offlineLogout["authenticated"] as? Bool == true, "failed sign-out keeps retry available")
-        try check(try store.load() != nil, "failed revocation remains retryable")
+        try check(try store.load() != nil, "failed disconnect remains retryable")
         MockHTTP.respond = { _ in (401, #"{"error":"Unauthorized"}"#) }
         let revoked = await service.authState()
         try check(revoked["authenticated"] as? Bool == false, "remote disconnection detected")
@@ -716,8 +720,7 @@ final class MockHTTP: URLProtocol, @unchecked Sendable {
         let racyService = fixture(racy)
         MockHTTP.respond = { request in
             // The other process rotates credentials while our request is in flight.
-            try racy.save(SafariOAuthTokens(accessToken: "rotated-access", refreshToken: "rotated-refresh",
-                expiresAt: Date().addingTimeInterval(3600)))
+            try racy.save(tokens(access: "rotated-access", refresh: "rotated-refresh"))
             _ = request
             return (401, #"{"error":"Unauthorized"}"#)
         }
@@ -739,11 +742,12 @@ final class MockHTTP: URLProtocol, @unchecked Sendable {
         try check(emptySave["status"] as? String == "error", "empty save response surfaces error")
         try store.save(tokens())
         MockHTTP.respond = { request in
-            try check(request.url?.path == "/api/oauth/revoke", "logout calls revocation")
-            return (200, "")
+            try check(request.url?.path == "/v1/oauth/disconnect", "logout disconnects through Teak")
+            try check(request.value(forHTTPHeaderField: "Authorization") == "Bearer access", "logout proves the saved grant")
+            return (204, "")
         }
         let logout = await service.signOut()
-        try check(logout["status"] as? String == "signed-out", "logout succeeds after revocation")
+        try check(logout["status"] as? String == "signed-out", "logout succeeds after disconnect")
         try check(try store.load() == nil, "logout clears credentials")
         print("PASS: expired refresh, revoked save, local sign-out")
     }

@@ -2,7 +2,6 @@ import { useSettingsController } from "@teak/ui/hooks";
 import { SettingsShell } from "@teak/ui/screens";
 import { SettingsContent } from "@teak/ui/settings";
 import { buildWebUrl } from "@/lib/desktop-config";
-import { logoutNativeSession } from "@/lib/native-auth";
 
 interface SettingsPageProps {
   onNavigateBack: () => void;
@@ -23,7 +22,9 @@ export function SettingsPage({ onNavigateBack }: SettingsPageProps) {
       }
     },
     onOpenExternal: (url) => window.teakDesktop.shell.openExternal(url),
-    onSignOut: logoutNativeSession,
+    // Unreachable until desktop has WorkOS sign-in; there is no session to end.
+    onSignOut: () =>
+      Promise.reject(new Error("Sign-in isn't available in this build yet.")),
   });
 
   return (

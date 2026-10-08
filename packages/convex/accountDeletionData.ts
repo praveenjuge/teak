@@ -162,18 +162,14 @@ export const ancillaryPage = internalMutation({
       throw new Error("stale_deletion_stage");
     }
     const userId = state.userId;
-    const codes = await ctx.db
-      .query("nativeAuthCodes")
-      .withIndex("by_user", (q) => q.eq("userId", userId))
-      .take(100);
     const idempotency = await ctx.db
       .query("apiIdempotencyKeys")
       .withIndex("by_user_key_hash", (q) => q.eq("userId", userId))
       .take(100);
-    for (const row of [...codes, ...idempotency]) {
+    for (const row of idempotency) {
       await ctx.db.delete(row._id);
     }
-    return codes.length + idempotency.length > 0;
+    return idempotency.length > 0;
   },
 });
 export const deleteRemainingData = internalAction({

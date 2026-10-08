@@ -3,7 +3,7 @@ import { internal } from "./_generated/api";
 import type { Doc } from "./_generated/dataModel";
 import { internalMutation, type MutationCtx } from "./_generated/server";
 import { readSignupsDisabled } from "./env";
-import { guardUserCreation } from "./signupFreeze";
+import { userCreationAllowed } from "./signupFreeze";
 import { scheduleUserCreated } from "./telemetry/schedule";
 import { normalizeIdentityEmail } from "./userIdentityTable";
 
@@ -185,13 +185,13 @@ export const linkWorkosUser = internalMutation({
         if (!canCreate) {
           return quarantine("missing_mapping");
         }
-        try {
-          await guardUserCreation({
+        if (
+          !userCreationAllowed({
             email,
             disabled: readSignupsDisabled(),
             e2eEmailDomain: process.env.E2E_EMAIL_DOMAIN,
-          });
-        } catch {
+          })
+        ) {
           return quarantine("signups_frozen");
         }
         if (

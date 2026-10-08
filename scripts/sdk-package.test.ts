@@ -132,39 +132,34 @@ void client; void surface;
     ],
     consumer
   );
-  let primary = "betterauth";
   const server = serve({
     port: 0,
     fetch(request) {
       const path = new URL(request.url).pathname;
-      const issuer = `${server.url.origin}/${primary}`;
+      const issuer = `${server.url.origin}/workos`;
       if (path === "/.well-known/oauth-protected-resource/mcp") {
         return Response.json({
-          resource:
-            primary === "workos"
-              ? "https://teakvault.com/mcp"
-              : `${server.url.origin}/mcp`,
+          resource: "https://teakvault.com/mcp",
           authorization_servers: [issuer],
         });
       }
       if (path === "/.well-known/teak-oauth-clients.json") {
         return Response.json({
-          primary,
+          primary: "workos",
           issuer,
           clients: Object.fromEntries(
             ["cli", "raycast", "chrome", "firefox", "safari"].map((surface) => [
               surface,
-              `${primary}-${surface}`,
+              `client_${surface.toUpperCase()}`,
             ])
           ),
         });
       }
-      if (path === `/.well-known/oauth-authorization-server/${primary}`) {
+      if (path === "/.well-known/oauth-authorization-server/workos") {
         return Response.json({
           issuer,
           authorization_endpoint: `${issuer}/authorize`,
           token_endpoint: `${issuer}/token`,
-          revocation_endpoint: `${issuer}/revoke`,
           code_challenge_methods_supported: ["S256"],
         });
       }
@@ -180,15 +175,11 @@ const auth = await discoverAuthServer(${JSON.stringify(server.url.origin)});
 console.log(JSON.stringify(auth));
 `
     );
-    const evidence: unknown[] = [];
-    for (const provider of ["betterauth", "workos"]) {
-      primary = provider;
-      const auth = JSON.parse(await run(["node", "runtime.mjs"], consumer));
-      expect(auth.primary).toBe(provider);
-      expect(auth.clients.raycast).toBe(`${provider}-raycast`);
-      expect(auth.tokenEndpoint).toBe(`${server.url.origin}/${provider}/token`);
-      evidence.push(auth);
-    }
+    const auth = JSON.parse(await run(["node", "runtime.mjs"], consumer));
+    expect(auth.primary).toBe("workos");
+    expect(auth.clients.raycast).toBe("client_RAYCAST");
+    expect(auth.tokenEndpoint).toBe(`${server.url.origin}/workos/token`);
+    const evidence = [auth];
     writeFileSync(
       join(
         process.env.TEAK_SDK_RELEASE_ARTIFACT
@@ -225,6 +216,6 @@ console.log(JSON.stringify(auth));
     expect(proof.typesValidated).toBe(true);
     expect(
       proof.evidence.map((entry: { primary: string }) => entry.primary)
-    ).toEqual(["betterauth", "workos"]);
+    ).toEqual(["workos"]);
   }
 }, 60_000);

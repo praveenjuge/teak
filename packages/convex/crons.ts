@@ -17,12 +17,6 @@ crons.cron(
   internal.telemetry.crons.cleanupExpiredIdempotency,
   {}
 );
-crons.cron(
-  "cleanup-expired-native-auth-codes",
-  "30 6 * * *",
-  internal.telemetry.crons.cleanupExpiredNativeAuthCodes,
-  {}
-);
 
 // Clean up cards that have been soft-deleted for more than 30 days
 // Runs daily at 2:00 AM UTC (off-peak hours)

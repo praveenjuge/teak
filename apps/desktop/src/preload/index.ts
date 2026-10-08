@@ -33,6 +33,7 @@ const teakDesktopApi = {
   },
 
   // ── OAuth (browser login) ──────────────────────────────────────────────────
+  // Loopback redirect bridge. Unused until desktop gets WorkOS sign-in.
   oauth: {
     // Start the loopback callback server; resolves with the bound port.
     listen: (): Promise<{ port: number }> => ipcRenderer.invoke("oauth:listen"),

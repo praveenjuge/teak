@@ -8,8 +8,19 @@ import React from "react";
 import ReactDOM from "react-dom/client";
 import App from "./App";
 import { convex } from "./lib/convex-client";
-import { useNativeConvexAuth } from "./lib/native-auth";
 import "./index.css";
+
+// This build has no sign-in yet, so Convex always sees a signed-out user.
+// Replace this with the WorkOS session once desktop sign-in lands.
+const signedOutAuth = {
+  isLoading: false,
+  isAuthenticated: false,
+  fetchAccessToken: () => Promise.resolve(null),
+};
+
+function useSignedOutAuth() {
+  return signedOutAuth;
+}
 
 ReactDOM.createRoot(document.getElementById("root") as HTMLElement).render(
   <React.StrictMode>
@@ -19,7 +30,7 @@ ReactDOM.createRoot(document.getElementById("root") as HTMLElement).render(
       disableTransitionOnChange
       enableSystem={true}
     >
-      <ConvexProviderWithAuth client={convex} useAuth={useNativeConvexAuth}>
+      <ConvexProviderWithAuth client={convex} useAuth={useSignedOutAuth}>
         <ConvexQueryCacheProvider>
           <ErrorBoundary>
             <App />

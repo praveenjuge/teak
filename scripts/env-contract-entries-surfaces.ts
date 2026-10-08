@@ -42,15 +42,6 @@ export const SURFACE_ENTRIES: EnvVarSpec[] = [
     providers: ["dotenv-local", "shell"],
     required: false,
   }),
-  spec("TEAK_DEV_CONVEX_SITE_URL", {
-    owners: ["teak-raycast"],
-    targets: ["raycast"],
-    profiles: ["local"],
-    secret: false,
-    validation: "url",
-    providers: ["dotenv-local", "shell"],
-    required: false,
-  }),
   // Web client.
   spec("WORKOS_COOKIE_PASSWORD", {
     owners: ["@teak/web"],

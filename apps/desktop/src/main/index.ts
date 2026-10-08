@@ -78,9 +78,9 @@ function isR2RequestUrl(url: string): boolean {
   }
 }
 
-// Loopback OAuth callback (RFC 8252). The desktop client tries 14203 first and
-// falls back to 24203; both are registered as exact-match redirect URIs on the
-// `teak-desktop` trusted client server-side.
+// Loopback OAuth callback (RFC 8252). Tries 14203 first and falls back to
+// 24203, so the redirect URI matches an exact registered value. Desktop has no
+// sign-in today; WorkOS loopback PKCE sign-in (like the CLI) will reuse this.
 const OAUTH_CALLBACK_PORTS = [14_203, 24_203];
 const OAUTH_CALLBACK_PATH = "/oauth/callback";
 const OAUTH_RETURN_HTML = `<!doctype html>
@@ -559,10 +559,6 @@ function buildAppMenu(): void {
         { role: "hideOthers" },
         { role: "unhide" },
         { type: "separator" },
-        {
-          label: "Log Out",
-          click: () => emitMenuEvent("desktop://menu/logout"),
-        },
         { role: "quit" },
       ],
     },

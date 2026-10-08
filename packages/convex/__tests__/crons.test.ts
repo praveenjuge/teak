@@ -16,10 +16,6 @@ const EXPECTED_CRONS: Record<string, { cron: string; handler: string }> = {
     cron: "10 * * * *",
     handler: "cleanupExpiredIdempotency",
   },
-  "cleanup-expired-native-auth-codes": {
-    cron: "30 6 * * *",
-    handler: "cleanupExpiredNativeAuthCodes",
-  },
   "cleanup-resend-emails": {
     cron: "0 6 * * *",
     handler: "cleanupResendEmails",

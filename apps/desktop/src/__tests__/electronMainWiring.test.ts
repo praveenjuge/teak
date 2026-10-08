@@ -115,7 +115,6 @@ describe("electron main process wiring", () => {
     expect(channelsSource).toContain('"shell:open-external"');
     expect(channelsSource).toContain('"app:get-version"');
     expect(channelsSource).toContain('"desktop://menu/settings"');
-    expect(channelsSource).toContain('"desktop://menu/logout"');
     expect(channelsSource).toContain('"oauth:listen"');
     expect(channelsSource).toContain('"oauth:cancel"');
     expect(channelsSource).toContain("OAUTH_CALLBACK_CHANNEL");
@@ -154,16 +153,16 @@ describe("electron main process wiring", () => {
     expect(source).toContain("Check for Updates...");
   });
 
-  it("validates store keys in the main process store", () => {
+  it("allows only the Sentry install id in the main process store", () => {
     const storeSource = readFileSync(
       resolve(import.meta.dir, "../main/store.ts"),
       "utf8"
     );
 
     expect(storeSource).toContain("ALLOWED_STORE_KEYS");
-    expect(storeSource).toContain('"auth.sessionToken"');
     expect(storeSource).toContain('"auth.deviceId"');
-    expect(storeSource).toContain('"auth.pendingNativeFlow"');
+    expect(storeSource).not.toContain('"auth.sessionToken"');
+    expect(storeSource).not.toContain('"auth.pendingNativeFlow"');
     expect(storeSource).toContain("isAllowedKey");
   });
 

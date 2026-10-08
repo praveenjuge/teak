@@ -20,6 +20,7 @@ import {
   tag,
 } from "@expo/ui/swift-ui/modifiers";
 import { api } from "@teak/convex";
+import { ACCOUNT_CHANGES_PAUSED_MESSAGE } from "@teak/convex/shared/constants";
 import { useMutation } from "convex/react";
 import { useQuery } from "convex-helpers/react/cache/hooks";
 import { Stack, useRouter } from "expo-router";
@@ -103,7 +104,7 @@ export default function SettingsScreen() {
     setDeleteError(null);
 
     if (mobileAuth.mode.accountChangesPaused) {
-      setDeleteError("Account changes are paused while we upgrade sign-in.");
+      setDeleteError(ACCOUNT_CHANGES_PAUSED_MESSAGE);
       return;
     }
 
@@ -131,7 +132,7 @@ export default function SettingsScreen() {
 
   const handleDeleteAlert = () => {
     if (mobileAuth.mode.accountChangesPaused) {
-      setDeleteError("Account changes are paused while we upgrade sign-in.");
+      setDeleteError(ACCOUNT_CHANGES_PAUSED_MESSAGE);
       return;
     }
     Alert.alert(

@@ -15,12 +15,6 @@ export const CRON_MONITORS = {
     schedule: "10 * * * *",
     slug: "cleanup-expired-idempotency",
   },
-  cleanupExpiredNativeAuthCodes: {
-    checkinMarginMinutes: 15,
-    maxRuntimeMinutes: 10,
-    schedule: "30 6 * * *",
-    slug: "cleanup-expired-native-auth-codes",
-  },
   aiMetadataBackfill: {
     checkinMarginMinutes: 15,
     maxRuntimeMinutes: 30,
@@ -96,24 +90,6 @@ export const cleanupExpiredIdempotency = internalAction({
         internal.operationalRetention.cleanupExpiredRecords,
         {
           kind: "idempotency",
-          dryRun: false,
-        }
-      );
-    }),
-});
-
-export const cleanupExpiredNativeAuthCodes = internalAction({
-  args: {},
-  returns: v.null(),
-  handler: (ctx: ActionCtx) =>
-    monitored(CRON_MONITORS.cleanupExpiredNativeAuthCodes, async () => {
-      if (env.OPERATIONAL_RETENTION_ENABLED !== "true") {
-        return;
-      }
-      await ctx.runMutation(
-        internal.operationalRetention.cleanupExpiredRecords,
-        {
-          kind: "nativeAuthCodes",
           dryRun: false,
         }
       );

@@ -2,11 +2,9 @@ import Foundation
 
 /// Validated discovery only; fetching, cache lifetime, and credential storage live in the service.
 nonisolated struct SafariAuthDiscovery: Codable, Sendable, Equatable {
-    let primary: String
     let issuer: URL
     let authorizationEndpoint: URL
     let tokenEndpoint: URL
-    let revocationEndpoint: URL?
     let safariClientID: String
     let resource: URL
 
@@ -29,7 +27,6 @@ nonisolated struct SafariAuthDiscovery: Codable, Sendable, Equatable {
         let issuer: String
         let authorization_endpoint: String
         let token_endpoint: String
-        let revocation_endpoint: String?
         let code_challenge_methods_supported: [String]
     }
 
@@ -43,12 +40,12 @@ nonisolated struct SafariAuthDiscovery: Codable, Sendable, Equatable {
     ) throws -> Self {
         let allowed = try loopbackOrigins(apiURL: apiURL, localIssuer: localIssuer)
         let trusted = try trustedOrigins ?? self.trustedOrigins(apiURL: apiURL, localIssuer: localIssuer)
-        let api = try validateURL(apiURL.absoluteString, allowedLoopbackOrigins: allowed)
+        _ = try validateURL(apiURL.absoluteString, allowedLoopbackOrigins: allowed)
         let decoder = JSONDecoder()
         let resource = try decode(ResourceDocument.self, data: resourceData, decoder: decoder)
         let clients = try decode(ClientDocument.self, data: clientData, decoder: decoder)
         let server = try decode(ServerDocument.self, data: serverData, decoder: decoder)
-        guard clients.primary == "betterauth" || clients.primary == "workos" else {
+        guard clients.primary == "workos" else {
             throw invalid("Unknown OAuth provider.")
         }
         guard resource.authorization_servers.count == 1,
@@ -69,20 +66,15 @@ nonisolated struct SafariAuthDiscovery: Codable, Sendable, Equatable {
                 throw invalid("Missing OAuth client registration.")
             }
         }
-        let expectedResource = try self.expectedResource(primary: clients.primary, api: api)
-        guard resource.resource == expectedResource.absoluteString else {
+        guard resource.resource == workosMCPResource.absoluteString else {
             throw invalid("OAuth resource mismatch.")
         }
         return Self(
-            primary: clients.primary,
             issuer: issuer,
             authorizationEndpoint: try validateTrustedURL(server.authorization_endpoint, trustedOrigins: trusted, allowedLoopbackOrigins: allowed),
             tokenEndpoint: try validateTrustedURL(server.token_endpoint, trustedOrigins: trusted, allowedLoopbackOrigins: allowed),
-            revocationEndpoint: try server.revocation_endpoint.map {
-                try validateTrustedURL($0, trustedOrigins: trusted, allowedLoopbackOrigins: allowed)
-            },
             safariClientID: clients.clients["safari"]!,
-            resource: expectedResource
+            resource: workosMCPResource
         )
     }
 
@@ -90,14 +82,14 @@ nonisolated struct SafariAuthDiscovery: Codable, Sendable, Equatable {
     static func issuer(resourceData: Data, clientData: Data, apiURL: URL, localIssuer: URL? = nil, trustedOrigins: Set<String>? = nil) throws -> URL {
         let allowed = try loopbackOrigins(apiURL: apiURL, localIssuer: localIssuer)
         let trusted = try trustedOrigins ?? self.trustedOrigins(apiURL: apiURL, localIssuer: localIssuer)
-        let api = try validateURL(apiURL.absoluteString, allowedLoopbackOrigins: allowed)
+        _ = try validateURL(apiURL.absoluteString, allowedLoopbackOrigins: allowed)
         let resource = try decode(ResourceDocument.self, data: resourceData, decoder: JSONDecoder())
         let clients = try decode(ClientDocument.self, data: clientData, decoder: JSONDecoder())
         guard resource.authorization_servers.count == 1,
               let raw = resource.authorization_servers.first,
               clients.issuer == raw,
-              clients.primary == "betterauth" || clients.primary == "workos",
-              resource.resource == (try expectedResource(primary: clients.primary, api: api)).absoluteString else {
+              clients.primary == "workos",
+              resource.resource == workosMCPResource.absoluteString else {
             throw invalid("OAuth provider configuration changed. Please try again.")
         }
         let url = try validateTrustedURL(raw, trustedOrigins: trusted, allowedLoopbackOrigins: allowed)
@@ -110,10 +102,6 @@ nonisolated struct SafariAuthDiscovery: Codable, Sendable, Equatable {
     /// WorkOS resources name token audiences, independently of deployment URLs,
     /// matching `WORKOS_RESOURCES.mcp` in `packages/convex/shared/workosResources.ts`.
     private static let workosMCPResource = URL(string: "https://teakvault.com/mcp")!
-
-    private static func expectedResource(primary: String, api: URL) throws -> URL {
-        primary == "workos" ? workosMCPResource : try origin(api).appendingPathComponent("mcp")
-    }
 
     /// Deployment configuration establishes trust, never remote metadata or a DNS preflight.
     static func validateTrustedURL(

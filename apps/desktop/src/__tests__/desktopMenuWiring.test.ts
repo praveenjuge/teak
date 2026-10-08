@@ -22,9 +22,10 @@ describe("desktop menu wiring", () => {
       "utf8"
     );
 
-    // App wires settings and logout menu events
+    // App wires the settings menu event. Log Out stays out of the menu until
+    // desktop has a sign-in to end.
     expect(appSource).toContain("onSettings: handleSettingsMenuClick");
-    expect(appSource).toContain("onLogout");
+    expect(appSource).not.toContain("onLogout");
     expect(appSource).not.toContain("onPreferences");
     // Check for Updates is postponed in Electron migration
     expect(appSource).not.toContain("onCheckForUpdates");
@@ -32,14 +33,14 @@ describe("desktop menu wiring", () => {
     // Menu hook uses the preload bridge, not Tauri event listener
     expect(menuHookSource).toContain("window.teakDesktop.onMenuEvent");
     expect(menuHookSource).toContain('"desktop://menu/settings"');
-    expect(menuHookSource).toContain('"desktop://menu/logout"');
+    expect(menuHookSource).not.toContain('"desktop://menu/logout"');
     expect(menuHookSource).not.toContain("@tauri-apps");
 
-    // Main process defines the macOS menu with Settings and Log Out
+    // Main process defines the macOS menu with Settings
     expect(mainSource).toContain('"Settings..."');
-    expect(mainSource).toContain('"Log Out"');
+    expect(mainSource).not.toContain('"Log Out"');
     expect(mainSource).toContain("desktop://menu/settings");
-    expect(mainSource).toContain("desktop://menu/logout");
+    expect(mainSource).not.toContain("desktop://menu/logout");
 
     // Preload exposes onMenuEvent and uses shared channel constants
     expect(preloadSource).toContain("MENU_CHANNELS");
@@ -52,7 +53,7 @@ describe("desktop menu wiring", () => {
       "utf8"
     );
     expect(channelsSource).toContain('"desktop://menu/settings"');
-    expect(channelsSource).toContain('"desktop://menu/logout"');
+    expect(channelsSource).not.toContain('"desktop://menu/logout"');
   });
 
   it("does not import any Tauri packages in renderer code", () => {

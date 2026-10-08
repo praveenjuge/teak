@@ -14,9 +14,8 @@ export interface AuthDiscovery {
   readonly authorizationEndpoint: string;
   readonly clients: Readonly<Record<OAuthSurface, string>>;
   readonly issuer: string;
-  readonly primary: "betterauth" | "workos";
+  readonly primary: "workos";
   readonly resource: string;
-  readonly revocationEndpoint?: string;
   readonly tokenEndpoint: string;
 }
 
@@ -77,7 +76,7 @@ export const validateOAuthUrl = (raw: unknown, local = false): URL => {
 };
 
 // Cache is scoped to the deployment and transport. Call with forceRefresh after
-// sign-in/refresh failures so a provider flip needs no client release.
+// sign-in/refresh failures so a client registration change needs no release.
 export function discoverAuthServer(
   siteUrl: string,
   options: {
@@ -166,10 +165,7 @@ export function discoverAuthServer(
     if (metadata.issuer !== servers[0]) {
       throw new Error("OAuth issuer mismatch");
     }
-    if (
-      clientDocument.primary !== "betterauth" &&
-      clientDocument.primary !== "workos"
-    ) {
+    if (clientDocument.primary !== "workos") {
       throw new Error("Unknown OAuth provider");
     }
     if (
@@ -189,23 +185,14 @@ export function discoverAuthServer(
         throw new Error("Missing OAuth client registration");
       }
     }
-    const expectedResource =
-      clientDocument.primary === "workos"
-        ? WORKOS_RESOURCES.mcp
-        : `${site.origin}/mcp`;
-    if (resource.resource !== expectedResource) {
+    if (resource.resource !== WORKOS_RESOURCES.mcp) {
       throw new Error("OAuth resource mismatch");
     }
     return Object.freeze({
-      primary: clientDocument.primary,
+      primary: "workos",
       issuer: servers[0] as string,
       authorizationEndpoint: validateUrl(metadata.authorization_endpoint).href,
       tokenEndpoint: validateUrl(metadata.token_endpoint).href,
-      ...(metadata.revocation_endpoint === undefined
-        ? {}
-        : {
-            revocationEndpoint: validateUrl(metadata.revocation_endpoint).href,
-          }),
       resource: resource.resource as string,
       clients: Object.freeze(
         Object.fromEntries(

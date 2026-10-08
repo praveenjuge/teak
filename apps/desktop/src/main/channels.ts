@@ -12,11 +12,9 @@ export const IPC_CHANNELS = [
   "oauth:cancel",
 ] as const;
 
-export const MENU_CHANNELS = [
-  "desktop://menu/settings",
-  "desktop://menu/logout",
-] as const;
+export const MENU_CHANNELS = ["desktop://menu/settings"] as const;
 
 // Main -> renderer event carrying the OAuth authorization code and state once
-// the loopback callback server receives the browser redirect.
+// the loopback callback server receives the browser redirect. Nothing listens
+// yet; desktop WorkOS sign-in will reuse it.
 export const OAUTH_CALLBACK_CHANNEL = "oauth:callback";

@@ -2,11 +2,8 @@ import ElectronStore from "electron-store";
 
 let store: ElectronStore | null = null;
 
-const ALLOWED_STORE_KEYS = new Set([
-  "auth.sessionToken",
-  "auth.deviceId",
-  "auth.pendingNativeFlow",
-]);
+// `auth.deviceId` is the anonymous install id Sentry groups errors by.
+const ALLOWED_STORE_KEYS = new Set(["auth.deviceId"]);
 
 function isAllowedKey(key: string): boolean {
   return ALLOWED_STORE_KEYS.has(key);
