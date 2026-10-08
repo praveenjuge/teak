@@ -5,6 +5,7 @@ import {
   type Page,
 } from "@playwright/test";
 import { createTeakClient } from "@teak/convex/sdk";
+import { SIGNUPS_PAUSED_MESSAGE } from "@teak/convex/shared/constants";
 import { cleanupE2EAccounts, provisionE2EAccount } from "./e2e-cleanup";
 import { env, requirePassword, uniqueEmail } from "./env";
 import { waitForEmail } from "./mailpit";
@@ -319,6 +320,71 @@ export const signIn = async (
     return;
   }
   await expectComposer(page);
+};
+
+export type AuthEntry = "betterauth" | "workos" | "paused";
+
+const workosEntryCopy = {
+  signin: { title: "Login to Teak", alternate: "New user? Register" },
+  signup: {
+    title: "Create your Teak account",
+    alternate: "Already have an account? Sign in",
+  },
+};
+
+// Reads which entry /login or /register renders: the Better Auth form, the
+// WorkOS hand-off (title, Continue, alternate link, no form), or, for
+// sign-up only, the paused status. Anything else, including the WorkOS
+// "Try again" error state, fails.
+export const expectAuthEntry = async (
+  page: Page,
+  flow: "signin" | "signup",
+  options: { timeout?: number } = {}
+): Promise<AuthEntry> => {
+  const timeout = options.timeout ?? 30_000;
+  const form = page.locator("form");
+  const email = page.getByLabel("Email", { exact: true });
+  const workos = page.getByRole("button", { name: "Continue", exact: true });
+  const paused = page.getByRole("status").filter({
+    hasText: SIGNUPS_PAUSED_MESSAGE,
+  });
+  const ready =
+    flow === "signup" ? email.or(workos).or(paused) : email.or(workos);
+  await expect(ready.first()).toBeVisible({ timeout });
+  if (flow === "signup" && (await paused.isVisible())) {
+    await expect(paused).toHaveText(SIGNUPS_PAUSED_MESSAGE);
+    await expect(form).toHaveCount(0);
+    await expect(workos).toHaveCount(0);
+    return "paused";
+  }
+  if (await workos.isVisible()) {
+    const copy = workosEntryCopy[flow];
+    await expect(workos).toBeEnabled({ timeout });
+    await expect(page.getByText(copy.title, { exact: true })).toBeVisible();
+    await expect(
+      page.getByRole("link", { name: copy.alternate, exact: true })
+    ).toBeVisible();
+    await expect(form).toHaveCount(0);
+    return "workos";
+  }
+  await expect(form).toBeVisible();
+  await expect(form.getByLabel("Email", { exact: true })).toBeVisible();
+  return "betterauth";
+};
+
+export const WORKOS_SIGNUP_CANARY_UNSUPPORTED =
+  "The sign-up email canary can't run on hosted WorkOS sign-up yet: it would create a WorkOS user without the teak_e2e flag, which exact cleanup and the sweep can't delete. No account was created. Run with E2E_EMAIL_DELIVERY_ENABLED=false until a reviewed sign-up canary exists.";
+
+// Decides how the email canary creates the primary account. A Better Auth
+// form signs up through real email, the paused status falls back to the
+// protected endpoint, and the WorkOS entry fails before anything is created.
+export const readSignupCanaryEntry = async (page: Page) => {
+  await gotoApp(page, "/register");
+  const entry = await expectAuthEntry(page, "signup");
+  if (entry === "workos") {
+    throw new Error(WORKOS_SIGNUP_CANARY_UNSUPPORTED);
+  }
+  return entry;
 };
 
 export const passwordFor = (account: AccountState) =>

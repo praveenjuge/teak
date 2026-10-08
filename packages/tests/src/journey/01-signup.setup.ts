@@ -1,7 +1,6 @@
-import { expect, test } from "@playwright/test";
-import { SIGNUPS_PAUSED_MESSAGE } from "@teak/convex/shared/constants";
+import { test } from "@playwright/test";
 import { env } from "../helpers/env";
-import { appPath, createAccount } from "../helpers/prod";
+import { createAccount, readSignupCanaryEntry } from "../helpers/prod";
 import {
   accountStorageStateFile,
   importExportStorageStateFile,
@@ -21,27 +20,19 @@ test("create isolated verified production accounts and API keys", async ({
   page,
 }, testInfo) => {
   let viaEmail = env.emailDeliveryEnabled;
-  if (viaEmail) {
-    await page.goto(appPath("/register"));
-    const paused = page.getByRole("status").filter({
-      hasText: SIGNUPS_PAUSED_MESSAGE,
+  // Hosted WorkOS sign-up fails in readSignupCanaryEntry, before any account
+  // exists, so the email canary never passes without sending email.
+  if (viaEmail && (await readSignupCanaryEntry(page)) === "paused") {
+    await testInfo.attach("registration-freeze", {
+      body: await page.screenshot(),
+      contentType: "image/png",
     });
-    const email = page.getByLabel("Email", { exact: true });
-    await expect(paused.or(email)).toBeVisible();
-    if (await paused.isVisible()) {
-      await expect(paused).toHaveText(SIGNUPS_PAUSED_MESSAGE);
-      await expect(email).toHaveCount(0);
-      await testInfo.attach("registration-freeze", {
-        body: await page.screenshot(),
-        contentType: "image/png",
-      });
-      testInfo.annotations.push({
-        type: "migration",
-        description:
-          "Registration freeze verified; account provisioned through the protected E2E endpoint. Signup email canary deferred until unfreeze.",
-      });
-      viaEmail = false;
-    }
+    testInfo.annotations.push({
+      type: "migration",
+      description:
+        "Registration freeze verified; account provisioned through the protected E2E endpoint. Signup email canary deferred until unfreeze.",
+    });
+    viaEmail = false;
   }
   const account = await createAccount(page, "primary", {
     viaEmail,

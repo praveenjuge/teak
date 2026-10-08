@@ -1,7 +1,6 @@
 import { AxeBuilder } from "@axe-core/playwright";
 import { expect, type Page, test } from "@playwright/test";
-import { SIGNUPS_PAUSED_MESSAGE } from "@teak/convex/shared/constants";
-import { appPath, newAnonymousContext } from "../helpers/prod";
+import { appPath, expectAuthEntry, newAnonymousContext } from "../helpers/prod";
 
 const authPaths = new Set(["/login", "/register"]);
 
@@ -20,19 +19,7 @@ const waitForReadySurface = async (path: string, page: Page) => {
     ).toBeVisible();
     return;
   }
-  const form = page.locator("form");
-  if (path === "/register") {
-    const paused = page.getByRole("status").filter({
-      hasText: SIGNUPS_PAUSED_MESSAGE,
-    });
-    await expect(paused.or(form)).toBeVisible();
-    if (await paused.isVisible()) {
-      await expect(paused).toHaveText(SIGNUPS_PAUSED_MESSAGE);
-      await expect(form).toHaveCount(0);
-    }
-    return;
-  }
-  await expect(form).toBeVisible();
+  await expectAuthEntry(page, path === "/register" ? "signup" : "signin");
 };
 
 for (const path of ["/login", "/register", "/", "/settings"]) {
