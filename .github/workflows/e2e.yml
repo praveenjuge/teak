@@ -43,11 +43,15 @@ jobs:
       - name: Run the E2E suite
         env:
           PLAYWRIGHT_ARGS: ${{ inputs.playwright_args }}
-        # Split the arguments on spaces without expanding globs such as
-        # --project=journey-*.
+        # xargs splits the arguments like a shell, honoring quotes such as
+        # -g "ten warm", without expanding globs such as --project=journey-*
+        # or running anything in them.
         run: |
-          set -f
-          bun run --cwd packages/tests e2e $PLAYWRIGHT_ARGS
+          if [ -z "$PLAYWRIGHT_ARGS" ]; then
+            bun run --cwd packages/tests e2e
+          else
+            printf '%s' "$PLAYWRIGHT_ARGS" | xargs bun run --cwd packages/tests e2e
+          fi
       - if: failure()
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
         with:
