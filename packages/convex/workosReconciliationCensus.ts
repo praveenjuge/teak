@@ -61,10 +61,15 @@ async function users(
         increment(counts, "duplicateWorkosMappingRows");
       }
     }
-    const source = (await ctx.runQuery(components.betterAuth.adapter.findOne, {
-      model: "user",
-      where: [{ field: "_id", value: row.teakUserId }],
-    })) as BetterAuthUserSource | null;
+    // Owners WorkOS created have a `teak_` key that is no Better Auth document
+    // ID, so looking one up would throw.
+    const source =
+      row.identityOrigin === "workos"
+        ? null
+        : ((await ctx.runQuery(components.betterAuth.adapter.findOne, {
+            model: "user",
+            where: [{ field: "_id", value: row.teakUserId }],
+          })) as BetterAuthUserSource | null);
     if (!source) {
       const provenWorkosOwner =
         row.identityOrigin === "workos" && Boolean(row.workosUserId);
