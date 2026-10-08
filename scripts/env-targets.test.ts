@@ -14,7 +14,6 @@ describe("env-targets", () => {
       "web",
       "docs",
       "cli",
-      "desktop",
       "extension",
       "mobile-simulator",
       "mobile-device",
@@ -23,7 +22,7 @@ describe("env-targets", () => {
     ]) {
       expect(isSupportedTarget(target)).toBe(true);
     }
-    expect(SUPPORTED_TARGETS.length).toBe(9);
+    expect(SUPPORTED_TARGETS.length).toBe(8);
   });
 
   test("every target declares profiles, files, and convex needs", () => {

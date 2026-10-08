@@ -70,13 +70,18 @@ describe("parseSetupArgs", () => {
         "bun",
         "setup.ts",
         "--target",
-        "desktop",
+        "extension",
         "--convex",
         "cloud",
         "--check",
         "--json",
       ])
-    ).toEqual({ target: "desktop", convex: "cloud", check: true, json: true });
+    ).toEqual({
+      target: "extension",
+      convex: "cloud",
+      check: true,
+      json: true,
+    });
   });
 
   test("rejects unknown convex modes and arguments", () => {

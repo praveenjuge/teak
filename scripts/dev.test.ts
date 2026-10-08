@@ -45,7 +45,7 @@ describe("parseDevArgs", () => {
   });
 
   test("rejects multiple targets", () => {
-    expect(() => parseDevArgs(["mobile", "desktop"])).toThrow();
+    expect(() => parseDevArgs(["mobile", "extension"])).toThrow();
   });
 });
 

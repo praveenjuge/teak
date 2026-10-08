@@ -65,7 +65,6 @@ jobs:
         if: steps.check.outputs.should_run == 'true'
         working-directory: apps/extension
         env:
-          VITE_WEB_URL: https://app.teakvault.com
           VITE_PUBLIC_CONVEX_URL: https://uncommon-ladybug-882.convex.cloud
           VITE_PUBLIC_CONVEX_SITE_URL: https://uncommon-ladybug-882.convex.site
         run: bun run zip

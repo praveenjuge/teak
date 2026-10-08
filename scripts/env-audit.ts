@@ -44,7 +44,6 @@ export interface AuditFinding {
  */
 const ALIAS_ACCESSOR_FILES = new Set([
   "apps/web/src/lib/public-env.ts",
-  "apps/desktop/src/lib/desktop-config.ts",
   "apps/extension/lib/env.ts",
   "apps/mobile/lib/public-env.ts",
 ]);

@@ -55,7 +55,6 @@ See the repository README for the monorepo layout.
 
 ```bash
 bun run setup            # First run: install deps + provision Convex + write local env
-bun run setup --target desktop --convex local --json  # Set up the unshipped Electron reference app
 bun run doctor           # Validate the environment (--json --target --profile for agents)
 bun run dev              # Web + Convex backend (bun run dev --help for targets)
 bun run dev web --headless  # Non-interactive output for agents and CI
@@ -66,7 +65,6 @@ bun run audit:env        # Environment contract + local dotenv audit
 bun run dev convex       # Convex backend only
 bun run dev web          # Next.js web
 bun run dev mobile       # Expo mobile
-bun run dev desktop      # Unshipped Electron reference app
 bun run dev extension    # Chrome extension
 open apps/mac/teak-mac.xcodeproj # Mac app and Safari extension
 bun run dev raycast      # Raycast extension
@@ -97,7 +95,7 @@ Convex needs WorkOS staging or development credentials; nothing else is copied.
 | --- | --- | --- |
 | `web` | Convex deployment, WorkOS credentials | None; the default path |
 | `docs`, `cli` | Nothing beyond install | No Convex provisioning |
-| `desktop`, `extension` | Convex deployment, WorkOS credentials | Env files derive `VITE_*` aliases automatically; Electron is unshipped |
+| `extension` | Convex deployment, WorkOS credentials | Env files derive `VITE_*` aliases automatically |
 | `mobile-simulator` | Convex deployment, WorkOS credentials | iOS simulator uses loopback; Android emulators need `10.0.2.2` instead of `localhost` |
 | `mobile-device` | Convex deployment, WorkOS credentials, LAN | The host must be LAN-reachable; doctor reports the address or an actionable diagnostic |
 | `files-worker` | `bun run sync:cloudflare-dev` afterwards | Worker secrets are owned by the sync command, not setup |

@@ -301,7 +301,7 @@ re-copying missing or damaged objects into the development bucket with SHA
 verification.
 
 Builds for the dev deployment (`reminiscent-kangaroo-59`) allow exactly this
-origin: the web CSP, the packaged desktop CSP and shared media recovery. No
+origin: the web CSP and shared media recovery. No
 `NEXT_PUBLIC_FILES_BASE` is needed for it. Production builds never allow it. If
 the deployed workers.dev origin differs, change `DEVELOPMENT_FILES_ORIGIN` and
 its client copies together (a drift test checks them).
@@ -309,8 +309,8 @@ its client copies together (a drift test checks them).
 ## Local development experience
 
 - `bun run dev` at repo root starts the default stack (web + Convex) via
-  Turborepo. `bun run dev:all` starts every surface (web, convex, desktop,
-  raycast, docs, extension).
+  Turborepo. `bun run dev:all` starts every surface (web, convex, raycast,
+  docs, extension).
 - `bun run dev:files` — local Worker with remote Cloudflare R2/Images/AI
   bindings (code local, bucket remote). Use for real image transforms and
   prod-data dev isolation (`dev/users/...`). After the storage switch, use

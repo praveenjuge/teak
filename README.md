@@ -35,7 +35,6 @@ teak/
 ├── apps/
 │   ├── web/        # Next.js app
 │   ├── mobile/     # Expo app
-│   ├── desktop/    # Electron reference app (unshipped)
 │   ├── extension/  # Browser extension (Wxt)
 │   ├── mac/        # Native Mac app and Safari extension
 │   ├── raycast/    # Raycast extension

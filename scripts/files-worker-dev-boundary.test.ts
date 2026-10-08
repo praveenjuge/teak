@@ -1,5 +1,4 @@
 import { describe, expect, test } from "bun:test";
-import { TEAK_DEV_FILES_ORIGIN as desktopOrigin } from "../apps/desktop/src/main/contentSecurityPolicy";
 import config from "../apps/files-worker/development/wrangler.jsonc";
 import { TEAK_DEV_FILES_ORIGIN as webOrigin } from "../apps/web/src/lib/security-headers";
 import { TEAK_FILES_HOSTS } from "../packages/ui/src/components/cards/previews/mediaRecovery";
@@ -254,7 +253,6 @@ describe("readDevelopmentFilesRouting", () => {
 
 test("every client trusts exactly the canonical development Files origin", () => {
   expect(webOrigin).toBe(DEVELOPMENT_FILES_ORIGIN);
-  expect(desktopOrigin).toBe(DEVELOPMENT_FILES_ORIGIN);
   expect([...TEAK_FILES_HOSTS].sort()).toEqual(
     ["files.teakvault.com", new URL(DEVELOPMENT_FILES_ORIGIN).hostname].sort()
   );

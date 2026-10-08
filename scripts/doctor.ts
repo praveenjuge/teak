@@ -46,7 +46,6 @@ export const DOCTOR_TARGETS = [
   "convex",
   "files",
   "extension",
-  "desktop",
   "mobile",
   "cli",
   "docs",
@@ -119,7 +118,7 @@ export const parseDoctorArgs = (argv: string[]): DoctorOptions => {
 };
 
 export const DOCTOR_USAGE =
-  "Usage: bun run doctor [--json] [--target web|convex|files|extension|desktop|mobile|cli|docs] [--profile local|e2e]";
+  "Usage: bun run doctor [--json] [--target web|convex|files|extension|mobile|cli|docs] [--profile local|e2e]";
 
 export const findMissingKeys = (content: string, keys: string[]): string[] => {
   const values = new Map<string, string>();
@@ -523,7 +522,7 @@ export const checkTargetReadiness = (target: DoctorTarget): DoctorCheck => {
           severity: "warn",
         };
   }
-  if (target === "extension" || target === "desktop") {
+  if (target === "extension") {
     const path = join(ROOT, `apps/${target}/.env.local`);
     return existsSync(path)
       ? {

@@ -322,13 +322,8 @@ export const BACKEND_ENTRIES: EnvVarSpec[] = [
     note: "Explicit label. Convex keeps it (no deployment classification there); other surfaces prefer provider metadata.",
   }),
   spec("SENTRY_RELEASE", {
-    owners: [
-      "@teak/convex",
-      "@teak/web",
-      "@teak/desktop",
-      "@teak/files-worker",
-    ],
-    targets: ["convex", "web", "desktop", "files-worker"],
+    owners: ["@teak/convex", "@teak/web", "@teak/files-worker"],
+    targets: ["convex", "web", "files-worker"],
     profiles: ["preview", "production"],
     secret: false,
     validation: "string",

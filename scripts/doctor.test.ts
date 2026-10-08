@@ -167,13 +167,7 @@ describe("needsConvexChecks", () => {
     expect(needsConvexChecks("docs")).toBe(false);
     expect(needsConvexChecks("cli")).toBe(false);
     expect(needsConvexChecks("files")).toBe(false);
-    for (const target of [
-      "web",
-      "convex",
-      "extension",
-      "desktop",
-      "mobile",
-    ] as const) {
+    for (const target of ["web", "convex", "extension", "mobile"] as const) {
       expect(needsConvexChecks(target)).toBe(true);
     }
   });

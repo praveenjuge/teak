@@ -13,12 +13,7 @@ export const TELEMETRY_ENVIRONMENTS = [
 
 export type TelemetryEnvironment = (typeof TELEMETRY_ENVIRONMENTS)[number];
 
-export const TELEMETRY_SURFACES = [
-  "web",
-  "mobile",
-  "desktop",
-  "backend",
-] as const;
+export const TELEMETRY_SURFACES = ["web", "mobile", "backend"] as const;
 
 export type TelemetrySurface = (typeof TELEMETRY_SURFACES)[number];
 
@@ -121,10 +116,6 @@ export const TELEMETRY_METRICS = {
   cronFailure: "teak.cron.failure",
   cronMissed: "teak.cron.missed",
   cronSuccess: "teak.cron.success",
-  desktopCrash: "teak.desktop.crash",
-  desktopOauth: "teak.desktop.oauth",
-  desktopStartup: "teak.desktop.startup",
-  desktopUpdater: "teak.desktop.updater",
   exportLifecycle: "teak.export.lifecycle",
   importLifecycle: "teak.import.lifecycle",
   mobileAppStart: "teak.mobile.app_start",
@@ -235,8 +226,7 @@ const cleanSha = (value: string | undefined): string | undefined => {
   return sha.slice(0, RELEASE_SHA_LENGTH);
 };
 
-const buildShaRelease = (
-  surface: "web" | "desktop",
+export const buildWebRelease = (
   version: string | undefined,
   sha: string | undefined
 ): string | undefined => {
@@ -245,18 +235,8 @@ const buildShaRelease = (
   if (!(normalizedVersion && normalizedSha)) {
     return;
   }
-  return `teak-${surface}@${normalizedVersion}+${normalizedSha}`;
+  return `teak-web@${normalizedVersion}+${normalizedSha}`;
 };
-
-export const buildWebRelease = (
-  version: string | undefined,
-  sha: string | undefined
-): string | undefined => buildShaRelease("web", version, sha);
-
-export const buildDesktopRelease = (
-  version: string | undefined,
-  sha: string | undefined
-): string | undefined => buildShaRelease("desktop", version, sha);
 
 export const buildMobileRelease = (
   version: string | undefined,

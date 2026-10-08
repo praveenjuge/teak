@@ -48,14 +48,6 @@ export const RATE_LIMIT_CONFIG = {
     capacity: 60,
     shards: 6,
   },
-  // Desktop OAuth -> session exchange. Keyed per client IP so a single host
-  // cannot spam single-use token redemption attempts.
-  desktopOauthExchange: {
-    kind: "token bucket",
-    rate: 10,
-    period: MINUTE,
-    capacity: 10,
-  },
   // Native auth device-poll endpoint. Keyed per client IP so a single host
   // cannot spam single-use code redemption attempts while a device polls.
   nativeAuthPoll: {

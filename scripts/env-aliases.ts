@@ -2,17 +2,17 @@
  * Canonical environment facts and their framework aliases (issue #407).
  *
  * The six public Convex/Site URL variables across Next.js, Vite, and Expo
- * express two canonical deployment facts; the desktop web origin mirrors the
- * app SITE_URL locally. Aliases are GENERATED from canonical values by setup
+ * express two canonical deployment facts; the WorkOS redirect URI derives from
+ * the app SITE_URL locally. Aliases are GENERATED from canonical values by setup
  * (see scripts/setup.ts) and never maintained by hand:
  *
  * - CONVEX_URL      → NEXT_PUBLIC_CONVEX_URL, VITE_PUBLIC_CONVEX_URL, EXPO_PUBLIC_CONVEX_URL
  * - CONVEX_SITE_URL → NEXT_PUBLIC_CONVEX_SITE_URL, VITE_PUBLIC_CONVEX_SITE_URL, EXPO_PUBLIC_CONVEX_SITE_URL
- * - SITE_URL        → VITE_WEB_URL (local derivation; provider-supplied elsewhere)
+ * - SITE_URL        → NEXT_PUBLIC_WORKOS_REDIRECT_URI (local derivation; provider-supplied elsewhere)
  *
  * Note: NEXT_PUBLIC_CONVEX_SITE_URL and friends are the Convex deployment's
  * HTTP-actions URL, not the app origin. They derive from CONVEX_SITE_URL; the
- * app origin SITE_URL only seeds VITE_WEB_URL for local desktop work.
+ * app origin SITE_URL only seeds the local web WorkOS redirect URI.
  */
 
 export const CANONICAL_CONVEX_URL = "CONVEX_URL";
@@ -37,7 +37,7 @@ export const ALIAS_DERIVATIONS: Record<string, readonly string[]> = {
     "VITE_PUBLIC_CONVEX_SITE_URL",
     "EXPO_PUBLIC_CONVEX_SITE_URL",
   ],
-  [CANONICAL_SITE_URL]: ["VITE_WEB_URL", "NEXT_PUBLIC_WORKOS_REDIRECT_URI"],
+  [CANONICAL_SITE_URL]: ["NEXT_PUBLIC_WORKOS_REDIRECT_URI"],
 };
 
 const ALIAS_TO_CANONICAL = new Map<string, string>(

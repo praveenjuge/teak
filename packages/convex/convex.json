@@ -45,8 +45,6 @@
           "http://localhost:7700/callback",
           "http://localhost:7800/callback",
           "http://localhost:7900/callback",
-          "http://127.0.0.1:14203/oauth/callback",
-          "http://127.0.0.1:24203/oauth/callback",
           "teak://auth/callback"
         ],
         "appHomepageUrl": "http://localhost:3000",

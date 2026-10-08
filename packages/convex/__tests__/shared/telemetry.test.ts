@@ -1,7 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import {
   buildBackendRelease,
-  buildDesktopRelease,
   buildMobileRelease,
   buildTelemetryContext,
   buildWebRelease,
@@ -41,9 +40,6 @@ describe("telemetry environment and releases", () => {
     const sha = "ABCDEF0123456789ABCDEF0123456789ABCDEF01";
     expect(buildWebRelease("v1.2.3", sha)).toBe(
       "teak-web@1.2.3+abcdef0123456789abcdef0123456789abcdef01"
-    );
-    expect(buildDesktopRelease("1.2.3", sha)).toBe(
-      "teak-desktop@1.2.3+abcdef0123456789abcdef0123456789abcdef01"
     );
     expect(buildMobileRelease("1.2.3", "42")).toBe("teak-mobile@1.2.3+42");
     expect(buildBackendRelease(sha)).toBe(

@@ -154,7 +154,7 @@ export function SettingsContent({
       />
 
       {/* Import is always available; the Export tab uses these handlers, which
-          both web and desktop supply, so the section is not gated on them. */}
+          web always supplies, so the section is not gated on them. */}
       <ImportExportSection
         exportLoading={exportLoading ?? exportState === undefined}
         exportState={exportState}

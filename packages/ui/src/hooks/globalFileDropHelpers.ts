@@ -29,7 +29,7 @@ export interface BatchSummary {
  * Determine whether a single `DataTransferItem` points at a folder/directory.
  *
  * We only have reliable folder detection when `webkitGetAsEntry` is available
- * (all modern browsers and Electron). On that path a directory entry yields
+ * (all modern browsers). On that path a directory entry yields
  * `isDirectory === true` or a null file from `getAsFile()`.
  *
  * When `webkitGetAsEntry` is absent we conservatively treat the item as a

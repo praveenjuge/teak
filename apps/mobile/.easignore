@@ -53,7 +53,6 @@ node_modules/@teak/convex/*_/.old-_
 node_modules/@teak/convex/src/**
 node_modules/@teak/convex/public/**
 node_modules/@teak/convex/.next/**
-node_modules/@teak/desktop/**
 node_modules/@teak/extension/**
 node_modules/@teak/docs/**
 node_modules/@teak/web/**

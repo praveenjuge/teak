@@ -97,7 +97,7 @@ export const DEVELOPMENT_KEY_PREFIX = "dev/";
 
 /**
  * workers.dev origin of the dedicated `teak-files-development` Worker on the
- * Teak account's `praveenjuge` subdomain. Web, desktop and shared UI trust
+ * Teak account's `praveenjuge` subdomain. Web and shared UI trust
  * exactly this origin for the dev deployment; keep them in step.
  */
 export const DEVELOPMENT_FILES_ORIGIN =

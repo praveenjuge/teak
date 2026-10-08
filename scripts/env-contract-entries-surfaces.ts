@@ -1,5 +1,5 @@
 /**
- * Environment contract entries: dev-url overrides and web, desktop, extension, and mobile clients.
+ * Environment contract entries: dev-url overrides and web, extension, and mobile clients.
  *
  * One third of ENV_CONTRACT, assembled in ./env-contract.ts. Names and
  * metadata only - never values.
@@ -10,14 +10,8 @@ import { type EnvVarSpec, spec } from "./env-contract-types.ts";
 export const SURFACE_ENTRIES: EnvVarSpec[] = [
   // Local dev-URL overrides (shared resolver in @teak/convex/dev-urls).
   spec("TEAK_DEV_APP_URL", {
-    owners: [
-      "@teak/convex",
-      "@teak/web",
-      "@teak/extension",
-      "@teak/desktop",
-      "@teak/docs",
-    ],
-    targets: ["convex", "web", "extension", "desktop", "docs"],
+    owners: ["@teak/convex", "@teak/web", "@teak/extension", "@teak/docs"],
+    targets: ["convex", "web", "extension", "docs"],
     profiles: ["local"],
     secret: false,
     validation: "url",
@@ -181,8 +175,8 @@ export const SURFACE_ENTRIES: EnvVarSpec[] = [
     note: "Written by next.config from provider commit metadata.",
   }),
   spec("GIT_SHA", {
-    owners: ["@teak/web", "@teak/desktop"],
-    targets: ["web", "desktop"],
+    owners: ["@teak/web"],
+    targets: ["web"],
     profiles: ["preview", "production"],
     secret: false,
     validation: "sha",
@@ -190,11 +184,11 @@ export const SURFACE_ENTRIES: EnvVarSpec[] = [
     required: false,
     note: "Manual commit-SHA override for release derivation outside Vercel/GitHub.",
   }),
-  // Desktop and extension (Vite).
+  // Extension (Vite).
   spec("VITE_PUBLIC_CONVEX_URL", {
     derivedFrom: "CONVEX_URL",
-    owners: ["@teak/desktop", "@teak/extension"],
-    targets: ["desktop", "extension"],
+    owners: ["@teak/extension"],
+    targets: ["extension"],
     profiles: ["local", "preview", "production"],
     secret: false,
     validation: "url",
@@ -204,75 +198,14 @@ export const SURFACE_ENTRIES: EnvVarSpec[] = [
   }),
   spec("VITE_PUBLIC_CONVEX_SITE_URL", {
     derivedFrom: "CONVEX_SITE_URL",
-    owners: ["@teak/desktop", "@teak/extension"],
-    targets: ["desktop", "extension"],
+    owners: ["@teak/extension"],
+    targets: ["extension"],
     profiles: ["local", "preview", "production"],
     secret: false,
     validation: "url",
     providers: ["dotenv-local", "workflow"],
     required: true,
     requiredIn: ["local", "preview", "production"],
-  }),
-  spec("VITE_WEB_URL", {
-    derivedFrom: "SITE_URL",
-    owners: ["@teak/desktop"],
-    targets: ["desktop"],
-    profiles: ["local", "preview", "production"],
-    secret: false,
-    validation: "url",
-    providers: ["dotenv-local", "workflow"],
-    required: false,
-  }),
-  spec("VITE_SENTRY_ENVIRONMENT", {
-    owners: ["@teak/desktop"],
-    targets: ["desktop"],
-    profiles: ["preview", "production"],
-    secret: false,
-    validation: "enum",
-    allowedValues: ["production", "preview", "development", "test"],
-    providers: ["workflow"],
-    required: false,
-  }),
-  spec("VITE_SENTRY_RELEASE", {
-    derivedFrom: "package.json version + provider commit SHA",
-    owners: ["@teak/desktop"],
-    targets: ["desktop"],
-    profiles: ["preview", "production"],
-    secret: false,
-    validation: "string",
-    providers: ["workflow", "build"],
-    required: false,
-  }),
-  spec("VITE_PUBLIC_SENTRY_DESKTOP_DSN", {
-    owners: ["@teak/desktop"],
-    targets: ["desktop"],
-    profiles: ["production"],
-    secret: false,
-    validation: "url",
-    providers: ["github-secrets", "workflow"],
-    required: true,
-    requiredIn: ["production"],
-    note: "Client-exposed by design; asserted by verify-sentry-release-env for releases.",
-  }),
-  spec("VITE_GIT_COMMIT_SHA", {
-    owners: ["@teak/desktop"],
-    targets: ["desktop"],
-    profiles: ["production"],
-    secret: false,
-    validation: "sha",
-    providers: ["workflow"],
-    required: true,
-    requiredIn: ["production"],
-  }),
-  spec("VITE_DESKTOP_UPDATE_CHANNEL", {
-    owners: ["@teak/desktop"],
-    targets: ["desktop"],
-    profiles: ["preview", "production"],
-    secret: false,
-    validation: "enum",
-    allowedValues: ["stable", "beta"],
-    providers: ["workflow"],
-    required: false,
   }),
   // Mobile (Expo / EAS).
   spec("EXPO_PUBLIC_CONVEX_URL", {
