@@ -12,8 +12,8 @@ const requests: Array<{
   endpoint: string;
   clientId: string;
   scope: string;
-  extraParameters: Record<string, string>;
 }> = [];
+const authorizeUrls: URL[] = [];
 let browserCount = 0;
 let workosIssuer = "https://scholarly-hay-77.authkit.app";
 let primary = "workos";
@@ -71,11 +71,14 @@ mock.module("@raycast/api", () => ({
       authorizationRequest(options: (typeof requests)[number]) {
         requests.push(options);
         return Promise.resolve({
+          codeChallenge: "native-challenge",
           codeVerifier: "native-verifier",
           redirectURI: "https://raycast.com/redirect?package=teak-raycast",
+          state: "native-state",
         });
       }
-      authorize() {
+      authorize(options: { url: string }) {
+        authorizeUrls.push(new URL(options.url));
         browserCount += 1;
         return Promise.resolve({ authorizationCode: "native-code" });
       }
@@ -159,6 +162,7 @@ beforeEach(async () => {
   stores.clear();
   credentialReads.length = 0;
   requests.length = 0;
+  authorizeUrls.length = 0;
   toasts.length = 0;
   posts.length = 0;
   browserCount = 0;
@@ -193,9 +197,8 @@ test("pre-WorkOS credentials neither sign in nor block a fresh WorkOS sign-in", 
 
 test("a server that does not advertise WorkOS is refused before browser sign-in", async () => {
   primary = "betterauth";
-  await expect(oauth.authorizeTeak()).rejects.toThrow(
-    "unsupported sign-in provider",
-  );
+  // Discovery itself refuses any provider other than WorkOS.
+  await expect(oauth.authorizeTeak()).rejects.toThrow("Unable to reach Teak");
   expect(browserCount).toBe(0);
   expect(posts).toHaveLength(0);
 });
@@ -207,9 +210,20 @@ test("WorkOS binds PKCE and token exchange to the REST resource and dynamic clie
   );
   expect(requests[0].clientId).toBe("client_01M47GV3CYKFW0H78W0XYKGTM5");
   expect(requests[0].scope).toBe("openid profile email offline_access");
-  expect(requests[0].extraParameters.resource).toBe(
-    "https://teakvault.com/api",
+  const url = authorizeUrls[0];
+  expect(url.origin + url.pathname).toBe(
+    "https://scholarly-hay-77.authkit.app/authorize",
   );
+  expect(Object.fromEntries(url.searchParams)).toEqual({
+    response_type: "code",
+    client_id: "client_01M47GV3CYKFW0H78W0XYKGTM5",
+    resource: "https://teakvault.com/api",
+    redirect_uri: "https://raycast.com/redirect?package=teak-raycast",
+    code_challenge: "native-challenge",
+    code_challenge_method: "S256",
+    scope: "openid profile email offline_access",
+    state: "native-state",
+  });
   expect(posts[0].body.get("resource")).toBe("https://teakvault.com/api");
   expect(posts[0].body.get("code_verifier")).toBe("native-verifier");
   expect(posts[0].body.get("redirect_uri")).toBe(
@@ -241,6 +255,26 @@ test("concurrent commands rotate a refresh token once without opening the browse
   expect(posts[0].body.get("resource")).toBe("https://teakvault.com/api");
   expect(stores.get(key)?.refreshToken).toBe("refresh-new");
   expect(browserCount).toBe(0);
+});
+
+test("a refresh response without a refresh token keeps the saved one", async () => {
+  await oauth.authorizeTeak();
+  const key = Array.from(stores.keys())[0];
+  stores.set(key, {
+    accessToken: "expired",
+    refreshToken: "refresh-old",
+    isExpired: () => true,
+  });
+  globalThis.fetch = ((input, init) =>
+    String(input).endsWith("/oauth2/token")
+      ? Promise.resolve(json({ access_token: "access-kept", expires_in: 300 }))
+      : transport(input, init)) as typeof fetch;
+  expect(await oauth.getStoredTeakAccessToken()).toBe("access-kept");
+  expect(stores.get(key)).toMatchObject({
+    accessToken: "access-kept",
+    expiresIn: 300,
+    refreshToken: "refresh-old",
+  });
 });
 
 test("failed refresh refetches discovery and never sends the old token to a new issuer", async () => {
