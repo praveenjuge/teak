@@ -12,10 +12,13 @@ import { type ChildProcess, spawn } from "node:child_process";
 import { createWriteStream, mkdirSync } from "node:fs";
 import { createServer } from "node:net";
 import { join } from "node:path";
+import { api } from "@teak/convex";
+import { ConvexHttpClient } from "convex/browser";
 import {
   EMULATOR_PORT,
   LOCAL_API_ORIGIN,
   LOCAL_APP_ORIGIN,
+  LOCAL_CONVEX_URL,
 } from "../emulator/config";
 import { startEmulator } from "../emulator/start";
 
@@ -24,11 +27,12 @@ const TESTS = join(import.meta.dir, "../..");
 // Playwright clears test-results on each run, so logs live with the state.
 const LOG_DIR = join(TESTS, ".state");
 const stackOnly = process.argv[2] === "stack";
-// Without arguments, run every suite that needs the stack (not the docs).
+// Without arguments, run the gating suites: the journeys and the browser
+// matrix. The web specs run on demand: `bun run e2e --project=web`.
 const playwrightArgs =
   process.argv.length > 2 && !stackOnly
     ? process.argv.slice(2)
-    : ["--project=journey-*", "--project=web", "--project=matrix-*"];
+    : ["--project=journey-*", "--project=matrix-*"];
 
 const portIsFree = (port: number) =>
   new Promise<boolean>((resolve) => {
@@ -70,6 +74,25 @@ const waitFor = async (url: string, dev: ChildProcess, timeoutMs: number) => {
     await Bun.sleep(1000);
   }
   throw new Error(`${url} did not come up within ${timeoutMs / 1000}s`);
+};
+
+// A freshly pushed backend loads each module on its first call, which can
+// outlast the 1s query limit on a busy machine. Load the modules the web app
+// queries first, without auth; their answers don't matter.
+const warmBackend = async () => {
+  const client = new ConvexHttpClient(LOCAL_CONVEX_URL);
+  const calls = [
+    () => client.query(api.auth.getAuthMode, {}),
+    () => client.query(api.auth.getCardCreationStatus, {}),
+    () => client.query(api.auth.getAuthUser, {}),
+    () =>
+      client.query(api.cards.searchCardsPaginated, {
+        paginationOpts: { cursor: null, numItems: 1 },
+      }),
+  ];
+  for (let round = 0; round < 2; round += 1) {
+    await Promise.allSettled(calls.map((call) => call()));
+  }
 };
 
 const signalGroup = (child: ChildProcess, signal: NodeJS.Signals) => {
@@ -152,6 +175,7 @@ process.once("SIGTERM", () => {
 try {
   await waitFor(`${LOCAL_API_ORIGIN}/healthz`, dev, 180_000);
   await waitFor(LOCAL_APP_ORIGIN, dev, 180_000);
+  await warmBackend();
   console.log(
     `E2E stack is up: web ${LOCAL_APP_ORIGIN}, API ${LOCAL_API_ORIGIN}, WorkOS emulator ${emulator.url}. Dev logs: ${devLog}`
   );

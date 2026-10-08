@@ -32,8 +32,11 @@ const refreshTokenOf = (body: string, contentType: string | undefined) => {
   } catch {}
 };
 
+// The emulator itself, behind the proxy, on a fixed loopback port.
+const UPSTREAM_ORIGIN = `http://localhost:${EMULATOR_PORT + 1}`;
+
 const forward = async (
-  target: URL,
+  path: string,
   request: IncomingMessage,
   body: string | undefined
 ): Promise<Forwarded> => {
@@ -43,9 +46,9 @@ const forward = async (
       headers.set(name, value);
     }
   }
-  // Only ever forwards to the emulator on its fixed loopback port.
+  // Only the path and query come from the request; the origin is fixed.
   // nosemgrep: rules_lgpl_javascript_ssrf_rule-node-ssrf
-  const response = await fetch(target, {
+  const response = await fetch(`${UPSTREAM_ORIGIN}${path}`, {
     body,
     headers,
     method: request.method,
@@ -79,16 +82,18 @@ export const startEmulator = async () => {
       chunks.push(chunk as Buffer);
     }
     const body = chunks.length ? Buffer.concat(chunks).toString() : undefined;
-    const path = request.url ?? "/";
+    // Keep only the path and query, even for an absolute-form request target.
+    const incoming = new URL(request.url ?? "/", UPSTREAM_ORIGIN);
+    const path = `${incoming.pathname}${incoming.search}`;
     const refreshToken =
-      path === "/user_management/authenticate" && body
+      incoming.pathname === "/user_management/authenticate" && body
         ? refreshTokenOf(body, request.headers["content-type"])
         : undefined;
     const replay = refreshToken ? replays.get(refreshToken) : undefined;
     const forwarded =
       replay && replay.expiresAt > Date.now()
         ? replay
-        : await forward(new URL(path, emulator.url), request, body);
+        : await forward(path, request, body);
     if (refreshToken && !replay && forwarded.status === 200) {
       replays.set(refreshToken, {
         ...forwarded,

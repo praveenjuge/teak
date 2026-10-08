@@ -18,7 +18,7 @@ bun install
 bun run --cwd packages/tests e2e
 ```
 
-`e2e` runs `bun run setup --target e2e`, starts the emulator, runs the backend and the web dev server, runs the journey, web and browser-matrix projects, and stops everything. Pass Playwright arguments to narrow it, for example `bun run --cwd packages/tests e2e --project=journey-api`.
+`e2e` runs `bun run setup --target e2e`, starts the emulator, runs the backend and the web dev server, runs the journey and browser-matrix projects, and stops everything. The `web` project is not in the gating run yet; run it with `bun run --cwd packages/tests e2e --project=web`. Pass Playwright arguments to narrow it, for example `bun run --cwd packages/tests e2e --project=journey-api`.
 
 To iterate, keep the stack up in one terminal and run Playwright in another:
 

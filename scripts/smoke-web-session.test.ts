@@ -36,7 +36,7 @@ describe("smoke-web-session", () => {
 });
 
 describe("workos-test-session", () => {
-  test("throwaway addresses use the backend's e2e shape on a reserved domain", () => {
+  test("throwaway addresses use the e2e- prefix on a reserved domain", () => {
     expect(testSessionEmail("smoke")).toMatch(
       /^e2e-smoke-\d+-[0-9a-f]{8}@example\.org$/
     );
