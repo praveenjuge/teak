@@ -20,16 +20,11 @@ import {
   tag,
 } from "@expo/ui/swift-ui/modifiers";
 import { api } from "@teak/convex";
-import {
-  captureClientException,
-  createClientRequestErrorFromContext,
-} from "@teak/convex/shared/client-telemetry";
 import { useMutation } from "convex/react";
 import { useQuery } from "convex-helpers/react/cache/hooks";
 import { Stack, useRouter } from "expo-router";
 import { useMemo, useState } from "react";
 import { Alert } from "react-native";
-import { authClient } from "@/lib/auth-client";
 import { useMobileAuth } from "@/lib/mobile-auth-context";
 import { useThemePreference } from "@/lib/theme-preference";
 
@@ -120,25 +115,9 @@ export default function SettingsScreen() {
     setIsDeleting(true);
 
     try {
-      if (mobileAuth.mode.primary === "workos") {
-        await deleteMyAccount({});
-        await mobileAuth.signOut({ accountDeletionAccepted: true });
-        router.replace("/(auth)/welcome");
-        return;
-      }
-      await authClient.deleteUser(undefined, {
-        onError: (ctx) => {
-          const error = createClientRequestErrorFromContext(
-            ctx,
-            "Failed to delete account."
-          );
-          captureClientException(error, { operation: "account.delete" });
-          setDeleteError(error.message);
-        },
-        onSuccess: () => {
-          router.replace("/(auth)/welcome");
-        },
-      });
+      await deleteMyAccount({});
+      await mobileAuth.signOut({ accountDeletionAccepted: true });
+      router.replace("/(auth)/welcome");
     } catch (error) {
       setDeleteError("Something went wrong while deleting your account.");
       console.error(

@@ -8,10 +8,7 @@ import { type ReactNode, useEffect, useRef, useState } from "react";
 import LoadingScreen from "./app/loading";
 import OfflineScreen from "./app/offline";
 import { type PublicAuthMode, parseAuthMode } from "./lib/auth-mode";
-import {
-  BetterAuthProvider,
-  WorkosAuthProvider,
-} from "./lib/MobileAuthProviders";
+import { WorkosAuthProvider } from "./lib/MobileAuthProviders";
 import { getConvexUrl } from "./lib/public-env";
 import { getWorkosSession } from "./lib/workos-native-auth";
 
@@ -50,10 +47,8 @@ export default function ConvexClientProvider({
       const update = ++revision;
       const previous = currentMode.current;
       if (
-        previous?.primary === "workos" &&
-        previous.authKitClientId &&
-        (next.primary !== previous.primary ||
-          next.authKitClientId !== previous.authKitClientId)
+        previous?.authKitClientId &&
+        next.authKitClientId !== previous.authKitClientId
       ) {
         await getWorkosSession(previous.authKitClientId).clear();
       }
@@ -126,16 +121,9 @@ export default function ConvexClientProvider({
   if (!mode) {
     return offline ? <OfflineScreen /> : <LoadingScreen />;
   }
-  if (mode.primary === "workos") {
-    return (
-      <WorkosAuthProvider client={convex} mode={mode}>
-        {children}
-      </WorkosAuthProvider>
-    );
-  }
   return (
-    <BetterAuthProvider client={convex} mode={mode}>
+    <WorkosAuthProvider client={convex} mode={mode}>
       {children}
-    </BetterAuthProvider>
+    </WorkosAuthProvider>
   );
 }

@@ -67,7 +67,6 @@
       "expo-secure-store",
       "expo-font",
       "expo-asset",
-      "expo-apple-authentication",
       "expo-video",
       [
         "expo-sharing",

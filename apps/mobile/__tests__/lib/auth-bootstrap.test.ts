@@ -1,26 +1,8 @@
 import { describe, expect, test } from "bun:test";
-import {
-  getAuthRouteState,
-  hasStoredBetterAuthSessionCookie,
-} from "../../lib/auth-bootstrap";
+import { getAuthRouteState } from "../../lib/auth-bootstrap";
 
 describe("auth bootstrap", () => {
-  test("detects stored Better Auth session cookies without exposing values", () => {
-    expect(
-      hasStoredBetterAuthSessionCookie(
-        "better-auth.session_token=secret; other=value"
-      )
-    ).toBe(true);
-    expect(
-      hasStoredBetterAuthSessionCookie(
-        "__Secure-better-auth.session_token=secret"
-      )
-    ).toBe(true);
-    expect(hasStoredBetterAuthSessionCookie("other=value")).toBe(false);
-    expect(hasStoredBetterAuthSessionCookie(null)).toBe(false);
-  });
-
-  test("keeps loading when a stored cookie exists before session resolves", () => {
+  test("keeps loading when a stored session exists before it resolves", () => {
     expect(
       getAuthRouteState({
         hasStoredSession: true,
@@ -35,7 +17,7 @@ describe("auth bootstrap", () => {
     ).toBe("loading");
   });
 
-  test("allows auth routes when no cookie or session exists", () => {
+  test("allows auth routes when no stored session exists", () => {
     expect(
       getAuthRouteState({
         hasStoredSession: false,
@@ -50,7 +32,7 @@ describe("auth bootstrap", () => {
     ).toBe("unauthenticated");
   });
 
-  test("keeps loading while Convex warms up after Better Auth resolves", () => {
+  test("keeps loading while Convex warms up after the session resolves", () => {
     expect(
       getAuthRouteState({
         hasStoredSession: true,
