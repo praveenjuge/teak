@@ -107,7 +107,8 @@ extension SafariOAuthTests {
         try check(authorization.absoluteString.hasPrefix(SafariDiscoveryFixtures.issuer + "/authorize?"), "authorization uses discovered issuer")
         try check(query.contains { $0.name == "client_id" && $0.value == SafariDiscoveryFixtures.clientID }, "authorization uses surface client")
         try check(query.contains { $0.name == "code_challenge_method" && $0.value == "S256" }, "authorization retains PKCE")
-        try check(query.contains { $0.name == "resource" && $0.value == "https://test.teak.invalid/api" } == (primary == "workos"), "authorization resource follows provider")
+        try check(query.contains { $0.name == "resource" && $0.value == "https://teakvault.com/api" } == (primary == "workos"), "authorization resource follows provider")
+        try check(query.first { $0.name == "scope" }?.value == (primary == "workos" ? "openid profile email offline_access" : "profile email offline_access"), "WorkOS authorization requests OpenID scopes")
         let login = await service.completeSignIn(pending, callback: discoveryCallback(pending))
         try check(login["authenticated"] as? Bool == true, "identity-verified login succeeds")
         try check(grants[0]["code_verifier"] == pending.verifier && grants[0]["code"] == "discovery-code", "code exchange binds browser PKCE")
@@ -120,7 +121,7 @@ extension SafariOAuthTests {
         try check(grants.count == 2 && grants[1]["grant_type"] == "refresh_token", "expired restarted client refreshes")
         for grant in grants {
             try check(grant["client_id"] == SafariDiscoveryFixtures.clientID, "grant carries discovered client")
-            try check((grant["resource"] == "https://test.teak.invalid/api") == (primary == "workos"), "grant resource follows provider")
+            try check((grant["resource"] == "https://teakvault.com/api") == (primary == "workos"), "grant resource follows provider")
         }
         let state = await restarted.authState()
         try check(state["authenticated"] as? Bool == true && identities == 2, "restart verifies identity via v1/me")
@@ -151,8 +152,41 @@ extension SafariOAuthTests {
         try check(callback["status"] as? String == "error" && exchanges == 1, "provider flip refuses old code before exchange")
         try check(try store.load()?.refreshToken == "new-refresh", "provider flip retains old credential for revocation")
         let logout = await changed.signOut()
-        try check(logout["status"] as? String == "signed-out", "old provider credential remains revocable")
-        try check(revocations.count == 1 && revocations[0]["client_id"] == "teak-safari", "logout uses saved old client binding")
+        try check(logout["status"] as? String == "signed-out" && logout["localOnly"] as? Bool == true, "Better Auth credential signs out after WorkOS cutover")
+        try check(revocations.isEmpty && (try store.load()) == nil, "retired Better Auth grant is cleared locally")
+    }
+
+    static func discoveryLegacyCredentialsAfterCutover() async throws {
+        discoveryReset("workos")
+        let legacy = SafariOAuthTokens(accessToken: "legacy-access", refreshToken: "legacy-refresh",
+                                       expiresAt: Date().addingTimeInterval(3600))
+        var legacyRevocations = 0
+        MockHTTP.respond = { request in
+            switch request.url?.path {
+            case "/api/oauth/revoke": legacyRevocations += 1; return (404, "{}")
+            case "/api/auth/mcp/token": return (200, tokenResponse)
+            case "/v1/me": return (200, validSession)
+            default: throw SafariServiceError.message("Unexpected legacy credential request")
+            }
+        }
+        let signedOutStore = MemoryCredentials(legacy)
+        let logout = await fixture(signedOutStore).signOut()
+        try check(logout["status"] as? String == "signed-out" && logout["localOnly"] as? Bool == true, "legacy credential signs out locally")
+        try check(try signedOutStore.load() == nil, "legacy sign-out removes saved credential")
+        let replacedStore = MemoryCredentials(legacy)
+        let service = fixture(replacedStore)
+        let pending = try await service.prepareSignIn()
+        let login = await service.completeSignIn(pending, callback: discoveryCallback(pending))
+        try check(login["status"] as? String == "connected", "WorkOS sign-in replaces legacy credential")
+        try check(try replacedStore.load()?.refreshToken == "new-refresh"
+            && (try replacedStore.load()?.binding?.primary) == "workos", "replacement stores WorkOS-bound credential")
+        try check(legacyRevocations == 0, "retired revocation route is never contacted")
+        SafariDiscoveryFixtures.unavailable = true
+        let offlineStore = MemoryCredentials(legacy)
+        let offline = await fixture(offlineStore).signOut()
+        try check(offline["status"] as? String == "signed-out" && (try offlineStore.load()) == nil,
+                  "legacy credential signs out locally when discovery is unavailable")
+        discoveryReset()
     }
 
     static func discoveryCancelledAndRefused() async throws {
@@ -604,7 +638,7 @@ extension SafariOAuthTests {
                     refreshes += 1
                     let form = try discoveryForm(request)
                     try check(form["grant_type"] == "refresh_token" && form["refresh_token"] == "new-refresh", "logout refresh spends stored token")
-                    try check(form["client_id"] == "client-safari" && form["resource"] == "https://test.teak.invalid/api", "logout refresh preserves client and resource namespace")
+                    try check(form["client_id"] == "client-safari" && form["resource"] == "https://teakvault.com/api", "logout refresh preserves client and resource namespace")
                     return (200, #"{"access_token":"logout-access","refresh_token":"logout-refresh","expires_in":300,"token_type":"Bearer"}"#)
                 }
                 let proof = try discoveryDisconnectProof(request)
@@ -658,6 +692,7 @@ extension SafariOAuthTests {
         try await discoveryFreshDisconnect()
         try await discoveryDeadDisconnect()
         try await discoveryProviderFlip()
+        try await discoveryLegacyCredentialsAfterCutover()
         try await discoveryCancelledAndRefused()
         try await discoveryRotationFailures()
         try await discoveryUnsafeAndLogoutFailure()

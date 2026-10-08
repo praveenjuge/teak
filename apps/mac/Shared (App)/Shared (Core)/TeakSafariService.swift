@@ -190,7 +190,8 @@ actor TeakSafariService {
                             guard auth.primary != "workos" || !matchesProvider || previous.binding?.ownerID != nil else {
                                 throw SafariServiceError.message("Sign out before reconnecting.")
                             }
-                            try await self.revoke(previous, refreshDiscovery: false)
+                            do { try await self.revoke(previous, refreshDiscovery: false, current: auth) }
+                            catch SafariServiceError.invalidRefreshCredential {}
                             previousRevoked = true
                         }
                     }
@@ -386,8 +387,22 @@ actor TeakSafariService {
         return saved.apiOrigin == current.apiOrigin && saved.primary == current.primary && saved.issuer == current.issuer && saved.clientID == current.clientID
     }
 
-    private func revoke(_ tokens: SafariOAuthTokens, refreshDiscovery: Bool = true) async throws {
-        let auth = refreshDiscovery ? try await discover(force: true) : nil
+    /// Throws `invalidRefreshCredential` when the grant can only be cleared locally.
+    private func revoke(_ tokens: SafariOAuthTokens, refreshDiscovery: Bool = true,
+                        current: SafariAuthDiscovery? = nil) async throws {
+        let auth: SafariAuthDiscovery?
+        if !refreshDiscovery {
+            auth = nil
+        } else if tokens.binding?.primary == "workos" {
+            auth = try await discover(force: true)
+        } else {
+            // A credential from before WorkOS has nothing left to revoke it, so
+            // sign-out clears it locally even when discovery is unavailable.
+            guard let discovered = try? await discover(force: true) else {
+                throw SafariServiceError.invalidRefreshCredential
+            }
+            auth = discovered
+        }
         if let saved = tokens.binding, saved.primary == "workos" {
             guard saved.apiOrigin == (try SafariAuthDiscovery.origin(apiURL).absoluteString) else {
                 throw SafariServiceError.message("Your connection belongs to another Teak environment.")
@@ -412,6 +427,9 @@ actor TeakSafariService {
             }
             return
         }
+        // Better Auth grants ended with the WorkOS cutover, and so did their
+        // revocation route. Only the local copy is left to clear.
+        if (auth ?? current)?.primary == "workos" { throw SafariServiceError.invalidRefreshCredential }
         let endpoint: URL?
         let clientID: String
         if let auth, try matches(tokens, auth) {

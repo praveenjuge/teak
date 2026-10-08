@@ -50,7 +50,7 @@ After installing globally, the `teak` command is available on your PATH. To try 
 teak logout
 ```
 
-`teak logout` revokes browser sign-in. With WorkOS, a confirmed disconnect signs out every CLI installation; reconnecting can take about five minutes. If WorkOS already rejects your refresh credential, logout clears only this device’s saved sign-in and tells you that other installations may remain connected. Disconnect those in **Settings → Security → Connected apps**. Connection failures keep credentials saved for retry. API keys are unaffected.
+`teak logout` revokes browser sign-in. With WorkOS, a confirmed disconnect signs out every CLI installation; reconnecting can take about five minutes. If this device still has a sign-in from before the October 7 sign-in update, or WorkOS already rejects your refresh credential, logout clears only this device’s saved sign-in and tells you that other installations may remain connected. Disconnect those in **Settings → Security → Connected apps**. Connection failures keep credentials saved for retry. API keys are unaffected.
 
 The upcoming CLI release stores credentials separately for each API deployment. Local development
 cannot use or clear your production sign-in. If logout fails, retry it before

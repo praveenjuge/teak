@@ -333,6 +333,54 @@ test("sign out after process restart revokes stored legacy and prior WorkOS name
   ).toContain("old-legacy-refresh");
 });
 
+test.each([404, 401])(
+  "legacy credentials whose removed revoke route returns %i still sign out and clear WorkOS",
+  async (status) => {
+    mode = "workos";
+    await oauth.authorizeTeak();
+    const workosKey = Array.from(stores.keys())[0];
+    stores.set("teak", {
+      accessToken: "old-legacy",
+      refreshToken: "old-legacy-refresh",
+      isExpired: () => false,
+    });
+    posts.length = 0;
+    globalThis.fetch = ((input, init) => {
+      if (String(input).endsWith("/api/oauth/revoke")) {
+        posts.push({
+          url: String(input),
+          body: new URLSearchParams(String(init?.body)),
+          redirect: init?.redirect,
+          authorization: null,
+        });
+        return Promise.resolve(json({}, status));
+      }
+      return transport(input, init);
+    }) as typeof fetch;
+    expect(await oauth.signOutTeak()).toBe("disconnected");
+    expect(stores.has("teak")).toBe(false);
+    expect(stores.has(workosKey)).toBe(false);
+    expect(posts.map((post) => post.url)).toEqual([
+      "https://teakvault.com/api/api/oauth/revoke",
+      "https://teakvault.com/api/v1/oauth/disconnect",
+    ]);
+    expect(posts[1].authorization).toBe("Bearer access-new");
+    expect(Object.keys(await raycastLocalStorageMock.allItems())).toEqual([]);
+  },
+);
+
+test("unusable legacy credentials are cleared locally without blocking sign out", async () => {
+  mode = "workos";
+  await oauth.authorizeTeak();
+  stores.set("teak", { accessToken: "", isExpired: () => true });
+  posts.length = 0;
+  expect(await oauth.signOutTeak()).toBe("disconnected");
+  expect(stores.size).toBe(0);
+  expect(posts.map((post) => post.url)).toEqual([
+    "https://teakvault.com/api/v1/oauth/disconnect",
+  ]);
+});
+
 test("tampered historical endpoints never receive saved credentials", async () => {
   mode = "workos";
   await oauth.authorizeTeak();
@@ -804,35 +852,38 @@ test.each([
   },
 );
 
-test("local-only Sign Out action warns that other installations may remain connected", async () => {
-  mode = "workos";
-  await oauth.authorizeTeak();
-  globalThis.fetch = (async (input, init) => {
-    if (String(input).endsWith("/oauth/disconnect"))
-      return new Response(null, { status: 401 });
-    if (String(input).endsWith("/oauth2/token"))
-      return json({ error: "invalid_grant" }, 400);
-    return transport(input, init);
-  }) as typeof fetch;
-  const { SignOutAction } = await import("../components/SignOutAction");
-  let signedOut = false;
-  const action = SignOutAction({
-    onSignedOut: () => {
-      signedOut = true;
-    },
-  });
-  if (!action) throw new Error("Missing Sign Out action");
-  await action.props.onAction();
-  expect(toasts).toEqual([
-    {
-      style: "success",
-      title: "Signed out on this Mac",
-      message: "Other installations may still be connected.",
-    },
-  ]);
-  expect(signedOut).toBe(true);
-  expect(stores.size).toBe(0);
-});
+test.each(["invalid_grant", "invalid_refresh_token"])(
+  "local-only Sign Out action after %s warns that other installations may remain connected",
+  async (refreshError) => {
+    mode = "workos";
+    await oauth.authorizeTeak();
+    globalThis.fetch = (async (input, init) => {
+      if (String(input).endsWith("/oauth/disconnect"))
+        return new Response(null, { status: 401 });
+      if (String(input).endsWith("/oauth2/token"))
+        return json({ error: refreshError }, 400);
+      return transport(input, init);
+    }) as typeof fetch;
+    const { SignOutAction } = await import("../components/SignOutAction");
+    let signedOut = false;
+    const action = SignOutAction({
+      onSignedOut: () => {
+        signedOut = true;
+      },
+    });
+    if (!action) throw new Error("Missing Sign Out action");
+    await action.props.onAction();
+    expect(toasts).toEqual([
+      {
+        style: "success",
+        title: "Signed out on this Mac",
+        message: "Other installations may still be connected.",
+      },
+    ]);
+    expect(signedOut).toBe(true);
+    expect(stores.size).toBe(0);
+  },
+);
 
 test.each([400, 401])(
   "malformed HTTP %i refresh replies preserve credentials without browser replacement",

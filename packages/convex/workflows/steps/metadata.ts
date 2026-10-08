@@ -8,7 +8,7 @@
 "use node";
 
 import { v } from "convex/values";
-import { components, internal } from "../../_generated/api";
+import { internal } from "../../_generated/api";
 import { env, internalAction } from "../../_generated/server";
 import { stageCompleted } from "../../card/processingStatus";
 import { isE2EEmail, normalizeE2EEmailDomain } from "../../e2eAccounts";
@@ -197,17 +197,16 @@ export async function generateHandler(
       error: error instanceof Error ? error.message : String(error),
     });
   }
-  const user =
+  const ownerEmail =
     configuredE2EDomain && card.userId
-      ? ((await ctx.runQuery(components.betterAuth.adapter.findOne, {
-          model: "user",
-          where: [{ field: "id", operator: "eq", value: card.userId }],
-        })) as { email?: string } | null)
+      ? await ctx.runQuery(internal.e2eAccounts.ownerEmail, {
+          teakUserId: card.userId,
+        })
       : null;
   const isProductionE2EUser = Boolean(
-    user?.email &&
+    ownerEmail &&
       configuredE2EDomain &&
-      isE2EEmail(user.email, configuredE2EDomain)
+      isE2EEmail(ownerEmail, configuredE2EDomain)
   );
   const isProductionImageAiCanary =
     cardType === "image" && card.source === PRODUCTION_E2E_IMAGE_AI_SOURCE;

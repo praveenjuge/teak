@@ -57,6 +57,10 @@ function validClientId(value: unknown): value is string {
   }
 }
 
+// Seconds a token may be issued ahead of this deployment's clock. Expiry gets
+// no grace: an expired token never authorizes vault access.
+const CLOCK_TOLERANCE_SECONDS = 60;
+
 // Configuration must come from the server, never from request/token claims.
 // This verifies credentials only: callers must also check consent revocation,
 // canonical owner mapping, verified email, deletion state and authorization.
@@ -148,7 +152,7 @@ export async function verifyWorkosConnectToken(
       typeof payload.exp !== "number" ||
       payload.exp <= payload.iat ||
       payload.exp - payload.iat > 300 ||
-      payload.iat > Math.floor(Date.now() / 1000) ||
+      payload.iat > Math.floor(Date.now() / 1000) + CLOCK_TOLERANCE_SECONDS ||
       typeof payload.scope !== "string" ||
       !REQUIRED_SCOPES.every((scope) => scopes.includes(scope)) ||
       !validWorkosExternalId(payload.external_id)

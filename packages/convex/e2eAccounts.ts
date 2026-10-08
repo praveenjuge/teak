@@ -1,3 +1,6 @@
+import { v } from "convex/values";
+import { internalQuery } from "./_generated/server";
+
 export const normalizeE2EEmailDomain = (value: string): string => {
   const domain = value.trim().toLowerCase();
   const isValid =
@@ -22,3 +25,17 @@ export const isE2EEmail = (email: string, domain: string): boolean => {
   const localPart = normalized.slice(0, -suffix.length);
   return /^e2e-[a-z0-9][a-z0-9-]{0,100}$/.test(localPart);
 };
+
+// Reads the owner's current sign-in email, so card processing can recognise
+// E2E accounts whatever provider created them.
+export const ownerEmail = internalQuery({
+  args: { teakUserId: v.string() },
+  returns: v.union(v.string(), v.null()),
+  handler: async (ctx, args) => {
+    const owner = await ctx.db
+      .query("users")
+      .withIndex("by_teakUserId", (q) => q.eq("teakUserId", args.teakUserId))
+      .unique();
+    return owner ? (owner.workosEmail ?? owner.email) : null;
+  },
+});

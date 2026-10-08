@@ -261,7 +261,9 @@ async function revokeCredentials(
     ? `${site()}/v1/oauth/disconnect`
     : auth.revocationEndpoint;
   if (!(endpoint && (workos || matches(credentials, auth)))) {
-    throw new Error("Sign-in provider changed. Please reconnect to Teak.");
+    // Legacy or other-provider credentials have no revocation route on this
+    // deployment and cannot authenticate here, so callers clear them locally.
+    return;
   }
   const disconnect = (accessToken: string) =>
     fetchAuth(endpoint, {

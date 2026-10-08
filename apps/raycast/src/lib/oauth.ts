@@ -273,7 +273,10 @@ async function exchange(
       typeof raw === "object" &&
       "error" in raw
     ) {
-      if (raw.error === "invalid_grant") {
+      if (
+        raw.error === "invalid_grant" ||
+        raw.error === "invalid_refresh_token"
+      ) {
         throw new TeakRefreshRevokedError(
           "Teak refresh credential was revoked.",
         );
@@ -469,9 +472,6 @@ async function revokeStoredSession(): Promise<SignOutResult> {
     const token = workos
       ? tokens?.accessToken
       : tokens?.refreshToken || tokens?.accessToken;
-    if (tokens && !token && !workos) {
-      throw new Error("Your credentials are still saved. Try Sign Out again.");
-    }
     if (token || (workos && tokens)) {
       try {
         // Try an old token first so a completed disconnect can recover without
@@ -534,22 +534,26 @@ async function revokeStoredSession(): Promise<SignOutResult> {
           throw new Error("Revocation failed");
         }
       } catch (error) {
-        // A dead grant, rejected client or unusable local connection
-        // permits explicit local clearing. None claims remote revocation;
-        // uncertain failures retain their credentials.
+        // Better Auth's revocation route was removed with the WorkOS cutover,
+        // so its credentials can no longer authenticate and are cleared
+        // locally. For WorkOS, a dead grant, rejected client or unusable local
+        // connection permits explicit local clearing without claiming remote
+        // revocation; uncertain failures retain their credentials.
         if (
+          workos &&
           !(
-            workos &&
-            (error instanceof TeakRefreshRevokedError ||
-              error instanceof TeakLocalSignOutError ||
-              error instanceof TeakRefreshClientRejectedError)
+            error instanceof TeakRefreshRevokedError ||
+            error instanceof TeakLocalSignOutError ||
+            error instanceof TeakRefreshClientRejectedError
           )
         ) {
           throw new Error(
             "Your credentials are still saved. Check your connection and try Sign Out again.",
           );
         }
-        localOnly = true;
+        if (workos) {
+          localOnly = true;
+        }
       }
     }
     await client.removeTokens();

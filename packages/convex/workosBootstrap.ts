@@ -8,6 +8,7 @@ import {
 } from "./securitySessions";
 import { normalizeIdentityEmail } from "./userIdentityTable";
 import { validWorkosExternalId } from "./workosTokens";
+import { recordQuarantine } from "./workosUsers";
 
 // Signed session proof is checked before linking: a new user has no owner yet.
 // Expected denials return normally so the linker's quarantine writes commit.
@@ -53,12 +54,11 @@ export const ensureUser = mutation({
       profile.externalId !== null &&
       identity.externalId !== profile.externalId
     ) {
-      await ctx.db.insert("migrationQuarantine", {
+      await recordQuarantine(ctx, {
         workosUserId: identity.workosUserId,
         email,
         reason: "external_id_mismatch",
         source: "ensureUser",
-        createdAt: Date.now(),
       });
       return { status: "quarantined" as const, reason: "external_id_mismatch" };
     }

@@ -770,8 +770,9 @@ describe("new WorkOS lifecycle owners", () => {
           )
           .take(200)
       );
-    // Two observations precede creation, so the bounded transaction leaves two.
-    expect(await unresolved()).toHaveLength(2);
+    // Repeated observations share one open receipt, so the bounded
+    // transaction leaves one of the 101.
+    expect(await unresolved()).toHaveLength(1);
     await t.mutation(apply, freshEvent("drain_remaining", 3));
     expect(await unresolved()).toEqual([]);
     await t.run((ctx) =>

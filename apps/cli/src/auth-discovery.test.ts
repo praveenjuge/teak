@@ -7,7 +7,7 @@ import {
   unlinkSync,
   writeFileSync,
 } from "node:fs";
-import { tmpdir } from "node:os";
+import { platform, tmpdir } from "node:os";
 import { join } from "node:path";
 import { env, serve, spawn } from "bun";
 
@@ -325,6 +325,37 @@ test.each(["betterauth", "workos"] as const)(
     expect(readFileSync(file, "utf8")).toBe("");
   }
 );
+test.if(platform() === "darwin")(
+  "CLI hands tokens to the Keychain over stdin, never as arguments",
+  async () => {
+    const args = join(directory, "security-args");
+    const input = join(directory, "security-input");
+    writeFileSync(
+      join(directory, "security"),
+      `#!/bin/sh\nif [ "$1" = "-i" ]; then echo "$@" >> "${args}"; cat >> "${input}"; fi\nexit 1\n`,
+      { mode: 0o700 }
+    );
+    try {
+      primary = "workos";
+      expect((await login()).code).toBe(0);
+      const saved = JSON.parse(readFileSync(file, "utf8"));
+      expect(readFileSync(args, "utf8").trim()).toBe("-i");
+      const command = readFileSync(input, "utf8").trim();
+      expect(command).not.toContain(saved.accessToken);
+      const hex = command.match(/ -X ([0-9a-f]+)$/)?.[1] ?? "";
+      expect(
+        JSON.parse(Buffer.from(hex, "hex").toString("utf8"))
+      ).toMatchObject({
+        accessToken: saved.accessToken,
+        refreshToken: saved.refreshToken,
+      });
+    } finally {
+      writeFileSync(join(directory, "security"), "#!/bin/sh\nexit 1\n", {
+        mode: 0o700,
+      });
+    }
+  }
+);
 test("CLI rejects a provider flip during browser login without exchanging the old code", async () => {
   const result = await login(true);
   expect(result.code).toBe(1);
@@ -451,14 +482,13 @@ test.each([
   }
 );
 
-test("CLI rejects private revocation metadata and keeps credentials for retry", async () => {
+test("CLI never calls private revocation metadata and still signs out of a retired provider", async () => {
   expect((await login()).code).toBe(0);
-  const credentials = readFileSync(file, "utf8");
   unsafeField = "revocation_endpoint";
   unsafeEndpoint = "https://169.254.169.254/revoke";
-  expect((await run(["logout"])).code).toBe(1);
+  expect((await run(["logout"])).code).toBe(0);
   expect(revoked).toBe(0);
-  expect(readFileSync(file, "utf8")).toBe(credentials);
+  expect(readFileSync(file, "utf8")).toBe("");
 });
 
 test.each([
@@ -517,18 +547,12 @@ test("CLI coordinates expired refreshes across separate processes", async () => 
   expect(refreshes).toBe(1);
   expect(JSON.parse(readFileSync(file, "utf8")).refreshToken).toBe("refresh-1");
 });
-test("CLI revokes the saved issuer after a provider switch and retains failed revocations", async () => {
+test("CLI signs out of a retired provider even when its revocation fails", async () => {
   expect((await login()).code).toBe(0);
-  const saved = readFileSync(file, "utf8");
   primary = "workos";
   revokeStatus = 503;
-  const failed = await run(["logout"]);
-  expect(failed.code).toBe(1);
-  expect(failed.stderr).toContain("credentials are still saved");
-  expect(readFileSync(file, "utf8")).toBe(saved);
-  revokeStatus = 200;
   expect((await run(["logout"])).code).toBe(0);
-  expect(revoked).toBe(2);
+  expect(revoked).toBe(1);
   expect(readFileSync(file, "utf8")).toBe("");
 });
 
@@ -615,16 +639,14 @@ test("CLI reconnect revokes the old provider before replacing its saved credenti
     `${server.url.origin}/workos`
   );
 });
-test("CLI reconnect retains the existing session if its revocation fails", async () => {
+test("CLI reconnect replaces a retired-provider session whose revocation fails", async () => {
   expect((await login()).code).toBe(0);
   const original = readFileSync(file, "utf8");
   primary = "workos";
   revokeStatus = 503;
-  const result = await login();
-  expect(result.code).toBe(1);
-  expect(result.stderr).toContain("existing session is still saved");
-  expect(readFileSync(file, "utf8")).toBe(original);
-  expect(revoked).toBe(1); // Failed Connect login never globally disconnects another installation.
+  expect((await login()).code).toBe(0);
+  expect(readFileSync(file, "utf8")).not.toBe(original);
+  expect(revoked).toBe(1);
 });
 
 test("CLI reuses a same-client refresh when an older concurrent request returns 401", async () => {

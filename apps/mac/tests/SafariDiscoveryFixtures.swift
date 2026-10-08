@@ -17,7 +17,9 @@ enum SafariDiscoveryFixtures {
         let document: [String: Any]
         switch path {
         case "/.well-known/oauth-protected-resource/mcp":
-            document = ["resource": "https://test.teak.invalid/mcp", "authorization_servers": [issuer]]
+            // Production advertises the fixed WorkOS audience from every deployment.
+            document = ["resource": primary == "workos" ? "https://teakvault.com/mcp" : "https://test.teak.invalid/mcp",
+                        "authorization_servers": [issuer]]
         case "/.well-known/teak-oauth-clients.json":
             document = ["primary": primary, "issuer": issuer, "clients": Dictionary(uniqueKeysWithValues:
                 ["cli", "raycast", "chrome", "firefox", "safari"].map { ($0, primary == "betterauth" ? "teak-\($0)" : "client-\($0)") })]
