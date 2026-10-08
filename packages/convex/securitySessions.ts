@@ -1,8 +1,13 @@
 import { NotFoundException, type Session } from "@workos-inc/node";
 import { paginationOptsValidator, type UserIdentity } from "convex/server";
 import { v } from "convex/values";
-import { internal } from "./_generated/api";
-import { type ActionCtx, action, internalQuery } from "./_generated/server";
+import { components, internal } from "./_generated/api";
+import {
+  type ActionCtx,
+  action,
+  internalQuery,
+  type QueryCtx,
+} from "./_generated/server";
 import { workosIssuer } from "./shared/workosApi";
 import { createWorkosClient } from "./shared/workosClient";
 import { validWorkosExternalId } from "./workosTokens";
@@ -123,6 +128,14 @@ export const readWorkosProfile = (
   ctx: Pick<ActionCtx, "runQuery">,
   workosUserId: string
 ) => ctx.runQuery(internal.workosProfileRead.getProfile, { workosUserId });
+
+// The WorkOS AuthKit component's copy of a provider user, looked up by the
+// WorkOS user ID Teak already mapped. It is never a session identity.
+export const readComponentUser = (
+  ctx: Pick<QueryCtx, "runQuery">,
+  workosUserId: string
+) =>
+  ctx.runQuery(components.workOSAuthKit.lib.getAuthUser, { id: workosUserId });
 
 // API keys and internal jobs carry the permanent Teak owner. It still has to
 // map to a verified, undeleted WorkOS user.
