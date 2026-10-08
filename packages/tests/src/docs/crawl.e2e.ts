@@ -1,13 +1,13 @@
 import { expect, test } from "@playwright/test";
 import { parse } from "node-html-parser";
-import { env } from "../helpers/env";
+import { published } from "../helpers/env";
 
 const urlsFromXml = (xml: string) =>
   [...xml.matchAll(/<loc>(.*?)<\/loc>/g)].map((m) => m[1]);
 
 test("sitemap pages and internal links resolve", async () => {
-  const index = await fetch(`${env.siteUrl}/sitemap-index.xml`).then((r) =>
-    r.text()
+  const index = await fetch(`${published.siteUrl}/sitemap-index.xml`).then(
+    (r) => r.text()
   );
   const sitemapUrls = urlsFromXml(index);
   const pages = /<urlset[\s>]/i.test(index)
@@ -31,7 +31,8 @@ test("sitemap pages and internal links resolve", async () => {
       .querySelectorAll("a[href^='/']")
       .slice(0, 20)) {
       expect(
-        (await fetch(new URL(link.getAttribute("href")!, env.siteUrl))).status
+        (await fetch(new URL(link.getAttribute("href")!, published.siteUrl)))
+          .status
       ).toBeLessThan(400);
     }
   }

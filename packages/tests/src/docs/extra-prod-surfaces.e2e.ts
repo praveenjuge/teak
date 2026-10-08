@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { env } from "../helpers/env";
+import { published } from "../helpers/env";
 
 interface Probe {
   body: RegExp;
@@ -10,106 +10,111 @@ interface Probe {
 }
 
 const probes: Probe[] = [
-  { name: "site home", url: `${env.siteUrl}/`, kind: "html", body: /Teak/i },
+  {
+    name: "site home",
+    url: `${published.siteUrl}/`,
+    kind: "html",
+    body: /Teak/i,
+  },
   {
     name: "apps directory",
-    url: `${env.siteUrl}/apps`,
+    url: `${published.siteUrl}/apps`,
     kind: "html",
     body: /Teak/i,
   },
   {
     name: "docs home",
-    url: `${env.siteUrl}/docs/`,
+    url: `${published.siteUrl}/docs/`,
     kind: "html",
     body: /Docs|Teak/i,
   },
   {
     name: "api docs",
-    url: `${env.siteUrl}/docs/api/`,
+    url: `${published.siteUrl}/docs/api/`,
     kind: "html",
     body: /API/i,
   },
   {
     name: "mcp docs",
-    url: `${env.siteUrl}/docs/mcp/`,
+    url: `${published.siteUrl}/docs/mcp/`,
     kind: "html",
     body: /MCP/i,
   },
   {
     name: "cli docs",
-    url: `${env.siteUrl}/docs/cli/`,
+    url: `${published.siteUrl}/docs/cli/`,
     kind: "html",
     body: /CLI|teak/i,
   },
   {
     name: "raycast docs",
-    url: `${env.siteUrl}/docs/raycast/`,
+    url: `${published.siteUrl}/docs/raycast/`,
     kind: "html",
     body: /Raycast/i,
   },
   {
     name: "skills docs",
-    url: `${env.siteUrl}/docs/skills/`,
+    url: `${published.siteUrl}/docs/skills/`,
     kind: "html",
     body: /Skill|Teak/i,
   },
   {
     name: "llms text",
-    url: `${env.siteUrl}/llms.txt`,
+    url: `${published.siteUrl}/llms.txt`,
     kind: "text",
     body: /Teak/i,
   },
   {
     name: "mcp well known",
-    url: `${env.siteUrl}/.well-known/mcp.json`,
+    url: `${published.siteUrl}/.well-known/mcp.json`,
     kind: "json",
     body: /endpoint/,
   },
   {
     name: "apex api health",
-    url: `${env.siteUrl}/api/healthz`,
+    url: `${published.siteUrl}/api/healthz`,
     kind: "json",
     body: /ok/,
   },
   {
     name: "apex api root",
-    url: `${env.siteUrl}/api`,
+    url: `${published.siteUrl}/api`,
     kind: "json",
     body: /v1/,
   },
   {
     name: "apex api v1",
-    url: `${env.siteUrl}/api/v1`,
+    url: `${published.siteUrl}/api/v1`,
     kind: "json",
     body: /endpoint/,
   },
   {
     name: "apex openapi",
-    url: `${env.siteUrl}/api/openapi.json`,
+    url: `${published.siteUrl}/api/openapi.json`,
     kind: "json",
     body: /openapi/,
   },
   {
     name: "apex mcp resource",
-    url: `${env.siteUrl}/.well-known/oauth-protected-resource/mcp`,
+    url: `${published.siteUrl}/.well-known/oauth-protected-resource/mcp`,
     kind: "json",
     body: /resource/,
   },
   {
     name: "app login",
-    url: `${env.appUrl}/login`,
+    url: `${published.appUrl}/login`,
     kind: "html",
     body: /login|sign in/i,
   },
   {
     name: "app register",
-    url: `${env.appUrl}/register`,
+    url: `${published.appUrl}/register`,
     kind: "html",
     body: /register|account/i,
   },
   {
     name: "app forgot password",
-    url: `${env.appUrl}/forgot-password`,
+    url: `${published.appUrl}/forgot-password`,
     kind: "html",
     body: /Teak/i,
   },

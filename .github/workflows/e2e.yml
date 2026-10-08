@@ -62,7 +62,8 @@ jobs:
             packages/tests/.state/dev-stack.log
           retention-days: 7
 
-  # Read-only checks of the published docs site.
+  # Read-only checks of the published site and Teak's public production
+  # endpoints. Needs no local stack.
   docs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
