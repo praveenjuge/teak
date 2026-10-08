@@ -63,6 +63,14 @@ used by the request that returned 401. Return a refreshed or newer stored token
 to retry that request once, or `null` to stop. Compare the rejected token with
 the current session before refreshing; a late response may refer to an older token.
 
+The upcoming SDK also includes the WorkOS Connect sign-in steps that the CLI and
+browser extension use: `randomBase64Url` and `createPkceChallenge` for PKCE,
+`createConnectAuthorizeUrl`, `requestConnectTokens` for code and refresh grants,
+`fetchConnectOwnerId`, and `disconnectConnectGrant`. Use the client ID that
+`discoverAuthServer` returns for your surface. `requestConnectTokens` returns
+`refresh_token_rejected` only when WorkOS says the refresh token is no longer valid;
+treat other failures as temporary and keep the saved sign-in.
+
 ## Commands
 
 ```bash

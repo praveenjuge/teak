@@ -4,6 +4,17 @@ export {
   type OAuthSurface,
   validateOAuthUrl,
 } from "./authDiscovery";
+export {
+  type ConnectTokenResult,
+  type ConnectTokens,
+  createConnectAuthorizeUrl,
+  createPkceChallenge,
+  disconnectConnectGrant,
+  fetchConnectOwnerId,
+  randomBase64Url,
+  requestConnectTokens,
+  WORKOS_CONNECT_SCOPE,
+} from "./workosConnect";
 
 import { type CardType, cardTypes } from "../shared/constants";
 import type { FileKind, FilePreviewFacts } from "../shared/fileFormats";

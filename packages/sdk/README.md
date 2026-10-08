@@ -14,7 +14,10 @@ const client = createTeakClient({
 });
 ```
 
-Use the discovered endpoints and client ID for your OAuth surface. Refresh
+Use the discovered endpoints and client ID for your OAuth surface. The WorkOS
+Connect helpers (`createPkceChallenge`, `createConnectAuthorizeUrl`,
+`requestConnectTokens`, `fetchConnectOwnerId`, `disconnectConnectGrant`) cover
+PKCE sign-in, refresh, account binding and disconnect. Refresh
 discovery after sign-in or refresh failures. Keep tokens in your platform's secure
 storage; this package does not store credentials or open a browser.
 

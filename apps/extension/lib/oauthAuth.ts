@@ -1,7 +1,13 @@
 import { resolveTeakDevAppUrl } from "@teak/convex/dev-urls";
 import {
   type AuthDiscovery,
+  createConnectAuthorizeUrl,
+  createPkceChallenge,
+  disconnectConnectGrant,
   discoverAuthServer,
+  fetchConnectOwnerId,
+  randomBase64Url,
+  requestConnectTokens,
   validateOAuthUrl,
 } from "@teak/convex/sdk";
 import { readResponseTextWithinLimit } from "@teak/convex/shared/bounded-response";
@@ -10,12 +16,10 @@ import { getConvexSiteUrl } from "./env";
 // Background-worker only. Never import this module from popup/content scripts.
 const IS_FIREFOX = import.meta.env.BROWSER === "firefox";
 const SURFACE = IS_FIREFOX ? "firefox" : "chrome";
+const LOCAL = Boolean(import.meta.env.DEV);
 let selectedSite: string | undefined;
 const site = () => {
-  selectedSite ??= validateOAuthUrl(
-    getConvexSiteUrl(),
-    Boolean(import.meta.env.DEV)
-  ).origin;
+  selectedSite ??= validateOAuthUrl(getConvexSiteUrl(), LOCAL).origin;
   return selectedSite;
 };
 const storageSuffix = () => (import.meta.env.DEV ? `:${site()}` : "");
@@ -51,7 +55,7 @@ async function readJson(response: Response) {
   return JSON.parse(text);
 }
 function fetchAuth(url: string, init: RequestInit) {
-  return fetch(validateOAuthUrl(url, Boolean(import.meta.env.DEV)).href, {
+  return fetch(validateOAuthUrl(url, LOCAL).href, {
     ...init,
     credentials: "omit",
     redirect: "error",
@@ -165,68 +169,34 @@ async function writeCredentials(credentials: Credentials | null) {
   });
 }
 
-const base64url = (bytes: Uint8Array) =>
-  btoa(String.fromCharCode(...bytes))
-    .replace(/\+/g, "-")
-    .replace(/\//g, "_")
-    .replace(/[=]+$/, "");
-const random = () => base64url(crypto.getRandomValues(new Uint8Array(32)));
-
 async function tokenRequest(
   auth: AuthDiscovery,
   params: Record<string, string>
 ): Promise<Credentials | null> {
   try {
-    const response = await fetchAuth(auth.tokenEndpoint, {
-      method: "POST",
-      credentials: "omit",
-      redirect: "error",
-      headers: { "Content-Type": "application/x-www-form-urlencoded" },
-      body: new URLSearchParams({
-        client_id: auth.clients[SURFACE],
-        resource: new URL("/api", auth.resource).href,
-        ...params,
-      }),
+    const result = await requestConnectTokens(auth, {
+      clientId: auth.clients[SURFACE],
+      grant: params,
+      local: LOCAL,
     });
-    if (response.status === 400 || response.status === 401) {
-      if (params.grant_type === "refresh_token") {
-        const rejection = await readJson(response);
-        if (
-          !(
-            rejection.error === "invalid_grant" ||
-            rejection.error === "invalid_refresh_token" ||
-            rejection.code === "invalid_refresh_token"
-          )
-        ) {
-          throw new Error(
-            "Could not verify your connection. Please try again."
-          );
-        }
-      }
+    if (result.ok) {
+      return { ...binding(auth), ...result.tokens };
+    }
+    if (
+      result.reason === "refresh_token_rejected" ||
+      (result.reason === "rejected" && params.grant_type !== "refresh_token")
+    ) {
       await refreshDiscoveryAfterFailure();
       return null;
     }
-    if (!response.ok) {
-      throw new Error("Could not connect to Teak. Please try again.");
+    if (result.reason === "rejected") {
+      throw new Error("Could not verify your connection. Please try again.");
     }
-    const value = await readJson(response);
-    if (
-      typeof value.access_token !== "string" ||
-      !value.access_token ||
-      typeof value.refresh_token !== "string" ||
-      !value.refresh_token ||
-      !Number.isFinite(value.expires_in) ||
-      value.expires_in <= 0 ||
-      !Number.isSafeInteger(Date.now() + value.expires_in * 1000)
-    ) {
-      throw new Error("Invalid sign-in response.");
-    }
-    return {
-      ...binding(auth),
-      accessToken: value.access_token,
-      refreshToken: value.refresh_token,
-      expiresAt: Date.now() + value.expires_in * 1000,
-    };
+    throw new Error(
+      result.reason === "invalid_response"
+        ? "Invalid sign-in response."
+        : "Could not connect to Teak. Please try again."
+    );
   } catch (error) {
     await refreshDiscoveryAfterFailure();
     throw error;
@@ -249,28 +219,29 @@ async function revokeCredentials(
     // service, so callers clear them locally.
     return;
   }
-  const disconnect = (accessToken: string) =>
-    fetchAuth(`${site()}/v1/oauth/disconnect`, {
-      method: "POST",
-      credentials: "omit",
-      redirect: "error",
-      headers: { Authorization: `Bearer ${accessToken}` },
-    });
-  let response = await disconnect(credentials.accessToken);
-  if (response.status === 401 && refreshSaved && matches(credentials, auth)) {
-    const renewed = await tokenRequest(auth, {
-      grant_type: "refresh_token",
-      refresh_token: credentials.refreshToken,
-    });
-    if (!renewed) {
-      return "Signed out on this device. To disconnect other installations, use Settings → Connected apps.";
-    }
-    renewed.userId = credentials.userId;
-    // signOutOAuth holds the same lock as request refreshes.
-    await writeCredentials(renewed);
-    response = await disconnect(renewed.accessToken);
+  const result = await disconnectConnectGrant(site(), credentials.accessToken, {
+    local: LOCAL,
+    refreshAccessToken:
+      refreshSaved && matches(credentials, auth)
+        ? async () => {
+            const renewed = await tokenRequest(auth, {
+              grant_type: "refresh_token",
+              refresh_token: credentials.refreshToken,
+            });
+            if (!renewed) {
+              return null;
+            }
+            renewed.userId = credentials.userId;
+            // signOutOAuth holds the same lock as request refreshes.
+            await writeCredentials(renewed);
+            return renewed.accessToken;
+          }
+        : undefined,
+  });
+  if (result === "refresh_rejected") {
+    return "Signed out on this device. To disconnect other installations, use Settings → Connected apps.";
   }
-  if (response.status !== 204) {
+  if (result !== "disconnected") {
     throw new Error("Could not sign out. Please try again.");
   }
 }
@@ -286,28 +257,15 @@ export function beginOAuthSignIn(): Promise<void> {
         "Sign out before reconnecting, then wait five minutes for disconnect to finish."
       );
     }
-    const state = random();
-    const verifier = random();
-    const challenge = base64url(
-      new Uint8Array(
-        await crypto.subtle.digest(
-          "SHA-256",
-          new TextEncoder().encode(verifier)
-        )
-      )
-    );
+    const state = randomBase64Url(32);
+    const verifier = randomBase64Url(32);
     const redirectUri = chrome.identity.getRedirectURL("oauth/callback");
-    const url = new URL(auth.authorizationEndpoint);
-    url.search = new URLSearchParams({
-      client_id: auth.clients[SURFACE],
-      resource: new URL("/api", auth.resource).href,
-      response_type: "code",
-      redirect_uri: redirectUri,
-      scope: "openid profile email offline_access",
+    const url = createConnectAuthorizeUrl(auth, {
+      clientId: auth.clients[SURFACE],
+      codeChallenge: await createPkceChallenge(verifier),
+      redirectUri,
       state,
-      code_challenge: challenge,
-      code_challenge_method: "S256",
-    }).toString();
+    });
     await chrome.storage.local.set({ [AUTH_STATE_KEY]: { pending: true } });
     {
       const callback = await chrome.identity.launchWebAuthFlow({
@@ -346,19 +304,15 @@ export function beginOAuthSignIn(): Promise<void> {
       if (!credentials) {
         throw new Error("Sign-in expired. Please try again.");
       }
-      const info = await fetchAuth(`${site()}/v1/me`, {
-        headers: { Authorization: `Bearer ${credentials.accessToken}` },
-        credentials: "omit",
-        redirect: "error",
-      });
-      if (!info.ok) {
+      const userId = await fetchConnectOwnerId(
+        site(),
+        credentials.accessToken,
+        { local: LOCAL }
+      );
+      if (!userId) {
         throw new Error("Could not verify your account. Please sign in again.");
       }
-      const user = (await readJson(info)).data;
-      if (!user || typeof user.id !== "string" || !user.id) {
-        throw new Error("Invalid account response.");
-      }
-      credentials.userId = user.id;
+      credentials.userId = userId;
       await navigator.locks.request("teak-oauth-credentials", async () => {
         // A sign-out during sign-in discards this grant without revoking the
         // same app on other installations.
