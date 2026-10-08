@@ -13,11 +13,7 @@ import {
 import { AppState } from "react-native";
 import type { PublicAuthMode } from "./auth-mode";
 import { MobileAuthContext } from "./mobile-auth-context";
-import {
-  getWorkosSession,
-  openWorkosLogout,
-  signInWithWorkos,
-} from "./workos-native-auth";
+import { getWorkosSession, signInWithWorkos } from "./workos-native-auth";
 
 export function WorkosAuthProvider({
   client,
@@ -115,7 +111,8 @@ export function WorkosAuthProvider({
           await session.clear();
           return;
         }
-        // Revoke on the server before clearing secure storage.
+        // Revoke on the server before clearing secure storage, so signing out
+        // ends the WorkOS session without opening a browser.
         // Keep credentials if the request fails.
         const token = await session.fetchAccessToken();
         if (!token) {
@@ -131,7 +128,6 @@ export function WorkosAuthProvider({
           sessionId,
         });
         await session.clear();
-        await openWorkosLogout(sessionId);
       },
     }),
     [mode, snapshot, session, hydrationFailed, client]

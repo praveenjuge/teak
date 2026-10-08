@@ -107,14 +107,3 @@ export async function signInWithWorkos(
     )) !== null
   );
 }
-
-// Server revocation is performed by Teak's session action before this browser
-// logout. Returning from a browser is not evidence that a session was revoked.
-export async function openWorkosLogout(sessionId: string): Promise<void> {
-  if (!/^session_[A-Za-z0-9]+$/.test(sessionId)) {
-    throw new Error("Invalid session");
-  }
-  const url = new URL("https://api.workos.com/user_management/sessions/logout");
-  url.searchParams.set("session_id", sessionId);
-  await WebBrowser.openBrowserAsync(url.href);
-}
