@@ -1,6 +1,6 @@
 {
   "name": "teak-sdk",
-  "version": "1.0.80",
+  "version": "1.0.81",
   "description": "Teak API client and OAuth discovery for browser and Node applications.",
   "repository": {
     "type": "git",
