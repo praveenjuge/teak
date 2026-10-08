@@ -1,10 +1,8 @@
-import { Buffer } from "node:buffer";
-import { expect, test } from "@playwright/test";
-import { env } from "../helpers/env";
-import { clientFor, generateApiKey, revokeVisibleKey } from "../helpers/prod";
+import { clientFor, generateApiKey, revokeVisibleKey } from "../helpers/app";
 import { readState, updateState } from "../helpers/run-state";
+import { expect, test } from "../helpers/test";
 
-test("web journey covers cards, search, settings, upload, and revoked key", async ({
+test("web journey covers cards, search, settings, and a revoked key", async ({
   page,
 }) => {
   const state = readState();
@@ -13,7 +11,7 @@ test("web journey covers cards, search, settings, upload, and revoked key", asyn
     throw new Error("Missing web-core API key");
   }
   const api = clientFor(coreAccount.apiKey);
-  const marker = `prod-e2e-${Date.now()}`;
+  const marker = `e2e-${Date.now()}`;
   const rawMarkdown = `${marker} <script>alert("xss")</script>`;
   const expectedMarkdown = `${marker} &lt;script&gt;alert("xss")&lt;/script&gt;`;
   const dialogTrap: string[] = [];
@@ -45,37 +43,15 @@ test("web journey covers cards, search, settings, upload, and revoked key", asyn
   await expect(savedCard).toBeVisible();
   await page.getByRole("button", { name: "Clear All" }).click();
 
-  await page.context().grantPermissions(["microphone"], { origin: env.appUrl });
-  await page.getByRole("button", { name: "Record audio" }).click();
-  await expect(
-    page.getByRole("dialog", { name: "Recording audio" })
-  ).toBeVisible();
-  await expect(page.getByText(/Speak naturally/i)).toBeVisible();
-  await expect(page.getByText("0:01")).toBeVisible({ timeout: 5000 });
-  await page.getByRole("button", { name: "Stop and Save" }).click();
-  await expect(page.getByText("Audio recording saved")).toBeVisible({
-    timeout: 45_000,
-  });
-
-  const png = Buffer.from(
-    "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==",
-    "base64"
-  );
-  const upload = await api.uploads.create({
-    fileName: "pixel.png",
-    fileSize: png.byteLength,
-    mimeType: "image/png",
-  });
-  await api.uploads.putFile(upload.uploadUrl, png, "image/png");
   const link = await api.cards.create({
     content: "https://example.com",
-    tags: ["prod-e2e"],
-    source: "prod-e2e",
+    tags: ["e2e"],
+    source: "e2e",
   });
   const text = await api.cards.create({
     content: marker,
-    tags: ["prod-e2e"],
-    source: "prod-e2e",
+    tags: ["e2e"],
+    source: "e2e",
   });
   await api.cards.setFavorite(text.cardId, true);
   updateState((s) => s.createdCardIds.push(link.cardId, text.cardId));

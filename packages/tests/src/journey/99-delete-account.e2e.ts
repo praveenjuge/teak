@@ -1,17 +1,17 @@
 import { test } from "@playwright/test";
-import { requirePassword } from "../helpers/env";
-import { deleteAccountViaUi, passwordFor, signIn } from "../helpers/prod";
+import {
+  deleteAccountViaUi,
+  expectSignInRefused,
+  signIn,
+} from "../helpers/app";
+import { E2E_PASSWORD } from "../helpers/env";
 import { requireAccount } from "../helpers/run-state";
 
-test("delete primary account through the web UI", async ({ page }) => {
-  const primary = requireAccount("account");
-  await deleteAccountViaUi(page, primary);
-  await signIn(page, primary.email, passwordFor(primary), {
-    failure: /invalid|incorrect|not found|unable/i,
-  });
-  if (primary.passwordReset) {
-    await signIn(page, primary.email, requirePassword(), {
-      failure: /invalid|incorrect|not found|unable/i,
-    });
-  }
+test("deleting the account from settings removes its vault and WorkOS user", async ({
+  page,
+}) => {
+  const account = requireAccount("account");
+  await signIn(page, account.email, account.password ?? E2E_PASSWORD);
+  await deleteAccountViaUi(page, account);
+  await expectSignInRefused(page, account.email);
 });

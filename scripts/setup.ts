@@ -23,6 +23,11 @@
 
 import { join } from "node:path";
 import {
+  EMULATOR_DEPLOYMENT_VARS,
+  EMULATOR_WEB_ENV,
+  LOCAL_APP_ORIGIN,
+} from "../packages/tests/src/emulator/config.ts";
+import {
   type Capabilities,
   type ConvexSelection,
   checkRuntimeVersion,
@@ -47,6 +52,8 @@ import {
   convexDevOnce,
   ensureDeploymentVar,
   readConvexDotenvUrls,
+  readDeploymentVar,
+  setDeploymentVar,
 } from "./setup-convex.ts";
 import {
   ensureDerivedEnv,
@@ -189,17 +196,17 @@ interface DerivedFilePlan {
   path: string;
 }
 
-const DERIVED_FILE_PLANS: Record<SupportedTarget, DerivedFilePlan[]> = {
-  web: [
-    {
-      path: WEB_ENV_PATH,
-      keys: [
-        "NEXT_PUBLIC_CONVEX_URL",
-        "NEXT_PUBLIC_CONVEX_SITE_URL",
-        "NEXT_PUBLIC_WORKOS_REDIRECT_URI",
-      ],
-    },
+const WEB_PLAN: DerivedFilePlan = {
+  path: WEB_ENV_PATH,
+  keys: [
+    "NEXT_PUBLIC_CONVEX_URL",
+    "NEXT_PUBLIC_CONVEX_SITE_URL",
+    "NEXT_PUBLIC_WORKOS_REDIRECT_URI",
   ],
+};
+
+const DERIVED_FILE_PLANS: Record<SupportedTarget, DerivedFilePlan[]> = {
+  web: [WEB_PLAN],
   docs: [],
   cli: [],
   desktop: [
@@ -231,7 +238,57 @@ const DERIVED_FILE_PLANS: Record<SupportedTarget, DerivedFilePlan[]> = {
     },
   ],
   "files-worker": [],
-  e2e: [],
+  e2e: [WEB_PLAN],
+};
+
+// The e2e stack's deployment also receives the emulator's signed webhooks.
+// Setup never overwrites a set value, so a different one is a conflict.
+const ensureEmulatorWebhookVars = async (
+  convexDir: string
+): Promise<SetupCheck> => {
+  const configured: string[] = [];
+  for (const name of [
+    "WORKOS_ENVIRONMENT_ID",
+    "WORKOS_WEBHOOK_SECRET",
+  ] as const) {
+    const expected = EMULATOR_DEPLOYMENT_VARS[name];
+    const current = await readDeploymentVar(name, convexDir);
+    if (current.status === "unavailable") {
+      return {
+        id: "setup-e2e-emulator",
+        ok: false,
+        severity: "error",
+        detail: `could not read ${name} from the selected deployment: ${current.detail}`,
+        remediation: [
+          "Export CONVEX_AGENT_MODE=anonymous and re-run bun run setup --target e2e",
+        ],
+      };
+    }
+    if (current.status === "found" && current.value !== expected) {
+      return {
+        id: "setup-e2e-emulator",
+        ok: false,
+        severity: "error",
+        detail: `${name} on the deployment is not the WorkOS emulator's value`,
+        remediation: [
+          `Run \`bunx convex env remove ${name}\` in packages/convex (this deployment is for the e2e stack), then re-run`,
+        ],
+      };
+    }
+    if (current.status === "missing") {
+      await setDeploymentVar(name, expected, convexDir);
+      configured.push(name);
+    }
+  }
+  return {
+    id: "setup-e2e-emulator",
+    ok: true,
+    severity: "error",
+    detail:
+      configured.length > 0
+        ? `configured ${configured.join(", ")} for the WorkOS emulator`
+        : "WorkOS emulator webhook settings already set",
+  };
 };
 
 const reportWith = (
@@ -263,20 +320,24 @@ export const runSetup = async (
       checks,
     });
 
-  if (target === "e2e") {
+  const e2e = target === "e2e";
+  if (e2e && convex !== "local") {
     return fail([
       {
-        id: "setup-e2e-limitation",
+        id: "setup-e2e-convex",
         ok: false,
         severity: "error",
         detail:
-          "setup does not provision production E2E suites (they need production credentials)",
-        remediation: [
-          "Create .env.production-e2e.local per packages/tests/README.md, then run the e2e:prod suites",
-        ],
+          "the e2e stack runs against the WorkOS emulator, which only a local backend can reach",
+        remediation: ["Run bun run setup --target e2e --convex local"],
       },
     ]);
   }
+  // The e2e stack always serves the web app on the fixed local origin, which
+  // the emulator's redirect and the suite's URLs expect.
+  const siteUrl = e2e ? LOCAL_APP_ORIGIN : worktree.siteUrl;
+  const webEnvPath =
+    target === "web" || e2e ? join(root, "apps/web/.env.local") : undefined;
 
   const checks: SetupCheck[] = [];
   // Without a deployment step (--convex skip), only explicit exports apply.
@@ -497,11 +558,7 @@ export const runSetup = async (
     } else {
       try {
         const convexDir = CONVEX_DIR(root);
-        const site = await ensureDeploymentVar(
-          "SITE_URL",
-          worktree.siteUrl,
-          convexDir
-        );
+        const site = await ensureDeploymentVar("SITE_URL", siteUrl, convexDir);
         checks.push({
           id: "setup-convex-deploy-vars",
           ok: true,
@@ -525,12 +582,20 @@ export const runSetup = async (
       // auth.config.ts reads WORKOS_CLIENT_ID, so it must be set before the push.
       const workos = await ensureWorkosCredentials(
         CONVEX_DIR(root),
-        target === "web" ? join(root, "apps/web/.env.local") : undefined,
-        convex === "local"
+        webEnvPath,
+        convex === "local",
+        e2e ? EMULATOR_DEPLOYMENT_VARS : process.env
       );
       checks.push(workos.check);
       if (!workos.check.ok) {
         return fail(checks);
+      }
+      if (e2e) {
+        const webhook = await ensureEmulatorWebhookVars(CONVEX_DIR(root));
+        checks.push(webhook);
+        if (!webhook.ok) {
+          return fail(checks);
+        }
       }
       workosValues = workos.values;
       const push = await convexDevOnce(CONVEX_DIR(root));
@@ -578,15 +643,16 @@ export const runSetup = async (
     const aliases = generateAliasValues({
       convexUrl: derived.convexUrl ?? LOCAL_CONVEX_URL,
       convexSiteUrl: derived.convexSiteUrl ?? LOCAL_CONVEX_SITE_URL,
-      siteUrl: worktree.siteUrl,
+      siteUrl,
     });
     const outcomes = plans.map((plan) => {
-      if (target === "web") {
+      if (plan.path === webEnvPath) {
         const result = ensureWebEnv(plan.path, {
           convexUrl: derived.convexUrl ?? LOCAL_CONVEX_URL,
           convexSiteUrl: derived.convexSiteUrl ?? LOCAL_CONVEX_SITE_URL,
-          siteUrl: worktree.siteUrl,
+          siteUrl,
           workos: workosValues,
+          ...(e2e ? { extra: EMULATOR_WEB_ENV } : {}),
         });
         return `${plan.path.replace(`${root}/`, "")}: ${result}`;
       }

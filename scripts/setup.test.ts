@@ -101,6 +101,6 @@ describe("resolveSetupConvex", () => {
     expect(resolveSetupConvex("docs", null)).toBe("skip");
     expect(resolveSetupConvex("cli", null)).toBe("skip");
     expect(resolveSetupConvex("files-worker", null)).toBe("skip");
-    expect(resolveSetupConvex("e2e", null)).toBe("cloud");
+    expect(resolveSetupConvex("e2e", null)).toBe("local");
   });
 });

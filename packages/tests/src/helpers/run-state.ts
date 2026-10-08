@@ -13,7 +13,7 @@ export interface AccountState {
   apiKey?: string;
   deleted?: boolean;
   email: string;
-  passwordReset?: boolean;
+  password?: string;
 }
 
 export interface RunState {
@@ -79,7 +79,7 @@ const withStateLock = <T>(operation: () => T): T => {
         throw error;
       }
       if (Date.now() >= deadline) {
-        throw new Error("Timed out waiting for the production E2E state lock");
+        throw new Error("Timed out waiting for the E2E state lock");
       }
       Atomics.wait(lockWaitArray, 0, 0, 10);
     }

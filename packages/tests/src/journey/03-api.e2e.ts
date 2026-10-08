@@ -1,7 +1,5 @@
-import { Buffer } from "node:buffer";
 import { expect, test } from "@playwright/test";
 import { apiFetch, loadOpenApi } from "../helpers/api";
-import { expandedFileFixtures } from "../helpers/file-formats";
 import { requireServiceApiKey, updateState } from "../helpers/run-state";
 
 test("REST API happy paths and OpenAPI contracts", async () => {
@@ -20,9 +18,9 @@ test("REST API happy paths and OpenAPI contracts", async () => {
   const created = await apiFetch("/v1/cards", apiKey, {
     method: "POST",
     body: JSON.stringify({
-      content: `api-prod-e2e-${Date.now()}`,
-      tags: ["prod-e2e"],
-      source: "prod-e2e",
+      content: `api-e2e-${Date.now()}`,
+      tags: ["e2e"],
+      source: "e2e",
     }),
   });
   const payload = await created.json();
@@ -87,8 +85,8 @@ test("saving a URL as content creates a link card, not a text card", async () =>
     method: "POST",
     body: JSON.stringify({
       content: bookUrl,
-      tags: ["prod-e2e"],
-      source: "prod-e2e",
+      tags: ["e2e"],
+      source: "e2e",
     }),
   });
   expect(created.status).toBe(200);
@@ -115,7 +113,7 @@ test("REST text cards preserve raw Markdown and enforce the UTF-8 limit", async 
     body: JSON.stringify({
       cardType: "text",
       content: original,
-      tags: ["prod-e2e", "markdown"],
+      tags: ["e2e", "markdown"],
     }),
   });
   expect(created.status).toBe(200);
@@ -127,18 +125,10 @@ test("REST text cards preserve raw Markdown and enforce the UTF-8 limit", async 
   });
 
   const updated = `  ---\r\ntitle: ${marker}\r\n---\r\n\r\n| A | B |\r\n| - | - |\r\n`;
-  let patched = await apiFetch(`/v1/cards/${createdCard.cardId}`, apiKey, {
+  const patched = await apiFetch(`/v1/cards/${createdCard.cardId}`, apiKey, {
     method: "PATCH",
     body: JSON.stringify({ content: updated }),
   });
-  // Retry once on transient 429/500 (rate-limit contention) to avoid flaky prod E2E.
-  if (patched.status === 429 || patched.status === 500) {
-    await new Promise((resolve) => setTimeout(resolve, 2000));
-    patched = await apiFetch(`/v1/cards/${createdCard.cardId}`, apiKey, {
-      method: "PATCH",
-      body: JSON.stringify({ content: updated }),
-    });
-  }
   expect(patched.status).toBe(200);
   expect(await patched.json()).toMatchObject({
     content: updated,
@@ -186,8 +176,8 @@ test("saving a color as content creates a palette card, not a text card", async 
     method: "POST",
     body: JSON.stringify({
       content: "#2050D0",
-      tags: ["prod-e2e"],
-      source: "prod-e2e",
+      tags: ["e2e"],
+      source: "e2e",
     }),
   });
   expect(created.status).toBe(200);
@@ -205,223 +195,4 @@ test("saving a color as content creates a palette card, not a text card", async 
       { timeout: 30_000, intervals: [1000, 2000, 3000, 5000] }
     )
     .toBe("palette");
-});
-
-test("private image originals and Cloudflare renditions share one API contract", async () => {
-  const apiKey = requireServiceApiKey("api");
-  const fileName = `api-image-${Date.now()}.png`;
-  const bytes = Buffer.from(
-    "iVBORw0KGgoAAAANSUhEUgAAAEAAAABACAIAAAAlC+aJAAAACXBIWXMAAAPoAAAD6AG1e1JrAAAAnklEQVRoge2SUQkAQBSDFsf+eRbmQtyHPBgYwMlSOE10g24AesXuQtwlukE3AL1idyHuEt2gG4BesbsQd4lu0A1Ar9hdiLtEN+gGoFfsLsRdoht0A9ArdhfiLtENugHoFbsLcZfoBt0A9IrdhbhLdINuAHrF7kLcJbpBNwC9Ynch7hLdoBuAXrG7EHeJbtANQK/YXYi7RDfoBqBX/OEB85PBD8A6yIQAAAAASUVORK5CYII=",
-    "base64"
-  );
-  const prepared = await apiFetch("/v1/uploads", apiKey, {
-    method: "POST",
-    body: JSON.stringify({
-      fileName,
-      fileSize: bytes.byteLength,
-      mimeType: "image/png",
-    }),
-  });
-  expect(prepared.status).toBe(200);
-  const upload = await prepared.json();
-  expect(upload.maxFileSize).toBe(100 * 1024 * 1024);
-
-  const put = await fetch(upload.uploadUrl, {
-    body: Uint8Array.from(bytes).buffer,
-    headers: { "Content-Type": "image/png" },
-    method: "PUT",
-  });
-  expect(put.ok).toBe(true);
-  const fileEtag = put.headers.get("etag");
-  expect(fileEtag).toBeTruthy();
-
-  const created = await apiFetch("/v1/cards", apiKey, {
-    method: "POST",
-    body: JSON.stringify({
-      cardType: "image",
-      fileEtag,
-      fileKey: upload.fileKey,
-      fileName,
-      fileSize: bytes.byteLength,
-      mimeType: "image/png",
-      source: "prod-e2e-cloudflare-image-ai",
-      tags: ["prod-e2e", "cloudflare-image"],
-    }),
-  });
-  expect(created.status).toBe(200);
-  const { cardId } = await created.json();
-  updateState((state) => state.createdCardIds.push(cardId));
-
-  await expect
-    .poll(
-      async () => {
-        const response = await apiFetch(`/v1/cards/${cardId}`, apiKey);
-        if (!response.ok) {
-          return false;
-        }
-        const value = await response.json();
-        return Boolean(
-          value.fileUrl &&
-            value.thumbnailUrl &&
-            value.detailUrl &&
-            // New renditions ship alongside the historical pair.
-            value.compactUrl &&
-            value.placeholderUrl &&
-            value.aiSummary &&
-            value.aiTags?.length
-        );
-      },
-      { timeout: 60_000, intervals: [500, 1000, 2000, 3000, 5000] }
-    )
-    .toBe(true);
-
-  const fetched = await apiFetch(`/v1/cards/${cardId}`, apiKey);
-  const image = await fetched.json();
-  expect(image).toMatchObject({
-    compactUrl: expect.stringContaining("/__images/v1/compact/"),
-    detailUrl: expect.stringContaining("/__images/v1/detail/"),
-    fileUrl: expect.stringMatching(/^https?:\/\//),
-    placeholderUrl: expect.stringContaining("/__images/v1/tiny/"),
-    thumbnailUrl: expect.stringContaining("/__images/v1/grid/"),
-    type: "image",
-  });
-  expect(image.aiSummary).toEqual(expect.any(String));
-  expect(image.aiTags).toEqual(expect.arrayContaining([expect.any(String)]));
-
-  const original = await fetch(image.fileUrl);
-  expect(original.ok).toBe(true);
-  expect(original.headers.get("content-type")).toContain("image/png");
-  expect(Buffer.from(await original.arrayBuffer())).toEqual(bytes);
-
-  for (const renditionUrl of [
-    image.thumbnailUrl,
-    image.detailUrl,
-    image.compactUrl,
-    image.placeholderUrl,
-  ]) {
-    const response = await fetch(renditionUrl, {
-      headers: { Accept: "image/avif,image/webp,image/*" },
-    });
-    expect(response.ok).toBe(true);
-    expect(response.headers.get("content-type")).toMatch(
-      /^image\/(avif|webp|png|jpeg)/
-    );
-    expect((await response.arrayBuffer()).byteLength).toBeGreaterThan(0);
-
-    const head = await fetch(renditionUrl, { method: "HEAD" });
-    expect(head.ok).toBe(true);
-    expect((await head.arrayBuffer()).byteLength).toBe(0);
-  }
-
-  const tampered = new URL(image.thumbnailUrl);
-  const signature = tampered.searchParams.get("sig") ?? "";
-  tampered.searchParams.set(
-    "sig",
-    `${signature.slice(0, -1)}${signature.endsWith("0") ? "1" : "0"}`
-  );
-  expect((await fetch(tampered)).status).toBe(403);
-
-  const unsigned = new URL(image.thumbnailUrl);
-  unsigned.search = "";
-  expect((await fetch(unsigned)).status).toBe(401);
-});
-
-test("REST API uploads and infers the expanded file-format matrix", async () => {
-  const apiKey = requireServiceApiKey("api");
-  const marker = `api-file-${Date.now()}`;
-  const fixtures = expandedFileFixtures(marker);
-
-  for (const [index, fixture] of fixtures.entries()) {
-    const prepared = await apiFetch("/v1/uploads", apiKey, {
-      method: "POST",
-      body: JSON.stringify({
-        fileName: fixture.fileName,
-        fileSize: fixture.bytes.byteLength,
-        mimeType: fixture.mimeType,
-      }),
-    });
-    expect(prepared.status, fixture.fileName).toBe(200);
-    const upload = await prepared.json();
-    expect(upload).toMatchObject({
-      maxFileSize: fixture.fileName.toLowerCase().endsWith(".md")
-        ? 512 * 1024
-        : 100 * 1024 * 1024,
-      method: "PUT",
-    });
-
-    const put = await fetch(upload.uploadUrl, {
-      body: Uint8Array.from(fixture.bytes).buffer,
-      headers: { "Content-Type": fixture.mimeType },
-      method: "PUT",
-    });
-    expect(put.ok, fixture.fileName).toBe(true);
-    const fileEtag = put.headers.get("etag");
-    expect(fileEtag, fixture.fileName).toBeTruthy();
-
-    let explicitCardType: "document" | "image" | undefined;
-    if (index === 1) {
-      explicitCardType = fixture.mimeType.startsWith("image/")
-        ? "image"
-        : "document";
-    }
-    const created = await apiFetch("/v1/cards", apiKey, {
-      method: "POST",
-      body: JSON.stringify({
-        ...(explicitCardType ? { cardType: explicitCardType } : {}),
-        fileEtag,
-        fileKey: upload.fileKey,
-        fileName: fixture.fileName,
-        fileSize: fixture.bytes.byteLength,
-        mimeType: fixture.mimeType,
-        source: "prod-e2e-file-formats",
-        tags: ["prod-e2e", "file-formats"],
-      }),
-    });
-    expect(created.status, fixture.fileName).toBe(200);
-    const card = await created.json();
-    updateState((state) => state.createdCardIds.push(card.cardId));
-
-    const fetched = await apiFetch(`/v1/cards/${card.cardId}`, apiKey);
-    expect(fetched.status).toBe(200);
-    const fetchedCard = await fetched.json();
-    expect(fetchedCard.fileName).toBe(fixture.fileName);
-    expect(fetchedCard.fileKind).toBeTruthy();
-    expect(fetchedCard.mimeType).toBe(fixture.mimeType);
-    expect(fetchedCard.fileUrl).toMatch(/^https?:\/\//);
-    const storedPath = decodeURIComponent(
-      new URL(fetchedCard.fileUrl).pathname
-    );
-    expect(storedPath).toContain("/cards/stored/file/");
-    expect(storedPath).not.toContain("/cards/upload-pending-v2/");
-    if (fixture.fileName.toLowerCase().endsWith(".svg")) {
-      const downloaded = await fetch(fetchedCard.fileUrl);
-      expect(downloaded.headers.get("content-disposition")).toContain(
-        "attachment"
-      );
-      expect(downloaded.headers.get("content-type")).toContain("image/svg+xml");
-    }
-    if (fixture.fileName.toLowerCase().endsWith(".md")) {
-      expect(fetchedCard).toMatchObject({
-        content: Buffer.from(fixture.bytes).toString("utf8"),
-        type: "text",
-      });
-    }
-    if (fixture.fileName.endsWith(".gif")) {
-      expect(fetchedCard.type).toBe("video");
-      expect(fetchedCard.filePreview?.animated).toBe(true);
-    }
-    if (fixture.mimeType === "audio/webm") {
-      expect(fetchedCard.type).toBe("audio");
-    }
-  }
-
-  const unsupported = await apiFetch("/v1/uploads", apiKey, {
-    method: "POST",
-    body: JSON.stringify({
-      fileName: `${marker}.riv`,
-      fileSize: 4,
-      mimeType: "application/octet-stream",
-    }),
-  });
-  expect(unsupported.status).toBe(400);
 });

@@ -1,0 +1,75 @@
+# End-to-end journeys against a local stack: the WorkOS emulator, a local
+# Convex backend and the web app. Needs no secrets; every credential is a
+# test-only constant in packages/tests/src/emulator/config.ts.
+name: E2E
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  schedule:
+    - cron: "23 4 * * *"
+  workflow_dispatch:
+
+concurrency:
+  group: e2e-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  journeys:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    env:
+      CONVEX_AGENT_MODE: anonymous
+      TURBO_UI: "false"
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        with:
+          node-version-file: package.json
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
+        with:
+          bun-version-file: package.json
+      - run: bun ci
+      - name: Install Playwright browsers
+        working-directory: packages/tests
+        run: bunx playwright install --with-deps chromium firefox webkit
+      - name: Run the E2E suite
+        run: bun run --cwd packages/tests e2e
+      - if: failure()
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        with:
+          name: e2e-results
+          path: |
+            packages/tests/playwright-report
+            packages/tests/test-results
+            packages/tests/.state/dev-stack.log
+          retention-days: 7
+
+  # Read-only checks of the published docs site, so they run on a schedule
+  # rather than gating pull requests on production state.
+  docs:
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
+        with:
+          bun-version-file: package.json
+      - run: bun install --frozen-lockfile --filter @teak/tests
+      - name: Install Playwright browsers
+        working-directory: packages/tests
+        run: bunx playwright install --with-deps --only-shell chromium
+      - run: bun run --cwd packages/tests e2e:docs
+      - if: failure()
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        with:
+          name: e2e-docs-results
+          path: |
+            packages/tests/playwright-report
+            packages/tests/test-results
+          retention-days: 7

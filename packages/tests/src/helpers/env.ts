@@ -1,49 +1,23 @@
-const trim = (value: string | undefined, fallback: string) =>
-  (value?.trim() || fallback).replace(/\/+$/, "");
+import { randomBytes } from "node:crypto";
+import {
+  EMULATOR_ORIGIN,
+  LOCAL_API_ORIGIN,
+  LOCAL_APP_ORIGIN,
+} from "../emulator/config";
 
-const publicOrigin = trim(
-  process.env.E2E_PUBLIC_ORIGIN,
-  "https://teakvault.com"
-);
-
+// The suite always runs against the fixed local stack; see
+// src/scripts/run-local-suite.ts. Only the docs checks read a hosted site.
 export const env = {
-  appUrl: trim(process.env.E2E_APP_ORIGIN, "https://app.teakvault.com"),
-  siteUrl: publicOrigin,
-  apiUrl: `${publicOrigin}/api`,
-  mcpUrl: `${publicOrigin}/mcp`,
-  convexUrl: trim(process.env.E2E_CONVEX_URL, ""),
-  convexSiteUrl: trim(process.env.E2E_CONVEX_SITE_URL, ""),
-  cleanupToken: process.env.E2E_CLEANUP_TOKEN ?? "",
-  emailDeliveryEnabled: process.env.E2E_EMAIL_DELIVERY_ENABLED === "true",
-  mailpitUrl: trim(process.env.MAILPIT_URL, ""),
-  emailDomain: process.env.E2E_EMAIL_DOMAIN?.trim() || "",
-  password: process.env.PROD_E2E_PASSWORD || "",
+  appUrl: LOCAL_APP_ORIGIN,
+  apiUrl: LOCAL_API_ORIGIN,
+  mcpUrl: `${LOCAL_API_ORIGIN}/mcp`,
+  emulatorUrl: EMULATOR_ORIGIN,
+  siteUrl: "https://teakvault.com",
 };
 
-export const requirePassword = () => {
-  if (!env.password) {
-    throw new Error("PROD_E2E_PASSWORD is required");
-  }
-  return env.password;
-};
+// Emulator accounts exist only in its memory, so one known password is fine.
+export const E2E_PASSWORD = "teak-e2e-Password-1!";
 
-export const requireMailpit = () => {
-  if (!(env.mailpitUrl && env.emailDomain)) {
-    throw new Error("MAILPIT_URL and E2E_EMAIL_DOMAIN secrets are required");
-  }
-};
-
-export const requireE2ECleanup = () => {
-  if (!(env.cleanupToken && env.convexSiteUrl)) {
-    throw new Error("E2E_CLEANUP_TOKEN and E2E_CONVEX_SITE_URL are required");
-  }
-};
-
-export const requireE2ENamespace = () => {
-  if (!env.emailDomain) {
-    throw new Error("E2E_EMAIL_DOMAIN is required");
-  }
-};
-
+// RFC 2606 reserves example.org, so no real person owns these addresses.
 export const uniqueEmail = (label = "primary") =>
-  `e2e-${label}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}@${env.emailDomain}`;
+  `e2e-${label}-${Date.now()}-${randomBytes(3).toString("hex")}@example.org`;

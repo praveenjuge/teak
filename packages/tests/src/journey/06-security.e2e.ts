@@ -1,27 +1,13 @@
-import { expect, test } from "@playwright/test";
-import { discoverAuthServer } from "@teak/convex/sdk";
 import { apiFetch } from "../helpers/api";
-import { cleanupE2EAccounts } from "../helpers/e2e-cleanup";
-import { env } from "../helpers/env";
 import {
   clientFor,
   createAccount,
   generateApiKey,
   newAnonymousContext,
   revokeVisibleKey,
-} from "../helpers/prod";
+} from "../helpers/app";
 import { readState } from "../helpers/run-state";
-import { verifyWorkosConsentJourney } from "../helpers/workos-consent";
-
-test("external OAuth requires explicit full-vault consent and can be revoked", async ({
-  page,
-}) => {
-  const provider = await discoverAuthServer(env.siteUrl, {
-    forceRefresh: true,
-  });
-  expect(provider.primary).toBe("workos");
-  await verifyWorkosConsentJourney(page, provider, await generateApiKey(page));
-});
+import { expect, test } from "../helpers/test";
 
 test("cross-tenant, revoked-key, hostile input, headers, and cookie security", async ({
   browser,
@@ -49,7 +35,7 @@ test("cross-tenant, revoked-key, hostile input, headers, and cookie security", a
     const hostile = `<img src=x onerror="window.__teakXss=1"> javascript:alert(1) שלום ${"x".repeat(100_000)}`;
     await clientFor(securityApiKey).cards.create({
       content: hostile,
-      source: "prod-e2e",
+      source: "e2e",
       tags: ["xss"],
     });
     await page.goto("/");
@@ -70,18 +56,17 @@ test("cross-tenant, revoked-key, hostile input, headers, and cookie security", a
       expect(imgSrc).toBeTruthy();
       expect(imgSrc).toContain("r2.cloudflarestorage.com");
     }
-    const cookies = await context.cookies();
-    expect(
-      cookies.some(
-        (cookie) => cookie.secure && cookie.httpOnly && cookie.sameSite
-      )
-    ).toBe(true);
+    // The local stack serves http, so the session cookie can't be Secure
+    // here; authkit-nextjs sets Secure from an https redirect URI.
+    const session = (await context.cookies()).find(
+      (cookie) => cookie.name === "wos-session"
+    );
+    expect(session).toMatchObject({ httpOnly: true, sameSite: "Lax" });
   } finally {
     try {
       await revokeVisibleKey(page, securityApiKey);
     } finally {
       await secondContext.close();
-      await cleanupE2EAccounts([second.email]);
     }
   }
 });

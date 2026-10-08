@@ -1,6 +1,7 @@
 import { AxeBuilder } from "@axe-core/playwright";
-import { expect, type Page, test } from "@playwright/test";
-import { appPath } from "../helpers/prod";
+import type { Page } from "@playwright/test";
+import { appPath } from "../helpers/app";
+import { expect, test } from "../helpers/test";
 
 // Sign-in and sign-up are hosted by WorkOS; Teak has no auth pages to scan.
 

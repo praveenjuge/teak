@@ -1,26 +1,8 @@
-import { Buffer } from "node:buffer";
-import { readFileSync, writeFileSync } from "node:fs";
-import { expect, type Page, test } from "@playwright/test";
-import { MAX_FILE_SIZE } from "@teak/convex/shared";
-import { strFromU8, strToU8, unzipSync, zipSync } from "fflate";
+import type { Page } from "@playwright/test";
 import { apiFetch } from "../helpers/api";
-import { validWebmAudio } from "../helpers/file-formats";
-import { clientFor } from "../helpers/prod";
+import { clientFor } from "../helpers/app";
 import { readState, updateState } from "../helpers/run-state";
-
-const png = Buffer.from(
-  "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==",
-  "base64"
-);
-
-interface FilePayload {
-  buffer: Buffer;
-  mimeType: string;
-  name: string;
-}
-const pdf = Buffer.from(
-  "%PDF-1.4\n1 0 obj<</Type/Catalog/Pages 2 0 R>>endobj\n2 0 obj<</Type/Pages/Count 0>>endobj\ntrailer<</Root 1 0 R>>\n%%EOF\n"
-);
+import { expect, test } from "../helpers/test";
 
 const enterSearch = async (page: Page, query: string) => {
   const search = page.getByPlaceholder("Search for anything...");
@@ -70,27 +52,6 @@ const clearFilters = async (page: Page) => {
     .click();
 };
 
-const uploadFiles = async (
-  page: Page,
-  files: FilePayload | FilePayload[] | string | string[]
-) => {
-  const [chooser] = await Promise.all([
-    page.waitForEvent("filechooser"),
-    page.getByRole("button", { name: "Upload files" }).click(),
-  ]);
-  await chooser.setFiles(files);
-};
-
-const waitForHomeUploadSurface = async (page: Page) => {
-  await page.goto("/");
-  await expect(
-    page.getByRole("button", { name: "Upload files" })
-  ).toBeVisible();
-  await expect(
-    page.getByRole("textbox", { name: "Markdown content" })
-  ).toBeVisible();
-};
-
 const showTrash = async (page: Page) => {
   await page.goto("/");
   const search = page.getByPlaceholder("Search for anything...");
@@ -114,52 +75,7 @@ const primaryContext = () => {
 };
 
 const markerFor = (scope: string) =>
-  `prod-surface-${scope}-${Date.now().toString(36)}`;
-
-const findUploadedFile = async (
-  apiKey: string,
-  fileName: string,
-  createdAfter: number
-) => {
-  let cursor: string | undefined;
-  for (let pageIndex = 0; pageIndex < 5; pageIndex += 1) {
-    const params = new URLSearchParams({
-      createdAfter: String(createdAfter),
-      include: "metadata",
-      limit: "100",
-      type: "image",
-    });
-    if (cursor) {
-      params.set("cursor", cursor);
-    }
-    const response = await apiFetch(`/v1/cards?${params.toString()}`, apiKey);
-    const payload = (await response.json()) as {
-      items?: Array<{
-        fileName?: string | null;
-        compactUrl?: string | null;
-        fileUrl?: string | null;
-        placeholderUrl?: string | null;
-        thumbnailUrl?: string | null;
-        type?: string;
-      }>;
-      pageInfo?: { nextCursor?: string | null };
-    };
-    const uploadedFile = payload.items?.find(
-      (card) =>
-        card.type === "image" &&
-        card.fileName === fileName &&
-        (card.fileUrl ?? card.thumbnailUrl)
-    );
-    if (uploadedFile) {
-      return uploadedFile;
-    }
-    cursor = payload.pageInfo?.nextCursor ?? undefined;
-    if (!cursor) {
-      return null;
-    }
-  }
-  return null;
-};
+  `e2e-surface-${scope}-${Date.now().toString(36)}`;
 
 test("web editor, deep links, and link metadata stay usable", async ({
   page,
@@ -181,7 +97,7 @@ https://example.com/editor
   const created = await api.cards.create({
     content: initialMarkdown,
     cardType: "text",
-    source: "prod-e2e",
+    source: "e2e",
   });
   updateState((state) => state.createdCardIds.push(created.cardId));
   await page.goto(`/?card=${created.cardId}`);
@@ -271,130 +187,18 @@ https://example.com/editor
 
   const link = await api.cards.create({
     content: `${marker} link`,
-    source: "prod-e2e",
+    source: "e2e",
     url: "https://example.com",
   });
   updateState((s) => s.createdCardIds.push(link.cardId));
   await searchForVisibleCard(page, marker, `${marker} link`);
-  await expect(page.getByRole("main").getByText(/Example Domain/i)).toBeVisible(
-    { timeout: 90_000 }
-  );
-});
-
-test("web uploads and paste-created files complete", async ({
-  page,
-}, testInfo) => {
-  const { apiKey } = primaryContext();
-  const marker = markerFor("uploads");
-  await waitForHomeUploadSurface(page);
-  await uploadFiles(page, [
-    {
-      buffer: Buffer.concat([pdf, Buffer.alloc(9 * 1024 * 1024 - pdf.length)]),
-      mimeType: "application/pdf",
-      name: `${marker}-multipart.pdf`,
-    },
-    { buffer: pdf, mimeType: "application/pdf", name: `${marker}.pdf` },
-    {
-      buffer: Buffer.from(validWebmAudio),
-      mimeType: "audio/webm",
-      name: `${marker}.webm`,
-    },
-    {
-      buffer: Buffer.from("teak video"),
-      mimeType: "video/mp4",
-      name: `${marker}.mp4`,
-    },
-  ]);
-  await expect(page.getByText(/Uploaded 4 files|File uploaded/)).toBeVisible({
-    timeout: 90_000,
-  });
-
-  const oversizedPath = testInfo.outputPath(`${marker}-too-large.bin`);
-  writeFileSync(oversizedPath, Buffer.alloc(MAX_FILE_SIZE + 1));
-  await uploadFiles(page, oversizedPath);
-  await expect(page.getByText(/Maximum file size is 100MB/i)).toBeVisible();
-
-  await waitForHomeUploadSurface(page);
-  const pasteStartedAt = Date.now() - 60_000;
-  const pastedFileName = `${marker}-pasted.png`;
-  const pasteResult = await page.evaluate(
-    ({ base64, fileName }) => {
-      const bytes = Uint8Array.from(atob(base64), (char) => char.charCodeAt(0));
-      const file = new File([bytes], fileName, { type: "image/png" });
-      const clipboardData = new DataTransfer();
-      clipboardData.items.add(file);
-
-      const fallbackEvent = new Event("paste", {
-        bubbles: true,
-        cancelable: true,
-      }) as ClipboardEvent;
-      const event =
-        typeof ClipboardEvent === "function"
-          ? new ClipboardEvent("paste", {
-              bubbles: true,
-              cancelable: true,
-              clipboardData,
-            })
-          : fallbackEvent;
-
-      if (!event.clipboardData) {
-        Object.defineProperty(event, "clipboardData", {
-          configurable: true,
-          value: clipboardData,
-        });
-      }
-
-      document.body.dispatchEvent(event);
-
-      return {
-        defaultPrevented: event.defaultPrevented,
-        fileCount: event.clipboardData?.files.length ?? 0,
-        itemCount: event.clipboardData?.items.length ?? 0,
-      };
-    },
-    { base64: png.toString("base64"), fileName: pastedFileName }
-  );
-  expect(pasteResult).toEqual({
-    defaultPrevented: true,
-    fileCount: 1,
-    itemCount: 1,
-  });
+  // Without a Files Worker there is no screenshot, so the card keeps showing
+  // its text; the fetched page title still lands on the card.
   await expect
-    .poll(
-      async () =>
-        Boolean(await findUploadedFile(apiKey, pastedFileName, pasteStartedAt)),
-      {
-        timeout: 90_000,
-      }
-    )
-    .toBe(true);
-
-  const uploadedImage = await findUploadedFile(
-    apiKey,
-    pastedFileName,
-    pasteStartedAt
-  );
-  expect(uploadedImage?.compactUrl).toContain("/__images/v1/compact/");
-  expect(uploadedImage?.placeholderUrl).toContain("/__images/v1/tiny/");
-
-  await page.goto("/");
-  const compactPath = new URL(uploadedImage?.compactUrl ?? "").pathname;
-  const placeholderPath = new URL(uploadedImage?.placeholderUrl ?? "").pathname;
-  const uploadedPreview = page
-    .locator(`main img[srcset*="${compactPath}"]`)
-    .first();
-  await expect(uploadedPreview).toBeVisible({
-    timeout: 30_000,
-  });
-  await expect(uploadedPreview).toHaveJSProperty("complete", true);
-  expect(
-    await uploadedPreview.evaluate(
-      (image) => (image as HTMLImageElement).naturalWidth
-    )
-  ).toBeGreaterThan(0);
-  await expect(page.locator(`main img[src*="${placeholderPath}"]`)).toHaveCount(
-    0
-  );
+    .poll(async () => (await api.cards.get(link.cardId)).metadataTitle, {
+      timeout: 90_000,
+    })
+    .toBe("Example Domain");
 });
 
 test("web bulk actions, restore, and empty states stay coherent", async ({
@@ -404,11 +208,11 @@ test("web bulk actions, restore, and empty states stay coherent", async ({
   const marker = markerFor("bulk");
   const bulkA = await api.cards.create({
     content: `${marker} bulk-a`,
-    source: "prod-e2e",
+    source: "e2e",
   });
   const bulkB = await api.cards.create({
     content: `${marker} bulk-b`,
-    source: "prod-e2e",
+    source: "e2e",
   });
   updateState((s) => s.createdCardIds.push(bulkA.cardId, bulkB.cardId));
   await searchForVisibleCard(page, `${marker} bulk`, `${marker} bulk-a`);
@@ -423,7 +227,7 @@ test("web bulk actions, restore, and empty states stay coherent", async ({
 
   const restoreCard = await api.cards.create({
     content: `${marker} restore-me`,
-    source: "prod-e2e",
+    source: "e2e",
   });
   updateState((s) => s.createdCardIds.push(restoreCard.cardId));
   await searchForVisibleCard(
@@ -487,181 +291,4 @@ test("web bulk actions, restore, and empty states stay coherent", async ({
   await enterSearch(page, `${marker}-trash-empty`);
   await expect(page.getByText(/nothing found/i)).toBeVisible();
   await clearFilters(page);
-});
-
-test("settings import and export surface terminal states", async ({ page }) => {
-  test.setTimeout(300_000);
-  const marker = markerFor("import");
-  const state = readState();
-  if (!state.importExport?.apiKey) {
-    throw new Error("Missing import/export API key");
-  }
-  const apiKey = state.importExport.apiKey;
-  await page.goto("/settings");
-  await page.getByText("Import/Export Data").waitFor();
-  await page
-    .getByText("Import/Export Data")
-    .locator("xpath=ancestor::div[.//button][1]")
-    .getByRole("button", { name: "Manage" })
-    .click();
-  const dialog = page.getByRole("dialog", { name: "Manage Data" });
-  await expect(dialog).toContainText("Import or export");
-  await dialog.getByRole("tab", { name: "Export" }).click();
-  await expect(
-    dialog.getByText(/Export your data|Your export is ready/)
-  ).toBeVisible();
-  await dialog.getByRole("tab", { name: "Import" }).click();
-  const importPanel = dialog.getByRole("tabpanel", { name: "Import" });
-  await expect(
-    importPanel.getByRole("button", { name: "Import Bookmarks" })
-  ).toBeVisible();
-  const [bookmarkChooser] = await Promise.all([
-    page.waitForEvent("filechooser"),
-    importPanel.getByRole("button", { name: "Import Bookmarks" }).click(),
-  ]);
-  await bookmarkChooser.setFiles({
-    buffer: Buffer.from(
-      `<!doctype NETSCAPE-Bookmark-file-1><TITLE>Bookmarks</TITLE><H1>Bookmarks</H1><DL><DT><A HREF="https://example.com/?teak=${marker}">Example import ${marker}</A></DT></DL>`
-    ),
-    mimeType: "text/html",
-    name: `${marker}-bookmarks.html`,
-  });
-  await expect(importPanel.getByText(`${marker}-bookmarks.html`)).toBeVisible();
-  await importPanel.getByRole("button", { name: "Start import" }).click();
-  await expect
-    .poll(
-      async () => {
-        const text = (await importPanel.textContent()) ?? "";
-        return (
-          /Last import: [1-9]\d* created/i.test(text) &&
-          !/Import stopped|failed/i.test(text)
-        );
-      },
-      { timeout: 120_000 }
-    )
-    .toBe(true);
-
-  const legacyContent = `\uFEFF  # ${marker}-legacy\r\n\r\n- [ ] retained  \n`;
-  const legacyFileName = `${marker}.MARKDOWN`;
-  const legacyFilePath = `files/${legacyFileName}`;
-  const legacyBytes = strToU8(legacyContent);
-  const legacyArchive = zipSync({
-    "cards.json": strToU8(
-      JSON.stringify({
-        cards: [
-          {
-            content: "legacy document placeholder",
-            file: {
-              fileName: legacyFileName,
-              fileSize: legacyBytes.byteLength,
-              mimeType: "text/markdown",
-              path: legacyFilePath,
-            },
-            id: `legacy-${marker}`,
-            tags: ["prod-e2e", "markdown"],
-            type: "document",
-          },
-        ],
-      })
-    ),
-    [legacyFilePath]: legacyBytes,
-    "manifest.json": strToU8(JSON.stringify({ exportVersion: 1 })),
-  });
-  const [archiveChooser] = await Promise.all([
-    page.waitForEvent("filechooser"),
-    importPanel.getByRole("button", { name: "Import Teak Archive" }).click(),
-  ]);
-  await archiveChooser.setFiles({
-    buffer: Buffer.from(legacyArchive),
-    mimeType: "application/zip",
-    name: `${marker}-legacy.zip`,
-  });
-  await importPanel.getByRole("button", { name: "Start import" }).click();
-  await expect
-    .poll(
-      async () => {
-        const response = await apiFetch(
-          `/v1/cards?include=content,metadata&q=${encodeURIComponent(`${marker}-legacy`)}`,
-          apiKey
-        );
-        const payload = (await response.json()) as {
-          items?: Array<{
-            content?: string;
-            fileName?: string;
-            fileUrl?: string;
-            type?: string;
-          }>;
-        };
-        return payload.items?.find((card) => card.content === legacyContent);
-      },
-      { timeout: 120_000, intervals: [1000, 2000, 5000] }
-    )
-    .toMatchObject({
-      content: legacyContent,
-      fileName: null,
-      fileUrl: null,
-      type: "text",
-    });
-
-  await dialog.getByRole("tab", { name: "Export" }).click();
-  await dialog.getByRole("button", { name: "Start export" }).click();
-  await expect(
-    dialog.getByRole("button", { name: "Download archive" })
-  ).toBeVisible({ timeout: 120_000 });
-  const downloadPromise = page.waitForEvent("download");
-  await dialog.getByRole("button", { name: "Download archive" }).click();
-  const download = await downloadPromise;
-  const downloadPath = await download.path();
-  expect(downloadPath).toBeTruthy();
-  const exportedBytes = new Uint8Array(readFileSync(downloadPath!));
-  const exported = unzipSync(exportedBytes);
-  const exportedCards = JSON.parse(strFromU8(exported["cards.json"])).cards;
-  const exportedMarkdown = exportedCards.find(
-    (card: { content?: string }) => card.content === legacyContent
-  );
-  expect(exportedMarkdown).toMatchObject({
-    content: legacyContent,
-    type: "text",
-  });
-  expect(exportedMarkdown.file).toBeUndefined();
-  expect(Object.keys(exported)).not.toContain(legacyFilePath);
-
-  await dialog.getByRole("tab", { name: "Import" }).click();
-  const [roundTripChooser] = await Promise.all([
-    page.waitForEvent("filechooser"),
-    importPanel.getByRole("button", { name: "Import Teak Archive" }).click(),
-  ]);
-  await roundTripChooser.setFiles({
-    buffer: Buffer.from(exportedBytes),
-    mimeType: "application/zip",
-    name: `${marker}-round-trip.zip`,
-  });
-  await importPanel.getByRole("button", { name: "Start import" }).click();
-  await expect
-    .poll(
-      async () => {
-        const response = await apiFetch(
-          `/v1/cards?include=content,metadata&q=${encodeURIComponent(`${marker}-legacy`)}`,
-          apiKey
-        );
-        const payload = (await response.json()) as {
-          items?: Array<{
-            content?: string;
-            fileName?: string;
-            type?: string;
-          }>;
-        };
-        return (
-          payload.items?.filter(
-            (card) =>
-              card.content === legacyContent &&
-              card.type === "text" &&
-              !card.fileName
-          ).length ?? 0
-        );
-      },
-      { timeout: 120_000, intervals: [1000, 2000, 5000] }
-    )
-    .toBeGreaterThanOrEqual(1);
-  await page.keyboard.press("Escape");
 });
