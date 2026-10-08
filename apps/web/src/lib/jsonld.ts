@@ -3,12 +3,15 @@ const SITE_URL = "https://teakvault.com";
 const APP_URL = "https://app.teakvault.com";
 const SITE_NAME = "Teak";
 const ORGANIZATION_LOGO = `${SITE_URL}/icon.png`;
+// Matches the Organization node the teakvault.com docs publish (Blume's
+// seo.organization), so every page references one entity.
+const ORGANIZATION_ID = `${SITE_URL}#organization`;
 
 // Shared Organization schema
 export const organizationSchema = {
   "@context": "https://schema.org",
   "@type": "Organization",
-  "@id": `${SITE_URL}/#organization`,
+  "@id": ORGANIZATION_ID,
   name: SITE_NAME,
   url: SITE_URL,
   logo: {
@@ -25,7 +28,7 @@ export const websiteSchema = {
   "@id": `${APP_URL}/#website`,
   name: `${SITE_NAME} App`,
   url: APP_URL,
-  publisher: { "@id": `${SITE_URL}/#organization` },
+  publisher: { "@id": ORGANIZATION_ID },
 } as const;
 
 // SoftwareApplication schema for app listing
@@ -67,6 +70,6 @@ export const softwareApplicationSchema = {
     "Chrome and Safari browser extensions",
   ],
   screenshot: `${SITE_URL}/hero-image.png`,
-  author: { "@id": `${SITE_URL}/#organization` },
-  publisher: { "@id": `${SITE_URL}/#organization` },
+  author: { "@id": ORGANIZATION_ID },
+  publisher: { "@id": ORGANIZATION_ID },
 } as const;
