@@ -87,7 +87,11 @@ export async function signInWithWorkos(
     },
   });
   await request.makeAuthUrlAsync(discovery);
-  const result = await request.promptAsync(discovery);
+  // A private browser session keeps no AuthKit cookie after sign-in, so Log
+  // Out only needs the server revocation and never a browser logout.
+  const result = await request.promptAsync(discovery, {
+    preferEphemeralSession: true,
+  });
   if (result.type === "cancel" || result.type === "dismiss") {
     return false;
   }
@@ -106,15 +110,4 @@ export async function signInWithWorkos(
       attempt
     )) !== null
   );
-}
-
-// Server revocation is performed by Teak's session action before this browser
-// logout. Returning from a browser is not evidence that a session was revoked.
-export async function openWorkosLogout(sessionId: string): Promise<void> {
-  if (!/^session_[A-Za-z0-9]+$/.test(sessionId)) {
-    throw new Error("Invalid session");
-  }
-  const url = new URL("https://api.workos.com/user_management/sessions/logout");
-  url.searchParams.set("session_id", sessionId);
-  await WebBrowser.openBrowserAsync(url.href);
 }

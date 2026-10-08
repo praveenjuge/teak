@@ -10,8 +10,8 @@ import {
 // never reach the token endpoint, and sign-out invalidates an open browser flow.
 let result: Record<string, unknown>;
 let config: Record<string, unknown>;
+let promptOptions: unknown;
 let prompt: (() => Promise<unknown>) | undefined;
-let logoutUrl = "";
 mock.module("expo-auth-session", () => ({
   CodeChallengeMethod: { S256: "S256" },
   ResponseType: { Code: "code" },
@@ -29,7 +29,11 @@ mock.module("expo-auth-session", () => ({
         "https://api.workos.com/user_management/authorize"
       );
     }
-    promptAsync(discovery: { authorizationEndpoint: string }) {
+    promptAsync(
+      discovery: { authorizationEndpoint: string },
+      options: unknown
+    ) {
+      promptOptions = options;
       expect(discovery.authorizationEndpoint).toBe(
         "https://api.workos.com/user_management/authorize"
       );
@@ -40,13 +44,10 @@ mock.module("expo-auth-session", () => ({
 mock.module("expo-secure-store", () => secureStoreMock);
 mock.module("expo-web-browser", () => ({
   maybeCompleteAuthSession: () => {},
-  openBrowserAsync: (url: string) => {
-    logoutUrl = url;
-    return Promise.resolve({ type: "dismiss" });
-  },
 }));
-const { signInWithWorkos, openWorkosLogout, WORKOS_REDIRECT_URI } =
-  await import("../../lib/workos-native-auth");
+const { signInWithWorkos, WORKOS_REDIRECT_URI } = await import(
+  "../../lib/workos-native-auth"
+);
 const clientId = "client_TEST";
 const expiry = Math.floor(Date.now() / 1000) + 120;
 function setup() {
@@ -104,7 +105,6 @@ beforeEach(() => {
     params: { state: "expected-state", code: "code" },
   };
   prompt = undefined;
-  logoutUrl = "";
 });
 describe("native AuthKit browser flow", () => {
   test.each(["authkit", "GoogleOAuth", "AppleOAuth"] as const)(
@@ -120,8 +120,23 @@ describe("native AuthKit browser flow", () => {
         codeChallengeMethod: "S256",
         extraParams: { provider },
       });
+      // No AuthKit cookie outlives sign-in, so a revoked session stays out.
+      expect(promptOptions).toEqual({ preferEphemeralSession: true });
       expect(s.session.getSnapshot().user?.teakUserId).toBe("permanent-vault");
       expect(s.count()).toBe(1);
+    }
+  );
+  test.each(["sign-in", "sign-up"] as const)(
+    "opens AuthKit on its %s screen",
+    async (screenHint: "sign-in" | "sign-up") => {
+      const s = setup();
+      expect(await signInWithWorkos(s.session, "authkit", screenHint)).toBe(
+        true
+      );
+      expect(config.extraParams).toEqual({
+        provider: "authkit",
+        screen_hint: screenHint,
+      });
     }
   );
   test.each(["cancel", "dismiss"])(
@@ -158,15 +173,6 @@ describe("native AuthKit browser flow", () => {
     expect(await signInWithWorkos(s.session)).toBe(false);
     expect(s.count()).toBe(0);
     expect(s.stored()).toBeNull();
-  });
-  test("opens logout for the real session and rejects injected session IDs", async () => {
-    await openWorkosLogout("session_ONE");
-    expect(logoutUrl).toBe(
-      "https://api.workos.com/user_management/sessions/logout?session_id=session_ONE"
-    );
-    await expect(
-      openWorkosLogout("session_ONE&return_to=https://other.example")
-    ).rejects.toThrow("Invalid session");
   });
 });
 

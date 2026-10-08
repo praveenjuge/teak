@@ -19,27 +19,35 @@ import GoogleLogo from "@/components/GoogleLogo";
 import Logo from "@/components/Logo";
 import { useMobileAuth } from "@/lib/mobile-auth-context";
 
-const PROVIDER_LABELS = { AppleOAuth: "Apple", GoogleOAuth: "Google" };
+// Email options open AuthKit's hosted page directly, on its sign-in or
+// sign-up screen.
+const SIGN_IN_LABELS = {
+  AppleOAuth: "Apple",
+  GoogleOAuth: "Google",
+  "sign-in": "Email",
+  "sign-up": "Email",
+};
+type SignInOption = keyof typeof SIGN_IN_LABELS;
 
 export default function OnboardingScreen() {
   const mobileAuth = useMobileAuth();
   const authMode = mobileAuth.mode;
-  const [isGoogleLoading, setIsGoogleLoading] = React.useState(false);
-  const [isAppleLoading, setIsAppleLoading] = React.useState(false);
+  const [pending, setPending] = React.useState<SignInOption | null>(null);
   const colorScheme = useColorScheme();
   const appleIconColor = colorScheme === "dark" ? "#FFFFFF" : "#000000";
 
-  const signIn = async (
-    provider: keyof typeof PROVIDER_LABELS,
-    setLoading: (loading: boolean) => void
-  ) => {
-    if (isGoogleLoading || isAppleLoading) {
+  const signIn = async (option: SignInOption) => {
+    if (pending) {
       return;
     }
-    setLoading(true);
-    const label = PROVIDER_LABELS[provider];
+    setPending(option);
+    const label = SIGN_IN_LABELS[option];
     try {
-      if (await mobileAuth.signIn(provider)) {
+      const signedIn =
+        option === "sign-in" || option === "sign-up"
+          ? await mobileAuth.signIn("authkit", option)
+          : await mobileAuth.signIn(option);
+      if (signedIn) {
         router.replace("/(tabs)/(home)");
       }
     } catch (error) {
@@ -54,9 +62,11 @@ export default function OnboardingScreen() {
           : `Failed to sign in with ${label}. Please try again.`
       );
     } finally {
-      setLoading(false);
+      setPending(null);
     }
   };
+  const buttonLabel = (option: SignInOption, idle: string) =>
+    pending === option ? "Signing in..." : idle;
 
   return (
     <Host style={{ flex: 1 }} useViewportSizeMeasurement>
@@ -104,10 +114,10 @@ export default function OnboardingScreen() {
               modifiers={[
                 buttonStyle("bordered"),
                 controlSize("large"),
-                disabled(isGoogleLoading || isAppleLoading),
+                disabled(pending !== null),
                 tint(PlatformColor("label")),
               ]}
-              onPress={() => void signIn("AppleOAuth", setIsAppleLoading)}
+              onPress={() => void signIn("AppleOAuth")}
             >
               <HStack alignment="center" spacing={10}>
                 <Spacer />
@@ -117,7 +127,7 @@ export default function OnboardingScreen() {
                 <Text
                   modifiers={[font({ design: "rounded", weight: "medium" })]}
                 >
-                  {isAppleLoading ? "Signing in..." : "Continue with Apple"}
+                  {buttonLabel("AppleOAuth", "Continue with Apple")}
                 </Text>
                 <Spacer />
               </HStack>
@@ -127,10 +137,10 @@ export default function OnboardingScreen() {
               modifiers={[
                 buttonStyle("bordered"),
                 controlSize("large"),
-                disabled(isGoogleLoading || isAppleLoading),
+                disabled(pending !== null),
                 tint(PlatformColor("label")),
               ]}
-              onPress={() => void signIn("GoogleOAuth", setIsGoogleLoading)}
+              onPress={() => void signIn("GoogleOAuth")}
             >
               <HStack alignment="center" spacing={10}>
                 <Spacer />
@@ -140,7 +150,7 @@ export default function OnboardingScreen() {
                 <Text
                   modifiers={[font({ design: "rounded", weight: "medium" })]}
                 >
-                  {isGoogleLoading ? "Signing in..." : "Continue with Google"}
+                  {buttonLabel("GoogleOAuth", "Continue with Google")}
                 </Text>
                 <Spacer />
               </HStack>
@@ -151,17 +161,17 @@ export default function OnboardingScreen() {
                 modifiers={[
                   buttonStyle("bordered"),
                   controlSize("large"),
-                  disabled(isGoogleLoading || isAppleLoading),
+                  disabled(pending !== null),
                   tint(PlatformColor("label")),
                 ]}
-                onPress={() => router.push("/(auth)/sign-up")}
+                onPress={() => void signIn("sign-up")}
               >
                 <HStack alignment="center" spacing={10}>
                   <Spacer />
                   <Text
                     modifiers={[font({ design: "rounded", weight: "medium" })]}
                   >
-                    Register with Email
+                    {buttonLabel("sign-up", "Register with Email")}
                   </Text>
                   <Spacer />
                 </HStack>
@@ -172,15 +182,15 @@ export default function OnboardingScreen() {
             modifiers={[
               buttonStyle("bordered"),
               controlSize("large"),
-              disabled(isGoogleLoading || isAppleLoading),
+              disabled(pending !== null),
               tint(PlatformColor("label")),
             ]}
-            onPress={() => router.push("/(auth)/sign-in")}
+            onPress={() => void signIn("sign-in")}
           >
             <HStack alignment="center" spacing={10}>
               <Spacer />
               <Text modifiers={[font({ design: "rounded", weight: "medium" })]}>
-                Login with Email
+                {buttonLabel("sign-in", "Login with Email")}
               </Text>
               <Spacer />
             </HStack>

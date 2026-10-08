@@ -101,7 +101,12 @@ mock.module("react-native", () => ({
   useColorScheme: () => "light",
 }));
 mock.module("expo-router", () => ({
-  router: { push: () => {}, replace: () => {} },
+  router: {
+    push: () => {},
+    replace: (path: string) => {
+      destinations.push(path);
+    },
+  },
   useRouter: () => ({
     push: () => {},
     replace: (path: string) => {
@@ -128,7 +133,7 @@ mock.module("expo-auth-session", () => ({
 mock.module("expo-web-browser", () => ({
   maybeCompleteAuthSession: () => {},
   openBrowserAsync: () => {
-    throw new Error("Unexpected browser logout during deletion");
+    throw new Error("Unexpected browser logout");
   },
 }));
 mock.module("@react-native-async-storage/async-storage", () => ({
@@ -145,23 +150,25 @@ mock.module("react-native-svg", () => ({
   Path: () => null,
 }));
 
-const { default: SignInScreen } = await import("../app/(auth)/sign-in");
-const { default: SignUpScreen } = await import("../app/(auth)/sign-up");
 const { default: WelcomeScreen } = await import("../app/(auth)/welcome");
+
+const welcomeAuth = (
+  signIn: MobileAuth["signIn"] = () => Promise.resolve(false)
+): MobileAuth => ({
+  mode: mode!,
+  user: null,
+  isPending: false,
+  hasStoredSession: false,
+  refreshSession: () => Promise.resolve(false),
+  signIn,
+  signOut: () => Promise.resolve(),
+});
 
 function renderScreen(screen: ReactNode): string {
   if (!mode) {
     return renderToStaticMarkup(screen);
   }
-  const auth: MobileAuth = {
-    mode,
-    user: null,
-    isPending: false,
-    hasStoredSession: false,
-    refreshSession: () => Promise.resolve(false),
-    signIn: () => Promise.resolve(false),
-    signOut: () => Promise.resolve(),
-  };
+  const auth = welcomeAuth();
   return renderToStaticMarkup(
     <MobileAuthContext.Provider value={auth}>
       {screen}
@@ -195,33 +202,50 @@ test.each([undefined, true, false])(
   }
 );
 
-test.each([true, false])(
-  "WorkOS email screens use hosted sign-in and honor the freeze (%s)",
-  (paused: boolean) => {
+test.each([
+  ["Login with Email", "sign-in"],
+  ["Register with Email", "sign-up"],
+] as const)(
+  "%s opens hosted AuthKit directly on its %s screen",
+  async (label, screenHint) => {
     mode = {
       primary: "workos",
       authKitClientId: "client_TEST",
-      signupsDisabled: paused,
+      signupsDisabled: false,
       accountChangesPaused: false,
     };
-    const signIn = renderScreen(<SignInScreen />);
-    expect(signIn).toContain("Continue with email");
-    expect(signIn).not.toContain("<input");
-    const signUp = renderScreen(<SignUpScreen />);
-    expect(signUp).not.toContain("<input");
-    expect(signUp.includes("Continue with email")).toBe(!paused);
-    expect(signUp.includes("New sign-ups are paused")).toBe(paused);
-    const welcome = renderScreen(<WelcomeScreen />);
-    expect(welcome).toContain("Continue with Google");
-    expect(welcome).toContain("Continue with Apple");
-    expect(welcome.includes("Register with Email")).toBe(!paused);
+    destinations = [];
+    const requests: unknown[][] = [];
+    const { act, container, root } = await mountDom(
+      <MobileAuthContext.Provider
+        value={welcomeAuth((...args) => {
+          requests.push(args);
+          return Promise.resolve(true);
+        })}
+      >
+        <WelcomeScreen />
+      </MobileAuthContext.Provider>
+    );
+    try {
+      await act(async () => {
+        Array.from(container.querySelectorAll("button"))
+          .find((b) => b.textContent === label)
+          ?.click();
+        await Promise.resolve();
+      });
+      expect(requests).toEqual([["authkit", screenHint]]);
+      expect(destinations).toEqual(["/(tabs)/(home)"]);
+    } finally {
+      await act(() => root.unmount());
+      container.remove();
+    }
   }
 );
 
 // Deletion risks: paused changes, premature local logout, rejected
 // acceptance, or redundant protected revocation after account locking.
 let ownsDom = false;
-async function settingsFixture(paused = false) {
+async function registerDom() {
   if (!GlobalRegistrator.isRegistered) {
     GlobalRegistrator.register({ url: "http://localhost:3211" });
     ownsDom = true;
@@ -229,6 +253,21 @@ async function settingsFixture(paused = false) {
   Object.assign(globalThis, nativeWeb, { IS_REACT_ACT_ENVIRONMENT: true });
   const { act } = await import("react");
   const { createRoot } = await import("react-dom/client");
+  return { act, createRoot };
+}
+async function mountDom(element: ReactNode) {
+  const { act, createRoot } = await registerDom();
+  const container = document.createElement("div");
+  document.body.append(container);
+  const root = createRoot(container);
+  await act(() => {
+    root.render(element);
+    return Promise.resolve();
+  });
+  return { act, container, root };
+}
+async function settingsFixture(paused = false) {
+  const { act, createRoot } = await registerDom();
   const { createConvexTransport } = await import(
     "../../../packages/ui/src/components/settings/__tests__/helpers/convexTransport"
   );
@@ -311,6 +350,14 @@ async function settingsFixture(paused = false) {
     container,
     session,
     transport,
+    logOut: async () => {
+      await act(async () => {
+        Array.from(container.querySelectorAll("button"))
+          .find((b) => b.textContent?.includes("Log Out"))
+          ?.click();
+        await alertButtons.find((b) => b.text === "Log Out")?.onPress?.();
+      });
+    },
     confirm: async (wait = true) => {
       await act(async () => {
         Array.from(container.querySelectorAll("button"))
@@ -371,6 +418,38 @@ test("WorkOS deletion retains credentials until acceptance, then clears locally 
     expect(secureStoreData.size).toBe(0);
     expect(destinations).toEqual(["/(auth)/welcome"]);
     expect(fixture.transport.calls).toHaveLength(1);
+  } finally {
+    await fixture.close();
+  }
+});
+
+test("log out revokes the session and returns to welcome without a browser", async () => {
+  const fixture = await settingsFixture();
+  fixture.transport.onCall(() => Promise.resolve(null));
+  try {
+    await fixture.logOut();
+    expect(fixture.transport.calls).toEqual([
+      {
+        kind: "action",
+        path: "securitySessions:revokeAuthkitSession",
+        args: { sessionId: "session_SETTINGS" },
+      },
+    ]);
+    expect(fixture.session.getSnapshot().user).toBeNull();
+    expect(secureStoreData.size).toBe(0);
+    expect(destinations).toEqual(["/(auth)/welcome"]);
+  } finally {
+    await fixture.close();
+  }
+});
+
+test("a failed revocation keeps credentials and stays signed in", async () => {
+  const fixture = await settingsFixture();
+  fixture.transport.onCall(() => Promise.reject(new Error("offline")));
+  try {
+    await fixture.logOut();
+    expect(fixture.session.getSnapshot().user).not.toBeNull();
+    expect(destinations).toEqual([]);
   } finally {
     await fixture.close();
   }
