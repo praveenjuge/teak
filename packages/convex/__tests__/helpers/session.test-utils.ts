@@ -62,8 +62,6 @@ export const answerIdentityQuery = (
         email: email ?? "",
         emailVerified: true,
         workosUserId: workosUserIdFor(args.teakUserId),
-        workosEmail: email ?? `${args.teakUserId}@example.com`,
-        workosEmailVerified: true,
         ...mapping,
       },
     };

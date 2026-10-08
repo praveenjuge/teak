@@ -594,7 +594,6 @@ describe("new WorkOS lifecycle owners", () => {
       email: "new@example.com",
       emailVerified: true,
     });
-    expect(before.users[0].workosEmail).toBeUndefined();
     expect(before.users[0].teakUserId).toMatch(/^teak_[a-zA-Z0-9]+$/);
     expect(before.quarantine).toEqual([]);
     expect(before.scheduled).toHaveLength(2);

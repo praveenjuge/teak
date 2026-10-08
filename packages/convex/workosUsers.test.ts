@@ -562,9 +562,6 @@ describe("trusted new WorkOS owners", () => {
       email: input.email,
       emailVerified: true,
     });
-    // The component holds the provider profile; Teak keeps no copy.
-    expect(owner.workosEmail).toBeUndefined();
-    expect(owner.workosEmailVerified).toBeUndefined();
     const scheduled = await jobs(t);
     expect(scheduled).toHaveLength(2);
     expect(
