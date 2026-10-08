@@ -17,7 +17,6 @@ import {
   getEnvSpec,
   isDeletedAlias,
   isPlatformVar,
-  SECRET_VAR_NAMES,
 } from "./env-contract.ts";
 import { readDotenvFile } from "./env-loader.ts";
 import { CONVEX_DOTENV_FILE, SUPPORTED_DOTENV_FILES } from "./env-targets.ts";
@@ -38,15 +37,6 @@ export const LEGACY_ROOT_DOTENV_FILES = [
   ".env.production.local",
 ] as const;
 
-/** Files whose profile legitimately holds production selectors. */
-const E2E_SCOPE_FILES = new Set([
-  ".env.e2e.local",
-  "apps/web/.env.e2e.local",
-  ".env.production-e2e.local",
-]);
-
-const WEB_BUILD_INPUT = "apps/web/.env.local";
-
 export type DotenvFindingKind =
   | "deleted-alias"
   | "production-selector"
@@ -60,13 +50,6 @@ export interface DotenvFinding {
   path: string;
   severity: "error" | "warn";
 }
-
-const isE2ESecret = (name: string): boolean => {
-  if (!SECRET_VAR_NAMES.has(name)) {
-    return false;
-  }
-  return getEnvSpec(name)?.targets.includes("e2e") ?? false;
-};
 
 const isReleaseOnly = (name: string): boolean => {
   const spec = getEnvSpec(name);
@@ -97,7 +80,6 @@ const auditSupportedFile = (
   if (!parsed) {
     return;
   }
-  const e2eScope = E2E_SCOPE_FILES.has(rel);
   for (const [name, value] of parsed.values) {
     if (isDeletedAlias(name)) {
       findings.push({
@@ -109,7 +91,7 @@ const auditSupportedFile = (
       });
       continue;
     }
-    if (!e2eScope && selectsProduction(name, value)) {
+    if (selectsProduction(name, value)) {
       findings.push({
         kind: "production-selector",
         name,
@@ -120,18 +102,7 @@ const auditSupportedFile = (
       });
       continue;
     }
-    if (rel === WEB_BUILD_INPUT && isE2ESecret(name)) {
-      findings.push({
-        kind: "wrong-scope",
-        name,
-        path: rel,
-        severity: "warn",
-        detail:
-          "E2E credential in the web build input; move it to apps/web/.env.e2e.local",
-      });
-      continue;
-    }
-    if (!e2eScope && isReleaseOnly(name)) {
+    if (isReleaseOnly(name)) {
       findings.push({
         kind: "wrong-scope",
         name,

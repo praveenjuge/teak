@@ -1,4 +1,5 @@
 import { type APIRequestContext, expect, test } from "@playwright/test";
+import { convexSocket } from "./fixtures";
 
 const redirectTarget = async (request: APIRequestContext, path: string) => {
   const response = await request.get(path, { maxRedirects: 0 });
@@ -37,9 +38,7 @@ test.describe("Web sign-in entry", () => {
     page,
     baseURL,
   }) => {
-    await page.routeWebSocket("**/*.convex.cloud/**", (socket) =>
-      socket.close()
-    );
+    await page.routeWebSocket(convexSocket, (socket) => socket.close());
     await page.goto("/login");
     // Sign-in starts server-side, so a browser outage can't stop the hand-off.
     await expect(page.getByLabel("Email", { exact: true })).toBeVisible();

@@ -80,23 +80,6 @@ describe("dotenv-audit", () => {
     expect(hasDotenvErrors(auditDotenv(root))).toBe(false);
   });
 
-  test("e2e scope files may hold production selectors", () => {
-    const root = makeRoot({
-      ".env.production-e2e.local": `CONVEX_DEPLOY_KEY=${POISON_DEPLOY_KEY}\nPROD_E2E_PASSWORD=${POISON_PASSWORD}\n`,
-      "apps/web/.env.e2e.local": `E2E_TEST_PASSWORD=${POISON_PASSWORD}\n`,
-    });
-    expect(auditDotenv(root)).toEqual([]);
-  });
-
-  test("e2e credentials in the web build input are wrong-scope", () => {
-    const root = makeRoot({
-      "apps/web/.env.local": `E2E_TEST_PASSWORD=${POISON_PASSWORD}\n`,
-    });
-    expect(kinds(root)).toContain(
-      "warn:wrong-scope:apps/web/.env.local:E2E_TEST_PASSWORD"
-    );
-  });
-
   test("release-only credentials in local files are wrong-scope", () => {
     const root = makeRoot({
       "apps/desktop/.env.local": "SENTRY_AUTH_TOKEN=lorem\n",
@@ -118,8 +101,7 @@ describe("dotenv-audit", () => {
   test("report never contains secret values", () => {
     const root = makeRoot({
       ".env.local": `CONVEX_DEPLOY_KEY=${POISON_DEPLOY_KEY}\n`,
-      "apps/web/.env.local": `E2E_TEST_PASSWORD=${POISON_PASSWORD}\nCONVEX_DEPLOYMENT=prod:should-stay-hidden\n`,
-      ".env.production-e2e.local": `PROD_E2E_PASSWORD=${POISON_PASSWORD}\n`,
+      "apps/web/.env.local": `WORKOS_COOKIE_PASSWORD=${POISON_PASSWORD}\nCONVEX_DEPLOYMENT=prod:should-stay-hidden\n`,
     });
     const serialized = JSON.stringify(buildDotenvReport(root));
     expect(serialized).not.toContain(POISON_DEPLOY_KEY);

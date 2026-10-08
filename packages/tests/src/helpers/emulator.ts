@@ -1,5 +1,5 @@
 import { expect } from "@playwright/test";
-import { EMULATOR_API_KEY } from "../emulator/config";
+import { EMULATOR_API_KEY, EMULATOR_CLIENT_ID } from "../emulator/config";
 import { env } from "./env";
 
 // The WorkOS emulator's own API: the suite's stand-in for the WorkOS
@@ -87,6 +87,13 @@ export const waitForEmailedEvent = async <T extends { email: string }>(
   return found as T;
 };
 
+// The reset email's payload. The token is minted by the emulator per run.
+interface PasswordResetEvent {
+  email: string;
+  // nosemgrep: codacy.yaml.security.hard-coded-tokens
+  password_reset_token: string;
+}
+
 export const resetPasswordThroughEmail = async (
   email: string,
   password: string
@@ -95,14 +102,39 @@ export const resetPasswordThroughEmail = async (
     method: "POST",
     body: JSON.stringify({ email }),
   });
-  // A one-time code the emulator minted for this run, not a hard-coded token.
-  // nosemgrep: codacy.yaml.security.hard-coded-tokens
-  const { password_reset_token: token } = await waitForEmailedEvent<{
-    email: string;
-    password_reset_token: string;
-  }>("password_reset.created", email);
+  const reset = await waitForEmailedEvent<PasswordResetEvent>(
+    "password_reset.created",
+    email
+  );
   await emulatorFetch("/user_management/password_reset/confirm", {
     method: "POST",
-    body: JSON.stringify({ token, new_password: password }),
+    body: JSON.stringify({
+      new_password: password,
+      // nosemgrep: codacy.yaml.security.hard-coded-tokens
+      token: reset.password_reset_token,
+    }),
   });
+};
+
+// The emulator mints this token per run.
+interface SessionResponse {
+  // nosemgrep: codacy.yaml.security.hard-coded-tokens
+  access_token: string;
+}
+
+// A session token for direct Convex calls, from the same password grant the
+// hosted login page uses. The backend trusts it exactly like a browser's.
+export const sessionTokenFor = async (email: string, password: string) => {
+  const response = await emulatorFetch("/user_management/authenticate", {
+    method: "POST",
+    body: JSON.stringify({
+      client_id: EMULATOR_CLIENT_ID,
+      client_secret: EMULATOR_API_KEY,
+      email,
+      grant_type: "password",
+      password,
+    }),
+  });
+  const session = (await response.json()) as SessionResponse;
+  return session.access_token;
 };

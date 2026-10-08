@@ -26,6 +26,8 @@
     "@playwright/test": "^1.62.1",
     "@types/bun": "^1.4.0",
     "@workos/emulate": "0.14.0",
+    "convex": "^1.46.0",
+    "marked": "17.0.5",
     "tsx": "^4.23.11",
     "typescript": "^6.0.3"
   }

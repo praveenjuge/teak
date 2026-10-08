@@ -292,16 +292,6 @@ describe("turbo env scoping", () => {
     }
   });
 
-  test("web build inputs exclude e2e scope; test:e2e owns it", () => {
-    const config = load("apps/web/turbo.json");
-    const buildInputs = config.tasks?.build?.inputs ?? [];
-    expect(buildInputs).toContain(".env.local");
-    expect(buildInputs.filter((input) => input.includes("e2e"))).toEqual([]);
-    expect(config.tasks?.["test:e2e"]?.inputs ?? []).toContain(
-      ".env.e2e.local"
-    );
-  });
-
   test("no turbo config declares wildcards", () => {
     const rels = [
       "turbo.json",

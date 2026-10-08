@@ -11,6 +11,7 @@ export const EMULATOR_WEBHOOK_SECRET = "whsec_teak_e2e_emulator_only";
 
 // Local Convex backends bind these fixed ports; the web dev server is pinned.
 export const LOCAL_APP_ORIGIN = "http://localhost:3000";
+export const LOCAL_CONVEX_URL = "http://127.0.0.1:3210";
 export const LOCAL_API_ORIGIN = "http://127.0.0.1:3211";
 
 // Values the local Convex deployment needs to trust emulator sessions and

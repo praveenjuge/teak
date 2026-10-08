@@ -3,6 +3,7 @@ import {
   EMULATOR_ORIGIN,
   LOCAL_API_ORIGIN,
   LOCAL_APP_ORIGIN,
+  LOCAL_CONVEX_URL,
 } from "../emulator/config";
 
 // The suite always runs against the fixed local stack; see
@@ -10,6 +11,7 @@ import {
 export const env = {
   appUrl: LOCAL_APP_ORIGIN,
   apiUrl: LOCAL_API_ORIGIN,
+  convexUrl: LOCAL_CONVEX_URL,
   mcpUrl: `${LOCAL_API_ORIGIN}/mcp`,
   emulatorUrl: EMULATOR_ORIGIN,
   siteUrl: "https://teakvault.com",

@@ -67,6 +67,13 @@ export default defineConfig<JourneyOptions>({
     journey("post-delete", "journey/100-post-delete.e2e.ts", undefined, [
       "journey-delete",
     ]),
+    {
+      // Web surface specs; each worker signs up its own account.
+      name: "web",
+      testMatch: "web/**/*.e2e.ts",
+      workers: 2,
+      use: chrome,
+    },
     ...(["chromium", "firefox", "webkit"] as const).map((browser) => ({
       name: `matrix-${browser}`,
       testMatch: "matrix/journey-lite.e2e.ts",
