@@ -21,36 +21,9 @@ import {
 import { openApiV1 } from "./publicApiOpenApi";
 import { safariAccountSummary } from "./safariAccountSummary";
 import { disconnectWorkosConsent } from "./workosConnectRevocation";
-import {
-  adoptE2eSignup,
-  cleanupE2e,
-  provisionE2e,
-  reserveE2eSignup,
-} from "./workosE2eHttp";
 import { registerWorkosRoutes } from "./workosWebhook";
 
 const http = httpRouter();
-
-http.route({
-  path: "/api/auth/internal/e2e/provision",
-  method: "POST",
-  handler: provisionE2e,
-});
-http.route({
-  path: "/api/auth/internal/e2e/cleanup",
-  method: "POST",
-  handler: cleanupE2e,
-});
-http.route({
-  path: "/api/auth/internal/e2e/signup/reserve",
-  method: "POST",
-  handler: reserveE2eSignup,
-});
-http.route({
-  path: "/api/auth/internal/e2e/signup/adopt",
-  method: "POST",
-  handler: adoptE2eSignup,
-});
 
 http.route({
   path: "/.well-known/teak-oauth-clients.json",
