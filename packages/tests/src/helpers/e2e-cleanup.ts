@@ -265,19 +265,25 @@ const serverCode = (payload: unknown) => {
     : "";
 };
 
-// Fixed endpoint paths: the request URL is the configured Convex site origin
-// plus one of these literals, never caller input.
-const SIGNUP_ENDPOINTS = {
-  reserve: "/api/auth/internal/e2e/signup/reserve",
-  adopt: "/api/auth/internal/e2e/signup/adopt",
-} as const;
+// Every bearer-carrying request here refuses redirects so the token never
+// follows one. A fresh timeout is created per attempt.
+const signupRequest = (body: string): RequestInit => ({
+  method: "POST",
+  headers: {
+    Authorization: `Bearer ${env.cleanupToken}`,
+    "Content-Type": "application/json",
+  },
+  body,
+  redirect: "error",
+  signal: AbortSignal.timeout(30_000),
+});
 
 // The protected endpoints share one bounded retry policy: a lost response or a
-// 5xx retries the identical body, every other status is final. Like every
-// bearer-carrying call here, redirects are refused so the token never follows.
+// 5xx retries the identical request, every other status is final. Callers
+// send to a fixed URL (configured Convex site origin plus a literal path).
 const postSignup = async (
-  path: keyof typeof SIGNUP_ENDPOINTS,
-  body: string,
+  endpoint: "reserve" | "adopt",
+  send: () => Promise<Response>,
   sleep: (attempt: number) => Promise<void>,
   done: (status: number, payload: unknown) => boolean
 ): Promise<unknown> => {
@@ -286,19 +292,10 @@ const postSignup = async (
   for (let attempt = 1; attempt <= PROVISION_MAX_ATTEMPTS; attempt += 1) {
     let response: Response;
     try {
-      response = await fetch(`${env.convexSiteUrl}${SIGNUP_ENDPOINTS[path]}`, {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${env.cleanupToken}`,
-          "Content-Type": "application/json",
-        },
-        body,
-        redirect: "error",
-        signal: AbortSignal.timeout(30_000),
-      });
+      response = await send();
     } catch {
       if (attempt === PROVISION_MAX_ATTEMPTS) {
-        throw new Error(`Production E2E signup ${path} failed (network)`);
+        throw new Error(`Production E2E signup ${endpoint} failed (network)`);
       }
       await sleep(attempt);
       continue;
@@ -312,10 +309,10 @@ const postSignup = async (
       continue;
     }
     throw new Error(
-      `Production E2E signup ${path} failed (${response.status})${serverCode(payload)}`
+      `Production E2E signup ${endpoint} failed (${response.status})${serverCode(payload)}`
     );
   }
-  throw new Error(`Production E2E signup ${path} failed`);
+  throw new Error(`Production E2E signup ${endpoint} failed`);
 };
 
 // Reserves a server-generated recipient for one hosted signup. The request ID
@@ -333,9 +330,14 @@ export const reserveE2ESignup = async (
       /^e2e-signup-[0-9a-f]{32}$/.test(email.slice(0, -suffix.length))
     );
   };
+  const body = JSON.stringify({ requestId: crypto.randomUUID() });
   const payload = (await postSignup(
     "reserve",
-    JSON.stringify({ requestId: crypto.randomUUID() }),
+    () =>
+      fetch(
+        `${env.convexSiteUrl}/api/auth/internal/e2e/signup/reserve`,
+        signupRequest(body)
+      ),
     sleep,
     (status) => status === 200
   )) as Partial<E2ESignupReservation> | null;
@@ -372,7 +374,11 @@ export const adoptE2ESignup = async (
   });
   await postSignup(
     "adopt",
-    body,
+    () =>
+      fetch(
+        `${env.convexSiteUrl}/api/auth/internal/e2e/signup/adopt`,
+        signupRequest(body)
+      ),
     sleep,
     (status, payload) =>
       status === 200 &&
