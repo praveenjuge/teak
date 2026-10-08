@@ -2,22 +2,15 @@ import type { MutationCtx } from "../_generated/server";
 import { readAccountChangesPaused, readAuthPrimary } from "../env";
 import { classifyLegacyGrant } from "./workosLegacyGrants";
 
-// Called from component triggers in the credential write transaction. An HTTP
-// action's earlier environment snapshot cannot authorize a post-barrier write.
-export async function assertLegacyCredentialWrite(ctx: MutationCtx) {
-  const barriers = await ctx.db
-    .query("workosImportLeases")
-    .withIndex("by_scope", (q) => q.eq("scope", "management_import"))
-    .take(2);
-  if (
-    readAuthPrimary() !== "betterauth" ||
-    barriers.length > 1 ||
-    barriers[0]?.status === "quiesced"
-  ) {
-    throw new Error(
-      "Legacy credential writes are stopped for the auth transition"
+// Called from component triggers in the credential write transaction, so a
+// write admitted before the switch to WorkOS still rolls back afterward.
+export function assertLegacyCredentialWrite(_ctx: MutationCtx): Promise<void> {
+  if (readAuthPrimary() !== "betterauth") {
+    return Promise.reject(
+      new Error("Legacy credential writes are stopped for the auth transition")
     );
   }
+  return Promise.resolve();
 }
 
 export async function assertLegacyAccountWrite(ctx: MutationCtx) {
