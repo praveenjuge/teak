@@ -81,6 +81,7 @@ import type * as linkMetadata_url from "../linkMetadata/url.js";
 import type * as linkMetadata_x from "../linkMetadata/x.js";
 import type * as mcp_httpServer from "../mcp/httpServer.js";
 import type * as mcp_tools from "../mcp/tools.js";
+import type * as migration_dropDeprecatedIdentity from "../migration/dropDeprecatedIdentity.js";
 import type * as migration_exportBetterAuth from "../migration/exportBetterAuth.js";
 import type * as operationalRetention from "../operationalRetention.js";
 import type * as publicApi from "../publicApi.js";
@@ -288,6 +289,7 @@ declare const fullApi: ApiFromModules<{
   "linkMetadata/x": typeof linkMetadata_x;
   "mcp/httpServer": typeof mcp_httpServer;
   "mcp/tools": typeof mcp_tools;
+  "migration/dropDeprecatedIdentity": typeof migration_dropDeprecatedIdentity;
   "migration/exportBetterAuth": typeof migration_exportBetterAuth;
   operationalRetention: typeof operationalRetention;
   publicApi: typeof publicApi;

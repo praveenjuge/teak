@@ -44,7 +44,7 @@ export const getDeletionStatus = internalQuery({
     if (
       owners.length !== 1 ||
       owners[0].workosUserId !== workosUserId ||
-      owners[0].workosEmail?.trim().toLowerCase() !== email.trim().toLowerCase()
+      owners[0].email.trim().toLowerCase() !== email.trim().toLowerCase()
     ) {
       return { status: "conflict" as const };
     }
