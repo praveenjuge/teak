@@ -520,6 +520,14 @@ export default defineSchema({
       "reason",
       "resolvedAt",
     ]),
+  // Signed WorkOS webhooks Teak can never apply (malformed provider data).
+  // Kept for an operator to inspect; holds no provider payload.
+  workosWebhookDeadLetters: defineTable({
+    eventId: v.string(),
+    event: v.string(),
+    reason: v.string(),
+    receivedAt: v.number(),
+  }).index("by_eventId", ["eventId"]),
   workosEvents: defineTable({
     eventId: v.string(),
     workosUserId: v.optional(v.string()),

@@ -1,4 +1,4 @@
-import { v } from "convex/values";
+import { ConvexError, v } from "convex/values";
 import { internal } from "./_generated/api";
 import { internalMutation } from "./_generated/server";
 import { normalizeIdentityEmail } from "./userIdentityTable";
@@ -7,6 +7,12 @@ import {
   expectedWorkosDeletionResolution,
 } from "./workosDeletionCompletion";
 import { applyWorkosProfileInTransaction } from "./workosProfileApply";
+
+// A payload Teak can never apply, however often WorkOS retries it. The webhook
+// records it as a dead letter and acknowledges it instead of failing forever.
+export const INVALID_WORKOS_EVENT = "invalid_workos_event";
+const invalid = (message: string) =>
+  new ConvexError({ code: INVALID_WORKOS_EVENT, message });
 
 const validId = (value: unknown): value is string =>
   typeof value === "string" && /^[A-Za-z0-9_-]{1,256}$/.test(value);
@@ -17,7 +23,7 @@ const eventTime = (raw: string): number => {
       raw
     );
   if (!parts || raw.length > 64) {
-    throw new Error("Invalid WorkOS event timestamp");
+    throw invalid("Invalid WorkOS event timestamp");
   }
   const [, year, month, day, hour, minute, second, offset] = parts;
   const calendar = new Date(`${year}-${month}-${day}T00:00:00Z`);
@@ -33,10 +39,13 @@ const eventTime = (raw: string): number => {
   const time = Date.parse(raw);
   if (
     !(validCalendar && validClock && validOffset && Number.isFinite(time)) ||
-    time < 0 ||
-    time > Date.now() + 300_000
+    time < 0
   ) {
-    throw new Error("Invalid WorkOS event timestamp");
+    throw invalid("Invalid WorkOS event timestamp");
+  }
+  // Clock skew passes with time, so WorkOS keeps retrying this one.
+  if (time > Date.now() + 300_000) {
+    throw new Error("WorkOS event timestamp is in the future");
   }
   // The approved ledger uses milliseconds. Finer timestamps that collide are
   // treated by the equal-time conflict guard, never as verification promotion.
@@ -76,7 +85,7 @@ export const applyWorkosEvent = internalMutation({
       Object.keys(event.data).length > 64 ||
       JSON.stringify(event.data).length > 64 * 1024
     ) {
-      throw new Error("Invalid WorkOS event input");
+      throw invalid("Invalid WorkOS event input");
     }
     const duplicate = await ctx.db
       .query("workosEvents")
@@ -99,7 +108,7 @@ export const applyWorkosEvent = internalMutation({
         (event.data.updatedAt !== undefined &&
           typeof event.data.updatedAt !== "string"))
     ) {
-      throw new Error("Invalid WorkOS event user");
+      throw invalid("Invalid WorkOS event user");
     }
     const profile = {
       email,
@@ -117,7 +126,7 @@ export const applyWorkosEvent = internalMutation({
       profile.profilePictureUrl,
     ]) {
       if (!deleting && value !== null && typeof value !== "string") {
-        throw new Error("Invalid WorkOS event profile");
+        throw invalid("Invalid WorkOS event profile");
       }
     }
     const args = {
