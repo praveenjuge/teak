@@ -9,6 +9,7 @@ import {
 } from "./_generated/server";
 import { sha256 } from "./publicApiHttpShared";
 import { readResponseTextWithinLimit } from "./shared/boundedResponse";
+import { workosApiUrl } from "./shared/workosApi";
 
 const principalValidator = {
   workosUserId: v.string(),
@@ -389,7 +390,9 @@ async function providerApplication(
   clientId: string,
   key: string
 ) {
-  const base = `https://api.workos.com/user_management/users/${encodeURIComponent(userId)}/authorized_applications`;
+  const base = workosApiUrl(
+    `/user_management/users/${encodeURIComponent(userId)}/authorized_applications`
+  );
   let after: string | undefined;
   let found: string | undefined;
   const seen = new Set<string>();
@@ -571,7 +574,9 @@ export async function disconnectApplication(
     const result = await fetch(
       // Fixed WorkOS origin; encoded path IDs and rejected redirects prevent SSRF.
       // nosemgrep: rules_lgpl_javascript_ssrf_rule-node-ssrf
-      `https://api.workos.com/user_management/users/${encodeURIComponent(row.workosUserId)}/authorized_applications/${encodeURIComponent(applicationId)}`,
+      workosApiUrl(
+        `/user_management/users/${encodeURIComponent(row.workosUserId)}/authorized_applications/${encodeURIComponent(applicationId)}`
+      ),
       {
         method: "DELETE",
         headers: { Authorization: `Bearer ${apiKey}` },

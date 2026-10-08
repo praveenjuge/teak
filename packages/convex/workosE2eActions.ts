@@ -1,13 +1,14 @@
 "use node";
 
 import { createHash, randomBytes } from "node:crypto";
-import { NotFoundException, type User, WorkOS } from "@workos-inc/node";
+import { NotFoundException, type User } from "@workos-inc/node";
 import { v } from "convex/values";
 import { z } from "zod";
 import { internal } from "./_generated/api";
 import type { Doc } from "./_generated/dataModel";
 import { type ActionCtx, internalAction } from "./_generated/server";
 import { isE2EEmail } from "./e2eAccounts";
+import { createWorkosClient } from "./shared/workosClient";
 
 interface E2ECleanupResult {
   alreadyDeleted: string[];
@@ -36,11 +37,7 @@ async function target(ctx: ActionCtx) {
   };
   const validate = () => ctx.runQuery(internal.workosE2eState.admission, pins);
   const { domain, witness } = await validate();
-  const workos = new WorkOS(apiKey, {
-    clientId,
-    maxRetries: 0,
-    timeout: 10_000,
-  });
+  const workos = createWorkosClient(apiKey, clientId);
   if ((await workos.userManagement.getUser(witness)).id !== witness) {
     throw new Error("E2E witness mismatch");
   }

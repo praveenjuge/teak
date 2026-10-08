@@ -15,6 +15,7 @@ const app = defineApp({
     SIGNUPS_DISABLED: v.optional(v.string()),
     ACCOUNT_CHANGES_PAUSED: v.optional(v.string()),
     // WorkOS AuthKit: the only sign-in provider.
+    WORKOS_API_BASE_URL: v.optional(v.string()),
     WORKOS_AUTHKIT_DOMAIN: v.optional(v.string()),
     WORKOS_CONNECT_CLI_CLIENT_ID: v.optional(v.string()),
     WORKOS_CONNECT_RAYCAST_CLIENT_ID: v.optional(v.string()),

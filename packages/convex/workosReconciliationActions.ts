@@ -1,11 +1,12 @@
 "use node";
 
 import { createHash } from "node:crypto";
-import { NotFoundException, type User, WorkOS } from "@workos-inc/node";
+import { NotFoundException, type User, type WorkOS } from "@workos-inc/node";
 import { v } from "convex/values";
 import { internal } from "./_generated/api";
 import type { Doc, Id } from "./_generated/dataModel";
 import { type ActionCtx, internalAction } from "./_generated/server";
+import { createWorkosClient } from "./shared/workosClient";
 
 function credentials() {
   const apiKey = process.env.WORKOS_API_KEY,
@@ -15,7 +16,7 @@ function credentials() {
     throw new Error("Missing reconciliation credentials");
   }
   return {
-    workos: new WorkOS(apiKey, { clientId, maxRetries: 0, timeout: 10_000 }),
+    workos: createWorkosClient(apiKey, clientId),
     environmentId,
     clientId,
     apiKeyFingerprint: createHash("sha256").update(apiKey).digest("hex"),

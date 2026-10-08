@@ -1,5 +1,60 @@
 import { describe, expect, test } from "bun:test";
-import { planWorkosCredential } from "./setup-workos.ts";
+import { planWorkosApiBase, planWorkosCredential } from "./setup-workos.ts";
+
+describe("planWorkosApiBase", () => {
+  test("defaults a fresh deployment to production WorkOS", () => {
+    expect(planWorkosApiBase({ localBackend: false })).toEqual({
+      status: "ready",
+      value: "https://api.workos.com",
+      setDeployment: true,
+    });
+  });
+
+  test("uses an exported emulator origin for a fresh local backend", () => {
+    expect(
+      planWorkosApiBase({
+        explicit: "http://localhost:4100",
+        localBackend: true,
+      })
+    ).toEqual({
+      status: "ready",
+      value: "http://localhost:4100",
+      setDeployment: true,
+    });
+  });
+
+  test("never overwrites a valid deployment value", () => {
+    expect(
+      planWorkosApiBase({
+        deployment: "http://localhost:4100",
+        explicit: "https://api.workos.com",
+        localBackend: true,
+      })
+    ).toEqual({
+      status: "ready",
+      value: "http://localhost:4100",
+      setDeployment: false,
+    });
+  });
+
+  test.each([
+    [{ explicit: "http://localhost:4100/x", localBackend: true }, "exported"],
+    [{ explicit: "https://evil.example", localBackend: true }, "exported"],
+    [{ deployment: "not a url", localBackend: true }, "on the deployment"],
+    [
+      { explicit: "http://localhost:4100", localBackend: false },
+      "local backend",
+    ],
+    [
+      { deployment: "http://localhost:4100", localBackend: false },
+      "local backend",
+    ],
+  ])("refuses an unusable base instead of storing it (%#)", (sources, text) => {
+    const plan = planWorkosApiBase(sources);
+    expect(plan.status).toBe("invalid");
+    expect(JSON.stringify(plan)).toContain(text);
+  });
+});
 
 describe("planWorkosCredential", () => {
   test("reports a credential missing from every source", () => {
