@@ -12,6 +12,7 @@ import { unsealData } from "iron-session";
 mock.module("server-only", () => ({}));
 const originalFetch = globalThis.fetch;
 const keys = [
+  "NEXT_PUBLIC_CONVEX_URL",
   "WORKOS_CLIENT_ID",
   "WORKOS_API_KEY",
   "WORKOS_COOKIE_PASSWORD",
@@ -27,6 +28,7 @@ process.env.WORKOS_API_KEY = "sk_test_fixture";
 process.env.WORKOS_COOKIE_PASSWORD = cookiePassword;
 process.env.NEXT_PUBLIC_WORKOS_REDIRECT_URI = "http://localhost:3142/callback";
 process.env.NODE_ENV = "development";
+process.env.NEXT_PUBLIC_CONVEX_URL = "https://sign-up-tests.convex.cloud";
 const { NextRequest } = await import("next/server");
 const { AppRouteRouteModule } = await import(
   "next/dist/server/route-modules/app-route/module.js"
@@ -148,8 +150,26 @@ describe("WorkOS Initiate login URI", () => {
   });
 });
 
+// Answers only the Convex auth-mode query; any other upstream fails the test.
+const authMode = (signupsDisabled: boolean) =>
+  ((input: RequestInfo | URL) =>
+    String(input) === "https://sign-up-tests.convex.cloud/api/query"
+      ? Promise.resolve(
+          Response.json({
+            status: "success",
+            value: {
+              primary: "workos",
+              signupsDisabled,
+              accountChangesPaused: false,
+            },
+            logLines: [],
+          })
+        )
+      : offline(input)) as typeof fetch;
+
 describe("WorkOS sign-up route", () => {
   test("starts AuthKit on the sign-up screen", async () => {
+    globalThis.fetch = authMode(false);
     const response = await signUp(
       "http://localhost:3142/sign-up?next=%2Fsettings"
     );
@@ -158,6 +178,16 @@ describe("WorkOS sign-up route", () => {
     expect(authorize.searchParams.get("screen_hint")).toBe("sign-up");
     expect(authorize.searchParams.get("client_id")).toBe("client_web123");
     expect(pkceCookies(response)).toHaveLength(1);
+  });
+  test.each([
+    ["sign-ups are paused", authMode(true)],
+    ["the pause flag can't be read", offline],
+  ])("opens the sign-in screen when %s", async (_name, fetchImpl) => {
+    globalThis.fetch = fetchImpl;
+    const response = await signUp("http://localhost:3142/sign-up");
+    expect(response.status).toBe(303);
+    const authorize = new URL(response.headers.get("location") ?? "");
+    expect(authorize.searchParams.get("screen_hint")).toBe("sign-in");
   });
 });
 

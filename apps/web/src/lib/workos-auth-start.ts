@@ -1,8 +1,25 @@
 import "server-only";
+import { api } from "@teak/convex";
 import { getSignInUrl, getSignUpUrl } from "@workos-inc/authkit-nextjs";
+import { ConvexHttpClient } from "convex/browser";
 import { type NextRequest, NextResponse } from "next/server";
+import { getConvexUrl } from "./public-env";
 import { getSafeNextPath } from "./safe-next-path";
 import { readWorkosWebConfig, workosCallbackState } from "./workos-config";
+
+// While sign-ups are paused, sign-up opens the sign-in screen instead of a
+// form the backend would reject. If the flag can't be read, sign-in is safe.
+const signupsOpen = async (): Promise<boolean> => {
+  try {
+    const mode = await new ConvexHttpClient(getConvexUrl()).query(
+      api.auth.getAuthMode,
+      {}
+    );
+    return !mode.signupsDisabled;
+  } catch {
+    return false;
+  }
+};
 
 // Starts hosted AuthKit from a route handler: the SDK writes the PKCE cookie
 // through `cookies()`, which only route handlers and server actions may set.
@@ -27,7 +44,7 @@ export async function startWorkosAuth(
     ...(params.has("reauth") && { maxAge: 0 }),
   };
   const location =
-    screen === "sign-up"
+    screen === "sign-up" && (await signupsOpen())
       ? await getSignUpUrl(options)
       : await getSignInUrl(options);
   const response = NextResponse.redirect(location, 303);
