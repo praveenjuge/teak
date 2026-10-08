@@ -1,5 +1,5 @@
 import { ConvexError, v } from "convex/values";
-import { components, internal } from "./_generated/api";
+import { internal } from "./_generated/api";
 import type { Doc, Id } from "./_generated/dataModel";
 import {
   type ActionCtx,
@@ -11,6 +11,7 @@ import {
 } from "./_generated/server";
 import { removeCardUsage } from "./card/cardUsage";
 import { readAccountChangesPaused } from "./env";
+import { findLegacyBetterAuthUser } from "./legacyBetterAuth";
 import { getDeletionRetryPrincipal, getSessionUser } from "./securitySessions";
 import { ACCOUNT_CHANGES_PAUSED_MESSAGE } from "./shared/constants";
 import { TELEMETRY_OPERATIONS } from "./shared/telemetry";
@@ -62,17 +63,6 @@ export const beginAccountDeletion = async (
       userId,
       startedAt: Date.now(),
     });
-  }
-};
-
-export const finishAccountDeletion = async (
-  ctx: MutationCtx,
-  userId: string
-) => {
-  const existing = await getAccountDeletionState(ctx, userId);
-  // Old Better Auth afterDelete hooks must not finish a workflow-owned state.
-  if (existing && existing.generation === undefined) {
-    await ctx.db.delete("accountDeletionStates", existing._id);
   }
 };
 
@@ -422,15 +412,6 @@ export const beginAccountDataDeletion = internalMutation({
   },
 });
 
-export const finishAccountDataDeletion = internalMutation({
-  args: { userId: v.string() },
-  returns: v.null(),
-  handler: async (ctx, { userId }) => {
-    await finishAccountDeletion(ctx, userId);
-    return null;
-  },
-});
-
 export const removeAccountCardUsageHandler = async (
   ctx: MutationCtx,
   userId: string
@@ -475,10 +456,7 @@ export const initiateAccountDeletion = async (
   const legacy =
     owner.identityOrigin === "workos"
       ? null
-      : await ctx.runQuery(components.betterAuth.adapter.findOne, {
-          model: "user",
-          where: [{ field: "_id", value: owner.teakUserId }],
-        });
+      : await findLegacyBetterAuthUser(ctx, owner.teakUserId);
   const target = await currentWorkosDeletionTarget();
   const stateId = await ctx.db.insert("accountDeletionStates", {
     userId: owner.teakUserId,

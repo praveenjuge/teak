@@ -139,6 +139,13 @@ export const finalize = internalMutation({
       throw new Error("deletion_completion_invalid");
     }
     const owner = owners[0];
+    // Owners from before WorkOS keep their address on the owner row; the
+    // tombstone must not leave it readable. WorkOS-created owners are
+    // unchanged.
+    const redaction =
+      owner.identityOrigin === "workos"
+        ? {}
+        : { email: "", emailVerified: false };
     if (state.workosUserId) {
       const providers = await ctx.db
         .query("users")
@@ -173,6 +180,7 @@ export const finalize = internalMutation({
       // receipt settlement; retries cannot mint a different completion.
       const completedAt = previous?.completedAt ?? Date.now();
       await ctx.db.patch("users", owner._id, {
+        ...redaction,
         deletedAt: owner.deletedAt ?? completedAt,
         workosDeletionCompletion: previous ?? {
           version: 1,
@@ -216,6 +224,7 @@ export const finalize = internalMutation({
       }
     } else {
       await ctx.db.patch("users", owner._id, {
+        ...redaction,
         deletedAt: owner.deletedAt ?? Date.now(),
       });
     }

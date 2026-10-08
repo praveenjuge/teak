@@ -1,11 +1,14 @@
 "use node";
 import { NotFoundException } from "@workos-inc/node";
-import { createFunctionHandle } from "convex/server";
 import { v } from "convex/values";
-import { components, internal } from "./_generated/api";
+import { internal } from "./_generated/api";
 import type { Doc } from "./_generated/dataModel";
-import { type ActionCtx, internalAction } from "./_generated/server";
+import { internalAction } from "./_generated/server";
 import { runAccountDataDeletion } from "./accountDeletion";
+import {
+  deleteLegacyBetterAuthRows,
+  deleteLegacyBetterAuthSessions,
+} from "./legacyBetterAuth";
 import { readResponseTextWithinLimit } from "./shared/boundedResponse";
 import { workosApiUrl } from "./shared/workosApi";
 import { createWorkosClient } from "./shared/workosClient";
@@ -15,40 +18,6 @@ import {
   currentWorkosDeletionTarget,
   sameWorkosDeletionTarget,
 } from "./workosDeletionCompletion";
-
-// Accounts from before WorkOS keep retained Better Auth rows. Deletion removes
-// every row keyed to that user: sessions, accounts, OAuth grants and consents,
-// two-factor secrets, then the user. The delete trigger handle keeps the user
-// tombstone and email redaction. Verification rows are keyed by email or token,
-// not user, and expire on their own.
-const legacyDeleteTrigger = () => createFunctionHandle(internal.auth.onDelete);
-
-async function deleteLegacyRows(
-  ctx: Pick<ActionCtx, "runMutation">,
-  model:
-    | "session"
-    | "account"
-    | "oauthAccessToken"
-    | "oauthConsent"
-    | "twoFactor",
-  userId: string
-) {
-  const onDeleteHandle = await legacyDeleteTrigger();
-  let cursor: string | null = null;
-  for (let page = 0; page < 100; page++) {
-    const result: { isDone: boolean; continueCursor: string } =
-      await ctx.runMutation(components.betterAuth.adapter.deleteMany, {
-        input: { model, where: [{ field: "userId", value: userId }] },
-        paginationOpts: { cursor, numItems: 100 },
-        onDeleteHandle,
-      });
-    if (result.isDone) {
-      return;
-    }
-    cursor = result.continueCursor;
-  }
-  throw new Error("deletion_legacy_rows_unbounded");
-}
 
 // Keep even a page of slow revocations within the action time limit.
 const PROVIDER_DELETE_PAGE_SIZE = 10;
@@ -223,7 +192,7 @@ export const runStage = internalAction({
         }
       }
       if (state.betterAuthUserId) {
-        await deleteLegacyRows(ctx, "session", state.betterAuthUserId);
+        await deleteLegacyBetterAuthSessions(ctx, state.betterAuthUserId);
       }
     } else if (stage === 2) {
       if (state.workosUserId && (await authorizedApps(state))) {
@@ -281,22 +250,7 @@ export const runStage = internalAction({
       }
     } else if (stage === 5) {
       if (state.betterAuthUserId) {
-        for (const model of [
-          "session",
-          "account",
-          "oauthAccessToken",
-          "oauthConsent",
-          "twoFactor",
-        ] as const) {
-          await deleteLegacyRows(ctx, model, state.betterAuthUserId);
-        }
-        await ctx.runMutation(components.betterAuth.adapter.deleteOne, {
-          input: {
-            model: "user",
-            where: [{ field: "_id", value: state.betterAuthUserId }],
-          },
-          onDeleteHandle: await legacyDeleteTrigger(),
-        });
+        await deleteLegacyBetterAuthRows(ctx, state.betterAuthUserId);
       }
     } else {
       throw new Error("invalid_deletion_stage");

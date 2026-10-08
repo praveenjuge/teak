@@ -12,7 +12,6 @@ import { seedComponentUser } from "./__tests__/helpers/workosOwner.test-utils";
 import { components, internal } from "./_generated/api";
 import type { Doc } from "./_generated/dataModel";
 import schema from "./schema";
-import { mirrorBetterAuthUser } from "./userIdentityTable";
 import type { applyWorkosEvent } from "./workosLifecycle";
 import { readCanonicalWorkosProfile } from "./workosProfileRead";
 import type { linkWorkosUser } from "./workosUsers";
@@ -97,9 +96,8 @@ const resolve = (t: Backend, workosUserId = "user_provider") =>
 
 // Failure modes: duplicate receipts/effects; unmapped delete forgotten; deleted
 // link resurrected by external ID or bootstrap; provider changes stealing
-// canonical owners; Better Auth clearing a provider tombstone; rejected input
-// writing state; quarantine retry duplicating effects; vault deletion or
-// scheduled cleanup.
+// canonical owners; rejected input writing state; quarantine retry duplicating
+// effects; vault deletion or scheduled cleanup.
 describe("WorkOS lifecycle linking and deletion", () => {
   beforeEach(() => {
     vi.stubEnv("SIGNUPS_DISABLED", "true");
@@ -252,17 +250,6 @@ describe("WorkOS lifecycle linking and deletion", () => {
     expect(after.users[0].deletedAt).toBeUndefined();
     expect(after.cards).toEqual(before.cards);
     expect(after.scheduled).toEqual([]);
-    await t.run((ctx) =>
-      mirrorBetterAuthUser(ctx, {
-        _id: "owner-a",
-        email: "still-active@example.com",
-        emailVerified: true,
-      })
-    );
-    expect((await snapshot(t)).users[0]).toMatchObject({
-      workosDeletedAt: Date.parse(time(2)),
-      email: "still-active@example.com",
-    });
   });
 
   test("provider deletion is terminal even when its delivery timestamp is older", async () => {

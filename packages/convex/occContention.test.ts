@@ -12,7 +12,6 @@ import {
   assertAccountNotDeleting,
   beginAccountDeletion,
   deleteAccountDataHandler,
-  finishAccountDeletion,
   getAccountCardDeletionBatchHandler,
 } from "./accountDeletion";
 import {
@@ -62,6 +61,18 @@ const insertCard = async (
     updatedAt: Date.now(),
     ...overrides,
   });
+
+// Ends a deletion that beginAccountDeletion started, as the workflow's
+// finalization does once the account is gone.
+const endAccountDeletion = async (ctx: MutationCtx, userId: string) => {
+  const states = await ctx.db
+    .query("accountDeletionStates")
+    .withIndex("by_userId", (q) => q.eq("userId", userId))
+    .take(1);
+  for (const state of states) {
+    await ctx.db.delete("accountDeletionStates", state._id);
+  }
+};
 
 const drainCardSearchTagSync = async (
   ctx: MutationCtx,
@@ -846,7 +857,7 @@ describe("OCC contention behavior", () => {
       expect(document).not.toBeNull();
       expect(document?.sourceUpdatedAt).not.toBe(999);
 
-      await finishAccountDeletion(ctx, "user-fence-patch");
+      await endAccountDeletion(ctx, "user-fence-patch");
       const resumed = await patchCardWithSearchSync(ctx, cardId, {
         content: "after",
         updatedAt: 999,
@@ -895,7 +906,7 @@ describe("OCC contention behavior", () => {
         .unique();
       expect(document?.sourceUpdatedAt).not.toBe(999);
 
-      await finishAccountDeletion(ctx, "user-deleting");
+      await endAccountDeletion(ctx, "user-deleting");
       expect(await syncCardSearchDocumentHandler(ctx, cardId)).toBeNull();
       const synced = await ctx.db
         .query("cardSearchDocuments")
@@ -937,7 +948,7 @@ describe("OCC contention behavior", () => {
       );
       expect(await ctx.db.query("cardSearchTags").collect()).toHaveLength(0);
 
-      await finishAccountDeletion(ctx, "user-queued");
+      await endAccountDeletion(ctx, "user-queued");
     });
   });
 
