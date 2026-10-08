@@ -10,6 +10,7 @@ import {
 // never reach the token endpoint, and sign-out invalidates an open browser flow.
 let result: Record<string, unknown>;
 let config: Record<string, unknown>;
+let promptOptions: unknown;
 let prompt: (() => Promise<unknown>) | undefined;
 mock.module("expo-auth-session", () => ({
   CodeChallengeMethod: { S256: "S256" },
@@ -28,7 +29,11 @@ mock.module("expo-auth-session", () => ({
         "https://api.workos.com/user_management/authorize"
       );
     }
-    promptAsync(discovery: { authorizationEndpoint: string }) {
+    promptAsync(
+      discovery: { authorizationEndpoint: string },
+      options: unknown
+    ) {
+      promptOptions = options;
       expect(discovery.authorizationEndpoint).toBe(
         "https://api.workos.com/user_management/authorize"
       );
@@ -115,8 +120,23 @@ describe("native AuthKit browser flow", () => {
         codeChallengeMethod: "S256",
         extraParams: { provider },
       });
+      // No AuthKit cookie outlives sign-in, so a revoked session stays out.
+      expect(promptOptions).toEqual({ preferEphemeralSession: true });
       expect(s.session.getSnapshot().user?.teakUserId).toBe("permanent-vault");
       expect(s.count()).toBe(1);
+    }
+  );
+  test.each(["sign-in", "sign-up"] as const)(
+    "opens AuthKit on its %s screen",
+    async (screenHint: "sign-in" | "sign-up") => {
+      const s = setup();
+      expect(await signInWithWorkos(s.session, "authkit", screenHint)).toBe(
+        true
+      );
+      expect(config.extraParams).toEqual({
+        provider: "authkit",
+        screen_hint: screenHint,
+      });
     }
   );
   test.each(["cancel", "dismiss"])(

@@ -87,7 +87,11 @@ export async function signInWithWorkos(
     },
   });
   await request.makeAuthUrlAsync(discovery);
-  const result = await request.promptAsync(discovery);
+  // A private browser session keeps no AuthKit cookie after sign-in, so Log
+  // Out only needs the server revocation and never a browser logout.
+  const result = await request.promptAsync(discovery, {
+    preferEphemeralSession: true,
+  });
   if (result.type === "cancel" || result.type === "dismiss") {
     return false;
   }
