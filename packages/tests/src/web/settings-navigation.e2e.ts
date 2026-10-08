@@ -1,13 +1,12 @@
 import { expect, test } from "./fixtures";
 import { observeNavigation } from "./navigation-observer";
 
-// TODO(emulator-e2e): the home draft is lost after a settings round trip on
-// the local dev server; find out whether the app or the dev server drops it.
-test.fixme("preserves home through ten warm settings round trips", async ({
+test("preserves home through ten warm settings round trips", async ({
   page,
 }) => {
-  // The dev server compiles a route on its first visit and may reload the
-  // page while it does, so open settings once before typing the draft.
+  // Right after sign-in, the first trip to settings remounts the composer.
+  // Make that trip before typing, so every trip below takes the warm path,
+  // where Next.js keeps home hidden in <Activity> and shows it again.
   await page.getByRole("link", { name: "Settings", exact: true }).click();
   await expect(
     page.getByRole("heading", { name: "Settings", exact: true })
