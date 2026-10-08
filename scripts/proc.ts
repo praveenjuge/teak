@@ -27,6 +27,13 @@ const groupAlive = (pgid: number): boolean => {
   }
 };
 
+const waitForGroupExit = async (pgid: number, ms: number): Promise<void> => {
+  const deadline = Date.now() + ms;
+  while (groupAlive(pgid) && Date.now() < deadline) {
+    await Bun.sleep(100);
+  }
+};
+
 const settleGroup = async (pgid: number): Promise<void> => {
   if (!groupAlive(pgid)) {
     return;
@@ -36,15 +43,14 @@ const settleGroup = async (pgid: number): Promise<void> => {
   } catch {
     return;
   }
-  const deadline = Date.now() + GROUP_EXIT_GRACE_MS;
-  while (groupAlive(pgid) && Date.now() < deadline) {
-    await Bun.sleep(100);
-  }
+  await waitForGroupExit(pgid, GROUP_EXIT_GRACE_MS);
   try {
     process.kill(-pgid, "SIGKILL");
   } catch {
     // The group exited within the grace period.
+    return;
   }
+  await waitForGroupExit(pgid, 1000);
 };
 
 export interface RunCommandResult {
@@ -126,11 +132,20 @@ export const runCommand = async (
     stdoutReader.cancel().catch(() => {});
     stderrReader.cancel().catch(() => {});
   }, timeoutMs);
+  // Settle the group as soon as the command exits, not after output EOF: a
+  // leftover descendant holding an inherited pipe would otherwise keep the
+  // readers waiting until the timeout.
+  const exited = proc.exited.then(async (code) => {
+    if (!timedOut) {
+      await settleGroup(proc.pid);
+    }
+    return code;
+  });
   try {
     const [stdout, stderr, exitCode] = await Promise.all([
       readStream(stdoutReader),
       readStream(stderrReader),
-      proc.exited,
+      exited,
     ]);
     if (timedOut) {
       const note = `command timed out after ${timeoutMs}ms`;
@@ -142,8 +157,6 @@ export const runCommand = async (
         timedOut,
       };
     }
-    clearTimeout(timer);
-    await settleGroup(proc.pid);
     return { exitCode: exitCode ?? 1, pid: proc.pid, stderr, stdout, timedOut };
   } catch {
     return {

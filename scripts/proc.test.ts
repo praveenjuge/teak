@@ -81,6 +81,18 @@ describe("runCommand", () => {
     expect(groupGone(result.pid)).toBe(true);
   });
 
+  test("a descendant holding the output pipe does not delay a normal exit", async () => {
+    const started = Date.now();
+    const result = await runCommand(["sh", "-c", "sleep 33 & echo started"], {
+      timeoutMs: 20_000,
+    });
+    expect(result.timedOut).toBe(false);
+    expect(result.exitCode).toBe(0);
+    expect(result.stdout.trim()).toBe("started");
+    expect(Date.now() - started).toBeLessThan(10_000);
+    expect(groupGone(result.pid)).toBe(true);
+  });
+
   test("a normal exit kills descendants that ignore SIGTERM", async () => {
     const started = Date.now();
     const result = await runCommand([
