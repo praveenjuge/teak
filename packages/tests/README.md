@@ -35,12 +35,16 @@ Most test accounts are provisioned as already-verified users through the token-p
 The backend for a real hosted WorkOS signup canary is in place, but no journey uses it yet. The hosted signup labels, sender, subject and code format still need live proof first.
 
 1. `reserveE2ESignup()` calls `/api/auth/internal/e2e/signup/reserve`. The server generates an `e2e-signup-<32 hex>` recipient, records the lease, and only then checks that WorkOS has no user for it. A retry after a lost response sends the same request ID and gets the same recipient back. At most 3 leases can be live at once.
-2. After hosted signup and verification, `adoptE2ESignup()` calls `/signup/adopt`. The server binds the exact WorkOS user to the lease and only then sets `teak_e2e=v1` plus `teak_e2e_reservation`. It re-reads the user and qualifies the lease once the real webhook owner exists. Foreign metadata, a user created before the empty check, or a different user for the same lease all fail closed.
-3. Cleanup is unchanged for flagged accounts. For an open lease, it also handles interruptions:
-   - It adopts an unflagged in-window user.
-   - It deletes a bound, unverified user that has no Teak owner and no owned or verified profile.
-   - It reports a verified ownerless user as pending.
-   - An absent provider user never closes an unbound lease, so the sweep keeps rechecking expired leases for up to the 90-day orphan window.
+2. After hosted signup and verification, `adoptE2ESignup()` calls `/signup/adopt`.
+   - The server binds the exact WorkOS user to the lease and only then sets `teak_e2e=v1` plus `teak_e2e_reservation`. It re-reads the user and qualifies the lease once the real webhook owner exists.
+   - The user must have been created no earlier than 5 minutes before the empty check and no later than 5 minutes after the lease ends. That rejects an older account renamed to the address.
+   - Foreign metadata or a different user for the same lease fail closed. A partly written flag on the already-bound user is completed on retry.
+3. Cleanup is unchanged for flagged accounts. For an open lease, it handles interruptions:
+   - It adopts an in-window user.
+   - A user created outside the window is refused every time, and cleanup stays red until someone reviews it.
+   - A bound, unverified user with no Teak owner and no owned or verified profile is stamped for deletion first. The stamp is permanent. From then on, `linkWorkosUser`, which is the only path that creates or links a WorkOS owner (webhook, bootstrap, profile apply, import), denies that identity with `deleting_user`. Cleanup re-reads the user right before deleting and refuses if it is now verified.
+   - A verified ownerless user is reported as pending.
+   - An open lease with no WorkOS user is also pending (HTTP 202), never `alreadyDeleted`. A submitted signup could still land, so teardown and the sweep stay unresolved until the user appears and is cleaned up, or the lease is past the 90-day orphan window.
 
 `waitForEmail` and `waitForEmailCode` take a `fresh: { from, sentAfter }` option. A matching message must have exactly one `To`, no `Cc` or `Bcc`, the proven sender, and a `Created` time no earlier than 60s before the request. Two such messages, two distinct matching links, or two distinct codes fail closed. `exactLinkPredicate` admits only the proven https origin and path with exactly one non-empty token parameter. Errors never include the code or the link.
 

@@ -316,11 +316,15 @@ const postSignup = async (
 export const reserveE2ESignup = async (
   sleep: (attempt: number) => Promise<void> = waitForProvisionRetry
 ): Promise<E2ESignupReservation> => {
-  const recipient = new RegExp(
-    `^e2e-signup-[0-9a-f]{32}@${env.emailDomain
-      .toLowerCase()
-      .replace(/[.]/g, "\\.")}$`
-  );
+  // Exact domain equality plus the server's fixed local-part shape; no
+  // pattern is built from configuration.
+  const isReservedRecipient = (email: string) => {
+    const suffix = `@${env.emailDomain.toLowerCase()}`;
+    return (
+      email.endsWith(suffix) &&
+      /^e2e-signup-[0-9a-f]{32}$/.test(email.slice(0, -suffix.length))
+    );
+  };
   const payload = (await postSignup(
     "reserve",
     JSON.stringify({ requestId: crypto.randomUUID() }),
@@ -332,7 +336,7 @@ export const reserveE2ESignup = async (
     !payload.reservationId.length ||
     payload.reservationId.length > 128 ||
     typeof payload.email !== "string" ||
-    !recipient.test(payload.email) ||
+    !isReservedRecipient(payload.email) ||
     typeof payload.expiresAt !== "number" ||
     !(payload.expiresAt > Date.now())
   ) {

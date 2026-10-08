@@ -3,6 +3,7 @@ import betterAuthTest from "@convex-dev/better-auth/test";
 import workflowTest from "@convex-dev/workflow/test";
 import { convexTest } from "convex-test";
 import { afterEach, beforeEach, expect, test, vi } from "vitest";
+import { internal } from "./_generated/api";
 import schema from "./schema";
 
 const modules = import.meta.glob("./**/*.ts");
@@ -17,8 +18,20 @@ interface FakeUser {
   metadata: Record<string, string>;
 }
 
+interface Hooks {
+  // Runs on each GET of one user; a returned Response replaces the read.
+  get?: (
+    user: FakeUser
+  ) => Promise<Response | undefined> | Response | undefined;
+  // Decides which metadata a PUT actually stores.
+  put?: (
+    user: FakeUser,
+    metadata: Record<string, string>
+  ) => Record<string, string>;
+}
+
 // The WorkOS Management API boundary. Provider state lives in `users`.
-function workos(users: Map<string, FakeUser>) {
+function workos(users: Map<string, FakeUser>, hooks: Hooks = {}) {
   const writes: { method: string; id: string; body?: unknown }[] = [];
   const shape = (user: FakeUser) => ({
     object: "user",
@@ -31,7 +44,7 @@ function workos(users: Map<string, FakeUser>) {
   });
   vi.stubGlobal(
     "fetch",
-    (input: string | URL | Request, init?: RequestInit) => {
+    async (input: string | URL | Request, init?: RequestInit) => {
       const url = new URL(input instanceof Request ? input.url : String(input));
       const method = init?.method ?? "GET";
       if (url.pathname === "/user_management/users/user_WITNESS") {
@@ -54,12 +67,20 @@ function workos(users: Map<string, FakeUser>) {
         if (method === "PUT") {
           const body = JSON.parse(String(init?.body));
           writes.push({ method, id, body });
-          user.metadata = { ...user.metadata, ...body.metadata };
+          user.metadata = hooks.put
+            ? hooks.put(user, body.metadata)
+            : { ...user.metadata, ...body.metadata };
         }
         if (method === "DELETE") {
           writes.push({ method, id });
           users.delete(id);
           return new Response(null, { status: 202 });
+        }
+        if (method === "GET") {
+          const replaced = await hooks.get?.(user);
+          if (replaced) {
+            return replaced;
+          }
         }
         return Response.json(shape(user));
       }
@@ -123,6 +144,49 @@ function setup() {
     t.run((ctx) => ctx.db.query("e2eSignupReservations").collect());
   return { t, post, reserve, rows };
 }
+
+type Harness = ReturnType<typeof setup>["t"];
+const profileFor = (email: string, emailVerified: boolean) => ({
+  revision: 1,
+  source: "event" as const,
+  providerUpdatedAt: new Date().toISOString(),
+  profile: {
+    email,
+    emailVerified,
+    externalId: null,
+    firstName: null,
+    lastName: null,
+    profilePictureUrl: null,
+  },
+});
+// The webhook-derived owner and canonical profile a real signup ends with.
+const ready = (t: Harness, email: string, workosUserId = "user_SIGNUP") =>
+  t.run(async (ctx) => {
+    await ctx.db.insert("users", {
+      teakUserId: "teak_signup",
+      identityOrigin: "workos",
+      email,
+      emailVerified: true,
+      workosEmail: email,
+      workosEmailVerified: true,
+      workosUserId,
+    });
+    await ctx.db.insert("workosProfiles", {
+      workosUserId,
+      teakUserId: "teak_signup",
+      ...profileFor(email, true),
+    });
+  });
+// The canonical create path both the webhook and bootstrap use.
+const link = (t: Harness, email: string, workosUserId = "user_SIGNUP") =>
+  t.mutation(internal.workosUsers.linkWorkosUser, {
+    workosUserId,
+    email,
+    emailVerified: true,
+    externalId: null,
+    source: "webhook",
+    allowCreate: true,
+  });
 
 const signup = (
   email: string,
@@ -190,32 +254,7 @@ test("adoption binds before flagging, writes only the reservation keys and quali
   const { t, post, reserve, rows } = setup();
   const { reservationId, email } = await reserve();
   users.set("user_SIGNUP", signup(email, { email_verified: true }));
-  await t.run(async (ctx) => {
-    await ctx.db.insert("users", {
-      teakUserId: "teak_signup",
-      identityOrigin: "workos",
-      email,
-      emailVerified: true,
-      workosEmail: email,
-      workosEmailVerified: true,
-      workosUserId: "user_SIGNUP",
-    });
-    await ctx.db.insert("workosProfiles", {
-      workosUserId: "user_SIGNUP",
-      teakUserId: "teak_signup",
-      revision: 1,
-      source: "event",
-      providerUpdatedAt: new Date().toISOString(),
-      profile: {
-        email,
-        emailVerified: true,
-        externalId: null,
-        firstName: null,
-        lastName: null,
-        profilePictureUrl: null,
-      },
-    });
-  });
+  await ready(t, email);
   expect(await post("signup/adopt", { reservationId, email })).toEqual({
     status: 200,
     body: { email },
@@ -248,6 +287,12 @@ test("adoption binds before flagging, writes only the reservation keys and quali
 test.each([
   ["foreign metadata", { metadata: { plan: "pro" } }],
   ["a flag without this reservation", { metadata: { teak_e2e: "v1" } }],
+  [
+    "an older account renamed to the reserved address",
+    {
+      created_at: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString(),
+    },
+  ],
   [
     "a user created before the provider was seen empty",
     { created_at: new Date(Date.now() - 10 * 60 * 1000).toISOString() },
@@ -355,14 +400,22 @@ test.each([
   expect(users.has("user_SIGNUP")).toBe(true);
 });
 
-test("provider absence during a lease reports nothing to delete but keeps the lease open", async () => {
+test("provider absence on an open unbound lease stays pending, never cleaned up", async () => {
   workos(new Map());
   const { post, reserve, rows } = setup();
-  const { email } = await reserve();
-  expect(await post("cleanup", { emails: [email] })).toMatchObject({
-    status: 200,
-    body: { alreadyDeleted: [email], deleted: [] },
-  });
+  const { email, expiresAt } = await reserve();
+  const pending = {
+    status: 202,
+    body: {
+      alreadyDeleted: [],
+      deleted: [],
+      failures: [{ email, reason: "account cleanup pending" }],
+    },
+  };
+  expect(await post("cleanup", { emails: [email] })).toMatchObject(pending);
+  // The sweep reports the expired lease the same way, not as deleted.
+  vi.setSystemTime(expiresAt + 40 * 60 * 1000);
+  expect(await post("cleanup", {})).toMatchObject(pending);
   const [row] = await rows();
   expect(row.state).toBe("reserved");
   expect(row.closedAt).toBeUndefined();
@@ -393,4 +446,176 @@ test("a rotated credential cannot advance an existing reservation", async () => 
   );
   expect(writes).toEqual([]);
   expect((await rows())[0].state).toBe("reserved");
+});
+
+test("a verified provider read before the stamp leaves the lease pending without stamping", async () => {
+  const users = new Map<string, FakeUser>();
+  // The listing shows an unverified user; the fresh read shows it verified.
+  const writes = workos(users, {
+    get: (user) => {
+      user.email_verified = true;
+    },
+  });
+  const { post, reserve, rows } = setup();
+  const { email } = await reserve();
+  users.set("user_SIGNUP", signup(email));
+  expect(await post("cleanup", { emails: [email] })).toMatchObject({
+    status: 202,
+    body: {
+      deleted: [],
+      failures: [{ email, reason: "account cleanup pending" }],
+    },
+  });
+  expect(writes.map((write) => write.method)).toEqual(["PUT"]);
+  expect((await rows())[0].ownerlessDeletionAt).toBeUndefined();
+});
+
+test("verification racing the cleanup stamp cannot create an owner and blocks the delete", async () => {
+  const users = new Map<string, FakeUser>();
+  const { t, post, reserve, rows } = setup();
+  let linked: unknown;
+  const writes = workos(users, {
+    get: async (user) => {
+      const [row] = await rows();
+      if (row?.ownerlessDeletionAt !== undefined && !user.email_verified) {
+        // The user verifies and the webhook tries to create the owner.
+        user.email_verified = true;
+        await t.run((ctx) =>
+          ctx.db.insert("workosProfiles", {
+            workosUserId: user.id,
+            ...profileFor(user.email, true),
+          })
+        );
+        linked = await link(t, user.email, user.id);
+      }
+    },
+  });
+  const { email } = await reserve();
+  users.set("user_SIGNUP", signup(email));
+  expect((await post("cleanup", { emails: [email] })).status).toBe(500);
+  expect(linked).toEqual({ status: "quarantined", reason: "deleting_user" });
+  expect(await t.run((ctx) => ctx.db.query("users").collect())).toEqual([]);
+  expect(writes.some((write) => write.method === "DELETE")).toBe(false);
+  expect(users.has("user_SIGNUP")).toBe(true);
+  expect((await rows())[0].state).toBe("bound");
+});
+
+test("the owner guard blocks only a stamped reserved identity", async () => {
+  vi.stubEnv("SIGNUPS_DISABLED", "false");
+  const t = setup().t;
+  const lease = (email: string, workosUserId: string, stamped: boolean) =>
+    t.run(async (ctx) => {
+      await ctx.db.insert("e2eSignupReservations", {
+        requestId: crypto.randomUUID(),
+        email,
+        state: "bound",
+        reservedAt: Date.now(),
+        expiresAt: Date.now() + 30 * 60 * 1000,
+        clientId: "client_E2EPROOF",
+        environmentId: "environment_E2EPROOF",
+        credentialFingerprint: "fingerprint",
+        clearedAt: Date.now(),
+        workosUserId,
+        providerCreatedAt: Date.now(),
+        ...(stamped ? { ownerlessDeletionAt: Date.now() } : {}),
+      });
+      await ctx.db.insert("workosProfiles", {
+        workosUserId,
+        ...profileFor(email, true),
+      });
+    });
+  const signedUp = `e2e-signup-${"a".repeat(32)}@${domain}`;
+  const stamped = `e2e-signup-${"b".repeat(32)}@${domain}`;
+  await lease(signedUp, "user_SIGNEDUP", false);
+  await lease(stamped, "user_STAMPED", true);
+  expect(await link(t, signedUp, "user_SIGNEDUP")).toMatchObject({
+    status: "linked",
+  });
+  expect(await link(t, stamped, "user_STAMPED")).toEqual({
+    status: "quarantined",
+    reason: "deleting_user",
+  });
+  const owners = await t.run((ctx) => ctx.db.query("users").collect());
+  expect(owners.map((owner) => owner.workosUserId)).toEqual(["user_SIGNEDUP"]);
+});
+
+test("a user created after the lease window is refused every time, never adopted or deleted", async () => {
+  const users = new Map<string, FakeUser>();
+  const writes = workos(users);
+  const { post, reserve, rows } = setup();
+  const { email, expiresAt } = await reserve();
+  users.set(
+    "user_SIGNUP",
+    signup(email, {
+      created_at: new Date(expiresAt + 10 * 60 * 1000).toISOString(),
+    })
+  );
+  vi.setSystemTime(expiresAt + 60 * 60 * 1000);
+  for (const body of [{ emails: [email] }, {}]) {
+    expect(await post("cleanup", body)).toMatchObject({
+      status: 500,
+      body: {
+        deleted: [],
+        failures: [{ email, reason: "account cleanup failed" }],
+      },
+    });
+  }
+  expect(writes).toEqual([]);
+  expect((await rows())[0]).toMatchObject({ state: "reserved" });
+});
+
+test("a lost re-read after the flag write retries without a second write", async () => {
+  const users = new Map<string, FakeUser>();
+  let failed = false;
+  const writes = workos(users, {
+    get: (user) => {
+      if (user.metadata.teak_e2e && !failed) {
+        failed = true;
+        return Response.json({ message: "Unavailable" }, { status: 500 });
+      }
+    },
+  });
+  const { t, post, reserve, rows } = setup();
+  const { reservationId, email } = await reserve();
+  users.set("user_SIGNUP", signup(email, { email_verified: true }));
+  await ready(t, email);
+  expect((await post("signup/adopt", { reservationId, email })).status).toBe(
+    503
+  );
+  expect(await post("signup/adopt", { reservationId, email })).toEqual({
+    status: 200,
+    body: { email },
+  });
+  expect(writes.map((write) => write.method)).toEqual(["PUT"]);
+  expect((await rows())[0].qualifiedAt).toBeDefined();
+});
+
+test("a partially stored flag on the bound user is completed on retry", async () => {
+  const users = new Map<string, FakeUser>();
+  let partial = true;
+  const writes = workos(users, {
+    put: (user, metadata) => {
+      const stored = partial
+        ? { ...user.metadata, teak_e2e: metadata.teak_e2e }
+        : { ...user.metadata, ...metadata };
+      partial = false;
+      return stored;
+    },
+  });
+  const { t, post, reserve } = setup();
+  const { reservationId, email } = await reserve();
+  users.set("user_SIGNUP", signup(email, { email_verified: true }));
+  await ready(t, email);
+  expect((await post("signup/adopt", { reservationId, email })).status).toBe(
+    503
+  );
+  expect(await post("signup/adopt", { reservationId, email })).toEqual({
+    status: 200,
+    body: { email },
+  });
+  expect(writes.map((write) => write.method)).toEqual(["PUT", "PUT"]);
+  expect(users.get("user_SIGNUP")?.metadata).toEqual({
+    teak_e2e: "v1",
+    teak_e2e_reservation: reservationId,
+  });
 });

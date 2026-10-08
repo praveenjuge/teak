@@ -583,6 +583,7 @@ export default defineSchema({
   })
     .index("by_requestId", ["requestId"])
     .index("by_email", ["email"])
+    .index("by_workosUserId", ["workosUserId"])
     .index("by_closedAt_and_expiresAt", ["closedAt", "expiresAt"]),
   workosImportLeases: defineTable({
     scope: v.literal("management_import"),

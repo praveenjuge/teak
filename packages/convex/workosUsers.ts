@@ -79,6 +79,18 @@ export const linkWorkosUser = internalMutation({
       });
       return { status: "quarantined" as const, reason };
     };
+    // A reserved E2E provider identity stamped for ownerless deletion never
+    // gains a Teak owner. Reading the lease in this transaction serializes
+    // owner creation and linking with the cleanup stamp.
+    const reserved = await ctx.db
+      .query("e2eSignupReservations")
+      .withIndex("by_workosUserId", (q) =>
+        q.eq("workosUserId", args.workosUserId)
+      )
+      .take(2);
+    if (reserved.some((row) => row.ownerlessDeletionAt !== undefined)) {
+      return quarantine("deleting_user");
+    }
     const providerRows = await ctx.db
       .query("users")
       .withIndex("by_workosUserId", (q) =>

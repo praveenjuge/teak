@@ -125,8 +125,11 @@ export const reserve = internalMutation({
   },
 });
 
-// Called only after the adapter saw zero provider users for the recipient,
-// which happens after the durable insert. Any later user is newer than this.
+// Called only after the adapter saw zero provider users for the recipient
+// after the durable insert. That alone does not prove a later user is new: an
+// older account could change its email to this address, and listing
+// consistency is a platform unknown. `bind` also requires the provider
+// creation time to fall inside the lease.
 export const clear = internalMutation({
   args: { ...pins, id: reservationId },
   handler: async (ctx, { id, ...target }) => {

@@ -134,6 +134,8 @@ const flagged = (user: User, reservation: Reservation) => {
 
 // Pins the exact provider user to the reservation before writing the provider
 // flag, then proves the write by re-reading. Foreign metadata fails closed.
+// A subset of our two keys is accepted only for the user already bound here,
+// so an interrupted write can be completed but never adopted from elsewhere.
 async function claim(
   ctx: ActionCtx,
   t: Target,
@@ -141,11 +143,19 @@ async function claim(
   user: User
 ): Promise<User> {
   const createdAt = Date.parse(user.createdAt);
+  const metadata = Object.entries(user.metadata ?? {});
+  const ours = metadata.every(
+    ([key, value]) =>
+      (key === "teak_e2e" && value === "v1") ||
+      (key === reservationKey && value === reservation._id)
+  );
   if (
     user.email.trim().toLowerCase() !== reservation.email ||
+    !ours ||
     !(
-      Object.keys(user.metadata ?? {}).length === 0 ||
-      flagged(user, reservation)
+      metadata.length === 0 ||
+      flagged(user, reservation) ||
+      reservation.workosUserId === user.id
     )
   ) {
     throw new Error("E2E reservation evidence mismatch");
@@ -165,17 +175,22 @@ async function claim(
     userId: user.id,
     metadata: { teak_e2e: "v1", [reservationKey]: reservation._id },
   });
+  return await reread(t, reservation, user);
+}
+
+// A fresh provider read of the exact bound, flagged identity.
+async function reread(t: Target, reservation: Reservation, user: User) {
   await t.validate();
-  const reread = await t.workos.userManagement.getUser(user.id);
+  const current = await t.workos.userManagement.getUser(user.id);
   if (
-    reread.id !== user.id ||
-    reread.email.trim().toLowerCase() !== reservation.email ||
-    Date.parse(reread.createdAt) !== createdAt ||
-    !flagged(reread, reservation)
+    current.id !== user.id ||
+    current.email.trim().toLowerCase() !== reservation.email ||
+    current.createdAt !== user.createdAt ||
+    !flagged(current, reservation)
   ) {
     throw new Error("E2E reservation flag unproven");
   }
-  return reread;
+  return current;
 }
 
 async function providerAbsent(t: Target, workosUserId: string) {
@@ -220,17 +235,20 @@ async function settle(
       }
     } else if (Date.now() > reservation.expiresAt + orphanMaximum + clockSkew) {
       await close("absent_past_window");
+    } else {
+      // Absence does not prove a submitted signup cannot still land, so an
+      // open unbound lease is never reported as cleaned up.
+      return { outcome: "pending" };
     }
-    // An unbound lease stays open: absence now does not prove a later
-    // creation cannot land, and the sweep keeps rechecking it.
     return { user: null };
   }
   const claimed = await claim(ctx, t, reservation, user);
   if (await owner()) {
     return { user: claimed };
   }
-  // A verified user may still be gaining its owner through the webhook.
-  if (claimed.emailVerified) {
+  // The listing may be stale. A verified user may still be gaining its owner
+  // through the webhook, so it is never stamped for ownerless deletion.
+  if ((await reread(t, reservation, claimed)).emailVerified) {
     return { outcome: "pending" };
   }
   await t.validate();
@@ -239,6 +257,11 @@ async function settle(
     id: reservation._id,
     workosUserId: claimed.id,
   });
+  // The stamp now denies owner creation for this identity in linkWorkosUser.
+  // A user verified since the last read is still left for review, not deleted.
+  if ((await reread(t, reservation, claimed)).emailVerified) {
+    throw new Error("E2E ownerless deletion refused after verification");
+  }
   await t.validate();
   await t.workos.userManagement.deleteUser(claimed.id);
   if (!(await providerAbsent(t, claimed.id))) {
@@ -266,8 +289,8 @@ export const reserveSignup = internalAction({
     const { reservation } = reserved;
     const live = reservation.expiresAt > Date.now();
     if (live && reservation.state === "pending") {
-      // Absence is checked only after the durable insert, so any provider
-      // user found later for this recipient was created after this point.
+      // Absence is checked only after the durable insert. Later evidence must
+      // still pass `bind`'s creation-time window (an email change is not new).
       if (await providerUser(t, reservation.email)) {
         return { status: 409, body: { code: "E2E_RESERVATION_CONFLICT" } };
       }
