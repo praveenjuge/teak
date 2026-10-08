@@ -1,6 +1,6 @@
 "use node";
 import { createHash } from "node:crypto";
-import { NotFoundException, WorkOS } from "@workos-inc/node";
+import { NotFoundException } from "@workos-inc/node";
 import { createFunctionHandle } from "convex/server";
 import { v } from "convex/values";
 import { components, internal } from "./_generated/api";
@@ -8,6 +8,8 @@ import type { Doc } from "./_generated/dataModel";
 import { type ActionCtx, internalAction } from "./_generated/server";
 import { runAccountDataDeletion } from "./accountDeletion";
 import { readResponseTextWithinLimit } from "./shared/boundedResponse";
+import { workosApiUrl, workosIssuer } from "./shared/workosApi";
+import { createWorkosClient } from "./shared/workosClient";
 import { callFilesWorkerJson } from "./storage/filesWorkerClient";
 import { withBackendSpan } from "./telemetry/sentry";
 
@@ -57,19 +59,15 @@ const boundWorkos = (state: Doc<"accountDeletionStates">) => {
     !target ||
     target.environmentId !== process.env.WORKOS_ENVIRONMENT_ID ||
     target.clientId !== process.env.WORKOS_CLIENT_ID ||
-    target.issuer !==
-      `https://api.workos.com/user_management/${process.env.WORKOS_CLIENT_ID}` ||
+    target.issuer !== workosIssuer(process.env.WORKOS_CLIENT_ID ?? "") ||
     !process.env.WORKOS_API_KEY ||
     target.credentialFingerprint !==
       createHash("sha256").update(process.env.WORKOS_API_KEY).digest("hex")
   ) {
     throw new Error("deletion_workos_target_unavailable");
   }
-  return new WorkOS(process.env.WORKOS_API_KEY, {
-    clientId: target.clientId,
-    maxRetries: 0,
-    timeout: 10_000,
-  }).userManagement;
+  return createWorkosClient(process.env.WORKOS_API_KEY, target.clientId)
+    .userManagement;
 };
 // Current Node SDK lacks this supported Management API endpoint. The origin and
 // exact bound provider user are fixed, and redirects/oversized responses fail.
@@ -79,7 +77,9 @@ async function authorizedApps(state: Doc<"accountDeletionStates">) {
   if (!workosUserId) {
     throw new Error("deletion_workos_target_unavailable");
   }
-  const url = `https://api.workos.com/user_management/users/${encodeURIComponent(workosUserId)}/authorized_applications`;
+  const url = workosApiUrl(
+    `/user_management/users/${encodeURIComponent(workosUserId)}/authorized_applications`
+  ).href;
   const response = await fetch(`${url}?limit=${PROVIDER_DELETE_PAGE_SIZE}`, {
     headers: { Authorization: `Bearer ${process.env.WORKOS_API_KEY}` },
     redirect: "error",

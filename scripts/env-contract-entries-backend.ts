@@ -96,6 +96,16 @@ export const BACKEND_ENTRIES: EnvVarSpec[] = [
         note: "Daily reconciliation audit controls. Mode unset/off is inert; audit and pinned provider witness require separate operator activation. No scheduled repair.",
       })
   ),
+  spec("WORKOS_API_BASE_URL", {
+    owners: ["@teak/convex"],
+    targets: ["convex"],
+    profiles: ["local", "e2e"],
+    secret: false,
+    validation: "url",
+    providers: ["convex-dashboard", "shell"],
+    required: false,
+    note: "Unset in hosted deployments. A local stack sets the WorkOS emulator's loopback origin.",
+  }),
   spec("WORKOS_ENVIRONMENT_ID", {
     owners: ["@teak/convex"],
     targets: ["convex"],

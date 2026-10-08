@@ -14,6 +14,7 @@ import { readAccountChangesPaused } from "./env";
 import { getDeletionRetryPrincipal, getSessionUser } from "./securitySessions";
 import { ACCOUNT_CHANGES_PAUSED_MESSAGE } from "./shared/constants";
 import { TELEMETRY_OPERATIONS } from "./shared/telemetry";
+import { workosIssuer } from "./shared/workosApi";
 import { cardStorageObjectKeys } from "./storage/r2";
 import { startWorkflow } from "./workflows/manager";
 
@@ -493,7 +494,7 @@ export const initiateAccountDeletion = async (
       ? {
           clientId,
           environmentId,
-          issuer: `https://api.workos.com/user_management/${clientId}`,
+          issuer: workosIssuer(clientId),
           credentialFingerprint,
         }
       : undefined;

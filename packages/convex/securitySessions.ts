@@ -1,8 +1,10 @@
-import { NotFoundException, type Session, WorkOS } from "@workos-inc/node";
+import { NotFoundException, type Session } from "@workos-inc/node";
 import { paginationOptsValidator, type UserIdentity } from "convex/server";
 import { v } from "convex/values";
 import { internal } from "./_generated/api";
 import { type ActionCtx, action, internalQuery } from "./_generated/server";
+import { workosIssuer } from "./shared/workosApi";
+import { createWorkosClient } from "./shared/workosClient";
 import { validWorkosExternalId } from "./workosTokens";
 
 // Convex has already verified this JWT through auth.config.ts. These checks bind
@@ -13,7 +15,7 @@ function readWorkosSessionClaims(
 ) {
   if (
     !(/^client_[A-Za-z0-9]+$/.test(clientId) && identity) ||
-    identity.issuer !== `https://api.workos.com/user_management/${clientId}` ||
+    identity.issuer !== workosIssuer(clientId) ||
     !/^user_[A-Za-z0-9]+$/.test(identity.subject) ||
     typeof identity.sid !== "string" ||
     !/^session_[A-Za-z0-9]+$/.test(identity.sid) ||
@@ -289,11 +291,8 @@ function workosSessionClient() {
   if (!apiKey) {
     throw new Error("Device service is unavailable. Please try again.");
   }
-  return new WorkOS(apiKey, {
-    clientId: process.env.WORKOS_CLIENT_ID,
-    maxRetries: 0,
-    timeout: 10_000,
-  }).userManagement;
+  return createWorkosClient(apiKey, process.env.WORKOS_CLIENT_ID)
+    .userManagement;
 }
 
 function validateProviderSession(session: Session, userId: string) {

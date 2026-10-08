@@ -85,6 +85,12 @@ ports plus a namespace from `scripts/worktree-env.ts`, and select an isolated
 cloud development deployment instead of local. Setup refuses a namespaced
 local selection when the fixed ports are occupied, with a remediation.
 
+A local backend's auth config reads `WORKOS_API_BASE_URL`, and Convex refuses
+an auth config that reads an unset variable, so setup always sets it:
+production WorkOS by default, or the WorkOS emulator's loopback origin when
+exported. Hosted deployments never read it. If a push fails on this variable,
+re-run `bun run setup`.
+
 ## Stable values live in code, not configuration
 
 Values that do not vary by deployment are typed code with an environment

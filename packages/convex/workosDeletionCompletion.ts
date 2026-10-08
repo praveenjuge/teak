@@ -1,6 +1,7 @@
 import { v } from "convex/values";
 import type { Doc } from "./_generated/dataModel";
 import type { MutationCtx, QueryCtx } from "./_generated/server";
+import { workosIssuer } from "./shared/workosApi";
 
 export const workosDeletionTargetValidator = v.object({
   environmentId: v.string(),
@@ -43,7 +44,7 @@ export async function currentWorkosDeletionTarget(): Promise<
   return {
     environmentId,
     clientId,
-    issuer: `https://api.workos.com/user_management/${clientId}`,
+    issuer: workosIssuer(clientId),
     credentialFingerprint: Array.from(new Uint8Array(digest), (byte) =>
       byte.toString(16).padStart(2, "0")
     ).join(""),

@@ -1,5 +1,30 @@
 import { describe, expect, test } from "bun:test";
-import { planWorkosCredential } from "./setup-workos.ts";
+import { planWorkosApiBase, planWorkosCredential } from "./setup-workos.ts";
+
+describe("planWorkosApiBase", () => {
+  test("defaults a fresh deployment to production WorkOS", () => {
+    expect(planWorkosApiBase({})).toEqual({
+      value: "https://api.workos.com",
+      setDeployment: true,
+    });
+  });
+
+  test("uses an exported emulator origin for a fresh deployment", () => {
+    expect(planWorkosApiBase({ explicit: "http://localhost:4100" })).toEqual({
+      value: "http://localhost:4100",
+      setDeployment: true,
+    });
+  });
+
+  test("never overwrites a deployment value", () => {
+    expect(
+      planWorkosApiBase({
+        deployment: "http://localhost:4100",
+        explicit: "https://api.workos.com",
+      })
+    ).toEqual({ value: "http://localhost:4100", setDeployment: false });
+  });
+});
 
 describe("planWorkosCredential", () => {
   test("reports a credential missing from every source", () => {
