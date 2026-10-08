@@ -108,7 +108,7 @@ describe.each([
   });
   afterEach(() => vi.unstubAllEnvs());
 
-  test("valid exact-body signature syncs both stores and preserves legacy ownership", async () => {
+  test("valid exact-body signature syncs both stores and keeps legacy ownership", async () => {
     const t = setup();
     await seed(t);
     // Whitespace must remain intact until the official signature verifier runs.
@@ -116,9 +116,10 @@ describe.each([
     expect(response.status).toBe(200);
     expect(await response.text()).toBe("OK");
     const result = await snapshot(t);
+    // The owner and role stay; the address follows the provider profile.
     expect(result.users[0]).toMatchObject({
       teakUserId: "owner-a",
-      email: "legacy@example.com",
+      email: "provider@example.com",
       emailVerified: true,
       role: "admin",
       workosUserId: "user_signed",

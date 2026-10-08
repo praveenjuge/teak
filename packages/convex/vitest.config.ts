@@ -24,7 +24,6 @@ export default defineConfig({
       "./workosLifecycle.test.ts",
       "./workosProfileRead.test.ts",
       "./workosIdentity.test.ts",
-      "./workosIdentityAudit.test.ts",
       "./workosEventCatchUp.test.ts",
       "./workosConsents.test.ts",
       "./workosConnectRevocation.test.ts",

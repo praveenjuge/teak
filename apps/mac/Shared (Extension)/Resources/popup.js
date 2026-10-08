@@ -124,7 +124,7 @@ const signOut = async () => {
   const notice =
     typeof response.message === "string" && response.message.trim()
       ? response.message
-      : "To disconnect other installations, use Settings → Connected apps.";
+      : "To disconnect other installations, use Settings → Security → Connected apps.";
   setState(
     "signed-out",
     localOnly ? "Signed out on this device" : "Signed out",

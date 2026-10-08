@@ -97,7 +97,9 @@ describe("public API auth outcomes", () => {
   });
 
   test("malformed bearer still charges the shared invalid-auth bucket", async () => {
-    const ctx = backend({ "raycast:consumeInvalidApiAuthLimit": { ok: true } });
+    const ctx = backend({
+      "publicApi:consumeInvalidApiAuthLimit": { ok: true },
+    });
     const auth = await withAuthorizedUser(ctx, request("garbage"));
     expect(auth.error.status).toBe(401);
     expect(ctx.runMutation).toHaveBeenCalledTimes(1);
@@ -109,7 +111,7 @@ describe("public API auth outcomes", () => {
 
   test("an old-build Better Auth token is separated from other 401s", async () => {
     const auth = await withAuthorizedUser(
-      backend({ "raycast:consumeInvalidApiAuthLimit": { ok: true } }),
+      backend({ "publicApi:consumeInvalidApiAuthLimit": { ok: true } }),
       request(LEGACY_TOKEN),
       { resource: "mcp" }
     );
@@ -130,7 +132,7 @@ describe("public API auth outcomes", () => {
     const auth = await withAuthorizedUser(
       backend({
         "apiKeys:validateUserApiKey": null,
-        "raycast:consumeInvalidApiAuthLimit": { ok: true },
+        "publicApi:consumeInvalidApiAuthLimit": { ok: true },
       }),
       request(API_KEY)
     );
@@ -145,7 +147,7 @@ describe("public API auth outcomes", () => {
     const auth = await withAuthorizedUser(
       backend({
         "apiKeys:validateUserApiKey": null,
-        "raycast:consumeInvalidApiAuthLimit": {
+        "publicApi:consumeInvalidApiAuthLimit": {
           ok: false,
           retryAt: Date.now() + 5000,
         },
@@ -163,7 +165,10 @@ describe("public API auth outcomes", () => {
     const auth = await withAuthorizedUser(
       backend({
         "apiKeys:validateUserApiKey": VALID_KEY,
-        "raycast:checkApiRateLimit": { ok: false, retryAt: Date.now() + 5000 },
+        "publicApi:checkApiRateLimit": {
+          ok: false,
+          retryAt: Date.now() + 5000,
+        },
       }),
       request(API_KEY)
     );
@@ -218,7 +223,7 @@ describe("public API auth outcomes", () => {
       const fetchSpy = spyOn(globalThis, "fetch").mockImplementation(fetchImpl);
       try {
         const auth = await withAuthorizedUser(
-          backend({ "raycast:consumeInvalidApiAuthLimit": { ok: true } }),
+          backend({ "publicApi:consumeInvalidApiAuthLimit": { ok: true } }),
           request(connectToken(Math.floor(exp)))
         );
         expect(auth.error.status).toBe(401);
@@ -261,7 +266,7 @@ describe("public API auth outcomes", () => {
       () => undefined,
       {
         "apiKeys:validateUserApiKey": VALID_KEY,
-        "raycast:checkApiRateLimit": new Error(
+        "publicApi:checkApiRateLimit": new Error(
           'Documents read from or written to the "rateLimits" table changed while this mutation was being run and on every subsequent retry'
         ),
       },
@@ -339,7 +344,7 @@ describe("public API auth outcomes", () => {
     const auth = await withAuthorizedUser(
       backend({
         "apiKeys:validateUserApiKey": VALID_KEY,
-        "raycast:checkApiRateLimit": { ok: true },
+        "publicApi:checkApiRateLimit": { ok: true },
       }),
       request(API_KEY)
     );

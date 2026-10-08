@@ -48,5 +48,5 @@ export const config = {
   // Run on every page, including /login, /register, /forgot-password and
   // /reset-password, which have no page and exist only as redirects to AuthKit.
   // Static assets and Next internals are skipped.
-  matcher: ["/((?!.*\\..*|_next).*)", "/", "/trpc(.*)"],
+  matcher: ["/((?!.*\\..*|_next).*)", "/"],
 };

@@ -227,7 +227,7 @@ actor TeakSafariService {
                 }
                 try self.credentials.clear()
                 var result: [String: Any] = ["status": SafariAccountStatus.signedOut.rawValue, "authenticated": false]
-                if localOnly { result["localOnly"] = true; result["message"] = "Signed out on this device. To disconnect other installations, use Settings → Connected apps." }
+                if localOnly { result["localOnly"] = true; result["message"] = "Signed out on this device. To disconnect other installations, use Settings → Security → Connected apps." }
                 return result
             }
         } catch { return errorResponse(error) }

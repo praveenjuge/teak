@@ -14,9 +14,9 @@ import { readAccountChangesPaused } from "./env";
 import { getDeletionRetryPrincipal, getSessionUser } from "./securitySessions";
 import { ACCOUNT_CHANGES_PAUSED_MESSAGE } from "./shared/constants";
 import { TELEMETRY_OPERATIONS } from "./shared/telemetry";
-import { workosIssuer } from "./shared/workosApi";
 import { cardStorageObjectKeys } from "./storage/r2";
 import { startWorkflow } from "./workflows/manager";
+import { currentWorkosDeletionTarget } from "./workosDeletionCompletion";
 
 const ACCOUNT_CARD_TAG_DELETE_BATCH_SIZE = 20;
 
@@ -479,29 +479,7 @@ export const initiateAccountDeletion = async (
           model: "user",
           where: [{ field: "_id", value: owner.teakUserId }],
         });
-  const clientId = process.env.WORKOS_CLIENT_ID;
-  const environmentId = process.env.WORKOS_ENVIRONMENT_ID;
-  const apiKey = process.env.WORKOS_API_KEY;
-  const credentialFingerprint = apiKey
-    ? Array.from(
-        new Uint8Array(
-          await crypto.subtle.digest(
-            "SHA-256",
-            new TextEncoder().encode(apiKey)
-          )
-        ),
-        (byte) => byte.toString(16).padStart(2, "0")
-      ).join("")
-    : undefined;
-  const target =
-    clientId && environmentId && credentialFingerprint
-      ? {
-          clientId,
-          environmentId,
-          issuer: workosIssuer(clientId),
-          credentialFingerprint,
-        }
-      : undefined;
+  const target = await currentWorkosDeletionTarget();
   const stateId = await ctx.db.insert("accountDeletionStates", {
     userId: owner.teakUserId,
     startedAt: Date.now(),

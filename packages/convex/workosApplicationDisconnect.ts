@@ -7,9 +7,10 @@ import {
   internalMutation,
   internalQuery,
 } from "./_generated/server";
-import { sha256 } from "./publicApiHttpShared";
+import { findWorkosConnectIssuer } from "./env";
 import { readResponseTextWithinLimit } from "./shared/boundedResponse";
 import { workosApiUrl } from "./shared/workosApi";
+import { workosCredentialFingerprint } from "./workosDeletionCompletion";
 
 const principalValidator = {
   workosUserId: v.string(),
@@ -500,7 +501,7 @@ export async function disconnectApplication(
   const apiKey = process.env.WORKOS_API_KEY;
   const environmentId = process.env.WORKOS_ENVIRONMENT_ID;
   const authKitClientId = process.env.WORKOS_CLIENT_ID;
-  const authKitDomain = process.env.WORKOS_AUTHKIT_DOMAIN;
+  const authKitDomain = findWorkosConnectIssuer();
   if (!(apiKey && environmentId && authKitClientId && authKitDomain)) {
     return 503;
   }
@@ -508,7 +509,7 @@ export async function disconnectApplication(
     environmentId,
     authKitClientId,
     authKitDomain,
-    credentialFingerprint: await sha256(apiKey),
+    credentialFingerprint: await workosCredentialFingerprint(apiKey),
   };
   const started: Start = await ctx.runMutation(
     internal.workosApplicationDisconnect.begin,

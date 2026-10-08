@@ -1,5 +1,4 @@
 "use node";
-import { createHash } from "node:crypto";
 import { NotFoundException } from "@workos-inc/node";
 import { createFunctionHandle } from "convex/server";
 import { v } from "convex/values";
@@ -8,10 +7,14 @@ import type { Doc } from "./_generated/dataModel";
 import { type ActionCtx, internalAction } from "./_generated/server";
 import { runAccountDataDeletion } from "./accountDeletion";
 import { readResponseTextWithinLimit } from "./shared/boundedResponse";
-import { workosApiUrl, workosIssuer } from "./shared/workosApi";
+import { workosApiUrl } from "./shared/workosApi";
 import { createWorkosClient } from "./shared/workosClient";
 import { callFilesWorkerJson } from "./storage/filesWorkerClient";
 import { withBackendSpan } from "./telemetry/sentry";
+import {
+  currentWorkosDeletionTarget,
+  sameWorkosDeletionTarget,
+} from "./workosDeletionCompletion";
 
 // Accounts from before WorkOS keep retained Better Auth rows. Deletion removes
 // every row keyed to that user: sessions, accounts, OAuth grants and consents,
@@ -50,29 +53,24 @@ async function deleteLegacyRows(
 // Keep even a page of slow revocations within the action time limit.
 const PROVIDER_DELETE_PAGE_SIZE = 10;
 
-const boundWorkos = (state: Doc<"accountDeletionStates">) => {
+const boundWorkos = async (state: Doc<"accountDeletionStates">) => {
   if (!(state.workosUserId && /^user_[A-Za-z0-9]+$/.test(state.workosUserId))) {
     throw new Error("deletion_workos_user_id_invalid");
   }
   const target = state.workosTarget;
+  const current = await currentWorkosDeletionTarget();
+  const apiKey = process.env.WORKOS_API_KEY;
   if (
-    !target ||
-    target.environmentId !== process.env.WORKOS_ENVIRONMENT_ID ||
-    target.clientId !== process.env.WORKOS_CLIENT_ID ||
-    target.issuer !== workosIssuer(process.env.WORKOS_CLIENT_ID ?? "") ||
-    !process.env.WORKOS_API_KEY ||
-    target.credentialFingerprint !==
-      createHash("sha256").update(process.env.WORKOS_API_KEY).digest("hex")
+    !(target && current && apiKey && sameWorkosDeletionTarget(target, current))
   ) {
     throw new Error("deletion_workos_target_unavailable");
   }
-  return createWorkosClient(process.env.WORKOS_API_KEY, target.clientId)
-    .userManagement;
+  return createWorkosClient(apiKey, target.clientId).userManagement;
 };
 // Current Node SDK lacks this supported Management API endpoint. The origin and
 // exact bound provider user are fixed, and redirects/oversized responses fail.
 async function authorizedApps(state: Doc<"accountDeletionStates">) {
-  boundWorkos(state);
+  const users = await boundWorkos(state);
   const workosUserId = state.workosUserId;
   if (!workosUserId) {
     throw new Error("deletion_workos_target_unavailable");
@@ -87,7 +85,7 @@ async function authorizedApps(state: Doc<"accountDeletionStates">) {
   });
   if (response.status === 404) {
     try {
-      await boundWorkos(state).getUser(workosUserId);
+      await users.getUser(workosUserId);
     } catch (error) {
       if (error instanceof NotFoundException) {
         return false;
@@ -160,7 +158,7 @@ export const runStage = internalAction({
     }
     if (stage === 1) {
       if (state.workosUserId) {
-        const client = boundWorkos(state);
+        const client = await boundWorkos(state);
         const previous = state.providerSessionCursor ?? null;
         let sessions:
           | Awaited<ReturnType<typeof client.listSessions>>
@@ -273,7 +271,8 @@ export const runStage = internalAction({
     } else if (stage === 4) {
       if (state.workosUserId) {
         try {
-          await boundWorkos(state).deleteUser(state.workosUserId);
+          const users = await boundWorkos(state);
+          await users.deleteUser(state.workosUserId);
         } catch (error) {
           if (!(error instanceof NotFoundException)) {
             throw error;

@@ -48,3 +48,13 @@ export const readWorkosConnectIssuer = (): string => {
   }
   return value;
 };
+
+// For callers that answer "unavailable" rather than throw: the validated
+// Connect issuer, or undefined when it is missing or malformed.
+export const findWorkosConnectIssuer = (): string | undefined => {
+  try {
+    return readWorkosConnectIssuer();
+  } catch {
+    return undefined;
+  }
+};

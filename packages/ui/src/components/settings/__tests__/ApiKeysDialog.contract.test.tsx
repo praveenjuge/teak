@@ -55,8 +55,6 @@ mock.module("sonner", () => ({
 }));
 
 const { ApiKeysDialog } = await import("../ApiKeysDialog");
-const { ApiKeysSection } = await import("../ApiKeysSection");
-const { shouldShowApiKeysSection } = await import("../apiKeysGating");
 
 const keys = [
   {
@@ -84,36 +82,6 @@ const handlers = {
   onRevokeKey: mock(() => Promise.resolve()),
   onRotateKey: mock(() => Promise.resolve({ key: "rotated-key" })),
 };
-
-describe("ApiKeysSection", () => {
-  test("keeps the settings page compact", () => {
-    const markup = renderToStaticMarkup(
-      <ApiKeysSection isLoading={false} keys={keys} {...handlers} />
-    );
-
-    expect(markup).toContain("API Keys");
-    expect(markup).toContain(">Manage</button>");
-    expect(markup).not.toContain("API keys");
-    expect(markup).not.toContain("2 keys");
-    expect(markup).not.toContain("No keys");
-    expect(markup).not.toContain("Update required");
-    expect(markup).not.toContain("Create key");
-  });
-});
-
-describe("shouldShowApiKeysSection gating", () => {
-  test("hides the section while keys are still loading", () => {
-    expect(shouldShowApiKeysSection(undefined)).toBe(false);
-  });
-
-  test("shows the section for keyless users so they can create a first key", () => {
-    expect(shouldShowApiKeysSection([])).toBe(true);
-  });
-
-  test("shows the section once the user has at least one key", () => {
-    expect(shouldShowApiKeysSection(keys)).toBe(true);
-  });
-});
 
 describe("ApiKeysDialog", () => {
   test("renders component and disabled key states", () => {

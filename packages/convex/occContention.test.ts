@@ -1160,7 +1160,7 @@ describe("OCC contention behavior", () => {
         rate: 30,
         shards: 6,
       });
-      expect(RATE_LIMIT_CONFIG.raycastApiRequests).toMatchObject({
+      expect(RATE_LIMIT_CONFIG.publicApiRequests).toMatchObject({
         capacity: 120,
         rate: 120,
         shards: 12,
@@ -1169,11 +1169,6 @@ describe("OCC contention behavior", () => {
         capacity: 60,
         rate: 60,
         shards: 6,
-      });
-      expect(RATE_LIMIT_CONFIG.nativeAuthPoll).toMatchObject({
-        capacity: 20,
-        rate: 20,
-        shards: 2,
       });
       expect(RATE_LIMIT_CONFIG.apiKeyCreation).toMatchObject({
         capacity: 5,

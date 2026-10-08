@@ -6,8 +6,10 @@ import {
   internalMutation,
   internalQuery,
 } from "./_generated/server";
+import { findWorkosConnectIssuer } from "./env";
 import { sha256 } from "./publicApiHttpShared";
 import { completeAcknowledged } from "./workosApplicationDisconnect";
+import { workosCredentialFingerprint } from "./workosDeletionCompletion";
 
 const pins = {
   cloudUrl: v.string(),
@@ -75,8 +77,8 @@ async function assertPins(args: Infer<typeof pinsValidator>) {
     process.env.CONVEX_SITE_URL !== args.siteUrl ||
     process.env.WORKOS_ENVIRONMENT_ID !== args.environmentId ||
     process.env.WORKOS_CLIENT_ID !== args.authKitClientId ||
-    process.env.WORKOS_AUTHKIT_DOMAIN !== args.authKitDomain ||
-    (await sha256(key)) !== args.credentialFingerprint
+    findWorkosConnectIssuer() !== args.authKitDomain ||
+    (await workosCredentialFingerprint(key)) !== args.credentialFingerprint
   ) {
     throw new Error("Disconnect recovery target mismatch");
   }

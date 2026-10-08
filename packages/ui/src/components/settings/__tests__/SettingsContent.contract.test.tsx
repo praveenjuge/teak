@@ -2,9 +2,6 @@ import { describe, expect, mock, test } from "bun:test";
 import React from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 
-mock.module("../ApiKeysSection", () => ({
-  ApiKeysSection: () => React.createElement("section", null, "API keys"),
-}));
 mock.module("../DeleteAccountDialog", () => ({
   DeleteAccountDialog: () => null,
 }));

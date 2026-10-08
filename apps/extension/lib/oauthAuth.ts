@@ -244,7 +244,7 @@ async function revokeCredentials(
         : undefined,
   });
   if (result === "refresh_rejected") {
-    return "Signed out on this device. To disconnect other installations, use Settings → Connected apps.";
+    return "Signed out on this device. To disconnect other installations, use Settings → Security → Connected apps.";
   }
   if (result !== "disconnected") {
     throw new Error("Could not sign out. Please try again.");

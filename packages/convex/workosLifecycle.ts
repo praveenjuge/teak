@@ -1,6 +1,7 @@
 import { ConvexError, v } from "convex/values";
 import { internal } from "./_generated/api";
-import { internalMutation } from "./_generated/server";
+import { internalMutation, type MutationCtx } from "./_generated/server";
+import { readComponentUser } from "./securitySessions";
 import { normalizeIdentityEmail } from "./userIdentityTable";
 import {
   currentWorkosDeletionTarget,
@@ -142,6 +143,44 @@ export const parseWorkosEvent = (event: {
   return { time, workosUserId, deleting, email, externalId, profile };
 };
 
+// Keeps the owner's stored address in step with the provider, for the lookups
+// that still read it (admin seeding, the admin user list and email linking).
+// The values come from the component's stored profile rather than the event,
+// so an out-of-order delivery the component ignored can't roll them back.
+const syncOwnerEmail = async (ctx: MutationCtx, workosUserId: string) => {
+  const provider = await readComponentUser(ctx, workosUserId);
+  if (!provider) {
+    return;
+  }
+  const email = normalizeIdentityEmail(provider.email);
+  if (!email) {
+    return;
+  }
+  const rows = await ctx.db
+    .query("users")
+    .withIndex("by_workosUserId", (q) => q.eq("workosUserId", workosUserId))
+    .take(2);
+  for (const row of rows) {
+    if (row.deletedAt !== undefined || row.workosDeletedAt !== undefined) {
+      continue;
+    }
+    const deleting = await ctx.db
+      .query("accountDeletionStates")
+      .withIndex("by_userId", (q) => q.eq("userId", row.teakUserId))
+      .first();
+    if (
+      deleting ||
+      (row.email === email && row.emailVerified === provider.emailVerified)
+    ) {
+      continue;
+    }
+    await ctx.db.patch("users", row._id, {
+      email,
+      emailVerified: provider.emailVerified,
+    });
+  }
+};
+
 // Only the verified webhook and the Events API catch-up supply provider events.
 export const applyWorkosEvent = internalMutation({
   args: {
@@ -195,6 +234,9 @@ export const applyWorkosEvent = internalMutation({
       if (linked.status === "quarantined") {
         result = { status: "quarantined", reason: linked.reason };
       }
+    }
+    if (!deleting) {
+      await syncOwnerEmail(ctx, workosUserId);
     }
     if (deleting) {
       const rows = await ctx.db

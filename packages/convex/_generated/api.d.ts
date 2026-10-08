@@ -201,7 +201,6 @@ import type * as workosDeletionCompletion from "../workosDeletionCompletion.js";
 import type * as workosDisconnectRecovery from "../workosDisconnectRecovery.js";
 import type * as workosEventCatchUp from "../workosEventCatchUp.js";
 import type * as workosIdentity from "../workosIdentity.js";
-import type * as workosIdentityAudit from "../workosIdentityAudit.js";
 import type * as workosLifecycle from "../workosLifecycle.js";
 import type * as workosProfileRead from "../workosProfileRead.js";
 import type * as workosTokens from "../workosTokens.js";
@@ -408,7 +407,6 @@ declare const fullApi: ApiFromModules<{
   workosDisconnectRecovery: typeof workosDisconnectRecovery;
   workosEventCatchUp: typeof workosEventCatchUp;
   workosIdentity: typeof workosIdentity;
-  workosIdentityAudit: typeof workosIdentityAudit;
   workosLifecycle: typeof workosLifecycle;
   workosProfileRead: typeof workosProfileRead;
   workosTokens: typeof workosTokens;
