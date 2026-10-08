@@ -3,10 +3,8 @@
 # test-only constant in packages/tests/src/emulator/config.ts.
 name: E2E
 
+# Daily and on demand only: the suite is too slow to gate every pull request.
 on:
-  pull_request:
-  push:
-    branches: [main]
   schedule:
     - cron: "23 4 * * *"
   workflow_dispatch:
@@ -49,10 +47,8 @@ jobs:
             packages/tests/.state/dev-stack.log
           retention-days: 7
 
-  # Read-only checks of the published docs site, so they run on a schedule
-  # rather than gating pull requests on production state.
+  # Read-only checks of the published docs site.
   docs:
-    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
