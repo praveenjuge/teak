@@ -1,10 +1,12 @@
 import { afterEach, describe, expect, mock, test } from "bun:test";
 import {
+  adoptE2ESignup,
   assertE2EProvisioningReady,
   cleanupE2EAccounts,
   isConfiguredE2EEmail,
   isE2ECleanupResult,
   provisionE2EAccount,
+  reserveE2ESignup,
   summarizeE2ECleanup,
 } from "./e2e-cleanup";
 import { env } from "./env";
@@ -469,5 +471,99 @@ test("cleanup does not retry unexpected request errors", async () => {
   await expect(
     cleanupE2EAccounts(["e2e-timeout@tests.example.com"], noOpSleep)
   ).rejects.toThrow("Unexpected failure");
+  expect(calls).toBe(1);
+});
+
+const signupEnv = () => {
+  env.cleanupToken = crypto.randomUUID();
+  env.convexSiteUrl = "https://example.convex.site";
+  env.emailDomain = "tests.example.com";
+};
+const reservation = {
+  reservationId: "k57reservation",
+  email: `e2e-signup-${"a".repeat(32)}@tests.example.com`,
+  expiresAt: Date.now() + 30 * 60 * 1000,
+};
+
+test("signup reservation retries a lost response with the same request ID", async () => {
+  signupEnv();
+  const bodies: string[] = [];
+  globalThis.fetch = mock((_input: RequestInfo | URL, init?: RequestInit) => {
+    bodies.push(String(init?.body));
+    if (bodies.length === 1) {
+      return Promise.reject(new TypeError("fetch failed"));
+    }
+    return Promise.resolve(Response.json(reservation));
+  }) as unknown as typeof fetch;
+  expect(await reserveE2ESignup(noOpSleep)).toEqual(reservation);
+  expect(bodies).toHaveLength(2);
+  expect(bodies[1]).toBe(bodies[0]);
+  expect(JSON.parse(bodies[0]).requestId).toMatch(
+    /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/
+  );
+});
+
+test.each([
+  ["a client-style recipient", { email: "e2e-primary@tests.example.com" }],
+  ["another domain", { email: `e2e-signup-${"a".repeat(32)}@example.com` }],
+  ["an expired lease", { expiresAt: Date.now() - 1 }],
+])("signup reservation rejects %s from the server", async (_name, change) => {
+  signupEnv();
+  globalThis.fetch = mock(async () =>
+    Response.json({ ...reservation, ...change })
+  ) as unknown as typeof fetch;
+  await expect(reserveE2ESignup(noOpSleep)).rejects.toThrow(
+    "reservation response is invalid"
+  );
+});
+
+test("signup reservation does not retry an exhausted budget", async () => {
+  signupEnv();
+  let calls = 0;
+  globalThis.fetch = mock(() => {
+    calls++;
+    return Promise.resolve(
+      Response.json({ code: "E2E_RESERVATION_BUDGET" }, { status: 429 })
+    );
+  }) as unknown as typeof fetch;
+  await expect(reserveE2ESignup(noOpSleep)).rejects.toThrow(
+    "failed (429) E2E_RESERVATION_BUDGET"
+  );
+  expect(calls).toBe(1);
+});
+
+test("signup adoption waits out a pending owner within the retry budget", async () => {
+  signupEnv();
+  const bodies: unknown[] = [];
+  globalThis.fetch = mock((input: RequestInfo | URL, init?: RequestInit) => {
+    expect(String(input)).toEndWith("/api/auth/internal/e2e/signup/adopt");
+    bodies.push(JSON.parse(String(init?.body)));
+    return Promise.resolve(
+      bodies.length < 3
+        ? Response.json({ code: "E2E_ADOPT_PENDING" }, { status: 503 })
+        : Response.json({ email: reservation.email })
+    );
+  }) as unknown as typeof fetch;
+  await adoptE2ESignup(reservation, noOpSleep);
+  expect(bodies).toEqual(
+    new Array(3).fill({
+      reservationId: reservation.reservationId,
+      email: reservation.email,
+    })
+  );
+});
+
+test("signup adoption treats a refused reservation as final", async () => {
+  signupEnv();
+  let calls = 0;
+  globalThis.fetch = mock(() => {
+    calls++;
+    return Promise.resolve(
+      Response.json({ code: "E2E_RESERVATION_UNAVAILABLE" }, { status: 409 })
+    );
+  }) as unknown as typeof fetch;
+  await expect(adoptE2ESignup(reservation, noOpSleep)).rejects.toThrow(
+    "failed (409) E2E_RESERVATION_UNAVAILABLE"
+  );
   expect(calls).toBe(1);
 });

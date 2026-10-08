@@ -32,6 +32,18 @@ Most test accounts are provisioned as already-verified users through the token-p
 - Paused registration: asserts the exact paused UI, preserves a screenshot, and provisions the primary account through the protected endpoint.
 - Hosted WorkOS entry (`Continue`, no form): fails before creating any account. Hosted sign-up would create a WorkOS user without the `teak_e2e` flag, which cleanup and the sweep can't delete. Email-delivery runs stay red until a reviewed WorkOS signup canary exists; run with email delivery off meanwhile.
 
+The backend for a real hosted WorkOS signup canary is in place, but no journey uses it yet. The hosted signup labels, sender, subject and code format still need live proof first.
+
+1. `reserveE2ESignup()` calls `/api/auth/internal/e2e/signup/reserve`. The server generates an `e2e-signup-<32 hex>` recipient, records the lease, and only then checks that WorkOS has no user for it. A retry after a lost response sends the same request ID and gets the same recipient back. At most 3 leases can be live at once.
+2. After hosted signup and verification, `adoptE2ESignup()` calls `/signup/adopt`. The server binds the exact WorkOS user to the lease and only then sets `teak_e2e=v1` plus `teak_e2e_reservation`. It re-reads the user and qualifies the lease once the real webhook owner exists. Foreign metadata, a user created before the empty check, or a different user for the same lease all fail closed.
+3. Cleanup is unchanged for flagged accounts. For an open lease, it also handles interruptions:
+   - It adopts an unflagged in-window user.
+   - It deletes a bound, unverified user that has no Teak owner and no owned or verified profile.
+   - It reports a verified ownerless user as pending.
+   - An absent provider user never closes an unbound lease, so the sweep keeps rechecking expired leases for up to the 90-day orphan window.
+
+`waitForEmail` and `waitForEmailCode` take a `fresh: { from, sentAfter }` option. A matching message must have exactly one `To`, no `Cc` or `Bcc`, the proven sender, and a `Created` time no earlier than 60s before the request. Two such messages, two distinct matching links, or two distinct codes fail closed. `exactLinkPredicate` admits only the proven https origin and path with exactly one non-empty token parameter. Errors never include the code or the link.
+
 The password-reset canary still drives the Better Auth `/forgot-password` form and Teak's reset email. On WorkOS, `/forgot-password` hands off to hosted AuthKit, so this canary fails there until it's rewritten against hosted reset. The accessibility scan accepts the Better Auth form or the WorkOS entry on `/login` and `/register`, plus the paused status on `/register`. Cleanup is browserless. Exact accounts created by a test are removed during teardown, while the scheduled sweep discovers orphan accounts directly from the production auth database. The backend accepts only the configured `e2e-*` email namespace, enforces account-age bounds, caps each sweep, and reuses the same Teak data-deletion path as user-initiated account deletion. Mailpit messages are deleted separately by exact message ID.
 
 Manual full-suite runs can opt into email delivery with the `email_delivery` input to check the signup entry and password-reset canary before the next nightly run.

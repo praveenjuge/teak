@@ -227,6 +227,7 @@ import type * as workosConsents from "../workosConsents.js";
 import type * as workosDeletionCompletion from "../workosDeletionCompletion.js";
 import type * as workosE2eActions from "../workosE2eActions.js";
 import type * as workosE2eHttp from "../workosE2eHttp.js";
+import type * as workosE2eReservations from "../workosE2eReservations.js";
 import type * as workosE2eState from "../workosE2eState.js";
 import type * as workosIdentity from "../workosIdentity.js";
 import type * as workosLifecycle from "../workosLifecycle.js";
@@ -468,6 +469,7 @@ declare const fullApi: ApiFromModules<{
   workosDeletionCompletion: typeof workosDeletionCompletion;
   workosE2eActions: typeof workosE2eActions;
   workosE2eHttp: typeof workosE2eHttp;
+  workosE2eReservations: typeof workosE2eReservations;
   workosE2eState: typeof workosE2eState;
   workosIdentity: typeof workosIdentity;
   workosLifecycle: typeof workosLifecycle;

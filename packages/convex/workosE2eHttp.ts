@@ -3,6 +3,7 @@ import { httpAction } from "./_generated/server";
 import { createAuth } from "./auth";
 import { readAuthPrimary } from "./env";
 import { readResponseTextWithinLimit } from "./shared/boundedResponse";
+import { reservationRequestId } from "./workosE2eReservations";
 
 async function authorized(value: string) {
   const expected = process.env.E2E_CLEANUP_TOKEN;
@@ -24,7 +25,7 @@ async function authorized(value: string) {
   return mismatch === 0;
 }
 
-function endpoint(operation: "provision" | "cleanup") {
+function endpoint(operation: "provision" | "cleanup" | "reserve" | "adopt") {
   return httpAction(async (ctx, request) => {
     if (readAuthPrimary() === "betterauth") {
       return createAuth(ctx).handler(request);
@@ -79,6 +80,29 @@ function endpoint(operation: "provision" | "cleanup") {
           email: data.email.trim().toLowerCase(),
           password: data.password,
         });
+      } else if (operation === "reserve") {
+        if (
+          typeof data.requestId !== "string" ||
+          !reservationRequestId.test(data.requestId)
+        ) {
+          return Response.json({ error: "Invalid request" }, { status: 400 });
+        }
+        result = await ctx.runAction(internal.workosE2eActions.reserveSignup, {
+          requestId: data.requestId,
+        });
+      } else if (operation === "adopt") {
+        if (
+          typeof data.reservationId !== "string" ||
+          typeof data.email !== "string" ||
+          data.reservationId.length > 128 ||
+          data.email.length > 254
+        ) {
+          return Response.json({ error: "Invalid request" }, { status: 400 });
+        }
+        result = await ctx.runAction(internal.workosE2eActions.adoptSignup, {
+          reservationId: data.reservationId,
+          email: data.email.trim().toLowerCase(),
+        });
       } else {
         if (
           data.emails !== undefined &&
@@ -122,3 +146,5 @@ function endpoint(operation: "provision" | "cleanup") {
 }
 export const provisionE2e = endpoint("provision");
 export const cleanupE2e = endpoint("cleanup");
+export const reserveE2eSignup = endpoint("reserve");
+export const adoptE2eSignup = endpoint("adopt");

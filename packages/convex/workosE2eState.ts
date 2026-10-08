@@ -109,7 +109,7 @@ export const ownerByEmail = internalQuery({
     };
   },
 });
-function assertNamespace(email: string) {
+export function assertNamespace(email: string) {
   const domain = normalizeE2EEmailDomain(process.env.E2E_EMAIL_DOMAIN ?? "");
   if (
     readAuthPrimary() !== "workos" ||

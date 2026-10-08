@@ -247,6 +247,127 @@ export const provisionE2EAccount = async (
   }
 };
 
+export interface E2ESignupReservation {
+  email: string;
+  expiresAt: number;
+  reservationId: string;
+}
+
+const serverCode = (payload: unknown) => {
+  const code =
+    payload && typeof payload === "object"
+      ? (payload as { code?: unknown }).code
+      : undefined;
+  return typeof code === "string" && /^E2E_[A-Z_]{1,64}$/.test(code)
+    ? ` ${code}`
+    : "";
+};
+
+// The protected endpoints share one bounded retry policy: a lost response or a
+// 5xx retries the identical body, every other status is final.
+const postSignup = async (
+  path: "reserve" | "adopt",
+  body: string,
+  sleep: (attempt: number) => Promise<void>,
+  done: (status: number, payload: unknown) => boolean
+): Promise<unknown> => {
+  requireE2ECleanup();
+  requireE2ENamespace();
+  for (let attempt = 1; attempt <= PROVISION_MAX_ATTEMPTS; attempt += 1) {
+    let response: Response;
+    try {
+      response = await fetch(
+        `${env.convexSiteUrl}/api/auth/internal/e2e/signup/${path}`,
+        {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${env.cleanupToken}`,
+            "Content-Type": "application/json",
+          },
+          body,
+          signal: AbortSignal.timeout(30_000),
+        }
+      );
+    } catch {
+      if (attempt === PROVISION_MAX_ATTEMPTS) {
+        throw new Error(`Production E2E signup ${path} failed (network)`);
+      }
+      await sleep(attempt);
+      continue;
+    }
+    const payload: unknown = await response.json().catch(() => null);
+    if (done(response.status, payload)) {
+      return payload;
+    }
+    if (response.status >= 500 && attempt < PROVISION_MAX_ATTEMPTS) {
+      await sleep(attempt);
+      continue;
+    }
+    throw new Error(
+      `Production E2E signup ${path} failed (${response.status})${serverCode(payload)}`
+    );
+  }
+  throw new Error(`Production E2E signup ${path} failed`);
+};
+
+// Reserves a server-generated recipient for one hosted signup. The request ID
+// is fixed before the first attempt, so a retry after a lost response returns
+// the same recipient instead of allocating another.
+export const reserveE2ESignup = async (
+  sleep: (attempt: number) => Promise<void> = waitForProvisionRetry
+): Promise<E2ESignupReservation> => {
+  const recipient = new RegExp(
+    `^e2e-signup-[0-9a-f]{32}@${env.emailDomain
+      .toLowerCase()
+      .replace(/[.]/g, "\\.")}$`
+  );
+  const payload = (await postSignup(
+    "reserve",
+    JSON.stringify({ requestId: crypto.randomUUID() }),
+    sleep,
+    (status) => status === 200
+  )) as Partial<E2ESignupReservation> | null;
+  if (
+    typeof payload?.reservationId !== "string" ||
+    !payload.reservationId.length ||
+    payload.reservationId.length > 128 ||
+    typeof payload.email !== "string" ||
+    !recipient.test(payload.email) ||
+    typeof payload.expiresAt !== "number" ||
+    !(payload.expiresAt > Date.now())
+  ) {
+    throw new Error("Production E2E signup reservation response is invalid");
+  }
+  return {
+    reservationId: payload.reservationId,
+    email: payload.email,
+    expiresAt: payload.expiresAt,
+  };
+};
+
+// Qualifies a hosted signup after verification. Adoption is idempotent, and
+// the server reports E2E_ADOPT_PENDING until the real webhook owner exists.
+export const adoptE2ESignup = async (
+  reservation: E2ESignupReservation,
+  sleep: (attempt: number) => Promise<void> = waitForProvisionRetry
+): Promise<void> => {
+  if (!isConfiguredE2EEmail(reservation.email)) {
+    throw new Error("Production E2E signup adoption email is invalid");
+  }
+  const body = JSON.stringify({
+    reservationId: reservation.reservationId,
+    email: reservation.email,
+  });
+  await postSignup(
+    "adopt",
+    body,
+    sleep,
+    (status, payload) =>
+      status === 200 &&
+      (payload as { email?: unknown } | null)?.email === reservation.email
+  );
+};
+
 export const assertE2ECleanupReady = async (): Promise<void> => {
   const email = `e2e-preflight-${Date.now()}-probe@${env.emailDomain}`;
   const result = await cleanupE2EAccounts([email]);

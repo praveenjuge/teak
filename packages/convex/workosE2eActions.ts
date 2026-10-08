@@ -1,10 +1,11 @@
 "use node";
 
-import { createHash } from "node:crypto";
+import { createHash, randomBytes } from "node:crypto";
 import { NotFoundException, type User, WorkOS } from "@workos-inc/node";
 import { v } from "convex/values";
 import { z } from "zod";
 import { internal } from "./_generated/api";
+import type { Doc } from "./_generated/dataModel";
 import { type ActionCtx, internalAction } from "./_generated/server";
 import { isE2EEmail } from "./e2eAccounts";
 import type { E2ECleanupResult } from "./e2eCleanup";
@@ -109,12 +110,238 @@ export const provision = internalAction({
   },
 });
 
+type Target = Awaited<ReturnType<typeof target>>;
+type Reservation = Doc<"e2eSignupReservations">;
+const reservationKey = "teak_e2e_reservation";
+
+async function providerUser(t: Target, email: string) {
+  await t.validate();
+  const page = await t.workos.userManagement.listUsers({ email, limit: 2 });
+  if (page.data.length > 1 || page.listMetadata.after) {
+    throw new Error("E2E provider conflict");
+  }
+  return page.data[0] ?? null;
+}
+
+const flagged = (user: User, reservation: Reservation) => {
+  const metadata = user.metadata ?? {};
+  return (
+    Object.keys(metadata).length === 2 &&
+    metadata.teak_e2e === "v1" &&
+    metadata[reservationKey] === reservation._id
+  );
+};
+
+// Pins the exact provider user to the reservation before writing the provider
+// flag, then proves the write by re-reading. Foreign metadata fails closed.
+async function claim(
+  ctx: ActionCtx,
+  t: Target,
+  reservation: Reservation,
+  user: User
+): Promise<User> {
+  const createdAt = Date.parse(user.createdAt);
+  if (
+    user.email.trim().toLowerCase() !== reservation.email ||
+    !(
+      Object.keys(user.metadata ?? {}).length === 0 ||
+      flagged(user, reservation)
+    )
+  ) {
+    throw new Error("E2E reservation evidence mismatch");
+  }
+  await t.validate();
+  await ctx.runMutation(internal.workosE2eReservations.bind, {
+    ...t.pins,
+    id: reservation._id,
+    workosUserId: user.id,
+    providerCreatedAt: createdAt,
+  });
+  if (flagged(user, reservation)) {
+    return user;
+  }
+  await t.validate();
+  await t.workos.userManagement.updateUser({
+    userId: user.id,
+    metadata: { teak_e2e: "v1", [reservationKey]: reservation._id },
+  });
+  await t.validate();
+  const reread = await t.workos.userManagement.getUser(user.id);
+  if (
+    reread.id !== user.id ||
+    reread.email.trim().toLowerCase() !== reservation.email ||
+    Date.parse(reread.createdAt) !== createdAt ||
+    !flagged(reread, reservation)
+  ) {
+    throw new Error("E2E reservation flag unproven");
+  }
+  return reread;
+}
+
+async function providerAbsent(t: Target, workosUserId: string) {
+  await t.validate();
+  try {
+    await t.workos.userManagement.getUser(workosUserId);
+    return false;
+  } catch (error) {
+    if (!(error instanceof NotFoundException)) {
+      throw error;
+    }
+    return true;
+  }
+}
+
+// Resolves one open reservation for cleanup. Returns the flagged provider user
+// for the existing owner-bound deletion path, or a terminal outcome.
+async function settle(
+  ctx: ActionCtx,
+  t: Target,
+  reservation: Reservation,
+  user: User | null
+): Promise<{ user: User | null } | { outcome: "deleted" | "pending" }> {
+  const close = (reason: "provider_deleted" | "absent_past_window") =>
+    ctx.runMutation(internal.workosE2eReservations.close, {
+      ...t.pins,
+      id: reservation._id,
+      reason,
+    });
+  const owner = () =>
+    ctx.runQuery(internal.workosE2eState.ownerByEmail, {
+      email: reservation.email,
+    });
+  if (!user) {
+    if (reservation.workosUserId) {
+      if (!(await providerAbsent(t, reservation.workosUserId))) {
+        throw new Error("E2E bound provider user moved");
+      }
+      const current = await owner();
+      if (!current || current.completed) {
+        await close("provider_deleted");
+      }
+    } else if (Date.now() > reservation.expiresAt + orphanMaximum + clockSkew) {
+      await close("absent_past_window");
+    }
+    // An unbound lease stays open: absence now does not prove a later
+    // creation cannot land, and the sweep keeps rechecking it.
+    return { user: null };
+  }
+  const claimed = await claim(ctx, t, reservation, user);
+  if (await owner()) {
+    return { user: claimed };
+  }
+  // A verified user may still be gaining its owner through the webhook.
+  if (claimed.emailVerified) {
+    return { outcome: "pending" };
+  }
+  await t.validate();
+  await ctx.runMutation(internal.workosE2eReservations.beginOwnerlessDeletion, {
+    ...t.pins,
+    id: reservation._id,
+    workosUserId: claimed.id,
+  });
+  await t.validate();
+  await t.workos.userManagement.deleteUser(claimed.id);
+  if (!(await providerAbsent(t, claimed.id))) {
+    return { outcome: "pending" };
+  }
+  await close("provider_deleted");
+  return { outcome: "deleted" };
+}
+
+export const reserveSignup = internalAction({
+  args: { requestId: v.string() },
+  handler: async (ctx, { requestId }) => {
+    const t = await target(ctx);
+    const reserved = await ctx.runMutation(
+      internal.workosE2eReservations.reserve,
+      {
+        ...t.pins,
+        requestId,
+        email: `e2e-signup-${randomBytes(16).toString("hex")}@${t.domain}`,
+      }
+    );
+    if (reserved.kind === "budget") {
+      return { status: 429, body: { code: "E2E_RESERVATION_BUDGET" } };
+    }
+    const { reservation } = reserved;
+    const live = reservation.expiresAt > Date.now();
+    if (live && reservation.state === "pending") {
+      // Absence is checked only after the durable insert, so any provider
+      // user found later for this recipient was created after this point.
+      if (await providerUser(t, reservation.email)) {
+        return { status: 409, body: { code: "E2E_RESERVATION_CONFLICT" } };
+      }
+      await t.validate();
+      await ctx.runMutation(internal.workosE2eReservations.clear, {
+        ...t.pins,
+        id: reservation._id,
+      });
+    } else if (!(live && reservation.state === "reserved")) {
+      return { status: 409, body: { code: "E2E_RESERVATION_UNAVAILABLE" } };
+    }
+    return {
+      status: 200,
+      body: {
+        reservationId: reservation._id,
+        email: reservation.email,
+        expiresAt: reservation.expiresAt,
+      },
+    };
+  },
+});
+
+export const adoptSignup = internalAction({
+  args: { reservationId: v.string(), email: v.string() },
+  handler: async (ctx, { reservationId, email }) => {
+    const t = await target(ctx);
+    if (!isE2EEmail(email, t.domain) || email !== email.trim().toLowerCase()) {
+      return { status: 400, body: { code: "E2E_RESERVATION_INVALID" } };
+    }
+    const reservation = await ctx.runQuery(
+      internal.workosE2eReservations.byEmail,
+      { email }
+    );
+    // Exact equality with the stored document ID is the ID validation.
+    if (
+      reservation?._id !== reservationId ||
+      reservation.state === "closed" ||
+      reservation.expiresAt <= Date.now()
+    ) {
+      return { status: 409, body: { code: "E2E_RESERVATION_UNAVAILABLE" } };
+    }
+    const user = await providerUser(t, email);
+    if (!user) {
+      return { status: 409, body: { code: "E2E_SIGNUP_MISSING" } };
+    }
+    const claimed = await claim(ctx, t, reservation, user);
+    for (let attempt = 0; claimed.emailVerified && attempt < 10; attempt++) {
+      await t.validate();
+      if (
+        await ctx.runMutation(internal.workosE2eReservations.qualify, {
+          ...t.pins,
+          id: reservation._id,
+          workosUserId: claimed.id,
+        })
+      ) {
+        return { status: 200, body: { email } };
+      }
+      if (attempt < 9) {
+        await new Promise((resolve) => setTimeout(resolve, 500));
+      }
+    }
+    return { status: 503, body: { code: "E2E_ADOPT_PENDING" } };
+  },
+});
+
 const cursorSchema = z
   .object({
     providerAfter: z.string().max(1024).nullable(),
     providerDone: z.boolean(),
     ownerCursor: z.string().max(4096).nullable(),
     ownerDone: z.boolean(),
+    reservationBefore: z.number().int().nonnegative(),
+    reservationCursor: z.string().max(4096).nullable(),
+    reservationDone: z.boolean(),
     clientId: z.string().max(256),
     environmentId: z.string().max(256),
   })
@@ -126,8 +353,8 @@ export const cleanup = internalAction({
     cursor: v.optional(v.string()),
   },
   handler: async (ctx, { emails, cursor }) => {
-    const { workos, domain, validate, clientId, environmentId, pins } =
-      await target(ctx);
+    const t = await target(ctx);
+    const { workos, domain, validate, clientId, environmentId, pins } = t;
     const result: E2ECleanupResult = {
       alreadyDeleted: [],
       deleted: [],
@@ -146,6 +373,10 @@ export const cleanup = internalAction({
           providerDone: false,
           ownerCursor: null,
           ownerDone: false,
+          // Fixed per sweep: a reservation user is at least the orphan floor old.
+          reservationBefore: Date.now() - orphanMinimum - clockSkew,
+          reservationCursor: null,
+          reservationDone: false,
           clientId,
           environmentId,
         };
@@ -236,11 +467,54 @@ export const cleanup = internalAction({
         progress.ownerCursor = page.cursor;
         progress.ownerDone = page.done;
       }
+      if (!progress.reservationDone) {
+        const page = await ctx.runQuery(
+          internal.workosE2eReservations.expired,
+          {
+            before: progress.reservationBefore,
+            cursor: progress.reservationCursor,
+          }
+        );
+        for (const email of page.emails) {
+          if (!candidates.has(email)) {
+            candidates.set(email, await providerUser(t, email));
+          }
+        }
+        if (
+          !page.done &&
+          (!page.cursor || page.cursor === progress.reservationCursor)
+        ) {
+          throw new Error("E2E reservation cursor cycle");
+        }
+        progress.reservationCursor = page.cursor;
+        progress.reservationDone = page.done;
+      }
     }
     let pending = false;
-    for (const [email, user] of candidates) {
+    for (const [email, candidate] of candidates) {
       try {
+        let user = candidate;
         await validate();
+        const reservation = await ctx.runQuery(
+          internal.workosE2eReservations.byEmail,
+          { email }
+        );
+        if (reservation && reservation.state !== "closed") {
+          const settled = await settle(ctx, t, reservation, user);
+          if ("outcome" in settled) {
+            if (settled.outcome === "deleted") {
+              result.deleted.push(email);
+            } else {
+              pending = true;
+              result.failures.push({
+                email,
+                reason: "account cleanup pending",
+              });
+            }
+            continue;
+          }
+          user = settled.user;
+        }
         const owner = await ctx.runQuery(internal.workosE2eState.ownerByEmail, {
           email,
         });
@@ -295,7 +569,8 @@ export const cleanup = internalAction({
         (failure) => failure.reason !== "account cleanup pending"
       );
     const nextCursor =
-      exact || (progress.providerDone && progress.ownerDone)
+      exact ||
+      (progress.providerDone && progress.ownerDone && progress.reservationDone)
         ? null
         : JSON.stringify(progress);
     result.remainingEligible = nextCursor !== null;
