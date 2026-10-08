@@ -9,28 +9,12 @@ const modules = import.meta.glob("./**/*.ts");
 
 beforeEach(() => {
   vi.stubEnv("WORKOS_ENVIRONMENT_ID", "environment_01KBYSVN9RVQ1JXACG3MDMQZGA");
-  vi.stubEnv("WORKOS_CLIENT_ID", "client_readiness_test");
-  vi.stubEnv("WORKOS_API_KEY", "sk_test_readiness");
+  vi.stubEnv("WORKOS_CLIENT_ID", "client_authkit_test");
+  vi.stubEnv("WORKOS_API_KEY", "sk_test_authkit");
   vi.stubEnv("WORKOS_WEBHOOK_SECRET", "test_webhook_secret");
   vi.stubEnv("E2E_EMAIL_DOMAIN", "e2e.invalid");
 });
 afterEach(() => vi.unstubAllEnvs());
-
-test("dev Connect metadata exposes only the prepared public PKCE client", async () => {
-  const t = convexTest(schema, modules);
-  const response = await t.fetch("/migration/connect-readiness.json");
-  expect(response.status).toBe(200);
-  expect(await response.json()).toEqual({
-    client_id:
-      "https://reminiscent-kangaroo-59.convex.site/migration/connect-readiness.json",
-    client_name: "Teak CIMD readiness",
-    redirect_uris: ["http://127.0.0.1:14210/oauth/callback"],
-    token_endpoint_auth_method: "none",
-    grant_types: ["authorization_code", "refresh_token"],
-    response_types: ["code"],
-    scope: "openid profile email offline_access",
-  });
-});
 
 test.each([
   { disabled: "true", email: "new@example.com", verdict: "Deny" },
@@ -42,15 +26,12 @@ test.each([
   async ({ disabled, email, verdict }) => {
     vi.stubEnv("SIGNUPS_DISABLED", disabled);
     const t = convexTest(schema, modules);
-    const response = await t.mutation(
-      internal.migration.workosReadiness.authKitAction,
-      {
-        action: {
-          object: "user_registration_action_context",
-          userData: { email },
-        },
-      }
-    );
+    const response = await t.mutation(internal.workosAuthKit.authKitAction, {
+      action: {
+        object: "user_registration_action_context",
+        userData: { email },
+      },
+    });
     expect(response.verdict).toBe(verdict);
     if (verdict === "Deny") {
       expect(response.errorMessage).toBe(SIGNUPS_PAUSED_MESSAGE);

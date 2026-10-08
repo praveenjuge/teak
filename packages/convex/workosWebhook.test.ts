@@ -296,41 +296,4 @@ describe.each([
     expect((await post(t, "{broken")).status).toBe(401);
     expect((await snapshot(t)).events).toEqual([]);
   });
-
-  test("readiness-only denial stays in development when registrations reopen", async () => {
-    vi.stubEnv("SIGNUPS_DISABLED", "false");
-    const t = setup();
-    const body = JSON.stringify({
-      id: "action_readiness_prefix",
-      object: "user_registration_action_context",
-      user_data: {
-        object: "user_data",
-        email: "phase-r-deny-person@example.com",
-      },
-    });
-    const response = await t.fetch("/workos/action", {
-      method: "POST",
-      headers: {
-        "content-type": "application/json",
-        "workos-signature": await signature(
-          body,
-          "isolated-action-signing-fixture"
-        ),
-      },
-      body,
-    });
-    expect(response.status).toBe(200);
-    expect((await response.json()).payload.verdict).toBe(
-      environmentId === "environment_01KBYSVN9RVQ1JXACG3MDMQZGA"
-        ? "Deny"
-        : "Allow"
-    );
-    expect(await snapshot(t)).toEqual({
-      users: [],
-      events: [],
-      quarantine: [],
-      cards: [],
-      scheduled: [],
-    });
-  });
 });

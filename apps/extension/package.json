@@ -17,10 +17,8 @@
     "zip:firefox": "wxt zip -b firefox"
   },
   "dependencies": {
-    "@convex-dev/better-auth": "0.12.5",
     "@tailwindcss/vite": "^4.3.3",
     "@teak/convex": "workspace:*",
-    "better-auth": "1.6.26",
     "convex": "^1.46.0",
     "lucide-react": "^1.30.0",
     "react": "^19.2.8",

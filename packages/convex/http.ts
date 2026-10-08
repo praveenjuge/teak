@@ -7,7 +7,6 @@ import {
 import { exchangeNativeAuthOptions, pollNativeAuthCode } from "./authNative";
 import { polar } from "./billing";
 import { mcpV1, oauthProtectedResourceV1 } from "./mcp/httpServer";
-import { clientMetadata } from "./migration/connectReadiness";
 import { revokeOAuthToken } from "./oauthRevocation";
 import { oauthUserInfo } from "./oauthUserInfo";
 import { duplicateCardV1 } from "./publicApiDuplicate";
@@ -58,12 +57,6 @@ http.route({
 });
 
 registerWorkosRoutes(http);
-
-http.route({
-  path: "/migration/connect-readiness.json",
-  method: "GET",
-  handler: clientMetadata,
-});
 
 http.route({
   path: "/api/oauth/userinfo",

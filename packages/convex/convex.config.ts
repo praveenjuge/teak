@@ -15,7 +15,7 @@ const app = defineApp({
     SITE_URL: v.string(),
     PUBLIC_ORIGIN: v.optional(v.string()),
     JWKS: v.optional(v.string()),
-    // Phase R probes reactivity before this flag controls authentication.
+    // Sign-in provider: "workos" on Teak's deployments; unset means Better Auth.
     AUTH_PRIMARY: v.optional(v.string()),
     IDENTITY_RESOLVER_ENFORCE: v.optional(v.string()),
     SIGNUPS_DISABLED: v.optional(v.string()),

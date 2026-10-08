@@ -2,8 +2,8 @@ import { type HttpRouter, httpRouter } from "convex/server";
 import { v } from "convex/values";
 import { components, internal } from "./_generated/api";
 import { env, httpAction, internalMutation } from "./_generated/server";
-import { readinessAuthKit } from "./migration/workosReadiness";
 import { readResponseTextWithinLimit } from "./shared/boundedResponse";
+import { authKit } from "./workosAuthKit";
 
 // This transaction preserves Teak processing even when component synchronization
 // deduplicates, rewrites or suppresses its own callback. Either both commit or
@@ -44,7 +44,7 @@ export const syncVerifiedEvent = internalMutation({
 });
 
 export const workosWebhook = httpAction(async (ctx, request) => {
-  const kit = readinessAuthKit;
+  const kit = authKit;
   const secret = env.WORKOS_WEBHOOK_SECRET;
   if (!(kit && secret)) {
     return new Response("Webhook unavailable", { status: 503 });
@@ -101,11 +101,11 @@ export const workosWebhook = httpAction(async (ctx, request) => {
 });
 
 export const registerWorkosRoutes = (http: HttpRouter) => {
-  if (!readinessAuthKit) {
+  if (!authKit) {
     return;
   }
   const providerRoutes = httpRouter();
-  readinessAuthKit.registerRoutes(providerRoutes);
+  authKit.registerRoutes(providerRoutes);
   for (const [path, method, handler] of providerRoutes.getRoutes()) {
     http.route({
       path,
