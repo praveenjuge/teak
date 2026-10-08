@@ -7,7 +7,51 @@
  * so a killed tree cannot hang output collection. Timeouts resolve (never
  * throw) with a nonzero exit and the timeout recorded on stderr so existing
  * tail-extraction surfaces it. Spawn failures propagate to the caller.
+ *
+ * A normal exit ends the tree too. The Convex CLI signals the local backend
+ * it started and exits without waiting, so a backend that does not stop
+ * keeps the fixed port bound and the next `convex dev` refuses to start.
+ * Only the process group created here is signalled, so a process some other
+ * command started is never touched.
  */
+
+// Matches the window `convex dev` gives a previous backend to stop.
+const GROUP_EXIT_GRACE_MS = 5000;
+
+const groupAlive = (pgid: number): boolean => {
+  try {
+    process.kill(-pgid, 0);
+    return true;
+  } catch {
+    return false;
+  }
+};
+
+const waitForGroupExit = async (pgid: number, ms: number): Promise<void> => {
+  const deadline = Date.now() + ms;
+  while (groupAlive(pgid) && Date.now() < deadline) {
+    await Bun.sleep(100);
+  }
+};
+
+const settleGroup = async (pgid: number): Promise<void> => {
+  if (!groupAlive(pgid)) {
+    return;
+  }
+  try {
+    process.kill(-pgid, "SIGTERM");
+  } catch {
+    return;
+  }
+  await waitForGroupExit(pgid, GROUP_EXIT_GRACE_MS);
+  try {
+    process.kill(-pgid, "SIGKILL");
+  } catch {
+    // The group exited within the grace period.
+    return;
+  }
+  await waitForGroupExit(pgid, 1000);
+};
 
 export interface RunCommandResult {
   exitCode: number;
@@ -88,11 +132,20 @@ export const runCommand = async (
     stdoutReader.cancel().catch(() => {});
     stderrReader.cancel().catch(() => {});
   }, timeoutMs);
+  // Settle the group as soon as the command exits, not after output EOF: a
+  // leftover descendant holding an inherited pipe would otherwise keep the
+  // readers waiting until the timeout.
+  const exited = proc.exited.then(async (code) => {
+    if (!timedOut) {
+      await settleGroup(proc.pid);
+    }
+    return code;
+  });
   try {
     const [stdout, stderr, exitCode] = await Promise.all([
       readStream(stdoutReader),
       readStream(stderrReader),
-      proc.exited,
+      exited,
     ]);
     if (timedOut) {
       const note = `command timed out after ${timeoutMs}ms`;

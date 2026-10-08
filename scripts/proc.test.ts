@@ -1,6 +1,15 @@
 import { describe, expect, test } from "bun:test";
 import { runCommand } from "./proc.ts";
 
+const groupGone = (pgid: number): boolean => {
+  try {
+    process.kill(-pgid, 0);
+    return false;
+  } catch {
+    return true;
+  }
+};
+
 describe("runCommand", () => {
   test("captures stdout and exit code", async () => {
     const result = await runCommand(["echo", "hello"]);
@@ -38,18 +47,10 @@ describe("runCommand", () => {
       timeoutMs: 2000,
     });
     expect(result.timedOut).toBe(true);
-    const groupGone = (): boolean => {
-      try {
-        process.kill(-result.pid, 0);
-        return false;
-      } catch {
-        return true;
-      }
-    };
-    let gone = groupGone();
+    let gone = groupGone(result.pid);
     for (let i = 0; i < 30 && !gone; i++) {
       await new Promise((resolve) => setTimeout(resolve, 100));
-      gone = groupGone();
+      gone = groupGone(result.pid);
     }
     expect(gone).toBe(true);
     // pgrep independently proves the sleeper itself is gone. Restricted
@@ -66,4 +67,47 @@ describe("runCommand", () => {
       );
     }
   });
+
+  // The Convex CLI exits while its local backend may still hold port 3210;
+  // the next command must not find that backend running.
+  test("a normal exit stops descendants the command left running", async () => {
+    const result = await runCommand([
+      "sh",
+      "-c",
+      "sleep 31 > /dev/null 2>&1 & echo started",
+    ]);
+    expect(result.exitCode).toBe(0);
+    expect(result.stdout.trim()).toBe("started");
+    expect(groupGone(result.pid)).toBe(true);
+  });
+
+  test("a descendant holding the output pipe does not delay a normal exit", async () => {
+    const started = Date.now();
+    const result = await runCommand(["sh", "-c", "sleep 33 & echo started"], {
+      timeoutMs: 20_000,
+    });
+    expect(result.timedOut).toBe(false);
+    expect(result.exitCode).toBe(0);
+    expect(result.stdout.trim()).toBe("started");
+    expect(Date.now() - started).toBeLessThan(10_000);
+    expect(groupGone(result.pid)).toBe(true);
+  });
+
+  test("a normal exit kills descendants that ignore SIGTERM", async () => {
+    const started = Date.now();
+    const result = await runCommand([
+      "sh",
+      "-c",
+      "(trap '' TERM; exec sleep 32) > /dev/null 2>&1 & exit 0",
+    ]);
+    expect(result.exitCode).toBe(0);
+    expect(Date.now() - started).toBeLessThan(10_000);
+    // SIGKILL ends it at once; init may take a moment to reap the zombie.
+    let gone = groupGone(result.pid);
+    for (let i = 0; i < 30 && !gone; i++) {
+      await new Promise((resolve) => setTimeout(resolve, 100));
+      gone = groupGone(result.pid);
+    }
+    expect(gone).toBe(true);
+  }, 15_000);
 });
