@@ -323,6 +323,33 @@ describe.each([
     expect(JSON.stringify(letters)).not.toContain("provider@example.com");
   });
 
+  test("malformed envelopes are dead-lettered instead of retried, one per event", async () => {
+    const t = setup();
+    const before = await snapshot(t);
+    const longA = `evt_${"a".repeat(300)}`;
+    const longB = `${longA.slice(0, 256)}${"b".repeat(48)}`;
+    for (const id of [42, longA, longB]) {
+      const response = await post(t, JSON.stringify({ ...fixture(), id }));
+      expect(response.status).toBe(200);
+      expect(await response.text()).toBe("Rejected");
+    }
+    expect(
+      (await post(t, JSON.stringify({ ...fixture(), id: 42 }))).status
+    ).toBe(200);
+    expect(await snapshot(t)).toEqual(before);
+    const letters = await t.run((ctx) =>
+      ctx.db.query("workosWebhookDeadLetters").take(10)
+    );
+    expect(letters).toHaveLength(3);
+    expect(new Set(letters.map((row) => row.eventId)).size).toBe(3);
+    expect(letters.every((row) => row.eventId.startsWith("sha256:"))).toBe(
+      true
+    );
+    expect(
+      letters.every((row) => row.reason === "Invalid WorkOS event id")
+    ).toBe(true);
+  });
+
   test("the registration Action verifies the exact signed body, not re-serialized JSON", async () => {
     const t = setup();
     const body = JSON.stringify(

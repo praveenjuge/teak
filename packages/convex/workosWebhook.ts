@@ -44,6 +44,49 @@ export const syncVerifiedEvent = internalMutation({
   },
 });
 
+// The mutation's argument validators would reject these before Teak's own
+// checks run, so the envelope is checked here and dead-lettered the same way.
+const envelopeProblem = (event: {
+  id: unknown;
+  createdAt: unknown;
+  data: unknown;
+}): string | undefined => {
+  if (
+    typeof event.id !== "string" ||
+    event.id.length === 0 ||
+    event.id.length > 256
+  ) {
+    return "Invalid WorkOS event id";
+  }
+  if (typeof event.createdAt !== "string") {
+    return "Invalid WorkOS event timestamp";
+  }
+  if (
+    typeof event.data !== "object" ||
+    event.data === null ||
+    Array.isArray(event.data)
+  ) {
+    return "Invalid WorkOS event data";
+  }
+  return undefined;
+};
+
+// Dead letters are unique per provider event. An ID that can't be stored as is
+// (too long, or not a string) is keyed by its SHA-256 instead of truncated.
+const deadLetterKey = async (id: unknown) => {
+  if (typeof id === "string" && id.length > 0 && id.length <= 256) {
+    return id;
+  }
+  const digest = await crypto.subtle.digest(
+    "SHA-256",
+    new TextEncoder().encode(JSON.stringify(id) ?? String(id))
+  );
+  const hex = Array.from(new Uint8Array(digest), (byte) =>
+    byte.toString(16).padStart(2, "0")
+  ).join("");
+  return `sha256:${hex}`;
+};
+
 export const workosWebhook = httpAction(async (ctx, request) => {
   const kit = authKit;
   const secret = env.WORKOS_WEBHOOK_SECRET;
@@ -85,6 +128,15 @@ export const workosWebhook = httpAction(async (ctx, request) => {
   ) {
     return new Response("Ignored", { status: 200 });
   }
+  const problem = envelopeProblem(event);
+  if (problem) {
+    await ctx.runMutation(internal.workosWebhook.recordDeadLetter, {
+      eventId: await deadLetterKey(event.id),
+      event: event.event,
+      reason: problem,
+    });
+    return new Response("Rejected", { status: 200 });
+  }
   try {
     await ctx.runMutation(internal.workosWebhook.syncVerifiedEvent, {
       id: event.id,
@@ -102,7 +154,7 @@ export const workosWebhook = httpAction(async (ctx, request) => {
       (error.data as { code?: unknown })?.code === INVALID_WORKOS_EVENT
     ) {
       await ctx.runMutation(internal.workosWebhook.recordDeadLetter, {
-        eventId: String(event.id).slice(0, 256),
+        eventId: await deadLetterKey(event.id),
         event: event.event,
         reason: String(
           (error.data as { message?: unknown }).message ?? INVALID_WORKOS_EVENT
