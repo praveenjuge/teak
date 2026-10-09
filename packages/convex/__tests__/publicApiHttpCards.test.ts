@@ -311,7 +311,7 @@ describe("publicApiHttp card endpoints", () => {
     expect(payload.error).toContain("100");
     // Only the two authorization mutations (validate key + rate limit) run;
     // neither idempotency reservation nor the bulk fan-out mutation fire.
-    expect(runMutation).toHaveBeenCalledTimes(2);
+    expect(runMutation).toHaveBeenCalledTimes(1);
   });
 
   test("bulkCardsV1 rejects an empty items array", async () => {
@@ -337,7 +337,7 @@ describe("publicApiHttp card endpoints", () => {
     expect(response.status).toBe(400);
     const payload = await response.json();
     expect(payload.code).toBe("INVALID_INPUT");
-    expect(runMutation).toHaveBeenCalledTimes(2);
+    expect(runMutation).toHaveBeenCalledTimes(1);
   });
 
   test("changesCardsV1 returns items and deleted ids", async () => {
@@ -553,7 +553,7 @@ describe("publicApiHttp card endpoints", () => {
     );
 
     expect(response.status).toBe(200);
-    expect(runMutation.mock.calls[2]?.[1]).toMatchObject({ content });
+    expect(runMutation.mock.calls[1]?.[1]).toMatchObject({ content });
     expect((await response.json()).content).toBe(content);
   });
 
@@ -582,7 +582,7 @@ describe("publicApiHttp card endpoints", () => {
     );
 
     expect(response.status).toBe(400);
-    expect(runMutation).toHaveBeenCalledTimes(2);
+    expect(runMutation).toHaveBeenCalledTimes(1);
   });
 
   test("cardByIdV1 preserves stable text-size errors", async () => {
@@ -777,6 +777,6 @@ describe("publicApiHttp card endpoints", () => {
 
     expect(response.status).toBe(404);
     expect(await response.json()).toMatchObject({ code: "NOT_FOUND" });
-    expect(runMutation).toHaveBeenCalledTimes(2);
+    expect(runMutation).toHaveBeenCalledTimes(1);
   });
 });

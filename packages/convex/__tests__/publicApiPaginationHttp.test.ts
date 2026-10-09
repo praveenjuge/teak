@@ -5,15 +5,14 @@ import { listCardsV1 } from "../publicApiHttp";
 import { withMappedOwner } from "./helpers/session.test-utils";
 
 const authorize = () =>
-  mock()
-    .mockResolvedValueOnce({
-      access: "full_access",
-      keyId: "key_1",
-      rateLimitKey: "component:key_1",
-      source: "component",
-      userId: "user_1",
-    })
-    .mockResolvedValueOnce({ ok: true, retryAt: undefined });
+  mock().mockResolvedValueOnce({
+    access: "full_access",
+    keyId: "key_1",
+    rateLimitKey: "component:key_1",
+    source: "component",
+    userId: "user_1",
+    rateLimit: { ok: true, retryAt: undefined },
+  });
 
 const card = (id: string, createdAt: number) => ({
   _id: id,

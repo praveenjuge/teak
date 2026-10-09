@@ -180,11 +180,11 @@ describe("signed-in Connect management", () => {
     expect(await records(t)).toEqual(beforeRetry);
     expect(await authorize(t)).toEqual({
       status: "denied",
-      reason: "application_disconnected",
+      reason: "revoked_consent",
     });
     expect(await authorize(t, sibling)).toEqual({
       status: "denied",
-      reason: "application_disconnected",
+      reason: "revoked_consent",
     });
     expect(await authorize(t, other)).toEqual({
       status: "ok",
@@ -273,7 +273,7 @@ describe("signed-in Connect management", () => {
     expect(disconnect).toBeNull();
     expect(await authorize(t)).toEqual({
       status: "denied",
-      reason: "application_disconnected",
+      reason: "revoked_consent",
     });
     const rows = await records(t);
     expect(rows).toHaveLength(1);

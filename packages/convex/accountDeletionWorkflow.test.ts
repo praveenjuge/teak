@@ -197,7 +197,7 @@ describe("durable deletion admission and tombstones", () => {
         })
       ).rejects.toThrow(
         stage === 2
-          ? "deletion_workos_apps_invalid"
+          ? "workos_authorized_apps_invalid"
           : "deletion_session_page_invalid"
       );
       expect(requestedLimit).toBe("10");
@@ -314,7 +314,7 @@ describe("durable deletion admission and tombstones", () => {
           generation: 1,
           stage: 2,
         })
-      ).rejects.toThrow("deletion_workos_apps_invalid");
+      ).rejects.toThrow("workos_authorized_apps_invalid");
       expect(deletes).toBe(0);
     }
   );

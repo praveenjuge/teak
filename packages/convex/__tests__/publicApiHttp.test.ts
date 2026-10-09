@@ -49,11 +49,10 @@ describe("publicApiHttp create endpoints", () => {
         access: "full_access",
         source: "component",
         rateLimitKey: "component:key_1",
-      })
-      // ...then the per-key rate limit rejects.
-      .mockResolvedValueOnce({
-        ok: false,
-        retryAt: Date.now() + 30_000,
+        rateLimit: {
+          ok: false,
+          retryAt: Date.now() + 30_000,
+        },
       });
 
     const response = await runHandler(
@@ -79,13 +78,7 @@ describe("publicApiHttp create endpoints", () => {
   test("createCardV1 maps rate limit contention errors to 429", async () => {
     const runMutation = mock()
       // validate succeeds first...
-      .mockResolvedValueOnce({
-        keyId: "key_1",
-        userId: "user_1",
-        access: "full_access",
-        source: "component",
-        rateLimitKey: "component:key_1",
-      })
+
       // ...then the per-key rate limit hits document contention.
       .mockRejectedValueOnce(
         new Error(
@@ -113,18 +106,10 @@ describe("publicApiHttp create endpoints", () => {
   });
 
   test("createCardV1 maps serialized rate limit contention errors to 429", async () => {
-    const runMutation = mock()
-      .mockResolvedValueOnce({
-        keyId: "key_1",
-        userId: "user_1",
-        access: "full_access",
-        source: "component",
-        rateLimitKey: "component:key_1",
-      })
-      .mockRejectedValueOnce({
-        message:
-          'Documents read from or written to the "rateLimits" table changed while this mutation was being run and on every subsequent retry.',
-      });
+    const runMutation = mock().mockRejectedValueOnce({
+      message:
+        'Documents read from or written to the "rateLimits" table changed while this mutation was being run and on every subsequent retry.',
+    });
 
     const response = await runHandler(
       createCardV1,
@@ -233,9 +218,8 @@ describe("publicApiHttp create endpoints", () => {
         rateLimitKey: "component:component_key",
         source: "component",
         userId: "user_1",
+        rateLimit: { ok: true, retryAt: undefined },
       })
-      .mockResolvedValueOnce({ ok: true, retryAt: undefined })
-      .mockResolvedValueOnce(undefined)
       .mockResolvedValueOnce({
         cardId: "card_1",
         status: "created",
@@ -257,10 +241,10 @@ describe("publicApiHttp create endpoints", () => {
     expect(response.status).toBe(200);
     expect(runMutation.mock.calls[0][1]).toEqual({
       token,
+      chargeRateLimit: true,
     });
-    expect(runMutation.mock.calls[1][1]).toEqual({
-      rateLimitKey: "key:component:component_key",
-    });
+    // Validation charged the rate limit; the next call creates the card.
+    expect(runMutation).toHaveBeenCalledTimes(2);
   });
 
   test("createCardV1 rejects supplied string fields with the wrong type", async () => {
@@ -320,7 +304,7 @@ describe("publicApiHttp create endpoints", () => {
       method: "PUT",
       uploadUrl: "https://upload.example",
     });
-    expect(runMutation.mock.calls[2][1]).toEqual({
+    expect(runMutation.mock.calls[1][1]).toEqual({
       fileName: "image.png",
       fileSize: 123,
       mimeType: "image/png",
@@ -445,7 +429,7 @@ describe("publicApiHttp create endpoints", () => {
     );
 
     expect(response.status).toBe(200);
-    expect(runMutation.mock.calls[3]?.[1]).toMatchObject({
+    expect(runMutation.mock.calls[1]?.[1]).toMatchObject({
       cardType: "text",
       content,
       userId: "user_1",
@@ -484,7 +468,7 @@ describe("publicApiHttp create endpoints", () => {
     );
 
     expect(textResponse.status).toBe(200);
-    expect(textMutation.mock.calls[3]?.[1]).toMatchObject({
+    expect(textMutation.mock.calls[1]?.[1]).toMatchObject({
       cardType: "text",
       content: "  \r\n",
     });
@@ -594,7 +578,7 @@ describe("publicApiHttp create endpoints", () => {
       code: "INVALID_INPUT",
       error: "Uploaded file metadata is unavailable",
     });
-    expect(runMutation).toHaveBeenCalledTimes(3);
+    expect(runMutation).toHaveBeenCalledTimes(1);
   });
 
   test("createCardV1 rejects fileKey uploads when the object is missing", async () => {
@@ -632,7 +616,7 @@ describe("publicApiHttp create endpoints", () => {
       error: "Uploaded file was not found",
     });
     expect(runAction).toHaveBeenCalledTimes(1);
-    expect(runMutation).toHaveBeenCalledTimes(3);
+    expect(runMutation).toHaveBeenCalledTimes(1);
   });
 
   test("createCardV1 accepts a successful canonical upload finalization", async () => {
@@ -700,7 +684,7 @@ describe("publicApiHttp create endpoints", () => {
       code: "INVALID_INPUT",
       error: "Uploaded file size does not match the stored object",
     });
-    expect(runMutation).toHaveBeenCalledTimes(3);
+    expect(runMutation).toHaveBeenCalledTimes(1);
   });
 
   test("createCardV1 reports stored MIME mismatches consistently", async () => {
@@ -737,7 +721,7 @@ describe("publicApiHttp create endpoints", () => {
       code: "TYPE_MISMATCH",
       error: "File extension does not match the provided MIME type",
     });
-    expect(runMutation).toHaveBeenCalledTimes(3);
+    expect(runMutation).toHaveBeenCalledTimes(1);
   });
 
   test("createCardV1 rejects fileKey uploads when stored object is too large", async () => {
@@ -773,6 +757,6 @@ describe("publicApiHttp create endpoints", () => {
       code: "FILE_TOO_LARGE",
       error: `Uploaded file must not exceed ${MAX_FILE_SIZE} bytes`,
     });
-    expect(runMutation).toHaveBeenCalledTimes(3);
+    expect(runMutation).toHaveBeenCalledTimes(1);
   });
 });

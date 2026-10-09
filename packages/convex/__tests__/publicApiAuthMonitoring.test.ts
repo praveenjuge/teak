@@ -27,6 +27,7 @@ const VALID_KEY = {
   access: "full_access",
   source: "component",
   rateLimitKey: "component:key_1",
+  rateLimit: { ok: true },
 };
 
 const base64url = (value: unknown) =>
@@ -164,10 +165,9 @@ describe("public API auth outcomes", () => {
   test("a valid key over its own rate limit keeps its 429", async () => {
     const auth = await withAuthorizedUser(
       backend({
-        "apiKeys:validateUserApiKey": VALID_KEY,
-        "publicApi:checkApiRateLimit": {
-          ok: false,
-          retryAt: Date.now() + 5000,
+        "apiKeys:validateUserApiKey": {
+          ...VALID_KEY,
+          rateLimit: { ok: false, retryAt: Date.now() + 5000 },
         },
       }),
       request(API_KEY)
@@ -265,8 +265,7 @@ describe("public API auth outcomes", () => {
       "per-key limiter contention",
       () => undefined,
       {
-        "apiKeys:validateUserApiKey": VALID_KEY,
-        "publicApi:checkApiRateLimit": new Error(
+        "apiKeys:validateUserApiKey": new Error(
           'Documents read from or written to the "rateLimits" table changed while this mutation was being run and on every subsequent retry'
         ),
       },
@@ -284,29 +283,6 @@ describe("public API auth outcomes", () => {
     }
   );
 
-  test("a valid key whose owner is being deleted is owner_unresolved", async () => {
-    const ctx = {
-      runMutation: mock((ref) =>
-        Promise.resolve(
-          getFunctionName(ref) === "apiKeys:validateUserApiKey"
-            ? VALID_KEY
-            : { ok: true }
-        )
-      ),
-      runQuery: mock((ref) =>
-        Promise.resolve(
-          getFunctionName(ref) === "accountDeletion:isDeleting" ? true : null
-        )
-      ),
-    };
-    const auth = await withAuthorizedUser(ctx, request(API_KEY));
-    expect(auth.error.status).toBe(401);
-    expect(outcomes()[0]).toMatchObject({
-      credential: "api_key",
-      reason: "owner_unresolved",
-    });
-  });
-
   test("a legitimate REST request is unchanged and logs no credential", async () => {
     const query = mock().mockResolvedValue({
       itemCursors: [],
@@ -317,9 +293,7 @@ describe("public API auth outcomes", () => {
     const response = await runHandler(
       listCardsV1,
       {
-        runMutation: mock()
-          .mockResolvedValueOnce(VALID_KEY)
-          .mockResolvedValueOnce({ ok: true }),
+        runMutation: mock().mockResolvedValueOnce(VALID_KEY),
         runQuery: query,
       },
       request(API_KEY)
@@ -344,7 +318,6 @@ describe("public API auth outcomes", () => {
     const auth = await withAuthorizedUser(
       backend({
         "apiKeys:validateUserApiKey": VALID_KEY,
-        "publicApi:checkApiRateLimit": { ok: true },
       }),
       request(API_KEY)
     );

@@ -25,7 +25,7 @@ import {
   RATE_LIMITED_ERROR,
   sha256,
 } from "./publicApiHttpShared";
-import { resolveStoredUserId } from "./securitySessions";
+import type { TeakUserId } from "./securitySessions";
 import { isWellFormedApiKey } from "./shared/apiKeyFormat";
 import { WORKOS_RESOURCES } from "./shared/workosResources";
 import { verifyWorkosConnectToken, type WorkosResource } from "./workosTokens";
@@ -67,8 +67,8 @@ const maybeHandleIdempotency = async (
   const idempotencyKey = parseOptionalString(
     args.request.headers.get("idempotency-key")
   );
+  // Requests without a key write nothing; analytics only count keyed requests.
   if (!idempotencyKey) {
-    await trackIdempotency(ctx, args.path, "skipped", crypto.randomUUID());
     return {
       keyHash: "",
       requestHash: "",
@@ -339,8 +339,7 @@ const authorizeBearer = async (
   // rate limiting lets us key the limiter on a stable identity instead of the
   // attacker-controlled raw token.
   let validated: AuthorizedUser | null = null;
-  let credential: (Omit<AuthorizedUser, "userId"> & { userId: string }) | null =
-    null;
+  let rateLimit: { ok?: boolean; retryAt?: number } | undefined;
   let rejection: PublicApiAuthReason = "invalid_credential";
   try {
     if (isConnectToken) {
@@ -359,11 +358,12 @@ const authorizeBearer = async (
       if (principal) {
         const owner = await ctx.runMutation(
           internal.workosConsents.authorizeConnectConsent,
-          principal
+          { ...principal, chargeRateLimit }
         );
         if (owner.status === "ok") {
+          rateLimit = owner.rateLimit;
           validated = {
-            userId: owner.teakUserId as import("./securitySessions").TeakUserId,
+            userId: owner.teakUserId as TeakUserId,
             access: "full_access",
             source: "oauth",
             keyId: principal.consentId,
@@ -378,20 +378,24 @@ const authorizeBearer = async (
         rejection = isExpiredJwt(token) ? "expired_token" : "invalid_token";
       }
     } else {
-      credential = await ctx.runMutation(
+      // The key's owner is resolved in the validation mutation's transaction.
+      const credential = await ctx.runMutation(
         (internal as any).apiKeys.validateUserApiKey,
-        { token }
+        { token, chargeRateLimit }
       );
       if (credential) {
-        const userId = await resolveStoredUserId(ctx, credential.userId);
-        if (userId) {
-          validated = { ...credential, userId };
-        } else {
-          rejection = "owner_unresolved";
-        }
+        const { rateLimit: charged, ...key } = credential;
+        rateLimit = charged;
+        validated = { ...key, userId: key.userId as TeakUserId };
       }
     }
-  } catch {
+  } catch (error) {
+    if (isRateLimitContentionError(error)) {
+      return decide(
+        { error: RATE_LIMIT_CONTENTION_ERROR() },
+        "rate_limit_contention"
+      );
+    }
     return decide({ error: AUTH_INTERNAL_ERROR() }, "internal_error");
   }
 
@@ -418,23 +422,8 @@ const authorizeBearer = async (
     return decide({ validated }, "ok");
   }
 
-  // Rate limit successful auth per validated identity, so the limit follows the
-  // real key / OAuth app+user rather than whatever token string the caller sent.
-  let rateLimit: { ok?: boolean; retryAt?: number } | null = null;
-  try {
-    rateLimit = await ctx.runMutation(internal.publicApi.checkApiRateLimit, {
-      rateLimitKey: `key:${validated.rateLimitKey}`,
-    });
-  } catch (error) {
-    if (isRateLimitContentionError(error)) {
-      return decide(
-        { error: RATE_LIMIT_CONTENTION_ERROR() },
-        "rate_limit_contention"
-      );
-    }
-    return decide({ error: AUTH_INTERNAL_ERROR() }, "internal_error");
-  }
-
+  // The validation mutation charged the limit to the validated identity, so it
+  // follows the real key / OAuth app+user rather than the raw token string.
   if (!rateLimit?.ok) {
     return decide(
       { error: RATE_LIMITED_ERROR(rateLimit?.retryAt) },

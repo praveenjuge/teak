@@ -76,7 +76,6 @@ export type PublicApiAuthReason =
   | "nonprimary_credential"
   | "malformed_credential"
   | "invalid_credential"
-  | "owner_unresolved"
   | "expired_token"
   | "invalid_token"
   | "jwks_unavailable"

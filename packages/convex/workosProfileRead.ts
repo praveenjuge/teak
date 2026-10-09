@@ -21,6 +21,36 @@ export async function readCanonicalWorkosProfile(
   return await readComponentUser(ctx, workosUserId);
 }
 
+export interface ProviderProfile {
+  email: string;
+  emailVerified: boolean;
+  externalId: string | null;
+  firstName: string | null;
+  id: string;
+  lastName: string | null;
+  name: string | null;
+  profilePictureUrl: string | null;
+}
+
+export function toProviderProfile(
+  workosUserId: string,
+  user: NonNullable<Awaited<ReturnType<typeof readComponentUser>>>
+): ProviderProfile {
+  const firstName = user.firstName ?? null;
+  const lastName = user.lastName ?? null;
+  return {
+    id: workosUserId,
+    email: user.email,
+    emailVerified: user.emailVerified,
+    externalId: user.externalId ?? null,
+    firstName,
+    lastName,
+    profilePictureUrl: user.profilePictureUrl ?? null,
+    name:
+      user.name ?? ([firstName, lastName].filter(Boolean).join(" ") || null),
+  };
+}
+
 export const getProfile = internalQuery({
   args: { workosUserId: v.string() },
   returns: v.union(
@@ -38,21 +68,6 @@ export const getProfile = internalQuery({
   ),
   handler: async (ctx, { workosUserId }) => {
     const user = await readCanonicalWorkosProfile(ctx, workosUserId);
-    if (!user) {
-      return null;
-    }
-    const firstName = user.firstName ?? null;
-    const lastName = user.lastName ?? null;
-    return {
-      id: workosUserId,
-      email: user.email,
-      emailVerified: user.emailVerified,
-      externalId: user.externalId ?? null,
-      firstName,
-      lastName,
-      profilePictureUrl: user.profilePictureUrl ?? null,
-      name:
-        user.name ?? ([firstName, lastName].filter(Boolean).join(" ") || null),
-    };
+    return user ? toProviderProfile(workosUserId, user) : null;
   },
 });

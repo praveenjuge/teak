@@ -10,6 +10,12 @@ import {
 } from "./_generated/server";
 import { workosIssuer } from "./shared/workosApi";
 import { createWorkosClient } from "./shared/workosClient";
+import {
+  type ResolveArgs,
+  type ResolvedOwner,
+  resolveOwner,
+} from "./workosIdentity";
+import type { ProviderProfile } from "./workosProfileRead";
 import { validWorkosExternalId } from "./workosTokens";
 
 // Convex has already verified this JWT through auth.config.ts. These checks bind
@@ -78,7 +84,7 @@ export async function getWorkosBootstrapIdentity(ctx: Pick<ActionCtx, "auth">) {
     : null;
 }
 
-export function sessionDisplayName(agent: string | null | undefined): string {
+function sessionDisplayName(agent: string | null | undefined): string {
   if (!agent) {
     return "Unknown device";
   }
@@ -109,7 +115,24 @@ export function sessionDisplayName(agent: string | null | undefined): string {
 }
 
 export type TeakUserId = string & { readonly __brand: "TeakUserId" };
-type SessionCtx = Pick<ActionCtx, "auth" | "runQuery">;
+// Queries and mutations pass their database so identity reads stay in their
+// own transaction. Actions have none and go through internal queries.
+type SessionCtx =
+  | Pick<ActionCtx, "auth" | "runQuery">
+  | Pick<QueryCtx, "auth" | "runQuery" | "db">;
+
+type ActionResolved =
+  | { status: "ok"; teakUserId: string }
+  | { status: "denied"; reason: string };
+
+async function resolveOwnerFor(
+  ctx: SessionCtx,
+  args: ResolveArgs
+): Promise<ResolvedOwner | ActionResolved> {
+  return "db" in ctx && ctx.db
+    ? await resolveOwner(ctx, args)
+    : await ctx.runQuery(internal.workosIdentity.resolveWorkosOwner, args);
+}
 
 export const identityMapping = internalQuery({
   args: { teakUserId: v.string() },
@@ -140,48 +163,23 @@ export async function resolveStoredUserId(
   ctx: SessionCtx,
   ownerId: string
 ): Promise<TeakUserId | null> {
-  const row = await ctx.runQuery(internal.securitySessions.identityMapping, {
-    teakUserId: ownerId,
-  });
+  const row =
+    "db" in ctx && ctx.db
+      ? await ctx.db
+          .query("users")
+          .withIndex("by_teakUserId", (q) => q.eq("teakUserId", ownerId))
+          .unique()
+      : await ctx.runQuery(internal.securitySessions.identityMapping, {
+          teakUserId: ownerId,
+        });
   if (!row?.workosUserId) {
     return null;
   }
-  const owner:
-    | { status: "ok"; teakUserId: string }
-    | { status: "denied"; reason: string } = await ctx.runQuery(
-    internal.workosIdentity.resolveWorkosOwner,
-    {
-      workosUserId: row.workosUserId,
-      externalId: ownerId,
-      verification: { kind: "connect" },
-    }
-  );
-  return owner.status === "ok" ? (owner.teakUserId as TeakUserId) : null;
-}
-
-export async function resolveTeakUserId(
-  ctx: SessionCtx,
-  identity: UserIdentity
-): Promise<TeakUserId | null> {
-  const principal = readWorkosSessionIdentity(
-    identity,
-    process.env.WORKOS_CLIENT_ID ?? ""
-  );
-  if (!principal) {
-    return null;
-  }
-  const owner:
-    | { status: "ok"; teakUserId: string }
-    | { status: "denied"; reason: string } = await ctx.runQuery(
-    internal.workosIdentity.resolveWorkosOwner,
-    {
-      workosUserId: principal.workosUserId,
-      ...(principal.externalId === undefined
-        ? {}
-        : { externalId: principal.externalId }),
-      verification: { kind: "session", emailVerified: principal.emailVerified },
-    }
-  );
+  const owner = await resolveOwnerFor(ctx, {
+    workosUserId: row.workosUserId,
+    externalId: ownerId,
+    verification: { kind: "connect" },
+  });
   return owner.status === "ok" ? (owner.teakUserId as TeakUserId) : null;
 }
 
@@ -200,6 +198,8 @@ export async function requireTeakUserId(
 
 interface SessionUser {
   identity: UserIdentity;
+  // Present when the owner was resolved in the caller's own transaction.
+  profile?: ProviderProfile;
   sessionId: string;
   teakUserId: TeakUserId;
   workosUserId: string;
@@ -230,13 +230,20 @@ export async function getSessionUser(
   if (!principal) {
     return null;
   }
-  const teakUserId = await resolveTeakUserId(ctx, identity);
-  return teakUserId
+  const owner = await resolveOwnerFor(ctx, {
+    workosUserId: principal.workosUserId,
+    ...(principal.externalId === undefined
+      ? {}
+      : { externalId: principal.externalId }),
+    verification: { kind: "session", emailVerified: principal.emailVerified },
+  });
+  return owner.status === "ok"
     ? {
         workosUserId: principal.workosUserId,
-        teakUserId,
+        teakUserId: owner.teakUserId as TeakUserId,
         identity,
         sessionId: principal.sessionId,
+        ...("profile" in owner ? { profile: owner.profile } : {}),
       }
     : null;
 }
@@ -259,7 +266,9 @@ export async function getSessionProfile(
   if (!sessionUser) {
     return null;
   }
-  const provider = await readWorkosProfile(ctx, sessionUser.identity.subject);
+  const provider =
+    sessionUser.profile ??
+    (await readWorkosProfile(ctx, sessionUser.identity.subject));
   if (!provider) {
     return null;
   }
