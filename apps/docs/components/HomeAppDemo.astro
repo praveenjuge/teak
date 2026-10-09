@@ -1,0 +1,530 @@
+---
+import Icon from "blume/components/Icon.astro";
+import {
+  DEMO_CARD_TYPES,
+  DEMO_COLUMNS,
+  type DemoCard,
+  type DemoCardType,
+} from "../lib/home-demo-cards";
+
+// Same deterministic waveform as AudioWavePreview in the web app.
+const AUDIO_WAVE_BARS = 45;
+const waveHeight = (seed: string, index: number) => {
+  const hash = seed.split("").reduce((acc, char) => {
+    const next = (acc << 5) - acc + char.charCodeAt(0);
+    return next & next;
+  }, index);
+  const value = Math.abs(Math.sin(hash)) * 0.6 + 0.2;
+  return `${Number((value * 60 + 20).toFixed(3))}%`;
+};
+
+const searchText = (card: DemoCard) =>
+  [
+    card.title,
+    card.content,
+    card.url,
+    card.summary,
+    DEMO_CARD_TYPES[card.type].label,
+    ...(card.tags ?? []),
+    ...(card.aiTags ?? []),
+    ...(card.colors ?? []),
+  ]
+    .filter(Boolean)
+    .join(" ")
+    .toLowerCase();
+
+const cardLabel = (card: DemoCard) =>
+  `${DEMO_CARD_TYPES[card.type].label}: ${card.title ?? card.content ?? ""}`;
+
+const typeEntries = Object.entries(DEMO_CARD_TYPES) as [
+  DemoCardType,
+  { icon: string; label: string },
+][];
+
+const cardsById = Object.fromEntries(
+  DEMO_COLUMNS.flat().map((card) => [card.id, card])
+);
+
+const chipClass =
+  "demo-chip inline-flex h-8 shrink-0 cursor-pointer items-center justify-center gap-1.5 rounded-full border bg-background px-2.5 text-sm font-medium whitespace-nowrap transition-all hover:bg-accent hover:text-accent-foreground dark:border-input dark:bg-input/30 dark:hover:bg-input/50 [&_svg]:size-3.5";
+const iconButtonClass =
+  "inline-flex size-9 shrink-0 cursor-pointer items-center justify-center rounded-full transition-all hover:bg-accent hover:text-accent-foreground dark:hover:bg-accent/50";
+---
+
+<div class="app-demo" data-app-demo>
+  <div class="demo-window" role="group" aria-label="Interactive preview of the Teak web app">
+    <div class="demo-chrome" aria-hidden="true">
+      <span class="flex gap-2">
+        <span class="size-3 rounded-full bg-[#FF5F57]"></span>
+        <span class="size-3 rounded-full bg-[#FEBC2E]"></span>
+        <span class="size-3 rounded-full bg-[#28C840]"></span>
+      </span>
+      <span class="demo-url">
+        <Icon name="lock" size={11} />
+        app.teakvault.com
+      </span>
+      <span class="w-13 max-[520px]:hidden"></span>
+    </div>
+
+    <div class="demo-viewport @container" data-demo-viewport>
+      <div class="px-4 text-sm text-foreground">
+        <form aria-label="Search cards" class="group flex items-center" data-demo-search>
+          <Icon class="text-muted-foreground group-focus-within:text-primary group-hover:text-primary" name="search" size={16} />
+          <input
+            aria-label="Search for anything"
+            autocomplete="off"
+            class="h-16 w-full min-w-0 flex-1 bg-transparent px-3 text-sm outline-none [&::-webkit-search-cancel-button]:hidden placeholder:text-muted-foreground"
+            data-demo-query
+            name="q"
+            placeholder="Search for anything..."
+            type="search"
+          />
+          <span class="flex items-center gap-1">
+            <span class="flex items-center gap-1 max-[420px]:hidden">
+              <button aria-label="Upload files" class={iconButtonClass} tabindex="-1" type="button"><Icon name="upload" size={16} /></button>
+              <button aria-label="Record audio" class={iconButtonClass} tabindex="-1" type="button"><Icon name="mic" size={16} /></button>
+            </span>
+            <button aria-label="Settings" class={`${iconButtonClass} border bg-background dark:border-input dark:bg-input/30`} tabindex="-1" type="button"><Icon name="settings" size={16} /></button>
+          </span>
+        </form>
+
+        <div class="demo-filters pb-5" data-demo-filters hidden>
+          <div class="flex flex-wrap gap-2">
+            <span class="contents" data-demo-active-chips></span>
+            {typeEntries.map(([type, { icon, label }]) => (
+              <button class={chipClass} data-chip-type={type} type="button">
+                <Icon name={icon} size={14} />
+                <span>{label}</span>
+              </button>
+            ))}
+            <button class={chipClass} data-chip-favorites type="button">
+              <Icon name="heart" size={14} />
+              <span>Favorites</span>
+            </button>
+            <button class={chipClass} data-chip-trash type="button">
+              <Icon name="trash-2" size={14} />
+              <span>Trash</span>
+            </button>
+            <button class={chipClass} data-chip-clear hidden type="button">Clear All</button>
+          </div>
+        </div>
+
+        <div class="demo-grid" data-demo-grid>
+          {DEMO_COLUMNS.map((column, columnIndex) => (
+            <div class="demo-col">
+              {columnIndex === 0 && (
+                <div class="demo-item" data-demo-note-item>
+                  <form class="relative flex min-h-36 w-full flex-col overflow-hidden rounded-2xl border bg-card text-card-foreground focus-within:border-primary focus-within:ring-1 focus-within:ring-primary" data-demo-note>
+                    <textarea
+                      aria-label="Write a note"
+                      class="min-h-36 w-full flex-1 resize-none bg-transparent px-3.5 py-3 text-sm leading-relaxed outline-none placeholder:text-muted-foreground"
+                      data-demo-note-input
+                      maxlength="280"
+                      placeholder="Write a note..."></textarea>
+                    <span class="absolute right-3 bottom-3 flex justify-end gap-2" data-demo-note-actions hidden>
+                      <button class="inline-flex h-8 cursor-pointer items-center justify-center rounded-full bg-primary px-3 text-sm font-medium text-primary-foreground transition-all hover:bg-primary/90" type="submit">Save</button>
+                    </span>
+                  </form>
+                </div>
+              )}
+              {column.map((card) => (
+                <div class="demo-item" data-card-item={card.id}>
+                  <button
+                    aria-label={cardLabel(card)}
+                    class="demo-card"
+                    data-card-id={card.id}
+                    data-favorite={card.favorite ? "" : undefined}
+                    data-search={searchText(card)}
+                    data-type={card.type}
+                    type="button"
+                  >
+                    <span class="demo-heart absolute top-3 right-3 z-10">
+                      <Icon class="fill-destructive text-destructive" name="heart" size={16} />
+                    </span>
+
+                    {card.type === "text" && (
+                      <span class="block rounded-2xl border bg-card p-4">
+                        <span class="line-clamp-2 font-medium">{card.content}</span>
+                      </span>
+                    )}
+
+                    {card.type === "quote" && (
+                      <span class="block rounded-2xl border bg-card px-6 py-4">
+                        <span class="relative block">
+                          <span class="line-clamp-2 text-center leading-relaxed font-medium text-balance italic">{card.content}</span>
+                          <span class="pointer-events-none absolute -top-3.5 -left-4 font-serif text-4xl leading-none text-muted-foreground/20 select-none">&ldquo;</span>
+                          <span class="pointer-events-none absolute -right-4 -bottom-7 font-serif text-4xl leading-none text-muted-foreground/20 select-none">&rdquo;</span>
+                        </span>
+                      </span>
+                    )}
+
+                    {card.type === "link" && card.image && (
+                      <span class="block divide-y overflow-hidden rounded-2xl border bg-card">
+                        <span class="block w-full overflow-hidden" style={`aspect-ratio: ${card.image.width} / ${card.image.height}`}>
+                          <img alt={card.title} class="h-full w-full object-cover" decoding="async" height={card.image.height} src={card.image.src} width={card.image.width} />
+                        </span>
+                        <span class="block px-4 py-3">
+                          <span class="block max-w-full truncate font-medium">{card.title}</span>
+                        </span>
+                      </span>
+                    )}
+
+                    {card.type === "link" && !card.image && (
+                      <span class="block w-full min-w-0 truncate rounded-2xl border bg-card p-4 font-medium">{card.title}</span>
+                    )}
+
+                    {(card.type === "image" || card.type === "video") && card.image && (
+                      <span
+                        class="demo-media relative block h-full w-full overflow-hidden rounded-2xl border bg-card"
+                        style={`aspect-ratio: ${card.image.width} / ${card.image.height}; background-color: ${card.colors?.[0] ?? "transparent"}`}
+                      >
+                        <img alt={card.content ?? card.title} class="h-full w-full object-cover" decoding="async" height={card.image.height} src={card.image.src} width={card.image.width} />
+                        {card.type === "video" && (
+                          <span class="demo-play absolute inset-0 flex items-center justify-center bg-black/20">
+                            <span class="rounded-full bg-black/50 p-2">
+                              <Icon class="text-white" name="play" size={24} />
+                            </span>
+                          </span>
+                        )}
+                      </span>
+                    )}
+
+                    {card.type === "audio" && (
+                      <span class="flex h-14 items-center justify-between space-x-0.5 rounded-2xl border bg-card px-4 py-2">
+                        {Array.from({ length: AUDIO_WAVE_BARS }, (_, index) => (
+                          <span class="block rounded-full bg-muted-foreground" style={`width: 2px; height: ${waveHeight(card.id, index)}`}></span>
+                        ))}
+                      </span>
+                    )}
+
+                    {card.type === "document" && card.image && (
+                      <span class="block overflow-hidden rounded-2xl border bg-card">
+                        <span class="relative block w-full overflow-hidden" style={`aspect-ratio: ${card.image.width} / ${card.image.height}`}>
+                          <img alt={`Preview of ${card.title}`} class="h-full w-full bg-muted object-contain" decoding="async" height={card.image.height} src={card.image.src} width={card.image.width} />
+                        </span>
+                        <span class="flex items-center gap-2 border-t px-4 py-3">
+                          <Icon class="shrink-0 text-muted-foreground" name="file" size={16} />
+                          <span class="truncate text-sm font-medium">{card.title}</span>
+                        </span>
+                      </span>
+                    )}
+
+                    {card.type === "palette" && (
+                      <span class="flex overflow-hidden rounded-2xl border bg-card">
+                        {card.colors?.map((hex) => (
+                          <span class="block h-14 min-w-0 flex-1" style={`background-color: ${hex}`} title={hex}></span>
+                        ))}
+                      </span>
+                    )}
+                  </button>
+                </div>
+              ))}
+            </div>
+          ))}
+        </div>
+
+        <div class="space-y-4 py-12 text-center" data-demo-empty hidden>
+          <p class="text-muted-foreground">Nothing found matching your filters</p>
+          <button class={`${chipClass} h-9 px-4`} data-demo-clear type="button">Clear filters</button>
+        </div>
+      </div>
+
+      <div aria-labelledby="demo-modal-title" aria-modal="true" class="demo-overlay" data-demo-modal hidden role="dialog">
+        <button aria-label="Close" class="absolute top-3 right-3 z-10 cursor-pointer rounded-full text-white" data-demo-close type="button">
+          <Icon name="x" size={24} />
+        </button>
+        <div class="demo-modal">
+          <p class="sr-only" id="demo-modal-title" data-demo-modal-title></p>
+          <div class="demo-modal-preview" data-demo-modal-preview></div>
+          <div class="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto bg-muted/50 p-4 @3xl:gap-5">
+            <div>
+              <p class="text-sm leading-none font-medium">Summary</p>
+              <p class="mt-1.5 rounded-xl border bg-background px-3 py-2.5 whitespace-pre-wrap" data-demo-modal-summary></p>
+            </div>
+            <div class="flex flex-wrap gap-1" data-demo-modal-badges></div>
+            <div class="flex flex-wrap gap-1" data-demo-modal-actions>
+              <button class={chipClass} data-demo-modal-favorite type="button">
+                <Icon name="heart" size={14} />
+                <span>Favorite</span>
+              </button>
+              <a class={`${chipClass} no-underline`} data-demo-modal-link rel="noopener noreferrer" target="_blank">
+                <Icon name="external-link" size={14} />
+                <span>Open Link</span>
+              </a>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  {/* Icons the client script clones into chips, badges, and previews. */}
+  {[...typeEntries.map(([type, { icon }]) => [type, icon]), ["hash", "hash"], ["sparkles", "sparkles"], ["play", "play"], ["heart", "heart"], ["trash", "trash-2"]].map(([key, icon]) => (
+    <template data-demo-icon={key}><Icon name={icon} size={14} /></template>
+  ))}
+  <script is:inline type="application/json" data-demo-cards set:html={JSON.stringify(cardsById)} />
+</div>
+
+<script>
+  import { mountHomeAppDemo } from "./HomeAppDemo.client";
+
+  for (const root of document.querySelectorAll<HTMLElement>("[data-app-demo]")) {
+    mountHomeAppDemo(root);
+  }
+</script>
+
+<style is:global>
+  .app-demo {
+    position: relative;
+    padding: clamp(0.75rem, 3vw, 2rem);
+    overflow: hidden;
+    border: 1px solid color-mix(in oklch, var(--border) 85%, transparent);
+    border-radius: 1.5rem;
+    isolation: isolate;
+    background-color: #8d1d13;
+    background-image:
+      linear-gradient(120deg, rgb(44 4 0 / 0.22), rgb(255 116 83 / 0.08)),
+      url("/home-showcase/feature-backdrop.webp");
+    background-position: center 62%;
+    background-size: cover;
+  }
+
+  .demo-window {
+    overflow: hidden;
+    border: 1px solid rgb(255 255 255 / 0.18);
+    border-radius: 0.875rem;
+    background: var(--color-gray-50);
+    box-shadow:
+      0 30px 80px -20px rgb(40 4 0 / 0.55),
+      0 12px 24px -12px rgb(40 4 0 / 0.35);
+    text-align: left;
+  }
+
+  .dark .demo-window,
+  [data-theme="dark"] .demo-window {
+    background: var(--color-gray-950);
+  }
+
+  .demo-chrome {
+    display: flex;
+    height: 2.75rem;
+    align-items: center;
+    gap: 1rem;
+    padding: 0 1rem;
+    border-bottom: 1px solid var(--border);
+    background: var(--background);
+  }
+
+  .demo-url {
+    display: inline-flex;
+    height: 1.75rem;
+    width: 100%;
+    max-width: 22rem;
+    align-items: center;
+    justify-content: center;
+    gap: 0.375rem;
+    margin-inline: auto;
+    border-radius: 0.5rem;
+    background: var(--muted);
+    color: var(--muted-foreground);
+    font-size: 0.75rem;
+  }
+
+  .demo-viewport {
+    position: relative;
+    height: clamp(30rem, 62vw, 40rem);
+    overflow: hidden;
+  }
+
+  /* Five columns like the app's large breakpoint, three on tablets, two on phones. */
+  .demo-grid {
+    --demo-gap: 1.5rem;
+    display: flex;
+    gap: var(--demo-gap);
+  }
+
+  .demo-col {
+    display: flex;
+    min-width: 0;
+    flex: 1;
+    flex-direction: column;
+    gap: var(--demo-gap);
+  }
+
+  .demo-grid[data-filtered],
+  .demo-grid[data-filtered] .demo-col {
+    display: block;
+  }
+
+  .demo-grid[data-filtered] {
+    columns: 5;
+    column-gap: var(--demo-gap);
+  }
+
+  .demo-grid[data-filtered] .demo-col {
+    display: contents;
+  }
+
+  .demo-grid[data-filtered] .demo-item {
+    margin-bottom: var(--demo-gap);
+    break-inside: avoid;
+  }
+
+  @container (max-width: 54.99rem) {
+    .demo-grid {
+      display: block;
+      columns: 3;
+      column-gap: var(--demo-gap);
+    }
+
+    .demo-grid[data-filtered] {
+      columns: 3;
+    }
+
+    .demo-col {
+      display: contents;
+    }
+
+    .demo-item {
+      margin-bottom: var(--demo-gap);
+      break-inside: avoid;
+    }
+  }
+
+  @container (max-width: 37.49rem) {
+    .demo-grid {
+      --demo-gap: 1rem;
+    }
+
+    .demo-grid,
+    .demo-grid[data-filtered] {
+      columns: 2;
+    }
+  }
+
+  .demo-card {
+    position: relative;
+    display: block;
+    width: 100%;
+    overflow: hidden;
+    padding: 0;
+    border-radius: 1rem;
+    color: var(--card-foreground);
+    font: inherit;
+    text-align: left;
+    cursor: pointer;
+    contain: content;
+  }
+
+  .demo-card:focus-visible {
+    outline: 2px solid var(--primary);
+    outline-offset: 2px;
+  }
+
+  .demo-card:not([data-favorite]) .demo-heart {
+    display: none;
+  }
+
+  /* Lucide hearts are outlines; the favorite marker is filled like the app's. */
+  .demo-heart svg *,
+  .demo-filled * {
+    fill: currentColor;
+  }
+
+  .demo-media img {
+    transform-origin: 50% 40%;
+  }
+
+  /* The app plays videos on hover; the preview mimics it with a slow pan. */
+  .demo-card[data-type="video"]:hover .demo-play {
+    display: none;
+  }
+
+  @media (prefers-reduced-motion: no-preference) {
+    .demo-card[data-type="video"]:hover .demo-media img {
+      animation: demo-video-pan 6s ease-in-out infinite alternate;
+    }
+  }
+
+  @keyframes demo-video-pan {
+    from {
+      transform: scale(1.02) translateY(0);
+    }
+
+    to {
+      transform: scale(1.14) translateY(-4%);
+    }
+  }
+
+  .demo-overlay {
+    position: absolute;
+    inset: 0;
+    z-index: 20;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 3rem 1rem 1rem;
+    background: rgb(0 0 0 / 0.5);
+    animation: demo-fade 150ms ease-out;
+  }
+
+  .dark .demo-overlay,
+  [data-theme="dark"] .demo-overlay {
+    background: rgb(0 0 0 / 0.8);
+  }
+
+  .demo-overlay[hidden] {
+    display: none;
+  }
+
+  .demo-modal {
+    display: flex;
+    width: 100%;
+    max-width: 64rem;
+    height: 100%;
+    flex-direction: column;
+    overflow: hidden;
+    border-radius: 1rem;
+    background: var(--background);
+    animation: demo-zoom 180ms ease-out;
+  }
+
+  .demo-modal-preview {
+    display: flex;
+    min-height: 0;
+    container-type: size;
+    flex: 1.4;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+    padding: 1rem;
+  }
+
+  @container (min-width: 48rem) {
+    .demo-overlay {
+      padding: 3rem 2.5rem 2rem;
+    }
+
+    .demo-modal {
+      flex-direction: row;
+    }
+
+    .demo-modal-preview {
+      flex: 2;
+      border-right: 1px solid var(--border);
+    }
+  }
+
+  @keyframes demo-fade {
+    from {
+      opacity: 0;
+    }
+  }
+
+  @keyframes demo-zoom {
+    from {
+      opacity: 0;
+      transform: scale(0.96);
+    }
+  }
+</style>

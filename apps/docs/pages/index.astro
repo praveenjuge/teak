@@ -1,5 +1,5 @@
 ---
-import DeviceShowcase from "../components/DeviceShowcase.astro";
+import HomeAppDemo from "../components/HomeAppDemo.astro";
 import HomeFeatureShowcase from "../components/HomeFeatureShowcase.astro";
 import MarketingLayout from "../layouts/MarketingLayout.astro";
 import { buildPageSchemas } from "../lib/jsonld";
@@ -77,24 +77,18 @@ const jsonLd = buildPageSchemas({
   keywords="design bookmarking, visual inspiration, design organization, creative workflow, designer tools, bookmark manager"
   jsonLd={jsonLd}
 >
-  <section class="relative -mt-20 overflow-hidden px-6 pt-24 pb-18 max-md:px-5 max-md:pt-20 max-md:pb-16">
-    <div class="relative mx-auto max-w-4xl">
-      <div class="mx-auto w-full max-w-xl max-md:max-w-[26rem]">
-        <DeviceShowcase
-          laptopAlt="Teak design library on a MacBook"
-          laptopSrc="/home-showcase/library-mac.webp"
-          variant="hero"
-        />
-      </div>
+  <section class="relative -mt-20 overflow-hidden px-6 pt-30 pb-18 max-md:px-4 max-md:pt-26 max-md:pb-16">
+    <div class="mx-auto flex max-w-[44rem] flex-col items-center text-center">
+      <h1 class="max-w-xl text-[clamp(2.125rem,4.4vw,3.125rem)] leading-[1.04] font-bold tracking-[-0.04em] text-balance">Never lose that perfect design again.</h1>
+      <p class="mx-auto mt-4 mb-6 max-w-xl text-base leading-[1.6] text-balance text-muted-foreground">
+        Save inspiration in one click, find it in seconds, and keep every
+        useful idea ready for the moment you need it.
+      </p>
+      <a class="inline-flex h-10 items-center justify-center rounded-full bg-primary px-7 text-sm font-medium whitespace-nowrap text-primary-foreground no-underline transition-colors hover:bg-primary/90" href="https://app.teakvault.com/register" rel="noopener noreferrer" target="_blank">Start Saving →</a>
+    </div>
 
-      <div class="mx-auto flex max-w-[44rem] flex-col items-center text-center">
-        <h1 class="mt-11 max-w-xl text-[clamp(2.125rem,4.4vw,3.125rem)] leading-[1.04] font-bold tracking-[-0.04em] text-balance max-md:mt-8">Never lose that perfect design again.</h1>
-        <p class="mx-auto mt-4 mb-6 max-w-xl text-base leading-[1.6] text-balance text-muted-foreground">
-          Save inspiration in one click, find it in seconds, and keep every
-          useful idea ready for the moment you need it.
-        </p>
-        <a class="inline-flex h-10 items-center justify-center rounded-full bg-primary px-7 text-sm font-medium whitespace-nowrap text-primary-foreground no-underline transition-colors hover:bg-primary/90" href="https://app.teakvault.com/register" rel="noopener noreferrer" target="_blank">Start Saving →</a>
-      </div>
+    <div class="mx-auto mt-14 max-w-[78rem] max-md:mt-10">
+      <HomeAppDemo />
     </div>
   </section>
 
