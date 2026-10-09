@@ -204,7 +204,7 @@ const runningStack = (): StackState | null => {
 // running; stop them before anything else looks at this checkout's stack.
 const stopOrphans = async () => {
   if (await stopOrphanedStack()) {
-    console.log("Stopped a stack left behind by a process that exited.");
+    console.log("Cleaned up a stack left behind by a process that exited.");
   }
 };
 

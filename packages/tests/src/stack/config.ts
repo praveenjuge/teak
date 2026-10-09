@@ -184,20 +184,29 @@ export const isStackRunning = (state: StackState): boolean => {
 };
 
 // The backend and web app's process group, if any of its members is still a
-// Convex or Next.js process (or, without `ps`, if the group exists).
+// Convex or Next.js process. Without `ps` membership can't be proven, and a
+// group ID may have been reused, so the group is never signaled.
 const groupAlive = (group: number): boolean => {
   if (!(validPid(group) && exists(-group))) {
     return false;
   }
   const list = commands();
   return (
-    list === null ||
-    list.some(
+    list?.some(
       (entry) =>
         entry.pgid === group &&
         STACK_MEMBERS.some((member) => entry.command.includes(member))
-    )
+    ) ?? false
   );
+};
+
+// A group that went away, or belongs to someone else, is left alone.
+const signalGroup = (group: number, signal: NodeJS.Signals) => {
+  try {
+    process.kill(-group, signal);
+  } catch {
+    // Gone, or not ours to signal.
+  }
 };
 
 /**
@@ -211,13 +220,13 @@ export const stopOrphanedStack = async (): Promise<boolean> => {
     return false;
   }
   if (groupAlive(state.group)) {
-    process.kill(-state.group, "SIGINT");
+    signalGroup(state.group, "SIGINT");
     const deadline = Date.now() + 15_000;
     while (groupAlive(state.group) && Date.now() < deadline) {
       await new Promise((resolve) => setTimeout(resolve, 200));
     }
     if (groupAlive(state.group)) {
-      process.kill(-state.group, "SIGKILL");
+      signalGroup(state.group, "SIGKILL");
     }
   }
   rmSync(STACK_STATE_PATH, { force: true });
