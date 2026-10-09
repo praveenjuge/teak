@@ -34,7 +34,11 @@ export const check = internalMutation({
   returns: v.union(
     v.object({ status: v.literal("denied") }),
     v.object({ status: v.literal("revoked") }),
-    v.object({ status: v.literal("ok"), userId: v.string() })
+    v.object({
+      status: v.literal("ok"),
+      userId: v.string(),
+      alreadyRevoked: v.optional(v.boolean()),
+    })
   ),
   handler: async (ctx, args) => {
     if (!CONNECT_CONSENT_ID.test(args.consentId)) {
@@ -56,7 +60,17 @@ export const check = internalMutation({
       return { status: "denied" as const };
     }
     if (known?.revokedAt !== undefined) {
-      return { status: "revoked" as const };
+      // The previous flow revoked its trigger consent before dispatching, so
+      // a retry with that consent must still be able to settle its fence.
+      const fences = await ctx.db
+        .query("workosApplicationDisconnects")
+        .withIndex("by_workosUserId_and_clientId", (q) =>
+          q.eq("workosUserId", args.workosUserId).eq("clientId", args.clientId)
+        )
+        .take(2);
+      return fences.some((fence) => fence.state !== "completed")
+        ? { status: "ok" as const, userId: known.userId, alreadyRevoked: true }
+        : { status: "revoked" as const };
     }
     if (known) {
       return { status: "ok" as const, userId: known.userId };
@@ -224,13 +238,13 @@ export async function disconnectApplication(
   }
   const startedAt = Date.now();
   // An expired token proves an old sign-in, not today's grant, so it may only
-  // replay a finished disconnect. Otherwise a leaked old token could lock the
+  // replay its own revocation. Otherwise a leaked old token could lock the
   // owner out of this app.
   if (
     principal.tokenExpiresAt !== undefined &&
     principal.tokenExpiresAt * 1000 <= startedAt
   ) {
-    return 401;
+    return checked.alreadyRevoked ? 204 : 401;
   }
   try {
     const appId = await findApp(

@@ -88,8 +88,8 @@ export async function deleteAuthorizedApp(
   if (!APP_ID.test(appId)) {
     throw new Error("workos_authorized_apps_invalid");
   }
-  // nosemgrep: rules_lgpl_javascript_ssrf_rule-node-ssrf
   const response = await fetch(
+    // nosemgrep: rules_lgpl_javascript_ssrf_rule-node-ssrf
     `${appsUrl(workosUserId).href}/${encodeURIComponent(appId)}`,
     {
       method: "DELETE",

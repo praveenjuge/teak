@@ -241,3 +241,50 @@ test("an unfinished disconnect from the previous flow denies until a new one set
     teakUserId: "owner",
   });
 });
+
+test("retrying the previous flow's revoked trigger consent settles its fence", async () => {
+  const t = await setup();
+  await t.run(async (ctx) => {
+    const trigger = await ctx.db.query("workosConsents").first();
+    if (trigger) {
+      await ctx.db.patch("workosConsents", trigger._id, { revokedAt: 2 });
+    }
+    await ctx.db.insert("workosApplicationDisconnects", {
+      operationId: "op_OLD",
+      userId: "owner",
+      workosUserId: principal.workosUserId,
+      clientId: principal.clientId,
+      triggerConsentId: principal.consentId,
+      environmentId: "environment_TEST",
+      authKitClientId: "client_ENV",
+      authKitDomain: "https://disconnect-tests.authkit.app",
+      credentialFingerprint: "fingerprint",
+      state: "unknown",
+      startedAt: 2,
+    });
+  });
+  const fetcher = provider(async () => new Response(null, { status: 204 }));
+  vi.stubGlobal("fetch", fetcher);
+  const fenceState = async () =>
+    (await t.run((ctx) => ctx.db.query("workosApplicationDisconnects").first()))
+      ?.state;
+
+  // An expired copy may sign itself out locally but never reaches WorkOS.
+  const expired = {
+    ...principal,
+    tokenExpiresAt: Math.floor(Date.now() / 1000) - 10,
+  };
+  expect(await run(t, expired)).toBe(204);
+  expect(fetcher).not.toHaveBeenCalled();
+  expect(await fenceState()).toBe("unknown");
+
+  // A live retry deletes the grant and settles the fence, so the app can
+  // connect again.
+  expect(await run(t)).toBe(204);
+  expect(deletes(fetcher)).toHaveLength(1);
+  expect(await fenceState()).toBe("completed");
+  expect(await authorize(t, "app_consent_NEW")).toMatchObject({
+    status: "ok",
+    teakUserId: "owner",
+  });
+});
