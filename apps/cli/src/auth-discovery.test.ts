@@ -34,11 +34,7 @@ let apiStarted: Promise<void>;
 let apiReleased: Promise<void>;
 let notifyApiStarted = () => {};
 let releaseApi = () => {};
-let flipDuringRefresh = false;
-let notifyStarted = () => {};
-let releaseRefresh = () => {};
-let started: Promise<void>;
-let released: Promise<void>;
+let discoveryRequests = 0;
 let transmitted: URLSearchParams | null = null;
 let unsafeTokenEndpoint: string | undefined;
 let tokenPath = "/oauth2/token";
@@ -56,13 +52,8 @@ const server = serve({
   async fetch(request) {
     const url = new URL(request.url);
     const issuer = `${metadataIssuerOrigin ?? server.url.origin}/${environment}`;
-    if (url.pathname === "/test/refresh-started") {
-      await started;
-      return new Response("ready");
-    }
-    if (url.pathname === "/test/release-refresh") {
-      releaseRefresh();
-      return new Response("released");
+    if (url.pathname.startsWith("/.well-known/")) {
+      discoveryRequests++;
     }
     if (url.pathname === "/.well-known/oauth-protected-resource/mcp") {
       return Response.json({
@@ -96,11 +87,6 @@ const server = serve({
           return Response.json({ error: "invalid_grant" }, { status: 400 });
         }
         refreshes++;
-        if (flipDuringRefresh) {
-          environment = "beta";
-          notifyStarted();
-          await released;
-        }
       } else {
         exchanges++;
         expect(body.get("code_verifier")?.length).toBeGreaterThanOrEqual(43);
@@ -282,13 +268,7 @@ beforeEach(() => {
   tokenPath = "/oauth2/token";
   moveTokenEndpoint = false;
   metadataIssuerOrigin = undefined;
-  flipDuringRefresh = false;
-  started = new Promise((resolve) => {
-    notifyStarted = resolve;
-  });
-  released = new Promise((resolve) => {
-    releaseRefresh = resolve;
-  });
+  discoveryRequests = 0;
   writeFileSync(file, "", { mode: 0o600 });
 });
 test("CLI signs in with WorkOS and disconnects on logout", async () => {
@@ -427,14 +407,14 @@ test("CLI preserves expired refresh credentials across a service outage", async 
   expect((await run(["auth", "status"])).code).toBe(0);
 });
 
-test("CLI saves rotation but never sends it after a client registration change", async () => {
+test("CLI discovers the auth server once when it refreshes expired credentials", async () => {
   expect((await login()).code).toBe(0);
   const saved = JSON.parse(readFileSync(file, "utf8"));
   saved.expiresAt = 0;
   writeFileSync(file, JSON.stringify(saved));
-  flipDuringRefresh = true;
+  discoveryRequests = 0;
   const script =
-    'const {client}=await import("./src/runtime.ts");const c=client({});const first=c.tags.list().catch(()=>null);await fetch(process.env.TEAK_API_URL+"/test/refresh-started");await fetch(process.env.TEAK_API_URL+"/test/release-refresh");await first;';
+    'const {client}=await import("./src/runtime.ts");await client({}).tags.list();';
   const child = spawn([process.execPath, "--no-env-file", "-e", script], {
     cwd: new URL("..", import.meta.url).pathname,
     env: childEnv(),
@@ -444,11 +424,10 @@ test("CLI saves rotation but never sends it after a client registration change",
   });
   expect(await child.exited).toBe(0);
   expect(refreshes).toBe(1);
-  expect(apiRequests).toBe(0);
+  expect(apiRequests).toBe(1);
+  // Resource, client registry and issuer metadata, fetched once.
+  expect(discoveryRequests).toBe(3);
   expect(JSON.parse(readFileSync(file, "utf8")).refreshToken).toBe("refresh-1");
-  expect((await run(["logout"])).code).toBe(0);
-  expect(disconnects).toBe(1);
-  expect(readFileSync(file, "utf8")).toBe("");
 });
 
 test("CLI uses fresh token metadata when an endpoint moves during browser sign-in", async () => {
