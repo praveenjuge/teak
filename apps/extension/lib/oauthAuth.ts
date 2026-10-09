@@ -86,18 +86,9 @@ let login: Promise<void> | undefined;
 let generation = 0;
 
 export function initializeAuth() {
-  ready ??= (
-    IS_FIREFOX
-      ? Promise.resolve()
-      : chrome.storage.local.setAccessLevel({ accessLevel: "TRUSTED_CONTEXTS" })
-  ).then(async () => {
-    // The previous dedicated session is deliberately not exchanged. Updating
-    // requires one OAuth reconnect; shared native-session infrastructure stays intact.
-    await chrome.storage.local.remove([
-      "teakSessionToken",
-      "teakPendingNativeAuth",
-    ]);
-  });
+  ready ??= IS_FIREFOX
+    ? Promise.resolve()
+    : chrome.storage.local.setAccessLevel({ accessLevel: "TRUSTED_CONTEXTS" });
   return ready;
 }
 
@@ -364,7 +355,7 @@ function credentialsForRequest() {
       // Rotation invalidates the previous refresh token. Persist its replacement
       // before any further network operation; discovery outages must retain it.
       await writeCredentials(renewed);
-      const current = await discovery(true);
+      const current = await discovery();
       if (attempt !== generation && matches(renewed, current)) {
         await revokeCredentials(renewed, current);
       }
