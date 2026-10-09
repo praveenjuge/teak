@@ -12,6 +12,12 @@ import {
   withBackendSpan,
 } from "../../telemetry/sentry";
 
+class TranscriptionDeclined extends Error {
+  constructor() {
+    super("transcription_declined");
+  }
+}
+
 // Generate transcript for audio content
 export const generateTranscript = async (
   sourceKey: string,
@@ -33,25 +39,35 @@ export const generateTranscript = async (
         surface: "backend",
       },
       async () => {
-        const { text } = await observeAiGeneration(
-          {
-            functionId: "teak.ai.transcript",
-            model: TRANSCRIPTION_MODEL_ID,
-          },
-          async () => {
-            const result = await callFilesWorkerJson<FilesTranscriptResult>({
-              op: "transcribe-audio",
-              params: { sourceKey, mimeType: mimeHint },
-            });
-            if (result.kind !== "ok") {
-              throw new Error("transcription_rejected");
+        let text: string;
+        try {
+          ({ text } = await observeAiGeneration(
+            {
+              functionId: "teak.ai.transcript",
+              model: TRANSCRIPTION_MODEL_ID,
+            },
+            async () => {
+              const result = await callFilesWorkerJson<FilesTranscriptResult>({
+                op: "transcribe-audio",
+                params: { sourceKey, mimeType: mimeHint },
+              });
+              if (result.kind !== "ok") {
+                throw new TranscriptionDeclined();
+              }
+              trace
+                .getActiveSpan()
+                ?.setAttribute("audio.byte_length", result.data.byteLength);
+              return { text: result.data.text };
             }
-            trace
-              .getActiveSpan()
-              ?.setAttribute("audio.byte_length", result.data.byteLength);
-            return { text: result.data.text };
+          ));
+        } catch (error) {
+          // Missing, oversized, or undecodable audio is an expected outcome:
+          // the card keeps its file without a transcript.
+          if (error instanceof TranscriptionDeclined) {
+            return null;
           }
-        );
+          throw error;
+        }
         recordBackendAiContent({ response: text });
         return text;
       }

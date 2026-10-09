@@ -267,6 +267,49 @@ describe("filterClientSentryEvent", () => {
     expect(filterClientSentryEvent(event)).toBeNull();
   });
 
+  test("drops pre-symbolicated external DOM mutation errors from bundled chunks", () => {
+    const event = {
+      exception: {
+        values: [
+          {
+            stacktrace: {
+              frames: [
+                { filename: "app:///_next/static/chunks/0k5wuabdzwsx5.js" },
+                { filename: "app:///_next/static/chunks/0k5wuabdzwsx5.js" },
+              ],
+            },
+            type: "NotFoundError",
+            value:
+              "Failed to execute 'removeChild' on 'Node': The node to be removed is not a child of this node.",
+          },
+        ],
+      },
+    } satisfies ErrorEvent;
+
+    expect(filterClientSentryEvent(event)).toBeNull();
+  });
+
+  test("drops errors from globals injected by in-app video tools", () => {
+    const event = {
+      exception: {
+        values: [
+          {
+            stacktrace: {
+              frames: [
+                { filename: "app:///settings", function: "global code" },
+              ],
+            },
+            type: "TypeError",
+            value:
+              "null is not an object (evaluating 'window.videoSniffer.touchedVideoNode.requestPictureInPicture')",
+          },
+        ],
+      },
+    } satisfies ErrorEvent;
+
+    expect(filterClientSentryEvent(event)).toBeNull();
+  });
+
   test("keeps DOM removal errors with an app frame", () => {
     const event = {
       exception: {

@@ -140,6 +140,29 @@ describe("signed file operations", () => {
       error: { retryable: true },
     });
   });
+  test("declines audio the model cannot decode without a retryable failure", async () => {
+    const bucket = new FakeBucket();
+    bucket.objects.set("users/u/audio.webm", { bytes: new Uint8Array([1]) });
+    const run = mock(() =>
+      Promise.reject(
+        Object.assign(
+          new Error(
+            "3030: Failed to decode audio file. Ensure it is a valid audio format."
+          ),
+          { name: "AiError" }
+        )
+      )
+    );
+    const response = await handleInternalOp(
+      await request("transcribe-audio", { sourceKey: "users/u/audio.webm" }),
+      { ...envFor(bucket), AI: { run } }
+    );
+    expect(response.status).toBe(415);
+    expect(await response.json()).toMatchObject({
+      ok: false,
+      error: { code: "UNSUPPORTED", retryable: false },
+    });
+  });
   test("indexes and extracts through signed routes with source-version and user isolation", async () => {
     const bucket = new FakeBucket(),
       key = "users/u/imports/job/source.zip";
