@@ -22,12 +22,12 @@ const blockedMessages = {
   quarantined: "Your account isn't ready yet. Try again or contact support.",
 };
 
-const signInAgain = (next?: string) =>
+// Both targets are same-origin; only the current page becomes `next`.
+const signInHere = () =>
   window.location.replace(
-    next === undefined
-      ? "/sign-in"
-      : `/sign-in?next=${encodeURIComponent(next)}`
+    `/sign-in?next=${encodeURIComponent(window.location.pathname + window.location.search)}`
   );
+const signIn = () => window.location.replace("/sign-in");
 
 // A linked owner opens the vault from getAuthUser alone. Only an identity
 // without a Teak owner yet runs the ensureUser bootstrap, which links or
@@ -136,12 +136,7 @@ export function WorkosAuthBoundary({ children }: { children: ReactNode }) {
   }
   if (!(user && auth.isAuthenticated)) {
     return (
-      <AuthUnavailable
-        message="Please sign in again."
-        retry={() =>
-          signInAgain(window.location.pathname + window.location.search)
-        }
-      />
+      <AuthUnavailable message="Please sign in again." retry={signInHere} />
     );
   }
   if (profile === undefined) {
@@ -151,7 +146,7 @@ export function WorkosAuthBoundary({ children }: { children: ReactNode }) {
     return (
       <AuthUnavailable
         message="Your session changed. Please sign in again."
-        retry={() => signInAgain()}
+        retry={signIn}
       />
     );
   }
