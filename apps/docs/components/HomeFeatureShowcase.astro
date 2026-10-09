@@ -8,9 +8,9 @@ const stories = [
     description:
       "Keep a thought, a link, a screenshot, a video, a recording, a document, a palette, or a quote without forcing it into the wrong shape.",
     imageAlt:
-      "Teak library on a MacBook with text, link, image, palette, and quote cards",
+      "Teak library with design links, photos, palettes, quotes, notes, a voice memo, a video, and a PDF",
     imageHeight: 982,
-    imageSrc: "/home-showcase/designer-mac.webp",
+    imageSrc: "/home-showcase/library-mac.webp",
     imageWidth: 1512,
     visual: "save",
   },
@@ -20,9 +20,9 @@ const stories = [
     description:
       "Search keywords, card types, tags, favorites, trash, dates, color names, exact hex values, or visual styles. Teak turns the clues into filters for you.",
     imageAlt:
-      "Teak research library on a MacBook with search and organized reference cards",
-    imageHeight: 982,
-    imageSrc: "/home-showcase/researcher-mac.webp",
+      "Teak search for typography showing a font site, type notes, and a typewriter photo",
+    imageHeight: 627,
+    imageSrc: "/home-showcase/search-mac.webp",
     imageWidth: 1512,
     visual: "search",
   },
@@ -32,10 +32,10 @@ const stories = [
     description:
       "New cards can gain AI tags and summaries, richer link metadata and categories, extracted palettes, audio transcripts, and useful previews in the background.",
     imageAlt:
-      "Teak content creator library on a MacBook with quotes, palettes, links, and visual previews",
-    imageHeight: 982,
-    imageSrc: "/home-showcase/creator-mac.webp",
-    imageWidth: 1512,
+      "Teak image card with an AI summary, AI tags, and extracted colors",
+    imageHeight: 732,
+    imageSrc: "/home-showcase/organize-mac.webp",
+    imageWidth: 1200,
     visual: "organize",
   },
   {
@@ -51,10 +51,10 @@ const stories = [
     description:
       "Import browser bookmarks, a Raindrop CSV, or an earlier Teak archive. Matching links are skipped, and you can export active cards with original files in a portable ZIP.",
     imageAlt:
-      "Teak knowledge library on a MacBook with saved documents, images, palettes, and notes",
-    imageHeight: 982,
-    imageSrc: "/home-showcase/knowledge-worker-mac.webp",
-    imageWidth: 1512,
+      "Teak import dialog after a bookmarks import with 6 cards created and 2 skipped",
+    imageHeight: 1028,
+    imageSrc: "/home-showcase/import-mac.webp",
+    imageWidth: 920,
     visual: "portable",
   },
   {
@@ -63,10 +63,10 @@ const stories = [
     description:
       "Use Teak through its REST API, remote MCP endpoint, CLI, Raycast AI tools, ChatGPT connector search and fetch, or the public agent skill.",
     imageAlt:
-      "Teak developer library with code references, notes, palettes, and technical links",
-    imageHeight: 982,
-    imageSrc: "/home-showcase/developer-mac.webp",
-    imageWidth: 1512,
+      "Teak security settings showing signed-in devices and the connected Teak CLI",
+    imageHeight: 718,
+    imageSrc: "/home-showcase/connected-apps-mac.webp",
+    imageWidth: 920,
     visual: "agents",
   },
 ] as const;
@@ -94,10 +94,10 @@ const stories = [
         {story.visual === "capture" && (
           <figure class="feature-visual capture-visual">
             <DeviceShowcase
-              phoneAlt="Teak product library on iPhone"
-              phoneSrc="/home-showcase/product-manager-iphone.webp"
-              tabletAlt="Teak product library on iPad"
-              tabletSrc="/home-showcase/product-manager-ipad.webp"
+              phoneAlt="Teak design library on iPhone"
+              phoneSrc="/home-showcase/library-iphone.webp"
+              tabletAlt="Teak design library on iPad"
+              tabletSrc="/home-showcase/library-ipad.webp"
             />
           </figure>
         )}
@@ -162,22 +162,31 @@ const stories = [
     width: 124%;
   }
 
+  .organize-visual > img,
+  .portable-visual > img,
+  .agents-visual > img {
+    top: 10%;
+    right: 0;
+    left: 0;
+    margin-inline: auto;
+  }
+
   .organize-visual > img {
-    top: 12%;
-    left: 8%;
-    width: 124%;
+    width: 88%;
+  }
+
+  .portable-visual > img,
+  .agents-visual > img {
+    border-radius: 0.875rem;
   }
 
   .portable-visual > img {
-    top: 12%;
-    left: 8%;
-    width: 124%;
+    width: 70%;
   }
 
   .agents-visual > img {
-    top: 12%;
-    left: 8%;
-    width: 124%;
+    top: 14%;
+    width: 80%;
   }
 
   .save-visual {
@@ -214,10 +223,10 @@ const stories = [
     .feature-visual { min-height: 19rem; border-radius: 1rem; }
     .capture-visual { min-height: 0; }
     .save-visual > img,
-    .search-visual > img,
-    .organize-visual > img,
-    .portable-visual > img,
-    .agents-visual > img { top: 11%; left: 8%; width: 145%; }
+    .search-visual > img { top: 11%; left: 8%; width: 145%; }
+    .organize-visual > img { width: 94%; }
+    .portable-visual > img { width: 80%; }
+    .agents-visual > img { width: 90%; }
   }
 
   @media (prefers-reduced-motion: no-preference) {

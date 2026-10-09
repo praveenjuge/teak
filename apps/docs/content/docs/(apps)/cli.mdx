@@ -50,6 +50,8 @@ teak logout
 
 `teak logout` revokes browser sign-in and disconnects every CLI installation; reconnecting can take about five minutes. If the saved sign-in has already expired, logout clears only this device and says so — disconnect other installations in **Settings → Security → Connected apps**. If the network fails, credentials stay saved; run `teak logout` again before signing in so Teak can revoke the previous session. API keys are unaffected.
 
+![Settings → Security showing signed-in devices and the connected Teak CLI](../images/connected-apps.webp)
+
 Credentials are stored separately for each API deployment, so local development cannot use or clear your production sign-in.
 
 ## SDK token providers

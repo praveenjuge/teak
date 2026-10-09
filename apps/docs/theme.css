@@ -16,6 +16,11 @@ blume-prompt a {
   border-radius: 9999px !important;
 }
 
+/* Content screenshots share the corner radius of the cards and tables around them. */
+article.prose img[data-image-component] {
+  border-radius: var(--blume-radius);
+}
+
 /*
  * A Tab panel containing a code block receives Blume's flush-code treatment,
  * which also removes the inset from the prose around it. Restore a consistent
