@@ -29,7 +29,7 @@ export const assertIsolatedDevelopmentFiles = (
   const state = classifyDevStorage(routing);
   if (state === "shared") {
     throw new Error(
-      "Convex dev still uses the shared production Files Worker and bucket. The isolated development Worker is available only after the approved storage switch; keep using `bun run dev:files` until then."
+      "Convex dev still uses the shared production Files Worker and bucket. The isolated development Worker is available only after the approved storage switch; keep using `bun run dev files` until then."
     );
   }
   if (state === "invalid") {

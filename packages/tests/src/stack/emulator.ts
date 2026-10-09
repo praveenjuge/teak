@@ -5,7 +5,7 @@ import {
   type Server,
 } from "node:http";
 import { createEmulator } from "@workos/emulate";
-import { EMULATOR_ORIGIN, EMULATOR_PORT, emulatorSeed } from "./config";
+import { emulatorSeed, type StackPorts, stackUrls } from "./config";
 
 // Hosted AuthKit treats a refresh token as single use, but replaying it
 // within 30 seconds returns the same rotated tokens, so a refresh the browser
@@ -32,10 +32,8 @@ const refreshTokenOf = (body: string, contentType: string | undefined) => {
   } catch {}
 };
 
-// The emulator itself, behind the proxy, on a fixed loopback port.
-const UPSTREAM_ORIGIN = `http://localhost:${EMULATOR_PORT + 1}`;
-
 const forward = async (
+  upstream: string,
   path: string,
   request: IncomingMessage,
   body: string | undefined
@@ -48,7 +46,7 @@ const forward = async (
   }
   // Only the path and query come from the request; the origin is fixed.
   // nosemgrep: rules_lgpl_javascript_ssrf_rule-node-ssrf
-  const response = await fetch(`${UPSTREAM_ORIGIN}${path}`, {
+  const response = await fetch(`${upstream}${path}`, {
     body,
     headers,
     method: request.method,
@@ -64,12 +62,17 @@ const forward = async (
   };
 };
 
-export const startEmulator = async () => {
+// The emulator itself listens on the next port, behind the proxy.
+export const startEmulator = async (
+  ports: StackPorts,
+  options: { devUser: boolean }
+) => {
+  const upstream = `http://localhost:${ports.emulator + 1}`;
   // Hosted AuthKit asks for the password after the email, and its tokens
   // name api.workos.com as the issuer; the emulator does both when told to.
   const emulator = await createEmulator({
-    port: EMULATOR_PORT + 1,
-    seed: emulatorSeed,
+    port: ports.emulator + 1,
+    seed: emulatorSeed(ports, options),
     issuer: "https://api.workos.com",
     interactiveAuth: { password: true },
   });
@@ -83,7 +86,7 @@ export const startEmulator = async () => {
     }
     const body = chunks.length ? Buffer.concat(chunks).toString() : undefined;
     // Keep only the path and query, even for an absolute-form request target.
-    const incoming = new URL(request.url ?? "/", UPSTREAM_ORIGIN);
+    const incoming = new URL(request.url ?? "/", upstream);
     const path = `${incoming.pathname}${incoming.search}`;
     const refreshToken =
       incoming.pathname === "/user_management/authenticate" && body
@@ -93,7 +96,7 @@ export const startEmulator = async () => {
     const forwarded =
       replay && replay.expiresAt > Date.now()
         ? replay
-        : await forward(path, request, body);
+        : await forward(upstream, path, request, body);
     if (refreshToken && !replay && forwarded.status === 200) {
       replays.set(refreshToken, {
         ...forwarded,
@@ -109,12 +112,12 @@ export const startEmulator = async () => {
       (host) =>
         new Promise<Server>((resolve) => {
           const server = createServer(handle);
-          server.listen(EMULATOR_PORT, host, () => resolve(server));
+          server.listen(ports.emulator, host, () => resolve(server));
         })
     )
   );
   return {
-    url: EMULATOR_ORIGIN,
+    url: stackUrls(ports).emulatorOrigin,
     close: async () => {
       for (const server of servers) {
         server.closeAllConnections();

@@ -6,14 +6,12 @@ import {
   utimesSync,
   writeFileSync,
 } from "node:fs";
-import { createServer } from "node:net";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import {
   checkRuntimeVersion,
   inferLanHost,
   isInstallStale,
-  isPortOccupied,
   markInstallFresh,
   readConvexSelection,
   readNodeVersion,
@@ -126,18 +124,6 @@ describe("isInstallStale", () => {
 });
 
 describe("network probes", () => {
-  test("occupied ports are detected", async () => {
-    const server = createServer();
-    await new Promise<void>((resolve) => {
-      server.listen(0, "127.0.0.1", () => resolve());
-    });
-    const address = server.address();
-    const port = typeof address === "object" && address ? address.port : 0;
-    expect(port).toBeGreaterThan(0);
-    expect(await isPortOccupied(port)).toBe(true);
-    server.close();
-  });
-
   test("lan host inference returns an address or null", () => {
     const lan = inferLanHost();
     expect(lan === null || /^\d+\.\d+\.\d+\.\d+$/.test(lan)).toBe(true);

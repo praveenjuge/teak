@@ -158,9 +158,9 @@ export const getRecoveryHint = (error: unknown): string | null => {
     case "NETWORK_ERROR":
       return "Check network connectivity, then retry.";
     case "CONFIG_ERROR":
-      return "For local development, run bun run dev:convex or set TEAK_DEV_API_URL to your Convex .site URL.";
+      return "For local development, run bun run dev convex or set TEAK_DEV_API_URL to your Convex .site URL.";
     case "DEV_API_UNAVAILABLE":
-      return "Run bun run dev:convex from the Teak repo, or set TEAK_DEV_API_URL to a running Convex .site URL.";
+      return "Run bun run dev convex from the Teak repo, or set TEAK_DEV_API_URL to a running Convex .site URL.";
     case "NOT_FOUND":
       return "Check your API key, API URL, and network connection, then retry.";
     default:

@@ -6,7 +6,7 @@
     "audit:live": "blume audit --url https://teakvault.com --fail-on error",
     "build": "bun run build:site && blume audit --fail-on error",
     "build:site": "bun run generate && blume build --budget-js=850 --budget-css=220",
-    "dev": "bun run generate && blume dev --port 3001 --host 127.0.0.1",
+    "dev": "bun run generate && blume dev --port ${DOCS_PORT:-3001} --host 127.0.0.1",
     "eval": "bun run generate && blume eval --agent claude",
     "generate": "bun run generate:openapi && bun run generate:skills",
     "generate:openapi": "bun run scripts/generate-openapi.ts",

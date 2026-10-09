@@ -205,8 +205,8 @@ bun run deploy      # wrangler deploy (creates files.teakvault.com custom domain
 bun run dev              # wrangler dev --remote (prod R2/Images remote, code local)
 bun run dev:local        # wrangler dev (isolated Miniflare, low-fidelity Images)
 # Or from repo root:
-bun run dev:files        # same as above, remote bindings
-bun run dev:files:local  # same as above, isolated
+bun run dev files        # same as above, remote bindings
+bun run dev files:local  # same as above, isolated
 
 # Config parity (read-only, never prints secrets)
 bun run check:cloudflare   # reports Convex prod/dev parity and dev storage state without printing values
@@ -309,13 +309,13 @@ its client copies together (a drift test checks them).
 ## Local development experience
 
 - `bun run dev` at repo root starts the default stack (web + Convex) via
-  Turborepo. `bun run dev:all` starts every surface (web, convex, raycast,
+  Turborepo. `bun run dev --all` starts every surface (web, convex, raycast,
   docs, extension).
-- `bun run dev:files` — local Worker with remote Cloudflare R2/Images/AI
+- `bun run dev files` — local Worker with remote Cloudflare R2/Images/AI
   bindings (code local, bucket remote). Use for real image transforms and
   prod-data dev isolation (`dev/users/...`). After the storage switch, use
   `bun run --cwd apps/files-worker dev:development` instead.
-- `bun run dev:files:local` — isolated Miniflare storage with low-fidelity
+- `bun run dev files:local` — isolated Miniflare storage with low-fidelity
   Images emulation; no remote credentials needed.
 - `bun run check:cloudflare` — read-only names/parity check without exposing
   secret values.

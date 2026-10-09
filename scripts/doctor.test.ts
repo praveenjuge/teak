@@ -1,8 +1,6 @@
 import { describe, expect, test } from "bun:test";
-import { createServer } from "node:net";
-import { isPortOccupied } from "./capabilities.ts";
 import {
-  checkE2EStack,
+  checkEmulatorStack,
   checkTargetReadiness,
   evaluateWorkosPresence,
   findMissingKeys,
@@ -106,22 +104,40 @@ describe("evaluateWorkosPresence", () => {
   });
 });
 
-describe("checkE2EStack", () => {
+const MAIN = { web: 3000, convex: 3210, convexSite: 3211, emulator: 4100 };
+
+describe("checkEmulatorStack", () => {
   test("passes when the web env points at the WorkOS emulator", () => {
-    const check = checkE2EStack(
+    const check = checkEmulatorStack(
       new Map([
         ["WORKOS_CLIENT_ID", "client_01TEAKE2EEMULATOR"],
         ["WORKOS_API_HOSTNAME", "localhost"],
         ["WORKOS_API_PORT", "4100"],
         ["WORKOS_API_HTTPS", "false"],
-      ])
+      ]),
+      MAIN
     );
     expect(check.ok).toBe(true);
   });
 
+  test("fails when the web env points at another checkout's emulator", () => {
+    const check = checkEmulatorStack(
+      new Map([
+        ["WORKOS_CLIENT_ID", "client_01TEAKE2EEMULATOR"],
+        ["WORKOS_API_HOSTNAME", "localhost"],
+        ["WORKOS_API_PORT", "4100"],
+        ["WORKOS_API_HTTPS", "false"],
+      ]),
+      { ...MAIN, emulator: 4320 }
+    );
+    expect(check.ok).toBe(false);
+    expect(check.detail).toContain("WORKOS_API_PORT");
+  });
+
   test("names what still points at hosted WorkOS", () => {
-    const check = checkE2EStack(
-      new Map([["WORKOS_CLIENT_ID", "client_STAGING"]])
+    const check = checkEmulatorStack(
+      new Map([["WORKOS_CLIENT_ID", "client_STAGING"]]),
+      MAIN
     );
     expect(check.ok).toBe(false);
     expect(check.detail).toContain("WORKOS_CLIENT_ID");
@@ -130,7 +146,7 @@ describe("checkE2EStack", () => {
   });
 
   test("fails without a web env file", () => {
-    expect(checkE2EStack(undefined).ok).toBe(false);
+    expect(checkEmulatorStack(undefined, MAIN).ok).toBe(false);
   });
 });
 
@@ -138,27 +154,6 @@ describe("checkTargetReadiness", () => {
   test("flag-free targets are always ready", () => {
     expect(checkTargetReadiness("cli").ok).toBe(true);
     expect(checkTargetReadiness("docs").ok).toBe(true);
-  });
-});
-
-describe("isPortOccupied", () => {
-  test("detects a bound port and a free port", async () => {
-    const server = createServer();
-    await new Promise<void>((resolve) => {
-      server.listen(0, "127.0.0.1", () => {
-        resolve();
-      });
-    });
-    const address = server.address();
-    const port = typeof address === "object" && address ? address.port : 0;
-    expect(port).toBeGreaterThan(0);
-    expect(await isPortOccupied(port)).toBe(true);
-    await new Promise<void>((resolve) => {
-      server.close(() => {
-        resolve();
-      });
-    });
-    expect(await isPortOccupied(port)).toBe(false);
   });
 });
 

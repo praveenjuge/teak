@@ -1,5 +1,5 @@
 import { expect } from "@playwright/test";
-import { EMULATOR_API_KEY, EMULATOR_CLIENT_ID } from "../emulator/config";
+import { EMULATOR_API_KEY, EMULATOR_CLIENT_ID } from "../stack/config";
 import { env } from "./env";
 
 // The WorkOS emulator's own API: the suite's stand-in for the WorkOS
@@ -12,7 +12,7 @@ export interface EmulatorUser {
 }
 
 const emulatorFetch = async (path: string, init: RequestInit = {}) => {
-  // The origin is the fixed local emulator; tests pass only literal paths.
+  // The origin is this checkout's local emulator; tests pass only literal paths.
   // nosemgrep: rules_lgpl_javascript_ssrf_rule-node-ssrf
   const response = await fetch(new URL(path, env.emulatorUrl), {
     ...init,

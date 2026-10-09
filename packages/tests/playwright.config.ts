@@ -1,9 +1,11 @@
 import { defineConfig, devices } from "@playwright/test";
-import { env, published } from "./src/helpers/env";
+import { published } from "./src/helpers/env";
 import type { AccountKey } from "./src/helpers/run-state";
 import type { JourneyOptions } from "./src/helpers/test";
+import { readStackState } from "./src/stack/config";
 
-// Runs against the local stack started by src/scripts/run-local-suite.ts.
+// Runs against this checkout's local stack, started by
+// src/scripts/run-local-suite.ts. The docs project needs none.
 const chrome = devices["Desktop Chrome"];
 const journey = (
   name: string,
@@ -29,7 +31,8 @@ export default defineConfig<JourneyOptions>({
     ? [["list"], ["html", { open: "never" }]]
     : [["list"]],
   use: {
-    baseURL: env.appUrl,
+    // The docs project runs without a stack and sets its own baseURL.
+    baseURL: readStackState()?.urls.appOrigin,
     trace: "retain-on-failure",
     screenshot: "only-on-failure",
     video: "retain-on-failure",

@@ -8,7 +8,7 @@
   "scripts": {
     "build": "wxt build",
     "build:firefox": "wxt build -b firefox",
-    "dev": "wxt --port 3003",
+    "dev": "wxt --port ${EXTENSION_PORT:-3003}",
     "dev:firefox": "wxt -b firefox",
     "postinstall": "wxt prepare",
     "test": "bun test __tests__ --coverage --dots",

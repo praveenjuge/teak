@@ -75,29 +75,38 @@ Convex Node actions execute under the system Node runtime, which is why Node
 is pinned alongside Bun. Bun's `process.version` reports compatibility, not
 the toolchain, so the version probes shell out to `node --version`.
 
-## Local backends and worktree concurrency
+## Local backends, worktrees and the WorkOS emulator
 
-Convex local deployments bind fixed ports (3210/3211) with no supported way
-to move them, so two checkouts cannot both run a local backend. The main
-checkout uses the fixed ports; linked worktrees get deterministic web/docs
-ports plus a namespace from `scripts/worktree-env.ts`, and select an isolated
-cloud development deployment instead of local. Setup refuses a namespaced
-local selection when the fixed ports are occupied, with a remediation.
+`bun run dev` and `bun run setup` give every checkout a local Convex backend on
+its own ports (`scripts/worktree-env.ts`; see `.agents/development.md`). The
+ports are passed to `convex dev` with its `--local-cloud-port` and
+`--local-site-port` flags, which the Convex CLI hides but supports.
 
-A local backend's auth config reads `WORKOS_API_BASE_URL`, and Convex refuses
-an auth config that reads an unset variable, so setup always sets it:
-production WorkOS by default, or the WorkOS emulator's loopback origin when
-exported. Setup checks both values and never puts a loopback origin on a
-cloud deployment. Hosted deployments never read it. If a push fails on this
-variable, re-run `bun run setup`; it names the bad value and the fix.
+By default the web app signs in through the local WorkOS emulator. Setup sets
+the emulator's test-only values (`packages/tests/src/stack/config.ts`) on the
+backend and in `apps/web/.env.local`. `--workos staging` uses exported WorkOS
+staging credentials instead. A checkout that already uses a cloud deployment or
+a staging-wired backend keeps that mode.
+
+Setup never overwrites a value a person set. It does refresh generated values
+that point at this machine (loopback URLs and the emulator port) when the
+checkout's ports change. A local backend's auth config reads
+`WORKOS_API_BASE_URL`, and Convex refuses an auth config that reads an unset
+variable, so setup always sets it: the emulator's loopback origin or production
+WorkOS. It never puts a loopback origin on a cloud deployment.
+
+Local backends keep their state in `packages/convex/.convex`, inside the
+functions directory, so `convex dev` would rescan the backend's own writes and
+push forever. Setup writes a `.convex/convex.config.ts` marker, which the CLI
+treats as a directory to skip.
 
 ## Stable values live in code, not configuration
 
 Values that do not vary by deployment are typed code with an environment
 override, not required inputs. The pattern is a code default plus an optional
 override: `scripts/build-metadata.ts` derives release IDs from provider
-metadata with a `GIT_SHA` override. The E2E stack's ports and WorkOS emulator
-values are plain constants in `packages/tests/src/emulator/config.ts`. Do not add a contract entry
+metadata with a `GIT_SHA` override. The local stack's WorkOS emulator values are
+plain constants in `packages/tests/src/stack/config.ts`. Do not add a contract entry
 for a value that is constant across deployments.
 
 ## Cloud credentials and OIDC (evaluated 2026-09)

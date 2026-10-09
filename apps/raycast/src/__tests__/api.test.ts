@@ -76,14 +76,14 @@ describe("raycast api helpers", () => {
     expect(getUserFacingErrorMessage(error)).toContain(
       "missing required configuration",
     );
-    expect(getRecoveryHint(error)).toContain("dev:convex");
+    expect(getRecoveryHint(error)).toContain("dev convex");
   });
 
   test("maps missing local API errors to dev guidance", () => {
     const error = new RaycastApiError("DEV_API_UNAVAILABLE", 404);
 
     expect(getUserFacingErrorMessage(error)).toContain("API");
-    expect(getRecoveryHint(error)).toContain("bun run dev:convex");
+    expect(getRecoveryHint(error)).toContain("bun run dev convex");
   });
 
   test("maps not found errors without implying a card was deleted", () => {

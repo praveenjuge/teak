@@ -23,6 +23,9 @@
     },
     "typecheck": {
       "outputs": ["tsconfig.tsbuildinfo"]
+    },
+    "dev": {
+      "passThroughEnv": ["PORT"]
     }
   }
 }

@@ -3,7 +3,7 @@
  * Local Files Worker code against the isolated development bucket and AI.
  * Refuses to start until Convex dev uses the isolated development Worker, so
  * it never writes to the new bucket before the approved storage switch.
- * `bun run dev:files` keeps today's shared production routing.
+ * `bun run dev files` keeps today's shared production routing.
  */
 import { timingSafeEqual } from "node:crypto";
 import { readFile } from "node:fs/promises";

@@ -7,6 +7,7 @@ import {
   ensureFile,
   ensureWebEnv,
   extensionEnvTemplate,
+  isMachineLocalValue,
   mobileEnvTemplate,
   webEnvTemplate,
 } from "./setup-derived-env.ts";
@@ -147,9 +148,37 @@ describe("local AuthKit environment writer", () => {
     expect(repaired).toContain(
       "WORKOS_COOKIE_PASSWORD=human-set-password-preserved"
     );
+    // A callback on this machine follows the checkout's port.
     expect(repaired).toContain(
-      "NEXT_PUBLIC_WORKOS_REDIRECT_URI=http://localhost:3999/callback"
+      "NEXT_PUBLIC_WORKOS_REDIRECT_URI=http://localhost:3142/callback"
     );
+  });
+
+  test("keeps a callback a person pointed somewhere else", () => {
+    const dir = mkdtempSync(join(tmpdir(), "teak-authkit-"));
+    const path = join(dir, ".env.local");
+    writeFileSync(
+      path,
+      "NEXT_PUBLIC_WORKOS_REDIRECT_URI=https://teak.example.test/callback\nNEXT_PUBLIC_CONVEX_URL=http://127.0.0.1:3210\n"
+    );
+    ensureWebEnv(path, {
+      convexUrl: "http://127.0.0.1:4310",
+      siteUrl: "http://localhost:4300",
+    });
+    const content = readFileSync(path, "utf-8");
+    expect(content).toContain(
+      "NEXT_PUBLIC_WORKOS_REDIRECT_URI=https://teak.example.test/callback"
+    );
+    expect(content).toContain("NEXT_PUBLIC_CONVEX_URL=http://127.0.0.1:4310");
+  });
+
+  test("treats loopback URLs and the emulator port as machine-local", () => {
+    expect(isMachineLocalValue("SITE_URL", "http://localhost:4000")).toBe(true);
+    expect(isMachineLocalValue("X", "http://127.0.0.1:4010")).toBe(true);
+    expect(isMachineLocalValue("X", "http://[::1]:4010")).toBe(true);
+    expect(isMachineLocalValue("WORKOS_API_PORT", "4020")).toBe(true);
+    expect(isMachineLocalValue("X", "https://api.workos.com")).toBe(false);
+    expect(isMachineLocalValue("WORKOS_CLIENT_ID", "client_123")).toBe(false);
   });
 
   test("adds missing WorkOS credentials without replacing a set client ID", () => {

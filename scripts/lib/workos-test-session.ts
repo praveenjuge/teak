@@ -1,5 +1,6 @@
 /**
- * Headless WorkOS AuthKit session for tests against a local or CI web app.
+ * Headless WorkOS AuthKit session for tests against a local or CI web app,
+ * through WorkOS staging or the local WorkOS emulator.
  *
  * Creates a throwaway, already-verified WorkOS user with a random password,
  * signs in with the password grant, and seals the tokens into the session
@@ -25,6 +26,16 @@ export const WORKOS_SESSION_COOKIE_NAME = "wos-session";
 export const TEST_SESSION_EMAIL_DOMAIN = "example.org";
 
 export interface WorkosTestSessionOptions {
+  /**
+   * Sign in as this existing account, such as the local stack's seeded dev
+   * account, instead of creating a throwaway user. Cleanup then does nothing.
+   */
+  account?: { email: string; password: string };
+  /**
+   * A WorkOS API other than api.workos.com, such as the local emulator: the
+   * web's WORKOS_API_HOSTNAME, WORKOS_API_PORT and WORKOS_API_HTTPS.
+   */
+  api?: { hostname: string; https: boolean; port?: number };
   apiKey: string;
   clientId: string;
   /** The web server's WORKOS_COOKIE_PASSWORD (at least 32 characters). */
@@ -124,7 +135,28 @@ export const createWorkosTestSession = async (
   if (options.cookiePassword.length < 32) {
     throw new Error("WORKOS_COOKIE_PASSWORD must be at least 32 characters");
   }
-  const workos = new WorkOS(options.apiKey, { clientId: options.clientId });
+  const workos = new WorkOS(options.apiKey, {
+    clientId: options.clientId,
+    ...(options.api
+      ? {
+          apiHostname: options.api.hostname,
+          https: options.api.https,
+          ...(options.api.port ? { port: options.api.port } : {}),
+        }
+      : {}),
+  });
+  if (options.account) {
+    const auth = await workos.userManagement.authenticateWithPassword({
+      clientId: options.clientId,
+      ...options.account,
+    });
+    return {
+      cleanup: async () => undefined,
+      cookie: await sealSessionCookie(auth, options),
+      email: options.account.email,
+      userId: auth.user.id,
+    };
+  }
   const email = testSessionEmail(options.label);
   // Random per run and never stored: 32 random characters plus every class.
   const password = `${randomBytes(24).toString("base64url")}aA1!`;

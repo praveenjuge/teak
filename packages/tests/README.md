@@ -1,16 +1,16 @@
 # Teak E2E tests
 
-Playwright journeys across Teak's web app, REST API, CLI and MCP server, run against a local stack:
+Playwright journeys across Teak's web app, REST API, CLI and MCP server, run against this checkout's local stack (`src/stack/`), the same one `bun run dev` runs:
 
-- the official WorkOS emulator ([`@workos/emulate`](https://www.npmjs.com/package/@workos/emulate)) on `http://localhost:4100`, standing in for hosted AuthKit,
-- a local Convex backend on `http://127.0.0.1:3210` (API and webhooks on `:3211`),
-- the web app on `http://localhost:3000`.
+- the official WorkOS emulator ([`@workos/emulate`](https://www.npmjs.com/package/@workos/emulate)), standing in for hosted AuthKit,
+- a local Convex backend (API and webhooks on the next port),
+- the web app.
 
-It needs no secrets. Every WorkOS value is a test-only constant in `src/emulator/config.ts`, and the emulator keeps all of it in memory.
+It needs no secrets. Every WorkOS value is a test-only constant in `src/stack/config.ts`, and the emulator keeps all of it in memory. The main checkout uses web 3000, Convex 3210/3211 and the emulator 4100/4101; each linked worktree uses its own ports (`bun run dev --status` prints them), so the suite runs in any worktree.
 
 ## Run it
 
-From the repo root, on the main checkout with ports 3000, 3210, 3211, 4100 and 4101 free:
+From the repo root, with this checkout's stack stopped (`bun run dev --stop`):
 
 ```bash
 bun install
@@ -18,7 +18,7 @@ bun install
 bun run --cwd packages/tests e2e
 ```
 
-`e2e` runs `bun run setup --target e2e`, starts the emulator, runs the backend and the web dev server, runs the journey and browser-matrix projects, and stops everything. The `web` project is not in the gating run yet; run it with `bun run --cwd packages/tests e2e --project=web`. Pass Playwright arguments to narrow it, for example `bun run --cwd packages/tests e2e --project=journey-api`.
+`e2e` runs `bun run setup --target e2e`, starts the stack, runs the journey and browser-matrix projects, and stops everything. The `web` project is not in the gating run yet; run it with `bun run --cwd packages/tests e2e --project=web`. Pass Playwright arguments to narrow it, for example `bun run --cwd packages/tests e2e --project=journey-api`.
 
 To iterate, keep the stack up in one terminal and run Playwright in another:
 
@@ -27,13 +27,13 @@ bun run --cwd packages/tests e2e:stack
 cd packages/tests && bunx playwright test --project=web
 ```
 
-The dev stack's output goes to `.state/dev-stack.log`.
+A running stack records its URLs in `.agents/.state/stack.json`, which the suite reads, and logs to `.agents/.state/stack.log`.
 
 The `E2E` workflow (`.github/workflows/e2e.yml`) runs the same command daily and on demand (not on pull requests or pushes), and uploads the report, traces and stack log when it fails. An on-demand run takes Playwright arguments, for example `gh workflow run e2e.yml -f playwright_args='--project=web'`.
 
 ## How the stack is wired
 
-`bun run setup --target e2e` is the web target on a local backend pointed at the emulator. It sets `WORKOS_CLIENT_ID`, `WORKOS_API_KEY`, `WORKOS_API_BASE_URL`, `WORKOS_ENVIRONMENT_ID` and `WORKOS_WEBHOOK_SECRET` on the deployment, and adds `WORKOS_API_HOSTNAME`, `WORKOS_API_PORT` and `WORKOS_API_HTTPS` to `apps/web/.env.local` so authkit-nextjs talks to the emulator. Setup never overwrites a set value, so it fails with a remediation if this checkout is already wired to a different WorkOS environment. `bun run doctor --target web --profile e2e` checks the web side.
+`bun run setup --target e2e` is the web target on a local backend pointed at the emulator, which is also the default for `bun run setup`. It sets `WORKOS_CLIENT_ID`, `WORKOS_API_KEY`, `WORKOS_API_BASE_URL`, `WORKOS_ENVIRONMENT_ID` and `WORKOS_WEBHOOK_SECRET` on the deployment, and adds `WORKOS_API_HOSTNAME`, `WORKOS_API_PORT` and `WORKOS_API_HTTPS` to `apps/web/.env.local` so authkit-nextjs talks to the emulator. Setup never overwrites a value a person set, so it fails with a remediation if this checkout is wired to WorkOS staging. `bun run doctor --target web --profile e2e` checks the web side.
 
 The emulator is started with:
 
@@ -44,7 +44,7 @@ The emulator is started with:
 
 A small proxy in front of the emulator adds hosted AuthKit's 30-second refresh-token grace window ([session resilience](https://workos.com/docs/authkit/session-resilience)). The web client refreshes its session on every page load, and without the window a navigation that interrupts that refresh would end the session.
 
-The backend runs with `convex dev --once --start`: watching would loop, because the functions directory holds the anonymous backend's own state and every push rewrites it.
+For the suite, the backend runs with `convex dev --once --start`, so the suite's own file writes never trigger a push. `bun run dev` watches instead and adds the seeded dev account.
 
 ## Accounts
 

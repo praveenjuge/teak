@@ -144,7 +144,7 @@ const API_BASE_REMEDIATION = [
 ];
 
 export const WORKOS_SETUP_REMEDIATION = [
-  "Export WORKOS_CLIENT_ID and WORKOS_API_KEY from a WorkOS staging or development environment (never production), then re-run bun run setup",
+  "This checkout signs in through WorkOS staging. Export WORKOS_CLIENT_ID and WORKOS_API_KEY from a WorkOS staging or development environment (never production), then re-run",
   "See the Development guide in the docs for the WorkOS environment settings Teak needs",
 ];
 

@@ -6,7 +6,14 @@
  * with `convex dev --once`. Names only; values are never logged.
  */
 
-import { existsSync, readFileSync } from "node:fs";
+import {
+  existsSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from "node:fs";
+import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { readResponseTextWithinLimit } from "../packages/convex/shared/boundedResponse";
 import { readConvexSelection } from "./capabilities.ts";
@@ -71,6 +78,66 @@ export const readDeploymentVar = async (
   }
 };
 
+/** Every deployment variable, read with one CLI call. Values are never logged. */
+export const listDeploymentVars = async (
+  cwd: string = convexProjectDir()
+): Promise<
+  | { status: "found"; values: Map<string, string> }
+  | { status: "unavailable"; detail: string }
+> => {
+  try {
+    const result = await runCommand(["bunx", "convex", "env", "list"], {
+      cwd,
+      timeoutMs: 60_000,
+    });
+    if (result.exitCode !== 0) {
+      return {
+        status: "unavailable",
+        detail: result.stderr.trim().split("\n").pop() || "unknown error",
+      };
+    }
+    const values = new Map<string, string>();
+    for (const line of result.stdout.split("\n")) {
+      const match = /^([A-Za-z_][A-Za-z0-9_]*)=(.*)$/.exec(line);
+      if (match) {
+        values.set(match[1], match[2]);
+      }
+    }
+    return { status: "found", values };
+  } catch (error) {
+    return {
+      status: "unavailable",
+      detail: error instanceof Error ? error.message : "spawn failed",
+    };
+  }
+};
+
+/**
+ * Local backends keep their state in packages/convex/.convex, inside the
+ * functions directory (convex.json sets functions to "."). `convex dev` scans
+ * that directory for functions, so the backend's own writes look like code
+ * changes and every push restarts forever. The CLI skips any directory that
+ * holds a convex.config.ts, so this marker keeps it out of the scan. The
+ * directory is ignored by git.
+ */
+export const ensureLocalStateMarker = (
+  cwd: string = convexProjectDir()
+): "created" | "exists" | "no-local-state" => {
+  const dir = join(cwd, ".convex");
+  const marker = join(dir, "convex.config.ts");
+  if (!existsSync(dir)) {
+    return "no-local-state";
+  }
+  if (existsSync(marker)) {
+    return "exists";
+  }
+  writeFileSync(
+    marker,
+    "// Written by bun run setup: keeps convex dev from scanning local backend state.\n"
+  );
+  return "created";
+};
+
 // The value goes through stdin (`convex env set NAME` reads it when stdin is
 // not a TTY), so secrets never reach argv or the process list.
 const convexEnvSet = async (
@@ -102,7 +169,7 @@ const convexEnvSet = async (
  * deterministic database errors fail fast instead of retrying.
  */
 const TRANSIENT_PUSH_FAILURE =
-  /ENOENT[^\n]*convex_local_backend\.sqlite3-journal|SQLITE_BUSY|ECONNREFUSED[^\n]*127\.0\.0\.1:3210/i;
+  /ENOENT[^\n]*convex_local_backend\.sqlite3-journal|SQLITE_BUSY|ECONNREFUSED[^\n]*127\.0\.0\.1:\d+/i;
 
 export const isTransientPushFailure = (output: string): boolean =>
   TRANSIENT_PUSH_FAILURE.test(output);
@@ -125,22 +192,45 @@ export interface ConvexDevOnceOptions {
   attempts?: number;
   /** Local backend identity HTTP boundary; defaults to fetch. */
   fetch?: typeof fetch;
+  /** A local backend's ports; omitted for a cloud deployment. */
+  ports?: LocalBackendPorts;
   /** Subprocess runner; defaults to runCommand. */
   run?: typeof runCommand;
   /** Backoff sleeper; defaults to Bun.sleep. */
   sleepMs?: (ms: number) => Promise<void>;
 }
 
+export interface LocalBackendPorts {
+  convex: number;
+  convexSite: number;
+}
+
+/**
+ * `convex dev` arguments that bind a local backend to this checkout's ports.
+ * The flags are hidden in the Convex CLI but stable; without them every
+ * checkout's backend starts at 3210 and takes the next free port.
+ */
+export const localBackendArgs = (ports?: LocalBackendPorts): string[] =>
+  ports
+    ? [
+        "--local-cloud-port",
+        String(ports.convex),
+        "--local-site-port",
+        String(ports.convexSite),
+      ]
+    : [];
+
 // A port collision is not enough to classify shutdown as transient. Confirm
 // the selected anonymous backend's identity before retrying; never stop it.
 async function selectedBackendIsShuttingDown(
   output: string,
   cwd: string,
-  fetchImpl: typeof fetch
+  fetchImpl: typeof fetch,
+  port: number
 ): Promise<boolean> {
   if (
     !output.includes(
-      "A local backend is still running on port 3210. Please stop it and run this command again."
+      `A local backend is still running on port ${port}. Please stop it and run this command again.`
     )
   ) {
     return false;
@@ -162,7 +252,7 @@ async function selectedBackendIsShuttingDown(
     return false;
   }
   try {
-    const response = await fetchImpl("http://127.0.0.1:3210/instance_name", {
+    const response = await fetchImpl(`http://127.0.0.1:${port}/instance_name`, {
       redirect: "error",
       credentials: "omit",
       signal: AbortSignal.timeout(1000),
@@ -189,10 +279,10 @@ export const convexDevOnce = async (
   const sleepMs = opts?.sleepMs ?? Bun.sleep;
   let detail = "unknown error";
   for (let attempt = 1; attempt <= attempts; attempt++) {
-    const result = await run(["bunx", "convex", "dev", "--once"], {
-      cwd,
-      timeoutMs: 300_000,
-    });
+    const result = await run(
+      ["bunx", "convex", "dev", "--once", ...localBackendArgs(opts?.ports)],
+      { cwd, timeoutMs: 300_000 }
+    );
     if (result.exitCode === 0) {
       return { detail: "pushed", ok: true };
     }
@@ -204,7 +294,8 @@ export const convexDevOnce = async (
         (await selectedBackendIsShuttingDown(
           output,
           cwd,
-          opts?.fetch ?? fetch
+          opts?.fetch ?? fetch,
+          opts?.ports?.convex ?? 3210
         )));
     if (!(transient && attempt < attempts)) {
       break;
@@ -212,6 +303,40 @@ export const convexDevOnce = async (
     await sleepMs(2000 * attempt);
   }
   return { detail, ok: false };
+};
+
+/**
+ * Set several variables with one CLI call. The values go through a private
+ * temporary file that is removed right after; they are never logged.
+ */
+export const setDeploymentVars = async (
+  values: Record<string, string>,
+  cwd: string = convexProjectDir()
+): Promise<void> => {
+  const names = Object.keys(values);
+  if (names.length === 0) {
+    return;
+  }
+  const dir = mkdtempSync(join(tmpdir(), "teak-convex-env-"));
+  const file = join(dir, "vars.env");
+  try {
+    writeFileSync(
+      file,
+      `${names.map((name) => `${name}=${JSON.stringify(values[name])}`).join("\n")}\n`,
+      { mode: 0o600 }
+    );
+    const result = await runCommand(
+      ["bunx", "convex", "env", "set", "--force", "--from-file", file],
+      { cwd, timeoutMs: 60_000 }
+    );
+    if (result.exitCode !== 0) {
+      throw new Error(
+        `Could not set ${names.join(", ")}: ${result.stderr.trim().split("\n").pop() || "unknown error"}. Run \`bunx convex login\` (or export CONVEX_AGENT_MODE=anonymous for a local anonymous deployment) and re-run bun run setup.`
+      );
+    }
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
 };
 
 export const setDeploymentVar = async (

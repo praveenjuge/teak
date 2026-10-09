@@ -74,3 +74,6 @@ todo/
 
 # Amp orb runtime
 .amp/portals/*
+
+# Local stack state and logs (bun run dev)
+.agents/.state/

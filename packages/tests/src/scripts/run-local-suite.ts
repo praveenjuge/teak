@@ -1,31 +1,22 @@
 #!/usr/bin/env bun
 /**
- * Runs the E2E suite against a local stack: the WorkOS emulator, a local
- * Convex backend and the web app. Used the same way locally and in CI.
+ * Runs the E2E suite against this checkout's local stack: the WorkOS
+ * emulator, a local Convex backend and the web app. Used the same way locally,
+ * in any worktree, and in CI.
  *
  *   bun run --cwd packages/tests e2e [playwright args]   # set up, run, tear down
  *   bun run --cwd packages/tests e2e:stack               # keep the stack up
  *
  * With the stack up, run `bunx playwright test` in packages/tests directly.
  */
-import { type ChildProcess, spawn } from "node:child_process";
-import { createWriteStream, mkdirSync } from "node:fs";
-import { createServer } from "node:net";
+import { spawn } from "node:child_process";
 import { join } from "node:path";
-import { api } from "@teak/convex";
-import { ConvexHttpClient } from "convex/browser";
-import {
-  EMULATOR_PORT,
-  LOCAL_API_ORIGIN,
-  LOCAL_APP_ORIGIN,
-  LOCAL_CONVEX_URL,
-} from "../emulator/config";
-import { startEmulator } from "../emulator/start";
+import { resolveWorktree } from "../../../../scripts/worktree-env.ts";
+import { isStackRunning, readStackState } from "../stack/config";
+import { STACK_LOG_PATH, startStack } from "../stack/stack";
 
 const ROOT = join(import.meta.dir, "../../../..");
 const TESTS = join(import.meta.dir, "../..");
-// Playwright clears test-results on each run, so logs live with the state.
-const LOG_DIR = join(TESTS, ".state");
 const stackOnly = process.argv[2] === "stack";
 // Without arguments, run the gating suites: the journeys and the browser
 // matrix. The web specs run on demand: `bun run e2e --project=web`.
@@ -33,14 +24,6 @@ const playwrightArgs =
   process.argv.length > 2 && !stackOnly
     ? process.argv.slice(2)
     : ["--project=journey-*", "--project=matrix-*"];
-
-const portIsFree = (port: number) =>
-  new Promise<boolean>((resolve) => {
-    const server = createServer()
-      .once("error", () => resolve(false))
-      .once("listening", () => server.close(() => resolve(true)))
-      .listen(port, "127.0.0.1");
-  });
 
 const run = (command: string[], cwd: string) =>
   new Promise<number>((resolve) => {
@@ -52,144 +35,52 @@ const run = (command: string[], cwd: string) =>
     child.once("exit", (code) => resolve(code ?? 1));
   });
 
-const waitFor = async (url: string, dev: ChildProcess, timeoutMs: number) => {
-  const deadline = Date.now() + timeoutMs;
-  while (Date.now() < deadline) {
-    if (dev.exitCode !== null) {
-      throw new Error(`The dev stack exited before ${url} came up`);
-    }
-    try {
-      // The web app redirects to hosted sign-in, so follow redirects and
-      // require the final page (or the API health check) to succeed. Only the
-      // stack's own fixed loopback URLs are polled.
-      // nosemgrep: rules_lgpl_javascript_ssrf_rule-node-ssrf
-      const response = await fetch(url);
-      await response.body?.cancel();
-      if (response.ok) {
-        return;
-      }
-    } catch {
-      // Not listening yet.
-    }
-    await Bun.sleep(1000);
-  }
-  throw new Error(`${url} did not come up within ${timeoutMs / 1000}s`);
-};
-
-// A freshly pushed backend loads each module on its first call, which can
-// outlast the 1s query limit on a busy machine. Load the modules the web app
-// queries first, without auth; their answers don't matter.
-const warmBackend = async () => {
-  const client = new ConvexHttpClient(LOCAL_CONVEX_URL);
-  const calls = [
-    () => client.query(api.auth.getAuthMode, {}),
-    () => client.query(api.auth.getCardCreationStatus, {}),
-    () => client.query(api.auth.getAuthUser, {}),
-    () =>
-      client.query(api.cards.searchCardsPaginated, {
-        paginationOpts: { cursor: null, numItems: 1 },
-      }),
-  ];
-  for (let round = 0; round < 2; round += 1) {
-    await Promise.allSettled(calls.map((call) => call()));
-  }
-};
-
-const signalGroup = (child: ChildProcess, signal: NodeJS.Signals) => {
-  try {
-    process.kill(-(child.pid ?? 0), signal);
-  } catch {
-    // Already gone.
-  }
-};
-
-// `convex dev` runs the web server in its own process group and stops it
-// only on SIGINT, so interrupt first and force-stop whatever remains.
-const stopStack = async (child: ChildProcess) => {
-  if (!child.pid || child.exitCode !== null) {
-    return;
-  }
-  const exited = new Promise((resolve) => child.once("exit", resolve));
-  signalGroup(child, "SIGINT");
-  await Promise.race([exited, Bun.sleep(15_000)]);
-  signalGroup(child, "SIGKILL");
-};
-
-for (const port of [EMULATOR_PORT, EMULATOR_PORT + 1, 3000, 3210, 3211]) {
-  if (!(await portIsFree(port))) {
-    throw new Error(
-      `Port ${port} is in use. Stop the running stack first; the e2e stack needs ports 3000, 3210, 3211 and ${EMULATOR_PORT}.`
-    );
-  }
+const running = readStackState();
+if (running && isStackRunning(running)) {
+  throw new Error(
+    "This checkout's stack is running. Stop it with `bun run dev --stop`, then re-run."
+  );
 }
 
-process.env.CONVEX_AGENT_MODE ||= "anonymous";
-if ((await run(["bun", "run", "setup", "--target", "e2e"], ROOT)) !== 0) {
+// The stack pushes the backend once itself, so setup skips its push.
+if (
+  (await run(
+    ["bun", "run", "setup", "--target", "e2e", "--skip-push"],
+    ROOT
+  )) !== 0
+) {
   throw new Error("bun run setup --target e2e failed");
 }
 
-const emulator = await startEmulator();
-mkdirSync(LOG_DIR, { recursive: true });
-const devLog = join(LOG_DIR, "dev-stack.log");
-// Setup already pushed the backend. Watching would loop: the functions
-// directory holds the anonymous backend's own state, which every push
-// rewrites. `--once --start` keeps the backend up exactly as long as the web
-// dev server runs, and `turbo watch` is avoided because the suite's trace and
-// state writes overflow its watcher, which then restarts every task.
-const dev = spawn(
-  "bunx",
-  [
-    "convex",
-    "dev",
-    "--once",
-    "--codegen",
-    "disable",
-    "--typecheck",
-    "disable",
-    "--start",
-    "bun run --cwd ../../apps/web dev",
-  ],
-  {
-    cwd: join(ROOT, "packages/convex"),
-    detached: true,
-    env: process.env,
-    stdio: ["ignore", "pipe", "pipe"],
-  }
-);
-const log = createWriteStream(devLog);
-dev.stdout?.pipe(log);
-dev.stderr?.pipe(log);
+// The suite makes its own accounts, so the stack runs without seed data, and
+// pushes once: the suite's trace and state writes would keep a watcher busy.
+const stack = await startStack({
+  echo: false,
+  emulator: true,
+  localBackend: true,
+  ports: await resolveWorktree(ROOT),
+  seed: false,
+  watch: false,
+});
 
 let exitCode = 1;
-const teardown = async () => {
-  await stopStack(dev);
-  await emulator.close();
-};
-process.once("SIGINT", () => {
-  teardown().finally(() => process.exit(130));
-});
-process.once("SIGTERM", () => {
-  teardown().finally(() => process.exit(143));
-});
 
 try {
-  await waitFor(`${LOCAL_API_ORIGIN}/healthz`, dev, 180_000);
-  await waitFor(LOCAL_APP_ORIGIN, dev, 180_000);
-  await warmBackend();
   console.log(
-    `E2E stack is up: web ${LOCAL_APP_ORIGIN}, API ${LOCAL_API_ORIGIN}, WorkOS emulator ${emulator.url}. Dev logs: ${devLog}`
+    `E2E stack is up: web ${stack.urls.appOrigin}, API ${stack.urls.apiOrigin}, WorkOS emulator ${stack.urls.emulatorOrigin}. Logs: ${STACK_LOG_PATH}`
   );
   if (stackOnly) {
-    await new Promise(() => undefined);
+    await stack.exited;
+  } else {
+    exitCode = await run(
+      ["bunx", "playwright", "test", ...playwrightArgs],
+      TESTS
+    );
   }
-  exitCode = await run(
-    ["bunx", "playwright", "test", ...playwrightArgs],
-    TESTS
-  );
 } catch (error) {
   console.error(error instanceof Error ? error.message : String(error));
-  console.error(`See ${devLog} for the dev stack output.`);
+  console.error(`See ${STACK_LOG_PATH} for the stack output.`);
 } finally {
-  await teardown();
+  await stack.stop();
 }
 process.exit(exitCode);
