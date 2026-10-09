@@ -27,4 +27,70 @@ describe("mobile card summaries", () => {
     expect(summary).not.toHaveProperty("aiTranscript");
     expect(summary).not.toHaveProperty("fileUrl");
   });
+
+  const base = {
+    _creationTime: 1,
+    _id: "card-2",
+    createdAt: 1,
+    processingStatus: {},
+    updatedAt: 1,
+    userId: "user-1",
+  };
+
+  test("reports the media aspect ratio and favorite state for grid tiles", () => {
+    const image = toMobileCardSummary({
+      ...base,
+      content: "",
+      fileMetadata: { width: 1200, height: 800 },
+      isFavorited: true,
+      type: "image",
+    });
+    expect(image.aspectRatio).toBe(1.5);
+    expect(image.isFavorited).toBe(true);
+
+    const note = toMobileCardSummary({ ...base, content: "Hi", type: "text" });
+    expect(note.aspectRatio).toBeUndefined();
+    expect(note.isFavorited).toBeUndefined();
+  });
+
+  test("sizes link tiles from the image the summary shows", () => {
+    const linkPreview = {
+      imageHeight: 630,
+      imageWidth: 1200,
+      screenshotHeight: 1000,
+      screenshotWidth: 800,
+      status: "success",
+      title: "Example",
+    };
+    const withImage = toMobileCardSummary({
+      ...base,
+      content: "",
+      linkPreviewImageUrl: "https://example.com/og.jpg",
+      metadata: { linkPreview },
+      type: "link",
+      url: "https://example.com",
+    });
+    expect(withImage.linkPreviewImageUrl).toBe("https://example.com/og.jpg");
+    expect(withImage.aspectRatio).toBeCloseTo(1200 / 630);
+
+    const screenshotOnly = toMobileCardSummary({
+      ...base,
+      content: "",
+      metadata: { linkPreview },
+      screenshotUrl: "https://example.com/shot.jpg",
+      type: "link",
+      url: "https://example.com",
+    });
+    expect(screenshotOnly.aspectRatio).toBe(0.8);
+  });
+
+  test("names an untitled link after its site instead of its URL", () => {
+    const summary = toMobileCardSummary({
+      ...base,
+      content: "https://www.example.com/articles/42?ref=feed",
+      type: "link",
+      url: "https://www.example.com/articles/42?ref=feed",
+    });
+    expect(summary.title).toBe("example.com");
+  });
 });

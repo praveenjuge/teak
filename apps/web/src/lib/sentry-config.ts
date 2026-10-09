@@ -121,6 +121,18 @@ const isReactInternalFrame = (filename?: string) =>
       (filename.includes("/react-dom/") || filename.includes("/scheduler/"))
   );
 
+const isBundledNextFrame = (filename?: string) =>
+  Boolean(
+    filename &&
+      (filename.includes("/_next/static/chunks/") ||
+        filename.includes("/_next/static/immutable/chunks/"))
+  );
+
+// beforeSend runs before symbolication, so production React frames arrive as
+// bundled Next chunks rather than react-dom source paths. App code ships in
+// those chunks too and minified function names can't tell them apart, so any
+// production removeChild NotFoundError is dropped. Teak's only manual
+// removeChild is a download link it just appended (useCardModal).
 const isExternalDomMutation = (event: ErrorEvent) =>
   event.exception?.values?.some((exception) => {
     const frames = exception.stacktrace?.frames ?? [];
@@ -129,16 +141,21 @@ const isExternalDomMutation = (event: ErrorEvent) =>
       exception.value ===
         "Failed to execute 'removeChild' on 'Node': The node to be removed is not a child of this node." &&
       frames.length > 0 &&
-      frames.every((frame) => isReactInternalFrame(frame.filename))
+      frames.every(
+        (frame) =>
+          isReactInternalFrame(frame.filename) ||
+          isBundledNextFrame(frame.filename)
+      )
     );
   }) ?? false;
 
-const isBundledNextFrame = (filename?: string) =>
-  Boolean(
-    filename &&
-      (filename.includes("/_next/static/chunks/") ||
-        filename.includes("/_next/static/immutable/chunks/"))
-  );
+// Globals that in-app browsers and video downloaders inject into the page.
+const INJECTED_GLOBAL_PATTERN = /\bwindow\.videoSniffer\b/u;
+
+const isInjectedGlobalError = (event: ErrorEvent) =>
+  event.exception?.values?.some((exception) =>
+    INJECTED_GLOBAL_PATTERN.test(exception.value ?? "")
+  ) ?? false;
 
 // Production E2E browsers abort in-flight Safari requests when a journey ends.
 const isSafariE2eLoadFailure = (event: ErrorEvent) =>
@@ -160,6 +177,7 @@ const isSafariE2eLoadFailure = (event: ErrorEvent) =>
 export function filterClientSentryEvent(event: ErrorEvent, _hint?: EventHint) {
   if (
     isInjectedError(event) ||
+    isInjectedGlobalError(event) ||
     isExternalDomMutation(event) ||
     isSafariE2eLoadFailure(event)
   ) {

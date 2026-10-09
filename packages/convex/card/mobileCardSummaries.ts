@@ -8,13 +8,18 @@ import {
 import type { CardWithUrls } from "./queryUtils";
 
 const CONTENT_PREVIEW_LENGTH = 280;
+const WWW_PREFIX = /^www\./;
 
 const mobileCardSummaryValidator = v.object({
   _creationTime: v.number(),
   _id: v.id("cards"),
+  /** Width / height of the tile's media, so grids reserve space before it loads. */
+  aspectRatio: v.optional(v.number()),
   colors: v.optional(v.array(v.string())),
   compactUrl: v.optional(v.string()),
   fileName: v.optional(v.string()),
+  isFavorited: v.optional(v.boolean()),
+  linkPreviewImageUrl: v.optional(v.string()),
   placeholderUrl: v.optional(v.string()),
   previewText: v.optional(v.string()),
   screenshotUrl: v.optional(v.string()),
@@ -42,6 +47,32 @@ const compactText = (value?: string | null) => {
   return normalized.slice(0, CONTENT_PREVIEW_LENGTH);
 };
 
+const ratio = (width?: number, height?: number) =>
+  width && height && width > 0 && height > 0 ? width / height : undefined;
+
+/** The aspect ratio of the media a grid tile shows for this card, if known. */
+const mediaAspectRatio = (card: CardWithUrls) => {
+  if (card.type === "link") {
+    const preview = card.metadata?.linkPreview;
+    return card.linkPreviewImageUrl
+      ? ratio(preview?.imageWidth, preview?.imageHeight)
+      : ratio(preview?.screenshotWidth, preview?.screenshotHeight);
+  }
+  return ratio(card.fileMetadata?.width, card.fileMetadata?.height);
+};
+
+/** "example.com" for an untitled link, so its tile names the site. */
+const linkHostname = (url?: string) => {
+  if (!url) {
+    return;
+  }
+  try {
+    return new URL(url).hostname.replace(WWW_PREFIX, "") || undefined;
+  } catch {
+    return;
+  }
+};
+
 export const toMobileCardSummary = (card: CardWithUrls) => {
   const fileName = card.fileMetadata?.fileName;
   const previewText = compactText(
@@ -55,15 +86,20 @@ export const toMobileCardSummary = (card: CardWithUrls) => {
     linkTitle ||
     card.metadataTitle ||
     fileName ||
+    // A link's content is usually its URL; the site name reads better.
+    (card.type === "link" ? linkHostname(card.url) : undefined) ||
     previewText?.split("\n", 1)[0] ||
     (card.type === "palette" ? "Color palette" : "Saved card");
 
   return {
     _creationTime: card._creationTime,
     _id: card._id,
+    aspectRatio: mediaAspectRatio(card),
     colors: card.colors?.map((color) => color.hex),
     compactUrl: card.compactUrl,
     fileName,
+    isFavorited: card.isFavorited || undefined,
+    linkPreviewImageUrl: card.linkPreviewImageUrl,
     placeholderUrl: card.placeholderUrl,
     previewText,
     screenshotUrl: card.screenshotUrl,

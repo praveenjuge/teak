@@ -617,6 +617,7 @@ export const handleInternalOp = async (
         "image_dimensions_missing",
         "not_an_image",
         "image_dimensions_too_large",
+        "audio_decode_failed",
       ].includes(error.message)
     ) {
       return fail(requestId, "UNSUPPORTED", error.message, 415);

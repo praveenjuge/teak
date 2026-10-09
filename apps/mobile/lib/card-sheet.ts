@@ -6,6 +6,7 @@ import { getMobileFilePreview } from "./files";
 export type CardSheetDetail = Doc<"cards"> & {
   detailUrl?: string;
   fileUrl?: string;
+  linkPreviewImageUrl?: string;
   screenshotUrl?: string;
   thumbnailUrl?: string;
 };

@@ -1,10 +1,9 @@
-import { Button, HStack, Image, Spacer, Text } from "@expo/ui/swift-ui";
-import { disabled, font, frame, tint } from "@expo/ui/swift-ui/modifiers";
 import { CARD_ERROR_CODES } from "@teak/convex/shared";
 import * as DocumentPicker from "expo-document-picker";
 import * as ImagePicker from "expo-image-picker";
 import { useCallback } from "react";
-import { Alert, PlatformColor } from "react-native";
+import { Alert } from "react-native";
+import { AddActionRow } from "@/components/add/AddActionRow";
 import { normalizeNativeFileAsset } from "@/lib/files";
 import { useUploadFromUri } from "@/lib/hooks/use-upload-from-uri";
 
@@ -170,55 +169,27 @@ export function UploadFileActionsSection({
 
   return (
     <>
-      <Button
-        modifiers={[tint(PlatformColor("label")), disabled(isUploading)]}
+      <AddActionRow
+        color="systemGreen"
+        disabled={isUploading}
+        label="Photos & Videos"
         onPress={handleGalleryPicker}
-      >
-        <HStack spacing={12}>
-          <Image
-            modifiers={[frame({ height: 18, width: 18 })]}
-            size={14}
-            systemName="photo.on.rectangle"
-          />
-          <Text modifiers={[font({ design: "rounded" })]}>
-            Photos/Videos from Gallery
-          </Text>
-          <Spacer />
-          <Image color="secondary" size={14} systemName="chevron.right" />
-        </HStack>
-      </Button>
-
-      <Button
-        modifiers={[tint(PlatformColor("label")), disabled(isUploading)]}
+        systemImage="photo.on.rectangle"
+      />
+      <AddActionRow
+        color="systemGray"
+        disabled={isUploading}
+        label="Camera"
         onPress={handleCameraCapture}
-      >
-        <HStack spacing={12}>
-          <Image
-            modifiers={[frame({ height: 18, width: 18 })]}
-            size={14}
-            systemName="camera"
-          />
-          <Text modifiers={[font({ design: "rounded" })]}>Open Camera</Text>
-          <Spacer />
-          <Image color="secondary" size={14} systemName="chevron.right" />
-        </HStack>
-      </Button>
-
-      <Button
-        modifiers={[tint(PlatformColor("label")), disabled(isUploading)]}
+        systemImage="camera.fill"
+      />
+      <AddActionRow
+        color="systemIndigo"
+        disabled={isUploading}
+        label="Files"
         onPress={handleDocumentPicker}
-      >
-        <HStack spacing={12}>
-          <Image
-            modifiers={[frame({ height: 18, width: 18 })]}
-            size={14}
-            systemName="tray.and.arrow.up"
-          />
-          <Text modifiers={[font({ design: "rounded" })]}>Upload Files</Text>
-          <Spacer />
-          <Image color="secondary" size={14} systemName="chevron.right" />
-        </HStack>
-      </Button>
+        systemImage="folder.fill"
+      />
     </>
   );
 }

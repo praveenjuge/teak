@@ -8,7 +8,7 @@ const readSource = (relativePath: string) =>
 
 const sheetPath = "../../../mobile/components/CardPreviewSheet.tsx";
 const sheetDir = "../../../mobile/components/card-sheet";
-const actionsPath = `${sheetDir}/ActionsSection.tsx`;
+const actionsPath = `${sheetDir}/CardActionsToolbar.tsx`;
 
 const readSheetSources = () =>
   [
@@ -37,11 +37,13 @@ test("card sheet keeps every text element in the rounded design", () => {
   expect(readSource(sheetPath)).not.toContain('from "react-native"');
 });
 
-test("card sheet actions stay fully native without RN alerts", () => {
+test("card sheet actions live in the native toolbar without RN alerts", () => {
   const source = readSource(actionsPath);
 
+  expect(source).toContain("<Stack.Toolbar>");
   expect(source).toContain("ShareLink");
-  expect(source).toContain("ConfirmationDialog");
+  expect(source).toContain("<Stack.Toolbar.Menu");
+  expect(source).toContain("destructive");
   expect(source).toContain('field: "isFavorited"');
   expect(source).toContain('field: "delete"');
   expect(source).not.toContain("Alert.alert");

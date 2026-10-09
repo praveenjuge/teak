@@ -4,9 +4,12 @@ import type { CardType } from "@teak/convex/shared";
 export interface MobileCardSummary {
   _creationTime: number;
   _id: Id<"cards">;
+  aspectRatio?: number;
   colors?: string[];
   compactUrl?: string;
   fileName?: string;
+  isFavorited?: boolean;
+  linkPreviewImageUrl?: string;
   placeholderUrl?: string;
   previewText?: string;
   screenshotUrl?: string;
