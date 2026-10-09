@@ -8,7 +8,7 @@ import { useAccessToken, useAuth } from "@workos-inc/authkit-nextjs/components";
 import { useConvexAuth, useMutation } from "convex/react";
 import { type ReactNode, useEffect, useRef, useState } from "react";
 import Loading from "@/app/loading";
-import { signOutWorkos } from "@/lib/sign-out";
+import { signOut } from "@/lib/sign-out-client";
 import { AuthUnavailable } from "./AuthUnavailable";
 
 type Bootstrap =
@@ -126,7 +126,7 @@ export function WorkosAuthBoundary({ children }: { children: ReactNode }) {
       >
         <p>{message}</p>
         <Button onClick={() => setAttempt((n) => n + 1)}>Try again</Button>
-        <Button onClick={() => void signOutWorkos()} variant="ghost">
+        <Button onClick={() => void signOut()} variant="ghost">
           Sign out
         </Button>
       </div>
