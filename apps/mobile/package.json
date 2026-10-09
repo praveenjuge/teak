@@ -1,6 +1,6 @@
 {
   "name": "@teak/mobile",
-  "version": "1.0.81",
+  "version": "1.0.82",
   "main": "expo-router/entry",
   "scripts": {
     "android": "expo run:android",

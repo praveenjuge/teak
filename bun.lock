@@ -15,7 +15,7 @@
     },
     "apps/cli": {
       "name": "teak-cli",
-      "version": "1.0.81",
+      "version": "1.0.82",
       "bin": {
         "teak": "./dist/index.js",
       },
@@ -30,7 +30,7 @@
     },
     "apps/docs": {
       "name": "@teak/docs",
-      "version": "1.0.81",
+      "version": "1.0.82",
       "dependencies": {
         "@teak/convex": "workspace:*",
         "@vercel/functions": "^3.7.6",
@@ -44,7 +44,7 @@
     },
     "apps/extension": {
       "name": "@teak/extension",
-      "version": "1.0.81",
+      "version": "1.0.82",
       "dependencies": {
         "@tailwindcss/vite": "^4.3.3",
         "@teak/convex": "workspace:*",
@@ -65,7 +65,7 @@
     },
     "apps/files-worker": {
       "name": "@teak/files-worker",
-      "version": "1.0.81",
+      "version": "1.0.82",
       "dependencies": {
         "@cf-wasm/photon": "^0.4.0",
         "@resvg/resvg-wasm": "^2.6.2",
@@ -82,7 +82,7 @@
     },
     "apps/mobile": {
       "name": "@teak/mobile",
-      "version": "1.0.81",
+      "version": "1.0.82",
       "dependencies": {
         "@expo/metro-runtime": "~57.0.8",
         "@expo/ui": "~57.0.9",
@@ -138,7 +138,7 @@
     },
     "apps/raycast": {
       "name": "teak-raycast",
-      "version": "1.0.81",
+      "version": "1.0.82",
       "dependencies": {
         "@raycast/api": "^1.104.24",
         "@raycast/utils": "^2.3.0",
@@ -156,7 +156,7 @@
     },
     "apps/web": {
       "name": "@teak/web",
-      "version": "1.0.81",
+      "version": "1.0.82",
       "dependencies": {
         "@polar-sh/checkout": "^0.4.0",
         "@sentry/nextjs": "10.69.0",
@@ -191,7 +191,7 @@
     },
     "packages/convex": {
       "name": "@teak/convex",
-      "version": "1.0.81",
+      "version": "1.0.82",
       "dependencies": {
         "@ai-sdk/openai-compatible": "^3.0.35",
         "@aws-sdk/client-s3": "3.1106.0",
@@ -237,14 +237,14 @@
     },
     "packages/files-protocol": {
       "name": "@teak/files-protocol",
-      "version": "1.0.81",
+      "version": "1.0.82",
       "devDependencies": {
         "typescript": "^5.9.3",
       },
     },
     "packages/sdk": {
       "name": "teak-sdk",
-      "version": "1.0.81",
+      "version": "1.0.82",
       "devDependencies": {
         "@teak/convex": "workspace:*",
         "@types/bun": "^1.4.0",
@@ -254,7 +254,7 @@
     },
     "packages/tests": {
       "name": "@teak/tests",
-      "version": "1.0.81",
+      "version": "1.0.82",
       "dependencies": {
         "@axe-core/playwright": "^4.12.1",
         "@modelcontextprotocol/sdk": "^1.30.0",
@@ -276,7 +276,7 @@
     },
     "packages/ui": {
       "name": "@teak/ui",
-      "version": "1.0.81",
+      "version": "1.0.82",
       "dependencies": {
         "@base-ui/react": "1.6.0",
         "@editorcn/block-editor": "0.2.0",
@@ -4897,6 +4897,8 @@
     "svgo/sax": ["sax@1.6.1", "", {}, "sha512-42tBVwLWnaQvW5zc4HbZrTuWccECCZfBi92FDuwtqxasH+JbPB3/FOKb1m222K42R4WxuxzzMsTswfzgtSu64Q=="],
 
     "tar/yallist": ["yallist@5.0.0", "", {}, "sha512-YgvUTfwqyc7UXVMrB+SImsVYSmTS8X/tSrtdNZMImM+n7+QTriRXyXim0mBrTXNeqzVF0KWGgHPeiyViFFrNDw=="],
+
+    "teak-raycast/teak-sdk": ["teak-sdk@1.0.81", "", {}, "sha512-r8XV0MhcjI8FbwDoSR5/gocznz2bPdOzIUX6aqDkTBUzfNsS9hxBfds/2O+7hpRNcvIvnuAQ1JZeWdGs9/j3WQ=="],
 
     "tempy/is-stream": ["is-stream@3.0.0", "", {}, "sha512-LnQR4bZ9IADDRSkvpqMGvt/tEJWclzklNgSw48V5EAaAeDd6qGvN8ei6k5p0tvxSR171VmGyHuTiAOfxAbr8kA=="],
 
