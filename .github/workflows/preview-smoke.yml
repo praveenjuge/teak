@@ -11,7 +11,9 @@ permissions:
 
 jobs:
   preview-smoke:
-    if: github.event.deployment_status.state == 'success' && github.event.deployment_status.environment != 'Production'
+    # Vercel names preview environments "Preview – <project>". Other GitHub
+    # deployments (such as npm-sdk-release) point at Actions runs, not URLs.
+    if: github.event.deployment_status.state == 'success' && startsWith(github.event.deployment_status.environment, 'Preview – ')
     runs-on: ubuntu-latest
     timeout-minutes: 10
     env:
