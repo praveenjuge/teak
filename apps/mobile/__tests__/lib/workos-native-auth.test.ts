@@ -121,7 +121,10 @@ describe("native AuthKit browser flow", () => {
         extraParams: { provider },
       });
       // No AuthKit cookie outlives sign-in, so a revoked session stays out.
-      expect(promptOptions).toEqual({ preferEphemeralSession: true });
+      // Apple's form POST callback needs the shared browser session.
+      expect(promptOptions).toEqual({
+        preferEphemeralSession: provider !== "AppleOAuth",
+      });
       expect(s.session.getSnapshot().user?.teakUserId).toBe("permanent-vault");
       expect(s.count()).toBe(1);
     }
@@ -148,10 +151,23 @@ describe("native AuthKit browser flow", () => {
       expect(s.count()).toBe(0);
     }
   );
+  test("declining at the provider does not exchange a code", async () => {
+    const s = setup();
+    result = {
+      type: "error",
+      params: { state: "expected-state", error: "access_denied" },
+    };
+    expect(await signInWithWorkos(s.session, "AppleOAuth")).toBe(false);
+    expect(s.count()).toBe(0);
+  });
   test.each([
     { type: "success", params: { state: "wrong-state", code: "code" } },
     { type: "success", params: { state: "expected-state" } },
     { type: "error", params: { state: "expected-state", code: "code" } },
+    {
+      type: "error",
+      params: { state: "expected-state", error: "server_error" },
+    },
   ])(
     "rejects invalid callbacks without transmitting credentials",
     async (callback: Record<string, unknown>) => {
@@ -177,7 +193,14 @@ describe("native AuthKit browser flow", () => {
 });
 
 let bootstrapFixture = 0;
-test.each(["ok", "verify_email", "frozen", "quarantined", "invalid_origin"])(
+test.each([
+  "ok",
+  "verify_email",
+  "frozen",
+  "quarantined",
+  "invalid_origin",
+  "profile_pending",
+])(
   "native session factory accepts vault bootstrap only for %s",
   async (status) => {
     const previousUrl = process.env.EXPO_PUBLIC_CONVEX_URL;
@@ -195,6 +218,7 @@ test.each(["ok", "verify_email", "frozen", "quarantined", "invalid_origin"])(
     };
     const token = `header.${btoa(JSON.stringify(claims))}.signature`;
     let bootstrapped = false;
+    let bootstraps = 0;
     globalThis.fetch = ((input, init) => {
       if (
         String(input) === "https://api.workos.com/user_management/authenticate"
@@ -223,10 +247,18 @@ test.each(["ok", "verify_email", "frozen", "quarantined", "invalid_origin"])(
       );
       expect(nativeCredentials.has(`teak.authkit.${id}`)).toBe(false);
       bootstrapped = true;
-      const value =
-        status === "ok"
-          ? { status, teakUserId: "permanent-vault" }
-          : { status, reason: "identity_conflict" };
+      bootstraps += 1;
+      // A new user's profile is still syncing on the first attempt.
+      let value: Record<string, string> = {
+        status,
+        reason: "identity_conflict",
+      };
+      if (status === "profile_pending") {
+        value = { status: "quarantined", reason: status };
+      }
+      if (status === "ok" || (status === "profile_pending" && bootstraps > 1)) {
+        value = { status: "ok", teakUserId: "permanent-vault" };
+      }
       return Promise.resolve(Response.json({ status: "success", value }));
     }) as typeof fetch;
     try {
@@ -239,9 +271,10 @@ test.each(["ok", "verify_email", "frozen", "quarantined", "invalid_origin"])(
         await expect(login).rejects.toThrow("Invalid EXPO_PUBLIC_CONVEX_URL");
         expect(nativeCredentials.has(`teak.authkit.${id}`)).toBe(false);
         expect(session.getSnapshot().user).toBeNull();
-      } else if (status === "ok") {
+      } else if (status === "ok" || status === "profile_pending") {
         expect(await login).toBe(token);
         expect(nativeCredentials.has(`teak.authkit.${id}`)).toBe(true);
+        expect(bootstraps).toBe(status === "ok" ? 1 : 2);
       } else {
         await expect(login).rejects.toThrow();
         expect(nativeCredentials.has(`teak.authkit.${id}`)).toBe(false);
