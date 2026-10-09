@@ -35,10 +35,6 @@ import {
   extractSidebarPost,
   findSidebarPosts,
 } from "./content/platforms/sidebar";
-import {
-  extractWebDesignerNewsPost,
-  findWebDesignerNewsPosts,
-} from "./content/platforms/webdesignernews";
 import { extractXPost, findXPosts } from "./content/platforms/x";
 
 export default defineContentScript({
@@ -197,23 +193,6 @@ const PLATFORM_BINDINGS: PlatformBinding[] = [
     extractPost: extractSidebarPost,
     mountButton: (postElement, button) => {
       const title = postElement.querySelector<HTMLElement>(".post-title");
-      if (!title) {
-        return false;
-      }
-
-      title.append(button);
-      return true;
-    },
-  },
-  {
-    platform: "webdesignernews",
-    hostMatches: (host) => isPlatformInlineSaveHost("webdesignernews", host),
-    findPosts: findWebDesignerNewsPosts,
-    extractPost: extractWebDesignerNewsPost,
-    mountButton: (postElement, button) => {
-      const title = postElement.querySelector<HTMLElement>(
-        ".single-post-text h3"
-      );
       if (!title) {
         return false;
       }

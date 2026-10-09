@@ -43,17 +43,18 @@ describe("inline save platform rules", () => {
     ).toBe(false);
   });
 
-  test("recognizes Sidebar, Web Designer News, and HeyDesigner hosts", () => {
+  test("recognizes Sidebar and HeyDesigner hosts", () => {
     expect(isSupportedInlineSaveHost("sidebar.io")).toBe(true);
-    expect(isSupportedInlineSaveHost("www.webdesignernews.com")).toBe(true);
     expect(isSupportedInlineSaveHost("heydesigner.com")).toBe(true);
     expect(isPlatformInlineSaveHost("sidebar", "sidebar.io")).toBe(true);
-    expect(
-      isPlatformInlineSaveHost("webdesignernews", "www.webdesignernews.com")
-    ).toBe(true);
     expect(isPlatformInlineSaveHost("heydesigner", "heydesigner.com")).toBe(
       true
     );
+  });
+
+  test("does not offer inline save on Web Designer News", () => {
+    expect(isSupportedInlineSaveHost("webdesignernews.com")).toBe(false);
+    expect(isSupportedInlineSaveHost("www.webdesignernews.com")).toBe(false);
   });
 
   test("allows outbound article permalinks on aggregator pages", () => {
@@ -61,13 +62,6 @@ describe("inline save platform rules", () => {
       isInlineSavePermalinkAllowed(
         "sidebar",
         "https://sidebar.io",
-        "https://example.com/story"
-      )
-    ).toBe(true);
-    expect(
-      isInlineSavePermalinkAllowed(
-        "webdesignernews",
-        "https://www.webdesignernews.com",
         "https://example.com/story"
       )
     ).toBe(true);
@@ -83,7 +77,6 @@ describe("inline save platform rules", () => {
   test("marks aggregator platforms as compact buttons", () => {
     expect(getInlineSaveButtonVariant("hackernews")).toBe("compact");
     expect(getInlineSaveButtonVariant("sidebar")).toBe("compact");
-    expect(getInlineSaveButtonVariant("webdesignernews")).toBe("compact");
     expect(getInlineSaveButtonVariant("heydesigner")).toBe("compact");
     expect(getInlineSaveButtonVariant("x")).toBe("overlay");
   });

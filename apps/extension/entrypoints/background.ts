@@ -13,7 +13,9 @@ import {
   removePendingSave,
   storePendingSave,
   updatePendingSave,
+  waitingSaveIds,
 } from "../lib/pendingSaves";
+import { toContextMenuStatus } from "../lib/popupStatus";
 import { isRestrictedUrl } from "../lib/restrictedUrl";
 import { downloadAssetFile, saveFileToTeak } from "../lib/saveFileToTeak";
 import { saveToTeak } from "../lib/saveToTeak";
@@ -133,22 +135,6 @@ function runPendingSave(
     ) {
       await removePendingSave(save.id);
     }
-    await chrome.storage.local.set({
-      contextMenuSave: {
-        action: save.kind === "content" ? "save-page" : "save-asset",
-        timestamp: Date.now(),
-        status:
-          result.status === "saved" || result.status === "duplicate"
-            ? "success"
-            : "error",
-        error:
-          result.status === "error"
-            ? result.message
-            : (result.status === "unauthenticated" &&
-                "Reconnect to finish your pending save.") ||
-              undefined,
-      },
-    });
     return result;
   })().finally(() => runningSaves.delete(save.id));
   runningSaves.set(save.id, operation);
@@ -170,18 +156,28 @@ async function queueSave(
   return runPendingSave(save, true);
 }
 
-async function resumePendingSaves() {
+// Returns the first save that could not finish, so a retry can say why.
+async function resumePendingSaves(): Promise<TeakSaveResponse | undefined> {
+  let failure: TeakSaveResponse | undefined;
   for (const id of await listPendingSaveIds()) {
     const save = await getPendingSave(id);
     if (!save) {
       continue;
     }
     const result = await runPendingSave(save, false);
+    if (result.status === "saved" || result.status === "duplicate") {
+      continue;
+    }
+    failure ??= result;
     if (result.status === "unauthenticated") {
       break;
     }
   }
+  return failure;
 }
+
+const listWaitingSaveIds = async () =>
+  waitingSaveIds(await listPendingSaveIds(), runningSaves);
 
 const getNormalizedHost = (urlString: string): string | null => {
   try {
@@ -405,17 +401,13 @@ export default defineBackground(() => {
         return;
       }
 
-      if (saveResult.status === "saved" || saveResult.status === "duplicate") {
-        await chrome.storage.local.set({
-          contextMenuSave: {
-            action,
-            timestamp: Date.now(),
-            status: "success",
-          },
-        });
-      } else {
+      const status = toContextMenuStatus(saveResult);
+      if (status === "error") {
         throw new Error(buildContextMenuErrorMessage(saveResult));
       }
+      await chrome.storage.local.set({
+        contextMenuSave: { action, timestamp: Date.now(), status },
+      });
     } catch (error) {
       const errorMessage =
         error instanceof Error ? error.message : "Failed to save content";
@@ -476,20 +468,24 @@ export default defineBackground(() => {
             if (!(await getOAuthState()).authenticated) {
               await beginOAuthSignIn();
             }
-            await resumePendingSaves();
-          } else {
-            if (runningSaves.size) {
-              throw new Error(
-                "Wait for the current save to finish, then discard pending saves."
+            const failure = await resumePendingSaves();
+            if (failure) {
+              sendResponse(
+                failure.status === "error"
+                  ? failure
+                  : buildSaveError("Sign in to finish your pending saves.")
               );
+              return;
             }
-            for (const id of await listPendingSaveIds()) {
+          } else {
+            // A running save finishes or re-queues itself; only waiting ones go.
+            for (const id of await listWaitingSaveIds()) {
               await removePendingSave(id);
             }
           }
           sendResponse({
             ...(await getOAuthState()),
-            pendingCount: (await listPendingSaveIds()).length,
+            pendingCount: (await listWaitingSaveIds()).length,
           });
           return;
         }
@@ -524,7 +520,7 @@ export default defineBackground(() => {
           }
           sendResponse({
             ...(await getOAuthState()),
-            pendingCount: (await listPendingSaveIds()).length,
+            pendingCount: (await listWaitingSaveIds()).length,
           });
           return;
         }
@@ -532,7 +528,7 @@ export default defineBackground(() => {
           const state = await getOAuthState();
           sendResponse(
             trustedPopup
-              ? { ...state, pendingCount: (await listPendingSaveIds()).length }
+              ? { ...state, pendingCount: (await listWaitingSaveIds()).length }
               : { authenticated: state.authenticated }
           );
           return;

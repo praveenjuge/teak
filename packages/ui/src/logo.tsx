@@ -15,7 +15,7 @@ interface WordmarkProps extends Omit<SVGProps<SVGSVGElement>, "color"> {
   variant?: LogoVariant;
 }
 
-function Wordmark({
+export function Wordmark({
   variant = "default",
   width = 64,
   height = 20,
