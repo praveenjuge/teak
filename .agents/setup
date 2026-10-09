@@ -48,6 +48,8 @@ install_system_packages() {
   local -a packages=()
   command -v curl >/dev/null 2>&1 || packages+=(curl)
   command -v git >/dev/null 2>&1 || packages+=(git)
+  # bun run dev checks its processes' command lines with ps.
+  command -v ps >/dev/null 2>&1 || packages+=(procps)
   command -v tar >/dev/null 2>&1 || packages+=(tar)
   command -v unzip >/dev/null 2>&1 || packages+=(unzip)
   command -v xz >/dev/null 2>&1 || packages+=(xz-utils)

@@ -133,8 +133,11 @@ export const isProcessAlive = (pid: number): boolean =>
   validPid(pid) && exists(pid);
 
 // Command lines of live processes, so a PID reused after a crash or reboot
-// is never mistaken for the stack.
-const commands = (): { command: string; pgid: number; pid: number }[] => {
+// is never mistaken for the stack. Null when `ps` can't run (an image
+// without procps), which proves nothing either way.
+const commands = ():
+  | { command: string; pgid: number; pid: number }[]
+  | null => {
   try {
     return execFileSync("ps", ["-axo", "pid=,pgid=,command="], {
       encoding: "utf-8",
@@ -153,32 +156,49 @@ const commands = (): { command: string; pgid: number; pid: number }[] => {
           : [];
       });
   } catch {
-    return [];
+    return null;
   }
 };
 
 const STACK_OWNERS = ["scripts/dev.ts", "run-local-suite.ts"];
 const STACK_MEMBERS = ["convex", "next"];
 
-/** The recorded owner is alive and is still a Teak stack process. */
-export const isStackRunning = (state: StackState): boolean =>
-  isProcessAlive(state.pid) &&
-  commands().some(
-    (entry) =>
-      entry.pid === state.pid &&
-      STACK_OWNERS.some((owner) => entry.command.includes(owner))
+/**
+ * The recorded owner is alive and is still a Teak stack process. Without
+ * `ps` only liveness can be checked, so a live PID counts as the stack and
+ * its state is never treated as orphaned.
+ */
+export const isStackRunning = (state: StackState): boolean => {
+  if (!isProcessAlive(state.pid)) {
+    return false;
+  }
+  const list = commands();
+  return (
+    list === null ||
+    list.some(
+      (entry) =>
+        entry.pid === state.pid &&
+        STACK_OWNERS.some((owner) => entry.command.includes(owner))
+    )
   );
+};
 
 // The backend and web app's process group, if any of its members is still a
-// Convex or Next.js process.
-const groupAlive = (group: number): boolean =>
-  validPid(group) &&
-  exists(-group) &&
-  commands().some(
-    (entry) =>
-      entry.pgid === group &&
-      STACK_MEMBERS.some((member) => entry.command.includes(member))
+// Convex or Next.js process (or, without `ps`, if the group exists).
+const groupAlive = (group: number): boolean => {
+  if (!(validPid(group) && exists(-group))) {
+    return false;
+  }
+  const list = commands();
+  return (
+    list === null ||
+    list.some(
+      (entry) =>
+        entry.pgid === group &&
+        STACK_MEMBERS.some((member) => entry.command.includes(member))
+    )
   );
+};
 
 /**
  * Stop a stack whose owner died without cleaning up (killed with SIGKILL, or
