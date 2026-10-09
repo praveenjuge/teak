@@ -14,7 +14,7 @@ import { useAction, useMutation } from "convex/react";
 import { useTheme } from "next-themes";
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
-import { signOutWorkos } from "@/lib/sign-out";
+import { signOut } from "@/lib/sign-out-client";
 
 export default function ProfileSettingsPage() {
   const [subscriptionOpen, setSubscriptionOpen] = useState(false);
@@ -35,7 +35,7 @@ export default function ProfileSettingsPage() {
     onDeleteAccount: async () => {
       await deleteMyAccount({});
       toast.success("Account deletion requested. You’re being signed out.");
-      await signOutWorkos();
+      await signOut();
     },
     onOpenExternal: (url) => {
       const safeUrl = sanitizeExternalUrl(url);
@@ -56,7 +56,7 @@ export default function ProfileSettingsPage() {
       anchor.click();
       anchor.remove();
     },
-    onSignOut: signOutWorkos,
+    onSignOut: signOut,
   });
 
   const handleCheckout = async (planId: string) => {
