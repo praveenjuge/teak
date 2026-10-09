@@ -6,7 +6,7 @@ import {
   getWorkosBootstrapIdentity,
   readWorkosProfile,
 } from "./securitySessions";
-import { normalizeIdentityEmail } from "./userIdentityTable";
+import { isStorableEmail, normalizeIdentityEmail } from "./shared/workosIds";
 import { validWorkosExternalId } from "./workosTokens";
 import { recordQuarantine } from "./workosUsers";
 
@@ -38,9 +38,7 @@ export const ensureUser = mutation({
     const email = normalizeIdentityEmail(profile.email);
     if (
       profile.id !== identity.workosUserId ||
-      email.length > 320 ||
-      !/^[^\s@]+@[^\s@]+$/.test(email) ||
-      /\p{Cc}/u.test(email) ||
+      !isStorableEmail(email) ||
       !validWorkosExternalId(profile.externalId) ||
       (typeof profile.externalId === "string" &&
         /[\s\p{Cc}]/u.test(profile.externalId))
@@ -73,7 +71,6 @@ export const ensureUser = mutation({
         ? {}
         : { externalId }),
       source: "ensureUser",
-      allowCreate: true,
     });
     if (linked.status === "quarantined") {
       return linked.reason === "signups_frozen"

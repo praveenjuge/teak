@@ -8,6 +8,7 @@ import {
   type QueryCtx,
   query,
 } from "./_generated/server";
+import { limitApiRequests, rateLimitResultValidator } from "./publicApi";
 import {
   getSessionUser,
   resolveStoredUserId,
@@ -73,6 +74,7 @@ const validatedApiKeyValidator = v.union(
     userId: v.string(),
     access: apiKeyAccessValidator,
     rateLimitKey: v.string(),
+    rateLimit: v.optional(rateLimitResultValidator),
   }),
   v.null()
 );
@@ -83,6 +85,7 @@ const componentKeyActionValidator = v.object({
 
 const validateApiKeyArgsValidator = v.object({
   token: v.string(),
+  chargeRateLimit: v.optional(v.boolean()),
 });
 
 const revokeKeyArgsValidator = v.object({
@@ -354,8 +357,15 @@ export const validateUserApiKey = internalMutation({
       return null;
     }
 
+    // The owner is resolved in this transaction, so callers can trust userId.
     const validated = await validateComponentApiKey(ctx, token);
-    return validated;
+    if (!(validated && args.chargeRateLimit)) {
+      return validated;
+    }
+    return {
+      ...validated,
+      rateLimit: await limitApiRequests(ctx, `key:${validated.rateLimitKey}`),
+    };
   },
 });
 

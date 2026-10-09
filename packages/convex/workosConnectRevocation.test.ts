@@ -123,7 +123,7 @@ test("disconnect survives auth rollback and permanently denies the application",
       clientId: client,
       externalId: owner,
     })
-  ).toMatchObject({ status: "denied", reason: "application_disconnected" });
+  ).toMatchObject({ status: "denied", reason: "revoked_consent" });
   const first = (await f.rows()).find(
     (r) => r.consentId === consent
   )?.revokedAt;

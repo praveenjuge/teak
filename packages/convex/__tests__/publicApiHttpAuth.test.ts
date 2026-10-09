@@ -17,18 +17,17 @@ import {
 
 describe("publicApiHttp auth and validation", () => {
   test("cardByIdV1 validates the API key for the favorite route", async () => {
-    const runMutation = mock()
-      .mockResolvedValueOnce({
-        keyId: "key_1",
-        userId: "user_1",
-        access: "full_access",
-        source: "component",
-        rateLimitKey: "component:key_1",
-      })
-      .mockResolvedValueOnce({
+    const runMutation = mock().mockResolvedValueOnce({
+      keyId: "key_1",
+      userId: "user_1",
+      access: "full_access",
+      source: "component",
+      rateLimitKey: "component:key_1",
+      rateLimit: {
         ok: false,
         retryAt: Date.now() + 30_000,
-      });
+      },
+    });
 
     const response = await runHandler(
       cardByIdV1,
@@ -48,6 +47,7 @@ describe("publicApiHttp auth and validation", () => {
     expect(runMutation.mock.calls[0][1]).toEqual({
       token:
         "teakapi_secret_live_a1b2c3d4_ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+      chargeRateLimit: true,
     });
   });
 
@@ -120,6 +120,7 @@ describe("publicApiHttp auth and validation", () => {
       expect(runMutation.mock.calls[0][1]).toEqual({
         token:
           "teakapi_secret_live_a1b2c3d4_ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+        chargeRateLimit: true,
       });
     }
   });
@@ -303,9 +304,8 @@ describe("publicApiHttp auth and validation", () => {
         userId: "user_1",
         source: "component",
         rateLimitKey: "component:key_1",
+        rateLimit: { ok: true, retryAt: undefined },
       })
-      // ...then per-key rate limit...
-      .mockResolvedValueOnce({ ok: true, retryAt: undefined })
       // ...then the idempotency reservation reports in-progress.
       .mockResolvedValueOnce({
         record: {
@@ -347,6 +347,6 @@ describe("publicApiHttp auth and validation", () => {
       error: "Idempotency-Key is already being processed",
     });
     // validate + rateLimit + beginIdempotencyRequest + trackIdempotencyOutcome
-    expect(runMutation).toHaveBeenCalledTimes(4);
+    expect(runMutation).toHaveBeenCalledTimes(3);
   });
 });

@@ -17,9 +17,9 @@ import type {
 import { stagePending } from "./card/processingStatus";
 import { patchCardWithSearchSync } from "./card/searchDocumentHelpers";
 import { getSessionUser, readComponentUser } from "./securitySessions";
+import { normalizeIdentityEmail } from "./shared/workosIds";
 import { tryResolveObjectUrl } from "./storage/fileUrls";
 import { deleteObject } from "./storage/r2";
-import { normalizeIdentityEmail } from "./userIdentityTable";
 
 interface StageSummary {
   failed: number;

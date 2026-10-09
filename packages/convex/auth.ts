@@ -1,5 +1,5 @@
 import { v } from "convex/values";
-import { query } from "./_generated/server";
+import { type QueryCtx, query } from "./_generated/server";
 import { polar } from "./billing";
 import { getActiveCardCount } from "./card/cardUsage";
 import { readAccountChangesPaused, readSignupsDisabled } from "./env";
@@ -53,6 +53,16 @@ export const getAuthMode = query({
   }),
 });
 
+// A Polar read failure counts as no subscription rather than failing the query.
+const readHasPremium = async (ctx: QueryCtx, userId: string) => {
+  try {
+    const subscription = await polar.getCurrentSubscription(ctx, { userId });
+    return isApprovedActiveSubscription(subscription);
+  } catch {
+    return false;
+  }
+};
+
 // Get the current user
 export const getCurrentUserHandler = async (ctx: any) => {
   // After sign-out the client may still briefly call this query; treat missing
@@ -63,15 +73,7 @@ export const getCurrentUserHandler = async (ctx: any) => {
   }
   const { user, teakUserId: userId } = profile;
 
-  let hasPremium = false;
-  try {
-    const subscription = await polar.getCurrentSubscription(ctx, {
-      userId,
-    });
-    hasPremium = isApprovedActiveSubscription(subscription);
-  } catch {
-    hasPremium = false;
-  }
+  const hasPremium = await readHasPremium(ctx, userId);
 
   const cardCount = await getActiveCardCount(ctx, userId);
   const canCreateCard = hasPremium || cardCount < FREE_TIER_LIMIT;
@@ -98,15 +100,7 @@ export const getCardCreationStatusHandler = async (ctx: any) => {
   }
   const { teakUserId: userId } = profile;
 
-  let hasPremium = false;
-  try {
-    const subscription = await polar.getCurrentSubscription(ctx, {
-      userId,
-    });
-    hasPremium = isApprovedActiveSubscription(subscription);
-  } catch {
-    hasPremium = false;
-  }
+  const hasPremium = await readHasPremium(ctx, userId);
 
   if (hasPremium) {
     return {

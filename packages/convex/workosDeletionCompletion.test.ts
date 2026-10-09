@@ -282,7 +282,6 @@ test.each(["before", "after"] as const)(
         emailVerified: true,
         externalId: "owner",
         source: "webhook",
-        allowCreate: false,
       })
     ).toMatchObject({ status: "quarantined" });
     expect(

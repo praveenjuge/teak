@@ -1,12 +1,43 @@
 import { v } from "convex/values";
 import { internalQuery, type QueryCtx } from "./_generated/server";
 import { logResolverDenial, type ResolverVerification } from "./authMonitoring";
-import { readCanonicalWorkosProfile } from "./workosProfileRead";
+import { readComponentUser } from "./securitySessions";
+import { type ProviderProfile, toProviderProfile } from "./workosProfileRead";
 
-interface ResolveArgs {
+export interface ResolveArgs {
   externalId?: string | null;
   verification: ResolverVerification;
   workosUserId: string;
+}
+
+export type ResolvedOwner =
+  | { status: "ok"; teakUserId: string; profile: ProviderProfile }
+  | { status: "denied"; reason: DenialReason };
+type DenialReason =
+  | "missing_mapping"
+  | "duplicate_mapping"
+  | "deleted_user"
+  | "workos_deleted_user"
+  | "deleting_user"
+  | "external_id_mismatch"
+  | "verify_email";
+
+// Queries and mutations call this in their own transaction. Actions have no
+// database, so they go through the resolveWorkosOwner internal query below.
+export async function resolveOwner(
+  ctx: Pick<QueryCtx, "db" | "runQuery">,
+  args: ResolveArgs
+): Promise<ResolvedOwner> {
+  const result = await resolve(ctx, args);
+  if (result.status === "denied") {
+    // One hashed line per denial; the decision above is never changed by it.
+    await logResolverDenial({
+      reason: result.reason,
+      verification: args.verification,
+      workosUserId: args.workosUserId,
+    });
+  }
+  return result;
 }
 
 // Only callers that have verified the token's issuer, signature, audience,
@@ -38,19 +69,16 @@ export const resolveWorkosOwner = internalQuery({
   ),
   handler: async (ctx, args) => {
     const result = await resolveOwner(ctx, args);
-    if (result.status === "denied") {
-      // One hashed line per denial; the decision above is never changed by it.
-      await logResolverDenial({
-        reason: result.reason,
-        verification: args.verification,
-        workosUserId: args.workosUserId,
-      });
-    }
-    return result;
+    return result.status === "ok"
+      ? { status: "ok" as const, teakUserId: result.teakUserId }
+      : result;
   },
 });
 
-const resolveOwner = async (ctx: QueryCtx, args: ResolveArgs) => {
+const resolve = async (
+  ctx: Pick<QueryCtx, "db" | "runQuery">,
+  args: ResolveArgs
+): Promise<ResolvedOwner> => {
   const deleted = await ctx.db
     .query("workosEvents")
     .withIndex("by_workosUserId_and_type", (q) =>
@@ -118,7 +146,9 @@ const resolveOwner = async (ctx: QueryCtx, args: ResolveArgs) => {
       reason: "external_id_mismatch" as const,
     };
   }
-  const profile = await readCanonicalWorkosProfile(ctx, args.workosUserId);
+  // The deletion ledger was checked above, so read the component copy directly.
+  const user = await readComponentUser(ctx, args.workosUserId);
+  const profile = user ? toProviderProfile(args.workosUserId, user) : null;
   // A provider profile bound to a different Teak owner never opens this vault.
   if (
     profile?.externalId !== undefined &&
@@ -133,11 +163,11 @@ const resolveOwner = async (ctx: QueryCtx, args: ResolveArgs) => {
   // The provider profile must exist and be verified; a session token must
   // also carry its own verified claim. Connect tokens carry none.
   if (
-    profile?.emailVerified !== true ||
+    !profile?.emailVerified ||
     (args.verification.kind === "session" &&
       args.verification.emailVerified !== true)
   ) {
     return { status: "denied" as const, reason: "verify_email" as const };
   }
-  return { status: "ok" as const, teakUserId: row.teakUserId };
+  return { status: "ok" as const, teakUserId: row.teakUserId, profile };
 };

@@ -321,6 +321,40 @@ describe("apiKeys", () => {
     });
   });
 
+  test("validate charges the request limit to the validated key", async () => {
+    const token = `teakapi_secret_live_a1b2c3d4_${"f".repeat(64)}`;
+    const ctx = {
+      runMutation: mock().mockResolvedValueOnce({
+        env: "live",
+        keyId: "component_key",
+        ownerId: "user_1",
+        scopes: ["full_access"],
+        tags: [],
+        type: "secret",
+        valid: true,
+      }),
+      runQuery: mock().mockImplementation(
+        (ref, args) => answerIdentityQuery(ref, args, {}).value
+      ),
+    };
+    const limit = mock().mockResolvedValue({ ok: false, retryAfter: 1000 });
+    rateLimiter.limit = limit as any;
+
+    const result = await runHandler(validateUserApiKey, ctx, {
+      token,
+      chargeRateLimit: true,
+    });
+
+    expect(result).toMatchObject({
+      userId: "user_1",
+      rateLimit: { ok: false, retryAt: expect.any(Number) },
+    });
+    expect(limit).toHaveBeenCalledWith(ctx, "publicApiRequests", {
+      key: "key:component:component_key",
+      throws: false,
+    });
+  });
+
   test("validate rejects malformed keys without touching the component", async () => {
     const ctx = {
       runMutation: mock(),

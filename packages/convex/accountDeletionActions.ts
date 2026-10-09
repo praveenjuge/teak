@@ -9,11 +9,14 @@ import {
   deleteLegacyBetterAuthRows,
   deleteLegacyBetterAuthSessions,
 } from "./legacyBetterAuth";
-import { readResponseTextWithinLimit } from "./shared/boundedResponse";
-import { workosApiUrl } from "./shared/workosApi";
 import { createWorkosClient } from "./shared/workosClient";
+import { WORKOS_SESSION_ID, WORKOS_USER_ID } from "./shared/workosIds";
 import { callFilesWorkerJson } from "./storage/filesWorkerClient";
 import { withBackendSpan } from "./telemetry/sentry";
+import {
+  deleteAuthorizedApp,
+  listAuthorizedAppsPage,
+} from "./workosAuthorizedApps";
 import {
   currentWorkosDeletionTarget,
   sameWorkosDeletionTarget,
@@ -23,7 +26,7 @@ import {
 const PROVIDER_DELETE_PAGE_SIZE = 10;
 
 const boundWorkos = async (state: Doc<"accountDeletionStates">) => {
-  if (!(state.workosUserId && /^user_[A-Za-z0-9]+$/.test(state.workosUserId))) {
+  if (!(state.workosUserId && WORKOS_USER_ID.test(state.workosUserId))) {
     throw new Error("deletion_workos_user_id_invalid");
   }
   const target = state.workosTarget;
@@ -36,23 +39,20 @@ const boundWorkos = async (state: Doc<"accountDeletionStates">) => {
   }
   return createWorkosClient(apiKey, target.clientId).userManagement;
 };
-// Current Node SDK lacks this supported Management API endpoint. The origin and
-// exact bound provider user are fixed, and redirects/oversized responses fail.
+// One page of the bound user's authorized Connect apps, each revoked. A 404
+// with no WorkOS user means there is nothing left to revoke.
 async function authorizedApps(state: Doc<"accountDeletionStates">) {
   const users = await boundWorkos(state);
   const workosUserId = state.workosUserId;
-  if (!workosUserId) {
+  const apiKey = process.env.WORKOS_API_KEY;
+  if (!(workosUserId && apiKey)) {
     throw new Error("deletion_workos_target_unavailable");
   }
-  const url = workosApiUrl(
-    `/user_management/users/${encodeURIComponent(workosUserId)}/authorized_applications`
-  ).href;
-  const response = await fetch(`${url}?limit=${PROVIDER_DELETE_PAGE_SIZE}`, {
-    headers: { Authorization: `Bearer ${process.env.WORKOS_API_KEY}` },
-    redirect: "error",
-    signal: AbortSignal.timeout(30_000),
+  const page = await listAuthorizedAppsPage(workosUserId, apiKey, {
+    limit: PROVIDER_DELETE_PAGE_SIZE,
+    timeoutMs: 30_000,
   });
-  if (response.status === 404) {
+  if (!page) {
     try {
       await users.getUser(workosUserId);
     } catch (error) {
@@ -63,39 +63,10 @@ async function authorizedApps(state: Doc<"accountDeletionStates">) {
     }
     throw new Error("deletion_workos_apps_404");
   }
-  if (!response.ok) {
-    throw new Error(`deletion_workos_apps_${response.status}`);
+  for (const app of page.apps) {
+    await deleteAuthorizedApp(workosUserId, app.id, apiKey, 30_000);
   }
-  const body = await readResponseTextWithinLimit(response, 256 * 1024);
-  if (body === null) {
-    throw new Error("deletion_workos_apps_oversized");
-  }
-  const payload = JSON.parse(body) as {
-    data?: { application?: { id?: string } }[];
-  };
-  if (
-    !Array.isArray(payload.data) ||
-    payload.data.length > PROVIDER_DELETE_PAGE_SIZE
-  ) {
-    throw new Error("deletion_workos_apps_invalid");
-  }
-  for (const entry of payload.data) {
-    const id = entry.application?.id;
-    // WorkOS currently returns connect_app_; its API reference also documents conn_app_.
-    if (!(id && /^(?:connect_app_|conn_app_)[A-Za-z0-9]+$/.test(id))) {
-      throw new Error("deletion_workos_apps_invalid");
-    }
-    const result = await fetch(`${url}/${encodeURIComponent(id)}`, {
-      method: "DELETE",
-      headers: { Authorization: `Bearer ${process.env.WORKOS_API_KEY}` },
-      redirect: "error",
-      signal: AbortSignal.timeout(30_000),
-    });
-    if (!result.ok && result.status !== 404) {
-      throw new Error(`deletion_workos_apps_${result.status}`);
-    }
-  }
-  return payload.data.length > 0;
+  return page.apps.length > 0;
 }
 export const runStage = internalAction({
   args: {
@@ -162,7 +133,7 @@ export const runStage = internalAction({
           for (const session of sessions.data) {
             if (
               session.userId !== state.workosUserId ||
-              !/^session_[A-Za-z0-9]+$/.test(session.id) ||
+              !WORKOS_SESSION_ID.test(session.id) ||
               !["active", "expired", "revoked"].includes(session.status)
             ) {
               throw new Error("deletion_session_owner_mismatch");
@@ -180,7 +151,7 @@ export const runStage = internalAction({
           }
           const next = sessions.listMetadata.after;
           if (next) {
-            if (!/^session_[A-Za-z0-9]+$/.test(next) || next === previous) {
+            if (!WORKOS_SESSION_ID.test(next) || next === previous) {
               throw new Error("deletion_session_cursor_invalid");
             }
             await ctx.runMutation(

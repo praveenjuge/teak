@@ -606,50 +606,35 @@ describe("public API rate limits", () => {
     return (fn.handler ?? fn)(ctx, args);
   };
 
-  test("checkApiRateLimit returns rate-limited result on contention errors", async () => {
+  const limit = async (ctx: any, rateLimitKey: string) =>
+    (await import("../publicApi")).limitApiRequests(ctx, rateLimitKey);
+
+  test("limitApiRequests returns rate-limited result on contention errors", async () => {
     const runMutation = mock().mockRejectedValue(
       new Error(
         'Documents read from or written to the "rateLimits" table changed while this mutation was being run and on every subsequent retry.'
       )
     );
 
-    const result = await runHandler(
-      "checkApiRateLimit",
-      { runMutation } as any,
-      {
-        rateLimitKey: "key:key_1",
-      }
-    );
+    const result = await limit({ runMutation }, "key:key_1");
 
     expect(result.ok).toBe(false);
     expect(typeof result.retryAt).toBe("number");
   });
 
-  test("checkApiRateLimit rejects an empty rate limit key without calling the limiter", async () => {
+  test("limitApiRequests rejects an empty rate limit key without calling the limiter", async () => {
     const runMutation = mock();
 
-    const result = await runHandler(
-      "checkApiRateLimit",
-      { runMutation } as any,
-      {
-        rateLimitKey: "   ",
-      }
-    );
+    const result = await limit({ runMutation }, "   ");
 
     expect(result.ok).toBe(false);
     expect(runMutation).not.toHaveBeenCalled();
   });
 
-  test("checkApiRateLimit keys the limiter on the provided identity", async () => {
+  test("limitApiRequests keys the limiter on the provided identity", async () => {
     const runMutation = mock().mockResolvedValue({ ok: true });
 
-    const result = await runHandler(
-      "checkApiRateLimit",
-      { runMutation } as any,
-      {
-        rateLimitKey: "key:key_42",
-      }
-    );
+    const result = await limit({ runMutation }, "key:key_42");
 
     expect(result.ok).toBe(true);
     expect(runMutation).toHaveBeenCalledTimes(1);

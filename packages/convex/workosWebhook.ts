@@ -1,4 +1,4 @@
-import { type HttpRouter, httpRouter } from "convex/server";
+import type { HttpRouter } from "convex/server";
 import { ConvexError, v } from "convex/values";
 import { components, internal } from "./_generated/api";
 import {
@@ -215,6 +215,12 @@ export const recordDeadLetter = internalMutation({
         ...args,
         receivedAt: Date.now(),
       });
+      // The event is acknowledged and the catch-up moves past it, so this line
+      // is the only signal that an operator needs to look.
+      console.error("workos_event_dead_lettered", {
+        event: args.event,
+        reason: args.reason,
+      });
     }
     return null;
   },
@@ -265,28 +271,16 @@ export const workosAction = httpAction(async (ctx, request) => {
   });
 });
 
-// Teak verifies both provider routes on the exact request body.
-const providerHandler = <T>(path: string, componentHandler: T) => {
-  if (path === "/workos/webhook") {
-    return workosWebhook;
-  }
-  if (path === "/workos/action") {
-    return workosAction;
-  }
-  return componentHandler;
-};
-
+// Teak serves the component's two provider routes itself, verifying each on
+// the exact request body.
 export const registerWorkosRoutes = (http: HttpRouter) => {
   if (!authKit) {
     return;
   }
-  const providerRoutes = httpRouter();
-  authKit.registerRoutes(providerRoutes);
-  for (const [path, method, handler] of providerRoutes.getRoutes()) {
-    http.route({
-      path,
-      method,
-      handler: providerHandler(path, handler),
-    });
-  }
+  http.route({
+    path: "/workos/webhook",
+    method: "POST",
+    handler: workosWebhook,
+  });
+  http.route({ path: "/workos/action", method: "POST", handler: workosAction });
 };

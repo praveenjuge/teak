@@ -987,7 +987,7 @@ export const executeBulkCardsForUser = internalMutation({
 
 // Public API rate limits. Both answer { ok, retryAt } instead of throwing so
 // the HTTP layer can map a limit or table contention to its own response.
-const rateLimitResultValidator = v.object({
+export const rateLimitResultValidator = v.object({
   ok: v.boolean(),
   retryAt: v.optional(v.number()),
 });
@@ -1020,38 +1020,35 @@ const toRateLimitResult = (
       : undefined,
 });
 
-export const checkApiRateLimit = internalMutation({
-  args: {
-    // A stable, trusted identifier for the caller (e.g. the validated API key
-    // id). Never pass a raw bearer token here: rotating tokens would otherwise
-    // mint a fresh bucket per request and defeat the limit.
-    rateLimitKey: v.string(),
-  },
-  returns: rateLimitResultValidator,
-  handler: async (ctx, args) => {
-    const key = args.rateLimitKey.trim();
-    if (!key) {
-      return { ok: false };
+// Charges one public API request to a validated identity. Called inside the
+// credential's own validation mutation. Never pass a raw bearer token as the
+// key: rotating tokens would otherwise mint a fresh bucket per request.
+export async function limitApiRequests(
+  ctx: MutationCtx,
+  rateLimitKey: string
+): Promise<{ ok: boolean; retryAt?: number }> {
+  const key = rateLimitKey.trim();
+  if (!key) {
+    return { ok: false };
+  }
+
+  try {
+    const result = await rateLimiter.limit(ctx, "publicApiRequests", {
+      key,
+      throws: false,
+    });
+    return toRateLimitResult(result);
+  } catch (error) {
+    if (isRateLimitContentionError(error)) {
+      return {
+        ok: false,
+        retryAt: Date.now() + 1000,
+      };
     }
 
-    try {
-      const result = await rateLimiter.limit(ctx, "publicApiRequests", {
-        key,
-        throws: false,
-      });
-      return toRateLimitResult(result);
-    } catch (error) {
-      if (isRateLimitContentionError(error)) {
-        return {
-          ok: false,
-          retryAt: Date.now() + 1000,
-        };
-      }
-
-      throw error;
-    }
-  },
-});
+    throw error;
+  }
+}
 
 // Consumes one token from the shared invalid-auth bucket. Called only when a
 // public-API request presents a well-formed but unrecognized API key, so that

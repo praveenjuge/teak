@@ -10,7 +10,7 @@
 
 const REASON_PATTERN = /[^a-z0-9_]+/gu;
 
-export const normalizeMonitoringReason = (value: unknown): string => {
+const normalizeMonitoringReason = (value: unknown): string => {
   if (typeof value !== "string") {
     return "unknown";
   }
@@ -76,7 +76,6 @@ export type PublicApiAuthReason =
   | "nonprimary_credential"
   | "malformed_credential"
   | "invalid_credential"
-  | "owner_unresolved"
   | "expired_token"
   | "invalid_token"
   | "jwks_unavailable"
