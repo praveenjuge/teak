@@ -647,7 +647,6 @@ describe("new WorkOS lifecycle owners", () => {
         email: "new@example.com",
         emailVerified: true,
         source: "ensureUser",
-        allowCreate: true,
       })
     ).toMatchObject({ status: "linked" });
     const before = await snapshot(t);

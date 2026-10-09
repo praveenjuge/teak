@@ -6,6 +6,7 @@ import {
   internalMutation,
   internalQuery,
 } from "./_generated/server";
+import { CONNECT_CONSENT_ID } from "./shared/workosIds";
 import {
   deleteAuthorizedApp,
   listAuthorizedAppsPage,
@@ -19,7 +20,6 @@ const principalValidator = {
   externalId: v.optional(v.union(v.string(), v.null())),
   tokenExpiresAt: v.optional(v.number()),
 };
-const CONSENT_ID = /^app_consent_[A-Za-z0-9]+$/;
 const MAX_APP_PAGES = 20;
 
 // Disconnecting revokes the app's grant at WorkOS, then marks every consent
@@ -37,7 +37,7 @@ export const check = internalMutation({
     v.object({ status: v.literal("ok"), userId: v.string() })
   ),
   handler: async (ctx, args) => {
-    if (!CONSENT_ID.test(args.consentId)) {
+    if (!CONNECT_CONSENT_ID.test(args.consentId)) {
       return { status: "denied" as const };
     }
     const consents = await ctx.db

@@ -4,8 +4,12 @@ import type { Doc } from "./_generated/dataModel";
 import { internalMutation, type MutationCtx } from "./_generated/server";
 import { readSignupsDisabled } from "./env";
 import { readComponentUser } from "./securitySessions";
+import {
+  isStorableEmail,
+  normalizeIdentityEmail,
+  WORKOS_USER_ID,
+} from "./shared/workosIds";
 import { scheduleUserCreated } from "./telemetry/schedule";
-import { normalizeIdentityEmail } from "./userIdentityTable";
 
 const reasonValidator = v.union(
   v.literal("external_id_mismatch"),
@@ -88,7 +92,6 @@ const resolvePendingReceipts = async (
 // All uniqueness reads and the one link write share the mutation transaction.
 export const linkWorkosUser = internalMutation({
   args: {
-    allowCreate: v.optional(v.boolean()),
     workosUserId: v.string(),
     externalId: v.optional(v.union(v.string(), v.null())),
     email: v.string(),
@@ -182,20 +185,11 @@ export const linkWorkosUser = internalMutation({
       }
       candidate = emailRows[0];
       if (!candidate) {
-        const canCreate =
-          args.allowCreate === true &&
-          (args.source === "ensureUser" || args.source === "webhook");
-        if (!canCreate) {
-          return quarantine("missing_mapping");
-        }
         if (readSignupsDisabled()) {
           return quarantine("signups_frozen");
         }
         if (
-          !(
-            /^user_[A-Za-z0-9]+$/.test(args.workosUserId) &&
-            /^[^\s@]+@[^\s@]+$/.test(email)
-          )
+          !(WORKOS_USER_ID.test(args.workosUserId) && isStorableEmail(email))
         ) {
           throw new Error("Invalid WorkOS creation input");
         }

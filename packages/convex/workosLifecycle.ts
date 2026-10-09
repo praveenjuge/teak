@@ -2,7 +2,7 @@ import { ConvexError, v } from "convex/values";
 import { internal } from "./_generated/api";
 import { internalMutation, type MutationCtx } from "./_generated/server";
 import { readComponentUser } from "./securitySessions";
-import { normalizeIdentityEmail } from "./userIdentityTable";
+import { isStorableEmail, normalizeIdentityEmail } from "./shared/workosIds";
 import {
   currentWorkosDeletionTarget,
   expectedWorkosDeletionResolution,
@@ -107,11 +107,7 @@ export const parseWorkosEvent = (event: {
   }
   if (!deleting) {
     // Shapes the component would store as is: reject them before either store.
-    if (
-      !/^[^\s@]+@[^\s@]+$/.test(email) ||
-      email.length > 320 ||
-      /\p{Cc}/u.test(email)
-    ) {
+    if (!isStorableEmail(email)) {
       throw invalid("Invalid WorkOS event email");
     }
     for (const name of [profile.name, profile.firstName, profile.lastName]) {
@@ -242,7 +238,6 @@ export const applyWorkosEvent = internalMutation({
           emailVerified: profile.emailVerified,
           externalId: profile.externalId,
           source: "webhook",
-          allowCreate: true,
         }
       );
       if (linked.status === "quarantined") {
@@ -267,12 +262,7 @@ export const applyWorkosEvent = internalMutation({
       const receipt = {
         workosUserId,
         ...(rows.length === 1 ? { teakUserId: rows[0].teakUserId } : {}),
-        email:
-          email.length <= 320 &&
-          /^[^\s@]+@[^\s@]+$/.test(email) &&
-          !/\p{Cc}/u.test(email)
-            ? email
-            : "",
+        email: isStorableEmail(email) ? email : "",
         reason: "workos_user_deleted",
         source: "webhook",
         createdAt: Date.now(),
@@ -292,12 +282,7 @@ export const applyWorkosEvent = internalMutation({
       createdAt: time,
       ...(deleting
         ? {
-            ...(email &&
-            email.length <= 320 &&
-            /^[^\s@]+@[^\s@]+$/.test(email) &&
-            !/\p{Cc}/u.test(email)
-              ? { email }
-              : {}),
+            ...(email && isStorableEmail(email) ? { email } : {}),
             ...(typeof event.data.emailVerified === "boolean"
               ? { emailVerified: event.data.emailVerified }
               : {}),

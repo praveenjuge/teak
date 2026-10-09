@@ -5,6 +5,7 @@ import { action, internalMutation, query } from "./_generated/server";
 import { limitApiRequests, rateLimitResultValidator } from "./publicApi";
 import { readWorkosConnectClients } from "./publicApiMeta";
 import { getSessionUser } from "./securitySessions";
+import { CONNECT_CONSENT_ID, WORKOS_USER_ID } from "./shared/workosIds";
 import { disconnectApplication } from "./workosApplicationDisconnect";
 import { resolveOwner } from "./workosIdentity";
 
@@ -39,8 +40,8 @@ export const authorizeConnectConsent = internalMutation({
   handler: async (ctx, args): Promise<ConsentAuthorization> => {
     if (
       !(
-        /^app_consent_[A-Za-z0-9]+$/.test(args.consentId) &&
-        /^user_[A-Za-z0-9]+$/.test(args.workosUserId) &&
+        CONNECT_CONSENT_ID.test(args.consentId) &&
+        WORKOS_USER_ID.test(args.workosUserId) &&
         args.clientId
       ) ||
       args.clientId.length > 2048
@@ -176,7 +177,7 @@ export const listConnections = query({
           (row) =>
             row.revokedAt === undefined &&
             row.workosUserId === session.workosUserId &&
-            /^app_consent_[A-Za-z0-9]+$/.test(row.consentId) &&
+            CONNECT_CONSENT_ID.test(row.consentId) &&
             row.clientId.length > 0 &&
             row.clientId.length <= 2048
         )
@@ -197,7 +198,7 @@ export const disconnectConnection = action({
   returns: v.null(),
   handler: async (ctx, { consentId }) => {
     const session = await getSessionUser(ctx);
-    if (!(session && /^app_consent_[A-Za-z0-9]+$/.test(consentId))) {
+    if (!(session && CONNECT_CONSENT_ID.test(consentId))) {
       throw new Error("WorkOS sign-in required");
     }
     const row: { workosUserId: string; clientId: string } | null =

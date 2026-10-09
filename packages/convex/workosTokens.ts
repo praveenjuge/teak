@@ -1,5 +1,6 @@
 import { createRemoteJWKSet, customFetch, errors, jwtVerify } from "jose";
 import { validateOAuthUrl } from "./client/authDiscovery";
+import { CONNECT_CONSENT_ID, WORKOS_USER_ID } from "./shared/workosIds";
 
 export type WorkosResource = "api" | "mcp";
 
@@ -14,8 +15,6 @@ export interface WorkosConnectPrincipal extends WorkosPrincipal {
   tokenExpiresAt?: number;
 }
 
-const USER_ID = /^user_[A-Za-z0-9]+$/;
-const CONSENT_ID = /^app_consent_[A-Za-z0-9]+$/;
 const CLIENT_ID = /^client_[A-Za-z0-9]+$/;
 class WorkosJwksUnavailableError extends Error {}
 
@@ -144,9 +143,9 @@ export async function verifyWorkosConnectToken(
     if (
       payload.aud !== config.audience ||
       typeof payload.sub !== "string" ||
-      !USER_ID.test(payload.sub) ||
+      !WORKOS_USER_ID.test(payload.sub) ||
       typeof payload.sid !== "string" ||
-      !CONSENT_ID.test(payload.sid) ||
+      !CONNECT_CONSENT_ID.test(payload.sid) ||
       !validClientId(payload.client_id) ||
       typeof payload.iat !== "number" ||
       typeof payload.exp !== "number" ||

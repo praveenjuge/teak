@@ -36,6 +36,8 @@ const input = {
   emailVerified: true,
   source: "webhook" as const,
 };
+// A well-formed WorkOS ID, so linking reaches the creation checks.
+const unmapped = { ...input, workosUserId: "user_UNMAPPED" };
 const seed = (t: Backend, fields: Partial<Doc<"users">> = {}) =>
   t.run((ctx) =>
     ctx.db.insert("users", {
@@ -204,36 +206,38 @@ describe("transactional WorkOS identity linking", () => {
     ).toBe(true);
   });
 
-  test("missing email mapping quarantines instead of creating a user or cards", async () => {
+  test("an unmapped user without a WorkOS profile quarantines instead of creating", async () => {
     const t = setup();
-    expect(await t.mutation(link, input)).toEqual({
+    expect(await t.mutation(link, unmapped)).toEqual({
       status: "quarantined",
-      reason: "missing_mapping",
+      reason: "profile_pending",
     });
     expect(await snapshot(t)).toMatchObject({
       users: [],
       cards: [],
-      quarantine: [{ reason: "missing_mapping" }],
+      quarantine: [{ reason: "profile_pending" }],
     });
   });
 
   test("a later successful link closes earlier pending receipts but not conflicts", async () => {
     const t = setup();
-    expect(await t.mutation(link, input)).toMatchObject({
+    expect(await t.mutation(link, unmapped)).toMatchObject({
       status: "quarantined",
-      reason: "missing_mapping",
+      reason: "profile_pending",
     });
     await t.run((ctx) =>
       ctx.db.insert("migrationQuarantine", {
-        workosUserId: input.workosUserId,
-        email: input.email,
+        workosUserId: unmapped.workosUserId,
+        email: unmapped.email,
         reason: "link_conflict",
         source: "webhook",
         createdAt: 0,
       })
     );
     await seed(t);
-    expect(await t.mutation(link, input)).toMatchObject({ status: "linked" });
+    expect(await t.mutation(link, unmapped)).toMatchObject({
+      status: "linked",
+    });
     const open = (await snapshot(t)).quarantine.filter(
       (row) => row.resolvedAt === undefined
     );
@@ -243,9 +247,9 @@ describe("transactional WorkOS identity linking", () => {
   test("repeated denials keep one open receipt until it is resolved", async () => {
     const t = setup();
     for (let attempt = 0; attempt < 3; attempt += 1) {
-      expect(await t.mutation(link, input)).toEqual({
+      expect(await t.mutation(link, unmapped)).toEqual({
         status: "quarantined",
-        reason: "missing_mapping",
+        reason: "profile_pending",
       });
     }
     expect((await snapshot(t)).quarantine).toHaveLength(1);
@@ -255,7 +259,7 @@ describe("transactional WorkOS identity linking", () => {
         resolvedAt: Date.now(),
       });
     });
-    await t.mutation(link, input);
+    await t.mutation(link, unmapped);
     const receipts = (await snapshot(t)).quarantine;
     expect(receipts).toHaveLength(2);
     expect(receipts.filter((row) => row.resolvedAt === undefined)).toHaveLength(
@@ -465,7 +469,6 @@ describe("trusted new WorkOS owners", () => {
     ...input,
     workosUserId: "user_NEW",
     source: "ensureUser" as const,
-    allowCreate: true,
   };
   // The WorkOS component's profile is the provider evidence creation requires.
   const seedProvider = (
@@ -601,19 +604,6 @@ describe("trusted new WorkOS owners", () => {
       { reason: "signups_frozen" },
     ]);
   });
-  test.each(["webhook", "ensureUser"] as const)(
-    "%s without explicit creation permission cannot create",
-    async (source) => {
-      const t = setup();
-      await seedProvider(t);
-      expect(await t.mutation(link, { ...input, source })).toEqual({
-        status: "quarantined",
-        reason: "missing_mapping",
-      });
-      expect((await snapshot(t)).users).toEqual([]);
-      expect(await jobs(t)).toEqual([]);
-    }
-  );
   test.each([
     { externalId: "unknown-owner", reason: "external_id_mismatch" },
     { emailVerified: false, reason: "email_unverified" },

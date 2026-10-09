@@ -10,6 +10,7 @@ import {
   deleteLegacyBetterAuthSessions,
 } from "./legacyBetterAuth";
 import { createWorkosClient } from "./shared/workosClient";
+import { WORKOS_SESSION_ID, WORKOS_USER_ID } from "./shared/workosIds";
 import { callFilesWorkerJson } from "./storage/filesWorkerClient";
 import { withBackendSpan } from "./telemetry/sentry";
 import {
@@ -25,7 +26,7 @@ import {
 const PROVIDER_DELETE_PAGE_SIZE = 10;
 
 const boundWorkos = async (state: Doc<"accountDeletionStates">) => {
-  if (!(state.workosUserId && /^user_[A-Za-z0-9]+$/.test(state.workosUserId))) {
+  if (!(state.workosUserId && WORKOS_USER_ID.test(state.workosUserId))) {
     throw new Error("deletion_workos_user_id_invalid");
   }
   const target = state.workosTarget;
@@ -132,7 +133,7 @@ export const runStage = internalAction({
           for (const session of sessions.data) {
             if (
               session.userId !== state.workosUserId ||
-              !/^session_[A-Za-z0-9]+$/.test(session.id) ||
+              !WORKOS_SESSION_ID.test(session.id) ||
               !["active", "expired", "revoked"].includes(session.status)
             ) {
               throw new Error("deletion_session_owner_mismatch");
@@ -150,7 +151,7 @@ export const runStage = internalAction({
           }
           const next = sessions.listMetadata.after;
           if (next) {
-            if (!/^session_[A-Za-z0-9]+$/.test(next) || next === previous) {
+            if (!WORKOS_SESSION_ID.test(next) || next === previous) {
               throw new Error("deletion_session_cursor_invalid");
             }
             await ctx.runMutation(

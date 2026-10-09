@@ -10,6 +10,7 @@ import {
 } from "./_generated/server";
 import { workosIssuer } from "./shared/workosApi";
 import { createWorkosClient } from "./shared/workosClient";
+import { WORKOS_SESSION_ID, WORKOS_USER_ID } from "./shared/workosIds";
 import {
   type ResolveArgs,
   type ResolvedOwner,
@@ -27,9 +28,9 @@ function readWorkosSessionClaims(
   if (
     !(/^client_[A-Za-z0-9]+$/.test(clientId) && identity) ||
     identity.issuer !== workosIssuer(clientId) ||
-    !/^user_[A-Za-z0-9]+$/.test(identity.subject) ||
+    !WORKOS_USER_ID.test(identity.subject) ||
     typeof identity.sid !== "string" ||
-    !/^session_[A-Za-z0-9]+$/.test(identity.sid) ||
+    !WORKOS_SESSION_ID.test(identity.sid) ||
     !validWorkosExternalId(identity.external_id) ||
     (typeof identity.external_id === "string" &&
       /[\s\p{Cc}]/u.test(identity.external_id))
@@ -312,7 +313,7 @@ function workosSessionClient() {
 function validateProviderSession(session: Session, userId: string) {
   if (
     session.userId !== userId ||
-    !/^session_[A-Za-z0-9]+$/.test(session.id) ||
+    !WORKOS_SESSION_ID.test(session.id) ||
     !["active", "expired", "revoked"].includes(session.status) ||
     !Number.isFinite(Date.parse(session.createdAt)) ||
     !Number.isFinite(Date.parse(session.expiresAt))
@@ -337,7 +338,7 @@ export const listAuthkitSessions = action({
       throw new Error("Please sign in again.");
     }
     const cursor = paginationOpts.cursor;
-    if (cursor && !/^session_[A-Za-z0-9]+$/.test(cursor)) {
+    if (cursor && !WORKOS_SESSION_ID.test(cursor)) {
       throw new Error("Invalid device page. Please refresh.");
     }
     const result = await workosSessionClient().listSessions(
@@ -352,7 +353,7 @@ export const listAuthkitSessions = action({
       validateProviderSession(session, user.identity.subject);
     }
     const next = result.listMetadata.after ?? "";
-    if (next && (!/^session_[A-Za-z0-9]+$/.test(next) || next === cursor)) {
+    if (next && (!WORKOS_SESSION_ID.test(next) || next === cursor)) {
       throw new Error("Device service returned an invalid page.");
     }
     return {
@@ -382,7 +383,7 @@ export const revokeAuthkitSession = action({
     if (!user) {
       throw new Error("Please sign in again.");
     }
-    if (!/^session_[A-Za-z0-9]+$/.test(sessionId)) {
+    if (!WORKOS_SESSION_ID.test(sessionId)) {
       throw new Error("Invalid device session.");
     }
     const client = workosSessionClient();
@@ -423,7 +424,7 @@ export const revokeAuthkitSession = action({
       if (!next) {
         throw new Error("Device session was not found.");
       }
-      if (!/^session_[A-Za-z0-9]+$/.test(next) || seen.has(next)) {
+      if (!WORKOS_SESSION_ID.test(next) || seen.has(next)) {
         throw new Error("Device service returned an invalid page.");
       }
       seen.add(next);
