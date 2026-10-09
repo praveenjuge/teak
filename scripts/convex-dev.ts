@@ -7,7 +7,7 @@
 
 import { join } from "node:path";
 import {
-  isProcessAlive,
+  isStackRunning,
   readStackState,
 } from "../packages/tests/src/stack/config.ts";
 import { readConvexSelection } from "./capabilities.ts";
@@ -20,7 +20,7 @@ const ROOT = join(import.meta.dir, "..");
 // `bun run dev` already runs this checkout's backend and pushes changes, so a
 // Turbo surface started beside it (`bun run dev extension`) shares it.
 const stack = readStackState();
-if (stack && isProcessAlive(stack.pid)) {
+if (stack && isStackRunning(stack)) {
   console.log(
     `Using this checkout's running stack backend at ${stack.urls.convexUrl}.`
   );
@@ -32,10 +32,10 @@ const { deployment } = readConvexSelection(
   process.env,
   join(CONVEX_DIR, ".env.local")
 );
-const ports =
-  deployment && isLocalSelection(deployment)
-    ? await resolveWorktree(ROOT)
-    : undefined;
+// No deployment yet means convex dev provisions a local one.
+const ports = isLocalSelection(deployment)
+  ? await resolveWorktree(ROOT)
+  : undefined;
 const child = Bun.spawn(
   [
     "bunx",

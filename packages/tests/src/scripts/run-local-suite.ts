@@ -12,7 +12,7 @@
 import { spawn } from "node:child_process";
 import { join } from "node:path";
 import { resolveWorktree } from "../../../../scripts/worktree-env.ts";
-import { isProcessAlive, readStackState } from "../stack/config";
+import { isStackRunning, readStackState } from "../stack/config";
 import { STACK_LOG_PATH, startStack } from "../stack/stack";
 
 const ROOT = join(import.meta.dir, "../../../..");
@@ -36,7 +36,7 @@ const run = (command: string[], cwd: string) =>
   });
 
 const running = readStackState();
-if (running && isProcessAlive(running.pid)) {
+if (running && isStackRunning(running)) {
   throw new Error(
     "This checkout's stack is running. Stop it with `bun run dev --stop`, then re-run."
   );

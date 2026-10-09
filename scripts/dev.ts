@@ -22,6 +22,7 @@ import { join } from "node:path";
 import {
   DEV_USER,
   isProcessAlive,
+  isStackRunning,
   readStackState,
   type StackState,
   stopOrphanedStack,
@@ -196,7 +197,7 @@ export const buildDevCommand = (
 
 const runningStack = (): StackState | null => {
   const state = readStackState();
-  return state && isProcessAlive(state.pid) ? state : null;
+  return state && isStackRunning(state) ? state : null;
 };
 
 // A stack whose owner was killed outright leaves its backend and web server

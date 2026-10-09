@@ -223,14 +223,19 @@ const withLock = async <T>(dir: string, work: () => Promise<T>): Promise<T> => {
     try {
       mkdirSync(lock);
       break;
-    } catch {
+    } catch (error) {
+      // Anything but an existing lock (a read-only or missing git
+      // directory) won't clear by waiting.
+      if ((error as NodeJS.ErrnoException).code !== "EEXIST") {
+        throw error;
+      }
       try {
         if (Date.now() - statSync(lock).mtimeMs > 30_000) {
           rmSync(lock, { recursive: true, force: true });
           continue;
         }
       } catch {
-        continue;
+        // The lock went away between mkdir and stat; retry below.
       }
       if (Date.now() > deadline) {
         throw new Error(`Timed out waiting for ${lock}`);

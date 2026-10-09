@@ -3,6 +3,7 @@
 // worktree runs its own stack. Every WorkOS value here is test-only and exists
 // only in the emulator's memory, so it is safe to commit.
 
+import { execFileSync } from "node:child_process";
 import { existsSync, readFileSync, rmSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 
@@ -114,23 +115,70 @@ export const readStackState = (): StackState | null => {
   }
 };
 
-export const isProcessAlive = (pid: number): boolean => {
+const validPid = (pid: unknown): pid is number =>
+  typeof pid === "number" && Number.isInteger(pid) && pid > 1;
+
+// Signal 0 checks existence. Only ESRCH proves the target is gone; EPERM
+// means it exists but belongs to someone else.
+const exists = (target: number): boolean => {
   try {
-    process.kill(pid, 0);
+    process.kill(target, 0);
     return true;
-  } catch {
-    return false;
+  } catch (error) {
+    return (error as NodeJS.ErrnoException).code !== "ESRCH";
   }
 };
 
-const groupAlive = (group: number): boolean => {
+export const isProcessAlive = (pid: number): boolean =>
+  validPid(pid) && exists(pid);
+
+// Command lines of live processes, so a PID reused after a crash or reboot
+// is never mistaken for the stack.
+const commands = (): { command: string; pgid: number; pid: number }[] => {
   try {
-    process.kill(-group, 0);
-    return true;
+    return execFileSync("ps", ["-axo", "pid=,pgid=,command="], {
+      encoding: "utf-8",
+    })
+      .split("\n")
+      .flatMap((line) => {
+        const match = /^\s*(\d+)\s+(\d+)\s+(.*)$/.exec(line);
+        return match
+          ? [
+              {
+                pid: Number(match[1]),
+                pgid: Number(match[2]),
+                command: match[3],
+              },
+            ]
+          : [];
+      });
   } catch {
-    return false;
+    return [];
   }
 };
+
+const STACK_OWNERS = ["scripts/dev.ts", "run-local-suite.ts"];
+const STACK_MEMBERS = ["convex", "next"];
+
+/** The recorded owner is alive and is still a Teak stack process. */
+export const isStackRunning = (state: StackState): boolean =>
+  isProcessAlive(state.pid) &&
+  commands().some(
+    (entry) =>
+      entry.pid === state.pid &&
+      STACK_OWNERS.some((owner) => entry.command.includes(owner))
+  );
+
+// The backend and web app's process group, if any of its members is still a
+// Convex or Next.js process.
+const groupAlive = (group: number): boolean =>
+  validPid(group) &&
+  exists(-group) &&
+  commands().some(
+    (entry) =>
+      entry.pgid === group &&
+      STACK_MEMBERS.some((member) => entry.command.includes(member))
+  );
 
 /**
  * Stop a stack whose owner died without cleaning up (killed with SIGKILL, or
@@ -139,10 +187,10 @@ const groupAlive = (group: number): boolean => {
  */
 export const stopOrphanedStack = async (): Promise<boolean> => {
   const state = readStackState();
-  if (!state || isProcessAlive(state.pid)) {
+  if (!state || isStackRunning(state)) {
     return false;
   }
-  if (state.group > 0 && groupAlive(state.group)) {
+  if (groupAlive(state.group)) {
     process.kill(-state.group, "SIGINT");
     const deadline = Date.now() + 15_000;
     while (groupAlive(state.group) && Date.now() < deadline) {

@@ -31,7 +31,7 @@ import {
   EMULATOR_CLIENT_ID,
   emulatorDeploymentVars,
   emulatorWebEnv,
-  isProcessAlive,
+  isStackRunning,
   readStackState,
 } from "../packages/tests/src/stack/config.ts";
 import {
@@ -661,7 +661,7 @@ export const runSetup = async (
         workosValues = credentials.values;
       }
       const stack = readStackState();
-      if (stack && isProcessAlive(stack.pid)) {
+      if (stack && isStackRunning(stack)) {
         // The running stack holds the local backend and pushes changes itself.
         checks.push({
           id: "setup-convex-push",

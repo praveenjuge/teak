@@ -19,7 +19,7 @@ import { join } from "node:path";
 import {
   EMULATOR_CLIENT_ID,
   emulatorWebEnv,
-  isProcessAlive,
+  isStackRunning,
   readStackState,
   type StackPorts,
 } from "../packages/tests/src/stack/config.ts";
@@ -400,7 +400,7 @@ export const checkPorts = async (): Promise<DoctorCheck> => {
       ? "main checkout"
       : `worktree ${worktree.namespace}`;
   const running = readStackState();
-  if (running && isProcessAlive(running.pid)) {
+  if (running && isStackRunning(running)) {
     return {
       detail: `this checkout's stack is running at ${running.urls.appOrigin} (${scope})`,
       id: "ports",
