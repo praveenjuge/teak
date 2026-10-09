@@ -182,6 +182,11 @@ final class LibraryStore: ObservableObject {
         }
     }
 
+    /// Full card details through the same API as the library, for the detail sheet.
+    func details(for id: String) async throws -> LibraryCard {
+        try await api.card(id: id)
+    }
+
     func insertCreated(id: String) async {
         // Insert directly for the ordinary unfiltered library. When creation
         // leaves a filtered view, reset its query and pagination together.

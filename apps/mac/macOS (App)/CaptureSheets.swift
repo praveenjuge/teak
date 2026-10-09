@@ -50,18 +50,26 @@ struct NoteComposer: View {
             .frame(minWidth: 600, minHeight: 400)
             .interactiveDismissDisabled(draft.saving)
         } else {
-            GroupBox {
-                VStack {
-                    editor.frame(minHeight: 100, maxHeight: 160).padding(12)
-                    if !draft.text.isEmpty {
-                        HStack {
-                            Button("Open full-screen note", systemImage: "arrow.up.left.and.arrow.down.right") { draft.expanded = true }
-                            Spacer()
-                            saveButton
-                        }
+            VStack(alignment: .trailing, spacing: 8) {
+                editor.frame(minHeight: 96, maxHeight: 160)
+                if !draft.text.isEmpty {
+                    HStack(spacing: 8) {
+                        Button("Open full-screen note", systemImage: "arrow.up.left.and.arrow.down.right") { draft.expanded = true }
+                            .labelStyle(.iconOnly)
+                            .help("Open full-screen note")
+                        saveButton.buttonStyle(.borderedProminent)
                     }
-                    errorMessage
+                    .buttonBorderShape(.capsule)
+                    .controlSize(.small)
                 }
+                errorMessage
+            }
+            .padding(12)
+            .frame(minHeight: 144, alignment: .top)
+            .teakCardSurface()
+            .overlay {
+                RoundedRectangle(cornerRadius: 16, style: .continuous)
+                    .strokeBorder(Color.accentColor, lineWidth: editorFocused ? 1.5 : 0)
             }
             .contentShape(Rectangle())
             .onTapGesture { editorFocused = true }

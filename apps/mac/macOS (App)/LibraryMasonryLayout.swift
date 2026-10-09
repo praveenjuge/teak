@@ -1,9 +1,11 @@
 import SwiftUI
 
 /// Measures each card at its column width before placing it in the shortest column.
-/// System view spacing supplies the gutter, so sizing never depends on stale frames.
+/// A fixed `spacing` matches the web grid's gutter; without it, system view
+/// spacing supplies the gutter. Sizing never depends on stale frames.
 struct LibraryMasonryLayout: Layout {
     let columns: Int
+    var spacing: CGFloat?
 
     func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
         arrangement(width: proposal.width ?? 650, subviews: subviews).size
@@ -20,7 +22,7 @@ struct LibraryMasonryLayout: Layout {
 
     private func arrangement(width: CGFloat, subviews: Subviews) -> (size: CGSize, frames: [CGRect]) {
         let count = max(1, columns)
-        let horizontalGap = subviews.indices.dropFirst().map {
+        let horizontalGap = spacing ?? subviews.indices.dropFirst().map {
             subviews[$0 - 1].spacing.distance(to: subviews[$0].spacing, along: .horizontal)
         }.max() ?? 0
         let columnWidth = max(0, (width - CGFloat(count - 1) * horizontalGap) / CGFloat(count))
@@ -30,7 +32,7 @@ struct LibraryMasonryLayout: Layout {
         for (index, view) in subviews.enumerated() {
             let column = heights.indices.min { heights[$0] < heights[$1] } ?? 0
             if let prior = previous[column] {
-                heights[column] += subviews[prior].spacing.distance(to: view.spacing, along: .vertical)
+                heights[column] += spacing ?? subviews[prior].spacing.distance(to: view.spacing, along: .vertical)
             }
             let size = view.sizeThatFits(ProposedViewSize(width: columnWidth, height: nil))
             frames.append(CGRect(x: CGFloat(column) * (columnWidth + horizontalGap), y: heights[column],

@@ -25,6 +25,26 @@ extension Color {
     }
 }
 
+/// Card surface shared by grid tiles, the note composer, and detail boxes:
+/// a rounded content background with a hairline border, like the web cards.
+struct TeakCardSurface: ViewModifier {
+    var cornerRadius: CGFloat = 16
+
+    func body(content: Content) -> some View {
+        let shape = RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+        content
+            .background(Color(nsColor: .controlBackgroundColor), in: shape)
+            .clipShape(shape)
+            .overlay { shape.strokeBorder(.separator) }
+    }
+}
+
+extension View {
+    func teakCardSurface(cornerRadius: CGFloat = 16) -> some View {
+        modifier(TeakCardSurface(cornerRadius: cornerRadius))
+    }
+}
+
 struct LibraryCardTile: View {
     let card: LibraryCard
     let isSaving: Bool
@@ -32,13 +52,19 @@ struct LibraryCardTile: View {
 
     var body: some View {
         tileContent
+            .teakCardSurface()
             .overlay(alignment: .topTrailing) {
-                if card.isFavorited { Image(systemName: "heart.fill").foregroundStyle(.red) }
+                if card.isFavorited {
+                    Image(systemName: "heart.fill")
+                        .font(.system(size: 13))
+                        .foregroundStyle(.red)
+                        .padding(12)
+                }
             }
             .overlay { if isSaving { ProgressView() } }
             .opacity(isSaving ? 0.7 : card.isDeleted == true ? 0.6 : 1)
             .allowsHitTesting(!isSaving)
-            .contentShape(Rectangle())
+            .contentShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
             .onTapGesture(perform: onOpen)
             .accessibilityElement(children: .ignore)
             .accessibilityLabel("\(card.cardType?.title ?? "Card"): \(card.title)")
@@ -47,39 +73,57 @@ struct LibraryCardTile: View {
     }
 
     @ViewBuilder private var tileContent: some View {
-        if card.cardType == .image || card.cardType == .video {
-            preview.frame(maxWidth: .infinity)
-                .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
-        } else {
-            GroupBox { preview.frame(maxWidth: .infinity).padding(12) }
-        }
-    }
-
-    @ViewBuilder private var preview: some View {
         switch card.cardType {
-        case .text:
-            Text(card.previewText).font(.body.weight(.medium)).lineLimit(2)
+        case .text, nil:
+            Text(card.cardType == nil ? card.content ?? "" : card.previewText)
+                .font(.body.weight(.medium))
+                .lineLimit(2)
                 .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(16)
         case .quote:
             QuoteTile(text: card.previewText)
         case .link:
             if let url = card.displayImageURL {
-                VStack {
+                VStack(spacing: 0) {
                     CardImage(url: url, ratio: imageRatio)
                     Divider()
-                    Text(card.linkTitle).lineLimit(1).frame(maxWidth: .infinity, alignment: .leading)
+                    Text(card.linkTitle)
+                        .font(.body.weight(.medium))
+                        .lineLimit(1)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(.horizontal, 16)
+                        .padding(.vertical, 12)
                 }
-            } else { Text(card.title).lineLimit(1) }
+            } else {
+                Text(card.linkTitle)
+                    .font(.body.weight(.medium))
+                    .lineLimit(1)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(16)
+            }
         case .image:
-            CardImage(url: card.displayImageURL, ratio: imageRatio)
+            CardImage(url: card.displayImageURL, ratio: imageRatio,
+                      placeholder: card.colors?.first.flatMap { Color(teakHex: $0.hex) })
         case .video:
             VideoTile(card: card, ratio: imageRatio)
         case .audio:
-            WaveformTile(id: card.id)
+            WaveformBars(seed: card.id)
+                .frame(height: 40)
+                .padding(.horizontal, 16)
+                .padding(.vertical, 8)
         case .document:
-            VStack {
-                if let url = card.displayImageURL { CardImage(url: url, ratio: imageRatio); Divider() }
-                Label(card.fileName ?? "Document", systemImage: "doc").lineLimit(1)
+            VStack(spacing: 0) {
+                if let url = card.displayImageURL {
+                    CardImage(url: url, ratio: card.fileWidth == nil ? 3 / 4 : imageRatio, contentMode: .fit)
+                        .background(.quinary)
+                    Divider()
+                }
+                Label(card.fileName ?? "Document", systemImage: "doc")
+                    .font(.callout.weight(.medium))
+                    .lineLimit(1)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, card.displayImageURL == nil ? 16 : 12)
             }
         case .palette:
             if let colors = card.colors, !colors.isEmpty {
@@ -87,9 +131,15 @@ struct LibraryCardTile: View {
                     ForEach(Array(colors.prefix(12).enumerated()), id: \.offset) { _, color in
                         Rectangle().fill(Color(teakHex: color.hex) ?? .secondary).help(color.hex)
                     }
-                }.frame(height: 120)
-            } else { Text(card.content ?? "") }
-        case nil: Text(card.content ?? "")
+                }
+                .frame(height: 56)
+            } else {
+                Text(card.content ?? "")
+                    .font(.body.weight(.medium))
+                    .lineLimit(2)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(16)
+            }
         }
     }
 
@@ -108,13 +158,16 @@ struct LibraryCardTile: View {
 struct CardImage: View {
     let url: URL?
     var ratio: CGFloat = 4 / 3
+    var contentMode: ContentMode = .fill
+    var placeholder: Color?
+
     var body: some View {
         GeometryReader { geometry in
             AsyncImage(url: url) { phase in
                 if let image = phase.image {
-                    image.resizable().aspectRatio(contentMode: .fill)
+                    image.resizable().aspectRatio(contentMode: contentMode)
                         .frame(width: geometry.size.width, height: geometry.size.height)
-                } else { Rectangle().fill(.quaternary) }
+                } else { Rectangle().fill(placeholder.map(AnyShapeStyle.init) ?? AnyShapeStyle(.quinary)) }
             }.clipped()
         }.aspectRatio(ratio, contentMode: .fit)
     }
@@ -122,30 +175,73 @@ struct CardImage: View {
 
 private struct QuoteTile: View {
     let text: String
+
     var body: some View {
-        VStack {
-            Text("“").foregroundStyle(.quaternary).frame(maxWidth: .infinity, alignment: .leading)
-            Text(text).italic().multilineTextAlignment(.center).lineLimit(2)
-            Text("”").foregroundStyle(.quaternary).frame(maxWidth: .infinity, alignment: .trailing)
-        }
+        Text(text)
+            .font(.body.weight(.medium))
+            .italic()
+            .multilineTextAlignment(.center)
+            .lineLimit(2)
+            .lineSpacing(3)
+            .frame(maxWidth: .infinity)
+            .padding(.horizontal, 24)
+            .padding(.vertical, 16)
+            .overlay(alignment: .topLeading) { QuoteMark("\u{201C}").padding(.leading, 8) }
+            .overlay(alignment: .bottomTrailing) { QuoteMark("\u{201D}").padding(.trailing, 8).offset(y: 14) }
     }
 }
 
-struct WaveformTile: View {
-    let id: String
-    private var heights: [CGFloat] {
-        var seed = id.utf8.reduce(UInt64(5381)) { ($0 &* 33) &+ UInt64($1) }
-        return (0..<45).map { _ in
-            seed = seed &* 1664525 &+ 1013904223
-            return CGFloat(10 + seed % 60)
-        }
+/// Faint serif quotation mark used around quote cards and quote previews.
+struct QuoteMark: View {
+    let glyph: String
+    var size: CGFloat = 36
+    init(_ glyph: String, size: CGFloat = 36) {
+        self.glyph = glyph
+        self.size = size
     }
+
     var body: some View {
-        HStack(spacing: 2) {
-            ForEach(Array(heights.enumerated()), id: \.offset) { _, height in
-                Capsule().fill(.secondary).frame(height: height)
+        Text(glyph)
+            .font(.system(size: size))
+            .fontDesign(.serif)
+            .foregroundStyle(.quaternary)
+            .accessibilityHidden(true)
+    }
+}
+
+/// The web app's deterministic waveform, so a recording looks the same on
+/// every surface. Bars before `progress` use the accent color.
+struct WaveformBars: View {
+    let seed: String
+    var progress: Double = 0
+    static let barCount = 45
+
+    var body: some View {
+        let heights = Self.heights(seed: seed)
+        let played = Int((progress * Double(Self.barCount)).rounded())
+        GeometryReader { geometry in
+            HStack(alignment: .center, spacing: 0) {
+                ForEach(heights.indices, id: \.self) { index in
+                    if index > 0 { Spacer(minLength: 1) }
+                    Capsule()
+                        .fill(index < played ? AnyShapeStyle(Color.accentColor) : AnyShapeStyle(.secondary))
+                        .frame(width: 2, height: geometry.size.height * heights[index])
+                }
             }
-        }.frame(height: 80)
+            .frame(maxHeight: .infinity)
+        }
+        .accessibilityHidden(true)
+    }
+
+    /// Port of `getAudioWaveHeight` in packages/ui AudioWavePreview: 20–80% of the height.
+    static func heights(seed: String) -> [CGFloat] {
+        (0..<barCount).map { index in
+            var hash = Int32(truncatingIfNeeded: index)
+            for unit in seed.utf16 {
+                hash = (hash &<< 5) &- hash &+ Int32(unit)
+            }
+            return CGFloat(abs(sin(Double(hash))) * 0.6 + 0.2)
+        }
     }
 }
 
@@ -153,13 +249,22 @@ private struct VideoTile: View {
     let card: LibraryCard
     let ratio: CGFloat
     @State private var hovering = false
+
     var body: some View {
         ZStack {
             if hovering, let url = LibraryCard.safeURL(card.fileUrl) {
                 HoverVideo(url: url)
-            } else if let url = card.displayImageURL { CardImage(url: url, ratio: ratio) }
-            else { Rectangle().fill(.black) }
-            if !hovering { Image(systemName: "play.circle.fill").foregroundStyle(.white) }
+            } else if let url = card.displayImageURL {
+                CardImage(url: url, ratio: ratio)
+            } else { Rectangle().fill(.black) }
+            if !hovering {
+                Color.black.opacity(0.2)
+                Image(systemName: "play.fill")
+                    .font(.system(size: 18, weight: .semibold))
+                    .foregroundStyle(.white)
+                    .frame(width: 44, height: 44)
+                    .glassEffect(.clear.tint(.black.opacity(0.35)), in: .circle)
+            }
         }
         .aspectRatio(ratio, contentMode: .fit)
         .onHover { hovering = $0 }

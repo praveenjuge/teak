@@ -29,26 +29,28 @@ struct LibraryCardDetail: View {
     }
 
     var body: some View {
-        VStack {
+        HStack(spacing: 0) {
             GeometryReader { geometry in
-                HStack {
-                    ScrollView { detailPreview.frame(maxWidth: .infinity, alignment: .topLeading) }
-                        .frame(width: geometry.size.width * 2 / 3)
-                    Divider()
-                    VStack {
-                        HStack {
-                            Spacer()
-                            Button("Close", action: requestClose).keyboardShortcut(.cancelAction).disabled(isSaving)
-                        }.padding([.top, .horizontal])
-                        metadataPanel
-                    }
+                ScrollView {
+                    detailPreview(width: geometry.size.width - 48, height: geometry.size.height - 48)
+                        .frame(maxWidth: .infinity, minHeight: geometry.size.height - 48)
+                        .padding(24)
                 }
             }
-            if let error { Text(error).font(.caption).foregroundStyle(.red) }
+            .overlay(alignment: .bottomTrailing) {
+                if hasUnsavedChanges {
+                    Button("Save changes", action: saveContent)
+                        .buttonStyle(.borderedProminent)
+                        .buttonBorderShape(.capsule)
+                        .disabled(isSaving || store.mutatingIDs.contains(card.id) || isLoadingDetails || card.isDeleted == true)
+                        .padding(16)
+                }
+            }
+            Divider()
+            inspector.frame(width: 340)
         }
-        .padding(.horizontal)
         .background(SheetOutsideClickDismissal(onDismiss: requestClose))
-        .frame(minWidth: 840, minHeight: 590)
+        .frame(minWidth: 960, idealWidth: 1080, minHeight: 640, idealHeight: 720)
         .interactiveDismissDisabled(hasUnsavedChanges || isSaving)
         .confirmationDialog("Discard unsaved changes?", isPresented: $confirmingDiscard, titleVisibility: .visible) {
             Button("Discard Changes", role: .destructive) { dismiss() }
@@ -64,261 +66,179 @@ struct LibraryCardDetail: View {
             defer { isLoadingDetails = false }
             guard initialCard.isDeleted != true else { return }
             do {
-                card = try await LibraryAPI().card(id: initialCard.id)
+                card = try await store.details(for: initialCard.id)
                 draft = card.content ?? ""
             } catch SafariServiceError.unauthenticated { onAuthenticationRequired() }
             catch { self.error = "Couldn’t load complete card details. \(error.localizedDescription)" }
         }
     }
 
-    @ViewBuilder private var detailPreview: some View {
+    /// Previews sit centered in the pane like the web modal.
+    @ViewBuilder private func detailPreview(width: CGFloat, height: CGFloat) -> some View {
         switch card.cardType {
-        case .text, .quote:
-            editablePreview
+        case .text:
+            TextEditor(text: $draft)
+                .font(.body)
+                .scrollContentBackground(.hidden)
+                .frame(maxWidth: 720, minHeight: max(height, 240))
+                .disabled(isLoadingDetails || isSaving || card.isDeleted == true)
+        case .quote:
+            QuoteDetailPreview(text: $draft, isEditable: !(isLoadingDetails || isSaving || card.isDeleted == true), availableWidth: width)
         case .link:
-            linkPreview
+            LinkDetailPreview(card: card)
         case .image:
             if let url = LibraryCard.safeURL(card.detailUrl ?? card.fileUrl ?? card.thumbnailUrl) {
-                detailImage(url)
+                RemoteImage(urls: [url], maxHeight: max(height, 240), showsUnavailable: true)
             } else { missingPreview }
-        case .video, .audio:
-            if let url = LibraryCard.safeURL(card.fileUrl) {
-                NativePlayer(url: url).frame(height: card.cardType == .audio ? 90 : 380)
-            } else { missingPreview }
-            if let transcript = card.aiTranscript, !transcript.isEmpty {
-                GroupBox("Transcript") { Text(transcript).textSelection(.enabled) }
+        case .video:
+            VStack(spacing: 16) {
+                if let url = LibraryCard.safeURL(card.fileUrl) {
+                    NativePlayer(url: url)
+                        .aspectRatio(videoRatio, contentMode: .fit)
+                        .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+                        .frame(maxHeight: max(height - 40, 240))
+                } else { missingPreview }
+                if let transcript = card.aiTranscript, !transcript.isEmpty { TranscriptBox(transcript: transcript) }
             }
-        case .document: DocumentDetail(card: card).padding(12)
+        case .audio:
+            if let url = LibraryCard.safeURL(card.fileUrl) {
+                AudioDetailPreview(card: card, url: url)
+            } else {
+                VStack(spacing: 16) {
+                    missingPreview
+                    if let transcript = card.aiTranscript, !transcript.isEmpty { TranscriptBox(transcript: transcript).frame(maxWidth: 576) }
+                }
+            }
+        case .document:
+            DocumentDetail(card: card).frame(maxWidth: 720)
         case .palette:
             if let colors = card.colors, !colors.isEmpty {
-                LazyVGrid(columns: [GridItem(.adaptive(minimum: 140), spacing: 16)], spacing: 20) {
-                    ForEach(Array(colors.enumerated()), id: \.offset) { _, color in
-                        Button { copyHex(color.hex) } label: {
-                            VStack(alignment: .leading, spacing: 8) {
-                                RoundedRectangle(cornerRadius: 8, style: .continuous)
-                                    .fill(Color(teakHex: color.hex) ?? .secondary)
-                                    .aspectRatio(1.25, contentMode: .fit)
-                                    .overlay {
-                                        RoundedRectangle(cornerRadius: 8, style: .continuous)
-                                            .strokeBorder(.primary.opacity(0.1))
-                                    }
-                                Text(color.hex.uppercased())
-                                if let name = color.name, name.lowercased() != color.hex.lowercased() {
-                                    Text(name).foregroundStyle(.secondary)
-                                }
-                            }
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                            .contentShape(Rectangle())
-                        }
-                        .buttonStyle(.plain)
-                        .help("Copy \(color.hex)")
-                        .accessibilityLabel("Copy \(color.hex)")
-                    }
-                }
-                .padding(16)
-            } else { Text("No colors detected in this palette") }
-        case nil: Text(card.content ?? "").textSelection(.enabled)
-        }
-    }
-
-    private var editablePreview: some View {
-        VStack {
-            if card.cardType == .quote {
-                Text("“").font(.title).foregroundStyle(.quaternary).frame(maxWidth: .infinity, alignment: .leading)
-            }
-            if card.cardType == .quote {
-                TextField("", text: $draft, axis: .vertical)
-                    .font(.body.italic()).multilineTextAlignment(.center).frame(minHeight: 360).disabled(isLoadingDetails || isSaving || card.isDeleted == true)
+                PaletteDetailPreview(colors: colors, availableWidth: width, availableHeight: height, onCopy: copyHex)
             } else {
-                TextEditor(text: $draft).font(.body).frame(minHeight: 360).disabled(isLoadingDetails || isSaving || card.isDeleted == true)
+                Text("No colors detected in this palette").foregroundStyle(.secondary)
             }
-            if card.cardType == .quote {
-                Text("”").font(.title).foregroundStyle(.quaternary).frame(maxWidth: .infinity, alignment: .trailing)
-            }
-        }
-        .overlay(alignment: .bottomTrailing) {
-            if draft != (card.content ?? "") {
-                Button("Save changes", action: saveContent)
-                    .disabled(isSaving || store.mutatingIDs.contains(card.id) || isLoadingDetails || card.isDeleted == true)
-            }
+        case nil:
+            Text(card.content ?? "").textSelection(.enabled)
         }
     }
 
-    private var linkPreview: some View {
-        VStack(alignment: .leading) {
-            Button {
-                if let url = LibraryCard.safeURL(card.url) { NSWorkspace.shared.open(url) }
-            } label: { linkBox }
-            .buttonStyle(.plain)
-            if let facts = card.linkFacts, !facts.isEmpty {
-                LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())]) {
-                    ForEach(Array(facts.enumerated()), id: \.offset) { _, fact in
-                        VStack(alignment: .leading) {
-                            Text(fact.label).font(.caption).foregroundStyle(.secondary)
-                            Text(fact.value).textSelection(.enabled)
-                        }
-                    }
-                }
-            }
-            if let media = card.linkPreviewMedia {
-                ForEach(Array(media.enumerated()), id: \.offset) { _, item in
-                    if let url = LibraryCard.safeURL(item.url) {
-                        if item.type == "video" { NativePlayer(url: url).frame(height: 300) }
-                        else if item.type == "image" { detailImage(url) }
-                    }
-                }
-            }
-        }
-    }
-
-    private var linkBox: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            if let image = card.displayImageURL {
-                detailImage(image)
-                    .frame(maxWidth: .infinity, maxHeight: 340)
-                    .clipped()
-            }
-            linkInformation.padding(16)
-        }
-        .background(.quaternary.opacity(0.4))
-        .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
-        .padding(12)
-    }
-
-    private var linkInformation: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            HStack {
-                if let url = faviconURL {
-                    AsyncImage(url: url) { image in image.resizable().scaledToFit() }
-                        placeholder: { EmptyView() }.frame(width: 16, height: 16)
-                }
-                Text(LibraryCard.safeURL(card.url)?.host ?? "Link")
-                    .foregroundStyle(.secondary).lineLimit(1)
-                Spacer()
-                Image(systemName: "arrow.up.right").foregroundStyle(.secondary)
-            }
-            Text(card.linkTitle).font(.headline).fixedSize(horizontal: false, vertical: true)
-            if let description = card.linkPreviewDescription ?? card.metadataDescription {
-                Text(description).foregroundStyle(.secondary)
-                    .fixedSize(horizontal: false, vertical: true)
-            }
-        }
-    }
-
-    private var faviconURL: URL? {
-        LibraryCard.safeURL(card.linkFaviconUrl)
-    }
-
-    private func detailImage(_ url: URL) -> some View {
-        AsyncImage(url: url) { phase in
-            if let image = phase.image { image.resizable().scaledToFit() }
-            else if phase.error != nil { Rectangle().fill(.quaternary) }
-            else { ProgressView() }
-        }
+    private var videoRatio: CGFloat {
+        guard let width = card.fileWidth, let height = card.fileHeight, width > 0, height > 0 else { return 16 / 9 }
+        return CGFloat(width) / CGFloat(height)
     }
 
     private var missingPreview: some View {
         ContentUnavailableView("Preview unavailable", systemImage: "eye.slash")
     }
 
-    private var metadataPanel: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: 20) {
-                if let notes = card.notes, !notes.isEmpty {
-                    inspectorSection("Notes") { Text(notes).textSelection(.enabled) }
-                }
-                if let summary = card.aiSummary, !summary.isEmpty {
-                    inspectorSection("Summary") { Text(summary).textSelection(.enabled) }
-                }
-                inspectorSection("Tags") { chips }
-                Divider()
-                inspectorActions
-                Divider()
-                deletionActions
+    /// Right-hand panel, like the web modal's metadata panel.
+    private var inspector: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            HStack {
+                Spacer()
+                Button(role: .close, action: requestClose)
+                    .keyboardShortcut(.cancelAction)
+                    .disabled(isSaving)
             }
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(16)
+            .padding([.top, .horizontal], 12)
+            ScrollView {
+                VStack(alignment: .leading, spacing: 20) {
+                    if let notes = card.notes, !notes.isEmpty { infoBox("Notes", notes) }
+                    if let summary = card.aiSummary, !summary.isEmpty { infoBox("Summary", summary) }
+                    chips
+                    actions
+                    if let error {
+                        Text(error).font(.callout).foregroundStyle(.red)
+                    }
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding([.horizontal, .bottom], 16)
+            }
         }
-        .font(.body)
-        .controlSize(.small)
+        .background(.fill.quinary)
         .disabled(isLoadingDetails || store.mutatingIDs.contains(card.id))
     }
 
-    private func inspectorSection<Content: View>(_ title: String, @ViewBuilder content: () -> Content) -> some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text(title).font(.headline)
-            content().frame(maxWidth: .infinity, alignment: .leading)
-        }
-    }
-
-    private var inspectorActions: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            quickActions
-            HStack {
-                Button(action: { showingNotes = true }) {
-                    Label(card.notes?.isEmpty == false ? "Edit Notes" : "Add Notes", systemImage: "note.text")
-                }
-                Button(action: { showingTags = true }) {
-                    Label("Manage Tags", systemImage: "tag")
-                }
-            }
-            .disabled(isLoadingDetails || isSaving || card.isDeleted == true)
+    private func infoBox(_ title: String, _ text: String) -> some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text(title).font(.body.weight(.medium))
+            Text(text)
+                .textSelection(.enabled)
+                .lineSpacing(2)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.horizontal, 12)
+                .padding(.vertical, 10)
+                .teakCardSurface(cornerRadius: 12)
         }
     }
 
     private var chips: some View {
         CardChipFlow {
             if let type = card.cardType {
-                Button(type.title) { store.toggleType(type); requestClose() }
+                Button(type.title, systemImage: type.symbol) { store.toggleType(type); requestClose() }
             }
             ForEach(card.tags, id: \.self) { tag in
                 Button(tag) { store.searchText = tag; store.scheduleSearch(); requestClose() }
             }
             ForEach(Array((card.colors ?? []).enumerated()), id: \.offset) { _, color in
                 Button { copyHex(color.hex) } label: {
-                    Image(systemName: "circle.fill").foregroundStyle(Color(teakHex: color.hex) ?? .secondary)
-                }.help(color.hex).accessibilityLabel("Copy \(color.hex)")
+                    Circle()
+                        .fill(Color(teakHex: color.hex) ?? .secondary)
+                        .overlay { Circle().strokeBorder(.primary.opacity(0.12)) }
+                        .frame(width: 14, height: 14)
+                }
+                .help(color.hex)
+                .accessibilityLabel("Copy \(color.hex)")
             }
             ForEach(card.aiTags, id: \.self) { tag in
-                Button { store.searchText = tag; store.scheduleSearch(); requestClose() } label: {
-                    Label(tag, systemImage: "sparkles")
-                }
+                Button(tag, systemImage: "sparkles") { store.searchText = tag; store.scheduleSearch(); requestClose() }
             }
         }
         .buttonStyle(.bordered)
-        .controlSize(.small)
+        .buttonBorderShape(.capsule)
     }
 
-    private var quickActions: some View {
-        HStack {
-            Button("Info", systemImage: "info.circle") { showingInfo = true }.help("Card information")
-            Button(card.isFavorited ? "Unfavorite" : "Favorite", systemImage: card.isFavorited ? "heart.fill" : "heart") {
-                Task {
-                    do { card = try await store.setFavorite(card) }
-                    catch { self.error = error.localizedDescription }
+    private var actions: some View {
+        CardChipFlow {
+            Button("Info", systemImage: "info.circle") { showingInfo = true }
+            if card.isDeleted != true {
+                Button(card.isFavorited ? "Unfavorite" : "Favorite", systemImage: card.isFavorited ? "heart.fill" : "heart") {
+                    Task {
+                        do { card = try await store.setFavorite(card) }
+                        catch { self.error = error.localizedDescription }
+                    }
                 }
-            }.disabled(isLoadingDetails || isSaving || card.isDeleted == true).help(card.isFavorited ? "Remove favorite" : "Add favorite")
+                .disabled(isSaving)
+            }
+            if LibraryCard.safeURL(card.url) != nil {
+                Button("Open Link", systemImage: "arrow.up.right") {
+                    if let url = LibraryCard.safeURL(card.url) { NSWorkspace.shared.open(url) }
+                }
+            }
             if LibraryCard.safeURL(card.fileUrl) != nil {
                 Button("Download", systemImage: "arrow.down.to.line") { Task { await downloadFile() } }
-                    .disabled(isDownloading).help("Download file")
+                    .disabled(isDownloading)
+            }
+            if card.isDeleted != true {
+                Button(card.notes?.isEmpty == false ? "Edit Notes" : "Add Notes", systemImage: "square.and.pencil") { showingNotes = true }
+                    .disabled(isSaving)
+                Button("Manage Tags", systemImage: "tag") { showingTags = true }
+                    .disabled(isSaving)
+            }
+            if store.trashOnly {
+                Button("Restore", systemImage: "arrow.uturn.backward") {
+                    Task {
+                        do { try await store.restore(card); dismiss() }
+                        catch { self.error = error.localizedDescription }
+                    }
+                }
+                Button("Delete Forever", systemImage: "trash", role: .destructive) { confirmingPermanentDelete = true }
+            } else {
+                Button("Delete", systemImage: "trash", role: .destructive) { remove(permanent: false) }
             }
         }
         .buttonStyle(.bordered)
-        .labelStyle(.iconOnly)
-    }
-
-    @ViewBuilder private var deletionActions: some View {
-        if store.trashOnly {
-            Button("Restore", systemImage: "arrow.uturn.backward") {
-                Task {
-                    do { try await store.restore(card); dismiss() }
-                    catch { self.error = error.localizedDescription }
-                }
-            }
-            Button("Delete Forever", systemImage: "trash", role: .destructive) { confirmingPermanentDelete = true }
-        } else {
-            Button("Delete", systemImage: "trash", role: .destructive) { remove(permanent: false) }
-        }
+        .buttonBorderShape(.capsule)
     }
 
     private func copyHex(_ hex: String) {
@@ -377,29 +297,6 @@ struct LibraryCardDetail: View {
     }
 }
 
-private struct NativePlayer: NSViewRepresentable {
-    let url: URL
-
-    func makeNSView(context: Context) -> AVPlayerView {
-        let view = AVPlayerView()
-        view.player = AVPlayer(url: url)
-        view.controlsStyle = .inline
-        return view
-    }
-
-    func updateNSView(_ view: AVPlayerView, context: Context) {
-        if (view.player?.currentItem?.asset as? AVURLAsset)?.url != url {
-            view.player?.pause()
-            view.player = AVPlayer(url: url)
-        }
-    }
-
-    static func dismantleNSView(_ view: AVPlayerView, coordinator: ()) {
-        view.player?.pause()
-        view.player = nil
-    }
-}
-
 private struct DocumentDetail: View {
     let card: LibraryCard
     @State private var pdfData: Data?
@@ -419,6 +316,8 @@ private struct DocumentDetail: View {
                 PDFPreview(data: pdfData).frame(minHeight: 420)
             } else if isLoading {
                 ProgressView("Loading preview…").frame(maxWidth: .infinity, minHeight: 240)
+            } else if let thumbnail = card.displayImageURL {
+                RemoteImage(urls: [thumbnail], maxHeight: 520)
             } else if let content = card.content, !content.isEmpty {
                 Text(content).textSelection(.enabled)
             }

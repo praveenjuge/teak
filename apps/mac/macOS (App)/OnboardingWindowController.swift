@@ -64,7 +64,7 @@ final class OnboardingViewController: NSViewController {
         ])
 
         let headline = NSTextField(wrappingLabelWithString: "Save Anything. Anywhere.")
-        headline.font = .systemFont(ofSize: 22, weight: .semibold)
+        headline.font = .rounded(ofSize: 22, weight: .semibold)
         headline.alignment = .center
         headline.maximumNumberOfLines = 1
         headline.setAccessibilityRole(.staticText)
@@ -72,7 +72,7 @@ final class OnboardingViewController: NSViewController {
         let description = NSTextField(wrappingLabelWithString:
             "Your personal everything management system. Organize, save, and access all your text, images, and documents in one place."
         )
-        description.font = .systemFont(ofSize: 13)
+        description.font = .rounded(ofSize: 13)
         description.textColor = .secondaryLabelColor
         description.alignment = .center
         description.maximumNumberOfLines = 4
@@ -81,7 +81,7 @@ final class OnboardingViewController: NSViewController {
         let spacer = NSView()
         spacer.setContentHuggingPriority(.init(1), for: .vertical)
 
-        statusLabel.font = .systemFont(ofSize: 12)
+        statusLabel.font = .rounded(ofSize: 12)
         statusLabel.textColor = .secondaryLabelColor
         statusLabel.alignment = .center
         statusLabel.maximumNumberOfLines = 2
@@ -94,6 +94,7 @@ final class OnboardingViewController: NSViewController {
 
         signInButton.target = self
         signInButton.bezelStyle = .rounded
+        signInButton.font = .rounded(ofSize: NSFont.systemFontSize)
         signInButton.controlSize = .regular
         signInButton.keyEquivalent = "\r"
         signInButton.setAccessibilityLabel("Sign In to Teak")

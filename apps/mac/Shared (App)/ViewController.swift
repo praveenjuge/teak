@@ -149,6 +149,9 @@ final class SettingsViewController: NSViewController {
         signOutButton.bezelStyle = .rounded
         openSettingsButton.bezelStyle = .rounded
         signOutButton.isHidden = true
+        for control in [signInButton, signOutButton, openSettingsButton, menuBarToggle, appearancePicker] as [NSControl] {
+            control.font = .rounded(ofSize: NSFont.systemFontSize)
+        }
         spinner.style = .spinning
         spinner.controlSize = .small
         spinner.isDisplayedWhenStopped = false
@@ -156,7 +159,7 @@ final class SettingsViewController: NSViewController {
         signInButton.isEnabled = false
 
         for label in [emailLabel, usageLabel] {
-            label.font = .systemFont(ofSize: 13)
+            label.font = .rounded(ofSize: 13)
             label.textColor = .labelColor
         }
         emailLabel.isSelectable = true
@@ -168,11 +171,11 @@ final class SettingsViewController: NSViewController {
         statusRow.alignment = .centerY
         statusRow.spacing = 6
         statusRow.detachesHiddenViews = true
-        accountStatusLabel.font = .systemFont(ofSize: 13)
+        accountStatusLabel.font = .rounded(ofSize: 13)
         accountStatusLabel.textColor = .secondaryLabelColor
         accountStatusLabel.lineBreakMode = .byTruncatingTail
         accountStatusLabel.setContentHuggingPriority(.init(1), for: .horizontal)
-        extensionStatusLabel.font = .systemFont(ofSize: 13)
+        extensionStatusLabel.font = .rounded(ofSize: 13)
         extensionStatusLabel.textColor = .secondaryLabelColor
         extensionStatusLabel.lineBreakMode = .byTruncatingTail
         extensionStatusLabel.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
@@ -276,13 +279,13 @@ final class SettingsViewController: NSViewController {
 
     private static func sectionLabel(_ text: String) -> NSTextField {
         let label = NSTextField(labelWithString: text)
-        label.font = .systemFont(ofSize: 13, weight: .semibold)
+        label.font = .rounded(ofSize: 13, weight: .semibold)
         return label
     }
 
     private static func rowLabel(_ text: String) -> NSTextField {
         let label = NSTextField(labelWithString: text)
-        label.font = .systemFont(ofSize: 13)
+        label.font = .rounded(ofSize: 13)
         label.textColor = .secondaryLabelColor
         label.alignment = .right
         return label
@@ -480,7 +483,7 @@ final class AboutViewController: NSViewController {
         ])
 
         let badgeLabel = NSTextField(labelWithString: "Early Access")
-        badgeLabel.font = .systemFont(ofSize: 12, weight: .medium)
+        badgeLabel.font = .rounded(ofSize: 12, weight: .medium)
         let badge = NSBox()
         badge.boxType = .custom
         badge.fillColor = .clear
@@ -517,7 +520,7 @@ final class AboutViewController: NSViewController {
         bodyView.textContainer?.heightTracksTextView = false
         bodyView.linkTextAttributes = [
             .foregroundColor: Self.brandRed,
-            .font: NSFont.systemFont(ofSize: 13, weight: .semibold),
+            .font: NSFont.rounded(ofSize: 13, weight: .semibold),
             .underlineStyle: 0,
         ]
         bodyView.textStorage?.setAttributedString(Self.bodyText())
@@ -539,7 +542,7 @@ final class AboutViewController: NSViewController {
         ])
 
         let versionLabel = NSTextField(labelWithString: Self.versionString())
-        versionLabel.font = .systemFont(ofSize: 11)
+        versionLabel.font = .rounded(ofSize: 11)
         versionLabel.textColor = .secondaryLabelColor
 
         let stack = NSStackView(views: [headerRow, bodyView, signatureView, versionLabel])
@@ -587,7 +590,7 @@ final class AboutViewController: NSViewController {
         let paragraph = NSMutableParagraphStyle()
         paragraph.lineSpacing = 4
         let body: [NSAttributedString.Key: Any] = [
-            .font: NSFont.systemFont(ofSize: 13),
+            .font: NSFont.rounded(ofSize: 13),
             .foregroundColor: NSColor.secondaryLabelColor,
             .paragraphStyle: paragraph,
         ]

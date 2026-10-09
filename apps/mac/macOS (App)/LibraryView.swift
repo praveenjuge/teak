@@ -92,6 +92,8 @@ struct LibraryView: View {
             chooseFiles()
         }
         .task { await store.loadFirstPage() }
+        // SF Rounded across the library and every sheet it presents.
+        .fontDesign(.rounded)
     }
 
     @ViewBuilder private var statusOverlay: some View {
@@ -193,33 +195,52 @@ struct LibraryView: View {
                 if store.hasMore { Button("Keep searching") { Task { await store.loadMore() } } }
             }
         } else if store.cards.isEmpty {
-            VStack {
-                Image(nsImage: NSImage(named: NSImage.applicationIconName) ?? NSImage())
-                composer
-                Text("Let's add your first card!")
-                Text("Start capturing your thoughts, links, and media above").foregroundStyle(.secondary)
-            }.frame(maxWidth: .infinity, maxHeight: .infinity)
+            emptyLibrary
         } else { masonry }
+    }
+
+    /// Mirrors the web empty state: wordmark, the note composer, then a short prompt.
+    private var emptyLibrary: some View {
+        ScrollView {
+            VStack(spacing: 20) {
+                TeakWordmark()
+                composer
+                VStack(spacing: 4) {
+                    Text("Let's add your first card!").font(.headline)
+                    Text("Start capturing your thoughts, links, and media above")
+                        .foregroundStyle(.secondary)
+                        .multilineTextAlignment(.center)
+                }
+            }
+            .frame(maxWidth: 320)
+            .padding(.vertical, 80)
+            .frame(maxWidth: .infinity)
+        }
     }
 
     private var loadingGrid: some View {
         GeometryReader { geometry in
             ScrollView {
-                LibraryMasonryLayout(columns: columnCount(for: geometry.size.width)) {
+                LibraryMasonryLayout(columns: columnCount(for: geometry.size.width), spacing: gridSpacing) {
                     ForEach(0..<10) { index in
-                        GroupBox {
-                            VStack(alignment: .leading) {
-                                Rectangle().fill(.quaternary)
-                                    .aspectRatio(index.isMultiple(of: 3) ? 1 : 4 / 3, contentMode: .fit)
-                                Text("A saved thought or inspiration").lineLimit(1)
-                                Text("Ready to rediscover").font(.caption)
-                            }.frame(maxWidth: .infinity, alignment: .leading)
-                        }.redacted(reason: .placeholder)
+                        VStack(alignment: .leading, spacing: 0) {
+                            Rectangle().fill(.quinary)
+                                .aspectRatio(index.isMultiple(of: 3) ? 1 : 4 / 3, contentMode: .fit)
+                            Text("A saved thought or inspiration").lineLimit(1)
+                                .padding(.horizontal, 16)
+                                .padding(.vertical, 12)
+                        }
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .teakCardSurface()
+                        .redacted(reason: .placeholder)
                     }
                 }.padding()
             }.allowsHitTesting(false).accessibilityLabel("Loading cards")
         }
     }
+
+    /// Matches the web masonry gutter.
+    private let gridSpacing: CGFloat = 24
 
     private func columnCount(for width: CGFloat) -> Int {
         width >= 992 ? 5 : width >= 768 ? 3 : width >= 576 ? 2 : 1
@@ -233,7 +254,7 @@ struct LibraryView: View {
         GeometryReader { geometry in
             let count = columnCount(for: geometry.size.width)
             ScrollView {
-                LibraryMasonryLayout(columns: count) {
+                LibraryMasonryLayout(columns: count, spacing: gridSpacing) {
                     if !store.trashOnly { composer }
                     ForEach(store.cards) { card in
                         LibraryCardTile(card: card, isSaving: store.mutatingIDs.contains(card.id), onOpen: { selectedCard = card })
@@ -349,4 +370,25 @@ struct LibraryView: View {
 private struct PendingLibraryUpload {
     let url: URL
     let key = UUID().uuidString
+}
+
+/// The Teak wordmark in the current text color, like the web empty state logo.
+private struct TeakWordmark: View {
+    private static let image: NSImage? = Bundle.main.url(forResource: "Wordmark", withExtension: "png")
+        .flatMap(NSImage.init(contentsOf:))
+
+    var body: some View {
+        if let image = Self.image {
+            Image(nsImage: image)
+                .renderingMode(.template)
+                .resizable()
+                .interpolation(.high)
+                .scaledToFit()
+                .frame(width: 72, height: 23)
+                .foregroundStyle(.primary)
+                .accessibilityLabel("Teak")
+        } else {
+            Text("teak").font(.title2.weight(.heavy))
+        }
+    }
 }
