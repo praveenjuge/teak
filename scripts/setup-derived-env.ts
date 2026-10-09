@@ -72,7 +72,28 @@ export const ensureFile = (
   return "created";
 };
 
-/** Create or repair a derived dotenv file; never overwrite custom values. */
+/**
+ * A generated value that points at this machine: a loopback URL, or the
+ * emulator port next to WORKOS_API_HOSTNAME=localhost. Setup derives these
+ * from the checkout's ports, so it refreshes them when the ports change.
+ * Every other value is a person's and is never overwritten.
+ */
+export const isMachineLocalValue = (key: string, value: string): boolean => {
+  if (key === "WORKOS_API_PORT") {
+    return /^\d+$/.test(value);
+  }
+  try {
+    const { hostname } = new URL(value);
+    return ["localhost", "127.0.0.1", "[::1]"].includes(hostname);
+  } catch {
+    return false;
+  }
+};
+
+/**
+ * Create or repair a derived dotenv file. Missing keys are appended and
+ * machine-local values are refreshed; custom values are never overwritten.
+ */
 export const ensureDerivedEnv = (
   path: string,
   entries: Record<string, string>
@@ -81,23 +102,34 @@ export const ensureDerivedEnv = (
   if (created === "created") {
     return "created";
   }
-  const content = readFileSync(path, "utf-8");
-  const present = new Set(
-    content
-      .split("\n")
-      .filter((line) => line.includes("=") && !line.startsWith("#"))
-      .map((line) => line.split("=", 1)[0]?.trim())
-  );
+  const lines = readFileSync(path, "utf-8").replace(/\s+$/, "").split("\n");
+  const present = new Set<string>();
+  let changed = false;
+  const updated = lines.map((line) => {
+    if (!line.includes("=") || line.startsWith("#")) {
+      return line;
+    }
+    const key = line.split("=", 1)[0]?.trim() ?? "";
+    present.add(key);
+    const value = line.slice(line.indexOf("=") + 1).trim();
+    const wanted = entries[key];
+    if (
+      wanted === undefined ||
+      value === wanted ||
+      !isMachineLocalValue(key, value) ||
+      !isMachineLocalValue(key, wanted)
+    ) {
+      return line;
+    }
+    changed = true;
+    return `${key}=${wanted}`;
+  });
   const missing = Object.keys(entries).filter((key) => !present.has(key));
-  if (missing.length === 0) {
+  if (missing.length === 0 && !changed) {
     return "exists";
   }
-  const additions = missing.map((key) => `${key}=${entries[key]}`).join("\n");
-  writeFileSync(
-    path,
-    `${content.replace(/\s+$/, "")}\n${additions}\n`,
-    "utf-8"
-  );
+  const additions = missing.map((key) => `${key}=${entries[key]}`);
+  writeFileSync(path, `${[...updated, ...additions].join("\n")}\n`, "utf-8");
   return "repaired";
 };
 

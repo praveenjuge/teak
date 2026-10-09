@@ -5,7 +5,7 @@ import {
   sealSessionCookie,
   testSessionEmail,
 } from "./lib/workos-test-session.ts";
-import { parseSmokeCredentials, redirectsTo } from "./smoke-web-session.ts";
+import { redirectsTo } from "./smoke-web-session.ts";
 
 const base = "http://localhost:3000";
 
@@ -24,14 +24,6 @@ describe("smoke-web-session", () => {
     ["a redirect to another origin", 307, "https://evil.example/sign-in"],
   ])("rejects %s as the auth gate", (_label, status, location) => {
     expect(redirectsTo(status, location, base, "/sign-in")).toBe(false);
-  });
-
-  test("credential mode defaults to present and rejects unknown values", () => {
-    expect(parseSmokeCredentials(undefined)).toBe("present");
-    expect(parseSmokeCredentials("fork")).toBe("fork");
-    expect(() => parseSmokeCredentials("yes")).toThrow(
-      "SMOKE_WORKOS_CREDENTIALS"
-    );
   });
 });
 

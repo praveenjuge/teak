@@ -1,6 +1,6 @@
 # End-to-end journeys against a local stack: the WorkOS emulator, a local
 # Convex backend and the web app. Needs no secrets; every credential is a
-# test-only constant in packages/tests/src/emulator/config.ts.
+# test-only constant in packages/tests/src/stack/config.ts.
 name: E2E
 
 # Daily and on demand only: the suite is too slow to gate every pull request.
@@ -26,7 +26,6 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 40
     env:
-      CONVEX_AGENT_MODE: anonymous
       TURBO_UI: "false"
     steps:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
@@ -59,7 +58,7 @@ jobs:
           path: |
             packages/tests/playwright-report
             packages/tests/test-results
-            packages/tests/.state/dev-stack.log
+            .agents/.state/stack.log
           retention-days: 7
 
   # Read-only checks of the published site and Teak's public production

@@ -8,6 +8,9 @@
     },
     "test": {
       "env": ["VITE_PUBLIC_CONVEX_SITE_URL"]
+    },
+    "dev": {
+      "passThroughEnv": ["EXTENSION_PORT"]
     }
   }
 }

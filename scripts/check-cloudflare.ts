@@ -496,7 +496,7 @@ const main = async () => {
   await checkConvexEnv(only);
   console.log("\n== Summary ==");
   console.log(
-    "  • Keep `bun run dev:all` for all-surface stack; use `bun run dev:files` (remote bindings) vs `bun run dev:files:local` (Miniflare, low-fidelity Images)."
+    "  • Keep `bun run dev --all` for all-surface stack; use `bun run dev files` (remote bindings) vs `bun run dev files:local` (Miniflare, low-fidelity Images)."
   );
   console.log(
     "  • .dev.vars is ignored and per-developer; sync it only from Convex dev (`bun run sync:cloudflare-dev`, or `bun run sync:cloudflare-dev --isolated` once isolation is active)."

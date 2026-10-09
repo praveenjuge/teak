@@ -1,5 +1,6 @@
 import { v } from "convex/values";
-import { internalMutation } from "../_generated/server";
+import type { Doc } from "../_generated/dataModel";
+import { internalMutation, type MutationCtx } from "../_generated/server";
 import { assertAccountNotDeleting } from "../accountDeletion";
 import type { CardType } from "../schema";
 import { buildColorFacets } from "../shared/utils/colorUtils";
@@ -7,6 +8,7 @@ import {
   getOrInitializeCardUsage,
   initializeCardUsageShards,
   recordActiveCardCreated,
+  recordActiveCardRemoved,
 } from "./cardUsage";
 import { type ProcessingStatus, stageCompleted } from "./processingStatus";
 import { scheduleCardSearchSync } from "./searchDocumentHelpers";
@@ -34,12 +36,17 @@ const createColor = (
 });
 
 // Type for default card definitions - all properties are optional
-interface DefaultCardDef {
+export interface DefaultCardDef {
   aiSummary?: string;
   aiTags?: string[];
   colors?: ReturnType<typeof createColor>[];
   content: string;
+  /** Inserted, then moved to the trash. */
+  isDeleted?: boolean;
   isFavorited?: boolean;
+  metadata?: Doc<"cards">["metadata"];
+  metadataDescription?: string;
+  metadataTitle?: string;
   notes?: string;
   tags?: string[];
   type: CardType;
@@ -99,6 +106,57 @@ const DEFAULT_CARDS: DefaultCardDef[] = [
 ];
 
 /**
+ * Insert fully processed cards, one second apart so they keep their order.
+ * Usage counts and search documents are kept in step, like any other card.
+ */
+export const insertCompletedCards = async (
+  ctx: MutationCtx,
+  userId: string,
+  cards: DefaultCardDef[]
+): Promise<void> => {
+  await initializeCardUsageShards(
+    ctx,
+    await getOrInitializeCardUsage(ctx, userId)
+  );
+  const now = Date.now();
+  const processingStatus = buildCompletedProcessingStatus(now);
+  for (const [i, cardDef] of cards.entries()) {
+    const timestamp = now + i * 1000;
+    const { colorHexes, colorHues } = buildColorFacets(cardDef.colors as any);
+    const cardId = await ctx.db.insert("cards", {
+      userId,
+      type: cardDef.type,
+      content: cardDef.content,
+      url: cardDef.url,
+      tags: cardDef.tags,
+      notes: cardDef.notes,
+      colors: cardDef.colors as any,
+      colorHexes,
+      colorHues,
+      aiTags: cardDef.aiTags,
+      aiSummary: cardDef.aiSummary,
+      isFavorited: cardDef.isFavorited,
+      metadata: cardDef.metadata,
+      metadataTitle: cardDef.metadataTitle,
+      metadataDescription: cardDef.metadataDescription,
+      metadataStatus: "completed",
+      processingStatus,
+      createdAt: timestamp,
+      updatedAt: timestamp,
+    });
+    await recordActiveCardCreated(ctx, userId, cardId);
+    if (cardDef.isDeleted) {
+      await ctx.db.patch("cards", cardId, {
+        isDeleted: true,
+        deletedAt: timestamp,
+      });
+      await recordActiveCardRemoved(ctx, userId, cardId);
+    }
+    await scheduleCardSearchSync(ctx, cardId, userId);
+  }
+};
+
+/**
  * Internal mutation to create default cards for a new user.
  * Only creates cards if the user has no existing non-deleted cards.
  * Uses internal mutation to bypass rate limits.
@@ -121,36 +179,7 @@ export const createDefaultCardsForUser = internalMutation({
       return { created: false, reason: "cards_exist" as const };
     }
 
-    // Create default cards with slight timestamp offsets for consistent ordering
-    const now = Date.now();
-    const processingStatus = buildCompletedProcessingStatus(now);
-
-    for (let i = 0; i < DEFAULT_CARDS.length; i++) {
-      const cardDef = DEFAULT_CARDS[i];
-      const timestamp = now + i * 1000; // 1 second offset per card
-      const { colorHexes, colorHues } = buildColorFacets(cardDef.colors as any);
-
-      const cardId = await ctx.db.insert("cards", {
-        userId,
-        type: cardDef.type,
-        content: cardDef.content,
-        url: cardDef.url,
-        tags: cardDef.tags,
-        notes: cardDef.notes,
-        colors: cardDef.colors as any,
-        colorHexes,
-        colorHues,
-        aiTags: cardDef.aiTags,
-        aiSummary: cardDef.aiSummary,
-        isFavorited: cardDef.isFavorited,
-        metadataStatus: "completed",
-        processingStatus,
-        createdAt: timestamp,
-        updatedAt: timestamp,
-      });
-      await recordActiveCardCreated(ctx, userId, cardId);
-      await scheduleCardSearchSync(ctx, cardId, userId);
-    }
+    await insertCompletedCards(ctx, userId, DEFAULT_CARDS);
 
     return { created: true, count: DEFAULT_CARDS.length };
   },

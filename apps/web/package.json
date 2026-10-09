@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "build": "next build",
-    "dev": "next dev --port 3000",
+    "dev": "next dev",
     "lint": "biome check .",
     "start": "next start",
     "test": "CLAUDECODE=1 AGENT=1 bun test --preload next/dist/server/node-environment-baseline src/__tests__ --coverage --dots",

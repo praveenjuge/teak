@@ -61,7 +61,24 @@ describe("parseSetupArgs", () => {
       convex: null,
       check: false,
       json: false,
+      push: true,
+      workos: null,
     });
+  });
+
+  test("parses --workos and --skip-push", () => {
+    const parsed = parseSetupArgs([
+      "bun",
+      "setup.ts",
+      "--workos",
+      "staging",
+      "--skip-push",
+    ]);
+    expect(parsed.workos).toBe("staging");
+    expect(parsed.push).toBe(false);
+    expect(() =>
+      parseSetupArgs(["bun", "setup.ts", "--workos", "production"])
+    ).toThrow("--workos");
   });
 
   test("parses target, convex, check, and json", () => {
@@ -81,6 +98,8 @@ describe("parseSetupArgs", () => {
       convex: "cloud",
       check: true,
       json: true,
+      push: true,
+      workos: null,
     });
   });
 

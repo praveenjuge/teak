@@ -1,19 +1,32 @@
 import { randomBytes } from "node:crypto";
-import {
-  EMULATOR_ORIGIN,
-  LOCAL_API_ORIGIN,
-  LOCAL_APP_ORIGIN,
-  LOCAL_CONVEX_URL,
-} from "../emulator/config";
+import { readStackState } from "../stack/config";
 
-// The suite always runs against the fixed local stack; see
-// src/scripts/run-local-suite.ts.
+// The suite runs against this checkout's running stack, which records its
+// URLs when it starts (src/scripts/run-local-suite.ts, or `bun run dev`).
+// Only the published-site `docs` project runs without one.
+const stack = readStackState();
+const missing = () => {
+  throw new Error(
+    "No local stack is running for this checkout. Start one with `bun run --cwd packages/tests e2e:stack`."
+  );
+};
+
 export const env = {
-  appUrl: LOCAL_APP_ORIGIN,
-  apiUrl: LOCAL_API_ORIGIN,
-  convexUrl: LOCAL_CONVEX_URL,
-  mcpUrl: `${LOCAL_API_ORIGIN}/mcp`,
-  emulatorUrl: EMULATOR_ORIGIN,
+  get appUrl() {
+    return stack?.urls.appOrigin ?? missing();
+  },
+  get apiUrl() {
+    return stack?.urls.apiOrigin ?? missing();
+  },
+  get convexUrl() {
+    return stack?.urls.convexUrl ?? missing();
+  },
+  get mcpUrl() {
+    return `${stack?.urls.apiOrigin ?? missing()}/mcp`;
+  },
+  get emulatorUrl() {
+    return stack?.urls.emulatorOrigin ?? missing();
+  },
 };
 
 // The docs checks read the published site and Teak's public production

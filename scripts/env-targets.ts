@@ -41,7 +41,7 @@ export const TARGET_SPECS: Record<SupportedTarget, TargetSpec> = {
     dotenvFiles: ["apps/web/.env.local"],
     needsConvex: true,
     defaultConvex: "local",
-    note: "Next.js app plus Convex backend.",
+    note: "Next.js app plus Convex backend; signs in through the local WorkOS emulator unless --workos staging.",
   },
   docs: {
     target: "docs",
@@ -100,7 +100,7 @@ export const TARGET_SPECS: Record<SupportedTarget, TargetSpec> = {
     dotenvFiles: ["apps/web/.env.local"],
     needsConvex: true,
     defaultConvex: "local",
-    note: "The web stack on a local backend wired to the WorkOS emulator. Every emulator value is a test-only constant in packages/tests/src/emulator/config.ts.",
+    note: "The web stack on a local backend wired to the WorkOS emulator. Every emulator value is a test-only constant in packages/tests/src/stack/config.ts.",
   },
 };
 

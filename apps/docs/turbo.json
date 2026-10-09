@@ -11,6 +11,9 @@
         "../../.agents/skills/teak/**"
       ],
       "outputs": ["dist/**"]
+    },
+    "dev": {
+      "passThroughEnv": ["DOCS_PORT", "TEAK_DEV_API_URL"]
     }
   }
 }

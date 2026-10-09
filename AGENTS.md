@@ -6,7 +6,7 @@ Teak is a personal knowledge hub for collecting, remembering, and rediscovering 
 
 - Use Bun. Read the pinned version and available commands from `package.json`; do not duplicate that inventory here.
 - Read the nearest nested `AGENTS.md` before changing a workspace.
-- On a fresh checkout, run `bun run setup` once, then diagnose with `bun run doctor` before asking the human. `bun run dev [target]` starts the watch loop; never bind production credentials locally.
+- To run the app, start `bun run dev` in the background. It sets up this checkout and starts the local stack on this worktree's own ports, signed in as a seeded dev account, with no secrets. `bun run dev --status` prints the URLs and sign-in; `bun run dev --stop` stops it. Read `.agents/development.md` for worktrees, cloud VMs, and what the local stack doesn't cover. Never bind production credentials locally.
 - Environment sources, precedence, and ownership live in `.agents/environment.md`; read it before adding env vars or debugging config.
 - Inspect the current implementation and tests before choosing a pattern. Treat repository code and configuration as the source of truth.
 - Keep changes focused. Preserve unrelated work already in the tree.
@@ -48,7 +48,3 @@ Before any release, complete the shared preparation in `.agents/releases.md` (on
 - CLI: `apps/cli/AGENTS.md`
 
 All package versions move in lockstep. Release tasks use the next patch version unless the canonical runbook says otherwise. Use `gh` for GitHub releases, pull requests, issues, and workflow inspection.
-
-## Headless development
-
-When working in Cursor Cloud or another headless VM, read `.agents/headless-development.md` for the headless bootstrap (Bun install, anonymous Convex setup, non-interactive Turbo). Local development should use the scripts and environment already present in the repository.

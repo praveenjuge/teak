@@ -206,29 +206,6 @@ export const OPS_ENTRIES: EnvVarSpec[] = [
     note: "Optional browser executable override for the Mac screenshot renderer.",
   }),
   // Repo tooling and smoke scripts.
-  spec("SMOKE_WORKOS_CREDENTIALS", {
-    owners: ["teak-repo"],
-    targets: ["repo"],
-    profiles: ["local"],
-    secret: false,
-    validation: "enum",
-    allowedValues: ["present", "fork", "missing"],
-    providers: ["workflow", "shell"],
-    required: false,
-    note: "Clean-container smoke: whether the web's WorkOS credentials are real. Unset means present.",
-  }),
-  ...["WORKOS_STAGING_CLIENT_ID", "WORKOS_STAGING_API_KEY"].map((name) =>
-    spec(name, {
-      owners: ["teak-repo"],
-      targets: ["repo"],
-      profiles: ["local"],
-      secret: name === "WORKOS_STAGING_API_KEY",
-      validation: "string",
-      providers: ["github-secrets"],
-      required: false,
-      note: "WorkOS staging environment (the one the dev deployment uses), mapped to WORKOS_CLIENT_ID/WORKOS_API_KEY by the clean-container smoke. Never production.",
-    })
-  ),
   spec("CONVEX_AGENT_MODE", {
     owners: ["teak-repo"],
     targets: ["repo"],

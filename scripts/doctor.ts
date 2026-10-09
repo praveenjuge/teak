@@ -18,14 +18,16 @@ import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import {
   EMULATOR_CLIENT_ID,
-  EMULATOR_WEB_ENV,
-} from "../packages/tests/src/emulator/config.ts";
+  emulatorWebEnv,
+  isProcessAlive,
+  readStackState,
+  type StackPorts,
+} from "../packages/tests/src/stack/config.ts";
 import {
   checkBunVersion,
   checkNodeVersion,
   inferLanHost,
   isInstallStale,
-  isPortOccupied,
   readConvexSelection,
 } from "./capabilities.ts";
 import { parseConvexEnvOutput } from "./check-cloudflare.ts";
@@ -34,7 +36,7 @@ import { auditFiles, listScannedFiles } from "./env-audit.ts";
 import { readDotenvFile } from "./env-loader.ts";
 import { runCommand } from "./proc.ts";
 import { validateWebEnvContent } from "./validate-env.ts";
-import { resolveWorktree } from "./worktree-env.ts";
+import { isPortInUse, resolveWorktree, stackPorts } from "./worktree-env.ts";
 
 const ROOT = join(import.meta.dir, "..");
 const CONVEX_PATH = join(ROOT, "packages/convex");
@@ -393,18 +395,26 @@ export const checkConvexWorkos = async (): Promise<DoctorCheck> =>
 
 export const checkPorts = async (): Promise<DoctorCheck> => {
   const worktree = await resolveWorktree(ROOT);
-  const own = worktree.namespaced
-    ? [worktree.web, worktree.docs]
-    : [worktree.web, worktree.docs, worktree.convex, worktree.convexSite];
+  const scope =
+    worktree.namespace === "main"
+      ? "main checkout"
+      : `worktree ${worktree.namespace}`;
+  const running = readStackState();
+  if (running && isProcessAlive(running.pid)) {
+    return {
+      detail: `this checkout's stack is running at ${running.urls.appOrigin} (${scope})`,
+      id: "ports",
+      ok: true,
+      severity: "warn",
+    };
+  }
+  const own = stackPorts(worktree);
   const occupied: number[] = [];
   for (const port of own) {
-    if (await isPortOccupied(port)) {
+    if (await isPortInUse(port)) {
       occupied.push(port);
     }
   }
-  const scope = worktree.namespaced
-    ? `worktree ${worktree.namespace} (convex is remote)`
-    : "main checkout";
   return occupied.length === 0
     ? {
         detail: `local ports ${own.join(", ")} are free (${scope})`,
@@ -413,37 +423,40 @@ export const checkPorts = async (): Promise<DoctorCheck> => {
         severity: "warn",
       }
     : {
-        detail: `ports in use: ${occupied.join(", ")} (a stack may already be running; ${scope})`,
+        detail: `ports in use: ${occupied.join(", ")} (${scope})`,
         id: "ports",
         ok: true,
-        remediation: ["Stop the owning process or reuse the running stack"],
+        remediation: [
+          "Another process holds this checkout's ports; stop it before bun run dev",
+        ],
         severity: "warn",
       };
 };
 
-// The e2e stack is the web app wired to the WorkOS emulator by setup.
-export const checkE2EStack = (
-  web: ReadonlyMap<string, string> | undefined
+// An emulator checkout's web app must talk to this checkout's emulator.
+export const checkEmulatorStack = (
+  web: ReadonlyMap<string, string> | undefined,
+  ports: StackPorts
 ): DoctorCheck => {
   const expected: Record<string, string> = {
     WORKOS_CLIENT_ID: EMULATOR_CLIENT_ID,
-    ...EMULATOR_WEB_ENV,
+    ...emulatorWebEnv(ports),
   };
   const wrong = Object.keys(expected).filter(
     (name) => web?.get(name) !== expected[name]
   );
   return wrong.length === 0
     ? {
-        detail: "apps/web/.env.local points at the WorkOS emulator",
-        id: "e2e-stack",
+        detail: "apps/web/.env.local points at this checkout's WorkOS emulator",
+        id: "emulator-stack",
         ok: true,
         severity: "error",
       }
     : {
         detail: `apps/web/.env.local is not wired to the WorkOS emulator: ${wrong.join(", ")}`,
-        id: "e2e-stack",
+        id: "emulator-stack",
         ok: false,
-        remediation: ["Run bun run setup --target e2e"],
+        remediation: ["Run bun run setup"],
         severity: "error",
       };
 };
@@ -594,6 +607,7 @@ export const runDoctor = async (
   profile: DoctorProfile
 ): Promise<DoctorReport> => {
   const needsConvex = needsConvexChecks(target);
+  const webValues = readDotenvFile(join(ROOT, "apps/web/.env.local"))?.values;
   const [siteUrlCheck, workosCheck] = needsConvex
     ? await Promise.all([checkConvexSiteUrl(), checkConvexWorkos()])
     : [null, null];
@@ -605,12 +619,9 @@ export const runDoctor = async (
     checkEnvAudit(),
     checkDotenvHygiene(),
     checkTargetReadiness(target),
-    ...(profile === "e2e"
-      ? [
-          checkE2EStack(
-            readDotenvFile(join(ROOT, "apps/web/.env.local"))?.values
-          ),
-        ]
+    ...(profile === "e2e" ||
+    webValues?.get("WORKOS_API_HOSTNAME") === "localhost"
+      ? [checkEmulatorStack(webValues, await resolveWorktree(ROOT))]
       : []),
     ...(siteUrlCheck ? [siteUrlCheck] : []),
     ...(workosCheck ? [workosCheck] : []),

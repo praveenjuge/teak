@@ -26,7 +26,7 @@
   "main": "./index.ts",
   "types": "./index.ts",
   "scripts": {
-    "dev": "convex dev",
+    "dev": "bun --no-env-file ../../scripts/convex-dev.ts",
     "lint": "biome lint --only=plugin .",
     "test": "bun run test:unit && bun run test:edge",
     "test:edge": "SITE_URL=http://localhost:3000 vitest run --config vitest.config.ts",

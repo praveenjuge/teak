@@ -42,6 +42,7 @@ export default defineConfig({
       "./costOptimization.test.ts",
       "./rawMetadata.test.ts",
       "./rawMetadataPipeline.test.ts",
+      "./devSeed.test.ts",
     ],
   },
 });

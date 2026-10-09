@@ -4,9 +4,12 @@ import { join } from "node:path";
 import {
   buildDevCommand,
   DEV_TARGETS,
+  describeStatus,
   needsWebEnv,
   parseDevArgs,
+  usesWebStack,
 } from "./dev.ts";
+import { mainWorktreePorts, slotPorts } from "./worktree-env.ts";
 
 const ROOT = join(import.meta.dir, "..");
 
@@ -17,7 +20,25 @@ describe("parseDevArgs", () => {
       all: false,
       headless: false,
       target: "web",
+      workos: null,
     });
+  });
+
+  test("parses --workos, --status and --stop for the web stack", () => {
+    expect(parseDevArgs(["--workos", "staging"]).workos).toBe("staging");
+    expect(parseDevArgs(["--status"]).action).toBe("status");
+    expect(parseDevArgs(["--stop"]).action).toBe("stop");
+    expect(() => parseDevArgs(["--workos", "prod"])).toThrow("--workos");
+    expect(() => parseDevArgs(["mobile", "--workos", "staging"])).toThrow(
+      "web stack"
+    );
+  });
+
+  test("only the web target runs the local stack", () => {
+    expect(usesWebStack(parseDevArgs([]))).toBe(true);
+    expect(usesWebStack(parseDevArgs(["web"]))).toBe(true);
+    expect(usesWebStack(parseDevArgs(["--all"]))).toBe(false);
+    expect(usesWebStack(parseDevArgs(["mobile"]))).toBe(false);
   });
 
   test("parses --headless and matrix aliases", () => {
@@ -171,5 +192,35 @@ describe("needsWebEnv", () => {
   test("extension and convex do not need web env", () => {
     expect(needsWebEnv("extension")).toBe(false);
     expect(needsWebEnv("convex")).toBe(false);
+  });
+});
+
+describe("describeStatus", () => {
+  test("tells an agent how to start a stopped stack and sign in", () => {
+    const text = describeStatus(slotPorts(2), null);
+    expect(text).toContain("wt-2");
+    expect(text).toContain("bun run dev");
+    expect(text).toContain("web 4200");
+    expect(text).toContain("dev@example.org");
+  });
+
+  test("points at a running stack", () => {
+    const text = describeStatus(mainWorktreePorts(), {
+      group: 41,
+      ready: true,
+      logPath: "/tmp/stack.log",
+      pid: 42,
+      ports: { web: 3000, convex: 3210, convexSite: 3211, emulator: 4100 },
+      seeded: true,
+      startedAt: "2026-10-09T00:00:00.000Z",
+      urls: {
+        appOrigin: "http://localhost:3000",
+        apiOrigin: "http://127.0.0.1:3211",
+        convexUrl: "http://127.0.0.1:3210",
+        emulatorOrigin: "http://localhost:4100",
+      },
+    });
+    expect(text).toContain("Running at http://localhost:3000 (pid 42)");
+    expect(text).toContain("bun run dev --stop");
   });
 });

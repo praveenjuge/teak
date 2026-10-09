@@ -15,13 +15,13 @@ import {
   statSync,
   utimesSync,
 } from "node:fs";
-import { connect, createServer } from "node:net";
+import { connect } from "node:net";
 import { networkInterfaces } from "node:os";
 import { join } from "node:path";
 import { loadTargetEnv, parseDotenvValue } from "./env-loader.ts";
 import type { ConvexMode, SupportedTarget } from "./env-targets.ts";
 import { runCommand } from "./proc.ts";
-import type { WorktreePorts } from "./worktree-env.ts";
+import { isPortInUse, type WorktreePorts } from "./worktree-env.ts";
 
 export type VersionStatus = "ok" | "warn" | "mismatch";
 
@@ -229,20 +229,6 @@ export const readConvexSelection = (
   return { source: "none" };
 };
 
-export const isPortOccupied = (port: number): Promise<boolean> =>
-  new Promise((resolve) => {
-    const server = createServer();
-    server.once("error", () => {
-      resolve(true);
-    });
-    server.once("listening", () => {
-      server.close(() => {
-        resolve(false);
-      });
-    });
-    server.listen(port, "127.0.0.1");
-  });
-
 /** First non-internal IPv4 address, for physical-device mobile URLs. */
 export const inferLanHost = (): string | null => {
   for (const addresses of Object.values(networkInterfaces())) {
@@ -393,15 +379,12 @@ export const planCapabilities = async (options: {
   const ports: PortCapability[] = [
     { port: worktree.web, purpose: "web app", free: null },
     { port: worktree.docs, purpose: "docs site", free: null },
+    { port: worktree.convex, purpose: "local convex backend", free: null },
+    { port: worktree.convexSite, purpose: "local convex http", free: null },
+    { port: worktree.emulator, purpose: "WorkOS emulator", free: null },
   ];
-  if (!worktree.namespaced) {
-    ports.push(
-      { port: worktree.convex, purpose: "local convex backend", free: null },
-      { port: worktree.convexSite, purpose: "local convex http", free: null }
-    );
-  }
   for (const entry of ports) {
-    entry.free = !(await isPortOccupied(entry.port));
+    entry.free = !(await isPortInUse(entry.port));
   }
 
   return {
