@@ -27,7 +27,8 @@ export const ENV_CONTRACT: EnvVarSpec[] = [
 
 /**
  * Names removed by the typed-env cleanup and the Better Auth removal (WorkOS
- * AuthKit is the only sign-in provider). The audit fails if they return.
+ * AuthKit is the only sign-in provider; WorkOS also sends every sign-in
+ * email, so Resend has no key). The audit fails if they return.
  */
 export const DELETED_ALIASES = [
   "APPLE_APP_BUNDLE_IDENTIFIER",
@@ -59,6 +60,7 @@ export const DELETED_ALIASES = [
   "R2_STORAGE_URL",
   "R2_UPLOAD_ORIGIN",
   "R2_UPLOAD_URL",
+  "RESEND_API_KEY",
 ] as const;
 
 /**

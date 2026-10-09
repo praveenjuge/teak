@@ -44,7 +44,7 @@ Native clients using browser sign-in send short-lived OAuth access tokens instea
 
 Browser-based OAuth clients can discover the active server from `/.well-known/oauth-protected-resource/mcp`, then read its `/.well-known/oauth-authorization-server` document. Teak publishes first-party client IDs and the matching issuer at `/.well-known/teak-oauth-clients.json`. The shared SDK's `discoverAuthServer(siteUrl)` caches a validated result for up to 60 seconds; use `{ forceRefresh: true }` after sign-in or refresh failures. Discovery never sends an access token. For a cloud development backend with a local sign-in server, pass its explicit loopback origin as `localIssuer`; remote metadata cannot enable loopback access by itself.
 
-Request `https://teakvault.com/api` as the OAuth resource. REST requests require a Connect user access token with that exact audience, including in local development. AuthKit session tokens and tokens issued for `{{mcp-url}}` are rejected. Teak API keys remain supported.
+Request `https://teakvault.com/api` as the OAuth resource. REST requests require a Connect user access token with that exact audience, including in local development. AuthKit session tokens and tokens issued for `{{mcp-url}}` are rejected.
 
 ### Disconnect an OAuth connection
 
@@ -172,7 +172,7 @@ Bulk operations accept up to 100 items. Cursor-based listing and the card change
 | `/v1/cards/:cardId/restore` | Restore one card from Trash with POST |
 | `/v1/cards/:cardId/favorite` | Favorite or unfavorite one card |
 
-See `/openapi.json` or the [API Reference](/reference) for methods, parameters, schemas, and response examples.
+See the OpenAPI document at `https://teakvault.com/api/openapi.json` or the [API Reference](/reference) for methods, parameters, schemas, and response examples.
 
 ## Search and favorites
 

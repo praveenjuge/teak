@@ -68,7 +68,7 @@ Teak's MCP server supports two authentication methods.
   <Tab title="Browser sign-in">
     Spec-compliant MCP clients discover Teak's authorization server from `https://teakvault.com/.well-known/oauth-protected-resource/mcp`, open your browser to sign in, and store the resulting access token automatically. Teak's sign-in supports clients that identify themselves with a Client ID Metadata Document or register through dynamic client registration, and requires PKCE (S256). External clients show an approval screen with the requested access before Teak connects them. Access tokens are short-lived and refresh automatically.
 
-    When a deployment uses WorkOS, request `{{mcp-url}}` as the OAuth resource. The Connect access token must have that exact audience, including in local development. MCP rejects tokens issued for `https://teakvault.com/api`. Teak API keys remain supported.
+    Request `{{mcp-url}}` as the OAuth resource. The access token must have that exact audience, including in local development. MCP rejects tokens issued for `https://teakvault.com/api`.
 
     For example, with Claude:
 
@@ -76,13 +76,9 @@ Teak's MCP server supports two authentication methods.
     claude mcp add --transport http teak {{mcp-url}}
     ```
 
-    Start the MCP connection, then complete the browser sign-in when prompted.
+    Start the MCP connection, then complete the browser sign-in when prompted. If browser sign-in stops working, for example after Teak's October 7, 2026 sign-in update, remove Teak from your MCP client, add it again with the URL above, and sign in. Connections that use an API key keep working without changes.
 
-    :::warning[Connected before October 7, 2026?]
-    Teak's sign-in moved to a new provider, so browser sign-in connections made before then no longer work. Remove Teak from your MCP client, add it again with the URL above, and sign in. Connections that use an API key keep working without changes.
-    :::
-
-    You can revoke a connection at any time from Teak Settings → **Security** → **Connections**. Disconnecting an app revokes its access across all installations, including its refresh credentials. Every subsequent MCP request checks access again, even in an already-open client. API-key connections are managed under **Security** → **API keys**.
+    You can revoke a connection at any time from Teak **Settings → Security → Connected apps**. Disconnecting an app revokes its access across all installations, including its refresh credentials. Every subsequent MCP request checks access again, even in an already-open client. API-key connections are managed under **Security** → **API keys**.
 
     <Prompt
       description="Connect Claude Code to Teak MCP with browser sign-in."

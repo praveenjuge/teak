@@ -23,7 +23,7 @@ human set.
 
 | Owner | Values | Examples |
 | --- | --- | --- |
-| Convex dashboard | Backend runtime values | `SITE_URL`, `RESEND_API_KEY` |
+| Convex dashboard | Backend runtime values | `SITE_URL`, `KERNEL_API_KEY` |
 | Vercel | Web deployment values | `NEXT_PUBLIC_CONVEX_URL` |
 | EAS | Mobile values | `EXPO_PUBLIC_CONVEX_URL` |
 | Wrangler / Cloudflare | Worker vars, secrets, bindings | `FILES_SIGNING_SECRET`, `BUCKET` |

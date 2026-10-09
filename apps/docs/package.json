@@ -15,7 +15,7 @@
     "preview": "blume preview",
     "start": "blume preview",
     "test": "bun test lib --coverage --dots",
-    "typecheck": "bun run generate && blume check --strict",
+    "typecheck": "bun run generate && blume check --strict && blume validate --strict",
     "validate": "bun run generate && blume validate --strict"
   },
   "dependencies": {
