@@ -4,6 +4,6 @@ export interface ContextMenuSaveState {
   action?: ContextMenuAction;
   content?: string; // Content to be saved (internal use)
   error?: string;
-  status: "idle" | "saving" | "success" | "error";
+  status: "idle" | "saving" | "success" | "duplicate" | "error";
   timestamp?: number;
 }

@@ -47,12 +47,6 @@ describe("platformButtonLayout", () => {
       bottom: "auto",
       left: "auto",
     });
-    expect(getInlineSaveButtonPosition("webdesignernews")).toEqual({
-      top: "8px",
-      right: "8px",
-      bottom: "auto",
-      left: "auto",
-    });
     expect(getInlineSaveButtonPosition("heydesigner")).toEqual({
       top: "8px",
       right: "8px",

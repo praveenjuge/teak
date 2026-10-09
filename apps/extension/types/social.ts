@@ -4,7 +4,6 @@ export type Platform =
   | "pinterest"
   | "hackernews"
   | "sidebar"
-  | "webdesignernews"
   | "heydesigner";
 
 export type InlineSaveButtonVariant = "overlay" | "compact";
@@ -51,12 +50,6 @@ export const INLINE_SAVE_PLATFORM_RULES: Record<Platform, InlineSaveHostRule> =
     },
     sidebar: {
       hosts: ["sidebar.io"],
-      allowSubdomains: true,
-      buttonVariant: "compact",
-      permalinkPolicy: "external-http",
-    },
-    webdesignernews: {
-      hosts: ["webdesignernews.com"],
       allowSubdomains: true,
       buttonVariant: "compact",
       permalinkPolicy: "external-http",
