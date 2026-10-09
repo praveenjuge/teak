@@ -7,6 +7,23 @@ import {
 } from "@teak/files-protocol";
 import { isValidUploadKey } from "./upload";
 
+// Workers AI rejects audio it cannot decode (truncated or mislabeled
+// recordings) with error 3030. Retrying the same bytes cannot succeed.
+const AUDIO_DECODE_ERROR = /\b3030\b|failed to decode audio/iu;
+
+const isAudioDecodeError = (error: unknown): boolean => {
+  const code =
+    error && typeof error === "object"
+      ? (error as { code?: unknown }).code
+      : undefined;
+  if (code === 3030 || code === "3030") {
+    return true;
+  }
+  return AUDIO_DECODE_ERROR.test(
+    error instanceof Error ? error.message : String(error)
+  );
+};
+
 export async function transcribeAudio(
   env: {
     BUCKET: R2Bucket;
@@ -47,9 +64,17 @@ export async function transcribeAudio(
   }
   // The first-class AI binding streams the R2 body with its content type.
   // This preserves the 100 MiB upload limit without a base64 copy in memory.
-  const result = (await env.AI.run(FILES_TRANSCRIPTION_MODEL, {
-    audio: { body: source.body, contentType: mimeType },
-  })) as { text?: unknown };
+  let result: { text?: unknown };
+  try {
+    result = (await env.AI.run(FILES_TRANSCRIPTION_MODEL, {
+      audio: { body: source.body, contentType: mimeType },
+    })) as { text?: unknown };
+  } catch (error) {
+    if (isAudioDecodeError(error)) {
+      throw new Error("audio_decode_failed");
+    }
+    throw error;
+  }
   const text = result?.text ?? "";
   if (typeof text !== "string") {
     throw new Error("transcription_invalid_response");
