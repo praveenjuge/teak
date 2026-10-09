@@ -129,7 +129,10 @@ const isBundledNextFrame = (filename?: string) =>
   );
 
 // beforeSend runs before symbolication, so production React frames arrive as
-// bundled Next chunks rather than react-dom source paths.
+// bundled Next chunks rather than react-dom source paths. App code ships in
+// those chunks too and minified function names can't tell them apart, so any
+// production removeChild NotFoundError is dropped. Teak's only manual
+// removeChild is a download link it just appended (useCardModal).
 const isExternalDomMutation = (event: ErrorEvent) =>
   event.exception?.values?.some((exception) => {
     const frames = exception.stacktrace?.frames ?? [];

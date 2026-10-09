@@ -310,7 +310,7 @@ describe("filterClientSentryEvent", () => {
     expect(filterClientSentryEvent(event)).toBeNull();
   });
 
-  test("keeps DOM removal errors with an app frame", () => {
+  test("keeps DOM removal errors with an unbundled app frame", () => {
     const event = {
       exception: {
         values: [
