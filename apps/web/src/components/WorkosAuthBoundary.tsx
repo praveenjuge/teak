@@ -16,6 +16,22 @@ type Bootstrap =
   | { status: "verify_email" | "frozen" }
   | { status: "quarantined"; reason: string };
 
+const blockedMessages = {
+  verify_email: "Verify your email to open Teak.",
+  frozen: "Signups are paused. Your account hasn't been created.",
+  quarantined: "Your account isn't ready yet. Try again or contact support.",
+};
+
+const signInAgain = (next?: string) =>
+  window.location.replace(
+    next === undefined
+      ? "/sign-in"
+      : `/sign-in?next=${encodeURIComponent(next)}`
+  );
+
+// A linked owner opens the vault from getAuthUser alone. Only an identity
+// without a Teak owner yet runs the ensureUser bootstrap, which links or
+// creates the owner and reports why the vault stays closed.
 export function WorkosAuthBoundary({ children }: { children: ReactNode }) {
   const { user, sessionId, loading } = useAuth();
   const { error: tokenError, refresh } = useAccessToken();
@@ -30,6 +46,18 @@ export function WorkosAuthBoundary({ children }: { children: ReactNode }) {
     established.current !== null &&
     identity !== null &&
     established.current !== identity;
+  const signedIn = auth.isAuthenticated && identity !== null && !changed;
+  const profile = useQuery(api.auth.getAuthUser, signedIn ? {} : "skip");
+  // The first Teak owner this identity opened. A later profile for anyone
+  // else, or none at all, means the session changed under the open vault.
+  const [owner, setOwner] = useState<{
+    identity: string;
+    teakUserId: string;
+  } | null>(null);
+  if (profile && identity && owner?.identity !== identity) {
+    setOwner({ identity, teakUserId: profile._id });
+  }
+  const ownerId = owner?.identity === identity ? owner.teakUserId : null;
   const [bootstrap, setBootstrap] = useState<{
     identity: string;
     result: Bootstrap;
@@ -37,10 +65,16 @@ export function WorkosAuthBoundary({ children }: { children: ReactNode }) {
   const [failed, setFailed] = useState(false);
   const [attempt, setAttempt] = useState(0);
   const [timedOut, setTimedOut] = useState(false);
+  const needsBootstrap = signedIn && profile === null && ownerId === null;
+  const blocked =
+    bootstrap?.identity === identity && bootstrap.result.status !== "ok"
+      ? bootstrap.result.status
+      : null;
   const waiting =
     loading ||
     auth.isLoading ||
-    (auth.isAuthenticated && (!bootstrap || bootstrap.identity !== identity));
+    (signedIn &&
+      (profile === undefined || (needsBootstrap && blocked === null)));
   useEffect(() => {
     if (!waiting) {
       setTimedOut(false);
@@ -57,7 +91,7 @@ export function WorkosAuthBoundary({ children }: { children: ReactNode }) {
   // Retrying repeats the mutation even when the authenticated identity is unchanged.
   // biome-ignore lint/correctness/useExhaustiveDependencies: attempt is the explicit retry trigger.
   useEffect(() => {
-    if (!(auth.isAuthenticated && identity) || changed) {
+    if (!(needsBootstrap && identity)) {
       return;
     }
     let cancelled = false;
@@ -65,6 +99,9 @@ export function WorkosAuthBoundary({ children }: { children: ReactNode }) {
       .then((result) => {
         if (!cancelled) {
           setBootstrap({ identity, result });
+          if (result.status === "ok") {
+            setOwner({ identity, teakUserId: result.teakUserId });
+          }
           setFailed(false);
         }
       })
@@ -76,7 +113,7 @@ export function WorkosAuthBoundary({ children }: { children: ReactNode }) {
     return () => {
       cancelled = true;
     };
-  }, [auth.isAuthenticated, identity, changed, ensure, attempt]);
+  }, [needsBootstrap, identity, ensure, attempt]);
   if (tokenError || failed) {
     return (
       <AuthUnavailable
@@ -102,74 +139,39 @@ export function WorkosAuthBoundary({ children }: { children: ReactNode }) {
       <AuthUnavailable
         message="Please sign in again."
         retry={() =>
-          window.location.replace(
-            `/login?next=${encodeURIComponent(window.location.pathname + window.location.search)}`
-          )
+          signInAgain(window.location.pathname + window.location.search)
         }
       />
     );
   }
-  if (!bootstrap || bootstrap.identity !== identity) {
+  if (profile === undefined) {
     return <Loading />;
   }
-  if (bootstrap.result.status !== "ok") {
-    const message = {
-      verify_email: "Verify your email to open Teak.",
-      frozen: "Signups are paused. Your account hasn't been created.",
-      quarantined:
-        "Your account isn't ready yet. Try again or contact support.",
-    }[bootstrap.result.status];
-    return (
-      <div
-        className="mx-auto grid max-w-sm gap-4 p-6 text-center"
-        role="status"
-      >
-        <p>{message}</p>
-        <Button onClick={() => setAttempt((n) => n + 1)}>Try again</Button>
-        <Button onClick={() => void signOutWorkos()} variant="ghost">
-          Sign out
-        </Button>
-      </div>
-    );
-  }
-  return (
-    <WorkosVault teakUserId={bootstrap.result.teakUserId}>
-      {children}
-    </WorkosVault>
-  );
-}
-
-function WorkosVault({
-  children,
-  teakUserId,
-}: {
-  children: ReactNode;
-  teakUserId: string;
-}) {
-  const profile = useQuery(api.auth.getAuthUser, {});
-  const [timedOut, setTimedOut] = useState(false);
-  useEffect(() => {
-    if (profile !== undefined) {
-      setTimedOut(false);
-      return;
-    }
-    const timeout = window.setTimeout(() => setTimedOut(true), 10_000);
-    return () => window.clearTimeout(timeout);
-  }, [profile]);
-  if (profile === undefined) {
-    return timedOut ? <AuthUnavailable /> : <Loading />;
-  }
-  if (!profile || profile._id !== teakUserId) {
+  if (ownerId !== null && profile?._id !== ownerId) {
     return (
       <AuthUnavailable
         message="Your session changed. Please sign in again."
-        retry={() => window.location.replace("/login")}
+        retry={() => signInAgain()}
       />
     );
   }
+  if (profile) {
+    return (
+      <ConvexQueryCacheProvider key={profile._id}>
+        {children}
+      </ConvexQueryCacheProvider>
+    );
+  }
+  if (blocked === null) {
+    return <Loading />;
+  }
   return (
-    <ConvexQueryCacheProvider key={teakUserId}>
-      {children}
-    </ConvexQueryCacheProvider>
+    <div className="mx-auto grid max-w-sm gap-4 p-6 text-center" role="status">
+      <p>{blockedMessages[blocked]}</p>
+      <Button onClick={() => setAttempt((n) => n + 1)}>Try again</Button>
+      <Button onClick={() => void signOutWorkos()} variant="ghost">
+        Sign out
+      </Button>
+    </div>
   );
 }

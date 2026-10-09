@@ -8,11 +8,15 @@ import {
   useAuth,
 } from "@workos-inc/authkit-nextjs/components";
 import { ConvexProviderWithAuth, ConvexReactClient } from "convex/react";
-import { type ReactNode, useCallback, useEffect, useState } from "react";
-import Loading from "@/app/loading";
+import { type ReactNode, useCallback } from "react";
 import { getConvexUrl } from "@/lib/public-env";
 
-const convexUrl = getConvexUrl();
+// One client for the page's lifetime, created before the first render so the
+// socket opens without waiting for an effect. The client is lazy, so server
+// rendering never connects. It is never closed: React replays effects in
+// development and hides routes with Activity, and closing a client that
+// mounted auth or subscription effects still use would break them.
+const convex = new ConvexReactClient(getConvexUrl(), { expectAuth: true });
 
 export default function ConvexClientProvider({
   children,
@@ -21,21 +25,6 @@ export default function ConvexClientProvider({
   children: ReactNode;
   initialAuth?: Omit<UserInfo | NoUserInfo, "accessToken">;
 }) {
-  const [convex, setConvex] = useState<ConvexReactClient | null>(null);
-  useEffect(() => {
-    const client = new ConvexReactClient(convexUrl, { expectAuth: true });
-    setConvex(client);
-    return () => {
-      // Auth and subscription effects must detach before the client closes.
-      // Each effect setup owns a fresh client, including development replay.
-      queueMicrotask(() => {
-        void client.close();
-      });
-    };
-  }, []);
-  if (!convex) {
-    return <Loading />;
-  }
   return (
     <AuthKitProvider initialAuth={initialAuth}>
       <ConvexProviderWithAuth client={convex} useAuth={useAuthFromAuthKit}>
