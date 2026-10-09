@@ -34,6 +34,17 @@ export async function startWorkosAuth(
   if (origin !== config.origin) {
     return new Response("Invalid sign-in origin.", { status: 400 });
   }
+  // A Next.js router fetch (`RSC: 1`) lands here by following the proxy's
+  // sign-in redirect: a prefetch or navigation without a session, as right
+  // after sign-out. It can't follow a redirect to hosted AuthKit, because
+  // connect-src blocks the cross-origin hop. An empty response makes Next.js
+  // drop a prefetch and load a navigation as a full page, which redirects.
+  if (request.headers.get("rsc") === "1") {
+    return new Response(null, {
+      status: 204,
+      headers: { "Cache-Control": "no-store" },
+    });
+  }
   const params = request.nextUrl.searchParams;
   const options = {
     returnTo: getSafeNextPath(params.get("next")) ?? "/",

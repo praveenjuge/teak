@@ -54,8 +54,8 @@ function serveRoute(userland: unknown, pathname: string) {
     resolvedPagePath: "",
     nextConfigOutput: undefined,
   } as never);
-  return (url: string) =>
-    module.handle(new NextRequest(url), {
+  return (url: string, headers?: HeadersInit) =>
+    module.handle(new NextRequest(url, { headers }), {
       renderOpts: { experimental: {}, supportsDynamicResponse: true },
       sharedContext: { buildId: "test" },
     } as never);
@@ -142,6 +142,23 @@ describe("WorkOS Initiate login URI", () => {
       assertWorkosCallbackBinding(sealed.customState, "client_other")
     ).toThrow("Sign-in changed. Please start again.");
   });
+  // Next.js router fetches follow the proxy redirect to here, and connect-src
+  // blocks their next hop to AuthKit. They must get an empty answer instead.
+  test.each([
+    ["sign-in", () => signIn],
+    ["sign-up", () => signUp],
+  ])(
+    "answers a router fetch to %s without starting AuthKit",
+    async (screen, route) => {
+      const response = await route()(
+        `http://localhost:3142/${screen}?next=%2F`,
+        { rsc: "1", "next-router-prefetch": "1" }
+      );
+      expect(response.status).toBe(204);
+      expect(response.headers.get("location")).toBeNull();
+      expect(pkceCookies(response)).toEqual([]);
+    }
+  );
   test("denies sign-in outside the configured callback origin", async () => {
     const response = await signIn("https://evil.example/sign-in");
     expect(response.status).toBe(400);
