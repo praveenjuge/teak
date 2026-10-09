@@ -354,7 +354,11 @@ function AuthenticatedPopup({
       setFileUpload({ fileName, state: "success" });
       return;
     }
-    fail(result.status === "error" ? result.message : "File is already saved.");
+    if (result.status === "duplicate") {
+      setFileUpload({ fileName, state: "duplicate" });
+      return;
+    }
+    fail(result.message);
   };
 
   const handleSignOut = async () => {

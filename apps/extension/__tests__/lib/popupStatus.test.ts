@@ -94,6 +94,17 @@ describe("getPopupStatus", () => {
     ).toMatchObject({ autoClose: true, title: "File saved" });
   });
 
+  test("shows a picked file already in the library as already saved", () => {
+    expect(
+      status({ fileUpload: { fileName: "notes.pdf", state: "duplicate" } })
+    ).toEqual({
+      autoClose: false,
+      detail: "notes.pdf",
+      title: "Already in your Teak",
+      tone: "existing",
+    });
+  });
+
   test("keeps a failed upload's reason on screen", () => {
     expect(
       status({

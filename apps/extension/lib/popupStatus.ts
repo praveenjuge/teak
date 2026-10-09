@@ -5,7 +5,12 @@ import type { TeakSaveResponse } from "../types/messages";
 // Matches CARD_LIMIT_REACHED in packages/convex/shared/constants.ts.
 const CARD_LIMIT_REACHED_CODE = "CARD_LIMIT_REACHED";
 
-export type FileUploadState = "error" | "idle" | "saving" | "success";
+export type FileUploadState =
+  | "duplicate"
+  | "error"
+  | "idle"
+  | "saving"
+  | "success";
 
 export type PopupTone =
   | "error"
@@ -91,6 +96,13 @@ export function getPopupStatus({
         detail: fileUpload.fileName,
         title: "File saved",
         tone: "success",
+      };
+    case "duplicate":
+      return {
+        autoClose: false,
+        detail: fileUpload.fileName,
+        title: ALREADY_SAVED_TITLE,
+        tone: "existing",
       };
     case "error":
       return errorStatus("Couldn't upload file", fileUpload.error);
