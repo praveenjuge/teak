@@ -37,11 +37,13 @@ function planOptions(monthlyPlanId: string, yearlyPlanId: string) {
 }
 
 export function SubscriptionSection({
+  disabled = false,
   monthlyPlanId,
   onSelect,
   selectedPlanId,
   yearlyPlanId,
 }: Pick<SubscriptionSectionProps, "monthlyPlanId" | "yearlyPlanId"> & {
+  disabled?: boolean;
   onSelect: (planId: string) => void;
   selectedPlanId: string;
 }) {
@@ -55,6 +57,8 @@ export function SubscriptionSection({
           <PlanOption
             key={plan.planId}
             {...plan}
+            // Locked while checkout opens, so the card shown is the plan bought.
+            disabled={disabled}
             onSelect={onSelect}
             selected={selectedPlanId === plan.planId}
           />
@@ -126,6 +130,7 @@ export function SubscriptionDialog({
     >
       <SettingsDialogBody>
         <SubscriptionSection
+          disabled={loading}
           monthlyPlanId={monthlyPlanId}
           onSelect={setSelectedPlanId}
           selectedPlanId={selectedPlanId}

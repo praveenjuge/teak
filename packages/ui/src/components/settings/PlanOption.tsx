@@ -2,6 +2,7 @@ import { cn } from "../../lib/utils";
 
 interface PlanOptionProps {
   badge?: string;
+  disabled?: boolean;
   intervalLabel: string;
   onSelect: (planId: string) => void;
   planId: string;
@@ -16,6 +17,7 @@ export function PlanOption({
   priceAmount,
   intervalLabel,
   badge,
+  disabled = false,
   selected,
   onSelect,
 }: PlanOptionProps) {
@@ -26,13 +28,14 @@ export function PlanOption({
   return (
     <label
       className={cn(
-        "relative flex cursor-pointer flex-col gap-3 rounded-xl border p-4 text-left transition-[border-color,box-shadow] hover:border-foreground/30 has-[:focus-visible]:ring-[3px] has-[:focus-visible]:ring-ring/50",
+        "relative flex cursor-pointer flex-col gap-3 rounded-xl border p-4 text-left transition-[border-color,box-shadow] hover:border-foreground/30 has-[:disabled]:cursor-default has-[:disabled]:opacity-60 has-[:focus-visible]:ring-[3px] has-[:focus-visible]:ring-ring/50",
         selected && "border-primary ring-1 ring-primary hover:border-primary"
       )}
     >
       <input
         checked={selected}
         className="sr-only"
+        disabled={disabled}
         name="plan"
         onChange={() => onSelect(planId)}
         type="radio"

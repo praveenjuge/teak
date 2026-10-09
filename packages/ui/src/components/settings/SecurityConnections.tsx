@@ -104,7 +104,7 @@ function ConnectionList({
                   </span>
                 ) : null}
               </div>
-              <p className="truncate text-muted-foreground text-xs leading-5">
+              <p className="text-muted-foreground text-xs leading-5">
                 {row.detail} {dateFormatter.format(row.date)}
                 {row.lastUsedAt
                   ? ` · Last used ${dateFormatter.format(row.lastUsedAt)}`

@@ -16,14 +16,17 @@ afterEach(async () => {
   document.body.innerHTML = "";
 });
 
-async function renderDialog(onCheckout: (planId: string) => void) {
+async function renderDialog(
+  onCheckout: (planId: string) => void,
+  loadingPlanId: string | null = null
+) {
   const container = document.createElement("div");
   document.body.append(container);
   root = createRoot(container);
   await act(() =>
     root?.render(
       <SubscriptionDialog
-        loadingPlanId={null}
+        loadingPlanId={loadingPlanId}
         monthlyPlanId="plan_monthly"
         onCheckout={onCheckout}
         onOpenChange={() => undefined}
@@ -56,4 +59,14 @@ test("checks out the yearly plan unless another plan is picked", async () => {
   await act(() => monthly?.click());
   await act(() => button("Continue to checkout").click());
   expect(onCheckout).toHaveBeenLastCalledWith("plan_monthly");
+});
+
+test("locks the plan choice while checkout is opening", async () => {
+  await renderDialog(() => undefined, "plan_yearly");
+
+  const radios = [
+    ...document.querySelectorAll<HTMLInputElement>('input[type="radio"]'),
+  ];
+  expect(radios).toHaveLength(2);
+  expect(radios.every((radio) => radio.disabled)).toBe(true);
 });
