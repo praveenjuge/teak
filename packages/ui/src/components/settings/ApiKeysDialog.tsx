@@ -1,9 +1,15 @@
-import { Copy, RotateCw, Trash2 } from "lucide-react";
+import { Copy, KeyRound, RotateCw, Trash2 } from "lucide-react";
 import { useRef, useState } from "react";
 import { Button } from "../ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "../ui/dialog";
 import { Input } from "../ui/input";
 import { Spinner } from "../ui/spinner";
+import {
+  SettingsEmptyState,
+  SettingsIconTile,
+  SettingsList,
+  SettingsListSkeleton,
+} from "./SettingsDialog";
 
 export interface ApiKeyListItem {
   createdAt: number;
@@ -64,17 +70,24 @@ function ApiKeyRow({
     .join(", ");
   const canRotate = item.status === "active" || item.status === "disabled";
   return (
-    <li className="flex items-center justify-between gap-3 py-3">
-      <div className="min-w-0 space-y-1">
+    <li className="flex items-center gap-3 px-4 py-3">
+      <SettingsIconTile icon={KeyRound} />
+      <div className="min-w-0 flex-1">
         {name ? <p className="truncate font-medium text-sm">{name}</p> : null}
-        <p className="truncate font-mono text-muted-foreground text-xs">
+        <p
+          className={
+            name
+              ? "truncate font-mono text-muted-foreground text-xs leading-5"
+              : "truncate font-mono text-[13px] leading-5"
+          }
+        >
           {item.maskedKey}
         </p>
-        <p className="text-muted-foreground text-xs">
+        <p className="text-muted-foreground text-xs leading-5">
           Created {dateFormatter.format(item.createdAt)}
         </p>
       </div>
-      <div className="flex shrink-0 items-center gap-1">
+      <div className="flex shrink-0 items-center text-muted-foreground">
         {canRotate ? (
           <Button
             aria-label={`Regenerate ${identity}`}
@@ -104,11 +117,17 @@ function ApiKeyRow({
 
 function RevealedKey({ value, onCopy }: { value: string; onCopy: () => void }) {
   return (
-    <div className="space-y-2">
+    <div className="space-y-3 rounded-xl border bg-muted/40 p-4">
       <p className="font-medium text-sm">Copy your new key now</p>
       <div className="flex gap-2">
-        <Input aria-label="New API key" readOnly value={value} />
-        <Button onClick={onCopy} size="sm" variant="secondary">
+        <Input
+          aria-label="New API key"
+          className="bg-background font-mono md:text-xs"
+          onFocus={(event) => event.currentTarget.select()}
+          readOnly
+          value={value}
+        />
+        <Button onClick={onCopy} variant="outline">
           <Copy />
           Copy
         </Button>
@@ -190,36 +209,27 @@ export function ApiKeysPanel({
   };
 
   return (
-    <div className="space-y-3 pt-2">
-      <div className="flex items-center gap-2">
+    <div className="space-y-4">
+      <div className="flex items-start justify-between gap-4">
+        <p className="text-muted-foreground text-xs leading-5">
+          Keys have full access to your library. You can keep up to 10 active
+          keys.
+        </p>
         <Button
+          className="shrink-0"
           disabled={isLoading || busy !== null}
           onClick={() => void create()}
           size="sm"
         >
           {busy === "create" ? <Spinner /> : null}Create key
         </Button>
-        {onRevokeAllKeys && keys?.length ? (
-          <Button
-            disabled={busy !== null}
-            onClick={() => void revokeAll()}
-            size="sm"
-            variant="ghost"
-          >
-            {busy === "all" ? <Spinner /> : null}Revoke all keys
-          </Button>
-        ) : null}
       </div>
-      <p className="text-muted-foreground text-xs">
-        Keys have full access to your library. You can keep up to 10 active
-        keys.
-      </p>
       {feedback ? (
         <p
           className={
             feedback.error
-              ? "text-destructive text-sm"
-              : "text-muted-foreground text-sm"
+              ? "text-destructive text-xs leading-5"
+              : "text-muted-foreground text-xs leading-5"
           }
           role={feedback.error ? "alert" : "status"}
         >
@@ -230,43 +240,55 @@ export function ApiKeysPanel({
         <RevealedKey onCopy={() => void copy()} value={revealedKey.key} />
       ) : null}
       {isLoading ? (
-        <p className="flex items-center gap-2 py-6 text-muted-foreground text-sm">
-          <Spinner />
-          Loading API keys…
-        </p>
+        <SettingsListSkeleton label="Loading API keys…" rows={2} />
       ) : null}
       {!isLoading && keys?.length === 0 ? (
-        <p className="py-6 text-muted-foreground text-sm">
+        <SettingsEmptyState>
           Create your first API key to connect external tools.
-        </p>
+        </SettingsEmptyState>
       ) : null}
-      <ul className="divide-y">
-        {keys?.map((item) => (
-          <ApiKeyRow
-            busy={busy === item.id}
+      {keys?.length ? (
+        <SettingsList>
+          {keys.map((item) => (
+            <ApiKeyRow
+              busy={busy === item.id}
+              disabled={busy !== null}
+              item={item}
+              key={item.id}
+              onRevoke={() =>
+                void perform(item.id, async () => {
+                  await onRevokeKey(item.id);
+                  setRevealedKey(null);
+                  return "API key revoked.";
+                })
+              }
+              onRotate={() =>
+                void perform(item.id, async () => {
+                  const key = await onRotateKey(item.id);
+                  if (!key) {
+                    throw new Error("No API key returned");
+                  }
+                  setRevealedKey(key);
+                  return "API key regenerated. Copy the new key now.";
+                })
+              }
+            />
+          ))}
+        </SettingsList>
+      ) : null}
+      {onRevokeAllKeys && keys?.length ? (
+        <div className="flex justify-end">
+          <Button
+            className="text-destructive hover:bg-destructive/10 hover:text-destructive"
             disabled={busy !== null}
-            item={item}
-            key={item.id}
-            onRevoke={() =>
-              void perform(item.id, async () => {
-                await onRevokeKey(item.id);
-                setRevealedKey(null);
-                return "API key revoked.";
-              })
-            }
-            onRotate={() =>
-              void perform(item.id, async () => {
-                const key = await onRotateKey(item.id);
-                if (!key) {
-                  throw new Error("No API key returned");
-                }
-                setRevealedKey(key);
-                return "API key regenerated. Copy the new key now.";
-              })
-            }
-          />
-        ))}
-      </ul>
+            onClick={() => void revokeAll()}
+            size="sm"
+            variant="ghost"
+          >
+            {busy === "all" ? <Spinner /> : null}Revoke all keys
+          </Button>
+        </div>
+      ) : null}
     </div>
   );
 }

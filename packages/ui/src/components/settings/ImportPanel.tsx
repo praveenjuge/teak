@@ -15,26 +15,23 @@ import { useAction } from "convex/react";
 import {
   Archive,
   Bookmark,
+  ChevronRight,
   Copy,
   Download,
   Droplet,
   FileText,
+  type LucideIcon,
   Upload,
   X,
 } from "lucide-react";
-import {
-  type ChangeEvent,
-  type ComponentType,
-  useEffect,
-  useRef,
-  useState,
-} from "react";
+import { type ChangeEvent, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { useQuery } from "../../convexQueryHooks";
 import { Button } from "../ui/button";
 import { Spinner } from "../ui/spinner";
 import { formatBytes, formatRelativeTime } from "./importExportFormat";
 import { putParts, type UploadPlan } from "./importUpload";
+import { SettingsIconTile } from "./SettingsDialog";
 
 type ImportMode = "bookmarks" | "archive" | "raindrop";
 
@@ -70,7 +67,7 @@ const MODE_META: Record<
   {
     accept: string;
     hint: string;
-    icon: ComponentType<{ className?: string }>;
+    icon: LucideIcon;
     maxBytes: number;
     title: string;
     typeLabel: string;
@@ -181,7 +178,10 @@ export function ImportProgressSummary({
   ].filter((count) => count.value > 0);
 
   return (
-    <div aria-live="polite" className="min-w-0 space-y-2.5 border-t pt-3">
+    <div
+      aria-live="polite"
+      className="min-w-0 space-y-2.5 rounded-xl border p-4"
+    >
       <div className="flex items-center gap-2">
         {active ? <Spinner className="size-4" /> : null}
         <span className="font-medium">{job.phase}</span>
@@ -506,21 +506,18 @@ export function ImportPanel({ onActiveChange }: ImportPanelProps) {
   return (
     <div className="min-w-0 space-y-4 text-sm">
       {pending ? (
-        <div className="space-y-3">
+        <div className="space-y-4 rounded-xl border p-4">
           <div className="flex min-w-0 items-center gap-3">
-            <FileText className="size-5 shrink-0 text-muted-foreground" />
+            <SettingsIconTile icon={FileText} />
             <div className="min-w-0">
               <div className="truncate font-medium">{pending.file.name}</div>
-              <div className="text-muted-foreground">
+              <div className="text-muted-foreground text-xs leading-5">
                 {MODE_META[pending.mode].typeLabel} ·{" "}
                 {formatBytes(pending.file.size)}
               </div>
             </div>
           </div>
-          <div className="flex gap-2">
-            <Button onClick={confirmPending} size="sm">
-              {isResuming ? "Resume upload" : "Start import"}
-            </Button>
+          <div className="flex gap-2 *:flex-1">
             <Button
               onClick={() => setPending(null)}
               size="sm"
@@ -528,30 +525,33 @@ export function ImportPanel({ onActiveChange }: ImportPanelProps) {
             >
               Cancel
             </Button>
+            <Button onClick={confirmPending} size="sm">
+              {isResuming ? "Resume upload" : "Start import"}
+            </Button>
           </div>
         </div>
       ) : null}
 
       {showModes ? (
-        <div className="space-y-1">
+        <div className="divide-y overflow-hidden rounded-xl border">
           {MODE_ORDER.map((mode) => {
             const meta = MODE_META[mode];
-            const Icon = meta.icon;
             return (
               <button
-                className="-mx-2 flex w-full items-center gap-3 rounded-xl px-2 py-2.5 text-left hover:bg-muted disabled:opacity-50"
+                className="group flex w-full items-center gap-3 px-4 py-3 text-left outline-none transition-colors hover:bg-muted/60 focus-visible:bg-muted/60 disabled:opacity-50"
                 disabled={active}
                 key={mode}
                 onClick={() => inputRefs[mode].current?.click()}
                 type="button"
               >
-                <Icon className="size-4 shrink-0 text-muted-foreground" />
-                <span className="min-w-0">
+                <SettingsIconTile icon={meta.icon} />
+                <span className="min-w-0 flex-1">
                   <span className="block font-medium">{meta.title}</span>
-                  <span className="block text-muted-foreground">
+                  <span className="block text-muted-foreground text-xs leading-5">
                     {meta.hint}
                   </span>
                 </span>
+                <ChevronRight className="size-4 shrink-0 text-muted-foreground transition-transform group-hover:translate-x-0.5" />
               </button>
             );
           })}
@@ -559,7 +559,7 @@ export function ImportPanel({ onActiveChange }: ImportPanelProps) {
       ) : null}
 
       {isResuming && !(active || pending) ? (
-        <div className="space-y-2">
+        <div className="space-y-2 rounded-xl border p-4">
           <div className="font-medium">Upload interrupted</div>
           <div className="text-muted-foreground">
             Choose the same {MODE_META[job.mode].typeLabel} file to resume where
@@ -610,7 +610,7 @@ export function ImportPanel({ onActiveChange }: ImportPanelProps) {
       ) : null}
 
       {showIdle ? (
-        <div className="flex min-w-0 items-center gap-2 border-t pt-3 text-muted-foreground">
+        <div className="flex min-w-0 items-center gap-2 text-muted-foreground text-xs leading-5">
           {lastLoading ? <Spinner className="size-4" /> : null}
           <span className="min-w-0 break-words">
             {lastLoading ? "Loading last import details…" : lastText}

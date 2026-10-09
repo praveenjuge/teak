@@ -147,7 +147,7 @@ export function ExportPanel({
   };
 
   const avatarClass =
-    "flex size-9 shrink-0 items-center justify-center rounded-full bg-muted text-muted-foreground";
+    "flex size-9 shrink-0 items-center justify-center rounded-xl border bg-background text-muted-foreground shadow-xs";
 
   let activeTitle = "Preparing your export…";
   let activeSubtitle = "This keeps running in the background.";
@@ -170,8 +170,8 @@ export function ExportPanel({
   let body: ReactNode;
   if (isLoading) {
     body = (
-      <div className="flex items-center justify-center py-6">
-        <Spinner />
+      <div className="flex min-h-24 items-center justify-center">
+        <Spinner className="text-muted-foreground" />
       </div>
     );
   } else if (isActive) {
@@ -183,13 +183,15 @@ export function ExportPanel({
         <div className="min-w-0 flex-1 space-y-2.5">
           <div className="space-y-0.5">
             <div className="font-medium">{activeTitle}</div>
-            <div className="text-muted-foreground">{activeSubtitle}</div>
+            <div className="text-muted-foreground text-xs leading-5">
+              {activeSubtitle}
+            </div>
           </div>
           <Button
             disabled={isBusy}
             onClick={handleCancel}
             size="sm"
-            variant="destructive"
+            variant="outline"
           >
             {isBusy ? <Spinner /> : "Cancel export"}
           </Button>
@@ -200,12 +202,12 @@ export function ExportPanel({
     body = (
       <div className="flex items-start gap-3">
         <span className={avatarClass}>
-          <CircleCheck className="size-4 text-foreground" />
+          <CircleCheck className="size-4 text-emerald-600 dark:text-emerald-400" />
         </span>
         <div className="min-w-0 flex-1 space-y-2.5">
           <div className="space-y-0.5">
             <div className="font-medium">Your export is ready</div>
-            <div className="text-muted-foreground">
+            <div className="text-muted-foreground text-xs leading-5">
               <span>{job.cardCount ?? 0} cards</span>
               {typeof job.artifactBytes === "number" ? (
                 <span> · {formatBytes(job.artifactBytes)}</span>
@@ -237,11 +239,11 @@ export function ExportPanel({
         <div className="min-w-0 flex-1 space-y-2.5">
           <div className="space-y-0.5">
             <div className="font-medium">Export your data</div>
-            <p className="text-muted-foreground">
+            <p className="text-muted-foreground text-xs leading-5">
               A ZIP of your active cards and their original files.
             </p>
           </div>
-          <div className="space-y-1.5">
+          <div className="space-y-2">
             {canStartNew ? (
               <Button disabled={isBusy} onClick={handleStart} size="sm">
                 {isBusy ? <Spinner /> : "Start export"}
@@ -256,12 +258,14 @@ export function ExportPanel({
                 Available in {formatCountdown(remainingMs)}
               </Button>
             )}
-            <p className="text-muted-foreground">{idleCaption}</p>
+            <p className="text-muted-foreground text-xs leading-5">
+              {idleCaption}
+            </p>
           </div>
         </div>
       </div>
     );
   }
 
-  return <div className="text-sm">{body}</div>;
+  return <div className="rounded-xl border p-4 text-sm">{body}</div>;
 }

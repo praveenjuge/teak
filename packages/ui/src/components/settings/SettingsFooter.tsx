@@ -1,5 +1,6 @@
+import { cn } from "../../lib/utils";
 import Logo from "../../logo";
-import { Button } from "../ui/button";
+import { Button, buttonVariants } from "../ui/button";
 
 interface SettingsFooterProps {
   email?: string;
@@ -43,7 +44,13 @@ export function SettingsFooter({
             delete your account
           </Button>
         ) : (
-          <a className="font-medium text-primary" href="/settings">
+          <a
+            className={cn(
+              buttonVariants({ size: "sm", variant: "link" }),
+              "h-auto p-0"
+            )}
+            href="/settings"
+          >
             delete your account
           </a>
         )}

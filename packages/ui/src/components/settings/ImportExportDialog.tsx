@@ -1,15 +1,16 @@
 "use client";
 
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from "../ui/dialog";
+import { ArrowDownUp } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../ui/tabs";
 import { ExportPanel, type ExportState } from "./ExportPanel";
 import { ImportPanel } from "./ImportPanel";
+import {
+  SettingsDialog,
+  settingsTabsClassName,
+  settingsTabsContentClassName,
+  settingsTabsListClassName,
+  settingsTabsTriggerClassName,
+} from "./SettingsDialog";
 
 interface ImportExportDialogProps {
   exportLoading: boolean;
@@ -33,35 +34,37 @@ export function ImportExportDialog({
   open,
 }: ImportExportDialogProps) {
   return (
-    <Dialog onOpenChange={onOpenChange} open={open}>
-      <DialogContent className="max-h-[85vh] min-w-0 gap-4 overflow-y-auto overflow-x-hidden p-4 sm:max-w-lg">
-        <DialogHeader className="gap-1">
-          <DialogTitle>Manage Data</DialogTitle>
-          <DialogDescription>
-            Import or export your Teak data.
-          </DialogDescription>
-        </DialogHeader>
+    <SettingsDialog
+      className="sm:h-[min(88dvh,36rem)] sm:max-w-lg"
+      description="Bring cards in from other tools, or take a full copy with you."
+      icon={ArrowDownUp}
+      onOpenChange={onOpenChange}
+      open={open}
+      title="Manage data"
+    >
+      <Tabs className={settingsTabsClassName} defaultValue="import">
+        <TabsList className={settingsTabsListClassName}>
+          <TabsTrigger className={settingsTabsTriggerClassName} value="import">
+            Import
+          </TabsTrigger>
+          <TabsTrigger className={settingsTabsTriggerClassName} value="export">
+            Export
+          </TabsTrigger>
+        </TabsList>
 
-        <Tabs className="min-w-0" defaultValue="import">
-          <TabsList className="w-full">
-            <TabsTrigger value="import">Import</TabsTrigger>
-            <TabsTrigger value="export">Export</TabsTrigger>
-          </TabsList>
-
-          <TabsContent className="min-w-0 pt-4" value="import">
-            <ImportPanel onActiveChange={onImportActiveChange} />
-          </TabsContent>
-          <TabsContent className="min-w-0 pt-4" value="export">
-            <ExportPanel
-              exportState={exportState}
-              isLoading={exportLoading}
-              onCancelExport={onCancelExport}
-              onDownloadExport={onDownloadExport}
-              onStartExport={onStartExport}
-            />
-          </TabsContent>
-        </Tabs>
-      </DialogContent>
-    </Dialog>
+        <TabsContent className={settingsTabsContentClassName} value="import">
+          <ImportPanel onActiveChange={onImportActiveChange} />
+        </TabsContent>
+        <TabsContent className={settingsTabsContentClassName} value="export">
+          <ExportPanel
+            exportState={exportState}
+            isLoading={exportLoading}
+            onCancelExport={onCancelExport}
+            onDownloadExport={onDownloadExport}
+            onStartExport={onStartExport}
+          />
+        </TabsContent>
+      </Tabs>
+    </SettingsDialog>
   );
 }

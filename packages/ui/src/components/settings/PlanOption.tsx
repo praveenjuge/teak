@@ -1,16 +1,12 @@
-import { ArrowRight } from "lucide-react";
 import { cn } from "../../lib/utils";
-import { Badge } from "../ui/badge";
-import { buttonVariants } from "../ui/button";
-import { Spinner } from "../ui/spinner";
 
 interface PlanOptionProps {
   badge?: string;
   intervalLabel: string;
-  isLoading: boolean;
-  onCheckout: (planId: string) => void;
+  onSelect: (planId: string) => void;
   planId: string;
   priceAmount: number;
+  selected: boolean;
   title: string;
 }
 
@@ -20,48 +16,53 @@ export function PlanOption({
   priceAmount,
   intervalLabel,
   badge,
-  isLoading,
-  onCheckout,
+  selected,
+  onSelect,
 }: PlanOptionProps) {
   const formattedPrice = priceAmount
-    ? `${(priceAmount / 100).toLocaleString()}$`
+    ? `$${(priceAmount / 100).toLocaleString()}`
     : "--";
 
   return (
-    <div className="relative flex w-full flex-col justify-between gap-4 overflow-hidden rounded-2xl border bg-background p-5 text-left">
-      {badge && (
-        <Badge className="absolute top-0 right-0 rounded-none rounded-bl-xl px-3">
-          {badge}
-        </Badge>
+    <label
+      className={cn(
+        "relative flex cursor-pointer flex-col gap-3 rounded-xl border p-4 text-left transition-[border-color,box-shadow] hover:border-foreground/30 has-[:focus-visible]:ring-[3px] has-[:focus-visible]:ring-ring/50",
+        selected && "border-primary ring-1 ring-primary hover:border-primary"
       )}
-      <p className="font-medium text-muted-foreground">{title}</p>
-      <div className="flex items-end justify-between">
-        <div className="flex items-end gap-2">
-          <p className="font-semibold text-4xl text-foreground">
-            {formattedPrice}
-          </p>
-          <p className="pb-1 text-muted-foreground">{intervalLabel}</p>
-        </div>
-
-        <button
+    >
+      <input
+        checked={selected}
+        className="sr-only"
+        name="plan"
+        onChange={() => onSelect(planId)}
+        type="radio"
+        value={planId}
+      />
+      <span className="flex items-center justify-between gap-2">
+        <span className="font-medium text-sm">{title}</span>
+        <span
+          aria-hidden
           className={cn(
-            buttonVariants({
-              variant: "outline",
-            })
+            "flex size-4 shrink-0 items-center justify-center rounded-full border",
+            selected && "border-primary bg-primary"
           )}
-          disabled={isLoading}
-          onClick={() => onCheckout(planId)}
-          type="button"
         >
-          {isLoading ? (
-            <Spinner />
-          ) : (
-            <span className="flex items-center gap-2">
-              Continue <ArrowRight className="size-4" />
-            </span>
-          )}
-        </button>
-      </div>
-    </div>
+          {selected ? (
+            <span className="size-1.5 rounded-full bg-primary-foreground" />
+          ) : null}
+        </span>
+      </span>
+      <span className="flex items-baseline gap-1">
+        <span className="font-semibold text-2xl text-foreground tracking-tight sm:text-3xl">
+          {formattedPrice}
+        </span>
+        <span className="text-muted-foreground text-sm">{intervalLabel}</span>
+      </span>
+      {badge ? (
+        <span className="w-fit rounded-md bg-primary/10 px-2 py-0.5 font-medium text-[11px] text-primary leading-4 sm:rounded-full sm:text-xs">
+          {badge}
+        </span>
+      ) : null}
+    </label>
   );
 }
