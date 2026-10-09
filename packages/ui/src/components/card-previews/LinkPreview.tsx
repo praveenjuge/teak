@@ -5,6 +5,7 @@ import {
 } from "@teak/convex/shared/utils/safeUrl";
 import { ArrowUpRight } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
+import { ResilientMediaImage } from "../cards/previews/ResilientMediaImage";
 
 // Format long whole numbers (e.g. review counts) with thousands separators for
 // readability. Values with 5+ digits are formatted so years like "2024" and
@@ -101,9 +102,8 @@ export function LinkPreview({
     linkPreview?.title || card.metadataTitle || card.url || "Link";
   const linkDescription = linkPreview?.description || card.metadataDescription;
   const linkImage = card.linkPreviewImageUrl;
+  const [failedImageUrls, setFailedImageUrls] = useState<string[]>([]);
   const linkMedia = card.linkPreviewMedia ?? [];
-
-  const screenshotUrl = showScreenshot ? card.screenshotUrl : undefined;
 
   // Only expose the hostname (never the full path/query) to the third-party
   // favicon service, so private saved URLs don't leak IDs or tokens to Google.
@@ -120,47 +120,70 @@ export function LinkPreview({
 
   const safeUrl = useMemo(() => sanitizeExternalUrl(card.url), [card.url]);
 
+  const hostname = getSafeUrlHostname(card.url)?.replace(/^www\./, "");
+  const screenshotUrl = showScreenshot ? card.screenshotUrl : undefined;
+  // Fall back to the screenshot, then to no image, when a stored preview
+  // fails to load, so the modal never shows a broken image.
+  const previewImages = [
+    {
+      alt: "Open Graph preview",
+      storageKey: card.metadata?.linkPreview?.imageStorageKey,
+      url: linkImage,
+    },
+    {
+      alt: "Rendered webpage screenshot",
+      storageKey: card.metadata?.linkPreview?.screenshotStorageKey,
+      url: screenshotUrl,
+    },
+  ];
+  const previewImage = previewImages.find(
+    (image): image is typeof image & { url: string } =>
+      Boolean(image.url) && !failedImageUrls.includes(image.url ?? "")
+  );
+
   const linkContent = (
     <>
-      <div className="flex w-full flex-col overflow-hidden rounded border hover:bg-accent sm:flex-row">
-        {linkImage && (
-          <img
-            alt="Open Graph preview"
-            className="h-auto max-h-60 w-full object-contain sm:h-full sm:max-h-40 sm:w-60"
-            height={240}
-            src={linkImage}
-            width={240}
+      <div className="flex flex-col gap-4">
+        {previewImage && (
+          <ResilientMediaImage
+            alt={previewImage.alt}
+            cardId={card._id}
+            className="h-auto max-h-[30vh] w-auto max-w-full self-start rounded-2xl border bg-muted object-cover object-top md:max-h-[50vh]"
+            height={630}
+            key={previewImage.url}
+            onPermanentError={() =>
+              setFailedImageUrls((urls) => [...urls, previewImage.url])
+            }
+            src={previewImage.url}
+            storageKey={previewImage.storageKey}
+            width={1200}
           />
         )}
 
-        {showScreenshot && screenshotUrl && !linkImage && (
-          <img
-            alt="Rendered webpage screenshot"
-            className="h-auto max-h-60 w-full object-contain sm:h-full sm:max-h-40 sm:w-60"
-            height={240}
-            src={screenshotUrl}
-            width={240}
-          />
-        )}
-
-        <div className="min-w-0 flex-1 shrink-0 space-y-1 p-4">
-          <div className="flex w-full min-w-0 items-center gap-2">
-            {faviconUrl && (
-              <div className="mt-0.5 size-4 shrink-0">
-                <FaviconImage
-                  fallbackUrl={googleFaviconUrl}
-                  faviconUrl={faviconUrl}
-                />
-              </div>
-            )}
-            <h2 className="min-w-0 flex-1 truncate font-semibold text-base leading-tight">
+        <div className="space-y-1.5 px-1">
+          <div className="flex items-start gap-2">
+            <h2 className="min-w-0 flex-1 text-balance break-words font-semibold text-lg leading-snug underline-offset-4 group-hover:underline">
               {linkTitle}
             </h2>
-            <ArrowUpRight className="size-4 shrink-0 text-muted-foreground" />
+            <ArrowUpRight className="mt-1 size-4 shrink-0 text-muted-foreground" />
           </div>
 
+          {hostname && (
+            <div className="flex min-w-0 items-center gap-2 text-muted-foreground text-sm">
+              {faviconUrl && (
+                <span className="size-4 shrink-0">
+                  <FaviconImage
+                    fallbackUrl={googleFaviconUrl}
+                    faviconUrl={faviconUrl}
+                  />
+                </span>
+              )}
+              <span className="truncate">{hostname}</span>
+            </div>
+          )}
+
           {linkDescription && (
-            <p className="mt-2 line-clamp-2 text-muted-foreground text-sm">
+            <p className="line-clamp-3 pt-1 text-muted-foreground text-sm leading-relaxed">
               {linkDescription}
             </p>
           )}
@@ -189,10 +212,10 @@ export function LinkPreview({
 
   if (LinkComponent) {
     return (
-      <div className="flex flex-col gap-6">
+      <div className="mx-auto flex min-h-full w-full max-w-2xl flex-col justify-center gap-6">
         {safeUrl ? (
           <LinkComponent
-            className="block"
+            className="group block"
             href={safeUrl}
             rel="noopener noreferrer"
             target="_blank"
@@ -236,10 +259,10 @@ export function LinkPreview({
   }
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="mx-auto flex min-h-full w-full max-w-2xl flex-col justify-center gap-6">
       {safeUrl ? (
         <a
-          className="block"
+          className="group block"
           href={safeUrl}
           rel="noopener noreferrer"
           target="_blank"
