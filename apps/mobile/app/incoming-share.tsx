@@ -83,7 +83,7 @@ export default function IncomingShareScreen() {
         {showCloseButton ? (
           <Button
             modifiers={[
-              buttonStyle("bordered"),
+              buttonStyle("glass"),
               controlSize("large"),
               tint(PlatformColor("label")),
             ]}
@@ -97,7 +97,7 @@ export default function IncomingShareScreen() {
         {status === "authRequired" ? (
           <Button
             modifiers={[
-              buttonStyle("bordered"),
+              buttonStyle("glassProminent"),
               controlSize("large"),
               tint(PlatformColor("label")),
             ]}

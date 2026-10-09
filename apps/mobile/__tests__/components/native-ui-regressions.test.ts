@@ -2,6 +2,8 @@ import { expect, test } from "bun:test";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 
+const CARD_ROUTE_PUSH_REGEX = /router\.push\([^)]*card/;
+
 const cardsGridPath = join(
   (import.meta as any).dir,
   "../../../mobile/components/CardsGrid.tsx"
@@ -35,15 +37,16 @@ const cardDetailPath = join(
   "../../../mobile/app/(tabs)/(home)/card/[id].tsx"
 );
 
-test("home cards list keeps native refresh and link navigation without swipe delete", () => {
+test("home cards grid keeps native refresh and link navigation without swipe delete", () => {
   const source = readFileSync(cardsGridPath, "utf8");
 
   expect(source).toContain("refreshable(onRefresh)");
-  expect(source).toContain("<List.ForEach>");
+  expect(source).toContain("<LazyVStack");
   expect(source.includes("onDelete={handleDeleteBySwipe}")).toBe(false);
   expect(source).toContain("<Link");
   expect(source).toContain("asChild");
-  expect(source.includes("router.push(")).toBe(false);
+  // Cards open through Link; only the empty state's button pushes a route.
+  expect(source).not.toMatch(CARD_ROUTE_PUSH_REGEX);
 });
 
 test("home cards list uses paginated query with near-bottom auto load", () => {

@@ -149,7 +149,7 @@ export default function AddTextScreen() {
               }),
             ]}
             onTextChange={setContent}
-            placeholder="Enter your bookmark, URL, or note"
+            placeholder="Write a note or paste a link"
             ref={textFieldRef}
             text={textFieldState}
           />

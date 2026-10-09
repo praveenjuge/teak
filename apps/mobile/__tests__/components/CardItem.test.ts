@@ -20,18 +20,17 @@ test("CardItem loads full card data only for file actions", () => {
   expect(source).toContain("handleShareCardFile");
 });
 
-test("CardItem caches thumbnails and favicons without per-row timers", () => {
+test("CardItem caches thumbnails and shows a placeholder when one fails", () => {
   const filePath = join(
     (import.meta as any).dir,
     "../../../mobile/components/CardItem.tsx"
   );
   const source = readFileSync(filePath, "utf8");
 
-  expect(source).toContain("const failedFaviconHosts = new Set<string>()");
   expect(source).not.toContain("setTimeout(() =>");
-  expect(source).toContain("failedFaviconHosts.add(hostname)");
   expect(source).toContain('cachePolicy="memory-disk"');
   expect(source).toContain("enforceEarlyResizing");
+  expect(source).toContain("onError={() => setFailedUrl(url)}");
 });
 
 test("CardItem exposes download and share actions for file-card types", () => {

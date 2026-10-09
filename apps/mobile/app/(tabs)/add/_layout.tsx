@@ -16,7 +16,7 @@ export default function Layout() {
           presentation: "formSheet",
           sheetAllowedDetents: [0.5, 1.0],
           sheetGrabberVisible: true,
-          title: "Text or URL",
+          title: "New Note",
         }}
       />
       <Stack.Screen
@@ -25,7 +25,7 @@ export default function Layout() {
           presentation: "formSheet",
           sheetAllowedDetents: [0.5],
           sheetGrabberVisible: true,
-          title: "Record Audio",
+          title: "Voice Memo",
         }}
       />
     </Stack>

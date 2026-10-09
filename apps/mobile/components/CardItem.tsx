@@ -1,22 +1,31 @@
 import {
   Button,
+  Capsule,
   ContextMenu,
+  Divider,
   HStack,
   Image,
+  Overlay,
+  Rectangle,
   RNHostView,
-  RoundedRectangle,
   Spacer,
   Text,
   VStack,
 } from "@expo/ui/swift-ui";
 import {
+  background,
+  clipShape,
   contentShape,
-  cornerRadius,
   font,
   foregroundStyle,
   frame,
+  glassEffect,
+  italic,
   lineLimit,
+  multilineTextAlignment,
   onTapGesture,
+  padding,
+  shadow,
   shapes,
 } from "@expo/ui/swift-ui/modifiers";
 import { api } from "@teak/convex";
@@ -25,8 +34,14 @@ import * as Clipboard from "expo-clipboard";
 import { Image as ExpoImage } from "expo-image";
 import * as Sharing from "expo-sharing";
 import { memo, type ReactNode, useMemo, useState } from "react";
-import { Alert, Platform } from "react-native";
-import { colors } from "@/constants/colors";
+import { Alert, Platform, PlatformColor } from "react-native";
+import {
+  getTileImageRatio,
+  getTileImageUrl,
+  getWaveformHeights,
+  TILE_RADIUS,
+  WAVEFORM_BAR_COUNT,
+} from "@/lib/card-grid";
 import { getNativeShareOptions } from "@/lib/files";
 import type { MobileCardSummary } from "@/lib/mobile-card-summary-cache";
 import {
@@ -35,116 +50,182 @@ import {
 } from "@/lib/nativeFileSystem";
 
 const WWW_PREFIX_REGEX = /^www\./;
-const failedFaviconHosts = new Set<string>();
 
 interface CardItemProps {
   card: MobileCardSummary;
   onDeleteRequest?: () => void;
   onPress?: () => void;
+  /** Width of the grid column; tiles size their media from it. */
+  width: number;
 }
 
-interface RowProps {
-  content: ReactNode;
-  contextItems?: ReactNode[];
-  leading?: ReactNode;
-  onDelete?: () => void;
-  onPress?: () => void;
-  trailing?: ReactNode;
-}
+const tileBackground = PlatformColor("secondarySystemGroupedBackground");
+const roundedText = (size = 15, weight: "regular" | "medium" = "medium") =>
+  font({ design: "rounded", size, weight });
 
-const iconModifiers = [frame({ height: 28, width: 28 })];
-
-const leadingIcon = (systemName: string) => (
-  <Image
-    color="secondary"
-    modifiers={iconModifiers}
-    size={16}
-    systemName={systemName as any}
-  />
-);
-
-const Row = ({
-  leading,
-  content,
-  trailing,
+/**
+ * The card surface shared by every tile: the grouped content background on
+ * the grouped page background, rounded like the web cards.
+ */
+const TileSurface = ({
+  children,
+  favorite,
   onPress,
-  onDelete,
-  contextItems = [],
-}: RowProps) => (
-  <ContextMenu>
-    <ContextMenu.Items>
-      {contextItems}
-      <Button label="Delete" onPress={onDelete} systemImage="trash" />
-    </ContextMenu.Items>
-    <ContextMenu.Trigger>
-      <HStack
-        modifiers={
-          onPress
-            ? [contentShape(shapes.rectangle()), onTapGesture(onPress)]
-            : []
-        }
-        spacing={12}
-      >
-        {leading}
-        {content}
-        <Spacer />
-        {trailing}
-      </HStack>
-    </ContextMenu.Trigger>
-  </ContextMenu>
+  width,
+}: {
+  children: ReactNode;
+  favorite?: boolean;
+  onPress?: () => void;
+  width: number;
+}) => (
+  <Overlay alignment="topTrailing">
+    <VStack
+      alignment="leading"
+      modifiers={[
+        frame({ width }),
+        background(
+          tileBackground,
+          shapes.roundedRectangle({
+            cornerRadius: TILE_RADIUS,
+            roundedCornerStyle: "continuous",
+          })
+        ),
+        clipShape("roundedRectangle", TILE_RADIUS),
+        contentShape(shapes.rectangle()),
+        ...(onPress ? [onTapGesture(onPress)] : []),
+      ]}
+      spacing={0}
+    >
+      {children}
+    </VStack>
+    <Overlay.Content>
+      {favorite ? (
+        <Image
+          color="red"
+          modifiers={[
+            padding({ all: 10 }),
+            shadow({ radius: 2, y: 1, color: "#00000033" }),
+          ]}
+          size={14}
+          systemName="heart.fill"
+        />
+      ) : null}
+    </Overlay.Content>
+  </Overlay>
 );
 
-const Favicon = ({ hostname, url }: { hostname?: string; url?: string }) => {
-  const [hasError, setHasError] = useState(false);
+const TileText = ({
+  children,
+  lines = 2,
+}: {
+  children: string;
+  lines?: number;
+}) => (
+  <Text
+    modifiers={[
+      roundedText(),
+      lineLimit(lines),
+      frame({ maxWidth: 10_000, alignment: "leading" }),
+      padding({ horizontal: 14, vertical: 14 }),
+    ]}
+  >
+    {children}
+  </Text>
+);
 
-  const shouldShowRemoteImage = Boolean(
-    url && hostname && !hasError && !failedFaviconHosts.has(hostname)
-  );
-  const showFallback = !shouldShowRemoteImage;
-
+/** Remote media sized to the column, with a neutral box while it loads. */
+const TileImage = ({
+  card,
+  contentFit = "cover",
+  url,
+  width,
+}: {
+  card: MobileCardSummary;
+  contentFit?: "cover" | "contain";
+  url?: string;
+  width: number;
+}) => {
+  const height = Math.round(width / getTileImageRatio(card));
+  // Remember a failed load so the tile shows the placeholder, not a blank box.
+  const [failedUrl, setFailedUrl] = useState<string>();
+  if (!url || failedUrl === url) {
+    return (
+      <VStack
+        modifiers={[
+          frame({ width, height }),
+          background(PlatformColor("tertiarySystemFill"), shapes.rectangle()),
+        ]}
+      >
+        <Image color="secondary" size={22} systemName="photo" />
+      </VStack>
+    );
+  }
   return (
-    <VStack alignment="center" modifiers={[frame({ height: 28, width: 28 })]}>
-      {showFallback ? (
-        <Image
-          color="secondary"
-          modifiers={[frame({ height: 28, width: 28 })]}
-          size={18}
-          systemName="globe"
-        />
-      ) : (
-        <RNHostView matchContents>
-          <ExpoImage
-            cachePolicy="memory-disk"
-            contentFit="cover"
-            enforceEarlyResizing
-            onError={() => {
-              setHasError(true);
-              if (hostname) {
-                failedFaviconHosts.add(hostname);
-              }
-            }}
-            priority="low"
-            recyclingKey={hostname}
-            source={url}
-            style={{
-              height: 20,
-              width: 20,
-            }}
-          />
-        </RNHostView>
-      )}
-    </VStack>
+    <RNHostView matchContents>
+      <ExpoImage
+        cachePolicy="memory-disk"
+        contentFit={contentFit}
+        enforceEarlyResizing
+        onError={() => setFailedUrl(url)}
+        placeholder={card.placeholderUrl}
+        recyclingKey={card._id}
+        source={url}
+        style={{
+          backgroundColor: PlatformColor("tertiarySystemFill"),
+          height,
+          width,
+        }}
+        transition={150}
+      />
+    </RNHostView>
   );
 };
 
-const PreviewBox = ({ children }: { children: React.ReactNode }) => (
-  <VStack
-    alignment="center"
-    modifiers={[frame({ height: 28, width: 28 }), cornerRadius(2)]}
-  >
-    {children}
-  </VStack>
+const TileFooter = ({ icon, title }: { icon?: string; title: string }) => (
+  <HStack modifiers={[padding({ horizontal: 14, vertical: 12 })]} spacing={8}>
+    {icon ? (
+      <Image color="secondary" size={14} systemName={icon as any} />
+    ) : null}
+    <Text modifiers={[roundedText(14), lineLimit(1)]}>{title}</Text>
+    <Spacer />
+  </HStack>
 );
+
+const QuoteMark = ({ side }: { side: "opening" | "closing" }) => (
+  <Image
+    color={PlatformColor("tertiaryLabel") as any}
+    modifiers={[padding({ vertical: 8 })]}
+    size={13}
+    systemName={`quote.${side}`}
+  />
+);
+
+/** The web card's deterministic waveform, drawn with native capsules. */
+const Waveform = ({ seed, width }: { seed: string; width: number }) => {
+  const inner = width - 28;
+  const spacing = Math.max(
+    1,
+    (inner - WAVEFORM_BAR_COUNT * 2) / (WAVEFORM_BAR_COUNT - 1)
+  );
+  return (
+    <HStack
+      alignment="center"
+      modifiers={[frame({ height: 56 }), padding({ horizontal: 14 })]}
+      spacing={spacing}
+    >
+      {getWaveformHeights(seed).map((height, index) => (
+        <Capsule
+          // biome-ignore lint/suspicious/noArrayIndexKey: bars are fixed, ordered decoration
+          key={index}
+          modifiers={[
+            frame({ width: 2, height: Math.round(height * 40) }),
+            foregroundStyle({ type: "hierarchical", style: "secondary" }),
+          ]}
+        />
+      ))}
+    </HStack>
+  );
+};
 
 const buildFileName = (url?: string | null, fallback?: string) => {
   if (fallback) {
@@ -172,10 +253,8 @@ const CardItem = memo(function CardItem({
   card,
   onPress,
   onDeleteRequest,
+  width,
 }: CardItemProps) {
-  // Compact (256px) keeps small mobile tiles light; grid remains fallback.
-  const mediaUrl =
-    card.compactUrl ?? card.thumbnailUrl ?? card.screenshotUrl ?? null;
   const convex = useConvex();
 
   const loadFullCard = () =>
@@ -328,291 +407,281 @@ const CardItem = memo(function CardItem({
       const parsed = new URL(card.url);
       const hostname = parsed.hostname.replace(WWW_PREFIX_REGEX, "");
 
-      return {
-        favicon: `https://www.google.com/s2/favicons?domain=${encodeURIComponent(hostname)}&sz=64`,
-        hostname,
-      };
+      return { hostname };
     } catch {
-      // URL didn't parse: never send the raw value to the third-party favicon
-      // service, since it can contain a full path/query with IDs or tokens.
-      return {
-        favicon: undefined,
-        hostname: card.url,
-      };
+      return { hostname: card.url };
     }
   }, [card.url]);
 
-  const renderRow = (
-    content: ReactNode,
-    leading?: ReactNode,
-    trailing?: ReactNode,
-    contextItems?: ReactNode[]
-  ) => (
-    <Row
-      content={content}
-      contextItems={contextItems}
-      leading={leading}
-      onDelete={handleDelete}
-      onPress={onPress}
-      trailing={trailing}
-    />
+  const imageUrl = getTileImageUrl(card);
+
+  const tile = (content: ReactNode, contextItems: ReactNode[]) => (
+    <ContextMenu>
+      <ContextMenu.Items>
+        {contextItems}
+        {/* biome-ignore lint/a11y/useValidAriaRole: expo-ui Button role maps to SwiftUI, not DOM ARIA */}
+        <Button
+          label="Delete"
+          onPress={handleDelete}
+          role="destructive"
+          systemImage="trash"
+        />
+      </ContextMenu.Items>
+      <ContextMenu.Trigger>
+        <TileSurface
+          favorite={card.isFavorited}
+          onPress={onPress}
+          width={width}
+        >
+          {content}
+        </TileSurface>
+      </ContextMenu.Trigger>
+    </ContextMenu>
   );
 
-  const renderContent = () => {
-    switch (card.type) {
-      case "link": {
-        if (!card.url) {
-          return null;
-        }
+  const fileActions = (key: string, name: string) => [
+    <Button
+      key={`download-${key}`}
+      label="Download"
+      onPress={() => void handleDownloadCard(name)}
+      systemImage="arrow.down.circle"
+    />,
+    <Button
+      key={`share-${key}`}
+      label="Share"
+      onPress={() => void handleShareCardFile(name)}
+      systemImage="square.and.arrow.up"
+    />,
+  ];
 
-        const linkTitle = card.title || card.url;
-
-        return renderRow(
-          <Text modifiers={[font({ design: "rounded" }), lineLimit(1)]}>
-            {linkTitle}
-          </Text>,
-          <Favicon hostname={linkMeta?.hostname} url={linkMeta?.favicon} />,
-          undefined,
-          [
-            <Button
-              key="copy-link"
-              label="Copy Link"
-              onPress={() => void handleCopy(card.url)}
-              systemImage="doc.on.doc"
-            />,
-            <Button
-              key="share-link"
-              label="Share"
-              onPress={() =>
-                void handleShareText(card.url ?? "", linkMeta?.hostname)
-              }
-              systemImage="square.and.arrow.up"
-            />,
-          ]
+  switch (card.type) {
+    case "link": {
+      const linkTitle = card.title || card.url || "Link";
+      const actions = [
+        <Button
+          key="copy-link"
+          label="Copy Link"
+          onPress={() => void handleCopy(card.url)}
+          systemImage="doc.on.doc"
+        />,
+        <Button
+          key="share-link"
+          label="Share"
+          onPress={() =>
+            void handleShareText(card.url ?? "", linkMeta?.hostname)
+          }
+          systemImage="square.and.arrow.up"
+        />,
+      ];
+      if (imageUrl) {
+        return tile(
+          <>
+            <TileImage card={card} url={imageUrl} width={width} />
+            <Divider />
+            <TileFooter title={linkTitle} />
+          </>,
+          actions
         );
       }
+      return tile(
+        <VStack
+          alignment="leading"
+          modifiers={[
+            frame({ maxWidth: 10_000, alignment: "leading" }),
+            padding({ horizontal: 14, vertical: 14 }),
+          ]}
+          spacing={4}
+        >
+          <Text modifiers={[roundedText(), lineLimit(2)]}>{linkTitle}</Text>
+          {linkMeta?.hostname && linkMeta.hostname !== linkTitle ? (
+            <Text
+              modifiers={[
+                roundedText(13, "regular"),
+                foregroundStyle({ type: "hierarchical", style: "secondary" }),
+                lineLimit(1),
+              ]}
+            >
+              {linkMeta.hostname}
+            </Text>
+          ) : null}
+        </VStack>,
+        actions
+      );
+    }
 
-      case "document": {
-        const title = card.title || card.fileName || "Attachment";
+    case "document": {
+      const title = card.title || card.fileName || "Attachment";
+      return tile(
+        imageUrl ? (
+          <>
+            <TileImage
+              card={card}
+              contentFit="contain"
+              url={imageUrl}
+              width={width}
+            />
+            <Divider />
+            <TileFooter icon="doc" title={title} />
+          </>
+        ) : (
+          <TileFooter icon="doc" title={title} />
+        ),
+        fileActions("document", title)
+      );
+    }
 
-        return renderRow(
-          <Text modifiers={[font({ design: "rounded" }), lineLimit(1)]}>
-            {title}
-          </Text>,
-          leadingIcon("paperclip"),
-          undefined,
-          [
-            <Button
-              key="download-document"
-              label="Download"
-              onPress={() => void handleDownloadCard(title)}
-              systemImage="arrow.down.circle"
-            />,
-            <Button
-              key="share-document"
-              label="Share"
-              onPress={() => void handleShareCardFile(title)}
-              systemImage="square.and.arrow.up"
-            />,
-          ]
-        );
-      }
+    case "audio":
+      return tile(
+        <Waveform seed={card._id} width={width} />,
+        fileActions("audio", card.fileName ?? "audio")
+      );
 
-      case "audio": {
-        return renderRow(
-          <Text modifiers={[font({ design: "rounded" }), lineLimit(1)]}>
-            {card.previewText && card.previewText.length > 10
-              ? card.previewText
-              : "Audio"}
-          </Text>,
-          leadingIcon("music.note"),
-          undefined,
-          [
-            <Button
-              key="download-audio"
-              label="Download"
-              onPress={() => void handleDownloadCard(card.fileName ?? "audio")}
-              systemImage="arrow.down.circle"
-            />,
-            <Button
-              key="share-audio"
-              label="Share"
-              onPress={() => void handleShareCardFile(card.fileName ?? "audio")}
-              systemImage="square.and.arrow.up"
-            />,
-          ]
-        );
-      }
+    case "image": {
+      const imageTitle = card.title || card.fileName || "Image";
+      return tile(
+        <TileImage card={card} url={imageUrl} width={width} />,
+        fileActions("image", imageTitle)
+      );
+    }
 
-      case "image": {
-        const imageTitle = card.title || card.fileName || "Image";
+    case "video": {
+      const videoTitle = card.title || card.fileName || "Video";
+      return tile(
+        <Overlay alignment="center">
+          {imageUrl ? (
+            <TileImage card={card} url={imageUrl} width={width} />
+          ) : (
+            <Rectangle
+              modifiers={[
+                frame({
+                  width,
+                  height: Math.round(width / getTileImageRatio(card)),
+                }),
+                foregroundStyle("black"),
+              ]}
+            />
+          )}
+          <Overlay.Content>
+            <Image
+              color="white"
+              modifiers={[
+                frame({ width: 44, height: 44 }),
+                glassEffect({ glass: { variant: "clear" }, shape: "circle" }),
+              ]}
+              size={18}
+              systemName="play.fill"
+            />
+          </Overlay.Content>
+        </Overlay>,
+        fileActions("video", videoTitle)
+      );
+    }
 
-        return renderRow(
-          <Text modifiers={[font({ design: "rounded" }), lineLimit(1)]}>
-            {imageTitle}
-          </Text>,
-          <PreviewBox>
-            {mediaUrl ? (
-              <RNHostView matchContents>
-                <ExpoImage
-                  cachePolicy="memory-disk"
-                  contentFit="cover"
-                  enforceEarlyResizing
-                  placeholder={card.placeholderUrl}
-                  recyclingKey={card._id}
-                  source={mediaUrl}
-                  style={{ height: 28, width: 28 }}
-                />
-              </RNHostView>
-            ) : (
-              leadingIcon("photo")
-            )}
-          </PreviewBox>,
-          undefined,
-          [
-            <Button
-              key="download-image"
-              label="Download"
-              onPress={() => void handleDownloadCard(imageTitle)}
-              systemImage="arrow.down.circle"
-            />,
-            <Button
-              key="share-image"
-              label="Share"
-              onPress={() => void handleShareCardFile(imageTitle)}
-              systemImage="square.and.arrow.up"
-            />,
-          ]
-        );
-      }
-
-      case "video": {
-        const videoTitle = card.title || card.fileName || "Video";
-
-        return renderRow(
-          <Text modifiers={[font({ design: "rounded" }), lineLimit(1)]}>
-            {videoTitle}
-          </Text>,
-          leadingIcon("play.circle"),
-          undefined,
-          [
-            <Button
-              key="download-video"
-              label="Download"
-              onPress={() => void handleDownloadCard(videoTitle)}
-              systemImage="arrow.down.circle"
-            />,
-            <Button
-              key="share-video"
-              label="Share"
-              onPress={() => void handleShareCardFile(videoTitle)}
-              systemImage="square.and.arrow.up"
-            />,
-          ]
-        );
-      }
-
-      case "palette": {
-        return renderRow(
-          card.colors
-            ?.slice(0, 10)
-            .map((color) => (
-              <RoundedRectangle
+    case "palette":
+      return tile(
+        card.colors?.length ? (
+          <HStack modifiers={[frame({ width, height: 56 })]} spacing={0}>
+            {card.colors.slice(0, 12).map((color) => (
+              <Rectangle
                 key={color}
-                modifiers={[foregroundStyle(color as any), cornerRadius(6)]}
+                modifiers={[
+                  frame({ maxWidth: 10_000, maxHeight: 10_000 }),
+                  foregroundStyle(color as any),
+                ]}
               />
-            )),
-          leadingIcon("paintpalette"),
-          undefined,
-          [
-            <Button
-              key="copy-palette"
-              label="Copy Palette"
-              onPress={() => void handleCopy(card.colors?.join(", ") ?? "")}
-              systemImage="doc.on.doc"
-            />,
-            <Button
-              key="share-palette"
-              label="Share"
-              onPress={() =>
-                void handleShareText(card.colors?.join(", ") ?? "", "palette")
-              }
-              systemImage="square.and.arrow.up"
-            />,
-          ]
-        );
-      }
+            ))}
+          </HStack>
+        ) : (
+          <TileText>{card.title}</TileText>
+        ),
+        [
+          <Button
+            key="copy-palette"
+            label="Copy Palette"
+            onPress={() => void handleCopy(card.colors?.join(", ") ?? "")}
+            systemImage="doc.on.doc"
+          />,
+          <Button
+            key="share-palette"
+            label="Share"
+            onPress={() =>
+              void handleShareText(card.colors?.join(", ") ?? "", "palette")
+            }
+            systemImage="square.and.arrow.up"
+          />,
+        ]
+      );
 
-      case "quote": {
-        const textContent = card.previewText || "Quote";
-
-        return renderRow(
-          <Text
-            modifiers={[font({ design: "rounded" }), lineLimit(1)]}
-          >{`"${textContent}"`}</Text>,
-          leadingIcon("text.quote"),
-          undefined,
-          [
-            <Button
-              key="copy-quote"
-              label="Copy Quote"
-              onPress={() => void handleCopyCardText(textContent)}
-              systemImage="doc.on.doc"
-            />,
-            <Button
-              key="share-quote"
-              label="Share"
-              onPress={() => void handleShareCardText(textContent, "quote")}
-              systemImage="square.and.arrow.up"
-            />,
-          ]
-        );
-      }
-
-      case "text": {
-        const textContent = card.previewText || "Note";
-
-        return renderRow(
-          <Text modifiers={[font({ design: "rounded" }), lineLimit(1)]}>
-            {textContent}
-          </Text>,
-          leadingIcon("textformat"),
-          undefined,
-          [
-            <Button
-              key="copy-text"
-              label="Copy Text"
-              onPress={() => void handleCopyCardText(textContent)}
-              systemImage="doc.on.doc"
-            />,
-            <Button
-              key="share-text"
-              label="Share"
-              onPress={() => void handleShareCardText(textContent, "note")}
-              systemImage="square.and.arrow.up"
-            />,
-          ]
-        );
-      }
-
-      default:
-        return renderRow(
+    case "quote": {
+      const textContent = card.previewText || "Quote";
+      return tile(
+        <Overlay alignment="topLeading">
           <Text
             modifiers={[
-              font({ design: "rounded" }),
-              foregroundStyle(colors.secondaryLabel as any),
+              roundedText(),
+              italic(),
+              lineLimit(2),
+              multilineTextAlignment("center"),
+              frame({ maxWidth: 10_000 }),
+              padding({ horizontal: 24, vertical: 18 }),
             ]}
           >
-            {card.previewText}
-          </Text>,
-          leadingIcon("questionmark"),
-          undefined,
-          []
-        );
+            {textContent}
+          </Text>
+          <Overlay.Content>
+            <VStack
+              modifiers={[
+                frame({ maxWidth: 10_000, maxHeight: 10_000 }),
+                padding({ horizontal: 8 }),
+              ]}
+            >
+              <HStack>
+                <QuoteMark side="opening" />
+                <Spacer />
+              </HStack>
+              <Spacer />
+              <HStack modifiers={[frame({ height: 20 })]}>
+                <Spacer />
+                <QuoteMark side="closing" />
+              </HStack>
+            </VStack>
+          </Overlay.Content>
+        </Overlay>,
+        [
+          <Button
+            key="copy-quote"
+            label="Copy Quote"
+            onPress={() => void handleCopyCardText(textContent)}
+            systemImage="doc.on.doc"
+          />,
+          <Button
+            key="share-quote"
+            label="Share"
+            onPress={() => void handleShareCardText(textContent, "quote")}
+            systemImage="square.and.arrow.up"
+          />,
+        ]
+      );
     }
-  };
 
-  return renderContent();
+    default: {
+      const textContent = card.previewText || card.title || "Note";
+      return tile(<TileText>{textContent}</TileText>, [
+        <Button
+          key="copy-text"
+          label="Copy Text"
+          onPress={() => void handleCopyCardText(textContent)}
+          systemImage="doc.on.doc"
+        />,
+        <Button
+          key="share-text"
+          label="Share"
+          onPress={() => void handleShareCardText(textContent, "note")}
+          systemImage="square.and.arrow.up"
+        />,
+      ]);
+    }
+  }
 });
 
 export { CardItem };

@@ -1,24 +1,50 @@
 import {
+  Button,
   ContentUnavailableView,
   Host,
   HStack,
-  List,
+  LazyVStack,
   ProgressView,
+  RNHostView,
+  ScrollView,
   Spacer,
+  Text,
   VStack,
 } from "@expo/ui/swift-ui";
-import { listStyle, onAppear, refreshable } from "@expo/ui/swift-ui/modifiers";
+import {
+  background,
+  buttonStyle,
+  controlSize,
+  font,
+  foregroundStyle,
+  frame,
+  multilineTextAlignment,
+  onAppear,
+  padding,
+  refreshable,
+} from "@expo/ui/swift-ui/modifiers";
 import { api } from "@teak/convex";
 import { parseTimeSearchQuery } from "@teak/convex/shared";
 import { useConvex, usePaginatedQuery } from "convex/react";
-import { Link } from "expo-router";
+import { Link, useRouter } from "expo-router";
 import { memo, useCallback, useMemo, useRef } from "react";
+import { PlatformColor, useWindowDimensions } from "react-native";
+import Logo from "@/components/Logo";
+import {
+  distributeIntoColumns,
+  estimateTileHeight,
+  GRID_EDGE,
+  GRID_GAP,
+  getGridColumnCount,
+  getGridColumnWidth,
+} from "@/lib/card-grid";
 import { triggerCardTapHaptic } from "@/lib/haptics";
 import { useCardActions } from "@/lib/hooks/useCardActionsMobile";
 import {
   type MobileCardSummary,
   rememberMobileCardSummary,
 } from "@/lib/mobile-card-summary-cache";
+import { useThemePreference } from "@/lib/theme-preference";
 import { CardItem } from "./CardItem";
 
 interface CardsGridProps {
@@ -42,17 +68,73 @@ interface PaginatedCardsListProps {
   description: string;
   emptyIcon: string;
   emptyTitle: string;
+  isSearching: boolean;
   onRefresh: () => Promise<void>;
   queryArgs: SearchCardsPaginatedArgs;
+}
+
+const pageBackground = PlatformColor("systemGroupedBackground");
+
+/** Mirrors the web's first-run state: the wordmark, a prompt, and one action. */
+function EmptyLibrary() {
+  const router = useRouter();
+  const { resolvedScheme } = useThemePreference();
+
+  return (
+    <VStack
+      alignment="center"
+      modifiers={[
+        frame({ maxWidth: 10_000, maxHeight: 10_000 }),
+        padding({ horizontal: 40 }),
+      ]}
+      spacing={20}
+    >
+      <RNHostView matchContents>
+        <Logo
+          color={resolvedScheme === "dark" ? "#ffffff" : "#111111"}
+          height={23}
+          width={72}
+        />
+      </RNHostView>
+      <VStack alignment="center" spacing={6}>
+        <Text
+          modifiers={[
+            font({ design: "rounded", size: 17, weight: "semibold" }),
+          ]}
+        >
+          Let's add your first card!
+        </Text>
+        <Text
+          modifiers={[
+            font({ design: "rounded", size: 15 }),
+            foregroundStyle({ type: "hierarchical", style: "secondary" }),
+            multilineTextAlignment("center"),
+          ]}
+        >
+          Save notes, links, photos, and voice memos. They'll show up here.
+        </Text>
+      </VStack>
+      <Button
+        label="Write a Note"
+        modifiers={[buttonStyle("glassProminent"), controlSize("large")]}
+        onPress={() => router.push("/(tabs)/add/text")}
+        systemImage="square.and.pencil"
+      />
+    </VStack>
+  );
 }
 
 function PaginatedCardsList({
   description,
   emptyIcon,
   emptyTitle,
+  isSearching,
   onRefresh,
   queryArgs,
 }: PaginatedCardsListProps) {
+  const { width: windowWidth } = useWindowDimensions();
+  const columnCount = getGridColumnCount(windowWidth);
+  const columnWidth = getGridColumnWidth(windowWidth, columnCount);
   const cardActions = useCardActions();
   const { loadMore, results, status } = usePaginatedQuery(
     api.cards.searchMobileCardSummariesPaginated,
@@ -98,55 +180,82 @@ function PaginatedCardsList({
   }
 
   if (results.length === 0) {
-    return (
+    return isSearching ? (
       <ContentUnavailableView
         description={description}
         systemImage={emptyIcon as any}
         title={emptyTitle}
       />
+    ) : (
+      <EmptyLibrary />
     );
   }
 
-  return (
-    <List modifiers={[listStyle("plain"), refreshable(onRefresh)]}>
-      <List.ForEach>
-        {results.map((card: MobileCardSummary, index) => {
-          const isNearBottom =
-            index >= Math.max(0, results.length - AUTO_LOAD_THRESHOLD_FROM_END);
+  const nearEndIds = new Set(
+    results
+      .slice(Math.max(0, results.length - AUTO_LOAD_THRESHOLD_FROM_END))
+      .map((card) => card._id)
+  );
+  const columns = distributeIntoColumns(results, columnCount, (card) =>
+    estimateTileHeight(card, columnWidth)
+  );
 
-          return (
-            <VStack
-              key={card._id}
-              modifiers={isNearBottom ? [onAppear(handleAutoLoadMore)] : []}
-            >
-              <Link
-                asChild
-                href={{
-                  params: { id: card._id },
-                  pathname: "/(tabs)/(home)/card/[id]",
-                }}
+  return (
+    <ScrollView
+      modifiers={[
+        refreshable(onRefresh),
+        background(pageBackground, { ignoresSafeAreaEdges: "all" }),
+      ]}
+    >
+      <HStack
+        alignment="top"
+        modifiers={[padding({ horizontal: GRID_EDGE, top: 8, bottom: 24 })]}
+        spacing={GRID_GAP}
+      >
+        {columns.map((column, columnIndex) => (
+          <LazyVStack
+            // biome-ignore lint/suspicious/noArrayIndexKey: columns are positional
+            key={columnIndex}
+            modifiers={[frame({ width: columnWidth })]}
+            spacing={GRID_GAP}
+          >
+            {column.map((card) => (
+              <VStack
+                key={card._id}
+                modifiers={
+                  nearEndIds.has(card._id) ? [onAppear(handleAutoLoadMore)] : []
+                }
               >
-                <CardItem
-                  card={card}
-                  onDeleteRequest={() =>
-                    void cardActions.handleDeleteCard(card._id)
-                  }
-                  onPress={() => handleCardTap(card)}
-                />
-              </Link>
-            </VStack>
-          );
-        })}
-      </List.ForEach>
+                <Link
+                  asChild
+                  href={{
+                    params: { id: card._id },
+                    pathname: "/(tabs)/(home)/card/[id]",
+                  }}
+                >
+                  <CardItem
+                    card={card}
+                    onDeleteRequest={() =>
+                      void cardActions.handleDeleteCard(card._id)
+                    }
+                    onPress={() => handleCardTap(card)}
+                    width={columnWidth}
+                  />
+                </Link>
+              </VStack>
+            ))}
+          </LazyVStack>
+        ))}
+      </HStack>
 
       {isLoadingMore ? (
-        <HStack alignment="center" spacing={8}>
+        <HStack alignment="center" modifiers={[padding({ bottom: 24 })]}>
           <Spacer />
           <ProgressView />
           <Spacer />
         </HStack>
       ) : null}
-    </List>
+    </ScrollView>
   );
 }
 
@@ -183,15 +292,14 @@ const CardsGrid = memo(function CardsGrid({
     });
   }, [convex, queryArgs]);
 
-  const emptyTitle = searchQuery ? "No cards found" : "No cards yet";
-  const searchDescription = searchQuery
-    ? `No cards match "${searchQuery}"${selectedType ? ` in ${selectedType} cards` : ""}`
-    : "Start by adding your first card";
+  // Matches the system search empty state wording.
+  const emptyTitle = searchQuery
+    ? `No Results for \u201C${searchQuery}\u201D`
+    : "No cards yet";
   const description = timeFilter
-    ? `No cards from ${timeFilter.label}`
-    : searchDescription;
-  const emptyIcon =
-    searchQuery || timeFilter ? "magnifyingglass" : "plus.circle";
+    ? `No cards from ${timeFilter.label}.`
+    : "Check the spelling or try a new search.";
+  const emptyIcon = "magnifyingglass";
 
   return (
     <Host style={{ flex: 1 }} useViewportSizeMeasurement>
@@ -199,6 +307,7 @@ const CardsGrid = memo(function CardsGrid({
         description={description}
         emptyIcon={emptyIcon}
         emptyTitle={emptyTitle}
+        isSearching={Boolean(searchQuery || selectedType)}
         onRefresh={handleRefresh}
         queryArgs={queryArgs}
       />

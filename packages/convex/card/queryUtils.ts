@@ -272,6 +272,7 @@ export const attachCardSummaryUrls = async (
 ): Promise<CardWithUrls[]> => {
   const thumbnailKeys = new Set<string>();
   const screenshotKeys = new Set<string>();
+  const linkImageKeys = new Set<string>();
 
   for (const card of cards) {
     if (card.thumbnailKey) {
@@ -279,6 +280,9 @@ export const attachCardSummaryUrls = async (
     }
     if (card.metadata?.linkPreview?.screenshotStorageKey) {
       screenshotKeys.add(card.metadata.linkPreview.screenshotStorageKey);
+    }
+    if (card.metadata?.linkPreview?.imageStorageKey) {
+      linkImageKeys.add(card.metadata.linkPreview.imageStorageKey);
     }
   }
 
@@ -295,6 +299,13 @@ export const attachCardSummaryUrls = async (
   const screenshotUrlMap = new Map(
     await Promise.all(
       Array.from(screenshotKeys).map(
+        async (key) => [key, await tryResolveImageUrl(key, "grid")] as const
+      )
+    )
+  );
+  const linkImageUrlMap = new Map(
+    await Promise.all(
+      Array.from(linkImageKeys).map(
         async (key) => [key, await tryResolveImageUrl(key, "grid")] as const
       )
     )
@@ -343,6 +354,10 @@ export const attachCardSummaryUrls = async (
         ? (screenshotUrlMap.get(
             card.metadata.linkPreview.screenshotStorageKey
           ) ?? undefined)
+        : undefined,
+      linkPreviewImageUrl: card.metadata?.linkPreview?.imageStorageKey
+        ? (linkImageUrlMap.get(card.metadata.linkPreview.imageStorageKey) ??
+          undefined)
         : undefined,
     })
   );
