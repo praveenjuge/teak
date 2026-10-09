@@ -311,7 +311,7 @@ export function mountHomeAppDemo(root: HTMLElement) {
       frame.style.aspectRatio = `${image.width} / ${image.height}`;
       frame.style.width = `min(100cqw, 100cqh * ${image.width / image.height})`;
       const img = el("img", "h-full w-full object-cover");
-      img.src = image.src;
+      img.src = image.full ?? image.src;
       img.alt = card.content ?? card.title ?? "";
       frame.append(img);
       if (card.type === "video") {

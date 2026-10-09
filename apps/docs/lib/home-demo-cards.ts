@@ -13,6 +13,8 @@ export type DemoCardType =
   | "quote";
 
 export interface DemoImage {
+  /** Larger file for the card detail view, like the app's full image. */
+  full?: string;
   height: number;
   src: string;
   width: number;
@@ -51,6 +53,12 @@ const img = (name: string, width: number, height: number): DemoImage => ({
   src: `/home-demo/${name}.webp`,
   width,
   height,
+});
+
+/** Photos ship a grid thumbnail plus a larger file for the detail view. */
+const photo = (name: string, width: number, height: number): DemoImage => ({
+  ...img(name, width, height),
+  full: `/home-demo/${name}-full.webp`,
 });
 
 /**
@@ -107,8 +115,8 @@ export const DEMO_COLUMNS: DemoCard[][] = [
       id: "hangers",
       type: "video",
       title: "hanger-color-sort.mp4",
-      image: img("hangers", 251, 315),
-      colors: ["#BDBFAF", "#232A28", "#6B735F", "#C85A3A"],
+      image: photo("hangers", 480, 607),
+      colors: ["#232A29", "#69715C", "#D6C8B1", "#9EB2AA"],
       tags: ["motion"],
       summary:
         "A slow pan along a clothing rail with wooden hangers, sorted by color under a calendar wall.",
@@ -160,8 +168,8 @@ export const DEMO_COLUMNS: DemoCard[][] = [
       id: "desk",
       type: "image",
       content: "Brand identity flat lay on a desk",
-      image: img("desk", 251, 187),
-      colors: ["#C4A790", "#9C7164", "#DCCFBC", "#FAF7ED"],
+      image: photo("desk", 480, 357),
+      colors: ["#C99A78", "#8A5A4F", "#D3C1A5", "#F9F4E7"],
       tags: ["branding"],
       summary:
         "A desk flat lay with a brand book, logo sketches, stationery, and color pencils in warm light.",
@@ -171,8 +179,8 @@ export const DEMO_COLUMNS: DemoCard[][] = [
       id: "building",
       type: "image",
       content: "Brutalist concrete tower",
-      image: img("building", 252, 316),
-      colors: ["#B0D1C4", "#5B5645", "#DCE6D7", "#A7B8A5"],
+      image: photo("building", 480, 594),
+      colors: ["#AFCFC2", "#5B5645", "#D9E4D5", "#A3A288"],
       tags: ["architecture"],
       summary:
         "A weathered concrete tower with stacked balconies against a pale teal sky.",
@@ -213,8 +221,8 @@ export const DEMO_COLUMNS: DemoCard[][] = [
       id: "jacket",
       type: "image",
       content: "Menswear shop interior",
-      image: img("jacket", 251, 317),
-      colors: ["#A9998A", "#D4C9BE", "#241F1D", "#7F6E63"],
+      image: photo("jacket", 480, 597),
+      colors: ["#231F1C", "#C9B6A1", "#7E6C60", "#DBD9D5"],
       tags: ["interiors"],
       summary:
         "A shop wall with a navy blazer on a hook, framed prints, and a painted oar on wooden panels.",
@@ -236,9 +244,10 @@ export const DEMO_COLUMNS: DemoCard[][] = [
       id: "camera",
       type: "image",
       content: "Vintage rangefinder camera",
-      image: img("camera", 252, 161),
-      colors: ["#181D1A", "#3A362A", "#DFD4BD", "#947F60"],
-      summary: "A vintage rangefinder camera on a dark, moody surface.",
+      image: photo("camera", 480, 318),
+      colors: ["#191E1C", "#433D2E", "#EDE7D5", "#A6916F"],
+      summary:
+        "A vintage rangefinder camera resting on piano keys in warm, low light.",
       aiTags: ["camera", "vintage", "product", "moody"],
     },
   ],
@@ -263,14 +272,14 @@ export const DEMO_COLUMNS: DemoCard[][] = [
       aiTags: ["brand guidelines", "identity", "pdf"],
     },
     {
-      id: "symbol",
+      id: "laptop-flatlay",
       type: "image",
-      content: "Minimal desk setup",
-      image: img("symbol", 251, 187),
-      colors: ["#DCDCDC", "#9F9F9F", "#2A2A2A"],
+      content: "Monochrome desk flat lay",
+      image: photo("laptop-flatlay", 480, 319),
+      colors: ["#4E4E4E", "#969696", "#CDCDCD"],
       summary:
-        "A minimal white desk with a laptop, a design book, and a small desk calendar.",
-      aiTags: ["workspace", "minimal", "monochrome"],
+        "A monochrome flat lay of a laptop, a business book, headphones, sunglasses, pens, and keys.",
+      aiTags: ["flat lay", "workspace", "monochrome", "minimal"],
     },
     {
       id: "spacing",
