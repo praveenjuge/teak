@@ -1,6 +1,6 @@
 {
   "name": "@teak/docs",
-  "version": "1.0.81",
+  "version": "1.0.82",
   "scripts": {
     "audit": "bun run build:site && blume audit --fail-on error",
     "audit:live": "blume audit --url https://teakvault.com --fail-on error",
