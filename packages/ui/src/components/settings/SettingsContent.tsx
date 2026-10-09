@@ -16,9 +16,13 @@ import {
   type DeviceSession,
   SecuritySection,
 } from "./SecuritySection";
-import { SettingRow } from "./SettingRow";
+import { SettingRow, SettingValueSkeleton } from "./SettingRow";
 import { SettingsFooter } from "./SettingsFooter";
 import { ThemeToggle } from "./ThemeToggle";
+
+// Loaded values fade in over their placeholder instead of popping in.
+const LOADED_VALUE = "fade-in-0 animate-in duration-300";
+const LOADED_GROUP = `${LOADED_VALUE} flex items-center gap-2 -space-x-2.5`;
 
 interface SettingsContentProps {
   accountLoading: boolean;
@@ -94,7 +98,7 @@ export function SettingsContent({
   subscriptionDialog,
 }: SettingsContentProps) {
   const planRowContent = hasPremium ? (
-    <>
+    <span className={LOADED_GROUP}>
       <Badge>Pro</Badge>
       <CustomerPortalButton
         className="inline-flex items-center gap-1 font-medium text-primary text-sm hover:underline"
@@ -103,14 +107,14 @@ export function SettingsContent({
         Manage
         <ExternalLink className="size-4" />
       </CustomerPortalButton>
-    </>
+    </span>
   ) : (
-    <>
+    <span className={LOADED_GROUP}>
       <Badge variant="outline">Free Plan</Badge>
       <Button onClick={onUpgrade} size="sm" variant="link">
         Upgrade
       </Button>
-    </>
+    </span>
   );
 
   return (
@@ -118,19 +122,31 @@ export function SettingsContent({
       <h1 className="font-semibold text-xl tracking-tight">Settings</h1>
 
       <SettingRow title="Email">
-        <Button disabled size="sm" variant="ghost">
-          {accountLoading ? <Spinner /> : (email ?? "Not available")}
-        </Button>
+        {accountLoading ? (
+          <SettingValueSkeleton className="w-44" />
+        ) : (
+          <Button className={LOADED_VALUE} disabled size="sm" variant="ghost">
+            {email ?? "Not available"}
+          </Button>
+        )}
       </SettingRow>
 
       <SettingRow title="Usage">
-        <Button disabled size="sm" variant="ghost">
-          {accountLoading ? <Spinner /> : `${cardCount} Cards`}
-        </Button>
+        {accountLoading ? (
+          <SettingValueSkeleton className="w-16" />
+        ) : (
+          <Button className={LOADED_VALUE} disabled size="sm" variant="ghost">
+            {`${cardCount} Cards`}
+          </Button>
+        )}
       </SettingRow>
 
       <SettingRow title="Plan">
-        {accountLoading ? <Spinner /> : planRowContent}
+        {accountLoading ? (
+          <SettingValueSkeleton className="w-28" />
+        ) : (
+          planRowContent
+        )}
       </SettingRow>
 
       <SecuritySection

@@ -1,19 +1,11 @@
-import { AlertTriangle } from "lucide-react";
-import { type ChangeEvent, useState } from "react";
-import { Alert, AlertDescription, AlertTitle } from "../ui/alert";
+import { Trash2 } from "lucide-react";
+import { type ChangeEvent, type FormEvent, useState } from "react";
 import { Button } from "../ui/button";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "../ui/dialog";
 import { Input } from "../ui/input";
 import { Label } from "../ui/label";
 import { Spinner } from "../ui/spinner";
 import { ErrorAlert } from "./ErrorAlert";
+import { SettingsDialog, SettingsDialogBody } from "./SettingsDialog";
 
 interface DeleteAccountDialogProps {
   error: string | null;
@@ -22,6 +14,8 @@ interface DeleteAccountDialogProps {
   onOpenChange: (open: boolean) => void;
   open: boolean;
 }
+
+const FORM_ID = "delete-account-form";
 
 export function DeleteAccountDialog({
   open,
@@ -35,8 +29,9 @@ export function DeleteAccountDialog({
   const confirmationMatches =
     confirmation.trim().toLowerCase() === "delete account";
 
-  const handleDelete = async () => {
-    if (!confirmationMatches) {
+  const handleDelete = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (!confirmationMatches || loading) {
       return;
     }
     await onDelete();
@@ -46,51 +41,57 @@ export function DeleteAccountDialog({
     setConfirmation(event.target.value);
 
   return (
-    <Dialog onOpenChange={onOpenChange} open={open}>
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle>Delete Account</DialogTitle>
-          <DialogDescription>
-            This action permanently removes your account, cards, and uploaded
-            files.
-          </DialogDescription>
-        </DialogHeader>
-
-        <div className="space-y-4">
-          <Alert variant="destructive">
-            <AlertTriangle />
-            <AlertTitle>Permanent and irreversible</AlertTitle>
-            <AlertDescription>
-              All of your cards, tags, and stored files will be deleted. This
-              cannot be undone.
-            </AlertDescription>
-          </Alert>
-
-          <ErrorAlert message={error} />
-
-          <div className="space-y-2">
-            <Label htmlFor="deleteConfirm">
-              Type &quot;delete account&quot; to proceed
-            </Label>
-            <Input
-              id="deleteConfirm"
-              onChange={handleConfirmationChange}
-              placeholder="delete account"
-              value={confirmation}
-            />
-          </div>
-        </div>
-
-        <DialogFooter>
+    <SettingsDialog
+      description="This permanently deletes your account, cards, tags, and uploaded files. This can’t be undone."
+      footer={
+        <>
+          <Button
+            onClick={() => onOpenChange(false)}
+            type="button"
+            variant="outline"
+          >
+            Cancel
+          </Button>
           <Button
             disabled={!confirmationMatches || loading}
-            onClick={handleDelete}
+            form={FORM_ID}
+            type="submit"
             variant="destructive"
           >
             {loading ? <Spinner /> : "Delete account"}
           </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+        </>
+      }
+      icon={Trash2}
+      onOpenChange={onOpenChange}
+      open={open}
+      title="Delete account"
+      tone="destructive"
+    >
+      <SettingsDialogBody className="space-y-4 pb-5">
+        <ErrorAlert message={error} />
+        <form className="space-y-2" id={FORM_ID} onSubmit={handleDelete}>
+          <Label
+            className="font-normal text-muted-foreground"
+            htmlFor="deleteConfirm"
+          >
+            <span>
+              Type &quot;
+              <span className="font-medium text-foreground">
+                delete account
+              </span>
+              &quot; to proceed
+            </span>
+          </Label>
+          <Input
+            autoComplete="off"
+            id="deleteConfirm"
+            onChange={handleConfirmationChange}
+            placeholder="delete account"
+            value={confirmation}
+          />
+        </form>
+      </SettingsDialogBody>
+    </SettingsDialog>
   );
 }

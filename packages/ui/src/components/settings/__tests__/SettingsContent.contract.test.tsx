@@ -21,6 +21,12 @@ mock.module("../ThemeToggle", () => ({
 }));
 
 const { SettingsContent } = await import("../SettingsContent");
+const { SettingsContentSkeleton } = await import("../SettingsContentSkeleton");
+
+const rowTitles = (markup: string) =>
+  [...markup.matchAll(/data-slot="card-title">([^<]+)</g)].map(
+    ([, title]) => title
+  );
 
 const baseProps = {
   cardCount: 3,
@@ -100,5 +106,18 @@ describe("SettingsContent", () => {
     expect(markup).toContain("3 Cards");
     expect(markup).toContain("Free Plan");
     expect(markup).toContain("Import/Export Data");
+  });
+
+  test("the session-loading skeleton lists the same rows as the loaded page", () => {
+    const loaded = renderToStaticMarkup(
+      <SettingsContent {...baseProps} accountLoading={false} />
+    );
+    const skeleton = renderToStaticMarkup(<SettingsContentSkeleton />);
+
+    expect(rowTitles(loaded).length).toBeGreaterThan(0);
+    expect(rowTitles(skeleton)).toEqual(rowTitles(loaded));
+    // The real page's heading is what signals that settings finished loading.
+    expect(skeleton).not.toContain("<h1");
+    expect(skeleton).toContain("Loading settings");
   });
 });

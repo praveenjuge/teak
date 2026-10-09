@@ -35,7 +35,9 @@
     "./hooks": "./src/hooks/index.ts",
     "./hooks/GlobalFileDropProvider": "./src/hooks/GlobalFileDropProvider.tsx",
     "./settings": "./src/components/settings/index.ts",
+    "./settings/SettingsContentSkeleton": "./src/components/settings/SettingsContentSkeleton.tsx",
     "./screens": "./src/screens/index.ts",
+    "./screens/SettingsShell": "./src/screens/SettingsShell.tsx",
     "./constants/billing": "./src/constants/billing.ts",
     "./constants/settings": "./src/constants/settings.ts",
     "./constants/toast": "./src/constants/toast.ts"

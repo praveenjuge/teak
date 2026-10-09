@@ -6,11 +6,10 @@ import { api } from "@teak/convex";
 import { runClientSpan } from "@teak/convex/shared/client-telemetry";
 import { trackCheckout } from "@teak/convex/shared/metrics";
 import { sanitizeExternalUrl } from "@teak/convex/shared/utils/safeUrl";
-import { Dialog, DialogContent } from "@teak/ui/components/ui/dialog";
 import { getPolarPlanIds } from "@teak/ui/constants/billing";
 import { TOAST_IDS } from "@teak/ui/constants/toast";
 import { useSettingsController } from "@teak/ui/hooks";
-import { SettingsContent, SubscriptionSection } from "@teak/ui/settings";
+import { SettingsContent, SubscriptionDialog } from "@teak/ui/settings";
 import { useAction, useMutation } from "convex/react";
 import { useTheme } from "next-themes";
 import { useEffect, useRef, useState } from "react";
@@ -174,16 +173,14 @@ export default function ProfileSettingsPage() {
       sessionsLoadingMore={settings.sessionsLoadingMore}
       signOutLoading={settings.signOutLoading}
       subscriptionDialog={
-        <Dialog onOpenChange={setSubscriptionOpen} open={subscriptionOpen}>
-          <DialogContent className="max-w-3xl">
-            <SubscriptionSection
-              loadingPlanId={loadingPlanId}
-              monthlyPlanId={planIds.monthly}
-              onCheckout={handleCheckout}
-              yearlyPlanId={planIds.yearly}
-            />
-          </DialogContent>
-        </Dialog>
+        <SubscriptionDialog
+          loadingPlanId={loadingPlanId}
+          monthlyPlanId={planIds.monthly}
+          onCheckout={handleCheckout}
+          onOpenChange={setSubscriptionOpen}
+          open={subscriptionOpen}
+          yearlyPlanId={planIds.yearly}
+        />
       }
     />
   );

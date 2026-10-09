@@ -1,9 +1,9 @@
-import { PageLoadingState } from "@teak/ui/feedback/PageLoadingState";
+import { AppLoading } from "@/components/AppLoading";
 
 export default function Loading({
   fullscreen = true,
 }: {
   fullscreen?: boolean;
 }) {
-  return <PageLoadingState fullScreen={fullscreen} />;
+  return <AppLoading fullscreen={fullscreen} />;
 }
