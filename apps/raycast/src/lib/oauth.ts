@@ -37,8 +37,6 @@ const discovery = (forceRefresh = false) =>
   discoverAuthServer(getApiBaseUrl(), { forceRefresh });
 const providerKey = (auth: AuthDiscovery) =>
   `${getApiBaseUrl()}|${auth.issuer}|${auth.clients.raycast}`;
-// Keychain namespace that held pre-WorkOS (Better Auth) credentials.
-const legacyProviderId = "teak";
 
 interface SavedProvider {
   apiBaseUrl: string;
@@ -64,12 +62,7 @@ function savedProvider(auth: AuthDiscovery): SavedProvider {
     clientId: auth.clients.raycast,
   };
 }
-const isWorkosClient = (record: SavedProvider) =>
-  record.clientId.startsWith("client_");
-function validateSavedProvider(
-  raw: unknown,
-  current: AuthDiscovery,
-): SavedProvider {
+function validateSavedProvider(raw: unknown): SavedProvider {
   if (
     !raw ||
     typeof raw !== "object" ||
@@ -91,38 +84,9 @@ function validateSavedProvider(
     issuer: raw.issuer,
     clientId: raw.clientId,
   };
-  const expected = `teak:${raw.apiBaseUrl}|${raw.issuer}|${raw.clientId}`;
-  if (!isWorkosClient(record)) {
-    // Pre-WorkOS records are only ever cleared locally, never contacted.
-    if (raw.providerId !== legacyProviderId && raw.providerId !== expected) {
-      throw new Error("Invalid saved Teak connection");
-    }
-    return record;
-  }
-  const knownWorkos = environment.isDevelopment
-    ? {
-        apiBaseUrl: "https://reminiscent-kangaroo-59.convex.site/v1",
-        issuer:
-          "https://optimistic-metaphor-12-reminiscent-kangaroo-59.authkit.app",
-        clientId: "client_01M46CY5JTV80SYC820KWEGE3Z",
-      }
-    : {
-        apiBaseUrl: "https://teakvault.com/api/v1",
-        issuer: "https://scholarly-hay-77.authkit.app",
-        clientId: "client_01M47GV3CYKFW0H78W0XYKGTM5",
-      };
-  const currentWorkos =
-    raw.issuer === current.issuer && raw.clientId === current.clients.raycast;
-  const historicalWorkos =
-    raw.apiBaseUrl === knownWorkos.apiBaseUrl &&
-    raw.issuer === knownWorkos.issuer &&
-    raw.clientId === knownWorkos.clientId;
-  if (!(currentWorkos || historicalWorkos)) {
-    throw new Error("Saved WorkOS connection does not match this deployment");
-  }
   const issuer = new URL(raw.issuer);
   if (
-    raw.providerId !== expected ||
+    raw.providerId !== `teak:${raw.apiBaseUrl}|${raw.issuer}|${raw.clientId}` ||
     issuer.protocol !== "https:" ||
     issuer.username ||
     issuer.password ||
@@ -131,8 +95,10 @@ function validateSavedProvider(
   ) {
     throw new Error("Invalid saved Teak connection");
   }
-  // The native namespace shares the persisted issuer/client pin: tampering
-  // with that pin cannot retrieve another issuer's Keychain tokens.
+  // The Keychain namespace is derived from the saved issuer and client, so
+  // tampering with either cannot reach another connection's tokens. A
+  // connection from a replaced client registration stays clearable here;
+  // refresh only ever uses the currently discovered issuer and client.
   return record;
 }
 async function rememberProvider(auth: AuthDiscovery) {
@@ -149,9 +115,6 @@ async function getProvider(forceRefresh = false): Promise<Provider> {
     auth = await discovery(forceRefresh);
   } catch {
     throw new TeakDiscoveryError();
-  }
-  if (auth.primary !== "workos") {
-    throw new Error("This Teak server uses an unsupported sign-in provider.");
   }
   const key = providerKey(auth);
   const cached = providers.get(key);
@@ -324,12 +287,9 @@ async function revokeStoredSession(): Promise<SignOutResult> {
     inFlightStoredToken,
     inFlightReauthorize,
   ]);
-  const current = await getProvider();
+  await getProvider();
   const saved = await LocalStorage.allItems();
   const records = new Map<string, SavedProvider>();
-  // Pre-WorkOS credentials can no longer authenticate anywhere, so Sign Out
-  // clears them locally without contacting a server.
-  const legacy = new Set([legacyProviderId]);
   const entries = Object.entries(saved).filter(([key]) =>
     key.startsWith(registryPrefix()),
   );
@@ -345,15 +305,11 @@ async function revokeStoredSession(): Promise<SignOutResult> {
       if (typeof value !== "string" || value.length > 8192) {
         throw new Error("Invalid saved Teak connection");
       }
-      const record = validateSavedProvider(JSON.parse(value), current.auth);
+      const record = validateSavedProvider(JSON.parse(value));
       if (key !== `${registryPrefix()}${record.providerId}`) {
         throw new Error("Saved connection namespace mismatch");
       }
-      if (isWorkosClient(record)) {
-        records.set(record.providerId, record);
-      } else {
-        legacy.add(record.providerId);
-      }
+      records.set(record.providerId, record);
     } catch {
       // Only discard the corrupt metadata. Never trust its namespace enough
       // to read/delete Keychain credentials or contact a remote server.
@@ -427,10 +383,6 @@ async function revokeStoredSession(): Promise<SignOutResult> {
     }
     await client.removeTokens();
     await LocalStorage.removeItem(`${registryPrefix()}${record.providerId}`);
-  }
-  for (const providerId of legacy) {
-    await nativeClient(providerId).removeTokens();
-    await LocalStorage.removeItem(`${registryPrefix()}${providerId}`);
   }
   if (invalidMetadata) {
     throw new Error(
