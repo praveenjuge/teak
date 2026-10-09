@@ -460,7 +460,7 @@ const tokenProvider = (options: ClientOptions): TokenProvider => {
           next.binding.ownerId = current.binding.ownerId;
         }
         writeCredentials(next, options);
-        const latest = await discovery(options, true);
+        const latest = await discovery(options);
         if (!matchesProvider(next, options, latest)) {
           return null;
         }

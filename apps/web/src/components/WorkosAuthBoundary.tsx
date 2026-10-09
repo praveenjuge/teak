@@ -8,7 +8,7 @@ import { useAccessToken, useAuth } from "@workos-inc/authkit-nextjs/components";
 import { useConvexAuth, useMutation } from "convex/react";
 import { type ReactNode, useEffect, useRef, useState } from "react";
 import Loading from "@/app/loading";
-import { signOutWorkos } from "@/lib/sign-out";
+import { signOut } from "@/lib/sign-out-client";
 import { AuthUnavailable } from "./AuthUnavailable";
 
 type Bootstrap =
@@ -164,7 +164,7 @@ export function WorkosAuthBoundary({ children }: { children: ReactNode }) {
     <div className="mx-auto grid max-w-sm gap-4 p-6 text-center" role="status">
       <p>{blockedMessages[blocked]}</p>
       <Button onClick={() => setAttempt((n) => n + 1)}>Try again</Button>
-      <Button onClick={() => void signOutWorkos()} variant="ghost">
+      <Button onClick={() => void signOut()} variant="ghost">
         Sign out
       </Button>
     </div>

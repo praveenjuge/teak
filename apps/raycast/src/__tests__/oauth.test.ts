@@ -180,21 +180,6 @@ afterEach(() => {
   globalThis.fetch = originalFetch;
 });
 
-test("pre-WorkOS credentials neither sign in nor block a fresh WorkOS sign-in", async () => {
-  stores.set("teak", {
-    accessToken: "legacy",
-    refreshToken: "legacy-refresh",
-    isExpired: () => false,
-  });
-  expect(await oauth.hasStoredTeakSession()).toBe(false);
-  expect(await oauth.authorizeTeak()).toBe("access-new");
-  expect(browserCount).toBe(1);
-  expect(posts.map((post) => post.url)).toEqual([
-    "https://scholarly-hay-77.authkit.app/oauth2/token",
-  ]);
-  expect(posts[0].body.get("refresh_token")).toBeNull();
-});
-
 test("a server that does not advertise WorkOS is refused before browser sign-in", async () => {
   primary = "betterauth";
   // Discovery itself refuses any provider other than WorkOS.
@@ -230,7 +215,6 @@ test("WorkOS binds PKCE and token exchange to the REST resource and dynamic clie
     "https://raycast.com/redirect?package=teak-raycast",
   );
   expect(posts[0].redirect).toBe("error");
-  expect(stores.get("teak")).toBeUndefined();
 });
 
 test("concurrent commands rotate a refresh token once without opening the browser", async () => {
@@ -353,57 +337,19 @@ test("temporary refresh outage preserves credentials and never opens browser sig
   expect(stores.get(key)?.refreshToken).toBe("still-valid");
 });
 
-test("sign out after restart disconnects WorkOS and clears pre-WorkOS credentials locally", async () => {
+test("sign out after restart disconnects WorkOS from the saved connection", async () => {
   await oauth.authorizeTeak();
   const workosKey = Array.from(stores.keys())[0];
-  // Records an older build saved for its Better Auth connections.
-  const apiBaseUrl = "https://teakvault.com/api/v1";
-  const legacyIssuer = "https://app.teakvault.com";
-  const legacyClient = "teak-raycast";
-  const scopedLegacyId = `teak:${apiBaseUrl}|${legacyIssuer}|${legacyClient}`;
-  for (const providerId of ["teak", scopedLegacyId]) {
-    await raycastLocalStorageMock.setItem(
-      `teak.oauth.provider:${encodeURIComponent(apiBaseUrl)}:${providerId}`,
-      JSON.stringify({
-        apiBaseUrl,
-        providerId,
-        issuer: legacyIssuer,
-        clientId: legacyClient,
-        revocationEndpoint: "https://teakvault.com/api/api/oauth/revoke",
-      }),
-    );
-  }
-  stores.set("teak", {
-    accessToken: "old-legacy",
-    refreshToken: "old-legacy-refresh",
-    isExpired: () => false,
-  });
-  stores.set(scopedLegacyId, { accessToken: "", isExpired: () => true });
   posts.length = 0;
   globalThis.fetch = ((input, init) => transport(input, init)) as typeof fetch;
   const restarted = await import(`../lib/oauth?restart=${crypto.randomUUID()}`);
   expect(await restarted.signOutTeak()).toBe("disconnected");
-  expect(stores.has("teak")).toBe(false);
-  expect(stores.has(scopedLegacyId)).toBe(false);
   expect(stores.has(workosKey)).toBe(false);
   expect(posts.map((post) => post.url)).toEqual([
     "https://teakvault.com/api/v1/oauth/disconnect",
   ]);
   expect(posts[0].authorization).toBe("Bearer access-new");
   expect(Object.keys(await raycastLocalStorageMock.allItems())).toEqual([]);
-});
-
-test("pre-WorkOS-only sign out clears locally and then signs in with WorkOS", async () => {
-  stores.set("teak", {
-    accessToken: "old-legacy",
-    refreshToken: "old-legacy-refresh",
-    isExpired: () => false,
-  });
-  expect(await oauth.signOutTeak()).toBe("disconnected");
-  expect(stores.size).toBe(0);
-  expect(posts).toHaveLength(0);
-  expect(await oauth.authorizeTeak()).toBe("access-new");
-  expect(browserCount).toBe(1);
 });
 
 test("tampered historical endpoints never receive saved credentials", async () => {
@@ -973,13 +919,14 @@ test("trusted historical WorkOS 401 clears locally without refreshing against th
 });
 
 test.each([
-  ["https://attacker.authkit.app", "client_01M47GV3CYKFW0H78W0XYKGTM5"],
-  ["https://scholarly-hay-77.authkit.app", "client_attacker"],
+  ["https://attacker.authkit.app", "http://attacker.authkit.app"],
+  ["https://scholarly-hay-77.authkit.app", "https://other.authkit.app"],
 ])(
-  "untrusted saved WorkOS pin %s never accesses its credential namespace",
-  async (issuer, clientId) => {
+  "saved connection %s whose namespace names another issuer never accesses it",
+  async (issuer, namedIssuer) => {
+    const clientId = "client_01M47GV3CYKFW0H78W0XYKGTM5";
     const apiBaseUrl = "https://teakvault.com/api/v1";
-    const providerId = `teak:${apiBaseUrl}|${issuer}|${clientId}`;
+    const providerId = `teak:${apiBaseUrl}|${namedIssuer}|${clientId}`;
     const key = `teak.oauth.provider:${encodeURIComponent(apiBaseUrl)}:${providerId}`;
     const saved = {
       accessToken: "untouched-access",

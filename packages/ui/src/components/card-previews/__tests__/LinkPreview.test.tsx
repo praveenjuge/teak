@@ -1,6 +1,15 @@
-import { describe, expect, test } from "bun:test";
+import { describe, expect, mock, test } from "bun:test";
 import { renderToStaticMarkup } from "react-dom/server";
-import { LinkPreview } from "../LinkPreview";
+
+// The preview image refreshes expired URLs through a Convex action; spread the
+// real module because bun:test module mocks leak across files.
+const realConvexReact = await import("convex/react");
+mock.module("convex/react", () => ({
+  ...realConvexReact,
+  useAction: () => mock(),
+}));
+
+const { LinkPreview } = await import("../LinkPreview");
 
 const createLinkCard = (overrides?: Record<string, unknown>) => ({
   _id: "card_123",
@@ -24,6 +33,27 @@ const createLinkCard = (overrides?: Record<string, unknown>) => ({
 });
 
 describe("LinkPreview", () => {
+  test("shows the title, site, and description linking to the saved URL", () => {
+    const markup = renderToStaticMarkup(
+      <LinkPreview
+        card={
+          createLinkCard({
+            url: "https://www.example.com/articles/type?ref=feed",
+            linkPreviewImageUrl: "https://cdn.example.com/og.png",
+          }) as any
+        }
+      />
+    );
+
+    expect(markup).toContain("Teak on X");
+    expect(markup).toContain(">example.com<");
+    expect(markup).toContain("A saved post");
+    expect(markup).toContain('src="https://cdn.example.com/og.png"');
+    expect(markup).toContain(
+      'href="https://www.example.com/articles/type?ref=feed"'
+    );
+  });
+
   test("renders attached post images one below another", () => {
     const markup = renderToStaticMarkup(
       <LinkPreview

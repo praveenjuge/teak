@@ -1,13 +1,8 @@
 import { describe, expect, mock, test } from "bun:test";
-import React from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 
 mock.module("sonner", () => ({
   toast: { success: () => undefined, error: () => undefined },
-}));
-
-mock.module("lucide-react", () => ({
-  Copy: () => React.createElement("span", { "data-icon": "copy" }),
 }));
 
 const { PalettePreview } = await import("../PalettePreview");
@@ -49,6 +44,7 @@ describe("PalettePreview", () => {
     expect(markup).toContain("#00FF00");
     expect(markup).toContain("background-color:#FF0000");
     expect(markup).toContain("background-color:#00FF00");
-    expect((markup.match(/data-icon="copy"/g) ?? []).length).toBe(2);
+    expect(markup).toContain('aria-label="Copy #FF0000"');
+    expect(markup).toContain('aria-label="Copy #00FF00"');
   });
 });

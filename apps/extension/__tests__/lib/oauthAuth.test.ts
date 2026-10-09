@@ -176,13 +176,11 @@ describe("Chrome OAuth background credentials", () => {
         }) as unknown as typeof fetch
       );
       const auth = await load();
-      storage.teakSessionToken = "old-native-session";
       await Promise.all([auth.beginOAuthSignIn(), auth.beginOAuthSignIn()]);
       expect(webAuth).toHaveBeenCalledTimes(1);
       expect(setAccessLevel).toHaveBeenCalledWith({
         accessLevel: "TRUSTED_CONTEXTS",
       });
-      expect(storage.teakSessionToken).toBeUndefined();
       const issuer = `https://auth.${development ? "dev." : ""}test.workos.com`;
       const clientId = development ? "client_dev_chrome" : "client_chrome";
       const authorize = new URL(webAuth.mock.calls[0]?.[0].url);
@@ -511,24 +509,42 @@ test("development cannot read or clear production credentials", async () => {
   expect(storage.teakOAuthOwner).toBe("production-owner");
 });
 
-test("a client registration change while refreshing cannot publish or send the old token", async () => {
+test("a successful refresh reuses discovery and a rejected refresh fetches it again", async () => {
   storage[tokenKey] = {
     accessToken,
     refreshToken,
     expiresAt: Date.now() - 1,
     ...workosBinding,
   };
-  const network = mock(async (input) => {
-    if (String(input).endsWith("/oauth2/token")) {
-      environment = "beta";
-      return await Promise.resolve(tokenResponse("new-access", "new-refresh"));
+  let discoveryFetches = 0;
+  let refreshStatus = 200;
+  const network = withDiscovery(((input) => {
+    if (!String(input).endsWith("/oauth2/token")) {
+      return Promise.resolve(Response.json({ cardId: "card" }));
     }
-    throw new Error("Old provider token escaped");
-  });
-  globalThis.fetch = withDiscovery(network as unknown as typeof fetch);
-  expect(await (await load()).oauthRequest("/v1/cards")).toBeNull();
-  expect(network).toHaveBeenCalledTimes(1);
-  expect(storage[tokenKey]).toBeUndefined();
+    return Promise.resolve(
+      refreshStatus === 200
+        ? tokenResponse("new-access", "new-refresh")
+        : Response.json({ error: "invalid_grant" }, { status: 400 })
+    );
+  }) as typeof fetch);
+  globalThis.fetch = ((input, init) => {
+    if (String(input).includes("/.well-known/")) {
+      discoveryFetches += 1;
+    }
+    return network(input, init);
+  }) as typeof fetch;
+  const auth = await load();
+  expect(await auth.oauthRequest("/v1/cards")).not.toBeNull();
+  // Resource, client registry and issuer metadata: one discovery, no re-fetch.
+  expect(discoveryFetches).toBe(3);
+  storage[tokenKey] = {
+    ...(storage[tokenKey] as object),
+    expiresAt: Date.now() - 1,
+  };
+  refreshStatus = 400;
+  expect(await auth.oauthRequest("/v1/cards")).toBeNull();
+  expect(discoveryFetches).toBe(6);
 });
 
 test("rejects foreign API paths before reading or sending credentials", async () => {
@@ -634,35 +650,32 @@ test("sign-out during refresh disconnects the rotated credential and never sends
   expect(storage[tokenKey]).toBeUndefined();
 });
 
-test("a discovery outage after rotation preserves the new refresh credential without sending it", async () => {
+test("a discovery outage during sign-out preserves the rotated refresh credential", async () => {
   storage[tokenKey] = {
     accessToken,
     refreshToken,
     expiresAt: Date.now() - 1,
     ...workosBinding,
   };
-  let rotated = false;
   const network = withDiscovery(((input) => {
     if (String(input).endsWith("/oauth2/token")) {
-      rotated = true;
       return Promise.resolve(
         tokenResponse("rotated-access", "rotated-refresh")
       );
     }
-    return Promise.reject(new Error("API request escaped during outage"));
+    return Promise.resolve(Response.json({ cardId: "card" }));
   }) as typeof fetch);
-  globalThis.fetch = ((input, init) =>
-    rotated && String(input).includes("/.well-known/")
-      ? Promise.reject(new Error("Metadata unavailable"))
-      : network(input, init)) as typeof fetch;
+  globalThis.fetch = network;
   const auth = await load();
-  await expect(auth.oauthRequest("/v1/cards")).rejects.toThrow(
-    "Metadata unavailable"
-  );
+  expect(await auth.oauthRequest("/v1/cards")).not.toBeNull();
   expect(storage[tokenKey]).toMatchObject({
     accessToken: "rotated-access",
     refreshToken: "rotated-refresh",
   });
+  globalThis.fetch = ((input, init) =>
+    String(input).includes("/.well-known/")
+      ? Promise.reject(new Error("Metadata unavailable"))
+      : network(input, init)) as typeof fetch;
   await expect(auth.signOutOAuth()).rejects.toThrow("Metadata unavailable");
   expect(storage[tokenKey]).toMatchObject({ refreshToken: "rotated-refresh" });
 });

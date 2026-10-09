@@ -23,26 +23,31 @@ export function QuotePreview({
     : card.content;
 
   return (
-    <div className="relative h-full">
-      <div className="pointer-events-none absolute top-0 left-2 select-none font-serif text-6xl text-muted-foreground leading-none">
-        &ldquo;
-      </div>
+    <div className="flex min-h-full items-center justify-center px-6 py-12">
+      <div className="relative w-fit max-w-2xl">
+        <span
+          aria-hidden="true"
+          className="pointer-events-none absolute -top-8 -left-4 select-none font-serif text-6xl text-muted-foreground/20 leading-none"
+        >
+          &ldquo;
+        </span>
 
-      <Textarea
-        className="h-auto resize-none border-0 bg-transparent p-10 text-center font-medium font-serif text-xl italic leading-relaxed shadow-none focus-visible:border-0 focus-visible:ring-0 md:text-2xl dark:bg-transparent"
-        onChange={(e) => {
-          const newContent = e.target.value;
-          onContentChange(newContent);
-        }}
-        placeholder="Enter your quote..."
-        style={{
-          lineHeight: "1.6",
-        }}
-        value={currentContent || ""}
-      />
+        <Textarea
+          className="min-h-0 w-auto min-w-48 max-w-full resize-none rounded-none border-0 bg-transparent p-0 text-center font-medium text-xl italic leading-relaxed shadow-none focus-visible:border-0 focus-visible:ring-0 md:text-2xl md:leading-relaxed dark:bg-transparent"
+          onChange={(e) => {
+            const newContent = e.target.value;
+            onContentChange(newContent);
+          }}
+          placeholder="Enter your quote..."
+          value={currentContent || ""}
+        />
 
-      <div className="pointer-events-none absolute top-0 right-0 select-none font-serif text-6xl text-muted-foreground leading-none">
-        &rdquo;
+        <span
+          aria-hidden="true"
+          className="pointer-events-none absolute -right-4 -bottom-12 select-none font-serif text-6xl text-muted-foreground/20 leading-none"
+        >
+          &rdquo;
+        </span>
       </div>
     </div>
   );

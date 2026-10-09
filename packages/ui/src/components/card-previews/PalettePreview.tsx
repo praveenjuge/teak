@@ -1,7 +1,4 @@
 import type { Doc } from "@teak/convex/_generated/dataModel";
-import { buttonVariants } from "@teak/ui/components/ui/button";
-import { cn } from "@teak/ui/lib/utils";
-import { Copy } from "lucide-react";
 import { toast } from "sonner";
 
 type CardWithUrls = Doc<"cards"> & {
@@ -34,28 +31,27 @@ export function PalettePreview({ card }: PalettePreviewProps) {
     );
   }
 
+  // Swatches sit side by side like the grid card and wrap onto new rows when
+  // the pane is too narrow for every hex label.
   return (
-    <div className="space-y-2">
-      {colors.map((color) => (
-        <div className="overflow-hidden rounded-xl" key={`${color.hex}`}>
+    <div className="flex min-h-full items-center justify-center">
+      <div className="flex w-full max-w-3xl flex-wrap overflow-hidden rounded-2xl border">
+        {colors.map((color) => (
           <button
-            className="flex w-full cursor-pointer items-center justify-end rounded-xl border border-black/10 p-2 shadow-[inset_0_0_0_1px_rgba(255,255,255,0.18)]"
+            aria-label={`Copy ${color.hex}`}
+            className="group flex h-32 min-w-24 flex-1 basis-0 cursor-pointer items-end justify-center p-4 outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50 focus-visible:ring-inset md:h-56 md:min-w-28"
+            key={color.hex}
             onClick={() => void copyToClipboard(color.hex)}
             style={{ backgroundColor: color.hex }}
+            title={`Copy ${color.hex}`}
             type="button"
           >
-            <span
-              className={cn(
-                buttonVariants({ size: "sm", variant: "outline" }),
-                "pointer-events-none border-0 dark:bg-background"
-              )}
-            >
-              <Copy />
+            <span className="inline-flex h-8 items-center rounded-full bg-background/90 px-3 font-medium text-foreground text-sm tabular-nums shadow-xs transition-colors group-hover:bg-background">
               {color.hex}
             </span>
           </button>
-        </div>
-      ))}
+        ))}
+      </div>
     </div>
   );
 }
