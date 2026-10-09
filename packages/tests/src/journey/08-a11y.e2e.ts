@@ -12,11 +12,34 @@ const waitForReadySurface = async (path: string, page: Page) => {
       .getByRole("textbox", { name: "Markdown content" });
     await expect(composer).toBeVisible();
     await expect(composer).toBeEnabled();
-    return;
+  } else {
+    await expect(
+      page.getByRole("heading", { level: 1, name: "Settings" })
+    ).toBeVisible();
+    // Settings rows fade in over skeleton placeholders as account data
+    // arrives; scanning before they settle sees a partial page.
+    await expect(
+      page.locator('[data-slot="setting-value-skeleton"]')
+    ).toHaveCount(0);
   }
-  await expect(
-    page.getByRole("heading", { level: 1, name: "Settings" })
-  ).toBeVisible();
+  // Loaded values fade in, and axe blends mid-fade opacity into the colors
+  // it measures, reporting contrast the settled page does not have. Scan
+  // only once every animation on the page has finished.
+  await page.waitForFunction(
+    () =>
+      document.getAnimations().every((animation) => {
+        // Infinite loops (loading pulses) are not load transitions; the
+        // skeleton wait above is what proves the content arrived.
+        const timing = (
+          animation.effect as KeyframeEffect | null
+        )?.getTiming();
+        return (
+          animation.playState !== "running" || timing?.iterations === Infinity
+        );
+      }),
+    undefined,
+    { timeout: 10_000 }
+  );
 };
 
 for (const path of ["/", "/settings"]) {
