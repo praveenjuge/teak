@@ -206,6 +206,17 @@ export const OPS_ENTRIES: EnvVarSpec[] = [
     note: "Optional browser executable override for the Mac screenshot renderer.",
   }),
   // Repo tooling and smoke scripts.
+  spec("TEAK_E2E_HERMETIC", {
+    owners: ["teak-repo"],
+    targets: ["e2e"],
+    profiles: ["e2e"],
+    secret: false,
+    validation: "enum",
+    allowedValues: ["1"],
+    providers: ["build"],
+    required: false,
+    note: "Set by the auth-runtime Playwright config: its specs route every request to fixtures and need no local stack.",
+  }),
   spec("CONVEX_AGENT_MODE", {
     owners: ["teak-repo"],
     targets: ["repo"],
