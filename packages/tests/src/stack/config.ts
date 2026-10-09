@@ -13,6 +13,14 @@ export interface StackPorts {
   web: number;
 }
 
+/** The main checkout's fixed ports; linked worktrees lease their own. */
+export const MAIN_STACK_PORTS: StackPorts = {
+  web: 3000,
+  convex: 3210,
+  convexSite: 3211,
+  emulator: 4100,
+};
+
 export const EMULATOR_CLIENT_ID = "client_01TEAKE2EEMULATOR";
 export const EMULATOR_API_KEY = "sk_test_default";
 export const EMULATOR_ENVIRONMENT_ID = "environment_01TEAKE2EEMULATOR";

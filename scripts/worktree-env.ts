@@ -17,6 +17,7 @@ import {
 } from "node:fs";
 import { connect, createServer } from "node:net";
 import { join, resolve } from "node:path";
+import { MAIN_STACK_PORTS } from "../packages/tests/src/stack/config.ts";
 import { runCommand } from "./proc.ts";
 
 export interface WorktreePorts {
@@ -36,11 +37,8 @@ export interface WorktreePorts {
 }
 
 export const MAIN_PORTS = {
-  web: 3000,
+  ...MAIN_STACK_PORTS,
   docs: 3001,
-  convex: 3210,
-  convexSite: 3211,
-  emulator: 4100,
   extension: 3003,
 } as const;
 

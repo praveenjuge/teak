@@ -1,8 +1,7 @@
 import { defineConfig, devices } from "@playwright/test";
-import { published } from "./src/helpers/env";
+import { env, published } from "./src/helpers/env";
 import type { AccountKey } from "./src/helpers/run-state";
 import type { JourneyOptions } from "./src/helpers/test";
-import { readStackState } from "./src/stack/config";
 
 // Runs against this checkout's local stack, started by
 // src/scripts/run-local-suite.ts. The docs project needs none.
@@ -31,7 +30,7 @@ export default defineConfig<JourneyOptions>({
     ? [["list"], ["html", { open: "never" }]]
     : [["list"]],
   use: {
-    baseURL: readStackState()?.urls.appOrigin,
+    baseURL: env.appUrl,
     trace: "retain-on-failure",
     screenshot: "only-on-failure",
     video: "retain-on-failure",

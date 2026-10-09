@@ -1,32 +1,18 @@
 import { randomBytes } from "node:crypto";
-import { readStackState } from "../stack/config";
+import { MAIN_STACK_PORTS, readStackState, stackUrls } from "../stack/config";
 
 // The suite runs against this checkout's running stack, which records its
 // URLs when it starts (src/scripts/run-local-suite.ts, or `bun run dev`).
-// Only the published-site `docs` project runs without one.
-const stack = readStackState();
-const missing = () => {
-  throw new Error(
-    "No local stack is running for this checkout. Start one with `bun run --cwd packages/tests e2e:stack`."
-  );
-};
+// Hermetic suites that only route these URLs (auth-runtime) run without one
+// and get the main checkout's.
+const urls = readStackState()?.urls ?? stackUrls(MAIN_STACK_PORTS);
 
 export const env = {
-  get appUrl() {
-    return stack?.urls.appOrigin ?? missing();
-  },
-  get apiUrl() {
-    return stack?.urls.apiOrigin ?? missing();
-  },
-  get convexUrl() {
-    return stack?.urls.convexUrl ?? missing();
-  },
-  get mcpUrl() {
-    return `${stack?.urls.apiOrigin ?? missing()}/mcp`;
-  },
-  get emulatorUrl() {
-    return stack?.urls.emulatorOrigin ?? missing();
-  },
+  appUrl: urls.appOrigin,
+  apiUrl: urls.apiOrigin,
+  convexUrl: urls.convexUrl,
+  mcpUrl: `${urls.apiOrigin}/mcp`,
+  emulatorUrl: urls.emulatorOrigin,
 };
 
 // The docs checks read the published site and Teak's public production

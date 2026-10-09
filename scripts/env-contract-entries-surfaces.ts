@@ -36,6 +36,38 @@ export const SURFACE_ENTRIES: EnvVarSpec[] = [
     providers: ["dotenv-local", "shell"],
     required: false,
   }),
+  // Dev server ports. `bun run dev` sets them from the checkout's leased
+  // ports (scripts/worktree-env.ts); each app falls back to its main port.
+  spec("PORT", {
+    owners: ["@teak/web"],
+    targets: ["web"],
+    profiles: ["local", "e2e"],
+    secret: false,
+    validation: "number",
+    providers: ["shell"],
+    required: false,
+    note: "Next.js dev server port; bun run dev sets this checkout's web port.",
+  }),
+  spec("DOCS_PORT", {
+    owners: ["@teak/docs"],
+    targets: ["docs"],
+    profiles: ["local"],
+    secret: false,
+    validation: "number",
+    providers: ["shell"],
+    required: false,
+    note: "Docs dev server port; bun run dev sets this checkout's docs port.",
+  }),
+  spec("EXTENSION_PORT", {
+    owners: ["@teak/extension"],
+    targets: ["extension"],
+    profiles: ["local"],
+    secret: false,
+    validation: "number",
+    providers: ["shell"],
+    required: false,
+    note: "WXT dev server port; bun run dev sets this checkout's extension port.",
+  }),
   // Web client.
   spec("WORKOS_COOKIE_PASSWORD", {
     owners: ["@teak/web"],
