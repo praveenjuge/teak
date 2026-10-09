@@ -104,9 +104,9 @@ test("pins the Expo 57 macro-compatible native build set", () => {
   );
   const lockfile = readFileSync(resolve(repositoryRoot, "bun.lock"), "utf8");
 
-  expect(packageJson.dependencies.expo).toBe("^57.0.0");
-  expect(packageJson.dependencies["expo-build-properties"]).toBe("~57.0.9");
-  expect(packageJson.dependencies["react-native"]).toBe("0.86.2");
+  expect(packageJson.dependencies.expo).toBe("~57.0.27");
+  expect(packageJson.dependencies["expo-build-properties"]).toBe("~57.0.22");
+  expect(packageJson.dependencies["react-native"]).toBe("0.86.3");
   expect(packageJson.dependencies["react-native-reanimated"]).toBe("4.5.1");
   expect(packageJson.dependencies["react-native-worklets"]).toBe("0.10.1");
   expect(repositoryPackage.overrides["expo-constants"]).toBeUndefined();
@@ -115,4 +115,15 @@ test("pins the Expo 57 macro-compatible native build set", () => {
   expect(repositoryPackage.overrides["expo-web-browser"]).toBeUndefined();
   expect(lockfile).toContain('"@expo/expo-modules-macros-plugin@0.6.1"');
   expect(lockfile).not.toContain('"@expo/expo-modules-macros-plugin@0.2.2"');
+});
+
+test("adopts the UIKit scene life cycle required by the iOS 27 SDK", () => {
+  const app = JSON.parse(readFileSync(resolve(mobileRoot, "app.json"), "utf8"));
+
+  expect(app.expo.plugins).toContainEqual([
+    "expo-build-properties",
+    expect.objectContaining({
+      ios: expect.objectContaining({ enableSceneSupport: true }),
+    }),
+  ]);
 });
