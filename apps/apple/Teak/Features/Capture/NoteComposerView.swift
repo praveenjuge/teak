@@ -6,19 +6,21 @@ struct NoteComposerView: View {
     @Environment(CaptureModel.self) private var capture
     @Environment(AppRouter.self) private var router
     @Environment(\.dismiss) private var dismiss
+    /// Local, so typing re-renders only this sheet. A text view that waits on
+    /// app-wide updates drops keystrokes on the Mac.
+    @State private var text = ""
     @FocusState private var focused: Bool
 
     var body: some View {
-        @Bindable var router = router
         NavigationStack {
-            TextEditor(text: $router.composerText)
+            TextEditor(text: $text)
                 .focused($focused)
                 .accessibilityLabel("Write a note or paste a link")
                 .accessibilityIdentifier("composer.text")
                 .scrollContentBackground(.hidden)
                 .padding(.horizontal, 12)
                 .overlay(alignment: .topLeading) {
-                    if router.composerText.isEmpty {
+                    if text.isEmpty {
                         Text("Write a note or paste a link")
                             .foregroundStyle(.tertiary)
                             .padding(.horizontal, 17)
@@ -37,7 +39,7 @@ struct NoteComposerView: View {
                     ToolbarItem(placement: .confirmationAction) {
                         Button(capture.isSavingText ? "Saving…" : "Save") { save() }
                             .buttonStyle(.glassProminent)
-                            .disabled(capture.isSavingText || router.composerText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                            .disabled(capture.isSavingText || text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
                             .keyboardShortcut(.return, modifiers: .command)
                             .accessibilityHint("Saves this text card.")
                             .accessibilityIdentifier("composer.save")
@@ -45,12 +47,16 @@ struct NoteComposerView: View {
                 }
         }
         .frame(minWidth: 420, minHeight: 320)
-        .onAppear { focused = true }
+        .onAppear {
+            text = router.composerText
+            focused = true
+        }
     }
 
     private func save() {
         Task {
-            if await capture.saveText(router.composerText) != nil {
+            if await capture.saveText(text) != nil {
+                text = ""
                 router.composerText = ""
                 // Like the iPhone app, a saved note lands back in the library.
                 router.tab = .home

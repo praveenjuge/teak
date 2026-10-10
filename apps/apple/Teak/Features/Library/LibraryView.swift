@@ -262,6 +262,7 @@ struct LibraryView: View {
             ToolbarItem {
                 Button("Select", systemImage: "checkmark.circle") { library.beginSelection() }
                     .accessibilityLabel("Select cards")
+                    .accessibilityIdentifier("library.select")
             }
             ToolbarItem {
                 FilterMenu(library: library)

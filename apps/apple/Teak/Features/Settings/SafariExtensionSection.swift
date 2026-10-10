@@ -25,7 +25,8 @@ struct SafariExtensionSection: View {
                 }
             }
             Button("Open Safari Settings…") {
-                SFSafariApplication.showPreferencesForExtension(withIdentifier: SafariExtension.identifier) { _ in }
+                SFSafariApplication.showPreferencesForExtension(withIdentifier: SafariExtension.identifier,
+                                                                completionHandler: nil)
             }
             #else
             Text("Save pages from Safari with one tap. In Safari, tap \(Image(systemName: "puzzlepiece.extension")) in the address bar, choose Manage Extensions, and turn on Teak.")
@@ -44,9 +45,13 @@ struct SafariExtensionSection: View {
     #if os(macOS)
     private func refresh() async {
         isEnabled = await withCheckedContinuation { continuation in
-            SFSafariExtensionManager.getStateOfSafariExtension(withIdentifier: SafariExtension.identifier) { state, _ in
+            // The SDK marks this handler main-actor, but Safari calls it from an
+            // XPC queue; a nonisolated handler avoids a runtime isolation trap.
+            let handler: @Sendable (SFSafariExtensionState?, (any Error)?) -> Void = { state, _ in
                 continuation.resume(returning: state?.isEnabled ?? false)
             }
+            SFSafariExtensionManager.getStateOfSafariExtension(withIdentifier: SafariExtension.identifier,
+                                                               completionHandler: handler)
         }
     }
     #endif

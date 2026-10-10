@@ -35,6 +35,28 @@ final class LibraryFlowTests: XCTestCase {
         #endif
     }
 
+    /// Enters text into a field. Synthesized typing drops characters in Mac
+    /// text views, so the Mac pastes instead.
+    @MainActor private func enter(_ text: String, into element: XCUIElement) {
+        #if os(macOS)
+        NSPasteboard.general.clearContents()
+        NSPasteboard.general.setString(text, forType: .string)
+        element.typeKey("v", modifierFlags: .command)
+        #else
+        element.typeText(text)
+        #endif
+    }
+
+    /// Enters text and presses Return.
+    @MainActor private func submit(_ text: String, into element: XCUIElement) {
+        #if os(macOS)
+        enter(text, into: element)
+        element.typeKey(.return, modifierFlags: [])
+        #else
+        element.typeText(text + "\n")
+        #endif
+    }
+
     /// Writes a note (or link) through the composer and waits for its tile.
     @MainActor private func save(_ text: String, expecting title: String) {
         #if os(macOS)
@@ -45,7 +67,7 @@ final class LibraryFlowTests: XCTestCase {
         #endif
         let editor = app.textViews["composer.text"].waitToAppear()
         tap(editor)
-        editor.typeText(text)
+        enter(text, into: editor)
         tap(app.buttons["composer.save"])
         tile(containing: title).waitToAppear(20)
     }
@@ -64,9 +86,38 @@ final class LibraryFlowTests: XCTestCase {
         return candidates[0]
     }
 
+    /// A toolbar menu: a menu button on the Mac, a button elsewhere.
+    @MainActor private func menu(_ name: String) -> XCUIElement {
+        #if os(macOS)
+        app.menuButtons[name].firstMatch
+        #else
+        app.buttons[name].firstMatch
+        #endif
+    }
+
+    /// A confirmation's button: a sheet on the Mac, an action sheet or popover elsewhere.
+    @MainActor private func confirmation(_ name: String) -> XCUIElement {
+        #if os(macOS)
+        app.sheets.buttons[name].firstMatch
+        #else
+        app.buttons[name].firstMatch
+        #endif
+    }
+
     @MainActor private func filter(_ name: String) {
-        tap(app.buttons["Filter"].firstMatch.waitToAppear())
-        tap(app.buttons[name].firstMatch.waitToAppear())
+        let button = menu("Filter").waitToAppear()
+        tap(button)
+        #if os(macOS)
+        // Scoped to the menu: the Window menu also lists a window titled "Trash".
+        tap(button.menuItems[name].firstMatch.waitToAppear())
+        #else
+        tap(menuItem(name).waitToAppear())
+        #endif
+    }
+
+    /// A text field or text view by identifier; a multi-line field is a text view on the Mac.
+    @MainActor private func field(_ identifier: String) -> XCUIElement {
+        app.descendants(matching: .any).matching(identifier: identifier).firstMatch
     }
 
     @MainActor private func menuItem(_ name: String) -> XCUIElement {
@@ -88,12 +139,17 @@ final class LibraryFlowTests: XCTestCase {
 
         let search = app.searchFields.firstMatch
         tap(search)
-        search.typeText(note)
+        enter(note, into: search)
         XCTAssertTrue(tile(containing: note).waitForExistence(timeout: 10))
         tile(containing: "example.org").waitToDisappear()
 
         // Return turns typed text into tokens; "link" is a type token.
-        search.typeText(XCUIKeyboardKey.delete.rawValue.repeated(note.count) + "link\n")
+        #if os(macOS)
+        search.typeKey("a", modifierFlags: .command)
+        #else
+        search.typeText(XCUIKeyboardKey.delete.rawValue.repeated(note.count))
+        #endif
+        submit("link", into: search)
         tile(containing: "example.org").waitToAppear()
         tile(containing: note).waitToDisappear()
     }
@@ -108,14 +164,14 @@ final class LibraryFlowTests: XCTestCase {
         tap(tile(containing: note))
         tap(app.buttons["Favorite"].firstMatch.waitToAppear())
         app.buttons["Unfavorite"].firstMatch.waitToAppear()
-        tap(app.buttons["More"].firstMatch)
+        tap(menu("More").waitToAppear())
         tap(menuItem("Edit Notes and Tags").waitToAppear())
-        let notes = app.textFields["Add notes"].firstMatch.waitToAppear()
+        let notes = field("edit.notes").waitToAppear()
         tap(notes)
-        notes.typeText("Notes for \(note)")
-        let tagField = app.textFields["Add a tag"].firstMatch
+        enter("Notes for \(note)", into: notes)
+        let tagField = field("edit.tag")
         tap(tagField)
-        tagField.typeText("uitag\n")
+        submit("uitag", into: tagField)
         tap(app.buttons["Save"].firstMatch)
         app.staticTexts["Notes for \(note)"].waitToAppear()
 
@@ -127,7 +183,7 @@ final class LibraryFlowTests: XCTestCase {
 
         // Delete to Trash, restore, then delete forever.
         tap(tile(containing: note))
-        tap(app.buttons["More"].firstMatch.waitToAppear())
+        tap(menu("More").waitToAppear())
         tap(menuItem("Delete Card").waitToAppear())
         tile(containing: note).waitToDisappear()
 
@@ -139,12 +195,12 @@ final class LibraryFlowTests: XCTestCase {
         tile(containing: note).waitToAppear()
 
         tap(tile(containing: note))
-        tap(app.buttons["More"].firstMatch.waitToAppear())
+        tap(menu("More").waitToAppear())
         tap(menuItem("Delete Card").waitToAppear())
         filter("Trash")
         tile(containing: note).waitToAppear().openContextMenu()
         tap(menuItem("Delete Forever").waitToAppear())
-        tap(app.buttons["Delete Forever"].firstMatch.waitToAppear())
+        tap(confirmation("Delete Forever").waitToAppear())
         tile(containing: note).waitToDisappear()
     }
 
@@ -155,7 +211,7 @@ final class LibraryFlowTests: XCTestCase {
         let second = marker("bulk")
         save("One \(first)", expecting: first)
         save("Two \(second)", expecting: second)
-        tap(app.buttons["Select cards"].firstMatch.waitToAppear())
+        tap(app.buttons["library.select"].firstMatch.waitToAppear())
         tap(tile(containing: first))
         tap(tile(containing: second))
         app.staticTexts["2 Selected"].firstMatch.waitToAppear()
@@ -175,7 +231,7 @@ final class LibraryFlowTests: XCTestCase {
         tap(tab("Settings"))
         #endif
         tap(app.buttons["settings.logOut"].firstMatch.waitToAppear())
-        tap(menuItem("Log Out").waitToAppear())
+        tap(confirmation("Log Out").waitToAppear())
         app.buttons["signIn.emailSignIn"].waitToAppear(20)
     }
 }

@@ -80,6 +80,7 @@ struct CardEditView: View {
             Section("Notes") {
                 TextField("Add notes", text: draft.notes, axis: .vertical)
                     .lineLimit(3...10)
+                    .accessibilityIdentifier("edit.notes")
             }
             Section("Tags") {
                 ForEach(draft.wrappedValue.tags, id: \.self) { tag in
@@ -97,6 +98,7 @@ struct CardEditView: View {
                 HStack {
                     TextField("Add a tag", text: $newTag)
                         .focused($tagFieldFocused)
+                        .accessibilityIdentifier("edit.tag")
                         .onSubmit { addTag(draft) }
                         #if os(iOS)
                         .textInputAutocapitalization(.never)
