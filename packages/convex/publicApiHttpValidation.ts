@@ -91,9 +91,11 @@ const serializeCard = (card: any, requestUrl: string) => ({
   isFavorited: Boolean(card.isFavorited),
   linkPreviewImageUrl: card.linkPreviewImageUrl ?? null,
   metadataDescription: card.metadataDescription ?? null,
+  metadataStatus: card.metadataStatus ?? null,
   metadataTitle: card.metadataTitle ?? null,
   mimeType: card.fileMetadata?.mimeType ?? null,
   notes: card.notes ?? null,
+  processingStatus: card.processingStatus ?? null,
   screenshotUrl: card.screenshotUrl ?? null,
   tags: card.tags ?? [],
   placeholderUrl: card.placeholderUrl ?? null,
@@ -527,15 +529,16 @@ const parseCardRoute = (
   return null;
 };
 
-const validatePatchPayload = (
-  payload: unknown
-): {
+interface PatchCardPayload {
   content?: string;
   metadataTitle?: string | null;
   notes?: string | null;
+  removeAiTags?: string[];
   tags?: string[];
   url?: string;
-} | null => {
+}
+
+const validatePatchPayload = (payload: unknown): PatchCardPayload | null => {
   if (!payload || typeof payload !== "object" || Array.isArray(payload)) {
     return null;
   }
@@ -545,6 +548,7 @@ const validatePatchPayload = (
     "content",
     "metadataTitle",
     "notes",
+    "removeAiTags",
     "tags",
     "url",
   ]);
@@ -555,13 +559,7 @@ const validatePatchPayload = (
     }
   }
 
-  const next: {
-    content?: string;
-    metadataTitle?: string | null;
-    notes?: string | null;
-    tags?: string[];
-    url?: string;
-  } = {};
+  const next: PatchCardPayload = {};
 
   if ("content" in source) {
     if (typeof source.content !== "string") {
@@ -605,6 +603,14 @@ const validatePatchPayload = (
     next.tags = tags;
   }
 
+  if ("removeAiTags" in source) {
+    const removeAiTags = parseStringArray(source.removeAiTags);
+    if (!removeAiTags?.length) {
+      return null;
+    }
+    next.removeAiTags = removeAiTags;
+  }
+
   if (Object.keys(next).length === 0) {
     return null;
   }
@@ -633,6 +639,7 @@ const validateFavoritePayload = (
 
 export {
   buildCreateCardResponse,
+  getAppBaseUrl,
   parseCardRoute,
   parseCardsQueryOptions,
   parseIncludeSet,

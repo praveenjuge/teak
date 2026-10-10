@@ -53,8 +53,15 @@ const WWW_PREFIX_REGEX = /^www\./;
 
 interface CardItemProps {
   card: MobileCardSummary;
+  /** The grid is showing Trash, so the menu offers Restore and Delete Forever. */
+  inTrash?: boolean;
+  /** Selection mode: null when not selecting. */
+  isSelected?: boolean | null;
+  onDeleteForeverRequest?: () => void;
   onDeleteRequest?: () => void;
   onPress?: () => void;
+  onRestoreRequest?: () => void;
+  onSelectRequest?: () => void;
   /** Width of the grid column; tiles size their media from it. */
   width: number;
 }
@@ -62,6 +69,26 @@ interface CardItemProps {
 const tileBackground = PlatformColor("secondarySystemGroupedBackground");
 const roundedText = (size = 15, weight: "regular" | "medium" = "medium") =>
   font({ design: "rounded", size, weight });
+
+/** The Photos-style selection check shown while selecting cards. */
+const SelectionMark = ({ selected }: { selected: boolean }) => (
+  <Image
+    color={selected ? "white" : "secondary"}
+    modifiers={[
+      padding({ all: 4 }),
+      background(
+        selected
+          ? PlatformColor("systemBlue")
+          : PlatformColor("systemBackground"),
+        shapes.circle()
+      ),
+      padding({ all: 8 }),
+      shadow({ radius: 2, y: 1, color: "#00000033" }),
+    ]}
+    size={14}
+    systemName={selected ? "checkmark" : "circle"}
+  />
+);
 
 /**
  * The card surface shared by every tile: the grouped content background on
@@ -71,14 +98,16 @@ const TileSurface = ({
   children,
   favorite,
   onPress,
+  selected = null,
   width,
 }: {
   children: ReactNode;
   favorite?: boolean;
   onPress?: () => void;
+  selected?: boolean | null;
   width: number;
 }) => (
-  <Overlay alignment="topTrailing">
+  <Overlay alignment={selected === null ? "topTrailing" : "bottomTrailing"}>
     <VStack
       alignment="leading"
       modifiers={[
@@ -99,7 +128,8 @@ const TileSurface = ({
       {children}
     </VStack>
     <Overlay.Content>
-      {favorite ? (
+      {selected === null ? null : <SelectionMark selected={selected} />}
+      {favorite && selected === null ? (
         <Image
           color="red"
           modifiers={[
@@ -251,8 +281,13 @@ const buildFileName = (url?: string | null, fallback?: string) => {
 
 const CardItem = memo(function CardItem({
   card,
+  inTrash = false,
+  isSelected = null,
+  onDeleteForeverRequest,
   onPress,
   onDeleteRequest,
+  onRestoreRequest,
+  onSelectRequest,
   width,
 }: CardItemProps) {
   const convex = useConvex();
@@ -415,29 +450,60 @@ const CardItem = memo(function CardItem({
 
   const imageUrl = getTileImageUrl(card);
 
-  const tile = (content: ReactNode, contextItems: ReactNode[]) => (
-    <ContextMenu>
-      <ContextMenu.Items>
-        {contextItems}
-        {/* biome-ignore lint/a11y/useValidAriaRole: expo-ui Button role maps to SwiftUI, not DOM ARIA */}
-        <Button
-          label="Delete"
-          onPress={handleDelete}
-          role="destructive"
-          systemImage="trash"
-        />
-      </ContextMenu.Items>
-      <ContextMenu.Trigger>
-        <TileSurface
-          favorite={card.isFavorited}
-          onPress={onPress}
-          width={width}
-        >
-          {content}
-        </TileSurface>
-      </ContextMenu.Trigger>
-    </ContextMenu>
+  const surface = (content: ReactNode) => (
+    <TileSurface
+      favorite={card.isFavorited}
+      onPress={onPress}
+      selected={isSelected}
+      width={width}
+    >
+      {content}
+    </TileSurface>
   );
+
+  const trashItems = [
+    <Button
+      key="restore"
+      label="Restore"
+      onPress={() => onRestoreRequest?.()}
+      systemImage="arrow.uturn.backward"
+    />,
+    // biome-ignore lint/a11y/useValidAriaRole: expo-ui Button role maps to SwiftUI, not DOM ARIA
+    <Button
+      key="delete-forever"
+      label="Delete Forever"
+      onPress={() => onDeleteForeverRequest?.()}
+      role="destructive"
+      systemImage="trash"
+    />,
+  ];
+
+  // While selecting, a tap toggles the card and the menu stays out of the way.
+  const tile = (content: ReactNode, contextItems: ReactNode[]) =>
+    isSelected === null ? (
+      <ContextMenu>
+        <ContextMenu.Items>
+          {inTrash ? trashItems : contextItems}
+          <Button
+            label="Select"
+            onPress={() => onSelectRequest?.()}
+            systemImage="checkmark.circle"
+          />
+          {inTrash ? null : (
+            // biome-ignore lint/a11y/useValidAriaRole: expo-ui Button role maps to SwiftUI, not DOM ARIA
+            <Button
+              label="Delete"
+              onPress={handleDelete}
+              role="destructive"
+              systemImage="trash"
+            />
+          )}
+        </ContextMenu.Items>
+        <ContextMenu.Trigger>{surface(content)}</ContextMenu.Trigger>
+      </ContextMenu>
+    ) : (
+      surface(content)
+    );
 
   const fileActions = (key: string, name: string) => [
     <Button

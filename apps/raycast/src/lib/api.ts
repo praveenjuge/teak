@@ -5,13 +5,17 @@ import {
   type RaycastApiErrorCode,
   toErrorCode,
 } from "./apiErrors";
+import { readFile, stat } from "node:fs/promises";
+import { basename } from "node:path";
 import {
   type CardsResponse,
   getPayloadCode,
   parseCardsPageResponse,
+  parseDuplicateResponse,
   parseQuickSaveResponse,
   parseRaycastCard,
   parseTagsResponse,
+  parseUploadResponse,
   type QuickSaveResponse,
   type RaycastCard,
   type TagsResponse,
@@ -33,22 +37,42 @@ export {
   RaycastApiError,
   type RaycastApiErrorCode,
 } from "./apiErrors";
-export type { RaycastCard, TagSummary, TagsResponse } from "./apiParsers";
+export type {
+  CardsResponse,
+  QuickSaveResponse,
+  RaycastCard,
+  TagSummary,
+  TagsResponse,
+} from "./apiParsers";
 
 export interface CardSearchInput {
   createdAfter?: number;
   createdBefore?: number;
+  cursor?: string;
   favorited?: boolean;
+  hex?: string[];
+  hue?: string[];
   limit?: number;
   query?: string;
   sort?: RaycastSort;
+  style?: string[];
   tag?: string;
+  trashed?: boolean;
   type?: RaycastCardType;
 }
+
+// List responses include the fields the detail view shows: content, file and
+// link metadata, palette colors, and transcripts.
+const CARD_DETAIL_INCLUDE = "content,metadata,processing";
 
 export interface CreateCardInput {
   cardType?: RaycastCardType;
   content?: string;
+  fileEtag?: string;
+  fileKey?: string;
+  fileName?: string;
+  fileSize?: number;
+  mimeType?: string;
   notes?: string | null;
   source?: string;
   tags?: string[];
@@ -58,6 +82,8 @@ export interface CreateCardInput {
 export interface UpdateCardInput {
   content?: string;
   notes?: string | null;
+  /** Tags Teak added that should be dropped. */
+  removeAiTags?: string[];
   tags?: string[];
   url?: string;
 }
@@ -333,7 +359,7 @@ export const searchCards = (
   request<CardsResponse>(
     `/cards?${buildCardsSearchParams({
       ...input,
-      include: "content,metadata",
+      include: CARD_DETAIL_INCLUDE,
       limit: input.limit ?? DEFAULT_LIMIT,
     })}`,
     parseCardsPageResponse,
@@ -350,7 +376,7 @@ export const getFavoriteCards = (
     `/cards?${buildCardsSearchParams({
       ...input,
       favorited: true,
-      include: "content,metadata",
+      include: CARD_DETAIL_INCLUDE,
       limit: input.limit ?? DEFAULT_LIMIT,
     })}`,
     parseCardsPageResponse,
@@ -381,6 +407,7 @@ export const getCardById = (
 export const updateCard = (
   cardId: string,
   input: UpdateCardInput,
+  options?: RequestAuthOptions,
 ): Promise<RaycastCard> => {
   const normalizedCardId = cardId.trim();
   if (!normalizedCardId) {
@@ -394,6 +421,7 @@ export const updateCard = (
       body: JSON.stringify(input),
       method: "PATCH",
     },
+    options,
   );
 };
 
@@ -430,6 +458,135 @@ export const softDeleteCard = async (cardId: string): Promise<void> => {
     {
       method: "DELETE",
     },
+  );
+};
+
+const cardPath = (cardId: string): string => {
+  const normalizedCardId = cardId.trim();
+  if (!normalizedCardId) {
+    throw new RaycastApiError("INVALID_INPUT");
+  }
+  return `/cards/${encodeURIComponent(normalizedCardId)}`;
+};
+
+export const restoreCard = async (cardId: string): Promise<void> => {
+  await request<void>(`${cardPath(cardId)}/restore`, () => undefined, {
+    method: "POST",
+  });
+};
+
+export const permanentlyDeleteCard = async (cardId: string): Promise<void> => {
+  await request<void>(`${cardPath(cardId)}?permanent=true`, () => undefined, {
+    method: "DELETE",
+  });
+};
+
+/** The ID of a saved card with exactly this URL, or null. */
+export const findSavedCardId = (
+  url: string,
+  options?: RequestAuthOptions,
+): Promise<string | null> =>
+  request(
+    `/cards/duplicate?${new URLSearchParams({ url }).toString()}`,
+    parseDuplicateResponse,
+    { method: "GET" },
+    options,
+  );
+
+const MIME_BY_EXTENSION: Record<string, string> = {
+  avif: "image/avif",
+  gif: "image/gif",
+  heic: "image/heic",
+  jpeg: "image/jpeg",
+  jpg: "image/jpeg",
+  m4a: "audio/mp4",
+  md: "text/markdown",
+  mov: "video/quicktime",
+  mp3: "audio/mpeg",
+  mp4: "video/mp4",
+  pdf: "application/pdf",
+  png: "image/png",
+  svg: "image/svg+xml",
+  txt: "text/plain",
+  wav: "audio/wav",
+  webm: "video/webm",
+  webp: "image/webp",
+  zip: "application/zip",
+};
+
+// Teak infers the card type from the file name, so unknown extensions can go
+// up as generic bytes and still land as the right kind of card.
+export const mimeTypeForFile = (filePath: string): string => {
+  const extension = filePath.split(".").pop()?.toLowerCase() ?? "";
+  return MIME_BY_EXTENSION[extension] ?? "application/octet-stream";
+};
+
+export const MAX_UPLOAD_BYTES = 100 * 1024 * 1024;
+
+const LOOPBACK_HOSTS = new Set(["localhost", "127.0.0.1", "[::1]"]);
+
+// The upload link comes from the Teak API. Send files only to a web address,
+// so a bad response can't point the upload at another scheme or local host.
+const uploadUrl = (url: string): URL => {
+  let parsed: URL | null = null;
+  try {
+    parsed = new URL(url);
+  } catch {
+    // Not a URL; rejected below.
+  }
+  if (
+    parsed?.protocol === "https:" ||
+    (parsed?.protocol === "http:" && LOOPBACK_HOSTS.has(parsed.hostname))
+  ) {
+    return parsed;
+  }
+  throw new RaycastApiError("REQUEST_FAILED");
+};
+
+/** Uploads a local file and saves it as a card, like a web drag and drop. */
+export const saveFileCard = async (
+  filePath: string,
+  input: { source: string; tags?: string[] },
+  options?: RequestAuthOptions,
+): Promise<QuickSaveResponse> => {
+  const fileName = basename(filePath);
+  const { size: fileSize } = await stat(filePath);
+  if (fileSize > MAX_UPLOAD_BYTES) {
+    throw new RaycastApiError("INVALID_INPUT");
+  }
+  const mimeType = mimeTypeForFile(filePath);
+  const upload = await request(
+    "/uploads",
+    parseUploadResponse,
+    {
+      body: JSON.stringify({ fileName, fileSize, mimeType }),
+      method: "POST",
+    },
+    options,
+  );
+  // nosemgrep: rules_lgpl_javascript_ssrf_rule-node-ssrf
+  const uploaded = await fetch(uploadUrl(upload.uploadUrl), {
+    body: await readFile(filePath),
+    headers: {
+      "Content-Length": String(fileSize),
+      "Content-Type": mimeType,
+    },
+    method: "PUT",
+  });
+  if (!uploaded.ok) {
+    throw new RaycastApiError("REQUEST_FAILED", uploaded.status);
+  }
+  return createCard(
+    {
+      fileEtag: uploaded.headers.get("etag") ?? undefined,
+      fileKey: upload.fileKey,
+      fileName,
+      fileSize,
+      mimeType,
+      source: input.source,
+      tags: input.tags,
+    },
+    options,
   );
 };
 

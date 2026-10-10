@@ -65,6 +65,7 @@ const patchCardForUserArgs = {
   url: v.optional(v.string()),
   notes: v.optional(v.union(v.string(), v.null())),
   tags: v.optional(v.array(v.string())),
+  removeAiTags: v.optional(v.array(v.string())),
 } as const;
 
 const setCardFavoriteForUserArgs = {
@@ -551,11 +552,20 @@ export const patchCardForUser = internalMutation({
       requestedFields.push("tags");
     }
 
-    if (requestedFields.length === 0) {
+    const removeAiTags = args.removeAiTags ?? [];
+    if (requestedFields.length === 0 && removeAiTags.length === 0) {
       return getCardForUserHandler(ctx, userId, args.cardId);
     }
 
     const previousCard = await ctx.db.get("cards", args.cardId);
+
+    for (const tagToRemove of removeAiTags) {
+      await updateCardFieldForUserHandler(
+        ctx,
+        { userId, cardId: args.cardId, field: "removeAiTag", tagToRemove },
+        { deferPipelineSchedule: true, deferSearchSync: true }
+      );
+    }
 
     for (const field of requestedFields) {
       switch (field) {

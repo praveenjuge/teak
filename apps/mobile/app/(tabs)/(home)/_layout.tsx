@@ -13,6 +13,15 @@ export default function Layout() {
           title: "Preview",
         }}
       />
+      <Stack.Screen
+        name="card/edit/[id]"
+        options={{
+          presentation: "formSheet",
+          sheetAllowedDetents: [1.0],
+          sheetGrabberVisible: true,
+          title: "Edit Card",
+        }}
+      />
     </Stack>
   );
 }

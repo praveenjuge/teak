@@ -8,7 +8,7 @@ const addActions = [
   {
     color: "systemBlue",
     href: "/(tabs)/add/text",
-    icon: "square.and.pencil",
+    icon: "doc.text.fill",
     label: "Note or Link",
   },
   {

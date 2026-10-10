@@ -482,3 +482,37 @@ describe("Search scan budget", () => {
     }
   );
 });
+
+describe("Public API AI tag removal", () => {
+  test("removes only the named AI tags and keeps the card's own tags", async () => {
+    const { t, cardId } = await setup();
+    await t.run((ctx) =>
+      ctx.db.patch("cards", cardId, { aiTags: ["design", "color", "web"] })
+    );
+    const updated = await t.mutation(internal.raycast.patchCardForUser, {
+      cardId,
+      userId: "owner",
+      removeAiTags: ["color", "missing"],
+    });
+    expect(updated?.aiTags).toEqual(["design", "web"]);
+    const card = await t.run((ctx) => ctx.db.get("cards", cardId));
+    expect(card).toMatchObject({
+      aiTags: ["design", "web"],
+      tags: ["original"],
+    });
+  });
+
+  test("refuses to touch another user's card", async () => {
+    const { t, cardId } = await setup();
+    await t.run((ctx) => ctx.db.patch("cards", cardId, { aiTags: ["design"] }));
+    await expect(
+      t.mutation(internal.raycast.patchCardForUser, {
+        cardId,
+        userId: "stranger",
+        removeAiTags: ["design"],
+      })
+    ).rejects.toThrow();
+    const card = await t.run((ctx) => ctx.db.get("cards", cardId));
+    expect(card?.aiTags).toEqual(["design"]);
+  });
+});

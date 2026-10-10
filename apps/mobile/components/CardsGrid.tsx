@@ -28,7 +28,7 @@ import { parseTimeSearchQuery } from "@teak/convex/shared";
 import { useConvex, usePaginatedQuery } from "convex/react";
 import { Link, useRouter } from "expo-router";
 import { memo, useCallback, useMemo, useRef } from "react";
-import { PlatformColor, useWindowDimensions } from "react-native";
+import { Alert, PlatformColor, useWindowDimensions } from "react-native";
 import Logo from "@/components/Logo";
 import {
   distributeIntoColumns,
@@ -41,15 +41,30 @@ import {
 import { triggerCardTapHaptic } from "@/lib/haptics";
 import { useCardActions } from "@/lib/hooks/useCardActionsMobile";
 import {
+  EMPTY_FILTERS,
+  hasActiveFilters,
+  type LibraryFilters,
+  toSearchArgs,
+} from "@/lib/library-filters";
+import {
   type MobileCardSummary,
   rememberMobileCardSummary,
 } from "@/lib/mobile-card-summary-cache";
 import { useThemePreference } from "@/lib/theme-preference";
 import { CardItem } from "./CardItem";
 
+interface CardSelection {
+  ids: ReadonlySet<string>;
+  onToggle: (cardId: string) => void;
+}
+
 interface CardsGridProps {
+  filters?: LibraryFilters;
+  /** Starts selection with a card, from its context menu. */
+  onBeginSelection?: (cardId: string) => void;
   searchQuery?: string;
-  selectedType?: string;
+  /** Present while selecting; taps then toggle cards instead of opening them. */
+  selection?: CardSelection | null;
 }
 
 interface SearchCardsPaginatedArgs {
@@ -57,7 +72,10 @@ interface SearchCardsPaginatedArgs {
     end: number;
     start: number;
   };
+  favoritesOnly?: boolean;
+  hueFilters?: string[];
   searchQuery?: string;
+  showTrashOnly?: boolean;
   types?: string[];
 }
 
@@ -69,8 +87,10 @@ interface PaginatedCardsListProps {
   emptyIcon: string;
   emptyTitle: string;
   isSearching: boolean;
+  onBeginSelection?: (cardId: string) => void;
   onRefresh: () => Promise<void>;
   queryArgs: SearchCardsPaginatedArgs;
+  selection?: CardSelection | null;
 }
 
 const pageBackground = PlatformColor("systemGroupedBackground");
@@ -129,8 +149,10 @@ function PaginatedCardsList({
   emptyIcon,
   emptyTitle,
   isSearching,
+  onBeginSelection,
   onRefresh,
   queryArgs,
+  selection,
 }: PaginatedCardsListProps) {
   const { width: windowWidth } = useWindowDimensions();
   const columnCount = getGridColumnCount(windowWidth);
@@ -146,6 +168,25 @@ function PaginatedCardsList({
     rememberMobileCardSummary(card);
     void triggerCardTapHaptic();
   }, []);
+
+  const confirmDeleteForever = useCallback(
+    (cardId: MobileCardSummary["_id"]) => {
+      Alert.alert(
+        "Delete Forever?",
+        "This removes the card and its files. You can't undo it.",
+        [
+          { style: "cancel", text: "Cancel" },
+          {
+            onPress: () => void cardActions.handlePermanentDeleteCard(cardId),
+            style: "destructive",
+            text: "Delete Forever",
+          },
+        ]
+      );
+    },
+    [cardActions]
+  );
+  const inTrash = Boolean(queryArgs.showTrashOnly);
 
   const isLoadingFirstPage = status === "LoadingFirstPage";
   const isLoadingMore = status === "LoadingMore";
@@ -226,22 +267,42 @@ function PaginatedCardsList({
                   nearEndIds.has(card._id) ? [onAppear(handleAutoLoadMore)] : []
                 }
               >
-                <Link
-                  asChild
-                  href={{
-                    params: { id: card._id },
-                    pathname: "/(tabs)/(home)/card/[id]",
-                  }}
-                >
+                {selection ? (
                   <CardItem
                     card={card}
-                    onDeleteRequest={() =>
-                      void cardActions.handleDeleteCard(card._id)
-                    }
-                    onPress={() => handleCardTap(card)}
+                    isSelected={selection.ids.has(card._id)}
+                    onPress={() => {
+                      void triggerCardTapHaptic();
+                      selection.onToggle(card._id);
+                    }}
                     width={columnWidth}
                   />
-                </Link>
+                ) : (
+                  <Link
+                    asChild
+                    href={{
+                      params: { id: card._id },
+                      pathname: "/(tabs)/(home)/card/[id]",
+                    }}
+                  >
+                    <CardItem
+                      card={card}
+                      inTrash={inTrash}
+                      onDeleteForeverRequest={() =>
+                        confirmDeleteForever(card._id)
+                      }
+                      onDeleteRequest={() =>
+                        void cardActions.handleDeleteCard(card._id)
+                      }
+                      onPress={() => handleCardTap(card)}
+                      onRestoreRequest={() =>
+                        void cardActions.handleRestoreCard(card._id)
+                      }
+                      onSelectRequest={() => onBeginSelection?.(card._id)}
+                      width={columnWidth}
+                    />
+                  </Link>
+                )}
               </VStack>
             ))}
           </LazyVStack>
@@ -260,8 +321,10 @@ function PaginatedCardsList({
 }
 
 const CardsGrid = memo(function CardsGrid({
+  filters = EMPTY_FILTERS,
+  onBeginSelection,
   searchQuery,
-  selectedType,
+  selection,
 }: CardsGridProps) {
   const convex = useConvex();
 
@@ -280,9 +343,9 @@ const CardsGrid = memo(function CardsGrid({
     () => ({
       createdAtRange: timeFilter?.range,
       searchQuery: effectiveSearchQuery,
-      types: selectedType ? [selectedType] : undefined,
+      ...toSearchArgs(filters),
     }),
-    [effectiveSearchQuery, selectedType, timeFilter?.range]
+    [effectiveSearchQuery, filters, timeFilter?.range]
   );
 
   const handleRefresh = useCallback(async () => {
@@ -293,13 +356,21 @@ const CardsGrid = memo(function CardsGrid({
   }, [convex, queryArgs]);
 
   // Matches the system search empty state wording.
-  const emptyTitle = searchQuery
+  let emptyTitle = searchQuery
     ? `No Results for \u201C${searchQuery}\u201D`
-    : "No cards yet";
-  const description = timeFilter
+    : "No Matching Cards";
+  let description = timeFilter
     ? `No cards from ${timeFilter.label}.`
     : "Check the spelling or try a new search.";
-  const emptyIcon = "magnifyingglass";
+  let emptyIcon = "magnifyingglass";
+  if (!searchQuery && filters.trashOnly) {
+    emptyTitle = "Trash Is Empty";
+    description = "Cards you delete stay here for 30 days.";
+    emptyIcon = "trash";
+  } else if (!searchQuery && hasActiveFilters(filters)) {
+    description = "Try other filters.";
+    emptyIcon = "line.3.horizontal.decrease.circle";
+  }
 
   return (
     <Host style={{ flex: 1 }} useViewportSizeMeasurement>
@@ -307,9 +378,11 @@ const CardsGrid = memo(function CardsGrid({
         description={description}
         emptyIcon={emptyIcon}
         emptyTitle={emptyTitle}
-        isSearching={Boolean(searchQuery || selectedType)}
+        isSearching={Boolean(searchQuery) || hasActiveFilters(filters)}
+        onBeginSelection={onBeginSelection}
         onRefresh={handleRefresh}
         queryArgs={queryArgs}
+        selection={selection}
       />
     </Host>
   );

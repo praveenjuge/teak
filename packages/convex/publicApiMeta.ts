@@ -20,6 +20,9 @@ export const V1_ENDPOINTS = [
   "POST /v1/cards/:cardId/restore",
   "PATCH /v1/cards/:cardId/favorite",
   "GET /v1/tags",
+  "POST /v1/exports",
+  "GET /v1/exports/latest",
+  "POST /v1/oauth/disconnect",
 ] as const;
 
 export const API_AUTH_HINT =

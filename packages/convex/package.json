@@ -1,6 +1,6 @@
 {
   "name": "@teak/convex",
-  "version": "1.0.84",
+  "version": "1.0.85",
   "type": "module",
   "exports": {
     ".": "./index.ts",
@@ -20,6 +20,7 @@
     "./shared/linkCategories": "./shared/linkCategories.ts",
     "./shared/utils/colorUtils": "./shared/utils/colorUtils.ts",
     "./shared/utils/safeUrl": "./shared/utils/safeUrl.ts",
+    "./shared/utils/timeSearch": "./shared/utils/timeSearch.ts",
     "./_generated/api": "./_generated/api.js",
     "./_generated/dataModel": "./_generated/dataModel.js"
   },

@@ -1,7 +1,9 @@
 import { describe, expect, test } from "bun:test";
 
 import {
+  applyHueFilter,
   applyTagFilter,
+  applyTrashedFilter,
   applyTypeFilter,
   buildSearchText,
   clearSearchFilters,
@@ -80,5 +82,57 @@ describe("filter round-trips", () => {
   test("clearSearchFilters keeps free text and drops the tag", () => {
     const next = clearSearchFilters('hello tag:"design systems"');
     expect(next).toBe("hello");
+  });
+});
+
+describe("color, Trash, and date filters", () => {
+  test("parses trash, hue, style, hex, and dates out of the query", () => {
+    const parsed = parseSearchFilters(
+      "poster trash hue:Blue style:minimal #112233 after:2026-09 before:2026-10-15",
+    );
+    expect(parsed).toMatchObject({
+      query: "poster",
+      trashed: true,
+      hue: ["blue"],
+      style: ["minimal"],
+      hex: ["#112233"],
+      createdAfter: new Date(2026, 8, 1).getTime(),
+      createdBefore: new Date(2026, 9, 15).getTime(),
+      hasExplicitFilters: true,
+    });
+  });
+
+  test("leaves unknown hues and malformed dates as search words", () => {
+    const parsed = parseSearchFilters("hue:plaid after:soon #12");
+    expect(parsed.hue).toEqual([]);
+    expect(parsed.createdAfter).toBeUndefined();
+    expect(parsed.query).toBe("hue:plaid after:soon #12");
+  });
+
+  test("round-trips filters through the search text", () => {
+    const text = buildSearchText(
+      parseSearchFilters("trash hue:teal #abcdef after:2026-01-02"),
+    );
+    expect(parseSearchFilters(text)).toMatchObject({
+      trashed: true,
+      hue: ["teal"],
+      hex: ["#abcdef"],
+      createdAfter: new Date(2026, 0, 2).getTime(),
+    });
+  });
+
+  test("Show Trash and color filters toggle without losing the query", () => {
+    const inTrash = applyTrashedFilter("poster type:image", true);
+    expect(parseSearchFilters(inTrash)).toMatchObject({
+      query: "poster",
+      trashed: true,
+      type: "image",
+    });
+    expect(
+      parseSearchFilters(applyTrashedFilter(inTrash)).trashed,
+    ).toBeUndefined();
+    expect(parseSearchFilters(applyHueFilter("poster", "red")).hue).toEqual([
+      "red",
+    ]);
   });
 });

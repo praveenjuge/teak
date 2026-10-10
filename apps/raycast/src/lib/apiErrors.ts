@@ -66,12 +66,17 @@ export const normalizeLimit = (limit?: number): number => {
 export const buildCardsSearchParams = (input: {
   createdAfter?: number;
   createdBefore?: number;
+  cursor?: string;
   favorited?: boolean;
+  hex?: string[];
+  hue?: string[];
   include?: string;
   limit?: number;
   query?: string;
   sort?: "newest" | "oldest";
+  style?: string[];
   tag?: string;
+  trashed?: boolean;
   type?: string;
 }): string => {
   const search = new URLSearchParams();
@@ -91,6 +96,20 @@ export const buildCardsSearchParams = (input: {
 
   if (input.favorited) {
     search.set("favorited", "true");
+  }
+
+  if (input.trashed) {
+    search.set("trashed", "true");
+  }
+
+  for (const name of ["style", "hue", "hex"] as const) {
+    for (const value of input[name] ?? []) {
+      search.append(name, value);
+    }
+  }
+
+  if (input.cursor) {
+    search.set("cursor", input.cursor);
   }
 
   if (input.sort === "oldest") {

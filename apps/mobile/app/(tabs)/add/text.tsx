@@ -16,6 +16,8 @@ import {
   padding,
   shapes,
 } from "@expo/ui/swift-ui/modifiers";
+import { CARD_ERROR_CODES } from "@teak/convex/shared";
+import { ConvexError } from "convex/values";
 import { router, Stack } from "expo-router";
 import { useCallback, useRef, useState } from "react";
 import { Alert, PlatformColor, Pressable } from "react-native";
@@ -67,6 +69,17 @@ export default function AddTextScreen() {
         "Failed to save card:",
         error instanceof Error ? error.message : error
       );
+      const data =
+        error instanceof ConvexError
+          ? (error.data as { code?: string; message?: string })
+          : undefined;
+      if (data?.code === CARD_ERROR_CODES.CARD_LIMIT_REACHED) {
+        const message =
+          data.message ?? "You've reached the Free plan's card limit.";
+        setValidationMessage(message);
+        Alert.alert("Card limit reached", message);
+        return;
+      }
       const message = "Failed to save card. Please try again.";
       setValidationMessage(message);
       Alert.alert("Error", message);

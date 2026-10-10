@@ -243,6 +243,10 @@ describe("WorkOS REST and MCP token boundary", () => {
         id: ownerId,
         email: "provider@example.test",
         name: "Current Profile",
+        cardCount: 1,
+        cardLimit: 200,
+        plan: "free",
+        settingsUrl: "https://app.teakvault.com/settings",
       },
     });
     const summary = await f.read(access, "/api/safari/account-summary");

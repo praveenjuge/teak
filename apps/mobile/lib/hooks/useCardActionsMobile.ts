@@ -2,6 +2,7 @@ import { api } from "@teak/convex";
 import { createCardActions } from "@teak/convex/shared/hooks/useCardActions";
 import { useMutation } from "convex/react";
 import { Alert } from "react-native";
+import { triggerSuccessHaptic } from "@/lib/haptics";
 
 export function useCardActions() {
   const permanentDeleteCard = useMutation(api.cards.permanentDeleteCard);
@@ -10,11 +11,12 @@ export function useCardActions() {
   return createCardActions(
     { permanentDeleteCard, updateCardField },
     {
-      onRestoreSuccess: (message) => {
-        Alert.alert("Success", message || "Card restored successfully");
+      // The card leaving Trash is the confirmation, like Photos.
+      onRestoreSuccess: () => {
+        void triggerSuccessHaptic();
       },
-      onPermanentDeleteSuccess: (message) => {
-        Alert.alert("Success", message || "Card permanently deleted");
+      onPermanentDeleteSuccess: () => {
+        void triggerSuccessHaptic();
       },
       onError: (_error, operation) => {
         Alert.alert("Error", `Failed to ${operation}. Please try again.`);

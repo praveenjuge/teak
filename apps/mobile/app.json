@@ -89,7 +89,8 @@
             "enabled": false
           }
         }
-      ]
+      ],
+      "./plugins/save-to-teak-intent/index.cjs"
     ],
     "experiments": {
       "typedRoutes": true,

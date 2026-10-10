@@ -115,6 +115,11 @@ final class SettingsViewController: NSViewController {
     private let accountStatusLabel = NSTextField(labelWithString: "Checking account…")
     private let emailLabel = NSTextField(labelWithString: "Checking…")
     private let usageLabel = NSTextField(labelWithString: "Checking…")
+    private let planLabel = NSTextField(labelWithString: "Checking…")
+    private let planButton = NSButton(title: "Upgrade…", target: nil, action: #selector(openPlanSettings))
+    private let quickCaptureToggle = NSButton(
+        checkboxWithTitle: "Open Quick Capture from anywhere with \(QuickCaptureHotKey.displayName)",
+        target: nil, action: #selector(quickCaptureToggleChanged))
     private let signInButton = NSButton(title: "Sign In", target: nil, action: #selector(startSignInFromButton))
     private let signOutButton = NSButton(title: "Sign Out", target: nil, action: #selector(signOutFromButton))
     private let spinner = NSProgressIndicator()
@@ -139,6 +144,11 @@ final class SettingsViewController: NSViewController {
         signOutButton.target = self
         openSettingsButton.target = self
         menuBarToggle.target = self
+        planButton.target = self
+        planButton.bezelStyle = .rounded
+        planButton.isHidden = true
+        quickCaptureToggle.target = self
+        quickCaptureToggle.state = QuickCaptureHotKey.isEnabled ? .on : .off
         appearancePicker.target = self
         appearancePicker.action = #selector(appearanceChanged)
         appearancePicker.addItems(withTitles: CompanionAppearance.allCases.map(\.rawValue))
@@ -149,7 +159,8 @@ final class SettingsViewController: NSViewController {
         signOutButton.bezelStyle = .rounded
         openSettingsButton.bezelStyle = .rounded
         signOutButton.isHidden = true
-        for control in [signInButton, signOutButton, openSettingsButton, menuBarToggle, appearancePicker] as [NSControl] {
+        for control in [signInButton, signOutButton, openSettingsButton, menuBarToggle, appearancePicker,
+                        planButton, quickCaptureToggle] as [NSControl] {
             control.font = .rounded(ofSize: NSFont.systemFontSize)
         }
         spinner.style = .spinning
@@ -158,7 +169,7 @@ final class SettingsViewController: NSViewController {
         spinner.startAnimation(nil)
         signInButton.isEnabled = false
 
-        for label in [emailLabel, usageLabel] {
+        for label in [emailLabel, usageLabel, planLabel] {
             label.font = .rounded(ofSize: 13)
             label.textColor = .labelColor
         }
@@ -191,9 +202,14 @@ final class SettingsViewController: NSViewController {
         accountFooter.alignment = .centerY
         accountFooter.spacing = 10
 
+        let planRow = NSStackView(views: [planLabel, planButton])
+        planRow.orientation = .horizontal
+        planRow.alignment = .centerY
+        planRow.spacing = 10
         let accountGrid = NSGridView(views: [
             [Self.rowLabel("Email"), emailLabel],
             [Self.rowLabel("Usage"), usageLabel],
+            [Self.rowLabel("Plan"), planRow],
         ])
         accountGrid.columnSpacing = 12
         accountGrid.rowSpacing = 12
@@ -227,6 +243,7 @@ final class SettingsViewController: NSViewController {
             menuSeparator,
             Self.sectionLabel("Menu Bar"),
             menuBarToggle,
+            quickCaptureToggle,
         ])
         stack.orientation = .vertical
         stack.alignment = .leading
@@ -258,6 +275,10 @@ final class SettingsViewController: NSViewController {
     override func viewDidAppear() {
         super.viewDidAppear()
         view.window?.title = "Settings"
+        // The storyboard loads this view before the app registers its default
+        // preferences, so read them again each time Settings appears.
+        menuBarToggle.state = MenuBarController.isEnabled ? .on : .off
+        quickCaptureToggle.state = QuickCaptureHotKey.isEnabled ? .on : .off
         refreshAccountState()
         refreshExtensionState()
         activeObserver = NotificationCenter.default.addObserver(
@@ -365,16 +386,25 @@ final class SettingsViewController: NSViewController {
         let generation = nextAccountStateGeneration()
         emailLabel.stringValue = "Checking…"
         usageLabel.stringValue = "Checking…"
+        planLabel.stringValue = "Checking…"
+        planButton.isHidden = true
         emailLabel.toolTip = nil
         Task { @MainActor in
             do {
-                let summary = try await TeakSafariService.shared.accountSummary()
+                let account = try await LibraryAPI().account()
                 guard generation == self.accountStateGeneration, self.isSignedIn else { return }
-                let email = summary.email?.trimmingCharacters(in: .whitespacesAndNewlines)
-                self.emailLabel.stringValue = email.flatMap { $0.isEmpty ? nil : $0 } ?? "Not available"
+                let email = account.email.trimmingCharacters(in: .whitespacesAndNewlines)
+                self.emailLabel.stringValue = email.isEmpty ? "Not available" : email
                 self.emailLabel.toolTip = email
-                let unit = summary.cardCount == 1 ? "Card" : "Cards"
-                self.usageLabel.stringValue = "\(NumberFormatter.localizedString(from: NSNumber(value: summary.cardCount), number: .decimal)) \(unit)"
+                let count = NumberFormatter.localizedString(from: NSNumber(value: account.cardCount), number: .decimal)
+                if let limit = account.cardLimit, !account.isPro {
+                    self.usageLabel.stringValue = "\(count) of \(limit) Cards"
+                } else {
+                    self.usageLabel.stringValue = "\(count) \(account.cardCount == 1 ? "Card" : "Cards")"
+                }
+                self.planLabel.stringValue = account.isPro ? "Pro" : "Free"
+                self.planButton.title = account.isPro ? "Manage…" : "Upgrade…"
+                self.planButton.isHidden = false
             } catch SafariServiceError.unauthenticated {
                 guard generation == self.accountStateGeneration else { return }
                 self.renderAccountState(["authenticated": false, "status": SafariAccountStatus.signedOut.rawValue])
@@ -382,8 +412,19 @@ final class SettingsViewController: NSViewController {
                 guard generation == self.accountStateGeneration else { return }
                 self.emailLabel.stringValue = "Unavailable"
                 self.usageLabel.stringValue = "Unavailable"
+                self.planLabel.stringValue = "Unavailable"
             }
         }
+    }
+
+    /// Billing lives on the web, so Upgrade and Manage open web Settings.
+    @objc private func openPlanSettings() {
+        NSWorkspace.shared.open(LibraryLinks.settings)
+    }
+
+    @objc private func quickCaptureToggleChanged() {
+        QuickCaptureHotKey.isEnabled = quickCaptureToggle.state == .on
+        (NSApp.delegate as? AppDelegate)?.quickCaptureHotKey.sync()
     }
 
     private func refreshExtensionState() {

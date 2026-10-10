@@ -233,4 +233,90 @@ describe("@teak/convex/sdk", () => {
 
     expect(requestBody).toEqual({ cardType: "text", content });
   });
+
+  test("sends Trash and visual filters as repeatable query parameters", () => {
+    expect(
+      buildCardsSearchParams({
+        hex: ["#112233"],
+        hue: ["blue", "teal"],
+        style: "minimal",
+        trashed: true,
+        type: ["image", "link"],
+      })
+    ).toBe(
+      "type=image&type=link&style=minimal&hue=blue&hue=teal&hex=%23112233&trashed=true&limit=50"
+    );
+  });
+
+  const recordingClient = (
+    respond: () => Response = () => new Response(null, { status: 204 })
+  ) => {
+    const seen: Array<{ headers: Headers; method: string; url: string }> = [];
+    const client = createTeakClient({
+      baseUrl: "https://api.example",
+      tokenProvider: { getAccessToken: () => "token" },
+      fetch: ((url, init) => {
+        seen.push({
+          headers: new Headers(init?.headers),
+          method: String(init?.method),
+          url: String(url),
+        });
+        return Promise.resolve(respond());
+      }) as typeof fetch,
+    });
+    return { client, seen };
+  };
+
+  test("search keeps a caller's include instead of forcing the default", async () => {
+    const { client, seen } = recordingClient(() =>
+      Response.json({
+        items: [],
+        pageInfo: { hasMore: false, nextCursor: null },
+      })
+    );
+    await client.cards.search({ query: "x", include: "content,processing" });
+    expect(seen[0]?.url).toBe(
+      "https://api.example/v1/cards?q=x&include=content%2Cprocessing&limit=50"
+    );
+  });
+
+  test("restores, deletes permanently, and only then skips Trash", async () => {
+    const { client, seen } = recordingClient();
+    await client.cards.restore("c1");
+    await client.cards.delete("c1");
+    await client.cards.delete("c1", { permanent: true });
+    expect(seen.map(({ method, url }) => `${method} ${url}`)).toEqual([
+      "POST https://api.example/v1/cards/c1/restore",
+      "DELETE https://api.example/v1/cards/c1",
+      "DELETE https://api.example/v1/cards/c1?permanent=true",
+    ]);
+  });
+
+  test("sends an idempotency key only when one is given", async () => {
+    const { client, seen } = recordingClient(() =>
+      Response.json({ appUrl: "https://app/", cardId: "c1", status: "created" })
+    );
+    await client.cards.create({ content: "a" }, { idempotencyKey: "step-1" });
+    await client.cards.create({ content: "b" });
+    expect(seen[0]?.headers.get("Idempotency-Key")).toBe("step-1");
+    expect(seen[1]?.headers.has("Idempotency-Key")).toBe(false);
+  });
+
+  test("reports the request ID from the response header on errors", async () => {
+    const { client } = recordingClient(
+      () =>
+        new Response(
+          JSON.stringify({ code: "NOT_FOUND", error: "Card not found" }),
+          {
+            headers: { "X-Request-Id": "req_123" },
+            status: 404,
+          }
+        )
+    );
+    const error = (await client.cards
+      .get("missing")
+      .catch((e) => e)) as TeakApiError;
+    expect(error.code).toBe("NOT_FOUND");
+    expect(error.requestId).toBe("req_123");
+  });
 });

@@ -54,7 +54,7 @@ export const getAuthMode = query({
 });
 
 // A Polar read failure counts as no subscription rather than failing the query.
-const readHasPremium = async (ctx: QueryCtx, userId: string) => {
+export const readHasPremium = async (ctx: QueryCtx, userId: string) => {
   try {
     const subscription = await polar.getCurrentSubscription(ctx, { userId });
     return isApprovedActiveSubscription(subscription);

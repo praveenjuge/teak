@@ -13,7 +13,6 @@ export default async function tool(content: string) {
 
   const result = await createCard(
     {
-      cardType: url ? undefined : "text",
       content,
       source: "raycast_ai_tool",
       url: url ?? undefined,

@@ -51,6 +51,8 @@ const {
   getCardById,
   RaycastApiError,
   request,
+  restoreCard,
+  saveFileCard,
   searchCards,
   setCardFavorite,
   softDeleteCard,
@@ -232,7 +234,7 @@ describe("raycast request handling", () => {
     }
 
     expect(capturedUrls).toEqual([
-      "https://reminiscent-kangaroo-59.convex.site/v1/cards?include=content%2Cmetadata&limit=1",
+      "https://reminiscent-kangaroo-59.convex.site/v1/cards?include=content%2Cmetadata%2Cprocessing&limit=1",
     ]);
   });
 
@@ -629,5 +631,75 @@ describe("Raycast sign out", () => {
     await signOutTeak();
     expect(fetchMock).not.toHaveBeenCalled();
     expect(removedNamespaces()).toContain(workosNamespace);
+  });
+});
+
+describe("raycast file saves and Trash", () => {
+  test("uploads a file, then saves it with the upload's key and ETag", async () => {
+    const { mkdtempSync, writeFileSync } = await import("node:fs");
+    const { join } = await import("node:path");
+    const { tmpdir } = await import("node:os");
+    const filePath = join(
+      mkdtempSync(join(tmpdir(), "teak-raycast-")),
+      "poster.png",
+    );
+    writeFileSync(filePath, "png-bytes");
+    const calls: Array<{ body: unknown; method: string; url: string }> = [];
+    globalThis.fetch = mock((input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input);
+      calls.push({ body: init?.body, method: String(init?.method), url });
+      if (url.endsWith("/uploads")) {
+        return Promise.resolve(
+          Response.json({
+            fileKey: "users/u/file/poster.png",
+            uploadUrl: "https://files.example/put",
+          }),
+        );
+      }
+      if (url === "https://files.example/put") {
+        return Promise.resolve(
+          new Response(null, { headers: { ETag: '"etag-1"' }, status: 200 }),
+        );
+      }
+      return Promise.resolve(
+        Response.json({
+          appUrl: null,
+          card: null,
+          cardId: "card_f",
+          status: "created",
+        }),
+      );
+    }) as unknown as typeof fetch;
+
+    const saved = await saveFileCard(filePath, { source: "raycast_finder" });
+
+    expect(saved.cardId).toBe("card_f");
+    expect(calls.map((call) => `${call.method} ${call.url}`)).toEqual([
+      "POST https://teakvault.com/api/v1/uploads",
+      "PUT https://files.example/put",
+      "POST https://teakvault.com/api/v1/cards",
+    ]);
+    expect(JSON.parse(String(calls[0]?.body))).toEqual({
+      fileName: "poster.png",
+      fileSize: 9,
+      mimeType: "image/png",
+    });
+    expect(JSON.parse(String(calls[2]?.body))).toMatchObject({
+      fileEtag: '"etag-1"',
+      fileKey: "users/u/file/poster.png",
+      source: "raycast_finder",
+    });
+  });
+
+  test("restores a card from Trash", async () => {
+    const urls: string[] = [];
+    globalThis.fetch = mock((input: RequestInfo | URL, init?: RequestInit) => {
+      urls.push(`${init?.method} ${String(input)}`);
+      return Promise.resolve(createEmptyResponse(204));
+    }) as unknown as typeof fetch;
+    await restoreCard("card_123");
+    expect(urls).toEqual([
+      "POST https://teakvault.com/api/v1/cards/card_123/restore",
+    ]);
   });
 });

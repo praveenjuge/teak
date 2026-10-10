@@ -48,28 +48,50 @@ extension View {
 struct LibraryCardTile: View {
     let card: LibraryCard
     let isSaving: Bool
+    var isSelecting = false
+    var isSelected = false
     let onOpen: () -> Void
+    var onToggleSelection: () -> Void = {}
 
     var body: some View {
         tileContent
             .teakCardSurface()
             .overlay(alignment: .topTrailing) {
-                if card.isFavorited {
+                if isSelecting {
+                    Image(systemName: isSelected ? "checkmark.circle.fill" : "circle")
+                        .font(.system(size: 20))
+                        .symbolRenderingMode(.palette)
+                        .foregroundStyle(isSelected ? Color.white : Color.secondary,
+                                         isSelected ? Color.accentColor : Color.clear)
+                        .background(Circle().fill(.regularMaterial).padding(2))
+                        .padding(10)
+                } else if card.isFavorited {
                     Image(systemName: "heart.fill")
                         .font(.system(size: 13))
                         .foregroundStyle(.red)
                         .padding(12)
                 }
             }
+            .overlay {
+                if isSelected {
+                    RoundedRectangle(cornerRadius: 16, style: .continuous)
+                        .strokeBorder(Color.accentColor, lineWidth: 3)
+                }
+            }
             .overlay { if isSaving { ProgressView() } }
             .opacity(isSaving ? 0.7 : card.isDeleted == true ? 0.6 : 1)
             .allowsHitTesting(!isSaving)
             .contentShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
-            .onTapGesture(perform: onOpen)
+            // ⌘-click selects, like Finder; while selecting, a click toggles.
+            .gesture(TapGesture().modifiers(.command).onEnded(onToggleSelection))
+            .onTapGesture { isSelecting ? onToggleSelection() : onOpen() }
             .accessibilityElement(children: .ignore)
             .accessibilityLabel("\(card.cardType?.title ?? "Card"): \(card.title)")
-            .accessibilityAddTraits(.isButton)
-            .accessibilityAction(named: "Open card", onOpen)
+            .accessibilityValue(isSelected ? "Selected" : "")
+            .accessibilityAddTraits(isSelected ? [.isButton, .isSelected] : .isButton)
+            .accessibilityAction(named: isSelecting ? "Toggle selection" : "Open card") {
+                isSelecting ? onToggleSelection() : onOpen()
+            }
     }
 
     @ViewBuilder private var tileContent: some View {

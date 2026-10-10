@@ -127,7 +127,15 @@ struct CardTagsSheet: View {
                     }
                 }
                 Section("Tags by Teak") {
-                    ForEach(current.aiTags, id: \.self) { tag in Label(tag, systemImage: "sparkles") }
+                    if current.aiTags.isEmpty { Text("Teak hasn't added any tags.").foregroundStyle(.secondary) }
+                    ForEach(current.aiTags, id: \.self) { tag in
+                        HStack {
+                            Label(tag, systemImage: "sparkles")
+                            Spacer()
+                            Button("Remove", systemImage: "minus.circle") { removeAiTag(tag) }
+                                .help("Remove this tag Teak added")
+                        }
+                    }
                 }
             }
             .formStyle(.grouped)
@@ -142,6 +150,15 @@ struct CardTagsSheet: View {
         let tag = newTag.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !tag.isEmpty, !current.tags.contains(tag) else { return }
         save(current.tags + [tag])
+    }
+
+    private func removeAiTag(_ tag: String) {
+        Task {
+            do {
+                current = try await store.removeAiTag(tag, from: current)
+                onSaved(current)
+            } catch { self.error = error.localizedDescription }
+        }
     }
 
     private func save(_ tags: [String]) {

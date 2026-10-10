@@ -15,6 +15,9 @@ interface SheetTextProps {
   children: ReactNode;
   destructive?: boolean;
   limit?: number;
+  /** Renders inline Markdown: bold, italics, code, and links. */
+  markdown?: boolean;
+  monospaced?: boolean;
   secondary?: boolean;
   selectable?: boolean;
   size?: number;
@@ -25,16 +28,18 @@ function SheetText({
   children,
   destructive = false,
   limit,
+  markdown = false,
+  monospaced = false,
   secondary = false,
   selectable = false,
   size,
   weight = "regular",
 }: SheetTextProps) {
   const fontParams: {
-    design: "rounded";
+    design: "rounded" | "monospaced";
     size?: number;
     weight: SheetFontWeight;
-  } = { design: "rounded", weight };
+  } = { design: monospaced ? "monospaced" : "rounded", weight };
   if (size !== undefined) {
     fontParams.size = size;
   }
@@ -54,7 +59,11 @@ function SheetText({
     modifiers.push(textSelection(true));
   }
 
-  return <Text modifiers={modifiers}>{children}</Text>;
+  return (
+    <Text markdownEnabled={markdown} modifiers={modifiers}>
+      {children}
+    </Text>
+  );
 }
 
 export { SheetText };

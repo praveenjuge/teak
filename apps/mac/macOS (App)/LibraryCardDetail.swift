@@ -19,6 +19,8 @@ struct LibraryCardDetail: View {
     @State private var showingTags = false
     @State private var confirmingPermanentDelete = false
     @State private var confirmingDiscard = false
+    /// Text cards open as rendered Markdown, like the web; Edit shows the source.
+    @State private var isEditingText = false
 
     init(initialCard: LibraryCard, store: LibraryStore, onAuthenticationRequired: @escaping () -> Void) {
         self.initialCard = initialCard
@@ -77,11 +79,30 @@ struct LibraryCardDetail: View {
     @ViewBuilder private func detailPreview(width: CGFloat, height: CGFloat) -> some View {
         switch card.cardType {
         case .text:
-            TextEditor(text: $draft)
-                .font(.body)
-                .scrollContentBackground(.hidden)
-                .frame(maxWidth: 720, minHeight: max(height, 240))
-                .disabled(isLoadingDetails || isSaving || card.isDeleted == true)
+            VStack(alignment: .leading, spacing: 12) {
+                if card.isDeleted != true {
+                    Picker("Mode", selection: $isEditingText) {
+                        Text("Preview").tag(false)
+                        Text("Edit").tag(true)
+                    }
+                    .pickerStyle(.segmented)
+                    .labelsHidden()
+                    .fixedSize()
+                    .frame(maxWidth: .infinity, alignment: .trailing)
+                }
+                if isEditingText {
+                    TextEditor(text: $draft)
+                        .font(.system(.body, design: .monospaced))
+                        .scrollContentBackground(.hidden)
+                        .frame(minHeight: max(height - 40, 240))
+                        .disabled(isLoadingDetails || isSaving || card.isDeleted == true)
+                } else {
+                    MarkdownText(markdown: draft)
+                        .frame(minHeight: max(height - 40, 240), alignment: .topLeading)
+                        .onTapGesture(count: 2) { if card.isDeleted != true { isEditingText = true } }
+                }
+            }
+            .frame(maxWidth: 720)
         case .quote:
             QuoteDetailPreview(text: $draft, isEditable: !(isLoadingDetails || isSaving || card.isDeleted == true), availableWidth: width)
         case .link:
@@ -178,7 +199,8 @@ struct LibraryCardDetail: View {
                 Button(type.title, systemImage: type.symbol) { store.toggleType(type); requestClose() }
             }
             ForEach(card.tags, id: \.self) { tag in
-                Button(tag) { store.searchText = tag; store.scheduleSearch(); requestClose() }
+                Button(tag) { store.filterByTag(tag); requestClose() }
+                    .help("Show cards tagged \(tag)")
             }
             ForEach(Array((card.colors ?? []).enumerated()), id: \.offset) { _, color in
                 Button { copyHex(color.hex) } label: {
@@ -191,7 +213,8 @@ struct LibraryCardDetail: View {
                 .accessibilityLabel("Copy \(color.hex)")
             }
             ForEach(card.aiTags, id: \.self) { tag in
-                Button(tag, systemImage: "sparkles") { store.searchText = tag; store.scheduleSearch(); requestClose() }
+                Button(tag, systemImage: "sparkles") { store.filterByTag(tag); requestClose() }
+                    .help("Show cards tagged \(tag)")
             }
         }
         .buttonStyle(.bordered)
@@ -218,6 +241,14 @@ struct LibraryCardDetail: View {
             if LibraryCard.safeURL(card.fileUrl) != nil {
                 Button("Download", systemImage: "arrow.down.to.line") { Task { await downloadFile() } }
                     .disabled(isDownloading)
+            }
+            if let link = LibraryLinks.card(card) {
+                Button("Copy Link", systemImage: "link") {
+                    NSPasteboard.general.clearContents()
+                    NSPasteboard.general.setString(link.absoluteString, forType: .string)
+                    store.showStatus("Card link copied")
+                }
+                Button("Open on Web", systemImage: "safari") { NSWorkspace.shared.open(link) }
             }
             if card.isDeleted != true {
                 Button(card.notes?.isEmpty == false ? "Edit Notes" : "Add Notes", systemImage: "square.and.pencil") { showingNotes = true }
@@ -300,7 +331,16 @@ struct LibraryCardDetail: View {
 private struct DocumentDetail: View {
     let card: LibraryCard
     @State private var pdfData: Data?
+    @State private var fileText: String?
     @State private var isLoading = false
+
+    /// Text previews stay small, like the web's file text preview.
+    private static let textPreviewLimit = 512 * 1024
+    private var isMarkdown: Bool { ["md", "mdx", "markdown"].contains(card.fileExtension?.lowercased() ?? "") }
+    private var isTextFile: Bool {
+        isMarkdown || card.fileLanguage != nil || card.mimeType?.hasPrefix("text/") == true
+            || ["json", "yaml", "yml", "toml", "csv", "xml", "svg"].contains(card.fileExtension?.lowercased() ?? "")
+    }
 
     var body: some View {
         VStack(alignment: .leading) {
@@ -314,6 +354,12 @@ private struct DocumentDetail: View {
             }
             if let pdfData {
                 PDFPreview(data: pdfData).frame(minHeight: 420)
+            } else if let fileText, isMarkdown {
+                MarkdownText(markdown: fileText)
+                    .padding(16)
+                    .teakCardSurface(cornerRadius: 12)
+            } else if let fileText {
+                CodePreview(text: fileText, language: card.fileLanguage)
             } else if isLoading {
                 ProgressView("Loading preview…").frame(maxWidth: .infinity, minHeight: 240)
             } else if let thumbnail = card.displayImageURL {
@@ -323,13 +369,45 @@ private struct DocumentDetail: View {
             }
         }
         .task(id: card.fileUrl) {
-            guard card.mimeType == "application/pdf", let size = card.fileSize, size <= 15_000_000,
-                  let url = LibraryCard.safeURL(card.fileUrl) else { return }
-            isLoading = true
-            defer { isLoading = false }
-            if let (data, _) = try? await URLSession.shared.data(from: url), data.count <= 15_000_000 {
-                pdfData = data
+            guard let url = LibraryCard.safeURL(card.fileUrl), let size = card.fileSize else { return }
+            if card.mimeType == "application/pdf", size <= 15_000_000 {
+                isLoading = true
+                defer { isLoading = false }
+                if let (data, _) = try? await URLSession.shared.data(from: url), data.count <= 15_000_000 {
+                    pdfData = data
+                }
+            } else if isTextFile, size <= Self.textPreviewLimit {
+                isLoading = true
+                defer { isLoading = false }
+                if let (data, _) = try? await URLSession.shared.data(from: url), data.count <= Self.textPreviewLimit {
+                    fileText = String(data: data, encoding: .utf8)
+                }
             }
+        }
+    }
+}
+
+/// Source files in a monospaced, line-numbered view.
+private struct CodePreview: View {
+    let text: String
+    let language: String?
+
+    var body: some View {
+        let lines = text.split(separator: "\n", omittingEmptySubsequences: false)
+        VStack(alignment: .leading, spacing: 8) {
+            if let language { Text(language).font(.caption.weight(.medium)).foregroundStyle(.secondary) }
+            ScrollView(.horizontal) {
+                HStack(alignment: .top, spacing: 12) {
+                    Text(lines.indices.map { String($0 + 1) }.joined(separator: "\n"))
+                        .foregroundStyle(.tertiary)
+                        .multilineTextAlignment(.trailing)
+                        .accessibilityHidden(true)
+                    Text(text).textSelection(.enabled)
+                }
+                .font(.system(.callout, design: .monospaced))
+                .padding(16)
+            }
+            .teakCardSurface(cornerRadius: 12)
         }
     }
 }

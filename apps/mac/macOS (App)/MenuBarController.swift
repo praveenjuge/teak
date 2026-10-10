@@ -8,7 +8,7 @@ import Cocoa
 /// Owns the opt-in menu bar item. Disabled by default; the Settings tab holds
 /// the sole toggle (see SettingsViewController). Auth state reuses
 /// TeakSafariService — this controller only presents it as a menu.
-final class MenuBarController: NSObject, NSMenuDelegate {
+final class MenuBarController: NSObject, NSMenuDelegate, NSWindowDelegate, NSDraggingDestination {
     static let enabledDefaultsKey = "teak.menuBarItemEnabled"
 
     static var isEnabled: Bool {
@@ -29,6 +29,9 @@ final class MenuBarController: NSObject, NSMenuDelegate {
         // (blank) image opts each row out and keeps the menu text-only.
         statusMenuItem.image = Self.blankImage()
         menu.addItem(statusMenuItem)
+        menu.addItem(.separator())
+        menu.addItem(Self.plainItem(title: "Quick Capture…", action: #selector(quickCapture), target: self))
+        menu.addItem(Self.plainItem(title: "Paste as New Card", action: #selector(pasteAsCard), target: self))
         menu.addItem(.separator())
         menu.addItem(Self.plainItem(title: "Open Teak Library", action: #selector(openLibrary), target: self))
         menu.addItem(Self.plainItem(title: "Open Settings…", action: #selector(openSettings), target: self))
@@ -66,7 +69,11 @@ final class MenuBarController: NSObject, NSMenuDelegate {
                     } else {
                         button.title = "Teak"
                     }
-                    button.toolTip = "Teak for Mac"
+                    button.toolTip = "Teak for Mac — drop files or text here to save them"
+                    // The status item's window forwards drags to its delegate,
+                    // so dropping on the icon saves to Teak.
+                    button.window?.registerForDraggedTypes([.fileURL, .URL, .string, .png, .tiff])
+                    button.window?.delegate = self
                 }
                 item.menu = menu
                 statusItem = item
@@ -105,6 +112,28 @@ final class MenuBarController: NSObject, NSMenuDelegate {
                 self.statusMenuItem.title = "Signed out — choose Open Settings… to sign in."
             }
         }
+    }
+
+    @objc private func quickCapture() {
+        QuickCaptureController.shared.show()
+    }
+
+    @objc private func pasteAsCard() {
+        guard let content = PasteboardCapture.read(.general) else {
+            CaptureHUD.show("The clipboard is empty", isError: true)
+            return
+        }
+        BackgroundCapture.save(content)
+    }
+
+    func draggingEntered(_ sender: NSDraggingInfo) -> NSDragOperation {
+        PasteboardCapture.read(sender.draggingPasteboard) == nil ? [] : .copy
+    }
+
+    func performDragOperation(_ sender: NSDraggingInfo) -> Bool {
+        guard let content = PasteboardCapture.read(sender.draggingPasteboard) else { return false }
+        Task { @MainActor in BackgroundCapture.save(content) }
+        return true
     }
 
     @objc private func openLibrary() {

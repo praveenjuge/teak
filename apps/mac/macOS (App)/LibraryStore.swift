@@ -16,7 +16,7 @@ final class LibraryStore: ObservableObject {
     @Published private var chips: [LibrarySearchToken] = []
     @Published private(set) var statusMessage: String?
     var activeChips: [LibrarySearchToken] {
-        let order: [LibrarySearchToken.Kind] = [.keyword, .date, .type, .style, .hue, .hex, .favorites, .trash]
+        let order: [LibrarySearchToken.Kind] = [.keyword, .date, .type, .tag, .style, .hue, .hex, .favorites, .trash]
         return chips.enumerated().sorted {
             let left = order.firstIndex(of: $0.element.kind) ?? 0
             let right = order.firstIndex(of: $1.element.kind) ?? 0
@@ -58,6 +58,14 @@ final class LibraryStore: ObservableObject {
     func removeLastChip() {
         guard let last = chips.last else { return }
         removeChip(last)
+    }
+
+    /// Filters by one exact tag, like clicking a tag on the web.
+    func filterByTag(_ tag: String) {
+        chips.removeAll { $0.kind == .tag }
+        chips.append(LibrarySearchTokens.tag(tag))
+        syncChipFilters()
+        scheduleSearch()
     }
 
     func toggleTrash() {
@@ -231,6 +239,102 @@ final class LibraryStore: ObservableObject {
         optimistic.tags = tags
         return try await mutate(card, optimistic: optimistic) {
             try await self.api.update(id: card.id, metadataTitle: changedTitle, content: content, notes: notes, tags: tags)
+        }
+    }
+
+    func removeAiTag(_ tag: String, from card: LibraryCard) async throws -> LibraryCard {
+        var optimistic = card
+        optimistic.aiTags.removeAll { $0 == tag }
+        return try await mutate(card, optimistic: optimistic) {
+            try await self.api.removeAiTags(id: card.id, tags: [tag])
+        }
+    }
+
+    // MARK: Selection
+
+    @Published private(set) var isSelecting = false
+    @Published private(set) var selectedIDs = Set<String>()
+    @Published private(set) var isRunningBulkAction = false
+
+    func beginSelection(with card: LibraryCard? = nil) {
+        isSelecting = true
+        if let card { selectedIDs.insert(card.id) }
+    }
+
+    func toggleSelection(_ card: LibraryCard) {
+        if selectedIDs.contains(card.id) { selectedIDs.remove(card.id) }
+        else { selectedIDs.insert(card.id) }
+        isSelecting = true
+    }
+
+    func selectAll() { selectedIDs = Set(cards.map(\.id)); isSelecting = true }
+
+    func endSelection() {
+        isSelecting = false
+        selectedIDs.removeAll()
+    }
+
+    private var selectedCards: [LibraryCard] { cards.filter { selectedIDs.contains($0.id) } }
+
+    /// Moves the selected cards to Trash in one request, like the web's bulk delete.
+    func deleteSelected() async {
+        let chosen = selectedCards
+        guard !chosen.isEmpty else { return }
+        await runBulk(chosen, removesCards: true, message: { "Moved \($0) to Trash" }) {
+            try await self.api.bulk("delete", items: chosen.map { ["cardId": $0.id] })
+        }
+    }
+
+    func favoriteSelected(_ isFavorited: Bool) async {
+        let chosen = selectedCards
+        guard !chosen.isEmpty else { return }
+        await runBulk(chosen, removesCards: favoritesOnly && !isFavorited,
+                      message: { isFavorited ? "Favorited \($0)" : "Unfavorited \($0)" }) {
+            try await self.api.bulk("favorite", items: chosen.map { ["cardId": $0.id, "isFavorited": isFavorited] })
+        }
+        if !(favoritesOnly && !isFavorited) {
+            cards = cards.map { card in
+                guard chosen.contains(where: { $0.id == card.id }) else { return card }
+                var updated = card
+                updated.isFavorited = isFavorited
+                return updated
+            }
+        }
+    }
+
+    /// Trash has no bulk endpoint, so restore and permanent delete go one by one.
+    func restoreSelected() async {
+        let chosen = selectedCards
+        await runBulk(chosen, removesCards: true, message: { "Restored \($0)" }) {
+            var done: [String] = []
+            for card in chosen { try await self.api.restore(id: card.id); done.append(card.id) }
+            return done
+        }
+    }
+
+    func deleteSelectedForever() async {
+        let chosen = selectedCards
+        await runBulk(chosen, removesCards: true, message: { "Deleted \($0) forever" }) {
+            var done: [String] = []
+            for card in chosen { try await self.api.delete(id: card.id, permanent: true); done.append(card.id) }
+            return done
+        }
+    }
+
+    private func runBulk(_ chosen: [LibraryCard], removesCards: Bool, message: (String) -> String,
+                         operation: () async throws -> [String]) async {
+        guard !chosen.isEmpty, !isRunningBulkAction else { return }
+        isRunningBulkAction = true
+        defer { isRunningBulkAction = false }
+        do {
+            let done = Set(try await operation())
+            if removesCards { cards.removeAll { done.contains($0.id) } }
+            let noun = done.count == 1 ? "1 card" : "\(done.count) cards"
+            showStatus(done.count == chosen.count ? message(noun) : "\(message(noun)); \(chosen.count - done.count) failed")
+            endSelection()
+        } catch {
+            handle(error)
+            await loadFirstPage()
         }
     }
 

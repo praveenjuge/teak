@@ -20,7 +20,10 @@ import {
   tag,
 } from "@expo/ui/swift-ui/modifiers";
 import { api } from "@teak/convex";
-import { ACCOUNT_CHANGES_PAUSED_MESSAGE } from "@teak/convex/shared/constants";
+import {
+  ACCOUNT_CHANGES_PAUSED_MESSAGE,
+  FREE_TIER_LIMIT,
+} from "@teak/convex/shared/constants";
 import { useMutation } from "convex/react";
 import { useQuery } from "convex-helpers/react/cache/hooks";
 import { Stack, useRouter } from "expo-router";
@@ -74,8 +77,18 @@ export default function SettingsScreen() {
       return "Not available";
     }
 
-    return `${currentUser.cardCount} Cards`;
+    const count = currentUser.cardCount;
+    return currentUser.hasPremium
+      ? `${count} ${count === 1 ? "Card" : "Cards"}`
+      : `${count} of ${FREE_TIER_LIMIT} Cards`;
   }, [currentUser]);
+
+  let planLabel: string | null = null;
+  if (currentUser) {
+    planLabel = currentUser.hasPremium ? "Pro" : "Free";
+  } else if (currentUser === null) {
+    planLabel = "Not available";
+  }
 
   const signOut = async () => {
     try {
@@ -224,6 +237,19 @@ export default function SettingsScreen() {
               {usageLabel ? (
                 <Text modifiers={[font({ design: "rounded" })]}>
                   {usageLabel}
+                </Text>
+              ) : (
+                <ProgressView />
+              )}
+            </LabeledContent>
+
+            <LabeledContent
+              label="Plan"
+              modifiers={[font({ design: "rounded", weight: "regular" })]}
+            >
+              {planLabel ? (
+                <Text modifiers={[font({ design: "rounded" })]}>
+                  {planLabel}
                 </Text>
               ) : (
                 <ProgressView />

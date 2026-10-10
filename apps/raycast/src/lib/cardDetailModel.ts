@@ -138,3 +138,60 @@ export const getDetailStatusChips = (card: RaycastCard): DetailStatusChip[] => [
     text: card.aiTags.length > 0 ? "Teak Tags" : "No Teak Tags",
   },
 ];
+
+export const formatFileSize = (bytes: number): string => {
+  if (bytes < 1024) {
+    return `${bytes} B`;
+  }
+  const units = ["KB", "MB", "GB"];
+  let value = bytes / 1024;
+  let unit = 0;
+  while (value >= 1024 && unit < units.length - 1) {
+    value /= 1024;
+    unit += 1;
+  }
+  return `${value.toFixed(value < 10 ? 1 : 0)} ${units[unit]}`;
+};
+
+// Raycast can't play media or preview documents, so the detail shows what it
+// can render: the image, the text, palette swatches, and the transcript.
+const SWATCH_SIZE = 56;
+const SWATCH_GAP = 8;
+
+/** One image with the palette's swatches side by side, like the web's strip. */
+const paletteMarkdown = (hexes: string[]): string => {
+  const width = hexes.length * (SWATCH_SIZE + SWATCH_GAP) - SWATCH_GAP;
+  const rects = hexes
+    .map(
+      (hex, index) =>
+        `<rect x="${index * (SWATCH_SIZE + SWATCH_GAP)}" width="${SWATCH_SIZE}" height="${SWATCH_SIZE}" rx="10" fill="${hex}"/>`,
+    )
+    .join("");
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${SWATCH_SIZE}">${rects}</svg>`;
+  return `![${hexes.join(" ")}](data:image/svg+xml;base64,${Buffer.from(svg).toString("base64")})`;
+};
+
+const SAFE_HEX = /^#[0-9a-f]{3,8}$/i;
+
+export const getDetailMarkdown = (card: RaycastCard): string => {
+  const heroMediaUrl = getHeroMediaUrl(card);
+  const swatches = (card.colors ?? [])
+    .map((color) => color.hex)
+    .filter((hex) => SAFE_HEX.test(hex));
+  const isFileCard = Boolean(card.fileName);
+  const content = card.content.trim();
+  const sections = [
+    `# ${getCardTitle(card)}`,
+    heroMediaUrl ? `![](${heroMediaUrl})` : "",
+    card.type === "palette" && swatches.length > 0
+      ? paletteMarkdown(swatches)
+      : "",
+    content && !(isFileCard && content === card.fileName)
+      ? `## Content\n\n${card.type === "quote" ? `> ${content}` : content}`
+      : "",
+    card.notes ? `## Notes\n\n${card.notes}` : "",
+    card.aiSummary ? `## Teak Summary\n\n${card.aiSummary}` : "",
+    card.aiTranscript ? `## Transcript\n\n${card.aiTranscript}` : "",
+  ];
+  return sections.filter(Boolean).join("\n\n");
+};

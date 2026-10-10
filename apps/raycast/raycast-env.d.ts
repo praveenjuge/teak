@@ -26,6 +26,8 @@ declare namespace Preferences {
   export type SaveSelectedText = ExtensionPreferences & {}
   /** Preferences accessible in the `save-current-browser-tab` command */
   export type SaveCurrentBrowserTab = ExtensionPreferences & {}
+  /** Preferences accessible in the `save-finder-selection` command */
+  export type SaveFinderSelection = ExtensionPreferences & {}
   /** Preferences accessible in the `search-cards` command */
   export type SearchCards = ExtensionPreferences & {}
   /** Preferences accessible in the `favorites` command */
@@ -48,6 +50,8 @@ declare namespace Arguments {
   export type SaveSelectedText = {}
   /** Arguments passed to the `save-current-browser-tab` command */
   export type SaveCurrentBrowserTab = {}
+  /** Arguments passed to the `save-finder-selection` command */
+  export type SaveFinderSelection = {}
   /** Arguments passed to the `search-cards` command */
   export type SearchCards = {}
   /** Arguments passed to the `favorites` command */

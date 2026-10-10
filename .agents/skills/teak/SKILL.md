@@ -1,6 +1,6 @@
 ---
 name: teak
-description: Use when an agent needs to save, search, retrieve, update, favorite, delete, or sync Teak cards through the Teak CLI, public API, MCP server, or TypeScript SDK.
+description: Use when an agent needs to save, search, retrieve, update, tag, favorite, delete, restore, export, or sync Teak cards through the Teak CLI, public API, MCP server, or TypeScript SDK.
 ---
 
 # Teak Agent Skill
@@ -27,6 +27,7 @@ Sign in with browser OAuth:
 ```bash
 teak login
 teak auth status
+teak whoami   # email, plan, and card usage
 ```
 
 For CI, servers, or headless agents, use an API key instead of browser login:
@@ -58,19 +59,33 @@ Save a file:
 teak add --file ./screenshot.png --notes "Homepage inspiration" --tags design
 ```
 
+Teak detects links, quotes, and palettes from text, like the web composer. Pass `--type text` to keep text as a plain note.
+
 Search and inspect cards:
 
 ```bash
 teak search "homepage inspiration" --limit 10
+teak ls --type image --hue blue --date "last month"
 teak cards get <card-id>
+teak download <card-id> -o ./original.png
 ```
 
-Update, favorite, and delete:
+Update, tag, favorite, delete, and restore:
 
 ```bash
-teak cards update <card-id> --tags design,approved
+teak cards update <card-id> --title "Homepage ideas"
+teak tags add <card-id> approved
+teak tags rm <card-id> draft     # also removes tags Teak added
 teak fav <card-id>
-teak rm <card-id>
+teak rm <card-id>                # moves to Trash
+teak trash
+teak restore <card-id>
+```
+
+Export everything as a ZIP (one export every 7 days):
+
+```bash
+teak export -o teak-backup.zip
 ```
 
 Use `--json` for reliable parsing:
@@ -81,7 +96,7 @@ teak --json cards changes --since 0 --limit 50
 teak --json tags
 ```
 
-For destructive operations, confirm intent before deleting cards unless the user explicitly asked for cleanup. Deleting via the CLI moves cards to trash.
+For destructive operations, confirm intent before deleting cards unless the user explicitly asked for cleanup. `teak rm` moves cards to Trash, where `teak restore` brings them back. Only use `teak rm --permanent --yes` when the user asked for a permanent delete.
 
 ## Public API
 
@@ -95,15 +110,21 @@ Common endpoints:
 
 ```text
 GET    /v1
-GET    /v1/cards
+GET    /v1/me                     plan and card usage
+GET    /v1/cards                  q, type (repeat), tag, favorited, trashed, style, hue, hex, dates, sort, include
 POST   /v1/cards
 POST   /v1/uploads
+POST   /v1/cards/bulk             create, update, favorite, delete (up to 100)
+GET    /v1/cards/duplicate?url=   check before saving a link
 GET    /v1/cards/:cardId
-PATCH  /v1/cards/:cardId
-DELETE /v1/cards/:cardId
+PATCH  /v1/cards/:cardId          content, url, notes, tags, metadataTitle, removeAiTags
+DELETE /v1/cards/:cardId          to Trash; ?permanent=true skips it
+POST   /v1/cards/:cardId/restore
 PATCH  /v1/cards/:cardId/favorite
 GET    /v1/cards/changes
 GET    /v1/tags
+POST   /v1/exports                start a ZIP export
+GET    /v1/exports/latest         progress and download URL
 ```
 
 Authenticate with:
@@ -122,7 +143,7 @@ curl https://teakvault.com/api/v1/cards \
   -d '{"content":"Saved by an agent","tags":["agent"]}'
 ```
 
-For uploads, first create an upload, PUT the bytes to the returned `uploadUrl`, then create a card with `fileKey`, `fileName`, `fileSize`, `mimeType`, and `cardType`.
+For uploads, first create an upload, PUT the bytes to the returned `uploadUrl`, then create a card with `fileKey`, the PUT response's `ETag` as `fileEtag`, `fileName`, `fileSize`, and `mimeType`. `cardType` is optional; Teak infers it from the file.
 
 ## MCP
 
@@ -140,14 +161,24 @@ https://teakvault.com/.well-known/oauth-protected-resource/mcp
 
 Its `authorization_servers` entry names the WorkOS AuthKit issuer; read that issuer's own `/.well-known/oauth-authorization-server` document for the authorize and token endpoints.
 
-Use MCP for agents that can connect to streamable HTTP MCP servers. The server supports OAuth bearer tokens and Teak API keys. Confirm the tool list in the client before assuming a tool name; typical operations map to creating, searching, listing, updating, favoriting, and deleting cards.
+Use MCP for agents that can connect to streamable HTTP MCP servers. The server supports OAuth bearer tokens and Teak API keys. Tools:
+
+- Read: `teak_v1_list_cards`, `teak_v1_search_cards`, `teak_v1_list_favorite_cards` (all share the API's list filters), `teak_v1_get_card`, `teak_v1_get_me`, `teak_v1_check_duplicate_url`, `teak_v1_list_tags`, `teak_v1_get_card_changes`, `search`, `fetch`
+- Write: `teak_v1_create_card`, `teak_v1_create_upload`, `teak_v1_update_card`, `teak_v1_set_card_favorite`, `teak_v1_restore_card`, `teak_v1_bulk_cards`
+- Destructive: `teak_v1_delete_card` (moves to Trash, needs `confirm: true`)
+
+Pass `idempotencyKey` to `teak_v1_create_card` and `teak_v1_bulk_cards` when retrying.
 
 ## TypeScript SDK
 
-The SDK lives at `@teak/convex/sdk` inside the Teak monorepo (`packages/convex/client/sdk.ts`). Import it from there and create a client:
+Install the SDK from npm:
+
+```bash
+npm install teak-sdk
+```
 
 ```ts
-import { createTeakClient, staticTokenProvider } from "@teak/convex/sdk";
+import { createTeakClient, staticTokenProvider } from "teak-sdk";
 
 const teak = createTeakClient({
   baseUrl: "https://teakvault.com/api",
@@ -161,12 +192,12 @@ const created = await teak.cards.create({
 });
 ```
 
-Use the SDK for paginated listing, search, favorite toggles, direct uploads, and error handling. Catch SDK errors by `code` and surface actionable messages to the user.
+Use the SDK for paginated listing, search, favorite toggles, restore, direct uploads, exports, and error handling. Catch SDK errors by `code` and surface actionable messages to the user.
 
 ## Agent Operating Rules
 
 - Validate user-provided file paths and URLs before passing them to Teak.
-- Do not upload files larger than 20 MB.
+- Do not upload files larger than 100 MB. `.md` and `.markdown` files become text cards and are limited to 512 KiB.
 - Treat link, file, and note content as user data; do not summarize private content in logs unless the user asked.
 - Prefer JSON output for automation and parse fields such as `cardId`, `pageInfo.nextCursor`, and `deletedIds`.
 - Clean up temporary test cards after smoke tests.

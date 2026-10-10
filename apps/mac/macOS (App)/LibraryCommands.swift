@@ -16,6 +16,8 @@ extension AppDelegate {
         let file = addMenu("File", to: menu, at: 1)
         addCommand("New Note", action: #selector(newNoteFromMenu), key: "n", to: file)
         addCommand("Upload Files…", action: #selector(uploadFromMenu), key: "u", modifiers: [.command, .shift], to: file)
+        addCommand("Quick Capture…", action: #selector(quickCaptureFromMenu), key: "t",
+                   modifiers: [.command, .option, .control], to: file)
         file.addItem(.separator())
         file.addItem(withTitle: "Close Window", action: #selector(NSWindow.performClose(_:)), keyEquivalent: "w")
 
@@ -64,15 +66,21 @@ extension AppDelegate {
     @objc private func searchFromMenu() { NotificationCenter.default.post(name: .librarySearch, object: nil) }
     @objc private func newNoteFromMenu() { NotificationCenter.default.post(name: .libraryNewNote, object: nil) }
     @objc private func uploadFromMenu() { NotificationCenter.default.post(name: .libraryUpload, object: nil) }
+    @objc func quickCaptureFromMenu() { QuickCaptureController.shared.show() }
 }
 
 extension Notification.Name {
     static let libraryUpload = Notification.Name("teak.library.upload")
+    /// Carries a `PasteboardCapture.Content` from ⌘V on the library window.
+    static let libraryPaste = Notification.Name("teak.library.paste")
+    static let librarySelectAll = Notification.Name("teak.library.selectAll")
 }
 
 extension AppDelegate: NSMenuItemValidation {
     func validateMenuItem(_ menuItem: NSMenuItem) -> Bool {
-        if menuItem.action == #selector(openSettingsFromMenu) { return true }
+        if menuItem.action == #selector(openSettingsFromMenu) || menuItem.action == #selector(quickCaptureFromMenu) {
+            return true
+        }
         return (NSApp.keyWindow?.windowController is LibraryWindowController) && NSApp.keyWindow?.attachedSheet == nil
     }
 }

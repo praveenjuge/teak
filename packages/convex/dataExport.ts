@@ -8,6 +8,9 @@ import { getSessionUser, type TeakUserId } from "./securitySessions";
  *   - cancelExport         mutation request cancellation of the active job
  *   - getExportDownloadUrl action   short-lived signed download URL
  *
+ * Public API surface (owner ID from the bearer middleware, see
+ * `publicApiExports.ts`): getLatestExportForUser, startExportForUser.
+ *
  * Internal surface (used by the workflow / cleanup cron):
  *   - getJob, getExportCardsPage, recordSnapshotPage
  *   - markRunning, completeExport, failExport, isCancelRequested
@@ -18,6 +21,7 @@ import { v } from "convex/values";
 import { internal } from "./_generated/api";
 import type { Id } from "./_generated/dataModel";
 import {
+  type ActionCtx,
   action,
   internalMutation,
   internalQuery,
@@ -178,16 +182,70 @@ function findLastSuccessfulAt(jobs: ExportJobDoc[]): number | undefined {
 // Public functions
 // ---------------------------------------------------------------------------
 
+const latestExportValidator = v.object({
+  job: v.union(v.null(), exportSummaryValidator),
+  canStartNew: v.boolean(),
+  quotaResetMs: v.number(),
+});
+
+async function readLatestExport(ctx: QueryCtx, userId: string) {
+  const now = Date.now();
+  const jobs = await getRecentJobs(ctx, userId);
+  const latest = jobs[0];
+  const lastSuccessfulAt = findLastSuccessfulAt(jobs);
+  const active = findActiveJob(jobs);
+  const canStartNew = !active && isWithinQuota(lastSuccessfulAt, now);
+
+  return {
+    job: latest ? summarizeJob(latest, now) : null,
+    canStartNew,
+    quotaResetMs: quotaResetInMs(lastSuccessfulAt, now),
+  };
+}
+
+async function startExportJob(ctx: MutationCtx, userId: string) {
+  const now = Date.now();
+  const jobs = await getRecentJobs(ctx, userId);
+
+  const active = findActiveJob(jobs);
+  if (active) {
+    return {
+      started: false,
+      reason: "already_active" as const,
+      job: summarizeJob(active, now),
+    };
+  }
+
+  const lastSuccessfulAt = findLastSuccessfulAt(jobs);
+  if (!isWithinQuota(lastSuccessfulAt, now)) {
+    return {
+      started: false,
+      reason: "quota_exceeded" as const,
+      quotaResetMs: quotaResetInMs(lastSuccessfulAt, now),
+    };
+  }
+
+  const jobId = (await ctx.db.insert("exportJobs", {
+    userId,
+    status: EXPORT_STATUS.PENDING,
+    cancelRequested: false,
+    createdAt: now,
+    updatedAt: now,
+  })) as Id<"exportJobs">;
+
+  await ctx.scheduler.runAfter(
+    0,
+    internalAny["workflows/export"].startExportWorkflow,
+    { jobId }
+  );
+
+  const job = (await ctx.db.get(jobId)) as unknown as ExportJobDoc;
+  return { started: true, job: summarizeJob(job, now) };
+}
+
 export const getLatestExport = query({
   args: {},
-  returns: v.union(
-    v.null(),
-    v.object({
-      job: v.union(v.null(), exportSummaryValidator),
-      canStartNew: v.boolean(),
-      quotaResetMs: v.number(),
-    })
-  ),
+  returns: v.union(v.null(), latestExportValidator),
   handler: async (ctx) => {
     let userId: string;
     try {
@@ -195,65 +253,28 @@ export const getLatestExport = query({
     } catch {
       return null;
     }
-
-    const now = Date.now();
-    const jobs = await getRecentJobs(ctx, userId);
-    const latest = jobs[0];
-    const lastSuccessfulAt = findLastSuccessfulAt(jobs);
-    const active = findActiveJob(jobs);
-    const canStartNew = !active && isWithinQuota(lastSuccessfulAt, now);
-
-    return {
-      job: latest ? summarizeJob(latest, now) : null,
-      canStartNew,
-      quotaResetMs: quotaResetInMs(lastSuccessfulAt, now),
-    };
+    return await readLatestExport(ctx, userId);
   },
 });
 
 export const startExport = mutation({
   args: {},
   returns: startResultValidator,
-  handler: async (ctx, _args) => {
-    const userId = await requireUserId(ctx);
-    const now = Date.now();
-    const jobs = await getRecentJobs(ctx, userId);
+  handler: async (ctx, _args) =>
+    await startExportJob(ctx, await requireUserId(ctx)),
+});
 
-    const active = findActiveJob(jobs);
-    if (active) {
-      return {
-        started: false,
-        reason: "already_active" as const,
-        job: summarizeJob(active, now),
-      };
-    }
+// Public API callers: the bearer middleware supplies the owner ID.
+export const getLatestExportForUser = internalQuery({
+  args: { userId: v.string() },
+  returns: latestExportValidator,
+  handler: async (ctx, { userId }) => await readLatestExport(ctx, userId),
+});
 
-    const lastSuccessfulAt = findLastSuccessfulAt(jobs);
-    if (!isWithinQuota(lastSuccessfulAt, now)) {
-      return {
-        started: false,
-        reason: "quota_exceeded" as const,
-        quotaResetMs: quotaResetInMs(lastSuccessfulAt, now),
-      };
-    }
-
-    const jobId = (await ctx.db.insert("exportJobs", {
-      userId,
-      status: EXPORT_STATUS.PENDING,
-      cancelRequested: false,
-      createdAt: now,
-      updatedAt: now,
-    })) as Id<"exportJobs">;
-
-    await ctx.scheduler.runAfter(
-      0,
-      internalAny["workflows/export"].startExportWorkflow,
-      { jobId }
-    );
-
-    const job = (await ctx.db.get(jobId)) as unknown as ExportJobDoc;
-    return { started: true, job: summarizeJob(job, now) };
-  },
+export const startExportForUser = internalMutation({
+  args: { userId: v.string() },
+  returns: startResultValidator,
+  handler: async (ctx, { userId }) => await startExportJob(ctx, userId),
 });
 
 export const cancelExport = mutation({
@@ -285,6 +306,32 @@ export const cancelExport = mutation({
   },
 });
 
+export async function readExportDownloadUrl(
+  ctx: ActionCtx,
+  userId: string,
+  jobId: Id<"exportJobs">
+): Promise<{ url: string; expiresInSeconds: number } | null> {
+  const job = (await ctx.runQuery(internalAny.dataExport.getJob, {
+    jobId,
+  })) as ExportJobDoc | null;
+
+  if (!job || job.userId !== userId) {
+    throw new Error("Export job not found");
+  }
+
+  const now = Date.now();
+  if (
+    job.status !== EXPORT_STATUS.READY ||
+    !job.artifactKey ||
+    isExpired(job.expiresAt, now)
+  ) {
+    return null;
+  }
+
+  const url = await getR2Url(job.artifactKey);
+  return { url, expiresInSeconds: DOWNLOAD_URL_TTL_SECONDS };
+}
+
 export const getExportDownloadUrl = action({
   args: { jobId: v.id("exportJobs") },
   returns: v.union(
@@ -299,26 +346,7 @@ export const getExportDownloadUrl = action({
     if (!user) {
       throw new Error("User must be authenticated");
     }
-
-    const job = (await ctx.runQuery(internalAny.dataExport.getJob, {
-      jobId,
-    })) as ExportJobDoc | null;
-
-    if (!job || job.userId !== user.teakUserId) {
-      throw new Error("Export job not found");
-    }
-
-    const now = Date.now();
-    if (
-      job.status !== EXPORT_STATUS.READY ||
-      !job.artifactKey ||
-      isExpired(job.expiresAt, now)
-    ) {
-      return null;
-    }
-
-    const url = await getR2Url(job.artifactKey);
-    return { url, expiresInSeconds: DOWNLOAD_URL_TTL_SECONDS };
+    return await readExportDownloadUrl(ctx, user.teakUserId, jobId);
   },
 });
 

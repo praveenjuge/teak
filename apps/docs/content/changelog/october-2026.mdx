@@ -1,8 +1,8 @@
 ---
 title: "October 2026"
-description: A new sign-in system, simpler web note editing, more capture options, library editing on Mac, and a cleaner Chrome popup.
+description: A new sign-in system, simpler web note editing, the web app's tools on Mac, iPhone, Raycast, and the command line, and a cleaner Chrome popup.
 type: changelog
-date: "2026-10-09"
+date: "2026-10-10"
 changelog:
   category: Product updates
 ---
@@ -30,7 +30,30 @@ New accounts can sign up again on the new sign-in system. On the web, signing in
 - Browse a refreshed native library, search by tags, dates, colors, and style, and use familiar Mac keyboard shortcuts.
 - Edit text and quotes, organize notes and tags, toggle favorites, and manage Trash without switching to the web app. Changes sync across your library.
 
+- Paste with ⌘V to save the clipboard, and save from anywhere with **Quick Capture** (⌃⌥⌘T), **Save to Teak** in the Services menu, or by dropping onto the menu bar icon.
+- Select several cards to favorite them or move them to Trash together. Click a tag to see every card with exactly that tag.
+- Notes and Markdown files show formatted, source files show with line numbers, and you can remove tags Teak added. **Copy Link** and **Open on Web** share a card.
+- Settings shows your plan, with **Upgrade…** or **Manage…** on the web.
+
 See the [Mac app guide](/docs/mac) to get started.
+
+## More of your library on iPhone
+
+- Edit a card's notes and tags, rewrite notes and quotes, and remove tags Teak added.
+- Filter Home by favorites, type, or color, and open **Trash** to restore cards or delete them forever.
+- Select several cards to delete or restore them together, and pick up to five photos or files at once.
+- Save text or links from any shortcut or Siri with the **Save to Teak** action.
+- Notes show their formatting, links show their details and post photos, and documents open in a viewer. Tap a tag to search for it.
+- Settings shows your plan and how many cards you've used.
+
+See the [mobile guide](/docs/mobile).
+
+## Raycast, CLI, API, and MCP
+
+- **Raycast:** save files from Finder or the clipboard, see palette colors and transcripts, scroll through all results, filter by color, date, and Trash, restore cards, and remove tags Teak added. Saving a page you already have says so. See the [Raycast guide](/docs/raycast).
+- **CLI:** `teak trash`, `teak restore`, `teak open`, `teak download`, `teak export`, `teak whoami`, and `teak tags add` / `rm`, plus color, style, and plain-English date filters. Text you add becomes a quote or palette when it is one, like on the web. See the [CLI guide](/docs/cli).
+- **API:** `GET /v1/me` includes your plan and card usage, `PATCH /v1/cards/:id` can remove tags Teak added, and the new export endpoints start a ZIP export and return its download link. See the [API guide](/docs/api#export-your-cards).
+- **MCP:** the list and search tools take the same filters as the API, and new tools restore cards from Trash, check whether a URL is saved, and show your plan. See the [MCP guide](/docs/mcp).
 
 ## A cleaner Chrome extension popup
 

@@ -28,6 +28,13 @@ const cardProperties = {
   },
   content: { type: "string" },
   isDeleted: { type: "boolean" },
+  metadataStatus: { type: ["string", "null"] },
+  processingStatus: {
+    additionalProperties: true,
+    description:
+      "Per-stage processing state (classify, categorize, metadata, renderables), or null once nothing is tracked.",
+    type: ["object", "null"],
+  },
   linkPreviewDescription: { type: ["string", "null"] },
   linkFacts: {
     type: "array",
@@ -108,9 +115,7 @@ const components = {
     ApiError: {
       properties: {
         code: { type: "string" },
-        details: { additionalProperties: true, type: ["object", "null"] },
         error: { type: "string" },
-        requestId: { type: ["string", "null"] },
         retryAt: { type: ["number", "null"] },
       },
       required: ["code", "error"],
@@ -182,8 +187,8 @@ const components = {
             "48px loading-placeholder rendition URL; present for image uploads.",
           type: ["string", "null"],
         },
-        metadataStatus: { type: ["string", "null"] },
-        processingStatus: { type: ["string", "null"] },
+        metadataStatus: cardProperties.metadataStatus,
+        processingStatus: cardProperties.processingStatus,
         screenshotUrl: { type: ["string", "null"] },
         tags: { items: { type: "string" }, type: "array" },
         thumbnailUrl: { type: ["string", "null"] },
@@ -316,7 +321,6 @@ const components = {
           type: "array",
         },
         pageInfo: { $ref: "#/components/schemas/CardPageInfo" },
-        total: { type: "number" },
       },
       required: ["items", "pageInfo"],
       type: "object",
@@ -343,9 +347,56 @@ const components = {
           type: ["string", "null"],
         },
         notes: { type: ["string", "null"] },
-        tags: { items: { type: "string" }, type: "array" },
+        removeAiTags: {
+          description:
+            "AI tags to remove from the card. Tags Teak didn't add are ignored.",
+          items: { type: "string" },
+          type: "array",
+        },
+        tags: {
+          description: "Replaces the card's own tags.",
+          items: { type: "string" },
+          type: "array",
+        },
         url: { type: "string" },
       },
+      type: "object",
+    },
+    ExportJob: {
+      properties: {
+        id: { type: "string" },
+        status: {
+          enum: [
+            "pending",
+            "running",
+            "ready",
+            "failed",
+            "canceled",
+            "expired",
+          ],
+          type: "string",
+        },
+        stage: {
+          enum: ["snapshotting", "archiving", null],
+          type: ["string", "null"],
+        },
+        processedCount: { type: ["number", "null"] },
+        cardCount: { type: ["number", "null"] },
+        filesIncluded: { type: ["number", "null"] },
+        filesOmitted: { type: ["number", "null"] },
+        sizeBytes: { type: ["number", "null"] },
+        failureClass: { type: ["string", "null"] },
+        createdAt: { type: "number" },
+        updatedAt: { type: "number" },
+        completedAt: { type: ["number", "null"] },
+        expiresAt: { type: ["number", "null"] },
+        downloadUrl: {
+          description:
+            "Short-lived signed URL for the ZIP, present while the export is ready and not expired.",
+          type: ["string", "null"],
+        },
+      },
+      required: ["id", "status", "createdAt", "updatedAt", "downloadUrl"],
       type: "object",
     },
     FavoriteRequest: {
@@ -480,6 +531,21 @@ export const openApiSpec = {
                         },
                         email: { type: "string", format: "email" },
                         name: { type: "string" },
+                        cardCount: {
+                          type: "number",
+                          description: "Cards outside Trash",
+                        },
+                        cardLimit: {
+                          type: ["number", "null"],
+                          description: "Free plan card limit; null on Pro",
+                        },
+                        plan: { enum: ["free", "pro"], type: "string" },
+                        settingsUrl: {
+                          type: "string",
+                          format: "uri",
+                          description:
+                            "Teak web Settings, where plan, billing, API keys and import live",
+                        },
                       },
                     },
                   },
@@ -870,6 +936,72 @@ export const openApiSpec = {
         security: apiKeySecurity,
         operationId: "listTags",
         summary: "List tags",
+      },
+    },
+    "/v1/exports": {
+      post: {
+        operationId: "startExport",
+        summary: "Start a ZIP export of every card and original file",
+        description:
+          "One export can run at a time, and one can be started every 7 days. Poll GET /v1/exports/latest for progress and the download URL.",
+        security: apiKeySecurity,
+        responses: {
+          202: {
+            description: "Export started",
+            content: {
+              "application/json": {
+                schema: {
+                  properties: {
+                    job: { $ref: "#/components/schemas/ExportJob" },
+                  },
+                  required: ["job"],
+                  type: "object",
+                },
+              },
+            },
+          },
+          409: {
+            description: "An export is already running; body includes `job`",
+          },
+          429: {
+            description:
+              "An export already ran in the last 7 days; `retryAt` and Retry-After say when the next can start",
+          },
+        },
+      },
+    },
+    "/v1/exports/latest": {
+      get: {
+        operationId: "getLatestExport",
+        summary: "Get the latest export and its download URL",
+        security: apiKeySecurity,
+        responses: {
+          200: {
+            description: "Latest export, or null if there has never been one",
+            content: {
+              "application/json": {
+                schema: {
+                  properties: {
+                    job: {
+                      oneOf: [
+                        { $ref: "#/components/schemas/ExportJob" },
+                        { type: "null" },
+                      ],
+                    },
+                    canStartNew: { type: "boolean" },
+                    nextAvailableAt: {
+                      description:
+                        "When the next export can start, or null if one can start now",
+                      type: ["number", "null"],
+                    },
+                  },
+                  required: ["job", "canStartNew", "nextAvailableAt"],
+                  type: "object",
+                },
+              },
+            },
+          },
+        },
       },
     },
   },

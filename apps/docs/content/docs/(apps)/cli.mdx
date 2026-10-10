@@ -3,7 +3,7 @@ title: Command Line
 description: Install and use the Teak CLI from your terminal
 ---
 
-The Teak CLI lets you save, search, favorite, update, and delete cards without leaving your terminal.
+The Teak CLI lets you save, search, tag, favorite, update, delete, restore, and export cards without leaving your terminal.
 
 ## Install
 
@@ -42,7 +42,7 @@ After installing globally, the `teak` command is available on your PATH. To try 
   </Tab>
 </Tabs>
 
-Check which credential the CLI is using with `teak auth status`.
+Check which account and credential the CLI is using with `teak auth status`. `teak whoami` shows your email, plan, and how many cards you've used.
 
 ```bash
 teak logout
@@ -60,6 +60,8 @@ The `teak-sdk` package's `TokenProvider.onUnauthorized(rejectedToken: string)` r
 used by the request that returned 401. Return a refreshed or newer stored token
 to retry that request once, or `null` to stop. Compare the rejected token with
 the current session before refreshing; a late response may refer to an older token.
+
+The client covers every [API](/docs/api) endpoint: `cards.list`, `search`, `favorites` (with `trashed`, `style`, `hue`, and `hex` filters), `get`, `create`, `update` (including `removeAiTags`), `setFavorite`, `delete` (pass `{ permanent: true }` to skip Trash), `restore`, `duplicate`, `bulk`, and `changes`, plus `tags.list`, `uploads`, `me`, and `exports.start` / `exports.latest`. Pass `{ idempotencyKey }` to `cards.create` or `cards.bulk` to make retries safe. Errors are `TeakApiError`s with a `code`, `status`, `retryAt`, and the response's `requestId`.
 
 The SDK also includes the WorkOS Connect sign-in steps that the CLI, Raycast, and
 browser extension use: `randomBase64Url` and `createPkceChallenge` for PKCE,
@@ -79,9 +81,15 @@ teak add --file ./component.tsx --tags source
 teak ls
 teak search "blue buttons"
 teak cards get <card-id>
-teak cards update <card-id> --tags design,reference
+teak open <card-id>
+teak download <card-id> -o ./poster.png
+teak cards update <card-id> --title "Homepage ideas" --tags design,reference
+teak tags add <card-id> inspiration
+teak tags rm <card-id> inspiration
 teak fav <card-id>
 teak rm <card-id>
+teak trash
+teak restore <card-id>
 teak tags
 ```
 
@@ -92,16 +100,46 @@ scripting.
 
 File uploads support the same formats as the web app (source files, Markdown and MDX, ZIP archives, documents, images, audio, and video — see [Features](/docs/features)), up to 100 MB. `.md` and `.markdown` files become editable text cards, must be valid UTF-8, and are limited to 512 KiB; `.mdx` remains a document.
 
-Text passed to `teak add`, including standard input, is stored as raw Markdown exactly as submitted. Text cards have a 512 KiB UTF-8 limit.
+Like the web composer, Teak works out the card type from what you add: a URL becomes a link, text in quotation marks becomes a quote, and a list of colors becomes a palette. Pass `--type text` (or `quote`, `palette`, …) to choose. Structured Markdown always stays a text card and is stored exactly as submitted, including from standard input. Text cards have a 512 KiB UTF-8 limit.
+
+`teak cards get` shows the card's title, notes, tags, Teak's AI tags and summary, colors, file, transcript, and a link to open it on the web. `teak open` opens that link in your browser, and `teak download` saves a file card's original file (`--force` replaces an existing file).
+
+`teak tags add` and `teak tags rm` change one card's tags without retyping the rest. `teak tags rm` also removes tags Teak added. `teak cards update --tags` replaces the card's own tags, and `--content -` reads the new content from standard input.
+
+### Trash
+
+`teak rm` moves cards to Trash, and `teak restore` brings them back. `teak trash` lists what's there; Teak empties it after 30 days. `teak rm --permanent` deletes for good: it asks first in a terminal, and needs `--yes` in scripts.
 
 ### Filter and page through cards
 
-`teak ls`, `teak search`, and `teak cards favorites` accept `--type`, `--tag`, `--favorited`, `--sort newest|oldest`, `--created-after` and `--created-before` (millisecond timestamps), `--limit`, `--cursor`, and `--include content,metadata,processing`. Add `--all` to `teak ls` to fetch every page.
+`teak ls`, `teak search`, `teak trash`, and `teak cards favorites` accept the same filters as search on the web:
+
+| Option | Filter |
+| --- | --- |
+| `--type <type>` | Card type. Repeat to match any of several. |
+| `--tag <tag>` | Exact tag |
+| `--favorited` / `--trashed` | Favorites only / Trash only |
+| `--style <style>` | Visual style, such as `minimal` or `vintage`. Repeatable. |
+| `--hue <hue>` | Color family, such as `blue` or `neutral`. Repeatable. |
+| `--hex <color>` | Exact color, such as `#112233`. Repeatable. |
+| `--date <phrase>` | When it was saved: `today`, `last week`, `march 2026`, `2026-01-01 to 2026-02-01` |
+| `--created-after` / `--created-before` | Millisecond timestamps |
+| `--sort newest\|oldest`, `--limit`, `--cursor` | Order and paging |
+| `--include content,metadata,processing` | Extra fields (`content` by default) |
+| `--all` | Fetch every page |
 
 ```bash
-teak ls --type link --tag design --limit 20
-teak ls --all --json > cards.json
+teak ls --type image --type link --hue blue --date "last month"
+teak search "homepage" --tag design --all --json > cards.json
 ```
+
+### Export
+
+```bash
+teak export -o teak-backup.zip
+```
+
+`teak export` starts a ZIP export of every card and original file, the same as the web's export. Add `--wait` to wait for it, or `-o` to wait and save the ZIP. `teak export status` shows progress, and `teak export download` saves the latest ready export. You can start one export every 7 days.
 
 ### Sync and bulk edits
 
