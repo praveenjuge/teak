@@ -55,10 +55,27 @@ export const readStackState = (root: string): StackState | null => {
     return null;
   }
   try {
-    return JSON.parse(readFileSync(path, "utf-8")) as StackState;
+    const parsed: unknown = JSON.parse(readFileSync(path, "utf-8"));
+    return isStackState(parsed) ? parsed : null;
   } catch {
     return null;
   }
+};
+
+// A file that parses but isn't a stack's state counts as no state, so
+// readers fail closed instead of throwing on a missing field.
+const isStackState = (value: unknown): value is StackState => {
+  if (typeof value !== "object" || value === null || Array.isArray(value)) {
+    return false;
+  }
+  const state = value as Partial<StackState>;
+  return (
+    typeof state.pid === "number" &&
+    (state.mode === "dev" || state.mode === "e2e") &&
+    typeof state.urls === "object" &&
+    state.urls !== null &&
+    typeof state.urls.appOrigin === "string"
+  );
 };
 
 const validPid = (pid: unknown): pid is number =>

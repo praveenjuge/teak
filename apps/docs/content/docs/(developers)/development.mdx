@@ -101,9 +101,13 @@ iOS simulators, device builds, the Mac app, Xcode, and Safari stay on macOS.
 
 ### Without access to the development deployment
 
-Set up your own deployment as in [Self-Hosting](/docs/self-hosting). The E2E
-suite (`bun run --cwd packages/tests e2e`) needs no credentials; it runs its own
-throwaway stack for tests only (`packages/tests/README.md`).
+`bun run setup` and `bun run dev` work only against the development deployment;
+they refuse any other deployment, so ask the repository owner for access. Until
+then you can still run the unit tests (`bun run test`) and the E2E suite
+(`bun run --cwd packages/tests e2e`), which needs no credentials and runs its
+own throwaway stack (`packages/tests/README.md`). Running Teak on a deployment
+of your own is [Self-Hosting](/docs/self-hosting), which the development
+commands don't configure.
 
 ## Reporting Setup Problems
 
