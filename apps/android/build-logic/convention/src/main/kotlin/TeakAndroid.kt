@@ -26,6 +26,13 @@ internal fun Project.configureAndroidCommon(extension: CommonExtension) {
         compileOptions.targetCompatibility = JavaVersion.VERSION_17
         testOptions.unitTests.isIncludeAndroidResources = true
         testOptions.unitTests.isReturnDefaultValues = true
+        // Robolectric reaches into FileDescriptor internals, which JDK 17+ closes by default.
+        testOptions.unitTests.all {
+            it.jvmArgs(
+                "--add-opens=java.base/java.io=ALL-UNNAMED",
+                "--add-exports=java.base/jdk.internal.access=ALL-UNNAMED",
+            )
+        }
         lint.abortOnError = true
         lint.warningsAsErrors = false
         lint.checkDependencies = false
