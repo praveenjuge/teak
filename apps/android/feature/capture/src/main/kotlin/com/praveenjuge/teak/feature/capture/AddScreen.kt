@@ -21,17 +21,14 @@ import androidx.compose.material.icons.filled.PhotoLibrary
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.LargeTopAppBar
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.listSaver
 import androidx.compose.runtime.saveable.rememberSaveable
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.LocalContext
@@ -42,6 +39,11 @@ import androidx.core.content.ContextCompat
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.praveenjuge.teak.core.model.MAX_FILES_PER_UPLOAD
+import com.praveenjuge.teak.core.designsystem.component.ListGroup
+import com.praveenjuge.teak.core.designsystem.component.ListRow
+import com.praveenjuge.teak.core.designsystem.component.ListSectionHeader
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.getValue
 
 /** Alerts that come from the camera itself rather than from a pick. */
 private enum class CameraAlert { PermissionDenied, Unavailable }
@@ -181,25 +183,25 @@ internal fun AddScreen(
                 bottom = padding.calculateBottomPadding() + 24.dp,
             ),
         ) {
-            item { SectionHeader("Write") }
+            item { ListSectionHeader("Write") }
             item {
-                ActionGroup {
-                    ActionRow("Note or Link", Icons.Filled.EditNote, onClick = onWriteNote)
-                    ActionRow("Voice Memo", Icons.Filled.Mic, onClick = onRecordVoice)
+                ListGroup {
+                    ListRow("Note or Link", Icons.Filled.EditNote, onClick = onWriteNote)
+                    ListRow("Voice Memo", Icons.Filled.Mic, onClick = onRecordVoice)
                 }
             }
-            item { SectionHeader("Upload") }
+            item { ListSectionHeader("Upload") }
             item {
-                ActionGroup {
+                ListGroup {
                     val enabled = !state.isPreparing
-                    ActionRow("Photos & Videos", Icons.Filled.PhotoLibrary, enabled, onPickMedia)
-                    ActionRow("Camera", Icons.Filled.PhotoCamera, enabled, onTakePhoto)
-                    ActionRow("Files", Icons.Filled.Folder, enabled, onPickFiles)
+                    ListRow("Photos & Videos", Icons.Filled.PhotoLibrary, enabled = enabled, onClick = onPickMedia)
+                    ListRow("Camera", Icons.Filled.PhotoCamera, enabled = enabled, onClick = onTakePhoto)
+                    ListRow("Files", Icons.Filled.Folder, enabled = enabled, onClick = onPickFiles)
                 }
             }
             if (state.uploads.isNotEmpty()) {
                 item {
-                    SectionHeader("Uploads") {
+                    ListSectionHeader("Uploads") {
                         if (state.hasFinishedUploads) TextButton(onClick = onClearFinished) { Text("Clear") }
                     }
                 }
