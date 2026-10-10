@@ -27,10 +27,6 @@ struct AddView: View {
                 }
                 #endif
                 row("Files", symbol: "folder.fill", color: .cyan) { router.isImportingFiles = true }
-                PasteButton(supportedContentTypes: [.fileURL, .image, .url, .plainText]) { providers in
-                    Task { await capture.save(providers) }
-                }
-                .labelStyle(.titleAndIcon)
             }
             if let upload = capture.upload {
                 Section {
@@ -40,6 +36,7 @@ struct AddView: View {
                 }
             }
         }
+        .tint(.primary)
         .navigationTitle("Add")
         .disabled(capture.isUploading)
         .onChange(of: photos) { _, selection in

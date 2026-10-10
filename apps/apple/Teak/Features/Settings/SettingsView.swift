@@ -101,6 +101,7 @@ private struct AccountSection: View {
                 Text(TeakMessages.accountChangesPaused).font(.footnote).foregroundStyle(.secondary)
             }
             Button("Log Out") { confirmLogOut = true }
+                .tint(.primary)
                 .accessibilityIdentifier("settings.logOut")
             if let error {
                 Text(error).font(.footnote).foregroundStyle(.red)

@@ -22,7 +22,7 @@ struct CardSections: View {
         VStack(alignment: .leading, spacing: 24) {
             linkDetails
             if let notes = card.notes?.trimmingCharacters(in: .whitespacesAndNewlines), !notes.isEmpty {
-                section("Notes") { Text(notes).textSelection(.enabled) }
+                section("Notes") { paragraph(notes) }
             }
             let tags = (card.tags ?? []).map { $0.trimmingCharacters(in: .whitespaces) }.filter { !$0.isEmpty }
             if !tags.isEmpty {
@@ -30,11 +30,19 @@ struct CardSections: View {
             }
             summary
             if let transcript = card.aiTranscript?.trimmingCharacters(in: .whitespacesAndNewlines), !transcript.isEmpty {
-                section("Transcript") { Text(transcript).textSelection(.enabled) }
+                section("Transcript") { paragraph(transcript) }
             }
             info
         }
         .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    private func paragraph(_ text: String) -> some View {
+        Text(text)
+            .textSelection(.enabled)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(16)
+            .grouped()
     }
 
     private func searchTag(_ tag: String) {
@@ -73,7 +81,7 @@ struct CardSections: View {
         if !text.isEmpty || !tags.isEmpty || !colors.isEmpty {
             section("Summary") {
                 VStack(alignment: .leading, spacing: 10) {
-                    if !text.isEmpty { Text(text).textSelection(.enabled) }
+                    if !text.isEmpty { paragraph(text) }
                     ChipRow(tags: tags, colors: colors, sparkles: true, onTag: searchTag)
                 }
             }
@@ -81,48 +89,84 @@ struct CardSections: View {
     }
 
     private var info: some View {
-        section("Info") {
-            VStack(alignment: .leading, spacing: 10) {
+        let details = CardSheet.detailRows(card).filter { $0.label != "Type" }
+            + [DetailRow("Created", CardSheet.formatTimestamp(card.createdAt)),
+               DetailRow("Updated", CardSheet.formatTimestamp(card.updatedAt))]
+        return section("Info") {
+            VStack(spacing: 0) {
                 Button {
                     filterLibrary.type(card.type)
                     dismiss()
                 } label: {
-                    LabeledContent("Type") { Text(card.type.label).foregroundStyle(.tint) }
+                    InfoRow(label: "Type") {
+                        HStack(spacing: 4) {
+                            Image(systemName: card.type.symbol)
+                            Text(card.type.label)
+                        }
+                        .foregroundStyle(.tint)
+                    }
                 }
                 .buttonStyle(.plain)
                 .accessibilityHint("Shows every \(card.type.label.lowercased()) card")
-                rows(CardSheet.detailRows(card).filter { $0.label != "Type" })
-                LabeledContent("Created", value: CardSheet.formatTimestamp(card.createdAt))
-                LabeledContent("Updated", value: CardSheet.formatTimestamp(card.updatedAt))
-                HStack {
-                    if let url = card.url, !url.isEmpty {
-                        Button("Copy URL", systemImage: "link") { Pasteboard.copy(url) }
-                    }
-                    if !card.content.isEmpty {
-                        Button("Copy Original", systemImage: "doc.on.doc") { Pasteboard.copy(card.content) }
-                    }
+                ForEach(details, id: \.self) { row in
+                    Divider().padding(.leading, 16)
+                    InfoRow(label: row.label) { Text(row.value) }
+                        .contextMenu {
+                            Button("Copy \(row.label)", systemImage: "doc.on.doc") { Pasteboard.copy(row.value) }
+                        }
                 }
-                .buttonStyle(.bordered)
-                .controlSize(.small)
             }
+            .grouped()
         }
     }
 
     private func rows(_ rows: [DetailRow]) -> some View {
-        VStack(alignment: .leading, spacing: 10) {
-            ForEach(rows, id: \.self) { row in
-                LabeledContent(row.label) {
-                    Text(row.value).multilineTextAlignment(.trailing).textSelection(.enabled)
-                }
+        VStack(spacing: 0) {
+            ForEach(Array(rows.enumerated()), id: \.offset) { index, row in
+                if index > 0 { Divider().padding(.leading, 16) }
+                InfoRow(label: row.label) { Text(row.value) }
             }
         }
+        .grouped()
     }
 
     private func section(_ title: String, @ViewBuilder content: () -> some View) -> some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text(title).font(.headline)
+            Text(title)
+                .font(.subheadline.weight(.semibold))
+                .foregroundStyle(.secondary)
+                .padding(.leading, 4)
             content().font(.body)
         }
+    }
+}
+
+/// One label and value, like a row in Settings.
+private struct InfoRow<Value: View>: View {
+    let label: String
+    @ViewBuilder let value: Value
+
+    var body: some View {
+        HStack(alignment: .firstTextBaseline, spacing: 16) {
+            Text(label).foregroundStyle(.primary).fixedSize()
+            Spacer(minLength: 12)
+            value
+                .foregroundStyle(.secondary)
+                .multilineTextAlignment(.trailing)
+                .fixedSize(horizontal: false, vertical: true)
+                .layoutPriority(1)
+                .textSelection(.enabled)
+        }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 12)
+        .contentShape(.rect)
+    }
+}
+
+private extension View {
+    /// The inset grouped look: a rounded card on the page background.
+    func grouped() -> some View {
+        background(.background.secondary, in: .rect(cornerRadius: 16, style: .continuous))
     }
 }
 

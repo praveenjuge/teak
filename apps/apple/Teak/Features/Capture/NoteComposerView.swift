@@ -13,6 +13,8 @@ struct NoteComposerView: View {
         NavigationStack {
             TextEditor(text: $router.composerText)
                 .focused($focused)
+                .accessibilityLabel("Write a note or paste a link")
+                .accessibilityIdentifier("composer.text")
                 .scrollContentBackground(.hidden)
                 .padding(.horizontal, 12)
                 .overlay(alignment: .topLeading) {
@@ -34,9 +36,11 @@ struct NoteComposerView: View {
                     }
                     ToolbarItem(placement: .confirmationAction) {
                         Button(capture.isSavingText ? "Saving…" : "Save") { save() }
+                            .buttonStyle(.glassProminent)
                             .disabled(capture.isSavingText || router.composerText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
                             .keyboardShortcut(.return, modifiers: .command)
                             .accessibilityHint("Saves this text card.")
+                            .accessibilityIdentifier("composer.save")
                     }
                 }
         }
@@ -48,6 +52,8 @@ struct NoteComposerView: View {
         Task {
             if await capture.saveText(router.composerText) != nil {
                 router.composerText = ""
+                // Like the iPhone app, a saved note lands back in the library.
+                router.tab = .home
                 dismiss()
             }
         }
