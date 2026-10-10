@@ -48,6 +48,30 @@ test("creates, saves, and reopens every supported Markdown block", async ({
   });
 });
 
+test("a URL typed in the composer saves as a link to that exact URL", async ({
+  page,
+  library,
+}) => {
+  // The composer's Markdown escapes `_` as `\_` and `&` as `&amp;`; the saved
+  // link must point at the URL as typed, or metadata fetches hit the wrong page.
+  const run = `run=${Date.now()}`;
+  const url = `https://example.com/wiki/Tectona_grandis?${run}&lang=en`;
+  const composer = page.getByRole("group", { name: "Markdown content editor" });
+  await (await getBlockEditor(composer)).fill(url);
+  await page.getByRole("button", { name: "Save", exact: true }).click();
+  const findCreated = async () =>
+    (await library.client.query(api.cards.getCards, {})).find(
+      (card: { content?: string }) => card.content?.includes(run)
+    );
+  await expect.poll(async () => Boolean(await findCreated())).toBe(true);
+  const created = await findCreated();
+  if (!created) {
+    throw new Error("Created link was not persisted");
+  }
+  library.ids.push(created._id);
+  expect(created).toMatchObject({ type: "link", url, content: url });
+});
+
 test("opening and selecting never rewrites an unchanged note", async ({
   page,
   library,
