@@ -17,20 +17,23 @@ struct LibraryView: View {
     @FocusState private var focusedCard: String?
 
     var body: some View {
-        content
+        GeometryReader { proxy in
+            content
+                .onAppear { width = proxy.size.width }
+                .onChange(of: proxy.size.width) { _, newWidth in width = newWidth }
+        }
             .navigationTitle(library.title)
             #if os(iOS)
             .navigationBarTitleDisplayMode(.large)
             #endif
             .searchable(text: $library.text, tokens: $library.tokens, suggestedTokens: .constant(suggestions),
-                        prompt: "Search") { token in
+                        placement: searchPlacement, prompt: "Search") { token in
                 Label(token.label, systemImage: token.symbol)
             }
             .onSubmit(of: .search) { library.commitText() }
             .toolbar { toolbar }
             .overlay(alignment: .bottom) { bottomOverlay }
             .task { library.start() }
-            .onGeometryChange(for: Double.self) { $0.size.width } action: { width = $0 }
             .sheet(item: $editing) { route in CardEditView(cardId: route.id) }
             .fileExporter(isPresented: .constant(exporting != nil), item: exporting,
                           contentTypes: exporting.map { [$0.contentType] } ?? [],
@@ -70,6 +73,14 @@ struct LibraryView: View {
             }
     }
 
+    private var searchPlacement: SearchFieldPlacement {
+        #if os(iOS)
+        .navigationBarDrawer(displayMode: .always)
+        #else
+        .automatic
+        #endif
+    }
+
     private var suggestions: [SearchToken] { SearchTokens.suggestions(for: library.text) }
 
     private var columns: Int { CardGrid.columnCount(width: width) }
@@ -89,7 +100,6 @@ struct LibraryView: View {
                     ProgressView().padding(.bottom, 24)
                 }
             }
-            .scrollEdgeEffectStyle(.soft, for: .top)
             .refreshable { await library.refresh() }
         }
     }
@@ -229,10 +239,8 @@ struct FilterMenu: View {
 
     var body: some View {
         Menu {
-            if !library.baseFilters.favoritesOnly && !library.baseFilters.trashOnly {
-                Toggle(isOn: $library.filters.favoritesOnly) { Label("Favorites", systemImage: "heart") }
-                Toggle(isOn: $library.filters.trashOnly) { Label("Trash", systemImage: "trash") }
-            }
+            Toggle(isOn: $library.filters.favoritesOnly) { Label("Favorites", systemImage: "heart") }
+            Toggle(isOn: $library.filters.trashOnly) { Label("Trash", systemImage: "trash") }
             Menu {
                 ForEach(CardType.allCases) { type in
                     Toggle(type.plural, isOn: Binding(

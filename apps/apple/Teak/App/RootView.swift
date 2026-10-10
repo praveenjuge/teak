@@ -53,14 +53,6 @@ struct MainView: View {
             Tab("Home", systemImage: "house", value: AppTab.home) {
                 LibraryTab(library: services.home, path: $router.homePath, namespace: namespace)
             }
-            Tab("Favorites", systemImage: "heart", value: AppTab.favorites) {
-                LibraryTab(library: services.favorites, path: $router.favoritesPath, namespace: namespace)
-            }
-            .defaultVisibility(.hidden, for: .tabBar)
-            Tab("Trash", systemImage: "trash", value: AppTab.trash) {
-                LibraryTab(library: services.trash, path: $router.trashPath, namespace: namespace)
-            }
-            .defaultVisibility(.hidden, for: .tabBar)
             Tab("Add", systemImage: "plus.circle", value: AppTab.add) {
                 NavigationStack { AddView() }
             }

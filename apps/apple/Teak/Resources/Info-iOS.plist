@@ -39,6 +39,11 @@
 	<string>public.app-category.productivity</string>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
+	<key>NSAppTransportSecurity</key>
+	<dict>
+		<key>NSAllowsLocalNetworking</key>
+		<true/>
+	</dict>
 	<key>NSCameraUsageDescription</key>
 	<string>Teak uses the camera to capture photos and videos you save to your library.</string>
 	<key>NSMicrophoneUsageDescription</key>
@@ -55,6 +60,8 @@
 	<string>$(TEAK_SENTRY_DSN)</string>
 	<key>TeakWebURL</key>
 	<string>$(TEAK_WEB_URL)</string>
+	<key>TeakWorkOSURL</key>
+	<string>https://api.workos.com</string>
 	<key>UIApplicationSceneManifest</key>
 	<dict>
 		<key>UIApplicationSupportsMultipleScenes</key>

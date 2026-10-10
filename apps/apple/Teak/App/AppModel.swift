@@ -76,6 +76,9 @@ final class AppModel {
     /// device is locked; the session is kept and read again on foreground.
     func restoreSession() {
         Task {
+            #if DEBUG
+            await prepareForUITests()
+            #endif
             do {
                 let user = try await session.restore()
                 keychainUnavailable = false
@@ -87,6 +90,19 @@ final class AppModel {
             }
         }
     }
+
+    #if DEBUG
+    /// `TEAK_UI_TEST_RESET` signs out first; `TEAK_UI_TEST_SESSION` (a base64
+    /// WorkOS authenticate response) signs in without a browser.
+    private func prepareForUITests() async {
+        let environment = ProcessInfo.processInfo.environment
+        if environment["TEAK_UI_TEST_RESET"] == "1" { await session.clear() }
+        if let encoded = environment["TEAK_UI_TEST_SESSION"], let data = Data(base64Encoded: encoded),
+           let clientId = environment["TEAK_UI_TEST_CLIENT_ID"] {
+            try? await session.adoptForTesting(data, clientId: clientId)
+        }
+    }
+    #endif
 
     func becameActive() {
         if keychainUnavailable { restoreSession() }
@@ -186,7 +202,7 @@ final class AppModel {
             throw TeakError(message: "Unable to load sign-in configuration")
         }
         let attempt = await session.beginSignIn()
-        let request = AuthKitRequest(clientId: clientId, method: method)
+        let request = AuthKitRequest(clientId: clientId, method: method, workosURL: config.workosURL)
         let callback: URL
         do {
             callback = try await webAuthentication.authenticate(

@@ -18,10 +18,10 @@ public actor TeakSession {
 
     public typealias Bootstrap = @Sendable (_ accessToken: String) async throws -> Void
 
-    static let endpoint = URL(string: "https://api.workos.com/user_management/authenticate")!
     /// Access tokens are refreshed when they expire within this margin.
     public static let refreshMargin: TimeInterval = 30
 
+    private let endpoint: URL
     private let storage: any SessionStorage
     private let lock: any CredentialLock
     private let transport: any HTTPTransport
@@ -37,9 +37,10 @@ public actor TeakSession {
     private var tokenListener: (@Sendable (String?) -> Void)?
     public private(set) var state: State = .loading
 
-    public init(storage: any SessionStorage, lock: any CredentialLock,
+    public init(storage: any SessionStorage, lock: any CredentialLock, workosURL: URL = TeakConfig.hostedWorkOS,
                 transport: any HTTPTransport = URLSessionTransport(), timeout: TimeInterval = 10,
                 now: @escaping @Sendable () -> Date = Date.init, bootstrap: Bootstrap? = nil) {
+        endpoint = workosURL.appending(path: "user_management/authenticate")
         self.storage = storage
         self.lock = lock
         self.transport = transport
@@ -143,6 +144,18 @@ public actor TeakSession {
         publish(token: .some(next.accessToken))
         return true
     }
+
+    #if DEBUG
+    /// UI tests sign in with a session they created against the WorkOS emulator.
+    public func adoptForTesting(_ response: Data, clientId: String) async throws {
+        let next = try SessionParser.parseResponse(response, clientId: clientId)
+        try await bootstrap?(next.accessToken)
+        try storage.save(JSONEncoder().encode(next.record))
+        generation += 1
+        session = next
+        publish(token: .some(next.accessToken))
+    }
+    #endif
 
     // MARK: Tokens
 
@@ -272,7 +285,7 @@ public actor TeakSession {
     struct InvalidRefreshToken: Error {}
 
     private nonisolated func authenticate(clientId: String, _ body: [String: String]) async throws -> Data {
-        var request = URLRequest(url: Self.endpoint, timeoutInterval: timeout)
+        var request = URLRequest(url: endpoint, timeoutInterval: timeout)
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         request.httpShouldHandleCookies = false

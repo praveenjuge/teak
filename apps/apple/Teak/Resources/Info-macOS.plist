@@ -39,6 +39,11 @@
 	<string>public.app-category.productivity</string>
 	<key>LSMinimumSystemVersion</key>
 	<string>$(MACOSX_DEPLOYMENT_TARGET)</string>
+	<key>NSAppTransportSecurity</key>
+	<dict>
+		<key>NSAllowsLocalNetworking</key>
+		<true/>
+	</dict>
 	<key>NSMicrophoneUsageDescription</key>
 	<string>Teak records voice memos you save to your library.</string>
 	<key>NSServices</key>
@@ -80,5 +85,7 @@
 	<string>$(TEAK_SENTRY_DSN)</string>
 	<key>TeakWebURL</key>
 	<string>$(TEAK_WEB_URL)</string>
+	<key>TeakWorkOSURL</key>
+	<string>https://api.workos.com</string>
 </dict>
 </plist>

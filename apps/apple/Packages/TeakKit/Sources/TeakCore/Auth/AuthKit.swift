@@ -46,12 +46,13 @@ public struct AuthKitRequest: Sendable {
     public let verifier: String
     public let url: URL
 
-    public init(clientId: String, method: SignInMethod, state: String = AuthKitRequest.randomToken(),
-                verifier: String = AuthKitRequest.randomToken()) {
+    public init(clientId: String, method: SignInMethod, workosURL: URL = TeakConfig.hostedWorkOS,
+                state: String = AuthKitRequest.randomToken(), verifier: String = AuthKitRequest.randomToken()) {
         self.clientId = clientId
         self.state = state
         self.verifier = verifier
-        var components = URLComponents(string: "https://api.workos.com/user_management/authorize")!
+        var components = URLComponents(url: workosURL.appending(path: "user_management/authorize"),
+                                       resolvingAgainstBaseURL: false)!
         var items = [
             URLQueryItem(name: "client_id", value: clientId),
             URLQueryItem(name: "redirect_uri", value: Self.redirectURI),

@@ -26,26 +26,23 @@ struct TeakCommands: Commands {
         }
         CommandGroup(after: .pasteboard) {
             Button("Paste as New Card") { pasteAsNewCard() }
-                .keyboardShortcut("v", modifiers: [.command, .option, .shift])
-                .disabled(!signedIn)
-            Divider()
-            Button("Find in Library") { services.router.focusSearch = true }
-                .keyboardShortcut("f")
+                .keyboardShortcut("v", modifiers: [.command, .control])
                 .disabled(!signedIn)
         }
         CommandGroup(after: .toolbar) {
-            Button("Refresh Library") { Task { await services.activeLibrary.refresh() } }
+            Button("Refresh Library") { Task { await services.home.refresh() } }
                 .keyboardShortcut("r")
                 .disabled(!signedIn)
-            Button("Select Cards") { services.activeLibrary.beginSelection() }
-                .disabled(!signedIn || services.activeLibrary.isSelecting)
-            Button("Select All Cards") { services.activeLibrary.selectAll() }
+            Button("Select Cards") { services.home.beginSelection() }
+                .disabled(!signedIn || services.home.isSelecting)
+            Button("Select All Cards") { services.home.selectAll() }
                 .keyboardShortcut("a", modifiers: [.command, .shift])
                 .disabled(!signedIn)
             Divider()
-            Button("Home") { services.router.tab = .home }.keyboardShortcut("1").disabled(!signedIn)
-            Button("Favorites") { services.router.tab = .favorites }.keyboardShortcut("2").disabled(!signedIn)
-            Button("Trash") { services.router.tab = .trash }.keyboardShortcut("3").disabled(!signedIn)
+            Button("Show Favorites") { services.home.filters.favoritesOnly.toggle() }
+                .disabled(!signedIn)
+            Button("Show Trash") { services.home.filters.trashOnly.toggle() }
+                .disabled(!signedIn)
         }
     }
 

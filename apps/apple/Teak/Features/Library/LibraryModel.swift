@@ -7,8 +7,6 @@ import TeakSync
 /// card actions with optimistic updates that roll back on failure.
 @MainActor @Observable
 final class LibraryModel {
-    /// Fixed filters of the sidebar item this library belongs to (Favorites, Trash).
-    let baseFilters: LibraryFilters
     let pager: CardPager
 
     var text = "" { didSet { scheduleSearch() } }
@@ -28,9 +26,8 @@ final class LibraryModel {
     @ObservationIgnored private var searchTask: Task<Void, Never>?
     @ObservationIgnored private var statusTask: Task<Void, Never>?
 
-    init(backend: TeakBackend, baseFilters: LibraryFilters = .empty) {
+    init(backend: TeakBackend) {
         self.backend = backend
-        self.baseFilters = baseFilters
         pager = CardPager(backend: backend)
     }
 
@@ -44,12 +41,9 @@ final class LibraryModel {
 
     // MARK: Query
 
-    /// The query as the server sees it: this view's fixed filters plus the menu, tokens and text.
+    /// The query as the server sees it: the filter menu, tokens and text.
     var query: LibraryQuery {
-        var merged = filters
-        if baseFilters.favoritesOnly { merged.favoritesOnly = true }
-        if baseFilters.trashOnly { merged.trashOnly = true }
-        return LibraryQuery(text: debouncedText, tokens: tokens, filters: merged)
+        LibraryQuery(text: debouncedText, tokens: tokens, filters: filters)
     }
 
     var title: String {

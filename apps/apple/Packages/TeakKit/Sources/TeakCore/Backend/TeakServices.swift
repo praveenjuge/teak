@@ -8,7 +8,7 @@ public enum TeakServices {
         let directory = config.sharedContainer ?? FileManager.default.temporaryDirectory
         let bootstrap = UserBootstrap(convexURL: config.convexURL)
         return TeakSession(storage: storage, lock: FileCredentialLock(directory: directory, environment: config.environment),
-                           bootstrap: { try await bootstrap.ensureUser(accessToken: $0) })
+                           workosURL: config.workosURL, bootstrap: { try await bootstrap.ensureUser(accessToken: $0) })
     }
 
     /// Convex over HTTPS, signed in with the session's token. For the extensions.

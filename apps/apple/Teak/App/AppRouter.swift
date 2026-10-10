@@ -3,7 +3,7 @@ import SwiftUI
 import TeakCore
 
 enum AppTab: Hashable {
-    case home, favorites, trash, add, settings
+    case home, add, settings
 }
 
 /// A card opened in the detail page.
@@ -18,8 +18,6 @@ struct CardRoute: Hashable, Identifiable {
 final class AppRouter {
     var tab: AppTab = .home
     var homePath: [CardRoute] = []
-    var favoritesPath: [CardRoute] = []
-    var trashPath: [CardRoute] = []
     var isComposing = false
     var composerText = ""
     var isRecording = false
@@ -28,7 +26,6 @@ final class AppRouter {
     var isUsingCamera = false
     /// Text from `teak://save?text=` waiting to be saved.
     var saveRequest: SaveRequest?
-    var focusSearch = false
 
     struct SaveRequest: Identifiable, Equatable {
         let id = UUID()
@@ -41,13 +38,8 @@ final class AppRouter {
     }
 
     func open(_ route: CardRoute) {
-        switch tab {
-        case .favorites: favoritesPath.append(route)
-        case .trash: trashPath.append(route)
-        default:
-            tab = .home
-            homePath.append(route)
-        }
+        tab = .home
+        homePath.append(route)
     }
 
     /// Routes `teak://` links. The auth callback is handled by the sign-in session.

@@ -10,8 +10,6 @@ final class AppServices {
     let router = AppRouter()
     let capture: CaptureModel
     let home: LibraryModel
-    let favorites: LibraryModel
-    let trash: LibraryModel
     var openMainWindow: (() -> Void)?
     var openSettingsWindow: (() -> Void)?
 
@@ -20,18 +18,8 @@ final class AppServices {
         app = AppModel()
         capture = CaptureModel(backend: app.backend)
         home = LibraryModel(backend: app.backend)
-        favorites = LibraryModel(backend: app.backend, baseFilters: LibraryFilters(favoritesOnly: true))
-        trash = LibraryModel(backend: app.backend, baseFilters: LibraryFilters(trashOnly: true))
     }
 
-    /// The library for the selected sidebar item or tab.
-    var activeLibrary: LibraryModel {
-        switch router.tab {
-        case .favorites: favorites
-        case .trash: trash
-        default: home
-        }
-    }
 
     func showMainWindow() {
         #if os(macOS)
