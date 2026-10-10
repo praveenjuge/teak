@@ -382,9 +382,7 @@ export const planCapabilities = async (options: {
   const ports: PortCapability[] = [
     { port: worktree.web, purpose: "web app", free: null },
     { port: worktree.docs, purpose: "docs site", free: null },
-    { port: worktree.convex, purpose: "local convex backend", free: null },
-    { port: worktree.convexSite, purpose: "local convex http", free: null },
-    { port: worktree.emulator, purpose: "WorkOS emulator", free: null },
+    { port: worktree.extension, purpose: "extension dev server", free: null },
   ];
   for (const entry of ports) {
     entry.free = !(await isPortInUse(entry.port));

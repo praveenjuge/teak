@@ -1,5 +1,6 @@
 /**
- * Ports for this checkout's local stack.
+ * Ports for this checkout: the dev web app, docs and extension, and the E2E
+ * suite's local backend and emulator.
  *
  * The main checkout keeps the fixed ports. Each linked worktree leases a slot
  * of ports and keeps it until the worktree is removed. Leases live in the
@@ -17,14 +18,14 @@ import {
 } from "node:fs";
 import { connect, createServer } from "node:net";
 import { join, resolve } from "node:path";
-import { MAIN_STACK_PORTS } from "../packages/tests/src/stack/config.ts";
 import { runCommand } from "./proc.ts";
 
 export interface WorktreePorts {
+  /** The E2E suite's local backend (packages/tests/src/stack). */
   convex: number;
   convexSite: number;
   docs: number;
-  /** WorkOS emulator; its upstream listens on the next port. */
+  /** The E2E suite's WorkOS emulator; its upstream listens on the next port. */
   emulator: number;
   /** The browser extension's WXT dev server. */
   extension: number;
@@ -37,7 +38,10 @@ export interface WorktreePorts {
 }
 
 export const MAIN_PORTS = {
-  ...MAIN_STACK_PORTS,
+  web: 3000,
+  convex: 3210,
+  convexSite: 3211,
+  emulator: 4100,
   docs: 3001,
   extension: 3003,
 } as const;

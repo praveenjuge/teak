@@ -1,7 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import {
   checkBunVersion,
-  convexModeProblem,
   parseSetupArgs,
   requiredBunVersion,
   resolveSetupConvex,
@@ -31,20 +30,6 @@ describe("checkBunVersion", () => {
   });
 });
 
-describe("convexModeProblem", () => {
-  test("local backends are only for the E2E suite", () => {
-    expect(convexModeProblem("web", "local")).toContain("E2E");
-    expect(convexModeProblem("extension", "local")).toContain("E2E");
-    expect(convexModeProblem("e2e", "local")).toBeNull();
-  });
-
-  test("the E2E suite never uses the cloud dev deployment", () => {
-    expect(convexModeProblem("e2e", "cloud")).toContain("local backend");
-    expect(convexModeProblem("web", "cloud")).toBeNull();
-    expect(convexModeProblem("docs", "skip")).toBeNull();
-  });
-});
-
 describe("parseSetupArgs", () => {
   test("defaults to web local human output", () => {
     expect(parseSetupArgs(["bun", "setup.ts"])).toEqual({
@@ -52,15 +37,16 @@ describe("parseSetupArgs", () => {
       convex: null,
       check: false,
       json: false,
-      push: true,
     });
   });
 
-  test("parses --skip-push and refuses the retired --workos flag", () => {
-    expect(parseSetupArgs(["bun", "setup.ts", "--skip-push"]).push).toBe(false);
+  test("refuses the retired --workos and --skip-push flags", () => {
     expect(() =>
       parseSetupArgs(["bun", "setup.ts", "--workos", "staging"])
     ).toThrow("Unknown argument");
+    expect(() => parseSetupArgs(["bun", "setup.ts", "--skip-push"])).toThrow(
+      "Unknown argument"
+    );
   });
 
   test("parses target, convex, check, and json", () => {
@@ -80,7 +66,6 @@ describe("parseSetupArgs", () => {
       convex: "cloud",
       check: true,
       json: true,
-      push: true,
     });
   });
 
@@ -88,6 +73,10 @@ describe("parseSetupArgs", () => {
     expect(() =>
       parseSetupArgs(["bun", "setup.ts", "--convex", "mars"])
     ).toThrow('Unknown --convex "mars"');
+    // Local backends are the E2E suite's own (packages/tests).
+    expect(() =>
+      parseSetupArgs(["bun", "setup.ts", "--convex", "local"])
+    ).toThrow('Unknown --convex "local"');
     expect(() => parseSetupArgs(["bun", "setup.ts", "--nope"])).toThrow(
       "Unknown argument"
     );
@@ -98,7 +87,7 @@ describe("parseSetupArgs", () => {
 describe("resolveSetupConvex", () => {
   test("explicit mode wins over the matrix default", () => {
     expect(resolveSetupConvex("web", "cloud")).toBe("cloud");
-    expect(resolveSetupConvex("docs", "local")).toBe("local");
+    expect(resolveSetupConvex("docs", "cloud")).toBe("cloud");
   });
 
   test("matrix defaults apply without an explicit mode", () => {
@@ -107,6 +96,5 @@ describe("resolveSetupConvex", () => {
     expect(resolveSetupConvex("docs", null)).toBe("skip");
     expect(resolveSetupConvex("cli", null)).toBe("skip");
     expect(resolveSetupConvex("files-worker", null)).toBe("skip");
-    expect(resolveSetupConvex("e2e", null)).toBe("local");
   });
 });

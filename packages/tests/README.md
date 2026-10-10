@@ -1,6 +1,6 @@
 # Teak E2E tests
 
-Playwright journeys across Teak's web app, REST API, CLI and MCP server, run against this checkout's own local E2E stack (`src/stack/`). It never touches the shared cloud dev deployment that `bun run dev` uses:
+Playwright journeys across Teak's web app, REST API, CLI and MCP server, run against this checkout's own local E2E stack (`src/stack/`). The stack exists only for this suite and the clean-container smoke; development always uses the shared cloud dev deployment (`bun run dev`), which the suite never touches:
 
 - the official WorkOS emulator ([`@workos/emulate`](https://www.npmjs.com/package/@workos/emulate)), standing in for hosted AuthKit,
 - a local Convex backend (API and webhooks on the next port),
@@ -18,7 +18,7 @@ bun install
 bun run --cwd packages/tests e2e
 ```
 
-`e2e` runs `bun run setup --target e2e`, starts the stack, runs the journey and browser-matrix projects, and stops everything. The `web` project is not in the gating run yet; run it with `bun run --cwd packages/tests e2e --project=web`. Pass Playwright arguments to narrow it, for example `bun run --cwd packages/tests e2e --project=journey-api`.
+`e2e` checks the pinned runtimes and packages, sets up the local backend (`src/stack/backend.ts`), starts the stack, runs the journey and browser-matrix projects, and stops everything. The `web` project is not in the gating run yet; run it with `bun run --cwd packages/tests e2e --project=web`. Pass Playwright arguments to narrow it, for example `bun run --cwd packages/tests e2e --project=journey-api`.
 
 To iterate, keep the stack up in one terminal and run Playwright in another:
 
@@ -29,11 +29,11 @@ cd packages/tests && bunx playwright test --project=web
 
 A running stack records its URLs in `.agents/.state/stack.json`, which the suite reads, and logs to `.agents/.state/stack.log`.
 
-The `E2E` workflow (`.github/workflows/e2e.yml`) runs the same command daily and on demand (not on pull requests or pushes), and uploads the report, traces and stack log when it fails. An on-demand run takes Playwright arguments, for example `gh workflow run e2e.yml -f playwright_args='--project=web'`.
+The `E2E` workflow (`.github/workflows/e2e.yml`) runs the same command daily and on demand (not on pull requests or pushes), and uploads the report, traces and stack log when it fails. An on-demand run takes Playwright arguments, for example `gh workflow run e2e.yml -f playwright_args='--project=web'`. The `Clean Container Smoke` workflow (`.github/workflows/clean-smoke.yml`) runs `--project=matrix-chromium` from a clean checkout on every pull request.
 
 ## How the stack is wired
 
-`bun run setup --target e2e` points `packages/convex/.env.local` at a local backend (taking it over from the dev deployment; the next `bun run dev` selects that again) and sets `WORKOS_CLIENT_ID`, `WORKOS_API_KEY`, `WORKOS_API_BASE_URL`, `WORKOS_ENVIRONMENT_ID` and `WORKOS_WEBHOOK_SECRET` on it. The stack passes the web app its emulator settings, including `WORKOS_API_HOSTNAME`, `WORKOS_API_PORT` and `WORKOS_API_HTTPS` for authkit-nextjs, as process environment, which Next.js prefers over `apps/web/.env.local`, so the dev wiring in that file stays as it is. `bun run doctor --target web --profile e2e` checks the checkout.
+`src/stack/backend.ts` points `packages/convex/.env.local` at a local backend (taking it over from the dev deployment; the next `bun run dev` selects that again) and sets `WORKOS_CLIENT_ID`, `WORKOS_API_KEY`, `WORKOS_API_BASE_URL`, `WORKOS_ENVIRONMENT_ID` and `WORKOS_WEBHOOK_SECRET` on it. The stack passes the web app its emulator settings, including `WORKOS_API_HOSTNAME`, `WORKOS_API_PORT` and `WORKOS_API_HTTPS` for authkit-nextjs, as process environment, which Next.js prefers over `apps/web/.env.local`, so the dev wiring in that file stays as it is.
 
 The emulator is started with:
 

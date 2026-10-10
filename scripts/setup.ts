@@ -6,8 +6,7 @@
  * 2. Run `bun ci` when node_modules is stale.
  * 3. Select the shared cloud dev deployment (scripts/dev-deployment.ts),
  *    reached with your Convex login or a cloud session's dev deploy key, and
- *    refuse any production or other deployment. The E2E target instead runs a
- *    local backend wired to the WorkOS emulator (scripts/setup-deployment.ts).
+ *    refuse any production or other deployment.
  * 4. Read the WorkOS staging credentials the web app needs from the dev
  *    deployment. Setup never writes deployment variables.
  * 5. Derive the target's ignored local configuration from canonical facts.
@@ -19,7 +18,7 @@
  * tree is ready. `--check` reports without changing state; `--json` emits a
  * stable machine-readable report with capabilities.
  *
- * Usage: bun run setup [--target <target>] [--convex local|cloud|skip] [--check] [--json]
+ * Usage: bun run setup [--target <target>] [--convex cloud|skip] [--check] [--json]
  */
 
 import { join } from "node:path";
@@ -42,9 +41,8 @@ import {
   type SupportedTarget,
 } from "./env-targets.ts";
 import { runCommand } from "./proc.ts";
-import { setupDevDeployment, setupE2eBackend } from "./setup-deployment.ts";
+import { setupDevDeployment } from "./setup-deployment.ts";
 import { ensureDerivedEnv, ensureWebEnv } from "./setup-derived-env.ts";
-import type { WorkosMode } from "./setup-mode.ts";
 import type { WorkosCredentialName } from "./setup-workos.ts";
 import { resolveWorktree, type WorktreePorts } from "./worktree-env.ts";
 
@@ -82,8 +80,6 @@ export interface SetupOptions {
   check: boolean;
   convex: ConvexMode | null;
   json: boolean;
-  /** Skip the E2E backend's final push; the E2E stack pushes once itself. */
-  push: boolean;
   target: string;
 }
 
@@ -96,22 +92,21 @@ export interface SetupReport {
   profile: string;
   target: string;
   version: number;
-  /** How sign-in is wired (emulator for e2e, staging otherwise); null when the target needs no deployment. */
-  workos: WorkosMode | null;
+  /** WorkOS staging, through the dev deployment; null when the target needs no deployment. */
+  workos: "staging" | null;
   worktree: WorktreePorts | null;
 }
 
 export const SETUP_USAGE =
-  "Usage: bun run setup [--target web|docs|cli|extension|mobile-simulator|mobile-device|files-worker|e2e] [--convex local|cloud|skip] [--check] [--json] [--skip-push]";
+  "Usage: bun run setup [--target web|docs|cli|extension|mobile-simulator|mobile-device|files-worker] [--convex cloud|skip] [--check] [--json]";
 
-const CONVEX_MODES: readonly string[] = ["local", "cloud", "skip"];
+const CONVEX_MODES: readonly string[] = ["cloud", "skip"];
 
 export const parseSetupArgs = (argv: string[]): SetupOptions => {
   let target = "web";
   let convex: ConvexMode | null = null;
   let check = false;
   let json = false;
-  let push = true;
   const args = argv.slice(2);
   let i = 0;
   while (i < args.length) {
@@ -120,8 +115,6 @@ export const parseSetupArgs = (argv: string[]): SetupOptions => {
       check = true;
     } else if (arg === "--json") {
       json = true;
-    } else if (arg === "--skip-push") {
-      push = false;
     } else if (arg === "--target") {
       const value = args[++i];
       if (!value) {
@@ -132,7 +125,7 @@ export const parseSetupArgs = (argv: string[]): SetupOptions => {
       const value = args[++i];
       if (!(value && CONVEX_MODES.includes(value))) {
         throw new Error(
-          `Unknown --convex "${value ?? ""}" (expected local, cloud, skip)`
+          `Unknown --convex "${value ?? ""}" (expected cloud, skip)`
         );
       }
       convex = value as ConvexMode;
@@ -143,30 +136,13 @@ export const parseSetupArgs = (argv: string[]): SetupOptions => {
     }
     i++;
   }
-  return { target, convex, check, json, push };
+  return { target, convex, check, json };
 };
 
 export const resolveSetupConvex = (
   target: SupportedTarget,
   explicit: ConvexMode | null
 ): ConvexMode => explicit ?? getTargetSpec(target).defaultConvex;
-
-/**
- * Local backends exist only for the E2E suite, which in turn never uses the
- * cloud dev deployment. Null when the combination is allowed.
- */
-export const convexModeProblem = (
-  target: SupportedTarget,
-  convex: ConvexMode
-): string | null => {
-  if (convex === "local" && target !== "e2e") {
-    return "local backends run only for the E2E suite (--target e2e); dev uses the shared cloud dev deployment";
-  }
-  if (convex === "cloud" && target === "e2e") {
-    return "the E2E suite runs on a local backend (--convex local)";
-  }
-  return null;
-};
 
 interface DerivedFilePlan {
   keys: string[];
@@ -205,9 +181,6 @@ const DERIVED_FILE_PLANS: Record<SupportedTarget, DerivedFilePlan[]> = {
     },
   ],
   "files-worker": [],
-  // The E2E stack passes the web app its emulator settings itself, so it
-  // never rewrites the dev wiring in apps/web/.env.local.
-  e2e: [],
 };
 
 const reportWith = (
@@ -215,7 +188,7 @@ const reportWith = (
 ): SetupReport => ({
   version: SETUP_VERSION,
   target: "web",
-  convex: "local",
+  convex: "cloud",
   profile: "local",
   mode: "run",
   workos: null,
@@ -224,63 +197,30 @@ const reportWith = (
   ok: !partial.checks.some((check) => !check.ok && check.severity === "error"),
 });
 
-export interface RunSetupOptions {
-  /** Push the E2E backend (default); the E2E stack skips it and pushes once itself. */
-  push?: boolean;
-}
-
-export const runSetup = async (
-  target: SupportedTarget,
-  convex: ConvexMode,
-  checkOnly: boolean,
-  root: string = ROOT,
-  options: RunSetupOptions = {}
-): Promise<SetupReport> => {
-  const worktree = await resolveWorktree(root);
-  const profile = target === "e2e" ? "e2e" : "local";
-  const base = { target, convex, profile, worktree };
-  let workos: WorkosMode | null = null;
-  const fail = (checks: SetupCheck[]): SetupReport =>
-    reportWith({
-      ...base,
-      workos,
-      mode: checkOnly ? "check" : "run",
-      checks,
-    });
-
-  const siteUrl = worktree.siteUrl;
-  const webEnvPath =
-    target === "web" ? join(root, "apps/web/.env.local") : undefined;
-
+/**
+ * Steps 1 and 2: the pinned runtimes, and packages installed with `bun ci`
+ * when node_modules is stale. The E2E suite's runner uses them too.
+ */
+export const prepareCheckout = async (
+  root: string,
+  checkOnly: boolean
+): Promise<{ checks: SetupCheck[]; ok: boolean }> => {
   const checks: SetupCheck[] = [];
-  let workosValues: Partial<Record<WorkosCredentialName, string>> = {};
-  const modeProblem = convexModeProblem(target, convex);
-  if (modeProblem) {
-    return fail([
-      {
-        id: "setup-convex-selection",
-        ok: false,
-        severity: "error",
-        detail: modeProblem,
-        remediation: [SETUP_USAGE],
-      },
-    ]);
-  }
+  const failed = (check: SetupCheck) => ({
+    checks: [...checks, check],
+    ok: false,
+  });
   let pinned: { bun: string; node: string };
   try {
     pinned = readPinnedVersions(root);
   } catch (error) {
-    return fail([
-      {
-        id: "setup-runtime-pins",
-        ok: false,
-        severity: "error",
-        detail: error instanceof Error ? error.message : String(error),
-        remediation: [
-          "Restore packageManager and engines.node in package.json",
-        ],
-      },
-    ]);
+    return failed({
+      id: "setup-runtime-pins",
+      ok: false,
+      severity: "error",
+      detail: error instanceof Error ? error.message : String(error),
+      remediation: ["Restore packageManager and engines.node in package.json"],
+    });
   }
 
   const bunStatus = checkRuntimeVersion(Bun.version, pinned.bun);
@@ -320,66 +260,86 @@ export const runSetup = async (
         }),
   });
   if (checks.some((check) => !check.ok)) {
-    return fail(checks);
+    return { checks, ok: false };
   }
 
-  if (isInstallStale(root)) {
-    if (checkOnly) {
-      checks.push({
-        id: "setup-dependencies",
-        ok: true,
-        severity: "error",
-        detail: "node_modules is stale (would run bun ci)",
-      });
-    } else {
-      const install = await runCommand(["bun", "ci"], {
-        cwd: root,
-        timeoutMs: 300_000,
-      });
-      if (install.exitCode !== 0) {
-        return fail([
-          ...checks,
-          {
-            id: "setup-dependencies",
-            ok: false,
-            severity: "error",
-            detail: `bun ci failed: ${install.stderr.trim().split("\n").pop() || "unknown error"}`,
-            remediation: [
-              "Fix the install error above and re-run bun run setup",
-            ],
-          },
-        ]);
-      }
-      try {
-        markInstallFresh(root);
-      } catch (error) {
-        return fail([
-          ...checks,
-          {
-            id: "setup-dependencies",
-            ok: false,
-            severity: "error",
-            detail: `bun ci succeeded but the install could not be marked fresh: ${error instanceof Error ? error.message : String(error)}`,
-            remediation: [
-              "Check node_modules permissions and re-run bun run setup",
-            ],
-          },
-        ]);
-      }
-      checks.push({
-        id: "setup-dependencies",
-        ok: true,
-        severity: "error",
-        detail: "dependencies installed with bun ci",
-      });
-    }
-  } else {
+  if (!isInstallStale(root)) {
     checks.push({
       id: "setup-dependencies",
       ok: true,
       severity: "error",
       detail: "node_modules is present and newer than bun.lock",
     });
+    return { checks, ok: true };
+  }
+  if (checkOnly) {
+    checks.push({
+      id: "setup-dependencies",
+      ok: true,
+      severity: "error",
+      detail: "node_modules is stale (would run bun ci)",
+    });
+    return { checks, ok: true };
+  }
+  const install = await runCommand(["bun", "ci"], {
+    cwd: root,
+    timeoutMs: 300_000,
+  });
+  if (install.exitCode !== 0) {
+    return failed({
+      id: "setup-dependencies",
+      ok: false,
+      severity: "error",
+      detail: `bun ci failed: ${install.stderr.trim().split("\n").pop() || "unknown error"}`,
+      remediation: ["Fix the install error above and re-run bun run setup"],
+    });
+  }
+  try {
+    markInstallFresh(root);
+  } catch (error) {
+    return failed({
+      id: "setup-dependencies",
+      ok: false,
+      severity: "error",
+      detail: `bun ci succeeded but the install could not be marked fresh: ${error instanceof Error ? error.message : String(error)}`,
+      remediation: ["Check node_modules permissions and re-run bun run setup"],
+    });
+  }
+  checks.push({
+    id: "setup-dependencies",
+    ok: true,
+    severity: "error",
+    detail: "dependencies installed with bun ci",
+  });
+  return { checks, ok: true };
+};
+
+export const runSetup = async (
+  target: SupportedTarget,
+  convex: ConvexMode,
+  checkOnly: boolean,
+  root: string = ROOT
+): Promise<SetupReport> => {
+  const worktree = await resolveWorktree(root);
+  const base = { target, convex, profile: "local", worktree };
+  let workos: "staging" | null = null;
+  const fail = (checks: SetupCheck[]): SetupReport =>
+    reportWith({
+      ...base,
+      workos,
+      mode: checkOnly ? "check" : "run",
+      checks,
+    });
+
+  const siteUrl = worktree.siteUrl;
+  const webEnvPath =
+    target === "web" ? join(root, "apps/web/.env.local") : undefined;
+
+  let workosValues: Partial<Record<WorkosCredentialName, string>> = {};
+  const prepared = await prepareCheckout(root, checkOnly);
+  const checks = prepared.checks;
+  if (!prepared.ok) {
+    return fail(checks);
   }
 
   if (convex === "skip") {
@@ -389,13 +349,6 @@ export const runSetup = async (
       severity: "error",
       detail: `${target} needs no Convex deployment (convex: skip)`,
     });
-  } else if (convex === "local") {
-    workos = "emulator";
-    const local = await setupE2eBackend(root, worktree, checkOnly, options);
-    checks.push(...local.checks);
-    if (!local.ok) {
-      return fail(checks);
-    }
   } else {
     workos = "staging";
     const cloud = await setupDevDeployment(root, checkOnly);
@@ -412,10 +365,7 @@ export const runSetup = async (
       id: "setup-derived-env",
       ok: true,
       severity: "error",
-      detail:
-        target === "e2e"
-          ? "the E2E stack passes the web app its settings directly"
-          : `${target} needs no derived dotenv file`,
+      detail: `${target} needs no derived dotenv file`,
     });
   } else if (checkOnly) {
     const rel = plans.map((plan) => plan.path.replace(`${root}/`, ""));
@@ -547,9 +497,7 @@ const main = async (): Promise<void> => {
     return;
   }
   const convex = resolveSetupConvex(options.target, options.convex);
-  const report = await runSetup(options.target, convex, options.check, ROOT, {
-    push: options.push,
-  });
+  const report = await runSetup(options.target, convex, options.check, ROOT);
   if (options.json) {
     console.log(JSON.stringify(report, null, 2));
   } else {

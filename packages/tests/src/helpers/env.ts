@@ -3,7 +3,7 @@ import {
   readStackState,
   type StackState,
   type StackUrls,
-} from "../stack/config";
+} from "../../../../scripts/lib/stack-state.ts";
 
 type E2eUrls = Required<StackUrls>;
 

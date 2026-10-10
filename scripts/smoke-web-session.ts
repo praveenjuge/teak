@@ -1,26 +1,19 @@
 #!/usr/bin/env bun
 /**
- * Clean-container web session smoke (issue #407, Phase 5).
+ * Web session smoke for the running dev stack (issue #407, Phase 5).
  *
- * Proves the WorkOS AuthKit gate of a locally running web app: anonymous
- * requests to `/` redirect to `/sign-in`, and a real session from WorkOS
- * staging (the dev stack) or the local WorkOS emulator (the E2E stack) reaches
- * `/`. The session comes from the headless flow in
+ * Proves the WorkOS AuthKit gate of the locally running web app: anonymous
+ * requests to `/` redirect to `/sign-in`, and a real WorkOS staging session
+ * reaches `/`. The session comes from the headless flow in
  * ./lib/workos-test-session.ts: a throwaway verified user signs in with a
  * random password and is always deleted afterwards. Its tokens are sealed
- * into the AuthKit cookie. The dev stack's settings come from the web
- * target's declared dotenv file; a running E2E stack's are its test-only
- * constants. Reports status and names; emails, passwords, tokens and cookies
- * are never printed.
+ * into the AuthKit cookie. Settings come from the web target's declared
+ * dotenv file. Reports status and names; emails, passwords, tokens and
+ * cookies are never printed.
  *
  * Usage: bun run smoke:web [--base-url <url>] [--json]
  */
 
-import {
-  emulatorWebEnv,
-  isStackRunning,
-  readStackState,
-} from "../packages/tests/src/stack/config.ts";
 import { loadTargetEnv } from "./env-loader.ts";
 import {
   cookieHeader,
@@ -78,7 +71,6 @@ const fetchStatus = async (
 const authenticatedStep = async (
   baseUrl: string,
   config: {
-    api?: { hostname: string; https: boolean; port?: number };
     apiKey: string;
     clientId: string;
     cookiePassword: string;
@@ -147,18 +139,9 @@ const authenticatedStep = async (
   return steps;
 };
 
-/**
- * The running web app's sign-in settings: a running E2E stack passes its
- * emulator constants to the web app directly; the dev stack reads
- * apps/web/.env.local.
- */
-const webSettings = (): ReadonlyMap<string, string> => {
-  const stack = readStackState();
-  if (stack?.mode === "e2e" && isStackRunning(stack)) {
-    return new Map(Object.entries(emulatorWebEnv(stack.ports)));
-  }
-  return loadTargetEnv("web", "local").values;
-};
+/** The dev web app's sign-in settings, from apps/web/.env.local. */
+const webSettings = (): ReadonlyMap<string, string> =>
+  loadTargetEnv("web", "local").values;
 
 export const runSmoke = async (baseUrl: string): Promise<SmokeReport> => {
   const steps: SmokeStep[] = [];
@@ -206,22 +189,7 @@ export const runSmoke = async (baseUrl: string): Promise<SmokeReport> => {
         }
   );
 
-  const hostname = values.get("WORKOS_API_HOSTNAME");
-  const port = Number(values.get("WORKOS_API_PORT"));
-  steps.push(
-    ...(await authenticatedStep(baseUrl, {
-      ...config,
-      ...(hostname
-        ? {
-            api: {
-              hostname,
-              https: values.get("WORKOS_API_HTTPS") !== "false",
-              ...(Number.isInteger(port) && port > 0 ? { port } : {}),
-            },
-          }
-        : {}),
-    }))
-  );
+  steps.push(...(await authenticatedStep(baseUrl, config)));
   return report();
 };
 

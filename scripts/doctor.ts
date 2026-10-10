@@ -7,7 +7,7 @@
  * files, WorkOS sign-in credentials, ports, and selected-target readiness. Reports
  * variable names and remediation only, never values.
  *
- * Usage: bun run doctor [--json] [--target <target>] [--profile <profile>]
+ * Usage: bun run doctor [--json] [--target <target>]
  *
  * JSON output is `{ version: 1, ok, target, profile, checks }` with stable
  * check IDs. `ok` is false when any error-severity check fails; warnings
@@ -16,10 +16,6 @@
 
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
-import {
-  isStackRunning,
-  readStackState,
-} from "../packages/tests/src/stack/config.ts";
 import {
   checkBunVersion,
   checkNodeVersion,
@@ -36,9 +32,9 @@ import {
 } from "./dev-deployment.ts";
 import { auditDotenv } from "./dotenv-audit.ts";
 import { auditFiles, listScannedFiles } from "./env-audit.ts";
+import { isStackRunning, readStackState } from "./lib/stack-state.ts";
 import { runCommand } from "./proc.ts";
 import { listDeploymentVarNames } from "./setup-convex.ts";
-import { isLocalSelection } from "./setup-mode.ts";
 import { validateWebEnvContent } from "./validate-env.ts";
 import { isPortInUse, resolveWorktree, stackPorts } from "./worktree-env.ts";
 
@@ -58,9 +54,6 @@ export const DOCTOR_TARGETS = [
 ] as const;
 export type DoctorTarget = (typeof DOCTOR_TARGETS)[number];
 
-export const DOCTOR_PROFILES = ["local", "e2e"] as const;
-export type DoctorProfile = (typeof DOCTOR_PROFILES)[number];
-
 export type DoctorSeverity = "error" | "warn";
 
 export interface DoctorCheck {
@@ -74,21 +67,20 @@ export interface DoctorCheck {
 export interface DoctorReport {
   checks: DoctorCheck[];
   ok: boolean;
-  profile: DoctorProfile;
+  /** Always "local": doctor checks this checkout's dev setup. */
+  profile: "local";
   target: DoctorTarget;
   version: number;
 }
 
 export interface DoctorOptions {
   json: boolean;
-  profile: DoctorProfile;
   target: DoctorTarget;
 }
 
 export const parseDoctorArgs = (argv: string[]): DoctorOptions => {
   let json = false;
   let target: DoctorTarget = "web";
-  let profile: DoctorProfile = "local";
   const args = argv.slice(2);
   let i = 0;
   while (i < args.length) {
@@ -103,28 +95,20 @@ export const parseDoctorArgs = (argv: string[]): DoctorOptions => {
         );
       }
       target = value as DoctorTarget;
-    } else if (arg === "--profile") {
-      const value = args[++i];
-      if (!(DOCTOR_PROFILES as readonly string[]).includes(value ?? "")) {
-        throw new Error(
-          `Unknown --profile "${value ?? ""}" (expected ${DOCTOR_PROFILES.join(", ")})`
-        );
-      }
-      profile = value as DoctorProfile;
     } else if (arg === "--help" || arg === "-h") {
       throw new Error("help");
     } else {
       throw new Error(
-        `Unknown argument "${arg}" (usage: bun run doctor [--json] [--target <target>] [--profile <profile>])`
+        `Unknown argument "${arg}" (usage: bun run doctor [--json] [--target <target>])`
       );
     }
     i++;
   }
-  return { json, profile, target };
+  return { json, target };
 };
 
 export const DOCTOR_USAGE =
-  "Usage: bun run doctor [--json] [--target web|convex|files|extension|mobile|cli|docs] [--profile local|e2e]";
+  "Usage: bun run doctor [--json] [--target web|convex|files|extension|mobile|cli|docs]";
 
 export const findMissingKeys = (content: string, keys: string[]): string[] => {
   const values = new Map<string, string>();
@@ -222,13 +206,11 @@ export const checkDependencyLock = (): DoctorCheck =>
 
 /**
  * Dev reaches only the shared dev deployment, with a Convex login or a dev
- * deploy key for it; the E2E profile runs on a local backend.
+ * deploy key for it.
  */
-export const checkConvexIsolation = (
-  profile: DoctorProfile = "local"
-): DoctorCheck => {
+export const checkConvexIsolation = (): DoctorCheck => {
   const access = readConvexAccess();
-  if (access.kind === "refused" && profile === "local") {
+  if (access.kind === "refused") {
     return {
       detail: access.detail,
       id: "convex-isolation",
@@ -238,30 +220,6 @@ export const checkConvexIsolation = (
     };
   }
   const selection = readConvexSelection();
-  if (profile === "e2e") {
-    // Setup takes dev's own dotenv selection over; anything else cloud,
-    // including an exported dev selection, would aim E2E at a shared backend.
-    const local =
-      isLocalSelection(selection.deployment) ||
-      (selection.deployment === DEV_DEPLOYMENT &&
-        selection.source === "dotenv");
-    return local
-      ? {
-          detail: "the E2E suite runs on a local backend",
-          id: "convex-isolation",
-          ok: true,
-          severity: "error",
-        }
-      : {
-          detail: `CONVEX_DEPLOYMENT selects ${selection.deployment}; the E2E suite needs a local backend`,
-          id: "convex-isolation",
-          ok: false,
-          remediation: [
-            "Unset the CONVEX_DEPLOYMENT export, then run bun run setup --target e2e",
-          ],
-          severity: "error",
-        };
-  }
   const plan = planDevSelection(selection.deployment);
   if (plan.action === "refuse") {
     return {
@@ -648,15 +606,14 @@ export const needsConvexChecks = (target: DoctorTarget): boolean =>
   !NON_CONVEX_TARGETS.has(target);
 
 export const runDoctor = async (
-  target: DoctorTarget,
-  profile: DoctorProfile
+  target: DoctorTarget
 ): Promise<DoctorReport> => {
   const needsConvex = needsConvexChecks(target);
   const [siteUrlCheck, workosCheck, devVarsCheck] = needsConvex
     ? await Promise.all([
         checkConvexSiteUrl(),
         checkConvexWorkos(),
-        profile === "local" ? checkDevVars() : null,
+        checkDevVars(),
       ])
     : [null, null, null];
   const checks: DoctorCheck[] = [
@@ -664,14 +621,11 @@ export const runDoctor = async (
     await checkNodeVersion(),
     checkDependencyLock(),
     ...(needsConvex
-      ? [checkConvexIsolation(profile), checkConvexGenerated()]
+      ? [checkConvexIsolation(), checkConvexGenerated()]
       : []),
     checkEnvAudit(),
     checkDotenvHygiene(),
-    // The E2E stack passes the web app its settings itself.
-    ...(profile === "e2e" && target === "web"
-      ? []
-      : [checkTargetReadiness(target)]),
+    checkTargetReadiness(target),
     ...(siteUrlCheck ? [siteUrlCheck] : []),
     ...(workosCheck ? [workosCheck] : []),
     ...(devVarsCheck ? [devVarsCheck] : []),
@@ -680,7 +634,7 @@ export const runDoctor = async (
   return {
     checks,
     ok: !checks.some((check) => !check.ok && check.severity === "error"),
-    profile,
+    profile: "local",
     target,
     version: DOCTOR_VERSION,
   };
@@ -714,7 +668,7 @@ const main = async (): Promise<void> => {
     }
     throw error;
   }
-  const report = await runDoctor(options.target, options.profile);
+  const report = await runDoctor(options.target);
   if (options.json) {
     console.log(JSON.stringify(report, null, 2));
   } else {

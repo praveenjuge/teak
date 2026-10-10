@@ -11,8 +11,13 @@
  */
 import { spawn } from "node:child_process";
 import { join } from "node:path";
+import {
+  isStackRunning,
+  readStackState,
+} from "../../../../scripts/lib/stack-state.ts";
+import { prepareCheckout } from "../../../../scripts/setup.ts";
 import { resolveWorktree } from "../../../../scripts/worktree-env.ts";
-import { isStackRunning, readStackState } from "../stack/config";
+import { setupBackend } from "../stack/backend";
 import { STACK_LOG_PATH, startStack } from "../stack/stack";
 
 const ROOT = join(import.meta.dir, "../../../..");
@@ -42,24 +47,23 @@ if (running && isStackRunning(running)) {
   );
 }
 
-// The stack pushes the backend once itself, so setup skips its push. Setup
-// takes packages/convex/.env.local over for the local backend; the next
+const prepared = await prepareCheckout(ROOT, false);
+for (const check of prepared.checks) {
+  console.log(`${check.ok ? "✓" : "✗"} ${check.id}: ${check.detail ?? ""}`);
+}
+if (!prepared.ok) {
+  throw new Error("The pinned runtimes or packages aren't ready; see above");
+}
+// Takes packages/convex/.env.local over for the local backend; the next
 // `bun run dev` selects the shared dev deployment again.
-if (
-  (await run(
-    ["bun", "run", "setup", "--target", "e2e", "--skip-push"],
-    ROOT
-  )) !== 0
-) {
-  throw new Error("bun run setup --target e2e failed");
+const ports = await resolveWorktree(ROOT);
+for (const line of await setupBackend(ROOT, ports)) {
+  console.log(`✓ e2e-backend: ${line}`);
 }
 
 // The suite makes its own accounts. The stack pushes once: the suite's trace
 // and state writes would keep a watcher busy.
-const stack = await startStack({
-  echo: false,
-  ports: await resolveWorktree(ROOT),
-});
+const stack = await startStack({ echo: false, ports });
 
 let exitCode = 1;
 

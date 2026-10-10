@@ -26,7 +26,7 @@ import {
   readStackState,
   type StackState,
   stopOrphanedStack,
-} from "../packages/tests/src/stack/config.ts";
+} from "./lib/stack-state.ts";
 import { DEV_DEPLOYMENT, DEV_DEPLOYMENT_URLS } from "./dev-deployment.ts";
 import type { SetupReport } from "./setup.ts";
 import { resolveWorktree, type WorktreePorts } from "./worktree-env.ts";
@@ -216,7 +216,7 @@ const stopStack = async (): Promise<number> => {
 const describeRunning = (running: StackState): string[] => {
   if (running.mode === "e2e") {
     return [
-      `  The E2E stack is ${running.ready ? "running" : "starting"} at ${running.urls.appOrigin} (pid ${running.pid}), on a local backend and the WorkOS emulator.`,
+      `  An E2E run is using this checkout's ports (pid ${running.pid}); it stops when the run ends.`,
     ];
   }
   return [

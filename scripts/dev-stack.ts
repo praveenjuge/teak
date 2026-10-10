@@ -13,11 +13,6 @@ import { type ChildProcess, spawn } from "node:child_process";
 import { createWriteStream, mkdirSync, rmSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import {
-  STACK_STATE_PATH,
-  type StackState,
-} from "../packages/tests/src/stack/config.ts";
-import { stopGroup, waitFor } from "../packages/tests/src/stack/stack.ts";
-import {
   acquireLease,
   convexRunError,
   describeLease,
@@ -31,6 +26,12 @@ import {
 import { DEV_DEPLOYMENT_URLS } from "./dev-deployment.ts";
 import { loadTargetEnv } from "./env-loader.ts";
 import { ensureDevAccount } from "./lib/dev-account.ts";
+import {
+  STACK_STATE_PATH,
+  type StackState,
+  stopGroup,
+  waitFor,
+} from "./lib/stack-state.ts";
 import { describeWorkosError } from "./lib/workos-test-session.ts";
 import { runCommand } from "./proc.ts";
 import { isPortInUse, type WorktreePorts } from "./worktree-env.ts";

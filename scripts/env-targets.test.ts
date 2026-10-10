@@ -18,11 +18,12 @@ describe("env-targets", () => {
       "mobile-simulator",
       "mobile-device",
       "files-worker",
-      "e2e",
     ]) {
       expect(isSupportedTarget(target)).toBe(true);
     }
-    expect(SUPPORTED_TARGETS.length).toBe(8);
+    expect(SUPPORTED_TARGETS.length).toBe(7);
+    // The E2E suite sets up its own local backend (packages/tests).
+    expect(isSupportedTarget("e2e")).toBe(false);
   });
 
   test("every target declares profiles, files, and convex needs", () => {
@@ -36,10 +37,9 @@ describe("env-targets", () => {
 
   test("supported combos gate target/profile pairs", () => {
     expect(isSupportedCombo("web", "local")).toBe(true);
-    expect(isSupportedCombo("e2e", "e2e")).toBe(true);
     expect(isSupportedCombo("mobile-device", "local")).toBe(true);
     expect(isSupportedCombo("web", "e2e")).toBe(false);
-    expect(isSupportedCombo("e2e", "local")).toBe(false);
+    expect(isSupportedCombo("e2e", "e2e")).toBe(false);
     expect(isSupportedCombo("unknown", "local")).toBe(false);
   });
 
@@ -50,10 +50,5 @@ describe("env-targets", () => {
       expect(file.startsWith("/")).toBe(false);
     }
     expect(CONVEX_DOTENV_FILE).toBe("packages/convex/.env.local");
-  });
-
-  test("the e2e stack is the web stack on a local backend", () => {
-    expect(TARGET_SPECS.e2e.dotenvFiles).toEqual(TARGET_SPECS.web.dotenvFiles);
-    expect(TARGET_SPECS.e2e.defaultConvex).toBe("local");
   });
 });

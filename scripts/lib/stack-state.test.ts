@@ -1,21 +1,20 @@
 import { describe, expect, test } from "bun:test";
-import {
-  isProcessAlive,
-  isStackRunning,
-  MAIN_STACK_PORTS,
-  type StackState,
-  stackUrls,
-} from "./config";
+import { mainWorktreePorts } from "../worktree-env.ts";
+import { isProcessAlive, isStackRunning, type StackState } from "./stack-state.ts";
 
 const state = (pid: number): StackState => ({
   groups: [pid],
   logPath: "/tmp/stack.log",
-  mode: "e2e",
+  mode: "dev",
   pid,
-  ports: MAIN_STACK_PORTS,
+  ports: mainWorktreePorts(),
   ready: true,
   startedAt: "2026-10-09T00:00:00.000Z",
-  urls: stackUrls(MAIN_STACK_PORTS),
+  urls: {
+    appOrigin: "http://localhost:3000",
+    convexUrl: "https://dev-example.convex.cloud",
+    apiOrigin: "https://dev-example.convex.site",
+  },
 });
 
 describe("stack liveness", () => {

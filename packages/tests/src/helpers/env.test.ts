@@ -1,5 +1,7 @@
 import { describe, expect, test } from "bun:test";
-import { type StackState, stackUrls } from "../stack/config";
+import type { StackState } from "../../../../scripts/lib/stack-state.ts";
+import { slotPorts } from "../../../../scripts/worktree-env.ts";
+import { stackUrls } from "../stack/config";
 import { FIXTURE_URLS, resolveStackUrls } from "./env";
 
 const running: StackState = {
@@ -7,15 +9,10 @@ const running: StackState = {
   logPath: "/tmp/stack.log",
   mode: "e2e",
   pid: 1,
-  ports: { web: 4300, convex: 4310, convexSite: 4311, emulator: 4320 },
+  ports: slotPorts(3),
   ready: true,
   startedAt: "2026-10-09T00:00:00.000Z",
-  urls: stackUrls({
-    web: 4300,
-    convex: 4310,
-    convexSite: 4311,
-    emulator: 4320,
-  }),
+  urls: stackUrls(slotPorts(3)),
 };
 
 describe("resolveStackUrls", () => {

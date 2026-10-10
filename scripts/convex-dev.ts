@@ -8,10 +8,6 @@
 
 import { join } from "node:path";
 import {
-  isStackRunning,
-  readStackState,
-} from "../packages/tests/src/stack/config.ts";
-import {
   acquireLease,
   describeLease,
   HEARTBEAT_MS,
@@ -21,6 +17,7 @@ import {
   releaseLease,
   renewLease,
 } from "./convex-push-lease.ts";
+import { isStackRunning, readStackState } from "./lib/stack-state.ts";
 
 const ROOT = join(import.meta.dir, "..");
 const idle = () => new Promise(() => undefined);

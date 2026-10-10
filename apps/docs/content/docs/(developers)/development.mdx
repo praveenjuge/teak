@@ -49,7 +49,7 @@ bun run dev --push       # Same, and push this checkout's backend code
 bun run dev --status     # This checkout's ports, URLs and sign-in
 bun run dev --stop       # Stop this checkout's stack
 bun run setup            # Set up only (--target for other surfaces)
-bun run doctor           # Validate the environment (--json --target --profile for agents)
+bun run doctor           # Validate the environment (--json --target for agents)
 bun run dev --all        # All services
 bun run smoke:web        # Headless sign-in check against the running stack
 bun run audit:env        # Environment contract + local dotenv audit
@@ -92,7 +92,6 @@ hand.
 | `mobile-simulator` | Access to the development deployment | Signs in through WorkOS staging |
 | `mobile-device` | Access to the development deployment, LAN | The host must be LAN-reachable for the Expo dev server |
 | `files-worker` | `bun run sync:cloudflare-dev` afterwards | Worker secrets are owned by the sync command, not setup |
-| `e2e` | Nothing; a local backend and the WorkOS emulator | For the E2E suite. Run it with `bun run --cwd packages/tests e2e`; see `packages/tests/README.md` |
 
 Each linked git worktree gets its own web ports, so several worktrees run at
 once against the same development deployment. Because they share its code,
@@ -102,18 +101,9 @@ iOS simulators, device builds, the Mac app, Xcode, and Safari stay on macOS.
 
 ### Without access to the development deployment
 
-Run the E2E stack instead. It starts a local Convex backend, the web app, and a
-local [WorkOS emulator](https://workos.com/docs/authkit/testing) with test-only
-values, and needs no credentials:
-
-```bash
-bun run --cwd packages/tests e2e:stack
-```
-
-It starts with no accounts: create one with the emulator's user API, as
-`packages/tests/src/helpers/emulator.ts` does, then sign in on its page. File
-uploads, previews and AI metadata don't run there. For everything, set up your own deployment as in
-[Self-Hosting](/docs/self-hosting).
+Set up your own deployment as in [Self-Hosting](/docs/self-hosting). The E2E
+suite (`bun run --cwd packages/tests e2e`) needs no credentials; it runs its own
+throwaway stack for tests only (`packages/tests/README.md`).
 
 ## Reporting Setup Problems
 
@@ -121,7 +111,7 @@ Paste the redacted JSON report with your issue. It contains check names and
 remediations but never secret values:
 
 ```bash
-bun run doctor --target web --profile local --json
+bun run doctor --target web --json
 ```
 
 ## Setup Checklist
