@@ -1,5 +1,4 @@
 import { cn } from "@teak/ui/lib/utils";
-import { TopPattern } from "@teak/ui/patterns";
 import type { ReactNode } from "react";
 
 interface SettingsShellProps {
@@ -49,7 +48,6 @@ function SettingsShellContent({
       >
         {children}
       </div>
-      <TopPattern />
     </section>
   );
 }

@@ -196,17 +196,8 @@ import {
 Full-page screen shells consumed by individual apps:
 
 ```tsx
-import { AuthScreenShell } from "@teak/ui/screens";
 import { CardsScreen } from "@teak/ui/screens";
 import { SettingsShell } from "@teak/ui/screens";
-```
-
----
-
-### Patterns (Decorative)
-
-```tsx
-import { TopPattern, BottomPattern } from "@teak/ui/patterns";
 ```
 
 ---
