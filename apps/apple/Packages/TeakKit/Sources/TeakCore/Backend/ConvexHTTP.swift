@@ -99,7 +99,7 @@ public struct ConvexHTTP: ConvexCaller {
 
     /// Server errors arrive as "[Request ID: …] Server Error\nUncaught Error: Message\n    at …".
     /// Only the thrown message is worth showing.
-    static func userMessage(_ raw: String?) -> String {
+    public static func userMessage(_ raw: String?) -> String {
         guard let raw else { return TeakMessages.genericFailure }
         if let match = raw.firstMatch(of: /Uncaught (?:Convex)?Error: ([^\n]+)/) {
             return String(match.1).trimmingCharacters(in: .whitespaces)
