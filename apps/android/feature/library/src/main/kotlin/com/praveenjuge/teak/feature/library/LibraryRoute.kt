@@ -54,6 +54,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.nestedscroll.nestedScroll
+import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.vectorResource
 import androidx.compose.ui.semantics.contentDescription
@@ -282,6 +283,12 @@ private fun LibraryGrid(state: LibraryUiState, selectedCardId: String?, actions:
     val cards = state.paged.cards
     val gridState = rememberLazyStaggeredGridState()
     val haptics = LocalHapticFeedback.current
+    val focusManager = LocalFocusManager.current
+
+    // Scrolling or acting on cards puts the search keyboard away, like the system search bars.
+    LaunchedEffect(gridState) {
+        snapshotFlow { gridState.isScrollInProgress }.collect { scrolling -> if (scrolling) focusManager.clearFocus() }
+    }
 
     LaunchedEffect(gridState, cards.size) {
         snapshotFlow { gridState.layoutInfo.visibleItemsInfo.lastOrNull()?.index ?: -1 }
@@ -311,9 +318,11 @@ private fun LibraryGrid(state: LibraryUiState, selectedCardId: String?, actions:
                     selected = selection?.contains(card.id),
                     highlighted = card.id == selectedCardId,
                     onClick = {
+                        focusManager.clearFocus()
                         if (selection != null) actions.onToggleSelected(card.id) else actions.onOpenCard(card.id)
                     },
                     onLongClick = {
+                        focusManager.clearFocus()
                         haptics.performHapticFeedback(HapticFeedbackType.LongPress)
                         if (selection != null) actions.onToggleSelected(card.id) else actions.onBeginSelection(card.id)
                     },
