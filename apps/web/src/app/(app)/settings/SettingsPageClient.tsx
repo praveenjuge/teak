@@ -1,0 +1,187 @@
+"use client";
+
+import type { PolarEmbedCheckout } from "@polar-sh/checkout/embed";
+import * as Sentry from "@sentry/nextjs";
+import { api } from "@teak/convex";
+import { runClientSpan } from "@teak/convex/shared/client-telemetry";
+import { trackCheckout } from "@teak/convex/shared/metrics";
+import { sanitizeExternalUrl } from "@teak/convex/shared/utils/safeUrl";
+import { getPolarPlanIds } from "@teak/ui/constants/billing";
+import { TOAST_IDS } from "@teak/ui/constants/toast";
+import { useSettingsController } from "@teak/ui/hooks";
+import { SettingsContent, SubscriptionDialog } from "@teak/ui/settings";
+import { useAction, useMutation } from "convex/react";
+import { useTheme } from "next-themes";
+import { useEffect, useRef, useState } from "react";
+import { toast } from "sonner";
+import { signOut } from "@/lib/sign-out-client";
+
+export function SettingsPageClient() {
+  const [subscriptionOpen, setSubscriptionOpen] = useState(false);
+  const [loadingPlanId, setLoadingPlanId] = useState<string | null>(null);
+  const checkoutInstanceRef = useRef<PolarEmbedCheckout | null>(null);
+  const createCheckoutLink = useAction(api.billing.createCheckoutLink);
+  const deleteMyAccount = useMutation(api.accountDeletion.deleteMyAccount);
+  const { theme } = useTheme();
+
+  useEffect(
+    () => () => {
+      checkoutInstanceRef.current?.close();
+    },
+    []
+  );
+
+  const settings = useSettingsController({
+    onDeleteAccount: async () => {
+      await deleteMyAccount({});
+      toast.success("Account deletion requested. You’re being signed out.");
+      await signOut();
+    },
+    onOpenExternal: (url) => {
+      const safeUrl = sanitizeExternalUrl(url);
+      if (!safeUrl) {
+        throw new Error("Invalid portal URL");
+      }
+      window.location.assign(safeUrl);
+    },
+    onDownloadFile: (url) => {
+      // Use an anchor click rather than window.open: the artifact is served
+      // with Content-Disposition: attachment, and an anchor click is not
+      // blocked by the popup blocker after an awaited action call.
+      const anchor = document.createElement("a");
+      anchor.href = url;
+      anchor.rel = "noopener";
+      anchor.target = "_blank";
+      document.body.appendChild(anchor);
+      anchor.click();
+      anchor.remove();
+    },
+    onSignOut: signOut,
+  });
+
+  const handleCheckout = async (planId: string) => {
+    trackCheckout({ outcome: "start" });
+    setLoadingPlanId(planId);
+    const toastId = toast.loading("Opening checkout...", {
+      id: TOAST_IDS.checkoutOpen,
+    });
+
+    try {
+      const checkout = await runClientSpan(
+        {
+          name: "checkout.open",
+          operation: "billing",
+          stage: "checkout",
+        },
+        async () => {
+          const checkoutUrl = await createCheckoutLink({ productId: planId });
+          let effectiveTheme: "light" | "dark" = "light";
+          if (theme === "dark") {
+            effectiveTheme = "dark";
+          } else if (theme === "system") {
+            effectiveTheme = window.matchMedia("(prefers-color-scheme: dark)")
+              .matches
+              ? "dark"
+              : "light";
+          }
+          const { PolarEmbedCheckout } = await import(
+            "@polar-sh/checkout/embed"
+          );
+          return await PolarEmbedCheckout.create(checkoutUrl, {
+            theme: effectiveTheme,
+          });
+        }
+      );
+      trackCheckout({ outcome: "open" });
+      toast.success("Checkout opened", { id: toastId });
+
+      checkoutInstanceRef.current = checkout;
+      setSubscriptionOpen(false);
+
+      let completed = false;
+      checkout.addEventListener(
+        "success",
+        (event: CustomEvent<{ redirect?: string | boolean }>) => {
+          if (!completed) {
+            completed = true;
+            trackCheckout({ outcome: "success" });
+          }
+          if (!event.detail.redirect) {
+            toast.success(
+              "Welcome to Pro! Your subscription has been activated."
+            );
+          }
+        }
+      );
+
+      checkout.addEventListener("close", () => {
+        if (!completed) {
+          trackCheckout({ outcome: "cancel" });
+        }
+        checkoutInstanceRef.current = null;
+        toast("Checkout closed", { id: toastId });
+      });
+    } catch (error) {
+      trackCheckout({ outcome: "failure" });
+      Sentry.captureException(error, {
+        tags: { source: "convex", action: "billing:createCheckoutLink" },
+      });
+      toast.error("Failed to start checkout. Please try again.", {
+        id: toastId,
+      });
+    }
+    setLoadingPlanId(null);
+  };
+
+  const planIds = getPolarPlanIds(
+    process.env.NODE_ENV === "production" ? "production" : "development"
+  );
+
+  return (
+    <SettingsContent
+      accountLoading={settings.accountLoading}
+      cardCount={settings.cardCount}
+      connectionIdentity={settings.connectionIdentity}
+      deleteDialogError={settings.deleteDialogError}
+      deleteDialogOpen={settings.deleteDialogOpen}
+      deleteLoading={settings.deleteLoading}
+      email={settings.email}
+      exportState={settings.exportState}
+      hasPremium={settings.hasPremium}
+      keys={settings.keys}
+      onCancelExport={settings.handleCancelExport}
+      onCreateApiKey={settings.handleCreateApiKey}
+      onCreateCustomerPortal={settings.handleCreateCustomerPortal}
+      onDeleteAccount={settings.handleDeleteAccount}
+      onDeleteDialogOpenChange={settings.setDeleteDialogOpen}
+      onDownloadExport={settings.handleDownloadExport}
+      onLoadMoreSessions={settings.loadMoreSessions}
+      onRetrySessions={settings.retrySessions}
+      onRevokeAllApiKeys={settings.handleRevokeAllApiKeys}
+      onRevokeApiKey={settings.handleRevokeApiKey}
+      onRevokeOAuthConnection={settings.handleRevokeOAuthConnection}
+      onRevokeSession={settings.handleRevokeSession}
+      onRotateApiKey={settings.handleRotateApiKey}
+      onSignOut={settings.handleSignOut}
+      onStartExport={settings.handleStartExport}
+      onUpgrade={() => {
+        setSubscriptionOpen(true);
+      }}
+      sessions={settings.sessions}
+      sessionsError={settings.sessionsError}
+      sessionsHasMore={settings.sessionsHasMore}
+      sessionsLoadingMore={settings.sessionsLoadingMore}
+      signOutLoading={settings.signOutLoading}
+      subscriptionDialog={
+        <SubscriptionDialog
+          loadingPlanId={loadingPlanId}
+          monthlyPlanId={planIds.monthly}
+          onCheckout={handleCheckout}
+          onOpenChange={setSubscriptionOpen}
+          open={subscriptionOpen}
+          yearlyPlanId={planIds.yearly}
+        />
+      }
+    />
+  );
+}
