@@ -58,11 +58,12 @@ public enum CardGrid {
     }
 
     /// Each item goes to the currently shortest column, so reading order runs left to right.
-    public static func distribute<T>(_ items: [T], columns: Int, gap: Double = gap,
+    /// `reserved` is space already taken at the top of each column, such as the composer tile.
+    public static func distribute<T>(_ items: [T], columns: Int, gap: Double = gap, reserved: [Double] = [],
                                       estimate: (T) -> Double) -> [[T]] {
         let count = max(1, columns)
         var result = Array(repeating: [T](), count: count)
-        var heights = Array(repeating: 0.0, count: count)
+        var heights = (0..<count).map { $0 < reserved.count ? reserved[$0] : 0 }
         for item in items {
             var shortest = 0
             for index in 1..<count where heights[index] < heights[shortest] { shortest = index }

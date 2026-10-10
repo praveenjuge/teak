@@ -159,6 +159,9 @@ private func day(_ milliseconds: Double) -> String {
 
     @Test func placesEachTileInTheShortestColumn() {
         #expect(CardGrid.distribute([300.0, 100, 100, 100], columns: 2, gap: 0) { $0 } == [[300], [100, 100, 100]])
+        // A composer at the top of the first column pushes the first card right.
+        #expect(CardGrid.distribute([100.0, 100], columns: 2, gap: 0, reserved: [150]) { $0 } == [[], [100, 100]])
+        #expect(CardGrid.distribute([100.0, 100, 100], columns: 2, gap: 0, reserved: [150]) { $0 }.map(\.count) == [1, 2])
     }
 
     @Test func prefersTheLinkPreviewImageThenTheScreenshot() {

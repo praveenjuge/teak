@@ -737,6 +737,7 @@
 				TEAK_ENVIRONMENT = production;
 				TEAK_SENTRY_DSN = "";
 				TEAK_WEB_URL = "https://app.teakvault.com";
+				TEAK_WORKOS_URL = "https://api.workos.com";
 			};
 			name = Release;
 		};
@@ -948,6 +949,7 @@
 				TEAK_ENVIRONMENT = development;
 				TEAK_SENTRY_DSN = "";
 				TEAK_WEB_URL = "http://localhost:3000";
+				TEAK_WORKOS_URL = "https://api.workos.com";
 			};
 			name = Debug;
 		};

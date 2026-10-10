@@ -40,7 +40,7 @@ final class LibraryFlowTests: XCTestCase {
         #if os(macOS)
         app.typeKey("n", modifierFlags: .command)
         #else
-        tap(app.tabBars.buttons["Add"].waitToAppear())
+        tap(tab("Add"))
         tap(app.buttons["Note or Link"].waitToAppear())
         #endif
         let editor = app.textViews["composer.text"].waitToAppear()
@@ -48,6 +48,20 @@ final class LibraryFlowTests: XCTestCase {
         editor.typeText(text)
         tap(app.buttons["composer.save"])
         tile(containing: title).waitToAppear(20)
+    }
+
+    /// A tab: in the tab bar on iPhone, the floating bar or sidebar on iPad.
+    @MainActor private func tab(_ name: String) -> XCUIElement {
+        let candidates = [app.tabBars.buttons[name], app.buttons.matching(identifier: name).firstMatch,
+                          app.cells.containing(.staticText, identifier: name).firstMatch,
+                          app.staticTexts[name].firstMatch]
+        let deadline = Date().addingTimeInterval(15)
+        while Date() < deadline {
+            if let found = candidates.first(where: { $0.exists && $0.isHittable }) { return found }
+            Thread.sleep(forTimeInterval: 0.25)
+        }
+        XCTFail("Tab \(name) never appeared")
+        return candidates[0]
     }
 
     @MainActor private func filter(_ name: String) {
@@ -158,7 +172,7 @@ final class LibraryFlowTests: XCTestCase {
         #if os(macOS)
         app.typeKey(",", modifierFlags: .command)
         #else
-        tap(app.tabBars.buttons["Settings"].waitToAppear())
+        tap(tab("Settings"))
         #endif
         tap(app.buttons["settings.logOut"].firstMatch.waitToAppear())
         tap(menuItem("Log Out").waitToAppear())

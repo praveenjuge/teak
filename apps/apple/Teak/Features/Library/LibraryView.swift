@@ -66,6 +66,14 @@ struct LibraryView: View {
                 guard let status else { return nil }
                 return status.isError ? .error : .success
             }
+            .onKeyPress(keys: [.upArrow, .downArrow, .leftArrow, .rightArrow]) { press in
+                moveFocus(press.key)
+            }
+            .onKeyPress(.return) {
+                guard let id = focusedCard, let card = library.cards.first(where: { $0.id == id }) else { return .ignored }
+                open(card)
+                return .handled
+            }
             .onKeyPress(.escape) {
                 guard library.isSelecting else { return .ignored }
                 library.endSelection()
@@ -82,6 +90,11 @@ struct LibraryView: View {
     }
 
     private var suggestions: [SearchToken] { SearchTokens.suggestions(for: library.text) }
+
+    /// iPad and Mac keep a composer at the top of the grid, like the Mac app.
+    private var showsComposer: Bool {
+        columns >= 3 && !library.isTrash && !library.isSelecting
+    }
 
     private var columns: Int { CardGrid.columnCount(width: width) }
     private var columnWidth: Double { max(0, CardGrid.columnWidth(width: width, columns: columns)) }
@@ -106,10 +119,13 @@ struct LibraryView: View {
 
     private func grid(_ cards: [CardSummary]) -> some View {
         let nearEnd = Set(cards.suffix(5).map(\.id))
-        let laidOut = CardGrid.distribute(cards, columns: columns) { CardGrid.estimatedHeight($0, columnWidth: columnWidth) }
+        let laidOut = layout(cards)
         return HStack(alignment: .top, spacing: CardGrid.gap) {
-            ForEach(Array(laidOut.enumerated()), id: \.offset) { _, column in
+            ForEach(Array(laidOut.enumerated()), id: \.offset) { index, column in
                 LazyVStack(spacing: CardGrid.gap) {
+                    if index == 0, showsComposer {
+                        InlineComposerTile(width: columnWidth)
+                    }
                     ForEach(column) { card in
                         tile(card)
                             .onAppear { if nearEnd.contains(card.id) { library.pager.loadMore() } }
@@ -121,6 +137,37 @@ struct LibraryView: View {
         .padding(.horizontal, CardGrid.edge)
         .padding(.top, 8)
         .padding(.bottom, library.isSelecting ? 96 : 24)
+    }
+
+    private func layout(_ cards: [CardSummary]) -> [[CardSummary]] {
+        CardGrid.distribute(cards, columns: columns, reserved: showsComposer ? [120] : []) {
+            CardGrid.estimatedHeight($0, columnWidth: columnWidth)
+        }
+    }
+
+    /// Arrow keys move between tiles: up and down within a column, left and
+    /// right to the nearest row of the next column.
+    private func moveFocus(_ direction: KeyEquivalent) -> KeyPress.Result {
+        let columns = layout(library.cards).filter { !$0.isEmpty }
+        guard !columns.isEmpty else { return .ignored }
+        guard let focused = focusedCard,
+              let column = columns.firstIndex(where: { $0.contains { $0.id == focused } }),
+              let row = columns[column].firstIndex(where: { $0.id == focused })
+        else {
+            focusedCard = columns[0].first?.id
+            return .handled
+        }
+        var target: (Int, Int) = (column, row)
+        switch direction {
+        case .upArrow: target.1 = max(0, row - 1)
+        case .downArrow: target.1 = min(columns[column].count - 1, row + 1)
+        case .leftArrow: target.0 = max(0, column - 1)
+        case .rightArrow: target.0 = min(columns.count - 1, column + 1)
+        default: return .ignored
+        }
+        target.1 = min(target.1, columns[target.0].count - 1)
+        focusedCard = columns[target.0][target.1].id
+        return .handled
     }
 
     private func tile(_ card: CardSummary) -> some View {

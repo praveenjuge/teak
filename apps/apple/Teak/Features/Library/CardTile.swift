@@ -1,6 +1,7 @@
 import AVKit
 import SwiftUI
 import TeakCore
+import TeakSync
 
 /// One card in the grid, drawn like the web and iPhone tiles.
 struct CardTile: View {
@@ -150,11 +151,16 @@ private struct VideoTileMedia: View {
     let card: CardSummary
     let url: URL?
     let placeholder: URL?
+    @Environment(AppModel.self) private var app
     @State private var isHovering = false
+    @State private var videoURL: URL?
 
     var body: some View {
         ZStack {
             RemoteImage(url, placeholder: placeholder)
+            if isHovering, let videoURL {
+                LoopingVideo(url: videoURL).transition(.opacity)
+            }
             Image(systemName: "play.fill")
                 .font(.footnote)
                 .foregroundStyle(.white)
@@ -163,8 +169,65 @@ private struct VideoTileMedia: View {
                 .opacity(isHovering ? 0 : 1)
         }
         .onHover { isHovering = $0 }
+        .task(id: isHovering) {
+            guard isHovering, videoURL == nil else { return }
+            try? await Task.sleep(for: .milliseconds(400))
+            guard !Task.isCancelled, isHovering else { return }
+            let full: Card? = try? await app.backend.query("cards:getCard", ["id": .string(card.id)])
+            withAnimation(.easeOut(duration: 0.2)) { videoURL = SafeURL.sanitize(full?.fileUrl) }
+        }
     }
 }
+
+/// A muted, looping video with no controls.
+struct LoopingVideo: View {
+    let url: URL
+    @State private var player = AVQueuePlayer()
+    @State private var looper: AVPlayerLooper?
+
+    var body: some View {
+        PlayerLayer(player: player)
+            .onAppear {
+                player.isMuted = true
+                looper = AVPlayerLooper(player: player, templateItem: AVPlayerItem(url: url))
+                player.play()
+            }
+            .onDisappear {
+                player.pause()
+                looper = nil
+            }
+            .accessibilityHidden(true)
+    }
+}
+
+#if os(macOS)
+private struct PlayerLayer: NSViewRepresentable {
+    let player: AVPlayer
+    func makeNSView(context: Context) -> NSView {
+        let view = NSView()
+        let layer = AVPlayerLayer(player: player)
+        layer.videoGravity = .resizeAspectFill
+        view.layer = layer
+        view.wantsLayer = true
+        return view
+    }
+    func updateNSView(_ view: NSView, context: Context) {}
+}
+#else
+private struct PlayerLayer: UIViewRepresentable {
+    let player: AVPlayer
+    final class View: UIView {
+        override class var layerClass: AnyClass { AVPlayerLayer.self }
+    }
+    func makeUIView(context: Context) -> View {
+        let view = View()
+        (view.layer as? AVPlayerLayer)?.player = player
+        (view.layer as? AVPlayerLayer)?.videoGravity = .resizeAspectFill
+        return view
+    }
+    func updateUIView(_ view: View, context: Context) {}
+}
+#endif
 
 /// The web card's deterministic waveform, so a recording looks the same everywhere.
 struct WaveformView: View {

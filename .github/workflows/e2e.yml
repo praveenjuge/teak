@@ -61,6 +61,52 @@ jobs:
             .agents/.state/stack.log
           retention-days: 7
 
+  # XCUITest flows for the Apple app against the same local stack. The Mac
+  # flows need a signed build, so CI runs iPhone and iPad.
+  apple:
+    runs-on: macos-26
+    timeout-minutes: 75
+    env:
+      TURBO_UI: "false"
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        with:
+          node-version-file: package.json
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
+        with:
+          bun-version-file: package.json
+      - run: bun ci
+      - name: Select Xcode 27
+        run: apps/apple/scripts/select-xcode.sh
+      - name: Start the E2E stack
+        run: |
+          bun run --cwd packages/tests e2e:stack > "$RUNNER_TEMP/stack.out" 2>&1 &
+          for _ in $(seq 1 180); do
+            grep -q '"ready": true' .agents/.state/stack.json 2>/dev/null && exit 0
+            sleep 2
+          done
+          cat "$RUNNER_TEMP/stack.out"
+          exit 1
+      - name: iPhone flows
+        run: |
+          device="$(xcrun simctl list devices available | grep -oE 'iPhone 1[0-9] Pro \(' | head -1 | sed 's/ ($//')"
+          TEAK_IPHONE="$device" apps/apple/scripts/ui-tests.sh ios -resultBundlePath "$RUNNER_TEMP/iphone.xcresult"
+      - name: iPad layout smoke test
+        run: |
+          device="$(xcrun simctl list devices available | grep -oE 'iPad Pro 13-inch \([^)]*\)' | head -1)"
+          TEAK_IPAD="$device" apps/apple/scripts/ui-tests.sh ipad \
+            -only-testing:TeakUITests/SignInTests -only-testing:TeakUITests/LibraryFlowTests/testNotesLinksSearchAndTokens \
+            -resultBundlePath "$RUNNER_TEMP/ipad.xcresult"
+      - if: failure()
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        with:
+          name: e2e-apple-results
+          path: |
+            ${{ runner.temp }}/*.xcresult
+            .agents/.state/stack.log
+          retention-days: 7
+
   # Read-only checks of the published site and Teak's public production
   # endpoints. Needs no local stack.
   docs:

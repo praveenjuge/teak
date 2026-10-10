@@ -61,7 +61,7 @@
 	<key>TeakWebURL</key>
 	<string>$(TEAK_WEB_URL)</string>
 	<key>TeakWorkOSURL</key>
-	<string>https://api.workos.com</string>
+	<string>$(TEAK_WORKOS_URL)</string>
 	<key>UIApplicationSceneManifest</key>
 	<dict>
 		<key>UIApplicationSupportsMultipleScenes</key>

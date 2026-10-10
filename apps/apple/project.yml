@@ -41,6 +41,7 @@ settings:
     ENABLE_HARDENED_RUNTIME: YES
     DEBUG_INFORMATION_FORMAT: dwarf-with-dsym
     TEAK_SENTRY_DSN: ""
+    TEAK_WORKOS_URL: https://api.workos.com
   configs:
     Debug:
       TEAK_CONVEX_URL: https://reminiscent-kangaroo-59.convex.cloud
