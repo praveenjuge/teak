@@ -69,6 +69,7 @@ export const DELETED_ALIASES = [
  * PLATFORM_PATTERNS.
  */
 export const PLATFORM_EXACT = [
+  "ANDROID_HOME",
   "BROWSER",
   "CI",
   "GITHUB_ACTIONS",

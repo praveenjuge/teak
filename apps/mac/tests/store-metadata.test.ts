@@ -19,15 +19,16 @@ const config = JSON.parse(
 
 function run(editableCount = 1, mismatch = false, updateFails = false) {
   const root = mkdtempSync(path.join(tmpdir(), "teak-store-metadata-"));
-  mkdirSync(path.join(root, "apps/mac/scripts"), { recursive: true });
+  mkdirSync(path.join(root, "apps/mac"), { recursive: true });
+  mkdirSync(path.join(root, "scripts/store-assets"), { recursive: true });
   mkdirSync(path.join(root, "bin"));
   writeFileSync(
     path.join(root, "apps/mac/store.config.json"),
     JSON.stringify(config)
   );
   writeFileSync(
-    path.join(root, "apps/mac/scripts/publish-store-screenshots.sh"),
-    'test "$1" = version-id\necho screenshots >> calls\n'
+    path.join(root, "scripts/store-assets/publish-apple.sh"),
+    'test "$1" = mac && test "$2" = version-id\necho screenshots >> calls\n'
   );
   const asc = path.join(root, "bin/asc");
   writeFileSync(

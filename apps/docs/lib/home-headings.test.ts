@@ -39,9 +39,9 @@ describe("homepage heading hierarchy", () => {
     });
   });
 
-  test("showcase story titles are section headings under the H1", () => {
+  test("the features section is an H2 with its card titles under it", () => {
     const showcase = read("../components/HomeFeatureShowcase.astro");
 
-    expect(headingLevels(showcase)).toEqual([2]);
+    expect(headingLevels(showcase)).toEqual([2, 3]);
   });
 });

@@ -195,7 +195,7 @@ export const OPS_ENTRIES: EnvVarSpec[] = [
     requiredIn: ["production"],
     note: "CI secret mapped to EXPO_PUBLIC_SENTRY_MOBILE_DSN at release time.",
   }),
-  spec("MAC_SCREENSHOT_BROWSER", {
+  spec("STORE_ASSETS_BROWSER", {
     owners: ["teak-repo"],
     targets: ["repo"],
     profiles: ["local"],
@@ -203,7 +203,17 @@ export const OPS_ENTRIES: EnvVarSpec[] = [
     validation: "path",
     providers: ["shell"],
     required: false,
-    note: "Optional browser executable override for the Mac screenshot renderer.",
+    note: "Optional Chromium executable for the store images renderer.",
+  }),
+  spec("TEAK_STORE_SIMULATOR", {
+    owners: ["teak-repo"],
+    targets: ["repo"],
+    profiles: ["local"],
+    secret: false,
+    validation: "string",
+    providers: ["shell"],
+    required: false,
+    note: "Optional simulator name or UDID for iPhone store captures; defaults to iPhone 17 Pro Max.",
   }),
   // Repo tooling and smoke scripts.
   spec("TEAK_E2E_HERMETIC", {

@@ -31,7 +31,6 @@
     "./forms": "./src/components/forms/index.ts",
     "./selection": "./src/components/selection/index.ts",
     "./search": "./src/components/search/index.ts",
-    "./patterns": "./src/components/patterns/index.ts",
     "./hooks": "./src/hooks/index.ts",
     "./hooks/GlobalFileDropProvider": "./src/hooks/GlobalFileDropProvider.tsx",
     "./settings": "./src/components/settings/index.ts",
