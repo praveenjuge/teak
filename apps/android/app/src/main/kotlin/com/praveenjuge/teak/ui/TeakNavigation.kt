@@ -1,5 +1,6 @@
 package com.praveenjuge.teak.ui
 
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.LocalActivity
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AddCircle
@@ -81,6 +82,10 @@ fun TeakNavigation(launchRequest: LaunchRequest?, onLaunchRequestHandled: () -> 
         }
         onLaunchRequestHandled()
     }
+
+    // NavDisplay only handles Back when its stack has more than one entry. On another tab's first
+    // screen, Back returns to Home, as on iOS, instead of closing the app.
+    BackHandler(enabled = tab != Tab.Home && backStack.size <= 1) { tab = Tab.Home }
 
     NavigationSuiteScaffold(
         navigationSuiteItems = {
