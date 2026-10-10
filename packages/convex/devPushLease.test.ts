@@ -94,6 +94,27 @@ describe("devPushLease", () => {
     ).toMatchObject({ granted: true });
   });
 
+  test("a holder whose lease expired untaken can take it back", async () => {
+    const t = convexTest(schema, modules);
+    await t.mutation(internal.devPushLease.acquire, {
+      holder: main,
+      force: false,
+    });
+    vi.advanceTimersByTime(LEASE_TTL_MS + 1000);
+    expect(
+      await t.mutation(internal.devPushLease.heartbeat, { holderId: main.id })
+    ).toMatchObject({ granted: false, state: { holder: null } });
+    expect(
+      await t.mutation(internal.devPushLease.acquire, {
+        holder: main,
+        force: false,
+      })
+    ).toMatchObject({ granted: true, state: { holder: { id: main.id } } });
+    expect(
+      await t.mutation(internal.devPushLease.heartbeat, { holderId: main.id })
+    ).toMatchObject({ granted: true });
+  });
+
   test("only the holder records what it pushed", async () => {
     const t = convexTest(schema, modules);
     await t.mutation(internal.devPushLease.acquire, {

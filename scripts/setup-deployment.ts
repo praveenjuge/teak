@@ -118,21 +118,29 @@ export const setupDevDeployment = async (
 
   const listed = await listDeploymentVarNames(convexDir);
   if (listed.status === "unavailable") {
+    const remediation =
+      access.kind === "login"
+        ? [
+            "Run `bunx convex login` with an account that can open the Teak project, then re-run",
+            "In a cloud session, add CONVEX_DEPLOY_KEY (a dev deploy key for the dev deployment) to the environment's secrets",
+          ]
+        : [
+            "Check that CONVEX_DEPLOY_KEY is a current dev deploy key for the dev deployment",
+          ];
+    const detail = `could not reach ${DEV_DEPLOYMENT}: ${listed.detail}`;
+    // --check only reports what setup would do; a real run needs the access.
     checks.push(
-      error(
-        "setup-convex-access",
-        `could not reach ${DEV_DEPLOYMENT}: ${listed.detail}`,
-        access.kind === "login"
-          ? [
-              "Run `bunx convex login` with an account that can open the Teak project, then re-run",
-              "In a cloud session, add CONVEX_DEPLOY_KEY (a dev deploy key for the dev deployment) to the environment's secrets",
-            ]
-          : [
-              "Check that CONVEX_DEPLOY_KEY is a current dev deploy key for the dev deployment",
-            ]
-      )
+      checkOnly
+        ? {
+            id: "setup-convex-access",
+            ok: true,
+            severity: "warn",
+            detail,
+            remediation,
+          }
+        : error("setup-convex-access", detail, remediation)
     );
-    return done(false);
+    return done(checkOnly);
   }
   const missing = REQUIRED_DEV_VARS.filter((name) => !listed.names.has(name));
   if (missing.length > 0) {

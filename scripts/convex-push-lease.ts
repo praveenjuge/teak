@@ -126,11 +126,22 @@ export const acquireLease = async (
 ): Promise<LeaseResult> =>
   asLease(await call(root, "acquire", { holder, force }));
 
+/**
+ * Renew the lease. A lease that expired while nobody else took it (a laptop
+ * asleep, slow heartbeat calls) is taken back; only another holder ends it.
+ */
 export const renewLease = async (
   root: string,
   holder: LeaseHolder
-): Promise<LeaseResult> =>
-  asLease(await call(root, "heartbeat", { holderId: holder.id }));
+): Promise<LeaseResult> => {
+  const renewed = asLease(
+    await call(root, "heartbeat", { holderId: holder.id })
+  );
+  if (renewed.status === "ok" && !renewed.granted && !renewed.state.holder) {
+    return acquireLease(root, holder, false);
+  }
+  return renewed;
+};
 
 export const releaseLease = async (
   root: string,
