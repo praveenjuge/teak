@@ -18,27 +18,32 @@ enum Appearance: String, CaseIterable, Identifiable {
 /// Appearance, account, Mac options and About.
 struct SettingsView: View {
     @Environment(AppModel.self) private var app
-    @AppStorage("teak.appearance") private var appearance = Appearance.auto
     @State private var account = AccountModel()
 
     var body: some View {
         Form {
-            Section("Appearance") {
-                Picker("Theme", selection: $appearance) {
-                    ForEach(Appearance.allCases) { Text($0.title).tag($0) }
-                }
-                .pickerStyle(.segmented)
-            }
+            AppearanceSection()
             AccountSection(account: account)
-            #if os(macOS)
-            MacOptionsSection()
-            #endif
             SafariExtensionSection()
             AboutSection()
         }
         .formStyle(.grouped)
         .navigationTitle("Settings")
         .task { await account.watch(app.backend) }
+    }
+}
+
+/// Auto, Light or Dark, as segments.
+struct AppearanceSection: View {
+    @AppStorage("teak.appearance") private var appearance = Appearance.auto
+
+    var body: some View {
+        Section("Appearance") {
+            Picker("Theme", selection: $appearance) {
+                ForEach(Appearance.allCases) { Text($0.title).tag($0) }
+            }
+            .pickerStyle(.segmented)
+        }
     }
 }
 
@@ -63,7 +68,7 @@ final class AccountModel {
     }
 }
 
-private struct AccountSection: View {
+struct AccountSection: View {
     let account: AccountModel
     @Environment(AppModel.self) private var app
     @Environment(\.openURL) private var openURL
@@ -77,36 +82,41 @@ private struct AccountSection: View {
     static let deletePhrase = "delete account"
 
     var body: some View {
-        Section("Profile") {
-            LabeledContent("Email", value: app.user?.email ?? account.user?.email ?? "Not logged in")
-            LabeledContent("Usage") {
-                if let user = account.user { Text(user.usageLabel) } else if account.isLoading { ProgressView().controlSize(.small) } else { Text("Not available") }
-            }
-            LabeledContent("Plan") {
-                if let user = account.user { Text(user.plan) } else if account.isLoading { ProgressView().controlSize(.small) } else { Text("Not available") }
+        Group {
+            Section("Profile") {
+                LabeledContent("Email", value: app.user?.email ?? account.user?.email ?? "Not logged in")
+                LabeledContent("Usage") {
+                    if let user = account.user { Text(user.usageLabel) } else if account.isLoading { ProgressView().controlSize(.small) } else { Text("Not available") }
+                }
+                LabeledContent("Plan") {
+                    HStack(spacing: 12) {
+                        if let user = account.user { Text(user.plan) } else if account.isLoading { ProgressView().controlSize(.small) } else { Text("Not available") }
+                        #if os(macOS)
+                        if let user = account.user {
+                            Button(user.hasPremium ? "Manage…" : "Upgrade…") { openURL(app.config.webURL.appending(path: "settings")) }
+                        }
+                        #endif
+                    }
+                }
+                #if os(iOS)
+                deleteButton
+                pausedNotice
+                logOutButton
+                errorText
+                #endif
             }
             #if os(macOS)
-            if let user = account.user {
-                Button(user.hasPremium ? "Manage…" : "Upgrade…") { openURL(app.config.webURL.appending(path: "settings")) }
+            // The Mac puts both account actions on one row, Log Out on the right.
+            Section {
+                HStack {
+                    deleteButton
+                    Spacer()
+                    logOutButton
+                }
+                pausedNotice
+                errorText
             }
             #endif
-            Button(isWorking ? "Deleting…" : "Delete Account", role: .destructive) {
-                if app.authMode?.accountChangesPaused == true {
-                    error = TeakMessages.accountChangesPaused
-                } else {
-                    confirmDelete = true
-                }
-            }
-            .disabled(isWorking || app.authMode?.accountChangesPaused == true)
-            if app.authMode?.accountChangesPaused == true {
-                Text(TeakMessages.accountChangesPaused).font(.footnote).foregroundStyle(.secondary)
-            }
-            Button("Log Out") { confirmLogOut = true }
-                .tint(.primary)
-                .accessibilityIdentifier("settings.logOut")
-            if let error {
-                Text(error).font(.footnote).foregroundStyle(.red)
-            }
         }
         .confirmationDialog("Log Out", isPresented: $confirmLogOut) {
             Button("Log Out", role: .destructive) { logOut() }
@@ -127,6 +137,35 @@ private struct AccountSection: View {
             Button("Delete", role: .destructive) { deleteAccount() }
         } message: {
             Text("Type \u{201C}\(Self.deletePhrase)\u{201D} to confirm.")
+        }
+    }
+
+    private var deleteButton: some View {
+        Button(isWorking ? "Deleting…" : "Delete Account", role: .destructive) {
+            if app.authMode?.accountChangesPaused == true {
+                error = TeakMessages.accountChangesPaused
+            } else {
+                confirmDelete = true
+            }
+        }
+        .disabled(isWorking || app.authMode?.accountChangesPaused == true)
+    }
+
+    private var logOutButton: some View {
+        Button("Log Out") { confirmLogOut = true }
+            .tint(.primary)
+            .accessibilityIdentifier("settings.logOut")
+    }
+
+    @ViewBuilder private var pausedNotice: some View {
+        if app.authMode?.accountChangesPaused == true {
+            Text(TeakMessages.accountChangesPaused).font(.footnote).foregroundStyle(.secondary)
+        }
+    }
+
+    @ViewBuilder private var errorText: some View {
+        if let error {
+            Text(error).font(.footnote).foregroundStyle(.red)
         }
     }
 

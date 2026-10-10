@@ -54,15 +54,14 @@ struct TeakApp: App {
         }
         .commands { TeakCommands(services: services) }
         #if os(macOS)
-        .defaultSize(width: 1100, height: 760)
+        .windowResizability(.contentSize)
         #endif
 
         #if os(macOS)
         Settings {
-            NavigationStack { SettingsView() }
+            MacSettingsView()
                 .environments(services)
                 .preferredColorScheme(appearance.colorScheme)
-                .frame(minWidth: 460, idealWidth: 520, minHeight: 520)
         }
         #endif
     }

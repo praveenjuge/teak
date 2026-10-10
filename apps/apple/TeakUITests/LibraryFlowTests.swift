@@ -252,6 +252,7 @@ final class LibraryFlowTests: XCTestCase {
         tile(containing: menuNote).waitToAppear(20)
 
         tap(app.buttons["Settings"].firstMatch.waitToAppear())
+        tap(app.toolbars.buttons["Account"].firstMatch.waitToAppear())
         app.buttons["settings.logOut"].firstMatch.waitToAppear()
     }
     #endif
@@ -261,12 +262,17 @@ final class LibraryFlowTests: XCTestCase {
         try await start()
         #if os(macOS)
         app.typeKey(",", modifierFlags: .command)
+        tap(app.toolbars.buttons["Account"].firstMatch.waitToAppear())
         #else
         tap(tab("Settings"))
         #endif
         tap(app.buttons["settings.logOut"].firstMatch.waitToAppear())
         tap(confirmation("Log Out").waitToAppear())
         app.buttons["signIn.emailSignIn"].waitToAppear(20)
+        #if os(macOS)
+        // Only the welcome window is left.
+        XCTAssertFalse(app.windows["Settings"].exists || app.windows["Account"].exists)
+        #endif
     }
 }
 

@@ -91,9 +91,13 @@ struct LibraryView: View {
 
     private var suggestions: [SearchToken] { SearchTokens.suggestions(for: library.text) }
 
-    /// iPad and Mac keep a composer at the top of the grid, like the Mac app.
+    /// iPad keeps a composer at the top of the grid; the Mac has ⌘N and the Add menu.
     private var showsComposer: Bool {
+        #if os(macOS)
+        false
+        #else
         columns >= 3 && !library.isTrash && !library.isSelecting
+        #endif
     }
 
     private var columns: Int { CardGrid.columnCount(width: width) }
@@ -324,7 +328,7 @@ struct FilterMenu: View {
                         Label {
                             Text(hue.label)
                         } icon: {
-                            Image(systemName: "circle.fill").foregroundStyle(Color(hex: hue.hex) ?? .gray)
+                            colorDot(Color(hex: hue.hex) ?? .gray)
                         }
                     }
                 }
@@ -428,4 +432,22 @@ struct FirstCardView: View {
         .padding(.horizontal, 40)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
+}
+
+/// A colored dot for menus. Menus draw SwiftUI symbols as monochrome
+/// templates, so the dot is a platform image that keeps its color.
+func colorDot(_ color: Color) -> Image {
+    #if os(macOS)
+    let configuration = NSImage.SymbolConfiguration(paletteColors: [NSColor(color)])
+    if let image = NSImage(systemSymbolName: "circle.fill", accessibilityDescription: nil)?
+        .withSymbolConfiguration(configuration) {
+        image.isTemplate = false
+        return Image(nsImage: image)
+    }
+    #else
+    if let image = UIImage(systemName: "circle.fill")?.withTintColor(UIColor(color), renderingMode: .alwaysOriginal) {
+        return Image(uiImage: image)
+    }
+    #endif
+    return Image(systemName: "circle.fill")
 }

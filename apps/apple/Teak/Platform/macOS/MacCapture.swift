@@ -273,7 +273,7 @@ final class MenuBarItem: NSObject, NSMenuDelegate, NSDraggingDestination, NSWind
         add("Paste as New Card", #selector(paste))
         menu.addItem(.separator())
         add("Open Teak Library", #selector(openLibrary))
-        add("Settings…", #selector(openSettings))
+        add("Settings…", #selector(showTeakSettings))
         menu.addItem(.separator())
         add("Quit Teak", #selector(quit))
     }
@@ -281,6 +281,8 @@ final class MenuBarItem: NSObject, NSMenuDelegate, NSDraggingDestination, NSWind
     private func add(_ title: String, _ action: Selector) {
         let item = NSMenuItem(title: title, action: action, keyEquivalent: "")
         item.target = self
+        // A plain text menu: no system-chosen icons.
+        if #available(macOS 27, *) { item.preferredImageVisibility = .hidden }
         menu.addItem(item)
     }
 
@@ -316,7 +318,8 @@ final class MenuBarItem: NSObject, NSMenuDelegate, NSDraggingDestination, NSWind
     @objc private func quickCapture() { QuickCapturePanel.shared.show() }
     @objc private func paste() { BackgroundCapture.save(PasteboardReader.items(from: .general)) }
     @objc private func openLibrary() { AppServices.shared.showMainWindow() }
-    @objc private func openSettings() { AppServices.shared.showSettings() }
+    // Not "openSettings": macOS 26 adds a gear to items with that action.
+    @objc private func showTeakSettings() { AppServices.shared.showSettings() }
     @objc private func quit() { NSApp.terminate(nil) }
 
     func draggingEntered(_ sender: any NSDraggingInfo) -> NSDragOperation {
@@ -356,7 +359,7 @@ struct MacOptionsSection: View {
     @AppStorage(MacPreferences.quickCaptureKey) private var quickCapture = false
 
     var body: some View {
-        Section("Mac") {
+        Section("Capture") {
             Toggle("Show Teak in the menu bar", isOn: $menuBar)
                 .onChange(of: menuBar) { _, enabled in MenuBarItem.shared.sync(enabled: enabled) }
             Toggle(isOn: $quickCapture) {

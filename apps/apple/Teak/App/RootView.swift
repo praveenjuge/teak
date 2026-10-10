@@ -12,6 +12,8 @@ struct RootView: View {
     @Environment(\.openSettings) private var openSettings
     #endif
 
+    private var isSignedIn: Bool { app.phase == .signedIn }
+
     var body: some View {
         Group {
             switch app.phase {
@@ -23,6 +25,14 @@ struct RootView: View {
             }
         }
         .animation(.smooth, value: app.phase)
+        #if os(macOS)
+        // A small, fixed welcome window like other Mac apps; the library resizes freely.
+        .frame(minWidth: isSignedIn ? 760 : 420, maxWidth: isSignedIn ? .infinity : 420,
+               minHeight: isSignedIn ? 520 : 560, maxHeight: isSignedIn ? .infinity : 560)
+        .onChange(of: isSignedIn) { _, signedIn in
+            if signedIn { MainWindow.growToLibrarySize() }
+        }
+        #endif
         .task {
             app.start()
             AppServices.shared.openMainWindow = { openWindow(id: "main") }

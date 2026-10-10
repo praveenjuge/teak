@@ -39,6 +39,7 @@
 		80F6ACDD5F9616FB3FBFE83F /* background.js in Resources */ = {isa = PBXBuildFile; fileRef = 310894E9752F13554268C5D7 /* background.js */; };
 		813A2A6ED5E3B10ED1BB91B8 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = E170EA1FC1F06AD8197557FF /* Assets.xcassets */; };
 		81826080281B3E00D6EEA32C /* RootView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6E2C5AE9A93AFE2E6816B8CB /* RootView.swift */; };
+		84F46662E636B17CEC469DCE /* MacSettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = BEB8CCFA07439724E1FD132D /* MacSettings.swift */; };
 		8925AC5AACC899AB35C87D63 /* CardEditView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A40A653CFC66F96920615712 /* CardEditView.swift */; };
 		89FE2ADF2373A0B4FF02176B /* E2EStack.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6E3FF2D7400936FF1F520A0D /* E2EStack.swift */; };
 		8D885E89664BB3C7989523D9 /* SentryReporting.swift in Sources */ = {isa = PBXBuildFile; fileRef = FB07B0EE611BC7C8C88712B4 /* SentryReporting.swift */; };
@@ -143,6 +144,7 @@
 		BBB7C456017B244B6D91EBA7 /* popup.html */ = {isa = PBXFileReference; lastKnownFileType = text.html; path = popup.html; sourceTree = "<group>"; };
 		BBEA95678E058CFC665ADECF /* CardTile.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CardTile.swift; sourceTree = "<group>"; };
 		BDFC7C1A7EFDB3B2D6F915E2 /* _locales */ = {isa = PBXFileReference; lastKnownFileType = folder; name = _locales; path = SafariExtension/Resources/_locales; sourceTree = SOURCE_ROOT; };
+		BEB8CCFA07439724E1FD132D /* MacSettings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MacSettings.swift; sourceTree = "<group>"; };
 		C1C78020F918336D66648413 /* WelcomeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WelcomeView.swift; sourceTree = "<group>"; };
 		C33080F59C53DEC2AAC7D61E /* LibraryModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LibraryModel.swift; sourceTree = "<group>"; };
 		CB834A92D5E9C12ED538973C /* TeakKit */ = {isa = PBXFileReference; lastKnownFileType = folder; name = TeakKit; path = Packages/TeakKit; sourceTree = SOURCE_ROOT; };
@@ -206,6 +208,7 @@
 			isa = PBXGroup;
 			children = (
 				7E6D07D7E008E4C2F978F868 /* MacCapture.swift */,
+				BEB8CCFA07439724E1FD132D /* MacSettings.swift */,
 				239A463CABB7F47418470BD6 /* MacSidebar.swift */,
 			);
 			path = macOS;
@@ -627,6 +630,7 @@
 				00895B5374DF8CD81E3AFCDF /* LibraryModel.swift in Sources */,
 				4D2C4E4BAA75709A532DCE88 /* LibraryView.swift in Sources */,
 				F57E7B79CB437525A78F20B5 /* MacCapture.swift in Sources */,
+				84F46662E636B17CEC469DCE /* MacSettings.swift in Sources */,
 				C16267AFFBE1A76B9088D866 /* MacSidebar.swift in Sources */,
 				F36056B9A07A44FACCC5142B /* MarkdownView.swift in Sources */,
 				7371FA16E076E1E3112BEFA1 /* NoteComposerView.swift in Sources */,
