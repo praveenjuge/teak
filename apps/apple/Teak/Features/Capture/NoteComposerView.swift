@@ -18,13 +18,14 @@ struct NoteComposerView: View {
                 .accessibilityLabel("Write a note or paste a link")
                 .accessibilityIdentifier("composer.text")
                 .scrollContentBackground(.hidden)
-                .padding(.horizontal, 12)
+                .contentMargins(.horizontal, 20, for: .scrollContent)
+                .contentMargins(.vertical, 12, for: .scrollContent)
                 .overlay(alignment: .topLeading) {
                     if text.isEmpty {
                         Text("Write a note or paste a link")
                             .foregroundStyle(.tertiary)
-                            .padding(.horizontal, 17)
-                            .padding(.top, 8)
+                            .padding(.horizontal, 25)
+                            .padding(.top, 20)
                             .allowsHitTesting(false)
                     }
                 }
@@ -37,7 +38,9 @@ struct NoteComposerView: View {
                         Button("Cancel") { dismiss() }
                     }
                     ToolbarItem(placement: .confirmationAction) {
-                        Button(capture.isSavingText ? "Saving…" : "Save") { save() }
+                        Button { save() } label: {
+                            Text(capture.isSavingText ? "Saving…" : "Save").foregroundStyle(.white)
+                        }
                             .buttonStyle(.glassProminent)
                             .disabled(capture.isSavingText || text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
                             .keyboardShortcut(.return, modifiers: .command)

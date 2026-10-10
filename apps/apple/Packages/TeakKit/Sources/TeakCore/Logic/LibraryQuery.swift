@@ -72,7 +72,8 @@ public struct SearchToken: Identifiable, Hashable, Sendable {
 public enum SearchTokens {
     /// An exact tag filter, from a card's tag.
     public static func tag(_ name: String) -> SearchToken {
-        SearchToken(kind: .tag, value: name, label: "#\(name)")
+        // The token draws its own "#" symbol, so the label is just the name.
+        SearchToken(kind: .tag, value: name, label: name)
     }
 
     public static func classify(_ input: String, now: Date = Date(), timeZone: TimeZone = .current) -> SearchToken {

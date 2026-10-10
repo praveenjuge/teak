@@ -164,8 +164,7 @@ final class LibraryFlowTests: XCTestCase {
         tap(tile(containing: note))
         tap(app.buttons["Favorite"].firstMatch.waitToAppear())
         app.buttons["Unfavorite"].firstMatch.waitToAppear()
-        tap(menu("More").waitToAppear())
-        tap(menuItem("Edit Notes and Tags").waitToAppear())
+        tap(app.buttons["Edit"].firstMatch.waitToAppear())
         let notes = field("edit.notes").waitToAppear()
         tap(notes)
         enter("Notes for \(note)", into: notes)
@@ -179,7 +178,7 @@ final class LibraryFlowTests: XCTestCase {
         // A tag filters the library.
         tap(app.buttons["Search for uitag"].firstMatch.waitToAppear())
         tile(containing: note).waitToAppear()
-        XCTAssertTrue(app.staticTexts["#uitag"].firstMatch.exists || app.buttons["#uitag"].firstMatch.exists
+        XCTAssertTrue(app.staticTexts["uitag"].firstMatch.exists || app.buttons["uitag"].firstMatch.exists
             || app.searchFields.firstMatch.exists)
 
         // Delete to Trash, restore, then delete forever.

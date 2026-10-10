@@ -11,9 +11,6 @@ struct CardDetailView: View {
     @Environment(\.horizontalSizeClass) private var sizeClass
     @State private var model: CardDetailModel?
     @State private var showsInspector = true
-    @State private var isEditing = false
-    @State private var draft = ""
-    @State private var editError: String?
     @State private var showEditSheet = false
     @State private var exporting: CardFile?
     @State private var confirmDeleteForever = false
@@ -94,68 +91,13 @@ struct CardDetailView: View {
         }
     }
 
-    // MARK: Inline editing for notes and quotes
+    // MARK: Content
 
     @ViewBuilder private func hero(_ card: Card, _ model: CardDetailModel) -> some View {
-        if CardEdit.canEditContent(card.type), isEditing {
-            VStack(alignment: .leading, spacing: 12) {
-                Picker("Mode", selection: $isPreviewingDraft) {
-                    Text("Edit").tag(false)
-                    Text("Preview").tag(true)
-                }
-                .pickerStyle(.segmented)
-                .labelsHidden()
-                .frame(maxWidth: 240)
-                if isPreviewingDraft {
-                    if card.type == .quote { QuotePreview(card: Card(id: card.id, type: .quote, content: draft)) }
-                    else { MarkdownView(markdown: draft) }
-                } else {
-                    TextEditor(text: $draft)
-                        .font(card.type == .quote ? .title3 : .body.monospaced())
-                        .frame(minHeight: 240)
-                        .scrollContentBackground(.hidden)
-                        .padding(8)
-                        .background(.fill.quaternary, in: .rect(cornerRadius: 12))
-                        .accessibilityLabel(card.type == .quote ? "Quote" : "Note")
-                }
-                if let editError { Text(editError).font(.footnote).foregroundStyle(.red) }
-                HStack {
-                    Button("Cancel") { isEditing = false }
-                        .keyboardShortcut(.cancelAction)
-                    Button(model.isSaving ? "Saving…" : "Save") { saveDraft(card, model) }
-                        .buttonStyle(.glassProminent)
-                        .keyboardShortcut(.return, modifiers: .command)
-                        .disabled(model.isSaving || draft == card.content)
-                }
-            }
-        } else {
-            CardPreview(card: card)
-                .onTapGesture(count: 2) { if CardEdit.canEditContent(card.type) { beginEditing(card) } }
-        }
-    }
-
-    @State private var isPreviewingDraft = false
-
-    private func beginEditing(_ card: Card) {
-        draft = card.content
-        editError = nil
-        isPreviewingDraft = false
-        isEditing = true
-    }
-
-    private func saveDraft(_ card: Card, _ model: CardDetailModel) {
-        var edit = CardEdit.draft(for: card)
-        edit.content = draft
-        if let error = CardEdit.validationError(for: card, draft: edit) { return editError = error }
-        Task {
-            do {
-                try await model.save(CardEdit.changes(from: card, to: edit))
-                isEditing = false
-                feedback += 1
-            } catch {
-                editError = error.teakMessage
-            }
-        }
+        CardPreview(card: card)
+            #if os(macOS)
+            .onTapGesture(count: 2) { if CardEdit.canEditContent(card.type) { showEditSheet = true } }
+            #endif
     }
 
     // MARK: Toolbar
@@ -180,9 +122,7 @@ struct CardDetailView: View {
                 }
                 .tint(model.isFavorited ? .red : nil)
                 .symbolEffect(.bounce, value: model.isFavorited)
-                Button("Edit", systemImage: "pencil") {
-                    if CardEdit.canEditContent(card.type), !isEditing { beginEditing(card) } else { showEditSheet = true }
-                }
+                Button("Edit", systemImage: "pencil") { showEditSheet = true }
                 .keyboardShortcut("e", modifiers: .command)
                 Menu("More", systemImage: "ellipsis") { moreMenu(card, model) }
             }
@@ -197,7 +137,6 @@ struct CardDetailView: View {
 
     @ViewBuilder private func moreMenu(_ card: Card, _ model: CardDetailModel) -> some View {
         Section {
-            Button("Edit Notes and Tags", systemImage: "tag") { showEditSheet = true }
             if let copy = CardSheet.copyText(card) {
                 Button(CardSheet.copyLabel(card), systemImage: "doc.on.doc") {
                     Pasteboard.copy(copy)

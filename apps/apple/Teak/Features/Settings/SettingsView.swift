@@ -27,6 +27,7 @@ struct SettingsView: View {
                 Picker("Theme", selection: $appearance) {
                     ForEach(Appearance.allCases) { Text($0.title).tag($0) }
                 }
+                .pickerStyle(.segmented)
             }
             AccountSection(account: account)
             #if os(macOS)
@@ -168,17 +169,9 @@ private struct AboutSection: View {
     var body: some View {
         Section("About") {
             LabeledContent("Teak", value: "by @praveenjuge")
-            Text(about)
-                .font(.callout)
+            Text("Hope you enjoy using Teak as much as I enjoyed creating it.")
                 .foregroundStyle(.secondary)
-                .tint(.accentColor)
             LabeledContent("Version", value: "\(app.config.version) (\(app.config.build))")
         }
-    }
-
-    private var about: AttributedString {
-        let settings = app.config.webURL.appending(path: "settings").absoluteString
-        let markdown = "Let me know [@praveenjuge](https://x.com/praveenjuge) / [hello@praveenjuge.com](mailto:hello@praveenjuge.com) if you have any feedback. If you ever want to leave, you can [delete your account](\(settings)). Hope you enjoy using Teak as much as I enjoyed creating it."
-        return (try? AttributedString(markdown: markdown)) ?? AttributedString(markdown)
     }
 }

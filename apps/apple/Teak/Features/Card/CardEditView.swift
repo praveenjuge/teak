@@ -35,7 +35,10 @@ struct CardEditView: View {
                     Button("Cancel") { hasChanges ? (confirmDiscard = true) : dismiss() }
                 }
                 ToolbarItem(placement: .confirmationAction) {
-                    Button(model?.isSaving == true ? "Saving…" : "Save") { save() }
+                    Button { save() } label: {
+                        Text(model?.isSaving == true ? "Saving…" : "Save").foregroundStyle(.white)
+                    }
+                        .buttonStyle(.glassProminent)
                         .disabled(!hasChanges || model?.isSaving == true)
                         .keyboardShortcut(.return, modifiers: .command)
                 }
