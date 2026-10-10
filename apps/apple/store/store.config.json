@@ -1,0 +1,21 @@
+{
+  "locale": "en-US",
+  "screenshots": {
+    "iphone": [],
+    "ipad": [],
+    "mac": []
+  },
+  "appInfo": {
+    "name": "Teak: Save Inspirations",
+    "subtitle": "Your Design Inspiration Vault",
+    "privacyPolicyUrl": "https://teakvault.com/docs/privacy-policy"
+  },
+  "version": {
+    "description": "Teak is your personal vault for design inspiration and creative ideas. Save, organize, and access your creative vision on iPhone, iPad, Mac, and the web.\n\nCAPTURE ANYTHING\n• Save links, images, videos, audio notes, and documents\n• Capture content directly from other apps via Share extension\n• Capture content directly from web pages with the Safari extension\n• Record voice memos on the go\n\nORGANIZE YOUR WAY\n• Create custom cards for each inspiration or idea\n• Add notes and tags to keep everything searchable\n• Mark favorites for quick access to your best ideas\n• Search instantly across all your content\n\nSYNC EVERYWHERE\n• Access your vault on iPhone, iPad, Mac, and the web\n• Content stays in sync automatically across all devices\n\nON YOUR MAC\n• Save from the menu bar or with the Quick Capture shortcut\n• Save the page you're reading with the Safari extension\n\nYOUR DATA, YOUR CONTROL\n• Private by design - your content is never used for advertising\n• Industry-standard encryption protects your data\n• Export or delete your data anytime\n• 30-day recovery period for deleted items\n\nTEAK IS FOR\n• Designers collecting inspiration\n• Creators organizing ideas and references\n• Researchers saving articles and resources\n• Anyone building a personal knowledge base",
+    "keywords": "design,inspiration,notes,organize,ideas,creative,save",
+    "promotionalText": "Capture, organize, and access your creative inspiration anywhere.",
+    "supportUrl": "https://teakvault.com/docs",
+    "marketingUrl": "https://teakvault.com",
+    "whatsNew": "Teak is now a native app for iPhone and iPad. Save from the share sheet without opening Teak, save pages with the new Safari extension, and browse your library in a layout made for iPad."
+  }
+}

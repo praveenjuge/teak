@@ -3,6 +3,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import {
+  appleVersionSources,
   assertLockstep,
   assertPatchBump,
   npmLockFiles,
@@ -36,6 +37,8 @@ describe("release versions", () => {
         "packages/ui",
         "apps/mac/Shared (Extension)/Resources",
         "apps/mac/teak-mac.xcodeproj",
+        "apps/apple/SafariExtension/Resources",
+        "apps/apple/Teak.xcodeproj",
       ]) {
         fs.mkdirSync(path.join(root, directory), { recursive: true });
       }
@@ -43,12 +46,28 @@ describe("release versions", () => {
         "package.json",
         "apps/web/package.json",
         "packages/ui/package.json",
+        "apps/apple/SafariExtension/Resources/manifest.json",
       ]) {
         fs.writeFileSync(
           path.join(root, relative),
           `${JSON.stringify({ version: "1.0.60" })}\n`
         );
       }
+      const [appleProjectYml, applePbxproj] = appleVersionSources;
+      const writeAppleVersion = (version: string) => {
+        fs.writeFileSync(
+          path.join(root, appleProjectYml),
+          `settings:\n  base:\n    MARKETING_VERSION: ${version}\n`
+        );
+        fs.writeFileSync(
+          path.join(root, applePbxproj),
+          `MARKETING_VERSION = ${version};\nMARKETING_VERSION = ${version};\n`
+        );
+      };
+      expect(() => assertLockstep(root, "1.0.60")).toThrow(
+        `${appleProjectYml}: missing`
+      );
+      writeAppleVersion("1.0.60");
 
       expect(() => assertLockstep(root, "1.0.60")).toThrow(
         "apps/mac/Shared (Extension)/Resources/manifest.json: missing"
@@ -60,10 +79,7 @@ describe("release versions", () => {
         "packages/ui/package.json",
       ]);
       fs.writeFileSync(
-        path.join(
-          root,
-          "apps/mac/Shared (Extension)/Resources/manifest.json"
-        ),
+        path.join(root, "apps/mac/Shared (Extension)/Resources/manifest.json"),
         `${JSON.stringify({ version: "1.0.60" })}\n`
       );
       expect(() => assertLockstep(root, "1.0.60", null)).toThrow(
@@ -72,6 +88,7 @@ describe("release versions", () => {
       const validXcodeSource =
         "MARKETING_VERSION = 1.0.60;\nCURRENT_PROJECT_VERSION = 60;\n";
       expect(releaseManifestFiles(root)).toEqual([
+        "apps/apple/SafariExtension/Resources/manifest.json",
         "apps/mac/Shared (Extension)/Resources/manifest.json",
         "apps/web/package.json",
         "package.json",
@@ -82,6 +99,30 @@ describe("release versions", () => {
         assertLockstep(root, "1.0.60", validXcodeSource)
       ).not.toThrow();
 
+      fs.writeFileSync(
+        path.join(root, applePbxproj),
+        "MARKETING_VERSION = 1.0.60;\nMARKETING_VERSION = 1.0.59;\n"
+      );
+      expect(() => assertLockstep(root, "1.0.60", validXcodeSource)).toThrow(
+        `${applePbxproj} MARKETING_VERSION: 1.0.59`
+      );
+      fs.writeFileSync(path.join(root, appleProjectYml), "name: Teak\n");
+      expect(() => assertLockstep(root, "1.0.60", validXcodeSource)).toThrow(
+        `${appleProjectYml} MARKETING_VERSION: missing`
+      );
+      writeAppleVersion("1.0.60");
+      fs.writeFileSync(
+        path.join(root, "apps/apple/SafariExtension/Resources/manifest.json"),
+        `${JSON.stringify({ version: "1.0.59" })}\n`
+      );
+      expect(() => assertLockstep(root, "1.0.60", validXcodeSource)).toThrow(
+        "apps/apple/SafariExtension/Resources/manifest.json: 1.0.59"
+      );
+      fs.writeFileSync(
+        path.join(root, "apps/apple/SafariExtension/Resources/manifest.json"),
+        `${JSON.stringify({ version: "1.0.60" })}\n`
+      );
+
       const staleXcodeSource =
         "MARKETING_VERSION = 1.0.59;\nCURRENT_PROJECT_VERSION = 59;\n";
       expect(() => assertLockstep(root, "1.0.60", staleXcodeSource)).toThrow(
@@ -89,20 +130,14 @@ describe("release versions", () => {
       );
 
       fs.writeFileSync(
-        path.join(
-          root,
-          "apps/mac/Shared (Extension)/Resources/manifest.json"
-        ),
+        path.join(root, "apps/mac/Shared (Extension)/Resources/manifest.json"),
         `${JSON.stringify({ version: "1.0.59" })}\n`
       );
       expect(() => assertLockstep(root, "1.0.60", validXcodeSource)).toThrow(
         "apps/mac/Shared (Extension)/Resources/manifest.json: 1.0.59"
       );
       fs.writeFileSync(
-        path.join(
-          root,
-          "apps/mac/Shared (Extension)/Resources/manifest.json"
-        ),
+        path.join(root, "apps/mac/Shared (Extension)/Resources/manifest.json"),
         `${JSON.stringify({ version: "1.0.60" })}\n`
       );
 

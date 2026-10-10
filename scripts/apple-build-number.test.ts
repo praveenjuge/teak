@@ -14,8 +14,16 @@ describe("Apple build-number allocation", () => {
     expect(nextAppleBuildNumber(builds("63", "9", "64", "12"))).toBe("65");
   });
 
+  test("shares one counter across platform histories", () => {
+    expect(nextAppleBuildNumber(builds("89", "12"), builds())).toBe("90");
+    expect(nextAppleBuildNumber(builds("89"), builds("93", "91"))).toBe("94");
+  });
+
   test("fails closed for missing or non-integer history", () => {
     expect(() => nextAppleBuildNumber({})).toThrow(
+      "Expected an App Store Connect builds response"
+    );
+    expect(() => nextAppleBuildNumber(builds("89"), {})).toThrow(
       "Expected an App Store Connect builds response"
     );
     expect(() => nextAppleBuildNumber(builds("63", "1.2.3"))).toThrow(

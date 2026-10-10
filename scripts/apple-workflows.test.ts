@@ -19,6 +19,7 @@ const workflowStep = (workflow: string, name: string) => {
 describe("Apple release workflows", () => {
   const mobile = read(".github/workflows/mobile-release.yml");
   const safari = read(".github/workflows/mac-release.yml");
+  const apple = read(".github/workflows/apple-release.yml");
   const status = read(".github/workflows/apple-release-status.yml");
   const issueHelper = read("scripts/apple-release-issue.mjs");
   const latestReview = read("scripts/apple-latest-review.mjs");
@@ -34,6 +35,7 @@ describe("Apple release workflows", () => {
     for (const [workflow, version] of [
       [mobile, "3.6.1"],
       [safari, "5.9.1"],
+      [apple, "5.14.0"],
       [status, "3.6.1"],
     ]) {
       expect(workflow).toContain(`ASC_VERSION: "${version}"`);
@@ -165,7 +167,7 @@ describe("Apple release workflows", () => {
   });
 
   test("permits mutation only from the exact tag or current main", () => {
-    for (const workflow of [mobile, safari]) {
+    for (const workflow of [mobile, safari, apple]) {
       expect(workflow).toContain('release_tag="v$VERSION"');
       expect(workflow).toContain('"refs/tags/$release_tag")');
       expect(workflow).toContain("refs/heads/main)");
@@ -195,11 +197,20 @@ describe("Apple release workflows", () => {
       "sdk-release.yml",
       "cli-release.yml",
       "extension-release.yml",
-      "mobile-release.yml",
+      "apple-release.yml",
       "mac-release.yml",
     ]) {
       expect(versionTag).toContain(`workflow: ${workflow}`);
     }
+    // Expo is frozen: the native Apple app ships iPhone and iPad instead.
+    expect(versionTag).not.toContain("workflow: mobile-release.yml");
+    expect(versionTag).toContain(
+      "title_prefix: Apple iOS\n            platforms: ios"
+    );
+    expect(versionTag).toContain('-f "platforms=$APPLE_PLATFORMS"');
+    expect(apple).toContain(
+      `run-name: Apple ${expression("inputs.platforms == 'both' && 'iOS + Mac' || inputs.platforms == 'macos' && 'Mac' || 'iOS'")} ${expression("inputs.version")}`
+    );
     expect(versionTag).toContain(
       'gh workflow run "$WORKFLOW" --repo "$GITHUB_REPOSITORY"'
     );
@@ -241,7 +252,7 @@ describe("Apple release workflows", () => {
   });
 
   test("makes the newest package version replace an older Apple review", () => {
-    for (const workflow of [mobile, safari]) {
+    for (const workflow of [mobile, safari, apple]) {
       const releaseState = workflowStep(
         workflow,
         "Resolve current Apple release state"
@@ -260,7 +271,7 @@ describe("Apple release workflows", () => {
   });
 
   test("publishes replayable proof manifests after exact read-only verification", () => {
-    for (const workflow of [mobile, safari]) {
+    for (const workflow of [mobile, safari, apple]) {
       expect(workflow).toContain("apple-release-proof.mjs verify");
       expect(workflow).toContain('asc builds info --build-id "$build_id"');
       expect(workflow).toContain(
@@ -277,6 +288,103 @@ describe("Apple release workflows", () => {
     );
   });
 
+  test("ships the native app per platform from one archive-and-submit flow", () => {
+    expect(apple).toContain(
+      "options:\n          - ios\n          - macos\n          - both"
+    );
+    expect(apple).toContain("default: ios");
+    expect(apple).toContain("dry_run:");
+    expect(apple).toContain("runs-on: macos-26");
+    expect(apple).toContain("if: inputs.dry_run == false");
+    expect(apple).toContain("max-parallel: 1");
+    // One App Store app, so share mobile-release's app-wide serialization.
+    expect(apple).toContain(
+      `group: mobile-app-store-ios-${expression("github.repository")}`
+    );
+    expect(apple).toContain('ASC_APP_ID: "6756574989"');
+    expect(apple).toContain("PROJECT_PATH: apps/apple/Teak.xcodeproj");
+    expect(apple).toContain("SCHEME_NAME: Teak");
+    expect(apple).toContain('"destination":"generic/platform=iOS"');
+    expect(apple).toContain('"destination":"generic/platform=macOS"');
+    expect(apple).toContain("method string app-store-connect");
+    expect(apple).toContain("manageAppVersionAndBuildNumber bool false");
+    expect(apple).toContain(
+      'ensure_certificate "IOS_DISTRIBUTION" "IOS_DISTRIBUTION"'
+    );
+    expect(apple).toContain("MAC_INSTALLER_DISTRIBUTION");
+    expect(apple).not.toContain("expo prebuild");
+    expect(apple).not.toContain("pod install");
+  });
+
+  test("allocates one build-number counter above the Expo history", () => {
+    const buildState = workflowStep(
+      apple,
+      "Reuse an exact valid build or allocate the next Apple build number"
+    );
+    expect(buildState).toContain("--platform IOS --paginate");
+    expect(buildState).toContain("--platform MAC_OS --paginate");
+    expect(buildState).toContain(
+      'node scripts/apple-build-number.mjs "$RUNNER_TEMP/apple-ios-all-builds.json" "$RUNNER_TEMP/apple-macos-all-builds.json"'
+    );
+    expect(buildState).toContain("asc builds next-build-number");
+    expect(buildState).toContain(
+      '[ "$build_number" -lt "$MINIMUM_BUILD_NUMBER" ]'
+    );
+    expect(apple).toContain('MINIMUM_BUILD_NUMBER: "90"');
+  });
+
+  test("verifies every signed bundle before it leaves the macOS runner", () => {
+    const verify = workflowStep(
+      apple,
+      "Verify the signed package identity, versions, entitlements, profiles, and signatures"
+    );
+    for (const expected of [
+      "pkgutil --check-signature",
+      "CFBundleShortVersionString",
+      "CFBundleVersion",
+      "TeakConvexURL",
+      "TeakSentryDSN",
+      "keychain-access-groups:0",
+      "com.apple.security.application-groups:0",
+      "com.apple.security.app-sandbox",
+      "embedded.mobileprovision",
+      "Contents/embedded.provisionprofile",
+      "codesign --verify --deep --strict",
+      '"$SHARE_EXTENSION_BUNDLE_ID"|"$SAFARI_EXTENSION_BUNDLE_ID"',
+    ]) {
+      expect(verify).toContain(expected);
+    }
+    const handoff = workflowStep(apple, "Verify signed package handoff");
+    expect(handoff).toContain("Signed package handoff digest mismatch");
+    expect(apple.indexOf("Upload dSYMs to Sentry")).toBeLessThan(
+      apple.indexOf("  submit:")
+    );
+  });
+
+  test("uploads dSYMs to teak-apple-prod and skips only without a token", () => {
+    const sentry = workflowStep(apple, "Upload dSYMs to Sentry");
+    expect(apple).toContain("SENTRY_ORG: teakvault");
+    expect(apple).toContain("SENTRY_PROJECT: teak-apple-prod");
+    expect(sentry).toContain("debug-files upload");
+    expect(sentry).toContain('if [ -z "$SENTRY_AUTH_TOKEN" ]; then');
+    expect(sentry).toContain("::warning::");
+  });
+
+  test("applies the shared listing and skips empty screenshot sets", () => {
+    const listing = workflowStep(
+      apple,
+      "Apply and verify the App Store listing and screenshots"
+    );
+    expect(listing).toContain(
+      'bash apps/apple/scripts/apply-store-metadata.sh "$ASC_APP_ID" "$VERSION_ID" "$PLATFORM" "$first_version" "$RELEASE_NOTES"'
+    );
+    const script = read("apps/apple/scripts/apply-store-metadata.sh");
+    expect(script).toContain('if [ "${#pngs[@]}" -eq 0 ]; then');
+    expect(script).toContain(
+      'bash scripts/store-assets/publish-apple.sh "apple-$set_name" "$VERSION_ID"'
+    );
+  });
+
   test("reuses Apple builds only with exact canonical provenance", () => {
     expect(mobile).toContain(
       'manifest_name="teak-ios-$VERSION-app-store.json"'
@@ -289,7 +397,10 @@ describe("Apple release workflows", () => {
     );
     expect(safari).toContain('actual_sha="$(shasum -a 256 "$reusable_pkg"');
     expect(safari).toContain('[ "$actual_sha" != "$expected_sha" ]');
-    for (const workflow of [mobile, safari]) {
+    expect(apple).toContain(
+      'manifest_name="teak-apple-$SLUG-$VERSION-app-store.json"'
+    );
+    for (const workflow of [mobile, safari, apple]) {
       expect(workflow).toContain('reuse=false\n            build_id=""');
     }
   });
@@ -299,6 +410,7 @@ describe("Apple release workflows", () => {
     for (const workflow of [
       mobile,
       safari,
+      apple,
       status,
       versionTag,
       ...productReleases,
@@ -323,7 +435,7 @@ describe("Apple release workflows", () => {
               and ([.blockingChecks[]?.id] == ["version.state.editable"])
             '`;
 
-    for (const workflow of [mobile, safari]) {
+    for (const workflow of [mobile, safari, apple]) {
       expect(workflow.split(exactAttachRecovery)).toHaveLength(2);
       expect(workflow).toContain(
         'asc versions view --version-id "$VERSION_ID" --include-build'
@@ -343,9 +455,10 @@ describe("Apple release workflows", () => {
   });
 
   test("serializes failure deduplication by version", () => {
-    for (const workflow of [mobile, safari, status]) {
+    for (const workflow of [mobile, safari, apple, status]) {
       expect(workflow).toContain("apple-release-issue-");
     }
+    expect(apple).toContain("--workflow-file apple-release.yml");
     expect(mobile).toContain("apple-release-issue.mjs failure");
     expect(safari).toContain("apple-release-issue.mjs failure");
     expect(issueHelper).toContain("--ref main");

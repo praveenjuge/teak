@@ -111,10 +111,13 @@ jobs:
             workflow: extension-release.yml
             apple: false
             title_prefix: ""
-          - name: iOS
-            workflow: mobile-release.yml
+          # The Expo iPhone app (mobile-release.yml) is frozen; the native
+          # Apple app ships iPhone and iPad until its Mac launch.
+          - name: Apple
+            workflow: apple-release.yml
             apple: true
-            title_prefix: iOS
+            title_prefix: Apple iOS
+            platforms: ios
           - name: Mac
             workflow: mac-release.yml
             apple: true
@@ -128,6 +131,7 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           APPLE_WORKFLOW: ${{ matrix.apple }}
+          APPLE_PLATFORMS: ${{ matrix.platforms }}
           EXPECTED_TITLE: ${{ matrix.title_prefix && format('{0} {1} (release)', matrix.title_prefix, needs.tag-version.outputs.version) || '' }}
           TAG_COMMIT: ${{ needs.tag-version.outputs.tag_commit }}
           TAG_NAME: ${{ needs.tag-version.outputs.tag }}
@@ -165,7 +169,9 @@ jobs:
 
           dispatched_at="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
           if [ "$APPLE_WORKFLOW" = "true" ]; then
-            gh workflow run "$WORKFLOW" --repo "$GITHUB_REPOSITORY" --ref "$TAG_NAME" -f "version=$VERSION" -f dry_run=false
+            platform_args=()
+            if [ -n "$APPLE_PLATFORMS" ]; then platform_args=(-f "platforms=$APPLE_PLATFORMS"); fi
+            gh workflow run "$WORKFLOW" --repo "$GITHUB_REPOSITORY" --ref "$TAG_NAME" -f "version=$VERSION" "${platform_args[@]}" -f dry_run=false
           else
             gh workflow run "$WORKFLOW" --repo "$GITHUB_REPOSITORY" --ref "$TAG_NAME"
           fi
