@@ -2,6 +2,7 @@ package com.praveenjuge.teak.feature.settings
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.praveenjuge.teak.core.data.TeakConfig
 import com.praveenjuge.teak.core.data.auth.SessionState
 import com.praveenjuge.teak.core.data.prefs.PreferencesRepository
 import com.praveenjuge.teak.core.data.prefs.ThemePreference
@@ -39,7 +40,11 @@ data class SettingsUiState(
 class SettingsViewModel @Inject constructor(
     private val account: AccountRepository,
     private val preferences: PreferencesRepository,
+    config: TeakConfig,
 ) : ViewModel() {
+    /** Shown under About. */
+    val versionName: String = config.versionName
+
     private val local = MutableStateFlow(SettingsUiState())
 
     val uiState: StateFlow<SettingsUiState> = combine(

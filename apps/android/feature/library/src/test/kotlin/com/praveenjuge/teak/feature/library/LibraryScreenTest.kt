@@ -51,7 +51,7 @@ class LibraryScreenTest {
             LibraryActions(onOpenCard = { opened = it }),
         )
 
-        composeRule.onNodeWithContentDescription("Text, Buy milk").performClick()
+        composeRule.onNodeWithContentDescription("Note, Buy milk").performClick()
 
         assertEquals("n1", opened)
     }

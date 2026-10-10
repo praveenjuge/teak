@@ -3,7 +3,6 @@ package com.praveenjuge.teak.feature.auth
 import android.content.Context
 import android.net.Uri
 import androidx.browser.customtabs.CustomTabsIntent
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -20,16 +19,14 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
+import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LoadingIndicator
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -38,8 +35,6 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.semantics.clearAndSetSemantics
@@ -143,33 +138,12 @@ private fun SignInOptions(state: WelcomeUiState, onSignIn: (SignInMethod) -> Uni
     fun label(method: SignInMethod, text: String) = if (state.pending == method) "Signing in…" else text
 
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        // Apple asks for a black button (white in dark mode); Google for a neutral one with its G.
-        Button(
-            onClick = { onSignIn(SignInMethod.Apple) },
-            enabled = !busy,
-            shape = ButtonShape,
-            colors = if (MaterialTheme.colorScheme.surface.luminance() < 0.5f) {
-                ButtonDefaults.buttonColors(containerColor = Color.White, contentColor = Color.Black)
-            } else {
-                ButtonDefaults.buttonColors(containerColor = Color.Black, contentColor = Color.White)
-            },
-            modifier = Modifier.fillMaxWidth().height(56.dp),
-        ) {
-            Icon(painterResource(R.drawable.ic_apple), contentDescription = null, modifier = Modifier.size(18.dp))
-            Spacer(Modifier.width(12.dp))
-            Text(label(SignInMethod.Apple, "Continue with Apple"), style = ButtonText)
-        }
-        OutlinedButton(
-            onClick = { onSignIn(SignInMethod.Google) },
-            enabled = !busy,
-            shape = ButtonShape,
-            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
-            colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.onSurface),
-            modifier = Modifier.fillMaxWidth().height(56.dp),
-        ) {
+        // Neutral pills, like Teak's secondary buttons on the web: the wordmark is the only red here.
+        ProviderButton(label(SignInMethod.Google, "Continue with Google"), enabled = !busy, onClick = { onSignIn(SignInMethod.Google) }) {
             Image(painterResource(R.drawable.ic_google_g), contentDescription = null, modifier = Modifier.size(18.dp))
-            Spacer(Modifier.width(12.dp))
-            Text(label(SignInMethod.Google, "Continue with Google"), style = ButtonText)
+        }
+        ProviderButton(label(SignInMethod.Apple, "Continue with Apple"), enabled = !busy, onClick = { onSignIn(SignInMethod.Apple) }) {
+            Icon(painterResource(R.drawable.ic_apple), contentDescription = null, modifier = Modifier.size(18.dp))
         }
         if (state.signupsDisabled) {
             Text(
@@ -203,13 +177,33 @@ private fun SignInOptions(state: WelcomeUiState, onSignIn: (SignInMethod) -> Uni
 }
 
 @Composable
-private fun EmailLink(text: String, enabled: Boolean, onClick: () -> Unit) {
-    TextButton(onClick = onClick, enabled = enabled, modifier = Modifier.heightIn(min = 48.dp)) {
-        Text(text, style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.SemiBold))
+private fun ProviderButton(text: String, enabled: Boolean, onClick: () -> Unit, icon: @Composable () -> Unit) {
+    FilledTonalButton(
+        onClick = onClick,
+        enabled = enabled,
+        colors = ButtonDefaults.filledTonalButtonColors(
+            containerColor = MaterialTheme.colorScheme.surfaceContainerHighest,
+            contentColor = MaterialTheme.colorScheme.onSurface,
+        ),
+        modifier = Modifier.fillMaxWidth().height(54.dp),
+    ) {
+        icon()
+        Spacer(Modifier.width(12.dp))
+        Text(text, style = ButtonText)
     }
 }
 
-private val ButtonShape = RoundedCornerShape(16.dp)
+@Composable
+private fun EmailLink(text: String, enabled: Boolean, onClick: () -> Unit) {
+    TextButton(
+        onClick = onClick,
+        enabled = enabled,
+        colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.onSurfaceVariant),
+        modifier = Modifier.heightIn(min = 48.dp),
+    ) {
+        Text(text, style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Medium))
+    }
+}
 
 private val ButtonText: TextStyle
-    @Composable get() = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.SemiBold)
+    @Composable get() = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Medium)

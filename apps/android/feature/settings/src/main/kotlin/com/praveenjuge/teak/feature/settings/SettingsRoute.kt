@@ -1,8 +1,5 @@
 package com.praveenjuge.teak.feature.settings
 
-import android.content.Context
-import android.content.pm.PackageManager
-import android.net.Uri
 import androidx.browser.customtabs.CustomTabsIntent
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Column
@@ -38,7 +35,6 @@ import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.rememberTopAppBarState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.nestedscroll.nestedScroll
@@ -46,6 +42,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
+import androidx.core.net.toUri
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.praveenjuge.teak.core.data.prefs.ThemePreference
@@ -58,7 +55,7 @@ fun SettingsRoute(viewModel: SettingsViewModel = hiltViewModel()) {
     val context = LocalContext.current
     SettingsScreen(
         state = state,
-        versionName = remember(context) { context.versionName() },
+        versionName = viewModel.versionName,
         onThemeChange = viewModel::setTheme,
         onSignOut = viewModel::requestSignOut,
         onConfirmSignOut = viewModel::signOut,
@@ -68,14 +65,8 @@ fun SettingsRoute(viewModel: SettingsViewModel = hiltViewModel()) {
         onConfirmDelete = viewModel::confirmDelete,
         onCancelDelete = viewModel::cancelDelete,
         onDismissError = viewModel::dismissError,
-        onOpenLink = { url -> CustomTabsIntent.Builder().build().launchUrl(context, Uri.parse(url)) },
+        onOpenLink = { url -> CustomTabsIntent.Builder().build().launchUrl(context, url.toUri()) },
     )
-}
-
-private fun Context.versionName(): String = try {
-    packageManager.getPackageInfo(packageName, PackageManager.PackageInfoFlags.of(0)).versionName.orEmpty()
-} catch (e: PackageManager.NameNotFoundException) {
-    ""
 }
 
 @OptIn(ExperimentalMaterial3Api::class)

@@ -1,5 +1,6 @@
 package com.praveenjuge.teak.feature.settings
 
+import com.praveenjuge.teak.core.data.TeakConfig
 import com.praveenjuge.teak.core.data.prefs.ThemePreference
 import com.praveenjuge.teak.core.model.AuthMode
 import com.praveenjuge.teak.core.model.CurrentUser
@@ -23,7 +24,7 @@ class SettingsViewModelTest {
     private val account = FakeAccountRepository()
     private val preferences = FakePreferencesRepository()
 
-    private fun newViewModel() = SettingsViewModel(account, preferences)
+    private fun newViewModel() = SettingsViewModel(account, preferences, TeakConfig("https://test.convex.cloud", "1.0.85", isDebug = true))
 
     @Test
     fun `shows usage out of the free limit and the plan`() = runTest {
