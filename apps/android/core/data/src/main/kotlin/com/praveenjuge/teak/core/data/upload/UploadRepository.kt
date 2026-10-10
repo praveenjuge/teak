@@ -11,6 +11,7 @@ import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.WorkInfo
 import androidx.work.WorkManager
 import androidx.work.workDataOf
+import com.praveenjuge.teak.core.data.convex.TeakException
 import com.praveenjuge.teak.core.model.MAX_FILE_SIZE
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
@@ -106,6 +107,7 @@ class WorkManagerUploadRepository @Inject constructor(
                 .setConstraints(Constraints.Builder().setRequiredNetworkType(NetworkType.CONNECTED).build())
                 .addTag(UploadWorker.TAG)
                 .addTag(UploadWorker.NAME_TAG_PREFIX + file.fileName)
+                .addTag(UploadWorker.PATH_TAG_PREFIX + file.path)
                 .build()
             // One at a time, in order, like iOS. A full card limit stops the rest of the queue.
             workManager.enqueueUniqueWork(UploadWorker.QUEUE, ExistingWorkPolicy.APPEND_OR_REPLACE, request)
@@ -121,6 +123,8 @@ class WorkManagerUploadRepository @Inject constructor(
 
     private fun status(info: WorkInfo): UploadStatus {
         val output = info.outputData
+        // An upload that fails with no output of its own never ran: one before it hit the card limit.
+        val skipped = info.state == WorkInfo.State.FAILED && output.getString(UploadWorker.OUT_ERROR) == null
         val failed = info.state == WorkInfo.State.FAILED || output.getString(UploadWorker.OUT_ERROR) != null
         val state = when {
             info.state == WorkInfo.State.CANCELLED -> UploadStatus.State.Failed
@@ -137,8 +141,8 @@ class WorkManagerUploadRepository @Inject constructor(
                 ?: "File",
             state = state,
             progress = info.progress.getFloat(UploadWorker.KEY_PROGRESS, if (state == UploadStatus.State.Saved) 1f else 0f),
-            error = output.getString(UploadWorker.OUT_ERROR),
-            errorCode = output.getString(UploadWorker.OUT_ERROR_CODE),
+            error = if (skipped) SKIPPED_AT_LIMIT else output.getString(UploadWorker.OUT_ERROR),
+            errorCode = if (skipped) TeakException.CARD_LIMIT_REACHED else output.getString(UploadWorker.OUT_ERROR_CODE),
         )
     }
 
@@ -178,6 +182,7 @@ class WorkManagerUploadRepository @Inject constructor(
             ?: "upload_${System.currentTimeMillis()}"
 
     private companion object {
+        const val SKIPPED_AT_LIMIT = "Not uploaded because you've reached your card limit."
         val GENERIC = setOf("application/octet-stream", "binary/octet-stream", "application/unknown", "*/*")
     }
 }

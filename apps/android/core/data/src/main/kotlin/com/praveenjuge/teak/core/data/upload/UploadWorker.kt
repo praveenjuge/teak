@@ -8,12 +8,14 @@ import androidx.core.app.NotificationCompat
 import androidx.hilt.work.HiltWorker
 import androidx.work.CoroutineWorker
 import androidx.work.ForegroundInfo
+import androidx.work.WorkManager
 import androidx.work.WorkerParameters
 import androidx.work.workDataOf
 import com.praveenjuge.teak.core.data.R
 import com.praveenjuge.teak.core.data.convex.TeakException
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedInject
+import kotlinx.coroutines.flow.first
 import kotlinx.serialization.json.Json
 import java.io.File
 
@@ -57,13 +59,30 @@ class UploadWorker @AssistedInject constructor(
             if (e.code == TeakException.OFFLINE && runAttemptCount < MAX_RETRIES) return Result.retry()
             cleanUp(path)
             val output = workDataOf(OUT_NAME to name, OUT_ERROR to e.message, OUT_ERROR_CODE to e.code)
-            // A full vault stops the rest of the queue; any other failure lets the next file go.
-            if (e.code == TeakException.CARD_LIMIT_REACHED) Result.failure(output) else Result.success(output)
+            // A full vault stops the rest of the queue, like iOS; any other failure lets the next file go.
+            if (e.code == TeakException.CARD_LIMIT_REACHED) {
+                cleanUpQueuedBehind()
+                Result.failure(output)
+            } else {
+                Result.success(output)
+            }
         }
     }
 
     override suspend fun getForegroundInfo(): ForegroundInfo =
         foregroundInfo(inputData.getString(KEY_NAME) ?: "File", 0f)
+
+    /**
+     * Failing this upload fails every upload waiting behind it without running them, so their staged
+     * copies would never be deleted. Delete them now.
+     */
+    private suspend fun cleanUpQueuedBehind() {
+        WorkManager.getInstance(applicationContext).getWorkInfosForUniqueWorkFlow(QUEUE).first()
+            .filter { it.id != id && !it.state.isFinished }
+            .forEach { info ->
+                info.tags.firstOrNull { it.startsWith(PATH_TAG_PREFIX) }?.let { cleanUp(it.removePrefix(PATH_TAG_PREFIX)) }
+            }
+    }
 
     private fun cleanUp(path: String) {
         File(path).parentFile?.takeIf { it.parentFile?.name == "uploads" }?.deleteRecursively()
@@ -115,6 +134,9 @@ class UploadWorker @AssistedInject constructor(
 
         /** Tags each upload with its file name, so waiting uploads can show it. */
         const val NAME_TAG_PREFIX = "teak-upload-name:"
+
+        /** Tags each upload with its staged copy, so uploads that never run can still delete it. */
+        const val PATH_TAG_PREFIX = "teak-upload-path:"
         private const val CHANNEL_ID = "uploads"
         private const val NOTIFICATION_ID = 4101
         private const val MAX_RETRIES = 3
