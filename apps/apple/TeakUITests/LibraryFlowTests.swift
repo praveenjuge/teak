@@ -222,6 +222,40 @@ final class LibraryFlowTests: XCTestCase {
         tile(containing: second).waitToAppear()
     }
 
+    #if os(macOS)
+    /// The Mac sidebar opens Add, filters the library by view and type, and
+    /// opens Settings; the toolbar's Add menu writes a note.
+    @MainActor
+    func testMacSidebarAndAddMenu() async throws {
+        try await start()
+        let note = marker("side")
+        save("Sidebar \(note)", expecting: note)
+        save("https://example.org/\(marker("side"))", expecting: "example.org")
+        let sidebar = app.outlines.firstMatch
+
+        tap(sidebar.staticTexts["Links"].waitToAppear())
+        tile(containing: "example.org").waitToAppear()
+        tile(containing: note).waitToDisappear()
+
+        tap(sidebar.staticTexts["Add"])
+        app.buttons["Note or Link"].firstMatch.waitToAppear()
+
+        tap(sidebar.staticTexts["Home"])
+        tile(containing: note).waitToAppear()
+
+        tap(app.menuButtons["library.add"].firstMatch)
+        tap(app.menuButtons["library.add"].menuItems["New Note"].firstMatch.waitToAppear())
+        let editor = app.textViews["composer.text"].waitToAppear()
+        let menuNote = marker("menu")
+        enter(menuNote, into: editor)
+        tap(app.buttons["composer.save"])
+        tile(containing: menuNote).waitToAppear(20)
+
+        tap(app.buttons["Settings"].firstMatch.waitToAppear())
+        app.buttons["settings.logOut"].firstMatch.waitToAppear()
+    }
+    #endif
+
     @MainActor
     func testLogOutReturnsToWelcome() async throws {
         try await start()

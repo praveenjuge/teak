@@ -39,9 +39,15 @@ struct TeakCommands: Commands {
                 .keyboardShortcut("a", modifiers: [.command, .shift])
                 .disabled(!signedIn)
             Divider()
-            Button("Show Favorites") { services.home.filters.favoritesOnly.toggle() }
+            Button("Show Favorites") {
+                services.home.filters.favoritesOnly.toggle()
+                services.router.tab = .home
+            }
                 .disabled(!signedIn)
-            Button("Show Trash") { services.home.filters.trashOnly.toggle() }
+            Button("Show Trash") {
+                services.home.filters.trashOnly.toggle()
+                services.router.tab = .home
+            }
                 .disabled(!signedIn)
         }
     }

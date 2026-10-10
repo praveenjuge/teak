@@ -259,6 +259,16 @@ struct LibraryView: View {
                 Button("Select All") { library.selectAll() }
             }
         } else {
+            #if os(macOS)
+            ToolbarItem {
+                Menu("Add", systemImage: "plus") {
+                    Button("New Note", systemImage: "square.and.pencil") { router.compose() }
+                    Button("Voice Memo", systemImage: "mic") { router.isRecording = true }
+                    Button("Upload Files…", systemImage: "arrow.up.doc") { router.isImportingFiles = true }
+                }
+                .accessibilityIdentifier("library.add")
+            }
+            #endif
             ToolbarItem {
                 Button("Select", systemImage: "checkmark.circle") { library.beginSelection() }
                     .accessibilityLabel("Select cards")

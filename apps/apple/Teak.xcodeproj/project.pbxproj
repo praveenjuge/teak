@@ -52,6 +52,7 @@
 		AE8769CA0B4D22B2F28E644E /* SignInTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FAAA31B47AA2D7E2A831C533 /* SignInTests.swift */; };
 		AF55BC39EBC04C40378BB4FD /* CardPreviews.swift in Sources */ = {isa = PBXBuildFile; fileRef = 86D536980FFE491122D6407C /* CardPreviews.swift */; };
 		BA6AA56ECC778EF921A6A451 /* Sentry in Frameworks */ = {isa = PBXBuildFile; productRef = 963D7F2969365C350660C972 /* Sentry */; };
+		C16267AFFBE1A76B9088D866 /* MacSidebar.swift in Sources */ = {isa = PBXBuildFile; fileRef = 239A463CABB7F47418470BD6 /* MacSidebar.swift */; };
 		C83C290350B432DEC81C2DA8 /* CardDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 13C31EB7F1B7572867D99BCC /* CardDetailView.swift */; };
 		DA5B5FBF30F1B93E2DEA8EA3 /* VoiceMemoView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 76D800F04BFC3FD19DA1FF4B /* VoiceMemoView.swift */; };
 		DC36BB48B0EBCCE205D7A0C9 /* SafariExtensionSection.swift in Sources */ = {isa = PBXBuildFile; fileRef = 91A3A8E4246126162ECD4292 /* SafariExtensionSection.swift */; };
@@ -113,6 +114,7 @@
 		1241428612C78B46F9261153 /* RemoteImage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RemoteImage.swift; sourceTree = "<group>"; };
 		13C31EB7F1B7572867D99BCC /* CardDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CardDetailView.swift; sourceTree = "<group>"; };
 		186BE1B031F07346B9A04E99 /* AppRouter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppRouter.swift; sourceTree = "<group>"; };
+		239A463CABB7F47418470BD6 /* MacSidebar.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MacSidebar.swift; sourceTree = "<group>"; };
 		30BD656D74E8D555D4EC2E21 /* TeakCommands.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TeakCommands.swift; sourceTree = "<group>"; };
 		310894E9752F13554268C5D7 /* background.js */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.javascript; path = background.js; sourceTree = "<group>"; };
 		33E8EAB38FCCC721B42D58D4 /* ShareExtension.appex */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = "wrapper.app-extension"; path = ShareExtension.appex; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -204,6 +206,7 @@
 			isa = PBXGroup;
 			children = (
 				7E6D07D7E008E4C2F978F868 /* MacCapture.swift */,
+				239A463CABB7F47418470BD6 /* MacSidebar.swift */,
 			);
 			path = macOS;
 			sourceTree = "<group>";
@@ -624,6 +627,7 @@
 				00895B5374DF8CD81E3AFCDF /* LibraryModel.swift in Sources */,
 				4D2C4E4BAA75709A532DCE88 /* LibraryView.swift in Sources */,
 				F57E7B79CB437525A78F20B5 /* MacCapture.swift in Sources */,
+				C16267AFFBE1A76B9088D866 /* MacSidebar.swift in Sources */,
 				F36056B9A07A44FACCC5142B /* MarkdownView.swift in Sources */,
 				7371FA16E076E1E3112BEFA1 /* NoteComposerView.swift in Sources */,
 				E703EDE9EC3246A9A56F778F /* Platform.swift in Sources */,

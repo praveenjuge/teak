@@ -40,18 +40,23 @@ struct RootView: View {
     }
 }
 
-/// Home, Favorites, Trash, Add and Settings: a tab bar on iPhone and a sidebar on iPad and Mac.
+/// Home, Add and Settings tabs on iPhone and iPad; the library sidebar on the Mac.
 struct MainView: View {
     @Environment(AppRouter.self) private var router
     @Environment(CaptureModel.self) private var capture
     @Namespace private var namespace
 
+    #if os(iOS)
     /// Add stands apart from the other tabs where the system supports it.
     private var addRole: TabRole? {
-        if #available(iOS 27, macOS 27, *) { .prominent } else { nil }
+        if #available(iOS 27, *) { .prominent } else { nil }
     }
+    #endif
 
-    var body: some View {
+    @ViewBuilder private var content: some View {
+        #if os(macOS)
+        MacMainView(namespace: namespace)
+        #else
         @Bindable var router = router
         let services = AppServices.shared
         TabView(selection: $router.tab) {
@@ -61,17 +66,22 @@ struct MainView: View {
             Tab("Add", systemImage: "plus.circle", value: AppTab.add, role: addRole) {
                 NavigationStack { AddView() }
             }
-            #if os(iOS)
             Tab("Settings", systemImage: "gearshape", value: AppTab.settings) {
                 NavigationStack { SettingsView() }
             }
-            #endif
         }
         .tabViewStyle(.sidebarAdaptable)
+        #endif
+    }
+
+    var body: some View {
+        @Bindable var router = router
+        content
         #if os(iOS)
         .tabBarMinimizeBehavior(.onScrollDown)
         #endif
         .sheet(isPresented: $router.isComposing) { NoteComposerView() }
+
         .sheet(isPresented: $router.isRecording) { VoiceMemoView() }
         .fileImporter(isPresented: $router.isImportingFiles, allowedContentTypes: [.item], allowsMultipleSelection: true) { result in
             if case let .success(urls) = result { Task { await capture.uploadPicked(urls) } }
