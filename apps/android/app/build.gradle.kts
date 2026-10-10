@@ -73,6 +73,16 @@ android {
         resValues = true
     }
 
+    testOptions {
+        // An Android 17 phone with 16 KB memory pages, like the devices Play now requires support for.
+        // Run with ./gradlew :app:pixel9Api37DebugAndroidTest
+        managedDevices.localDevices.create("pixel9Api37") {
+            device = "Pixel 9"
+            apiLevel = 37
+            systemImageSource = "google_apis_playstore_ps16k"
+        }
+    }
+
     packaging {
         resources.excludes += setOf("/META-INF/{AL2.0,LGPL2.1}", "META-INF/versions/9/OSGI-INF/MANIFEST.MF")
         // Keep native libraries uncompressed and page-aligned so they load from 16 KB-page devices.
@@ -125,6 +135,13 @@ dependencies {
     implementation(libs.kotlinx.serialization.json)
     implementation(libs.sentry.android)
     baselineProfile(project(":baselineprofile"))
+
+    androidTestImplementation(platform(libs.androidx.compose.bom))
+    androidTestImplementation(libs.androidx.compose.ui.test.junit4)
+    androidTestImplementation(libs.androidx.test.ext.junit)
+    androidTestImplementation(libs.androidx.test.runner)
+    androidTestImplementation(libs.androidx.test.espresso.core)
+    debugImplementation(libs.androidx.compose.ui.test.manifest)
 
     testImplementation(project(":core:testing"))
     testImplementation(libs.robolectric)
