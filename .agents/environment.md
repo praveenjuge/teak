@@ -75,7 +75,7 @@ Convex Node actions execute under the system Node runtime, which is why Node
 is pinned alongside Bun. Bun's `process.version` reports compatibility, not
 the toolchain, so the version probes shell out to `node --version`.
 
-## The shared dev deployment, worktrees and the WorkOS emulator
+## The shared dev deployment and worktrees
 
 `bun run dev` and `bun run setup` connect every checkout to the shared cloud
 dev deployment (`scripts/dev-deployment.ts`; see `.agents/development.md`):
@@ -89,31 +89,19 @@ ports (`scripts/worktree-env.ts`); only the push-lease holder pushes backend
 code (`packages/convex/devPushLease.ts`).
 
 Setup never overwrites a value a person set. It does refresh generated values:
-loopback URLs left by an earlier local stack or other ports, and the WorkOS
+loopback URLs left by an earlier E2E run or other ports, and the WorkOS
 credentials it syncs from the deployment.
 
-Only the E2E suite runs a local Convex backend and the local WorkOS emulator,
-with the emulator's test-only values (`packages/tests/src/stack/config.ts`).
-`bun run setup --target e2e` points `packages/convex/.env.local` at that local
-backend and sets the emulator values on it; the E2E stack passes the web app
-its settings as process environment, so `apps/web/.env.local` keeps the dev
-wiring. A local backend's auth config reads `WORKOS_API_BASE_URL`, and Convex
-refuses an auth config that reads an unset variable, so the E2E setup always
-sets it to the emulator's loopback origin. Ports are passed to `convex dev`
-with its `--local-cloud-port` and `--local-site-port` flags, which the Convex
-CLI hides but supports.
-
-Local backends keep their state in `packages/convex/.convex`, inside the
-functions directory, so `convex dev` would rescan the backend's own writes and
-push forever. Setup writes a `.convex/convex.config.ts` marker, which the CLI
-treats as a directory to skip.
+There is no local backend for development. The E2E suite alone runs one, with
+the WorkOS emulator, and owns all of its configuration
+(`packages/tests/README.md`).
 
 ## Stable values live in code, not configuration
 
 Values that do not vary by deployment are typed code with an environment
 override, not required inputs. The pattern is a code default plus an optional
 override: `scripts/build-metadata.ts` derives release IDs from provider
-metadata with a `GIT_SHA` override. The E2E stack's WorkOS emulator values are
+metadata with a `GIT_SHA` override. The E2E suite's WorkOS emulator values are
 plain constants in `packages/tests/src/stack/config.ts`. Do not add a contract entry
 for a value that is constant across deployments.
 
@@ -132,7 +120,7 @@ for a value that is constant across deployments.
 
 - `bun run audit:env`: contract-vs-repo audit plus the dotenv audit.
 - `bun run scripts/dotenv-audit.ts [--json]`: local dotenv state, names only.
-- `bun run doctor --target <t> --profile <p> --json`: readiness with stable
+- `bun run doctor --target <t> --json`: readiness with stable
   check IDs, remediations, and redacted output safe to attach to bug reports.
 - `bun run scripts/env-contract-report.ts [--json]`: baseline metrics and
   per-target manual-supply counts.

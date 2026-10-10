@@ -409,6 +409,44 @@ describe("card/createCard.ts", () => {
     );
   });
 
+  test("saves a composer-escaped bare URL as a clean link card", async () => {
+    const ctx = withTestSession({
+      runMutation: mock().mockResolvedValue({ ok: true }),
+      auth: { getUserIdentity: mock().mockResolvedValue({ subject: "u1" }) },
+      db: {
+        get: mock().mockResolvedValue({
+          _id: "c1",
+          userId: "u1",
+          type: "link",
+          content: "Card",
+          createdAt: 1,
+          updatedAt: 1,
+        }),
+        system: { get: mock().mockResolvedValue(null) },
+        query: mock().mockReturnValue({
+          withIndex: mock().mockReturnValue({
+            collect: mock().mockResolvedValue([]),
+            take: mock().mockResolvedValue([]),
+            unique: mock().mockResolvedValue(null),
+          }),
+        }),
+        insert: mock().mockResolvedValue("c_link_escaped"),
+      },
+      scheduler: { runAfter: mock().mockResolvedValue(null) },
+    } as any);
+
+    const handler = (createCard as any).handler ?? createCard;
+    await handler(ctx, {
+      content: "https://en.wikipedia.org/wiki/Tectona\\_grandis?a=1&amp;b=2",
+    });
+
+    const url = "https://en.wikipedia.org/wiki/Tectona_grandis?a=1&b=2";
+    expect(ctx.db.insert).toHaveBeenCalledWith(
+      "cards",
+      expect.objectContaining({ type: "link", url, content: url })
+    );
+  });
+
   test("keeps implicit text source exact when content has no URL", async () => {
     const ctx = withTestSession({
       runMutation: mock().mockResolvedValue({ ok: true }),

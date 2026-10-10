@@ -18,9 +18,10 @@ jobs:
     timeout-minutes: 30
     env:
       TURBO_UI: "false"
-    # Runs on the E2E stack: a local backend and the WorkOS emulator with
-    # test-only values, so the smoke needs no secrets and runs the same on
-    # forks. (`bun run dev` uses the shared cloud dev deployment instead.)
+    # `bun run dev` needs the shared cloud dev deployment, which forks and
+    # this runner can't reach, so setup is only checked here. The signed-in
+    # smoke runs on the E2E suite's own stack: a local backend and the WorkOS
+    # emulator with test-only values, so it needs no secrets.
     steps:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
@@ -40,34 +41,20 @@ jobs:
           test ! -e apps/mobile/.env.local
           test ! -e apps/files-worker/.dev.vars
           test ! -e packages/convex/.env.local
-      - name: Setup E2E target
-        run: bun run setup --target e2e
-      - name: Doctor JSON must pass
-        run: |
-          doctor_exit=0
-          bun run --silent doctor --target web --profile e2e --json > /tmp/doctor.json || doctor_exit=$?
-          cat /tmp/doctor.json
-          test "$doctor_exit" -eq 0
-          test "$(jq -r .ok /tmp/doctor.json)" = "true"
-      - name: Authenticated journey smoke
-        run: |
-          bun run --cwd packages/tests e2e:stack > /tmp/dev.log 2>&1 &
-          dev_pid=$!
-          trap 'kill "$dev_pid" 2> /dev/null || true' EXIT
-          for _ in $(seq 1 60); do
-            if curl -fsS -o /dev/null http://localhost:3000/ 2> /dev/null; then
-              break
-            fi
-            if ! kill -0 "$dev_pid" 2> /dev/null; then
-              break
-            fi
-            sleep 5
-          done
-          if ! curl -fsS -o /dev/null http://localhost:3000/; then
-            tail -80 /tmp/dev.log
-            exit 1
-          fi
-          if ! bun run smoke:web; then
-            tail -80 /tmp/dev.log
-            exit 1
-          fi
+      - name: Setup check passes without secrets
+        run: bun run setup --check
+      - run: bun ci
+      - name: Install Playwright Chromium
+        working-directory: packages/tests
+        run: bunx playwright install --with-deps chromium
+      - name: Sign up, create and search on a fresh stack
+        run: bun run --cwd packages/tests e2e --project=matrix-chromium
+      - if: failure()
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        with:
+          name: clean-smoke-results
+          path: |
+            packages/tests/playwright-report
+            packages/tests/test-results
+            .agents/.state/stack.log
+          retention-days: 7

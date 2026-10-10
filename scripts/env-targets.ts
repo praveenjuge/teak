@@ -17,12 +17,11 @@ export const SUPPORTED_TARGETS = [
   "mobile-simulator",
   "mobile-device",
   "files-worker",
-  "e2e",
 ] as const;
 
 export type SupportedTarget = (typeof SUPPORTED_TARGETS)[number];
 
-export type ConvexMode = "local" | "cloud" | "skip";
+export type ConvexMode = "cloud" | "skip";
 
 export interface TargetSpec {
   defaultConvex: ConvexMode;
@@ -93,14 +92,6 @@ export const TARGET_SPECS: Record<SupportedTarget, TargetSpec> = {
     needsConvex: false,
     defaultConvex: "skip",
     note: "Cloudflare Worker. Local secrets live in .dev.vars (shared production Worker) or development/.dev.vars (isolated development Worker), synced from Convex dev.",
-  },
-  e2e: {
-    target: "e2e",
-    profiles: ["e2e"],
-    dotenvFiles: ["apps/web/.env.local"],
-    needsConvex: true,
-    defaultConvex: "local",
-    note: "The E2E stack: a local backend and the web app wired to the WorkOS emulator. Every emulator value is a test-only constant in packages/tests/src/stack/config.ts.",
   },
 };
 

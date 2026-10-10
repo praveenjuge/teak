@@ -8,10 +8,6 @@
 
 import { join } from "node:path";
 import {
-  isStackRunning,
-  readStackState,
-} from "../packages/tests/src/stack/config.ts";
-import {
   acquireLease,
   describeLease,
   HEARTBEAT_MS,
@@ -21,13 +17,14 @@ import {
   releaseLease,
   renewLease,
 } from "./convex-push-lease.ts";
+import { isStackRunning, readStackState } from "./lib/stack-state.ts";
 
 const ROOT = join(import.meta.dir, "..");
 const idle = () => new Promise(() => undefined);
 
 // `bun run dev` already runs this checkout's web stack, which pushes the
 // backend when it holds the lease, so a surface started beside it shares it.
-const stack = readStackState();
+const stack = readStackState(ROOT);
 if (stack && isStackRunning(stack)) {
   console.log(
     `Using this checkout's running stack and the backend at ${stack.urls.convexUrl}.`

@@ -1,20 +1,14 @@
 /**
  * The Convex half of setup.
  *
- * Dev (`bun run dev`, every target but e2e) uses the shared cloud dev
- * deployment (scripts/dev-deployment.ts): setup selects it, checks that this
- * machine can reach it, and reads the WorkOS staging credentials the web app
- * needs. It never writes deployment variables and never pushes; `bun run dev`
- * pushes while it holds the push lease.
- *
- * The E2E suite uses a local backend wired to the WorkOS emulator, with
- * test-only values (packages/tests/src/stack/config.ts) and no secrets. It
- * takes over packages/convex/.env.local while it runs; the next dev setup
- * selects the dev deployment again.
+ * Every checkout uses the shared cloud dev deployment
+ * (scripts/dev-deployment.ts): setup selects it, checks that this machine can
+ * reach it, and reads the WorkOS staging credentials the web app needs. It
+ * never writes deployment variables and never pushes; `bun run dev` pushes
+ * while it holds the push lease.
  */
 
 import { join } from "node:path";
-import { emulatorDeploymentVars } from "../packages/tests/src/stack/config.ts";
 import { readConvexSelection } from "./capabilities.ts";
 import {
   DEV_DEPLOYMENT,
@@ -23,20 +17,13 @@ import {
   REQUIRED_DEV_VARS,
   readConvexAccess,
   selectDevDeployment,
-  writeConvexSelection,
 } from "./dev-deployment.ts";
 import type { SetupCheck } from "./setup.ts";
-import {
-  convexDevOnce,
-  ensureLocalStateMarker,
-  listDeploymentVarNames,
-} from "./setup-convex.ts";
-import { ensureDeploymentVars, isLocalSelection } from "./setup-mode.ts";
+import { listDeploymentVarNames } from "./setup-convex.ts";
 import {
   readWorkosCredentials,
   type WorkosCredentialName,
 } from "./setup-workos.ts";
-import type { WorktreePorts } from "./worktree-env.ts";
 
 const convexDirOf = (root: string) => join(root, "packages/convex");
 
@@ -194,122 +181,4 @@ export const setupDevDeployment = async (
     )
   );
   return done(true, credentials.values);
-};
-
-export interface E2eBackendOptions {
-  /** Push backend code (default); the E2E stack pushes once itself. */
-  push?: boolean;
-}
-
-export const setupE2eBackend = async (
-  root: string,
-  worktree: WorktreePorts,
-  checkOnly: boolean,
-  options: E2eBackendOptions
-): Promise<{ checks: SetupCheck[]; ok: boolean }> => {
-  const checks: SetupCheck[] = [];
-  const done = (passed: boolean) => ({ checks, ok: passed });
-  const convexDir = convexDirOf(root);
-  const dotenvPath = join(convexDir, ".env.local");
-
-  let selection = readConvexSelection(process.env, dotenvPath);
-  if (
-    selection.deployment === DEV_DEPLOYMENT &&
-    selection.source === "dotenv" &&
-    !checkOnly
-  ) {
-    // Dev's selection: the E2E backend takes its turn.
-    writeConvexSelection(dotenvPath, null);
-    selection = { source: "none" };
-  }
-  // Only dev's own dotenv selection is taken over (in --check it is still
-  // there); an exported cloud selection would aim E2E at a shared deployment.
-  const devDotenv =
-    selection.deployment === DEV_DEPLOYMENT && selection.source === "dotenv";
-  if (!(isLocalSelection(selection.deployment) || devDotenv)) {
-    checks.push(
-      error(
-        "setup-convex-selection",
-        `CONVEX_DEPLOYMENT selects ${selection.deployment}; the E2E suite needs a local backend`,
-        [
-          "Unset the CONVEX_DEPLOYMENT export or remove it from packages/convex/.env.local, then re-run",
-        ]
-      )
-    );
-    return done(false);
-  }
-  // The E2E stack never uses a cloud deployment: drop a cloud session's deploy
-  // key, and have every child Convex CLI pick the local anonymous backend.
-  delete process.env.CONVEX_DEPLOY_KEY;
-  process.env.CONVEX_AGENT_MODE = "anonymous";
-  const ports = { convex: worktree.convex, convexSite: worktree.convexSite };
-  let selected = "none selected (convex dev will provision a local backend)";
-  if (devDotenv) {
-    selected = `would switch from ${DEV_DEPLOYMENT} to a local backend`;
-  } else if (selection.deployment) {
-    selected = `preserving ${selection.deployment} (from ${selection.source})`;
-  }
-  checks.push(ok("setup-convex-selection", `${selected}; WorkOS: emulator`));
-  if (checkOnly) {
-    checks.push(
-      ok(
-        "setup-convex-deploy-vars",
-        "would point the local backend at the WorkOS emulator and set SITE_URL"
-      ),
-      ok(
-        "setup-convex-push",
-        "would run `bunx convex dev --once` in packages/convex"
-      )
-    );
-    return done(true);
-  }
-
-  // Provision first when nothing is selected: the first push may fail on
-  // missing variables, which the next step configures before the final push.
-  if (!selection.deployment) {
-    const provision = await convexDevOnce(convexDir, { ports });
-    checks.push(
-      ok(
-        "setup-convex-provision",
-        provision.ok
-          ? `provisioned (${provision.detail})`
-          : `deferred (${provision.detail})`
-      )
-    );
-  }
-  ensureLocalStateMarker(convexDir);
-  // auth.config.ts reads the WorkOS values, so they are set before the push.
-  const vars = await ensureDeploymentVars(convexDir, {
-    SITE_URL: worktree.siteUrl,
-    ...emulatorDeploymentVars(worktree),
-  });
-  if (!vars.ok) {
-    checks.push(
-      error("setup-workos", vars.detail, [
-        "Remove those variables with `bunx convex env remove <NAME>` in packages/convex and re-run",
-      ])
-    );
-    return done(false);
-  }
-  checks.push(
-    ok(
-      "setup-workos",
-      vars.configured.length > 0
-        ? `configured ${vars.configured.join(", ")} for the WorkOS emulator`
-        : "the local backend already points at the WorkOS emulator"
-    )
-  );
-  if (options.push !== false) {
-    const push = await convexDevOnce(convexDir, { ports });
-    if (!push.ok) {
-      checks.push(
-        error("setup-convex-push", `convex dev --once failed: ${push.detail}`, [
-          "Fix the push error above and re-run bun run setup --target e2e",
-        ])
-      );
-      return done(false);
-    }
-    checks.push(ok("setup-convex-push", "code pushed and types generated"));
-  }
-  return done(true);
 };

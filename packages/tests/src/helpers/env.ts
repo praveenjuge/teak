@@ -1,9 +1,10 @@
 import { randomBytes } from "node:crypto";
+import { fileURLToPath } from "node:url";
 import {
   readStackState,
   type StackState,
   type StackUrls,
-} from "../stack/config";
+} from "../../../../scripts/lib/stack-state.ts";
 
 type E2eUrls = Required<StackUrls>;
 
@@ -42,10 +43,13 @@ export const resolveStackUrls = (
   return { ...state.urls, emulatorOrigin };
 };
 
+// Playwright loads this file under Node, so the root comes from import.meta.url.
+const ROOT = fileURLToPath(new URL("../../../../", import.meta.url));
+
 let urls: E2eUrls | undefined;
 const current = () => {
   urls ??= resolveStackUrls(
-    readStackState(),
+    readStackState(ROOT),
     process.env.TEAK_E2E_HERMETIC === "1"
   );
   return urls;

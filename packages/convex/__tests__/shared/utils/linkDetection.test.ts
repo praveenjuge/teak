@@ -134,6 +134,60 @@ describe("extractUrlFromContent", () => {
       cleanedContent: url,
     });
   });
+
+  // The web composer saves Tiptap Markdown, which escapes these characters.
+  it.each([
+    [
+      "https://en.wikipedia.org/wiki/Tectona\\_grandis",
+      "https://en.wikipedia.org/wiki/Tectona_grandis",
+    ],
+    ["https://example.com/\\*star\\*", "https://example.com/*star*"],
+    ["https://example.com/~user/\\~home", "https://example.com/~user/~home"],
+    [
+      "https://example.com/list?ids\\[0\\]=1",
+      "https://example.com/list?ids[0]=1",
+    ],
+    ["https://example.org/?a=1&amp;b=2", "https://example.org/?a=1&b=2"],
+    ["https://example.org/?q=&lt;tag&gt;", "https://example.org/?q=<tag>"],
+    [
+      "https://example.org/my\\_page?a=1&amp;b=2\\_x",
+      "https://example.org/my_page?a=1&b=2_x",
+    ],
+  ])(
+    "unescapes composer Markdown in a bare URL: %s",
+    (content: string, url: string) => {
+      expect(extractUrlFromContent(content)).toEqual({
+        url,
+        cleanedContent: url,
+      });
+    }
+  );
+
+  it("decodes each escape exactly once", () => {
+    expect(
+      extractUrlFromContent("https://example.org/a\\\\\\_b?q=&amp;lt;")
+    ).toEqual({
+      url: "https://example.org/a\\_b?q=&lt;",
+      cleanedContent: "https://example.org/a\\_b?q=&lt;",
+    });
+  });
+
+  it("leaves percent-encoded characters untouched", () => {
+    const url = "https://example.org/a%5Cb/%26c?d=%3Ce%3E";
+    expect(extractUrlFromContent(url)).toEqual({
+      url,
+      cleanedContent: url,
+    });
+  });
+
+  it("unescapes an inline URL but keeps the surrounding text as written", () => {
+    const content =
+      "Read https://en.wikipedia.org/wiki/Tectona\\_grandis?a=1&amp;b=2 later";
+    expect(extractUrlFromContent(content)).toEqual({
+      url: "https://en.wikipedia.org/wiki/Tectona_grandis?a=1&b=2",
+      cleanedContent: content,
+    });
+  });
 });
 
 describe("resolveTextCardInput", () => {
@@ -266,6 +320,18 @@ describe("resolveTextCardInput", () => {
       type: "link",
       url: "https://example.com",
       content: "https://example.com",
+    });
+  });
+
+  it("resolves an escaped URL in content to a clean link card", () => {
+    expect(
+      resolveTextCardInput({
+        content: "https://en.wikipedia.org/wiki/Tectona\\_grandis",
+      })
+    ).toEqual({
+      type: "link",
+      url: "https://en.wikipedia.org/wiki/Tectona_grandis",
+      content: "https://en.wikipedia.org/wiki/Tectona_grandis",
     });
   });
 

@@ -1,5 +1,4 @@
 import { afterEach, describe, expect, test } from "bun:test";
-import { DEV_DEPLOYMENT } from "./dev-deployment.ts";
 import {
   checkConvexIsolation,
   checkTargetReadiness,
@@ -33,47 +32,29 @@ describe("findMissingKeys", () => {
 });
 
 describe("parseDoctorArgs", () => {
-  test("defaults to human web local output", () => {
+  test("defaults to human web output", () => {
     expect(parseDoctorArgs(["bun", "doctor.ts"])).toEqual({
       json: false,
-      profile: "local",
       target: "web",
     });
   });
 
-  test("parses json target and profile", () => {
+  test("parses json and target", () => {
     expect(
-      parseDoctorArgs([
-        "bun",
-        "doctor.ts",
-        "--json",
-        "--target",
-        "convex",
-        "--profile",
-        "e2e",
-      ])
-    ).toEqual({ json: true, profile: "e2e", target: "convex" });
+      parseDoctorArgs(["bun", "doctor.ts", "--json", "--target", "convex"])
+    ).toEqual({ json: true, target: "convex" });
   });
 
-  test("rejects unknown target profile and args", () => {
+  test("rejects unknown targets and args, including the removed --profile", () => {
     expect(() =>
       parseDoctorArgs(["bun", "doctor.ts", "--target", "nope"])
     ).toThrow('--target "nope"');
     expect(() =>
-      parseDoctorArgs(["bun", "doctor.ts", "--profile", "nope"])
-    ).toThrow('--profile "nope"');
+      parseDoctorArgs(["bun", "doctor.ts", "--profile", "e2e"])
+    ).toThrow('Unknown argument "--profile"');
     expect(() => parseDoctorArgs(["bun", "doctor.ts", "--nope"])).toThrow(
       'Unknown argument "--nope"'
     );
-  });
-
-  test("rejects dashboard-owned profiles doctor cannot validate", () => {
-    expect(() =>
-      parseDoctorArgs(["bun", "doctor.ts", "--profile", "production"])
-    ).toThrow('--profile "production"');
-    expect(() =>
-      parseDoctorArgs(["bun", "doctor.ts", "--profile", "preview"])
-    ).toThrow('--profile "preview"');
   });
 });
 
@@ -120,16 +101,9 @@ describe("checkConvexIsolation", () => {
     }
   });
 
-  test("E2E refuses an exported cloud selection, even the dev deployment", () => {
-    process.env.CONVEX_DEPLOYMENT = DEV_DEPLOYMENT;
-    const check = checkConvexIsolation("e2e");
-    expect(check.ok).toBe(false);
-    expect(check.detail).toContain("needs a local backend");
-  });
-
   test("refuses a deploy key for anything but the shared dev deployment", () => {
     process.env.CONVEX_DEPLOY_KEY = "prod:teak-prod|eyJ0b2tlbiI6MX0=";
-    const check = checkConvexIsolation("local");
+    const check = checkConvexIsolation();
     expect(check.ok).toBe(false);
     expect(check.detail).toContain("production");
     expect(JSON.stringify(check)).not.toContain("eyJ0b2tlbiI6MX0=");
@@ -156,7 +130,7 @@ describe("needsConvexChecks", () => {
 
 describe("runDoctor", () => {
   test("docs report omits convex checks but keeps shared ones", async () => {
-    const report = await runDoctor("docs", "local");
+    const report = await runDoctor("docs");
     const ids = report.checks.map((check) => check.id);
     for (const id of [
       "convex-isolation",
