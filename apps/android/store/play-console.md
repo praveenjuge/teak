@@ -108,9 +108,8 @@ Assets live in `listing/en-US/`:
 - `full_description.txt` (under 4,000)
 - `graphics/icon.png`, 512 × 512
 - `graphics/feature_graphic.png`, 1024 × 500
+- `graphics/phone-screenshots/`, five 1080 × 1920 phone screenshots, in order
 
-Screenshots are still to come, ideally from the demo account so no personal cards appear:
-
-- **Phone:** at least 2, portrait 1080 × 2400 or similar.
-- **7-inch tablet:** at least 1.
-- **10-inch tablet:** at least 1.
+The feature graphic and screenshots come from the store images pipeline in
+`scripts/store-assets/README.md`. Upload them by hand in Play Console. Tablet
+screenshots (7-inch and 10-inch, at least one each) are still to come.

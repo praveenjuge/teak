@@ -1,5 +1,13 @@
 {
   "locale": "en-US",
+  "screenshots": [
+    "01-library.png",
+    "02-detail.png",
+    "03-search.png",
+    "04-palette.png",
+    "05-capture.png",
+    "06-safari.png"
+  ],
   "appInfo": {
     "name": "Teak for Mac",
     "subtitle": "Capture and rediscover ideas",

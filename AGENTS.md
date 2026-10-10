@@ -47,5 +47,6 @@ Before any release, complete the shared preparation in `.agents/releases.md` (on
 - Browser extension: `apps/extension/release.md`
 - Mac: `apps/mac/release.md`
 - CLI: `apps/cli/AGENTS.md`
+- Store screenshots (Mac, iPhone, Play): `scripts/store-assets/README.md`
 
 All package versions move in lockstep. Release tasks use the next patch version unless the canonical runbook says otherwise. Use `gh` for GitHub releases, pull requests, issues, and workflow inspection.

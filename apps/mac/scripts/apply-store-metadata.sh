@@ -29,4 +29,4 @@ asc localizations list --version "$VERSION_ID" --paginate --output json > "$RUNN
 jq -e --slurpfile config "$config" '[.data[] | select(.attributes.locale == $config[0].locale)][0].attributes as $actual | $config[0].appInfo | to_entries | all(.[]; $actual[.key] == .value)' "$RUNNER_TEMP/mac-app-info-listing.json" > /dev/null
 jq -e --slurpfile config "$config" --arg notes "${RELEASE_NOTES:-$(jq -er '.version.whatsNew' "$config")}" '[.data[] | select(.attributes.locale == $config[0].locale)][0].attributes as $actual | ($config[0].version + {whatsNew: $notes}) | to_entries | all(.[]; $actual[.key] == .value)' "$RUNNER_TEMP/mac-version-listing.json" > /dev/null
 echo "- Verified Teak for Mac listing ($locale) from apps/mac/store.config.json" >> "$GITHUB_STEP_SUMMARY"
-bash apps/mac/scripts/publish-store-screenshots.sh "$VERSION_ID"
+bash scripts/store-assets/publish-apple.sh mac "$VERSION_ID"

@@ -26,12 +26,13 @@
         "privacyPolicyUrl": "https://teakvault.com/docs/privacy-policy",
         "privacyChoicesUrl": "https://teakvault.com/docs/privacy-policy",
         "screenshots": {
-          "APP_IPHONE_65": [
-            "store/apple/screenshot/en-US/APP_IPHONE_65/Teak App Store - 10@3x.png",
-            "store/apple/screenshot/en-US/APP_IPHONE_65/Teak App Store - 6@3x.png",
-            "store/apple/screenshot/en-US/APP_IPHONE_65/Teak App Store - 7@3x.png",
-            "store/apple/screenshot/en-US/APP_IPHONE_65/Teak App Store - 8@3x.png",
-            "store/apple/screenshot/en-US/APP_IPHONE_65/Teak App Store - 9@3x.png"
+          "APP_IPHONE_67": [
+            "store/apple/screenshot/en-US/APP_IPHONE_67/01-library.png",
+            "store/apple/screenshot/en-US/APP_IPHONE_67/02-detail.png",
+            "store/apple/screenshot/en-US/APP_IPHONE_67/03-search.png",
+            "store/apple/screenshot/en-US/APP_IPHONE_67/04-palette.png",
+            "store/apple/screenshot/en-US/APP_IPHONE_67/05-share.png",
+            "store/apple/screenshot/en-US/APP_IPHONE_67/06-add.png"
           ]
         }
       }
