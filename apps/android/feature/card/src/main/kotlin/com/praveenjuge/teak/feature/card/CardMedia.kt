@@ -75,6 +75,12 @@ import com.praveenjuge.teak.core.model.CardSheet
 import kotlinx.coroutines.delay
 import kotlin.math.roundToInt
 import androidx.media3.ui.compose.material3.Player as MediaPlayer
+import android.content.Intent
+import androidx.media3.common.PlaybackException
+import androidx.media3.exoplayer.DefaultRenderersFactory
+import androidx.core.net.toUri
+import androidx.compose.material3.Surface
+import androidx.compose.material3.TextButton
 
 internal val MAX_MEDIA_HEIGHT = 440.dp
 private val PLACEHOLDER_HEIGHT = 200.dp
@@ -200,7 +206,8 @@ internal fun ImageViewer(url: String, contentDescription: String?, onDismiss: ()
 private fun rememberPlayer(url: String): ExoPlayer {
     val context = LocalContext.current
     val player = remember(url) {
-        ExoPlayer.Builder(context).build().apply {
+        // Decoder fallback lets a device try its other decoders when the preferred one can't handle a file.
+        ExoPlayer.Builder(context, DefaultRenderersFactory(context).setEnableDecoderFallback(true)).build().apply {
             setMediaItem(MediaItem.fromUri(url))
             prepare()
         }
@@ -210,28 +217,72 @@ private fun rememberPlayer(url: String): ExoPlayer {
     return player
 }
 
-/** Video with the Material player controls; the poster shows until the first frame is ready. */
+/**
+ * Video with the Material player controls; the poster shows until the first frame is ready. When the
+ * device can't decode the file, the poster stays with a short note and a way to open it elsewhere.
+ */
 @OptIn(UnstableApi::class)
 @Composable
 internal fun VideoPlayer(url: String, posterUrl: String?, ratio: Float?, modifier: Modifier = Modifier) {
     val player = rememberPlayer(url)
+    var failed by remember(player) { mutableStateOf(false) }
+    DisposableEffect(player) {
+        val listener = object : Player.Listener {
+            override fun onPlayerError(error: PlaybackException) {
+                failed = true
+            }
+        }
+        player.addListener(listener)
+        onDispose { player.removeListener(listener) }
+    }
     MediaFrame(ratio ?: (16f / 9f), modifier) { frame ->
-        MediaPlayer(
-            player = player,
-            modifier = frame.background(Color.Black),
-            shutter = {
-                Box(Modifier.fillMaxSize().background(Color.Black)) {
-                    if (posterUrl != null) {
-                        AsyncImage(
-                            model = posterUrl,
-                            contentDescription = null,
-                            contentScale = ContentScale.Fit,
-                            modifier = Modifier.fillMaxSize(),
-                        )
-                    }
-                }
-            },
-        )
+        if (failed) {
+            UnplayableVideo(url, posterUrl, frame)
+        } else {
+            MediaPlayer(
+                player = player,
+                modifier = frame.background(Color.Black),
+                shutter = { Poster(posterUrl) },
+            )
+        }
+    }
+}
+
+@Composable
+private fun Poster(posterUrl: String?) {
+    Box(Modifier.fillMaxSize().background(Color.Black)) {
+        if (posterUrl != null) {
+            AsyncImage(
+                model = posterUrl,
+                contentDescription = null,
+                contentScale = ContentScale.Fit,
+                modifier = Modifier.fillMaxSize(),
+            )
+        }
+    }
+}
+
+@Composable
+private fun UnplayableVideo(url: String, posterUrl: String?, modifier: Modifier) {
+    val context = LocalContext.current
+    Box(modifier, contentAlignment = Alignment.Center) {
+        Poster(posterUrl)
+        Surface(
+            shape = RoundedCornerShape(16.dp),
+            color = MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.94f),
+            modifier = Modifier.padding(16.dp),
+        ) {
+            Column(
+                Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+            ) {
+                Text("This video can't play on this device.", style = MaterialTheme.typography.bodyMedium)
+                TextButton(onClick = {
+                    val intent = Intent(Intent.ACTION_VIEW).setDataAndType(url.toUri(), "video/*")
+                    runCatching { context.startActivity(intent) }
+                }) { Text("Open in another app") }
+            }
+        }
     }
 }
 

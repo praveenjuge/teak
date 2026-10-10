@@ -22,7 +22,6 @@ import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.contentColorFor
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -69,7 +68,6 @@ internal fun ActionGroup(content: @Composable ColumnScope.() -> Unit) {
 internal fun ActionRow(
     label: String,
     icon: ImageVector,
-    iconContainer: Color,
     enabled: Boolean = true,
     onClick: () -> Unit,
 ) {
@@ -77,9 +75,15 @@ internal fun ActionRow(
         modifier = Modifier.clickable(enabled = enabled, role = Role.Button, onClick = onClick),
         colors = ListItemDefaults.colors(containerColor = Color.Transparent),
         leadingContent = {
-            Surface(shape = CircleShape, color = iconContainer, modifier = Modifier.size(40.dp)) {
+            // One tonal style for every row, like the system Settings app.
+            Surface(
+                shape = CircleShape,
+                color = MaterialTheme.colorScheme.secondaryContainer,
+                contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
+                modifier = Modifier.size(40.dp),
+            ) {
                 Box(contentAlignment = Alignment.Center) {
-                    Icon(icon, contentDescription = null, tint = contentColorFor(iconContainer))
+                    Icon(icon, contentDescription = null)
                 }
             }
         },

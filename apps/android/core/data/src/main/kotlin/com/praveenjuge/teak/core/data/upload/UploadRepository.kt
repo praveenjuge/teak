@@ -105,6 +105,7 @@ class WorkManagerUploadRepository @Inject constructor(
                 )
                 .setConstraints(Constraints.Builder().setRequiredNetworkType(NetworkType.CONNECTED).build())
                 .addTag(UploadWorker.TAG)
+                .addTag(UploadWorker.NAME_TAG_PREFIX + file.fileName)
                 .build()
             // One at a time, in order, like iOS. A full card limit stops the rest of the queue.
             workManager.enqueueUniqueWork(UploadWorker.QUEUE, ExistingWorkPolicy.APPEND_OR_REPLACE, request)
@@ -120,7 +121,7 @@ class WorkManagerUploadRepository @Inject constructor(
 
     private fun status(info: WorkInfo): UploadStatus {
         val output = info.outputData
-        val failed = info.state == WorkInfo.State.FAILED || output.getString(UploadWorker.KEY_ERROR) != null
+        val failed = info.state == WorkInfo.State.FAILED || output.getString(UploadWorker.OUT_ERROR) != null
         val state = when {
             info.state == WorkInfo.State.CANCELLED -> UploadStatus.State.Failed
             failed && info.state.isFinished -> UploadStatus.State.Failed
@@ -130,11 +131,14 @@ class WorkManagerUploadRepository @Inject constructor(
         }
         return UploadStatus(
             id = info.id,
-            fileName = info.progress.getString(UploadWorker.KEY_NAME) ?: output.getString(UploadWorker.KEY_NAME) ?: "File",
+            fileName = info.tags.firstOrNull { it.startsWith(UploadWorker.NAME_TAG_PREFIX) }
+                ?.removePrefix(UploadWorker.NAME_TAG_PREFIX)
+                ?: output.getString(UploadWorker.OUT_NAME)
+                ?: "File",
             state = state,
             progress = info.progress.getFloat(UploadWorker.KEY_PROGRESS, if (state == UploadStatus.State.Saved) 1f else 0f),
-            error = output.getString(UploadWorker.KEY_ERROR),
-            errorCode = output.getString(UploadWorker.KEY_ERROR_CODE),
+            error = output.getString(UploadWorker.OUT_ERROR),
+            errorCode = output.getString(UploadWorker.OUT_ERROR_CODE),
         )
     }
 

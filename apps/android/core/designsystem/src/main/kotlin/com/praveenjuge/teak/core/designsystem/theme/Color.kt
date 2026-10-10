@@ -5,17 +5,18 @@ import androidx.compose.material3.lightColorScheme
 import androidx.compose.ui.graphics.Color
 
 // Generated with Material Color Utilities from Teak red (#DC2626): the fidelity scheme keeps the
-// brand red as the primary container, and neutral surfaces keep saved images the center of attention.
+// brand red for primary actions; secondary roles (chips, tab indicators, tonal buttons) and surfaces
+// are warm neutrals, so red stays an accent and saved images stay the center of attention.
 
 internal val lightScheme = lightColorScheme(
     primary = Color(0xFFB70011),
     onPrimary = Color(0xFFFFFFFF),
     primaryContainer = Color(0xFFDC2626),
     onPrimaryContainer = Color(0xFFFFF6F5),
-    secondary = Color(0xFFA73831),
-    onSecondary = Color(0xFFFFFFFF),
-    secondaryContainer = Color(0xFFFD786C),
-    onSecondaryContainer = Color(0xFF700F0F),
+    secondary = Color(0xFF665D5C),
+    onSecondary = Color(0xFFFFF7F6),
+    secondaryContainer = Color(0xFFEDE0DE),
+    onSecondaryContainer = Color(0xFF58504F),
     tertiary = Color(0xFF005E8D),
     onTertiary = Color(0xFFFFFFFF),
     tertiaryContainer = Color(0xFF0078B2),
@@ -51,10 +52,10 @@ internal val darkScheme = darkColorScheme(
     onPrimary = Color(0xFF690005),
     primaryContainer = Color(0xFFDC2626),
     onPrimaryContainer = Color(0xFFFFF6F5),
-    secondary = Color(0xFFFFB4AB),
-    onSecondary = Color(0xFF660709),
-    secondaryContainer = Color(0xFF89231E),
-    onSecondaryContainer = Color(0xFFFF9F94),
+    secondary = Color(0xFFA69B9A),
+    onSecondary = Color(0xFF251F1E),
+    secondaryContainer = Color(0xFF413A39),
+    onSecondaryContainer = Color(0xFFC9BDBB),
     tertiary = Color(0xFF90CDFF),
     onTertiary = Color(0xFF003450),
     tertiaryContainer = Color(0xFF0078B2),

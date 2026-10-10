@@ -240,7 +240,7 @@ private fun CardToolbar(
                 Icon(Icons.Outlined.Edit, contentDescription = "Edit")
             }
         },
-        colors = FloatingToolbarDefaults.vibrantFloatingToolbarColors(),
+        colors = FloatingToolbarDefaults.standardFloatingToolbarColors(),
     ) {
         IconButton(
             onClick = {

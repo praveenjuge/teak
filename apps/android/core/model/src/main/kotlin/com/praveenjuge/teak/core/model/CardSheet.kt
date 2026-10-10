@@ -126,14 +126,14 @@ object CardSheet {
         } ?: ShareTarget.None
     }
 
-    /** The detail title: the saved title, the file name, or the type. */
+    /** The detail title: the saved title, the file name, or the card's type ("Palette", "Image"). */
     fun title(card: Card, fallback: String? = null): String = when (card.type) {
         CardType.Text -> "Note"
         CardType.Quote -> "Quote"
         else -> card.metadataTitle?.takeIf { it.isNotBlank() }
             ?: card.fileMetadata?.fileName?.takeIf { it.isNotBlank() }
             ?: fallback
-            ?: "Preview"
+            ?: card.type.label
     }
 
     /** Images: the best rendition first; the original only when the device can decode it. */

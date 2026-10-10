@@ -184,17 +184,17 @@ internal fun AddScreen(
             item { SectionHeader("Write") }
             item {
                 ActionGroup {
-                    ActionRow("Note or Link", Icons.Filled.EditNote, MaterialTheme.colorScheme.primaryContainer, onClick = onWriteNote)
-                    ActionRow("Voice Memo", Icons.Filled.Mic, MaterialTheme.colorScheme.tertiaryContainer, onClick = onRecordVoice)
+                    ActionRow("Note or Link", Icons.Filled.EditNote, onClick = onWriteNote)
+                    ActionRow("Voice Memo", Icons.Filled.Mic, onClick = onRecordVoice)
                 }
             }
             item { SectionHeader("Upload") }
             item {
                 ActionGroup {
                     val enabled = !state.isPreparing
-                    ActionRow("Photos & Videos", Icons.Filled.PhotoLibrary, MaterialTheme.colorScheme.secondaryContainer, enabled, onPickMedia)
-                    ActionRow("Camera", Icons.Filled.PhotoCamera, MaterialTheme.colorScheme.surfaceContainerHighest, enabled, onTakePhoto)
-                    ActionRow("Files", Icons.Filled.Folder, MaterialTheme.colorScheme.primaryContainer, enabled, onPickFiles)
+                    ActionRow("Photos & Videos", Icons.Filled.PhotoLibrary, enabled, onPickMedia)
+                    ActionRow("Camera", Icons.Filled.PhotoCamera, enabled, onTakePhoto)
+                    ActionRow("Files", Icons.Filled.Folder, enabled, onPickFiles)
                 }
             }
             if (state.uploads.isNotEmpty()) {

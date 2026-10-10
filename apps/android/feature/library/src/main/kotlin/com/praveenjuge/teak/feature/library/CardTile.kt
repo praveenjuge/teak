@@ -109,9 +109,11 @@ internal fun CardTile(
     modifier: Modifier = Modifier,
 ) {
     val title = tileTitle(card)
+    // Notes are Markdown; TalkBack should read the words, not the syntax.
+    val spokenTitle = if (card.type == CardType.Text) remember(title) { MarkdownBlocks.toPlainText(title) } else title
     val favorite = card.isFavorited == true
     val description = buildString {
-        append(if (card.type == CardType.Text) "Note" else card.type.label).append(", ").append(title)
+        append(if (card.type == CardType.Text) "Note" else card.type.label).append(", ").append(spokenTitle)
         if (favorite) append(", Favorite")
     }
     val outlined = highlighted || selected == true
