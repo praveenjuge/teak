@@ -69,34 +69,12 @@ describe("ensureFile", () => {
   });
 });
 
+const DEV = {
+  convexUrl: "https://dev-example.convex.cloud",
+  convexSiteUrl: "https://dev-example.convex.site",
+};
+
 describe("ensureDerivedEnv", () => {
-  test("repairs missing keys without overwriting existing values", () => {
-    const dir = mkdtempSync(join(tmpdir(), "teak-setup-"));
-    const path = join(dir, ".env.local");
-    writeFileSync(path, "NEXT_PUBLIC_CONVEX_URL=http://custom\n");
-    expect(ensureWebEnv(path)).toBe("repaired");
-    const content = readFileSync(path, "utf-8");
-    expect(content).toContain("NEXT_PUBLIC_CONVEX_URL=http://custom");
-    expect(content).toContain(
-      "NEXT_PUBLIC_CONVEX_SITE_URL=http://127.0.0.1:3211"
-    );
-  });
-
-  test("repair keeps custom values and fills derived gaps", () => {
-    const dir = mkdtempSync(join(tmpdir(), "teak-setup-"));
-    const path = join(dir, ".env.local");
-    writeFileSync(path, "NEXT_PUBLIC_CONVEX_URL=http://custom\n");
-    expect(
-      ensureWebEnv(path, {
-        convexUrl: "https://c.example",
-        convexSiteUrl: "https://s.example",
-      })
-    ).toBe("repaired");
-    const content = readFileSync(path, "utf-8");
-    expect(content).toContain("NEXT_PUBLIC_CONVEX_URL=http://custom");
-    expect(content).toContain("NEXT_PUBLIC_CONVEX_SITE_URL=https://s.example");
-  });
-
   test("generic entries create and repair any derived file", () => {
     const dir = mkdtempSync(join(tmpdir(), "teak-setup-"));
     const path = join(dir, ".env.local");
@@ -113,15 +91,26 @@ describe("ensureDerivedEnv", () => {
     expect(content).toContain("VITE_PUBLIC_CONVEX_URL=https://c.example");
     expect(content).toContain("VITE_PUBLIC_CONVEX_SITE_URL=https://s.example");
   });
+
+  test("replaces loopback values an earlier local stack left", () => {
+    const dir = mkdtempSync(join(tmpdir(), "teak-setup-"));
+    const path = join(dir, ".env.local");
+    writeFileSync(path, "EXPO_PUBLIC_CONVEX_URL=http://127.0.0.1:3210\n");
+    expect(
+      ensureDerivedEnv(path, { EXPO_PUBLIC_CONVEX_URL: DEV.convexUrl })
+    ).toBe("repaired");
+    expect(readFileSync(path, "utf-8")).toBe(
+      `EXPO_PUBLIC_CONVEX_URL=${DEV.convexUrl}\n`
+    );
+  });
 });
 
-describe("local AuthKit environment writer", () => {
+describe("web environment writer", () => {
   test("derives callback from the worktree origin and keeps one session seal across repairs", () => {
     const dir = mkdtempSync(join(tmpdir(), "teak-authkit-"));
     const path = join(dir, ".env.local");
-    expect(ensureWebEnv(path, { siteUrl: "http://localhost:3142" })).toBe(
-      "created"
-    );
+    const values = { ...DEV, siteUrl: "http://localhost:3142", workos: {} };
+    expect(ensureWebEnv(path, values)).toBe("created");
     const first = readFileSync(path, "utf-8");
     // biome-ignore lint/suspicious/noBitwiseOperators: POSIX permissions exclude the file type bits.
     expect(statSync(path).mode & 0o777).toBe(0o600);
@@ -133,17 +122,13 @@ describe("local AuthKit environment writer", () => {
       .find((line) => line.startsWith("WORKOS_COOKIE_PASSWORD="))
       ?.split("=")[1];
     expect(seal?.length).toBeGreaterThanOrEqual(32);
-    expect(ensureWebEnv(path, { siteUrl: "http://localhost:3142" })).toBe(
-      "exists"
-    );
+    expect(ensureWebEnv(path, values)).toBe("exists");
     expect(readFileSync(path, "utf-8")).toBe(first);
     writeFileSync(
       path,
       "WORKOS_COOKIE_PASSWORD=human-set-password-preserved\nNEXT_PUBLIC_WORKOS_REDIRECT_URI=http://localhost:3999/callback\n"
     );
-    expect(ensureWebEnv(path, { siteUrl: "http://localhost:3142" })).toBe(
-      "repaired"
-    );
+    expect(ensureWebEnv(path, values)).toBe("repaired");
     const repaired = readFileSync(path, "utf-8");
     expect(repaired).toContain(
       "WORKOS_COOKIE_PASSWORD=human-set-password-preserved"
@@ -154,7 +139,7 @@ describe("local AuthKit environment writer", () => {
     );
   });
 
-  test("keeps a callback a person pointed somewhere else", () => {
+  test("keeps values a person pointed elsewhere and moves local ones to the dev deployment", () => {
     const dir = mkdtempSync(join(tmpdir(), "teak-authkit-"));
     const path = join(dir, ".env.local");
     writeFileSync(
@@ -162,14 +147,15 @@ describe("local AuthKit environment writer", () => {
       "NEXT_PUBLIC_WORKOS_REDIRECT_URI=https://teak.example.test/callback\nNEXT_PUBLIC_CONVEX_URL=http://127.0.0.1:3210\n"
     );
     ensureWebEnv(path, {
-      convexUrl: "http://127.0.0.1:4310",
+      ...DEV,
       siteUrl: "http://localhost:4300",
+      workos: {},
     });
     const content = readFileSync(path, "utf-8");
     expect(content).toContain(
       "NEXT_PUBLIC_WORKOS_REDIRECT_URI=https://teak.example.test/callback"
     );
-    expect(content).toContain("NEXT_PUBLIC_CONVEX_URL=http://127.0.0.1:4310");
+    expect(content).toContain(`NEXT_PUBLIC_CONVEX_URL=${DEV.convexUrl}`);
   });
 
   test("treats loopback URLs and the emulator port as machine-local", () => {
@@ -181,12 +167,17 @@ describe("local AuthKit environment writer", () => {
     expect(isMachineLocalValue("WORKOS_CLIENT_ID", "client_123")).toBe(false);
   });
 
-  test("adds missing WorkOS credentials without replacing a set client ID", () => {
+  test("syncs WorkOS credentials from the deployment and drops emulator wiring", () => {
     const dir = mkdtempSync(join(tmpdir(), "teak-authkit-"));
     const path = join(dir, ".env.local");
-    writeFileSync(path, "WORKOS_CLIENT_ID=client_human\n");
+    writeFileSync(
+      path,
+      "WORKOS_CLIENT_ID=client_01TEAKE2EEMULATOR\nWORKOS_API_KEY=sk_test_default\nWORKOS_API_HOSTNAME=localhost\nWORKOS_API_PORT=4100\nWORKOS_API_HTTPS=false\nCUSTOM=kept\n"
+    );
     expect(
       ensureWebEnv(path, {
+        ...DEV,
+        siteUrl: "http://localhost:3000",
         workos: {
           WORKOS_CLIENT_ID: "client_synced",
           WORKOS_API_KEY: "sk_test_synced",
@@ -194,9 +185,12 @@ describe("local AuthKit environment writer", () => {
       })
     ).toBe("repaired");
     const content = readFileSync(path, "utf-8");
-    expect(content).toContain("WORKOS_CLIENT_ID=client_human");
-    expect(content).not.toContain("client_synced");
+    expect(content).toContain("WORKOS_CLIENT_ID=client_synced");
     expect(content).toContain("WORKOS_API_KEY=sk_test_synced");
+    expect(content).not.toContain("WORKOS_API_HOSTNAME");
+    expect(content).not.toContain("WORKOS_API_PORT");
+    expect(content).not.toContain("WORKOS_API_HTTPS");
+    expect(content).toContain("CUSTOM=kept");
     // biome-ignore lint/suspicious/noBitwiseOperators: POSIX permissions exclude the file type bits.
     expect(statSync(path).mode & 0o777).toBe(0o600);
   });

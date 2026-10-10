@@ -8,12 +8,12 @@ import {
 } from "./config";
 
 const state = (pid: number): StackState => ({
-  group: pid,
+  groups: [pid],
   logPath: "/tmp/stack.log",
+  mode: "e2e",
   pid,
   ports: MAIN_STACK_PORTS,
   ready: true,
-  seeded: false,
   startedAt: "2026-10-09T00:00:00.000Z",
   urls: stackUrls(MAIN_STACK_PORTS),
 });

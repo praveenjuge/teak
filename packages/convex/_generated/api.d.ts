@@ -52,6 +52,7 @@ import type * as client_workosConnect from "../client/workosConnect.js";
 import type * as crons from "../crons.js";
 import type * as dataExport from "../dataExport.js";
 import type * as dataImport from "../dataImport.js";
+import type * as devPushLease from "../devPushLease.js";
 import type * as devSeed from "../devSeed.js";
 import type * as devUrls from "../devUrls.js";
 import type * as env from "../env.js";
@@ -260,6 +261,7 @@ declare const fullApi: ApiFromModules<{
   crons: typeof crons;
   dataExport: typeof dataExport;
   dataImport: typeof dataImport;
+  devPushLease: typeof devPushLease;
   devSeed: typeof devSeed;
   devUrls: typeof devUrls;
   env: typeof env;

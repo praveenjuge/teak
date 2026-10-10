@@ -17,11 +17,8 @@
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import {
-  EMULATOR_CLIENT_ID,
-  emulatorWebEnv,
   isStackRunning,
   readStackState,
-  type StackPorts,
 } from "../packages/tests/src/stack/config.ts";
 import {
   checkBunVersion,
@@ -31,10 +28,16 @@ import {
   readConvexSelection,
 } from "./capabilities.ts";
 import { parseConvexEnvOutput } from "./check-cloudflare.ts";
+import {
+  DEV_DEPLOYMENT,
+  planDevSelection,
+  RECOMMENDED_DEV_VARS,
+  readConvexAccess,
+} from "./dev-deployment.ts";
 import { auditDotenv } from "./dotenv-audit.ts";
 import { auditFiles, listScannedFiles } from "./env-audit.ts";
-import { readDotenvFile } from "./env-loader.ts";
 import { runCommand } from "./proc.ts";
+import { listDeploymentVarNames } from "./setup-convex.ts";
 import { validateWebEnvContent } from "./validate-env.ts";
 import { isPortInUse, resolveWorktree, stackPorts } from "./worktree-env.ts";
 
@@ -216,34 +219,63 @@ export const checkDependencyLock = (): DoctorCheck =>
         severity: "error",
       };
 
-export const checkConvexIsolation = (): DoctorCheck => {
-  if (process.env.CONVEX_DEPLOY_KEY?.trim()) {
+/**
+ * Dev reaches only the shared dev deployment, with a Convex login or a dev
+ * deploy key for it; the E2E profile runs on a local backend.
+ */
+export const checkConvexIsolation = (
+  profile: DoctorProfile = "local"
+): DoctorCheck => {
+  const access = readConvexAccess();
+  if (access.kind === "refused" && profile === "local") {
     return {
-      detail: "CONVEX_DEPLOY_KEY is set and would select production",
+      detail: access.detail,
       id: "convex-isolation",
       ok: false,
-      remediation: [
-        "Unset CONVEX_DEPLOY_KEY for local work; production access is never the local default",
-      ],
+      remediation: access.remediation,
       severity: "error",
     };
   }
   const selection = readConvexSelection();
-  if (selection.deployment?.startsWith("prod:")) {
+  if (profile === "e2e") {
+    return selection.deployment?.startsWith("prod:")
+      ? {
+          detail: `CONVEX_DEPLOYMENT selects production (${selection.deployment})`,
+          id: "convex-isolation",
+          ok: false,
+          remediation: ["Run bun run setup --target e2e"],
+          severity: "error",
+        }
+      : {
+          detail: "the E2E suite runs on a local backend",
+          id: "convex-isolation",
+          ok: true,
+          severity: "error",
+        };
+  }
+  const plan = planDevSelection(selection.deployment);
+  if (plan.action === "refuse") {
     return {
-      detail: `CONVEX_DEPLOYMENT selects production (${selection.deployment})`,
+      detail: plan.detail,
       id: "convex-isolation",
       ok: false,
-      remediation: [
-        "Point CONVEX_DEPLOYMENT at an isolated development deployment",
-      ],
+      remediation: plan.remediation,
+      severity: "error",
+    };
+  }
+  if (plan.action === "select" && access.kind === "login") {
+    return {
+      detail: selection.deployment
+        ? `${selection.deployment} is selected, not the shared dev deployment`
+        : "no deployment selected yet",
+      id: "convex-isolation",
+      ok: false,
+      remediation: [`Run bun run setup; it selects ${DEV_DEPLOYMENT}`],
       severity: "error",
     };
   }
   return {
-    detail: selection.deployment
-      ? `isolated deployment ${selection.deployment} (from ${selection.source})`
-      : "no deployment selected yet; setup will provision an isolated one",
+    detail: `the shared dev deployment ${DEV_DEPLOYMENT} through ${access.kind === "deploy-key" ? "CONVEX_DEPLOY_KEY" : "your Convex login"}`,
     id: "convex-isolation",
     ok: true,
     severity: "error",
@@ -326,7 +358,9 @@ export const checkConvexSiteUrl = async (): Promise<DoctorCheck> => {
       detail: "SITE_URL is missing on the selected deployment",
       id: "convex-site-url",
       ok: false,
-      remediation: ["Run bun run setup (it configures local SITE_URL)"],
+      remediation: [
+        "The repository owner sets SITE_URL on the dev deployment (see .agents/development.md)",
+      ],
       severity: "error",
     };
   }
@@ -335,10 +369,40 @@ export const checkConvexSiteUrl = async (): Promise<DoctorCheck> => {
     id: "convex-site-url",
     ok: true,
     remediation: [
-      "Run bunx convex login (or export CONVEX_AGENT_MODE=anonymous) and re-run",
+      "Run bunx convex login (or check CONVEX_DEPLOY_KEY) and re-run",
     ],
     severity: "warn",
   };
+};
+
+/** Owner-managed values dev tooling uses; missing ones turn features off. */
+export const checkDevVars = async (): Promise<DoctorCheck> => {
+  const listed = await listDeploymentVarNames(CONVEX_PATH);
+  if (listed.status === "unavailable") {
+    return {
+      detail: "Convex deployment is unreachable; dev settings not verified",
+      id: "convex-dev-vars",
+      ok: true,
+      severity: "warn",
+    };
+  }
+  const unset = RECOMMENDED_DEV_VARS.filter((name) => !listed.names.has(name));
+  return unset.length === 0
+    ? {
+        detail: "dev seeding, the push lease and dev URLs are configured",
+        id: "convex-dev-vars",
+        ok: true,
+        severity: "warn",
+      }
+    : {
+        detail: `the dev deployment doesn't set ${unset.join(", ")}`,
+        id: "convex-dev-vars",
+        ok: true,
+        remediation: [
+          "The repository owner sets them once (see .agents/development.md)",
+        ],
+        severity: "warn",
+      };
 };
 
 const WORKOS_DEPLOYMENT_VARS = ["WORKOS_CLIENT_ID", "WORKOS_API_KEY"];
@@ -356,7 +420,7 @@ export const evaluateWorkosPresence = (
       id: "convex-workos",
       ok: false,
       remediation: [
-        "Export WORKOS_CLIENT_ID and WORKOS_API_KEY from a WorkOS staging or development environment (never production) and re-run bun run setup",
+        "The repository owner sets WORKOS_CLIENT_ID and WORKOS_API_KEY from WorkOS staging on the dev deployment",
       ],
       severity: "error",
     };
@@ -368,7 +432,7 @@ export const evaluateWorkosPresence = (
       id: "convex-workos",
       ok: true,
       remediation: [
-        "Run bunx convex login (or export CONVEX_AGENT_MODE=anonymous) and re-run",
+        "Run bunx convex login (or check CONVEX_DEPLOY_KEY) and re-run",
       ],
       severity: "warn",
     };
@@ -430,34 +494,6 @@ export const checkPorts = async (): Promise<DoctorCheck> => {
           "Another process holds this checkout's ports; stop it before bun run dev",
         ],
         severity: "warn",
-      };
-};
-
-// An emulator checkout's web app must talk to this checkout's emulator.
-export const checkEmulatorStack = (
-  web: ReadonlyMap<string, string> | undefined,
-  ports: StackPorts
-): DoctorCheck => {
-  const expected: Record<string, string> = {
-    WORKOS_CLIENT_ID: EMULATOR_CLIENT_ID,
-    ...emulatorWebEnv(ports),
-  };
-  const wrong = Object.keys(expected).filter(
-    (name) => web?.get(name) !== expected[name]
-  );
-  return wrong.length === 0
-    ? {
-        detail: "apps/web/.env.local points at this checkout's WorkOS emulator",
-        id: "emulator-stack",
-        ok: true,
-        severity: "error",
-      }
-    : {
-        detail: `apps/web/.env.local is not wired to the WorkOS emulator: ${wrong.join(", ")}`,
-        id: "emulator-stack",
-        ok: false,
-        remediation: ["Run bun run setup"],
-        severity: "error",
       };
 };
 
@@ -607,24 +643,29 @@ export const runDoctor = async (
   profile: DoctorProfile
 ): Promise<DoctorReport> => {
   const needsConvex = needsConvexChecks(target);
-  const webValues = readDotenvFile(join(ROOT, "apps/web/.env.local"))?.values;
-  const [siteUrlCheck, workosCheck] = needsConvex
-    ? await Promise.all([checkConvexSiteUrl(), checkConvexWorkos()])
-    : [null, null];
+  const [siteUrlCheck, workosCheck, devVarsCheck] = needsConvex
+    ? await Promise.all([
+        checkConvexSiteUrl(),
+        checkConvexWorkos(),
+        profile === "local" ? checkDevVars() : null,
+      ])
+    : [null, null, null];
   const checks: DoctorCheck[] = [
     checkBunVersion(),
     await checkNodeVersion(),
     checkDependencyLock(),
-    ...(needsConvex ? [checkConvexIsolation(), checkConvexGenerated()] : []),
+    ...(needsConvex
+      ? [checkConvexIsolation(profile), checkConvexGenerated()]
+      : []),
     checkEnvAudit(),
     checkDotenvHygiene(),
-    checkTargetReadiness(target),
-    ...(profile === "e2e" ||
-    webValues?.get("WORKOS_API_HOSTNAME") === "localhost"
-      ? [checkEmulatorStack(webValues, await resolveWorktree(ROOT))]
-      : []),
+    // The E2E stack passes the web app its settings itself.
+    ...(profile === "e2e" && target === "web"
+      ? []
+      : [checkTargetReadiness(target)]),
     ...(siteUrlCheck ? [siteUrlCheck] : []),
     ...(workosCheck ? [workosCheck] : []),
+    ...(devVarsCheck ? [devVarsCheck] : []),
     await checkPorts(),
   ];
   return {

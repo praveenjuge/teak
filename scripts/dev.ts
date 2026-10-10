@@ -2,38 +2,33 @@
 /**
  * Single entrypoint for local dev.
  *
- *   bun run dev                  # the web stack, seeded, on this checkout's ports
- *   bun run dev --stop           # stop this checkout's web stack
- *   bun run dev --status         # this checkout's ports, URLs and sign-in
- *   bun run dev --workos staging # sign in through WorkOS staging instead
- *   bun run dev mobile           # another surface (Turbo)
- *   bun run dev --all            # every surface (Turbo)
- *   bun run dev --check          # print what would run
+ *   bun run dev           # the web stack on this checkout's ports
+ *   bun run dev --push    # also take over pushing the backend
+ *   bun run dev --stop    # stop this checkout's web stack
+ *   bun run dev --status  # this checkout's ports, URLs and sign-in
+ *   bun run dev mobile    # another surface (Turbo)
+ *   bun run dev --all     # every surface (Turbo)
+ *   bun run dev --check   # print what would run
  *
- * The web stack runs setup, then the local WorkOS emulator, a local Convex
- * backend and the web app, and signs in as a seeded dev account. Every
- * worktree gets its own ports (scripts/worktree-env.ts), so several run at
- * once. Other surfaces run through `turbo watch`; `--headless` streams their
- * output for agents and CI.
+ * The web stack runs setup, then the web app against the shared cloud dev
+ * deployment (scripts/dev-stack.ts), signed in through WorkOS staging as this
+ * checkout's seeded account. The checkout holding the push lease also pushes
+ * its backend. Every worktree gets its own web ports
+ * (scripts/worktree-env.ts), so several run at once. Other surfaces run
+ * through `turbo watch`; `--headless` streams their output for agents and CI.
  */
 
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import {
-  DEV_USER,
   isProcessAlive,
   isStackRunning,
   readStackState,
   type StackState,
   stopOrphanedStack,
 } from "../packages/tests/src/stack/config.ts";
-import { readConvexSelection } from "./capabilities.ts";
+import { DEV_DEPLOYMENT, DEV_DEPLOYMENT_URLS } from "./dev-deployment.ts";
 import type { SetupReport } from "./setup.ts";
-import {
-  isLocalSelection,
-  WORKOS_MODES,
-  type WorkosMode,
-} from "./setup-mode.ts";
 import { resolveWorktree, type WorktreePorts } from "./worktree-env.ts";
 
 const ROOT = join(import.meta.dir, "..");
@@ -61,12 +56,12 @@ const resolveTarget = (target: string): string =>
   TARGET_ALIASES[target] ?? target;
 
 export const DEV_USAGE =
-  "Usage: bun run dev [target] [--workos emulator|staging] [--status] [--stop] [--all] [--check] [--headless]";
+  "Usage: bun run dev [target] [--push] [--status] [--stop] [--all] [--check] [--headless]";
 
 export const describeTargets = (): string =>
   [
     "Available dev targets:",
-    "  web (default) — the local stack: WorkOS emulator, Convex and Next.js, seeded",
+    "  web (default) — Next.js on the shared cloud dev deployment, seeded",
     "  convex — Convex backend only",
     "  docs — Docs site",
     "  mobile — Expo mobile",
@@ -82,8 +77,9 @@ export interface DevArgs {
   action: "run" | "help" | "check" | "status" | "stop";
   all: boolean;
   headless: boolean;
+  /** Take over pushing the backend from whichever checkout holds the lease. */
+  push: boolean;
   target: string;
-  workos: WorkosMode | null;
 }
 
 export const parseDevArgs = (argv: string[]): DevArgs => {
@@ -92,27 +88,15 @@ export const parseDevArgs = (argv: string[]): DevArgs => {
       action: "help",
       all: false,
       headless: false,
+      push: false,
       target: "web",
-      workos: null,
     };
   }
-  const at = argv.indexOf("--workos");
-  const value = at === -1 ? undefined : argv[at + 1];
-  if (
-    at !== -1 &&
-    !(value && (WORKOS_MODES as readonly string[]).includes(value))
-  ) {
-    throw new Error(
-      `Unknown --workos "${value ?? ""}" (expected emulator, staging)`
-    );
-  }
-  const workos = (value as WorkosMode | undefined) ?? null;
-  const rest =
-    at === -1 ? argv : argv.filter((_, i) => i !== at && i !== at + 1);
   const flags = new Set([
     "--all",
     "--check",
     "--headless",
+    "--push",
     "--status",
     "--stop",
   ]);
@@ -120,27 +104,28 @@ export const parseDevArgs = (argv: string[]): DevArgs => {
     Boolean(DEV_TARGETS[arg]) ||
     FILES_TARGETS.has(arg) ||
     Boolean(TARGET_ALIASES[arg]);
-  const targets = rest.filter(isTarget);
+  const targets = argv.filter(isTarget);
   if (
-    !rest.every((arg) => flags.has(arg) || isTarget(arg)) ||
+    !argv.every((arg) => flags.has(arg) || isTarget(arg)) ||
     targets.length > 1
   ) {
     throw new Error(`Unknown dev target. ${describeTargets()}`);
   }
-  const all = rest.includes("--all");
+  const all = argv.includes("--all");
   const target = resolveTarget(targets[0] ?? "web");
-  if (workos && (all || target !== "web")) {
-    throw new Error("--workos applies only to the web stack");
+  const push = argv.includes("--push");
+  if (push && (all || target !== "web")) {
+    throw new Error("--push applies only to the web stack");
   }
   let action: DevArgs["action"] = "run";
-  if (rest.includes("--stop")) {
+  if (argv.includes("--stop")) {
     action = "stop";
-  } else if (rest.includes("--status")) {
+  } else if (argv.includes("--status")) {
     action = "status";
-  } else if (rest.includes("--check")) {
+  } else if (argv.includes("--check")) {
     action = "check";
   }
-  return { action, all, headless: rest.includes("--headless"), target, workos };
+  return { action, all, headless: argv.includes("--headless"), push, target };
 };
 
 /** The web stack runs on its own; everything else goes through Turbo. */
@@ -228,40 +213,46 @@ const stopStack = async (): Promise<number> => {
   return 0;
 };
 
+const describeRunning = (running: StackState): string[] => {
+  if (running.mode === "e2e") {
+    return [
+      `  The E2E stack is ${running.ready ? "running" : "starting"} at ${running.urls.appOrigin} (pid ${running.pid}), on a local backend and the WorkOS emulator.`,
+    ];
+  }
+  return [
+    `  ${running.ready ? "Running" : "Starting"} at ${running.urls.appOrigin} (pid ${running.pid}). Stop it with \`bun run dev --stop\`.`,
+    ...(running.notes ?? []).map((note) => `  ${note}`),
+  ];
+};
+
 /** What an agent needs to know about this checkout's stack, in a few lines. */
 export const describeStatus = (
   ports: WorktreePorts,
   running: StackState | null
 ): string =>
   [
-    `Teak local stack for this checkout (${ports.namespace}):`,
-    running
-      ? `  ${running.ready ? "Running" : "Starting"} at ${running.urls.appOrigin} (pid ${running.pid}). Stop it with \`bun run dev --stop\`.`
-      : "  Not running. Start it with `bun run dev` (run it in the background; it stays up until stopped).",
-    `  Ports: web ${ports.web}, Convex ${ports.convex} (HTTP ${ports.convexSite}), WorkOS emulator ${ports.emulator}, docs ${ports.docs}, extension ${ports.extension}.`,
-    `  Sign in on the emulator's page as ${DEV_USER.email} / ${DEV_USER.password}; the account is seeded with sample cards.`,
-    "  A running stack records its URLs in .agents/.state/stack.json and logs to .agents/.state/stack.log.",
+    `Teak dev stack for this checkout (${ports.namespace}), on the shared dev deployment ${DEV_DEPLOYMENT}:`,
+    ...(running
+      ? describeRunning(running)
+      : [
+          "  Not running. Start it with `bun run dev` (run it in the background; it stays up until stopped).",
+        ]),
+    `  Ports: web ${ports.web}, docs ${ports.docs}, extension ${ports.extension}. The backend is ${DEV_DEPLOYMENT_URLS.convexUrl}.`,
+    "  A running stack records its URLs and sign-in in .agents/.state/stack.json and logs to .agents/.state/stack.log.",
   ].join("\n");
 
 /**
- * This checkout's ports for the surfaces Turbo runs, and the local backend
- * for the docs proxy. Each app's turbo.json passes its variables through.
+ * This checkout's ports for the surfaces Turbo runs, and the dev deployment's
+ * API for the docs proxy. Each app's turbo.json passes its variables through.
  */
 const surfaceEnv = async (): Promise<Record<string, string>> => {
   const ports = await resolveWorktree(ROOT);
-  const { deployment } = readConvexSelection(
-    process.env,
-    join(ROOT, "packages/convex/.env.local")
-  );
   return {
     PORT: String(ports.web),
     DOCS_PORT: String(ports.docs),
     EXTENSION_PORT: String(ports.extension),
-    ...(deployment &&
-    isLocalSelection(deployment) &&
-    !process.env.TEAK_DEV_API_URL
-      ? { TEAK_DEV_API_URL: `http://127.0.0.1:${ports.convexSite}` }
-      : {}),
+    TEAK_DEV_API_URL:
+      process.env.TEAK_DEV_API_URL ?? DEV_DEPLOYMENT_URLS.convexSiteUrl,
   };
 };
 
@@ -289,9 +280,7 @@ const installThenRestart = (): number => {
   return again.exitCode ?? 1;
 };
 
-const runWebStack = async (
-  workosChoice: WorkosMode | null
-): Promise<number> => {
+const runWebStack = async (push: boolean): Promise<number> => {
   await stopOrphans();
   const running = runningStack();
   if (running) {
@@ -302,8 +291,7 @@ const runWebStack = async (
   }
   console.log("Setting up this checkout…");
   // Setup runs in its own process: when it installs packages, a process that
-  // already looked for them keeps failing to import them. The stack's watcher
-  // pushes the backend, so setup skips its own push.
+  // already looked for them keeps failing to import them.
   const setup = Bun.spawn(
     [
       "bun",
@@ -312,8 +300,6 @@ const runWebStack = async (
       "--target",
       "web",
       "--json",
-      "--skip-push",
-      ...(workosChoice ? ["--workos", workosChoice] : []),
     ],
     { cwd: ROOT, stdout: "pipe", stderr: "inherit" }
   );
@@ -326,39 +312,27 @@ const runWebStack = async (
     console.error(`Setup failed:\n${output}`);
     return 1;
   }
-  if (!report.ok) {
-    for (const check of report.checks.filter((entry) => !entry.ok)) {
-      console.error(`✗ ${check.id}: ${check.detail ?? ""}`);
-      for (const line of check.remediation ?? []) {
-        console.error(`    → ${line}`);
-      }
+  for (const check of report.checks.filter(
+    (entry) => !entry.ok || entry.severity === "warn"
+  )) {
+    console.error(`${check.ok ? "~" : "✗"} ${check.id}: ${check.detail ?? ""}`);
+    for (const line of check.remediation ?? []) {
+      console.error(`    → ${line}`);
     }
+  }
+  if (!report.ok) {
     return 1;
   }
   const ports = report.worktree;
   if (!ports) {
     return 1;
   }
-  const emulator = report.workos === "emulator";
-  const { deployment } = readConvexSelection(
-    process.env,
-    join(ROOT, "packages/convex/.env.local")
-  );
-  console.log("Starting the stack…");
+  console.log("Starting the web app…");
   // Loaded after setup, which installs the packages the stack imports.
-  const { STACK_LOG_PATH, startStack } = await import(
-    "../packages/tests/src/stack/stack.ts"
-  );
-  let stack: Awaited<ReturnType<typeof startStack>>;
+  const { DEV_LOG_PATH, startDevStack } = await import("./dev-stack.ts");
+  let stack: Awaited<ReturnType<typeof startDevStack>>;
   try {
-    stack = await startStack({
-      echo: true,
-      emulator,
-      localBackend: isLocalSelection(deployment),
-      ports,
-      seed: emulator,
-      watch: true,
-    });
+    stack = await startDevStack({ echo: true, ports, push });
   } catch (error) {
     console.error(
       `✗ ${error instanceof Error ? error.message : String(error)}`
@@ -369,22 +343,17 @@ const runWebStack = async (
     [
       "",
       `Teak is running (${ports.namespace})`,
-      `  Web       ${stack.urls.appOrigin}`,
-      ...(emulator
-        ? [
-            `  Convex    ${stack.urls.convexUrl}`,
-            `  WorkOS    ${stack.urls.emulatorOrigin} (local emulator)`,
-            `  Sign in   ${DEV_USER.email} / ${DEV_USER.password}`,
-          ]
-        : ["  WorkOS    staging"]),
-      `  Logs      ${STACK_LOG_PATH.replace(`${ROOT}/`, "")}`,
+      `  Web       ${stack.state.urls.appOrigin}`,
+      `  Convex    ${stack.state.urls.convexUrl} (shared dev deployment)`,
+      ...stack.notes.map((note) => `  ${note}`),
+      `  Logs      ${DEV_LOG_PATH.replace(`${ROOT}/`, "")}`,
       "Stop with Ctrl-C or `bun run dev --stop`.",
       "",
     ].join("\n")
   );
   await stack.exited;
   await stack.stop();
-  console.error(`The stack exited. See ${STACK_LOG_PATH}.`);
+  console.error(`The stack exited. See ${DEV_LOG_PATH}.`);
   return 1;
 };
 
@@ -419,11 +388,11 @@ const main = async (): Promise<void> => {
     }
     if (parsed.action === "check") {
       console.log(
-        `Would run setup (WorkOS: ${parsed.workos ?? "emulator unless this checkout uses staging"}), then the local stack on this checkout's ports`
+        `Would run setup, then the web app on this checkout's port against ${DEV_DEPLOYMENT}${parsed.push ? ", taking over pushing the backend" : ""}`
       );
       return;
     }
-    process.exitCode = await runWebStack(parsed.workos);
+    process.exitCode = await runWebStack(parsed.push);
     return;
   }
   // Fail fast before Turbo spawns watchers (skip for --check dry-runs).

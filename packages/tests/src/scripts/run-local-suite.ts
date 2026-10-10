@@ -42,7 +42,9 @@ if (running && isStackRunning(running)) {
   );
 }
 
-// The stack pushes the backend once itself, so setup skips its push.
+// The stack pushes the backend once itself, so setup skips its push. Setup
+// takes packages/convex/.env.local over for the local backend; the next
+// `bun run dev` selects the shared dev deployment again.
 if (
   (await run(
     ["bun", "run", "setup", "--target", "e2e", "--skip-push"],
@@ -52,15 +54,11 @@ if (
   throw new Error("bun run setup --target e2e failed");
 }
 
-// The suite makes its own accounts, so the stack runs without seed data, and
-// pushes once: the suite's trace and state writes would keep a watcher busy.
+// The suite makes its own accounts. The stack pushes once: the suite's trace
+// and state writes would keep a watcher busy.
 const stack = await startStack({
   echo: false,
-  emulator: true,
-  localBackend: true,
   ports: await resolveWorktree(ROOT),
-  seed: false,
-  watch: false,
 });
 
 let exitCode = 1;

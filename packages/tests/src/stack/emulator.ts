@@ -63,16 +63,13 @@ const forward = async (
 };
 
 // The emulator itself listens on the next port, behind the proxy.
-export const startEmulator = async (
-  ports: StackPorts,
-  options: { devUser: boolean }
-) => {
+export const startEmulator = async (ports: StackPorts) => {
   const upstream = `http://localhost:${ports.emulator + 1}`;
   // Hosted AuthKit asks for the password after the email, and its tokens
   // name api.workos.com as the issuer; the emulator does both when told to.
   const emulator = await createEmulator({
     port: ports.emulator + 1,
-    seed: emulatorSeed(ports, options),
+    seed: emulatorSeed(ports),
     issuer: "https://api.workos.com",
     interactiveAuth: { password: true },
   });

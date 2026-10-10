@@ -1,111 +1,45 @@
 import { describe, expect, test } from "bun:test";
-import { planWorkosApiBase, planWorkosCredential } from "./setup-workos.ts";
-
-describe("planWorkosApiBase", () => {
-  test("defaults a fresh deployment to production WorkOS", () => {
-    expect(planWorkosApiBase({ localBackend: false })).toEqual({
-      status: "ready",
-      value: "https://api.workos.com",
-      setDeployment: true,
-    });
-  });
-
-  test("uses an exported emulator origin for a fresh local backend", () => {
-    expect(
-      planWorkosApiBase({
-        explicit: "http://localhost:4100",
-        localBackend: true,
-      })
-    ).toEqual({
-      status: "ready",
-      value: "http://localhost:4100",
-      setDeployment: true,
-    });
-  });
-
-  test("never overwrites a valid deployment value", () => {
-    expect(
-      planWorkosApiBase({
-        deployment: "http://localhost:4100",
-        explicit: "https://api.workos.com",
-        localBackend: true,
-      })
-    ).toEqual({
-      status: "ready",
-      value: "http://localhost:4100",
-      setDeployment: false,
-    });
-  });
-
-  test.each([
-    [{ explicit: "http://localhost:4100/x", localBackend: true }, "exported"],
-    [{ explicit: "https://evil.example", localBackend: true }, "exported"],
-    [{ deployment: "not a url", localBackend: true }, "on the deployment"],
-    [
-      { explicit: "http://localhost:4100", localBackend: false },
-      "local backend",
-    ],
-    [
-      { deployment: "http://localhost:4100", localBackend: false },
-      "local backend",
-    ],
-  ])("refuses an unusable base instead of storing it (%#)", (sources, text) => {
-    const plan = planWorkosApiBase(sources);
-    expect(plan.status).toBe("invalid");
-    expect(JSON.stringify(plan)).toContain(text);
-  });
-});
+import { planWorkosCredential } from "./setup-workos.ts";
 
 describe("planWorkosCredential", () => {
-  test("reports a credential missing from every source", () => {
-    expect(planWorkosCredential("WORKOS_CLIENT_ID", { explicit: " " })).toEqual(
-      { name: "WORKOS_CLIENT_ID", status: "missing" }
-    );
-  });
-
-  test("sets the deployment from an explicit export", () => {
-    expect(
-      planWorkosCredential("WORKOS_API_KEY", { explicit: "sk_test_a" })
-    ).toEqual({
-      name: "WORKOS_API_KEY",
-      status: "ready",
-      value: "sk_test_a",
-      setDeployment: true,
-    });
-  });
-
-  test("syncs a deployment value to the web without setting it again", () => {
+  test("uses the dev deployment's value", () => {
     expect(
       planWorkosCredential("WORKOS_CLIENT_ID", { deployment: "client_a" })
-    ).toEqual({
-      name: "WORKOS_CLIENT_ID",
-      status: "ready",
-      value: "client_a",
-      setDeployment: false,
-    });
+    ).toEqual({ name: "WORKOS_CLIENT_ID", status: "ready", value: "client_a" });
   });
 
-  test("seeds a fresh deployment from the web dotenv file", () => {
+  test("a matching export is fine", () => {
     expect(
-      planWorkosCredential("WORKOS_CLIENT_ID", { web: "client_a" })
-    ).toMatchObject({
-      status: "ready",
-      value: "client_a",
-      setDeployment: true,
-    });
+      planWorkosCredential("WORKOS_API_KEY", {
+        deployment: "sk_test_a",
+        explicit: "sk_test_a",
+      })
+    ).toMatchObject({ status: "ready", value: "sk_test_a" });
   });
 
-  test.each([
-    [{ explicit: "client_b", deployment: "client_a" }, "the shell export"],
-    [{ deployment: "client_a", web: "client_b" }, "apps/web/.env.local"],
-  ])(
-    "refuses sources that disagree instead of overwriting (%#)",
-    (sources, label) => {
-      const plan = planWorkosCredential("WORKOS_CLIENT_ID", sources);
-      expect(plan.status).toBe("conflict");
-      expect(JSON.stringify(plan)).toContain(label);
-      expect(JSON.stringify(plan)).not.toContain("client_a");
-      expect(JSON.stringify(plan)).not.toContain("client_b");
-    }
-  );
+  test("reports a credential the deployment lacks", () => {
+    expect(
+      planWorkosCredential("WORKOS_CLIENT_ID", { explicit: "client_a" })
+    ).toMatchObject({ status: "invalid" });
+  });
+
+  test("refuses a production API key on the dev deployment", () => {
+    const plan = planWorkosCredential("WORKOS_API_KEY", {
+      deployment: "sk_live_a",
+    });
+    expect(plan.status).toBe("invalid");
+    expect(JSON.stringify(plan)).toContain("production key");
+    expect(JSON.stringify(plan)).not.toContain("sk_live_a");
+  });
+
+  test("refuses an export that disagrees instead of using it", () => {
+    const plan = planWorkosCredential("WORKOS_CLIENT_ID", {
+      deployment: "client_a",
+      explicit: "client_b",
+    });
+    expect(plan.status).toBe("invalid");
+    expect(JSON.stringify(plan)).toContain("exported");
+    expect(JSON.stringify(plan)).not.toContain("client_a");
+    expect(JSON.stringify(plan)).not.toContain("client_b");
+  });
 });

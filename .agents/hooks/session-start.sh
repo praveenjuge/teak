@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Claude Code SessionStart hook (.claude/settings.json). Tells the agent how to
-# run this checkout's local stack. In Claude Code on the web it first prepares
-# a fresh VM with .agents/setup, once.
+# run this checkout's dev stack. In Claude Code on the web it first prepares a
+# fresh VM with .agents/setup, once.
 set -euo pipefail
 
 root="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"

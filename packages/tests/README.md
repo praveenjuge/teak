@@ -1,12 +1,12 @@
 # Teak E2E tests
 
-Playwright journeys across Teak's web app, REST API, CLI and MCP server, run against this checkout's local stack (`src/stack/`), the same one `bun run dev` runs:
+Playwright journeys across Teak's web app, REST API, CLI and MCP server, run against this checkout's own local E2E stack (`src/stack/`). It never touches the shared cloud dev deployment that `bun run dev` uses:
 
 - the official WorkOS emulator ([`@workos/emulate`](https://www.npmjs.com/package/@workos/emulate)), standing in for hosted AuthKit,
 - a local Convex backend (API and webhooks on the next port),
 - the web app.
 
-It needs no secrets. Every WorkOS value is a test-only constant in `src/stack/config.ts`, and the emulator keeps all of it in memory. The main checkout uses web 3000, Convex 3210/3211 and the emulator 4100/4101; each linked worktree uses its own ports (`bun run dev --status` prints them), so the suite runs in any worktree.
+It needs no secrets. Every WorkOS value is a test-only constant in `src/stack/config.ts`, and the emulator keeps all of it in memory. The main checkout uses web 3000, Convex 3210/3211 and the emulator 4100/4101; each linked worktree uses its own ports, so the suite runs in any worktree.
 
 ## Run it
 
@@ -33,7 +33,7 @@ The `E2E` workflow (`.github/workflows/e2e.yml`) runs the same command daily and
 
 ## How the stack is wired
 
-`bun run setup --target e2e` is the web target on a local backend pointed at the emulator, which is also the default for `bun run setup`. It sets `WORKOS_CLIENT_ID`, `WORKOS_API_KEY`, `WORKOS_API_BASE_URL`, `WORKOS_ENVIRONMENT_ID` and `WORKOS_WEBHOOK_SECRET` on the deployment, and adds `WORKOS_API_HOSTNAME`, `WORKOS_API_PORT` and `WORKOS_API_HTTPS` to `apps/web/.env.local` so authkit-nextjs talks to the emulator. Setup never overwrites a value a person set, so it fails with a remediation if this checkout is wired to WorkOS staging. `bun run doctor --target web --profile e2e` checks the web side.
+`bun run setup --target e2e` points `packages/convex/.env.local` at a local backend (taking it over from the dev deployment; the next `bun run dev` selects that again) and sets `WORKOS_CLIENT_ID`, `WORKOS_API_KEY`, `WORKOS_API_BASE_URL`, `WORKOS_ENVIRONMENT_ID` and `WORKOS_WEBHOOK_SECRET` on it. The stack passes the web app its emulator settings, including `WORKOS_API_HOSTNAME`, `WORKOS_API_PORT` and `WORKOS_API_HTTPS` for authkit-nextjs, as process environment, which Next.js prefers over `apps/web/.env.local`, so the dev wiring in that file stays as it is. `bun run doctor --target web --profile e2e` checks the checkout.
 
 The emulator is started with:
 
@@ -44,7 +44,7 @@ The emulator is started with:
 
 A small proxy in front of the emulator adds hosted AuthKit's 30-second refresh-token grace window ([session resilience](https://workos.com/docs/authkit/session-resilience)). The web client refreshes its session on every page load, and without the window a navigation that interrupts that refresh would end the session.
 
-For the suite, the backend runs with `convex dev --once --start`, so the suite's own file writes never trigger a push. `bun run dev` watches instead and adds the seeded dev account.
+The backend runs with `convex dev --once --start`, so the suite's own file writes never trigger a push.
 
 ## Accounts
 

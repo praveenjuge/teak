@@ -1,21 +1,30 @@
 import { randomBytes } from "node:crypto";
-import { readStackState, type StackState } from "../stack/config";
+import {
+  readStackState,
+  type StackState,
+  type StackUrls,
+} from "../stack/config";
+
+type E2eUrls = Required<StackUrls>;
 
 // Hermetic suites (auth-runtime) route every request themselves. They opt in
 // with TEAK_E2E_HERMETIC=1 and get origins on a reserved TLD that no real
 // server answers, so they never reach a running stack.
-export const FIXTURE_URLS: StackState["urls"] = {
+export const FIXTURE_URLS: E2eUrls = {
   appOrigin: "http://app.teak-fixture.test",
   apiOrigin: "http://api.teak-fixture.test",
   convexUrl: "http://convex.teak-fixture.test",
   emulatorOrigin: "http://workos.teak-fixture.test",
 };
 
-/** Every other suite runs against this checkout's running stack. */
+/**
+ * Every other suite runs against this checkout's running E2E stack, never the
+ * dev stack: that one writes to the shared cloud dev deployment.
+ */
 export const resolveStackUrls = (
   state: StackState | null,
   hermetic: boolean
-): StackState["urls"] => {
+): E2eUrls => {
   if (hermetic) {
     return FIXTURE_URLS;
   }
@@ -24,10 +33,16 @@ export const resolveStackUrls = (
       "No local stack is running for this checkout. Start one with `bun run --cwd packages/tests e2e:stack`."
     );
   }
-  return state.urls;
+  const { emulatorOrigin } = state.urls;
+  if (state.mode !== "e2e" || !emulatorOrigin) {
+    throw new Error(
+      "This checkout runs the dev stack, which uses the shared dev deployment. Stop it with `bun run dev --stop`, then start the E2E stack with `bun run --cwd packages/tests e2e:stack`."
+    );
+  }
+  return { ...state.urls, emulatorOrigin };
 };
 
-let urls: StackState["urls"] | undefined;
+let urls: E2eUrls | undefined;
 const current = () => {
   urls ??= resolveStackUrls(
     readStackState(),

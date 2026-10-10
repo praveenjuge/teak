@@ -40,8 +40,8 @@ export const TARGET_SPECS: Record<SupportedTarget, TargetSpec> = {
     profiles: ["local", "preview", "production"],
     dotenvFiles: ["apps/web/.env.local"],
     needsConvex: true,
-    defaultConvex: "local",
-    note: "Next.js app plus Convex backend; signs in through the local WorkOS emulator unless --workos staging.",
+    defaultConvex: "cloud",
+    note: "Next.js app on the shared cloud dev deployment; signs in through WorkOS staging.",
   },
   docs: {
     target: "docs",
@@ -64,7 +64,7 @@ export const TARGET_SPECS: Record<SupportedTarget, TargetSpec> = {
     profiles: ["local", "preview", "production"],
     dotenvFiles: ["apps/extension/.env.local"],
     needsConvex: true,
-    defaultConvex: "local",
+    defaultConvex: "cloud",
     note: "Chrome extension. Setup derives VITE_PUBLIC_CONVEX_* from the canonical deployment pair.",
   },
   "mobile-simulator": {
@@ -72,15 +72,15 @@ export const TARGET_SPECS: Record<SupportedTarget, TargetSpec> = {
     profiles: ["local"],
     dotenvFiles: ["apps/mobile/.env.local"],
     needsConvex: true,
-    defaultConvex: "local",
-    note: "Expo on a simulator. Loopback origins work; no LAN inference needed.",
+    defaultConvex: "cloud",
+    note: "Expo on a simulator, against the shared cloud dev deployment.",
   },
   "mobile-device": {
     target: "mobile-device",
     profiles: ["local"],
     dotenvFiles: ["apps/mobile/.env.local"],
     needsConvex: true,
-    defaultConvex: "local",
+    defaultConvex: "cloud",
     note: "Expo on a physical device. Requires a LAN-reachable host; doctor reports an actionable diagnostic when none can be inferred.",
   },
   "files-worker": {
@@ -100,7 +100,7 @@ export const TARGET_SPECS: Record<SupportedTarget, TargetSpec> = {
     dotenvFiles: ["apps/web/.env.local"],
     needsConvex: true,
     defaultConvex: "local",
-    note: "The web stack on a local backend wired to the WorkOS emulator. Every emulator value is a test-only constant in packages/tests/src/stack/config.ts.",
+    note: "The E2E stack: a local backend and the web app wired to the WorkOS emulator. Every emulator value is a test-only constant in packages/tests/src/stack/config.ts.",
   },
 };
 

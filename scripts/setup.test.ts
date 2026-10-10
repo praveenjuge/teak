@@ -1,8 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import {
-  assertNoProductionConvex,
   checkBunVersion,
-  isProductionDeployment,
+  convexModeProblem,
   parseSetupArgs,
   requiredBunVersion,
   resolveSetupConvex,
@@ -32,25 +31,17 @@ describe("checkBunVersion", () => {
   });
 });
 
-describe("production refusal", () => {
-  test("detects prod: deployments only", () => {
-    expect(isProductionDeployment("prod:main")).toBe(true);
-    expect(isProductionDeployment("dev:main")).toBe(false);
-    expect(isProductionDeployment("anonymous:local")).toBe(false);
-    expect(isProductionDeployment(undefined)).toBe(false);
+describe("convexModeProblem", () => {
+  test("local backends are only for the E2E suite", () => {
+    expect(convexModeProblem("web", "local")).toContain("E2E");
+    expect(convexModeProblem("extension", "local")).toContain("E2E");
+    expect(convexModeProblem("e2e", "local")).toBeNull();
   });
 
-  test("refuses deploy keys and prod selections", () => {
-    expect(() =>
-      assertNoProductionConvex({ source: "none" }, "prod-key")
-    ).toThrow("CONVEX_DEPLOY_KEY");
-    expect(() =>
-      assertNoProductionConvex({ deployment: "prod:main", source: "env" })
-    ).toThrow("production");
-    expect(() =>
-      assertNoProductionConvex({ deployment: "dev:main", source: "dotenv" })
-    ).not.toThrow();
-    expect(() => assertNoProductionConvex({ source: "none" })).not.toThrow();
+  test("the E2E suite never uses the cloud dev deployment", () => {
+    expect(convexModeProblem("e2e", "cloud")).toContain("local backend");
+    expect(convexModeProblem("web", "cloud")).toBeNull();
+    expect(convexModeProblem("docs", "skip")).toBeNull();
   });
 });
 
@@ -62,23 +53,14 @@ describe("parseSetupArgs", () => {
       check: false,
       json: false,
       push: true,
-      workos: null,
     });
   });
 
-  test("parses --workos and --skip-push", () => {
-    const parsed = parseSetupArgs([
-      "bun",
-      "setup.ts",
-      "--workos",
-      "staging",
-      "--skip-push",
-    ]);
-    expect(parsed.workos).toBe("staging");
-    expect(parsed.push).toBe(false);
+  test("parses --skip-push and refuses the retired --workos flag", () => {
+    expect(parseSetupArgs(["bun", "setup.ts", "--skip-push"]).push).toBe(false);
     expect(() =>
-      parseSetupArgs(["bun", "setup.ts", "--workos", "production"])
-    ).toThrow("--workos");
+      parseSetupArgs(["bun", "setup.ts", "--workos", "staging"])
+    ).toThrow("Unknown argument");
   });
 
   test("parses target, convex, check, and json", () => {
@@ -99,7 +81,6 @@ describe("parseSetupArgs", () => {
       check: true,
       json: true,
       push: true,
-      workos: null,
     });
   });
 
@@ -121,7 +102,8 @@ describe("resolveSetupConvex", () => {
   });
 
   test("matrix defaults apply without an explicit mode", () => {
-    expect(resolveSetupConvex("web", null)).toBe("local");
+    expect(resolveSetupConvex("web", null)).toBe("cloud");
+    expect(resolveSetupConvex("extension", null)).toBe("cloud");
     expect(resolveSetupConvex("docs", null)).toBe("skip");
     expect(resolveSetupConvex("cli", null)).toBe("skip");
     expect(resolveSetupConvex("files-worker", null)).toBe("skip");

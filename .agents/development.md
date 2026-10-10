@@ -1,64 +1,115 @@
 # Running Teak locally
 
-One command starts a working, seeded app in any checkout, worktree, or cloud VM:
+One command starts the full app in any checkout, worktree, or cloud VM:
 
 ```bash
 bun run dev
 ```
 
-It runs setup (packages, a local Convex backend, env files), then starts the
-local WorkOS emulator, the backend, and the web app, creates a dev account with
-sample cards, and prints the URLs and sign-in. It needs no secrets. Agents should run it in
-the background; it stays up until stopped.
+It runs setup (packages, env files), then starts this checkout's web app
+against the **shared cloud dev deployment** (`dev:reminiscent-kangaroo-59`),
+signed in through WorkOS staging. Files, previews, AI metadata, screenshots,
+imports and exports, WorkOS Connect, and Polar sandbox billing all work, the
+same as on the dev deployment itself. Agents should run it in the background;
+it stays up until stopped.
 
 | Command | What it does |
 | --- | --- |
-| `bun run dev` | Set up and start this checkout's stack |
-| `bun run dev --status` | Ports, URLs, sign-in, and whether the stack is running |
+| `bun run dev` | Set up and start this checkout's web app |
+| `bun run dev --push` | Same, and take over pushing the backend (see below) |
+| `bun run dev --status` | Ports, URLs, sign-in, and whether this checkout pushes |
 | `bun run dev --stop` | Stop this checkout's stack |
-| `bun run dev --workos staging` | Sign in through WorkOS staging instead of the emulator |
 | `bun run dev <target>` | Another surface (`mobile`, `extension`, `docs`, …) through Turbo |
-| `bun run smoke:web` | Headless sign-in check against the running stack |
-| `bun run --cwd packages/tests e2e` | The E2E suite on this checkout's stack |
+| `bun run smoke:web` | Headless sign-in check against the running web app |
+| `bun run --cwd packages/tests e2e` | The E2E suite, on its own local stack |
+
+## Reaching the dev deployment
+
+- **Mac checkouts** (the main checkout and every worktree) use your Convex
+  login: run `bunx convex login` once. Setup selects the dev deployment in
+  `packages/convex/.env.local`.
+- **Cloud sessions** (Claude Code on the web, Codex, Amp) have no login. Their
+  environment's secrets hold `CONVEX_DEPLOY_KEY`, a dev deploy key scoped to
+  the dev deployment. It is the only secret a cloud environment needs.
+
+Setup and doctor refuse every other key or selection (production, preview,
+project and admin keys, other deployments), so dev never touches production.
+The WorkOS staging client ID and API key the web app needs are read from the
+dev deployment into `apps/web/.env.local`; nobody exports them by hand.
+
+## One backend, one pusher
+
+Every checkout shares the deployment's code and data, so only one checkout at a
+time runs `convex dev`. It holds the **push lease**, stored in the deployment
+(`packages/convex/devPushLease.ts`) and renewed every 30 seconds.
+
+- `bun run dev` takes the lease when it is free. Otherwise it runs the web app
+  only, against whatever backend code is live, and says which branch pushed it.
+- `bun run dev --push` takes the lease over. The previous holder stops pushing
+  at its next heartbeat and says why.
+- A holder that stops (Ctrl-C, crash, closed laptop) frees the lease within two
+  minutes.
+
+Backend changes on a branch are live for every checkout while that branch
+holds the lease, so push a branch's backend only while you work on it.
 
 ## Signing in
 
-The emulator's sign-in page lists its accounts. Use `dev@example.org` with the
-password `teak-dev-Password-1!` (test-only, in
-`packages/tests/src/stack/config.ts`). Its vault is seeded once with about 30
-text, link, quote, and palette cards (`packages/convex/devSeed.ts`); empty the
-vault to seed it again on the next start. For a session without a browser, use
+Each checkout gets its own WorkOS staging account,
+`dev+<machine>-<checkout>@example.org`, with a random password kept in the
+ignored `.agents/.state/dev-account.json`. Its vault is seeded once with about
+30 sample cards (`packages/convex/devSeed.ts`). `bun run dev --status` prints
+the email and password. For a session without a browser, use
 `scripts/lib/workos-test-session.ts`, as `bun run smoke:web` does.
 
 ## Worktrees
 
 Every linked worktree leases its own block of ports the first time it runs,
-recorded in the repository's git directory (`scripts/worktree-env.ts`), so
-stacks in different worktrees run side by side. The main checkout keeps web
-3000, docs 3001, Convex 3210/3211, and the emulator 4100. Each worktree's local
-backend keeps its data in its own `packages/convex/.convex/`, which goes away
-with the worktree. `bun run dev --status` prints the ports.
+recorded in the repository's git directory (`scripts/worktree-env.ts`), so web
+apps in different worktrees run side by side. The main checkout keeps web 3000,
+docs 3001 and extension 3003. `bun run dev --status` prints the ports.
+`packages/convex/convex.json` registers every one of those web ports as a
+sign-in callback on the dev deployment's WorkOS environment.
 
-A running stack writes `.agents/.state/stack.json` (URLs, ports, pid) and logs
-to `.agents/.state/stack.log`.
+A running stack writes `.agents/.state/stack.json` (URLs, ports, sign-in) and
+logs to `.agents/.state/stack.log`.
 
-## What the local stack doesn't cover
+The dev deployment's `appUrl` links point at port 3000, so links from a
+worktree's API responses open the main checkout's web app.
 
-File uploads, previews, AI metadata, imports and exports need the Files Worker
-and Cloudflare, which the local stack doesn't run. WorkOS Connect (CLI,
-extensions, Mac app, Raycast, MCP OAuth), AuthKit Actions, and billing need
-WorkOS staging or other credentials: use `bun run dev --workos staging` with
-`WORKOS_CLIENT_ID` and `WORKOS_API_KEY` exported from a staging environment
-(never production).
+## The E2E suite
 
-A checkout that already uses a cloud deployment or WorkOS staging keeps using
-it; setup never overwrites a value a person set and says how to switch.
+The E2E suite never touches the dev deployment. It runs its own stack: a local
+Convex backend and the local WorkOS emulator, with test-only values and no
+secrets (`packages/tests/README.md`). While it runs it takes over
+`packages/convex/.env.local`; the next `bun run dev` selects the dev deployment
+again. Stop the dev stack before running it.
+
+## Owner one-time setup
+
+The repository owner does these once; nobody else needs to:
+
+1. On the dev deployment (`bunx convex env set NAME value` in `packages/convex`,
+   or the Convex dashboard):
+   - `TEAK_DEV_DEPLOYMENT=true` turns on seeding and the push lease.
+   - `TEAK_DEV_APP_URL=http://localhost:3000`
+   - `TEAK_DEV_DOCS_URL=http://localhost:3001`
+   - `TEAK_DEV_API_URL=https://reminiscent-kangaroo-59.convex.site`
+2. For cloud sessions, create a dev deploy key for the dev deployment
+   (`bunx convex deployment token create cloud-agents --deployment dev`, or the
+   deployment's settings in the dashboard) and add it to each cloud
+   environment's secrets as `CONVEX_DEPLOY_KEY`. The key has full access to the
+   dev deployment, including its variables (the shared Files and WorkOS staging
+   credentials), so keep it out of untrusted environments.
+
+`bun run doctor` warns about any of the first group that are missing; until
+they are set, `bun run dev` still runs the web app but doesn't seed or push.
 
 ## Cloud agents
 
 `.agents/setup` prepares a fresh Linux VM: the pinned Node and Bun, packages,
-and the local backend. It needs no secrets but does need network access to
-npm, GitHub (the Bun download) and Convex (the local backend binary).
+and, when `CONVEX_DEPLOY_KEY` is present, the wiring to the dev deployment.
+Without the key it still prepares the VM for unit tests and the E2E suite.
 
 - Claude Code on the web: set the environment's setup script to
   `bash .agents/setup` so the result is cached. The SessionStart hook in

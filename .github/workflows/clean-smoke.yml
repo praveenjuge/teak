@@ -18,8 +18,9 @@ jobs:
     timeout-minutes: 30
     env:
       TURBO_UI: "false"
-    # Sign-in uses the local WorkOS emulator with test-only values, so the
-    # smoke needs no secrets and runs the same on forks.
+    # Runs on the E2E stack: a local backend and the WorkOS emulator with
+    # test-only values, so the smoke needs no secrets and runs the same on
+    # forks. (`bun run dev` uses the shared cloud dev deployment instead.)
     steps:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
@@ -39,18 +40,18 @@ jobs:
           test ! -e apps/mobile/.env.local
           test ! -e apps/files-worker/.dev.vars
           test ! -e packages/convex/.env.local
-      - name: Setup web target
-        run: bun run setup --target web --convex local
+      - name: Setup E2E target
+        run: bun run setup --target e2e
       - name: Doctor JSON must pass
         run: |
           doctor_exit=0
-          bun run --silent doctor --target web --profile local --json > /tmp/doctor.json || doctor_exit=$?
+          bun run --silent doctor --target web --profile e2e --json > /tmp/doctor.json || doctor_exit=$?
           cat /tmp/doctor.json
           test "$doctor_exit" -eq 0
           test "$(jq -r .ok /tmp/doctor.json)" = "true"
       - name: Authenticated journey smoke
         run: |
-          bun run dev > /tmp/dev.log 2>&1 &
+          bun run --cwd packages/tests e2e:stack > /tmp/dev.log 2>&1 &
           dev_pid=$!
           trap 'kill "$dev_pid" 2> /dev/null || true' EXIT
           for _ in $(seq 1 60); do

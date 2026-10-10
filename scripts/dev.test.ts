@@ -19,18 +19,18 @@ describe("parseDevArgs", () => {
       action: "run",
       all: false,
       headless: false,
+      push: false,
       target: "web",
-      workos: null,
     });
   });
 
-  test("parses --workos, --status and --stop for the web stack", () => {
-    expect(parseDevArgs(["--workos", "staging"]).workos).toBe("staging");
+  test("parses --push, --status and --stop for the web stack", () => {
+    expect(parseDevArgs(["--push"]).push).toBe(true);
     expect(parseDevArgs(["--status"]).action).toBe("status");
     expect(parseDevArgs(["--stop"]).action).toBe("stop");
-    expect(() => parseDevArgs(["--workos", "prod"])).toThrow("--workos");
-    expect(() => parseDevArgs(["mobile", "--workos", "staging"])).toThrow(
-      "web stack"
+    expect(() => parseDevArgs(["mobile", "--push"])).toThrow("web stack");
+    expect(() => parseDevArgs(["--workos", "staging"])).toThrow(
+      "Unknown dev target"
     );
   });
 
@@ -196,31 +196,38 @@ describe("needsWebEnv", () => {
 });
 
 describe("describeStatus", () => {
-  test("tells an agent how to start a stopped stack and sign in", () => {
+  test("tells an agent how to start a stopped stack", () => {
     const text = describeStatus(slotPorts(2), null);
     expect(text).toContain("wt-2");
     expect(text).toContain("bun run dev");
     expect(text).toContain("web 4200");
-    expect(text).toContain("dev@example.org");
+    expect(text).toContain("shared dev deployment");
   });
 
-  test("points at a running stack", () => {
+  test("points at a running dev stack and its sign-in", () => {
     const text = describeStatus(mainWorktreePorts(), {
-      group: 41,
+      account: { email: "dev+mac-main@example.org", password: "pw-123" },
+      groups: [41],
+      mode: "dev",
+      notes: [
+        "main (~/teak on mac) pushes the backend. This checkout runs the web app only; `bun run dev --push` pushes its backend instead.",
+        "Sign in as dev+mac-main@example.org / pw-123 (WorkOS staging); its vault already has cards.",
+      ],
+      pushing: false,
       ready: true,
       logPath: "/tmp/stack.log",
       pid: 42,
       ports: { web: 3000, convex: 3210, convexSite: 3211, emulator: 4100 },
-      seeded: true,
       startedAt: "2026-10-09T00:00:00.000Z",
       urls: {
         appOrigin: "http://localhost:3000",
-        apiOrigin: "http://127.0.0.1:3211",
-        convexUrl: "http://127.0.0.1:3210",
-        emulatorOrigin: "http://localhost:4100",
+        apiOrigin: "https://dev-example.convex.site",
+        convexUrl: "https://dev-example.convex.cloud",
       },
     });
     expect(text).toContain("Running at http://localhost:3000 (pid 42)");
     expect(text).toContain("bun run dev --stop");
+    expect(text).toContain("dev+mac-main@example.org");
+    expect(text).toContain("bun run dev --push");
   });
 });

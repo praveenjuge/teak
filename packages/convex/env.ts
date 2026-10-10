@@ -29,6 +29,10 @@ export const readAccountChangesPaused = (): boolean => {
   throw new Error("ACCOUNT_CHANGES_PAUSED must be true or false.");
 };
 
+/** True only on the shared cloud dev deployment (TEAK_DEV_DEPLOYMENT=true). */
+export const readIsDevDeployment = (): boolean =>
+  env.TEAK_DEV_DEPLOYMENT === "true";
+
 export const readWorkosConnectIssuer = (): string => {
   const value = env.WORKOS_AUTHKIT_DOMAIN;
   if (!value) {

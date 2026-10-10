@@ -1,6 +1,6 @@
-import { describe, expect, test } from "bun:test";
+import { afterEach, describe, expect, test } from "bun:test";
 import {
-  checkEmulatorStack,
+  checkConvexIsolation,
   checkTargetReadiness,
   evaluateWorkosPresence,
   findMissingKeys,
@@ -89,12 +89,12 @@ describe("evaluateWorkosPresence", () => {
     expect(check.severity).toBe("error");
   });
 
-  test("fails naming the missing credential with a setup remediation", () => {
+  test("fails naming the missing credential with an owner remediation", () => {
     const check = evaluateWorkosPresence(presence("found", "missing"));
     expect(check.ok).toBe(false);
     expect(check.detail).toContain("WORKOS_API_KEY");
     expect(check.detail).not.toContain("WORKOS_CLIENT_ID");
-    expect(check.remediation?.join(" ")).toContain("bun run setup");
+    expect(check.remediation?.join(" ")).toContain("dev deployment");
   });
 
   test("warns when the deployment is unreachable", () => {
@@ -104,49 +104,22 @@ describe("evaluateWorkosPresence", () => {
   });
 });
 
-const MAIN = { web: 3000, convex: 3210, convexSite: 3211, emulator: 4100 };
-
-describe("checkEmulatorStack", () => {
-  test("passes when the web env points at the WorkOS emulator", () => {
-    const check = checkEmulatorStack(
-      new Map([
-        ["WORKOS_CLIENT_ID", "client_01TEAKE2EEMULATOR"],
-        ["WORKOS_API_HOSTNAME", "localhost"],
-        ["WORKOS_API_PORT", "4100"],
-        ["WORKOS_API_HTTPS", "false"],
-      ]),
-      MAIN
-    );
-    expect(check.ok).toBe(true);
+describe("checkConvexIsolation", () => {
+  const saved = process.env.CONVEX_DEPLOY_KEY;
+  afterEach(() => {
+    if (saved === undefined) {
+      delete process.env.CONVEX_DEPLOY_KEY;
+    } else {
+      process.env.CONVEX_DEPLOY_KEY = saved;
+    }
   });
 
-  test("fails when the web env points at another checkout's emulator", () => {
-    const check = checkEmulatorStack(
-      new Map([
-        ["WORKOS_CLIENT_ID", "client_01TEAKE2EEMULATOR"],
-        ["WORKOS_API_HOSTNAME", "localhost"],
-        ["WORKOS_API_PORT", "4100"],
-        ["WORKOS_API_HTTPS", "false"],
-      ]),
-      { ...MAIN, emulator: 4320 }
-    );
+  test("refuses a deploy key for anything but the shared dev deployment", () => {
+    process.env.CONVEX_DEPLOY_KEY = "prod:teak-prod|eyJ0b2tlbiI6MX0=";
+    const check = checkConvexIsolation("local");
     expect(check.ok).toBe(false);
-    expect(check.detail).toContain("WORKOS_API_PORT");
-  });
-
-  test("names what still points at hosted WorkOS", () => {
-    const check = checkEmulatorStack(
-      new Map([["WORKOS_CLIENT_ID", "client_STAGING"]]),
-      MAIN
-    );
-    expect(check.ok).toBe(false);
-    expect(check.detail).toContain("WORKOS_CLIENT_ID");
-    expect(check.detail).toContain("WORKOS_API_HOSTNAME");
-    expect(check.detail).not.toContain("client_STAGING");
-  });
-
-  test("fails without a web env file", () => {
-    expect(checkEmulatorStack(undefined, MAIN).ok).toBe(false);
+    expect(check.detail).toContain("production");
+    expect(JSON.stringify(check)).not.toContain("eyJ0b2tlbiI6MX0=");
   });
 });
 

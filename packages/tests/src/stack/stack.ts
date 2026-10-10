@@ -1,23 +1,22 @@
 /**
- * One checkout's local stack: the WorkOS emulator, a local Convex backend and
- * the web app, on the checkout's own ports. `bun run dev` runs it with the dev
- * account and seed data and keeps pushing backend changes; the E2E suite runs
- * it bare and pushes once. `bun run setup` wires the deployment first.
+ * One checkout's E2E stack: the WorkOS emulator, a local Convex backend and
+ * the web app, on the checkout's own ports. The backend is pushed once, and
+ * the web app gets its emulator settings as process environment, so the dev
+ * wiring in apps/web/.env.local stays as it is. `bun run setup --target e2e`
+ * wires the local backend first.
  */
 import { type ChildProcess, spawn } from "node:child_process";
-import { createHmac } from "node:crypto";
 import { createWriteStream, mkdirSync, rmSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { api } from "@teak/convex";
 import { ConvexHttpClient } from "convex/browser";
 import { isPortInUse } from "../../../../scripts/worktree-env.ts";
 import {
-  DEV_USER,
-  EMULATOR_API_KEY,
-  EMULATOR_WEBHOOK_SECRET,
+  emulatorWebEnv,
   STACK_STATE_PATH,
   type StackPorts,
   type StackState,
+  type StackUrls,
   stackUrls,
 } from "./config";
 import { startEmulator } from "./emulator";
@@ -29,28 +28,21 @@ export const STACK_LOG_PATH = join(dirname(STACK_STATE_PATH), "stack.log");
 export interface StackOptions {
   /** Also stream the backend and web output to this terminal. */
   echo: boolean;
-  /**
-   * Sign in through the local WorkOS emulator. Off for a checkout wired to
-   * WorkOS staging (`bun run dev --workos staging`).
-   */
-  emulator: boolean;
-  /** The deployment is a local backend, so it binds this checkout's ports. */
-  localBackend: boolean;
   ports: StackPorts;
-  /** Add the dev account and seed data; needs the emulator. */
-  seed: boolean;
-  /** Push backend changes as files change, instead of pushing once. */
-  watch: boolean;
 }
 
 export interface RunningStack {
   /** Resolves when the backend or web process exits on its own. */
   exited: Promise<void>;
   stop: () => Promise<void>;
-  urls: ReturnType<typeof stackUrls>;
+  urls: StackUrls;
 }
 
-const waitFor = async (url: string, child: ChildProcess, timeoutMs: number) => {
+export const waitFor = async (
+  url: string,
+  child: ChildProcess,
+  timeoutMs: number
+) => {
   const deadline = Date.now() + timeoutMs;
   // A server that answers but keeps refusing (a 4xx) won't recover by waiting.
   let refusals = 0;
@@ -104,80 +96,6 @@ const warmBackend = async (convexUrl: string) => {
   }
 };
 
-const run = (command: string[], cwd: string) =>
-  new Promise<{ code: number; stdout: string; stderr: string }>((resolve) => {
-    const child = spawn(command[0], command.slice(1), {
-      cwd,
-      env: { ...process.env, CONVEX_AGENT_MODE: "anonymous" },
-      stdio: ["ignore", "pipe", "pipe"],
-    });
-    let stdout = "";
-    let stderr = "";
-    child.stdout.on("data", (chunk) => {
-      stdout += chunk;
-    });
-    child.stderr.on("data", (chunk) => {
-      stderr += chunk;
-    });
-    child.once("exit", (code) => resolve({ code: code ?? 1, stdout, stderr }));
-  });
-
-// The emulator never sends webhooks for users it was seeded with, so the
-// stack sends the dev account's user.created event itself, signed like the
-// emulator would sign it, to the backend's real webhook. Then the backend
-// fills the account's empty vault.
-const seedDevAccount = async (urls: ReturnType<typeof stackUrls>) => {
-  // nosemgrep: rules_lgpl_javascript_ssrf_rule-node-ssrf
-  const response = await fetch(
-    `${urls.emulatorOrigin}/user_management/users/${DEV_USER.id}`,
-    { headers: { Authorization: `Bearer ${EMULATOR_API_KEY}` } }
-  );
-  if (!response.ok) {
-    throw new Error(`The emulator has no dev account (${response.status})`);
-  }
-  const user = (await response.json()) as { created_at?: string };
-  const payload = JSON.stringify({
-    id: "event_01TEAKDEVSEED0000000000000",
-    event: "user.created",
-    data: user,
-    created_at: user.created_at ?? new Date().toISOString(),
-  });
-  const timestamp = Date.now();
-  const signature = createHmac("sha256", EMULATOR_WEBHOOK_SECRET)
-    .update(`${timestamp}.${payload}`)
-    .digest("hex");
-  // nosemgrep: rules_lgpl_javascript_ssrf_rule-node-ssrf
-  const delivered = await fetch(`${urls.apiOrigin}/workos/webhook`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "WorkOS-Signature": `t=${timestamp}, v1=${signature}`,
-    },
-    body: payload,
-  });
-  const outcome = await delivered.text();
-  if (!(delivered.ok && outcome === "OK")) {
-    throw new Error(
-      `The backend did not accept the dev account (${delivered.status} ${outcome})`
-    );
-  }
-  const result = await run(
-    [
-      "bunx",
-      "convex",
-      "run",
-      "devSeed:seed",
-      JSON.stringify({ workosUserId: DEV_USER.id }),
-    ],
-    CONVEX_DIR
-  );
-  if (result.code !== 0) {
-    throw new Error(
-      `Seeding failed: ${result.stderr.trim().split("\n").slice(-3).join(" ")}`
-    );
-  }
-};
-
 const signalGroup = (child: ChildProcess, signal: NodeJS.Signals) => {
   try {
     process.kill(-(child.pid ?? 0), signal);
@@ -188,7 +106,7 @@ const signalGroup = (child: ChildProcess, signal: NodeJS.Signals) => {
 
 // `convex dev` runs the web server in its own process group and stops it
 // only on SIGINT, so interrupt first and force-stop whatever remains.
-const stopGroup = async (child: ChildProcess) => {
+export const stopGroup = async (child: ChildProcess) => {
   if (!child.pid || child.exitCode !== null) {
     return;
   }
@@ -203,12 +121,13 @@ export const startStack = async (
 ): Promise<RunningStack> => {
   const { ports } = options;
   const urls = stackUrls(ports);
-  const seed = options.seed && options.emulator;
   const busy: number[] = [];
   for (const port of [
     ports.web,
-    ...(options.localBackend ? [ports.convex, ports.convexSite] : []),
-    ...(options.emulator ? [ports.emulator, ports.emulator + 1] : []),
+    ports.convex,
+    ports.convexSite,
+    ports.emulator,
+    ports.emulator + 1,
   ]) {
     if (await isPortInUse(port)) {
       busy.push(port);
@@ -221,27 +140,24 @@ export const startStack = async (
   }
 
   mkdirSync(dirname(STACK_STATE_PATH), { recursive: true });
-  const emulator = options.emulator
-    ? await startEmulator(ports, { devUser: seed })
-    : null;
-  // Setup already pushed once. The web server runs alongside the backend so
-  // both stop together; the Convex CLI passes PORT through to it.
+  const emulator = await startEmulator(ports);
+  // Setup already wired the local backend. The web server runs alongside it
+  // so both stop together; the Convex CLI passes the environment through.
+  const { CONVEX_DEPLOY_KEY: _cloudKey, ...env } = process.env;
   const convex = spawn(
     "bunx",
     [
       "convex",
       "dev",
-      ...(options.localBackend
-        ? [
-            "--local-cloud-port",
-            String(ports.convex),
-            "--local-site-port",
-            String(ports.convexSite),
-          ]
-        : []),
+      "--local-cloud-port",
+      String(ports.convex),
+      "--local-site-port",
+      String(ports.convexSite),
       "--typecheck",
       "disable",
-      ...(options.watch ? [] : ["--once", "--codegen", "disable"]),
+      "--once",
+      "--codegen",
+      "disable",
       "--start",
       "bun run --cwd ../../apps/web dev",
     ],
@@ -249,10 +165,10 @@ export const startStack = async (
       cwd: CONVEX_DIR,
       detached: true,
       env: {
-        ...process.env,
-        // The emulator only works with a local anonymous backend.
-        ...(options.emulator ? { CONVEX_AGENT_MODE: "anonymous" } : {}),
+        ...env,
+        CONVEX_AGENT_MODE: "anonymous",
         PORT: String(ports.web),
+        ...emulatorWebEnv(ports),
       },
       stdio: ["ignore", "pipe", "pipe"],
     }
@@ -268,12 +184,12 @@ export const startStack = async (
   // Recorded now, not once ready, so a stack whose owner dies while it
   // starts can still be found and stopped (stopOrphanedStack).
   const state: StackState = {
-    group: convex.pid ?? 0,
+    groups: convex.pid ? [convex.pid] : [],
     pid: process.pid,
+    mode: "e2e",
     ports,
     urls,
     ready: false,
-    seeded: seed,
     logPath: STACK_LOG_PATH,
     startedAt: new Date().toISOString(),
   };
@@ -285,11 +201,11 @@ export const startStack = async (
   const stop = async () => {
     stopping = true;
     await stopGroup(convex);
-    await emulator?.close();
+    await emulator.close();
     rmSync(STACK_STATE_PATH, { force: true });
   };
-  // Ctrl-C or `bun run dev --stop` at any point, starting or running, stops
-  // the backend and web app too; they run in their own process group.
+  // Ctrl-C at any point, starting or running, stops the backend and web app
+  // too; they run in their own process group.
   const onSignal = (signal: NodeJS.Signals) => {
     stop().finally(() => process.exit(signal === "SIGINT" ? 130 : 143));
   };
@@ -304,16 +220,9 @@ export const startStack = async (
   });
 
   try {
-    if (options.localBackend) {
-      await waitFor(`${urls.apiOrigin}/healthz`, convex, 180_000);
-    }
+    await waitFor(`${urls.apiOrigin}/healthz`, convex, 180_000);
     await waitFor(urls.appOrigin, convex, 180_000);
-    if (options.localBackend) {
-      await warmBackend(urls.convexUrl);
-    }
-    if (seed) {
-      await seedDevAccount(urls);
-    }
+    await warmBackend(urls.convexUrl);
   } catch (error) {
     await stop();
     throw error;

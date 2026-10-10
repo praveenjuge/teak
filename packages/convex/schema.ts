@@ -520,6 +520,17 @@ export default defineSchema({
     reason: v.string(),
     receivedAt: v.number(),
   }).index("by_eventId", ["eventId"]),
+  // Which checkout pushes backend code to the shared dev deployment
+  // (devPushLease.ts). Empty everywhere else.
+  devPushLeases: defineTable({
+    name: v.string(),
+    holderId: v.optional(v.string()),
+    holderLabel: v.optional(v.string()),
+    expiresAt: v.number(),
+    lastPush: v.optional(
+      v.object({ label: v.string(), commit: v.string(), at: v.number() })
+    ),
+  }).index("by_name", ["name"]),
   // Where the WorkOS Events API catch-up continues from.
   workosEventCursors: defineTable({
     name: v.string(),
