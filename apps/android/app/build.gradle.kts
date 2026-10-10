@@ -40,10 +40,12 @@ android {
 
     signingConfigs {
         val storeFile = signingValue("storeFile", "TEAK_UPLOAD_KEYSTORE")
-        if (storeFile != null) {
+        val storePassword = signingValue("storePassword", "TEAK_UPLOAD_KEYSTORE_PASSWORD")
+        // Without both, release builds stay unsigned (as in CI) rather than failing.
+        if (storeFile != null && storePassword != null) {
             create("upload") {
                 this.storeFile = rootDir.resolve(storeFile)
-                storePassword = signingValue("storePassword", "TEAK_UPLOAD_KEYSTORE_PASSWORD")
+                this.storePassword = storePassword
                 keyAlias = signingValue("keyAlias", "TEAK_UPLOAD_KEY_ALIAS")
                 // A PKCS12 keystore uses one password for the store and the key.
                 keyPassword = signingValue("keyPassword", "TEAK_UPLOAD_KEY_PASSWORD") ?: storePassword
