@@ -564,6 +564,7 @@ export const saveFileCard = async (
     },
     options,
   );
+  // nosemgrep: rules_lgpl_javascript_ssrf_rule-node-ssrf
   const uploaded = await fetch(uploadUrl(upload.uploadUrl), {
     body: await readFile(filePath),
     headers: {

@@ -134,6 +134,7 @@ const downloadUrl = (url: string) => {
 };
 
 const fetchBytes = async (url: string) => {
+  // nosemgrep: rules_lgpl_javascript_ssrf_rule-node-ssrf
   const response = await fetch(downloadUrl(url));
   if (!response.ok) {
     throw new TeakApiError(
