@@ -4,15 +4,17 @@ import XCTest
 final class LibraryFlowTests: XCTestCase {
     private var app: XCUIApplication!
 
-    override func setUp() async throws {
+    override func setUp() {
         continueAfterFailure = false
+    }
+
+    /// Signs in as a new account and opens the library.
+    @MainActor private func start() async throws {
         let account = try await E2EStack.account()
-        await MainActor.run {
-            app = XCUIApplication()
-            app.launchEnvironment = account.launchEnvironment
-            app.launch()
-            app.searchFields.firstMatch.waitToAppear(30)
-        }
+        app = XCUIApplication()
+        app.launchEnvironment = account.launchEnvironment
+        app.launch()
+        app.searchFields.firstMatch.waitToAppear(30)
     }
 
     // MARK: Helpers
@@ -64,7 +66,8 @@ final class LibraryFlowTests: XCTestCase {
     // MARK: Flows
 
     @MainActor
-    func testNotesLinksSearchAndTokens() {
+    func testNotesLinksSearchAndTokens() async throws {
+        try await start()
         let note = marker("note")
         save("Plan for \(note)", expecting: note)
         save("https://example.org/\(marker("page"))", expecting: "example.org")
@@ -82,7 +85,8 @@ final class LibraryFlowTests: XCTestCase {
     }
 
     @MainActor
-    func testFavoriteEditTrashRestoreAndDeleteForever() {
+    func testFavoriteEditTrashRestoreAndDeleteForever() async throws {
+        try await start()
         let note = marker("card")
         save("Keep \(note)", expecting: note)
 
@@ -131,7 +135,8 @@ final class LibraryFlowTests: XCTestCase {
     }
 
     @MainActor
-    func testSelectionBulkFavorite() {
+    func testSelectionBulkFavorite() async throws {
+        try await start()
         let first = marker("bulk")
         let second = marker("bulk")
         save("One \(first)", expecting: first)
@@ -148,7 +153,8 @@ final class LibraryFlowTests: XCTestCase {
     }
 
     @MainActor
-    func testLogOutReturnsToWelcome() {
+    func testLogOutReturnsToWelcome() async throws {
+        try await start()
         #if os(macOS)
         app.typeKey(",", modifierFlags: .command)
         #else
