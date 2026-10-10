@@ -188,9 +188,7 @@ export const editTags = async (
   options: GlobalOptions
 ) => {
   const api = client(options);
-  const wanted = names
-    .map((name) => name.trim().toLowerCase())
-    .filter(Boolean);
+  const wanted = names.map((name) => name.trim().toLowerCase()).filter(Boolean);
   const card = await api.cards.get(id);
   const isWanted = (tag: string) => wanted.includes(tag.toLowerCase());
   const update =
