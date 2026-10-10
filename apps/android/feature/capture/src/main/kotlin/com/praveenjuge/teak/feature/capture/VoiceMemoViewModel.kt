@@ -92,6 +92,7 @@ class VoiceMemoViewModel @Inject constructor(
     }
 
     /** Stops recording and queues the memo to upload in the background. */
+    @Suppress("TooGenericExceptionCaught") // MediaRecorder.stop() throws a bare RuntimeException when nothing was recorded.
     fun stop() {
         val mediaRecorder = recorder ?: return
         val file = output ?: return
