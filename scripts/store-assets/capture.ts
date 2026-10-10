@@ -158,9 +158,12 @@ const macWindow = async (): Promise<number> => {
   };
   const owner = flag("--app", MAC_APP);
   const title = flag("--window", "Teak Library");
-  const script = `ObjC.import("CoreGraphics"); JSON.stringify(ObjC.deepUnwrap(ObjC.castRefToObject($.CGWindowListCopyWindowInfo($.kCGWindowListOptionAll, 0))).filter((w) => w.kCGWindowOwnerName === ${JSON.stringify(owner)} && w.kCGWindowName === ${JSON.stringify(title)}).map((w) => w.kCGWindowNumber))`;
+  // A fixed script; the owner and title arrive as arguments, never as code.
+  const script = `function run([owner, title]) { ObjC.import("CoreGraphics"); return JSON.stringify(ObjC.deepUnwrap(ObjC.castRefToObject($.CGWindowListCopyWindowInfo($.kCGWindowListOptionAll, 0))).filter((w) => w.kCGWindowOwnerName === owner && w.kCGWindowName === title).map((w) => w.kCGWindowNumber)); }`;
   const ids = JSON.parse(
-    (await run(["osascript", "-l", "JavaScript", "-e", script])).toString()
+    (
+      await run(["osascript", "-l", "JavaScript", "-e", script, owner, title])
+    ).toString()
   ) as number[];
   if (!ids[0]) {
     throw new Error(`Open the "${title}" window of ${owner} first.`);
