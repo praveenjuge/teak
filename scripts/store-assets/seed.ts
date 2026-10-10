@@ -20,6 +20,7 @@ interface CardSummary {
   content: string;
   id: string;
   metadataTitle?: string | null;
+  type: string;
   url?: string | null;
 }
 
@@ -43,21 +44,33 @@ const teak = async (args: string[]): Promise<unknown> => {
   return out.trim() ? JSON.parse(out) : null;
 };
 
+const FILE_TYPES: Record<string, string> = {
+  ".jpg": "image",
+  ".m4a": "audio",
+  ".pdf": "document",
+};
+
+// Keys pair the card type with its URL, text, or file name, so a personal
+// card that merely shares a quote or file name is never matched.
 const key = (card: ShowcaseCard): string => {
   if (card.kind === "file") {
-    return `file:${card.file}`;
+    return `${FILE_TYPES[path.extname(card.file)]}:${card.file}`;
   }
   if (card.kind === "link") {
     return `link:${card.url}`;
   }
-  return `text:${card.content}`;
+  return `${card.kind}:${card.content}`;
 };
 
-const keysFor = (card: CardSummary): string[] => [
-  `file:${card.metadataTitle ?? ""}`,
-  `link:${card.url ?? ""}`,
-  `text:${card.content}`,
-];
+const keysFor = (card: CardSummary): string[] => {
+  if (card.type === "link") {
+    return [`link:${card.url ?? ""}`];
+  }
+  if (["text", "quote", "palette"].includes(card.type)) {
+    return [`${card.type}:${card.content}`];
+  }
+  return [`${card.type}:${card.metadataTitle ?? ""}`];
+};
 
 /**
  * Pages through the library, newest first, until every showcase card is found
@@ -123,6 +136,11 @@ if (!existsSync(cli)) {
 for (const card of SHOWCASE) {
   if (card.kind === "file" && !existsSync(path.join(seedDir, card.file))) {
     throw new Error(`Missing seed file: ${card.file}`);
+  }
+  if (card.kind === "file" && !FILE_TYPES[path.extname(card.file)]) {
+    throw new Error(
+      `Add ${path.extname(card.file)} to FILE_TYPES: ${card.file}`
+    );
   }
 }
 
