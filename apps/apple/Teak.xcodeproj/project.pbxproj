@@ -735,7 +735,7 @@
 				TEAK_CONVEX_URL = "https://uncommon-ladybug-882.convex.cloud";
 				TEAK_DISPLAY_NAME = Teak;
 				TEAK_ENVIRONMENT = production;
-				TEAK_SENTRY_DSN = "";
+				TEAK_SENTRY_DSN = "https://9519e43e434faf40437682aa8285c12b@o4509483678236672.ingest.us.sentry.io/4512232778825728";
 				TEAK_WEB_URL = "https://app.teakvault.com";
 				TEAK_WORKOS_URL = "https://api.workos.com";
 			};

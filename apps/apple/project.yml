@@ -53,6 +53,8 @@ settings:
       TEAK_WEB_URL: https://app.teakvault.com
       TEAK_ENVIRONMENT: production
       TEAK_DISPLAY_NAME: Teak
+      # teakvault/teak-apple-prod. A DSN is public; it ships in the app.
+      TEAK_SENTRY_DSN: https://9519e43e434faf40437682aa8285c12b@o4509483678236672.ingest.us.sentry.io/4512232778825728
 
 targets:
   Teak:
