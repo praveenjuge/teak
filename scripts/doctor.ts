@@ -430,7 +430,7 @@ export const checkPorts = async (): Promise<DoctorCheck> => {
     worktree.namespace === "main"
       ? "main checkout"
       : `worktree ${worktree.namespace}`;
-  const running = readStackState();
+  const running = readStackState(ROOT);
   if (running && isStackRunning(running)) {
     return {
       detail: `this checkout's stack is running at ${running.urls.appOrigin} (${scope})`,
@@ -620,9 +620,7 @@ export const runDoctor = async (
     checkBunVersion(),
     await checkNodeVersion(),
     checkDependencyLock(),
-    ...(needsConvex
-      ? [checkConvexIsolation(), checkConvexGenerated()]
-      : []),
+    ...(needsConvex ? [checkConvexIsolation(), checkConvexGenerated()] : []),
     checkEnvAudit(),
     checkDotenvHygiene(),
     checkTargetReadiness(target),

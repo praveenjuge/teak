@@ -24,7 +24,7 @@ const idle = () => new Promise(() => undefined);
 
 // `bun run dev` already runs this checkout's web stack, which pushes the
 // backend when it holds the lease, so a surface started beside it shares it.
-const stack = readStackState();
+const stack = readStackState(ROOT);
 if (stack && isStackRunning(stack)) {
   console.log(
     `Using this checkout's running stack and the backend at ${stack.urls.convexUrl}.`

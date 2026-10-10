@@ -11,9 +11,9 @@ import { dirname, join } from "node:path";
 import { api } from "@teak/convex";
 import { ConvexHttpClient } from "convex/browser";
 import {
-  STACK_STATE_PATH,
   type StackState,
   type StackUrls,
+  stackStatePath,
   stopGroup,
   waitFor,
 } from "../../../../scripts/lib/stack-state.ts";
@@ -26,7 +26,8 @@ import { startEmulator } from "./emulator";
 
 const ROOT = join(import.meta.dir, "../../../..");
 const CONVEX_DIR = join(ROOT, "packages/convex");
-export const STACK_LOG_PATH = join(dirname(STACK_STATE_PATH), "stack.log");
+const STATE_PATH = stackStatePath(ROOT);
+export const STACK_LOG_PATH = join(dirname(STATE_PATH), "stack.log");
 
 export interface StackOptions {
   /** Also stream the backend and web output to this terminal. */
@@ -83,7 +84,7 @@ export const startStack = async (
     );
   }
 
-  mkdirSync(dirname(STACK_STATE_PATH), { recursive: true });
+  mkdirSync(dirname(STATE_PATH), { recursive: true });
   const emulator = await startEmulator(ports);
   // Setup already wired the local backend. The web server runs alongside it
   // so both stop together; the Convex CLI passes the environment through.
@@ -138,7 +139,7 @@ export const startStack = async (
     startedAt: new Date().toISOString(),
   };
   const writeState = () =>
-    writeFileSync(STACK_STATE_PATH, `${JSON.stringify(state, null, 2)}\n`);
+    writeFileSync(STATE_PATH, `${JSON.stringify(state, null, 2)}\n`);
   writeState();
 
   let stopping = false;
@@ -146,7 +147,7 @@ export const startStack = async (
     stopping = true;
     await stopGroup(convex);
     await emulator.close();
-    rmSync(STACK_STATE_PATH, { force: true });
+    rmSync(STATE_PATH, { force: true });
   };
   // Ctrl-C at any point, starting or running, stops the backend and web app
   // too; they run in their own process group.

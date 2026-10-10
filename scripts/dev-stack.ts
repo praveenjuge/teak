@@ -27,8 +27,8 @@ import { DEV_DEPLOYMENT_URLS } from "./dev-deployment.ts";
 import { loadTargetEnv } from "./env-loader.ts";
 import { ensureDevAccount } from "./lib/dev-account.ts";
 import {
-  STACK_STATE_PATH,
   type StackState,
+  stackStatePath,
   stopGroup,
   waitFor,
 } from "./lib/stack-state.ts";
@@ -38,8 +38,9 @@ import { isPortInUse, type WorktreePorts } from "./worktree-env.ts";
 
 const ROOT = join(import.meta.dir, "..");
 const CONVEX_DIR = join(ROOT, "packages/convex");
-export const DEV_LOG_PATH = join(dirname(STACK_STATE_PATH), "stack.log");
-const ACCOUNT_PATH = join(dirname(STACK_STATE_PATH), "dev-account.json");
+const STATE_PATH = stackStatePath(ROOT);
+export const DEV_LOG_PATH = join(dirname(STATE_PATH), "stack.log");
+const ACCOUNT_PATH = join(dirname(STATE_PATH), "dev-account.json");
 const PUSHED = /Convex functions ready!/;
 
 export interface DevStackOptions {
@@ -98,7 +99,7 @@ export const startDevStack = async (
       `Port ${ports.web} is in use. If this checkout's stack is already running, stop it with \`bun run dev --stop\`.`
     );
   }
-  mkdirSync(dirname(STACK_STATE_PATH), { recursive: true });
+  mkdirSync(dirname(STATE_PATH), { recursive: true });
   const log = createWriteStream(DEV_LOG_PATH);
   const pipe = (child: ChildProcess) => {
     for (const stream of [child.stdout, child.stderr]) {
@@ -140,7 +141,7 @@ export const startDevStack = async (
     startedAt: new Date().toISOString(),
   };
   const writeState = () =>
-    writeFileSync(STACK_STATE_PATH, `${JSON.stringify(state, null, 2)}\n`);
+    writeFileSync(STATE_PATH, `${JSON.stringify(state, null, 2)}\n`);
   writeState();
 
   let stopping = false;
@@ -260,7 +261,7 @@ export const startDevStack = async (
     }
     await stopPusher();
     await stopGroup(web);
-    rmSync(STACK_STATE_PATH, { force: true });
+    rmSync(STATE_PATH, { force: true });
   };
   const onSignal = (signal: NodeJS.Signals) => {
     stop().finally(() => process.exit(signal === "SIGINT" ? 130 : 143));

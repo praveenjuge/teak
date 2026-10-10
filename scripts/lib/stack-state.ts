@@ -5,12 +5,14 @@
  * other's ports and either can be stopped after a crash.
  *
  * Playwright loads this file under Node through the E2E suite, so it uses only
- * `node:` modules.
+ * `node:` modules and no `import.meta` (which would make Node load it as an
+ * ES module beside Playwright's CommonJS transform); callers pass the
+ * repository root.
  */
 
 import { type ChildProcess, execFileSync } from "node:child_process";
 import { existsSync, readFileSync, rmSync } from "node:fs";
-import { fileURLToPath } from "node:url";
+import { join } from "node:path";
 import type { WorktreePorts } from "../worktree-env.ts";
 
 export interface StackUrls {
@@ -23,9 +25,8 @@ export interface StackUrls {
 
 // A running stack records itself here so agents, scripts and the E2E suite
 // can find its URLs. It is removed when the stack stops.
-export const STACK_STATE_PATH = fileURLToPath(
-  new URL("../../.agents/.state/stack.json", import.meta.url)
-);
+export const stackStatePath = (root: string): string =>
+  join(root, ".agents/.state/stack.json");
 
 export interface StackState {
   /** The dev stack's sign-in account (scripts/dev-stack.ts). */
@@ -48,12 +49,13 @@ export interface StackState {
   urls: StackUrls;
 }
 
-export const readStackState = (): StackState | null => {
-  if (!existsSync(STACK_STATE_PATH)) {
+export const readStackState = (root: string): StackState | null => {
+  const path = stackStatePath(root);
+  if (!existsSync(path)) {
     return null;
   }
   try {
-    return JSON.parse(readFileSync(STACK_STATE_PATH, "utf-8")) as StackState;
+    return JSON.parse(readFileSync(path, "utf-8")) as StackState;
   } catch {
     return null;
   }
@@ -157,16 +159,15 @@ const signalGroup = (group: number, signal: NodeJS.Signals) => {
   }
 };
 
-const sleep = (ms: number) =>
-  new Promise((resolve) => setTimeout(resolve, ms));
+const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
 /**
  * Stop a stack whose owner died without cleaning up (killed with SIGKILL, or
  * a crash), so its backend and web server don't hold the ports forever.
  * Returns true when it stopped one.
  */
-export const stopOrphanedStack = async (): Promise<boolean> => {
-  const state = readStackState();
+export const stopOrphanedStack = async (root: string): Promise<boolean> => {
+  const state = readStackState(root);
   if (!state || isStackRunning(state)) {
     return false;
   }
@@ -183,7 +184,7 @@ export const stopOrphanedStack = async (): Promise<boolean> => {
       signalGroup(group, "SIGKILL");
     }
   }
-  rmSync(STACK_STATE_PATH, { force: true });
+  rmSync(stackStatePath(root), { force: true });
   return true;
 };
 

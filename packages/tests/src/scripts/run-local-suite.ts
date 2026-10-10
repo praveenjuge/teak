@@ -40,7 +40,7 @@ const run = (command: string[], cwd: string) =>
     child.once("exit", (code) => resolve(code ?? 1));
   });
 
-const running = readStackState();
+const running = readStackState(ROOT);
 if (running && isStackRunning(running)) {
   throw new Error(
     "This checkout's stack is running. Stop it with `bun run dev --stop`, then re-run."

@@ -1,3 +1,4 @@
+import { fileURLToPath } from "node:url";
 import { defineConfig, devices } from "@playwright/test";
 import { readStackState } from "../../scripts/lib/stack-state.ts";
 import { published } from "./src/helpers/env";
@@ -32,7 +33,8 @@ export default defineConfig<JourneyOptions>({
     : [["list"]],
   use: {
     // The docs project runs without a stack and sets its own baseURL.
-    baseURL: readStackState()?.urls.appOrigin,
+    baseURL: readStackState(fileURLToPath(new URL("../..", import.meta.url)))
+      ?.urls.appOrigin,
     trace: "retain-on-failure",
     screenshot: "only-on-failure",
     video: "retain-on-failure",

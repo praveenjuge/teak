@@ -20,6 +20,7 @@
 
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
+import { DEV_DEPLOYMENT, DEV_DEPLOYMENT_URLS } from "./dev-deployment.ts";
 import {
   isProcessAlive,
   isStackRunning,
@@ -27,7 +28,6 @@ import {
   type StackState,
   stopOrphanedStack,
 } from "./lib/stack-state.ts";
-import { DEV_DEPLOYMENT, DEV_DEPLOYMENT_URLS } from "./dev-deployment.ts";
 import type { SetupReport } from "./setup.ts";
 import { resolveWorktree, type WorktreePorts } from "./worktree-env.ts";
 
@@ -181,14 +181,14 @@ export const buildDevCommand = (
 };
 
 const runningStack = (): StackState | null => {
-  const state = readStackState();
+  const state = readStackState(ROOT);
   return state && isStackRunning(state) ? state : null;
 };
 
 // A stack whose owner was killed outright leaves its backend and web server
 // running; stop them before anything else looks at this checkout's stack.
 const stopOrphans = async () => {
-  if (await stopOrphanedStack()) {
+  if (await stopOrphanedStack(ROOT)) {
     console.log("Cleaned up a stack left behind by a process that exited.");
   }
 };
