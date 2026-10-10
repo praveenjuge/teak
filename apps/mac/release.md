@@ -54,16 +54,16 @@ The release note is:
 ## Screenshots
 
 Keep the release screenshots in `assets/screenshots/en-US/`, named with a numeric
-prefix to set their App Store order. Use actual app captures with the current
-wallpaper, at an Apple-supported Mac resolution: 1280×800, 1440×900, 2560×1600,
-or 2880×1800. Validate them before release:
+prefix to set their App Store order. Make them with the store images pipeline in
+`scripts/store-assets/README.md`, which renders 2880×1800 images from real
+captures and validates them:
 
 ```bash
-asc screenshots validate --path apps/mac/assets/screenshots/en-US --device-type APP_DESKTOP
-bun test apps/mac/tests/store-screenshots.test.ts
+bun scripts/store-assets/render.ts mac
+bun test scripts/store-assets/publish-apple.test.ts
 ```
 
-The canonical workflow validates the local files before replacing the target
+The canonical workflow (`scripts/store-assets/publish-apple.sh mac`) validates the local files before replacing the target
 version's Mac screenshot set. It skips an identical completed set on rerun and
 requires the exact count, order, MD5 checksums, and Apple `COMPLETE` status before
 validation or submission. The read-only and dry-run paths leave screenshots alone.
