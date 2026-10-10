@@ -56,6 +56,7 @@ class ShareViewModel @Inject constructor(
         import(items)
     }
 
+    @Suppress("TooGenericExceptionCaught") // Any failure becomes a message on the sheet.
     private fun import(items: List<ShareItem>) {
         viewModelScope.launch {
             val result = try {

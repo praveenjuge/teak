@@ -89,6 +89,7 @@ class CardEditViewModel @AssistedInject constructor(
 
     fun dismissAlert() = _uiState.update { it.copy(alert = null) }
 
+    @Suppress("TooGenericExceptionCaught") // Any failure becomes an alert instead of a crash.
     fun save() {
         val state = _uiState.value
         val card = state.card ?: return

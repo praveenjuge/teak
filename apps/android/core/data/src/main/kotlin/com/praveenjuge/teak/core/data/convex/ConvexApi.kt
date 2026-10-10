@@ -40,7 +40,11 @@ class LiveConvexApi(private val client: ConvexClient) : ConvexApi {
     private inline fun convexCall(block: () -> JsonElement): JsonElement =
         try {
             block()
-        } catch (e: Exception) {
+        } catch (e: ConvexError) {
+            throw e.toTeakException()
+        } catch (e: ServerError) {
+            throw e.toTeakException()
+        } catch (e: IOException) {
             throw e.toTeakException()
         }
 }

@@ -10,6 +10,7 @@ import com.praveenjuge.teak.core.data.repository.AccountRepository
 import com.praveenjuge.teak.core.model.CurrentUser
 import com.praveenjuge.teak.core.model.TeakMessages
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -97,6 +98,7 @@ class SettingsViewModel @Inject constructor(
     fun cancelDelete() = local.update { it.copy(deleteStep = DeleteStep.None) }
 
     /** Deletes only when [typed] is "delete account", ignoring case and surrounding spaces. */
+    @Suppress("TooGenericExceptionCaught") // Any failure becomes a message instead of a crash.
     fun confirmDelete(typed: String) {
         if (typed.trim().lowercase() != DELETE_PHRASE) return
         local.update { it.copy(deleteStep = DeleteStep.None, isDeleting = true) }
@@ -104,6 +106,8 @@ class SettingsViewModel @Inject constructor(
             try {
                 account.deleteAccount()
                 local.update { it.copy(isDeleting = false) }
+            } catch (e: CancellationException) {
+                throw e
             } catch (e: Exception) {
                 val message = if (uiState.value.accountChangesPaused) {
                     TeakMessages.ACCOUNT_CHANGES_PAUSED

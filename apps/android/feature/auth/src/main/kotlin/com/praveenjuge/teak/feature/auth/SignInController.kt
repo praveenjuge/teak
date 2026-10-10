@@ -5,6 +5,7 @@ import android.util.Log
 import com.praveenjuge.teak.core.data.auth.SignInException
 import com.praveenjuge.teak.core.data.auth.SignInMethod
 import com.praveenjuge.teak.core.data.repository.AccountRepository
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -40,6 +41,7 @@ class SignInController @Inject constructor(
     }
 
     /** Handles the redirect from AuthKit. */
+    @Suppress("TooGenericExceptionCaught") // Any failure is shown on the sign-in screen.
     suspend fun handleCallback(uri: Uri) {
         val method = _progress.value.pending
         completing = true
@@ -51,6 +53,8 @@ class SignInController @Inject constructor(
                 error = uri.getQueryParameter("error"),
             )
             SignInProgress()
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             // Never log tokens; the exception chain carries only WorkOS's error code and message.
             Log.w(TAG, "Sign-in failed: ${e.javaClass.simpleName}: ${e.message}; cause: ${e.cause}")

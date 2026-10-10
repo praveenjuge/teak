@@ -30,6 +30,7 @@ class ShareImporter @Inject constructor(
     private val account: AccountRepository,
 ) {
     /** Calls [onSaving] once Teak knows the person is signed in and starts saving. */
+    @Suppress("TooGenericExceptionCaught") // One failed item must not stop the rest of the share.
     suspend fun import(items: List<ShareItem>, onSaving: () -> Unit = {}): ShareResult {
         if (items.isEmpty()) return ShareResult.Empty
         val session = account.session.first { it != SessionState.Loading }

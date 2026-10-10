@@ -38,6 +38,7 @@ class NoteComposerViewModel @Inject constructor(
     val saved: Flow<Unit> = _saved.receiveAsFlow()
 
     /** Saves the text as a note, or as a link when it's a URL. */
+    @Suppress("TooGenericExceptionCaught") // Any failure becomes a message on the composer.
     fun save(text: String) {
         if (!_uiState.value.canSave(text)) return
         _uiState.update { it.copy(isSaving = true, error = null) }

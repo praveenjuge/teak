@@ -57,6 +57,7 @@ class VoiceMemoViewModel @Inject constructor(
     private val elapsedMillis: Long
         get() = recordedMillis + if (stretchStartedAt > 0) SystemClock.elapsedRealtime() - stretchStartedAt else 0
 
+    @Suppress("TooGenericExceptionCaught") // MediaRecorder reports a busy or missing microphone as a bare RuntimeException.
     fun start() {
         if (_uiState.value.phase != RecordingPhase.Idle) return
         // Under cache/uploads/<id>/, so the upload worker removes it once it's uploaded.

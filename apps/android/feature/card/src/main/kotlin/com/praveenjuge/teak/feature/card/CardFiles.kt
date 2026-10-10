@@ -79,6 +79,7 @@ class CardFiles @Inject constructor(
     }
 
     /** Saves the file to the public Downloads folder. */
+    @Suppress("TooGenericExceptionCaught") // Removes the half-written download on any failure, then rethrows.
     suspend fun saveToDownloads(url: String, fileName: String, mimeType: String?) = withContext(Dispatchers.IO) {
         val resolver = context.contentResolver
         val values = ContentValues().apply {

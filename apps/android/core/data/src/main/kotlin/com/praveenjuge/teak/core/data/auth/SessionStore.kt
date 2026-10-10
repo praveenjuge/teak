@@ -109,6 +109,9 @@ class KeystoreSessionStore @Inject constructor(
     private fun decrypt(data: ByteArray): ByteArray {
         if (data.size <= IV_SIZE) throw GeneralSecurityException("Truncated session")
         val cipher = Cipher.getInstance(TRANSFORMATION)
+        // This IV was made by the Keystore in encrypt(): the key requires randomized encryption, so every
+        // encryption gets a fresh random IV and a caller-supplied one is refused. No IV is ever reused.
+        // nosemgrep: kotlin.lang.security.gcm-detection.gcm-detection
         cipher.init(Cipher.DECRYPT_MODE, key(), GCMParameterSpec(128, data, 0, IV_SIZE))
         return cipher.doFinal(data, IV_SIZE, data.size - IV_SIZE)
     }
