@@ -53,6 +53,7 @@ type Env = {
   readonly SIGNUPS_DISABLED: string | undefined;
   readonly TEAK_DEV_API_URL: string | undefined;
   readonly TEAK_DEV_APP_URL: string | undefined;
+  readonly TEAK_DEV_DEPLOYMENT: string | undefined;
   readonly TEAK_DEV_DOCS_URL: string | undefined;
   readonly WORKOS_ACTION_SECRET: string | undefined;
   readonly WORKOS_API_BASE_URL: string | undefined;

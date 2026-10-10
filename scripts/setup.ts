@@ -4,50 +4,37 @@
  *
  * 1. Check the Bun and Node versions pinned by package.json.
  * 2. Run `bun ci` when node_modules is stale.
- * 3. Refuse an implicitly selected production Convex deployment.
- * 4. Preserve an existing isolated development deployment or provision a
- *    local backend on this checkout's ports (scripts/worktree-env.ts).
- * 5. Wire sign-in. By default the web app uses the local WorkOS emulator with
- *    test-only values (packages/tests/src/stack/config.ts) and needs no
- *    credentials. `--workos staging` uses exported WorkOS staging credentials
- *    (WORKOS_CLIENT_ID and WORKOS_API_KEY) instead; other targets always do.
+ * 3. Select the shared cloud dev deployment (scripts/dev-deployment.ts),
+ *    reached with your Convex login or a cloud session's dev deploy key, and
+ *    refuse any production or other deployment. The E2E target instead runs a
+ *    local backend wired to the WorkOS emulator (scripts/setup-deployment.ts).
+ * 4. Read the WorkOS staging credentials the web app needs from the dev
+ *    deployment. Setup never writes deployment variables.
+ * 5. Derive the target's ignored local configuration from canonical facts.
  *    Setup never overwrites a value a person set, but refreshes generated
- *    values that point at this machine when the checkout's ports change.
- * 6. Run `bunx convex dev --once` for push and code generation.
- * 7. Derive the target's ignored local Convex configuration from canonical
- *    facts.
+ *    values (loopback URLs from an earlier local stack, synced credentials).
  *
  * Never uses production, Apple, Cloudflare, billing, or release credentials.
  * Every step is check-then-act, so re-running setup changes nothing once the
  * tree is ready. `--check` reports without changing state; `--json` emits a
  * stable machine-readable report with capabilities.
  *
- * Usage: bun run setup [--target <target>] [--workos emulator|staging] [--convex local|cloud|skip] [--check] [--json]
+ * Usage: bun run setup [--target <target>] [--convex local|cloud|skip] [--check] [--json]
  */
 
 import { join } from "node:path";
 import {
-  EMULATOR_API_KEY,
-  EMULATOR_CLIENT_ID,
-  emulatorDeploymentVars,
-  emulatorWebEnv,
-  isStackRunning,
-  readStackState,
-} from "../packages/tests/src/stack/config.ts";
-import {
   type Capabilities,
-  type ConvexSelection,
   checkRuntimeVersion,
   inferLanHost,
   isInstallStale,
   markInstallFresh,
   planCapabilities,
-  readConvexSelection,
   readNodeVersion,
   readPinnedVersions,
 } from "./capabilities.ts";
+import { DEV_DEPLOYMENT_URLS } from "./dev-deployment.ts";
 import { generateAliasValues } from "./env-aliases.ts";
-import { readDotenvFile } from "./env-loader.ts";
 import {
   type ConvexMode,
   getTargetSpec,
@@ -55,37 +42,13 @@ import {
   type SupportedTarget,
 } from "./env-targets.ts";
 import { runCommand } from "./proc.ts";
-import {
-  convexDevOnce,
-  ensureDeploymentVar,
-  ensureLocalStateMarker,
-  type LocalBackendPorts,
-  listDeploymentVars,
-  readConvexDotenvUrls,
-} from "./setup-convex.ts";
-import {
-  ensureDerivedEnv,
-  ensureWebEnv,
-  isMachineLocalValue,
-  LOCAL_CONVEX_SITE_URL,
-  LOCAL_CONVEX_URL,
-} from "./setup-derived-env.ts";
-import {
-  ensureDeploymentVars,
-  isLocalSelection,
-  resolveWorkosMode,
-  WORKOS_MODES,
-  type WorkosMode,
-} from "./setup-mode.ts";
-import {
-  ensureWorkosCredentials,
-  WORKOS_CREDENTIAL_NAMES,
-  type WorkosCredentialName,
-} from "./setup-workos.ts";
+import { setupDevDeployment, setupE2eBackend } from "./setup-deployment.ts";
+import { ensureDerivedEnv, ensureWebEnv } from "./setup-derived-env.ts";
+import type { WorkosMode } from "./setup-mode.ts";
+import type { WorkosCredentialName } from "./setup-workos.ts";
 import { resolveWorktree, type WorktreePorts } from "./worktree-env.ts";
 
 const ROOT = join(import.meta.dir, "..");
-const CONVEX_DIR = (root: string): string => join(root, "packages/convex");
 const WEB_ENV_PATH = join(ROOT, "apps/web/.env.local");
 const EXTENSION_ENV_PATH = join(ROOT, "apps/extension/.env.local");
 const MOBILE_ENV_PATH = join(ROOT, "apps/mobile/.env.local");
@@ -105,29 +68,6 @@ export const checkBunVersion = (
   required: string
 ): "ok" | "warn" | "mismatch" => checkRuntimeVersion(actual, required);
 
-export const isProductionDeployment = (deployment?: string): boolean =>
-  deployment?.startsWith("prod:") ?? false;
-
-export const assertNoProductionConvex = (
-  selection: ConvexSelection,
-  deployKey?: string
-): void => {
-  if (deployKey?.trim()) {
-    throw new Error(
-      "Refusing setup with CONVEX_DEPLOY_KEY set: the key implicitly selects " +
-        "the production deployment. Unset CONVEX_DEPLOY_KEY (setup never uses " +
-        "production credentials) and re-run bun run setup."
-    );
-  }
-  if (isProductionDeployment(selection.deployment)) {
-    throw new Error(
-      `Refusing setup against the production Convex deployment (${selection.deployment}). ` +
-        "Point CONVEX_DEPLOYMENT at an isolated development deployment or " +
-        "unset it so setup can provision one."
-    );
-  }
-};
-
 export const SETUP_VERSION = 1;
 
 export interface SetupCheck {
@@ -142,10 +82,9 @@ export interface SetupOptions {
   check: boolean;
   convex: ConvexMode | null;
   json: boolean;
-  /** Skip the final push; `bun run dev` starts a watcher that pushes. */
+  /** Skip the E2E backend's final push; the E2E stack pushes once itself. */
   push: boolean;
   target: string;
-  workos: WorkosMode | null;
 }
 
 export interface SetupReport {
@@ -157,13 +96,13 @@ export interface SetupReport {
   profile: string;
   target: string;
   version: number;
-  /** How sign-in is wired; null when the target needs no deployment. */
+  /** How sign-in is wired (emulator for e2e, staging otherwise); null when the target needs no deployment. */
   workos: WorkosMode | null;
   worktree: WorktreePorts | null;
 }
 
 export const SETUP_USAGE =
-  "Usage: bun run setup [--target web|docs|cli|extension|mobile-simulator|mobile-device|files-worker|e2e] [--workos emulator|staging] [--convex local|cloud|skip] [--check] [--json] [--skip-push]";
+  "Usage: bun run setup [--target web|docs|cli|extension|mobile-simulator|mobile-device|files-worker|e2e] [--convex local|cloud|skip] [--check] [--json] [--skip-push]";
 
 const CONVEX_MODES: readonly string[] = ["local", "cloud", "skip"];
 
@@ -172,7 +111,6 @@ export const parseSetupArgs = (argv: string[]): SetupOptions => {
   let convex: ConvexMode | null = null;
   let check = false;
   let json = false;
-  let workos: WorkosMode | null = null;
   let push = true;
   const args = argv.slice(2);
   let i = 0;
@@ -198,14 +136,6 @@ export const parseSetupArgs = (argv: string[]): SetupOptions => {
         );
       }
       convex = value as ConvexMode;
-    } else if (arg === "--workos") {
-      const value = args[++i];
-      if (!(value && (WORKOS_MODES as readonly string[]).includes(value))) {
-        throw new Error(
-          `Unknown --workos "${value ?? ""}" (expected emulator, staging)`
-        );
-      }
-      workos = value as WorkosMode;
     } else if (arg === "--help" || arg === "-h") {
       throw new Error("help");
     } else {
@@ -213,13 +143,30 @@ export const parseSetupArgs = (argv: string[]): SetupOptions => {
     }
     i++;
   }
-  return { target, convex, check, json, push, workos };
+  return { target, convex, check, json, push };
 };
 
 export const resolveSetupConvex = (
   target: SupportedTarget,
   explicit: ConvexMode | null
 ): ConvexMode => explicit ?? getTargetSpec(target).defaultConvex;
+
+/**
+ * Local backends exist only for the E2E suite, which in turn never uses the
+ * cloud dev deployment. Null when the combination is allowed.
+ */
+export const convexModeProblem = (
+  target: SupportedTarget,
+  convex: ConvexMode
+): string | null => {
+  if (convex === "local" && target !== "e2e") {
+    return "local backends run only for the E2E suite (--target e2e); dev uses the shared cloud dev deployment";
+  }
+  if (convex === "cloud" && target === "e2e") {
+    return "the E2E suite runs on a local backend (--convex local)";
+  }
+  return null;
+};
 
 interface DerivedFilePlan {
   keys: string[];
@@ -258,7 +205,9 @@ const DERIVED_FILE_PLANS: Record<SupportedTarget, DerivedFilePlan[]> = {
     },
   ],
   "files-worker": [],
-  e2e: [WEB_PLAN],
+  // The E2E stack passes the web app its emulator settings itself, so it
+  // never rewrites the dev wiring in apps/web/.env.local.
+  e2e: [],
 };
 
 const reportWith = (
@@ -276,9 +225,8 @@ const reportWith = (
 });
 
 export interface RunSetupOptions {
-  /** Push backend code (default). `bun run dev` skips it: its watcher pushes. */
+  /** Push the E2E backend (default); the E2E stack skips it and pushes once itself. */
   push?: boolean;
-  workos?: WorkosMode | null;
 }
 
 export const runSetup = async (
@@ -302,19 +250,22 @@ export const runSetup = async (
 
   const siteUrl = worktree.siteUrl;
   const webEnvPath =
-    target === "web" || target === "e2e"
-      ? join(root, "apps/web/.env.local")
-      : undefined;
+    target === "web" ? join(root, "apps/web/.env.local") : undefined;
 
   const checks: SetupCheck[] = [];
-  // Without a deployment step (--convex skip), only explicit exports apply.
-  let workosValues: Partial<Record<WorkosCredentialName, string>> =
-    Object.fromEntries(
-      WORKOS_CREDENTIAL_NAMES.flatMap((name) => {
-        const value = process.env[name]?.trim();
-        return value ? [[name, value]] : [];
-      })
-    );
+  let workosValues: Partial<Record<WorkosCredentialName, string>> = {};
+  const modeProblem = convexModeProblem(target, convex);
+  if (modeProblem) {
+    return fail([
+      {
+        id: "setup-convex-selection",
+        ok: false,
+        severity: "error",
+        detail: modeProblem,
+        remediation: [SETUP_USAGE],
+      },
+    ]);
+  }
   let pinned: { bun: string; node: string };
   try {
     pinned = readPinnedVersions(root);
@@ -431,8 +382,6 @@ export const runSetup = async (
     });
   }
 
-  // Local backends bind this checkout's ports; cloud deployments bind none.
-  let localPorts: LocalBackendPorts | undefined;
   if (convex === "skip") {
     checks.push({
       id: "setup-convex-selection",
@@ -440,259 +389,21 @@ export const runSetup = async (
       severity: "error",
       detail: `${target} needs no Convex deployment (convex: skip)`,
     });
+  } else if (convex === "local") {
+    workos = "emulator";
+    const local = await setupE2eBackend(root, worktree, checkOnly, options);
+    checks.push(...local.checks);
+    if (!local.ok) {
+      return fail(checks);
+    }
   } else {
-    const convexDir = CONVEX_DIR(root);
-    const selection = readConvexSelection(
-      process.env,
-      join(root, "packages/convex/.env.local")
-    );
-    try {
-      assertNoProductionConvex(selection, process.env.CONVEX_DEPLOY_KEY);
-    } catch (error) {
-      return fail([
-        ...checks,
-        {
-          id: "setup-convex-selection",
-          ok: false,
-          severity: "error",
-          detail: error instanceof Error ? error.message : String(error),
-          remediation: [
-            "Unset CONVEX_DEPLOY_KEY and point CONVEX_DEPLOYMENT at an isolated development deployment",
-          ],
-        },
-      ]);
+    workos = "staging";
+    const cloud = await setupDevDeployment(root, checkOnly);
+    checks.push(...cloud.checks);
+    if (!cloud.ok) {
+      return fail(checks);
     }
-    const local = isLocalSelection(selection.deployment);
-    const existingVars =
-      selection.deployment && local
-        ? await listDeploymentVars(convexDir)
-        : undefined;
-    workos = resolveWorkosMode({
-      target,
-      explicit: options.workos ?? null,
-      deployment: selection.deployment,
-      deploymentApiBase:
-        existingVars?.status === "found"
-          ? existingVars.values.get("WORKOS_API_BASE_URL")
-          : undefined,
-    });
-    if (workos === "emulator" && !(convex === "local" && local)) {
-      return fail([
-        ...checks,
-        {
-          id: "setup-convex-selection",
-          ok: false,
-          severity: "error",
-          detail: selection.deployment
-            ? `this checkout uses the cloud deployment ${selection.deployment}, which can't reach the local WorkOS emulator`
-            : "the WorkOS emulator needs a local backend (--convex local)",
-          remediation: [
-            "Keep the cloud deployment with --workos staging (bun run dev --workos staging)",
-            "Or remove CONVEX_DEPLOYMENT from packages/convex/.env.local and re-run to switch to a local backend",
-          ],
-        },
-      ]);
-    }
-    if (workos === "emulator") {
-      // Every child Convex CLI picks a local anonymous backend, logged in or not.
-      process.env.CONVEX_AGENT_MODE = "anonymous";
-    }
-    if (convex === "local" && local) {
-      localPorts = { convex: worktree.convex, convexSite: worktree.convexSite };
-    }
-    checks.push({
-      id: "setup-convex-selection",
-      ok: true,
-      severity: "error",
-      detail: `${
-        selection.deployment
-          ? `preserving ${selection.deployment} (from ${selection.source})`
-          : "none selected (convex dev will provision a local backend)"
-      }; WorkOS: ${workos}`,
-    });
-
-    // Provision first when nothing is selected: the first push may fail on
-    // missing variables, which the next step configures before the final
-    // push. Best-effort here; the final push below must succeed.
-    if (!(selection.deployment || checkOnly)) {
-      const provision = await convexDevOnce(convexDir, { ports: localPorts });
-      checks.push({
-        id: "setup-convex-provision",
-        ok: true,
-        severity: "error",
-        detail: provision.ok
-          ? `provisioned (${provision.detail})`
-          : `deferred (${provision.detail})`,
-      });
-    }
-    if (localPorts && !checkOnly) {
-      ensureLocalStateMarker(convexDir);
-    }
-
-    if (checkOnly) {
-      checks.push({
-        id: "setup-convex-deploy-vars",
-        ok: true,
-        severity: "error",
-        detail:
-          workos === "emulator"
-            ? "would point the deployment at the local WorkOS emulator and set SITE_URL"
-            : "would verify SITE_URL, WORKOS_CLIENT_ID and WORKOS_API_KEY with `convex env get` and set them when missing",
-      });
-      checks.push({
-        id: "setup-convex-push",
-        ok: true,
-        severity: "error",
-        detail: "would run `bunx convex dev --once` in packages/convex",
-      });
-    } else {
-      // auth.config.ts reads the WorkOS values, so they are set before the push.
-      if (workos === "emulator") {
-        const vars = await ensureDeploymentVars(
-          convexDir,
-          { SITE_URL: siteUrl, ...emulatorDeploymentVars(worktree) },
-          existingVars
-        );
-        if (!vars.ok) {
-          return fail([
-            ...checks,
-            {
-              id: "setup-workos",
-              ok: false,
-              severity: "error",
-              detail: vars.detail,
-              remediation: [
-                "This backend is wired to another WorkOS environment. Keep it with --workos staging (bun run dev --workos staging)",
-                "Or remove those variables with `bunx convex env remove <NAME>` in packages/convex and re-run",
-              ],
-            },
-          ]);
-        }
-        checks.push({
-          id: "setup-workos",
-          ok: true,
-          severity: "error",
-          detail:
-            vars.configured.length > 0
-              ? `configured ${vars.configured.join(", ")} for the WorkOS emulator`
-              : "deployment already points at the WorkOS emulator",
-        });
-        workosValues = {
-          WORKOS_CLIENT_ID: EMULATOR_CLIENT_ID,
-          WORKOS_API_KEY: EMULATOR_API_KEY,
-        };
-      } else {
-        // A local backend's SITE_URL follows this checkout's port. A cloud
-        // deployment may serve other checkouts, so a set value is kept.
-        const site = localPorts
-          ? await ensureDeploymentVars(
-              convexDir,
-              { SITE_URL: siteUrl },
-              existingVars
-            )
-          : await ensureDeploymentVar("SITE_URL", siteUrl, convexDir).then(
-              (result) => ({
-                ok: true as const,
-                configured: result === "configured" ? ["SITE_URL"] : [],
-              }),
-              (error: unknown) => ({
-                ok: false as const,
-                detail: error instanceof Error ? error.message : String(error),
-              })
-            );
-        if (!site.ok) {
-          return fail([
-            ...checks,
-            {
-              id: "setup-convex-deploy-vars",
-              ok: false,
-              severity: "error",
-              detail: site.detail,
-              remediation:
-                selection.deployment && !local
-                  ? [
-                      `packages/convex/.env.local selects the cloud deployment ${selection.deployment}, so this checkout signs in through WorkOS staging`,
-                      "To use the local stack instead, remove CONVEX_DEPLOYMENT from packages/convex/.env.local and re-run",
-                      "To keep the cloud deployment, run `bunx convex login` with access to it and re-run",
-                    ]
-                  : ["Run `bunx convex login` and re-run"],
-            },
-          ]);
-        }
-        checks.push({
-          id: "setup-convex-deploy-vars",
-          ok: true,
-          severity: "error",
-          detail: `SITE_URL ${site.configured.length > 0 ? "configured" : "already-set"}`,
-        });
-        // Staging credentials can't be taken from a backend that trusts the
-        // emulator: its client ID and key are the emulator's test values.
-        const currentBase =
-          existingVars?.status === "found"
-            ? existingVars.values.get("WORKOS_API_BASE_URL")
-            : undefined;
-        if (
-          currentBase &&
-          isMachineLocalValue("WORKOS_API_BASE_URL", currentBase)
-        ) {
-          return fail([
-            ...checks,
-            {
-              id: "setup-workos",
-              ok: false,
-              severity: "error",
-              detail: "this checkout's backend is wired to the WorkOS emulator",
-              remediation: [
-                "Keep the emulator: run without --workos staging",
-                "Or start a new local backend for staging: move packages/convex/.convex and packages/convex/.env.local aside, remove WORKOS_* from apps/web/.env.local, export WorkOS staging WORKOS_CLIENT_ID and WORKOS_API_KEY, and re-run with --workos staging",
-              ],
-            },
-          ]);
-        }
-        const credentials = await ensureWorkosCredentials(
-          convexDir,
-          webEnvPath,
-          Boolean(localPorts)
-        );
-        checks.push(credentials.check);
-        if (!credentials.check.ok) {
-          return fail(checks);
-        }
-        workosValues = credentials.values;
-      }
-      const stack = readStackState();
-      if (stack && isStackRunning(stack)) {
-        // The running stack holds the local backend and pushes changes itself.
-        checks.push({
-          id: "setup-convex-push",
-          ok: true,
-          severity: "error",
-          detail: "skipped: this checkout's running stack pushes changes",
-        });
-      } else if (options.push !== false) {
-        const push = await convexDevOnce(convexDir, { ports: localPorts });
-        if (!push.ok) {
-          return fail([
-            ...checks,
-            {
-              id: "setup-convex-push",
-              ok: false,
-              severity: "error",
-              detail: `convex dev --once failed: ${push.detail}`,
-              remediation: [
-                "Fix the push error above and re-run bun run setup",
-              ],
-            },
-          ]);
-        }
-        checks.push({
-          id: "setup-convex-push",
-          ok: true,
-          severity: "error",
-          detail: "code pushed and types generated",
-        });
-      }
-    }
+    workosValues = cloud.workos;
   }
 
   const plans = DERIVED_FILE_PLANS[target];
@@ -701,7 +412,10 @@ export const runSetup = async (
       id: "setup-derived-env",
       ok: true,
       severity: "error",
-      detail: `${target} needs no derived dotenv file`,
+      detail:
+        target === "e2e"
+          ? "the E2E stack passes the web app its settings directly"
+          : `${target} needs no derived dotenv file`,
     });
   } else if (checkOnly) {
     const rel = plans.map((plan) => plan.path.replace(`${root}/`, ""));
@@ -709,82 +423,22 @@ export const runSetup = async (
       id: "setup-derived-env",
       ok: true,
       severity: "error",
-      detail: `would derive ${rel.join(", ")} from the active Convex deployment without overwriting custom values`,
+      detail: `would derive ${rel.join(", ")} from the dev deployment without overwriting custom values`,
     });
   } else {
-    // An emulator checkout's web env must not already point authkit-nextjs
-    // at another WorkOS environment; setup never overwrites a person's value.
-    const webExtra =
-      workos === "emulator" ? emulatorWebEnv(worktree) : undefined;
-    const webValues = webEnvPath
-      ? readDotenvFile(webEnvPath)?.values
-      : undefined;
-    // The web app accepts sign-ins only from its callback's origin, so an
-    // emulator stack can't run with a callback that points elsewhere.
-    const conflicting = Object.entries({
-      ...workosValues,
-      ...webExtra,
-      ...(webExtra
-        ? {
-            NEXT_PUBLIC_WORKOS_REDIRECT_URI: new URL(
-              "/callback",
-              siteUrl
-            ).toString(),
-          }
-        : {}),
-    }).flatMap(([name, value]) => {
-      const current = webValues?.get(name);
-      return current !== undefined &&
-        current !== value &&
-        !(
-          isMachineLocalValue(name, current) && isMachineLocalValue(name, value)
-        )
-        ? [name]
-        : [];
-    });
-    if (workos === "emulator" && conflicting.length > 0) {
-      return fail([
-        ...checks,
-        {
-          id: "setup-workos",
-          ok: false,
-          severity: "error",
-          detail: `apps/web/.env.local sets ${conflicting.join(", ")} to values the local emulator stack can't use`,
-          remediation: [
-            `Remove ${conflicting.join(", ")} from apps/web/.env.local and re-run`,
-            "Or keep them and sign in through WorkOS staging (--workos staging)",
-          ],
-        },
-      ]);
-    }
-    // A local backend's URLs follow this checkout's ports; a cloud
-    // deployment's come from the pointer convex dev wrote.
-    const derived = localPorts
-      ? {
-          convexUrl: `http://127.0.0.1:${localPorts.convex}`,
-          convexSiteUrl: `http://127.0.0.1:${localPorts.convexSite}`,
-        }
-      : readConvexDotenvUrls(join(root, "packages/convex/.env.local"));
-    const aliases = generateAliasValues({
-      convexUrl: derived.convexUrl ?? LOCAL_CONVEX_URL,
-      convexSiteUrl: derived.convexSiteUrl ?? LOCAL_CONVEX_SITE_URL,
-      siteUrl,
-    });
+    const aliases = generateAliasValues({ ...DEV_DEPLOYMENT_URLS, siteUrl });
     const outcomes = plans.map((plan) => {
+      const rel = plan.path.replace(`${root}/`, "");
       if (plan.path === webEnvPath) {
-        const result = ensureWebEnv(plan.path, {
-          convexUrl: derived.convexUrl ?? LOCAL_CONVEX_URL,
-          convexSiteUrl: derived.convexSiteUrl ?? LOCAL_CONVEX_SITE_URL,
+        return `${rel}: ${ensureWebEnv(plan.path, {
+          ...DEV_DEPLOYMENT_URLS,
           siteUrl,
           workos: workosValues,
-          ...(webExtra ? { extra: webExtra } : {}),
-        });
-        return `${plan.path.replace(`${root}/`, "")}: ${result}`;
+        })}`;
       }
       const entries = Object.fromEntries(
         plan.keys.map((key) => [key, aliases[key] ?? ""])
       );
-      const rel = plan.path.replace(`${root}/`, "");
       return `${rel}: ${ensureDerivedEnv(plan.path, entries)}`;
     });
     checks.push({
@@ -895,7 +549,6 @@ const main = async (): Promise<void> => {
   const convex = resolveSetupConvex(options.target, options.convex);
   const report = await runSetup(options.target, convex, options.check, ROOT, {
     push: options.push,
-    workos: options.workos,
   });
   if (options.json) {
     console.log(JSON.stringify(report, null, 2));

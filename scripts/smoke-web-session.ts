@@ -3,19 +3,24 @@
  * Clean-container web session smoke (issue #407, Phase 5).
  *
  * Proves the WorkOS AuthKit gate of a locally running web app: anonymous
- * requests to `/` redirect to `/sign-in`, and a real session from the local
- * WorkOS emulator (or WorkOS staging) reaches `/`. The session comes from the headless flow in
- * ./lib/workos-test-session.ts: on the emulator stack the seeded dev account
- * signs in; on staging a throwaway verified user signs in with a random
- * password and is always deleted afterwards. Its tokens are sealed into the
- * AuthKit cookie. Reads ONLY the web target's declared
- * dotenv file. Reports status and names; emails, passwords, tokens and
- * cookies are never printed.
+ * requests to `/` redirect to `/sign-in`, and a real session from WorkOS
+ * staging (the dev stack) or the local WorkOS emulator (the E2E stack) reaches
+ * `/`. The session comes from the headless flow in
+ * ./lib/workos-test-session.ts: a throwaway verified user signs in with a
+ * random password and is always deleted afterwards. Its tokens are sealed
+ * into the AuthKit cookie. The dev stack's settings come from the web
+ * target's declared dotenv file; a running E2E stack's are its test-only
+ * constants. Reports status and names; emails, passwords, tokens and cookies
+ * are never printed.
  *
  * Usage: bun run smoke:web [--base-url <url>] [--json]
  */
 
-import { DEV_USER } from "../packages/tests/src/stack/config.ts";
+import {
+  emulatorWebEnv,
+  isStackRunning,
+  readStackState,
+} from "../packages/tests/src/stack/config.ts";
 import { loadTargetEnv } from "./env-loader.ts";
 import {
   cookieHeader,
@@ -80,25 +85,16 @@ const authenticatedStep = async (
     redirectUri: string;
   }
 ): Promise<SmokeStep[]> => {
-  // The local emulator stack has a seeded dev account, so the smoke signs in
-  // as it and leaves nothing behind. WorkOS staging gets a throwaway user.
-  const account = config.api?.hostname === "localhost" ? DEV_USER : undefined;
-  const who = account ? "the dev account" : "throwaway WorkOS user";
+  const who = "throwaway WorkOS user";
   let session: Awaited<ReturnType<typeof createWorkosTestSession>>;
   try {
-    session = await createWorkosTestSession({
-      ...config,
-      label: "smoke",
-      ...(account
-        ? { account: { email: account.email, password: account.password } }
-        : {}),
-    });
+    session = await createWorkosTestSession({ ...config, label: "smoke" });
   } catch (error) {
     return [
       {
         id: "smoke-workos-session",
         ok: false,
-        detail: `signing in as ${who} failed: ${describeWorkosError(error)}${account ? " (is the stack running? start it with bun run dev)" : ""}`,
+        detail: `signing in as ${who} failed: ${describeWorkosError(error)}`,
       },
     ];
   }
@@ -133,24 +129,35 @@ const authenticatedStep = async (
       detail: `authenticated GET / failed: ${error instanceof Error ? error.name : "unknown error"}`,
     });
   } finally {
-    if (!account) {
-      try {
-        await session.cleanup();
-        steps.push({
-          id: "smoke-workos-cleanup",
-          ok: true,
-          detail: "throwaway WorkOS user deleted",
-        });
-      } catch (error) {
-        steps.push({
-          id: "smoke-workos-cleanup",
-          ok: false,
-          detail: `deleting the throwaway WorkOS user failed: ${describeWorkosError(error)}`,
-        });
-      }
+    try {
+      await session.cleanup();
+      steps.push({
+        id: "smoke-workos-cleanup",
+        ok: true,
+        detail: "throwaway WorkOS user deleted",
+      });
+    } catch (error) {
+      steps.push({
+        id: "smoke-workos-cleanup",
+        ok: false,
+        detail: `deleting the throwaway WorkOS user failed: ${describeWorkosError(error)}`,
+      });
     }
   }
   return steps;
+};
+
+/**
+ * The running web app's sign-in settings: a running E2E stack passes its
+ * emulator constants to the web app directly; the dev stack reads
+ * apps/web/.env.local.
+ */
+const webSettings = (): ReadonlyMap<string, string> => {
+  const stack = readStackState();
+  if (stack?.mode === "e2e" && isStackRunning(stack)) {
+    return new Map(Object.entries(emulatorWebEnv(stack.ports)));
+  }
+  return loadTargetEnv("web", "local").values;
 };
 
 export const runSmoke = async (baseUrl: string): Promise<SmokeReport> => {
@@ -162,12 +169,12 @@ export const runSmoke = async (baseUrl: string): Promise<SmokeReport> => {
     steps,
   });
 
-  const loaded = loadTargetEnv("web", "local");
+  const values = webSettings();
   const config = {
-    apiKey: loaded.values.get("WORKOS_API_KEY") ?? "",
-    clientId: loaded.values.get("WORKOS_CLIENT_ID") ?? "",
-    cookiePassword: loaded.values.get("WORKOS_COOKIE_PASSWORD") ?? "",
-    redirectUri: loaded.values.get("NEXT_PUBLIC_WORKOS_REDIRECT_URI") ?? "",
+    apiKey: values.get("WORKOS_API_KEY") ?? "",
+    clientId: values.get("WORKOS_CLIENT_ID") ?? "",
+    cookiePassword: values.get("WORKOS_COOKIE_PASSWORD") ?? "",
+    redirectUri: values.get("NEXT_PUBLIC_WORKOS_REDIRECT_URI") ?? "",
   };
   if (!Object.values(config).every(Boolean)) {
     steps.push({
@@ -199,8 +206,8 @@ export const runSmoke = async (baseUrl: string): Promise<SmokeReport> => {
         }
   );
 
-  const hostname = loaded.values.get("WORKOS_API_HOSTNAME");
-  const port = Number(loaded.values.get("WORKOS_API_PORT"));
+  const hostname = values.get("WORKOS_API_HOSTNAME");
+  const port = Number(values.get("WORKOS_API_PORT"));
   steps.push(
     ...(await authenticatedStep(baseUrl, {
       ...config,
@@ -208,7 +215,7 @@ export const runSmoke = async (baseUrl: string): Promise<SmokeReport> => {
         ? {
             api: {
               hostname,
-              https: loaded.values.get("WORKOS_API_HTTPS") !== "false",
+              https: values.get("WORKOS_API_HTTPS") !== "false",
               ...(Number.isInteger(port) && port > 0 ? { port } : {}),
             },
           }
@@ -220,10 +227,8 @@ export const runSmoke = async (baseUrl: string): Promise<SmokeReport> => {
 
 const main = async (): Promise<void> => {
   const args = process.argv.slice(2);
-  // Defaults to this checkout's web origin, the one its callback URL uses.
-  const redirectUri = loadTargetEnv("web", "local").values.get(
-    "NEXT_PUBLIC_WORKOS_REDIRECT_URI"
-  );
+  // Defaults to the running web app's origin, the one its callback URL uses.
+  const redirectUri = webSettings().get("NEXT_PUBLIC_WORKOS_REDIRECT_URI");
   const fallback = redirectUri
     ? new URL(redirectUri).origin
     : "http://localhost:3000";

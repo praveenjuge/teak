@@ -6,7 +6,7 @@ Teak is a personal knowledge hub for collecting, remembering, and rediscovering 
 
 - Use Bun. Read the pinned version and available commands from `package.json`; do not duplicate that inventory here.
 - Read the nearest nested `AGENTS.md` before changing a workspace.
-- To run the app, start `bun run dev` in the background. It sets up this checkout and starts the local stack on this worktree's own ports, signed in as a seeded dev account, with no secrets. `bun run dev --status` prints the URLs and sign-in; `bun run dev --stop` stops it. Read `.agents/development.md` for worktrees, cloud VMs, and what the local stack doesn't cover. Never bind production credentials locally.
+- To run the app, start `bun run dev` in the background. It sets up this checkout and starts the web app on this worktree's own port against the shared cloud dev deployment, signed in through WorkOS staging as a seeded account. It needs a Convex login on a Mac or `CONVEX_DEPLOY_KEY` (a dev deploy key) in a cloud session. `bun run dev --status` prints the URLs and sign-in; `bun run dev --stop` stops it. Read `.agents/development.md` for the push lease, worktrees and cloud VMs. Never bind production credentials locally.
 - Environment sources, precedence, and ownership live in `.agents/environment.md`; read it before adding env vars or debugging config.
 - Inspect the current implementation and tests before choosing a pattern. Treat repository code and configuration as the source of truth.
 - Keep changes focused. Preserve unrelated work already in the tree.

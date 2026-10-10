@@ -5,12 +5,14 @@ import {
   insertCompletedCards,
   ONBOARDING_CARD_CONTENTS,
 } from "./card/defaultCards";
+import { readIsDevDeployment } from "./env";
 import { isWorkosProductionApi, workosApiBase } from "./shared/workosApi";
 
-// Seed data for local development (`bun run dev`). It only runs on a backend
-// wired to the local WorkOS emulator; a deployment that trusts production
-// WorkOS refuses it. Card types that need stored files (image, video, audio,
-// document) are left out: the local stack has no Files Worker.
+// Seed data for development accounts (`bun run dev`). It runs only on the
+// shared dev deployment (TEAK_DEV_DEPLOYMENT=true) or a local backend wired to
+// the WorkOS emulator; any other deployment refuses it. Card types that need
+// stored files (image, video, audio, document) are left out so the seed works
+// without the Files Worker.
 
 const link = (
   url: string,
@@ -227,9 +229,9 @@ export const DEV_SEED_CARDS: DefaultCardDef[] = [
 ];
 
 /**
- * Fill the dev account's empty vault. The account is linked first by the
- * signed user.created webhook the stack sends. Safe to re-run: a vault that
- * holds anything beyond the onboarding cards is left alone.
+ * Fill a dev account's empty vault. The account is linked first by its
+ * user.created webhook. Safe to re-run: a vault that holds anything beyond the
+ * onboarding cards is left alone.
  */
 export const seed = internalMutation({
   args: { workosUserId: v.string() },
@@ -238,9 +240,9 @@ export const seed = internalMutation({
     cards: v.number(),
   }),
   handler: async (ctx, { workosUserId }) => {
-    if (isWorkosProductionApi(workosApiBase())) {
+    if (!readIsDevDeployment() && isWorkosProductionApi(workosApiBase())) {
       throw new Error(
-        "devSeed runs only on a local backend wired to the WorkOS emulator."
+        "devSeed runs only on the dev deployment (TEAK_DEV_DEPLOYMENT=true) or a local backend wired to the WorkOS emulator."
       );
     }
     const owner = await ctx.db
@@ -249,7 +251,7 @@ export const seed = internalMutation({
       .unique();
     if (!owner) {
       throw new Error(
-        "The dev account has no Teak owner yet; its user.created webhook did not link it."
+        "The dev account has no Teak owner yet; its user.created webhook has not linked it."
       );
     }
     const onboarding: readonly string[] = ONBOARDING_CARD_CONTENTS;

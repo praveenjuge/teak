@@ -1,7 +1,9 @@
 #!/usr/bin/env bash
 # Prepares a fresh Linux VM for a cloud agent: the pinned Node and Bun,
-# workspace packages, and a local backend wired to the WorkOS emulator. Needs
-# no secrets. Safe to re-run.
+# workspace packages, and this checkout's wiring to the shared cloud dev
+# deployment. That last step needs CONVEX_DEPLOY_KEY, a dev deploy key for the
+# dev deployment, in the environment's secrets; without it the VM still runs
+# unit tests and the E2E suite (which needs no secrets). Safe to re-run.
 #
 # - Claude Code on the web: set the environment's setup script to
 #   `bash .agents/setup`; the SessionStart hook also runs it when needed.
@@ -156,7 +158,11 @@ install_dependencies() {
 }
 
 bootstrap_development() {
-  env -u CONVEX_DEPLOY_KEY -u CONVEX_DEPLOYMENT TURBO_UI=false bun run setup
+  if [[ "${CONVEX_DEPLOY_KEY:-}" != dev:* ]]; then
+    printf 'Skipped: add CONVEX_DEPLOY_KEY (a dev deploy key for the shared dev deployment) to this environment'"'"'s secrets to run bun run dev. See .agents/development.md.\n'
+    return
+  fi
+  TURBO_UI=false bun run setup
 }
 
 if [[ "$(uname -s)" != "Linux" ]]; then
@@ -179,6 +185,6 @@ hash -r
 [[ "$(bun --version)" == "$bun_version" ]]
 
 step "Install workspace dependencies" install_dependencies
-step "Set up the local backend and the WorkOS emulator" bootstrap_development
+step "Connect to the shared dev deployment" bootstrap_development
 
 printf '\nTeak setup complete: Node %s, Bun %s. Start the stack with bun run dev.\n' "$(node --version)" "$(bun --version)"

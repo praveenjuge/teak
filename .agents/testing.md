@@ -14,7 +14,7 @@ A test earns its place only if it fails when the behavior it names is broken. Be
 | Convex query, mutation, action, or workflow step logic | `bun test` with the helpers in `packages/convex/__tests__/helpers/` | `packages/convex/__tests__/<mirrors source path>` | `bun run --cwd packages/convex test:unit` |
 | Convex behavior that depends on the real database, auth sessions, or components | `convex-test` on Vitest (edge runtime) | `packages/convex/*.test.ts`, listed in `packages/convex/vitest.config.ts` | `bun run --cwd packages/convex test:edge` |
 | Shared React UI | `bun test` + `renderToStaticMarkup` | `packages/ui/src/**/__tests__/` | `bun run --cwd packages/ui test` |
-| A real browser flow or a cross-surface journey (web, API, CLI, MCP) | Playwright against the local stack and the WorkOS emulator | `packages/tests/src/web/` for web surfaces, `packages/tests/src/journey/` for journeys (read `packages/tests/README.md` first) | `bun run --cwd packages/tests e2e`; the `E2E` workflow runs it daily and on demand |
+| A real browser flow or a cross-surface journey (web, API, CLI, MCP) | Playwright against the local E2E stack and the WorkOS emulator | `packages/tests/src/web/` for web surfaces, `packages/tests/src/journey/` for journeys (read `packages/tests/README.md` first) | `bun run --cwd packages/tests e2e`; the `E2E` workflow runs it daily and on demand |
 
 Prefer the lowest layer that can observe the behavior. Move up a layer only when the behavior lives in the integration: a query index, an auth session, a browser API.
 

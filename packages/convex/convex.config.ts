@@ -49,6 +49,9 @@ const app = defineApp({
     // Staged operational-cost rollout; unset means disabled.
     OPERATIONAL_RETENTION_ENABLED: v.optional(v.string()),
     FILES_TEXT_AI_ENABLED: v.optional(v.string()),
+    // The shared cloud dev deployment: "true" enables dev tooling (seed data,
+    // the backend push lease). Never set in production.
+    TEAK_DEV_DEPLOYMENT: v.optional(v.string()),
     // Local dev-URL overrides.
     TEAK_DEV_APP_URL: v.optional(v.string()),
     TEAK_DEV_API_URL: v.optional(v.string()),

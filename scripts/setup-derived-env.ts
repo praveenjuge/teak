@@ -90,13 +90,23 @@ export const isMachineLocalValue = (key: string, value: string): boolean => {
   }
 };
 
+export interface DerivedEnvOptions {
+  /** Keys to drop: generated wiring that no longer applies. */
+  remove?: readonly string[];
+  /** Keys whose values another source owns; they always follow `entries`. */
+  synced?: readonly string[];
+}
+
 /**
- * Create or repair a derived dotenv file. Missing keys are appended and
- * machine-local values are refreshed; custom values are never overwritten.
+ * Create or repair a derived dotenv file. Missing keys are appended, synced
+ * keys follow their source, and machine-local values (left by an earlier
+ * local stack or other ports) are refreshed; custom values are never
+ * overwritten.
  */
 export const ensureDerivedEnv = (
   path: string,
-  entries: Record<string, string>
+  entries: Record<string, string>,
+  options: DerivedEnvOptions = {}
 ): "created" | "exists" | "repaired" => {
   const created = ensureFile(path, derivedEnvTemplate(entries));
   if (created === "created") {
@@ -105,24 +115,27 @@ export const ensureDerivedEnv = (
   const lines = readFileSync(path, "utf-8").replace(/\s+$/, "").split("\n");
   const present = new Set<string>();
   let changed = false;
-  const updated = lines.map((line) => {
+  const updated = lines.flatMap((line) => {
     if (!line.includes("=") || line.startsWith("#")) {
-      return line;
+      return [line];
     }
     const key = line.split("=", 1)[0]?.trim() ?? "";
+    if (options.remove?.includes(key)) {
+      changed = true;
+      return [];
+    }
     present.add(key);
     const value = line.slice(line.indexOf("=") + 1).trim();
     const wanted = entries[key];
     if (
       wanted === undefined ||
       value === wanted ||
-      !isMachineLocalValue(key, value) ||
-      !isMachineLocalValue(key, wanted)
+      !(options.synced?.includes(key) || isMachineLocalValue(key, value))
     ) {
-      return line;
+      return [line];
     }
     changed = true;
-    return `${key}=${wanted}`;
+    return [`${key}=${wanted}`];
   });
   const missing = Object.keys(entries).filter((key) => !present.has(key));
   if (missing.length === 0 && !changed) {
@@ -133,34 +146,44 @@ export const ensureDerivedEnv = (
   return "repaired";
 };
 
+/** The local WorkOS emulator's web wiring, which the dev web app never uses. */
+const EMULATOR_WEB_KEYS = [
+  "WORKOS_API_HOSTNAME",
+  "WORKOS_API_PORT",
+  "WORKOS_API_HTTPS",
+] as const;
+
 export const ensureWebEnv = (
   path: string,
-  defaults?: {
-    convexUrl?: string;
-    convexSiteUrl?: string;
-    siteUrl?: string;
+  values: {
+    convexUrl: string;
+    convexSiteUrl: string;
+    siteUrl: string;
     /** WorkOS client ID and API key, synced from the Convex deployment. */
-    workos?: Partial<Record<"WORKOS_CLIENT_ID" | "WORKOS_API_KEY", string>>;
-    /** Target-specific entries, e.g. the e2e stack's WorkOS emulator host. */
-    extra?: Record<string, string>;
+    workos: Partial<Record<"WORKOS_CLIENT_ID" | "WORKOS_API_KEY", string>>;
   }
 ): "created" | "exists" | "repaired" => {
   // Tighten existing permissions before a repair can append secrets.
   if (existsSync(path)) {
     chmodSync(path, 0o600);
   }
-  const result = ensureDerivedEnv(path, {
-    ...defaults?.workos,
-    NEXT_PUBLIC_CONVEX_URL: defaults?.convexUrl ?? LOCAL_CONVEX_URL,
-    NEXT_PUBLIC_CONVEX_SITE_URL:
-      defaults?.convexSiteUrl ?? LOCAL_CONVEX_SITE_URL,
-    NEXT_PUBLIC_WORKOS_REDIRECT_URI: new URL(
-      "/callback",
-      defaults?.siteUrl ?? "http://localhost:3000"
-    ).toString(),
-    WORKOS_COOKIE_PASSWORD: randomBytes(32).toString("base64url"),
-    ...defaults?.extra,
-  });
+  const result = ensureDerivedEnv(
+    path,
+    {
+      ...values.workos,
+      NEXT_PUBLIC_CONVEX_URL: values.convexUrl,
+      NEXT_PUBLIC_CONVEX_SITE_URL: values.convexSiteUrl,
+      NEXT_PUBLIC_WORKOS_REDIRECT_URI: new URL(
+        "/callback",
+        values.siteUrl
+      ).toString(),
+      WORKOS_COOKIE_PASSWORD: randomBytes(32).toString("base64url"),
+    },
+    {
+      synced: Object.keys(values.workos),
+      remove: EMULATOR_WEB_KEYS,
+    }
+  );
   // This file holds the WorkOS API key and the AuthKit session seal.
   chmodSync(path, 0o600);
   return result;

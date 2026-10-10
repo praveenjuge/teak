@@ -377,12 +377,12 @@ export const BACKEND_ENTRIES: EnvVarSpec[] = [
   spec("CONVEX_DEPLOY_KEY", {
     owners: ["@teak/convex"],
     targets: ["convex", "release"],
-    profiles: ["preview", "production"],
+    profiles: ["local", "preview", "production"],
     secret: true,
     validation: "string",
-    providers: ["github-secrets", "dotenv-local"],
+    providers: ["github-secrets", "dotenv-local", "shell"],
     required: false,
-    note: "Selects a deployment for non-interactive Convex CLI runs. Setup refuses it locally.",
+    note: "Selects a deployment for non-interactive Convex CLI runs: the deploy workflow's production key in GitHub, and a dev key scoped to the shared dev deployment in cloud agent environments. Setup and doctor refuse every other key locally.",
   }),
   spec("CONVEX_GIT_COMMIT_SHA", {
     owners: ["@teak/convex"],

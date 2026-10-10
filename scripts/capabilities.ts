@@ -370,9 +370,12 @@ export const planCapabilities = async (options: {
   const credentials: CredentialCapability[] = [];
   if (convex === "cloud") {
     credentials.push({
-      name: "CONVEX_DEPLOYMENT or convex CLI login",
+      name: "Convex CLI login, or CONVEX_DEPLOY_KEY (a dev key) in cloud sessions",
       required: true,
-      present: selection.deployment ? true : null,
+      present:
+        selection.deployment || process.env.CONVEX_DEPLOY_KEY?.trim()
+          ? true
+          : null,
     });
   }
 

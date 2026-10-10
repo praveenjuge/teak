@@ -30,11 +30,10 @@ const waitForReadySurface = async (path: string, page: Page) => {
       document.getAnimations().every((animation) => {
         // Infinite loops (loading pulses) are not load transitions; the
         // skeleton wait above is what proves the content arrived.
-        const timing = (
-          animation.effect as KeyframeEffect | null
-        )?.getTiming();
+        const timing = (animation.effect as KeyframeEffect | null)?.getTiming();
         return (
-          animation.playState !== "running" || timing?.iterations === Infinity
+          animation.playState !== "running" ||
+          timing?.iterations === Number.POSITIVE_INFINITY
         );
       }),
     undefined,

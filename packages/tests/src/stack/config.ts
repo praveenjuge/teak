@@ -1,7 +1,8 @@
-// The local stack: the WorkOS emulator, a local Convex backend and the web
-// app. Ports belong to the checkout (scripts/worktree-env.ts), so every
-// worktree runs its own stack. Every WorkOS value here is test-only and exists
-// only in the emulator's memory, so it is safe to commit.
+// The E2E stack: the WorkOS emulator, a local Convex backend and the web app.
+// Ports belong to the checkout (scripts/worktree-env.ts), so every worktree
+// runs its own stack. Every WorkOS value here is test-only and exists only in
+// the emulator's memory, so it is safe to commit. `bun run dev` records its
+// own stack (scripts/dev-stack.ts) in the same state file.
 
 import { execFileSync } from "node:child_process";
 import { existsSync, readFileSync, rmSync } from "node:fs";
@@ -26,6 +27,17 @@ export const EMULATOR_CLIENT_ID = "client_01TEAKE2EEMULATOR";
 export const EMULATOR_API_KEY = "sk_test_default";
 export const EMULATOR_ENVIRONMENT_ID = "environment_01TEAKE2EEMULATOR";
 export const EMULATOR_WEBHOOK_SECRET = "whsec_teak_e2e_emulator_only";
+// Seals the E2E web app's AuthKit sessions. Test-only, like the values above.
+export const EMULATOR_COOKIE_PASSWORD =
+  "teak-e2e-emulator-cookie-password-0001";
+
+export interface StackUrls {
+  apiOrigin: string;
+  appOrigin: string;
+  convexUrl: string;
+  /** Only the E2E stack runs the WorkOS emulator. */
+  emulatorOrigin?: string;
+}
 
 export const stackUrls = (ports: StackPorts) => ({
   appOrigin: `http://localhost:${ports.web}`,
@@ -44,29 +56,26 @@ export const emulatorDeploymentVars = (ports: StackPorts) => ({
   WORKOS_WEBHOOK_SECRET: EMULATOR_WEBHOOK_SECRET,
 });
 
-// authkit-nextjs reads these to reach a WorkOS API other than api.workos.com.
-export const emulatorWebEnv = (ports: StackPorts) => ({
-  WORKOS_API_HOSTNAME: "localhost",
-  WORKOS_API_PORT: String(ports.emulator),
-  WORKOS_API_HTTPS: "false",
-});
+// The E2E web app's settings. The stack passes them as process environment,
+// which Next.js prefers over apps/web/.env.local, so the E2E stack never
+// rewrites the dev wiring in that file. authkit-nextjs reads WORKOS_API_* to
+// reach a WorkOS API other than api.workos.com.
+export const emulatorWebEnv = (ports: StackPorts) => {
+  const urls = stackUrls(ports);
+  return {
+    NEXT_PUBLIC_CONVEX_URL: urls.convexUrl,
+    NEXT_PUBLIC_CONVEX_SITE_URL: urls.apiOrigin,
+    NEXT_PUBLIC_WORKOS_REDIRECT_URI: `${urls.appOrigin}/callback`,
+    WORKOS_CLIENT_ID: EMULATOR_CLIENT_ID,
+    WORKOS_API_KEY: EMULATOR_API_KEY,
+    WORKOS_COOKIE_PASSWORD: EMULATOR_COOKIE_PASSWORD,
+    WORKOS_API_HOSTNAME: "localhost",
+    WORKOS_API_PORT: String(ports.emulator),
+    WORKOS_API_HTTPS: "false",
+  };
+};
 
-// The account `bun run dev` signs in with. The emulator forgets everything on
-// restart; the pinned ID brings back the same WorkOS user, so it keeps its
-// Teak vault.
-export const DEV_USER = {
-  id: "user_01TEAKDEVSEED0000000000000",
-  email: "dev@example.org",
-  password: "teak-dev-Password-1!",
-  first_name: "Teak",
-  last_name: "Developer",
-  email_verified: true,
-} as const;
-
-export const emulatorSeed = (
-  ports: StackPorts,
-  options: { devUser: boolean }
-) => ({
+export const emulatorSeed = (ports: StackPorts) => ({
   // Teak's WorkOS environment adds the verification claims to session tokens
   // with a JWT template, and the backend requires `email_verified: true`.
   jwtTemplate: {
@@ -80,7 +89,6 @@ export const emulatorSeed = (
       events: ["user.created", "user.updated", "user.deleted"],
     },
   ],
-  ...(options.devUser ? { users: [{ ...DEV_USER }] } : {}),
 });
 
 // A running stack records itself here so agents, scripts and the E2E suite
@@ -91,17 +99,24 @@ export const STACK_STATE_PATH = fileURLToPath(
 );
 
 export interface StackState {
-  /** Process group of the backend and web app (the `convex dev` process). */
-  group: number;
+  /** The dev stack's sign-in account (scripts/dev-stack.ts). */
+  account?: { email: string; password: string };
+  /** Process groups of the backend and web app. */
+  groups: number[];
   logPath: string;
+  /** `dev` (the shared cloud deployment) or `e2e` (local, emulator). */
+  mode: "dev" | "e2e";
+  /** What the dev stack told the person: pushing or not, sign-in, seeding. */
+  notes?: string[];
   /** The process that owns the stack; the stack stops when it does. */
   pid: number;
   ports: StackPorts;
+  /** Whether this stack pushes backend code (the dev push lease). */
+  pushing?: boolean;
   /** False while the stack is still starting. */
   ready: boolean;
-  seeded: boolean;
   startedAt: string;
-  urls: ReturnType<typeof stackUrls>;
+  urls: StackUrls;
 }
 
 export const readStackState = (): StackState | null => {
@@ -161,6 +176,9 @@ const commands = ():
 };
 
 const STACK_OWNERS = ["scripts/dev.ts", "run-local-suite.ts"];
+// Leaves `group`, the single group older stacks recorded, readable.
+const groupsOf = (state: StackState & { group?: number }): number[] =>
+  state.groups ?? (state.group ? [state.group] : []);
 const STACK_MEMBERS = ["convex", "next"];
 
 /**
@@ -219,14 +237,17 @@ export const stopOrphanedStack = async (): Promise<boolean> => {
   if (!state || isStackRunning(state)) {
     return false;
   }
-  if (groupAlive(state.group)) {
-    signalGroup(state.group, "SIGINT");
+  for (const group of groupsOf(state)) {
+    if (!groupAlive(group)) {
+      continue;
+    }
+    signalGroup(group, "SIGINT");
     const deadline = Date.now() + 15_000;
-    while (groupAlive(state.group) && Date.now() < deadline) {
+    while (groupAlive(group) && Date.now() < deadline) {
       await new Promise((resolve) => setTimeout(resolve, 200));
     }
-    if (groupAlive(state.group)) {
-      signalGroup(state.group, "SIGKILL");
+    if (groupAlive(group)) {
+      signalGroup(group, "SIGKILL");
     }
   }
   rmSync(STACK_STATE_PATH, { force: true });

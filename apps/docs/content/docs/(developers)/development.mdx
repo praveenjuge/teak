@@ -18,12 +18,13 @@ description: Setup and development workflow for Teak
     cd teak
     ```
   </Step>
-  <Step title="Start the local stack">
+  <Step title="Start the app">
     ```bash
+    bunx convex login
     bun run dev
     ```
 
-    The first run installs dependencies, provisions a local Convex backend, and writes the local env files. It then starts the web app, the backend, and a local WorkOS emulator, and creates a dev account seeded with sample cards. It needs no credentials. When it's ready it prints the URLs and the sign-in: `dev@example.org` with the password `teak-dev-Password-1!`.
+    The first run installs dependencies and writes the local env files. It then starts the web app against Teak's shared Convex development deployment, signed in through WorkOS staging, and creates a sign-in account for this checkout seeded with sample cards. Uploads, previews, AI metadata and the other backend features work as they do on that deployment. When it's ready it prints the URL and the sign-in. It needs access to the Teak Convex project; without it, see [Without access to the development deployment](#without-access-to-the-development-deployment).
   </Step>
   <Step title="Check the setup">
     ```bash
@@ -35,8 +36,7 @@ description: Setup and development workflow for Teak
 ## Access Points
 
 - Web app: http://localhost:3000 (each git worktree gets its own ports; `bun run dev --status` prints them)
-- Local WorkOS sign-in: http://localhost:4100
-- Docs (proxies local `/api` and `/mcp`): http://localhost:3001
+- Docs (proxies `/api` and `/mcp` to the development deployment): http://localhost:3001
 - Mobile: Expo Go or a simulator; Mac app and Safari extension: Xcode
 
 See the repository README for the monorepo layout.
@@ -44,10 +44,10 @@ See the repository README for the monorepo layout.
 ## Core Commands
 
 ```bash
-bun run dev              # Set up, then start web + Convex + WorkOS emulator, seeded
+bun run dev              # Set up, then start the web app on the development deployment, seeded
+bun run dev --push       # Same, and push this checkout's backend code
 bun run dev --status     # This checkout's ports, URLs and sign-in
 bun run dev --stop       # Stop this checkout's stack
-bun run dev --workos staging  # Sign in through WorkOS staging instead
 bun run setup            # Set up only (--target for other surfaces)
 bun run doctor           # Validate the environment (--json --target --profile for agents)
 bun run dev --all        # All services
@@ -79,24 +79,41 @@ bun run clean            # Clear Turborepo caches
 
 ## Supported Targets and Limitations
 
-`bun run setup --target <name>` provisions one surface. The web app signs in
-through the local WorkOS emulator and needs no credentials. The other targets
-sign in through WorkOS Connect, which needs WorkOS staging or development
-credentials; nothing else is copied.
+`bun run setup --target <name>` provisions one surface. Every surface uses the
+shared development deployment and its WorkOS staging environment; setup reads
+the WorkOS client ID and API key from the deployment, so nothing is copied by
+hand.
 
 | Target | Needs | Limitations |
 | --- | --- | --- |
-| `web` | Nothing; a local backend and the WorkOS emulator | No file uploads, previews or AI metadata (they need the Files Worker). `--workos staging` signs in through WorkOS staging |
+| `web` | Access to the development deployment | Only one checkout at a time pushes backend code (see below) |
 | `docs`, `cli` | Nothing beyond install | No Convex provisioning |
-| `extension` | Convex deployment, WorkOS credentials | Env files derive `VITE_*` aliases automatically |
-| `mobile-simulator` | Convex deployment, WorkOS credentials | iOS simulator uses loopback; Android emulators need `10.0.2.2` instead of `localhost` |
-| `mobile-device` | Convex deployment, WorkOS credentials, LAN | The host must be LAN-reachable; doctor reports the address or an actionable diagnostic |
+| `extension` | Access to the development deployment | Env files derive `VITE_*` aliases automatically |
+| `mobile-simulator` | Access to the development deployment | Signs in through WorkOS staging |
+| `mobile-device` | Access to the development deployment, LAN | The host must be LAN-reachable for the Expo dev server |
 | `files-worker` | `bun run sync:cloudflare-dev` afterwards | Worker secrets are owned by the sync command, not setup |
-| `e2e` | This checkout's stack stopped | The web stack without seed data, for the E2E suite. Run it with `bun run --cwd packages/tests e2e`; see `packages/tests/README.md` |
+| `e2e` | Nothing; a local backend and the WorkOS emulator | For the E2E suite. Run it with `bun run --cwd packages/tests e2e`; see `packages/tests/README.md` |
 
-Each linked git worktree gets its own ports and its own local backend, so
-stacks in several worktrees run at once. iOS simulators, device builds, the Mac
-app, Xcode, and Safari stay on macOS.
+Each linked git worktree gets its own web ports, so several worktrees run at
+once against the same development deployment. Because they share its code,
+only the checkout holding the push lease runs `convex dev`; the others run the
+web app against the live code. `bun run dev --push` takes the lease over.
+iOS simulators, device builds, the Mac app, Xcode, and Safari stay on macOS.
+
+### Without access to the development deployment
+
+Run the E2E stack instead. It starts a local Convex backend, the web app, and a
+local [WorkOS emulator](https://workos.com/docs/authkit/testing) with test-only
+values, and needs no credentials:
+
+```bash
+bun run --cwd packages/tests e2e:stack
+```
+
+It starts with no accounts: create one with the emulator's user API, as
+`packages/tests/src/helpers/emulator.ts` does, then sign in on its page. File
+uploads, previews and AI metadata don't run there. For everything, set up your own deployment as in
+[Self-Hosting](/docs/self-hosting).
 
 ## Reporting Setup Problems
 
@@ -113,21 +130,19 @@ bun run doctor --target web --profile local --json
 
 Teak signs in with WorkOS AuthKit everywhere: production, local development, CI, and self-hosted deployments. There is no other provider and no switch.
 
-Locally, the web app signs in through the [WorkOS emulator](https://workos.com/docs/authkit/testing), which runs on your machine with test-only values. Setup points the local backend and `apps/web/.env.local` at it. Nothing reaches WorkOS.
-
-To sign in through a real WorkOS environment instead, use a staging or development environment, never production. Teak maintainers use the staging environment that the Convex development deployment uses. Anyone else can create their own environment by following [Set up WorkOS](/docs/self-hosting#set-up-workos) with `http://localhost:3000` as the origin. Export `WORKOS_CLIENT_ID` and `WORKOS_API_KEY`, then run `bun run dev --workos staging`. Setup sets them on the Convex deployment and copies them into `apps/web/.env.local`, alongside `NEXT_PUBLIC_WORKOS_REDIRECT_URI` (the app origin plus `/callback`) and a generated `WORKOS_COOKIE_PASSWORD`. It never overwrites a value that is already set, and it stops if the shell, the deployment, and `apps/web/.env.local` disagree. Later runs read the values from the deployment and keep using staging.
+Locally, the web app signs in through the WorkOS staging environment that the development deployment uses, never production. Setup reads `WORKOS_CLIENT_ID` and `WORKOS_API_KEY` from the deployment and writes them into `apps/web/.env.local`, alongside `NEXT_PUBLIC_WORKOS_REDIRECT_URI` (the app origin plus `/callback`) and a generated `WORKOS_COOKIE_PASSWORD`. It refuses production keys, and it stops if a shell export disagrees with the deployment. The E2E suite signs in through the local WorkOS emulator instead.
 
 `convex.json` declares the AuthKit redirect URIs, CORS origins, and homepage URL, including every worktree web port. For cloud development deployments, Convex applies them to the deployment's WorkOS environment. The sign-out redirect, JWT template, and webhook are not in `convex.json`; set them once per environment as in [Set up WorkOS](/docs/self-hosting#set-up-workos), which also lists the [WorkOS CLI](/docs/self-hosting#use-the-workos-cli) commands for them.
 
 The CLI, browser extensions, Mac app, Raycast, and MCP sign in through WorkOS Connect. To sign them in against your development deployment, configure Connect and set `WORKOS_AUTHKIT_DOMAIN` and the `WORKOS_CONNECT_*_CLIENT_ID` values as in [Connect](/docs/self-hosting#connect-cli-browser-extensions-mac-app-raycast-and-mcp).
 
-`bun run doctor` fails until the deployment and the web app both have the client ID and API key, and checks that the client, key, cookie password, and callback fit together.
+`bun run doctor` fails until the deployment and the web app both have the client ID and API key, checks that the client, key, cookie password, and callback fit together, and warns about development settings the deployment's owner hasn't set yet.
 
 Social sign-in, such as Google or Apple, is configured inside WorkOS, not in Teak.
 
 ### Public API and MCP
 
-The public REST API, MCP endpoint, discovery routes, OpenAPI spec, and SDK live in `packages/convex`. Start Convex to serve the HTTP routes, then use the docs dev proxy for local API and MCP URLs.
+The public REST API, MCP endpoint, discovery routes, OpenAPI spec, and SDK live in `packages/convex`. The development deployment serves the HTTP routes; push this checkout's backend first if you changed them, then use the docs dev proxy for local API and MCP URLs.
 
 Example:
 
@@ -155,4 +170,4 @@ Follow the CLI prompt to add the DNS TXT record, then publish once verification 
 
 See **[Self-Hosting → Environment settings](/docs/self-hosting#detailed-environment-reference)** for every env var required across web, mobile, extension, and the Convex backend.
 
-Optional local overrides: `TEAK_DEV_APP_URL` (default: `http://localhost:3000`), `TEAK_DEV_API_URL` (only needed when your Convex dev site differs from the repo default), `TEAK_DEV_DOCS_URL` (default: `http://localhost:3001`).
+Development URLs on the deployment: `TEAK_DEV_APP_URL` (default: `http://localhost:3000`), `TEAK_DEV_API_URL` (default: the development deployment's site URL), `TEAK_DEV_DOCS_URL` (default: `http://localhost:3001`).

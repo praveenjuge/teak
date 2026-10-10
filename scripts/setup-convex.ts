@@ -112,6 +112,41 @@ export const listDeploymentVars = async (
   }
 };
 
+/** The deployment's variable names, without values. */
+export const listDeploymentVarNames = async (
+  cwd: string = convexProjectDir()
+): Promise<
+  | { status: "found"; names: Set<string> }
+  | { status: "unavailable"; detail: string }
+> => {
+  try {
+    const result = await runCommand(
+      ["bunx", "convex", "env", "list", "--names-only"],
+      { cwd, timeoutMs: 60_000 }
+    );
+    if (result.exitCode !== 0) {
+      return {
+        status: "unavailable",
+        detail: result.stderr.trim().split("\n").pop() || "unknown error",
+      };
+    }
+    return {
+      status: "found",
+      names: new Set(
+        result.stdout
+          .split("\n")
+          .map((line) => line.trim())
+          .filter((line) => /^[A-Za-z_][A-Za-z0-9_]*$/.test(line))
+      ),
+    };
+  } catch (error) {
+    return {
+      status: "unavailable",
+      detail: error instanceof Error ? error.message : "spawn failed",
+    };
+  }
+};
+
 /**
  * Local backends keep their state in packages/convex/.convex, inside the
  * functions directory (convex.json sets functions to "."). `convex dev` scans

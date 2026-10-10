@@ -8,6 +8,18 @@
 import { type EnvVarSpec, spec } from "./env-contract-types.ts";
 
 export const SURFACE_ENTRIES: EnvVarSpec[] = [
+  // Dev tooling on the shared cloud dev deployment (devSeed, devPushLease).
+  spec("TEAK_DEV_DEPLOYMENT", {
+    owners: ["@teak/convex"],
+    targets: ["convex"],
+    profiles: ["local"],
+    secret: false,
+    validation: "enum",
+    allowedValues: ["true", "false"],
+    providers: ["convex-dashboard"],
+    required: false,
+    note: "Set to true only on the shared dev deployment; enables seed data and the backend push lease. Never set in production.",
+  }),
   // Local dev-URL overrides (shared resolver in @teak/convex/dev-urls).
   spec("TEAK_DEV_APP_URL", {
     owners: ["@teak/convex", "@teak/web", "@teak/extension", "@teak/docs"],
@@ -90,10 +102,10 @@ export const SURFACE_ENTRIES: EnvVarSpec[] = [
       profiles: ["e2e"],
       secret: false,
       validation: "string",
-      providers: ["dotenv-local"],
+      providers: ["shell"],
       required: false,
       implicit: true,
-      note: "Read by authkit-nextjs. Setup writes it only for the e2e stack, where it points the web app at the WorkOS emulator.",
+      note: "Read by authkit-nextjs. Only the E2E stack sets it, as process environment for its web app, to reach the WorkOS emulator.",
     })
   ),
   spec("WORKOS_ISSUER", {

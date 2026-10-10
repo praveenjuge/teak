@@ -65,6 +65,14 @@ describe("devSeed", () => {
     expect(await cardsOf(t)).toHaveLength(DEV_SEED_CARDS.length);
   });
 
+  test("seeds the shared dev deployment, which trusts hosted WorkOS staging", async () => {
+    vi.stubEnv("TEAK_DEV_DEPLOYMENT", "true");
+    const t = await setup();
+    expect(
+      await t.mutation(internal.devSeed.seed, { workosUserId: WORKOS_USER_ID })
+    ).toEqual({ status: "seeded", cards: DEV_SEED_CARDS.length });
+  });
+
   test("fails when the dev account isn't linked yet", async () => {
     vi.stubEnv("WORKOS_API_BASE_URL", "http://localhost:4100");
     const t = await setup();
