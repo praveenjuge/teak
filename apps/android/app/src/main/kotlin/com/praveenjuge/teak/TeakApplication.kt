@@ -11,6 +11,7 @@ import coil3.ImageLoader
 import coil3.PlatformContext
 import coil3.SingletonImageLoader
 import coil3.gif.AnimatedImageDecoder
+import coil3.util.DebugLogger
 import coil3.network.okhttp.OkHttpNetworkFetcherFactory
 import coil3.video.VideoFrameDecoder
 import com.praveenjuge.teak.core.data.di.ApplicationScope
@@ -63,6 +64,7 @@ class TeakApplication : Application(), Configuration.Provider, SingletonImageLoa
                 add(AnimatedImageDecoder.Factory())
                 add(VideoFrameDecoder.Factory())
             }
+            .apply { if (BuildConfig.DEBUG) logger(DebugLogger()) }
             .build()
 
     private fun initSentry() {
