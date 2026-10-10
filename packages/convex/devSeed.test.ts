@@ -1,8 +1,9 @@
 /// <reference types="vite/client" />
+import workflowTest from "@convex-dev/workflow/test";
 import workosTest from "@convex-dev/workos-authkit/test";
 import { convexTest } from "convex-test";
-import { afterEach, describe, expect, test, vi } from "vitest";
-import { internal } from "./_generated/api";
+import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
+import { components, internal } from "./_generated/api";
 import { DEV_SEED_CARDS } from "./devSeed";
 import schema from "./schema";
 
@@ -11,6 +12,7 @@ const WORKOS_USER_ID = "user_01TEAKDEVSEED0000000000000";
 
 const setup = async () => {
   const t = convexTest(schema, modules);
+  workflowTest.register(t);
   workosTest.register(t);
   await t.run((ctx) =>
     ctx.db.insert("users", {
@@ -32,7 +34,12 @@ const cardsOf = (t: Awaited<ReturnType<typeof setup>>) =>
       .take(100)
   );
 
+// Seeding stops at the committed mutation. Hold the scheduled workflow runs
+// so link processing never reaches the network or outlives the test.
+beforeEach(() => vi.useFakeTimers());
 afterEach(() => {
+  vi.clearAllTimers();
+  vi.useRealTimers();
   vi.unstubAllEnvs();
 });
 
@@ -55,10 +62,34 @@ describe("devSeed", () => {
     expect(cards).toHaveLength(DEV_SEED_CARDS.length);
     expect(cards.filter((card) => card.isDeleted)).toHaveLength(1);
     expect(
-      cards.every(
-        (card) => card.processingStatus?.metadata?.status === "completed"
-      )
+      [...cards]
+        .sort((a, b) => a.createdAt - b.createdAt)
+        .map((card) => card.content)
+    ).toEqual(DEV_SEED_CARDS.map((card) => card.content));
+    const links = cards.filter((card) => card.type === "link");
+    expect(links.length).toBeGreaterThan(0);
+    for (const card of links) {
+      expect(card).toMatchObject({
+        metadataStatus: "pending",
+        processingStatus: { metadata: { status: "pending" } },
+      });
+      expect(card.metadata).toBeUndefined();
+      expect(card.metadataTitle).toBeUndefined();
+    }
+    expect(
+      cards
+        .filter((card) => card.type !== "link")
+        .every(
+          (card) => card.processingStatus?.metadata?.status === "completed"
+        )
     ).toBe(true);
+    const workflows = await t.query(components.workflow.workflow.list, {
+      order: "asc",
+      paginationOpts: { numItems: 100, cursor: null },
+    });
+    expect(
+      workflows.page.map((run: { args: { cardId: string } }) => run.args.cardId)
+    ).toEqual(links.map((card) => card._id));
     expect(
       await t.mutation(internal.devSeed.seed, { workosUserId: WORKOS_USER_ID })
     ).toEqual({ status: "already_seeded", cards: 0 });

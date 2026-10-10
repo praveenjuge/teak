@@ -1,16 +1,22 @@
 import { v } from "convex/values";
+import { internal } from "../_generated/api";
 import type { Doc } from "../_generated/dataModel";
 import { internalMutation, type MutationCtx } from "../_generated/server";
 import { assertAccountNotDeleting } from "../accountDeletion";
 import type { CardType } from "../schema";
 import { buildColorFacets } from "../shared/utils/colorUtils";
+import { startWorkflow } from "../workflows/manager";
 import {
   getOrInitializeCardUsage,
   initializeCardUsageShards,
   recordActiveCardCreated,
   recordActiveCardRemoved,
 } from "./cardUsage";
-import { type ProcessingStatus, stageCompleted } from "./processingStatus";
+import {
+  buildInitialProcessingStatus,
+  type ProcessingStatus,
+  stageCompleted,
+} from "./processingStatus";
 import { scheduleCardSearchSync } from "./searchDocumentHelpers";
 
 // Helper to create a fully completed processing status
@@ -48,6 +54,8 @@ export interface DefaultCardDef {
   metadataDescription?: string;
   metadataTitle?: string;
   notes?: string;
+  /** Inserted pending and handed to the card processing workflow. */
+  runProcessing?: boolean;
   tags?: string[];
   type: CardType;
   url?: string;
@@ -108,6 +116,8 @@ const DEFAULT_CARDS: DefaultCardDef[] = [
 /**
  * Insert fully processed cards, one second apart so they keep their order.
  * Usage counts and search documents are kept in step, like any other card.
+ * A `runProcessing` card is inserted pending instead and processed like a
+ * newly created card.
  */
 export const insertCompletedCards = async (
   ctx: MutationCtx,
@@ -139,8 +149,18 @@ export const insertCompletedCards = async (
       metadata: cardDef.metadata,
       metadataTitle: cardDef.metadataTitle,
       metadataDescription: cardDef.metadataDescription,
-      metadataStatus: "completed",
-      processingStatus,
+      ...(cardDef.runProcessing
+        ? {
+            processingStatus: buildInitialProcessingStatus({
+              now,
+              cardType: cardDef.type,
+              classificationStatus: stageCompleted(now, 1),
+            }),
+            ...(cardDef.type === "link" && {
+              metadataStatus: "pending" as const,
+            }),
+          }
+        : { metadataStatus: "completed" as const, processingStatus }),
       createdAt: timestamp,
       updatedAt: timestamp,
     });
@@ -153,6 +173,14 @@ export const insertCompletedCards = async (
       await recordActiveCardRemoved(ctx, userId, cardId);
     }
     await scheduleCardSearchSync(ctx, cardId, userId);
+    if (cardDef.runProcessing) {
+      await startWorkflow(
+        ctx,
+        (internal as any)["workflows/cardProcessing"].cardProcessingWorkflow,
+        { cardId },
+        { startAsync: true }
+      );
+    }
   }
 };
 

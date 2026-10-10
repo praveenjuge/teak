@@ -11,32 +11,18 @@ import { isWorkosProductionApi, workosApiBase } from "./shared/workosApi";
 // Seed data for development accounts (`bun run dev`). It runs only on the
 // shared dev deployment (TEAK_DEV_DEPLOYMENT=true) or a local backend wired to
 // the WorkOS emulator; any other deployment refuses it. Card types that need
-// stored files (image, video, audio, document) are left out so the seed works
-// without the Files Worker.
+// stored files (image, video, audio, document) are left out. Link cards start
+// pending and run through the real processing workflow, so their previews come
+// from the page itself; every other card is inserted already processed.
 
 const link = (
   url: string,
-  title: string,
-  description: string,
-  siteName: string,
   extra: Partial<DefaultCardDef> = {}
 ): DefaultCardDef => ({
   type: "link",
   content: url,
   url,
-  metadataTitle: title,
-  metadataDescription: description,
-  metadata: {
-    linkPreview: {
-      source: "dev-seed",
-      status: "success",
-      url,
-      finalUrl: url,
-      title,
-      description,
-      siteName,
-    },
-  },
+  runProcessing: true,
   ...extra,
 });
 
@@ -102,69 +88,22 @@ export const DEV_SEED_CARDS: DefaultCardDef[] = [
     content: "Old draft I meant to throw away.",
     isDeleted: true,
   },
-  link(
-    "https://docs.convex.dev/home",
-    "Convex Docs",
-    "Convex is the open source, reactive database where queries are TypeScript code running right in the database.",
-    "Convex",
-    { tags: ["dev"], isFavorited: true }
-  ),
-  link(
-    "https://workos.com/docs/authkit",
-    "AuthKit – WorkOS Docs",
-    "A complete authentication platform with hosted sign-in, sessions and user management.",
-    "WorkOS",
-    { tags: ["dev"] }
-  ),
-  link(
-    "https://developer.mozilla.org/en-US/docs/Web/CSS/CSS_grid_layout",
-    "CSS grid layout – MDN",
-    "The CSS grid layout module excels at dividing a page into major regions.",
-    "MDN Web Docs",
-    { tags: ["dev", "design"] }
-  ),
-  link(
-    "https://www.gutenberg.org/ebooks/1342",
-    "Pride and Prejudice by Jane Austen",
-    "Free ebook from Project Gutenberg.",
-    "Project Gutenberg",
-    { tags: ["reading"] }
-  ),
-  link(
-    "https://en.wikipedia.org/wiki/Bauhaus",
-    "Bauhaus – Wikipedia",
-    "The Staatliches Bauhaus was a German art school operational from 1919 to 1933 that combined crafts and the fine arts.",
-    "Wikipedia",
-    { tags: ["design", "reading"] }
-  ),
-  link(
-    "https://www.nasa.gov/image-of-the-day/",
-    "Image of the Day – NASA",
-    "A new image from NASA's archives every day.",
-    "NASA",
-    { tags: ["inspiration"] }
-  ),
-  link(
-    "https://github.com/praveenjuge/teak",
-    "praveenjuge/teak",
-    "A personal knowledge hub for collecting, remembering, and rediscovering ideas and inspiration.",
-    "GitHub",
-    { tags: ["dev"], isFavorited: true }
-  ),
-  link(
-    "https://web.dev/articles/vitals",
-    "Web Vitals",
-    "Essential metrics for a healthy site.",
-    "web.dev",
-    { tags: ["dev"] }
-  ),
-  link(
-    "https://www.seriouseats.com/the-food-lab",
-    "The Food Lab",
-    "Better home cooking through science.",
-    "Serious Eats",
-    { tags: ["recipes"] }
-  ),
+  link("https://docs.convex.dev/home", { tags: ["dev"], isFavorited: true }),
+  link("https://workos.com/docs/authkit", { tags: ["dev"] }),
+  link("https://developer.mozilla.org/en-US/docs/Web/CSS/CSS_grid_layout", {
+    tags: ["dev", "design"],
+  }),
+  link("https://www.gutenberg.org/ebooks/1342", { tags: ["reading"] }),
+  link("https://en.wikipedia.org/wiki/Bauhaus", {
+    tags: ["design", "reading"],
+  }),
+  link("https://www.nasa.gov/image-of-the-day/", { tags: ["inspiration"] }),
+  link("https://github.com/praveenjuge/teak", {
+    tags: ["dev"],
+    isFavorited: true,
+  }),
+  link("https://web.dev/articles/vitals", { tags: ["dev"] }),
+  link("https://www.seriouseats.com/the-food-lab", { tags: ["recipes"] }),
   {
     type: "quote",
     content: "Simplicity is prerequisite for reliability.",
