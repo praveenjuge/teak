@@ -201,7 +201,12 @@ export const startDevStack = async (
   if (lease.status === "ok" && lease.granted) {
     notes.push("This checkout pushes its backend to the dev deployment.");
     startPusher();
-  } else if (lease.status === "unavailable" && options.push) {
+  } else if (
+    lease.status === "unavailable" &&
+    lease.missingFunctions &&
+    options.push
+  ) {
+    // The first push of the lease itself: nothing can hold it until then.
     notes.push(
       `Pushing this checkout's backend without the lease (${lease.detail}).`
     );
@@ -221,7 +226,16 @@ export const startDevStack = async (
     }
     if (bootstrapping) {
       const taken = await acquireLease(ROOT, holder, true);
-      bootstrapping = taken.status !== "ok";
+      if (taken.status === "ok" || taken.missingFunctions) {
+        bootstrapping = taken.status !== "ok";
+        return;
+      }
+      // The lease exists now but can't be used: stop pushing unfenced.
+      const note = `Stopped pushing this checkout's backend: ${taken.detail}.`;
+      say(note);
+      notes[0] = note;
+      bootstrapping = false;
+      await stopPusher();
       return;
     }
     const renewed = await renewLease(ROOT, holder);

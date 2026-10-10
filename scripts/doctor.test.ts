@@ -1,4 +1,5 @@
 import { afterEach, describe, expect, test } from "bun:test";
+import { DEV_DEPLOYMENT } from "./dev-deployment.ts";
 import {
   checkConvexIsolation,
   checkTargetReadiness,
@@ -105,13 +106,25 @@ describe("evaluateWorkosPresence", () => {
 });
 
 describe("checkConvexIsolation", () => {
-  const saved = process.env.CONVEX_DEPLOY_KEY;
+  const saved = {
+    CONVEX_DEPLOY_KEY: process.env.CONVEX_DEPLOY_KEY,
+    CONVEX_DEPLOYMENT: process.env.CONVEX_DEPLOYMENT,
+  };
   afterEach(() => {
-    if (saved === undefined) {
-      delete process.env.CONVEX_DEPLOY_KEY;
-    } else {
-      process.env.CONVEX_DEPLOY_KEY = saved;
+    for (const [name, value] of Object.entries(saved)) {
+      if (value === undefined) {
+        delete process.env[name];
+      } else {
+        process.env[name] = value;
+      }
     }
+  });
+
+  test("E2E refuses an exported cloud selection, even the dev deployment", () => {
+    process.env.CONVEX_DEPLOYMENT = DEV_DEPLOYMENT;
+    const check = checkConvexIsolation("e2e");
+    expect(check.ok).toBe(false);
+    expect(check.detail).toContain("needs a local backend");
   });
 
   test("refuses a deploy key for anything but the shared dev deployment", () => {

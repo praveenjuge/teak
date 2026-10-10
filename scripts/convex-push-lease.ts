@@ -24,7 +24,12 @@ export interface LeaseState {
 
 export type LeaseResult =
   | { granted: boolean; state: LeaseState; status: "ok" }
-  | { detail: string; status: "unavailable" };
+  | {
+      detail: string;
+      /** The deployed code has no lease functions yet (first push). */
+      missingFunctions: boolean;
+      status: "unavailable";
+    };
 
 const git = async (root: string, args: string[]): Promise<string> => {
   const result = await runCommand(["git", ...args], {
@@ -79,8 +84,10 @@ export const convexRunError = (stderr: string): string => {
   );
 };
 
+const MISSING_FUNCTION = /Could not find (public )?function/i;
+
 const summarize = (stderr: string): string => {
-  if (/Could not find (public )?function/i.test(stderr)) {
+  if (MISSING_FUNCTION.test(stderr)) {
     return "the dev deployment doesn't have the push lease yet (push this branch once with `bun run dev --push`)";
   }
   if (stderr.includes("TEAK_DEV_DEPLOYMENT")) {
@@ -93,20 +100,28 @@ const call = async (
   root: string,
   fn: string,
   args: Record<string, unknown>
-): Promise<{ ok: true; value: unknown } | { ok: false; detail: string }> => {
+): Promise<
+  | { ok: true; value: unknown }
+  | { detail: string; missingFunctions: boolean; ok: false }
+> => {
   try {
     const result = await runCommand(
       ["bunx", "convex", "run", `devPushLease:${fn}`, JSON.stringify(args)],
       { cwd: join(root, "packages/convex"), timeoutMs: 60_000 }
     );
     if (result.exitCode !== 0) {
-      return { ok: false, detail: summarize(result.stderr) };
+      return {
+        ok: false,
+        detail: summarize(result.stderr),
+        missingFunctions: MISSING_FUNCTION.test(result.stderr),
+      };
     }
     return { ok: true, value: parseRunOutput(result.stdout) };
   } catch (error) {
     return {
       ok: false,
       detail: error instanceof Error ? error.message : String(error),
+      missingFunctions: false,
     };
   }
 };
@@ -117,7 +132,11 @@ const asLease = (outcome: Awaited<ReturnType<typeof call>>): LeaseResult =>
         status: "ok",
         ...(outcome.value as { granted: boolean; state: LeaseState }),
       }
-    : { status: "unavailable", detail: outcome.detail };
+    : {
+        status: "unavailable",
+        detail: outcome.detail,
+        missingFunctions: outcome.missingFunctions,
+      };
 
 export const acquireLease = async (
   root: string,

@@ -38,6 +38,7 @@ import { auditDotenv } from "./dotenv-audit.ts";
 import { auditFiles, listScannedFiles } from "./env-audit.ts";
 import { runCommand } from "./proc.ts";
 import { listDeploymentVarNames } from "./setup-convex.ts";
+import { isLocalSelection } from "./setup-mode.ts";
 import { validateWebEnvContent } from "./validate-env.ts";
 import { isPortInUse, resolveWorktree, stackPorts } from "./worktree-env.ts";
 
@@ -238,18 +239,26 @@ export const checkConvexIsolation = (
   }
   const selection = readConvexSelection();
   if (profile === "e2e") {
-    return selection.deployment?.startsWith("prod:")
+    // Setup takes dev's own dotenv selection over; anything else cloud,
+    // including an exported dev selection, would aim E2E at a shared backend.
+    const local =
+      isLocalSelection(selection.deployment) ||
+      (selection.deployment === DEV_DEPLOYMENT &&
+        selection.source === "dotenv");
+    return local
       ? {
-          detail: `CONVEX_DEPLOYMENT selects production (${selection.deployment})`,
-          id: "convex-isolation",
-          ok: false,
-          remediation: ["Run bun run setup --target e2e"],
-          severity: "error",
-        }
-      : {
           detail: "the E2E suite runs on a local backend",
           id: "convex-isolation",
           ok: true,
+          severity: "error",
+        }
+      : {
+          detail: `CONVEX_DEPLOYMENT selects ${selection.deployment}; the E2E suite needs a local backend`,
+          id: "convex-isolation",
+          ok: false,
+          remediation: [
+            "Unset the CONVEX_DEPLOYMENT export, then run bun run setup --target e2e",
+          ],
           severity: "error",
         };
   }

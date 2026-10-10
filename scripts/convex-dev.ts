@@ -80,6 +80,10 @@ const heartbeat = setInterval(async () => {
 }, HEARTBEAT_MS);
 const release = () => {
   clearInterval(heartbeat);
+  if (lost) {
+    // The watcher already stopped and the lease belongs to someone else.
+    process.exit(130);
+  }
   child.kill("SIGINT");
 };
 process.once("SIGINT", release);

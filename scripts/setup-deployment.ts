@@ -222,11 +222,11 @@ export const setupE2eBackend = async (
     writeConvexSelection(dotenvPath, null);
     selection = { source: "none" };
   }
-  if (
-    selection.deployment &&
-    !isLocalSelection(selection.deployment) &&
-    selection.deployment !== DEV_DEPLOYMENT
-  ) {
+  // Only dev's own dotenv selection is taken over (in --check it is still
+  // there); an exported cloud selection would aim E2E at a shared deployment.
+  const devDotenv =
+    selection.deployment === DEV_DEPLOYMENT && selection.source === "dotenv";
+  if (!(isLocalSelection(selection.deployment) || devDotenv)) {
     checks.push(
       error(
         "setup-convex-selection",
@@ -243,14 +243,13 @@ export const setupE2eBackend = async (
   delete process.env.CONVEX_DEPLOY_KEY;
   process.env.CONVEX_AGENT_MODE = "anonymous";
   const ports = { convex: worktree.convex, convexSite: worktree.convexSite };
-  checks.push(
-    ok(
-      "setup-convex-selection",
-      selection.deployment
-        ? `preserving ${selection.deployment} (from ${selection.source}); WorkOS: emulator`
-        : "none selected (convex dev will provision a local backend); WorkOS: emulator"
-    )
-  );
+  let selected = "none selected (convex dev will provision a local backend)";
+  if (devDotenv) {
+    selected = `would switch from ${DEV_DEPLOYMENT} to a local backend`;
+  } else if (selection.deployment) {
+    selected = `preserving ${selection.deployment} (from ${selection.source})`;
+  }
+  checks.push(ok("setup-convex-selection", `${selected}; WorkOS: emulator`));
   if (checkOnly) {
     checks.push(
       ok(
