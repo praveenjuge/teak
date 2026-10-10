@@ -103,7 +103,7 @@ export const DEV_SEED_CARDS: DefaultCardDef[] = [
     isFavorited: true,
   }),
   link("https://web.dev/articles/vitals", { tags: ["dev"] }),
-  link("https://www.seriouseats.com/the-food-lab", { tags: ["recipes"] }),
+  link("https://en.wikipedia.org/wiki/Tomato_soup", { tags: ["recipes"] }),
   {
     type: "quote",
     content: "Simplicity is prerequisite for reliability.",
