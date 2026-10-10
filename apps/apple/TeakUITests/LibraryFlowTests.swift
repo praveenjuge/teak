@@ -238,7 +238,7 @@ final class LibraryFlowTests: XCTestCase {
         tile(containing: note).waitToDisappear()
 
         tap(sidebar.staticTexts["Add"])
-        app.buttons["Note or Link"].firstMatch.waitToAppear()
+        app.buttons["Choose Files…"].firstMatch.waitToAppear()
 
         tap(sidebar.staticTexts["Home"])
         tile(containing: note).waitToAppear()
