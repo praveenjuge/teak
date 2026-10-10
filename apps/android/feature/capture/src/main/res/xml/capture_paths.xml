@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<paths>
+    <!-- Camera photos land here before they're copied into the upload queue. -->
+    <cache-path name="camera" path="camera/" />
+</paths>

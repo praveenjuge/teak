@@ -5,3 +5,8 @@ plugins {
 android {
     namespace = "com.praveenjuge.teak.feature.capture"
 }
+
+dependencies {
+    implementation(libs.androidx.activity.compose)
+    implementation(libs.androidx.core.ktx)
+}
