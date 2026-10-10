@@ -213,7 +213,7 @@ private fun InfoRow(icon: ImageVector, label: String, value: String?, loading: B
             if (loading) {
                 CircularProgressIndicator(Modifier.size(20.dp), strokeWidth = 2.dp)
             } else {
-                Text(value.orEmpty(), color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text(value.orEmpty(), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
         },
     )

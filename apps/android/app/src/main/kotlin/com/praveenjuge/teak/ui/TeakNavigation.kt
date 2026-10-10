@@ -118,14 +118,14 @@ fun TeakNavigation(launchRequest: LaunchRequest?, onLaunchRequestHandled: () -> 
                         onSearchRequestHandled = { searchRequest = null },
                         selectedCardId = (backStack.lastOrNull() as? CardDetail)?.id,
                         onOpenCard = { id -> backStack.openDetail(CardDetail(id)) },
-                        onWriteNote = { backStack.add(NoteComposer()) },
+                        onWriteNote = { backStack.push(NoteComposer()) },
                     )
                 }
                 entry<CardDetail>(metadata = ListDetailSceneStrategy.detailPane()) { key ->
                     CardDetailRoute(
                         cardId = key.id,
                         onBack = { backStack.remove(key) },
-                        onEdit = { backStack.add(CardEdit(key.id)) },
+                        onEdit = { backStack.push(CardEdit(key.id)) },
                         onSearchTag = { tag ->
                             searchRequest = tag
                             stacks.getValue(Tab.Home).resetTo(Home)
@@ -138,8 +138,8 @@ fun TeakNavigation(launchRequest: LaunchRequest?, onLaunchRequestHandled: () -> 
                 }
                 entry<Add> {
                     AddRoute(
-                        onWriteNote = { backStack.add(NoteComposer()) },
-                        onRecordVoice = { backStack.add(VoiceMemo) },
+                        onWriteNote = { backStack.push(NoteComposer()) },
+                        onRecordVoice = { backStack.push(VoiceMemo) },
                     )
                 }
                 entry<NoteComposer> { key ->
@@ -158,6 +158,14 @@ fun TeakNavigation(launchRequest: LaunchRequest?, onLaunchRequestHandled: () -> 
 private fun NavBackStack<NavKey>.resetTo(vararg keys: NavKey) {
     addAll(keys)
     repeat(size - keys.size) { removeAt(0) }
+}
+
+/**
+ * Adds [key] unless it's already showing, so a double tap can't stack two copies of a screen.
+ * Two equal keys would also share saved state, so closing one would leave the other on screen.
+ */
+private fun NavBackStack<NavKey>.push(key: NavKey) {
+    if (lastOrNull() != key) add(key)
 }
 
 /** Opening another card replaces the open one rather than stacking details. */

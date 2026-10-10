@@ -236,7 +236,7 @@ private fun CardToolbar(
     HorizontalFloatingToolbar(
         expanded = true,
         floatingActionButton = {
-            FloatingToolbarDefaults.VibrantFloatingActionButton(onClick = callbacks.onEdit) {
+            FloatingToolbarDefaults.StandardFloatingActionButton(onClick = callbacks.onEdit) {
                 Icon(Icons.Outlined.Edit, contentDescription = "Edit")
             }
         },
