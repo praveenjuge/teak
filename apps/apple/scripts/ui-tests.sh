@@ -21,4 +21,4 @@ export TEST_RUNNER_TEAK_E2E_CONVEX_URL="$(url convexUrl)"
 export TEST_RUNNER_TEAK_E2E_EMULATOR_URL="$(url emulatorOrigin)"
 export TEST_RUNNER_TEAK_E2E_WEB_URL="$(url appOrigin)"
 exec xcodebuild test -project Teak.xcodeproj -scheme Teak -destination "$destination" \
-  -derivedDataPath build/DerivedData -allowProvisioningUpdates "$@"
+  -derivedDataPath "${TEAK_DERIVED_DATA:-build/DerivedData}" -allowProvisioningUpdates "$@"

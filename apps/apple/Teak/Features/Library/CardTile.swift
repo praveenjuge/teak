@@ -45,6 +45,9 @@ struct CardTile: View {
         }
     }
 
+    /// Room for the favorite heart so it never covers a text tile's words.
+    private var badgeInset: Double { isSelected == nil && card.favorited ? 18 : 0 }
+
     private var mediaHeight: Double { (width / CardGrid.tileImageRatio(card)).rounded() }
     private var imageURL: URL? { SafeURL.sanitize(CardGrid.tileImageURL(card)) }
     private var placeholderURL: URL? { SafeURL.sanitize(card.placeholderUrl) }
@@ -65,6 +68,7 @@ struct CardTile: View {
                         }
                     }
                     .padding(14)
+                    .padding(.trailing, badgeInset)
                 }
             }
         case .image:
@@ -94,7 +98,7 @@ struct CardTile: View {
                 }
                 .frame(height: 56)
             } else {
-                TileText(text: card.title)
+                TileText(text: card.title, trailingInset: badgeInset)
             }
         case .quote:
             VStack(spacing: 0) {
@@ -108,7 +112,7 @@ struct CardTile: View {
             }
             .frame(maxWidth: .infinity)
         case .text:
-            TileText(text: card.previewText.map(MarkdownBlocks.plainText) ?? card.title)
+            TileText(text: card.previewText.map(MarkdownBlocks.plainText) ?? card.title, trailingInset: badgeInset)
         }
     }
 
@@ -121,6 +125,7 @@ struct CardTile: View {
 
 private struct TileText: View {
     let text: String
+    var trailingInset = 0.0
 
     var body: some View {
         Text(text)
@@ -128,6 +133,7 @@ private struct TileText: View {
             .lineLimit(3)
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(14)
+            .padding(.trailing, trailingInset)
     }
 }
 

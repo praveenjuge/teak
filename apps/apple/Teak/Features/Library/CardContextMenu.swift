@@ -139,3 +139,51 @@ struct CardContextMenu: View {
         try await app.backend.query("cards:getCard", ["id": .string(card.id)])
     }
 }
+
+/// iOS and macOS 27 let grid tiles take swipe actions: favorite from the
+/// leading edge, delete (or restore in Trash) from the trailing edge.
+struct CardSwipeActions: ViewModifier {
+    let card: CardSummary
+    let library: LibraryModel
+    let actions: CardMenuActions
+
+    func body(content: Content) -> some View {
+        if #available(iOS 27, macOS 27, *), !library.isSelecting {
+            content
+                .swipeActions(edge: .leading) {
+                    if !library.isTrash {
+                        Button(card.favorited ? "Unfavorite" : "Favorite",
+                               systemImage: card.favorited ? "heart.slash" : "heart") {
+                            Task { await library.setFavorite(card, !card.favorited) }
+                        }
+                        .tint(.pink)
+                    }
+                }
+                .swipeActions(edge: .trailing, allowsFullSwipe: false) {
+                    if library.isTrash {
+                        Button("Delete Forever", systemImage: "trash", role: .destructive) {
+                            actions.confirmDeleteForever(card)
+                        }
+                        Button("Restore", systemImage: "arrow.uturn.backward") {
+                            Task { await library.restore(card.id) }
+                        }
+                    } else {
+                        Button("Delete", systemImage: "trash", role: .destructive) { actions.confirmDelete(card) }
+                    }
+                }
+        } else {
+            content
+        }
+    }
+}
+
+extension View {
+    /// Lets the tiles inside this scroll view reveal their swipe actions, one at a time.
+    @ViewBuilder func cardSwipeContainer() -> some View {
+        if #available(iOS 27, macOS 27, *) {
+            swipeActionsContainer()
+        } else {
+            self
+        }
+    }
+}

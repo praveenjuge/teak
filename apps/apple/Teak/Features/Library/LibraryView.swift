@@ -101,18 +101,23 @@ struct LibraryView: View {
 
     @ViewBuilder private var content: some View {
         let cards = library.cards
-        if library.pager.isLoading && cards.isEmpty {
-            ScrollView { SkeletonGrid(columns: columns, columnWidth: columnWidth) }
-                .scrollDisabled(true)
-        } else if cards.isEmpty {
+        if cards.isEmpty, !library.pager.isLoading {
             emptyState
         } else {
+            // One scroll view for the skeleton and the grid, so the large title
+            // keeps tracking it when the first page arrives.
             ScrollView {
-                grid(cards)
-                if library.pager.isLoadingMore {
-                    ProgressView().padding(.bottom, 24)
+                if cards.isEmpty {
+                    SkeletonGrid(columns: columns, columnWidth: columnWidth)
+                } else {
+                    grid(cards)
+                    if library.pager.isLoadingMore {
+                        ProgressView().padding(.bottom, 24)
+                    }
                 }
             }
+            .scrollDisabled(cards.isEmpty)
+            .cardSwipeContainer()
             .refreshable { await library.refresh() }
         }
     }
@@ -181,6 +186,7 @@ struct LibraryView: View {
         .matchedTransitionSource(id: card.id, in: namespace)
         .focused($focusedCard, equals: card.id)
         .contextMenu { CardContextMenu(card: card, library: library, actions: menuActions) }
+        .modifier(CardSwipeActions(card: card, library: library, actions: menuActions))
         #if os(macOS)
         .simultaneousGesture(TapGesture().modifiers(.command).onEnded { library.toggleSelection(card.id) })
         #endif

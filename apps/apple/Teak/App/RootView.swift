@@ -46,6 +46,11 @@ struct MainView: View {
     @Environment(CaptureModel.self) private var capture
     @Namespace private var namespace
 
+    /// Add stands apart from the other tabs where the system supports it.
+    private var addRole: TabRole? {
+        if #available(iOS 27, macOS 27, *) { .prominent } else { nil }
+    }
+
     var body: some View {
         @Bindable var router = router
         let services = AppServices.shared
@@ -53,7 +58,7 @@ struct MainView: View {
             Tab("Home", systemImage: "house", value: AppTab.home) {
                 LibraryTab(library: services.home, path: $router.homePath, namespace: namespace)
             }
-            Tab("Add", systemImage: "plus.circle", value: AppTab.add) {
+            Tab("Add", systemImage: "plus.circle", value: AppTab.add, role: addRole) {
                 NavigationStack { AddView() }
             }
             #if os(iOS)
