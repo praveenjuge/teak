@@ -81,7 +81,7 @@ jobs:
   build:
     name: Build ${{ matrix.label }}
     needs: plan
-    runs-on: macos-26
+    runs-on: xcode-27
     timeout-minutes: 120
     strategy:
       fail-fast: false
@@ -162,12 +162,8 @@ jobs:
                 ;;
             esac
           fi
-          # The app builds with Xcode 27. Pick the newest non-beta Xcode 27 on the image.
-          xcode_app="$(find /Applications -maxdepth 1 -name 'Xcode_27*.app' ! -iname '*beta*' | sort -V | tail -1)"
-          if [ -n "$xcode_app" ]; then
-            export DEVELOPER_DIR="$xcode_app/Contents/Developer"
-            echo "DEVELOPER_DIR=$DEVELOPER_DIR" >> "$GITHUB_ENV"
-          fi
+          # The app builds with the pinned, non-beta Xcode 27 (see select-xcode.sh).
+          apps/apple/scripts/select-xcode.sh
           xcode_version="$(xcodebuild -version)"
           if [[ "$xcode_version" != Xcode\ 27.* ]]; then
             echo "The release runner must provide a non-beta Xcode 27.x; found: $xcode_version" >&2

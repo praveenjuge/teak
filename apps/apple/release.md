@@ -19,7 +19,8 @@ launch.
 4. A `plan` job turns `platforms` (`ios`, `macos`, or `both`) into one build and
    one submit leg per platform: `IOS` covers iPhone and iPad, `MAC_OS` covers
    the Mac.
-5. Each build leg on `macos-26` verifies the tag, the lockstep versions, Xcode
+5. Each build leg on the `xcode-27` runner (Xcode pinned by
+   `scripts/select-xcode.sh`) verifies the tag, the lockstep versions, Xcode
    27, asc, and credentials. If an older version of the same platform is in
    review or rejected, asc clears it and promotes that record to the new
    version. Dry runs stop after reporting this plan.

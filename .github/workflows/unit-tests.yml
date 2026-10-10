@@ -52,7 +52,7 @@ jobs:
         run: ./gradlew lint testDebugUnitTest :app:assembleRelease --console=plain
 
   apple:
-    runs-on: macos-26
+    runs-on: xcode-27
     timeout-minutes: 45
     defaults:
       run:

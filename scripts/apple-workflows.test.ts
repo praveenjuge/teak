@@ -294,7 +294,8 @@ describe("Apple release workflows", () => {
     );
     expect(apple).toContain("default: ios");
     expect(apple).toContain("dry_run:");
-    expect(apple).toContain("runs-on: macos-26");
+    expect(apple).toContain("runs-on: xcode-27");
+    expect(apple).toContain("apps/apple/scripts/select-xcode.sh");
     expect(apple).toContain("if: inputs.dry_run == false");
     expect(apple).toContain("max-parallel: 1");
     // One App Store app, so share mobile-release's app-wide serialization.

@@ -7,6 +7,7 @@ Native SwiftUI. One multiplatform app target, a share extension and a Safari web
 - Xcode 27 (Swift 6.4). The project is generated: edit `project.yml`, then run `scripts/generate-project.sh` and commit `Teak.xcodeproj` with it. CI fails when they differ.
 - Debug talks to the shared dev deployment and WorkOS staging; Release talks to production. The Convex Rust core is Apple silicon only, so Mac and Simulator builds are arm64.
 - This workspace has no `package.json`: Turbo, `bun run dev` and `doctor` don't see it.
+- CI and releases run on GitHub's `xcode-27` runner image (a preview label) with Xcode pinned by `scripts/select-xcode.sh`; keep that pin in step with the Xcode you develop on.
 - Checks: `swift test --package-path Packages/TeakKit`, `bun --no-env-file test apps/apple/tests/` (from the repo root), and the builds in the `Unit Tests` workflow.
 
 ## Layout

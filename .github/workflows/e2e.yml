@@ -64,7 +64,7 @@ jobs:
   # XCUITest flows for the Apple app against the same local stack. The Mac
   # flows need a signed build, so CI runs iPhone and iPad.
   apple:
-    runs-on: macos-26
+    runs-on: xcode-27
     timeout-minutes: 75
     env:
       TURBO_UI: "false"
