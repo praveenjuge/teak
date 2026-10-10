@@ -203,7 +203,7 @@ export const startDevStack = async (
     startPusher();
   } else if (
     lease.status === "unavailable" &&
-    lease.missingFunctions &&
+    lease.reason === "missing-functions" &&
     options.push
   ) {
     // The first push of the lease itself: nothing can hold it until then.
@@ -226,11 +226,15 @@ export const startDevStack = async (
     }
     if (bootstrapping) {
       const taken = await acquireLease(ROOT, holder, true);
-      if (taken.status === "ok" || taken.missingFunctions) {
-        bootstrapping = taken.status !== "ok";
+      if (taken.status === "ok") {
+        bootstrapping = false;
         return;
       }
-      // The lease exists now but can't be used: stop pushing unfenced.
+      if (taken.reason !== "refused") {
+        // Not deployed yet, or a passing failure: try again next heartbeat.
+        return;
+      }
+      // The lease exists but the deployment refuses it: stop pushing unfenced.
       const note = `Stopped pushing this checkout's backend: ${taken.detail}.`;
       say(note);
       notes[0] = note;

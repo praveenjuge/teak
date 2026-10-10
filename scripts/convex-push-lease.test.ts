@@ -1,5 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import {
+  classifyLeaseFailure,
   convexRunError,
   describeLease,
   parseRunOutput,
@@ -54,6 +55,24 @@ describe("describeLease", () => {
     ).toBe("this checkout pushes the backend");
     expect(describeLease({ holder: null, lastPush: null })).toBe(
       "nobody holds the push lease"
+    );
+  });
+});
+
+describe("classifyLeaseFailure", () => {
+  test("tells a first push, a refusal and a passing failure apart", () => {
+    expect(
+      classifyLeaseFailure(
+        "Could not find public function for 'devPushLease:acquire'"
+      ).reason
+    ).toBe("missing-functions");
+    expect(
+      classifyLeaseFailure(
+        "Uncaught Error: The push lease runs only on the shared dev deployment (TEAK_DEV_DEPLOYMENT=true)."
+      ).reason
+    ).toBe("refused");
+    expect(classifyLeaseFailure("fetch failed: ETIMEDOUT").reason).toBe(
+      "unreachable"
     );
   });
 });

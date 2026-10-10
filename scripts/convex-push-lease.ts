@@ -22,14 +22,16 @@ export interface LeaseState {
   lastPush: { at: number; commit: string; label: string } | null;
 }
 
+/**
+ * Why a lease call failed: the deployed code has no lease functions yet (the
+ * first push), the deployment refuses dev tooling (TEAK_DEV_DEPLOYMENT is
+ * unset), or anything else, such as a network error, worth retrying.
+ */
+export type LeaseFailure = "missing-functions" | "refused" | "unreachable";
+
 export type LeaseResult =
   | { granted: boolean; state: LeaseState; status: "ok" }
-  | {
-      detail: string;
-      /** The deployed code has no lease functions yet (first push). */
-      missingFunctions: boolean;
-      status: "unavailable";
-    };
+  | { detail: string; reason: LeaseFailure; status: "unavailable" };
 
 const git = async (root: string, args: string[]): Promise<string> => {
   const result = await runCommand(["git", ...args], {
@@ -84,16 +86,24 @@ export const convexRunError = (stderr: string): string => {
   );
 };
 
-const MISSING_FUNCTION = /Could not find (public )?function/i;
-
-const summarize = (stderr: string): string => {
-  if (MISSING_FUNCTION.test(stderr)) {
-    return "the dev deployment doesn't have the push lease yet (push this branch once with `bun run dev --push`)";
+/** Classifies a failed `convex run` of a lease function. */
+export const classifyLeaseFailure = (
+  stderr: string
+): { detail: string; reason: LeaseFailure } => {
+  if (/Could not find (public )?function/i.test(stderr)) {
+    return {
+      reason: "missing-functions",
+      detail:
+        "the dev deployment doesn't have the push lease yet (push this branch once with `bun run dev --push`)",
+    };
   }
   if (stderr.includes("TEAK_DEV_DEPLOYMENT")) {
-    return "TEAK_DEV_DEPLOYMENT=true isn't set on the dev deployment";
+    return {
+      reason: "refused",
+      detail: "TEAK_DEV_DEPLOYMENT=true isn't set on the dev deployment",
+    };
   }
-  return convexRunError(stderr);
+  return { reason: "unreachable", detail: convexRunError(stderr) };
 };
 
 const call = async (
@@ -102,7 +112,7 @@ const call = async (
   args: Record<string, unknown>
 ): Promise<
   | { ok: true; value: unknown }
-  | { detail: string; missingFunctions: boolean; ok: false }
+  | { detail: string; ok: false; reason: LeaseFailure }
 > => {
   try {
     const result = await runCommand(
@@ -110,18 +120,14 @@ const call = async (
       { cwd: join(root, "packages/convex"), timeoutMs: 60_000 }
     );
     if (result.exitCode !== 0) {
-      return {
-        ok: false,
-        detail: summarize(result.stderr),
-        missingFunctions: MISSING_FUNCTION.test(result.stderr),
-      };
+      return { ok: false, ...classifyLeaseFailure(result.stderr) };
     }
     return { ok: true, value: parseRunOutput(result.stdout) };
   } catch (error) {
     return {
       ok: false,
       detail: error instanceof Error ? error.message : String(error),
-      missingFunctions: false,
+      reason: "unreachable",
     };
   }
 };
@@ -135,7 +141,7 @@ const asLease = (outcome: Awaited<ReturnType<typeof call>>): LeaseResult =>
     : {
         status: "unavailable",
         detail: outcome.detail,
-        missingFunctions: outcome.missingFunctions,
+        reason: outcome.reason,
       };
 
 export const acquireLease = async (
