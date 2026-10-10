@@ -1,0 +1,34 @@
+Teak is your personal vault for design inspiration and creative ideas. Save, organize, and find your ideas again on your phone, tablet, and the web.
+
+CAPTURE ANYTHING
+• Save links, images, videos, voice memos, and documents
+• Share straight into Teak from any app with the Android share sheet
+• Select text in any app and choose "Save to Teak"
+• Jump to a new note or voice memo from the app icon
+
+ORGANIZE YOUR WAY
+• Add notes in Markdown and tags to keep everything searchable
+• Mark favorites for quick access to your best ideas
+• Filter by type, color, favorites, or Trash
+• Search by words or dates, like "last week" or "June 2024"
+
+MADE FOR ANDROID
+• Material 3 design with light and dark themes
+• Tablets, foldables, and desktop windows show your library and a card side by side
+• Uploads keep going in the background with a progress notification
+
+SYNC EVERYWHERE
+• Your vault stays in sync across Android, iPhone, Mac, and the web
+• Save from your browser with the Teak extension
+
+YOUR DATA, YOUR CONTROL
+• Private by design: your content is never used for advertising
+• Encrypted in transit
+• Export or delete your data anytime
+• Deleted cards stay in Trash for 30 days
+
+TEAK IS FOR
+• Designers collecting inspiration
+• Creators organizing ideas and references
+• Researchers saving articles and resources
+• Anyone building a personal knowledge base

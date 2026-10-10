@@ -45,7 +45,8 @@ android {
                 this.storeFile = rootDir.resolve(storeFile)
                 storePassword = signingValue("storePassword", "TEAK_UPLOAD_KEYSTORE_PASSWORD")
                 keyAlias = signingValue("keyAlias", "TEAK_UPLOAD_KEY_ALIAS")
-                keyPassword = signingValue("keyPassword", "TEAK_UPLOAD_KEY_PASSWORD")
+                // A PKCS12 keystore uses one password for the store and the key.
+                keyPassword = signingValue("keyPassword", "TEAK_UPLOAD_KEY_PASSWORD") ?: storePassword
             }
         }
     }

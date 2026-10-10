@@ -1,6 +1,10 @@
 package com.praveenjuge.teak
 
 import android.app.Application
+import android.content.Intent
+import androidx.core.content.pm.ShortcutInfoCompat
+import androidx.core.content.pm.ShortcutManagerCompat
+import androidx.core.graphics.drawable.IconCompat
 import androidx.hilt.work.HiltWorkerFactory
 import androidx.work.Configuration
 import coil3.ImageLoader
@@ -31,7 +35,25 @@ class TeakApplication : Application(), Configuration.Provider, SingletonImageLoa
     override fun onCreate() {
         super.onCreate()
         initSentry()
+        publishShortcuts()
         scope.launch { account.start() }
+    }
+
+    /** "New note" and "Voice memo" on the launcher icon's long-press menu. */
+    private fun publishShortcuts() {
+        fun shortcut(id: String, label: Int, icon: Int, action: String) =
+            ShortcutInfoCompat.Builder(this, id)
+                .setShortLabel(getString(label))
+                .setIcon(IconCompat.createWithResource(this, icon))
+                .setIntent(Intent(this, MainActivity::class.java).setAction(action))
+                .build()
+        ShortcutManagerCompat.setDynamicShortcuts(
+            this,
+            listOf(
+                shortcut("new_note", R.string.shortcut_new_note, R.drawable.ic_shortcut_note, MainActivity.ACTION_NEW_NOTE),
+                shortcut("voice_memo", R.string.shortcut_voice_memo, R.drawable.ic_shortcut_mic, MainActivity.ACTION_VOICE_MEMO),
+            ),
+        )
     }
 
     override fun newImageLoader(context: PlatformContext): ImageLoader =

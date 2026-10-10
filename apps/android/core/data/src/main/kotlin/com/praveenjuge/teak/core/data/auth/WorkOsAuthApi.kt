@@ -2,7 +2,6 @@ package com.praveenjuge.teak.core.data.auth
 
 import com.workos.android.Configuration
 import com.workos.android.WorkOSClient
-import com.workos.android.WorkOSException
 import com.workos.android.enums.UserManagementAuthenticationProvider
 import com.workos.android.enums.UserManagementAuthenticationScreenHint
 import com.workos.android.helpers.getAuthorizationUrlWithPkce
@@ -10,6 +9,7 @@ import com.workos.android.userManagement
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonObjectBuilder
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
@@ -51,36 +51,31 @@ class DefaultWorkOsAuthApi @Inject constructor(
         return start.url to PendingSignIn(clientId, start.codeVerifier, start.state)
     }
 
-    override suspend fun exchangeCode(pending: PendingSignIn, code: String): AuthSession =
-        withContext(Dispatchers.IO) {
-            val response = try {
-                client(pending.clientId).userManagement.authenticateWithCode(code = code, codeVerifier = pending.codeVerifier)
-            } catch (e: WorkOSException) {
-                throw SignInException(UNABLE_TO_SIGN_IN, e)
-            }
-            SessionParser.parse(
-                clientId = pending.clientId,
-                accessToken = response.accessToken,
-                refreshToken = response.refreshToken,
-                user = SessionParser.TokenUser(
-                    id = response.user.id,
-                    email = response.user.email,
-                    emailVerified = response.user.emailVerified,
-                    firstName = response.user.firstName,
-                    lastName = response.user.lastName,
-                    externalId = response.user.externalId,
-                ),
-            )
+    // The SDK (0.4.0) builds the PKCE authorize URL. Its token calls always send `client_secret`,
+    // which WorkOS rejects as empty for public clients, so both grants are posted directly, as on iOS.
+    override suspend fun exchangeCode(pending: PendingSignIn, code: String): AuthSession = try {
+        authenticate(pending.clientId) {
+            put("grant_type", "authorization_code")
+            put("code", code)
+            put("code_verifier", pending.codeVerifier)
+        }
+    } catch (e: InvalidRefreshTokenException) {
+        throw SignInException(UNABLE_TO_SIGN_IN, e)
+    } catch (e: IOException) {
+        throw SignInException("Unable to connect. Please try again.", e)
+    }
+
+    override suspend fun refresh(clientId: String, refreshToken: String): AuthSession =
+        authenticate(clientId) {
+            put("grant_type", "refresh_token")
+            put("refresh_token", refreshToken)
         }
 
-    // The SDK's authenticateWithRefreshToken (0.4.0) always sends client_secret, and WorkOS rejects
-    // an empty one for public clients, so the refresh grant is posted directly, as iOS does.
-    override suspend fun refresh(clientId: String, refreshToken: String): AuthSession =
+    private suspend fun authenticate(clientId: String, fields: JsonObjectBuilder.() -> Unit): AuthSession =
         withContext(Dispatchers.IO) {
             val body = buildJsonObject {
                 put("client_id", clientId)
-                put("grant_type", "refresh_token")
-                put("refresh_token", refreshToken)
+                fields()
             }.toString().toRequestBody(JSON)
             val request = Request.Builder()
                 .url("${baseUrl.trimEnd('/')}/user_management/authenticate")
@@ -97,7 +92,7 @@ class DefaultWorkOsAuthApi @Inject constructor(
                     if (response.code == 401 || error == "invalid_grant" || error == "invalid_refresh_token") {
                         throw InvalidRefreshTokenException()
                     }
-                    throw IOException("Refresh failed with status ${response.code}")
+                    throw IOException("WorkOS authenticate failed with status ${response.code} ($error)")
                 }
                 SessionParser.parseResponse(clientId, text)
             }

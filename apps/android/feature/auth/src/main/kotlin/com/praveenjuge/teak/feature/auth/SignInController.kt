@@ -1,6 +1,7 @@
 package com.praveenjuge.teak.feature.auth
 
 import android.net.Uri
+import android.util.Log
 import com.praveenjuge.teak.core.data.auth.SignInException
 import com.praveenjuge.teak.core.data.auth.SignInMethod
 import com.praveenjuge.teak.core.data.repository.AccountRepository
@@ -51,6 +52,8 @@ class SignInController @Inject constructor(
             )
             SignInProgress()
         } catch (e: Exception) {
+            // Never log tokens; the exception chain carries only WorkOS's error code and message.
+            Log.w(TAG, "Sign-in failed: ${e.javaClass.simpleName}: ${e.message}; cause: ${e.cause}")
             SignInProgress(error = e.message ?: "Unable to complete sign-in. Please try again.")
         } finally {
             completing = false
@@ -67,6 +70,8 @@ class SignInController @Inject constructor(
     }
 
     companion object {
+        private const val TAG = "TeakSignIn"
+
         fun isCallback(uri: Uri?): Boolean =
             uri?.scheme == "teak" && uri.host == "auth" && uri.path == "/callback"
     }

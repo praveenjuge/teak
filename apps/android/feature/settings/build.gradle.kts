@@ -5,3 +5,7 @@ plugins {
 android {
     namespace = "com.praveenjuge.teak.feature.settings"
 }
+
+dependencies {
+    implementation(libs.androidx.browser)
+}
