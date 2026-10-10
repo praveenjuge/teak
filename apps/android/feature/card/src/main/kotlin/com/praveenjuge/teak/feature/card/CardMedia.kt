@@ -202,6 +202,7 @@ internal fun ImageViewer(url: String, contentDescription: String?, onDismiss: ()
 }
 
 /** An ExoPlayer for [url] that lives as long as the composable and pauses when the app leaves the screen. */
+@OptIn(UnstableApi::class)
 @Composable
 private fun rememberPlayer(url: String): ExoPlayer {
     val context = LocalContext.current
