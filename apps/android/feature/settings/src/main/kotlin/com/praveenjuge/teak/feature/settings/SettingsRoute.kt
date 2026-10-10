@@ -46,6 +46,8 @@ import com.praveenjuge.teak.core.designsystem.component.ListRowValue
 import com.praveenjuge.teak.core.designsystem.component.ListSectionHeader
 import com.praveenjuge.teak.core.designsystem.component.TypedConfirmDialog
 import androidx.compose.runtime.getValue
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.layout.wrapContentWidth
 
 @Composable
 fun SettingsRoute(viewModel: SettingsViewModel = hiltViewModel()) {
@@ -88,9 +90,13 @@ fun SettingsScreen(
         modifier = Modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
         topBar = { LargeTopAppBar(title = { Text("Settings") }, scrollBehavior = scrollBehavior) },
     ) { padding ->
+        // On tablets and desktop windows the list keeps a readable width, centered.
         Column(
             Modifier
                 .padding(padding)
+                .fillMaxWidth()
+                .wrapContentWidth()
+                .widthIn(max = 720.dp)
                 .verticalScroll(rememberScrollState())
                 .padding(bottom = 24.dp),
         ) {

@@ -44,6 +44,8 @@ import com.praveenjuge.teak.core.designsystem.component.ListRow
 import com.praveenjuge.teak.core.designsystem.component.ListSectionHeader
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.getValue
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.layout.wrapContentWidth
 
 /** Alerts that come from the camera itself rather than from a pick. */
 private enum class CameraAlert { PermissionDenied, Unavailable }
@@ -176,8 +178,9 @@ internal fun AddScreen(
             )
         },
     ) { padding ->
+        // On tablets and desktop windows the list keeps a readable width, centered.
         LazyColumn(
-            modifier = Modifier.fillMaxSize(),
+            modifier = Modifier.fillMaxSize().wrapContentWidth().widthIn(max = 720.dp),
             contentPadding = PaddingValues(
                 top = padding.calculateTopPadding(),
                 bottom = padding.calculateBottomPadding() + 24.dp,
