@@ -4,10 +4,18 @@ import process from "node:process";
 import { fileURLToPath } from "node:url";
 
 const semverPattern = /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$/;
-const safariManifest =
-  "apps/mac/Shared (Extension)/Resources/manifest.json";
-export const safariXcodeProject =
-  "apps/mac/teak-mac.xcodeproj/project.pbxproj";
+const safariManifest = "apps/mac/Shared (Extension)/Resources/manifest.json";
+export const safariXcodeProject = "apps/mac/teak-mac.xcodeproj/project.pbxproj";
+const appleSafariManifest =
+  "apps/apple/SafariExtension/Resources/manifest.json";
+// project.yml is the source of truth; Teak.xcodeproj is generated from it, so
+// both carry the same MARKETING_VERSION. Build numbers come from App Store
+// Connect at release time.
+export const appleVersionSources = [
+  "apps/apple/project.yml",
+  "apps/apple/Teak.xcodeproj/project.pbxproj",
+];
+const appleMarketingVersionPattern = /(MARKETING_VERSION(?:: | = ))([^;\s]+)/g;
 
 export function parseVersion(value) {
   const match = semverPattern.exec(value);
@@ -59,8 +67,21 @@ export function npmLockFiles(repoRoot) {
 
 export function releaseManifestFiles(repoRoot) {
   const files = packageFiles(repoRoot);
-  files.push(safariManifest);
+  files.push(safariManifest, appleSafariManifest);
   return files.sort();
+}
+
+export function appleMarketingVersions(contents) {
+  return [...contents.matchAll(appleMarketingVersionPattern)].map(
+    (match) => match[2]
+  );
+}
+
+export function replaceAppleMarketingVersions(contents, version) {
+  return contents.replace(
+    appleMarketingVersionPattern,
+    (_match, prefix) => `${prefix}${version}`
+  );
 }
 
 export function safariXcodeVersions(contents) {
@@ -149,6 +170,33 @@ export function assertLockstep(
         if (version !== expected) {
           mismatches.push(`${safariXcodeProject} ${field}: ${version}`);
         }
+      }
+    }
+  }
+  for (const relative of appleVersionSources) {
+    let contents;
+    try {
+      // A fixed list of version files inside the repository.
+      // nosemgrep: javascript_pathtraversal_rule-non-literal-fs-filename
+      contents = fs.readFileSync(path.join(repoRoot, relative), "utf8");
+    } catch (error) {
+      if (
+        error instanceof Error &&
+        "code" in error &&
+        error.code === "ENOENT"
+      ) {
+        mismatches.push(`${relative}: missing`);
+        continue;
+      }
+      throw error;
+    }
+    const versions = appleMarketingVersions(contents);
+    if (versions.length === 0) {
+      mismatches.push(`${relative} MARKETING_VERSION: missing`);
+    }
+    for (const version of new Set(versions)) {
+      if (version !== expectedVersion) {
+        mismatches.push(`${relative} MARKETING_VERSION: ${version}`);
       }
     }
   }

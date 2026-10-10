@@ -1,0 +1,1113 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 77;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		00396219B50278C661B770E7 /* CardSections.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0EE1B224975A9737F41FCAEF /* CardSections.swift */; };
+		00895B5374DF8CD81E3AFCDF /* LibraryModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = C33080F59C53DEC2AAC7D61E /* LibraryModel.swift */; };
+		107E7EC61783BD65AFB463D5 /* CaptureModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = FC9794E71FD9919068F5A074 /* CaptureModel.swift */; };
+		12DE4A1F397593B86AC346BA /* popup.js in Resources */ = {isa = PBXBuildFile; fileRef = 38FE96DF2D1AF40CC9B918A0 /* popup.js */; };
+		1DF8812CCA14EA69164B8F1B /* Sentry in Frameworks */ = {isa = PBXBuildFile; productRef = 0765BE6AD9C6A3AE574325DA /* Sentry */; };
+		208E0427A98AAEAF3EE3D554 /* ShareViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = D4C91E3F9825B47431347263 /* ShareViewController.swift */; };
+		247696638EB43FCE52B18248 /* ShareExtension.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 33E8EAB38FCCC721B42D58D4 /* ShareExtension.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+		2A7543B5D7CF619ACC795271 /* CardFiles.swift in Sources */ = {isa = PBXBuildFile; fileRef = B7FAA81DD73D5F9027B68CD8 /* CardFiles.swift */; };
+		2B5C01490DB692C72F2B54C3 /* SentryReporting.swift in Sources */ = {isa = PBXBuildFile; fileRef = FB07B0EE611BC7C8C88712B4 /* SentryReporting.swift */; };
+		2E166D46FB2B7B0DCBA9E11E /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 66B83C864DD2BAFB4E482041 /* SettingsView.swift */; };
+		30A45942EBCE0415DEB04D11 /* AddView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5B2D4635BF4CC78ADEDD823F /* AddView.swift */; };
+		3B09E374EB56BA539F61359D /* RemoteImage.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1241428612C78B46F9261153 /* RemoteImage.swift */; };
+		3BA71F9BEC7161BD5DADDE25 /* TeakUI in Frameworks */ = {isa = PBXBuildFile; productRef = 3046B73655D6061E5C61DCCE /* TeakUI */; };
+		3CFE72D197FCA573B94B309A /* SaveToTeakIntent.swift in Sources */ = {isa = PBXBuildFile; fileRef = EFD2EBF243733EF9F23C428D /* SaveToTeakIntent.swift */; };
+		3EFB341E1207EFCA237EF802 /* SentryReporting.swift in Sources */ = {isa = PBXBuildFile; fileRef = FB07B0EE611BC7C8C88712B4 /* SentryReporting.swift */; };
+		406A5760D80DADA5E1F337CA /* manifest.json in Resources */ = {isa = PBXBuildFile; fileRef = 81BE157FBAE13A3511575988 /* manifest.json */; };
+		41A9F462D1A9D7B15BCF2B43 /* CardPager.swift in Sources */ = {isa = PBXBuildFile; fileRef = D43730182DF3AE363D581845 /* CardPager.swift */; };
+		435531015D521B1295BD6684 /* images in Resources */ = {isa = PBXBuildFile; fileRef = 6C85399EBC56ADF34B6DE69D /* images */; };
+		4D2C4E4BAA75709A532DCE88 /* LibraryView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B195766D8684A763BB1AB093 /* LibraryView.swift */; };
+		50A9E6A40C46EC6BD15ED9E4 /* SafariWebExtensionHandler.swift in Sources */ = {isa = PBXBuildFile; fileRef = 068CE95962841A9057B5472B /* SafariWebExtensionHandler.swift */; };
+		531C9DE90DBE1F6A758D1F5E /* TeakCore in Frameworks */ = {isa = PBXBuildFile; productRef = FFDC83C6E603B2D30AD15EB1 /* TeakCore */; };
+		5BF2BE72834C1F430546D85D /* TeakUI in Frameworks */ = {isa = PBXBuildFile; productRef = 6F6A3A42782815CB35DFE813 /* TeakUI */; };
+		5C5254F782F5677D246D720D /* Sentry in Frameworks */ = {isa = PBXBuildFile; productRef = 3F59418E4F05F0F97110ABE1 /* Sentry */; };
+		6129572D0B477BD1CDA57006 /* popup.css in Resources */ = {isa = PBXBuildFile; fileRef = 005BE33C57BE4A949C714E10 /* popup.css */; };
+		68B5196CE99A1E0CFAA9FCA0 /* CardDetailModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 023C0132FA1156ABEEBF08E6 /* CardDetailModel.swift */; };
+		6B39462082BB18E0944ABD96 /* WelcomeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C1C78020F918336D66648413 /* WelcomeView.swift */; };
+		6D8DEC6F8D593FB105DB8578 /* popup.html in Resources */ = {isa = PBXBuildFile; fileRef = BBB7C456017B244B6D91EBA7 /* popup.html */; };
+		72F339878D2F22A07DB4483B /* TeakApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = D02A3CA9E5B01345E12A9686 /* TeakApp.swift */; };
+		7371FA16E076E1E3112BEFA1 /* NoteComposerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A4FA5E9E3447570860C77A35 /* NoteComposerView.swift */; };
+		80F6ACDD5F9616FB3FBFE83F /* background.js in Resources */ = {isa = PBXBuildFile; fileRef = 310894E9752F13554268C5D7 /* background.js */; };
+		813A2A6ED5E3B10ED1BB91B8 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = E170EA1FC1F06AD8197557FF /* Assets.xcassets */; };
+		81826080281B3E00D6EEA32C /* RootView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6E2C5AE9A93AFE2E6816B8CB /* RootView.swift */; };
+		84F46662E636B17CEC469DCE /* MacSettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = BEB8CCFA07439724E1FD132D /* MacSettings.swift */; };
+		8925AC5AACC899AB35C87D63 /* CardEditView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A40A653CFC66F96920615712 /* CardEditView.swift */; };
+		89FE2ADF2373A0B4FF02176B /* E2EStack.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6E3FF2D7400936FF1F520A0D /* E2EStack.swift */; };
+		8D885E89664BB3C7989523D9 /* SentryReporting.swift in Sources */ = {isa = PBXBuildFile; fileRef = FB07B0EE611BC7C8C88712B4 /* SentryReporting.swift */; };
+		930D7C22FA57EE97F0B642F6 /* ShareView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 98EA7CC268C54F60FBCE785A /* ShareView.swift */; };
+		932FA0496D22FCC4FAE13EC0 /* AppModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = F9EAC217372F9E2FABC172E6 /* AppModel.swift */; };
+		A0B65ACF040BA219D9391EA3 /* CardContextMenu.swift in Sources */ = {isa = PBXBuildFile; fileRef = A4FE4699DD01CF9DF68B709D /* CardContextMenu.swift */; };
+		A468F94175235B9899B77BA3 /* CardTile.swift in Sources */ = {isa = PBXBuildFile; fileRef = BBEA95678E058CFC665ADECF /* CardTile.swift */; };
+		AA14AE3E3DD9CBD06D777480 /* LibraryFlowTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3CB415C3CD2A76F708857831 /* LibraryFlowTests.swift */; };
+		AB4CB582214A6AED33EF2DCD /* TeakSync in Frameworks */ = {isa = PBXBuildFile; productRef = 5CE8FF720AF1C66F003874A9 /* TeakSync */; };
+		ADD04D6DA903EF65CC7A87F4 /* TeakCore in Frameworks */ = {isa = PBXBuildFile; productRef = 4A0CC010CD48DA681F8998DC /* TeakCore */; };
+		AE8769CA0B4D22B2F28E644E /* SignInTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FAAA31B47AA2D7E2A831C533 /* SignInTests.swift */; };
+		AF55BC39EBC04C40378BB4FD /* CardPreviews.swift in Sources */ = {isa = PBXBuildFile; fileRef = 86D536980FFE491122D6407C /* CardPreviews.swift */; };
+		BA6AA56ECC778EF921A6A451 /* Sentry in Frameworks */ = {isa = PBXBuildFile; productRef = 963D7F2969365C350660C972 /* Sentry */; };
+		C16267AFFBE1A76B9088D866 /* MacSidebar.swift in Sources */ = {isa = PBXBuildFile; fileRef = 239A463CABB7F47418470BD6 /* MacSidebar.swift */; };
+		C83C290350B432DEC81C2DA8 /* CardDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 13C31EB7F1B7572867D99BCC /* CardDetailView.swift */; };
+		DA5B5FBF30F1B93E2DEA8EA3 /* VoiceMemoView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 76D800F04BFC3FD19DA1FF4B /* VoiceMemoView.swift */; };
+		DC36BB48B0EBCCE205D7A0C9 /* SafariExtensionSection.swift in Sources */ = {isa = PBXBuildFile; fileRef = 91A3A8E4246126162ECD4292 /* SafariExtensionSection.swift */; };
+		E0AE5D5D8F80E276096A2F7A /* TeakCore in Frameworks */ = {isa = PBXBuildFile; productRef = C514F569EE7DFB45299EF550 /* TeakCore */; };
+		E57DC0A90C4B639603941134 /* TeakCommands.swift in Sources */ = {isa = PBXBuildFile; fileRef = 30BD656D74E8D555D4EC2E21 /* TeakCommands.swift */; };
+		E703EDE9EC3246A9A56F778F /* Platform.swift in Sources */ = {isa = PBXBuildFile; fileRef = 491038488A86B5D19F99D1D1 /* Platform.swift */; };
+		E7566BF40E979E496227C887 /* SafariExtension.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 9762C51F63127F94AE58823F /* SafariExtension.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+		F36056B9A07A44FACCC5142B /* MarkdownView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F32533E118EE2528C2BEB7A4 /* MarkdownView.swift */; };
+		F39838CD8A6CF0FEEA99208C /* AppRouter.swift in Sources */ = {isa = PBXBuildFile; fileRef = 186BE1B031F07346B9A04E99 /* AppRouter.swift */; };
+		F57E7B79CB437525A78F20B5 /* MacCapture.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7E6D07D7E008E4C2F978F868 /* MacCapture.swift */; };
+		F675C71A37C1A0C1943901E6 /* _locales in Resources */ = {isa = PBXBuildFile; fileRef = BDFC7C1A7EFDB3B2D6F915E2 /* _locales */; };
+		FE488C6C72766C15CB08F7E6 /* StatusViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8825C3A95E26F19DF39B0F96 /* StatusViews.swift */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXContainerItemProxy section */
+		65E5C760DE4C0E66A141C43E /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 9789A3A893E11C789A4478FE /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 6F1085B5A2BE90F4750AD376;
+			remoteInfo = Teak;
+		};
+		91229B2E280FEF0E395FB10D /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 9789A3A893E11C789A4478FE /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 0BBFFF2402E7062E09607C5A;
+			remoteInfo = SafariExtension;
+		};
+		F9D90160729D2B6B5967745D /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 9789A3A893E11C789A4478FE /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = EF98CE4BE140ECF8FB9E5562;
+			remoteInfo = ShareExtension;
+		};
+/* End PBXContainerItemProxy section */
+
+/* Begin PBXCopyFilesBuildPhase section */
+		FB52E441E06E7D9CD78CDF23 /* Embed Foundation Extensions */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 13;
+			files = (
+				247696638EB43FCE52B18248 /* ShareExtension.appex in Embed Foundation Extensions */,
+				E7566BF40E979E496227C887 /* SafariExtension.appex in Embed Foundation Extensions */,
+			);
+			name = "Embed Foundation Extensions";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXCopyFilesBuildPhase section */
+
+/* Begin PBXFileReference section */
+		005BE33C57BE4A949C714E10 /* popup.css */ = {isa = PBXFileReference; lastKnownFileType = text.css; path = popup.css; sourceTree = "<group>"; };
+		023C0132FA1156ABEEBF08E6 /* CardDetailModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CardDetailModel.swift; sourceTree = "<group>"; };
+		068CE95962841A9057B5472B /* SafariWebExtensionHandler.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SafariWebExtensionHandler.swift; sourceTree = "<group>"; };
+		0EE1B224975A9737F41FCAEF /* CardSections.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CardSections.swift; sourceTree = "<group>"; };
+		1241428612C78B46F9261153 /* RemoteImage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RemoteImage.swift; sourceTree = "<group>"; };
+		13C31EB7F1B7572867D99BCC /* CardDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CardDetailView.swift; sourceTree = "<group>"; };
+		186BE1B031F07346B9A04E99 /* AppRouter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppRouter.swift; sourceTree = "<group>"; };
+		239A463CABB7F47418470BD6 /* MacSidebar.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MacSidebar.swift; sourceTree = "<group>"; };
+		30BD656D74E8D555D4EC2E21 /* TeakCommands.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TeakCommands.swift; sourceTree = "<group>"; };
+		310894E9752F13554268C5D7 /* background.js */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.javascript; path = background.js; sourceTree = "<group>"; };
+		33E8EAB38FCCC721B42D58D4 /* ShareExtension.appex */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = "wrapper.app-extension"; path = ShareExtension.appex; sourceTree = BUILT_PRODUCTS_DIR; };
+		38FE96DF2D1AF40CC9B918A0 /* popup.js */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.javascript; path = popup.js; sourceTree = "<group>"; };
+		3CB415C3CD2A76F708857831 /* LibraryFlowTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LibraryFlowTests.swift; sourceTree = "<group>"; };
+		491038488A86B5D19F99D1D1 /* Platform.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Platform.swift; sourceTree = "<group>"; };
+		5B2D4635BF4CC78ADEDD823F /* AddView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AddView.swift; sourceTree = "<group>"; };
+		66B83C864DD2BAFB4E482041 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
+		6C85399EBC56ADF34B6DE69D /* images */ = {isa = PBXFileReference; lastKnownFileType = folder; name = images; path = SafariExtension/Resources/images; sourceTree = SOURCE_ROOT; };
+		6E2C5AE9A93AFE2E6816B8CB /* RootView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RootView.swift; sourceTree = "<group>"; };
+		6E3FF2D7400936FF1F520A0D /* E2EStack.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = E2EStack.swift; sourceTree = "<group>"; };
+		76D800F04BFC3FD19DA1FF4B /* VoiceMemoView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VoiceMemoView.swift; sourceTree = "<group>"; };
+		7E6D07D7E008E4C2F978F868 /* MacCapture.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MacCapture.swift; sourceTree = "<group>"; };
+		81BE157FBAE13A3511575988 /* manifest.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = manifest.json; sourceTree = "<group>"; };
+		86D536980FFE491122D6407C /* CardPreviews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CardPreviews.swift; sourceTree = "<group>"; };
+		8825C3A95E26F19DF39B0F96 /* StatusViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StatusViews.swift; sourceTree = "<group>"; };
+		91A3A8E4246126162ECD4292 /* SafariExtensionSection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SafariExtensionSection.swift; sourceTree = "<group>"; };
+		9762C51F63127F94AE58823F /* SafariExtension.appex */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = "wrapper.app-extension"; path = SafariExtension.appex; sourceTree = BUILT_PRODUCTS_DIR; };
+		98EA7CC268C54F60FBCE785A /* ShareView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShareView.swift; sourceTree = "<group>"; };
+		A40A653CFC66F96920615712 /* CardEditView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CardEditView.swift; sourceTree = "<group>"; };
+		A4FA5E9E3447570860C77A35 /* NoteComposerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NoteComposerView.swift; sourceTree = "<group>"; };
+		A4FE4699DD01CF9DF68B709D /* CardContextMenu.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CardContextMenu.swift; sourceTree = "<group>"; };
+		B195766D8684A763BB1AB093 /* LibraryView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LibraryView.swift; sourceTree = "<group>"; };
+		B7FAA81DD73D5F9027B68CD8 /* CardFiles.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CardFiles.swift; sourceTree = "<group>"; };
+		B8FC22D12BEDFA49700BBF69 /* Teak.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = Teak.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		BBB7C456017B244B6D91EBA7 /* popup.html */ = {isa = PBXFileReference; lastKnownFileType = text.html; path = popup.html; sourceTree = "<group>"; };
+		BBEA95678E058CFC665ADECF /* CardTile.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CardTile.swift; sourceTree = "<group>"; };
+		BDFC7C1A7EFDB3B2D6F915E2 /* _locales */ = {isa = PBXFileReference; lastKnownFileType = folder; name = _locales; path = SafariExtension/Resources/_locales; sourceTree = SOURCE_ROOT; };
+		BEB8CCFA07439724E1FD132D /* MacSettings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MacSettings.swift; sourceTree = "<group>"; };
+		C1C78020F918336D66648413 /* WelcomeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WelcomeView.swift; sourceTree = "<group>"; };
+		C33080F59C53DEC2AAC7D61E /* LibraryModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LibraryModel.swift; sourceTree = "<group>"; };
+		CB834A92D5E9C12ED538973C /* TeakKit */ = {isa = PBXFileReference; lastKnownFileType = folder; name = TeakKit; path = Packages/TeakKit; sourceTree = SOURCE_ROOT; };
+		D02A3CA9E5B01345E12A9686 /* TeakApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TeakApp.swift; sourceTree = "<group>"; };
+		D43730182DF3AE363D581845 /* CardPager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CardPager.swift; sourceTree = "<group>"; };
+		D4C91E3F9825B47431347263 /* ShareViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShareViewController.swift; sourceTree = "<group>"; };
+		DF90B422F7E69311723801B0 /* TeakUITests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = TeakUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		E170EA1FC1F06AD8197557FF /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+		EFD2EBF243733EF9F23C428D /* SaveToTeakIntent.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SaveToTeakIntent.swift; sourceTree = "<group>"; };
+		F32533E118EE2528C2BEB7A4 /* MarkdownView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MarkdownView.swift; sourceTree = "<group>"; };
+		F9EAC217372F9E2FABC172E6 /* AppModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppModel.swift; sourceTree = "<group>"; };
+		FAAA31B47AA2D7E2A831C533 /* SignInTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SignInTests.swift; sourceTree = "<group>"; };
+		FB07B0EE611BC7C8C88712B4 /* SentryReporting.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SentryReporting.swift; sourceTree = "<group>"; };
+		FC9794E71FD9919068F5A074 /* CaptureModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CaptureModel.swift; sourceTree = "<group>"; };
+/* End PBXFileReference section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		246971DE4BD331E75B155F3F /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				531C9DE90DBE1F6A758D1F5E /* TeakCore in Frameworks */,
+				1DF8812CCA14EA69164B8F1B /* Sentry in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		346F2630ECF71A36692D00A8 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				E0AE5D5D8F80E276096A2F7A /* TeakCore in Frameworks */,
+				AB4CB582214A6AED33EF2DCD /* TeakSync in Frameworks */,
+				3BA71F9BEC7161BD5DADDE25 /* TeakUI in Frameworks */,
+				BA6AA56ECC778EF921A6A451 /* Sentry in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		AFAABE3C5DDF0224F24DD2B5 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				ADD04D6DA903EF65CC7A87F4 /* TeakCore in Frameworks */,
+				5BF2BE72834C1F430546D85D /* TeakUI in Frameworks */,
+				5C5254F782F5677D246D720D /* Sentry in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		0BC2DE393F06A5936E984F15 /* Settings */ = {
+			isa = PBXGroup;
+			children = (
+				91A3A8E4246126162ECD4292 /* SafariExtensionSection.swift */,
+				66B83C864DD2BAFB4E482041 /* SettingsView.swift */,
+			);
+			path = Settings;
+			sourceTree = "<group>";
+		};
+		2D4605729363A00B8FB13894 /* macOS */ = {
+			isa = PBXGroup;
+			children = (
+				7E6D07D7E008E4C2F978F868 /* MacCapture.swift */,
+				BEB8CCFA07439724E1FD132D /* MacSettings.swift */,
+				239A463CABB7F47418470BD6 /* MacSidebar.swift */,
+			);
+			path = macOS;
+			sourceTree = "<group>";
+		};
+		59E28222DC011B338D20C1BD /* SafariExtension */ = {
+			isa = PBXGroup;
+			children = (
+				90D5A4D4C90366177428FA69 /* Resources */,
+				068CE95962841A9057B5472B /* SafariWebExtensionHandler.swift */,
+			);
+			path = SafariExtension;
+			sourceTree = "<group>";
+		};
+		5E718E1BB5E59F985E314DD5 /* Intents */ = {
+			isa = PBXGroup;
+			children = (
+				EFD2EBF243733EF9F23C428D /* SaveToTeakIntent.swift */,
+			);
+			path = Intents;
+			sourceTree = "<group>";
+		};
+		6BAC0A212F73A0FA8B035F18 /* Capture */ = {
+			isa = PBXGroup;
+			children = (
+				5B2D4635BF4CC78ADEDD823F /* AddView.swift */,
+				FC9794E71FD9919068F5A074 /* CaptureModel.swift */,
+				A4FA5E9E3447570860C77A35 /* NoteComposerView.swift */,
+				76D800F04BFC3FD19DA1FF4B /* VoiceMemoView.swift */,
+			);
+			path = Capture;
+			sourceTree = "<group>";
+		};
+		7133FDEA878907F60E9439EB /* Card */ = {
+			isa = PBXGroup;
+			children = (
+				023C0132FA1156ABEEBF08E6 /* CardDetailModel.swift */,
+				13C31EB7F1B7572867D99BCC /* CardDetailView.swift */,
+				A40A653CFC66F96920615712 /* CardEditView.swift */,
+				B7FAA81DD73D5F9027B68CD8 /* CardFiles.swift */,
+				86D536980FFE491122D6407C /* CardPreviews.swift */,
+				0EE1B224975A9737F41FCAEF /* CardSections.swift */,
+			);
+			path = Card;
+			sourceTree = "<group>";
+		};
+		8BB3A9199FAA07F0B3B9DFE5 /* Library */ = {
+			isa = PBXGroup;
+			children = (
+				A4FE4699DD01CF9DF68B709D /* CardContextMenu.swift */,
+				D43730182DF3AE363D581845 /* CardPager.swift */,
+				BBEA95678E058CFC665ADECF /* CardTile.swift */,
+				C33080F59C53DEC2AAC7D61E /* LibraryModel.swift */,
+				B195766D8684A763BB1AB093 /* LibraryView.swift */,
+			);
+			path = Library;
+			sourceTree = "<group>";
+		};
+		90D5A4D4C90366177428FA69 /* Resources */ = {
+			isa = PBXGroup;
+			children = (
+				BDFC7C1A7EFDB3B2D6F915E2 /* _locales */,
+				310894E9752F13554268C5D7 /* background.js */,
+				6C85399EBC56ADF34B6DE69D /* images */,
+				81BE157FBAE13A3511575988 /* manifest.json */,
+				005BE33C57BE4A949C714E10 /* popup.css */,
+				BBB7C456017B244B6D91EBA7 /* popup.html */,
+				38FE96DF2D1AF40CC9B918A0 /* popup.js */,
+			);
+			path = Resources;
+			sourceTree = "<group>";
+		};
+		B8FA874A61E0305BA400A7B2 /* Teak */ = {
+			isa = PBXGroup;
+			children = (
+				EBA05CEDF381BD848784E1C8 /* App */,
+				D23C5BD594A8659EEDCEBF3D /* Components */,
+				F09D617C496FE785988776FB /* Features */,
+				5E718E1BB5E59F985E314DD5 /* Intents */,
+				C9FF5D29CD49F53D07C8B7C6 /* Platform */,
+				BAA355B9F15E1DFCE4A0690A /* Resources */,
+			);
+			path = Teak;
+			sourceTree = "<group>";
+		};
+		BAA355B9F15E1DFCE4A0690A /* Resources */ = {
+			isa = PBXGroup;
+			children = (
+				E170EA1FC1F06AD8197557FF /* Assets.xcassets */,
+			);
+			path = Resources;
+			sourceTree = "<group>";
+		};
+		C2B300C5879D2501E1DE0EEF = {
+			isa = PBXGroup;
+			children = (
+				DC5AAB7621451403981BC16A /* Packages */,
+				59E28222DC011B338D20C1BD /* SafariExtension */,
+				F183676FE62C9A664D69718D /* Shared */,
+				C8F17355375D522385ADF462 /* ShareExtension */,
+				B8FA874A61E0305BA400A7B2 /* Teak */,
+				CECF329C69A9F8E4FB7CD77D /* TeakUITests */,
+				CB6FE2933939216B6AEAA4E1 /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+		C8F17355375D522385ADF462 /* ShareExtension */ = {
+			isa = PBXGroup;
+			children = (
+				98EA7CC268C54F60FBCE785A /* ShareView.swift */,
+				D4C91E3F9825B47431347263 /* ShareViewController.swift */,
+			);
+			path = ShareExtension;
+			sourceTree = "<group>";
+		};
+		C9FF5D29CD49F53D07C8B7C6 /* Platform */ = {
+			isa = PBXGroup;
+			children = (
+				2D4605729363A00B8FB13894 /* macOS */,
+			);
+			path = Platform;
+			sourceTree = "<group>";
+		};
+		CB6FE2933939216B6AEAA4E1 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				9762C51F63127F94AE58823F /* SafariExtension.appex */,
+				33E8EAB38FCCC721B42D58D4 /* ShareExtension.appex */,
+				B8FC22D12BEDFA49700BBF69 /* Teak.app */,
+				DF90B422F7E69311723801B0 /* TeakUITests.xctest */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		CECF329C69A9F8E4FB7CD77D /* TeakUITests */ = {
+			isa = PBXGroup;
+			children = (
+				6E3FF2D7400936FF1F520A0D /* E2EStack.swift */,
+				3CB415C3CD2A76F708857831 /* LibraryFlowTests.swift */,
+				FAAA31B47AA2D7E2A831C533 /* SignInTests.swift */,
+			);
+			path = TeakUITests;
+			sourceTree = "<group>";
+		};
+		D23C5BD594A8659EEDCEBF3D /* Components */ = {
+			isa = PBXGroup;
+			children = (
+				F32533E118EE2528C2BEB7A4 /* MarkdownView.swift */,
+				491038488A86B5D19F99D1D1 /* Platform.swift */,
+				1241428612C78B46F9261153 /* RemoteImage.swift */,
+			);
+			path = Components;
+			sourceTree = "<group>";
+		};
+		DC5AAB7621451403981BC16A /* Packages */ = {
+			isa = PBXGroup;
+			children = (
+				CB834A92D5E9C12ED538973C /* TeakKit */,
+			);
+			path = Packages;
+			sourceTree = "<group>";
+		};
+		E80D489508C89655D011C5DB /* Auth */ = {
+			isa = PBXGroup;
+			children = (
+				8825C3A95E26F19DF39B0F96 /* StatusViews.swift */,
+				C1C78020F918336D66648413 /* WelcomeView.swift */,
+			);
+			path = Auth;
+			sourceTree = "<group>";
+		};
+		EBA05CEDF381BD848784E1C8 /* App */ = {
+			isa = PBXGroup;
+			children = (
+				F9EAC217372F9E2FABC172E6 /* AppModel.swift */,
+				186BE1B031F07346B9A04E99 /* AppRouter.swift */,
+				6E2C5AE9A93AFE2E6816B8CB /* RootView.swift */,
+				D02A3CA9E5B01345E12A9686 /* TeakApp.swift */,
+				30BD656D74E8D555D4EC2E21 /* TeakCommands.swift */,
+			);
+			path = App;
+			sourceTree = "<group>";
+		};
+		F09D617C496FE785988776FB /* Features */ = {
+			isa = PBXGroup;
+			children = (
+				E80D489508C89655D011C5DB /* Auth */,
+				6BAC0A212F73A0FA8B035F18 /* Capture */,
+				7133FDEA878907F60E9439EB /* Card */,
+				8BB3A9199FAA07F0B3B9DFE5 /* Library */,
+				0BC2DE393F06A5936E984F15 /* Settings */,
+			);
+			path = Features;
+			sourceTree = "<group>";
+		};
+		F183676FE62C9A664D69718D /* Shared */ = {
+			isa = PBXGroup;
+			children = (
+				FB07B0EE611BC7C8C88712B4 /* SentryReporting.swift */,
+			);
+			path = Shared;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		0BBFFF2402E7062E09607C5A /* SafariExtension */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = B937BFB88C82B2AFB58B045B /* Build configuration list for PBXNativeTarget "SafariExtension" */;
+			buildPhases = (
+				248C72ECE339C17F2AE5900D /* Sources */,
+				19E3232FC86FFDCF3C8DC5CC /* Resources */,
+				246971DE4BD331E75B155F3F /* Frameworks */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = SafariExtension;
+			packageProductDependencies = (
+				FFDC83C6E603B2D30AD15EB1 /* TeakCore */,
+				0765BE6AD9C6A3AE574325DA /* Sentry */,
+			);
+			productName = SafariExtension;
+			productReference = 9762C51F63127F94AE58823F /* SafariExtension.appex */;
+			productType = "com.apple.product-type.app-extension";
+		};
+		6F1085B5A2BE90F4750AD376 /* Teak */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 449A41993783CB94FAFE9DB7 /* Build configuration list for PBXNativeTarget "Teak" */;
+			buildPhases = (
+				6F7E39E3222E3435642E3474 /* Sources */,
+				0156009B3716F3B2806D50F3 /* Resources */,
+				346F2630ECF71A36692D00A8 /* Frameworks */,
+				FB52E441E06E7D9CD78CDF23 /* Embed Foundation Extensions */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				841483DB2F1FD468841A281F /* PBXTargetDependency */,
+				CF0655B71FD0765431E485DF /* PBXTargetDependency */,
+			);
+			name = Teak;
+			packageProductDependencies = (
+				C514F569EE7DFB45299EF550 /* TeakCore */,
+				5CE8FF720AF1C66F003874A9 /* TeakSync */,
+				3046B73655D6061E5C61DCCE /* TeakUI */,
+				963D7F2969365C350660C972 /* Sentry */,
+			);
+			productName = Teak;
+			productReference = B8FC22D12BEDFA49700BBF69 /* Teak.app */;
+			productType = "com.apple.product-type.application";
+		};
+		7DBC0537F8880C95FD4374CB /* TeakUITests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = F26160B3CA7165E0C11F739F /* Build configuration list for PBXNativeTarget "TeakUITests" */;
+			buildPhases = (
+				0F423AEA175FE01DB38E174C /* Sources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				57E9B41948E2529FFD4D8D53 /* PBXTargetDependency */,
+			);
+			name = TeakUITests;
+			packageProductDependencies = (
+			);
+			productName = TeakUITests;
+			productReference = DF90B422F7E69311723801B0 /* TeakUITests.xctest */;
+			productType = "com.apple.product-type.bundle.ui-testing";
+		};
+		EF98CE4BE140ECF8FB9E5562 /* ShareExtension */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = E1904BCD4A38A7B4977396E3 /* Build configuration list for PBXNativeTarget "ShareExtension" */;
+			buildPhases = (
+				2137EEED6E9D6A61F1526D34 /* Sources */,
+				AFAABE3C5DDF0224F24DD2B5 /* Frameworks */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = ShareExtension;
+			packageProductDependencies = (
+				4A0CC010CD48DA681F8998DC /* TeakCore */,
+				6F6A3A42782815CB35DFE813 /* TeakUI */,
+				3F59418E4F05F0F97110ABE1 /* Sentry */,
+			);
+			productName = ShareExtension;
+			productReference = 33E8EAB38FCCC721B42D58D4 /* ShareExtension.appex */;
+			productType = "com.apple.product-type.app-extension";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		9789A3A893E11C789A4478FE /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = YES;
+				LastUpgradeCheck = 2700;
+				TargetAttributes = {
+					0BBFFF2402E7062E09607C5A = {
+						DevelopmentTeam = LW385M78LW;
+						ProvisioningStyle = Automatic;
+					};
+					6F1085B5A2BE90F4750AD376 = {
+						DevelopmentTeam = LW385M78LW;
+						ProvisioningStyle = Automatic;
+					};
+					7DBC0537F8880C95FD4374CB = {
+						DevelopmentTeam = LW385M78LW;
+						ProvisioningStyle = Automatic;
+						TestTargetID = 6F1085B5A2BE90F4750AD376;
+					};
+					EF98CE4BE140ECF8FB9E5562 = {
+						DevelopmentTeam = LW385M78LW;
+						ProvisioningStyle = Automatic;
+					};
+				};
+			};
+			buildConfigurationList = 83F180CBF8370F031DF82D4A /* Build configuration list for PBXProject "Teak" */;
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				Base,
+				en,
+			);
+			mainGroup = C2B300C5879D2501E1DE0EEF;
+			minimizedProjectReferenceProxies = 1;
+			packageReferences = (
+				D757A344C798FD90D68D0BAF /* XCRemoteSwiftPackageReference "sentry-cocoa" */,
+				24D3416A2EA585723EC7EC34 /* XCLocalSwiftPackageReference "Packages/TeakKit" */,
+			);
+			preferredProjectObjectVersion = 77;
+			productRefGroup = CB6FE2933939216B6AEAA4E1 /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				6F1085B5A2BE90F4750AD376 /* Teak */,
+				EF98CE4BE140ECF8FB9E5562 /* ShareExtension */,
+				0BBFFF2402E7062E09607C5A /* SafariExtension */,
+				7DBC0537F8880C95FD4374CB /* TeakUITests */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		0156009B3716F3B2806D50F3 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				813A2A6ED5E3B10ED1BB91B8 /* Assets.xcassets in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		19E3232FC86FFDCF3C8DC5CC /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				F675C71A37C1A0C1943901E6 /* _locales in Resources */,
+				80F6ACDD5F9616FB3FBFE83F /* background.js in Resources */,
+				435531015D521B1295BD6684 /* images in Resources */,
+				406A5760D80DADA5E1F337CA /* manifest.json in Resources */,
+				6129572D0B477BD1CDA57006 /* popup.css in Resources */,
+				6D8DEC6F8D593FB105DB8578 /* popup.html in Resources */,
+				12DE4A1F397593B86AC346BA /* popup.js in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		0F423AEA175FE01DB38E174C /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				89FE2ADF2373A0B4FF02176B /* E2EStack.swift in Sources */,
+				AA14AE3E3DD9CBD06D777480 /* LibraryFlowTests.swift in Sources */,
+				AE8769CA0B4D22B2F28E644E /* SignInTests.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		2137EEED6E9D6A61F1526D34 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				3EFB341E1207EFCA237EF802 /* SentryReporting.swift in Sources */,
+				930D7C22FA57EE97F0B642F6 /* ShareView.swift in Sources */,
+				208E0427A98AAEAF3EE3D554 /* ShareViewController.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		248C72ECE339C17F2AE5900D /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				50A9E6A40C46EC6BD15ED9E4 /* SafariWebExtensionHandler.swift in Sources */,
+				8D885E89664BB3C7989523D9 /* SentryReporting.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		6F7E39E3222E3435642E3474 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				30A45942EBCE0415DEB04D11 /* AddView.swift in Sources */,
+				932FA0496D22FCC4FAE13EC0 /* AppModel.swift in Sources */,
+				F39838CD8A6CF0FEEA99208C /* AppRouter.swift in Sources */,
+				107E7EC61783BD65AFB463D5 /* CaptureModel.swift in Sources */,
+				A0B65ACF040BA219D9391EA3 /* CardContextMenu.swift in Sources */,
+				68B5196CE99A1E0CFAA9FCA0 /* CardDetailModel.swift in Sources */,
+				C83C290350B432DEC81C2DA8 /* CardDetailView.swift in Sources */,
+				8925AC5AACC899AB35C87D63 /* CardEditView.swift in Sources */,
+				2A7543B5D7CF619ACC795271 /* CardFiles.swift in Sources */,
+				41A9F462D1A9D7B15BCF2B43 /* CardPager.swift in Sources */,
+				AF55BC39EBC04C40378BB4FD /* CardPreviews.swift in Sources */,
+				00396219B50278C661B770E7 /* CardSections.swift in Sources */,
+				A468F94175235B9899B77BA3 /* CardTile.swift in Sources */,
+				00895B5374DF8CD81E3AFCDF /* LibraryModel.swift in Sources */,
+				4D2C4E4BAA75709A532DCE88 /* LibraryView.swift in Sources */,
+				F57E7B79CB437525A78F20B5 /* MacCapture.swift in Sources */,
+				84F46662E636B17CEC469DCE /* MacSettings.swift in Sources */,
+				C16267AFFBE1A76B9088D866 /* MacSidebar.swift in Sources */,
+				F36056B9A07A44FACCC5142B /* MarkdownView.swift in Sources */,
+				7371FA16E076E1E3112BEFA1 /* NoteComposerView.swift in Sources */,
+				E703EDE9EC3246A9A56F778F /* Platform.swift in Sources */,
+				3B09E374EB56BA539F61359D /* RemoteImage.swift in Sources */,
+				81826080281B3E00D6EEA32C /* RootView.swift in Sources */,
+				DC36BB48B0EBCCE205D7A0C9 /* SafariExtensionSection.swift in Sources */,
+				3CFE72D197FCA573B94B309A /* SaveToTeakIntent.swift in Sources */,
+				2B5C01490DB692C72F2B54C3 /* SentryReporting.swift in Sources */,
+				2E166D46FB2B7B0DCBA9E11E /* SettingsView.swift in Sources */,
+				FE488C6C72766C15CB08F7E6 /* StatusViews.swift in Sources */,
+				72F339878D2F22A07DB4483B /* TeakApp.swift in Sources */,
+				E57DC0A90C4B639603941134 /* TeakCommands.swift in Sources */,
+				DA5B5FBF30F1B93E2DEA8EA3 /* VoiceMemoView.swift in Sources */,
+				6B39462082BB18E0944ABD96 /* WelcomeView.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		57E9B41948E2529FFD4D8D53 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 6F1085B5A2BE90F4750AD376 /* Teak */;
+			targetProxy = 65E5C760DE4C0E66A141C43E /* PBXContainerItemProxy */;
+		};
+		841483DB2F1FD468841A281F /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = EF98CE4BE140ECF8FB9E5562 /* ShareExtension */;
+			targetProxy = F9D90160729D2B6B5967745D /* PBXContainerItemProxy */;
+		};
+		CF0655B71FD0765431E485DF /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 0BBFFF2402E7062E09607C5A /* SafariExtension */;
+			targetProxy = 91229B2E280FEF0E395FB10D /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
+
+/* Begin XCBuildConfiguration section */
+		01654311BF1E2F8FBD66D163 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				"ARCHS[sdk=iphonesimulator*]" = arm64;
+				"ARCHS[sdk=macosx*]" = arm64;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				CODE_SIGN_STYLE = Automatic;
+				COPY_PHASE_STRIP = NO;
+				CURRENT_PROJECT_VERSION = 1;
+				DEAD_CODE_STRIPPING = YES;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				DEVELOPMENT_TEAM = LW385M78LW;
+				ENABLE_HARDENED_RUNTIME = YES;
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
+				MACOSX_DEPLOYMENT_TARGET = 26.0;
+				MARKETING_VERSION = 1.0.85;
+				MTL_ENABLE_DEBUG_INFO = NO;
+				MTL_FAST_MATH = YES;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = auto;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator macosx";
+				SUPPORTS_MACCATALYST = NO;
+				SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD = NO;
+				SUPPORTS_XR_DESIGNED_FOR_IPHONE_IPAD = NO;
+				SWIFT_COMPILATION_MODE = wholemodule;
+				SWIFT_OPTIMIZATION_LEVEL = "-O";
+				SWIFT_STRICT_CONCURRENCY = complete;
+				SWIFT_UPCOMING_FEATURE_EXISTENTIAL_ANY = YES;
+				SWIFT_VERSION = 6.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEAK_CONVEX_URL = "https://uncommon-ladybug-882.convex.cloud";
+				TEAK_DISPLAY_NAME = Teak;
+				TEAK_ENVIRONMENT = production;
+				TEAK_SENTRY_DSN = "https://9519e43e434faf40437682aa8285c12b@o4509483678236672.ingest.us.sentry.io/4512232778825728";
+				TEAK_WEB_URL = "https://app.teakvault.com";
+				TEAK_WORKOS_URL = "https://api.workos.com";
+			};
+			name = Release;
+		};
+		11E5275FB3A765AFCA4D5060 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				"CODE_SIGN_ENTITLEMENTS[sdk=iphone*]" = "Teak/Resources/Teak-iOS.entitlements";
+				"CODE_SIGN_ENTITLEMENTS[sdk=macosx*]" = "Teak/Resources/Teak-macOS.entitlements";
+				CODE_SIGN_IDENTITY = "iPhone Developer";
+				"INFOPLIST_FILE[sdk=iphone*]" = "Teak/Resources/Info-iOS.plist";
+				"INFOPLIST_FILE[sdk=macosx*]" = "Teak/Resources/Info-macOS.plist";
+				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/Frameworks @executable_path/../Frameworks";
+				PRODUCT_BUNDLE_IDENTIFIER = com.praveenjuge.teak;
+				PRODUCT_NAME = Teak;
+				SDKROOT = auto;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator macosx";
+				SUPPORTS_MACCATALYST = NO;
+				SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD = NO;
+				SUPPORTS_XR_DESIGNED_FOR_IPHONE_IPAD = YES;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Release;
+		};
+		17EB4C9A3DF161A3A59BB9C2 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				APPLICATION_EXTENSION_API_ONLY = YES;
+				"CODE_SIGN_ENTITLEMENTS[sdk=iphone*]" = "ShareExtension/ShareExtension-iOS.entitlements";
+				"CODE_SIGN_ENTITLEMENTS[sdk=macosx*]" = "ShareExtension/ShareExtension-macOS.entitlements";
+				INFOPLIST_FILE = ShareExtension/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/Frameworks @executable_path/../../Frameworks @executable_path/../../../../Frameworks";
+				PRODUCT_BUNDLE_IDENTIFIER = "com.praveenjuge.teak.share-extension";
+				PRODUCT_NAME = ShareExtension;
+				SDKROOT = auto;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator macosx";
+				SUPPORTS_MACCATALYST = NO;
+				SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD = NO;
+				SUPPORTS_XR_DESIGNED_FOR_IPHONE_IPAD = YES;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Release;
+		};
+		61CECE2192C6157678BC11F1 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				APPLICATION_EXTENSION_API_ONLY = YES;
+				"CODE_SIGN_ENTITLEMENTS[sdk=iphone*]" = "SafariExtension/SafariExtension-iOS.entitlements";
+				"CODE_SIGN_ENTITLEMENTS[sdk=macosx*]" = "SafariExtension/SafariExtension-macOS.entitlements";
+				INFOPLIST_FILE = SafariExtension/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/Frameworks @executable_path/../../Frameworks @executable_path/../../../../Frameworks";
+				PRODUCT_BUNDLE_IDENTIFIER = "com.praveenjuge.teak.safari-extension";
+				PRODUCT_NAME = SafariExtension;
+				SDKROOT = auto;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator macosx";
+				SUPPORTS_MACCATALYST = NO;
+				SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD = NO;
+				SUPPORTS_XR_DESIGNED_FOR_IPHONE_IPAD = YES;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Release;
+		};
+		8B8968536BEE1C8DB4F9B035 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_STYLE = Automatic;
+				GENERATE_INFOPLIST_FILE = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.praveenjuge.teak.uitests;
+				SDKROOT = auto;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator macosx";
+				SUPPORTS_MACCATALYST = NO;
+				SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD = NO;
+				SUPPORTS_XR_DESIGNED_FOR_IPHONE_IPAD = YES;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_TARGET_NAME = Teak;
+			};
+			name = Release;
+		};
+		9585352A5020171B219F9B02 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				"CODE_SIGN_ENTITLEMENTS[sdk=iphone*]" = "Teak/Resources/Teak-iOS.entitlements";
+				"CODE_SIGN_ENTITLEMENTS[sdk=macosx*]" = "Teak/Resources/Teak-macOS.entitlements";
+				CODE_SIGN_IDENTITY = "iPhone Developer";
+				"INFOPLIST_FILE[sdk=iphone*]" = "Teak/Resources/Info-iOS.plist";
+				"INFOPLIST_FILE[sdk=macosx*]" = "Teak/Resources/Info-macOS.plist";
+				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/Frameworks @executable_path/../Frameworks";
+				PRODUCT_BUNDLE_IDENTIFIER = com.praveenjuge.teak;
+				PRODUCT_NAME = Teak;
+				SDKROOT = auto;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator macosx";
+				SUPPORTS_MACCATALYST = NO;
+				SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD = NO;
+				SUPPORTS_XR_DESIGNED_FOR_IPHONE_IPAD = YES;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		AD02A5F96126CDFAF94F4F02 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_STYLE = Automatic;
+				GENERATE_INFOPLIST_FILE = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.praveenjuge.teak.uitests;
+				SDKROOT = auto;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator macosx";
+				SUPPORTS_MACCATALYST = NO;
+				SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD = NO;
+				SUPPORTS_XR_DESIGNED_FOR_IPHONE_IPAD = YES;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_TARGET_NAME = Teak;
+			};
+			name = Debug;
+		};
+		BA4EA5334FAB7998C57DA50B /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				"ARCHS[sdk=iphonesimulator*]" = arm64;
+				"ARCHS[sdk=macosx*]" = arm64;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				CODE_SIGN_STYLE = Automatic;
+				COPY_PHASE_STRIP = NO;
+				CURRENT_PROJECT_VERSION = 1;
+				DEAD_CODE_STRIPPING = YES;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				DEVELOPMENT_TEAM = LW385M78LW;
+				ENABLE_HARDENED_RUNTIME = YES;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_TESTABILITY = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"$(inherited)",
+					"DEBUG=1",
+				);
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
+				MACOSX_DEPLOYMENT_TARGET = 26.0;
+				MARKETING_VERSION = 1.0.85;
+				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
+				MTL_FAST_MATH = YES;
+				ONLY_ACTIVE_ARCH = YES;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = auto;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator macosx";
+				SUPPORTS_MACCATALYST = NO;
+				SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD = NO;
+				SUPPORTS_XR_DESIGNED_FOR_IPHONE_IPAD = NO;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+				SWIFT_STRICT_CONCURRENCY = complete;
+				SWIFT_UPCOMING_FEATURE_EXISTENTIAL_ANY = YES;
+				SWIFT_VERSION = 6.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEAK_CONVEX_URL = "https://reminiscent-kangaroo-59.convex.cloud";
+				TEAK_DISPLAY_NAME = "Teak Dev";
+				TEAK_ENVIRONMENT = development;
+				TEAK_SENTRY_DSN = "";
+				TEAK_WEB_URL = "http://localhost:3000";
+				TEAK_WORKOS_URL = "https://api.workos.com";
+			};
+			name = Debug;
+		};
+		BAE2A666EC1D18950168A08A /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				APPLICATION_EXTENSION_API_ONLY = YES;
+				"CODE_SIGN_ENTITLEMENTS[sdk=iphone*]" = "ShareExtension/ShareExtension-iOS.entitlements";
+				"CODE_SIGN_ENTITLEMENTS[sdk=macosx*]" = "ShareExtension/ShareExtension-macOS.entitlements";
+				INFOPLIST_FILE = ShareExtension/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/Frameworks @executable_path/../../Frameworks @executable_path/../../../../Frameworks";
+				PRODUCT_BUNDLE_IDENTIFIER = "com.praveenjuge.teak.share-extension";
+				PRODUCT_NAME = ShareExtension;
+				SDKROOT = auto;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator macosx";
+				SUPPORTS_MACCATALYST = NO;
+				SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD = NO;
+				SUPPORTS_XR_DESIGNED_FOR_IPHONE_IPAD = YES;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		EEE9FFAAF1A8702253CA053D /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				APPLICATION_EXTENSION_API_ONLY = YES;
+				"CODE_SIGN_ENTITLEMENTS[sdk=iphone*]" = "SafariExtension/SafariExtension-iOS.entitlements";
+				"CODE_SIGN_ENTITLEMENTS[sdk=macosx*]" = "SafariExtension/SafariExtension-macOS.entitlements";
+				INFOPLIST_FILE = SafariExtension/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/Frameworks @executable_path/../../Frameworks @executable_path/../../../../Frameworks";
+				PRODUCT_BUNDLE_IDENTIFIER = "com.praveenjuge.teak.safari-extension";
+				PRODUCT_NAME = SafariExtension;
+				SDKROOT = auto;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator macosx";
+				SUPPORTS_MACCATALYST = NO;
+				SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD = NO;
+				SUPPORTS_XR_DESIGNED_FOR_IPHONE_IPAD = YES;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		449A41993783CB94FAFE9DB7 /* Build configuration list for PBXNativeTarget "Teak" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				9585352A5020171B219F9B02 /* Debug */,
+				11E5275FB3A765AFCA4D5060 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		83F180CBF8370F031DF82D4A /* Build configuration list for PBXProject "Teak" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				BA4EA5334FAB7998C57DA50B /* Debug */,
+				01654311BF1E2F8FBD66D163 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		B937BFB88C82B2AFB58B045B /* Build configuration list for PBXNativeTarget "SafariExtension" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				EEE9FFAAF1A8702253CA053D /* Debug */,
+				61CECE2192C6157678BC11F1 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		E1904BCD4A38A7B4977396E3 /* Build configuration list for PBXNativeTarget "ShareExtension" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				BAE2A666EC1D18950168A08A /* Debug */,
+				17EB4C9A3DF161A3A59BB9C2 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		F26160B3CA7165E0C11F739F /* Build configuration list for PBXNativeTarget "TeakUITests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				AD02A5F96126CDFAF94F4F02 /* Debug */,
+				8B8968536BEE1C8DB4F9B035 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+/* End XCConfigurationList section */
+
+/* Begin XCLocalSwiftPackageReference section */
+		24D3416A2EA585723EC7EC34 /* XCLocalSwiftPackageReference "Packages/TeakKit" */ = {
+			isa = XCLocalSwiftPackageReference;
+			relativePath = Packages/TeakKit;
+		};
+/* End XCLocalSwiftPackageReference section */
+
+/* Begin XCRemoteSwiftPackageReference section */
+		D757A344C798FD90D68D0BAF /* XCRemoteSwiftPackageReference "sentry-cocoa" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/getsentry/sentry-cocoa";
+			requirement = {
+				kind = exactVersion;
+				version = 9.29.2;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		0765BE6AD9C6A3AE574325DA /* Sentry */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = D757A344C798FD90D68D0BAF /* XCRemoteSwiftPackageReference "sentry-cocoa" */;
+			productName = Sentry;
+		};
+		3046B73655D6061E5C61DCCE /* TeakUI */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = TeakUI;
+		};
+		3F59418E4F05F0F97110ABE1 /* Sentry */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = D757A344C798FD90D68D0BAF /* XCRemoteSwiftPackageReference "sentry-cocoa" */;
+			productName = Sentry;
+		};
+		4A0CC010CD48DA681F8998DC /* TeakCore */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = TeakCore;
+		};
+		5CE8FF720AF1C66F003874A9 /* TeakSync */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = TeakSync;
+		};
+		6F6A3A42782815CB35DFE813 /* TeakUI */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = TeakUI;
+		};
+		963D7F2969365C350660C972 /* Sentry */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = D757A344C798FD90D68D0BAF /* XCRemoteSwiftPackageReference "sentry-cocoa" */;
+			productName = Sentry;
+		};
+		C514F569EE7DFB45299EF550 /* TeakCore */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = TeakCore;
+		};
+		FFDC83C6E603B2D30AD15EB1 /* TeakCore */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = TeakCore;
+		};
+/* End XCSwiftPackageProductDependency section */
+	};
+	rootObject = 9789A3A893E11C789A4478FE /* Project object */;
+}

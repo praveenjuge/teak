@@ -27,7 +27,7 @@
     "smoke:web": "bun --no-env-file run scripts/smoke-web-session.ts",
     "start": "turbo run start",
     "sync:cloudflare-dev": "bun --no-env-file run scripts/sync-files-worker-dev-secret.ts",
-    "test": "turbo run test && bun --no-env-file test scripts/ apps/mac/tests/",
+    "test": "turbo run test && bun --no-env-file test scripts/ apps/mac/tests/ apps/apple/tests/",
     "typecheck": "turbo run typecheck",
     "verify": "turbo run typecheck lint test --affected",
     "verify:all": "turbo run typecheck lint test"

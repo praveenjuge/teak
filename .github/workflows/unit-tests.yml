@@ -50,3 +50,26 @@ jobs:
         run: yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" "platforms;android-37.0" "build-tools;37.0.0" > /dev/null
       - name: Lint, unit tests and a release build
         run: ./gradlew lint testDebugUnitTest :app:assembleRelease --console=plain
+
+  apple:
+    runs-on: xcode-27
+    timeout-minutes: 45
+    defaults:
+      run:
+        working-directory: apps/apple
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+      - name: Select Xcode 27
+        run: scripts/select-xcode.sh
+      - name: Check the Xcode project matches project.yml
+        run: |
+          command -v xcodegen >/dev/null || brew install xcodegen
+          scripts/generate-project.sh --check
+      - name: TeakKit tests
+        run: swift test --package-path Packages/TeakKit
+      - name: Build for iPhone, iPad and Mac
+        run: |
+          for destination in "generic/platform=iOS Simulator" "generic/platform=macOS"; do
+            xcodebuild build -project Teak.xcodeproj -scheme Teak -destination "$destination" \
+              -derivedDataPath build/DerivedData CODE_SIGNING_ALLOWED=NO -quiet
+          done
