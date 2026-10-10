@@ -59,10 +59,17 @@ const keysFor = (card: CardSummary): string[] => [
   `text:${card.content}`,
 ];
 
-const recentCards = async (limit: number): Promise<CardSummary[]> => {
+/**
+ * Pages through the library, newest first, until every showcase card is found
+ * or the library ends, so a refresh never misses older showcase cards.
+ */
+const libraryUntilFound = async (
+  wanted: Set<string>
+): Promise<CardSummary[]> => {
   const cards: CardSummary[] = [];
+  const found = new Set<string>();
   let cursor: string | undefined;
-  while (cards.length < limit) {
+  while (found.size < wanted.size) {
     const page = (await teak([
       "ls",
       "--limit",
@@ -73,12 +80,19 @@ const recentCards = async (limit: number): Promise<CardSummary[]> => {
       pageInfo: { hasMore: boolean; nextCursor?: string };
     };
     cards.push(...page.items);
+    for (const card of page.items) {
+      for (const cardKey of keysFor(card)) {
+        if (wanted.has(cardKey)) {
+          found.add(cardKey);
+        }
+      }
+    }
     if (!(page.pageInfo.hasMore && page.pageInfo.nextCursor)) {
       break;
     }
     cursor = page.pageInfo.nextCursor;
   }
-  return cards.slice(0, limit);
+  return cards;
 };
 
 const addArgs = (card: ShowcaseCard): string[] => {
@@ -112,14 +126,14 @@ for (const card of SHOWCASE) {
   }
 }
 
-const recent = await recentCards(SHOWCASE.length * 4);
+const showcaseKeys = new Set(SHOWCASE.map(key));
+const recent = await libraryUntilFound(showcaseKeys);
 const existing = new Map<string, CardSummary>();
 for (const card of recent) {
   for (const cardKey of keysFor(card)) {
     existing.set(cardKey, card);
   }
 }
-const showcaseKeys = new Set(SHOWCASE.map(key));
 const leading = recent.findIndex(
   (card) => !keysFor(card).some((cardKey) => showcaseKeys.has(cardKey))
 );
@@ -138,10 +152,12 @@ if (mode === "check") {
 
 let toAdd = missing;
 if (mode === "refresh") {
-  const ids = SHOWCASE.flatMap((card) => {
-    const found = existing.get(key(card));
-    return found ? [found.id] : [];
-  });
+  // Every match, so duplicates from an interrupted run go too.
+  const ids = recent
+    .filter((card) =>
+      keysFor(card).some((cardKey) => showcaseKeys.has(cardKey))
+    )
+    .map((card) => card.id);
   if (ids.length) {
     await teak(["rm", ...ids]);
     console.log(`Moved ${ids.length} older showcase cards to Trash.`);

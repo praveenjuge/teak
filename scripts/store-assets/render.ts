@@ -231,6 +231,27 @@ for (const id of stores) {
   }
 }
 
+// publish-apple.sh uploads exactly the files each store config lists, so the
+// configs must name the same set as shots.ts.
+const readJSON = (file: string) =>
+  JSON.parse(readFileSync(path.join(root, file), "utf8"));
+const configured: Partial<Record<StoreId, string[]>> = {
+  mac: readJSON("apps/mac/store.config.json").screenshots,
+  iphone: (
+    readJSON("apps/mobile/store.config.json").apple.info["en-US"].screenshots
+      .APP_IPHONE_67 as string[]
+  ).map((file) => path.basename(file)),
+};
+for (const id of stores) {
+  const listed = configured[id];
+  const names = STORES[id].shots.map(({ name }) => `${name}.png`);
+  if (listed && listed.join() !== names.join()) {
+    throw new Error(
+      `The ${id} store config lists ${listed.join(", ")}, but shots.ts renders ${names.join(", ")}.`
+    );
+  }
+}
+
 const wallpaper = dataURI(
   path.join(import.meta.dir, "wallpaper.jpg"),
   "image/jpeg"

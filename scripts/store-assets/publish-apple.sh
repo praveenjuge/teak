@@ -15,11 +15,13 @@ case "$PLATFORM" in
     locale="$(jq -er '.locale' apps/mac/store.config.json)"
     directory="apps/mac/assets/screenshots/$locale"
     device_type=APP_DESKTOP
+    names="$(jq -er '.screenshots[]' apps/mac/store.config.json)"
     label=Mac ;;
   iphone)
     locale=en-US
     device_type=APP_IPHONE_67
     directory="apps/mobile/store/apple/screenshot/$locale/$device_type"
+    names="$(jq -er --arg locale "$locale" --arg type "$device_type" '.apple.info[$locale].screenshots[$type][] | split("/") | last' apps/mobile/store.config.json)"
     label=iPhone ;;
   *) echo "Unknown platform: $PLATFORM" >&2; exit 1 ;;
 esac
@@ -27,15 +29,25 @@ prefix="$RUNNER_TEMP/$PLATFORM-screenshot"
 
 # Validate every local asset before replacing an existing App Store set.
 asc screenshots validate --path "$directory" --device-type "$device_type" --output json > "$prefix-validation.json"
+# The store config names the exact set, in order; a missing or extra file
+# must never replace a complete App Store set.
+expected_names=()
+while IFS= read -r name; do expected_names+=("$name"); done <<< "$names"
 shopt -s nullglob
-files=("$directory"/*.png)
-if [ "${#files[@]}" -lt 1 ] || [ "${#files[@]}" -gt 10 ]; then
+local_list=""
+for file in "$directory"/*.png; do local_list="$local_list $(basename "$file")"; done
+if [ "${#expected_names[@]}" -lt 1 ] || [ "${#expected_names[@]}" -gt 10 ]; then
   echo "Expected 1–10 $label App Store PNG screenshots." >&2
+  exit 1
+fi
+if [ "${local_list# }" != "${expected_names[*]}" ]; then
+  echo "$label screenshots in $directory don't match the store config: expected ${expected_names[*]}, found ${local_list:- none}." >&2
   exit 1
 fi
 expected="$prefix-expected.json"
 printf '[]' > "$expected"
-for file in "${files[@]}"; do
+for name in "${expected_names[@]}"; do
+  file="$directory/$name"
   checksum="$(openssl dgst -md5 "$file")"
   checksum="${checksum##* }"
   jq --arg name "$(basename "$file")" --arg checksum "$checksum" \
@@ -78,4 +90,4 @@ else
     exit 1
   fi
 fi
-echo "- Verified ${#files[@]} $label screenshots ($locale): COMPLETE, ordered, checksum matched" >> "$GITHUB_STEP_SUMMARY"
+echo "- Verified ${#expected_names[@]} $label screenshots ($locale): COMPLETE, ordered, checksum matched" >> "$GITHUB_STEP_SUMMARY"

@@ -28,16 +28,34 @@ function run(
   invalidLocal = false,
   uploadFails = false,
   assetFails = false,
-  platform: keyof typeof platforms = "mac"
+  platform: keyof typeof platforms = "mac",
+  configured = ["01-library.png"]
 ) {
   const root = mkdtempSync(path.join(tmpdir(), "teak-store-screenshots-"));
   const assets = path.join(root, platforms[platform].directory);
   mkdirSync(assets, { recursive: true });
   mkdirSync(path.join(root, "apps/mac"), { recursive: true });
+  mkdirSync(path.join(root, "apps/mobile"), { recursive: true });
   mkdirSync(path.join(root, "bin"));
   writeFileSync(
     path.join(root, "apps/mac/store.config.json"),
-    JSON.stringify({ locale: "en-US" })
+    JSON.stringify({ locale: "en-US", screenshots: configured })
+  );
+  writeFileSync(
+    path.join(root, "apps/mobile/store.config.json"),
+    JSON.stringify({
+      apple: {
+        info: {
+          "en-US": {
+            screenshots: {
+              APP_IPHONE_67: configured.map(
+                (name) => `store/apple/screenshot/en-US/APP_IPHONE_67/${name}`
+              ),
+            },
+          },
+        },
+      },
+    })
   );
   const bytes = Buffer.from("screenshot fixture");
   writeFileSync(path.join(assets, "01-library.png"), bytes);
@@ -147,6 +165,16 @@ test("publishes the iPhone set to its own display type", () => {
     "--device-type",
     "APP_IPHONE_67",
   ]);
+});
+
+test("a screenshot missing from the configured set never replaces the existing set", () => {
+  const { result, calls } = run(false, false, false, false, "iphone", [
+    "01-library.png",
+    "02-detail.png",
+  ]);
+  expect(result.exitCode).not.toBe(0);
+  expect(result.stderr.toString()).toContain("don't match the store config");
+  expect(calls.some((args) => args[1] === "upload")).toBe(false);
 });
 
 test("invalid local screenshots never replace the existing set", () => {
