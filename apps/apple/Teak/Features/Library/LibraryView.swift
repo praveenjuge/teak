@@ -189,8 +189,10 @@ struct LibraryView: View {
         .modifier(CardSwipeActions(card: card, library: library, actions: menuActions))
         #if os(macOS)
         .simultaneousGesture(TapGesture().modifiers(.command).onEnded { library.toggleSelection(card.id) })
-        #endif
+        // Mac only: on iOS a drag interaction beside the context menu kept the
+        // app from settling for a minute after the menu opened.
         .draggable(card.url.flatMap(SafeURL.sanitize) ?? CardSheet.webURL(cardId: card.id, base: app.config.webURL))
+        #endif
         .accessibilityIdentifier("card.\(card.id)")
     }
 

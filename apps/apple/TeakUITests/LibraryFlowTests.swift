@@ -172,6 +172,7 @@ final class LibraryFlowTests: XCTestCase {
         let tagField = field("edit.tag")
         tap(tagField)
         submit("uitag", into: tagField)
+        app.staticTexts["uitag"].firstMatch.waitToAppear()
         tap(app.buttons["Save"].firstMatch)
         app.staticTexts["Notes for \(note)"].waitToAppear()
 
