@@ -42,6 +42,21 @@ class ShareViewModel @Inject constructor(
     fun start(items: List<ShareItem>) {
         if (started) return
         started = true
+        import(items)
+    }
+
+    /**
+     * A new share arrived while the sheet is still open (Android delivers it to the open sheet).
+     * Saves it unless the previous save is still running, which must finish first.
+     */
+    fun startAgain(items: List<ShareItem>) {
+        if (_uiState.value == ShareUiState.Saving) return
+        started = true
+        _uiState.value = ShareUiState.Resolving
+        import(items)
+    }
+
+    private fun import(items: List<ShareItem>) {
         viewModelScope.launch {
             val result = try {
                 importer.import(items) { _uiState.value = ShareUiState.Saving }

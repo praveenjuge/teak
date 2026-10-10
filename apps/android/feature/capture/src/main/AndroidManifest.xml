@@ -19,6 +19,8 @@
             android:excludeFromRecents="true"
             android:exported="true"
             android:label="@string/capture_save_to_teak"
+            android:noHistory="true"
+            android:autoRemoveFromRecents="true"
             android:taskAffinity=""
             android:theme="@style/Theme.Teak.Capture.Share">
             <intent-filter>

@@ -35,6 +35,13 @@ class ShareActivity : ComponentActivity() {
         }
     }
 
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        ShareIntents.processTextReply(intent)?.let { setResult(RESULT_OK, it) }
+        viewModel.startAgain(ShareIntents.items(intent))
+    }
+
     private fun openTeak() {
         packageManager.getLaunchIntentForPackage(packageName)?.let { launch ->
             startActivity(launch.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))

@@ -16,8 +16,10 @@ import kotlin.test.assertEquals
 class ShareViewModelTest {
     @get:Rule val mainDispatcher = MainDispatcherRule(StandardTestDispatcher())
 
+    private val cards = FakeCardsRepository()
+
     private fun viewModel(signedIn: Boolean = true) =
-        ShareViewModel(ShareImporter(FakeCardsRepository(), FakeUploadRepository(), FakeAccountRepository(signedIn)))
+        ShareViewModel(ShareImporter(cards, FakeUploadRepository(), FakeAccountRepository(signedIn)))
 
     @Test
     fun `a saved share closes the sheet after a moment`() = runTest(mainDispatcher.dispatcher) {
@@ -43,5 +45,18 @@ class ShareViewModelTest {
             assertEquals(ShareUiState.SignInRequired, viewModel.uiState.value)
             expectNoEvents()
         }
+    }
+
+    @Test
+    fun `a share that arrives while the sheet is open is saved too`() = runTest(mainDispatcher.dispatcher) {
+        val viewModel = viewModel()
+        viewModel.start(emptyList())
+        runCurrent()
+        assertEquals(ShareUiState.Empty, viewModel.uiState.value)
+
+        viewModel.startAgain(listOf(ShareItem.Text("second share")))
+        runCurrent()
+        assertEquals(ShareUiState.Saved, viewModel.uiState.value)
+        assertEquals(listOf("second share"), cards.created)
     }
 }

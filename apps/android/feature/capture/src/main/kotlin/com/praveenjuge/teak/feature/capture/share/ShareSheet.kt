@@ -20,6 +20,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.LoadingIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.SheetValue
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.material3.rememberModalBottomSheetState
@@ -68,10 +69,11 @@ internal fun ShareSheet(
     onClosed: () -> Unit,
 ) {
     val currentState by rememberUpdatedState(state)
-    // Closing mid-save would cancel it before the files are queued, so the sheet stays until then.
+    // Closing mid-save would cancel it before the files are queued, so the sheet can't be hidden
+    // until then. Only hiding is blocked: the sheet must still be free to open while saving.
     val sheetState = rememberModalBottomSheetState(
         skipPartiallyExpanded = true,
-        confirmValueChange = { currentState != ShareUiState.Saving },
+        confirmValueChange = { value -> value != SheetValue.Hidden || currentState != ShareUiState.Saving },
     )
     val scope = rememberCoroutineScope()
     val close: () -> Unit = {
