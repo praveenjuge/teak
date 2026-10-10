@@ -27,16 +27,17 @@ export default async function tool(input: Input) {
     throw new Error("cardId is required");
   }
   const addTags = clean(input.addTags).map((tag) => tag.toLowerCase());
-  const removeTags = clean(input.removeTags);
+  const removeTags = clean(input.removeTags).map((tag) => tag.toLowerCase());
+  const isRemoved = (tag: string) => removeTags.includes(tag.toLowerCase());
   if (!(addTags.length || removeTags.length || input.notes !== undefined)) {
     throw new Error("Provide tags to add or remove, or new notes");
   }
 
   const card = await getCardById(cardId, { interactive: false });
   const tags = Array.from(new Set([...card.tags, ...addTags])).filter(
-    (tag) => !removeTags.includes(tag),
+    (tag) => !isRemoved(tag),
   );
-  const removeAiTags = card.aiTags.filter((tag) => removeTags.includes(tag));
+  const removeAiTags = card.aiTags.filter(isRemoved);
   const updated = await updateCard(
     cardId,
     {

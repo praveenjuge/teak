@@ -110,8 +110,31 @@ const writeNewFile = (target: string, bytes: Uint8Array, force?: boolean) => {
   writeFileSync(target, bytes);
 };
 
+const LOOPBACK_HOSTS = new Set(["localhost", "127.0.0.1", "[::1]"]);
+
+// File and export links come from the Teak API. Follow only web links, so a
+// bad response can't point the CLI at another scheme or an internal host.
+const downloadUrl = (url: string) => {
+  let parsed: URL | null = null;
+  try {
+    parsed = new URL(url);
+  } catch {
+    // Not a URL; rejected below.
+  }
+  if (
+    parsed?.protocol === "https:" ||
+    (parsed?.protocol === "http:" && LOOPBACK_HOSTS.has(parsed.hostname))
+  ) {
+    return parsed;
+  }
+  throw new TeakApiError(
+    "REQUEST_FAILED",
+    "Teak returned a download link that isn't a web address"
+  );
+};
+
 const fetchBytes = async (url: string) => {
-  const response = await fetch(url);
+  const response = await fetch(downloadUrl(url));
   if (!response.ok) {
     throw new TeakApiError(
       "REQUEST_FAILED",
@@ -164,18 +187,17 @@ export const editTags = async (
   options: GlobalOptions
 ) => {
   const api = client(options);
-  const wanted = names.map((name) => name.trim()).filter(Boolean);
+  const wanted = names
+    .map((name) => name.trim().toLowerCase())
+    .filter(Boolean);
   const card = await api.cards.get(id);
+  const isWanted = (tag: string) => wanted.includes(tag.toLowerCase());
   const update =
     mode === "add"
-      ? {
-          tags: Array.from(
-            new Set([...card.tags, ...wanted.map((tag) => tag.toLowerCase())])
-          ),
-        }
+      ? { tags: Array.from(new Set([...card.tags, ...wanted])) }
       : {
-          tags: card.tags.filter((tag) => !wanted.includes(tag)),
-          removeAiTags: card.aiTags.filter((tag) => wanted.includes(tag)),
+          tags: card.tags.filter((tag) => !isWanted(tag)),
+          removeAiTags: card.aiTags.filter(isWanted),
         };
   if (mode === "remove" && update.removeAiTags?.length === 0) {
     update.removeAiTags = undefined;

@@ -314,7 +314,7 @@ describe("teak parity commands", () => {
     expect(result.stdout).toBe("me@example.org\nFree plan · 29 of 200 cards\n");
   });
 
-  test("tags rm removes the card's own tags and Teak's AI tags", async () => {
+  test("tags rm removes own and AI tags in any capitalization", async () => {
     routes.set("GET /v1/cards/card_a", () =>
       json(
         card("card_a", { tags: ["keep", "drop"], aiTags: ["Design", "Web"] })
@@ -323,7 +323,7 @@ describe("teak parity commands", () => {
     routes.set("PATCH /v1/cards/card_a", () =>
       json(card("card_a", { tags: ["keep"], aiTags: ["Web"] }))
     );
-    const result = await teak("tags", "rm", "card_a", "drop", "Design");
+    const result = await teak("tags", "rm", "card_a", "DROP", "design");
     expect(JSON.parse(requests[1]?.body ?? "{}")).toEqual({
       tags: ["keep"],
       removeAiTags: ["Design"],
@@ -349,6 +349,18 @@ describe("teak parity commands", () => {
     const again = await teak("download", "card_f");
     expect(again.code).toBe(EXIT.usage);
     expect(again.stderr).toContain("--force");
+  });
+
+  test("download refuses a file link that isn't a web address", async () => {
+    routes.set("GET /v1/cards/card_f", () =>
+      json(
+        card("card_f", { fileName: "secrets", fileUrl: "file:///etc/hosts" })
+      )
+    );
+    const result = await teak("download", "card_f");
+    expect(result.code).not.toBe(0);
+    expect(result.stderr).toContain("isn't a web address");
+    expect(existsSync(join(workDirectory, "secrets"))).toBe(false);
   });
 
   test("download explains when a card has no file", async () => {

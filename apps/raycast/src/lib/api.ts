@@ -523,6 +523,26 @@ export const mimeTypeForFile = (filePath: string): string => {
 
 export const MAX_UPLOAD_BYTES = 100 * 1024 * 1024;
 
+const LOOPBACK_HOSTS = new Set(["localhost", "127.0.0.1", "[::1]"]);
+
+// The upload link comes from the Teak API. Send files only to a web address,
+// so a bad response can't point the upload at another scheme or local host.
+const uploadUrl = (url: string): URL => {
+  let parsed: URL | null = null;
+  try {
+    parsed = new URL(url);
+  } catch {
+    // Not a URL; rejected below.
+  }
+  if (
+    parsed?.protocol === "https:" ||
+    (parsed?.protocol === "http:" && LOOPBACK_HOSTS.has(parsed.hostname))
+  ) {
+    return parsed;
+  }
+  throw new RaycastApiError("REQUEST_FAILED");
+};
+
 /** Uploads a local file and saves it as a card, like a web drag and drop. */
 export const saveFileCard = async (
   filePath: string,
@@ -544,7 +564,7 @@ export const saveFileCard = async (
     },
     options,
   );
-  const uploaded = await fetch(upload.uploadUrl, {
+  const uploaded = await fetch(uploadUrl(upload.uploadUrl), {
     body: await readFile(filePath),
     headers: {
       "Content-Length": String(fileSize),
