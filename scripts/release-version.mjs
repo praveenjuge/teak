@@ -176,6 +176,8 @@ export function assertLockstep(
   for (const relative of appleVersionSources) {
     let contents;
     try {
+      // A fixed list of version files inside the repository.
+      // nosemgrep: javascript_pathtraversal_rule-non-literal-fs-filename
       contents = fs.readFileSync(path.join(repoRoot, relative), "utf8");
     } catch (error) {
       if (

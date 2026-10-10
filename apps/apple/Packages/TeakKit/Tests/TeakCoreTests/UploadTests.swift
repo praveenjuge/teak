@@ -46,13 +46,13 @@ private func pipeline(_ transport: ScriptedTransport) -> UploadPipeline {
         let steps = transport.requests
         #expect(steps.map { $0.1["path"] as? String ?? $0.0.httpMethod! }
             == ["cards:uploadAndCreateCard", "PUT", "cards:finalizeUploadedCard"])
-        let prepare = steps[0].1["args"] as! [String: Any]
+        let prepare = try #require(steps[0].1["args"] as? [String: Any])
         #expect(prepare["fileType"] as? String == "image/png")
         #expect(prepare["cardType"] as? String == "image")
         #expect(prepare["fileSize"] as? Double == 1024)
         #expect((prepare["additionalMetadata"] as? [String: Any])?["width"] as? Double == 800)
         #expect(steps[1].0.value(forHTTPHeaderField: "Content-Type") == "image/png")
-        let finalize = steps[2].1["args"] as! [String: Any]
+        let finalize = try #require(steps[2].1["args"] as? [String: Any])
         #expect(finalize["fileKey"] as? String == "users/u/file/a.png")
         #expect(finalize["fileEtag"] as? String == "\"etag-1\"")
     }

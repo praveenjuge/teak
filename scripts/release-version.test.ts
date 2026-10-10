@@ -106,6 +106,8 @@ describe("release versions", () => {
       expect(() => assertLockstep(root, "1.0.60", validXcodeSource)).toThrow(
         `${applePbxproj} MARKETING_VERSION: 1.0.59`
       );
+      // A temporary test fixture.
+      // nosemgrep: javascript_pathtraversal_rule-non-literal-fs-filename
       fs.writeFileSync(path.join(root, appleProjectYml), "name: Teak\n");
       expect(() => assertLockstep(root, "1.0.60", validXcodeSource)).toThrow(
         `${appleProjectYml} MARKETING_VERSION: missing`

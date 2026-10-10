@@ -19,7 +19,10 @@ import {
   EMULATOR_CLIENT_ID,
 } from "../../../packages/tests/src/stack/config";
 
-const statePath = resolve(import.meta.dir, "../../../.agents/.state/stack.json");
+const statePath = resolve(
+  import.meta.dir,
+  "../../../.agents/.state/stack.json"
+);
 
 export const loadStack = async () => {
   const state = JSON.parse(await readFile(statePath, "utf8")) as {
@@ -28,12 +31,16 @@ export const loadStack = async () => {
     urls: { appOrigin: string; convexUrl: string; emulatorOrigin: string };
   };
   if (state.mode !== "e2e" || !state.ready) {
-    throw new Error("Start the E2E stack first: bun run --cwd packages/tests e2e:stack");
+    throw new Error(
+      "Start the E2E stack first: bun run --cwd packages/tests e2e:stack"
+    );
   }
   return state.urls;
 };
 
 const emulator = async (origin: string, path: string, body: unknown) => {
+  // The origin is the local WorkOS emulator from this checkout's stack.json.
+  // nosemgrep: rules_lgpl_javascript_ssrf_rule-node-ssrf
   const response = await fetch(new URL(path, origin), {
     method: "POST",
     headers: {
@@ -60,24 +67,32 @@ export const createSession = async (label = "apple") => {
     last_name: "Test",
     password,
   });
-  const response = await emulator(urls.emulatorOrigin, "/user_management/authenticate", {
-    client_id: EMULATOR_CLIENT_ID,
-    client_secret: EMULATOR_API_KEY,
-    email,
-    grant_type: "password",
-    password,
-  });
+  const response = await emulator(
+    urls.emulatorOrigin,
+    "/user_management/authenticate",
+    {
+      client_id: EMULATOR_CLIENT_ID,
+      client_secret: EMULATOR_API_KEY,
+      email,
+      grant_type: "password",
+      password,
+    }
+  );
   return { urls, email, response };
 };
 
 /** The environment a Debug build of the app reads at launch. */
-export const launchEnvironment = (session: Awaited<ReturnType<typeof createSession>>) => ({
+export const launchEnvironment = (
+  session: Awaited<ReturnType<typeof createSession>>
+) => ({
   TeakConvexURL: session.urls.convexUrl,
   TeakWorkOSURL: session.urls.emulatorOrigin,
   TeakWebURL: session.urls.appOrigin,
   TeakEnvironment: "e2e",
   TEAK_UI_TEST_CLIENT_ID: EMULATOR_CLIENT_ID,
-  TEAK_UI_TEST_SESSION: Buffer.from(JSON.stringify(session.response)).toString("base64"),
+  TEAK_UI_TEST_SESSION: Buffer.from(JSON.stringify(session.response)).toString(
+    "base64"
+  ),
 });
 
 if (import.meta.main) {

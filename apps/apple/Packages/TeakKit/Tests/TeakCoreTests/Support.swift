@@ -103,7 +103,8 @@ enum Fixture {
             "iss": "https://api.workos.com/user_management/\(clientId)",
             "sub": sub, "sid": sid, "exp": Int(expiry.timeIntervalSince1970),
         ]
-        let payload = try! JSONSerialization.data(withJSONObject: claims).base64EncodedString()
+        let json = (try? JSONSerialization.data(withJSONObject: claims)) ?? Data()
+        let payload = json.base64EncodedString()
             .replacingOccurrences(of: "+", with: "-").replacingOccurrences(of: "/", with: "_")
             .replacingOccurrences(of: "=", with: "")
         return "header.\(payload).signature-\(UUID().uuidString.prefix(6))"
@@ -126,13 +127,13 @@ enum Fixture {
     /// A stored session record, as the keychain holds it.
     static func stored(refresh: String = "old", expiry: Date = Date().addingTimeInterval(-1)) -> Data {
         let response = response(refresh: refresh, expiry: expiry)
-        let user = response["user"] as! [String: Any]
+        let user = response["user"] as? [String: Any] ?? [:]
         let record: [String: Any] = [
             "clientId": clientId,
             "access_token": response["access_token"]!,
             "refresh_token": refresh,
             "user": user.filter { $0.key != "oauth_tokens" },
         ]
-        return try! JSONSerialization.data(withJSONObject: record)
+        return (try? JSONSerialization.data(withJSONObject: record)) ?? Data()
     }
 }

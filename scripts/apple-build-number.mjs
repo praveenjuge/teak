@@ -35,6 +35,8 @@ function main() {
     );
   }
   const responses = filePaths.map((filePath) =>
+    // The workflow's own asc output files, passed as arguments.
+    // nosemgrep: javascript_pathtraversal_rule-non-literal-fs-filename
     JSON.parse(fs.readFileSync(filePath, "utf8"))
   );
   console.log(nextAppleBuildNumber(...responses));
