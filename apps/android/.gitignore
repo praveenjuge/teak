@@ -1,0 +1,13 @@
+.gradle/
+.kotlin/
+build/
+local.properties
+.idea/
+*.iml
+captures/
+.externalNativeBuild/
+.cxx/
+# Upload keys and signing config never live in the repository.
+*.jks
+*.keystore
+keystore.properties
