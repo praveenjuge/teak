@@ -34,6 +34,8 @@ enum CompanionAppearance: String, CaseIterable {
 @main
 class AppDelegate: NSObject, NSApplicationDelegate {
     private var menuBar: MenuBarController?
+    private let servicesProvider = TeakServicesProvider()
+    private(set) lazy var quickCaptureHotKey = QuickCaptureHotKey { QuickCaptureController.shared.show() }
     private var settingsWindow: NSWindow?
     private var settingsWindowController: NSWindowController?
     private var libraryWindowController: LibraryWindowController?
@@ -49,6 +51,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         // policy never depends on an unregistered default.
         UserDefaults.standard.register(defaults: [
             MenuBarController.enabledDefaultsKey: false,
+            QuickCaptureHotKey.enabledDefaultsKey: true,
             CompanionAppearance.defaultsKey: CompanionAppearance.system.rawValue,
         ])
         syncActivationPolicy()
@@ -68,6 +71,9 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         }
         CompanionAppearance.apply(.selected)
         menuBar = MenuBarController()
+        NSApp.servicesProvider = servicesProvider
+        NSUpdateDynamicServices()
+        quickCaptureHotKey.sync()
         configureSettingsWindow()
         configureKeyboardMenus()
         didFinishLaunching = true

@@ -2,6 +2,7 @@ import { httpRouter } from "convex/server";
 import { polar } from "./billing";
 import { mcpV1, oauthProtectedResourceV1 } from "./mcp/httpServer";
 import { duplicateCardV1 } from "./publicApiDuplicate";
+import { exportsV1 } from "./publicApiExports";
 import {
   bulkCardsV1,
   cardByIdV1,
@@ -80,6 +81,8 @@ for (const path of [
   "/v1/cards/bulk",
   "/v1/cards/changes",
   "/v1/tags",
+  "/v1/exports",
+  "/v1/exports/latest",
 ]) {
   http.route({
     path,
@@ -185,6 +188,8 @@ http.route({
   method: "GET",
   handler: duplicateCardV1,
 });
+http.route({ path: "/v1/exports", method: "POST", handler: exportsV1 });
+http.route({ path: "/v1/exports/latest", method: "GET", handler: exportsV1 });
 http.route({
   path: "/v1/oauth/disconnect",
   method: "POST",

@@ -292,6 +292,7 @@ final class MockHTTP: URLProtocol, @unchecked Sendable {
         try check(rollbackSearches == 1 && store.cards.isEmpty && store.mutatingIDs.isEmpty,
                   "rollback refetches the changed search without inserting an unrelated card")
         try await searchTokensAndTrash(cardJSON: cardJSON)
+        try await tagFiltersAndBulkActions(cardJSON: cardJSON)
         try await creationSearchRace(cardJSON: cardJSON)
         try await creationRefreshRace(cardJSON: cardJSON)
         try await unloadedCardMutation(cardJSON: cardJSON)

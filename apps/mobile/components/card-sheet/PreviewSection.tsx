@@ -37,6 +37,8 @@ import {
   FullHeightPlaceholder,
   VideoPreview,
 } from "@/components/card-preview/preview-sections";
+import { DocumentFileText } from "@/components/card-sheet/DocumentFileText";
+import { MarkdownText } from "@/components/card-sheet/MarkdownText";
 import { SheetText } from "@/components/card-sheet/SheetText";
 import { copyTextToClipboard } from "@/lib/card-actions";
 import { getWaveformHeights, WAVEFORM_BAR_COUNT } from "@/lib/card-grid";
@@ -449,9 +451,7 @@ function PreviewSection({ card, isOpen }: PreviewSectionProps) {
     case "text":
       return (
         <VStack modifiers={[padding({ vertical: 6 })]}>
-          <SheetText selectable size={17}>
-            {textContent}
-          </SheetText>
+          <MarkdownText size={17} text={textContent} />
         </VStack>
       );
     case "quote":
@@ -488,6 +488,7 @@ function PreviewSection({ card, isOpen }: PreviewSectionProps) {
             </VStack>
             <Spacer />
           </HStack>
+          <DocumentFileText card={card} />
         </VStack>
       );
   }

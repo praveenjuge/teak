@@ -70,6 +70,18 @@ revoked, or deleted-account credentials return 401. Responses are not cached.
     <ResponseField name="name" type="string">
       The account's display name, when set.
     </ResponseField>
+    <ResponseField name="cardCount" type="number" required>
+      Cards outside Trash.
+    </ResponseField>
+    <ResponseField name="cardLimit" type="number | null" required>
+      The Free plan's card limit, or `null` on Pro.
+    </ResponseField>
+    <ResponseField name="plan" type="string" required>
+      `free` or `pro`.
+    </ResponseField>
+    <ResponseField name="settingsUrl" type="string" required>
+      Teak's web Settings, where you manage your plan, API keys, and imports.
+    </ResponseField>
   </Expandable>
 </ResponseField>
 
@@ -117,10 +129,15 @@ A create response includes the new `cardId` and its Teak app URL. See **Create C
 ## Edit a card
 
 Send changed fields to `PATCH /v1/cards/:cardId`: `content`, `notes`, `tags`,
-`url`, or `metadataTitle`. Titles work for every card type, are trimmed, and
+`url`, `metadataTitle`, or `removeAiTags`. Titles work for every card type, are trimmed, and
 can contain up to 512 characters. Send `null` or a blank title to clear it.
 Omit `metadataTitle` to preserve the existing title. Metadata processing
 preserves titles you edit or clear.
+
+`tags` replaces your own tags. To drop tags Teak added, send them in
+`removeAiTags`, for example `{ "removeAiTags": ["inspiration"] }`. Tags Teak
+didn't add are ignored. The response is the updated card, including its
+`processingStatus`.
 
 ## Upload files
 
@@ -152,8 +169,8 @@ Supported uploads include common image, audio, video, source, design-token, docu
   Returned for support and log correlation.
 </ResponseField>
 
-<ResponseField name="RateLimit-Limit" type="string" pre={["response header"]}>
-  Appears with `RateLimit-Remaining`, `RateLimit-Reset`, and `Retry-After`.
+<ResponseField name="Retry-After" type="string" pre={["response header"]}>
+  Sent with `429` responses, along with `RateLimit-Limit`, `RateLimit-Remaining`, and `RateLimit-Reset`.
 </ResponseField>
 
 Bulk operations accept up to 100 items. Cursor-based listing and the card changes endpoint are available for integrations that need complete pagination or incremental sync.
@@ -165,12 +182,16 @@ Bulk operations accept up to 100 items. Cursor-based listing and the card change
 | `/v1/me` | Read your authenticated Teak identity |
 | `/v1/cards` | Create or list cards |
 | `/v1/uploads` | Start a direct file upload |
-| `/v1/cards/bulk` | Create or update multiple cards |
+| `/v1/cards/bulk` | Create, update, favorite, or delete up to 100 cards |
 | `/v1/cards/changes` | Read incremental card changes |
 | `/v1/tags` | List tags |
 | `/v1/cards/:cardId` | Read, update, or delete one card |
 | `/v1/cards/:cardId/restore` | Restore one card from Trash with POST |
 | `/v1/cards/:cardId/favorite` | Favorite or unfavorite one card |
+| `/v1/cards/duplicate` | Check whether a URL is already saved |
+| `/v1/exports` | Start a ZIP export of your cards with POST |
+| `/v1/exports/latest` | Read the latest export and its download link |
+| `/v1/oauth/disconnect` | Disconnect an OAuth app with POST |
 
 See the OpenAPI document at `https://teakvault.com/api/openapi.json` or the [API Reference](/reference) for methods, parameters, schemas, and response examples.
 
@@ -215,6 +236,22 @@ these query parameters:
   Set to `true` to list favorites.
 </ParamField>
 
+<ParamField query="trashed" type="boolean">
+  Set to `true` to list cards in Trash.
+</ParamField>
+
+<ParamField query="style" type="string">
+  Visual style, such as `minimal` or `vintage`. Repeatable. See [Visual filters](#visual-filters).
+</ParamField>
+
+<ParamField query="hue" type="string">
+  Color family, such as `blue` or `neutral`. Repeatable.
+</ParamField>
+
+<ParamField query="hex" type="string">
+  Exact color, such as `%23112233`. Repeatable.
+</ParamField>
+
 <ParamField query="include" type="string">
   Extra field sets: `content`, `metadata`, `processing`.
 </ParamField>
@@ -230,8 +267,9 @@ next page, keep the same filters and pass `pageInfo.nextCursor` as `cursor`.
 
 `include=metadata` adds palette `colors` (`hex` and optional `name`), resolved
 `linkPreviewMedia`, and the link's site name, author, publisher, and publish
-date when present. `include=processing` adds `aiTranscript`; the single-card
-response includes these display fields without an `include` parameter. Link
+date when present. `include=processing` adds `aiTranscript`, `metadataStatus`,
+and `processingStatus`; the single-card response includes all of these fields
+without an `include` parameter. Link
 preview media contains temporary resolved URLs, never storage keys.
 
 Image card responses include intentionally different URLs: `thumbnailUrl` is the optimized grid rendition, `compactUrl` is a smaller rendition for compact lists, `placeholderUrl` is a tiny loading placeholder, `detailUrl` is the optimized full-card rendition, and `fileUrl` remains the signed original used for downloads. These URLs are temporary, signed credentials — consume them as returned instead of storing or modifying them. See the [API Reference](/reference) for field details.
@@ -256,14 +294,6 @@ Errors keep a stable `{ code, error }` shape:
   A human-readable message.
 </ResponseField>
 
-<ResponseField name="requestId" type="string">
-  The request ID to include when you contact support.
-</ResponseField>
-
-<ResponseField name="details" type="object">
-  Additional machine-readable context, when the error has any.
-</ResponseField>
-
 <ResponseField name="retryAt" type="number">
   For `RATE_LIMITED` errors, when to retry, as a Unix timestamp in milliseconds.
 </ResponseField>
@@ -275,7 +305,7 @@ Errors keep a stable `{ code, error }` shape:
 }
 ```
 
-Use the returned request ID when contacting [Support](/docs/support). For MCP tool contracts, continue to the dedicated [MCP guide](/docs/mcp).
+Every response carries an `X-Request-Id` header. Include it when contacting [Support](/docs/support). For MCP tool contracts, continue to the dedicated [MCP guide](/docs/mcp).
 
 ## Check for a saved URL
 
@@ -290,3 +320,17 @@ Use the returned request ID when contacting [Support](/docs/support). For MCP to
 :::danger[Permanent deletes can't be undone]
 `DELETE /v1/cards/:cardId?permanent=true` removes the card and its files immediately. It skips Trash, so there is nothing to restore.
 :::
+
+## Export your cards
+
+`POST /v1/exports` starts a ZIP export of your cards and their original files,
+the same export as **Settings → Import/Export Data** on the web. It returns `202`
+with the new `job`. One export can run at a time (`409` while one is running),
+and you can start one every 7 days (`429` with `retryAt` and `Retry-After`
+until then).
+
+Poll `GET /v1/exports/latest` for `job.status` (`pending`, `running`, `ready`,
+`failed`, `canceled`, or `expired`) and progress. Once it's `ready`,
+`job.downloadUrl` is a short-lived link to the ZIP. Ready exports are kept for
+7 days. `canStartNew` and `nextAvailableAt` say when you can start the next
+one.

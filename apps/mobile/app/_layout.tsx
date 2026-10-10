@@ -128,6 +128,18 @@ function RootNavigator() {
         }}
       />
 
+      {/* "Save to Teak" Shortcuts action (teak://save?text=…) */}
+      <Stack.Screen
+        name="save"
+        options={{
+          headerShown: true,
+          presentation: "formSheet",
+          sheetAllowedDetents: [0.4],
+          sheetGrabberVisible: true,
+          title: "Save to Teak",
+        }}
+      />
+
       {/* Protected routes - only accessible when authenticated */}
       <Stack.Protected guard={isAuthenticated}>
         <Stack.Screen name="(tabs)" />

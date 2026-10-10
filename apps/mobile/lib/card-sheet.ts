@@ -7,6 +7,16 @@ export type CardSheetDetail = Doc<"cards"> & {
   detailUrl?: string;
   fileUrl?: string;
   linkPreviewImageUrl?: string;
+  /** Signed URLs for a post's attached photos and video stills. */
+  linkPreviewMedia?: Array<{
+    height?: number;
+    posterHeight?: number;
+    posterUrl?: string;
+    posterWidth?: number;
+    type: "image" | "video";
+    url: string;
+    width?: number;
+  }>;
   screenshotUrl?: string;
   thumbnailUrl?: string;
 };

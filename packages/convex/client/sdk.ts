@@ -71,8 +71,10 @@ export interface Card {
   fileSize: number | null;
   fileUrl: string | null;
   id: string;
+  isDeleted: boolean;
   isFavorited: boolean;
   linkAuthor: string | null;
+  linkFacts: Array<{ label: string; value: string }>;
   linkPreviewImageUrl: string | null;
   linkPreviewMedia: Array<{
     type: "image" | "video";
@@ -89,10 +91,12 @@ export interface Card {
   linkPublisher: string | null;
   linkSiteName: string | null;
   metadataDescription: string | null;
+  metadataStatus: string | null;
   metadataTitle: string | null;
   mimeType: string | null;
   notes: string | null;
   placeholderUrl: string | null;
+  processingStatus: Record<string, unknown> | null;
   screenshotUrl: string | null;
   tags: string[];
   thumbnailUrl: string | null;
@@ -146,8 +150,45 @@ export interface UpdateCardInput {
   content?: string;
   metadataTitle?: string | null;
   notes?: string | null;
+  /** AI tags to drop. `tags` replaces only the card's own tags. */
+  removeAiTags?: string[];
   tags?: string[];
   url?: string;
+}
+export interface Me {
+  cardCount: number;
+  /** Null on Pro, which has no card limit. */
+  cardLimit: number | null;
+  email: string;
+  id: string;
+  name?: string;
+  plan: "free" | "pro";
+  settingsUrl: string;
+}
+export interface ExportJob {
+  cardCount: number | null;
+  completedAt: number | null;
+  createdAt: number;
+  downloadUrl: string | null;
+  expiresAt: number | null;
+  failureClass: string | null;
+  filesIncluded: number | null;
+  filesOmitted: number | null;
+  id: string;
+  processedCount: number | null;
+  sizeBytes: number | null;
+  stage: "snapshotting" | "archiving" | null;
+  status: "pending" | "running" | "ready" | "failed" | "canceled" | "expired";
+  updatedAt: number;
+}
+export interface LatestExport {
+  canStartNew: boolean;
+  job: ExportJob | null;
+  nextAvailableAt: number | null;
+}
+export interface RequestOptions {
+  /** Makes a retried create or bulk request safe to repeat. */
+  idempotencyKey?: string;
 }
 export interface CreateUploadInput {
   fileName: string;
@@ -252,31 +293,38 @@ const byteLengthForBody = (bytes: BodyInit): number | null => {
   return null;
 };
 
+const asList = (value?: string | readonly string[]): readonly string[] => {
+  if (Array.isArray(value)) {
+    return value;
+  }
+  return typeof value === "string" ? [value] : [];
+};
+
 export const buildCardsSearchParams = (input: {
   createdAfter?: number;
   createdBefore?: number;
   cursor?: string;
   favorited?: boolean;
+  hex?: string | readonly string[];
+  hue?: string | readonly string[];
   include?: string;
   limit?: number;
   query?: string;
   sort?: CardSort;
+  style?: string | readonly string[];
   tag?: string;
+  trashed?: boolean;
   type?: CardType | string | readonly (CardType | string)[];
 }) => {
   const search = new URLSearchParams();
   if (input.query?.trim()) {
     search.set("q", input.query.trim());
   }
-  let types: readonly string[] = [];
-  if (Array.isArray(input.type)) {
-    types = input.type;
-  } else if (typeof input.type === "string") {
-    types = [input.type];
-  }
-  for (const type of types) {
-    if (type.trim()) {
-      search.append("type", type.trim());
+  for (const name of ["type", "style", "hue", "hex"] as const) {
+    for (const value of asList(input[name])) {
+      if (value.trim()) {
+        search.append(name, value.trim());
+      }
     }
   }
   if (input.tag?.trim()) {
@@ -290,6 +338,9 @@ export const buildCardsSearchParams = (input: {
   }
   if (input.favorited) {
     search.set("favorited", "true");
+  }
+  if (input.trashed) {
+    search.set("trashed", "true");
   }
   if (input.sort === "oldest") {
     search.set("sort", "oldest");
@@ -362,6 +413,21 @@ const asCreate = (value: unknown): CreateCardResponse => {
     throw new TeakApiError("PARSE_ERROR");
   }
   return value as unknown as CreateCardResponse;
+};
+const asMe = (value: unknown): Me => {
+  if (
+    !(isObject(value) && isObject(value.data)) ||
+    typeof value.data.id !== "string"
+  ) {
+    throw new TeakApiError("PARSE_ERROR");
+  }
+  return value.data as unknown as Me;
+};
+const asLatestExport = (value: unknown): LatestExport => {
+  if (!isObject(value) || typeof value.canStartNew !== "boolean") {
+    throw new TeakApiError("PARSE_ERROR");
+  }
+  return value as unknown as LatestExport;
 };
 const asUpload = (value: unknown): CreateUploadResponse => {
   if (
@@ -452,8 +518,7 @@ export const createTeakClient = (options: {
         ),
         String(object.error || response.statusText),
         {
-          requestId:
-            typeof object.requestId === "string" ? object.requestId : undefined,
+          requestId: response.headers.get("x-request-id") ?? undefined,
           retryAt:
             typeof object.retryAt === "number" ? object.retryAt : undefined,
           status: response.status,
@@ -464,12 +529,25 @@ export const createTeakClient = (options: {
   };
   const qs = (params: Parameters<typeof buildCardsSearchParams>[0]) =>
     buildCardsSearchParams(params);
+  const idempotency = (requestOptions?: RequestOptions): HeadersInit =>
+    requestOptions?.idempotencyKey
+      ? { "Idempotency-Key": requestOptions.idempotencyKey }
+      : {};
+  const cardPath = (id: string) => `/v1/cards/${encodeURIComponent(id)}`;
   return {
     cards: {
-      bulk: (operation: BulkCardsResponse["operation"], items: unknown[]) =>
+      bulk: (
+        operation: BulkCardsResponse["operation"],
+        items: unknown[],
+        requestOptions?: RequestOptions
+      ) =>
         request(
           "/v1/cards/bulk",
-          { body: JSON.stringify({ items, operation }), method: "POST" },
+          {
+            body: JSON.stringify({ items, operation }),
+            headers: idempotency(requestOptions),
+            method: "POST",
+          },
           (v) => v as BulkCardsResponse
         ),
       changes: (input: { cursor?: string; limit?: number; since: number }) => {
@@ -481,51 +559,71 @@ export const createTeakClient = (options: {
           (v) => v as CardChangesResponse
         );
       },
-      create: (input: CreateCardInput) =>
+      create: (input: CreateCardInput, requestOptions?: RequestOptions) =>
         request(
           "/v1/cards",
-          { body: JSON.stringify(input), method: "POST" },
+          {
+            body: JSON.stringify(input),
+            headers: idempotency(requestOptions),
+            method: "POST",
+          },
           asCreate
         ),
-      delete: (id: string) =>
+      /** Moves the card to Trash, or deletes it for good with `permanent`. */
+      delete: (id: string, deleteOptions?: { permanent?: boolean }) =>
         request(
-          `/v1/cards/${encodeURIComponent(id)}`,
+          `${cardPath(id)}${deleteOptions?.permanent ? "?permanent=true" : ""}`,
           { method: "DELETE" },
           () => null
         ),
+      /** The ID of a saved card with exactly this URL, or null. */
+      duplicate: (url: string) =>
+        request(
+          `/v1/cards/duplicate?${new URLSearchParams({ url }).toString()}`,
+          { method: "GET" },
+          (v) => (isObject(v) && typeof v.cardId === "string" ? v.cardId : null)
+        ),
       favorites: (input: Parameters<typeof qs>[0] = {}) =>
         request(
-          `/v1/cards?${qs({ ...input, favorited: true, include: "content,metadata" })}`,
+          `/v1/cards?${qs({ include: "content,metadata", ...input, favorited: true })}`,
           { method: "GET" },
           asPage
         ),
-      get: (id: string) =>
-        request(
-          `/v1/cards/${encodeURIComponent(id)}`,
-          { method: "GET" },
-          asCard
-        ),
+      get: (id: string) => request(cardPath(id), { method: "GET" }, asCard),
       list: (input: Parameters<typeof qs>[0] = {}) =>
         request(`/v1/cards?${qs(input)}`, { method: "GET" }, asPage),
+      restore: (id: string) =>
+        request(`${cardPath(id)}/restore`, { method: "POST" }, () => null),
       search: (input: Parameters<typeof qs>[0] = {}) =>
         request(
-          `/v1/cards?${qs({ ...input, include: "content,metadata" })}`,
+          `/v1/cards?${qs({ include: "content,metadata", ...input })}`,
           { method: "GET" },
           asPage
         ),
       setFavorite: (id: string, isFavorited: boolean) =>
         request(
-          `/v1/cards/${encodeURIComponent(id)}/favorite`,
+          `${cardPath(id)}/favorite`,
           { body: JSON.stringify({ isFavorited }), method: "PATCH" },
           asCard
         ),
       update: (id: string, input: UpdateCardInput) =>
         request(
-          `/v1/cards/${encodeURIComponent(id)}`,
+          cardPath(id),
           { body: JSON.stringify(input), method: "PATCH" },
           asCard
         ),
     },
+    exports: {
+      latest: () =>
+        request("/v1/exports/latest", { method: "GET" }, asLatestExport),
+      start: () =>
+        request(
+          "/v1/exports",
+          { method: "POST" },
+          (v) => (v as { job: ExportJob }).job
+        ),
+    },
+    me: () => request("/v1/me", { method: "GET" }, asMe),
     tags: {
       list: () => request("/v1/tags", { method: "GET" }, asTags),
     },

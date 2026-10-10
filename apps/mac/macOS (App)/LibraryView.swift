@@ -19,6 +19,8 @@ struct LibraryView: View {
     @State private var paginationVisible = false
     @State private var pendingUploads: [PendingLibraryUpload] = []
     @State private var uploadAPI = LibraryAPI()
+    @State private var limitMessage: String?
+    @State private var confirmingBulkDeleteForever = false
 
     init(api: LibraryAPI? = nil, onSettings: @escaping () -> Void, onAuthenticationRequired: @escaping () -> Void) {
         self.onSettings = onSettings
@@ -68,12 +70,41 @@ struct LibraryView: View {
             }
             Button("Cancel", role: .cancel) {}
         }
+        .alert("You've reached the Free plan limit", isPresented: Binding(
+            get: { limitMessage != nil },
+            set: { if !$0 { limitMessage = nil } }
+        )) {
+            Button("Upgrade…") { NSWorkspace.shared.open(LibraryLinks.settings) }
+            Button("Not Now", role: .cancel) {}
+        } message: {
+            Text(limitMessage ?? "")
+        }
+        .confirmationDialog("Delete \(store.selectedIDs.count == 1 ? "this card" : "these \(store.selectedIDs.count) cards") forever?",
+                            isPresented: $confirmingBulkDeleteForever, titleVisibility: .visible) {
+            Button("Delete Forever", role: .destructive) { Task { await store.deleteSelectedForever() } }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text("This removes the cards and their files. You can't undo it.")
+        }
         .onDrop(of: [UTType.fileURL.identifier], isTargeted: $dropping, perform: acceptDrop)
         .overlay {
             if dropping { GroupBox { Label("Drop files to upload", systemImage: "square.and.arrow.up") }.allowsHitTesting(false) }
         }
         .overlay(alignment: .bottom) {
-            statusOverlay.padding(.bottom, 20).allowsHitTesting(false)
+            VStack(spacing: 10) {
+                statusOverlay.allowsHitTesting(false)
+                if store.isSelecting { selectionBar }
+            }
+            .padding(.bottom, 20)
+        }
+        .onExitCommand { if store.isSelecting { store.endSelection() } }
+        .onReceive(NotificationCenter.default.publisher(for: .libraryPaste)) { note in
+            guard acceptsLibraryCommands, let content = note.object as? PasteboardCapture.Content else { return }
+            Task { await savePasted(content) }
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .libraryCardCreated)) { note in
+            guard let id = note.object as? String else { return }
+            Task { await store.insertCreated(id: id) }
         }
         .onReceive(NotificationCenter.default.publisher(for: .libraryRefresh)) { _ in
             guard acceptsLibraryCommands else { return }
@@ -115,6 +146,51 @@ struct LibraryView: View {
             }
             .accessibilityElement(children: .combine)
             .accessibilityAddTraits(.updatesFrequently)
+        }
+    }
+
+    /// Floating bar for the selected cards, like the web's bulk action bar.
+    private var selectionBar: some View {
+        HStack(spacing: 12) {
+            Text(store.selectedIDs.isEmpty ? "Select cards" : "\(store.selectedIDs.count) selected")
+                .font(.callout.weight(.medium))
+                .monospacedDigit()
+            Divider().frame(height: 18)
+            Button("Select All") { store.selectAll() }
+            if store.trashOnly {
+                Button("Restore", systemImage: "arrow.uturn.backward") { Task { await store.restoreSelected() } }
+                Button("Delete Forever", systemImage: "trash", role: .destructive) { confirmingBulkDeleteForever = true }
+            } else {
+                Button("Favorite", systemImage: "heart") { Task { await store.favoriteSelected(true) } }
+                Button("Unfavorite", systemImage: "heart.slash") { Task { await store.favoriteSelected(false) } }
+                Button("Delete", systemImage: "trash", role: .destructive) { Task { await store.deleteSelected() } }
+            }
+            Button("Cancel") { store.endSelection() }.keyboardShortcut(.cancelAction)
+        }
+        .disabled(store.isRunningBulkAction)
+        .controlSize(.regular)
+        .padding(.horizontal, 16)
+        .padding(.vertical, 10)
+        .background(.regularMaterial, in: Capsule())
+        .overlay { Capsule().strokeBorder(.primary.opacity(0.08)) }
+        .shadow(color: .black.opacity(0.12), radius: 12, y: 4)
+        .overlay(alignment: .topTrailing) {
+            if store.isRunningBulkAction { ProgressView().controlSize(.small).padding(6) }
+        }
+    }
+
+    private func savePasted(_ content: PasteboardCapture.Content) async {
+        switch content {
+        case .files(let urls):
+            await upload(urls)
+        case .text(let text):
+            do {
+                let id = try await uploadAPI.createText(text, idempotencyKey: UUID().uuidString)
+                await store.insertCreated(id: id)
+                store.showStatus("Saved from the clipboard")
+            } catch SafariServiceError.unauthenticated { onAuthenticationRequired() }
+            catch SafariServiceError.cardLimit(let message) { limitMessage = message }
+            catch { uploadError = error.localizedDescription }
         }
     }
 
@@ -257,7 +333,10 @@ struct LibraryView: View {
                 LibraryMasonryLayout(columns: count, spacing: gridSpacing) {
                     if !store.trashOnly { composer }
                     ForEach(store.cards) { card in
-                        LibraryCardTile(card: card, isSaving: store.mutatingIDs.contains(card.id), onOpen: { selectedCard = card })
+                        LibraryCardTile(card: card, isSaving: store.mutatingIDs.contains(card.id),
+                                        isSelecting: store.isSelecting, isSelected: store.selectedIDs.contains(card.id),
+                                        onOpen: { selectedCard = card },
+                                        onToggleSelection: { store.toggleSelection(card) })
                             .contextMenu { cardMenu(card) }
                     }
                 }.padding()
@@ -297,6 +376,16 @@ struct LibraryView: View {
             Divider()
             Button("Delete", role: .destructive) { Task { try? await store.delete(card) } }
         }
+        Divider()
+        if let link = LibraryLinks.card(card) {
+            Button("Copy Link to Card") {
+                NSPasteboard.general.clearContents()
+                NSPasteboard.general.setString(link.absoluteString, forType: .string)
+                store.showStatus("Card link copied")
+            }
+            Button("Open on Web") { NSWorkspace.shared.open(link) }
+        }
+        Button(store.selectedIDs.contains(card.id) ? "Deselect" : "Select") { store.toggleSelection(card) }
     }
 
     private func copy(_ card: LibraryCard) async {
@@ -360,6 +449,11 @@ struct LibraryView: View {
                 await store.insertCreated(id: id)
                 uploadError = nil
             } catch SafariServiceError.unauthenticated { onAuthenticationRequired(); return }
+            catch SafariServiceError.cardLimit(let message) {
+                pendingUploads.removeAll()
+                limitMessage = message
+                return
+            }
             catch { uploadError = error.localizedDescription; return }
         }
     }
@@ -390,5 +484,18 @@ private struct TeakWordmark: View {
         } else {
             Text("teak").font(.title2.weight(.heavy))
         }
+    }
+}
+
+/// Links from the app to Teak on the web.
+enum LibraryLinks {
+    static var settings: URL { TeakSafariService.appBaseURL.appendingPathComponent("settings") }
+
+    /// The card's own page on the web, from the API, or built from its ID.
+    static func card(_ card: LibraryCard) -> URL? {
+        if let url = LibraryCard.safeURL(card.appUrl) { return url }
+        var components = URLComponents(url: TeakSafariService.appBaseURL, resolvingAgainstBaseURL: false)
+        components?.queryItems = [URLQueryItem(name: "card", value: card.id)]
+        return components?.url
     }
 }

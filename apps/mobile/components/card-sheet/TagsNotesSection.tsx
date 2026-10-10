@@ -3,8 +3,10 @@ import { font } from "@expo/ui/swift-ui/modifiers";
 import { ChipRow } from "@/components/card-sheet/ChipRow";
 import { SheetText } from "@/components/card-sheet/SheetText";
 import type { CardSheetDetail } from "@/lib/card-sheet";
+import { useSearchForTag } from "@/lib/hooks/useSearchForTag";
 
 function TagsNotesSection({ card }: { card: CardSheetDetail }) {
+  const searchForTag = useSearchForTag();
   const tags = card.tags?.map((tag) => tag.trim()).filter(Boolean) ?? [];
   const notes = card.notes?.trim();
 
@@ -23,7 +25,7 @@ function TagsNotesSection({ card }: { card: CardSheetDetail }) {
           modifiers={[font({ design: "rounded", weight: "medium" })]}
           title="Tags"
         >
-          <ChipRow tags={tags} />
+          <ChipRow onPressTag={searchForTag} tags={tags} />
         </Section>
       ) : null}
     </>

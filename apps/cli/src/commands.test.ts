@@ -1,5 +1,5 @@
 import { afterAll, beforeEach, describe, expect, test } from "bun:test";
-import { mkdtempSync, rmSync } from "node:fs";
+import { existsSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { env, serve, spawn } from "bun";
@@ -9,6 +9,8 @@ import { EXIT } from "./runtime";
 // user sees: stdout, stderr, exit code, and the requests the CLI sends.
 
 const configHome = mkdtempSync(join(tmpdir(), "teak-cli-commands-"));
+// Downloads land in the CLI's working directory, so give it a scratch one.
+const workDirectory = mkdtempSync(join(tmpdir(), "teak-cli-work-"));
 const API_KEY = "teak_test_key";
 
 const card = (id: string, overrides: Record<string, unknown> = {}) => ({
@@ -33,14 +35,20 @@ const json = (body: unknown, status = 200) => Response.json(body, { status });
 
 type Route = (request: Request, url: URL) => Response | Promise<Response>;
 const routes = new Map<string, Route>();
-const requests: { method: string; path: string; auth: string | null }[] = [];
+const requests: {
+  auth: string | null;
+  body: string;
+  method: string;
+  path: string;
+}[] = [];
 
 const server = serve({
   port: 0,
-  fetch(request) {
+  async fetch(request) {
     const url = new URL(request.url);
     requests.push({
       auth: request.headers.get("authorization"),
+      body: await request.clone().text(),
       method: request.method,
       path: `${url.pathname}${url.search}`,
     });
@@ -54,6 +62,7 @@ const server = serve({
 afterAll(() => {
   server.stop();
   rmSync(configHome, { force: true, recursive: true });
+  rmSync(workDirectory, { force: true, recursive: true });
 });
 
 beforeEach(() => {
@@ -62,19 +71,22 @@ beforeEach(() => {
 });
 
 const teak = async (...args: string[]) => {
-  const child = spawn([process.execPath, "run", "src/index.ts", ...args], {
-    cwd: join(import.meta.dir, ".."),
-    env: {
-      ...env,
-      TEAK_API_KEY: API_KEY,
-      TEAK_API_URL: server.url.toString(),
-      XDG_CONFIG_HOME: configHome,
-    },
-    stderr: "pipe",
-    stdout: "pipe",
-    // Fail the test instead of hanging the suite if the CLI never exits.
-    timeout: 15_000,
-  });
+  const child = spawn(
+    [process.execPath, "run", join(import.meta.dir, "index.ts"), ...args],
+    {
+      cwd: workDirectory,
+      env: {
+        ...env,
+        TEAK_API_KEY: API_KEY,
+        TEAK_API_URL: server.url.toString(),
+        XDG_CONFIG_HOME: configHome,
+      },
+      stderr: "pipe",
+      stdout: "pipe",
+      // Fail the test instead of hanging the suite if the CLI never exits.
+      timeout: 15_000,
+    }
+  );
   const [code, stdout, stderr] = await Promise.all([
     child.exited,
     new Response(child.stdout).text(),
@@ -167,6 +179,7 @@ describe("teak cards", () => {
     expect(result.code).toBe(0);
     expect(JSON.parse(result.stdout)).toEqual({
       deletedIds: ["card_a", "card_b"],
+      permanent: false,
     });
     expect(requests.map((request) => request.method)).toEqual([
       "DELETE",
@@ -188,6 +201,211 @@ describe("teak cards", () => {
 
     expect(result.code).toBe(0);
     expect(result.stdout.trim().split("\n")).toEqual(["design  3", "cli  1"]);
+  });
+});
+
+const emptyPage = () =>
+  json({ items: [], pageInfo: { hasMore: false, nextCursor: null } });
+const noContent = () => new Response(null, { status: 204 });
+
+describe("teak parity commands", () => {
+  test("add lets Teak detect the card type unless --type is given", async () => {
+    routes.set("POST /v1/cards", () =>
+      json({ appUrl: "https://app/", cardId: "card_q", status: "created" })
+    );
+    await teak("add", '"Simplicity is the ultimate sophistication."');
+    await teak("add", "#112233 #445566", "--type", "palette");
+    expect(JSON.parse(requests[0]?.body ?? "{}")).not.toHaveProperty(
+      "cardType"
+    );
+    expect(JSON.parse(requests[1]?.body ?? "{}").cardType).toBe("palette");
+  });
+
+  test("ls asks for content so each line shows a snippet", async () => {
+    routes.set("GET /v1/cards", emptyPage);
+    await teak("ls");
+    expect(requests[0]?.path).toContain("include=content");
+  });
+
+  test("sends repeatable type, color, and plain-English date filters", async () => {
+    routes.set("GET /v1/cards", emptyPage);
+    const result = await teak(
+      "ls",
+      "--type",
+      "image",
+      "--type",
+      "link",
+      "--hue",
+      "Blue",
+      "--hex",
+      "#112233",
+      "--style",
+      "minimal",
+      "--date",
+      "2026-03-01 to 2026-03-31"
+    );
+    expect(result.code).toBe(0);
+    const url = new URL(`http://x${requests[0]?.path}`);
+    expect(url.searchParams.getAll("type")).toEqual(["image", "link"]);
+    expect(url.searchParams.getAll("hue")).toEqual(["blue"]);
+    expect(url.searchParams.get("hex")).toBe("#112233");
+    expect(url.searchParams.get("style")).toBe("minimal");
+    expect(Number(url.searchParams.get("createdAfter"))).toBeLessThan(
+      Number(url.searchParams.get("createdBefore"))
+    );
+  });
+
+  test("rejects an unknown hue before sending a request", async () => {
+    const result = await teak("ls", "--hue", "plaid");
+    expect(result.code).toBe(EXIT.usage);
+    expect(requests).toHaveLength(0);
+  });
+
+  test("search --all follows every page", async () => {
+    routes.set("GET /v1/cards", (_request, url) =>
+      url.searchParams.get("cursor")
+        ? json({
+            items: [card("card_b")],
+            pageInfo: { hasMore: false, nextCursor: null },
+          })
+        : json({
+            items: [card("card_a")],
+            pageInfo: { hasMore: true, nextCursor: "c2" },
+          })
+    );
+    const result = await teak("--json", "search", "design", "--all");
+    expect(JSON.parse(result.stdout).items).toHaveLength(2);
+  });
+
+  test("trash lists Trash and restore brings cards back", async () => {
+    routes.set("GET /v1/cards", emptyPage);
+    routes.set("POST /v1/cards/card_a/restore", noContent);
+    await teak("trash");
+    const restored = await teak("restore", "card_a");
+    expect(requests[0]?.path).toContain("trashed=true");
+    expect(restored.code).toBe(0);
+    expect(restored.stdout).toContain("Restored card_a");
+  });
+
+  test("permanent delete needs --yes when there is no terminal to ask", async () => {
+    routes.set("DELETE /v1/cards/card_a", noContent);
+    const refused = await teak("rm", "card_a", "--permanent");
+    expect(refused.code).toBe(EXIT.usage);
+    expect(requests).toHaveLength(0);
+    const deleted = await teak("rm", "card_a", "--permanent", "--yes");
+    expect(deleted.code).toBe(0);
+    expect(requests[0]?.path).toBe("/v1/cards/card_a?permanent=true");
+  });
+
+  test("whoami shows the plan and how many cards are used", async () => {
+    routes.set("GET /v1/me", () =>
+      json({
+        data: {
+          id: "u",
+          email: "me@example.org",
+          plan: "free",
+          cardCount: 29,
+          cardLimit: 200,
+          settingsUrl: "https://app/settings",
+        },
+      })
+    );
+    const result = await teak("whoami");
+    expect(result.stdout).toBe("me@example.org\nFree plan · 29 of 200 cards\n");
+  });
+
+  test("tags rm removes the card's own tags and Teak's AI tags", async () => {
+    routes.set("GET /v1/cards/card_a", () =>
+      json(
+        card("card_a", { tags: ["keep", "drop"], aiTags: ["Design", "Web"] })
+      )
+    );
+    routes.set("PATCH /v1/cards/card_a", () =>
+      json(card("card_a", { tags: ["keep"], aiTags: ["Web"] }))
+    );
+    const result = await teak("tags", "rm", "card_a", "drop", "Design");
+    expect(JSON.parse(requests[1]?.body ?? "{}")).toEqual({
+      tags: ["keep"],
+      removeAiTags: ["Design"],
+    });
+    expect(result.stdout).toContain("ai tags: Web");
+  });
+
+  test("download saves the original file and refuses to overwrite it", async () => {
+    routes.set("GET /v1/cards/card_f", () =>
+      json(
+        card("card_f", {
+          fileName: "poster.png",
+          fileUrl: `${server.url}files/poster.png`,
+        })
+      )
+    );
+    routes.set("GET /files/poster.png", () => new Response("png-bytes"));
+    const saved = await teak("download", "card_f");
+    expect(saved.code).toBe(0);
+    expect(readFileSync(join(workDirectory, "poster.png"), "utf8")).toBe(
+      "png-bytes"
+    );
+    const again = await teak("download", "card_f");
+    expect(again.code).toBe(EXIT.usage);
+    expect(again.stderr).toContain("--force");
+  });
+
+  test("download explains when a card has no file", async () => {
+    routes.set("GET /v1/cards/card_a", () => json(card("card_a")));
+    const result = await teak("download", "card_a");
+    expect(result.code).toBe(EXIT.usage);
+    expect(result.stderr).toContain("no file");
+    expect(existsSync(join(workDirectory, "card_a.bin"))).toBe(false);
+  });
+
+  test("export waits for the ZIP and saves it", async () => {
+    let polls = 0;
+    const job = (status: string) => ({
+      id: "exp_1",
+      status,
+      cardCount: status === "ready" ? 3 : null,
+      createdAt: Date.UTC(2026, 9, 10),
+      downloadUrl: status === "ready" ? `${server.url}files/export.zip` : null,
+    });
+    routes.set("POST /v1/exports", () => json({ job: job("pending") }, 202));
+    routes.set("GET /v1/exports/latest", () => {
+      polls += 1;
+      return json({
+        job: job(polls > 1 ? "ready" : "running"),
+        canStartNew: false,
+        nextAvailableAt: null,
+      });
+    });
+    routes.set("GET /files/export.zip", () => new Response("zip-bytes"));
+    const result = await teak("export", "-o", "backup.zip");
+    expect(result.code).toBe(0);
+    expect(readFileSync(join(workDirectory, "backup.zip"), "utf8")).toBe(
+      "zip-bytes"
+    );
+  });
+
+  test("a second export in a week says when the next one is possible", async () => {
+    routes.set("POST /v1/exports", () =>
+      json({ code: "RATE_LIMITED", error: "weekly", retryAt: 1 }, 429)
+    );
+    routes.set("GET /v1/exports/latest", () =>
+      json({
+        job: {
+          id: "exp_1",
+          status: "ready",
+          cardCount: 3,
+          createdAt: 1,
+          downloadUrl: null,
+        },
+        canStartNew: false,
+        nextAvailableAt: Date.UTC(2026, 9, 17),
+      })
+    );
+    const result = await teak("export");
+    expect(result.code).toBe(EXIT.rateLimited);
+    expect(result.stderr).toContain("one export every 7 days");
+    expect(result.stderr).toContain("Next export available");
   });
 });
 

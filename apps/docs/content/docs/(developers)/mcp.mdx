@@ -107,15 +107,50 @@ MCP Streamable HTTP at `/mcp` (a trailing slash also works), answered in statele
 
 ### Core card tools
 
+Every tool carries MCP annotations (`readOnlyHint`, `destructiveHint`, `idempotentHint`), so clients can skip confirmation for reads and ask before writes.
+
+The list and search tools share these filters, matching `GET /v1/cards` in the [API](/docs/api):
+
+```ts
+type CardFilters = {
+  q?: string;
+  type?: CardType | CardType[]; // several types match any of them
+  tag?: string;                 // exact tag
+  favorited?: boolean;
+  trashed?: boolean;            // true lists Trash only
+  style?: string[];             // e.g. ["minimal", "vintage"]
+  hue?: string[];               // e.g. ["blue", "neutral"]
+  hex?: string[];               // e.g. ["#112233"]
+  sort?: "newest" | "oldest";
+  createdAfter?: number;        // Unix ms
+  createdBefore?: number;
+  cursor?: string;              // pageInfo.nextCursor
+  limit?: number;               // up to 100
+  include?: ("content" | "metadata" | "processing")[]; // default content + metadata
+};
+```
+
 - `teak_v1_list_cards`
-  - Input: `{ limit?: number, cursor?: string, type?: string, favorited?: boolean, tag?: string, sort?: "newest" | "oldest", createdAfter?: number, createdBefore?: number }`
-  - Output: `{ items: Card[], pageInfo: { hasMore: boolean, nextCursor: string | null } }`
+  - Input: `CardFilters`
+  - Output: `{ items: Card[], pageInfo: { hasMore: boolean, nextCursor: string | null } }`. Items are full cards unless you narrow `include`.
+- `teak_v1_search_cards`
+  - Input: `CardFilters`
+  - Output: `{ items: Card[], total: number, pageInfo }`, where `total` is the number of items on this page
+- `teak_v1_list_favorite_cards`
+  - Input: `CardFilters` (always limited to favorites)
+  - Output: `{ items: Card[], total: number, pageInfo }`
 - `teak_v1_get_card`
   - Input: `{ cardId: string }`
-  - Output: full card object
+  - Output: full card object, including `processingStatus`
+- `teak_v1_get_me`
+  - Input: `{}`
+  - Output: `{ id, email, name?, plan: "free" | "pro", cardCount, cardLimit: number | null, settingsUrl }`
+- `teak_v1_check_duplicate_url`
+  - Input: `{ url: string }`
+  - Output: `{ cardId: string | null }`. Check before saving a link so you don't save it twice.
 - `teak_v1_create_card`
-  - Input: text/URL fields or uploaded-file fields `{ fileKey, fileEtag?, fileName, mimeType, fileSize?, cardType? }`. Pass the `ETag` response header from the upload PUT as `fileEtag` so Teak can verify the exact stored object. Explicit `cardType: "text"` stores raw Markdown exactly; automatic URL, quote, and palette detection remains when the type is omitted.
-  - Output: `{ status: "created", cardId: string, appUrl: string }`
+  - Input: text/URL fields or uploaded-file fields `{ fileKey, fileEtag?, fileName, mimeType, fileSize?, cardType? }`, plus optional `idempotencyKey`. Pass the `ETag` response header from the upload PUT as `fileEtag` so Teak can verify the exact stored object. Explicit `cardType: "text"` stores raw Markdown exactly; automatic URL, quote, and palette detection remains when the type is omitted. Reusing an `idempotencyKey` returns the first result instead of creating a second card.
+  - Output: `{ status: "created", cardId: string, appUrl: string, card?: Card }`. Text and URL creates include the new `card`.
 - `teak_v1_list_tags`
   - Input: `{}`
   - Output: `{ items: { name: string, count: number }[] }`
@@ -123,28 +158,26 @@ MCP Streamable HTTP at `/mcp` (a trailing slash also works), answered in statele
   - Input: `{ since: number, cursor?: string, limit?: number }`
   - Output: `{ items: Card[], deletedIds: string[], pageInfo: { hasMore: boolean, nextCursor: string | null } }`
 - `teak_v1_bulk_cards` <Badge variant="warning">Delete needs confirm</Badge>
-  - Input: `{ operation: "create" | "update" | "favorite" | "delete", items: object[], confirm?: true }`
-  - Output: bulk operation results; delete batches require `confirm: true`
+  - Input: `{ operation: "create" | "update" | "favorite" | "delete", items: object[], confirm?: true, idempotencyKey?: string }`
+  - Output: bulk operation results; delete batches move cards to Trash and require `confirm: true`
 - `teak_v1_create_upload`
   - Input: `{ fileName: string, mimeType: string, fileSize: number }`
   - Output: `{ uploadUrl: string, fileKey: string, method: "PUT", maxFileSize: number, expiresIn: number }`
   - Supports the same upload matrix as the web app, API, and CLI. `.md` and `.markdown` files become editable text cards and must be valid UTF-8 no larger than 512 KiB; other supported files allow up to 100 MB.
-- `teak_v1_search_cards`
-  - Input: `{ q?: string, limit?: number }`
-  - Output: `{ items: Card[], total: number }`
-- `teak_v1_list_favorite_cards`
-  - Input: `{ q?: string, limit?: number }`
-  - Output: `{ items: Card[], total: number }`
 - `teak_v1_update_card`
-  - Input: `{ cardId: string, content?: string, url?: string, notes?: string | null, tags?: string[] }`
-  - Text-card content remains raw Markdown, preserved exactly, with a 512 KiB UTF-8 limit.
+  - Input: `{ cardId: string, content?: string, url?: string, notes?: string | null, tags?: string[], metadataTitle?: string | null, removeAiTags?: string[] }`
+  - `tags` replaces the card's own tags; `removeAiTags` drops tags Teak added. Text-card content remains raw Markdown, preserved exactly, with a 512 KiB UTF-8 limit.
   - Output: updated card object
 - `teak_v1_set_card_favorite`
   - Input: `{ cardId: string, isFavorited: boolean }`
   - Output: updated card object
 - `teak_v1_delete_card` <Badge variant="danger">Needs confirm</Badge>
   - Input: `{ cardId: string, confirm: true }`
-  - Output: `{ status: "deleted", cardId: string }`
+  - Moves the card to Trash. Teak empties Trash after 30 days.
+  - Output: `{ status: "trashed", cardId: string }`
+- `teak_v1_restore_card`
+  - Input: `{ cardId: string }`
+  - Output: `{ status: "restored", cardId: string }`
 
 ### ChatGPT connector tools
 

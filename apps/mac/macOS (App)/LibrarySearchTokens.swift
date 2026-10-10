@@ -1,7 +1,7 @@
 import Foundation
 
 struct LibrarySearchToken: Identifiable, Equatable {
-    enum Kind: String { case keyword, date, type, style, hue, hex, favorites, trash }
+    enum Kind: String { case keyword, date, type, tag, style, hue, hex, favorites, trash }
     let kind: Kind
     let value: String
     let label: String
@@ -20,6 +20,11 @@ enum LibrarySearchTokens {
         "synthwave": "retro", "dreamlike": "surreal", "antique": "vintage", "colorful": "vibrant", "colourful": "vibrant", "saturated": "vibrant"
     ]
     private static let hueAliases = ["violet": "purple", "indigo": "purple", "magenta": "pink", "fuchsia": "pink", "gray": "neutral", "grey": "neutral"]
+
+    /// An exact tag filter, from clicking one of a card's tags.
+    static func tag(_ name: String) -> LibrarySearchToken {
+        .init(kind: .tag, value: name, label: "#\(name)")
+    }
 
     static func classify(_ input: String, now: Date = Date(), calendar: Calendar = .current) -> LibrarySearchToken {
         let value = input.split(whereSeparator: \.isWhitespace).joined(separator: " ").lowercased()

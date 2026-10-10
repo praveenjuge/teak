@@ -1,9 +1,12 @@
 import { Circle, HStack, Image, ScrollView, Text } from "@expo/ui/swift-ui";
 import {
+  accessibilityLabel,
   background,
+  contentShape,
   font,
   foregroundStyle,
   frame,
+  onTapGesture,
   padding,
   shapes,
 } from "@expo/ui/swift-ui/modifiers";
@@ -17,10 +20,13 @@ const chipBackground = background(
 /** A horizontally scrolling row of capsule chips, like the web's tag badges. */
 function ChipRow({
   colors,
+  onPressTag,
   sparkles = false,
   tags = [],
 }: {
   colors?: string[];
+  /** Makes each tag tappable, like the web's tag badges. */
+  onPressTag?: (tag: string) => void;
   sparkles?: boolean;
   tags?: string[];
 }) {
@@ -42,6 +48,13 @@ function ChipRow({
             modifiers={[
               padding({ horizontal: 10, vertical: 6 }),
               chipBackground,
+              ...(onPressTag
+                ? [
+                    contentShape(shapes.capsule()),
+                    onTapGesture(() => onPressTag(tag)),
+                    accessibilityLabel(`Search for ${tag}`),
+                  ]
+                : []),
             ]}
             spacing={4}
           >

@@ -80,6 +80,44 @@ extension SafariOAuthTests {
         try check(store.activeChips.isEmpty && !store.hasFilters && !store.trashOnly, "Clear All resets every filter")
     }
 
+    @MainActor static func tagFiltersAndBulkActions(cardJSON: String) async throws {
+        let store = LibraryStore(api: LibraryAPI(service: fixture(MemoryCredentials(tokens()))), onAuthenticationRequired: {})
+        let withAiTags = cardJSON.replacingOccurrences(of: "\"aiTags\":[]", with: "\"aiTags\":[\"Warm\",\"Autumn\"]")
+        let page = "{\"items\":[\(withAiTags)],\"pageInfo\":{\"hasMore\":false,\"nextCursor\":null}}"
+        MockHTTP.respond = { request in
+            let query = URLComponents(url: request.url!, resolvingAgainstBaseURL: false)!.queryItems ?? []
+            try check(query.filter { $0.name == "tag" }.map(\.value) == ["Autumn"], "clicking a tag filters by that exact tag")
+            try check(!query.contains { $0.name == "q" }, "a tag filter is not a keyword search")
+            return (200, page)
+        }
+        store.filterByTag("design")
+        store.filterByTag("Autumn")
+        try check(store.activeChips.filter { $0.kind == .tag }.map(\.label) == ["#Autumn"], "a new tag replaces the previous tag chip")
+        await store.loadFirstPage()
+
+        let removed = withAiTags.replacingOccurrences(of: "\"aiTags\":[\"Warm\",\"Autumn\"]", with: "\"aiTags\":[\"Autumn\"]")
+        MockHTTP.respond = { request in
+            let body: [String: Any]? = try requestJSON(request)
+            try check(request.httpMethod == "PATCH" && body?["removeAiTags"] as? [String] == ["Warm"],
+                      "removing a Teak tag sends only that tag")
+            return (200, removed)
+        }
+        let updated = try await store.removeAiTag("Warm", from: store.cards[0])
+        try check(updated.aiTags == ["Autumn"], "the card keeps its other Teak tags")
+
+        store.beginSelection(with: store.cards[0])
+        try check(store.isSelecting && store.selectedIDs == ["card-1"], "Select starts selection with that card")
+        MockHTTP.respond = { request in
+            let body: [String: Any]? = try requestJSON(request)
+            try check(request.url?.path == "/v1/cards/bulk" && body?["operation"] as? String == "delete",
+                      "bulk delete uses one bulk request")
+            return (200, #"{"operation":"delete","results":[{"index":0,"status":"success","cardId":"card-1"}],"summary":{"total":1,"succeeded":1,"failed":0}}"#)
+        }
+        await store.deleteSelected()
+        try check(store.cards.isEmpty && !store.isSelecting && store.statusMessage == "Moved 1 card to Trash",
+                  "bulk delete removes the cards, ends selection, and confirms")
+    }
+
     @MainActor static func creationSearchRace(cardJSON: String) async throws {
         let store = LibraryStore(api: LibraryAPI(service: fixture(MemoryCredentials(tokens()))), onAuthenticationRequired: {})
         let page = "{\"items\":[\(cardJSON)],\"pageInfo\":{\"hasMore\":false,\"nextCursor\":null}}"

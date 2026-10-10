@@ -2,6 +2,7 @@ import { List, Section } from "@expo/ui/swift-ui";
 import { listStyle } from "@expo/ui/swift-ui/modifiers";
 import { AiSummarySection } from "@/components/card-sheet/AiSummarySection";
 import { InfoSection } from "@/components/card-sheet/InfoSection";
+import { LinkDetailsSection } from "@/components/card-sheet/LinkDetailsSection";
 import { PreviewSection } from "@/components/card-sheet/PreviewSection";
 import { SheetText } from "@/components/card-sheet/SheetText";
 import { TagsNotesSection } from "@/components/card-sheet/TagsNotesSection";
@@ -29,6 +30,7 @@ function CardPreviewSheet({
           <SheetText destructive>{actionError}</SheetText>
         </Section>
       ) : null}
+      <LinkDetailsSection card={card} />
       <TagsNotesSection card={card} />
       <AiSummarySection card={card} />
       <InfoSection card={card} />

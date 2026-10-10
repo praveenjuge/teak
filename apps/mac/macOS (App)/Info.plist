@@ -3,6 +3,20 @@
 <plist version="1.0"><dict>
     <key>TeakKeychainAccessGroup</key><string>$(AppIdentifierPrefix)com.praveenjuge.teak-safari</string>
     <key>NSMicrophoneUsageDescription</key><string>Record audio to save in your Teak library.</string>
+    <key>NSServices</key>
+    <array><dict>
+        <key>NSMenuItem</key><dict><key>default</key><string>Save to Teak</string></dict>
+        <key>NSMessage</key><string>saveToTeak</string>
+        <key>NSPortName</key><string>Teak for Mac</string>
+        <key>NSRequiredContext</key><dict/>
+        <key>NSSendTypes</key><array>
+            <string>public.utf8-plain-text</string>
+            <string>public.url</string>
+            <string>public.file-url</string>
+            <string>public.image</string>
+        </array>
+        <key>NSSendFileTypes</key><array><string>public.item</string></array>
+    </dict></array>
     <key>CFBundleURLTypes</key>
     <array><dict>
         <key>CFBundleURLName</key><string>com.praveenjuge.teak-safari.oauth</string>

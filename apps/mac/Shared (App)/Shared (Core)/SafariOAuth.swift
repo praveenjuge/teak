@@ -145,11 +145,13 @@ nonisolated enum SafariServiceError: LocalizedError {
     case unauthenticated
     case invalidRefreshCredential
     case message(String)
+    /// The Free plan's card limit; the app offers an upgrade on the web.
+    case cardLimit(String)
 
     var errorDescription: String? {
         switch self {
         case .unauthenticated, .invalidRefreshCredential: return "Sign in to Teak to save pages."
-        case .message(let message): return message
+        case .message(let message), .cardLimit(let message): return message
         }
     }
 }

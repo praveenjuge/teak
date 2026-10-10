@@ -65,7 +65,14 @@ test("me returns the permanent owner for an API key and rejects it once revoked"
   const response = await request("/v1/me?userId=foreign-owner");
   expect(response.status).toBe(200);
   expect(await response.json()).toEqual({
-    data: { id: OWNER, email: `${OWNER}@example.test` },
+    data: {
+      id: OWNER,
+      email: `${OWNER}@example.test`,
+      cardCount: 0,
+      cardLimit: 200,
+      plan: "free",
+      settingsUrl: "https://app.teakvault.com/settings",
+    },
   });
   expect(response.headers.get("Cache-Control")).toBe("no-store");
   expect(response.headers.get("Access-Control-Allow-Origin")).toBe("*");
@@ -88,8 +95,30 @@ test("me reads the email and name from the WorkOS profile without exposing provi
       id: OWNER,
       email: "updated@example.test",
       name: "Identity Boundary",
+      cardCount: 0,
+      cardLimit: 200,
+      plan: "free",
+      settingsUrl: "https://app.teakvault.com/settings",
     },
   });
+});
+
+test("me reports active cards against the free limit, not trashed ones", async () => {
+  const { t, request } = await setup();
+  await t.run(async (ctx) => {
+    for (const isDeleted of [undefined, undefined, true] as const) {
+      await ctx.db.insert("cards", {
+        userId: OWNER,
+        type: "text",
+        content: "note",
+        createdAt: 1,
+        updatedAt: 1,
+        ...(isDeleted ? { isDeleted, deletedAt: 1 } : {}),
+      });
+    }
+  });
+  const { data } = await (await request()).json();
+  expect(data).toMatchObject({ cardCount: 2, cardLimit: 200, plan: "free" });
 });
 
 test("me denies an API key once its account is deleted", async () => {

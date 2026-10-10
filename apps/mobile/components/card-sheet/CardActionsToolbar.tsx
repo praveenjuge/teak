@@ -37,6 +37,7 @@ function CardActionsToolbar({
 }) {
   const router = useRouter();
   const updateCardField = useMutation(api.cards.updateCardField);
+  const permanentDeleteCard = useMutation(api.cards.permanentDeleteCard);
   const [favoriteOverride, setFavoriteOverride] = useState<boolean | null>(
     null
   );
@@ -133,11 +134,60 @@ function CardActionsToolbar({
     }
   }, [card._id, router, showError, updateCardField]);
 
+  const handleRestore = useCallback(async () => {
+    try {
+      await updateCardField({ cardId: card._id, field: "restore" });
+      void triggerSuccessHaptic();
+      router.back();
+    } catch {
+      showError("Couldn't restore this card.");
+    }
+  }, [card._id, router, showError, updateCardField]);
+
+  const handleDeleteForever = useCallback(async () => {
+    try {
+      await permanentDeleteCard({ id: card._id });
+      void triggerSuccessHaptic();
+      router.back();
+    } catch {
+      showError("Couldn't delete this card.");
+    }
+  }, [card._id, permanentDeleteCard, router, showError]);
+
   // Each tap starts fresh, so an earlier failure doesn't linger.
   const run = (action: () => Promise<void>) => () => {
     onError(null);
     void action();
   };
+
+  // In Trash the card can only come back or go for good, like Photos.
+  if (card.isDeleted) {
+    return (
+      <Stack.Toolbar>
+        <Stack.Toolbar.Button
+          icon="arrow.uturn.backward"
+          onPress={run(handleRestore)}
+        >
+          Restore
+        </Stack.Toolbar.Button>
+        <Stack.Toolbar.Spacer />
+        <Stack.Toolbar.Menu
+          accessibilityLabel="Delete Forever"
+          icon="trash"
+          tintColor={DESTRUCTIVE_TINT}
+          title="This card and its files will be deleted. You can't undo this."
+        >
+          <Stack.Toolbar.MenuAction
+            destructive
+            icon="trash"
+            onPress={run(handleDeleteForever)}
+          >
+            Delete Forever
+          </Stack.Toolbar.MenuAction>
+        </Stack.Toolbar.Menu>
+      </Stack.Toolbar>
+    );
+  }
 
   return (
     <Stack.Toolbar>
@@ -167,6 +217,16 @@ function CardActionsToolbar({
         icon={isFavorited ? "heart.fill" : "heart"}
         onPress={run(handleToggleFavorite)}
         tintColor={isFavorited ? DESTRUCTIVE_TINT : undefined}
+      />
+      <Stack.Toolbar.Button
+        accessibilityLabel="Edit"
+        icon="pencil"
+        onPress={() =>
+          router.push({
+            params: { id: card._id },
+            pathname: "/(tabs)/(home)/card/edit/[id]",
+          })
+        }
       />
       <Stack.Toolbar.Button
         accessibilityLabel="Copy"

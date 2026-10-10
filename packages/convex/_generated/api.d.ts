@@ -89,6 +89,7 @@ import type * as migration_exportBetterAuth from "../migration/exportBetterAuth.
 import type * as operationalRetention from "../operationalRetention.js";
 import type * as publicApi from "../publicApi.js";
 import type * as publicApiDuplicate from "../publicApiDuplicate.js";
+import type * as publicApiExports from "../publicApiExports.js";
 import type * as publicApiHttp from "../publicApiHttp.js";
 import type * as publicApiHttpAuth from "../publicApiHttpAuth.js";
 import type * as publicApiHttpCards from "../publicApiHttpCards.js";
@@ -298,6 +299,7 @@ declare const fullApi: ApiFromModules<{
   operationalRetention: typeof operationalRetention;
   publicApi: typeof publicApi;
   publicApiDuplicate: typeof publicApiDuplicate;
+  publicApiExports: typeof publicApiExports;
   publicApiHttp: typeof publicApiHttp;
   publicApiHttpAuth: typeof publicApiHttpAuth;
   publicApiHttpCards: typeof publicApiHttpCards;

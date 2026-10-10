@@ -3,12 +3,20 @@ import { RaycastApiError } from "./apiErrors";
 export interface RaycastCard {
   aiSummary: string | null;
   aiTags: string[];
+  /** Present when the request includes processing fields. */
+  aiTranscript?: string | null;
   appUrl: string | null;
+  colors?: Array<{ hex: string; name?: string }>;
   content: string;
   createdAt: number;
+  fileName?: string | null;
+  fileSize?: number | null;
   fileUrl: string | null;
   id: string;
+  isDeleted?: boolean;
   isFavorited: boolean;
+  linkFacts?: Array<{ label: string; value: string }>;
+  mimeType?: string | null;
   linkPreviewImageUrl: string | null;
   metadataDescription: string | null;
   metadataTitle: string | null;
@@ -32,6 +40,7 @@ export interface TagsResponse {
 
 export interface CardsResponse {
   items: RaycastCard[];
+  nextCursor: string | null;
   total: number;
 }
 
@@ -118,6 +127,8 @@ export const parseCardsPageResponse = (payload: unknown): CardsResponse => {
 
   return {
     items,
+    nextCursor:
+      typeof pageInfo.nextCursor === "string" ? pageInfo.nextCursor : null,
     total: items.length,
   };
 };
@@ -145,6 +156,29 @@ export const parseTagsResponse = (payload: unknown): TagsResponse => {
     items,
   };
 };
+
+export interface UploadTarget {
+  fileKey: string;
+  uploadUrl: string;
+}
+
+export const parseUploadResponse = (payload: unknown): UploadTarget => {
+  if (
+    !(
+      isJsonObject(payload) &&
+      typeof payload.fileKey === "string" &&
+      typeof payload.uploadUrl === "string"
+    )
+  ) {
+    throw new RaycastApiError("REQUEST_FAILED");
+  }
+  return { fileKey: payload.fileKey, uploadUrl: payload.uploadUrl };
+};
+
+export const parseDuplicateResponse = (payload: unknown): string | null =>
+  isJsonObject(payload) && typeof payload.cardId === "string"
+    ? payload.cardId
+    : null;
 
 export const parseQuickSaveResponse = (payload: unknown): QuickSaveResponse => {
   if (!isJsonObject(payload)) {

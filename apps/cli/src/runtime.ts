@@ -544,7 +544,7 @@ export const exitCodeFor = (error: unknown) => {
   return EXIT.api;
 };
 
-const openBrowser = (url: string) => {
+export const openBrowser = (url: string) => {
   let command = "xdg-open";
   if (platform() === "darwin") {
     command = "open";

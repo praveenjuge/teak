@@ -14,17 +14,22 @@ import {
   RaycastApiError,
   type RaycastCard,
   setCardFavorite,
-  softDeleteCard,
 } from "../lib/api";
 import {
+  formatFileSize,
   getCardDomain,
   getCardTitle,
+  getDetailMarkdown,
   getDetailStatusChips,
-  getHeroMediaUrl,
   getOpenableUrl,
   getTeakUrl,
 } from "../lib/cardDetailModel";
 import { formatDateTime } from "../lib/dateFormat";
+import {
+  deleteCardForever,
+  moveCardToTrash,
+  restoreFromTrash,
+} from "../lib/trashActions";
 import { EditCardForm } from "./EditCardForm";
 import { SetApiKeyAction } from "./SetApiKeyAction";
 import { SignOutAction } from "./SignOutAction";
@@ -191,48 +196,40 @@ export function CardDetail({
     queueFavoriteCommit(nextValue);
   }, [patchFavorite, queueFavoriteCommit]);
 
-  const handleSoftDelete = useCallback(async () => {
+  const leaveDetail = useCallback(() => {
+    onNavigateBackAfterDelete();
+    pop();
+  }, [onNavigateBackAfterDelete, pop]);
+
+  const handleMoveToTrash = useCallback(async () => {
     if (isDeleting) {
       return;
     }
-
     setIsDeleting(true);
-    const snapshot = cardStateRef.current;
-    onCardDeleted(snapshot.id);
-    const toast = await showToast({
-      style: Toast.Style.Animated,
-      title: "Deleting card…",
-    });
-
     try {
-      await softDeleteCard(snapshot.id);
-      toast.style = Toast.Style.Success;
-      toast.title = "Card deleted";
-      onNavigateBackAfterDelete();
-      pop();
-    } catch (error) {
-      if (error instanceof RaycastApiError && error.code === "NOT_FOUND") {
-        toast.style = Toast.Style.Success;
-        toast.title = "Card already removed";
-        onNavigateBackAfterDelete();
-        pop();
-        return;
+      const moved = await moveCardToTrash(cardStateRef.current, {
+        onRemoved: onCardDeleted,
+        onRestored: onCardUpdated,
+      });
+      if (moved) {
+        leaveDetail();
       }
-
-      onCardUpdated(snapshot);
-      toast.style = Toast.Style.Failure;
-      toast.title = "Delete failed";
-      toast.message = toToastMessage(error);
     } finally {
       setIsDeleting(false);
     }
-  }, [
-    isDeleting,
-    onCardDeleted,
-    onCardUpdated,
-    onNavigateBackAfterDelete,
-    pop,
-  ]);
+  }, [isDeleting, leaveDetail, onCardDeleted, onCardUpdated]);
+
+  const handleRestore = useCallback(async () => {
+    if (await restoreFromTrash(cardStateRef.current, onCardDeleted)) {
+      leaveDetail();
+    }
+  }, [leaveDetail, onCardDeleted]);
+
+  const handleDeleteForever = useCallback(async () => {
+    if (await deleteCardForever(cardStateRef.current, onCardDeleted)) {
+      leaveDetail();
+    }
+  }, [leaveDetail, onCardDeleted]);
 
   const handleTagAction = useCallback(
     (tag: string) => {
@@ -275,29 +272,10 @@ export function CardDetail({
     ? truncateMiddle(cardState.url, MAX_METADATA_URL_LENGTH)
     : undefined;
   const title = getCardTitle(cardState);
-  const heroMediaUrl = getHeroMediaUrl(cardState);
-
-  const markdown = useMemo(() => {
-    const sections = [
-      `# ${title}`,
-      "",
-      heroMediaUrl ? `![](${heroMediaUrl})` : "",
-      heroMediaUrl ? "" : "",
-      "## Content",
-      "",
-      cardState.content || "_No content_",
-      cardState.notes ? `\n## Notes\n\n${cardState.notes}` : "",
-      cardState.aiSummary ? `\n## Teak Summary\n\n${cardState.aiSummary}` : "",
-    ];
-
-    return sections.filter(Boolean).join("\n");
-  }, [
-    cardState.aiSummary,
-    cardState.content,
-    cardState.notes,
-    heroMediaUrl,
-    title,
-  ]);
+  const markdown = useMemo(() => getDetailMarkdown(cardState), [cardState]);
+  const inTrash = Boolean(cardState.isDeleted);
+  const colors = cardState.colors ?? [];
+  const linkFacts = cardState.linkFacts ?? [];
 
   const statusChips = getDetailStatusChips(cardState);
 
@@ -317,29 +295,72 @@ export function CardDetail({
               title="Copy Content"
             />
           )}
-          <Action
-            icon={Icon.Star}
-            onAction={handleToggleFavorite}
-            shortcut={{ modifiers: ["cmd"], key: "f" }}
-            title={cardState.isFavorited ? "Remove Favorite" : "Add Favorite"}
-          />
-          <Action.Push
-            icon={Icon.Pencil}
-            shortcut={{ modifiers: ["cmd"], key: "e" }}
-            target={
-              <EditCardForm card={cardState} onCardUpdated={emitCardUpdate} />
-            }
-            title="Edit Tags & Notes"
-          />
-          <Action
-            icon={Icon.Trash}
-            onAction={() => {
-              void handleSoftDelete();
-            }}
-            shortcut={{ modifiers: ["cmd", "shift"], key: "d" }}
-            style={Action.Style.Destructive}
-            title={isDeleting ? "Deleting…" : "Delete"}
-          />
+          {cardState.fileUrl ? (
+            <Action.OpenInBrowser
+              icon={Icon.Paperclip}
+              shortcut={{ modifiers: ["cmd", "shift"], key: "o" }}
+              title="Open File"
+              url={cardState.fileUrl}
+            />
+          ) : null}
+          {inTrash ? (
+            <ActionPanel.Section>
+              <Action
+                icon={Icon.ArrowCounterClockwise}
+                onAction={() => void handleRestore()}
+                shortcut={{ modifiers: ["cmd", "shift"], key: "r" }}
+                title="Restore"
+              />
+              <Action
+                icon={Icon.Trash}
+                onAction={() => void handleDeleteForever()}
+                shortcut={{ modifiers: ["ctrl"], key: "x" }}
+                style={Action.Style.Destructive}
+                title="Delete Forever"
+              />
+            </ActionPanel.Section>
+          ) : (
+            <ActionPanel.Section>
+              <Action
+                icon={Icon.Star}
+                onAction={handleToggleFavorite}
+                shortcut={{ modifiers: ["cmd"], key: "f" }}
+                title={
+                  cardState.isFavorited ? "Remove Favorite" : "Add Favorite"
+                }
+              />
+              <Action.Push
+                icon={Icon.Pencil}
+                shortcut={{ modifiers: ["cmd"], key: "e" }}
+                target={
+                  <EditCardForm
+                    card={cardState}
+                    onCardUpdated={emitCardUpdate}
+                  />
+                }
+                title="Edit Card"
+              />
+              <Action
+                icon={Icon.Trash}
+                onAction={() => void handleMoveToTrash()}
+                shortcut={{ modifiers: ["ctrl"], key: "x" }}
+                style={Action.Style.Destructive}
+                title={isDeleting ? "Moving to Trash…" : "Move to Trash"}
+              />
+            </ActionPanel.Section>
+          )}
+          {colors.length > 0 ? (
+            <ActionPanel.Submenu icon={Icon.Swatch} title="Copy Color">
+              {colors.map((color) => (
+                <Action.CopyToClipboard
+                  content={color.hex}
+                  icon={{ source: Icon.CircleFilled, tintColor: color.hex }}
+                  key={color.hex}
+                  title={color.name ? `${color.name} ${color.hex}` : color.hex}
+                />
+              ))}
+            </ActionPanel.Submenu>
+          ) : null}
           {openableUrl ? (
             <Action.CopyToClipboard
               content={cardState.content}
@@ -380,6 +401,42 @@ export function CardDetail({
             <Detail.Metadata.Label text={domain} title="Domain" />
           ) : null}
           {domain ? <Detail.Metadata.Separator /> : null}
+          {cardState.fileName ? (
+            <Detail.Metadata.Label
+              icon={Icon.Paperclip}
+              text={
+                cardState.fileSize
+                  ? `${cardState.fileName} · ${formatFileSize(cardState.fileSize)}`
+                  : cardState.fileName
+              }
+              title="File"
+            />
+          ) : null}
+          {linkFacts.map((fact) => (
+            <Detail.Metadata.Label
+              key={`fact-${fact.label}`}
+              text={fact.value}
+              title={fact.label}
+            />
+          ))}
+          {colors.length > 0 ? (
+            <Detail.Metadata.TagList title="Colors">
+              {colors.map((color) => (
+                <Detail.Metadata.TagList.Item
+                  color={color.hex}
+                  key={`color-${color.hex}`}
+                  text={color.hex}
+                />
+              ))}
+            </Detail.Metadata.TagList>
+          ) : null}
+          {inTrash ? (
+            <Detail.Metadata.Label
+              icon={Icon.Trash}
+              text="Teak empties Trash after 30 days"
+              title="In Trash"
+            />
+          ) : null}
           <Detail.Metadata.TagList title="Status">
             {statusChips.map((chip) => (
               <Detail.Metadata.TagList.Item

@@ -1,6 +1,6 @@
 import { existsSync, readFileSync, statSync } from "node:fs";
 import path from "node:path";
-import { parseTags } from "@teak/convex/sdk";
+import { type CardType, parseTags } from "@teak/convex/sdk";
 import {
   inferFileFormat,
   isGenericMimeType,
@@ -80,10 +80,12 @@ export const addCard = async (
     file?: string;
     notes?: string;
     tags?: string;
+    type?: string;
     url?: string;
   }
 ) => {
   const api = client(options);
+  const cardType = options.type as CardType | undefined;
   const tags = parseTags(options.tags);
   const { candidate, raw } = await resolveAddInput(input, options.file);
   const uploadFile = candidate ? getUploadFileInfo(candidate) : null;
@@ -100,6 +102,7 @@ export const addCard = async (
       mimeType
     );
     return api.cards.create({
+      cardType,
       fileKey: upload.fileKey,
       fileEtag: uploaded.fileEtag,
       fileName,
@@ -117,8 +120,10 @@ export const addCard = async (
       "provide text, a URL, a file path, --url, --file, or stdin"
     );
   }
+  // Like the web composer, let Teak detect links, quotes, and palettes unless
+  // the caller picked a type. Structured Markdown always stays a text card.
   return api.cards.create({
-    cardType: url ? undefined : "text",
+    cardType,
     content,
     notes: options.notes,
     source: "cli",

@@ -1,5 +1,17 @@
 # Changelog
 
+## [Files, Trash, and richer cards] - {PR_MERGE_DATE}
+
+- New Save Finder Selection command uploads the files selected in Finder
+- Save Clipboard uploads copied files and images
+- Teak detects quotes and palettes from saved text, like the web app
+- Save Current Browser Tab says when a page is already saved
+- Search loads more results as you scroll and understands `trash`, `hue:`, `style:`, `#hex`, `after:`, and `before:`
+- Card details show palette colors, transcripts, file names, and link facts, with Open File and Copy Color actions
+- Move to Trash offers Undo, and Trash has Restore and Delete Forever
+- Edit Card rewrites text and quote cards and removes tags Teak added
+- New Update Teak Card AI tool adds or removes tags and changes notes
+
 ## [Shared Teak sign-in] - {PR_MERGE_DATE}
 
 - Sign-in, token renewal, and Sign Out now use the same Teak sign-in library as the CLI and browser extension

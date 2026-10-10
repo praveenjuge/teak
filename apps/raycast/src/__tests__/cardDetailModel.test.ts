@@ -5,7 +5,9 @@ import { createRaycastApiMock } from "./raycastApiMock";
 mock.module("@raycast/api", () => createRaycastApiMock(false));
 
 const {
+  formatFileSize,
   getCardTitle,
+  getDetailMarkdown,
   getDetailStatusChips,
   getHeroMediaUrl,
   getOpenableUrl,
@@ -105,5 +107,48 @@ describe("card detail model", () => {
       { kind: "aiSummary", text: "No Teak Summary" },
       { kind: "aiTags", text: "No Teak Tags" },
     ]);
+  });
+});
+
+describe("card detail markdown", () => {
+  test("shows palette swatches and copyable hex colors for palette cards", () => {
+    const markdown = getDetailMarkdown({
+      ...baseCard,
+      type: "palette",
+      url: null,
+      colors: [{ hex: "#112233" }, { hex: "javascript:alert(1)" }],
+    });
+    expect(markdown).toContain("![#112233](data:image/svg+xml;base64,");
+    expect(markdown.match(/data:image\/svg\+xml/g)).toHaveLength(1);
+    expect(markdown).not.toContain("javascript:");
+  });
+
+  test("includes the transcript and quotes quote cards", () => {
+    const markdown = getDetailMarkdown({
+      ...baseCard,
+      type: "quote",
+      content: "Less, but better.",
+      aiTranscript: "Spoken words",
+    });
+    expect(markdown).toContain("> Less, but better.");
+    expect(markdown).toContain("## Transcript\n\nSpoken words");
+  });
+
+  test("skips content that only repeats a file's name", () => {
+    const markdown = getDetailMarkdown({
+      ...baseCard,
+      type: "document",
+      content: "notes.pdf",
+      fileName: "notes.pdf",
+    });
+    expect(markdown).not.toContain("## Content");
+  });
+
+  test.each([
+    [512, "512 B"],
+    [4_812_000, "4.6 MB"],
+    [52_428_800, "50 MB"],
+  ])("formats %i bytes as %s", (bytes, text) => {
+    expect(formatFileSize(bytes)).toBe(text);
   });
 });

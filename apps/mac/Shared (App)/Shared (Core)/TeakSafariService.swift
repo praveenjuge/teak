@@ -281,7 +281,9 @@ actor TeakSafariService {
                 && parts[3] == "favorite" && method == "PATCH")
             || (cardRoute && parts.count == 4 && Self.isValidCardID(parts[2])
                 && parts[3] == "restore" && method == "POST")
+            || (cardRoute && parts.count == 3 && parts[2] == "bulk" && method == "POST")
             || (path == "v1/uploads" && method == "POST")
+            || (path == "v1/me" && method == "GET")
         guard validRoute else { throw SafariServiceError.message("Invalid library request.") }
         var components = URLComponents(url: baseURL.appendingPathComponent(path), resolvingAgainstBaseURL: false)!
         components.queryItems = queryItems.isEmpty ? nil : queryItems
@@ -494,7 +496,9 @@ actor TeakSafariService {
         }
         guard (200..<300).contains(response.statusCode) else {
             let body = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any]
-            throw SafariServiceError.message(body?["error"] as? String ?? "Unable to update your library. Please try again.")
+            let message = body?["error"] as? String ?? "Unable to update your library. Please try again."
+            if body?["code"] as? String == "CARD_LIMIT_REACHED" { throw SafariServiceError.cardLimit(message) }
+            throw SafariServiceError.message(message)
         }
         return data
     }

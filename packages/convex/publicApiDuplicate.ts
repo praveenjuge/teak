@@ -1,22 +1,25 @@
 import { internal } from "./_generated/api";
-import { httpAction } from "./_generated/server";
-import { withAuthorizedUser } from "./publicApiHttp";
+import { type ActionCtx, httpAction } from "./_generated/server";
+import { withAuthorizedUser } from "./publicApiHttpAuth";
 import { json, withPublicApiGatewayHeaders } from "./publicApiMeta";
 import { isSafeExternalUrl } from "./shared/utils/safeUrl";
+import type { WorkosResource } from "./workosTokens";
 
-export const duplicateCardV1 = httpAction(async (ctx, request) => {
-  const respond = (body: object, status = 200) =>
-    withPublicApiGatewayHeaders(json(status, body));
-  const auth = await withAuthorizedUser(ctx, request);
+export async function handleDuplicateCardRequest(
+  ctx: ActionCtx,
+  request: Request,
+  resource: WorkosResource = "api"
+): Promise<Response> {
+  const auth = await withAuthorizedUser(ctx, request, { resource });
   if ("error" in auth) {
-    return withPublicApiGatewayHeaders(auth.error);
+    return auth.error;
   }
   const url = new URL(request.url).searchParams.get("url")?.trim();
   if (!url || url.length > 8192 || !isSafeExternalUrl(url)) {
-    return respond(
-      { code: "INVALID_INPUT", error: "Provide an HTTP or HTTPS URL" },
-      400
-    );
+    return json(400, {
+      code: "INVALID_INPUT",
+      error: "Provide an HTTP or HTTPS URL",
+    });
   }
   const card = await ctx.runQuery(
     internal.card.findDuplicateCard.findDuplicateCardForUser,
@@ -25,5 +28,9 @@ export const duplicateCardV1 = httpAction(async (ctx, request) => {
       url,
     }
   );
-  return respond({ cardId: card?._id ?? null });
-});
+  return json(200, { cardId: card?._id ?? null });
+}
+
+export const duplicateCardV1 = httpAction(async (ctx, request) =>
+  withPublicApiGatewayHeaders(await handleDuplicateCardRequest(ctx, request))
+);

@@ -25,7 +25,6 @@ function TagCardsView({ tag }: { tag: string }) {
       emptyDescription={`No cards are tagged with "${tag}" right now.`}
       emptyIcon={Icon.Tag}
       emptyTitle={`No cards tagged "${tag}"`}
-      getItemIcon={(card) => (card.isFavorited ? Icon.Star : Icon.Document)}
       latestSectionTitle={`Cards tagged "${tag}"`}
       loadCards={(input) => searchCards({ ...input, limit: 50, tag })}
       navigationTitle={`Tag: ${tag}`}

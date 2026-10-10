@@ -11,18 +11,79 @@ export const CARD_TYPES = [
 
 export const SORT_OPTIONS = ["newest", "oldest"] as const;
 
+// Same vocabularies as Teak's web search chips.
+export const HUE_OPTIONS = [
+  "red",
+  "orange",
+  "yellow",
+  "green",
+  "teal",
+  "cyan",
+  "blue",
+  "purple",
+  "pink",
+  "brown",
+  "neutral",
+] as const;
+export const STYLE_OPTIONS = [
+  "abstract",
+  "cinematic",
+  "dark",
+  "illustrative",
+  "minimal",
+  "monochrome",
+  "moody",
+  "pastel",
+  "photographic",
+  "retro",
+  "surreal",
+  "vintage",
+  "vibrant",
+] as const;
+
 export type RaycastCardType = (typeof CARD_TYPES)[number];
 export type RaycastSort = (typeof SORT_OPTIONS)[number];
 
 export interface ParsedSearchFilters {
+  /** `after:2026-09`: saved on or after this Unix ms timestamp. */
+  createdAfter?: number;
+  /** `before:2026-09`: saved before this Unix ms timestamp. */
+  createdBefore?: number;
   favorited?: boolean;
   hasExplicitFilters: boolean;
+  hex: string[];
+  hue: string[];
   query: string;
   rawQuery: string;
   sort: RaycastSort;
+  style: string[];
   tag?: string;
+  trashed?: boolean;
   type?: RaycastCardType;
 }
+
+const HEX_COLOR = /^#(?:[0-9a-f]{3,4}|[0-9a-f]{6}|[0-9a-f]{8})$/i;
+const DATE_VALUE = /^(\d{4})(?:-(\d{2}))?(?:-(\d{2}))?$/;
+
+/** Parses `2026`, `2026-09`, or `2026-09-14` as the start of that period. */
+export const parseDateFilter = (value: string): number | undefined => {
+  const match = DATE_VALUE.exec(value.trim());
+  if (!match) {
+    return undefined;
+  }
+  const month = match[2] ? Number(match[2]) - 1 : 0;
+  const day = match[3] ? Number(match[3]) : 1;
+  if (month > 11 || day < 1 || day > 31) {
+    return undefined;
+  }
+  return new Date(Number(match[1]), month, day).getTime();
+};
+
+const formatDateFilter = (timestamp: number): string => {
+  const date = new Date(timestamp);
+  const pad = (value: number) => String(value).padStart(2, "0");
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
+};
 
 const CARD_TYPE_SET = new Set<string>(CARD_TYPES);
 
@@ -136,13 +197,29 @@ export const parseSearchFilters = (rawQuery: string): ParsedSearchFilters => {
   let favorited: boolean | undefined;
   let sort: RaycastSort = "newest";
   let tag: string | undefined;
+  let trashed: boolean | undefined;
   let type: RaycastCardType | undefined;
+  let createdAfter: number | undefined;
+  let createdBefore: number | undefined;
+  const hue: string[] = [];
+  const style: string[] = [];
+  const hex: string[] = [];
 
   for (const token of tokens) {
     const normalized = token.toLowerCase();
 
     if (["fav", "favorite", "favorites"].includes(normalized)) {
       favorited = true;
+      continue;
+    }
+
+    if (["trash", "trashed", "deleted"].includes(normalized)) {
+      trashed = true;
+      continue;
+    }
+
+    if (HEX_COLOR.test(token)) {
+      hex.push(normalized);
       continue;
     }
 
@@ -176,6 +253,39 @@ export const parseSearchFilters = (rawQuery: string): ParsedSearchFilters => {
       continue;
     }
 
+    if (
+      key === "hue" &&
+      (HUE_OPTIONS as readonly string[]).includes(value.toLowerCase())
+    ) {
+      hue.push(value.toLowerCase());
+      continue;
+    }
+
+    if (
+      key === "style" &&
+      (STYLE_OPTIONS as readonly string[]).includes(value.toLowerCase())
+    ) {
+      style.push(value.toLowerCase());
+      continue;
+    }
+
+    if (key === "after" || key === "before") {
+      const timestamp = parseDateFilter(value);
+      if (timestamp !== undefined) {
+        if (key === "after") {
+          createdAfter = timestamp;
+        } else {
+          createdBefore = timestamp;
+        }
+        continue;
+      }
+    }
+
+    if (key === "in" && value.toLowerCase() === "trash") {
+      trashed = true;
+      continue;
+    }
+
     if (key === "fav" || key === "favorite" || key === "favorited") {
       const nextFavorited = normalizeFavorited(value);
       if (nextFavorited !== undefined) {
@@ -188,23 +298,44 @@ export const parseSearchFilters = (rawQuery: string): ParsedSearchFilters => {
   }
 
   return {
+    createdAfter,
+    createdBefore,
     favorited,
     hasExplicitFilters: Boolean(
-      favorited !== undefined || sort !== "newest" || tag || type,
+      favorited !== undefined ||
+      sort !== "newest" ||
+      tag ||
+      type ||
+      trashed ||
+      hue.length ||
+      style.length ||
+      hex.length ||
+      createdAfter !== undefined ||
+      createdBefore !== undefined,
     ),
+    hex,
+    hue,
     query: queryTerms.join(" ").trim(),
     rawQuery,
     sort,
+    style,
     tag,
+    trashed,
     type,
   };
 };
 
 export const buildSearchText = (filters: {
+  createdAfter?: number;
+  createdBefore?: number;
   favorited?: boolean;
+  hex?: string[];
+  hue?: string[];
   query?: string;
   sort?: RaycastSort;
+  style?: string[];
   tag?: string;
+  trashed?: boolean;
   type?: RaycastCardType;
 }): string => {
   const tokens: string[] = [];
@@ -226,11 +357,46 @@ export const buildSearchText = (filters: {
     tokens.push("fav");
   }
 
+  if (filters.trashed) {
+    tokens.push("trash");
+  }
+
+  for (const value of filters.hue ?? []) {
+    tokens.push(`hue:${value}`);
+  }
+
+  for (const value of filters.style ?? []) {
+    tokens.push(`style:${value}`);
+  }
+
+  tokens.push(...(filters.hex ?? []));
+
+  if (filters.createdAfter !== undefined) {
+    tokens.push(`after:${formatDateFilter(filters.createdAfter)}`);
+  }
+
+  if (filters.createdBefore !== undefined) {
+    tokens.push(`before:${formatDateFilter(filters.createdBefore)}`);
+  }
+
   if (normalizeSort(filters.sort) === "oldest") {
     tokens.push("sort:oldest");
   }
 
   return tokens.join(" ").trim();
+};
+
+export const applyTrashedFilter = (
+  rawQuery: string,
+  trashed?: boolean,
+): string => {
+  const parsed = parseSearchFilters(rawQuery);
+  return buildSearchText({ ...parsed, trashed });
+};
+
+export const applyHueFilter = (rawQuery: string, hue?: string): string => {
+  const parsed = parseSearchFilters(rawQuery);
+  return buildSearchText({ ...parsed, hue: hue ? [hue] : [] });
 };
 
 export const applyTagFilter = (rawQuery: string, tag: string): string => {

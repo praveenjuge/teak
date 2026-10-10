@@ -21,9 +21,15 @@ interface EditCardFormProps {
 }
 
 interface EditCardFormValues {
+  aiTags: string[];
+  content?: string;
   notes: string;
   tags: string;
 }
+
+// The web lets you rewrite text and quote cards; other types keep their
+// source content (a URL, a file, colors) and only take notes and tags.
+const EDITABLE_CONTENT_TYPES = new Set(["text", "quote"]);
 
 const parseTags = (value: string): string[] =>
   Array.from(
@@ -39,12 +45,15 @@ export function EditCardForm({ card, onCardUpdated }: EditCardFormProps) {
   const { pop } = useNavigation();
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  const canEditContent = EDITABLE_CONTENT_TYPES.has(card.type);
   const initialValues = useMemo<EditCardFormValues>(
     () => ({
+      aiTags: card.aiTags,
+      content: card.content,
       notes: card.notes ?? "",
       tags: card.tags.join(", "),
     }),
-    [card.notes, card.tags],
+    [card.aiTags, card.content, card.notes, card.tags],
   );
 
   const handleSubmit = async (values: EditCardFormValues) => {
@@ -59,8 +68,17 @@ export function EditCardForm({ card, onCardUpdated }: EditCardFormProps) {
     });
 
     try {
+      const removeAiTags = card.aiTags.filter(
+        (tag) => !values.aiTags.includes(tag),
+      );
+      const content =
+        canEditContent && values.content !== card.content
+          ? values.content
+          : undefined;
       const updated = await updateCard(card.id, {
+        content,
         notes: values.notes.trim() ? values.notes.trim() : null,
+        removeAiTags: removeAiTags.length > 0 ? removeAiTags : undefined,
         tags: parseTags(values.tags),
       });
       onCardUpdated(updated);
@@ -90,8 +108,16 @@ export function EditCardForm({ card, onCardUpdated }: EditCardFormProps) {
           />
         </ActionPanel>
       }
-      navigationTitle="Edit Tags & Notes"
+      navigationTitle="Edit Card"
     >
+      {canEditContent ? (
+        <Form.TextArea
+          defaultValue={initialValues.content}
+          enableMarkdown={card.type === "text"}
+          id="content"
+          title={card.type === "quote" ? "Quote" : "Content"}
+        />
+      ) : null}
       <Form.TextArea
         defaultValue={initialValues.notes}
         id="notes"
@@ -104,6 +130,18 @@ export function EditCardForm({ card, onCardUpdated }: EditCardFormProps) {
         placeholder="design, research, inspiration"
         title="Tags"
       />
+      {card.aiTags.length > 0 ? (
+        <Form.TagPicker
+          defaultValue={initialValues.aiTags}
+          id="aiTags"
+          info="Tags Teak added. Remove any that don't fit."
+          title="Teak Tags"
+        >
+          {card.aiTags.map((tag) => (
+            <Form.TagPicker.Item key={tag} title={tag} value={tag} />
+          ))}
+        </Form.TagPicker>
+      ) : null}
     </Form>
   );
 }

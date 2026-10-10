@@ -84,7 +84,7 @@ interface CreateUploadPayload {
   fileSize: number;
   mimeType: string;
 }
-type QueryValue = boolean | number | string | undefined;
+type QueryValue = boolean | number | string | readonly string[] | undefined;
 export interface PublicApiOperation {
   body?: unknown;
   headers?: HeadersInit;

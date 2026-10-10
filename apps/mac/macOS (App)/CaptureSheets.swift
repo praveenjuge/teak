@@ -11,6 +11,8 @@ final class LibraryNoteDraft: ObservableObject {
     @Published var expanded = false
     @Published var saving = false
     @Published var error: String?
+    /// True after the Free plan's card limit blocked a save.
+    @Published var limitReached = false
     private var key = UUID().uuidString
 
     func save(onCreated: (String) -> Void, onAuthenticationRequired: () -> Void) async {
@@ -22,8 +24,13 @@ final class LibraryNoteDraft: ObservableObject {
             text = ""
             expanded = false
             error = nil
+            limitReached = false
             onCreated(id)
         } catch SafariServiceError.unauthenticated { onAuthenticationRequired() }
+        catch SafariServiceError.cardLimit(let message) {
+            self.error = message
+            limitReached = true
+        }
         catch { self.error = error.localizedDescription }
     }
 }
@@ -92,7 +99,13 @@ struct NoteComposer: View {
     }
 
     @ViewBuilder private var errorMessage: some View {
-        if let error = draft.error { Text(error).foregroundStyle(.red) }
+        if let error = draft.error {
+            Text(error).foregroundStyle(.red)
+            if draft.limitReached {
+                Button("Upgrade to Pro…") { NSWorkspace.shared.open(LibraryLinks.settings) }
+                    .buttonStyle(.link)
+            }
+        }
     }
 
     private var saveButton: some View {

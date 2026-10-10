@@ -33,14 +33,40 @@ Prefer an API key? Paste one from **Teak Settings → Security → API keys** in
 
 - **Quick Save**: Open an input form to type or paste text and URLs to save.
 - **Save to Teak**: Save any text or URL in one step. Accepts an optional argument and works as a [Raycast fallback command](https://manual.raycast.com/fallback-commands), so pressing Enter on a root search with no results can save that query straight to Teak.
-- **Save Clipboard**: Save the current clipboard contents to Teak with no prompt.
+- **Save Clipboard**: Save the current clipboard contents to Teak with no prompt. A copied file or image is uploaded as a file card.
 - **Save Selected Text**: Save the text currently highlighted in any app. Ideal paired with a global hotkey.
-- **Save Current Browser Tab**: Save the active browser tab directly from Raycast. Requires the [Raycast Browser Extension](https://www.raycast.com/browser-extension).
-- **Search Cards**: Find and open cards instantly.
+- **Save Current Browser Tab**: Save the active browser tab directly from Raycast. If the page is already in Teak, it says **Already saved** and offers to open the card instead. Requires the [Raycast Browser Extension](https://www.raycast.com/browser-extension).
+- **Save Finder Selection**: Upload the files selected in Finder, up to 100 MB each, the same as dropping them on the web app.
+- **Search Cards**: Find and open cards instantly. Results keep loading as you scroll.
 - **Favorites**: Jump to your starred cards.
 - **Browse Tags**: See every tag in your vault with per-tag card counts, then drill into a tag to search within it.
 
-Text saved from Raycast is stored as raw Markdown exactly as entered, while URL-only saves continue to become link cards.
+Like the web, Teak works out the card type from what you save: a URL becomes a link, text in quotation marks becomes a quote, and a list of colors becomes a palette. Structured Markdown stays a text card exactly as entered.
+
+### Search filters
+
+Type these into **Search Cards** or **Favorites**, or pick them from the **Filters** actions:
+
+| Filter | Example |
+| --- | --- |
+| Type | `type:image` |
+| Tag | `tag:design` or `tag:"design systems"` |
+| Favorites | `fav` |
+| Trash | `trash` |
+| Color family | `hue:blue` |
+| Visual style | `style:minimal` |
+| Exact color | `#112233` |
+| Saved on or after / before | `after:2026-09`, `before:2026-10-15` |
+| Oldest first | `sort:oldest` |
+
+### Card details and actions
+
+A card shows its image, text, notes, Teak's summary and tags, file name and size, link facts, palette colors, and transcript. Raycast can't play video or audio or preview documents, so use **Open File** (⌘⇧O) or **Open in Teak** (⌘O) for those.
+
+- **Edit Card** (⌘E): change notes and tags, rewrite text and quote cards, and remove tags Teak added.
+- **Copy Color**: copy any color from a palette or image.
+- **Move to Trash** (⌃X): moves the card to Trash with an **Undo** option.
+- In Trash, **Restore** (⌘⇧R) brings a card back, and **Delete Forever** (⌃X) removes it and its files after you confirm. Teak empties Trash after 30 days.
 
 ## AI Tools
 
@@ -54,6 +80,7 @@ Teak exposes the following tools for [Raycast AI](https://www.raycast.com/ai):
 | **Get Teak Card**         | Fetch the full details of a specific card by ID.                  |
 | **List Teak Tags**        | List your tags with per-tag card counts.                          |
 | **Toggle Favorite**       | Favorite or unfavorite a card. Requires confirmation.             |
+| **Update Teak Card**      | Add or remove tags, including Teak's, or change notes. Requires confirmation. |
 
 AI tools use the same sign-in as the extension — no extra setup required.
 

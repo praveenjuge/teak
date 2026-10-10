@@ -9,7 +9,7 @@ export const safariAccountSummary = httpAction(async (ctx, request) => {
   }
   const profile = await ctx.runQuery(internal.publicApiMe.profileForOwner, {
     teakUserId: auth.validated.userId,
-    includeCardCount: true,
+    includeUsage: true,
   });
   return profile
     ? Response.json(

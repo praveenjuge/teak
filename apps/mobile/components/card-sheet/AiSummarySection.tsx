@@ -3,8 +3,10 @@ import { font } from "@expo/ui/swift-ui/modifiers";
 import { ChipRow } from "@/components/card-sheet/ChipRow";
 import { SheetText } from "@/components/card-sheet/SheetText";
 import type { CardSheetDetail } from "@/lib/card-sheet";
+import { useSearchForTag } from "@/lib/hooks/useSearchForTag";
 
 function AiSummarySection({ card }: { card: CardSheetDetail }) {
+  const searchForTag = useSearchForTag();
   const summary = card.aiSummary?.trim();
   const tags = card.aiTags?.map((tag) => tag.trim()).filter(Boolean) ?? [];
   const transcript = card.aiTranscript?.trim();
@@ -23,7 +25,14 @@ function AiSummarySection({ card }: { card: CardSheetDetail }) {
           title="Summary"
         >
           {summary ? <SheetText selectable>{summary}</SheetText> : null}
-          {hasChips ? <ChipRow colors={colors} sparkles tags={tags} /> : null}
+          {hasChips ? (
+            <ChipRow
+              colors={colors}
+              onPressTag={searchForTag}
+              sparkles
+              tags={tags}
+            />
+          ) : null}
         </Section>
       ) : null}
       {transcript ? (

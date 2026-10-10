@@ -53,6 +53,8 @@ struct LibraryLinkFact: Decodable, Sendable {
 struct LibraryCard: Decodable, Identifiable, Sendable {
     let id: String
     let type: String
+    /// The card on Teak for the web, for sharing and opening in a browser.
+    let appUrl: String?
     var content: String?
     let url: String?
     var metadataTitle: String?
@@ -70,7 +72,7 @@ struct LibraryCard: Decodable, Identifiable, Sendable {
     let aiSummary: String?
     let aiTranscript: String?
     var tags: [String]
-    let aiTags: [String]
+    var aiTags: [String]
     let colors: [LibraryColor]?
     var isFavorited: Bool
     let createdAt: Double
@@ -141,6 +143,17 @@ struct LibraryCard: Decodable, Identifiable, Sendable {
     }
 }
 
+/// Plan and usage from `GET /v1/me`, shown in Settings.
+struct LibraryAccount: Decodable, Sendable {
+    let email: String
+    let plan: String
+    let cardCount: Int
+    let cardLimit: Int?
+    let settingsUrl: String
+
+    var isPro: Bool { plan == "pro" }
+}
+
 struct LibraryPage: Decodable, Sendable {
     let items: [LibraryCard]
     let pageInfo: PageInfo
@@ -183,7 +196,7 @@ struct LibraryAPI {
         for token in tokens {
             switch token.kind {
             case .trash: items.append(URLQueryItem(name: "trashed", value: "true"))
-            case .style, .hue, .hex: items.append(URLQueryItem(name: token.kind.rawValue, value: token.value))
+            case .style, .hue, .hex, .tag: items.append(URLQueryItem(name: token.kind.rawValue, value: token.value))
             case .date:
                 if let range = token.dateRange {
                     items.append(URLQueryItem(name: "createdAfter", value: String(Int(range.lowerBound.timeIntervalSince1970 * 1000))))
@@ -273,6 +286,33 @@ struct LibraryAPI {
         if let content { body["content"] = content }
         let data = try await request(method: "PATCH", path: "v1/cards/\(id)", body: body)
         return try JSONDecoder().decode(LibraryCard.self, from: data)
+    }
+
+    func removeAiTags(id: String, tags: [String]) async throws -> LibraryCard {
+        try Self.validateCardID(id)
+        let data = try await request(method: "PATCH", path: "v1/cards/\(id)", body: ["removeAiTags": tags])
+        return try JSONDecoder().decode(LibraryCard.self, from: data)
+    }
+
+    /// Runs one bulk operation (favorite or delete) over up to 100 cards and
+    /// returns the IDs that succeeded.
+    func bulk(_ operation: String, items: [[String: Any]]) async throws -> [String] {
+        for item in items { try Self.validateCardID(item["cardId"] as? String ?? "") }
+        let data = try await request(method: "POST", path: "v1/cards/bulk",
+            body: ["operation": operation, "items": items])
+        struct Result: Decodable {
+            struct Item: Decodable { let status: String; let cardId: String? }
+            let results: [Item]
+        }
+        return try JSONDecoder().decode(Result.self, from: data).results
+            .filter { $0.status == "success" }
+            .compactMap(\.cardId)
+    }
+
+    func account() async throws -> LibraryAccount {
+        struct Response: Decodable { let data: LibraryAccount }
+        let data = try await service.libraryGET(path: "v1/me")
+        return try JSONDecoder().decode(Response.self, from: data).data
     }
 
     func restore(id: String) async throws {

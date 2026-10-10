@@ -6,6 +6,11 @@
  * `publicApiHttpShared.ts`.
  */
 import { type ActionCtx, httpAction } from "./_generated/server";
+import { handleDuplicateCardRequest } from "./publicApiDuplicate";
+import {
+  handleLatestExportRequest,
+  handleStartExportRequest,
+} from "./publicApiExports";
 import {
   handleBulkCardsRequest,
   handleCardChangesRequest,
@@ -40,7 +45,11 @@ const toPublicApiRequest = (operation: PublicApiOperation): Request => {
   );
 
   for (const [key, value] of Object.entries(operation.query ?? {})) {
-    if (value !== undefined) {
+    if (Array.isArray(value)) {
+      for (const entry of value) {
+        url.searchParams.append(key, entry);
+      }
+    } else if (value !== undefined) {
       url.searchParams.set(key, String(value));
     }
   }
@@ -89,6 +98,15 @@ export const executePublicApiOperation = (
   }
   if (request.method === "GET" && pathname === "/v1/tags") {
     return handleTagsRequest(ctx, request, resource);
+  }
+  if (request.method === "GET" && pathname === "/v1/cards/duplicate") {
+    return handleDuplicateCardRequest(ctx, request, resource);
+  }
+  if (request.method === "GET" && pathname === "/v1/exports/latest") {
+    return handleLatestExportRequest(ctx, request, resource);
+  }
+  if (request.method === "POST" && pathname === "/v1/exports") {
+    return handleStartExportRequest(ctx, request, resource);
   }
   if (
     pathname.startsWith("/v1/cards/") &&

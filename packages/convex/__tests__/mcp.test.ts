@@ -32,14 +32,17 @@ const EXPECTED_TOOL_NAMES = [
   "fetch",
   "search",
   "teak_v1_bulk_cards",
+  "teak_v1_check_duplicate_url",
   "teak_v1_create_card",
   "teak_v1_create_upload",
   "teak_v1_delete_card",
   "teak_v1_get_card",
   "teak_v1_get_card_changes",
+  "teak_v1_get_me",
   "teak_v1_list_cards",
   "teak_v1_list_favorite_cards",
   "teak_v1_list_tags",
+  "teak_v1_restore_card",
   "teak_v1_search_cards",
   "teak_v1_set_card_favorite",
   "teak_v1_update_card",
@@ -450,6 +453,7 @@ describe("Convex MCP endpoint", () => {
       cursor: "cursor_1",
       tag: "design",
       limit: 25,
+      include: "content,metadata",
     });
     expect(captured[1]?.body).toEqual({ content: "https://example.com" });
     expect(captured[9]?.body).toEqual({
@@ -471,6 +475,100 @@ describe("Convex MCP endpoint", () => {
       limit: 10,
       include: "content,metadata",
     });
+  });
+
+  test("forwards search filters, new tools, and idempotency keys to the API", async () => {
+    const captured: Parameters<PublicApiToolExecutor>[0][] = [];
+    const executor = mock((operation: Parameters<PublicApiToolExecutor>[0]) => {
+      captured.push(operation);
+      if (operation.method === "POST" && operation.path.endsWith("/restore")) {
+        return Promise.resolve(new Response(null, { status: 204 }));
+      }
+      return Promise.resolve(
+        Response.json({
+          cardId: null,
+          items: [{ id: "card_1" }],
+          pageInfo: { hasMore: true, nextCursor: "next" },
+          data: {
+            id: "u",
+            email: "e",
+            plan: "free",
+            cardCount: 3,
+            cardLimit: 200,
+          },
+        })
+      );
+    }) as PublicApiToolExecutor;
+    const call = (name: string, input: unknown) =>
+      callTeakV1Tool(
+        name,
+        input,
+        mcpRequest({ jsonrpc: "2.0", id: 50, method: "tools/call" }),
+        executor
+      );
+
+    const search = await call("teak_v1_search_cards", {
+      q: "poster",
+      type: ["image", "link"],
+      hue: ["blue"],
+      trashed: true,
+      include: ["content", "processing"],
+    });
+    expect(captured[0]?.query).toEqual({
+      q: "poster",
+      type: ["image", "link"],
+      hue: ["blue"],
+      trashed: true,
+      include: "content,processing",
+    });
+    expect(search.structuredContent).toMatchObject({
+      total: 1,
+      pageInfo: { hasMore: true, nextCursor: "next" },
+    });
+
+    const restored = await call("teak_v1_restore_card", { cardId: "card_1" });
+    expect(`${captured[1]?.method} ${captured[1]?.path}`).toBe(
+      "POST /v1/cards/card_1/restore"
+    );
+    expect(restored.structuredContent).toEqual({
+      status: "restored",
+      cardId: "card_1",
+    });
+
+    await call("teak_v1_check_duplicate_url", { url: "https://example.com" });
+    expect(captured[2]).toMatchObject({
+      path: "/v1/cards/duplicate",
+      query: { url: "https://example.com" },
+    });
+
+    const me = await call("teak_v1_get_me", {});
+    expect(me.structuredContent).toMatchObject({ plan: "free", cardCount: 3 });
+
+    await call("teak_v1_update_card", {
+      cardId: "card_1",
+      removeAiTags: ["x"],
+    });
+    expect(captured[4]?.body).toEqual({ removeAiTags: ["x"] });
+
+    await call("teak_v1_create_card", {
+      content: "a",
+      idempotencyKey: "step-1",
+    });
+    expect(captured[5]?.body).toEqual({ content: "a" });
+    expect(new Headers(captured[5]?.headers).get("Idempotency-Key")).toBe(
+      "step-1"
+    );
+  });
+
+  test("labels every tool as read-only or as a write for MCP clients", () => {
+    for (const tool of TEAK_V1_TOOLS) {
+      expect(typeof tool.annotations.readOnlyHint).toBe("boolean");
+    }
+    const byName = Object.fromEntries(
+      TEAK_V1_TOOLS.map((tool) => [tool.name, tool.annotations])
+    );
+    expect(byName.teak_v1_search_cards?.readOnlyHint).toBe(true);
+    expect(byName.teak_v1_delete_card?.destructiveHint).toBe(true);
   });
 
   test("favorite search tools use the canonical list transport", async () => {
