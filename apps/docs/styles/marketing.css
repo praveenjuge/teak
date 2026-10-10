@@ -119,3 +119,49 @@
     @apply bg-gray-50 text-foreground dark:bg-gray-950;
   }
 }
+
+/* The meadow wallpaper, shared with the App Store and Play images. */
+.meadow {
+  --meadow-image: url("/backgrounds/meadow-1000.webp");
+  --meadow-tint: rgb(248 250 242 / 0.06);
+  background:
+    linear-gradient(var(--meadow-tint), var(--meadow-tint)),
+    var(--meadow-image) center 42% / cover,
+    #a9b98f;
+}
+
+@media (min-width: 64rem) {
+  .meadow-large {
+    --meadow-image: url("/backgrounds/meadow.webp");
+  }
+}
+
+:is(.dark, [data-theme="dark"]) .meadow {
+  --meadow-tint: rgb(9 13 11 / 0.52);
+}
+
+/* A soft strip of meadow that fades into the page, at the top and in the footer. */
+.meadow-band {
+  position: absolute;
+  inset-inline: 0;
+  height: 36rem;
+  pointer-events: none;
+  background: url("/backgrounds/meadow-1000.webp") center / cover;
+  opacity: 0.42;
+}
+
+.meadow-band-top {
+  top: 0;
+  background-position: center 8%;
+  mask-image: linear-gradient(to bottom, black 20%, transparent);
+}
+
+.meadow-band-bottom {
+  bottom: 0;
+  background-position: center 92%;
+  mask-image: linear-gradient(to top, black 15%, transparent);
+}
+
+:is(.dark, [data-theme="dark"]) .meadow-band {
+  opacity: 0.16;
+}
