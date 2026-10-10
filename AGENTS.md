@@ -43,6 +43,7 @@ For user documentation or changelog changes, follow `apps/docs/AGENTS.md`.
 Before any release, complete the shared preparation in `.agents/releases.md` (one next-patch version change across every manifest, confirmed by the lockstep validator). Then read the relevant product runbook and follow it exactly:
 
 - Mobile: `apps/mobile/release.md`
+- Android: `apps/android/release.md`
 - Browser extension: `apps/extension/release.md`
 - Mac: `apps/mac/release.md`
 - CLI: `apps/cli/AGENTS.md`
