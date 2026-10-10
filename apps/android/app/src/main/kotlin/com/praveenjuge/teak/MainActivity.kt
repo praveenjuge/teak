@@ -2,10 +2,13 @@ package com.praveenjuge.teak
 
 import android.content.Intent
 import android.os.Bundle
+import android.graphics.Color
 import androidx.activity.ComponentActivity
+import androidx.activity.SystemBarStyle
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -44,6 +47,12 @@ class MainActivity : ComponentActivity() {
                 ThemePreference.System -> isSystemInDarkTheme()
                 ThemePreference.Light -> false
                 ThemePreference.Dark -> true
+            }
+            // Status and navigation bar icons follow the app's theme, not just the system's.
+            DisposableEffect(dark) {
+                val style = SystemBarStyle.auto(Color.TRANSPARENT, Color.TRANSPARENT) { dark }
+                enableEdgeToEdge(statusBarStyle = style, navigationBarStyle = style)
+                onDispose {}
             }
             TeakTheme(darkTheme = dark) {
                 TeakApp(

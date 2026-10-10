@@ -109,7 +109,12 @@ fun SettingsScreen(
             ThemePicker(state.theme, onThemeChange)
 
             SectionTitle("Account")
-            InfoRow(Icons.Outlined.Mail, "Email", state.email ?: "Not logged in")
+            // An email can be long, so it goes under its label instead of squeezing it.
+            ListItem(
+                leadingContent = { Icon(Icons.Outlined.Mail, contentDescription = null) },
+                headlineContent = { Text("Email") },
+                supportingContent = { Text(state.email ?: "Not logged in") },
+            )
             InfoRow(Icons.Outlined.Inventory2, "Usage", state.usage, loading = state.usage == null)
             InfoRow(Icons.Outlined.WorkspacePremium, "Plan", state.plan ?: "", loading = state.usage == null)
             HorizontalDivider(Modifier.padding(vertical = 8.dp))
