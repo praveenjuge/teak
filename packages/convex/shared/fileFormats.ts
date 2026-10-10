@@ -67,7 +67,7 @@ export interface FilePreviewFacts {
 export const MAX_FILE_NAME_LENGTH = 240;
 export const MAX_FILE_SIZE = 100 * 1024 * 1024;
 
-const GENERIC_MIME_TYPES = new Set([
+export const GENERIC_MIME_TYPES = new Set([
   "",
   "application/binary",
   "application/octet-stream",

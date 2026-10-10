@@ -61,7 +61,7 @@ export const VISUAL_STYLE_LABELS: Record<VisualStyle, string> = {
   vibrant: "Vibrant",
 } as const;
 
-const VISUAL_STYLE_ALIAS_MAP: Record<string, VisualStyle> = {
+export const VISUAL_STYLE_ALIAS_MAP: Record<string, VisualStyle> = {
   abstract: "abstract",
   abstraction: "abstract",
   artsy: "abstract",
@@ -187,7 +187,7 @@ export const COLOR_HUE_LABELS: Record<ColorHueBucket, string> = {
   neutral: "Neutral",
 } as const;
 
-const COLOR_HUE_ALIAS_MAP: Record<string, ColorHueBucket> = {
+export const COLOR_HUE_ALIAS_MAP: Record<string, ColorHueBucket> = {
   red: "red",
   orange: "orange",
   yellow: "yellow",
