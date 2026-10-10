@@ -2,8 +2,8 @@
 /**
  * Perform the shared release preparation from .agents/releases.md.
  *
- * Updates every tracked package manifest plus Safari's extension manifest and
- * Xcode project, synchronizes bun.lock (and apps/raycast/package-lock.json when
+ * Updates every tracked package manifest plus both Safari extension manifests,
+ * the Mac Xcode project, and the Apple app's marketing version, synchronizes bun.lock (and apps/raycast/package-lock.json when
  * present), then verifies with a frozen install and the lockstep validator.
  * Review the diff and commit it as one scoped version change afterwards.
  * Usage: bun run release:prepare <version> [--resume]
@@ -18,10 +18,13 @@ import {
 } from "node:fs";
 import { join, resolve } from "node:path";
 import {
+  appleMarketingVersions,
+  appleVersionSources,
   assertLockstep,
   assertPatchBump,
   parseVersion,
   releaseManifestFiles,
+  replaceAppleMarketingVersions,
   safariXcodeProject,
   safariXcodeVersions,
 } from "./release-version.mjs";
@@ -109,6 +112,22 @@ export const setSafariXcodeVersion = (
   return true;
 };
 
+export const setAppleMarketingVersion = (
+  sourcePath: string,
+  version: string
+): boolean => {
+  const source = readFileSync(sourcePath, "utf-8");
+  if (appleMarketingVersions(source).length === 0) {
+    throw new Error(`Missing Apple MARKETING_VERSION in ${sourcePath}.`);
+  }
+  const updated = replaceAppleMarketingVersions(source, version);
+  if (updated === source) {
+    return false;
+  }
+  writeFileAtomically(sourcePath, updated);
+  return true;
+};
+
 export const updateManifestVersions = (
   repoRoot: string,
   version: string
@@ -124,6 +143,11 @@ export const updateManifestVersions = (
   const projectPath = resolve(repoRoot, safariXcodeProject);
   if (setSafariXcodeVersion(projectPath, version)) {
     updated.push(safariXcodeProject);
+  }
+  for (const relative of appleVersionSources) {
+    if (setAppleMarketingVersion(resolve(repoRoot, relative), version)) {
+      updated.push(relative);
+    }
   }
   return updated;
 };
@@ -165,7 +189,13 @@ const main = (): void => {
   run(["bun", "install"], ROOT);
   if (existsSync(join(ROOT, "apps/raycast/package-lock.json"))) {
     run(
-      ["npm", "install", "--package-lock-only", "--ignore-scripts", "--workspaces=false"],
+      [
+        "npm",
+        "install",
+        "--package-lock-only",
+        "--ignore-scripts",
+        "--workspaces=false",
+      ],
       join(ROOT, "apps/raycast")
     );
   }
