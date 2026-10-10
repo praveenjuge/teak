@@ -51,4 +51,12 @@ class MarkdownBlocksTest {
             MarkdownBlocks.parse("#tag is not a heading\r\nnext"),
         )
     }
+
+    @Test
+    fun `previews drop markdown syntax but keep the words`() {
+        assertEquals(
+            "Trip plan\n• Book train tickets\nThings the Mac app does, see docs",
+            MarkdownBlocks.toPlainText("# Trip plan\n- Book **train** tickets\n\nThings the **Mac app** does, see [docs](https://x.test)"),
+        )
+    }
 }

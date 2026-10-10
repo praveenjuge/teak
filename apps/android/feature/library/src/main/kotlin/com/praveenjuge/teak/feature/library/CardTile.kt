@@ -60,6 +60,7 @@ import com.praveenjuge.teak.core.model.CardGrid
 import com.praveenjuge.teak.core.model.CardSheet
 import com.praveenjuge.teak.core.model.CardSummary
 import com.praveenjuge.teak.core.model.CardType
+import com.praveenjuge.teak.core.model.MarkdownBlocks
 
 private val TileShape = RoundedCornerShape(16.dp)
 private val TilePadding = 14.dp
@@ -110,7 +111,7 @@ internal fun CardTile(
     val title = tileTitle(card)
     val favorite = card.isFavorited == true
     val description = buildString {
-        append(card.type.label).append(", ").append(title)
+        append(if (card.type == CardType.Text) "Note" else card.type.label).append(", ").append(title)
         if (favorite) append(", Favorite")
     }
     val outlined = highlighted || selected == true
@@ -181,7 +182,7 @@ private fun TileContent(card: CardSummary, title: String) {
             if (colors.isEmpty()) TileText(title) else PaletteStrip(colors)
         }
         CardType.Quote -> QuoteText(title)
-        CardType.Text -> TileText(title)
+        CardType.Text -> TileText(remember(title) { MarkdownBlocks.toPlainText(title) })
     }
 }
 

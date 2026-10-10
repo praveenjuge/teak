@@ -34,6 +34,22 @@ object MarkdownBlocks {
         fence.containsMatchIn(line) || heading.matches(line) || quote.matches(line) ||
             rule.matches(line) || listItem(line) != null
 
+    private val inlineLink = Regex("\\[([^\\]]+)]\\([^)]*\\)")
+    private val emphasis = Regex("(\\*\\*|__|\\*|_|~~|`)(\\S(?:.*?\\S)?)\\1")
+
+    /** A note as plain lines for small previews: block markers and inline emphasis removed. */
+    fun toPlainText(markdown: String): String = parse(markdown).joinToString("\n") { block ->
+        val text = when (block) {
+            is MarkdownBlock.Heading -> block.text
+            is MarkdownBlock.ListBlock -> block.items.joinToString("\n") { "${it.marker} ${it.text}" }
+            is MarkdownBlock.Quote -> block.text
+            is MarkdownBlock.Code -> block.text
+            MarkdownBlock.Rule -> ""
+            is MarkdownBlock.Paragraph -> block.text
+        }
+        text.replace(inlineLink, "$1").replace(emphasis, "$2")
+    }.trim()
+
     fun parse(markdown: String): List<MarkdownBlock> {
         val blocks = mutableListOf<MarkdownBlock>()
         val lines = markdown.replace(Regex("\r\n?"), "\n").split("\n")
