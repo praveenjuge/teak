@@ -192,6 +192,13 @@ body[data-state="duplicate"] #sign-out {
   display: block;
 }
 
-body:not([data-state="signed-out"]):not([data-state="error"]):not([data-state="invalid"]):not([data-state="saved"]):not([data-state="duplicate"]) .actions {
+body:not(
+    [data-state="signed-out"],
+    [data-state="error"],
+    [data-state="invalid"],
+    [data-state="saved"],
+    [data-state="duplicate"]
+  )
+  .actions {
   display: none;
 }
