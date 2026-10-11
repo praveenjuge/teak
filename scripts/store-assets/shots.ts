@@ -128,7 +128,7 @@ export const STORES: Record<StoreId, Store> = {
     outputDir: "apps/apple/store/screenshots/mac/en-US",
     viewport: { width: 1440, height: 900 },
     scale: 2,
-    shots: MAC_SHOTS,
+    shots: MAC_SHOTS.filter(({ name }) => name !== "06-safari"),
   },
   android: {
     layout: "android",
