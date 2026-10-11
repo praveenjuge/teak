@@ -35,10 +35,12 @@ export const parseDotenvContent = (content: string): ParsedDotenv => {
     if (!key || values.has(key)) {
       continue;
     }
-    const value = trimmed
-      .slice(index + 1)
-      .trim()
-      .replace(/^(['"])(.*)\1$/, "$2");
+    const raw = trimmed.slice(index + 1).trim();
+    // Unquoted values end at an inline comment, as `convex dev` writes them
+    // (`CONVEX_DEPLOYMENT=dev:name # team: …`).
+    const value = (
+      /^['"]/.test(raw) ? raw : raw.replace(/\s+#.*$/, "")
+    ).replace(/^(['"])(.*)\1$/, "$2");
     values.set(key, value);
   }
   return { names: [...values.keys()], values };

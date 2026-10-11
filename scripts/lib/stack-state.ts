@@ -227,7 +227,10 @@ export const waitFor = async (
       if (response.ok) {
         return;
       }
-      refusals = response.status < 500 ? refusals + 1 : 0;
+      // A local backend answers this 404 until its first push lands, which
+      // takes longer than the refusal budget on slower machines (cloud VMs).
+      const pushing = body.includes("does not have HTTP actions enabled");
+      refusals = response.status < 500 && !pushing ? refusals + 1 : 0;
       if (refusals >= 15) {
         throw new Error(
           `${url} keeps answering ${response.status}: ${body.slice(0, 200).trim()}`

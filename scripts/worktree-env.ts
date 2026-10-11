@@ -158,12 +158,20 @@ const accepts = (port: number, host: string): Promise<boolean> =>
     socket.once("error", () => finish(false));
   });
 
-const bindFails = (port: number): Promise<boolean> =>
+const bindFails = (port: number, host?: string): Promise<boolean> =>
   new Promise((done) => {
     const server = createServer();
-    server.once("error", () => done(true));
+    server.once("error", (error: NodeJS.ErrnoException) => {
+      if (error.code === "EADDRINUSE" || host) {
+        done(true);
+        return;
+      }
+      // Hosts without IPv6 (cloud VMs) can't bind Bun's default "::"
+      // wildcard, so check the IPv4 wildcard instead.
+      bindFails(port, "0.0.0.0").then(done);
+    });
     server.once("listening", () => server.close(() => done(false)));
-    server.listen(port);
+    server.listen(port, host);
   });
 
 /**

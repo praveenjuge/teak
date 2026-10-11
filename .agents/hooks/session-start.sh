@@ -12,9 +12,24 @@ if [[ "${CLAUDE_CODE_REMOTE:-}" == "true" ]]; then
   if [[ -n "${CLAUDE_ENV_FILE:-}" ]]; then
     printf 'export PATH="$HOME/.local/bin:$PATH"\n' >>"$CLAUDE_ENV_FILE"
   fi
-  if ! command -v bun >/dev/null 2>&1 || [[ ! -d node_modules ]]; then
+  browsers="$HOME/.cache/ms-playwright"
+  if ! command -v bun >/dev/null 2>&1 || [[ ! -d node_modules ]] ||
+    [[ ! -d "$browsers" ]]; then
     # Setup output goes to stderr; stdout becomes the agent's context.
     .agents/setup >&2
+  fi
+  if [[ -d "$browsers" && -n "${CLAUDE_ENV_FILE:-}" ]]; then
+    printf 'export PLAYWRIGHT_BROWSERS_PATH="%s"\n' "$browsers" >>"$CLAUDE_ENV_FILE"
+  fi
+  # Exports win over the dotenv files bun run dev and the E2E suite manage.
+  stray=()
+  for name in CONVEX_DEPLOYMENT WORKOS_CLIENT_ID WORKOS_API_KEY \
+    WORKOS_COOKIE_PASSWORD NEXT_PUBLIC_CONVEX_URL NEXT_PUBLIC_CONVEX_SITE_URL \
+    NEXT_PUBLIC_WORKOS_REDIRECT_URI; do
+    [[ -n "${!name:-}" ]] && stray+=("$name")
+  done
+  if ((${#stray[@]} > 0)); then
+    printf 'Warning: this cloud environment exports %s. They override the dotenv files bun run dev writes; remove them from the environment settings (only CONVEX_DEPLOY_KEY is needed) or unset them for the command. See .agents/cloud.md.\n' "${stray[*]}"
   fi
 fi
 
