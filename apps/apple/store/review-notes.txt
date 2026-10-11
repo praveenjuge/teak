@@ -1,0 +1,35 @@
+APP OVERVIEW
+Teak is a personal library for saving and finding inspiration: notes, links, images, videos, voice memos, documents, color palettes and quotes. This version is a new native SwiftUI app for iPhone and iPad that replaces our earlier build on the same listing.
+
+HOW TO TEST
+1. Tap "Continue with Apple", "Continue with Google" or "Register with Email" to create an account. No demo account is needed.
+2. The library opens with a few starter cards. Tap a card to see its details.
+3. Tap Add (the + tab) to write a note or paste a link, record a voice memo, or upload photos, videos and files.
+4. Use Search: typed words like "image", "favorites" or "last week" become filters.
+5. Long-press a card for actions (favorite, share, copy, delete). On iOS 27, swipe a card to favorite or delete it.
+6. In Safari, tap Share and choose Teak to save the current page, or open the Teak Safari extension.
+7. Settings shows the account, theme, and Delete Account.
+
+SIGN-IN
+Sign-in uses WorkOS AuthKit in a system web authentication session (Sign in with Apple, Google, or email and password). The session is stored in the device keychain.
+
+ACCOUNT DELETION
+Settings > Delete Account permanently deletes the account, its cards and uploaded files, in the app.
+
+EXTENSIONS
+• Share extension: saves text, links, images, videos and files from other apps.
+• Safari web extension: saves the current page.
+• Shortcuts: a "Save to Teak" action saves text or a link.
+
+PERMISSIONS (requested only when the feature is used)
+• Camera: taking a photo or video for a card.
+• Microphone: recording a voice memo.
+• Photo Library: choosing photos and videos to add.
+
+THIRD-PARTY SERVICES
+• Convex: stores and syncs the user's library.
+• WorkOS: sign-in.
+• Sentry: crash and hang reports, linked to an anonymous account ID, never an email.
+
+PRIVACY
+Each library is private to its account. No advertising and no selling or sharing of personal data. Privacy policy: https://teakvault.com/docs/privacy-policy
