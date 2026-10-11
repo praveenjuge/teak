@@ -1,9 +1,29 @@
 {
   "locale": "en-US",
   "screenshots": {
-    "iphone": [],
-    "ipad": [],
-    "mac": []
+    "iphone": [
+      "01-library.png",
+      "02-detail.png",
+      "03-search.png",
+      "04-palette.png",
+      "05-share.png",
+      "06-add.png"
+    ],
+    "ipad": [
+      "01-library.png",
+      "02-detail.png",
+      "03-search.png",
+      "04-palette.png",
+      "05-add.png"
+    ],
+    "mac": [
+      "01-library.png",
+      "02-detail.png",
+      "03-search.png",
+      "04-palette.png",
+      "05-capture.png",
+      "06-safari.png"
+    ]
   },
   "appInfo": {
     "name": "Teak: Save Inspirations",
