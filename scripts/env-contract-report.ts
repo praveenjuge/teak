@@ -12,11 +12,7 @@
 
 import { isFrameworkAlias } from "./env-aliases.ts";
 import { ENV_CONTRACT } from "./env-contract.ts";
-import type {
-  EnvTarget,
-  EnvValidation,
-  EnvVarSpec,
-} from "./env-contract-types.ts";
+import type { EnvValidation, EnvVarSpec } from "./env-contract-types.ts";
 import { loadTargetEnv } from "./env-loader.ts";
 import { isSupportedTarget, type SupportedTarget } from "./env-targets.ts";
 
@@ -114,25 +110,17 @@ export const exampleForValidation = (
   }
 };
 
-const toContractTarget = (target: SupportedTarget): EnvTarget => {
-  if (target === "mobile-simulator" || target === "mobile-device") {
-    return "mobile";
-  }
-  return target;
-};
-
 /** Required names for a combo that are absent from `present`. */
 export const missingEntries = (
   target: SupportedTarget,
   profile: string,
   present: Set<string>,
   entries: EnvVarSpec[] = ENV_CONTRACT
-): MissingEntry[] => {
-  const contractTarget = toContractTarget(target);
-  return entries
+): MissingEntry[] =>
+  entries
     .filter(
       (entry) =>
-        entry.targets.includes(contractTarget) &&
+        entry.targets.includes(target) &&
         (entry.requiredIn ?? []).includes(
           profile as (typeof entry.profiles)[number]
         ) &&
@@ -144,10 +132,9 @@ export const missingEntries = (
       providers: [...entry.providers],
       reason: entry.derivedFrom
         ? `generated from ${entry.derivedFrom}; run setup`
-        : `required ${contractTarget}/${profile} input`,
+        : `required ${target}/${profile} input`,
     }))
     .sort((a, b) => a.name.localeCompare(b.name));
-};
 
 export interface MissingReport {
   missing: MissingEntry[];

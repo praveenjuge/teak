@@ -80,7 +80,7 @@ secret
       "workflow-url": "https://github.com/praveenjuge/teak/actions/runs/1",
     };
     expect(failureBody({ ...base, platform: "IOS" })).toContain(
-      "gh workflow run mobile-release.yml --ref main -f version=1.0.86 -f dry_run=false"
+      "gh workflow run apple-release.yml --ref main -f version=1.0.86 -f dry_run=false"
     );
     expect(
       failureBody({

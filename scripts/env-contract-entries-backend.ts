@@ -166,7 +166,7 @@ export const BACKEND_ENTRIES: EnvVarSpec[] = [
     providers: ["convex-dashboard"],
     required: false,
     implicit: true,
-    note: "Canonical deployment API URL. Local values come from convex dev; setup expands it into NEXT/VITE/EXPO_PUBLIC_CONVEX_URL.",
+    note: "Canonical deployment API URL. Local values come from convex dev; setup expands it into NEXT/VITE_PUBLIC_CONVEX_URL.",
   }),
   spec("CONVEX_SITE_URL", {
     owners: ["@teak/convex"],
@@ -177,7 +177,7 @@ export const BACKEND_ENTRIES: EnvVarSpec[] = [
     providers: ["convex-dashboard"],
     required: false,
     implicit: true,
-    note: "Canonical deployment HTTP-actions URL. Setup expands it into the NEXT/VITE/EXPO_PUBLIC_CONVEX_SITE_URL aliases.",
+    note: "Canonical deployment HTTP-actions URL. Setup expands it into the NEXT/VITE_PUBLIC_CONVEX_SITE_URL aliases.",
   }),
   // Staged operational-cost rollout.
   ...["OPERATIONAL_RETENTION_ENABLED"].map((name) =>

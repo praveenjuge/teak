@@ -249,11 +249,6 @@ const readJSON = (file: string) =>
   JSON.parse(readFileSync(path.join(root, file), "utf8"));
 const native = readJSON("apps/apple/store/store.config.json").screenshots;
 const configured: Partial<Record<StoreId, string[]>> = {
-  mac: readJSON("apps/mac/store.config.json").screenshots,
-  iphone: (
-    readJSON("apps/mobile/store.config.json").apple.info["en-US"].screenshots
-      .APP_IPHONE_67 as string[]
-  ).map((file) => path.basename(file)),
   "apple-iphone": native.iphone,
   "apple-ipad": native.ipad,
   "apple-mac": native.mac,
@@ -368,8 +363,6 @@ try {
 }
 
 const apple: Partial<Record<StoreId, string>> = {
-  mac: "APP_DESKTOP",
-  iphone: "APP_IPHONE_67",
   "apple-iphone": "APP_IPHONE_67",
   "apple-ipad": "APP_IPAD_PRO_3GEN_129",
   "apple-mac": "APP_DESKTOP",

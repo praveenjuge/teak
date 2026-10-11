@@ -10,7 +10,6 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import {
   checkRuntimeVersion,
-  inferLanHost,
   isInstallStale,
   markInstallFresh,
   readConvexSelection,
@@ -120,12 +119,5 @@ describe("isInstallStale", () => {
     expect(statSync(join(root, "node_modules")).mtimeMs).toBeGreaterThan(
       statSync(lock).mtimeMs
     );
-  });
-});
-
-describe("network probes", () => {
-  test("lan host inference returns an address or null", () => {
-    const lan = inferLanHost();
-    expect(lan === null || /^\d+\.\d+\.\d+\.\d+$/.test(lan)).toBe(true);
   });
 });
