@@ -115,7 +115,7 @@ struct VoiceMemoView: View {
                     }
                 }
             }
-            .alert("Couldn't Record", isPresented: .constant(failure != nil)) {
+            .alert("Couldn't Record", isPresented: Binding(presenting: $failure)) {
                 Button("OK") { failure = nil }
             } message: {
                 Text(failure ?? "")

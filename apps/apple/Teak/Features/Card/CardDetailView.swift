@@ -67,13 +67,13 @@ struct CardDetailView: View {
                 .frame(maxWidth: .infinity)
             }
             .scrollEdgeEffectStyle(.soft, for: .top)
-            .inspector(isPresented: .constant(isWide && showsInspector)) {
+            .inspector(isPresented: Binding(get: { isWide && showsInspector }, set: { showsInspector = $0 })) {
                 ScrollView { CardSections(card: card).padding(20) }
                     .inspectorColumnWidth(min: 260, ideal: 320, max: 420)
             }
             .toolbar { toolbar(card, model) }
             .sheet(isPresented: $showEditSheet) { CardEditView(cardId: card.id) }
-            .fileExporter(isPresented: .constant(exporting != nil), item: exporting,
+            .fileExporter(isPresented: Binding(presenting: $exporting), item: exporting,
                           contentTypes: exporting.map { [$0.contentType] } ?? [], defaultFilename: exporting?.fileName) { _ in
                 exporting = nil
             }

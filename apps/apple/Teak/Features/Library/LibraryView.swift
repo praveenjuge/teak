@@ -35,20 +35,20 @@ struct LibraryView: View {
             .overlay(alignment: .bottom) { bottomOverlay }
             .task { library.start() }
             .sheet(item: $editing) { route in CardEditView(cardId: route.id) }
-            .fileExporter(isPresented: .constant(exporting != nil), item: exporting,
+            .fileExporter(isPresented: Binding(presenting: $exporting), item: exporting,
                           contentTypes: exporting.map { [$0.contentType] } ?? [],
                           defaultFilename: exporting?.fileName) { result in
                 if case .failure = result { library.show("Unable to download this file.", isError: true) }
                 exporting = nil
             }
-            .confirmationDialog("Delete Card", isPresented: .constant(confirmingDelete != nil),
+            .confirmationDialog("Delete Card", isPresented: Binding(presenting: $confirmingDelete),
                                 presenting: confirmingDelete) { card in
                 Button("Delete", role: .destructive) { Task { await library.moveToTrash(card.id) } }
                 Button("Cancel", role: .cancel) { confirmingDelete = nil }
             } message: { _ in
                 Text("This card will be moved to Trash.")
             }
-            .confirmationDialog("Delete Forever?", isPresented: .constant(confirmingDeleteForever != nil),
+            .confirmationDialog("Delete Forever?", isPresented: Binding(presenting: $confirmingDeleteForever),
                                 presenting: confirmingDeleteForever) { card in
                 Button("Delete Forever", role: .destructive) { Task { await library.deleteForever(card.id) } }
                 Button("Cancel", role: .cancel) { confirmingDeleteForever = nil }

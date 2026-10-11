@@ -1,10 +1,13 @@
+/* Native-looking on both Safaris: system fonts and colors, a 300 pt popover
+   on the Mac, and the full sheet width on iPhone and iPad. */
 :root {
-  --accent: #d92d20;
-  --border: rgba(120, 120, 128, 0.22);
-  --text: #171717;
-  --muted: #666a73;
-  --surface: #ffffff;
   color-scheme: light dark;
+  --accent: #dc2626;
+  --label: -apple-system-label;
+  --secondary: -apple-system-secondary-label;
+  --fill: rgba(120, 120, 128, 0.16);
+  --green: #34c759;
+  --orange: #ff9500;
 }
 
 * {
@@ -12,37 +15,118 @@
 }
 
 body {
-  width: 286px;
+  width: 300px;
   margin: 0;
-  font-family:
-    -apple-system, BlinkMacSystemFont, "SF Pro Text", system-ui, sans-serif;
-  color: var(--text);
-  background: var(--surface);
+  font: -apple-system-body;
+  color: var(--label, CanvasText);
+  background: Canvas;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+@media (pointer: coarse) {
+  body {
+    width: auto;
+  }
 }
 
 .popup {
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 6px;
   align-items: center;
-  justify-content: center;
-  min-height: 210px;
-  padding: 22px;
+  max-width: 420px;
+  margin: 0 auto;
+  padding: 24px 20px 20px;
   text-align: center;
+}
+
+@media (pointer: coarse) {
+  .popup {
+    padding: 32px 24px 28px;
+  }
+}
+
+.symbol {
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  margin-bottom: 6px;
+}
+
+.symbol > * {
+  display: none;
+  grid-area: 1 / 1;
+}
+
+.symbol svg {
+  width: 40px;
+  height: 40px;
+  fill: none;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.done circle {
+  fill: var(--green);
+  stroke: none;
+}
+
+.done path {
+  stroke: #ffffff;
+}
+
+.warning path:first-child {
+  fill: var(--orange);
+  stroke: var(--orange);
+}
+
+.warning path:last-child {
+  stroke: #ffffff;
+}
+
+.spinner {
+  width: 28px;
+  height: 28px;
+  border: 3px solid var(--fill);
+  border-top-color: var(--secondary, GrayText);
+  border-radius: 50%;
+  animation: spin 0.9s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .spinner {
+    animation-duration: 2.4s;
+  }
+}
+
+body[data-state="checking"] .spinner,
+body[data-state="saving"] .spinner,
+body[data-state="signed-out"] .logo,
+body[data-state="saved"] .done,
+body[data-state="duplicate"] .done,
+body[data-state="error"] .warning,
+body[data-state="invalid"] .warning {
+  display: block;
 }
 
 .title {
   margin: 0;
-  font-size: 15px;
-  font-weight: 700;
+  font: -apple-system-headline;
 }
 
 .message {
-  min-height: 36px;
   margin: 0;
-  font-size: 13px;
-  line-height: 1.4;
-  color: var(--muted);
+  font: -apple-system-subheadline;
+  color: var(--secondary, GrayText);
 }
 
 .actions {
@@ -50,53 +134,64 @@ body {
   flex-direction: column;
   gap: 8px;
   width: 100%;
-  margin-top: 6px;
+  margin-top: 14px;
 }
 
 button {
   width: 100%;
-  min-height: 36px;
-  font: inherit;
-  font-size: 13px;
-  font-weight: 700;
-  color: var(--text);
-  background: transparent;
-  border: 1px solid var(--border);
-  border-radius: 8px;
+  min-height: 32px;
+  padding: 0 16px;
+  font: -apple-system-body;
+  font-weight: 600;
+  color: var(--label, CanvasText);
+  background: var(--fill);
+  border: 0;
+  border-radius: 999px;
+  cursor: pointer;
+}
+
+@media (pointer: coarse) {
+  button {
+    min-height: 48px;
+  }
 }
 
 button.primary {
   color: #ffffff;
   background: var(--accent);
-  border-color: var(--accent);
 }
 
-body[data-state="checking"] #sign-in,
-body[data-state="checking"] #retry,
-body[data-state="checking"] #sign-out,
-body[data-state="saving"] #sign-in,
-body[data-state="saving"] #retry,
-body[data-state="saving"] #sign-out,
-body[data-state="saved"] #sign-in,
-body[data-state="saved"] #retry,
-body[data-state="saved"] #sign-out,
-body[data-state="duplicate"] #sign-in,
-body[data-state="duplicate"] #retry,
-body[data-state="duplicate"] #sign-out,
-body[data-state="signed-out"] #retry,
-body[data-state="signed-out"] #sign-out,
-body[data-state="error"] #sign-in,
-body[data-state="error"] #sign-out,
-body[data-state="invalid"] #sign-in,
-body[data-state="invalid"] #sign-out {
+button.plain {
+  min-height: 28px;
+  font-weight: 400;
+  color: var(--secondary, GrayText);
+  background: none;
+}
+
+button:active {
+  opacity: 0.7;
+}
+
+button:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* Each state shows only the actions that apply. */
+#sign-in,
+#retry,
+#sign-out {
   display: none;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --border: rgba(235, 235, 245, 0.18);
-    --text: #f5f5f5;
-    --muted: #a1a1aa;
-    --surface: #111111;
-  }
+body[data-state="signed-out"] #sign-in,
+body[data-state="error"] #retry,
+body[data-state="invalid"] #retry,
+body[data-state="saved"] #sign-out,
+body[data-state="duplicate"] #sign-out {
+  display: block;
+}
+
+body:not([data-state="signed-out"]):not([data-state="error"]):not([data-state="invalid"]):not([data-state="saved"]):not([data-state="duplicate"]) .actions {
+  display: none;
 }

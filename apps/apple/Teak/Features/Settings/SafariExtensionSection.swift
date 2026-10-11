@@ -12,6 +12,7 @@ enum SafariExtension {
 struct SafariExtensionSection: View {
     #if os(macOS)
     @State private var isEnabled: Bool?
+    @State private var problem: String?
     #endif
 
     var body: some View {
@@ -24,9 +25,9 @@ struct SafariExtensionSection: View {
                 case nil: ProgressView().controlSize(.small)
                 }
             }
-            Button("Open Safari Settings…") {
-                SFSafariApplication.showPreferencesForExtension(withIdentifier: SafariExtension.identifier,
-                                                                completionHandler: nil)
+            Button("Open Safari Settings…") { Task { await openSafariSettings() } }
+            if let problem {
+                Text(problem).font(.footnote).foregroundStyle(.secondary)
             }
             #else
             Text("Save pages from Safari with one tap. In Safari, tap \(Image(systemName: "puzzlepiece.extension")) in the address bar, choose Manage Extensions, and turn on Teak.")
@@ -44,15 +45,34 @@ struct SafariExtensionSection: View {
 
     #if os(macOS)
     private func refresh() async {
-        isEnabled = await withCheckedContinuation { continuation in
+        let (enabled, error) = await withCheckedContinuation { continuation in
             // The SDK marks this handler main-actor, but Safari calls it from an
             // XPC queue; a nonisolated handler avoids a runtime isolation trap.
-            let handler: @Sendable (SFSafariExtensionState?, (any Error)?) -> Void = { state, _ in
-                continuation.resume(returning: state?.isEnabled ?? false)
+            let handler: @Sendable (SFSafariExtensionState?, (any Error)?) -> Void = { state, error in
+                continuation.resume(returning: (state?.isEnabled ?? false, error?.localizedDescription))
             }
             SFSafariExtensionManager.getStateOfSafariExtension(withIdentifier: SafariExtension.identifier,
                                                                completionHandler: handler)
         }
+        isEnabled = enabled
+        problem = error.map { "Couldn't check the extension: \($0)" }
+    }
+
+    private func openSafariSettings() async {
+        let error = await withCheckedContinuation { continuation in
+            let handler: @Sendable ((any Error)?) -> Void = { error in
+                continuation.resume(returning: error?.localizedDescription)
+            }
+            SFSafariApplication.showPreferencesForExtension(withIdentifier: SafariExtension.identifier,
+                                                            completionHandler: handler)
+        }
+        guard error != nil else { return problem = nil }
+        // Safari sometimes can't find the extension by identifier (SFErrorDomain 1);
+        // open Safari and say where the setting lives instead.
+        if let safari = NSWorkspace.shared.urlForApplication(withBundleIdentifier: "com.apple.Safari") {
+            _ = try? await NSWorkspace.shared.openApplication(at: safari, configuration: .init())
+        }
+        problem = "In Safari, choose Safari > Settings > Extensions, then turn on Teak."
     }
     #endif
 }

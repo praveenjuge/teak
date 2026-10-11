@@ -40,7 +40,7 @@ const text = (value, fallback) =>
   typeof value === "string" && value.trim() ? value : fallback;
 
 const saveCurrentPage = async () => {
-  setState("checking", "Teak", "Checking session...");
+  setState("checking", "Teak", "Checking your session…");
 
   const authState = await sendNative({ type: "getAuthState" });
   if (authState.status === "error") {
@@ -58,7 +58,7 @@ const saveCurrentPage = async () => {
     return;
   }
 
-  setState("saving", "Saving page", "Sending this page to Teak...");
+  setState("saving", "Saving page", "Adding this page to your library…");
   const saveResult = await sendNative({ type: "saveCurrentPage", url });
   if (saveResult.status === "saved") {
     setState("saved", "Saved to Teak", "Added to your library.");
@@ -86,7 +86,7 @@ const startSignIn = async () => {
 };
 
 const signOut = async () => {
-  setState("checking", "Signing out", "Clearing session...");
+  setState("checking", "Signing out", "One moment…");
   const response = await sendNative({ type: "signOut" });
   if (response.status !== "signed-out") {
     throw new Error(text(response.message, "Could not sign out. Please try again."));

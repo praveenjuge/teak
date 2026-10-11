@@ -47,7 +47,7 @@ struct CardEditView: View {
                 Button("Discard Changes", role: .destructive) { dismiss() }
                 Button("Keep Editing", role: .cancel) {}
             }
-            .alert("Couldn't save changes", isPresented: .constant(error != nil)) {
+            .alert("Couldn't save changes", isPresented: Binding(presenting: $error)) {
                 Button("OK") { error = nil }
             } message: {
                 Text(error ?? "")

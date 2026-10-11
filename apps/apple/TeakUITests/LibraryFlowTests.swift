@@ -202,6 +202,8 @@ final class LibraryFlowTests: XCTestCase {
         tap(menuItem("Delete Forever").waitToAppear())
         tap(confirmation("Delete Forever").waitToAppear())
         tile(containing: note).waitToDisappear()
+        // The confirmation doesn't come back once it has run.
+        XCTAssertFalse(confirmation("Delete Forever").waitForExistence(timeout: 3))
     }
 
     @MainActor

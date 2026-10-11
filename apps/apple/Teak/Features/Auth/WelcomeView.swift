@@ -53,7 +53,7 @@ struct WelcomeView: View {
         .padding(.bottom, 12)
         .frame(maxWidth: 480, maxHeight: .infinity)
         .frame(maxWidth: .infinity)
-        .alert(failure?.title ?? "", isPresented: .constant(failure != nil), presenting: failure) { _ in
+        .alert(failure?.title ?? "", isPresented: Binding(presenting: $failure), presenting: failure) { _ in
             Button("OK") { failure = nil }
         } message: { failure in
             Text(failure.message)

@@ -37,3 +37,12 @@ extension UTType {
         UTType(filenameExtension: (name as NSString).pathExtension) ?? .data
     }
 }
+
+extension Binding where Value == Bool {
+    /// True while `item` is set. Dismissing clears it, so a dialog or alert
+    /// doesn't come back after its button runs (the Mac re-presents one whose
+    /// binding stays true).
+    init<Item>(presenting item: Binding<Item?>) {
+        self.init(get: { item.wrappedValue != nil }, set: { if !$0 { item.wrappedValue = nil } })
+    }
+}
