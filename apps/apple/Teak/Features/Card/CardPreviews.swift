@@ -358,17 +358,18 @@ struct PalettePreview: View {
         if colors.isEmpty {
             Unavailable(label: "No colors saved", symbol: "paintpalette")
         } else {
-            LazyVGrid(columns: [GridItem(.adaptive(minimum: 96), spacing: 12)], spacing: 12) {
+            // Square swatches that grow with the space, so a palette fills an iPad page too.
+            LazyVGrid(columns: [GridItem(.adaptive(minimum: 110), spacing: 12)], spacing: 16) {
                 ForEach(Array(colors.enumerated()), id: \.offset) { _, color in
                     Button {
                         Pasteboard.copy(color.hex)
                         copied += 1
                     } label: {
                         VStack(spacing: 6) {
-                            RoundedRectangle(cornerRadius: 14, style: .continuous)
+                            RoundedRectangle(cornerRadius: 16, style: .continuous)
                                 .fill(Color(hex: color.hex) ?? .gray)
-                                .frame(height: 72)
-                                .overlay { RoundedRectangle(cornerRadius: 14, style: .continuous).strokeBorder(.separator) }
+                                .aspectRatio(1, contentMode: .fit)
+                                .overlay { RoundedRectangle(cornerRadius: 16, style: .continuous).strokeBorder(.separator) }
                             Text(color.hex.uppercased()).font(.caption.monospaced()).foregroundStyle(.secondary)
                         }
                     }
