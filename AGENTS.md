@@ -46,7 +46,7 @@ Before any release, complete the shared preparation in `.agents/releases.md` (on
 - Mobile (Expo, frozen, retiring): `apps/mobile/release.md`
 - Android: `apps/android/release.md`
 - Browser extension: `apps/extension/release.md`
-- Mac (Teak for Mac, retiring at the Apple Mac launch): `apps/mac/release.md`
+- Mac (Teak for Mac, off sale since 2026-10-11; no longer released): `apps/mac/release.md`
 - CLI: `apps/cli/AGENTS.md`
 - Store screenshots (Mac, iPhone, Play): `scripts/store-assets/README.md`
 
