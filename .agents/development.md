@@ -119,7 +119,8 @@ Without the key it still prepares the VM for unit tests and the E2E suite.
 - Amp: runs `.agents/setup` as the orb setup script and `.agents/resume` on
   resume.
 
-Then run `bun run dev` in the background.
+Then run `bun run dev` in the background. `.agents/cloud.md` lists the
+environment settings a cloud session needs and what does and doesn't run there.
 
 ## When something fails
 
