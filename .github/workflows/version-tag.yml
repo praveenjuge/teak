@@ -111,17 +111,15 @@ jobs:
             workflow: extension-release.yml
             apple: false
             title_prefix: ""
-          # The Expo iPhone app (mobile-release.yml) is frozen; the native
-          # Apple app ships iPhone and iPad until its Mac launch.
+          # The native Apple app replaces the Expo iPhone app and Teak for Mac
+          # (off sale). Its Mac listing is released by hand until the first
+          # Mac version is live: asc can't validate a Mac submission while
+          # an iOS one is in review.
           - name: Apple
             workflow: apple-release.yml
             apple: true
             title_prefix: Apple iOS
             platforms: ios
-          - name: Mac
-            workflow: mac-release.yml
-            apple: true
-            title_prefix: Mac
 
     steps:
       - name: Checkout release orchestration

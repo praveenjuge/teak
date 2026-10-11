@@ -198,12 +198,12 @@ describe("Apple release workflows", () => {
       "cli-release.yml",
       "extension-release.yml",
       "apple-release.yml",
-      "mac-release.yml",
     ]) {
       expect(versionTag).toContain(`workflow: ${workflow}`);
     }
-    // Expo is frozen: the native Apple app ships iPhone and iPad instead.
+    // Expo is frozen and Teak for Mac is off sale: the native Apple app ships instead.
     expect(versionTag).not.toContain("workflow: mobile-release.yml");
+    expect(versionTag).not.toContain("workflow: mac-release.yml");
     expect(versionTag).toContain(
       "title_prefix: Apple iOS\n            platforms: ios"
     );
