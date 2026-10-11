@@ -145,14 +145,30 @@ function readOptional(filePath) {
   return sanitizeAscOutput(fs.readFileSync(filePath, "utf8"));
 }
 
-function failureBody(values) {
+const releaseWorkflows = new Set([
+  "apple-release.yml",
+  "mac-release.yml",
+  "mobile-release.yml",
+]);
+const applePlatforms = new Set(["ios", "macos", "both"]);
+
+export function failureBody(values) {
   const platform = values.platform;
   if (!new Set(["IOS", "MAC_OS"]).has(platform)) {
     throw new Error(`Unsupported platform: ${platform}`);
   }
   const workflowUrl = validateWorkflowUrl(values["workflow-url"]);
   const workflowFile =
-    platform === "IOS" ? "mobile-release.yml" : "mac-release.yml";
+    values["workflow-file"] ??
+    (platform === "IOS" ? "mobile-release.yml" : "mac-release.yml");
+  if (!releaseWorkflows.has(workflowFile)) {
+    throw new Error(`Unsupported release workflow: ${workflowFile}`);
+  }
+  const platforms = values.platforms;
+  if (platforms !== undefined && !applePlatforms.has(platforms)) {
+    throw new Error(`Unsupported platforms input: ${platforms}`);
+  }
+  const platformsInput = platforms ? ` -f platforms=${platforms}` : "";
   const status = readOptional(values["status-file"]);
   const doctor = readOptional(values["doctor-file"]);
   return `<!-- apple-release:v${values.version} -->
@@ -177,7 +193,7 @@ ${doctor}
 Rerun after remediation:
 
 \`\`\`bash
-gh workflow run ${workflowFile} --ref main -f version=${values.version} -f dry_run=false
+gh workflow run ${workflowFile} --ref main -f version=${values.version}${platformsInput} -f dry_run=false
 \`\`\``;
 }
 

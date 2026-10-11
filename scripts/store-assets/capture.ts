@@ -2,15 +2,16 @@
  * Captures one raw screenshot from a running app into its store's source
  * folder. Put the app on the right screen first, then run:
  *
- *   bun scripts/store-assets/capture.ts prepare iphone|android
- *   bun scripts/store-assets/capture.ts iphone 01-library [--as-is]
+ *   bun scripts/store-assets/capture.ts prepare apple-iphone|apple-ipad|iphone|android
+ *   bun scripts/store-assets/capture.ts apple-ipad 01-library [--as-is]
  *   bun scripts/store-assets/capture.ts android 01-library
- *   bun scripts/store-assets/capture.ts mac 01-library [--app Safari --window "<title>"]
+ *   bun scripts/store-assets/capture.ts apple-mac 01-library [--app Safari --window "<title>"]
  *
  * `prepare` sets a clean status bar (9:41, full signal and battery, no
- * notifications). iPhone captures use `asc screenshots capture`; Mac
- * captures a window by ID in the background; Android uses adb. TEAK_STORE_SIMULATOR picks a simulator (name or UDID,
- * default "iPhone 17 Pro Max"); ANDROID_HOME locates adb.
+ * notifications). iPhone and iPad captures use `asc screenshots capture`; Mac
+ * captures a window by ID in the background; Android uses adb. Each store
+ * names its simulator or window in shots.ts; TEAK_STORE_SIMULATOR (name or
+ * UDID) overrides the simulator. ANDROID_HOME locates adb.
  */
 
 import { mkdirSync, renameSync, writeFileSync } from "node:fs";
@@ -19,7 +20,6 @@ import { STORES, type StoreId } from "./shots.ts";
 
 const root = path.resolve(import.meta.dir, "../..");
 const IPHONE_BUNDLE = "com.praveenjuge.teak";
-const MAC_APP = "Teak for Mac";
 
 const run = async (cmd: string[], stdout: "pipe" | "inherit" = "pipe") => {
   const proc = Bun.spawn(cmd, { stdout, stderr: "pipe" });
@@ -34,8 +34,11 @@ const run = async (cmd: string[], stdout: "pipe" | "inherit" = "pipe") => {
   return Buffer.from(out ?? new ArrayBuffer(0));
 };
 
-const simulatorUdid = async (): Promise<string> => {
-  const wanted = process.env.TEAK_STORE_SIMULATOR ?? "iPhone 17 Pro Max";
+const simulatorUdid = async (store: StoreId): Promise<string> => {
+  const wanted =
+    process.env.TEAK_STORE_SIMULATOR ??
+    STORES[store].simulator ??
+    "iPhone 17 Pro Max";
   const list = JSON.parse(
     (
       await run(["xcrun", "simctl", "list", "devices", "booted", "-j"])
@@ -69,8 +72,8 @@ const demo = (command: string, extras: Record<string, string> = {}) => [
 ];
 
 const prepare = async (store: StoreId) => {
-  if (store === "iphone") {
-    const udid = await simulatorUdid();
+  if (STORES[store].simulator) {
+    const udid = await simulatorUdid(store);
     // A 12-hour clock shows "9:41" rather than "09:41". It applies after the
     // simulator restarts, so the first prepare reboots it.
     const defaults = ["xcrun", "simctl", "spawn", udid, "defaults"];
@@ -145,19 +148,20 @@ const prepare = async (store: StoreId) => {
       await run(step);
     }
   } else {
-    throw new Error("Only iphone and android need preparing.");
+    throw new Error("Only simulator and Android stores need preparing.");
   }
   console.log(`Clean status bar set for ${store}.`);
 };
 
 /** The window to capture: `--window "<title>"` of `--app "<owner>"`. */
-const macWindow = async (): Promise<number> => {
+const macWindow = async (store: StoreId): Promise<number> => {
   const flag = (name: string, fallback: string) => {
     const index = process.argv.indexOf(name);
     return index > 0 ? (process.argv[index + 1] ?? fallback) : fallback;
   };
-  const owner = flag("--app", MAC_APP);
-  const title = flag("--window", "Teak Library");
+  const window = STORES[store].window ?? { app: "Teak", title: "Home" };
+  const owner = flag("--app", window.app);
+  const title = flag("--window", window.title);
   // A fixed script; the owner and title arrive as arguments, never as code.
   const script = `function run([owner, title]) { ObjC.import("CoreGraphics"); return JSON.stringify(ObjC.deepUnwrap(ObjC.castRefToObject($.CGWindowListCopyWindowInfo($.kCGWindowListOptionAll, 0))).filter((w) => w.kCGWindowOwnerName === owner && w.kCGWindowName === title).map((w) => w.kCGWindowNumber)); }`;
   const ids = JSON.parse(
@@ -177,10 +181,10 @@ const capture = async (store: StoreId, name: string) => {
   const file = path.join(dir, `${name}.png`);
   if (store === "android") {
     writeFileSync(file, await run([adb(), "exec-out", "screencap", "-p"]));
-  } else if (store === "mac") {
+  } else if (STORES[store].layout === "mac") {
     // asc's macOS capture needs the window in front of everything; capturing
     // by window ID works in the background, even on another Space.
-    const id = await macWindow();
+    const id = await macWindow(store);
     await run(["screencapture", "-x", "-o", `-l${id}`, file]);
   } else if (process.argv.includes("--as-is")) {
     // asc brings Teak to the front first, which closes a share sheet or any
@@ -189,7 +193,7 @@ const capture = async (store: StoreId, name: string) => {
       "xcrun",
       "simctl",
       "io",
-      await simulatorUdid(),
+      await simulatorUdid(store),
       "screenshot",
       file,
     ]);
@@ -207,7 +211,7 @@ const capture = async (store: StoreId, name: string) => {
           "--output-dir",
           dir,
           "--udid",
-          await simulatorUdid(),
+          await simulatorUdid(store),
         ])
       ).toString()
     ) as { path: string };
@@ -225,7 +229,7 @@ if (first === "prepare") {
   await capture(first as StoreId, second);
 } else {
   console.error(
-    "Usage: capture.ts prepare <iphone|android> | <mac|iphone|android> <name>"
+    `Usage: capture.ts prepare <store> | <store> <name>, where store is ${Object.keys(STORES).join(", ")}`
   );
   process.exit(1);
 }

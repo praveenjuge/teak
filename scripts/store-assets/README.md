@@ -6,12 +6,20 @@ headline, and a real capture of the app showing a designer's library.
 
 | Store | Raw captures | Final images |
 | --- | --- | --- |
+| Apple app, iPhone (`apple-iphone`) | `apps/apple/store/source/iphone/` | `apps/apple/store/screenshots/iphone/en-US/` (1320 × 2868) |
+| Apple app, iPad (`apple-ipad`) | `apps/apple/store/source/ipad/` | `apps/apple/store/screenshots/ipad/en-US/` (2064 × 2752) |
+| Apple app, Mac (`apple-mac`) | `apps/apple/store/source/mac/` | `apps/apple/store/screenshots/mac/en-US/` (2880 × 1800) |
 | Mac App Store | `apps/mac/assets/screenshots/source/` | `apps/mac/assets/screenshots/en-US/` (2880 × 1800) |
 | iPhone App Store | `apps/mobile/store/apple/source/` | `apps/mobile/store/apple/screenshot/en-US/APP_IPHONE_67/` (1320 × 2868) |
 | Play Store | `apps/android/store/source/` | `apps/android/store/listing/en-US/graphics/phone-screenshots/` (1080 × 1920) and `feature_graphic.png` (1024 × 500) |
 
 Raw captures are committed, so a headline change is a re-render, not a
 recapture.
+
+The `apple-*` sets belong to the native Apple app, which replaces the Expo
+iPhone app and Teak for Mac; their release workflow publishes them (see
+`apps/apple/store/screenshots/README.md`). Each store in `shots.ts` names the
+simulator or Mac window it captures from and the device frame it renders in.
 
 ## Files
 
@@ -34,7 +42,11 @@ recapture.
    Link previews and AI tags finish a minute later.
 2. **Apps.** Run each app against production and sign in to the showcase
    account by hand (Claude can't type passwords into WorkOS):
-   - Mac: build the `teak-mac (macOS)` scheme in Release and launch it with
+   - Apple app (iPhone, iPad, Mac): a Release build of the `Teak` scheme in
+     `apps/apple` talks to production. Run it on the iPhone 17 Pro Max and
+     iPad Pro 13-inch simulators, and on the Mac with the window at
+     1440 × 900 points and Settings › Appearance set to Light.
+   - Mac (Teak for Mac): build the `teak-mac (macOS)` scheme in Release and launch it with
      `--args -NSRequiresAquaSystemAppearance YES` for light mode.
    - iPhone: `expo prebuild`, then a Release `xcodebuild` for the simulator with
      the production `EXPO_PUBLIC_CONVEX_*` values from `mobile-release.yml`,

@@ -1,0 +1,185 @@
+# Source of truth for Teak.xcodeproj. After editing, run `scripts/generate-project.sh`
+# and commit both; CI fails if they differ.
+name: Teak
+options:
+  bundleIdPrefix: com.praveenjuge
+  deploymentTarget:
+    iOS: "26.0"
+    macOS: "26.0"
+  developmentLanguage: en
+  createIntermediateGroups: true
+  groupSortPosition: top
+  generateEmptyDirectories: true
+  xcodeVersion: "27.0"
+
+packages:
+  TeakKit:
+    path: Packages/TeakKit
+  Sentry:
+    url: https://github.com/getsentry/sentry-cocoa
+    exactVersion: 9.29.2
+
+settings:
+  base:
+    DEVELOPMENT_TEAM: LW385M78LW
+    CODE_SIGN_STYLE: Automatic
+    MARKETING_VERSION: 1.0.85
+    CURRENT_PROJECT_VERSION: "1"
+    SWIFT_VERSION: "6.0"
+    SWIFT_STRICT_CONCURRENCY: complete
+    SWIFT_UPCOMING_FEATURE_EXISTENTIAL_ANY: YES
+    ENABLE_USER_SCRIPT_SANDBOXING: YES
+    DEAD_CODE_STRIPPING: YES
+    SUPPORTED_PLATFORMS: iphoneos iphonesimulator macosx
+    SUPPORTS_MACCATALYST: NO
+    SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD: NO
+    SUPPORTS_XR_DESIGNED_FOR_IPHONE_IPAD: NO
+    TARGETED_DEVICE_FAMILY: "1,2"
+    # ConvexMobile ships its Rust core for Apple silicon only.
+    "ARCHS[sdk=macosx*]": arm64
+    "ARCHS[sdk=iphonesimulator*]": arm64
+    ENABLE_HARDENED_RUNTIME: YES
+    DEBUG_INFORMATION_FORMAT: dwarf-with-dsym
+    TEAK_SENTRY_DSN: ""
+    TEAK_WORKOS_URL: https://api.workos.com
+  configs:
+    Debug:
+      TEAK_CONVEX_URL: https://reminiscent-kangaroo-59.convex.cloud
+      TEAK_WEB_URL: http://localhost:3000
+      TEAK_ENVIRONMENT: development
+      TEAK_DISPLAY_NAME: Teak Dev
+    Release:
+      TEAK_CONVEX_URL: https://uncommon-ladybug-882.convex.cloud
+      TEAK_WEB_URL: https://app.teakvault.com
+      TEAK_ENVIRONMENT: production
+      TEAK_DISPLAY_NAME: Teak
+      # teakvault/teak-apple-prod. A DSN is public; it ships in the app.
+      TEAK_SENTRY_DSN: https://9519e43e434faf40437682aa8285c12b@o4509483678236672.ingest.us.sentry.io/4512232778825728
+
+targets:
+  Teak:
+    type: application
+    supportedDestinations: [iOS, macOS]
+    sources:
+      - path: Shared
+      - path: Teak
+        excludes:
+          - "Resources/Info-*.plist"
+          - "Resources/*.entitlements"
+    settings:
+      base:
+        PRODUCT_NAME: Teak
+        PRODUCT_BUNDLE_IDENTIFIER: com.praveenjuge.teak
+        "INFOPLIST_FILE[sdk=iphone*]": Teak/Resources/Info-iOS.plist
+        "INFOPLIST_FILE[sdk=macosx*]": Teak/Resources/Info-macOS.plist
+        "CODE_SIGN_ENTITLEMENTS[sdk=iphone*]": Teak/Resources/Teak-iOS.entitlements
+        "CODE_SIGN_ENTITLEMENTS[sdk=macosx*]": Teak/Resources/Teak-macOS.entitlements
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME: AccentColor
+        LD_RUNPATH_SEARCH_PATHS: "$(inherited) @executable_path/Frameworks @executable_path/../Frameworks"
+    dependencies:
+      - package: TeakKit
+        product: TeakCore
+      - package: TeakKit
+        product: TeakSync
+      - package: TeakKit
+        product: TeakUI
+      - package: Sentry
+        product: Sentry
+      - target: ShareExtension
+      - target: SafariExtension
+
+  ShareExtension:
+    type: app-extension
+    supportedDestinations: [iOS, macOS]
+    sources:
+      - path: Shared
+      - path: ShareExtension
+        excludes:
+          - "Info.plist"
+          - "*.entitlements"
+    settings:
+      base:
+        PRODUCT_NAME: ShareExtension
+        PRODUCT_BUNDLE_IDENTIFIER: com.praveenjuge.teak.share-extension
+        INFOPLIST_FILE: ShareExtension/Info.plist
+        "CODE_SIGN_ENTITLEMENTS[sdk=iphone*]": ShareExtension/ShareExtension-iOS.entitlements
+        "CODE_SIGN_ENTITLEMENTS[sdk=macosx*]": ShareExtension/ShareExtension-macOS.entitlements
+        APPLICATION_EXTENSION_API_ONLY: YES
+        LD_RUNPATH_SEARCH_PATHS: "$(inherited) @executable_path/Frameworks @executable_path/../../Frameworks @executable_path/../../../../Frameworks"
+    dependencies:
+      - package: TeakKit
+        product: TeakCore
+      - package: TeakKit
+        product: TeakUI
+      - package: Sentry
+        product: Sentry
+
+  SafariExtension:
+    type: app-extension
+    supportedDestinations: [iOS, macOS]
+    sources:
+      - path: Shared
+      - path: SafariExtension
+        excludes:
+          - "Info.plist"
+          - "*.entitlements"
+          - "Resources/**"
+      - path: SafariExtension/Resources
+        type: group
+        buildPhase: resources
+        excludes:
+          - "_locales/**"
+          - "images/**"
+      - path: SafariExtension/Resources/_locales
+        type: folder
+        buildPhase: resources
+      - path: SafariExtension/Resources/images
+        type: folder
+        buildPhase: resources
+    settings:
+      base:
+        PRODUCT_NAME: SafariExtension
+        PRODUCT_BUNDLE_IDENTIFIER: com.praveenjuge.teak.safari-extension
+        INFOPLIST_FILE: SafariExtension/Info.plist
+        "CODE_SIGN_ENTITLEMENTS[sdk=iphone*]": SafariExtension/SafariExtension-iOS.entitlements
+        "CODE_SIGN_ENTITLEMENTS[sdk=macosx*]": SafariExtension/SafariExtension-macOS.entitlements
+        APPLICATION_EXTENSION_API_ONLY: YES
+        LD_RUNPATH_SEARCH_PATHS: "$(inherited) @executable_path/Frameworks @executable_path/../../Frameworks @executable_path/../../../../Frameworks"
+    dependencies:
+      - package: TeakKit
+        product: TeakCore
+      - package: Sentry
+        product: Sentry
+
+  TeakUITests:
+    type: bundle.ui-testing
+    supportedDestinations: [iOS, macOS]
+    sources: [TeakUITests]
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.praveenjuge.teak.uitests
+        GENERATE_INFOPLIST_FILE: YES
+        TEST_TARGET_NAME: Teak
+        CODE_SIGN_STYLE: Automatic
+    dependencies:
+      - target: Teak
+
+schemes:
+  Teak:
+    build:
+      targets:
+        Teak: all
+        TeakUITests: [test]
+    run:
+      config: Debug
+    test:
+      config: Debug
+      targets:
+        - TeakUITests
+    archive:
+      config: Release
+    profile:
+      config: Release
+    analyze:
+      config: Debug

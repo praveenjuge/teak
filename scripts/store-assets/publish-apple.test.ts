@@ -21,6 +21,10 @@ const platforms = {
     directory: "apps/mobile/store/apple/screenshot/en-US/APP_IPHONE_67",
     displayType: "APP_IPHONE_67",
   },
+  "apple-ipad": {
+    directory: "apps/apple/store/screenshots/ipad/en-US",
+    displayType: "APP_IPAD_PRO_3GEN_129",
+  },
 };
 
 function run(
@@ -36,7 +40,15 @@ function run(
   mkdirSync(assets, { recursive: true });
   mkdirSync(path.join(root, "apps/mac"), { recursive: true });
   mkdirSync(path.join(root, "apps/mobile"), { recursive: true });
+  mkdirSync(path.join(root, "apps/apple/store"), { recursive: true });
   mkdirSync(path.join(root, "bin"));
+  writeFileSync(
+    path.join(root, "apps/apple/store/store.config.json"),
+    JSON.stringify({
+      locale: "en-US",
+      screenshots: { iphone: [], ipad: configured, mac: [] },
+    })
+  );
   writeFileSync(
     path.join(root, "apps/mac/store.config.json"),
     JSON.stringify({ locale: "en-US", screenshots: configured })
@@ -164,6 +176,18 @@ test("publishes the iPhone set to its own display type", () => {
     "apps/mobile/store/apple/screenshot/en-US/APP_IPHONE_67",
     "--device-type",
     "APP_IPHONE_67",
+  ]);
+});
+
+test("publishes the Apple app's iPad set from its own folder", () => {
+  const { result, calls } = run(false, false, false, false, "apple-ipad");
+  expect(result.exitCode).toBe(0);
+  const upload = calls.find((args) => args[1] === "upload");
+  expect(upload?.slice(4, 8)).toEqual([
+    "--path",
+    "apps/apple/store/screenshots/ipad/en-US",
+    "--device-type",
+    "APP_IPAD_PRO_3GEN_129",
   ]);
 });
 

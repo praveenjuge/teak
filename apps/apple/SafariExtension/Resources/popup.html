@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8">
+    <meta content="width=device-width, initial-scale=1" name="viewport">
+    <meta content="light dark" name="color-scheme">
+    <link href="popup.css" rel="stylesheet">
+    <script src="popup.js" type="module"></script>
+  </head>
+  <body data-state="checking">
+    <main class="popup">
+      <div aria-hidden="true" class="symbol">
+        <span class="spinner"></span>
+        <img alt="" class="logo" height="40" src="images/toolbar-icon.svg" width="40">
+        <svg class="done" viewBox="0 0 24 24"><circle cx="12" cy="12" r="11"/><path d="M7 12.5l3.2 3.2L17 9"/></svg>
+        <svg class="warning" viewBox="0 0 24 24"><path d="M12 3.5 22 20.5H2z"/><path d="M12 10v4.5M12 17.6v.1"/></svg>
+      </div>
+      <h1 class="title" id="title">Teak</h1>
+      <p class="message" id="message">Checking Safari…</p>
+      <div class="actions">
+        <button class="primary" id="sign-in" type="button">Sign In</button>
+        <button class="secondary" id="retry" type="button">Try Again</button>
+        <button class="plain" id="sign-out" type="button">Sign Out</button>
+      </div>
+    </main>
+  </body>
+</html>

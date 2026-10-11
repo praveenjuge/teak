@@ -1,0 +1,1210 @@
+name: Apple App Store Release
+run-name: Apple ${{ inputs.platforms == 'both' && 'iOS + Mac' || inputs.platforms == 'macos' && 'Mac' || 'iOS' }} ${{ inputs.version }} (${{ inputs.dry_run && 'dry run' || 'release' }})
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Patch version matching every package.json"
+        required: true
+        type: string
+      platforms:
+        description: "ios ships iPhone and iPad; macos ships the Mac app; both ships both"
+        required: true
+        default: ios
+        type: choice
+        options:
+          - ios
+          - macos
+          - both
+      release_notes:
+        description: "App Store release notes (defaults to apps/apple/store/store.config.json)"
+        required: false
+        type: string
+      dry_run:
+        description: "Verify release readiness without building or mutating Apple state"
+        required: true
+        default: true
+        type: boolean
+concurrency:
+  # Both platforms ship to app 6756574989 and take build numbers from its whole
+  # history. Shared with mobile-release.yml until that workflow is retired, so
+  # the two never allocate build numbers at the same time.
+  group: mobile-app-store-ios-${{ github.repository }}
+  cancel-in-progress: false
+permissions:
+  contents: read
+  issues: write
+env:
+  ASC_APP_ID: "6756574989"
+  ASC_BYPASS_KEYCHAIN: "1"
+  ASC_ISSUER_ID: ${{ secrets.APPLE_API_ISSUER }}
+  ASC_KEY_ID: ${{ secrets.APPLE_API_KEY_ID }}
+  ASC_NO_UPDATE: "1"
+  ASC_VERSION: "5.14.0"
+  APPLE_TEAM_ID: LW385M78LW
+  APP_BUNDLE_ID: com.praveenjuge.teak
+  APP_GROUP: group.com.praveenjuge.teak
+  SHARE_EXTENSION_BUNDLE_ID: com.praveenjuge.teak.share-extension
+  SAFARI_EXTENSION_BUNDLE_ID: com.praveenjuge.teak.safari-extension
+  # The Expo iPhone app used builds 1-89; the native app continues above them.
+  MINIMUM_BUILD_NUMBER: "90"
+  PROJECT_PATH: apps/apple/Teak.xcodeproj
+  SCHEME_NAME: Teak
+  TEAK_CONVEX_URL: https://uncommon-ladybug-882.convex.cloud
+  SENTRY_CLI_VERSION: "3.6.2"
+  SENTRY_ORG: teakvault
+  SENTRY_PROJECT: teak-apple-prod
+  RELEASE_NOTES: ${{ inputs.release_notes }}
+  VERSION: ${{ inputs.version }}
+jobs:
+  plan:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    outputs:
+      matrix: ${{ steps.matrix.outputs.matrix }}
+    steps:
+      - name: Plan platforms
+        id: matrix
+        env:
+          PLATFORMS: ${{ inputs.platforms }}
+        run: |
+          ios='{"platform":"IOS","slug":"ios","label":"iOS","destination":"generic/platform=iOS","profile_type":"IOS_APP_STORE","artifact":"ipa"}'
+          macos='{"platform":"MAC_OS","slug":"macos","label":"macOS","destination":"generic/platform=macOS","profile_type":"MAC_APP_STORE","artifact":"pkg"}'
+          case "$PLATFORMS" in
+            ios) include="[$ios]" ;;
+            macos) include="[$macos]" ;;
+            both) include="[$ios,$macos]" ;;
+            *) echo "Unknown platforms input: $PLATFORMS" >&2; exit 1 ;;
+          esac
+          echo "matrix=$(jq -c '{include: .}' <<< "$include")" >> "$GITHUB_OUTPUT"
+
+  build:
+    name: Build ${{ matrix.label }}
+    needs: plan
+    runs-on: xcode-27
+    timeout-minutes: 120
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJSON(needs.plan.outputs.matrix) }}
+    env:
+      ARTIFACT_EXT: ${{ matrix.artifact }}
+      DESTINATION: ${{ matrix.destination }}
+      LABEL: ${{ matrix.label }}
+      PLATFORM: ${{ matrix.platform }}
+      PROFILE_TYPE: ${{ matrix.profile_type }}
+      SLUG: ${{ matrix.slug }}
+    steps:
+      - name: Checkout release ref
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+      - name: Set up Bun
+        uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+        with:
+          bun-version-file: package.json
+      - name: Set up asc
+        uses: rudrankriyam/setup-asc@5358c70a27a3f0d1517604b0f1fdc43e70c1cc4d # v1.0.1
+        with:
+          cache: "false"
+          version: ${{ env.ASC_VERSION }}
+      - name: Prepare App Store Connect key
+        env:
+          APPLE_API_KEY_P8: ${{ secrets.APPLE_API_KEY_P8 }}
+        run: |
+          if [ -z "$ASC_KEY_ID" ] || [ -z "$ASC_ISSUER_ID" ] || [ -z "$APPLE_API_KEY_P8" ]; then
+            echo "Missing App Store Connect credentials." >&2
+            exit 1
+          fi
+          key_path="$RUNNER_TEMP/AuthKey_${ASC_KEY_ID}.p8"
+          printf '%s' "$APPLE_API_KEY_P8" > "$key_path"
+          chmod 600 "$key_path"
+          echo "ASC_PRIVATE_KEY_PATH=$key_path" >> "$GITHUB_ENV"
+      - name: Verify release identity, canonical version, Xcode, and asc
+        env:
+          DRY_RUN: ${{ inputs.dry_run }}
+          GITHUB_APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+          GITHUB_APPLE_DISTRIBUTION_PRIVATE_KEY_BASE64: ${{ secrets.APPLE_DISTRIBUTION_PRIVATE_KEY_BASE64 }}
+          GITHUB_SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
+        run: |
+          if [ -z "$GITHUB_APPLE_CERTIFICATE_PASSWORD" ] || [ -z "$GITHUB_APPLE_DISTRIBUTION_PRIVATE_KEY_BASE64" ]; then
+            echo "Missing Apple signing credentials." >&2
+            exit 1
+          fi
+          if [ -z "$GITHUB_SENTRY_AUTH_TOKEN" ]; then
+            echo "::warning::SENTRY_AUTH_TOKEN isn't set, so dSYMs won't reach $SENTRY_ORG/$SENTRY_PROJECT."
+          fi
+          node scripts/release-version.mjs lockstep "$VERSION"
+          if [ "$DRY_RUN" != "true" ]; then
+            release_tag="v$VERSION"
+            tag_commit="$(git rev-list -n 1 "$release_tag" 2>/dev/null || true)"
+            if [ -z "$tag_commit" ]; then
+              echo "A real release requires the existing $release_tag tag." >&2
+              exit 1
+            fi
+            case "$GITHUB_REF" in
+              "refs/tags/$release_tag")
+                if [ "$tag_commit" != "$GITHUB_SHA" ]; then
+                  echo "$release_tag resolved to an unexpected commit." >&2
+                  exit 1
+                fi
+                ;;
+              refs/heads/main)
+                git fetch origin main
+                if [ "$GITHUB_SHA" != "$(git rev-parse origin/main)" ] || ! git merge-base --is-ancestor "$tag_commit" "$GITHUB_SHA"; then
+                  echo "A recovery release must run at the current origin/main commit descending from $release_tag." >&2
+                  exit 1
+                fi
+                echo "- Recovery source: current main $GITHUB_SHA (descends from $release_tag at $tag_commit)" >> "$GITHUB_STEP_SUMMARY"
+                ;;
+              *)
+                echo "A real release may run only from $release_tag or current main, not $GITHUB_REF." >&2
+                exit 1
+                ;;
+            esac
+          fi
+          # The app builds with the pinned, non-beta Xcode 27 (see select-xcode.sh).
+          apps/apple/scripts/select-xcode.sh
+          xcode_version="$(xcodebuild -version)"
+          if [[ "$xcode_version" != Xcode\ 27.* ]]; then
+            echo "The release runner must provide a non-beta Xcode 27.x; found: $xcode_version" >&2
+            exit 1
+          fi
+          echo "$xcode_version"
+          xcodebuild -list -project "$PROJECT_PATH"
+          asc auth status --validate --output table
+          asc_version="$(asc --version | awk '{print $1}')"
+          if [ "$asc_version" != "$ASC_VERSION" ]; then
+            echo "asc $ASC_VERSION is required; found $asc_version." >&2
+            exit 1
+          fi
+
+      - name: Resolve current Apple release state
+        id: release_state
+        env:
+          DRY_RUN: ${{ inputs.dry_run }}
+        run: |
+          versions_json="$RUNNER_TEMP/apple-$SLUG-versions.json"
+          for attempt in 1 2 3; do
+            if asc versions list --app "$ASC_APP_ID" --platform "$PLATFORM" --paginate --output json > "$versions_json"; then
+              break
+            fi
+            if [ "$attempt" -eq 3 ]; then exit 1; fi
+            sleep $((attempt * 10))
+          done
+
+          result="$(node scripts/apple-latest-review.mjs apply "$versions_json" "$VERSION" "$ASC_APP_ID" "$PLATFORM" "$DRY_RUN")"
+          target_id="$(jq -r '.targetId' <<< "$result")"
+          target_state="$(jq -r '.targetState' <<< "$result")"
+          source_version="$(jq -r '.sourceVersion' <<< "$result")"
+          mutate="$(jq -r '.mutate' <<< "$result")"
+          {
+            echo "target_id=$target_id"
+            echo "target_state=$target_state"
+            echo "source_version=$source_version"
+            echo "mutate=$mutate"
+          } >> "$GITHUB_OUTPUT"
+          {
+            echo "### $LABEL $([ "$DRY_RUN" = "true" ] && echo 'dry run' || echo 'latest-review release')"
+            echo "- Target: $VERSION (${target_state:-not created})"
+            echo "- Superseded: $(jq -r 'if .supersededId == "" then "none" else "\(.supersededVersion) (\(.supersededState)); cancel=\(.cancelSuperseded), remove=\(.removeSuperseded), promote=\(.promoteSuperseded)" end' <<< "$result")"
+            echo "- Metadata source: ${source_version:-none, first $LABEL version on this listing}"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Reuse an exact valid build or allocate the next Apple build number
+        id: build_state
+        if: steps.release_state.outputs.mutate == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          exact_builds="$RUNNER_TEMP/apple-$SLUG-exact-builds.json"
+          asc builds list \
+            --app "$ASC_APP_ID" \
+            --platform "$PLATFORM" \
+            --version "$VERSION" \
+            --processing-state VALID \
+            --exclude-expired \
+            --sort=-uploadedDate \
+            --limit 1 \
+            --output json > "$exact_builds"
+          build_id="$(jq -r '.data[0].id // empty' "$exact_builds")"
+          build_number="$(jq -r '.data[0].attributes.version // empty' "$exact_builds")"
+          manifest="$RUNNER_TEMP/apple-$SLUG-reuse-manifest.json"
+          manifest_name="teak-apple-$SLUG-$VERSION-app-store.json"
+
+          if [ -n "$build_id" ] && gh release download "v$VERSION" --pattern "$manifest_name" --output "$manifest" 2>/dev/null; then
+            if ! jq -e --arg id "$build_id" --arg number "$build_number" \
+              '.build.id == $id and .build.number == $number and .artifact.sha256 != ""' "$manifest" > /dev/null; then
+              echo "The canonical $LABEL manifest does not prove the exact reusable build." >&2
+              exit 1
+            fi
+            reuse=true
+            echo "Reusing manifest-proven VALID App Store Connect build $build_id ($VERSION/$build_number)."
+          else
+            reuse=false
+            build_id=""
+            # One counter for both platforms: the next number is above every
+            # iOS and macOS build on the listing.
+            asc builds list --app "$ASC_APP_ID" --platform IOS --paginate --output json > "$RUNNER_TEMP/apple-ios-all-builds.json"
+            asc builds list --app "$ASC_APP_ID" --platform MAC_OS --paginate --output json > "$RUNNER_TEMP/apple-macos-all-builds.json"
+            build_number="$(node scripts/apple-build-number.mjs "$RUNNER_TEMP/apple-ios-all-builds.json" "$RUNNER_TEMP/apple-macos-all-builds.json")"
+            asc builds next-build-number --app "$ASC_APP_ID" --platform "$PLATFORM" --output json > "$RUNNER_TEMP/apple-$SLUG-next-build.json"
+            asc_build_number="$(jq -r '.nextBuildNumber // .buildNumber // .data.nextBuildNumber // empty' "$RUNNER_TEMP/apple-$SLUG-next-build.json")"
+            if ! [[ "$build_number" =~ ^[1-9][0-9]*$ ]] || ! [[ "$asc_build_number" =~ ^[1-9][0-9]*$ ]]; then
+              echo "Could not allocate a positive integer $LABEL build number (history $build_number, asc ${asc_build_number:-nothing})." >&2
+              exit 1
+            fi
+            if [ "$build_number" -lt "$asc_build_number" ]; then
+              echo "asc next-build-number returned $asc_build_number, above the shared history's $build_number; an upload may be in flight." >&2
+              exit 1
+            fi
+            if [ "$build_number" -lt "$MINIMUM_BUILD_NUMBER" ]; then
+              echo "Allocated build $build_number is below $MINIMUM_BUILD_NUMBER; App Store Connect history looks incomplete." >&2
+              exit 1
+            fi
+          fi
+          {
+            echo "reuse=$reuse"
+            echo "build_id=$build_id"
+            echo "build_number=$build_number"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Prepare distribution certificates and secure temporary keychain with asc
+        id: signing
+        if: steps.release_state.outputs.mutate == 'true' && steps.build_state.outputs.reuse != 'true'
+        env:
+          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+          APPLE_DISTRIBUTION_PRIVATE_KEY_BASE64: ${{ secrets.APPLE_DISTRIBUTION_PRIVATE_KEY_BASE64 }}
+        run: |
+          private_key="$RUNNER_TEMP/apple-distribution-private-key.pem"
+          csr="$RUNNER_TEMP/apple-distribution.csr"
+          printf '%s' "$APPLE_DISTRIBUTION_PRIVATE_KEY_BASE64" | base64 --decode > "$private_key"
+          chmod 600 "$private_key"
+          openssl req -new -key "$private_key" -out "$csr" -subj "/CN=Teak Apple Distribution/O=$APPLE_TEAM_ID/C=US"
+          private_hash="$(openssl pkey -in "$private_key" -pubout -outform DER | shasum -a 256 | awk '{print $1}')"
+
+          ensure_certificate() {
+            local types="$1" create_type="$2" prefix="$3"
+            local list_path="$RUNNER_TEMP/${prefix}-certificates.json"
+            local cert_path="$RUNNER_TEMP/${prefix}.pem"
+            asc certificates list --certificate-type "$types" --paginate > "$list_path"
+            local cert_id=""
+            while IFS= read -r row; do
+              candidate_id="$(jq -r '.id' <<< "$row")"
+              content="$(jq -r '.attributes.certificateContent // empty' <<< "$row")"
+              if [ -z "$content" ]; then continue; fi
+              candidate="$RUNNER_TEMP/${prefix}-${candidate_id}.cer"
+              printf '%s' "$content" | base64 --decode > "$candidate"
+              candidate_hash="$(openssl x509 -inform DER -in "$candidate" -pubkey -noout | openssl pkey -pubin -outform DER | shasum -a 256 | awk '{print $1}')"
+              if [ "$candidate_hash" = "$private_hash" ]; then
+                cert_id="$candidate_id"
+                openssl x509 -inform DER -in "$candidate" -out "$cert_path"
+                break
+              fi
+            done < <(jq -c '.data[]?' "$list_path")
+
+            if [ -z "$cert_id" ]; then
+              asc certificates create --certificate-type "$create_type" --csr "$csr" > "$RUNNER_TEMP/${prefix}-create.json"
+              cert_id="$(jq -r '.data.id // .id // empty' "$RUNNER_TEMP/${prefix}-create.json")"
+              content="$(jq -r '.data.attributes.certificateContent // .attributes.certificateContent // empty' "$RUNNER_TEMP/${prefix}-create.json")"
+              printf '%s' "$content" | base64 --decode | openssl x509 -inform DER -out "$cert_path"
+            fi
+            if [ -z "$cert_id" ] || [ ! -s "$cert_path" ]; then
+              echo "Could not resolve the $create_type certificate with asc." >&2
+              exit 1
+            fi
+            local identity
+            identity="$(openssl x509 -in "$cert_path" -noout -subject -nameopt multiline | awk -F'= ' '/commonName/{print $2; exit}')"
+            if [ -z "$identity" ]; then
+              echo "Could not resolve the $create_type certificate identity." >&2
+              exit 1
+            fi
+            openssl pkcs12 -legacy -export -inkey "$private_key" -in "$cert_path" -out "$RUNNER_TEMP/${prefix}.p12" -passout "pass:$APPLE_CERTIFICATE_PASSWORD" -name "$identity"
+            {
+              echo "${prefix}_id=$cert_id"
+              echo "${prefix}_identity=$identity"
+            } >> "$GITHUB_OUTPUT"
+          }
+
+          archives=("$RUNNER_TEMP/distribution.p12")
+          if [ "$PLATFORM" = "IOS" ]; then
+            ensure_certificate "IOS_DISTRIBUTION" "IOS_DISTRIBUTION" "distribution"
+          else
+            ensure_certificate "DISTRIBUTION,MAC_APP_DISTRIBUTION" "DISTRIBUTION" "distribution"
+            ensure_certificate "MAC_INSTALLER_DISTRIBUTION" "MAC_INSTALLER_DISTRIBUTION" "installer"
+            archives+=("$RUNNER_TEMP/installer.p12")
+          fi
+
+          keychain="$RUNNER_TEMP/teak-apple-signing.keychain-db"
+          keychain_password="$(uuidgen)"
+          echo "::add-mask::$keychain_password"
+          security create-keychain -p "$keychain_password" "$keychain"
+          security set-keychain-settings -lut 21600 "$keychain"
+          security unlock-keychain -p "$keychain_password" "$keychain"
+          for archive in "${archives[@]}"; do
+            security import "$archive" -k "$keychain" -P "$APPLE_CERTIFICATE_PASSWORD" -T /usr/bin/codesign -T /usr/bin/productbuild -T /usr/bin/productsign -T /usr/bin/security
+          done
+          security list-keychains -d user -s "$keychain" login.keychain-db
+          security default-keychain -s "$keychain"
+          security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$keychain_password" "$keychain"
+
+      - name: Create or reuse exact App Store provisioning profiles with asc
+        id: profiles
+        if: steps.release_state.outputs.mutate == 'true' && steps.build_state.outputs.reuse != 'true'
+        env:
+          CERTIFICATE_ID: ${{ steps.signing.outputs.distribution_id }}
+        run: |
+          asc bundle-ids list --paginate > "$RUNNER_TEMP/apple-bundle-ids.json"
+          asc profiles list --profile-type "$PROFILE_TYPE" --profile-state ACTIVE --paginate > "$RUNNER_TEMP/apple-$SLUG-profiles.json"
+          profile_dir="$HOME/Library/MobileDevice/Provisioning Profiles"
+          mkdir -p "$profile_dir"
+          if [ "$PLATFORM" = "IOS" ]; then
+            profile_ext=mobileprovision
+            app_identifier_key=application-identifier
+          else
+            profile_ext=provisionprofile
+            app_identifier_key=com.apple.application-identifier
+          fi
+
+          ensure_profile() {
+            local identifier="$1" label="$2" output_prefix="$3"
+            local bundle_id
+            bundle_id="$(jq -r --arg identifier "$identifier" --arg platform "$PLATFORM" '.data[] | select(.attributes.identifier == $identifier and (.attributes.platform == $platform or .attributes.platform == "UNIVERSAL")) | .id' "$RUNNER_TEMP/apple-bundle-ids.json" | head -1)"
+            if [ -z "$bundle_id" ]; then
+              echo "Missing exact $LABEL bundle ID: $identifier. Register it once (see apps/apple/release.md)." >&2
+              exit 1
+            fi
+            profile_name="Teak Apple $LABEL $label ${CERTIFICATE_ID: -8}"
+            profile_id="$(jq -r --arg name "$profile_name" '.data[] | select(.attributes.name == $name and .attributes.profileState == "ACTIVE") | .id' "$RUNNER_TEMP/apple-$SLUG-profiles.json" | head -1)"
+            if [ -z "$profile_id" ]; then
+              asc profiles create \
+                --name "$profile_name" \
+                --profile-type "$PROFILE_TYPE" \
+                --bundle "$bundle_id" \
+                --certificate "$CERTIFICATE_ID" > "$RUNNER_TEMP/${output_prefix}-profile-create.json"
+              profile_id="$(jq -r '.data.id // .id // empty' "$RUNNER_TEMP/${output_prefix}-profile-create.json")"
+            fi
+            profile_path="$RUNNER_TEMP/${output_prefix}.$profile_ext"
+            asc profiles download --id "$profile_id" --output "$profile_path" > "$RUNNER_TEMP/${output_prefix}-profile-download.json"
+            plist="$RUNNER_TEMP/${output_prefix}-profile.plist"
+            security cms -D -i "$profile_path" > "$plist"
+            profile_uuid="$(/usr/libexec/PlistBuddy -c 'Print :UUID' "$plist")"
+            resolved_name="$(/usr/libexec/PlistBuddy -c 'Print :Name' "$plist")"
+            application_identifier="$(/usr/libexec/PlistBuddy -c "Print :Entitlements:$app_identifier_key" "$plist")"
+            if [ "$application_identifier" != "$APPLE_TEAM_ID.$identifier" ]; then
+              echo "Provisioning profile identity mismatch for $identifier." >&2
+              exit 1
+            fi
+            if ! /usr/libexec/PlistBuddy -c 'Print :Entitlements:com.apple.security.application-groups' "$plist" | grep -Fxq "    $APP_GROUP"; then
+              echo "The $identifier profile doesn't include $APP_GROUP. Assign the App Group to that identifier once (see apps/apple/release.md)." >&2
+              exit 1
+            fi
+            cp "$profile_path" "$profile_dir/$profile_uuid.$profile_ext"
+            echo "${output_prefix}_name=$resolved_name" >> "$GITHUB_OUTPUT"
+          }
+
+          ensure_profile "$APP_BUNDLE_ID" "App" "app"
+          ensure_profile "$SHARE_EXTENSION_BUNDLE_ID" "Share Extension" "share"
+          ensure_profile "$SAFARI_EXTENSION_BUNDLE_ID" "Safari Extension" "safari"
+
+      - name: Archive the Release build
+        id: archive
+        if: steps.release_state.outputs.mutate == 'true' && steps.build_state.outputs.reuse != 'true'
+        env:
+          APP_PROFILE_NAME: ${{ steps.profiles.outputs.app_name }}
+          BUILD_NUMBER: ${{ steps.build_state.outputs.build_number }}
+          SAFARI_PROFILE_NAME: ${{ steps.profiles.outputs.safari_name }}
+          SHARE_PROFILE_NAME: ${{ steps.profiles.outputs.share_name }}
+          SIGNING_IDENTITY: ${{ steps.signing.outputs.distribution_identity }}
+        run: |
+          archive_path="$RUNNER_TEMP/Teak-$SLUG.xcarchive"
+          # Each target picks its profile by bundle ID, so the project keeps
+          # automatic signing for local builds:
+          # TEAK_PROFILE_<bundle id as identifier> = profile name.
+          # shellcheck disable=SC2016 # Xcode expands the $(...) build setting.
+          xcodebuild archive \
+            -project "$PROJECT_PATH" \
+            -scheme "$SCHEME_NAME" \
+            -configuration Release \
+            -destination "$DESTINATION" \
+            -archivePath "$archive_path" \
+            DEVELOPMENT_TEAM="$APPLE_TEAM_ID" \
+            MARKETING_VERSION="$VERSION" \
+            CURRENT_PROJECT_VERSION="$BUILD_NUMBER" \
+            CODE_SIGN_STYLE=Manual \
+            CODE_SIGN_IDENTITY="$SIGNING_IDENTITY" \
+            'PROVISIONING_PROFILE_SPECIFIER=$(TEAK_PROFILE_$(PRODUCT_BUNDLE_IDENTIFIER:identifier))' \
+            TEAK_PROFILE_com_praveenjuge_teak="$APP_PROFILE_NAME" \
+            TEAK_PROFILE_com_praveenjuge_teak_share_extension="$SHARE_PROFILE_NAME" \
+            TEAK_PROFILE_com_praveenjuge_teak_safari_extension="$SAFARI_PROFILE_NAME"
+          echo "path=$archive_path" >> "$GITHUB_OUTPUT"
+
+      - name: Export the signed App Store package
+        id: export
+        if: steps.release_state.outputs.mutate == 'true' && steps.build_state.outputs.reuse != 'true'
+        env:
+          APP_PROFILE_NAME: ${{ steps.profiles.outputs.app_name }}
+          ARCHIVE_PATH: ${{ steps.archive.outputs.path }}
+          INSTALLER_IDENTITY: ${{ steps.signing.outputs.installer_identity }}
+          SAFARI_PROFILE_NAME: ${{ steps.profiles.outputs.safari_name }}
+          SHARE_PROFILE_NAME: ${{ steps.profiles.outputs.share_name }}
+          SIGNING_IDENTITY: ${{ steps.signing.outputs.distribution_identity }}
+        run: |
+          export_path="$RUNNER_TEMP/apple-$SLUG-export"
+          export_options="$RUNNER_TEMP/Apple-$SLUG-ExportOptions.plist"
+          /usr/libexec/PlistBuddy -c 'Add :method string app-store-connect' "$export_options"
+          /usr/libexec/PlistBuddy -c 'Add :destination string export' "$export_options"
+          /usr/libexec/PlistBuddy -c "Add :teamID string $APPLE_TEAM_ID" "$export_options"
+          /usr/libexec/PlistBuddy -c 'Add :signingStyle string manual' "$export_options"
+          /usr/libexec/PlistBuddy -c "Add :signingCertificate string $SIGNING_IDENTITY" "$export_options"
+          if [ "$PLATFORM" = "MAC_OS" ]; then
+            /usr/libexec/PlistBuddy -c "Add :installerSigningCertificate string $INSTALLER_IDENTITY" "$export_options"
+          fi
+          /usr/libexec/PlistBuddy -c 'Add :manageAppVersionAndBuildNumber bool false' "$export_options"
+          /usr/libexec/PlistBuddy -c 'Add :provisioningProfiles dict' "$export_options"
+          /usr/libexec/PlistBuddy -c "Add :provisioningProfiles:$APP_BUNDLE_ID string $APP_PROFILE_NAME" "$export_options"
+          /usr/libexec/PlistBuddy -c "Add :provisioningProfiles:$SHARE_EXTENSION_BUNDLE_ID string $SHARE_PROFILE_NAME" "$export_options"
+          /usr/libexec/PlistBuddy -c "Add :provisioningProfiles:$SAFARI_EXTENSION_BUNDLE_ID string $SAFARI_PROFILE_NAME" "$export_options"
+          xcodebuild \
+            -exportArchive \
+            -archivePath "$ARCHIVE_PATH" \
+            -exportPath "$export_path" \
+            -exportOptionsPlist "$export_options"
+
+          package_count="$(find "$export_path" -maxdepth 1 -type f -name "*.$ARTIFACT_EXT" | wc -l | tr -d ' ')"
+          package_path="$(find "$export_path" -maxdepth 1 -type f -name "*.$ARTIFACT_EXT" | head -1)"
+          if [ "$package_count" -ne 1 ] || [ ! -s "$package_path" ]; then
+            echo "Expected exactly one non-empty exported .$ARTIFACT_EXT." >&2
+            exit 1
+          fi
+          release_package="$RUNNER_TEMP/Teak-$VERSION-$SLUG.$ARTIFACT_EXT"
+          cp "$package_path" "$release_package"
+          echo "path=$release_package" >> "$GITHUB_OUTPUT"
+
+      - name: Verify the signed package identity, versions, entitlements, profiles, and signatures
+        if: steps.release_state.outputs.mutate == 'true' && steps.build_state.outputs.reuse != 'true'
+        env:
+          BUILD_NUMBER: ${{ steps.build_state.outputs.build_number }}
+          PACKAGE_PATH: ${{ steps.export.outputs.path }}
+        run: |
+          expanded="$RUNNER_TEMP/apple-$SLUG-expanded"
+          if [ "$PLATFORM" = "IOS" ]; then
+            unzip -q "$PACKAGE_PATH" -d "$expanded"
+            app_search=("$expanded/Payload" -mindepth 1 -maxdepth 1)
+            contents=""
+            profile_name=embedded.mobileprovision
+            app_identifier_key=application-identifier
+          else
+            pkgutil --check-signature "$PACKAGE_PATH"
+            pkgutil --expand-full "$PACKAGE_PATH" "$expanded"
+            app_search=("$expanded")
+            contents="Contents/"
+            profile_name=Contents/embedded.provisionprofile
+            app_identifier_key=com.apple.application-identifier
+          fi
+          apps=()
+          while IFS= read -r found; do apps+=("$found"); done < <(find "${app_search[@]}" -type d -name '*.app' -prune)
+          if [ "${#apps[@]}" -ne 1 ]; then
+            echo "Expected exactly one app in the signed $LABEL package." >&2
+            exit 1
+          fi
+          app_path="${apps[0]}"
+          extensions=()
+          while IFS= read -r found; do extensions+=("$found"); done < <(find "$app_path/${contents}PlugIns" -mindepth 1 -maxdepth 1 -type d -name '*.appex')
+          if [ "${#extensions[@]}" -ne 2 ]; then
+            echo "Expected the share and Safari extensions in the signed $LABEL app." >&2
+            exit 1
+          fi
+
+          verify_bundle() {
+            local bundle_path="$1" expected_bundle="$2"
+            local plist="$bundle_path/${contents}Info.plist"
+            local bundle_id version build_number convex_url environment sentry_dsn
+            bundle_id="$(plutil -extract CFBundleIdentifier raw "$plist")"
+            version="$(plutil -extract CFBundleShortVersionString raw "$plist")"
+            build_number="$(plutil -extract CFBundleVersion raw "$plist")"
+            if [ "$bundle_id" != "$expected_bundle" ] || [ "$version" != "$VERSION" ] || [ "$build_number" != "$BUILD_NUMBER" ]; then
+              echo "$expected_bundle identity mismatch: $bundle_id $version ($build_number)." >&2
+              exit 1
+            fi
+            convex_url="$(plutil -extract TeakConvexURL raw "$plist")"
+            environment="$(plutil -extract TeakEnvironment raw "$plist")"
+            sentry_dsn="$(plutil -extract TeakSentryDSN raw "$plist" 2>/dev/null || true)"
+            if [ "$convex_url" != "$TEAK_CONVEX_URL" ] || [ "$environment" != "production" ]; then
+              echo "$expected_bundle is missing the production runtime configuration." >&2
+              exit 1
+            fi
+            if [ -z "$sentry_dsn" ]; then
+              echo "$expected_bundle has no TeakSentryDSN; the Release config must carry the teak-apple-prod DSN." >&2
+              exit 1
+            fi
+
+            local entitlements="$RUNNER_TEMP/apple-$SLUG-$expected_bundle-entitlements.plist"
+            codesign -d --entitlements :- "$bundle_path" > "$entitlements"
+            if [ "$(/usr/libexec/PlistBuddy -c "Print :$app_identifier_key" "$entitlements")" != "$APPLE_TEAM_ID.$expected_bundle" ]; then
+              echo "$expected_bundle application identifier entitlement mismatch." >&2
+              exit 1
+            fi
+            if [ "$(/usr/libexec/PlistBuddy -c 'Print :keychain-access-groups:0' "$entitlements")" != "$APPLE_TEAM_ID.$APP_BUNDLE_ID" ]; then
+              echo "$expected_bundle keychain access group mismatch." >&2
+              exit 1
+            fi
+            if [ "$(/usr/libexec/PlistBuddy -c 'Print :com.apple.security.application-groups:0' "$entitlements")" != "$APP_GROUP" ]; then
+              echo "$expected_bundle App Group mismatch." >&2
+              exit 1
+            fi
+            if [ "$PLATFORM" = "MAC_OS" ] && [ "$(/usr/libexec/PlistBuddy -c 'Print :com.apple.security.app-sandbox' "$entitlements")" != "true" ]; then
+              echo "$expected_bundle is not sandboxed." >&2
+              exit 1
+            fi
+
+            local profile="$RUNNER_TEMP/apple-$SLUG-$expected_bundle-embedded.plist"
+            security cms -D -i "$bundle_path/$profile_name" > "$profile"
+            if [ "$(/usr/libexec/PlistBuddy -c "Print :Entitlements:$app_identifier_key" "$profile")" != "$APPLE_TEAM_ID.$expected_bundle" ]; then
+              echo "Embedded provisioning profile mismatch for $expected_bundle." >&2
+              exit 1
+            fi
+          }
+
+          verify_bundle "$app_path" "$APP_BUNDLE_ID"
+          seen=""
+          for extension_path in "${extensions[@]}"; do
+            extension_id="$(plutil -extract CFBundleIdentifier raw "$extension_path/${contents}Info.plist")"
+            case "$extension_id" in
+              "$SHARE_EXTENSION_BUNDLE_ID"|"$SAFARI_EXTENSION_BUNDLE_ID") ;;
+              *) echo "Unexpected extension in the signed app: $extension_id." >&2; exit 1 ;;
+            esac
+            verify_bundle "$extension_path" "$extension_id"
+            codesign --verify --strict "$extension_path"
+            seen="$seen $extension_id"
+          done
+          if [[ "$seen" != *"$SHARE_EXTENSION_BUNDLE_ID"* ]] || [[ "$seen" != *"$SAFARI_EXTENSION_BUNDLE_ID"* ]]; then
+            echo "The signed app must contain both the share and Safari extensions." >&2
+            exit 1
+          fi
+          codesign --verify --deep --strict "$app_path"
+          echo "- Signed $LABEL package: verified $VERSION/$BUILD_NUMBER for the app, share extension, and Safari extension" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload dSYMs to Sentry
+        if: steps.release_state.outputs.mutate == 'true' && steps.build_state.outputs.reuse != 'true'
+        env:
+          ARCHIVE_PATH: ${{ steps.archive.outputs.path }}
+          SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
+        run: |
+          if [ -z "$SENTRY_AUTH_TOKEN" ]; then
+            echo "::warning::Skipping the dSYM upload: SENTRY_AUTH_TOKEN isn't set."
+            echo "- Sentry dSYMs: skipped, SENTRY_AUTH_TOKEN isn't set" >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          dsyms="$ARCHIVE_PATH/dSYMs"
+          if [ -z "$(find "$dsyms" -maxdepth 1 -name '*.dSYM' -print -quit)" ]; then
+            echo "The $LABEL archive has no dSYMs." >&2
+            exit 1
+          fi
+          bunx "@sentry/cli@$SENTRY_CLI_VERSION" debug-files upload \
+            --org "$SENTRY_ORG" \
+            --project "$SENTRY_PROJECT" \
+            --include-sources \
+            --wait \
+            "$dsyms"
+          echo "- Sentry dSYMs: uploaded to $SENTRY_ORG/$SENTRY_PROJECT" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Prepare verified signed package handoff
+        id: handoff
+        if: steps.release_state.outputs.mutate == 'true' && steps.build_state.outputs.reuse != 'true'
+        env:
+          BUILD_NUMBER: ${{ steps.build_state.outputs.build_number }}
+          PACKAGE_PATH: ${{ steps.export.outputs.path }}
+        run: |
+          sha256="$(shasum -a 256 "$PACKAGE_PATH" | awk '{print $1}')"
+          handoff_directory="$RUNNER_TEMP/apple-handoff"
+          mkdir -p "$handoff_directory"
+          cp "$PACKAGE_PATH" "$handoff_directory/$(basename "$PACKAGE_PATH")"
+          jq -n \
+            --arg version "$VERSION" \
+            --arg platform "$PLATFORM" \
+            --arg buildNumber "$BUILD_NUMBER" \
+            --arg sha256 "$sha256" \
+            --arg fileName "$(basename "$PACKAGE_PATH")" \
+            '{version: $version, platform: $platform, buildNumber: $buildNumber, sha256: $sha256, fileName: $fileName}' > "$handoff_directory/apple-handoff.json"
+          echo "directory=$handoff_directory" >> "$GITHUB_OUTPUT"
+
+      - name: Upload verified signed package handoff
+        if: steps.release_state.outputs.mutate == 'true' && steps.build_state.outputs.reuse != 'true'
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: teak-apple-${{ matrix.slug }}-${{ inputs.version }}-signed
+          path: ${{ steps.handoff.outputs.directory }}
+          if-no-files-found: error
+          retention-days: 1
+
+      - name: Record build state for submission
+        env:
+          BUILD_ID: ${{ steps.build_state.outputs.build_id }}
+          BUILD_NUMBER: ${{ steps.build_state.outputs.build_number }}
+          MUTATE: ${{ steps.release_state.outputs.mutate }}
+          REUSE: ${{ steps.build_state.outputs.reuse }}
+          SOURCE_VERSION: ${{ steps.release_state.outputs.source_version }}
+          TARGET_ID: ${{ steps.release_state.outputs.target_id }}
+          TARGET_STATE: ${{ steps.release_state.outputs.target_state }}
+        run: |
+          mkdir -p "$RUNNER_TEMP/apple-state"
+          jq -n \
+            --arg version "$VERSION" \
+            --arg platform "$PLATFORM" \
+            --arg mutate "$MUTATE" \
+            --arg reuse "$REUSE" \
+            --arg build_id "$BUILD_ID" \
+            --arg build_number "$BUILD_NUMBER" \
+            --arg source_version "$SOURCE_VERSION" \
+            --arg target_id "$TARGET_ID" \
+            --arg target_state "$TARGET_STATE" \
+            '$ARGS.named' > "$RUNNER_TEMP/apple-state/state.json"
+
+      - name: Upload build state
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: teak-apple-${{ matrix.slug }}-${{ inputs.version }}-state
+          path: ${{ runner.temp }}/apple-state
+          if-no-files-found: error
+          retention-days: 1
+
+  submit:
+    name: Submit ${{ matrix.label }}
+    if: inputs.dry_run == false
+    needs: [plan, build]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 120
+    permissions:
+      contents: write
+    strategy:
+      fail-fast: false
+      # App info is shared by both platforms, so submit one platform at a time.
+      max-parallel: 1
+      matrix: ${{ fromJSON(needs.plan.outputs.matrix) }}
+    env:
+      ARTIFACT_EXT: ${{ matrix.artifact }}
+      LABEL: ${{ matrix.label }}
+      PLATFORM: ${{ matrix.platform }}
+      SLUG: ${{ matrix.slug }}
+    steps:
+      - name: Checkout release ref
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+
+      - name: Set up asc
+        uses: rudrankriyam/setup-asc@5358c70a27a3f0d1517604b0f1fdc43e70c1cc4d # v1.0.1
+        with:
+          cache: "false"
+          version: ${{ env.ASC_VERSION }}
+
+      - name: Prepare App Store Connect key
+        env:
+          APPLE_API_KEY_P8: ${{ secrets.APPLE_API_KEY_P8 }}
+        run: |
+          if [ -z "$ASC_KEY_ID" ] || [ -z "$ASC_ISSUER_ID" ] || [ -z "$APPLE_API_KEY_P8" ]; then
+            echo "Missing App Store Connect credentials." >&2
+            exit 1
+          fi
+          key_path="$RUNNER_TEMP/AuthKey_${ASC_KEY_ID}.p8"
+          printf '%s' "$APPLE_API_KEY_P8" > "$key_path"
+          chmod 600 "$key_path"
+          echo "ASC_PRIVATE_KEY_PATH=$key_path" >> "$GITHUB_ENV"
+          asc auth status --validate --output table
+
+      - name: Download build state
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: teak-apple-${{ matrix.slug }}-${{ inputs.version }}-state
+          path: ${{ runner.temp }}/apple-state
+
+      - name: Read build state
+        id: build
+        run: |
+          state="$RUNNER_TEMP/apple-state/state.json"
+          jq -e --arg version "$VERSION" --arg platform "$PLATFORM" '.version == $version and .platform == $platform' "$state" > /dev/null
+          for key in mutate reuse build_id build_number source_version target_id target_state; do
+            echo "$key=$(jq -r --arg key "$key" '.[$key]' "$state")" >> "$GITHUB_OUTPUT"
+          done
+
+      - name: Download verified signed package handoff
+        if: steps.build.outputs.mutate == 'true' && steps.build.outputs.reuse != 'true'
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: teak-apple-${{ matrix.slug }}-${{ inputs.version }}-signed
+          path: ${{ runner.temp }}/apple-handoff
+
+      - name: Verify signed package handoff
+        id: handoff
+        if: steps.build.outputs.mutate == 'true' && steps.build.outputs.reuse != 'true'
+        env:
+          BUILD_NUMBER: ${{ steps.build.outputs.build_number }}
+        run: |
+          descriptor_count="$(find "$RUNNER_TEMP/apple-handoff" -maxdepth 1 -type f -name 'apple-handoff.json' | wc -l | tr -d ' ')"
+          package_count="$(find "$RUNNER_TEMP/apple-handoff" -maxdepth 1 -type f -name "*.$ARTIFACT_EXT" | wc -l | tr -d ' ')"
+          descriptor="$RUNNER_TEMP/apple-handoff/apple-handoff.json"
+          package_path="$(find "$RUNNER_TEMP/apple-handoff" -maxdepth 1 -type f -name "*.$ARTIFACT_EXT")"
+          if [ "$descriptor_count" -ne 1 ] || [ "$package_count" -ne 1 ] || [ ! -s "$descriptor" ] || [ ! -s "$package_path" ]; then
+            echo "Expected one signed .$ARTIFACT_EXT and its handoff descriptor." >&2
+            exit 1
+          fi
+          jq -e --arg version "$VERSION" --arg platform "$PLATFORM" --arg build "$BUILD_NUMBER" --arg file "$(basename "$package_path")" \
+            '.version == $version and .platform == $platform and .buildNumber == $build and .fileName == $file' "$descriptor" > /dev/null
+          expected_sha="$(jq -r '.sha256' "$descriptor")"
+          actual_sha="$(sha256sum "$package_path" | awk '{print $1}')"
+          if [ "$actual_sha" != "$expected_sha" ]; then
+            echo "Signed package handoff digest mismatch." >&2
+            exit 1
+          fi
+          echo "path=$package_path" >> "$GITHUB_OUTPUT"
+          echo "sha256=$actual_sha" >> "$GITHUB_OUTPUT"
+
+      - name: Upload the signed package with asc or reuse the exact valid Apple build
+        id: apple_build
+        if: steps.build.outputs.mutate == 'true'
+        env:
+          BUILD_NUMBER: ${{ steps.build.outputs.build_number }}
+          EXISTING_BUILD_ID: ${{ steps.build.outputs.build_id }}
+          PACKAGE_PATH: ${{ steps.handoff.outputs.path }}
+          REUSE: ${{ steps.build.outputs.reuse }}
+        run: |
+          build_id="$EXISTING_BUILD_ID"
+          builds_path="$RUNNER_TEMP/apple-$SLUG-builds.json"
+          if [ "$REUSE" != "true" ]; then
+            asc builds upload \
+              --app "$ASC_APP_ID" \
+              "--$ARTIFACT_EXT" "$PACKAGE_PATH" \
+              --version "$VERSION" \
+              --build-number "$BUILD_NUMBER" \
+              --checksum \
+              --wait \
+              --output json > "$RUNNER_TEMP/apple-$SLUG-upload.json"
+          fi
+          asc builds list \
+            --app "$ASC_APP_ID" \
+            --platform "$PLATFORM" \
+            --version "$VERSION" \
+            --build-number "$BUILD_NUMBER" \
+            --processing-state VALID \
+            --exclude-expired \
+            --output json > "$builds_path"
+          resolved_build_id="$(jq -r '.data[0].id // empty' "$builds_path")"
+          if [ -z "$resolved_build_id" ] || [ "$(jq '.data | length' "$builds_path")" -ne 1 ]; then
+            echo "Expected exactly one VALID $LABEL build for $VERSION/$BUILD_NUMBER." >&2
+            exit 1
+          fi
+          if [ -n "$build_id" ] && [ "$resolved_build_id" != "$build_id" ]; then
+            echo "The exact reusable App Store build changed unexpectedly." >&2
+            exit 1
+          fi
+          echo "id=$resolved_build_id" >> "$GITHUB_OUTPUT"
+          echo "- App Store build: $resolved_build_id ($LABEL $VERSION/$BUILD_NUMBER, VALID)" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Evaluate asc high-level release commands without mutation
+        id: asc_parity
+        if: steps.build.outputs.mutate == 'true'
+        env:
+          BUILD_ID: ${{ steps.apple_build.outputs.id }}
+          BUILD_NUMBER: ${{ steps.build.outputs.build_number }}
+          PACKAGE_PATH: ${{ steps.handoff.outputs.path }}
+          REUSE: ${{ steps.build.outputs.reuse }}
+          SOURCE_VERSION: ${{ steps.build.outputs.source_version }}
+        run: |
+          stage_args=(release stage --app "$ASC_APP_ID" --version "$VERSION" --build-id "$BUILD_ID" --platform "$PLATFORM" --strict-validate --dry-run --output json)
+          if [ -n "$SOURCE_VERSION" ]; then
+            stage_args+=(--copy-metadata-from "$SOURCE_VERSION" --exclude-fields whatsNew)
+          fi
+          stage_exit=0
+          asc "${stage_args[@]}" > "$RUNNER_TEMP/apple-$SLUG-release-stage-dry-run.json" || stage_exit=$?
+          publish_exit="not_evaluated_on_reuse"
+          if [ "$REUSE" != "true" ]; then
+            publish_exit=0
+            asc publish appstore \
+              --app "$ASC_APP_ID" \
+              "--$ARTIFACT_EXT" "$PACKAGE_PATH" \
+              --version "$VERSION" \
+              --build-number "$BUILD_NUMBER" \
+              --platform "$PLATFORM" \
+              --submit \
+              --dry-run \
+              --output json > "$RUNNER_TEMP/apple-$SLUG-publish-dry-run.json" || publish_exit=$?
+          fi
+          echo "stage_exit=$stage_exit" >> "$GITHUB_OUTPUT"
+          echo "publish_exit=$publish_exit" >> "$GITHUB_OUTPUT"
+          {
+            echo "- asc release stage dry-run exit: $stage_exit"
+            echo "- asc publish appstore dry-run exit: $publish_exit"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Find or create the App Store version and preserve review details
+        id: apple_version
+        if: steps.build.outputs.mutate == 'true'
+        env:
+          SOURCE_VERSION: ${{ steps.build.outputs.source_version }}
+          TARGET_ID: ${{ steps.build.outputs.target_id }}
+        run: |
+          version_id="$TARGET_ID"
+          if [ -z "$version_id" ]; then
+            create_args=(versions create --app "$ASC_APP_ID" --version "$VERSION" --platform "$PLATFORM" --release-type AFTER_APPROVAL --output json)
+            if [ -n "$SOURCE_VERSION" ]; then
+              create_args+=(--copy-metadata-from "$SOURCE_VERSION" --exclude-fields whatsNew)
+            fi
+            asc "${create_args[@]}" > "$RUNNER_TEMP/apple-$SLUG-version-create.json"
+            version_id="$(jq -r '.data.id // .id // empty' "$RUNNER_TEMP/apple-$SLUG-version-create.json")"
+          fi
+          if [ -z "$version_id" ]; then
+            version_id="$(asc versions list --app "$ASC_APP_ID" --platform "$PLATFORM" --version "$VERSION" --limit 1 --output json | jq -r '.data[0].id // empty')"
+          fi
+          if [ -z "$version_id" ]; then
+            echo "Could not resolve $LABEL App Store version $VERSION." >&2
+            exit 1
+          fi
+          asc versions update --version-id "$version_id" --release-type AFTER_APPROVAL --output json > "$RUNNER_TEMP/apple-$SLUG-version-update.json"
+
+          if ! asc review details-for-version --version-id "$version_id" --output json > "$RUNNER_TEMP/apple-$SLUG-review-target.json" 2>/dev/null; then
+            if [ -n "$SOURCE_VERSION" ]; then
+              source_id="$(asc versions list --app "$ASC_APP_ID" --platform "$PLATFORM" --version "$SOURCE_VERSION" --limit 1 --output json | jq -r '.data[0].id // empty')"
+            else
+              # The first version on this platform borrows the review contact
+              # from the live iOS version of the same listing.
+              source_id="$(asc versions list --app "$ASC_APP_ID" --platform IOS --paginate --output json | jq -r '[.data[] | select((.attributes.appVersionState // .attributes.appStoreState) as $state | ["READY_FOR_DISTRIBUTION", "READY_FOR_SALE"] | index($state))][0].id // empty')"
+            fi
+            if [ -z "$source_id" ]; then
+              echo "No prior version has review details to carry forward." >&2
+              exit 1
+            fi
+            asc review details-for-version --version-id "$source_id" --output json > "$RUNNER_TEMP/apple-$SLUG-review-source.json"
+            review="$RUNNER_TEMP/apple-$SLUG-review-source.json"
+            args=(review details-create --version-id "$version_id")
+            for field in contactFirstName contactLastName contactEmail contactPhone notes; do
+              value="$(jq -r --arg field "$field" '.data.attributes[$field] // .[$field] // empty' "$review")"
+              case "$field" in
+                contactFirstName) flag=--contact-first-name ;;
+                contactLastName) flag=--contact-last-name ;;
+                contactEmail) flag=--contact-email ;;
+                contactPhone) flag=--contact-phone ;;
+                notes) flag=--notes ;;
+              esac
+              if [ -n "$value" ]; then args+=("$flag" "$value"); fi
+            done
+            demo_required="$(jq -r '.data.attributes.demoAccountRequired // .demoAccountRequired // false' "$review")"
+            if [ "$demo_required" = "true" ]; then
+              echo "Source review details require sensitive demo credentials; refusing to expose or copy them." >&2
+              exit 1
+            fi
+            args+=(--demo-account-required=false --output json)
+            asc "${args[@]}" > "$RUNNER_TEMP/apple-$SLUG-review-create.json"
+          fi
+          echo "id=$version_id" >> "$GITHUB_OUTPUT"
+          echo "- App Store version: $version_id ($LABEL, AFTER_APPROVAL)" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Apply and verify the App Store listing and screenshots
+        if: steps.build.outputs.mutate == 'true'
+        env:
+          SOURCE_VERSION: ${{ steps.build.outputs.source_version }}
+          VERSION_ID: ${{ steps.apple_version.outputs.id }}
+        run: |
+          first_version=false
+          if [ -z "$SOURCE_VERSION" ]; then first_version=true; fi
+          bash apps/apple/scripts/apply-store-metadata.sh "$ASC_APP_ID" "$VERSION_ID" "$PLATFORM" "$first_version" "$RELEASE_NOTES"
+
+      - name: Complete new Apple age-rating fields without changing the existing declaration
+        if: steps.build.outputs.mutate == 'true'
+        env:
+          VERSION_ID: ${{ steps.apple_version.outputs.id }}
+        run: |
+          asc age-rating edit \
+            --version-id "$VERSION_ID" \
+            --social-media false \
+            --social-media-age-restricted false \
+            --output json > "$RUNNER_TEMP/apple-$SLUG-age-rating-edit.json"
+          asc age-rating view \
+            --version-id "$VERSION_ID" \
+            --fields socialMedia,socialMediaAgeRestricted \
+            --output json > "$RUNNER_TEMP/apple-$SLUG-age-rating-view.json"
+          if ! jq -e '.data.attributes.socialMedia == false and .data.attributes.socialMediaAgeRestricted == false' "$RUNNER_TEMP/apple-$SLUG-age-rating-view.json" > /dev/null; then
+            echo "App Store Connect did not retain the required $LABEL social-media age-rating declarations." >&2
+            exit 1
+          fi
+
+      - name: Attach exact build, validate, run doctor, and submit
+        id: submit
+        if: steps.build.outputs.mutate == 'true'
+        env:
+          BUILD_ID: ${{ steps.apple_build.outputs.id }}
+          CURRENT_STATE: ${{ steps.build.outputs.target_state }}
+          VERSION_ID: ${{ steps.apple_version.outputs.id }}
+        run: |
+          attach_exit=0
+          asc versions attach-build --version-id "$VERSION_ID" --build-id "$BUILD_ID" --output json > "$RUNNER_TEMP/apple-$SLUG-attach.json" || attach_exit=$?
+          if [ "$attach_exit" -ne 0 ]; then
+            asc versions view --version-id "$VERSION_ID" --include-build --output json > "$RUNNER_TEMP/apple-$SLUG-attached-version.json"
+            if [ "$CURRENT_STATE" != "READY_FOR_REVIEW" ] || ! jq -e --arg version "$VERSION_ID" --arg build "$BUILD_ID" '.id == $version and .state == "READY_FOR_REVIEW" and .buildId == $build' "$RUNNER_TEMP/apple-$SLUG-attached-version.json" > /dev/null; then
+              echo "Could not attach the exact $LABEL build to the target version." >&2
+              exit "$attach_exit"
+            fi
+            echo "- Exact $LABEL build was already attached to the existing READY_FOR_REVIEW draft." >> "$GITHUB_STEP_SUMMARY"
+          fi
+          validate_exit=0
+          asc validate --app "$ASC_APP_ID" --version-id "$VERSION_ID" --platform "$PLATFORM" --strict --output json > "$RUNNER_TEMP/apple-$SLUG-validate.json" || validate_exit=$?
+          if [ "$validate_exit" -ne 0 ]; then
+            if [ "$CURRENT_STATE" != "READY_FOR_REVIEW" ] || ! jq -e '
+              .summary.errors == 1
+              and .summary.blocking == 1
+              and ([.remediation.steps[]? | select(.blocking == true) | .checkId] == ["version.state.editable"])
+            ' "$RUNNER_TEMP/apple-$SLUG-validate.json" > /dev/null; then
+              echo "asc validate found unexpected $LABEL submission blockers." >&2
+              exit "$validate_exit"
+            fi
+            echo "asc validate confirmed the only blocker is the expected existing READY_FOR_REVIEW draft." >> "$GITHUB_STEP_SUMMARY"
+          fi
+          doctor_exit=0
+          asc review doctor --app "$ASC_APP_ID" --version-id "$VERSION_ID" --platform "$PLATFORM" --output json > "$RUNNER_TEMP/apple-$SLUG-doctor.json" || doctor_exit=$?
+          if [ "$doctor_exit" -ne 0 ]; then
+            if [ "$CURRENT_STATE" != "READY_FOR_REVIEW" ] || ! jq -e '
+              .summary.errors == 1
+              and .summary.blocking == 1
+              and ([.blockingChecks[]?.id] == ["version.state.editable"])
+            ' "$RUNNER_TEMP/apple-$SLUG-doctor.json" > /dev/null; then
+              echo "asc review doctor found unexpected $LABEL submission blockers." >&2
+              exit "$doctor_exit"
+            fi
+            echo "asc review doctor confirmed the only blocker is the expected existing READY_FOR_REVIEW draft." >> "$GITHUB_STEP_SUMMARY"
+          fi
+          ready_submissions="$RUNNER_TEMP/apple-$SLUG-ready-submissions.json"
+          asc review submissions-list \
+            --app "$ASC_APP_ID" \
+            --platform "$PLATFORM" \
+            --state READY_FOR_REVIEW \
+            --paginate \
+            --output json > "$ready_submissions"
+          matching_submission=""
+          empty_submission=""
+          while IFS= read -r candidate_id; do
+            candidate_items="$RUNNER_TEMP/apple-$SLUG-review-items-$candidate_id.json"
+            asc review items-list \
+              --submission "$candidate_id" \
+              --fields appStoreVersion \
+              --include appStoreVersion \
+              --paginate \
+              --output json > "$candidate_items"
+            item_count="$(jq '.data | length' "$candidate_items")"
+            target_count="$(jq --arg target "$VERSION_ID" '[.data[]? | select(.relationships.appStoreVersion.data.id == $target)] | length' "$candidate_items")"
+            if [ "$target_count" -eq 1 ] && [ "$item_count" -eq 1 ]; then
+              if [ -n "$matching_submission" ] && [ "$matching_submission" != "$candidate_id" ]; then
+                echo "Multiple READY_FOR_REVIEW submissions contain $LABEL version $VERSION_ID." >&2
+                exit 1
+              fi
+              matching_submission="$candidate_id"
+            elif [ "$item_count" -eq 0 ] && [ -z "$empty_submission" ]; then
+              empty_submission="$candidate_id"
+            fi
+          done < <(jq -r '.data[]?.id' "$ready_submissions")
+          submission_id="$matching_submission"
+          if [ -z "$submission_id" ]; then
+            submission_id="$empty_submission"
+            if [ -z "$submission_id" ]; then
+              asc review submissions-create --app "$ASC_APP_ID" --platform "$PLATFORM" --output json > "$RUNNER_TEMP/apple-$SLUG-submission-create.json"
+              submission_id="$(jq -r '.data.id // .id // empty' "$RUNNER_TEMP/apple-$SLUG-submission-create.json")"
+            fi
+            if [ -z "$submission_id" ]; then
+              echo "Could not resolve a $LABEL review submission." >&2
+              exit 1
+            fi
+            asc review items-add \
+              --submission "$submission_id" \
+              --item-type appStoreVersions \
+              --item-id "$VERSION_ID" > "$RUNNER_TEMP/apple-$SLUG-review-item-add.json"
+          fi
+          asc review items-list \
+            --submission "$submission_id" \
+            --fields appStoreVersion \
+            --include appStoreVersion \
+            --paginate \
+            --output json > "$RUNNER_TEMP/apple-$SLUG-review-items-final.json"
+          if ! jq -e --arg target "$VERSION_ID" '.data | length == 1 and .[0].relationships.appStoreVersion.data.id == $target' "$RUNNER_TEMP/apple-$SLUG-review-items-final.json" > /dev/null; then
+            echo "Refusing to submit a $LABEL review draft that is empty or contains unrelated items." >&2
+            exit 1
+          fi
+          asc review submissions-submit --id "$submission_id" --confirm --output json > "$RUNNER_TEMP/apple-$SLUG-submit.json"
+          echo "submission_id=$submission_id" >> "$GITHUB_OUTPUT"
+
+      - name: Prove exact release and publish manifest
+        env:
+          BUILD_ID: ${{ steps.apple_build.outputs.id }}
+          BUILD_NUMBER: ${{ steps.build.outputs.build_number }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          MANIFEST_NAME: teak-apple-${{ matrix.slug }}-${{ inputs.version }}-app-store.json
+          MUTATE: ${{ steps.build.outputs.mutate }}
+          PACKAGE_SHA: ${{ steps.handoff.outputs.sha256 }}
+          PUBLISH_EXIT: ${{ steps.asc_parity.outputs.publish_exit || 'not_run' }}
+          REUSE: ${{ steps.build.outputs.reuse }}
+          STAGE_EXIT: ${{ steps.asc_parity.outputs.stage_exit || 'not_run' }}
+          SUBMISSION_ID: ${{ steps.submit.outputs.submission_id }}
+          TARGET_ID: ${{ steps.build.outputs.target_id }}
+          VERSION_ID: ${{ steps.apple_version.outputs.id }}
+        run: |
+          version_id="$VERSION_ID"
+          build_id="$BUILD_ID"
+          build_number="$BUILD_NUMBER"
+          submission_id="$SUBMISSION_ID"
+          prior_manifest="$RUNNER_TEMP/prior-apple-$SLUG-manifest.json"
+          if [ "$MUTATE" != "true" ]; then
+            version_id="$TARGET_ID"
+            if ! gh release download "v$VERSION" --pattern "$MANIFEST_NAME" --output "$prior_manifest"; then
+              echo "A read-only rerun requires the existing release manifest $MANIFEST_NAME." >&2
+              exit 1
+            fi
+            build_id="$(jq -r '.build.id' "$prior_manifest")"
+            build_number="$(jq -r '.build.number' "$prior_manifest")"
+            submission_id="$(jq -r '.submission.id' "$prior_manifest")"
+          elif [ "$REUSE" = "true" ]; then
+            if ! gh release download "v$VERSION" --pattern "$MANIFEST_NAME" --output "$prior_manifest"; then
+              echo "Reusing an existing Apple build requires its canonical release manifest." >&2
+              exit 1
+            fi
+          fi
+          deadline=$((SECONDS + 1200))
+          while [ "$SECONDS" -lt "$deadline" ]; do
+            asc versions list --app "$ASC_APP_ID" --platform "$PLATFORM" --version "$VERSION" --limit 1 --output json > "$RUNNER_TEMP/apple-$SLUG-final-version.json"
+            final_state="$(jq -r '.data[0].attributes.appVersionState // .data[0].attributes.appStoreState // empty' "$RUNNER_TEMP/apple-$SLUG-final-version.json")"
+            case "$final_state" in
+              WAITING_FOR_REVIEW|IN_REVIEW|PENDING_APPLE_RELEASE|PROCESSING_FOR_DISTRIBUTION|READY_FOR_DISTRIBUTION|READY_FOR_SALE)
+                break
+                ;;
+              DEVELOPER_REJECTED|REJECTED|METADATA_REJECTED|INVALID_BINARY)
+                echo "$LABEL $VERSION entered terminal state $final_state." >&2
+                exit 1
+                ;;
+            esac
+            sleep 30
+          done
+          if ! [[ "$final_state" =~ ^(WAITING_FOR_REVIEW|IN_REVIEW|PENDING_APPLE_RELEASE|PROCESSING_FOR_DISTRIBUTION|READY_FOR_DISTRIBUTION|READY_FOR_SALE)$ ]]; then
+            echo "Timed out waiting for $LABEL $VERSION to reach WAITING_FOR_REVIEW." >&2
+            exit 1
+          fi
+          asc versions view --version-id "$version_id" --include-build --output json > "$RUNNER_TEMP/apple-$SLUG-final-view.json"
+          asc builds info --build-id "$build_id" --output json > "$RUNNER_TEMP/apple-$SLUG-final-build.json"
+          asc review submissions-get --id "$submission_id" --include appStoreVersionForReview --output json > "$RUNNER_TEMP/apple-$SLUG-final-submission.json"
+          jq -n \
+            --arg version "$VERSION" \
+            --arg platform "$PLATFORM" \
+            --arg versionId "$version_id" \
+            --arg buildId "$build_id" \
+            --arg buildNumber "$build_number" \
+            --arg submissionId "$submission_id" \
+            '{version: $version, platform: $platform, versionId: $versionId, buildId: $buildId, buildNumber: $buildNumber, submissionId: $submissionId}' \
+            > "$RUNNER_TEMP/apple-$SLUG-expected.json"
+          node scripts/apple-release-proof.mjs verify \
+            --version-list "$RUNNER_TEMP/apple-$SLUG-final-version.json" \
+            --version-view "$RUNNER_TEMP/apple-$SLUG-final-view.json" \
+            --build "$RUNNER_TEMP/apple-$SLUG-final-build.json" \
+            --submission "$RUNNER_TEMP/apple-$SLUG-final-submission.json" \
+            --expected "$RUNNER_TEMP/apple-$SLUG-expected.json" \
+            --output "$RUNNER_TEMP/apple-$SLUG-proof.json"
+          artifact_sha="$PACKAGE_SHA"
+          prior_args=()
+          if [ "$MUTATE" != "true" ] || [ "$REUSE" = "true" ]; then
+            artifact_sha=""
+            prior_args=(--prior "$prior_manifest")
+          fi
+          node scripts/apple-release-manifest.mjs create \
+            --proof "$RUNNER_TEMP/apple-$SLUG-proof.json" \
+            --output "$RUNNER_TEMP/$MANIFEST_NAME" \
+            --tag "v$VERSION" \
+            --source-sha "$GITHUB_SHA" \
+            --app-id "$ASC_APP_ID" \
+            --artifact-name "Teak-$VERSION-$SLUG.$ARTIFACT_EXT" \
+            --artifact-sha "$artifact_sha" \
+            --asc-version "$ASC_VERSION" \
+            --stage-exit "$STAGE_EXIT" \
+            --publish-exit "$PUBLISH_EXIT" \
+            --workflow "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID" \
+            --generated-at "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+            "${prior_args[@]}"
+
+          for attempt in 1 2 3 4 5 6; do
+            if gh release view "v$VERSION" > /dev/null 2>&1; then break; fi
+            gh release create "v$VERSION" --verify-tag --title "v$VERSION" --generate-notes > /dev/null 2>&1 || true
+            if [ "$attempt" -eq 6 ]; then
+              echo "Could not resolve GitHub Release v$VERSION." >&2
+              exit 1
+            fi
+            sleep 10
+          done
+          gh release upload "v$VERSION" "$RUNNER_TEMP/$MANIFEST_NAME" --clobber
+          {
+            echo "- Review submission: $submission_id"
+            echo "- Final $LABEL state: $final_state"
+            echo "- Release: automatic after approval"
+            echo "- Manifest: $MANIFEST_NAME"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  report-failure:
+    name: Report failure ${{ matrix.label }}
+    if: ${{ always() && inputs.dry_run == false && needs.plan.result == 'success' && (needs.build.result == 'failure' || needs.submit.result == 'failure') }}
+    needs: [plan, build, submit]
+    runs-on: ubuntu-24.04
+    permissions:
+      actions: read
+      contents: read
+      issues: write
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJSON(needs.plan.outputs.matrix) }}
+    concurrency:
+      group: apple-release-issue-${{ inputs.version }}
+      cancel-in-progress: false
+    env:
+      LABEL: ${{ matrix.label }}
+      PLATFORM: ${{ matrix.platform }}
+      SLUG: ${{ matrix.slug }}
+    steps:
+      - name: Find this platform's failed jobs
+        id: failed
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          failed_jobs="$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID/jobs" --paginate --jq '.jobs[] | select(.conclusion == "failure") | .name')"
+          if grep -Fxq -e "Build $LABEL" -e "Submit $LABEL" <<< "$failed_jobs"; then
+            echo "failed=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "No $LABEL job failed in this run."
+            echo "failed=false" >> "$GITHUB_OUTPUT"
+          fi
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        if: steps.failed.outputs.failed == 'true'
+      - name: Set up asc
+        if: steps.failed.outputs.failed == 'true'
+        uses: rudrankriyam/setup-asc@5358c70a27a3f0d1517604b0f1fdc43e70c1cc4d # v1.0.1
+        with:
+          cache: "false"
+          version: ${{ env.ASC_VERSION }}
+      - name: Prepare App Store Connect key
+        if: steps.failed.outputs.failed == 'true'
+        env:
+          APPLE_API_KEY_P8: ${{ secrets.APPLE_API_KEY_P8 }}
+        run: |
+          key_path="$RUNNER_TEMP/AuthKey_${ASC_KEY_ID}.p8"
+          printf '%s' "$APPLE_API_KEY_P8" > "$key_path"
+          chmod 600 "$key_path"
+          echo "ASC_PRIVATE_KEY_PATH=$key_path" >> "$GITHUB_ENV"
+      - name: Capture redacted asc diagnostics
+        if: steps.failed.outputs.failed == 'true'
+        run: |
+          asc status --app "$ASC_APP_ID" > "$RUNNER_TEMP/apple-$SLUG-status.txt" 2>&1 || true
+          asc review doctor --app "$ASC_APP_ID" --version "$VERSION" --platform "$PLATFORM" > "$RUNNER_TEMP/apple-$SLUG-doctor.txt" 2>&1 || true
+      - name: Open or update the release issue
+        if: steps.failed.outputs.failed == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          node scripts/apple-release-issue.mjs failure \
+            --version "$VERSION" \
+            --platform "$PLATFORM" \
+            --app-id "$ASC_APP_ID" \
+            --workflow-url "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID" \
+            --workflow-file apple-release.yml \
+            --platforms "$SLUG" \
+            --status-file "$RUNNER_TEMP/apple-$SLUG-status.txt" \
+            --doctor-file "$RUNNER_TEMP/apple-$SLUG-doctor.txt"

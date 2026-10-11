@@ -72,6 +72,8 @@ export const startEmulator = async (ports: StackPorts) => {
     seed: emulatorSeed(ports),
     issuer: "https://api.workos.com",
     interactiveAuth: { password: true },
+    // The Apple app's sign-in returns to teak://auth/callback.
+    allowedRedirectHosts: ["auth"],
   });
   const replays = new Map<string, Forwarded & { expiresAt: number }>();
   // node:http rather than Bun.serve: the emulator's Hono adapter replaces the

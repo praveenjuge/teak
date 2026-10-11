@@ -1,6 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import {
   exactIssue,
+  failureBody,
   isLiveState,
   isStorefrontLive,
   issueTitle,
@@ -70,5 +71,32 @@ secret
     expect(output).toContain("state: REJECTED");
     expect(output).not.toContain("abc123");
     expect(output).not.toContain("BEGIN PRIVATE KEY");
+  });
+
+  test("points the rerun at the workflow and platforms that failed", () => {
+    const base = {
+      version: "1.0.86",
+      "app-id": "6756574989",
+      "workflow-url": "https://github.com/praveenjuge/teak/actions/runs/1",
+    };
+    expect(failureBody({ ...base, platform: "IOS" })).toContain(
+      "gh workflow run mobile-release.yml --ref main -f version=1.0.86 -f dry_run=false"
+    );
+    expect(
+      failureBody({
+        ...base,
+        platform: "MAC_OS",
+        "workflow-file": "apple-release.yml",
+        platforms: "macos",
+      })
+    ).toContain(
+      "gh workflow run apple-release.yml --ref main -f version=1.0.86 -f platforms=macos -f dry_run=false"
+    );
+    expect(() =>
+      failureBody({ ...base, platform: "IOS", "workflow-file": "other.yml" })
+    ).toThrow("Unsupported release workflow");
+    expect(() =>
+      failureBody({ ...base, platform: "IOS", platforms: "ios;rm" })
+    ).toThrow("Unsupported platforms input");
   });
 });

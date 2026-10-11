@@ -1,0 +1,872 @@
+{
+  "cardTypes": [
+    "text",
+    "link",
+    "image",
+    "video",
+    "audio",
+    "document",
+    "palette",
+    "quote"
+  ],
+  "cardTypeLabels": {
+    "text": "Text",
+    "link": "Link",
+    "image": "Image",
+    "video": "Video",
+    "audio": "Audio",
+    "document": "Document",
+    "palette": "Palette",
+    "quote": "Quote"
+  },
+  "limits": {
+    "freeTierCards": 200,
+    "maxFileSize": 104857600,
+    "maxFilesPerUpload": 5,
+    "maxFileNameLength": 240,
+    "markdownContentMaxBytes": 524288
+  },
+  "messages": {
+    "signupsPaused": "New sign-ups are paused right now. Please try again later.",
+    "accountChangesPaused": "Account changes are paused right now. Please try again later."
+  },
+  "cardErrorMessages": {
+    "CARD_LIMIT_REACHED": "Card limit reached. Please upgrade to Pro for unlimited cards.",
+    "CONTENT_TOO_LARGE": "Text card content must not exceed 512 KiB when encoded as UTF-8.",
+    "INVALID_UTF8": "Markdown uploads must contain valid UTF-8 text.",
+    "RATE_LIMITED": "Too many cards created. Please wait a moment and try again.",
+    "FILE_TOO_LARGE": "File is too large. Maximum file size is 100MB.",
+    "TOO_MANY_FILES": "Too many files selected. You can upload up to 5 files at a time.",
+    "UNSUPPORTED_TYPE": "Unsupported file type. Please upload an image, video, audio, or document.",
+    "TYPE_MISMATCH": "Uploaded file does not match the selected type."
+  },
+  "visualStyles": [
+    "abstract",
+    "cinematic",
+    "dark",
+    "illustrative",
+    "minimal",
+    "monochrome",
+    "moody",
+    "pastel",
+    "photographic",
+    "retro",
+    "surreal",
+    "vintage",
+    "vibrant"
+  ],
+  "visualStyleLabels": {
+    "abstract": "Abstract",
+    "cinematic": "Cinematic",
+    "dark": "Dark",
+    "illustrative": "Illustrative",
+    "minimal": "Minimal",
+    "monochrome": "Monochrome",
+    "moody": "Moody",
+    "pastel": "Pastel",
+    "photographic": "Photographic",
+    "retro": "Retro",
+    "surreal": "Surreal",
+    "vintage": "Vintage",
+    "vibrant": "Vibrant"
+  },
+  "visualStyleAliases": {
+    "abstract": "abstract",
+    "abstraction": "abstract",
+    "antique": "vintage",
+    "artsy": "abstract",
+    "atmospheric": "moody",
+    "blackandwhite": "monochrome",
+    "blackwhite": "monochrome",
+    "bw": "monochrome",
+    "cartoon": "illustrative",
+    "cinema": "cinematic",
+    "cinematic": "cinematic",
+    "colorful": "vibrant",
+    "colourful": "vibrant",
+    "dark": "dark",
+    "darkmode": "dark",
+    "dramatic": "moody",
+    "drawing": "illustrative",
+    "dreamlike": "surreal",
+    "filmic": "cinematic",
+    "grayscale": "monochrome",
+    "greyscale": "monochrome",
+    "illustrated": "illustrative",
+    "illustration": "illustrative",
+    "illustrative": "illustrative",
+    "lowkey": "dark",
+    "minimal": "minimal",
+    "minimalist": "minimal",
+    "monochrome": "monochrome",
+    "moody": "moody",
+    "movie": "cinematic",
+    "pastel": "pastel",
+    "photo": "photographic",
+    "photograph": "photographic",
+    "photographic": "photographic",
+    "photography": "photographic",
+    "realistic": "photographic",
+    "retro": "retro",
+    "saturated": "vibrant",
+    "sketch": "illustrative",
+    "soft": "pastel",
+    "surreal": "surreal",
+    "synthwave": "retro",
+    "vibrant": "vibrant",
+    "vintage": "vintage"
+  },
+  "colorHues": [
+    "red",
+    "orange",
+    "yellow",
+    "green",
+    "teal",
+    "cyan",
+    "blue",
+    "purple",
+    "pink",
+    "brown",
+    "neutral"
+  ],
+  "colorHueLabels": {
+    "red": "Red",
+    "orange": "Orange",
+    "yellow": "Yellow",
+    "green": "Green",
+    "teal": "Teal",
+    "cyan": "Cyan",
+    "blue": "Blue",
+    "purple": "Purple",
+    "pink": "Pink",
+    "brown": "Brown",
+    "neutral": "Neutral"
+  },
+  "colorHueAliases": {
+    "blue": "blue",
+    "brown": "brown",
+    "cyan": "cyan",
+    "fuchsia": "pink",
+    "gray": "neutral",
+    "green": "green",
+    "grey": "neutral",
+    "indigo": "purple",
+    "magenta": "pink",
+    "monochrome": "neutral",
+    "neutral": "neutral",
+    "orange": "orange",
+    "pink": "pink",
+    "purple": "purple",
+    "red": "red",
+    "teal": "teal",
+    "violet": "purple",
+    "yellow": "yellow"
+  },
+  "genericMimeTypes": [
+    "",
+    "application/binary",
+    "application/octet-stream",
+    "binary/octet-stream"
+  ],
+  "fileFormats": [
+    {
+      "id": "design-tokens",
+      "cardType": "document",
+      "extension": "tokens.json",
+      "kind": "tokens",
+      "language": "json",
+      "mimeType": "application/json",
+      "mimeTypes": [
+        "application/json",
+        "text/json",
+        "text/plain"
+      ],
+      "preview": "source",
+      "suffixes": [
+        "tokens.json"
+      ]
+    },
+    {
+      "id": "tailwind-config",
+      "cardType": "document",
+      "extension": "tailwind.config.js",
+      "kind": "source",
+      "language": "javascript",
+      "mimeType": "application/javascript",
+      "mimeTypes": [
+        "application/javascript",
+        "text/javascript",
+        "application/x-javascript",
+        "text/plain"
+      ],
+      "preview": "source",
+      "suffixes": [],
+      "fileNames": [
+        "tailwind.config.js"
+      ]
+    },
+    {
+      "id": "css-variables",
+      "cardType": "document",
+      "extension": "css",
+      "kind": "tokens",
+      "language": "css",
+      "mimeType": "text/css",
+      "mimeTypes": [
+        "text/css",
+        "text/plain"
+      ],
+      "preview": "source",
+      "suffixes": [],
+      "fileNames": [
+        "theme.css",
+        "variables.css"
+      ]
+    },
+    {
+      "id": "json",
+      "cardType": "document",
+      "extension": "json",
+      "kind": "source",
+      "language": "json",
+      "mimeType": "application/json",
+      "mimeTypes": [
+        "application/json",
+        "text/json",
+        "application/ld+json"
+      ],
+      "preview": "source",
+      "suffixes": [
+        "json"
+      ]
+    },
+    {
+      "id": "tsx",
+      "cardType": "document",
+      "extension": "tsx",
+      "kind": "source",
+      "language": "tsx",
+      "mimeType": "text/tsx",
+      "mimeTypes": [
+        "text/tsx",
+        "text/typescript",
+        "application/typescript",
+        "text/plain"
+      ],
+      "preview": "source",
+      "suffixes": [
+        "tsx"
+      ]
+    },
+    {
+      "id": "jsx",
+      "cardType": "document",
+      "extension": "jsx",
+      "kind": "source",
+      "language": "jsx",
+      "mimeType": "text/jsx",
+      "mimeTypes": [
+        "text/jsx",
+        "text/javascript",
+        "application/javascript",
+        "text/plain"
+      ],
+      "preview": "source",
+      "suffixes": [
+        "jsx"
+      ]
+    },
+    {
+      "id": "vue",
+      "cardType": "document",
+      "extension": "vue",
+      "kind": "source",
+      "language": "markup",
+      "mimeType": "text/x-vue",
+      "mimeTypes": [
+        "text/x-vue",
+        "application/x-vue",
+        "text/plain"
+      ],
+      "preview": "source",
+      "suffixes": [
+        "vue"
+      ]
+    },
+    {
+      "id": "svelte",
+      "cardType": "document",
+      "extension": "svelte",
+      "kind": "source",
+      "language": "markup",
+      "mimeType": "text/x-svelte",
+      "mimeTypes": [
+        "text/x-svelte",
+        "application/x-svelte",
+        "text/plain"
+      ],
+      "preview": "source",
+      "suffixes": [
+        "svelte"
+      ]
+    },
+    {
+      "id": "html",
+      "cardType": "document",
+      "extension": "html",
+      "kind": "source",
+      "language": "markup",
+      "mimeType": "text/html",
+      "mimeTypes": [
+        "text/html",
+        "application/xhtml+xml",
+        "text/plain"
+      ],
+      "preview": "source",
+      "suffixes": [
+        "html",
+        "htm"
+      ]
+    },
+    {
+      "id": "css",
+      "cardType": "document",
+      "extension": "css",
+      "kind": "source",
+      "language": "css",
+      "mimeType": "text/css",
+      "mimeTypes": [
+        "text/css",
+        "text/plain"
+      ],
+      "preview": "source",
+      "suffixes": [
+        "css"
+      ]
+    },
+    {
+      "id": "markdown",
+      "cardType": "text",
+      "extension": "md",
+      "kind": "markdown",
+      "language": "markdown",
+      "mimeType": "text/markdown",
+      "mimeTypes": [
+        "text/markdown",
+        "text/x-markdown",
+        "text/plain"
+      ],
+      "preview": "markdown",
+      "suffixes": [
+        "md",
+        "markdown"
+      ]
+    },
+    {
+      "id": "mdx",
+      "cardType": "document",
+      "extension": "mdx",
+      "kind": "markdown",
+      "language": "mdx",
+      "mimeType": "text/mdx",
+      "mimeTypes": [
+        "text/mdx",
+        "text/x-mdx",
+        "text/markdown",
+        "text/plain"
+      ],
+      "preview": "markdown",
+      "suffixes": [
+        "mdx"
+      ]
+    },
+    {
+      "id": "text",
+      "cardType": "document",
+      "extension": "txt",
+      "kind": "text",
+      "language": "text",
+      "mimeType": "text/plain",
+      "mimeTypes": [
+        "text/plain"
+      ],
+      "preview": "source",
+      "suffixes": [
+        "txt"
+      ]
+    },
+    {
+      "id": "rtf",
+      "cardType": "document",
+      "extension": "rtf",
+      "kind": "text",
+      "language": "text",
+      "mimeType": "application/rtf",
+      "mimeTypes": [
+        "application/rtf",
+        "text/rtf"
+      ],
+      "preview": "source",
+      "suffixes": [
+        "rtf"
+      ]
+    },
+    {
+      "id": "pdf",
+      "cardType": "document",
+      "extension": "pdf",
+      "kind": "pdf",
+      "mimeType": "application/pdf",
+      "mimeTypes": [
+        "application/pdf"
+      ],
+      "preview": "pdf",
+      "suffixes": [
+        "pdf"
+      ]
+    },
+    {
+      "id": "word",
+      "cardType": "document",
+      "extension": "docx",
+      "kind": "office",
+      "mimeType": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+      "mimeTypes": [
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+      ],
+      "preview": "office",
+      "suffixes": [
+        "docx"
+      ]
+    },
+    {
+      "id": "word-legacy",
+      "cardType": "document",
+      "extension": "doc",
+      "kind": "office",
+      "mimeType": "application/msword",
+      "mimeTypes": [
+        "application/msword"
+      ],
+      "preview": "facts",
+      "suffixes": [
+        "doc"
+      ]
+    },
+    {
+      "id": "powerpoint",
+      "cardType": "document",
+      "extension": "pptx",
+      "kind": "office",
+      "mimeType": "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+      "mimeTypes": [
+        "application/vnd.openxmlformats-officedocument.presentationml.presentation"
+      ],
+      "preview": "office",
+      "suffixes": [
+        "pptx"
+      ]
+    },
+    {
+      "id": "powerpoint-legacy",
+      "cardType": "document",
+      "extension": "ppt",
+      "kind": "office",
+      "mimeType": "application/vnd.ms-powerpoint",
+      "mimeTypes": [
+        "application/vnd.ms-powerpoint"
+      ],
+      "preview": "facts",
+      "suffixes": [
+        "ppt"
+      ]
+    },
+    {
+      "id": "excel",
+      "cardType": "document",
+      "extension": "xlsx",
+      "kind": "office",
+      "mimeType": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+      "mimeTypes": [
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+      ],
+      "preview": "office",
+      "suffixes": [
+        "xlsx"
+      ]
+    },
+    {
+      "id": "excel-legacy",
+      "cardType": "document",
+      "extension": "xls",
+      "kind": "office",
+      "mimeType": "application/vnd.ms-excel",
+      "mimeTypes": [
+        "application/vnd.ms-excel"
+      ],
+      "preview": "facts",
+      "suffixes": [
+        "xls"
+      ]
+    },
+    {
+      "id": "csv",
+      "cardType": "document",
+      "extension": "csv",
+      "kind": "text",
+      "language": "csv",
+      "mimeType": "text/csv",
+      "mimeTypes": [
+        "text/csv",
+        "application/csv",
+        "text/plain",
+        "application/vnd.ms-excel"
+      ],
+      "preview": "source",
+      "suffixes": [
+        "csv"
+      ]
+    },
+    {
+      "id": "zip",
+      "cardType": "document",
+      "extension": "zip",
+      "kind": "archive",
+      "mimeType": "application/zip",
+      "mimeTypes": [
+        "application/zip",
+        "application/x-zip-compressed"
+      ],
+      "preview": "archive",
+      "suffixes": [
+        "zip"
+      ]
+    },
+    {
+      "id": "figma",
+      "cardType": "document",
+      "extension": "fig",
+      "kind": "design",
+      "mimeType": "application/octet-stream",
+      "mimeTypes": [
+        "application/x-figma",
+        "application/figma"
+      ],
+      "preview": "facts",
+      "suffixes": [
+        "fig"
+      ]
+    },
+    {
+      "id": "pages",
+      "cardType": "document",
+      "extension": "pages",
+      "kind": "office",
+      "mimeType": "application/vnd.apple.pages",
+      "mimeTypes": [
+        "application/vnd.apple.pages"
+      ],
+      "preview": "facts",
+      "suffixes": [
+        "pages"
+      ]
+    },
+    {
+      "id": "numbers",
+      "cardType": "document",
+      "extension": "numbers",
+      "kind": "office",
+      "mimeType": "application/vnd.apple.numbers",
+      "mimeTypes": [
+        "application/vnd.apple.numbers"
+      ],
+      "preview": "facts",
+      "suffixes": [
+        "numbers"
+      ]
+    },
+    {
+      "id": "gif",
+      "cardType": "video",
+      "extension": "gif",
+      "kind": "motion",
+      "mimeType": "image/gif",
+      "mimeTypes": [
+        "image/gif"
+      ],
+      "preview": "motion",
+      "suffixes": [
+        "gif"
+      ]
+    },
+    {
+      "id": "webm",
+      "cardType": "video",
+      "extension": "webm",
+      "kind": "motion",
+      "mimeType": "video/webm",
+      "mimeTypes": [
+        "video/webm"
+      ],
+      "preview": "motion",
+      "suffixes": [
+        "webm"
+      ]
+    },
+    {
+      "id": "webm-audio",
+      "cardType": "audio",
+      "extension": "webm",
+      "kind": "audio",
+      "mimeType": "audio/webm",
+      "mimeTypes": [
+        "audio/webm"
+      ],
+      "preview": "audio",
+      "suffixes": [
+        "webm"
+      ]
+    },
+    {
+      "id": "mp4",
+      "cardType": "video",
+      "extension": "mp4",
+      "kind": "motion",
+      "mimeType": "video/mp4",
+      "mimeTypes": [
+        "video/mp4",
+        "application/mp4"
+      ],
+      "preview": "motion",
+      "suffixes": [
+        "mp4"
+      ]
+    },
+    {
+      "id": "quicktime",
+      "cardType": "video",
+      "extension": "mov",
+      "kind": "motion",
+      "mimeType": "video/quicktime",
+      "mimeTypes": [
+        "video/quicktime",
+        "video/x-m4v"
+      ],
+      "preview": "motion",
+      "suffixes": [
+        "mov",
+        "m4v"
+      ]
+    },
+    {
+      "id": "video",
+      "cardType": "video",
+      "extension": "video",
+      "kind": "motion",
+      "mimeType": "video/x-matroska",
+      "mimeTypes": [
+        "video/x-matroska",
+        "video/x-msvideo",
+        "video/mpeg",
+        "video/x-ms-wmv"
+      ],
+      "preview": "motion",
+      "suffixes": [
+        "mkv",
+        "avi",
+        "mpeg",
+        "mpg",
+        "wmv"
+      ]
+    },
+    {
+      "id": "png",
+      "cardType": "image",
+      "extension": "png",
+      "kind": "image",
+      "mimeType": "image/png",
+      "mimeTypes": [
+        "image/png"
+      ],
+      "preview": "image",
+      "suffixes": [
+        "png"
+      ]
+    },
+    {
+      "id": "jpeg",
+      "cardType": "image",
+      "extension": "jpg",
+      "kind": "image",
+      "mimeType": "image/jpeg",
+      "mimeTypes": [
+        "image/jpeg",
+        "image/jpg",
+        "image/pjpeg"
+      ],
+      "preview": "image",
+      "suffixes": [
+        "jpg",
+        "jpeg"
+      ]
+    },
+    {
+      "id": "webp",
+      "cardType": "image",
+      "extension": "webp",
+      "kind": "image",
+      "mimeType": "image/webp",
+      "mimeTypes": [
+        "image/webp"
+      ],
+      "preview": "image",
+      "suffixes": [
+        "webp"
+      ]
+    },
+    {
+      "id": "avif",
+      "cardType": "image",
+      "extension": "avif",
+      "kind": "image",
+      "mimeType": "image/avif",
+      "mimeTypes": [
+        "image/avif"
+      ],
+      "preview": "image",
+      "suffixes": [
+        "avif"
+      ]
+    },
+    {
+      "id": "svg",
+      "cardType": "image",
+      "extension": "svg",
+      "kind": "image",
+      "language": "markup",
+      "mimeType": "image/svg+xml",
+      "mimeTypes": [
+        "image/svg+xml",
+        "application/xml",
+        "text/xml"
+      ],
+      "preview": "image",
+      "suffixes": [
+        "svg"
+      ]
+    },
+    {
+      "id": "heic",
+      "cardType": "image",
+      "extension": "heic",
+      "kind": "image",
+      "mimeType": "image/heic",
+      "mimeTypes": [
+        "image/heic",
+        "image/heif",
+        "image/heic-sequence"
+      ],
+      "preview": "image",
+      "suffixes": [
+        "heic",
+        "heif"
+      ]
+    },
+    {
+      "id": "bitmap",
+      "cardType": "image",
+      "extension": "image",
+      "kind": "image",
+      "mimeType": "image/bmp",
+      "mimeTypes": [
+        "image/bmp",
+        "image/tiff"
+      ],
+      "preview": "image",
+      "suffixes": [
+        "bmp",
+        "tif",
+        "tiff"
+      ]
+    },
+    {
+      "id": "mpeg-audio",
+      "cardType": "audio",
+      "extension": "mp3",
+      "kind": "audio",
+      "mimeType": "audio/mpeg",
+      "mimeTypes": [
+        "audio/mpeg",
+        "audio/mp3"
+      ],
+      "preview": "audio",
+      "suffixes": [
+        "mp3"
+      ]
+    },
+    {
+      "id": "wave-audio",
+      "cardType": "audio",
+      "extension": "wav",
+      "kind": "audio",
+      "mimeType": "audio/wav",
+      "mimeTypes": [
+        "audio/wav",
+        "audio/x-wav"
+      ],
+      "preview": "audio",
+      "suffixes": [
+        "wav"
+      ]
+    },
+    {
+      "id": "mp4-audio",
+      "cardType": "audio",
+      "extension": "m4a",
+      "kind": "audio",
+      "mimeType": "audio/mp4",
+      "mimeTypes": [
+        "audio/mp4",
+        "audio/x-m4a"
+      ],
+      "preview": "audio",
+      "suffixes": [
+        "m4a",
+        "mp4"
+      ]
+    },
+    {
+      "id": "aac-audio",
+      "cardType": "audio",
+      "extension": "aac",
+      "kind": "audio",
+      "mimeType": "audio/aac",
+      "mimeTypes": [
+        "audio/aac"
+      ],
+      "preview": "audio",
+      "suffixes": [
+        "aac"
+      ]
+    },
+    {
+      "id": "other-audio",
+      "cardType": "audio",
+      "extension": "audio",
+      "kind": "audio",
+      "mimeType": "audio/flac",
+      "mimeTypes": [
+        "audio/flac",
+        "audio/ogg",
+        "audio/opus"
+      ],
+      "preview": "audio",
+      "suffixes": [
+        "flac",
+        "ogg",
+        "oga",
+        "opus"
+      ]
+    }
+  ]
+}

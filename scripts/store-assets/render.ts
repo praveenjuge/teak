@@ -2,10 +2,10 @@
  * Renders the store images from the committed raw captures:
  *
  *   bun scripts/store-assets/render.ts            every store
- *   bun scripts/store-assets/render.ts iphone mac some stores
+ *   bun scripts/store-assets/render.ts apple-iphone apple-ipad   some stores
  *
  * Each image is the shared wallpaper, one short headline, and a real capture:
- * the Mac window as captured, iPhone captures framed in an iPhone 17 Pro Max
+ * the Mac window as captured, iPhone and iPad captures framed in their device
  * by `asc screenshots frame` (Koubou), and Android captures in a drawn Pixel
  * frame. Pages render in Chromium through the repository's playwright-core,
  * then Apple sets are checked with `asc screenshots validate`.
@@ -46,13 +46,16 @@ const run = async (cmd: string[], cwd?: string) => {
   return out;
 };
 
-/** Frames every iPhone capture with asc, on a transparent background. */
-const frameIphone = async (): Promise<Map<string, string>> => {
-  const store = STORES.iphone;
-  const dir = path.join(cache, "iphone");
+/** Frames every capture of a simulator store with asc, on a transparent background. */
+const frameCaptures = async (id: StoreId): Promise<Map<string, string>> => {
+  const store = STORES[id];
+  if (!store.frame) {
+    throw new Error(`${id} has no device frame`);
+  }
+  const dir = path.join(cache, id);
   rmSync(dir, { recursive: true, force: true });
   mkdirSync(dir, { recursive: true });
-  const device = "iPhone 17 Pro Max - Silver - Portrait";
+  const { device, size } = store.frame;
   const screens = store.shots
     .map(
       ({ name }) => `  ${JSON.stringify(name)}:
@@ -68,7 +71,7 @@ const frameIphone = async (): Promise<Map<string, string>> => {
   const config = path.join(dir, "koubou.yaml");
   writeFileSync(
     config,
-    `project:\n  name: teak\n  output_dir: framed\n  device: "${device}"\n  output_size: [1520, 3100]\nscreenshots:\n${screens}\n`
+    `project:\n  name: teak\n  output_dir: framed\n  device: "${device}"\n  output_size: [${size.join(", ")}]\nscreenshots:\n${screens}\n`
   );
   await run(
     [
@@ -128,7 +131,7 @@ const pageFor = {
     </style>
     <h1 data-lines="1">${escapeHtml(headline)}</h1>
     <div class="shot"><img src="${capture}">${overlay ? `<img class="panel" src="${overlay}">` : ""}</div>`,
-  iphone: (headline: string, framed: string) => `
+  phone: (headline: string, framed: string) => `
     <style>
       h1 { top: 64px; width: 380px; font-size: 40px; line-height: 1.08; }
       .shot { top: 196px; left: 0; right: 0; margin: 0 auto; width: 392px;
@@ -136,6 +139,15 @@ const pageFor = {
       .shot img { width: 100%; display: block; }
     </style>
     <h1 data-lines="2">${escapeHtml(headline)}</h1>
+    <div class="shot"><img class="trim" src="${framed}"></div>`,
+  tablet: (headline: string, framed: string) => `
+    <style>
+      h1 { top: 72px; width: 860px; font-size: 52px; line-height: 1.08; }
+      .shot { top: 196px; left: 0; right: 0; margin: 0 auto; width: 780px;
+        filter: drop-shadow(0 30px 50px rgba(25,40,28,.28)); }
+      .shot img { width: 100%; display: block; }
+    </style>
+    <h1 data-lines="1">${escapeHtml(headline)}</h1>
     <div class="shot"><img class="trim" src="${framed}"></div>`,
   android: (headline: string, capture: string) => `
     <style>
@@ -235,12 +247,16 @@ for (const id of stores) {
 // configs must name the same set as shots.ts.
 const readJSON = (file: string) =>
   JSON.parse(readFileSync(path.join(root, file), "utf8"));
+const native = readJSON("apps/apple/store/store.config.json").screenshots;
 const configured: Partial<Record<StoreId, string[]>> = {
   mac: readJSON("apps/mac/store.config.json").screenshots,
   iphone: (
     readJSON("apps/mobile/store.config.json").apple.info["en-US"].screenshots
       .APP_IPHONE_67 as string[]
   ).map((file) => path.basename(file)),
+  "apple-iphone": native.iphone,
+  "apple-ipad": native.ipad,
+  "apple-mac": native.mac,
 };
 for (const id of stores) {
   const listed = configured[id];
@@ -257,9 +273,12 @@ const wallpaper = dataURI(
   "image/jpeg"
 );
 // Load every capture before opening a browser or touching outputs.
-const framed = stores.includes("iphone")
-  ? await frameIphone()
-  : new Map<string, string>();
+const framed = new Map<StoreId, Map<string, string>>();
+for (const id of stores) {
+  if (STORES[id].frame) {
+    framed.set(id, await frameCaptures(id));
+  }
+}
 const captures = new Map(
   stores.map((id) => [
     id,
@@ -269,10 +288,7 @@ const captures = new Map(
       return {
         name,
         headline,
-        image:
-          id === "iphone"
-            ? (framed.get(name) as string)
-            : capture(source ?? name),
+        image: framed.get(id)?.get(name) ?? capture(source ?? name),
         overlay: overlay ? capture(overlay) : undefined,
       };
     }),
@@ -292,7 +308,7 @@ try {
     mkdirSync(outputDir, { recursive: true });
     for (const shot of captures.get(id) ?? []) {
       await page.setContent(
-        `<style>${base(store.viewport.width, store.viewport.height, wallpaper)}</style>${pageFor[id](shot.headline, shot.image, shot.overlay)}`
+        `<style>${base(store.viewport.width, store.viewport.height, wallpaper)}</style>${pageFor[store.layout](shot.headline, shot.image, shot.overlay)}`
       );
       await settle(page);
       await page.$$eval("img.panel", (panels) => {
@@ -354,6 +370,9 @@ try {
 const apple: Partial<Record<StoreId, string>> = {
   mac: "APP_DESKTOP",
   iphone: "APP_IPHONE_67",
+  "apple-iphone": "APP_IPHONE_67",
+  "apple-ipad": "APP_IPAD_PRO_3GEN_129",
+  "apple-mac": "APP_DESKTOP",
 };
 for (const id of stores) {
   const deviceType = apple[id];

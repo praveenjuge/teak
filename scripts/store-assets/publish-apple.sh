@@ -1,11 +1,13 @@
 #!/usr/bin/env bash
 # Replaces one App Store version's screenshot set with the committed images and
 # waits until Apple holds exactly those files, in order, by checksum.
-#   bash scripts/store-assets/publish-apple.sh <mac|iphone> <version-id>
+#   bash scripts/store-assets/publish-apple.sh <mac|iphone|apple-iphone|apple-ipad|apple-mac> <version-id>
 # The Mac release workflow runs it for every release; run it by hand for iPhone.
+# The apple-* sets belong to the native Apple app (apps/apple), whose release
+# workflow runs them through apps/apple/scripts/apply-store-metadata.sh.
 set -euo pipefail
 export LC_ALL=C
-PLATFORM="${1:?Platform required: mac or iphone}"
+PLATFORM="${1:?Platform required: mac, iphone, apple-iphone, apple-ipad, or apple-mac}"
 VERSION_ID="${2:?Version ID required}"
 RUNNER_TEMP="${RUNNER_TEMP:-$(mktemp -d)}"
 GITHUB_STEP_SUMMARY="${GITHUB_STEP_SUMMARY:-/dev/null}"
@@ -23,6 +25,17 @@ case "$PLATFORM" in
     directory="apps/mobile/store/apple/screenshot/$locale/$device_type"
     names="$(jq -er --arg locale "$locale" --arg type "$device_type" '.apple.info[$locale].screenshots[$type][] | split("/") | last' apps/mobile/store.config.json)"
     label=iPhone ;;
+  apple-iphone|apple-ipad|apple-mac)
+    set_name="${PLATFORM#apple-}"
+    config=apps/apple/store/store.config.json
+    locale="$(jq -er '.locale' "$config")"
+    directory="apps/apple/store/screenshots/$set_name/$locale"
+    names="$(jq -er --arg set "$set_name" '.screenshots[$set][]' "$config")"
+    case "$set_name" in
+      iphone) device_type=APP_IPHONE_67; label=iPhone ;;
+      ipad) device_type=APP_IPAD_PRO_3GEN_129; label=iPad ;;
+      mac) device_type=APP_DESKTOP; label=Mac ;;
+    esac ;;
   *) echo "Unknown platform: $PLATFORM" >&2; exit 1 ;;
 esac
 prefix="$RUNNER_TEMP/$PLATFORM-screenshot"
