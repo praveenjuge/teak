@@ -6,8 +6,10 @@ import TeakCore
 struct CardDetailView: View {
     let route: CardRoute
     @Environment(AppModel.self) private var app
-    @Environment(\.dismiss) private var dismiss
-    @Environment(\.openURL) private var openURL
+    // Leaves through the router and opens links directly: reading
+    // `dismiss` or `openURL` here fed a render loop with the library's
+    // NavigationStack on iOS 26, and the page never appeared.
+    @Environment(AppRouter.self) private var router
     @Environment(\.horizontalSizeClass) private var sizeClass
     @State private var model: CardDetailModel?
     @State private var showsInspector = true
@@ -145,7 +147,7 @@ struct CardDetailView: View {
             }
             if card.type == .link {
                 if let url = SafeURL.sanitize(card.url) {
-                    Button("Open in Browser", systemImage: "safari") { openURL(url) }
+                    Button("Open in Browser", systemImage: "safari") { open(url) }
                 } else if card.url != nil {
                     Button("Open in Browser", systemImage: "safari") { model.message = "This link looks unsafe to open." }
                 }
@@ -161,7 +163,7 @@ struct CardDetailView: View {
                 Pasteboard.copy(webURL(card).absoluteString)
                 feedback += 1
             }
-            Button("Open on Web", systemImage: "globe") { openURL(webURL(card)) }
+            Button("Open on Web", systemImage: "globe") { open(webURL(card)) }
         }
         Button("Delete Card", systemImage: "trash", role: .destructive) { run { await model.moveToTrash() } }
     }
@@ -191,6 +193,14 @@ struct CardDetailView: View {
         }
     }
 
+    private func open(_ url: URL) {
+        #if os(macOS)
+        NSWorkspace.shared.open(url)
+        #else
+        UIApplication.shared.open(url)
+        #endif
+    }
+
     private func webURL(_ card: Card) -> URL { CardSheet.webURL(cardId: card.id, base: app.config.webURL) }
 
     /// Runs an action that leaves the page when it works.
@@ -198,7 +208,7 @@ struct CardDetailView: View {
         Task {
             if await action() {
                 feedback += 1
-                dismiss()
+                router.homePath.removeAll { $0.id == route.id }
             }
         }
     }
