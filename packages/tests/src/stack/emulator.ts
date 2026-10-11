@@ -106,15 +106,25 @@ export const startEmulator = async (ports: StackPorts) => {
     response.end(forwarded.body);
   };
   // `localhost` resolves to either loopback address depending on the client.
-  const servers = await Promise.all(
-    ["127.0.0.1", "::1"].map(
-      (host) =>
-        new Promise<Server>((resolve) => {
-          const server = createServer(handle);
-          server.listen(ports.emulator, host, () => resolve(server));
-        })
+  // Hosts without IPv6 (cloud VMs) only get the IPv4 listener.
+  const servers = (
+    await Promise.all(
+      ["127.0.0.1", "::1"].map(
+        (host) =>
+          new Promise<Server | null>((resolve, reject) => {
+            const server = createServer(handle);
+            server.once("error", (error: NodeJS.ErrnoException) => {
+              if (host === "::1" && error.code === "EAFNOSUPPORT") {
+                resolve(null);
+                return;
+              }
+              reject(error);
+            });
+            server.listen(ports.emulator, host, () => resolve(server));
+          })
+      )
     )
-  );
+  ).filter((server): server is Server => server !== null);
   return {
     url: stackUrls(ports).emulatorOrigin,
     close: async () => {

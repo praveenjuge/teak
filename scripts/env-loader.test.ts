@@ -20,6 +20,15 @@ describe("env-loader", () => {
     expect(parsed.names).toContain("PLAIN");
   });
 
+  test("parser drops inline comments from unquoted values only", () => {
+    const parsed = parseDotenvContent(
+      'CONVEX_DEPLOYMENT=dev:name # team: teak, project: x\nHASH=a#b\nQUOTED="c # d"\n'
+    );
+    expect(parsed.values.get("CONVEX_DEPLOYMENT")).toBe("dev:name");
+    expect(parsed.values.get("HASH")).toBe("a#b");
+    expect(parsed.values.get("QUOTED")).toBe("c # d");
+  });
+
   test("parser is first-wins and trims keys", () => {
     expect(parseDotenvValue("A=first\nA=second\n", "A")).toBe("first");
     expect(parseDotenvValue("  B =x\n", "B")).toBe("x");
