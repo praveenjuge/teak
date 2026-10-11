@@ -37,7 +37,7 @@ description: Setup and development workflow for Teak
 
 - Web app: http://localhost:3000 (each git worktree gets its own ports; `bun run dev --status` prints them)
 - Docs (proxies `/api` and `/mcp` to the development deployment): http://localhost:3001
-- Mobile: Expo Go or a simulator; Mac app and Safari extension: Xcode
+- iPhone, iPad and Mac app with its Safari extension: Xcode (`apps/apple`)
 
 See the repository README for the monorepo layout.
 
@@ -55,9 +55,8 @@ bun run smoke:web        # Headless sign-in check against the running stack
 bun run audit:env        # Environment contract + local dotenv audit
 
 bun run dev convex       # Convex backend only
-bun run dev mobile       # Expo mobile
 bun run dev extension    # Chrome extension
-open apps/mac/teak-mac.xcodeproj # Mac app and Safari extension
+open apps/apple/Teak.xcodeproj # iPhone, iPad and Mac app, Safari extension
 bun run dev raycast      # Raycast extension
 bun run dev docs         # Docs site
 
@@ -89,8 +88,6 @@ hand.
 | `web` | Access to the development deployment | Only one checkout at a time pushes backend code (see below) |
 | `docs`, `cli` | Nothing beyond install | No Convex provisioning |
 | `extension` | Access to the development deployment | Env files derive `VITE_*` aliases automatically |
-| `mobile-simulator` | Access to the development deployment | Signs in through WorkOS staging |
-| `mobile-device` | Access to the development deployment, LAN | The host must be LAN-reachable for the Expo dev server |
 | `files-worker` | `bun run sync:cloudflare-dev` afterwards | Worker secrets are owned by the sync command, not setup |
 
 Each linked git worktree gets its own web ports, so several worktrees run at

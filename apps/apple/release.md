@@ -3,9 +3,9 @@
 The native Apple app ships iPhone, iPad, and Mac builds of `com.praveenjuge.teak`
 to one App Store listing, "Teak: Save Inspirations" (app `6756574989`), through
 `.github/workflows/apple-release.yml`. A lockstep `package.json` patch bump
-merged to `main` is the only normal manual release action. It replaces
-`apps/mobile/release.md` (Expo, frozen) now and `apps/mac/release.md` at the Mac
-launch.
+merged to `main` is the only normal manual release action. The app replaced
+the Expo iPhone app and Teak for Mac (app `6770003409`, off sale), whose code
+and release workflows are gone.
 
 ## Canonical release
 
@@ -77,9 +77,8 @@ pointer here when one is missing.
   `store/screenshots/ipad/en-US/`.
 - **Mac launch.** In App Store Connect, add the macOS platform to app
   `6756574989` before the first Mac upload, commit the Mac screenshot set, then
-  run with `platforms=macos`. After approval, remove "Teak for Mac" (`6770003409`)
-  from sale, switch `version-tag.yml` to `platforms: both`, and drop its
-  `mac-release.yml` row.
+  run with `platforms=macos`. After approval, switch `version-tag.yml` to
+  `platforms: both`.
 
 ## Dry run
 
@@ -93,8 +92,9 @@ and changes nothing in App Store Connect.
 
 ## Reliability and recovery
 
-- The workflow shares `mobile-release.yml`'s concurrency group, so build-number
-  allocation through upload never overlaps for app `6756574989`.
+- Every run takes the app-wide `mobile-app-store-ios-<repository>` concurrency
+  group (the name predates this workflow; keep it), so build-number allocation
+  through upload never overlaps for app `6756574989`.
 - Reruns reuse an exact `VALID` build only when its manifest proves the build ID,
   number, and artifact digest. A target version already in review or live stays
   read-only and passes after the proof pass.

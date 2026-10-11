@@ -30,9 +30,9 @@ Each workspace script runs only the files it matches. A test file outside these 
 | `packages/tests` | `src/**/*.e2e.ts` (e2e; each `e2e*.config.ts` names the directories it runs), `src/**/*.test.ts` (Bun) |
 | `apps/cli`, `apps/files-worker`, `packages/files-protocol` | `src/**` |
 | `apps/raycast` | `src/__tests__/**` |
-| `apps/extension`, `apps/mobile` | `__tests__/**` |
+| `apps/extension` | `__tests__/**` |
 | `apps/docs` | `lib/**` |
-| `apps/mac` | `tests/*.test.ts`, run by the root `bun run test` |
+| `apps/apple` | `tests/*.test.ts` (run by the root `bun run test`) and Swift Testing in `Packages/TeakKit/Tests` |
 | repo scripts | `scripts/**/*.test.ts`, run by the root `bun run test` |
 
 `bun run test` at the root runs all of it, and the `Unit Tests` workflow runs it on every pull request.

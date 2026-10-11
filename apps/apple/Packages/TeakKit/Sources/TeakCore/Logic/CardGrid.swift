@@ -118,7 +118,7 @@ public struct CardEditDraft: Hashable, Sendable {
     }
 }
 
-/// Port of `apps/mobile/lib/card-edit.ts`.
+/// Ported from the Expo iPhone app's card editing rules.
 public enum CardEdit {
     /// Tags are stored trimmed and lowercase, like the web's tag manager.
     public static func normalizeTag(_ value: String) -> String {

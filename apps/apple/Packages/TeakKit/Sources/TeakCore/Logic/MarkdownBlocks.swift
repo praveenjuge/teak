@@ -22,7 +22,7 @@ public struct MarkdownListItem: Hashable, Sendable {
     }
 }
 
-/// Port of `apps/mobile/lib/markdown-blocks.ts`.
+/// Ported from the Expo iPhone app's Markdown blocks.
 public enum MarkdownBlocks {
     private nonisolated(unsafe) static let heading = /^(#{1,6})\s+(.*?)\s*#*\s*$/
     private nonisolated(unsafe) static let bullet = /^(\s*)[-*+]\s+(.*)$/

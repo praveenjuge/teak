@@ -12,7 +12,7 @@ automatic dotenv loading disabled (`--no-env-file`). They read only:
 1. Explicit shell exports (CI, `export`, command prefix).
 2. The dotenv files declared for the command's target in
    `scripts/env-targets.ts`, read through `scripts/env-loader.ts`.
-3. Provider stores: Convex dashboard, Vercel, EAS, Wrangler, GitHub.
+3. Provider stores: Convex dashboard, Vercel, Wrangler, GitHub.
 4. Generated files written by setup from canonical facts (never hand-edited).
 
 Precedence is top-down: an explicit shell export wins over a dotenv file, and a
@@ -25,7 +25,6 @@ human set.
 | --- | --- | --- |
 | Convex dashboard | Backend runtime values | `SITE_URL`, `FILES_BASE` |
 | Vercel | Web deployment values | `NEXT_PUBLIC_CONVEX_URL` |
-| EAS | Mobile values | `EXPO_PUBLIC_CONVEX_URL` |
 | Wrangler / Cloudflare | Worker vars, secrets, bindings | `FILES_SIGNING_SECRET`, `BUCKET` |
 | GitHub variables | Non-secret CI values | release SHAs, origins |
 | GitHub environment secrets | CI credentials | `CONVEX_DEPLOY_KEY` |
@@ -39,7 +38,7 @@ contract note; the audit rejects unexplained multi-provider credentials.
 
 `CONVEX_URL` and `CONVEX_SITE_URL` are the canonical deployment facts;
 `SITE_URL` is the canonical app origin. Framework aliases
-(`NEXT_PUBLIC_*`, `VITE_PUBLIC_*`, `EXPO_PUBLIC_*`) are generated from them by
+(`NEXT_PUBLIC_*`, `VITE_PUBLIC_*`) are generated from them by
 setup (see `scripts/env-aliases.ts`). Frameworks require the aliases at build
 time, so they stay compatible — but humans never maintain them by hand.
 
@@ -117,9 +116,6 @@ for a value that is constant across deployments.
 
 - `CONVEX_DEPLOY_KEY` (Backend Deploy): Convex non-interactive auth has no OIDC
   alternative; the deploy key stays, scoped to that workflow's `env` block.
-- `EXPO_TOKEN`: used only for manual `eas` runs; no workflow consumes it, so
-  there is nothing to migrate. If EAS remote builds move into CI, prefer the
-  OIDC flow over a long-lived token.
 - Web deploys through the Vercel Git integration with no repository
   credential; App Store and Chrome Web Store credentials are vendor JWT/OAuth
   flows without an OIDC alternative.

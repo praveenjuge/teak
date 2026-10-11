@@ -88,6 +88,6 @@ Tests sign in fresh instead of reusing saved cookies, which go stale once the cl
 
 - **File uploads, previews, renditions, import/export and AI metadata.** They need the Files Worker, R2 and Workers AI, which the local stack doesn't run. Card metadata stays `pending`, and the specs don't depend on it.
 - **AuthKit Actions** (the sign-up freeze registration action). The emulator doesn't run Actions; `packages/convex/workosAuthKit.test.ts` covers it.
-- **WorkOS Connect OAuth** for the CLI, extensions, Raycast and MCP. The emulator's Connect flow has no PKCE or refresh tokens. The API, CLI and MCP journeys use Teak API keys, and the browser OAuth flows have hermetic checks: `bun run --cwd packages/tests e2e:hermetic`, and the `extension-oauth-runtime.yml` and `mac-oauth-runtime.yml` workflows.
+- **WorkOS Connect OAuth** for the CLI, extensions, Raycast and MCP. The emulator's Connect flow has no PKCE or refresh tokens. The API, CLI and MCP journeys use Teak API keys, and the browser OAuth flows have hermetic checks: `bun run --cwd packages/tests e2e:hermetic`, and the `extension-oauth-runtime.yml` workflow.
 - **Billing.** Polar checkout needs Polar credentials.
 - **The browser extension and desktop app.** They sign in with WorkOS Connect, and e2e can't load a browser extension.

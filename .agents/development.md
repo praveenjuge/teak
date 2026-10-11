@@ -24,7 +24,7 @@ minutes in Claude Code, runs out.)
 | `bun run dev --detach` | Start it in the background and return once it's ready (combine with `--push`) |
 | `bun run dev --status` | Ports, URLs, sign-in, and whether this checkout pushes |
 | `bun run dev --stop` | Stop this checkout's stack |
-| `bun run dev <target>` | Another surface (`mobile`, `extension`, `docs`, …) through Turbo |
+| `bun run dev <target>` | Another surface (`extension`, `docs`, …) through Turbo |
 | `bun run smoke:web` | Headless sign-in check against the running web app |
 | `bun run --cwd packages/tests e2e` | The E2E suite, on its own local stack |
 
