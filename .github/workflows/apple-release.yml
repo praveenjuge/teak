@@ -913,16 +913,30 @@ jobs:
         env:
           VERSION_ID: ${{ steps.apple_version.outputs.id }}
         run: |
-          asc age-rating edit \
-            --version-id "$VERSION_ID" \
-            --social-media false \
-            --social-media-age-restricted false \
-            --output json > "$RUNNER_TEMP/apple-$SLUG-age-rating-edit.json"
-          asc age-rating view \
-            --version-id "$VERSION_ID" \
-            --fields socialMedia,socialMediaAgeRestricted \
-            --output json > "$RUNNER_TEMP/apple-$SLUG-age-rating-view.json"
-          if ! jq -e '.data.attributes.socialMedia == false and .data.attributes.socialMediaAgeRestricted == false' "$RUNNER_TEMP/apple-$SLUG-age-rating-view.json" > /dev/null; then
+          # iPhone, iPad and Mac share one app info. While another platform's
+          # version is in flight there are two (live and in-flight), and the
+          # declaration belongs to the in-flight one.
+          asc apps info list --app "$ASC_APP_ID" --output json > "$RUNNER_TEMP/apple-$SLUG-app-infos.json"
+          app_info_id="$(jq -r '[.data[] | select((.attributes.state // .attributes.appStoreState) as $state | ["READY_FOR_DISTRIBUTION", "READY_FOR_SALE"] | index($state) | not)][0].id // .data[0].id' "$RUNNER_TEMP/apple-$SLUG-app-infos.json")"
+          view_rating() {
+            asc age-rating view \
+              --app-info-id "$app_info_id" \
+              --fields socialMedia,socialMediaAgeRestricted \
+              --output json > "$RUNNER_TEMP/apple-$SLUG-age-rating-view.json"
+          }
+          declared() {
+            jq -e '.data.attributes.socialMedia == false and .data.attributes.socialMediaAgeRestricted == false' "$RUNNER_TEMP/apple-$SLUG-age-rating-view.json" > /dev/null
+          }
+          view_rating
+          if ! declared; then
+            asc age-rating edit \
+              --app-info-id "$app_info_id" \
+              --social-media false \
+              --social-media-age-restricted false \
+              --output json > "$RUNNER_TEMP/apple-$SLUG-age-rating-edit.json"
+            view_rating
+          fi
+          if ! declared; then
             echo "App Store Connect did not retain the required $LABEL social-media age-rating declarations." >&2
             exit 1
           fi
