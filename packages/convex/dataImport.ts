@@ -255,8 +255,9 @@ export const attachMultipart = internalMutation({
   },
 });
 
-// Same ETag shape the card multipart session accepts.
-const PART_ETAG_PATTERN = /^"?[A-Za-z0-9+/=_-]{1,128}"?$/u;
+// Opaque part ETags: R2 returns 32-character MD5s, Miniflare's local R2 longer
+// tokens. R2 verifies each one again when the upload completes.
+const PART_ETAG_PATTERN = /^"?[A-Za-z0-9+/=_-]{1,512}"?$/u;
 
 export const recordImportPart = mutation({
   args: {

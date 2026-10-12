@@ -486,6 +486,28 @@ test.each([
   ).toBeUndefined();
 });
 
+test("recording accepts the long opaque part ETags local R2 returns", async () => {
+  const { t, signed } = await importSession();
+  stubWorker();
+  const created = await signed.action(api.importUpload.createImportUpload, {
+    mode: "archive",
+    fileName: "proof.zip",
+    fileSize: 1,
+    fileLastModified: 0,
+  });
+  const etag = `"${"bSnn2_2AdLF8c-0H2i9IX".repeat(8)}"`;
+  await signed.mutation(api.dataImport.recordImportPart, {
+    jobId: created.jobId,
+    partNumber: 1,
+    etag,
+    size: 1,
+  });
+  expect(
+    (await t.run((ctx) => ctx.db.get(created.jobId as Id<"importJobs">)))
+      ?.uploadedParts
+  ).toEqual([{ partNumber: 1, etag: etag.slice(1, -1), size: 1 }]);
+});
+
 test("another user cannot record parts on someone else's import", async () => {
   const { t, signed } = await importSession();
   stubWorker();
