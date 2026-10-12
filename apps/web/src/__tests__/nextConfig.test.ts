@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { nextConfig } from "../../next.config";
+import nextConfig from "../../next.config";
 
 describe("Next.js 16.3 web configuration", () => {
   test("enables Cache Components and route-shell prefetching", () => {
