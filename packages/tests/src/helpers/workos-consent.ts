@@ -94,10 +94,6 @@ export async function rejectionOf(promise: Promise<unknown>): Promise<string> {
   throw new Error("Expected the promise to reject, but it resolved");
 }
 
-// Matches the redirect URI and anything after it, as the glob `${uri}*` did.
-const startingWith = (prefix: string) =>
-  new RegExp(`^${prefix.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}`);
-
 async function authorize(
   { browser, screen }: Surface,
   provider: AuthDiscovery,
@@ -134,7 +130,8 @@ async function authorize(
     state,
   }).toString();
   let callback: URL | undefined;
-  const callbackRoute = startingWith(redirectUri);
+  // The redirect URI and anything after it; the URI has no glob characters.
+  const callbackRoute = `${redirectUri}*`;
   await browser.route(callbackRoute, async (route) => {
     callback = new URL(route.request.url);
     await route.fulfill({ body: "OAuth callback received", status: 200 });
