@@ -75,6 +75,8 @@ const failingOp = async (token?: string) => {
     // so it lands on the console.error + report + 500 path.
     BUCKET: { get: () => Promise.reject(new Error("r2_unavailable")) },
     FILES_SIGNING_SECRET: SECRET,
+    // A test fixture value ("phc_test" or none), not a real token.
+    // nosemgrep: codacy.yaml.security.hard-coded-tokens
     POSTHOG_PROJECT_TOKEN: token,
   }) as unknown as Env;
   const response = await worker.fetch(

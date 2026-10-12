@@ -35,6 +35,8 @@ const app = defineApp({
     POLAR_ACCESS_TOKEN: v.optional(v.string()),
     POLAR_SERVER: v.optional(v.string()),
     // PostHog product analytics and error reports; set in production only.
+    // A validator for the env var name, not a token value.
+    // nosemgrep: codacy.yaml.security.hard-coded-tokens
     POSTHOG_PROJECT_TOKEN: v.optional(v.string()),
     // Stamped by Backend Deploy; sent as the backend's $app_version.
     CONVEX_GIT_COMMIT_SHA: v.optional(v.string()),
