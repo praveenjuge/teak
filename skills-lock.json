@@ -42,6 +42,12 @@
       "skillPath": "skills/convex-setup-auth/SKILL.md",
       "computedHash": "b1a940758751c5b2fdc6ced105b19927a1655f0c1d4bd2fd5536dc3264202c00"
     },
+    "e2e": {
+      "source": "tester-army/e2e",
+      "sourceType": "github",
+      "skillPath": "skills/e2e/SKILL.md",
+      "computedHash": "9ace6b1a3375a1fdeb7ba5bcc3bd6f2cafabeccc8f0d41c3f7e5657ade054e18"
+    },
     "macos-design-guidelines": {
       "source": "ehmo/platform-design-skills",
       "sourceType": "github",

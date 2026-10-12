@@ -1,13 +1,17 @@
 import { execFileSync } from "node:child_process";
-import { readFileSync } from "node:fs";
-import { resolve } from "node:path";
-import { expect, test } from "@playwright/test";
+import { mkdtempSync, readFileSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { fileURLToPath } from "node:url";
+import { capturePageErrors } from "../helpers/page-hooks";
+import { type Browser, expect, test } from "../helpers/test";
 
 declare global {
   interface Window {
+    __teakClock: { setSystemTime: (time: number) => void };
     auth: {
       beginOAuthSignIn: () => Promise<void>;
-      signOutOAuth: () => Promise<void>;
+      signOutOAuth: () => Promise<string | undefined>;
       getCaptureOwner: () => Promise<string | undefined>;
       getOAuthState: () => Promise<{
         authenticated: boolean;
@@ -21,16 +25,71 @@ const origin = "https://extension-runtime.test";
 const site = "https://fixture.convex.site";
 const owner = "permanent-teak-owner";
 const surfaces = ["cli", "raycast", "chrome", "firefox", "safari"];
+const moduleSource = fileURLToPath(
+  new URL("../../../../apps/extension/lib/oauthAuth.ts", import.meta.url)
+);
+
+/**
+ * Starts the page's clock at `time` and lets it run, like Playwright's
+ * `clock.install({ time })`. The module and the SDK read time only through
+ * `Date.now`, so that is the clock this controls. The offset lives in
+ * sessionStorage so time keeps flowing across reloads, as it does under
+ * Playwright's clock.
+ */
+const installClock = (browser: Browser, time: number) =>
+  browser.addInitScript((start: number) => {
+    const key = "__teakClockOffset";
+    const realNow = Date.now.bind(Date);
+    let offset = start - realNow();
+    try {
+      const saved = sessionStorage.getItem(key);
+      if (saved === null) {
+        sessionStorage.setItem(key, String(offset));
+      } else {
+        offset = Number(saved);
+      }
+    } catch {
+      /* about:blank and opaque origins have no sessionStorage. */
+    }
+    Date.now = () => realNow() + offset;
+    Object.assign(window, {
+      __teakClock: {
+        setSystemTime: (next: number) => {
+          offset = next - realNow();
+          sessionStorage.setItem(key, String(offset));
+        },
+      },
+    });
+  }, time);
+
+/** Moves the clock without firing timers, like `clock.setSystemTime`. */
+const setSystemTime = (browser: Browser, time: number) =>
+  browser.evaluate((next: number) => {
+    window.__teakClock.setSystemTime(next);
+    return null;
+  }, time);
+
+/** Waits for the page's module script to expose the auth module. */
+const waitForAuth = (browser: Browser) =>
+  expect.poll(() => browser.evaluate(() => Boolean(window.auth))).toBe(true);
+
+/** `getCaptureOwner`, keeping `undefined` apart from a value across JSON. */
+const captureOwner = (browser: Browser) =>
+  browser.evaluate(async () => {
+    const value = await window.auth.getCaptureOwner();
+    return value === undefined
+      ? { defined: false, value: null }
+      : { defined: true, value };
+  });
 
 for (const mode of ["production", "development"] as const) {
   test(`${mode} workos login survives a module reload, rotates once, and revokes on logout`, async ({
-    page,
-    context,
-    browserName,
-  }, testInfo) => {
+    browser,
+  }) => {
     const isDevelopment = mode === "development";
     const discoveryOrigin = isDevelopment ? site : "https://teakvault.com";
-    const surface = browserName === "firefox" ? "firefox" : "chrome";
+    // Chromium only: the suite runs no Firefox target.
+    const surface = "chrome";
     const issuer = "https://fixture.workos.test";
     const clientId = `client_${surface}`;
     const authorize = `${issuer}/authorize`;
@@ -39,38 +98,42 @@ for (const mode of ["production", "development"] as const) {
     const initialRefresh = crypto.randomUUID();
     const rotatedAccess = crypto.randomUUID();
     const rotatedRefresh = crypto.randomUUID();
-    const bundle = testInfo.outputPath("auth.mjs");
-    // Compile the canonical module; only browser APIs and HTTP are boundaries.
-    execFileSync(
-      "bun",
-      [
-        "--no-env-file",
-        "build",
-        resolve("../../apps/extension/lib/oauthAuth.ts"),
-        "--target=browser",
-        "--format=esm",
-        "--define",
-        `import.meta.env=${JSON.stringify({ BROWSER: surface, DEV: isDevelopment, VITE_PUBLIC_CONVEX_SITE_URL: site })}`,
-        "--outfile",
-        bundle,
-      ],
-      { stdio: "pipe" }
-    );
-    const source = readFileSync(bundle, "utf8");
+    const outputDir = mkdtempSync(join(tmpdir(), "teak-oauth-runtime-"));
+    const bundle = join(outputDir, "auth.mjs");
+    let source: string;
+    try {
+      // Compile the canonical module; only browser APIs and HTTP are boundaries.
+      execFileSync(
+        "bun",
+        [
+          "--no-env-file",
+          "build",
+          moduleSource,
+          "--target=browser",
+          "--format=esm",
+          "--define",
+          `import.meta.env=${JSON.stringify({ BROWSER: surface, DEV: isDevelopment, VITE_PUBLIC_CONVEX_SITE_URL: site })}`,
+          "--outfile",
+          bundle,
+        ],
+        { stdio: "pipe" }
+      );
+      source = readFileSync(bundle, "utf8");
+    } finally {
+      rmSync(outputDir, { force: true, recursive: true });
+    }
     const exchanges: URLSearchParams[] = [];
     const revoked: string[] = [];
-    const errors: string[] = [];
-    page.on("pageerror", (error) => errors.push(error.message));
-    await context.route("**/*", async (route) => {
-      const request = route.request();
-      const url = request.url();
+    await browser.route("**/*", async (route) => {
+      const { request } = route;
+      const url = request.url;
       const json = (body: unknown) =>
         route.fulfill({
           contentType: "application/json",
           body: JSON.stringify(body),
           headers: { "Access-Control-Allow-Origin": "*" },
         });
-      if (request.method() === "OPTIONS") {
+      if (request.method === "OPTIONS") {
         await route.fulfill({
           status: 204,
           headers: {
@@ -111,7 +174,7 @@ for (const mode of ["production", "development"] as const) {
           code_challenge_methods_supported: ["S256"],
         });
       } else if (url === tokenEndpoint) {
-        const body = new URLSearchParams(request.postData() ?? "");
+        const body = new URLSearchParams(request.postData ?? "");
         exchanges.push(body);
         expect(body.get("client_id")).toBe(clientId);
         expect(body.get("resource")).toBe("https://teakvault.com/api");
@@ -125,7 +188,7 @@ for (const mode of ["production", "development"] as const) {
           expires_in: rotated ? 3600 : 60,
         });
       } else if (url === `${site}/v1/me`) {
-        expect(request.headers().authorization).toBe(
+        expect(request.headers.authorization).toBe(
           `Bearer ${exchanges.length > 1 ? rotatedAccess : initialAccess}`
         );
         await json({
@@ -136,8 +199,9 @@ for (const mode of ["production", "development"] as const) {
           },
         });
       } else if (url === `${site}/v1/oauth/disconnect`) {
-        expect(request.headers().authorization).toBe(`Bearer ${rotatedAccess}`);
-        expect(request.postData()).toBeNull();
+        expect(request.headers.authorization).toBe(`Bearer ${rotatedAccess}`);
+        // Playwright reported a missing body as null; e2e leaves it out.
+        expect(request.postData ?? null).toBeNull();
         revoked.push(rotatedAccess);
         await route.fulfill({
           status: 204,
@@ -147,61 +211,59 @@ for (const mode of ["production", "development"] as const) {
         throw new Error(`Unexpected fixture request: ${url}`);
       }
     });
-    await page.addInitScript(
-      ({ firefox }) => {
-        const read = () =>
-          JSON.parse(localStorage.getItem("chrome-storage-boundary") ?? "{}");
-        const write = (values: Record<string, unknown>) =>
-          localStorage.setItem(
-            "chrome-storage-boundary",
-            JSON.stringify(values)
-          );
-        Object.assign(globalThis, {
-          chrome: {
-            identity: {
-              getRedirectURL: (path: string) =>
-                `https://${firefox ? "fixture.extensions.allizom.org" : "fixture.chromiumapp.org"}/${path}`,
-              launchWebAuthFlow: ({ url }: { url: string }) => {
-                Object.assign(window, { authorizeUrl: url });
-                const input = new URL(url);
-                const callback = new URL(
-                  input.searchParams.get("redirect_uri")!
-                );
-                callback.searchParams.set(
-                  "state",
-                  input.searchParams.get("state")!
-                );
-                callback.searchParams.set("code", "fixture-authorization-code");
-                return Promise.resolve(callback.href);
-              },
+    // Registered after the catch-all, so its route runs first (routes run
+    // newest first) and answers the page-error hook itself.
+    const pageErrors = await capturePageErrors(browser);
+    await browser.addInitScript(() => {
+      const read = () =>
+        JSON.parse(localStorage.getItem("chrome-storage-boundary") ?? "{}");
+      const write = (values: Record<string, unknown>) =>
+        localStorage.setItem("chrome-storage-boundary", JSON.stringify(values));
+      Object.assign(globalThis, {
+        chrome: {
+          identity: {
+            getRedirectURL: (path: string) =>
+              `https://fixture.chromiumapp.org/${path}`,
+            launchWebAuthFlow: ({ url }: { url: string }) => {
+              Object.assign(window, { authorizeUrl: url });
+              const input = new URL(url);
+              const callback = new URL(input.searchParams.get("redirect_uri")!);
+              callback.searchParams.set(
+                "state",
+                input.searchParams.get("state")!
+              );
+              callback.searchParams.set("code", "fixture-authorization-code");
+              return Promise.resolve(callback.href);
             },
-            storage: {
-              local: {
-                setAccessLevel: async () => undefined,
-                get: async (key: string) => ({ [key]: read()[key] }),
-                set: async (values: Record<string, unknown>) =>
-                  write({ ...read(), ...values }),
-                remove: (keys: string | string[]) => {
-                  const values = read();
-                  for (const key of [keys].flat()) {
-                    delete values[key];
-                  }
-                  write(values);
-                  return Promise.resolve();
-                },
+          },
+          storage: {
+            local: {
+              setAccessLevel: async () => undefined,
+              get: async (key: string) => ({ [key]: read()[key] }),
+              set: async (values: Record<string, unknown>) =>
+                write({ ...read(), ...values }),
+              remove: (keys: string | string[]) => {
+                const values = read();
+                for (const key of [keys].flat()) {
+                  delete values[key];
+                }
+                write(values);
+                return Promise.resolve();
               },
             },
           },
-        });
-      },
-      { firefox: surface === "firefox" }
-    );
-    const start = new Date("2026-10-04T00:00:00Z");
-    await page.clock.install({ time: start });
-    await page.goto(origin);
-    await page.waitForFunction(() => Boolean(window.auth));
-    await page.evaluate(() => window.auth.beginOAuthSignIn());
-    const authUrl = new URL(await page.evaluate(() => window.authorizeUrl));
+        },
+      });
+    });
+    const start = new Date("2026-10-04T00:00:00Z").getTime();
+    await installClock(browser, start);
+    await browser.goto(origin);
+    await waitForAuth(browser);
+    await browser.evaluate(async () => {
+      await window.auth.beginOAuthSignIn();
+      return null;
+    });
+    const authUrl = new URL(await browser.evaluate(() => window.authorizeUrl));
     expect(authUrl.origin).toBe(issuer);
     expect(authUrl.searchParams.get("client_id")).toBe(clientId);
     expect(authUrl.searchParams.get("resource")).toBe(
@@ -211,24 +273,22 @@ for (const mode of ["production", "development"] as const) {
       "openid profile email offline_access"
     );
     expect(authUrl.searchParams.get("code_challenge_method")).toBe("S256");
-    expect(await page.evaluate(() => window.auth.getCaptureOwner())).toBe(
-      owner
-    );
-    if (surface === "firefox") {
-      // Real Firefox IndexedDB, not a fake IDB implementation. storage.local carries display state only.
-      const displayed = await page.evaluate(() =>
-        localStorage.getItem("chrome-storage-boundary")
-      );
-      expect(displayed).not.toContain(initialAccess);
-      expect(displayed).not.toContain(initialRefresh);
-    }
+    expect(await captureOwner(browser)).toEqual({
+      defined: true,
+      value: owner,
+    });
     // Destroy the module instance while retaining native browser storage.
-    await page.reload();
-    await page.waitForFunction(() => Boolean(window.auth));
-    await page.clock.setSystemTime(new Date(start.getTime() + 40_000));
-    const states = await page.evaluate(() =>
-      Promise.all([1, 2, 3].map(() => window.auth.getOAuthState()))
+    await browser.reload();
+    await waitForAuth(browser);
+    await setSystemTime(browser, start + 40_000);
+    const states = await browser.evaluate(async () =>
+      JSON.parse(
+        JSON.stringify(
+          await Promise.all([1, 2, 3].map(() => window.auth.getOAuthState()))
+        )
+      )
     );
+    expect(states).toHaveLength(3);
     for (const state of states) {
       expect(state).toMatchObject({
         authenticated: true,
@@ -237,31 +297,22 @@ for (const mode of ["production", "development"] as const) {
     }
     expect(exchanges).toHaveLength(2);
     expect(exchanges[1].get("grant_type")).toBe("refresh_token");
-    await page.evaluate(() => window.auth.signOutOAuth());
-    expect(revoked).toEqual([rotatedAccess]);
-    await page.reload();
-    await page.waitForFunction(() => Boolean(window.auth));
-    expect(
-      await page.evaluate(() => window.auth.getOAuthState())
-    ).toMatchObject({ authenticated: false });
-    expect(
-      await page.evaluate(() => window.auth.getCaptureOwner())
-    ).toBeUndefined();
-    expect(errors).toEqual([]);
-    await testInfo.attach("oauth-runtime-proof", {
-      body: JSON.stringify({
-        browserName,
-        primary: "workos",
-        permanentOwnerVerified: true,
-        reloadVerified: true,
-        exchanges: exchanges.length,
-        revocations: revoked.length,
-        storage:
-          surface === "firefox"
-            ? "native IndexedDB"
-            : "controlled Chrome storage boundary",
-      }),
-      contentType: "application/json",
+    await browser.evaluate(async () => {
+      await window.auth.signOutOAuth();
+      return null;
     });
+    expect(revoked).toEqual([rotatedAccess]);
+    await browser.reload();
+    await waitForAuth(browser);
+    expect(
+      await browser.evaluate(async () =>
+        JSON.parse(JSON.stringify(await window.auth.getOAuthState()))
+      )
+    ).toMatchObject({ authenticated: false });
+    expect(await captureOwner(browser)).toEqual({
+      defined: false,
+      value: null,
+    });
+    expect(pageErrors.errors).toEqual([]);
   });
 }

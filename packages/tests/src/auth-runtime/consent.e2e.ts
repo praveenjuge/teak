@@ -1,9 +1,12 @@
 import { createHash } from "node:crypto";
-import { expect, test } from "@playwright/test";
 import type { AuthDiscovery } from "@teak/convex/sdk";
 import { WORKOS_RESOURCES } from "@teak/convex/shared/workosResources";
 import { env } from "../helpers/env";
-import { verifyWorkosConsentJourney } from "../helpers/workos-consent";
+import { expect, test } from "../helpers/test";
+import {
+  rejectionOf,
+  verifyWorkosConsentJourney,
+} from "../helpers/workos-consent";
 
 const issuer = "https://consent-provider.test";
 const provider = {
@@ -33,7 +36,7 @@ for (const failure of [
     failure === "none"
       ? "consent journey preserves ownership, audiences, and per-consent revocation after refresh"
       : `consent journey rejects ${failure}`,
-    async ({ page }, testInfo) => {
+    async ({ browser, screen }) => {
       const registrations = new Map<string, Registration>();
       const revoked = new Set<string>();
       const observations: {
@@ -99,11 +102,13 @@ for (const failure of [
             if (!registered) {
               throw new Error("Unknown token client");
             }
-            expect(form.get("resource")).toBe(registered.resource);
+            expect<string | null | undefined>(form.get("resource")).toBe(
+              registered.resource
+            );
             if (form.get("grant_type") === "authorization_code") {
               expect(form.get("code")).toBe(id);
               expect(form.get("redirect_uri")).toBe(registered.redirect);
-              expect(
+              expect<string | undefined>(
                 createHash("sha256")
                   .update(form.get("code_verifier") ?? "")
                   .digest("base64url")
@@ -210,34 +215,37 @@ for (const failure of [
         { preconnect: originalFetch.preconnect }
       );
       try {
-        await page.route(`${issuer}/authorize?*`, async (route) => {
-          const params = new URL(route.request().url()).searchParams;
-          const id = params.get("client_id") ?? "";
-          const registered = registrations.get(id);
-          if (!registered) {
-            throw new Error("Unknown authorization client");
+        await browser.route(
+          /^https:\/\/consent-provider\.test\/authorize\?/,
+          async (route) => {
+            const params = new URL(route.request.url).searchParams;
+            const id = params.get("client_id") ?? "";
+            const registered = registrations.get(id);
+            if (!registered) {
+              throw new Error("Unknown authorization client");
+            }
+            expect(params.get("code_challenge_method")).toBe("S256");
+            expect(params.get("scope")).toBe(
+              "openid profile email offline_access"
+            );
+            expect(params.get("redirect_uri")).toBe(registered.redirect);
+            registered.challenge =
+              failure === "pkce-mismatch"
+                ? "different-challenge"
+                : (params.get("code_challenge") ?? "");
+            registered.resource = params.get("resource") ?? "";
+            const callback = new URL(registered.redirect);
+            callback.search = new URLSearchParams({
+              code: id,
+              state: params.get("state") ?? "",
+            }).toString();
+            await route.fulfill({
+              contentType: "text/html",
+              body: `<p>${registered.name} would like access to your account</p><p>Confirmation of your identity</p><p>Your email address</p><a role="button" href="${callback.href}">Allow access</a>`,
+            });
           }
-          expect(params.get("code_challenge_method")).toBe("S256");
-          expect(params.get("scope")).toBe(
-            "openid profile email offline_access"
-          );
-          expect(params.get("redirect_uri")).toBe(registered.redirect);
-          registered.challenge =
-            failure === "pkce-mismatch"
-              ? "different-challenge"
-              : (params.get("code_challenge") ?? "");
-          registered.resource = params.get("resource") ?? "";
-          const callback = new URL(registered.redirect);
-          callback.search = new URLSearchParams({
-            code: id,
-            state: params.get("state") ?? "",
-          }).toString();
-          await route.fulfill({
-            contentType: "text/html",
-            body: `<p>${registered.name} would like access to your account</p><p>Confirmation of your identity</p><p>Your email address</p><a role="button" href="${callback.href}">Allow access</a>`,
-          });
-        });
-        await page.route(`${env.appUrl}/settings`, async (route) => {
+        );
+        await browser.route(`${env.appUrl}/settings`, async (route) => {
           const rows = [...registrations.values()]
             .map(
               (r) =>
@@ -249,12 +257,10 @@ for (const failure of [
             body: `<div><span>Security</span><button onclick="document.querySelector('[role=dialog]').hidden=false">Manage</button></div><div role="dialog" aria-label="Security" hidden><button id="connections" role="tab" aria-selected="true">Connections</button><div role="tabpanel" aria-labelledby="connections">${rows}</div></div><script>async function disconnect(button,id){await fetch('/fixture/disconnect/'+id,{method:'POST'});button.parentElement.remove()}</script>`,
           });
         });
-        await page.route(
+        await browser.route(
           `${env.appUrl}/fixture/disconnect/*`,
           async (route) => {
-            revoked.add(
-              new URL(route.request().url()).pathname.split("/").at(-1)!
-            );
+            revoked.add(new URL(route.request.url).pathname.split("/").at(-1)!);
             if (failure === "sibling-revoked") {
               for (const registration of registrations.values()) {
                 revoked.add(registration.consent);
@@ -264,12 +270,12 @@ for (const failure of [
           }
         );
         const journey = verifyWorkosConsentJourney(
-          page,
+          { browser, screen },
           provider,
           expectedApiKey
         );
         if (failure !== "none") {
-          await expect(journey).rejects.toThrow(
+          expect(await rejectionOf(journey)).toMatch(
             failure === "sibling-revoked"
               ? /401|unauthorized/i
               : /expect|Expected/
@@ -283,10 +289,6 @@ for (const failure of [
         expect(revoked.size).toBe(2);
         expect(observations.filter((r) => r.path === "/token")).toHaveLength(4);
         expect(observations.filter((r) => r.status === 401)).toHaveLength(6);
-        await testInfo.attach("consent-network-proof", {
-          body: JSON.stringify(observations, null, 2),
-          contentType: "application/json",
-        });
       } finally {
         globalThis.fetch = originalFetch;
       }

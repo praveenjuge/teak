@@ -1,177 +1,181 @@
-import type { Page } from "@playwright/test";
-import { clickVisibleControl, clientFor } from "../helpers/app";
-import { readState, updateState } from "../helpers/run-state";
-import { expect, test } from "../helpers/test";
+import {
+  clickVisibleControl,
+  clientFor,
+  createAccount,
+  gotoApp,
+} from "../helpers/app";
+import { describe, expect, type Screen, test } from "../helpers/test";
 
-const primaryContext = () => {
-  const state = readState();
-  const filtersAccount = state.webFilters ?? state.primary;
-  if (!filtersAccount?.apiKey) {
-    throw new Error("Missing web-filters API key");
-  }
-  return {
-    api: clientFor(filtersAccount.apiKey),
-    apiKey: filtersAccount.apiKey,
-  };
+// One fresh account for the file, created by the first test and kept for the
+// rest of the group.
+let apiKey = "";
+
+const filtersContext = () => {
+  expect(apiKey, "web-filters API key").toMatch(/^teakapi_/);
+  return { api: clientFor(apiKey), apiKey };
 };
 
 const markerFor = (label: string) => `e2e-${label}-${Date.now().toString(36)}`;
 
-const cardText = (page: Page, text: string | RegExp) =>
-  page.getByRole("main").getByText(text).first();
+const cardText = (screen: Screen, text: string | RegExp) =>
+  screen.getByRole("main").getByText(text, { exact: false }).first();
 
-const focusSearch = async (page: Page) => {
-  const search = page.getByPlaceholder("Search for anything...");
+const focusSearch = async (screen: Screen) => {
+  const search = screen.getByPlaceholder("Search for anything...");
   await search.click();
-  await expect(page.getByRole("button", { name: "Favorites" })).toBeVisible();
+  await expect(
+    screen.getByRole("button", "Favorites", { exact: false })
+  ).toBeVisible();
   return search;
 };
 
-const clearFilters = async (page: Page) => {
-  const clear = page
-    .getByRole("button", { name: /Clear (All|filters)/i })
-    .filter({ visible: true });
+const clearFilters = async (screen: Screen) => {
+  const clear = screen.getByRole("button", /Clear (All|filters)/i, {
+    visible: true,
+  });
   await clickVisibleControl(clear);
 };
 
-test("quote cards open in the modal and stay searchable", async ({ page }) => {
-  const { api } = primaryContext();
-  const marker = markerFor("quote");
-  const quoteBody = `${marker} be curious always`;
-  const created = await api.cards.create({
-    content: `"${quoteBody}"`,
-    tags: ["e2e", "quote"],
-    source: "e2e",
-  });
-  updateState((state) => state.createdCardIds.push(created.cardId));
+describe("quote, favorites, and type filters", { serial: true }, () => {
+  test("quote cards open in the modal and stay searchable", {
+    timeout: 180_000,
+  }, async ({ browser, screen }) => {
+    apiKey =
+      (await createAccount({ browser, screen }, "web-filters")).apiKey ?? "";
+    const { api } = filtersContext();
+    const marker = markerFor("quote");
+    const quoteBody = `${marker} be curious always`;
+    const created = await api.cards.create({
+      content: `"${quoteBody}"`,
+      tags: ["e2e", "quote"],
+      source: "e2e",
+    });
 
-  await expect
-    .poll(
-      async () => {
-        const card = await api.cards.get(created.cardId);
-        return card?.type;
-      },
-      { timeout: 45_000, intervals: [1000, 2000, 3000, 5000] }
-    )
-    .toBe("quote");
+    await expect
+      .poll(
+        async () => {
+          const card = await api.cards.get(created.cardId);
+          return card?.type;
+        },
+        { timeout: 45_000, interval: 1000 }
+      )
+      .toBe("quote");
 
-  await page.goto("/");
-  await expect(cardText(page, quoteBody)).toBeVisible({ timeout: 30_000 });
-  await cardText(page, quoteBody).click();
-  const dialog = page.getByRole("dialog");
-  await expect(dialog).toBeVisible();
-  await expect(dialog.getByText(/Quote/i).first()).toBeVisible();
-  await expect(dialog.locator("textarea")).toHaveValue(quoteBody);
-  await page.keyboard.press("Escape");
+    await gotoApp(browser, "/");
+    await expect(cardText(screen, quoteBody)).toBeVisible({
+      timeout: 30_000,
+    });
+    await cardText(screen, quoteBody).click();
+    const dialog = screen.getByRole("dialog");
+    await expect(dialog).toBeVisible();
+    await expect(dialog.getByText(/Quote/i).first()).toBeVisible();
+    await expect(browser.locator('[role="dialog"] textarea')).toHaveValue(
+      quoteBody
+    );
+    await browser.keyboard.press("Escape");
 
-  const search = await focusSearch(page);
-  await search.fill(marker);
-  await expect(cardText(page, quoteBody)).toBeVisible();
-  await clearFilters(page);
-});
-
-test("favorites filter and unfavorite stay coherent", async ({ page }) => {
-  const { api } = primaryContext();
-  const marker = markerFor("fav");
-  const favorited = await api.cards.create({
-    content: `${marker} keep-me`,
-    tags: ["e2e"],
-    source: "e2e",
-  });
-  const other = await api.cards.create({
-    content: `${marker} hide-me`,
-    tags: ["e2e"],
-    source: "e2e",
-  });
-  updateState((state) =>
-    state.createdCardIds.push(favorited.cardId, other.cardId)
-  );
-  await api.cards.setFavorite(favorited.cardId, true);
-
-  await page.goto("/");
-  await expect(cardText(page, `${marker} keep-me`)).toBeVisible({
-    timeout: 30_000,
-  });
-  await focusSearch(page);
-  await clickVisibleControl(
-    page.getByRole("button", { exact: true, name: "Favorites" })
-  );
-  await expect(cardText(page, `${marker} keep-me`)).toBeVisible();
-  await expect(cardText(page, `${marker} hide-me`)).not.toBeVisible();
-
-  await cardText(page, `${marker} keep-me`).click();
-  await clickVisibleControl(
-    page.getByRole("dialog").getByRole("button", { name: "Unfavorite" })
-  );
-  await page.keyboard.press("Escape");
-  await expect(cardText(page, `${marker} keep-me`)).not.toBeVisible({
-    timeout: 15_000,
-  });
-  await clearFilters(page);
-  await expect(cardText(page, `${marker} keep-me`)).toBeVisible();
-});
-
-test("type filters for quote and palette isolate matching cards", async ({
-  page,
-}) => {
-  const { api } = primaryContext();
-  const marker = markerFor("type");
-  const quote = await api.cards.create({
-    content: `"${marker} quoted line"`,
-    tags: ["e2e"],
-    source: "e2e",
-  });
-  const palette = await api.cards.create({
-    content: `#AABBCC ${marker}`,
-    tags: ["e2e"],
-    source: "e2e",
-  });
-  const text = await api.cards.create({
-    content: `${marker} plain note`,
-    tags: ["e2e"],
-    source: "e2e",
-  });
-  updateState((state) =>
-    state.createdCardIds.push(quote.cardId, palette.cardId, text.cardId)
-  );
-
-  await expect
-    .poll(
-      async () => {
-        const [quoteCard, paletteCard] = await Promise.all([
-          api.cards.get(quote.cardId),
-          api.cards.get(palette.cardId),
-        ]);
-        return `${quoteCard?.type}:${paletteCard?.type}`;
-      },
-      { timeout: 45_000, intervals: [1000, 2000, 3000, 5000] }
-    )
-    .toBe("quote:palette");
-
-  await page.goto("/");
-  await expect(cardText(page, `${marker} plain note`)).toBeVisible({
-    timeout: 30_000,
+    const search = await focusSearch(screen);
+    await search.fill(marker);
+    await expect(cardText(screen, quoteBody)).toBeVisible();
+    await clearFilters(screen);
   });
 
-  await focusSearch(page);
-  await clickVisibleControl(
-    page.getByRole("button", { exact: true, name: "Quote" })
-  );
-  await expect(cardText(page, `${marker} quoted line`)).toBeVisible();
-  await expect(cardText(page, `${marker} plain note`)).not.toBeVisible();
-  await clearFilters(page);
+  test("favorites filter and unfavorite stay coherent", async ({
+    browser,
+    screen,
+  }) => {
+    const { api } = filtersContext();
+    const marker = markerFor("fav");
+    const favorited = await api.cards.create({
+      content: `${marker} keep-me`,
+      tags: ["e2e"],
+      source: "e2e",
+    });
+    await api.cards.create({
+      content: `${marker} hide-me`,
+      tags: ["e2e"],
+      source: "e2e",
+    });
+    await api.cards.setFavorite(favorited.cardId, true);
 
-  await focusSearch(page);
-  await clickVisibleControl(
-    page.getByRole("button", { exact: true, name: "Palette" })
-  );
-  await expect(cardText(page, `${marker} plain note`)).not.toBeVisible();
-  await expect(page.getByRole("main")).not.toContainText(
-    `${marker} quoted line`
-  );
-  // Palette cards may render swatches instead of raw content; assert via filter.
-  await expect(
-    page.getByRole("button", { exact: true, name: "Palette" })
-  ).toBeVisible();
-  await clearFilters(page);
+    await gotoApp(browser, "/");
+    await expect(cardText(screen, `${marker} keep-me`)).toBeVisible({
+      timeout: 30_000,
+    });
+    await focusSearch(screen);
+    await clickVisibleControl(screen.getByRole("button", "Favorites"));
+    await expect(cardText(screen, `${marker} keep-me`)).toBeVisible();
+    await expect(cardText(screen, `${marker} hide-me`)).not.toBeVisible();
+
+    await cardText(screen, `${marker} keep-me`).click();
+    await clickVisibleControl(
+      screen
+        .getByRole("dialog")
+        .getByRole("button", "Unfavorite", { exact: false })
+    );
+    await browser.keyboard.press("Escape");
+    await expect(cardText(screen, `${marker} keep-me`)).not.toBeVisible({
+      timeout: 15_000,
+    });
+    await clearFilters(screen);
+    await expect(cardText(screen, `${marker} keep-me`)).toBeVisible();
+  });
+
+  test("type filters for quote and palette isolate matching cards", async ({
+    browser,
+    screen,
+  }) => {
+    const { api } = filtersContext();
+    const marker = markerFor("type");
+    const quote = await api.cards.create({
+      content: `"${marker} quoted line"`,
+      tags: ["e2e"],
+      source: "e2e",
+    });
+    const palette = await api.cards.create({
+      content: `#AABBCC ${marker}`,
+      tags: ["e2e"],
+      source: "e2e",
+    });
+    await api.cards.create({
+      content: `${marker} plain note`,
+      tags: ["e2e"],
+      source: "e2e",
+    });
+
+    await expect
+      .poll(
+        async () => {
+          const [quoteCard, paletteCard] = await Promise.all([
+            api.cards.get(quote.cardId),
+            api.cards.get(palette.cardId),
+          ]);
+          return `${quoteCard?.type}:${paletteCard?.type}`;
+        },
+        { timeout: 45_000, interval: 1000 }
+      )
+      .toBe("quote:palette");
+
+    await gotoApp(browser, "/");
+    await expect(cardText(screen, `${marker} plain note`)).toBeVisible({
+      timeout: 30_000,
+    });
+
+    await focusSearch(screen);
+    await clickVisibleControl(screen.getByRole("button", "Quote"));
+    await expect(cardText(screen, `${marker} quoted line`)).toBeVisible();
+    await expect(cardText(screen, `${marker} plain note`)).not.toBeVisible();
+    await clearFilters(screen);
+
+    await focusSearch(screen);
+    await clickVisibleControl(screen.getByRole("button", "Palette"));
+    await expect(cardText(screen, `${marker} plain note`)).not.toBeVisible();
+    await expect(screen.getByRole("main")).not.toContainText(
+      `${marker} quoted line`
+    );
+    // Palette cards may render swatches instead of raw content; assert via
+    // filter.
+    await expect(screen.getByRole("button", "Palette")).toBeVisible();
+    await clearFilters(screen);
+  });
 });

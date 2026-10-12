@@ -1,4 +1,3 @@
 .state/
 .turbo/
-playwright-report/
-test-results/
+.e2e/

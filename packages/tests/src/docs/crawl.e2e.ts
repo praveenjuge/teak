@@ -1,6 +1,6 @@
-import { expect, test } from "@playwright/test";
 import { parse } from "node-html-parser";
 import { published } from "../helpers/env";
+import { expect, test } from "../helpers/test";
 
 const urlsFromXml = (xml: string) =>
   [...xml.matchAll(/<loc>(.*?)<\/loc>/g)].map((m) => m[1]);

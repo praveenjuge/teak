@@ -1,29 +1,65 @@
-import { test as base } from "@playwright/test";
-import { signIn } from "./app";
-import { E2E_PASSWORD } from "./env";
-import { type AccountKey, requireAccount } from "./run-state";
+import type { Browser } from "@e2e-dev/web";
+import { expect as e2eExpect, type Locator, type Screen } from "e2e";
 
-export { expect } from "@playwright/test";
+export type { Browser } from "@e2e-dev/web";
+export { describe, test } from "@e2e-dev/web";
+export { expect, type Locator, type Screen } from "e2e";
 
-export interface JourneyOptions {
-  /** The setup account this project's tests sign in as. */
-  account: AccountKey | undefined;
+/** What the page helpers drive: semantic queries plus the browser itself. */
+export interface Surface {
+  browser: Browser;
+  screen: Screen;
 }
 
-// Each test signs in through the hosted login page instead of reusing a
-// saved cookie: the web client refreshes its session on its own schedule and
-// WorkOS may rotate the refresh token (the emulator always does), which
-// leaves any earlier copy of the cookie dead.
-export const test = base.extend<JourneyOptions & { signedIn: undefined }>({
-  account: [undefined, { option: true }],
-  signedIn: [
-    async ({ account, page }, use) => {
-      if (account) {
-        const { email, password } = requireAccount(account);
-        await signIn(page, email, password ?? E2E_PASSWORD);
+const sleep = (delayMs: number) =>
+  new Promise((resolve) => setTimeout(resolve, delayMs));
+
+/**
+ * Re-runs a block of steps and assertions until it passes or the deadline
+ * ends, then throws its last error; the counterpart of Playwright's
+ * `expect(fn).toPass()`. Use it only where the whole block must be retried
+ * together; a single assertion already waits on its own.
+ */
+export const retry = async (
+  block: () => Promise<void>,
+  options: { intervals?: number[]; timeout?: number } = {}
+) => {
+  const intervals = options.intervals ?? [250, 500, 1000];
+  const deadline = Date.now() + (options.timeout ?? 15_000);
+  for (let attempt = 0; ; attempt += 1) {
+    try {
+      await block();
+      return;
+    } catch (error) {
+      const pause = intervals[Math.min(attempt, intervals.length - 1)] ?? 1000;
+      if (Date.now() + pause >= deadline) {
+        throw error;
       }
-      await use(undefined);
-    },
-    { auto: true },
-  ],
-});
+      await sleep(pause);
+    }
+  }
+};
+
+/** Waits until one of the locators is visible and returns its index. */
+export const firstVisible = async (
+  locators: readonly Locator[],
+  options: { timeout?: number } = {}
+): Promise<number> => {
+  let found = -1;
+  await e2eExpect
+    .poll(
+      async () => {
+        for (const [index, locator] of locators.entries()) {
+          // A query that briefly matches twice (a hidden twin) is not visible yet.
+          if (await locator.isVisible().catch(() => false)) {
+            found = index;
+            return true;
+          }
+        }
+        return false;
+      },
+      { timeout: options.timeout ?? 15_000, interval: 250 }
+    )
+    .toBe(true);
+  return found;
+};

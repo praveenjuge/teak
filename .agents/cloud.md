@@ -72,32 +72,29 @@ Also `bun run smoke:web`, `bun run test`, `typecheck`, `lint`, the extension,
 CLI and Raycast builds, and the docs site.
 
 Only the agent can see the app. It runs on the VM's `localhost`, and cloud
-sessions have no port forwarding, so drive it with headless Chromium
-(Playwright) and send screenshots.
+sessions have no port forwarding, so drive it with headless Chromium (the
+`e2e` MCP server's sessions) and send screenshots.
 
 ## Needs care
 
-- **E2E suite:** run the Chromium projects with one worker. Four workers
-  starve the local backend on a 4-vCPU VM, and queries hit Convex's 1 s limit.
-  Firefox and WebKit aren't installed. The run below takes about 14 minutes.
+- **E2E suite:** run it with the dev stack stopped. `.agents/setup` installs
+  the Chromium and WebKit builds the e2e web engine pins. The Chromium suite
+  runs one browser at a time: on a 4-vCPU VM a second one starves the local
+  backend, and its functions hit Convex's 1 s limit.
 
   ```bash
   bun run dev --stop
-  bun run --cwd packages/tests e2e "--project=journey-*" --project=matrix-chromium --project=web --workers=1
+  bun run --cwd packages/tests e2e
   bun run dev   # selects the dev deployment again
   ```
 
   The exported `CONVEX_DEPLOY_KEY` can stay: the suite drops it, and every
-  Convex CLI it runs uses the local backend. In full runs on this VM,
-  `journey-web-core`'s first test has failed every time on a `beforeunload`
-  dialog: it navigates while a save is still in flight. It passes when the
-  project runs alone (`--project=journey-web-core`), so rerun it that way
-  before treating it as a regression.
+  Convex CLI it runs uses the local backend. If a run reports a missing
+  browser, install it with `env -u PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD bun
+  --cwd=packages/tests x e2e-web install chromium webkit`.
 
-- **`playwright` MCP server:** it looks for Google Chrome, which the image
-  doesn't have. Use Playwright from `node_modules` with the browsers the
-  SessionStart hook points `PLAYWRIGHT_BROWSERS_PATH` at, or launch
-  `/opt/pw-browsers/chromium` directly.
+- **`e2e` MCP server:** `.mcp.json` registers `e2e mcp`, which opens headless
+  sessions on the running app with the browsers above.
 - **MP4 video:** Playwright's Chromium has no H.264 decoder, so MP4 cards
   don't play in it. Use a WebM (VP9) file to check video playback.
 

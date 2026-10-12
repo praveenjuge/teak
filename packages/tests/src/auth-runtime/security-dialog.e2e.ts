@@ -1,14 +1,15 @@
-import { expect, test } from "@playwright/test";
 import { generateApiKey } from "../helpers/app";
+import { expect, test } from "../helpers/test";
 
 for (const firstClick of ["closes", "no-op"] as const) {
   test(`API key creation recovers when the first Security tab click ${firstClick}`, async ({
-    page,
+    browser,
+    screen,
   }) => {
     // Every request is intercepted: this exercises the real browser helper,
     // without a backend or a real account.
-    await page.route("**/*", async (route) => {
-      if (new URL(route.request().url()).pathname !== "/settings") {
+    await browser.route("**/*", async (route) => {
+      if (new URL(route.request.url).pathname !== "/settings") {
         await route.abort();
         return;
       }
@@ -32,8 +33,8 @@ for (const firstClick of ["closes", "no-op"] as const) {
           </script>`,
       });
     });
-    expect(await generateApiKey(page)).toBe("teakapi_fixture");
-    expect(await page.evaluate("({ opens, clicks, creates })")).toEqual({
+    expect(await generateApiKey({ browser, screen })).toBe("teakapi_fixture");
+    expect(await browser.evaluate("({ opens, clicks, creates })")).toEqual({
       opens: firstClick === "closes" ? 2 : 1,
       clicks: 2,
       creates: 1,

@@ -1,11 +1,11 @@
 import { createHash, randomBytes } from "node:crypto";
-import { expect, type Page } from "@playwright/test";
 import { type AuthDiscovery, validateOAuthUrl } from "@teak/convex/sdk";
 import { readResponseTextWithinLimit } from "@teak/convex/shared/boundedResponse";
 import { WORKOS_RESOURCES } from "@teak/convex/shared/workosResources";
 import { apiFetch } from "./api";
 import { openSecurity } from "./app";
 import { connectMcp } from "./mcp";
+import { expect, type Surface } from "./test";
 
 interface Grant {
   accessToken: string;
@@ -81,8 +81,25 @@ async function refresh(provider: AuthDiscovery, grant: Grant): Promise<Grant> {
   };
 }
 
+/**
+ * The message a promise rejects with; fails when it resolves. e2e's `expect`
+ * has no `rejects.toThrow`, so callers match this message instead.
+ */
+export async function rejectionOf(promise: Promise<unknown>): Promise<string> {
+  try {
+    await promise;
+  } catch (error) {
+    return error instanceof Error ? error.message : String(error);
+  }
+  throw new Error("Expected the promise to reject, but it resolved");
+}
+
+// Matches the redirect URI and anything after it, as the glob `${uri}*` did.
+const startingWith = (prefix: string) =>
+  new RegExp(`^${prefix.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}`);
+
 async function authorize(
-  page: Page,
+  { browser, screen }: Surface,
   provider: AuthDiscovery,
   registrationEndpoint: string,
   resource: string
@@ -117,24 +134,23 @@ async function authorize(
     state,
   }).toString();
   let callback: URL | undefined;
-  await page.route(`${redirectUri}*`, async (route) => {
-    callback = new URL(route.request().url());
+  const callbackRoute = startingWith(redirectUri);
+  await browser.route(callbackRoute, async (route) => {
+    callback = new URL(route.request.url);
     await route.fulfill({ body: "OAuth callback received", status: 200 });
   });
   try {
-    await page.goto(authorizeUrl.href);
+    await browser.goto(authorizeUrl.href);
     await expect(
-      page.getByText(`${clientName} would like access to your account`)
+      screen.getByText(`${clientName} would like access to your account`, {
+        exact: false,
+      })
     ).toBeVisible();
     await expect(
-      page.getByText("Confirmation of your identity", { exact: true })
+      screen.getByText("Confirmation of your identity")
     ).toBeVisible();
-    await expect(
-      page.getByText("Your email address", { exact: true })
-    ).toBeVisible();
-    await page
-      .getByRole("button", { name: "Allow access", exact: true })
-      .click();
+    await expect(screen.getByText("Your email address")).toBeVisible();
+    await screen.getByRole("button", "Allow access").click();
     await expect.poll(() => callback?.searchParams.get("state")).toBe(state);
     const code = callback?.searchParams.get("code");
     expect(code).toBeTruthy();
@@ -159,12 +175,12 @@ async function authorize(
       resource,
     };
   } finally {
-    await page.unroute(`${redirectUri}*`);
+    await browser.unroute(callbackRoute);
   }
 }
 
 export async function verifyWorkosConsentJourney(
-  page: Page,
+  surface: Surface,
   provider: AuthDiscovery,
   expectedApiKey: string
 ) {
@@ -183,20 +199,20 @@ export async function verifyWorkosConsentJourney(
   );
 
   const apiGrant = await authorize(
-    page,
+    surface,
     provider,
     registrationEndpoint,
     WORKOS_RESOURCES.api
   );
   const mcpGrant = await authorize(
-    page,
+    surface,
     provider,
     registrationEndpoint,
     WORKOS_RESOURCES.mcp
   );
   expect(apiGrant.consentId).not.toBe(mcpGrant.consentId);
   expect((await apiFetch("/v1/tags", apiGrant.accessToken)).status).toBe(200);
-  await expect(connectMcp(apiGrant.accessToken)).rejects.toThrow(
+  expect(await rejectionOf(connectMcp(apiGrant.accessToken))).toMatch(
     /401|unauthorized/i
   );
   expect((await apiFetch("/v1/tags", mcpGrant.accessToken)).status).toBe(401);
@@ -227,14 +243,12 @@ export async function verifyWorkosConsentJourney(
     expect(mcpCard.isError).not.toBe(true);
     expect(mcpCard.structuredContent).toMatchObject({ content: marker });
     expect((await mcp.listTools()).tools.length).toBeGreaterThan(0);
-    const dialog = await openSecurity(page);
+    const dialog = await openSecurity(surface);
     const apiRow = dialog.getByTestId(`connection-${apiGrant.consentId}`);
     const mcpRow = dialog.getByTestId(`connection-${mcpGrant.consentId}`);
     await expect(apiRow).toBeVisible();
     await expect(mcpRow).toBeVisible();
-    await apiRow
-      .getByRole("button", { name: "Disconnect", exact: false })
-      .click();
+    await apiRow.getByRole("button", "Disconnect", { exact: false }).click();
     await expect(apiRow).toHaveCount(0);
     expect((await apiFetch("/v1/tags", apiGrant.accessToken)).status).toBe(401);
     const deniedRefresh = await refresh(provider, apiGrant);
@@ -243,13 +257,11 @@ export async function verifyWorkosConsentJourney(
     );
     await expect(mcpRow).toBeVisible();
     expect((await mcp.listTools()).tools.length).toBeGreaterThan(0);
-    await mcpRow
-      .getByRole("button", { name: "Disconnect", exact: false })
-      .click();
+    await mcpRow.getByRole("button", "Disconnect", { exact: false }).click();
     await expect(mcpRow).toHaveCount(0);
-    await expect(mcp.listTools()).rejects.toThrow(/401|unauthorized/i);
+    expect(await rejectionOf(mcp.listTools())).toMatch(/401|unauthorized/i);
     const deniedMcpRefresh = await refresh(provider, mcpGrant);
-    await expect(connectMcp(deniedMcpRefresh.accessToken)).rejects.toThrow(
+    expect(await rejectionOf(connectMcp(deniedMcpRefresh.accessToken))).toMatch(
       /401|unauthorized/i
     );
   } finally {

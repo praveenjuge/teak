@@ -1,9 +1,14 @@
-import { expect, test } from "@playwright/test";
 import { apiFetch, loadOpenApi } from "../helpers/api";
-import { requireServiceApiKey, updateState } from "../helpers/run-state";
+import { createApiAccount } from "../helpers/app";
+import { expect, test } from "../helpers/test";
+
+// The account this file's tests call the API as; no other file uses it.
+let apiKey = "";
+test.beforeAll(async () => {
+  ({ apiKey } = await createApiAccount("service-api"));
+});
 
 test("REST API happy paths and OpenAPI contracts", async () => {
-  const apiKey = requireServiceApiKey("api");
   const openapi = await loadOpenApi();
   for (const path of ["/v1/cards", "/v1/tags"]) {
     const response = await apiFetch(path, apiKey);
@@ -78,7 +83,6 @@ test("REST API happy paths and OpenAPI contracts", async () => {
 test("saving a URL as content creates a link card, not a text card", async () => {
   // Regression: a bare URL (e.g. a Goodreads book link) submitted as card
   // content was stored as a "text" card instead of being recognized as a link.
-  const apiKey = requireServiceApiKey("api");
   const bookUrl =
     "https://www.goodreads.com/book/show/2767052-the-hunger-games";
   const created = await apiFetch("/v1/cards", apiKey, {
@@ -105,7 +109,6 @@ test("saving a URL as content creates a link card, not a text card", async () =>
 });
 
 test("REST text cards preserve raw Markdown and enforce the UTF-8 limit", async () => {
-  const apiKey = requireServiceApiKey("api");
   const marker = `api-markdown-${Date.now()}`;
   const original = `\uFEFF  # ${marker}\r\n\r\n- [ ] task  \r\nhttps://example.com  `;
   const created = await apiFetch("/v1/cards", apiKey, {
@@ -118,7 +121,6 @@ test("REST text cards preserve raw Markdown and enforce the UTF-8 limit", async 
   });
   expect(created.status).toBe(200);
   const createdCard = await created.json();
-  updateState((state) => state.createdCardIds.push(createdCard.cardId));
   expect(createdCard.card).toMatchObject({
     content: original,
     type: "text",
@@ -153,8 +155,7 @@ test("REST text cards preserve raw Markdown and enforce the UTF-8 limit", async 
     }),
   });
   expect(exact.status).toBe(200);
-  const exactCard = await exact.json();
-  updateState((state) => state.createdCardIds.push(exactCard.cardId));
+  expect((await exact.json()).cardId).toBeTruthy();
 
   const oversized = await apiFetch("/v1/cards", apiKey, {
     method: "POST",
@@ -171,7 +172,6 @@ test("saving a color as content creates a palette card, not a text card", async 
   // Regression: saving a color (single hex, or a list of colors/names) as card
   // content stopped becoming a "palette" card and stuck as "text". Palette
   // classification runs asynchronously after creation, so poll until it lands.
-  const apiKey = requireServiceApiKey("api");
   const created = await apiFetch("/v1/cards", apiKey, {
     method: "POST",
     body: JSON.stringify({
@@ -192,7 +192,7 @@ test("saving a color as content creates a palette card, not a text card", async 
         }
         return (await fetched.json()).type;
       },
-      { timeout: 30_000, intervals: [1000, 2000, 3000, 5000] }
+      { timeout: 30_000, interval: 2000 }
     )
     .toBe("palette");
 });

@@ -4,10 +4,11 @@
  * emulator, a local Convex backend and the web app. Used the same way locally,
  * in any worktree, and in CI.
  *
- *   bun run --cwd packages/tests e2e [playwright args]   # set up, run, tear down
- *   bun run --cwd packages/tests e2e:stack               # keep the stack up
+ *   bun run --cwd packages/tests e2e                # warm up, Chromium suite, WebKit matrix
+ *   bun run --cwd packages/tests e2e -- <e2e args>  # warm up, then `e2e run <args>`
+ *   bun run --cwd packages/tests e2e:stack          # keep the stack up
  *
- * With the stack up, run `bunx playwright test` in packages/tests directly.
+ * With the stack up, run `bunx e2e run` in packages/tests directly.
  */
 import { spawn } from "node:child_process";
 import { join } from "node:path";
@@ -23,18 +24,27 @@ import { STACK_LOG_PATH, startStack } from "../stack/stack";
 const ROOT = join(import.meta.dir, "../../../..");
 const TESTS = join(import.meta.dir, "../..");
 const stackOnly = process.argv[2] === "stack";
-// Without arguments, run the gating suites: the journeys and the browser
-// matrix. The web specs run on demand: `bun run e2e --project=web`.
-const playwrightArgs =
-  process.argv.length > 2 && !stackOnly
-    ? process.argv.slice(2)
-    : ["--project=journey-*", "--project=matrix-*"];
+// `bun run e2e -- --grep x` may pass the separator through.
+const e2eArgs = stackOnly
+  ? []
+  : process.argv.slice(2).filter((arg, index) => index > 0 || arg !== "--");
 
-const run = (command: string[], cwd: string) =>
+// Without arguments, run the main suite in Chromium, then the browser matrix's
+// WebKit half. With arguments, run exactly what they select.
+const runs: string[][] =
+  e2eArgs.length > 0
+    ? [e2eArgs]
+    : [
+        ["--config", "e2e.config.ts"],
+        ["--config", "e2e.webkit.config.ts"],
+      ];
+
+const e2e = (args: string[]) =>
   new Promise<number>((resolve) => {
-    const child = spawn(command[0], command.slice(1), {
-      cwd,
-      env: process.env,
+    const child = spawn("bunx", ["e2e", "run", ...args], {
+      cwd: TESTS,
+      // The CLI sends usage telemetry unless this is set.
+      env: { ...process.env, E2E_TELEMETRY_DISABLED: "1" },
       stdio: "inherit",
     });
     child.once("exit", (code) => resolve(code ?? 1));
@@ -74,10 +84,16 @@ try {
   if (stackOnly) {
     await stack.exited;
   } else {
-    exitCode = await run(
-      ["bunx", "playwright", "test", ...playwrightArgs],
-      TESTS
-    );
+    // The dev server compiles each route on its first visit; warm it alone
+    // before the suites share the runner.
+    exitCode = await e2e(["--config", "e2e.warmup.config.ts"]);
+    if (exitCode === 0) {
+      // Every run goes ahead, so one failure still reports the others.
+      for (const args of runs) {
+        const code = await e2e(args);
+        exitCode ||= code;
+      }
+    }
   }
 } catch (error) {
   console.error(error instanceof Error ? error.message : String(error));

@@ -92,7 +92,7 @@ const SKIP_DIRS = new Set([
   "out",
   ".output",
   "coverage",
-  "playwright-report",
+  ".e2e",
   "test-results",
   ".state",
   ".tmp",

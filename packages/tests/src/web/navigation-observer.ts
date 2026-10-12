@@ -1,4 +1,4 @@
-import type { Page } from "@playwright/test";
+import type { Browser } from "../helpers/test";
 
 type ObservedWindow = Window & {
   stopNavigationObservation?: () => NavigationObservation;
@@ -11,11 +11,11 @@ export interface NavigationObservation {
 
 /** Observe the whole transition, including loading that disappears before readiness. */
 export async function observeNavigation(
-  page: Page,
+  browser: Browser,
   navigate: () => Promise<unknown>,
   waitUntilReady: () => Promise<unknown>
 ): Promise<NavigationObservation> {
-  await page.evaluate(() => {
+  await browser.evaluate(() => {
     const loading = new Set<string>();
     const startedAt = performance.now();
     let frame = 0;
@@ -48,19 +48,21 @@ export async function observeNavigation(
         loading: [...loading],
       };
     };
+    return null;
   });
   await navigate();
   await waitUntilReady();
-  await page.evaluate(
-    () => new Promise<void>((resolve) => requestAnimationFrame(() => resolve()))
+  await browser.evaluate(
+    () =>
+      new Promise<null>((resolve) => requestAnimationFrame(() => resolve(null)))
   );
-  return await page.evaluate(() => {
+  return await browser.evaluate(() => {
     const observedWindow = window as ObservedWindow;
     const result = observedWindow.stopNavigationObservation?.() ?? {
       elapsedMs: Number.POSITIVE_INFINITY,
       loading: ["Navigation observer stopped unexpectedly"],
     };
     observedWindow.stopNavigationObservation = undefined;
-    return result;
+    return { elapsedMs: result.elapsedMs, loading: result.loading };
   });
 }

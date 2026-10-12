@@ -157,14 +157,15 @@ install_dependencies() {
   fi
 }
 
-# The image's browsers in /opt/pw-browsers are an older build than the pinned
-# Playwright expects, and Playwright would prune them if installed alongside,
-# so the E2E suite gets its own copy. The SessionStart hook points
-# PLAYWRIGHT_BROWSERS_PATH here.
+# The image's browsers in /opt/pw-browsers are an older build than the
+# Playwright version the e2e web engine pins, and Playwright would prune them
+# if installed alongside, so the E2E suite gets its own copy: Chromium for the
+# suite, WebKit (with its system libraries) for the browser matrix. The
+# SessionStart hook points PLAYWRIGHT_BROWSERS_PATH here.
 install_e2e_browsers() {
   env -u PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD \
     PLAYWRIGHT_BROWSERS_PATH="$HOME/.cache/ms-playwright" \
-    bun --cwd=packages/tests x playwright install chromium
+    bun --cwd=packages/tests x e2e-web install --with-deps chromium webkit
 }
 
 bootstrap_development() {

@@ -1,9 +1,14 @@
+import { gotoApp } from "../helpers/app";
 import { expect, test } from "./fixtures";
 
 // Settings used to show inline spinners that were smaller than the values
 // replacing them, so every row below "Plan" jumped once account data arrived.
-test("settings loads without shifting its layout", async ({ page }) => {
-  await page.addInitScript(() => {
+test("settings loads without shifting its layout", async ({
+  browser,
+  screen,
+  webAccount: _signedIn,
+}) => {
+  await browser.addInitScript(() => {
     const target = window as unknown as { __settingsShift: number };
     target.__settingsShift = 0;
     new PerformanceObserver((list) => {
@@ -18,15 +23,13 @@ test("settings loads without shifting its layout", async ({ page }) => {
     }).observe({ buffered: true, type: "layout-shift" });
   });
 
-  await page.goto("/settings");
-  await expect(
-    page.getByRole("heading", { name: "Settings", exact: true })
-  ).toBeVisible();
-  await expect(page.getByRole("button", { name: /@/ })).toBeVisible();
-  await expect(page.getByText("Free Plan", { exact: true })).toBeVisible();
+  await gotoApp(browser, "/settings");
+  await expect(screen.getByRole("heading", "Settings")).toBeVisible();
+  await expect(screen.getByRole("button", /@/)).toBeVisible();
+  await expect(screen.getByText("Free Plan")).toBeVisible();
 
   // Layout-shift entries are delivered after the frame that caused them.
-  const shift = await page.evaluate(
+  const shift = await browser.evaluate(
     () =>
       new Promise<number>((resolve) => {
         requestAnimationFrame(() =>
