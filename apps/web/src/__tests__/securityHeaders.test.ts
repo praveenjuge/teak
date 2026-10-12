@@ -35,9 +35,15 @@ describe("web security headers", () => {
     expect(directiveTokens("img-src")).toContain("https://*.gstatic.com");
     expect(directiveTokens("img-src")).not.toContain("https:");
     expect(directiveTokens("script-src")).toContain("'self'");
-    expect(directiveTokens("script-src")).toContain(
-      "https://va.vercel-scripts.com"
-    );
+    // Analytics and replay load through the same-origin /ingest proxy only.
+    for (const directive of ["script-src", "connect-src"]) {
+      expect(
+        directiveTokens(directive).filter((token) =>
+          /posthog|ingest|vercel/u.test(token)
+        )
+      ).toEqual([]);
+    }
+    expect(directiveTokens("worker-src")).toContain("blob:");
     expect(directiveTokens("script-src")).not.toContain("'strict-dynamic'");
     expect(
       directiveTokens("script-src").some((token) => token.startsWith("'nonce-"))

@@ -19,7 +19,7 @@ import { internalAction } from "../../_generated/server";
 import { stageCompleted, stageFailed } from "../../card/processingStatus";
 import { inferFileFormat } from "../../shared/fileFormats";
 import { TELEMETRY_OPERATIONS } from "../../shared/telemetry";
-import { withBackendSpan } from "../../telemetry/sentry";
+import { withBackendErrorCapture } from "../../telemetry/posthog";
 import { recordMediaFacts } from "../mediaFacts";
 
 /**
@@ -38,7 +38,7 @@ export const generate: any = internalAction({
     thumbnailGenerated: v.boolean(),
   }),
   handler: (ctx: any, args: { cardId: any; cardType: string }) =>
-    withBackendSpan(
+    withBackendErrorCapture(
       {
         attributes: { "card.type": args.cardType },
         cardId: args.cardId,

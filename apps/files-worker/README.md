@@ -352,9 +352,9 @@ Convex dev uses the isolated Worker.
 
 - `FILES_SIGNING_SECRET` — must match its corresponding Convex deployment.
   Set production with `bunx wrangler secret put FILES_SIGNING_SECRET`.
-- `SENTRY_DSN` — DSN for error reporting (`@sentry/cloudflare`, errors only).
-  Reporting stays disabled until this is set. Set with:
-  `bunx wrangler secret put SENTRY_DSN`
+- `POSTHOG_PROJECT_TOKEN` — public PostHog project token for error reports
+  (errors only, sent with a plain `fetch`). A plain var in the production
+  `wrangler.jsonc`; the development Worker has none, so it reports nothing.
 
 - `apps/files-worker/.dev.vars` (ignored) — per-developer local overrides for
   `wrangler dev`. Example: `FILES_SIGNING_SECRET=...`. Do not commit. The
@@ -370,8 +370,9 @@ Convex dev uses the isolated Worker.
 
 Handled op failures (the 500 path) are reported explicitly with op/route,
 HTTP method + path, and card/role identifiers parsed from the object key
-(`src/sentry.ts`); anything that escapes the handler uncaught is captured
-automatically. `SENTRY_ENVIRONMENT` / `SENTRY_RELEASE` are optional vars.
+(`src/telemetry.ts`); anything that escapes the handler uncaught is reported
+by the wrapper in `src/index.ts`. Reports are sent after the response with
+`waitUntil`.
 
 ## Rollback
 

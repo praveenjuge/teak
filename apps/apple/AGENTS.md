@@ -14,7 +14,6 @@ Native SwiftUI. One multiplatform app target, a share extension and a Safari web
 
 - `Packages/TeakKit`: `TeakCore` (Foundation only: models, ported logic, WorkOS session, Convex over HTTPS, uploads, share import), `TeakSync` (the live Convex client; app only), `TeakUI`.
 - `Teak/`: the app. `App` (scenes, routing, commands), `Features/{Auth,Library,Card,Capture,Settings}`, `Platform/macOS` (menu bar, Quick Capture, hotkey, Services), `Intents`.
-- `Shared/`: sources compiled into the app and both extensions.
 - `ShareExtension/`, `SafariExtension/` (native handler plus the popup in `Resources`).
 
 ## Rules

@@ -1,8 +1,5 @@
-const RELEASE_SHA_LENGTH = 40;
 const ATTRIBUTE_STRING_LIMIT = 256;
 const ATTRIBUTE_KEY_LIMIT = 64;
-const CONTENT_LIMIT = 16_000;
-const CONTENT_SEPARATOR = "\n…[content truncated]…\n";
 
 export const TELEMETRY_ENVIRONMENTS = [
   "production",
@@ -84,61 +81,6 @@ export const TELEMETRY_ERROR_CLASSES = [
 
 export type TelemetryErrorClass = (typeof TELEMETRY_ERROR_CLASSES)[number];
 
-export const resolveBackendTelemetryDsn = (
-  env: Readonly<Record<string, string | undefined>>
-): string | undefined =>
-  (env.SENTRY_BACKEND_DSN ?? env.SENTRY_DSN)?.trim() || undefined;
-
-export const TELEMETRY_METRICS = {
-  aiCalls: "teak.ai.calls",
-  aiCostUsd: "teak.ai.cost.usd",
-  aiLatency: "teak.ai.latency",
-  aiRetries: "teak.ai.retries",
-  aiTokensInput: "teak.ai.tokens.input",
-  aiTokensOutput: "teak.ai.tokens.output",
-  aiValidationFailures: "teak.ai.validation.failures",
-  authBootstrap: "teak.auth.bootstrap",
-  authSessionRefresh: "teak.auth.session_refresh",
-  authSignIn: "teak.auth.sign_in",
-  cardAttempt: "teak.card.create.attempt",
-  cardDuration: "teak.card.create.end_to_end_duration",
-  cardFailure: "teak.card.create.failure",
-  cardSuccess: "teak.card.create.success",
-  checkoutCancel: "teak.checkout.cancel",
-  checkoutFailure: "teak.checkout.failure",
-  checkoutOpen: "teak.checkout.open",
-  checkoutStart: "teak.checkout.start",
-  checkoutSuccess: "teak.checkout.success",
-  portalAttempt: "teak.billing.portal.attempt",
-  portalFailure: "teak.billing.portal.failure",
-  portalSuccess: "teak.billing.portal.success",
-  cronDuration: "teak.cron.duration",
-  cronFailure: "teak.cron.failure",
-  cronMissed: "teak.cron.missed",
-  cronSuccess: "teak.cron.success",
-  exportLifecycle: "teak.export.lifecycle",
-  importLifecycle: "teak.import.lifecycle",
-  mobileAppStart: "teak.mobile.app_start",
-  mobileCrash: "teak.mobile.crash",
-  mobileFrozenFrame: "teak.mobile.frozen_frame",
-  mobileHang: "teak.mobile.hang",
-  mobileSlowFrame: "teak.mobile.slow_frame",
-  searchDuration: "teak.search.duration",
-  searchZeroResult: "teak.search.zero_result",
-  uploadAttempts: "teak.upload.attempts",
-  uploadBytes: "teak.upload.bytes",
-  uploadDuration: "teak.upload.duration",
-  uploadFailure: "teak.upload.failure",
-  userCreated: "teak.user.created",
-  workflowFailure: "teak.workflow.failure",
-  workflowRetry: "teak.workflow.retry",
-  workflowSkip: "teak.workflow.skip",
-  workflowStageDuration: "teak.workflow.stage.duration",
-} as const;
-
-export type TelemetryMetricName =
-  (typeof TELEMETRY_METRICS)[keyof typeof TELEMETRY_METRICS];
-
 export type TelemetryAttributeValue =
   | string
   | number
@@ -147,28 +89,6 @@ export type TelemetryAttributeValue =
   | undefined;
 
 export type TelemetryAttributes = Record<string, TelemetryAttributeValue>;
-
-export interface TelemetryContextInput {
-  attributes?: TelemetryAttributes;
-  cardId?: string;
-  operation: TelemetryOperation;
-  release?: string;
-  surface: TelemetrySurface;
-  traceId?: string;
-  userId?: string;
-  workflowId?: string;
-}
-
-export interface TelemetryContext {
-  attributes: TelemetryAttributes;
-  cardIdHash?: string;
-  operation: TelemetryOperation;
-  release?: string;
-  surface: TelemetrySurface;
-  traceId?: string;
-  userIdHash?: string;
-  workflowIdHash?: string;
-}
 
 export interface EnvironmentInput {
   explicit?: string;
@@ -204,58 +124,6 @@ export const resolveTelemetryEnvironment = ({
   normalizeEnvironment(vercelEnvironment) ??
   normalizeEnvironment(nodeEnvironment) ??
   "development";
-
-const cleanVersion = (value: string | undefined): string | undefined => {
-  const version = value?.trim().replace(/^v/u, "");
-  return version || undefined;
-};
-
-const cleanBuild = (value: string | number | undefined): string | undefined => {
-  if (typeof value === "number" && Number.isFinite(value)) {
-    return String(value);
-  }
-  const build = typeof value === "string" ? value.trim() : undefined;
-  return build || undefined;
-};
-
-const cleanSha = (value: string | undefined): string | undefined => {
-  const sha = value?.trim().toLowerCase();
-  if (!(sha && /^[a-f0-9]{7,64}$/u.test(sha))) {
-    return;
-  }
-  return sha.slice(0, RELEASE_SHA_LENGTH);
-};
-
-export const buildWebRelease = (
-  version: string | undefined,
-  sha: string | undefined
-): string | undefined => {
-  const normalizedVersion = cleanVersion(version);
-  const normalizedSha = cleanSha(sha);
-  if (!(normalizedVersion && normalizedSha)) {
-    return;
-  }
-  return `teak-web@${normalizedVersion}+${normalizedSha}`;
-};
-
-export const buildMobileRelease = (
-  version: string | undefined,
-  buildNumber: string | number | undefined
-): string | undefined => {
-  const normalizedVersion = cleanVersion(version);
-  const normalizedBuild = cleanBuild(buildNumber);
-  if (!(normalizedVersion && normalizedBuild)) {
-    return;
-  }
-  return `teak-mobile@${normalizedVersion}+${normalizedBuild}`;
-};
-
-export const buildBackendRelease = (
-  sha: string | undefined
-): string | undefined => {
-  const normalizedSha = cleanSha(sha);
-  return normalizedSha ? `teak-backend@${normalizedSha}` : undefined;
-};
 
 const normalizeAttributeKey = (key: string): string | undefined => {
   const normalized = key.trim().slice(0, ATTRIBUTE_KEY_LIMIT);
@@ -468,119 +336,4 @@ export const scrubTelemetryValue = (value: unknown): unknown => {
     );
   }
   return value;
-};
-
-export const hashTelemetryId = async (
-  value: string | undefined
-): Promise<string | undefined> => {
-  if (!value) {
-    return;
-  }
-  const digest = await crypto.subtle.digest(
-    "SHA-256",
-    new TextEncoder().encode(value)
-  );
-  return [...new Uint8Array(digest)]
-    .map((byte) => byte.toString(16).padStart(2, "0"))
-    .join("");
-};
-
-export const buildTelemetryContext = async ({
-  attributes,
-  cardId,
-  operation,
-  release,
-  surface,
-  traceId,
-  userId,
-  workflowId,
-}: TelemetryContextInput): Promise<TelemetryContext> => ({
-  attributes: normalizeTelemetryAttributes(attributes),
-  cardIdHash: await hashTelemetryId(cardId),
-  operation,
-  release,
-  surface,
-  traceId,
-  userIdHash: await hashTelemetryId(userId),
-  workflowIdHash: await hashTelemetryId(workflowId),
-});
-
-export interface PreparedTelemetryContent {
-  content: string;
-  contentHash?: string;
-  originalLength: number;
-  truncated: boolean;
-}
-
-export const prepareTelemetryContent = async (
-  value: string,
-  maxLength = CONTENT_LIMIT
-): Promise<PreparedTelemetryContent> => {
-  const content = scrubTelemetryString(value);
-  if (content.length <= maxLength) {
-    return {
-      content,
-      originalLength: value.length,
-      truncated: false,
-    };
-  }
-  const available = Math.max(2, maxLength - CONTENT_SEPARATOR.length);
-  const prefixLength = Math.ceil(available / 2);
-  const suffixLength = Math.floor(available / 2);
-  return {
-    content: `${content.slice(0, prefixLength)}${CONTENT_SEPARATOR}${content.slice(
-      -suffixLength
-    )}`,
-    contentHash: await hashTelemetryId(content),
-    originalLength: value.length,
-    truncated: true,
-  };
-};
-
-const HIGH_VALUE_OPERATION_PATTERN =
-  /auth|card|upload|billing|checkout|import|export|gen_ai|workflow|storage/u;
-
-export interface SamplingContext {
-  durationMs?: number;
-  environment: TelemetryEnvironment;
-  name?: string;
-  operation?: string;
-  outcome?: string;
-}
-
-export const resolveTraceSampleRate = ({
-  durationMs,
-  environment,
-  name,
-  operation,
-  outcome,
-}: SamplingContext): number => {
-  if (environment !== "production") {
-    return 1;
-  }
-  const description = `${name ?? ""} ${operation ?? ""}`.toLowerCase();
-  const failed = outcome === "failure" || outcome === "error";
-  const slow = typeof durationMs === "number" && durationMs >= 2000;
-  return failed || slow || HIGH_VALUE_OPERATION_PATTERN.test(description)
-    ? 1
-    : 0.2;
-};
-
-/** Backend traces are retained at completion so failures and slow calls survive. */
-export const resolveBackendTraceSampleRate = (
-  context: SamplingContext
-): number => {
-  if (context.environment !== "production") {
-    return 1;
-  }
-  const description =
-    `${context.name ?? ""} ${context.operation ?? ""}`.toLowerCase();
-  const critical = /auth|billing|checkout|security|oauth/u.test(description);
-  const failed =
-    context.outcome === "failure" ||
-    context.outcome === "error" ||
-    context.outcome === "retry";
-  const slow =
-    typeof context.durationMs === "number" && context.durationMs >= 2000;
-  return critical || failed || slow ? 1 : 0.1;
 };

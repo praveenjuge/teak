@@ -10,7 +10,6 @@ import AppKit
 /// and sign-out, all with the app's shared session.
 final class SafariWebExtensionHandler: NSObject, NSExtensionRequestHandling {
     func beginRequest(with context: NSExtensionContext) {
-        SentryReporting.start(extensionName: "safari")
         let request = context.inputItems.first as? NSExtensionItem
         let message = request?.userInfo?[SFExtensionMessageKey]
         let payload = message as? [String: Any]

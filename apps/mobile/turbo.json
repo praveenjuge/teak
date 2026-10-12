@@ -3,12 +3,7 @@
   "tags": ["app"],
   "tasks": {
     "build": {
-      "env": [
-        "EXPO_PUBLIC_CONVEX_SITE_URL",
-        "EXPO_PUBLIC_CONVEX_URL",
-        "EXPO_PUBLIC_SENTRY_ENVIRONMENT",
-        "EXPO_PUBLIC_SENTRY_MOBILE_DSN"
-      ],
+      "env": ["EXPO_PUBLIC_CONVEX_SITE_URL", "EXPO_PUBLIC_CONVEX_URL"],
       "inputs": ["$TURBO_DEFAULT$", ".env", ".env.local"]
     }
   }

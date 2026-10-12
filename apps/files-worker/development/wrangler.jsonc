@@ -64,7 +64,6 @@
     "subrequests": 20000
   },
   "vars": {
-    "SENTRY_ENVIRONMENT": "development",
     // Matches containers[0].max_instances.
     "MEDIA_RENDERER_INSTANCES": "2"
   },

@@ -8,7 +8,6 @@ export { ObjectDeletionGate } from "./deletionGate";
 export { MediaRenderer } from "./mediaRenderer";
 
 import type { BrowserWorker } from "@cloudflare/puppeteer";
-import { withSentry } from "@sentry/cloudflare";
 import {
   buildMultipartPartSigningPayload,
   FILES_IMAGE_PATH,
@@ -25,7 +24,7 @@ import {
   verifySignedFileRequest,
 } from "./lib";
 import { handleInternalOp } from "./ops";
-import { resolveSentryOptions } from "./sentry";
+import { reportUnhandledError } from "./telemetry";
 import { handleSignedUpload } from "./upload";
 
 export interface Env {
@@ -44,11 +43,8 @@ export interface Env {
   /** Renderer pool size; matches the Container's max_instances. */
   MEDIA_RENDERER_INSTANCES?: string;
   OBJECT_GATES?: DurableObjectNamespace;
-  /** Wrangler secret; error reporting stays disabled until it is set. */
-  SENTRY_DSN?: string;
-  /** Optional overrides, normally left unset. */
-  SENTRY_ENVIRONMENT?: string;
-  SENTRY_RELEASE?: string;
+  /** PostHog project token for error reports; set in production only. */
+  POSTHOG_PROJECT_TOKEN?: string;
 }
 
 const decodeObjectKey = (pathname: string): string => {
@@ -352,7 +348,7 @@ const handler = {
       if (requestMethod !== "POST") {
         return methodNotAllowed(request, "POST");
       }
-      return await handleInternalOp(request, env);
+      return await handleInternalOp(request, env, ctx);
     }
 
     if (url.pathname.startsWith("/__uploads/v1/")) {
@@ -560,10 +556,13 @@ const handler = {
   },
 } satisfies ExportedHandler<Env>;
 
-export default withSentry<Env>(
-  // Secrets exist only on env at request time, so the SDK initializes per
-  // request; without SENTRY_DSN this resolves to undefined and Sentry stays
-  // disabled. See src/sentry.ts.
-  (env) => resolveSentryOptions(env),
-  handler
-);
+export default {
+  async fetch(request, env, ctx): Promise<Response> {
+    try {
+      return await handler.fetch(request, env, ctx);
+    } catch (error) {
+      await reportUnhandledError(env, ctx, error, request);
+      throw error;
+    }
+  },
+} satisfies ExportedHandler<Env>;

@@ -35,6 +35,7 @@ import { patchCardWithSearchSync } from "../card/searchDocumentHelpers";
 import type { CardType } from "../schema";
 import type { Id } from "../shared/types";
 import { collectWorkflowArtifacts } from "../storage/workflowArtifacts";
+import { scheduleCardProcessingFailed } from "../telemetry/schedule";
 
 const internalAny: any = internal as any;
 
@@ -187,6 +188,12 @@ export const markUnfinishedCardStagesFailed = async (
   await patchCardWithSearchSync(ctx, context.cardId, {
     processingStatus: { ...current, ...failedStages },
     updatedAt: now,
+  });
+  await scheduleCardProcessingFailed(ctx, {
+    cardType: card.type,
+    errorClass: error,
+    stage: Object.keys(failedStages)[0] ?? "unknown",
+    userId: card.userId,
   });
   return true;
 };

@@ -1,8 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import {
-  captureClientException,
-  runClientSpan,
-} from "../../shared/client_telemetry";
+import { captureEvent, resolveSizeBucket } from "../../shared/analytics";
+import { captureClientException } from "../../shared/client_telemetry";
 import type { CardErrorCode, CardType } from "../../shared/constants";
 import {
   CARD_ERROR_CODES,
@@ -12,7 +10,7 @@ import {
   MULTIPART_UPLOAD_THRESHOLD,
 } from "../../shared/constants";
 import { inferFileFormat, isGenericMimeType } from "../../shared/fileFormats";
-import { trackUpload } from "../../shared/metrics";
+import { normalizeErrorClass } from "../../shared/telemetry";
 import type {
   UploadFileResult,
   UploadMultipleFilesResultItem,
@@ -195,14 +193,7 @@ export function useFileUploadCore(
       setIsUploading(true);
       setProgress(0);
       setError(null);
-      const startedAt = Date.now();
       const bucket = fileBucket(file.type);
-      trackUpload({
-        bytes: file.size,
-        fileBucket: bucket,
-        outcome: "attempt",
-        source: "unknown",
-      });
 
       try {
         // Validate file size
@@ -295,24 +286,15 @@ export function useFileUploadCore(
           uploadKey = uploadResult.uploadKey;
           config.onProgress?.(25);
           setProgress(25);
-          const uploadResponse = await runClientSpan(
-            {
-              attributes: { bytes: file.size, "file.bucket": bucket },
-              name: "card.upload",
-              operation: "storage.upload",
-              stage: "upload",
-            },
+          const uploadResponse = await uploadWithTransientRetry(
             () =>
-              uploadWithTransientRetry(
-                () =>
-                  fetch(uploadResult.uploadUrl as string, {
-                    method: "PUT",
-                    headers: { "Content-Type": fileType },
-                    body: file,
-                    signal,
-                  }),
-                signal
-              )
+              fetch(uploadResult.uploadUrl as string, {
+                method: "PUT",
+                headers: { "Content-Type": fileType },
+                body: file,
+                signal,
+              }),
+            signal
           );
           if (!uploadResponse.ok) {
             throw new Error(
@@ -352,12 +334,9 @@ export function useFileUploadCore(
         config.onProgress?.(100);
         setProgress(100);
         config.onSuccess?.(finalizeResult.cardId);
-        trackUpload({
-          bytes: file.size,
-          durationMs: Date.now() - startedAt,
-          fileBucket: bucket,
-          outcome: "success",
-          source: "unknown",
+        captureEvent("file_upload_completed", {
+          bucket,
+          size_bucket: resolveSizeBucket(file.size),
         });
 
         return { success: true, cardId: finalizeResult.cardId };
@@ -366,12 +345,10 @@ export function useFileUploadCore(
           return { success: false, error: "Upload cancelled" };
         }
 
-        trackUpload({
-          bytes: file.size,
-          durationMs: Date.now() - startedAt,
-          fileBucket: bucket,
-          outcome: "failure",
-          source: "unknown",
+        captureEvent("file_upload_failed", {
+          bucket,
+          error_class: normalizeErrorClass(error),
+          size_bucket: resolveSizeBucket(file.size),
         });
 
         const errorMessage =
@@ -434,14 +411,7 @@ export function useFileUploadCore(
       setIsUploading(true);
       setProgress(0);
       setError(null);
-      const startedAt = Date.now();
       const bucket = fileBucket(type);
-      trackUpload({
-        bytes: size,
-        fileBucket: bucket,
-        outcome: "attempt",
-        source: "unknown",
-      });
 
       try {
         if (!uploadBinaryFromUri) {
@@ -507,24 +477,15 @@ export function useFileUploadCore(
         config.onProgress?.(25);
         setProgress(25);
 
-        const uploadResponse = await runClientSpan(
-          {
-            attributes: { bytes: size, "file.bucket": bucket },
-            name: "card.upload",
-            operation: "storage.upload",
-            stage: "upload",
-          },
+        const uploadResponse = await uploadWithTransientRetry(
           () =>
-            uploadWithTransientRetry(
-              () =>
-                uploadBinaryFromUri({
-                  fileUri: uri,
-                  uploadUrl,
-                  contentType: fileType,
-                  signal,
-                }),
-              signal
-            )
+            uploadBinaryFromUri({
+              fileUri: uri,
+              uploadUrl,
+              contentType: fileType,
+              signal,
+            }),
+          signal
         );
 
         if (!uploadResponse.ok) {
@@ -560,12 +521,9 @@ export function useFileUploadCore(
         config.onProgress?.(100);
         setProgress(100);
         config.onSuccess?.(finalizeResult.cardId);
-        trackUpload({
-          bytes: size,
-          durationMs: Date.now() - startedAt,
-          fileBucket: bucket,
-          outcome: "success",
-          source: "unknown",
+        captureEvent("file_upload_completed", {
+          bucket,
+          size_bucket: resolveSizeBucket(size),
         });
 
         return { success: true, cardId: finalizeResult.cardId };
@@ -574,12 +532,10 @@ export function useFileUploadCore(
           return { success: false, error: "Upload cancelled" };
         }
 
-        trackUpload({
-          bytes: size,
-          durationMs: Date.now() - startedAt,
-          fileBucket: bucket,
-          outcome: "failure",
-          source: "unknown",
+        captureEvent("file_upload_failed", {
+          bucket,
+          error_class: normalizeErrorClass(error),
+          size_bucket: resolveSizeBucket(size),
         });
 
         const errorMessage =

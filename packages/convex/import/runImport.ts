@@ -17,8 +17,8 @@ import { ensureObjectOwnership } from "../storage/ownership";
 import { assertR2KeyInNamespace, buildR2UserPrefix } from "../storage/r2";
 import {
   recordBackendHandledFailure,
-  withBackendSpan,
-} from "../telemetry/sentry";
+  withBackendErrorCapture,
+} from "../telemetry/posthog";
 import { readImportIndexPage, readLegacyMarkdown } from "./archiveZip";
 import {
   IMPORT_INDEX_BATCH,
@@ -35,7 +35,7 @@ const observeImport =
     handler: (ctx: ActionCtx, args: TArgs) => Promise<TResult>
   ) =>
   (ctx: ActionCtx, args: TArgs): Promise<TResult> =>
-    withBackendSpan(
+    withBackendErrorCapture(
       {
         name,
         operation: TELEMETRY_OPERATIONS.import,
@@ -270,7 +270,7 @@ export const indexImportSource = internalAction({
           ? { ok: true }
           : { ok: true, nextCursor: page.nextCursor };
       } catch (error) {
-        recordBackendHandledFailure(error, {
+        await recordBackendHandledFailure(error, {
           operation: TELEMETRY_OPERATIONS.import,
           stage: "import",
         });

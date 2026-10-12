@@ -34,9 +34,10 @@ launch.
    profile must carry `group.com.praveenjuge.teak`.
 8. Xcode archives scheme `Teak` in Release and exports an IPA or PKG. The
    workflow verifies bundle IDs, version, build number, production Convex URL,
-   Sentry DSN, entitlements (App Group, keychain group, sandbox on macOS),
-   embedded profiles, and signatures for all three bundles, then uploads the
-   archive's dSYMs to Sentry `teakvault/teak-apple-prod`.
+   PostHog token (app only; the extensions carry none), entitlements (App
+   Group, keychain group, sandbox on macOS), embedded profiles, and signatures
+   for all three bundles, then uploads the archive's dSYMs to PostHog with
+   `posthog-cli dsym upload`.
 9. The signed package and a SHA-256 descriptor move to an Ubuntu submit leg,
    which checks the digest, uploads with `asc builds upload --wait`, and
    requires exactly one `VALID` build.
@@ -59,10 +60,11 @@ first version on a platform skips What's New, since Apple doesn't allow it.
 Do these before the first run that needs them. The workflow fails with a
 pointer here when one is missing.
 
-- **Sentry.** Project `teakvault/teak-apple-prod` exists and its DSN is in the
-  Release config of `project.yml`. The repository's `SENTRY_AUTH_TOKEN` secret
-  needs upload access to that project. Without the token, dSYM upload is skipped
-  with a warning.
+- **PostHog.** The repository secret `POSTHOG_PROJECT_TOKEN` holds the project
+  token; the archive passes it as `TEAK_POSTHOG_TOKEN`, and the workflow fails
+  without it. For dSYM upload, set the secrets `POSTHOG_CLI_API_KEY` (a PostHog
+  personal API key) and `POSTHOG_CLI_PROJECT_ID`.
+  Without them, dSYM upload is skipped with a warning.
 - **Safari extension ID.** Register `com.praveenjuge.teak.safari-extension` as a
   universal bundle ID in the developer portal, or with
   `asc bundle-ids create --identifier com.praveenjuge.teak.safari-extension --name "Teak Safari Extension" --platform UNIVERSAL`.

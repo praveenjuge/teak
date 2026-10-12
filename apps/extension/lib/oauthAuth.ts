@@ -12,6 +12,7 @@ import {
 } from "@teak/convex/sdk";
 import { readResponseTextWithinLimit } from "@teak/convex/shared/bounded-response";
 import { getConvexSiteUrl } from "./env";
+import { captureExtensionEvent } from "./telemetry";
 
 // Background-worker only. Never import this module from popup/content scripts.
 const IS_FIREFOX = import.meta.env.BROWSER === "firefox";
@@ -316,6 +317,7 @@ export function beginOAuthSignIn(): Promise<void> {
           await writeCredentials(credentials);
         }
       });
+      await captureExtensionEvent("signed_in", {});
     }
   })()
     .catch(async (error) => {

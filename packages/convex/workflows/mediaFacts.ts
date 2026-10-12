@@ -13,7 +13,7 @@ import {
   isFilesWorkerConfigured,
 } from "../storage/filesWorkerClient";
 import { assertR2KeyInNamespace } from "../storage/r2Keys";
-import { withBackendSpan } from "../telemetry/sentry";
+import { withBackendErrorCapture } from "../telemetry/posthog";
 import { sanitizeTranscript } from "./aiMetadata/transcript";
 
 interface MediaCard {
@@ -121,7 +121,7 @@ export const processAudioCard = async (
   let processed: FilesProcessAudioResult | null = null;
   let text: string | null = null;
   try {
-    ({ text } = await withBackendSpan(
+    ({ text } = await withBackendErrorCapture(
       {
         attributes: { model: TRANSCRIPTION_MODEL_ID, provider: "cloudflare" },
         name: "teak.ai.transcript",

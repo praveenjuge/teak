@@ -37,15 +37,7 @@ export async function stopAudioRecording({
 
     const uri = audioRecorder.uri;
     if (uri) {
-      await runClientSpan(
-        {
-          attributes: { "file.bucket": "audio" },
-          name: "mobile.recording.save",
-          operation: "storage.upload",
-          stage: "upload",
-        },
-        () => handleFileUpload(uri, `recording-${Date.now()}.m4a`, "audio/mp4")
-      );
+      await handleFileUpload(uri, `recording-${Date.now()}.m4a`, "audio/mp4");
     }
   } catch (error) {
     onError?.(error);
@@ -55,5 +47,3 @@ export async function stopAudioRecording({
     setIsStoppingRecording(false);
   }
 }
-
-import { runClientSpan } from "@teak/convex/shared/client-telemetry";

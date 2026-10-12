@@ -1,5 +1,7 @@
 // @ts-nocheck
+
 import { afterEach, beforeEach, describe, expect, mock, test } from "bun:test";
+import { getFunctionName } from "convex/server";
 import {
   cleanupCompletedWorkflowHandler,
   cleanupWorkflowHistoryBatchHandler,
@@ -186,7 +188,24 @@ describe("workflow manager", () => {
         status: "failed",
         error: "workflow_failed",
       });
-      expect(ctx.scheduler.runAfter).toHaveBeenCalledTimes(1);
+      // Retention cleanup, plus one card_processing_failed event.
+      expect(
+        ctx.scheduler.runAfter.mock.calls.map(([, reference, args]) => [
+          getFunctionName(reference),
+          args,
+        ])
+      ).toEqual([
+        [
+          "telemetry/events:emitCardProcessingFailed",
+          {
+            cardType: undefined,
+            errorClass: "workflow_failed",
+            stage: "metadata",
+            userId: undefined,
+          },
+        ],
+        ["workflows/manager:cleanupCompletedWorkflow", expect.any(Object)],
+      ]);
     });
 
     test("marks unfinished stages of a canceled workflow", async () => {

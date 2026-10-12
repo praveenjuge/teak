@@ -1,6 +1,6 @@
 "use client";
 
-import * as Sentry from "@sentry/nextjs";
+import { captureClientException } from "@teak/convex/shared/client-telemetry";
 import { useEffect } from "react";
 import "./globals.css";
 import { StatusScreen } from "@/components/StatusScreen";
@@ -30,7 +30,7 @@ export default function GlobalError({
   retry: () => void;
 }) {
   useEffect(() => {
-    Sentry.captureException(error);
+    captureClientException(error, { digest: error.digest });
   }, [error]);
   useEffect(applySavedTheme, []);
   return (

@@ -45,7 +45,7 @@ import {
   RendererDeclined,
   RendererUnavailable,
 } from "./rendererClient";
-import { reportFilesOpFailure } from "./sentry";
+import { reportFilesOpFailure } from "./telemetry";
 import {
   generateTextMetadataForOp,
   MetadataCapacityError,
@@ -92,6 +92,8 @@ export interface FilesOpsEnv {
   MEDIA_RENDERER?: DurableObjectNamespace;
   MEDIA_RENDERER_INSTANCES?: string;
   OBJECT_GATES?: DurableObjectNamespace;
+  /** PostHog project token for error reports; set in production only. */
+  POSTHOG_PROJECT_TOKEN?: string;
 }
 
 const json = (data: unknown, status = 200): Response =>
@@ -680,7 +682,8 @@ const dispatch = async (
 
 export const handleInternalOp = async (
   request: Request,
-  env: FilesOpsEnv
+  env: FilesOpsEnv,
+  ctx?: Pick<ExecutionContext, "waitUntil">
 ): Promise<Response> => {
   const requestId = request.headers.get("x-teak-request-id") ?? "unknown";
   const rawBody = await readResponseTextWithinLimit(
@@ -818,7 +821,7 @@ export const handleInternalOp = async (
       stack: error instanceof Error ? error.stack : undefined,
     });
     const objectKey = getFilesOpObjectKey(body.params);
-    reportFilesOpFailure(body.op, error, {
+    await reportFilesOpFailure(env, ctx, body.op, error, {
       httpMethod: request.method,
       httpPath: "/__ops/v1",
       objectKey,

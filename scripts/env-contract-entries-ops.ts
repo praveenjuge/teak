@@ -195,17 +195,6 @@ export const OPS_ENTRIES: EnvVarSpec[] = [
     required: true,
     requiredIn: ["production"],
   }),
-  spec("SENTRY_MOBILE_DSN", {
-    owners: ["teak-release"],
-    targets: ["release", "mobile"],
-    profiles: ["production"],
-    secret: true,
-    validation: "url",
-    providers: ["github-secrets"],
-    required: true,
-    requiredIn: ["production"],
-    note: "CI secret mapped to EXPO_PUBLIC_SENTRY_MOBILE_DSN at release time.",
-  }),
   spec("STORE_ASSETS_BROWSER", {
     owners: ["teak-repo"],
     targets: ["repo"],

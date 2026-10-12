@@ -8,7 +8,7 @@ import { connection } from "next/server";
 import type { ReactNode } from "react";
 import { AuthUnavailable } from "./AuthUnavailable";
 import ConvexClientProvider from "./ConvexClientProvider";
-import { SentryUserManager } from "./SentryUserManager";
+import { PostHogIdentify } from "./PostHogIdentify";
 import { WebMcpTools } from "./WebMcpTools";
 import { WorkosAuthBoundary } from "./WorkosAuthBoundary";
 
@@ -29,7 +29,7 @@ export default async function AuthenticatedAppProvider({
   return (
     <ConvexClientProvider initialAuth={initialAuth}>
       <WorkosAuthBoundary>
-        <SentryUserManager />
+        <PostHogIdentify />
         <WebMcpTools />
         <GlobalFileDropProvider upgradeUrl="/settings">
           {children}

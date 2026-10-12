@@ -37,13 +37,10 @@ type Env = {
   readonly OPERATIONAL_RETENTION_ENABLED: string | undefined;
   readonly POLAR_ACCESS_TOKEN: string | undefined;
   readonly POLAR_SERVER: string | undefined;
+  readonly POSTHOG_PROJECT_TOKEN: string | undefined;
   readonly PUBLIC_ORIGIN: string | undefined;
   readonly R2_BUCKET: string | undefined;
   readonly R2_KEY_PREFIX: string | undefined;
-  readonly SENTRY_BACKEND_DSN: string | undefined;
-  readonly SENTRY_DSN: string | undefined;
-  readonly SENTRY_ENVIRONMENT: string | undefined;
-  readonly SENTRY_RELEASE: string | undefined;
   readonly SIGNUPS_DISABLED: string | undefined;
   readonly TEAK_DEV_API_URL: string | undefined;
   readonly TEAK_DEV_APP_URL: string | undefined;

@@ -34,11 +34,11 @@ const app = defineApp({
     // Polar billing capability group.
     POLAR_ACCESS_TOKEN: v.optional(v.string()),
     POLAR_SERVER: v.optional(v.string()),
-    // Sentry capability group.
-    SENTRY_ENVIRONMENT: v.optional(v.string()),
-    SENTRY_RELEASE: v.optional(v.string()),
-    SENTRY_BACKEND_DSN: v.optional(v.string()),
-    SENTRY_DSN: v.optional(v.string()),
+    // PostHog product analytics and error reports; set in production only.
+    // A validator for the env var name, not a token value.
+    // nosemgrep: codacy.yaml.security.hard-coded-tokens
+    POSTHOG_PROJECT_TOKEN: v.optional(v.string()),
+    // Stamped by Backend Deploy; sent as the backend's $app_version.
     CONVEX_GIT_COMMIT_SHA: v.optional(v.string()),
     // Administration.
     // Staged operational-cost rollout; unset means disabled.

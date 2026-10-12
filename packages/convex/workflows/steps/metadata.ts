@@ -16,7 +16,7 @@ import { extractVisualStylesFromTags } from "../../shared/constants";
 import { inferFileFormat } from "../../shared/fileFormats";
 import { TELEMETRY_OPERATIONS } from "../../shared/telemetry";
 import type { Id } from "../../shared/types";
-import { withBackendSpan } from "../../telemetry/sentry";
+import { withBackendErrorCapture } from "../../telemetry/posthog";
 import {
   FILES_WORKER_NOT_CONFIGURED,
   generateImageMetadataForStoredKey,
@@ -130,7 +130,7 @@ export const generate: any = internalAction({
     mode: v.union(v.literal("completed"), v.literal("skipped")),
   }),
   handler: (ctx: any, args: { cardId: Id<"cards">; cardType: string }) =>
-    withBackendSpan(
+    withBackendErrorCapture(
       {
         attributes: { "card.type": args.cardType },
         cardId: args.cardId,

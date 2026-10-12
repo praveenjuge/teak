@@ -100,7 +100,6 @@ export const buildContentSecurityPolicy = (
     [
       "script-src 'self'",
       "blob:",
-      "https://va.vercel-scripts.com",
       // Next.js emits inline bootstrap scripts in both production and
       // development. SHA-384 SRI still covers external framework chunks, while
       // eval remains limited to development tooling.
@@ -113,8 +112,6 @@ export const buildContentSecurityPolicy = (
       "https://*.convex.cloud",
       "wss://*.convex.cloud",
       "https://*.convex.site",
-      "https://*.ingest.us.sentry.io",
-      "https://vitals.vercel-insights.com",
       "https://polar.sh",
       "https://*.polar.sh",
       TEAK_R2_STORAGE_ORIGIN,
@@ -135,6 +132,7 @@ export const buildContentSecurityPolicy = (
       ...R2_FRAME_SOURCES,
       ...customOrigins,
     ].join(" "),
+    // PostHog's session replay compresses recordings in a blob worker.
     "worker-src 'self' blob:",
     // Production is https-only, but development serves plain http://localhost
     // where this directive breaks every subresource with TLS failures.

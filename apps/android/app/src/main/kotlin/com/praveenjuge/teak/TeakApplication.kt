@@ -14,10 +14,15 @@ import coil3.gif.AnimatedImageDecoder
 import coil3.util.DebugLogger
 import coil3.network.okhttp.OkHttpNetworkFetcherFactory
 import coil3.video.VideoFrameDecoder
+import com.posthog.PersonProfiles
+import com.posthog.PostHog
+import com.posthog.android.PostHogAndroid
+import com.posthog.android.PostHogAndroidConfig
+import com.praveenjuge.teak.core.data.auth.SessionState
+import com.praveenjuge.teak.core.data.auth.SessionUser
 import com.praveenjuge.teak.core.data.di.ApplicationScope
 import com.praveenjuge.teak.core.data.repository.AccountRepository
 import dagger.hilt.android.HiltAndroidApp
-import io.sentry.android.core.SentryAndroid
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 import okhttp3.OkHttpClient
@@ -35,7 +40,7 @@ class TeakApplication : Application(), Configuration.Provider, SingletonImageLoa
 
     override fun onCreate() {
         super.onCreate()
-        initSentry()
+        initPostHog()
         publishShortcuts()
         scope.launch { account.start() }
     }
@@ -67,19 +72,43 @@ class TeakApplication : Application(), Configuration.Provider, SingletonImageLoa
             .apply { if (BuildConfig.DEBUG) logger(DebugLogger()) }
             .build()
 
-    private fun initSentry() {
-        val dsn = BuildConfig.SENTRY_DSN
-        if (dsn.isBlank()) return
-        SentryAndroid.init(this) { options ->
-            options.dsn = dsn
-            options.environment = if (BuildConfig.DEBUG) "development" else "production"
-            options.release = "teak-android@${BuildConfig.VERSION_NAME}+${BuildConfig.VERSION_CODE}"
-            options.isSendDefaultPii = false
-            options.isAttachScreenshot = false
-            options.isAttachViewHierarchy = false
-            options.tracesSampleRate = if (BuildConfig.DEBUG) 1.0 else 0.1
-            options.setTag("surface", "android")
-            options.setTag("app", "teak")
+    /** Product analytics and crash reporting, matching the iPhone app. Off when the build has no token. */
+    private fun initPostHog() {
+        val token = BuildConfig.POSTHOG_TOKEN
+        if (token.isBlank()) return
+        val config = PostHogAndroidConfig(
+            projectToken = token,
+            host = "https://us.i.posthog.com",
+            captureApplicationLifecycleEvents = true,
+            captureDeepLinks = false,
+            captureScreenViews = false,
+        ).apply {
+            sessionReplay = false
+            preloadFeatureFlags = false
+            personProfiles = PersonProfiles.IDENTIFIED_ONLY
+            flushAt = 20
+            flushIntervalSeconds = 30
+            errorTrackingConfig.autoCapture = true
+        }
+        PostHogAndroid.setup(this, config)
+        scope.launch { account.session.collect { identify(it) } }
+    }
+
+    private var identified: SessionUser? = null
+
+    /** Ties events to the permanent vault ID, with the email as a person property; resets on sign-out. */
+    private fun identify(state: SessionState) {
+        val user = when (state) {
+            SessionState.Loading -> return
+            SessionState.SignedOut -> null
+            is SessionState.SignedIn -> state.user
+        }
+        val previous = identified
+        identified = user
+        val teakUserId = user?.teakUserId
+        if (previous?.teakUserId != null && previous.teakUserId != teakUserId) PostHog.reset()
+        if (user != null && teakUserId != null && (teakUserId != previous?.teakUserId || user.email != previous.email)) {
+            PostHog.identify(teakUserId, userProperties = mapOf("email" to user.email))
         }
     }
 }

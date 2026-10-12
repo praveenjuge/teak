@@ -113,7 +113,13 @@ final class AppModel {
         for await state in await session.states() {
             let previous = user
             user = state.user
-            SentryReporting.setUser(state.user?.teakUserId)
+            if let old = previous?.teakUserId, old != state.user?.teakUserId {
+                PostHogReporting.reset()
+            }
+            if let next = state.user, let teakUserId = next.teakUserId,
+               teakUserId != previous?.teakUserId || next.email != previous?.email {
+                PostHogReporting.identify(teakUserId: teakUserId, email: next.email)
+            }
             if previous != nil, state.user == nil {
                 authenticateTask?.cancel()
                 tokenTask?.cancel()

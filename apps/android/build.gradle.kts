@@ -8,5 +8,5 @@ plugins {
     alias(libs.plugins.ksp) apply false
     alias(libs.plugins.hilt) apply false
     alias(libs.plugins.baselineprofile) apply false
-    alias(libs.plugins.sentry) apply false
+    alias(libs.plugins.posthog) apply false
 }

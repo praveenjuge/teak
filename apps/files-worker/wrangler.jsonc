@@ -3,7 +3,6 @@
   "name": "teak-files-proxy",
   "main": "src/index.ts",
   "compatibility_date": "2026-08-01",
-  // Required by @sentry/cloudflare (AsyncLocalStorage-based request context).
   "compatibility_flags": ["nodejs_compat"],
   "routes": [
     {
@@ -65,7 +64,8 @@
     "subrequests": 20000
   },
   "vars": {
-    "SENTRY_ENVIRONMENT": "production",
+    // Public PostHog project token for error reports (production only).
+    "POSTHOG_PROJECT_TOKEN": "phc_nMZjok7SyRwAJVbk34ifkYukb3vzhLBx89WQLju89yBn",
     // Matches containers[0].max_instances.
     "MEDIA_RENDERER_INSTANCES": "4"
   },

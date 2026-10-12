@@ -7,7 +7,7 @@ Replace the Expo iPhone app (`apps/mobile`) and the native Mac app (`apps/mac`) 
 - Every row in the parity checklist below works on each platform marked for it, verified in the real app on iPhone, iPad and Mac.
 - iPhone and iPad ship first as an update to `com.praveenjuge.teak`, replacing the Expo build. Mac follows on the same listing as a universal purchase, and "Teak for Mac" is removed from sale on Mac launch day.
 - One Xcode project, one multiplatform app target, one release workflow that uploads iOS and macOS builds to the same listing.
-- Ported logic tests and XCUITest flows pass in CI. Sentry receives crashes from the app and its extensions on all three platforms.
+- Ported logic tests and XCUITest flows pass in CI. PostHog receives crashes from the app on all three platforms (the extensions send no telemetry).
 - `apps/mobile`, `apps/mac`, their workflows and runbooks are deleted once the native app has been stable in production.
 
 ## Decisions (from the planning Q&A)
@@ -30,7 +30,7 @@ Replace the Expo iPhone app (`apps/mobile`) and the native Mac app (`apps/mac`) 
 | Mac UI | SwiftUI-first: `WindowGroup`, `Settings`, `MenuBarExtra`, `Commands`. AppKit only where SwiftUI has no API |
 | Visual style | Native Apple look with Teak accents: system bars, sheets and Liquid Glass, Teak red tint, SF Rounded |
 | Offline | Offline screen, as the iPhone app does today |
-| Crash reporting | Sentry Cocoa SDK on all platforms, new project `teak-apple-prod` |
+| Crash reporting | PostHog iOS SDK in the main app only, Teak PostHog project |
 | Tests | Swift Testing for ported logic + XCUITest end-to-end flows |
 | Releases | GitHub Actions + `asc`, one workflow for iOS and macOS |
 | Store name | Keep "Teak: Save Inspirations" |
@@ -63,12 +63,12 @@ Replace the Expo iPhone app (`apps/mobile`) and the native Mac app (`apps/mac`) 
   - Convex React client.
   - Share extension `com.praveenjuge.teak.share-extension` with app group `group.com.praveenjuge.teak`.
   - Siri intent "Save to Teak" opens `teak://save?text=`.
-  - Sentry project `teak-mobile-prod`.
+  - No error reporting.
 - **Mac app today** (`apps/mac`):
   - Bundle `com.praveenjuge.teak-safari`, plus Safari extension `com.praveenjuge.teak-safari.Extension`.
   - Signs in as an OAuth connected app: discovery, WorkOS `safari` client, redirect `teak-safari://oauth/callback`.
   - REST `/v1` API, keychain group and app group `group.com.praveenjuge.teak-safari`.
-  - No Sentry.
+  - No error reporting.
   - Its core Swift files (`SafariOAuth`, `SafariCredentialStore`, `LibraryStore`, `LibrarySearchTokens`, `LibraryModels`) are Foundation-only and already tested by `scripts/test-mac-oauth.sh`.
 - **Android** (`apps/android`) is the model to follow:
   - Native, with Convex calls by function name and WorkOS PKCE without `client_secret`.
@@ -91,7 +91,7 @@ Replace the Expo iPhone app (`apps/mobile`) and the native Mac app (`apps/mac`) 
 - **No keychain or session migration** from Expo or the old Mac app. Everyone signs in again.
 - **External purchase links:** no upgrade link on iPhone or iPad (App Store rules, same as today). The Mac keeps its existing "Upgrade…/Manage…" link to web settings.
 - **Old code stays put until cutover.** Don't touch `apps/mobile` or `apps/mac` before then, except to delete them in the cleanup phase.
-- **Dependencies:** first-party frameworks first. Third-party Swift packages are limited to `convex-swift` and `sentry-cocoa`. WorkOS is plain HTTPS, as in the Expo app. Image caching is `URLCache` + ImageIO.
+- **Dependencies:** first-party frameworks first. Third-party Swift packages are limited to `convex-swift` and `posthog-ios`. WorkOS is plain HTTPS, as in the Expo app. Image caching is `URLCache` + ImageIO.
 - **Hooks:** never bypass git hooks.
 
 ## Architecture
@@ -135,7 +135,7 @@ apps/apple/
 | Keychain group | `$(AppIdentifierPrefix)com.praveenjuge.teak` (existing) |
 | URL scheme | `teak://`: `auth/callback`, `save?text=`, `connect` (the Safari extension asks the app to sign in) |
 | Team | `LW385M78LW` |
-| Sentry | `teakvault/teak-apple-prod` |
+| Analytics and crashes | PostHog project "Teak" (US Cloud) |
 | Version | Lockstep with root `package.json`. Build numbers continue above 89 for both platforms |
 
 **TeakCore**
@@ -366,7 +366,7 @@ Columns: iPhone (P), iPad (I), Mac (M). "Source" is where the behavior lives tod
 
 - **`.github/workflows/apple-release.yml`:**
   - Triggered by the lockstep version tag, like today.
-  - On a macOS runner with Xcode 27: archive iOS and macOS from the one project, sign via `asc`, verify bundle IDs, entitlements and versions, upload dSYMs to Sentry.
+  - On a macOS runner with Xcode 27: archive iOS and macOS from the one project, sign via `asc`, verify bundle IDs, entitlements and versions, upload dSYMs to PostHog.
   - Upload both builds to app `6756574989`, apply metadata and screenshots, submit, write the proof manifest.
   - Phase 1 ships iOS only. Phase 2 adds macOS.
 - **`apps/apple/store/`:**
@@ -380,7 +380,7 @@ Columns: iPhone (P), iPad (I), Mac (M). "Source" is where the behavior lives tod
 ## Phases
 
 0. **Foundation spike**
-   - Create `apps/apple` with the multiplatform target, TeakKit, signing, Sentry and ConvexMobile.
+   - Create `apps/apple` with the multiplatform target, TeakKit, signing, PostHog and ConvexMobile.
    - Get sign-in working on iPhone, iPad and Mac against the shared dev deployment.
    - Upload one TestFlight build for iOS and one for macOS under `com.praveenjuge.teak`. This proves whether one target works for both upload paths. If App Store Connect rejects it, split into an iOS target and a macOS target that share all sources.
 1. **TeakCore:** models, ported logic + tests, session store with cross-process lock, backend wrapper, upload pipeline, constants export + drift test.
@@ -394,7 +394,7 @@ Columns: iPhone (P), iPad (I), Mac (M). "Source" is where the behavior lives tod
 6. **Tests and release:** XCUITest suite in CI, `apple-release.yml` (iOS), store metadata and screenshots, TestFlight on iPhone and iPad.
 7. **iPhone + iPad launch:**
    - Submit as the next lockstep version on `com.praveenjuge.teak` with iPad support (permanent).
-   - Watch Sentry and reviews for a release or two.
+   - Watch error reports and reviews for a release or two.
 8. **Mac launch:**
    - Add the macOS platform to app `6756574989`, ship the Mac build via the same workflow.
    - On approval, remove "Teak for Mac" (`6770003409`) from sale.

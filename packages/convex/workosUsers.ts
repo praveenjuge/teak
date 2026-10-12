@@ -251,7 +251,11 @@ export const linkWorkosUser = internalMutation({
           internal.card.defaultCards.createDefaultCardsForUser,
           { userId: teakUserId }
         );
-        await scheduleUserCreated(ctx, { source: "auth", userId: teakUserId });
+        await scheduleUserCreated(ctx, {
+          email,
+          source: "auth",
+          userId: teakUserId,
+        });
         await resolvePendingReceipts(ctx, args.workosUserId);
         return { status: "linked" as const, teakUserId, changed: true };
       }

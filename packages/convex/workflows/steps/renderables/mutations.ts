@@ -4,6 +4,7 @@ import { internalMutation } from "../../../_generated/server";
 import { stageFailed } from "../../../card/processingStatus";
 import { patchCardWithSearchSync } from "../../../card/searchDocumentHelpers";
 import { filePreviewFactsValidator, imageExifValidator } from "../../../schema";
+import { scheduleCardProcessingFailed } from "../../../telemetry/schedule";
 
 export const markCardRenderablesFailed = internalMutation({
   args: { cardId: v.id("cards"), error: v.string() },
@@ -24,6 +25,12 @@ export const markCardRenderablesFailed = internalMutation({
         ),
       },
       updatedAt: now,
+    });
+    await scheduleCardProcessingFailed(ctx, {
+      cardType: card.type,
+      errorClass: args.error,
+      stage: "renderables",
+      userId: card.userId,
     });
     return null;
   },

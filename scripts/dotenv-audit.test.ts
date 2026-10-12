@@ -82,10 +82,10 @@ describe("dotenv-audit", () => {
 
   test("release-only credentials in local files are wrong-scope", () => {
     const root = makeRoot({
-      "apps/extension/.env.local": "SENTRY_AUTH_TOKEN=lorem\n",
+      "apps/extension/.env.local": "CHROME_CLIENT_SECRET=lorem\n",
     });
     expect(kinds(root)).toContain(
-      "warn:wrong-scope:apps/extension/.env.local:SENTRY_AUTH_TOKEN"
+      "warn:wrong-scope:apps/extension/.env.local:CHROME_CLIENT_SECRET"
     );
   });
 

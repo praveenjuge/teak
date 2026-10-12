@@ -30,7 +30,6 @@ env:
   APPLE_TEAM_ID: LW385M78LW
   EXPO_PUBLIC_CONVEX_SITE_URL: https://uncommon-ladybug-882.convex.site
   EXPO_PUBLIC_CONVEX_URL: https://uncommon-ladybug-882.convex.cloud
-  EXPO_PUBLIC_SENTRY_ENVIRONMENT: production
   IOS_APP_BUNDLE_ID: com.praveenjuge.teak
   IOS_EXTENSION_BUNDLE_ID: com.praveenjuge.teak.share-extension
   PLATFORM: IOS
@@ -81,11 +80,9 @@ jobs:
           DRY_RUN: ${{ inputs.dry_run }}
           GITHUB_APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
           GITHUB_APPLE_DISTRIBUTION_PRIVATE_KEY_BASE64: ${{ secrets.APPLE_DISTRIBUTION_PRIVATE_KEY_BASE64 }}
-          GITHUB_SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
-          GITHUB_SENTRY_MOBILE_DSN: ${{ secrets.SENTRY_MOBILE_DSN }}
         run: |
-          if [ -z "$GITHUB_APPLE_CERTIFICATE_PASSWORD" ] || [ -z "$GITHUB_APPLE_DISTRIBUTION_PRIVATE_KEY_BASE64" ] || [ -z "$GITHUB_SENTRY_AUTH_TOKEN" ] || [ -z "$GITHUB_SENTRY_MOBILE_DSN" ]; then
-            echo "Missing iOS signing or Sentry release credentials." >&2
+          if [ -z "$GITHUB_APPLE_CERTIFICATE_PASSWORD" ] || [ -z "$GITHUB_APPLE_DISTRIBUTION_PRIVATE_KEY_BASE64" ]; then
+            echo "Missing iOS signing credentials." >&2
             exit 1
           fi
           node scripts/release-version.mjs lockstep "$VERSION"
@@ -191,7 +188,7 @@ jobs:
 
           if [ -n "$build_id" ] && gh release download "v$VERSION" --pattern "$manifest_name" --output "$manifest" 2>/dev/null; then
             if ! jq -e --arg id "$build_id" --arg number "$build_number" \
-              '.build.id == $id and .build.number == $number and .artifact.sha256 != "" and .sentrySizeAnalysis == "success"' "$manifest" > /dev/null; then
+              '.build.id == $id and .build.number == $number and .artifact.sha256 != ""' "$manifest" > /dev/null; then
               echo "The canonical iOS manifest does not prove the exact reusable build." >&2
               exit 1
             fi
@@ -361,13 +358,8 @@ jobs:
         working-directory: apps/mobile
         env:
           APPLE_DISTRIBUTION_IDENTITY: ${{ steps.signing.outputs.identity }}
-          EXPO_PUBLIC_SENTRY_MOBILE_DSN: ${{ secrets.SENTRY_MOBILE_DSN }}
           IOS_APP_PROFILE_NAME: ${{ steps.profiles.outputs.app_name }}
           IOS_EXTENSION_PROFILE_NAME: ${{ steps.profiles.outputs.extension_name }}
-          SENTRY_ALLOW_FAILURE: "false"
-          SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
-          SENTRY_ORG: teakvault
-          SENTRY_PROJECT: teak-mobile-prod
         run: |
           archive_path="$RUNNER_TEMP/Teak-iOS.xcarchive"
           export_path="$RUNNER_TEMP/Teak-iOS-export"
@@ -470,22 +462,6 @@ jobs:
             fi
           done
           echo "- Local IPA: verified $VERSION/$BUILD_NUMBER for app and share extension" >> "$GITHUB_STEP_SUMMARY"
-
-      - name: Upload IPA to mandatory Sentry Size Analysis on Apple Silicon
-        if: steps.release_state.outputs.mutate == 'true' && steps.build_state.outputs.reuse != 'true'
-        env:
-          IPA_PATH: ${{ steps.ipa.outputs.path }}
-          SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
-        run: |
-          if [ -z "$SENTRY_AUTH_TOKEN" ]; then
-            echo "Sentry Size Analysis is mandatory and SENTRY_AUTH_TOKEN is missing." >&2
-            exit 1
-          fi
-          if [ ! -s "$IPA_PATH" ]; then
-            echo "Sentry Size Analysis requires the verified signed IPA." >&2
-            exit 1
-          fi
-          bun run --cwd apps/mobile build:sentry -- "$IPA_PATH"
 
       - name: Prepare verified signed IPA handoff
         id: handoff
@@ -924,11 +900,9 @@ jobs:
             --expected "$RUNNER_TEMP/ios-expected.json" \
             --output "$RUNNER_TEMP/ios-proof.json"
           artifact_sha="${{ steps.handoff.outputs.sha256 }}"
-          sentry="success"
           prior_args=()
           if [ "$MUTATE" != "true" ] || [ "${{ needs.build.outputs.reuse }}" = "true" ]; then
             artifact_sha=""
-            sentry=""
             prior_args=(--prior "$prior_manifest")
           fi
           node scripts/apple-release-manifest.mjs create \
@@ -939,7 +913,6 @@ jobs:
             --app-id "$ASC_APP_ID" \
             --artifact-name "Teak-$VERSION.ipa" \
             --artifact-sha "$artifact_sha" \
-            --sentry "$sentry" \
             --asc-version "$ASC_VERSION" \
             --stage-exit "$STAGE_EXIT" \
             --publish-exit "$PUBLISH_EXIT" \

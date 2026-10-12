@@ -1,9 +1,8 @@
 "use client";
 
-import * as Sentry from "@sentry/nextjs";
 import { api } from "@teak/convex";
-import { runClientSpan } from "@teak/convex/shared/client-telemetry";
-import { trackCheckout } from "@teak/convex/shared/metrics";
+import { captureEvent } from "@teak/convex/shared/analytics";
+import { captureClientException } from "@teak/convex/shared/client-telemetry";
 import { sanitizeExternalUrl } from "@teak/convex/shared/utils/safeUrl";
 import { getPolarPlanIds } from "@teak/ui/constants/billing";
 import { TOAST_IDS } from "@teak/ui/constants/toast";
@@ -57,12 +56,11 @@ export function SettingsPageClient() {
       return;
     }
     checkoutOpenedRef.current = false;
-    trackCheckout({ outcome: "success" });
     toast.success("Welcome to Pro! Your subscription has been activated.");
   }, [settings.hasPremium]);
 
   const handleCheckout = async (planId: string) => {
-    trackCheckout({ outcome: "start" });
+    captureEvent("checkout_started");
     setLoadingPlanId(planId);
     const toastId = toast.loading("Opening checkout...", {
       id: TOAST_IDS.checkoutOpen,
@@ -72,18 +70,10 @@ export function SettingsPageClient() {
       // Runs synchronously up to its first await, inside the click.
       const openedIn = await openCheckoutInNewTab({
         assign: (url) => window.location.assign(url),
-        createCheckoutUrl: () =>
-          runClientSpan(
-            {
-              name: "checkout.open",
-              operation: "billing",
-              stage: "checkout",
-            },
-            () => createCheckoutLink({ productId: planId })
-          ),
+        createCheckoutUrl: () => createCheckoutLink({ productId: planId }),
         openWindow: (url, target) => window.open(url, target),
       });
-      trackCheckout({ outcome: "open" });
+      captureEvent("checkout_opened");
       checkoutOpenedRef.current = true;
       setSubscriptionOpen(false);
       if (openedIn === "new-tab") {
@@ -92,9 +82,8 @@ export function SettingsPageClient() {
         toast.dismiss(toastId);
       }
     } catch (error) {
-      trackCheckout({ outcome: "failure" });
-      Sentry.captureException(error, {
-        tags: { source: "convex", action: "billing:createCheckoutLink" },
+      captureClientException(error, {
+        operation: "billing.create_checkout_link",
       });
       toast.error("Failed to start checkout. Please try again.", {
         id: toastId,

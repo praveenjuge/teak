@@ -1,12 +1,10 @@
 "use node";
 
-import { distribution, trackAiCall } from "../shared/metrics";
+import type { TelemetryStage } from "../shared/telemetry";
 import {
-  normalizeErrorClass,
-  TELEMETRY_METRICS,
-  type TelemetryStage,
-} from "../shared/telemetry";
-import { recordBackendAiContent, withBackendSpan } from "../telemetry/sentry";
+  captureBackendEvent,
+  currentTelemetryTraceId,
+} from "../telemetry/posthog";
 
 const ONE_MILLION = 1_000_000;
 
@@ -47,6 +45,10 @@ const getUsage = (result: unknown): AiUsage | undefined => {
   return (result as { usage?: AiUsage }).usage;
 };
 
+/**
+ * Sends one `$ai_generation` event per model call: model, tokens, latency,
+ * and cost. Prompts and outputs are private and never leave Teak.
+ */
 export const observeAiGeneration = async <T>(
   input: {
     functionId: string;
@@ -57,105 +59,36 @@ export const observeAiGeneration = async <T>(
   },
   generate: () => Promise<T>
 ): Promise<T> => {
-  const run = async (): Promise<T> => {
-    const startedAt = Date.now();
-    recordBackendAiContent({ prompt: input.prompt, system: input.system });
-    try {
-      const result = await generate();
-      const usage = getUsage(result);
-      const costUsd = estimateWorkersAiCostUsd({
+  const startedAt = Date.now();
+  const record = (usage: AiUsage | undefined, error?: unknown) =>
+    captureBackendEvent("$ai_generation", undefined, {
+      ...(error === undefined
+        ? {}
+        : { $ai_error: error instanceof Error ? error.name : "Error" }),
+      $ai_input_tokens: usage?.inputTokens,
+      $ai_is_error: error !== undefined,
+      $ai_latency: (Date.now() - startedAt) / 1000,
+      $ai_model: input.model,
+      $ai_output_tokens: usage?.outputTokens,
+      $ai_provider: WORKERS_AI_PROVIDER,
+      $ai_span_name: input.functionId,
+      $ai_total_cost_usd: estimateWorkersAiCostUsd({
         inputTokens: usage?.inputTokens,
         model: input.model,
         outputTokens: usage?.outputTokens,
-      });
-      recordBackendAiContent({ response: getResponseText(result) });
-      trackAiCall({
-        durationMs: Date.now() - startedAt,
-        inputTokens: usage?.inputTokens,
-        model: input.model,
-        outcome: "success",
-        outputTokens: usage?.outputTokens,
-        provider: WORKERS_AI_PROVIDER,
-      });
-      if (costUsd !== undefined) {
-        distribution(
-          TELEMETRY_METRICS.aiCostUsd,
-          costUsd,
-          {
-            function: input.functionId,
-            model: input.model,
-            provider: WORKERS_AI_PROVIDER,
-          },
-          "none"
-        );
-      }
-      return result;
-    } catch (error) {
-      const usage =
-        error && typeof error === "object" && "aiFacts" in error
-          ? getUsage((error as { aiFacts?: unknown }).aiFacts)
-          : undefined;
-      const costUsd = usage
-        ? estimateWorkersAiCostUsd({
-            inputTokens: usage.inputTokens,
-            outputTokens: usage.outputTokens,
-            model: input.model,
-          })
-        : undefined;
-      trackAiCall({
-        inputTokens: usage?.inputTokens,
-        outputTokens: usage?.outputTokens,
-        durationMs: Date.now() - startedAt,
-        model: input.model,
-        outcome: "failure",
-        provider: WORKERS_AI_PROVIDER,
-        validationFailure: normalizeErrorClass(error) === "ValidationError",
-      });
-      if (costUsd !== undefined) {
-        distribution(
-          TELEMETRY_METRICS.aiCostUsd,
-          costUsd,
-          {
-            function: input.functionId,
-            model: input.model,
-            provider: WORKERS_AI_PROVIDER,
-          },
-          "none"
-        );
-      }
-      throw error;
-    }
-  };
-
-  if (!(input.prompt || input.system)) {
-    return await run();
-  }
-
-  return await withBackendSpan(
-    {
-      attributes: { model: input.model, provider: WORKERS_AI_PROVIDER },
-      name: input.functionId,
-      operation: "gen_ai.generate",
-      stage: input.stage ?? "ai_metadata",
-      surface: "backend",
-    },
-    run
-  );
-};
-
-const getResponseText = (result: unknown): string | undefined => {
-  if (!(result && typeof result === "object")) {
-    return;
-  }
-  if ("text" in result && typeof result.text === "string") {
-    return result.text;
-  }
-  if (!("output" in result)) {
-    return;
-  }
+      }),
+      $ai_trace_id: currentTelemetryTraceId(),
+    });
   try {
-    return JSON.stringify(result.output);
-  } catch {
-    // Content telemetry must never alter the generation result.
+    const result = await generate();
+    await record(getUsage(result));
+    return result;
+  } catch (error) {
+    const usage =
+      error && typeof error === "object" && "aiFacts" in error
+        ? getUsage((error as { aiFacts?: unknown }).aiFacts)
+        : undefined;
+    await record(usage, error);
+    throw error;
   }
 };

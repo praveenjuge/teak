@@ -5,9 +5,7 @@
   "scripts": {
     "android": "expo run:android",
     "build": "expo export --platform web --clear",
-    "build:sentry": "sentry-cli build upload --org teakvault --project teak-mobile-prod --build-configuration production",
     "dev": "expo start",
-    "eas-build-pre-install": "node scripts/verify-sentry-build-env.mjs",
     "ios": "expo run:ios",
     "lint": "biome check .",
     "test": "bun test __tests__ --isolate --coverage --dots",
@@ -19,7 +17,6 @@
     "@expo/ui": "~57.0.22",
     "@expo/vector-icons": "^15.1.1",
     "@react-native-async-storage/async-storage": "2.2.0",
-    "@sentry/react-native": "8.22.0",
     "@teak/convex": "workspace:*",
     "convex": "^1.46.0",
     "convex-helpers": "0.1.122",
@@ -62,14 +59,12 @@
   },
   "devDependencies": {
     "@happy-dom/global-registrator": "20.14.5",
-    "@sentry/cli": "3.6.2",
     "@types/react": "~19.2.18",
     "typescript": "~6.0.3"
   },
   "expo": {
     "install": {
       "exclude": [
-        "@sentry/react-native",
         "react",
         "react-dom"
       ]

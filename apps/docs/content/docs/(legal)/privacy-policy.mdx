@@ -11,7 +11,7 @@ Teak protects your privacy across all Teak apps and integrations. We store and p
 
 - **Account data:** Authentication details, profile info (name, email, optional photo), and account preferences.
 - **Your content:** Cards (notes, links, images, videos, audio, documents, palettes, quotes), metadata (timestamps, tags, favorites), and securely stored file uploads.
-- **Usage data:** How you interact with our services, device/browser info for compatibility, and error logs for service improvement.
+- **Usage data:** Which features you use (for example, that you saved a card or ran a search, never what the card or search contained), device and browser info, and error reports, linked to your account ID and email.
 - **Extension and client data:** Page URL or text you explicitly choose to save, and similar capture data from share sheets, Raycast, CLI, API, or MCP when you use those surfaces.
 
 ## How We Use Your Data
@@ -26,9 +26,18 @@ Teak protects your privacy across all Teak apps and integrations. We store and p
 - Isolation so your data stays private from other users
 - Automated backups for durability
 
+## Product Analytics and Error Reports
+
+Teak uses [PostHog](https://posthog.com) (PostHog Inc., United States) as a service provider for product analytics and error reports across the web app, the iPhone, iPad, Mac and Android apps, the browser extension, and Teak's servers.
+
+- **What it receives:** page views, product events such as "card saved" or "signed in", performance timings, and error reports. Events are linked to your Teak account ID and email so we can fix problems you hit.
+- **Session replays (web only):** a sample of web sessions, and sessions where an error occurs, are recorded so we can see what went wrong. Replays mask all text, typed input, images and media, so your cards and notes are never visible in them.
+- **What it never receives:** the content of your cards, files, notes, searches, or AI prompts and results.
+- **Where it doesn't run:** the Share and Safari extensions on Apple devices, and the content scripts the browser extension injects into pages, send nothing.
+
 ## Sharing & Disclosure
 
-- We **never** share your personal content for advertising or third-party analytics; your cards and files remain private.
+- We **never** share your personal content for advertising, and your cards and files are never sent to analytics; they remain private.
 - Limited disclosure only for legal requirements (court orders), safety concerns, essential service providers, or business transfers (mergers/acquisitions).
 
 ## Your Rights & Controls
@@ -42,10 +51,10 @@ Teak protects your privacy across all Teak apps and integrations. We store and p
 
 ## Platform Practices
 
-- **Web:** essential cookies or local storage for authentication and performance; secure session management.
-- **Mac app:** credentials stored securely in the Keychain; microphone access only when recording audio; no crash reporting or usage telemetry.
-- **Mobile app:** device permissions only when used (camera, mic, photos); images are cached on the device to load faster, and browsing your library requires a connection.
-- **Browser extension:** active tab access only when saving content; no background monitoring; activates on user interaction.
+- **Web:** essential cookies or local storage for authentication and performance; secure session management; a first-party cookie and local storage entry that hold your PostHog analytics ID.
+- **iPhone, iPad and Mac app:** credentials stored securely in the Keychain; microphone access only when recording audio; crash reports and app open and close events through PostHog.
+- **Android app:** device permissions only when used (camera, mic, photos); crash reports and app open and close events through PostHog.
+- **Browser extension:** active tab access only when saving content; no background monitoring; activates on user interaction; error reports and a "card saved" event through PostHog, sent directly from the extension without any remote code.
 - **CLI, Raycast, API, MCP:** authenticate with browser sign-in or an API key you control; revoke keys anytime in Settings.
 
 ## International Data
@@ -75,4 +84,4 @@ Material updates are communicated via email or in-app notifications and reflecte
 ## Cookies
 
 - **Essential:** authentication sessions, user preferences, security protection.
-- **Analytics:** aggregate non-personal statistics, performance monitoring, no external tracking.
+- **Analytics:** a first-party PostHog cookie for product analytics and error reports, served through Teak's own domain. No advertising or cross-site tracking.

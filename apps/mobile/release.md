@@ -29,8 +29,7 @@ iOS build history.
    provisioning profiles for the Teak app and share extension. The workflow
    archives, exports, and verifies the signed IPA locally, including bundle IDs,
    marketing version, build number, embedded profiles, and signatures.
-8. The macOS job uploads the verified IPA to mandatory Sentry Size Analysis,
-   then publishes the signed IPA and a SHA-256 handoff descriptor as a
+8. The macOS job publishes the signed IPA and a SHA-256 handoff descriptor as a
    one-day private Actions artifact. An Ubuntu job verifies the digest before
    any external upload.
 9. asc uploads the exact IPA directly to App Store Connect and waits for a
@@ -65,7 +64,7 @@ gh workflow run mobile-release.yml --ref main -f "version=$version" -f dry_run=t
 
 - App-wide concurrency keeps build-number allocation through upload atomic.
   Reruns reuse an exact valid Apple build only when its release manifest proves
-  the artifact, Sentry analysis, build, submission, and prior workflow.
+  the artifact, build, submission, and prior workflow.
 - The newest lockstep package version wins. A different version in an active
   review is cancelled and promoted to the new version before submission. The
   workflow fails closed if multiple active reviews or a newer App Store version

@@ -58,8 +58,6 @@ apps/files-worker/development/.wrangler/
 *.tsbuildinfo
 next-env.d.ts
 
-# Sentry Config File
-.env.sentry-build-plugin
 
 .code
 apps/mobile/build-*.ipa

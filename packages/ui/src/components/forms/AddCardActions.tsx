@@ -1,12 +1,12 @@
 import { api } from "@teak/convex";
 import { CARD_ERROR_CODES } from "@teak/convex/shared";
+import { captureEvent } from "@teak/convex/shared/analytics";
 import { inferFileFormat } from "@teak/convex/shared/file-formats";
 import {
   type FinalizeUploadedCardArgs,
   type UploadAndCreateCardArgs,
   useFileUploadCore,
 } from "@teak/convex/shared/hooks/useFileUpload";
-import { trackCardCreateAttempt } from "@teak/convex/shared/metrics";
 import { Button } from "@teak/ui/components/ui/button";
 import {
   Dialog,
@@ -161,8 +161,8 @@ export function AddCardActions({
           type: blob.type,
         });
 
-        trackCardCreateAttempt({
-          cardType: "audio",
+        captureEvent("card_create_submitted", {
+          card_type: "audio",
           source: "web",
           via: "recording",
         });
@@ -324,8 +324,8 @@ export function AddCardActions({
 
       for (const file of files) {
         const toastId = toast.loading(`Uploading ${file.name}...`);
-        trackCardCreateAttempt({
-          cardType:
+        captureEvent("card_create_submitted", {
+          card_type:
             inferFileFormat({ fileName: file.name, mimeType: file.type })
               ?.cardType ?? "document",
           source: "web",

@@ -5,79 +5,24 @@ import { components, internal } from "../_generated/api";
 import { type ActionCtx, env, internalAction } from "../_generated/server";
 import { sweepStalePendingUploadsHandler } from "../storage/pendingUploadCleanup";
 import { catchUpHandler } from "../workosEventCatchUp";
-import { type CronCheckInConfig, withCronCheckIn } from "./sentry";
+import { captureBackendException } from "./posthog";
 
 const internalAny = internal as Record<string, any>;
 
+// Stable job names, sent with every cron failure report.
 export const CRON_MONITORS = {
-  cleanupExpiredIdempotency: {
-    checkinMarginMinutes: 10,
-    maxRuntimeMinutes: 10,
-    schedule: "10 * * * *",
-    slug: "cleanup-expired-idempotency",
-  },
-  aiMetadataBackfill: {
-    checkinMarginMinutes: 15,
-    maxRuntimeMinutes: 30,
-    schedule: "0 */6 * * *",
-    slug: "ai-metadata-backfill",
-  },
-  cleanupAbandonedImportUploads: {
-    checkinMarginMinutes: 10,
-    maxRuntimeMinutes: 20,
-    schedule: "0 * * * *",
-    slug: "cleanup-abandoned-import-uploads",
-  },
-  cleanupExpiredExports: {
-    checkinMarginMinutes: 15,
-    maxRuntimeMinutes: 30,
-    schedule: "0 3 * * *",
-    slug: "cleanup-expired-exports",
-  },
-  cleanupOldDeletedCards: {
-    checkinMarginMinutes: 15,
-    maxRuntimeMinutes: 30,
-    schedule: "0 2 * * *",
-    slug: "cleanup-old-deleted-cards",
-  },
-  cleanupStalePendingCardUploads: {
-    checkinMarginMinutes: 10,
-    maxRuntimeMinutes: 20,
-    schedule: "30 * * * *",
-    slug: "cleanup-stale-pending-card-uploads",
-  },
-  sweepOrphanedObjects: {
-    checkinMarginMinutes: 30,
-    maxRuntimeMinutes: 60,
-    schedule: "0 4 * * 1",
-    slug: "sweep-orphaned-objects",
-  },
-  reapStuckWorkflows: {
-    checkinMarginMinutes: 30,
-    maxRuntimeMinutes: 30,
-    schedule: "0 5 * * 1",
-    slug: "reap-stuck-workflows",
-  },
-  cleanupResendEmails: {
-    checkinMarginMinutes: 15,
-    maxRuntimeMinutes: 10,
-    schedule: "0 6 * * *",
-    slug: "cleanup-resend-emails",
-  },
-  redriveAccountDeletion: {
-    checkinMarginMinutes: 5,
-    maxRuntimeMinutes: 5,
-    failureIssueThreshold: 2,
-    schedule: "*/5 * * * *",
-    slug: "redrive-account-deletion",
-  },
-  workosEventCatchUp: {
-    checkinMarginMinutes: 15,
-    maxRuntimeMinutes: 10,
-    schedule: "15 * * * *",
-    slug: "workos-event-catch-up",
-  },
-} as const satisfies Record<string, CronCheckInConfig>;
+  cleanupExpiredIdempotency: "cleanup-expired-idempotency",
+  aiMetadataBackfill: "ai-metadata-backfill",
+  cleanupAbandonedImportUploads: "cleanup-abandoned-import-uploads",
+  cleanupExpiredExports: "cleanup-expired-exports",
+  cleanupOldDeletedCards: "cleanup-old-deleted-cards",
+  cleanupStalePendingCardUploads: "cleanup-stale-pending-card-uploads",
+  sweepOrphanedObjects: "sweep-orphaned-objects",
+  reapStuckWorkflows: "reap-stuck-workflows",
+  cleanupResendEmails: "cleanup-resend-emails",
+  redriveAccountDeletion: "redrive-account-deletion",
+  workosEventCatchUp: "workos-event-catch-up",
+} as const;
 
 export const cleanupExpiredIdempotency = internalAction({
   args: {},
@@ -97,11 +42,19 @@ export const cleanupExpiredIdempotency = internalAction({
     }),
 });
 
+// Crons never retry, so every failure is reported, then rethrown for the logs.
 const monitored = async (
-  config: CronCheckInConfig,
+  slug: string,
   callback: () => Promise<unknown>
 ): Promise<null> => {
-  await withCronCheckIn(config, callback);
+  try {
+    await callback();
+  } catch (error) {
+    await captureBackendException(error, {
+      properties: { cron: slug, stage: "cron" },
+    });
+    throw error;
+  }
   return null;
 };
 

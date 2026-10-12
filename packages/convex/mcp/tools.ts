@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { COLOR_HUE_BUCKETS, VISUAL_STYLE_TAXONOMY } from "../shared/constants";
-import { trackMcpToolInvocation } from "../shared/metrics";
+import { captureBackendEvent } from "../telemetry/posthog";
 
 type JsonObject = Record<string, unknown>;
 type QueryValue = boolean | number | string | readonly string[] | undefined;
@@ -578,11 +578,11 @@ const instrumentToolHandler =
       }
       return result;
     } finally {
-      trackMcpToolInvocation({
-        tool: toolName,
+      await captureBackendEvent("mcp_tool_called", undefined, {
+        duration_ms: Date.now() - start,
         outcome,
-        durationMs: Date.now() - start,
         status,
+        tool: toolName,
       });
     }
   };

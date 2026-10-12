@@ -1,23 +1,13 @@
 import { describe, expect, test } from "bun:test";
 import {
-  buildBackendRelease,
-  buildMobileRelease,
-  buildTelemetryContext,
-  buildWebRelease,
   normalizeErrorClass,
   normalizeTelemetryAttributes,
-  prepareTelemetryContent,
-  resolveBackendTelemetryDsn,
-  resolveBackendTraceSampleRate,
   resolveTelemetryEnvironment,
-  resolveTraceSampleRate,
   scrubTelemetryString,
   scrubTelemetryValue,
-  TELEMETRY_METRICS,
-  TELEMETRY_OPERATIONS,
 } from "../../shared/telemetry";
 
-describe("telemetry environment and releases", () => {
+describe("telemetry environment", () => {
   test("normalizes deployment environments to the locked vocabulary", () => {
     expect(resolveTelemetryEnvironment({ explicit: "vercel-production" })).toBe(
       "production"
@@ -34,33 +24,6 @@ describe("telemetry environment and releases", () => {
     expect(resolveTelemetryEnvironment({ nodeEnvironment: "local" })).toBe(
       "development"
     );
-  });
-
-  test("builds surface-specific releases", () => {
-    const sha = "ABCDEF0123456789ABCDEF0123456789ABCDEF01";
-    expect(buildWebRelease("v1.2.3", sha)).toBe(
-      "teak-web@1.2.3+abcdef0123456789abcdef0123456789abcdef01"
-    );
-    expect(buildMobileRelease("1.2.3", "42")).toBe("teak-mobile@1.2.3+42");
-    expect(buildBackendRelease(sha)).toBe(
-      "teak-backend@abcdef0123456789abcdef0123456789abcdef01"
-    );
-  });
-
-  test("requires both binary coordinates for client releases", () => {
-    expect(buildWebRelease("1.2.3", undefined)).toBeUndefined();
-    expect(buildMobileRelease("1.2.3", undefined)).toBeUndefined();
-    expect(buildBackendRelease("not-a-sha")).toBeUndefined();
-  });
-
-  test("resolves the backend telemetry target from canonical environment keys", () => {
-    expect(
-      resolveBackendTelemetryDsn({
-        SENTRY_BACKEND_DSN: " https://backend.invalid/1 ",
-        SENTRY_DSN: "https://fallback.invalid/2",
-      })
-    ).toBe("https://backend.invalid/1");
-    expect(resolveBackendTelemetryDsn({ SENTRY_DSN: "  " })).toBeUndefined();
   });
 });
 
@@ -119,43 +82,6 @@ describe("telemetry privacy and bounds", () => {
     expect(scrubTelemetryString(nested)).not.toContain("PRIVATE KEY");
   });
 
-  test("retains an allowed prefix and suffix for oversized content", async () => {
-    const raw = `${"a".repeat(90)}TOKEN=secret\n${"z".repeat(90)}`;
-    const prepared = await prepareTelemetryContent(raw, 100);
-
-    expect(prepared.truncated).toBe(true);
-    expect(prepared.originalLength).toBe(raw.length);
-    expect(prepared.contentHash).toMatch(/^[a-f0-9]{64}$/u);
-    expect(prepared.content.startsWith("a")).toBe(true);
-    expect(prepared.content.endsWith("z")).toBe(true);
-    expect(prepared.content).not.toContain("secret");
-    expect(prepared.content.length).toBeLessThanOrEqual(100);
-  });
-
-  test("hashes identifiers and bounds safe attributes", async () => {
-    const context = await buildTelemetryContext({
-      attributes: {
-        "card.type": "link",
-        invalidKey: "ok",
-        "unsafe key": "drop",
-        provider: "x".repeat(400),
-      },
-      cardId: "card-123",
-      operation: TELEMETRY_OPERATIONS.workflow,
-      surface: "backend",
-      userId: "user-123",
-      workflowId: "workflow-123",
-    });
-
-    expect(context.cardIdHash).toMatch(/^[a-f0-9]{64}$/u);
-    expect(context.userIdHash).toMatch(/^[a-f0-9]{64}$/u);
-    expect(context.workflowIdHash).toMatch(/^[a-f0-9]{64}$/u);
-    expect(JSON.stringify(context)).not.toContain("card-123");
-    expect(JSON.stringify(context)).not.toContain("user-123");
-    expect(context.attributes["unsafe key"]).toBeUndefined();
-    expect(String(context.attributes.provider)).toHaveLength(256);
-  });
-
   test("drops non-finite values and invalid keys", () => {
     expect(
       normalizeTelemetryAttributes({
@@ -167,93 +93,7 @@ describe("telemetry privacy and bounds", () => {
   });
 });
 
-describe("telemetry naming and sampling", () => {
-  test("keeps metric names unique and namespaced", () => {
-    const names = Object.values(TELEMETRY_METRICS);
-    expect(new Set(names).size).toBe(names.length);
-    expect(names.every((name) => name.startsWith("teak."))).toBe(true);
-    expect(names).not.toContain("card.created");
-    expect(TELEMETRY_METRICS.portalAttempt).toBe("teak.billing.portal.attempt");
-  });
-
-  test("keeps high-value production traces and samples routine navigation", () => {
-    expect(
-      resolveTraceSampleRate({
-        environment: "production",
-        operation: "navigation",
-      })
-    ).toBe(0.2);
-    expect(
-      resolveTraceSampleRate({
-        environment: "production",
-        operation: "storage.upload",
-      })
-    ).toBe(1);
-    expect(
-      resolveTraceSampleRate({
-        environment: "production",
-        operation: "navigation",
-        outcome: "failure",
-      })
-    ).toBe(1);
-    expect(
-      resolveTraceSampleRate({
-        durationMs: 2500,
-        environment: "production",
-        operation: "navigation",
-      })
-    ).toBe(1);
-    expect(
-      resolveTraceSampleRate({
-        environment: "preview",
-        operation: "navigation",
-      })
-    ).toBe(1);
-  });
-
-  test("samples routine backend success without reducing critical retention", () => {
-    for (const operation of [
-      "teak.workflow",
-      "teak.card.create",
-      "gen_ai.generate",
-      "storage.upload",
-    ]) {
-      expect(
-        resolveBackendTraceSampleRate({
-          environment: "production",
-          operation,
-          outcome: "success",
-          durationMs: 1999,
-        })
-      ).toBe(0.1);
-      expect(
-        resolveBackendTraceSampleRate({
-          environment: "production",
-          operation,
-          outcome: "failure",
-        })
-      ).toBe(1);
-      expect(
-        resolveBackendTraceSampleRate({
-          environment: "production",
-          operation,
-          durationMs: 2000,
-        })
-      ).toBe(1);
-    }
-    for (const operation of ["auth", "billing", "security", "oauth"]) {
-      expect(
-        resolveBackendTraceSampleRate({ environment: "production", operation })
-      ).toBe(1);
-    }
-    expect(
-      resolveBackendTraceSampleRate({
-        environment: "development",
-        operation: "teak.workflow",
-      })
-    ).toBe(1);
-  });
-
+describe("telemetry error classes and values", () => {
   test("normalizes error classes without emitting messages", () => {
     expect(
       normalizeErrorClass(new Error("Workers AI generation rejected"))

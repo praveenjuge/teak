@@ -136,7 +136,7 @@ final class LibraryModel {
     func show(_ error: any Error) {
         let teak = error as? TeakError
         show(error.teakMessage, isError: true, isCardLimit: teak?.isCardLimit == true)
-        SentryReporting.capture(error)
+        PostHogReporting.capture(error)
     }
 
     // MARK: Card actions

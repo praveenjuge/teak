@@ -102,11 +102,6 @@ export function createReleaseManifest({ proof, prior, context }) {
     build: { id: buildId, number: buildNumber },
     submission: { id: submissionId, state: submissionState },
   };
-  if (prior?.sentrySizeAnalysis || context.sentrySizeAnalysis) {
-    manifest.sentrySizeAnalysis =
-      prior?.sentrySizeAnalysis ??
-      required(context.sentrySizeAnalysis, "Sentry result");
-  }
   return manifest;
 }
 
@@ -125,7 +120,6 @@ function main() {
       appId: values["app-id"],
       artifactName: values["artifact-name"],
       artifactSha: values["artifact-sha"],
-      sentrySizeAnalysis: values.sentry,
       ascVersion: values["asc-version"],
       stageExit: values["stage-exit"],
       publishExit: values["publish-exit"],

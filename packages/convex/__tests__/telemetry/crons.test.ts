@@ -9,7 +9,7 @@ import {
   cleanupOldDeletedCards,
 } from "../../telemetry/crons";
 
-describe("Sentry cron monitoring", () => {
+describe("cron monitoring", () => {
   test.each([["idempotency", cleanupExpiredIdempotency]])(
     "retention cron %s runs only with explicit activation",
     async (kind, action) => {
@@ -59,74 +59,10 @@ describe("Sentry cron monitoring", () => {
     ]);
   });
 
-  test("defines one bounded monitor for each scheduled job", () => {
-    expect(Object.values(CRON_MONITORS)).toEqual([
-      expect.objectContaining({
-        schedule: "10 * * * *",
-        slug: "cleanup-expired-idempotency",
-      }),
-      expect.objectContaining({
-        schedule: "0 */6 * * *",
-        slug: "ai-metadata-backfill",
-      }),
-      expect.objectContaining({
-        schedule: "0 * * * *",
-        slug: "cleanup-abandoned-import-uploads",
-      }),
-      expect.objectContaining({
-        schedule: "0 3 * * *",
-        slug: "cleanup-expired-exports",
-      }),
-      expect.objectContaining({
-        schedule: "0 2 * * *",
-        slug: "cleanup-old-deleted-cards",
-      }),
-      expect.objectContaining({
-        schedule: "30 * * * *",
-        slug: "cleanup-stale-pending-card-uploads",
-      }),
-      expect.objectContaining({
-        schedule: "0 4 * * 1",
-        slug: "sweep-orphaned-objects",
-      }),
-      expect.objectContaining({
-        checkinMarginMinutes: 30,
-        schedule: "0 5 * * 1",
-        slug: "reap-stuck-workflows",
-      }),
-      expect.objectContaining({
-        schedule: "0 6 * * *",
-        slug: "cleanup-resend-emails",
-      }),
-      expect.objectContaining({
-        schedule: "*/5 * * * *",
-        slug: "redrive-account-deletion",
-        failureIssueThreshold: 2,
-      }),
-      expect.objectContaining({
-        schedule: "15 * * * *",
-        slug: "workos-event-catch-up",
-      }),
-    ]);
-  });
-
-  test("only sub-hourly monitors tolerate a single failed check-in", () => {
-    const runsMoreThanHourly = (schedule: string) => {
-      const [minute, hour] = schedule.split(" ");
-      return (
-        hour === "*" &&
-        (minute === "*" || minute.includes("/") || minute.includes(","))
-      );
-    };
-    const monitors = Object.values(CRON_MONITORS);
-    const tolerant = monitors
-      .filter((monitor) => (monitor.failureIssueThreshold ?? 1) > 1)
-      .map((monitor) => monitor.slug);
-    const subHourly = monitors
-      .filter((monitor) => runsMoreThanHourly(monitor.schedule))
-      .map((monitor) => monitor.slug);
-    expect(subHourly).toEqual(["redrive-account-deletion"]);
-    expect(tolerant).toEqual(subHourly);
+  test("names every scheduled job once", () => {
+    const slugs = Object.values(CRON_MONITORS);
+    expect(slugs).toHaveLength(11);
+    expect(new Set(slugs).size).toBe(slugs.length);
   });
 
   test("routes all eleven schedules through monitored Node actions", () => {

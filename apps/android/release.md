@@ -25,10 +25,9 @@ The app ID is `com.praveenjuge.teak`. The version name is the root `package.json
      keyAlias=upload
      ```
 
-5. **Sentry**
-   - Project `teakvault/teak-android-prod`.
-   - Set `SENTRY_ANDROID_DSN` for release builds. Without it, Sentry stays off.
-   - Set `SENTRY_AUTH_TOKEN` to upload R8 mapping files, so crashes show readable stack traces.
+5. **PostHog**
+   - Set `POSTHOG_ANDROID_TOKEN` (the PostHog project token) for release builds. Without it, PostHog stays off. Debug builds never send anything.
+   - Install `posthog-cli` (`npm i -g @posthog/cli@0.18.10`) and set `POSTHOG_CLI_API_KEY` (a PostHog personal API key) and `POSTHOG_CLI_PROJECT_ID`. The PostHog Gradle plugin then uploads the R8 mapping file after each release build, so crashes show readable stack traces. Without both variables, the upload is skipped.
 
 ## Each release
 
@@ -38,8 +37,10 @@ The app ID is `com.praveenjuge.teak`. The version name is the root `package.json
 
    ```bash
    export TEAK_UPLOAD_KEYSTORE_PASSWORD="$(security find-generic-password -s teak-android-upload-key -w)"
-   export SENTRY_ANDROID_DSN="<DSN from Sentry project settings>"
-   export SENTRY_AUTH_TOKEN="<Sentry token with project:releases>"
+   export POSTHOG_ANDROID_TOKEN="<project token from PostHog project settings>"
+   export POSTHOG_CLI_API_KEY="<PostHog personal API key>"
+   export POSTHOG_CLI_PROJECT_ID="<PostHog project ID>"
+   export POSTHOG_CLI_HOST="https://us.posthog.com"
    ./gradlew clean lint testDebugUnitTest :app:bundleRelease
    ```
 
@@ -65,7 +66,7 @@ The app ID is `com.praveenjuge.teak`. The version name is the root `package.json
    - Answer the questions about the closed test truthfully.
 
 7. **Production**
-   - Once approved, create a production release from the same AAB as a staged rollout: 20 percent, then 100 percent after a day with no new crashes in Sentry.
+   - Once approved, create a production release from the same AAB as a staged rollout: 20 percent, then 100 percent after a day with no new crashes in PostHog error tracking.
 
 8. Record the version code you shipped in the GitHub release notes for `v<version>`.
 
@@ -77,4 +78,4 @@ The release note is:
 
 - **Play rejects the version code:** rebuild with `-Pteak.versionCode=<higher number>`.
 - **"You uploaded an APK or Android App Bundle that is signed with the wrong key":** the bundle wasn't signed with the upload key. Check `keystore.properties` and the password export.
-- **Crashes without readable stack traces:** upload the mapping file for that build in Play Console (App bundle explorer, Downloads), or rebuild with `SENTRY_AUTH_TOKEN` set.
+- **Crashes without readable stack traces:** upload the mapping file for that build in Play Console (App bundle explorer, Downloads), or rebuild with `POSTHOG_CLI_API_KEY` and `POSTHOG_CLI_PROJECT_ID` set.

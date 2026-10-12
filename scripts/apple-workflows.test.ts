@@ -68,10 +68,6 @@ describe("Apple release workflows", () => {
       "Download verified signed IPA handoff"
     );
     const verifyHandoff = workflowStep(mobile, "Verify signed IPA handoff");
-    const sentryAnalysis = workflowStep(
-      mobile,
-      "Upload IPA to mandatory Sentry Size Analysis on Apple Silicon"
-    );
     expect(prepareHandoff).toContain(
       'handoff_directory="$RUNNER_TEMP/ios-handoff"'
     );
@@ -93,19 +89,6 @@ describe("Apple release workflows", () => {
     expect(verifyHandoff).toContain(
       'if [ "$descriptor_count" -ne 1 ] || [ "$ipa_count" -ne 1 ]'
     );
-    expect(sentryAnalysis).toContain(
-      `IPA_PATH: ${expression("steps.ipa.outputs.path")}`
-    );
-    expect(sentryAnalysis).toContain(
-      'bun run --cwd apps/mobile build:sentry -- "$IPA_PATH"'
-    );
-    expect(mobile.indexOf(sentryAnalysis)).toBeLessThan(
-      mobile.indexOf("  submit:")
-    );
-    expect(verifyHandoff).not.toContain("build:sentry");
-    expect(mobile).not.toContain(
-      "Install dependencies for mandatory Sentry analysis"
-    );
     expect(mobile).toContain("Signed IPA handoff digest mismatch");
     expect(mobile).toContain("asc builds upload");
     expect(mobile).toContain("asc validate");
@@ -119,12 +102,8 @@ describe("Apple release workflows", () => {
     expect(mobile).toContain("manageAppVersionAndBuildNumber bool false");
     expect(mobile).toContain("apple-build-number.mjs");
     expect(mobile).toContain("EXPO_PUBLIC_CONVEX_URL");
-    expect(mobile).toContain("secrets.SENTRY_MOBILE_DSN");
     expect(mobile).toContain("asc age-rating edit");
     expect(mobile).toContain("--social-media-age-restricted false");
-    expect(mobile.indexOf("build:sentry")).toBeLessThan(
-      mobile.indexOf("asc builds upload")
-    );
   });
 
   test("serializes app-wide Apple mutations across versions", () => {
@@ -344,7 +323,7 @@ describe("Apple release workflows", () => {
       "CFBundleShortVersionString",
       "CFBundleVersion",
       "TeakConvexURL",
-      "TeakSentryDSN",
+      "TeakPostHogToken",
       "keychain-access-groups:0",
       "com.apple.security.application-groups:0",
       "com.apple.security.app-sandbox",
@@ -357,18 +336,31 @@ describe("Apple release workflows", () => {
     }
     const handoff = workflowStep(apple, "Verify signed package handoff");
     expect(handoff).toContain("Signed package handoff digest mismatch");
-    expect(apple.indexOf("Upload dSYMs to Sentry")).toBeLessThan(
+    expect(verify).toContain(
+      'if [ "$expected_bundle" = "$APP_BUNDLE_ID" ] && [ -z "$posthog_token" ]; then'
+    );
+    expect(verify).toContain("must not carry TeakPostHogToken");
+    expect(apple.indexOf("Upload dSYMs to PostHog")).toBeLessThan(
       apple.indexOf("  submit:")
     );
   });
 
-  test("uploads dSYMs to teak-apple-prod and skips only without a token", () => {
-    const sentry = workflowStep(apple, "Upload dSYMs to Sentry");
-    expect(apple).toContain("SENTRY_ORG: teakvault");
-    expect(apple).toContain("SENTRY_PROJECT: teak-apple-prod");
-    expect(sentry).toContain("debug-files upload");
-    expect(sentry).toContain('if [ -z "$SENTRY_AUTH_TOKEN" ]; then');
-    expect(sentry).toContain("::warning::");
+  test("builds the app with the PostHog token and uploads its dSYMs", () => {
+    const archive = workflowStep(apple, "Archive the Release build");
+    expect(archive).toContain(
+      `POSTHOG_PROJECT_TOKEN: ${expression("secrets.POSTHOG_PROJECT_TOKEN")}`
+    );
+    expect(archive).toContain('TEAK_POSTHOG_TOKEN="$POSTHOG_PROJECT_TOKEN"');
+    const posthog = workflowStep(apple, "Upload dSYMs to PostHog");
+    expect(apple).toContain('POSTHOG_CLI_VERSION: "0.18.10"');
+    expect(apple).toContain("POSTHOG_CLI_HOST: https://us.posthog.com");
+    expect(posthog).toContain(
+      'npx --yes "@posthog/cli@$POSTHOG_CLI_VERSION" dsym upload'
+    );
+    expect(posthog).toContain(
+      'if [ -z "$POSTHOG_CLI_API_KEY" ] || [ -z "$POSTHOG_CLI_PROJECT_ID" ]; then'
+    );
+    expect(posthog).toContain("::warning::");
   });
 
   test("applies the shared listing and skips empty screenshot sets", () => {
@@ -392,7 +384,7 @@ describe("Apple release workflows", () => {
       'manifest_name="teak-ios-$VERSION-app-store.json"'
     );
     expect(mobile).toContain(
-      '.build.id == $id and .build.number == $number and .artifact.sha256 != "" and .sentrySizeAnalysis == "success"'
+      '.build.id == $id and .build.number == $number and .artifact.sha256 != ""'
     );
     expect(safari).toContain(
       'manifest_name="teak-mac-$VERSION-app-store.json"'
