@@ -57,7 +57,9 @@ holds the lease, so push a branch's backend only while you work on it.
 
 Each checkout gets its own WorkOS staging account,
 `dev+<machine>-<checkout>@example.org`, with a random password kept in the
-ignored `.agents/.state/dev-account.json`. Its vault is seeded once with about
+ignored `.agents/.state/dev-account.json`. A Claude Code cloud session uses
+`dev+cloud-<hash>-main@example.org` instead, named after its session ID
+(`.agents/cloud.md`). Its vault is seeded once with about
 30 sample cards (`packages/convex/devSeed.ts`). `bun run dev --status` prints
 the email and password. For a session without a browser, use
 `scripts/lib/workos-test-session.ts`, as `bun run smoke:web` does.
