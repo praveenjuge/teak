@@ -108,6 +108,7 @@ Each workspace script runs only the files it matches. A test file outside these 
 - A failed test names its `trace.md` under `packages/tests/.e2e/<suite>/results/`: every step, the app's console errors and failed requests, and the screen at failure. Read it before re-running. `--trace on` keeps one for passing tests too.
 - `--headed` shows the browser; `--video on` records every attempt.
 - The e2e skill (`.agents/skills/e2e/`) covers writing and running tests; the full docs ship in `node_modules/e2e/docs`.
+- Never run `e2e feedback`, even though the skill suggests it: it sends a report to the e2e maintainers. Tell the person what got in your way instead, and let them decide whether to report it. Keep `E2E_TELEMETRY_DISABLED=1` set, as the package scripts and `.mcp.json` do.
 
 **e2e MCP (`e2e` in `.mcp.json`)**
 - Opens live browser sessions on the running app (either stack), so you can check UI work at `http://localhost:3000` instead of relying on a passing build.
