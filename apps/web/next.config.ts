@@ -1,7 +1,7 @@
 import path from "node:path";
-import { withPostHogConfig } from "@posthog/nextjs-config";
 import type { NextConfig } from "next";
 import packageJson from "./package.json";
+import { uploadBrowserSourceMaps } from "./posthog-sourcemaps";
 import { resolvePostHogToken } from "./src/lib/posthog-config";
 import { staticSecurityHeaders } from "./src/lib/security-headers";
 
@@ -14,6 +14,13 @@ const posthogToken = resolvePostHogToken({
   token: process.env.NEXT_PUBLIC_POSTHOG_PROJECT_TOKEN,
   vercelEnvironment: process.env.VERCEL_ENV,
 });
+// Source maps go to PostHog only from production builds with CLI credentials
+// (POSTHOG_CLI_API_KEY and POSTHOG_CLI_PROJECT_ID, read by posthog-cli).
+const uploadSourceMaps = Boolean(
+  posthogToken &&
+    process.env.POSTHOG_CLI_API_KEY?.trim() &&
+    process.env.POSTHOG_CLI_PROJECT_ID?.trim()
+);
 
 process.env.NEXT_PUBLIC_APP_VERSION = packageJson.version;
 if (releaseSha) {
@@ -40,7 +47,7 @@ const turbopackSingletonAliases = Object.fromEntries(
   ])
 );
 
-export const nextConfig: NextConfig = {
+const nextConfig: NextConfig = {
   cacheComponents: true,
   partialPrefetching: true,
   env: {
@@ -59,6 +66,21 @@ export const nextConfig: NextConfig = {
   },
   turbopack: {
     resolveAlias: turbopackSingletonAliases,
+    // Stable chunk ids that PostHog matches to uploaded source maps.
+    debugIds: uploadSourceMaps,
+  },
+  productionBrowserSourceMaps: uploadSourceMaps,
+  compiler: {
+    runAfterProductionCompile: async ({ distDir }) => {
+      if (uploadSourceMaps) {
+        await uploadBrowserSourceMaps(distDir, {
+          releaseName: "teak-web",
+          releaseVersion: releaseSha
+            ? `${packageJson.version}+${releaseSha.slice(0, 12)}`
+            : packageJson.version,
+        });
+      }
+    },
   },
   // PostHog's endpoints end in a slash (/e/, /flags/); src/proxy.ts proxies them.
   skipTrailingSlashRedirect: true,
@@ -72,20 +94,4 @@ export const nextConfig: NextConfig = {
   },
 };
 
-const posthogApiKey = process.env.POSTHOG_CLI_API_KEY?.trim();
-const posthogProjectId = process.env.POSTHOG_CLI_PROJECT_ID?.trim();
-
-// Uploads source maps (then deletes them from the output) only when the
-// production build has PostHog CLI credentials; other builds skip it.
-export default withPostHogConfig(nextConfig, {
-  personalApiKey: posthogApiKey ?? "",
-  projectId: posthogProjectId,
-  sourcemaps: {
-    enabled: Boolean(posthogToken && posthogApiKey && posthogProjectId),
-    releaseName: "teak-web",
-    releaseVersion: releaseSha
-      ? `${packageJson.version}+${releaseSha.slice(0, 12)}`
-      : packageJson.version,
-    deleteAfterUpload: true,
-  },
-});
+export default nextConfig;

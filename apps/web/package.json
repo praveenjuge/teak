@@ -12,7 +12,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@posthog/nextjs-config": "1.11.2",
+    "@posthog/cli": "0.18.10",
     "@teak/convex": "workspace:*",
     "@teak/ui": "workspace:*",
     "@vercel/og": "^1.0.1",
