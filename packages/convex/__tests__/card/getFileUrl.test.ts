@@ -187,3 +187,73 @@ describe("getFileUrl authorization", () => {
     ).rejects.toThrow("File does not belong to the specified card");
   });
 });
+
+describe("card/getFileUrl.ts getFileDownloadUrl", () => {
+  const previousEnv = {
+    FILES_BASE: process.env.FILES_BASE,
+    FILES_SIGNING_SECRET: process.env.FILES_SIGNING_SECRET,
+  };
+  let handler: any;
+
+  beforeEach(async () => {
+    process.env.FILES_BASE = FILES_BASE;
+    process.env.FILES_SIGNING_SECRET = SIGNING_SECRET;
+    const { getFileDownloadUrl } = await import("../../card/getFileUrl");
+    handler = (getFileDownloadUrl as any).handler ?? getFileDownloadUrl;
+  });
+
+  afterEach(() => {
+    for (const [name, value] of Object.entries(previousEnv)) {
+      if (value === undefined) {
+        delete process.env[name];
+      } else {
+        process.env[name] = value;
+      }
+    }
+  });
+
+  const ctxWithCard = (card: unknown) =>
+    withTestSession({
+      auth: { getUserIdentity: mock().mockResolvedValue({ subject: "u1" }) },
+      db: { get: mock().mockResolvedValue(card) },
+    } as any);
+
+  test("signs an attachment that keeps the file's original name", async () => {
+    const url = new URL(
+      await handler(
+        ctxWithCard({
+          _id: "c1",
+          userId: "u1",
+          fileKey: "users/u1/cards/c1/file/photo.png",
+          fileMetadata: { fileName: "Trip photo (1).png" },
+        }),
+        { cardId: "c1" }
+      )
+    );
+    expect(url.origin).toBe(FILES_BASE);
+    expect(url.searchParams.get("cd")).toBe(
+      "attachment; filename*=UTF-8''Trip%20photo%20%281%29.png"
+    );
+    expect(url.searchParams.get("ct")).toBe("image/png");
+  });
+
+  test("refuses another user's card", async () => {
+    await expect(
+      handler(
+        ctxWithCard({
+          _id: "c1",
+          userId: "someone-else",
+          fileKey: "users/x/cards/c1/file/a.pdf",
+          fileMetadata: { fileName: "a.pdf" },
+        }),
+        { cardId: "c1" }
+      )
+    ).rejects.toThrow("Card not found");
+  });
+
+  test("returns null for a card without a file", async () => {
+    expect(
+      await handler(ctxWithCard({ _id: "c1", userId: "u1" }), { cardId: "c1" })
+    ).toBeNull();
+  });
+});

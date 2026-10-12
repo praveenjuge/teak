@@ -370,9 +370,10 @@ describe("publicApiHttp card endpoints", () => {
 
   test("tagsV1 returns tag summaries", async () => {
     const runMutation = buildAuthorizedMutationMock();
-    const runQuery = mock().mockResolvedValueOnce([
-      { name: "design", count: 3 },
-    ]);
+    const runQuery = mock().mockResolvedValueOnce({
+      items: [{ name: "design", count: 3 }],
+      isComplete: true,
+    });
 
     const response = await runHandler(
       tagsV1,
@@ -389,6 +390,7 @@ describe("publicApiHttp card endpoints", () => {
     expect(response.status).toBe(200);
     expect(await response.json()).toEqual({
       items: [{ name: "design", count: 3 }],
+      isComplete: true,
     });
   });
 
@@ -702,6 +704,90 @@ describe("publicApiHttp card endpoints", () => {
       expect(await response.text()).toBe("");
     }
   );
+
+  test("a permanent delete of an active card asks to trash it first", async () => {
+    const runMutation = buildAuthorizedMutationMock();
+    const response = await runHandler(
+      cardByIdV1,
+      {
+        runMutation,
+        runQuery: mock()
+          .mockResolvedValueOnce("card_1")
+          .mockResolvedValueOnce({ _id: "card_1", userId: "user_1" }),
+      },
+      new Request("https://example.com/v1/cards/card_1?permanent=true", {
+        method: "DELETE",
+        headers: {
+          Authorization:
+            "Bearer teakapi_secret_live_a1b2c3d4_ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+        },
+      })
+    );
+    expect(response.status).toBe(409);
+    expect(await response.json()).toEqual({
+      code: "NOT_IN_TRASH",
+      error: "Move the card to Trash before deleting it permanently",
+    });
+    // Only the auth call ran; nothing was deleted.
+    expect(runMutation).toHaveBeenCalledTimes(1);
+  });
+
+  test("a backend NOT_IN_TRASH race also answers 409", async () => {
+    const response = await runHandler(
+      cardByIdV1,
+      {
+        runMutation: buildAuthorizedMutationMock().mockRejectedValueOnce(
+          new ConvexError({
+            code: "NOT_IN_TRASH",
+            message: "Move the card to Trash before deleting it permanently",
+          })
+        ),
+        runQuery: mock().mockResolvedValueOnce("card_1").mockResolvedValueOnce({
+          _id: "card_1",
+          userId: "user_1",
+          isDeleted: true,
+        }),
+      },
+      new Request("https://example.com/v1/cards/card_1?permanent=true", {
+        method: "DELETE",
+        headers: {
+          Authorization:
+            "Bearer teakapi_secret_live_a1b2c3d4_ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+        },
+      })
+    );
+    expect(response.status).toBe(409);
+    expect(await response.json()).toMatchObject({ code: "NOT_IN_TRASH" });
+  });
+
+  test.each([
+    [
+      "top-level",
+      { operation: "delete", permanent: true, items: [{ cardId: "c" }] },
+    ],
+    [
+      "per-item",
+      { operation: "delete", items: [{ cardId: "c", permanent: true }] },
+    ],
+  ])("bulk delete rejects a %s permanent flag", async (_label, body) => {
+    const runMutation = buildAuthorizedMutationMock();
+    const response = await runHandler(
+      bulkCardsV1,
+      { runMutation, runQuery: mock() },
+      new Request("https://example.com/v1/cards/bulk", {
+        method: "POST",
+        headers: {
+          Authorization:
+            "Bearer teakapi_secret_live_a1b2c3d4_ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(body),
+      })
+    );
+    expect(response.status).toBe(400);
+    expect(await response.json()).toMatchObject({ code: "INVALID_INPUT" });
+    expect(runMutation).toHaveBeenCalledTimes(1);
+  });
 
   test("cardByIdV1 supports soft delete", async () => {
     const runMutation =

@@ -121,6 +121,109 @@ describe("card/createCard.ts", () => {
     expect(ctx.db.insert).not.toHaveBeenCalled();
   });
 
+  test("leaves no card behind when a free user is at the card limit, even if the caller catches the error", async () => {
+    const cards = new Map<string, unknown>();
+    const ctx = withTestSession({
+      runMutation: mock().mockResolvedValue({ ok: true }),
+      auth: { getUserIdentity: mock().mockResolvedValue({ subject: "u1" }) },
+      db: {
+        get: mock(async (_table: string, id: string) => cards.get(id) ?? null),
+        system: { get: mock().mockResolvedValue(null) },
+        query: mock().mockReturnValue({
+          withIndex: mock().mockReturnValue({
+            collect: mock().mockResolvedValue([]),
+            take: mock().mockResolvedValue([]),
+            unique: mock().mockResolvedValue(null),
+          }),
+        }),
+        insert: mock((table: string, doc: unknown) => {
+          if (table !== "cards") {
+            return Promise.resolve(`${table}_1`);
+          }
+          const id = `card_${cards.size + 1}`;
+          cards.set(id, doc);
+          return Promise.resolve(id);
+        }),
+        delete: mock((table: string, id: string) => {
+          if (table === "cards") {
+            cards.delete(id);
+          }
+          return Promise.resolve();
+        }),
+      },
+      scheduler: { runAfter: mock().mockResolvedValue(null) },
+    } as any);
+    const registered = (await import("../../card/createCard")).createCard;
+    const handler = (registered as any)._handler ?? registered;
+    addCardUsage(ctx);
+    // Every usage shard is full: the free tier's 200 cards are in use.
+    const query = ctx.db.query;
+    ctx.db.query = mock((table: string) =>
+      table === "userCardUsageShards"
+        ? {
+            withIndex: () => ({
+              unique: mock().mockResolvedValue({
+                _id: "usage_shard_full",
+                activeCardCount: 13,
+                shard: 0,
+                updatedAt: 1,
+                userId: "u1",
+              }),
+            }),
+          }
+        : query(table)
+    );
+
+    const error = await handler(ctx, { content: "one too many" }).catch(
+      (e: unknown) => e
+    );
+
+    expect((error as any)?.data?.code).toBe("CARD_LIMIT_REACHED");
+    expect([...cards.keys()]).toEqual([]);
+    expect(workflow.start).not.toHaveBeenCalled();
+  });
+
+  test("keeps an imported bookmark title as an edited title that page titles don't replace", async () => {
+    const insert = mock().mockResolvedValue("c1");
+    const ctx = withTestSession({
+      runMutation: mock().mockResolvedValue({ ok: true }),
+      db: {
+        get: mock().mockResolvedValue(null),
+        system: { get: mock().mockResolvedValue(null) },
+        query: mock().mockReturnValue({
+          withIndex: mock().mockReturnValue({
+            collect: mock().mockResolvedValue([]),
+            take: mock().mockResolvedValue([]),
+            unique: mock().mockResolvedValue(null),
+          }),
+        }),
+        insert,
+      },
+      scheduler: { runAfter: mock().mockResolvedValue(null) },
+    } as any);
+    addCardUsage(ctx);
+    const { createCardForUserHandler } = await import("../../card/createCard");
+
+    await createCardForUserHandler(
+      ctx,
+      "u1" as any,
+      {
+        type: "link",
+        content: "My reading list",
+        url: "https://example.com/list",
+      },
+      { importedVisibleFields: { metadataTitle: "  My reading list " } }
+    );
+
+    expect(insert).toHaveBeenCalledWith(
+      "cards",
+      expect.objectContaining({
+        metadataTitle: "My reading list",
+        metadataTitleEdited: true,
+      })
+    );
+  });
+
   test("throws when unauthenticated", async () => {
     const ctx = withTestSession({
       runMutation: mock().mockResolvedValue({ ok: true }),

@@ -2,6 +2,7 @@ import { describe, expect, test } from "bun:test";
 import {
   parseCardRoute,
   parseCardsQueryOptions,
+  parseCreatePayload,
   parseIncludeSet,
   validateCreatePayload,
   validateFavoritePayload,
@@ -93,6 +94,65 @@ describe("validateCreatePayload", () => {
   });
 });
 
+describe("parseCreatePayload", () => {
+  test.each([
+    [
+      "a file type without a file",
+      { content: "x", cardType: "image" },
+      "`cardType` `image` needs an uploaded file",
+    ],
+    [
+      "a document type without a file",
+      { content: "notes", cardType: "document" },
+      "`cardType` `document` needs an uploaded file",
+    ],
+    [
+      "a palette with no colors",
+      { content: "just words", cardType: "palette" },
+      "A `palette` card needs at least one color",
+    ],
+    [
+      "a tag over 64 characters",
+      { content: "x", tags: ["a".repeat(65)] },
+      "Each tag must be at most 64 characters",
+    ],
+    [
+      "an unknown field",
+      { content: "x", color: "red" },
+      "Unknown field `color`",
+    ],
+    [
+      "no content and no url",
+      { notes: "n" },
+      "Body must include `content` or `url`",
+    ],
+  ])("explains %s", (_label: string, payload: unknown, error: string) => {
+    const result = parseCreatePayload(payload);
+    expect("error" in result && result.error).toContain(error);
+  });
+
+  test("accepts a palette with a readable color and a 64-character tag", () => {
+    expect(
+      parseCreatePayload({
+        content: "#ff5500 and #112233",
+        cardType: "palette",
+        tags: ["a".repeat(64)],
+      })
+    ).toMatchObject({ payload: { cardType: "palette" } });
+  });
+
+  test("lets an uploaded file choose a file card type", () => {
+    expect(
+      parseCreatePayload({
+        cardType: "image",
+        fileKey: "uploads/a",
+        fileName: "a.png",
+        mimeType: "image/png",
+      })
+    ).toMatchObject({ payload: { cardType: "image", fileKey: "uploads/a" } });
+  });
+});
+
 describe("validateUploadPayload", () => {
   test("accepts a named file with a size and type", () => {
     expect(
@@ -139,8 +199,20 @@ describe("validatePatchPayload", () => {
     ).toHaveLength(512);
   });
 
+  test("cuts an oversized title to 512 characters instead of rejecting it", () => {
+    expect(
+      validatePatchPayload({ metadataTitle: ` ${"x".repeat(600)} ` })
+        ?.metadataTitle
+    ).toBe("x".repeat(512));
+    // A cut never leaves half of a surrogate pair behind.
+    expect(
+      validatePatchPayload({ metadataTitle: `${"x".repeat(511)}😀tail` })
+        ?.metadataTitle
+    ).toBe("x".repeat(511));
+  });
+
   test.each(
-    [42, true, [], {}, "x".repeat(513)].map((metadataTitle) => ({
+    [42, true, [], {}].map((metadataTitle) => ({
       metadataTitle,
     }))
   )(
@@ -171,6 +243,7 @@ describe("validatePatchPayload", () => {
     ["an unsafe url", { url: "file:///etc/passwd" }],
     ["non-string content", { content: ["x"] }],
     ["non-array tags", { tags: "design" }],
+    ["a tag over 64 characters", { tags: ["a".repeat(65)] }],
   ])("rejects %s", (_label: string, payload: unknown) => {
     expect(validatePatchPayload(payload)).toBeNull();
   });

@@ -2,9 +2,6 @@
 process.env.SITE_URL = "https://teakvault.com";
 
 import { describe, expect, test } from "bun:test";
-import { CARD_ERROR_CODES, FREE_TIER_LIMIT } from "../../shared/constants";
-import { POLAR_PLAN_IDS } from "../../shared/polarPlans";
-import { authorizeCardCreation } from "../../card/quota";
 import {
   CARD_USAGE_TOTAL_SHARDS,
   ensureCardUsageShards,
@@ -12,6 +9,9 @@ import {
   initializeCardUsageShards,
   recordActiveCardCreated,
 } from "../../card/cardUsage";
+import { authorizeCardCreation } from "../../card/quota";
+import { CARD_ERROR_CODES, FREE_TIER_LIMIT } from "../../shared/constants";
+import { POLAR_PLAN_IDS } from "../../shared/polarPlans";
 
 const PREMIUM_SUBSCRIPTION = {
   status: "active",
@@ -30,7 +30,7 @@ const makeDb = () => {
     store,
     query: (table) => ({
       withIndex: (_name, callback) => {
-        const conditions = [];
+        const conditions: [string, unknown][] = [];
         const builder = {
           eq: (field, value) => {
             conditions.push([field, value]);
@@ -49,21 +49,25 @@ const makeDb = () => {
         };
       },
     }),
-    insert: async (table, doc) => {
+    insert: (table, doc) => {
       const _id = `${table}_${nextId++}`;
       store[table].push({ ...doc, _id });
-      return _id;
+      return Promise.resolve(_id);
     },
-    get: async (table, id) =>
-      (store[table] ?? []).find((row) => row._id === id) ?? null,
-    patch: async (table, id, values) => {
+    get: (table, id) =>
+      Promise.resolve(
+        (store[table] ?? []).find((row) => row._id === id) ?? null
+      ),
+    patch: (table, id, values) => {
       Object.assign(
         (store[table] ?? []).find((row) => row._id === id),
         values
       );
+      return Promise.resolve();
     },
-    delete: async (table, id) => {
+    delete: (table, id) => {
       store[table] = (store[table] ?? []).filter((row) => row._id !== id);
+      return Promise.resolve();
     },
   };
 };
@@ -115,9 +119,11 @@ describe("card/cardUsage.ts premium sharding", () => {
     db.store.userCardUsage.push(saturatedUsage());
     const ctx = { db };
 
-    const error = await authorizeCardCreation(ctx, "premium-user", freeDeps()).catch(
-      (e) => e
-    );
+    const error = await authorizeCardCreation(
+      ctx,
+      "premium-user",
+      freeDeps()
+    ).catch((e) => e);
     expect(error?.data).toEqual({
       code: CARD_ERROR_CODES.CARD_LIMIT_REACHED,
       message: expect.any(String),

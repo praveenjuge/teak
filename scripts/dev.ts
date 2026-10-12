@@ -4,6 +4,7 @@
  *
  *   bun run dev           # the web stack on this checkout's ports
  *   bun run dev --push    # also take over pushing the backend
+ *   bun run dev --detach  # start the web stack in the background, return once ready
  *   bun run dev --stop    # stop this checkout's web stack
  *   bun run dev --status  # this checkout's ports, URLs and sign-in
  *   bun run dev mobile    # another surface (Turbo)
@@ -18,7 +19,8 @@
  * through `turbo watch`; `--headless` streams their output for agents and CI.
  */
 
-import { existsSync, readFileSync } from "node:fs";
+import { spawn } from "node:child_process";
+import { existsSync, mkdirSync, openSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { DEV_DEPLOYMENT, DEV_DEPLOYMENT_URLS } from "./dev-deployment.ts";
 import {
@@ -56,7 +58,7 @@ const resolveTarget = (target: string): string =>
   TARGET_ALIASES[target] ?? target;
 
 export const DEV_USAGE =
-  "Usage: bun run dev [target] [--push] [--status] [--stop] [--all] [--check] [--headless]";
+  "Usage: bun run dev [target] [--push] [--detach] [--status] [--stop] [--all] [--check] [--headless]";
 
 export const describeTargets = (): string =>
   [
@@ -76,6 +78,12 @@ export const describeTargets = (): string =>
 export interface DevArgs {
   action: "run" | "help" | "check" | "status" | "stop";
   all: boolean;
+  /**
+   * Start the web stack in its own session and return once it is ready, so
+   * it outlives the shell that started it (agent tools stop background
+   * commands after a while).
+   */
+  detach: boolean;
   headless: boolean;
   /** Take over pushing the backend from whichever checkout holds the lease. */
   push: boolean;
@@ -87,6 +95,7 @@ export const parseDevArgs = (argv: string[]): DevArgs => {
     return {
       action: "help",
       all: false,
+      detach: false,
       headless: false,
       push: false,
       target: "web",
@@ -95,6 +104,7 @@ export const parseDevArgs = (argv: string[]): DevArgs => {
   const flags = new Set([
     "--all",
     "--check",
+    "--detach",
     "--headless",
     "--push",
     "--status",
@@ -117,6 +127,10 @@ export const parseDevArgs = (argv: string[]): DevArgs => {
   if (push && (all || target !== "web")) {
     throw new Error("--push applies only to the web stack");
   }
+  const detach = argv.includes("--detach");
+  if (detach && (all || target !== "web")) {
+    throw new Error("--detach applies only to the web stack");
+  }
   let action: DevArgs["action"] = "run";
   if (argv.includes("--stop")) {
     action = "stop";
@@ -125,7 +139,14 @@ export const parseDevArgs = (argv: string[]): DevArgs => {
   } else if (argv.includes("--check")) {
     action = "check";
   }
-  return { action, all, headless: argv.includes("--headless"), push, target };
+  return {
+    action,
+    all,
+    detach,
+    headless: argv.includes("--headless"),
+    push,
+    target,
+  };
 };
 
 /** The web stack runs on its own; everything else goes through Turbo. */
@@ -238,7 +259,7 @@ export const describeStatus = (
     ...(running
       ? describeRunning(running)
       : [
-          "  Not running. Start it with `bun run dev` (run it in the background; it stays up until stopped).",
+          "  Not running. Start it with `bun run dev --detach` (it returns once the app is ready and stays up until `bun run dev --stop`).",
         ]),
     `  Ports: web ${ports.web}, docs ${ports.docs}, extension ${ports.extension}. The backend is ${DEV_DEPLOYMENT_URLS.convexUrl}.`,
     "  A running stack records its URLs and sign-in in .agents/.state/stack.json and logs to .agents/.state/stack.log.",
@@ -360,6 +381,79 @@ const runWebStack = async (push: boolean): Promise<number> => {
   return 1;
 };
 
+const DETACHED_LOG = join(ROOT, ".agents/.state/dev-detached.log");
+const DETACH_READY_TIMEOUT_MS = 300_000;
+
+/**
+ * Runs `bun run dev` in a new session with its output in a log file, waits
+ * until the stack is ready, and returns. The stack keeps running after this
+ * process and its shell exit.
+ */
+const runDetached = async (push: boolean): Promise<number> => {
+  await stopOrphans();
+  const logPath = DETACHED_LOG.replace(`${ROOT}/`, "");
+  let exitCode: number | null = null;
+  const running = runningStack();
+  if (running) {
+    if (running.mode !== "dev") {
+      console.log(describeStatus(await resolveWorktree(ROOT), running));
+      return 1;
+    }
+    if (push && running.pushing === false) {
+      console.error(
+        "This checkout's stack is already running without pushing the backend; stop it with `bun run dev --stop` and start it again with `--push` to take over."
+      );
+    }
+  } else {
+    mkdirSync(join(ROOT, ".agents/.state"), { recursive: true });
+    const log = openSync(DETACHED_LOG, "w");
+    const child = spawn(
+      process.execPath,
+      [
+        "--no-env-file",
+        join(ROOT, "scripts/dev.ts"),
+        ...(push ? ["--push"] : []),
+      ],
+      { cwd: ROOT, detached: true, stdio: ["ignore", log, log] }
+    );
+    child.on("exit", (code) => {
+      exitCode = code ?? 1;
+    });
+    child.unref();
+    console.log(
+      `Starting the web stack in the background (pid ${child.pid}); its output goes to ${logPath}…`
+    );
+  }
+  // A stack that is still starting, ours or one already running, is only
+  // reported once it is ready.
+  const deadline = Date.now() + DETACH_READY_TIMEOUT_MS;
+  while (Date.now() < deadline) {
+    if (exitCode !== null) {
+      const output = readFileSync(DETACHED_LOG, "utf-8").trim();
+      console.error(
+        `✗ The stack exited (code ${exitCode}) before it was ready:\n${output.split("\n").slice(-20).join("\n")}`
+      );
+      return 1;
+    }
+    const state = runningStack();
+    if (state?.ready) {
+      console.log(describeStatus(await resolveWorktree(ROOT), state));
+      return 0;
+    }
+    if (running && !state) {
+      console.error(
+        "✗ The stack that was starting exited before it was ready. See .agents/.state/stack.log."
+      );
+      return 1;
+    }
+    await Bun.sleep(1000);
+  }
+  console.error(
+    `✗ The stack wasn't ready after ${DETACH_READY_TIMEOUT_MS / 1000}s; it is still starting. Check \`bun run dev --status\` and ${logPath}.`
+  );
+  return 1;
+};
+
 const main = async (): Promise<void> => {
   let parsed: DevArgs;
   try {
@@ -391,11 +485,13 @@ const main = async (): Promise<void> => {
     }
     if (parsed.action === "check") {
       console.log(
-        `Would run setup, then the web app on this checkout's port against ${DEV_DEPLOYMENT}${parsed.push ? ", taking over pushing the backend" : ""}`
+        `Would run setup, then the web app on this checkout's port against ${DEV_DEPLOYMENT}${parsed.push ? ", taking over pushing the backend" : ""}${parsed.detach ? ", in the background" : ""}`
       );
       return;
     }
-    process.exitCode = await runWebStack(parsed.push);
+    process.exitCode = parsed.detach
+      ? await runDetached(parsed.push)
+      : await runWebStack(parsed.push);
     return;
   }
   // Fail fast before Turbo spawns watchers (skip for --check dry-runs).

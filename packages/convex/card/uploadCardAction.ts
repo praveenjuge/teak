@@ -1,6 +1,4 @@
 "use node";
-import { ensureObjectOwnership } from "../storage/ownership";
-
 
 import { ConvexError, v } from "convex/values";
 import { internal } from "../_generated/api";
@@ -29,6 +27,7 @@ import {
   type FilesWorkerFinalizeImageResult,
   isFilesWorkerConfigured,
 } from "../storage/filesWorkerClient";
+import { ensureObjectOwnership } from "../storage/ownership";
 import { buildR2ObjectKey, buildR2UserPrefix } from "../storage/r2";
 
 const finalizeArgs = {
@@ -271,18 +270,13 @@ const finalizeForUser = async (
         userId,
       }
     );
-    const sessionConsumed = await ctx
+    // Also queues the pending source object for durable deletion, so the
+    // response doesn't wait on a files-worker round trip.
+    await ctx
       .runMutation(internal.fileUploads.consumeSessionBySourceKey, {
         sourceKey: args.fileKey,
       })
-      .then(() => true)
-      .catch(() => false);
-    if (sessionConsumed) {
-      await callFilesWorkerJson({
-        op: "delete-object",
-        params: { key: args.fileKey },
-      }).catch(() => undefined);
-    }
+      .catch(() => undefined);
     return { success: true, cardId: result.cardId };
   } catch (error) {
     await callFilesWorkerJson({

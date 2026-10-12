@@ -177,7 +177,8 @@ export function parseRaindropCsv(csv: string): ParsedBookmarkItem[] {
     if (!url) {
       output.push({
         label: title || rawUrl || "Raindrop bookmark",
-        error: "Raindrop bookmark URL is unsafe",
+        error:
+          "Raindrop bookmark URL is unsafe: only http and https links can be imported",
       });
       continue;
     }

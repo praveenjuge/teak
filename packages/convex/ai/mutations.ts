@@ -20,9 +20,14 @@ export const updateCardProcessing = internalMutation({
     if (!card) {
       return false;
     }
+    // Merge into the status read in this transaction so a parallel step's
+    // stage is never overwritten with the caller's stale copy.
     await patchCardWithSearchSync(ctx, cardId, {
       ...(type ? { type } : {}),
-      processingStatus,
+      processingStatus: {
+        ...(card.processingStatus ?? {}),
+        ...processingStatus,
+      },
       ...(metadataStatus ? { metadataStatus } : {}),
       ...(metadata === undefined ? {} : { metadata }),
       updatedAt: Date.now(),

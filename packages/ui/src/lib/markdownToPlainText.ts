@@ -1,5 +1,25 @@
 const MAX_PREVIEW_LENGTH = 500;
 
+// Markdown backslash escapes, e.g. `my\_file` or `2\*3`. The editor writes
+// these for literal punctuation, so they are swapped for private-use
+// placeholders before any stripping (otherwise the emphasis rules would pair
+// the escaped markers) and restored as plain characters at the end.
+const ESCAPED_CHARACTER = /\\([\\`*_{}[\]()#+\-.!~|>])/g;
+const PLACEHOLDER_BASE = "\ue000".charCodeAt(0);
+const PLACEHOLDER = /[\ue000-\ue07f]/g;
+
+function protectEscapes(text: string): string {
+  return text.replace(ESCAPED_CHARACTER, (_match, character: string) =>
+    String.fromCharCode(PLACEHOLDER_BASE + character.charCodeAt(0))
+  );
+}
+
+function restoreEscapes(text: string): string {
+  return text.replace(PLACEHOLDER, (placeholder) =>
+    String.fromCharCode(placeholder.charCodeAt(0) - PLACEHOLDER_BASE)
+  );
+}
+
 /**
  * Convert markdown to plain text for compact card previews.
  *
@@ -7,15 +27,15 @@ const MAX_PREVIEW_LENGTH = 500;
  * faithful markdown render: block markers (headings, list bullets,
  * blockquotes, horizontal rules), inline emphasis, links/images, inline code,
  * HTML tags and comments are stripped, and whitespace is collapsed to single
- * spaces. Only a short prefix is processed since the preview is clamped.
+ * spaces. Backslash escapes are shown as the literal character. Only a
+ * short prefix is processed since the preview is clamped.
  */
 export function markdownToPlainText(input?: string | null): string {
   if (!input) {
     return "";
   }
 
-  const withoutBlocks = input
-    .slice(0, MAX_PREVIEW_LENGTH)
+  const withoutBlocks = protectEscapes(input.slice(0, MAX_PREVIEW_LENGTH))
     // HTML comments, e.g. <!-- vadivam-icon-count:start -->
     .replace(/<!--[\s\S]*?-->/g, " ")
     // Fenced code block fences and their language hints
@@ -51,7 +71,7 @@ export function markdownToPlainText(input?: string | null): string {
     );
   });
 
-  return (
+  return restoreEscapes(
     lines
       .join(" ")
       // Inline code -> keep the contents

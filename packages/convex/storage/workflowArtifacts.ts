@@ -1,4 +1,3 @@
-import { ensureObjectOwnership } from "./ownership";
 import { convexToJson, jsonToConvex, v } from "convex/values";
 import { components, internal } from "../_generated/api";
 import type { Id } from "../_generated/dataModel";
@@ -8,10 +7,11 @@ import {
   internalMutation,
   type MutationCtx,
 } from "../_generated/server";
+import { getAccountDeletionState } from "../accountDeletion";
 import { readBodyWithLimit } from "../linkMetadata/ssrf";
 import { putObjectViaFilesWorker } from "./filesWorkerClient";
 import { getR2Url } from "./fileUrls";
-import { getAccountDeletionState } from "../accountDeletion";
+import { ensureObjectOwnership } from "./ownership";
 import { buildR2UserPrefix, deleteObject } from "./r2";
 import { hashRawMetadata } from "./rawMetadata";
 

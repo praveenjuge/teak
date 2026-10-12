@@ -127,7 +127,7 @@ type CardFilters = {
   createdAfter?: number;        // Unix ms
   createdBefore?: number;
   cursor?: string;              // pageInfo.nextCursor
-  limit?: number;               // up to 100
+  limit?: number;               // 1 to 100
   include?: ("content" | "metadata" | "processing")[]; // default content + metadata
 };
 ```
@@ -161,7 +161,8 @@ type CardFilters = {
   - Output: `{ items: Card[], deletedIds: string[], pageInfo: { hasMore: boolean, nextCursor: string | null } }`
 - `teak_v1_bulk_cards` <Badge variant="warning">Delete needs confirm</Badge>
   - Input: `{ operation: "create" | "update" | "favorite" | "delete", items: object[], confirm?: true, idempotencyKey?: string }`
-  - Output: bulk operation results; delete batches move cards to Trash and require `confirm: true`
+  - Output: `{ operation, results: [{ index, status: "success", cardId } | { index, status: "error", code, error }], summary: { total, succeeded, failed } }`. Delete batches move cards to Trash and require `confirm: true`.
+  - If any item fails, the result is marked as a tool error (`isError: true`) and its text lists the failed items. The other items still succeed.
 - `teak_v1_create_upload`
   - Input: `{ fileName: string, mimeType: string, fileSize: number }`
   - Output: `{ uploadUrl: string, fileKey: string, method: "PUT", maxFileSize: number, expiresIn: number }`
@@ -199,5 +200,13 @@ Tool failures are returned as MCP tool errors with this structured shape:
   "error": "Too many requests"
 }
 ```
+
+Invalid arguments, such as a `limit` outside 1 to 100, come back the same way with `"status": 400` and `"code": "INVALID_INPUT"`.
+
+Protocol problems are JSON-RPC errors instead:
+
+- An unknown tool name returns error `-32602` (`Unknown tool: <name>`).
+- A request body that isn't valid JSON returns HTTP `400` with error `-32700` (`Parse error`).
+- A message that isn't a JSON-RPC request returns error `-32600` (`Invalid Request`).
 
 

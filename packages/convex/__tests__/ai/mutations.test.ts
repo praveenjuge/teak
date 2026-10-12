@@ -48,6 +48,42 @@ describe("ai/mutations.ts", () => {
     expect(result).toBe(true);
   });
 
+  test("keeps a metadata stage completed by a parallel step when saving renderables", async () => {
+    const ctx = {
+      db: {
+        ...inlineSearchSyncDb(),
+        get: mock().mockResolvedValue({
+          _id: "c1",
+          processingStatus: {
+            metadata: { status: "completed", completedAt: 5 },
+            renderables: { status: "pending" },
+          },
+        }),
+        patch: mock().mockResolvedValue(undefined),
+      },
+    } as any;
+    const handler =
+      (updateCardProcessing as any).handler ?? updateCardProcessing;
+
+    await handler(ctx, {
+      cardId: "c1",
+      processingStatus: {
+        renderables: { status: "completed", completedAt: 6 },
+      },
+    });
+
+    expect(ctx.db.patch).toHaveBeenCalledWith(
+      "cards",
+      "c1",
+      expect.objectContaining({
+        processingStatus: {
+          metadata: { status: "completed", completedAt: 5 },
+          renderables: { status: "completed", completedAt: 6 },
+        },
+      })
+    );
+  });
+
   test("treats a card deleted during processing as an idempotent skip", async () => {
     const ctx = {
       db: { get: mock().mockResolvedValue(null), patch: mock() },

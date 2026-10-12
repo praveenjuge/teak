@@ -461,7 +461,7 @@ test.each([204, 503])(
               : status,
         });
       }
-      return transport(input, init);
+      return await transport(input, init);
     }) as typeof fetch;
     if (status === 204) {
       await oauth.signOutTeak();
@@ -536,7 +536,7 @@ test.each([false, true])(
         if (String(input).endsWith("/cards")) {
           return json({}, 401);
         }
-        return transport(input, init);
+        return await transport(input, init);
       }) as typeof fetch;
       await expect(request("/cards", (payload) => payload)).rejects.toThrow(
         "Sign Out before reconnecting",
@@ -577,7 +577,7 @@ test.each(["success", "server", "network"])(
         if (String(input).endsWith("/oauth/disconnect")) {
           throw new Error("Network unavailable");
         }
-        return transport(input, init);
+        return await transport(input, init);
       }) as typeof fetch;
     }
     if (outcome === "success") {
@@ -671,7 +671,7 @@ test.each(["unknown", "malformed", "network", "server"])(
           failure === "server" ? 503 : 400,
         );
       }
-      return transport(input, init);
+      return await transport(input, init);
     }) as typeof fetch;
     await expect(oauth.signOutTeak()).rejects.toThrow(
       "credentials are still saved",
@@ -740,7 +740,7 @@ test("corrupt registry metadata cannot block valid logout or clear foreign token
     "teak.oauth.provider:" +
     encodeURIComponent("https://teakvault.com/api/v1") +
     ":";
-  const corruptKey = prefix + "corrupt";
+  const corruptKey = `${prefix}corrupt`;
   await raycastLocalStorageMock.setItem(corruptKey, "{invalid");
   stores.set("foreign-provider", {
     accessToken: "foreign-secret",
@@ -773,20 +773,28 @@ test.each([
       isExpired: () => false,
     });
     globalThis.fetch = (async (input, init) => {
-      if (String(input).endsWith("/oauth/disconnect"))
+      if (String(input).endsWith("/oauth/disconnect")) {
         return new Response(null, { status: 401 });
+      }
       if (String(input).endsWith("/oauth2/token")) {
-        if (failure === "network") throw new Error("Network unavailable");
-        if (failure === "oversized")
+        if (failure === "network") {
+          throw new Error("Network unavailable");
+        }
+        if (failure === "oversized") {
           return json(
             { error: "invalid_grant", extra: "x".repeat(70 * 1024) },
             400,
           );
-        if (failure === "malformed") return new Response("{", { status: 400 });
-        if (failure === "outage") return json({ error: "invalid_grant" }, 503);
+        }
+        if (failure === "malformed") {
+          return new Response("{", { status: 400 });
+        }
+        if (failure === "outage") {
+          return json({ error: "invalid_grant" }, 503);
+        }
         return json({ error: failure }, 400);
       }
-      return transport(input, init);
+      return await transport(input, init);
     }) as typeof fetch;
     if (failure === "invalid_grant" || failure === "invalid_client") {
       expect(await oauth.signOutTeak()).toBe("local-only");
@@ -810,11 +818,13 @@ test.each(["invalid_grant", "invalid_refresh_token"])(
   async (refreshError) => {
     await oauth.authorizeTeak();
     globalThis.fetch = (async (input, init) => {
-      if (String(input).endsWith("/oauth/disconnect"))
+      if (String(input).endsWith("/oauth/disconnect")) {
         return new Response(null, { status: 401 });
-      if (String(input).endsWith("/oauth2/token"))
+      }
+      if (String(input).endsWith("/oauth2/token")) {
         return json({ error: refreshError }, 400);
-      return transport(input, init);
+      }
+      return await transport(input, init);
     }) as typeof fetch;
     const { SignOutAction } = await import("../components/SignOutAction");
     let signedOut = false;
@@ -823,7 +833,9 @@ test.each(["invalid_grant", "invalid_refresh_token"])(
         signedOut = true;
       },
     });
-    if (!action) throw new Error("Missing Sign Out action");
+    if (!action) {
+      throw new Error("Missing Sign Out action");
+    }
     await action.props.onAction();
     expect(toasts).toEqual([
       {
@@ -860,11 +872,13 @@ test.each([400, 401])(
           String(input).endsWith("/oauth2/token") &&
           new URLSearchParams(String(init?.body)).get("grant_type") ===
             "refresh_token"
-        )
+        ) {
           return new Response(body, { status });
-        if (String(input).endsWith("/oauth/disconnect"))
+        }
+        if (String(input).endsWith("/oauth/disconnect")) {
           return new Response(null, { status: 401 });
-        return transport(input, init);
+        }
+        return await transport(input, init);
       }) as typeof fetch;
       await expect(oauth.getStoredTeakAccessToken()).rejects.toThrow();
       await expect(oauth.authorizeTeak()).rejects.toThrow();
@@ -964,11 +978,13 @@ test.each([
     stores.set(key, saved);
     browserCount = 0;
     globalThis.fetch = (async (input, init) => {
-      if (String(input).endsWith("/oauth2/token"))
+      if (String(input).endsWith("/oauth2/token")) {
         return json({ error }, Number(status));
-      if (String(input).endsWith("/oauth/disconnect"))
+      }
+      if (String(input).endsWith("/oauth/disconnect")) {
         return new Response(null, { status: 401 });
-      return transport(input, init);
+      }
+      return await transport(input, init);
     }) as typeof fetch;
     await expect(oauth.getStoredTeakAccessToken()).rejects.toThrow();
     await expect(oauth.authorizeTeak()).rejects.toThrow();

@@ -1,9 +1,9 @@
-import { ensureObjectOwnership } from "../storage/ownership";
 import { v } from "convex/values";
 import { internal } from "../_generated/api";
 import type { ActionCtx, MutationCtx } from "../_generated/server";
 import { mutation, query } from "../_generated/server";
 import { getSessionUser } from "../securitySessions";
+import { ensureObjectOwnership } from "../storage/ownership";
 import {
   buildSignedWorkerUploadUrl,
   putObjectViaFilesWorker,
@@ -165,7 +165,7 @@ export const generateUploadUrl = mutation({
       fileName: args.fileName,
     });
     const contentType = args.fileType ?? "application/octet-stream";
-  await ensureObjectOwnership(ctx, user.teakUserId, key);
+    await ensureObjectOwnership(ctx, user.teakUserId, key);
     const signed = await buildSignedWorkerUploadUrl({
       contentType,
       key,

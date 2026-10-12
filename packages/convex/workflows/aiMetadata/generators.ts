@@ -43,6 +43,7 @@ import {
 } from "../../storage/filesWorkerClient";
 import { recordBackendLog } from "../../telemetry/sentry";
 import { aiMetadataSchema } from "./schemas";
+import { normalizeAiTags } from "./tags";
 
 /**
  * Cloudflare Workers AI notes:
@@ -180,7 +181,10 @@ const generateWorkerMetadata = async (
       return { output: metadata, usage: facts.usage };
     }
   );
-  return { aiTags: result.output.tags, aiSummary: result.output.summary };
+  return {
+    aiTags: normalizeAiTags(result.output.tags),
+    aiSummary: result.output.summary,
+  };
 };
 export const generateTextMetadata = (content: string, title?: string) =>
   env.FILES_TEXT_AI_ENABLED === "true"
@@ -282,7 +286,7 @@ export const generateImageMetadata = async (
   );
 
   return {
-    aiTags: result.output.tags,
+    aiTags: normalizeAiTags(result.output.tags),
     aiSummary: result.output.summary,
   };
 };
@@ -313,7 +317,7 @@ export const generateImageMetadataForStoredKey = async (
     );
   }
   return {
-    aiTags: outcome.data.tags,
+    aiTags: normalizeAiTags(outcome.data.tags),
     aiSummary: outcome.data.summary,
   };
 };
@@ -366,7 +370,7 @@ const generateTextMetadataDirect = async (content: string, title?: string) => {
   );
 
   return {
-    aiTags: result.output.tags,
+    aiTags: normalizeAiTags(result.output.tags),
     aiSummary: result.output.summary,
   };
 };
@@ -404,7 +408,7 @@ const generateLinkMetadataDirect = async (content: string, url?: string) => {
   );
 
   return {
-    aiTags: result.output.tags,
+    aiTags: normalizeAiTags(result.output.tags),
     aiSummary: result.output.summary,
   };
 };

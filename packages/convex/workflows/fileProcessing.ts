@@ -1,9 +1,11 @@
 "use node";
 
+import type { FilesInspectMode } from "@teak/files-protocol";
 import type { FileFormat, FilePreviewFacts } from "../shared/fileFormats";
 import {
   callFilesWorkerJson,
   type FilesWorkerInspectResult,
+  type FilesWorkerOutcome,
   isFilesWorkerConfigured,
 } from "../storage/filesWorkerClient";
 
@@ -51,29 +53,51 @@ export const buildFilePreviewFactsForKey = async (
     : null;
 };
 
+// A Worker deployed before the pdf inspect mode rejects it as invalid input.
+const isUnsupportedInspectModeError = (error: unknown): boolean =>
+  error instanceof Error &&
+  error.message.startsWith("files_worker_error:INVALID_INPUT:");
+
 export const extractFileTextForAiForKey = async (
   sourceKey: string,
   format: FileFormat,
   card: FileCardInput
 ): Promise<string> => {
   const archive = ["word", "powerpoint"].includes(format.id);
+  const pdf = format.kind === "pdf";
   const text = ["markdown", "source", "text", "tokens"].includes(format.kind);
-  if (!(archive || text)) {
+  if (!(archive || pdf || text)) {
     return "";
   }
   requireWorker();
-  const outcome = await callFilesWorkerJson<FilesWorkerInspectResult>({
-    op: "inspect",
-    params: {
-      formatId: format.id,
-      maxBytes: archive
-        ? MAX_ARCHIVE_INSPECTION_BYTES
-        : MAX_SOURCE_INSPECTION_BYTES,
-      mode: archive ? "zip" : "text",
-      rtf:
-        !archive && card.fileMetadata?.kind === "text" && format.id === "rtf",
-      sourceKey,
-    },
-  });
+  let mode: FilesInspectMode = "text";
+  if (archive) {
+    mode = "zip";
+  } else if (pdf) {
+    mode = "pdf";
+  }
+  let outcome: FilesWorkerOutcome<FilesWorkerInspectResult>;
+  try {
+    outcome = await callFilesWorkerJson<FilesWorkerInspectResult>({
+      op: "inspect",
+      params: {
+        formatId: format.id,
+        maxBytes:
+          archive || pdf
+            ? MAX_ARCHIVE_INSPECTION_BYTES
+            : MAX_SOURCE_INSPECTION_BYTES,
+        mode,
+        rtf: text && card.fileMetadata?.kind === "text" && format.id === "rtf",
+        sourceKey,
+      },
+    });
+  } catch (error) {
+    // PDF text is an optional enrichment: until the Worker with the pdf mode
+    // is deployed, fall back to the file name instead of failing the step.
+    if (pdf && isUnsupportedInspectModeError(error)) {
+      return "";
+    }
+    throw error;
+  }
   return outcome.kind === "ok" ? (outcome.data.text ?? "") : "";
 };

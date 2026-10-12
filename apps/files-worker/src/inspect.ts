@@ -8,7 +8,10 @@
 //     multi-GB archives cost kilobytes of memory instead of being buffered.
 //   - mode "css"  → count of color variable declarations
 //   - mode "text" → decoded (optionally RTF-stripped) text for AI analysis
+//   - mode "pdf"  → text of the first pages of a PDF for AI analysis
 
+import type { FilesInspectMode } from "@teak/files-protocol";
+import { getDocumentProxy } from "unpdf";
 import {
   InspectSourceMissing,
   rangeRead,
@@ -25,6 +28,10 @@ export {
 } from "./zip";
 
 const MAX_AI_TEXT_BYTES = 512 * 1024;
+/** PDF text shares the byte-bounded text modes' budget, counted in characters. */
+export const MAX_AI_TEXT_CHARACTERS = MAX_AI_TEXT_BYTES;
+/** Pages read for AI text; later pages are never parsed. */
+export const MAX_PDF_TEXT_PAGES = 50;
 export const MAX_ARCHIVE_ENTRIES = 10_000;
 const MAX_ARCHIVE_ENTRY_BYTES = 512 * 1024;
 const PPTX_SLIDE_REGEX = /^ppt\/slides\/slide\d+\.xml$/iu;
@@ -41,7 +48,7 @@ const XML_ENTITIES: Record<string, string> = {
 const CSS_COLOR_VARIABLE_REGEX =
   /--[a-z0-9_-]+\s*:\s*(?:#[0-9a-f]{3,8}\b|(?:rgb|hsl|oklab|oklch|lab|lch|color)\([^;]+\))/giu;
 
-export type InspectMode = "css" | "text" | "zip";
+export type InspectMode = FilesInspectMode;
 
 export interface InspectResult {
   facts?: Record<string, number>;
@@ -191,6 +198,83 @@ export const inspectZipRanged = async (
 };
 
 /**
+ * Extract text from the first MAX_PDF_TEXT_PAGES pages, capped at
+ * MAX_AI_TEXT_CHARACTERS. PDF text is an optional AI enrichment, so corrupt or
+ * password-protected documents resolve to empty text instead of failing.
+ */
+export const extractPdfText = async (
+  bytes: Uint8Array
+): Promise<{ pageCount: number; text: string } | null> => {
+  let pdf: Awaited<ReturnType<typeof getDocumentProxy>> | null = null;
+  try {
+    pdf = await getDocumentProxy(bytes, {
+      disableFontFace: true,
+      useSystemFonts: false,
+      verbosity: 0,
+    });
+    const pageCount = pdf.numPages;
+    const pageTexts: string[] = [];
+    let characterCount = 0;
+    const lastPage = Math.min(pageCount, MAX_PDF_TEXT_PAGES);
+    for (
+      let pageNumber = 1;
+      pageNumber <= lastPage && characterCount < MAX_AI_TEXT_CHARACTERS;
+      pageNumber += 1
+    ) {
+      const page = await pdf.getPage(pageNumber);
+      const content = await page.getTextContent();
+      page.cleanup();
+      const pageText = content.items
+        .map((item) =>
+          "str" in item ? `${item.str}${item.hasEOL ? "\n" : ""}` : ""
+        )
+        .join("")
+        .trim();
+      if (pageText) {
+        pageTexts.push(pageText);
+        characterCount += pageText.length + 1;
+      }
+    }
+    return {
+      pageCount,
+      text: pageTexts.join("\n").slice(0, MAX_AI_TEXT_CHARACTERS).trim(),
+    };
+  } catch {
+    return null;
+  } finally {
+    await pdf?.loadingTask.destroy().catch(() => undefined);
+  }
+};
+
+const inspectPdf = async (
+  bucket: R2Bucket,
+  key: string,
+  maxBytes: number
+): Promise<InspectResult> => {
+  const object = await bucket.get(key);
+  if (!object) {
+    throw new InspectSourceMissing();
+  }
+  // A truncated PDF loses its trailing xref table, so oversized documents are
+  // skipped rather than parsed from a prefix.
+  if ((object.size ?? 0) > maxBytes) {
+    await object.body.cancel();
+    return { facts: textFacts(""), text: "" };
+  }
+  const extracted = await extractPdfText(
+    new Uint8Array(await object.arrayBuffer())
+  );
+  const text = extracted?.text ?? "";
+  return {
+    facts: {
+      ...textFacts(text),
+      ...(extracted ? { pageCount: extracted.pageCount } : {}),
+    },
+    text,
+  };
+};
+
+/**
  * Dispatch one inspect request.
  *
  * @param formatId file-format id (zip/word/powerpoint/css tokens/etc.) so
@@ -233,6 +317,10 @@ export const runInspect = async (
     const decoded = new TextDecoder().decode(bytes.slice(0, MAX_AI_TEXT_BYTES));
     const text = rtf ? extractRtfText(decoded).trim() : decoded.trim();
     return { facts: textFacts(text), text };
+  }
+
+  if (mode === "pdf") {
+    return await inspectPdf(bucket, key, maxBytes);
   }
 
   throw new Error(`invalid_mode:${mode}`);

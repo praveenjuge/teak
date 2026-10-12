@@ -1,5 +1,6 @@
 import { api } from "@teak/convex";
 import type { Id } from "@teak/convex/_generated/dataModel";
+import { CARD_TYPE_LABELS, type CardType } from "@teak/convex/shared/constants";
 import { inferFileFormat } from "@teak/convex/shared/file-formats";
 import { sanitizeExternalUrl } from "@teak/convex/shared/utils/safeUrl";
 import { CardContent, Card as UICard } from "@teak/ui/components/ui/card";
@@ -23,9 +24,10 @@ import {
   Trash,
   Trash2,
 } from "lucide-react";
-import type { SyntheticEvent } from "react";
+import type { KeyboardEvent, SyntheticEvent } from "react";
 import { memo, useState } from "react";
 import { toast } from "sonner";
+import { resolveLinkTitle } from "../../lib/linkTitle";
 import { markdownToPlainText } from "../../lib/markdownToPlainText";
 import { prefetchCardModalMedia } from "../../lib/prefetchCardMedia";
 import { prefetchFileTextPreview } from "../card-previews/fileTextPreviewCache";
@@ -34,7 +36,7 @@ import { GridDocumentPreview } from "./previews/GridDocumentPreview";
 import { GridImagePreview } from "./previews/GridImagePreview";
 import { GridVideoPreview } from "./previews/GridVideoPreview";
 import { ResilientMediaImage } from "./previews/ResilientMediaImage";
-import type { CardProps, LinkPreviewMetadata } from "./types";
+import type { CardProps, CardWithUrls, LinkPreviewMetadata } from "./types";
 import { isOptimisticCard } from "./types";
 
 export type { CardProps, CardWithUrls, LinkPreviewMetadata } from "./types";
@@ -61,6 +63,43 @@ export async function resolveImageCopyUrl({
     key: fileKey,
   });
   return url;
+}
+
+const MAX_ACCESSIBLE_LABEL_LENGTH = 120;
+
+/**
+ * Name for a card in the grid, read by screen readers: its type plus the
+ * title, text or file name the grid shows.
+ */
+export function getCardAccessibleLabel(
+  card: Pick<
+    CardWithUrls,
+    "content" | "fileMetadata" | "metadataTitle" | "type" | "url"
+  >,
+  linkTitle?: string
+): string {
+  const typeLabel =
+    (card.type && CARD_TYPE_LABELS[card.type as CardType]) || "Card";
+  const isFileCard =
+    card.type === "image" ||
+    card.type === "video" ||
+    card.type === "audio" ||
+    card.type === "document";
+  const title =
+    (card.type === "link" ? linkTitle || card.metadataTitle || card.url : "") ||
+    (isFileCard ? card.fileMetadata?.fileName : "") ||
+    markdownToPlainText(card.content) ||
+    card.metadataTitle ||
+    card.fileMetadata?.fileName ||
+    "";
+  if (!title) {
+    return `${typeLabel} card`;
+  }
+  const clipped =
+    title.length > MAX_ACCESSIBLE_LABEL_LENGTH
+      ? `${title.slice(0, MAX_ACCESSIBLE_LABEL_LENGTH - 1)}…`
+      : title;
+  return `${typeLabel}: ${clipped}`;
 }
 
 export const Card = memo(function Card({
@@ -120,6 +159,17 @@ export const Card = memo(function Card({
       return;
     }
     onClick?.(card);
+  };
+
+  // Cards act as buttons: Enter or Space opens them (or toggles selection).
+  const handleKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
+    if (event.target !== event.currentTarget) {
+      return;
+    }
+    if (event.key === "Enter" || event.key === " ") {
+      event.preventDefault();
+      handleClick();
+    }
   };
 
   const handleDelete = () => {
@@ -208,8 +258,12 @@ export const Card = memo(function Card({
   const storedLinkMedia = Array.isArray(card.metadata?.linkPreview?.media)
     ? (card.metadata.linkPreview.media as Record<string, unknown>[])
     : [];
-  const linkCardTitle =
-    linkPreview?.title || card.metadataTitle || card.url || "Link";
+  const linkCardTitle = resolveLinkTitle({
+    metadataTitle: card.metadataTitle,
+    metadataTitleEdited: card.metadataTitleEdited,
+    previewTitle: linkPreview?.title,
+    url: card.url,
+  });
   const primaryAttachedMedia =
     card.linkPreviewMedia?.find((item) => item.type === "image") ??
     card.linkPreviewMedia?.find(
@@ -309,10 +363,13 @@ export const Card = memo(function Card({
     }
   };
 
+  // Keeps the selection checkbox (top-left) clear of the first line of text.
+  const checkboxInset = isSelectionMode && !isOptimistic ? "pl-10" : "";
+
   const renderCardContent = () => {
     if (card.type === "text") {
       return (
-        <div className="rounded-2xl border bg-card p-4">
+        <div className={`rounded-2xl border bg-card p-4 ${checkboxInset}`}>
           <p className="line-clamp-2 font-medium">
             {markdownToPlainText(card.content) || card.fileMetadata?.fileName}
           </p>
@@ -322,7 +379,9 @@ export const Card = memo(function Card({
 
     if (card.type === "quote") {
       return (
-        <div className="rounded-2xl border bg-card px-6 py-4">
+        <div
+          className={`rounded-2xl border bg-card px-6 py-4 ${checkboxInset}`}
+        >
           <div className="relative">
             <p className="line-clamp-2 text-balance text-center font-medium italic leading-relaxed">
               {markdownToPlainText(card.content)}
@@ -398,7 +457,9 @@ export const Card = memo(function Card({
       }
 
       return (
-        <p className="w-full min-w-0 overflow-hidden truncate text-ellipsis whitespace-nowrap rounded-2xl border bg-card p-4 font-medium">
+        <p
+          className={`w-full min-w-0 overflow-hidden truncate text-ellipsis whitespace-nowrap rounded-2xl border bg-card p-4 font-medium ${checkboxInset}`}
+        >
           {markdownToPlainText(card.content) || linkCardTitle}
         </p>
       );
@@ -476,7 +537,7 @@ export const Card = memo(function Card({
       }
 
       return (
-        <div className="rounded-2xl border bg-card p-4">
+        <div className={`rounded-2xl border bg-card p-4 ${checkboxInset}`}>
           <p className="line-clamp-2 font-medium">
             {markdownToPlainText(card.content)}
           </p>
@@ -485,7 +546,7 @@ export const Card = memo(function Card({
     }
 
     return (
-      <div className="rounded-2xl border bg-card p-4">
+      <div className={`rounded-2xl border bg-card p-4 ${checkboxInset}`}>
         <p className="line-clamp-2 font-medium">
           {markdownToPlainText(card.content) || card.fileMetadata?.fileName}
         </p>
@@ -502,13 +563,19 @@ export const Card = memo(function Card({
     <ContextMenu>
       <ContextMenuTrigger asChild disabled={isOptimistic}>
         <UICard
-          className={`relative overflow-hidden rounded-none border-0 bg-transparent p-0 contain-content ${
+          aria-disabled={isOptimistic || undefined}
+          aria-label={getCardAccessibleLabel(card, linkCardTitle)}
+          aria-pressed={isSelectionMode ? Boolean(isSelected) : undefined}
+          className={`relative overflow-hidden rounded-none border-0 bg-transparent p-0 outline-none contain-content focus-visible:rounded-2xl focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background ${
             isOptimistic ? "cursor-default opacity-70" : "cursor-pointer"
           } ${card.isDeleted ? "opacity-60" : ""} ${isSelected ? "rounded-2xl ring-2 ring-primary" : ""}`}
           onClick={handleClick}
           onFocus={handlePrefetch}
+          onKeyDown={handleKeyDown}
           onPointerDown={handlePrefetch}
           onPointerEnter={handlePrefetch}
+          role="button"
+          tabIndex={isOptimistic ? -1 : 0}
         >
           {isOptimistic && (
             <div className="absolute inset-0 z-10 flex items-center justify-center">

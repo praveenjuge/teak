@@ -310,7 +310,9 @@ beforeAll(async () => {
   mock.module(
     import.meta.resolve("../../../../storage/filesWorkerClient"),
     () => ({
-      putObjectViaFilesWorker: () => { throw new Error("Unexpected indirect Worker PUT"); },
+      putObjectViaFilesWorker: () => {
+        throw new Error("Unexpected indirect Worker PUT");
+      },
       buildSignedWorkerUploadUrl: async ({ key }: { key: string }) => ({
         expiresAt: 123,
         key,
@@ -354,7 +356,9 @@ const createCtx = (card: unknown) => {
     ctx: {
       runQuery: () => Promise.resolve(card),
       runMutation: (ref: any, args: any) => {
-        if (getFunctionName(ref) === "storage/ownership:registerObject") return Promise.resolve(true);
+        if (getFunctionName(ref) === "storage/ownership:registerObject") {
+          return Promise.resolve(true);
+        }
         mutationCalls.push({ ref, args });
         return Promise.resolve(null);
       },

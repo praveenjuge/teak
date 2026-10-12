@@ -1,4 +1,3 @@
-import { ensureObjectOwnership } from "./storage/ownership";
 import { ConvexError, v } from "convex/values";
 import { internal } from "./_generated/api";
 import type { Doc, Id } from "./_generated/dataModel";
@@ -10,7 +9,7 @@ import {
   internalQuery,
   mutation,
 } from "./_generated/server";
-import { ensureCardCreationAllowed } from "./auth";
+import { ensureCardQuotaAvailable } from "./card/quota";
 import { validateDirectUploadRequest } from "./card/uploadCard";
 import { getSessionUser } from "./securitySessions";
 import { MULTIPART_UPLOAD_THRESHOLD } from "./shared/constants";
@@ -19,7 +18,12 @@ import {
   callFilesWorkerJson,
   isFilesWorkerConfigured,
 } from "./storage/filesWorkerClient";
-import { buildR2ObjectKey, PENDING_UPLOAD_CARD_ID } from "./storage/r2";
+import { ensureObjectOwnership } from "./storage/ownership";
+import {
+  buildR2ObjectKey,
+  deleteObject,
+  PENDING_UPLOAD_CARD_ID,
+} from "./storage/r2";
 
 export const MULTIPART_PART_SIZE = 8 * 1024 * 1024;
 const SESSION_TTL_MS = 24 * 60 * 60 * 1000;
@@ -88,7 +92,9 @@ export const insertSession = internalMutation({
   returns: v.id("fileUploadSessions"),
   handler: async (ctx, args): Promise<Id<"fileUploadSessions">> => {
     const identity = await requireIdentity(ctx);
-    await ensureCardCreationAllowed(ctx, identity.teakUserId);
+    // Quota only: the creation rate-limit token is charged once, when the
+    // uploaded file becomes a card.
+    await ensureCardQuotaAvailable(ctx, identity.teakUserId);
     const now = Date.now();
     return await ctx.db.insert("fileUploadSessions", {
       ...args,
@@ -183,7 +189,7 @@ export const prepareMultipartUpload = action({
       role: "file",
       fileName: `${crypto.randomUUID()}-${args.fileName}`,
     });
-  await ensureObjectOwnership(ctx, identity.teakUserId, sourceKey);
+    await ensureObjectOwnership(ctx, identity.teakUserId, sourceKey);
     const created = await callFilesWorkerJson<{
       key: string;
       uploadId: string;
@@ -385,6 +391,11 @@ export const findExpiredSessions = internalQuery({
       .take(Math.min(limit, 50)),
 });
 
+/**
+ * After finalize copied the upload to its stored key: closes the session and
+ * queues the pending source object for durable deletion, in one round trip so
+ * the upload response doesn't wait on the files worker.
+ */
 export const consumeSessionBySourceKey = internalMutation({
   args: { sourceKey: v.string() },
   returns: v.null(),
@@ -396,6 +407,7 @@ export const consumeSessionBySourceKey = internalMutation({
     if (session) {
       await ctx.db.delete(session._id);
     }
+    await deleteObject(ctx, sourceKey);
     return null;
   },
 });
