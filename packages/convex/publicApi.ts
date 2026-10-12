@@ -1,3 +1,4 @@
+import type { PaginationResult } from "convex/server";
 import { ConvexError, v } from "convex/values";
 import { internal } from "./_generated/api";
 import type { Doc, Id } from "./_generated/dataModel";
@@ -12,23 +13,33 @@ import { cardReturnValidator } from "./card/getCards";
 import { attachFileUrls } from "./card/queryUtils";
 import { applyQuoteFormattingToList } from "./card/quoteFormatting";
 import {
-  scheduleCardSearchSync,
   searchCardsByDocument,
   searchCardsByExactTag,
 } from "./card/searchDocumentHelpers";
-import { updateCardFieldForUserHandler } from "./card/updateCard";
+import {
+  type CardFieldEdit,
+  updateCardFieldForUserHandler,
+  updateCardFieldsForUserHandler,
+} from "./card/updateCard";
 import {
   doesCardMatchVisualFilters,
   normalizeVisualFilterArgs,
 } from "./card/visualFilters";
+import {
+  explainCardTypeMismatch,
+  explainInvalidTags,
+} from "./publicApiHttpShared";
+import {
+  listCardTombstonesSince,
+  type TombstoneCursor,
+} from "./publicApiTombstones";
 import { cardTypes, cardTypeValidator } from "./schema";
 import { requireTeakUserId, type TeakUserId } from "./securitySessions";
 import { rateLimiter } from "./shared/rateLimits";
-import { isSafeExternalUrl } from "./shared/utils/safeUrl";
+import { isSafeExternalUrl, UnsafeUrlError } from "./shared/utils/safeUrl";
 
 const DEFAULT_LIMIT = 50;
 const MAX_LIMIT = 100;
-const SEARCH_MULTIPLIER = 4;
 const MAX_QUERY_SCAN = 400;
 const MAX_BULK_ITEMS = 100;
 
@@ -95,7 +106,26 @@ interface SearchOptions {
   types?: Doc<"cards">["type"][];
 }
 
+// A card's position in list order: createdAt for date-filtered listings,
+// _creationTime for the others.
+interface ListAnchor {
+  createdAt: number;
+  creationTime: number;
+}
+
+// Search and tag pages resume strictly after the last card they returned.
+interface MatchAnchor {
+  createdAt: number;
+  id: string;
+}
+
 type ApiCursor =
+  | { mode: "start" }
+  // Keyset cursors: stable when cards are added or removed between pages.
+  | { mode: "list"; anchor?: ListAnchor; page?: string }
+  | { mode: "match"; anchor: MatchAnchor }
+  // Cursors issued before keyset paging. Still accepted so a client that is
+  // mid-pagination during a deploy can finish.
   | { mode: "index"; cursor: string | null; pageOffset: number }
   | { mode: "offset"; offset: number };
 
@@ -134,9 +164,15 @@ const compareCards = (
   sort: ApiCardSort
 ): number => {
   if (left.createdAt === right.createdAt) {
-    return sort === "oldest"
-      ? String(left._id).localeCompare(String(right._id))
-      : String(right._id).localeCompare(String(left._id));
+    // Code-unit order, matching how indexes order ids, so keyset cursors
+    // resume exactly where an index read stopped.
+    const leftId = String(left._id);
+    const rightId = String(right._id);
+    if (leftId === rightId) {
+      return 0;
+    }
+    const ascending = leftId < rightId ? -1 : 1;
+    return sort === "oldest" ? ascending : -ascending;
   }
 
   return sort === "oldest"
@@ -201,56 +237,129 @@ const matchesStructuredFilters = (
 const sortCards = (cards: Doc<"cards">[], sort: ApiCardSort): Doc<"cards">[] =>
   cards.sort((left, right) => compareCards(left, right, sort));
 
+const invalidCursorError = () =>
+  new ConvexError({
+    code: "INVALID_INPUT",
+    message: "Query parameter `cursor` is invalid",
+  });
+
+const isFiniteNumber = (value: unknown): value is number =>
+  typeof value === "number" && Number.isFinite(value);
+
 const encodeCursor = (cursor: ApiCursor): string =>
   btoa(JSON.stringify(cursor));
 
 const decodeCursor = (cursor?: string): ApiCursor => {
   if (!cursor) {
-    return { mode: "index", cursor: null, pageOffset: 0 };
+    return { mode: "start" };
   }
 
+  let parsed: Record<string, unknown> | null;
   try {
-    const parsed = JSON.parse(atob(cursor)) as ApiCursor;
+    parsed = JSON.parse(atob(cursor));
+  } catch {
+    throw invalidCursorError();
+  }
+  if (!parsed || typeof parsed !== "object") {
+    throw invalidCursorError();
+  }
 
-    if (parsed.mode === "offset" && typeof parsed.offset === "number") {
-      return { mode: "offset", offset: Math.max(0, parsed.offset) };
-    }
-
-    if (parsed.mode === "index") {
+  switch (parsed.mode) {
+    case "list": {
+      const anchor = parsed.anchor as Record<string, unknown> | undefined;
+      const page = parsed.page;
+      if (
+        (anchor !== undefined &&
+          !(
+            isFiniteNumber(anchor?.createdAt) &&
+            isFiniteNumber(anchor.creationTime)
+          )) ||
+        (page !== undefined && typeof page !== "string")
+      ) {
+        break;
+      }
       return {
-        mode: "index",
-        cursor: typeof parsed.cursor === "string" ? parsed.cursor : null,
-        pageOffset:
-          typeof parsed.pageOffset === "number" &&
-          Number.isFinite(parsed.pageOffset)
-            ? Math.max(0, parsed.pageOffset)
-            : 0,
+        mode: "list",
+        ...(anchor
+          ? {
+              anchor: {
+                createdAt: anchor.createdAt as number,
+                creationTime: anchor.creationTime as number,
+              },
+            }
+          : {}),
+        ...(typeof page === "string" ? { page } : {}),
       };
     }
-  } catch {
-    return { mode: "index", cursor: null, pageOffset: 0 };
+    case "match": {
+      const anchor = parsed.anchor as Record<string, unknown> | undefined;
+      if (isFiniteNumber(anchor?.createdAt) && typeof anchor.id === "string") {
+        return {
+          mode: "match",
+          anchor: { createdAt: anchor.createdAt, id: anchor.id },
+        };
+      }
+      break;
+    }
+    case "offset":
+      if (isFiniteNumber(parsed.offset)) {
+        return { mode: "offset", offset: Math.max(0, parsed.offset) };
+      }
+      break;
+    case "index":
+      if (
+        (parsed.cursor === null || typeof parsed.cursor === "string") &&
+        isFiniteNumber(parsed.pageOffset)
+      ) {
+        return {
+          mode: "index",
+          cursor: parsed.cursor,
+          pageOffset: Math.max(0, parsed.pageOffset),
+        };
+      }
+      break;
+    default:
+      break;
   }
-
-  return { mode: "index", cursor: null, pageOffset: 0 };
+  throw invalidCursorError();
 };
+
+const matchAnchorOf = (card: Doc<"cards">): MatchAnchor => ({
+  createdAt: card.createdAt,
+  id: String(card._id),
+});
+
+const listAnchorOf = (card: Doc<"cards">): ListAnchor => ({
+  createdAt: card.createdAt,
+  creationTime: card._creationTime,
+});
+
+// True when `card` sorts strictly after `anchor` in the requested order.
+const isAfterMatchAnchor = (
+  card: Doc<"cards">,
+  anchor: MatchAnchor,
+  sort: ApiCardSort
+): boolean =>
+  compareCards(
+    card,
+    { createdAt: anchor.createdAt, _id: anchor.id as Id<"cards"> },
+    sort
+  ) > 0;
+
+// Full-text pages are cut from one fixed candidate set: the first
+// MAX_QUERY_SCAN + 1 matches by relevance, sorted by creation date. Every page
+// reads the same set, so pages never overlap or skip, whatever the page size.
+const SEARCH_CANDIDATE_LIMIT = MAX_QUERY_SCAN + 1;
 
 const searchCardsByQuery = async (
   ctx: QueryCtx,
   userId: TeakUserId,
-  options: SearchOptions,
-  offset: number
-): Promise<{ cards: Doc<"cards">[]; isComplete: boolean }> => {
+  options: SearchOptions
+): Promise<{ cards: Doc<"cards">[]; isTruncated: boolean }> => {
   const searchQuery = normalizeSearchText(options.searchQuery);
   if (!searchQuery) {
-    return { cards: [], isComplete: true };
+    return { cards: [], isTruncated: false };
   }
-
-  const limit = normalizeLimit(options.limit);
-  const desiredLimit = Math.min(MAX_QUERY_SCAN, offset + limit + 1);
-  const searchLimit = Math.max(
-    desiredLimit * SEARCH_MULTIPLIER,
-    desiredLimit + 20
-  );
 
   const typeGroups = options.types ?? [options.type];
   const scanBudget = { remaining: 4096, hitSearchLimit: false };
@@ -263,7 +372,7 @@ const searchCardsByQuery = async (
         isDeleted: options.showTrashOnly ? true : undefined,
         isFavorited: options.favorited,
         type,
-        limit: searchLimit,
+        limit: SEARCH_CANDIDATE_LIMIT,
         scanBudget,
         resultFilter: (card) => matchesStructuredFilters(card, options),
       })
@@ -275,27 +384,40 @@ const searchCardsByQuery = async (
 
   return {
     cards: sortCards(unique, normalizeSort(options.sort)),
-    isComplete: !scanBudget.hitSearchLimit,
+    isTruncated:
+      scanBudget.hitSearchLimit ||
+      found.some((group) => group.length >= SEARCH_CANDIDATE_LIMIT),
   };
 };
 
+/**
+ * Reads the tag page after `anchor`. Tag rows are read in (createdAt, card id)
+ * order, the same order compareCards uses, so each type group only needs the
+ * first `limit + 1` matches after the anchor.
+ */
 const searchCardsByTag = async (
   ctx: QueryCtx,
   userId: TeakUserId,
   options: SearchOptions,
-  offset: number
-): Promise<Doc<"cards">[]> => {
+  limit: number,
+  anchor: MatchAnchor | undefined
+): Promise<{ cards: Doc<"cards">[]; hasMore: boolean }> => {
   const tag = normalizeTag(options.tag);
   if (!tag) {
-    return [];
+    return { cards: [], hasMore: false };
   }
 
-  const limit = normalizeLimit(options.limit);
-  const desiredLimit = Math.min(MAX_QUERY_SCAN, offset + limit + 1);
-  const searchLimit = Math.max(
-    desiredLimit * SEARCH_MULTIPLIER,
-    desiredLimit + 20
-  );
+  const sort = normalizeSort(options.sort);
+  let createdAfter = options.createdAfter;
+  let createdBefore = options.createdBefore;
+  if (anchor && sort === "newest") {
+    createdBefore = Math.min(
+      createdBefore ?? anchor.createdAt,
+      anchor.createdAt
+    );
+  } else if (anchor) {
+    createdAfter = Math.max(createdAfter ?? anchor.createdAt, anchor.createdAt);
+  }
 
   const typeGroups = options.types ?? [options.type];
   const scanBudget = { remaining: 4096 };
@@ -307,27 +429,50 @@ const searchCardsByTag = async (
         isDeleted: options.showTrashOnly ? true : undefined,
         isFavorited: options.favorited,
         type,
-        createdAfter: options.createdAfter,
-        createdBefore: options.createdBefore,
-        limit: searchLimit,
+        createdAfter,
+        createdBefore,
+        limit: limit + 1,
         scanBudget,
-        sort: normalizeSort(options.sort),
-        resultFilter: (card) => matchesStructuredFilters(card, options),
+        sort,
+        resultFilter: (card) =>
+          matchesStructuredFilters(card, options) &&
+          (!anchor || isAfterMatchAnchor(card, anchor, sort)),
       })
     )
   );
-  const unique = Array.from(
-    new Map(found.flat().map((card) => [card._id, card] as const)).values()
+  const sorted = sortCards(
+    Array.from(
+      new Map(found.flat().map((card) => [card._id, card] as const)).values()
+    ),
+    sort
   );
-
-  return sortCards(unique, normalizeSort(options.sort));
+  return { cards: sorted.slice(0, limit), hasMore: sorted.length > limit };
 };
 
+// Date-filtered listings read the by_created index (createdAt order); the
+// others read indexes ordered by _creationTime.
+const usesCreatedAtOrder = (options: SearchOptions): boolean =>
+  !(
+    options.favorited !== undefined &&
+    options.createdAfter === undefined &&
+    options.createdBefore === undefined &&
+    options.type === undefined
+  ) &&
+  (options.createdAfter !== undefined || options.createdBefore !== undefined);
+
+/**
+ * Builds the listing query. With an anchor, the range starts at the anchor's
+ * position so a page resumes right after the last card returned, even when
+ * cards were added or removed in between.
+ */
 const createBaseQuery = (
   ctx: QueryCtx,
   userId: TeakUserId,
-  options: SearchOptions
+  options: SearchOptions,
+  anchor?: ListAnchor
 ) => {
+  const descending = normalizeSort(options.sort) === "newest";
+  const isDeleted = options.showTrashOnly ? true : undefined;
   if (
     options.favorited !== undefined &&
     options.createdAfter === undefined &&
@@ -336,62 +481,89 @@ const createBaseQuery = (
   ) {
     return ctx.db
       .query("cards")
-      .withIndex("by_user_favorites_deleted", (query) =>
-        query
+      .withIndex("by_user_favorites_deleted", (query) => {
+        const range = query
           .eq("userId", userId)
           .eq("isFavorited", options.favorited ? true : undefined)
-          .eq("isDeleted", options.showTrashOnly ? true : undefined)
-      );
+          .eq("isDeleted", isDeleted);
+        if (!anchor) {
+          return range;
+        }
+        return descending
+          ? range.lt("_creationTime", anchor.creationTime)
+          : range.gt("_creationTime", anchor.creationTime);
+      });
   }
 
-  if (
-    options.createdAfter !== undefined ||
-    options.createdBefore !== undefined
-  ) {
+  if (usesCreatedAtOrder(options)) {
+    // The anchor bound is inclusive here; cards that share its createdAt and
+    // come before it are skipped while reading (see isAtOrBeforeListAnchor).
+    let lower = options.createdAfter;
+    let upper =
+      options.createdBefore === undefined ? undefined : options.createdBefore;
+    if (anchor && descending) {
+      upper = Math.min(upper ?? anchor.createdAt, anchor.createdAt);
+    } else if (anchor) {
+      lower = Math.max(lower ?? anchor.createdAt, anchor.createdAt);
+    }
     return ctx.db.query("cards").withIndex("by_created", (query) => {
-      if (
-        options.createdAfter !== undefined &&
-        options.createdBefore !== undefined
-      ) {
-        return query
-          .eq("userId", userId)
-          .gte("createdAt", options.createdAfter)
-          .lt("createdAt", options.createdBefore + 1);
+      const byUser = query.eq("userId", userId);
+      if (lower !== undefined && upper !== undefined) {
+        return byUser.gte("createdAt", lower).lte("createdAt", upper);
       }
-
-      if (options.createdAfter !== undefined) {
-        return query
-          .eq("userId", userId)
-          .gte("createdAt", options.createdAfter);
+      if (lower !== undefined) {
+        return byUser.gte("createdAt", lower);
       }
-
-      if (options.createdBefore !== undefined) {
-        return query
-          .eq("userId", userId)
-          .lt("createdAt", options.createdBefore + 1);
+      if (upper !== undefined) {
+        return byUser.lte("createdAt", upper);
       }
-
-      return query.eq("userId", userId);
+      return byUser;
     });
   }
 
   if (options.type) {
     const cardType = options.type;
-    return ctx.db.query("cards").withIndex("by_user_type_deleted", (query) =>
-      query
+    return ctx.db.query("cards").withIndex("by_user_type_deleted", (query) => {
+      const range = query
         .eq("userId", userId)
         .eq("type", cardType)
-        .eq("isDeleted", options.showTrashOnly ? true : undefined)
-    );
+        .eq("isDeleted", isDeleted);
+      if (!anchor) {
+        return range;
+      }
+      return descending
+        ? range.lt("_creationTime", anchor.creationTime)
+        : range.gt("_creationTime", anchor.creationTime);
+    });
   }
 
-  return ctx.db
-    .query("cards")
-    .withIndex("by_user_deleted", (query) =>
-      query
-        .eq("userId", userId)
-        .eq("isDeleted", options.showTrashOnly ? true : undefined)
-    );
+  return ctx.db.query("cards").withIndex("by_user_deleted", (query) => {
+    const range = query.eq("userId", userId).eq("isDeleted", isDeleted);
+    if (!anchor) {
+      return range;
+    }
+    return descending
+      ? range.lt("_creationTime", anchor.creationTime)
+      : range.gt("_creationTime", anchor.creationTime);
+  });
+};
+
+// In createdAt order, cards sharing the anchor's createdAt are ordered by
+// _creationTime; those up to and including the anchor were already served.
+const isAtOrBeforeListAnchor = (
+  card: Doc<"cards">,
+  anchor: ListAnchor | undefined,
+  options: SearchOptions
+): boolean => {
+  if (!(anchor && usesCreatedAtOrder(options))) {
+    return false;
+  }
+  if (card.createdAt !== anchor.createdAt) {
+    return false;
+  }
+  return normalizeSort(options.sort) === "newest"
+    ? card._creationTime >= anchor.creationTime
+    : card._creationTime <= anchor.creationTime;
 };
 
 const scanCardsWithBaseQuery = async (
@@ -401,27 +573,46 @@ const scanCardsWithBaseQuery = async (
   decodedCursor: ApiCursor,
   scanLimit: number
 ) => {
+  if (decodedCursor.mode === "offset" || decodedCursor.mode === "match") {
+    throw invalidCursorError();
+  }
   const sort = normalizeSort(options.sort);
-  const pageCursor =
-    decodedCursor.mode === "index" ? decodedCursor.cursor : null;
+  const anchor =
+    decodedCursor.mode === "list" ? decodedCursor.anchor : undefined;
+  let pageCursor: string | null = null;
+  if (decodedCursor.mode === "list") {
+    pageCursor = decodedCursor.page ?? null;
+  } else if (decodedCursor.mode === "index") {
+    pageCursor = decodedCursor.cursor;
+  }
   const pageOffset =
     decodedCursor.mode === "index" ? decodedCursor.pageOffset : 0;
-  const page = await createBaseQuery(ctx, userId, options)
-    .order(sort === "oldest" ? "asc" : "desc")
-    .paginate({
-      cursor: pageCursor,
-      maximumRowsRead: scanLimit,
-      numItems: scanLimit,
-    });
+
+  let page: PaginationResult<Doc<"cards">>;
+  try {
+    page = await createBaseQuery(ctx, userId, options, anchor)
+      .order(sort === "oldest" ? "asc" : "desc")
+      .paginate({
+        cursor: pageCursor,
+        maximumRowsRead: scanLimit,
+        numItems: scanLimit,
+      });
+  } catch {
+    throw invalidCursorError();
+  }
   const matches: Doc<"cards">[] = [];
   const itemCursors: string[] = [];
   let filteredIndex = 0;
 
-  for (const card of page.page as Doc<"cards">[]) {
-    if (!matchesStructuredFilters(card, options)) {
+  for (const card of page.page) {
+    if (
+      isAtOrBeforeListAnchor(card, anchor, options) ||
+      !matchesStructuredFilters(card, options)
+    ) {
       continue;
     }
 
+    // Legacy offset cursors skip the matches they already served.
     if (filteredIndex < pageOffset) {
       filteredIndex += 1;
       continue;
@@ -430,11 +621,7 @@ const scanCardsWithBaseQuery = async (
     filteredIndex += 1;
     matches.push(card);
     itemCursors.push(
-      encodeCursor({
-        mode: "index",
-        cursor: pageCursor,
-        pageOffset: filteredIndex,
-      })
+      encodeCursor({ mode: "list", anchor: listAnchorOf(card) })
     );
   }
 
@@ -445,9 +632,9 @@ const scanCardsWithBaseQuery = async (
       page.isDone || !page.continueCursor
         ? null
         : encodeCursor({
-            mode: "index",
-            cursor: page.continueCursor,
-            pageOffset: 0,
+            mode: "list",
+            ...(anchor ? { anchor } : {}),
+            page: page.continueCursor,
           }),
     scannedRows: page.page.length,
   };
@@ -519,42 +706,69 @@ export const searchCardsPageForUser = internalQuery({
     const userId = await requireTeakUserId(ctx, args.userId);
     const options = normalizeCardsQueryOptions(args);
     const limit = normalizeLimit(options.limit);
+    const sort = normalizeSort(options.sort);
     const decodedCursor = decodeCursor(args.cursor);
+    if (decodedCursor.mode === "list" || decodedCursor.mode === "index") {
+      throw invalidCursorError();
+    }
+    const anchor =
+      decodedCursor.mode === "match" ? decodedCursor.anchor : undefined;
     let pageItems: Doc<"cards">[];
     let hasMore: boolean;
-    let nextCursor: string | null;
 
     if (options.searchQuery) {
-      const offset = decodedCursor.mode === "offset" ? decodedCursor.offset : 0;
-      const result = await searchCardsByQuery(ctx, userId, options, offset);
-      const sorted = result.cards;
-      pageItems = sorted.slice(offset, offset + limit);
-      hasMore = sorted.length > offset + limit;
-      if (!(hasMore || result.isComplete)) {
+      const result = await searchCardsByQuery(ctx, userId, options);
+      let remaining = result.cards;
+      if (decodedCursor.mode === "offset") {
+        remaining = remaining.slice(decodedCursor.offset);
+      } else if (anchor) {
+        remaining = remaining.filter((card) =>
+          isAfterMatchAnchor(card, anchor, sort)
+        );
+      }
+      pageItems = remaining.slice(0, limit);
+      hasMore = remaining.length > limit;
+      if (!hasMore && result.isTruncated) {
         throw new ConvexError({
           code: "INVALID_INPUT",
           message: "Search is too broad. Add a type or date filter.",
         });
       }
-      nextCursor = hasMore
-        ? encodeCursor({ mode: "offset", offset: offset + limit })
-        : null;
+    } else if (decodedCursor.mode === "offset") {
+      // Legacy offset cursor: read through the offset once, then continue
+      // with keyset cursors.
+      const result = await searchCardsByTag(
+        ctx,
+        userId,
+        options,
+        decodedCursor.offset + limit,
+        undefined
+      );
+      pageItems = result.cards.slice(decodedCursor.offset);
+      hasMore = result.hasMore;
     } else {
-      const offset = decodedCursor.mode === "offset" ? decodedCursor.offset : 0;
-      const sorted = await searchCardsByTag(ctx, userId, options, offset);
-      pageItems = sorted.slice(offset, offset + limit);
-      hasMore = sorted.length > offset + limit;
-      nextCursor = hasMore
-        ? encodeCursor({ mode: "offset", offset: offset + limit })
-        : null;
+      const result = await searchCardsByTag(
+        ctx,
+        userId,
+        options,
+        limit,
+        anchor
+      );
+      pageItems = result.cards;
+      hasMore = result.hasMore;
     }
 
+    const last = pageItems[pageItems.length - 1];
+    const nextCursor =
+      hasMore && last
+        ? encodeCursor({ mode: "match", anchor: matchAnchorOf(last) })
+        : null;
     const cardsWithUrls = await attachFileUrls(ctx, pageItems);
     return {
       items: applyQuoteFormattingToList(cardsWithUrls),
       pageInfo: {
         nextCursor,
-        hasMore,
+        hasMore: nextCursor !== null,
       },
     };
   },
@@ -599,42 +813,134 @@ export const scanCardsPageForUser = internalQuery({
   },
 });
 
+// Most tag-index rows one tag listing reads.
+const MAX_TAG_ROWS_READ = 8000;
+
+/**
+ * Lists the tags on cards outside Trash, with how many cards carry each,
+ * from the per-tag search index rather than the cards. Tags are the
+ * lowercase names `GET /v1/cards?tag=` matches, including tags Teak added.
+ * Reads at most MAX_TAG_ROWS_READ index rows; `isComplete` is false when a
+ * very large vault hits that bound.
+ */
 export const listTagsForUser = internalQuery({
   args: {
     userId: v.string(),
   },
-  returns: v.array(tagSummaryValidator),
+  returns: v.object({
+    items: v.array(tagSummaryValidator),
+    isComplete: v.boolean(),
+  }),
   handler: async (ctx, args) => {
     const userId = await requireTeakUserId(ctx, args.userId);
-    const cards = await ctx.db
-      .query("cards")
-      .withIndex("by_user_deleted", (query) =>
-        query.eq("userId", userId).eq("isDeleted", undefined)
-      )
-      .collect();
+    const counts: { name: string; count: number }[] = [];
+    let budget = MAX_TAG_ROWS_READ;
+    let isComplete = true;
+    let previousTag: string | undefined;
 
-    const counts = new Map<string, number>();
-    for (const card of cards) {
-      for (const tag of card.tags ?? []) {
-        const normalized = tag.trim();
-        if (!normalized) {
-          continue;
+    while (isComplete) {
+      // Seek to the next distinct tag name.
+      const afterTag = previousTag;
+      const next = await ctx.db
+        .query("cardSearchTags")
+        .withIndex("by_user_tag_deleted_created", (query) =>
+          afterTag === undefined
+            ? query.eq("userId", userId)
+            : query.eq("userId", userId).gt("tag", afterTag)
+        )
+        .first();
+      if (!next) {
+        break;
+      }
+      budget -= 1;
+      previousTag = next.tag;
+
+      let count = 0;
+      const activeRows = ctx.db
+        .query("cardSearchTags")
+        .withIndex("by_user_tag_deleted_created", (query) =>
+          query
+            .eq("userId", userId)
+            .eq("tag", next.tag)
+            .eq("isDeleted", undefined)
+        );
+      for await (const _row of activeRows) {
+        if (budget <= 0) {
+          isComplete = false;
+          break;
         }
-
-        counts.set(normalized, (counts.get(normalized) ?? 0) + 1);
+        budget -= 1;
+        count += 1;
+      }
+      if (count > 0) {
+        counts.push({ name: next.tag, count });
+      }
+      if (budget <= 0) {
+        isComplete = false;
       }
     }
 
-    return Array.from(counts.entries())
-      .map(([name, count]) => ({ name, count }))
-      .sort((left, right) => {
+    return {
+      items: counts.sort((left, right) => {
         if (left.count === right.count) {
           return left.name.localeCompare(right.name);
         }
         return right.count - left.count;
-      });
+      }),
+      isComplete,
+    };
   },
 });
+
+// Changes cursors walk changed cards first, then permanently deleted ones.
+type ChangesCursor =
+  | { phase: "cards"; cursor: string | null }
+  | { phase: "tombstones"; after?: TombstoneCursor };
+
+const encodeChangesCursor = (cursor: ChangesCursor): string =>
+  btoa(JSON.stringify({ v: 2, ...cursor }));
+
+const decodeChangesCursor = (cursor?: string): ChangesCursor => {
+  if (!cursor) {
+    return { phase: "cards", cursor: null };
+  }
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(atob(cursor));
+  } catch {
+    // Cursors issued before tombstones were raw card-page cursors.
+    return { phase: "cards", cursor };
+  }
+  const value = parsed as Record<string, unknown> | null;
+  if (value?.v !== 2) {
+    throw invalidCursorError();
+  }
+  if (
+    value.phase === "cards" &&
+    (value.cursor === null || typeof value.cursor === "string")
+  ) {
+    return { phase: "cards", cursor: value.cursor };
+  }
+  if (value.phase === "tombstones") {
+    const after = value.after as Record<string, unknown> | undefined;
+    if (after === undefined) {
+      return { phase: "tombstones" };
+    }
+    if (
+      typeof after?.deletedAt === "number" &&
+      typeof after.creationTime === "number"
+    ) {
+      return {
+        phase: "tombstones",
+        after: {
+          creationTime: after.creationTime,
+          deletedAt: after.deletedAt,
+        },
+      };
+    }
+  }
+  throw invalidCursorError();
+};
 
 export const listCardChangesForUser = internalQuery({
   args: {
@@ -647,34 +953,91 @@ export const listCardChangesForUser = internalQuery({
   handler: async (ctx, args) => {
     const userId = await requireTeakUserId(ctx, args.userId);
     const limit = normalizeLimit(args.limit);
-    const page = await ctx.db
-      .query("cards")
-      .withIndex("by_updated", (query) =>
-        query.eq("userId", userId).gte("updatedAt", args.since)
-      )
-      .order("asc")
-      .paginate({
-        cursor: args.cursor ?? null,
-        numItems: limit,
-      });
+    const decoded = decodeChangesCursor(args.cursor);
+    let activeCards: Doc<"cards">[] = [];
+    const deletedIds: Id<"cards">[] = [];
+    let tombstoneAfter: TombstoneCursor | undefined;
 
-    const activeCards = page.page.filter((card) => !card.isDeleted);
+    if (decoded.phase === "cards") {
+      let page: PaginationResult<Doc<"cards">>;
+      try {
+        page = await ctx.db
+          .query("cards")
+          .withIndex("by_updated", (query) =>
+            query.eq("userId", userId).gte("updatedAt", args.since)
+          )
+          .order("asc")
+          .paginate({ cursor: decoded.cursor, numItems: limit });
+      } catch {
+        throw invalidCursorError();
+      }
+      activeCards = page.page.filter((card) => !card.isDeleted);
+      for (const card of page.page) {
+        if (card.isDeleted) {
+          deletedIds.push(card._id);
+        }
+      }
+      if (!page.isDone) {
+        const cardsWithUrls = await attachFileUrls(ctx, activeCards);
+        return {
+          items: applyQuoteFormattingToList(cardsWithUrls),
+          deletedIds,
+          pageInfo: {
+            nextCursor: encodeChangesCursor({
+              phase: "cards",
+              cursor: page.continueCursor,
+            }),
+            hasMore: true,
+          },
+        };
+      }
+    } else {
+      tombstoneAfter = decoded.after;
+    }
+
+    // Cards are done: fill the rest of the page with permanent deletions.
+    const remaining = limit - activeCards.length - deletedIds.length;
+    let hasMore = false;
+    let nextCursor: string | null = null;
+    if (remaining <= 0) {
+      hasMore = true;
+      nextCursor = encodeChangesCursor({ phase: "tombstones" });
+    } else {
+      const tombstones = await listCardTombstonesSince(ctx, {
+        after: tombstoneAfter,
+        limit: remaining,
+        since: args.since,
+        userId,
+      });
+      for (const row of tombstones.rows) {
+        deletedIds.push(row.cardId);
+      }
+      const last = tombstones.rows[tombstones.rows.length - 1];
+      if (tombstones.hasMore && last) {
+        hasMore = true;
+        nextCursor = encodeChangesCursor({
+          phase: "tombstones",
+          after: {
+            creationTime: last._creationTime,
+            deletedAt: last.deletedAt,
+          },
+        });
+      }
+    }
+
     const cardsWithUrls = await attachFileUrls(ctx, activeCards);
     return {
       items: applyQuoteFormattingToList(cardsWithUrls),
-      deletedIds: page.page
-        .filter((card) => Boolean(card.isDeleted))
-        .map((card) => card._id),
-      pageInfo: {
-        nextCursor: page.isDone ? null : page.continueCursor,
-        hasMore: !page.isDone,
-      },
+      deletedIds,
+      pageInfo: { nextCursor, hasMore },
     };
   },
 });
 
 type BulkOperation = "create" | "update" | "favorite" | "delete";
 
+// Validates every field before writing and charges the reprocess limit once,
+// so a rejected item leaves its card untouched.
 const performBulkUpdate = async (
   ctx: MutationCtx,
   args: {
@@ -686,62 +1049,26 @@ const performBulkUpdate = async (
     tags?: string[];
   }
 ) => {
-  const requestedFields: Array<"content" | "url" | "notes" | "tags"> = [];
-  let shouldSchedulePipeline = false;
-
+  const edits: CardFieldEdit[] = [];
   if (args.content !== undefined) {
-    requestedFields.push("content");
+    edits.push({ field: "content", value: args.content });
   }
   if (args.url !== undefined) {
-    requestedFields.push("url");
+    edits.push({ field: "url", value: args.url });
   }
   if (args.notes !== undefined) {
-    requestedFields.push("notes");
+    edits.push({ field: "notes", value: args.notes });
   }
   if (args.tags !== undefined) {
-    requestedFields.push("tags");
+    edits.push({ field: "tags", value: args.tags });
   }
 
-  const valueForField = (field: "content" | "url" | "notes" | "tags") => {
-    if (field === "content") {
-      return args.content;
-    }
-    if (field === "url") {
-      return args.url;
-    }
-    if (field === "notes") {
-      return args.notes;
-    }
-    return args.tags;
-  };
-
-  // Pre-patch card lets the search sync skip the mutable tag-progress read
-  // when the edit leaves tags and filters unchanged.
-  const previousCard = await ctx.db.get("cards", args.cardId);
-
-  for (const field of requestedFields) {
-    const result = await updateCardFieldForUserHandler(
-      ctx,
-      {
-        userId: args.userId,
-        cardId: args.cardId,
-        field,
-        value: valueForField(field),
-      },
-      { deferPipelineSchedule: true, deferSearchSync: true }
-    );
-    shouldSchedulePipeline =
-      shouldSchedulePipeline || result.shouldSchedulePipeline;
-  }
-
-  await scheduleCardSearchSync(
+  const result = await updateCardFieldsForUserHandler(
     ctx,
-    args.cardId,
-    args.userId,
-    previousCard ?? undefined
+    { userId: args.userId, cardId: args.cardId, edits },
+    { deferPipelineSchedule: true }
   );
-
-  return shouldSchedulePipeline;
+  return result.shouldSchedulePipeline;
 };
 
 const assertBulkCreatePayload = (payload: Record<string, unknown>) => {
@@ -776,6 +1103,23 @@ const assertBulkCreatePayload = (payload: Record<string, unknown>) => {
       code: "INVALID_INPUT",
       message: "Each create item `url` must use the http or https scheme",
     });
+  }
+
+  const tags = Array.isArray(payload.tags)
+    ? payload.tags.filter((value): value is string => typeof value === "string")
+    : undefined;
+  const createError =
+    explainInvalidTags(tags) ??
+    (url
+      ? null
+      : explainCardTypeMismatch({
+          cardType: type,
+          content,
+          notes: typeof payload.notes === "string" ? payload.notes : undefined,
+          tags,
+        }));
+  if (createError) {
+    throw new ConvexError({ code: "INVALID_INPUT", message: createError });
   }
 };
 
@@ -869,6 +1213,19 @@ export const executeBulkCardsForUser = internalMutation({
                 message: "Each update item must include a valid `cardId`",
               });
             }
+            const tagError = explainInvalidTags(
+              Array.isArray(payload.tags)
+                ? payload.tags.filter(
+                    (value): value is string => typeof value === "string"
+                  )
+                : undefined
+            );
+            if (tagError) {
+              throw new ConvexError({
+                code: "INVALID_INPUT",
+                message: tagError,
+              });
+            }
 
             const shouldSchedulePipeline = await performBulkUpdate(ctx, {
               userId,
@@ -952,16 +1309,21 @@ export const executeBulkCardsForUser = internalMutation({
         succeeded += 1;
       } catch (error) {
         let message = "Bulk operation failed";
-        let code: string | undefined;
+        let code = "INTERNAL_ERROR";
         if (
           error instanceof ConvexError &&
           typeof error.data?.message === "string"
         ) {
           message = error.data.message;
           code =
-            typeof error.data.code === "string" ? error.data.code : undefined;
+            typeof error.data.code === "string"
+              ? error.data.code
+              : "BAD_REQUEST";
         } else if (error instanceof Error) {
           message = error.message;
+          if (error instanceof UnsafeUrlError) {
+            code = "INVALID_INPUT";
+          }
         }
 
         results.push({

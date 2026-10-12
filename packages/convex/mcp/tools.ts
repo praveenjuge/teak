@@ -69,10 +69,7 @@ const cardFiltersShape = {
   include: z.array(includeSchema).optional(),
 };
 const listCardsInputSchema = z.object(cardFiltersShape);
-const queryInputSchema = z.object({
-  ...cardFiltersShape,
-  limit: z.number().int().optional(),
-});
+const queryInputSchema = listCardsInputSchema;
 const duplicateInputSchema = z.object({ url: nonEmptyString });
 
 const getCardChangesInputSchema = z.object({
@@ -407,20 +404,14 @@ export const TEAK_V1_TOOLS = [
     description:
       "Search cards by text with the same filters as list_cards. Returns { items, total, pageInfo }; pass pageInfo.nextCursor as cursor for more.",
     annotations: { title: "Search cards", ...READ_ONLY },
-    inputSchema: inputSchema({
-      ...cardFilterProperties,
-      limit: { type: "integer" },
-    }),
+    inputSchema: inputSchema(cardFilterProperties),
   },
   {
     name: "teak_v1_list_favorite_cards",
     description:
       "List favorited cards, optionally filtered by text and the list_cards filters.",
     annotations: { title: "List favorites", ...READ_ONLY },
-    inputSchema: inputSchema({
-      ...cardFilterProperties,
-      limit: { type: "integer" },
-    }),
+    inputSchema: inputSchema(cardFilterProperties),
   },
   {
     name: "teak_v1_update_card",
@@ -578,8 +569,11 @@ const instrumentToolHandler =
         const structured = result.structuredContent as
           | { status?: unknown }
           | undefined;
+        // A partial bulk failure has no HTTP status of its own.
         status =
-          typeof structured?.status === "number" ? structured.status : 500;
+          typeof structured?.status === "number"
+            ? structured.status
+            : undefined;
         outcome = status === 401 ? "unauthorized" : "error";
       }
       return result;
@@ -634,6 +628,8 @@ const executeToolOperation = async (
 };
 
 interface ToolConfig {
+  /** Marks a successful HTTP response as a tool error, e.g. failed bulk items. */
+  isError?: (payload: JsonObject) => boolean;
   operation: (input: any) => PublicApiToolOperation;
   schema: z.ZodTypeAny;
   summary: (payload: JsonObject, input: any) => string;
@@ -642,6 +638,15 @@ interface ToolConfig {
 
 const count = (payload: JsonObject, field = "items"): number =>
   Array.isArray(payload[field]) ? payload[field].length : 0;
+
+const bulkSummary = (payload: JsonObject) => {
+  const summary = toObjectPayload(payload.summary);
+  return {
+    failed: Number(summary.failed) || 0,
+    succeeded: Number(summary.succeeded) || 0,
+    total: Number(summary.total) || 0,
+  };
+};
 
 const cardPath = (id: string): string => `/v1/cards/${encodeURIComponent(id)}`;
 // Search-style tools query the card list endpoint. The list returns full cards
@@ -787,7 +792,25 @@ const toolConfigs: Record<string, ToolConfig> = {
       body: { operation: input.operation, items: input.items },
       headers: idempotencyHeaders(input.idempotencyKey),
     }),
-    summary: (_payload, input) => `Bulk ${input.operation} complete`,
+    isError: (payload) => bulkSummary(payload).failed > 0,
+    summary: (payload, input) => {
+      const { failed, succeeded, total } = bulkSummary(payload);
+      if (failed === 0) {
+        return `Bulk ${input.operation} complete: ${succeeded} of ${total} succeeded`;
+      }
+      const failures = (Array.isArray(payload.results) ? payload.results : [])
+        .map(toObjectPayload)
+        .filter((item) => item.status === "error")
+        .slice(0, 10)
+        .map(
+          (item) =>
+            `item ${String(item.index)}: ${typeof item.code === "string" ? `${item.code}: ` : ""}${String(item.error ?? "failed")}`
+        );
+      return [
+        `Bulk ${input.operation}: ${failed} of ${total} items failed.`,
+        ...failures,
+      ].join("\n");
+    },
   },
   teak_v1_create_upload: {
     schema: createUploadInputSchema,
@@ -856,8 +879,17 @@ const buildToolHandler = (name: string, executor: PublicApiToolExecutor) =>
     }
     const payload =
       config.transform?.(result.payload, parsed.data) ?? result.payload;
-    return successResult(payload, config.summary(payload, parsed.data));
+    const toolResult = successResult(
+      payload,
+      config.summary(payload, parsed.data)
+    );
+    return config.isError?.(payload)
+      ? { ...toolResult, isError: true }
+      : toolResult;
   });
+
+export const isTeakV1Tool = (name: string): boolean =>
+  Object.keys(toolConfigs).includes(name);
 
 const toolHandlers = (executor: PublicApiToolExecutor) =>
   Object.fromEntries(

@@ -3,9 +3,8 @@ import { convexTest } from "convex-test";
 import { afterEach, describe, expect, test, vi } from "vitest";
 import { internal } from "./_generated/api";
 import type { Doc } from "./_generated/dataModel";
-import schema from "./schema";
-import { archiveCardHandler } from "./storage/rawMetadataMaintenance";
 import type { ActionCtx } from "./_generated/server";
+import schema from "./schema";
 import { cardStorageObjectKeys } from "./storage/r2";
 import {
   copyAndVerifyRaw,
@@ -14,6 +13,7 @@ import {
   rawMetadataKey,
   serializeRawMetadata,
 } from "./storage/rawMetadata";
+import { archiveCardHandler } from "./storage/rawMetadataMaintenance";
 
 const modules = import.meta.glob("./**/*.ts");
 afterEach(() => {
@@ -24,7 +24,13 @@ afterEach(() => {
 
 const setup = async () => {
   const t = convexTest(schema, modules);
-  await t.run(ctx => ctx.db.insert("users", { teakUserId: "archive-test-user", email: "archive@example.com", emailVerified: true }));
+  await t.run((ctx) =>
+    ctx.db.insert("users", {
+      teakUserId: "archive-test-user",
+      email: "archive@example.com",
+      emailVerified: true,
+    })
+  );
   const cardId = await t.run((ctx) =>
     ctx.db.insert("cards", {
       userId: "archive-test-user",
@@ -150,21 +156,25 @@ describe("raw metadata archival", () => {
       metadata: card.metadata,
     };
     const objects = new Map<string, Uint8Array>();
-    const fetchMock = vi.fn(async (url: string, init?: RequestInit) => {
+    const fetchMock = vi.fn((url: string, init?: RequestInit) => {
       const path = new URL(url).pathname;
       if (init?.method === "PUT") {
         const key = decodeURIComponent(path.replace("/__upload/v1/", ""));
         const bytes = init.body as Uint8Array;
         objects.set(key, bytes);
-        return Response.json({
-          ok: true,
-          data: { etag: "etag", key, size: bytes.byteLength },
-        });
+        return Promise.resolve(
+          Response.json({
+            ok: true,
+            data: { etag: "etag", key, size: bytes.byteLength },
+          })
+        );
       }
       const bytes = objects.get(path.slice(1));
-      return bytes
-        ? new Response(new Uint8Array(bytes))
-        : new Response("missing", { status: 404 });
+      return Promise.resolve(
+        bytes
+          ? new Response(new Uint8Array(bytes))
+          : new Response("missing", { status: 404 })
+      );
     });
     vi.stubGlobal("fetch", fetchMock);
     const retry = vi.fn(
@@ -172,11 +182,11 @@ describe("raw metadata archival", () => {
     );
     const ctx = {
       runQuery: vi.fn(async () => archiveCard),
-      runMutation: vi.fn(async (_fn: unknown, commitArgs: { kind: string }) => {
-        if (commitArgs.kind === "linkPreview")
-          throw new Error("cleanup enqueue unavailable");
-        return true;
-      }),
+      runMutation: vi.fn((_fn: unknown, commitArgs: { kind: string }) =>
+        commitArgs.kind === "linkPreview"
+          ? Promise.reject(new Error("cleanup enqueue unavailable"))
+          : Promise.resolve(true)
+      ),
       scheduler: { runAfter: retry },
     } as unknown as ActionCtx;
     await expect(archiveCardHandler(ctx, { cardId })).rejects.toThrow(

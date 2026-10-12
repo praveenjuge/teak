@@ -4,6 +4,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 
 const convexReact = await import("convex/react");
 let importQueryResult: unknown = null;
+let failureSamplesResult: unknown;
 mock.module("convex/react", () => ({
   ...convexReact,
   useAction: () => mock(),
@@ -14,7 +15,11 @@ mock.module("../../../convexQueryHooks", () => ({
     results: [],
     status: "Exhausted",
   }),
-  useQuery: () => importQueryResult,
+  // getImportFailureSamples is the only import query that takes a job id.
+  useQuery: (_query: unknown, args?: unknown) =>
+    args && typeof args === "object" && "jobId" in args
+      ? failureSamplesResult
+      : importQueryResult,
 }));
 mock.module("../../ui/button", () => ({
   Button: ({ children, ...props }: any) =>
@@ -148,6 +153,39 @@ describe("ImportPanel", () => {
       );
     } finally {
       importQueryResult = null;
+    }
+  });
+
+  test("explains why each failed item could not be imported", () => {
+    importQueryResult = {
+      id: "job",
+      mode: "bookmarks",
+      status: "completed",
+      createdCount: 1,
+      failedCount: 1,
+      reportAvailable: true,
+      parsedCount: 2,
+      phase: "Import complete",
+      processedCount: 2,
+      skippedCount: 0,
+      updatedAt: 0,
+    };
+    failureSamplesResult = [
+      {
+        item: "Run me",
+        reason: "Bookmark URL is unsafe",
+        sourceIndex: 1,
+      },
+    ];
+    try {
+      const markup = renderImportPanel();
+      expect(markup).toContain("1 failed");
+      expect(markup).toContain("Items that couldn&#x27;t be imported");
+      expect(markup).toContain("Run me");
+      expect(markup).toContain("Bookmark URL is unsafe");
+    } finally {
+      importQueryResult = null;
+      failureSamplesResult = undefined;
     }
   });
 

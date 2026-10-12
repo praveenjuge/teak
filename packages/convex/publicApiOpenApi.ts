@@ -1,5 +1,6 @@
 import { env, httpAction } from "./_generated/server";
 import { resolveTeakDevApiUrl } from "./devUrls";
+import { MAX_TAG_LENGTH } from "./publicApiHttpShared";
 import { withPublicApiGatewayHeaders } from "./publicApiMeta";
 import { MAX_CARD_TITLE_LENGTH } from "./shared/cardTitle";
 
@@ -15,6 +16,10 @@ const CARD_TYPES = [
 ] as const;
 const CARD_SORTS = ["newest", "oldest"] as const;
 const apiKeySecurity = [{ bearerAuth: [] }];
+const tagListSchema = {
+  items: { maxLength: MAX_TAG_LENGTH, type: "string" },
+  type: "array",
+} as const;
 
 const cardProperties = {
   aiSummary: { type: ["string", "null"] },
@@ -211,7 +216,11 @@ const components = {
     CardPageInfo: {
       properties: {
         hasMore: { type: "boolean" },
-        nextCursor: { type: ["string", "null"] },
+        nextCursor: {
+          description:
+            "Opaque cursor for the next page, or null on the last page. Pages resume after the last item returned, so cards added or removed between requests never repeat or skip items. Pass it back unchanged with the same filters; an invalid cursor returns 400.",
+          type: ["string", "null"],
+        },
       },
       required: ["hasMore", "nextCursor"],
       type: "object",
@@ -220,7 +229,7 @@ const components = {
       properties: {
         cardType: {
           description:
-            "Optional explicit card type. Text content is stored as raw Markdown without normalization. When omitted, Teak keeps automatic URL, quote, and palette classification. Uploaded file types are inferred from fileName and mimeType.",
+            "Optional explicit card type. Text content is stored as raw Markdown without normalization. When omitted, Teak keeps automatic URL, quote, and palette classification. Uploaded file types are inferred from fileName and mimeType. image, video, audio, and document need an uploaded file (fileKey); palette needs at least one readable color in content, notes, or tags.",
           enum: CARD_TYPES,
           type: "string",
         },
@@ -242,7 +251,7 @@ const components = {
         mimeType: { type: "string" },
         notes: { type: ["string", "null"] },
         source: { type: "string" },
-        tags: { items: { type: "string" }, type: "array" },
+        tags: tagListSchema,
         url: { type: "string" },
       },
       type: "object",
@@ -278,6 +287,8 @@ const components = {
       type: "object",
     },
     BulkCardsRequest: {
+      description:
+        "Bulk operations do not accept `permanent`; permanently delete cards in Trash one at a time with DELETE /v1/cards/{cardId}?permanent=true.",
       properties: {
         items: {
           items: { additionalProperties: true, type: "object" },
@@ -298,6 +309,8 @@ const components = {
           type: "string",
         },
         results: {
+          description:
+            'One result per item, in order: { index, status: "success", cardId } or { index, status: "error", code, error }. An item that fails changes nothing.',
           items: { additionalProperties: true, type: "object" },
           type: "array",
         },
@@ -327,7 +340,12 @@ const components = {
     },
     CardChangesResponse: {
       properties: {
-        deletedIds: { items: { type: "string" }, type: "array" },
+        deletedIds: {
+          description:
+            "Cards moved to Trash or permanently deleted since `since`. Permanent deletions are reported for 90 days.",
+          items: { type: "string" },
+          type: "array",
+        },
         items: { items: { $ref: "#/components/schemas/Card" }, type: "array" },
         pageInfo: { $ref: "#/components/schemas/CardPageInfo" },
       },
@@ -343,7 +361,7 @@ const components = {
           type: "string",
         },
         metadataTitle: {
-          description: `Replacement title, trimmed to at most ${MAX_CARD_TITLE_LENGTH} characters after trimming. Null or a blank string clears it.`,
+          description: `Replacement title. Whitespace is trimmed and a longer title is cut to ${MAX_CARD_TITLE_LENGTH} characters. Null or a blank string clears it.`,
           type: ["string", "null"],
         },
         notes: { type: ["string", "null"] },
@@ -354,9 +372,8 @@ const components = {
           type: "array",
         },
         tags: {
+          ...tagListSchema,
           description: "Replaces the card's own tags.",
-          items: { type: "string" },
-          type: "array",
         },
         url: { type: "string" },
       },
@@ -416,12 +433,19 @@ const components = {
     },
     TagsResponse: {
       properties: {
+        isComplete: {
+          description:
+            "False when a very large library reached the listing's read limit and some tags or counts are missing.",
+          type: "boolean",
+        },
         items: {
+          description:
+            "Lowercase tag names on cards outside Trash, including tags Teak added, with the number of cards that have each. Any name works as the `tag` filter on GET /v1/cards.",
           items: { $ref: "#/components/schemas/TagSummary" },
           type: "array",
         },
       },
-      required: ["items"],
+      required: ["isComplete", "items"],
       type: "object",
     },
     HealthResponse: {
@@ -475,7 +499,8 @@ export const openApiSpec = {
   info: {
     title: "Teak API",
     version: "v1",
-    description: "Public API for creating, querying, and syncing Teak cards.",
+    description:
+      "Public API for creating, querying, and syncing Teak cards. A 429 response carries Retry-After, RateLimit-Remaining, and RateLimit-Reset in seconds, plus RateLimit-Limit when the limit is known. A 503 SERVICE_UNAVAILABLE response means the service was briefly busy; retry after its Retry-After seconds.",
   },
   servers: [
     { url: "https://teakvault.com/api" },
@@ -856,7 +881,7 @@ export const openApiSpec = {
             name: "permanent",
             schema: { type: "boolean" },
             description:
-              "Permanently remove the card and its files when true; otherwise move it to Trash.",
+              "Permanently remove a card that is already in Trash, and its files, when true; otherwise move the card to Trash.",
           },
           {
             in: "path",
@@ -867,6 +892,11 @@ export const openApiSpec = {
         ],
         responses: {
           204: { description: "Card deleted" },
+          404: { description: "Card not found" },
+          409: {
+            description:
+              "NOT_IN_TRASH: permanent deletes need the card in Trash first",
+          },
         },
         security: apiKeySecurity,
         operationId: "deleteCard",

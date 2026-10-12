@@ -3,6 +3,7 @@
 import { describe, expect, mock, test } from "bun:test";
 import { ConvexError } from "convex/values";
 import { createCardV1, createUploadV1 } from "../publicApiHttp";
+import { mapConvexErrorToResponse } from "../publicApiHttpShared";
 import { MAX_FILE_SIZE } from "../shared/constants";
 import {
   buildAuthorizedMutationMock,
@@ -73,6 +74,128 @@ describe("publicApiHttp create endpoints", () => {
     const payload = await response.json();
     expect(payload.code).toBe("RATE_LIMITED");
     expect(typeof payload.retryAt).toBe("number");
+  });
+
+  test("createCardV1 still returns the new card when storing its idempotent response fails", async () => {
+    const completions: unknown[] = [];
+    const runMutation = mock((_ref: unknown, args: any) => {
+      if (args?.token) {
+        return Promise.resolve({
+          keyId: "key_1",
+          userId: "user_1",
+          access: "full_access",
+          source: "component",
+          rateLimitKey: "component:key_1",
+          rateLimit: { ok: true },
+        });
+      }
+      if (args?.method === "POST") {
+        return Promise.resolve({ status: "started", record: {} });
+      }
+      if (args?.outcome) {
+        return Promise.resolve(null);
+      }
+      if (args?.responseBody) {
+        completions.push(args);
+        return Promise.reject(new Error("transient write failure"));
+      }
+      return Promise.resolve({ status: "created", cardId: "card_1" });
+    });
+    const runAfter = mock().mockResolvedValue(null);
+
+    const response = await runHandler(
+      createCardV1,
+      { runMutation, runQuery: mock(), scheduler: { runAfter } },
+      new Request("https://example.com/v1/cards", {
+        method: "POST",
+        headers: {
+          Authorization:
+            "Bearer teakapi_secret_live_a1b2c3d4_ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+          "Content-Type": "application/json",
+          "Idempotency-Key": "retry-me",
+        },
+        body: JSON.stringify({ content: "hello" }),
+      })
+    );
+
+    expect(response.status).toBe(200);
+    expect(await response.json()).toMatchObject({ cardId: "card_1" });
+    // Retried in place, then handed to the scheduler so the key completes.
+    expect(completions).toHaveLength(3);
+    expect(runAfter).toHaveBeenCalledTimes(1);
+    expect(runAfter.mock.calls[0][2]).toMatchObject({
+      responseBody: { cardId: "card_1" },
+      responseStatus: 200,
+    });
+  });
+
+  test("an auth write race on another table is a retryable 503, not a 500", async () => {
+    const runMutation = mock().mockRejectedValueOnce(
+      new Error(
+        'Documents read from or written to the "counters" table changed while this mutation was being run and on every subsequent retry.'
+      )
+    );
+    const response = await runHandler(
+      createCardV1,
+      { runMutation, runQuery: mock() },
+      new Request("https://example.com/v1/cards", {
+        method: "POST",
+        headers: {
+          Authorization:
+            "Bearer teakapi_secret_live_a1b2c3d4_ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ content: "hello" }),
+      })
+    );
+    expect(response.status).toBe(503);
+    expect(response.headers.get("Retry-After")).toBe("1");
+    expect(await response.json()).toMatchObject({
+      code: "SERVICE_UNAVAILABLE",
+    });
+  });
+
+  test("a 429 states the request limit and resets in seconds", async () => {
+    const runMutation = mock().mockResolvedValueOnce({
+      keyId: "key_1",
+      userId: "user_1",
+      access: "full_access",
+      source: "component",
+      rateLimitKey: "component:key_1",
+      rateLimit: { ok: false, retryAt: Date.now() + 30_000 },
+    });
+    const response = await runHandler(
+      createCardV1,
+      { runMutation, runQuery: mock() },
+      new Request("https://example.com/v1/cards", {
+        method: "POST",
+        headers: {
+          Authorization:
+            "Bearer teakapi_secret_live_a1b2c3d4_ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ content: "hello" }),
+      })
+    );
+    expect(response.status).toBe(429);
+    expect(response.headers.get("RateLimit-Limit")).toBe("120");
+    expect(response.headers.get("RateLimit-Reset")).toBe("30");
+    expect(response.headers.get("Retry-After")).toBe("30");
+  });
+
+  test("a per-card reprocess limit reports its own limit", () => {
+    const response = mapConvexErrorToResponse(
+      new ConvexError({
+        code: "RATE_LIMITED",
+        message: "This card is already queued for reprocessing",
+        limit: 1,
+        retryAt: Date.now() + 5000,
+      }),
+      "Failed to update card"
+    );
+    expect(response.status).toBe(429);
+    expect(response.headers.get("RateLimit-Limit")).toBe("1");
+    expect(response.headers.get("RateLimit-Reset")).toBe("5");
   });
 
   test("createCardV1 maps rate limit contention errors to 429", async () => {

@@ -5,6 +5,7 @@ import {
   mergeCardsIntoLocalSearchCache,
   mergeLocalAndRemoteSearchResults,
   parseTimeSearchQuery,
+  pruneCardsMissingFromRemote,
   resolveQuickSearchCommand,
   SEARCH_LOCAL_SEARCH_CACHE_LIMIT,
   type TimeFilter,
@@ -15,7 +16,7 @@ import type {
   VisualStyle,
 } from "@teak/convex/shared/constants";
 import type { KeyboardEvent as ReactKeyboardEvent } from "react";
-import { useCallback, useDeferredValue, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { SearchBarProps } from "../components/search";
 
 export interface CardsSearchState {
@@ -46,6 +47,12 @@ export interface UseCardsSearchControllerOptions {
   weekStart?: 0 | 1;
 }
 
+/**
+ * How long typing must pause before the remote search query changes. Local
+ * results from the search cache still update on every keystroke.
+ */
+export const REMOTE_SEARCH_DEBOUNCE_MS = 200;
+
 export interface UseCardsSearchControllerResult {
   addFilter: (filter: CardType) => void;
   addKeywordTag: (keyword: string) => void;
@@ -56,13 +63,23 @@ export interface UseCardsSearchControllerResult {
   hasNoFilters: boolean;
   hexFilters: string[];
   hueFilters: ColorHueBucket[];
+  /** True while typed text waits for the debounce before querying remotely. */
+  isSearchPending: boolean;
   keywordTags: string[];
   queryArgs: CardsSearchQueryArgs;
   resetKey: string;
   searchBarProps: Omit<SearchBarProps, "SettingsButton">;
   searchQuery: string;
   searchTerms: string;
-  setRemoteCards: (cards: Doc<"cards">[] | undefined) => void;
+  /**
+   * Feed the latest remote results into the controller. Pass the key of the
+   * query that produced them (e.g. `JSON.stringify(queryArgs)`) so cards the
+   * same query stops returning (deleted elsewhere) leave the local cache.
+   */
+  setRemoteCards: (
+    cards: Doc<"cards">[] | undefined,
+    remoteQueryKey?: string
+  ) => void;
   setTimeFilter: (timeFilter: TimeFilter | null) => void;
   showFavoritesOnly: boolean;
   showTrashOnly: boolean;
@@ -337,18 +354,35 @@ export function useCardsSearchController(
   const [searchState, setSearchState] = useState(createInitialCardsSearchState);
   const [remoteCards, setRemoteCardsState] = useState<Doc<"cards">[]>([]);
   const [localCards, setLocalCards] = useState<Doc<"cards">[]>([]);
+  const lastRemoteResultRef = useRef<{
+    ids: ReadonlySet<string>;
+    key: string;
+  } | null>(null);
 
   const setRemoteCards = useCallback(
-    (cards: Doc<"cards">[] | undefined) => {
+    (cards: Doc<"cards">[] | undefined, remoteQueryKey?: string) => {
       const nextCards = cards ?? [];
       setRemoteCardsState(nextCards);
 
-      if (nextCards.length === 0) {
-        return;
-      }
+      const previousResult = lastRemoteResultRef.current;
+      const previousRemoteIds =
+        remoteQueryKey !== undefined && previousResult?.key === remoteQueryKey
+          ? previousResult.ids
+          : new Set<string>();
+      lastRemoteResultRef.current =
+        remoteQueryKey === undefined
+          ? null
+          : {
+              ids: new Set(nextCards.map((card) => card._id)),
+              key: remoteQueryKey,
+            };
 
       setLocalCards((prev) =>
-        mergeCardsIntoLocalSearchCache(prev, nextCards, localSearchCacheLimit)
+        mergeCardsIntoLocalSearchCache(
+          pruneCardsMissingFromRemote(prev, previousRemoteIds, nextCards),
+          nextCards,
+          localSearchCacheLimit
+        )
       );
     },
     [localSearchCacheLimit]
@@ -368,15 +402,36 @@ export function useCardsSearchController(
     [searchState]
   );
 
-  const deferredSearchQuery = useDeferredValue(searchState.searchQuery);
+  const [debouncedSearchQuery, setDebouncedSearchQuery] = useState(
+    searchState.searchQuery
+  );
+  const isSearchQueryEmpty = searchState.searchQuery.trim() === "";
+
+  useEffect(() => {
+    if (isSearchQueryEmpty) {
+      setDebouncedSearchQuery(searchState.searchQuery);
+      return;
+    }
+
+    const timeout = setTimeout(
+      () => setDebouncedSearchQuery(searchState.searchQuery),
+      REMOTE_SEARCH_DEBOUNCE_MS
+    );
+    return () => clearTimeout(timeout);
+  }, [isSearchQueryEmpty, searchState.searchQuery]);
+
+  // Clearing the input (or turning it into a chip on Enter) applies at once.
+  const remoteSearchQuery = isSearchQueryEmpty
+    ? searchState.searchQuery
+    : debouncedSearchQuery;
 
   const queryArgs = useMemo(
     () =>
       buildCardsSearchQueryArgs({
         ...searchState,
-        searchQuery: deferredSearchQuery,
+        searchQuery: remoteSearchQuery,
       }),
-    [deferredSearchQuery, searchState]
+    [remoteSearchQuery, searchState]
   );
 
   const hasActiveSearch = useMemo(
@@ -415,22 +470,18 @@ export function useCardsSearchController(
     });
   }, [hasActiveSearch, remoteCards, searchState, searchTerms]);
 
-  const suppressRemoteCards =
-    hasActiveSearch && deferredSearchQuery !== searchState.searchQuery;
+  // While typing pauses are pending, the previous remote results stay on
+  // screen, narrowed to the current terms above, next to instant local hits.
+  const isSearchPending = remoteSearchQuery !== searchState.searchQuery;
 
   const displayCards = useMemo(
     () =>
       mergeLocalAndRemoteSearchResults(
-        suppressRemoteCards ? [] : remoteSearchResults,
+        remoteSearchResults,
         localSearchResults,
         hasActiveSearch
       ),
-    [
-      hasActiveSearch,
-      localSearchResults,
-      remoteSearchResults,
-      suppressRemoteCards,
-    ]
+    [hasActiveSearch, localSearchResults, remoteSearchResults]
   );
 
   const resetKey = useMemo(
@@ -581,6 +632,7 @@ export function useCardsSearchController(
     queryArgs,
     hasActiveSearch,
     displayCards,
+    isSearchPending,
     resetKey,
     hasNoFilters,
     setRemoteCards,

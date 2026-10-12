@@ -962,7 +962,12 @@ describe("OCC contention behavior", () => {
       await syncCardSearchDocumentHandler(ctx, cardId);
 
       // First batch step processes one page and leaves the chain mid-flight.
-      const first = await syncCardSearchTagsBatchHandler(ctx, cardId, undefined, 1);
+      const first = await syncCardSearchTagsBatchHandler(
+        ctx,
+        cardId,
+        undefined,
+        1
+      );
       expect(first).toEqual({ complete: false, processed: 32, writes: 32 });
 
       // A newer restart lands before the next scheduled step runs.
@@ -1001,7 +1006,9 @@ describe("OCC contention behavior", () => {
           undefined,
           2
         );
-        if (step.complete) break;
+        if (step.complete) {
+          break;
+        }
       }
       const finished = await ctx.db
         .query("cardSearchTagSyncStates")
@@ -1061,7 +1068,7 @@ describe("OCC contention behavior", () => {
       // Change the card without a restart; the snapshot keeps the old view.
       await ctx.db.patch("cards", cardId, {
         tags: ["gamma"],
-        updatedAt: 12345,
+        updatedAt: 12_345,
       });
 
       for (let attempt = 0; attempt < 10; attempt += 1) {
@@ -1071,11 +1078,13 @@ describe("OCC contention behavior", () => {
           undefined,
           1
         );
-        if (step.complete) break;
+        if (step.complete) {
+          break;
+        }
       }
-      const snapshotTags = (
-        await ctx.db.query("cardSearchTags").collect()
-      ).map((tag) => tag.tag);
+      const snapshotTags = (await ctx.db.query("cardSearchTags").collect()).map(
+        (tag) => tag.tag
+      );
       expect(snapshotTags.sort()).toEqual(["alpha", "beta"]);
 
       // The next document sync restarts with a fresh snapshot.
@@ -1087,11 +1096,13 @@ describe("OCC contention behavior", () => {
           undefined,
           2
         );
-        if (step.complete) break;
+        if (step.complete) {
+          break;
+        }
       }
-      const resynced = (
-        await ctx.db.query("cardSearchTags").collect()
-      ).map((tag) => tag.tag);
+      const resynced = (await ctx.db.query("cardSearchTags").collect()).map(
+        (tag) => tag.tag
+      );
       expect(resynced).toEqual(["gamma"]);
     });
   });
@@ -1117,9 +1128,9 @@ describe("OCC contention behavior", () => {
         1
       );
       expect(result.writes).toBe(1);
-      const tags = (
-        await ctx.db.query("cardSearchTags").collect()
-      ).map((tag) => tag.tag);
+      const tags = (await ctx.db.query("cardSearchTags").collect()).map(
+        (tag) => tag.tag
+      );
       expect(tags).toEqual(["delta"]);
     });
   });
@@ -1135,7 +1146,13 @@ describe("OCC contention behavior", () => {
       expect(await ctx.db.query("cardSearchTags").collect()).toHaveLength(1);
 
       await ctx.db.delete("cards", cardId);
-      await restartCardSearchTagSync(ctx, cardId, undefined, "user-deleted", null);
+      await restartCardSearchTagSync(
+        ctx,
+        cardId,
+        undefined,
+        "user-deleted",
+        null
+      );
 
       // Snapshot cleared: the batch takes the deleted-card path and prunes.
       await drainCardSearchTagSync(ctx, cardId);

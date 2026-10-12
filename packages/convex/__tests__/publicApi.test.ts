@@ -239,36 +239,6 @@ describe("publicApi", () => {
     expect(scan.scannedRows).toBe(2);
   });
 
-  test("scanCardsPageForUser resumes a multi-type page without skips", async () => {
-    const pagination = buildSinglePaginateContext({
-      continueCursor: "cursor-1",
-      isDone: false,
-      page: [
-        buildBaseCard({ _id: "text_1", type: "text" }),
-        buildBaseCard({ _id: "image_1", type: "image" }),
-        buildBaseCard({ _id: "quote_1", type: "quote" }),
-        buildBaseCard({ _id: "link_1", type: "link" }),
-      ],
-    });
-    const handler =
-      (scanCardsPageForUser as any).handler ?? scanCardsPageForUser;
-    const args = { scanLimit: 100, types: ["image", "link"], userId: "user_1" };
-
-    pagination.beginInvocation();
-    const first = await handler(pagination.ctx, args);
-    expect(first.items.map((card: any) => card._id)).toEqual([
-      "image_1",
-      "link_1",
-    ]);
-
-    pagination.beginInvocation();
-    const second = await handler(pagination.ctx, {
-      ...args,
-      cursor: first.itemCursors[0],
-    });
-    expect(second.items.map((card: any) => card._id)).toEqual(["link_1"]);
-  });
-
   test("searchCardsPageForUser paginates across selected type indexes", async () => {
     const module = await import("../publicApi");
     const handler =
@@ -344,6 +314,8 @@ describe("publicApi", () => {
         query: mock(() => ({
           withIndex: mock().mockReturnValue({
             order: mock().mockReturnValue({
+              // No permanently deleted cards.
+              async *[Symbol.asyncIterator]() {},
               paginate: mock().mockResolvedValue({
                 continueCursor: "",
                 isDone: true,

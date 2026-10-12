@@ -11,7 +11,11 @@ import {
   type WorkflowId,
   WorkflowManager,
 } from "@convex-dev/workflow";
-import type { FunctionArgs, FunctionReference } from "convex/server";
+import {
+  type FunctionArgs,
+  type FunctionReference,
+  getFunctionName,
+} from "convex/server";
 import { v } from "convex/values";
 import { components, internal } from "../_generated/api";
 import {
@@ -22,6 +26,9 @@ import {
 } from "../_generated/server";
 import {
   buildInitialProcessingStatus,
+  type ProcessingStageKey,
+  type ProcessingStatus,
+  stageFailed,
   stagePending,
 } from "../card/processingStatus";
 import { patchCardWithSearchSync } from "../card/searchDocumentHelpers";
@@ -43,9 +50,66 @@ export const WORKFLOW_RETENTION_MS = 7 * 24 * 60 * 60 * 1000;
 export const WORKFLOW_CLEANUP_RETRY_MS = 24 * 60 * 60 * 1000;
 export const MAX_WORKFLOW_CLEANUP_BATCH_SIZE = 100;
 
-export const workflowRetentionOptions = (startAsync?: boolean) => ({
+const processingStageKeyValidator = v.union(
+  v.literal("classify"),
+  v.literal("categorize"),
+  v.literal("metadata"),
+  v.literal("renderables")
+);
+
+// Workflows started before card-stage contexts existed complete with `null`.
+const workflowCompletionContextValidator = v.union(
+  v.null(),
+  v.object({
+    cardId: v.id("cards"),
+    stages: v.array(processingStageKeyValidator),
+  })
+);
+
+interface CardStageCompletionContext {
+  cardId: Id<"cards">;
+  stages: ProcessingStageKey[];
+}
+
+// processingStatus stages each card workflow owns. When one of these
+// workflows fails or is canceled, its unfinished stages are marked failed so
+// they never stay "pending" forever.
+const CARD_STAGES_BY_WORKFLOW: Record<string, ProcessingStageKey[]> = {
+  "workflows/cardProcessing:cardProcessingWorkflow": [
+    "classify",
+    "categorize",
+    "metadata",
+    "renderables",
+  ],
+  "workflows/aiMetadata/index:aiMetadataWorkflow": ["metadata"],
+};
+
+export const resolveWorkflowCompletionContext = (
+  workflowRef: FunctionReference<"mutation", "internal">,
+  args: unknown
+): CardStageCompletionContext | null => {
+  let name: string;
+  try {
+    name = getFunctionName(workflowRef);
+  } catch {
+    return null;
+  }
+  const stages = CARD_STAGES_BY_WORKFLOW[name];
+  const cardId =
+    args && typeof args === "object"
+      ? (args as { cardId?: unknown }).cardId
+      : undefined;
+  return stages && typeof cardId === "string"
+    ? { cardId: cardId as Id<"cards">, stages }
+    : null;
+};
+
+export const workflowRetentionOptions = (
+  startAsync?: boolean,
+  context: CardStageCompletionContext | null = null
+) => ({
   onComplete: internalAny["workflows/manager"].scheduleCompletedWorkflowCleanup,
-  context: null,
+  context,
   ...(startAsync === undefined ? {} : { startAsync }),
 });
 
@@ -65,7 +129,10 @@ export const startWorkflow = <
     ctx,
     workflowRef,
     args,
-    workflowRetentionOptions(options?.startAsync)
+    workflowRetentionOptions(
+      options?.startAsync,
+      resolveWorkflowCompletionContext(workflowRef, args)
+    )
   );
 
 export const scheduleCompletedWorkflowCleanupHandler = async (
@@ -90,15 +157,57 @@ export const scheduleCompletedWorkflowCleanupHandler = async (
   return null;
 };
 
+const UNFINISHED_STAGE_STATUSES = new Set(["pending", "in_progress"]);
+
+/**
+ * Mark the stages a failed or canceled card workflow still owned as failed.
+ * Stages another run already finished (completed or failed) are left as-is.
+ */
+export const markUnfinishedCardStagesFailed = async (
+  ctx: MutationCtx,
+  context: CardStageCompletionContext,
+  error: string
+): Promise<boolean> => {
+  const card = await ctx.db.get("cards", context.cardId);
+  if (!card) {
+    return false;
+  }
+  const now = Date.now();
+  const current: ProcessingStatus = card.processingStatus ?? {};
+  const failedStages: ProcessingStatus = {};
+  for (const stage of context.stages) {
+    const status = current[stage];
+    if (status && UNFINISHED_STAGE_STATUSES.has(status.status)) {
+      failedStages[stage] = stageFailed(now, error, status);
+    }
+  }
+  if (Object.keys(failedStages).length === 0) {
+    return false;
+  }
+  await patchCardWithSearchSync(ctx, context.cardId, {
+    processingStatus: { ...current, ...failedStages },
+    updatedAt: now,
+  });
+  return true;
+};
+
 export const scheduleCompletedWorkflowCleanup = internalMutation({
   args: {
-    context: v.null(),
+    context: workflowCompletionContextValidator,
     result: vResultValidator,
     workflowId: vWorkflowId,
   },
   returns: v.null(),
-  handler: (ctx, { workflowId }) =>
-    scheduleCompletedWorkflowCleanupHandler(ctx, workflowId),
+  handler: async (ctx, { context, result, workflowId }) => {
+    if (context && result.kind !== "success") {
+      await markUnfinishedCardStagesFailed(
+        ctx,
+        context,
+        result.kind === "canceled" ? "workflow_canceled" : "workflow_failed"
+      );
+    }
+    return await scheduleCompletedWorkflowCleanupHandler(ctx, workflowId);
+  },
 });
 
 export const cleanupCompletedWorkflow = internalMutation({
@@ -619,6 +728,8 @@ export const initializeCardProcessingStateHandler = async (
     aiTags: undefined,
     aiSummary: undefined,
     aiTranscript: undefined,
+    // A fresh run gets a fresh AI backfill budget.
+    aiBackfillAttempts: undefined,
     processingStatus: initialProcessingStatus,
     metadataStatus: awaitingLinkMetadata ? "pending" : "completed",
     updatedAt: now,

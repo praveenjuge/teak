@@ -1,5 +1,5 @@
 import { paginationOptsValidator } from "convex/server";
-import { type Infer, v } from "convex/values";
+import { ConvexError, type Infer, v } from "convex/values";
 import type { Doc } from "../_generated/dataModel";
 import { type QueryCtx, query } from "../_generated/server";
 import { cardTypeValidator, cardValidator } from "../schema";
@@ -70,6 +70,12 @@ const createdAtRangeValidator = v.object({
 });
 
 const VISUAL_SEARCH_BUFFER = 12;
+// Paginated search pages are cut from this many best matches, sorted by date.
+const SEARCH_PAGE_CANDIDATE_LIMIT = 401;
+
+const isSearchTooBroadError = (error: unknown): boolean =>
+  error instanceof ConvexError &&
+  (error.data as { code?: unknown } | undefined)?.code === "INVALID_INPUT";
 export const getSearchResultLimit = (desiredLimit: number) =>
   Math.max(1, desiredLimit);
 const getVisualSearchBatchLimit = (desiredLimit: number) =>
@@ -445,33 +451,38 @@ export const searchCardsPaginatedHandler = async (
       Number.isFinite(parsedCursor) && parsedCursor > 0 ? parsedCursor : 0
     );
     const pageSize = clampPageSize(paginationOpts.numItems);
-    const desiredLimit = offset + pageSize + 1;
-    const searchResultLimit = getSearchResultLimit(desiredLimit);
 
     const typesSet = new Set(types || []);
     const hasMultiTypeFilter = typesSet.size > 1;
-    const searchResults = await searchCardsByDocument(ctx, {
+    const matchesFilters = (card: Doc<"cards">) =>
+      isCreatedAtInRange(card.createdAt, createdAtRange) &&
+      (!hasMultiTypeFilter || typesSet.has(card.type)) &&
+      doesCardMatchVisualFilters(card, visualFilters);
+    const searchArgs = {
       userId: user.teakUserId,
       searchQuery,
       isDeleted: showTrashOnly ? true : undefined,
       isFavorited: favoritesOnly ? true : undefined,
       type: types?.length === 1 ? types[0] : undefined,
-      limit: searchResultLimit,
-      resultFilter: (card) =>
-        isCreatedAtInRange(card.createdAt, createdAtRange) &&
-        (!hasMultiTypeFilter || typesSet.has(card.type)) &&
-        doesCardMatchVisualFilters(card, visualFilters),
-    });
-    const uniqueResults: Doc<"cards">[] = [];
-    for (const card of searchResults) {
-      if (
-        isCreatedAtInRange(card.createdAt, createdAtRange) &&
-        (!hasMultiTypeFilter || typesSet.has(card.type)) &&
-        doesCardMatchVisualFilters(card, visualFilters)
-      ) {
-        uniqueResults.push(card);
+      limit: SEARCH_PAGE_CANDIDATE_LIMIT,
+    };
+    // Every page sorts the same candidate set, so offsets never overlap or
+    // skip between pages.
+    let searchResults: Doc<"cards">[];
+    try {
+      searchResults = await searchCardsByDocument(ctx, {
+        ...searchArgs,
+        resultFilter: matchesFilters,
+      });
+    } catch (error) {
+      if (!isSearchTooBroadError(error)) {
+        throw error;
       }
+      // A saturated search with selective filters: filter the best matches
+      // instead of failing the grid.
+      searchResults = await searchCardsByDocument(ctx, searchArgs);
     }
+    const uniqueResults = searchResults.filter(matchesFilters);
 
     // Multi-type filtering happens during dedupe; single-type/favorites are filtered at index level.
     const filteredResults = uniqueResults;

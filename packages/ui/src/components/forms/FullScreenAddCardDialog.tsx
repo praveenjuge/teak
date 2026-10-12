@@ -11,7 +11,6 @@ import { toast } from "sonner";
 interface FullScreenAddCardDialogProps {
   canCreateCard: boolean;
   content: string;
-  isSubmitting: boolean;
   onContentChange: (value: string) => void;
   onRequestClose: () => void | Promise<void>;
   onSave: () => void | Promise<void>;
@@ -23,13 +22,12 @@ export function FullScreenAddCardDialog({
   open,
   content,
   canCreateCard,
-  isSubmitting,
   placeholder,
   onContentChange,
   onSave,
   onRequestClose,
 }: FullScreenAddCardDialogProps) {
-  const canSave = Boolean(content.trim() && canCreateCard && !isSubmitting);
+  const canSave = Boolean(content.trim() && canCreateCard);
 
   return (
     <Dialog

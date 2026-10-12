@@ -10,7 +10,7 @@ import {
   json,
   withPublicApiGatewayHeaders,
 } from "../publicApiMeta";
-import { callTeakV1Tool, TEAK_V1_TOOLS } from "./tools";
+import { callTeakV1Tool, isTeakV1Tool, TEAK_V1_TOOLS } from "./tools";
 
 type JsonObject = Record<string, unknown>;
 
@@ -105,11 +105,13 @@ const jsonRpcError = (
   error: { code, message },
 });
 
+const PARSE_ERROR = Symbol("parse error");
+
 const parseJsonRpcBody = async (request: Request): Promise<unknown> => {
   try {
     return await request.json();
   } catch {
-    return null;
+    return PARSE_ERROR;
   }
 };
 
@@ -119,7 +121,7 @@ const handleJsonRpcMessage = async (
   message: unknown
 ): Promise<JsonObject | null> => {
   if (!(message && typeof message === "object" && !Array.isArray(message))) {
-    return jsonRpcError(null, -32_700, "Parse error");
+    return jsonRpcError(null, -32_600, "Invalid Request");
   }
 
   const rpc = message as {
@@ -159,6 +161,10 @@ const handleJsonRpcMessage = async (
       | undefined;
     if (!(params && typeof params.name === "string")) {
       return jsonRpcError(rpc.id, -32_602, "Invalid params");
+    }
+    // MCP treats an unknown tool as a protocol error, not a tool result.
+    if (!isTeakV1Tool(params.name)) {
+      return jsonRpcError(rpc.id, -32_602, `Unknown tool: ${params.name}`);
     }
 
     const result = await callTeakV1Tool(
@@ -233,6 +239,10 @@ const handleMcpPost = async (
   }
 
   const body = await parseJsonRpcBody(request);
+  // Streamable HTTP answers a body it can't accept with an HTTP error status.
+  if (body === PARSE_ERROR) {
+    return json(400, jsonRpcError(null, -32_700, "Parse error"));
+  }
   if (Array.isArray(body) && body.length > MAX_MCP_JSON_RPC_BATCH) {
     return json(
       400,

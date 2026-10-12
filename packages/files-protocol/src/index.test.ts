@@ -7,6 +7,7 @@ import {
   buildUploadSigningPayload,
   FILES_UPLOAD_MAX_TTL_SECONDS,
   isFilesImageRendition,
+  isFilesInspectMode,
   isFilesOp,
 } from "./index";
 
@@ -46,6 +47,14 @@ describe("files protocol", () => {
     expect(isFilesOp("cleanup-stale-pending-uploads")).toBe(true);
     expect(isFilesOp("cleanup-stale-pending-upload-page")).toBe(false);
     expect(isFilesOp("process_image")).toBe(false);
+  });
+
+  test("accepts pdf as an inspect mode alongside the existing modes", () => {
+    for (const mode of ["css", "pdf", "text", "zip"]) {
+      expect(isFilesInspectMode(mode)).toBe(true);
+    }
+    expect(isFilesInspectMode("docx")).toBe(false);
+    expect(isFilesInspectMode(undefined)).toBe(false);
   });
 
   test("binds multipart signatures to an exact key, upload, and part", () => {

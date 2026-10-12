@@ -175,6 +175,34 @@ export function mergeCardsIntoLocalSearchCache(
   return merged.sort((a, b) => b.createdAt - a.createdAt).slice(0, cacheLimit);
 }
 
+/**
+ * Drop cached cards that a remote query returned before but no longer does.
+ *
+ * The local cache only learns about cards the server sends back, so a card
+ * deleted (or permanently deleted) on another client would otherwise stay in
+ * local search results forever. Callers pass the ids the *same* remote query
+ * returned last time; cards that dropped out of it are removed, while cached
+ * cards that query never returned (e.g. ones beyond its loaded pages) stay.
+ */
+export function pruneCardsMissingFromRemote(
+  cachedCards: Doc<"cards">[],
+  previousRemoteIds: ReadonlySet<string>,
+  nextRemoteCards: Doc<"cards">[]
+) {
+  if (previousRemoteIds.size === 0 || cachedCards.length === 0) {
+    return cachedCards;
+  }
+
+  const nextRemoteIds = new Set<string>(
+    nextRemoteCards.map((card) => card._id)
+  );
+  const pruned = cachedCards.filter(
+    (card) => !previousRemoteIds.has(card._id) || nextRemoteIds.has(card._id)
+  );
+
+  return pruned.length === cachedCards.length ? cachedCards : pruned;
+}
+
 export function mergeLocalAndRemoteSearchResults(
   remoteCards: Doc<"cards">[],
   localSearchResults: Doc<"cards">[],

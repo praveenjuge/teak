@@ -16,7 +16,7 @@ import {
   waitingSaveIds,
 } from "../lib/pendingSaves";
 import { toContextMenuStatus } from "../lib/popupStatus";
-import { isRestrictedUrl } from "../lib/restrictedUrl";
+import { isRestrictedUrl, restrictedUrlMessage } from "../lib/restrictedUrl";
 import { downloadAssetFile, saveFileToTeak } from "../lib/saveFileToTeak";
 import { saveToTeak } from "../lib/saveToTeak";
 import type { ContextMenuAction } from "../types/contextMenu";
@@ -362,9 +362,7 @@ export default defineBackground(() => {
     try {
       // Check if the current page is restricted
       if (isRestrictedUrl(tab.url)) {
-        throw new Error(
-          `Cannot save content from ${new URL(tab.url || "").protocol} pages. Try using the extension on regular web pages.`
-        );
+        throw new Error(restrictedUrlMessage(tab.url));
       }
 
       const content =

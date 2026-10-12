@@ -10,6 +10,7 @@ import {
 import { Spinner } from "@teak/ui/components/ui/spinner";
 import { Textarea } from "@teak/ui/components/ui/textarea";
 import { useEffect, useRef, useState } from "react";
+import { getPrimaryModifierLabel } from "../../lib/platform";
 
 interface NotesEditModalProps {
   notes: string;
@@ -100,7 +101,7 @@ export function NotesEditModal({
           <DialogDescription>
             Press{" "}
             <kbd className="rounded bg-muted px-1 py-0.5 font-mono text-xs">
-              Cmd+Enter
+              {getPrimaryModifierLabel()}+Enter
             </kbd>{" "}
             to save,
             <kbd className="ml-1 rounded bg-muted px-1 py-0.5 font-mono text-xs">

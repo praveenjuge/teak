@@ -20,7 +20,7 @@ import {
 } from "@teak/ui/hooks";
 import { TagManagementModal } from "@teak/ui/modals";
 import { CardsSearchHeader } from "@teak/ui/search";
-import { Authenticated, AuthLoading, useMutation } from "convex/react";
+import { Authenticated, AuthLoading } from "convex/react";
 import { usePaginatedQuery } from "convex-helpers/react/cache/hooks";
 import type { ReactNode } from "react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -85,8 +85,8 @@ export function CardsScreen({
   } = searchController;
 
   useEffect(() => {
-    setRemoteCards(cards);
-  }, [cards, setRemoteCards]);
+    setRemoteCards(cards, searchKey);
+  }, [cards, searchKey, setRemoteCards]);
 
   useEffect(() => {
     searchTimingRef.current = {
@@ -136,12 +136,12 @@ export function CardsScreen({
     onRestoreSuccess: (message?: string) => message && toast(message),
     onPermanentDeleteSuccess: (message?: string) => message && toast(message),
     onError: (_error: Error, operation: string) => {
-      toast.error(`Failed to ${operation}`);
+      toast.error(
+        `Failed to ${operation === "update removeAiTag" ? "remove tag" : operation}`
+      );
     },
     onCardUpdate: updateCachedCard,
   });
-
-  const updateCardField = useMutation(api.cards.updateCardField);
 
   const tagManagementCard = useMemo(
     () =>
@@ -162,15 +162,15 @@ export function CardsScreen({
     const currentTags = tagManagementCard?.tags || [];
 
     if (tag && !currentTags.includes(tag) && tagManagementCardId) {
-      const newTags = [...currentTags, tag];
-      void updateCardField({
-        cardId: tagManagementCardId as Id<"cards">,
-        field: "tags",
-        value: newTags,
-      });
+      // Optimistic: the next edit builds on this list even before the server
+      // confirms it, and failures surface through onError as a toast.
+      void cardActions.updateField(tagManagementCardId as Id<"cards">, "tags", [
+        ...currentTags,
+        tag,
+      ]);
       setTagInput("");
     }
-  }, [tagInput, tagManagementCard?.tags, tagManagementCardId, updateCardField]);
+  }, [cardActions, tagInput, tagManagementCard?.tags, tagManagementCardId]);
 
   const handleRemoveTag = useCallback(
     (tagToRemove: string) => {
@@ -178,27 +178,28 @@ export function CardsScreen({
       const newTags = currentTags.filter((tag: string) => tag !== tagToRemove);
 
       if (tagManagementCardId) {
-        void updateCardField({
-          cardId: tagManagementCardId as Id<"cards">,
-          field: "tags",
-          value: newTags.length > 0 ? newTags : undefined,
-        });
+        void cardActions.updateField(
+          tagManagementCardId as Id<"cards">,
+          "tags",
+          newTags.length > 0 ? newTags : undefined
+        );
       }
     },
-    [tagManagementCard?.tags, tagManagementCardId, updateCardField]
+    [cardActions, tagManagementCard?.tags, tagManagementCardId]
   );
 
   const handleRemoveAiTag = useCallback(
     (tagToRemove: string) => {
       if (tagManagementCardId) {
-        void updateCardField({
-          cardId: tagManagementCardId as Id<"cards">,
-          field: "removeAiTag",
-          tagToRemove,
-        });
+        void cardActions.updateField(
+          tagManagementCardId as Id<"cards">,
+          "removeAiTag",
+          undefined,
+          tagToRemove
+        );
       }
     },
-    [tagManagementCardId, updateCardField]
+    [cardActions, tagManagementCardId]
   );
 
   const handleCardClick = useCallback(
@@ -232,7 +233,11 @@ export function CardsScreen({
   );
 
   const renderEmptyState = () => {
-    if (cardsStatus === "LoadingFirstPage") {
+    // A debounced search that hasn't been sent yet is still loading, not empty.
+    if (
+      cardsStatus === "LoadingFirstPage" ||
+      searchController.isSearchPending
+    ) {
       return <CardsGridSkeleton />;
     }
 

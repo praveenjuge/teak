@@ -18,7 +18,11 @@ describe("AI metadata mutations", () => {
   test("updates AI metadata only while the card exists", async () => {
     const patch = mock().mockResolvedValue(undefined);
     const ctx = {
-      db: { ...inlineSearchSyncDb(), get: mock().mockResolvedValue({ _id: "card" }), patch },
+      db: {
+        ...inlineSearchSyncDb(),
+        get: mock().mockResolvedValue({ _id: "card" }),
+        patch,
+      },
     } as any;
 
     const result = await handlerOf(updateCardAI)(ctx, {
@@ -31,10 +35,43 @@ describe("AI metadata mutations", () => {
     expect(patch).toHaveBeenCalledTimes(1);
   });
 
+  test("keeps a renderables stage completed by a parallel step when saving metadata", async () => {
+    const patch = mock().mockResolvedValue(undefined);
+    const ctx = {
+      db: {
+        ...inlineSearchSyncDb(),
+        get: mock().mockResolvedValue({
+          _id: "card",
+          processingStatus: {
+            metadata: { status: "pending" },
+            renderables: { status: "completed", completedAt: 5 },
+          },
+        }),
+        patch,
+      },
+    } as any;
+
+    await handlerOf(updateCardAI)(ctx, {
+      cardId: "card",
+      aiTags: ["design"],
+      processingStatus: { metadata: { status: "completed", completedAt: 6 } },
+    });
+
+    const written = patch.mock.calls.find(([table]) => table === "cards")?.[2];
+    expect(written.processingStatus).toEqual({
+      metadata: { status: "completed", completedAt: 6 },
+      renderables: { status: "completed", completedAt: 5 },
+    });
+  });
+
   test("skips late AI and palette writes after deletion", async () => {
     const patch = mock();
     const ctx = {
-      db: { ...inlineSearchSyncDb(), get: mock().mockResolvedValue(null), patch },
+      db: {
+        ...inlineSearchSyncDb(),
+        get: mock().mockResolvedValue(null),
+        patch,
+      },
     } as any;
 
     await expect(

@@ -216,6 +216,7 @@ export function SearchBar({
               const IconComponent = getFilterIcon(filter);
               return (
                 <Button
+                  aria-pressed={true}
                   key={`filter-${filter}`}
                   onClick={() => onRemoveFilter(filter)}
                   onMouseDown={preventBlur}
@@ -272,6 +273,7 @@ export function SearchBar({
 
             {showFavoritesOnly && (
               <Button
+                aria-pressed={showFavoritesOnly}
                 onClick={onToggleFavorites}
                 onMouseDown={preventBlur}
                 size="sm"
@@ -284,6 +286,7 @@ export function SearchBar({
 
             {showTrashOnly && (
               <Button
+                aria-pressed={showTrashOnly}
                 onClick={onToggleTrash}
                 onMouseDown={preventBlur}
                 size="sm"
@@ -298,6 +301,7 @@ export function SearchBar({
               const IconComponent = getFilterIcon(filter);
               return (
                 <Button
+                  aria-pressed={false}
                   key={`available-${filter}`}
                   onClick={() => onAddFilter(filter)}
                   onMouseDown={preventBlur}
@@ -312,6 +316,7 @@ export function SearchBar({
 
             {!showFavoritesOnly && (
               <Button
+                aria-pressed={showFavoritesOnly}
                 onClick={onToggleFavorites}
                 onMouseDown={preventBlur}
                 size="sm"
@@ -324,6 +329,7 @@ export function SearchBar({
 
             {!showTrashOnly && (
               <Button
+                aria-pressed={showTrashOnly}
                 onClick={onToggleTrash}
                 onMouseDown={preventBlur}
                 size="sm"

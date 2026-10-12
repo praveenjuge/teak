@@ -187,4 +187,34 @@ describe("card/getCard.ts", () => {
     expect(result[0]).not.toHaveProperty("workflowArtifactKeys");
     expect(cards[0].workflowArtifactKeys).toEqual(["private-workflow-key"]);
   });
+
+  test.each([
+    [100_000, 200],
+    [0, 1],
+    [undefined, 50],
+  ])(
+    "getDeletedCards caps a limit of %p at %p cards",
+    async (limit, expected) => {
+      const cards = Array.from({ length: 300 }, (_, index) => ({
+        _id: `c${index}`,
+        _creationTime: index,
+        userId: "u1",
+        type: "text",
+        content: "Hi",
+      }));
+      const query = {
+        withIndex: () => query,
+        order: () => query,
+        take: async (count: number) => cards.slice(0, count),
+      };
+      const ctx = withTestSession({
+        auth: { getUserIdentity: mock().mockResolvedValue({ subject: "u1" }) },
+        db: { query: mock().mockReturnValue(query) },
+      } as any);
+
+      const handler = (getDeletedCards as any).handler ?? getDeletedCards;
+      const result = await handler(ctx, { limit });
+      expect(result).toHaveLength(expected);
+    }
+  );
 });

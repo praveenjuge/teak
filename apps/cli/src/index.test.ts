@@ -10,7 +10,15 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { createConnectAuthorizeUrl } from "@teak/convex/sdk";
 import { inferFileFormat } from "@teak/convex/shared/file-formats";
-import { formatCardLine, getUploadFileInfo, mimeFor, parseSort } from ".";
+import type { Command } from "commander";
+import {
+  bulkItems,
+  formatCardLine,
+  getUploadFileInfo,
+  mimeFor,
+  parseSort,
+  program,
+} from ".";
 import { resolveAddInput } from "./files";
 import { VERSION } from "./runtime";
 
@@ -149,4 +157,35 @@ describe("teak cli formatting", () => {
       "openid profile email offline_access"
     );
   });
+});
+
+describe("teak cli help", () => {
+  const commandsWithoutDescription = (command: Command, prefix: string) =>
+    command.commands.flatMap((sub): string[] => {
+      const name = `${prefix} ${sub.name()}`;
+      return [
+        ...(sub.description().trim() ? [] : [name]),
+        ...commandsWithoutDescription(sub, name),
+      ];
+    });
+
+  test("every command has a --help description", () => {
+    expect(commandsWithoutDescription(program, "teak")).toEqual([]);
+  });
+});
+
+describe("teak bulk input", () => {
+  test.each([
+    ["a bare array", [{ content: "a" }]],
+    ["the API's {items} body", { items: [{ content: "a" }] }],
+  ])("accepts %s", (_label, input) => {
+    expect(bulkItems(input)).toEqual([{ content: "a" }]);
+  });
+
+  test.each([null, "text", { cards: [] }, { items: "x" }])(
+    "rejects %p",
+    (input) => {
+      expect(bulkItems(input)).toBeNull();
+    }
+  );
 });

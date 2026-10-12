@@ -21,9 +21,19 @@ export const updateCardAI = internalMutation({
     if (!card) {
       return false;
     }
+    // Merge the caller's stages into the current status read in this
+    // transaction. Steps that run in parallel (metadata and renderables) each
+    // write only their own stage, so neither resets the other's.
     return await patchCardWithSearchSync(ctx, cardId, {
       ...updates,
-      ...(processingStatus === undefined ? {} : { processingStatus }),
+      ...(processingStatus === undefined
+        ? {}
+        : {
+            processingStatus: {
+              ...(card.processingStatus ?? {}),
+              ...processingStatus,
+            },
+          }),
       updatedAt: Date.now(),
     });
   },
@@ -42,6 +52,7 @@ export const resetCardAI = internalMutation({
       aiSummary: undefined,
       aiTranscript: undefined,
       visualStyles: undefined,
+      aiBackfillAttempts: undefined,
       metadataStatus: metadataStatus ?? "pending",
       processingStatus: undefined,
       updatedAt: Date.now(),

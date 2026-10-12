@@ -122,6 +122,8 @@ const response = await fetch("{{api-url}}/cards", {
 
 `cardType` is optional. Set it to `text` to preserve raw Markdown exactly, even when the content looks like a URL, quote, or color. When omitted, Teak automatically detects links, quotes, and palettes.
 
+An explicit `cardType` must fit the card. `image`, `video`, `audio`, and `document` need an uploaded file (see [Upload files](#upload-files)), and `palette` needs at least one color Teak can read, such as `#ff5500`. Each tag can be up to 64 characters. A rejected request returns `400 INVALID_INPUT` with an `error` message that names the problem.
+
 <AutoTypeTable path="types/create-card.ts" name="CreateCardBody" />
 
 A create response includes the new `cardId` and its Teak app URL. See **Create Card** in the [API Reference](/reference) for the complete request and response schemas.
@@ -130,11 +132,16 @@ A create response includes the new `cardId` and its Teak app URL. See **Create C
 
 Send changed fields to `PATCH /v1/cards/:cardId`: `content`, `notes`, `tags`,
 `url`, `metadataTitle`, or `removeAiTags`. Titles work for every card type, are trimmed, and
-can contain up to 512 characters. Send `null` or a blank title to clear it.
+keep up to 512 characters; a longer title is cut to 512. Send `null` or a blank title to clear it.
 Omit `metadataTitle` to preserve the existing title. Metadata processing
 preserves titles you edit or clear.
 
-`tags` replaces your own tags. To drop tags Teak added, send them in
+Every field in a request is checked before anything is saved, so an invalid
+field leaves the card unchanged. Changing `content` or `url` queues the card
+for processing again, which each card allows once a minute; changing both in
+one request counts once. A second change within the minute returns `429`.
+
+`tags` replaces your own tags; each can be up to 64 characters. To drop tags Teak added, send them in
 `removeAiTags`, for example `{ "removeAiTags": ["inspiration"] }`. Tags Teak
 didn't add are ignored. The response is the updated card, including its
 `processingStatus`.
@@ -170,10 +177,26 @@ Supported uploads include common image, audio, video, source, design-token, docu
 </ResponseField>
 
 <ResponseField name="Retry-After" type="string" pre={["response header"]}>
-  Sent with `429` responses, along with `RateLimit-Limit`, `RateLimit-Remaining`, and `RateLimit-Reset`.
+  Seconds to wait before retrying. Sent with `429` responses, along with
+  `RateLimit-Remaining` and `RateLimit-Reset` (also in seconds), and
+  `RateLimit-Limit` when the limit is known. `503 SERVICE_UNAVAILABLE` responses
+  mean the service was briefly busy; they also carry `Retry-After`.
 </ResponseField>
 
-Bulk operations accept up to 100 items. Cursor-based listing and the card changes endpoint are available for integrations that need complete pagination or incremental sync.
+Bulk operations accept up to 100 items. Each item succeeds or fails on its own,
+and a failed item changes nothing; its result has a `code` and an `error`.
+Bulk operations don't accept `permanent`.
+
+Cursor-based listing and the card changes endpoint are available for integrations that need complete pagination or incremental sync.
+
+### Sync changes
+
+`GET /v1/cards/changes?since=<timestamp>` returns cards updated at or after
+`since` in `items`, and the IDs of cards moved to Trash or permanently deleted
+in `deletedIds`. Page with `pageInfo.nextCursor` until `hasMore` is `false`,
+then use the time you started as the next `since`. Permanent deletions are kept
+for 90 days: if your last sync is older than that, start again from `since=0`
+and replace your local copy.
 
 ## Endpoint overview
 
@@ -257,6 +280,11 @@ these query parameters:
 </ParamField>
 
 - Search: `GET /v1/cards?q=design&include=content,metadata`
+- Tags: `GET /v1/tags` lists the lowercase tags on cards outside Trash,
+  including tags Teak added, with how many cards have each. A new tag appears
+  a moment after the card is saved. Any listed name
+  works as `tag`. `isComplete` is `false` if a very large library reached the
+  listing's read limit.
 - Favorites: `GET /v1/cards?favorited=true&include=content,metadata`
 - Multiple card types: `GET /v1/cards?type=image&type=link&include=content,metadata`
 
@@ -264,6 +292,11 @@ The `include=content,metadata` pair returns full-card fields. The list
 response is paginated (`items` plus `pageInfo`). Repeat `type` for an OR filter;
 a single `type` remains supported. Invalid types return 400. When loading the
 next page, keep the same filters and pass `pageInfo.nextCursor` as `cursor`.
+Each page continues after the last card of the previous one, so cards saved or
+deleted while you page don't cause repeats or gaps. A cursor that wasn't
+returned by the same listing returns `400 INVALID_INPUT`. Search (`q`) sorts
+its 400 best matches by date; a search that matches more returns
+`400 INVALID_INPUT` after its last page, so narrow it with a type or date filter.
 
 `include=metadata` adds palette `colors` (`hex` and optional `name`), resolved
 `linkPreviewMedia`, and the link's site name, author, publisher, and publish
@@ -298,6 +331,10 @@ Errors keep a stable `{ code, error }` shape:
   For `RATE_LIMITED` errors, when to retry, as a Unix timestamp in milliseconds.
 </ResponseField>
 
+Most errors are `400`. A missing card is `404 NOT_FOUND`, a conflict such as a
+permanent delete of a card outside Trash is `409`, rate limits are
+`429 RATE_LIMITED`, and a briefly busy service is `503 SERVICE_UNAVAILABLE`.
+
 ```json
 {
   "code": "INVALID_INPUT",
@@ -318,8 +355,11 @@ Every response carries an `X-Request-Id` header. Include it when contacting [Sup
 `GET /v1/cards?trashed=true`.
 
 :::danger[Permanent deletes can't be undone]
-`DELETE /v1/cards/:cardId?permanent=true` removes the card and its files immediately. It skips Trash, so there is nothing to restore.
+`DELETE /v1/cards/:cardId?permanent=true` removes a card that is already in Trash, and its files, immediately. There is nothing to restore afterward.
 :::
+
+A permanent delete of a card outside Trash returns `409 NOT_IN_TRASH`: move it
+to Trash first.
 
 ## Export your cards
 

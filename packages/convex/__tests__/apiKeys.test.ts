@@ -13,6 +13,7 @@ import {
 import { rateLimiter } from "../shared/rateLimits";
 import {
   answerIdentityQuery,
+  withMappedOwner,
   withTestSession,
 } from "./helpers/session.test-utils";
 
@@ -59,6 +60,20 @@ const listActiveKeys = (keys: unknown[]) =>
     }
     return keys;
   });
+
+// The API key auth cache table, empty: these tests cover the component path.
+const authCacheDb = () => {
+  const range = {
+    first: mock().mockResolvedValue(null),
+    take: mock().mockResolvedValue([]),
+  };
+  return {
+    delete: mock().mockResolvedValue(null),
+    insert: mock().mockResolvedValue("cache_1"),
+    query: mock().mockReturnValue({ withIndex: () => range }),
+    replace: mock().mockResolvedValue(null),
+  };
+};
 
 describe("apiKeys", () => {
   afterAll(() => {
@@ -167,11 +182,17 @@ describe("apiKeys", () => {
   });
 
   test("revoke component keys through the component", async () => {
-    const ctx = {
-      auth: buildAuth(),
+    const ctx = withTestSession({
+      db: authCacheDb(),
+      auth: {
+        getUserIdentity: mock().mockResolvedValue({
+          subject: "user_1",
+          sessionId: "session_1",
+        }),
+      },
       runQuery: listActiveKeys([]),
       runMutation: mock().mockResolvedValue(null),
-    };
+    } as any);
 
     await runHandler(revokeUserApiKey, ctx, {
       keyId: "component_key",
@@ -189,6 +210,7 @@ describe("apiKeys", () => {
       keyId: `key_${index}`,
     }));
     const ctx = {
+      db: authCacheDb(),
       runMutation: mock().mockResolvedValue(null),
       runQuery: listActiveKeys(keys),
       scheduler: { runAfter: mock().mockResolvedValue(null) },
@@ -208,15 +230,21 @@ describe("apiKeys", () => {
   });
 
   test("revoke-all public mutation authenticates then drains", async () => {
-    const ctx = {
-      auth: buildAuth(),
+    const ctx = withTestSession({
+      db: authCacheDb(),
+      auth: {
+        getUserIdentity: mock().mockResolvedValue({
+          subject: "user_1",
+          sessionId: "session_1",
+        }),
+      },
       runMutation: mock().mockResolvedValue(null),
       runQuery: listActiveKeys([
         componentKey,
         { ...componentKey, keyId: "component_key_2" },
       ]),
       scheduler: { runAfter: mock() },
-    };
+    } as any);
 
     const result = await runHandler(revokeAllUserApiKeys, ctx, {});
 
@@ -227,8 +255,14 @@ describe("apiKeys", () => {
 
   test("rotate creates a replacement key and immediately revokes the old component key", async () => {
     const newKey = `teakapi_secret_live_e5f6a7b8_${"a".repeat(64)}`;
-    const ctx = {
-      auth: buildAuth(),
+    const ctx = withTestSession({
+      db: authCacheDb(),
+      auth: {
+        getUserIdentity: mock().mockResolvedValue({
+          subject: "user_1",
+          sessionId: "session_1",
+        }),
+      },
       runMutation: mock()
         .mockResolvedValueOnce({
           key: newKey,
@@ -236,7 +270,7 @@ describe("apiKeys", () => {
         })
         .mockResolvedValueOnce(null),
       runQuery: listActiveKeys([componentKey]),
-    };
+    } as any);
 
     const result = await runHandler(rotateUserApiKey, ctx, {
       keyId: "component_key",
@@ -296,7 +330,8 @@ describe("apiKeys", () => {
 
   test("validate accepts component keys and maps them to Teak authorization", async () => {
     const token = `teakapi_secret_live_a1b2c3d4_${"f".repeat(64)}`;
-    const ctx = {
+    const ctx = withMappedOwner({
+      db: authCacheDb(),
       runMutation: mock().mockResolvedValue({
         env: "live",
         keyId: "component_key",
@@ -309,7 +344,7 @@ describe("apiKeys", () => {
       runQuery: mock().mockImplementation(
         (ref, args) => answerIdentityQuery(ref, args, {}).value
       ),
-    };
+    } as any);
 
     const result = await runHandler(validateUserApiKey, ctx, { token });
 
@@ -323,7 +358,8 @@ describe("apiKeys", () => {
 
   test("validate charges the request limit to the validated key", async () => {
     const token = `teakapi_secret_live_a1b2c3d4_${"f".repeat(64)}`;
-    const ctx = {
+    const ctx = withMappedOwner({
+      db: authCacheDb(),
       runMutation: mock().mockResolvedValueOnce({
         env: "live",
         keyId: "component_key",
@@ -336,7 +372,7 @@ describe("apiKeys", () => {
       runQuery: mock().mockImplementation(
         (ref, args) => answerIdentityQuery(ref, args, {}).value
       ),
-    };
+    } as any);
     const limit = mock().mockResolvedValue({ ok: false, retryAfter: 1000 });
     rateLimiter.limit = limit as any;
 

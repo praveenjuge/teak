@@ -28,10 +28,10 @@ import {
   buildCreateCardResponse,
   parseCardRoute,
   parseCardsQueryOptions,
+  parseCreatePayload,
   parseIncludeSet,
   serializeCard,
   serializeListCard,
-  validateCreatePayload,
   validateFavoritePayload,
   validatePatchPayload,
   validateUploadPayload,
@@ -55,14 +55,11 @@ const handleCreateCardRequest = async (
     return errorResponse(400, "BAD_REQUEST", "Invalid JSON body");
   }
 
-  const createPayload = validateCreatePayload(payload);
-  if (!createPayload) {
-    return errorResponse(
-      400,
-      "INVALID_INPUT",
-      "Body must include text, a URL, or valid uploaded-file fields"
-    );
+  const parsedCreate = parseCreatePayload(payload);
+  if ("error" in parsedCreate) {
+    return errorResponse(400, "INVALID_INPUT", parsedCreate.error);
   }
+  const createPayload = parsedCreate.payload;
 
   let idempotencyState: IdempotencyState | null = null;
   let operationCommitted = false;
@@ -398,6 +395,18 @@ const handleCardsByIdV1Request = async (
     return json(200, serializeCard(currentCard, request.url));
   }
 
+  if (
+    route.operation === "delete" &&
+    permanent === "true" &&
+    !currentCard.isDeleted
+  ) {
+    return errorResponse(
+      409,
+      "NOT_IN_TRASH",
+      "Move the card to Trash before deleting it permanently"
+    );
+  }
+
   if (route.operation === "delete" || route.operation === "restore") {
     try {
       let mutation = internal.raycast.softDeleteCardForUser;
@@ -439,7 +448,7 @@ const handleCardsByIdV1Request = async (
       return errorResponse(
         400,
         "INVALID_INPUT",
-        "Body must include at least one valid field: content, url, metadataTitle, notes, tags, removeAiTags"
+        "Body must include at least one valid field: content, url, metadataTitle, notes, tags (each at most 64 characters), removeAiTags"
       );
     }
     if (
@@ -527,9 +536,9 @@ const handleTagsRequest = async (
         userId: auth.validated.userId,
       }
     );
-    return json(200, { items: tags });
-  } catch {
-    return errorResponse(500, "INTERNAL_ERROR", "Failed to fetch tags");
+    return json(200, { items: tags.items, isComplete: tags.isComplete });
+  } catch (error) {
+    return mapConvexErrorToResponse(error, "Failed to fetch tags");
   }
 };
 
@@ -569,8 +578,8 @@ const handleCardChangesRequest = async (
       items: changes.items.map((card: any) => serializeCard(card, request.url)),
       pageInfo: changes.pageInfo,
     });
-  } catch {
-    return errorResponse(500, "INTERNAL_ERROR", "Failed to fetch card changes");
+  } catch (error) {
+    return mapConvexErrorToResponse(error, "Failed to fetch card changes");
   }
 };
 
@@ -629,6 +638,22 @@ const handleBulkCardsRequest = async (
       400,
       "INVALID_INPUT",
       `\`items\` must not exceed ${MAX_BULK_ITEMS} entries per request`
+    );
+  }
+
+  const hasPermanentFlag =
+    "permanent" in source ||
+    items.some(
+      (item) =>
+        item !== null &&
+        typeof item === "object" &&
+        "permanent" in (item as Record<string, unknown>)
+    );
+  if (hasPermanentFlag) {
+    return errorResponse(
+      400,
+      "INVALID_INPUT",
+      "Bulk operations do not support `permanent`. Use DELETE /v1/cards/:cardId?permanent=true for each card in Trash."
     );
   }
 

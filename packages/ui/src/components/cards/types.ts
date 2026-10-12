@@ -48,6 +48,7 @@ export interface CardWithUrls {
   };
   metadataDescription?: string;
   metadataTitle?: string;
+  metadataTitleEdited?: boolean;
   placeholderUrl?: string;
   screenshotUrl?: string;
   thumbnailKey?: string;

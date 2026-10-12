@@ -1,7 +1,7 @@
 import { api } from "@teak/convex";
 import type { Doc, Id } from "@teak/convex/_generated/dataModel";
 import { sanitizeExternalUrl } from "@teak/convex/shared/utils/safeUrl";
-import { useMutation } from "convex/react";
+import { useConvex, useMutation } from "convex/react";
 import { useCallback, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { updateCardInSearchQueries } from "./cardQueryOptimisticUpdates";
@@ -135,6 +135,7 @@ export function useCardModal(
   });
 
   const permanentDeleteCard = useMutation(api.cards.permanentDeleteCard);
+  const convex = useConvex();
 
   const hasUnsavedChanges = useMemo(() => {
     if (!card) {
@@ -399,40 +400,44 @@ export function useCardModal(
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [card?.url, config.onOpenLink]);
 
-  const fileUrl = card?.fileUrl;
   const hasFileObject = Boolean(card?.fileKey);
 
   const downloadFile = useCallback(async () => {
-    if (!(hasFileObject && card?.fileMetadata?.fileName && fileUrl)) {
+    if (!(hasFileObject && card?.fileMetadata?.fileName && cardId)) {
       return;
     }
 
     setIsDownloading(true);
     try {
-      const response = await fetch(fileUrl);
-      if (!response.ok) {
-        throw new Error(
-          `Failed to fetch file: ${response.status} ${response.statusText}`
-        );
+      // The signed URL asks the files host for `attachment` under the file's
+      // name, so the browser streams it to disk instead of this page holding
+      // the whole file in memory first.
+      const downloadUrl = await convex.query(
+        api.card.getFileUrl.getFileDownloadUrl,
+        { cardId: cardId as Id<"cards"> }
+      );
+      if (!downloadUrl) {
+        throw new Error("This file isn't available to download");
       }
-      const blob = await response.blob();
-      const blobUrl = window.URL.createObjectURL(blob);
-
       const link = document.createElement("a");
-      link.href = blobUrl;
-      link.download = card.fileMetadata.fileName;
+      link.href = downloadUrl;
+      link.rel = "noopener";
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
-
-      window.URL.revokeObjectURL(blobUrl);
     } catch (error) {
       console.error("Failed to download file:", error);
       notifyError(error as Error, "download file");
     } finally {
       setIsDownloading(false);
     }
-  }, [hasFileObject, card?.fileMetadata?.fileName, fileUrl, notifyError]);
+  }, [
+    hasFileObject,
+    card?.fileMetadata?.fileName,
+    cardId,
+    convex,
+    notifyError,
+  ]);
 
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent, onClose?: () => void) => {

@@ -1,7 +1,6 @@
-import { ensureObjectOwnership } from "./storage/ownership";
 import { ConvexError, v } from "convex/values";
 import { internalMutation } from "./_generated/server";
-import { ensureCardCreationAllowed } from "./auth";
+import { ensureCardQuotaAvailable } from "./card/quota";
 import { createUploadedCardForUser } from "./card/uploadCard";
 import { type CardType, cardTypeValidator } from "./schema";
 import { requireTeakUserId } from "./securitySessions";
@@ -19,6 +18,7 @@ import {
   validateMarkdownByteLength,
 } from "./shared/markdown";
 import { buildSignedWorkerUploadUrl } from "./storage/filesWorkerClient";
+import { ensureObjectOwnership } from "./storage/ownership";
 import { buildR2ObjectKey, PENDING_UPLOAD_CARD_ID } from "./storage/r2";
 
 const UPLOAD_URL_EXPIRES_IN_SECONDS = 60 * 10;
@@ -78,14 +78,16 @@ export const generateUploadUrlForUser = internalMutation({
   }),
   handler: async (ctx, args) => {
     const { fileName } = validateUploadRequest(args);
-    await ensureCardCreationAllowed(ctx, args.userId);
+    // Quota only: the creation rate-limit token is charged once, when the
+    // uploaded file becomes a card.
+    await ensureCardQuotaAvailable(ctx, args.userId);
     const key = buildR2ObjectKey({
       userId: await requireTeakUserId(ctx, args.userId),
       cardId: PENDING_UPLOAD_CARD_ID,
       role: "file",
       fileName,
     });
-  await ensureObjectOwnership(ctx, args.userId, key);
+    await ensureObjectOwnership(ctx, args.userId, key);
     const signed = await buildSignedWorkerUploadUrl({
       contentType: args.mimeType || "application/octet-stream",
       key,

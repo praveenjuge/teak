@@ -5,6 +5,7 @@ import {
   type MutationCtx,
   mutation,
 } from "../_generated/server";
+import { recordCardTombstone } from "../publicApiTombstones";
 import {
   getSessionUser,
   requireTeakUserId,
@@ -38,7 +39,8 @@ export const permanentDeleteCard = mutation({
 const permanentDeleteCardForUserHandler = async (
   ctx: MutationCtx,
   userId: TeakUserId,
-  cardId: Id<"cards">
+  cardId: Id<"cards">,
+  options: { requireTrashed?: boolean } = {}
 ) => {
   const card = await ctx.db.get("cards", cardId);
 
@@ -53,12 +55,20 @@ const permanentDeleteCardForUserHandler = async (
     });
   }
 
+  if (options.requireTrashed && !card.isDeleted) {
+    throw new ConvexError({
+      code: "NOT_IN_TRASH",
+      message: "Move the card to Trash before deleting it permanently",
+    });
+  }
+
   if (!card.isDeleted) {
     await ensureCardUsageShardsForRemoval(ctx, card.userId);
   }
 
   // Permanently remove from database
   await ctx.db.delete("cards", cardId);
+  await recordCardTombstone(ctx, { cardId, userId: card.userId });
   if (!card.isDeleted) {
     await recordActiveCardRemoved(ctx, card.userId, cardId);
   }
@@ -72,10 +82,12 @@ export const permanentDeleteCardForUser = internalMutation({
   args: { cardId: v.id("cards"), userId: v.string() },
   returns: v.null(),
   handler: async (ctx, args) => {
+    // Public API deletes skip Trash only for cards already in it.
     await permanentDeleteCardForUserHandler(
       ctx,
       await requireTeakUserId(ctx, args.userId),
-      args.cardId
+      args.cardId,
+      { requireTrashed: true }
     );
     return null;
   },

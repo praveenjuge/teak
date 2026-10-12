@@ -107,7 +107,7 @@ export const initializeCardUsageShards = async (
   // Exactness gates free-tier limit enforcement. Premium users have no
   // limit, so their shards may start from the bounded scan count instead of
   // failing card creation when the count is inexact.
-  if (!usage.isCountExact && !options.allowInexact) {
+  if (!(usage.isCountExact || options.allowInexact)) {
     throw new Error("Card usage must be exact before sharding");
   }
   for (const existingShard of existingShards) {
@@ -353,7 +353,7 @@ export const ensureCardUsageShards = async (
   if (usage.shardVersion === CARD_USAGE_SHARD_VERSION) {
     // Inexact shards (seeded from a bounded premium scan) undercount, so a
     // lapsed-premium user must not gate free creation on the shard total.
-    if (!hasPremium && !usage.isCountExact) {
+    if (!(hasPremium || usage.isCountExact)) {
       await reconcileInexactShards(ctx, usage);
     }
     return;

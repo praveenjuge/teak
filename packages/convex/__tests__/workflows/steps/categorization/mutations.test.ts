@@ -34,7 +34,7 @@ describe("categorization updateCategorization", () => {
 
       const mockCtx = {
         db: {
-        ...inlineSearchSyncDb(),
+          ...inlineSearchSyncDb(),
           get: async (_table: string, _id: string) => cardState,
           patch: (_table: string, _id: string, updates: any) => {
             cardState = { ...cardState, ...updates };

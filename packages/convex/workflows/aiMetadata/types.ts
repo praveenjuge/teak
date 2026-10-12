@@ -7,9 +7,9 @@ export interface AiMetadataWorkflowArgs {
 }
 
 export interface AiMetadataResult {
-  aiSummary?: string;
-  aiTags: string[];
-  aiTranscript?: string;
+  aiTagsCount: number;
   confidence: number;
+  hasSummary: boolean;
+  hasTranscript: boolean;
   mode: "completed" | "skipped";
 }
