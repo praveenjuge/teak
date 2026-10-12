@@ -1,6 +1,6 @@
 ---
 title: "October 2026"
-description: A native Teak for iPhone and iPad, a new sign-in system, simpler web note editing, the web app's tools on Mac, iPhone, Raycast, and the command line, and a cleaner Chrome popup.
+description: A native Teak for iPhone and iPad, a new sign-in system, simpler web note editing, video and audio previews on the web, the web app's tools on Mac, iPhone, Raycast, and the command line, and a cleaner Chrome popup.
 type: changelog
 date: "2026-10-12"
 changelog:
@@ -64,11 +64,21 @@ See the [mobile guide](/docs/mobile).
 
 See the [mobile guide](/docs/mobile).
 
+## Video, audio, and PDF previews
+
+- **Video hover previews:** on the web, move your mouse across a video card to skim through the video.
+- **Real audio waveforms:** audio cards on the web show the shape of the recording, and the player shows your progress through it.
+- **More thumbnails:** HEVC, MKV, and AVI videos now get thumbnails, and WebM videos and large PDFs get them more reliably.
+- **More transcripts:** recordings the transcriber can't read directly, like some Ogg and Opus files, are converted first, so more of them get transcripts.
+- **Instagram posts:** saving an Instagram post keeps its photos and videos when Instagram shows them, and its cover image otherwise.
+
+These apply to videos, recordings, and links you save from now on.
+
 ## Raycast, CLI, API, and MCP
 
 - **Raycast:** save files from Finder or the clipboard, see palette colors and transcripts, scroll through all results, filter by color, date, and Trash, restore cards, and remove tags Teak added. Saving a page you already have says so. See the [Raycast guide](/docs/raycast).
 - **CLI:** `teak trash`, `teak restore`, `teak open`, `teak download`, `teak export`, `teak whoami`, and `teak tags add` / `rm`, plus color, style, and plain-English date filters. Text you add becomes a quote or palette when it is one, like on the web. See the [CLI guide](/docs/cli).
-- **API:** `GET /v1/me` includes your plan and card usage, `PATCH /v1/cards/:id` can remove tags Teak added, and the new export endpoints start a ZIP export and return its download link. See the [API guide](/docs/api#export-your-cards).
+- **API:** `GET /v1/me` includes your plan and card usage, `PATCH /v1/cards/:id` can remove tags Teak added, and the new export endpoints start a ZIP export and return its download link. Cards include `audioWaveform` and `videoScrub` for building your own previews. See the [API guide](/docs/api#export-your-cards).
 - **MCP:** the list and search tools take the same filters as the API, and new tools restore cards from Trash, check whether a URL is saved, and show your plan. See the [MCP guide](/docs/mcp).
 
 ## Fixes across the web, API, CLI, and MCP

@@ -53,12 +53,16 @@ export const FILES_OPS = [
   "transcribe-audio",
   "index-import-source",
   "read-import-markdown",
-  // Rendering and media (Browser Run and Media bindings); see ./rendering.
+  // Rendering and media (Browser Run and the media renderer Container); see
+  // ./rendering.
   "render-pdf-thumbnail",
   "extract-video-frame",
   "capture-screenshot",
   "scrape-html",
   "probe-media",
+  // Waveform, media facts and transcript in one pass; supersedes
+  // transcribe-audio, which stays for Convex deployments that predate it.
+  "process-audio",
 ] as const;
 
 export type FilesOp = (typeof FILES_OPS)[number];
@@ -82,6 +86,8 @@ export type FilesErrorCode =
   | "INVALID_INPUT"
   | "NOT_FOUND"
   | "PAYLOAD_TOO_LARGE"
+  // Browser Run or the media renderer is missing, busy or failing; retry later.
+  | "RENDERER_UNAVAILABLE"
   | "UNSUPPORTED";
 
 export interface FilesErrorEnvelope {

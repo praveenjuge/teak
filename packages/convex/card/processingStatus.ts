@@ -13,6 +13,7 @@ export interface ProcessingStatus {
   classify?: ProcessingStageStatus;
   metadata?: ProcessingStageStatus;
   renderables?: ProcessingStageStatus;
+  screenshot?: ProcessingStageStatus;
 }
 
 export type ProcessingStageKey = keyof ProcessingStatus;

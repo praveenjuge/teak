@@ -52,6 +52,7 @@ const getCardAppUrl = (requestUrl: string, cardId: string): string => {
 };
 
 const serializeDisplayMetadata = (card: any) => ({
+  audioWaveform: card.fileMetadata?.waveform ?? null,
   isDeleted: Boolean(card.isDeleted),
   linkPreviewDescription: card.metadata?.linkPreview?.description ?? null,
   linkFacts:
@@ -75,6 +76,15 @@ const serializeDisplayMetadata = (card: any) => ({
   linkPublishedAt: card.metadata?.linkPreview?.publishedAt ?? null,
   linkPublisher: card.metadata?.linkPreview?.publisher ?? null,
   linkSiteName: card.metadata?.linkPreview?.siteName ?? null,
+  videoScrub:
+    card.scrubUrl && card.fileMetadata?.scrub
+      ? {
+          frameHeight: card.fileMetadata.scrub.frameHeight,
+          frameWidth: card.fileMetadata.scrub.frameWidth,
+          frames: card.fileMetadata.scrub.frames,
+          url: card.scrubUrl,
+        }
+      : null,
 });
 
 const serializeCard = (card: any, requestUrl: string) => ({

@@ -102,63 +102,6 @@ const asBody = (bytes: Uint8Array) => {
   };
 };
 
-/* ------------------------------------------------------------------ *
- * Minimal PDF writer: one Helvetica text line per page, with a correct
- * xref table, so PDF text tests need no binary fixtures.
- * ------------------------------------------------------------------ */
-
-const escapePdfString = (value: string): string =>
-  value.replace(/[\\()]/gu, (char) => `\\${char}`);
-
-/**
- * Build a PDF with one text block per page; "\n" starts a new line. pdf.js
- * drops text outside the page box, so long text needs short lines and, for
- * dense pages, a small `fontSize`. `trailerExtras` is appended to the trailer
- * dictionary (used to declare an /Encrypt dictionary).
- */
-export const makePdf = (
-  pages: string[],
-  { fontSize = 12, trailerExtras = "" } = {}
-): Uint8Array => {
-  const fontId = 3 + pages.length * 2;
-  const objects = [
-    "<< /Type /Catalog /Pages 2 0 R >>",
-    `<< /Type /Pages /Kids [${pages.map((_, index) => `${3 + index * 2} 0 R`).join(" ")}] /Count ${pages.length} >>`,
-  ];
-  pages.forEach((text, index) => {
-    const lines = text
-      .split("\n")
-      .map((line) => `(${escapePdfString(line)}) Tj T*`)
-      .join(" ");
-    const stream = `BT /F1 ${fontSize} Tf ${fontSize} TL 10 ${790 - fontSize} Td ${lines} ET`;
-    objects.push(
-      `<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 ${fontId} 0 R >> >> /Contents ${4 + index * 2} 0 R >>`,
-      `<< /Length ${stream.length} >>\nstream\n${stream}\nendstream`
-    );
-  });
-  objects.push("<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>");
-
-  let out = "%PDF-1.4\n";
-  const offsets: number[] = [];
-  objects.forEach((body, index) => {
-    offsets.push(out.length);
-    out += `${index + 1} 0 obj\n${body}\nendobj\n`;
-  });
-  const xrefOffset = out.length;
-  out += `xref\n0 ${objects.length + 1}\n0000000000 65535 f \n`;
-  for (const offset of offsets) {
-    out += `${String(offset).padStart(10, "0")} 00000 n \n`;
-  }
-  out += `trailer\n<< /Size ${objects.length + 1} /Root 1 0 R ${trailerExtras}>>\nstartxref\n${xrefOffset}\n%%EOF\n`;
-  return new TextEncoder().encode(out);
-};
-
-/** A PDF protected by a user password (the empty password does not open it). */
-export const makeEncryptedPdf = (): Uint8Array =>
-  makePdf(["Top secret"], {
-    trailerExtras: `/Encrypt << /Filter /Standard /V 1 /R 2 /O <${"1".repeat(64)}> /U <${"2".repeat(64)}> /P -4 >> /ID [<${"0".repeat(32)}> <${"0".repeat(32)}>] `,
-  });
-
 /** Stable fake validator mirroring R2's httpEtag behavior. */
 export const fakeHttpEtag = (bytes: Uint8Array): string => {
   let hash = 0x81_1c_9d_c5;
@@ -423,3 +366,86 @@ export function withObjectGates<T extends { BUCKET: unknown }>(
     OBJECT_GATES: namespace as unknown as DurableObjectNamespace,
   };
 }
+
+/* ------------------------------------------------------------------ *
+ * Fake media renderer pool: a Durable Object namespace whose stubs
+ * answer like the Container behind MediaRenderer.
+ * ------------------------------------------------------------------ */
+
+export const JPEG_BYTES = new Uint8Array([0xff, 0xd8, 0xff, 0xe0, 1, 2, 3]);
+export const PNG_BYTES = new Uint8Array([
+  0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 1, 2,
+]);
+export const MP3_BYTES = new Uint8Array([0x49, 0x44, 0x33, 4, 0, 0, 1]);
+
+export const mediaFacts = (overrides: Record<string, unknown> = {}) => ({
+  audioCodec: null,
+  durationSeconds: 2.5,
+  format: "mp4",
+  hasAudio: false,
+  hasVideo: true,
+  height: 36,
+  videoCodec: "h264",
+  width: 64,
+  ...overrides,
+});
+
+/** A Container success: the manifest header and the parts concatenated. */
+export const rendererResponse = (
+  fields: Record<string, unknown>,
+  parts: Array<{ bytes: Uint8Array; name: string; type: string }> = []
+): Response => {
+  const body = new Uint8Array(
+    parts.reduce((total, part) => total + part.bytes.length, 0)
+  );
+  let offset = 0;
+  for (const part of parts) {
+    body.set(part.bytes, offset);
+    offset += part.bytes.length;
+  }
+  return new Response(body, {
+    headers: {
+      "x-teak-manifest": JSON.stringify({
+        facts: null,
+        parts: parts.map(({ bytes, name, type }) => ({
+          length: bytes.length,
+          name,
+          type,
+        })),
+        protocol: 1,
+        ...fields,
+      }),
+    },
+  });
+};
+
+export const rendererError = (status: number, error: string): Response =>
+  Response.json({ error, message: error }, { status });
+
+export interface RendererCall {
+  bytes: number;
+  instance: string;
+  path: string;
+}
+
+export const fakeRendererPool = (
+  answer: (call: RendererCall) => Response | Promise<Response>
+) => {
+  const calls: RendererCall[] = [];
+  const namespace = {
+    get: (instance: string) => ({
+      fetch: async (request: Request) => {
+        const url = new URL(request.url);
+        const call = {
+          bytes: (await request.arrayBuffer()).byteLength,
+          instance,
+          path: `${url.pathname}${url.search}`,
+        };
+        calls.push(call);
+        return await answer(call);
+      },
+    }),
+    idFromName: (name: string) => name,
+  };
+  return { calls, namespace: namespace as unknown as DurableObjectNamespace };
+};

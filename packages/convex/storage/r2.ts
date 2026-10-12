@@ -84,6 +84,7 @@ export const cardStorageObjectKeys = (card: {
     };
   };
   previewKey?: string;
+  scrubKey?: string;
   thumbnailKey?: string;
   workflowArtifactKeys?: string[];
 }): string[] => {
@@ -92,6 +93,7 @@ export const cardStorageObjectKeys = (card: {
     card.fileKey,
     card.fileKey ? `${card.fileKey}.processing.json` : undefined,
     card.thumbnailKey,
+    card.scrubKey,
     card.previewKey,
     ...(card.workflowArtifactKeys ?? []),
     linkPreview?.rawStorageKey,
@@ -199,6 +201,7 @@ export const getFileUrl = query({
     const matchesKey =
       card.fileKey === args.key ||
       card.thumbnailKey === args.key ||
+      card.scrubKey === args.key ||
       linkPreview?.screenshotStorageKey === args.key ||
       linkPreview?.imageStorageKey === args.key ||
       linkPreview?.media?.some(

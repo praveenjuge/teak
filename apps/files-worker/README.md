@@ -33,9 +33,9 @@ the URL-based transformation path. The Convex backend remains the control plane 
 users, owns card state, validates uploads, and orchestrates workflows —
 while stored-file processing and storage transfers flow through this worker.
 Remote preview fetching retains its DNS-pinned Convex implementation (see below).
-PDF thumbnails, link screenshots and browser scrapes run on Browser Run
-(`BROWSER`), and video frames on Media Transformations (`MEDIA`); Kernel stays
-in Convex only as the fallback (see "Rendering and media").
+Link screenshots and browser scrapes run on Browser Run (`BROWSER`); video,
+audio and PDF work runs in the media renderer Container (`MEDIA_RENDERER`; see
+"Rendering and media" and "Media renderer Container").
 
 ## Internal ops
 
@@ -56,11 +56,13 @@ Operation request bodies are limited to 1 MiB before signature verification.
   object transiting Convex (`src/inspect.ts`): zip archives are walked via R2
   ranged reads (EOCD → central directory → selected entries) so memory stays
   flat regardless of archive size; CSS and text modes are byte-bounded.
-  The `pdf` mode (unpdf/pdf.js) reads PDFs up to the caller's `maxBytes`,
-  parses at most the first 50 pages, and returns at most 512 KiB characters
-  of text; oversized, corrupt, and password-protected PDFs return empty text.
-  It is additive: deploy the Worker first. Convex treats an older Worker's
-  INVALID_INPUT for `pdf` as "no text" rather than failing card processing.
+  The `pdf` mode runs `pdftotext` in the media renderer on PDFs up to the
+  caller's `maxBytes` (≤100 MiB), reads at most the first 50 pages, and
+  returns at most 512 KiB characters of text; oversized, corrupt, and
+  password-protected PDFs return empty text, and an unavailable renderer
+  answers RENDERER_UNAVAILABLE so Convex retries. Convex treats an older
+  Worker's INVALID_INPUT for `pdf` as "no text" rather than failing card
+  processing.
 - `create-multipart`, `complete-multipart`, and `abort-multipart` coordinate
   resumable browser uploads. Signed `PUT /__uploads/v1/...` URLs accept only
   an exact upload id, object key, and part number.
@@ -73,8 +75,7 @@ Operation request bodies are limited to 1 MiB before signature verification.
   keys per batch and treats missing objects as success. Durable deletion is
   orchestrated by the Convex object-cleanup workflow.
 - `head-object` returns existence, size, ETag, and content type for a key —
-  used to verify Kernel-generated media after direct uploads before Convex
-  records it.
+  used to check an import's source before reading it.
 - `list-objects` pages objects under a `users/` (prod) or `dev/users/`
   (dev) prefix (limit ≤1000, opaque cursor) — used by the stale
   pending-upload sweep and the weekly orphaned-object reconciliation report.
@@ -87,30 +88,44 @@ Operation request bodies are limited to 1 MiB before signature verification.
 
 ## Rendering and media
 
-Each rendering op answers UNSUPPORTED (or PAYLOAD_TOO_LARGE) when its binding
-is missing or the source is outside its limits; Convex then uses its Kernel
-renderer instead (`packages/convex/storage/filesWorkerRendering.ts`). So a
-Worker deployment without these bindings, or an older Worker, changes nothing.
+Rendering never falls back to another renderer. Each op answers:
 
-- `render-pdf-thumbnail` renders page 1 of a PDF (≤20 MiB) from R2 with
-  pdf.js on Browser Run and writes a white-backed PNG (≤1600px each way) to
-  `destinationKey`. pdf.js 3.11.174 comes from cdnjs and is pinned by
-  SHA-256 (matching cdnjs's SRI); the PDF bytes are handed to the page, never
-  fetched by it.
+- `RENDERER_UNAVAILABLE` (503, retryable) when Browser Run or the media
+  renderer is missing, busy or failing. Convex retries with backoff, then
+  records the stage as failed in `processingStatus`.
+- `UNSUPPORTED` (415) only for sources that cannot be rendered: undecodable,
+  encrypted, or past the renderer's wall clock.
+- `PAYLOAD_TOO_LARGE` (413) for sources over 100 MiB, Teak's upload cap.
+
+The ops:
+
 - `capture-screenshot` and `scrape-html` take HTML that Convex already fetched
   through its DNS-pinned SSRF guard, gzip-compressed and base64-encoded
   (`htmlGzipBase64`, ≤2 MiB inflated) so 2 MiB pages fit the 1 MiB op body.
-  Pages run offline: request interception aborts every request, and
-  WebSocket, EventSource and `sendBeacon` are disabled before the HTML loads.
-  The screenshot is a 1280×720 JPEG; a scrape returns attributes, text and
-  inner HTML per selector (≤128 selectors, ≤100 elements each).
-- `extract-video-frame` probes the container, then has the Media binding cut
-  one JPEG frame (10% in, clamped to 1–5s, or 0s under 2s; ≤1600px) straight from the R2
-  stream. Only H.264 MP4/MOV under 100 MB and 10 minutes are attempted;
-  WebM, HEVC and larger files stay on Kernel.
-- `probe-media` reads duration, display size (rotation-aware) and video codec
-  from MP4/MOV/M4A boxes or WebM headers with bounded ranged reads. Convex
-  stores duration and size for audio and video cards when they are missing.
+  Pages run offline on Browser Run: request interception aborts every request,
+  and WebSocket, EventSource and `sendBeacon` are disabled before the HTML
+  loads. The screenshot is a 1280×720 JPEG; a scrape returns attributes, text
+  and inner HTML per selector (≤128 selectors, ≤100 elements each).
+- `render-pdf-thumbnail` renders page 1 of a PDF with `pdftoppm` and writes a
+  PNG (≤1600px each way) to `destinationKey`.
+- `extract-video-frame` writes one JPEG frame (10% in, clamped to 1–5s, or 0s
+  under 2s; ≤1600px, rotation applied) for any format ffmpeg decodes: MP4,
+  MOV, WebM, MKV, AVI and more, with H.264, HEVC, VP9 or AV1. With the
+  optional `scrubDestinationKey` it also writes a hover scrub sprite: 10
+  evenly spaced keyframes (≤360px each) side by side in one JPEG, best effort.
+  The result carries the media facts, so Convex needs no separate probe.
+- `probe-media` returns ffprobe facts: container, duration, display size
+  (rotation-aware), video and audio codecs.
+- `process-audio` decodes audio once for its facts, two waveforms (45 and 200
+  bars, 0–100) and, with `transcribe`, a Whisper transcript. Audio that is not
+  MP3 or PCM is converted to a 16 kHz mono MP3 for Whisper in the same pass;
+  when Whisper cannot decode the original (error 3030), the Worker converts it
+  and retries once. An undecodable recording or a failed transcription comes
+  back as a failed `transcript`, so the waveform is still stored.
+  `transcribe-audio` stays for Convex deployments that predate it.
+- `capabilities` reports `browser` and `renderer`; with `checkRenderer: true`
+  it also starts a renderer and reports `rendererHealthy` and
+  `rendererProtocol` (used by `scripts/check-files-readiness.ts`).
 - `analyze-image` also returns EXIF camera facts (make, model, exposure,
   focal length, ISO, capture time) from JPEG APP1 or the HEIF `Exif` item,
   stored as `fileMetadata.exif`. GPS position is deliberately not read.
@@ -127,14 +142,53 @@ launch rate or concurrency limits, so a link's scrape and screenshot, or a
 batch of imports, usually share one browser. Sessions are per account, so the
 development and production Workers can share a browser; the private contexts
 and offline pages keep their work apart. A refused launch answers
-`UNSUPPORTED` (`browser_unavailable`) and Convex renders with Kernel instead.
+`RENDERER_UNAVAILABLE` (`browser_unavailable`) and Convex retries later.
 Workers Paid includes 10 browser hours a month, then bills per hour; Workers
-Free allows 10 minutes a day and one new browser every 20 seconds. The Media binding
-is in beta and unbilled; afterwards each binding operation is billed like an
-Image Transformation, without the monthly de-duplication. `MEDIA` has no local
-simulation, so it is declared `remote`. Browser Run's local mode runs a real
-Chrome under `wrangler dev`, and the tests in `src/rendering.test.ts` drive a
-local Chrome through the same `@cloudflare/puppeteer` client.
+Free allows 10 minutes a day and one new browser every 20 seconds. Browser
+Run's local mode runs a real Chrome under `wrangler dev`, and the tests in
+`src/rendering.test.ts` drive a local Chrome through the same
+`@cloudflare/puppeteer` client (set `CHROME_PATH` on macOS).
+
+## Media renderer Container
+
+`container/` is a Bun server compiled into one static binary
+(`bun build --compile`) on Alpine with ffmpeg and poppler-utils; its header
+comment in `container/src/server.ts` is the HTTP contract. The Worker reaches
+it through the `MediaRenderer` Durable Object (`src/mediaRenderer.ts`), which
+starts the Container with `enableInternet: false`, waits for `/health`, and
+forwards jobs. `src/rendererClient.ts` picks a random instance from
+`renderer-0` to `renderer-<MEDIA_RENDERER_INSTANCES - 1>`, moves to the next
+on `busy`, and checks the manifest and every output (JPEG, PNG and MP3
+signatures, size caps) before anything is stored. The Container has no R2
+access: the Worker streams the R2 body in with a `FixedLengthStream` and
+stores every output.
+
+- **Security.** No internet and no outbound handlers. ffmpeg and ffprobe
+  always run with `-protocol_whitelist file,pipe`, a demuxer allow-list (no
+  HLS, concat, image sequences or lavfi), `-threads 1` and `-max_alloc`, on a
+  spooled local file only. Frames over 8192×8192 or 40 MP are refused before
+  decoding. Each process runs under `prlimit` (1 GiB address space, a CPU
+  budget) as uid 10001, and the whole process group is killed at the job's
+  wall clock.
+- **Limits.** One job per instance; a second request gets 503 `busy`. Sources
+  are spooled with a hard 100 MiB cap (413). Wall clocks: probe 15 s, video
+  60 s, audio 120 s, PDF 30 s (422 `timeout`). Undecodable, encrypted or
+  hostile input is 415, never 500.
+- **Pool.** `instance_type: "basic"` (1/4 vCPU, 1 GiB), `max_instances` 4 in
+  production and 2 in development, matched by `MEDIA_RENDERER_INSTANCES`.
+  Instances stop after 90 seconds without a request.
+- **Deploying.** `wrangler deploy` builds `container/Dockerfile` for
+  linux/amd64, so Docker must be available where it runs (Workers Builds
+  provides it). The image rolls out after the Worker;
+  `check-files-readiness.ts --wait` holds the Convex deploy until a renderer
+  answers `/health` with the current protocol.
+- **Tests.** `bun test container/src` covers the argument builders (the
+  hardening flags are always present), peaks and the manifest. The CI
+  `renderer` job builds the image, runs it with `--cpus 0.25 --memory 1g`, and
+  runs `container/test` against it with generated fixtures
+  (`container/test/fixtures/generate.sh`). Locally, run the server with Bun
+  (`PORT=18080 WORK_DIR=$(mktemp -d) bun container/src/server.ts`, needs
+  ffmpeg and poppler) and set `RENDERER_URL=http://localhost:18080`.
 
 ## Import and audio processing
 
@@ -231,8 +285,7 @@ rolling back backend callers.
 ## Single-file signed uploads
 
 `PUT /__upload/v1/<key>?exp&sig&ct[&sz]` accepts small user uploads,
-Convex-validated remote assets, export manifests, and Kernel-generated media
-(screenshots, PDF/video thumbnails). The HMAC binds the HTTP method, exact
+Convex-validated remote assets, and export manifests. The HMAC binds the HTTP method, exact
 object key, expiry (≤15 minutes), content type, and — when known ahead of
 time — the expected byte size. Omitting the `ct` param leaves the content
 type unbound: the signature is computed with an empty content type and the
@@ -253,10 +306,12 @@ WASM modules are statically imported and arrive as build-time compiled
 
 ```bash
 bun install
-bun test            # unit + handler tests (fixtures in src/fixtures)
+bun test            # unit + handler tests (fixtures in src/fixtures), plus container/src
 bun run cf-typegen  # refresh generated Worker bindings/runtime types
-bun run typecheck   # tsc --noEmit
-bunx wrangler deploy --dry-run --outdir /tmp/out   # bundle size check
+bun run typecheck   # tsc --noEmit for the Worker and the Container
+bunx wrangler deploy --dry-run --outdir /tmp/out   # bundle size check; builds the
+                    # renderer image, so it needs Docker (add
+                    # --containers-rollout=none to check the Worker alone)
 bun run deploy      # wrangler deploy (creates files.teakvault.com custom domain)
 
 # Local development
@@ -276,10 +331,16 @@ bun run sync:cloudflare-dev --isolated  # from repo root, AFTER the switch; writ
 bun run dev:development              # AFTER the switch; local code, remote development bucket/AI/Images
 ```
 
+`wrangler dev` builds and runs the renderer Container locally, which needs a
+running Docker daemon. To work on other parts of the Worker without Docker,
+set `"dev": { "enable_containers": false }` in your local copy of the config;
+media jobs then answer `RENDERER_UNAVAILABLE`.
+
 `deploy:development` is a plain `wrangler deploy --config
 development/wrangler.jsonc` with no Convex check: the Worker must exist and be
 verified before Convex dev can switch to it. The committed config can only
-bind the development bucket, its own Durable Object namespace and workers.dev,
+bind the development bucket, its own Durable Object namespaces (deletion gates
+and the media renderer) and workers.dev,
 with no route (tests in `src/deployment.test.ts` and
 `scripts/files-worker-dev-boundary.test.ts` enforce that). It sets no secret.
 Its `FILES_SIGNING_SECRET` is put separately and proven by a signed

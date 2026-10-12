@@ -11,7 +11,7 @@ import { isValidUploadKey } from "./upload";
 // recordings) with error 3030. Retrying the same bytes cannot succeed.
 const AUDIO_DECODE_ERROR = /\b3030\b|failed to decode audio/iu;
 
-const isAudioDecodeError = (error: unknown): boolean => {
+export const isAudioDecodeError = (error: unknown): boolean => {
   const code =
     error && typeof error === "object"
       ? (error as { code?: unknown }).code

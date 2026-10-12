@@ -210,6 +210,7 @@ describe("card storage cleanup", () => {
       cardStorageObjectKeys({
         fileKey: "file",
         previewKey: "preview",
+        scrubKey: "scrub",
         thumbnailKey: "thumbnail",
         metadata: {
           linkPreview: {
@@ -223,6 +224,7 @@ describe("card storage cleanup", () => {
       "file",
       "file.processing.json",
       "thumbnail",
+      "scrub",
       "preview",
       "image",
       "screenshot",

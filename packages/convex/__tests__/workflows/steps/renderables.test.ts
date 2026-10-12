@@ -27,10 +27,6 @@ beforeAll(async () => {
   if (resolvedPhoton) {
     mock.module(resolvedPhoton, photonMock);
   }
-  mock.module("@onkernel/sdk", () => ({
-    default: class KernelMock {},
-  }));
-
   generateHandler = (await import("../../../workflows/steps/renderables"))
     .generateHandler;
 });
@@ -334,30 +330,39 @@ describe("renderables step", () => {
       expect(result.thumbnailGenerated).toBe(false);
     });
 
-    test("throws retryable video thumbnail failures to the workflow", async () => {
-      const mockCtx = {
-        runQuery: createMockFn<[any, any], any>(async () => ({
-          _id: "vid-retry",
-          type: "video",
-          fileKey: "retry-file",
-          processingStatus: {},
-        })),
-        runAction: createMockFn<[any, any], any>(async () => ({
-          success: false,
-          generated: false,
-          error: "kernel_execution_failed",
-          retryable: true,
-        })),
-        runMutation: createMockFn<[any, any], null>(async () => null),
-      };
+    test.each([
+      ["video", { mimeType: "video/mp4" }],
+      ["document", { mimeType: "application/pdf" }],
+    ])(
+      "throws a busy renderer's %s failure to the workflow so it retries",
+      async (cardType, fileMetadata) => {
+        const runMutation = createMockFn<[any, any], null>(async () => null);
+        const mockCtx = {
+          runQuery: createMockFn<[any, any], any>(async () => ({
+            _id: "retry-card",
+            type: cardType,
+            fileKey: "retry-file",
+            fileMetadata,
+            processingStatus: {},
+          })),
+          runAction: createMockFn<[any, any], any>(async () => ({
+            success: false,
+            generated: false,
+            error: "files_worker_error:RENDERER_UNAVAILABLE:503:r",
+            retryable: true,
+          })),
+          runMutation,
+        };
 
-      await expect(
-        generateHandler(mockCtx, {
-          cardId: "vid-retry",
-          cardType: "video",
-        })
-      ).rejects.toThrow("video_thumbnail_retryable:kernel_execution_failed");
-    });
+        await expect(
+          generateHandler(mockCtx, { cardId: "retry-card", cardType })
+        ).rejects.toThrow(
+          "renderables_retryable:files_worker_error:RENDERER_UNAVAILABLE"
+        );
+        // The stage stays as it was until the workflow runs out of retries.
+        expect(runMutation.calls).toEqual([]);
+      }
+    );
 
     test("skips video thumbnail when no fileKey", async () => {
       const runMutation = createMockFn<[any, any], null>(async () => null);
@@ -565,7 +570,7 @@ describe("renderables step", () => {
         runAction: createMockFn<[any, any], any>(async () => ({
           success: false,
           generated: false,
-          error: "kernel_execution_failed",
+          error: "video_thumbnail_declined:unsupported:unsupported",
         })),
         runMutation,
       };
@@ -578,7 +583,7 @@ describe("renderables step", () => {
       const mutationArgs = runMutation.calls[0]?.[1] as any;
       expect(mutationArgs?.processingStatus.renderables.status).toBe("failed");
       expect(mutationArgs?.processingStatus.renderables.error).toBe(
-        "kernel_execution_failed"
+        "video_thumbnail_declined:unsupported:unsupported"
       );
     });
 

@@ -20,12 +20,30 @@
   ],
   // Its own SQLite namespace; never reference the production script's gates.
   "durable_objects": {
-    "bindings": [{ "name": "OBJECT_GATES", "class_name": "ObjectDeletionGate" }]
+    "bindings": [
+      { "name": "OBJECT_GATES", "class_name": "ObjectDeletionGate" },
+      { "name": "MEDIA_RENDERER", "class_name": "MediaRenderer" }
+    ]
   },
   "migrations": [
     {
       "tag": "development-object-deletion-gates-v1",
       "new_sqlite_classes": ["ObjectDeletionGate"]
+    },
+    {
+      "tag": "development-media-renderer-v1",
+      "new_sqlite_classes": ["MediaRenderer"]
+    }
+  ],
+  // Media renderer: ffmpeg and poppler for video frames, scrub sprites, media
+  // facts, audio waveforms and conversion, and PDF thumbnails and text. One
+  // job per instance, no internet; see container/Dockerfile.
+  "containers": [
+    {
+      "class_name": "MediaRenderer",
+      "image": "../container/Dockerfile",
+      "instance_type": "basic",
+      "max_instances": 2
     }
   ],
   "ai": {
@@ -38,10 +56,6 @@
   "browser": {
     "binding": "BROWSER"
   },
-  "media": {
-    "binding": "MEDIA",
-    "remote": true
-  },
   // Workers Paid. Exports stream up to 10,000 files (5 GB) into one ZIP in a
   // single request: CPU for the ZIP's checksums, and one R2 read per file plus
   // the upload parts. Other operations use a small fraction of either limit.
@@ -50,7 +64,9 @@
     "subrequests": 20000
   },
   "vars": {
-    "SENTRY_ENVIRONMENT": "development"
+    "SENTRY_ENVIRONMENT": "development",
+    // Matches containers[0].max_instances.
+    "MEDIA_RENDERER_INSTANCES": "2"
   },
   "observability": {
     "enabled": true,

@@ -52,6 +52,8 @@ export const processingStatusObjectValidator = v.object({
   categorize: v.optional(stageStatusValidator),
   metadata: v.optional(stageStatusValidator),
   renderables: v.optional(stageStatusValidator),
+  // Link screenshots run in their own workflow after metadata.
+  screenshot: v.optional(stageStatusValidator),
 });
 
 export const processingStatusValidator = v.optional(
@@ -127,6 +129,21 @@ export const fileMetadataValidator = v.optional(
     height: v.optional(v.number()),
     preview: v.optional(filePreviewFactsValidator),
     exif: v.optional(imageExifValidator),
+    // Video hover scrub sprite (`scrubKey`): `frames * frameWidth` wide.
+    scrub: v.optional(
+      v.object({
+        frames: v.number(),
+        frameWidth: v.number(),
+        frameHeight: v.number(),
+      })
+    ),
+    // Audio waveform bar heights 0-100: 45 for grid cards, 200 for the player.
+    waveform: v.optional(
+      v.object({
+        grid: v.array(v.number()),
+        detail: v.array(v.number()),
+      })
+    ),
     processing: v.optional(fileProcessingProvenanceValidator),
     // Recording-specific metadata
     recordingTimestamp: v.optional(v.number()),
@@ -430,6 +447,7 @@ export const cardValidator = v.object({
   url: v.optional(v.string()),
   fileKey: v.optional(r2KeyValidator),
   thumbnailKey: v.optional(r2KeyValidator),
+  scrubKey: v.optional(r2KeyValidator),
   workflowArtifactKeys: v.optional(v.array(r2KeyValidator)),
   /** Bounded ~1600px preview derivative for large originals. */
   previewKey: v.optional(r2KeyValidator),

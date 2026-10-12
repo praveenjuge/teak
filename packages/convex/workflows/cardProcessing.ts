@@ -32,9 +32,10 @@ const LINK_ENRICHMENT_STEP_RETRY: RetryBehavior = {
   initialBackoffMs: 1200,
   base: 1.6,
 };
+// Covers a renderer cold start or a busy pool: 5 s, 10 s, 20 s between tries.
 export const RENDERABLES_STEP_RETRY: RetryBehavior = {
-  maxAttempts: 3,
-  initialBackoffMs: 500,
+  maxAttempts: 4,
+  initialBackoffMs: 5000,
   base: 2,
 };
 

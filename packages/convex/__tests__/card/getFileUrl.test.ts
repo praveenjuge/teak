@@ -148,6 +148,59 @@ describe("card/getFileUrl.ts", () => {
   });
 });
 
+describe("video scrub sprites", () => {
+  const video = {
+    _id: "c-video",
+    _creationTime: 1,
+    userId: "u1",
+    type: "video",
+    fileKey: "users/u1/cards/c-video/file/clip.webm",
+    scrubKey: "users/u1/cards/c-video/scrub/strip.jpg",
+    content: "",
+    createdAt: 1,
+    updatedAt: 1,
+  };
+
+  test("grid cards get the whole sprite, not a resized rendition", async () => {
+    process.env.FILES_BASE = FILES_BASE;
+    process.env.FILES_SIGNING_SECRET = SIGNING_SECRET;
+    const { attachGridFileUrls } = await import("../../card/queryUtils");
+    const [card] = await attachGridFileUrls({} as any, [
+      {
+        ...video,
+        fileMetadata: {
+          scrub: { frameHeight: 180, frameWidth: 320, frames: 10 },
+        },
+      } as any,
+    ]);
+
+    expect(card?.scrubUrl).toContain(
+      `/${encodeURIComponent(video.scrubKey).replaceAll("%2F", "/")}`
+    );
+    expect(card?.scrubUrl).not.toContain("/__images/v1/");
+  });
+
+  test("a sprite without its recorded size gets no URL", async () => {
+    const { attachGridFileUrls } = await import("../../card/queryUtils");
+    const [card] = await attachGridFileUrls({} as any, [video as any]);
+
+    expect(card?.scrubUrl).toBeUndefined();
+  });
+
+  test("the sprite's URL can be refreshed by its owner", async () => {
+    const { getAuthorizedMedia } = await import("../../card/getFileUrl");
+    const handler = (getAuthorizedMedia as any).handler ?? getAuthorizedMedia;
+    const ctx = withTestSession({
+      auth: { getUserIdentity: mock().mockResolvedValue({ subject: "u1" }) },
+      db: { get: mock().mockResolvedValue(video) },
+    } as any);
+
+    expect(
+      await handler(ctx, { cardId: "c-video", key: video.scrubKey })
+    ).toEqual({ fileName: null });
+  });
+});
+
 describe("getFileUrl authorization", () => {
   test("rejects a card owned by another user", async () => {
     const { getFileUrl } = await import("../../card/getFileUrl");

@@ -1,3 +1,4 @@
+import { FILES_WAVEFORM_BARS } from "@teak/files-protocol";
 import { v } from "convex/values";
 import { internalMutation } from "../../../_generated/server";
 import { stageFailed } from "../../../card/processingStatus";
@@ -60,10 +61,21 @@ export const updateCardFileMetadata = internalMutation({
   },
 });
 
+const waveformValidator = v.object({
+  grid: v.array(v.number()),
+  detail: v.array(v.number()),
+});
+
+const isWaveformBars = (values: number[], count: number) =>
+  values.length === count &&
+  values.every(
+    (value) => Number.isInteger(value) && value >= 0 && value <= 100
+  );
+
 /**
- * Store container facts (duration, display size) for audio and video cards.
- * Only fills fields the card does not already have, so upload-time or
- * thumbnail-derived values win.
+ * Store container facts (duration, display size) and the audio waveform for
+ * audio and video cards. Only fills fields the card does not already have, so
+ * upload-time or thumbnail-derived values win.
  */
 export const updateCardMediaFacts = internalMutation({
   args: {
@@ -71,15 +83,27 @@ export const updateCardMediaFacts = internalMutation({
     duration: v.optional(v.number()),
     width: v.optional(v.number()),
     height: v.optional(v.number()),
+    waveform: v.optional(waveformValidator),
   },
   returns: v.null(),
   handler: async (ctx, args) => {
+    if (
+      args.waveform &&
+      !(
+        isWaveformBars(args.waveform.grid, FILES_WAVEFORM_BARS.grid) &&
+        isWaveformBars(args.waveform.detail, FILES_WAVEFORM_BARS.detail)
+      )
+    ) {
+      throw new Error("invalid_waveform");
+    }
     const card = await ctx.db.get("cards", args.cardId);
     if (!card) {
       return null;
     }
     const current = card.fileMetadata || {};
     const missing = {
+      ...(args.waveform &&
+        current.waveform === undefined && { waveform: args.waveform }),
       ...(args.duration !== undefined &&
         current.duration === undefined && { duration: args.duration }),
       ...(args.width !== undefined &&
@@ -132,6 +156,16 @@ export const updateCardThumbnail = internalMutation({
     // even when thumbnail generation is skipped (small files)
     originalWidth: v.optional(v.number()),
     originalHeight: v.optional(v.number()),
+    // Video only: the hover scrub sprite and the duration from the same pass.
+    scrubKey: v.optional(v.string()),
+    scrub: v.optional(
+      v.object({
+        frames: v.number(),
+        frameWidth: v.number(),
+        frameHeight: v.number(),
+      })
+    ),
+    duration: v.optional(v.number()),
   },
   returns: v.null(),
   handler: async (ctx, args) => {
@@ -140,29 +174,41 @@ export const updateCardThumbnail = internalMutation({
       return null;
     }
 
+    if ((args.scrubKey === undefined) !== (args.scrub === undefined)) {
+      throw new Error("scrub_key_and_size_go_together");
+    }
     const updates: {
       thumbnailKey: string;
+      scrubKey?: string;
       updatedAt: number;
-      fileMetadata?: {
-        width?: number;
-        height?: number;
-      };
+      fileMetadata?: NonNullable<typeof card.fileMetadata>;
     } = {
       thumbnailKey: args.thumbnailKey,
+      ...(args.scrubKey !== undefined && { scrubKey: args.scrubKey }),
       updatedAt: Date.now(),
     };
 
     // Also store original dimensions in fileMetadata for aspect ratio
     // This ensures dimensions are available even when thumbnail isn't generated
-    const hasDimensions =
-      args.originalWidth !== undefined || args.originalHeight !== undefined;
-    if (hasDimensions) {
+    const hasFacts =
+      args.originalWidth !== undefined ||
+      args.originalHeight !== undefined ||
+      args.scrub !== undefined ||
+      (args.duration !== undefined &&
+        card.fileMetadata?.duration === undefined);
+    if (hasFacts) {
       updates.fileMetadata = {
         ...(card.fileMetadata || {}),
         ...(args.originalWidth !== undefined && { width: args.originalWidth }),
         ...(args.originalHeight !== undefined && {
           height: args.originalHeight,
         }),
+        ...(args.scrub !== undefined && { scrub: args.scrub }),
+        // An upload-time duration wins, as in updateCardMediaFacts.
+        ...(args.duration !== undefined &&
+          card.fileMetadata?.duration === undefined && {
+            duration: args.duration,
+          }),
       };
     }
 

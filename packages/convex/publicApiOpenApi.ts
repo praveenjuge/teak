@@ -37,7 +37,7 @@ const cardProperties = {
   processingStatus: {
     additionalProperties: true,
     description:
-      "Per-stage processing state (classify, categorize, metadata, renderables), or null once nothing is tracked.",
+      "Per-stage processing state (classify, categorize, metadata, renderables, screenshot), or null once nothing is tracked.",
     type: ["object", "null"],
   },
   linkPreviewDescription: { type: ["string", "null"] },
@@ -53,6 +53,28 @@ const cardProperties = {
   linkFaviconUrl: { type: ["string", "null"] },
   fileWidth: { type: ["number", "null"] },
   fileHeight: { type: ["number", "null"] },
+  audioWaveform: {
+    description:
+      "Audio bar heights from 0 to 100: 45 for a grid card and 200 for a player. Null for other cards and audio saved before waveforms.",
+    properties: {
+      detail: { items: { type: "number" }, type: "array" },
+      grid: { items: { type: "number" }, type: "array" },
+    },
+    required: ["grid", "detail"],
+    type: ["object", "null"],
+  },
+  videoScrub: {
+    description:
+      "A horizontal JPEG strip of evenly spaced video frames for hover previews, `frames * frameWidth` wide. The URL is signed and expires. Null for other cards and videos saved before scrub strips.",
+    properties: {
+      frameHeight: { type: "number" },
+      frameWidth: { type: "number" },
+      frames: { type: "number" },
+      url: { type: "string" },
+    },
+    required: ["url", "frames", "frameWidth", "frameHeight"],
+    type: ["object", "null"],
+  },
   colors: {
     items: {
       properties: { hex: { type: "string" }, name: { type: "string" } },
@@ -170,6 +192,8 @@ const components = {
         },
         fileHeight: cardProperties.fileHeight,
         fileWidth: cardProperties.fileWidth,
+        audioWaveform: cardProperties.audioWaveform,
+        videoScrub: cardProperties.videoScrub,
         fileUrl: { type: ["string", "null"] },
         id: { type: "string" },
         isDeleted: cardProperties.isDeleted,

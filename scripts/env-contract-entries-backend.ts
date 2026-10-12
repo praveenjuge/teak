@@ -230,18 +230,6 @@ export const BACKEND_ENTRIES: EnvVarSpec[] = [
     providers: ["convex-dashboard"],
     required: false,
   }),
-  // Media SDK credentials (implicit reads).
-  spec("KERNEL_API_KEY", {
-    owners: ["@teak/convex"],
-    targets: ["convex"],
-    profiles: ["preview", "production"],
-    secret: true,
-    validation: "string",
-    providers: ["convex-dashboard", "sdk-implicit"],
-    required: false,
-    implicit: true,
-    note: "Read implicitly by @onkernel/sdk default auth. Optional fallback renderer for screenshots, thumbnails and browser link scrapes the Files Worker declines.",
-  }),
   // Polar billing capability group.
   spec("POLAR_ACCESS_TOKEN", {
     owners: ["@teak/convex"],

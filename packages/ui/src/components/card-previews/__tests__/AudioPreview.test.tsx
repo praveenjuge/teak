@@ -1,6 +1,14 @@
-import { describe, expect, test } from "bun:test";
+import { afterEach, describe, expect, test } from "bun:test";
+import { GlobalRegistrator } from "@happy-dom/global-registrator";
+import type { Root } from "react-dom/client";
 import { renderToStaticMarkup } from "react-dom/server";
-import { AudioPreview, formatAudioTime } from "../AudioPreview";
+
+GlobalRegistrator.register({ url: "http://localhost:3000" });
+Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
+
+const { act } = await import("react");
+const { createRoot } = await import("react-dom/client");
+const { AudioPreview, formatAudioTime } = await import("../AudioPreview");
 
 const createAudioCard = (overrides?: Record<string, unknown>) => ({
   _id: "card_audio",
@@ -73,5 +81,98 @@ describe("AudioPreview", () => {
 
     expect(markup).toContain("Transcript");
     expect(markup).toContain("Warmer colors, bolder wordmark.");
+  });
+
+  test("draws the 200-bar detail waveform when present", () => {
+    const detail = Array.from({ length: 200 }, (_, i) => i % 101);
+    const markup = renderToStaticMarkup(
+      <AudioPreview
+        card={
+          createAudioCard({
+            fileMetadata: {
+              duration: 84,
+              waveform: { detail, grid: new Array(45).fill(50) },
+            },
+          }) as any
+        }
+      />
+    );
+
+    expect((markup.match(/<span aria-hidden="true"/g) ?? []).length).toBe(200);
+    expect(markup).toContain("height:100%");
+    expect(markup).toContain("height:10%");
+  });
+
+  test("falls back to the 45 placeholder bars for an invalid waveform", () => {
+    const markup = renderToStaticMarkup(
+      <AudioPreview
+        card={
+          createAudioCard({
+            fileMetadata: {
+              duration: 84,
+              waveform: { detail: [1, 2, 3], grid: [] },
+            },
+          }) as any
+        }
+      />
+    );
+
+    expect((markup.match(/<span aria-hidden="true"/g) ?? []).length).toBe(45);
+  });
+});
+
+describe("AudioPreview playback progress", () => {
+  let root: Root | undefined;
+
+  afterEach(async () => {
+    await act(() => root?.unmount());
+    root = undefined;
+    document.body.innerHTML = "";
+  });
+
+  test("marks bars up to the current time as played", async () => {
+    const container = document.createElement("div");
+    document.body.append(container);
+    root = createRoot(container);
+    await act(() =>
+      root?.render(
+        <AudioPreview
+          card={
+            createAudioCard({
+              fileMetadata: {
+                duration: 100,
+                waveform: {
+                  detail: Array.from({ length: 200 }, () => 50),
+                  grid: new Array(45).fill(50),
+                },
+              },
+            }) as any
+          }
+        />
+      )
+    );
+    const bars = () =>
+      Array.from(container.querySelectorAll("span[aria-hidden]"));
+    const played = () =>
+      bars().filter((bar) => bar.className.includes("bg-primary")).length;
+
+    expect(bars()).toHaveLength(200);
+    expect(played()).toBe(0);
+
+    const audio = container.querySelector("audio") as HTMLAudioElement;
+    Object.defineProperty(audio, "currentTime", {
+      configurable: true,
+      value: 25,
+    });
+    await act(() => {
+      audio.dispatchEvent(new Event("timeupdate"));
+    });
+
+    expect(played()).toBe(50);
+    expect(
+      bars()
+        .slice(0, 50)
+        .every((bar) => bar.className.includes("bg-primary"))
+    ).toBe(true);
   });
 });

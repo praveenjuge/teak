@@ -113,6 +113,46 @@ describe("Convex public API metadata", () => {
     }
   });
 
+  test("serializes a video's scrub strip and an audio waveform", () => {
+    const waveform = { detail: [1, 2], grid: [3] };
+    const video = serializeListCard(
+      {
+        _id: "card_video",
+        type: "video",
+        createdAt: 1,
+        updatedAt: 1,
+        scrubUrl: "https://files.teakvault.com/strip",
+        fileMetadata: {
+          scrub: { frameHeight: 180, frameWidth: 320, frames: 10 },
+        },
+      },
+      "https://api.teakvault.com",
+      new Set(["metadata"])
+    );
+    const audio = serializeListCard(
+      {
+        _id: "card_audio",
+        type: "audio",
+        createdAt: 1,
+        updatedAt: 1,
+        fileMetadata: { waveform },
+      },
+      "https://api.teakvault.com",
+      new Set(["metadata"])
+    );
+
+    expect(video).toMatchObject({
+      audioWaveform: null,
+      videoScrub: {
+        frameHeight: 180,
+        frameWidth: 320,
+        frames: 10,
+        url: "https://files.teakvault.com/strip",
+      },
+    });
+    expect(audio).toMatchObject({ audioWaveform: waveform, videoScrub: null });
+  });
+
   test("uses the Convex dev site URL in the OpenAPI spec", () => {
     expect(openApiSpec.servers).toEqual([
       { url: "https://teakvault.com/api" },

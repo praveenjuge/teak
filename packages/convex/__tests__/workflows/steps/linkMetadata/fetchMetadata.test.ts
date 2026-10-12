@@ -19,26 +19,20 @@ const toUrlString = (input: string | URL | Request) => {
   return input;
 };
 
-const mockCreateSecret = mock();
-const mockKernelExecute = mock();
-const mockKernelCreateBrowser = mock();
-const mockDeleteByID = mock();
-
 const mockParseLinkPreview = mock();
 const mockBuildSuccessPreview = mock();
 const mockBuildErrorPreview = mock();
-const mockNormalizeInstagramExtractedMedia = mock();
+const mockExtractInstagramMedia = mock();
 const mockScrapeElements: { selector: string }[] = [];
 
 mock.module("../../../../../convex/linkMetadata", () => ({
-  buildInstagramPrimaryImageSnippet: () => "",
   normalizeUrl: (url) => url,
   parseLinkPreview: mockParseLinkPreview,
   buildSuccessPreview: mockBuildSuccessPreview,
   buildErrorPreview: mockBuildErrorPreview,
   isInstagramPostUrl: (url) => /instagram\.com\/(p|reel)\//.test(url),
   isInstagramUrl: (url) => /instagram\.com/.test(url),
-  normalizeInstagramExtractedMedia: mockNormalizeInstagramExtractedMedia,
+  extractInstagramMediaFromHtml: mockExtractInstagramMedia,
   SCRAPE_ELEMENTS: mockScrapeElements,
 }));
 
@@ -67,17 +61,6 @@ mock.module("../../../../../convex/linkMetadata/ssrf", () => ({
   },
   safeFetch: (url: string, _resolveDns: unknown, init?: RequestInit) =>
     globalThis.fetch(url, init),
-}));
-
-mock.module("@onkernel/sdk", () => ({
-  default: class MockKernel {
-    secrets = { create: mockCreateSecret };
-    browsers = {
-      create: mockKernelCreateBrowser,
-      deleteByID: mockDeleteByID,
-      playwright: { execute: mockKernelExecute },
-    };
-  },
 }));
 
 import { gunzipSync } from "node:zlib";
@@ -120,24 +103,19 @@ describe("fetchMetadata", () => {
   beforeEach(() => {
     mockRunQuery.mockReset();
     mockRunMutation.mockReset();
-    mockCreateSecret.mockReset();
-    mockKernelExecute.mockReset();
-    mockKernelCreateBrowser.mockReset();
-    mockDeleteByID.mockReset();
     mockFetch.mockReset();
     mockParseLinkPreview.mockReset();
     mockBuildSuccessPreview.mockReset();
     mockBuildErrorPreview.mockReset();
-    mockNormalizeInstagramExtractedMedia.mockReset();
+    mockExtractInstagramMedia.mockReset();
     mockScrapeElements.splice(0);
     r2Mocks.storeObject.mockReset();
 
     // Standard mock resolutions
-    mockKernelCreateBrowser.mockResolvedValue({ session_id: "s1" });
     mockParseLinkPreview.mockReturnValue({});
     mockBuildSuccessPreview.mockReturnValue({});
     mockBuildErrorPreview.mockImplementation((url, error) => ({ url, error }));
-    mockNormalizeInstagramExtractedMedia.mockReturnValue(undefined);
+    mockExtractInstagramMedia.mockReturnValue(undefined);
     r2Mocks.storeObject.mockImplementation(async () => "stored-asset");
 
     mockFetch.mockImplementation(
@@ -204,12 +182,6 @@ describe("fetchMetadata", () => {
       url: "https://example.com",
       metadata: { linkCategory: { status: "completed" } },
     });
-    mockKernelExecute.mockResolvedValue({
-      success: true,
-      result: {
-        selectors: [{ selector: "title", results: [{ text: "Title" }] }],
-      },
-    });
 
     const result = await fetchMetadataHandler(ctx, { cardId: "c1" });
     expect(result).toMatchObject({ status: "success" });
@@ -222,7 +194,7 @@ describe("fetchMetadata", () => {
     );
   });
 
-  test("scrapes through the Files Worker browser before Kernel when static HTML has no metadata", async () => {
+  test("scrapes the fetched HTML on the Files Worker browser when it has no static metadata", async () => {
     const previous = [process.env.FILES_BASE, process.env.FILES_SIGNING_SECRET];
     process.env.FILES_BASE = "https://files.teakvault.com";
     process.env.FILES_SIGNING_SECRET = "test-signing-secret";
@@ -274,7 +246,6 @@ describe("fetchMetadata", () => {
       expect(mockParseLinkPreview).toHaveBeenCalledWith("https://example.com", [
         { selector: "head > title", results: [{ text: "Rendered" }] },
       ]);
-      expect(mockKernelCreateBrowser).not.toHaveBeenCalled();
     } finally {
       [process.env.FILES_BASE, process.env.FILES_SIGNING_SECRET] = previous;
       if (previous[0] === undefined) {
@@ -286,52 +257,72 @@ describe("fetchMetadata", () => {
     }
   });
 
-  test("keeps Instagram posts on Kernel so their media is still extracted when the Worker is configured", async () => {
-    const previous = [process.env.FILES_BASE, process.env.FILES_SIGNING_SECRET];
-    process.env.FILES_BASE = "https://files.teakvault.com";
-    process.env.FILES_SIGNING_SECRET = "test-signing-secret";
+  test("reads Instagram post media from the HTML it already fetched", async () => {
     mockRunQuery.mockResolvedValue({
       _id: "c1",
       type: "link",
       url: "https://www.instagram.com/p/DBY4WfSxA0a/",
       metadata: { linkCategory: { status: "completed" } },
     });
-    mockKernelExecute.mockResolvedValue({
-      success: true,
-      result: {
-        selectors: [],
-        instagramMedia: [{ url: "https://cdninstagram.com/media/raw.jpg" }],
-      },
-    });
-    const workerOps: string[] = [];
-    mockFetch.mockImplementation((url: string, init?: RequestInit) => {
-      if (String(url).startsWith("https://files.teakvault.com/__ops/v1")) {
-        workerOps.push(JSON.parse(String(init?.body)).op);
-        return Promise.resolve(
-          Response.json({
-            ok: true,
-            version: 1,
-            requestId: "r1",
-            data: { selectors: [] },
-          })
-        );
-      }
-      return Promise.resolve(
-        new Response("<html></html>", {
+    const html = '<html><script type="application/json">{}</script></html>';
+    mockFetch.mockImplementation(
+      () =>
+        new Response(html, {
           headers: { "content-type": "text/html" },
           status: 200,
         })
-      );
-    });
-    try {
-      await fetchMetadataHandler(ctx, { cardId: "c1" });
+    );
 
-      expect(workerOps).not.toContain("scrape-html");
-      expect(mockKernelCreateBrowser).toHaveBeenCalled();
-      expect(mockNormalizeInstagramExtractedMedia).toHaveBeenCalledWith(
-        "https://www.instagram.com/p/DBY4WfSxA0a/",
-        [{ url: "https://cdninstagram.com/media/raw.jpg" }]
-      );
+    await fetchMetadataHandler(ctx, { cardId: "c1" });
+
+    expect(mockExtractInstagramMedia).toHaveBeenCalledWith(
+      "https://www.instagram.com/p/DBY4WfSxA0a/",
+      html
+    );
+    // One page fetch: the parser and the browser reuse the same HTML.
+    expect(mockFetch).toHaveBeenCalledTimes(1);
+  });
+
+  test("keeps the static result when the Files Worker browser is unavailable", async () => {
+    const previous = [process.env.FILES_BASE, process.env.FILES_SIGNING_SECRET];
+    process.env.FILES_BASE = "https://files.teakvault.com";
+    process.env.FILES_SIGNING_SECRET = "test-signing-secret";
+    mockScrapeElements.push({ selector: "head > title" });
+    mockRunQuery.mockResolvedValue({
+      _id: "c1",
+      type: "link",
+      url: "https://example.com",
+      metadata: { linkCategory: { status: "completed" } },
+    });
+    mockFetch.mockImplementation((url: string) =>
+      Promise.resolve(
+        String(url).startsWith("https://files.teakvault.com/__ops/v1")
+          ? Response.json(
+              {
+                ok: false,
+                version: 1,
+                error: {
+                  code: "RENDERER_UNAVAILABLE",
+                  message: "browser_unavailable",
+                  requestId: "r1",
+                  retryable: true,
+                },
+              },
+              { status: 503 }
+            )
+          : new Response("<html><body>no metadata</body></html>", {
+              headers: { "content-type": "text/html" },
+              status: 200,
+            })
+      )
+    );
+    try {
+      const result = await fetchMetadataHandler(ctx, { cardId: "c1" });
+
+      expect(result.status).toBe("success");
+      expect(mockParseLinkPreview).toHaveBeenCalledWith("https://example.com", [
+        { selector: "head > title", results: [] },
+      ]);
     } finally {
       [process.env.FILES_BASE, process.env.FILES_SIGNING_SECRET] = previous;
       if (previous[0] === undefined) {
@@ -361,8 +352,6 @@ describe("fetchMetadata", () => {
         results: [{ text: "Example" }],
       },
     ]);
-    expect(mockKernelCreateBrowser).not.toHaveBeenCalled();
-    expect(mockKernelExecute).not.toHaveBeenCalled();
   });
 
   test("stores instagram post media in link preview metadata", async () => {
@@ -372,15 +361,8 @@ describe("fetchMetadata", () => {
       url: "https://www.instagram.com/p/DBY4WfSxA0a/",
       metadata: { linkCategory: { status: "completed" } },
     });
-    mockKernelExecute.mockResolvedValue({
-      success: true,
-      result: {
-        selectors: [],
-        instagramMedia: [{ url: "https://cdninstagram.com/media/raw.jpg" }],
-      },
-    });
     mockParseLinkPreview.mockReturnValue({ title: "Instagram post" });
-    mockNormalizeInstagramExtractedMedia.mockReturnValue([
+    mockExtractInstagramMedia.mockReturnValue([
       {
         type: "image",
         url: "https://cdninstagram.com/media/one.jpg",
@@ -438,7 +420,7 @@ describe("fetchMetadata", () => {
     const result = await fetchMetadataHandler(ctx, { cardId: "c1" });
 
     expect(result.status).toBe("success");
-    expect(mockNormalizeInstagramExtractedMedia).toHaveBeenCalled();
+    expect(mockExtractInstagramMedia).toHaveBeenCalled();
     expect(mockBuildSuccessPreview).toHaveBeenCalledWith(
       "https://www.instagram.com/p/DBY4WfSxA0a/",
       expect.objectContaining({
@@ -464,16 +446,6 @@ describe("fetchMetadata", () => {
       type: "link",
       url: "https://www.instagram.com/reel/Cr9Lx2xJ0Ab/",
       metadata: { linkCategory: { status: "completed" } },
-    });
-    mockKernelExecute.mockResolvedValue({
-      success: true,
-      result: {
-        selectors: [],
-        instagramMedia: [],
-        primaryImage: {
-          url: "https://cdninstagram.com/media/poster.jpg",
-        },
-      },
     });
     mockParseLinkPreview.mockReturnValue({
       title: "Instagram reel",
@@ -520,18 +492,11 @@ describe("fetchMetadata", () => {
       url: "https://www.instagram.com/reel/Cr9Lx2xJ0Ab/",
       metadata: { linkCategory: { status: "completed" } },
     });
-    mockKernelExecute.mockResolvedValue({
-      success: true,
-      result: {
-        selectors: [],
-        instagramMedia: [{ url: "https://cdninstagram.com/media/raw.mp4" }],
-      },
-    });
     mockParseLinkPreview.mockReturnValue({
       title: "Instagram reel",
       imageUrl: "https://cdninstagram.com/media/poster.png",
     });
-    mockNormalizeInstagramExtractedMedia.mockReturnValue([
+    mockExtractInstagramMedia.mockReturnValue([
       {
         type: "video",
         url: "https://cdninstagram.com/media/reel.mp4",
@@ -606,7 +571,6 @@ describe("fetchMetadata", () => {
     const result = await fetchMetadataHandler(ctx, { cardId: "c1" });
 
     expect(result.status).toBe("success");
-    expect(mockKernelExecute).not.toHaveBeenCalled();
     expect(mockParseLinkPreview).not.toHaveBeenCalled();
     expect(mockRunMutation).toHaveBeenCalledWith(
       internal.linkMetadata.updateCardMetadata,
@@ -617,16 +581,12 @@ describe("fetchMetadata", () => {
     );
   });
 
-  test("handles scrape failure (retryable)", async () => {
+  test("retries a page whose server fails as a scrape error", async () => {
     mockRunQuery.mockResolvedValue({
       _id: "c1",
       type: "link",
       url: "https://example.com",
       metadata: { linkCategory: { status: "completed" } },
-    });
-    mockKernelExecute.mockResolvedValue({
-      success: false,
-      error: "Timeout error",
     });
     mockFetch
       .mockResolvedValueOnce({
@@ -642,7 +602,7 @@ describe("fetchMetadata", () => {
       );
 
     await expect(fetchMetadataHandler(ctx, { cardId: "c1" })).rejects.toThrow(
-      /retryable/
+      /"type":"scrape_error"/
     );
   });
 
@@ -663,35 +623,6 @@ describe("fetchMetadata", () => {
       /"type":"rate_limit"/
     );
     expect(mockRunMutation).not.toHaveBeenCalled();
-  });
-
-  test("treats a browser error that mentions a limit as a scrape error", async () => {
-    mockRunQuery.mockResolvedValue({
-      _id: "c1",
-      type: "link",
-      url: "https://example.com",
-      metadata: { linkCategory: { status: "completed" } },
-    });
-    mockKernelExecute.mockResolvedValue({
-      success: false,
-      error: "Memory limit exceeded",
-    });
-    mockFetch
-      .mockResolvedValueOnce({
-        ok: false,
-        status: 500,
-        headers: { get: () => "text/html" },
-      })
-      .mockResolvedValue(
-        new Response("<html></html>", {
-          headers: { "content-type": "text/html" },
-          status: 200,
-        })
-      );
-
-    await expect(fetchMetadataHandler(ctx, { cardId: "c1" })).rejects.toThrow(
-      /"type":"scrape_error"/
-    );
   });
 
   test.each([400, 401, 403, 404, 410])(
@@ -716,7 +647,6 @@ describe("fetchMetadata", () => {
         errorType: "http_error",
         errorMessage: `HTTP ${status}`,
       });
-      expect(mockKernelCreateBrowser).not.toHaveBeenCalled();
       expect(mockRunMutation).toHaveBeenCalledWith(
         internal.linkMetadata.updateCardMetadata,
         expect.objectContaining({
@@ -748,51 +678,6 @@ describe("fetchMetadata", () => {
     expect(mockRunMutation).not.toHaveBeenCalled();
   });
 
-  test("falls back to html fetch when kernel fails", async () => {
-    mockRunQuery.mockResolvedValue({
-      _id: "c1",
-      type: "link",
-      url: "https://example.com",
-      metadata: { linkCategory: { status: "completed" } },
-    });
-    mockKernelExecute.mockResolvedValue({
-      success: false,
-      error: "Timeout error",
-    });
-    mockFetch.mockImplementation(
-      () =>
-        new Response(
-          '<html><head><title>Shader Lines</title><meta property="og:title" content="Shader Lines" /></head></html>',
-          { headers: { "content-type": "text/html" }, status: 200 }
-        )
-    );
-
-    const result = await fetchMetadataHandler(ctx, { cardId: "c1" });
-    expect(result.status).toBe("success");
-    expect(mockRunMutation).toHaveBeenCalledWith(
-      internal.linkMetadata.updateCardMetadata,
-      expect.objectContaining({ status: "completed" })
-    );
-  });
-
-  test("handles browser cleanup failure", async () => {
-    mockRunQuery.mockResolvedValue({
-      _id: "c1",
-      type: "link",
-      url: "https://example.com",
-      processingStatus: { classify: { status: "completed" } },
-    });
-    mockKernelExecute.mockResolvedValue({
-      success: true,
-      result: { selectors: [] },
-    });
-    mockDeleteByID.mockRejectedValue(new Error("Cleanup failed"));
-
-    const result = await fetchMetadataHandler(ctx, { cardId: "c1" });
-    expect(result.status).toBe("success");
-    // Should have logged warning but succeeded
-  });
-
   test("throws retryable if non-link card is still being classified", async () => {
     mockRunQuery.mockResolvedValue({
       _id: "c1",
@@ -812,11 +697,6 @@ describe("fetchMetadata", () => {
       type: "link",
       url: "https://example.com",
       processingStatus: { classify: { status: "completed" } },
-    });
-    mockKernelCreateBrowser.mockResolvedValue({ session_id: "s1" });
-    mockKernelExecute.mockResolvedValue({
-      success: true,
-      result: { selectors: [] },
     });
 
     // Make parsing throw AbortError
@@ -838,11 +718,6 @@ describe("fetchMetadata", () => {
       url: "https://example.com",
       processingStatus: { classify: { status: "completed" } },
     });
-    mockKernelCreateBrowser.mockResolvedValue({ session_id: "s1" });
-    mockKernelExecute.mockResolvedValue({
-      success: true,
-      result: { selectors: [] },
-    });
 
     // Make parsing throw TypeError with fetch
     const typeError = new TypeError("Failed to fetch");
@@ -862,11 +737,6 @@ describe("fetchMetadata", () => {
       url: "https://example.com",
       processingStatus: { classify: { status: "completed" } },
     });
-    mockKernelCreateBrowser.mockResolvedValue({ session_id: "s1" });
-    mockKernelExecute.mockResolvedValue({
-      success: true,
-      result: { selectors: [] },
-    });
 
     mockParseLinkPreview.mockImplementation(() => {
       throw new Error("Fatal error");
@@ -880,36 +750,6 @@ describe("fetchMetadata", () => {
       expect.objectContaining({
         status: "failed",
       })
-    );
-  });
-
-  test("handles kernel creation failure", async () => {
-    mockRunQuery.mockResolvedValue({
-      _id: "c1",
-      type: "link",
-      url: "https://example.com",
-      metadata: { linkCategory: { status: "completed" } },
-    });
-    // Make create browser throw
-    mockKernelCreateBrowser.mockRejectedValue(
-      new Error("Failed to create browser")
-    );
-    mockFetch
-      .mockResolvedValueOnce({
-        ok: false,
-        status: 500,
-        headers: { get: () => "text/html" },
-      })
-      .mockResolvedValue(
-        new Response("<html></html>", {
-          headers: { "content-type": "text/html" },
-          status: 200,
-        })
-      );
-
-    // Should be treated as a scrape error (retryable) because scrapeWithKernel catches it and returns success: false
-    await expect(fetchMetadataHandler(ctx, { cardId: "c1" })).rejects.toThrow(
-      /retryable/
     );
   });
 });

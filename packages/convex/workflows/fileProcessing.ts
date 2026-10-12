@@ -1,6 +1,9 @@
 "use node";
 
-import type { FilesInspectMode } from "@teak/files-protocol";
+import {
+  FILES_RENDER_MAX_SOURCE_BYTES,
+  type FilesInspectMode,
+} from "@teak/files-protocol";
 import type { FileFormat, FilePreviewFacts } from "../shared/fileFormats";
 import {
   callFilesWorkerJson,
@@ -71,10 +74,15 @@ export const extractFileTextForAiForKey = async (
   }
   requireWorker();
   let mode: FilesInspectMode = "text";
+  let maxBytes = MAX_SOURCE_INSPECTION_BYTES;
   if (archive) {
     mode = "zip";
+    maxBytes = MAX_ARCHIVE_INSPECTION_BYTES;
   } else if (pdf) {
+    // The renderer reads PDFs of any upload size; a busy renderer throws, so
+    // the metadata step retries.
     mode = "pdf";
+    maxBytes = FILES_RENDER_MAX_SOURCE_BYTES;
   }
   let outcome: FilesWorkerOutcome<FilesWorkerInspectResult>;
   try {
@@ -82,10 +90,7 @@ export const extractFileTextForAiForKey = async (
       op: "inspect",
       params: {
         formatId: format.id,
-        maxBytes:
-          archive || pdf
-            ? MAX_ARCHIVE_INSPECTION_BYTES
-            : MAX_SOURCE_INSPECTION_BYTES,
+        maxBytes,
         mode,
         rtf: text && card.fileMetadata?.kind === "text" && format.id === "rtf",
         sourceKey,

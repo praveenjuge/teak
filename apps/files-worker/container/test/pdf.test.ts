@@ -1,0 +1,81 @@
+import { describe, expect, test } from "bun:test";
+import { RENDERER_URL, renderFixture } from "./helpers";
+
+function pngSize(bytes: Uint8Array): { width: number; height: number } {
+  const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+  return { width: view.getUint32(16), height: view.getUint32(20) };
+}
+
+describe.skipIf(!RENDERER_URL)("renderer PDF jobs", () => {
+  test("renders page one with its long side at max", async () => {
+    const result = await renderFixture("/pdf/page?max=400", "sixty-pages.pdf");
+    expect(result.status).toBe(200);
+    expect(result.manifest?.facts).toBeNull();
+    expect(result.manifest?.pages).toBe(60);
+    const size = pngSize(result.parts.page);
+    expect(result.manifest?.page).toEqual(size);
+    // A US Letter page is 612×792 points: 400 tall makes it 309.1 wide.
+    expect(size.height).toBe(400);
+    expect(Math.abs(size.width - 309.1)).toBeLessThan(1);
+  });
+
+  test("a PDF without a text layer answers with no text part", async () => {
+    const result = await renderFixture("/pdf/text", "no-text.pdf");
+    expect(result.status).toBe(200);
+    expect(result.manifest?.pages).toBe(1);
+    expect(result.manifest?.parts).toEqual([]);
+  });
+
+  test("text stops at maxPages and says it was truncated", async () => {
+    const result = await renderFixture(
+      "/pdf/text?maxPages=50",
+      "sixty-pages.pdf"
+    );
+    expect(result.status).toBe(200);
+    expect(result.manifest?.pages).toBe(60);
+    expect(result.manifest?.truncated).toBe(true);
+    const text = new TextDecoder().decode(result.parts.text);
+    expect(text.startsWith("Marker-001.")).toBe(true);
+    expect(text).toContain("Marker-050.");
+    expect(text).not.toContain("Marker-051.");
+    expect(result.manifest?.parts).toEqual([
+      {
+        name: "text",
+        type: "text/plain; charset=utf-8",
+        length: result.parts.text.byteLength,
+      },
+    ]);
+  });
+
+  test("text is complete when it covers every page", async () => {
+    const result = await renderFixture(
+      "/pdf/text?maxPages=500",
+      "sixty-pages.pdf"
+    );
+    expect(result.manifest?.truncated).toBe(false);
+    expect(new TextDecoder().decode(result.parts.text)).toContain(
+      "Marker-060."
+    );
+  });
+
+  test("text is capped at maxChars", async () => {
+    const result = await renderFixture(
+      "/pdf/text?maxChars=20",
+      "sixty-pages.pdf"
+    );
+    expect(result.manifest?.truncated).toBe(true);
+    expect(new TextDecoder().decode(result.parts.text)).toBe(
+      // pdftotext ends each page with a form feed.
+      "Marker-001.\n\n\fMarker"
+    );
+  });
+
+  test.each(["/pdf/page", "/pdf/text"])(
+    "%s refuses a password-protected PDF",
+    async (path) => {
+      const result = await renderFixture(path, "encrypted.pdf");
+      expect(result.status).toBe(415);
+      expect(result.error?.message).toContain("password");
+    }
+  );
+});

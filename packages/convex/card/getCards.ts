@@ -36,6 +36,7 @@ export const cardReturnValidator = v.object({
   compactUrl: v.optional(v.string()),
   placeholderUrl: v.optional(v.string()),
   screenshotUrl: v.optional(v.string()),
+  scrubUrl: v.optional(v.string()),
   linkPreviewMedia: v.optional(
     v.array(
       v.object({

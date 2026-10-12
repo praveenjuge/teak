@@ -17,23 +17,7 @@ export interface ScrapeSelectorResult {
 export interface ScrapeResponse {
   errors?: Array<{ code?: number; message?: string }>;
   result?: {
-    instagramMedia?: Array<{
-      contentType?: string;
-      height?: number;
-      posterContentType?: string;
-      posterHeight?: number;
-      posterUrl?: string;
-      posterWidth?: number;
-      type?: "image" | "video";
-      url?: string;
-      width?: number;
-    }>;
     selectors: ScrapeSelectorResult[];
-    primaryImage?: {
-      url: string;
-      width?: number;
-      height?: number;
-    };
   };
   success: boolean;
 }

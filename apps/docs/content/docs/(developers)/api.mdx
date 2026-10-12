@@ -302,10 +302,18 @@ matches more, add a type or date filter to see the rest.
 
 `include=metadata` adds palette `colors` (`hex` and optional `name`), resolved
 `linkPreviewMedia`, and the link's site name, author, publisher, and publish
-date when present. `include=processing` adds `aiTranscript`, `metadataStatus`,
+date when present. It also adds `audioWaveform` and `videoScrub`, described
+below. `include=processing` adds `aiTranscript`, `metadataStatus`,
 and `processingStatus`; the single-card response includes all of these fields
 without an `include` parameter. Link
 preview media contains temporary resolved URLs, never storage keys.
+
+Audio cards include `audioWaveform`: `grid` has 45 bar heights for a card and
+`detail` has 200 for a player, each from 0 to 100. Video cards include
+`videoScrub`, a hover preview strip: `url` is one JPEG of `frames` evenly
+spaced frames side by side, `frames * frameWidth` wide and `frameHeight` tall.
+Show frame `n` by offsetting the image `n * frameWidth` pixels. Both fields are
+`null` for other cards and for audio and video saved before October 2026.
 
 Image card responses include intentionally different URLs: `thumbnailUrl` is the optimized grid rendition, `compactUrl` is a smaller rendition for compact lists, `placeholderUrl` is a tiny loading placeholder, `detailUrl` is the optimized full-card rendition, and `fileUrl` remains the signed original used for downloads. These URLs are temporary, signed credentials — consume them as returned instead of storing or modifying them. See the [API Reference](/reference) for field details.
 

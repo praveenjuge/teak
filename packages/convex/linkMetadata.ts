@@ -8,6 +8,7 @@ import { deleteObject } from "./storage/r2";
 import { serializeArchivableRaw } from "./storage/rawMetadata";
 
 export * from "./linkMetadata/instagram";
+export { extractInstagramMediaFromHtml } from "./linkMetadata/instagramHtml";
 export {
   buildDebugRaw,
   buildErrorPreview,

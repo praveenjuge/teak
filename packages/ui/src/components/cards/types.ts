@@ -22,6 +22,19 @@ export interface LinkPreviewMedia {
   width?: number;
 }
 
+/** Horizontal JPEG sprite strip: `frames` frames of `frameWidth` x `frameHeight`. */
+export interface ScrubMetadata {
+  frameHeight: number;
+  frames: number;
+  frameWidth: number;
+}
+
+/** Amplitude bars (integers 0-100): `grid` has 45 values, `detail` has 200. */
+export interface WaveformMetadata {
+  detail: number[];
+  grid: number[];
+}
+
 export interface CardWithUrls {
   _id: string;
   colors?: Array<{ hex: string }>;
@@ -30,10 +43,13 @@ export interface CardWithUrls {
   detailUrl?: string;
   fileKey?: string;
   fileMetadata?: {
+    duration?: number;
     fileName?: string;
     height?: number;
     width?: number;
     mimeType?: string;
+    scrub?: ScrubMetadata;
+    waveform?: WaveformMetadata;
   };
   fileUrl?: string;
   isDeleted?: boolean;
@@ -51,6 +67,8 @@ export interface CardWithUrls {
   metadataTitleEdited?: boolean;
   placeholderUrl?: string;
   screenshotUrl?: string;
+  scrubKey?: string;
+  scrubUrl?: string;
   thumbnailKey?: string;
   thumbnailUrl?: string;
   type?: string;

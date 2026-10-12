@@ -348,6 +348,40 @@ describe("admin.ts", () => {
       expect(result.clearedThumbnail).toBe(true);
     });
 
+    test("deletes the scrub sprite and forgets its size", async () => {
+      r2Mocks.deleteObject.mockClear();
+      const card = {
+        _id: "c1",
+        thumbnailKey: "t1",
+        scrubKey: "s1",
+        fileMetadata: {
+          duration: 4,
+          scrub: { frameHeight: 1, frameWidth: 2, frames: 10 },
+        },
+        processingStatus: { classify: { status: "completed" } },
+      };
+      const ctx = {
+        db: {
+          ...inlineSearchSyncDb(),
+          get: mock().mockResolvedValue(card),
+          patch: mock().mockResolvedValue(null),
+        },
+      } as any;
+      const handler =
+        (resetCardProcessingState as any).handler ?? resetCardProcessingState;
+      await handler(ctx, { cardId: "c1" });
+
+      expect(r2Mocks.deleteObject).toHaveBeenCalledWith(ctx, "s1");
+      expect(ctx.db.patch).toHaveBeenCalledWith(
+        "cards",
+        "c1",
+        expect.objectContaining({
+          fileMetadata: { duration: 4 },
+          scrubKey: undefined,
+        })
+      );
+    });
+
     test("handles missing thumbnail", async () => {
       r2Mocks.deleteObject.mockClear();
       const card = {

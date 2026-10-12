@@ -4,11 +4,14 @@ import { Pause, Play, Sparkles } from "lucide-react";
 import { useRef, useState } from "react";
 import {
   AUDIO_WAVE_BAR_WIDTH_PX,
-  AUDIO_WAVE_BARS,
-  getAudioWaveHeight,
+  AUDIO_WAVE_DETAIL_BARS,
+  getWaveformBarHeights,
+  isWaveformBars,
 } from "../cards/previews/AudioWavePreview";
+import type { WaveformMetadata } from "../cards/types";
 
 type CardWithUrls = Doc<"cards"> & {
+  fileMetadata?: { waveform?: WaveformMetadata };
   fileUrl?: string;
   thumbnailUrl?: string;
 };
@@ -37,8 +40,18 @@ export function AudioPreview({ card }: AudioPreviewProps) {
   const [duration, setDuration] = useState(card.fileMetadata?.duration ?? 0);
   const [loadFailed, setLoadFailed] = useState(false);
 
+  const waveformDetail = card.fileMetadata?.waveform?.detail;
+  const hasRealWaveform = isWaveformBars(
+    waveformDetail,
+    AUDIO_WAVE_DETAIL_BARS
+  );
+  const barHeights = getWaveformBarHeights(
+    card._id,
+    waveformDetail,
+    AUDIO_WAVE_DETAIL_BARS
+  );
   const progress = duration > 0 ? Math.min(currentTime / duration, 1) : 0;
-  const playedBars = Math.round(progress * AUDIO_WAVE_BARS);
+  const playedBars = Math.round(progress * barHeights.length);
   const hasStarted = currentTime > 0 || isPlaying;
   let timeLabel = "";
   if (duration > 0) {
@@ -90,18 +103,24 @@ export function AudioPreview({ card }: AudioPreviewProps) {
               )}
             </Button>
 
-            <div className="relative flex h-10 min-w-0 flex-1 items-center justify-between rounded-full has-[input:focus-visible]:ring-[3px] has-[input:focus-visible]:ring-ring/50">
-              {Array.from({ length: AUDIO_WAVE_BARS }, (_, i) => (
+            <div
+              className={`relative flex h-10 min-w-0 flex-1 items-center justify-between rounded-full has-[input:focus-visible]:ring-[3px] has-[input:focus-visible]:ring-ring/50 ${
+                hasRealWaveform ? "gap-px" : ""
+              }`}
+            >
+              {barHeights.map((height, i) => (
                 <span
                   aria-hidden="true"
-                  className={`rounded-full transition-colors ${
-                    i < playedBars ? "bg-primary" : "bg-muted-foreground"
-                  }`}
+                  className={`rounded-full transition-colors motion-reduce:transition-none ${
+                    hasRealWaveform ? "min-w-0 flex-1" : ""
+                  } ${i < playedBars ? "bg-primary" : "bg-muted-foreground"}`}
                   // biome-ignore lint/suspicious/noArrayIndexKey: decorative bars use cardId + index for stable keys
                   key={`${card._id}-bar-${i}`}
                   style={{
-                    width: `${AUDIO_WAVE_BAR_WIDTH_PX}px`,
-                    height: getAudioWaveHeight(card._id, i),
+                    width: hasRealWaveform
+                      ? undefined
+                      : `${AUDIO_WAVE_BAR_WIDTH_PX}px`,
+                    height,
                   }}
                 />
               ))}

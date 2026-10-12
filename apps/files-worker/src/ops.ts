@@ -5,6 +5,7 @@ import {
   FILES_OPS,
   FILES_PROCESSOR_VERSION,
   FILES_PROTOCOL_VERSION,
+  FILES_RENDER_MAX_SOURCE_BYTES,
   FILES_SCREENSHOT_SIZE,
   type FilesErrorCode,
   type FilesFinalizeImageParams,
@@ -15,9 +16,6 @@ import {
 import {
   captureHtmlScreenshot,
   decodeHtmlParam,
-  loadPinnedPdfJs,
-  readPdfSource,
-  renderPdfFirstPage,
   scrapeHtml,
   validScrapeSelectors,
 } from "./browserRender";
@@ -34,8 +32,19 @@ import { generateImageMetadataForOp } from "./imageMetadata";
 import { indexImportSource, readImportMarkdown } from "./importSource";
 import { extractZipEntries, InspectSourceMissing, runInspect } from "./inspect";
 import { sha256Hex, verifyBodySignature } from "./lib";
-import { MediaProbeUnsupported, probeMedia } from "./mediaProbe";
+import {
+  extractPdfTextViaRenderer,
+  extractVideoFrame,
+  probeMediaObject,
+  processAudio,
+  renderPdfPage,
+} from "./mediaJobs";
 import { isMissingMultipartUpload } from "./missingMultipartUpload";
+import {
+  checkRendererHealth,
+  RendererDeclined,
+  RendererUnavailable,
+} from "./rendererClient";
 import { reportFilesOpFailure } from "./sentry";
 import {
   generateTextMetadataForOp,
@@ -44,7 +53,6 @@ import {
 } from "./textMetadata";
 import { transcribeAudio } from "./transcript";
 import { isValidUploadKey } from "./upload";
-import { extractVideoFrame, type MediaTransformsBinding } from "./videoFrame";
 import { ArchiveEntryTooLargeError } from "./zip";
 
 export const getFilesOpObjectKey = (params: unknown): string => {
@@ -74,14 +82,15 @@ export interface FilesOpsEnv {
   AI?: {
     run: (model: string, args: Record<string, unknown>) => Promise<unknown>;
   };
-  /** Browser Run binding; renders PDFs and offline HTML. */
+  /** Browser Run binding; screenshots and scrapes offline HTML. */
   BROWSER?: BrowserWorker;
   BUCKET: R2Bucket;
   FILES_SIGNING_SECRET: string;
   /** Images binding; used by finalize-image-upload for decode verification. */
   IMAGES?: ImagesBinding;
-  /** Media Transformations binding; extracts video frames. */
-  MEDIA?: MediaTransformsBinding;
+  /** Media renderer Containers (ffmpeg, poppler); see mediaRenderer.ts. */
+  MEDIA_RENDERER?: DurableObjectNamespace;
+  MEDIA_RENDERER_INSTANCES?: string;
   OBJECT_GATES?: DurableObjectNamespace;
 }
 
@@ -217,6 +226,38 @@ const derivedImageKeys = (params: Record<string, unknown>) => {
   return { destinationKey, sourceKey };
 };
 
+/** An optional second output (a scrub sprite) beside a derived image. */
+const optionalDerivedKey = (
+  params: Record<string, unknown>,
+  name: string,
+  keys: { destinationKey: string; sourceKey: string }
+): string | null => {
+  const value = params[name];
+  if (value === undefined || value === null) {
+    return null;
+  }
+  if (
+    typeof value !== "string" ||
+    !isValidUploadKey(value) ||
+    !sameUserNamespace(keys.sourceKey, value) ||
+    value === keys.sourceKey ||
+    value === keys.destinationKey
+  ) {
+    throw new Error("invalid_storage_key");
+  }
+  return value;
+};
+
+const validSourceKey = (params: Record<string, unknown>): string => {
+  const sourceKey = requiredString(params, "sourceKey");
+  if (!isValidUploadKey(sourceKey)) {
+    throw new Error("invalid_storage_key");
+  }
+  return sourceKey;
+};
+
+const MAX_INSPECT_BYTES = 64 * 1024 * 1024;
+
 const validDestinationKey = (params: Record<string, unknown>): string => {
   const destinationKey = requiredString(params, "destinationKey");
   if (!isValidUploadKey(destinationKey)) {
@@ -228,7 +269,7 @@ const validDestinationKey = (params: Record<string, unknown>): string => {
 const browserAcquirer = (env: FilesOpsEnv): AcquireBrowser => {
   const binding = env.BROWSER;
   if (!binding) {
-    throw new Error("browser_binding_unavailable");
+    throw new RendererUnavailable("browser_binding_missing");
   }
   return async () => {
     // Loaded on first use so other operations never pay its startup cost.
@@ -269,7 +310,13 @@ const dispatch = async (
       return success(requestId, {
         operations: FILES_OPS,
         ai: Boolean(env.AI),
+        browser: Boolean(env.BROWSER),
         images: Boolean(env.IMAGES),
+        renderer: Boolean(env.MEDIA_RENDERER),
+        // Starts a renderer when none is warm, so only deploy gates ask.
+        ...(params.checkRenderer === true
+          ? await checkRendererHealth(env)
+          : {}),
       });
     case "index-import-source":
       return success(requestId, await indexImportSource(env.BUCKET, params));
@@ -291,9 +338,16 @@ const dispatch = async (
         typeof maxBytes !== "number" ||
         !Number.isSafeInteger(maxBytes) ||
         maxBytes <= 0 ||
-        maxBytes > 64 * 1024 * 1024
+        maxBytes >
+          (mode === "pdf" ? FILES_RENDER_MAX_SOURCE_BYTES : MAX_INSPECT_BYTES)
       ) {
         throw new Error("invalid_inspect_params");
+      }
+      if (mode === "pdf") {
+        return success(
+          requestId,
+          await extractPdfTextViaRenderer(env, validSourceKey(params), maxBytes)
+        );
       }
       return success(
         requestId,
@@ -544,30 +598,23 @@ const dispatch = async (
         })
       );
     }
-    case "render-pdf-thumbnail": {
-      const { destinationKey, sourceKey } = derivedImageKeys(params);
-      const acquire = browserAcquirer(env);
-      const pdf = await readPdfSource(env.BUCKET, sourceKey);
-      const rendered = await renderPdfFirstPage(
-        acquire,
-        pdf,
-        await loadPinnedPdfJs()
-      );
-      await env.BUCKET.put(destinationKey, rendered.png, {
-        httpMetadata: { contentType: "image/png" },
-      });
-      return success(requestId, {
-        height: rendered.height,
-        storedBytes: rendered.png.length,
-        storedContentType: "image/png",
-        width: rendered.width,
-      });
-    }
-    case "extract-video-frame": {
-      const { destinationKey, sourceKey } = derivedImageKeys(params);
+    case "render-pdf-thumbnail":
       return success(
         requestId,
-        await extractVideoFrame(env, sourceKey, destinationKey)
+        await renderPdfPage(env, derivedImageKeys(params))
+      );
+    case "extract-video-frame": {
+      const keys = derivedImageKeys(params);
+      return success(
+        requestId,
+        await extractVideoFrame(env, {
+          ...keys,
+          scrubDestinationKey: optionalDerivedKey(
+            params,
+            "scrubDestinationKey",
+            keys
+          ),
+        })
       );
     }
     case "capture-screenshot": {
@@ -590,12 +637,27 @@ const dispatch = async (
       const html = await decodeHtmlParam(params.htmlGzipBase64);
       return success(requestId, await scrapeHtml(acquire, html, selectors));
     }
-    case "probe-media": {
-      const sourceKey = requiredString(params, "sourceKey");
-      if (!isValidUploadKey(sourceKey)) {
-        throw new Error("invalid_storage_key");
+    case "probe-media":
+      return success(
+        requestId,
+        await probeMediaObject(env, validSourceKey(params))
+      );
+    case "process-audio": {
+      const mimeType = optionalString(params, "mimeType");
+      if (
+        typeof params.transcribe !== "boolean" ||
+        (mimeType !== null && mimeType.length > 255)
+      ) {
+        throw new Error("invalid_audio_params");
       }
-      return success(requestId, await probeMedia(env.BUCKET, sourceKey));
+      return success(
+        requestId,
+        await processAudio(env, {
+          mimeType,
+          sourceKey: validSourceKey(params),
+          transcribe: params.transcribe,
+        })
+      );
     }
     case "extract-import-files": {
       if (!Array.isArray(params.entries)) {
@@ -715,7 +777,18 @@ export const handleInternalOp = async (
       return fail(requestId, "PAYLOAD_TOO_LARGE", error.message, 413);
     }
     if (
-      error instanceof MediaProbeUnsupported ||
+      error instanceof RendererUnavailable ||
+      (error instanceof Error && error.message === "browser_unavailable")
+    ) {
+      console.warn("[files-worker] renderer unavailable", {
+        message: error.message,
+        op: body.op,
+        requestId,
+      });
+      return fail(requestId, "RENDERER_UNAVAILABLE", error.message, 503, true);
+    }
+    if (
+      error instanceof RendererDeclined ||
       (error instanceof Error &&
         [
           "image_transform_failed",
@@ -723,12 +796,6 @@ export const handleInternalOp = async (
           "not_an_image",
           "image_dimensions_too_large",
           "audio_decode_failed",
-          "browser_binding_unavailable",
-          "browser_unavailable",
-          "media_binding_unavailable",
-          "not_a_pdf",
-          "video_format_unsupported",
-          "video_frame_failed",
         ].includes(error.message))
     ) {
       return fail(requestId, "UNSUPPORTED", error.message, 415);

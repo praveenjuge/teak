@@ -1,5 +1,7 @@
 import { Play } from "lucide-react";
+import type { PointerEvent } from "react";
 import { useEffect, useRef, useState } from "react";
+import type { ScrubMetadata } from "../types";
 import { ResilientMediaImage } from "./ResilientMediaImage";
 
 interface GridVideoPreviewProps {
@@ -7,6 +9,9 @@ interface GridVideoPreviewProps {
   height?: number;
   isGif?: boolean;
   isPriority?: boolean;
+  scrub?: ScrubMetadata;
+  scrubKey?: string;
+  scrubUrl?: string;
   thumbnailKey?: string;
   thumbnailUrl?: string;
   videoKey?: string;
@@ -20,6 +25,120 @@ function PlayOverlay() {
       <div className="rounded-full bg-black/50 p-2">
         <Play className="size-6 text-white" />
       </div>
+    </div>
+  );
+}
+
+/** Frame under the pointer: `x` px into an element `width` px wide, clamped to the strip. */
+export function scrubFrameIndex(
+  x: number,
+  width: number,
+  frames: number
+): number {
+  const count = Math.floor(frames);
+  if (!(Number.isFinite(x) && width > 0 && count > 1)) {
+    return 0;
+  }
+  return Math.min(count - 1, Math.max(0, Math.floor((x / width) * count)));
+}
+
+function isValidScrub(scrub?: ScrubMetadata): scrub is ScrubMetadata {
+  return !!scrub && Number.isFinite(scrub.frames) && scrub.frames >= 1;
+}
+
+/**
+ * Hover-scrub for mouse users. The sprite strip is not requested until the
+ * first mouse hover; touch and pen keep the static thumbnail.
+ */
+function ScrubPreview({
+  aspectRatio,
+  cardId,
+  isPriority,
+  scrub,
+  scrubKey,
+  scrubUrl,
+  thumbnailKey,
+  thumbnailUrl,
+}: {
+  aspectRatio: number;
+  cardId?: string;
+  isPriority?: boolean;
+  scrub: ScrubMetadata;
+  scrubKey?: string;
+  scrubUrl: string;
+  thumbnailKey?: string;
+  thumbnailUrl?: string;
+}) {
+  const [hasHovered, setHasHovered] = useState(false);
+  const [isScrubbing, setIsScrubbing] = useState(false);
+  const [isSpriteLoaded, setIsSpriteLoaded] = useState(false);
+  const [frame, setFrame] = useState(0);
+  const showSprite = isScrubbing && isSpriteLoaded;
+
+  const trackPointer = (event: PointerEvent<HTMLDivElement>) => {
+    const rect = event.currentTarget.getBoundingClientRect();
+    setFrame(
+      scrubFrameIndex(event.clientX - rect.left, rect.width, scrub.frames)
+    );
+  };
+
+  return (
+    <div
+      className="relative h-full w-full overflow-hidden rounded-2xl border bg-card"
+      onPointerEnter={(event) => {
+        if (event.pointerType !== "mouse") {
+          return;
+        }
+        setHasHovered(true);
+        setIsScrubbing(true);
+        trackPointer(event);
+      }}
+      onPointerLeave={(event) => {
+        if (event.pointerType !== "mouse") {
+          return;
+        }
+        setIsScrubbing(false);
+        setFrame(0);
+      }}
+      onPointerMove={(event) => {
+        if (event.pointerType === "mouse") {
+          trackPointer(event);
+        }
+      }}
+      style={{ aspectRatio }}
+    >
+      {thumbnailUrl ? (
+        <ResilientMediaImage
+          alt="Video thumbnail"
+          cardId={cardId}
+          className="h-full w-full object-cover"
+          decoding="async"
+          fetchPriority={isPriority ? "high" : undefined}
+          loading={isPriority ? "eager" : "lazy"}
+          src={thumbnailUrl}
+          storageKey={thumbnailKey}
+          style={{ objectFit: "cover" }}
+        />
+      ) : null}
+
+      {hasHovered ? (
+        <ResilientMediaImage
+          alt=""
+          cardId={cardId}
+          className={`pointer-events-none absolute top-0 left-0 h-full max-w-none ${showSprite ? "" : "opacity-0"}`}
+          decoding="async"
+          draggable={false}
+          onLoad={() => setIsSpriteLoaded(true)}
+          src={scrubUrl}
+          storageKey={scrubKey}
+          style={{
+            transform: `translateX(-${(frame / scrub.frames) * 100}%)`,
+            width: `${scrub.frames * 100}%`,
+          }}
+        />
+      ) : null}
+
+      {isScrubbing ? null : <PlayOverlay />}
     </div>
   );
 }
@@ -125,6 +244,9 @@ export function GridVideoPreview({
   height,
   isGif,
   isPriority,
+  scrub,
+  scrubKey,
+  scrubUrl,
   thumbnailKey,
   thumbnailUrl,
   videoKey,
@@ -152,6 +274,21 @@ export function GridVideoPreview({
           width={width ?? 640}
         />
       </div>
+    );
+  }
+
+  if (isValidScrub(scrub) && scrubUrl) {
+    return (
+      <ScrubPreview
+        aspectRatio={aspectRatio}
+        cardId={cardId}
+        isPriority={isPriority}
+        scrub={scrub}
+        scrubKey={scrubKey}
+        scrubUrl={scrubUrl}
+        thumbnailKey={thumbnailKey}
+        thumbnailUrl={thumbnailUrl}
+      />
     );
   }
 

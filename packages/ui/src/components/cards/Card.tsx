@@ -493,6 +493,9 @@ export const Card = memo(function Card({
           height={card.fileMetadata?.height}
           isGif={isGif}
           isPriority={isPriority}
+          scrub={card.fileMetadata?.scrub}
+          scrubKey={card.scrubKey}
+          scrubUrl={card.scrubUrl}
           thumbnailKey={card.thumbnailKey}
           thumbnailUrl={card.thumbnailUrl ?? undefined}
           videoKey={card.fileKey}
@@ -503,7 +506,12 @@ export const Card = memo(function Card({
     }
 
     if (card.type === "audio") {
-      return <AudioWavePreview cardId={card._id} />;
+      return (
+        <AudioWavePreview
+          cardId={card._id}
+          waveformGrid={card.fileMetadata?.waveform?.grid}
+        />
+      );
     }
 
     if (card.type === "document") {

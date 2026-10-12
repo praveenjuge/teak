@@ -69,3 +69,40 @@ jobs:
           scripts/generate-project.sh --check
       - name: TeakKit tests
         run: swift test --package-path Packages/TeakKit
+
+  renderer:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    defaults:
+      run:
+        working-directory: apps/files-worker
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
+        with:
+          bun-version-file: package.json
+      - name: Build the renderer image
+        run: docker build --platform linux/amd64 -t teak-renderer container
+      - name: Start the renderer (Cloudflare basic size)
+        run: |
+          docker run -d --name renderer --cpus 0.25 --memory 1g -p 8080:8080 teak-renderer
+          # A second instance with a tiny wall clock for the 422 timeout tests.
+          docker run -d --name renderer-timeout --cpus 0.25 --memory 1g -p 8081:8080 \
+            -e RENDERER_TIMEOUT_SCALE=0.0001 teak-renderer
+          for port in 8080 8081; do
+            for attempt in $(seq 1 30); do
+              curl -fsS "http://localhost:$port/health" && break
+              sleep 1
+            done
+            curl -fsS "http://localhost:$port/health" > /dev/null
+          done
+      - name: Run the renderer integration tests
+        env:
+          RENDERER_URL: http://localhost:8080
+          RENDERER_TIMEOUT_URL: http://localhost:8081
+        run: bun test --timeout 60000 container/test
+      - name: Show renderer logs
+        if: failure()
+        run: |
+          docker logs renderer
+          docker logs renderer-timeout
