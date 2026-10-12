@@ -391,30 +391,41 @@ const DETACH_READY_TIMEOUT_MS = 300_000;
  */
 const runDetached = async (push: boolean): Promise<number> => {
   await stopOrphans();
+  const logPath = DETACHED_LOG.replace(`${ROOT}/`, "");
+  let exitCode: number | null = null;
   const running = runningStack();
   if (running) {
-    console.log(describeStatus(await resolveWorktree(ROOT), running));
-    return running.mode === "dev" ? 0 : 1;
+    if (running.mode !== "dev") {
+      console.log(describeStatus(await resolveWorktree(ROOT), running));
+      return 1;
+    }
+    if (push && running.pushing === false) {
+      console.error(
+        "This checkout's stack is already running without pushing the backend; stop it with `bun run dev --stop` and start it again with `--push` to take over."
+      );
+    }
+  } else {
+    mkdirSync(join(ROOT, ".agents/.state"), { recursive: true });
+    const log = openSync(DETACHED_LOG, "w");
+    const child = spawn(
+      process.execPath,
+      [
+        "--no-env-file",
+        join(ROOT, "scripts/dev.ts"),
+        ...(push ? ["--push"] : []),
+      ],
+      { cwd: ROOT, detached: true, stdio: ["ignore", log, log] }
+    );
+    child.on("exit", (code) => {
+      exitCode = code ?? 1;
+    });
+    child.unref();
+    console.log(
+      `Starting the web stack in the background (pid ${child.pid}); its output goes to ${logPath}…`
+    );
   }
-  mkdirSync(join(ROOT, ".agents/.state"), { recursive: true });
-  const log = openSync(DETACHED_LOG, "w");
-  const child = spawn(
-    process.execPath,
-    [
-      "--no-env-file",
-      join(ROOT, "scripts/dev.ts"),
-      ...(push ? ["--push"] : []),
-    ],
-    { cwd: ROOT, detached: true, stdio: ["ignore", log, log] }
-  );
-  let exitCode: number | null = null;
-  child.on("exit", (code) => {
-    exitCode = code ?? 1;
-  });
-  child.unref();
-  console.log(
-    `Starting the web stack in the background (pid ${child.pid}); its output goes to ${DETACHED_LOG.replace(`${ROOT}/`, "")}…`
-  );
+  // A stack that is still starting, ours or one already running, is only
+  // reported once it is ready.
   const deadline = Date.now() + DETACH_READY_TIMEOUT_MS;
   while (Date.now() < deadline) {
     if (exitCode !== null) {
@@ -429,10 +440,16 @@ const runDetached = async (push: boolean): Promise<number> => {
       console.log(describeStatus(await resolveWorktree(ROOT), state));
       return 0;
     }
+    if (running && !state) {
+      console.error(
+        "✗ The stack that was starting exited before it was ready. See .agents/.state/stack.log."
+      );
+      return 1;
+    }
     await Bun.sleep(1000);
   }
   console.error(
-    `✗ The stack wasn't ready after ${DETACH_READY_TIMEOUT_MS / 1000}s; it is still starting. Check \`bun run dev --status\` and ${DETACHED_LOG.replace(`${ROOT}/`, "")}.`
+    `✗ The stack wasn't ready after ${DETACH_READY_TIMEOUT_MS / 1000}s; it is still starting. Check \`bun run dev --status\` and ${logPath}.`
   );
   return 1;
 };
