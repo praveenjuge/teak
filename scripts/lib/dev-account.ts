@@ -6,7 +6,7 @@
  * gone, the password is reset. Nothing here logs the password.
  */
 
-import { randomBytes } from "node:crypto";
+import { createHash, randomBytes } from "node:crypto";
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { hostname } from "node:os";
 import { dirname } from "node:path";
@@ -27,7 +27,28 @@ const slug = (value: string): string =>
     .replace(/^-+|-+$/g, "")
     .slice(0, 40) || "host";
 
-export const devAccountEmail = (namespace: string, host = hostname()): string =>
+/**
+ * The machine part of the account email. Every Claude Code cloud VM is named
+ * "vm" and checks out "main", so a cloud session is named after a hash of its
+ * session ID instead: each session gets its own account, and resuming the
+ * session on a new VM signs in to the same one.
+ */
+export const devAccountHost = (
+  env: Record<string, string | undefined> = process.env,
+  host = hostname()
+): string => {
+  const session = env.CLAUDE_CODE_REMOTE_SESSION_ID?.trim();
+  if (env.CLAUDE_CODE_REMOTE !== "true" || !session) {
+    return host;
+  }
+  const hash = createHash("sha256").update(session).digest("hex").slice(0, 8);
+  return `cloud-${hash}`;
+};
+
+export const devAccountEmail = (
+  namespace: string,
+  host = devAccountHost()
+): string =>
   `dev+${slug(host)}-${slug(namespace)}@${TEST_SESSION_EMAIL_DOMAIN}`;
 
 const readSaved = (path: string): DevAccount | null => {

@@ -21,14 +21,24 @@ running the API, CLI, MCP, repository checks and E2E suite.
 - **Network:** the stack needs Convex, WorkOS and Polar (and Playwright's CDN
   for setup), which aren't on the default "Trusted" list. Use "Full", or add
   them under "Custom".
-- **`NODE_OPTIONS`:** set it to `--max-old-space-size=8192 --use-openssl-ca`
-  in the environment's variables. The image sets only the heap flag. The
-  session's HTTPS proxy re-signs traffic, and Turbo's strict env mode drops
-  `NODE_EXTRA_CA_CERTS` from the tasks it runs, so without `--use-openssl-ca`
-  Node tools under Turbo fail with "self-signed certificate in certificate
-  chain". That fails `bun run lint` (Raycast's `ray lint` calls raycast.com),
-  the pre-commit hook when Raycast is affected, and the docs site's Google
-  Fonts fetch.
+- **`NODE_OPTIONS`:** nothing to set. The SessionStart hook adds
+  `--use-openssl-ca` to the session's `NODE_OPTIONS`, so Node trusts the HTTPS
+  proxy through the system store. Turbo's strict env mode drops
+  `NODE_EXTRA_CA_CERTS`, so without the flag Node tasks under Turbo fail with
+  "self-signed certificate in certificate chain": Raycast's `ray lint` on
+  raycast.com (which also fails the pre-commit hook when Raycast is affected)
+  and the docs dev server's Google Fonts fetch. If you set it by hand earlier,
+  you can remove it.
+
+## One account per session
+
+Every cloud VM is named `vm` and checks out `main`, so `bun run dev` names a
+Claude Code session's account after a hash of `CLAUDE_CODE_REMOTE_SESSION_ID`
+instead: `dev+cloud-<hash>-main@example.org`. Each session starts with a fresh
+seeded vault, its own export allowance and its own device list. Resuming a
+session on a new VM signs in to the same account with a new password. Accounts
+from finished sessions stay on the dev deployment; nothing removes them yet.
+Other cloud agents (Codex, Amp) still use `dev+<hostname>-main@example.org`.
 
 ## Works
 
@@ -43,11 +53,11 @@ deployment for all of these:
 - AI summaries, tags and transcripts, and link metadata
 - search and filters, the card modal, favorites, notes and tags, trash and
   restore, the context menu and bulk actions
-- theme and devices in Settings, API keys, and bookmark import
+- theme and devices in Settings, API keys, and import and export
 - the REST API, MCP and the CLI with `--api-key`
 
-Also `bun run smoke:web`, `bun run test`, `typecheck`, the extension, CLI and
-Raycast builds, and the docs site. `lint` works once `NODE_OPTIONS` is set.
+Also `bun run smoke:web`, `bun run test`, `typecheck`, `lint`, the extension,
+CLI and Raycast builds, and the docs site.
 
 Only the agent can see the app. It runs on the VM's `localhost`, and cloud
 sessions have no port forwarding, so drive it with headless Chromium
@@ -55,13 +65,6 @@ sessions have no port forwarding, so drive it with headless Chromium
 
 ## Needs care
 
-- **One shared account:** every cloud VM is machine `vm` with checkout
-  `main`, so every cloud session signs in as `dev+vm-main@example.org` and
-  shares its vault and limits. Expect cards left by earlier sessions, mark what
-  you create with a unique string, and delete it afterwards (the REST API's
-  `DELETE /v1/cards/{id}?permanent=true` takes an API key). Revoke API keys you
-  create. Exports are limited to one per account every 7 days, so an earlier
-  session may already have used it.
 - **E2E suite:** run the Chromium projects with one worker. Four workers
   starve the local backend on a 4-vCPU VM, and queries hit Convex's 1 s limit.
   Firefox and WebKit aren't installed. The run below takes about 14 minutes.
