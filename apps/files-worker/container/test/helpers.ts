@@ -66,6 +66,8 @@ export async function render(
   body: Uint8Array,
   baseUrl = RENDERER_URL
 ): Promise<RenderResult> {
+  // rendererEndpoint only allows a loopback renderer.
+  // nosemgrep: rules_lgpl_javascript_ssrf_rule-node-ssrf
   const response = await fetch(rendererEndpoint(path, baseUrl), {
     method: "POST",
     body,
@@ -111,6 +113,7 @@ export async function readResult(response: Response): Promise<RenderResult> {
 export async function health(
   baseUrl = RENDERER_URL
 ): Promise<{ ok: boolean; protocol: number; busy: boolean }> {
+  // nosemgrep: rules_lgpl_javascript_ssrf_rule-node-ssrf
   const response = await fetch(rendererEndpoint("/health", baseUrl));
   return (await response.json()) as {
     ok: boolean;
