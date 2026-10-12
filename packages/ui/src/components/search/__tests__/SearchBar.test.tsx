@@ -61,13 +61,14 @@ describe("SearchBar WebMCP annotations", () => {
 });
 
 describe("SearchBar filter chips", () => {
+  // The aria-pressed value of the chip button whose label is `label`.
   const pressedState = (markup: string, label: string) => {
-    const match = markup.match(
-      new RegExp(
-        `<button[^>]*aria-pressed="(true|false)"[^>]*>(?:(?!</button>).)*<span>${label}</span>`
-      )
-    );
-    return match?.[1];
+    const button = markup
+      .split("<button")
+      .find((chunk) =>
+        chunk.split("</button>")[0]?.includes(`<span>${label}</span>`)
+      );
+    return button?.match(/aria-pressed="(true|false)"/)?.[1];
   };
 
   test("reports inactive type, Favorites and Trash chips as not pressed", () => {
