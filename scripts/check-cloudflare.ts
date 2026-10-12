@@ -137,11 +137,7 @@ export const classifyDevStorage = (routing: {
   return "invalid";
 };
 
-const STORAGE_CREDENTIALS = new Set([
-  "FILES_SIGNING_SECRET",
-  "R2_ACCESS_KEY_ID",
-  "R2_SECRET_ACCESS_KEY",
-]);
+const STORAGE_CREDENTIALS = new Set(["FILES_SIGNING_SECRET"]);
 
 export interface Finding {
   blocking?: boolean;
@@ -150,8 +146,8 @@ export interface Finding {
 }
 
 /**
- * Shared storage needs the production signing key and S3 credentials; isolated
- * storage must never reuse them. Account, endpoint and AI token stay identical.
+ * Shared storage needs the production signing key; isolated storage must
+ * never reuse it. Any non-credential setting stays identical.
  * Unknown dev routing (skipped/unavailable) keeps the shared expectations.
  */
 export const credentialParityFinding = (
@@ -186,14 +182,9 @@ export const credentialParityFinding = (
       };
 };
 
-const expectedProdVars = [
-  "CLOUDFLARE_ACCOUNT_ID",
-  "CLOUDFLARE_API_TOKEN",
-  "FILES_SIGNING_SECRET",
-  "R2_ACCESS_KEY_ID",
-  "R2_ENDPOINT",
-  "R2_SECRET_ACCESS_KEY",
-] as const;
+// Convex holds no R2 or Workers AI credentials: every byte and AI operation
+// goes through the Files Worker, so its signing key is the only shared secret.
+const expectedProdVars = ["FILES_SIGNING_SECRET"] as const;
 
 const expectedDevVars = [
   ...expectedProdVars,
@@ -479,7 +470,7 @@ const checkConvexEnv = async (only: DeploymentScope | null) => {
   }
 
   console.log(
-    "\n  Shared dev storage requires the production signing key and S3 credentials; isolated dev storage requires its own. Never copy production credentials into isolated development."
+    "\n  Shared dev storage requires the production signing key; isolated dev storage requires its own. Never copy production credentials into isolated development."
   );
   console.log(
     "  Distinct values do not prove bucket-scoped provider permissions; verify those with the provider. --only skips the credential comparison."

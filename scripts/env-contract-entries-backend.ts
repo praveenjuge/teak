@@ -179,8 +179,8 @@ export const BACKEND_ENTRIES: EnvVarSpec[] = [
     implicit: true,
     note: "Canonical deployment HTTP-actions URL. Setup expands it into the NEXT/VITE/EXPO_PUBLIC_CONVEX_SITE_URL aliases.",
   }),
-  // Files / R2 capability group.
-  ...["FILES_TEXT_AI_ENABLED", "OPERATIONAL_RETENTION_ENABLED"].map((name) =>
+  // Staged operational-cost rollout.
+  ...["OPERATIONAL_RETENTION_ENABLED"].map((name) =>
     spec(name, {
       owners: ["@teak/convex"],
       targets: ["convex"],
@@ -221,57 +221,11 @@ export const BACKEND_ENTRIES: EnvVarSpec[] = [
     providers: ["convex-dashboard"],
     required: false,
   }),
-  spec("R2_ENDPOINT", {
-    owners: ["@teak/convex"],
-    targets: ["convex"],
-    profiles: ["local", "preview", "production"],
-    secret: false,
-    validation: "url",
-    providers: ["convex-dashboard"],
-    required: false,
-  }),
-  spec("R2_ACCESS_KEY_ID", {
-    owners: ["@teak/convex"],
-    targets: ["convex"],
-    profiles: ["local", "preview", "production"],
-    secret: false,
-    validation: "string",
-    providers: ["convex-dashboard"],
-    required: false,
-  }),
-  spec("R2_SECRET_ACCESS_KEY", {
-    owners: ["@teak/convex"],
-    targets: ["convex"],
-    profiles: ["local", "preview", "production"],
-    secret: true,
-    validation: "string",
-    providers: ["convex-dashboard"],
-    required: false,
-  }),
   spec("R2_KEY_PREFIX", {
     owners: ["@teak/convex"],
     targets: ["convex"],
     profiles: ["local", "preview", "production"],
     secret: false,
-    validation: "string",
-    providers: ["convex-dashboard"],
-    required: false,
-  }),
-  // Cloudflare AI capability group.
-  spec("CLOUDFLARE_ACCOUNT_ID", {
-    owners: ["@teak/convex"],
-    targets: ["convex"],
-    profiles: ["local", "preview", "production"],
-    secret: false,
-    validation: "string",
-    providers: ["convex-dashboard"],
-    required: false,
-  }),
-  spec("CLOUDFLARE_API_TOKEN", {
-    owners: ["@teak/convex"],
-    targets: ["convex"],
-    profiles: ["local", "preview", "production"],
-    secret: true,
     validation: "string",
     providers: ["convex-dashboard"],
     required: false,
@@ -286,7 +240,7 @@ export const BACKEND_ENTRIES: EnvVarSpec[] = [
     providers: ["convex-dashboard", "sdk-implicit"],
     required: false,
     implicit: true,
-    note: "Read implicitly by @onkernel/sdk default auth (screenshots, thumbnails, link metadata).",
+    note: "Read implicitly by @onkernel/sdk default auth. Optional fallback renderer for screenshots, thumbnails and browser link scrapes the Files Worker declines.",
   }),
   // Polar billing capability group.
   spec("POLAR_ACCESS_TOKEN", {

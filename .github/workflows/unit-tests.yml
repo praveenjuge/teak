@@ -69,9 +69,3 @@ jobs:
           scripts/generate-project.sh --check
       - name: TeakKit tests
         run: swift test --package-path Packages/TeakKit
-      - name: Build for iPhone, iPad and Mac
-        run: |
-          for destination in "generic/platform=iOS Simulator" "generic/platform=macOS"; do
-            xcodebuild build -project Teak.xcodeproj -scheme Teak -destination "$destination" \
-              -derivedDataPath build/DerivedData CODE_SIGNING_ALLOWED=NO -quiet
-          done

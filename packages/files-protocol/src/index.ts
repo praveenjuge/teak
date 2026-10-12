@@ -53,6 +53,12 @@ export const FILES_OPS = [
   "transcribe-audio",
   "index-import-source",
   "read-import-markdown",
+  // Rendering and media (Browser Run and Media bindings); see ./rendering.
+  "render-pdf-thumbnail",
+  "extract-video-frame",
+  "capture-screenshot",
+  "scrape-html",
+  "probe-media",
 ] as const;
 
 export type FilesOp = (typeof FILES_OPS)[number];
@@ -274,3 +280,4 @@ export type FilesImportMarkdownResult =
     };
 
 export * from "./metadata";
+export * from "./rendering";

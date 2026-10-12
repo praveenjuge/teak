@@ -7,10 +7,9 @@ import type { Env } from "./index";
 /**
  * Image understanding on Workers AI.
  *
- * Mirrors the Convex pipeline it replaces (packages/convex/workflows/
- * aiMetadata/generators.ts): the existing `detail` rendition feeds the same
- * multimodal model with the same system prompt, JSON output shape, and bounded
- * validation retries. Image bytes never leave the worker.
+ * The existing `detail` rendition feeds a multimodal model with bounded
+ * validation retries and a fixed JSON output shape. This is the only image
+ * metadata implementation; image bytes never leave the worker.
  */
 
 export const IMAGE_METADATA_MODEL_ID = "@cf/google/gemma-4-26b-a4b-it";
@@ -22,7 +21,6 @@ const CAPACITY_RETRY_BASE_DELAY_MS = 250;
 const WORKERS_AI_CAPACITY_ERROR =
   /(?:\b3040\b.*capacity|capacity temporarily exceeded)/iu;
 
-// Kept in lockstep with SYSTEM_PROMPTS.imageAnalysis in packages/convex/ai/models.ts.
 export const IMAGE_ANALYSIS_SYSTEM_PROMPT = `You are an expert image analyzer. Generate relevant tags and a concise summary for the given image. Answer directly without thinking step by step.
 
 Guidelines:

@@ -1,15 +1,27 @@
+import type { BrowserWorker } from "@cloudflare/puppeteer";
 import { readResponseTextWithinLimit } from "@teak/convex/shared/bounded-response";
 import {
   buildFilesOpSigningPayload,
   FILES_OPS,
   FILES_PROCESSOR_VERSION,
   FILES_PROTOCOL_VERSION,
+  FILES_SCREENSHOT_SIZE,
   type FilesErrorCode,
   type FilesFinalizeImageParams,
   type FilesOpRequest,
   isFilesInspectMode,
   isFilesOp,
 } from "@teak/files-protocol";
+import {
+  captureHtmlScreenshot,
+  decodeHtmlParam,
+  type LaunchBrowser,
+  loadPinnedPdfJs,
+  readPdfSource,
+  renderPdfFirstPage,
+  scrapeHtml,
+  validScrapeSelectors,
+} from "./browserRender";
 import { freezeObject } from "./deletionGate";
 import {
   buildExportIntoBucket,
@@ -22,6 +34,7 @@ import { generateImageMetadataForOp } from "./imageMetadata";
 import { indexImportSource, readImportMarkdown } from "./importSource";
 import { extractZipEntries, InspectSourceMissing, runInspect } from "./inspect";
 import { sha256Hex, verifyBodySignature } from "./lib";
+import { MediaProbeUnsupported, probeMedia } from "./mediaProbe";
 import { isMissingMultipartUpload } from "./missingMultipartUpload";
 import { reportFilesOpFailure } from "./sentry";
 import {
@@ -31,6 +44,7 @@ import {
 } from "./textMetadata";
 import { transcribeAudio } from "./transcript";
 import { isValidUploadKey } from "./upload";
+import { extractVideoFrame, type MediaTransformsBinding } from "./videoFrame";
 import { ArchiveEntryTooLargeError } from "./zip";
 
 export const getFilesOpObjectKey = (params: unknown): string => {
@@ -60,10 +74,14 @@ export interface FilesOpsEnv {
   AI?: {
     run: (model: string, args: Record<string, unknown>) => Promise<unknown>;
   };
+  /** Browser Run binding; renders PDFs and offline HTML. */
+  BROWSER?: BrowserWorker;
   BUCKET: R2Bucket;
   FILES_SIGNING_SECRET: string;
   /** Images binding; used by finalize-image-upload for decode verification. */
   IMAGES?: ImagesBinding;
+  /** Media Transformations binding; extracts video frames. */
+  MEDIA?: MediaTransformsBinding;
   OBJECT_GATES?: DurableObjectNamespace;
 }
 
@@ -179,6 +197,43 @@ const finalizeUpload = async (
     storedEtag: stored.httpEtag,
     storedFileSize: source.size,
     storedMimeType: source.httpMetadata?.contentType,
+  };
+};
+
+/** Source and destination of a derived image, both in one user namespace. */
+const derivedImageKeys = (params: Record<string, unknown>) => {
+  const sourceKey = requiredString(params, "sourceKey");
+  const destinationKey = requiredString(params, "destinationKey");
+  if (
+    !(
+      isValidUploadKey(sourceKey) &&
+      isValidUploadKey(destinationKey) &&
+      sameUserNamespace(sourceKey, destinationKey)
+    ) ||
+    sourceKey === destinationKey
+  ) {
+    throw new Error("invalid_storage_key");
+  }
+  return { destinationKey, sourceKey };
+};
+
+const validDestinationKey = (params: Record<string, unknown>): string => {
+  const destinationKey = requiredString(params, "destinationKey");
+  if (!isValidUploadKey(destinationKey)) {
+    throw new Error("invalid_storage_key");
+  }
+  return destinationKey;
+};
+
+const browserLauncher = (env: FilesOpsEnv): LaunchBrowser => {
+  const binding = env.BROWSER;
+  if (!binding) {
+    throw new Error("browser_binding_unavailable");
+  }
+  // Loaded on first use so other operations never pay its startup cost.
+  return async () => {
+    const { default: puppeteer } = await import("@cloudflare/puppeteer");
+    return await puppeteer.launch(binding);
   };
 };
 
@@ -489,6 +544,59 @@ const dispatch = async (
         })
       );
     }
+    case "render-pdf-thumbnail": {
+      const { destinationKey, sourceKey } = derivedImageKeys(params);
+      const launch = browserLauncher(env);
+      const pdf = await readPdfSource(env.BUCKET, sourceKey);
+      const rendered = await renderPdfFirstPage(
+        launch,
+        pdf,
+        await loadPinnedPdfJs()
+      );
+      await env.BUCKET.put(destinationKey, rendered.png, {
+        httpMetadata: { contentType: "image/png" },
+      });
+      return success(requestId, {
+        height: rendered.height,
+        storedBytes: rendered.png.length,
+        storedContentType: "image/png",
+        width: rendered.width,
+      });
+    }
+    case "extract-video-frame": {
+      const { destinationKey, sourceKey } = derivedImageKeys(params);
+      return success(
+        requestId,
+        await extractVideoFrame(env, sourceKey, destinationKey)
+      );
+    }
+    case "capture-screenshot": {
+      const destinationKey = validDestinationKey(params);
+      const launch = browserLauncher(env);
+      const html = await decodeHtmlParam(params.htmlGzipBase64);
+      const jpeg = await captureHtmlScreenshot(launch, html);
+      await env.BUCKET.put(destinationKey, jpeg, {
+        httpMetadata: { contentType: "image/jpeg" },
+      });
+      return success(requestId, {
+        ...FILES_SCREENSHOT_SIZE,
+        storedBytes: jpeg.length,
+        storedContentType: "image/jpeg",
+      });
+    }
+    case "scrape-html": {
+      const selectors = validScrapeSelectors(params.selectors);
+      const launch = browserLauncher(env);
+      const html = await decodeHtmlParam(params.htmlGzipBase64);
+      return success(requestId, await scrapeHtml(launch, html, selectors));
+    }
+    case "probe-media": {
+      const sourceKey = requiredString(params, "sourceKey");
+      if (!isValidUploadKey(sourceKey)) {
+        throw new Error("invalid_storage_key");
+      }
+      return success(requestId, await probeMedia(env.BUCKET, sourceKey));
+    }
     case "extract-import-files": {
       if (!Array.isArray(params.entries)) {
         throw new Error("invalid_entries");
@@ -607,14 +715,20 @@ export const handleInternalOp = async (
       return fail(requestId, "PAYLOAD_TOO_LARGE", error.message, 413);
     }
     if (
-      error instanceof Error &&
-      [
-        "image_transform_failed",
-        "image_dimensions_missing",
-        "not_an_image",
-        "image_dimensions_too_large",
-        "audio_decode_failed",
-      ].includes(error.message)
+      error instanceof MediaProbeUnsupported ||
+      (error instanceof Error &&
+        [
+          "image_transform_failed",
+          "image_dimensions_missing",
+          "not_an_image",
+          "image_dimensions_too_large",
+          "audio_decode_failed",
+          "browser_binding_unavailable",
+          "media_binding_unavailable",
+          "not_a_pdf",
+          "video_format_unsupported",
+          "video_frame_failed",
+        ].includes(error.message))
     ) {
       return fail(requestId, "UNSUPPORTED", error.message, 415);
     }

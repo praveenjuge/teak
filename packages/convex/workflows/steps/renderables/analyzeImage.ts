@@ -51,6 +51,7 @@ export const analyzeImage = internalAction({
           cardId,
           height: outcome.data.height,
           width: outcome.data.width,
+          ...(outcome.data.exif ? { exif: outcome.data.exif } : {}),
         }
       );
       if (

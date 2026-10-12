@@ -9,15 +9,6 @@ import {
   test,
 } from "bun:test";
 
-const aiMocks = (global as any).__AI_MOCKS__ ?? {};
-aiMocks.generateText ??= mock();
-aiMocks.generateObject ??= mock();
-aiMocks.experimental_transcribe ??= mock();
-aiMocks.Output ??= { object: mock() };
-(global as any).__AI_MOCKS__ = aiMocks;
-
-mock.module("ai", () => aiMocks);
-
 // Keep SSRF validation out of this unit test: delegate safeFetch to the mocked
 // global fetch and treat every URL as safe. The real outbound URL policy is
 // exercised in linkMetadata/ssrf.test.ts.

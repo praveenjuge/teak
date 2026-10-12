@@ -1,7 +1,5 @@
 "use node";
 
-import { GetObjectCommand, ListPartsCommand } from "@aws-sdk/client-s3";
-import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import { ConvexError, v } from "convex/values";
 import { internal } from "./_generated/api";
 import { type ActionCtx, action } from "./_generated/server";
@@ -12,13 +10,13 @@ import {
   MAX_BOOKMARK_BYTES,
   MAX_RAINDROP_BYTES,
 } from "./import/constants";
-import { createImportS3Client, getImportR2Config } from "./import/r2Client";
 import { importModeValidator } from "./schema";
 import { getSessionUser, type TeakUserId } from "./securitySessions";
 import {
   buildSignedMultipartPartUrl,
   callFilesWorkerJson,
 } from "./storage/filesWorkerClient";
+import { getR2Url } from "./storage/fileUrls";
 import { buildR2ObjectKey } from "./storage/r2";
 
 const internalAny = internal as Record<string, any>;
@@ -112,35 +110,16 @@ function totalParts(fileSize: number) {
   return Math.ceil(fileSize / IMPORT_PART_BYTES);
 }
 
-async function listAllParts(
-  client: ReturnType<typeof createImportS3Client>,
-  bucket: string,
-  key: string,
-  uploadId: string
-) {
-  const result: Array<{ PartNumber: number; ETag: string; Size: number }> = [];
-  let marker: string | undefined;
-  do {
-    const page = await client.send(
-      new ListPartsCommand({
-        Bucket: bucket,
-        Key: key,
-        UploadId: uploadId,
-        PartNumberMarker: marker,
-      })
-    );
-    for (const part of page.Parts ?? []) {
-      if (part.PartNumber && part.ETag && typeof part.Size === "number") {
-        result.push({
-          PartNumber: part.PartNumber,
-          ETag: part.ETag.replace(/^"(.*)"$/u, "$1"),
-          Size: part.Size,
-        });
-      }
-    }
-    marker = page.IsTruncated ? page.NextPartNumberMarker : undefined;
-  } while (marker);
-  return result.sort((a, b) => a.PartNumber - b.PartNumber);
+interface RecordedPart {
+  etag: string;
+  partNumber: number;
+  size: number;
+}
+
+function recordedParts(job: { uploadedParts?: RecordedPart[] }) {
+  return [...(job.uploadedParts ?? [])].sort(
+    (left, right) => left.partNumber - right.partNumber
+  );
 }
 
 async function signMissingParts(args: {
@@ -261,15 +240,7 @@ export const resumeImportUpload = action({
         message: "This upload has expired",
       });
     }
-    const config = getImportR2Config();
-    const client = createImportS3Client(config);
-    const listed = await listAllParts(
-      client,
-      config.bucket,
-      job.sourceKey,
-      job.uploadId
-    );
-    const uploadedParts = listed.map((part) => part.PartNumber);
+    const uploadedParts = recordedParts(job).map((part) => part.partNumber);
     const parts = await signMissingParts({
       key: job.sourceKey,
       uploadId: job.uploadId,
@@ -299,28 +270,21 @@ export const completeImportUpload = action({
     ) {
       throw new Error("Import upload not found");
     }
-    const config = getImportR2Config();
-    const client = createImportS3Client(config);
-    const parts = await listAllParts(
-      client,
-      config.bucket,
-      job.sourceKey,
-      job.uploadId
-    );
+    const parts = recordedParts(job);
     const expected = totalParts(job.fileSize);
     if (
       parts.length !== expected ||
-      parts.some((part, index) => part.PartNumber !== index + 1)
+      parts.some((part, index) => part.partNumber !== index + 1)
     ) {
       throw new ConvexError({
         code: "INCOMPLETE_UPLOAD",
         message: "Not all upload parts are present",
       });
     }
-    const listedSize = parts.reduce((sum, part) => sum + part.Size, 0);
+    const recordedSize = parts.reduce((sum, part) => sum + part.size, 0);
     if (
-      listedSize !== job.fileSize ||
-      parts.slice(0, -1).some((part) => part.Size !== IMPORT_PART_BYTES)
+      recordedSize !== job.fileSize ||
+      parts.slice(0, -1).some((part) => part.size !== IMPORT_PART_BYTES)
     ) {
       throw new ConvexError({
         code: "INVALID_UPLOAD",
@@ -333,10 +297,7 @@ export const completeImportUpload = action({
         key: job.sourceKey,
         uploadId: job.uploadId,
         expectedSize: job.fileSize,
-        parts: parts.map(({ PartNumber, ETag }) => ({
-          partNumber: PartNumber,
-          etag: ETag,
-        })),
+        parts: parts.map(({ partNumber, etag }) => ({ partNumber, etag })),
       },
     });
     if (completion.kind !== "ok" || completion.data.size !== job.fileSize) {
@@ -392,16 +353,9 @@ export const getImportReportUrl = action({
     if (!job || job.userId !== userId || !job.reportKey) {
       throw new Error("Import report is unavailable");
     }
-    const config = getImportR2Config();
-    return getSignedUrl(
-      createImportS3Client(config),
-      new GetObjectCommand({
-        Bucket: config.bucket,
-        Key: job.reportKey,
-        ResponseContentDisposition:
-          'attachment; filename="teak-import-report.txt"',
-      }),
-      { expiresIn: 15 * 60 }
-    );
+    return await getR2Url(job.reportKey, {
+      contentDisposition: 'attachment; filename="teak-import-report.txt"',
+      contentType: "text/plain; charset=utf-8",
+    });
   },
 });

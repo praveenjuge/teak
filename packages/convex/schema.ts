@@ -373,6 +373,13 @@ export const importJobValidator = v.object({
   sourceEtag: v.optional(v.string()),
   uploadId: v.optional(v.string()),
   uploadExpiresAt: v.optional(v.number()),
+  // Parts the client reported after each signed PUT. Completion hands these
+  // to the files worker, which R2 verifies, so Convex never lists parts.
+  uploadedParts: v.optional(
+    v.array(
+      v.object({ partNumber: v.number(), etag: v.string(), size: v.number() })
+    )
+  ),
   workflowId: v.optional(v.string()),
   cancelRequested: v.optional(v.boolean()),
   parsedCount: v.number(),

@@ -6,6 +6,7 @@ import {
 
 export { ObjectDeletionGate } from "./deletionGate";
 
+import type { BrowserWorker } from "@cloudflare/puppeteer";
 import { withSentry } from "@sentry/cloudflare";
 import {
   buildMultipartPartSigningPayload,
@@ -25,16 +26,21 @@ import {
 import { handleInternalOp } from "./ops";
 import { resolveSentryOptions } from "./sentry";
 import { handleSignedUpload } from "./upload";
+import type { MediaTransformsBinding } from "./videoFrame";
 
 export interface Env {
   /** Workers AI binding; used for image understanding in generate-image-metadata. */
   AI?: {
     run: (model: string, args: Record<string, unknown>) => Promise<unknown>;
   };
+  /** Browser Run binding; renders PDF thumbnails and offline HTML. */
+  BROWSER?: BrowserWorker;
   BUCKET: R2Bucket;
   FILES_SIGNING_SECRET: string;
   /** Cloudflare Images binding; used for free metadata inspection of eligible rasters. */
   IMAGES?: ImagesBinding;
+  /** Media Transformations binding; extracts video frames from R2 objects. */
+  MEDIA?: MediaTransformsBinding;
   OBJECT_GATES?: DurableObjectNamespace;
   /** Wrangler secret; error reporting stays disabled until it is set. */
   SENTRY_DSN?: string;

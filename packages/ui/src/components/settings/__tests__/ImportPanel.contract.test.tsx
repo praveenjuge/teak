@@ -8,6 +8,7 @@ let failureSamplesResult: unknown;
 mock.module("convex/react", () => ({
   ...convexReact,
   useAction: () => mock(),
+  useMutation: () => mock(),
 }));
 mock.module("../../../convexQueryHooks", () => ({
   usePaginatedQuery: () => ({
@@ -243,7 +244,8 @@ describe("ImportPanel", () => {
             uploadedParts: [],
           },
           mock(),
-          controllers
+          controllers,
+          mock()
         )
       ).rejects.toThrow("Upload part 1 failed (500)");
       expect(uploadFetch).toHaveBeenCalledTimes(5);
@@ -257,10 +259,13 @@ describe("ImportPanel", () => {
     const originalFetch = globalThis.fetch;
     const uploadFetch = mock()
       .mockResolvedValueOnce(new Response(null, { status: 503 }))
-      .mockResolvedValueOnce(new Response(null, { status: 200 }));
+      .mockResolvedValueOnce(
+        new Response(null, { status: 200, headers: { ETag: '"part-1"' } })
+      );
     globalThis.fetch = uploadFetch as typeof fetch;
     const controllers = new Set<AbortController>();
     const onProgress = mock();
+    const recordPart = mock(() => Promise.resolve(null));
 
     try {
       await putParts(
@@ -272,12 +277,46 @@ describe("ImportPanel", () => {
           uploadedParts: [],
         },
         onProgress,
-        controllers
+        controllers,
+        recordPart
       );
       expect(uploadFetch).toHaveBeenCalledTimes(2);
+      expect(recordPart).toHaveBeenCalledWith({
+        etag: '"part-1"',
+        partNumber: 1,
+        size: 1,
+      });
       expect(onProgress).toHaveBeenCalledWith(0);
       expect(onProgress).toHaveBeenCalledWith(100);
       expect(controllers.size).toBe(0);
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
+  });
+
+  test("refuses an uploaded part whose ETag is unreadable, so it is never recorded", async () => {
+    const originalFetch = globalThis.fetch;
+    globalThis.fetch = mock(() =>
+      Promise.resolve(new Response(null, { status: 204 }))
+    ) as unknown as typeof fetch;
+    const recordPart = mock(() => Promise.resolve(null));
+
+    try {
+      await expect(
+        putParts(
+          new File([new Uint8Array([1])], "bookmarks.html"),
+          {
+            jobId: "job",
+            partSize: 1,
+            parts: [{ partNumber: 1, url: "https://uploads.example/1" }],
+            uploadedParts: [],
+          },
+          mock(),
+          new Set<AbortController>(),
+          recordPart
+        )
+      ).rejects.toThrow("Upload part 1 returned no ETag");
+      expect(recordPart).not.toHaveBeenCalled();
     } finally {
       globalThis.fetch = originalFetch;
     }

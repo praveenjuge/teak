@@ -29,6 +29,7 @@ import {
   hasKnownTinyImageDimensions,
   hasMinimumImageAnalysisDimensions,
 } from "../imageAnalysis";
+import { recordMediaFacts } from "../mediaFacts";
 
 interface LinkPreviewMetadata {
   author?: string;
@@ -225,12 +226,13 @@ export async function generateHandler(
       }
       case "audio": {
         if (card.fileKey) {
+          const durationSeconds = await recordMediaFacts(ctx, card, "audio");
           // Silence, tones and beeps yield no transcript, so they also get no
           // made-up summary or tags.
           const transcriptResult = await generateTranscript(
             card.fileKey,
             card.fileMetadata?.mimeType,
-            { durationSeconds: card.fileMetadata?.duration }
+            { durationSeconds }
           );
           if (transcriptResult) {
             aiTranscript = transcriptResult;

@@ -7,6 +7,7 @@ import { convexTest } from "convex-test";
 import { afterEach, beforeEach, expect, test, vi } from "vitest";
 import { seedComponentUser } from "./__tests__/helpers/workosOwner.test-utils";
 import { api, internal } from "./_generated/api";
+import type { Id } from "./_generated/dataModel";
 import schema from "./schema";
 
 vi.mock("@resvg/resvg-wasm/index_bg.wasm", () => ({ default: null }));
@@ -22,18 +23,6 @@ const supportPath = new URL(
 const worker = (await import(workerPath)).default;
 const { FakeBucket, withObjectGates } = await import(supportPath);
 const modules = import.meta.glob("./**/*.ts");
-const sdk = vi.hoisted(() => ({
-  send: (_command: unknown): Promise<Record<string, unknown>> =>
-    Promise.reject(new Error("Unexpected S3 operation")),
-}));
-vi.mock("@aws-sdk/client-s3", async (original) => ({
-  ...(await original<typeof import("@aws-sdk/client-s3")>()),
-  S3Client: class {
-    send(command: unknown) {
-      return sdk.send(command);
-    }
-  },
-}));
 const ownerId = "import-deletion-owner";
 const key = "users/import-deletion-owner/imports/proof/source.zip";
 beforeEach(() => {
@@ -55,10 +44,6 @@ beforeEach(() => {
   vi.stubEnv("FILES_BASE", "https://files.test");
   vi.stubEnv("FILES_SIGNING_SECRET", "test-import-signing-value");
   vi.stubEnv("R2_KEY_PREFIX", "");
-  vi.stubEnv("R2_BUCKET", "test-only");
-  vi.stubEnv("R2_ENDPOINT", "https://r2.test");
-  vi.stubEnv("R2_ACCESS_KEY_ID", "test-import-access-value");
-  vi.stubEnv("R2_SECRET_ACCESS_KEY", "test-import-secret-value");
 });
 afterEach(() => {
   vi.useRealTimers();
@@ -110,6 +95,7 @@ test("deletion retains its source and state while an authenticated import comple
       fileName: "source.zip",
       fileSize: 1,
       fileLastModified: 0,
+      uploadedParts: [{ partNumber: 1, etag: "etag-1", size: 1 }],
       parsedCount: 0,
       processedCount: 0,
       createdCount: 0,
@@ -138,20 +124,6 @@ test("deletion retains its source and state while an authenticated import comple
     ...resume(uploadKey, uploadId),
     complete,
   });
-  sdk.send = async (command) => {
-    const name = command?.constructor.name;
-    if (name === "ListPartsCommand") {
-      return { Parts: [{ PartNumber: 1, ETag: "etag-1", Size: 1 }] };
-    }
-    if (name === "CompleteMultipartUploadCommand") {
-      await complete();
-      return {};
-    }
-    if (name === "HeadObjectCommand") {
-      return { ContentLength: 1 };
-    }
-    throw new Error(`Unexpected S3 operation: ${name}`);
-  };
   const env = withObjectGates({
     BUCKET: bucket,
     FILES_SIGNING_SECRET: "test-import-signing-value",
@@ -260,8 +232,6 @@ test("multipart creation that overlaps deletion stays captured until freeze can 
       { waitUntil: () => undefined } as never
     )
   );
-  sdk.send = (_command) =>
-    Promise.reject(new Error("Direct S3 writes are forbidden"));
   const creating = signed
     .action(api.importUpload.createImportUpload, {
       mode: "archive",
@@ -318,12 +288,6 @@ test("five GiB imports retain eighty size-bound Worker parts and resumable uploa
       { waitUntil: () => undefined } as never
     )
   );
-  sdk.send = (command) => {
-    if (command?.constructor.name !== "ListPartsCommand") {
-      return Promise.reject(new Error("Direct S3 writes are forbidden"));
-    }
-    return Promise.resolve({ Parts: [] });
-  };
   const file = {
     fileName: "proof.zip",
     fileSize: 5 * 1024 * 1024 * 1024,
@@ -375,28 +339,36 @@ test("five GiB imports retain eighty size-bound Worker parts and resumable uploa
   expect(stale.status).toBe(409);
 });
 
-test("completion uses canonical R2 part ETags from the S3 listing and queues the import", async () => {
-  const { t, signed } = await importSession();
+function stubWorker() {
   const bucket = new FakeBucket();
   const env = withObjectGates({
     BUCKET: bucket,
     FILES_SIGNING_SECRET: "test-import-signing-value",
   });
+  const call = (request: Request) =>
+    worker.fetch(request, env, { waitUntil: () => undefined } as never);
   vi.stubGlobal("fetch", (input: string | URL | Request, init?: RequestInit) =>
-    worker.fetch(
-      input instanceof Request ? input : new Request(input, init),
-      env,
-      { waitUntil: () => undefined } as never
-    )
+    call(input instanceof Request ? input : new Request(input, init))
   );
-  sdk.send = (command) => {
-    if (command?.constructor.name !== "ListPartsCommand") {
-      return Promise.reject(new Error("Direct S3 writes are forbidden"));
-    }
-    return Promise.resolve({
-      Parts: [{ PartNumber: 1, ETag: '"etag-1"', Size: 1 }],
-    });
-  };
+  return { bucket, call };
+}
+
+const putPart = (
+  call: (request: Request) => Promise<Response>,
+  url: string,
+  bytes: Uint8Array<ArrayBuffer>
+) =>
+  call(
+    new Request(url, {
+      method: "PUT",
+      body: new Blob([bytes]),
+      headers: { "content-length": String(bytes.byteLength) },
+    })
+  );
+
+test("completion hands the client-recorded part ETags to R2 and queues the import", async () => {
+  const { t, signed } = await importSession();
+  const { bucket, call } = stubWorker();
   const created = await signed.action(api.importUpload.createImportUpload, {
     mode: "archive",
     fileName: "proof.zip",
@@ -416,23 +388,193 @@ test("completion uses canonical R2 part ETags from the S3 listing and queues the
       },
     };
   };
-  const put = await worker.fetch(
-    new Request(created.parts[0].url, {
-      method: "PUT",
-      body: new Blob([new Uint8Array([1])]),
-      headers: { "content-length": "1" },
-    }),
-    env,
-    { waitUntil: () => undefined } as never
-  );
+  const put = await putPart(call, created.parts[0].url, new Uint8Array([1]));
   expect(put.status).toBe(204);
+  await signed.mutation(api.dataImport.recordImportPart, {
+    jobId: created.jobId,
+    partNumber: 1,
+    etag: `"${put.headers.get("etag")}"`,
+    size: 1,
+  });
   await signed.action(api.importUpload.completeImportUpload, {
     jobId: created.jobId,
   });
-  expect(await t.run((ctx) => ctx.db.get(created.jobId))).toMatchObject({
-    status: "queued",
-  });
+  const job = await t.run((ctx) =>
+    ctx.db.get(created.jobId as Id<"importJobs">)
+  );
+  expect(job).toMatchObject({ status: "queued" });
+  expect(job?.uploadedParts).toBeUndefined();
   expect(bucket.multipartCompletions[0].bytes).toEqual(new Uint8Array([1]));
+});
+
+test("completion refuses an upload whose parts were never recorded", async () => {
+  const { signed } = await importSession();
+  const { bucket, call } = stubWorker();
+  const created = await signed.action(api.importUpload.createImportUpload, {
+    mode: "archive",
+    fileName: "proof.zip",
+    fileSize: 1,
+    fileLastModified: 0,
+  });
+  expect(
+    (await putPart(call, created.parts[0].url, new Uint8Array([1]))).status
+  ).toBe(204);
+  await expect(
+    signed.action(api.importUpload.completeImportUpload, {
+      jobId: created.jobId,
+    })
+  ).rejects.toThrow("Not all upload parts are present");
+  expect(bucket.multipartCompletions).toHaveLength(0);
+});
+
+test("resume signs only the parts that were not recorded", async () => {
+  const { signed } = await importSession();
+  stubWorker();
+  const partSize = 64 * 1024 * 1024;
+  const file = {
+    fileName: "proof.zip",
+    fileSize: partSize * 2 + 5,
+    fileLastModified: 0,
+  };
+  const created = await signed.action(api.importUpload.createImportUpload, {
+    ...file,
+    mode: "archive",
+  });
+  expect(
+    created.parts.map((part: { partNumber: number }) => part.partNumber)
+  ).toEqual([1, 2, 3]);
+  await signed.mutation(api.dataImport.recordImportPart, {
+    jobId: created.jobId,
+    partNumber: 2,
+    etag: "etag-2",
+    size: partSize,
+  });
+  const resumed = await signed.action(
+    api.importUpload.resumeImportUpload,
+    file
+  );
+  expect(resumed.uploadedParts).toEqual([2]);
+  expect(
+    resumed.parts.map((part: { partNumber: number }) => part.partNumber)
+  ).toEqual([1, 3]);
+});
+
+test.each([
+  { name: "a part number past the end", partNumber: 4, size: 5 },
+  { name: "a final part with the wrong size", partNumber: 3, size: 6 },
+  { name: "a middle part shorter than the part size", partNumber: 1, size: 5 },
+])("recording rejects $name", async ({ partNumber, size }) => {
+  const { t, signed } = await importSession();
+  stubWorker();
+  const created = await signed.action(api.importUpload.createImportUpload, {
+    mode: "archive",
+    fileName: "proof.zip",
+    fileSize: 64 * 1024 * 1024 * 2 + 5,
+    fileLastModified: 0,
+  });
+  await expect(
+    signed.mutation(api.dataImport.recordImportPart, {
+      jobId: created.jobId,
+      partNumber,
+      etag: "etag-x",
+      size,
+    })
+  ).rejects.toThrow("Uploaded part metadata is invalid");
+  expect(
+    (await t.run((ctx) => ctx.db.get(created.jobId as Id<"importJobs">)))
+      ?.uploadedParts
+  ).toBeUndefined();
+});
+
+test("recording accepts the long opaque part ETags local R2 returns", async () => {
+  const { t, signed } = await importSession();
+  stubWorker();
+  const created = await signed.action(api.importUpload.createImportUpload, {
+    mode: "archive",
+    fileName: "proof.zip",
+    fileSize: 1,
+    fileLastModified: 0,
+  });
+  const etag = `"${"bSnn2_2AdLF8c-0H2i9IX".repeat(8)}"`;
+  await signed.mutation(api.dataImport.recordImportPart, {
+    jobId: created.jobId,
+    partNumber: 1,
+    etag,
+    size: 1,
+  });
+  expect(
+    (await t.run((ctx) => ctx.db.get(created.jobId as Id<"importJobs">)))
+      ?.uploadedParts
+  ).toEqual([{ partNumber: 1, etag: etag.slice(1, -1), size: 1 }]);
+});
+
+test("another user cannot record parts on someone else's import", async () => {
+  const { t, signed } = await importSession();
+  stubWorker();
+  const created = await signed.action(api.importUpload.createImportUpload, {
+    mode: "archive",
+    fileName: "proof.zip",
+    fileSize: 1,
+    fileLastModified: 0,
+  });
+  await t.run((ctx) =>
+    ctx.db.insert("users", {
+      teakUserId: "import-intruder",
+      workosUserId: "user_INTRUDER",
+      email: "intruder@example.com",
+      emailVerified: true,
+    })
+  );
+  await seedComponentUser(t, {
+    id: "user_INTRUDER",
+    email: "intruder@example.com",
+    externalId: "import-intruder",
+  });
+  const intruder = t.withIdentity({
+    issuer: "https://api.workos.com/user_management/client_IMPORT",
+    subject: "user_INTRUDER",
+    sid: "session_INTRUDER",
+    email_verified: true,
+    external_id: "import-intruder",
+  });
+  await expect(
+    intruder.mutation(api.dataImport.recordImportPart, {
+      jobId: created.jobId,
+      partNumber: 1,
+      etag: "etag-1",
+      size: 1,
+    })
+  ).rejects.toThrow("Import upload not found");
+});
+
+test("the import report downloads through the files worker as an attachment", async () => {
+  const { t, signed } = await importSession();
+  const { bucket, call } = stubWorker();
+  const reportKey = "users/import-deletion-owner/imports/proof/report.txt";
+  await bucket.put(reportKey, new TextEncoder().encode("row 3: bad url\n"));
+  const jobId = await t.mutation(internal.dataImport.reserveJob, {
+    userId: ownerId,
+    mode: "archive",
+    fileName: "proof.zip",
+    fileSize: 1,
+    fileLastModified: 0,
+    sourceKey: key,
+    uploadExpiresAt: Date.now() + 86_400_000,
+  });
+  await t.run((ctx) => ctx.db.patch(jobId, { reportKey }));
+  const url = await signed.action(api.importUpload.getImportReportUrl, {
+    jobId,
+  });
+  expect(new URL(url).origin).toBe("https://files.test");
+  const response = await call(new Request(url));
+  expect(response.status).toBe(200);
+  expect(response.headers.get("content-disposition")).toBe(
+    'attachment; filename="teak-import-report.txt"'
+  );
+  expect(response.headers.get("content-type")).toBe(
+    "text/plain; charset=utf-8"
+  );
+  expect(await response.text()).toBe("row 3: bad url\n");
 });
 
 test.each(["cancel", "items", "job", "cleanup action"] as const)(

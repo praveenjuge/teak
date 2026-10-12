@@ -1,13 +1,13 @@
 "use node";
 import { ensureObjectOwnership } from "../storage/ownership";
 /**
- * Node action that performs the heavy export work:
+ * Export orchestration:
  *   1. pages the start-time snapshot (joined to active card docs)
- *   2. reads each original file directly from Cloudflare R2 via the AWS S3 SDK
- *   3. builds the streaming ZIP archive (manifest.json + cards.json + files/)
- *   4. writes the completed artifact back to private R2 via the AWS S3 SDK
+ *   2. serializes cards.json and a manifest of archive entries and storage keys
+ *   3. has the Files Worker stream the originals into the ZIP artifact
+ *      (`build-export`), so file bytes never transit Convex
  *
- * Runs in the Convex Node runtime so it can use `archiver` and `@aws-sdk/client-s3`.
+ * Runs in the Node runtime for the stable `node:crypto` user-id hash.
  */
 
 import { createHash } from "node:crypto";
@@ -86,7 +86,7 @@ export function buildArtifactKey(userId: string, jobId: string): string {
 const EXPORT_MANIFEST_VERSION = 1;
 
 /**
- * Worker-backed export fast path.
+ * Worker-backed export.
  *
  * Serializes cards and entry paths, then hands the worker a small manifest
  * (inline JSON entries + storage keys); the
@@ -118,10 +118,6 @@ async function runExportArchiveViaFilesWorker(
   filesOmitted: number;
 } | null> {
   try {
-    if (!isFilesWorkerConfigured()) {
-      return null;
-    }
-
     const { userId, jobId, inputs, createdAtMs, expiresAtMs } = args;
     const artifactKey = buildArtifactKey(userId, jobId);
     for (const key of [
@@ -270,7 +266,7 @@ async function runExportArchiveViaFilesWorker(
       filesOmitted,
     };
   } catch {
-    // Any unexpected failure falls back to the proven Node path.
+    // Reported by the caller as an archive failure.
     return null;
   }
 }
@@ -348,7 +344,7 @@ export const runExportArchive = internalAction({
   ),
 });
 
-/** Delete a completed export artifact directly from R2. Never throws. */
+/** Delete a completed export artifact through the Files Worker. Never throws. */
 export const deleteArtifact = internalAction({
   args: { artifactKey: v.string() },
   returns: v.object({ deleted: v.boolean() }),

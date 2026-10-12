@@ -103,11 +103,7 @@ describe("isDevelopmentFilesOrigin", () => {
 });
 
 describe("credentialParityFinding", () => {
-  test.each([
-    "FILES_SIGNING_SECRET",
-    "R2_ACCESS_KEY_ID",
-    "R2_SECRET_ACCESS_KEY",
-  ])(
+  test.each(["FILES_SIGNING_SECRET"])(
     "shared routing requires the same %s and isolated routing forbids it",
     (name) => {
       expect(isBlockingFinding("same")).toBe(false);
@@ -122,7 +118,7 @@ describe("credentialParityFinding", () => {
     }
   );
 
-  test.each(["CLOUDFLARE_ACCOUNT_ID", "CLOUDFLARE_API_TOKEN", "R2_ENDPOINT"])(
+  test.each(["SHARED_NON_CREDENTIAL_SETTING"])(
     "%s must match production in both states",
     (name) => {
       for (const state of ["shared", "isolated"] as const) {

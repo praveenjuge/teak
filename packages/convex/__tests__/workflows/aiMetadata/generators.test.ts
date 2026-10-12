@@ -1,67 +1,27 @@
 // @ts-nocheck
-import {
-  afterAll,
-  beforeAll,
-  beforeEach,
-  describe,
-  expect,
-  mock,
-  test,
-} from "bun:test";
+import { afterAll, beforeAll, describe, expect, test } from "bun:test";
 
 import { configureMetrics, resetMetricsConfig } from "../../../shared/metrics";
 import { TELEMETRY_METRICS } from "../../../shared/telemetry";
 
-const aiMocks = (global as any).__AI_MOCKS__ ?? {};
-aiMocks.generateText ??= mock();
-aiMocks.generateObject ??= mock();
-aiMocks.experimental_transcribe ??= mock();
-aiMocks.Output ??= { object: mock() };
-(global as any).__AI_MOCKS__ = aiMocks;
-const mockGenerateText = aiMocks.generateText;
-
-mock.module("ai", () => aiMocks);
-
 let generateTextMetadata: any;
-let generateImageMetadata: any;
 let generateLinkMetadata: any;
+let generateImageMetadataForStoredKey: any;
 let boundAiMetadataInput: any;
 let maxInputChars: number;
-let maxOutputTokens: number;
-let maxRetries: number;
-let maxValidationRetries: number;
 let isAiProviderCapacityError: any;
 let isAiMetadataDeferredError: any;
 
-const mockResponse = {
-  output: {
-    tags: ["tag1", "tag2"],
-    summary: "A summary",
-  },
-  usage: { inputTokens: 10, outputTokens: 5 },
-};
-
 describe("aiMetadata generators", () => {
   const originalFetch = global.fetch;
-  const mockImageDownload = mock();
 
   beforeAll(async () => {
-    // Image generation downloads bytes inline for Workers AI.
-    mockImageDownload.mockResolvedValue({
-      ok: true,
-      headers: { get: () => "image/png" },
-      arrayBuffer: async () => new ArrayBuffer(8),
-    });
-    global.fetch = mockImageDownload;
     const mod = await import("../../../workflows/aiMetadata/generators");
     generateTextMetadata = mod.generateTextMetadata;
-    generateImageMetadata = mod.generateImageMetadata;
     generateLinkMetadata = mod.generateLinkMetadata;
+    generateImageMetadataForStoredKey = mod.generateImageMetadataForStoredKey;
     boundAiMetadataInput = mod.boundAiMetadataInput;
     maxInputChars = mod.MAX_AI_METADATA_INPUT_CHARS;
-    maxOutputTokens = mod.MAX_AI_METADATA_OUTPUT_TOKENS;
-    maxRetries = mod.MAX_AI_METADATA_RETRIES;
-    maxValidationRetries = mod.MAX_AI_METADATA_VALIDATION_RETRIES;
     isAiProviderCapacityError = mod.isAiProviderCapacityError;
     isAiMetadataDeferredError = mod.isAiMetadataDeferredError;
   });
@@ -70,86 +30,7 @@ describe("aiMetadata generators", () => {
     global.fetch = originalFetch;
   });
 
-  beforeEach(() => {
-    mockGenerateText.mockReset();
-    aiMocks.Output.object.mockReset();
-    aiMocks.Output.object.mockReturnValue({ schema: {} });
-  });
-
-  test("generateTextMetadata calls generateText with text model", async () => {
-    mockGenerateText.mockResolvedValue(mockResponse);
-    await generateTextMetadata("some content", "My Title");
-
-    expect(mockGenerateText).toHaveBeenCalledWith(
-      expect.objectContaining({
-        experimental_telemetry: expect.objectContaining({
-          functionId: "teak.ai.metadata.text",
-          recordInputs: false,
-          recordOutputs: false,
-        }),
-        prompt: expect.stringContaining("some content"),
-        maxRetries,
-        maxOutputTokens,
-      })
-    );
-  });
-
-  test("generateImageMetadata calls generateText with image model", async () => {
-    mockGenerateText.mockResolvedValue(mockResponse);
-    await generateImageMetadata("https://img.com", "My Image");
-
-    expect(mockGenerateText).toHaveBeenCalledWith(
-      expect.objectContaining({
-        experimental_telemetry: expect.objectContaining({
-          functionId: "teak.ai.metadata.image",
-        }),
-        messages: expect.arrayContaining([expect.any(Object)]),
-        maxRetries,
-        maxOutputTokens,
-      })
-    );
-  });
-
-  test("defers unsupported SVG input before calling the vision provider", async () => {
-    mockImageDownload.mockResolvedValueOnce({
-      ok: true,
-      headers: { get: () => "image/svg+xml" },
-      arrayBuffer: async () => new ArrayBuffer(8),
-    });
-
-    let caught: unknown;
-    try {
-      await generateImageMetadata("https://img.com/vector.svg");
-    } catch (error) {
-      caught = error;
-    }
-
-    expect(caught).toBeInstanceOf(Error);
-    expect((caught as Error).message).toContain("raster thumbnail");
-    expect(isAiMetadataDeferredError(caught)).toBe(true);
-    expect(mockGenerateText).not.toHaveBeenCalled();
-  });
-
-  test("generateLinkMetadata calls generateText with link model", async () => {
-    mockGenerateText.mockResolvedValue(mockResponse);
-    await generateLinkMetadata("page content", "https://url.com");
-
-    expect(mockGenerateText).toHaveBeenCalledWith(
-      expect.objectContaining({
-        experimental_telemetry: expect.objectContaining({
-          functionId: "teak.ai.metadata.link",
-        }),
-        prompt: expect.stringContaining("page content"),
-        maxRetries,
-        maxOutputTokens,
-      })
-    );
-  });
-
   test("keeps short metadata input unchanged", () => {
-    expect(maxRetries).toBe(0);
-    expect(maxValidationRetries).toBe(2);
-    expect(maxOutputTokens).toBe(768);
     expect(boundAiMetadataInput("short content")).toBe("short content");
   });
 
@@ -164,76 +45,6 @@ describe("aiMetadata generators", () => {
       `[Content truncated from ${content.length} characters]`
     );
     expect(bounded).not.toContain("MIDDLE");
-  });
-
-  test("bounds complete text, image, and link prompts", async () => {
-    const oversized = "x".repeat(maxInputChars * 2);
-    mockGenerateText.mockResolvedValue(mockResponse);
-
-    await generateTextMetadata(oversized, oversized);
-    const textCall = mockGenerateText.mock.calls.at(-1)?.[0];
-    expect(textCall.prompt.length).toBe(maxInputChars);
-
-    await generateImageMetadata("https://img.com", oversized);
-    const imageCall = mockGenerateText.mock.calls.at(-1)?.[0];
-    expect(imageCall.messages[0].content[0].text.length).toBe(maxInputChars);
-
-    await generateLinkMetadata(oversized, `https://example.com/${oversized}`);
-    const linkCall = mockGenerateText.mock.calls.at(-1)?.[0];
-    expect(linkCall.prompt.length).toBe(maxInputChars);
-  });
-
-  test("handles errors in all generators", async () => {
-    mockGenerateText.mockRejectedValue(new Error("AI error"));
-    await expect(generateTextMetadata("c")).rejects.toThrow("AI error");
-    await expect(generateImageMetadata("url")).rejects.toThrow("AI error");
-    await expect(generateLinkMetadata("url")).rejects.toThrow("AI error");
-  });
-
-  test("retries provider JSON validation failures with a corrective prompt", async () => {
-    mockGenerateText
-      .mockRejectedValueOnce(
-        new Error(
-          "Failed to validate JSON. See failed_generation for more details."
-        )
-      )
-      .mockResolvedValueOnce(mockResponse);
-
-    await generateImageMetadata("https://img.com/example.jpeg");
-
-    expect(mockGenerateText).toHaveBeenCalledTimes(2);
-    const retryCall = mockGenerateText.mock.calls[1]?.[0];
-    expect(retryCall.messages[0].content[0].text).toStartWith(
-      "JSON validation retry 1:"
-    );
-  });
-
-  test("retries AI SDK schema mismatches with a corrective prompt", async () => {
-    mockGenerateText
-      .mockRejectedValueOnce(
-        new Error("No object generated: response did not match schema.")
-      )
-      .mockResolvedValueOnce(mockResponse);
-
-    await generateTextMetadata("content");
-
-    expect(mockGenerateText).toHaveBeenCalledTimes(2);
-    expect(mockGenerateText.mock.calls[1]?.[0].prompt).toStartWith(
-      "JSON validation retry 1:"
-    );
-  });
-
-  test("retries empty AI provider output with a corrective prompt", async () => {
-    mockGenerateText
-      .mockRejectedValueOnce(new Error("No output generated."))
-      .mockResolvedValueOnce(mockResponse);
-
-    await generateImageMetadata("https://img.com/example.jpeg");
-
-    expect(mockGenerateText).toHaveBeenCalledTimes(2);
-    expect(
-      mockGenerateText.mock.calls[1]?.[0].messages[0].content[0].text
-    ).toStartWith("JSON validation retry 1:");
   });
 
   test("detects provider capacity errors without treating validation as capacity", () => {
@@ -252,24 +63,54 @@ describe("aiMetadata generators", () => {
     );
   });
 
-  test("stops after the bounded JSON validation retry budget", async () => {
-    mockGenerateText.mockRejectedValue(
-      new Error("Failed to validate JSON. See failed_generation.")
-    );
-
-    await expect(
-      generateImageMetadata("https://img.com/example.jpeg")
-    ).rejects.toThrow("Failed to validate JSON");
-    expect(mockGenerateText).toHaveBeenCalledTimes(maxValidationRetries + 1);
+  test("defers stored image metadata when the Worker cannot read a raster source", async () => {
+    const previous = [process.env.FILES_BASE, process.env.FILES_SIGNING_SECRET];
+    process.env.FILES_BASE = "https://files.teakvault.com";
+    process.env.FILES_SIGNING_SECRET = "test-secret";
+    const ops: string[] = [];
+    global.fetch = (_url, request) => {
+      ops.push(JSON.parse(request.body as string).op);
+      return Promise.resolve(
+        Response.json(
+          {
+            ok: false,
+            version: 1,
+            error: {
+              code: "UNSUPPORTED",
+              message: "Unsupported source",
+              requestId: "test",
+              retryable: false,
+            },
+          },
+          { status: 501 }
+        )
+      );
+    };
+    try {
+      let failure: unknown;
+      try {
+        await generateImageMetadataForStoredKey("users/u/cards/c/a.svg");
+      } catch (error) {
+        failure = error;
+      }
+      expect(ops).toEqual(["generate-image-metadata"]);
+      expect((failure as Error).message).toContain("raster thumbnail");
+      expect(isAiMetadataDeferredError(failure)).toBe(true);
+    } finally {
+      global.fetch = originalFetch;
+      [process.env.FILES_BASE, process.env.FILES_SIGNING_SECRET] = previous;
+      if (previous[0] === undefined) {
+        delete process.env.FILES_BASE;
+      }
+      if (previous[1] === undefined) {
+        delete process.env.FILES_SIGNING_SECRET;
+      }
+    }
   });
-  test("routes enabled text/link generation through signed Worker operations without direct AI", async () => {
-    const names = [
-      "FILES_TEXT_AI_ENABLED",
-      "FILES_BASE",
-      "FILES_SIGNING_SECRET",
-    ];
+
+  test("routes text and link generation through signed Worker operations", async () => {
+    const names = ["FILES_BASE", "FILES_SIGNING_SECRET"];
     const previous = names.map((name) => process.env[name]);
-    process.env.FILES_TEXT_AI_ENABLED = "true";
     process.env.FILES_BASE = "https://files.teakvault.com";
     process.env.FILES_SIGNING_SECRET = "test-secret";
     const metrics: Array<{ name: string; value: number }> = [];
@@ -284,7 +125,7 @@ describe("aiMetadata generators", () => {
     global.fetch = (_url, request) => {
       const body = JSON.parse(request.body as string);
       calls.push(body.op);
-      expect(body.params.prompt.length).toBeLessThanOrEqual(6000);
+      expect(body.params.prompt.length).toBe(maxInputChars);
       expect(request.headers["x-teak-signature"]).toMatch(/^[a-f0-9]{64}$/);
       return Promise.resolve(
         Response.json({
@@ -301,13 +142,14 @@ describe("aiMetadata generators", () => {
       );
     };
     try {
-      expect(await generateTextMetadata("Text", "Title")).toEqual({
+      const oversized = "x".repeat(maxInputChars * 2);
+      expect(await generateTextMetadata(oversized, "Title")).toEqual({
         aiTags: ["design"],
         aiSummary: "Useful.",
       });
-      expect(await generateLinkMetadata("Link", "https://example.com")).toEqual(
-        { aiTags: ["design"], aiSummary: "Useful." }
-      );
+      expect(
+        await generateLinkMetadata(oversized, "https://example.com")
+      ).toEqual({ aiTags: ["design"], aiSummary: "Useful." });
       expect(
         metrics.filter((metric) => metric.name === TELEMETRY_METRICS.aiCalls)
       ).toHaveLength(2);
@@ -334,7 +176,6 @@ describe("aiMetadata generators", () => {
         "generate-text-metadata",
         "generate-link-metadata",
       ]);
-      expect(mockGenerateText).toHaveBeenCalledTimes(0);
     } finally {
       resetMetricsConfig();
       global.fetch = fetchBefore;
@@ -353,13 +194,9 @@ describe("aiMetadata generators", () => {
     { code: "MALFORMED_SUCCESS", httpStatus: 200, capacity: false },
     { code: "UNSUPPORTED", httpStatus: 501, capacity: false },
   ])(
-    "keeps enabled Worker $code errors deferred without calling direct AI",
+    "keeps Worker $code errors deferred",
     async ({ code, httpStatus, capacity }) => {
-      const names = [
-        "FILES_TEXT_AI_ENABLED",
-        "FILES_BASE",
-        "FILES_SIGNING_SECRET",
-      ];
+      const names = ["FILES_BASE", "FILES_SIGNING_SECRET"];
       const previous = names.map((name) => process.env[name]);
       const fetchBefore = global.fetch;
       const metrics: Array<{
@@ -377,7 +214,6 @@ describe("aiMetadata generators", () => {
       configureMetrics({
         recorder: { count: record, distribution: record, gauge: record },
       });
-      process.env.FILES_TEXT_AI_ENABLED = "true";
       process.env.FILES_BASE = "https://files.teakvault.com";
       process.env.FILES_SIGNING_SECRET = "test-secret";
       global.fetch = () =>
@@ -462,7 +298,6 @@ describe("aiMetadata generators", () => {
         expect(failure).toBeInstanceOf(Error);
         expect(isAiMetadataDeferredError(failure)).toBe(true);
         expect(isAiProviderCapacityError(failure)).toBe(capacity);
-        expect(mockGenerateText).toHaveBeenCalledTimes(0);
       } finally {
         resetMetricsConfig();
         global.fetch = fetchBefore;
