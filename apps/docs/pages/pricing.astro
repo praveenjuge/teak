@@ -48,7 +48,11 @@ const pricingPlans = [
     emojiSrc: "/emojis/pricing-pro-crown.webp",
     price: {
       monthly: { amount: monthly, period: "month", note: "Billed monthly" },
-      yearly: { amount: perMonth, period: "month", note: "Billed yearly" },
+      yearly: {
+        amount: perMonth,
+        period: "month",
+        note: `Billed yearly at ${formatUsd(PRO_YEARLY_PRICE)}`,
+      },
     },
     features: [
       "Everything in Free",
