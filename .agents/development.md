@@ -62,6 +62,13 @@ ignored `.agents/.state/dev-account.json`. Its vault is seeded once with about
 the email and password. For a session without a browser, use
 `scripts/lib/workos-test-session.ts`, as `bun run smoke:web` does.
 
+"Upgrade to Pro" opens a Polar sandbox checkout for these accounts too. Polar
+refuses `example.org` addresses, so on the dev deployment the Polar customer
+is created as `teak-dev+<teakUserId>@teakvault.com`, with the real address in
+its metadata (`packages/convex/billing.ts`). Subscriptions still reach the
+account because Polar customers map to users by customer ID, not email.
+Production always uses the account's own email.
+
 ## Worktrees
 
 Every linked worktree leases its own block of ports the first time it runs,

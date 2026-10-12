@@ -45,6 +45,7 @@ export default defineConfig({
       "./rawMetadataPipeline.test.ts",
       "./devSeed.test.ts",
       "./devPushLease.test.ts",
+      "./billingCheckout.test.ts",
     ],
   },
 });
