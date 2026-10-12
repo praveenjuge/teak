@@ -159,28 +159,52 @@ export function isWithinMarkdownLimit(value: string): boolean {
   return markdownContentByteLength(value) <= MARKDOWN_CONTENT_MAX_BYTES;
 }
 
+export interface NoteCapture {
+  content: string;
+  type?: "text";
+}
+
+function isPlainText(token: Token): token is Tokens.Text | Tokens.Escape {
+  return token.type === "text" || token.type === "escape";
+}
+
+// The editor turns a pasted URL into a link that shows its own address, which
+// serializes as `[https://…](https://…)`.
+function selfLinkHref(token: Token | undefined): string | undefined {
+  if (token?.type !== "link" || token.title) {
+    return undefined;
+  }
+  const label: Token[] = token.tokens ?? [];
+  if (!label.every(isPlainText)) {
+    return undefined;
+  }
+  const text = label.map((child) => decodeHtmlEntities(child.text)).join("");
+  return text === token.href ? token.href : undefined;
+}
+
 /** Keep bare URL/color/quote capture, but never classify an authored Markdown
- * document as a link card just because it contains a link. */
-export function shouldSaveAsMarkdownNote(source: string): boolean {
+ * document as a link card just because it contains a link. A note that is only
+ * a link showing its own address is captured as that bare URL. */
+export function prepareNoteCapture(source: string): NoteCapture {
   const tokens = lexer.lexer(source).filter((token) => token.type !== "space");
-  if (tokens.length === 1 && tokens[0]?.type === "blockquote") {
-    return false;
-  }
-  if (tokens.length > 1) {
-    return true;
-  }
   const token = tokens[0];
-  if (!token) {
-    return false;
+  if (!token || (tokens.length === 1 && token.type === "blockquote")) {
+    return { content: source };
   }
-  if (token.type !== "paragraph") {
-    return true;
+  if (tokens.length > 1 || token.type !== "paragraph") {
+    return { content: source, type: "text" };
   }
-  return (token.tokens ?? []).some(
-    (inline: Token) =>
+  const inline: Token[] = token.tokens ?? [];
+  const href = inline.length === 1 ? selfLinkHref(inline[0]) : undefined;
+  if (href) {
+    return { content: href };
+  }
+  const authored = inline.some(
+    (child) =>
       !(
-        ["text", "escape"].includes(inline.type) ||
-        (inline.type === "link" && inline.raw === inline.href)
+        isPlainText(child) ||
+        (child.type === "link" && child.raw === child.href)
       )
   );
+  return authored ? { content: source, type: "text" } : { content: source };
 }
