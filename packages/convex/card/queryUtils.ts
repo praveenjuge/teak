@@ -13,6 +13,8 @@ export type CardWithUrls = Doc<"cards"> & {
   /** 48px loading placeholder rendition. */
   placeholderUrl?: string;
   screenshotUrl?: string;
+  /** Video hover scrub sprite; see fileMetadata.scrub. */
+  scrubUrl?: string;
   linkPreviewMedia?: Array<{
     contentType?: string;
     height?: number;
@@ -80,6 +82,7 @@ export const attachFileUrls = async (
       width?: number;
     }>;
     screenshotKey?: string;
+    scrubKey?: string;
     thumbnailKey?: string;
   }
   const cardToIds = new Map<string, CardStorageIds>();
@@ -95,6 +98,11 @@ export const attachFileUrls = async (
     if (card.thumbnailKey) {
       gridImageKeys.add(card.thumbnailKey);
       ids.thumbnailKey = card.thumbnailKey;
+    }
+    // The sprite is served whole: a rendition would resize its frame strip.
+    if (card.scrubKey && card.fileMetadata?.scrub) {
+      storageKeys.add(card.scrubKey);
+      ids.scrubKey = card.scrubKey;
     }
     if (card.metadata?.linkPreview?.imageStorageKey) {
       gridImageKeys.add(card.metadata.linkPreview.imageStorageKey);
@@ -232,6 +240,9 @@ export const attachFileUrls = async (
       placeholderUrl: imageUrls?.tiny ?? undefined,
       screenshotUrl: ids.screenshotKey
         ? (gridUrlMap.get(ids.screenshotKey) ?? undefined)
+        : undefined,
+      scrubUrl: ids.scrubKey
+        ? (urlMap.get(ids.scrubKey) ?? undefined)
         : undefined,
       linkPreviewMedia: linkPreviewMedia?.length ? linkPreviewMedia : undefined,
       linkPreviewImageUrl: ids.linkPreviewImageKey

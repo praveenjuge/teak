@@ -14,6 +14,10 @@ test("the deployed files worker reports production failures as production", () =
     SENTRY_ENVIRONMENT: config.vars.SENTRY_ENVIRONMENT as string | undefined,
   });
   expect(options?.environment).toBe("production");
+  // The renderer pool size the Worker uses matches the Container's limit.
+  expect(config.containers?.[0]?.max_instances).toBe(
+    Number(config.vars.MEDIA_RENDERER_INSTANCES)
+  );
 });
 
 test("the development worker resolves to its own bucket, gates and telemetry", () => {
@@ -32,7 +36,16 @@ test("the development worker resolves to its own bucket, gates and telemetry", (
   ]);
   expect(config.durable_objects.bindings).toEqual([
     { name: "OBJECT_GATES", class_name: "ObjectDeletionGate" },
+    { name: "MEDIA_RENDERER", class_name: "MediaRenderer" },
   ]);
+  expect(config.containers).toEqual([
+    expect.objectContaining({
+      class_name: "MediaRenderer",
+      instance_type: "basic",
+      max_instances: 2,
+    }),
+  ]);
+  expect(config.vars.MEDIA_RENDERER_INSTANCES).toBe("2");
   expect(config.ai?.binding).toBe("AI");
   expect(config.images?.binding).toBe("IMAGES");
   expect(
@@ -75,7 +88,13 @@ test.each(["dev", "dev:local"] as const)(
         {
           config: resolve(import.meta.dir, "../wrangler.jsonc"),
           bindings,
-          dev: { watch: false, remote: false, logLevel: "none" },
+          // Building the renderer image needs Docker and is not config.
+          dev: {
+            enableContainers: false,
+            logLevel: "none",
+            remote: false,
+            watch: false,
+          },
         },
         true
       );

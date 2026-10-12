@@ -8,10 +8,9 @@
 //     multi-GB archives cost kilobytes of memory instead of being buffered.
 //   - mode "css"  → count of color variable declarations
 //   - mode "text" → decoded (optionally RTF-stripped) text for AI analysis
-//   - mode "pdf"  → text of the first pages of a PDF for AI analysis
+//   - mode "pdf"  → handled in ops by the media renderer (mediaJobs.ts)
 
 import type { FilesInspectMode } from "@teak/files-protocol";
-import { getDocumentProxy } from "unpdf";
 import {
   InspectSourceMissing,
   rangeRead,
@@ -55,7 +54,7 @@ export interface InspectResult {
   text?: string;
 }
 
-const textFacts = (text: string): Record<string, number> => ({
+export const textFacts = (text: string): Record<string, number> => ({
   characterCount: text.length,
   headingCount: Array.from(text.matchAll(/^\s{0,3}#{1,6}\s+/gmu)).length,
   lineCount: text.length === 0 ? 0 : text.split(/\r?\n/u).length,
@@ -198,83 +197,6 @@ export const inspectZipRanged = async (
 };
 
 /**
- * Extract text from the first MAX_PDF_TEXT_PAGES pages, capped at
- * MAX_AI_TEXT_CHARACTERS. PDF text is an optional AI enrichment, so corrupt or
- * password-protected documents resolve to empty text instead of failing.
- */
-export const extractPdfText = async (
-  bytes: Uint8Array
-): Promise<{ pageCount: number; text: string } | null> => {
-  let pdf: Awaited<ReturnType<typeof getDocumentProxy>> | null = null;
-  try {
-    pdf = await getDocumentProxy(bytes, {
-      disableFontFace: true,
-      useSystemFonts: false,
-      verbosity: 0,
-    });
-    const pageCount = pdf.numPages;
-    const pageTexts: string[] = [];
-    let characterCount = 0;
-    const lastPage = Math.min(pageCount, MAX_PDF_TEXT_PAGES);
-    for (
-      let pageNumber = 1;
-      pageNumber <= lastPage && characterCount < MAX_AI_TEXT_CHARACTERS;
-      pageNumber += 1
-    ) {
-      const page = await pdf.getPage(pageNumber);
-      const content = await page.getTextContent();
-      page.cleanup();
-      const pageText = content.items
-        .map((item) =>
-          "str" in item ? `${item.str}${item.hasEOL ? "\n" : ""}` : ""
-        )
-        .join("")
-        .trim();
-      if (pageText) {
-        pageTexts.push(pageText);
-        characterCount += pageText.length + 1;
-      }
-    }
-    return {
-      pageCount,
-      text: pageTexts.join("\n").slice(0, MAX_AI_TEXT_CHARACTERS).trim(),
-    };
-  } catch {
-    return null;
-  } finally {
-    await pdf?.loadingTask.destroy().catch(() => undefined);
-  }
-};
-
-const inspectPdf = async (
-  bucket: R2Bucket,
-  key: string,
-  maxBytes: number
-): Promise<InspectResult> => {
-  const object = await bucket.get(key);
-  if (!object) {
-    throw new InspectSourceMissing();
-  }
-  // A truncated PDF loses its trailing xref table, so oversized documents are
-  // skipped rather than parsed from a prefix.
-  if ((object.size ?? 0) > maxBytes) {
-    await object.body.cancel();
-    return { facts: textFacts(""), text: "" };
-  }
-  const extracted = await extractPdfText(
-    new Uint8Array(await object.arrayBuffer())
-  );
-  const text = extracted?.text ?? "";
-  return {
-    facts: {
-      ...textFacts(text),
-      ...(extracted ? { pageCount: extracted.pageCount } : {}),
-    },
-    text,
-  };
-};
-
-/**
  * Dispatch one inspect request.
  *
  * @param formatId file-format id (zip/word/powerpoint/css tokens/etc.) so
@@ -317,10 +239,6 @@ export const runInspect = async (
     const decoded = new TextDecoder().decode(bytes.slice(0, MAX_AI_TEXT_BYTES));
     const text = rtf ? extractRtfText(decoded).trim() : decoded.trim();
     return { facts: textFacts(text), text };
-  }
-
-  if (mode === "pdf") {
-    return await inspectPdf(bucket, key, maxBytes);
   }
 
   throw new Error(`invalid_mode:${mode}`);

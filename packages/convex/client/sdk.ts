@@ -59,6 +59,8 @@ export interface Card {
   aiTags: string[];
   aiTranscript: string | null;
   appUrl: string;
+  /** Bar heights 0-100: 45 for a grid card, 200 for a player. */
+  audioWaveform: { detail: number[]; grid: number[] } | null;
   colors: Array<{ hex: string; name?: string }>;
   compactUrl: string | null;
   content: string;
@@ -104,6 +106,13 @@ export interface Card {
   type: CardType | string;
   updatedAt: number;
   url: string | null;
+  /** Hover preview strip, `frames * frameWidth` wide; the URL expires. */
+  videoScrub: {
+    frameHeight: number;
+    frameWidth: number;
+    frames: number;
+    url: string;
+  } | null;
 }
 export type CardListItem = Partial<Card> &
   Pick<

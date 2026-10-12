@@ -10,7 +10,11 @@
 export interface ScreenshotRetryableError {
   details?: unknown;
   message?: string;
-  type: "rate_limit" | "http_error";
+  /**
+   * http_error: the page's server or the network failed.
+   * renderer_unavailable: Browser Run on the Files Worker is busy or down.
+   */
+  type: "http_error" | "renderer_unavailable";
 }
 
 export const SCREENSHOT_RETRYABLE_PREFIX = "workflow:screenshot:retryable:";

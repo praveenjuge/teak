@@ -1,36 +1,11 @@
 import { describe, expect, it } from "bun:test";
 import {
-  buildInstagramPrimaryImageSnippet,
   extractInstagramPostCode,
-  INSTAGRAM_HOSTNAME,
-  INSTAGRAM_MEDIA_EVALUATOR,
-  INSTAGRAM_MEDIA_MIN_DIM,
-  INSTAGRAM_PRIMARY_IMAGE_EVALUATOR,
-  INSTAGRAM_PRIMARY_IMAGE_MIN_DIM,
-  INSTAGRAM_PRIMARY_IMAGE_WAIT_MS,
   isInstagramHostname,
   isInstagramPostUrl,
   isInstagramUrl,
   normalizeInstagramExtractedMedia,
 } from "../../linkMetadata/instagram";
-
-describe("instagram constants", () => {
-  it("should have correct hostname constant", () => {
-    expect(INSTAGRAM_HOSTNAME).toBe("instagram.com");
-  });
-
-  it("should have minimum dimension of 400", () => {
-    expect(INSTAGRAM_PRIMARY_IMAGE_MIN_DIM).toBe(400);
-  });
-
-  it("should have media minimum dimension of 200", () => {
-    expect(INSTAGRAM_MEDIA_MIN_DIM).toBe(200);
-  });
-
-  it("should have wait time of 3000ms", () => {
-    expect(INSTAGRAM_PRIMARY_IMAGE_WAIT_MS).toBe(3000);
-  });
-});
 
 describe("isInstagramHostname", () => {
   it("should return true for exact match", () => {
@@ -278,112 +253,5 @@ describe("normalizeInstagramExtractedMedia", () => {
         [{ url: "mailto:test@example.com" }]
       )
     ).toBeUndefined();
-  });
-});
-
-describe("INSTAGRAM_PRIMARY_IMAGE_EVALUATOR", () => {
-  it("should be a non-empty string", () => {
-    expect(INSTAGRAM_PRIMARY_IMAGE_EVALUATOR.length).toBeGreaterThan(0);
-  });
-
-  it("should contain the MIN_DIM constant", () => {
-    expect(INSTAGRAM_PRIMARY_IMAGE_EVALUATOR).toContain("const MIN_DIM");
-    expect(INSTAGRAM_PRIMARY_IMAGE_EVALUATOR).toContain("400");
-  });
-
-  it("should contain key function logic", () => {
-    expect(INSTAGRAM_PRIMARY_IMAGE_EVALUATOR).toContain("querySelectorAll");
-    expect(INSTAGRAM_PRIMARY_IMAGE_EVALUATOR).toContain("naturalWidth");
-    expect(INSTAGRAM_PRIMARY_IMAGE_EVALUATOR).toContain("visibleArea");
-  });
-
-  it("should define a function", () => {
-    expect(INSTAGRAM_PRIMARY_IMAGE_EVALUATOR.trim().startsWith("() =>")).toBe(
-      true
-    );
-  });
-});
-
-describe("INSTAGRAM_MEDIA_EVALUATOR", () => {
-  it("should be a non-empty string", () => {
-    expect(INSTAGRAM_MEDIA_EVALUATOR.length).toBeGreaterThan(0);
-  });
-
-  it("should collect images, videos, and json payloads", () => {
-    expect(INSTAGRAM_MEDIA_EVALUATOR).toContain('querySelectorAll("img")');
-    expect(INSTAGRAM_MEDIA_EVALUATOR).toContain('querySelectorAll("video")');
-    expect(INSTAGRAM_MEDIA_EVALUATOR).toContain(
-      "xdt_api__v1__media__shortcode__web_info"
-    );
-    expect(INSTAGRAM_MEDIA_EVALUATOR).toContain("pushMedia");
-  });
-
-  it("should prefer relay post media before dom fallback", () => {
-    expect(INSTAGRAM_MEDIA_EVALUATOR).toContain("if (media.length === 0)");
-    expect(INSTAGRAM_MEDIA_EVALUATOR).toContain("addRelayMedia");
-    expect(INSTAGRAM_MEDIA_EVALUATOR).toContain("findRelayPostItem");
-  });
-
-  it("should match relay payloads for posts and reels when only code is present", () => {
-    expect(INSTAGRAM_MEDIA_EVALUATOR).toContain('"/p/" + code + "/"');
-    expect(INSTAGRAM_MEDIA_EVALUATOR).toContain('"/reel/" + code + "/"');
-  });
-
-  it("should filter out gif and chrome images", () => {
-    expect(INSTAGRAM_MEDIA_EVALUATOR).toContain("profile picture");
-    expect(INSTAGRAM_MEDIA_EVALUATOR).toContain("header, footer, nav, aside");
-    expect(INSTAGRAM_MEDIA_EVALUATOR).toContain("\\.(gif)");
-  });
-});
-
-describe("buildInstagramPrimaryImageSnippet", () => {
-  it("should return a non-empty string", () => {
-    const snippet = buildInstagramPrimaryImageSnippet();
-    expect(snippet.length).toBeGreaterThan(0);
-  });
-
-  it("should contain try-catch blocks", () => {
-    const snippet = buildInstagramPrimaryImageSnippet();
-    expect(snippet).toContain("try {");
-    expect(snippet).toContain("} catch {}");
-  });
-
-  it("should reference Instagram hostname", () => {
-    const snippet = buildInstagramPrimaryImageSnippet();
-    expect(snippet).toContain("instagram.com");
-  });
-
-  it("should detect supported instagram post paths", () => {
-    const snippet = buildInstagramPrimaryImageSnippet();
-    expect(snippet).toContain("isInstagramPost");
-    expect(snippet).toContain("\\/(p|reel)\\/");
-  });
-
-  it("should include wait timeout constant", () => {
-    const snippet = buildInstagramPrimaryImageSnippet();
-    expect(snippet).toContain("3000");
-  });
-
-  it("should include minimum dimension constant", () => {
-    const snippet = buildInstagramPrimaryImageSnippet();
-    expect(snippet).toContain("400");
-  });
-
-  it("should include page.evaluate call", () => {
-    const snippet = buildInstagramPrimaryImageSnippet();
-    expect(snippet).toContain("page.evaluate");
-  });
-
-  it("should extract instagramMedia when available", () => {
-    const snippet = buildInstagramPrimaryImageSnippet();
-    expect(snippet).toContain("instagramMedia");
-    expect(snippet).toContain(
-      "const instagramExtraction = await page.evaluate"
-    );
-  });
-
-  it("should include waitForFunction for image loading", () => {
-    const snippet = buildInstagramPrimaryImageSnippet();
-    expect(snippet).toContain("waitForFunction");
   });
 });

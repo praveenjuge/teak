@@ -4,8 +4,11 @@
  * Workflow step that generates thumbnails and other visual assets for cards.
  * Handles thumbnail generation for:
  * - Image cards (dimensions and palette; Cloudflare serves renditions on demand)
- * - Video cards (Files Worker Media Transformations, Kernel as fallback)
- * - PDF documents (Files Worker Browser Run, Kernel as fallback)
+ * - Video cards (thumbnail frame and hover scrub sprite)
+ * - PDF documents (first page)
+ * Video and PDF render on the Files Worker's media renderer. A busy or
+ * unavailable renderer throws `renderables_retryable:` so the workflow step
+ * retries with backoff; once retries run out the stage is marked failed.
  */
 
 "use node";
@@ -105,19 +108,29 @@ export async function generateHandler(
     handleResult(result);
   }
 
-  // Generate thumbnail for video cards: Media Transformations in the Files
-  // Worker for H.264 MP4/MOV, Kernel otherwise.
+  const throwIfRetryable = (result: {
+    error?: string;
+    retryable?: boolean;
+    success: boolean;
+  }) => {
+    if (!result.success && result.retryable) {
+      throw new Error(
+        `renderables_retryable:${result.error ?? "thumbnail_generation_failed"}`
+      );
+    }
+  };
+
+  // The frame op also reports duration and display size; probe only when it
+  // made no frame (an existing thumbnail, or a source it declined).
   if (cardType === "video" && card.fileKey && !isGifFile) {
-    await recordMediaFacts(ctx, card, "video");
     const result = await ctx.runAction(
       (internal as any).workflows.steps.renderables.generateVideoThumbnail
         .generateVideoThumbnail,
       { cardId }
     );
-    if (!result.success && result.retryable) {
-      throw new Error(
-        `video_thumbnail_retryable:${result.error ?? "thumbnail_generation_failed"}`
-      );
+    throwIfRetryable(result);
+    if (!result.generated) {
+      await recordMediaFacts(ctx, card, "video");
     }
     handleResult(result);
   }
@@ -141,6 +154,7 @@ export async function generateHandler(
         .generatePdfThumbnail,
       { cardId }
     );
+    throwIfRetryable(result);
     handleResult(result);
   }
 

@@ -76,6 +76,7 @@ import type * as index from "../index.js";
 import type * as legacyBetterAuth from "../legacyBetterAuth.js";
 import type * as linkMetadata from "../linkMetadata.js";
 import type * as linkMetadata_instagram from "../linkMetadata/instagram.js";
+import type * as linkMetadata_instagramHtml from "../linkMetadata/instagramHtml.js";
 import type * as linkMetadata_parsing from "../linkMetadata/parsing.js";
 import type * as linkMetadata_selectors from "../linkMetadata/selectors.js";
 import type * as linkMetadata_ssrf from "../linkMetadata/ssrf.js";
@@ -184,7 +185,6 @@ import type * as workflows_steps_categorization_providers_imdb from "../workflow
 import type * as workflows_steps_categorization_providers_index from "../workflows/steps/categorization/providers/index.js";
 import type * as workflows_steps_classification from "../workflows/steps/classification.js";
 import type * as workflows_steps_classificationMutations from "../workflows/steps/classificationMutations.js";
-import type * as workflows_steps_kernelCodegen from "../workflows/steps/kernelCodegen.js";
 import type * as workflows_steps_linkMetadata_fetchMetadata from "../workflows/steps/linkMetadata/fetchMetadata.js";
 import type * as workflows_steps_linkMetadata_remoteImageDimensions from "../workflows/steps/linkMetadata/remoteImageDimensions.js";
 import type * as workflows_steps_linkMetadata_retryable from "../workflows/steps/linkMetadata/retryable.js";
@@ -289,6 +289,7 @@ declare const fullApi: ApiFromModules<{
   legacyBetterAuth: typeof legacyBetterAuth;
   linkMetadata: typeof linkMetadata;
   "linkMetadata/instagram": typeof linkMetadata_instagram;
+  "linkMetadata/instagramHtml": typeof linkMetadata_instagramHtml;
   "linkMetadata/parsing": typeof linkMetadata_parsing;
   "linkMetadata/selectors": typeof linkMetadata_selectors;
   "linkMetadata/ssrf": typeof linkMetadata_ssrf;
@@ -397,7 +398,6 @@ declare const fullApi: ApiFromModules<{
   "workflows/steps/categorization/providers/index": typeof workflows_steps_categorization_providers_index;
   "workflows/steps/classification": typeof workflows_steps_classification;
   "workflows/steps/classificationMutations": typeof workflows_steps_classificationMutations;
-  "workflows/steps/kernelCodegen": typeof workflows_steps_kernelCodegen;
   "workflows/steps/linkMetadata/fetchMetadata": typeof workflows_steps_linkMetadata_fetchMetadata;
   "workflows/steps/linkMetadata/remoteImageDimensions": typeof workflows_steps_linkMetadata_remoteImageDimensions;
   "workflows/steps/linkMetadata/retryable": typeof workflows_steps_linkMetadata_retryable;

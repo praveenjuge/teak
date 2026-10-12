@@ -1,6 +1,5 @@
 import { afterAll, beforeAll, describe, expect, test } from "bun:test";
 import { readFileSync } from "node:fs";
-import { createRequire } from "node:module";
 import { gzipSync } from "node:zlib";
 import {
   buildFilesOpSigningPayload,
@@ -10,27 +9,12 @@ import {
   captureHtmlScreenshot,
   decodeHtmlParam,
   MAX_RENDER_HTML_BYTES,
-  type PdfJsSources,
-  readPdfSource,
-  renderPdfFirstPage,
   scrapeHtml,
 } from "./browserRender";
 import { launchLocalChrome, localChromeLease } from "./chromeTestSupport";
 import { hmacSha256Hex, sha256Hex } from "./lib";
 import { type FilesOpsEnv, handleInternalOp } from "./ops";
-import { paletteFromPng } from "./palette";
 import { FakeBucket } from "./testsupport";
-import type { MediaTransformsBinding } from "./videoFrame";
-
-const require = createRequire(import.meta.url);
-// Byte-identical to the cdnjs files the Worker pins by SHA-256.
-const pdfJs: PdfJsSources = {
-  lib: readFileSync(require.resolve("pdfjs-dist/build/pdf.min.js"), "utf8"),
-  worker: readFileSync(
-    require.resolve("pdfjs-dist/build/pdf.worker.min.js"),
-    "utf8"
-  ),
-};
 
 const fixture = (name: string) =>
   new Uint8Array(readFileSync(new URL(`./fixtures/${name}`, import.meta.url)));
@@ -54,11 +38,6 @@ const jpegSize = (bytes: Uint8Array) => {
   return null;
 };
 
-const pngSize = (bytes: Uint8Array) => {
-  const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
-  return { height: view.getUint32(20), width: view.getUint32(16) };
-};
-
 // Any request that escapes the offline page lands here.
 let hits: string[] = [];
 let server: ReturnType<typeof Bun.serve>;
@@ -76,22 +55,6 @@ beforeAll(() => {
 afterAll(() => server.stop(true));
 
 describe("browser rendering against a real Chrome", () => {
-  test("renders the first PDF page to a white-backed PNG at three times its size", async () => {
-    const rendered = await renderPdfFirstPage(
-      localChromeLease,
-      fixture("fixture.pdf"),
-      pdfJs
-    );
-    // The fixture page is 200x100 pt; scale is min(3, 1600/200, 1600/100).
-    expect({ height: rendered.height, width: rendered.width }).toEqual({
-      height: 300,
-      width: 600,
-    });
-    expect(pngSize(rendered.png)).toEqual({ height: 300, width: 600 });
-    // The page is filled red with a line of black text.
-    expect(paletteFromPng(rendered.png)[0]).toBe("#FF0000");
-  }, 60_000);
-
   test("captures a 1280x720 JPEG of offline HTML without loading its resources", async () => {
     hits = [];
     const origin = `http://127.0.0.1:${server.port}`;
@@ -211,16 +174,6 @@ describe("decodeHtmlParam", () => {
   );
 });
 
-describe("readPdfSource", () => {
-  test("refuses an object that is not a PDF", async () => {
-    const bucket = new FakeBucket();
-    await bucket.put("users/u/cards/c/file/a.pdf", fixture("fixture.png"));
-    await expect(
-      readPdfSource(bucket as never, "users/u/cards/c/file/a.pdf")
-    ).rejects.toThrow("not_a_pdf");
-  });
-});
-
 const SECRET = "test-secret";
 const callOp = async (
   env: Partial<FilesOpsEnv>,
@@ -274,7 +227,7 @@ describe("rendering operations", () => {
     ],
     ["extract-video-frame", { sourceKey: source, destinationKey: destination }],
   ])(
-    "%s answers UNSUPPORTED when its binding is missing, so Convex keeps its old renderer",
+    "%s answers RENDERER_UNAVAILABLE when its binding is missing, so Convex retries",
     async (op, params) => {
       const bucket = new FakeBucket();
       await bucket.put(source, fixture("fixture.mp4"));
@@ -284,17 +237,13 @@ describe("rendering operations", () => {
         op,
         params
       );
-      expect(status).toBe(415);
-      expect(body.error?.code).toBe("UNSUPPORTED");
+      expect(status).toBe(503);
+      expect(body.error?.code).toBe("RENDERER_UNAVAILABLE");
       expect(bucket.objects.has(destination)).toBe(false);
     }
   );
 
   test.each([
-    [
-      "render-pdf-thumbnail",
-      { sourceKey: "users/u/cards/c/file/a.pdf", destinationKey: destination },
-    ],
     [
       "capture-screenshot",
       { destinationKey: destination, htmlGzipBase64: gzipBase64("<p>x</p>") },
@@ -304,10 +253,9 @@ describe("rendering operations", () => {
       { htmlGzipBase64: gzipBase64("<p>x</p>"), selectors: ["p"] },
     ],
   ])(
-    "%s answers UNSUPPORTED when Browser Run refuses a new browser, so Convex uses Kernel",
+    "%s answers RENDERER_UNAVAILABLE when Browser Run refuses a new browser",
     async (op, params) => {
       const bucket = new FakeBucket();
-      await bucket.put("users/u/cards/c/file/a.pdf", fixture("fixture.pdf"));
       const browserRun = {
         fetch: () =>
           Promise.resolve(
@@ -321,9 +269,9 @@ describe("rendering operations", () => {
         op,
         params
       );
-      expect(status).toBe(415);
+      expect(status).toBe(503);
       expect(body.error).toMatchObject({
-        code: "UNSUPPORTED",
+        code: "RENDERER_UNAVAILABLE",
         message: "browser_unavailable",
       });
       expect(bucket.objects.has(destination)).toBe(false);
@@ -344,107 +292,5 @@ describe("rendering operations", () => {
     );
     expect(status).toBe(400);
     expect(body.error?.message).toBe("invalid_storage_key");
-  });
-
-  const fakeMedia = (
-    calls: unknown[],
-    frame: Uint8Array
-  ): MediaTransformsBinding => ({
-    input: (stream) => ({
-      transform: (transform) => ({
-        output: (output) => ({
-          response: async () => {
-            calls.push({
-              bytes: (await new Response(stream).arrayBuffer()).byteLength,
-              output,
-              transform,
-            });
-            return new Response(frame);
-          },
-        }),
-      }),
-    }),
-  });
-
-  test("extracts a frame one second into an H.264 MP4 and stores it as a JPEG", async () => {
-    const bucket = new FakeBucket();
-    const video = fixture("fixture.mp4");
-    await bucket.put(source, video);
-    const calls: unknown[] = [];
-    const frame = new Uint8Array([0xff, 0xd8, 0xff, 0xe0, 1, 2, 3]);
-    const { body, status } = await callOp(
-      { BUCKET: bucket as never, MEDIA: fakeMedia(calls, frame) },
-      "extract-video-frame",
-      { destinationKey: destination, sourceKey: source }
-    );
-    expect(status).toBe(200);
-    expect(body.data).toEqual({
-      durationSeconds: 2.5,
-      originalHeight: 36,
-      originalWidth: 64,
-      storedBytes: frame.length,
-      storedContentType: "image/jpeg",
-    });
-    expect(calls).toEqual([
-      {
-        bytes: video.length,
-        output: { format: "jpg", mode: "frame", time: "1s" },
-        transform: { fit: "scale-down", height: 1600, width: 1600 },
-      },
-    ]);
-    expect(bucket.objects.get(destination)).toMatchObject({
-      bytes: frame,
-      httpMetadata: { contentType: "image/jpeg" },
-    });
-  });
-
-  test("leaves WebM to the browser renderer", async () => {
-    const bucket = new FakeBucket();
-    const webm = "users/u/cards/c/file/clip.webm";
-    await bucket.put(webm, fixture("fixture.webm"));
-    const calls: unknown[] = [];
-    const { body, status } = await callOp(
-      {
-        BUCKET: bucket as never,
-        MEDIA: fakeMedia(calls, new Uint8Array([0xff, 0xd8])),
-      },
-      "extract-video-frame",
-      { destinationKey: destination, sourceKey: webm }
-    );
-    expect(status).toBe(415);
-    expect(body.error?.message).toBe("video_format_unsupported");
-    expect(calls).toEqual([]);
-  });
-
-  test("refuses a Media response that is not a JPEG", async () => {
-    const bucket = new FakeBucket();
-    await bucket.put(source, fixture("fixture.mp4"));
-    const { status } = await callOp(
-      {
-        BUCKET: bucket as never,
-        MEDIA: fakeMedia([], new TextEncoder().encode("<html>error</html>")),
-      },
-      "extract-video-frame",
-      { destinationKey: destination, sourceKey: source }
-    );
-    expect(status).toBe(415);
-    expect(bucket.objects.has(destination)).toBe(false);
-  });
-
-  test("probe-media reports container facts for a stored video", async () => {
-    const bucket = new FakeBucket();
-    await bucket.put(source, fixture("fixture.mp4"));
-    const { body, status } = await callOp(
-      { BUCKET: bucket as never },
-      "probe-media",
-      { sourceKey: source }
-    );
-    expect(status).toBe(200);
-    expect(body.data).toMatchObject({
-      container: "mp4",
-      durationSeconds: 2.5,
-      height: 36,
-      width: 64,
-    });
   });
 });

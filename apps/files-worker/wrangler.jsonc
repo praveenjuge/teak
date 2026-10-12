@@ -18,12 +18,30 @@
     }
   ],
   "durable_objects": {
-    "bindings": [{ "name": "OBJECT_GATES", "class_name": "ObjectDeletionGate" }]
+    "bindings": [
+      { "name": "OBJECT_GATES", "class_name": "ObjectDeletionGate" },
+      { "name": "MEDIA_RENDERER", "class_name": "MediaRenderer" }
+    ]
   },
   "migrations": [
     {
       "tag": "object-deletion-gates-v1",
       "new_sqlite_classes": ["ObjectDeletionGate"]
+    },
+    {
+      "tag": "media-renderer-v1",
+      "new_sqlite_classes": ["MediaRenderer"]
+    }
+  ],
+  // Media renderer: ffmpeg and poppler for video frames, scrub sprites, media
+  // facts, audio waveforms and conversion, and PDF thumbnails and text. One
+  // job per instance, no internet; see container/Dockerfile.
+  "containers": [
+    {
+      "class_name": "MediaRenderer",
+      "image": "./container/Dockerfile",
+      "instance_type": "basic",
+      "max_instances": 4
     }
   ],
   "ai": {
@@ -34,14 +52,9 @@
   "images": {
     "binding": "IMAGES"
   },
-  // Browser Run: PDF thumbnails and offline HTML screenshots/scrapes.
+  // Browser Run: offline HTML screenshots and scrapes.
   "browser": {
     "binding": "BROWSER"
-  },
-  // Media Transformations: video frames read straight from R2 (remote only).
-  "media": {
-    "binding": "MEDIA",
-    "remote": true
   },
   // This config deploys the production custom domain. Local dev overrides it.
   // Workers Paid. Exports stream up to 10,000 files (5 GB) into one ZIP in a
@@ -52,7 +65,9 @@
     "subrequests": 20000
   },
   "vars": {
-    "SENTRY_ENVIRONMENT": "production"
+    "SENTRY_ENVIRONMENT": "production",
+    // Matches containers[0].max_instances.
+    "MEDIA_RENDERER_INSTANCES": "4"
   },
   "observability": {
     "enabled": true,

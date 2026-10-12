@@ -20,6 +20,7 @@ export const pageSweepCards = internalQuery({
         fileKey: v.optional(v.string()),
         metadata: v.any(),
         previewKey: v.optional(v.string()),
+        scrubKey: v.optional(v.string()),
         thumbnailKey: v.optional(v.string()),
         workflowArtifactKeys: v.optional(v.array(v.string())),
       })
@@ -45,6 +46,7 @@ export const pageSweepCards = internalQuery({
               }
             : {},
         previewKey: card.previewKey,
+        scrubKey: card.scrubKey,
         thumbnailKey: card.thumbnailKey,
       })),
     };

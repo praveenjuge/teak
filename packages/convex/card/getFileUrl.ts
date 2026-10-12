@@ -20,6 +20,7 @@ const mediaRenditionValidator = v.union(
 const cardOwnsMediaKey = (
   card: {
     fileKey?: string;
+    scrubKey?: string;
     thumbnailKey?: string;
     metadata?: {
       linkPreview?: {
@@ -33,6 +34,7 @@ const cardOwnsMediaKey = (
 ): boolean =>
   card.fileKey === key ||
   card.thumbnailKey === key ||
+  card.scrubKey === key ||
   card.metadata?.linkPreview?.screenshotStorageKey === key ||
   card.metadata?.linkPreview?.imageStorageKey === key ||
   Boolean(

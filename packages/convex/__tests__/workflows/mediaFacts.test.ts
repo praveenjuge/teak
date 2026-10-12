@@ -2,7 +2,7 @@
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import { getFunctionName } from "convex/server";
 import { extractFileTextForAiForKey } from "../../workflows/fileProcessing";
-import { recordMediaFacts } from "../../workflows/mediaFacts";
+import { processAudioCard, recordMediaFacts } from "../../workflows/mediaFacts";
 
 const NAMES = ["FILES_BASE", "FILES_SIGNING_SECRET"] as const;
 const previous = NAMES.map((name) => process.env[name]);
@@ -193,5 +193,46 @@ describe("extractFileTextForAiForKey for PDFs", () => {
     expect(
       await extractFileTextForAiForKey("users/u/cards/c/file/a.pdf", pdf, {})
     ).toBe("");
+  });
+});
+
+describe("processAudioCard", () => {
+  const card = {
+    _id: "a1",
+    fileKey: "users/u/cards/a1/file/memo.ogg",
+    fileMetadata: { mimeType: "audio/ogg" },
+  };
+  const failure = (code: string, status: number) => ({
+    ok: false,
+    version: 1,
+    error: { code, message: code, requestId: "r", retryable: status >= 500 },
+  });
+
+  test("leaves a card the renderer cannot decode unchanged", async () => {
+    answer(failure("UNSUPPORTED", 415), 415);
+    const { calls, ctx } = recordingCtx();
+
+    expect(await processAudioCard(ctx, card)).toEqual({
+      durationSeconds: undefined,
+      transcript: null,
+    });
+    expect(ops[0]).toMatchObject({
+      op: "process-audio",
+      params: {
+        mimeType: "audio/ogg",
+        sourceKey: card.fileKey,
+        transcribe: true,
+      },
+    });
+    expect(calls).toEqual([]);
+  });
+
+  test("throws when the renderer is unavailable, so the step retries", async () => {
+    answer(failure("RENDERER_UNAVAILABLE", 503), 503);
+    const { ctx } = recordingCtx();
+
+    await expect(processAudioCard(ctx, card)).rejects.toThrow(
+      "files_worker_error:RENDERER_UNAVAILABLE:503"
+    );
   });
 });

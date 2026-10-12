@@ -5,12 +5,10 @@ import {
   extractZipEntries,
   findEocd,
   inspectZipRanged,
-  MAX_AI_TEXT_CHARACTERS,
-  MAX_PDF_TEXT_PAGES,
   parseCentralDirectory,
   runInspect,
 } from "./inspect";
-import { FakeBucket, makeEncryptedPdf, makePdf } from "./testsupport";
+import { FakeBucket } from "./testsupport";
 
 describe("zip inspection over ranged reads", () => {
   const buildWordArchive = (): Uint8Array =>
@@ -220,67 +218,6 @@ describe("runInspect dispatch", () => {
   test("missing sources surface a distinct error", async () => {
     await expect(
       runInspect(bucket, "gone.css", "css", "tokens", 1024, false)
-    ).rejects.toThrow("source_not_found");
-  });
-});
-
-describe("pdf text extraction", () => {
-  const PDF_MAX_BYTES = 25 * 1024 * 1024;
-
-  const inspectPdf = async (bytes: Uint8Array, maxBytes = PDF_MAX_BYTES) => {
-    const bucket = new FakeBucket();
-    bucket.objects.set("doc.pdf", { bytes });
-    return await runInspect(bucket, "doc.pdf", "pdf", "pdf", maxBytes, false);
-  };
-
-  test("returns the text of every page in order", async () => {
-    const result = await inspectPdf(
-      makePdf(["Quarterly report (draft)", "Revenue grew 12%"])
-    );
-    expect(result.text).toBe("Quarterly report (draft)\nRevenue grew 12%");
-    expect(result.facts?.pageCount).toBe(2);
-    expect(result.facts?.wordCount).toBe(6);
-  });
-
-  test("stops reading after the page cap", async () => {
-    const pages = Array.from(
-      { length: MAX_PDF_TEXT_PAGES + 5 },
-      (_, index) => `Page ${index + 1}`
-    );
-    const result = await inspectPdf(makePdf(pages));
-    expect(result.text).toContain(`Page ${MAX_PDF_TEXT_PAGES}`);
-    expect(result.text).not.toContain(`Page ${MAX_PDF_TEXT_PAGES + 1}`);
-    expect(result.facts?.pageCount).toBe(MAX_PDF_TEXT_PAGES + 5);
-  });
-
-  test("caps returned text at the shared AI text limit", async () => {
-    // Two dense pages of ~420K characters each (short lines at a 1pt font).
-    const densePage = (char: string): string =>
-      Array.from({ length: 700 }, () => char.repeat(600)).join("\n");
-    const result = await inspectPdf(
-      makePdf([densePage("a"), densePage("b")], { fontSize: 1 })
-    );
-    expect(result.text?.length).toBe(MAX_AI_TEXT_CHARACTERS);
-    expect(result.text?.startsWith("a")).toBe(true);
-  });
-
-  test.each([
-    ["corrupt", new TextEncoder().encode("%PDF-1.4 this is not a pdf")],
-    ["password-protected", makeEncryptedPdf()],
-  ])("returns empty text for a %s PDF instead of failing", async (_, bytes) => {
-    const result = await inspectPdf(bytes);
-    expect(result.text).toBe("");
-  });
-
-  test("skips PDFs larger than the byte limit without parsing them", async () => {
-    const bytes = makePdf(["Too big to read"]);
-    const result = await inspectPdf(bytes, bytes.length - 1);
-    expect(result.text).toBe("");
-  });
-
-  test("missing PDF sources surface a distinct error", async () => {
-    await expect(
-      runInspect(new FakeBucket(), "gone.pdf", "pdf", "pdf", 1024, false)
     ).rejects.toThrow("source_not_found");
   });
 });

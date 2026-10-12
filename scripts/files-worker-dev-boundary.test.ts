@@ -113,8 +113,32 @@ describe("assertDevelopmentWorkerConfig", () => {
             class_name: "ObjectDeletionGate",
             script_name: "teak-files-proxy",
           },
+          { name: "MEDIA_RENDERER", class_name: "MediaRenderer" },
         ],
       },
+    },
+    {
+      durable_objects: {
+        bindings: [{ name: "OBJECT_GATES", class_name: "ObjectDeletionGate" }],
+      },
+    },
+    {
+      durable_objects: {
+        bindings: [
+          { name: "OBJECT_GATES", class_name: "ObjectDeletionGate" },
+          {
+            name: "MEDIA_RENDERER",
+            class_name: "MediaRenderer",
+            script_name: "teak-files-proxy",
+          },
+        ],
+      },
+    },
+    { containers: [] },
+    {
+      containers: [
+        { class_name: "MediaRenderer", image: "./other/Dockerfile" },
+      ],
     },
   ])("refuses production routing, storage or gates: %j", (change) => {
     expect(() =>

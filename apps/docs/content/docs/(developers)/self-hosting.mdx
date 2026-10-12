@@ -9,7 +9,7 @@ sidebar:
 
 - Git, Bun, and Node.js at the versions pinned in `package.json` (see the [Development guide](/docs/development))
 - A [WorkOS](https://workos.com/) account. Teak signs in with WorkOS AuthKit only.
-- Access to secrets for the features you want: Cloudflare R2 and Workers (file storage, AI, thumbnails and screenshots), Kernel (optional rendering fallback), Polar (billing)
+- Access to secrets for the features you want: Cloudflare R2 and Workers on Workers Paid (file storage, AI, thumbnails, screenshots and media processing), Polar (billing)
 
 :::warning[Beta]
 Self-hosting matches the hosted product, but you own uptime, secrets, and
@@ -145,7 +145,7 @@ Sign-in discovery needs `WORKOS_AUTHKIT_DOMAIN` and all five client IDs. If any 
     Point your domain's `SITE_URL` to wherever you are hosting the Next.js app.
   </Step>
   <Step title="Add optional services">
-    Add billing (Polar) and, optionally, Kernel keys to Convex env if needed. AI, thumbnails, and screenshots run in the Files Worker.
+    Add billing (Polar) keys to Convex env if needed. AI, thumbnails, screenshots, and audio and video processing run in the Files Worker.
   </Step>
   <Step title="Build and start">
     ```bash
@@ -176,7 +176,6 @@ WORKOS_RESOURCE_ORIGIN=https://yourdomain.com # Optional: token audiences <origi
 WORKOS_CONNECT_CLI_CLIENT_ID=client_...      # Plus the RAYCAST, CHROME, FIREFOX, and SAFARI client IDs
 FILES_BASE=https://files.yourdomain.com
 FILES_SIGNING_SECRET=shared-secret
-KERNEL_API_KEY=token
 POLAR_ACCESS_TOKEN=token
 POLAR_ORGANIZATION_TOKEN=token
 POLAR_SERVER=sandbox
@@ -187,7 +186,13 @@ POLAR_WEBHOOK_SECRET=secret
 
 ### Files Worker (`apps/files-worker/.dev.vars`, wrangler secrets)
 
-The Files Worker owns all file-byte operations and binds to your R2 bucket plus Cloudflare Images, Workers AI, Browser Run (PDF thumbnails and link screenshots), and Media Transformations (video thumbnails), all declared in `wrangler.jsonc`. Set `bucket_name` to your own bucket and the route `pattern` to your files domain. Deploy it on Workers Paid: exports stream every file into one ZIP in a single request, which needs the raised `cpu_ms` and `subrequests` limits in `wrangler.jsonc` (Workers Free allows 10 ms of CPU per request). Paid also includes 10 browser hours a month of Browser Run, and the Media Transformations binding is in beta. Without these bindings, or for sources outside their limits, Teak falls back to Kernel when `KERNEL_API_KEY` is set:
+The Files Worker owns all file-byte operations and binds to your R2 bucket plus Cloudflare Images, Workers AI, Browser Run (link screenshots), and a media renderer Container, all declared in `wrangler.jsonc`. Set `bucket_name` to your own bucket and the route `pattern` to your files domain.
+
+Deploy it on Workers Paid. Exports stream every file into one ZIP in a single request, which needs the raised `cpu_ms` and `subrequests` limits in `wrangler.jsonc` (Workers Free allows 10 ms of CPU per request). Paid also includes 10 browser hours a month of Browser Run, and Cloudflare Containers, which Workers Free does not offer.
+
+The media renderer runs ffmpeg and poppler in a Container built from `apps/files-worker/container/Dockerfile`. It makes video thumbnails and hover previews, audio waveforms, PDF thumbnails and PDF text, and converts audio for transcription. `wrangler deploy` builds the image, so the machine or CI runner that deploys needs Docker. The Container uses the `basic` instance type (1/4 vCPU, 1 GiB memory) with up to 4 instances (`max_instances`; keep `MEDIA_RENDERER_INSTANCES` in `vars` equal to it). Workers Paid includes 375 vCPU-minutes and 25 GiB-hours of Containers a month, enough for tens of thousands of media jobs. Each instance takes one job at a time, has no internet access, and reads only the file the Worker sends it, up to 100 MB. When the renderer is busy, Teak retries with backoff.
+
+Set the signing secret:
 
 ```bash
 FILES_SIGNING_SECRET=shared-secret           # Must match the Convex value
@@ -242,5 +247,4 @@ Convex serves the REST API at `/api/v1`, the MCP endpoint at `/mcp`, plus `/heal
   - `SITE_URL`: This is the URL where your Next.js app is running. Locally, it's `http://localhost:3000`.
 - **Optional Features**:
   - `FILES_BASE` + `FILES_SIGNING_SECRET`: Deploy the Files Worker (see its section above) with a private R2 bucket bound to it; card uploads, downloads, imports, exports, thumbnails, and AI analysis all flow through it. Convex needs no R2 or Workers AI credentials of its own.
-  - `KERNEL_API_KEY`: Optional. Get from [Kernel](https://onkernel.com/) to render thumbnails and screenshots the Files Worker cannot (no Browser Run or Media binding, videos that are not H.264 MP4/MOV or are over 100 MB, PDFs over 20 MB).
   - `POLAR_*`: Get from [Polar](https://polar.sh/) if you want to use the built-in billing system.

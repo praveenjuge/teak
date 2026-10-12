@@ -114,13 +114,33 @@ const workerOps = (): string[] =>
     (call) => JSON.parse((call[1] as { body?: string })?.body ?? "{}").op
   );
 
-const secondWorkerOpRequest = (): {
+const firstWorkerOpRequest = (): {
   op: string;
   params: Record<string, unknown>;
 } => {
-  const init = mockFetch.mock.calls.at(1)?.[1] as { body?: string };
+  const init = mockFetch.mock.calls.at(0)?.[1] as { body?: string };
   return JSON.parse(init?.body ?? "{}");
 };
+
+const WAVEFORM = {
+  detail: Array.from({ length: 200 }, () => 50),
+  grid: Array.from({ length: 45 }, () => 50),
+};
+
+/** A process-audio answer with a completed transcript. */
+const processedAudio = (text: string, durationSeconds = 3) => ({
+  facts: {
+    container: "mp3",
+    durationSeconds,
+    hasAudio: true,
+    hasVideo: false,
+    height: null,
+    videoCodec: null,
+    width: null,
+  },
+  peaks: WAVEFORM,
+  transcript: { status: "completed", text },
+});
 
 const lastWorkerOpRequest = (): {
   op: string;
@@ -604,7 +624,7 @@ describe("metadata handler", () => {
         fileKey: "users/u/audio.mp3",
         processingStatus: { classify: { status: "completed" } },
       });
-      enableWorkerOp({ text: transcript, byteLength: 8 });
+      enableWorkerOp(processedAudio(transcript));
       aiResult = { tags: ["speech"], summary: "Audio content" };
       const result = await generateHandler(ctx, {
         cardId: "c1",
@@ -634,7 +654,7 @@ describe("metadata handler", () => {
         fileKey: "users/u/audio.mp3",
         fileMetadata: { mimeType: "audio/mp3" },
       });
-      enableWorkerOp({ text: "spoken text in audio", byteLength: 8 });
+      enableWorkerOp(processedAudio("spoken text in audio"));
       aiResult = { tags: ["speech"], summary: "Audio content" };
 
       const result = await generateHandler(ctx, {
@@ -646,14 +666,14 @@ describe("metadata handler", () => {
       expect(result.aiTagsCount).toBe(1);
       expectSaved(["speech"], "Audio content");
       expect(result.confidence).toBe(0.85);
-      expect(workerOps()).toEqual([
-        "probe-media",
-        "transcribe-audio",
-        "generate-text-metadata",
-      ]);
-      expect(secondWorkerOpRequest()).toMatchObject({
-        op: "transcribe-audio",
-        params: { sourceKey: "users/u/audio.mp3" },
+      expect(workerOps()).toEqual(["process-audio", "generate-text-metadata"]);
+      expect(firstWorkerOpRequest()).toMatchObject({
+        op: "process-audio",
+        params: {
+          mimeType: "audio/mp3",
+          sourceKey: "users/u/audio.mp3",
+          transcribe: true,
+        },
       });
     });
 
@@ -669,7 +689,7 @@ describe("metadata handler", () => {
           fileKey: "users/u/tone.wav",
           fileMetadata: { mimeType: "audio/wav", duration },
         });
-        enableWorkerOp({ text, byteLength: 8 });
+        enableWorkerOp(processedAudio(text));
 
         const result = await generateHandler(ctx, {
           cardId: "c1",
@@ -696,7 +716,7 @@ describe("metadata handler", () => {
         fileKey: "users/u/talk.mp3",
         fileMetadata: { mimeType: "audio/mp3", duration: 600 },
       });
-      enableWorkerOp({ text: "Thank you.", byteLength: 8 });
+      enableWorkerOp(processedAudio("Thank you."));
       aiResult = { tags: ["talk"], summary: "Closing remarks" };
 
       const result = await generateHandler(ctx, {
@@ -716,8 +736,7 @@ describe("metadata handler", () => {
         fileKey: "users/u/talk.mp3",
         fileMetadata: { mimeType: "audio/mp3" },
       });
-      // The fake Worker answers probe-media and transcribe-audio alike.
-      enableWorkerOp({ durationSeconds: 600, text: "Thank you." });
+      enableWorkerOp(processedAudio("Thank you.", 600));
       aiResult = { tags: ["talk"], summary: "Closing remarks" };
 
       const result = await generateHandler(ctx, {
@@ -729,6 +748,30 @@ describe("metadata handler", () => {
       expect(mockRunMutation.mock.calls.at(-1)?.[1].aiTranscript).toBe(
         "Thank you."
       );
+    });
+
+    test("records the waveform and keeps going when the audio has no transcript", async () => {
+      mockRunQuery.mockResolvedValue({
+        _id: "c1",
+        fileKey: "users/u/memo.ogg",
+        fileMetadata: { mimeType: "audio/ogg" },
+      });
+      enableWorkerOp({
+        ...processedAudio("", 12),
+        transcript: { reason: "audio_decode_failed", status: "failed" },
+      });
+
+      const result = await generateHandler(ctx, {
+        cardId: "c1",
+        cardType: "audio",
+      });
+
+      expect(result.hasTranscript).toBe(false);
+      expect(
+        mockRunMutation.mock.calls.find(
+          (call) => call[1]?.waveform !== undefined
+        )?.[1]
+      ).toEqual({ cardId: "c1", duration: 12, waveform: WAVEFORM });
     });
 
     test("handles missing audio file", async () => {

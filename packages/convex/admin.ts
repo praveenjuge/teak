@@ -467,6 +467,18 @@ export const resetCardProcessingState = internalMutation({
       }
       clearedThumbnail = true;
     }
+    if (card.scrubKey) {
+      try {
+        await deleteObject(ctx, card.scrubKey);
+      } catch (error) {
+        console.error("[admin] Failed to delete scrub sprite during refresh", {
+          cardId,
+          scrubKey: card.scrubKey,
+          error,
+        });
+      }
+    }
+    const { scrub: _scrub, ...fileMetadata } = card.fileMetadata ?? {};
 
     const processingStatus = card.processingStatus ?? {};
     const updatedProcessing = {
@@ -476,6 +488,8 @@ export const resetCardProcessingState = internalMutation({
 
     await patchCardWithSearchSync(ctx, cardId, {
       thumbnailKey: undefined,
+      scrubKey: undefined,
+      ...(card.fileMetadata ? { fileMetadata } : {}),
       aiTags: undefined,
       aiSummary: undefined,
       aiTranscript: undefined,

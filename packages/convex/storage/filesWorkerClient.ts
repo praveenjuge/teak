@@ -14,6 +14,7 @@ import {
   FILES_UPLOAD_MAX_TTL_SECONDS,
   FILES_UPLOAD_PATH,
   type FilesEnvelope,
+  type FilesErrorCode,
   type FilesFinalizeImageResult,
   type FilesOp,
   type FilesOpRequest,
@@ -26,14 +27,22 @@ import { assertR2KeyInNamespace, hmacSha256Hex } from "./r2Keys";
 // window (the worker additionally rejects exps further than 15 min out).
 export const FILES_OP_TTL_SECONDS = 10 * 60;
 
-// Browser Run and Media operations; bounded so a stuck render falls back to
-// the previous renderer instead of holding the action.
-const RENDERING_OPS = new Set<FilesOp>([
-  "render-pdf-thumbnail",
-  "extract-video-frame",
-  "capture-screenshot",
-  "scrape-html",
-]);
+// Ops bounded so a stuck call fails and retries instead of holding the action.
+// Rendering and media jobs may include a renderer cold start.
+const OP_TIMEOUT_MS: Partial<Record<FilesOp, number>> = {
+  "abort-multipart": 90_000,
+  "capture-screenshot": 90_000,
+  "delete-objects": 90_000,
+  "extract-video-frame": 90_000,
+  "freeze-object": 90_000,
+  "generate-link-metadata": 90_000,
+  "generate-text-metadata": 90_000,
+  "probe-media": 90_000,
+  // One decode, an optional conversion retry, and Whisper on up to 100 MiB.
+  "process-audio": 300_000,
+  "render-pdf-thumbnail": 90_000,
+  "scrape-html": 90_000,
+};
 
 export const isFilesWorkerConfigured = (): boolean =>
   Boolean(env.FILES_BASE && env.FILES_SIGNING_SECRET);
@@ -243,13 +252,15 @@ export const buildSignedWorkerOpRequest = async (
 
 /**
  * - ok: the op succeeded and returned JSON
- * - fallback: the worker deliberately declined an optional enrichment
+ * - fallback: the worker deliberately declined (missing source, too large,
+ *   or unsupported), with its error code and message
  *
- * Network and 5xx responses throw so workflow retries apply.
+ * Network, 5xx and RENDERER_UNAVAILABLE responses throw so workflow retries
+ * apply.
  */
 export type FilesWorkerOutcome<T> =
   | { kind: "ok"; data: T }
-  | { kind: "fallback" };
+  | { kind: "fallback"; code: FilesErrorCode; message: string };
 
 const filesWorkerTracer = trace.getTracer("teak-files-worker");
 
@@ -271,16 +282,16 @@ export const callFilesWorkerJson = async <T>(spec: {
         const signed = await buildSignedWorkerOpRequest(spec);
         let response: Response;
         try {
+          // PDF text runs on the renderer; other inspect modes read R2 only.
+          const timeoutMs =
+            spec.op === "inspect" && spec.params.mode === "pdf"
+              ? 90_000
+              : OP_TIMEOUT_MS[spec.op];
           response = await fetch(signed.url, {
             ...signed,
-            ...(spec.op === "generate-text-metadata" ||
-            spec.op === "generate-link-metadata" ||
-            spec.op === "freeze-object" ||
-            spec.op === "abort-multipart" ||
-            spec.op === "delete-objects" ||
-            RENDERING_OPS.has(spec.op)
+            ...(timeoutMs
               ? {
-                  signal: AbortSignal.timeout(90_000),
+                  signal: AbortSignal.timeout(timeoutMs),
                   redirect: "error" as const,
                 }
               : {}),
@@ -301,10 +312,19 @@ export const callFilesWorkerJson = async <T>(spec: {
           const requestId =
             envelope && !envelope.ok ? envelope.error.requestId : "unknown";
           if (
-            ["NOT_FOUND", "PAYLOAD_TOO_LARGE", "UNSUPPORTED"].includes(code)
+            code === "NOT_FOUND" ||
+            code === "PAYLOAD_TOO_LARGE" ||
+            code === "UNSUPPORTED"
           ) {
             span.setAttribute("files.outcome", "fallback");
-            return { kind: "fallback" };
+            return {
+              kind: "fallback",
+              code,
+              message:
+                envelope && !envelope.ok
+                  ? String(envelope.error.message).slice(0, 200)
+                  : code,
+            };
           }
           span.setAttribute("files.outcome", "error");
           if (code === "AI_CAPACITY" || code === "AI_INVALID_OUTPUT") {

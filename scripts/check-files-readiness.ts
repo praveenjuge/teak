@@ -3,6 +3,7 @@
 import { buildSignedWorkerOpRequest } from "../packages/convex/storage/filesWorkerClient";
 
 const required = [
+  "process-audio",
   "transcribe-audio",
   "generate-text-metadata",
   "generate-link-metadata",
@@ -42,34 +43,46 @@ if (process.argv.includes("--prod")) {
 }
 
 const deadline =
-  Date.now() + (process.argv.includes("--wait") ? 10 * 60_000 : 0);
+  // A new renderer image builds and rolls out after the Worker deploys.
+  Date.now() + (process.argv.includes("--wait") ? 20 * 60_000 : 0);
 for (;;) {
   let ready = false;
   try {
     const signed = await buildSignedWorkerOpRequest({
       op: "capabilities",
-      params: {},
+      // Starts a renderer Container when none is warm.
+      params: { checkRenderer: true },
     });
     const response = await fetch(signed.url, {
       ...signed,
-      signal: AbortSignal.timeout(15_000),
+      signal: AbortSignal.timeout(60_000),
     });
     const result = (await response.json()) as {
       ok?: boolean;
-      data?: { operations?: string[]; ai?: boolean; images?: boolean };
+      data?: {
+        ai?: boolean;
+        browser?: boolean;
+        images?: boolean;
+        operations?: string[];
+        renderer?: boolean;
+        rendererHealthy?: boolean;
+      };
     };
     ready =
       response.ok &&
       result.ok === true &&
       result.data?.ai === true &&
       result.data.images === true &&
+      result.data.browser === true &&
+      result.data.renderer === true &&
+      result.data.rendererHealthy === true &&
       required.every((op) => result.data?.operations?.includes(op));
   } catch {
     // Never log signed URLs, request headers, or deployment secrets.
   }
   if (ready) {
     console.log(
-      "Files worker ready: required operations, AI, Images, and signing verified."
+      "Files worker ready: required operations, AI, Images, Browser Run, the media renderer, and signing verified."
     );
     break;
   }

@@ -9,7 +9,6 @@ import { buildSigningPayload, hmacSha256Hex, sha256Hex } from "./lib";
 import {
   FakeBucket,
   fakeHttpEtag,
-  makePdf,
   makePng,
   withObjectGates,
 } from "./testsupport";
@@ -273,29 +272,6 @@ describe("files worker handler", () => {
       { waitUntil: () => undefined } as never
     );
     expect(response.status).toBe(400);
-  });
-
-  test("inspect op returns PDF text for AI analysis", async () => {
-    const env_ = env();
-    (env_.BUCKET as unknown as FakeBucket).objects.set(
-      "users/u1/cards/c/report.pdf",
-      { bytes: makePdf(["Annual report", "Net income rose"]) }
-    );
-    const response = await worker.fetch(
-      await signedOpRequest("inspect", {
-        formatId: "pdf",
-        maxBytes: 25 * 1024 * 1024,
-        mode: "pdf",
-        sourceKey: "users/u1/cards/c/report.pdf",
-      }),
-      env_,
-      { waitUntil: () => undefined } as never
-    );
-    expect(response.status).toBe(200);
-    expect(await response.json()).toMatchObject({
-      data: { text: "Annual report\nNet income rose" },
-      ok: true,
-    });
   });
 
   test("returns a controlled fallback for missing image-analysis sources", async () => {

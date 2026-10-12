@@ -4,13 +4,17 @@ import {
   isFilesWorkerConfigured,
 } from "./filesWorkerClient";
 
+export type FilesWorkerRenderingOutcome<T> =
+  | { kind: "ok"; data: T }
+  | { kind: "declined"; reason: string };
+
 /**
- * Run a Files Worker rendering operation, or return null so the caller keeps
- * its previous (Kernel) renderer. Null covers an unconfigured worker, a worker
- * deployment without the operation or its Browser Run/Media binding, sources
- * outside the operation's limits, and transient failures.
+ * Run a Files Worker rendering operation. `declined` means the source cannot
+ * be rendered (missing, too large, undecodable) or no Files Worker is set up,
+ * so retrying will not help. Transient failures, including a busy or missing
+ * renderer (RENDERER_UNAVAILABLE), throw so the caller's retries apply.
  */
-export const tryFilesWorkerRendering = async <T>(
+export const runFilesWorkerRendering = async <T>(
   op: Extract<
     FilesOp,
     | "capture-screenshot"
@@ -18,22 +22,16 @@ export const tryFilesWorkerRendering = async <T>(
     | "render-pdf-thumbnail"
     | "scrape-html"
   >,
-  params: Record<string, unknown>,
-  logPrefix: string
-): Promise<T | null> => {
+  params: Record<string, unknown>
+): Promise<FilesWorkerRenderingOutcome<T>> => {
   if (!isFilesWorkerConfigured()) {
-    return null;
+    return { kind: "declined", reason: "files_worker_not_configured" };
   }
-  try {
-    const outcome = await callFilesWorkerJson<T>({ op, params });
-    if (outcome.kind === "ok") {
-      return outcome.data;
-    }
-    console.log(`${logPrefix} Files Worker declined ${op}; using Kernel`);
-  } catch (error) {
-    console.warn(`${logPrefix} Files Worker ${op} failed; using Kernel`, {
-      error: error instanceof Error ? error.message : String(error),
-    });
-  }
-  return null;
+  const outcome = await callFilesWorkerJson<T>({ op, params });
+  return outcome.kind === "ok"
+    ? outcome
+    : {
+        kind: "declined",
+        reason: `${outcome.code.toLowerCase()}:${outcome.message}`,
+      };
 };

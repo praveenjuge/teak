@@ -1,29 +1,26 @@
 "use node";
 
-import Kernel from "@onkernel/sdk";
 import type { FilesVideoFrameResult } from "@teak/files-protocol";
 import { v } from "convex/values";
 import { internal } from "../../../_generated/api";
 import { internalAction } from "../../../_generated/server";
 import {
-  buildSignedWorkerUploadUrl,
-  callFilesWorkerJson,
-  type FilesWorkerHeadObjectResult,
-} from "../../../storage/filesWorkerClient";
-import { tryFilesWorkerRendering } from "../../../storage/filesWorkerRendering";
-import { tryResolveObjectUrl } from "../../../storage/fileUrls";
+  type FilesWorkerRenderingOutcome,
+  runFilesWorkerRendering,
+} from "../../../storage/filesWorkerRendering";
 import { ensureObjectOwnership } from "../../../storage/ownership";
 import { buildR2ObjectKey } from "../../../storage/r2";
-import { escapeForSingleQuotedJs } from "../kernelCodegen";
 
-// Maximum thumbnail dimensions - matches image thumbnail settings
-const THUMBNAIL_MAX_WIDTH = 1600;
-const THUMBNAIL_MAX_HEIGHT = 1600;
+const roundedSeconds = (value: number | null | undefined) =>
+  typeof value === "number" && Number.isFinite(value) && value > 0
+    ? Math.round(value * 1000) / 1000
+    : undefined;
 
 /**
- * Generate a thumbnail image from a video file.
- * Uses @onkernel/sdk with Playwright to extract a video frame using the
- * native HTML5 video element and canvas API - no external libraries needed.
+ * Generate a video card's thumbnail and hover scrub sprite on the Files
+ * Worker's media renderer, which reads the video from R2 and writes both
+ * images there. A source the renderer cannot decode fails without a retry; a
+ * busy or unavailable renderer is retryable.
  */
 export const generateVideoThumbnail = internalAction({
   args: {
@@ -37,356 +34,97 @@ export const generateVideoThumbnail = internalAction({
     retryable: v.optional(v.boolean()),
   }),
   handler: async (ctx, args) => {
-    try {
-      // Get the card to verify it exists and is a video
-      const card = await ctx.runQuery(internal.card.getCard.getCardInternal, {
-        cardId: args.cardId,
-      });
-
-      if (!card) {
-        console.log(`[renderables/video] Card ${args.cardId} not found`);
-        return {
-          success: false,
-          generated: false,
-          error: "card_not_found",
-          retryable: false,
-        };
-      }
-
-      // Only generate thumbnails for video cards with files
-      if (card.type !== "video" || !card.fileKey) {
-        console.log(
-          `[renderables/video] Skipping card ${args.cardId} - not a video or no fileKey`
-        );
-        return {
-          success: true,
-          generated: false,
-        };
-      }
-
-      // Skip if thumbnail already exists
-      if (card.thumbnailKey) {
-        console.log(
-          `[renderables/video] Skipping card ${args.cardId} - thumbnail already exists`
-        );
-        return {
-          success: true,
-          generated: false,
-          thumbnailKey: card.thumbnailKey,
-        };
-      }
-
-      const videoUrl = await tryResolveObjectUrl(card.fileKey);
-      if (!videoUrl) {
-        console.log(
-          `[renderables/video] Could not get URL for card ${args.cardId}`
-        );
-        return {
-          success: false,
-          generated: false,
-          error: "missing_storage_url",
-          retryable: true,
-        };
-      }
-
-      console.log(
-        `[renderables/video] Processing video for card ${args.cardId}`
-      );
-
-      // Mint one short-lived signed destination URL so the Kernel VM uploads
-      // the generated frame directly to the Files Worker; the bytes never
-      // pass back through Convex. The content type is left unbound because
-      // the encoding (WebP with JPEG fallback) is decided inside the browser;
-      // the worker stores the request's validated Content-Type.
-      const thumbnailKey = buildR2ObjectKey({
-        userId: card.userId,
-        cardId: args.cardId,
-        role: "thumbnail",
-      });
-      await ensureObjectOwnership(ctx, card.userId, thumbnailKey);
-
-      // Media Transformations in the Files Worker extracts H.264 frames
-      // straight from R2; Kernel stays the fallback for other codecs, WebM,
-      // sources over 100 MB, and Workers without the binding.
-      const frame = await tryFilesWorkerRendering<FilesVideoFrameResult>(
-        "extract-video-frame",
-        { destinationKey: thumbnailKey, sourceKey: card.fileKey },
-        "[renderables/video]"
-      );
-      if (frame) {
-        await ctx.runMutation(
-          internal.workflows.steps.renderables.mutations.updateCardThumbnail,
-          {
-            cardId: args.cardId,
-            thumbnailKey,
-            ...(frame.originalWidth !== null && {
-              originalWidth: frame.originalWidth,
-            }),
-            ...(frame.originalHeight !== null && {
-              originalHeight: frame.originalHeight,
-            }),
-          }
-        );
-        return { success: true, generated: true, thumbnailKey };
-      }
-
-      const uploadUrl = (
-        await buildSignedWorkerUploadUrl({
-          contentType: "",
-          key: thumbnailKey,
-        })
-      ).url;
-
-      // Use Kernel with Playwright to extract video frame
-      const kernel = new Kernel();
-      let kernelBrowser: { session_id: string } | undefined;
-
-      try {
-        // Create a browser session
-        kernelBrowser = await kernel.browsers.create({
-          headless: true,
-          stealth: true,
-        });
-
-        // Execute Playwright code to extract a video frame using native HTML5 APIs
-        const response = await kernel.browsers.playwright.execute(
-          kernelBrowser.session_id,
-          {
-            code: `
-              await page.setViewportSize({ width: 800, height: 600 });
-              
-              // Navigate to a blank page first
-              await page.goto('about:blank');
-              
-              // Execute frame extraction entirely within page.evaluate
-              const result = await page.evaluate(async ({ videoUrl, maxWidth, maxHeight }) => {
-                return new Promise((resolve) => {
-                  const video = document.createElement('video');
-                  video.crossOrigin = 'anonymous';
-                  video.preload = 'metadata';
-                  video.muted = true;
-                  video.playsInline = true;
-                  
-                  let resolved = false;
-                  const timeout = setTimeout(() => {
-                    if (!resolved) {
-                      resolved = true;
-                      resolve({ success: false, error: 'Video loading timeout after 60s' });
-                    }
-                  }, 60000);
-                  
-                  video.onerror = () => {
-                    if (!resolved) {
-                      resolved = true;
-                      clearTimeout(timeout);
-                      resolve({ success: false, error: 'Video load error: ' + (video.error?.message || 'Unknown error') });
-                    }
-                  };
-                  
-                  video.onloadedmetadata = () => {
-                    // Seek to 10% into the video (max 5 seconds) to avoid black frames
-                    const targetTime = Math.min(video.duration * 0.1, 5);
-                    video.currentTime = Math.max(0.1, targetTime); // At least 0.1s in
-                  };
-                  
-                  video.onseeked = async () => {
-                    if (resolved) return;
-                    resolved = true;
-                    clearTimeout(timeout);
-
-                    try {
-                      const canvas = document.createElement('canvas');
-                      const ctx = canvas.getContext('2d');
-                      
-                      // Calculate thumbnail dimensions
-                      const originalWidth = video.videoWidth;
-                      const originalHeight = video.videoHeight;
-                      
-                      if (!originalWidth || !originalHeight) {
-                        resolve({ success: false, error: 'Could not get video dimensions' });
-                        return;
-                      }
-                      
-                      const aspectRatio = originalWidth / originalHeight;
-                      
-                      let targetWidth, targetHeight;
-                      if (aspectRatio > 1) {
-                        targetWidth = Math.min(originalWidth, maxWidth);
-                        targetHeight = Math.round(targetWidth / aspectRatio);
-                      } else {
-                        targetHeight = Math.min(originalHeight, maxHeight);
-                        targetWidth = Math.round(targetHeight * aspectRatio);
-                      }
-                      
-                      if (targetWidth > maxWidth) {
-                        targetWidth = maxWidth;
-                        targetHeight = Math.round(targetWidth / aspectRatio);
-                      }
-                      if (targetHeight > maxHeight) {
-                        targetHeight = maxHeight;
-                        targetWidth = Math.round(targetHeight * aspectRatio);
-                      }
-                      
-                      canvas.width = targetWidth;
-                      canvas.height = targetHeight;
-                      ctx.drawImage(video, 0, 0, targetWidth, targetHeight);
-                      
-                      // Convert to base64 - try WebP first, fall back to JPEG
-                      let dataUrl = canvas.toDataURL('image/webp', 0.8);
-                      let mimeType = 'image/webp';
-                      
-                      // Check if WebP is supported (some browsers return PNG for unsupported formats)
-                      if (!dataUrl.startsWith('data:image/webp')) {
-                        dataUrl = canvas.toDataURL('image/jpeg', 0.85);
-                        mimeType = 'image/jpeg';
-                      }
-                      
-                      const base64 = dataUrl.split(',')[1];
-                      const uploadUrl = '${escapeForSingleQuotedJs(uploadUrl)}';
-                      const uploadResponse = await fetch(uploadUrl, {
-                        body: await (await fetch('data:' + mimeType + ';base64,' + base64)).arrayBuffer(),
-                        headers: { 'content-type': mimeType },
-                        method: 'PUT',
-                      }).catch((err) => ({ ok: false, status: 0, error: String(err) }));
-                      if (!uploadResponse.ok) {
-                        resolve({ success: false, error: 'upload_failed_' + uploadResponse.status });
-                        return;
-                      }
-                      let etag = null;
-                      try { etag = uploadResponse.headers.get('etag'); } catch {}
-                      resolve({
-                        success: true,
-                        width: targetWidth,
-                        height: targetHeight,
-                        originalWidth: originalWidth,
-                        originalHeight: originalHeight,
-                        mimeType: mimeType,
-                        etag: etag,
-                      });
-                    } catch (err) {
-                      resolve({ success: false, error: err.message || 'Canvas error' });
-                    }
-                  };
-                  
-                  video.src = videoUrl;
-                  video.load();
-                });
-              }, {
-                videoUrl: '${escapeForSingleQuotedJs(videoUrl)}',
-                maxWidth: ${THUMBNAIL_MAX_WIDTH},
-                maxHeight: ${THUMBNAIL_MAX_HEIGHT}
-              });
-              
-              return JSON.stringify(result);
-            `,
-            timeout_sec: 120,
-          }
-        );
-
-        if (!(response.success && response.result)) {
-          console.error(
-            `[renderables/video] Kernel Playwright execution failed for card ${args.cardId}:`,
-            response.error
-          );
-          return {
-            success: false,
-            generated: false,
-            error: "kernel_execution_failed",
-            retryable: true,
-          };
-        }
-
-        const result = JSON.parse(response.result as string);
-
-        if (!result.success) {
-          console.error(
-            `[renderables/video] Video thumbnail generation failed for card ${args.cardId}:`,
-            result.error
-          );
-          return {
-            success: false,
-            generated: false,
-            error: result.error || "thumbnail_generation_failed",
-            retryable:
-              typeof result.error === "string" &&
-              (result.error.includes("timeout") ||
-                result.error.startsWith("upload_failed_")),
-          };
-        }
-
-        // Verify the committed object before Convex records it.
-        const head = await callFilesWorkerJson<FilesWorkerHeadObjectResult>({
-          op: "head-object",
-          params: { key: thumbnailKey },
-        });
-        if (
-          head.kind !== "ok" ||
-          !head.data.exists ||
-          !head.data.size ||
-          !head.data.contentType?.startsWith("image/")
-        ) {
-          console.warn(
-            `[renderables/video] Uploaded thumbnail failed verification for card ${args.cardId}`
-          );
-          return {
-            success: false,
-            generated: false,
-            error: "thumbnail_upload_verification_failed",
-            retryable: true,
-          };
-        }
-
-        // Extract original video dimensions from the result
-        // These are the videoWidth and videoHeight from the HTMLVideoElement
-        const originalWidth = result.originalWidth as number | undefined;
-        const originalHeight = result.originalHeight as number | undefined;
-
-        // Update the card with the thumbnail and original dimensions
-        await ctx.runMutation(
-          internal.workflows.steps.renderables.mutations.updateCardThumbnail,
-          {
-            cardId: args.cardId,
-            thumbnailKey,
-            ...(originalWidth !== undefined && { originalWidth }),
-            ...(originalHeight !== undefined && { originalHeight }),
-          }
-        );
-
-        console.log(
-          `[renderables/video] Successfully generated thumbnail for card ${args.cardId} (${result.width}x${result.height})`
-        );
-
-        return {
-          success: true,
-          generated: true,
-          thumbnailKey,
-        };
-      } finally {
-        // Clean up the browser session
-        if (kernelBrowser?.session_id) {
-          try {
-            await kernel.browsers.deleteByID(kernelBrowser.session_id);
-          } catch (cleanupError) {
-            console.warn(
-              "[renderables/video] Failed to cleanup browser session:",
-              cleanupError
-            );
-          }
-        }
-      }
-    } catch (error) {
-      console.error(
-        `[renderables/video] Failed to generate video thumbnail for card ${args.cardId}:`,
-        error
-      );
-      // Don't throw - thumbnail generation failure shouldn't break the card creation flow
+    const card = await ctx.runQuery(internal.card.getCard.getCardInternal, {
+      cardId: args.cardId,
+    });
+    if (!card) {
       return {
         success: false,
         generated: false,
-        error: error instanceof Error ? error.message : "unknown_error",
+        error: "card_not_found",
+        retryable: false,
+      };
+    }
+    if (card.type !== "video" || !card.fileKey) {
+      return { success: true, generated: false };
+    }
+    if (card.thumbnailKey) {
+      return {
+        success: true,
+        generated: false,
+        thumbnailKey: card.thumbnailKey,
+      };
+    }
+
+    // Both keys are registered before anything writes them.
+    const thumbnailKey = buildR2ObjectKey({
+      userId: card.userId,
+      cardId: args.cardId,
+      role: "thumbnail",
+    });
+    const scrubKey = buildR2ObjectKey({
+      userId: card.userId,
+      cardId: args.cardId,
+      role: "scrub",
+    });
+    await ensureObjectOwnership(ctx, card.userId, thumbnailKey);
+    await ensureObjectOwnership(ctx, card.userId, scrubKey);
+
+    let outcome: FilesWorkerRenderingOutcome<FilesVideoFrameResult>;
+    try {
+      outcome = await runFilesWorkerRendering<FilesVideoFrameResult>(
+        "extract-video-frame",
+        {
+          destinationKey: thumbnailKey,
+          scrubDestinationKey: scrubKey,
+          sourceKey: card.fileKey,
+        }
+      );
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      console.warn(
+        `[renderables/video] Frame extraction failed for card ${args.cardId}`,
+        { error: message }
+      );
+      return {
+        success: false,
+        generated: false,
+        error: message,
         retryable: true,
       };
     }
+    if (outcome.kind === "declined") {
+      console.log(
+        `[renderables/video] Renderer declined card ${args.cardId}: ${outcome.reason}`
+      );
+      return {
+        success: false,
+        generated: false,
+        error: `video_thumbnail_declined:${outcome.reason}`,
+        retryable: false,
+      };
+    }
+
+    const frame = outcome.data;
+    const duration = roundedSeconds(
+      frame.durationSeconds ?? frame.facts?.durationSeconds
+    );
+    await ctx.runMutation(
+      internal.workflows.steps.renderables.mutations.updateCardThumbnail,
+      {
+        cardId: args.cardId,
+        thumbnailKey,
+        ...(frame.originalWidth !== null && {
+          originalWidth: frame.originalWidth,
+        }),
+        ...(frame.originalHeight !== null && {
+          originalHeight: frame.originalHeight,
+        }),
+        ...(frame.scrub && { scrubKey, scrub: frame.scrub }),
+        ...(duration !== undefined && { duration }),
+      }
+    );
+    return { success: true, generated: true, thumbnailKey };
   },
 });
 

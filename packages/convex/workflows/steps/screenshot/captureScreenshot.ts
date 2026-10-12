@@ -2,9 +2,7 @@
 
 import { lookup } from "node:dns/promises";
 import { gzipSync } from "node:zlib";
-import Kernel from "@onkernel/sdk";
 import type { FilesCaptureScreenshotResult } from "@teak/files-protocol";
-import { SCREENSHOT_CLEANUP_CSS } from "@teak/files-protocol";
 import { v } from "convex/values";
 import { internal } from "../../../_generated/api";
 import { internalAction } from "../../../_generated/server";
@@ -16,11 +14,9 @@ import {
   safeFetch,
 } from "../../../linkMetadata/ssrf";
 import {
-  buildSignedWorkerUploadUrl,
-  callFilesWorkerJson,
-  type FilesWorkerHeadObjectResult,
-} from "../../../storage/filesWorkerClient";
-import { tryFilesWorkerRendering } from "../../../storage/filesWorkerRendering";
+  type FilesWorkerRenderingOutcome,
+  runFilesWorkerRendering,
+} from "../../../storage/filesWorkerRendering";
 import { ensureObjectOwnership } from "../../../storage/ownership";
 import { buildR2ObjectKey } from "../../../storage/r2";
 import { pinnedFetch } from "../pinnedFetch";
@@ -43,278 +39,53 @@ const linkMetadataInternal = internalFunctions.linkMetadata as Record<
 >;
 const MAX_SCREENSHOT_HTML_BYTES = 2 * 1024 * 1024;
 
-// Re-exported for backwards compatibility; the source of truth lives in
-// ./retryable so default-runtime workflow files can import it without dragging
-// this "use node" module into the isolate bundle.
-export {
-  SCREENSHOT_RETRYABLE_PREFIX,
-  type ScreenshotRetryableError,
-} from "./retryable";
-
 const throwRetryable = (info: ScreenshotRetryableError): never => {
   throw new Error(`${SCREENSHOT_RETRYABLE_PREFIX}${JSON.stringify(info)}`);
 };
-
-// Viewport is fixed below; full-viewport JPEG screenshots are exactly this size.
-const SCREENSHOT_WIDTH = 1280;
-const SCREENSHOT_HEIGHT = 720;
-
-export const buildGenericScreenshotCode = (
-  html: string,
-  screenshotCss: string,
-  uploadUrl: string
-): string => `
-  await page.route('**/*', route => route.abort());
-  await page.addInitScript(() => {
-    const blocked = () => { throw new Error('Network access is disabled'); };
-    Object.defineProperty(globalThis, 'WebSocket', { value: blocked });
-    Object.defineProperty(globalThis, 'EventSource', { value: blocked });
-    if (globalThis.navigator) {
-      Object.defineProperty(globalThis.navigator, 'sendBeacon', { value: () => false });
-    }
-  });
-  await page.setViewportSize({ width: ${SCREENSHOT_WIDTH}, height: ${SCREENSHOT_HEIGHT} });
-  await page.setContent(${JSON.stringify(html)}, {
-    waitUntil: 'domcontentloaded',
-    timeout: 30000
-  });
-  await page.addStyleTag({ content: ${JSON.stringify(screenshotCss)} });
-  const screenshot = await page.screenshot({ type: 'jpeg', quality: 80 });
-  // Upload the generated media straight to the Files Worker so the bytes
-  // never return to Convex as base64.
-  const uploadResponse = await context.request.put(${JSON.stringify(uploadUrl)}, { data: screenshot });
-  if (!uploadResponse.ok()) {
-    return JSON.stringify({ ok: false, status: uploadResponse.status() });
-  }
-  return JSON.stringify({ etag: uploadResponse.headers()['etag'] || null, ok: true, status: uploadResponse.status() });
-`;
-
-interface ScreenshotOutcome {
-  error?: { type: string; message?: string; details?: any };
-  screenshotHeight?: number;
-  screenshotKey?: string;
-  screenshotUpdatedAt?: number;
-  screenshotWidth?: number;
-}
 
 /** HTML travels gzip-compressed so pages up to 2 MiB fit in an op body. */
 const gzipBase64 = (html: string): string =>
   gzipSync(Buffer.from(html, "utf8")).toString("base64");
 
+const isNetworkError = (error: unknown) =>
+  (error as { name?: string })?.name === "AbortError" ||
+  ((error as { name?: string })?.name === "TypeError" &&
+    String((error as Error)?.message).includes("fetch"));
+
+const screenshotOutcomeValidator = v.union(
+  v.object({ status: v.literal("captured") }),
+  v.object({ status: v.literal("skipped") }),
+  v.object({ status: v.literal("failed"), reason: v.string() })
+);
+
 /**
- * Browser Run in the Files Worker screenshots the already-fetched HTML offline
- * and writes the JPEG to R2. Null means "use Kernel instead".
+ * Fetch the link's HTML through the SSRF guard and screenshot it offline with
+ * Browser Run on the Files Worker. Pages that cannot be captured (unsafe
+ * URLs, HTTP errors, non-HTML) resolve to `failed`; a busy or unavailable
+ * renderer and network errors throw a retryable error for the workflow.
  */
-const captureScreenshotWithFilesWorker = async ({
-  html,
-  screenshotKey,
-}: {
-  html: string;
-  screenshotKey: string;
-}): Promise<ScreenshotOutcome | null> => {
-  const captured = await tryFilesWorkerRendering<FilesCaptureScreenshotResult>(
-    "capture-screenshot",
-    { destinationKey: screenshotKey, htmlGzipBase64: gzipBase64(html) },
-    "[screenshot]"
-  );
-  return captured
-    ? {
-        screenshotHeight: captured.height,
-        screenshotKey,
-        screenshotUpdatedAt: Date.now(),
-        screenshotWidth: captured.width,
-      }
-    : null;
-};
-
-const captureScreenshotWithKernel = async ({
-  html,
-  screenshotKey,
-  url,
-}: {
-  html: string;
-  screenshotKey: string;
-  url: string;
-}): Promise<ScreenshotOutcome> => {
-  const kernel = new Kernel();
-  let kernelBrowser: { session_id: string } | undefined;
-
-  // Mint a short-lived signed upload URL so the Kernel VM uploads the
-  // screenshot directly to the Files Worker; bytes never pass through Convex.
-  let uploadUrl: string;
-  try {
-    uploadUrl = (
-      await buildSignedWorkerUploadUrl({
-        contentType: "image/jpeg",
-        key: screenshotKey,
-      })
-    ).url;
-  } catch (error) {
-    console.error("[screenshot] Failed to sign screenshot upload URL", error);
-    return {
-      error: {
-        type: "error",
-        message: "Failed to prepare screenshot upload",
-      },
-    };
-  }
-
-  try {
-    // Create a browser session
-    kernelBrowser = await kernel.browsers.create({
-      headless: true,
-      stealth: true,
-    });
-
-    const response = await kernel.browsers.playwright.execute(
-      kernelBrowser.session_id,
-      {
-        code: buildGenericScreenshotCode(
-          html,
-          SCREENSHOT_CLEANUP_CSS,
-          uploadUrl
-        ),
-        timeout_sec: 60,
-      }
-    );
-
-    if (!(response.success && response.result)) {
-      console.error(
-        `[screenshot] Kernel Playwright execution failed for ${url}:`,
-        response.error
-      );
-
-      // Check for rate limiting or HTTP errors
-      const errorMessage = response.error?.toLowerCase() ?? "";
-      if (errorMessage.includes("rate") || errorMessage.includes("limit")) {
-        return {
-          error: {
-            type: "rate_limit",
-            message: response.error,
-            details: response.stderr,
-          },
-        };
-      }
-
-      return {
-        error: {
-          type: "http_error",
-          message: response.error || "Playwright execution failed",
-          details: response.stderr,
-        },
-      };
-    }
-
-    // The VM reports the Files Worker PUT result instead of image bytes.
-    let uploadResult: { etag?: string | null; ok: boolean; status?: number };
-    try {
-      uploadResult = JSON.parse(response.result as string);
-    } catch {
-      console.warn(`[screenshot] Unparseable upload result for ${url}`);
-      return {
-        error: {
-          type: "missing_data",
-          message: "Screenshot upload result was not parseable",
-        },
-      };
-    }
-    if (!uploadResult.ok) {
-      console.warn(
-        `[screenshot] Direct upload failed with status ${uploadResult.status} for ${url}`
-      );
-      return {
-        error: {
-          type: "missing_data",
-          message: "Screenshot upload to storage failed",
-        },
-      };
-    }
-
-    // Verify the committed object before Convex records it.
-    const head = await callFilesWorkerJson<FilesWorkerHeadObjectResult>({
-      op: "head-object",
-      params: { key: screenshotKey },
-    });
-    if (
-      head.kind !== "ok" ||
-      !head.data.exists ||
-      !head.data.size ||
-      !head.data.contentType?.startsWith("image/")
-    ) {
-      console.warn(
-        `[screenshot] Uploaded screenshot failed verification for ${url}`
-      );
-      return {
-        error: {
-          type: "missing_data",
-          message: "Uploaded screenshot did not pass verification",
-        },
-      };
-    }
-
-    return {
-      screenshotHeight: SCREENSHOT_HEIGHT,
-      screenshotKey,
-      screenshotUpdatedAt: Date.now(),
-      screenshotWidth: SCREENSHOT_WIDTH,
-    };
-  } catch (error) {
-    console.error(`[screenshot] Screenshot capture error for ${url}:`, error);
-    let type = "error";
-    if ((error as any)?.name === "AbortError") {
-      type = "timeout";
-    } else if (
-      (error as any)?.name === "TypeError" &&
-      (error as any)?.message?.includes("fetch")
-    ) {
-      type = "network_error";
-    }
-    return {
-      error: {
-        type,
-        message: (error as Error)?.message,
-      },
-    };
-  } finally {
-    // Clean up the browser session
-    if (kernelBrowser?.session_id) {
-      try {
-        await kernel.browsers.deleteByID(kernelBrowser.session_id);
-      } catch (cleanupError) {
-        console.warn(
-          "[screenshot] Failed to cleanup browser session:",
-          cleanupError
-        );
-      }
-    }
-  }
-};
-
 export const captureScreenshot = internalAction({
   args: {
     cardId: v.id("cards"),
     retryCount: v.optional(v.number()),
   },
+  returns: screenshotOutcomeValidator,
   handler: async (ctx, { cardId, retryCount = 0 }) => {
     const card = await ctx.runQuery(linkMetadataInternal.getCardForScreenshot, {
       cardId,
     });
-
     if (card?.type !== "link" || !card.url) {
-      return;
+      return { status: "skipped" as const };
     }
-
     const linkPreview = card.metadata?.linkPreview;
     if (linkPreview?.status !== "success") {
-      return;
+      return { status: "skipped" as const };
     }
-
     if (linkPreview.screenshotStorageKey && retryCount === 0) {
-      return;
+      return { status: "skipped" as const };
     }
 
     const normalizedUrl = normalizeUrl(card.url);
-
     let html: string;
     try {
       const response = await safeFetch(
@@ -329,9 +100,21 @@ export const captureScreenshot = internalAction({
         },
         pinnedFetch
       );
+      if (response.status >= 500 || response.status === 429) {
+        await response.body?.cancel().catch(() => undefined);
+        throwRetryable({
+          type: "http_error",
+          message: `HTTP ${response.status}`,
+        });
+      }
+      if (!response.ok) {
+        await response.body?.cancel().catch(() => undefined);
+        return { status: "failed" as const, reason: `http_${response.status}` };
+      }
       const contentType = response.headers.get("content-type") ?? "";
-      if (!(response.ok && contentType.toLowerCase().includes("text/html"))) {
-        return;
+      if (!contentType.toLowerCase().includes("text/html")) {
+        await response.body?.cancel().catch(() => undefined);
+        return { status: "failed" as const, reason: "not_html" };
       }
       html = new TextDecoder().decode(
         await readBodyWithLimit(response, MAX_SCREENSHOT_HTML_BYTES)
@@ -341,53 +124,57 @@ export const captureScreenshot = internalAction({
         console.warn(
           `[screenshot] Skipping screenshot for card ${cardId}: ${error.reason}`
         );
-        return;
+        return { status: "failed" as const, reason: "blocked_url" };
+      }
+      if (isNetworkError(error)) {
+        throwRetryable({
+          type: "http_error",
+          message: (error as Error)?.message,
+        });
       }
       throw error;
     }
 
-    // One key for either renderer, registered once before anything writes.
+    // Registered before the Worker writes it.
     const screenshotKey = buildR2ObjectKey({
       userId: card.userId,
       cardId,
       role: "screenshot",
     });
     await ensureObjectOwnership(ctx, card.userId, screenshotKey);
-    const screenshotResult =
-      (await captureScreenshotWithFilesWorker({ html, screenshotKey })) ??
-      (await captureScreenshotWithKernel({
-        html,
-        screenshotKey,
-        url: normalizedUrl,
-      }));
 
-    if (screenshotResult?.screenshotKey) {
-      await ctx.runMutation(linkMetadataInternal.updateCardScreenshot, {
-        cardId,
-        screenshotStorageKey: screenshotResult.screenshotKey,
-        screenshotUpdatedAt: screenshotResult.screenshotUpdatedAt ?? Date.now(),
-        screenshotWidth: screenshotResult.screenshotWidth,
-        screenshotHeight: screenshotResult.screenshotHeight,
+    let outcome: FilesWorkerRenderingOutcome<FilesCaptureScreenshotResult>;
+    try {
+      outcome = await runFilesWorkerRendering<FilesCaptureScreenshotResult>(
+        "capture-screenshot",
+        { destinationKey: screenshotKey, htmlGzipBase64: gzipBase64(html) }
+      );
+    } catch (error) {
+      console.warn(`[screenshot] Renderer unavailable for card ${cardId}`, {
+        error: error instanceof Error ? error.message : String(error),
       });
-      return;
-    }
-
-    const error = screenshotResult?.error;
-    if (!error) {
-      return;
-    }
-
-    if (error.type === "rate_limit" || error.type === "http_error") {
-      throwRetryable({
-        type: error.type,
-        message: error.message,
-        details: error.details,
+      return throwRetryable({
+        type: "renderer_unavailable",
+        message: error instanceof Error ? error.message : String(error),
       });
     }
+    if (outcome.kind === "declined") {
+      console.warn(
+        `[screenshot] Renderer declined card ${cardId}: ${outcome.reason}`
+      );
+      return {
+        status: "failed" as const,
+        reason: `declined:${outcome.reason}`.slice(0, 200),
+      };
+    }
 
-    console.warn(
-      `[screenshot] Screenshot capture failed for card ${cardId}:`,
-      error
-    );
+    await ctx.runMutation(linkMetadataInternal.updateCardScreenshot, {
+      cardId,
+      screenshotStorageKey: screenshotKey,
+      screenshotUpdatedAt: Date.now(),
+      screenshotWidth: outcome.data.width,
+      screenshotHeight: outcome.data.height,
+    });
+    return { status: "captured" as const };
   },
 });

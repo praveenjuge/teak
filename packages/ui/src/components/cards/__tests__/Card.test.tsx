@@ -76,7 +76,14 @@ mock.module("../previews/GridImagePreview", () => ({
 }));
 
 mock.module("../previews/GridVideoPreview", () => ({
-  GridVideoPreview: () => React.createElement("div"),
+  GridVideoPreview: (props: Record<string, unknown>) =>
+    React.createElement("div", {
+      "data-video-props": JSON.stringify({
+        scrub: props.scrub,
+        scrubKey: props.scrubKey,
+        scrubUrl: props.scrubUrl,
+      }),
+    }),
 }));
 
 const { Card, resolveImageCopyUrl } = await import("../Card");
@@ -184,5 +191,49 @@ describe("Cards/Card", () => {
 
     expect(markup).toContain("video-poster.jpg");
     expect(markup).not.toContain("screenshot.jpg");
+  });
+
+  test("passes scrub data from the card to the video preview", () => {
+    const scrub = { frames: 12, frameHeight: 90, frameWidth: 160 };
+    const markup = renderToStaticMarkup(
+      <Card
+        card={
+          createLinkCard({
+            type: "video",
+            fileUrl: "https://example.com/clip.mp4",
+            fileMetadata: { scrub },
+            scrubKey: "scrub-key",
+            scrubUrl: "https://example.com/scrub.jpg",
+          }) as any
+        }
+      />
+    );
+    const props = JSON.parse(
+      /data-video-props="([^"]*)"/
+        .exec(markup)?.[1]
+        ?.replaceAll("&quot;", '"') ?? "null"
+    );
+
+    expect(props).toEqual({
+      scrub,
+      scrubKey: "scrub-key",
+      scrubUrl: "https://example.com/scrub.jpg",
+    });
+  });
+
+  test("passes the waveform grid from the card to the audio preview", () => {
+    const grid = Array.from({ length: 45 }, () => 100);
+    const markup = renderToStaticMarkup(
+      <Card
+        card={
+          createLinkCard({
+            type: "audio",
+            fileMetadata: { waveform: { detail: [], grid } },
+          }) as any
+        }
+      />
+    );
+
+    expect((markup.match(/height:100%/g) ?? []).length).toBe(45);
   });
 });

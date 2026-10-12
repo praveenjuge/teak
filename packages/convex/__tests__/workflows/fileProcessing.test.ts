@@ -62,7 +62,8 @@ describe("extractFileTextForAiForKey for PDFs", () => {
       op: "inspect",
       params: {
         formatId: "pdf",
-        maxBytes: 25 * 1024 * 1024,
+        // Any upload size: the renderer reads PDFs up to Teak's 100 MiB cap.
+        maxBytes: 100 * 1024 * 1024,
         mode: "pdf",
         sourceKey: PDF_KEY,
       },
@@ -91,25 +92,31 @@ describe("extractFileTextForAiForKey for PDFs", () => {
     ).toBe("");
   });
 
-  test("still surfaces worker outages so workflow retries apply", async () => {
-    mockFetch.mockResolvedValue(
-      Response.json(
-        {
-          error: {
-            code: "INTERNAL",
-            message: "Internal operation failed",
-            requestId: "r3",
-            retryable: true,
+  test.each([
+    ["INTERNAL", 500],
+    ["RENDERER_UNAVAILABLE", 503],
+  ])(
+    "still surfaces %s so workflow retries apply",
+    async (code: string, status: number) => {
+      mockFetch.mockResolvedValue(
+        Response.json(
+          {
+            error: {
+              code,
+              message: "Unavailable",
+              requestId: "r3",
+              retryable: true,
+            },
+            ok: false,
+            version: 1,
           },
-          ok: false,
-          version: 1,
-        },
-        { status: 500 }
-      )
-    );
+          { status }
+        )
+      );
 
-    await expect(
-      extractFileTextForAiForKey(PDF_KEY, pdfFormat(), pdfCard)
-    ).rejects.toThrow("files_worker_error:INTERNAL:500");
-  });
+      await expect(
+        extractFileTextForAiForKey(PDF_KEY, pdfFormat(), pdfCard)
+      ).rejects.toThrow(`files_worker_error:${code}:${status}`);
+    }
+  );
 });

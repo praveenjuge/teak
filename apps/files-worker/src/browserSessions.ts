@@ -33,7 +33,7 @@ const MAX_CONNECT_ATTEMPTS = 2;
  * rate and concurrency limits; connections to a running one do not. Each
  * operation opens its pages in its own browser context, so they share no
  * cookies or storage. A refused launch throws `browser_unavailable`, which
- * callers answer as UNSUPPORTED so Convex renders with Kernel.
+ * callers answer as RENDERER_UNAVAILABLE so Convex retries later.
  */
 export const createBrowserAcquirer =
   <Binding>(
@@ -63,8 +63,8 @@ export const createBrowserAcquirer =
       });
       return { browser, release: () => browser.disconnect() };
     } catch (error) {
-      // Browser Run refuses new browsers past its plan limits; Convex then
-      // renders with Kernel, so this is a decline rather than a failure.
+      // Browser Run refuses new browsers past its plan limits. That passes, so
+      // Convex retries with backoff instead of failing the card.
       console.warn("[files-worker] Browser Run unavailable", {
         message: error instanceof Error ? error.message : String(error),
       });

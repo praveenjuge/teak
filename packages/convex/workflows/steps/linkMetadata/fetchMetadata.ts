@@ -2,7 +2,6 @@
 
 import { lookup } from "node:dns/promises";
 import { gzipSync } from "node:zlib";
-import Kernel from "@onkernel/sdk";
 import type { FilesScrapeResult } from "@teak/files-protocol";
 import { v } from "convex/values";
 import { internal } from "../../../_generated/api";
@@ -16,11 +15,9 @@ import type {
 } from "../../../linkMetadata";
 import {
   buildErrorPreview,
-  buildInstagramPrimaryImageSnippet,
   buildSuccessPreview,
+  extractInstagramMediaFromHtml,
   isInstagramPostUrl,
-  isInstagramUrl,
-  normalizeInstagramExtractedMedia,
   normalizeUrl,
   parseLinkPreview,
   SCRAPE_ELEMENTS,
@@ -39,7 +36,7 @@ import {
   type XStatusMedia,
 } from "../../../linkMetadata/x";
 import { TELEMETRY_OPERATIONS } from "../../../shared/telemetry";
-import { tryFilesWorkerRendering } from "../../../storage/filesWorkerRendering";
+import { runFilesWorkerRendering } from "../../../storage/filesWorkerRendering";
 import { buildR2ObjectKey, storeObject } from "../../../storage/r2";
 import { withBackendSpan } from "../../../telemetry/sentry";
 import { pinnedFetch } from "../pinnedFetch";
@@ -498,10 +495,11 @@ const buildSelectorResultsFromHtml = (
   });
 };
 
+/** The page's static metadata, and its HTML for the browser and parsers. */
 const scrapeWithFetch = async (
   url: string,
   selectors: { selector: string }[]
-): Promise<ScrapeResponse> => {
+): Promise<{ html: string | null; payload: ScrapeResponse }> => {
   try {
     const response = await safeFetch(
       url,
@@ -517,33 +515,47 @@ const scrapeWithFetch = async (
     );
 
     if (!response.ok) {
+      await response.body?.cancel().catch(() => undefined);
       return {
-        success: false,
-        errors: [{ code: response.status, message: `HTTP ${response.status}` }],
+        html: null,
+        payload: {
+          success: false,
+          errors: [
+            { code: response.status, message: `HTTP ${response.status}` },
+          ],
+        },
       };
     }
 
     const contentType = response.headers.get("content-type") ?? "";
     if (!contentType.toLowerCase().includes("text/html")) {
+      await response.body?.cancel().catch(() => undefined);
       return {
-        success: false,
-        errors: [{ message: `Unsupported content-type: ${contentType}` }],
+        html: null,
+        payload: {
+          success: false,
+          errors: [{ message: `Unsupported content-type: ${contentType}` }],
+        },
       };
     }
 
     const html = new TextDecoder().decode(
       await readBodyWithLimit(response, MAX_REMOTE_HTML_BYTES)
     );
-    const selectorResults = buildSelectorResultsFromHtml(html, selectors);
-
     return {
-      success: true,
-      result: { selectors: selectorResults },
+      html,
+      payload: {
+        success: true,
+        result: { selectors: buildSelectorResultsFromHtml(html, selectors) },
+      },
     };
   } catch (error) {
     return {
-      success: false,
-      errors: [{ message: (error as Error)?.message || "fetch_failed" }],
+      html: null,
+      payload: {
+        success: false,
+        errors: [{ message: (error as Error)?.message || "fetch_failed" }],
+      },
     };
   }
 };
@@ -566,127 +578,33 @@ const hasSelectorResults = (payload: ScrapeResponse) =>
   payload.success &&
   payload.result?.selectors?.some((selector) => selector.results.length);
 
-const scrapeWithKernel = async (
-  url: string,
+/**
+ * Query the selectors on Browser Run, with the page's inline scripts run
+ * offline, for pages whose static HTML has no preview metadata. Null keeps
+ * the static result: the Worker declined or is unavailable.
+ */
+const scrapeWithBrowser = async (
+  html: string,
   selectors: { selector: string }[]
-): Promise<ScrapeResponse> => {
-  const response = await safeFetch(
-    url,
-    resolveDns,
-    { headers: { accept: "text/html,application/xhtml+xml" } },
-    pinnedFetch
-  );
-  if (!response.ok) {
-    return {
-      success: false,
-      errors: [{ code: response.status, message: `HTTP ${response.status}` }],
-    };
-  }
-  const contentType = response.headers.get("content-type") ?? "";
-  if (!contentType.toLowerCase().includes("text/html")) {
-    return {
-      success: false,
-      errors: [{ message: `Unsupported content-type: ${contentType}` }],
-    };
-  }
-  const html = new TextDecoder().decode(
-    await readBodyWithLimit(response, MAX_REMOTE_HTML_BYTES)
-  );
-  // Browser Run in the Files Worker queries the same offline HTML; Kernel
-  // stays the fallback for Workers without the binding. Instagram keeps Kernel,
-  // whose page code also extracts post media and the primary image.
-  const scraped = isInstagramUrl(url)
-    ? null
-    : await tryFilesWorkerRendering<FilesScrapeResult>(
-        "scrape-html",
-        {
-          htmlGzipBase64: gzipSync(Buffer.from(html, "utf8")).toString(
-            "base64"
-          ),
-          selectors: selectors.map((selector) => selector.selector),
-        },
-        "[linkMetadata]"
-      );
-  if (scraped) {
-    return { success: true, result: { selectors: scraped.selectors } };
-  }
-  const kernel = new Kernel();
-  let kernelBrowser: { session_id: string } | undefined;
+): Promise<ScrapeResponse | null> => {
   try {
-    kernelBrowser = await kernel.browsers.create({
-      headless: true,
-      stealth: true,
-    });
-    const selectorStrings = selectors.map((selector) => selector.selector);
-    const instagramPrimaryImageSnippet = buildInstagramPrimaryImageSnippet();
-    const code = `
-      await page.route('**/*', route => route.abort());
-      await page.addInitScript(() => {
-        const blocked = () => { throw new Error('Network access is disabled'); };
-        Object.defineProperty(globalThis, 'WebSocket', { value: blocked });
-        Object.defineProperty(globalThis, 'EventSource', { value: blocked });
-      });
-      await page.setContent(${JSON.stringify(html)}, { waitUntil: 'domcontentloaded', timeout: 20000 });
-      const selectors = ${JSON.stringify(selectorStrings)};
-      const results = [];
-      for (const selector of selectors) {
-        const elements = await page.$$(selector).catch(() => []);
-        const selectorResults = [];
-        for (const element of elements) {
-          const text = await element.textContent().catch(() => null);
-          const innerHtml = await element.innerHTML().catch(() => null);
-          const attributes = await element.evaluate(el =>
-            Array.from(el.attributes).map(attr => ({ name: attr.name, value: attr.value }))
-          ).catch(() => []);
-          selectorResults.push({
-            text: text?.trim() || undefined,
-            html: innerHtml?.trim() || undefined,
-            attributes: attributes.length ? attributes : undefined
-          });
-        }
-        results.push({ selector, results: selectorResults });
+    const outcome = await runFilesWorkerRendering<FilesScrapeResult>(
+      "scrape-html",
+      {
+        htmlGzipBase64: gzipSync(Buffer.from(html, "utf8")).toString("base64"),
+        selectors: selectors.map((selector) => selector.selector),
       }
-      let primaryImage = null;
-      let instagramMedia = undefined;
-${instagramPrimaryImageSnippet}
-      return {
-        selectors: results,
-        instagramMedia: Array.isArray(instagramMedia) ? instagramMedia : undefined,
-        primaryImage: primaryImage || undefined
-      };
-    `;
-    const execution = await kernel.browsers.playwright.execute(
-      kernelBrowser.session_id,
-      { code, timeout_sec: 35 }
     );
-    return execution.success
-      ? {
-          success: true,
-          result: execution.result as ScrapeResponse["result"],
-        }
-      : {
-          success: false,
-          errors: [
-            { message: execution.error || "Playwright execution failed" },
-          ],
-        };
-  } catch (error) {
-    return {
-      success: false,
-      errors: [{ message: (error as Error)?.message || "Unknown error" }],
-    };
-  } finally {
-    if (kernelBrowser?.session_id) {
-      try {
-        await kernel.browsers.deleteByID(kernelBrowser.session_id);
-      } catch (cleanupError) {
-        console.warn(
-          "[linkMetadata] Failed to cleanup browser session:",
-          cleanupError
-        );
-      }
+    if (outcome.kind === "ok") {
+      return { success: true, result: { selectors: outcome.data.selectors } };
     }
+    console.log(`[linkMetadata] Browser scrape declined: ${outcome.reason}`);
+  } catch (error) {
+    console.warn("[linkMetadata] Browser scrape failed; keeping static HTML", {
+      error: error instanceof Error ? error.message : String(error),
+    });
   }
+  return null;
 };
 
 export const fetchMetadataHandler = async (ctx: any, { cardId }: any) => {
@@ -798,7 +716,10 @@ export const fetchMetadataHandler = async (ctx: any, { cardId }: any) => {
       }
     }
 
-    const staticPayload = await scrapeWithFetch(normalizedUrl, SCRAPE_ELEMENTS);
+    const { html, payload: staticPayload } = await scrapeWithFetch(
+      normalizedUrl,
+      SCRAPE_ELEMENTS
+    );
     let payload = staticPayload;
 
     // A dead or forbidden link (404, 410, 401, 403, ...) will not recover on
@@ -825,46 +746,35 @@ export const fetchMetadataHandler = async (ctx: any, { cardId }: any) => {
       };
     }
 
-    // Most pages expose their preview metadata in static HTML. Prefer that
-    // bounded, DNS-pinned path so ordinary links do not depend on browser
-    // capacity. Instagram still needs the offline browser parser for embedded
-    // media data, and pages without useful static metadata get the same richer
-    // fallback.
-    if (isInstagramPostUrl(normalizedUrl) || !hasSelectorResults(payload)) {
-      const browserPayload = await scrapeWithKernel(
+    if (!staticPayload.success) {
+      const errorMessage =
+        staticPayload.errors
+          ?.map((error) => error?.message)
+          .filter(Boolean)
+          .join("; ") || "Unknown scrape error";
+      throwRetryable({
+        type:
+          scrapeHttpStatus(staticPayload) === 429
+            ? "rate_limit"
+            : "scrape_error",
         normalizedUrl,
-        SCRAPE_ELEMENTS
-      );
-      if (browserPayload.success) {
-        payload = browserPayload;
-      } else if (!staticPayload.success) {
-        const errorMessage =
-          browserPayload.errors
-            ?.map((error) => error?.message)
-            .filter(Boolean)
-            .join("; ") || "Unknown scrape error";
-        const isRateLimit =
-          scrapeHttpStatus(staticPayload) === 429 ||
-          scrapeHttpStatus(browserPayload) === 429;
-        throwRetryable({
-          type: isRateLimit ? "rate_limit" : "scrape_error",
-          normalizedUrl,
-          message: errorMessage,
-          details: {
-            browser: browserPayload.errors,
-            fallback: staticPayload.errors,
-          },
-        });
-      }
+        message: errorMessage,
+        details: { fallback: staticPayload.errors },
+      });
+    }
+
+    // Most pages expose their preview metadata in static HTML. Pages without
+    // it get the same HTML rendered offline, so inline scripts can fill it in.
+    if (html && !hasSelectorResults(payload)) {
+      payload = (await scrapeWithBrowser(html, SCRAPE_ELEMENTS)) ?? payload;
     }
 
     const parsed = parseLinkPreview(normalizedUrl, payload.result?.selectors);
+    // Instagram posts embed their media in the page's relay JSON; og:image
+    // stays the fallback when it is missing (a login wall).
     const extractedInstagramMedia =
-      isInstagramPostUrl(normalizedUrl) && payload.result?.instagramMedia
-        ? normalizeInstagramExtractedMedia(
-            normalizedUrl,
-            payload.result.instagramMedia
-          )
+      html && isInstagramPostUrl(normalizedUrl)
+        ? extractInstagramMediaFromHtml(normalizedUrl, html)
         : undefined;
     const storedInstagramMedia = extractedInstagramMedia?.length
       ? await storeLinkPreviewMedia(ctx, extractedInstagramMedia, keyBase)
@@ -879,13 +789,7 @@ export const fetchMetadataHandler = async (ctx: any, { cardId }: any) => {
           (item.type === "video" && Boolean(item.posterStorageKey))
       )
     );
-    const primaryImageCandidate = payload.result?.primaryImage?.url;
-    const primaryImageUrl =
-      primaryImageCandidate && isInstagramUrl(normalizedUrl)
-        ? primaryImageCandidate
-        : undefined;
-    const resolvedImageUrl =
-      primaryImageUrl ?? attachedPreviewImageUrl ?? parsed.imageUrl;
+    const resolvedImageUrl = attachedPreviewImageUrl ?? parsed.imageUrl;
     const parsedWithPrimary = resolvedImageUrl
       ? { ...parsed, imageUrl: resolvedImageUrl }
       : parsed;

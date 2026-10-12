@@ -10,8 +10,8 @@
     "dev": "wrangler dev --remote --var SENTRY_ENVIRONMENT:development",
     "dev:development": "bun --no-env-file run ../../scripts/files-worker-dev.ts",
     "dev:local": "wrangler dev --var SENTRY_ENVIRONMENT:development",
-    "test": "bun test src",
-    "typecheck": "tsc --noEmit"
+    "test": "bun test src container/src",
+    "typecheck": "tsc --noEmit && tsc -p container --noEmit"
   },
   "dependencies": {
     "@cf-wasm/photon": "^0.4.0",
@@ -22,11 +22,9 @@
     "@teak/convex": "workspace:*",
     "@teak/files-protocol": "workspace:*",
     "client-zip": "^2.4.5",
-    "fflate": "^0.8.2",
-    "unpdf": "1.8.1"
+    "fflate": "^0.8.2"
   },
   "devDependencies": {
-    "pdfjs-dist": "3.11.174",
     "wrangler": "^4.136.1"
   }
 }

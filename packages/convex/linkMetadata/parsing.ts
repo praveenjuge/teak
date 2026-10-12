@@ -226,6 +226,8 @@ export const buildSuccessPreview = (
   url: string,
   parsed: Omit<LinkPreviewMetadata, "fetchedAt" | "source" | "status" | "url">
 ): LinkPreviewMetadata => ({
+  // A stored label from the original renderer; clients and stored previews
+  // read it as "Teak's own scraper", so it stays.
   source: "kernel_playwright",
   status: "success",
   fetchedAt: Date.now(),

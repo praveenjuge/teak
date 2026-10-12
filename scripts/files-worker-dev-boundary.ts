@@ -125,6 +125,10 @@ export const readDevelopmentFilesRouting = async (
 
 export interface WranglerConfigShape {
   account_id?: string;
+  containers?: {
+    class_name?: string;
+    image?: string;
+  }[];
   durable_objects?: {
     bindings?: {
       name?: string;
@@ -143,10 +147,33 @@ export interface WranglerConfigShape {
   routes?: unknown[];
 }
 
-/** Only the development bucket, no routes, and a gate namespace of its own. */
+// Each Durable Object namespace belongs to this script: the deletion gates
+// and the media renderer Container.
+const DEVELOPMENT_DURABLE_OBJECTS = [
+  ["OBJECT_GATES", "ObjectDeletionGate"],
+  ["MEDIA_RENDERER", "MediaRenderer"],
+] as const;
+
+const ownsDurableObjects = (config: WranglerConfigShape): boolean => {
+  const bindings = config.durable_objects?.bindings ?? [];
+  return (
+    bindings.length === DEVELOPMENT_DURABLE_OBJECTS.length &&
+    DEVELOPMENT_DURABLE_OBJECTS.every(([name, className]) =>
+      bindings.some(
+        (binding) =>
+          binding.name === name &&
+          binding.class_name === className &&
+          !binding.script_name &&
+          !binding.environment
+      )
+    )
+  );
+};
+
+/** Only the development bucket, no routes, and namespaces of its own. */
 export const assertDevelopmentWorkerConfig = (config: WranglerConfigShape) => {
   const bucket = config.r2_buckets?.[0];
-  const gate = config.durable_objects?.bindings?.[0];
+  const container = config.containers?.[0];
   if (
     config.name !== DEVELOPMENT_FILES_WORKER ||
     config.account_id !== CLOUDFLARE_ACCOUNT_ID ||
@@ -156,14 +183,13 @@ export const assertDevelopmentWorkerConfig = (config: WranglerConfigShape) => {
     bucket?.binding !== "BUCKET" ||
     bucket.bucket_name !== DEVELOPMENT_STORAGE_BUCKET ||
     bucket.preview_bucket_name !== DEVELOPMENT_STORAGE_BUCKET ||
-    config.durable_objects?.bindings?.length !== 1 ||
-    gate?.name !== "OBJECT_GATES" ||
-    gate.class_name !== "ObjectDeletionGate" ||
-    gate.script_name ||
-    gate.environment
+    !ownsDurableObjects(config) ||
+    config.containers?.length !== 1 ||
+    container?.class_name !== "MediaRenderer" ||
+    container.image !== "../container/Dockerfile"
   ) {
     throw new Error(
-      "development/wrangler.jsonc must bind only the development bucket, no routes, and its own Durable Object namespace."
+      "development/wrangler.jsonc must bind only the development bucket, no routes, and its own Durable Object namespaces."
     );
   }
 };
