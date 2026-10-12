@@ -45,7 +45,10 @@ interface DeveloperCard {
   docsLabel: string;
   href: string;
   icon: string;
+  meta: string;
   name: string;
+  // Shell commands get a "$" prompt; URLs don't.
+  shell: boolean;
   snippet: string;
 }
 
@@ -137,34 +140,42 @@ const developerCards: DeveloperCard[] = [
     name: "MCP",
     icon: "plug",
     copy: "Let AI assistants search, save, and manage your cards over the remote MCP server.",
+    meta: "Remote server",
+    shell: false,
     snippet: "https://teakvault.com/mcp",
     href: MCP_DOCS_URL,
-    docsLabel: "MCP docs",
+    docsLabel: "Docs",
   },
   {
     name: "REST API",
     icon: "braces",
     copy: "Create, search, and update cards from your own tools with an API key.",
+    meta: "HTTPS with an API key",
+    shell: true,
     snippet:
-      'curl -H "Authorization: Bearer $TEAK_API_KEY" https://teakvault.com/api/v1/cards',
+      'curl https://teakvault.com/api/v1/cards -H "Authorization: Bearer $TEAK_API_KEY"',
     href: API_DOCS_URL,
-    docsLabel: "API docs",
+    docsLabel: "Docs",
   },
   {
     name: "Command Line",
     icon: "terminal",
     copy: "Save, search, favorite, and manage cards from any terminal.",
+    meta: "npm package",
+    shell: true,
     snippet: "npm i -g teak-cli",
     href: CLI_DOCS_URL,
-    docsLabel: "CLI docs",
+    docsLabel: "Docs",
   },
   {
     name: "Agent Skill",
     icon: "sparkles",
     copy: "Teach coding agents to use Teak through the CLI, API, MCP, and SDK.",
+    meta: "skills.sh",
+    shell: true,
     snippet: "npx skills add praveenjuge/teak --skill teak",
     href: SKILLS_URL,
-    docsLabel: "View on skills.sh",
+    docsLabel: "View",
   },
 ];
 
@@ -252,31 +263,42 @@ const isExternal = (href?: string) => href?.startsWith("http") ?? false;
       <h2 class="text-2xl leading-tight font-bold tracking-[-0.025em]" id="apps-builders">For builders and agents</h2>
       <p class="mt-1.5 text-[0.9375rem] leading-relaxed text-pretty text-muted-foreground">Wire your library into your own tools. Copy the first line, and the docs cover the rest.</p>
     </div>
-    <ul class="grid list-none grid-cols-1 gap-4 p-0 sm:grid-cols-2">
+    <ul class="dev-grid grid list-none grid-cols-1 gap-4 p-0 sm:grid-cols-2">
       {developerCards.map((card) => (
-        <li class="app-card group">
-          <span class="app-icon">
-            <Icon name={card.icon} size={22} />
-          </span>
-          <h3 class="mt-4 text-lg leading-tight font-semibold tracking-[-0.01em]">
-            <a
-              class="app-card-link"
-              href={card.href}
-              rel={isExternal(card.href) ? "noopener noreferrer" : undefined}
-              target={isExternal(card.href) ? "_blank" : undefined}
-            >
-              {card.name}
-            </a>
-          </h3>
-          <p class="mt-1.5 text-sm leading-relaxed text-pretty text-muted-foreground">{card.copy}</p>
-          <div class="snippet mt-4">
-            <code class="snippet-code">{card.snippet}</code>
+        <li class="app-card dev-card group">
+          <div class="flex items-center gap-3">
+            <span class="app-icon dev-icon">
+              <Icon name={card.icon} size={20} />
+            </span>
+            <div class="min-w-0 flex-1">
+              <h3 class="text-base leading-tight font-semibold tracking-[-0.01em]">
+                <a
+                  class="app-card-link"
+                  href={card.href}
+                  rel={isExternal(card.href) ? "noopener noreferrer" : undefined}
+                  target={isExternal(card.href) ? "_blank" : undefined}
+                >
+                  {card.name}
+                </a>
+              </h3>
+              <p class="mt-0.5 text-xs text-muted-foreground">{card.meta}</p>
+            </div>
+            <span class="docs-link" aria-hidden="true">
+              {card.docsLabel}
+              <Icon name="arrow-up-right" size={14} />
+            </span>
+          </div>
+          <p class="text-sm leading-relaxed text-pretty text-muted-foreground">{card.copy}</p>
+          <div class="snippet">
+            <code class="snippet-code">
+              {card.shell && <span class="snippet-prompt" aria-hidden="true">$</span>}
+              {card.snippet}
+            </code>
             <button aria-label={`Copy ${card.name} snippet`} class="copy-button" data-copy={card.snippet} type="button">
               <span class="copy-idle"><Icon name="copy" size={15} /></span>
               <span class="copy-done" hidden><Icon name="check" size={15} /></span>
             </button>
           </div>
-          <span class="mt-auto pt-4 text-sm font-medium text-primary">{card.docsLabel} →</span>
         </li>
       ))}
     </ul>
@@ -300,10 +322,10 @@ const isExternal = (href?: string) => href?.startsWith("http") ?? false;
     // iPadOS reports itself as a Mac, so touch support tells them apart.
     const isIOS =
       /iPhone|iPad|iPod/.test(ua) ||
-      (/Mac/.test(platform) && navigator.maxTouchPoints > 1);
+      (/mac/i.test(platform) && navigator.maxTouchPoints > 1);
     if (isIOS) return "ios";
     if (/Android/i.test(ua)) return "android";
-    if (/Mac/.test(platform)) return "mac";
+    if (/mac/i.test(platform)) return "mac";
     const isChromium = nav.userAgentData?.brands?.some(({ brand }) =>
       /Chromium|Google Chrome/.test(brand)
     );
@@ -316,6 +338,8 @@ const isExternal = (href?: string) => href?.startsWith("http") ?? false;
     );
     if (card) {
       card.dataset.current = "";
+      // Move it in the DOM, not just visually, so focus order matches.
+      card.parentElement?.prepend(card);
       card.querySelector<HTMLElement>("[data-current-pill]")?.removeAttribute("hidden");
     }
 
@@ -384,13 +408,6 @@ const isExternal = (href?: string) => href?.startsWith("http") ?? false;
     .app-card:not(.app-card-static):hover { translate: 0 -3px; }
   }
 
-  /* The visitor's own platform moves to the front of its group. */
-  .app-card[data-current] {
-    order: -1;
-    border-color: color-mix(in oklab, var(--primary) 55%, transparent);
-    box-shadow: 0 0 0 3px color-mix(in oklab, var(--primary) 14%, transparent);
-  }
-
   .current-pill,
   .soon-pill {
     display: inline-flex;
@@ -429,28 +446,75 @@ const isExternal = (href?: string) => href?.startsWith("http") ?? false;
     background: var(--background);
   }
 
+  /* Cards in a row share their header, copy, and snippet tracks, so the
+     snippets line up even when one description wraps to two lines. */
+  .dev-card {
+    display: grid;
+    grid-row: span 3;
+    grid-template-rows: subgrid;
+    row-gap: 1rem;
+    padding: 1.25rem;
+  }
+
+  .dev-icon {
+    width: 2.5rem;
+    height: 2.5rem;
+    flex-shrink: 0;
+    border-radius: 0.625rem;
+  }
+
+  .docs-link {
+    display: inline-flex;
+    flex-shrink: 0;
+    align-items: center;
+    gap: 0.25rem;
+    align-self: flex-start;
+    padding: 0.25rem 0.5rem;
+    border-radius: 999px;
+    color: var(--muted-foreground);
+    font-size: 0.8125rem;
+    font-weight: 500;
+    transition: background-color 150ms ease, color 150ms ease;
+  }
+
+  .dev-card:hover .docs-link {
+    background: var(--muted);
+    color: var(--primary);
+  }
+
   /* Sits above the card's full-size link so the copy button stays clickable. */
   .snippet {
     position: relative;
     z-index: 1;
     display: flex;
     align-items: center;
-    gap: 0.5rem;
+    align-self: end;
+    gap: 0.25rem;
     min-width: 0;
-    padding: 0.375rem 0.375rem 0.375rem 0.875rem;
-    border: 1px solid color-mix(in oklab, var(--border) 70%, transparent);
+    height: 2.75rem;
+    padding: 0 0.375rem 0 0.875rem;
+    border: 1px solid color-mix(in oklab, var(--border) 80%, transparent);
     border-radius: 0.75rem;
-    background: var(--muted);
+    background: color-mix(in oklab, var(--muted) 70%, var(--background));
   }
 
   .snippet-code {
     flex: 1;
     min-width: 0;
     overflow-x: auto;
+    padding-right: 1.5rem;
     font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
     font-size: 0.8125rem;
     white-space: nowrap;
     scrollbar-width: none;
+    /* Long commands fade out at the edge instead of being cut mid-word. */
+    mask-image: linear-gradient(to right, black calc(100% - 2rem), transparent);
+  }
+
+  .snippet-prompt {
+    margin-right: 0.5rem;
+    color: var(--muted-foreground);
+    user-select: none;
   }
 
   .copy-button {
