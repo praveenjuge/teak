@@ -67,6 +67,12 @@ class CardPager(
         publish()
         slot.job = scope.launch {
             repository.page(query, slot.cursor, pageSize).collect { result ->
+                val error = result.exceptionOrNull()
+                if (slot.cursor != null && error.isInvalidCursor()) {
+                    // The paginated query changed underneath us (a backend deploy): start over.
+                    restart()
+                    return@collect
+                }
                 result.onSuccess {
                     slot.page = it
                     slot.error = null
@@ -94,5 +100,7 @@ class CardPager(
 
     companion object {
         const val PAGE_SIZE = 20
+
+        private fun Throwable?.isInvalidCursor() = this?.message?.contains("InvalidCursor") == true
     }
 }

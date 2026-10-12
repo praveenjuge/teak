@@ -1,0 +1,77 @@
+package com.praveenjuge.teak.core.data.repository
+
+import com.praveenjuge.teak.core.model.Card
+import com.praveenjuge.teak.core.model.CardFieldChange
+import com.praveenjuge.teak.core.model.CardSummary
+import com.praveenjuge.teak.core.model.CardSummaryPage
+import com.praveenjuge.teak.core.model.CardType
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.test.UnconfinedTestDispatcher
+import kotlinx.coroutines.test.runTest
+import org.junit.Test
+import kotlin.test.assertEquals
+import kotlin.test.assertNull
+
+@OptIn(ExperimentalCoroutinesApi::class)
+class CardPagerTest {
+    /** Serves page one, then fails page two once with Convex's InvalidCursor, as after a deploy. */
+    private class DeployedRepository : CardsRepository {
+        val cursors = mutableListOf<String?>()
+        private var failedOnce = false
+
+        override fun page(query: CardQuery, cursor: String?, numItems: Int): Flow<Result<CardSummaryPage>> {
+            cursors += cursor
+            if (cursor == null) {
+                return flowOf(Result.success(CardSummaryPage(listOf(Card1), isDone = false, continueCursor = "c1")))
+            }
+            if (!failedOnce) {
+                failedOnce = true
+                return flowOf(Result.failure(IllegalStateException("[CONVEX Q(cards:searchMobileCardSummariesPaginated)] InvalidCursor")))
+            }
+            return flowOf(Result.success(CardSummaryPage(listOf(Card2), isDone = true)))
+        }
+
+        override fun card(id: String): Flow<Result<Card?>> = error("unused")
+        override suspend fun setFavorite(id: String, favorite: Boolean) = error("unused")
+        override suspend fun moveToTrash(id: String) = error("unused")
+        override suspend fun restore(id: String) = error("unused")
+        override suspend fun deleteForever(id: String) = error("unused")
+        override suspend fun apply(id: String, changes: List<CardFieldChange>) = error("unused")
+        override suspend fun createFromText(text: String): String = error("unused")
+
+        companion object {
+            val Card1 = CardSummary(id = "card_1", creationTime = 0.0, type = CardType.Text, title = "One")
+            val Card2 = CardSummary(id = "card_2", creationTime = 0.0, type = CardType.Text, title = "Two")
+        }
+    }
+
+    @Test
+    fun `an invalid cursor after a deploy restarts from the first page instead of showing an error`() =
+        runTest(UnconfinedTestDispatcher()) {
+            val repository = DeployedRepository()
+            val pager = CardPager(repository, backgroundScope)
+
+            pager.load(CardQuery())
+            pager.loadMore()
+
+            val state = pager.state.value
+            assertNull(state.error)
+            assertEquals(listOf("card_1"), state.cards.map { it.id })
+            assertEquals(listOf(null, "c1", null), repository.cursors)
+        }
+
+    @Test
+    fun `other page errors are still shown`() = runTest(UnconfinedTestDispatcher()) {
+        val failing = object : CardsRepository by DeployedRepository() {
+            override fun page(query: CardQuery, cursor: String?, numItems: Int): Flow<Result<CardSummaryPage>> =
+                flowOf(Result.failure(IllegalStateException("Network is unreachable")))
+        }
+        val pager = CardPager(failing, backgroundScope)
+
+        pager.load(CardQuery())
+
+        assertEquals("Network is unreachable", pager.state.value.error?.message)
+    }
+}

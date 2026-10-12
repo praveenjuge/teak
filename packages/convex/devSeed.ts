@@ -318,20 +318,93 @@ export const CARD_DETAILS_SCENARIO_CARDS: DefaultCardDef[] = [
   ),
 ];
 
+// Ordering: 1,000 cards whose saved dates (`createdAt`) are spread over ten
+// years but inserted in a shuffled order, so insertion order and saved date
+// disagree on every page. Each card's text names its index and saved date,
+// so the grid shows at a glance whether it is sorted. Seeded 200 at a time.
+export const ORDERING_SCENARIO_SIZE = 1000;
+export const ORDERING_SCENARIO_PAGE_SIZE = 200;
+const ORDERING_START = Date.UTC(2016, 0, 1);
+const ORDERING_SPAN = Date.UTC(2026, 0, 1) - ORDERING_START;
+const ORDERING_TYPES = ["text", "quote", "link", "palette"] as const;
+
+// A fixed permutation of 0..n-1 (multiplication by a unit mod n), so the
+// pack is the same on every run.
+const orderingIndexAt = (position: number) =>
+  (position * 389) % ORDERING_SCENARIO_SIZE;
+
+const orderingHex = (seed: number) =>
+  `#${(Math.floor(((seed + 1) * 2_654_435_761) / 256) % 0x1_00_00_00)
+    .toString(16)
+    .padStart(6, "0")}`;
+
+export const orderingScenarioCard = (position: number): DefaultCardDef => {
+  const index = orderingIndexAt(position);
+  const createdAt =
+    ORDERING_START +
+    Math.floor((index / ORDERING_SCENARIO_SIZE) * ORDERING_SPAN);
+  const label = `#${String(index).padStart(4, "0")} saved ${new Date(createdAt).toISOString().slice(0, 10)}`;
+  const type = ORDERING_TYPES[index % ORDERING_TYPES.length];
+  const base = {
+    createdAt,
+    tags: ["scenario-ordering"],
+    isFavorited: index % 7 === 0 || undefined,
+    isDeleted: index % 50 === 0 || undefined,
+  };
+  if (type === "link") {
+    const url = `https://example.com/ordering/${index}#${SCENARIO_MARKER}-ordering`;
+    return {
+      ...base,
+      type,
+      content: url,
+      url,
+      metadataTitle: `Link ${label}`,
+    };
+  }
+  if (type === "palette") {
+    return {
+      ...base,
+      ...palette(`Palette ${label}`, [
+        orderingHex(index),
+        orderingHex(index + 500),
+      ]),
+    };
+  }
+  return {
+    ...base,
+    type,
+    content: type === "quote" ? `"Quote ${label}"` : `Note ${label}`,
+  };
+};
+
+const orderingScenarioPage = (page: number): DefaultCardDef[] => {
+  const start = page * ORDERING_SCENARIO_PAGE_SIZE;
+  const end = Math.min(
+    start + ORDERING_SCENARIO_PAGE_SIZE,
+    ORDERING_SCENARIO_SIZE
+  );
+  return Array.from({ length: Math.max(0, end - start) }, (_, offset) =>
+    orderingScenarioCard(start + offset)
+  );
+};
+
 const SCENARIO_PACKS = {
-  "card-details": CARD_DETAILS_SCENARIO_CARDS,
-} satisfies Record<string, DefaultCardDef[]>;
+  "card-details": () => CARD_DETAILS_SCENARIO_CARDS,
+  ordering: orderingScenarioPage,
+} satisfies Record<string, (page: number) => DefaultCardDef[]>;
 
 export const seedScenario = internalMutation({
   args: {
     workosUserId: v.string(),
-    scenario: v.literal("card-details"),
+    scenario: v.union(v.literal("card-details"), v.literal("ordering")),
+    /** Large packs seed in pages: run with page 0, 1, 2… until done. */
+    page: v.optional(v.number()),
   },
   returns: v.object({
     status: v.union(v.literal("seeded"), v.literal("already_seeded")),
     cards: v.number(),
   }),
-  handler: async (ctx, { workosUserId, scenario }) => {
+  handler: async (ctx, { workosUserId, scenario, page = 0 }) => {
     if (!readIsDevDeployment() && isWorkosProductionApi(workosApiBase())) {
       throw new Error(
         "devSeed runs only on the dev deployment (TEAK_DEV_DEPLOYMENT=true) or a local backend wired to the WorkOS emulator."
@@ -344,8 +417,13 @@ export const seedScenario = internalMutation({
     if (!owner) {
       throw new Error("No Teak owner is linked to that WorkOS user.");
     }
-    const cards = SCENARIO_PACKS[scenario];
-    const marker = cards[0]?.url;
+    const cards = SCENARIO_PACKS[scenario](page);
+    if (cards.length === 0) {
+      return { status: "already_seeded" as const, cards: 0 };
+    }
+    // Each page has a link card with a marker URL; finding it (in or out of
+    // Trash) means this page was seeded already.
+    const marker = cards.find((card) => card.url)?.url;
     const existing = marker
       ? await ctx.db
           .query("cards")
@@ -357,7 +435,10 @@ export const seedScenario = internalMutation({
     if (existing) {
       return { status: "already_seeded" as const, cards: 0 };
     }
-    await insertCompletedCards(ctx, owner.teakUserId, cards);
+    // Volume packs deliberately pass the free plan's card limit.
+    await insertCompletedCards(ctx, owner.teakUserId, cards, {
+      ignoreCardLimit: true,
+    });
     return { status: "seeded" as const, cards: cards.length };
   },
 });

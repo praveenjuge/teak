@@ -127,24 +127,6 @@ describe("card/getCards.ts", () => {
       expect(query.withIndex).toHaveBeenCalled();
     });
 
-    test("uses by_user_type_deleted index when type is specified", async () => {
-      const cards: any[] = [];
-      const query = buildQuery(cards);
-      const ctx = withTestSession({
-        auth: { getUserIdentity: mock().mockResolvedValue({ subject: "u1" }) },
-        db: { query: mock().mockReturnValue(query) },
-        storage: { getUrl: mock() },
-      } as any);
-
-      const handler = (getCards as any).handler ?? getCards;
-      await handler(ctx, { type: "image" });
-      expect(ctx.db.query).toHaveBeenCalledWith("cards");
-      expect(query.withIndex).toHaveBeenCalledWith(
-        "by_user_type_deleted",
-        expect.any(Function)
-      );
-    });
-
     test("uses default limit when not specified", async () => {
       const cards: any[] = [];
       const takeMock = mock().mockResolvedValue(cards);
@@ -341,10 +323,6 @@ describe("card/getCards.ts", () => {
       const handler = (searchCards as any).handler ?? searchCards;
       const result = await handler(ctx, { searchQuery: "fav" });
       expect(result).toHaveLength(1);
-      expect(query.withIndex).toHaveBeenCalledWith(
-        "by_user_favorites_deleted",
-        expect.any(Function)
-      );
     });
 
     test("handles trash keyword search", async () => {
@@ -504,24 +482,6 @@ describe("card/getCards.ts", () => {
       expect(result.length).toBeLessThanOrEqual(10);
     });
 
-    test("uses by_user_type_deleted index for single type filter", async () => {
-      const cards: any[] = [];
-      const query = buildQuery(cards);
-
-      const ctx = withTestSession({
-        auth: { getUserIdentity: mock().mockResolvedValue({ subject: "u1" }) },
-        db: { query: mock().mockReturnValue(query) },
-        storage: { getUrl: mock() },
-      } as any);
-
-      const handler = (searchCards as any).handler ?? searchCards;
-      await handler(ctx, { types: ["image"] });
-      expect(query.withIndex).toHaveBeenCalledWith(
-        "by_user_type_deleted",
-        expect.any(Function)
-      );
-    });
-
     test("handles no search query with type filter", async () => {
       const cards = [
         { _id: "c1", _creationTime: 1, userId: "u1", type: "image" },
@@ -537,26 +497,6 @@ describe("card/getCards.ts", () => {
       const handler = (searchCards as any).handler ?? searchCards;
       const result = await handler(ctx, { types: ["image"] });
       expect(result).toHaveLength(1);
-    });
-
-    test("uses by_created index when createdAtRange provided without searchQuery", async () => {
-      const cards: any[] = [];
-      const query = buildQuery(cards);
-
-      const ctx = withTestSession({
-        auth: { getUserIdentity: mock().mockResolvedValue({ subject: "u1" }) },
-        db: { query: mock().mockReturnValue(query) },
-        storage: { getUrl: mock() },
-      } as any);
-
-      const handler = (searchCards as any).handler ?? searchCards;
-      await handler(ctx, {
-        createdAtRange: { start: 0, end: 1000 },
-      });
-      expect(query.withIndex).toHaveBeenCalledWith(
-        "by_created",
-        expect.any(Function)
-      );
     });
 
     test("filters by normalized visual style, hue, and hex", async () => {
@@ -874,28 +814,6 @@ describe("card/getCards.ts", () => {
         searchQuery: "test",
       });
       expect(Array.isArray(result.page)).toBe(true);
-    });
-
-    test("uses by_created index when createdAtRange provided without searchQuery", async () => {
-      const cards: any[] = [];
-      const query = buildQuery(cards);
-
-      const ctx = withTestSession({
-        auth: { getUserIdentity: mock().mockResolvedValue({ subject: "u1" }) },
-        db: { query: mock().mockReturnValue(query) },
-        storage: { getUrl: mock() },
-      } as any);
-
-      const handler =
-        (searchCardsPaginated as any).handler ?? searchCardsPaginated;
-      await handler(ctx, {
-        paginationOpts: { numItems: 10, cursor: null },
-        createdAtRange: { start: 0, end: 1000 },
-      });
-      expect(query.withIndex).toHaveBeenCalledWith(
-        "by_created",
-        expect.any(Function)
-      );
     });
 
     test("applies normalized hue and hex filters in paginated mode", async () => {

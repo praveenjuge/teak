@@ -4,7 +4,13 @@ import workosTest from "@convex-dev/workos-authkit/test";
 import { convexTest } from "convex-test";
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import { components, internal } from "./_generated/api";
-import { CARD_DETAILS_SCENARIO_CARDS, DEV_SEED_CARDS } from "./devSeed";
+import {
+  CARD_DETAILS_SCENARIO_CARDS,
+  DEV_SEED_CARDS,
+  ORDERING_SCENARIO_PAGE_SIZE,
+  ORDERING_SCENARIO_SIZE,
+  orderingScenarioCard,
+} from "./devSeed";
 import schema from "./schema";
 
 const modules = import.meta.glob("./**/*.ts");
@@ -285,5 +291,47 @@ describe("devSeed.seedScenario", () => {
       true
     );
     expect(scenario.filter((card) => card.isDeleted)).toHaveLength(1);
+  });
+});
+
+describe("devSeed ordering pack", () => {
+  test("covers every saved date once, inserted out of date order", () => {
+    const cards = Array.from({ length: ORDERING_SCENARIO_SIZE }, (_, index) =>
+      orderingScenarioCard(index)
+    );
+    const dates = cards.map((card) => card.createdAt as number);
+    expect(new Set(dates).size).toBe(ORDERING_SCENARIO_SIZE);
+    const ascending = [...dates].sort((a, b) => a - b);
+    expect(dates).not.toEqual(ascending);
+    expect(dates).not.toEqual([...ascending].reverse());
+  });
+
+  test("seeds one page at a time, once, and stops after the last page", async () => {
+    vi.stubEnv("WORKOS_API_BASE_URL", "http://localhost:4100");
+    const t = await setup();
+    const seedPage = (page: number) =>
+      t.mutation(internal.devSeed.seedScenario, {
+        workosUserId: WORKOS_USER_ID,
+        scenario: "ordering",
+        page,
+      });
+    expect(await seedPage(0)).toEqual({
+      status: "seeded",
+      cards: ORDERING_SCENARIO_PAGE_SIZE,
+    });
+    expect(await seedPage(0)).toEqual({ status: "already_seeded", cards: 0 });
+    expect(
+      await seedPage(ORDERING_SCENARIO_SIZE / ORDERING_SCENARIO_PAGE_SIZE)
+    ).toEqual({ status: "already_seeded", cards: 0 });
+    const seeded = await t.run((ctx) =>
+      ctx.db
+        .query("cards")
+        .withIndex("by_user_deleted", (q) => q.eq("userId", "teak_dev"))
+        .collect()
+    );
+    expect(seeded).toHaveLength(ORDERING_SCENARIO_PAGE_SIZE);
+    expect(seeded.some((card) => card.createdAt < Date.UTC(2017, 0, 1))).toBe(
+      true
+    );
   });
 });

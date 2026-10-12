@@ -10,6 +10,13 @@ import {
   clampSearchOffset,
 } from "../shared/search/constants";
 import {
+  buildCardListQuery,
+  type CardListSort,
+  cardListSortValidator,
+  compareCardsByCreatedAt,
+  normalizeCardListSort,
+} from "./listQuery";
+import {
   attachCardSummaryUrls,
   attachFileUrls,
   attachGridFileUrls,
@@ -95,36 +102,11 @@ export const getCards = query({
       return [];
     }
 
-    let query = ctx.db
-      .query("cards")
-      .withIndex("by_user_deleted", (q) =>
-        q.eq("userId", user.teakUserId).eq("isDeleted", undefined)
-      );
-
-    if (args.type) {
-      const cardType = args.type;
-      // Use compound index by_user_type_deleted to avoid post-index .filter()
-      query = ctx.db
-        .query("cards")
-        .withIndex("by_user_type_deleted", (q) =>
-          q
-            .eq("userId", user.teakUserId)
-            .eq("type", cardType)
-            .eq("isDeleted", undefined)
-        );
-    }
-
-    if (args.favoritesOnly) {
-      // Use compound index by_user_favorites_deleted to avoid post-index .filter()
-      query = ctx.db
-        .query("cards")
-        .withIndex("by_user_favorites_deleted", (q) =>
-          q
-            .eq("userId", user.teakUserId)
-            .eq("isFavorited", true)
-            .eq("isDeleted", undefined)
-        );
-    }
+    const query = buildCardListQuery(ctx, {
+      userId: user.teakUserId,
+      favoritesOnly: args.favoritesOnly,
+      types: args.type ? [args.type] : undefined,
+    });
 
     const cards = await query.order("desc").take(clampSearchLimit(args.limit));
 
@@ -145,6 +127,7 @@ export const searchCards = query({
     hexFilters: v.optional(v.array(v.string())),
     createdAtRange: v.optional(createdAtRangeValidator),
     limit: v.optional(v.number()),
+    sort: v.optional(cardListSortValidator),
   },
   returns: v.array(cardReturnValidator),
   handler: async (ctx, args) => {
@@ -164,6 +147,8 @@ export const searchCards = query({
       createdAtRange,
     } = args;
     const limit = clampSearchLimit(args.limit);
+    const sort = normalizeCardListSort(args.sort);
+    const order = sort === "oldest" ? "asc" : "desc";
     ensureValidRange(createdAtRange);
     const visualFilters = normalizeVisualFilterArgs({
       styleFilters,
@@ -179,16 +164,11 @@ export const searchCards = query({
       if (
         ["fav", "favs", "favorites", "favourite", "favourites"].includes(query)
       ) {
-        // Use compound index by_user_favorites_deleted to avoid post-index .filter()
-        const favorites = await ctx.db
-          .query("cards")
-          .withIndex("by_user_favorites_deleted", (q) =>
-            q
-              .eq("userId", user.teakUserId)
-              .eq("isFavorited", true)
-              .eq("isDeleted", undefined)
-          )
-          .order("desc")
+        const favorites = await buildCardListQuery(ctx, {
+          userId: user.teakUserId,
+          favoritesOnly: true,
+        })
+          .order(order)
           .take(limit);
         const filteredFavorites = applyCardLevelFilters(favorites, {
           types,
@@ -201,12 +181,11 @@ export const searchCards = query({
       }
 
       if (["trash", "deleted", "bin", "recycle", "trashed"].includes(query)) {
-        const trashed = await ctx.db
-          .query("cards")
-          .withIndex("by_user_deleted", (q) =>
-            q.eq("userId", user.teakUserId).eq("isDeleted", true)
-          )
-          .order("desc")
+        const trashed = await buildCardListQuery(ctx, {
+          userId: user.teakUserId,
+          trash: true,
+        })
+          .order(order)
           .take(limit);
         const filteredTrashed = applyCardLevelFilters(trashed, {
           types,
@@ -242,9 +221,8 @@ export const searchCards = query({
         visualFilters,
       });
 
-      // Sort by creation date (desc) and limit
       const limitedResults = filteredResults
-        .sort((a, b) => b.createdAt - a.createdAt)
+        .sort((a, b) => compareCardsByCreatedAt(a, b, sort))
         .slice(0, limit);
 
       const resultsWithUrls = await attachFileUrls(ctx, limitedResults);
@@ -261,6 +239,7 @@ export const searchCards = query({
         createdAtRange,
         visualFilters,
         limit: Math.max(limit * 3, limit + 40),
+        sort,
       });
       const limitedVisualResults = visualResults.slice(0, limit);
       const visualResultsWithUrls = await attachFileUrls(
@@ -270,72 +249,17 @@ export const searchCards = query({
       return applyQuoteFormattingToList(visualResultsWithUrls);
     }
 
-    // No search query - use regular indexes with filters
-    let query = ctx.db
-      .query("cards")
-      .withIndex("by_user_deleted", (q) =>
-        q
-          .eq("userId", user.teakUserId)
-          .eq("isDeleted", showTrashOnly ? true : undefined)
-      );
-
-    if (createdAtRange) {
-      query = ctx.db
-        .query("cards")
-        .withIndex("by_created", (q) =>
-          q
-            .eq("userId", user.teakUserId)
-            .gte("createdAt", createdAtRange.start)
-            .lt("createdAt", createdAtRange.end)
-        );
-
-      query = query.filter((q) =>
-        q.eq(q.field("isDeleted"), showTrashOnly ? true : undefined)
-      );
-
-      if (types && types.length > 0) {
-        query = query.filter((q) => {
-          const typeConditions = types.map((type) =>
-            q.eq(q.field("type"), type)
-          );
-          return typeConditions.reduce((acc, condition) =>
-            q.or(acc, condition)
-          );
-        });
-      }
-
-      if (favoritesOnly) {
-        query = query.filter((q) => q.eq(q.field("isFavorited"), true));
-      }
-
-      const cards = await query.order("desc").take(limit);
-      const cardsWithUrls = await attachFileUrls(ctx, cards);
-      return applyQuoteFormattingToList(cardsWithUrls);
-    }
-
-    if (types && types.length === 1) {
-      // Use compound index by_user_type_deleted to avoid post-index .filter()
-      query = ctx.db.query("cards").withIndex("by_user_type_deleted", (q) =>
-        q
-          .eq("userId", user.teakUserId)
-          .eq("type", types[0])
-          .eq("isDeleted", showTrashOnly ? true : undefined)
-      );
-    } else if (types && types.length > 1) {
-      // Filter by multiple types - must use .filter() for OR conditions across different type values
-      query = query.filter((q) => {
-        const typeConditions = types.map((type) => q.eq(q.field("type"), type));
-        return typeConditions.reduce((acc, condition) => q.or(acc, condition));
-      });
-    }
-
-    if (favoritesOnly) {
-      // When filtering by favorites on top of existing query, we still need .filter()
-      // because we can't use a different index mid-query
-      query = query.filter((q) => q.eq(q.field("isFavorited"), true));
-    }
-
-    const cards = await query.order("desc").take(limit);
+    const cards = await buildCardListQuery(ctx, {
+      userId: user.teakUserId,
+      trash: showTrashOnly,
+      favoritesOnly,
+      types,
+      createdAt: createdAtRange
+        ? { gte: createdAtRange.start, lt: createdAtRange.end }
+        : undefined,
+    })
+      .order(order)
+      .take(limit);
     const cardsWithUrls = await attachFileUrls(ctx, cards);
     return applyQuoteFormattingToList(cardsWithUrls);
   },
@@ -351,6 +275,7 @@ export const searchCardsPaginatedArgsValidator = v.object({
   hueFilters: v.optional(v.array(v.string())),
   hexFilters: v.optional(v.array(v.string())),
   createdAtRange: v.optional(createdAtRangeValidator),
+  sort: v.optional(cardListSortValidator),
 });
 
 type SearchCardsPaginatedArgs = Infer<typeof searchCardsPaginatedArgsValidator>;
@@ -382,6 +307,8 @@ export const searchCardsPaginatedHandler = async (
     hexFilters,
     createdAtRange,
   } = args;
+  const sort: CardListSort = normalizeCardListSort(args.sort);
+  const order = sort === "oldest" ? "asc" : "desc";
   // Clamp the caller-provided page size so a single request cannot force an
   // arbitrarily large index read / in-memory sort. The cursor is validated
   // separately where it is parsed into an offset.
@@ -402,15 +329,11 @@ export const searchCardsPaginatedHandler = async (
     if (
       ["fav", "favs", "favorites", "favourite", "favourites"].includes(query)
     ) {
-      const favorites = await ctx.db
-        .query("cards")
-        .withIndex("by_user_favorites_deleted", (q) =>
-          q
-            .eq("userId", user.teakUserId)
-            .eq("isFavorited", true)
-            .eq("isDeleted", undefined)
-        )
-        .order("desc")
+      const favorites = await buildCardListQuery(ctx, {
+        userId: user.teakUserId,
+        favoritesOnly: true,
+      })
+        .order(order)
         .paginate(paginationOpts);
       const filteredFavorites = applyCardLevelFilters(favorites.page, {
         types,
@@ -426,12 +349,11 @@ export const searchCardsPaginatedHandler = async (
     }
 
     if (["trash", "deleted", "bin", "recycle", "trashed"].includes(query)) {
-      const trashed = await ctx.db
-        .query("cards")
-        .withIndex("by_user_deleted", (q) =>
-          q.eq("userId", user.teakUserId).eq("isDeleted", true)
-        )
-        .order("desc")
+      const trashed = await buildCardListQuery(ctx, {
+        userId: user.teakUserId,
+        trash: true,
+      })
+        .order(order)
         .paginate(paginationOpts);
       const filteredTrashed = applyCardLevelFilters(trashed.page, {
         types,
@@ -488,8 +410,8 @@ export const searchCardsPaginatedHandler = async (
     // Multi-type filtering happens during dedupe; single-type/favorites are filtered at index level.
     const filteredResults = uniqueResults;
 
-    const sortedResults = filteredResults.sort(
-      (a, b) => b.createdAt - a.createdAt
+    const sortedResults = filteredResults.sort((a, b) =>
+      compareCardsByCreatedAt(a, b, sort)
     );
     const page = sortedResults.slice(offset, offset + pageSize);
     const isDone = sortedResults.length <= offset + pageSize;
@@ -520,6 +442,7 @@ export const searchCardsPaginatedHandler = async (
       createdAtRange,
       visualFilters,
       limit: getVisualSearchBatchLimit(desiredLimit),
+      sort,
     });
 
     const page = visualResults.slice(offset, offset + pageSize);
@@ -534,66 +457,17 @@ export const searchCardsPaginatedHandler = async (
     };
   }
 
-  let query = ctx.db
-    .query("cards")
-    .withIndex("by_user_deleted", (q) =>
-      q
-        .eq("userId", user.teakUserId)
-        .eq("isDeleted", showTrashOnly ? true : undefined)
-    );
-
-  if (createdAtRange) {
-    query = ctx.db
-      .query("cards")
-      .withIndex("by_created", (q) =>
-        q
-          .eq("userId", user.teakUserId)
-          .gte("createdAt", createdAtRange.start)
-          .lt("createdAt", createdAtRange.end)
-      );
-
-    query = query.filter((q) =>
-      q.eq(q.field("isDeleted"), showTrashOnly ? true : undefined)
-    );
-
-    if (types && types.length > 0) {
-      query = query.filter((q) => {
-        const typeConditions = types.map((type) => q.eq(q.field("type"), type));
-        return typeConditions.reduce((acc, condition) => q.or(acc, condition));
-      });
-    }
-
-    if (favoritesOnly) {
-      query = query.filter((q) => q.eq(q.field("isFavorited"), true));
-    }
-
-    const cards = await query.order("desc").paginate(paginationOpts);
-    const cardsWithUrls = await attachListUrls(ctx, cards.page);
-    return {
-      ...cards,
-      page: applyQuoteFormattingToList(cardsWithUrls),
-    };
-  }
-
-  if (types && types.length === 1) {
-    query = ctx.db.query("cards").withIndex("by_user_type_deleted", (q) =>
-      q
-        .eq("userId", user.teakUserId)
-        .eq("type", types[0])
-        .eq("isDeleted", showTrashOnly ? true : undefined)
-    );
-  } else if (types && types.length > 1) {
-    query = query.filter((q) => {
-      const typeConditions = types.map((type) => q.eq(q.field("type"), type));
-      return typeConditions.reduce((acc, condition) => q.or(acc, condition));
-    });
-  }
-
-  if (favoritesOnly) {
-    query = query.filter((q) => q.eq(q.field("isFavorited"), true));
-  }
-
-  const cards = await query.order("desc").paginate(paginationOpts);
+  const cards = await buildCardListQuery(ctx, {
+    userId: user.teakUserId,
+    trash: showTrashOnly,
+    favoritesOnly,
+    types,
+    createdAt: createdAtRange
+      ? { gte: createdAtRange.start, lt: createdAtRange.end }
+      : undefined,
+  })
+    .order(order)
+    .paginate(paginationOpts);
   const cardsWithUrls = await attachListUrls(ctx, cards.page);
   return {
     ...cards,

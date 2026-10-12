@@ -4,6 +4,7 @@ import { normalizeHueFilters, normalizeVisualStyleFilters } from "../constants";
 import { normalizeHexFilters } from "../utils/colorUtils";
 import type { CreatedAtRange } from "../utils/timeSearch";
 import { SEARCH_LOCAL_SEARCH_CACHE_LIMIT } from "./constants";
+import { type CardListSort, compareCardsByCreatedAt } from "./sort";
 import { tokenizeSearchInput } from "./tokenization";
 
 export interface LocalSearchFilters {
@@ -13,6 +14,8 @@ export interface LocalSearchFilters {
   hueFilters?: string[];
   searchTerms?: string;
   showTrashOnly?: boolean;
+  /** Order by saved date; newest first when omitted. */
+  sort?: CardListSort;
   styleFilters?: string[];
   types?: CardType[];
 }
@@ -90,6 +93,7 @@ export const filterLocalCards = (
     favoritesOnly = false,
     showTrashOnly = false,
     createdAtRange,
+    sort = "newest",
   }: LocalSearchFilters
 ) => {
   const terms = tokenizeSearchQuery(searchTerms);
@@ -140,7 +144,7 @@ export const filterLocalCards = (
       const searchableText = buildSearchableText(card);
       return terms.every((term) => searchableText.includes(term));
     })
-    .sort((a, b) => b.createdAt - a.createdAt);
+    .sort((a, b) => compareCardsByCreatedAt(a, b, sort));
 };
 
 export function mergeCardsIntoLocalSearchCache(
@@ -203,21 +207,36 @@ export function pruneCardsMissingFromRemote(
   return pruned.length === cachedCards.length ? cachedCards : pruned;
 }
 
+/**
+ * Instant local matches plus what the server found, without duplicates.
+ * With `sort`, the combined list is ordered by saved date, so cards the cache
+ * picked up in another view never land out of order.
+ */
 export function mergeLocalAndRemoteSearchResults(
   remoteCards: Doc<"cards">[],
   localSearchResults: Doc<"cards">[],
-  hasActiveSearch: boolean
+  hasActiveSearch: boolean,
+  sort?: CardListSort
 ) {
+  const ordered = (cards: Doc<"cards">[]) =>
+    sort
+      ? [...cards].sort((left, right) =>
+          compareCardsByCreatedAt(left, right, sort)
+        )
+      : cards;
+
+  // The previous query's cards stay on screen while a new one loads; keeping
+  // them in the chosen order means a sort change takes effect at once.
   if (!hasActiveSearch) {
-    return remoteCards;
+    return ordered(remoteCards);
   }
 
   if (remoteCards.length === 0) {
-    return localSearchResults;
+    return ordered(localSearchResults);
   }
 
   if (localSearchResults.length === 0) {
-    return remoteCards;
+    return ordered(remoteCards);
   }
 
   const localIds = new Set(localSearchResults.map((card) => card._id));
@@ -229,5 +248,5 @@ export function mergeLocalAndRemoteSearchResults(
     }
   }
 
-  return merged;
+  return ordered(merged);
 }

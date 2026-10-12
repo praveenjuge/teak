@@ -1,16 +1,51 @@
 "use client";
 
 import { Button } from "@teak/ui/components/ui/button";
+import {
+  parseSearchUrlState,
+  type SearchUrlState,
+  serializeSearchUrlState,
+} from "@teak/ui/lib/searchUrlState";
 import { CardsScreenAdapter } from "@teak/ui/screens";
 import { Settings } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { useCallback, useMemo } from "react";
 
 export function HomePageClient() {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const cardIdFromUrl = searchParams.get("card");
+  const searchQueryParam = searchParams.get("q");
+  const sortParam = searchParams.get("sort");
+  const searchUrlState = useMemo(
+    () =>
+      parseSearchUrlState({
+        get: (name) => (name === "q" ? searchQueryParam : sortParam),
+      }),
+    [searchQueryParam, sortParam]
+  );
+
+  // The search lives in `?q=` and `?sort=`. Native history calls update the
+  // URL (and useSearchParams) synchronously, so a fast typist's older search
+  // can never land after a newer one. Typing replaces the entry; changing
+  // the sort adds one, so Back returns to the previous order.
+  const handleSearchUrlStateChange = useCallback(
+    (state: SearchUrlState, change: { sortChanged: boolean }) => {
+      const query = serializeSearchUrlState(state, window.location.search);
+      const nextUrl = `${window.location.pathname}${query ? `?${query}` : ""}`;
+      if (nextUrl === `${window.location.pathname}${window.location.search}`) {
+        return;
+      }
+      if (change.sortChanged) {
+        window.history.pushState(null, "", nextUrl);
+      } else {
+        window.history.replaceState(null, "", nextUrl);
+      }
+    },
+    []
+  );
 
   const rememberHomeScroll = () => {
     const navigation = (
@@ -72,6 +107,7 @@ export function HomePageClient() {
   return (
     <CardsScreenAdapter
       cardIdFromUrl={cardIdFromUrl}
+      onSearchUrlStateChange={handleSearchUrlStateChange}
       onUpgrade={handleUpgrade}
       pushCardId={(cardId) => {
         setCardUrlParam(cardId);
@@ -80,6 +116,7 @@ export function HomePageClient() {
         setCardUrlParam(cardId, true);
       }}
       SettingsButton={settingsButton}
+      searchUrlState={searchUrlState}
       toastIdPrefix="web-masonry"
       UpgradeLinkComponent={Link}
       upgradeUrl="/settings"

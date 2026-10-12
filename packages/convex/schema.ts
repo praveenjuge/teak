@@ -460,6 +460,10 @@ export const cardValidator = v.object({
   isFavorited: v.optional(v.boolean()),
   isDeleted: v.optional(v.boolean()),
   deletedAt: v.optional(v.number()),
+  // Archived cards leave the library but stay searchable in Archive. Absent
+  // (never false) on active cards, so index equality on `undefined` works.
+  isArchived: v.optional(v.literal(true)),
+  archivedAt: v.optional(v.number()),
   metadata: metadataValidator,
   fileMetadata: fileMetadataValidator,
   metadataStatus: v.optional(
@@ -637,6 +641,30 @@ export default defineSchema({
     .index("by_user_favorites_deleted", ["userId", "isFavorited", "isDeleted"])
     .index("by_user_deleted", ["userId", "isDeleted"])
     .index("by_created", ["userId", "createdAt"])
+    // Library listings order by the card's saved date (`createdAt`), so an
+    // imported card lands where it was originally saved. See card/listQuery.ts.
+    .index("by_user_deleted_archived_created", [
+      "userId",
+      "isDeleted",
+      "isArchived",
+      "createdAt",
+    ])
+    .index("by_user_deleted_archived_type_created", [
+      "userId",
+      "isDeleted",
+      "isArchived",
+      "type",
+      "createdAt",
+    ])
+    .index("by_user_deleted_archived_favorited_created", [
+      "userId",
+      "isDeleted",
+      "isArchived",
+      "isFavorited",
+      "createdAt",
+    ])
+    // Trash lists every trashed card, archived or not.
+    .index("by_user_deleted_created", ["userId", "isDeleted", "createdAt"])
     // Bounded maintenance scans: soft-deleted cards pending cleanup and cards
     // missing AI summaries are small subsets, so these indexes keep the
     // cleanup/backfill queries proportional to the result set instead of

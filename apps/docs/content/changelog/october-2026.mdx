@@ -1,11 +1,18 @@
 ---
 title: "October 2026"
-description: Refresh any card's details, link bylines and photo details on the web, a native Teak for iPhone and iPad, a new sign-in system, simpler web note editing, video and audio previews on the web, the web app's tools on Mac, iPhone, Raycast, and the command line, and a cleaner Chrome popup.
+description: Sort your library oldest first, refresh any card's details, link bylines and photo details on the web, a native Teak for iPhone and iPad, a new sign-in system, simpler web note editing, video and audio previews on the web, the web app's tools on Mac, iPhone, Raycast, and the command line, and a cleaner Chrome popup.
 type: changelog
 date: "2026-10-12"
 changelog:
   category: Product updates
 ---
+
+## Sort your library oldest first
+
+- On the web, the new sort button beside the search bar switches between **Newest first** and **Oldest first**.
+- Cards are now ordered by the date you saved them everywhere, so imported bookmarks appear where they were first saved instead of at the top. This also applies to the API, CLI, MCP, Raycast, and the iPhone and Android apps.
+- Your search and sort stay in the address bar, so reloading, Back and Forward, and shared links keep the same view.
+- **API:** `GET /v1/cards?sort=` orders by `createdAt` on every listing. A `cursor` from before this update returns `400 INVALID_INPUT`; start again from the first page. See the [API guide](/docs/api).
 
 ## Refresh a card, and richer card details
 

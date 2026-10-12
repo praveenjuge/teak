@@ -34,6 +34,55 @@ const makeCard = (overrides: CardOverrides): Doc<"cards"> =>
   }) as Doc<"cards">;
 
 describe("shared search helpers", () => {
+  it("orders local results by saved date in the requested direction", () => {
+    const cards = [
+      makeCard({ _id: "added-first", _creationTime: 1, createdAt: 3000 }),
+      makeCard({ _id: "imported", _creationTime: 3, createdAt: 1000 }),
+      makeCard({ _id: "twin-a", _creationTime: 4, createdAt: 2000 }),
+      makeCard({ _id: "twin-b", _creationTime: 5, createdAt: 2000 }),
+    ];
+    const ids = (sort?: "newest" | "oldest") =>
+      filterLocalCards([...cards], { sort }).map((card) => card._id);
+
+    expect(ids()).toEqual(["added-first", "twin-b", "twin-a", "imported"]);
+    expect(ids("oldest")).toEqual([
+      "imported",
+      "twin-a",
+      "twin-b",
+      "added-first",
+    ]);
+  });
+
+  it("merges local and remote hits in saved-date order", () => {
+    const local = [
+      makeCard({ _id: "cached-old", createdAt: 1000 }),
+      makeCard({ _id: "both", createdAt: 2000 }),
+    ];
+    const remote = [
+      makeCard({ _id: "remote-new", createdAt: 3000 }),
+      makeCard({ _id: "both", createdAt: 2000 }),
+    ];
+    const ids = (sort: "newest" | "oldest") =>
+      mergeLocalAndRemoteSearchResults(remote, local, true, sort).map(
+        (card) => card._id
+      );
+    expect(ids("newest")).toEqual(["remote-new", "both", "cached-old"]);
+    expect(ids("oldest")).toEqual(["cached-old", "both", "remote-new"]);
+  });
+
+  it("reorders the shown library at once when the sort changes", () => {
+    // Still the newest-first page while the oldest-first one loads.
+    const shown = [
+      makeCard({ _id: "new", createdAt: 3000 }),
+      makeCard({ _id: "old", createdAt: 1000 }),
+    ];
+    expect(
+      mergeLocalAndRemoteSearchResults(shown, [], false, "oldest").map(
+        (card) => card._id
+      )
+    ).toEqual(["old", "new"]);
+  });
+
   it("tokenizes and normalizes search terms", () => {
     expect(tokenizeSearchQuery("  Foo   BAR ")).toEqual(["foo", "bar"]);
   });
