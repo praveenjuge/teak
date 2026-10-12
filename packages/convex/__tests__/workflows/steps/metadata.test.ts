@@ -20,6 +20,8 @@ const originalFetch = global.fetch;
 const mockFetch = mock();
 global.fetch = mockFetch as any;
 
+import { validate } from "convex-helpers/validators";
+import { aiMetadataWorkflowReturns } from "../../../../convex/workflows/aiMetadata/index";
 import {
   buildLinkContentParts,
   generateHandler,
@@ -310,6 +312,25 @@ describe("metadata handler", () => {
     });
   });
 
+  describe("AI backfill workflow result", () => {
+    test("the workflow accepts what the step returns, so backfill runs are not recorded as failed", async () => {
+      mockRunQuery.mockResolvedValue({ _id: "c1", content: "hello" });
+      const completed = await generateHandler(ctx, {
+        cardId: "c1",
+        cardType: "text",
+      });
+      mockRunQuery.mockResolvedValue(null);
+      const skipped = await generateHandler(ctx, {
+        cardId: "c1",
+        cardType: "text",
+      });
+
+      expect(completed.mode).toBe("completed");
+      expect(validate(aiMetadataWorkflowReturns, completed)).toBe(true);
+      expect(validate(aiMetadataWorkflowReturns, skipped)).toBe(true);
+    });
+  });
+
   describe("text card metadata", () => {
     test("generates metadata for text card", async () => {
       mockRunQuery.mockResolvedValue({ _id: "c1", content: "hello world" });
@@ -326,6 +347,24 @@ describe("metadata handler", () => {
       expect(result.hasSummary).toBe(true);
       expect(result.confidence).toBe(0.95);
       expectSaved(["greeting"], "A greeting");
+    });
+
+    test("saves AI tags trimmed, lowercased and without duplicates", async () => {
+      mockRunQuery.mockResolvedValue({ _id: "c1", content: "word word" });
+      aiMocks.generateText.mockResolvedValue({
+        output: {
+          tags: ["word", " Word ", "WORD", "", "design", "design"],
+          summary: "Words",
+        },
+      });
+
+      const result = await generateHandler(ctx, {
+        cardId: "c1",
+        cardType: "text",
+      });
+
+      expect(result.aiTagsCount).toBe(2);
+      expectSaved(["word", "design"], "Words");
     });
 
     test("handles empty text content", async () => {
@@ -362,6 +401,20 @@ describe("metadata handler", () => {
       expectSaved(["photo"], "A photo");
       expect(lastWorkerOpRequest().op).toBe("generate-image-metadata");
       expect(lastWorkerOpRequest().params.sourceKey).toBe("t1");
+    });
+
+    test("de-duplicates tags from the image worker", async () => {
+      mockRunQuery.mockResolvedValue({
+        _id: "c1",
+        fileKey: "f1",
+        thumbnailKey: "t1",
+        fileMetadata: { mimeType: "image/png" },
+      });
+      enableWorkerOp({ summary: "A photo", tags: ["Photo", "photo", "sky"] });
+
+      await generateHandler(ctx, { cardId: "c1", cardType: "image" });
+
+      expectSaved(["photo", "sky"], "A photo");
     });
 
     test("uses thumbnail key as the worker source for SVG files", async () => {
@@ -517,7 +570,6 @@ describe("metadata handler", () => {
         aiTags: ["speech"],
         aiSummary: "Audio content",
         processingStatus: {
-          classify: { status: "completed" },
           metadata: { status: "completed" },
         },
       });
@@ -555,6 +607,61 @@ describe("metadata handler", () => {
         op: "transcribe-audio",
         params: { sourceKey: "users/u/audio.mp3" },
       });
+    });
+
+    test.each([
+      ["punctuation only", ".", undefined],
+      ["whitespace only", "   ", undefined],
+      ["a Whisper closing phrase on a short clip", "Thank you.", 3],
+    ])(
+      "stores no transcript, summary or tags for %s",
+      async (_label, text, duration) => {
+        mockRunQuery.mockResolvedValue({
+          _id: "c1",
+          fileKey: "users/u/tone.wav",
+          fileMetadata: { mimeType: "audio/wav", duration },
+        });
+        enableWorkerOp({ text, byteLength: 8 });
+
+        const result = await generateHandler(ctx, {
+          cardId: "c1",
+          cardType: "audio",
+        });
+
+        expect(result).toMatchObject({
+          aiTagsCount: 0,
+          hasSummary: false,
+          hasTranscript: false,
+        });
+        expect(aiMocks.generateText).not.toHaveBeenCalled();
+        const saved = mockRunMutation.mock.calls.at(-1)?.[1];
+        expect(saved.aiTranscript).toBeUndefined();
+        expect(saved.aiSummary).toBeUndefined();
+        expect(saved.aiTags).toEqual([]);
+        expect(saved.processingStatus.metadata.status).toBe("completed");
+      }
+    );
+
+    test("keeps a closing phrase spoken in a long recording", async () => {
+      mockRunQuery.mockResolvedValue({
+        _id: "c1",
+        fileKey: "users/u/talk.mp3",
+        fileMetadata: { mimeType: "audio/mp3", duration: 600 },
+      });
+      enableWorkerOp({ text: "Thank you.", byteLength: 8 });
+      aiMocks.generateText.mockResolvedValue({
+        output: { tags: ["talk"], summary: "Closing remarks" },
+      });
+
+      const result = await generateHandler(ctx, {
+        cardId: "c1",
+        cardType: "audio",
+      });
+
+      expect(result.hasTranscript).toBe(true);
+      expect(mockRunMutation.mock.calls.at(-1)?.[1].aiTranscript).toBe(
+        "Thank you."
+      );
     });
 
     test("handles missing audio file", async () => {
@@ -817,7 +924,7 @@ describe("metadata handler", () => {
       );
     });
 
-    test("preserves existing processing status", async () => {
+    test("sends only its own stage so a stale renderables copy cannot reset a parallel completion", async () => {
       mockRunQuery.mockResolvedValue({
         _id: "c1",
         content: "test",
@@ -832,15 +939,9 @@ describe("metadata handler", () => {
 
       await generateHandler(ctx, { cardId: "c1", cardType: "text" });
 
-      expect(mockRunMutation).toHaveBeenCalledWith(
-        internal.workflows.aiMetadata.mutations.updateCardAI,
-        expect.objectContaining({
-          processingStatus: expect.objectContaining({
-            classify: { status: "completed", confidence: 0.9 },
-            renderables: { status: "pending" },
-          }),
-        })
-      );
+      const sent = mockRunMutation.mock.calls.at(-1)?.[1].processingStatus;
+      expect(Object.keys(sent)).toEqual(["metadata"]);
+      expect(sent.metadata.status).toBe("completed");
     });
   });
 

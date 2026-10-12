@@ -293,18 +293,20 @@ describe("card/updateCard.ts", () => {
     ).rejects.toThrow("Card not found");
   });
 
-  test("updateCardField throws when not authorized", async () => {
+  test("updateCardField hides another user's card as not found", async () => {
     const ctx = withTestSession({
       auth: { getUserIdentity: mock().mockResolvedValue({ subject: "u2" }) },
       db: {
         get: mock().mockResolvedValue({ _id: "c1", userId: "u1" }),
+        patch: mock(),
       },
     } as any);
 
     const handler = (updateCardField as any).handler ?? updateCardField;
     await expect(
       handler(ctx, { cardId: "c1", field: "content", value: "Hi" })
-    ).rejects.toThrow("Not authorized");
+    ).rejects.toThrow("NOT_FOUND");
+    expect(ctx.db.patch).not.toHaveBeenCalled();
   });
 
   test("updateCardField updates url and clears link preview", async () => {

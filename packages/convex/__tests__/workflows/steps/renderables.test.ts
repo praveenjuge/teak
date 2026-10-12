@@ -610,7 +610,7 @@ describe("renderables step", () => {
       });
     });
 
-    test("preserves existing processing status fields", async () => {
+    test("sends only the renderables stage so a stale metadata copy cannot reset a parallel completion", async () => {
       const runMutation = createMockFn<[any, any], null>(async () => null);
       const mockCtx = {
         runQuery: createMockFn<[any, any], any>(async () => ({
@@ -619,7 +619,7 @@ describe("renderables step", () => {
           fileKey: "f1",
           processingStatus: {
             classify: { status: "completed", confidence: 0.9 },
-            metadata: { status: "completed", confidence: 0.95 },
+            metadata: { status: "pending" },
           },
         })),
         runAction: createMockFn<[any, any], any>(async () => ({
@@ -635,8 +635,9 @@ describe("renderables step", () => {
       });
 
       const mutationArgs = runMutation.calls[0]?.[1] as any;
-      expect(mutationArgs?.processingStatus.classify.status).toBe("completed");
-      expect(mutationArgs?.processingStatus.metadata.status).toBe("completed");
+      expect(Object.keys(mutationArgs?.processingStatus)).toEqual([
+        "renderables",
+      ]);
       expect(mutationArgs?.processingStatus.renderables.status).toBe(
         "completed"
       );

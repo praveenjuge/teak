@@ -7,6 +7,7 @@ import type { ReactNode } from "react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { BulkActionBar } from "../selection/BulkActionBar";
+import { ConfirmDialog } from "../ui/confirm-dialog";
 
 type CardItem = Doc<"cards"> | "add-form";
 
@@ -96,6 +97,9 @@ export function MasonryGrid({
   const [selectedCardIds, setSelectedCardIds] = useState<Set<string>>(
     new Set()
   );
+  const [pendingPermanentDeleteId, setPendingPermanentDeleteId] = useState<
+    string | null
+  >(null);
   const [visibleCount, setVisibleCount] = useState(() =>
     Math.min(normalizedInitialBatchSize, filteredCards.length)
   );
@@ -299,6 +303,22 @@ export function MasonryGrid({
     toastIdPrefix,
   ]);
 
+  // "Delete Forever" can't be undone, so it always asks first.
+  const requestPermanentDelete = useMemo(
+    () =>
+      onPermanentDeleteCard
+        ? (cardId: string) => setPendingPermanentDeleteId(cardId)
+        : undefined,
+    [onPermanentDeleteCard]
+  );
+
+  const confirmPermanentDelete = useCallback(() => {
+    if (pendingPermanentDeleteId) {
+      onPermanentDeleteCard?.(pendingPermanentDeleteId);
+    }
+    setPendingPermanentDeleteId(null);
+  }, [onPermanentDeleteCard, pendingPermanentDeleteId]);
+
   const masonryItems: MasonryItemData[] = useMemo(() => {
     const items: MasonryItemData[] = [];
 
@@ -348,7 +368,7 @@ export function MasonryGrid({
           onCopyImage={onCopyImage}
           onDelete={onDeleteCard}
           onEnterSelectionMode={enterSelectionMode}
-          onPermanentDelete={onPermanentDeleteCard}
+          onPermanentDelete={requestPermanentDelete}
           onRestore={onRestoreCard}
           onToggleFavorite={onToggleFavorite}
           onToggleSelection={() => toggleCardSelection(card._id)}
@@ -360,7 +380,7 @@ export function MasonryGrid({
       handleCardClick,
       onDeleteCard,
       onRestoreCard,
-      onPermanentDeleteCard,
+      requestPermanentDelete,
       onToggleFavorite,
       onAddTags,
       onCopyImage,
@@ -403,6 +423,18 @@ export function MasonryGrid({
         </div>
       )}
       {bulkActionBar}
+      <ConfirmDialog
+        confirmLabel="Delete Forever"
+        description="This permanently deletes the card and its files. This can’t be undone."
+        onConfirm={confirmPermanentDelete}
+        onOpenChange={(open) => {
+          if (!open) {
+            setPendingPermanentDeleteId(null);
+          }
+        }}
+        open={pendingPermanentDeleteId !== null}
+        title="Delete this card forever?"
+      />
     </>
   );
 }

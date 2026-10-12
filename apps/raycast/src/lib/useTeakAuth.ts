@@ -3,8 +3,8 @@ import { hasStoredTeakSession } from "./oauth";
 import { getPreferences } from "./preferences";
 
 export interface TeakAuthState {
-  isAuthenticated: boolean;
   error: string | null;
+  isAuthenticated: boolean;
   isLoading: boolean;
   refresh: () => void;
 }

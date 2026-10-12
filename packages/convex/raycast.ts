@@ -1,10 +1,8 @@
 import { ConvexError, v } from "convex/values";
-import { internal } from "./_generated/api";
-import type { Doc, Id } from "./_generated/dataModel";
+import type { Doc } from "./_generated/dataModel";
 import {
   internalMutation,
   internalQuery,
-  type MutationCtx,
   type QueryCtx,
 } from "./_generated/server";
 import { createCardForUserHandler } from "./card/createCard";
@@ -13,11 +11,18 @@ import { cardReturnValidator } from "./card/getCards";
 import { attachFileUrls } from "./card/queryUtils";
 import { applyQuoteFormattingToList } from "./card/quoteFormatting";
 import {
-  scheduleCardSearchSync,
   searchCardsByDocument,
   searchCardsByExactTag,
 } from "./card/searchDocumentHelpers";
-import { updateCardFieldForUserHandler } from "./card/updateCard";
+import {
+  type CardFieldEdit,
+  updateCardFieldForUserHandler,
+  updateCardFieldsForUserHandler,
+} from "./card/updateCard";
+import {
+  explainCardTypeMismatch,
+  explainInvalidTags,
+} from "./publicApiHttpShared";
 import { cardTypeValidator } from "./schema";
 import { requireTeakUserId, type TeakUserId } from "./securitySessions";
 
@@ -407,26 +412,6 @@ const getCardsForUser = async (
   return applyQuoteFormattingToList(cardsWithUrls);
 };
 
-const applyPatchField = (
-  ctx: MutationCtx,
-  args: {
-    userId: TeakUserId;
-    cardId: Id<"cards">;
-    field: "content" | "url" | "notes" | "tags" | "metadataTitle";
-    value?: unknown;
-  }
-) =>
-  updateCardFieldForUserHandler(
-    ctx,
-    {
-      userId: args.userId,
-      cardId: args.cardId,
-      field: args.field,
-      value: args.value,
-    },
-    { deferPipelineSchedule: true, deferSearchSync: true }
-  );
-
 export const quickSaveForUser = internalMutation({
   args: createCardForUserArgs,
   returns: quickSaveResultValidator,
@@ -449,6 +434,18 @@ export const quickSaveForUser = internalMutation({
         code: "INVALID_INPUT",
         message: "Provide `content` or `url` to create a card",
       });
+    }
+
+    const createError =
+      explainInvalidTags(normalizedTags) ??
+      explainCardTypeMismatch({
+        cardType: args.cardType,
+        content: submittedContent,
+        notes: normalizedNotes,
+        tags: normalizedTags,
+      });
+    if (createError) {
+      throw new ConvexError({ code: "INVALID_INPUT", message: createError });
     }
 
     // The guard above ensures at least one of these is set; the trailing
@@ -531,116 +528,34 @@ export const patchCardForUser = internalMutation({
   returns: v.union(v.null(), cardReturnValidator),
   handler: async (ctx, args) => {
     const userId = await requireTeakUserId(ctx, args.userId);
-    const requestedFields: Array<
-      "content" | "url" | "notes" | "tags" | "metadataTitle"
-    > = [];
-    let shouldSchedulePipeline = false;
-
+    const edits: CardFieldEdit[] = (args.removeAiTags ?? []).map(
+      (tagToRemove) => ({ field: "removeAiTag" as const, tagToRemove })
+    );
     if (args.content !== undefined) {
-      requestedFields.push("content");
+      edits.push({ field: "content", value: args.content });
     }
     if (args.url !== undefined) {
-      requestedFields.push("url");
+      edits.push({ field: "url", value: args.url });
     }
     if (args.metadataTitle !== undefined) {
-      requestedFields.push("metadataTitle");
+      edits.push({ field: "metadataTitle", value: args.metadataTitle });
     }
     if (args.notes !== undefined) {
-      requestedFields.push("notes");
+      edits.push({ field: "notes", value: args.notes });
     }
     if (args.tags !== undefined) {
-      requestedFields.push("tags");
+      edits.push({ field: "tags", value: args.tags });
     }
 
-    const removeAiTags = args.removeAiTags ?? [];
-    if (requestedFields.length === 0 && removeAiTags.length === 0) {
-      return getCardForUserHandler(ctx, userId, args.cardId);
+    if (edits.length > 0) {
+      // One validated update charges the reprocess limit at most once, even
+      // when content and url change together.
+      await updateCardFieldsForUserHandler(ctx, {
+        userId,
+        cardId: args.cardId,
+        edits,
+      });
     }
-
-    const previousCard = await ctx.db.get("cards", args.cardId);
-
-    for (const tagToRemove of removeAiTags) {
-      await updateCardFieldForUserHandler(
-        ctx,
-        { userId, cardId: args.cardId, field: "removeAiTag", tagToRemove },
-        { deferPipelineSchedule: true, deferSearchSync: true }
-      );
-    }
-
-    for (const field of requestedFields) {
-      switch (field) {
-        case "content":
-          shouldSchedulePipeline =
-            (
-              await applyPatchField(ctx, {
-                userId,
-                cardId: args.cardId,
-                field,
-                value: args.content,
-              })
-            ).shouldSchedulePipeline || shouldSchedulePipeline;
-          break;
-        case "url":
-          shouldSchedulePipeline =
-            (
-              await applyPatchField(ctx, {
-                userId,
-                cardId: args.cardId,
-                field,
-                value: args.url,
-              })
-            ).shouldSchedulePipeline || shouldSchedulePipeline;
-          break;
-        case "metadataTitle":
-          await applyPatchField(ctx, {
-            userId,
-            cardId: args.cardId,
-            field,
-            value: args.metadataTitle,
-          });
-          break;
-        case "notes":
-          shouldSchedulePipeline =
-            (
-              await applyPatchField(ctx, {
-                userId,
-                cardId: args.cardId,
-                field,
-                value: args.notes,
-              })
-            ).shouldSchedulePipeline || shouldSchedulePipeline;
-          break;
-        case "tags":
-          shouldSchedulePipeline =
-            (
-              await applyPatchField(ctx, {
-                userId,
-                cardId: args.cardId,
-                field,
-                value: args.tags,
-              })
-            ).shouldSchedulePipeline || shouldSchedulePipeline;
-          break;
-        default:
-          throw new Error(`Unsupported field: ${field}`);
-      }
-    }
-
-    if (shouldSchedulePipeline) {
-      await ctx.scheduler.runAfter(
-        0,
-        (internal as any)["workflows/manager"].startCardProcessingWorkflow,
-        {
-          cardId: args.cardId,
-        }
-      );
-    }
-    await scheduleCardSearchSync(
-      ctx,
-      args.cardId,
-      userId,
-      previousCard ?? undefined
-    );
 
     return getCardForUserHandler(ctx, userId, args.cardId);
   },

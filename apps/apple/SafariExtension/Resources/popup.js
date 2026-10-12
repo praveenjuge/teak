@@ -44,7 +44,11 @@ const saveCurrentPage = async () => {
 
   const authState = await sendNative({ type: "getAuthState" });
   if (authState.status === "error") {
-    setState("error", "Unable to connect", text(authState.message, "Please try again."));
+    setState(
+      "error",
+      "Unable to connect",
+      text(authState.message, "Please try again.")
+    );
     return;
   }
   if (authState.authenticated !== true) {
@@ -54,7 +58,11 @@ const saveCurrentPage = async () => {
 
   const url = await getActiveTabUrl();
   if (!isSaveableUrl(url)) {
-    setState("invalid", "Cannot save this page", "Open a regular website and try again.");
+    setState(
+      "invalid",
+      "Cannot save this page",
+      "Open a regular website and try again."
+    );
     return;
   }
 
@@ -65,9 +73,17 @@ const saveCurrentPage = async () => {
   } else if (saveResult.status === "duplicate") {
     setState("duplicate", "Already saved", "This page is in your library.");
   } else if (saveResult.status === "unauthenticated") {
-    setState("signed-out", "Sign in to Teak", text(saveResult.message, "Sign in to save pages."));
+    setState(
+      "signed-out",
+      "Sign in to Teak",
+      text(saveResult.message, "Sign in to save pages.")
+    );
   } else {
-    setState("error", "Save failed", text(saveResult.message, "Teak could not save this page."));
+    setState(
+      "error",
+      "Save failed",
+      text(saveResult.message, "Teak could not save this page.")
+    );
   }
 };
 
@@ -82,14 +98,20 @@ const startSignIn = async () => {
     setState("checking", "Finish sign in", "Return here after signing in.");
     return;
   }
-  setState("error", "Sign in failed", text(response.message, "Teak could not start sign in."));
+  setState(
+    "error",
+    "Sign in failed",
+    text(response.message, "Teak could not start sign in.")
+  );
 };
 
 const signOut = async () => {
   setState("checking", "Signing out", "One moment…");
   const response = await sendNative({ type: "signOut" });
   if (response.status !== "signed-out") {
-    throw new Error(text(response.message, "Could not sign out. Please try again."));
+    throw new Error(
+      text(response.message, "Could not sign out. Please try again.")
+    );
   }
   setState("signed-out", "Signed out", "Sign in to save pages.");
 };
@@ -101,14 +123,20 @@ const run = async () => {
     setState(
       "error",
       "Teak needs Safari access",
-      error instanceof Error ? error.message : "Try again from a regular website."
+      error instanceof Error
+        ? error.message
+        : "Try again from a regular website."
     );
   }
 };
 
 signInButton.addEventListener("click", () => {
   startSignIn().catch((error) => {
-    setState("error", "Sign in failed", error instanceof Error ? error.message : "Try again.");
+    setState(
+      "error",
+      "Sign in failed",
+      error instanceof Error ? error.message : "Try again."
+    );
   });
 });
 
@@ -118,7 +146,11 @@ retryButton.addEventListener("click", () => {
 
 signOutButton.addEventListener("click", () => {
   signOut().catch((error) => {
-    setState("error", "Sign out failed", error instanceof Error ? error.message : "Try again.");
+    setState(
+      "error",
+      "Sign out failed",
+      error instanceof Error ? error.message : "Try again."
+    );
   });
 });
 

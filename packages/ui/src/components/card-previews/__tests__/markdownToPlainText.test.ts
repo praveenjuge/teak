@@ -50,4 +50,24 @@ describe("markdownToPlainText", () => {
       "Blog post ideas - I forget CSS"
     );
   });
+
+  test("unescapes markdown escapes the editor adds", () => {
+    expect(markdownToPlainText("my\\_file\\_name\\_v2 costs 2\\*3")).toBe(
+      "my_file_name_v2 costs 2*3"
+    );
+  });
+
+  test("keeps escaped emphasis markers as literal text", () => {
+    expect(markdownToPlainText("\\*\\*bold\\*\\* and \\_x\\_")).toBe(
+      "**bold** and _x_"
+    );
+  });
+
+  test("keeps escaped heading, list and link characters", () => {
+    expect(markdownToPlainText("\\# not a heading")).toBe("# not a heading");
+    expect(markdownToPlainText("\\- not a bullet")).toBe("- not a bullet");
+    expect(markdownToPlainText("\\[label\\](x) and C:\\\\dir")).toBe(
+      "[label](x) and C:\\dir"
+    );
+  });
 });

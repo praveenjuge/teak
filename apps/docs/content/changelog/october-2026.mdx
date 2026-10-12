@@ -2,7 +2,7 @@
 title: "October 2026"
 description: A native Teak for iPhone and iPad, a new sign-in system, simpler web note editing, the web app's tools on Mac, iPhone, Raycast, and the command line, and a cleaner Chrome popup.
 type: changelog
-date: "2026-10-11"
+date: "2026-10-12"
 changelog:
   category: Product updates
 ---
@@ -70,6 +70,47 @@ See the [mobile guide](/docs/mobile).
 - **CLI:** `teak trash`, `teak restore`, `teak open`, `teak download`, `teak export`, `teak whoami`, and `teak tags add` / `rm`, plus color, style, and plain-English date filters. Text you add becomes a quote or palette when it is one, like on the web. See the [CLI guide](/docs/cli).
 - **API:** `GET /v1/me` includes your plan and card usage, `PATCH /v1/cards/:id` can remove tags Teak added, and the new export endpoints start a ZIP export and return its download link. See the [API guide](/docs/api#export-your-cards).
 - **MCP:** the list and search tools take the same filters as the API, and new tools restore cards from Trash, check whether a URL is saved, and show your plan. See the [MCP guide](/docs/mcp).
+
+## Fixes across the web, API, CLI, and MCP
+
+**Web**
+
+- Notes with underscores or asterisks, like `file_name_v2` or `2*3`, show correctly in the grid instead of with stray backslashes.
+- A card deleted on another device or through the API now disappears from search results right away.
+- Cards can be reached with the keyboard: Tab to a card and press Enter to open it.
+- **Delete Forever** and deleting several cards at once ask you to confirm first. The delete message no longer covers the bar for selected cards.
+- Downloading a file starts right away and saves it under its original name.
+- Imported bookmarks and Raindrop links keep the names you gave them.
+- Adding or removing tags quickly no longer drops one of the changes, and the save shortcut (⌘↩ or Ctrl+Enter) saves a new note even while the previous one is still saving.
+
+**Summaries and tags**
+
+- Recordings with no speech no longer get made-up transcripts, summaries, or tags.
+- A card no longer shows the same AI tag twice.
+- PDF summaries are written from the document's text instead of only its file name.
+- Links that no longer exist fail quickly instead of retrying.
+
+**API**
+
+- `PATCH /v1/cards/:id` can change a card's text and URL in one request.
+- `GET /v1/cards/changes` now includes cards deleted forever, so synced apps remove them too.
+- Paging through cards and search results no longer repeats or skips cards when new ones are saved in between.
+- `GET /v1/tags` lists every tag you can filter by, including tags Teak added, in lowercase, with an `isComplete` flag for very large libraries.
+- Deleting a card forever needs it to be in Trash first; otherwise the API answers `409 NOT_IN_TRASH`. Busy moments return `503` with `Retry-After` instead of an error, and `RateLimit-Reset` is now in seconds. See the [API guide](/docs/api).
+
+**CLI**
+
+- `teak add "text" --url …` keeps your text alongside the link.
+- `teak rm` and `teak restore` with several cards keep going past a card that fails, and say which ones did. `teak rm --permanent` works on cards that aren't in Trash yet.
+- `teak export download -o` saves where you asked, and `teak open` prints the link instead of crashing on machines without a browser. See the [CLI guide](/docs/cli).
+
+**MCP**
+
+- Unknown tools and out-of-range limits return clear errors, and a bulk action that only partly succeeds is reported as an error with the cards that failed. See the [MCP guide](/docs/mcp).
+
+**Chrome extension**
+
+- Browser pages Teak can't save, such as other browsers' settings pages and extension stores, show a clear message instead of an error.
 
 ## A cleaner Chrome extension popup
 

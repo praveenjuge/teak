@@ -142,16 +142,16 @@ export async function generateHandler(
   }
 
   // Update processing status to mark renderables as complete
+  // Only the renderables stage is sent; the mutation merges it into the
+  // status it reads, so a parallel metadata write is never reset.
   const now = Date.now();
-  const processingStatus = card.processingStatus || {};
   const updatedProcessing = {
-    ...processingStatus,
     renderables: renderablesSucceeded
       ? stageCompleted(now, 0.95)
       : stageFailed(
           now,
           failureReason ?? "renderables_failed",
-          processingStatus.renderables
+          card.processingStatus?.renderables
         ),
   };
 

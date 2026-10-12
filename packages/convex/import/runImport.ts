@@ -1,5 +1,4 @@
 "use node";
-import { ensureObjectOwnership } from "../storage/ownership";
 
 import { v } from "convex/values";
 import { internal } from "../_generated/api";
@@ -14,6 +13,7 @@ import {
   isFilesWorkerConfigured,
   putObjectViaFilesWorker,
 } from "../storage/filesWorkerClient";
+import { ensureObjectOwnership } from "../storage/ownership";
 import { assertR2KeyInNamespace, buildR2UserPrefix } from "../storage/r2";
 import {
   recordBackendHandledFailure,
@@ -355,7 +355,9 @@ export const extractImportFiles = internalAction({
           ),
           path: item.filePath,
         }));
-        for (const entry of entries) await ensureObjectOwnership(ctx, job.userId, entry.destinationKey);
+        for (const entry of entries) {
+          await ensureObjectOwnership(ctx, job.userId, entry.destinationKey);
+        }
         const outcome = await callFilesWorkerJson<
           Array<{ destinationKey: string; path: string }>
         >({

@@ -5,6 +5,7 @@ import {
 } from "@teak/convex/shared/utils/safeUrl";
 import { ArrowUpRight } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
+import { resolveLinkTitle } from "../../lib/linkTitle";
 import { ResilientMediaImage } from "../cards/previews/ResilientMediaImage";
 
 // Format long whole numbers (e.g. review counts) with thousands separators for
@@ -98,8 +99,12 @@ export function LinkPreview({
       ? card.metadata.linkPreview
       : undefined;
 
-  const linkTitle =
-    linkPreview?.title || card.metadataTitle || card.url || "Link";
+  const linkTitle = resolveLinkTitle({
+    metadataTitle: card.metadataTitle,
+    metadataTitleEdited: card.metadataTitleEdited,
+    previewTitle: linkPreview?.title,
+    url: card.url,
+  });
   const linkDescription = linkPreview?.description || card.metadataDescription;
   const linkImage = card.linkPreviewImageUrl;
   const [failedImageUrls, setFailedImageUrls] = useState<string[]>([]);

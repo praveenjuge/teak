@@ -6,6 +6,7 @@ import {
   captureDeletionBatch,
   commitDeletionBatch,
 } from "./accountDeletionBatch";
+import { deleteCardTombstonesForUserPage } from "./publicApiTombstones";
 import { callFilesWorkerJson } from "./storage/filesWorkerClient";
 import { assertR2KeyInNamespace } from "./storage/r2Keys";
 import { workflow } from "./workflows/manager";
@@ -169,7 +170,12 @@ export const ancillaryPage = internalMutation({
     for (const row of idempotency) {
       await ctx.db.delete(row._id);
     }
-    return idempotency.length > 0;
+    const moreTombstones = await deleteCardTombstonesForUserPage(
+      ctx,
+      userId,
+      100
+    );
+    return idempotency.length > 0 || moreTombstones;
   },
 });
 export const deleteRemainingData = internalAction({

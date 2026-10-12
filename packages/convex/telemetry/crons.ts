@@ -109,12 +109,17 @@ export const cleanupOldDeletedCards = internalAction({
   args: {},
   returns: v.null(),
   handler: (ctx: ActionCtx) =>
-    monitored(CRON_MONITORS.cleanupOldDeletedCards, () =>
-      ctx.runMutation(
+    monitored(CRON_MONITORS.cleanupOldDeletedCards, async () => {
+      await ctx.runMutation(
         internalAny.workflows.cardCleanup.startCardCleanupWorkflow,
         {}
-      )
-    ),
+      );
+      // Tombstones of purged cards back /v1/cards/changes for 90 days.
+      await ctx.runMutation(
+        internalAny.publicApiTombstones.pruneExpiredCardTombstones,
+        {}
+      );
+    }),
 });
 
 export const cleanupAbandonedImportUploads = internalAction({

@@ -1,4 +1,3 @@
-import { objectIsFrozen } from "./deletionGate";
 import {
   buildImageSigningPayload,
   buildImageSourceSigningPayload,
@@ -7,6 +6,7 @@ import {
   type FilesImageRendition,
   isFilesImageRendition,
 } from "@teak/files-protocol";
+import { objectIsFrozen } from "./deletionGate";
 import type { Env } from "./index";
 import { hmacSha256Hex, verifyHmacPayload } from "./lib";
 import { renderSvgToPng } from "./wasm";
@@ -339,7 +339,9 @@ export const handleImageSourceRequest = async (
     buildImageSourceSigningPayload({ expiresAt, key }),
     signature
   );
-  if (valid && await objectIsFrozen(env, key)) return new Response(null, { status: 404 });
+  if (valid && (await objectIsFrozen(env, key))) {
+    return new Response(null, { status: 404 });
+  }
   return valid
     ? await serveR2Object(env, key, request.method.toUpperCase())
     : new Response(null, { status: 403 });
@@ -369,7 +371,9 @@ export const handleImageRequest = async (
     return new Response(null, { status: invalidStatus });
   }
 
-  if (await objectIsFrozen(env, parsed.key)) return new Response(null, { status: 404 });
+  if (await objectIsFrozen(env, parsed.key)) {
+    return new Response(null, { status: 404 });
+  }
   const metadata = await env.BUCKET.head(parsed.key);
   if (!metadata) {
     return new Response(null, { status: 404 });

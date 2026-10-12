@@ -160,6 +160,44 @@ const getComponentKeyForOwner = async (
 const isRotatableComponentKeyStatus = (status: KeyMetadata["status"]) =>
   status === "active" || status === "disabled";
 
+// The key component writes a usage counter on every validation, and that
+// shared counter conflicts when one key sends many requests at once. For this
+// long after a key validates, requests with the same token skip that write and
+// only re-check, read-only, that the key is still active. Revoking through
+// this module also deletes the key's cache rows.
+const API_KEY_AUTH_CACHE_TTL_MS = 60_000;
+
+const sha256Hex = async (value: string): Promise<string> => {
+  const digest = await crypto.subtle.digest(
+    "SHA-256",
+    new TextEncoder().encode(value)
+  );
+  return Array.from(new Uint8Array(digest), (byte) =>
+    byte.toString(16).padStart(2, "0")
+  ).join("");
+};
+
+const forgetApiKeyAuth = async (
+  ctx: MutationCtx,
+  keyId: string
+): Promise<void> => {
+  const rows = await ctx.db
+    .query("apiKeyAuthCache")
+    .withIndex("by_keyId", (q) => q.eq("keyId", keyId))
+    .take(LIST_LIMIT);
+  for (const row of rows) {
+    await ctx.db.delete("apiKeyAuthCache", row._id);
+  }
+};
+
+const revokeComponentKey = async (
+  ctx: MutationCtx,
+  args: { keyId: string; ownerId: string }
+): Promise<void> => {
+  await componentApiKeys.revoke(ctx, args);
+  await forgetApiKeyAuth(ctx, args.keyId);
+};
+
 const validateComponentApiKey = async (ctx: MutationCtx, token: string) => {
   const result = await componentApiKeys.validate(ctx, { key: token });
   if (!result.valid) {
@@ -253,7 +291,7 @@ export const revokeUserApiKey = mutation({
   returns: v.null(),
   handler: async (ctx, args) => {
     const ownerId = await getAuthenticatedOwnerId(ctx);
-    await componentApiKeys.revoke(ctx, {
+    await revokeComponentKey(ctx, {
       keyId: args.keyId,
       ownerId,
     });
@@ -268,7 +306,7 @@ const drainActiveApiKeysPage = async (
 ): Promise<{ hasMore: boolean; revokedCount: number }> => {
   const keys = await listComponentKeysByStatus(ctx, ownerId, "active");
   for (const key of keys) {
-    await componentApiKeys.revoke(ctx, {
+    await revokeComponentKey(ctx, {
       keyId: key.keyId,
       ownerId,
     });
@@ -329,7 +367,7 @@ export const rotateUserApiKey = mutation({
       scopes: COMPONENT_SCOPES,
       type: "secret",
     });
-    await componentApiKeys.revoke(ctx, {
+    await revokeComponentKey(ctx, {
       keyId: args.keyId,
       ownerId,
     });
@@ -348,6 +386,60 @@ export const rotateUserApiKey = mutation({
   },
 });
 
+const validateCachedComponentApiKey = async (
+  ctx: MutationCtx,
+  token: string
+) => {
+  const tokenHash = await sha256Hex(token);
+  const now = Date.now();
+  const cached = await ctx.db
+    .query("apiKeyAuthCache")
+    .withIndex("by_tokenHash", (q) => q.eq("tokenHash", tokenHash))
+    .first();
+  if (cached && now - cached.verifiedAt < API_KEY_AUTH_CACHE_TTL_MS) {
+    // A fresh entry skips only the component's writes. The key must still be
+    // active (a read-only check, so a revoke made anywhere applies at once)
+    // and its owner must still resolve.
+    const activeKeys = await listComponentKeysByStatus(
+      ctx,
+      cached.userId,
+      "active"
+    );
+    if (activeKeys.some((key) => key.keyId === cached.keyId)) {
+      if (!(await resolveStoredUserId(ctx, cached.userId))) {
+        return null;
+      }
+      return {
+        keyId: cached.keyId,
+        userId: cached.userId,
+        access: API_KEY_ACCESS,
+        rateLimitKey: cached.rateLimitKey,
+      };
+    }
+  }
+
+  const validated = await validateComponentApiKey(ctx, token);
+  if (!validated) {
+    if (cached) {
+      await ctx.db.delete("apiKeyAuthCache", cached._id);
+    }
+    return null;
+  }
+  const entry = {
+    keyId: validated.keyId,
+    rateLimitKey: validated.rateLimitKey,
+    tokenHash,
+    userId: validated.userId,
+    verifiedAt: now,
+  };
+  if (cached) {
+    await ctx.db.replace("apiKeyAuthCache", cached._id, entry);
+  } else {
+    await ctx.db.insert("apiKeyAuthCache", entry);
+  }
+  return validated;
+};
+
 export const validateUserApiKey = internalMutation({
   args: validateApiKeyArgsValidator,
   returns: validatedApiKeyValidator,
@@ -358,7 +450,7 @@ export const validateUserApiKey = internalMutation({
     }
 
     // The owner is resolved in this transaction, so callers can trust userId.
-    const validated = await validateComponentApiKey(ctx, token);
+    const validated = await validateCachedComponentApiKey(ctx, token);
     if (!(validated && args.chargeRateLimit)) {
       return validated;
     }
@@ -376,7 +468,7 @@ export const revokeDeletionKeysPage = internalMutation({
   handler: async (ctx, { ownerId }) => {
     const keys = await listComponentKeysByStatus(ctx, ownerId, "active");
     for (const key of keys) {
-      await componentApiKeys.revoke(ctx, { keyId: key.keyId, ownerId });
+      await revokeComponentKey(ctx, { keyId: key.keyId, ownerId });
     }
     return keys.length === LIST_LIMIT;
   },

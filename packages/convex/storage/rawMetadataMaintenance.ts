@@ -1,8 +1,5 @@
-import { ensureObjectOwnership } from "./ownership";
 import { v } from "convex/values";
 import { internal } from "../_generated/api";
-import { getAccountDeletionState } from "../accountDeletion";
-import { cardStorageObjectKeys, deleteObject } from "./r2";
 import type { Id } from "../_generated/dataModel";
 import {
   type ActionCtx,
@@ -10,6 +7,9 @@ import {
   internalMutation,
   internalQuery,
 } from "../_generated/server";
+import { getAccountDeletionState } from "../accountDeletion";
+import { ensureObjectOwnership } from "./ownership";
+import { cardStorageObjectKeys, deleteObject } from "./r2";
 import {
   copyAndVerifyRaw,
   hashRawMetadata,
@@ -76,7 +76,7 @@ export const commitArchive = internalMutation({
         part?.raw === undefined &&
         part?.rawStorageKey === key &&
         part?.rawSha256 === digest;
-      if (!alreadyCommitted && !cardStorageObjectKeys(card).includes(key)) {
+      if (!(alreadyCommitted || cardStorageObjectKeys(card).includes(key))) {
         // Content-addressed keys may be referenced by a later archive of
         // the same payload. Retain stale copies in the card's internal
         // storage inventory instead of racing a queued deletion. Account
@@ -163,7 +163,9 @@ export const archiveCardHandler = async (
           functions().commitArchive,
           commitArgs
         );
-        if (!hasCommitError) commitError = error;
+        if (!hasCommitError) {
+          commitError = error;
+        }
         hasCommitError = true;
         continue;
       }
@@ -189,7 +191,9 @@ export const archiveCardHandler = async (
   }
   // Attempt every kind before surfacing a retained commit failure to
   // archivePage. Each failed commit has its own key-preserving retry.
-  if (hasCommitError) throw commitError;
+  if (hasCommitError) {
+    throw commitError;
+  }
   return { archived, skipped };
 };
 

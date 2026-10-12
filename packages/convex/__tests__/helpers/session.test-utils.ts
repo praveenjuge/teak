@@ -54,12 +54,12 @@ const identityRows = (
   if (table !== "users") {
     return [];
   }
-  const teakUserId =
-    typeof filters.teakUserId === "string"
-      ? filters.teakUserId
-      : typeof filters.workosUserId === "string"
-        ? teakUserIdFor(filters.workosUserId)
-        : undefined;
+  let teakUserId: string | undefined;
+  if (typeof filters.teakUserId === "string") {
+    teakUserId = filters.teakUserId;
+  } else if (typeof filters.workosUserId === "string") {
+    teakUserId = teakUserIdFor(filters.workosUserId);
+  }
   return teakUserId ? [ownerRow(teakUserId, mapping, email)] : [];
 };
 
@@ -73,13 +73,12 @@ function withIdentityDb(db: any, mapping: Mapping, email?: () => string) {
   const original = db.query?.bind(db);
   return {
     ...db,
-    query: mock((table: string) =>
-      IDENTITY_TABLES.has(table)
-        ? identityQuery(table, mapping, email)
-        : original
-          ? original(table)
-          : identityQuery("", mapping, email)
-    ),
+    query: mock((table: string) => {
+      if (IDENTITY_TABLES.has(table)) {
+        return identityQuery(table, mapping, email);
+      }
+      return original ? original(table) : identityQuery("", mapping, email);
+    }),
   };
 }
 

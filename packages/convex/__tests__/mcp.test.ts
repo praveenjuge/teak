@@ -836,4 +836,156 @@ describe("Convex MCP endpoint", () => {
       },
     ]);
   });
+
+  const authorizedCtx = () =>
+    withMappedOwner({
+      runMutation: mock().mockResolvedValue({
+        keyId: "key_1",
+        userId: "user_1",
+        access: "full_access",
+        source: "component",
+        rateLimitKey: "component:key_1",
+      }),
+      runQuery: mock(),
+    }) as unknown as ActionCtx;
+
+  test("answers an unknown tool with JSON-RPC invalid params", async () => {
+    const response = await handleMcpV1Request(
+      authorizedCtx(),
+      mcpRequest({
+        jsonrpc: "2.0",
+        id: 50,
+        method: "tools/call",
+        params: { name: "teak_v1_explode", arguments: {} },
+      })
+    );
+
+    expect(response.status).toBe(200);
+    expect(await response.json()).toEqual({
+      jsonrpc: "2.0",
+      id: 50,
+      error: { code: -32_602, message: "Unknown tool: teak_v1_explode" },
+    });
+  });
+
+  test("answers malformed JSON with HTTP 400 and a parse error", async () => {
+    const response = await handleMcpV1Request(
+      authorizedCtx(),
+      new Request("https://api.teakvault.com/mcp", {
+        method: "POST",
+        headers: {
+          Accept: "application/json",
+          Authorization: TEST_AUTHORIZATION,
+          "Content-Type": "application/json",
+        },
+        body: '{"jsonrpc":"2.0","id":1,',
+      })
+    );
+
+    expect(response.status).toBe(400);
+    expect(await response.json()).toEqual({
+      jsonrpc: "2.0",
+      id: null,
+      error: { code: -32_700, message: "Parse error" },
+    });
+  });
+
+  test("answers valid JSON that isn't a request object with invalid request", async () => {
+    const response = await handleMcpV1Request(
+      authorizedCtx(),
+      new Request("https://api.teakvault.com/mcp", {
+        method: "POST",
+        headers: {
+          Accept: "application/json",
+          Authorization: TEST_AUTHORIZATION,
+          "Content-Type": "application/json",
+        },
+        body: "42",
+      })
+    );
+
+    expect(await response.json()).toMatchObject({
+      error: { code: -32_600 },
+    });
+  });
+
+  test.each([
+    ["teak_v1_search_cards", -5],
+    ["teak_v1_search_cards", 0],
+    ["teak_v1_search_cards", 101],
+    ["teak_v1_list_favorite_cards", -5],
+    ["teak_v1_list_cards", 101],
+  ])(
+    "%s rejects limit %p before calling the API",
+    async (tool: string, limit: number) => {
+      const executor = mock(async () =>
+        Response.json({ items: [], pageInfo: { hasMore: false } })
+      ) as PublicApiToolExecutor;
+      const result = await callTeakV1Tool(
+        tool,
+        { q: "design", limit },
+        mcpRequest({ jsonrpc: "2.0", id: 51, method: "tools/call" }),
+        executor
+      );
+
+      expect(result.isError).toBe(true);
+      expect(result.structuredContent).toMatchObject({ code: "INVALID_INPUT" });
+      expect(executor).not.toHaveBeenCalled();
+    }
+  );
+
+  test("flags a bulk operation with failed items as a tool error", async () => {
+    const executor = mock(async () =>
+      Response.json({
+        operation: "create",
+        results: [
+          { index: 0, status: "success", cardId: "card_1" },
+          {
+            index: 1,
+            status: "error",
+            code: "INVALID_INPUT",
+            error: "Each create item must include `content` or `url`",
+          },
+        ],
+        summary: { total: 2, succeeded: 1, failed: 1 },
+      })
+    ) as PublicApiToolExecutor;
+    const result = await callTeakV1Tool(
+      "teak_v1_bulk_cards",
+      { operation: "create", items: [{ content: "a" }, {}] },
+      mcpRequest({ jsonrpc: "2.0", id: 52, method: "tools/call" }),
+      executor
+    );
+
+    expect(result.isError).toBe(true);
+    expect(result.structuredContent).toMatchObject({
+      summary: { total: 2, succeeded: 1, failed: 1 },
+    });
+    expect(result.content?.[0]?.text).toContain("1 of 2 items failed");
+    expect(result.content?.[0]?.text).toContain("INVALID_INPUT");
+  });
+
+  test("reports a fully successful bulk operation without an error", async () => {
+    const executor = mock(async () =>
+      Response.json({
+        operation: "favorite",
+        results: [{ index: 0, status: "success", cardId: "card_1" }],
+        summary: { total: 1, succeeded: 1, failed: 0 },
+      })
+    ) as PublicApiToolExecutor;
+    const result = await callTeakV1Tool(
+      "teak_v1_bulk_cards",
+      {
+        operation: "favorite",
+        items: [{ cardId: "card_1", isFavorited: true }],
+      },
+      mcpRequest({ jsonrpc: "2.0", id: 53, method: "tools/call" }),
+      executor
+    );
+
+    expect(result.isError).toBeUndefined();
+    expect(result.content?.[0]?.text).toBe(
+      "Bulk favorite complete: 1 of 1 succeeded"
+    );
+  });
 });

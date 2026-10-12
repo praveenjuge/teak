@@ -3,7 +3,12 @@ import { v } from "convex/values";
 import { internal } from "../_generated/api";
 import { action, internalQuery, query } from "../_generated/server";
 import { getSessionUser } from "../securitySessions";
-import { tryResolveImageUrl, tryResolveObjectUrl } from "../storage/fileUrls";
+import {
+  isStorageNamespaceError,
+  resolveDownloadUrl,
+  tryResolveImageUrl,
+  tryResolveObjectUrl,
+} from "../storage/fileUrls";
 
 const mediaRenditionValidator = v.union(
   v.literal("tiny"),
@@ -67,6 +72,37 @@ export const getFileUrl = query({
         ? (card.fileMetadata?.fileName ?? null)
         : undefined
     );
+  },
+});
+
+/**
+ * A signed URL that saves the card's file under its original name. The browser
+ * downloads it directly, so the web app never buffers the file in memory.
+ */
+export const getFileDownloadUrl = query({
+  args: { cardId: v.id("cards") },
+  returns: v.union(v.string(), v.null()),
+  handler: async (ctx, args) => {
+    const user = await getSessionUser(ctx);
+    if (!user) {
+      throw new Error("Unauthenticated call to getFileDownloadUrl");
+    }
+    const card = await ctx.db.get("cards", args.cardId);
+    if (!card || card.userId !== user.teakUserId) {
+      throw new Error("Card not found");
+    }
+    const fileName = card.fileMetadata?.fileName;
+    if (!(card.fileKey && fileName)) {
+      return null;
+    }
+    try {
+      return await resolveDownloadUrl(card.fileKey, fileName);
+    } catch (error) {
+      if (isStorageNamespaceError(error)) {
+        return null;
+      }
+      throw error;
+    }
   },
 });
 

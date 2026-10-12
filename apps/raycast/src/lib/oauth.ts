@@ -188,7 +188,9 @@ export function authorizeTeak(): Promise<string> {
       new Error("Teak sign-out is in progress. Try again."),
     );
   }
-  if (inFlightReauthorize) return inFlightReauthorize;
+  if (inFlightReauthorize) {
+    return inFlightReauthorize;
+  }
   if (!inFlightAuthorize) {
     inFlightAuthorize = authorize().finally(() => {
       inFlightAuthorize = null;
@@ -258,7 +260,9 @@ export function reauthorizeTeak(): Promise<string> {
         try {
           return await renewed;
         } finally {
-          if (inFlightStoredToken === renewed) inFlightStoredToken = null;
+          if (inFlightStoredToken === renewed) {
+            inFlightStoredToken = null;
+          }
         }
       }
       if (tokens) {
@@ -405,7 +409,9 @@ export function getStoredTeakAccessToken(): Promise<string | null> {
   if (inFlightSignOut) {
     return Promise.resolve(null);
   }
-  if (inFlightReauthorize) return inFlightReauthorize;
+  if (inFlightReauthorize) {
+    return inFlightReauthorize;
+  }
   if (!inFlightStoredToken) {
     inFlightStoredToken = resolveStoredTeakAccessToken().finally(() => {
       inFlightStoredToken = null;

@@ -46,16 +46,24 @@ describe("card/deleteCard.ts", () => {
         replace: mock().mockResolvedValue(null),
         query: mock().mockImplementation((table: string) => ({
           withIndex: mock().mockReturnValue({
+            take: mock().mockResolvedValue([]),
             unique: mock().mockResolvedValue(
-              table === "cardSearchDocuments"
-                ? { _id: "searchdoc_1", cardId: "c1", userId: "u1" }
-                : table === "cardSearchTagSyncStates"
-                  ? { _id: "syncstate_1", cardId: "c1", generation: 1 }
-                  : {
-                      _id: "usage_1",
-                      activeCardCount: 1,
-                      isSaturated: false,
-                    }
+              {
+                cardSearchDocuments: {
+                  _id: "searchdoc_1",
+                  cardId: "c1",
+                  userId: "u1",
+                },
+                cardSearchTagSyncStates: {
+                  _id: "syncstate_1",
+                  cardId: "c1",
+                  generation: 1,
+                },
+              }[table] ?? {
+                _id: "usage_1",
+                activeCardCount: 1,
+                isSaturated: false,
+              }
             ),
           }),
         })),
