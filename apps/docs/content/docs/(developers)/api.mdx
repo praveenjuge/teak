@@ -44,7 +44,9 @@ Native clients using browser sign-in send short-lived OAuth access tokens instea
 
 Browser-based OAuth clients can discover the active server from `/.well-known/oauth-protected-resource/mcp`, then read its `/.well-known/oauth-authorization-server` document. Teak publishes first-party client IDs and the matching issuer at `/.well-known/teak-oauth-clients.json`. The shared SDK's `discoverAuthServer(siteUrl)` caches a validated result for up to 60 seconds; use `{ forceRefresh: true }` after sign-in or refresh failures. Discovery never sends an access token. For a cloud development backend with a local sign-in server, pass its explicit loopback origin as `localIssuer`; remote metadata cannot enable loopback access by itself.
 
-Request `https://teakvault.com/api` as the OAuth resource. REST requests require a Connect user access token with that exact audience, including in local development. AuthKit session tokens and tokens issued for `{{mcp-url}}` are rejected.
+Request `https://teakvault.com/api` as the OAuth resource. REST requests require a Connect user access token with that exact audience. AuthKit session tokens and tokens issued for `{{mcp-url}}` are rejected.
+
+Development and self-hosted deployments can use their own resources. The API resource is `/api` on the origin of the MCP resource that the deployment's `/.well-known/oauth-protected-resource/mcp` lists. On the development deployment that is `https://<deployment>.convex.site/api`, and the MCP resource is `https://<deployment>.convex.site/mcp`. The SDK's `createConnectAuthorizeUrl` and `requestConnectTokens` derive it from discovery for you.
 
 ### Disconnect an OAuth connection
 

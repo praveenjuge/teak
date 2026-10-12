@@ -57,7 +57,7 @@ workos webhook create --url <convex-site>/workos/webhook \
 The CLI, browser extensions, Mac app, Raycast, and MCP clients sign in through WorkOS Connect. They need a few more settings.
 
 1. Turn on Client ID Metadata Document (CIMD) support, and dynamic client registration for MCP clients that don't support CIMD yet.
-2. Add the resource indicators `https://teakvault.com/api` and `https://teakvault.com/mcp`. These are fixed token audiences (`packages/convex/shared/workosResources.ts`), not your own domain, and Teak rejects any other audience.
+2. Add the resource indicators `<origin>/api` and `<origin>/mcp`. These are the deployment's token audiences, and Teak rejects any other audience. `<origin>` is `WORKOS_RESOURCE_ORIGIN`, an HTTPS origin with no path or trailing slash. Unset, it is `https://teakvault.com`. Set it to your public origin, normally the same as `PUBLIC_ORIGIN`, so that the MCP resource matches the URL that MCP clients connect to. Clients that require the resource to match the server URL reject any other value.
 3. Create one public OAuth application for each first-party surface, and set its client ID on the Convex deployment:
 
    | Surface | Convex variable | Redirect URIs |
@@ -172,6 +172,7 @@ WORKOS_ENVIRONMENT_ID=environment_...
 WORKOS_WEBHOOK_SECRET=secret
 WORKOS_ACTION_SECRET=secret                  # Optional: sign-up Action
 WORKOS_AUTHKIT_DOMAIN=https://your-domain.authkit.app   # Connect sign-in: CLI, extensions, Mac app, Raycast, MCP
+WORKOS_RESOURCE_ORIGIN=https://yourdomain.com # Optional: token audiences <origin>/api and <origin>/mcp (default https://teakvault.com)
 WORKOS_CONNECT_CLI_CLIENT_ID=client_...      # Plus the RAYCAST, CHROME, FIREFOX, and SAFARI client IDs
 FILES_BASE=https://files.yourdomain.com
 FILES_SIGNING_SECRET=shared-secret

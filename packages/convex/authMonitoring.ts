@@ -80,6 +80,7 @@ export type PublicApiAuthReason =
   | "invalid_token"
   | "jwks_unavailable"
   | "issuer_unconfigured"
+  | "resource_unconfigured"
   | "rate_limited"
   | "invalid_auth_rate_limited"
   | "rate_limit_contention"

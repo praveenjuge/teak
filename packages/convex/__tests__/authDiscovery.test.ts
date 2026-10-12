@@ -58,7 +58,26 @@ describe("OAuth discovery", () => {
       ).toEqual([site, site]);
     }
   );
-  test.each(["https://other.example/mcp", "https://teak.example/mcp"])(
+  test("accepts the deployment's own resource on the discovered origin", async () => {
+    const f = fixture();
+    (
+      f.documents[
+        "https://teak.example/.well-known/oauth-protected-resource/mcp"
+      ] as Record<string, unknown>
+    ).resource = "https://teak.example/mcp";
+    expect(
+      await discoverAuthServer("https://teak.example/api", {
+        fetch: f.transport,
+      })
+    ).toMatchObject({ resource: "https://teak.example/mcp" });
+  });
+  test.each([
+    "https://other.example/mcp",
+    "https://teak.example/api",
+    "https://teak.example/mcp/",
+    "http://teak.example/mcp",
+    "https://teakvault.com/api",
+  ])(
     "rejects resource %s outside the WorkOS audience",
     async (resource: string) => {
       const f = fixture();

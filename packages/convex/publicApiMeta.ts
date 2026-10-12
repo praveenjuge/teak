@@ -1,8 +1,7 @@
 import { env, httpAction } from "./_generated/server";
 import { OAUTH_SURFACES } from "./client/authDiscovery";
 import { isLocalDevelopmentHostname, resolveTeakDevApiUrl } from "./devUrls";
-import { readWorkosConnectIssuer } from "./env";
-import { WORKOS_RESOURCES } from "./shared/workosResources";
+import { readWorkosConnectIssuer, readWorkosResources } from "./env";
 
 export const API_VERSION = "v1";
 
@@ -98,7 +97,7 @@ export const getProtectedResourceUrl = (requestUrl: string): string => {
 };
 
 export const buildProtectedResourceMetadata = () => ({
-  resource: WORKOS_RESOURCES.mcp,
+  resource: readWorkosResources().mcp,
   authorization_servers: [readWorkosConnectIssuer()],
   bearer_methods_supported: ["header"],
   scopes_supported: ["openid", ...OAUTH_SCOPES_SUPPORTED],

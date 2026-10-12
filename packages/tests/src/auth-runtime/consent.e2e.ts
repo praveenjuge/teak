@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
 import type { AuthDiscovery } from "@teak/convex/sdk";
-import { WORKOS_RESOURCES } from "@teak/convex/shared/workosResources";
+import { workosResourcesFor } from "@teak/convex/shared/workosResources";
 import { env } from "../helpers/env";
 import { expect, test } from "../helpers/test";
 import {
@@ -48,6 +48,8 @@ for (const failure of [
       let nextClient = 0;
       let cardContent: string | undefined;
       const expectedApiKey = "fixture-browser-owner-key";
+      // A non-production deployment advertises its own resources.
+      const resources = workosResourcesFor(env.mcpUrl);
       const json = (body: unknown, status = 200) =>
         new Response(JSON.stringify(body), {
           status,
@@ -150,9 +152,7 @@ for (const failure of [
               Buffer.from(bearer.split(".")[1], "base64url").toString()
             );
             const resource =
-              url.href === env.mcpUrl
-                ? WORKOS_RESOURCES.mcp
-                : WORKOS_RESOURCES.api;
+              url.href === env.mcpUrl ? resources.mcp : resources.api;
             const allowed =
               claims.aud === resource &&
               (failure === "revocation-ignored" || !revoked.has(claims.sid));
@@ -271,7 +271,7 @@ for (const failure of [
         );
         const journey = verifyWorkosConsentJourney(
           { browser, screen },
-          provider,
+          { ...provider, resource: resources.mcp },
           expectedApiKey
         );
         if (failure !== "none") {

@@ -99,8 +99,9 @@ nonisolated struct SafariAuthDiscovery: Codable, Sendable, Equatable {
         return url
     }
 
-    /// WorkOS resources name token audiences, independently of deployment URLs,
-    /// matching `WORKOS_RESOURCES.mcp` in `packages/convex/shared/workosResources.ts`.
+    /// The production WorkOS MCP resource, `PRODUCTION_WORKOS_RESOURCES.mcp` in
+    /// `packages/convex/shared/workosResources.ts`. Teak for Mac is retired, so it
+    /// does not accept a deployment's own resource (`WORKOS_RESOURCE_ORIGIN`).
     private static let workosMCPResource = URL(string: "https://teakvault.com/mcp")!
 
     /// Deployment configuration establishes trust, never remote metadata or a DNS preflight.

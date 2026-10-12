@@ -52,7 +52,7 @@ teak logout
 
 ![Settings → Security showing signed-in devices and the connected Teak CLI](../images/connected-apps.webp)
 
-Credentials are stored separately for each API deployment, so local development cannot use or clear your production sign-in.
+Credentials are stored separately for each API deployment, so local development cannot use or clear your production sign-in. With `--api-url` or `TEAK_API_URL`, `teak login` asks for the resources that deployment advertises: `https://teakvault.com/api` in production, or the deployment's own `/api` resource, such as `https://<deployment>.convex.site/api` for development.
 
 ## SDK token providers
 

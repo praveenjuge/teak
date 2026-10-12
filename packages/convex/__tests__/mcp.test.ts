@@ -28,6 +28,7 @@ const TEST_AUTHORIZATION = `Bearer teakapi_secret_live_a1b2c3d4_${"f".repeat(64)
 const AUTHKIT_DOMAIN = "https://auth.teakvault.example";
 const originalPublicOrigin = process.env.PUBLIC_ORIGIN;
 const originalAuthkitDomain = process.env.WORKOS_AUTHKIT_DOMAIN;
+const originalResourceOrigin = process.env.WORKOS_RESOURCE_ORIGIN;
 const EXPECTED_TOOL_NAMES = [
   "fetch",
   "search",
@@ -61,6 +62,11 @@ afterEach(() => {
     delete process.env.WORKOS_AUTHKIT_DOMAIN;
   } else {
     process.env.WORKOS_AUTHKIT_DOMAIN = originalAuthkitDomain;
+  }
+  if (originalResourceOrigin === undefined) {
+    delete process.env.WORKOS_RESOURCE_ORIGIN;
+  } else {
+    process.env.WORKOS_RESOURCE_ORIGIN = originalResourceOrigin;
   }
 });
 
@@ -122,14 +128,14 @@ describe("Convex MCP endpoint", () => {
     expect(response.headers.get("Access-Control-Allow-Origin")).toBe("*");
   });
 
-  // The resource is the WorkOS token audience on every deployment.
+  // Without WORKOS_RESOURCE_ORIGIN every host keeps the production resource.
   test.each([
     "https://api.teakvault.com",
     "https://uncommon-ladybug-882.convex.site",
-    "https://reminiscent-kangaroo-59.convex.site",
   ])(
     "serves WorkOS protected-resource metadata with CORS on %s",
     async (origin: string) => {
+      delete process.env.WORKOS_RESOURCE_ORIGIN;
       const response = await handleOauthProtectedResourceV1Request(
         new Request(`${origin}/.well-known/oauth-protected-resource`)
       );
@@ -143,6 +149,34 @@ describe("Convex MCP endpoint", () => {
         scopes_supported: ["openid", "profile", "email", "offline_access"],
         resource_name: "Teak",
       });
+    }
+  );
+
+  test("serves the deployment's own resource, matching its MCP URL", async () => {
+    const origin = "https://reminiscent-kangaroo-59.convex.site";
+    process.env.WORKOS_RESOURCE_ORIGIN = origin;
+    const response = await handleOauthProtectedResourceV1Request(
+      new Request(`${origin}/.well-known/oauth-protected-resource/mcp`)
+    );
+
+    expect(response.status).toBe(200);
+    expect(await response.json()).toMatchObject({
+      resource: `${origin}/mcp`,
+      authorization_servers: [AUTHKIT_DOMAIN],
+    });
+  });
+
+  test.each(["https://dev.convex.site/", "dev.convex.site", "http://10.0.0.5"])(
+    "refuses a malformed WORKOS_RESOURCE_ORIGIN %s",
+    (value: string) => {
+      process.env.WORKOS_RESOURCE_ORIGIN = value;
+      expect(() =>
+        handleOauthProtectedResourceV1Request(
+          new Request(
+            "https://reminiscent-kangaroo-59.convex.site/.well-known/oauth-protected-resource"
+          )
+        )
+      ).toThrow("WORKOS_RESOURCE_ORIGIN");
     }
   );
 
