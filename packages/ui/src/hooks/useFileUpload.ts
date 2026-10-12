@@ -26,7 +26,7 @@ export function useFileUpload(config: UnifiedFileUploadConfig = {}) {
     uploadAndCreateCardMutation(args);
 
   const finalizeUploadedCard = (args: FinalizeUploadedCardArgs) =>
-    finalizeUploadedCardAction(args);
+    finalizeUploadedCardAction({ ...args, source: "web" });
 
   return useFileUploadCore(
     {

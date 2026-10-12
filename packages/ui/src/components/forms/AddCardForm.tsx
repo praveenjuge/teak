@@ -225,7 +225,10 @@ export function AddCardForm({
     try {
       // Structured notes stay Markdown text; plain URL/color/quote captures
       // retain the server's existing automatic classification.
-      await createCard(prepareNoteCapture(submittedContent));
+      await createCard({
+        ...prepareNoteCapture(submittedContent),
+        source: "web",
+      });
 
       onSuccess?.();
       toast.success("Note saved", { id: toastId });
