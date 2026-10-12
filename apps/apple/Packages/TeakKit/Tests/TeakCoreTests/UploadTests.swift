@@ -50,11 +50,13 @@ private func pipeline(_ transport: ScriptedTransport) -> UploadPipeline {
         #expect(prepare["fileType"] as? String == "image/png")
         #expect(prepare["cardType"] as? String == "image")
         #expect(prepare["fileSize"] as? Double == 1024)
+        #expect(prepare["source"] == nil)
         #expect((prepare["additionalMetadata"] as? [String: Any])?["width"] as? Double == 800)
         #expect(steps[1].0.value(forHTTPHeaderField: "Content-Type") == "image/png")
         let finalize = try #require(steps[2].1["args"] as? [String: Any])
         #expect(finalize["fileKey"] as? String == "users/u/file/a.png")
         #expect(finalize["fileEtag"] as? String == "\"etag-1\"")
+        #expect(finalize["source"] as? String == "apple")
     }
 
     @Test func retriesTransientUploadFailures() async throws {

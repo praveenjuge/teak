@@ -16,6 +16,9 @@ import kotlinx.serialization.json.jsonPrimitive
 import javax.inject.Inject
 import javax.inject.Singleton
 
+/** Tells the backend which app saved a card, for product analytics. */
+internal const val CARD_SOURCE = "android"
+
 /** What the library is showing: search text, or a date range parsed from it, plus the chips. */
 data class CardQuery(
     val search: String = "",
@@ -96,6 +99,7 @@ class ConvexCardsRepository @Inject constructor(
         val resolved = LinkDetection.resolve(text)
         val args = buildMap<String, Any?> {
             put("content", resolved.content)
+            put("source", CARD_SOURCE)
             if (resolved.type == CardType.Link) {
                 put("type", CardType.Link.wireName)
                 put("url", resolved.url)

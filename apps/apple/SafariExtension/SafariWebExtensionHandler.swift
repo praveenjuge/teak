@@ -73,7 +73,8 @@ struct SafariRequests {
             let duplicate: Card? = try await convex.query("cards:findDuplicateCard", ["url": .string(url)])
             if let duplicate { return ["status": "duplicate", "cardId": duplicate.id] }
             let id: String = try await convex.mutation("cards:createCard",
-                                                       ["content": .string(url), "type": "link", "url": .string(url)])
+                                                       ["content": .string(url), "type": "link", "url": .string(url),
+                                                        "source": CardSource.apple])
             return ["status": "saved", "cardId": id]
         } catch let error as TeakError where error.code == TeakError.unauthenticatedCode {
             return ["status": "unauthenticated"]

@@ -3,6 +3,7 @@ import { internal } from "../_generated/api";
 import { type MutationCtx, mutation } from "../_generated/server";
 import { type CardType, cardTypeValidator } from "../schema";
 import { getSessionUser, type TeakUserId } from "../securitySessions";
+import type { CardCreationSource } from "../shared/analytics";
 import {
   type FileFormat,
   FileFormatValidationError,
@@ -165,6 +166,7 @@ export const createUploadedCardForUser = async (
     storedFileSize?: number;
     storedFileType?: string;
     notes?: string | null;
+    source?: CardCreationSource;
     tags?: string[];
     userId: TeakUserId;
   }
@@ -302,7 +304,7 @@ export const createUploadedCardForUser = async (
     cardId,
     cardType,
     outcome: "success",
-    source: "unknown",
+    source: args.source ?? "unknown",
     userId: args.userId,
   });
   return cardId;

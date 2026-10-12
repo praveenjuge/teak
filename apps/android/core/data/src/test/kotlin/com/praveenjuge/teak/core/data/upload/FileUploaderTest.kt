@@ -57,9 +57,11 @@ class FileUploaderTest {
         assertEquals("hello", put.body.readUtf8())
         val prepare = convex.calls.first { it.name == "cards:uploadAndCreateCard" }.args
         assertEquals(5.0, prepare["fileSize"], "numbers go to Convex as float64")
+        assertEquals(null, prepare["source"], "uploadAndCreateCard rejects unknown args")
         val finalize = convex.calls.first { it.name == "cards:finalizeUploadedCard" }.args
         assertEquals("users/u1/photo.jpg", finalize["fileKey"])
         assertEquals("\"abc123\"", finalize["fileEtag"])
+        assertEquals("android", finalize["source"])
         assertEquals(mapOf("width" to 640.0), finalize["additionalMetadata"])
     }
 

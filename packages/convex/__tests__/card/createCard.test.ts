@@ -264,6 +264,7 @@ describe("card/createCard.ts", () => {
     const handler = (createCard as any).handler ?? createCard;
     const cardId = await handler(ctx, {
       content: '"Hello world"',
+      source: "web",
     });
 
     expect(cardId).toBe("c1");
@@ -275,6 +276,7 @@ describe("card/createCard.ts", () => {
         userId: "u1",
       })
     );
+    expect(ctx.db.insert.mock.calls[0][1]).not.toHaveProperty("source");
     expect(ctx.db.insert).toHaveBeenCalledWith(
       "cardSearchDocuments",
       expect.objectContaining({ cardId: "c1", userId: "u1" })
@@ -287,7 +289,7 @@ describe("card/createCard.ts", () => {
         cardId: "c1",
         cardType: "quote",
         outcome: "success",
-        source: "unknown",
+        source: "web",
         userId: "u1",
       })
     );
@@ -665,6 +667,7 @@ describe("card/createCard.ts", () => {
       expect.objectContaining({
         errorClass: "TimeoutError",
         outcome: "failure",
+        source: "unknown",
       })
     );
   });

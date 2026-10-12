@@ -198,12 +198,13 @@ private func card(_ type: CardType, content: String = "", url: String? = nil, no
         let content = "\u{FEFF}  # Mobile\r\n\r\n- [ ] task  \n"
         let resolved = LinkDetection.resolve(content)
         #expect(resolved == TextCardInput(content: content, type: .text, url: nil))
-        #expect(resolved.createArgs == ["content": .string(content)])
+        #expect(resolved.createArgs == ["content": .string(content), "source": "apple"])
     }
 
     @Test func savesAURLAsALinkCard() {
         let resolved = LinkDetection.resolve("https://example.com")
-        #expect(resolved.createArgs == ["content": "https://example.com", "type": "link", "url": "https://example.com"])
+        #expect(resolved.createArgs == ["content": "https://example.com", "type": "link", "url": "https://example.com",
+                                        "source": "apple"])
         #expect(LinkDetection.resolve("see https://example.com/a?b=1 later").url == "https://example.com/a?b=1")
         #expect(LinkDetection.resolve("ftp://example.com").type == .text)
     }

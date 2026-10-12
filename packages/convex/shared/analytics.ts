@@ -11,6 +11,8 @@
 
 export type CardCreationSource =
   | "web"
+  | "apple"
+  | "android"
   | "mobile"
   | "extension"
   | "raycast"
