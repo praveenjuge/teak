@@ -612,8 +612,12 @@ describe("teak batch and fallback behavior", () => {
   test("open prints the link and exits cleanly when no browser can start", async () => {
     routes.set("GET /v1/cards/card_a", () => json(card("card_a")));
 
-    // An empty PATH means xdg-open (or open) can't be found.
-    const result = await teakWithEnv({ PATH: "" }, "open", "card_a");
+    // A PATH holding only an empty directory means xdg-open (or open) can't
+    // be found. An empty PATH isn't enough: Bun then searches the default
+    // system path, where CI runners have xdg-open.
+    const emptyPath = mkdtempSync(join(tmpdir(), "teak-cli-no-browser-"));
+    const result = await teakWithEnv({ PATH: emptyPath }, "open", "card_a");
+    rmSync(emptyPath, { force: true, recursive: true });
 
     expect(result.code).toBe(0);
     expect(result.stdout.trim()).toBe("https://app.teakvault.com/?card=card_a");
