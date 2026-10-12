@@ -70,11 +70,16 @@ actor Gate {
     private var arrivalWaiters: [CheckedContinuation<Void, Never>] = []
 
     func wait() async {
+        arrive()
+        if open { return }
+        await withCheckedContinuation { waiters.append($0) }
+    }
+
+    /// Records an arrival without waiting.
+    func arrive() {
         arrivals += 1
         arrivalWaiters.forEach { $0.resume() }
         arrivalWaiters = []
-        if open { return }
-        await withCheckedContinuation { waiters.append($0) }
     }
 
     func arrived() async {
@@ -89,6 +94,47 @@ actor Gate {
     }
 }
 
+/// Background time a test grants or denies, and runs out of the way iOS does.
+final class ScriptedActivity: BackgroundActivity, @unchecked Sendable {
+    private let mutex = NSLock()
+    private let granted: Bool
+    private let lockDirectory: URL?
+    private var expiry: (@Sendable () -> Void)?
+    private var _lockedAtEnd: [Bool] = []
+
+    init(granted: Bool = true, watching lockDirectory: URL? = nil) {
+        self.granted = granted
+        self.lockDirectory = lockDirectory
+    }
+
+    /// For each activity that ended, whether the credential lock was still held.
+    var lockedAtEnd: [Bool] { mutex.withLock { _lockedAtEnd } }
+
+    func begin(reason: String, onExpiry: @escaping @Sendable () -> Void) async -> (@Sendable () -> Void)? {
+        guard granted else { return nil }
+        mutex.withLock { expiry = onExpiry }
+        return { [self] in
+            let locked = lockDirectory.map(Fixture.isLocked) ?? false
+            mutex.withLock {
+                expiry = nil
+                _lockedAtEnd.append(locked)
+            }
+        }
+    }
+
+    /// Calls the expiry handler on another thread, as iOS does. The process is
+    /// suspended once it returns.
+    func expire() async {
+        let handler = mutex.withLock { expiry }
+        await withCheckedContinuation { continuation in
+            DispatchQueue.global().async {
+                handler?()
+                continuation.resume()
+            }
+        }
+    }
+}
+
 enum Fixture {
     static let clientId = "client_TEST"
 
@@ -96,6 +142,16 @@ enum Fixture {
         let url = FileManager.default.temporaryDirectory.appending(path: "teak-tests-\(UUID().uuidString)")
         try? FileManager.default.createDirectory(at: url, withIntermediateDirectories: true)
         return url
+    }
+
+    /// Whether anything holds the test environment's credential lock in `directory`.
+    static func isLocked(_ directory: URL) -> Bool {
+        let path = directory.appending(path: "workos-session.test.lock").path
+        let descriptor = open(path, O_CREAT | O_RDWR | O_CLOEXEC, S_IRUSR | S_IWUSR)
+        defer { close(descriptor) }
+        guard flock(descriptor, LOCK_EX | LOCK_NB) == 0 else { return true }
+        flock(descriptor, LOCK_UN)
+        return false
     }
 
     static func token(sub: String = "user_ONE", sid: String = "session_ONE", expiry: Date) -> String {
