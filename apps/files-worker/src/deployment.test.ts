@@ -1,6 +1,8 @@
 import { expect, test } from "bun:test";
 import { resolve } from "node:path";
+import { parseArgs } from "node:util";
 import { unstable_readConfig } from "wrangler";
+import packageJson from "../package.json";
 
 test("only the production worker reports errors to PostHog", () => {
   const config = unstable_readConfig({
@@ -44,3 +46,18 @@ test("the development worker resolves to its own bucket, gates and telemetry", (
   // Development errors stay out of the production PostHog project.
   expect(config.vars.POSTHOG_PROJECT_TOKEN).toBeUndefined();
 });
+
+// wrangler dev reads the production vars, so local runs must blank the token.
+test.each(["dev", "dev:local"] as const)(
+  "%s sends nothing to PostHog",
+  (script) => {
+    const { values } = parseArgs({
+      args: packageJson.scripts[script].split(" ").slice(2),
+      options: {
+        remote: { type: "boolean" },
+        var: { type: "string", multiple: true },
+      },
+    });
+    expect(values.var).toContain("POSTHOG_PROJECT_TOKEN:");
+  }
+);

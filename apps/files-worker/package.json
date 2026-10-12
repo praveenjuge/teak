@@ -7,9 +7,9 @@
     "check": "bun run ../../scripts/check-cloudflare.ts",
     "deploy": "wrangler deploy",
     "deploy:development": "wrangler deploy --config development/wrangler.jsonc",
-    "dev": "wrangler dev --remote",
+    "dev": "wrangler dev --remote --var POSTHOG_PROJECT_TOKEN:",
     "dev:development": "bun --no-env-file run ../../scripts/files-worker-dev.ts",
-    "dev:local": "wrangler dev",
+    "dev:local": "wrangler dev --var POSTHOG_PROJECT_TOKEN:",
     "test": "bun test src container/src",
     "typecheck": "tsc --noEmit && tsc -p container --noEmit"
   },

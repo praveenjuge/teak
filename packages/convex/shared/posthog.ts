@@ -50,10 +50,62 @@ interface StackFrame {
   platform: string;
 }
 
-// V8 ("    at fn (file:1:2)" or "    at file:1:2") and
-// JavaScriptCore/SpiderMonkey ("fn@file:1:2") stack lines.
-const V8_FRAME = /^\s*at (?:(.+?) \()?(.+?):(\d+):(\d+)\)?\s*$/u;
-const GECKO_FRAME = /^\s*(.*?)@(.+?):(\d+):(\d+)\s*$/u;
+const MAX_FRAME_LINE_LENGTH = 2000;
+
+// Splits "file:line:col" from its right end. String scanning, not a regex,
+// keeps hostile stack text from backtracking.
+const splitLocation = (
+  location: string
+): { colno: number; filename: string; lineno: number } | null => {
+  const colAt = location.lastIndexOf(":");
+  const lineAt = colAt > 0 ? location.lastIndexOf(":", colAt - 1) : -1;
+  if (lineAt <= 0) {
+    return null;
+  }
+  const lineno = Number(location.slice(lineAt + 1, colAt));
+  const colno = Number(location.slice(colAt + 1));
+  if (!(Number.isInteger(lineno) && Number.isInteger(colno))) {
+    return null;
+  }
+  return { colno, filename: location.slice(0, lineAt), lineno };
+};
+
+// V8 ("at fn (file:1:2)" or "at file:1:2") and JavaScriptCore/SpiderMonkey
+// ("fn@file:1:2") stack lines.
+const parseFrameLine = (
+  rawLine: string
+): { colno: number; filename: string; fn: string; lineno: number } | null => {
+  const line = rawLine.trim();
+  if (line.length > MAX_FRAME_LINE_LENGTH) {
+    return null;
+  }
+  let fn = "";
+  let location: string;
+  if (line.startsWith("at ")) {
+    const body = line.slice(3);
+    const open = body.lastIndexOf(" (");
+    if (open !== -1 && body.endsWith(")")) {
+      fn = body.slice(0, open);
+      location = body.slice(open + 2, -1);
+    } else {
+      location = body;
+    }
+  } else {
+    const at = line.indexOf("@");
+    if (at === -1) {
+      return null;
+    }
+    fn = line.slice(0, at);
+    location = line.slice(at + 1);
+  }
+  const parsed = splitLocation(location);
+  return parsed ? { ...parsed, fn: fn.trim() } : null;
+};
+
+const isLibraryFile = (file: string) =>
+  file.includes("node_modules") ||
+  file.startsWith("node:") ||
+  file === "native";
 
 export const parseStackFrames = (
   stack: string | undefined,
@@ -64,18 +116,17 @@ export const parseStackFrames = (
   }
   const frames: StackFrame[] = [];
   for (const line of stack.split("\n")) {
-    const match = V8_FRAME.exec(line) ?? GECKO_FRAME.exec(line);
-    if (!match) {
+    const frame = parseFrameLine(line);
+    if (!frame) {
       continue;
     }
-    const [, fn, filename, lineno, colno] = match;
-    const file = scrubTelemetryString(filename ?? "");
+    const file = scrubTelemetryString(frame.filename);
     frames.push({
-      colno: Number(colno),
+      colno: frame.colno,
       filename: file,
-      function: fn?.trim() || "?",
-      in_app: !/node_modules|^node:|^native$/u.test(file),
-      lineno: Number(lineno),
+      function: frame.fn || "?",
+      in_app: !isLibraryFile(file),
+      lineno: frame.lineno,
       platform,
     });
     if (frames.length >= MAX_FRAMES) {
@@ -170,7 +221,10 @@ export const createPostHogBatch = (
   options: PostHogBatchOptions
 ): PostHogBatch => {
   const token = options.token?.trim();
-  const host = (options.host ?? POSTHOG_INGEST_HOST).replace(/\/+$/u, "");
+  let host = options.host ?? POSTHOG_INGEST_HOST;
+  while (host.endsWith("/")) {
+    host = host.slice(0, -1);
+  }
   const platform = options.platform ?? "node:javascript";
   const send = options.fetch ?? ((...args) => fetch(...args));
   let queue: PostHogEvent[] = [];

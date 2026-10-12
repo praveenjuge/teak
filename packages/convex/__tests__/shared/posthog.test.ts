@@ -132,6 +132,17 @@ describe("PostHog exception events", () => {
     expect(jsc[0]).toMatchObject({ colno: 7, function: "save", lineno: 3 });
   });
 
+  test("parses hostile stack text in linear time", () => {
+    const hostile = [
+      `at ${"a (a".repeat(50_000)}`,
+      `${"@a".repeat(50_000)}`,
+      `${"\t".repeat(50_000)}at x`,
+    ].join("\n");
+    const startedAt = performance.now();
+    expect(parseStackFrames(hostile, "web:javascript")).toEqual([]);
+    expect(performance.now() - startedAt).toBeLessThan(200);
+  });
+
   test("builds an exception list with causes and scrubbed messages", () => {
     const cause = new TypeError("fetch failed");
     const error = Object.assign(
