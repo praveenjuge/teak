@@ -21,6 +21,14 @@ if [[ "${CLAUDE_CODE_REMOTE:-}" == "true" ]]; then
   if [[ -d "$browsers" && -n "${CLAUDE_ENV_FILE:-}" ]]; then
     printf 'export PLAYWRIGHT_BROWSERS_PATH="%s"\n' "$browsers" >>"$CLAUDE_ENV_FILE"
   fi
+  # The pinned Playwright's Chromium can't open the Convex WebSocket through
+  # the session's HTTPS proxy (the handshake loses its Upgrade header), so the
+  # web app never loads against the dev deployment in it. The image's older
+  # Chromium can; point agents at it (.agents/cloud.md).
+  cloud_chromium="$(ls -d /opt/pw-browsers/chromium-*/chrome-linux*/chrome 2>/dev/null | sort -V | tail -n 1 || true)"
+  if [[ -n "$cloud_chromium" && -n "${CLAUDE_ENV_FILE:-}" ]]; then
+    printf 'export TEAK_CLOUD_CHROMIUM="%s"\n' "$cloud_chromium" >>"$CLAUDE_ENV_FILE"
+  fi
   # Turbo's strict env mode drops NODE_EXTRA_CA_CERTS, so Node tasks under it
   # (ray lint, Google Fonts) reject the HTTPS proxy's certificate. Turbo passes
   # NODE_OPTIONS through, and the system store already trusts the proxy CA.

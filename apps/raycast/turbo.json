@@ -2,6 +2,9 @@
   "extends": ["//"],
   "tags": ["app"],
   "tasks": {
+    "build": {
+      "outputs": []
+    },
     "test": {
       "dependsOn": ["^test", "teak-sdk#build"]
     },
