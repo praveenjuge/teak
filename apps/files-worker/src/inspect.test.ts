@@ -230,3 +230,93 @@ describe("rtf stripping", () => {
     expect(extractRtfText("{\\b bold} plain")).toContain("bold");
   });
 });
+
+/** A text-only PDF with one line per page, built with a valid xref table. */
+const buildPdf = (pageTexts: string[]): Uint8Array => {
+  const objects: string[] = [
+    "<< /Type /Catalog /Pages 2 0 R >>",
+    `<< /Type /Pages /Kids [${pageTexts.map((_, index) => `${4 + index * 2} 0 R`).join(" ")}] /Count ${pageTexts.length} >>`,
+    "<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>",
+  ];
+  for (const [index, text] of pageTexts.entries()) {
+    const content = `BT /F1 12 Tf 20 40 Td (${text}) Tj ET`;
+    objects.push(
+      `<< /Type /Page /Parent 2 0 R /MediaBox [0 0 200 100] /Contents ${5 + index * 2} 0 R /Resources << /Font << /F1 3 0 R >> >> >>`,
+      `<< /Length ${content.length} >>\nstream\n${content}\nendstream`
+    );
+  }
+  let out = "%PDF-1.4\n";
+  const offsets = objects.map((object, index) => {
+    const offset = out.length;
+    out += `${index + 1} 0 obj\n${object}\nendobj\n`;
+    return offset;
+  });
+  const xref = out.length;
+  out += `xref\n0 ${objects.length + 1}\n0000000000 65535 f \n`;
+  for (const offset of offsets) {
+    out += `${String(offset).padStart(10, "0")} 00000 n \n`;
+  }
+  out += `trailer\n<< /Size ${objects.length + 1} /Root 1 0 R >>\nstartxref\n${xref}\n%%EOF\n`;
+  return new TextEncoder().encode(out);
+};
+
+describe("pdf inspection", () => {
+  test("extracts the text layer for AI metadata with page and word counts", async () => {
+    const bucket = new FakeBucket();
+    bucket.objects.set("doc.pdf", {
+      bytes: buildPdf(["Quarterly plan", "Hiring and budget"]),
+    });
+
+    const result = await runInspect(
+      bucket as never,
+      "doc.pdf",
+      "pdf",
+      "pdf",
+      1024 * 1024,
+      false
+    );
+
+    expect(result.text).toBe("Quarterly plan\n\nHiring and budget");
+    expect(result.facts).toMatchObject({ pageCount: 2, wordCount: 5 });
+  });
+
+  test("reads at most the first 30 pages", async () => {
+    const bucket = new FakeBucket();
+    bucket.objects.set("long.pdf", {
+      bytes: buildPdf(
+        Array.from({ length: 35 }, (_, index) => `Page${index + 1}`)
+      ),
+    });
+
+    const result = await runInspect(
+      bucket as never,
+      "long.pdf",
+      "pdf",
+      "pdf",
+      1024 * 1024,
+      false
+    );
+
+    expect(result.facts?.pageCount).toBe(35);
+    expect(result.text).toContain("Page30");
+    expect(result.text).not.toContain("Page31");
+  });
+
+  test("refuses a PDF over the byte limit instead of parsing a truncated prefix", async () => {
+    const bucket = new FakeBucket();
+    bucket.objects.set("big.pdf", { bytes: buildPdf(["Too big"]) });
+    await expect(
+      runInspect(bucket as never, "big.pdf", "pdf", "pdf", 100, false)
+    ).rejects.toThrow("source_too_large");
+  });
+
+  test("reports bytes that are not a PDF", async () => {
+    const bucket = new FakeBucket();
+    bucket.objects.set("fake.pdf", {
+      bytes: new TextEncoder().encode("<html>not a pdf</html>"),
+    });
+    await expect(
+      runInspect(bucket as never, "fake.pdf", "pdf", "pdf", 1024, false)
+    ).rejects.toThrow("not_a_pdf");
+  });
+});

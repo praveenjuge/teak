@@ -1,12 +1,13 @@
 "use node";
-import { ensureObjectOwnership } from "../../../storage/ownership";
-import type { ActionCtx } from "../../../_generated/server";
-
 
 import { lookup } from "node:dns/promises";
+import { gzipSync } from "node:zlib";
 import Kernel from "@onkernel/sdk";
+import type { FilesCaptureScreenshotResult } from "@teak/files-protocol";
+import { SCREENSHOT_CLEANUP_CSS } from "@teak/files-protocol";
 import { v } from "convex/values";
 import { internal } from "../../../_generated/api";
+import type { ActionCtx } from "../../../_generated/server";
 import { internalAction } from "../../../_generated/server";
 import { normalizeUrl } from "../../../linkMetadata";
 import {
@@ -20,6 +21,8 @@ import {
   callFilesWorkerJson,
   type FilesWorkerHeadObjectResult,
 } from "../../../storage/filesWorkerClient";
+import { tryFilesWorkerRendering } from "../../../storage/filesWorkerRendering";
+import { ensureObjectOwnership } from "../../../storage/ownership";
 import { buildR2ObjectKey } from "../../../storage/r2";
 import { pinnedFetch } from "../pinnedFetch";
 import {
@@ -87,23 +90,61 @@ export const buildGenericScreenshotCode = (
   return JSON.stringify({ etag: uploadResponse.headers()['etag'] || null, ok: true, status: uploadResponse.status() });
 `;
 
-const captureScreenshotWithKernel = async (ctx: ActionCtx, {
-  cardId,
-  html,
-  url,
-  userId,
-}: {
-  cardId: string;
-  html: string;
-  url: string;
-  userId: string;
-}): Promise<{
+interface ScreenshotOutcome {
+  error?: { type: string; message?: string; details?: any };
+  screenshotHeight?: number;
   screenshotKey?: string;
   screenshotUpdatedAt?: number;
   screenshotWidth?: number;
-  screenshotHeight?: number;
-  error?: { type: string; message?: string; details?: any };
-}> => {
+}
+
+/** HTML travels gzip-compressed so pages up to 2 MiB fit in an op body. */
+const gzipBase64 = (html: string): string =>
+  gzipSync(Buffer.from(html, "utf8")).toString("base64");
+
+/**
+ * Browser Run in the Files Worker screenshots the already-fetched HTML offline
+ * and writes the JPEG to R2. Null means "use Kernel instead".
+ */
+const captureScreenshotWithFilesWorker = async (
+  ctx: ActionCtx,
+  { cardId, html, userId }: { cardId: string; html: string; userId: string }
+): Promise<ScreenshotOutcome | null> => {
+  const screenshotKey = buildR2ObjectKey({
+    userId,
+    cardId,
+    role: "screenshot",
+  });
+  await ensureObjectOwnership(ctx, userId, screenshotKey);
+  const captured = await tryFilesWorkerRendering<FilesCaptureScreenshotResult>(
+    "capture-screenshot",
+    { destinationKey: screenshotKey, htmlGzipBase64: gzipBase64(html) },
+    "[screenshot]"
+  );
+  return captured
+    ? {
+        screenshotHeight: captured.height,
+        screenshotKey,
+        screenshotUpdatedAt: Date.now(),
+        screenshotWidth: captured.width,
+      }
+    : null;
+};
+
+const captureScreenshotWithKernel = async (
+  ctx: ActionCtx,
+  {
+    cardId,
+    html,
+    url,
+    userId,
+  }: {
+    cardId: string;
+    html: string;
+    url: string;
+    userId: string;
+  }
+): Promise<ScreenshotOutcome> => {
   const kernel = new Kernel();
   let kernelBrowser: { session_id: string } | undefined;
 
@@ -140,19 +181,14 @@ const captureScreenshotWithKernel = async (ctx: ActionCtx, {
       stealth: true,
     });
 
-    const screenshotCss = `
-      html, body { overflow: hidden !important; scrollbar-width: none !important; -ms-overflow-style: none !important; }
-      html::-webkit-scrollbar, body::-webkit-scrollbar { display: none !important; }
-      .cookie-banner, .cookie-consent, .privacy-popup, .newsletter-popup, .modal-overlay, .popup, .ad, .advertisement, .sponsored { display: none !important; visibility: hidden !important; }
-      body { margin: 0 !important; padding: 0 !important; min-height: 100vh !important; }
-      .floating, .sticky, .fixed { display: none !important; }
-      [data-testid="BottomBar"], [data-testid="sheetDialog"], [data-testid="HoverCard"], [data-testid="app-bar-close"], [aria-label="Sign up"] { display: none !important; visibility: hidden !important; }
-    `;
-
     const response = await kernel.browsers.playwright.execute(
       kernelBrowser.session_id,
       {
-        code: buildGenericScreenshotCode(html, screenshotCss, uploadUrl),
+        code: buildGenericScreenshotCode(
+          html,
+          SCREENSHOT_CLEANUP_CSS,
+          uploadUrl
+        ),
         timeout_sec: 60,
       }
     );
@@ -325,12 +361,18 @@ export const captureScreenshot = internalAction({
       throw error;
     }
 
-    const screenshotResult = await captureScreenshotWithKernel(ctx, {
-      cardId,
-      html,
-      url: normalizedUrl,
-      userId: card.userId,
-    });
+    const screenshotResult =
+      (await captureScreenshotWithFilesWorker(ctx, {
+        cardId,
+        html,
+        userId: card.userId,
+      })) ??
+      (await captureScreenshotWithKernel(ctx, {
+        cardId,
+        html,
+        url: normalizedUrl,
+        userId: card.userId,
+      }));
 
     if (screenshotResult?.screenshotKey) {
       await ctx.runMutation(linkMetadataInternal.updateCardScreenshot, {

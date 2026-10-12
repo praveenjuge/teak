@@ -1,8 +1,7 @@
 "use node";
-import { ensureObjectOwnership } from "../../../storage/ownership";
-
 
 import Kernel from "@onkernel/sdk";
+import type { FilesPdfThumbnailResult } from "@teak/files-protocol";
 import { v } from "convex/values";
 import { internal } from "../../../_generated/api";
 import { internalAction } from "../../../_generated/server";
@@ -11,7 +10,9 @@ import {
   callFilesWorkerJson,
   type FilesWorkerHeadObjectResult,
 } from "../../../storage/filesWorkerClient";
+import { tryFilesWorkerRendering } from "../../../storage/filesWorkerRendering";
 import { tryResolveObjectUrl } from "../../../storage/fileUrls";
+import { ensureObjectOwnership } from "../../../storage/ownership";
 import { buildR2ObjectKey } from "../../../storage/r2";
 
 // Bound both dimensions so hostile page aspect ratios cannot create an
@@ -117,7 +118,28 @@ export const generatePdfThumbnail = internalAction({
         cardId: args.cardId,
         role: "thumbnail",
       });
-  await ensureObjectOwnership(ctx, card.userId, thumbnailKey);
+      await ensureObjectOwnership(ctx, card.userId, thumbnailKey);
+
+      // Browser Run in the Files Worker renders straight from R2; Kernel stays
+      // the fallback for Workers without it and for oversized documents.
+      const rendered = await tryFilesWorkerRendering<FilesPdfThumbnailResult>(
+        "render-pdf-thumbnail",
+        { destinationKey: thumbnailKey, sourceKey: card.fileKey },
+        "[renderables/pdf]"
+      );
+      if (rendered) {
+        await ctx.runMutation(
+          internal.workflows.steps.renderables.mutations.updateCardThumbnail,
+          {
+            cardId: args.cardId,
+            thumbnailKey,
+            originalWidth: rendered.width,
+            originalHeight: rendered.height,
+          }
+        );
+        return { success: true, generated: true, thumbnailKey };
+      }
+
       const uploadUrl = (
         await buildSignedWorkerUploadUrl({
           contentType: "image/png",

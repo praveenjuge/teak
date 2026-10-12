@@ -29,6 +29,7 @@ import {
   hasKnownTinyImageDimensions,
   hasMinimumImageAnalysisDimensions,
 } from "../imageAnalysis";
+import { recordMediaFacts } from "../mediaFacts";
 
 interface LinkPreviewMetadata {
   author?: string;
@@ -230,6 +231,7 @@ export async function generateHandler(
       }
       case "audio": {
         if (card.fileKey) {
+          await recordMediaFacts(ctx, card, "audio");
           const transcriptResult = await generateTranscript(
             card.fileKey,
             card.fileMetadata?.mimeType

@@ -41,7 +41,44 @@ const XML_ENTITIES: Record<string, string> = {
 const CSS_COLOR_VARIABLE_REGEX =
   /--[a-z0-9_-]+\s*:\s*(?:#[0-9a-f]{3,8}\b|(?:rgb|hsl|oklab|oklch|lab|lch|color)\([^;]+\))/giu;
 
-export type InspectMode = "css" | "text" | "zip";
+export type InspectMode = "css" | "pdf" | "text" | "zip";
+
+/** Pages read for AI text; later pages rarely change a document's summary. */
+export const MAX_PDF_TEXT_PAGES = 30;
+
+/**
+ * Text layer of a PDF's first pages, joined in reading order. Scanned PDFs
+ * without a text layer return an empty string.
+ */
+export const extractPdfText = async (
+  bytes: Uint8Array,
+  maxChars: number
+): Promise<{ pageCount: number; text: string }> => {
+  const { getDocumentProxy } = await import("unpdf");
+  const pdf = await getDocumentProxy(bytes);
+  const pages: string[] = [];
+  let length = 0;
+  const last = Math.min(pdf.numPages, MAX_PDF_TEXT_PAGES);
+  for (let index = 1; index <= last && length < maxChars; index++) {
+    const page = await pdf.getPage(index);
+    const content = await page.getTextContent();
+    const text = content.items
+      .map((item) =>
+        "str" in item ? `${item.str}${item.hasEOL ? "\n" : ""}` : ""
+      )
+      .join("")
+      .replace(/[ \t]+/gu, " ")
+      .trim();
+    if (text) {
+      pages.push(text);
+      length += text.length;
+    }
+  }
+  return {
+    pageCount: pdf.numPages,
+    text: pages.join("\n\n").slice(0, maxChars),
+  };
+};
 
 export interface InspectResult {
   facts?: Record<string, number>;
@@ -233,6 +270,29 @@ export const runInspect = async (
     const decoded = new TextDecoder().decode(bytes.slice(0, MAX_AI_TEXT_BYTES));
     const text = rtf ? extractRtfText(decoded).trim() : decoded.trim();
     return { facts: textFacts(text), text };
+  }
+
+  if (mode === "pdf") {
+    // A PDF's cross-reference table sits at its end, so a prefix is useless.
+    const object = await bucket.get(key);
+    if (!object) {
+      throw new InspectSourceMissing();
+    }
+    if (object.size > maxBytes) {
+      await object.body.cancel();
+      throw new Error("source_too_large");
+    }
+    const bytes = new Uint8Array(await object.arrayBuffer());
+    let extracted: { pageCount: number; text: string };
+    try {
+      extracted = await extractPdfText(bytes, MAX_AI_TEXT_BYTES);
+    } catch {
+      throw new Error("not_a_pdf");
+    }
+    return {
+      facts: { ...textFacts(extracted.text), pageCount: extracted.pageCount },
+      text: extracted.text,
+    };
   }
 
   throw new Error(`invalid_mode:${mode}`);

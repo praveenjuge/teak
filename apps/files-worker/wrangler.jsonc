@@ -17,8 +17,15 @@
       "bucket_name": "teak-files-prod"
     }
   ],
-  "durable_objects": { "bindings": [{ "name": "OBJECT_GATES", "class_name": "ObjectDeletionGate" }] },
-  "migrations": [{ "tag": "object-deletion-gates-v1", "new_sqlite_classes": ["ObjectDeletionGate"] }],
+  "durable_objects": {
+    "bindings": [{ "name": "OBJECT_GATES", "class_name": "ObjectDeletionGate" }]
+  },
+  "migrations": [
+    {
+      "tag": "object-deletion-gates-v1",
+      "new_sqlite_classes": ["ObjectDeletionGate"]
+    }
+  ],
   "ai": {
     "binding": "AI",
     // AI bindings always access remote resources, even in local dev.
@@ -26,6 +33,15 @@
   },
   "images": {
     "binding": "IMAGES"
+  },
+  // Browser Run: PDF thumbnails and offline HTML screenshots/scrapes.
+  "browser": {
+    "binding": "BROWSER"
+  },
+  // Media Transformations: video frames read straight from R2 (remote only).
+  "media": {
+    "binding": "MEDIA",
+    "remote": true
   },
   // This config deploys the production custom domain. Local dev overrides it.
   "vars": {

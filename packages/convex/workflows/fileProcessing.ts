@@ -9,6 +9,7 @@ import {
 
 const MAX_ARCHIVE_INSPECTION_BYTES = 25 * 1024 * 1024;
 const MAX_SOURCE_INSPECTION_BYTES = 2 * 1024 * 1024;
+const MAX_PDF_TEXT_INSPECTION_BYTES = 25 * 1024 * 1024;
 
 interface FileCardInput {
   fileMetadata?: { kind?: string } | null;
@@ -51,11 +52,36 @@ export const buildFilePreviewFactsForKey = async (
     : null;
 };
 
+/**
+ * The text layer of a PDF's first pages. Optional: a Worker without the `pdf`
+ * inspect mode, a scanned PDF, or an oversized file yields no text.
+ */
+const extractPdfTextForAi = async (sourceKey: string): Promise<string> => {
+  try {
+    const outcome = await callFilesWorkerJson<FilesWorkerInspectResult>({
+      op: "inspect",
+      params: {
+        formatId: "pdf",
+        maxBytes: MAX_PDF_TEXT_INSPECTION_BYTES,
+        mode: "pdf",
+        sourceKey,
+      },
+    });
+    return outcome.kind === "ok" ? (outcome.data.text ?? "") : "";
+  } catch {
+    return "";
+  }
+};
+
 export const extractFileTextForAiForKey = async (
   sourceKey: string,
   format: FileFormat,
   card: FileCardInput
 ): Promise<string> => {
+  if (format.id === "pdf") {
+    requireWorker();
+    return await extractPdfTextForAi(sourceKey);
+  }
   const archive = ["word", "powerpoint"].includes(format.id);
   const text = ["markdown", "source", "text", "tokens"].includes(format.kind);
   if (!(archive || text)) {

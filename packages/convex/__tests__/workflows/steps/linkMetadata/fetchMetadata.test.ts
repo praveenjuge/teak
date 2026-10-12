@@ -80,6 +80,7 @@ mock.module("@onkernel/sdk", () => ({
   },
 }));
 
+import { gunzipSync } from "node:zlib";
 import {
   r2MockModuleFactory,
   r2Mocks,
@@ -219,6 +220,70 @@ describe("fetchMetadata", () => {
         status: "completed",
       })
     );
+  });
+
+  test("scrapes through the Files Worker browser before Kernel when static HTML has no metadata", async () => {
+    const previous = [process.env.FILES_BASE, process.env.FILES_SIGNING_SECRET];
+    process.env.FILES_BASE = "https://files.teakvault.com";
+    process.env.FILES_SIGNING_SECRET = "test-signing-secret";
+    mockScrapeElements.push({ selector: "head > title" });
+    mockRunQuery.mockResolvedValue({
+      _id: "c1",
+      type: "link",
+      url: "https://example.com",
+      metadata: { linkCategory: { status: "completed" } },
+    });
+    const workerOps: Array<{ op: string; params: Record<string, unknown> }> =
+      [];
+    mockFetch.mockImplementation((url: string, init?: RequestInit) => {
+      if (String(url).startsWith("https://files.teakvault.com/__ops/v1")) {
+        workerOps.push(JSON.parse(String(init?.body)));
+        return Promise.resolve(
+          Response.json({
+            ok: true,
+            version: 1,
+            requestId: "r1",
+            data: {
+              selectors: [
+                { selector: "head > title", results: [{ text: "Rendered" }] },
+              ],
+            },
+          })
+        );
+      }
+      return Promise.resolve(
+        new Response("<html><body>no metadata</body></html>", {
+          headers: { "content-type": "text/html" },
+          status: 200,
+        })
+      );
+    });
+    try {
+      const result = await fetchMetadataHandler(ctx, { cardId: "c1" });
+
+      expect(result.status).toBe("success");
+      expect(workerOps.map(({ op }) => op)).toEqual(["scrape-html"]);
+      const sent = workerOps[0]?.params as {
+        htmlGzipBase64: string;
+        selectors: string[];
+      };
+      expect(sent.selectors).toEqual(["head > title"]);
+      expect(
+        gunzipSync(Buffer.from(sent.htmlGzipBase64, "base64")).toString()
+      ).toBe("<html><body>no metadata</body></html>");
+      expect(mockParseLinkPreview).toHaveBeenCalledWith("https://example.com", [
+        { selector: "head > title", results: [{ text: "Rendered" }] },
+      ]);
+      expect(mockKernelCreateBrowser).not.toHaveBeenCalled();
+    } finally {
+      [process.env.FILES_BASE, process.env.FILES_SIGNING_SECRET] = previous;
+      if (previous[0] === undefined) {
+        delete process.env.FILES_BASE;
+      }
+      if (previous[1] === undefined) {
+        delete process.env.FILES_SIGNING_SECRET;
+      }
+    }
   });
 
   test("uses static metadata without allocating a browser", async () => {

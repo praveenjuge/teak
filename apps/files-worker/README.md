@@ -32,8 +32,10 @@ the binding, cached per source ETag + rendition + format; larger sources keep
 the URL-based transformation path. The Convex backend remains the control plane — it authenticates
 users, owns card state, validates uploads, and orchestrates workflows —
 while stored-file processing and storage transfers flow through this worker.
-Remote preview fetching retains its DNS-pinned Convex implementation (see below);
-PDF/video rendering and screenshots remain in Kernel.
+Remote preview fetching retains its DNS-pinned Convex implementation (see below).
+PDF thumbnails, link screenshots and browser scrapes run on Browser Run
+(`BROWSER`), and video frames on Media Transformations (`MEDIA`); Kernel stays
+in Convex only as the fallback (see "Rendering and media").
 
 ## Internal ops
 
@@ -77,6 +79,43 @@ Operation request bodies are limited to 1 MiB before signature verification.
   Workers AI (Gemma multimodal) with the same system prompt, JSON output
   shape, and bounded validation retries as the pipeline it replaced; image
   bytes never leave the worker (`src/imageMetadata.ts`).
+
+## Rendering and media
+
+Each rendering op answers UNSUPPORTED (or PAYLOAD_TOO_LARGE) when its binding
+is missing or the source is outside its limits; Convex then uses its Kernel
+renderer instead (`packages/convex/storage/filesWorkerRendering.ts`). So a
+Worker deployment without these bindings, or an older Worker, changes nothing.
+
+- `render-pdf-thumbnail` renders page 1 of a PDF (≤20 MiB) from R2 with
+  pdf.js on Browser Run and writes a white-backed PNG (≤1600px each way) to
+  `destinationKey`. pdf.js 3.11.174 comes from cdnjs and is pinned by
+  SHA-256 (matching cdnjs's SRI); the PDF bytes are handed to the page, never
+  fetched by it.
+- `capture-screenshot` and `scrape-html` take HTML that Convex already fetched
+  through its DNS-pinned SSRF guard, gzip-compressed and base64-encoded
+  (`htmlGzipBase64`, ≤2 MiB inflated) so 2 MiB pages fit the 1 MiB op body.
+  Pages run offline: request interception aborts every request, and
+  WebSocket, EventSource and `sendBeacon` are disabled before the HTML loads.
+  The screenshot is a 1280×720 JPEG; a scrape returns attributes, text and
+  inner HTML per selector (≤128 selectors, ≤100 elements each).
+- `extract-video-frame` probes the container, then has the Media binding cut
+  one JPEG frame (1s in, or 0s under 2s; ≤1600px) straight from the R2
+  stream. Only H.264 MP4/MOV under 100 MB and 10 minutes are attempted;
+  WebM, HEVC and larger files stay on Kernel.
+- `probe-media` reads duration, display size (rotation-aware) and video codec
+  from MP4/MOV/M4A boxes or WebM headers with bounded ranged reads. Convex
+  stores duration and size for audio and video cards when they are missing.
+- `inspect` mode `pdf` extracts the text layer of a PDF's first 30 pages
+  (unpdf) for AI metadata; scanned PDFs yield no text.
+- `analyze-image` also returns EXIF camera facts (make, model, exposure,
+  focal length, ISO, GPS, capture time) from JPEG APP1 or the HEIF `Exif`
+  item, stored as `fileMetadata.exif`.
+
+`BROWSER` and `MEDIA` need the Workers Paid plan; `MEDIA` has no local
+simulation, so it is declared `remote`. Browser Run's local mode runs a real
+Chrome under `wrangler dev`, and the tests in `src/rendering.test.ts` drive a
+local Chrome through the same `@cloudflare/puppeteer` client.
 
 ## Import and audio processing
 

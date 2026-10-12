@@ -112,11 +112,11 @@ const workerOps = (): string[] =>
     (call) => JSON.parse((call[1] as { body?: string })?.body ?? "{}").op
   );
 
-const firstWorkerOpRequest = (): {
+const secondWorkerOpRequest = (): {
   op: string;
   params: Record<string, unknown>;
 } => {
-  const init = mockFetch.mock.calls.at(0)?.[1] as { body?: string };
+  const init = mockFetch.mock.calls.at(1)?.[1] as { body?: string };
   return JSON.parse(init?.body ?? "{}");
 };
 
@@ -578,10 +578,11 @@ describe("metadata handler", () => {
       expectSaved(["speech"], "Audio content");
       expect(result.confidence).toBe(0.85);
       expect(workerOps()).toEqual([
+        "probe-media",
         "transcribe-audio",
         "generate-text-metadata",
       ]);
-      expect(firstWorkerOpRequest()).toMatchObject({
+      expect(secondWorkerOpRequest()).toMatchObject({
         op: "transcribe-audio",
         params: { sourceKey: "users/u/audio.mp3" },
       });

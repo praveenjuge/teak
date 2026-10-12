@@ -2,7 +2,7 @@ import { v } from "convex/values";
 import { internalMutation } from "../../../_generated/server";
 import { stageFailed } from "../../../card/processingStatus";
 import { patchCardWithSearchSync } from "../../../card/searchDocumentHelpers";
-import { filePreviewFactsValidator } from "../../../schema";
+import { filePreviewFactsValidator, imageExifValidator } from "../../../schema";
 
 export const markCardRenderablesFailed = internalMutation({
   args: { cardId: v.id("cards"), error: v.string() },
@@ -38,6 +38,7 @@ export const updateCardFileMetadata = internalMutation({
     cardId: v.id("cards"),
     width: v.number(),
     height: v.number(),
+    exif: v.optional(imageExifValidator),
   },
   returns: v.null(),
   handler: async (ctx, args) => {
@@ -51,7 +52,46 @@ export const updateCardFileMetadata = internalMutation({
         ...(card.fileMetadata || {}),
         width: args.width,
         height: args.height,
+        ...(args.exif ? { exif: args.exif } : {}),
       },
+      updatedAt: Date.now(),
+    });
+    return null;
+  },
+});
+
+/**
+ * Store container facts (duration, display size) for audio and video cards.
+ * Only fills fields the card does not already have, so upload-time or
+ * thumbnail-derived values win.
+ */
+export const updateCardMediaFacts = internalMutation({
+  args: {
+    cardId: v.id("cards"),
+    duration: v.optional(v.number()),
+    width: v.optional(v.number()),
+    height: v.optional(v.number()),
+  },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    const card = await ctx.db.get("cards", args.cardId);
+    if (!card) {
+      return null;
+    }
+    const current = card.fileMetadata || {};
+    const missing = {
+      ...(args.duration !== undefined &&
+        current.duration === undefined && { duration: args.duration }),
+      ...(args.width !== undefined &&
+        current.width === undefined && { width: args.width }),
+      ...(args.height !== undefined &&
+        current.height === undefined && { height: args.height }),
+    };
+    if (Object.keys(missing).length === 0) {
+      return null;
+    }
+    await patchCardWithSearchSync(ctx, args.cardId, {
+      fileMetadata: { ...current, ...missing },
       updatedAt: Date.now(),
     });
     return null;

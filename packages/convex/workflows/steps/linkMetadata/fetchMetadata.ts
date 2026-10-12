@@ -1,7 +1,9 @@
 "use node";
 
 import { lookup } from "node:dns/promises";
+import { gzipSync } from "node:zlib";
 import Kernel from "@onkernel/sdk";
+import type { FilesScrapeResult } from "@teak/files-protocol";
 import { v } from "convex/values";
 import { internal } from "../../../_generated/api";
 import { internalAction } from "../../../_generated/server";
@@ -37,6 +39,7 @@ import {
   type XStatusMedia,
 } from "../../../linkMetadata/x";
 import { TELEMETRY_OPERATIONS } from "../../../shared/telemetry";
+import { tryFilesWorkerRendering } from "../../../storage/filesWorkerRendering";
 import { buildR2ObjectKey, storeObject } from "../../../storage/r2";
 import { withBackendSpan } from "../../../telemetry/sentry";
 import { pinnedFetch } from "../pinnedFetch";
@@ -575,6 +578,19 @@ const scrapeWithKernel = async (
   const html = new TextDecoder().decode(
     await readBodyWithLimit(response, MAX_REMOTE_HTML_BYTES)
   );
+  // Browser Run in the Files Worker queries the same offline HTML; Kernel
+  // stays the fallback for Workers without the binding.
+  const scraped = await tryFilesWorkerRendering<FilesScrapeResult>(
+    "scrape-html",
+    {
+      htmlGzipBase64: gzipSync(Buffer.from(html, "utf8")).toString("base64"),
+      selectors: selectors.map((selector) => selector.selector),
+    },
+    "[linkMetadata]"
+  );
+  if (scraped) {
+    return { success: true, result: { selectors: scraped.selectors } };
+  }
   const kernel = new Kernel();
   let kernelBrowser: { session_id: string } | undefined;
   try {
