@@ -44,7 +44,7 @@ interface DeveloperCard {
   copy: string;
   docsLabel: string;
   href: string;
-  icon: string;
+  logo: { alt: string; class?: string; src: string };
   meta: string;
   name: string;
   // Shell commands get a "$" prompt; URLs don't.
@@ -138,7 +138,11 @@ const browserCards: AppCard[] = [
 const developerCards: DeveloperCard[] = [
   {
     name: "MCP",
-    icon: "plug",
+    logo: {
+      src: "/platform-icons/mcp.svg",
+      alt: "Model Context Protocol logo",
+      class: "dark:invert",
+    },
     copy: "Let AI assistants search, save, and manage your cards over the remote MCP server.",
     meta: "Remote server",
     shell: false,
@@ -148,7 +152,7 @@ const developerCards: DeveloperCard[] = [
   },
   {
     name: "REST API",
-    icon: "braces",
+    logo: { src: "/platform-icons/openapi.svg", alt: "OpenAPI logo" },
     copy: "Create, search, and update cards from your own tools with an API key.",
     meta: "HTTPS with an API key",
     shell: true,
@@ -159,7 +163,7 @@ const developerCards: DeveloperCard[] = [
   },
   {
     name: "Command Line",
-    icon: "terminal",
+    logo: { src: "/platform-icons/npm.svg", alt: "npm logo" },
     copy: "Save, search, favorite, and manage cards from any terminal.",
     meta: "npm package",
     shell: true,
@@ -169,7 +173,11 @@ const developerCards: DeveloperCard[] = [
   },
   {
     name: "Agent Skill",
-    icon: "sparkles",
+    logo: {
+      src: "/platform-icons/skills-sh.svg",
+      alt: "skills.sh logo",
+      class: "dark:invert",
+    },
     copy: "Teach coding agents to use Teak through the CLI, API, MCP, and SDK.",
     meta: "skills.sh",
     shell: true,
@@ -268,7 +276,7 @@ const isExternal = (href?: string) => href?.startsWith("http") ?? false;
         <li class="app-card dev-card group">
           <div class="flex items-center gap-3">
             <span class="app-icon dev-icon">
-              <Icon name={card.icon} size={20} />
+              <img alt={card.logo.alt} class:list={["size-6 object-contain", card.logo.class]} height="24" src={card.logo.src} width="24" />
             </span>
             <div class="min-w-0 flex-1">
               <h3 class="text-base leading-tight font-semibold tracking-[-0.01em]">
