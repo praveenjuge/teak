@@ -65,6 +65,8 @@ deployment for all of these:
   restore, the context menu and bulk actions
 - theme and devices in Settings, API keys, and import and export
 - the REST API, MCP and the CLI with `--api-key`
+- "Upgrade to Pro": Polar's sandbox checkout opens in a new tab, for the
+  seeded accounts too (`.agents/development.md`)
 
 Also `bun run smoke:web`, `bun run test`, `typecheck`, `lint`, the extension,
 CLI and Raycast builds, and the docs site.
@@ -101,9 +103,6 @@ sessions have no port forwarding, so drive it with headless Chromium
 
 ## Doesn't work
 
-- Polar sandbox checkout for the seeded accounts: Polar rejects the
-  `@example.org` address because that domain doesn't accept email. The UI shows
-  "Failed to start checkout".
 - Browser sign-in for the CLI, extension and Raycast (`teak login`, WorkOS
   Connect): the loopback callback can't reach the VM. Use an API key.
 - Apple, iPhone, iPad and Mac builds (no macOS or Xcode), and Android (no SDK

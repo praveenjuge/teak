@@ -129,7 +129,7 @@ export const buildContentSecurityPolicy = (
       ...customOrigins,
     ].join(" "),
     [
-      "frame-src https://*.polar.sh https://polar.sh",
+      "frame-src",
       TEAK_R2_STORAGE_ORIGIN,
       TEAK_FILES_ORIGIN,
       ...R2_FRAME_SOURCES,

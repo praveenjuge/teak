@@ -50,6 +50,9 @@ describe("web security headers", () => {
       "https://*.r2.cloudflarestorage.com"
     );
     expect(directiveTokens("frame-src")).toContain("https://*.r2.dev");
+    // Checkout opens Polar in a new tab, so nothing frames it.
+    expect(directiveTokens("frame-src")).not.toContain("https://polar.sh");
+    expect(directiveTokens("frame-src")).not.toContain("https://*.polar.sh");
     expect(directiveTokens("img-src")).not.toContain(
       "https://*.r2.cloudflarestorage.com"
     );

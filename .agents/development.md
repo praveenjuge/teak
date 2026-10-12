@@ -10,9 +10,9 @@ It runs setup (packages, env files), then starts this checkout's web app
 against the **shared cloud dev deployment** (`dev:reminiscent-kangaroo-59`),
 signed in through WorkOS staging. Files, previews, AI metadata, screenshots,
 imports and exports, and WorkOS Connect all work, the same as on the dev
-deployment itself. Polar sandbox checkout works for accounts with a real email
-domain; it refuses the seeded `@example.org` accounts. Agents should run it in
-the background; it stays up until stopped.
+deployment itself, and so does Polar sandbox checkout, for the seeded accounts
+too (see [Signing in](#signing-in)). Agents should run it in the background; it
+stays up until stopped.
 
 | Command | What it does |
 | --- | --- |
@@ -65,6 +65,14 @@ those accounts are pruned two weeks after their last sign-in
 30 sample cards (`packages/convex/devSeed.ts`). `bun run dev --status` prints
 the email and password. For a session without a browser, use
 `scripts/lib/workos-test-session.ts`, as `bun run smoke:web` does.
+
+"Upgrade to Pro" opens a Polar sandbox checkout in a new tab for these
+accounts too (Polar refuses to be framed, so checkout isn't embedded). Polar
+refuses `example.org` addresses, so on the dev deployment the Polar customer
+is created as `teak-dev+<teakUserId>@teakvault.com`, with the real address in
+its metadata (`packages/convex/billing.ts`). Subscriptions still reach the
+account because Polar customers map to users by customer ID, not email.
+Production always uses the account's own email.
 
 ## Worktrees
 
