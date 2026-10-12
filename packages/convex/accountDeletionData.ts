@@ -2,6 +2,7 @@ import { v } from "convex/values";
 import { internal } from "./_generated/api";
 import type { Doc } from "./_generated/dataModel";
 import { internalAction, internalMutation } from "./_generated/server";
+import { drainStorageWithinBudget } from "./accountDeletion";
 import {
   captureDeletionBatch,
   commitDeletionBatch,
@@ -189,14 +190,14 @@ export const deleteRemainingData = internalAction({
     if (state.stage !== 3 || !state.writersPrepared) {
       throw new Error("stale_deletion_stage");
     }
-    for (const kind of ["exports", "uploads", "objects"] as const) {
-      const empty: boolean = await ctx.runAction(
-        internal.accountDeletionData.drainStorageBatch,
-        { ...binding, kind }
-      );
-      if (!empty) {
-        return false;
-      }
+    if (
+      !(await drainStorageWithinBudget(ctx, binding, [
+        "exports",
+        "uploads",
+        "objects",
+      ]))
+    ) {
+      return false;
     }
     return !(await ctx.runMutation(
       internal.accountDeletionData.ancillaryPage,
@@ -328,9 +329,11 @@ export const drainStorageBatch = internalAction({
         throw new Error("deletion_upload_abort_failed");
       }
     }
-    await ctx.runAction(internal.accountDeletionData.deleteKeys, {
-      keys: page.keys,
-    });
+    if (page.keys.length > 0) {
+      await ctx.runAction(internal.accountDeletionData.deleteKeys, {
+        keys: page.keys,
+      });
+    }
     await ctx.runMutation(internal.accountDeletionData.checkpointStorageBatch, {
       ...binding,
       kind,

@@ -42,9 +42,15 @@ export const isAiProviderCapacityError = (error: unknown): boolean => {
   return PROVIDER_CAPACITY_ERROR.test(message);
 };
 
+// Without FILES_BASE and its signing secret (the local E2E stack, or a
+// deployment missing its Files Worker configuration) every metadata op fails
+// before any request is made, and no retry can change that.
+export const FILES_WORKER_NOT_CONFIGURED = "files_worker_not_configured";
+
 export const isAiMetadataDeferredError = (error: unknown): boolean => {
   const message = error instanceof Error ? error.message : String(error);
   return (
+    message === FILES_WORKER_NOT_CONFIGURED ||
     PROVIDER_CAPACITY_ERROR.test(message) ||
     JSON_VALIDATION_ERROR.test(message) ||
     RASTER_THUMBNAIL_PENDING_ERROR.test(message) ||

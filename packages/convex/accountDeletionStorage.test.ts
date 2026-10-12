@@ -104,6 +104,31 @@ test("many keys drain at most three per invocation before source deletion", asyn
     await t.action(internal.accountDeletionData.drainStorageBatch, binding)
   ).toBe(true);
 });
+test("one data-deletion step drains every card page instead of yielding per card", async () => {
+  // Six storage keys plus four cards without storage: well past one page.
+  const { t, binding, keys } = await setup(6);
+  await t.run(async (ctx) => {
+    for (let index = 0; index < 4; index++) {
+      await ctx.db.insert("cards", {
+        userId: "owner",
+        type: "text",
+        content: `note ${index}`,
+        createdAt: 1,
+        updatedAt: 1,
+      });
+    }
+  });
+  const proof = worker();
+  expect(
+    await t.action(internal.accountDeletionActions.runStage, {
+      stateId: binding.stateId,
+      generation: binding.generation,
+      stage: 3,
+    })
+  ).toBe(true);
+  expect(await t.run((ctx) => ctx.db.query("cards").take(1))).toEqual([]);
+  expect(proof.deleted).toEqual(keys);
+});
 test("lost delete reply retains source and retries the exact same keys", async () => {
   const { t, card, stateId, binding } = await setup();
   worker(undefined, true);
