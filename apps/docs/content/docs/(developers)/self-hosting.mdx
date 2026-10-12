@@ -186,7 +186,7 @@ POLAR_WEBHOOK_SECRET=secret
 
 ### Files Worker (`apps/files-worker/.dev.vars`, wrangler secrets)
 
-The Files Worker owns all file-byte operations and binds to your R2 bucket plus Cloudflare Images, Workers AI, Browser Run (PDF thumbnails and link screenshots), and Media Transformations (video thumbnails), all declared in `wrangler.jsonc`. Set `bucket_name` to your own bucket and the route `pattern` to your files domain. Browser Run and Media Transformations need the Workers Paid plan; without them, or for sources outside their limits, Teak falls back to Kernel when `KERNEL_API_KEY` is set:
+The Files Worker owns all file-byte operations and binds to your R2 bucket plus Cloudflare Images, Workers AI, Browser Run (PDF thumbnails and link screenshots), and Media Transformations (video thumbnails), all declared in `wrangler.jsonc`. Set `bucket_name` to your own bucket and the route `pattern` to your files domain. Browser Run is included on Workers Free (10 browser minutes a day) and Workers Paid (10 browser hours a month), and the Media Transformations binding is in beta. Without these bindings, or for sources outside their limits, Teak falls back to Kernel when `KERNEL_API_KEY` is set:
 
 ```bash
 FILES_SIGNING_SECRET=shared-secret           # Must match the Convex value

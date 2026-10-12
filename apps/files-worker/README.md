@@ -112,7 +112,11 @@ Worker deployment without these bindings, or an older Worker, changes nothing.
   focal length, ISO, capture time) from JPEG APP1 or the HEIF `Exif` item,
   stored as `fileMetadata.exif`. GPS position is deliberately not read.
 
-`BROWSER` and `MEDIA` need the Workers Paid plan; `MEDIA` has no local
+Browser Run works on Workers Free (10 browser minutes a day, 3 concurrent
+browsers) and Paid (10 browser hours a month and 10 concurrent browsers
+included, then billed per hour and per concurrent browser). The Media binding
+is in beta and unbilled; afterwards each binding operation is billed like an
+Image Transformation, without the monthly de-duplication. `MEDIA` has no local
 simulation, so it is declared `remote`. Browser Run's local mode runs a real
 Chrome under `wrangler dev`, and the tests in `src/rendering.test.ts` drive a
 local Chrome through the same `@cloudflare/puppeteer` client.
