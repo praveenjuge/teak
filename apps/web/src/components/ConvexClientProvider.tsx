@@ -10,6 +10,7 @@ import {
 import { ConvexProviderWithAuth, ConvexReactClient } from "convex/react";
 import { type ReactNode, useCallback } from "react";
 import { getConvexUrl } from "@/lib/public-env";
+import { fetchSessionToken } from "@/lib/session-token";
 
 // One client for the page's lifetime, created before the first render so the
 // socket opens without waiting for an effect. The client is lazy, so server
@@ -48,13 +49,9 @@ function useAuthFromAuthKit() {
       if (!user) {
         return null;
       }
-      try {
-        return (
-          (await (forceRefreshToken ? refresh() : getAccessToken())) ?? null
-        );
-      } catch {
-        return null;
-      }
+      return await fetchSessionToken(
+        forceRefreshToken ? refresh : getAccessToken
+      );
     },
     [user, refresh, getAccessToken]
   );

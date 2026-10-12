@@ -10,6 +10,7 @@ import { type ReactNode, useEffect, useRef, useState } from "react";
 import Loading from "@/app/loading";
 import { signOut } from "@/lib/sign-out-client";
 import { AuthUnavailable } from "./AuthUnavailable";
+import { StatusScreen } from "./StatusScreen";
 
 type Bootstrap =
   | { status: "ok"; teakUserId: string }
@@ -114,16 +115,20 @@ export function WorkosAuthBoundary({ children }: { children: ReactNode }) {
       cancelled = true;
     };
   }, [needsBootstrap, identity, ensure, attempt]);
-  if (tokenError || failed) {
+  // A refresh can fail while Convex still holds a valid token, for example on
+  // a dropped connection. Convex keeps retrying, so an open vault stays open.
+  if (failed || (tokenError && !auth.isAuthenticated)) {
     return (
       <AuthUnavailable
         retry={() => {
+          // A refresh that fails again shows up as tokenError, which clears
+          // once a later refresh succeeds; it isn't a bootstrap failure.
           void refresh()
             .then(() => {
               setFailed(false);
               setAttempt((n) => n + 1);
             })
-            .catch(() => setFailed(true));
+            .catch(() => undefined);
         }}
       />
     );
@@ -136,7 +141,11 @@ export function WorkosAuthBoundary({ children }: { children: ReactNode }) {
   }
   if (!(user && auth.isAuthenticated)) {
     return (
-      <AuthUnavailable message="Please sign in again." retry={signInHere} />
+      <AuthUnavailable
+        action="Sign in"
+        message="Please sign in again."
+        retry={signInHere}
+      />
     );
   }
   if (profile === undefined) {
@@ -145,6 +154,7 @@ export function WorkosAuthBoundary({ children }: { children: ReactNode }) {
   if (ownerId !== null && profile?._id !== ownerId) {
     return (
       <AuthUnavailable
+        action="Sign in"
         message="Your session changed. Please sign in again."
         retry={signIn}
       />
@@ -161,12 +171,15 @@ export function WorkosAuthBoundary({ children }: { children: ReactNode }) {
     return <Loading />;
   }
   return (
-    <div className="mx-auto grid max-w-sm gap-4 p-6 text-center" role="status">
-      <p>{blockedMessages[blocked]}</p>
-      <Button onClick={() => setAttempt((n) => n + 1)}>Try again</Button>
+    <StatusScreen
+      action="Try again"
+      message={blockedMessages[blocked]}
+      onAction={() => setAttempt((n) => n + 1)}
+      role="status"
+    >
       <Button onClick={() => void signOut()} variant="ghost">
         Sign out
       </Button>
-    </div>
+    </StatusScreen>
   );
 }
