@@ -102,6 +102,63 @@ const asBody = (bytes: Uint8Array) => {
   };
 };
 
+/* ------------------------------------------------------------------ *
+ * Minimal PDF writer: one Helvetica text line per page, with a correct
+ * xref table, so PDF text tests need no binary fixtures.
+ * ------------------------------------------------------------------ */
+
+const escapePdfString = (value: string): string =>
+  value.replace(/[\\()]/gu, (char) => `\\${char}`);
+
+/**
+ * Build a PDF with one text block per page; "\n" starts a new line. pdf.js
+ * drops text outside the page box, so long text needs short lines and, for
+ * dense pages, a small `fontSize`. `trailerExtras` is appended to the trailer
+ * dictionary (used to declare an /Encrypt dictionary).
+ */
+export const makePdf = (
+  pages: string[],
+  { fontSize = 12, trailerExtras = "" } = {}
+): Uint8Array => {
+  const fontId = 3 + pages.length * 2;
+  const objects = [
+    "<< /Type /Catalog /Pages 2 0 R >>",
+    `<< /Type /Pages /Kids [${pages.map((_, index) => `${3 + index * 2} 0 R`).join(" ")}] /Count ${pages.length} >>`,
+  ];
+  pages.forEach((text, index) => {
+    const lines = text
+      .split("\n")
+      .map((line) => `(${escapePdfString(line)}) Tj T*`)
+      .join(" ");
+    const stream = `BT /F1 ${fontSize} Tf ${fontSize} TL 10 ${790 - fontSize} Td ${lines} ET`;
+    objects.push(
+      `<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 ${fontId} 0 R >> >> /Contents ${4 + index * 2} 0 R >>`,
+      `<< /Length ${stream.length} >>\nstream\n${stream}\nendstream`
+    );
+  });
+  objects.push("<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>");
+
+  let out = "%PDF-1.4\n";
+  const offsets: number[] = [];
+  objects.forEach((body, index) => {
+    offsets.push(out.length);
+    out += `${index + 1} 0 obj\n${body}\nendobj\n`;
+  });
+  const xrefOffset = out.length;
+  out += `xref\n0 ${objects.length + 1}\n0000000000 65535 f \n`;
+  for (const offset of offsets) {
+    out += `${String(offset).padStart(10, "0")} 00000 n \n`;
+  }
+  out += `trailer\n<< /Size ${objects.length + 1} /Root 1 0 R ${trailerExtras}>>\nstartxref\n${xrefOffset}\n%%EOF\n`;
+  return new TextEncoder().encode(out);
+};
+
+/** A PDF protected by a user password (the empty password does not open it). */
+export const makeEncryptedPdf = (): Uint8Array =>
+  makePdf(["Top secret"], {
+    trailerExtras: `/Encrypt << /Filter /Standard /V 1 /R 2 /O <${"1".repeat(64)}> /U <${"2".repeat(64)}> /P -4 >> /ID [<${"0".repeat(32)}> <${"0".repeat(32)}>] `,
+  });
+
 /** Stable fake validator mirroring R2's httpEtag behavior. */
 export const fakeHttpEtag = (bytes: Uint8Array): string => {
   let hash = 0x81_1c_9d_c5;

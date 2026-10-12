@@ -181,12 +181,7 @@ export const patchCardWithSearchSync = async (
     "createdAt",
   ];
   if (searchableFields.some((field) => Object.keys(value).includes(field))) {
-    await scheduleCardSearchSync(
-      ctx,
-      cardId,
-      undefined,
-      card ?? undefined
-    );
+    await scheduleCardSearchSync(ctx, cardId, undefined, card ?? undefined);
   }
   return true;
 };

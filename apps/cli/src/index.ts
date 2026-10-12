@@ -148,7 +148,7 @@ export const queryOptions = (options: Record<string, unknown>) => {
 
 const withListOptions = (command: Command) =>
   command
-    .option("-q, --query <text>")
+    .option("-q, --query <text>", "full-text search")
     .option(
       "--type <type>",
       "card type; repeat to match any of several",
@@ -174,10 +174,10 @@ const withListOptions = (command: Command) =>
       (value) => parseDateRange(value)
     )
     .option("--limit <n>", "result limit", parseLimit)
-    .option("--cursor <cursor>")
+    .option("--cursor <cursor>", "nextCursor from the previous page")
     .option("--sort <sort>", "newest or oldest", parseSort)
-    .option("--created-after <ms>")
-    .option("--created-before <ms>")
+    .option("--created-after <ms>", "created after a millisecond timestamp")
+    .option("--created-before <ms>", "created before a millisecond timestamp")
     .option("--include <groups>", "content, metadata, processing")
     .option("--all", "follow every page");
 
@@ -234,6 +234,33 @@ const createCard = async (
   write(options.json ? result : `${result.cardId}  ${result.appUrl}`, options);
 };
 
+// Accept the API's own request shape as well as a bare array of items.
+export const bulkItems = (input: unknown): unknown[] | null => {
+  if (Array.isArray(input)) {
+    return input;
+  }
+  const items = (input as { items?: unknown } | null)?.items;
+  return input && typeof input === "object" && Array.isArray(items)
+    ? items
+    : null;
+};
+
+export const formatBulkResult = (value: unknown, position: number) => {
+  const item = (value ?? {}) as {
+    cardId?: unknown;
+    code?: unknown;
+    error?: unknown;
+    index?: unknown;
+    status?: unknown;
+  };
+  const index = typeof item.index === "number" ? item.index : position;
+  if (item.status === "success") {
+    return `[${index}] ${String(item.cardId ?? "ok")}`;
+  }
+  const message = typeof item.error === "string" ? item.error : "failed";
+  return `[${index}] ${typeof item.code === "string" ? `${item.code}: ` : ""}${message}`;
+};
+
 const listTags = async (options: GlobalOptions) => {
   const result = await client(options).tags.list();
   write(
@@ -246,7 +273,7 @@ const listTags = async (options: GlobalOptions) => {
 
 // Set before adding subcommands: they copy this setting when created, so
 // flag errors reach run() and exit with the usage code.
-const program = new Command()
+export const program = new Command()
   .name("teak")
   .description("Command line client for Teak")
   .exitOverride()
@@ -257,19 +284,25 @@ const program = new Command()
 
 program
   .command("login")
-  .option("--no-browser")
+  .description("Sign in to Teak in your browser")
+  .option("--no-browser", "print the sign-in URL instead of opening it")
   .action(async (options) =>
     write(await login({ ...program.opts(), ...options }), program.opts())
   );
 
-program.command("logout").action(async () => {
-  const notice = await logout(program.opts());
-  write(notice ?? "Logged out of Teak.", program.opts());
-});
+program
+  .command("logout")
+  .description("Sign out and disconnect the CLI")
+  .action(async () => {
+    const notice = await logout(program.opts());
+    write(notice ?? "Logged out of Teak.", program.opts());
+  });
 
 program
   .command("auth")
+  .description("Check how the CLI signs in")
   .command("status")
+  .description("Show which account and credential the CLI uses")
   .action(async () => {
     const options = program.opts();
     let source = "none";
@@ -291,11 +324,14 @@ program
 
 const withAddOptions = (command: Command) =>
   command
-    .argument("[content]")
-    .option("--url <url>")
-    .option("--file <path>")
-    .option("--tags <tags>")
-    .option("--notes <notes>")
+    .argument(
+      "[content]",
+      "text, a URL, or a file path; reads stdin if omitted"
+    )
+    .option("--url <url>", "save a link; any text becomes its content")
+    .option("--file <path>", "upload a file")
+    .option("--tags <tags>", "comma-separated tags")
+    .option("--notes <notes>", "notes to add to the card")
     .option(
       "--type <type>",
       "card type; omit to let Teak detect links, quotes, and palettes",
@@ -308,35 +344,49 @@ const withAddOptions = (command: Command) =>
 const readContentOption = async (value: string | undefined) =>
   value === "-" ? await readStdin() : value;
 
-const cards = program.command("cards");
-withListOptions(cards.command("list").alias("ls")).action(async (options) =>
-  writeCards({ ...program.opts(), ...options })
+const cards = program
+  .command("cards")
+  .description("List, search, create, and change cards");
+withListOptions(
+  cards.command("list").alias("ls").description("List cards")
+).action(async (options) => writeCards({ ...program.opts(), ...options }));
+withListOptions(
+  cards.command("search").argument("[query]").description("Search cards")
+).action(async (query, options) =>
+  writeCards(
+    { ...program.opts(), ...options, query: query || options.query },
+    "search"
+  )
 );
-withListOptions(cards.command("search").argument("[query]")).action(
-  async (query, options) =>
-    writeCards(
-      { ...program.opts(), ...options, query: query || options.query },
-      "search"
-    )
-);
-withListOptions(cards.command("favorites")).action(async (options) =>
+withListOptions(
+  cards.command("favorites").description("List favorite cards")
+).action(async (options) =>
   writeCards({ ...program.opts(), ...options }, "favorites")
 );
-withListOptions(cards.command("trash")).action(async (options) =>
+withListOptions(
+  cards.command("trash").description("List cards in Trash")
+).action(async (options) =>
   writeCards({ ...program.opts(), ...options, trashed: true })
 );
 cards
   .command("get")
   .argument("<id>")
+  .description("Show a card's details")
   .action(async (id) => {
     const options = program.opts();
     const card = await client(options).cards.get(id);
     write(options.json ? card : formatDetail(card), options);
   });
-withAddOptions(cards.command("create").alias("add"));
+withAddOptions(
+  cards
+    .command("create")
+    .alias("add")
+    .description("Save text, a link, or a file as a card")
+);
 cards
   .command("update")
   .argument("<id>")
+  .description("Change a card's content, title, notes, link, or tags")
   .option("--content <text>", "new content, or - to read stdin")
   .option("--title <title>", 'card title; "" clears it')
   .option("--notes <notes>")
@@ -354,7 +404,11 @@ cards
     write(opts.json ? card : formatCardLine(card), opts);
   });
 withDeleteOptions(
-  cards.command("delete").alias("rm").argument("<ids...>")
+  cards
+    .command("delete")
+    .alias("rm")
+    .argument("<ids...>")
+    .description("Move cards to Trash, or delete them forever")
 ).action(async (ids, options) =>
   deleteCards(ids, { ...program.opts(), ...options })
 );
@@ -381,14 +435,16 @@ cards
   .command("favorite")
   .alias("fav")
   .argument("<id>")
-  .option("--remove")
+  .description("Favorite a card")
+  .option("--remove", "remove it from favorites")
   .action(async (id, options) => {
     await favoriteCard(id, options.remove, { ...program.opts(), ...options });
   });
 cards
   .command("bulk")
-  .argument("<operation>")
-  .option("--input <file>")
+  .argument("<operation>", "create, update, favorite, or delete")
+  .description("Run one operation on up to 100 cards from a JSON file")
+  .option("--input <file>", "JSON items; reads stdin when omitted")
   .action(async (operation, options) => {
     if (!["create", "update", "favorite", "delete"].includes(operation)) {
       throw new InvalidArgumentError(
@@ -399,15 +455,20 @@ cards
     const raw = options.input
       ? readFileSync(options.input, "utf8")
       : await readStdin();
-    const items = readJson<unknown[]>(raw);
-    if (!Array.isArray(items)) {
-      throw new InvalidArgumentError("bulk input must be a JSON array");
+    const items = bulkItems(readJson<unknown>(raw));
+    if (!items) {
+      throw new InvalidArgumentError(
+        'bulk input must be a JSON array or {"items": [...]}'
+      );
     }
     const result = await client(opts).cards.bulk(operation, items);
     write(
       opts.json
         ? result
-        : `${result.summary.succeeded}/${result.summary.total} succeeded`,
+        : [
+            `${result.summary.succeeded}/${result.summary.total} succeeded`,
+            ...result.results.map(formatBulkResult),
+          ].join("\n"),
       opts
     );
     if (result.summary.failed > 0) {
@@ -416,6 +477,7 @@ cards
   });
 cards
   .command("changes")
+  .description("List cards changed since a timestamp")
   .requiredOption("--since <ms>", "millisecond timestamp", parseSince)
   .option("--cursor <cursor>")
   .option("--limit <n>", "result limit", parseLimit)
@@ -434,7 +496,10 @@ const tags = program
   .action(async () => {
     await listTags(program.opts());
   });
-tags.command("list").action(async () => listTags(program.opts()));
+tags
+  .command("list")
+  .description("List tags with how many cards use each")
+  .action(async () => listTags(program.opts()));
 tags
   .command("add")
   .description("Add tags to a card")
@@ -465,26 +530,42 @@ exportCommand
   .description("Save the latest ready export")
   .option("-o, --output <path>", "where to save the ZIP")
   .option("--force", "replace an existing file")
-  .action(async (options) => downloadExport({ ...program.opts(), ...options }));
+  // `export` defines the same flags and parses them first, so merge its
+  // options in too.
+  .action(async (options) =>
+    downloadExport({
+      ...program.opts(),
+      ...exportCommand.opts(),
+      ...options,
+    })
+  );
 
-withListOptions(program.command("ls")).action(async (options) =>
-  writeCards({ ...program.opts(), ...options })
+withListOptions(program.command("ls").description("List cards")).action(
+  async (options) => writeCards({ ...program.opts(), ...options })
 );
-withListOptions(program.command("search").argument("[query]")).action(
-  async (query, options) =>
-    writeCards(
-      { ...program.opts(), ...options, query: query || options.query },
-      "search"
-    )
+withListOptions(
+  program.command("search").argument("[query]").description("Search cards")
+).action(async (query, options) =>
+  writeCards(
+    { ...program.opts(), ...options, query: query || options.query },
+    "search"
+  )
 );
 withListOptions(
   program.command("trash").description("List cards in Trash")
 ).action(async (options) =>
   writeCards({ ...program.opts(), ...options, trashed: true })
 );
-withAddOptions(program.command("add"));
-withDeleteOptions(program.command("rm").argument("<ids...>")).action(
-  async (ids, options) => deleteCards(ids, { ...program.opts(), ...options })
+withAddOptions(
+  program.command("add").description("Save text, a link, or a file as a card")
+);
+withDeleteOptions(
+  program
+    .command("rm")
+    .argument("<ids...>")
+    .description("Move cards to Trash, or delete them forever")
+).action(async (ids, options) =>
+  deleteCards(ids, { ...program.opts(), ...options })
 );
 program
   .command("restore")
@@ -508,7 +589,8 @@ program
 program
   .command("fav")
   .argument("<id>")
-  .option("--remove")
+  .description("Favorite a card")
+  .option("--remove", "remove it from favorites")
   .action(async (id, options) => {
     await favoriteCard(id, options.remove, { ...program.opts(), ...options });
   });

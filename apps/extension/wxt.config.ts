@@ -1,10 +1,27 @@
 import tailwindcss from "@tailwindcss/vite";
 import { defineConfig } from "wxt";
+import { missingBuildEnvError } from "./lib/env";
 
 // See https://wxt.dev/api/config.html
 export default defineConfig({
   modules: ["@wxt-dev/module-react"],
   manifestVersion: 3,
+  hooks: {
+    // WXT has loaded the .env files into process.env by now. CI (where
+    // release bundles are built) stops rather than ship a bundle that can't
+    // reach Teak; a local build, such as the pre-commit hook's in a checkout
+    // that never ran extension setup, warns instead of blocking the commit.
+    "build:before": () => {
+      const error = missingBuildEnvError(process.env);
+      if (!error) {
+        return;
+      }
+      if (process.env.CI) {
+        throw new Error(error);
+      }
+      console.warn(`\n⚠ ${error}\n`);
+    },
+  },
   manifest: {
     name: "Teak",
     description:

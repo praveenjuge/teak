@@ -126,8 +126,7 @@ export const parseWorkosEvent = (event: {
         url = undefined;
       }
       if (
-        !url ||
-        url.protocol !== "https:" ||
+        url?.protocol !== "https:" ||
         url.username ||
         url.password ||
         profile.profilePictureUrl.length > 4096

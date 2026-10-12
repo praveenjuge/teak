@@ -57,6 +57,15 @@ export const FILES_OPS = [
 
 export type FilesOp = (typeof FILES_OPS)[number];
 
+// Modes of the `inspect` op. `pdf` is additive: a Worker deployed before it
+// rejects the mode with INVALID_INPUT, which Convex treats as "no text".
+export const FILES_INSPECT_MODES = ["css", "pdf", "text", "zip"] as const;
+export type FilesInspectMode = (typeof FILES_INSPECT_MODES)[number];
+
+export const isFilesInspectMode = (value: unknown): value is FilesInspectMode =>
+  typeof value === "string" &&
+  (FILES_INSPECT_MODES as readonly string[]).includes(value);
+
 export type FilesErrorCode =
   | "AI_CAPACITY"
   | "AI_INVALID_OUTPUT"

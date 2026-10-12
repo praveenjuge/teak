@@ -1,12 +1,10 @@
 "use node";
-import { ensureObjectOwnership } from "../../../storage/ownership";
-import type { ActionCtx } from "../../../_generated/server";
-
 
 import { lookup } from "node:dns/promises";
 import Kernel from "@onkernel/sdk";
 import { v } from "convex/values";
 import { internal } from "../../../_generated/api";
+import type { ActionCtx } from "../../../_generated/server";
 import { internalAction } from "../../../_generated/server";
 import { normalizeUrl } from "../../../linkMetadata";
 import {
@@ -20,6 +18,7 @@ import {
   callFilesWorkerJson,
   type FilesWorkerHeadObjectResult,
 } from "../../../storage/filesWorkerClient";
+import { ensureObjectOwnership } from "../../../storage/ownership";
 import { buildR2ObjectKey } from "../../../storage/r2";
 import { pinnedFetch } from "../pinnedFetch";
 import {
@@ -87,17 +86,20 @@ export const buildGenericScreenshotCode = (
   return JSON.stringify({ etag: uploadResponse.headers()['etag'] || null, ok: true, status: uploadResponse.status() });
 `;
 
-const captureScreenshotWithKernel = async (ctx: ActionCtx, {
-  cardId,
-  html,
-  url,
-  userId,
-}: {
-  cardId: string;
-  html: string;
-  url: string;
-  userId: string;
-}): Promise<{
+const captureScreenshotWithKernel = async (
+  ctx: ActionCtx,
+  {
+    cardId,
+    html,
+    url,
+    userId,
+  }: {
+    cardId: string;
+    html: string;
+    url: string;
+    userId: string;
+  }
+): Promise<{
   screenshotKey?: string;
   screenshotUpdatedAt?: number;
   screenshotWidth?: number;

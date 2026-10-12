@@ -1,6 +1,4 @@
 "use node";
-import { ensureObjectOwnership } from "../../../storage/ownership";
-
 
 import Kernel from "@onkernel/sdk";
 import { v } from "convex/values";
@@ -12,6 +10,7 @@ import {
   type FilesWorkerHeadObjectResult,
 } from "../../../storage/filesWorkerClient";
 import { tryResolveObjectUrl } from "../../../storage/fileUrls";
+import { ensureObjectOwnership } from "../../../storage/ownership";
 import { buildR2ObjectKey } from "../../../storage/r2";
 
 // Bound both dimensions so hostile page aspect ratios cannot create an
@@ -117,7 +116,7 @@ export const generatePdfThumbnail = internalAction({
         cardId: args.cardId,
         role: "thumbnail",
       });
-  await ensureObjectOwnership(ctx, card.userId, thumbnailKey);
+      await ensureObjectOwnership(ctx, card.userId, thumbnailKey);
       const uploadUrl = (
         await buildSignedWorkerUploadUrl({
           contentType: "image/png",

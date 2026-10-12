@@ -6,6 +6,7 @@ import {
   DialogTitle,
 } from "@teak/ui/components/ui/dialog";
 import { Loading } from "@teak/ui/feedback/Loading";
+import { useState } from "react";
 import { AudioPreview } from "../card-previews/AudioPreview";
 import { DocumentPreview } from "../card-previews/DocumentPreview";
 import { ImagePreview } from "../card-previews/ImagePreview";
@@ -14,6 +15,7 @@ import { PalettePreview } from "../card-previews/PalettePreview";
 import { QuotePreview } from "../card-previews/QuotePreview";
 import { TextPreview } from "../card-previews/TextPreview";
 import { VideoPreview } from "../card-previews/VideoPreview";
+import { ConfirmDialog } from "../ui/confirm-dialog";
 import { CardMetadataPanel } from "./CardMetadataPanel";
 import type { CardModalCard, GetCurrentValue } from "./types";
 
@@ -118,6 +120,8 @@ export function CardModal({
   isDownloading,
 }: CardModalProps) {
   const card = cardData;
+  const [isPermanentDeleteConfirmOpen, setIsPermanentDeleteConfirmOpen] =
+    useState(false);
 
   const handleClose = async () => {
     if (hasUnsavedChanges) {
@@ -201,7 +205,7 @@ export function CardModal({
                     deleteCard: () => handleDelete(handleClose),
                     restoreCard: () => handleRestore(handleClose),
                     permanentlyDeleteCard: () =>
-                      handlePermanentDelete(handleClose),
+                      setIsPermanentDeleteConfirmOpen(true),
                   }}
                   card={card}
                   getCurrentValue={getCurrentValue}
@@ -223,6 +227,16 @@ export function CardModal({
         </DialogContent>
       </Dialog>
 
+      <ConfirmDialog
+        confirmLabel="Delete Forever"
+        description="This permanently deletes the card and its files. This can’t be undone."
+        onConfirm={() => {
+          void handlePermanentDelete(handleClose);
+        }}
+        onOpenChange={setIsPermanentDeleteConfirmOpen}
+        open={isPermanentDeleteConfirmOpen}
+        title="Delete this card forever?"
+      />
       {TagManagementModal}
       {MoreInformationModal}
       {NotesEditModal}

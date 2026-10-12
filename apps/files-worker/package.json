@@ -21,7 +21,8 @@
     "@teak/convex": "workspace:*",
     "@teak/files-protocol": "workspace:*",
     "client-zip": "^2.4.5",
-    "fflate": "^0.8.2"
+    "fflate": "^0.8.2",
+    "unpdf": "1.8.1"
   },
   "devDependencies": {
     "wrangler": "^4.136.1"

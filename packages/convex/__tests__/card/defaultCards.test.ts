@@ -170,13 +170,13 @@ describe("card/defaultCards.ts", () => {
             unique: mock().mockResolvedValue(null),
           }),
         }),
-        insert: mock().mockImplementation(async (table: string, data: any) => {
+        insert: mock().mockImplementation((table: string, data: any) => {
           if (table === "cards") {
             const id = `card_${++nextCardId}`;
             cardsById.set(id, { ...data, _id: id });
-            return id;
+            return Promise.resolve(id);
           }
-          return `${table}_${nextCardId}`;
+          return Promise.resolve(`${table}_${nextCardId}`);
         }),
       },
       scheduler: { runAfter: mock() },
@@ -218,7 +218,7 @@ describe("card/defaultCards.ts", () => {
 
   test("creates cards with correct structure", async () => {
     const cardsById = new Map<string, any>();
-    let nextCardId = 0;
+    const _nextCardId = 0;
     const insertedCards: any[] = [];
     const ctx = {
       db: {
@@ -282,7 +282,7 @@ describe("card/defaultCards.ts", () => {
 
   test("creates cards with incremental timestamps", async () => {
     const cardsById = new Map<string, any>();
-    let nextCardId = 0;
+    const _nextCardId = 0;
     const insertedCards: any[] = [];
     const baseTimestamp = 1_700_000_000_000;
 
@@ -327,7 +327,7 @@ describe("card/defaultCards.ts", () => {
 
   test("creates palette cards with proper color structure", async () => {
     const cardsById = new Map<string, any>();
-    let nextCardId = 0;
+    const _nextCardId = 0;
     const insertedCards: any[] = [];
 
     const ctx = {

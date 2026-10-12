@@ -50,10 +50,35 @@ session's account is never a candidate. `.agents/.state/stack.log` says which
 accounts were pruned, or why pruning was skipped. Resuming a session after two
 weeks away starts again with a fresh seeded vault.
 
+## Starting the stack
+
+Run `bun run dev --detach`. It starts the stack in its own session, waits until
+the app is ready (about 50 seconds cold, 10 seconds warm) and returns. Don't
+start plain `bun run dev` as a background command: Claude Code stops
+background commands after 30 minutes, and the stack goes with it.
+
+## Driving the app in a browser
+
+Launch Playwright with the image's Chromium, which the SessionStart hook
+exports as `TEAK_CLOUD_CHROMIUM`:
+
+```js
+chromium.launch({ executablePath: process.env.TEAK_CLOUD_CHROMIUM })
+```
+
+The pinned Playwright's own Chromium (151) can't open the Convex WebSocket
+through the session's HTTPS proxy. Convex answers the handshake with
+`400 InvalidConnectionHeader` ("Connection header did not include upgrade")
+even though Chromium sends a correct HTTP/1.1 upgrade, so after sign-in the
+app shows a spinner and then "We couldn't check your session". The image's
+Chromium 141 in `/opt/pw-browsers`, curl and Node's `ws` all upgrade fine
+through the same proxy. `--proxy-server`, `--disable-http2` and
+`--disable-features=WebSocketOverHttp2` don't help. The E2E suite is
+unaffected: its stack is on `localhost`, which bypasses the proxy.
+
 ## Works
 
-`bun run dev` is ready in about 30 seconds. It works against the shared dev
-deployment for all of these:
+It works against the shared dev deployment for all of these:
 
 - sign-in and sign-out through the WorkOS hosted page
 - the seeded vault, the composer (text, links, quotes, palettes), uploads and
@@ -68,8 +93,22 @@ deployment for all of these:
 - "Upgrade to Pro": Polar's sandbox checkout opens in a new tab, for the
   seeded accounts too (`.agents/development.md`)
 
-Also `bun run smoke:web`, `bun run test`, `typecheck`, `lint`, the extension,
-CLI and Raycast builds, and the docs site.
+Also `bun run smoke:web`, `bun run test`, `typecheck`, `lint`, the CLI and
+Raycast builds, the web production build and the docs site.
+
+The browser extension works too, including sign-in, because the VM's own
+browser completes the WorkOS flow:
+
+```bash
+bun run setup --target extension   # .agents/setup already does this
+(cd apps/extension && bunx wxt build --mode development)
+```
+
+Load `apps/extension/.output/chrome-mv3-dev` into `TEAK_CLOUD_CHROMIUM` with
+`launchPersistentContext(dir, { executablePath, args: ["--disable-extensions-except=<dir>", "--load-extension=<dir>"] })`,
+open `chrome-extension://<id>/popup.html` and sign in through the AuthKit
+window it opens. A production build (`bun run build:extension`) signs in
+against production, so don't use it here.
 
 Only the agent can see the app. It runs on the VM's `localhost`, and cloud
 sessions have no port forwarding, so drive it with headless Chromium (the
@@ -85,7 +124,7 @@ sessions have no port forwarding, so drive it with headless Chromium (the
   ```bash
   bun run dev --stop
   bun run --cwd packages/tests e2e
-  bun run dev   # selects the dev deployment again
+  bun run dev --detach   # selects the dev deployment again
   ```
 
   The exported `CONVEX_DEPLOY_KEY` can stay: the suite drops it, and every
@@ -94,15 +133,21 @@ sessions have no port forwarding, so drive it with headless Chromium (the
   --cwd=packages/tests x e2e-web install chromium webkit`.
 
 - **`e2e` MCP server:** `.mcp.json` registers `e2e mcp`, which opens headless
-  sessions on the running app with the browsers above.
+  sessions with the e2e engine's pinned Chromium. That works against the E2E
+  stack, which is all local. Against the dev deployment, the pinned Chromium
+  likely hits the proxy WebSocket problem above, so drive the dev stack with
+  Playwright from `node_modules` and
+  `executablePath: process.env.TEAK_CLOUD_CHROMIUM` instead.
 - **MP4 video:** Playwright's Chromium has no H.264 decoder, so MP4 cards
   don't play in it. Use a WebM (VP9) file to check video playback.
 
 ## Doesn't work
 
-- Browser sign-in for the CLI, extension and Raycast (`teak login`, WorkOS
-  Connect): the loopback callback can't reach the VM. Use an API key.
+- Browser sign-in for the CLI and Raycast (`teak login`, WorkOS Connect) from
+  your own browser: the loopback callback can't reach the VM. Use an API key
+  (`TEAK_API_KEY` with `TEAK_API_URL=https://reminiscent-kangaroo-59.convex.site`
+  for the CLI).
 - Apple, iPhone, iPad and Mac builds (no macOS or Xcode), and Android (no SDK
   and no `/dev/kvm` for an emulator).
 - Work in progress across a reclaimed VM: background processes, including the
-  dev stack, don't survive it. Start the stack again each session.
+  dev stack, don't survive it. Run `bun run dev --detach` again each session.

@@ -11,13 +11,17 @@ against the **shared cloud dev deployment** (`dev:reminiscent-kangaroo-59`),
 signed in through WorkOS staging. Files, previews, AI metadata, screenshots,
 imports and exports, and WorkOS Connect all work, the same as on the dev
 deployment itself, and so does Polar sandbox checkout, for the seeded accounts
-too (see [Signing in](#signing-in)). Agents should run it in the background; it
-stays up until stopped.
+too (see [Signing in](#signing-in)). Agents should start it with
+`bun run dev --detach`, which runs the stack in its own session and returns
+once it is ready; it stays up until `bun run dev --stop`. (A stack started as an
+agent's background command dies when the tool's background time limit, 30
+minutes in Claude Code, runs out.)
 
 | Command | What it does |
 | --- | --- |
 | `bun run dev` | Set up and start this checkout's web app |
 | `bun run dev --push` | Same, and take over pushing the backend (see below) |
+| `bun run dev --detach` | Start it in the background and return once it's ready (combine with `--push`) |
 | `bun run dev --status` | Ports, URLs, sign-in, and whether this checkout pushes |
 | `bun run dev --stop` | Stop this checkout's stack |
 | `bun run dev <target>` | Another surface (`mobile`, `extension`, `docs`, …) through Turbo |
@@ -132,7 +136,7 @@ Without the key it still prepares the VM for unit tests and the E2E suite.
 - Amp: runs `.agents/setup` as the orb setup script and `.agents/resume` on
   resume.
 
-Then run `bun run dev` in the background. `.agents/cloud.md` lists the
+Then run `bun run dev --detach`. `.agents/cloud.md` lists the
 environment settings a cloud session needs and what does and doesn't run there.
 
 ## When something fails

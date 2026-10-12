@@ -1,8 +1,6 @@
-import { ensureObjectOwnership } from "../storage/ownership";
 import { ConvexError, v } from "convex/values";
 import { internal } from "../_generated/api";
 import { type MutationCtx, mutation } from "../_generated/server";
-import { ensureCardCreationAllowed } from "../auth";
 import { type CardType, cardTypeValidator } from "../schema";
 import { getSessionUser, type TeakUserId } from "../securitySessions";
 import {
@@ -20,6 +18,7 @@ import {
   validateMarkdownByteLength,
 } from "../shared/markdown";
 import { buildSignedWorkerUploadUrl } from "../storage/filesWorkerClient";
+import { ensureObjectOwnership } from "../storage/ownership";
 import {
   buildR2ObjectKey,
   buildR2UserPrefix,
@@ -31,7 +30,7 @@ import {
   buildInitialProcessingStatus,
   stageCompleted,
 } from "./processingStatus";
-import { authorizeCardCreation } from "./quota";
+import { authorizeCardCreation, ensureCardQuotaAvailable } from "./quota";
 import { scheduleCardSearchSync } from "./searchDocumentHelpers";
 
 const toConvexFileError = (error: FileFormatValidationError) =>
@@ -103,8 +102,9 @@ export const uploadAndCreateCard = mutation({
         });
       }
 
-      // Check rate limit and card count limit
-      await ensureCardCreationAllowed(ctx, user.teakUserId);
+      // Quota only: the creation rate-limit token is charged once, when the
+      // uploaded file becomes a card.
+      await ensureCardQuotaAvailable(ctx, user.teakUserId);
 
       const key = buildR2ObjectKey({
         userId: user.teakUserId,
@@ -112,7 +112,7 @@ export const uploadAndCreateCard = mutation({
         role: "file",
         fileName: _args.fileName,
       });
-  await ensureObjectOwnership(ctx, user.teakUserId, key);
+      await ensureObjectOwnership(ctx, user.teakUserId, key);
       const signed = await buildSignedWorkerUploadUrl({
         contentType: _args.fileType || "application/octet-stream",
         key,
@@ -279,7 +279,14 @@ export const createUploadedCardForUser = async (
     createdAt: now,
     updatedAt: now,
   });
-  await recordActiveCardCreated(ctx, args.userId, cardId, { hasPremium });
+  try {
+    await recordActiveCardCreated(ctx, args.userId, cardId, { hasPremium });
+  } catch (error) {
+    // No savepoints: never commit an uncounted card when a caller catches
+    // CARD_LIMIT_REACHED (see createCard.ts).
+    await ctx.db.delete("cards", cardId);
+    throw error;
+  }
   await scheduleCardSearchSync(ctx, cardId, args.userId);
 
   // Object metadata is served by the Files Worker path; the Convex R2

@@ -98,6 +98,7 @@ import type * as publicApiHttpValidation from "../publicApiHttpValidation.js";
 import type * as publicApiMe from "../publicApiMe.js";
 import type * as publicApiMeta from "../publicApiMeta.js";
 import type * as publicApiOpenApi from "../publicApiOpenApi.js";
+import type * as publicApiTombstones from "../publicApiTombstones.js";
 import type * as publicApiUploads from "../publicApiUploads.js";
 import type * as raycast from "../raycast.js";
 import type * as safariAccountSummary from "../safariAccountSummary.js";
@@ -153,6 +154,7 @@ import type * as workflows_aiMetadata_generators from "../workflows/aiMetadata/g
 import type * as workflows_aiMetadata_index from "../workflows/aiMetadata/index.js";
 import type * as workflows_aiMetadata_mutations from "../workflows/aiMetadata/mutations.js";
 import type * as workflows_aiMetadata_schemas from "../workflows/aiMetadata/schemas.js";
+import type * as workflows_aiMetadata_tags from "../workflows/aiMetadata/tags.js";
 import type * as workflows_aiMetadata_transcript from "../workflows/aiMetadata/transcript.js";
 import type * as workflows_aiMetadata_types from "../workflows/aiMetadata/types.js";
 import type * as workflows_cardCleanup from "../workflows/cardCleanup.js";
@@ -309,6 +311,7 @@ declare const fullApi: ApiFromModules<{
   publicApiMe: typeof publicApiMe;
   publicApiMeta: typeof publicApiMeta;
   publicApiOpenApi: typeof publicApiOpenApi;
+  publicApiTombstones: typeof publicApiTombstones;
   publicApiUploads: typeof publicApiUploads;
   raycast: typeof raycast;
   safariAccountSummary: typeof safariAccountSummary;
@@ -364,6 +367,7 @@ declare const fullApi: ApiFromModules<{
   "workflows/aiMetadata/index": typeof workflows_aiMetadata_index;
   "workflows/aiMetadata/mutations": typeof workflows_aiMetadata_mutations;
   "workflows/aiMetadata/schemas": typeof workflows_aiMetadata_schemas;
+  "workflows/aiMetadata/tags": typeof workflows_aiMetadata_tags;
   "workflows/aiMetadata/transcript": typeof workflows_aiMetadata_transcript;
   "workflows/aiMetadata/types": typeof workflows_aiMetadata_types;
   "workflows/cardCleanup": typeof workflows_cardCleanup;

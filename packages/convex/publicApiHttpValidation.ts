@@ -16,12 +16,15 @@ import {
   type CreateCardPayload,
   type CreateUploadPayload,
   errorResponse,
+  explainCardTypeMismatch,
+  explainInvalidTags,
   parseBooleanQuery,
   parseLimit,
   parseOptionalNullableString,
   parseOptionalString,
   parseStringArray,
   parseTimestampQuery,
+  truncateCardTitle,
 } from "./publicApiHttpShared";
 import { parseCardTitle } from "./shared/cardTitle";
 import {
@@ -192,50 +195,52 @@ const parseIncludeSet = (value: string | null): Set<CardListInclude> | null => {
   return requested;
 };
 
-const validateCreatePayload = (payload: unknown): CreateCardPayload | null => {
+type CreatePayloadResult = { error: string } | { payload: CreateCardPayload };
+
+const CREATE_KEYS = new Set([
+  "cardType",
+  "content",
+  "fileEtag",
+  "fileKey",
+  "fileName",
+  "fileSize",
+  "mimeType",
+  "notes",
+  "source",
+  "tags",
+  "url",
+]);
+
+// Reject supplied string fields with the wrong type instead of silently
+// dropping them (notes/tags/fileSize guard their own shapes below).
+const CREATE_STRING_KEYS = [
+  "cardType",
+  "content",
+  "fileEtag",
+  "fileKey",
+  "fileName",
+  "mimeType",
+  "source",
+  "url",
+] as const;
+
+/** Validates a create body and explains the first problem it finds. */
+const parseCreatePayload = (payload: unknown): CreatePayloadResult => {
   if (!payload || typeof payload !== "object" || Array.isArray(payload)) {
-    return null;
+    return { error: "Body must be a JSON object" };
   }
 
   const source = payload as Record<string, unknown>;
-  const allowedKeys = new Set([
-    "cardType",
-    "content",
-    "fileEtag",
-    "fileKey",
-    "fileName",
-    "fileSize",
-    "mimeType",
-    "notes",
-    "source",
-    "tags",
-    "url",
-  ]);
-
-  for (const key of Object.keys(source)) {
-    if (!allowedKeys.has(key)) {
-      return null;
-    }
+  const unknownKey = Object.keys(source).find((key) => !CREATE_KEYS.has(key));
+  if (unknownKey !== undefined) {
+    return { error: `Unknown field \`${unknownKey}\`` };
   }
 
-  // Reject supplied string fields with the wrong type instead of silently
-  // dropping them (notes/tags/fileSize already guard their own shapes below).
-  const optionalStringKeys = [
-    "cardType",
-    "content",
-    "fileEtag",
-    "fileKey",
-    "fileName",
-    "mimeType",
-    "source",
-    "url",
-  ] as const;
-
-  for (const key of optionalStringKeys) {
-    const value = source[key];
-    if (value !== undefined && typeof value !== "string") {
-      return null;
-    }
+  const wrongTypeKey = CREATE_STRING_KEYS.find(
+    (key) => source[key] !== undefined && typeof source[key] !== "string"
+  );
+  if (wrongTypeKey !== undefined) {
+    return { error: `\`${wrongTypeKey}\` must be a string` };
   }
 
   const content =
@@ -250,68 +255,91 @@ const validateCreatePayload = (payload: unknown): CreateCardPayload | null => {
   const sourceValue = parseOptionalString(source.source);
   const tags =
     source.tags === undefined ? undefined : parseStringArray(source.tags);
-  const fileSize =
-    source.fileSize === undefined || typeof source.fileSize === "number"
-      ? source.fileSize
-      : Number.NaN;
 
   if (source.tags !== undefined && tags === undefined) {
-    return null;
+    return { error: "`tags` must be an array of strings" };
   }
-
+  const tagError = explainInvalidTags(tags);
+  if (tagError) {
+    return { error: tagError };
+  }
   if (url !== undefined && !isSafeExternalUrl(url)) {
-    return null;
+    return { error: "`url` must use the http or https scheme" };
   }
   if (cardType !== undefined && !CARD_TYPES.has(cardType)) {
-    return null;
+    return {
+      error: `\`cardType\` must be one of: ${[...CARD_TYPES].join(", ")}`,
+    };
   }
-  if (fileSize !== undefined && !Number.isFinite(fileSize)) {
-    return null;
+  if (
+    source.fileSize !== undefined &&
+    !(typeof source.fileSize === "number" && Number.isFinite(source.fileSize))
+  ) {
+    return { error: "`fileSize` must be a number" };
   }
+  const fileSize = source.fileSize as number | undefined;
 
   if (
     source.notes !== undefined &&
     !(typeof source.notes === "string" || source.notes === null)
   ) {
-    return null;
+    return { error: "`notes` must be a string or null" };
   }
 
   if (fileKey) {
-    if (!(fileName && mimeType) || url) {
-      return null;
+    if (!(fileName && mimeType)) {
+      return { error: "An uploaded file needs `fileName` and `mimeType`" };
+    }
+    if (url) {
+      return { error: "Send either `fileKey` or `url`, not both" };
     }
     return {
-      cardType,
-      content,
-      fileEtag,
-      fileKey,
-      fileName,
-      fileSize,
-      mimeType,
-      notes,
-      source: sourceValue,
-      tags,
+      payload: {
+        cardType,
+        content,
+        fileEtag,
+        fileKey,
+        fileName,
+        fileSize,
+        mimeType,
+        notes,
+        source: sourceValue,
+        tags,
+      },
     };
   }
 
+  if (fileName || mimeType) {
+    return { error: "`fileName` and `mimeType` need an uploaded `fileKey`" };
+  }
   if (content === undefined && !url) {
-    return null;
+    return { error: "Body must include `content` or `url`" };
   }
   if (cardType !== "text" && !url && !content?.trim()) {
-    return null;
+    return {
+      error: "`content` cannot be blank unless `cardType` is `text`",
+    };
   }
-  if (fileName || mimeType) {
-    return null;
+  const typeError = explainCardTypeMismatch({ cardType, content, notes, tags });
+  if (typeError) {
+    return { error: typeError };
   }
 
   return {
-    cardType,
-    content,
-    notes,
-    source: sourceValue,
-    tags,
-    url,
+    payload: {
+      cardType,
+      content,
+      notes,
+      source: sourceValue,
+      tags,
+      url,
+    },
   };
+};
+
+const validateCreatePayload = (payload: unknown): CreateCardPayload | null => {
+  const result = parseCreatePayload(payload);
+  return "payload" in result ? result.payload : null;
 };
 
 const validateUploadPayload = (
@@ -584,7 +612,7 @@ const validatePatchPayload = (payload: unknown): PatchCardPayload | null => {
   }
 
   if ("metadataTitle" in source) {
-    const title = parseCardTitle(source.metadataTitle);
+    const title = parseCardTitle(truncateCardTitle(source.metadataTitle));
     if (title === undefined) {
       return null;
     }
@@ -601,7 +629,7 @@ const validatePatchPayload = (payload: unknown): PatchCardPayload | null => {
 
   if ("tags" in source) {
     const tags = parseStringArray(source.tags);
-    if (tags === undefined) {
+    if (tags === undefined || explainInvalidTags(tags)) {
       return null;
     }
     next.tags = tags;
@@ -646,6 +674,7 @@ export {
   getAppBaseUrl,
   parseCardRoute,
   parseCardsQueryOptions,
+  parseCreatePayload,
   parseIncludeSet,
   serializeCard,
   serializeListCard,

@@ -115,14 +115,15 @@ export function AddCardForm({
   onUpgrade,
   upgradeUrl = "/settings",
 }: AddCardFormProps) {
-  const [isSubmitting, setIsSubmitting] = useState(false);
   const [isFullScreenOpen, setIsFullScreenOpen] = useState(false);
 
   const [content, setInternalContent] = useState(
     () => draftContentRef?.current ?? ""
   );
+  const latestContentRef = useRef(content);
   const setContent = useCallback(
     (nextContent: string) => {
+      latestContentRef.current = nextContent;
       setInternalContent(nextContent);
       if (draftContentRef) {
         draftContentRef.current = nextContent;
@@ -205,16 +206,19 @@ export function AddCardForm({
     setContent("");
   };
 
+  // The draft clears as soon as a save starts, so another note can be written
+  // and saved (button or Cmd/Ctrl+Enter) while earlier saves are in flight.
   const submitTextCard = async (): Promise<boolean> => {
-    if (!(content.trim() && canCreateCard) || isSubmitting) {
+    // Read the ref, not render state: it clears synchronously, so a repeated
+    // shortcut or click can never submit the same note twice.
+    const submittedContent = latestContentRef.current;
+    if (!(submittedContent.trim() && canCreateCard)) {
       return false;
     }
 
-    const submittedContent = content;
     resetDraft();
 
     const toastId = toast.loading("Saving note...");
-    setIsSubmitting(true);
     trackCardCreateAttempt({
       cardType: "text",
       source: "web",
@@ -237,7 +241,13 @@ export function AddCardForm({
     } catch (error) {
       console.error("Failed to create card:", error);
 
-      setContent(submittedContent);
+      // Put the unsaved note back without dropping anything typed since.
+      const newerDraft = latestContentRef.current;
+      setContent(
+        newerDraft.trim()
+          ? `${submittedContent}\n\n${newerDraft}`
+          : submittedContent
+      );
 
       const errorMessage =
         error instanceof Error ? error.message : "Failed to save note";
@@ -252,8 +262,6 @@ export function AddCardForm({
         toast.error(errorMessage, { id: toastId });
       }
       return false;
-    } finally {
-      setIsSubmitting(false);
     }
   };
 
@@ -276,7 +284,6 @@ export function AddCardForm({
       <FullScreenAddCardDialog
         canCreateCard={canCreateCard}
         content={content}
-        isSubmitting={isSubmitting}
         onContentChange={setContent}
         onRequestClose={requestFullScreenClose}
         onSave={handleFullScreenSave}
@@ -311,7 +318,7 @@ export function AddCardForm({
                 }
               }}
               onSaveShortcut={() => {
-                if (hasContent && canCreateCard && !isSubmitting) {
+                if (hasContent && canCreateCard) {
                   void submitTextCard();
                 }
               }}
@@ -326,7 +333,7 @@ export function AddCardForm({
                   <Button
                     aria-label="Open full-screen note"
                     className="w-8 px-0"
-                    disabled={!canCreateCard || isSubmitting}
+                    disabled={!canCreateCard}
                     onClick={() => setIsFullScreenOpen(true)}
                     size="sm"
                     title="Open full-screen note"
@@ -335,11 +342,7 @@ export function AddCardForm({
                   >
                     <Maximize2 className="size-4" />
                   </Button>
-                  <Button
-                    disabled={!canCreateCard || isSubmitting}
-                    size="sm"
-                    type="submit"
-                  >
+                  <Button disabled={!canCreateCard} size="sm" type="submit">
                     Save
                   </Button>
                 </>

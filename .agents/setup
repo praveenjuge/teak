@@ -10,7 +10,7 @@
 # - Codex cloud: set the environment's setup script to `bash .agents/setup`.
 # - Amp: runs it as the orb setup script; .agents/resume restores the PATH.
 #
-# Start the stack afterwards with `bun run dev`.
+# Start the stack afterwards with `bun run dev --detach`.
 set -euo pipefail
 
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -174,6 +174,9 @@ bootstrap_development() {
     return
   fi
   TURBO_UI=false bun run setup
+  # The extension reads its own VITE_PUBLIC_* file; without it `wxt build`
+  # stops with a pointer back here.
+  TURBO_UI=false bun run setup --target extension
 }
 
 if [[ "$(uname -s)" != "Linux" ]]; then
@@ -199,4 +202,4 @@ step "Install workspace dependencies" install_dependencies
 step "Install the E2E suite's browsers" install_e2e_browsers
 step "Connect to the shared dev deployment" bootstrap_development
 
-printf '\nTeak setup complete: Node %s, Bun %s. Start the stack with bun run dev.\n' "$(node --version)" "$(bun --version)"
+printf '\nTeak setup complete: Node %s, Bun %s. Start the stack with bun run dev --detach.\n' "$(node --version)" "$(bun --version)"

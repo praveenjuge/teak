@@ -113,8 +113,11 @@ export const addCard = async (
       tags,
     });
   }
-  const url = options.url || (/^https?:\/\//i.test(raw) ? raw : undefined);
-  const content = url ? undefined : raw;
+  // With an explicit --url, any text is kept as the card's content; a bare URL
+  // argument is the link itself.
+  const urlArgument = !options.url && /^https?:\/\//i.test(raw);
+  const url = options.url || (urlArgument ? raw : undefined);
+  const content = urlArgument ? undefined : raw || undefined;
   if (!(content || url)) {
     throw new InvalidArgumentError(
       "provide text, a URL, a file path, --url, --file, or stdin"

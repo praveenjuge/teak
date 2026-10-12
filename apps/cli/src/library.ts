@@ -12,6 +12,7 @@ import { InvalidArgumentError } from "commander";
 import {
   type ClientOptions,
   client,
+  exitCodeFor,
   type GlobalOptions,
   openBrowser,
   write,
@@ -51,6 +52,61 @@ const confirm = async (question: string) => {
   }
 };
 
+interface CardFailure {
+  error: unknown;
+  id: string;
+}
+
+/** Runs one request per card, so one bad id doesn't stop the rest. */
+const eachCard = async (
+  ids: string[],
+  run: (id: string) => Promise<unknown>
+) => {
+  const succeeded: string[] = [];
+  const failed: CardFailure[] = [];
+  for (const id of ids) {
+    try {
+      await run(id);
+      succeeded.push(id);
+    } catch (error) {
+      failed.push({ error, id });
+    }
+  }
+  return { failed, succeeded };
+};
+
+const failureMessage = (error: unknown) =>
+  error instanceof Error ? error.message : String(error);
+
+const failureJson = ({ error, id }: CardFailure) => ({
+  code: error instanceof TeakApiError ? error.code : "REQUEST_FAILED",
+  id,
+  message: failureMessage(error),
+});
+
+// Prints what succeeded, lists failures on stderr, and exits non-zero (with
+// the first failure's code) when any card failed.
+const writeBatch = (
+  output: unknown,
+  failed: CardFailure[],
+  options: GlobalOptions
+) => {
+  if (options.json || output !== "") {
+    write(output, options);
+  }
+  if (failed.length === 0) {
+    return;
+  }
+  if (!options.json) {
+    process.stderr.write(
+      `${failed
+        .map(({ error, id }) => `${id}: ${failureMessage(error)}`)
+        .join("\n")}\n`
+    );
+  }
+  process.exitCode = exitCodeFor(failed[0]?.error);
+};
+
 export const deleteCards = async (
   ids: string[],
   options: GlobalOptions & { permanent?: boolean; yes?: boolean }
@@ -68,37 +124,63 @@ export const deleteCards = async (
     }
   }
   const api = client(options);
-  for (const id of ids) {
-    await api.cards.delete(id, { permanent: options.permanent });
-  }
+  // Only Trash can be emptied; a card that isn't there yet moves first.
+  const deleteForever = async (id: string) => {
+    try {
+      await api.cards.delete(id, { permanent: true });
+    } catch (error) {
+      if (!(error instanceof TeakApiError && error.code === "NOT_IN_TRASH")) {
+        throw error;
+      }
+      await api.cards.delete(id);
+      await api.cards.delete(id, { permanent: true });
+    }
+  };
+  const { failed, succeeded } = await eachCard(ids, (id) =>
+    options.permanent ? deleteForever(id) : api.cards.delete(id)
+  );
   const done = options.permanent
     ? (id: string) => `Deleted ${id} forever`
     : (id: string) => `Moved ${id} to Trash. Undo with: teak restore ${id}`;
-  write(
+  writeBatch(
     options.json
-      ? { deletedIds: ids, permanent: Boolean(options.permanent) }
-      : ids.map(done).join("\n"),
+      ? {
+          deletedIds: succeeded,
+          ...(failed.length > 0 ? { failed: failed.map(failureJson) } : {}),
+          permanent: Boolean(options.permanent),
+        }
+      : succeeded.map(done).join("\n"),
+    failed,
     options
   );
 };
 
 export const restoreCards = async (ids: string[], options: GlobalOptions) => {
   const api = client(options);
-  for (const id of ids) {
-    await api.cards.restore(id);
-  }
-  write(
+  const { failed, succeeded } = await eachCard(ids, (id) =>
+    api.cards.restore(id)
+  );
+  writeBatch(
     options.json
-      ? { restoredIds: ids }
-      : ids.map((id) => `Restored ${id}`).join("\n"),
+      ? {
+          ...(failed.length > 0 ? { failed: failed.map(failureJson) } : {}),
+          restoredIds: succeeded,
+        }
+      : succeeded.map((id) => `Restored ${id}`).join("\n"),
+    failed,
     options
   );
 };
 
 export const openCard = async (id: string, options: GlobalOptions) => {
   const card = await client(options).cards.get(id);
-  openBrowser(card.appUrl);
-  write(options.json ? { appUrl: card.appUrl } : card.appUrl, options);
+  const opened = await openBrowser(card.appUrl);
+  write(options.json ? { appUrl: card.appUrl, opened } : card.appUrl, options);
+  if (!(opened || options.json)) {
+    process.stderr.write(
+      "Couldn't open a browser here. Open the link above to see the card.\n"
+    );
+  }
 };
 
 const writeNewFile = (target: string, bytes: Uint8Array, force?: boolean) => {
@@ -250,14 +332,21 @@ const sleep = (ms: number) =>
     setTimeout(resolve, ms);
   });
 
-const waitForExport = async (api: TeakClient, intervalMs: number) => {
+// Small exports finish in moments, so poll quickly at first and back off to
+// every few seconds for large ones.
+const FIRST_POLL_MS = 250;
+const MAX_POLL_MS = 3000;
+
+const waitForExport = async (api: TeakClient, intervalMs?: number) => {
   let latest = await api.exports.latest();
+  let delay = intervalMs ?? FIRST_POLL_MS;
   while (isActive(latest.job)) {
     // Progress only helps someone watching; keep piped output quiet.
     if (process.stderr.isTTY && latest.job?.processedCount) {
       process.stderr.write(`\r${latest.job.processedCount} cards processed…`);
     }
-    await sleep(intervalMs);
+    await sleep(delay);
+    delay = intervalMs ?? Math.min(delay * 2, MAX_POLL_MS);
     latest = await api.exports.latest();
   }
   if (process.stderr.isTTY) {
@@ -315,7 +404,7 @@ export const startExport = async (
   }
   const latest =
     options.wait || options.output
-      ? await waitForExport(api, options.intervalMs ?? 3000)
+      ? await waitForExport(api, options.intervalMs)
       : await api.exports.latest();
   if (options.output && latest.job?.downloadUrl) {
     await downloadExport(options);

@@ -48,7 +48,10 @@ async function popup(
         },
       },
       tabs: {
-        query: () => Promise.resolve([{ url: options.tabUrl ?? "https://example.com/post" }]),
+        query: () =>
+          Promise.resolve([
+            { url: options.tabUrl ?? "https://example.com/post" },
+          ]),
         create: ({ url }: { url: string }) => {
           opened.push(url);
           return Promise.resolve({});
@@ -92,7 +95,9 @@ test("refuses pages that aren't regular websites", async () => {
     { tabUrl: "about:blank" }
   );
   expect(result.body.dataset.state).toBe("invalid");
-  expect(result.sent.some((payload) => payload.type === "saveCurrentPage")).toBe(false);
+  expect(
+    result.sent.some((payload) => payload.type === "saveCurrentPage")
+  ).toBe(false);
 });
 
 test("asks a signed-out person to sign in, and opens Teak on iPhone", async () => {

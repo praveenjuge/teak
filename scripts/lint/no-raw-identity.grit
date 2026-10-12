@@ -26,9 +26,5 @@ or {
     $match <: r"(?s).*\b(?:subject|tokenIdentifier|getUserIdentity|getAuthUser|safeGetAuthUser)\b.*"
   }
 } where {
-  register_diagnostic(
-    span = $match,
-    message = "Read authentication identities only in securitySessions.ts; use getSessionUser and teakUserId.",
-    severity = "error"
-  )
+  register_diagnostic(span=$match, message="Read authentication identities only in securitySessions.ts; use getSessionUser and teakUserId.", severity="error")
 }

@@ -21,6 +21,7 @@ import {
   updateComponentUser,
 } from "./__tests__/helpers/workosOwner.test-utils";
 import { api as backendApi, components } from "./_generated/api";
+import { syncCardSearchTagsBatchHandler } from "./card/searchDocumentHelpers";
 import schema from "./schema";
 import { API_KEY_TOKEN_PREFIX } from "./shared/apiKeyFormat";
 
@@ -215,6 +216,8 @@ describe("WorkOS REST and MCP token boundary", () => {
     expect(
       JSON.stringify(await call("teak_v1_get_card", { cardId: id }))
     ).toContain("Updated WorkOS card");
+    // Tags are listed from the tag index, which syncs right after a save.
+    await f.t.run((ctx) => syncCardSearchTagsBatchHandler(ctx, id));
     expect(JSON.stringify(await call("teak_v1_list_tags", {}))).toContain(
       "migrated"
     );

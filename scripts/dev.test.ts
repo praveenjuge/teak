@@ -18,6 +18,7 @@ describe("parseDevArgs", () => {
     expect(parseDevArgs([])).toEqual({
       action: "run",
       all: false,
+      detach: false,
       headless: false,
       push: false,
       target: "web",
@@ -29,6 +30,10 @@ describe("parseDevArgs", () => {
     expect(parseDevArgs(["--status"]).action).toBe("status");
     expect(parseDevArgs(["--stop"]).action).toBe("stop");
     expect(() => parseDevArgs(["mobile", "--push"])).toThrow("web stack");
+    expect(parseDevArgs(["--detach"]).detach).toBe(true);
+    expect(parseDevArgs(["--detach", "--push"]).push).toBe(true);
+    expect(() => parseDevArgs(["mobile", "--detach"])).toThrow("web stack");
+    expect(() => parseDevArgs(["--all", "--detach"])).toThrow("web stack");
     expect(() => parseDevArgs(["--workos", "staging"])).toThrow(
       "Unknown dev target"
     );

@@ -1,8 +1,13 @@
-import { beforeAll, describe, expect, test } from "bun:test";
+import { afterAll, beforeAll, describe, expect, mock, test } from "bun:test";
+import { getFunctionName } from "convex/server";
+import { internal } from "../../_generated/api";
 import { validateFinalizeUpload } from "../../card/uploadCardAction";
 import { requireTeakUserId, type TeakUserId } from "../../securitySessions";
 import { buildR2ObjectKey } from "../../storage/r2";
-import { withMappedOwner } from "../helpers/session.test-utils";
+import {
+  withMappedOwner,
+  withTestSession,
+} from "../helpers/session.test-utils";
 
 describe("worker-backed card upload finalization", () => {
   let userId: TeakUserId;
@@ -72,5 +77,118 @@ describe("worker-backed card upload finalization", () => {
         fileType: "image/png",
       })
     ).toThrow("Uploaded file ETag is invalid");
+  });
+});
+
+describe("direct upload URLs", () => {
+  const saved = {
+    FILES_BASE: process.env.FILES_BASE,
+    FILES_SIGNING_SECRET: process.env.FILES_SIGNING_SECRET,
+  };
+  let originalGetSubscription: any;
+
+  beforeAll(async () => {
+    const { polar } = await import("../../billing");
+    originalGetSubscription = polar.getCurrentSubscription;
+    polar.getCurrentSubscription = (async () => null) as any;
+    process.env.FILES_BASE = "https://files.test";
+    process.env.FILES_SIGNING_SECRET = "test-secret";
+  });
+
+  afterAll(async () => {
+    const { polar } = await import("../../billing");
+    polar.getCurrentSubscription = originalGetSubscription;
+    for (const [key, value] of Object.entries(saved)) {
+      if (value === undefined) {
+        delete process.env[key];
+      } else {
+        process.env[key] = value;
+      }
+    }
+  });
+
+  test("issues an upload URL without spending a card-creation rate-limit token", async () => {
+    const { uploadAndCreateCard } = await import("../../card/uploadCard");
+    const registerObject = getFunctionName(
+      internal.storage.ownership.registerObject
+    );
+    // Every rate-limit check is exhausted: only the finalize step, which
+    // creates the card, may charge the creation limit.
+    const runMutation = mock(async (ref: any) =>
+      getFunctionName(ref) === registerObject
+        ? true
+        : { ok: false, retryAfter: 60_000 }
+    );
+    const ctx = withTestSession({
+      auth: { getUserIdentity: async () => ({ subject: "u1" }) },
+      db: {
+        get: async () => null,
+        query: () => ({
+          withIndex: () => ({
+            unique: async () => null,
+            first: async () => null,
+            take: async () => [],
+          }),
+        }),
+      },
+      runMutation,
+    } as any);
+
+    const result = await (uploadAndCreateCard as any)._handler(ctx, {
+      fileName: "photo.png",
+      fileSize: 128,
+      fileType: "image/png",
+    });
+
+    expect(result).toMatchObject({ success: true });
+    expect(result.uploadUrl).toStartWith("https://files.test/");
+  });
+});
+
+describe("finalized upload cleanup", () => {
+  test("closes the upload session and queues the source object for durable deletion", async () => {
+    const { consumeSessionBySourceKey } = await import("../../fileUploads");
+    const handler =
+      (consumeSessionBySourceKey as any)._handler ??
+      (consumeSessionBySourceKey as any).handler;
+    const sourceKey = buildR2ObjectKey({
+      userId: "user-1",
+      cardId: "upload-pending-v2",
+      role: "file",
+      fileName: "photo.png",
+    });
+    const deleted: string[] = [];
+    const scheduled: Array<{ name: string; args: unknown }> = [];
+    const ctx = {
+      db: {
+        query: () => ({
+          withIndex: () => ({
+            unique: async () => ({ _id: "session-1", sourceKey }),
+          }),
+        }),
+        delete: (id: string) => {
+          deleted.push(id);
+          return Promise.resolve();
+        },
+      },
+      scheduler: {
+        runAfter: (_delay: number, fn: unknown, args: unknown) => {
+          scheduled.push({ name: getFunctionName(fn as any), args });
+          return Promise.resolve();
+        },
+      },
+    };
+
+    await handler(ctx, { sourceKey });
+
+    expect(deleted).toEqual(["session-1"]);
+    expect(scheduled).toEqual([
+      {
+        name: getFunctionName(
+          (internal as any)["workflows/objectCleanup"].startObjectDeletion
+        ),
+        args: { keys: [sourceKey] },
+      },
+    ]);
   });
 });

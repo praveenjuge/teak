@@ -1,17 +1,30 @@
 ---
+const activeClass =
+  "relative inline-flex items-center rounded-full px-4 py-1.5 font-medium border bg-background text-foreground cursor-pointer";
+const idleClass =
+  "relative inline-flex items-center rounded-full px-4 py-1.5 font-medium border border-transparent text-muted-foreground hover:text-foreground cursor-pointer";
 ---
 
 <div class="mb-8 flex items-center justify-center">
-  <div class="relative inline-flex rounded-full border bg-muted p-1">
+  <div
+    aria-label="Billing period"
+    class="relative inline-flex rounded-full border bg-muted p-1"
+    data-active-class={activeClass}
+    data-idle-class={idleClass}
+    data-pricing-toggle-group
+    role="group"
+  >
     <button
-      class="relative rounded-full px-4 py-1.5 font-medium border bg-background text-foreground cursor-pointer"
+      aria-pressed="false"
+      class={idleClass}
       data-pricing-toggle="monthly"
       type="button"
     >
       Monthly
     </button>
     <button
-      class="relative rounded-full px-4 py-1.5 font-medium text-muted-foreground hover:text-foreground cursor-pointer"
+      aria-pressed="true"
+      class={activeClass}
       data-pricing-toggle="yearly"
       type="button"
     >
@@ -21,23 +34,36 @@
 </div>
 
 <script>
+  const group = document.querySelector<HTMLElement>("[data-pricing-toggle-group]");
   const buttons = document.querySelectorAll<HTMLButtonElement>("[data-pricing-toggle]");
   const monthlyPrices = document.querySelectorAll<HTMLElement>("[data-price-monthly]");
   const yearlyPrices = document.querySelectorAll<HTMLElement>("[data-price-yearly]");
 
-  buttons.forEach((btn) => {
+  const show = (elements: NodeListOf<HTMLElement>, visible: boolean) => {
+    for (const el of elements) {
+      el.classList.toggle("hidden", !visible);
+      if (visible) {
+        // Restart the entrance animation on every switch.
+        el.classList.remove("price-enter");
+        void el.offsetWidth;
+        el.classList.add("price-enter");
+      }
+    }
+  };
+
+  for (const btn of buttons) {
     btn.addEventListener("click", () => {
       const isYearly = btn.dataset.pricingToggle === "yearly";
+      const period = isYearly ? "yearly" : "monthly";
 
-      buttons.forEach((b) => {
-        const active = b.dataset.pricingToggle === (isYearly ? "yearly" : "monthly");
-        b.className = active
-          ? "relative rounded-full px-4 py-1.5 font-medium border bg-background text-foreground cursor-pointer"
-          : "relative rounded-full px-4 py-1.5 font-medium text-muted-foreground hover:text-foreground cursor-pointer";
-      });
+      for (const b of buttons) {
+        const active = b.dataset.pricingToggle === period;
+        b.className = (active ? group?.dataset.activeClass : group?.dataset.idleClass) ?? "";
+        b.setAttribute("aria-pressed", String(active));
+      }
 
-      monthlyPrices.forEach((el) => el.classList.toggle("hidden", isYearly));
-      yearlyPrices.forEach((el) => el.classList.toggle("hidden", !isYearly));
+      show(monthlyPrices, !isYearly);
+      show(yearlyPrices, isYearly);
     });
-  });
+  }
 </script>

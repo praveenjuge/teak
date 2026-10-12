@@ -39,18 +39,22 @@ const resolveCardType = async (
   return card.type as CardType;
 };
 
+// Matches workflows/steps/metadata.generate, which returns persisted-result
+// facts rather than the generated text.
+export const aiMetadataWorkflowReturns = v.object({
+  aiTagsCount: v.number(),
+  hasSummary: v.boolean(),
+  hasTranscript: v.boolean(),
+  confidence: v.number(),
+  mode: v.union(v.literal("completed"), v.literal("skipped")),
+});
+
 export const aiMetadataWorkflow = workflow.define({
   args: {
     cardId: v.id("cards"),
     cardType: v.optional(cardTypeValidator),
   },
-  returns: v.object({
-    aiTags: v.array(v.string()),
-    aiSummary: v.optional(v.string()),
-    aiTranscript: v.optional(v.string()),
-    confidence: v.number(),
-    mode: v.union(v.literal("completed"), v.literal("skipped")),
-  }),
+  returns: aiMetadataWorkflowReturns,
   handler: async (step, args): Promise<AiMetadataResult> => {
     const cardType = await resolveCardType(step, args);
 

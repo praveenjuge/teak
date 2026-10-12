@@ -171,12 +171,14 @@ test("text-only patches do not read tag-chain state while a batch is pending", a
       ...ctx,
       db: new Proxy(ctx.db, {
         get(target, key) {
-          if (key === "query")
+          if (key === "query") {
             return (table: string) => {
-              if (table === "cardSearchTagSyncStates")
+              if (table === "cardSearchTagSyncStates") {
                 throw new Error("text patch read tag progress");
+              }
               return originalQuery(table as any);
             };
+          }
           const value = Reflect.get(target, key);
           return typeof value === "function" ? value.bind(target) : value;
         },
@@ -243,12 +245,14 @@ test("field updates avoid tag progress reads and still repair a missing state on
       ...ctx,
       db: new Proxy(ctx.db, {
         get(target, key) {
-          if (key === "query")
+          if (key === "query") {
             return (table: string) => {
-              if (table === "cardSearchTagSyncStates")
+              if (table === "cardSearchTagSyncStates") {
                 throw new Error("field update read tag progress");
+              }
               return originalQuery(table as any);
             };
+          }
           const value = Reflect.get(target, key);
           return typeof value === "function" ? value.bind(target) : value;
         },

@@ -6,6 +6,8 @@
  */
 import { ConvexError } from "convex/values";
 import { json } from "./publicApiMeta";
+import { MAX_CARD_TITLE_LENGTH } from "./shared/cardTitle";
+import { extractPaletteColors } from "./shared/utils/colorUtils";
 
 export { json } from "./publicApiMeta";
 
@@ -25,6 +27,9 @@ const CARD_TYPES = new Set([
   "quote",
 ]);
 const CARD_SORTS = new Set(["newest", "oldest"]);
+// Same per-tag cap as data import.
+const MAX_TAG_LENGTH = 64;
+const FILE_CARD_TYPES = new Set(["image", "video", "audio", "document"]);
 
 type ErrorCode =
   | "BAD_REQUEST"
@@ -37,7 +42,9 @@ type ErrorCode =
   | "INVALID_UTF8"
   | "METHOD_NOT_ALLOWED"
   | "NOT_FOUND"
+  | "NOT_IN_TRASH"
   | "RATE_LIMITED"
+  | "SERVICE_UNAVAILABLE"
   | "TYPE_MISMATCH"
   | "UNAUTHORIZED";
 
@@ -104,20 +111,26 @@ const errorResponse = (
   headers?: HeadersInit
 ): Response => json(status, { code, error, ...(extras ?? {}) }, headers);
 
-const buildRateLimitHeaders = (retryAt?: number): HeadersInit | undefined => {
+// RateLimit-Reset and Retry-After are delta-seconds, per the IETF RateLimit
+// header fields draft. RateLimit-Limit is sent only when the limit is known.
+const buildRateLimitHeaders = (
+  retryAt?: number,
+  limit?: number
+): HeadersInit | undefined => {
   if (!(typeof retryAt === "number" && Number.isFinite(retryAt))) {
     return;
   }
 
-  const retryAfterSeconds = Math.max(
-    1,
-    Math.ceil((retryAt - Date.now()) / 1000)
+  const retryAfterSeconds = String(
+    Math.max(1, Math.ceil((retryAt - Date.now()) / 1000))
   );
   return {
-    "RateLimit-Limit": "120",
+    ...(typeof limit === "number" && Number.isFinite(limit)
+      ? { "RateLimit-Limit": String(limit) }
+      : {}),
     "RateLimit-Remaining": "0",
-    "RateLimit-Reset": String(retryAt),
-    "Retry-After": String(retryAfterSeconds),
+    "RateLimit-Reset": retryAfterSeconds,
+    "Retry-After": retryAfterSeconds,
   };
 };
 
@@ -173,39 +186,55 @@ const sha256 = async (value: string): Promise<string> => {
   return toHex(new Uint8Array(digest));
 };
 
-const isRateLimitContentionError = (error: unknown): boolean => {
-  let message: string | undefined;
+const errorMessageOf = (error: unknown): string | undefined => {
   if (error instanceof Error) {
-    message = error.message;
-  } else if (typeof error === "string") {
-    message = error;
-  } else if (
+    return error.message;
+  }
+  if (typeof error === "string") {
+    return error;
+  }
+  if (
     error &&
     typeof error === "object" &&
     "message" in error &&
     typeof error.message === "string"
   ) {
-    message = error.message;
+    return error.message;
   }
-  if (!message) {
-    return false;
-  }
+};
 
-  return (
-    message.includes('"rateLimits" table') &&
-    message.includes(
-      "changed while this mutation was being run and on every subsequent retry"
-    )
+const OCC_FAILURE_TEXT =
+  "changed while this mutation was being run and on every subsequent retry";
+
+/** A mutation that kept losing optimistic-concurrency races on any table. */
+const isOptimisticConcurrencyError = (error: unknown): boolean =>
+  errorMessageOf(error)?.includes(OCC_FAILURE_TEXT) ?? false;
+
+const isRateLimitContentionError = (error: unknown): boolean => {
+  const message = errorMessageOf(error);
+  return Boolean(
+    message?.includes('"rateLimits" table') &&
+      message.includes(OCC_FAILURE_TEXT)
   );
 };
 
-const RATE_LIMITED_ERROR = (retryAt?: number): Response =>
+const RATE_LIMITED_ERROR = (retryAt?: number, limit?: number): Response =>
   errorResponse(
     429,
     "RATE_LIMITED",
     "Too many requests",
     { retryAt },
-    buildRateLimitHeaders(retryAt)
+    buildRateLimitHeaders(retryAt, limit)
+  );
+
+// Busy backend state, not a client error: safe to retry after a second.
+const SERVICE_BUSY_ERROR = (): Response =>
+  errorResponse(
+    503,
+    "SERVICE_UNAVAILABLE",
+    "The service is busy. Retry the request.",
+    undefined,
+    { "Retry-After": "1" }
   );
 
 const RATE_LIMIT_CONTENTION_ERROR = (): Response => {
@@ -226,6 +255,13 @@ const RATE_LIMIT_CONTENTION_ERROR = (): Response => {
 const AUTH_INTERNAL_ERROR = (): Response =>
   errorResponse(500, "INTERNAL_ERROR", "Failed to authorize request");
 
+// Backend error codes that are not plain bad requests.
+const CONVEX_ERROR_STATUS: Partial<Record<string, number>> = {
+  CONFLICT: 409,
+  NOT_FOUND: 404,
+  NOT_IN_TRASH: 409,
+};
+
 const mapConvexErrorToResponse = (
   error: unknown,
   fallbackMessage: string
@@ -233,6 +269,7 @@ const mapConvexErrorToResponse = (
   if (error instanceof ConvexError) {
     const payload = (error.data ?? {}) as {
       code?: unknown;
+      limit?: unknown;
       message?: unknown;
       retryAt?: unknown;
     };
@@ -254,11 +291,14 @@ const mapConvexErrorToResponse = (
         code,
         message,
         retryAt ? { retryAt } : undefined,
-        buildRateLimitHeaders(retryAt)
+        buildRateLimitHeaders(
+          retryAt,
+          typeof payload.limit === "number" ? payload.limit : undefined
+        )
       );
     }
 
-    return json(400, {
+    return json(CONVEX_ERROR_STATUS[code] ?? 400, {
       code,
       error: message,
     });
@@ -267,8 +307,67 @@ const mapConvexErrorToResponse = (
   if (isRateLimitContentionError(error)) {
     return RATE_LIMIT_CONTENTION_ERROR();
   }
+  if (isOptimisticConcurrencyError(error)) {
+    return SERVICE_BUSY_ERROR();
+  }
 
   return errorResponse(500, "INTERNAL_ERROR", fallbackMessage);
+};
+
+/**
+ * Trims a title and cuts it to the maximum title length instead of rejecting
+ * it. Non-string values pass through for the caller's own validation.
+ */
+const truncateCardTitle = (value: unknown): unknown => {
+  if (typeof value !== "string") {
+    return value;
+  }
+  let title = value.trim();
+  if (title.length > MAX_CARD_TITLE_LENGTH) {
+    title = title.slice(0, MAX_CARD_TITLE_LENGTH);
+    // Never leave half of a surrogate pair at the cut.
+    if (/[\uD800-\uDBFF]$/.test(title)) {
+      title = title.slice(0, -1);
+    }
+    title = title.trimEnd();
+  }
+  return title;
+};
+
+/** Returns why a tag list is invalid, or null when every tag fits. */
+const explainInvalidTags = (tags: readonly string[] | undefined) => {
+  const tooLong = tags?.find((tag) => tag.trim().length > MAX_TAG_LENGTH);
+  return tooLong === undefined
+    ? null
+    : `Each tag must be at most ${MAX_TAG_LENGTH} characters`;
+};
+
+/**
+ * Returns why an explicit card type cannot describe a card created without an
+ * uploaded file, or null when it can. File types need an upload, and a
+ * palette needs at least one color Teak can read.
+ */
+const explainCardTypeMismatch = (args: {
+  cardType?: string;
+  content?: string;
+  notes?: string | null;
+  tags?: readonly string[];
+}): string | null => {
+  if (!args.cardType) {
+    return null;
+  }
+  if (FILE_CARD_TYPES.has(args.cardType)) {
+    return `\`cardType\` \`${args.cardType}\` needs an uploaded file. Upload it with POST /v1/uploads first.`;
+  }
+  if (args.cardType === "palette") {
+    const paletteText = [args.content, args.notes, args.tags?.join(" ")]
+      .filter(Boolean)
+      .join("\n");
+    if (extractPaletteColors(paletteText, 1).length === 0) {
+      return "A `palette` card needs at least one color, such as #ff5500";
+    }
+  }
+  return null;
 };
 
 const parseOptionalString = (value: unknown): string | undefined => {
@@ -347,10 +446,14 @@ export {
   DEFAULT_LIMIT,
   type ErrorCode,
   errorResponse,
+  explainCardTypeMismatch,
+  explainInvalidTags,
+  isOptimisticConcurrencyError,
   isRateLimitContentionError,
   MAX_BULK_ITEMS,
   MAX_LIMIT,
   MAX_QUERY_SCAN,
+  MAX_TAG_LENGTH,
   mapConvexErrorToResponse,
   parseBearerToken,
   parseBooleanQuery,
@@ -363,5 +466,7 @@ export {
   type QueryValue,
   RATE_LIMIT_CONTENTION_ERROR,
   RATE_LIMITED_ERROR,
+  SERVICE_BUSY_ERROR,
   sha256,
+  truncateCardTitle,
 };

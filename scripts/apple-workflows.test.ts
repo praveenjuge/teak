@@ -380,6 +380,7 @@ describe("Apple release workflows", () => {
       'bash apps/apple/scripts/apply-store-metadata.sh "$ASC_APP_ID" "$VERSION_ID" "$PLATFORM" "$first_version" "$RELEASE_NOTES"'
     );
     const script = read("apps/apple/scripts/apply-store-metadata.sh");
+    // biome-ignore lint/suspicious/noTemplateCurlyInString: a Bash array length in the script, not a JS template.
     expect(script).toContain('if [ "${#pngs[@]}" -eq 0 ]; then');
     expect(script).toContain(
       'bash scripts/store-assets/publish-apple.sh "apple-$set_name" "$VERSION_ID"'

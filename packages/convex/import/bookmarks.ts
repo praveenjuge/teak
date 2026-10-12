@@ -94,7 +94,8 @@ export function parseBookmarksHtml(html: string): ParsedBookmarkItem[] {
                 }
               : {
                   label: title || rawUrl || "Bookmark",
-                  error: "Bookmark URL is unsafe",
+                  error:
+                    "Bookmark URL is unsafe: only http and https links can be imported",
                 }
           );
           anchor = undefined;

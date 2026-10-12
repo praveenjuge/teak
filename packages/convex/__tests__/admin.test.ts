@@ -2,8 +2,10 @@
 
 import { beforeEach, describe, expect, mock, test } from "bun:test";
 import { r2MockModuleFactory, r2Mocks } from "./helpers/r2Mock.test-utils";
-import { withTestSession } from "./helpers/session.test-utils";
-import { inlineSearchSyncDb } from "./helpers/session.test-utils";
+import {
+  inlineSearchSyncDb,
+  withTestSession,
+} from "./helpers/session.test-utils";
 
 mock.module("../storage/r2", r2MockModuleFactory);
 

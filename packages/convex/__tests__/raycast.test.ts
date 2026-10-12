@@ -92,7 +92,9 @@ describe("raycast", () => {
 
     expect(result?._id).toBe("card_1");
     expect(result?.userId).toBe("user_1");
-    expect(patchCalls.length).toBe(2);
+    // Both fields land in one write.
+    expect(patchCalls).toHaveLength(1);
+    expect(patchCalls[0]).toMatchObject({ notes: undefined, tags: undefined });
   });
 
   test("patchCardForUser enqueues processing once for multi-field updates", async () => {
@@ -133,7 +135,11 @@ describe("raycast", () => {
       url: "https://new.example.com",
     });
 
-    expect(patchCalls.length).toBe(2);
+    expect(patchCalls).toHaveLength(1);
+    expect(patchCalls[0]).toMatchObject({
+      content: "new content",
+      url: "https://new.example.com",
+    });
     expect(runAfter).toHaveBeenCalledTimes(2);
   });
 

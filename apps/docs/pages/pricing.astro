@@ -1,10 +1,26 @@
 ---
 import Accordion from "blume/components/content/Accordion.astro";
 import AccordionItem from "blume/components/content/AccordionItem.astro";
+import Icon from "blume/components/Icon.astro";
 import PricingCard from "../components/PricingCard.astro";
 import PricingToggle from "../components/PricingToggle.astro";
 import MarketingLayout from "../layouts/MarketingLayout.astro";
 import { buildPageSchemas, buildProductSchema, SITE_URL } from "../lib/jsonld";
+import {
+  FREE_CARD_LIMIT,
+  formatUsd,
+  PRO_MONTHLY_PRICE,
+  PRO_YEARLY_PRICE,
+  yearlyPerMonth,
+  yearlySavingsPercent,
+} from "../lib/pricing";
+import { testimonials } from "../lib/testimonials";
+
+const monthly = formatUsd(PRO_MONTHLY_PRICE);
+const perMonth = formatUsd(yearlyPerMonth());
+const savings = `${yearlySavingsPercent()}%`;
+const registerHref = "https://app.teakvault.com/register";
+const githubHref = "https://github.com/praveenjuge/teak";
 
 const pricingPlans = [
   {
@@ -12,19 +28,18 @@ const pricingPlans = [
     name: "Free",
     emojiAlt: "Gift box emoji",
     emojiSrc: "/emojis/pricing-free-gift-box.webp",
-    price: "Free" as const,
-    description:
-      "200 cards go further than you think. Your most important inspiration, completely free.",
+    price: "$0",
+    priceNote: "Free forever",
     features: [
-      "200 cards",
-      "Find anything in 2 seconds",
-      "Works on phone, laptop, tablet",
-      "No credit card, ever",
+      `${FREE_CARD_LIMIT} cards, yours to keep`,
+      "Links, images, notes, video, audio, docs, palettes, quotes",
+      "AI tags, summaries, and transcripts",
+      "Search by words, colors, and dates",
+      "Web, iPhone, iPad, Mac, Android, Chrome, Raycast",
+      "API, MCP, and CLI access",
+      "One-click export, zero lock-in",
     ],
-    cta: {
-      text: "Start Free",
-      href: "https://app.teakvault.com/register",
-    },
+    cta: { text: "Start Free", href: registerHref },
   },
   {
     id: "pro",
@@ -32,62 +47,69 @@ const pricingPlans = [
     emojiAlt: "Crown emoji",
     emojiSrc: "/emojis/pricing-pro-crown.webp",
     price: {
-      monthly: { amount: "$19", period: "month" },
-      yearly: { amount: "$99", period: "year" },
+      monthly: { amount: monthly, period: "month", note: "Billed monthly" },
+      yearly: {
+        amount: perMonth,
+        period: "month",
+        note: `Billed yearly at ${formatUsd(PRO_YEARLY_PRICE)}`,
+      },
     },
-    description:
-      "Unlimited inspiration for the price of 2 coffees/month. Save everything, find anything.",
     features: [
-      "Unlimited cards",
-      "Find anything in 2 seconds",
-      "Works on phone, laptop, tablet",
-      "Get help in 2 hours, not 2 days",
+      "Everything in Free",
+      "Unlimited cards, forever",
+      "Room for years of inspiration",
+      "Priority support, within 2 hours",
+      "Every new feature as it ships",
+      "30-day money-back guarantee",
+      "Keeps Teak independent and ad-free",
     ],
-    cta: {
-      text: "Get Pro",
-      href: "https://app.teakvault.com/register",
-      primary: true,
-    },
+    cta: { text: "Get Pro", href: registerHref, primary: true },
     popular: true,
   },
 ] as const;
 
-const selfHostedPlan = {
-  name: "Self-Hosted",
-  emojiAlt: "Server rack emoji",
-  emojiSrc: "/emojis/pricing-self-hosted-server-rack.webp",
-  description: "Run Teak yourself. Unlimited cards, total control, zero cost.",
-  cta: {
-    text: "Setup Guide →",
-    href: "/docs/self-hosting",
-  },
-} as const;
+type Cell = boolean | string;
+const comparison: { feature: string; free: Cell; pro: Cell; self: Cell }[] = [
+  { feature: "Cards", free: String(FREE_CARD_LIMIT), pro: "Unlimited", self: "Unlimited" },
+  { feature: "Card types, AI tags, and search", free: true, pro: true, self: true },
+  { feature: "Every app, plus API, MCP, and CLI", free: true, pro: true, self: true },
+  { feature: "Import and one-click export", free: true, pro: true, self: true },
+  { feature: "Hosting and updates", free: "Included", pro: "Included", self: "You run it" },
+  { feature: "Support", free: "Email", pro: "Priority", self: "GitHub" },
+];
 
 const pricingFaqs = [
   {
-    question: "Why exactly 200 cards?",
-    answer:
-      "200 cards covers your most important inspiration. When you need more, Pro is just $19/month - less than 2 coffees.",
+    question: `Why exactly ${FREE_CARD_LIMIT} cards?`,
+    answer: `${FREE_CARD_LIMIT} cards holds your most important inspiration, and every feature works on Free. When you need more room, Pro is unlimited.`,
   },
   {
-    question: "So... Pro or Self-hosted?",
+    question: `What happens when I hit ${FREE_CARD_LIMIT} cards?`,
+    answer: `Your ${FREE_CARD_LIMIT} cards stay safe forever. You just can’t add more until you go Pro or self-host. We never delete your inspiration.`,
+  },
+  {
+    question: "So... Pro or Self-Hosted?",
     answer:
-      "Pro: We handle all the tech stuff, you just create. Self-hosted: You handle the hosting and service costs, the software stays free under the MIT license — same features, different headache level.",
+      "Pro: we handle all the tech stuff, you just create. Self-hosted: the software is free under the MIT license, but you run the servers and pay for the services it uses. Same features, different headache level.",
   },
   {
     question: "Can I switch plans anytime?",
-    answer:
-      "Yep. Monthly to yearly (save 35%), upgrade, downgrade, or leave entirely. Export your data with one click. We don\u2019t do lock-in.",
+    answer: `Yep. Go from monthly to yearly (save ${savings}), upgrade, downgrade, or leave entirely from Settings → Plan. Export your data with one click. We don’t do lock-in.`,
   },
   {
     question: "What if I hate it?",
     answer:
-      "30-day full refund. No questions, no hassle. Try Pro for a month, if you don\u2019t love it, we\u2019ll give you every penny back.",
+      "New Pro subscriptions get a 30-day full refund. No questions, no hassle. Try Pro for a month, and if you don’t love it, we’ll give you every penny back.",
   },
   {
-    question: "What happens when I hit 200 cards?",
+    question: "Is my data private?",
     answer:
-      "Your 200 cards stay safe forever. You just can\u2019t add more until you go Pro or self-host. We never delete your inspiration.",
+      "Yes. Your cards are encrypted in transit and at rest, and we never share your content for advertising or third-party analytics.",
+  },
+  {
+    question: "What if Teak ever shuts down?",
+    answer:
+      "You can export everything, with original files, as a ZIP at any time. And because Teak is open source under the MIT license, you can always run it yourself.",
   },
 ] as const;
 
@@ -95,123 +117,170 @@ const productSchema = buildProductSchema(
   "Teak Pro",
   "Unlimited visual bookmarking for designers and developers.",
   [
-    { name: "Teak Pro - Monthly", price: "19.00" },
-    { name: "Teak Pro - Yearly", price: "99.00" },
+    { name: "Teak Pro - Monthly", price: PRO_MONTHLY_PRICE.toFixed(2) },
+    { name: "Teak Pro - Yearly", price: PRO_YEARLY_PRICE.toFixed(2) },
   ]
 );
 
 const pageSchemas = buildPageSchemas({
   title: "Pricing",
-  description: "Try Teak free with 200 cards. Pro is $19/month.",
+  description: `Try Teak free with ${FREE_CARD_LIMIT} cards. Pro is ${perMonth}/month billed yearly, or ${monthly} monthly.`,
   url: `${SITE_URL}/pricing`,
   breadcrumbs: [
     { name: "Home", url: SITE_URL },
     { name: "Pricing", url: `${SITE_URL}/pricing` },
   ],
+  faqs: [...pricingFaqs],
 });
+
+const metaTitle = `Simple Pricing for Designers. ${FREE_CARD_LIMIT} Cards Free.`;
+const metaDescription = `Try Teak free with ${FREE_CARD_LIMIT} cards and every feature. Pro is ${perMonth}/month billed yearly, or ${monthly} monthly. Or self-host the open-source code.`;
+
 ---
 
 <MarketingLayout
-  title="200 Cards Free. $19/month After. No Tricks."
-  description="Try Teak free with 200 cards. Pro is $19/month - less than 2 coffees. Or self-host for free. Simple pricing."
+  title={metaTitle}
+  description={metaDescription}
   canonical="https://teakvault.com/pricing"
-  ogTitle="200 Cards Free. $19/month After. No Tricks."
-  ogDescription="Try Teak free with 200 cards. Pro is $19/month - less than 2 coffees. Or self-host for free."
+  ogTitle={metaTitle}
+  ogDescription={metaDescription}
   keywords="design bookmarking pricing, visual inspiration tool, designer subscription, creative workflow pricing"
   jsonLd={[...pageSchemas, productSchema]}
 >
   <main class="flex flex-1 flex-col">
-    <!-- Hero Section -->
-    <section class="pt-20 pb-8">
-      <div class="container mx-auto max-w-xl px-4 text-center">
-        <h1 class="mb-4 text-balance font-bold text-4xl tracking-tight md:text-5xl">
-          200 cards free. $19/month after.
+    <!-- Hero -->
+    <section class="px-4 pt-20 pb-10">
+      <div class="mx-auto max-w-2xl text-center">
+        <h1 class="mb-3 text-balance font-bold text-3xl tracking-tight md:text-4xl">
+          Simple pricing for designers who save everything.
         </h1>
-        <p class="mx-auto max-w-2xl text-balance text-lg text-muted-foreground">
-          Try it free with your most important inspiration. Upgrade when you
-          need more. No tricks, ever.
+        <p class="mx-auto max-w-lg text-balance text-lg text-muted-foreground">
+          Start free with every feature. Go unlimited the day your library
+          outgrows {FREE_CARD_LIMIT} cards.
         </p>
       </div>
     </section>
 
-    <!-- Pricing Toggle -->
-    <div class="container mx-auto px-4 pb-4">
+    <!-- Plans -->
+    <section aria-label="Plans" class="px-4 pb-24">
       <PricingToggle />
-    </div>
+      <div class="mx-auto grid max-w-3xl gap-6 md:grid-cols-2">
+        {pricingPlans.map((plan) => (
+          <PricingCard
+            name={plan.name}
+            emojiAlt={plan.emojiAlt}
+            emojiSrc={plan.emojiSrc}
+            features={plan.features}
+            price={plan.price}
+            priceNote={"priceNote" in plan ? plan.priceNote : undefined}
+            ctaText={plan.cta.text}
+            ctaHref={plan.cta.href}
+            ctaPrimary={"primary" in plan.cta && plan.cta.primary}
+            popular={"popular" in plan && plan.popular}
+          />
+        ))}
+      </div>
 
-    <!-- Pricing Cards -->
-    <section class="pb-12">
-      <div class="container mx-auto px-4">
-        <div class="mx-auto grid max-w-4xl gap-8 md:grid-cols-2">
-          {pricingPlans.map((plan) => (
-            <PricingCard
-              name={plan.name}
-              description={plan.description}
-              emojiAlt={plan.emojiAlt}
-              emojiSrc={plan.emojiSrc}
-              features={plan.features}
-              price={plan.price}
-              ctaText={plan.cta.text}
-              ctaHref={plan.cta.href}
-              ctaPrimary={"primary" in plan.cta && plan.cta.primary}
-              popular={"popular" in plan && plan.popular}
-            />
-          ))}
+    </section>
+
+    <!-- Comparison -->
+    <section aria-labelledby="compare-title" class="px-4 pb-24">
+      <div class="mx-auto max-w-3xl">
+        <h2 class="mx-auto mb-8 max-w-md text-balance text-center font-bold text-2xl tracking-tight" id="compare-title">Same Teak on every plan. Only the room changes.</h2>
+        <div class="overflow-x-auto">
+          <table class="w-full border-collapse text-[0.8125rem] md:text-sm">
+            <thead>
+              <tr class="border-border border-b">
+                <th class="py-3 pr-4 text-left font-normal" scope="col"><span class="sr-only">Feature</span></th>
+                <th class="w-[4.75rem] px-1 py-3 text-center font-semibold md:w-28 md:px-2" scope="col">Free</th>
+                <th class="w-[4.75rem] px-1 py-3 text-center font-semibold md:w-28 md:px-2" scope="col">Pro</th>
+                <th class="w-[4.75rem] px-1 py-3 text-center font-semibold md:w-28 md:px-2" scope="col">Self-Hosted</th>
+              </tr>
+            </thead>
+            <tbody>
+              {comparison.map((row) => (
+                <tr class="border-border border-b">
+                  <th class="py-3.5 pr-3 text-left font-normal text-muted-foreground md:pr-4" scope="row">{row.feature}</th>
+                  {(["free", "pro", "self"] as const).map((plan) => {
+                    const value = row[plan];
+                    return (
+                      <td class="px-1 py-3.5 text-center md:px-2">
+                        {value === true ? (
+                          <Icon class="mx-auto" label="Included" name="check" size={16} />
+                        ) : value === false ? (
+                          <span class="text-muted-foreground">—</span>
+                        ) : (
+                          value
+                        )}
+                      </td>
+                    );
+                  })}
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
-        <p class="mx-auto mt-8 max-w-xl text-center text-sm text-muted-foreground">
-          Every plan includes dark mode and no ads.
-        </p>
       </div>
     </section>
 
-    <!-- Self-Hosted Section -->
-    <section class="px-4 pb-20 md:pb-2">
-      <div class="mx-auto flex max-w-4xl flex-col gap-4 rounded-2xl border border-border bg-card p-6 md:flex-row md:items-center md:justify-between">
+    <!-- Testimonial -->
+    <section aria-label="What people say" class="px-4 pb-24">
+      <figure class="mx-auto m-0 max-w-xl text-center">
+        <blockquote class="m-0 text-balance font-medium text-xl leading-relaxed tracking-tight">
+          “{testimonials[2].quote}”
+        </blockquote>
+      </figure>
+    </section>
+
+    <!-- Self-Hosted -->
+    <section aria-labelledby="self-hosted-title" class="px-4 pb-24">
+      <div class="mx-auto flex max-w-3xl flex-col gap-5 rounded-2xl border border-border bg-card p-6 md:flex-row md:items-center md:justify-between">
         <div class="flex items-center gap-4">
           <img
-            alt={selfHostedPlan.emojiAlt}
-            class="size-14 object-contain"
-            height="56"
-            src={selfHostedPlan.emojiSrc}
-            width="56"
+            alt="Server rack emoji"
+            class="size-12 object-contain"
+            height="48"
+            src="/emojis/pricing-self-hosted-server-rack.webp"
+            width="48"
           />
           <div>
-            <h2 class="mb-1 font-semibold text-base">
-              {selfHostedPlan.name}
-            </h2>
-            <p class="text-muted-foreground">
-              {selfHostedPlan.description}
+            <h2 class="mb-0.5 font-semibold text-base" id="self-hosted-title">Self-Hosted</h2>
+            <p class="text-muted-foreground text-sm">
+              Prefer to own the stack? Teak is MIT open source. Run it on your servers.
             </p>
           </div>
         </div>
-        <a
-          class="inline-flex w-full items-center justify-center rounded-full border bg-background font-medium text-sm h-10 px-4 hover:bg-accent hover:text-accent-foreground md:w-auto"
-          href={selfHostedPlan.cta.href}
-        >
-          {selfHostedPlan.cta.text}
-        </a>
+        <div class="flex shrink-0 gap-2">
+          <a
+            class="inline-flex h-9 flex-1 items-center justify-center gap-2 rounded-full border bg-background px-4 font-medium text-sm hover:bg-accent hover:text-accent-foreground md:flex-none"
+            href={githubHref}
+            rel="noopener noreferrer"
+            target="_blank"
+          >
+            <Icon name="github" size={15} />
+            GitHub
+          </a>
+          <a
+            class="inline-flex h-9 flex-1 items-center justify-center rounded-full border bg-background px-4 font-medium text-sm hover:bg-accent hover:text-accent-foreground md:flex-none"
+            href="/docs/self-hosting"
+          >
+            Setup guide →
+          </a>
+        </div>
       </div>
     </section>
 
-    <!-- FAQ Section -->
-    <section class="py-20 md:py-24">
-      <div class="container mx-auto px-4">
-        <div class="mb-12 text-center">
-          <h2 class="mb-4 text-balance font-bold text-3xl">FAQ</h2>
-          <p class="mx-auto max-w-xl text-balance text-muted-foreground">
-            Real answers. No corporate jargon, promise.
-          </p>
-        </div>
-
-        <div class="mx-auto max-w-2xl">
-          <Accordion>
-            {pricingFaqs.map((faq) => (
-              <AccordionItem title={faq.question}>
-                <p class="text-muted-foreground">{faq.answer}</p>
-              </AccordionItem>
-            ))}
-          </Accordion>
-        </div>
+    <!-- FAQ -->
+    <section aria-labelledby="faq-title" class="px-4 pb-24">
+      <div class="mx-auto max-w-2xl">
+        <h2 class="mb-8 text-center font-bold text-2xl tracking-tight" id="faq-title">Questions, answered</h2>
+        <Accordion>
+          {pricingFaqs.map((faq) => (
+            <AccordionItem title={faq.question}>
+              <p class="text-muted-foreground">{faq.answer}</p>
+            </AccordionItem>
+          ))}
+        </Accordion>
       </div>
     </section>
   </main>

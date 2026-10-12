@@ -68,9 +68,7 @@ const linkHostname = (url?: string) => {
   }
   try {
     return new URL(url).hostname.replace(WWW_PREFIX, "") || undefined;
-  } catch {
-    return;
-  }
+  } catch {}
 };
 
 export const toMobileCardSummary = (card: CardWithUrls) => {
