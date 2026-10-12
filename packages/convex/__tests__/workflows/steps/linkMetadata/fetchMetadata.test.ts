@@ -286,6 +286,63 @@ describe("fetchMetadata", () => {
     }
   });
 
+  test("keeps Instagram posts on Kernel so their media is still extracted when the Worker is configured", async () => {
+    const previous = [process.env.FILES_BASE, process.env.FILES_SIGNING_SECRET];
+    process.env.FILES_BASE = "https://files.teakvault.com";
+    process.env.FILES_SIGNING_SECRET = "test-signing-secret";
+    mockRunQuery.mockResolvedValue({
+      _id: "c1",
+      type: "link",
+      url: "https://www.instagram.com/p/DBY4WfSxA0a/",
+      metadata: { linkCategory: { status: "completed" } },
+    });
+    mockKernelExecute.mockResolvedValue({
+      success: true,
+      result: {
+        selectors: [],
+        instagramMedia: [{ url: "https://cdninstagram.com/media/raw.jpg" }],
+      },
+    });
+    const workerOps: string[] = [];
+    mockFetch.mockImplementation((url: string, init?: RequestInit) => {
+      if (String(url).startsWith("https://files.teakvault.com/__ops/v1")) {
+        workerOps.push(JSON.parse(String(init?.body)).op);
+        return Promise.resolve(
+          Response.json({
+            ok: true,
+            version: 1,
+            requestId: "r1",
+            data: { selectors: [] },
+          })
+        );
+      }
+      return Promise.resolve(
+        new Response("<html></html>", {
+          headers: { "content-type": "text/html" },
+          status: 200,
+        })
+      );
+    });
+    try {
+      await fetchMetadataHandler(ctx, { cardId: "c1" });
+
+      expect(workerOps).not.toContain("scrape-html");
+      expect(mockKernelCreateBrowser).toHaveBeenCalled();
+      expect(mockNormalizeInstagramExtractedMedia).toHaveBeenCalledWith(
+        "https://www.instagram.com/p/DBY4WfSxA0a/",
+        [{ url: "https://cdninstagram.com/media/raw.jpg" }]
+      );
+    } finally {
+      [process.env.FILES_BASE, process.env.FILES_SIGNING_SECRET] = previous;
+      if (previous[0] === undefined) {
+        delete process.env.FILES_BASE;
+      }
+      if (previous[1] === undefined) {
+        delete process.env.FILES_SIGNING_SECRET;
+      }
+    }
+  });
+
   test("uses static metadata without allocating a browser", async () => {
     mockScrapeElements.push({ selector: "head > title" });
     mockRunQuery.mockResolvedValue({

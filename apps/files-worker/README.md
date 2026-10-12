@@ -109,8 +109,8 @@ Worker deployment without these bindings, or an older Worker, changes nothing.
 - `inspect` mode `pdf` extracts the text layer of a PDF's first 30 pages
   (unpdf) for AI metadata; scanned PDFs yield no text.
 - `analyze-image` also returns EXIF camera facts (make, model, exposure,
-  focal length, ISO, GPS, capture time) from JPEG APP1 or the HEIF `Exif`
-  item, stored as `fileMetadata.exif`.
+  focal length, ISO, capture time) from JPEG APP1 or the HEIF `Exif` item,
+  stored as `fileMetadata.exif`. GPS position is deliberately not read.
 
 `BROWSER` and `MEDIA` need the Workers Paid plan; `MEDIA` has no local
 simulation, so it is declared `remote`. Browser Run's local mode runs a real

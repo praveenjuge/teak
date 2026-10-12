@@ -17,8 +17,6 @@ const FIXTURE_FACTS = {
   fNumber: 2.8,
   focalLength: 35,
   iso: 400,
-  latitude: 12.971_567,
-  longitude: 77.5945,
   make: "Teak Camera Co",
   model: "Fixture One",
   takenAt: Date.parse("2026-05-17T09:00:05Z"),
@@ -126,8 +124,8 @@ describe("readExifFacts", () => {
     const jpeg = fixture("fixture-exif.jpg");
     const { read, size } = readerOf(jpeg);
     const facts = await readExifFacts(read, size);
-    expect(facts).toEqual({ ...FIXTURE_FACTS, latitude: expect.any(Number) });
-    expect(facts?.latitude).toBeCloseTo(FIXTURE_FACTS.latitude, 5);
+    // The fixture also carries GPS coordinates, which are never stored.
+    expect(facts).toEqual(FIXTURE_FACTS);
   });
 
   test("finds the Exif item of a HEIF through iinf and iloc", async () => {
@@ -136,7 +134,7 @@ describe("readExifFacts", () => {
     const facts = await readExifFacts(read, size);
     expect(facts?.make).toBe("Teak Camera Co");
     expect(facts?.takenAt).toBe(FIXTURE_FACTS.takenAt);
-    expect(facts?.longitude).toBeCloseTo(FIXTURE_FACTS.longitude, 5);
+    expect(facts).not.toHaveProperty("latitude");
   });
 
   test("returns null for images without EXIF", async () => {

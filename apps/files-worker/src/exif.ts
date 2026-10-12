@@ -2,14 +2,14 @@
  * Camera facts from EXIF, read from a stored image's leading bytes: the JPEG
  * APP1 segment, or the `Exif` item of a HEIC/AVIF (ISO BMFF `meta` box).
  * Only the fields Teak stores are decoded; anything malformed is skipped.
+ * GPS position is deliberately not read: card metadata is exposed through the
+ * API, MCP and exports, and a photo library's coordinates are location history.
  */
 export interface ExifFacts {
   exposureTime?: number;
   fNumber?: number;
   focalLength?: number;
   iso?: number;
-  latitude?: number;
-  longitude?: number;
   make?: string;
   model?: string;
   /** Epoch ms. Without an EXIF offset the camera's local time is read as UTC. */
@@ -111,23 +111,6 @@ const numberOf = (value: IfdValue | undefined): number | undefined => {
 const textOf = (value: IfdValue | undefined): string | undefined =>
   typeof value === "string" && value ? value : undefined;
 
-const coordinate = (
-  value: IfdValue | undefined,
-  reference: IfdValue | undefined,
-  limit: number
-): number | undefined => {
-  if (!Array.isArray(value) || value.length < 3) {
-    return;
-  }
-  const [degrees, minutes, seconds] = value as [number, number, number];
-  const magnitude = degrees + minutes / 60 + seconds / 3600;
-  if (!Number.isFinite(magnitude) || magnitude > limit) {
-    return;
-  }
-  const negative = reference === "S" || reference === "W";
-  return Math.round((negative ? -magnitude : magnitude) * 1e6) / 1e6;
-};
-
 const takenAt = (
   original: string | undefined,
   offset: string | undefined
@@ -162,14 +145,11 @@ export const parseTiffExif = (bytes: Uint8Array): ExifFacts | null => {
   const tiff = { bytes, little, view };
   const ifd0 = readIfd(tiff, view.getUint32(4, little));
   const exifIfd = readIfd(tiff, numberOf(ifd0.get(0x87_69)) ?? 0);
-  const gpsIfd = readIfd(tiff, numberOf(ifd0.get(0x88_25)) ?? 0);
   const facts: ExifFacts = {
     exposureTime: numberOf(exifIfd.get(0x82_9a)),
     fNumber: numberOf(exifIfd.get(0x82_9d)),
     focalLength: numberOf(exifIfd.get(0x92_0a)),
     iso: numberOf(exifIfd.get(0x88_27)),
-    latitude: coordinate(gpsIfd.get(2), gpsIfd.get(1), 90),
-    longitude: coordinate(gpsIfd.get(4), gpsIfd.get(3), 180),
     make: textOf(ifd0.get(0x01_0f)),
     model: textOf(ifd0.get(0x01_10)),
     takenAt: takenAt(

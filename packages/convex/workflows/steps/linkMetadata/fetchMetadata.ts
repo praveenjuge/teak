@@ -579,15 +579,20 @@ const scrapeWithKernel = async (
     await readBodyWithLimit(response, MAX_REMOTE_HTML_BYTES)
   );
   // Browser Run in the Files Worker queries the same offline HTML; Kernel
-  // stays the fallback for Workers without the binding.
-  const scraped = await tryFilesWorkerRendering<FilesScrapeResult>(
-    "scrape-html",
-    {
-      htmlGzipBase64: gzipSync(Buffer.from(html, "utf8")).toString("base64"),
-      selectors: selectors.map((selector) => selector.selector),
-    },
-    "[linkMetadata]"
-  );
+  // stays the fallback for Workers without the binding. Instagram keeps Kernel,
+  // whose page code also extracts post media and the primary image.
+  const scraped = isInstagramUrl(url)
+    ? null
+    : await tryFilesWorkerRendering<FilesScrapeResult>(
+        "scrape-html",
+        {
+          htmlGzipBase64: gzipSync(Buffer.from(html, "utf8")).toString(
+            "base64"
+          ),
+          selectors: selectors.map((selector) => selector.selector),
+        },
+        "[linkMetadata]"
+      );
   if (scraped) {
     return { success: true, result: { selectors: scraped.selectors } };
   }

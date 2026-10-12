@@ -343,8 +343,6 @@ export interface FilesWorkerImageAnalysisResult {
     fNumber?: number;
     focalLength?: number;
     iso?: number;
-    latitude?: number;
-    longitude?: number;
     make?: string;
     model?: string;
     takenAt?: number;

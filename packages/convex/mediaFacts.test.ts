@@ -69,7 +69,6 @@ test("image analysis stores EXIF camera facts beside the dimensions", async () =
       cardId,
       exif: {
         fNumber: 2.8,
-        latitude: 12.971_567,
         make: "Teak Camera Co",
         takenAt: Date.parse("2026-05-17T09:00:05Z"),
       },
@@ -82,7 +81,6 @@ test("image analysis stores EXIF camera facts beside the dimensions", async () =
   expect(card?.fileMetadata).toEqual({
     exif: {
       fNumber: 2.8,
-      latitude: 12.971_567,
       make: "Teak Camera Co",
       takenAt: Date.parse("2026-05-17T09:00:05Z"),
     },
