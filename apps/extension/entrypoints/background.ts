@@ -19,6 +19,7 @@ import { toContextMenuStatus } from "../lib/popupStatus";
 import { isRestrictedUrl, restrictedUrlMessage } from "../lib/restrictedUrl";
 import { downloadAssetFile, saveFileToTeak } from "../lib/saveFileToTeak";
 import { saveToTeak } from "../lib/saveToTeak";
+import { captureExtensionEvent, reportUncaughtErrors } from "../lib/telemetry";
 import type { ContextMenuAction } from "../types/contextMenu";
 import {
   type AuthStateResponse,
@@ -128,6 +129,9 @@ function runPendingSave(
       "INVALID_INPUT",
       "CONTENT_TOO_LARGE",
     ];
+    if (result.status === "saved") {
+      await captureExtensionEvent("extension_card_saved", { via: save.kind });
+    }
     if (
       result.status === "saved" ||
       result.status === "duplicate" ||
@@ -314,6 +318,7 @@ const isRuntimeRequest = (message: unknown): message is TeakRuntimeRequest => {
 };
 
 export default defineBackground(() => {
+  reportUncaughtErrors(self, "background");
   void initializeAuth()
     .then(resumePendingSaves)
     .catch(() => {});

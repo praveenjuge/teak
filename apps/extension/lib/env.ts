@@ -24,3 +24,10 @@ export const missingBuildEnvError = (
   env.VITE_PUBLIC_CONVEX_SITE_URL?.trim()
     ? null
     : "VITE_PUBLIC_CONVEX_SITE_URL is not set, so this extension build couldn't reach Teak. Run 'bun run setup --target extension' (or export the variable), then build again.";
+
+/**
+ * PostHog project token for error reports and save events. Only the store
+ * release build sets WXT_POSTHOG_PROJECT_TOKEN, so dev builds send nothing.
+ */
+export const getPostHogProjectToken = (): string | undefined =>
+  import.meta.env.WXT_POSTHOG_PROJECT_TOKEN?.trim() || undefined;

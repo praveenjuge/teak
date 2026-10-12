@@ -4,7 +4,6 @@
  * exact JSON bytes, request id, and short expiration into one HMAC.
  */
 
-import { SpanStatusCode, trace } from "@opentelemetry/api";
 import {
   buildFilesOpSigningPayload,
   buildMultipartPartSigningPayload,
@@ -262,99 +261,71 @@ export type FilesWorkerOutcome<T> =
   | { kind: "ok"; data: T }
   | { kind: "fallback"; code: FilesErrorCode; message: string };
 
-const filesWorkerTracer = trace.getTracer("teak-files-worker");
-
 export const callFilesWorkerJson = async <T>(spec: {
   op: FilesOp;
   params: Record<string, unknown>;
-}): Promise<FilesWorkerOutcome<T>> =>
-  await filesWorkerTracer.startActiveSpan(
-    `files.worker.${spec.op}`,
-    {
-      attributes: {
-        "files.op": spec.op,
-        "sentry.op": "http.client.files-worker",
-      },
-    },
-    async (span): Promise<FilesWorkerOutcome<T>> => {
-      try {
-        span.setAttribute("files.outcome", "error");
-        const signed = await buildSignedWorkerOpRequest(spec);
-        let response: Response;
-        try {
-          // PDF text runs on the renderer; other inspect modes read R2 only.
-          const timeoutMs =
-            spec.op === "inspect" && spec.params.mode === "pdf"
-              ? 90_000
-              : OP_TIMEOUT_MS[spec.op];
-          response = await fetch(signed.url, {
-            ...signed,
-            ...(timeoutMs
-              ? {
-                  signal: AbortSignal.timeout(timeoutMs),
-                  redirect: "error" as const,
-                }
-              : {}),
-          });
-        } catch (error) {
-          span.setAttribute("files.outcome", "network_error");
-          throw new Error(
-            `files_worker_network_error:${error instanceof Error ? error.message : String(error)}`
-          );
-        }
-        span.setAttribute("http.response.status_code", response.status);
-        const envelope = (await response
-          .json()
-          .catch(() => null)) as FilesEnvelope<T> | null;
-        if (!(response.ok && envelope?.ok)) {
-          const code =
-            envelope && !envelope.ok ? envelope.error.code : "INTERNAL";
-          const requestId =
-            envelope && !envelope.ok ? envelope.error.requestId : "unknown";
-          if (
-            code === "NOT_FOUND" ||
-            code === "PAYLOAD_TOO_LARGE" ||
-            code === "UNSUPPORTED"
-          ) {
-            span.setAttribute("files.outcome", "fallback");
-            return {
-              kind: "fallback",
-              code,
-              message:
-                envelope && !envelope.ok
-                  ? String(envelope.error.message).slice(0, 200)
-                  : code,
-            };
+}): Promise<FilesWorkerOutcome<T>> => {
+  const signed = await buildSignedWorkerOpRequest(spec);
+  let response: Response;
+  try {
+    // PDF text runs on the renderer; other inspect modes read R2 only.
+    const timeoutMs =
+      spec.op === "inspect" && spec.params.mode === "pdf"
+        ? 90_000
+        : OP_TIMEOUT_MS[spec.op];
+    response = await fetch(signed.url, {
+      ...signed,
+      ...(timeoutMs
+        ? {
+            signal: AbortSignal.timeout(timeoutMs),
+            redirect: "error" as const,
           }
-          span.setAttribute("files.outcome", "error");
-          if (code === "AI_CAPACITY" || code === "AI_INVALID_OUTPUT") {
-            const error = new Error(
-              code === "AI_CAPACITY"
-                ? "files_worker_ai: rate limit reached 429"
-                : "files_worker_ai: failed to validate JSON"
-            );
-            const facts =
-              envelope && !envelope.ok
-                ? readFilesAiGenerationFacts(envelope.error.aiFacts)
-                : null;
-            throw Object.assign(error, facts ? { aiFacts: facts } : {});
-          }
-          throw new Error(
-            `files_worker_error:${code}:${String(response.status)}:${requestId}`
-          );
-        }
-        span.setAttribute("files.outcome", "ok");
-        span.setStatus({ code: SpanStatusCode.OK });
-        return { kind: "ok", data: envelope.data };
-      } catch (error) {
-        span.recordException(error instanceof Error ? error : String(error));
-        span.setStatus({ code: SpanStatusCode.ERROR });
-        throw error;
-      } finally {
-        span.end();
-      }
+        : {}),
+    });
+  } catch (error) {
+    throw new Error(
+      `files_worker_network_error:${error instanceof Error ? error.message : String(error)}`
+    );
+  }
+  const envelope = (await response
+    .json()
+    .catch(() => null)) as FilesEnvelope<T> | null;
+  if (!(response.ok && envelope?.ok)) {
+    const code = envelope && !envelope.ok ? envelope.error.code : "INTERNAL";
+    const requestId =
+      envelope && !envelope.ok ? envelope.error.requestId : "unknown";
+    if (
+      code === "NOT_FOUND" ||
+      code === "PAYLOAD_TOO_LARGE" ||
+      code === "UNSUPPORTED"
+    ) {
+      return {
+        kind: "fallback",
+        code,
+        message:
+          envelope && !envelope.ok
+            ? String(envelope.error.message).slice(0, 200)
+            : code,
+      };
     }
-  );
+    if (code === "AI_CAPACITY" || code === "AI_INVALID_OUTPUT") {
+      const error = new Error(
+        code === "AI_CAPACITY"
+          ? "files_worker_ai: rate limit reached 429"
+          : "files_worker_ai: failed to validate JSON"
+      );
+      const facts =
+        envelope && !envelope.ok
+          ? readFilesAiGenerationFacts(envelope.error.aiFacts)
+          : null;
+      throw Object.assign(error, facts ? { aiFacts: facts } : {});
+    }
+    throw new Error(
+      `files_worker_error:${code}:${String(response.status)}:${requestId}`
+    );
+  }
+  return { kind: "ok", data: envelope.data };
+};
 
 export interface FilesWorkerImageAnalysisResult {
   /** Camera facts from the original's EXIF, when present. */

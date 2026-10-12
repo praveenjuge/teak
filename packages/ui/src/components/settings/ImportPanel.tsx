@@ -6,11 +6,9 @@ import {
   MAX_BOOKMARK_BYTES,
   MAX_RAINDROP_BYTES,
 } from "@teak/convex/import/constants";
-import {
-  captureClientException,
-  runClientSpan,
-} from "@teak/convex/shared/client-telemetry";
-import { trackLifecycle, trackUpload } from "@teak/convex/shared/metrics";
+import { captureEvent, resolveSizeBucket } from "@teak/convex/shared/analytics";
+import { captureClientException } from "@teak/convex/shared/client-telemetry";
+import { normalizeErrorClass } from "@teak/convex/shared/telemetry";
 import { useAction, useMutation } from "convex/react";
 import {
   Archive,
@@ -254,7 +252,6 @@ export function ImportPanel({ onActiveChange }: ImportPanelProps) {
   }
   const controllers = controllersRef.current;
   const observedImportIdRef = useRef<string | null>(null);
-  const observedImportStartedAtRef = useRef<number | null>(null);
   const [uploadPercent, setUploadPercent] = useState<number>();
   const [transporting, setTransporting] = useState(false);
   const [pending, setPending] = useState<{
@@ -286,101 +283,61 @@ export function ImportPanel({ onActiveChange }: ImportPanelProps) {
     if (!(latest && latest.id === observedImportIdRef.current)) {
       return;
     }
-    const outcome = (
-      {
-        canceled: "cancelled",
-        completed: "success",
-        failed: "failure",
-      } as Partial<
-        Record<ImportJob["status"], "cancelled" | "success" | "failure">
-      >
-    )[latest.status];
-    if (!outcome) {
+    if (latest.status === "completed") {
+      captureEvent("import_completed");
+    } else if (latest.status === "failed") {
+      captureEvent("import_failed", {});
+    } else if (latest.status !== "canceled") {
       return;
     }
-    trackLifecycle({
-      durationMs: observedImportStartedAtRef.current
-        ? Date.now() - observedImportStartedAtRef.current
-        : undefined,
-      kind: "import",
-      outcome,
-    });
     observedImportIdRef.current = null;
-    observedImportStartedAtRef.current = null;
   }, [latest]);
 
   const performUpload = async (file: File, mode: ImportMode) => {
-    const startedAt = Date.now();
-    trackLifecycle({ kind: "import", outcome: "attempt" });
-    trackUpload({
-      bytes: file.size,
-      fileBucket: "import",
-      outcome: "attempt",
-      source: "import",
-    });
+    captureEvent("import_started");
     setTransporting(true);
     setUploadPercent(0);
     onActiveChange?.(true);
     try {
-      await runClientSpan(
-        {
-          attributes: { "file.bucket": "import", mode },
-          name: "import.upload",
-          operation: "import",
-          stage: "import",
-        },
-        async () => {
-          let plan: UploadPlan;
-          if (job?.status === "uploading") {
-            plan = (await resumeUpload({
-              fileName: file.name,
-              fileSize: file.size,
-              fileLastModified: file.lastModified,
-            })) as UploadPlan;
-          } else {
-            plan = (await createUpload({
-              mode,
-              fileName: file.name,
-              fileSize: file.size,
-              fileLastModified: file.lastModified,
-            })) as UploadPlan;
-          }
-          observedImportIdRef.current = plan.jobId;
-          observedImportStartedAtRef.current = startedAt;
-          await putParts(file, plan, setUploadPercent, controllers, (part) =>
-            recordPart({ jobId: plan.jobId as never, ...part })
-          );
-          await completeUpload({ jobId: plan.jobId as never });
-        }
+      let plan: UploadPlan;
+      if (job?.status === "uploading") {
+        plan = (await resumeUpload({
+          fileName: file.name,
+          fileSize: file.size,
+          fileLastModified: file.lastModified,
+        })) as UploadPlan;
+      } else {
+        plan = (await createUpload({
+          mode,
+          fileName: file.name,
+          fileSize: file.size,
+          fileLastModified: file.lastModified,
+        })) as UploadPlan;
+      }
+      observedImportIdRef.current = plan.jobId;
+      await putParts(file, plan, setUploadPercent, controllers, (part) =>
+        recordPart({ jobId: plan.jobId as never, ...part })
       );
-      trackUpload({
-        bytes: file.size,
-        durationMs: Date.now() - startedAt,
-        fileBucket: "import",
-        outcome: "success",
-        source: "import",
+      await completeUpload({ jobId: plan.jobId as never });
+      captureEvent("file_upload_completed", {
+        bucket: "import",
+        size_bucket: resolveSizeBucket(file.size),
       });
     } catch (error) {
       const cancelled =
         error instanceof DOMException && error.name === "AbortError";
-      trackLifecycle({
-        durationMs: Date.now() - startedAt,
-        kind: "import",
-        outcome: cancelled ? "cancelled" : "failure",
-      });
-      trackUpload({
-        bytes: file.size,
-        durationMs: Date.now() - startedAt,
-        fileBucket: "import",
-        outcome: "failure",
-        source: "import",
-      });
       if (!cancelled) {
+        const errorClass = normalizeErrorClass(error);
+        captureEvent("file_upload_failed", {
+          bucket: "import",
+          error_class: errorClass,
+          size_bucket: resolveSizeBucket(file.size),
+        });
+        captureEvent("import_failed", { error_class: errorClass });
         captureClientException(error, { mode, operation: "import.upload" });
         toast.error(errorMessage(error));
       }
       observedImportIdRef.current = null;
-      observedImportStartedAtRef.current = null;
     } finally {
       setTransporting(false);
       onActiveChange?.(false);
@@ -433,7 +390,6 @@ export function ImportPanel({ onActiveChange }: ImportPanelProps) {
     try {
       if (job) {
         await cancelImport({ jobId: job.id as never });
-        trackLifecycle({ kind: "import", outcome: "cancelled" });
       }
     } catch (error) {
       toast.error(errorMessage(error, "Import could not be canceled."));

@@ -56,8 +56,8 @@
 	<string>$(TEAK_ENVIRONMENT)</string>
 	<key>TeakKeychainAccessGroup</key>
 	<string>$(AppIdentifierPrefix)com.praveenjuge.teak</string>
-	<key>TeakSentryDSN</key>
-	<string>$(TEAK_SENTRY_DSN)</string>
+	<key>TeakPostHogToken</key>
+	<string>$(TEAK_POSTHOG_TOKEN)</string>
 	<key>TeakWebURL</key>
 	<string>$(TEAK_WEB_URL)</string>
 	<key>TeakWorkOSURL</key>

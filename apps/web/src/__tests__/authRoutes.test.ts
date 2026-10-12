@@ -73,7 +73,7 @@ describe("web sign-in routing", () => {
       `http://localhost:3142${target}`
     );
   });
-  test.each(["/sign-in", "/sign-up", "/monitoring", "/opengraph-image"])(
+  test.each(["/sign-in", "/sign-up", "/opengraph-image"])(
     "lets signed-out visitors reach %s",
     async (path) => {
       globalThis.fetch = offline;
@@ -82,6 +82,34 @@ describe("web sign-in routing", () => {
       );
       expect(response.status).toBe(200);
       expect(response.headers.get("location")).toBeNull();
+    }
+  );
+  test.each([
+    ["/ingest/e/?ip=0", "https://us.i.posthog.com/e/?ip=0"],
+    [
+      "/ingest/static/recorder.js?v=1",
+      "https://us-assets.i.posthog.com/static/recorder.js?v=1",
+    ],
+    [
+      "/ingest/array/phc_x/config",
+      "https://us-assets.i.posthog.com/array/phc_x/config",
+    ],
+  ])(
+    "proxies %s to PostHog without the session cookie",
+    async (path, target) => {
+      globalThis.fetch = offline;
+      const response = await proxy(
+        new NextRequest(`http://localhost:3142${path}`, {
+          headers: { cookie: "wos-session=secret", "user-agent": "test" },
+        })
+      );
+      expect(response.headers.get("location")).toBeNull();
+      expect(response.headers.get("x-middleware-rewrite")).toBe(target);
+      const forwarded = response.headers
+        .get("x-middleware-override-headers")
+        ?.split(",");
+      expect(forwarded).toContain("user-agent");
+      expect(forwarded).not.toContain("cookie");
     }
   );
   test("strips forged AuthKit session headers", async () => {

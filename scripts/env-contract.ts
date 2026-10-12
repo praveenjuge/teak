@@ -26,9 +26,10 @@ export const ENV_CONTRACT: EnvVarSpec[] = [
 ];
 
 /**
- * Names removed by the typed-env cleanup and the Better Auth removal (WorkOS
+ * Names removed by the typed-env cleanup, the Better Auth removal (WorkOS
  * AuthKit is the only sign-in provider; WorkOS also sends every sign-in
- * email, so Resend has no key). The audit fails if they return.
+ * email, so Resend has no key), and the move from Sentry to PostHog. The
+ * audit fails if they return.
  */
 export const DELETED_ALIASES = [
   "APPLE_APP_BUNDLE_IDENTIFIER",
@@ -61,6 +62,20 @@ export const DELETED_ALIASES = [
   "R2_UPLOAD_ORIGIN",
   "R2_UPLOAD_URL",
   "RESEND_API_KEY",
+  "EXPO_PUBLIC_SENTRY_ENVIRONMENT",
+  "EXPO_PUBLIC_SENTRY_MOBILE_DSN",
+  "NEXT_PUBLIC_SENTRY_DSN",
+  "NEXT_PUBLIC_SENTRY_ENVIRONMENT",
+  "NEXT_PUBLIC_SENTRY_RELEASE",
+  "SENTRY_ANDROID_DSN",
+  "SENTRY_AUTH_TOKEN",
+  "SENTRY_BACKEND_DSN",
+  "SENTRY_DSN",
+  "SENTRY_ENVIRONMENT",
+  "SENTRY_MOBILE_DSN",
+  "SENTRY_ORG",
+  "SENTRY_PROJECT",
+  "SENTRY_RELEASE",
 ] as const;
 
 /**

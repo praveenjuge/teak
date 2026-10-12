@@ -1,4 +1,5 @@
 import { unstable_rethrow } from "next/navigation";
+import { resetPostHogUser } from "./posthog-client";
 import { signOutWorkos } from "./sign-out";
 
 // The server action ends with redirect() to the WorkOS logout URL. Next.js
@@ -14,6 +15,7 @@ const isNextNavigation = (error: unknown) => {
 };
 
 export async function signOut() {
+  resetPostHogUser();
   try {
     await signOutWorkos();
   } catch (error) {

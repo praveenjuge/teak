@@ -51,9 +51,8 @@ env:
   PROJECT_PATH: apps/apple/Teak.xcodeproj
   SCHEME_NAME: Teak
   TEAK_CONVEX_URL: https://uncommon-ladybug-882.convex.cloud
-  SENTRY_CLI_VERSION: "3.6.2"
-  SENTRY_ORG: teakvault
-  SENTRY_PROJECT: teak-apple-prod
+  POSTHOG_CLI_VERSION: "0.18.10"
+  POSTHOG_CLI_HOST: https://us.posthog.com
   RELEASE_NOTES: ${{ inputs.release_notes }}
   VERSION: ${{ inputs.version }}
 jobs:
@@ -124,14 +123,19 @@ jobs:
           DRY_RUN: ${{ inputs.dry_run }}
           GITHUB_APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
           GITHUB_APPLE_DISTRIBUTION_PRIVATE_KEY_BASE64: ${{ secrets.APPLE_DISTRIBUTION_PRIVATE_KEY_BASE64 }}
-          GITHUB_SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
+          GITHUB_POSTHOG_CLI_API_KEY: ${{ secrets.POSTHOG_CLI_API_KEY }}
+          GITHUB_POSTHOG_PROJECT_TOKEN: ${{ secrets.POSTHOG_PROJECT_TOKEN }}
         run: |
           if [ -z "$GITHUB_APPLE_CERTIFICATE_PASSWORD" ] || [ -z "$GITHUB_APPLE_DISTRIBUTION_PRIVATE_KEY_BASE64" ]; then
             echo "Missing Apple signing credentials." >&2
             exit 1
           fi
-          if [ -z "$GITHUB_SENTRY_AUTH_TOKEN" ]; then
-            echo "::warning::SENTRY_AUTH_TOKEN isn't set, so dSYMs won't reach $SENTRY_ORG/$SENTRY_PROJECT."
+          if [ -z "$GITHUB_POSTHOG_PROJECT_TOKEN" ]; then
+            echo "Missing POSTHOG_PROJECT_TOKEN; the Release build must carry the PostHog project token." >&2
+            exit 1
+          fi
+          if [ -z "$GITHUB_POSTHOG_CLI_API_KEY" ]; then
+            echo "::warning::POSTHOG_CLI_API_KEY isn't set, so dSYMs won't reach PostHog."
           fi
           node scripts/release-version.mjs lockstep "$VERSION"
           if [ "$DRY_RUN" != "true" ]; then
@@ -412,6 +416,7 @@ jobs:
         env:
           APP_PROFILE_NAME: ${{ steps.profiles.outputs.app_name }}
           BUILD_NUMBER: ${{ steps.build_state.outputs.build_number }}
+          POSTHOG_PROJECT_TOKEN: ${{ secrets.POSTHOG_PROJECT_TOKEN }}
           SAFARI_PROFILE_NAME: ${{ steps.profiles.outputs.safari_name }}
           SHARE_PROFILE_NAME: ${{ steps.profiles.outputs.share_name }}
           SIGNING_IDENTITY: ${{ steps.signing.outputs.distribution_identity }}
@@ -430,6 +435,7 @@ jobs:
             DEVELOPMENT_TEAM="$APPLE_TEAM_ID" \
             MARKETING_VERSION="$VERSION" \
             CURRENT_PROJECT_VERSION="$BUILD_NUMBER" \
+            TEAK_POSTHOG_TOKEN="$POSTHOG_PROJECT_TOKEN" \
             CODE_SIGN_STYLE=Manual \
             CODE_SIGN_IDENTITY="$SIGNING_IDENTITY" \
             'PROVISIONING_PROFILE_SPECIFIER=$(TEAK_PROFILE_$(PRODUCT_BUNDLE_IDENTIFIER:identifier))' \
@@ -518,7 +524,7 @@ jobs:
           verify_bundle() {
             local bundle_path="$1" expected_bundle="$2"
             local plist="$bundle_path/${contents}Info.plist"
-            local bundle_id version build_number convex_url environment sentry_dsn
+            local bundle_id version build_number convex_url environment posthog_token
             bundle_id="$(plutil -extract CFBundleIdentifier raw "$plist")"
             version="$(plutil -extract CFBundleShortVersionString raw "$plist")"
             build_number="$(plutil -extract CFBundleVersion raw "$plist")"
@@ -528,13 +534,18 @@ jobs:
             fi
             convex_url="$(plutil -extract TeakConvexURL raw "$plist")"
             environment="$(plutil -extract TeakEnvironment raw "$plist")"
-            sentry_dsn="$(plutil -extract TeakSentryDSN raw "$plist" 2>/dev/null || true)"
+            posthog_token="$(plutil -extract TeakPostHogToken raw "$plist" 2>/dev/null || true)"
             if [ "$convex_url" != "$TEAK_CONVEX_URL" ] || [ "$environment" != "production" ]; then
               echo "$expected_bundle is missing the production runtime configuration." >&2
               exit 1
             fi
-            if [ -z "$sentry_dsn" ]; then
-              echo "$expected_bundle has no TeakSentryDSN; the Release config must carry the teak-apple-prod DSN." >&2
+            # Only the app reports to PostHog; the extensions carry no token.
+            if [ "$expected_bundle" = "$APP_BUNDLE_ID" ] && [ -z "$posthog_token" ]; then
+              echo "$expected_bundle has no TeakPostHogToken; the archive must get POSTHOG_PROJECT_TOKEN." >&2
+              exit 1
+            fi
+            if [ "$expected_bundle" != "$APP_BUNDLE_ID" ] && plutil -extract TeakPostHogToken raw "$plist" > /dev/null 2>&1; then
+              echo "$expected_bundle must not carry TeakPostHogToken; only the app reports to PostHog." >&2
               exit 1
             fi
 
@@ -584,15 +595,17 @@ jobs:
           codesign --verify --deep --strict "$app_path"
           echo "- Signed $LABEL package: verified $VERSION/$BUILD_NUMBER for the app, share extension, and Safari extension" >> "$GITHUB_STEP_SUMMARY"
 
-      - name: Upload dSYMs to Sentry
+      - name: Upload dSYMs to PostHog
         if: steps.release_state.outputs.mutate == 'true' && steps.build_state.outputs.reuse != 'true'
         env:
           ARCHIVE_PATH: ${{ steps.archive.outputs.path }}
-          SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
+          BUILD_NUMBER: ${{ steps.build_state.outputs.build_number }}
+          POSTHOG_CLI_API_KEY: ${{ secrets.POSTHOG_CLI_API_KEY }}
+          POSTHOG_CLI_PROJECT_ID: ${{ secrets.POSTHOG_CLI_PROJECT_ID }}
         run: |
-          if [ -z "$SENTRY_AUTH_TOKEN" ]; then
-            echo "::warning::Skipping the dSYM upload: SENTRY_AUTH_TOKEN isn't set."
-            echo "- Sentry dSYMs: skipped, SENTRY_AUTH_TOKEN isn't set" >> "$GITHUB_STEP_SUMMARY"
+          if [ -z "$POSTHOG_CLI_API_KEY" ] || [ -z "$POSTHOG_CLI_PROJECT_ID" ]; then
+            echo "::warning::Skipping the dSYM upload: POSTHOG_CLI_API_KEY or POSTHOG_CLI_PROJECT_ID isn't set."
+            echo "- PostHog dSYMs: skipped, POSTHOG_CLI_API_KEY or POSTHOG_CLI_PROJECT_ID isn't set" >> "$GITHUB_STEP_SUMMARY"
             exit 0
           fi
           dsyms="$ARCHIVE_PATH/dSYMs"
@@ -600,13 +613,14 @@ jobs:
             echo "The $LABEL archive has no dSYMs." >&2
             exit 1
           fi
-          bunx "@sentry/cli@$SENTRY_CLI_VERSION" debug-files upload \
-            --org "$SENTRY_ORG" \
-            --project "$SENTRY_PROJECT" \
-            --include-sources \
-            --wait \
-            "$dsyms"
-          echo "- Sentry dSYMs: uploaded to $SENTRY_ORG/$SENTRY_PROJECT" >> "$GITHUB_STEP_SUMMARY"
+          npx --yes "@posthog/cli@$POSTHOG_CLI_VERSION" dsym upload \
+            --directory "$dsyms" \
+            --main-dsym Teak.app.dSYM \
+            --release-name "$APP_BUNDLE_ID" \
+            --release-version "$VERSION" \
+            --build "$BUILD_NUMBER" \
+            --include-source
+          echo "- PostHog dSYMs: uploaded for $APP_BUNDLE_ID $VERSION ($BUILD_NUMBER)" >> "$GITHUB_STEP_SUMMARY"
 
       - name: Prepare verified signed package handoff
         id: handoff

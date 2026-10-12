@@ -24,7 +24,7 @@ describe("useFileUploadCore", () => {
   const mockOnSuccess = mock();
   const mockOnError = mock();
   const mockOnProgress = mock();
-  const mockSentryCapture = mock();
+  const mockCaptureException = mock();
 
   const dependencies: FileUploadDependencies = {
     uploadAndCreateCard: mockUploadAndCreateCard,
@@ -45,9 +45,9 @@ describe("useFileUploadCore", () => {
     mockOnProgress.mockReset();
     mockSetState.mockReset();
     mockFetch.mockReset();
-    mockSentryCapture.mockReset();
+    mockCaptureException.mockReset();
     mockUseEffectCleanups.length = 0;
-    configureClientTelemetry({ captureException: mockSentryCapture });
+    configureClientTelemetry({ captureException: mockCaptureException });
   });
 
   const hook = useFileUploadCore(dependencies, config);
@@ -62,7 +62,7 @@ describe("useFileUploadCore", () => {
       const result = await hook.uploadFile(file);
       expect(result.success).toBe(false);
       expect((result as any).errorCode).toBe(CARD_ERROR_CODES.FILE_TOO_LARGE);
-      expect(mockSentryCapture).not.toHaveBeenCalled();
+      expect(mockCaptureException).not.toHaveBeenCalled();
     });
 
     test("returns correct error message for oversized file", async () => {
@@ -261,7 +261,7 @@ describe("useFileUploadCore", () => {
       expect(mockUploadAndCreateCard).not.toHaveBeenCalled();
     });
 
-    test("does not capture oversized URI uploads in Sentry", async () => {
+    test("does not report oversized URI uploads as errors", async () => {
       const uriHook = useFileUploadCore(
         {
           ...dependencies,
@@ -279,7 +279,7 @@ describe("useFileUploadCore", () => {
 
       expect(result.success).toBe(false);
       expect((result as any).errorCode).toBe(CARD_ERROR_CODES.FILE_TOO_LARGE);
-      expect(mockSentryCapture).not.toHaveBeenCalled();
+      expect(mockCaptureException).not.toHaveBeenCalled();
       expect(mockUploadAndCreateCard).not.toHaveBeenCalled();
     });
   });
@@ -334,7 +334,7 @@ describe("useFileUploadCore", () => {
       expect(mockFinalizeUploadedCard).toHaveBeenCalledWith(
         expect.objectContaining({ fileKey: "store_1" })
       );
-      expect(mockSentryCapture).not.toHaveBeenCalled();
+      expect(mockCaptureException).not.toHaveBeenCalled();
     });
 
     test("cancels sleeping retries after unmount", async () => {
@@ -361,7 +361,7 @@ describe("useFileUploadCore", () => {
       expect(mockFinalizeUploadedCard).not.toHaveBeenCalled();
       expect(mockOnSuccess).not.toHaveBeenCalled();
       expect(mockOnError).not.toHaveBeenCalled();
-      expect(mockSentryCapture).not.toHaveBeenCalled();
+      expect(mockCaptureException).not.toHaveBeenCalled();
       expect(mockSetState).toHaveBeenCalledWith(false);
       expect(mockSetState).toHaveBeenCalledWith(0);
     });
@@ -385,7 +385,7 @@ describe("useFileUploadCore", () => {
       expect(mockFetch).toHaveBeenCalledTimes(3);
       expect(mockFinalizeUploadedCard).not.toHaveBeenCalled();
       expect(mockOnError).not.toHaveBeenCalled();
-      expect(mockSentryCapture).not.toHaveBeenCalled();
+      expect(mockCaptureException).not.toHaveBeenCalled();
     });
 
     test("does not finish browser uploads after finalize is aborted", async () => {
@@ -421,7 +421,7 @@ describe("useFileUploadCore", () => {
       expect((result as any).error).toBe("Upload cancelled");
       expect(mockOnSuccess).not.toHaveBeenCalled();
       expect(mockOnError).not.toHaveBeenCalled();
-      expect(mockSentryCapture).not.toHaveBeenCalled();
+      expect(mockCaptureException).not.toHaveBeenCalled();
       expect(mockOnProgress).not.toHaveBeenCalledWith(100);
     });
 
@@ -512,7 +512,7 @@ describe("useFileUploadCore", () => {
       expect(mockFinalizeUploadedCard).not.toHaveBeenCalled();
       expect(mockOnSuccess).not.toHaveBeenCalled();
       expect(mockOnError).not.toHaveBeenCalled();
-      expect(mockSentryCapture).not.toHaveBeenCalled();
+      expect(mockCaptureException).not.toHaveBeenCalled();
     });
 
     test("does not finish URI uploads after finalize is aborted", async () => {
@@ -558,7 +558,7 @@ describe("useFileUploadCore", () => {
       expect((result as any).error).toBe("Upload cancelled");
       expect(mockOnSuccess).not.toHaveBeenCalled();
       expect(mockOnError).not.toHaveBeenCalled();
-      expect(mockSentryCapture).not.toHaveBeenCalled();
+      expect(mockCaptureException).not.toHaveBeenCalled();
       expect(mockOnProgress).not.toHaveBeenCalledWith(100);
     });
 
@@ -598,7 +598,7 @@ describe("useFileUploadCore", () => {
       });
     });
 
-    test("captures exception in Sentry on failure", async () => {
+    test("reports the exception on failure", async () => {
       const file = { size: 100, name: "test.png", type: "image/png" } as any;
       mockUploadAndCreateCard.mockResolvedValue({
         success: false,
@@ -607,8 +607,8 @@ describe("useFileUploadCore", () => {
 
       await hook.uploadFile(file);
 
-      expect(mockSentryCapture).toHaveBeenCalled();
-      const callArgs = mockSentryCapture.mock.calls[0];
+      expect(mockCaptureException).toHaveBeenCalled();
+      const callArgs = mockCaptureException.mock.calls[0];
       expect(callArgs[1]).toEqual({
         "error.class": "UnknownError",
         "error.code": undefined,

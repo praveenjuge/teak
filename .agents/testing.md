@@ -60,7 +60,7 @@ Each workspace script runs only the files it matches. A test file outside these 
 
 **Keep tests hermetic.**
 - Restore any `process.env` keys you change.
-- Clear variables that other modules set at import time. For example, `next.config.ts` sets `SENTRY_RELEASE` whenever a commit SHA is present, as it is in CI.
+- Clear variables that other modules set at import time. For example, `next.config.ts` sets `NEXT_PUBLIC_VERCEL_GIT_COMMIT_SHA` whenever a commit SHA is present, as it is in CI.
 - Do not depend on test order. Check with `bun test --randomize` and `bun test --seed=<n>`.
 
 **One behavior per test, named as the behavior.** Write "refuses to auto-save chrome:// pages", not "test isValidUrl 3". Use `test.each` for tables of inputs.

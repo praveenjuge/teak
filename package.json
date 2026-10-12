@@ -60,7 +60,7 @@
     "node": "24.21.0"
   },
   "trustedDependencies": [
-    "@sentry/cli",
+    "@posthog/cli",
     "@teak/extension",
     "esbuild",
     "sharp",

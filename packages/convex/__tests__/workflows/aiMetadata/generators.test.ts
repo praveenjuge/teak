@@ -1,8 +1,13 @@
 // @ts-nocheck
 import { afterAll, beforeAll, describe, expect, test } from "bun:test";
 
-import { configureMetrics, resetMetricsConfig } from "../../../shared/metrics";
-import { TELEMETRY_METRICS } from "../../../shared/telemetry";
+// Every model call reports one $ai_generation event to PostHog's batch API.
+const aiEventsFrom = (url: string, request: RequestInit) =>
+  String(url).endsWith("/batch/")
+    ? JSON.parse(request.body as string).batch.map(
+        (event: { properties: Record<string, unknown> }) => event.properties
+      )
+    : null;
 
 let generateTextMetadata: any;
 let generateLinkMetadata: any;
@@ -109,20 +114,24 @@ describe("aiMetadata generators", () => {
   });
 
   test("routes text and link generation through signed Worker operations", async () => {
-    const names = ["FILES_BASE", "FILES_SIGNING_SECRET"];
+    const names = [
+      "FILES_BASE",
+      "FILES_SIGNING_SECRET",
+      "POSTHOG_PROJECT_TOKEN",
+    ];
     const previous = names.map((name) => process.env[name]);
     process.env.FILES_BASE = "https://files.teakvault.com";
     process.env.FILES_SIGNING_SECRET = "test-secret";
-    const metrics: Array<{ name: string; value: number }> = [];
-    const record = (name: string, value: number) => {
-      metrics.push({ name, value });
-    };
-    configureMetrics({
-      recorder: { count: record, distribution: record, gauge: record },
-    });
+    process.env.POSTHOG_PROJECT_TOKEN = "phc_test";
+    const aiEvents: Record<string, unknown>[] = [];
     const calls: string[] = [];
     const fetchBefore = global.fetch;
-    global.fetch = (_url, request) => {
+    global.fetch = (url, request) => {
+      const reported = aiEventsFrom(url, request);
+      if (reported) {
+        aiEvents.push(...reported);
+        return Promise.resolve(Response.json({ status: 1 }));
+      }
       const body = JSON.parse(request.body as string);
       calls.push(body.op);
       expect(body.params.prompt.length).toBe(maxInputChars);
@@ -150,34 +159,25 @@ describe("aiMetadata generators", () => {
       expect(
         await generateLinkMetadata(oversized, "https://example.com")
       ).toEqual({ aiTags: ["design"], aiSummary: "Useful." });
-      expect(
-        metrics.filter((metric) => metric.name === TELEMETRY_METRICS.aiCalls)
-      ).toHaveLength(2);
-      expect(
-        metrics.filter((metric) => metric.name === TELEMETRY_METRICS.aiLatency)
-      ).toHaveLength(2);
-      expect(
-        metrics.filter((metric) => metric.name === TELEMETRY_METRICS.aiCostUsd)
-      ).toHaveLength(2);
-      expect(
-        metrics
-          .filter((metric) => metric.name === TELEMETRY_METRICS.aiTokensInput)
-          .map((metric) => metric.value)
-      ).toEqual([18, 18]);
-      expect(
-        metrics
-          .filter((metric) => metric.name === TELEMETRY_METRICS.aiTokensOutput)
-          .map((metric) => metric.value)
-      ).toEqual([7, 7]);
-      expect(
-        metrics.filter((metric) => metric.name === TELEMETRY_METRICS.aiRetries)
-      ).toHaveLength(2);
+      expect(aiEvents).toMatchObject([
+        {
+          $ai_input_tokens: 18,
+          $ai_is_error: false,
+          $ai_model: expect.any(String),
+          $ai_output_tokens: 7,
+          $ai_provider: "cloudflare",
+          $ai_span_name: "teak.ai.metadata.text",
+          $ai_total_cost_usd: expect.any(Number),
+        },
+        { $ai_span_name: "teak.ai.metadata.link" },
+      ]);
+      expect(aiEvents[0]?.$ai_latency).toBeGreaterThanOrEqual(0);
+      expect(JSON.stringify(aiEvents)).not.toContain("Useful.");
       expect(calls).toEqual([
         "generate-text-metadata",
         "generate-link-metadata",
       ]);
     } finally {
-      resetMetricsConfig();
       global.fetch = fetchBefore;
       names.forEach((name, index) => {
         if (previous[index] === undefined) {
@@ -196,28 +196,24 @@ describe("aiMetadata generators", () => {
   ])(
     "keeps Worker $code errors deferred",
     async ({ code, httpStatus, capacity }) => {
-      const names = ["FILES_BASE", "FILES_SIGNING_SECRET"];
+      const names = [
+        "FILES_BASE",
+        "FILES_SIGNING_SECRET",
+        "POSTHOG_PROJECT_TOKEN",
+      ];
       const previous = names.map((name) => process.env[name]);
       const fetchBefore = global.fetch;
-      const metrics: Array<{
-        name: string;
-        value: number;
-        attributes: Record<string, unknown>;
-      }> = [];
-      const record = (
-        name: string,
-        value: number,
-        attributes: Record<string, unknown>
-      ) => {
-        metrics.push({ name, value, attributes });
-      };
-      configureMetrics({
-        recorder: { count: record, distribution: record, gauge: record },
-      });
+      const aiEvents: Record<string, unknown>[] = [];
       process.env.FILES_BASE = "https://files.teakvault.com";
       process.env.FILES_SIGNING_SECRET = "test-secret";
-      global.fetch = () =>
-        Promise.resolve(
+      process.env.POSTHOG_PROJECT_TOKEN = "phc_test";
+      global.fetch = (url, request) => {
+        const reported = aiEventsFrom(url, request);
+        if (reported) {
+          aiEvents.push(...reported);
+          return Promise.resolve(Response.json({ status: 1 }));
+        }
+        return Promise.resolve(
           Response.json(
             code === "MALFORMED_SUCCESS"
               ? {
@@ -242,6 +238,7 @@ describe("aiMetadata generators", () => {
             { status: httpStatus }
           )
         );
+      };
       try {
         let failure: unknown;
         try {
@@ -249,57 +246,20 @@ describe("aiMetadata generators", () => {
         } catch (error) {
           failure = error;
         }
-        expect(
-          metrics.filter((metric) => metric.name === TELEMETRY_METRICS.aiCalls)
-        ).toMatchObject([{ attributes: { outcome: "failure" } }]);
-        expect(
-          metrics.filter(
-            (metric) => metric.name === TELEMETRY_METRICS.aiLatency
-          )
-        ).toHaveLength(1);
-        if (code !== "MALFORMED_SUCCESS" && code !== "UNSUPPORTED") {
-          expect(
-            metrics
-              .filter(
-                (metric) => metric.name === TELEMETRY_METRICS.aiTokensInput
-              )
-              .map((metric) => metric.value)
-          ).toEqual([24]);
-          expect(
-            metrics
-              .filter(
-                (metric) => metric.name === TELEMETRY_METRICS.aiTokensOutput
-              )
-              .map((metric) => metric.value)
-          ).toEqual([6]);
-          expect(
-            metrics.filter(
-              (metric) => metric.name === TELEMETRY_METRICS.aiCostUsd
-            )
-          ).toHaveLength(1);
-          expect(
-            metrics.filter(
-              (metric) => metric.name === TELEMETRY_METRICS.aiRetries
-            )
-          ).toHaveLength(2);
-        }
-        if (code === "UNSUPPORTED") {
-          for (const name of [
-            TELEMETRY_METRICS.aiTokensInput,
-            TELEMETRY_METRICS.aiTokensOutput,
-            TELEMETRY_METRICS.aiCostUsd,
-            TELEMETRY_METRICS.aiRetries,
-          ]) {
-            expect(
-              metrics.filter((metric) => metric.name === name)
-            ).toHaveLength(0);
-          }
+        expect(aiEvents).toMatchObject([{ $ai_is_error: true }]);
+        if (code === "AI_CAPACITY" || code === "AI_INVALID_OUTPUT") {
+          expect(aiEvents[0]).toMatchObject({
+            $ai_input_tokens: 24,
+            $ai_output_tokens: 6,
+            $ai_total_cost_usd: expect.any(Number),
+          });
+        } else {
+          expect(aiEvents[0]?.$ai_input_tokens).toBeUndefined();
         }
         expect(failure).toBeInstanceOf(Error);
         expect(isAiMetadataDeferredError(failure)).toBe(true);
         expect(isAiProviderCapacityError(failure)).toBe(capacity);
       } finally {
-        resetMetricsConfig();
         global.fetch = fetchBefore;
         names.forEach((name, index) => {
           if (previous[index] === undefined) {

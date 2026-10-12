@@ -15,9 +15,9 @@ options:
 packages:
   TeakKit:
     path: Packages/TeakKit
-  Sentry:
-    url: https://github.com/getsentry/sentry-cocoa
-    exactVersion: 9.29.2
+  PostHog:
+    url: https://github.com/PostHog/posthog-ios
+    exactVersion: 3.92.0
 
 settings:
   base:
@@ -40,7 +40,9 @@ settings:
     "ARCHS[sdk=iphonesimulator*]": arm64
     ENABLE_HARDENED_RUNTIME: YES
     DEBUG_INFORMATION_FORMAT: dwarf-with-dsym
-    TEAK_SENTRY_DSN: ""
+    # Empty outside Release, so Debug builds send nothing. The release workflow
+    # passes the production project token from the POSTHOG_PROJECT_TOKEN secret.
+    TEAK_POSTHOG_TOKEN: ""
     TEAK_WORKOS_URL: https://api.workos.com
   configs:
     Debug:
@@ -53,15 +55,12 @@ settings:
       TEAK_WEB_URL: https://app.teakvault.com
       TEAK_ENVIRONMENT: production
       TEAK_DISPLAY_NAME: Teak
-      # teakvault/teak-apple-prod. A DSN is public; it ships in the app.
-      TEAK_SENTRY_DSN: https://9519e43e434faf40437682aa8285c12b@o4509483678236672.ingest.us.sentry.io/4512232778825728
 
 targets:
   Teak:
     type: application
     supportedDestinations: [iOS, macOS]
     sources:
-      - path: Shared
       - path: Teak
         excludes:
           - "Resources/Info-*.plist"
@@ -84,8 +83,8 @@ targets:
         product: TeakSync
       - package: TeakKit
         product: TeakUI
-      - package: Sentry
-        product: Sentry
+      - package: PostHog
+        product: PostHog
       - target: ShareExtension
       - target: SafariExtension
 
@@ -93,7 +92,6 @@ targets:
     type: app-extension
     supportedDestinations: [iOS, macOS]
     sources:
-      - path: Shared
       - path: ShareExtension
         excludes:
           - "Info.plist"
@@ -112,14 +110,11 @@ targets:
         product: TeakCore
       - package: TeakKit
         product: TeakUI
-      - package: Sentry
-        product: Sentry
 
   SafariExtension:
     type: app-extension
     supportedDestinations: [iOS, macOS]
     sources:
-      - path: Shared
       - path: SafariExtension
         excludes:
           - "Info.plist"
@@ -149,8 +144,6 @@ targets:
     dependencies:
       - package: TeakKit
         product: TeakCore
-      - package: Sentry
-        product: Sentry
 
   TeakUITests:
     type: bundle.ui-testing

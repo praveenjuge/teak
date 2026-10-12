@@ -8,7 +8,7 @@ import {
   callFilesWorkerJson,
   type FilesWorkerImageAnalysisResult,
 } from "../../storage/filesWorkerClient";
-import { withBackendSpan } from "../../telemetry/sentry";
+import { withBackendErrorCapture } from "../../telemetry/posthog";
 import { hasKnownTinyImageDimensions } from "../imageAnalysis";
 
 export const extractPaletteFromImage = internalAction({
@@ -16,7 +16,7 @@ export const extractPaletteFromImage = internalAction({
     cardId: v.id("cards"),
   },
   handler: async (ctx, { cardId }) =>
-    withBackendSpan(
+    withBackendErrorCapture(
       {
         cardId,
         name: "card.palette",

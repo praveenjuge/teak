@@ -12,7 +12,7 @@ import {
 import { createWorkosClient } from "./shared/workosClient";
 import { WORKOS_SESSION_ID, WORKOS_USER_ID } from "./shared/workosIds";
 import { callFilesWorkerJson } from "./storage/filesWorkerClient";
-import { withBackendSpan } from "./telemetry/sentry";
+import { withBackendErrorCapture } from "./telemetry/posthog";
 import {
   deleteAuthorizedApp,
   listAuthorizedAppsPage,
@@ -180,7 +180,7 @@ export const runStage = internalAction({
       }
       const data = await runAccountDataDeletion(ctx, state.userId, {
         boundedDeletion: binding,
-        observe: withBackendSpan,
+        observe: withBackendErrorCapture,
         deleteImportObjects: async (objects) => {
           for (const object of objects) {
             if (object.uploadId) {

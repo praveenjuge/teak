@@ -38,7 +38,7 @@ import {
 import { TELEMETRY_OPERATIONS } from "../../../shared/telemetry";
 import { runFilesWorkerRendering } from "../../../storage/filesWorkerRendering";
 import { buildR2ObjectKey, storeObject } from "../../../storage/r2";
-import { withBackendSpan } from "../../../telemetry/sentry";
+import { withBackendErrorCapture } from "../../../telemetry/posthog";
 import { pinnedFetch } from "../pinnedFetch";
 import { readRemoteImageDimensions } from "./remoteImageDimensions";
 import {
@@ -877,7 +877,7 @@ export const fetchMetadata = internalAction({
     errorMessage: v.optional(v.string()),
   }),
   handler: (ctx: any, args: any) =>
-    withBackendSpan(
+    withBackendErrorCapture(
       {
         cardId: args.cardId,
         name: "card.link_metadata",

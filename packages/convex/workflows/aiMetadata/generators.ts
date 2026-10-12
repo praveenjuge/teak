@@ -4,7 +4,6 @@ import {
   buildLinkMetadataPrompt,
   buildTextMetadataPrompt,
   type FilesTextMetadataOpResult,
-  MAX_AI_METADATA_VALIDATION_RETRIES,
   readFilesAiGenerationFacts,
   validateTextMetadata,
 } from "@teak/files-protocol";
@@ -17,8 +16,7 @@ export {
 } from "@teak/files-protocol";
 
 import { SYSTEM_PROMPTS, TEXT_METADATA_MODEL_ID } from "../../ai/models";
-import { observeAiGeneration, WORKERS_AI_PROVIDER } from "../../ai/telemetry";
-import { trackAiRetry } from "../../shared/metrics";
+import { observeAiGeneration } from "../../ai/telemetry";
 import {
   callFilesWorkerJson,
   type FilesWorkerImageMetadataResult,
@@ -67,22 +65,6 @@ const generateWorkerMetadata = async (
 ) => {
   const model = TEXT_METADATA_MODEL_ID;
   const isLink = op === "generate-link-metadata";
-  const recordRetries = (count: number) => {
-    if (
-      !Number.isInteger(count) ||
-      count < 0 ||
-      count > MAX_AI_METADATA_VALIDATION_RETRIES
-    ) {
-      return;
-    }
-    for (let attempt = 0; attempt < count; attempt += 1) {
-      trackAiRetry({
-        model,
-        provider: WORKERS_AI_PROVIDER,
-        reason: "validation",
-      });
-    }
-  };
   const result = await observeAiGeneration(
     {
       functionId: isLink ? "teak.ai.metadata.link" : "teak.ai.metadata.text",
@@ -94,21 +76,11 @@ const generateWorkerMetadata = async (
       stage: "ai_metadata",
     },
     async () => {
-      let outcome: FilesWorkerOutcome<FilesTextMetadataOpResult>;
-      try {
-        outcome = await callFilesWorkerJson<FilesTextMetadataOpResult>({
+      const outcome: FilesWorkerOutcome<FilesTextMetadataOpResult> =
+        await callFilesWorkerJson<FilesTextMetadataOpResult>({
           op,
           params: { prompt },
         });
-      } catch (error) {
-        if (error && typeof error === "object" && "aiFacts" in error) {
-          recordRetries(
-            (error as { aiFacts?: { validationRetryCount?: number } }).aiFacts
-              ?.validationRetryCount ?? 0
-          );
-        }
-        throw error;
-      }
       if (outcome.kind === "fallback") {
         throw new Error("files_worker_metadata_unavailable");
       }
@@ -116,7 +88,6 @@ const generateWorkerMetadata = async (
       if (!facts) {
         throw new Error("failed to validate JSON metadata diagnostics");
       }
-      recordRetries(facts.validationRetryCount);
       const metadata = validateTextMetadata(outcome.data);
       if (!metadata) {
         throw new Error("failed to validate JSON metadata response");

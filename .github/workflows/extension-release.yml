@@ -67,6 +67,8 @@ jobs:
         env:
           VITE_PUBLIC_CONVEX_URL: https://uncommon-ladybug-882.convex.cloud
           VITE_PUBLIC_CONVEX_SITE_URL: https://uncommon-ladybug-882.convex.site
+          # Only store builds report errors and saves to PostHog.
+          WXT_POSTHOG_PROJECT_TOKEN: ${{ secrets.POSTHOG_PROJECT_TOKEN }}
         run: bun run zip
 
       - name: Locate built ZIP

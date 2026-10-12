@@ -576,7 +576,9 @@ describe("trusted new WorkOS owners", () => {
       },
       {
         name: "telemetry/events:emitUserCreated",
-        args: [{ userId: result.teakUserId, source: "auth" }],
+        args: [
+          { email: create.email, userId: result.teakUserId, source: "auth" },
+        ],
       },
     ]);
     for (const source of ["ensureUser", "webhook"] as const) {

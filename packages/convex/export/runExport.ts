@@ -23,7 +23,7 @@ import {
 } from "../storage/filesWorkerClient";
 import { buildR2ObjectKey, storeObject } from "../storage/r2";
 import { getR2KeyPrefix } from "../storage/r2Keys";
-import { withBackendSpan } from "../telemetry/sentry";
+import { withBackendErrorCapture } from "../telemetry/posthog";
 import {
   CARDS_ENTRY_NAME,
   EXPORT_FAILURE_CLASS,
@@ -45,7 +45,7 @@ const observeExport =
     handler: (ctx: ActionCtx, args: TArgs) => Promise<TResult>
   ) =>
   (ctx: ActionCtx, args: TArgs): Promise<TResult> =>
-    withBackendSpan(
+    withBackendErrorCapture(
       {
         name,
         operation: TELEMETRY_OPERATIONS.export,

@@ -3,8 +3,7 @@
 import { api } from "@teak/convex";
 import type { Doc, Id } from "@teak/convex/_generated/dataModel";
 import { SEARCH_DEFAULT_CARD_LIMIT } from "@teak/convex/shared";
-import { addTelemetryBreadcrumb } from "@teak/convex/shared/client-telemetry";
-import { trackSearch } from "@teak/convex/shared/metrics";
+import { captureEvent } from "@teak/convex/shared/analytics";
 import { ConnectedCardModal } from "@teak/ui/card-modal";
 import type { CardWithUrls } from "@teak/ui/cards";
 import { Button } from "@teak/ui/components/ui/button";
@@ -58,10 +57,6 @@ export function CardsScreen({
 
   const queryArgs = searchController.queryArgs;
   const searchKey = useMemo(() => JSON.stringify(queryArgs), [queryArgs]);
-  const searchTimingRef = useRef({
-    key: searchKey,
-    startedAt: performance.now(),
-  });
   const reportedSearchKeyRef = useRef<string | null>(null);
   const {
     results: cards,
@@ -89,14 +84,6 @@ export function CardsScreen({
   }, [cards, searchKey, setRemoteCards]);
 
   useEffect(() => {
-    searchTimingRef.current = {
-      key: searchKey,
-      startedAt: performance.now(),
-    };
-    reportedSearchKeyRef.current = null;
-  }, [searchKey]);
-
-  useEffect(() => {
     if (
       !searchController.hasActiveSearch ||
       cardsStatus === "LoadingFirstPage" ||
@@ -105,24 +92,8 @@ export function CardsScreen({
       return;
     }
     reportedSearchKeyRef.current = searchKey;
-    const durationMs = performance.now() - searchTimingRef.current.startedAt;
-    trackSearch({ durationMs, resultCount: cards.length });
-    addTelemetryBreadcrumb({
-      attributes: {
-        "duration.ms": durationMs,
-        "filter.count": Object.keys(queryArgs).length,
-        "result.count": cards.length,
-      },
-      category: "search",
-      message: "card.search.completed",
-    });
-  }, [
-    cards.length,
-    cardsStatus,
-    queryArgs,
-    searchController.hasActiveSearch,
-    searchKey,
-  ]);
+    captureEvent("search_performed", { zero_result: cards.length === 0 });
+  }, [cards.length, cardsStatus, searchController.hasActiveSearch, searchKey]);
 
   const selectedCard = useMemo(
     () =>

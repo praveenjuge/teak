@@ -23,7 +23,7 @@ import {
   archiveWorkflowValue,
   hydrateWorkflowValue,
 } from "../../../storage/workflowArtifacts";
-import { withBackendSpan } from "../../../telemetry/sentry";
+import { withBackendErrorCapture } from "../../../telemetry/posthog";
 import { pinnedFetch } from "../pinnedFetch";
 import {
   buildRawSelectorMap,
@@ -390,7 +390,7 @@ export const classifyStep: any = internalAction({
     })
   ),
   handler: (ctx: any, args: { cardId: Id<"cards"> }) =>
-    withBackendSpan(
+    withBackendErrorCapture(
       {
         cardId: args.cardId,
         name: "card.categorization.classify",
@@ -497,7 +497,7 @@ export const fetchStructuredDataStep: any = internalAction({
     structuredData: v.optional(v.any()),
   }),
   handler: (ctx: any, args: any) =>
-    withBackendSpan(
+    withBackendErrorCapture(
       {
         cardId: args.cardId,
         name: "card.categorization.fetch",
@@ -556,7 +556,7 @@ export const mergeAndSaveStep: any = internalAction({
     factsCount: v.number(),
   }),
   handler: (ctx: any, args: any) =>
-    withBackendSpan(
+    withBackendErrorCapture(
       {
         cardId: args.cardId,
         name: "card.categorization.persist",

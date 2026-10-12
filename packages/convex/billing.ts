@@ -1,4 +1,4 @@
-import { Polar } from "@convex-dev/polar";
+import { Polar, type WebhookEventHandlers } from "@convex-dev/polar";
 import { Polar as PolarBilling } from "@polar-sh/sdk";
 import { ConvexError, v } from "convex/values";
 import { api, components } from "./_generated/api";
@@ -7,7 +7,10 @@ import { readIsDevDeployment } from "./env";
 import { getSessionProfile } from "./securitySessions";
 import { isApprovedPolarProductId } from "./shared/polarPlans";
 import { normalizeErrorClass } from "./shared/telemetry";
-import { scheduleBillingOutcome } from "./telemetry/schedule";
+import {
+  captureBackendEvent,
+  captureBackendException,
+} from "./telemetry/posthog";
 
 // User query to use in the Polar component
 export const getUserInfoHandler = async (ctx: any) => {
@@ -75,12 +78,6 @@ export const createCheckoutLinkHandler = async (ctx: any, args: any) => {
     if (!isApprovedPolarProductId(args.productId)) {
       throw new ConvexError("Invalid product");
     }
-    await scheduleBillingOutcome(ctx, {
-      flow: "checkout",
-      outcome: "attempt",
-      userId,
-    });
-
     const polar = new PolarBilling({
       accessToken: env.POLAR_ACCESS_TOKEN ?? "",
       server: env.POLAR_SERVER === "production" ? "production" : "sandbox",
@@ -116,18 +113,10 @@ export const createCheckoutLinkHandler = async (ctx: any, args: any) => {
       customerId,
     });
 
-    await scheduleBillingOutcome(ctx, {
-      flow: "checkout",
-      outcome: "success",
-      userId,
-    });
     return checkout.url;
   } catch (error) {
-    await scheduleBillingOutcome(ctx, {
-      errorClass: normalizeErrorClass(error),
-      flow: "checkout",
-      outcome: "failure",
-      userId,
+    await captureBackendEvent("checkout_failed", userId, {
+      error_class: normalizeErrorClass(error),
     });
     throw error;
   }
@@ -144,12 +133,6 @@ export const createCustomerPortalHandler = async (ctx: any) => {
   try {
     const user = await ctx.runQuery(api.billing.getUserInfo);
     userId = user.teakUserId;
-    await scheduleBillingOutcome(ctx, {
-      flow: "portal",
-      outcome: "attempt",
-      userId,
-    });
-
     const subscription = await polar.getCurrentSubscription(ctx, {
       userId: user.teakUserId,
     });
@@ -166,18 +149,12 @@ export const createCustomerPortalHandler = async (ctx: any) => {
       customerId: subscription.customerId,
     });
 
-    await scheduleBillingOutcome(ctx, {
-      flow: "portal",
-      outcome: "success",
-      userId,
-    });
+    await captureBackendEvent("billing_portal_opened", userId, {});
     return result.customerPortalUrl;
   } catch (error) {
-    await scheduleBillingOutcome(ctx, {
-      errorClass: normalizeErrorClass(error),
-      flow: "portal",
-      outcome: "failure",
-      userId,
+    await captureBackendException(error, {
+      distinctId: userId,
+      properties: { operation: "billing", stage: "portal" },
     });
     throw error;
   }
@@ -188,3 +165,41 @@ export const createCustomerPortal = action({
   returns: v.string(),
   handler: createCustomerPortalHandler,
 });
+
+interface PolarSubscriptionEvent {
+  data: {
+    customer: {
+      externalId?: string | null;
+      metadata: Record<string, unknown>;
+    };
+  };
+}
+
+// Customers carry the Teak user id in metadata (see polarCustomerIdentity).
+const subscriptionOwner = (
+  event: PolarSubscriptionEvent
+): string | undefined => {
+  const { customer } = event.data;
+  const fromMetadata = customer.metadata.userId;
+  return typeof fromMetadata === "string"
+    ? fromMetadata
+    : (customer.externalId ?? undefined);
+};
+
+/** Polar webhooks that move a person's plan in product analytics. */
+export const polarWebhookEvents: WebhookEventHandlers = {
+  "subscription.created": (_ctx, event) =>
+    captureBackendEvent(
+      "checkout_completed",
+      subscriptionOwner(event),
+      {},
+      { set: { plan: "pro" } }
+    ),
+  "subscription.revoked": (_ctx, event) =>
+    captureBackendEvent(
+      "subscription_ended",
+      subscriptionOwner(event),
+      {},
+      { set: { plan: "free" } }
+    ),
+};

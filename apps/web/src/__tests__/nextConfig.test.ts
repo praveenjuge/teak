@@ -22,4 +22,8 @@ describe("Next.js 16.3 web configuration", () => {
   test("generates SHA-384 subresource integrity metadata", () => {
     expect(nextConfig.experimental?.sri).toEqual({ algorithm: "sha384" });
   });
+
+  test("keeps PostHog's trailing-slash endpoints intact", () => {
+    expect(nextConfig.skipTrailingSlashRedirect).toBe(true);
+  });
 });

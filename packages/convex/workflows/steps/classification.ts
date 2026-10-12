@@ -20,7 +20,7 @@ import type { CardType } from "../../schema";
 import { inferFileFormat } from "../../shared/fileFormats";
 import { TELEMETRY_OPERATIONS } from "../../shared/telemetry";
 import type { Id } from "../../shared/types";
-import { withBackendSpan } from "../../telemetry/sentry";
+import { withBackendErrorCapture } from "../../telemetry/posthog";
 
 const MAX_PALETTE_COLORS = 12;
 
@@ -310,7 +310,7 @@ export const classify = internalAction({
     })
   ),
   handler: async (ctx, { cardId }): Promise<ClassificationWorkflowResult> =>
-    withBackendSpan(
+    withBackendErrorCapture(
       {
         cardId,
         name: "card.classification",

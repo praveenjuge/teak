@@ -8,14 +8,14 @@ const telemetryFunctions = (
     telemetry: {
       events: {
         emitCardOutcome: ScheduledFunction;
-        emitAuthOutcome: ScheduledFunction;
-        emitBillingOutcome: ScheduledFunction;
-        emitUploadOutcome: ScheduledFunction;
+        emitCardProcessingFailed: ScheduledFunction;
         emitUserCreated: ScheduledFunction;
       };
     };
   }
 ).telemetry.events;
+
+// Mutations cannot fetch, so each outcome schedules one action that sends it.
 
 export const scheduleCardOutcome = async (
   ctx: Pick<MutationCtx, "scheduler">,
@@ -38,7 +38,7 @@ export const scheduleCardOutcome = async (
 
 export const scheduleUserCreated = async (
   ctx: Pick<MutationCtx, "scheduler">,
-  args: { source?: string; userId: string }
+  args: { email?: string; source?: string; userId: string }
 ): Promise<void> => {
   try {
     await ctx.scheduler.runAfter(0, telemetryFunctions.emitUserCreated, args);
@@ -47,63 +47,22 @@ export const scheduleUserCreated = async (
   }
 };
 
-export const scheduleAuthOutcome = async (
+export const scheduleCardProcessingFailed = async (
   ctx: Pick<MutationCtx, "scheduler">,
   args: {
-    errorClass?: string;
-    // Set only by per-attempt sign-in monitoring (see authSignInMonitoring.ts).
-    method?: "email" | "social";
-    outcome: "attempt" | "success" | "failure";
-    provider?: string;
-    reason?: string;
-    stage: "auth_bootstrap" | "session_refresh" | "sign_in";
-    synthetic?: boolean;
-    userId?: string;
-  }
-): Promise<boolean> => {
-  try {
-    await ctx.scheduler.runAfter(0, telemetryFunctions.emitAuthOutcome, args);
-    return true;
-  } catch {
-    // Scheduling telemetry must never alter authentication.
-    return false;
-  }
-};
-
-export const scheduleBillingOutcome = async (
-  ctx: Pick<MutationCtx, "scheduler">,
-  args: {
-    errorClass?: string;
-    flow: "checkout" | "portal";
-    outcome: "attempt" | "success" | "failure";
+    cardType?: string;
+    errorClass: string;
+    stage: string;
     userId?: string;
   }
 ): Promise<void> => {
   try {
     await ctx.scheduler.runAfter(
       0,
-      telemetryFunctions.emitBillingOutcome,
+      telemetryFunctions.emitCardProcessingFailed,
       args
     );
   } catch {
-    // Scheduling telemetry must never alter billing.
-  }
-};
-
-export const scheduleUploadOutcome = async (
-  ctx: Pick<MutationCtx, "scheduler">,
-  args: {
-    bytes?: number;
-    durationMs?: number;
-    errorClass?: string;
-    fileBucket: string;
-    outcome: "attempt" | "success" | "failure";
-    userId?: string;
-  }
-): Promise<void> => {
-  try {
-    await ctx.scheduler.runAfter(0, telemetryFunctions.emitUploadOutcome, args);
-  } catch {
-    // Scheduling telemetry must never alter the product mutation.
+    // Scheduling telemetry must never alter the workflow.
   }
 };

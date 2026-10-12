@@ -51,7 +51,7 @@ Then roll back archive scheduling. Never replace whole cards from an old backup.
 
 Finalized Resend delivery records expire after seven days; unfinished records
 after 28 days. Daily cleanup is bounded by the Resend component. This never
-deletes cards. Sentry checks cover the initial bounded deletion batches;
+deletes cards. PostHog error reports cover the initial bounded deletion batches;
 Resend-owned continuation jobs report failures through Convex scheduled-job
 health/logs. Verify retention counts after manual cleanup. Completed workflow journals older than seven days use the
 existing guarded history cleanup; active/recent/unknown histories are retained.

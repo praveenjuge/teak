@@ -29,7 +29,7 @@ PERMISSIONS (requested only when the feature is used)
 THIRD-PARTY SERVICES
 • Convex: stores and syncs the user's library.
 • WorkOS: sign-in.
-• Sentry: crash and hang reports, linked to an anonymous account ID, never an email.
+• PostHog: app usage events and crash reports from the app (not the extensions), linked to the account ID and email.
 
 PRIVACY
 Each library is private to its account. No advertising and no selling or sharing of personal data. Privacy policy: https://teakvault.com/docs/privacy-policy

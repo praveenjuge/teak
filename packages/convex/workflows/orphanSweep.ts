@@ -25,7 +25,6 @@ import {
 } from "../storage/filesWorkerClient";
 import { cardStorageObjectKeys } from "../storage/r2";
 import { buildR2ListPrefix } from "../storage/r2Keys";
-import { recordBackendLog } from "../telemetry/sentry";
 
 // Orphans younger than this are ignored: pending-upload sessions, in-flight
 // imports/exports, and not-yet-recorded renderables legitimately create
@@ -123,16 +122,6 @@ export const sweepOrphanedObjectsHandler = async (
   } while (listCursor && listPages < MAX_LIST_PAGES);
 
   await ctx.runMutation(internal.workflows.orphanSweepQueries.logOrphanReport, {
-    orphanBytes,
-    orphanCount,
-    scannedObjects,
-  });
-
-  const message =
-    orphanCount > 0
-      ? "storage.orphaned_objects_detected"
-      : "storage.orphan_scan_clean";
-  recordBackendLog(orphanCount > 0 ? "warn" : "info", message, {
     orphanBytes,
     orphanCount,
     scannedObjects,

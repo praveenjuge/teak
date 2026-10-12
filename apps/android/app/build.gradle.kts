@@ -7,7 +7,7 @@ plugins {
     alias(libs.plugins.teak.hilt)
     alias(libs.plugins.kotlin.serialization)
     alias(libs.plugins.baselineprofile)
-    alias(libs.plugins.sentry)
+    alias(libs.plugins.posthog)
 }
 
 // Every Teak surface ships the same version: the root package.json, set by `bun run release:prepare`.
@@ -26,6 +26,12 @@ val signingProperties = Properties().apply {
 fun signingValue(key: String, env: String): String? =
     signingProperties.getProperty(key) ?: System.getenv(env)?.takeIf { it.isNotBlank() }
 
+// The PostHog project token is public, but it stays out of the repository so only release builds send events.
+val posthogToken: String = providers.gradleProperty("POSTHOG_ANDROID_TOKEN")
+    .orElse(providers.environmentVariable("POSTHOG_ANDROID_TOKEN"))
+    .getOrElse("")
+    .trim()
+
 android {
     namespace = "com.praveenjuge.teak"
 
@@ -34,8 +40,6 @@ android {
         versionName = teakVersion
         versionCode = providers.gradleProperty("teak.versionCode").orNull?.toInt() ?: versionCodeFor(teakVersion)
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
-        // Sentry stays off unless a DSN is supplied at build time, like the iPhone app.
-        buildConfigField("String", "SENTRY_DSN", "\"${System.getenv("SENTRY_ANDROID_DSN").orEmpty()}\"")
     }
 
     signingConfigs {
@@ -59,12 +63,15 @@ android {
             resValue("string", "app_name", "Teak Dev")
             // The shared cloud dev deployment, signed in through WorkOS staging.
             buildConfigField("String", "CONVEX_URL", "\"https://reminiscent-kangaroo-59.convex.cloud\"")
+            buildConfigField("String", "POSTHOG_TOKEN", "\"\"")
         }
         release {
             isMinifyEnabled = true
             isShrinkResources = true
             resValue("string", "app_name", "Teak")
             buildConfigField("String", "CONVEX_URL", "\"https://uncommon-ladybug-882.convex.cloud\"")
+            // PostHog stays off unless a release build is given the project token, like the iPhone app.
+            buildConfigField("String", "POSTHOG_TOKEN", "\"$posthogToken\"")
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
             signingConfig = signingConfigs.findByName("upload")
         }
@@ -92,17 +99,13 @@ android {
     }
 }
 
-sentry {
-    org.set("teakvault")
-    projectName.set("teak-android-prod")
-    // Mapping files upload only when a release build has a token; local and debug builds stay offline.
-    val hasToken = System.getenv("SENTRY_AUTH_TOKEN")?.isNotBlank() == true
-    includeProguardMapping.set(hasToken)
-    autoUploadProguardMapping.set(hasToken)
-    uploadNativeSymbols.set(false)
-    includeSourceContext.set(false)
-    autoInstallation.enabled.set(false)
-    telemetry.set(false)
+// The PostHog plugin uploads the R8 mapping after every minified build through posthog-cli.
+// Only builds with CLI credentials upload; local, CI test and unsigned builds stay offline.
+val uploadsMappings = listOf("POSTHOG_CLI_API_KEY", "POSTHOG_CLI_PROJECT_ID").all {
+    providers.environmentVariable(it).orNull?.isNotBlank() == true
+}
+tasks.matching { it.name.startsWith("uploadPostHogProguardMappings") }.configureEach {
+    enabled = uploadsMappings
 }
 
 dependencies {
@@ -135,7 +138,7 @@ dependencies {
     implementation(libs.coil.gif)
     implementation(libs.coil.video)
     implementation(libs.kotlinx.serialization.json)
-    implementation(libs.sentry.android)
+    implementation(libs.posthog.android)
     baselineProfile(project(":baselineprofile"))
 
     androidTestImplementation(platform(libs.androidx.compose.bom))

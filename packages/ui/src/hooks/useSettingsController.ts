@@ -1,11 +1,9 @@
 "use client";
 
 import { api } from "@teak/convex";
-import {
-  captureClientException,
-  runClientSpan,
-} from "@teak/convex/shared/client-telemetry";
-import { trackAuth, trackLifecycle } from "@teak/convex/shared/metrics";
+import { captureEvent } from "@teak/convex/shared/analytics";
+import { captureClientException } from "@teak/convex/shared/client-telemetry";
+import { normalizeErrorClass } from "@teak/convex/shared/telemetry";
 import { useAction, useMutation } from "convex/react";
 import { useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
@@ -114,35 +112,22 @@ export function useSettingsController({
   const getExportDownloadUrl = useAction(api.dataExport.getExportDownloadUrl);
 
   const handleStartExport = async () => {
-    const startedAt = Date.now();
-    trackLifecycle({ kind: "export", outcome: "attempt" });
+    captureEvent("export_started");
     try {
-      await runClientSpan(
-        { name: "export.start", operation: "export", stage: "export" },
-        async () => {
-          const result = (await startExportMutation({})) as {
-            started: boolean;
-            reason?: "quota_exceeded" | "already_active";
-            quotaResetMs?: number;
-          };
-          if (!result.started && result.reason === "quota_exceeded") {
-            throw new Error("Weekly export limit reached.");
-          }
-          if (!result.started && result.reason === "already_active") {
-            throw new Error("An export is already in progress.");
-          }
-        }
-      );
-      trackLifecycle({
-        durationMs: Date.now() - startedAt,
-        kind: "export",
-        outcome: "success",
-      });
+      const result = (await startExportMutation({})) as {
+        started: boolean;
+        reason?: "quota_exceeded" | "already_active";
+        quotaResetMs?: number;
+      };
+      if (!result.started && result.reason === "quota_exceeded") {
+        throw new Error("Weekly export limit reached.");
+      }
+      if (!result.started && result.reason === "already_active") {
+        throw new Error("An export is already in progress.");
+      }
     } catch (error) {
-      trackLifecycle({
-        durationMs: Date.now() - startedAt,
-        kind: "export",
-        outcome: "failure",
+      captureEvent("export_failed", {
+        error_class: normalizeErrorClass(error),
       });
       captureClientException(error, { operation: "export.start" });
       throw error;
@@ -150,26 +135,18 @@ export function useSettingsController({
   };
 
   const handleCancelExport = async (jobId: string) => {
-    await runClientSpan(
-      { name: "export.cancel", operation: "export", stage: "export" },
-      () => cancelExportMutation({ jobId: jobId as never })
-    );
-    trackLifecycle({ kind: "export", outcome: "cancelled" });
+    await cancelExportMutation({ jobId: jobId as never });
   };
 
   const handleDownloadExport = async (jobId: string) => {
-    await runClientSpan(
-      { name: "export.download", operation: "export", stage: "export" },
-      async () => {
-        const result = (await getExportDownloadUrl({
-          jobId: jobId as never,
-        })) as { url: string; expiresInSeconds: number } | null;
-        if (!result?.url) {
-          throw new Error("Download is not available.");
-        }
-        await (onDownloadFile ?? onOpenExternal)(result.url);
-      }
-    );
+    const result = (await getExportDownloadUrl({
+      jobId: jobId as never,
+    })) as { url: string; expiresInSeconds: number } | null;
+    if (!result?.url) {
+      throw new Error("Download is not available.");
+    }
+    captureEvent("export_completed");
+    await (onDownloadFile ?? onOpenExternal)(result.url);
   };
 
   const handleCreateApiKey = async () =>
@@ -201,18 +178,10 @@ export function useSettingsController({
     });
 
     try {
-      await runClientSpan(
-        {
-          name: "billing.customer_portal",
-          operation: "billing",
-          stage: "checkout",
-        },
-        () =>
-          openCustomerPortal({
-            createCustomerPortal: () => createCustomerPortal({}),
-            openPortal: onOpenExternal,
-          })
-      );
+      await openCustomerPortal({
+        createCustomerPortal: () => createCustomerPortal({}),
+        openPortal: onOpenExternal,
+      });
       toast.success("Customer portal opened", { id: toastId });
     } catch (error) {
       captureClientException(error, {
@@ -243,15 +212,9 @@ export function useSettingsController({
 
   const handleSignOut = async () => {
     setSignOutLoading(true);
-    trackAuth({ outcome: "attempt", stage: "sign_in" });
     try {
-      await runClientSpan(
-        { name: "auth.sign_out", operation: "auth", stage: "sign_in" },
-        async () => await onSignOut()
-      );
-      trackAuth({ outcome: "success", stage: "sign_in" });
+      await onSignOut();
     } catch (error) {
-      trackAuth({ outcome: "failure", stage: "sign_in" });
       captureClientException(error, { operation: "auth.sign_out" });
       toast.error("Failed to sign out. Please try again.");
     } finally {

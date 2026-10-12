@@ -20,7 +20,6 @@ const context = {
   appId: "6756574989",
   artifactName: "Teak-1.0.61.ipa",
   artifactSha: "b".repeat(64),
-  sentrySizeAnalysis: "success",
   ascVersion: "3.6.1",
   stageExit: "0",
   publishExit: "0",
@@ -34,7 +33,6 @@ describe("Apple release manifest", () => {
     expect(manifest.artifact.sha256).toBe(context.artifactSha);
     expect(manifest.build).toEqual({ id: "ios-build-65", number: "65" });
     expect(manifest.submission.id).toBe("ios-submission-61");
-    expect(manifest.sentrySizeAnalysis).toBe("success");
     expect(manifest.sourceWorkflow).toBe(context.workflow);
     expect(manifest.verifiedAt).toBe(context.generatedAt);
   });

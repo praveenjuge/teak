@@ -1,31 +1,82 @@
-import { describe, expect, test } from "bun:test";
-import { TELEMETRY_METRICS } from "../../shared/telemetry";
-import { resolveBillingTelemetry } from "../../telemetry/events";
+// @ts-nocheck
+import { afterEach, beforeEach, describe, expect, mock, test } from "bun:test";
+import { emitCardOutcome, emitUserCreated } from "../../telemetry/events";
 
-describe("billing telemetry", () => {
-  test("keeps customer portal outcomes separate from checkout", () => {
-    expect(resolveBillingTelemetry("portal", "attempt")).toEqual({
-      metric: TELEMETRY_METRICS.portalAttempt,
-      stage: "portal",
-    });
-    expect(resolveBillingTelemetry("portal", "success")).toEqual({
-      metric: TELEMETRY_METRICS.portalSuccess,
-      stage: "portal",
-    });
-    expect(resolveBillingTelemetry("portal", "failure")).toEqual({
-      metric: TELEMETRY_METRICS.portalFailure,
-      stage: "portal",
-    });
+const originalFetch = globalThis.fetch;
+const originalToken = process.env.POSTHOG_PROJECT_TOKEN;
+let fetchMock: ReturnType<typeof mock>;
+
+const sentEvents = () =>
+  fetchMock.mock.calls.flatMap(([, init]) => JSON.parse(init.body).batch);
+
+beforeEach(() => {
+  fetchMock = mock(async () => Response.json({ status: 1 }));
+  globalThis.fetch = fetchMock;
+  process.env.POSTHOG_PROJECT_TOKEN = "phc_test";
+});
+
+afterEach(() => {
+  globalThis.fetch = originalFetch;
+  if (originalToken === undefined) {
+    delete process.env.POSTHOG_PROJECT_TOKEN;
+  } else {
+    process.env.POSTHOG_PROJECT_TOKEN = originalToken;
+  }
+});
+
+describe("server product events", () => {
+  test("maps card outcomes to created and failed events", async () => {
+    await emitCardOutcome._handler(
+      {},
+      { cardType: "link", outcome: "success", source: "api", userId: "u1" }
+    );
+    await emitCardOutcome._handler(
+      {},
+      { errorClass: "ValidationError", outcome: "failure", userId: "u1" }
+    );
+
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(
+      sentEvents().map(({ distinct_id, event, properties }) => ({
+        distinct_id,
+        event,
+        card_type: properties.card_type,
+        error_class: properties.error_class,
+        source: properties.source,
+      }))
+    ).toEqual([
+      {
+        card_type: "link",
+        distinct_id: "u1",
+        error_class: undefined,
+        event: "card_created",
+        source: "api",
+      },
+      {
+        card_type: "unknown",
+        distinct_id: "u1",
+        error_class: "ValidationError",
+        event: "card_create_failed",
+        source: "unknown",
+      },
+    ]);
   });
 
-  test("preserves checkout outcome metrics", () => {
-    expect(resolveBillingTelemetry("checkout", "attempt")).toEqual({
-      metric: TELEMETRY_METRICS.checkoutStart,
-      stage: "checkout",
+  test("identifies a new account with its email and free plan", async () => {
+    await emitUserCreated._handler(
+      {},
+      { email: "new@example.com", source: "auth", userId: "teak_u2" }
+    );
+
+    const [event] = sentEvents();
+    expect(event).toMatchObject({
+      distinct_id: "teak_u2",
+      event: "user_signed_up",
+      properties: {
+        $set: { email: "new@example.com", plan: "free" },
+        source: "auth",
+      },
     });
-    expect(resolveBillingTelemetry("checkout", "success")).toEqual({
-      metric: TELEMETRY_METRICS.checkoutSuccess,
-      stage: "checkout",
-    });
+    expect(event.properties.$set.signed_up_at).toEqual(expect.any(String));
   });
 });

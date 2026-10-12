@@ -1,7 +1,4 @@
-import {
-  captureClientException,
-  runClientSpan,
-} from "../../shared/client_telemetry";
+import { captureClientException } from "../../shared/client_telemetry";
 import type { Id } from "../../shared/types";
 
 export interface CardActionsConfig {
@@ -54,14 +51,7 @@ export function createCardActions(
     } = {}
   ): Promise<boolean> => {
     try {
-      await runClientSpan(
-        {
-          name: "card.delete",
-          operation: "teak.workflow",
-          stage: "persistence",
-        },
-        () => updateCardField({ cardId, field: "delete" })
-      );
+      await updateCardField({ cardId, field: "delete" });
       if (!options.suppressSuccessCallback) {
         config.onDeleteSuccess?.("Card deleted. Find it by searching 'trash'");
       }
@@ -104,14 +94,7 @@ export function createCardActions(
 
   const handleRestoreCard = async (cardId: Id<"cards">) => {
     try {
-      await runClientSpan(
-        {
-          name: "card.restore",
-          operation: "teak.workflow",
-          stage: "persistence",
-        },
-        () => updateCardField({ cardId, field: "restore" })
-      );
+      await updateCardField({ cardId, field: "restore" });
       config.onRestoreSuccess?.("Card restored");
     } catch (error) {
       captureClientException(error, { operation: "card.restore" });
@@ -121,14 +104,7 @@ export function createCardActions(
 
   const handlePermanentDeleteCard = async (cardId: Id<"cards">) => {
     try {
-      await runClientSpan(
-        {
-          name: "card.permanent_delete",
-          operation: "teak.workflow",
-          stage: "persistence",
-        },
-        () => permanentDeleteCard({ id: cardId })
-      );
+      await permanentDeleteCard({ id: cardId });
       config.onPermanentDeleteSuccess?.("Card permanently deleted");
     } catch (error) {
       captureClientException(error, { operation: "card.permanent_delete" });
@@ -138,18 +114,10 @@ export function createCardActions(
 
   const handleToggleFavorite = async (cardId: Id<"cards">) => {
     try {
-      await runClientSpan(
-        {
-          name: "card.favorite",
-          operation: "teak.workflow",
-          stage: "persistence",
-        },
-        () =>
-          updateCardField({
-            cardId,
-            field: "isFavorited",
-          })
-      );
+      await updateCardField({
+        cardId,
+        field: "isFavorited",
+      });
     } catch (error) {
       captureClientException(error, { operation: "card.favorite" });
       config.onError?.(error as Error, "toggle favorite");
@@ -173,21 +141,12 @@ export function createCardActions(
     tagToRemove?: string
   ) => {
     try {
-      await runClientSpan(
-        {
-          attributes: { field },
-          name: "card.update",
-          operation: "teak.workflow",
-          stage: "persistence",
-        },
-        () =>
-          updateCardField({
-            cardId,
-            field,
-            value,
-            tagToRemove,
-          })
-      );
+      await updateCardField({
+        cardId,
+        field,
+        value,
+        tagToRemove,
+      });
     } catch (error) {
       captureClientException(error, { field, operation: "card.update" });
       config.onError?.(error as Error, `update ${field}`);

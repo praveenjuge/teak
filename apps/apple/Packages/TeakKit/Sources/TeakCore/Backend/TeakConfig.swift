@@ -9,20 +9,21 @@ public struct TeakConfig: Sendable {
     public let workosURL: URL
     public let appGroup: String
     public let keychainAccessGroup: String?
-    public let sentryDSN: String?
+    /// PostHog project token; only Release builds of the app carry one.
+    public let posthogToken: String?
     public let environment: String
     public let version: String
     public let build: String
 
     public init(convexURL: URL, webURL: URL, workosURL: URL = TeakConfig.hostedWorkOS, appGroup: String,
-                keychainAccessGroup: String?, sentryDSN: String?, environment: String, version: String = "0",
+                keychainAccessGroup: String?, posthogToken: String?, environment: String, version: String = "0",
                 build: String = "0") {
         self.convexURL = convexURL
         self.webURL = webURL
         self.workosURL = workosURL
         self.appGroup = appGroup
         self.keychainAccessGroup = keychainAccessGroup
-        self.sentryDSN = sentryDSN
+        self.posthogToken = posthogToken
         self.environment = environment
         self.version = version
         self.build = build
@@ -49,7 +50,7 @@ public struct TeakConfig: Sendable {
         workosURL = value("TeakWorkOSURL").flatMap(Self.trustedWorkOSOrigin) ?? Self.hostedWorkOS
         appGroup = value("TeakAppGroup") ?? "group.com.praveenjuge.teak"
         keychainAccessGroup = value("TeakKeychainAccessGroup")
-        sentryDSN = value("TeakSentryDSN")
+        posthogToken = value("TeakPostHogToken")
         environment = value("TeakEnvironment") ?? "production"
         version = value("CFBundleShortVersionString") ?? "0"
         build = value("CFBundleVersion") ?? "0"

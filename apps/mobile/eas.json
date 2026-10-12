@@ -16,10 +16,6 @@
     "production": {
       "environment": "production",
       "env": {
-        "EXPO_PUBLIC_SENTRY_ENVIRONMENT": "production",
-        "SENTRY_ALLOW_FAILURE": "false",
-        "SENTRY_ORG": "teakvault",
-        "SENTRY_PROJECT": "teak-mobile-prod",
         "SKIP_SIMPLE_GIT_HOOKS": "1"
       }
     }

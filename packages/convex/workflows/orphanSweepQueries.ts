@@ -93,8 +93,7 @@ export const logOrphanReport = internalMutation({
       args.orphanCount > 0
         ? "storage.orphaned_objects_detected"
         : "storage.orphan_scan_clean";
-    // Durable dashboard-visible log; backend telemetry is recorded by the
-    // sweep action (Sentry lives behind a "use node" module).
+    // Durable dashboard-visible log of every sweep.
     console.log("[workflow/orphanSweep]", message, args);
     return null;
   },

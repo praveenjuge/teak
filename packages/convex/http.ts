@@ -1,5 +1,5 @@
 import { httpRouter } from "convex/server";
-import { polar } from "./billing";
+import { polar, polarWebhookEvents } from "./billing";
 import { mcpV1, oauthProtectedResourceV1 } from "./mcp/httpServer";
 import { duplicateCardV1 } from "./publicApiDuplicate";
 import { exportsV1 } from "./publicApiExports";
@@ -46,7 +46,7 @@ http.route({
 });
 
 // Register the webhook handler at /polar/events
-polar.registerRoutes(http as any);
+polar.registerRoutes(http as any, { events: polarWebhookEvents });
 
 // Register public API v1 routes.
 http.route({ path: "/v1/me", method: "GET", handler: meV1 });

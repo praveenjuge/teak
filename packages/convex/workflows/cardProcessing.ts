@@ -11,7 +11,6 @@
 import type { RetryBehavior } from "@convex-dev/workpool";
 import { v } from "convex/values";
 import { internal } from "../_generated/api";
-import { type AiPipelineStage, trackAiStage } from "../shared/metrics";
 import { workflow } from "./manager";
 
 // Helper to get properly typed internal references
@@ -41,8 +40,6 @@ export const RENDERABLES_STEP_RETRY: RetryBehavior = {
 
 const PIPELINE_LOG_PREFIX = "[workflow/cardProcessing]";
 
-type StageOutcome = "ok" | "error" | "skipped";
-
 export const resolveCardProcessingDurationMs = (
   creationTime: number | undefined,
   now = Date.now()
@@ -70,40 +67,6 @@ export const createMissingCardWorkflowResult = () => ({
   mode: "skipped" as const,
   reason: "card_missing" as const,
 });
-
-async function timeStage<T>(
-  stage: AiPipelineStage,
-  cardType: string | undefined,
-  fn: () => Promise<T>
-): Promise<T> {
-  const start = Date.now();
-  let outcome: StageOutcome = "ok";
-  let errorClass: string | undefined;
-  try {
-    const result = await fn();
-    if (
-      result &&
-      typeof result === "object" &&
-      "mode" in result &&
-      (result.mode === "skipped" || result.mode === "missing")
-    ) {
-      outcome = "skipped";
-    }
-    return result;
-  } catch (error) {
-    outcome = "error";
-    errorClass = error instanceof Error ? error.name : "UnknownError";
-    throw error;
-  } finally {
-    trackAiStage({
-      stage,
-      durationMs: Date.now() - start,
-      outcome,
-      cardType,
-      errorClass,
-    });
-  }
-}
 
 /**
  * Main Card Processing Workflow
@@ -155,11 +118,6 @@ export const cardProcessingWorkflow: any = workflow.define({
     );
 
     if (!initialCard) {
-      trackAiStage({
-        stage: "classification",
-        durationMs: 0,
-        outcome: "skipped",
-      });
       return createMissingCardWorkflowResult();
     }
 
@@ -186,11 +144,9 @@ export const cardProcessingWorkflow: any = workflow.define({
               initialCard.type ?? ""
             ),
           }
-        : await timeStage("classification", initialCard?.type, () =>
-            step.runAction(
-              internalWorkflow["workflows/steps/classification"].classify,
-              { cardId }
-            )
+        : await step.runAction(
+            internalWorkflow["workflows/steps/classification"].classify,
+            { cardId }
           );
 
     if (classification.mode === "skipped") {
@@ -208,13 +164,11 @@ export const cardProcessingWorkflow: any = workflow.define({
         linkMetadataCard?.metadataStatus === "pending";
 
       if (needsLinkMetadata) {
-        await timeStage("link_metadata", classification.type, () =>
-          step.runAction(
-            internalWorkflow["workflows/steps/linkMetadata/fetchMetadata"]
-              .fetchMetadata,
-            { cardId },
-            { retry: LINK_METADATA_STEP_RETRY }
-          )
+        await step.runAction(
+          internalWorkflow["workflows/steps/linkMetadata/fetchMetadata"]
+            .fetchMetadata,
+          { cardId },
+          { retry: LINK_METADATA_STEP_RETRY }
         );
       }
     }
@@ -223,62 +177,57 @@ export const cardProcessingWorkflow: any = workflow.define({
     // Wait for link metadata extraction if needed, then categorize and enrich
     let categorization: { category: string; confidence: number } | undefined;
     if (classification.shouldCategorize) {
-      const categorizationOutcome = await timeStage(
-        "categorization",
-        classification.type,
-        async () => {
-          const classifyStepResult = await step.runAction(
+      const categorizationOutcome = await (async () => {
+        const classifyStepResult = await step.runAction(
+          internalWorkflow["workflows/steps/categorization/index"].classifyStep,
+          { cardId, ...artifactOwner },
+          { retry: LINK_ENRICHMENT_STEP_RETRY }
+        );
+
+        if (classifyStepResult.mode === "missing") {
+          return null;
+        }
+
+        let structuredData: unknown = null;
+        if (
+          classifyStepResult.mode === "classified" &&
+          classifyStepResult.shouldFetchStructured
+        ) {
+          const structuredResult = await step.runAction(
             internalWorkflow["workflows/steps/categorization/index"]
-              .classifyStep,
-            { cardId, ...artifactOwner },
-            { retry: LINK_ENRICHMENT_STEP_RETRY }
-          );
-
-          if (classifyStepResult.mode === "missing") {
-            return null;
-          }
-
-          let structuredData: unknown = null;
-          if (
-            classifyStepResult.mode === "classified" &&
-            classifyStepResult.shouldFetchStructured
-          ) {
-            const structuredResult = await step.runAction(
-              internalWorkflow["workflows/steps/categorization/index"]
-                .fetchStructuredDataStep,
-              {
-                cardId,
-                sourceUrl: classifyStepResult.sourceUrl,
-                shouldFetch: true,
-                ...artifactOwner,
-              },
-              { retry: LINK_ENRICHMENT_STEP_RETRY }
-            );
-            structuredData = structuredResult.structuredData ?? null;
-          }
-
-          const categorizationResult = await step.runAction(
-            internalWorkflow["workflows/steps/categorization/index"]
-              .mergeAndSaveStep,
+              .fetchStructuredDataStep,
             {
               cardId,
-              card: classifyStepResult.card,
               sourceUrl: classifyStepResult.sourceUrl,
-              mode: classifyStepResult.mode,
-              classification: classifyStepResult.classification,
-              existingMetadata: classifyStepResult.existingMetadata,
-              structuredData,
+              shouldFetch: true,
               ...artifactOwner,
             },
             { retry: LINK_ENRICHMENT_STEP_RETRY }
           );
-
-          return {
-            category: categorizationResult.category,
-            confidence: categorizationResult.confidence,
-          };
+          structuredData = structuredResult.structuredData ?? null;
         }
-      );
+
+        const categorizationResult = await step.runAction(
+          internalWorkflow["workflows/steps/categorization/index"]
+            .mergeAndSaveStep,
+          {
+            cardId,
+            card: classifyStepResult.card,
+            sourceUrl: classifyStepResult.sourceUrl,
+            mode: classifyStepResult.mode,
+            classification: classifyStepResult.classification,
+            existingMetadata: classifyStepResult.existingMetadata,
+            structuredData,
+            ...artifactOwner,
+          },
+          { retry: LINK_ENRICHMENT_STEP_RETRY }
+        );
+
+        return {
+          category: categorizationResult.category,
+          confidence: categorizationResult.confidence,
+        };
+      })();
       if (!categorizationOutcome) {
         return createMissingCardWorkflowResult();
       }
@@ -292,12 +241,10 @@ export const cardProcessingWorkflow: any = workflow.define({
     let renderablesResult: any = null;
     const runRenderablesStep = async () => {
       try {
-        return await timeStage("renderables", classification.type, () =>
-          step.runAction(
-            internalWorkflow["workflows/steps/renderables"].generate,
-            { cardId, cardType: classification.type },
-            { retry: RENDERABLES_STEP_RETRY }
-          )
+        return await step.runAction(
+          internalWorkflow["workflows/steps/renderables"].generate,
+          { cardId, cardType: classification.type },
+          { retry: RENDERABLES_STEP_RETRY }
         );
       } catch (error) {
         console.error(`${PIPELINE_LOG_PREFIX} Renderables exhausted retries`, {
@@ -323,43 +270,33 @@ export const cardProcessingWorkflow: any = workflow.define({
         : null;
 
       if (classification.type === "image") {
-        await timeStage("palette", classification.type, () =>
-          step
-            .runAction(
-              internalWorkflow["workflows/steps/palette"]
-                .extractPaletteFromImage,
-              { cardId }
-            )
-            .catch((error: unknown) => {
-              console.error(
-                `${PIPELINE_LOG_PREFIX} Palette extraction failed`,
-                {
-                  cardId,
-                  error,
-                }
-              );
-              return null;
-            })
-        );
+        await step
+          .runAction(
+            internalWorkflow["workflows/steps/palette"].extractPaletteFromImage,
+            { cardId }
+          )
+          .catch((error: unknown) => {
+            console.error(`${PIPELINE_LOG_PREFIX} Palette extraction failed`, {
+              cardId,
+              error,
+            });
+            return null;
+          });
       }
 
       metadataResult = classification.shouldGenerateMetadata
-        ? await timeStage("ai_metadata", classification.type, () =>
-            step.runAction(
-              internalWorkflow["workflows/steps/metadata"].generate,
-              { cardId, cardType: classification.type },
-              { retry: METADATA_STEP_RETRY }
-            )
+        ? await step.runAction(
+            internalWorkflow["workflows/steps/metadata"].generate,
+            { cardId, cardType: classification.type },
+            { retry: METADATA_STEP_RETRY }
           )
         : null;
     } else {
       const metadataPromise = classification.shouldGenerateMetadata
-        ? timeStage("ai_metadata", classification.type, () =>
-            step.runAction(
-              internalWorkflow["workflows/steps/metadata"].generate,
-              { cardId, cardType: classification.type },
-              { retry: METADATA_STEP_RETRY }
-            )
+        ? step.runAction(
+            internalWorkflow["workflows/steps/metadata"].generate,
+            { cardId, cardType: classification.type },
+            { retry: METADATA_STEP_RETRY }
           )
         : Promise.resolve(null);
 

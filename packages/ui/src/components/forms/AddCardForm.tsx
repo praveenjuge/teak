@@ -1,7 +1,7 @@
 import { api } from "@teak/convex";
 import type { Doc, Id } from "@teak/convex/_generated/dataModel";
 import { CARD_ERROR_CODES } from "@teak/convex/shared";
-import { trackCardCreateAttempt } from "@teak/convex/shared/metrics";
+import { captureEvent } from "@teak/convex/shared/analytics";
 import { Button } from "@teak/ui/components/ui/button";
 import { Card, CardContent } from "@teak/ui/components/ui/card";
 import {
@@ -216,8 +216,8 @@ export function AddCardForm({
     resetDraft();
 
     const toastId = toast.loading("Saving note...");
-    trackCardCreateAttempt({
-      cardType: "text",
+    captureEvent("card_create_submitted", {
+      card_type: "text",
       source: "web",
       via: "text_form",
     });

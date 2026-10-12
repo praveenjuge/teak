@@ -14,7 +14,7 @@ final class AppServices {
     var openSettingsWindow: (() -> Void)?
 
     private init() {
-        SentryReporting.start()
+        PostHogReporting.start()
         app = AppModel()
         capture = CaptureModel(backend: app.backend)
         home = LibraryModel(backend: app.backend)

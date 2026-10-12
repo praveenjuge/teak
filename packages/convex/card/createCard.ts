@@ -16,7 +16,7 @@ import {
   requireTeakUserId,
   type TeakUserId,
 } from "../securitySessions";
-import type { CardCreationSource } from "../shared/metrics";
+import type { CardCreationSource } from "../shared/analytics";
 import { normalizeErrorClass } from "../shared/telemetry";
 import { assertSafeExternalUrl } from "../shared/utils/safeUrl";
 import { buildR2UserPrefix } from "../storage/r2";

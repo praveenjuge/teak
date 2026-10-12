@@ -1,7 +1,28 @@
+import {
+  type ClientEventName,
+  configureAnalytics,
+} from "@teak/convex/shared/analytics";
+import { configureClientTelemetry } from "@teak/convex/shared/client-telemetry";
 import React from "react";
 import ReactDOM from "react-dom/client";
+import {
+  captureExtensionEvent,
+  captureExtensionException,
+  reportUncaughtErrors,
+} from "../../lib/telemetry";
 import App from "./App.tsx";
 import "../../style.css";
+
+reportUncaughtErrors(window, "popup");
+// Shared @teak/ui code reports through the same fetch-only sender.
+configureClientTelemetry({
+  captureException: (error, attributes) =>
+    void captureExtensionException(error, { ...attributes, context: "popup" }),
+});
+configureAnalytics({
+  capture: (event, properties) =>
+    void captureExtensionEvent(event as ClientEventName, properties),
+});
 
 const rootElement = document.getElementById("root");
 if (!rootElement) {

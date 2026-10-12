@@ -7,7 +7,7 @@ import {
 } from "../../../shared/client_telemetry";
 
 describe("defaults", () => {
-  test("uses default sentry capture without error", async () => {
+  test("uses the default no-op error capture without error", async () => {
     const _actions = createCardActions({
       updateCardField: mock(),
       permanentDeleteCard: mock(),
@@ -30,7 +30,7 @@ describe("createCardActions", () => {
   const mockOnRestoreSuccess = mock();
   const mockOnPermanentDeleteSuccess = mock();
   const mockOnError = mock();
-  const mockSentryCapture = mock();
+  const mockCaptureException = mock();
 
   const dependencies = {
     permanentDeleteCard: mockPermanentDeleteCard,
@@ -50,8 +50,8 @@ describe("createCardActions", () => {
     mockOnRestoreSuccess.mockReset();
     mockOnPermanentDeleteSuccess.mockReset();
     mockOnError.mockReset();
-    mockSentryCapture.mockReset();
-    configureClientTelemetry({ captureException: mockSentryCapture });
+    mockCaptureException.mockReset();
+    configureClientTelemetry({ captureException: mockCaptureException });
   });
 
   afterEach(() => {
@@ -118,12 +118,12 @@ describe("createCardActions", () => {
       expect(mockOnError).toHaveBeenCalledWith(error, "delete");
     });
 
-    test("captures exception in Sentry on error", async () => {
+    test("reports the exception on error", async () => {
       const error = new Error("fail");
       mockUpdateCardField.mockRejectedValue(error);
       await actions.handleDeleteCard("c1" as any);
-      expect(mockSentryCapture).toHaveBeenCalled();
-      const callArgs = mockSentryCapture.mock.calls[0];
+      expect(mockCaptureException).toHaveBeenCalled();
+      const callArgs = mockCaptureException.mock.calls[0];
       expect(callArgs[0]).toBe(error);
       expect(callArgs[1].operation).toBe("card.delete");
     });
@@ -132,7 +132,7 @@ describe("createCardActions", () => {
       const error = new Error("fail");
       mockUpdateCardField.mockRejectedValue(error);
       await actions.handleDeleteCard("c123" as any);
-      const callArgs = mockSentryCapture.mock.calls[0];
+      const callArgs = mockCaptureException.mock.calls[0];
       expect(JSON.stringify(callArgs[1])).not.toContain("c123");
     });
   });
@@ -167,12 +167,12 @@ describe("createCardActions", () => {
       expect(mockOnError).toHaveBeenCalledWith(error, "restore");
     });
 
-    test("captures exception in Sentry on error", async () => {
+    test("reports the exception on error", async () => {
       const error = new Error("fail");
       mockUpdateCardField.mockRejectedValue(error);
       await actions.handleRestoreCard("c1" as any);
-      expect(mockSentryCapture).toHaveBeenCalled();
-      const callArgs = mockSentryCapture.mock.calls[0];
+      expect(mockCaptureException).toHaveBeenCalled();
+      const callArgs = mockCaptureException.mock.calls[0];
       expect(callArgs[1].operation).toBe("card.restore");
     });
   });
@@ -259,12 +259,12 @@ describe("createCardActions", () => {
       expect(mockOnError).toHaveBeenCalledWith(error, "permanent delete");
     });
 
-    test("captures exception in Sentry on error", async () => {
+    test("reports the exception on error", async () => {
       const error = new Error("fail");
       mockPermanentDeleteCard.mockRejectedValue(error);
       await actions.handlePermanentDeleteCard("c1" as any);
-      expect(mockSentryCapture).toHaveBeenCalled();
-      const callArgs = mockSentryCapture.mock.calls[0];
+      expect(mockCaptureException).toHaveBeenCalled();
+      const callArgs = mockCaptureException.mock.calls[0];
       expect(callArgs[1].operation).toBe("card.permanent_delete");
     });
   });
@@ -286,12 +286,12 @@ describe("createCardActions", () => {
       expect(mockOnError).toHaveBeenCalledWith(error, "toggle favorite");
     });
 
-    test("captures exception in Sentry on error", async () => {
+    test("reports the exception on error", async () => {
       const error = new Error("fail");
       mockUpdateCardField.mockRejectedValue(error);
       await actions.handleToggleFavorite("c1" as any);
-      expect(mockSentryCapture).toHaveBeenCalled();
-      const callArgs = mockSentryCapture.mock.calls[0];
+      expect(mockCaptureException).toHaveBeenCalled();
+      const callArgs = mockCaptureException.mock.calls[0];
       expect(callArgs[1].operation).toBe("card.favorite");
     });
   });
@@ -381,12 +381,12 @@ describe("createCardActions", () => {
       expect(mockOnError).toHaveBeenCalledWith(error, "update notes");
     });
 
-    test("captures exception in Sentry on error", async () => {
+    test("reports the exception on error", async () => {
       const error = new Error("fail");
       mockUpdateCardField.mockRejectedValue(error);
       await actions.updateField("c1" as any, "content", "test");
-      expect(mockSentryCapture).toHaveBeenCalled();
-      const callArgs = mockSentryCapture.mock.calls[0];
+      expect(mockCaptureException).toHaveBeenCalled();
+      const callArgs = mockCaptureException.mock.calls[0];
       expect(callArgs[1].operation).toBe("card.update");
     });
 
@@ -394,7 +394,7 @@ describe("createCardActions", () => {
       const error = new Error("fail");
       mockUpdateCardField.mockRejectedValue(error);
       await actions.updateField("c1" as any, "url", "test");
-      const callArgs = mockSentryCapture.mock.calls[0];
+      const callArgs = mockCaptureException.mock.calls[0];
       expect(callArgs[1]).toEqual({
         "error.class": "UnknownError",
         field: "url",

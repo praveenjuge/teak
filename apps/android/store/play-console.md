@@ -56,23 +56,27 @@ No.
 - **Collects or shares any of the required data types:** yes.
 - **All collected data is encrypted in transit:** yes (HTTPS and WSS only).
 - **Users can request that data be deleted:** yes, in the app and on the web.
-- **Shared with third parties:** none. Convex, WorkOS, Cloudflare and Sentry act as service providers on our behalf, which Play doesn't count as sharing.
+- **Shared with third parties:** none. Convex, WorkOS, Cloudflare and PostHog act as service providers on our behalf, which Play doesn't count as sharing.
 
 ### Data types collected
 
 | Data type | Collected | Shared | Optional | Purposes |
 | --- | --- | --- | --- | --- |
 | Personal info: Name | Yes | No | No | Account management |
-| Personal info: Email address | Yes | No | No | Account management, App functionality |
-| Personal info: User IDs | Yes | No | No | Account management, App functionality |
+| Personal info: Email address | Yes | No | No | Account management, App functionality, Analytics |
+| Personal info: User IDs | Yes | No | No | Account management, App functionality, Analytics |
 | Photos and videos: Photos | Yes | No | Yes | App functionality |
 | Photos and videos: Videos | Yes | No | Yes | App functionality |
 | Audio: Voice or sound recordings | Yes | No | Yes | App functionality |
 | Audio: Other audio files | Yes | No | Yes | App functionality |
 | Files and docs | Yes | No | Yes | App functionality |
 | App activity: Other user-generated content (notes, links, tags) | Yes | No | Yes | App functionality |
+| App activity: App interactions | Yes | No | No | Analytics |
 | App info and performance: Crash logs | Yes | No | No | Analytics (stability) |
 | App info and performance: Diagnostics | Yes | No | No | Analytics (stability) |
+| Device or other IDs | Yes | No | No | Analytics |
+
+PostHog processes the analytics rows. Release builds send app open and close events and crash reports, linked to the Teak account ID with the email address as a person property, plus a random install ID that PostHog creates before sign-in. No advertising ID or hardware identifiers.
 
 ### Not collected
 
@@ -85,7 +89,6 @@ No.
 - Web browsing history
 - Search history (searches run on the server and aren't stored)
 - Installed apps
-- Device or other IDs (Sentry runs with `sendDefaultPii` off and no device identifiers)
 - Advertising ID
 
 ### Is data processed ephemerally?

@@ -1,4 +1,3 @@
-import { Analytics } from "@vercel/analytics/next";
 import type { Metadata } from "next";
 import "./globals.css";
 import { Toaster } from "@teak/ui/components/ui/sonner";
@@ -45,7 +44,6 @@ export default function RootLayout({ children }: PropsWithChildren) {
           <main className="mx-auto max-w-7xl px-4 pb-10">{children}</main>
           <Toaster position="bottom-center" />
         </ThemeProvider>
-        <Analytics debug={false} />
       </body>
     </html>
   );

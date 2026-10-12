@@ -1,6 +1,5 @@
 import { api } from "@teak/convex";
 import type { Id } from "@teak/convex/_generated/dataModel";
-import { recordClientOutcome } from "@teak/convex/shared/client-telemetry";
 import { useAction } from "convex/react";
 import type { CSSProperties, ImgHTMLAttributes, SyntheticEvent } from "react";
 import { useEffect, useState } from "react";
@@ -62,20 +61,8 @@ export function ResilientMediaImage({
       });
       setDisplaySrcSet(undefined);
       setDisplaySrc(appendMediaRetryParam(url));
-      recordClientOutcome({
-        attributes: { "media.rendition": rendition ?? "original" },
-        category: "media",
-        message: "Media URL recovered",
-        outcome: "success",
-      });
     } catch {
       setFailed(true);
-      recordClientOutcome({
-        attributes: { "media.rendition": rendition ?? "original" },
-        category: "media",
-        message: "Media URL recovery failed",
-        outcome: "failure",
-      });
       onPermanentError?.(event);
     }
   };
