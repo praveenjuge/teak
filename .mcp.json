@@ -1,18 +1,11 @@
 {
   "mcpServers": {
-    "playwright-test": {
+    "e2e": {
       "command": "bun",
-      "args": [
-        "--cwd=packages/tests",
-        "x",
-        "playwright",
-        "run-test-mcp-server",
-        "--headless"
-      ]
-    },
-    "playwright": {
-      "command": "bunx",
-      "args": ["@playwright/mcp@0.0.83", "--headless"]
+      "args": ["x", "e2e", "mcp", "--config", "packages/tests/e2e.config.ts"],
+      "env": {
+        "E2E_TELEMETRY_DISABLED": "1"
+      }
     },
     "workos": {
       "type": "http",

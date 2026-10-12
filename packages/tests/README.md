@@ -1,6 +1,6 @@
 # Teak E2E tests
 
-Playwright journeys across Teak's web app, REST API, CLI and MCP server, run against this checkout's own local E2E stack (`src/stack/`). The stack exists only for this suite and the clean-container smoke; development always uses the shared cloud dev deployment (`bun run dev`), which the suite never touches:
+[e2e](https://e2e.tester.army/docs) journeys across Teak's web app, REST API, CLI and MCP server, run against this checkout's own local E2E stack (`src/stack/`). The stack exists only for this suite and the clean-container smoke; development always uses the shared cloud dev deployment (`bun run dev`), which the suite never touches:
 
 - the official WorkOS emulator ([`@workos/emulate`](https://www.npmjs.com/package/@workos/emulate)), standing in for hosted AuthKit,
 - a local Convex backend (API and webhooks on the next port),
@@ -8,28 +8,50 @@ Playwright journeys across Teak's web app, REST API, CLI and MCP server, run aga
 
 It needs no secrets. Every WorkOS value is a test-only constant in `src/stack/config.ts`, and the emulator keeps all of it in memory. The main checkout uses web 3000, Convex 3210/3211 and the emulator 4100/4101; each linked worktree uses its own ports, so the suite runs in any worktree.
 
+The specs drive the browser with locators and exact `expect` assertions only. They run no agent steps, so the suite needs no model or API key. The e2e skill (`.agents/skills/e2e/`) covers writing and running specs, and the full docs ship in `node_modules/e2e/docs`.
+
 ## Run it
 
 From the repo root, with this checkout's stack stopped (`bun run dev --stop`):
 
 ```bash
 bun install
-(cd packages/tests && bunx playwright install chromium firefox webkit)   # once
+(cd packages/tests && bunx e2e-web install chromium webkit)   # once
 bun run --cwd packages/tests e2e
 ```
 
-`e2e` checks the pinned runtimes and packages, sets up the local backend (`src/stack/backend.ts`), starts the stack, runs the journey and browser-matrix projects, and stops everything. The `web` project is not in the gating run yet; run it with `bun run --cwd packages/tests e2e --project=web`. Pass Playwright arguments to narrow it, for example `bun run --cwd packages/tests e2e --project=journey-api`.
+`e2e` checks the pinned runtimes and packages, sets up the local backend (`src/stack/backend.ts`), starts the stack, warms it up (`e2e.warmup.config.ts`), runs the Chromium suite (`e2e.config.ts`) and the WebKit half of the browser matrix (`e2e.webkit.config.ts`), and stops everything. Pass `e2e run` arguments to run something narrower instead, for example `bun run --cwd packages/tests e2e src/journey/03-api.e2e.ts` or `bun run --cwd packages/tests e2e -- --grep editor`.
 
-To iterate, keep the stack up in one terminal and run Playwright in another:
+To iterate, keep the stack up in one terminal and run e2e in another:
 
 ```bash
 bun run --cwd packages/tests e2e:stack
-cd packages/tests && bunx playwright test --project=web
+cd packages/tests && E2E_TELEMETRY_DISABLED=1 bunx e2e run src/web/markdown-editor.e2e.ts:42
 ```
 
-A running stack records its URLs in `.agents/.state/stack.json`, which the suite reads, and logs to `.agents/.state/stack.log`.
+A running stack records its URLs in `.agents/.state/stack.json`, which the configs and helpers read, and logs to `.agents/.state/stack.log`. A failed test prints the path of its trace page (`.e2e/<suite>/results/<test>/trace.md`): every step with what it hit, the app's console errors and failed requests, and the screen at the failure. Add `--headed` to watch a run.
 
-The `E2E` workflow (`.github/workflows/e2e.yml`) runs the same command daily and on demand (not on pull requests or pushes), and uploads the report, traces and stack log when it fails. An on-demand run takes Playwright arguments, for example `gh workflow run e2e.yml -f playwright_args='--project=web'`. The `Clean Container Smoke` workflow (`.github/workflows/clean-smoke.yml`) runs `--project=matrix-chromium` from a clean checkout on every pull request.
+The `E2E` workflow (`.github/workflows/e2e.yml`) runs the same command daily and on demand (not on pull requests or pushes), and uploads `.e2e/` and the stack log. An on-demand run takes e2e arguments, for example `gh workflow run e2e.yml -f e2e_args='src/web'`. The `Clean Container Smoke` workflow (`.github/workflows/clean-smoke.yml`) runs `src/matrix` in Chromium from a clean checkout on every pull request and posts the result on it.
+
+## Suites
+
+Each config runs its own directories and writes to its own `.e2e/<suite>/`:
+
+| Config | Runs | Against |
+| --- | --- | --- |
+| `e2e.warmup.config.ts` | `src/warmup/`: compiles the signed-in routes and loads the backend modules once | the local stack |
+| `e2e.config.ts` | `src/journey/`, `src/web/`, `src/matrix/` in Chromium | the local stack |
+| `e2e.webkit.config.ts` | `src/matrix/` in WebKit | the local stack |
+| `e2e.docs.config.ts` | `src/docs/`: read-only checks of the published site and Teak's public production endpoints (`bun run --cwd packages/tests e2e:docs`); the `E2E` workflow runs it daily | production, no stack |
+| `e2e.hermetic.config.ts` | `src/auth-runtime/` and `src/extension/`: the WorkOS consent and Security dialog flows and the extension's OAuth module, with every request answered by fixtures (`bun run --cwd packages/tests e2e:hermetic`); the `Extension OAuth Runtime` workflow runs it when those files change | nothing; `TEAK_E2E_HERMETIC=1` |
+
+Files in a suite run in parallel and share nothing: every spec makes its own accounts. Tests inside a file run in order on one worker, and a `describe(..., { serial: true })` group shares one browser and its module state, for flows such as sign-up, sign-out and account deletion.
+
+| Directory | Covers |
+| --- | --- |
+| `src/journey/` | Sign-up through the verification code; cards, search, filters, favorites, tags, trash and restore, bulk actions, the editor, deep links, link metadata; the REST API with OpenAPI checks, the CLI from this checkout, every public MCP tool, contention; cross-tenant access, revoked keys, hostile input, security headers, the session cookie; axe scans of `/` and `/settings`; password reset, sign-out, account deletion and dead credentials afterward |
+| `src/web/` | Markdown editor, WebMCP, sign-in entry routing, settings navigation and layout, composer save shortcut |
+| `src/matrix/` | Sign-up, create and search in each engine |
 
 ## How the stack is wired
 
@@ -48,28 +70,24 @@ The backend runs with `convex dev --once --start`, so the suite's own file write
 
 ## Accounts
 
-Accounts are real WorkOS users in the emulator. Creating one through the emulator API sends a signed `user.created` webhook, which gives the address a Teak vault, and the test then signs in through the hosted login page (`src/helpers/app.ts`). The primary setup account starts unverified, so its first sign-in goes through the emailed verification code. The emulator never sends email: codes and reset tokens are read from its `/events` API (`src/helpers/emulator.ts`). API keys come from Settings, the way people create them.
+Accounts are real WorkOS users in the emulator. Creating one through the emulator API sends a signed `user.created` webhook, which gives the address a Teak vault. Browser specs then sign in through the hosted login page (`signIn` and `createAccount` in `src/helpers/app.ts`); the sign-up journey's account starts unverified, so its first sign-in goes through the emailed verification code. The emulator never sends email: codes and reset tokens are read from its `/events` API (`src/helpers/emulator.ts`). API keys come from Settings, the way people create them, except in the API, CLI and MCP specs, which never open a browser: `createApiAccount` calls the same mutation Settings does, signed in with the emulator's password grant.
 
-Each project's tests sign in fresh instead of reusing saved cookies, which go stale once the client refreshes its session.
+Tests sign in fresh instead of reusing saved cookies, which go stale once the client refreshes its session.
 
-## Projects
+## What e2e doesn't do, and the stand-ins
 
-| Project | Covers |
-| --- | --- |
-| `journey-setup` | Sign-up through webhooks and the verification code; one account and API key per surface |
-| `journey-web-core`, `journey-web-surfaces`, `journey-web-filters` | Cards, search, filters, favorites, tags, trash and restore, bulk actions, the editor, deep links, link metadata |
-| `journey-api`, `journey-cli`, `journey-mcp` | REST API with OpenAPI checks, the CLI from this checkout, every public MCP tool, contention and rate limits |
-| `journey-security` | Cross-tenant access, revoked keys, hostile input, security headers, session cookie |
-| `journey-a11y` | axe scans of `/` and `/settings` |
-| `journey-account`, `journey-delete`, `journey-post-delete` | Password reset from the emailed token, sign-out, account deletion through Settings, dead credentials afterward |
-| `web` | Markdown editor, WebMCP, sign-in entry routing, settings navigation, composer save shortcut |
-| `matrix-chromium`, `matrix-firefox`, `matrix-webkit` | Sign-up, create and search in each engine |
-| `docs` | Read-only checks of the published site and Teak's public production endpoints (`bun run --cwd packages/tests e2e:docs`); needs no stack, and the workflow runs it daily |
+`src/helpers/page-hooks.ts` covers the Playwright features the specs used that e2e doesn't have, with init scripts in the page:
+
+- `capturePageErrors` records uncaught errors and unhandled rejections (Playwright's `pageerror`).
+- `blockAndRecordRequests` records and aborts requests to a URL pattern (the `request` event, for "never fetched" checks).
+- `routeConvexSocket` routes the browser's Convex sync socket through interceptors that run in the page: a backend that can't be reached, an injected mutation failure, a rewritten query result (`routeWebSocket`).
+
+`retry` and `firstVisible` in `src/helpers/test.ts` stand in for `expect(...).toPass()` and `locator.or()`. Each test has one page: a second user signs in after `app.clearState()`, or the check runs at the API.
 
 ## What the local stack doesn't cover
 
 - **File uploads, previews, renditions, import/export and AI metadata.** They need the Files Worker, R2 and Workers AI, which the local stack doesn't run. Card metadata stays `pending`, and the specs don't depend on it.
 - **AuthKit Actions** (the sign-up freeze registration action). The emulator doesn't run Actions; `packages/convex/workosAuthKit.test.ts` covers it.
-- **WorkOS Connect OAuth** for the CLI, extensions, Raycast and MCP. The emulator's Connect flow has no PKCE or refresh tokens. The API, CLI and MCP journeys use Teak API keys, and the browser OAuth flows have hermetic checks: `bun run --cwd packages/tests e2e:auth:runtime`, `e2e:extension:runtime`, and the `extension-oauth-runtime.yml` and `mac-oauth-runtime.yml` workflows.
+- **WorkOS Connect OAuth** for the CLI, extensions, Raycast and MCP. The emulator's Connect flow has no PKCE or refresh tokens. The API, CLI and MCP journeys use Teak API keys, and the browser OAuth flows have hermetic checks: `bun run --cwd packages/tests e2e:hermetic`, and the `extension-oauth-runtime.yml` and `mac-oauth-runtime.yml` workflows.
 - **Billing.** Polar checkout needs Polar credentials.
-- **The browser extension and desktop app.** They sign in with WorkOS Connect.
+- **The browser extension and desktop app.** They sign in with WorkOS Connect, and e2e can't load a browser extension.

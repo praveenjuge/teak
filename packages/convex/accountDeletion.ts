@@ -9,6 +9,7 @@ import {
   mutation,
   type QueryCtx,
 } from "./_generated/server";
+import type { DeletionBatchKind } from "./accountDeletionBatch";
 import { removeCardUsage } from "./card/cardUsage";
 import { readAccountChangesPaused } from "./env";
 import { findLegacyBetterAuthUser } from "./legacyBetterAuth";
@@ -111,6 +112,40 @@ export const withOptimisticConcurrencyRetry = async <T>(
   }
 };
 
+// How long one account-deletion workflow step keeps draining storage pages
+// before it yields. Every page is still its own fenced prepare/checkpoint
+// pair, so a crash or retry resumes from the last checkpoint. Draining many
+// pages per step keeps an account with many cards from costing one workflow
+// step, and one wait in the shared workflow queue, per card.
+export const ACCOUNT_DELETION_DRAIN_BUDGET_MS = 20_000;
+
+/**
+ * Drain each kind in order, one bounded page at a time, until every kind is
+ * empty (true) or the budget runs out (false: the caller yields and runs
+ * again).
+ */
+export const drainStorageWithinBudget = async (
+  ctx: Pick<ActionCtx, "runAction">,
+  binding: { stateId: Id<"accountDeletionStates">; generation: number },
+  kinds: readonly DeletionBatchKind[],
+  now: () => number = Date.now
+): Promise<boolean> => {
+  const deadline = now() + ACCOUNT_DELETION_DRAIN_BUDGET_MS;
+  for (const kind of kinds) {
+    while (
+      !(await ctx.runAction(internal.accountDeletionData.drainStorageBatch, {
+        ...binding,
+        kind,
+      }))
+    ) {
+      if (now() >= deadline) {
+        return false;
+      }
+    }
+  }
+  return true;
+};
+
 export interface AccountImportDeletionObject {
   reportKey?: string;
   sourceKey: string;
@@ -153,18 +188,17 @@ export const runAccountDataDeletion = (
         userId,
       });
       if (boundedDeletion) {
-        for (const kind of ["cards", "imports"] as const) {
-          const empty: boolean = await ctx.runAction(
-            internal.accountDeletionData.drainStorageBatch,
-            { ...boundedDeletion, kind }
-          );
-          if (!empty) {
-            return {
-              done: false,
-              deletedCards: 0,
-              deletedStorageObjectCount: 0,
-            };
-          }
+        if (
+          !(await drainStorageWithinBudget(ctx, boundedDeletion, [
+            "cards",
+            "imports",
+          ]))
+        ) {
+          return {
+            done: false,
+            deletedCards: 0,
+            deletedStorageObjectCount: 0,
+          };
         }
         await ctx.runMutation(internal.accountDeletion.removeAccountCardUsage, {
           userId,

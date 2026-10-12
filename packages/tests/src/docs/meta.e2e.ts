@@ -1,5 +1,5 @@
-import { expect, test } from "@playwright/test";
 import { published } from "../helpers/env";
+import { expect, test } from "../helpers/test";
 
 test("llms, OpenAPI, and OAuth metadata are fresh", async () => {
   const llmsResponse = await fetch(`${published.siteUrl}/llms.txt`);

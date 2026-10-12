@@ -10,12 +10,14 @@ type E2eUrls = Required<StackUrls>;
 
 // Hermetic suites (auth-runtime) route every request themselves. They opt in
 // with TEAK_E2E_HERMETIC=1 and get origins on a reserved TLD that no real
-// server answers, so they never reach a running stack.
+// server answers, so they never reach a running stack. They are HTTPS because
+// e2e opens plain HTTP only on loopback hosts; routes answer every request,
+// so no TLS handshake ever happens.
 export const FIXTURE_URLS: E2eUrls = {
-  appOrigin: "http://app.teak-fixture.test",
-  apiOrigin: "http://api.teak-fixture.test",
-  convexUrl: "http://convex.teak-fixture.test",
-  emulatorOrigin: "http://workos.teak-fixture.test",
+  appOrigin: "https://app.teak-fixture.test",
+  apiOrigin: "https://api.teak-fixture.test",
+  convexUrl: "https://convex.teak-fixture.test",
+  emulatorOrigin: "https://workos.teak-fixture.test",
 };
 
 /**
@@ -43,8 +45,19 @@ export const resolveStackUrls = (
   return { ...state.urls, emulatorOrigin };
 };
 
-// Playwright loads this file under Node, so the root comes from import.meta.url.
+// e2e loads this file under Node, so the root comes from import.meta.url.
 const ROOT = fileURLToPath(new URL("../../../../", import.meta.url));
+
+/**
+ * The web app's origin for the configs' targets. The config loads before any
+ * test, so a stack that isn't running yet falls back to the main checkout's
+ * port; the tests' own URLs fail with the remedy (see resolveStackUrls).
+ */
+export const stackAppUrl = (): string =>
+  readStackState(ROOT)?.urls.appOrigin ?? "http://localhost:3000";
+
+/** Which stack this checkout runs, if any: the E2E stack or the dev stack. */
+export const stackMode = () => readStackState(ROOT)?.mode;
 
 let urls: E2eUrls | undefined;
 const current = () => {

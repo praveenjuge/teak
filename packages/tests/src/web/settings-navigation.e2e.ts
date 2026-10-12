@@ -1,110 +1,106 @@
+import { gotoApp } from "../helpers/app";
 import { expect, test } from "./fixtures";
 import { observeNavigation } from "./navigation-observer";
 
 test("preserves home through ten warm settings round trips", async ({
-  page,
+  browser,
+  screen,
+  webAccount: _signedIn,
 }) => {
   // Right after sign-in, the first trip to settings remounts the composer.
   // Make that trip before typing, so every trip below takes the warm path,
   // where Next.js keeps home hidden in <Activity> and shows it again.
-  await page.getByRole("link", { name: "Settings", exact: true }).click();
-  await expect(
-    page.getByRole("heading", { name: "Settings", exact: true })
-  ).toBeVisible();
-  await page.getByRole("link", { name: /back/i }).click();
-  const draft = page
+  await screen.getByRole("link", "Settings").click();
+  await expect(screen.getByRole("heading", "Settings")).toBeVisible();
+  await screen.getByRole("link", /back/i).click();
+  const draft = browser
     .locator('form[data-card-creation-status="ready"]')
-    .getByRole("textbox", { name: "Markdown content" });
+    .getByRole("textbox", "Markdown content", { exact: false });
   await draft.fill("Navigation draft — do not save");
   await expect(draft).toHaveText("Navigation draft — do not save");
-  await page.getByRole("link", { name: "Settings", exact: true }).click();
-  await expect(
-    page.getByRole("heading", { name: "Settings", exact: true })
-  ).toBeVisible();
-  await expect(page.getByRole("button", { name: /@/i }).first()).toBeVisible();
-  await expect(page.locator('[data-slot="page-loading"]')).toHaveCount(0);
-  await page.getByRole("link", { name: /back/i }).click();
+  await screen.getByRole("link", "Settings").click();
+  await expect(screen.getByRole("heading", "Settings")).toBeVisible();
+  await expect(screen.getByRole("button", /@/i).first()).toBeVisible();
+  await expect(browser.locator('[data-slot="page-loading"]')).toHaveCount(0);
+  await screen.getByRole("link", /back/i).click();
   await expect(draft).toHaveText("Navigation draft — do not save");
 
   for (let index = 0; index < 10; index++) {
     const toSettings = await observeNavigation(
-      page,
-      () => page.getByRole("link", { name: "Settings", exact: true }).click(),
-      () =>
-        expect(
-          page.getByRole("heading", { name: "Settings", exact: true })
-        ).toBeVisible()
+      browser,
+      () => screen.getByRole("link", "Settings").click(),
+      () => expect(screen.getByRole("heading", "Settings")).toBeVisible()
     );
     expect(toSettings.loading).toEqual([]);
 
     const toHome = await observeNavigation(
-      page,
-      () => page.getByRole("link", { name: /back/i }).click(),
+      browser,
+      () => screen.getByRole("link", /back/i).click(),
       () => expect(draft).toHaveText("Navigation draft — do not save")
     );
     expect(toHome.loading).toEqual([]);
   }
 
-  const search = page.getByRole("searchbox", {
-    name: "Search for anything...",
+  const search = screen.getByRole("searchbox", "Search for anything...", {
+    exact: false,
   });
   await search.fill("navigation search");
-  await page.evaluate(() => {
+  await browser.evaluate(() => {
     const settingsLink = document.querySelector<HTMLAnchorElement>(
       'a[aria-label="Settings"]'
     );
     settingsLink?.click();
+    return null;
   });
-  await expect(
-    page.getByRole("heading", { name: "Settings", exact: true })
-  ).toBeVisible();
-  await page.getByRole("link", { name: /back/i }).click();
+  await expect(screen.getByRole("heading", "Settings")).toBeVisible();
+  await screen.getByRole("link", /back/i).click();
   await expect(search).toHaveValue("navigation search");
   await search.fill("");
   await expect(draft).toHaveText("Navigation draft — do not save");
 
-  await page.evaluate(() => {
+  await browser.evaluate(() => {
     const spacer = document.createElement("div");
     spacer.dataset.navigationTestSpacer = "";
     spacer.style.height = "2000px";
     document.body.append(spacer);
     window.scrollTo(0, 600);
+    return null;
   });
-  await expect.poll(() => page.evaluate(() => window.scrollY)).toBe(600);
-  await page.evaluate(() => {
+  await expect.poll(() => browser.evaluate(() => window.scrollY)).toBe(600);
+  await browser.evaluate(() => {
     document
       .querySelector<HTMLAnchorElement>('a[aria-label="Settings"]')
       ?.click();
+    return null;
   });
-  await expect(
-    page.getByRole("heading", { name: "Settings", exact: true })
-  ).toBeVisible();
-  await page.getByRole("link", { name: /back/i }).click();
-  await expect.poll(() => page.evaluate(() => window.scrollY)).toBe(600);
-  await page
-    .locator("[data-navigation-test-spacer]")
-    .evaluate((node) => node.remove());
+  await expect(screen.getByRole("heading", "Settings")).toBeVisible();
+  await screen.getByRole("link", /back/i).click();
+  await expect.poll(() => browser.evaluate(() => window.scrollY)).toBe(600);
+  await browser.evaluate(() => {
+    const spacer = document.querySelector("[data-navigation-test-spacer]");
+    if (!spacer) {
+      throw new Error("navigation test spacer is missing");
+    }
+    spacer.remove();
+    return null;
+  });
 
-  await page.getByRole("link", { name: "Settings", exact: true }).click();
-  await expect(
-    page.getByRole("heading", { name: "Settings", exact: true })
-  ).toBeVisible();
-  await page.goBack();
+  await screen.getByRole("link", "Settings").click();
+  await expect(screen.getByRole("heading", "Settings")).toBeVisible();
+  await browser.back();
   await expect(draft).toHaveText("Navigation draft — do not save");
-  await page.goForward();
-  await expect(
-    page.getByRole("heading", { name: "Settings", exact: true })
-  ).toBeVisible();
-  await page.goBack();
+  await browser.forward();
+  await expect(screen.getByRole("heading", "Settings")).toBeVisible();
+  await browser.back();
   await expect(draft).toHaveText("Navigation draft — do not save");
 });
 
 test("loads settings directly for an authenticated session", async ({
-  page,
+  browser,
+  screen,
+  webAccount: _signedIn,
 }) => {
-  await page.goto("/settings");
-  await expect(page.getByRole("link", { name: /back/i })).toBeVisible();
-  await expect(
-    page.getByRole("heading", { name: "Settings", exact: true })
-  ).toBeVisible();
+  await gotoApp(browser, "/settings");
+  await expect(screen.getByRole("link", /back/i)).toBeVisible();
+  await expect(screen.getByRole("heading", "Settings")).toBeVisible();
 });

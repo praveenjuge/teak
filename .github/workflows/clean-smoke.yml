@@ -11,6 +11,8 @@ concurrency:
 
 permissions:
   contents: read
+  # The e2e GitHub reporter posts the smoke's results on the pull request.
+  pull-requests: write
 
 jobs:
   smoke:
@@ -44,17 +46,19 @@ jobs:
       - name: Setup check passes without secrets
         run: bun run setup --check
       - run: bun ci
-      - name: Install Playwright Chromium
+      - name: Install Chromium
         working-directory: packages/tests
-        run: bunx playwright install --with-deps chromium
+        run: bunx e2e-web install --with-deps chromium
       - name: Sign up, create and search on a fresh stack
-        run: bun run --cwd packages/tests e2e --project=matrix-chromium
-      - if: failure()
+        run: bun run --cwd packages/tests e2e src/matrix
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+      - if: ${{ !cancelled() }}
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
         with:
           name: clean-smoke-results
           path: |
-            packages/tests/playwright-report
-            packages/tests/test-results
+            packages/tests/.e2e
             .agents/.state/stack.log
+          if-no-files-found: warn
           retention-days: 7

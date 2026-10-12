@@ -1,13 +1,12 @@
-import { expect, test } from "@playwright/test";
 import { apiFetch } from "../helpers/api";
 import { createAccount, deleteAccountViaUi } from "../helpers/app";
+import { expect, test } from "../helpers/test";
 
-test.setTimeout(240_000);
-
-test("parallel card operations stay coherent under contention", async ({
-  page,
-}) => {
-  const account = await createAccount(page, "occ-concurrency");
+test("parallel card operations stay coherent under contention", {
+  timeout: 240_000,
+}, async ({ browser, screen }) => {
+  const surface = { browser, screen };
+  const account = await createAccount(surface, "occ-concurrency");
   const apiKey = account.apiKey!;
   const marker = `occ-concurrency-${Date.now()}`;
   const creates = await Promise.all(
@@ -81,13 +80,13 @@ test("parallel card operations stay coherent under contention", async ({
         const status = targetCard?.processingStatus?.renderables?.status;
         return status ?? "missing";
       },
-      { intervals: [500, 1000, 2000, 3000], timeout: 30_000 }
+      { interval: 1000, timeout: 30_000 }
     )
     .toBe("completed");
 
   const finalTarget = await apiFetch(`/v1/cards/${target}`, apiKey);
   expect(finalTarget.status).toBe(200);
-  await expect(finalTarget.json()).resolves.toMatchObject({
+  expect(await finalTarget.json()).toMatchObject({
     isFavorited: true,
     notes: `${marker} user-write`,
   });
@@ -104,7 +103,7 @@ test("parallel card operations stay coherent under contention", async ({
         }
         return ((await response.json()).items ?? []).length;
       },
-      { intervals: [500, 1000, 2000], timeout: 5000 }
+      { interval: 500, timeout: 5000 }
     )
     .toBeGreaterThanOrEqual(8);
 
@@ -142,5 +141,5 @@ test("parallel card operations stay coherent under contention", async ({
   }
   expect(rateChecks.some((response) => response.status === 429)).toBe(true);
   expect(rateChecks.every((response) => response.status !== 500)).toBe(true);
-  await deleteAccountViaUi(page, account);
+  await deleteAccountViaUi(surface, account);
 });

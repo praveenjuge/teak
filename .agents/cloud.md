@@ -66,15 +66,19 @@ exports as `TEAK_CLOUD_CHROMIUM`:
 chromium.launch({ executablePath: process.env.TEAK_CLOUD_CHROMIUM })
 ```
 
-The pinned Playwright's own Chromium (151) can't open the Convex WebSocket
-through the session's HTTPS proxy. Convex answers the handshake with
-`400 InvalidConnectionHeader` ("Connection header did not include upgrade")
-even though Chromium sends a correct HTTP/1.1 upgrade, so after sign-in the
-app shows a spinner and then "We couldn't check your session". The image's
-Chromium 141 in `/opt/pw-browsers`, curl and Node's `ws` all upgrade fine
-through the same proxy. `--proxy-server`, `--disable-http2` and
-`--disable-features=WebSocketOverHttp2` don't help. The E2E suite is
-unaffected: its stack is on `localhost`, which bypasses the proxy.
+The pinned Playwright's own Chromium (151, and e2e's 153) can't open the
+Convex WebSocket through the session's HTTPS proxy. The proxy intercepts
+newer Chromium's TLS with its own certificate, and its interception path
+doesn't carry WebSocket upgrades (`/root/.ccr/README.md` lists them as
+unsupported): Convex answers the handshake with `400 InvalidConnectionHeader`
+("Connection header did not include upgrade") even though Chromium sends a
+correct HTTP/1.1 upgrade, so after sign-in the app shows a spinner and then
+"We couldn't check your session". The proxy passes the image's Chromium 141
+in `/opt/pw-browsers` through to Convex untouched (it sees Convex's own
+certificate), and curl and Node's `ws` upgrade fine too. `--proxy-server`,
+`--disable-http2`, `--disable-features=WebSocketOverHttp2` and turning off
+Encrypted Client Hello don't help. The E2E suite is unaffected: its stack is
+on `localhost`, which bypasses the proxy.
 
 ## Works
 
@@ -111,31 +115,34 @@ window it opens. A production build (`bun run build:extension`) signs in
 against production, so don't use it here.
 
 Only the agent can see the app. It runs on the VM's `localhost`, and cloud
-sessions have no port forwarding, so drive it with headless Chromium
-(Playwright) and send screenshots.
+sessions have no port forwarding, so drive it with headless Chromium (the
+`e2e` MCP server's sessions) and send screenshots.
 
 ## Needs care
 
-- **E2E suite:** run the Chromium projects with one worker. Four workers
-  starve the local backend on a 4-vCPU VM, and queries hit Convex's 1 s limit.
-  Firefox and WebKit aren't installed. The run below takes about 14 minutes.
+- **E2E suite:** run it with the dev stack stopped. `.agents/setup` installs
+  the Chromium and WebKit builds the e2e web engine pins. The Chromium suite
+  runs one browser at a time: on a 4-vCPU VM a second one starves the local
+  backend, and its functions hit Convex's 1 s limit.
 
   ```bash
   bun run dev --stop
-  bun run --cwd packages/tests e2e "--project=journey-*" --project=matrix-chromium --project=web --workers=1
+  bun run --cwd packages/tests e2e
   bun run dev --detach   # selects the dev deployment again
   ```
 
   The exported `CONVEX_DEPLOY_KEY` can stay: the suite drops it, and every
-  Convex CLI it runs uses the local backend. In full runs on this VM,
-  `journey-web-core`'s first test has failed every time on a `beforeunload`
-  dialog: it navigates while a save is still in flight. It passes when the
-  project runs alone (`--project=journey-web-core`), so rerun it that way
-  before treating it as a regression.
+  Convex CLI it runs uses the local backend. If a run reports a missing
+  browser, install it with `env -u PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD bun
+  --cwd=packages/tests x e2e-web install chromium webkit`.
 
-- **`playwright` MCP server:** it looks for Google Chrome, which the image
-  doesn't have. Use Playwright from `node_modules` with
-  `executablePath: process.env.TEAK_CLOUD_CHROMIUM` (see above).
+- **`e2e` MCP server:** `.mcp.json` registers `e2e mcp`, which opens headless
+  sessions on `packages/tests/e2e.config.ts` (pass that as `open_session`'s
+  `config`). Against the E2E stack it runs e2e's pinned Chromium. While this
+  checkout runs the dev stack, the config instead starts the image's
+  Chromium and attaches to it over CDP (`src/config/cloud-chromium.ts`), so
+  the Convex socket gets through the proxy and the seeded vault loads. That
+  browser stays up for the MCP server's life and serves its later sessions.
 - **MP4 video:** Playwright's Chromium has no H.264 decoder, so MP4 cards
   don't play in it. Use a WebM (VP9) file to check video playback.
 

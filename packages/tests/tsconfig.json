@@ -12,5 +12,5 @@
     "target": "ES2024",
     "types": ["bun-types", "node"]
   },
-  "include": ["src/**/*.ts", "playwright.config.ts"]
+  "include": ["src/**/*.ts", "e2e*.config.ts"]
 }

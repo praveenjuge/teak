@@ -1,17 +1,29 @@
-import {
-  type Browser,
-  expect,
-  type Locator,
-  type Page,
-} from "@playwright/test";
+import { api } from "@teak/convex";
 import { createTeakClient } from "@teak/convex/sdk";
+import { ConvexHttpClient } from "convex/browser";
 import {
   createEmulatorUser,
   findEmulatorUser,
+  sessionTokenFor,
   waitForEmailedEvent,
 } from "./emulator";
 import { E2E_PASSWORD, env, uniqueEmail } from "./env";
-import type { AccountState } from "./run-state";
+import {
+  type Browser,
+  expect,
+  firstVisible,
+  type Locator,
+  retry,
+  type Screen,
+  type Surface,
+} from "./test";
+
+/** A WorkOS emulator user the suite made, with its Teak API key once it has one. */
+export interface AccountState {
+  apiKey?: string;
+  email: string;
+  password?: string;
+}
 
 export const clientFor = (apiKey: string) =>
   createTeakClient({
@@ -22,239 +34,235 @@ export const clientFor = (apiKey: string) =>
 
 export const appPath = (path: string) => new URL(path, env.appUrl).toString();
 
-export const newAnonymousContext = (browser: Browser) =>
-  browser.newContext({ storageState: { cookies: [], origins: [] } });
+export const gotoApp = (browser: Browser, path: string) =>
+  browser.goto(appPath(path));
 
-const sleep = (delayMs: number) =>
-  new Promise((resolve) => setTimeout(resolve, delayMs));
-
-const isRetryableActionabilityError = (error: unknown) =>
+const isRetryableActionError = (error: unknown) =>
   error instanceof Error &&
-  /element (is not stable|was detached)|Timeout .* exceeded|Timeout: \d+ms/.test(
-    error.message
+  /ACTION_FAILED|detached|not stable|LOCATOR_NOT_FOUND/.test(
+    `${(error as { code?: string }).code ?? ""} ${error.message}`
   );
 
-// Firefox aborts a navigation when the previous one is still settling, for
-// example the post-login redirect, and page.goto throws NS_BINDING_ABORTED.
-// A second attempt lands normally, so retry only these abort errors.
-const isAbortedNavigationError = (error: unknown) =>
-  error instanceof Error &&
-  /NS_BINDING_ABORTED|net::ERR_ABORTED|frame was detached/.test(error.message);
-
-export const gotoApp = async (
-  page: Page,
-  path: string,
-  wait: (delayMs: number) => Promise<unknown> = sleep
-) => {
-  const maxAttempts = 3;
-  for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
-    try {
-      await page.goto(appPath(path));
-      return;
-    } catch (error) {
-      if (attempt === maxAttempts || !isAbortedNavigationError(error)) {
-        throw error;
-      }
-      await wait(1000);
-    }
-  }
-};
-
+/**
+ * Clicks a control once it is visible and enabled, retrying a click that
+ * lands while React replaces the node.
+ */
 export const clickVisibleControl = async (
   locator: Locator,
   options: { timeout?: number } = {}
 ) => {
   const timeout = options.timeout ?? 15_000;
   const maxAttempts = 3;
-
   for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
-    const target = locator.filter({ visible: true }).first();
-    await expect(target).toBeVisible({ timeout });
-    await expect(target).toBeEnabled({ timeout });
-
+    await expect(locator).toBeVisible({ timeout });
+    await expect(locator).toBeEnabled({ timeout });
     try {
-      await target.click({ timeout: Math.min(timeout, 5000) });
+      await locator.click({ timeout: Math.min(timeout, 5000) });
       return;
     } catch (error) {
-      if (attempt === maxAttempts || !isRetryableActionabilityError(error)) {
+      if (attempt === maxAttempts || !isRetryableActionError(error)) {
         throw error;
       }
     }
   }
 };
 
-export const fillAndSubmitTextCard = async (page: Page, content: string) => {
-  const creationForm = page.locator('form[data-card-creation-status="ready"]');
-  const editor = creationForm.getByRole("textbox", {
-    name: "Markdown content",
-  });
-  await expect(async () => {
-    await editor.fill(content);
-    await expect(editor).toHaveText(content, { timeout: 5000 });
-  }).toPass({ intervals: [250, 500, 1000], timeout: 30_000 });
+export const composerOf = (screen: Screen) =>
+  screen.getByRole("textbox", "Markdown content", { visible: true });
+
+export const fillAndSubmitTextCard = async (
+  { browser }: Surface,
+  content: string
+) => {
+  const editor = browser
+    .locator('form[data-card-creation-status="ready"]')
+    .getByRole("textbox", "Markdown content");
+  await retry(
+    async () => {
+      await editor.fill(content);
+      await expect(editor).toHaveText(content, { timeout: 5000 });
+    },
+    { timeout: 30_000 }
+  );
   await clickVisibleControl(
-    page
+    browser
       .locator("form[data-card-creation-status]")
-      .getByRole("button", { name: "Save", exact: true })
+      .getByRole("button", "Save")
   );
 };
 
-const composerOf = (page: Page) =>
-  page.getByRole("textbox", { name: "Markdown content", exact: true });
-
 // The vault opens once the backend has the WorkOS webhook for this user. If
-// the first bootstrap ran before the webhook landed, Teak offers a retry.
-export const expectVault = async (page: Page) => {
-  const composer = composerOf(page);
-  const retry = page.getByRole("button", { name: "Try again" });
-  await expect(async () => {
-    if (await retry.isVisible()) {
-      await retry.click();
-    }
-    await expect(composer).toBeVisible({ timeout: 5000 });
-  }).toPass({ intervals: [500, 1000, 2000], timeout: 45_000 });
+// the first bootstrap ran before the webhook landed, Teak offers a retry. The
+// dev server's error overlay can cover that button after a slow backend call;
+// a reload retries the same bootstrap.
+export const expectVault = async ({ browser, screen }: Surface) => {
+  const composer = composerOf(screen);
+  const tryAgain = screen.getByRole("button", "Try again", { exact: false });
+  await retry(
+    async () => {
+      if (await tryAgain.isVisible().catch(() => false)) {
+        await tryAgain.click({ timeout: 2500 }).catch(() => browser.reload());
+      }
+      await expect(composer).toBeVisible({ timeout: 5000 });
+    },
+    { intervals: [500, 1000, 2000], timeout: 45_000 }
+  );
 };
 
-const emulatorOrigin = new URL(env.emulatorUrl).origin;
+const emulatorOrigin = () => new URL(env.emulatorUrl).origin;
 
 // Sign-in is hosted by WorkOS (here, the emulator's AuthKit pages), never a
 // Teak page. Teak's /login hands the browser straight to it.
-export const expectHostedSignIn = async (page: Page) => {
-  await expect(page.getByLabel("Email", { exact: true })).toBeVisible({
-    timeout: 30_000,
-  });
+export const expectHostedSignIn = async ({ browser, screen }: Surface) => {
+  await expect(screen.getByLabel("Email")).toBeVisible({ timeout: 30_000 });
   expect(
-    new URL(page.url()).origin,
+    new URL(await browser.url()).origin,
     "Sign-in must happen on hosted AuthKit, not a Teak page"
-  ).toBe(emulatorOrigin);
+  ).toBe(emulatorOrigin());
 };
 
-const submitHostedForm = (page: Page) =>
-  page.getByRole("button", { name: "Continue", exact: true }).click();
+const submitHostedForm = (screen: Screen) =>
+  screen.getByRole("button", "Continue").click();
 
 const enterCredentials = async (
-  page: Page,
+  surface: Surface,
   email: string,
   password: string
 ) => {
-  await gotoApp(page, "/login");
-  await expectHostedSignIn(page);
-  await page.getByLabel("Email", { exact: true }).fill(email);
-  await submitHostedForm(page);
-  const passwordInput = page.getByLabel("Password", { exact: true });
+  const { browser, screen } = surface;
+  await gotoApp(browser, "/login");
+  await expectHostedSignIn(surface);
+  await screen.getByLabel("Email").fill(email);
+  await submitHostedForm(screen);
+  const passwordInput = screen.getByLabel("Password");
   await expect(passwordInput).toBeVisible();
   await passwordInput.fill(password);
-  await submitHostedForm(page);
+  await submitHostedForm(screen);
 };
 
 export const signIn = async (
-  page: Page,
+  surface: Surface,
   email: string,
   password = E2E_PASSWORD
 ) => {
-  await enterCredentials(page, email, password);
+  const { screen } = surface;
+  await enterCredentials(surface, email, password);
   // An unverified mailbox gets the code WorkOS would email.
-  const verify = page.getByRole("heading", { name: "Verify your email" });
-  await expect(
-    verify
-      .or(composerOf(page))
-      .or(page.getByRole("button", { name: "Try again" }))
-  ).toBeVisible({ timeout: 30_000 });
-  if (await verify.isVisible()) {
+  const verify = screen.getByRole("heading", "Verify your email", {
+    exact: false,
+  });
+  const landed = await firstVisible(
+    [
+      verify,
+      composerOf(screen),
+      screen.getByRole("button", "Try again", { exact: false }),
+    ],
+    { timeout: 30_000 }
+  );
+  if (landed === 0) {
     const { code } = await waitForEmailedEvent<{ code: string; email: string }>(
       "email_verification.created",
       email
     );
-    await page.getByLabel("Code", { exact: true }).fill(code);
-    await submitHostedForm(page);
+    await screen.getByLabel("Code").fill(code);
+    await submitHostedForm(screen);
   }
-  await expectVault(page);
+  await expectVault(surface);
 };
 
 export const expectWrongPassword = async (
-  page: Page,
+  surface: Surface,
   email: string,
   password: string
 ) => {
-  await enterCredentials(page, email, password);
-  await expect(page.getByText("Incorrect password. Try again.")).toBeVisible();
-  await expect(composerOf(page)).toHaveCount(0);
+  const { screen } = surface;
+  await enterCredentials(surface, email, password);
+  await expect(
+    screen.getByText("Incorrect password. Try again.", { exact: false })
+  ).toBeVisible();
+  await expect(composerOf(screen)).toHaveCount(0);
 };
 
 // A deleted WorkOS user can't finish sign-in: the callback fails and Teak
 // sends the browser back to hosted sign-in, without vault access.
-export const expectSignInRefused = async (page: Page, email: string) => {
-  await gotoApp(page, "/login");
-  await expectHostedSignIn(page);
-  await page.getByLabel("Email", { exact: true }).fill(email);
-  await submitHostedForm(page);
-  await expectHostedSignIn(page);
-  await expect(page.getByLabel("Password", { exact: true })).toHaveCount(0);
-  await expect(composerOf(page)).toHaveCount(0);
+export const expectSignInRefused = async (surface: Surface, email: string) => {
+  const { browser, screen } = surface;
+  await gotoApp(browser, "/login");
+  await expectHostedSignIn(surface);
+  await screen.getByLabel("Email").fill(email);
+  await submitHostedForm(screen);
+  await expectHostedSignIn(surface);
+  await expect(screen.getByLabel("Password")).toHaveCount(0);
+  await expect(composerOf(screen)).toHaveCount(0);
 };
 
-const settingsRow = (page: Page, label: string) =>
-  page
-    .getByText(label, { exact: true })
-    .locator("xpath=ancestor::div[.//button][1]");
+// The Settings row whose label is `label`: the nearest block around the label
+// that holds a button.
+const settingsRow = (browser: Browser, label: string) =>
+  browser.locator(
+    `xpath=//*[text()[normalize-space(.)=${JSON.stringify(label)}]]/ancestor::div[.//button][1]`
+  );
 
 type SecurityTab = "Connections" | "API keys";
 
+export const securityDialogOf = (screen: Screen) =>
+  screen.getByRole("dialog", "Security");
+
 // Opens Security on the Settings page already loaded, without navigating.
 export const openSecurityDialog = async (
-  page: Page,
+  { browser, screen }: Surface,
   tab: SecurityTab = "Connections"
 ) => {
-  const manageButton = settingsRow(page, "Security").getByRole("button", {
-    name: "Manage",
-  });
-  const dialog = page.getByRole("dialog", { name: "Security", exact: true });
-  const tabTrigger = dialog.getByRole("tab", { name: tab, exact: true });
-  const tabPanel = dialog.getByRole("tabpanel", { name: tab, exact: true });
+  const manageButton = settingsRow(browser, "Security").getByRole(
+    "button",
+    "Manage",
+    { exact: false }
+  );
+  const dialog = securityDialogOf(screen);
+  const tabTrigger = dialog.getByRole("tab", tab);
+  const tabPanel = dialog.getByRole("tabpanel", tab);
   // A click can fail to select its tab, or the dialog can disappear afterward.
   // Retry the complete read-only navigation, verifying the mounted panel.
-  await expect(async () => {
-    if (!(await dialog.isVisible())) {
-      await clickVisibleControl(manageButton, { timeout: 2500 });
-    }
-    await expect(dialog).toBeVisible({ timeout: 2500 });
-    // Settings reads the device list with an action on every load, and the
-    // Convex client raises a beforeunload prompt while a request is in flight.
-    // Let the list settle on the Connections tab before switching away, so the
-    // caller's next navigation never races it.
-    await expect(dialog.getByText("Loading devices…")).toHaveCount(0, {
-      timeout: 2500,
-    });
-    if (
-      (await tabTrigger.getAttribute("aria-selected", { timeout: 2500 })) !==
-      "true"
-    ) {
-      await clickVisibleControl(tabTrigger, { timeout: 2500 });
-    }
-    await expect(tabTrigger).toHaveAttribute("aria-selected", "true", {
-      timeout: 2500,
-    });
-    await expect(tabPanel).toBeVisible({ timeout: 2500 });
-  }).toPass({ intervals: [250, 500, 1000], timeout: 20_000 });
+  await retry(
+    async () => {
+      if (!(await dialog.isVisible())) {
+        await clickVisibleControl(manageButton, { timeout: 2500 });
+      }
+      await expect(dialog).toBeVisible({ timeout: 2500 });
+      // Settings reads the device list with an action on every load, and the
+      // Convex client raises a beforeunload prompt while a request is in
+      // flight. Let the list settle on the Connections tab before switching
+      // away, so the caller's next navigation never races it.
+      await expect(dialog.getByText("Loading devices…")).toHaveCount(0, {
+        timeout: 2500,
+      });
+      if ((await tabTrigger.getAttribute("aria-selected")) !== "true") {
+        await clickVisibleControl(tabTrigger, { timeout: 2500 });
+      }
+      await expect(tabTrigger).toBeSelected({ timeout: 2500 });
+      await expect(tabPanel).toBeVisible({ timeout: 2500 });
+    },
+    { timeout: 20_000 }
+  );
   return dialog;
 };
 
 export const openSecurity = async (
-  page: Page,
+  surface: Surface,
   tab: SecurityTab = "Connections"
 ) => {
-  await gotoApp(page, "/settings");
-  return openSecurityDialog(page, tab);
+  await gotoApp(surface.browser, "/settings");
+  return openSecurityDialog(surface, tab);
 };
 
-export const generateApiKey = async (page: Page) => {
-  const dialog = await openSecurity(page, "API keys");
-  await clickVisibleControl(
-    dialog.getByRole("button", { name: "Create key", exact: true })
-  );
+export const generateApiKey = async (surface: Surface) => {
+  const dialog = await openSecurity(surface, "API keys");
+  await clickVisibleControl(dialog.getByRole("button", "Create key"));
   // React updates the input's live value property, not necessarily its HTML
   // value attribute, so do not use an attribute-prefix CSS selector here.
-  const input = dialog.locator("input[readonly]").first();
+  const input = surface.browser
+    .locator('[role="dialog"] input[readonly]')
+    .first();
   await expect(input).toHaveValue(/^teakapi_/);
   return input.inputValue();
 };
@@ -266,23 +274,21 @@ export const apiStatus = async (apiKey: string) =>
     })
   ).status;
 
-export const revokeVisibleKey = async (page: Page, rawKey: string) => {
+export const revokeVisibleKey = async (surface: Surface, rawKey: string) => {
   const visiblePrefix = rawKey.split("_").slice(0, 4).join("_");
-  const dialog = await openSecurity(page, "API keys");
+  const dialog = await openSecurity(surface, "API keys");
   const row = dialog.getByRole("listitem").filter({ hasText: visiblePrefix });
   await expect(row).toBeVisible();
-  await row.getByRole("button", { name: /^Revoke / }).click();
-  await expect(
-    row,
-    "revoked API keys should disappear from the settings table"
-  ).toHaveCount(0);
-  await expect.poll(() => apiStatus(rawKey)).toBe(401);
+  await row.getByRole("button", /^Revoke /).click();
+  // Revoked API keys disappear from the settings table.
+  await expect(row).toHaveCount(0);
+  await expect.poll(() => apiStatus(rawKey), { timeout: 15_000 }).toBe(401);
 };
 
 // A new WorkOS user signs in for the first time; the signed user.created
 // webhook is what gives the address a Teak account.
 export const createAccount = async (
-  page: Page,
+  surface: Surface,
   label = "acct",
   options: { emailVerified?: boolean } = {}
 ): Promise<AccountState> => {
@@ -292,24 +298,63 @@ export const createAccount = async (
     emailVerified: options.emailVerified ?? true,
     password: E2E_PASSWORD,
   });
-  await signIn(page, email);
-  return { email, apiKey: await generateApiKey(page) };
+  await signIn(surface, email);
+  return { email, apiKey: await generateApiKey(surface) };
 };
 
-export const deleteAccountViaUi = async (page: Page, account: AccountState) => {
-  await gotoApp(page, "/settings");
-  await page.getByRole("button", { name: /delete your account/i }).click();
+/**
+ * An account with an API key and no browser: for the API, CLI and MCP specs.
+ * The key comes from the same mutation Settings calls, signed in with the
+ * password grant the hosted page uses. The vault exists once the backend has
+ * the user.created webhook, so the first calls may land before it.
+ */
+export const createApiAccount = async (
+  label: string
+): Promise<Required<Pick<AccountState, "apiKey" | "email">>> => {
+  const email = uniqueEmail(label);
+  await createEmulatorUser({
+    email,
+    emailVerified: true,
+    password: E2E_PASSWORD,
+  });
+  const client = new ConvexHttpClient(env.convexUrl);
+  client.setAuth(await sessionTokenFor(email, E2E_PASSWORD));
+  let apiKey = "";
+  await expect
+    .poll(
+      async () => {
+        try {
+          apiKey = (await client.mutation(api.apiKeys.createUserApiKey, {}))
+            .key;
+          return true;
+        } catch {
+          return false;
+        }
+      },
+      { timeout: 45_000, interval: 1000, message: "API key for a new account" }
+    )
+    .toBe(true);
+  return { email, apiKey };
+};
+
+export const deleteAccountViaUi = async (
+  surface: Surface,
+  account: AccountState
+) => {
+  const { browser, screen } = surface;
+  await gotoApp(browser, "/settings");
+  await screen.getByRole("button", /delete your account/i).click();
   await expect(
-    page.getByRole("dialog", { name: "Delete Account" })
+    screen.getByRole("dialog", "Delete Account", { exact: false })
   ).toBeVisible();
-  await page.locator("#deleteConfirm").fill("delete account");
-  await page.getByRole("button", { name: "Delete account" }).click();
+  await browser.locator("#deleteConfirm").fill("delete account");
+  await screen.getByRole("button", "Delete account", { exact: false }).click();
   // Deletion signs out at admission, then removes the vault and the WorkOS
   // user in the background.
-  await expectHostedSignIn(page);
+  await expectHostedSignIn(surface);
   const { apiKey } = account;
   if (apiKey) {
-    await expect.poll(() => apiStatus(apiKey)).toBe(401);
+    await expect.poll(() => apiStatus(apiKey), { timeout: 15_000 }).toBe(401);
   }
   await expect
     .poll(() => findEmulatorUser(account.email), { timeout: 60_000 })

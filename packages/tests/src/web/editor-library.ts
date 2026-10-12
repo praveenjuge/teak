@@ -1,16 +1,22 @@
-import { expect, type Locator, type Page } from "@playwright/test";
 import { api } from "@teak/convex";
 import type { Id } from "@teak/convex/_generated/dataModel";
 import { ConvexHttpClient } from "convex/browser";
+import { gotoApp } from "../helpers/app";
+import {
+  type Browser,
+  expect,
+  type Locator,
+  type Surface,
+} from "../helpers/test";
 
 /** Real, authenticated persistence for editor E2E; owns only this run's cards. */
 export class EditorLibrary {
   readonly ids: Id<"cards">[] = [];
   readonly client: ConvexHttpClient;
-  readonly page: Page;
+  readonly surface: Surface;
 
-  constructor(page: Page, url: string, token: string) {
-    this.page = page;
+  constructor(surface: Surface, url: string, token: string) {
+    this.surface = surface;
     this.client = new ConvexHttpClient(url);
     this.client.setAuth(token);
   }
@@ -32,12 +38,11 @@ export class EditorLibrary {
     return card.content ?? "";
   }
 
+  /** Opens the card modal and returns the dialog. */
   async open(id: Id<"cards">): Promise<Locator> {
-    await this.page.goto(`/?card=${id}`);
-    const dialog = this.page.getByRole("dialog");
-    await expect(
-      dialog.getByRole("textbox", { name: "Markdown content" })
-    ).toBeVisible();
+    await gotoApp(this.surface.browser, `/?card=${id}`);
+    const dialog = this.surface.screen.getByRole("dialog");
+    await expect(dialog.getByRole("textbox", "Markdown content")).toBeVisible();
     return dialog;
   }
 
@@ -51,47 +56,91 @@ export class EditorLibrary {
     if (failures.length) {
       throw new AggregateError(
         failures.map((result) => result.reason),
-        "Test card cleanup failed"
+        `Test card cleanup failed: ${failures
+          .map((result) => String(result.reason))
+          .join("; ")}`
       );
     }
   }
 }
 
+/**
+ * CSS for the block editor inside the open dialog (the card modal or the
+ * full-screen composer). It matches a read-only editor too, which renders
+ * `contenteditable="false"`.
+ */
+export const DIALOG_EDITOR =
+  '[role="dialog"] [role="textbox"][aria-label="Markdown content"]';
+/**
+ * CSS for the block editor inside the composer form, which stays in the page
+ * behind an open dialog. The editor's group is a `<fieldset>`, so it has no
+ * `role` attribute to select on.
+ */
+export const COMPOSER_EDITOR =
+  'form[data-card-creation-status] [role="textbox"][aria-label="Markdown content"]';
+
 export async function getBlockEditor(editor: Locator): Promise<Locator> {
-  const textbox = editor.getByRole("textbox", { name: "Markdown content" });
+  const textbox = editor.getByRole("textbox", "Markdown content");
   await expect(textbox).toHaveAttribute("contenteditable", "true");
   return textbox;
 }
 
+/**
+ * Dispatches a paste of `markdown` on the editor that `selector` names: a
+ * synthetic ClipboardEvent, since a headless browser has no clipboard.
+ */
 export async function pasteMarkdown(
-  editor: Locator,
-  markdown: string
+  browser: Browser,
+  selector: string,
+  markdown: string,
+  html?: string
 ): Promise<void> {
-  const textbox = await getBlockEditor(editor);
-  await textbox.focus();
-  await textbox.evaluate((element, text) => {
-    const data = new DataTransfer();
-    data.setData("text/plain", text);
-    element.dispatchEvent(
-      new ClipboardEvent("paste", {
-        bubbles: true,
-        cancelable: true,
-        clipboardData: data,
-      })
-    );
-  }, markdown);
+  await browser.locator(selector).focus();
+  await browser.evaluate(
+    ([target, text, markup]) => {
+      const element = document.querySelector(target);
+      if (!element) {
+        throw new Error(`No element for ${target}`);
+      }
+      const data = new DataTransfer();
+      data.setData("text/plain", text);
+      if (markup) {
+        data.setData("text/html", markup);
+      }
+      element.dispatchEvent(
+        new ClipboardEvent("paste", {
+          bubbles: true,
+          cancelable: true,
+          clipboardData: data,
+        })
+      );
+      return null;
+    },
+    [selector, markdown, html ?? ""] as [string, string, string]
+  );
 }
 
-export async function goToEnd(editor: Locator): Promise<void> {
-  await editor.focus();
-  // Place the caret using the browser selection API, without touching editor
-  // state or commands. This avoids platform-specific End key differences.
-  await editor.evaluate((element) => {
+/**
+ * Places the caret at the end of the editor that `selector` names, through
+ * the browser selection API, without touching editor state or commands.
+ * This avoids platform-specific End key differences.
+ */
+export async function goToEnd(
+  browser: Browser,
+  selector: string
+): Promise<void> {
+  await browser.locator(selector).focus();
+  await browser.evaluate((target: string) => {
+    const element = document.querySelector(target);
+    if (!element) {
+      throw new Error(`No element for ${target}`);
+    }
     const range = document.createRange();
     range.selectNodeContents(element);
     range.collapse(false);
     const selection = window.getSelection();
     selection?.removeAllRanges();
     selection?.addRange(range);
-  });
+    return null;
+  }, selector);
 }

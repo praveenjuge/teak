@@ -2,78 +2,91 @@ import { apiFetch } from "../helpers/api";
 import {
   clientFor,
   createAccount,
+  createApiAccount,
   generateApiKey,
-  newAnonymousContext,
+  gotoApp,
   revokeVisibleKey,
 } from "../helpers/app";
-import { readState } from "../helpers/run-state";
 import { expect, test } from "../helpers/test";
 
-test("cross-tenant, revoked-key, hostile input, headers, and cookie security", async ({
-  browser,
-  page,
-  context,
-}) => {
-  const state = readState();
-  const securityApiKey = await generateApiKey(page);
-  const secondContext = await newAnonymousContext(browser);
-  const secondPage = await secondContext.newPage();
-  const second = await createAccount(secondPage, "tenant-b");
+test("cross-tenant, revoked-key, hostile input, headers, and cookie security", {
+  timeout: 240_000,
+}, async ({ browser, screen }) => {
+  const surface = { browser, screen };
+  // Tenant A signs in here and owns a card; tenant B only needs an API key.
+  const { apiKey: securityApiKey = "" } = await createAccount(
+    surface,
+    "security"
+  );
+  const second = await createApiAccount("tenant-b");
   try {
-    const targetCard = state.createdCardIds[0];
+    const { cardId: targetCard } = await clientFor(securityApiKey).cards.create(
+      { content: `security-tenant-a-${Date.now()}`, source: "e2e" }
+    );
+    expect(targetCard).toBeTruthy();
     expect(
-      targetCard,
-      "web-core should have created a card before security checks"
-    ).toBeTruthy();
-    expect(
-      (await apiFetch(`/v1/cards/${targetCard!}`, second.apiKey!)).status
+      (await apiFetch(`/v1/cards/${targetCard}`, second.apiKey)).status
     ).toBe(404);
-    expect(state.revokedKey, "web-core should have revoked a key").toBeTruthy();
-    expect((await apiFetch("/v1/tags", state.revokedKey!)).status).toBe(401);
+    // A key revoked from Settings stops authenticating.
+    const revokedKey = await generateApiKey(surface);
+    await revokeVisibleKey(surface, revokedKey);
+    expect((await apiFetch("/v1/tags", revokedKey)).status).toBe(401);
     const hostile = `<img src=x onerror="window.__teakXss=1"> javascript:alert(1) שלום ${"x".repeat(100_000)}`;
     await clientFor(securityApiKey).cards.create({
       content: hostile,
       source: "e2e",
       tags: ["xss"],
     });
-    await page.goto("/");
+    await gotoApp(browser, "/");
     // The hostile card has rendered, and its markup did not run.
     await expect(
-      page
+      screen
         .getByRole("main")
         .getByText(/javascript:alert\(1\)/)
         .first()
     ).toBeVisible();
-    expect(
-      await page.evaluate(() => (window as any).__teakXss)
-    ).toBeUndefined();
-    // Headers come from plain requests: navigating away while the page is
-    // still refreshing its session would race the rotated refresh token.
-    for (const url of ["/login", "/settings"]) {
-      const response = await context.request.get(url);
-      expect(response.headers()["strict-transport-security"]).toBeTruthy();
-      const csp = response.headers()["content-security-policy"] ?? "";
-      expect(csp).toBeTruthy();
+    expect(await browser.evaluate(() => typeof (window as any).__teakXss)).toBe(
+      "undefined"
+    );
+    // The local stack serves http, so the session cookie can't be Secure
+    // here; authkit-nextjs sets Secure from an https redirect URI.
+    const session = (await browser.cookies()).find(
+      (cookie) => cookie.name === "wos-session"
+    );
+    expect(session).toMatchObject({ httpOnly: true, sameSite: "Lax" });
+    // Headers come from plain requests that share the page's cookies:
+    // navigating away while the page is still refreshing its session would
+    // race the rotated refresh token. A same-origin fetch from the page keeps
+    // any rotated cookie in the browser, as Playwright's context.request did.
+    const responses = await browser.evaluate(
+      async (paths) =>
+        await Promise.all(
+          paths.map(async (path) => {
+            const response = await fetch(path, { credentials: "same-origin" });
+            return {
+              csp: response.headers.get("content-security-policy"),
+              hsts: response.headers.get("strict-transport-security"),
+              path,
+            };
+          })
+        ),
+      ["/login", "/settings"]
+    );
+    expect(responses).toHaveLength(2);
+    for (const response of responses) {
+      expect(response.hsts, response.path).toBeTruthy();
+      const csp = response.csp ?? "";
+      expect(csp, response.path).toBeTruthy();
       // Regression: images (link previews, PDF thumbnails) are served from R2.
       // The CSP img-src must allow that origin or they are blocked outright.
       const imgSrc = csp
         .split(";")
         .map((directive) => directive.trim())
         .find((directive) => directive.startsWith("img-src"));
-      expect(imgSrc).toBeTruthy();
-      expect(imgSrc).toContain("r2.cloudflarestorage.com");
+      expect(imgSrc, response.path).toBeTruthy();
+      expect(imgSrc, response.path).toContain("r2.cloudflarestorage.com");
     }
-    // The local stack serves http, so the session cookie can't be Secure
-    // here; authkit-nextjs sets Secure from an https redirect URI.
-    const session = (await context.cookies()).find(
-      (cookie) => cookie.name === "wos-session"
-    );
-    expect(session).toMatchObject({ httpOnly: true, sameSite: "Lax" });
   } finally {
-    try {
-      await revokeVisibleKey(page, securityApiKey);
-    } finally {
-      await secondContext.close();
-    }
+    await revokeVisibleKey(surface, securityApiKey);
   }
 });

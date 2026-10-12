@@ -10,9 +10,9 @@ on:
       - packages/tests/src/extension/oauth-runtime.e2e.ts
       - packages/tests/src/auth-runtime/**
       - packages/tests/src/helpers/**
-      - packages/tests/playwright.auth-runtime.config.ts
+      - packages/tests/e2e.hermetic.config.ts
+      - packages/tests/src/config/**
       - packages/ui/src/components/settings/SecurityConnections.tsx
-      - packages/tests/playwright.oauth-runtime.config.ts
       - packages/tests/package.json
       - bun.lock
       - .github/workflows/extension-oauth-runtime.yml
@@ -26,15 +26,17 @@ on:
       - packages/tests/src/extension/oauth-runtime.e2e.ts
       - packages/tests/src/auth-runtime/**
       - packages/tests/src/helpers/**
-      - packages/tests/playwright.auth-runtime.config.ts
+      - packages/tests/e2e.hermetic.config.ts
+      - packages/tests/src/config/**
       - packages/ui/src/components/settings/SecurityConnections.tsx
-      - packages/tests/playwright.oauth-runtime.config.ts
       - packages/tests/package.json
       - bun.lock
       - .github/workflows/extension-oauth-runtime.yml
 
 permissions:
   contents: read
+  # The e2e GitHub reporter posts the results on the pull request.
+  pull-requests: write
 
 concurrency:
   group: extension-oauth-runtime-${{ github.ref }}
@@ -55,18 +57,17 @@ jobs:
         with:
           node-version-file: package.json
       - run: bun install --frozen-lockfile
-      - run: bun --no-env-file x playwright-core install --with-deps chromium firefox
-      - run: bun --no-env-file run --cwd packages/tests e2e:extension:runtime
-      - run: bun --no-env-file run --cwd packages/tests e2e:auth:runtime
+      - run: bun --no-env-file x e2e-web install --with-deps chromium
+        working-directory: packages/tests
+      # The extension's OAuth module and the WorkOS consent and Security dialog
+      # flows, with every request answered by fixtures.
+      - run: bun --no-env-file run --cwd packages/tests e2e:hermetic
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
-        if: always()
+        if: ${{ !cancelled() }}
         with:
-          name: auth-helper-runtime
-          path: packages/tests/test-results/auth-runtime
-          retention-days: 14
-      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
-        if: always()
-        with:
-          name: extension-oauth-runtime
-          path: packages/tests/test-results/oauth-runtime
+          name: hermetic-oauth-runtime
+          path: packages/tests/.e2e/hermetic
+          if-no-files-found: warn
           retention-days: 14

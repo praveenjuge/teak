@@ -1,9 +1,14 @@
-import { expect, test } from "@playwright/test";
+import { createApiAccount } from "../helpers/app";
 import { runCli } from "../helpers/cli";
-import { requireServiceApiKey, updateState } from "../helpers/run-state";
+import { expect, test } from "../helpers/test";
+
+// The account this file's tests run the CLI as; no other file uses it.
+let apiKey = "";
+test.beforeAll(async () => {
+  ({ apiKey } = await createApiAccount("service-cli"));
+});
 
 test("CLI covers auth, cards, tags, and aliases", async () => {
-  const apiKey = requireServiceApiKey("cli");
   expect(
     JSON.parse(await runCli(["--json", "auth", "status"], apiKey)).status
   ).toBe("ok");
@@ -24,7 +29,6 @@ test("CLI covers auth, cards, tags, and aliases", async () => {
 });
 
 test("CLI favorites, unfavorites, searches, deletes, and lists tags", async () => {
-  const apiKey = requireServiceApiKey("cli");
   const marker = `cli-lifecycle-${Date.now()}`;
   const created = JSON.parse(
     await runCli(
@@ -33,7 +37,6 @@ test("CLI favorites, unfavorites, searches, deletes, and lists tags", async () =
     )
   );
   expect(created.cardId).toBeTruthy();
-  updateState((state) => state.createdCardIds.push(created.cardId));
 
   await runCli(["--json", "cards", "favorite", created.cardId], apiKey);
   const favorites = JSON.parse(
@@ -67,9 +70,4 @@ test("CLI favorites, unfavorites, searches, deletes, and lists tags", async () =
     apiKey
   );
   await runCli(["--json", "cards", "delete", created.cardId], apiKey);
-  updateState((state) => {
-    state.createdCardIds = state.createdCardIds.filter(
-      (id) => id !== created.cardId
-    );
-  });
 });

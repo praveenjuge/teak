@@ -326,6 +326,25 @@ describe("metadata handler", () => {
       expect(mockRunMutation).not.toHaveBeenCalled();
     });
 
+    test.each(["FILES_BASE", "FILES_SIGNING_SECRET"])(
+      "defers metadata without a request when %s is not configured",
+      async (name) => {
+        mockRunQuery.mockResolvedValue({ _id: "c1", content: "content" });
+        delete process.env[name];
+
+        const result = await generateHandler(ctx, {
+          cardId: "c1",
+          cardType: "text",
+        });
+
+        // Returning instead of throwing keeps the step out of the workflow
+        // retry budget; metadata stays pending for the backfill.
+        expect(result.mode).toBe("skipped");
+        expect(mockFetch).not.toHaveBeenCalled();
+        expect(mockRunMutation).not.toHaveBeenCalled();
+      }
+    );
+
     test("keeps image metadata retryable when the worker declines the source", async () => {
       mockRunQuery.mockResolvedValue({
         _id: "c1",

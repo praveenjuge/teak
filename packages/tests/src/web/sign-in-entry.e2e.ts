@@ -1,47 +1,53 @@
-import { type APIRequestContext, expect, test } from "@playwright/test";
-import { convexSocket } from "./fixtures";
+import { appPath, gotoApp } from "../helpers/app";
+import { env } from "../helpers/env";
+import { capturePageErrors, routeConvexSocket } from "../helpers/page-hooks";
+import { describe, expect, test } from "../helpers/test";
 
-const redirectTarget = async (request: APIRequestContext, path: string) => {
-  const response = await request.get(path, { maxRedirects: 0 });
-  expect(response.status()).toBe(307);
-  const location = new URL(response.headers().location ?? "", response.url());
+const redirectTarget = async (path: string) => {
+  const response = await fetch(appPath(path), { redirect: "manual" });
+  expect(response.status).toBe(307);
+  const location = new URL(
+    response.headers.get("location") ?? "",
+    appPath(path)
+  );
   return `${location.pathname}${location.search}`;
 };
 
 // Signs nobody in and creates no accounts. The outage case closes only the
 // browser's Convex connection.
-test.describe("Web sign-in entry", () => {
+describe("Web sign-in entry", () => {
   test("hands every entry page to hosted AuthKit", async ({
-    page,
-    request,
-    baseURL,
-  }, testInfo) => {
-    const pageErrors: string[] = [];
-    page.on("pageerror", (error) => pageErrors.push(error.message));
+    app,
+    browser,
+    screen,
+  }) => {
+    const pageErrors = await capturePageErrors(browser);
     // WorkOS hosts every entry: Teak redirects without a page of its own.
-    expect(await redirectTarget(request, "/login?next=%2Fsettings")).toBe(
+    expect(await redirectTarget("/login?next=%2Fsettings")).toBe(
       "/sign-in?next=%2Fsettings"
     );
-    expect(await redirectTarget(request, "/forgot-password")).toBe("/sign-in");
-    expect(await redirectTarget(request, "/reset-password")).toBe("/sign-in");
-    expect(await redirectTarget(request, "/register")).toBe("/sign-up");
-    await page.goto("/login?next=%2Fsettings");
-    await expect(page.getByLabel("Email", { exact: true })).toBeVisible();
-    expect(new URL(page.url()).origin).not.toBe(new URL(baseURL ?? "").origin);
-    await testInfo.attach("entry-state", {
-      body: await page.screenshot({ fullPage: true }),
-      contentType: "image/png",
-    });
-    expect(pageErrors).toEqual([]);
+    expect(await redirectTarget("/forgot-password")).toBe("/sign-in");
+    expect(await redirectTarget("/reset-password")).toBe("/sign-in");
+    expect(await redirectTarget("/register")).toBe("/sign-up");
+    await gotoApp(browser, "/login?next=%2Fsettings");
+    await expect(screen.getByLabel("Email")).toBeVisible();
+    expect(new URL(await browser.url()).origin).not.toBe(
+      new URL(env.appUrl).origin
+    );
+    await app.screenshot("entry-state");
+    expect(pageErrors.errors).toEqual([]);
   });
+
   test("reaches hosted sign-in while Convex is unreachable", async ({
-    page,
-    baseURL,
+    browser,
+    screen,
   }) => {
-    await page.routeWebSocket(convexSocket, (socket) => socket.close());
-    await page.goto("/login");
+    await routeConvexSocket(browser, { unreachable: true });
+    await gotoApp(browser, "/login");
     // Sign-in starts server-side, so a browser outage can't stop the hand-off.
-    await expect(page.getByLabel("Email", { exact: true })).toBeVisible();
-    expect(new URL(page.url()).origin).not.toBe(new URL(baseURL ?? "").origin);
+    await expect(screen.getByLabel("Email")).toBeVisible();
+    expect(new URL(await browser.url()).origin).not.toBe(
+      new URL(env.appUrl).origin
+    );
   });
 });

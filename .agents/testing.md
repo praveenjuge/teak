@@ -14,7 +14,7 @@ A test earns its place only if it fails when the behavior it names is broken. Be
 | Convex query, mutation, action, or workflow step logic | `bun test` with the helpers in `packages/convex/__tests__/helpers/` | `packages/convex/__tests__/<mirrors source path>` | `bun run --cwd packages/convex test:unit` |
 | Convex behavior that depends on the real database, auth sessions, or components | `convex-test` on Vitest (edge runtime) | `packages/convex/*.test.ts`, listed in `packages/convex/vitest.config.ts` | `bun run --cwd packages/convex test:edge` |
 | Shared React UI | `bun test` + `renderToStaticMarkup` | `packages/ui/src/**/__tests__/` | `bun run --cwd packages/ui test` |
-| A real browser flow or a cross-surface journey (web, API, CLI, MCP) | Playwright against the local E2E stack and the WorkOS emulator | `packages/tests/src/web/` for web surfaces, `packages/tests/src/journey/` for journeys (read `packages/tests/README.md` first) | `bun run --cwd packages/tests e2e`; the `E2E` workflow runs it daily and on demand |
+| A real browser flow or a cross-surface journey (web, API, CLI, MCP) | [e2e](https://e2e.tester.army/docs) against the local E2E stack and the WorkOS emulator | `packages/tests/src/web/` for web surfaces, `packages/tests/src/journey/` for journeys (read `packages/tests/README.md` first) | `bun run --cwd packages/tests e2e`; the `E2E` workflow runs it daily and on demand |
 
 Prefer the lowest layer that can observe the behavior. Move up a layer only when the behavior lives in the integration: a query index, an auth session, a browser API.
 
@@ -27,7 +27,7 @@ Each workspace script runs only the files it matches. A test file outside these 
 | `packages/convex` | `__tests__/**/*.test.ts` (Bun). Root `*.test.ts` files listed in `vitest.config.ts` (Vitest). Do not colocate Bun tests next to source files. |
 | `packages/ui` | `src/**/*.test.{ts,tsx}` |
 | `apps/web` | `src/__tests__/**` (Bun) |
-| `packages/tests` | `src/**/*.e2e.ts` and `src/journey/*.setup.ts` (Playwright), `src/**/*.test.ts` (Bun) |
+| `packages/tests` | `src/**/*.e2e.ts` (e2e; each `e2e*.config.ts` names the directories it runs), `src/**/*.test.ts` (Bun) |
 | `apps/cli`, `apps/files-worker`, `packages/files-protocol` | `src/**` |
 | `apps/raycast` | `src/__tests__/**` |
 | `apps/extension`, `apps/mobile` | `__tests__/**` |
@@ -66,14 +66,15 @@ Each workspace script runs only the files it matches. A test file outside these 
 **One behavior per test, named as the behavior.** Write "refuses to auto-save chrome:// pages", not "test isValidUrl 3". Use `test.each` for tables of inputs.
 
 **Browser tests:**
-- Use `getByRole` and `getByLabel` locators, and web-first `expect` assertions.
+- Use `getByRole` and `getByLabel` locators, and web-first `expect` assertions. e2e matches names exactly and case-sensitively; pass `{ exact: false }` only when a fragment is the point.
+- No agent steps (`agent.act`, `agent.assert`): the suite configures no model, so every step is a locator or an exact `expect`.
 - Never `waitForTimeout`, and never wait for `networkidle`.
 - Never `test.skip` when an element is missing. A missing element is a failure.
 - Credential-gated skips are the only allowed skip.
 
 **Data against real backends:**
 - Use unique markers per run (`generateTestContent` in `packages/tests/src/web/fixtures.ts`).
-- E2E accounts are WorkOS emulator users that exist only for the run: journeys use the accounts from `packages/tests/src/journey/01-signup.setup.ts`, and web specs get one per worker from `packages/tests/src/web/fixtures.ts`.
+- E2E accounts are WorkOS emulator users that exist only for the run. Each spec file makes its own (`createAccount` or `createApiAccount` in `packages/tests/src/helpers/app.ts`), and web specs get one per test from `packages/tests/src/web/fixtures.ts`. Files share nothing, so they can run in any order.
 - Never point a test at production or staging accounts.
 
 ## Reuse before you write
@@ -82,7 +83,7 @@ Each workspace script runs only the files it matches. A test file outside these 
   - `packages/convex/__tests__/helpers/` provides `withTestSession`, R2 mocks and public API HTTP helpers.
   - `packages/convex/occContention.test.ts` has `insertCard` and search sync fixtures.
   - `packages/convex/workosSessions.test.ts` shows WorkOS-backed sessions with `t.withIdentity`.
-- E2E: `packages/tests/src/helpers/app.ts` (sign-up, hosted sign-in, API keys, deletion), `emulator.ts` (WorkOS users, emailed codes, session tokens), `api.ts`, `cli.ts` and `mcp.ts`. Headless WorkOS sessions against staging: `scripts/lib/workos-test-session.ts`.
+- E2E: `packages/tests/src/helpers/app.ts` (sign-up, hosted sign-in, API keys, deletion), `emulator.ts` (WorkOS users, emailed codes, session tokens), `page-hooks.ts` (page errors, blocked requests, Convex socket routing), `test.ts` (`retry`, `firstVisible`), `api.ts`, `cli.ts` and `mcp.ts`. Headless WorkOS sessions against staging: `scripts/lib/workos-test-session.ts`.
 - Raycast: `createRaycastApiMock` in `apps/raycast/src/__tests__/raycastApiMock.ts`.
 
 ## Before you finish
@@ -102,15 +103,14 @@ Each workspace script runs only the files it matches. A test file outside these 
 - `--isolate` gives each file a fresh global, which shows whether a failure is a leak from another file.
 - `--parallel=<n>`, `--shard=<i>/<n>`, and `--coverage --coverage-reporter=lcov` are also available.
 
-**Playwright (`packages/tests`)**
-- `--last-failed`, `--only-changed`, `--repeat-each=<n>`, and `--fail-on-flaky-tests`.
-- Traces (`--trace on`) show DOM and aria snapshots per step.
-- `page.consoleMessages()` and `page.pageErrors()` help explain failures.
-- `toMatchAriaSnapshot` pins page structure by role and name instead of markup.
+**e2e (`packages/tests`)**
+- `--last-failed`, `--repeat-each=<n>`, `--grep`, `--max-failures` and `path:line` selection.
+- A failed test names its `trace.md` under `packages/tests/.e2e/<suite>/results/`: every step, the app's console errors and failed requests, and the screen at failure. Read it before re-running. `--trace on` keeps one for passing tests too.
+- `--headed` shows the browser; `--video on` records every attempt.
+- The e2e skill (`.agents/skills/e2e/`) covers writing and running tests; the full docs ship in `node_modules/e2e/docs`.
+- Never run `e2e feedback`, even though the skill suggests it: it sends a report to the e2e maintainers. Tell the person what got in your way instead, and let them decide whether to report it. Keep `E2E_TELEMETRY_DISABLED=1` set, as the package scripts and `.mcp.json` do.
 
-**Playwright test runner MCP (`playwright-test` in `.mcp.json`)**
-- Lists, runs, and debugs the `packages/tests` specs from an agent session. Start the stack first (`bun run --cwd packages/tests e2e:stack`).
-- For planner, generator, and healer agents, run `bunx playwright init-agents --loop=claude` in `packages/tests`. Before using them, add the rules above: specs end in `.e2e.ts`, and the healer must never skip tests or weaken assertions.
-
-**Playwright MCP (`playwright` in `.mcp.json`)**
-- Drives a real browser, so you can check UI work in the running app at `http://localhost:3000` instead of relying on a passing build.
+**e2e MCP (`e2e` in `.mcp.json`)**
+- Opens live browser sessions on the running app (either stack), so you can check UI work at `http://localhost:3000` instead of relying on a passing build. Pass `packages/tests/e2e.config.ts` as `open_session`'s `config`; in a cloud session it drives the image's Chromium against the dev stack (`.agents/cloud.md`).
+- Its `locate` tool checks a `screen.getBy…` locator against the current page and returns the exact line to put in a spec.
+- It doesn't run specs; use `E2E_TELEMETRY_DISABLED=1 bunx e2e run <file>` in `packages/tests` with the E2E stack up (`bun run --cwd packages/tests e2e:stack`).

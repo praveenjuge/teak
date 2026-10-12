@@ -3,6 +3,11 @@
   padding: 0.25rem;
   font-family: var(--font-sans);
   font-size: var(--teak-editor-font-size, 1rem);
+  /* Chromium relays out a long unbroken run of kerned pairs ("éé…", "ww…"),
+   * wrapped by overflow-wrap below, in time quadratic in its length: with SN
+   * Pro's kerning on, one keystroke into a 256K-character run took over 80
+   * seconds. Without kerning it takes well under a second. */
+  font-kerning: none;
   line-height: 1.65;
   overflow-wrap: anywhere;
 }

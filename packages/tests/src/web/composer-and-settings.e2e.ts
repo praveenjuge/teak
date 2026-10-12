@@ -1,47 +1,59 @@
 import { api } from "@teak/convex";
+import { gotoApp } from "../helpers/app";
+import { describe } from "../helpers/test";
 import { expect, generateTestContent, test } from "./fixtures";
 
-test("the save shortcut stores the composer note", async ({
-  page,
-  library,
-}) => {
-  const content = generateTestContent("Shortcut");
-  const composer = page
-    .locator('form[data-card-creation-status="ready"]')
-    .getByRole("textbox", { name: "Markdown content" });
-  await composer.fill(content);
-  await composer.press("ControlOrMeta+Enter");
-  await expect(
-    page.getByRole("main").getByRole("paragraph").filter({ hasText: content })
-  ).toBeVisible();
-  await expect(composer).toHaveText("");
-  await expect
-    .poll(async () =>
-      (await library.client.query(api.cards.getCards, {})).some(
-        (card: { content?: string }) => card.content === content
+describe("Composer and settings", () => {
+  test("the save shortcut stores the composer note", async ({
+    browser,
+    library,
+  }) => {
+    const content = generateTestContent("Shortcut");
+    const composer = browser
+      .locator('form[data-card-creation-status="ready"]')
+      .getByRole("textbox", "Markdown content", { exact: false });
+    await composer.fill(content);
+    await composer.press("ControlOrMeta+Enter");
+    await expect(
+      browser.locator("main p").filter({ hasText: content })
+    ).toBeVisible();
+    await expect(composer).toHaveText("");
+    await expect
+      .poll(async () =>
+        (await library.client.query(api.cards.getCards, {})).some(
+          (card: { content?: string }) => card.content === content
+        )
       )
-    )
-    .toBe(true);
-});
+      .toBe(true);
+  });
 
-test("account deletion stays locked until the exact phrase is typed", async ({
-  page,
-}) => {
-  await page.goto("/settings");
-  await page.getByRole("button", { name: /delete your account/i }).click();
-  const dialog = page.getByRole("dialog", { name: "Delete Account" });
-  const confirm = dialog.getByRole("button", { name: "Delete account" });
-  const phrase = dialog.getByLabel('Type "delete account" to proceed');
-  await expect(confirm).toBeDisabled();
-  await phrase.fill("delete my account");
-  await expect(confirm).toBeDisabled();
-  await phrase.fill("delete account");
-  await expect(confirm).toBeEnabled();
-  await page.keyboard.press("Escape");
-  await expect(dialog).toBeHidden();
-  // Closing the dialog deleted nothing: the vault is still open.
-  await page.goto("/");
-  await expect(
-    page.getByRole("textbox", { name: "Markdown content" })
-  ).toBeVisible();
+  test("account deletion stays locked until the exact phrase is typed", async ({
+    browser,
+    screen,
+    webAccount: _signedIn,
+  }) => {
+    await gotoApp(browser, "/settings");
+    await screen.getByRole("button", /delete your account/i).click();
+    const dialog = screen.getByRole("dialog", "Delete Account", {
+      exact: false,
+    });
+    const confirm = dialog.getByRole("button", "Delete account", {
+      exact: false,
+    });
+    const phrase = dialog.getByLabel('Type "delete account" to proceed', {
+      exact: false,
+    });
+    await expect(confirm).toBeDisabled();
+    await phrase.fill("delete my account");
+    await expect(confirm).toBeDisabled();
+    await phrase.fill("delete account");
+    await expect(confirm).toBeEnabled();
+    await browser.keyboard.press("Escape");
+    await expect(dialog).toBeHidden();
+    // Closing the dialog deleted nothing: the vault is still open.
+    await gotoApp(browser, "/");
+    await expect(
+      screen.getByRole("textbox", "Markdown content", { exact: false })
+    ).toBeVisible();
+  });
 });

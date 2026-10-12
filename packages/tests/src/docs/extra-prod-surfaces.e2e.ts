@@ -1,5 +1,5 @@
-import { expect, test } from "@playwright/test";
 import { published } from "../helpers/env";
+import { expect, test } from "../helpers/test";
 
 interface Probe {
   body: RegExp;
@@ -168,35 +168,28 @@ for (const [index, probe] of probes.entries()) {
   const prefix = `extra-${String(index + 1).padStart(3, "0")} ${probe.name}`;
 
   test(`${prefix} production response contract`, async () => {
-    const response = await test.step("fetch with network retry", () =>
-      fetchWithNetworkRetry(probe.url));
+    const response = await fetchWithNetworkRetry(probe.url);
     const body = await response.text();
 
-    await test.step("status is successful", () => {
-      expect(response.status).toBeLessThan(400);
-    });
-    await test.step("content type is stable", () => {
-      expect(response.headers.get("content-type") ?? "").toMatch(
-        contentType[probe.kind]
-      );
-    });
-    await test.step("security headers are present", () => {
-      expect(response.headers.get("strict-transport-security") ?? "").toContain(
-        "max-age"
-      );
-      if (probe.nosniff !== false) {
-        expect(response.headers.get("x-content-type-options") ?? "").toBe(
-          "nosniff"
-        );
-      }
-    });
-    await test.step("body contains expected product marker", () => {
-      expect(body).toMatch(probe.body);
-    });
-    await test.step("body has no obvious server error leak", () => {
-      expect(body).not.toMatch(
-        /Unhandled Runtime Error|Internal Server Error|stack trace/i
-      );
-    });
+    // Playwright's test.step titles become the expectations' messages.
+    expect(response.status, "status is successful").toBeLessThan(400);
+    expect(
+      response.headers.get("content-type") ?? "",
+      "content type is stable"
+    ).toMatch(contentType[probe.kind]);
+    expect(
+      response.headers.get("strict-transport-security") ?? "",
+      "security headers are present"
+    ).toContain("max-age");
+    if (probe.nosniff !== false) {
+      expect(
+        response.headers.get("x-content-type-options") ?? "",
+        "security headers are present"
+      ).toBe("nosniff");
+    }
+    expect(body, "body contains expected product marker").toMatch(probe.body);
+    expect(body, "body has no obvious server error leak").not.toMatch(
+      /Unhandled Runtime Error|Internal Server Error|stack trace/i
+    );
   });
 }

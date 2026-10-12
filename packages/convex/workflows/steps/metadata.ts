@@ -18,6 +18,7 @@ import { TELEMETRY_OPERATIONS } from "../../shared/telemetry";
 import type { Id } from "../../shared/types";
 import { withBackendSpan } from "../../telemetry/sentry";
 import {
+  FILES_WORKER_NOT_CONFIGURED,
   generateImageMetadataForStoredKey,
   generateLinkMetadata,
   generateTextMetadata,
@@ -330,11 +331,17 @@ export async function generateHandler(
     console.warn("[workflow/metadata] AI metadata unavailable; deferring", {
       cardId,
       cardType,
+      ...(error instanceof Error &&
+      error.message === FILES_WORKER_NOT_CONFIGURED
+        ? { reason: FILES_WORKER_NOT_CONFIGURED }
+        : {}),
     });
-    // Provider capacity, malformed output, and not-yet-rasterized image inputs
-    // are recoverable. Leave metadata incomplete so the bounded periodic
-    // backfill can retry without multiplying one transient failure across the
-    // workflow retry budget.
+    // Provider capacity, malformed output, not-yet-rasterized image inputs and
+    // an unconfigured Files Worker are recoverable. Leave metadata incomplete
+    // so the bounded periodic backfill can retry without multiplying one
+    // failure across the workflow retry budget, whose attempts would
+    // otherwise crowd every other workflow, account deletion included, out of
+    // the shared workpool.
     return {
       aiTagsCount: 0,
       hasSummary: false,

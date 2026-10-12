@@ -32,14 +32,15 @@ returns to the unsaved compact draft.
 
 ## Verification
 
-Use the repository's local, authenticated development stack. Tests create their
-own accounts and cards and remove them afterward. Never use production credentials.
+The browser specs run on the E2E suite's local stack (the WorkOS emulator and a
+local backend). Tests create their own accounts and cards and remove them
+afterward. Never use production credentials.
 
 ```sh
 bun test packages/ui/src/components/text-editor/__tests__
-PLAYWRIGHT_SKIP_WEBSERVER=1 bun run --cwd apps/web test:e2e markdown-editor.e2e.ts --reporter=list,html
+bun run --cwd packages/tests e2e src/web/markdown-editor.e2e.ts
 ```
 
-Reports live in `apps/web/playwright-report`; traces and representative screenshots
-live in `apps/web/test-results`. Shipping is blocked by silent loss, unexpected writes,
+A failed spec names its trace page, with steps, screenshots and the app log, under
+`packages/tests/.e2e/chromium/results/`. Shipping is blocked by silent loss, unexpected writes,
 unsafe execution, or a failed required journey.

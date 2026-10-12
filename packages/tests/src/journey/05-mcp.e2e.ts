@@ -1,10 +1,15 @@
-import { expect, test } from "@playwright/test";
+import { createApiAccount } from "../helpers/app";
 import { env } from "../helpers/env";
 import { connectMcp } from "../helpers/mcp";
-import { requireServiceApiKey, updateState } from "../helpers/run-state";
+import { expect, test } from "../helpers/test";
+
+// The account this file's tests call MCP as; no other file uses it.
+let apiKey = "";
+test.beforeAll(async () => {
+  ({ apiKey } = await createApiAccount("service-mcp"));
+});
 
 test("MCP lists and calls every public tool", async () => {
-  const apiKey = requireServiceApiKey("mcp");
   const unauth = await fetch(env.mcpUrl);
   expect(unauth.status).toBe(401);
   expect(unauth.headers.get("www-authenticate")).toContain("resource_metadata");
@@ -72,7 +77,6 @@ test("MCP lists and calls every public tool", async () => {
 });
 
 test("MCP bulk update and sync cursor return coherent changes", async () => {
-  const apiKey = requireServiceApiKey("mcp");
   const marker = `mcp-bulk-sync-${Date.now()}`;
   const client = await connectMcp(apiKey);
   try {
@@ -85,7 +89,6 @@ test("MCP bulk update and sync cursor return coherent changes", async () => {
     });
     expect(created.isError).not.toBe(true);
     const cardId = created.structuredContent.cardId;
-    updateState((state) => state.createdCardIds.push(cardId));
 
     const since = Date.now() - 60_000;
     const bulk: any = await client.callTool({

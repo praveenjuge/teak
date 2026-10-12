@@ -1,4 +1,4 @@
-import { expect } from "@playwright/test";
+import { expect } from "e2e";
 import { EMULATOR_API_KEY, EMULATOR_CLIENT_ID } from "../stack/config";
 import { env } from "./env";
 
