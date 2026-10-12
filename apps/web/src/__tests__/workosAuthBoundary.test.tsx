@@ -15,9 +15,13 @@ GlobalRegistrator.register({ url: "http://localhost:3000/cards?view=grid" });
 mock.module("server-only", () => ({}));
 // WorkOS AuthKit is the external session provider; everything below it is real.
 const session = { user: { id: "user_A" }, sessionId: "session_A" };
+const accessToken: { error?: Error } = {};
 mock.module("@workos-inc/authkit-nextjs/components", () => ({
   useAuth: () => ({ ...session, loading: false }),
-  useAccessToken: () => ({ error: undefined, refresh: async () => "token" }),
+  useAccessToken: () => ({
+    error: accessToken.error,
+    refresh: async () => "token",
+  }),
 }));
 
 const { act } = await import("react");
@@ -43,6 +47,7 @@ afterEach(async () => {
   await act(() => root?.unmount());
   root = undefined;
   container.remove();
+  accessToken.error = undefined;
 });
 afterAll(async () => {
   await GlobalRegistrator.unregister();
@@ -54,14 +59,23 @@ const useSignedIn = () => ({
   fetchAccessToken: async () => "token",
 });
 
-async function mount(useAuth = useSignedIn) {
-  // The backend accepts the session token as soon as auth is set.
-  transport.client.setAuth = (_fetchToken, onChange) => onChange?.(true);
+async function mount(useAuth = useSignedIn, { backendAnswers = true } = {}) {
+  // The backend accepts the session token as soon as auth is set, unless the
+  // test holds its answer back.
+  transport.client.setAuth = (_fetchToken, onChange) => {
+    if (backendAnswers) {
+      onChange?.(true);
+    }
+  };
   transport.client.clearAuth = () => undefined;
   container = document.createElement("div");
   document.body.append(container);
   root = createRoot(container);
-  await act(() =>
+  await render(useAuth);
+}
+
+const render = (useAuth = useSignedIn) =>
+  act(() =>
     root?.render(
       <ConvexProviderWithAuth client={transport.client} useAuth={useAuth}>
         <ConvexQueryCacheProvider>
@@ -72,7 +86,6 @@ async function mount(useAuth = useSignedIn) {
       </ConvexProviderWithAuth>
     )
   );
-}
 
 const ensureCalls = () =>
   transport.calls.filter((call) => call.path === "workosBootstrap:ensureUser");
@@ -155,7 +168,7 @@ test("asks to sign in again when the open vault's owner disappears", async () =>
   const replace = spyOn(window.location, "replace").mockImplementation(
     () => undefined
   );
-  await act(() => button("Try again").click());
+  await act(() => button("Sign in").click());
   expect(replace).toHaveBeenCalledWith("/sign-in");
   replace.mockRestore();
 });
@@ -182,7 +195,29 @@ test("sends a session Convex rejects to sign-in with its current page", async ()
   const replace = spyOn(window.location, "replace").mockImplementation(
     () => undefined
   );
-  await act(() => button("Try again").click());
+  await act(() => button("Sign in").click());
   expect(replace).toHaveBeenCalledWith("/sign-in?next=%2Fcards%3Fview%3Dgrid");
   replace.mockRestore();
+});
+
+test("keeps the vault open when a token refresh fails on a dropped connection", async () => {
+  transport = createConvexTransport();
+  transport.seed("auth:getAuthUser", profile);
+  await mount();
+  expect(text()).toContain("Vault open");
+
+  accessToken.error = new TypeError("Failed to fetch");
+  await render();
+
+  expect(text()).toContain("Vault open");
+  expect(text()).not.toContain("We couldn't check your session.");
+});
+
+test("offers a retry when no token arrives before the vault opens", async () => {
+  transport = createConvexTransport();
+  accessToken.error = new TypeError("Failed to fetch");
+  await mount(useSignedIn, { backendAnswers: false });
+
+  expect(text()).toContain("We couldn't check your session. Please try again.");
+  expect(text()).not.toContain("Vault open");
 });
