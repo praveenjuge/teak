@@ -19,10 +19,14 @@ stack itself; this is the cloud-specific checklist. Last verified 2026-10-11.
 - **Network:** the stack needs Convex, WorkOS and Polar (and Playwright's CDN
   for setup), which aren't on the default "Trusted" list. Use "Full", or add
   them under "Custom".
-- **`NODE_OPTIONS=--use-openssl-ca`:** makes Node trust the session's HTTPS
-  proxy for tools that ignore `NODE_EXTRA_CA_CERTS`. Without it Raycast's
-  `ray lint` fails on raycast.com ("self-signed certificate in certificate
-  chain"), which also fails the pre-commit hook when Raycast is affected.
+- **`NODE_OPTIONS`:** nothing to set. The SessionStart hook adds
+  `--use-openssl-ca` to the session's `NODE_OPTIONS`, so Node trusts the HTTPS
+  proxy through the system store. Turbo's strict env mode drops
+  `NODE_EXTRA_CA_CERTS`, so without the flag Node tasks under Turbo fail with
+  "self-signed certificate in certificate chain": Raycast's `ray lint` on
+  raycast.com (which also fails the pre-commit hook when Raycast is affected)
+  and the docs dev server's Google Fonts fetch. If you set it by hand earlier,
+  you can remove it.
 
 ## Works
 
