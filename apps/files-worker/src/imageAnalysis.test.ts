@@ -109,6 +109,52 @@ describe("image analysis", () => {
     });
   });
 
+  test("returns the original's EXIF camera facts with the analysis", async () => {
+    const bucket = new FakeBucket();
+    const jpegKey = "users/u/cards/c/file/photo.jpg";
+    bucket.objects.set(jpegKey, {
+      bytes: new Uint8Array(
+        await Bun.file(
+          new URL("./fixtures/fixture-exif.jpg", import.meta.url)
+        ).arrayBuffer()
+      ),
+      httpMetadata: { contentType: "image/jpeg" },
+    });
+    const env = {
+      BUCKET: bucket as unknown as R2Bucket,
+      FILES_SIGNING_SECRET: "secret",
+      IMAGES: {
+        info: async (stream: ReadableStream<Uint8Array>) => {
+          await new Response(stream).arrayBuffer();
+          return { height: 30, width: 40 };
+        },
+      } as unknown as ImagesBinding,
+    } as Env;
+    const imageFetch = (() =>
+      Promise.resolve(
+        new Response(makePng(64, 48), {
+          headers: { "content-type": "image/png" },
+        })
+      )) as unknown as typeof fetch;
+
+    const result = await analyzeImage(
+      env,
+      jpegKey,
+      "https://files.teakvault.com",
+      imageFetch,
+      1_800_000_000
+    );
+
+    expect(result.exif).toMatchObject({
+      fNumber: 2.8,
+      iso: 400,
+      make: "Teak Camera Co",
+      model: "Fixture One",
+      takenAt: Date.parse("2026-05-17T09:00:05Z"),
+    });
+    expect(result).toMatchObject({ height: 30, width: 40 });
+  });
+
   test("rejects missing dimensions instead of storing transformed dimensions", async () => {
     const bucket = new FakeBucket();
     bucket.objects.set(KEY, {

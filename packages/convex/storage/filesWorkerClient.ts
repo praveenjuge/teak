@@ -26,6 +26,15 @@ import { assertR2KeyInNamespace, hmacSha256Hex } from "./r2Keys";
 // window (the worker additionally rejects exps further than 15 min out).
 export const FILES_OP_TTL_SECONDS = 10 * 60;
 
+// Browser Run and Media operations; bounded so a stuck render falls back to
+// the previous renderer instead of holding the action.
+const RENDERING_OPS = new Set<FilesOp>([
+  "render-pdf-thumbnail",
+  "extract-video-frame",
+  "capture-screenshot",
+  "scrape-html",
+]);
+
 export const isFilesWorkerConfigured = (): boolean =>
   Boolean(env.FILES_BASE && env.FILES_SIGNING_SECRET);
 
@@ -268,7 +277,8 @@ export const callFilesWorkerJson = async <T>(spec: {
             spec.op === "generate-link-metadata" ||
             spec.op === "freeze-object" ||
             spec.op === "abort-multipart" ||
-            spec.op === "delete-objects"
+            spec.op === "delete-objects" ||
+            RENDERING_OPS.has(spec.op)
               ? {
                   signal: AbortSignal.timeout(90_000),
                   redirect: "error" as const,
@@ -327,6 +337,16 @@ export const callFilesWorkerJson = async <T>(spec: {
   );
 
 export interface FilesWorkerImageAnalysisResult {
+  /** Camera facts from the original's EXIF, when present. */
+  exif?: {
+    exposureTime?: number;
+    fNumber?: number;
+    focalLength?: number;
+    iso?: number;
+    make?: string;
+    model?: string;
+    takenAt?: number;
+  };
   height: number;
   palette: string[];
   width: number;

@@ -1,13 +1,37 @@
+import { type ExifFacts, readExifFacts } from "./exif";
 import { fetchPrivateImageSource } from "./imageTransform";
 import type { Env } from "./index";
 import { paletteFromPng } from "./palette";
 import { renderSvgToPng } from "./wasm";
 
 export interface ImageAnalysisResult {
+  /** Camera facts, when the original carries EXIF. */
+  exif?: ExifFacts;
   height: number;
   palette: string[];
   width: number;
 }
+
+// EXIF is optional: a read or parse failure never fails the analysis.
+const readStoredExif = async (
+  bucket: R2Bucket,
+  sourceKey: string,
+  etag: string,
+  size: number
+): Promise<ExifFacts | null> => {
+  try {
+    return await readExifFacts(async (offset, length) => {
+      const object = await bucket.get(sourceKey, { range: { offset, length } });
+      if (!object || object.httpEtag !== etag) {
+        await object?.body.cancel();
+        throw new Error("source_changed");
+      }
+      return new Uint8Array(await object.arrayBuffer());
+    }, size);
+  } catch {
+    return null;
+  }
+};
 
 // Cloudflare's Images binding accepts raw inputs up to 20 MB. Larger images
 // retain the URL-transformation metadata fallback, whose remote-image limit is
@@ -142,7 +166,7 @@ export const analyzeImage = async (
     return await analyzeSvg(env, sourceKey);
   }
 
-  const [dimensions, sampleResponse] = await Promise.all([
+  const [dimensions, sampleResponse, exif] = await Promise.all([
     resolveRasterDimensions(
       env,
       sourceKey,
@@ -166,12 +190,14 @@ export const analyzeImage = async (
       imageFetch,
       now
     ),
+    readStoredExif(env.BUCKET, sourceKey, metadata.httpEtag, metadata.size),
   ]);
   if (!sampleResponse.ok) {
     throw new Error("image_transform_failed");
   }
   return {
     ...dimensions,
+    ...(exif ? { exif } : {}),
     palette: paletteFromPng(new Uint8Array(await sampleResponse.arrayBuffer())),
   };
 };

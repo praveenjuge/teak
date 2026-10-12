@@ -93,6 +93,17 @@ export const OPS_ENTRIES: EnvVarSpec[] = [
     kind: "binding",
     note: "Cloudflare Images binding for transforms.",
   }),
+  spec("MEDIA", {
+    owners: ["@teak/files-worker"],
+    targets: ["files-worker"],
+    profiles: ["preview", "production"],
+    secret: false,
+    validation: "string",
+    providers: ["cloudflare"],
+    required: false,
+    kind: "binding",
+    note: "Media Transformations binding for video thumbnails (remote only).",
+  }),
   // E2E suite.
   spec("TEAK_E2E_RUN_STATE_FILE", {
     owners: ["@teak/tests"],

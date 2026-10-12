@@ -35,6 +35,13 @@ let capturedPlaywrightCode = "";
 let uploadedThumbnail: { url: string; body?: Buffer } | null = null;
 let headObjectCalls: Array<{ op: string; params: Record<string, unknown> }> =
   [];
+// What the Files Worker answers for render-pdf-thumbnail. "fallback" is a
+// Worker without Browser Run (or the operation), which keeps Kernel in use.
+let workerRender:
+  | { kind: "fallback" }
+  | { kind: "ok"; data: Record<string, unknown> }
+  | { kind: "throw" } = { kind: "fallback" };
+let workerRenderCalls: Record<string, unknown>[] = [];
 
 let generatePdfThumbnail: any;
 
@@ -322,6 +329,12 @@ beforeAll(async () => {
         op: string;
         params: Record<string, unknown>;
       }) => {
+        if (spec.op === "render-pdf-thumbnail") {
+          workerRenderCalls.push(spec.params);
+          return workerRender.kind === "throw"
+            ? Promise.reject(new Error("files_worker_network_error:reset"))
+            : Promise.resolve(workerRender);
+        }
         headObjectCalls.push(spec);
         return Promise.resolve({
           kind: "ok",
@@ -366,6 +379,63 @@ const createCtx = (card: unknown) => {
     mutationCalls,
   };
 };
+
+describe("generatePdfThumbnail through the Files Worker", () => {
+  test("records the Worker-rendered thumbnail without starting Kernel", async () => {
+    capturedPlaywrightCode = "";
+    headObjectCalls = [];
+    workerRenderCalls = [];
+    workerRender = {
+      kind: "ok",
+      data: {
+        height: 1600,
+        storedBytes: 4096,
+        storedContentType: "image/png",
+        width: 1132,
+      },
+    };
+    const { ctx, mutationCalls } = createCtx(pdfCard);
+    try {
+      const result = await generatePdfThumbnail(ctx, { cardId: "card-pdf" });
+      expect(result).toEqual({
+        success: true,
+        generated: true,
+        thumbnailKey: "users/u/cards/c/thumbnail/generated",
+      });
+      expect(workerRenderCalls).toEqual([
+        {
+          destinationKey: "users/u/cards/c/thumbnail/generated",
+          sourceKey: "users/u/cards/c/file/original",
+        },
+      ]);
+      expect(mutationCalls.map((call) => call.args)).toEqual([
+        {
+          cardId: "card-pdf",
+          originalHeight: 1600,
+          originalWidth: 1132,
+          thumbnailKey: "users/u/cards/c/thumbnail/generated",
+        },
+      ]);
+      expect(capturedPlaywrightCode).toBe("");
+    } finally {
+      workerRender = { kind: "fallback" };
+    }
+  });
+
+  test("falls back to Kernel when the Worker request fails", async () => {
+    capturedPlaywrightCode = "";
+    workerRender = { kind: "throw" };
+    const { ctx, mutationCalls } = createCtx(pdfCard);
+    try {
+      const result = await generatePdfThumbnail(ctx, { cardId: "card-pdf" });
+      expect(result.generated).toBe(true);
+      expect(capturedPlaywrightCode).toContain("pdfjsLib");
+      expect(mutationCalls).toHaveLength(1);
+    } finally {
+      workerRender = { kind: "fallback" };
+    }
+  });
+});
 
 describe("generatePdfThumbnail", () => {
   test("fetches the PDF inside the VM and uploads the thumbnail directly", async () => {

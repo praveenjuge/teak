@@ -20,23 +20,6 @@ const WORKERS_AI_PRICING_USD_PER_MILLION = {
 export type PricedWorkersAiModel =
   keyof typeof WORKERS_AI_PRICING_USD_PER_MILLION;
 
-export const createAiTelemetrySettings = (input: {
-  functionId: string;
-  model: string;
-  stage: TelemetryStage;
-}) => ({
-  functionId: input.functionId,
-  isEnabled: true,
-  metadata: {
-    "teak.model": input.model,
-    "teak.provider": WORKERS_AI_PROVIDER,
-    "teak.stage": input.stage,
-  },
-  // Content is recorded explicitly through Teak's scrubbed/truncated span path.
-  recordInputs: false,
-  recordOutputs: false,
-});
-
 export const estimateWorkersAiCostUsd = (input: {
   inputTokens?: number;
   model: string;

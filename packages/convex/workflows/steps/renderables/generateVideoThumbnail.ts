@@ -1,6 +1,7 @@
 "use node";
 
 import Kernel from "@onkernel/sdk";
+import type { FilesVideoFrameResult } from "@teak/files-protocol";
 import { v } from "convex/values";
 import { internal } from "../../../_generated/api";
 import { internalAction } from "../../../_generated/server";
@@ -9,6 +10,7 @@ import {
   callFilesWorkerJson,
   type FilesWorkerHeadObjectResult,
 } from "../../../storage/filesWorkerClient";
+import { tryFilesWorkerRendering } from "../../../storage/filesWorkerRendering";
 import { tryResolveObjectUrl } from "../../../storage/fileUrls";
 import { ensureObjectOwnership } from "../../../storage/ownership";
 import { buildR2ObjectKey } from "../../../storage/r2";
@@ -102,6 +104,32 @@ export const generateVideoThumbnail = internalAction({
         role: "thumbnail",
       });
       await ensureObjectOwnership(ctx, card.userId, thumbnailKey);
+
+      // Media Transformations in the Files Worker extracts H.264 frames
+      // straight from R2; Kernel stays the fallback for other codecs, WebM,
+      // sources over 100 MB, and Workers without the binding.
+      const frame = await tryFilesWorkerRendering<FilesVideoFrameResult>(
+        "extract-video-frame",
+        { destinationKey: thumbnailKey, sourceKey: card.fileKey },
+        "[renderables/video]"
+      );
+      if (frame) {
+        await ctx.runMutation(
+          internal.workflows.steps.renderables.mutations.updateCardThumbnail,
+          {
+            cardId: args.cardId,
+            thumbnailKey,
+            ...(frame.originalWidth !== null && {
+              originalWidth: frame.originalWidth,
+            }),
+            ...(frame.originalHeight !== null && {
+              originalHeight: frame.originalHeight,
+            }),
+          }
+        );
+        return { success: true, generated: true, thumbnailKey };
+      }
+
       const uploadUrl = (
         await buildSignedWorkerUploadUrl({
           contentType: "",

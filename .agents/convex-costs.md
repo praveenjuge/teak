@@ -69,15 +69,17 @@ protection. Raw metadata archival calls only the configured signed Files Worker.
 
 ## Operational cost rollout
 
-Keep `OPERATIONAL_RETENTION_ENABLED` and `FILES_TEXT_AI_ENABLED` unset or `false`
-until the deployed Files Worker advertises both metadata operations and the
-production snapshot and dry-run report have been checked. Deploy Worker support
-before the Convex consumer. Enable text AI first, verify an isolated text/link
-journey, then enable retention. Disabling text AI routes text/link generation back
-to the direct Convex provider; it does not stop AI work or its costs. Disabling
-retention stops deletion; queued batches recheck the flag before deleting anything.
+Keep `OPERATIONAL_RETENTION_ENABLED` unset or `false` until the production
+snapshot and dry-run report have been checked. Disabling retention stops
+deletion; queued batches recheck the flag before deleting anything.
 
-Text/link metadata uses the existing Workers AI binding and the same Qwen model,
+Text/link metadata always runs through the Files Worker's
+`generate-text-metadata` and `generate-link-metadata` operations; the direct
+Convex provider and its `FILES_TEXT_AI_ENABLED` switch were removed once the
+deployed Worker answered both operations for the dev deployment. Convex holds
+no Workers AI credentials.
+
+Text/link metadata uses the Files Worker's Workers AI binding and the same Qwen model,
 prompts, input limit, output validation and retry policy. Inputs are signed text,
 not URLs to fetch. Keep call, error, latency, retry, token and cost aggregates;
 routine successful traces are sampled at 10%, while failures, slow transactions

@@ -4,8 +4,8 @@
  * Workflow step that generates thumbnails and other visual assets for cards.
  * Handles thumbnail generation for:
  * - Image cards (dimensions and palette; Cloudflare serves renditions on demand)
- * - Video cards (using @onkernel/sdk with native HTML5 video + canvas APIs)
- * - PDF documents (using @onkernel/sdk with pdf.js for rendering)
+ * - Video cards (Files Worker Media Transformations, Kernel as fallback)
+ * - PDF documents (Files Worker Browser Run, Kernel as fallback)
  */
 
 "use node";
@@ -17,6 +17,7 @@ import { stageCompleted, stageFailed } from "../../card/processingStatus";
 import { inferFileFormat } from "../../shared/fileFormats";
 import { TELEMETRY_OPERATIONS } from "../../shared/telemetry";
 import { withBackendSpan } from "../../telemetry/sentry";
+import { recordMediaFacts } from "../mediaFacts";
 
 /**
  * Workflow Step: Generate renderables (thumbnails, etc.)
@@ -104,8 +105,10 @@ export async function generateHandler(
     handleResult(result);
   }
 
-  // Generate thumbnail for video cards using MediaBunny
+  // Generate thumbnail for video cards: Media Transformations in the Files
+  // Worker for H.264 MP4/MOV, Kernel otherwise.
   if (cardType === "video" && card.fileKey && !isGifFile) {
+    await recordMediaFacts(ctx, card, "video");
     const result = await ctx.runAction(
       (internal as any).workflows.steps.renderables.generateVideoThumbnail
         .generateVideoThumbnail,

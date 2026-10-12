@@ -30,13 +30,7 @@ const app = defineApp({
     FILES_BASE: v.optional(v.string()),
     FILES_SIGNING_SECRET: v.optional(v.string()),
     R2_BUCKET: v.optional(v.string()),
-    R2_ENDPOINT: v.optional(v.string()),
-    R2_ACCESS_KEY_ID: v.optional(v.string()),
-    R2_SECRET_ACCESS_KEY: v.optional(v.string()),
     R2_KEY_PREFIX: v.optional(v.string()),
-    // Cloudflare AI capability group.
-    CLOUDFLARE_ACCOUNT_ID: v.optional(v.string()),
-    CLOUDFLARE_API_TOKEN: v.optional(v.string()),
     // Polar billing capability group.
     POLAR_ACCESS_TOKEN: v.optional(v.string()),
     POLAR_SERVER: v.optional(v.string()),
@@ -49,7 +43,6 @@ const app = defineApp({
     // Administration.
     // Staged operational-cost rollout; unset means disabled.
     OPERATIONAL_RETENTION_ENABLED: v.optional(v.string()),
-    FILES_TEXT_AI_ENABLED: v.optional(v.string()),
     // The shared cloud dev deployment: "true" enables dev tooling (seed data,
     // the backend push lease). Never set in production.
     TEAK_DEV_DEPLOYMENT: v.optional(v.string()),

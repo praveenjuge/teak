@@ -2,13 +2,6 @@
 import { beforeEach, describe, expect, mock, test } from "bun:test";
 
 // Mock AI module
-const aiMocks = (global as any).__AI_MOCKS__ ?? {};
-aiMocks.generateText ??= mock();
-aiMocks.generateObject ??= mock();
-aiMocks.experimental_transcribe ??= mock();
-aiMocks.Output ??= { object: mock() };
-(global as any).__AI_MOCKS__ = aiMocks;
-mock.module("ai", () => aiMocks);
 
 import { classify } from "../../../../convex/workflows/steps/classification";
 
@@ -23,8 +16,6 @@ describe("classification step", () => {
   beforeEach(() => {
     mockRunQuery.mockReset();
     mockRunMutation.mockReset();
-    aiMocks.generateText.mockReset();
-    aiMocks.generateObject.mockReset();
   });
 
   describe("classification error handling", () => {

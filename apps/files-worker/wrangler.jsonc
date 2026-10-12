@@ -34,6 +34,15 @@
   "images": {
     "binding": "IMAGES"
   },
+  // Browser Run: PDF thumbnails and offline HTML screenshots/scrapes.
+  "browser": {
+    "binding": "BROWSER"
+  },
+  // Media Transformations: video frames read straight from R2 (remote only).
+  "media": {
+    "binding": "MEDIA",
+    "remote": true
+  },
   // This config deploys the production custom domain. Local dev overrides it.
   "vars": {
     "SENTRY_ENVIRONMENT": "production"

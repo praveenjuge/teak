@@ -8,7 +8,7 @@ Native SwiftUI. One multiplatform app target, a share extension and a Safari web
 - Debug talks to the shared dev deployment and WorkOS staging; Release talks to production. The Convex Rust core is Apple silicon only, so Mac and Simulator builds are arm64.
 - This workspace has no `package.json`: Turbo, `bun run dev` and `doctor` don't see it.
 - CI and releases run on GitHub's `xcode-27` runner image (a preview label) with Xcode pinned by `scripts/select-xcode.sh`; keep that pin in step with the Xcode you develop on.
-- Checks: `swift test --package-path Packages/TeakKit`, `bun --no-env-file test apps/apple/tests/` (from the repo root), and the builds in the `Unit Tests` workflow.
+- Checks: `swift test --package-path Packages/TeakKit` and `bun --no-env-file test apps/apple/tests/` (from the repo root). CI does not build the app, so build it locally for iPhone and Mac before pushing app changes.
 
 ## Layout
 

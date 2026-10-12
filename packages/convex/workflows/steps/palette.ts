@@ -51,7 +51,7 @@ export const extractPaletteFromImage = internalAction({
           if (outcome.kind !== "ok") {
             return;
           }
-          const { width, height, palette } = outcome.data;
+          const { exif, width, height, palette } = outcome.data;
           if (
             !Array.isArray(palette) ||
             palette.length === 0 ||
@@ -62,7 +62,7 @@ export const extractPaletteFromImage = internalAction({
           await ctx.runMutation(
             internal.workflows.steps.renderables.mutations
               .updateCardFileMetadata,
-            { cardId, height, width }
+            { cardId, height, width, ...(exif ? { exif } : {}) }
           );
           const colors = palette.map((hex) => ({ hex }));
           await ctx.runMutation(

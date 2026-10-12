@@ -9,7 +9,7 @@ sidebar:
 
 - Git, Bun, and Node.js at the versions pinned in `package.json` (see the [Development guide](/docs/development))
 - A [WorkOS](https://workos.com/) account. Teak signs in with WorkOS AuthKit only.
-- Access to secrets for the features you want: Cloudflare R2 and Workers (file storage), Cloudflare Workers AI (AI), Kernel (screenshots), Polar (billing)
+- Access to secrets for the features you want: Cloudflare R2 and Workers (file storage, AI, thumbnails and screenshots), Kernel (optional rendering fallback), Polar (billing)
 
 :::warning[Beta]
 Self-hosting matches the hosted product, but you own uptime, secrets, and
@@ -95,9 +95,9 @@ Sign-in discovery needs `WORKOS_AUTHKIT_DOMAIN` and all five client IDs. If any 
     bunx convex env set WORKOS_WEBHOOK_SECRET
     bunx convex env set WORKOS_ACTION_SECRET
 
-    # Optional: AI (if you want card processing)
-    bunx convex env set CLOUDFLARE_ACCOUNT_ID your-account-id
-    bunx convex env set CLOUDFLARE_API_TOKEN your-api-token
+    # Optional: files and AI card processing, through your Files Worker
+    bunx convex env set FILES_BASE https://files.yourdomain.com
+    bunx convex env set FILES_SIGNING_SECRET
     ```
 
     Leaving the value off makes `convex env set` prompt for it, which keeps secrets out of your shell history. See [Detailed Environment Reference](#detailed-environment-reference) for the full variable list.
@@ -145,7 +145,7 @@ Sign-in discovery needs `WORKOS_AUTHKIT_DOMAIN` and all five client IDs. If any 
     Point your domain's `SITE_URL` to wherever you are hosting the Next.js app.
   </Step>
   <Step title="Add optional services">
-    Add billing (Polar), screenshot (Kernel), and AI (Cloudflare) keys to Convex env if needed.
+    Add billing (Polar) and, optionally, Kernel keys to Convex env if needed. AI, thumbnails, and screenshots run in the Files Worker.
   </Step>
   <Step title="Build and start">
     ```bash
@@ -176,13 +176,7 @@ WORKOS_RESOURCE_ORIGIN=https://yourdomain.com # Optional: token audiences <origi
 WORKOS_CONNECT_CLI_CLIENT_ID=client_...      # Plus the RAYCAST, CHROME, FIREFOX, and SAFARI client IDs
 FILES_BASE=https://files.yourdomain.com
 FILES_SIGNING_SECRET=shared-secret
-R2_ACCESS_KEY_ID=access-key
-R2_SECRET_ACCESS_KEY=secret-key
-R2_ENDPOINT=https://account.r2.cloudflarestorage.com
-R2_BUCKET=teak-files
 KERNEL_API_KEY=token
-CLOUDFLARE_ACCOUNT_ID=your-account-id
-CLOUDFLARE_API_TOKEN=your-api-token
 POLAR_ACCESS_TOKEN=token
 POLAR_ORGANIZATION_TOKEN=token
 POLAR_SERVER=sandbox
@@ -193,7 +187,7 @@ POLAR_WEBHOOK_SECRET=secret
 
 ### Files Worker (`apps/files-worker/.dev.vars`, wrangler secrets)
 
-The Files Worker owns all file-byte operations and binds to your R2 bucket plus Cloudflare Images and Workers AI (all declared in `wrangler.jsonc` — set `bucket_name` to your own bucket and the route `pattern` to your files domain):
+The Files Worker owns all file-byte operations and binds to your R2 bucket plus Cloudflare Images, Workers AI, Browser Run (PDF thumbnails and link screenshots), and Media Transformations (video thumbnails), all declared in `wrangler.jsonc`. Set `bucket_name` to your own bucket and the route `pattern` to your files domain. Browser Run is included on Workers Free (10 browser minutes a day) and Workers Paid (10 browser hours a month), and the Media Transformations binding is in beta. Without these bindings, or for sources outside their limits, Teak falls back to Kernel when `KERNEL_API_KEY` is set:
 
 ```bash
 FILES_SIGNING_SECRET=shared-secret           # Must match the Convex value
@@ -247,8 +241,6 @@ Convex serves the REST API at `/api/v1`, the MCP endpoint at `/mcp`, plus `/heal
   - `WORKOS_COOKIE_PASSWORD`: Generate at least 32 random characters (e.g., via `openssl rand -base64 32`). Setup generates one locally.
   - `SITE_URL`: This is the URL where your Next.js app is running. Locally, it's `http://localhost:3000`.
 - **Optional Features**:
-  - `R2_*`: Create a private Cloudflare R2 bucket and an API token/S3 credentials with object read, write, and delete access.
-  - `FILES_BASE` + `FILES_SIGNING_SECRET`: Deploy the Files Worker (see its section above); card uploads, downloads, thumbnails, and AI analysis all flow through it.
-  - `CLOUDFLARE_ACCOUNT_ID` + `CLOUDFLARE_API_TOKEN`: Get from the [Cloudflare dashboard](https://dash.cloudflare.com/) — create an API token with Workers AI run permission for AI-powered card processing.
-  - `KERNEL_API_KEY`: Get from [Kernel](https://onkernel.com/) for automated link screenshots.
+  - `FILES_BASE` + `FILES_SIGNING_SECRET`: Deploy the Files Worker (see its section above) with a private R2 bucket bound to it; card uploads, downloads, imports, exports, thumbnails, and AI analysis all flow through it. Convex needs no R2 or Workers AI credentials of its own.
+  - `KERNEL_API_KEY`: Optional. Get from [Kernel](https://onkernel.com/) to render thumbnails and screenshots the Files Worker cannot (no Browser Run or Media binding, videos that are not H.264 MP4/MOV or are over 100 MB, PDFs over 20 MB).
   - `POLAR_*`: Get from [Polar](https://polar.sh/) if you want to use the built-in billing system.
