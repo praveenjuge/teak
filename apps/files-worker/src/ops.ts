@@ -15,13 +15,13 @@ import {
 import {
   captureHtmlScreenshot,
   decodeHtmlParam,
-  type LaunchBrowser,
   loadPinnedPdfJs,
   readPdfSource,
   renderPdfFirstPage,
   scrapeHtml,
   validScrapeSelectors,
 } from "./browserRender";
+import { type AcquireBrowser, createBrowserAcquirer } from "./browserSessions";
 import { freezeObject } from "./deletionGate";
 import {
   buildExportIntoBucket,
@@ -225,25 +225,15 @@ const validDestinationKey = (params: Record<string, unknown>): string => {
   return destinationKey;
 };
 
-const browserLauncher = (env: FilesOpsEnv): LaunchBrowser => {
+const browserAcquirer = (env: FilesOpsEnv): AcquireBrowser => {
   const binding = env.BROWSER;
   if (!binding) {
     throw new Error("browser_binding_unavailable");
   }
-  // Loaded on first use so other operations never pay its startup cost.
   return async () => {
+    // Loaded on first use so other operations never pay its startup cost.
     const { default: puppeteer } = await import("@cloudflare/puppeteer");
-    try {
-      return await puppeteer.launch(binding);
-    } catch (error) {
-      // Browser Run refuses new browsers past its plan limits (on Workers Free,
-      // one new browser every 20 seconds and 10 minutes a day). Convex then
-      // renders with Kernel, so this is a decline rather than a failure.
-      console.warn("[files-worker] Browser Run unavailable", {
-        message: error instanceof Error ? error.message : String(error),
-      });
-      throw new Error("browser_unavailable");
-    }
+    return await createBrowserAcquirer(puppeteer, binding)();
   };
 };
 
@@ -556,10 +546,10 @@ const dispatch = async (
     }
     case "render-pdf-thumbnail": {
       const { destinationKey, sourceKey } = derivedImageKeys(params);
-      const launch = browserLauncher(env);
+      const acquire = browserAcquirer(env);
       const pdf = await readPdfSource(env.BUCKET, sourceKey);
       const rendered = await renderPdfFirstPage(
-        launch,
+        acquire,
         pdf,
         await loadPinnedPdfJs()
       );
@@ -582,9 +572,9 @@ const dispatch = async (
     }
     case "capture-screenshot": {
       const destinationKey = validDestinationKey(params);
-      const launch = browserLauncher(env);
+      const acquire = browserAcquirer(env);
       const html = await decodeHtmlParam(params.htmlGzipBase64);
-      const jpeg = await captureHtmlScreenshot(launch, html);
+      const jpeg = await captureHtmlScreenshot(acquire, html);
       await env.BUCKET.put(destinationKey, jpeg, {
         httpMetadata: { contentType: "image/jpeg" },
       });
@@ -596,9 +586,9 @@ const dispatch = async (
     }
     case "scrape-html": {
       const selectors = validScrapeSelectors(params.selectors);
-      const launch = browserLauncher(env);
+      const acquire = browserAcquirer(env);
       const html = await decodeHtmlParam(params.htmlGzipBase64);
-      return success(requestId, await scrapeHtml(launch, html, selectors));
+      return success(requestId, await scrapeHtml(acquire, html, selectors));
     }
     case "probe-media": {
       const sourceKey = requiredString(params, "sourceKey");

@@ -115,12 +115,21 @@ Worker deployment without these bindings, or an older Worker, changes nothing.
   focal length, ISO, capture time) from JPEG APP1 or the HEIF `Exif` item,
   stored as `fileMetadata.exif`. GPS position is deliberately not read.
 
-Browser Run works on Workers Free (10 browser minutes a day, one new browser
-every 20 seconds) and Paid (10 browser hours a month included, then billed per
-hour, with much higher launch limits). Each link card starts two browsers
-(scrape, then screenshot), so on Free most link cards are refused. A refused
-browser answers `UNSUPPORTED` (`browser_unavailable`) and Convex renders with
-Kernel instead. The Media binding
+The Worker targets Workers Paid. `wrangler.jsonc` raises `cpu_ms` to 5 minutes
+and `subrequests` to 20,000 so an export of up to 10,000 files (5 GB) fits in
+one request; Workers Free allows 10 ms of CPU and 1,000 R2 calls per request.
+
+Browser Run is shared across operations (`src/browserSessions.ts`): each one
+joins a running browser when there is one and launches a browser that stays up
+for 60 seconds otherwise, then works in its own browser context and
+disconnects. Joining a running browser does not count against Browser Run's
+launch rate or concurrency limits, so a link's scrape and screenshot, or a
+batch of imports, usually share one browser. Sessions are per account, so the
+development and production Workers can share a browser; the private contexts
+and offline pages keep their work apart. A refused launch answers
+`UNSUPPORTED` (`browser_unavailable`) and Convex renders with Kernel instead.
+Workers Paid includes 10 browser hours a month, then bills per hour; Workers
+Free allows 10 minutes a day and one new browser every 20 seconds. The Media binding
 is in beta and unbilled; afterwards each binding operation is billed like an
 Image Transformation, without the monthly de-duplication. `MEDIA` has no local
 simulation, so it is declared `remote`. Browser Run's local mode runs a real

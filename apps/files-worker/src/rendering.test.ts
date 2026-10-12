@@ -15,7 +15,7 @@ import {
   renderPdfFirstPage,
   scrapeHtml,
 } from "./browserRender";
-import { launchLocalChrome } from "./chromeTestSupport";
+import { launchLocalChrome, localChromeLease } from "./chromeTestSupport";
 import { hmacSha256Hex, sha256Hex } from "./lib";
 import { type FilesOpsEnv, handleInternalOp } from "./ops";
 import { paletteFromPng } from "./palette";
@@ -78,7 +78,7 @@ afterAll(() => server.stop(true));
 describe("browser rendering against a real Chrome", () => {
   test("renders the first PDF page to a white-backed PNG at three times its size", async () => {
     const rendered = await renderPdfFirstPage(
-      launchLocalChrome,
+      localChromeLease,
       fixture("fixture.pdf"),
       pdfJs
     );
@@ -101,7 +101,7 @@ describe("browser rendering against a real Chrome", () => {
       <script>fetch("${origin}/fetch").catch(() => {});</script>
       <div class="cookie-banner" style="height:300px;background:#fff">cookies</div>
     </body></html>`;
-    const jpeg = await captureHtmlScreenshot(launchLocalChrome, html);
+    const jpeg = await captureHtmlScreenshot(localChromeLease, html);
     expect(jpeg[0]).toBe(0xff);
     expect(jpeg[1]).toBe(0xd8);
     expect(jpegSize(jpeg)).toEqual({ height: 720, width: 1280 });
@@ -122,7 +122,7 @@ describe("browser rendering against a real Chrome", () => {
         fetch("${origin}/beacon").catch(() => {});
       </script>
     </head><body><img src="${origin}/img.png"></body></html>`;
-    const result = await scrapeHtml(launchLocalChrome, html, [
+    const result = await scrapeHtml(localChromeLease, html, [
       "title",
       'meta[property="og:image"]',
       "article h1",
@@ -151,6 +151,42 @@ describe("browser rendering against a real Chrome", () => {
       { selector: "article h1", results: [] },
     ]);
     expect(hits).toEqual([]);
+  }, 60_000);
+
+  test("runs operations back to back in one shared browser, each in its own context and still offline", async () => {
+    hits = [];
+    const origin = `http://127.0.0.1:${server.port}`;
+    const browser = await launchLocalChrome();
+    let releases = 0;
+    const shared = () =>
+      Promise.resolve({
+        browser,
+        release: () => {
+          releases += 1;
+          return Promise.resolve();
+        },
+      });
+    try {
+      const jpeg = await captureHtmlScreenshot(
+        shared,
+        `<body><img src="${origin}/first.png">first</body>`
+      );
+      const result = await scrapeHtml(
+        shared,
+        `<title>second</title><img src="${origin}/second.png">`,
+        ["title"]
+      );
+
+      expect(jpegSize(jpeg)).toEqual({ height: 720, width: 1280 });
+      expect(result.selectors[0]?.results[0]?.text).toBe("second");
+      expect(releases).toBe(2);
+      expect(browser.connected).toBe(true);
+      // Each operation closed its context, leaving only the default one.
+      expect(browser.browserContexts()).toHaveLength(1);
+      expect(hits).toEqual([]);
+    } finally {
+      await browser.close();
+    }
   }, 60_000);
 });
 

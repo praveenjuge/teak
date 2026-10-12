@@ -1,10 +1,11 @@
-import type { Browser, Page } from "@cloudflare/puppeteer";
+import type { BrowserContext, Page } from "@cloudflare/puppeteer";
 import {
   FILES_SCRAPE_LIMITS,
   FILES_SCREENSHOT_SIZE,
   type FilesScrapeResult,
   SCREENSHOT_CLEANUP_CSS,
 } from "@teak/files-protocol";
+import type { AcquireBrowser } from "./browserSessions";
 import { sha256Hex } from "./lib";
 import { InspectSourceMissing } from "./zip";
 
@@ -14,8 +15,6 @@ import { InspectSourceMissing } from "./zip";
  * rendering only ever sees bytes this Worker hands it (an R2 object, or HTML
  * that Convex fetched through its DNS-pinned SSRF guard).
  */
-
-export type LaunchBrowser = () => Promise<Browser>;
 
 export const MAX_PDF_SOURCE_BYTES = 20 * 1024 * 1024;
 export const MAX_RENDER_HTML_BYTES = 2 * 1024 * 1024;
@@ -81,13 +80,16 @@ export const loadPinnedPdfJs = (): Promise<PdfJsSources> => {
 };
 
 const withPage = async <T>(
-  launch: LaunchBrowser,
+  acquire: AcquireBrowser,
   viewport: { height: number; width: number },
   run: (page: Page) => Promise<T>
 ): Promise<T> => {
-  const browser = await launch();
+  const { browser, release } = await acquire();
+  let context: BrowserContext | null = null;
   try {
-    const page = await browser.newPage();
+    // A private context per operation: the browser may be shared with others.
+    context = await browser.createBrowserContext();
+    const page = await context.newPage();
     page.setDefaultTimeout(PAGE_TIMEOUT_MS);
     await page.setRequestInterception(true);
     page.on("request", (request) => {
@@ -112,7 +114,8 @@ const withPage = async <T>(
     await page.setViewport(viewport);
     return await run(page);
   } finally {
-    await browser.close().catch(() => undefined);
+    await context?.close().catch(() => undefined);
+    await release().catch(() => undefined);
   }
 };
 
@@ -142,11 +145,11 @@ const base64Chunks = function* (bytes: Uint8Array): Generator<string> {
 
 /** Render page 1 of a PDF to a white-backed PNG, at most 1600px each way. */
 export const renderPdfFirstPage = async (
-  launch: LaunchBrowser,
+  acquire: AcquireBrowser,
   pdf: Uint8Array,
   pdfJs: PdfJsSources
 ): Promise<PdfThumbnailResult> =>
-  await withPage(launch, { height: 700, width: 800 }, async (page) => {
+  await withPage(acquire, { height: 700, width: 800 }, async (page) => {
     await page.setContent(
       '<!doctype html><html><body style="margin:0;background:#fff"></body></html>'
     );
@@ -317,10 +320,10 @@ export const decodeHtmlParam = async (value: unknown): Promise<string> => {
 };
 
 export const captureHtmlScreenshot = async (
-  launch: LaunchBrowser,
+  acquire: AcquireBrowser,
   html: string
 ): Promise<Uint8Array> =>
-  await withPage(launch, FILES_SCREENSHOT_SIZE, async (page) => {
+  await withPage(acquire, FILES_SCREENSHOT_SIZE, async (page) => {
     await page.setContent(html, {
       timeout: PAGE_TIMEOUT_MS,
       waitUntil: "domcontentloaded",
@@ -348,11 +351,11 @@ export const validScrapeSelectors = (value: unknown): string[] => {
 
 /** Query selectors against offline HTML, with inline scripts allowed to run. */
 export const scrapeHtml = async (
-  launch: LaunchBrowser,
+  acquire: AcquireBrowser,
   html: string,
   selectors: string[]
 ): Promise<FilesScrapeResult> =>
-  await withPage(launch, FILES_SCREENSHOT_SIZE, async (page) => {
+  await withPage(acquire, FILES_SCREENSHOT_SIZE, async (page) => {
     await page.setContent(html, {
       timeout: 20_000,
       waitUntil: "domcontentloaded",
