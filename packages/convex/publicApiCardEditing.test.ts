@@ -432,15 +432,37 @@ describe("Search scan budget", () => {
     });
     expect(page.items).toHaveLength(100);
     expect(page.pageInfo.hasMore).toBe(true);
-    await expect(
-      t.query(internal.publicApi.searchCardsPageForUser, {
+    // Past the 400 best matches, an old offset cursor gets the end of the
+    // search, not an error.
+    const past = await t.query(internal.publicApi.searchCardsPageForUser, {
+      userId: "owner",
+      searchQuery: "deepsearch",
+      limit: 100,
+      cursor: btoa(JSON.stringify({ mode: "offset", offset: 1000 })),
+    });
+    expect(past.items).toEqual([]);
+    expect(past.pageInfo.hasMore).toBe(false);
+
+    // Following nextCursor from the first page ends cleanly after the 400
+    // best matches, with no card twice.
+    const seen: string[] = [];
+    let cursor: string | undefined;
+    for (let pageNumber = 0; pageNumber < 10; pageNumber += 1) {
+      const next = await t.query(internal.publicApi.searchCardsPageForUser, {
         userId: "owner",
         searchQuery: "deepsearch",
         limit: 100,
-        cursor: btoa(JSON.stringify({ mode: "offset", offset: 1000 })),
-      })
-    ).rejects.toThrow("Search is too broad");
-  }, 30_000);
+        ...(cursor ? { cursor } : {}),
+      });
+      seen.push(...next.items.map((item: { _id: string }) => item._id));
+      if (!next.pageInfo.hasMore) {
+        break;
+      }
+      cursor = next.pageInfo.nextCursor ?? undefined;
+    }
+    expect(seen).toHaveLength(400);
+    expect(new Set(seen).size).toBe(400);
+  }, 60_000);
 
   test.each(["tag", "text"])(
     "%s search allows an exhausted budget and rejects another index row",

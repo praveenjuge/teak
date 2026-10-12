@@ -347,18 +347,19 @@ const isAfterMatchAnchor = (
   ) > 0;
 
 // Full-text pages are cut from one fixed candidate set: the first
-// MAX_QUERY_SCAN + 1 matches by relevance, sorted by creation date. Every page
-// reads the same set, so pages never overlap or skip, whatever the page size.
-const SEARCH_CANDIDATE_LIMIT = MAX_QUERY_SCAN + 1;
+// MAX_QUERY_SCAN matches by relevance, sorted by creation date. Every page
+// reads the same set, so pages never overlap or skip, whatever the page size,
+// and the last page ends the search cleanly.
+const SEARCH_CANDIDATE_LIMIT = MAX_QUERY_SCAN;
 
 const searchCardsByQuery = async (
   ctx: QueryCtx,
   userId: TeakUserId,
   options: SearchOptions
-): Promise<{ cards: Doc<"cards">[]; isTruncated: boolean }> => {
+): Promise<{ cards: Doc<"cards">[]; hitScanBudget: boolean }> => {
   const searchQuery = normalizeSearchText(options.searchQuery);
   if (!searchQuery) {
-    return { cards: [], isTruncated: false };
+    return { cards: [], hitScanBudget: false };
   }
 
   const typeGroups = options.types ?? [options.type];
@@ -383,10 +384,11 @@ const searchCardsByQuery = async (
   );
 
   return {
-    cards: sortCards(unique, normalizeSort(options.sort)),
-    isTruncated:
-      scanBudget.hitSearchLimit ||
-      found.some((group) => group.length >= SEARCH_CANDIDATE_LIMIT),
+    cards: sortCards(unique, normalizeSort(options.sort)).slice(
+      0,
+      MAX_QUERY_SCAN
+    ),
+    hitScanBudget: scanBudget.hitSearchLimit,
   };
 };
 
@@ -728,7 +730,9 @@ export const searchCardsPageForUser = internalQuery({
       }
       pageItems = remaining.slice(0, limit);
       hasMore = remaining.length > limit;
-      if (!hasMore && result.isTruncated) {
+      // A cursor this search issued always gets its page; only a first page
+      // that ran out of read budget before finding enough is "too broad".
+      if (!(hasMore || args.cursor) && result.hitScanBudget) {
         throw new ConvexError({
           code: "INVALID_INPUT",
           message: "Search is too broad. Add a type or date filter.",

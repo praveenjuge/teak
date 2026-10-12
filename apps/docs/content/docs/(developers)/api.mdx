@@ -294,9 +294,9 @@ a single `type` remains supported. Invalid types return 400. When loading the
 next page, keep the same filters and pass `pageInfo.nextCursor` as `cursor`.
 Each page continues after the last card of the previous one, so cards saved or
 deleted while you page don't cause repeats or gaps. A cursor that wasn't
-returned by the same listing returns `400 INVALID_INPUT`. Search (`q`) sorts
-its 400 best matches by date; a search that matches more returns
-`400 INVALID_INPUT` after its last page, so narrow it with a type or date filter.
+returned by the same listing returns `400 INVALID_INPUT`. Search (`q`) pages
+through its 400 best matches, sorted by date, and then ends; for a search that
+matches more, add a type or date filter to see the rest.
 
 `include=metadata` adds palette `colors` (`hex` and optional `name`), resolved
 `linkPreviewMedia`, and the link's site name, author, publisher, and publish
