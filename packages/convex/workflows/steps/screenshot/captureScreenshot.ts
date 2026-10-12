@@ -7,7 +7,6 @@ import type { FilesCaptureScreenshotResult } from "@teak/files-protocol";
 import { SCREENSHOT_CLEANUP_CSS } from "@teak/files-protocol";
 import { v } from "convex/values";
 import { internal } from "../../../_generated/api";
-import type { ActionCtx } from "../../../_generated/server";
 import { internalAction } from "../../../_generated/server";
 import { normalizeUrl } from "../../../linkMetadata";
 import {
@@ -106,16 +105,13 @@ const gzipBase64 = (html: string): string =>
  * Browser Run in the Files Worker screenshots the already-fetched HTML offline
  * and writes the JPEG to R2. Null means "use Kernel instead".
  */
-const captureScreenshotWithFilesWorker = async (
-  ctx: ActionCtx,
-  { cardId, html, userId }: { cardId: string; html: string; userId: string }
-): Promise<ScreenshotOutcome | null> => {
-  const screenshotKey = buildR2ObjectKey({
-    userId,
-    cardId,
-    role: "screenshot",
-  });
-  await ensureObjectOwnership(ctx, userId, screenshotKey);
+const captureScreenshotWithFilesWorker = async ({
+  html,
+  screenshotKey,
+}: {
+  html: string;
+  screenshotKey: string;
+}): Promise<ScreenshotOutcome | null> => {
   const captured = await tryFilesWorkerRendering<FilesCaptureScreenshotResult>(
     "capture-screenshot",
     { destinationKey: screenshotKey, htmlGzipBase64: gzipBase64(html) },
@@ -131,31 +127,20 @@ const captureScreenshotWithFilesWorker = async (
     : null;
 };
 
-const captureScreenshotWithKernel = async (
-  ctx: ActionCtx,
-  {
-    cardId,
-    html,
-    url,
-    userId,
-  }: {
-    cardId: string;
-    html: string;
-    url: string;
-    userId: string;
-  }
-): Promise<ScreenshotOutcome> => {
+const captureScreenshotWithKernel = async ({
+  html,
+  screenshotKey,
+  url,
+}: {
+  html: string;
+  screenshotKey: string;
+  url: string;
+}): Promise<ScreenshotOutcome> => {
   const kernel = new Kernel();
   let kernelBrowser: { session_id: string } | undefined;
 
   // Mint a short-lived signed upload URL so the Kernel VM uploads the
   // screenshot directly to the Files Worker; bytes never pass through Convex.
-  const screenshotKey = buildR2ObjectKey({
-    userId,
-    cardId,
-    role: "screenshot",
-  });
-  await ensureObjectOwnership(ctx, userId, screenshotKey);
   let uploadUrl: string;
   try {
     uploadUrl = (
@@ -361,17 +346,19 @@ export const captureScreenshot = internalAction({
       throw error;
     }
 
+    // One key for either renderer, registered once before anything writes.
+    const screenshotKey = buildR2ObjectKey({
+      userId: card.userId,
+      cardId,
+      role: "screenshot",
+    });
+    await ensureObjectOwnership(ctx, card.userId, screenshotKey);
     const screenshotResult =
-      (await captureScreenshotWithFilesWorker(ctx, {
-        cardId,
+      (await captureScreenshotWithFilesWorker({ html, screenshotKey })) ??
+      (await captureScreenshotWithKernel({
         html,
-        userId: card.userId,
-      })) ??
-      (await captureScreenshotWithKernel(ctx, {
-        cardId,
-        html,
+        screenshotKey,
         url: normalizedUrl,
-        userId: card.userId,
       }));
 
     if (screenshotResult?.screenshotKey) {

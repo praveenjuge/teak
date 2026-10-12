@@ -169,7 +169,7 @@ export const BACKEND_ENTRIES: EnvVarSpec[] = [
     implicit: true,
     note: "Canonical deployment HTTP-actions URL. Setup expands it into the NEXT/VITE/EXPO_PUBLIC_CONVEX_SITE_URL aliases.",
   }),
-  // Files / R2 capability group.
+  // Staged operational-cost rollout.
   ...["OPERATIONAL_RETENTION_ENABLED"].map((name) =>
     spec(name, {
       owners: ["@teak/convex"],
@@ -230,7 +230,7 @@ export const BACKEND_ENTRIES: EnvVarSpec[] = [
     providers: ["convex-dashboard", "sdk-implicit"],
     required: false,
     implicit: true,
-    note: "Read implicitly by @onkernel/sdk default auth (screenshots, thumbnails, link metadata).",
+    note: "Read implicitly by @onkernel/sdk default auth. Optional fallback renderer for screenshots, thumbnails and browser link scrapes the Files Worker declines.",
   }),
   // Polar billing capability group.
   spec("POLAR_ACCESS_TOKEN", {

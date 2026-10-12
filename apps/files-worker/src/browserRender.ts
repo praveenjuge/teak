@@ -21,8 +21,9 @@ export const MAX_PDF_SOURCE_BYTES = 20 * 1024 * 1024;
 export const MAX_RENDER_HTML_BYTES = 2 * 1024 * 1024;
 const MAX_THUMBNAIL_DIMENSION = 1600;
 const PAGE_TIMEOUT_MS = 30_000;
-// Below the 1 MiB DevTools message size, with room for base64 overhead.
-const TRANSFER_CHUNK_CHARS = 512 * 1024;
+// Bytes per DevTools message: 512 KiB of base64, under the 1 MiB message size.
+// A multiple of 3, so the chunks' base64 concatenates without padding.
+const TRANSFER_CHUNK_BYTES = 384 * 1024;
 
 const PDFJS_VERSION = "3.11.174";
 const PDFJS_BASE = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${PDFJS_VERSION}`;
@@ -131,6 +132,14 @@ const toBase64 = (bytes: Uint8Array): string => {
   return btoa(binary);
 };
 
+// Encode per chunk so a 20 MiB PDF never also lives as one 27 MiB string in
+// the isolate's shared 128 MB.
+const base64Chunks = function* (bytes: Uint8Array): Generator<string> {
+  for (let offset = 0; offset < bytes.length; offset += TRANSFER_CHUNK_BYTES) {
+    yield toBase64(bytes.subarray(offset, offset + TRANSFER_CHUNK_BYTES));
+  }
+};
+
 /** Render page 1 of a PDF to a white-backed PNG, at most 1600px each way. */
 export const renderPdfFirstPage = async (
   launch: LaunchBrowser,
@@ -145,20 +154,12 @@ export const renderPdfFirstPage = async (
     // so rendering needs no Worker or blob URL.
     await page.addScriptTag({ content: pdfJs.worker });
     await page.addScriptTag({ content: pdfJs.lib });
-    const base64 = toBase64(pdf);
-    for (
-      let offset = 0;
-      offset < base64.length;
-      offset += TRANSFER_CHUNK_CHARS
-    ) {
-      await page.evaluate(
-        (chunk: string) => {
-          const scope = globalThis as unknown as { __pdfChunks?: string[] };
-          scope.__pdfChunks ??= [];
-          scope.__pdfChunks.push(chunk);
-        },
-        base64.slice(offset, offset + TRANSFER_CHUNK_CHARS)
-      );
+    for (const chunk of base64Chunks(pdf)) {
+      await page.evaluate((part: string) => {
+        const scope = globalThis as unknown as { __pdfChunks?: string[] };
+        scope.__pdfChunks ??= [];
+        scope.__pdfChunks.push(part);
+      }, chunk);
     }
     const size = await page.evaluate(async (maxDimension: number) => {
       // Runs in the page: the Worker's types have no DOM, so describe the

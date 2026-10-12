@@ -22,6 +22,8 @@ const MAX_TOP_LEVEL_BOXES = 64;
 const MAX_MOOV_BYTES = 16 * 1024 * 1024;
 const MAX_WEBM_HEADER_BYTES = 1024 * 1024;
 const MAX_BOX_DEPTH = 8;
+// Matroska codec ids are short ("V_VP9"); the element length comes from the file.
+const MAX_CODEC_ID_BYTES = 64;
 
 export class MediaProbeUnsupported extends Error {
   constructor() {
@@ -419,7 +421,11 @@ const probeWebm = (bytes: Uint8Array): MediaProbeResult => {
         };
         video = {
           codec: codec
-            ? ascii(bytes, codec.body, codec.end - codec.body)
+            ? ascii(
+                bytes,
+                codec.body,
+                Math.min(MAX_CODEC_ID_BYTES, codec.end - codec.body)
+              )
             : null,
           height: dim(DISPLAY_HEIGHT) ?? dim(PIXEL_HEIGHT),
           width: dim(DISPLAY_WIDTH) ?? dim(PIXEL_WIDTH),

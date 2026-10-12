@@ -100,7 +100,7 @@ Worker deployment without these bindings, or an older Worker, changes nothing.
   The screenshot is a 1280×720 JPEG; a scrape returns attributes, text and
   inner HTML per selector (≤128 selectors, ≤100 elements each).
 - `extract-video-frame` probes the container, then has the Media binding cut
-  one JPEG frame (1s in, or 0s under 2s; ≤1600px) straight from the R2
+  one JPEG frame (10% in, clamped to 1–5s, or 0s under 2s; ≤1600px) straight from the R2
   stream. Only H.264 MP4/MOV under 100 MB and 10 minutes are attempted;
   WebM, HEVC and larger files stay on Kernel.
 - `probe-media` reads duration, display size (rotation-aware) and video codec

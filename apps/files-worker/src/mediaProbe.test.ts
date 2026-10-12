@@ -85,4 +85,39 @@ describe("probeMedia", () => {
       MediaProbeUnsupported
     );
   });
+
+  test("caps a crafted WebM's oversized CodecID instead of failing", async () => {
+    // EBML element: id bytes, then an 8-byte size (0x01 marker + 7 bytes).
+    const element = (id: number[], body: Uint8Array) => {
+      const size = new Uint8Array(8);
+      size[0] = 0x01;
+      new DataView(size.buffer).setUint32(4, body.length);
+      return new Uint8Array([...id, ...size, ...body]);
+    };
+    const codecId = new Uint8Array(300_000).fill(0x56);
+    const trackEntry = element(
+      [0xae],
+      new Uint8Array([
+        ...element([0x83], new Uint8Array([1])),
+        ...element([0x86], codecId),
+      ])
+    );
+    const webm = new Uint8Array([
+      ...element([0x1a, 0x45, 0xdf, 0xa3], new Uint8Array(0)),
+      ...element(
+        [0x18, 0x53, 0x80, 0x67],
+        element([0x16, 0x54, 0xae, 0x6b], trackEntry)
+      ),
+    ]);
+    const bucket = new FakeBucket();
+    await bucket.put("users/u/cards/c/crafted.webm", webm);
+
+    const result = await probeMedia(
+      bucket as never,
+      "users/u/cards/c/crafted.webm"
+    );
+
+    expect(result.hasVideo).toBe(true);
+    expect(result.videoCodec).toBe("V".repeat(64));
+  });
 });

@@ -88,7 +88,9 @@ beforeEach(() => {
 
 const createCtx = () => {
   const screenshots: any[] = [];
+  const registered: string[] = [];
   return {
+    registered,
     ctx: {
       runQuery: () =>
         Promise.resolve({
@@ -99,7 +101,9 @@ const createCtx = () => {
           metadata: { linkPreview: { status: "success" } },
         }),
       runMutation: (ref: any, args: any) => {
-        if (getFunctionName(ref) !== "storage/ownership:registerObject") {
+        if (getFunctionName(ref) === "storage/ownership:registerObject") {
+          registered.push(args.key);
+        } else {
           screenshots.push(args);
         }
         return Promise.resolve(true);
@@ -144,8 +148,8 @@ describe("captureScreenshot", () => {
     expect(kernelSessions).toBe(0);
   });
 
-  test("falls back to Kernel when the Worker has no Browser Run binding", async () => {
-    const { ctx, screenshots } = createCtx();
+  test("falls back to Kernel when the Worker has no Browser Run binding, registering one key", async () => {
+    const { ctx, registered, screenshots } = createCtx();
 
     await captureScreenshot(ctx, { cardId: "card-link" });
 
@@ -155,5 +159,6 @@ describe("captureScreenshot", () => {
       "head-object",
     ]);
     expect(screenshots).toHaveLength(1);
+    expect(registered).toEqual(["users/u/cards/c/screenshot/shot.jpg"]);
   });
 });

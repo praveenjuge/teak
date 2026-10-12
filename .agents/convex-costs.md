@@ -79,7 +79,7 @@ Convex provider and its `FILES_TEXT_AI_ENABLED` switch were removed once the
 deployed Worker answered both operations for the dev deployment. Convex holds
 no Workers AI credentials.
 
-Text/link metadata uses the existing Workers AI binding and the same Qwen model,
+Text/link metadata uses the Files Worker's Workers AI binding and the same Qwen model,
 prompts, input limit, output validation and retry policy. Inputs are signed text,
 not URLs to fetch. Keep call, error, latency, retry, token and cost aggregates;
 routine successful traces are sampled at 10%, while failures, slow transactions
