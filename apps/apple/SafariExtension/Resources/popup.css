@@ -1,13 +1,13 @@
 /* Native-looking on both Safaris: system fonts and colors, a 300 pt popover
    on the Mac, and the full sheet width on iPhone and iPad. */
 :root {
-  color-scheme: light dark;
   --accent: #dc2626;
   --label: -apple-system-label;
   --secondary: -apple-system-secondary-label;
   --fill: rgba(120, 120, 128, 0.16);
   --green: #34c759;
   --orange: #ff9500;
+  color-scheme: light dark;
 }
 
 * {
@@ -19,9 +19,9 @@ body {
   margin: 0;
   font: -apple-system-body;
   color: var(--label, CanvasText);
-  background: Canvas;
   -webkit-user-select: none;
   user-select: none;
+  background: Canvas;
 }
 
 @media (pointer: coarse) {
@@ -36,8 +36,8 @@ body {
   gap: 6px;
   align-items: center;
   max-width: 420px;
-  margin: 0 auto;
   padding: 24px 20px 20px;
+  margin: 0 auto;
   text-align: center;
 }
 
@@ -144,10 +144,10 @@ button {
   font: -apple-system-body;
   font-weight: 600;
   color: var(--label, CanvasText);
+  cursor: pointer;
   background: var(--fill);
   border: 0;
   border-radius: 999px;
-  cursor: pointer;
 }
 
 @media (pointer: coarse) {

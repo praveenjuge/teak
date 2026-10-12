@@ -4,8 +4,8 @@ import { useEffect, useState } from "react";
 export const client = "only";
 
 interface PageTool {
-  name: string;
   description?: string;
+  name: string;
 }
 
 interface WebMcpProbe {
@@ -63,7 +63,11 @@ export default function WebMcpStatus() {
 
   if (!probe) {
     return (
-      <div data-supported="checking" data-testid="webmcp-status" style={boxStyle}>
+      <div
+        data-supported="checking"
+        data-testid="webmcp-status"
+        style={boxStyle}
+      >
         Checking this browser for WebMCP support…
       </div>
     );
@@ -91,8 +95,7 @@ export default function WebMcpStatus() {
         </>
       ) : (
         <>
-          Tools on this page:{" "}
-          {probe.tools.map((tool) => tool.name).join(", ")}
+          Tools on this page: {probe.tools.map((tool) => tool.name).join(", ")}
         </>
       )}
     </div>

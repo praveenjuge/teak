@@ -16,10 +16,10 @@ export interface RaycastCard {
   isDeleted?: boolean;
   isFavorited: boolean;
   linkFacts?: Array<{ label: string; value: string }>;
-  mimeType?: string | null;
   linkPreviewImageUrl: string | null;
   metadataDescription: string | null;
   metadataTitle: string | null;
+  mimeType?: string | null;
   notes: string | null;
   screenshotUrl: string | null;
   tags: string[];

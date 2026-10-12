@@ -32,6 +32,25 @@
   },
   "overrides": [
     {
+      // Generated or vendored files that must stay byte-for-byte as their
+      // writers leave them:
+      // - SharedConstants.json: apps/apple/scripts/shared-constants.ts,
+      //   checked in apps/apple/tests/shared-constants.test.ts
+      // - Safari manifests: scripts/release-version.mjs, every release
+      // - xcassets Contents.json: Xcode
+      // - .agents/skills/workos: vendored (skills-lock.json hashes it)
+      "includes": [
+        "apps/apple/Packages/TeakKit/Sources/TeakCore/Resources/SharedConstants.json",
+        "apps/apple/SafariExtension/Resources/manifest.json",
+        "apps/mac/Shared (Extension)/Resources/manifest.json",
+        "**/*.xcassets/**/Contents.json",
+        ".agents/skills/workos/**"
+      ],
+      "formatter": { "enabled": false },
+      "linter": { "enabled": false },
+      "assist": { "enabled": false }
+    },
+    {
       "includes": ["apps/raycast/raycast-env.d.ts"],
       "linter": {
         "rules": {
@@ -72,7 +91,8 @@
         "packages/convex/apiKeys.ts",
         "packages/convex/storage/r2.ts",
         "packages/convex/__tests__/helpers/r2Mock.test-utils.ts",
-        "packages/ui/src/components/cards/previews/AudioWavePreview.tsx"
+        "packages/ui/src/components/cards/previews/AudioWavePreview.tsx",
+        "apps/docs/components/HomeAppDemo.astro"
       ],
       "linter": {
         "rules": {
