@@ -388,10 +388,13 @@ const orderingScenarioPage = (page: number): DefaultCardDef[] => {
   );
 };
 
-const SCENARIO_PACKS = {
-  "card-details": () => CARD_DETAILS_SCENARIO_CARDS,
-  ordering: orderingScenarioPage,
-} satisfies Record<string, (page: number) => DefaultCardDef[]>;
+const scenarioPackPage = (
+  scenario: "card-details" | "ordering",
+  page: number
+): DefaultCardDef[] =>
+  scenario === "ordering"
+    ? orderingScenarioPage(page)
+    : CARD_DETAILS_SCENARIO_CARDS;
 
 export const seedScenario = internalMutation({
   args: {
@@ -417,7 +420,7 @@ export const seedScenario = internalMutation({
     if (!owner) {
       throw new Error("No Teak owner is linked to that WorkOS user.");
     }
-    const cards = SCENARIO_PACKS[scenario](page);
+    const cards = scenarioPackPage(scenario, page);
     if (cards.length === 0) {
       return { status: "already_seeded" as const, cards: 0 };
     }
