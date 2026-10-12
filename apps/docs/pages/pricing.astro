@@ -70,11 +70,31 @@ const pricingPlans = [
 
 type Cell = boolean | string;
 const comparison: { feature: string; free: Cell; pro: Cell; self: Cell }[] = [
-  { feature: "Cards", free: String(FREE_CARD_LIMIT), pro: "Unlimited", self: "Unlimited" },
-  { feature: "Card types, AI tags, and search", free: true, pro: true, self: true },
-  { feature: "Every app, plus API, MCP, and CLI", free: true, pro: true, self: true },
+  {
+    feature: "Cards",
+    free: String(FREE_CARD_LIMIT),
+    pro: "Unlimited",
+    self: "Unlimited",
+  },
+  {
+    feature: "Card types, AI tags, and search",
+    free: true,
+    pro: true,
+    self: true,
+  },
+  {
+    feature: "Every app, plus API, MCP, and CLI",
+    free: true,
+    pro: true,
+    self: true,
+  },
   { feature: "Import and one-click export", free: true, pro: true, self: true },
-  { feature: "Hosting and updates", free: "Included", pro: "Included", self: "You run it" },
+  {
+    feature: "Hosting and updates",
+    free: "Included",
+    pro: "Included",
+    self: "You run it",
+  },
   { feature: "Support", free: "Email", pro: "Priority", self: "GitHub" },
 ];
 
@@ -135,7 +155,6 @@ const pageSchemas = buildPageSchemas({
 
 const metaTitle = `Simple Pricing for Designers. ${FREE_CARD_LIMIT} Cards Free.`;
 const metaDescription = `Try Teak free with ${FREE_CARD_LIMIT} cards and every feature. Pro is ${perMonth}/month billed yearly, or ${monthly} monthly. Or self-host the open-source code.`;
-
 ---
 
 <MarketingLayout

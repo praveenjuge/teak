@@ -68,7 +68,9 @@ Teak's MCP server supports two authentication methods.
   <Tab title="Browser sign-in">
     Spec-compliant MCP clients discover Teak's authorization server from `https://teakvault.com/.well-known/oauth-protected-resource/mcp`, open your browser to sign in, and store the resulting access token automatically. Teak's sign-in supports clients that identify themselves with a Client ID Metadata Document or register through dynamic client registration, and requires PKCE (S256). External clients show an approval screen with the requested access before Teak connects them. Access tokens are short-lived and refresh automatically.
 
-    Request `{{mcp-url}}` as the OAuth resource. The access token must have that exact audience, including in local development. MCP rejects tokens issued for `https://teakvault.com/api`.
+    Request `{{mcp-url}}` as the OAuth resource. The access token must have that exact audience. MCP rejects tokens issued for the API resource, `https://teakvault.com/api`.
+
+    Development and self-hosted deployments can use their own resources. Request the `resource` that the deployment's `/.well-known/oauth-protected-resource/mcp` document lists. On the development deployment it is the deployment's own MCP URL, `https://<deployment>.convex.site/mcp`. To satisfy clients that require the resource to match the server URL, connect them to that URL directly, not through the docs proxy at `http://localhost:3001/mcp`.
 
     For example, with Claude:
 

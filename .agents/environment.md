@@ -88,6 +88,14 @@ so checkouts can't overwrite each other's values. Worktrees get their own web
 ports (`scripts/worktree-env.ts`); only the push-lease holder pushes backend
 code (`packages/convex/devPushLease.ts`).
 
+`WORKOS_RESOURCE_ORIGIN` sets a deployment's WorkOS token audiences,
+`<origin>/api` and `<origin>/mcp` (`packages/convex/env.ts`). Production leaves
+it unset, which keeps `https://teakvault.com`. The dev deployment sets it to
+its own `convex.site` origin, so the MCP resource matches the URL clients
+connect to (RFC 9728). Both resources must be registered as resource indicators
+in that deployment's WorkOS environment before the value changes, or Connect
+sign-in fails. The owner sets the value and registers the resources.
+
 Setup never overwrites a value a person set. It does refresh generated values:
 loopback URLs left by an earlier E2E run or other ports, and the WorkOS
 credentials it syncs from the deployment.

@@ -17,6 +17,7 @@ const app = defineApp({
     // WorkOS AuthKit: the only sign-in provider.
     WORKOS_API_BASE_URL: v.optional(v.string()),
     WORKOS_AUTHKIT_DOMAIN: v.optional(v.string()),
+    WORKOS_RESOURCE_ORIGIN: v.optional(v.string()),
     WORKOS_CONNECT_CLI_CLIENT_ID: v.optional(v.string()),
     WORKOS_CONNECT_RAYCAST_CLIENT_ID: v.optional(v.string()),
     WORKOS_CONNECT_CHROME_CLIENT_ID: v.optional(v.string()),

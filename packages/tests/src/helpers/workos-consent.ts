@@ -2,7 +2,7 @@ import { createHash, randomBytes } from "node:crypto";
 import { expect, type Page } from "@playwright/test";
 import { type AuthDiscovery, validateOAuthUrl } from "@teak/convex/sdk";
 import { readResponseTextWithinLimit } from "@teak/convex/shared/boundedResponse";
-import { WORKOS_RESOURCES } from "@teak/convex/shared/workosResources";
+import { workosResourcesFor } from "@teak/convex/shared/workosResources";
 import { apiFetch } from "./api";
 import { openSecurity } from "./app";
 import { connectMcp } from "./mcp";
@@ -182,17 +182,19 @@ export async function verifyWorkosConsentJourney(
     new URL(provider.issuer).origin
   );
 
+  // The deployment's resources, as the CLI derives them from discovery.
+  const resources = workosResourcesFor(provider.resource);
   const apiGrant = await authorize(
     page,
     provider,
     registrationEndpoint,
-    WORKOS_RESOURCES.api
+    resources.api
   );
   const mcpGrant = await authorize(
     page,
     provider,
     registrationEndpoint,
-    WORKOS_RESOURCES.mcp
+    resources.mcp
   );
   expect(apiGrant.consentId).not.toBe(mcpGrant.consentId);
   expect((await apiFetch("/v1/tags", apiGrant.accessToken)).status).toBe(200);

@@ -180,6 +180,26 @@ describe("WorkOS REST and MCP token boundary", () => {
     expect(rows[0].userId).toBe(ownerId);
   });
 
+  test("a deployment's resource origin replaces the production audiences", async () => {
+    vi.stubEnv("WORKOS_RESOURCE_ORIGIN", "https://dev.convex.site");
+    const f = await setup();
+    expect(
+      (await f.read(await token("https://dev.convex.site/api"))).status
+    ).toBe(200);
+    expect(
+      (await f.mcp(await token("https://dev.convex.site/mcp"))).status
+    ).toBe(200);
+    expect((await f.read(await token(apiAudience))).status).toBe(401);
+    expect((await f.mcp(await token(mcpAudience))).status).toBe(401);
+  });
+
+  test("a malformed resource origin fails closed", async () => {
+    vi.stubEnv("WORKOS_RESOURCE_ORIGIN", "https://dev.convex.site/mcp");
+    const f = await setup();
+    expect((await f.read(await token())).status).toBe(500);
+    expect((await f.mcp(await token(mcpAudience))).status).toBe(500);
+  });
+
   test("MCP CRUD and listing retain the permanent owner through shared REST handlers", async () => {
     const f = await setup();
     const access = await token(mcpAudience);

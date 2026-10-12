@@ -1,8 +1,7 @@
 import { internal } from "./_generated/api";
 import { httpAction } from "./_generated/server";
-import { findWorkosConnectIssuer } from "./env";
+import { findWorkosConnectIssuer, findWorkosResources } from "./env";
 import { PUBLIC_API_CORS_HEADERS } from "./publicApiMeta";
-import { WORKOS_RESOURCES } from "./shared/workosResources";
 import { verifyWorkosConnectToken } from "./workosTokens";
 
 export const disconnectWorkosConsent = httpAction(async (ctx, request) => {
@@ -14,13 +13,14 @@ export const disconnectWorkosConsent = httpAction(async (ctx, request) => {
     return response(401);
   }
   const issuer = findWorkosConnectIssuer();
-  if (!issuer) {
+  const resources = findWorkosResources();
+  if (!(issuer && resources)) {
     return response(503);
   }
   let unavailable = false;
   const principal = await verifyWorkosConnectToken(match[1], {
     issuer,
-    audience: WORKOS_RESOURCES.api,
+    audience: resources.api,
     revocationOnly: true,
     onUnavailable: () => {
       unavailable = true;

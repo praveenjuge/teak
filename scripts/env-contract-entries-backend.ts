@@ -65,6 +65,16 @@ export const BACKEND_ENTRIES: EnvVarSpec[] = [
     required: false,
     note: "HTTPS origin of this deployment's WorkOS Connect issuer. No trailing slash or path.",
   }),
+  spec("WORKOS_RESOURCE_ORIGIN", {
+    owners: ["@teak/convex"],
+    targets: ["convex"],
+    profiles: ["local", "preview", "production"],
+    secret: false,
+    validation: "origin",
+    providers: ["convex-dashboard"],
+    required: false,
+    note: "Origin of this deployment's WorkOS token audiences (<origin>/api and <origin>/mcp), each registered as a resource indicator in the deployment's WorkOS environment. Unset means https://teakvault.com, so production never sets it; the dev deployment sets its convex.site origin.",
+  }),
   ...[
     "WORKOS_CONNECT_CLI_CLIENT_ID",
     "WORKOS_CONNECT_RAYCAST_CLIENT_ID",
