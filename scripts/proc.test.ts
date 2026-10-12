@@ -156,25 +156,25 @@ describe("runCommand", () => {
   }, 15_000);
 
   test("children see environment changes made after startup", async () => {
-    const before = process.env.TEAK_PROC_TEST_VALUE;
+    const tmp = process.env.TMPDIR;
     const home = process.env.HOME;
-    process.env.TEAK_PROC_TEST_VALUE = "set-at-runtime";
+    process.env.TMPDIR = "/set-at-runtime";
     delete process.env.HOME;
     try {
       const result = await runCommand([
         "sh",
         "-c",
-        'echo "$TEAK_PROC_TEST_VALUE"; test -n "$HOME" || echo removed',
+        'echo "$TMPDIR"; test -n "$HOME" || echo removed',
       ]);
       expect(result.stdout.trim().split("\n")).toEqual([
-        "set-at-runtime",
+        "/set-at-runtime",
         "removed",
       ]);
     } finally {
-      if (before === undefined) {
-        delete process.env.TEAK_PROC_TEST_VALUE;
+      if (tmp === undefined) {
+        delete process.env.TMPDIR;
       } else {
-        process.env.TEAK_PROC_TEST_VALUE = before;
+        process.env.TMPDIR = tmp;
       }
       process.env.HOME = home;
     }
