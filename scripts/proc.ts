@@ -89,6 +89,10 @@ export const runCommand = async (
   const proc = Bun.spawn(command, {
     cwd: opts?.cwd,
     detached: true,
+    // Without `env`, Bun.spawn passes the environment this process started
+    // with, ignoring later changes such as the E2E suite dropping
+    // CONVEX_DEPLOY_KEY so the Convex CLI can't reach a cloud deployment.
+    env: process.env,
     stderr: "pipe",
     // Secrets go through stdin so they never appear in the process list.
     stdin: opts?.stdin === undefined ? "ignore" : Buffer.from(opts.stdin),
@@ -110,11 +114,19 @@ export const runCommand = async (
     }
   };
   // A detached child leaves our process group, so terminal and CI signals
-  // no longer reach it. Forward them to the tree, then re-raise with
-  // default handling so exit codes stay standard.
+  // no longer reach it. Forward them to the tree. When nothing else handles
+  // the signal, re-raise it with default handling so exit codes stay
+  // standard. When the script handles it (the dev stack stopping its
+  // servers), leave the exit to that handler: re-raising after its `once`
+  // listener has run would kill the process halfway through. Prepending
+  // runs this first, so the count still includes those `once` listeners.
   const forwardSignal = (signal: "SIGINT" | "SIGTERM", own: () => void) => {
+    const handledElsewhere = process.listenerCount(signal) > 1;
     killTree();
     process.removeListener(signal, own);
+    if (handledElsewhere) {
+      return;
+    }
     try {
       process.kill(process.pid, signal);
     } catch {
@@ -123,8 +135,8 @@ export const runCommand = async (
   };
   const onSigint = () => forwardSignal("SIGINT", onSigint);
   const onSigterm = () => forwardSignal("SIGTERM", onSigterm);
-  process.once("SIGINT", onSigint);
-  process.once("SIGTERM", onSigterm);
+  process.prependListener("SIGINT", onSigint);
+  process.prependListener("SIGTERM", onSigterm);
   let timedOut = false;
   const timer = setTimeout(() => {
     timedOut = true;

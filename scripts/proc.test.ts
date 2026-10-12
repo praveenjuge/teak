@@ -1,5 +1,49 @@
 import { describe, expect, test } from "bun:test";
+import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { runCommand } from "./proc.ts";
+
+const PROC_MODULE = join(import.meta.dir, "proc.ts");
+
+/**
+ * Runs a script that starts `runCommand(["sleep", ...])`, waits until the
+ * script prints "ready", then sends it SIGTERM. Returns its output, how it
+ * ended, and the sleeper's pid.
+ */
+const signalWhileRunning = async (body: string) => {
+  const dir = mkdtempSync(join(tmpdir(), "proc-signal-"));
+  try {
+    const script = join(dir, "script.ts");
+    writeFileSync(
+      script,
+      `import { runCommand } from ${JSON.stringify(PROC_MODULE)};\n${body}`
+    );
+    const child = Bun.spawn(["bun", script], { stdout: "pipe" });
+    const reader = child.stdout.getReader();
+    const decoder = new TextDecoder();
+    let output = "";
+    while (!output.includes("ready")) {
+      const { done, value } = await reader.read();
+      if (done) {
+        break;
+      }
+      output += decoder.decode(value);
+    }
+    child.kill("SIGTERM");
+    for (;;) {
+      const { done, value } = await reader.read();
+      if (done) {
+        break;
+      }
+      output += decoder.decode(value);
+    }
+    await child.exited;
+    return { exitCode: child.exitCode, output, signalCode: child.signalCode };
+  } finally {
+    rmSync(dir, { force: true, recursive: true });
+  }
+};
 
 const groupGone = (pgid: number): boolean => {
   try {
@@ -109,5 +153,67 @@ describe("runCommand", () => {
       gone = groupGone(result.pid);
     }
     expect(gone).toBe(true);
+  }, 15_000);
+
+  test("children see environment changes made after startup", async () => {
+    const before = process.env.TEAK_PROC_TEST_VALUE;
+    const home = process.env.HOME;
+    process.env.TEAK_PROC_TEST_VALUE = "set-at-runtime";
+    delete process.env.HOME;
+    try {
+      const result = await runCommand([
+        "sh",
+        "-c",
+        'echo "$TEAK_PROC_TEST_VALUE"; test -n "$HOME" || echo removed',
+      ]);
+      expect(result.stdout.trim().split("\n")).toEqual([
+        "set-at-runtime",
+        "removed",
+      ]);
+    } finally {
+      if (before === undefined) {
+        delete process.env.TEAK_PROC_TEST_VALUE;
+      } else {
+        process.env.TEAK_PROC_TEST_VALUE = before;
+      }
+      process.env.HOME = home;
+    }
+  });
+
+  // `bun run dev --stop` sends SIGTERM while the lease heartbeat is often
+  // inside runCommand; re-raising it killed the stack before it stopped its
+  // web server and `convex dev`.
+  test("a signal leaves a script's own shutdown handler to finish", async () => {
+    const ended = await signalWhileRunning(`
+process.once("SIGTERM", async () => {
+  await Bun.sleep(300);
+  console.log("cleaned up");
+  process.exit(0);
+});
+const running = runCommand(["sleep", "34"]);
+console.log("ready");
+const result = await running;
+console.log(\`sleeper \${result.pid}\`);
+await Bun.sleep(5000);
+`);
+    expect(ended.output).toContain("cleaned up");
+    expect(ended.exitCode).toBe(0);
+    const sleeper = Number(ended.output.match(/sleeper (\d+)/)?.[1]);
+    expect(groupGone(sleeper)).toBe(true);
+  }, 15_000);
+
+  test("without a handler of its own, a script still ends by the signal", async () => {
+    const ended = await signalWhileRunning(`
+const running = Promise.all([
+  runCommand(["sleep", "35"]),
+  runCommand(["sleep", "36"]),
+]);
+console.log("ready");
+await running;
+console.log("kept running");
+await Bun.sleep(5000);
+`);
+    expect(ended.signalCode).toBe("SIGTERM");
+    expect(ended.output).not.toContain("kept running");
   }, 15_000);
 });
