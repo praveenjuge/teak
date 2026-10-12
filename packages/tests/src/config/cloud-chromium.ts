@@ -29,8 +29,8 @@ process.stdin.on("end", () => browser.kill()).resume();
 browser.on("exit", (code) => process.exit(code ?? 1));
 `;
 
-const launch = (executablePath: string, signal: AbortSignal) =>
-  new Promise<string>((resolve, reject) => {
+const launch = (executablePath: string, signal: AbortSignal) => {
+  const launching: Promise<string> = new Promise((resolve, reject) => {
     const profile = mkdtempSync(join(tmpdir(), "teak-cloud-chromium-"));
     const browser = spawn(
       process.execPath,
@@ -50,13 +50,22 @@ const launch = (executablePath: string, signal: AbortSignal) =>
       { stdio: ["pipe", "ignore", "pipe"] }
     );
     let output = "";
-    const fail = (error: Error) => {
-      browser.stdin?.end();
-      reject(error);
-    };
     // Only a launch still starting is abandoned; a browser that came up
     // stays for the rest of the process.
     const abandon = () => fail(new Error("Chromium launch aborted"));
+    // Forgets this launch, and only this one, so the next session starts a
+    // new browser instead of reusing a failed or dead one.
+    const forget = () => {
+      signal.removeEventListener("abort", abandon);
+      if (running === launching) {
+        running = undefined;
+      }
+    };
+    const fail = (error: Error) => {
+      forget();
+      browser.stdin?.end();
+      reject(error);
+    };
     signal.addEventListener("abort", abandon, { once: true });
     browser.stderr?.on("data", (chunk: Buffer) => {
       output += chunk.toString();
@@ -66,13 +75,19 @@ const launch = (executablePath: string, signal: AbortSignal) =>
         resolve(endpoint);
       }
     });
-    browser.once("error", fail);
+    // A watchdog that never started may emit no exit.
+    browser.once("error", (error) => {
+      fail(error);
+      rmSync(profile, { force: true, recursive: true });
+    });
     browser.once("exit", (code) => {
-      running = undefined;
+      forget();
       rmSync(profile, { force: true, recursive: true });
       reject(new Error(`${executablePath} exited with ${code}:\n${output}`));
     });
   });
+  return launching;
+};
 
 const IMAGE_BROWSERS = "/opt/pw-browsers";
 
