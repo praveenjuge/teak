@@ -1,4 +1,9 @@
-import { clientFor, generateApiKey, revokeVisibleKey } from "../helpers/app";
+import {
+  clientFor,
+  generateApiKey,
+  openSecurityDialog,
+  revokeVisibleKey,
+} from "../helpers/app";
 import { readState, updateState } from "../helpers/run-state";
 import { expect, test } from "../helpers/test";
 
@@ -59,6 +64,11 @@ test("web journey covers cards, search, settings, and a revoked key", async ({
   await page.goto("/settings");
   await expect(page.getByText(coreAccount.email)).toBeVisible();
   await expect(page.getByText("Free Plan")).toBeVisible();
+  // Settings loads the device list on every visit, and the page must not be
+  // left while that read is in flight. Seeing this device in Security shows it
+  // finished before generateApiKey reloads Settings.
+  const security = await openSecurityDialog(page);
+  await expect(security.getByText("This device")).toBeVisible();
   const revokedKey = await generateApiKey(page);
   await revokeVisibleKey(page, revokedKey);
   updateState((s) => {

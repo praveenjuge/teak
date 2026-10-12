@@ -16,7 +16,13 @@ import { getConvexUrl } from "@/lib/public-env";
 // rendering never connects. It is never closed: React replays effects in
 // development and hides routes with Activity, and closing a client that
 // mounted auth or subscription effects still use would break them.
-const convex = new ConvexReactClient(getConvexUrl(), { expectAuth: true });
+// No unsaved-changes prompt: the client raises it for any request in flight,
+// and here that is mostly reads such as Settings' device list, so it warned
+// people who were only navigating or signing out. Writes are short mutations.
+const convex = new ConvexReactClient(getConvexUrl(), {
+  expectAuth: true,
+  unsavedChangesWarning: false,
+});
 
 export default function ConvexClientProvider({
   children,

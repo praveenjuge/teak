@@ -7,6 +7,7 @@
 import { env } from "./_generated/server";
 import { normalizeVisualFilterArgs } from "./card/visualFilters";
 import { isLocalDevelopmentHostname, resolveTeakDevAppUrl } from "./devUrls";
+import { readIsDevDeployment } from "./env";
 import {
   CARD_SORTS,
   CARD_TYPES,
@@ -31,11 +32,14 @@ import { SEARCH_MAX_VISUAL_FILTERS_PER_DIMENSION } from "./shared/search/constan
 import { isSafeExternalUrl } from "./shared/utils/safeUrl";
 
 const APP_PROD_URL = "https://app.teakvault.com";
-const APP_DEV_URL = resolveTeakDevAppUrl(env);
 
+// The shared dev deployment serves its API from a convex.site host, not
+// localhost, so its links follow TEAK_DEV_DEPLOYMENT to the dev web app.
 const getAppBaseUrl = (requestUrl: string): string => {
   const { hostname } = new URL(requestUrl);
-  return isLocalDevelopmentHostname(hostname) ? APP_DEV_URL : APP_PROD_URL;
+  return isLocalDevelopmentHostname(hostname) || readIsDevDeployment()
+    ? resolveTeakDevAppUrl(env)
+    : APP_PROD_URL;
 };
 
 const getCardAppUrl = (requestUrl: string, cardId: string): string => {
