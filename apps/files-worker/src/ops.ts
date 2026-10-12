@@ -233,7 +233,17 @@ const browserLauncher = (env: FilesOpsEnv): LaunchBrowser => {
   // Loaded on first use so other operations never pay its startup cost.
   return async () => {
     const { default: puppeteer } = await import("@cloudflare/puppeteer");
-    return await puppeteer.launch(binding);
+    try {
+      return await puppeteer.launch(binding);
+    } catch (error) {
+      // Browser Run refuses new browsers past its plan limits (on Workers Free,
+      // one new browser every 20 seconds and 10 minutes a day). Convex then
+      // renders with Kernel, so this is a decline rather than a failure.
+      console.warn("[files-worker] Browser Run unavailable", {
+        message: error instanceof Error ? error.message : String(error),
+      });
+      throw new Error("browser_unavailable");
+    }
   };
 };
 
@@ -724,6 +734,7 @@ export const handleInternalOp = async (
           "image_dimensions_too_large",
           "audio_decode_failed",
           "browser_binding_unavailable",
+          "browser_unavailable",
           "media_binding_unavailable",
           "not_a_pdf",
           "video_format_unsupported",
@@ -742,7 +753,13 @@ export const handleInternalOp = async (
     if (message === "source_changed") {
       return fail(requestId, "CONFLICT", message, 409);
     }
-    console.error("[files-worker] operation failed", { error, requestId });
+    // Error objects serialize to {} in Workers logs, so log their fields.
+    console.error("[files-worker] operation failed", {
+      message,
+      op: body.op,
+      requestId,
+      stack: error instanceof Error ? error.stack : undefined,
+    });
     const objectKey = getFilesOpObjectKey(body.params);
     reportFilesOpFailure(body.op, error, {
       httpMethod: request.method,

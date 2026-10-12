@@ -255,6 +255,46 @@ describe("rendering operations", () => {
   );
 
   test.each([
+    [
+      "render-pdf-thumbnail",
+      { sourceKey: "users/u/cards/c/file/a.pdf", destinationKey: destination },
+    ],
+    [
+      "capture-screenshot",
+      { destinationKey: destination, htmlGzipBase64: gzipBase64("<p>x</p>") },
+    ],
+    [
+      "scrape-html",
+      { htmlGzipBase64: gzipBase64("<p>x</p>"), selectors: ["p"] },
+    ],
+  ])(
+    "%s answers UNSUPPORTED when Browser Run refuses a new browser, so Convex uses Kernel",
+    async (op, params) => {
+      const bucket = new FakeBucket();
+      await bucket.put("users/u/cards/c/file/a.pdf", fixture("fixture.pdf"));
+      const browserRun = {
+        fetch: () =>
+          Promise.resolve(
+            new Response("Browser time limit exceeded for today", {
+              status: 429,
+            })
+          ),
+      };
+      const { body, status } = await callOp(
+        { BROWSER: browserRun, BUCKET: bucket as never } as never,
+        op,
+        params
+      );
+      expect(status).toBe(415);
+      expect(body.error).toMatchObject({
+        code: "UNSUPPORTED",
+        message: "browser_unavailable",
+      });
+      expect(bucket.objects.has(destination)).toBe(false);
+    }
+  );
+
+  test.each([
     ["another user's namespace", "users/other/cards/c/thumbnail/frame.jpg"],
     ["a traversal path", "users/u/cards/../../other/x.jpg"],
     ["the source itself", source],

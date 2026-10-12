@@ -115,9 +115,12 @@ Worker deployment without these bindings, or an older Worker, changes nothing.
   focal length, ISO, capture time) from JPEG APP1 or the HEIF `Exif` item,
   stored as `fileMetadata.exif`. GPS position is deliberately not read.
 
-Browser Run works on Workers Free (10 browser minutes a day, 3 concurrent
-browsers) and Paid (10 browser hours a month and 10 concurrent browsers
-included, then billed per hour and per concurrent browser). The Media binding
+Browser Run works on Workers Free (10 browser minutes a day, one new browser
+every 20 seconds) and Paid (10 browser hours a month included, then billed per
+hour, with much higher launch limits). Each link card starts two browsers
+(scrape, then screenshot), so on Free most link cards are refused. A refused
+browser answers `UNSUPPORTED` (`browser_unavailable`) and Convex renders with
+Kernel instead. The Media binding
 is in beta and unbilled; afterwards each binding operation is billed like an
 Image Transformation, without the monthly de-duplication. `MEDIA` has no local
 simulation, so it is declared `remote`. Browser Run's local mode runs a real
