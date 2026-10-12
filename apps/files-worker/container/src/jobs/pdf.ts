@@ -115,15 +115,14 @@ export async function pdfTextJob(
     new TextDecoder().decode(result.stdout),
     params.maxChars
   );
+  const bytes = new TextEncoder().encode(text);
   return {
     facts: null,
-    parts: [
-      {
-        name: "text",
-        type: "text/plain; charset=utf-8",
-        bytes: new TextEncoder().encode(text),
-      },
-    ],
+    // A scan or image-only PDF has no text layer: no part rather than an
+    // empty one, which the Worker would refuse.
+    parts: bytes.byteLength
+      ? [{ name: "text", type: "text/plain; charset=utf-8", bytes }]
+      : [],
     extra: {
       pages,
       truncated: cut || result.stdoutTruncated || pages > params.maxPages,

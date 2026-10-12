@@ -320,6 +320,20 @@ describe("inspect pdf", () => {
     );
   });
 
+  test("returns empty text for a PDF without a text layer", async () => {
+    const { env } = await setup(
+      () => rendererResponse({ pages: 3, truncated: false }),
+      pdf
+    );
+    const { body, status } = await callOp(env, "inspect", {
+      maxBytes: 1024 * 1024,
+      mode: "pdf",
+      sourceKey: pdf,
+    });
+    expect(status).toBe(200);
+    expect(body.data).toMatchObject({ facts: { pageCount: 3 }, text: "" });
+  });
+
   test("returns empty text for a PDF the renderer cannot read", async () => {
     const { body, status } = await (async () => {
       const { env } = await setup(() => rendererError(415, "unsupported"), pdf);

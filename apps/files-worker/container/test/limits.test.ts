@@ -7,6 +7,7 @@ import {
   RENDERER_URL,
   readResult,
   render,
+  rendererEndpoint,
   renderFixture,
 } from "./helpers";
 
@@ -110,7 +111,7 @@ describe.skipIf(!RENDERER_URL)("renderer limits and hostile input", () => {
         sent += chunk.byteLength;
       },
     });
-    const response = await fetch(`${RENDERER_URL}/probe`, {
+    const response = await fetch(rendererEndpoint("/probe"), {
       method: "POST",
       body,
     });
@@ -131,7 +132,7 @@ describe.skipIf(!RENDERER_URL)("renderer limits and hostile input", () => {
         controller.close();
       },
     });
-    const first = fetch(`${RENDERER_URL}/probe`, { method: "POST", body });
+    const first = fetch(rendererEndpoint("/probe"), { method: "POST", body });
 
     const started = Date.now();
     while (!(await health()).busy) {

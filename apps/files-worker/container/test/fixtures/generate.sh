@@ -31,6 +31,7 @@ ff $swell -ac 1 -c:a flac audio.flac
 ff $swell -ac 1 -c:a aac -b:a 16k audio.m4a
 
 bun make-pdf.ts 60 sixty-pages.pdf
+bun make-pdf.ts 1 no-text.pdf --no-text
 qpdf --encrypt user-secret owner-secret 256 -- sixty-pages.pdf encrypted.pdf
 
 # Corrupt inputs: an MP4 cut off before its moov atom, and random bytes.

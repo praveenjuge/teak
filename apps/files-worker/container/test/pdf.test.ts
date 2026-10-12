@@ -19,6 +19,13 @@ describe.skipIf(!RENDERER_URL)("renderer PDF jobs", () => {
     expect(Math.abs(size.width - 309.1)).toBeLessThan(1);
   });
 
+  test("a PDF without a text layer answers with no text part", async () => {
+    const result = await renderFixture("/pdf/text", "no-text.pdf");
+    expect(result.status).toBe(200);
+    expect(result.manifest?.pages).toBe(1);
+    expect(result.manifest?.parts).toEqual([]);
+  });
+
   test("text stops at maxPages and says it was truncated", async () => {
     const result = await renderFixture(
       "/pdf/text?maxPages=50",

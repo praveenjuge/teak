@@ -4,8 +4,29 @@
 
 import { join } from "node:path";
 
-export const RENDERER_URL = process.env.RENDERER_URL ?? "";
-export const RENDERER_TIMEOUT_URL = process.env.RENDERER_TIMEOUT_URL ?? "";
+const LOOPBACK_HOSTS = new Set(["localhost", "127.0.0.1", "[::1]"]);
+
+/** The tests only ever send fixtures to a renderer on this machine. */
+function loopbackOrigin(value: string | undefined): string {
+  if (!value) {
+    return "";
+  }
+  const url = new URL(value);
+  if (url.protocol !== "http:" || !LOOPBACK_HOSTS.has(url.hostname)) {
+    throw new Error(`Renderer tests only run against localhost, not ${value}`);
+  }
+  return url.origin;
+}
+
+export const RENDERER_URL = loopbackOrigin(process.env.RENDERER_URL);
+export const RENDERER_TIMEOUT_URL = loopbackOrigin(
+  process.env.RENDERER_TIMEOUT_URL
+);
+
+/** A renderer endpoint on the checked loopback origin. */
+export function rendererEndpoint(path: string, baseUrl = RENDERER_URL): URL {
+  return new URL(path, loopbackOrigin(baseUrl));
+}
 
 export interface ManifestPart {
   length: number;
@@ -45,7 +66,10 @@ export async function render(
   body: Uint8Array,
   baseUrl = RENDERER_URL
 ): Promise<RenderResult> {
-  const response = await fetch(`${baseUrl}${path}`, { method: "POST", body });
+  const response = await fetch(rendererEndpoint(path, baseUrl), {
+    method: "POST",
+    body,
+  });
   return await readResult(response);
 }
 
@@ -87,7 +111,7 @@ export async function readResult(response: Response): Promise<RenderResult> {
 export async function health(
   baseUrl = RENDERER_URL
 ): Promise<{ ok: boolean; protocol: number; busy: boolean }> {
-  const response = await fetch(`${baseUrl}/health`);
+  const response = await fetch(rendererEndpoint("/health", baseUrl));
   return (await response.json()) as {
     ok: boolean;
     protocol: number;
