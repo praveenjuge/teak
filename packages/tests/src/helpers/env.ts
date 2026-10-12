@@ -56,6 +56,9 @@ const ROOT = fileURLToPath(new URL("../../../../", import.meta.url));
 export const stackAppUrl = (): string =>
   readStackState(ROOT)?.urls.appOrigin ?? "http://localhost:3000";
 
+/** Which stack this checkout runs, if any: the E2E stack or the dev stack. */
+export const stackMode = () => readStackState(ROOT)?.mode;
+
 let urls: E2eUrls | undefined;
 const current = () => {
   urls ??= resolveStackUrls(

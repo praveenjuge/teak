@@ -111,6 +111,6 @@ Each workspace script runs only the files it matches. A test file outside these 
 - Never run `e2e feedback`, even though the skill suggests it: it sends a report to the e2e maintainers. Tell the person what got in your way instead, and let them decide whether to report it. Keep `E2E_TELEMETRY_DISABLED=1` set, as the package scripts and `.mcp.json` do.
 
 **e2e MCP (`e2e` in `.mcp.json`)**
-- Opens live browser sessions on the running app (either stack), so you can check UI work at `http://localhost:3000` instead of relying on a passing build.
+- Opens live browser sessions on the running app (either stack), so you can check UI work at `http://localhost:3000` instead of relying on a passing build. Pass `packages/tests/e2e.config.ts` as `open_session`'s `config`; in a cloud session it drives the image's Chromium against the dev stack (`.agents/cloud.md`).
 - Its `locate` tool checks a `screen.getBy…` locator against the current page and returns the exact line to put in a spec.
 - It doesn't run specs; use `E2E_TELEMETRY_DISABLED=1 bunx e2e run <file>` in `packages/tests` with the E2E stack up (`bun run --cwd packages/tests e2e:stack`).

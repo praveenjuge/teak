@@ -77,3 +77,6 @@ todo/
 
 # Local stack state and logs (bun run dev)
 .agents/.state/
+
+# Claude Code agent worktrees
+.claude/worktrees/
