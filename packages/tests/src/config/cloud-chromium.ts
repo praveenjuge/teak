@@ -16,22 +16,27 @@ import type { WebConnectOptions } from "@e2e-dev/web";
 
 let running: Promise<string> | undefined;
 
-// Runs Chromium under a shell that kills it once its stdin, a pipe from this
-// process, closes: when the MCP server or test worker exits by any means,
-// signals included, its browser goes with it.
-const WATCHDOG =
-  'exec 3<&0; "$@" </dev/null 3<&- & browser=$!; ' +
-  '{ cat <&3 >/dev/null; kill "$browser" 2>/dev/null; } & wait "$browser"';
+// Runs Chromium under a small Node process that kills it once its stdin, a
+// pipe from this process, closes: when the MCP server or test worker exits by
+// any means, signals included, its browser goes with it. Chromium's stderr,
+// which announces the DevTools endpoint, passes through.
+const WATCHDOG = `
+const [executable, ...args] = process.argv.slice(1);
+const browser = require("node:child_process").spawn(executable, args, {
+  stdio: ["ignore", "ignore", "inherit"],
+});
+process.stdin.on("end", () => browser.kill()).resume();
+browser.on("exit", (code) => process.exit(code ?? 1));
+`;
 
 const launch = (executablePath: string, signal: AbortSignal) =>
   new Promise<string>((resolve, reject) => {
     const profile = mkdtempSync(join(tmpdir(), "teak-cloud-chromium-"));
     const browser = spawn(
-      "sh",
+      process.execPath,
       [
-        "-c",
+        "--eval",
         WATCHDOG,
-        "sh",
         executablePath,
         "--headless=new",
         // As Playwright launches it: cloud sessions run as root.
