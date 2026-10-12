@@ -30,7 +30,7 @@ stack itself; this is the cloud-specific checklist. Last verified 2026-10-11.
 composer, search and filters, card modal, trash and restore, bulk actions,
 uploads and previews, audio recording, AI summaries and tags, link metadata,
 import and export, API keys, the REST API, MCP, the CLI with `--api-key`, and
-the Polar sandbox checkout behind "Upgrade to Pro" (see below for its overlay).
+the Polar sandbox checkout "Upgrade to Pro" opens in a new tab.
 Also `bun run smoke:web`, `bun run test`, `typecheck`, `lint`, the docs site,
 and the extension build.
 
@@ -48,11 +48,6 @@ with headless Chromium (Playwright), not your own browser.
   bun run --cwd packages/tests e2e "--project=journey-*" --project=matrix-chromium --project=web --workers=1
   bun run dev   # selects the dev deployment again
   ```
-
-- **Polar's checkout overlay:** on 2026-10-12 `sandbox.polar.sh` answered the
-  embedded checkout with `frame-ancestors 'none'`, so the overlay "Continue to
-  checkout" opens stays blank. The checkout itself works: open the overlay
-  iframe's URL, without its `?embed=…` query, in its own page.
 
 - **`playwright` MCP server:** it looks for Google Chrome, which the image
   doesn't have. Use Playwright from `node_modules` with the browsers the

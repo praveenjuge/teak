@@ -1,6 +1,5 @@
 "use client";
 
-import type { PolarEmbedCheckout } from "@polar-sh/checkout/embed";
 import * as Sentry from "@sentry/nextjs";
 import { api } from "@teak/convex";
 import { runClientSpan } from "@teak/convex/shared/client-telemetry";
@@ -11,25 +10,19 @@ import { TOAST_IDS } from "@teak/ui/constants/toast";
 import { useSettingsController } from "@teak/ui/hooks";
 import { SettingsContent, SubscriptionDialog } from "@teak/ui/settings";
 import { useAction, useMutation } from "convex/react";
-import { useTheme } from "next-themes";
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
+import { openCheckoutInNewTab } from "@/lib/checkout-tab";
 import { signOut } from "@/lib/sign-out-client";
 
 export function SettingsPageClient() {
   const [subscriptionOpen, setSubscriptionOpen] = useState(false);
   const [loadingPlanId, setLoadingPlanId] = useState<string | null>(null);
-  const checkoutInstanceRef = useRef<PolarEmbedCheckout | null>(null);
+  // Checkout runs in another tab, so success shows up here as the plan
+  // turning Pro once Polar's webhook lands.
+  const checkoutOpenedRef = useRef(false);
   const createCheckoutLink = useAction(api.billing.createCheckoutLink);
   const deleteMyAccount = useMutation(api.accountDeletion.deleteMyAccount);
-  const { theme } = useTheme();
-
-  useEffect(
-    () => () => {
-      checkoutInstanceRef.current?.close();
-    },
-    []
-  );
 
   const settings = useSettingsController({
     onDeleteAccount: async () => {
@@ -59,6 +52,15 @@ export function SettingsPageClient() {
     onSignOut: signOut,
   });
 
+  useEffect(() => {
+    if (!(settings.hasPremium && checkoutOpenedRef.current)) {
+      return;
+    }
+    checkoutOpenedRef.current = false;
+    trackCheckout({ outcome: "success" });
+    toast.success("Welcome to Pro! Your subscription has been activated.");
+  }, [settings.hasPremium]);
+
   const handleCheckout = async (planId: string) => {
     trackCheckout({ outcome: "start" });
     setLoadingPlanId(planId);
@@ -67,60 +69,28 @@ export function SettingsPageClient() {
     });
 
     try {
-      const checkout = await runClientSpan(
-        {
-          name: "checkout.open",
-          operation: "billing",
-          stage: "checkout",
-        },
-        async () => {
-          const checkoutUrl = await createCheckoutLink({ productId: planId });
-          let effectiveTheme: "light" | "dark" = "light";
-          if (theme === "dark") {
-            effectiveTheme = "dark";
-          } else if (theme === "system") {
-            effectiveTheme = window.matchMedia("(prefers-color-scheme: dark)")
-              .matches
-              ? "dark"
-              : "light";
-          }
-          const { PolarEmbedCheckout } = await import(
-            "@polar-sh/checkout/embed"
-          );
-          return await PolarEmbedCheckout.create(checkoutUrl, {
-            theme: effectiveTheme,
-          });
-        }
-      );
-      trackCheckout({ outcome: "open" });
-      toast.success("Checkout opened", { id: toastId });
-
-      checkoutInstanceRef.current = checkout;
-      setSubscriptionOpen(false);
-
-      let completed = false;
-      checkout.addEventListener(
-        "success",
-        (event: CustomEvent<{ redirect?: string | boolean }>) => {
-          if (!completed) {
-            completed = true;
-            trackCheckout({ outcome: "success" });
-          }
-          if (!event.detail.redirect) {
-            toast.success(
-              "Welcome to Pro! Your subscription has been activated."
-            );
-          }
-        }
-      );
-
-      checkout.addEventListener("close", () => {
-        if (!completed) {
-          trackCheckout({ outcome: "cancel" });
-        }
-        checkoutInstanceRef.current = null;
-        toast("Checkout closed", { id: toastId });
+      // Runs synchronously up to its first await, inside the click.
+      const openedIn = await openCheckoutInNewTab({
+        assign: (url) => window.location.assign(url),
+        createCheckoutUrl: () =>
+          runClientSpan(
+            {
+              name: "checkout.open",
+              operation: "billing",
+              stage: "checkout",
+            },
+            () => createCheckoutLink({ productId: planId })
+          ),
+        openWindow: (url, target) => window.open(url, target),
       });
+      trackCheckout({ outcome: "open" });
+      checkoutOpenedRef.current = true;
+      setSubscriptionOpen(false);
+      if (openedIn === "new-tab") {
+        toast.success("Checkout opened in a new tab", { id: toastId });
+      } else {
+        toast.dismiss(toastId);
+      }
     } catch (error) {
       trackCheckout({ outcome: "failure" });
       Sentry.captureException(error, {

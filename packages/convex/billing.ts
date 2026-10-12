@@ -3,7 +3,6 @@ import { Polar as PolarBilling } from "@polar-sh/sdk";
 import { ConvexError, v } from "convex/values";
 import { api, components } from "./_generated/api";
 import { action, env, query } from "./_generated/server";
-import { resolveTeakDevAppUrl } from "./devUrls";
 import { readIsDevDeployment } from "./env";
 import { getSessionProfile } from "./securitySessions";
 import { isApprovedPolarProductId } from "./shared/polarPlans";
@@ -71,7 +70,6 @@ const polarCustomerIdentity = (
 export const createCheckoutLinkHandler = async (ctx: any, args: any) => {
   let userId: string | undefined;
   try {
-    const devAppUrl = resolveTeakDevAppUrl(env);
     const user = await ctx.runQuery(api.billing.getUserInfo);
     userId = user.teakUserId;
     if (!isApprovedPolarProductId(args.productId)) {
@@ -116,10 +114,6 @@ export const createCheckoutLinkHandler = async (ctx: any, args: any) => {
       products: [args.productId],
       allowDiscountCodes: true,
       customerId,
-      embedOrigin:
-        env.POLAR_SERVER === "production"
-          ? "https://app.teakvault.com"
-          : devAppUrl,
     });
 
     await scheduleBillingOutcome(ctx, {
