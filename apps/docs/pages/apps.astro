@@ -11,7 +11,7 @@ import MarketingLayout from "../layouts/MarketingLayout.astro";
   ogDescription="Save ideas with Teak for Mac, iPhone and iPad, web, browser extensions, and Raycast, with Android coming soon. Connect your library through the API, MCP, CLI, and agent skills."
   keywords="teak mac app, teak apps, teak api, teak mcp, teak cli, teak agent skill, skills.sh teak, teak ios, teak ipad, teak android, teak chrome extension, teak for mac, teak raycast extension, teak web app, visual bookmarking apps, cross platform inspiration"
 >
-  <main class="px-4 pt-14 pb-20" data-apps-page>
+  <main class="px-4 pt-14 pb-20">
     <section class="mx-auto flex max-w-xl flex-col items-center text-center">
       <h1 class="text-[clamp(2.125rem,4.4vw,3.125rem)] leading-[1.04] font-bold tracking-[-0.04em] text-balance">
         Teak, everywhere you create
@@ -26,10 +26,3 @@ import MarketingLayout from "../layouts/MarketingLayout.astro";
     <AppsGrid />
   </main>
 </MarketingLayout>
-
-<style is:global>
-  /* This page sits on plain white between the meadow at the top and bottom. */
-  body:has([data-apps-page]) {
-    background: var(--background);
-  }
-</style>
