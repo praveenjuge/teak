@@ -288,10 +288,10 @@ describe("Markdown editor", { trace: "on", video: "retain-on-failure" }, () => {
       await input.fill(valid);
       await expect(input).toHaveText(valid);
       await input.press("End");
-      // The rejected keystroke at the Unicode limit keeps the page busy for
-      // over 30 seconds on a loaded machine; Playwright set no action
-      // timeout, so only the test's own deadline bounds it.
-      await input.pressSequentially("x", { timeout: 110_000 });
+      // The default action timeout also checks the keystroke stays
+      // responsive: a long unbroken run of kerned "é" once took the browser
+      // over 80 seconds to lay out again.
+      await input.pressSequentially("x");
       await expect(input).toHaveText(valid);
       await expect(
         screen
@@ -301,6 +301,21 @@ describe("Markdown editor", { trace: "on", video: "retain-on-failure" }, () => {
           .first()
       ).toBeVisible();
     }
+  });
+
+  test("accepts typing up to exactly the UTF-8 limit", async ({
+    screen,
+    webAccount: _signedIn,
+  }) => {
+    const composer = screen.getByRole("group", "Markdown content editor");
+    const input = await getBlockEditor(composer);
+    // One byte short of 512 KiB, so one more ASCII keystroke reaches it.
+    const draft = `${"é".repeat(256 * 1024 - 1)}a`;
+    await input.fill(draft);
+    await expect(input).toHaveText(draft);
+    await input.press("End");
+    await input.pressSequentially("x");
+    await expect(input).toHaveText(`${draft}x`);
   });
 
   test("pasted HTML and unsafe links remain inert", async ({
