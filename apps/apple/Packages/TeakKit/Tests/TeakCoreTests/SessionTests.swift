@@ -6,8 +6,9 @@ import Testing
 // cross-process cases the app and its extensions add.
 
 private func makeSession(_ storage: MemoryStorage, _ transport: ScriptedTransport, directory: URL = Fixture.tempDirectory(),
+                         activity: any BackgroundActivity = SystemActivity(),
                          bootstrap: TeakSession.Bootstrap? = nil) -> TeakSession {
-    TeakSession(storage: storage, lock: FileCredentialLock(directory: directory, environment: "test"),
+    TeakSession(storage: storage, lock: FileCredentialLock(directory: directory, environment: "test", activity: activity),
                 transport: transport, bootstrap: bootstrap)
 }
 
@@ -177,6 +178,48 @@ private func request() -> AuthKitRequest {
         #expect(await session.state == .signedOut)
     }
 
+    /// iOS kills a process suspended while holding the lock (0xdead10cc).
+    @Test func runningOutOfBackgroundTimeMidRefreshGivesBackTheLockAndKeepsTheSession() async throws {
+        let directory = Fixture.tempDirectory()
+        let storage = MemoryStorage(Fixture.stored(refresh: "old"))
+        let activity = ScriptedActivity(watching: directory)
+        let requested = Gate()
+        let transport = ScriptedTransport { _, _ in
+            // WorkOS is slow to answer; cancelling the request stops the wait, as with URLSession.
+            await requested.arrive()
+            try await Task.sleep(for: .seconds(60))
+            return (200, Fixture.response(refresh: "too-late"))
+        }
+        let session = makeSession(storage, transport, directory: directory, activity: activity)
+        try await session.restore()
+        let refresh = Task { try await session.accessToken() }
+        await requested.arrived()
+        #expect(Fixture.isLocked(directory))
+
+        await activity.expire()
+        #expect(!Fixture.isLocked(directory))
+        await #expect(throws: (any Error).self) { try await refresh.value }
+        #expect(activity.lockedAtEnd == [false])
+        #expect(storage.json?["refresh_token"] as? String == "old")
+        #expect(await session.user != nil)
+
+        // Back in the foreground, the refresh runs again.
+        transport.respond { _, _ in (200, Fixture.response(refresh: "rotated")) }
+        #expect(try await session.accessToken() != nil)
+        #expect(storage.json?["refresh_token"] as? String == "rotated")
+    }
+
+    @Test func aRefreshWithNoBackgroundTimeLeftNeverStarts() async throws {
+        let storage = MemoryStorage(Fixture.stored(refresh: "old"))
+        let transport = ScriptedTransport { _, _ in (200, Fixture.response(refresh: "rotated")) }
+        let session = makeSession(storage, transport, activity: ScriptedActivity(granted: false))
+        try await session.restore()
+        await #expect(throws: TeakError.self) { try await session.accessToken() }
+        #expect(transport.count == 0)
+        #expect(storage.json?["refresh_token"] as? String == "old")
+        #expect(await session.user != nil)
+    }
+
     @Test func signingOutCancelsAPendingSignIn() async throws {
         let storage = MemoryStorage()
         let transport = ScriptedTransport { _, _ in (200, Fixture.response()) }
@@ -210,6 +253,24 @@ private func request() -> AuthKitRequest {
         let token = try await session.accessToken()
         await session.clear()
         #expect(heard.values == [token, nil])
+    }
+}
+
+@Suite struct CredentialLockTests {
+    @Test func runningOutOfTimeTakesTheLockFromAnOperationThatWontStop() async throws {
+        let directory = Fixture.tempDirectory()
+        let activity = ScriptedActivity()
+        let lock = FileCredentialLock(directory: directory, environment: "test", activity: activity)
+        // Like a stuck keychain call, the gate ignores cancellation.
+        let stuck = Gate()
+        let operation = Task { try await lock.withLock { await stuck.wait() } }
+        await stuck.arrived()
+        #expect(Fixture.isLocked(directory))
+
+        await activity.expire()
+        #expect(!Fixture.isLocked(directory))
+        await stuck.release()
+        try await operation.value
     }
 }
 
