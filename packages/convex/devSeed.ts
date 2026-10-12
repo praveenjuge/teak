@@ -1,11 +1,19 @@
 import { v } from "convex/values";
-import { internalMutation } from "./_generated/server";
+import { internalMutation, internalQuery } from "./_generated/server";
+import {
+  getAccountDeletionState,
+  initiateAccountDeletion,
+} from "./accountDeletion";
 import {
   type DefaultCardDef,
   insertCompletedCards,
   ONBOARDING_CARD_CONTENTS,
 } from "./card/defaultCards";
 import { readIsDevDeployment } from "./env";
+import {
+  CLOUD_DEV_ACCOUNT_EMAIL,
+  CLOUD_DEV_ACCOUNT_EMAIL_RANGE,
+} from "./shared/devAccounts";
 import { isWorkosProductionApi, workosApiBase } from "./shared/workosApi";
 
 // Seed data for development accounts (`bun run dev`). It runs only on the
@@ -203,5 +211,93 @@ export const seed = internalMutation({
     }
     await insertCompletedCards(ctx, owner.teakUserId, DEV_SEED_CARDS);
     return { status: "seeded" as const, cards: DEV_SEED_CARDS.length };
+  },
+});
+
+// Every Claude Code cloud session gets its own dev account, and nothing else
+// removes them once the session ends. `bun run dev` in a cloud session prunes
+// the stale ones through the full account deletion workflow, which also
+// deletes the WorkOS user. Unlike seeding, pruning runs only on the shared dev
+// deployment, and only for cloud session accounts.
+
+const assertPrunableDeployment = () => {
+  if (!readIsDevDeployment()) {
+    throw new Error(
+      "Pruning cloud dev accounts runs only on the dev deployment (TEAK_DEV_DEPLOYMENT=true)."
+    );
+  }
+};
+
+const CLOUD_ACCOUNT_PAGE_SIZE = 100;
+
+/**
+ * One page of live cloud session accounts. Deleted owners keep their address,
+ * so the range is paged rather than read in one bounded batch.
+ */
+export const listCloudAccounts = internalQuery({
+  args: { cursor: v.union(v.string(), v.null()) },
+  returns: v.object({
+    accounts: v.array(
+      v.object({ email: v.string(), workosUserId: v.string() })
+    ),
+    continueCursor: v.string(),
+    isDone: v.boolean(),
+  }),
+  handler: async (ctx, { cursor }) => {
+    assertPrunableDeployment();
+    const page = await ctx.db
+      .query("users")
+      .withIndex("by_email", (q) =>
+        q
+          .gte("email", CLOUD_DEV_ACCOUNT_EMAIL_RANGE.start)
+          .lt("email", CLOUD_DEV_ACCOUNT_EMAIL_RANGE.end)
+      )
+      .paginate({ numItems: CLOUD_ACCOUNT_PAGE_SIZE, cursor });
+    const accounts: { email: string; workosUserId: string }[] = [];
+    for (const owner of page.page) {
+      if (
+        owner.deletedAt !== undefined ||
+        !owner.workosUserId ||
+        !CLOUD_DEV_ACCOUNT_EMAIL.test(owner.email) ||
+        (await getAccountDeletionState(ctx, owner.teakUserId))
+      ) {
+        continue;
+      }
+      accounts.push({ email: owner.email, workosUserId: owner.workosUserId });
+    }
+    return {
+      accounts,
+      continueCursor: page.continueCursor,
+      isDone: page.isDone,
+    };
+  },
+});
+
+/**
+ * Delete a finished cloud session's dev account: its cards, files and WorkOS
+ * user. Refuses every other account.
+ */
+export const pruneCloudAccount = internalMutation({
+  args: { workosUserId: v.string() },
+  returns: v.union(v.literal("deleting"), v.literal("already_deleted")),
+  handler: async (ctx, { workosUserId }) => {
+    assertPrunableDeployment();
+    const owner = await ctx.db
+      .query("users")
+      .withIndex("by_workosUserId", (q) => q.eq("workosUserId", workosUserId))
+      .unique();
+    if (!owner) {
+      throw new Error("No Teak owner is linked to that WorkOS user.");
+    }
+    if (!CLOUD_DEV_ACCOUNT_EMAIL.test(owner.email)) {
+      throw new Error(
+        "Only cloud session dev accounts (dev+cloud-<hash>-<checkout>@example.org) can be pruned."
+      );
+    }
+    if (owner.deletedAt !== undefined) {
+      return "already_deleted" as const;
+    }
+    await initiateAccountDeletion(ctx, owner);
+    return "deleting" as const;
   },
 });

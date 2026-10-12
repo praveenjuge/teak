@@ -19,13 +19,20 @@ import {
   HEARTBEAT_MS,
   headCommit,
   leaseHolder,
+  parseRunOutput,
   recordPush,
   releaseLease,
   renewLease,
 } from "./convex-push-lease.ts";
 import { DEV_DEPLOYMENT_URLS } from "./dev-deployment.ts";
 import { loadTargetEnv } from "./env-loader.ts";
-import { ensureDevAccount } from "./lib/dev-account.ts";
+import {
+  type DevAccount,
+  ensureDevAccount,
+  isCloudSession,
+  readCloudAccountActivity,
+  selectStaleCloudAccounts,
+} from "./lib/dev-account.ts";
 import {
   type StackState,
   stackStatePath,
@@ -88,6 +95,63 @@ const seedAccount = async (workosUserId: string): Promise<string> => {
     await Bun.sleep(3000);
   }
   return "seeding skipped (the account isn't linked yet; it will be on the next start)";
+};
+
+class ConvexRunError extends Error {}
+
+const convexRun = async (fn: string, args: Record<string, unknown>) => {
+  const result = await runCommand(
+    ["bunx", "convex", "run", fn, JSON.stringify(args)],
+    { cwd: CONVEX_DIR, timeoutMs: 60_000 }
+  );
+  if (result.exitCode !== 0) {
+    throw new ConvexRunError(
+      /Could not find (public )?function/i.test(result.stderr)
+        ? `the live backend has no ${fn} yet`
+        : `${fn}: ${convexRunError(result.stderr)}`
+    );
+  }
+  return parseRunOutput(result.stdout);
+};
+
+interface CloudAccountPage {
+  accounts: { email: string; workosUserId: string }[];
+  continueCursor: string;
+  isDone: boolean;
+}
+
+// Each cloud session gets its own dev account, so finished sessions leave
+// theirs behind. Delete the ones nobody has signed in to for two weeks through
+// the backend's account deletion workflow, which removes the cards, files and
+// WorkOS user. The backend refuses anything but cloud session accounts.
+const pruneStaleCloudAccounts = async (
+  current: DevAccount,
+  workos: { apiKey: string; clientId: string }
+): Promise<string> => {
+  const candidates: CloudAccountPage["accounts"] = [];
+  let cursor: string | null = null;
+  for (let page = 0; page < 50; page += 1) {
+    const result = (await convexRun("devSeed:listCloudAccounts", {
+      cursor,
+    })) as CloudAccountPage;
+    candidates.push(...result.accounts);
+    if (result.isDone) {
+      break;
+    }
+    cursor = result.continueCursor;
+  }
+  const stale = selectStaleCloudAccounts(
+    await readCloudAccountActivity(workos, candidates),
+    { current, now: Date.now() }
+  );
+  for (const account of stale) {
+    await convexRun("devSeed:pruneCloudAccount", {
+      workosUserId: account.workosUserId,
+    });
+  }
+  return stale.length === 0
+    ? "Pruned no stale cloud dev accounts."
+    : `Pruning ${stale.length} stale cloud dev account${stale.length === 1 ? "" : "s"}: ${stale.map((account) => account.email).join(", ")}.`;
 };
 
 export const startDevStack = async (
@@ -157,6 +221,10 @@ export const startDevStack = async (
 
   const holder = await leaseHolder(ROOT);
   let pusher: ChildProcess | null = null;
+  let firstPushDone: () => void = () => undefined;
+  const firstPush = new Promise<void>((resolve) => {
+    firstPushDone = resolve;
+  });
   // Pushing without the lease: the deployed code has no lease functions yet.
   let bootstrapping = false;
   const startPusher = () => {
@@ -171,6 +239,7 @@ export const startDevStack = async (
     for (const stream of [child.stdout, child.stderr]) {
       stream?.on("data", (chunk: Buffer) => {
         if (PUSHED.test(chunk.toString())) {
+          firstPushDone();
           headCommit(ROOT).then((commit) => recordPush(ROOT, holder, commit));
         }
       });
@@ -288,6 +357,22 @@ export const startDevStack = async (
     notes.push(
       `Sign in as ${account.email} / ${account.password} (WorkOS staging); ${await seedAccount(account.workosUserId)}.`
     );
+    if (isCloudSession()) {
+      // Best-effort and off the startup path: the log says how it went. A
+      // checkout that pushes waits for its own backend, which has pruning.
+      (pusher ? firstPush : Promise.resolve())
+        .then(() =>
+          pruneStaleCloudAccounts(account, {
+            apiKey: env.get("WORKOS_API_KEY") ?? "",
+            clientId: env.get("WORKOS_CLIENT_ID") ?? "",
+          })
+        )
+        .then(say, (error) =>
+          say(
+            `Couldn't prune stale cloud dev accounts (${error instanceof ConvexRunError ? error.message : describeWorkosError(error)}).`
+          )
+        );
+    }
   } catch (error) {
     notes.push(
       `Couldn't set up this checkout's WorkOS staging account (${describeWorkosError(error)}); sign in with your own.`

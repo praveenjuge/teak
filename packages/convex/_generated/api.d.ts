@@ -108,6 +108,7 @@ import type * as shared_boundedResponse from "../shared/boundedResponse.js";
 import type * as shared_cardTitle from "../shared/cardTitle.js";
 import type * as shared_client_telemetry from "../shared/client_telemetry.js";
 import type * as shared_constants from "../shared/constants.js";
+import type * as shared_devAccounts from "../shared/devAccounts.js";
 import type * as shared_fileFormats from "../shared/fileFormats.js";
 import type * as shared_index from "../shared/index.js";
 import type * as shared_linkCategories from "../shared/linkCategories.js";
@@ -318,6 +319,7 @@ declare const fullApi: ApiFromModules<{
   "shared/cardTitle": typeof shared_cardTitle;
   "shared/client_telemetry": typeof shared_client_telemetry;
   "shared/constants": typeof shared_constants;
+  "shared/devAccounts": typeof shared_devAccounts;
   "shared/fileFormats": typeof shared_fileFormats;
   "shared/index": typeof shared_index;
   "shared/linkCategories": typeof shared_linkCategories;

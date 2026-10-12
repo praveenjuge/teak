@@ -36,9 +36,19 @@ Every cloud VM is named `vm` and checks out `main`, so `bun run dev` names a
 Claude Code session's account after a hash of `CLAUDE_CODE_REMOTE_SESSION_ID`
 instead: `dev+cloud-<hash>-main@example.org`. Each session starts with a fresh
 seeded vault, its own export allowance and its own device list. Resuming a
-session on a new VM signs in to the same account with a new password. Accounts
-from finished sessions stay on the dev deployment; nothing removes them yet.
+session on a new VM signs in to the same account with a new password.
 Other cloud agents (Codex, Amp) still use `dev+<hostname>-main@example.org`.
+
+Finished sessions' accounts are pruned. Once its own account is ready,
+`bun run dev` in a Claude Code session looks in the background for other
+`dev+cloud-<hash>-<checkout>@example.org` accounts that nobody has signed in to
+(or, never used, that were created) more than 14 days ago, and deletes each
+through the backend's account deletion workflow (`devSeed:pruneCloudAccount`),
+which removes its cards, files and WorkOS user. The backend refuses unless
+`TEAK_DEV_DEPLOYMENT=true` and refuses every other address, and the current
+session's account is never a candidate. `.agents/.state/stack.log` says which
+accounts were pruned, or why pruning was skipped. Resuming a session after two
+weeks away starts again with a fresh seeded vault.
 
 ## Works
 

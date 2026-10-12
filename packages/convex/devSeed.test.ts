@@ -112,3 +112,137 @@ describe("devSeed", () => {
     ).rejects.toThrow("no Teak owner");
   });
 });
+
+describe("pruning cloud dev accounts", () => {
+  const CLOUD_EMAIL = "dev+cloud-0a1b2c3d-main@example.org";
+
+  const withOwner = async (email: string, workosUserId: string) => {
+    const t = convexTest(schema, modules);
+    workflowTest.register(t);
+    workosTest.register(t);
+    await t.run(async (ctx) => {
+      await ctx.db.insert("users", {
+        teakUserId: `teak_${workosUserId}`,
+        identityOrigin: "workos",
+        email,
+        emailVerified: true,
+        workosUserId,
+      });
+      await ctx.db.insert("cards", {
+        userId: `teak_${workosUserId}`,
+        content: "seeded",
+        type: "text",
+        createdAt: 1,
+        updatedAt: 1,
+      });
+    });
+    return t;
+  };
+
+  const deletionOf = (
+    t: Awaited<ReturnType<typeof withOwner>>,
+    workosUserId: string
+  ) =>
+    t.run((ctx) =>
+      ctx.db
+        .query("accountDeletionStates")
+        .withIndex("by_userId", (q) => q.eq("userId", `teak_${workosUserId}`))
+        .unique()
+    );
+
+  test("starts the full account deletion for a cloud session account", async () => {
+    vi.stubEnv("TEAK_DEV_DEPLOYMENT", "true");
+    const t = await withOwner(CLOUD_EMAIL, "user_CLOUD");
+    expect(
+      await t.mutation(internal.devSeed.pruneCloudAccount, {
+        workosUserId: "user_CLOUD",
+      })
+    ).toBe("deleting");
+    expect(await deletionOf(t, "user_CLOUD")).toMatchObject({
+      workosUserId: "user_CLOUD",
+      stage: 0,
+    });
+  });
+
+  test.each([
+    ["the emulator backend", { WORKOS_API_BASE_URL: "http://localhost:4100" }],
+    ["a deployment without TEAK_DEV_DEPLOYMENT", {}],
+    [
+      "TEAK_DEV_DEPLOYMENT set to anything but true",
+      { TEAK_DEV_DEPLOYMENT: "1" },
+    ],
+  ])("refuses to prune on %s", async (_name, env: Record<string, string>) => {
+    for (const [key, value] of Object.entries(env)) {
+      vi.stubEnv(key, value);
+    }
+    const t = await withOwner(CLOUD_EMAIL, "user_CLOUD");
+    await expect(
+      t.mutation(internal.devSeed.pruneCloudAccount, {
+        workosUserId: "user_CLOUD",
+      })
+    ).rejects.toThrow("TEAK_DEV_DEPLOYMENT=true");
+    await expect(
+      t.query(internal.devSeed.listCloudAccounts, { cursor: null })
+    ).rejects.toThrow("TEAK_DEV_DEPLOYMENT=true");
+    expect(await deletionOf(t, "user_CLOUD")).toBeNull();
+  });
+
+  test.each([
+    "dev+praveens-mbp-main@example.org",
+    "dev+vm-main@example.org",
+    "dev+cloud-0a1b2c3-main@example.org",
+    "dev+cloud-0A1B2C3D-main@example.org",
+    "dev+cloud-0a1b2c3d-@example.org",
+    "dev+cloud-0a1b2c3d-main@example.org.evil.test",
+    "dev+cloud-0a1b2c3d-main@example.com",
+    "xdev+cloud-0a1b2c3d-main@example.org",
+    "someone@gmail.com",
+  ])("refuses to prune %s", async (email) => {
+    vi.stubEnv("TEAK_DEV_DEPLOYMENT", "true");
+    const t = await withOwner(email, "user_OTHER");
+    await expect(
+      t.mutation(internal.devSeed.pruneCloudAccount, {
+        workosUserId: "user_OTHER",
+      })
+    ).rejects.toThrow("Only cloud session dev accounts");
+    expect(await deletionOf(t, "user_OTHER")).toBeNull();
+  });
+
+  test("lists only live cloud session accounts", async () => {
+    vi.stubEnv("TEAK_DEV_DEPLOYMENT", "true");
+    const t = await withOwner(CLOUD_EMAIL, "user_CLOUD");
+    await t.run(async (ctx) => {
+      const owner = (email: string, workosUserId: string, extra = {}) =>
+        ctx.db.insert("users", {
+          teakUserId: `teak_${workosUserId}`,
+          identityOrigin: "workos",
+          email,
+          emailVerified: true,
+          workosUserId,
+          ...extra,
+        });
+      await owner("dev+cloud-ffffffff-wt-2@example.org", "user_WT");
+      await owner("dev+cloud-11111111-main@example.org", "user_GONE", {
+        deletedAt: 1,
+      });
+      await owner("dev+cloud-not-a-hash@example.org", "user_ODD");
+      await owner("dev+praveens-mbp-main@example.org", "user_MAC");
+      await owner("dev+cloud-22222222-main@example.org", "user_DELETING");
+      await ctx.db.insert("accountDeletionStates", {
+        userId: "teak_user_DELETING",
+        startedAt: 1,
+      });
+    });
+    const page = await t.query(internal.devSeed.listCloudAccounts, {
+      cursor: null,
+    });
+    expect(page.isDone).toBe(true);
+    expect(page.accounts).toEqual([
+      { email: CLOUD_EMAIL, workosUserId: "user_CLOUD" },
+      {
+        email: "dev+cloud-ffffffff-wt-2@example.org",
+        workosUserId: "user_WT",
+      },
+    ]);
+  });
+});

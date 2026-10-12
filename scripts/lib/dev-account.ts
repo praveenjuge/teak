@@ -10,7 +10,8 @@ import { createHash, randomBytes } from "node:crypto";
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { hostname } from "node:os";
 import { dirname } from "node:path";
-import { WorkOS } from "@workos-inc/node";
+import { NotFoundException, WorkOS } from "@workos-inc/node";
+import { CLOUD_DEV_ACCOUNT_EMAIL } from "../../packages/convex/shared/devAccounts.ts";
 import { TEST_SESSION_EMAIL_DOMAIN } from "./workos-test-session.ts";
 
 export interface DevAccount {
@@ -27,6 +28,18 @@ const slug = (value: string): string =>
     .replace(/^-+|-+$/g, "")
     .slice(0, 40) || "host";
 
+const cloudSessionId = (
+  env: Record<string, string | undefined>
+): string | undefined => {
+  const session = env.CLAUDE_CODE_REMOTE_SESSION_ID?.trim();
+  return env.CLAUDE_CODE_REMOTE === "true" && session ? session : undefined;
+};
+
+/** A Claude Code cloud session, which signs in with its own dev account. */
+export const isCloudSession = (
+  env: Record<string, string | undefined> = process.env
+): boolean => cloudSessionId(env) !== undefined;
+
 /**
  * The machine part of the account email. Every Claude Code cloud VM is named
  * "vm" and checks out "main", so a cloud session is named after a hash of its
@@ -37,8 +50,8 @@ export const devAccountHost = (
   env: Record<string, string | undefined> = process.env,
   host = hostname()
 ): string => {
-  const session = env.CLAUDE_CODE_REMOTE_SESSION_ID?.trim();
-  if (env.CLAUDE_CODE_REMOTE !== "true" || !session) {
+  const session = cloudSessionId(env);
+  if (!session) {
     return host;
   }
   const hash = createHash("sha256").update(session).digest("hex").slice(0, 8);
@@ -109,4 +122,74 @@ export const ensureDevAccount = async (options: {
     mode: 0o600,
   });
   return account;
+};
+
+/** A cloud session account nobody has signed in to for this long is pruned. */
+export const STALE_CLOUD_ACCOUNT_MS = 14 * 24 * 60 * 60 * 1000;
+
+export interface CloudAccountActivity {
+  /** ISO timestamps from WorkOS. */
+  createdAt: string;
+  email: string;
+  lastSignInAt: string | null;
+  workosUserId: string;
+}
+
+/**
+ * The cloud session accounts to prune: last signed in to (or, never signed
+ * in, created) more than `maxAgeMs` ago. The current session's account and
+ * every address that isn't a cloud session account are always kept, and so is
+ * an account whose dates don't parse.
+ */
+export const selectStaleCloudAccounts = (
+  accounts: CloudAccountActivity[],
+  options: {
+    current: { email: string; workosUserId: string };
+    maxAgeMs?: number;
+    now: number;
+  }
+): CloudAccountActivity[] => {
+  const maxAgeMs = options.maxAgeMs ?? STALE_CLOUD_ACCOUNT_MS;
+  return accounts.filter((account) => {
+    if (
+      account.workosUserId === options.current.workosUserId ||
+      account.email === options.current.email ||
+      !CLOUD_DEV_ACCOUNT_EMAIL.test(account.email)
+    ) {
+      return false;
+    }
+    const lastActive = Date.parse(account.lastSignInAt ?? account.createdAt);
+    return Number.isFinite(lastActive) && options.now - lastActive > maxAgeMs;
+  });
+};
+
+/**
+ * WorkOS sign-in dates for the given accounts. An account WorkOS no longer has
+ * is left out, so it is never pruned from here.
+ */
+export const readCloudAccountActivity = async (
+  options: { apiKey: string; clientId: string },
+  accounts: { email: string; workosUserId: string }[]
+): Promise<CloudAccountActivity[]> => {
+  const workos = new WorkOS(options.apiKey, { clientId: options.clientId });
+  const activity: CloudAccountActivity[] = [];
+  for (const account of accounts) {
+    try {
+      const user = await workos.userManagement.getUser(account.workosUserId);
+      if (user.email !== account.email) {
+        continue;
+      }
+      activity.push({
+        createdAt: user.createdAt,
+        email: user.email,
+        lastSignInAt: user.lastSignInAt,
+        workosUserId: user.id,
+      });
+    } catch (error) {
+      if (!(error instanceof NotFoundException)) {
+        throw error;
+      }
+    }
+  }
+  return activity;
 };
