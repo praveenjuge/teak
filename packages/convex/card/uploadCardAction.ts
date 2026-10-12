@@ -10,6 +10,7 @@ import {
   requireTeakUserId,
   type TeakUserId,
 } from "../securitySessions";
+import type { CardCreationSource } from "../shared/analytics";
 import {
   FileFormatValidationError,
   fileUploadErrorCode,
@@ -29,6 +30,7 @@ import {
 } from "../storage/filesWorkerClient";
 import { ensureObjectOwnership } from "../storage/ownership";
 import { buildR2ObjectKey, buildR2UserPrefix } from "../storage/r2";
+import { clientCardSourceValidator } from "./createCard";
 
 const finalizeArgs = {
   additionalMetadata: v.optional(v.any()),
@@ -41,6 +43,11 @@ const finalizeArgs = {
   fileType: v.optional(v.string()),
   notes: v.optional(v.union(v.string(), v.null())),
   tags: v.optional(v.array(v.string())),
+} as const;
+
+const sessionFinalizeArgs = {
+  ...finalizeArgs,
+  source: v.optional(clientCardSourceValidator),
 } as const;
 
 const finalizeResult = v.object({
@@ -68,6 +75,7 @@ interface FinalizeArgs {
   fileSize?: number;
   fileType?: string;
   notes?: string | null;
+  source?: CardCreationSource;
   tags?: string[];
 }
 
@@ -264,6 +272,7 @@ const finalizeForUser = async (
         fileSize: args.fileSize,
         mimeType: verifiedMimeType ?? args.fileType,
         notes: args.notes ?? undefined,
+        source: args.source,
         storedFileSize: outcome.data.storedFileSize,
         storedMimeType,
         tags: args.tags,
@@ -291,11 +300,14 @@ export const finalizeUploadedCardForUser = internalAction({
   args: { ...finalizeArgs, userId: v.string() },
   returns: finalizeResult,
   handler: async (ctx, { userId, ...args }) =>
-    finalizeForUser(ctx, await requireTeakUserId(ctx, userId), args),
+    finalizeForUser(ctx, await requireTeakUserId(ctx, userId), {
+      ...args,
+      source: "api",
+    }),
 });
 
 export const finalizeUploadedCard = action({
-  args: finalizeArgs,
+  args: sessionFinalizeArgs,
   returns: finalizeResult,
   handler: async (ctx, args) => {
     const user = await getSessionUser(ctx);

@@ -84,11 +84,16 @@ class ConvexCardsRepositoryTest {
         convex.responses["cards:createCard"] = { JsonPrimitive("new_card") }
         assertEquals("new_card", repository.createFromText("https://teakvault.com"))
         assertEquals(
-            mapOf("content" to "https://teakvault.com", "type" to "link", "url" to "https://teakvault.com"),
+            mapOf(
+                "content" to "https://teakvault.com",
+                "source" to "android",
+                "type" to "link",
+                "url" to "https://teakvault.com",
+            ),
             convex.calls.single().args,
         )
         repository.createFromText("just a note")
-        assertEquals(mapOf("content" to "just a note"), convex.calls.last().args)
+        assertEquals(mapOf("content" to "just a note", "source" to "android"), convex.calls.last().args)
     }
 
     @Test

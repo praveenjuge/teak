@@ -119,6 +119,7 @@ public struct UploadPipeline: Sendable {
         var finalizeArgs = prepareArgs
         finalizeArgs["fileKey"] = .string(key)
         if let etag { finalizeArgs["fileEtag"] = .string(etag) }
+        finalizeArgs["source"] = CardSource.apple
         let finalized: Finalized = try await convex.action("cards:finalizeUploadedCard", finalizeArgs)
         guard finalized.success, let cardId = finalized.cardId else {
             throw TeakError.card(code: finalized.errorCode, message: finalized.error, fallback: "Failed to create card")

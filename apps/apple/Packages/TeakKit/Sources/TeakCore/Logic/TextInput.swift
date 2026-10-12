@@ -1,5 +1,10 @@
 import Foundation
 
+/// Tells the backend which app saved a card, for product analytics.
+public enum CardSource {
+    public static let apple: ConvexValue = "apple"
+}
+
 /// How a note or pasted link is saved: a link card when there is an http(s) URL, otherwise text.
 public struct TextCardInput: Hashable, Sendable {
     public let content: String
@@ -8,7 +13,7 @@ public struct TextCardInput: Hashable, Sendable {
 
     /// Arguments for `cards:createCard`.
     public var createArgs: ConvexArgs {
-        var args: ConvexArgs = ["content": .string(content)]
+        var args: ConvexArgs = ["content": .string(content), "source": CardSource.apple]
         if type == .link, let url {
             args["type"] = "link"
             args["url"] = .string(url)

@@ -3,6 +3,7 @@ package com.praveenjuge.teak.core.data.upload
 import com.praveenjuge.teak.core.data.convex.ConvexApi
 import com.praveenjuge.teak.core.data.convex.TeakException
 import com.praveenjuge.teak.core.data.convex.string
+import com.praveenjuge.teak.core.data.repository.CARD_SOURCE
 import com.praveenjuge.teak.core.model.MAX_FILE_SIZE
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
@@ -71,6 +72,7 @@ class FileUploader @Inject constructor(
                 put("fileName", file.fileName)
                 put("fileSize", file.size.toDouble())
                 put("fileType", file.mimeType)
+                put("source", CARD_SOURCE)
                 etag?.let { put("fileEtag", it) }
                 metadata?.let { put("additionalMetadata", it) }
             },

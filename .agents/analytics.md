@@ -42,7 +42,7 @@ Client events (`captureEvent`):
 Server events (`captureBackendEvent`):
 
 - `user_signed_up` {source}, which sets `email`, `plan: free` and `signed_up_at`
-- `card_created` and `card_create_failed` {card_type, source, error_class}
+- `card_created` and `card_create_failed` {card_type, source, error_class}. `source` is `web`, `apple` or `android` when the signed-in apps pass it to `cards:createCard` or `cards:finalizeUploadedCard`; `api` for public API uploads, `raycast` for public API text saves, `import` for imports; `unknown` for app versions that predate it
 - `card_processing_completed` {card_type, duration_ms}
 - `card_processing_failed` {stage, error_class, card_type}
 - `checkout_completed` (Polar `subscription.created`, sets `plan: pro`), `subscription_ended` (Polar `subscription.revoked`, sets `plan: free`), `checkout_failed` {error_class}

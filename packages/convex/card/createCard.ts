@@ -34,6 +34,14 @@ import { normalizeQuoteContent } from "./quoteFormatting";
 import { scheduleCardSearchSync } from "./searchDocumentHelpers";
 import { extractUrlFromContent } from "./validationUtils";
 
+// The signed-in apps say which surface saved the card, for analytics only.
+// Older app versions omit it and report "unknown".
+export const clientCardSourceValidator = v.union(
+  v.literal("web"),
+  v.literal("apple"),
+  v.literal("android")
+);
+
 const createCardArgs = {
   content: v.string(),
   type: v.optional(cardTypeValidator), // Make type optional for auto-detection
@@ -44,6 +52,11 @@ const createCardArgs = {
   notes: v.optional(v.string()),
   metadata: v.optional(v.any()), // Allow any metadata from client, we'll process it
   colors: v.optional(v.array(colorValidator)), // For palette cards
+} as const;
+
+const sessionCreateCardArgs = {
+  ...createCardArgs,
+  source: v.optional(clientCardSourceValidator),
 } as const;
 
 interface CreateCardArgs {
@@ -272,22 +285,25 @@ export const createCardForUserHandler = async (
 };
 
 export const createCard = mutation({
-  args: createCardArgs,
+  args: sessionCreateCardArgs,
   returns: v.id("cards"),
-  handler: async (ctx, args) => {
+  handler: async (ctx, { source: clientSource, ...args }) => {
     const user = await getSessionUser(ctx);
     if (!user) {
       throw new Error("User must be authenticated");
     }
+    const source: CardCreationSource = clientSource ?? "unknown";
 
     try {
-      return await createCardForUserHandler(ctx, user.teakUserId, args);
+      return await createCardForUserHandler(ctx, user.teakUserId, args, {
+        source,
+      });
     } catch (error) {
       await scheduleCardOutcome(ctx, {
         cardType: args.type,
         errorClass: normalizeErrorClass(error),
         outcome: "failure",
-        source: "unknown",
+        source,
         userId: user.teakUserId,
       });
       throw error;
