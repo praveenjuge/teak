@@ -11,7 +11,7 @@ import {
   logPublicApiAuthOutcome,
   type PublicApiAuthReason,
 } from "./authMonitoring";
-import { findWorkosConnectIssuer } from "./env";
+import { findWorkosConnectIssuer, findWorkosResources } from "./env";
 import {
   AUTH_INTERNAL_ERROR,
   type AuthorizedUser,
@@ -27,7 +27,6 @@ import {
 } from "./publicApiHttpShared";
 import type { TeakUserId } from "./securitySessions";
 import { isWellFormedApiKey } from "./shared/apiKeyFormat";
-import { WORKOS_RESOURCES } from "./shared/workosResources";
 import { verifyWorkosConnectToken, type WorkosResource } from "./workosTokens";
 
 const buildIdempotentResponse = (record: {
@@ -347,10 +346,17 @@ const authorizeBearer = async (
       if (!issuer) {
         return decide({ error: AUTH_INTERNAL_ERROR() }, "issuer_unconfigured");
       }
+      const resources = findWorkosResources();
+      if (!resources) {
+        return decide(
+          { error: AUTH_INTERNAL_ERROR() },
+          "resource_unconfigured"
+        );
+      }
       let jwksUnavailable = false;
       const principal = await verifyWorkosConnectToken(token, {
         issuer,
-        audience: WORKOS_RESOURCES[options.resource ?? "api"],
+        audience: resources[options.resource ?? "api"],
         onUnavailable: () => {
           jwksUnavailable = true;
         },

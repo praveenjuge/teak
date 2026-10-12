@@ -1,6 +1,9 @@
 import { isLocalDevelopmentHostname } from "../devUrls";
 import { readResponseTextWithinLimit } from "../shared/boundedResponse";
-import { WORKOS_RESOURCES } from "../shared/workosResources";
+import {
+  PRODUCTION_WORKOS_RESOURCES,
+  workosResourcesFor,
+} from "../shared/workosResources";
 
 export const OAUTH_SURFACES = [
   "cli",
@@ -185,7 +188,12 @@ export function discoverAuthServer(
         throw new Error("Missing OAuth client registration");
       }
     }
-    if (resource.resource !== WORKOS_RESOURCES.mcp) {
+    // The production resource, or this deployment's own (RFC 9728): never a
+    // third party's audience.
+    if (
+      resource.resource !== PRODUCTION_WORKOS_RESOURCES.mcp &&
+      resource.resource !== workosResourcesFor(site.origin).mcp
+    ) {
       throw new Error("OAuth resource mismatch");
     }
     return Object.freeze({
