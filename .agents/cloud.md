@@ -28,6 +28,16 @@ stack itself; this is the cloud-specific checklist. Last verified 2026-10-11.
   and the docs dev server's Google Fonts fetch. If you set it by hand earlier,
   you can remove it.
 
+## One account per session
+
+Every cloud VM is named `vm` and checks out `main`, so `bun run dev` names a
+Claude Code session's account after a hash of `CLAUDE_CODE_REMOTE_SESSION_ID`
+instead: `dev+cloud-<hash>-main@example.org`. Each session starts with a fresh
+seeded vault, its own export allowance and its own device list. Resuming a
+session on a new VM signs in to the same account with a new password. Accounts
+from finished sessions stay on the dev deployment; nothing removes them yet.
+Other cloud agents (Codex, Amp) still use `dev+<hostname>-main@example.org`.
+
 ## Works
 
 `bun run dev` against the shared dev deployment, with sign-in, seeded vault,
